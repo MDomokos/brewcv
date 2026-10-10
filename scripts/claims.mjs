@@ -5,7 +5,7 @@
 
 import { readLibrary } from './lib/library.mjs';
 import { LANGS } from '../src/model/schema.js';
-import { indexOf, versionsOf, jobsOf, factIdsOfSection } from './lib/claims.mjs';
+import { indexOf, versionsOf, jobsOf, factIdsOfSection, optionsOf } from './lib/claims.mjs';
 
 const argv = process.argv.slice(2);
 const VALUED = new Set(['--lang', '--tag', '--job']);
@@ -19,7 +19,10 @@ if (!FILE || [...VALUED].some(f => argv.includes(f) && arg(f) === undefined)){
 }
 if (!LANGS.includes(LANG)){ console.error(`--lang ${LANG}: not one of ${LANGS.join(', ')}`); process.exit(2); }
 
-const { model, saved } = readLibrary(FILE);
+let lib;
+try { lib = readLibrary(FILE); } catch (e){ console.error(e.message); process.exit(1); }
+const { model, saved } = lib;
+for (const w of lib.warnings ?? []) console.error(`warning: ${FILE}: ${w}`);
 const ix = indexOf(model);
 const jobs = jobsOf(model);
 if (JOB && !jobs.some(j => j.id === JOB)){
@@ -34,26 +37,33 @@ const claim = id => {
 };
 const keep = c => !TAG || c.versions.some(v => v.tags.some(t => String(t).toLowerCase() === TAG.toLowerCase()));
 
+// as the page does: this language's title, else the English one, else the record's own
+const positionOf = j => {
+  const f = ix.fact.get(j.display?.position);
+  return ix.version.get(f?.default?.[LANG])?.text ?? ix.version.get(f?.default?.en)?.text ?? j.position ?? j.name ?? '';
+};
+
 const out = {
-  file: FILE, ...(saved ? { saved } : {}), lang: LANG,
+  file: FILE, ...(saved ? { saved } : {}), lang: LANG, options: { ...optionsOf(model), langs: LANGS },
   jobs: jobs.filter(j => !JOB || j.id === JOB).map(j => ({
-    id: j.id, position: ix.fact.has(j.display?.position) ? (ix.version.get(ix.fact.get(j.display.position).default?.[LANG])?.text ?? j.position) : j.position,
+    id: j.id, position: positionOf(j),
     employer: j.name ?? j.entity ?? '', claims: (j.highlights ?? []).filter(id => ix.fact.has(id)).map(claim).filter(keep),
   })),
 };
 if (!JOB){
-  out.summary = ix.fact.has('summary') ? claim('summary') : null;
+  const sumId = model.basics?.summary ?? 'summary';
+  out.summary = ix.fact.has(sumId) && keep(claim(sumId)) ? claim(sumId) : null;
   out.skills = (model.skills ?? []).map(s => ({ id: s.id, name: s.name, keywords: s.keywords ?? [] }));
   const inJobs = new Set(jobs.flatMap(j => j.highlights ?? []));
-  out.sections = (model.sections ?? []).filter(s => !['header', 'summary'].includes(s.kind))
-    .map(s => ({ id: s.id, title: s.title, claims: factIdsOfSection(s, ix).filter(id => !inJobs.has(id)).map(claim).filter(keep) }))
+  out.sections = (model.sections ?? []).filter(s => !['header', 'summary'].includes(s.kind) && s.id !== sumId)
+    .map(s => ({ id: s.id, title: s.title, pickable: false, claims: factIdsOfSection(s, ix).filter(id => !inJobs.has(id)).map(claim).filter(keep) }))
     .filter(s => s.claims.length);
 }
 
 // no process.exit after a write: a long listing piped to another program would be cut short
 if (JSON_OUT) process.stdout.write(JSON.stringify(out, null, 2) + '\n');
 else {
-  const mark = v => (v.refused ? `  [can't pick: ${v.refused}]` : '') + (v.default ? '  (default)' : '');
+  const mark = v => (v.refused ? `  [can't pick: ${v.refused}]` : '') + (v.default ? '  (the app shows this one)' : '') + (v.needsReview ? '  [machine-translated, needs review]' : '');
   const printClaim = (c, pad) => {
     console.log(`${pad}${c.id}  ${c.summary}${c.archived ? '  [archived claim]' : ''}`);
     for (const v of c.versions)
@@ -61,14 +71,15 @@ else {
     if (!c.versions.length) console.log(`${pad}  (no ${LANG} version)`);
   };
   console.log(`${FILE}${saved ? ` (saved ${saved})` : ''} · language ${LANG}${TAG ? ` · tag ${TAG}` : ''}`);
+  console.log(`picks.json may use: format ${out.options.formats.join(', ')} · theme ${out.options.themes.join(', ')}`);
   for (const j of out.jobs){
     console.log(`\n${j.id}: ${j.position}, ${j.employer}`);
     for (const c of j.claims) printClaim(c, '  ');
   }
-  if (out.summary && keep(out.summary)){ console.log('\nsummary'); printClaim(out.summary, '  '); }
+  if (out.summary){ console.log('\nsummary'); printClaim(out.summary, '  '); }
   if (out.skills?.length){
     console.log('\nskills (printed as they are in the record)');
     for (const s of out.skills) console.log(`  ${s.id}  ${s.name}: ${s.keywords.join(', ')}`);
   }
-  for (const s of out.sections ?? []){ console.log(`\n${s.id}${s.title ? ` (${s.title})` : ''}`); for (const c of s.claims) printClaim(c, '  '); }
+  for (const s of out.sections ?? []){ console.log(`\n${s.id}${s.title ? ` (${s.title})` : ''}: printed as the record has it, not picked`); for (const c of s.claims) printClaim(c, '  '); }
 }

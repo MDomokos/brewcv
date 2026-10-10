@@ -67,7 +67,9 @@ for (const o of [...(recipe.overlays ?? [])].reverse()){
   html = html.replace(theme, `${theme}\n<link rel="stylesheet" href="../themes/${o}.css">`);
 }
 
-if (recipe.title) html = html.replace(/<title>[^<]*<\/title>/, `<title>${recipe.title}</title>`);
+// a function, so $& and $' in a title are text; escaped, so a title is never markup
+const esc = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+if (recipe.title) html = html.replace(/<title>[^<]*<\/title>/, () => `<title>${esc(recipe.title)}</title>`);
 html = html.replace(HOLE, body.replace(/^\s+/, ''));
 
 // Template links are relative to templates/; rewrite them for the output location.

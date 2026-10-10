@@ -9,12 +9,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { newResume, setBulletOn, setJobOn } from '../src/model/resume.js';
+import { newResume, setBulletOn, setJobOn, chooseVariant, refusal } from '../src/model/resume.js';
 import { entriesOf } from '../src/model/entries.js';
 import { LANGS, resumeFileName, migrateRecipe, saveResume } from '../src/model/schema.js';
 import { today } from '../src/model/resumes.js';
 import { readLibrary, readJson, writeResume } from './lib/library.mjs';
-import { indexOf, langOf, refusal } from './lib/claims.mjs';
+import { indexOf, langOf, versionsOf, factIdsOfSection, optionsOf } from './lib/claims.mjs';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const argv = process.argv.slice(2);
@@ -25,8 +25,14 @@ if (!DATA || !PICKS || !OUT){
   process.exit(2);
 }
 
-const { model } = readLibrary(DATA);
-const picks = readJson(PICKS);
+const stop = e => { console.error(e.message); process.exit(1); };
+let model, picks;
+try {
+  const lib = readLibrary(DATA);
+  model = lib.model;
+  for (const w of lib.warnings ?? []) console.error(`warning: ${DATA}: ${w}`);
+  picks = readJson(PICKS);
+} catch (e){ stop(e); }
 const ix = indexOf(model);
 const errors = [];
 const bad = m => errors.push(m);
@@ -42,16 +48,22 @@ const str = (k, req) => {
   if (typeof v !== 'string' || !v.trim()){ bad(`${k}: must be a non-empty string`); return null; }
   return v.trim().normalize('NFC');   // a decomposed accent would otherwise drop out of the file name
 };
-const company = str('company', true), role = str('role', true);
+// company, role and jobType are names, not wording: no markup, no line breaks, short
+const plain = k => {
+  const v = str(k, k !== 'jobType');
+  if (v !== null && (v.length > 80 || /[<>$\u0000-\u001f]/.test(v))) bad(`${k}: must be a plain name of at most 80 characters, with no <, > or $ and no line breaks`);
+  return v;
+};
+const company = plain('company'), role = plain('role');
 const lang = str('lang', true), format = str('format', true), theme = str('theme', true);
-const jobType = picks.jobType === undefined ? '' : str('jobType');
+const jobType = picks.jobType === undefined ? '' : plain('jobType');
 if (!Number.isInteger(picks.pageLimit) || picks.pageLimit < 0) bad('pageLimit: must be a whole number, 0 for as many pages as needed');
 if (lang && !LANGS.includes(lang)) bad(`lang: ${lang} is not one of ${LANGS.join(', ')}`);
-if (format && !fs.existsSync(path.join(REPO, 'templates', `${format}.html`))) bad(`format: no template for ${format}`);
-const themes = new Set([...fs.readdirSync(path.join(REPO, 'themes')).filter(f => f.endsWith('.css')).map(f => f.slice(0, -4)),
-  ...(model.themes ?? []).map(t => t?.id ?? t?.name).filter(Boolean)]);
-if (theme && !themes.has(theme)) bad(`theme: ${theme} is not a theme here (${[...themes].join(', ')})`);
+const { formats, themes } = optionsOf(model);
+if (format && !formats.includes(format)) bad(`format: ${format} is not one of ${formats.join(', ')}`);
+if (theme && !themes.includes(theme)) bad(`theme: ${theme} is not one of ${themes.join(', ')}`);
 if (!Array.isArray(picks.bullets) || picks.bullets.some(b => typeof b !== 'string')) bad('bullets: must be a list of version ids');
+else if (!picks.bullets.length) bad('bullets: empty. A resume with no bullets is not a tailored resume');
 
 // version id → the claim, checked the same way for the summary and every bullet
 const bullets = new Map();     // fact id → version id, in the order given
@@ -62,6 +74,8 @@ function check(what, id){
   if (lang && langOf(v) !== lang) bad(`${what}: ${id} is in ${langOf(v)}, and this resume is ${lang}`);
   const why = refusal(f, v);
   if (why) bad(`${what}: ${id} can't be picked (${why})`);
+  if (!v.source && model.requireSource !== false) bad(`${what}: ${id} has no source, so it can't be exported. Wording added to the record by hand looks like this`);
+  if ((v.text ?? '').includes('⬜')) bad(`${what}: ${id} carries a ⬜ placeholder`);
   return { v, f };
 }
 
@@ -81,6 +95,10 @@ for (const id of Array.isArray(picks.bullets) ? picks.bullets.filter(b => typeof
   bullets.set(got.f.id, id);
 }
 
+for (const [fact, id] of bullets)
+  for (const c of ix.version.get(id).covers ?? [])
+    if (bullets.has(c)) bad(`bullets: ${id} already says ${c}, which is also picked; pick one of them`);
+
 if (errors.length){
   console.error(`refusing, ${errors.length} problem${errors.length === 1 ? '' : 's'}; nothing was written:`);
   for (const e of errors) console.error(`  ✗ ${e}`);
@@ -99,6 +117,35 @@ recipe.application = `${company} - ${role}`;
 recipe.title = `${company} — ${role}`;
 recipe.savedAt = recipe.date = today();
 
+// Whatever isn't picked prints by the renderer's own rule. Where that rule would land on a draft or an
+// archive copy, pick the record's own safe version of that fact instead, or refuse if it has none.
+const auto = [];
+{
+  const jobsOn = entriesOf(model).filter(j => (j.highlights ?? []).some(h => bullets.has(h)));
+  const printed = new Set([summaryFact, ...jobsOn.flatMap(j => [j.display?.position, j.display?.meta])]);
+  const secs = new Map((model.sections ?? []).map(sec => [sec.id, sec]));
+  for (const sec of recipe.sections ?? []){
+    const def = secs.get(sec.id);
+    if (def && def.kind !== 'entries' && sec.weight !== 0) for (const id of factIdsOfSection(def, ix)) printed.add(id);
+  }
+  const lost = [];
+  for (const id of printed){
+    const f = ix.fact.get(id);
+    if (!f || recipe.picks[id]) continue;
+    const v = chooseVariant(model, id, recipe).v;
+    if (!v || !refusal(f, v)) continue;
+    const safe = versionsOf(model, ix, f, lang).filter(x => !x.refused)
+      .sort((a, b) => (b.default - a.default) || (b.id.endsWith('-base') - a.id.endsWith('-base')))[0];
+    if (safe){ recipe.picks[id] = safe.id; auto.push(`${id} → ${safe.id} (it would have printed ${v.id}, a ${refusal(f, v)})`); }
+    else lost.push(`${id}: it would print ${v.id} (${refusal(f, v)}) and the record has no other ${lang} version`);
+  }
+  if (lost.length){
+    console.error(`refusing, ${lost.length} problem${lost.length === 1 ? '' : 's'}; nothing was written:`);
+    for (const e of lost) console.error(`  ✗ ${e}`);
+    process.exit(1);
+  }
+}
+
 const name = resumeFileName(migrateRecipe(recipe)).normalize('NFC');
 const file = path.join(OUT, name);
 if (fs.existsSync(file) && !FORCE){
@@ -112,4 +159,5 @@ const empty = entriesOf(model).filter(j => !(j.highlights ?? []).some(h => bulle
 console.log(`wrote ${file}`);
 console.log(`  ${bullets.size} bullet${bullets.size === 1 ? '' : 's'}${picks.summary !== undefined ? ' and a summary' : ''} picked, ${lang}, ${format}@${theme}, ${picks.pageLimit === 0 ? 'any number of pages' : `${picks.pageLimit} page${picks.pageLimit === 1 ? '' : 's'}`}`);
 if (empty.length) console.log(`  jobs left off, no bullet picked: ${empty.map(j => j.id).join(', ')}`);
+for (const a of auto) console.log(`  chose, because the default would print a refused version: ${a}`);
 for (const p of problems) console.log(`  ⚠  will not export: ${p}`);

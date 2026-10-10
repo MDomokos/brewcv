@@ -1,19 +1,21 @@
 // What an agent may pick, read from a record. Shared by claims.mjs and new-resume.mjs so they cannot disagree.
 
-import { isDraft, DEFAULT_LANG } from '../../src/model/resume.js';
+import { DEFAULT_LANG, refusal } from '../../src/model/resume.js';
+export { refusal };
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { entriesOf } from '../../src/model/entries.js';
 
+const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
+const namesIn = (dir, ext) => fs.readdirSync(path.join(REPO, dir)).filter(f => f.endsWith(ext)).map(f => f.slice(0, -ext.length)).sort();
+// What picks.json may name for format and theme
+export const optionsOf = model => ({
+  formats: namesIn('templates', '.html'),
+  themes: [...new Set([...namesIn('themes', '.css'), ...(model.themes ?? []).map(t => t?.id ?? t?.name).filter(Boolean)])],
+});
+
 export const langOf = v => v?.lang ?? DEFAULT_LANG;
-export const isArchive = v => (v?.tags ?? []).some(t => String(t).toLowerCase() === 'archive');
-
-// Why a version can't be picked, or null. `fact.archived` exists only once the record can archive a claim.
-export function refusal(fact, v){
-  if (isDraft(v)) return 'draft';
-  if (isArchive(v)) return 'archive';
-  if (fact?.archived) return 'archived claim';
-  return null;
-}
-
 export function indexOf(model){
   return {
     fact: new Map((model.facts ?? []).map(f => [f.id, f])),
@@ -26,7 +28,7 @@ export function indexOf(model){
 export function versionsOf(model, ix, fact, lang){
   return (fact.variants ?? []).map(id => ix.version.get(id)).filter(v => v && langOf(v) === lang)
     .map(v => ({ id: v.id, n: v.n ?? '', chars: [...(v.text ?? '')].length, tags: v.tags ?? [], text: v.text ?? '',
-      default: fact.default?.[lang] === v.id, refused: refusal(fact, v) }));
+      default: fact.default?.[lang] === v.id, needsReview: (v.tags ?? []).includes('needs-review'), refused: refusal(fact, v) }));
 }
 
 export const jobsOf = model => entriesOf(model);

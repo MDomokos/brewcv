@@ -124,7 +124,7 @@ node scripts/build-example.mjs data/example.json                   regenerate th
 node scripts/tokens.mjs                                            the built-in themes as DTCG
 ```
 
-Every script that takes `<data.json>` reads either a record file or the one file (the app's backup, `resumeBuilderBackup: 1`; its record is used). Every script reads a record through `src/model/schema.js`, so `resume-data/3` and `/4` both work everywhere; anything that writes one writes v4, and keeps a v3 original once as `<name>.v3.json`. Fit never rewrites prose: it chooses among the versions that exist, drops whole bullets, and reports what it couldn't do.
+Every script that takes `<data.json>` except `checks/validate-data.mjs` reads either a record file or the one file (the app's backup, `resumeBuilderBackup: 1`; its record is used). Every script reads a record through `src/model/schema.js`, so `resume-data/3` and `/4` both work everywhere; anything that writes one writes v4, and keeps a v3 original once as `<name>.v3.json`. Fit never rewrites prose: it chooses among the versions that exist, drops whole bullets, and reports what it couldn't do.
 
 **Comparing against a reference.** `checks/measure.mjs` (layout, to 0.00px) and `checks/render-diff.mjs` (markup) compare a rendered document with a hand-written one you pass in. New renderer features sit behind recipe keys, so an old recipe renders exactly as it did.
 

@@ -4,6 +4,15 @@
 export const DEFAULT_LANG = 'en';
 const langOf = v => v?.lang ?? DEFAULT_LANG;
 export const isDraft = v => /-draft(-|$)/.test(v?.id ?? '');
+export const isArchive = v => (v?.tags ?? []).some(t => String(t).toLowerCase() === 'archive');
+// Why a version must not be chosen for a new resume, or null. Fit and the command-line tools share it.
+// `fact.archived` is honoured if the record has it.
+export function refusal(fact, v){
+  if (isDraft(v)) return 'draft';
+  if (isArchive(v)) return 'archive';
+  if (fact?.archived) return 'archived claim';
+  return null;
+}
 
 import { keyed, t } from '../i18n/index.js';
 import { entriesOf, isEntry } from './entries.js';

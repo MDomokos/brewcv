@@ -3,6 +3,7 @@
 // phrasings and drops whole bullets, never across `lang`, never overruling Off or Keep.
 
 import { entriesOf } from './model/entries.js';
+import { refusal } from './model/resume.js';
 import { isOmitted, hasBudget, weightOf, pinsOf } from './recipe.js';
 
 const LINE_CHARS = { 'us-letter': 84, a4: 73.5 };   // chars per line, measured
@@ -140,6 +141,7 @@ export function candidates(data, recipe, colWidth){
       const alt = ix.variants.get(id);
       if (!alt || alt.id === now.id) continue;
       if ((alt.lang ?? 'en') !== (recipe.lang ?? 'en')) continue;
+      if (refusal(f, alt)) continue;          // a draft or an archive copy is never a swap
       const saved = r.lines - lines(alt, k, colWidth).lines;
       // Leaving a -merged phrasing for one that covers less drops a claim, not
       // just words. Say which, so a trim never loses a bullet silently.
@@ -228,6 +230,7 @@ function eligible(ctx, R, id){
   if (ctx.pins.phrasing.has(id)){ const cur = chosen(ctx.data, R, id); return cur ? [cur] : []; }
   return f.variants.map(v => ctx.ix.variants.get(v)).filter(Boolean)
     .filter(v => (v.lang ?? 'en') === ctx.lang)
+    .filter(v => !refusal(f, v) || v.id === chosen(ctx.data, R, id)?.id)   // keep the current one, never move to a refused one
     .filter(v => !(v.covers ?? []).some(c => ctx.pins.exclude.has(c)));
 }
 
