@@ -37,7 +37,7 @@ Most people end up with ten near-identical Word and PDF files, one per applicati
 
 ## How it differs from other tools
 
-Most resume tools that tailor for a job do it by changing your wording. BrewCV only picks from wordings you wrote. These are the closest ones, as of October 2026:
+Most resume tools that tailor for a job do it by changing your wording. BrewCV only picks from wordings you wrote. These are the closest ones:
 
 | Tool | What it does with your wording | Where it runs |
 |---|---|---|
