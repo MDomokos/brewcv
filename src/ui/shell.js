@@ -81,6 +81,9 @@ async function boot(){
   if (!restored || !store.state.record){
     await loadExample({ quiet: true });
     if (!params.has('memory') || params.has('welcome')) ui.view = 'welcome';
+  } else if (/\(fictional\)/.test(store.state.record.meta?.owner ?? '') && !params.has('memory')){
+    // Only the example is open, so nothing of yours is: a reload goes back to the start screen. The session stays as it is.
+    ui.view = 'welcome';
   }
   if (ui.view === 'welcome') onboarding.begin(); else ui.askLang = false;
   await setUiLang(wantedUi());
@@ -356,7 +359,7 @@ function renderHead(){
       <button class="tool" data-act="redo" ${store.history.redo ? '' : 'disabled'} aria-label="${esc(t('foot.redo'))}" title="${esc(t('foot.redo'))}">↷</button></div>` : '';
   $('#head').innerHTML = `
     <div class="hrow">
-      <h1 class="logo">BrewCV</h1>
+      <h1 class="logo"><img src="icons/icon.svg" alt="" width="28" height="28">BrewCV</h1>
       <span class="ws" role="group" aria-label="${esc(t('head.workspace'))}">
         <button data-act="ws" data-ws="career" aria-pressed="${ui.ws === 'career'}" title="${esc(t('head.careerTitle'))}">${h('head.career')}</button>
         <button data-act="ws" data-ws="resume" aria-pressed="${ui.ws !== 'career'}" title="${esc(t('head.resumeTitle'))}">${h('head.resume')}</button>

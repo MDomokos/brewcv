@@ -381,7 +381,7 @@ function view(){
     setTimeout(mount, 0);
     const cur = demoLang();
     return `<div class="obwelcome${enter ? ' enter' : ''}">
-      <section class="obcard obstart"><h2 class="title big obhero" data-h="onb.hero">${h('onb.hero')}</h2><p class="obsub" data-h="onb.intro">${h('onb.intro')}</p>
+      <section class="obcard obstart"><div class="oblogo"><img src="icons/icon.svg" alt="" width="64" height="64"><span>BrewCV</span></div><h2 class="title big obhero" data-h="onb.hero">${h('onb.hero')}</h2><p class="obsub" data-h="onb.intro">${h('onb.intro')}</p>
         <div class="obchoices">
           <button class="primary" data-act="ob-scratch"><b data-h="onb.scratch">${h('onb.scratch')}</b><small data-h="onb.scratchNote">${h('onb.scratchNote')}</small></button>
           <button data-act="ob-import"><b data-h="onb.import">${h('onb.import')}</b><small data-h="onb.importNote">${h('onb.importNote')}</small></button>

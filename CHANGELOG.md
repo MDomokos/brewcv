@@ -12,6 +12,11 @@ grouped by feature, not by type of change.
 ## Unreleased
 
 ### Changed
+- **The logo is on the start screen and in the header.** The welcome card opens with the icon
+  and the name at full size, and the header carries the icon beside the name on every working
+  screen.
+- **A reload goes back to the start screen if only the example is open.** Once any of your own
+  records is open, a reload keeps you where you were.
 - **The app is now called BrewCV.** The name, the tab title, the installed app's name and the
   start screen all say BrewCV, in every language, and the installed app's toolbar takes the
   icon's green. The address changes with it: the app lives at `/brewcv/` on GitHub Pages. Your
