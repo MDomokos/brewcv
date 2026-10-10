@@ -110,7 +110,7 @@ A library path makes a check read that library's recipes and print counts only, 
 node scripts/render.mjs <data.json> <recipe.json> <out.html>        a record + a resume → a document
 node scripts/fit.mjs    <data.json> <recipe.json> --fit [--add]     Fit, measured in Chromium
 node scripts/fit.mjs    <data.json> <recipe.json> --fit --model 6.7 a labelled dry plan, no browser
-node scripts/export-pdf.mjs out/resume.html out/resume.pdf
+node scripts/export-pdf.mjs out/resume.html out/resume.pdf          a Chrome, Chromium, Brave or Edge, no packages
 node scripts/to-jsonresume.mjs <data.json> [recipe.json]           flat JSON Resume, the ATS path
 node checks/keyword-gap.mjs <data.json> <ad.txt>                   ad words the record can't say
 node scripts/build-example.mjs data/example.json                   regenerate the fictional sample
@@ -123,7 +123,7 @@ Every script reads a record through `src/model/schema.js`, so `resume-data/3` an
 
 ## The one package.json
 
-`{"type": "module"}`, three lines, no dependencies and no scripts. Node needs it to read `src/render.js` as an ES module when `scripts/render.mjs` imports it; without it, older Node treats a `.js` file as CommonJS and the import fails. It is not a build step and nothing installs from it. `playwright` stays confined to `checks/` and `scripts/export-pdf.mjs`, and the app runs without it.
+`{"type": "module"}`, three lines, no dependencies and no scripts. Node needs it to read `src/render.js` as an ES module when `scripts/render.mjs` imports it; without it, older Node treats a `.js` file as CommonJS and the import fails. It is not a build step and nothing installs from it. `playwright` stays confined to `checks/`; `scripts/export-pdf.mjs` drives an installed Chrome, Chromium, Brave or Edge over the DevTools protocol (set `CHROME_PATH` to choose one), and the app runs without any of it.
 
 ## Deploying
 

@@ -11,6 +11,7 @@ import * as S from '../src/model/schema.js';
 import * as T from '../src/model/resume.js';
 import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages } from '../src/render.js';
+import { findBrowser } from '../scripts/export-pdf.mjs';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const raw = f => fs.readFileSync(path.join(REPO, f), 'utf8');
@@ -88,6 +89,20 @@ section('pre-flight');
   ok('a photo switched on with no photo is a problem', X.preflight({ model, recipe: { ...r, photo: { show: true, shape: 'rect' } }, fills: fit }).some(c => c.key === 'photo-missing' && c.level === 'bad'));
   ok('unsaved changes', X.preflight({ model, recipe: r, fills: fit, dirty: true }).some(c => c.key === 'dirty'));
   ok('a file name from company, role and name', X.exportName(r, model, 'pdf') === `${r.company} - ${r.role} - ${model.basics.name}.pdf`);
+}
+
+section('finding a browser for the PDF script');
+{
+  const mac = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  const has = (...found) => p => found.includes(p);
+  const none = () => null;
+  ok('CHROME_PATH wins over everything', findBrowser({ CHROME_PATH: '/x/chrome' }, has('/x/chrome', mac), none) === '/x/chrome');
+  ok('a CHROME_PATH that does not exist is skipped', findBrowser({ CHROME_PATH: '/x/chrome' }, has(mac), none) === mac);
+  ok('Chrome before Brave on macOS', findBrowser({}, has(mac, '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'), none) === mac);
+  ok('Edge is found', findBrowser({}, has('/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'), none).includes('Microsoft Edge'));
+  ok('a Linux location is found', findBrowser({}, has('/usr/bin/chromium'), none) === '/usr/bin/chromium');
+  ok('then PATH', findBrowser({}, () => false, n => n === 'chromium' ? '/opt/bin/chromium' : null) === '/opt/bin/chromium');
+  ok('none found: null, so the script can name CHROME_PATH', findBrowser({}, () => false, none) === null);
 }
 
 console.log(failed ? `\n${failed} export check(s) FAILED` : '\nall export checks passed');
