@@ -23,7 +23,9 @@ const isObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
 
 export function detect(json){
   if (!isObj(json)) return 'unknown';
+  // Old name, kept: renaming it would orphan saved data.
   if (json.resumeBuilderBackup) return 'backup';
+  // Old name, kept: renaming it would orphan saved data.
   const rb = json.meta?.resumeBuilder;
   if (isObj(rb) && rb.resume) return 'resume';
   if (isObj(rb) && typeof rb.schema === 'string' && rb.schema.startsWith('resume-data/')) return 'library';
@@ -151,7 +153,7 @@ export function save(model, { lastModified = model.meta?.updated } = {}){
   // the file's own JSON Resume meta (canonical and anything else a tool put
   // there) is written back as it came; version and lastModified are the app's
   const extra = Object.fromEntries(Object.entries(model.jsonMeta ?? {}).filter(([k]) => !OWN_META.has(k)));
-  body.meta = { ...clone(extra), version: JSON_RESUME_VERSION, ...(lastModified ? { lastModified } : {}), resumeBuilder: rb };
+  body.meta = { ...clone(extra), version: JSON_RESUME_VERSION, ...(lastModified ? { lastModified } : {}), resumeBuilder: rb }; // Old name, kept: renaming it would orphan saved data.
   return body;
 }
 
@@ -163,7 +165,7 @@ export function load(file){
     return { model: migrate(file), warnings: [`${file.schema} was read and migrated in memory; saving writes ${SCHEMA}`] };
   }
   if (kind !== 'library')
-    throw new Error(kind === 'unknown' ? 'that is not a Resume Builder library' : `that is a ${kind} file, not a library`);
+    throw new Error(kind === 'unknown' ? 'that is not a BrewCV library' : `that is a ${kind} file, not a library`);
 
   const rb = file.meta.resumeBuilder;
   const warnings = [];
@@ -186,7 +188,7 @@ export function load(file){
   // The body is a projection: read the ids back and report outside edits.
   if (b && rb.summary !== undefined){
     const want = defaultText(model, rb.summary);
-    if ((b.summary ?? '') !== want) warnings.push('basics.summary was edited outside Resume Builder; the edit is ignored here; Open or import turns it into a version');
+    if ((b.summary ?? '') !== want) warnings.push('basics.summary was edited outside BrewCV; the edit is ignored here; Open or import turns it into a version');
     b.summary = rb.summary;
   }
   (model.work ?? []).forEach((w, i) => {
@@ -201,7 +203,7 @@ export function load(file){
     const texts = Array.isArray(w.highlights) ? w.highlights : [];
     const want = ids.map(id => defaultText(model, id));
     if (texts.length !== want.length || texts.some((t, n) => t !== want[n]))
-      warnings.push(`work ${workKey(w, i)} highlights were edited outside Resume Builder; the edits are ignored here; Open or import turns them into versions`);
+      warnings.push(`work ${workKey(w, i)} highlights were edited outside BrewCV; the edits are ignored here; Open or import turns them into versions`);
     w.highlights = clone(ids);
   });
   for (const [k, hk] of MORE_ENTRIES) for (const x of model[k] ?? []){
@@ -296,6 +298,7 @@ export function saveResume(model, recipe, frozen = null){
     meta: {
       version: JSON_RESUME_VERSION,
       ...(r.savedAt ? { lastModified: r.savedAt } : {}),
+      // Old name, kept: renaming it would orphan saved data.
       resumeBuilder: { schema: RESUME_SCHEMA, library: libraryRef(model), resume: r },
     },
   };

@@ -26,7 +26,7 @@ const jr = {
     canonical: data.meta?.truth,
     version: data.schema,
     lastModified: new Date().toISOString().slice(0, 10),
-    generator: 'resume-builder scripts/to-jsonresume.mjs',
+    generator: 'brewcv scripts/to-jsonresume.mjs',
     ...(recipe ? { recipe: recipe.application, format: recipe.format, theme: recipe.theme } : {}),
   },
 };

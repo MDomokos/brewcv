@@ -1,6 +1,6 @@
 # Figma theme kit
 
-A theme in Resume Builder is a set of **design tokens**: colour, type, sizes and a few switches.
+A theme in BrewCV is a set of **design tokens**: colour, type, sizes and a few switches.
 It never changes layout, so a theme made in Figma can't break the page fit. This folder describes
 the round trip:
 

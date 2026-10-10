@@ -184,6 +184,7 @@ function parseDtcg(obj, fileName){
     const got = accept(t.name, v);
     if (got.error) ignored.push({ key: path, why: got.error }); else tokens[t.name] = got.value;
   }
+  // The 'resume-builder' extension key is an old name, kept: renaming it would orphan saved themes.
   const name = obj.$description ?? obj.$extensions?.['resume-builder']?.name ?? nameFrom(fileName);
   return { name: typeof name === 'string' ? name : nameFrom(fileName), tokens, ignored, form: 'dtcg' };
 }

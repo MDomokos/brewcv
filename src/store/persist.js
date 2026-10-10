@@ -22,6 +22,7 @@ export function memoryBackend(seed = []){
 }
 
 // Version 2 added `kv` beside `handles`, so a folder handle saved by older builds survives.
+// Old name, kept: renaming it would orphan saved data.
 export const DB_NAME = 'resume-builder', DB_VERSION = 2;
 export function openDb(idb = globalThis.indexedDB){
   return new Promise((resolve, reject) => {
@@ -128,6 +129,7 @@ export function filesOf(state){
 
 export function makeBackup(state, { saved = new Date().toISOString(), checkpoints } = {}){
   return {
+    // Old name, kept: renaming it would orphan saved data.
     resumeBuilderBackup: 1,
     saved,
     record: save(state.record),

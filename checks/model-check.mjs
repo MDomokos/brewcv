@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { isDeepStrictEqual as eq } from 'node:util';
 import * as S from '../src/model/schema.js';
+import { DB_NAME, makeBackup } from '../src/store/persist.js';
 import { resolve, offOf, keepOf, chooseVariant } from '../src/model/resume.js';
 import { validate } from './lib/validate.mjs';
 import { createDocument, serialize as serializeDom } from '../scripts/lib/dom.mjs';
@@ -305,6 +306,16 @@ if (LIB){
     }
   } finally { fs.rmSync(scratch, { recursive: true, force: true }); }
   ok('the library file on disk was not touched', fs.readFileSync(LIB).equals(before));
+}
+
+section('names that are kept on purpose: renaming any of them orphans saved data');
+{
+  ok("the IndexedDB name is still 'resume-builder'", DB_NAME === 'resume-builder');
+  ok("a backup is still marked resumeBuilderBackup: 1", makeBackup({ record: S.load(read('data/example.json')).model, resumes: [] }).resumeBuilderBackup === 1);
+  ok("a file with resumeBuilderBackup is still read as a backup", S.detect({ resumeBuilderBackup: 1 }) === 'backup');
+  const saved = S.save(S.load(read('data/example.json')).model);
+  ok("a saved library still carries meta.resumeBuilder, with schema resume-data/4", saved.meta.resumeBuilder?.schema === 'resume-data/4' && S.SCHEMA === 'resume-data/4');
+  ok("the resume schema id is still resume-recipe/4", S.RESUME_SCHEMA === 'resume-recipe/4');
 }
 
 console.log(failed ? `\n${failed} model check(s) FAILED` : '\nall model checks passed');

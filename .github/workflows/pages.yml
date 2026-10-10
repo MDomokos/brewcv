@@ -56,6 +56,9 @@ jobs:
       - name: "One version: package.json, the service worker and the changelog agree"
         run: node checks/version-check.mjs _site
 
+      - name: "One name: the old one only in released changelog entries and kept identifiers"
+        run: node checks/name-check.mjs _site
+
       - name: "Preflight: refuse to publish anything private"
         run: node checks/preflight-deploy.mjs _site
 

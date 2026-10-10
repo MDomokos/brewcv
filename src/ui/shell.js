@@ -353,7 +353,7 @@ function renderHead(){
       <button class="tool" data-act="redo" ${store.history.redo ? '' : 'disabled'} aria-label="${esc(t('foot.redo'))}" title="${esc(t('foot.redo'))}">↷</button></div>` : '';
   $('#head').innerHTML = `
     <div class="hrow">
-      <h1 class="logo">Resume Builder</h1>
+      <h1 class="logo">BrewCV</h1>
       <span class="ws" role="group" aria-label="${esc(t('head.workspace'))}">
         <button data-act="ws" data-ws="career" aria-pressed="${ui.ws === 'career'}" title="${esc(t('head.careerTitle'))}">${h('head.career')}</button>
         <button data-act="ws" data-ws="resume" aria-pressed="${ui.ws !== 'career'}" title="${esc(t('head.resumeTitle'))}">${h('head.resume')}</button>
@@ -738,7 +738,7 @@ function downloadBackup(){
 // A linked folder mirrors the record and its resumes to disk. It is never needed.
 async function linkFolder(){
   let handle;
-  try { handle = await showDirectoryPicker({ id: 'resume-builder', mode: 'readwrite' }); }
+  try { handle = await showDirectoryPicker({ id: 'brewcv', mode: 'readwrite' }); }
   catch { return; }
   const f = fsaFolder(handle);
   if ((await f.permission(true)) !== 'granted') return toast(t('toast.noFolderPermission'), 'warn');

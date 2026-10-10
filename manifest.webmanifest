@@ -1,14 +1,14 @@
 {
-  "name": "Resume Builder",
-  "short_name": "Resume",
-  "description": "A data-driven resume: one library of facts, one stylesheet per theme, one file per application.",
+  "name": "BrewCV",
+  "short_name": "BrewCV",
+  "description": "One record of your career, a CV for each job. Everything stays in your browser; nothing is uploaded.",
   "id": "./",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#faf8f2",
-  "theme_color": "#ffd900",
+  "theme_color": "#2E4636",
   "categories": ["productivity", "utilities"],
   "icons": [
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },

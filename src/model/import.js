@@ -134,7 +134,7 @@ export function readImport(text, name = 'file'){
       review: { rows: [[t('imp.name'), model.basics?.name || '—'], [t('imp.jobs'), String((model.work ?? []).length)],
         ['Claims', String((model.facts ?? []).length)], ['Versions', String((model.variants ?? []).length)], ['Languages', langs.join(', ')],
         ...(kind === 'library-v3' ? [['Format', `${json.schema}, migrated on open`]] : []),
-        ...(outside.length ? [['Edited outside Resume Builder', `${outside.length} text${outside.length === 1 ? '' : 's'}`]] : [])],
+        ...(outside.length ? [['Edited outside BrewCV', `${outside.length} text${outside.length === 1 ? '' : 's'}`]] : [])],
         notShown: [] } };
   }
   if (kind === 'backup'){

@@ -1,4 +1,4 @@
-# Developing Resume Builder
+# Developing BrewCV
 
 Everything behind the app: how it's built, how it's checked, how it ships, and how private data
 is kept out of the repo. For what the app does and how to use it, see the
@@ -95,6 +95,7 @@ node checks/fit-check.mjs [lib]       Fit's invariants on a modelled page
 node checks/validate-data.mjs <file>  the schema guard
 node scripts/tokens.mjs --check       the built-in themes' token files are up to date
 node checks/version-check.mjs         package.json, sw.js and CHANGELOG.md name the same version
+node checks/name-check.mjs [dir]      the old product name only in released changelog entries and kept identifiers
 ```
 
 The browser ones need `playwright` and a Chromium on the machine (dev only; the app needs
@@ -151,7 +152,7 @@ the app runs without it.
 copies the repo to `_site` minus `.git`, `.github`, `node_modules`, `out` and anything private,
 runs the guards against that assembled tree, and uploads it. The tree the browser fetches is
 the tree in the repo, so the same relative paths work whether you serve the folder locally or
-land on `https://<user>.github.io/resume-builder/`.
+land on `https://<user>.github.io/brewcv/`.
 
 Pages serves a project site from a subpath, so **every path here is relative**: `start_url`
 and `scope` in the manifest are `"."`, never `"/"`. The preflight fails on any root-absolute
@@ -300,7 +301,7 @@ The README lists the features; this is the full tour as it stood at 0.7.4, kept 
 - **Export:** pre-flight checks, then **PDF** (print, with the page size set), a self-contained
   **HTML page**, **plain text / ATS**, **JSON Resume**, and a **backup** of everything.
 - **Files.** *⋯ › Open or import* (or drop a file anywhere, or paste JSON) reads a JSON Resume, a
-  Resume Builder record or backup, a saved resume, a theme or a photo. With a record already open
+  BrewCV record or backup, a saved resume, a theme or a photo. With a record already open
   it shows a **merge preview** (*Will add*, *Different values*, *Only in yours*) before anything
   changes. A record edited in another tool has those edits turned into versions.
 - **History.** Every change is undoable (Ctrl+Z, 200 steps). Checkpoints are saved before every

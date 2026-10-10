@@ -1,11 +1,11 @@
-# Resume Builder
+# BrewCV
 
 **A resume tailored to each job, without rewriting it every time.**
 
 Keep one career record. Make as many tailored resumes from it as you need, in ten languages.
 It runs in your browser, works offline, and never uploads your data.
 
-**[Open Resume Builder →](https://<user>.github.io/resume-builder/)**
+**[Open BrewCV →](https://MDomokos.github.io/brewcv/)**
 
 <!-- Screenshot slots. Capture these with the example data (Try it with an example).
      Note: checks/preflight-deploy.mjs refuses images outside icons/, and .gitignore ignores
@@ -19,7 +19,7 @@ It runs in your browser, works offline, and never uploads your data.
 ## Why
 
 Most people end up with ten near-identical Word and PDF files, one per application, each a
-little out of date. Resume Builder keeps **everything you've done in one JSON file**. Each
+little out of date. BrewCV keeps **everything you've done in one JSON file**. Each
 resume is a **selection** from that file: which lines are in, and which wording each one uses.
 
 1. **Write each job once.** Every claim is stated once in your career record.
@@ -49,7 +49,7 @@ resume is a **selection** from that file: which lines are in, and which wording 
 - **Export.** Pre-flight checks run first. Then you get a **PDF** (print, with the page size
   set), a self-contained **HTML page**, **plain text for ATS**, **JSON Resume**, or a full
   **backup**.
-- **Import and merge.** Open a JSON Resume, a Resume Builder record or backup, a saved resume,
+- **Import and merge.** Open a JSON Resume, a BrewCV record or backup, a saved resume,
   a theme or a photo. You can drop or paste it too. If a record is already open, a **merge
   preview** shows what would change before anything does. Edits made to the file in another
   tool, including an AI, come back as new versions.
@@ -77,11 +77,11 @@ resume is a **selection** from that file: which lines are in, and which wording 
 
 ## Getting started
 
-1. Open **[the app](https://<user>.github.io/resume-builder/)**.
+1. Open **[the app](https://MDomokos.github.io/brewcv/)**.
 2. Choose how to start:
    - **Start from scratch.** It asks a few questions (about five minutes) and fills the page as
      you type.
-   - **Open or import a file.** A JSON Resume, a backup, or a Resume Builder record.
+   - **Open or import a file.** A JSON Resume, a backup, or a BrewCV record.
    - **Try it with an example.** A finished, fictional record with fourteen tailored resumes
      across all ten languages.
 3. **Install it** (optional): use your browser's *Install app* / *Add to Home Screen*. Once

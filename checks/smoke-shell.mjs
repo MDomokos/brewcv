@@ -604,7 +604,7 @@ if (want('index.html is the Workbench')) {
   const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
-  ok('/ opens the Workbench', await page.isVisible('#col') && /Resume Builder/.test(await page.title()));
+  ok('/ opens the Workbench', await page.isVisible('#col') && /BrewCV/.test(await page.title()));
   const p2 = await ctx.newPage();
   const gone = await p2.goto(`http://localhost:${PORT}/picker.html`);
   ok('the 0.4.0 picker is retired', gone.status() === 404);
@@ -1187,8 +1187,8 @@ if (want('one way of editing, in Career and in Resume')) {
 
 
 if (want('deployed: a subpath, offline, a phone, names')) {
-  // served under /resume-builder/ the way GitHub Pages serves a project site
-  const BASE = '/resume-builder';
+  // served under /brewcv/ the way GitHub Pages serves a project site
+  const BASE = '/brewcv';
   const sub = http.createServer((req, res) => {
     let p = decodeURIComponent(req.url.split('?')[0]);
     if (!p.startsWith(BASE)){ res.writeHead(404); return res.end(); }

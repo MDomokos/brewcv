@@ -102,7 +102,7 @@ section('records, backups, saved resumes, themes');
   ok('broken JSON shows the parser message', broken.kind === 'error' && /valid JSON\. .+/.test(broken.message));
 }
 
-section('a record edited outside Resume Builder');
+section('a record edited outside BrewCV');
 {
   const file = read('data/example.json');
   const edited = clone(file);

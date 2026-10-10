@@ -1,6 +1,6 @@
 # Changelog
 
-Every notable change to Resume Builder, newest first. The format follows
+Every notable change to BrewCV, newest first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and version numbers follow
 [Semantic Versioning](https://semver.org/). How versions are chosen and released is in
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#versioning-and-releases).
@@ -12,6 +12,11 @@ grouped by feature, not by type of change.
 ## Unreleased
 
 ### Changed
+- **The app is now called BrewCV.** The name, the tab title, the installed app's name and the
+  start screen all say BrewCV, in every language, and the installed app's toolbar takes the
+  icon's green. The address changes with it: the app lives at `/brewcv/` on GitHub Pages. Your
+  saved data and your backups carry over untouched, because the file formats and the
+  browser's storage name keep their old identifiers on purpose.
 - **New app icon.** A teacup drawn from the letters C and V: the V is the cup, the C its
   handle, and a tea bag string runs over the rim to a tag marked `{ }`. It replaces the dark
   tile with the yellow bar, in the tab, the installed app and on the home screen, and is the

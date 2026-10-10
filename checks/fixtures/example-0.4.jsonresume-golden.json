@@ -121,7 +121,7 @@
   ],
   "meta": {
     "version": "resume-data/3",
-    "generator": "resume-builder scripts/to-jsonresume.mjs",
+    "generator": "brewcv scripts/to-jsonresume.mjs",
     "recipe": "Example Instruments - Design Engineer",
     "format": "a4",
     "theme": "b2-marker"
