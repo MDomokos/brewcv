@@ -1004,4 +1004,5 @@ export default {
   'undo.useVersion': 'Usa v{n}',
   'undo.fit': 'Adatta',
   'undo.useFolder': 'Usa {name}',
+  'src.link': 'Codice sorgente (AGPL-3.0)',
 };

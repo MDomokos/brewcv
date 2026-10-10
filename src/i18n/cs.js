@@ -1004,4 +1004,5 @@ export default {
   'undo.useVersion': 'Použít v{n}',
   'undo.fit': 'Přizpůsobit',
   'undo.useFolder': 'Použít {name}',
+  'src.link': 'Zdrojový kód (AGPL-3.0)',
 };

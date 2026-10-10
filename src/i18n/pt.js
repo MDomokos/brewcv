@@ -1004,4 +1004,5 @@ export default {
   'undo.useVersion': 'Usar v{n}',
   'undo.fit': 'Ajustar',
   'undo.useFolder': 'Usar {name}',
+  'src.link': 'Código-fonte (AGPL-3.0)',
 };

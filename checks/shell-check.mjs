@@ -26,6 +26,18 @@ const ok = (name, cond, extra = '') => {
 };
 const section = t => console.log(`\n— ${t}`);
 
+section('the source link (AGPL-3.0, section 13)');
+{
+  const src = fs.readFileSync(path.join(REPO, 'src/ui/shell.js'), 'utf8');
+  const urls = [...src.matchAll(/https:\/\/github\.com\/[\w.-]+\/[\w.-]+/g)].map(m => m[0]);
+  ok('the menu links to one SOURCE_URL constant', /^const SOURCE_URL = 'https:\/\/github\.com\/[^']+';$/m.test(src) && src.includes('href="${SOURCE_URL}"') && new Set(urls).size === 1);
+  ok('it opens in a new tab without handing over the opener', /href="\$\{SOURCE_URL\}" target="_blank" rel="noopener"/.test(src));
+  ok('the menu text goes through t() under src.link', src.includes("h('src.link')"));
+  const langs = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'cs', 'hu'];
+  const have = langs.filter(l => /^  'src\.link': '[^']*AGPL-3\.0[^']*',$/m.test(fs.readFileSync(path.join(REPO, `src/i18n/${l}.js`), 'utf8')));
+  ok('all ten catalogues name the licence in src.link', have.length === 10, `missing: ${langs.filter(l => !have.includes(l))}`);
+}
+
 section('layout: the pair, centred, the sheet at full height');
 for (const [vw, vh] of [[1536, 864], [1440, 960], [1280, 800], [1920, 1080]]){
   for (const format of ['us-letter', 'a4']){

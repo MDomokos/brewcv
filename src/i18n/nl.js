@@ -1004,4 +1004,5 @@ export default {
   'undo.useVersion': 'v{n} gebruiken',
   'undo.fit': 'Inpassen',
   'undo.useFolder': '{name} gebruiken',
+  'src.link': 'Broncode (AGPL-3.0)',
 };

@@ -1004,4 +1004,5 @@ export default {
   'undo.useVersion': 'Użycie v{n}',
   'undo.fit': 'Dopasowanie',
   'undo.useFolder': 'Użycie {name}',
+  'src.link': 'Kod źródłowy (AGPL-3.0)',
 };

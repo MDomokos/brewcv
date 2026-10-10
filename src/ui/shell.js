@@ -24,6 +24,9 @@ import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNo
 import { initSettings, readPref, browserLang } from './settings.js';
 import { crumb } from './parts.js';
 
+// Where the source is published; the menu links to it (AGPL-3.0, section 13). Change it here when the repo moves.
+const SOURCE_URL = 'https://github.com/MDomokos/brewcv';
+
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -418,6 +421,7 @@ function menuHtml(){
     <button role="menuitem" data-act="backup">${h('menu.backup')}</button>
     <button role="menuitem" data-act="goto" data-v="import">${h('menu.restore')}</button>
     <button role="menuitem" data-act="goto" data-v="history">${h('menu.history')}</button>
+    <a role="menuitem" href="${SOURCE_URL}" target="_blank" rel="noopener">${h('src.link')}</a>
     <hr>
     <button role="menuitem" data-act="goto" data-v="languages"><span>${h('menu.languages')}</span> <small class="muted">${langsInUse(record()).length}</small></button>
     <button role="menuitem" data-act="goto" data-v="settings">${h('menu.settings')}</button>

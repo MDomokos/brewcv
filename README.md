@@ -175,5 +175,12 @@ deliberately not used are listed in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#pr
 
 ## License
 
-[AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html). Fonts: Hanken Grotesk and Fira Code,
-both under the SIL Open Font License; their licences are in `fonts/`.
+Copyright (C) 2026 the BrewCV contributors.
+
+BrewCV is free software under the [GNU Affero General Public License](LICENSE), version 3 or
+any later version (`AGPL-3.0-or-later`). You can use it, change it and share it. If you run a
+modified copy as a service that other people use over a network, you must offer those people
+the source of your version. The app's menu links to the source for this reason.
+
+The fonts in `fonts/` (Hanken Grotesk and Fira Code) are under the SIL Open Font License;
+their licences are beside them.
