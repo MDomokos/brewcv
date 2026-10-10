@@ -5,6 +5,7 @@ import { t } from '../i18n/index.js';
 import { wordDiff, addVersion, versionsIn } from './record.js';
 import { resumeLabel, uniqueId } from './resumes.js';
 import { slug } from './build.js';
+import { jobTypesOf } from './focus.js';
 
 const clone = x => structuredClone(x);
 export const norm = s => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -162,8 +163,16 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
   }
   for (const fj of from.work ?? []) if (!matchJob(fj, to.work ?? [])) items.push({ kind: 'keep', what: t('diff.onlyYours'), b: `${fj.position} · ${fj.name}` });
 
-  for (const jt of to.jobTypes ?? []) if (!(from.jobTypes ?? []).includes(jt))
-    items.push({ kind: 'add', what: t('diff.jobType'), b: jt, on: true, apply: d => { d.record.jobTypes ??= []; if (!d.record.jobTypes.includes(jt)) d.record.jobTypes.push(jt); } });
+  const mineJt = jobTypesOf(from);
+  for (const jt of to.jobTypes ?? []){
+    const n = jobTypesOf({ jobTypes: [jt] })[0];
+    if (!n) continue;
+    const have = mineJt.find(x => x.id === n.id);
+    if (!have) items.push({ kind: 'add', what: t('diff.jobType'), b: n.tags.length === 1 && n.label === n.id ? n.label : `${n.label}: ${n.tags.join(', ')}`, on: true,
+      apply: d => { d.record.jobTypes ??= []; if (!jobTypesOf(d.record).some(x => x.id === n.id)) d.record.jobTypes.push(typeof jt === 'string' ? jt : clone(jt)); } });
+    else if (have.tags.join('|') !== n.tags.join('|') || have.label !== n.label) items.push({ kind: 'change', what: `${t('diff.jobType')} · ${have.label}`, a: have.tags.join(', '), b: n.tags.join(', '), on: false,
+      apply: d => { const i = (d.record.jobTypes ?? []).findIndex(x => jobTypesOf({ jobTypes: [x] })[0]?.id === n.id); if (i >= 0) d.record.jobTypes[i] = clone(n); } });
+  }
   for (const k of to.same ?? []) if (!(from.same ?? []).includes(k) && F.facts.has(k.replace(/^fact:/, '')))
     items.push({ kind: 'add', what: t('diff.same'), b: k.replace(/^\w+:/, ''), on: true, apply: d => { d.record.same = [...new Set([...(d.record.same ?? []), k])]; } });
   for (const r of toResumes){

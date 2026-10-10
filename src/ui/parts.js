@@ -45,9 +45,9 @@ export function missBar({ lang, list, act = 'go-missing' }){
     ${list.length > 8 ? `<div class="tiny muted">${h('edit.andMore', { n: list.length - 8 })}</div>` : ''}</div>`;
 }
 
-const tagChip = (tg, { vid = null, jobTypes = [], focus = null } = {}) =>
-  `<span class="tag ${jobTypes.includes(tg) ? 'jt' : ''} ${focus === tg ? 'on' : ''}">${esc(tg)}${vid ? `<button class="rm" data-act="tag-rm" data-v="${esc(vid)}" data-tag="${esc(tg)}" aria-label="${esc(t('edit.removeTag', { tag: tg }))}">×</button>` : ''}</span>`;
-const tagBox = (v, x) => `<div class="vtags tagin">${(v.tags ?? []).map(tg => tagChip(tg, { vid: v.id, jobTypes: x.jobTypes, focus: x.focus })).join('')}<input class="tag-in" list="tag-list" placeholder="${esc(t('edit.tagPh'))}" data-vid="${esc(v.id)}" aria-label="${esc(t('edit.addTag', { v: v.n }))}"><datalist id="tag-list">${x.tagList.map(tg => `<option value="${esc(tg)}">`).join('')}</datalist></div>`;
+const tagChip = (tg, { vid = null, jobTypes = [], focus = [] } = {}) =>
+  `<span class="tag ${jobTypes.includes(tg) ? 'jt' : ''} ${focus.includes(tg) ? 'on' : ''}">${esc(tg)}${vid ? `<button class="rm" data-act="tag-rm" data-v="${esc(vid)}" data-tag="${esc(tg)}" aria-label="${esc(t('edit.removeTag', { tag: tg }))}">×</button>` : ''}</span>`;
+const tagBox = (v, x) => `<div class="vtags tagin">${(v.tags ?? []).map(tg => tagChip(tg, { vid: v.id, jobTypes: x.jobTypes, focus: x.focusTags ?? [] })).join('')}<input class="tag-in" list="tag-list" placeholder="${esc(t('edit.tagPh'))}" data-vid="${esc(v.id)}" aria-label="${esc(t('edit.addTag', { v: v.n }))}"><datalist id="tag-list">${x.tagList.map(tg => `<option value="${esc(tg)}">`).join('')}</datalist></div>`;
 
 // The editor, in place of the row it edits. x.dirty: the draft is worth saving;
 // x.canOnly: a resume can hold its own text for this claim.
@@ -153,7 +153,7 @@ function vrow(v, using, over, x){
   const isCur = v_isCur(v, using, over);
   const minor = String(v.n).includes('.');
   const ln = x.lines(v);
-  const star = x.focus && (v.tags ?? []).includes(x.focus) ? `<span class="star" title="${esc(t('edit.tagged', { tag: x.focus }))}">★</span>` : '';
+  const star = (x.focusTags ?? []).some(tg => (v.tags ?? []).includes(tg)) ? `<span class="star" title="${esc(t('edit.tagged', { tag: x.focusLabel ?? x.focus }))}">★</span>` : '';
   if (isCur) return `<div class="vrow cur ${minor ? 'minor' : ''}" data-v="${esc(v.id)}"><span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${esc(v.text)}</span>
     <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editThis'))}" aria-label="${esc(t('edit.editThis'))}">✎</button></span>
     ${tagBox(v, x)}</div>`;
@@ -161,12 +161,12 @@ function vrow(v, using, over, x){
     <span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${gist(v.text, over ?? using?.text ?? '')}</span>
     <span class="mt2">${ln ? `${h('edit.lnShort', { n: ln })} · ` : ''}${h('edit.chShort', { n: [...v.text].length })}</span>
     <span class="acts"><button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('edit.compareTitle'))}" aria-label="${esc(t('edit.compareTitle'))}">⇄</button><button class="ghost sm" data-act="delete-version" data-v="${esc(v.id)}" title="${esc(t('edit.deleteV', { v: v.n }))}" aria-label="${esc(t('edit.deleteV', { v: v.n }))}">🗑</button></span>
-    ${(v.tags ?? []).length ? `<div class="vtags">${v.tags.slice(0, 4).map(tg => tagChip(tg, { jobTypes: x.jobTypes, focus: x.focus })).join('')}${v.tags.length > 4 ? `<span class="muted tiny">+${v.tags.length - 4}</span>` : ''}</div>` : ''}</div>`;
+    ${(v.tags ?? []).length ? `<div class="vtags">${v.tags.slice(0, 4).map(tg => tagChip(tg, { jobTypes: x.jobTypes, focus: x.focusTags ?? [] })).join('')}${v.tags.length > 4 ? `<span class="muted tiny">+${v.tags.length - 4}</span>` : ''}</div>` : ''}</div>`;
 }
 
 function flatRow(v, x){
   const minor = String(v.n).includes('.');
-  const star = x.focus && (v.tags ?? []).includes(x.focus) ? `<span class="star" title="${esc(t('edit.tagged', { tag: x.focus }))}">★</span>` : '';
+  const star = (x.focusTags ?? []).some(tg => (v.tags ?? []).includes(tg)) ? `<span class="star" title="${esc(t('edit.tagged', { tag: x.focusLabel ?? x.focus }))}">★</span>` : '';
   return `<div class="vrow flat ${minor ? 'minor' : ''} ${x.pick === v.id ? 'is-pick' : ''}" data-v="${esc(v.id)}"><span class="n">v${esc(v.n)}${star}</span><span class="tx">${esc(v.text)}</span>
     <span class="vbtn"><button class="ghost sm" data-act="edit" data-v="${esc(v.id)}" title="${esc(t('edit.editEnter'))}" aria-label="${esc(t('edit.editThis'))}">✎</button><button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('career.compareAbove'))}" aria-label="${esc(t('career.compareAbove'))}" ${x.vs[0] === v ? 'disabled' : ''}>⇄</button><button class="ghost sm" data-act="delete-version" data-v="${esc(v.id)}" title="${esc(t('edit.deleteV', { v: v.n }))}" aria-label="${esc(t('edit.deleteV', { v: v.n }))}">🗑</button></span>
     ${tagBox(v, x)}</div>`;

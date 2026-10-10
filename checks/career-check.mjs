@@ -14,7 +14,7 @@ import { saveOver } from '../src/model/record.js';
 import { validate } from './lib/validate.mjs';
 import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages } from '../src/render.js';
-import { makeUi } from './lib/ui-harness.mjs';
+import { makeUi, dom } from './lib/ui-harness.mjs';
 import * as T from '../src/model/resume.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -409,6 +409,50 @@ section('archiving a whole job');
   ok('the control reveals it with an archived badge', tl().includes('data-id="atelier"') && /pill arch/.test(tl()));
   u.store.undo();
   ok('Ctrl+Z undoes it', JSON.stringify(u.record()) === before2);
+}
+
+section('job types in Career');
+{
+  const u = await makeUi({ ws: 'career' });
+  await u.click('c-area', { area: 'more' });
+  const page = () => String(u.career.timelineHtml());
+  ok('the More step lists the job types, tags as chips', /class="grp jtypes"/.test(page()) && /data-act="c-jt-tag-rm" data-id="Prototyping" data-tag="fabrication"/.test(page()));
+  const n = u.record().jobTypes.length;
+  dom.set('jt-new', { value: 'CAD designer' });
+  await u.click('c-jt-add');
+  const made = u.record().jobTypes.at(-1);
+  ok('a new job type gets an id from its name, and no tags yet', u.record().jobTypes.length === n + 1 && made.id === 'cad-designer' && made.label === 'CAD designer' && made.tags.length === 0);
+  let dup = u.toasts.length; dom.set('jt-new', { value: 'cad designer' }); await u.click('c-jt-add');
+  ok('the same name again is refused', u.record().jobTypes.length === n + 1 && u.toasts.length === dup + 1 && u.toasts.at(-1).tone === 'bad');
+  const input = (id, v) => ({ classList: { contains: c => c === 'jt-tag-in' }, dataset: { id }, value: v });
+  u.fire('keydown', input('cad-designer', 'cad'), { key: 'Enter' });
+  u.fire('keydown', input('cad-designer', 'hardware'), { key: 'Enter' });
+  ok('Enter adds a tag, a second one too, never twice', (() => { u.fire('keydown', input('cad-designer', 'cad'), { key: 'Enter' }); return u.record().jobTypes.at(-1).tags.join() === 'cad,hardware'; })());
+  await u.click('c-jt-tag-rm', { id: 'cad-designer', tag: 'hardware' });
+  ok('× removes a tag', u.record().jobTypes.at(-1).tags.join() === 'cad');
+  u.fire('change', { classList: { contains: c => c === 'jt-label' }, dataset: { id: 'cad-designer' }, value: 'CAD designers' });
+  ok('renaming changes the label and keeps the id', u.record().jobTypes.at(-1).label === 'CAD designers' && u.record().jobTypes.at(-1).id === 'cad-designer');
+  // an old string job type becomes an object the first time it is edited
+  await u.click('c-jt-tag-rm', { id: 'Hardware design', tag: 'Hardware design' });
+  ok('an old string job type turns into an object when edited', typeof u.record().jobTypes[0] === 'object' && u.record().jobTypes[0].id === 'Hardware design' && u.record().jobTypes[0].tags.length === 0);
+  await u.click('c-jt-del', { id: 'cad-designer' });
+  ok('deleting removes it', !u.record().jobTypes.some(j => j.id === 'cad-designer'));
+  u.store.undo();
+  ok('Ctrl+Z brings it back', u.record().jobTypes.some(j => j.id === 'cad-designer'));
+}
+
+section('Focus on a job type in the Resume workspace');
+{
+  const u = await makeUi({ resume: 0 });
+  const home = () => String(u.edit.homeView());
+  const first = home().match(/data-act="focus" data-tag="([^"]+)"[^>]*title="[^"]*"[^>]*>([^<]+) <span/);
+  ok('a bundle appears among the chips with its label, its tags as a title', !!first, home().slice(home().indexOf('chips'), home().indexOf('chips') + 200));
+  await u.click('focus', { tag: 'Prototyping' });
+  const before = JSON.stringify(u.cur());
+  await u.click('focus-apply');
+  ok('applying it changes the resume', JSON.stringify(u.cur()) !== before);
+  u.store.undo();
+  ok('one Ctrl+Z puts it all back', JSON.stringify(u.cur()) === before);
 }
 
 console.log(failed ? `\n${failed} career check(s) FAILED` : '\nall career checks passed');

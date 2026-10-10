@@ -107,7 +107,7 @@ section('the Resume\'s markup is what it was');
 {
   const now = await resumeSnapshot();
   if (WRITE){
-    fs.writeFileSync(SNAP, JSON.stringify(now, null, 1) + '\n');
+    fs.writeFileSync(SNAP, JSON.stringify(Object.fromEntries(Object.entries(now).map(([k, v]) => [k, M10_ADDS(v)])), null, 1) + '\n');     // the later additions stay out, as they are when comparing
     console.log(`wrote ${Object.keys(now).length} views to checks/fixtures/edit-markup.snapshot.json`);
   } else {
     const was = JSON.parse(fs.readFileSync(SNAP, 'utf8'));

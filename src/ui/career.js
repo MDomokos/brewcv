@@ -3,6 +3,7 @@
 // workspace. A claim opens the Resume's own panel (edit.js claimPanel) minus what tailors.
 
 import * as K from '../model/career.js';
+import { jobTypesOf, allTags } from '../model/focus.js';
 import { versionsIn } from '../model/record.js';
 import { langName, langsInUse, addLangInUse, isSame, sameKey } from '../model/lang.js';
 import { DEFAULT_LANG, defaultVariant } from '../model/resume.js';
@@ -211,6 +212,20 @@ function aboutHtml(){
     <b>${esc(a.title)}</b><span class="w">${a.n > 1 ? h('career.nVersions', { n: a.n }) : ''}</span><span class="o ${a.miss ? 'missing' : ''}">${esc(a.value)}</span></button>`).join('')}</div>`;
 }
 
+function jobTypesHtml(){
+  const jts = jobTypesOf(rec());
+  const tags = allTags(rec(), null).filter(x => !x.jobType).map(x => x.tag);
+  return `<section class="grp jtypes" aria-label="${esc(t('jt.title'))}"><div class="grp-h"><b>${h('jt.title')}</b></div>
+    <p class="muted small">${h('jt.intro')}</p>
+    ${jts.map(j => `<div class="jtrow" data-jt="${esc(j.id)}">
+      <input class="jt-label" data-id="${esc(j.id)}" value="${esc(j.label)}" aria-label="${esc(t('jt.nameOf', { name: j.label }))}" autocomplete="off">
+      <span class="chips">${j.tags.map(tg => `<span class="tag jt">${esc(tg)}<button class="rm" data-act="c-jt-tag-rm" data-id="${esc(j.id)}" data-tag="${esc(tg)}" aria-label="${esc(t('edit.removeTag', { tag: tg }))}">×</button></span>`).join('')}
+        <input class="tag-in jt-tag-in" list="jt-tags" data-id="${esc(j.id)}" placeholder="${esc(t('jt.addTagPh'))}" aria-label="${esc(t('jt.addTagTo', { name: j.label }))}"></span>
+      <button class="ghost sm" data-act="c-jt-del" data-id="${esc(j.id)}" title="${esc(t('jt.delete'))}" aria-label="${esc(t('jt.delete'))}">🗑</button></div>`).join('') || `<p class="muted small empty-line">${h('jt.none')}</p>`}
+    <datalist id="jt-tags">${tags.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+    <div class="jtnew"><input id="jt-new" placeholder="${esc(t('jt.newPh'))}" autocomplete="off" aria-label="${esc(t('jt.new'))}"><button class="sm" data-act="c-jt-add">${h('jt.new')}</button></div></section>`;
+}
+
 function listsHtml(){
   const groups = K.recordLists(rec(), { lang: L() });
   const sel = W.sel?.what === 'item' ? W.sel.id : null;
@@ -222,7 +237,7 @@ function listsHtml(){
     return `<section class="grp" ${kc(g.group)} aria-label="${esc(groupLabel(g.group))}"><div class="grp-h"><span class="gi">${icon(look(g.group).icon)}</span><b>${esc(groupLabel(g.group))}</b>${s ? `<span class="muted tiny">${h('career.goesInShort', { section: s.title })}</span>` : ''}
       ${g.kind ? `<button class="kset sm ghost" data-act="c-kind-edit" data-id="${esc(g.kind)}" aria-label="${esc(t('career.kindSettings', { name: groupLabel(g.group) }))}" title="${esc(t('career.kindSettings', { name: groupLabel(g.group) }))}">⚙</button>` : ''}</div>
       <div class="cards">${g.items.map(x => crd(g.group, x)).join('') || `<p class="muted small empty-line">${h(`career.emptyGroup.${['skills', 'languages', 'certificates', 'publications', 'interests', 'references'].includes(g.group) ? g.group : 'kind'}`)}</p>`}</div></section>`;
-  }).join('')}`;
+  }).join('')}${jobTypesHtml()}`;
 }
 
 function careerView(){
@@ -510,6 +525,13 @@ async function act(a, tg){
     case 'c-sel-fact': W.sel = { ...W.sel, what: 'aboutfact', fact: tg.dataset.fact, title: tg.dataset.title }; C.renderBody(true); return true;
     case 'c-claim': { const next = { what: 'claim', key: tg.dataset.key, id: tg.dataset.entry, claim: tg.dataset.id }; if (!leave({ kind: 'bullet', id: next.claim })) return true; C.edit.resetPick(); W.sel = next; C.renderBody(true); return true; }
     case 'c-up': up(); return true;
+    case 'c-jt-add': {
+      const el = $('#jt-new');
+      if (commit(d => { K.addJobType(d.record, el?.value ?? ''); }, t('jt.undoNew'), t('jt.added'))){ C.renderCareer(); setTimeout(() => $('.jt-tag-in:last-of-type, .jtrow:last-of-type .jt-tag-in')?.focus(), 30); }
+      return true;
+    }
+    case 'c-jt-del': { const id = tg.dataset.id; if (commit(d => K.deleteJobType(d.record, id), t('jt.undoDelete'), t('jt.deleted'))) C.renderCareer(); return true; }
+    case 'c-jt-tag-rm': { const id = tg.dataset.id, tag = tg.dataset.tag; if (commit(d => K.removeJobTypeTag(d.record, id, tag), t('jt.undoTags'))) C.renderCareer(); return true; }
     case 'c-arch-jobs': W.jobs = !W.jobs; C.renderCareer(); return true;
     case 'c-arch-entry': case 'c-unarch-entry': {
       const id = tg.dataset.id, on = a === 'c-arch-entry';
@@ -753,10 +775,16 @@ function bind(body){
   body.addEventListener('change', e => {
     const el = e.target;
     if (el.id === 'c-current'){ const end = $('#c-end'); if (end) end.disabled = el.checked; }
+    if (el.classList?.contains('jt-label')){ const id = el.dataset.id; if (commit(d => K.renameJobType(d.record, id, el.value), t('jt.undoRename'))) C.renderCareer(); else C.renderCareer(); }
     if (el.dataset.kplace && W.kind?.draft){ readKind(); W.kind.draft.place = el.dataset.kplace; C.renderBody(); }
   });
   body.addEventListener('keydown', e => {
     const el = e.target;
+    if (el.classList?.contains('jt-tag-in') && (e.key === 'Enter' || e.key === ',')){
+      e.preventDefault();
+      const id = el.dataset.id, v = el.value.trim();
+      if (v && commit(d => K.addJobTypeTag(d.record, id, v), t('jt.undoTags'))){ C.renderCareer(); setTimeout(() => document.querySelector(`.jt-tag-in[data-id="${CSS.escape(id)}"]`)?.focus(), 30); }
+    }
     if (el.id === 'c-kw-in' && (e.key === 'Enter' || e.key === ',')){
       e.preventDefault();
       const v = el.value.trim(); if (!v) return;

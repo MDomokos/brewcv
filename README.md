@@ -28,7 +28,7 @@ Most people end up with ten near-identical Word and PDF files, one per applicati
 
 - **One career record, many tailored resumes.** A tailored resume holds which bullets are on, which version each one prints, the section order and headings, the paper and the design.
 - **Fit.** It picks shorter versions and leaves out bullets until the last page is 88–96% full. Fit never rewrites your prose: it only chooses among versions you wrote, and tells you what it couldn't fit.
-- **Tags and job-type focus.** Tag versions, then select every bullet that matches a job type or tag in one step. One undo reverses it, and bullets marked *Keep* are never touched.
+- **Tags and job-type focus.** Tag versions, then select every bullet that matches a job type or tag in one step. One undo reverses it, and bullets marked *Keep* are never touched. Job types are short lists of tags, and old material can be archived without changing saved resumes. See [Tags, job types and archiving](docs/TAGS-AND-JOB-TYPES.md).
 - **Ten languages**, in the app and in every line: English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Czech and Hungarian. Switching language also switches an A4 resume to that country's A4 format. A line with no translation yet prints in English, outlined, so you can spot it.
 - **Design.** One page, two, or as many as needed. Letter or A4, four templates, an accent colour with a live contrast check, and importable themes (CSS, JSON or DTCG design tokens). Photos are cropped to 35 × 45 mm, with a note on which countries expect one.
 - **Export.** Pre-flight checks run first. Then you get a **PDF** (print, with the page size set), a self-contained **HTML page**, **plain text for ATS**, **JSON Resume**, or a full **backup**.

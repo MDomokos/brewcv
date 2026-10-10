@@ -368,7 +368,10 @@ const record = migrate({
 });
 record.langs = [...LANGS];
 record.same = ['fact:name', 'fact:skills-cad', 'fact:skills-testing', 'fact:skills-software', 'fact:cert-solidworks', 'fact:cert-gdt'];
-record.jobTypes = ['Hardware design', 'Medical devices', 'Prototyping', 'Manufacturing engineering'];
+// two tag-only job types (the old form) and two bundles
+record.jobTypes = ['Hardware design', 'Medical devices',
+  { id: 'Prototyping', label: 'Prototyping', tags: ['Prototyping', 'fabrication'] },
+  { id: 'Manufacturing engineering', label: 'Manufacturing engineering', tags: ['Manufacturing engineering', 'manufacturing'] }];
 record.requireSource = false;
 
 // saved resumes. Off bullets are written twice: as the printed `highlights`

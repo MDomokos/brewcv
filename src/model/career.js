@@ -6,6 +6,7 @@ import { defaultVariant, DEFAULT_LANG, sectionOfEntry } from './resume.js';
 import { saveOver, addVersion } from './record.js';
 import { fmtMonth, ym, addJob, addBullet, addFact, slug, metaLineOf, presentIn, contactText, SEP } from './build.js';
 import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
+import { jobTypesOf, normaliseJobType } from './focus.js';
 
 const now = () => new Date().toISOString().slice(0, 7);
 const months = (a, b) => {
@@ -326,8 +327,8 @@ export function addProject(model, { name = '', entity = '', startDate = '', endD
   const p = { id, name: String(name).trim() || 'Project', ...(entity ? { entity } : {}), ...(ym(startDate) ? { startDate: ym(startDate) } : {}),
     ...(ym(endDate) ? { endDate: ym(endDate) } : {}), ...(url ? { url } : {}), ...(location ? { location } : {}), ...(type ? { type } : {}),
     ...(during ? { during } : {}), display: { position: `${id}-position`, meta: `${id}-meta` }, highlights: [] };
-  addFact(model, `${id}-position`, { text: p.name, summary: 'Project', tags: ['projects'], also: alsoIn(lang, name) });
-  addFact(model, `${id}-meta`, { text: projectMeta(p) || ' ', summary: 'With whom and when', tags: ['projects'], also: alsoIn(lang, projectMeta(p, lang)) });
+  addFact(model, `${id}-position`, { text: p.name, summary: 'Project', tags: [], also: alsoIn(lang, name) });
+  addFact(model, `${id}-meta`, { text: projectMeta(p) || ' ', summary: 'With whom and when', tags: [], also: alsoIn(lang, projectMeta(p, lang)) });
   (model.projects ??= []).push(p);
   if (!type) ensureEntriesSection(model, 'projects', 'Projects');
   for (const b of (bullets ?? []).map(x => String(x ?? '').trim()).filter(Boolean)) addEntryClaim(model, id, b, lang);
@@ -407,6 +408,44 @@ export function deleteClaim(model, factId, recipes = []){
   if (w) w.highlights = w.highlights.filter(h => h !== factId);
   if (w && entryKey(model, w.id) !== 'work') syncEntry(model, w);
   return { job: w?.id ?? null, versions: res.versions };
+}
+
+// Job types: { id, label, tags }. The old string form is read as one tag and becomes an object when edited.
+function jobTypeAt(model, id){
+  model.jobTypes ??= [];
+  const i = model.jobTypes.findIndex(j => normaliseJobType(j)?.id === id);
+  if (i < 0) throw new Error(`no such job type: ${id}`);
+  model.jobTypes[i] = normaliseJobType(model.jobTypes[i]);
+  return model.jobTypes[i];
+}
+export function addJobType(model, label, tags = []){
+  const text = String(label ?? '').trim();
+  if (!text) throw keyed('jt.needName');
+  const taken = new Set(jobTypesOf(model).flatMap(j => [j.id, j.label.toLowerCase()]));
+  if (taken.has(text.toLowerCase())) throw keyed('jt.exists', { name: text });
+  const id = slug(text, new Set(jobTypesOf(model).map(j => j.id)), 'job-type');
+  (model.jobTypes ??= []).push({ id, label: text, tags: [...new Set(tags.map(x => String(x).trim()).filter(Boolean))] });
+  return id;
+}
+export function renameJobType(model, id, label){
+  const text = String(label ?? '').trim();
+  if (!text) throw keyed('jt.needName');
+  if (jobTypesOf(model).some(j => j.id !== id && j.label.toLowerCase() === text.toLowerCase())) throw keyed('jt.exists', { name: text });
+  jobTypeAt(model, id).label = text;
+}
+export function addJobTypeTag(model, id, tag){
+  const t = String(tag ?? '').trim();
+  const j = jobTypeAt(model, id);
+  if (t && !j.tags.includes(t)) j.tags.push(t);
+}
+export function removeJobTypeTag(model, id, tag){
+  const j = jobTypeAt(model, id);
+  j.tags = j.tags.filter(x => x !== tag);
+}
+// Saved resumes keep the id they were saved with; it shows as typed.
+export function deleteJobType(model, id){
+  jobTypeAt(model, id);
+  model.jobTypes = model.jobTypes.filter(j => normaliseJobType(j)?.id !== id);
 }
 
 // Hides a claim without deleting it. Saved resumes keep printing it. A job keeps one unarchived claim at least.
@@ -556,7 +595,7 @@ export function updateLanguage(model, id, { language, fluency } = {}, lang = DEF
 export function addLanguage(model, { language = '', fluency = '' } = {}, lang = DEFAULT_LANG){
   const id = slug(`lang-${language || 'language'}`, factIds(model), 'lang');
   (model.languages ??= []).push({ id, language: String(language).trim(), fluency: String(fluency).trim() });
-  addFact(model, id, { text: fluency || ' ', term: language, summary: `${language}${fluency ? `, ${fluency}` : ''}`, tags: ['languages'] });
+  addFact(model, id, { text: fluency || ' ', term: language, summary: `${language}${fluency ? `, ${fluency}` : ''}`, tags: [] });
   if (lang !== DEFAULT_LANG){ model.i18n ??= {}; model.i18n[lang] ??= {}; (model.i18n[lang].terms ??= {})[id] = String(language).trim(); }
   const s = ensureListSection(model, 'pairs', 'languages', 'Languages', 'pairs', ['interests']);
   s.content.pairs = [...(s.content.pairs ?? []), id];
@@ -578,7 +617,7 @@ export function addCertificate(model, { name = '', issuer = '', date = '' } = {}
   const n = String(name).trim() || 'Certificate';
   const id = slug(`cert-${n}`, factIds(model), 'cert');
   (model.certificates ??= []).push({ id, name: n, ...(issuer ? { issuer } : {}), ...(ym(date) ? { date: ym(date) } : {}) });
-  addFact(model, id, { text: n, summary: `${n} certification`, tags: ['certification'] });
+  addFact(model, id, { text: n, summary: `${n} certification`, tags: [] });
   const s = (model.sections ?? []).find(x => x.kind === 'runs' && (x.content?.items ?? []).some(i => (model.certificates ?? []).some(c => c.id === i)))
     ?? ensureListSection(model, 'runs', 'certified', 'Certified', 'items', ['patent', 'education', 'languages', 'interests']);
   s.content.items = [...(s.content.items ?? []), id];
@@ -602,7 +641,7 @@ export function addInterest(model, { name = '' } = {}, lang = DEFAULT_LANG){
   const n = String(name).trim() || 'Interest';
   const id = slug(`interest-${n}`, factIds(model), 'interest');
   (model.interests ??= []).push({ id, name: n });
-  addFact(model, id, { text: n, summary: n, tags: ['interests'], also: alsoIn(lang, n) });
+  addFact(model, id, { text: n, summary: n, tags: [], also: alsoIn(lang, n) });
   const s = ensureListSection(model, 'runs', 'interests', 'Interests', 'items');
   s.content.items = [...(s.content.items ?? []), id];
   return id;
@@ -634,8 +673,8 @@ export function addPublication(model, { name = '', publisher = '', releaseDate =
   const yr = String(ym(releaseDate) || new Date().getFullYear()).slice(0, 4);
   const p = { id, name: n, publisher: String(publisher).trim() || '—', releaseDate: ym(releaseDate) || yr, ...(identifier ? { identifier } : {}), ...(role ? { role } : {}),
     display: { name: `${id}-title`, meta: `${id}-meta` } };
-  addFact(model, `${id}-title`, { text: n, summary: 'Publication title', tags: ['publication'], also: alsoIn(lang, n) });
-  addFact(model, `${id}-meta`, { text: [role, identifier, publisher, yr].filter(Boolean).join(' · ').toUpperCase(), summary: 'Publication line', tags: ['publication'] });
+  addFact(model, `${id}-title`, { text: n, summary: 'Publication title', tags: [], also: alsoIn(lang, n) });
+  addFact(model, `${id}-meta`, { text: [role, identifier, publisher, yr].filter(Boolean).join(' · ').toUpperCase(), summary: 'Publication line', tags: [] });
   (model.publications ??= []).push(p);
   const prints = (model.sections ?? []).some(s => s.kind === 'item' && (model.publications ?? []).some(x => x.display?.name === s.content?.title));
   if (!prints){

@@ -333,5 +333,18 @@ section('archived claims survive every way the record is written');
   ok('the validator accepts the example', validate(S.save(m), null).errors.length === 0);
 }
 
+section('job types: a string or { id, label, tags }');
+{
+  const m = S.load(read('data/example.json')).model;
+  const back = S.load(S.save(m)).model;
+  ok('both forms survive save and load, byte for byte', eq(back.jobTypes, m.jobTypes) && m.jobTypes.some(j => typeof j === 'object'));
+  const e = d => validate(S.save(d), null).errors.map(x => x.msg ?? String(x));
+  const bad = fn => { const d = clone(m); fn(d); return e(d).some(x => /jobTypes/.test(x)); };
+  ok('the validator accepts the example', e(m).length === 0, e(m)[0]);
+  ok('a job type needs an id', bad(d => { d.jobTypes = [{ label: 'x', tags: [] }]; }));
+  ok('its tags must be strings', bad(d => { d.jobTypes = [{ id: 'x', tags: [1] }]; }));
+  ok('a number is still not a job type', bad(d => { d.jobTypes = ['ok', 3]; }));
+}
+
 console.log(failed ? `\n${failed} model check(s) FAILED` : '\nall model checks passed');
 process.exit(failed ? 1 : 0);

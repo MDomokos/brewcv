@@ -142,5 +142,26 @@ section('archiving a whole job is a change too');
   ok('applying it archives the job here', d.record.work.find(w => w.id === 'atelier').archived === true);
 }
 
+section('job types that are bundles');
+{
+  const t3 = clone(mine);
+  t3.jobTypes.push({ id: 'new-bundle', label: 'New bundle', tags: ['cad', 'fabrication'] });
+  const it = D.diffRecords(mine, t3, { fromResumes: resumes, toResumes: clone(resumes) }).filter(x => /^Job type/.test(x.what));
+  ok('a new bundle is an add, ticked, and says its tags', it.length === 1 && it[0].kind === 'add' && it[0].on && /New bundle: cad, fabrication/.test(it[0].b), JSON.stringify(it));
+  const d = { record: clone(mine), resumes: clone(resumes) };
+  D.applyItems(d, it);
+  ok('applying it adds the object', JSON.stringify(d.record.jobTypes.at(-1)) === JSON.stringify(t3.jobTypes.at(-1)));
+  ok('merging again finds nothing', D.diffRecords(d.record, t3, { fromResumes: d.resumes, toResumes: clone(resumes) }).every(x => !/^Job type/.test(x.what)));
+  const t4 = clone(d.record);
+  t4.jobTypes.find(j => j.id === 'new-bundle').tags.push('cnc');
+  const ch = D.diffRecords(d.record, t4, { fromResumes: d.resumes, toResumes: clone(resumes) }).filter(x => /^Job type/.test(x.what));
+  ok('different tags under the same id are a change, not ticked', ch.length === 1 && ch[0].kind === 'change' && ch[0].on === false && ch[0].b === 'cad, fabrication, cnc');
+  D.applyItems(d, ch.map(x => ({ ...x, on: true })));
+  ok('…and applying it updates the tags', d.record.jobTypes.find(j => j.id === 'new-bundle').tags.join() === 'cad,fabrication,cnc');
+  const s3 = clone(mine); s3.jobTypes.push('Old style');
+  const ot = D.diffRecords(mine, s3, { fromResumes: resumes, toResumes: clone(resumes) }).filter(x => /^Job type/.test(x.what));
+  ok('the old string form is still an add', ot.length === 1 && ot[0].b === 'Old style');
+}
+
 console.log(failed ? `\n${failed} diff check(s) FAILED` : '\nall diff checks passed');
 process.exit(failed ? 1 : 0);

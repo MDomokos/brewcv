@@ -9150,8 +9150,22 @@
       "jobTypes": [
         "Hardware design",
         "Medical devices",
-        "Prototyping",
-        "Manufacturing engineering"
+        {
+          "id": "Prototyping",
+          "label": "Prototyping",
+          "tags": [
+            "Prototyping",
+            "fabrication"
+          ]
+        },
+        {
+          "id": "Manufacturing engineering",
+          "label": "Manufacturing engineering",
+          "tags": [
+            "Manufacturing engineering",
+            "manufacturing"
+          ]
+        }
       ],
       "themes": [],
       "requireSource": false,
