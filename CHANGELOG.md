@@ -7,6 +7,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
+- **Exporting a PDF from the command line needs no packages.** `scripts/export-pdf.mjs` now prints through the Chrome, Chromium, Brave or Edge already on the machine (set `CHROME_PATH` to choose one) instead of through Playwright, and the PDFs come out identical. It is optional: the app's own PDF export needs no extra software.
 - **The logo is on the start screen and in the header.** The welcome card opens with the icon and the name at full size, and the header carries the icon beside the name on every working screen.
 - **A reload goes back to the start screen if only the example is open.** Once any of your own records is open, a reload keeps you where you were.
 - **The app is now called BrewCV.** The name, the tab title, the installed app's name and the start screen all say BrewCV, in every language, and the installed app's toolbar takes the icon's green. The address changes with it: the app lives at `/brewcv/` on GitHub Pages. Your saved data and your backups carry over untouched, because the file formats and the browser's storage name keep their old identifiers on purpose.

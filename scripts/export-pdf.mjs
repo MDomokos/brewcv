@@ -1,7 +1,8 @@
 /* node scripts/export-pdf.mjs [input.html] [output.pdf] [--css <file>]
    Deterministic PDF, independent of print-dialog settings. Needs Node 22+ and a Chrome, Chromium,
    Brave or Edge on the machine (CHROME_PATH names one). No packages: it speaks the Chrome DevTools
-   Protocol over Node's built-in WebSocket. */
+   Protocol over Node's built-in WebSocket. Optional: the app's own export (print, in the browser)
+   is the main way to a PDF. */
 import { spawn, spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -24,7 +25,7 @@ function onPath(name) {
 
 export async function exportPdf(input, output, extraCss) {
   const exe = findBrowser();
-  if (!exe) throw new Error('no Chrome, Chromium, Brave or Edge found; set CHROME_PATH to the browser executable');
+  if (!exe) throw new Error('no Chrome, Chromium, Brave or Edge found; set CHROME_PATH to the browser executable (the app\'s own PDF export, in the browser, needs none of this)');
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-pdf-'));
   const chrome = spawn(exe, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-extensions', 'about:blank'], { stdio: 'ignore' });

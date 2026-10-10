@@ -110,7 +110,7 @@ A library path makes a check read that library's recipes and print counts only, 
 node scripts/render.mjs <data.json> <recipe.json> <out.html>        a record + a resume → a document
 node scripts/fit.mjs    <data.json> <recipe.json> --fit [--add]     Fit, measured in Chromium
 node scripts/fit.mjs    <data.json> <recipe.json> --fit --model 6.7 a labelled dry plan, no browser
-node scripts/export-pdf.mjs out/resume.html out/resume.pdf          a Chrome, Chromium, Brave or Edge, no packages
+node scripts/export-pdf.mjs out/resume.html out/resume.pdf          optional; a Chrome, Chromium, Brave or Edge, no packages
 node scripts/to-jsonresume.mjs <data.json> [recipe.json]           flat JSON Resume, the ATS path
 node checks/keyword-gap.mjs <data.json> <ad.txt>                   ad words the record can't say
 node scripts/build-example.mjs data/example.json                   regenerate the fictional sample
