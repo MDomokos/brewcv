@@ -1005,4 +1005,5 @@ export default {
   'undo.fit': 'Einpassen',
   'undo.useFolder': '{name} nutzen',
   'src.link': 'Quellcode (AGPL-3.0)',
+  'priv.link': 'Datenschutz: selbst prüfen',
 };

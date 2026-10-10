@@ -1005,4 +1005,5 @@ export default {
   'undo.fit': 'Přizpůsobit',
   'undo.useFolder': 'Použít {name}',
   'src.link': 'Zdrojový kód (AGPL-3.0)',
+  'priv.link': 'Soukromí: jak si to ověřit',
 };

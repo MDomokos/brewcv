@@ -1005,4 +1005,5 @@ export default {
   'undo.fit': 'Inpassen',
   'undo.useFolder': '{name} gebruiken',
   'src.link': 'Broncode (AGPL-3.0)',
+  'priv.link': 'Privacy: zelf controleren',
 };

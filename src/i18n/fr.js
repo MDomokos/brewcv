@@ -1005,4 +1005,5 @@ export default {
   'undo.fit': 'Ajuster',
   'undo.useFolder': 'Utiliser {name}',
   'src.link': 'Code source (AGPL-3.0)',
+  'priv.link': 'Confidentialité : comment vérifier',
 };

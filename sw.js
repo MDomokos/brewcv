@@ -17,6 +17,8 @@ const SHELL = [
   './src/store/store.js',
   './src/store/persist.js',
   './src/paginate.js',
+  './src/ui/boot.js',
+  './src/ui/after-boot.js',
   './src/ui/shell.js',
   './src/ui/edit.js',
   './src/ui/resumes.js',

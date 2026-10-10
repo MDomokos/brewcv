@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- The guard behind "nothing is uploaded": this page may only talk to its own address. A page
+     that tries to send data anywhere else is refused by the browser. See docs/PRIVACY.md. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'self'; object-src 'none'; img-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; worker-src 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BrewCV</title>
 <meta name="description" content="Tailor a resume for each job in minutes: one career record, a version of every claim, and Fit to fill the page.">
@@ -16,7 +19,7 @@
 <link rel="preload" href="fonts/HankenGrotesk-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/HankenGrotesk-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="src/ui/workbench.css">
-<script>window.__booted = false;</script>
+<script src="src/ui/boot.js"></script>
 </head>
 <body data-ws="resume">
 
@@ -42,10 +45,6 @@
 </div>
 
 <script type="module" src="src/ui/shell.js"></script>
-<script>
-  // A module that never booted: almost always file://.
-  setTimeout(() => { if (!window.__booted) document.getElementById('no-origin').hidden = false; }, 1500);
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
-</script>
+<script src="src/ui/after-boot.js"></script>
 </body>
 </html>

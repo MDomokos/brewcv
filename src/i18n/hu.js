@@ -1005,4 +1005,5 @@ export default {
   'undo.fit': 'Igazítás',
   'undo.useFolder': 'Mappa: {name}',
   'src.link': 'Forráskód (AGPL-3.0)',
+  'priv.link': 'Adatvédelem: így ellenőrizheted',
 };

@@ -425,6 +425,7 @@ function menuHtml(){
     <button role="menuitem" data-act="goto" data-v="import">${h('menu.restore')}</button>
     <button role="menuitem" data-act="goto" data-v="history">${h('menu.history')}</button>
     <a role="menuitem" href="${SOURCE_URL}" target="_blank" rel="noopener">${h('src.link')}</a>
+    <a role="menuitem" href="${SOURCE_URL}/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener">${h('priv.link')}</a>
     <hr>
     <button role="menuitem" data-act="goto" data-v="languages"><span>${h('menu.languages')}</span> <small class="muted">${langsInUse(record()).length}</small></button>
     <button role="menuitem" data-act="goto" data-v="settings">${h('menu.settings')}</button>
