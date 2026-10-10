@@ -73,6 +73,14 @@ const oneFile = w('one.json', { resumeBuilderBackup: 1, saved: '2026-01-02T03:04
   ok('claims writes nothing', before === fs.readFileSync(traps, 'utf8'));
 }
 
+{
+  // a listing longer than a pipe's buffer must arrive whole
+  const big = JSON.parse(JSON.stringify(rec));
+  big.meta.resumeBuilder.variants.find(v => v.id === 'hydra-inhaler-v1').text = 'x'.repeat(300000);
+  const r = run('scripts/claims.mjs', w('big.json', big), '--json');
+  ok('a long --json listing is not cut short', r.code === 0 && (() => { try { return JSON.parse(r.out).jobs.length > 0; } catch { return false; } })(), r.out.length);
+}
+
 section('new-resume');
 const out = path.join(tmp, 'out');
 const picks = (extra = {}) => ({ company: 'Northgate Dosing Systems', role: 'Mechanical Design Engineer', lang: 'en', format: 'a4', pageLimit: 1,

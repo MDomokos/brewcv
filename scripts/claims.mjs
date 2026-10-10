@@ -50,23 +50,25 @@ if (!JOB){
     .filter(s => s.claims.length);
 }
 
-if (JSON_OUT){ process.stdout.write(JSON.stringify(out, null, 2) + '\n'); process.exit(0); }
-
-const mark = v => (v.refused ? `  [can't pick: ${v.refused}]` : '') + (v.default ? '  (default)' : '');
-const printClaim = (c, pad) => {
-  console.log(`${pad}${c.id}  ${c.summary}${c.archived ? '  [archived claim]' : ''}`);
-  for (const v of c.versions)
-    console.log(`${pad}  ${v.id}  v${v.n}  ${v.chars} chars  [${v.tags.join(', ')}]${mark(v)}\n${pad}    ${v.text.replace(/\n/g, ' / ')}`);
-  if (!c.versions.length) console.log(`${pad}  (no ${LANG} version)`);
-};
-console.log(`${FILE}${saved ? ` (saved ${saved})` : ''} · language ${LANG}${TAG ? ` · tag ${TAG}` : ''}`);
-for (const j of out.jobs){
-  console.log(`\n${j.id}: ${j.position}, ${j.employer}`);
-  for (const c of j.claims) printClaim(c, '  ');
+// no process.exit after a write: a long listing piped to another program would be cut short
+if (JSON_OUT) process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+else {
+  const mark = v => (v.refused ? `  [can't pick: ${v.refused}]` : '') + (v.default ? '  (default)' : '');
+  const printClaim = (c, pad) => {
+    console.log(`${pad}${c.id}  ${c.summary}${c.archived ? '  [archived claim]' : ''}`);
+    for (const v of c.versions)
+      console.log(`${pad}  ${v.id}  v${v.n}  ${v.chars} chars  [${v.tags.join(', ')}]${mark(v)}\n${pad}    ${v.text.replace(/\n/g, ' / ')}`);
+    if (!c.versions.length) console.log(`${pad}  (no ${LANG} version)`);
+  };
+  console.log(`${FILE}${saved ? ` (saved ${saved})` : ''} · language ${LANG}${TAG ? ` · tag ${TAG}` : ''}`);
+  for (const j of out.jobs){
+    console.log(`\n${j.id}: ${j.position}, ${j.employer}`);
+    for (const c of j.claims) printClaim(c, '  ');
+  }
+  if (out.summary && keep(out.summary)){ console.log('\nsummary'); printClaim(out.summary, '  '); }
+  if (out.skills?.length){
+    console.log('\nskills (printed as they are in the record)');
+    for (const s of out.skills) console.log(`  ${s.id}  ${s.name}: ${s.keywords.join(', ')}`);
+  }
+  for (const s of out.sections ?? []){ console.log(`\n${s.id}${s.title ? ` (${s.title})` : ''}`); for (const c of s.claims) printClaim(c, '  '); }
 }
-if (out.summary && keep(out.summary)){ console.log('\nsummary'); printClaim(out.summary, '  '); }
-if (out.skills?.length){
-  console.log('\nskills (printed as they are in the record)');
-  for (const s of out.skills) console.log(`  ${s.id}  ${s.name}: ${s.keywords.join(', ')}`);
-}
-for (const s of out.sections ?? []){ console.log(`\n${s.id}${s.title ? ` (${s.title})` : ''}`); for (const c of s.claims) printClaim(c, '  '); }
