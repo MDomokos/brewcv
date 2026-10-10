@@ -1,0 +1,58 @@
+# resume-data.json carries a phone number, an email address, a home city and an
+# embedded photograph. Committed once to a public repo it is in the history
+# permanently. Run checks/history-scan.mjs before adding a remote.
+#
+# Rules are not anchored with a leading slash. An anchored rule covers one
+# directory, and a private file usually reaches a commit by being copied
+# somewhere else first. These match at any depth.
+
+# The library and anything derived from it
+resume-data.json
+*.local.json
+*.jsonresume.json
+recipes/
+
+# Images. The only ones that belong here are the app's own icons.
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.avif
+*.heic
+!icons/*.png
+!docs/*.png
+!docs/*.gif
+
+# Prototypes live in the vault, never here
+prototypes/
+
+# Rendered output — lives in the vault
+out/
+*.pdf
+
+# Resume sources and exports
+*.afpub
+*.psd
+*.docx
+*.pages
+
+# Secrets
+.env
+.env.*
+
+# Deploy
+_site/
+
+# Tooling
+node_modules/
+package-lock.json
+
+# OS and editor
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+.vscode/
+.idea/

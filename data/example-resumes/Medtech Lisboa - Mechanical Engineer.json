@@ -1,0 +1,264 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Dana Okonkwo",
+    "label": "Mechanical & Design Engineer",
+    "email": "dana@example.org",
+    "phone": "+351 900 000 000",
+    "url": "https://danaokonkwo.example",
+    "summary": "Mechanical engineer working on single-use medical devices from first sketch to tooling release; EU patent holder. Spent three years on the clean-room side of a contract manufacturer before moving into design.",
+    "location": {
+      "city": "Lisbon",
+      "countryCode": "PT"
+    },
+    "profiles": []
+  },
+  "work": [
+    {
+      "name": "Hydra Medical",
+      "position": "Design Engineer",
+      "location": "Lisbon, Portugal",
+      "startDate": "2023-03",
+      "highlights": [
+        "Redesigned the dose counter of a high-volume inhaler (400,000 units a year) with five parts instead of nine.",
+        "Built the drop and cycle test rig used for design verification, wrote the test protocols, and qualified the moulding suppliers behind them.",
+        "Qualified moulding suppliers in Portugal and Poland, including first-article inspection and the PPAP paperwork.",
+        "Ran the weekly DFM reviews with the toolmaker through three rounds of T1 samples, closing 41 of 44 issues before tooling release.",
+        "Built the tolerance stack for the counter mechanism and caught a 0.3 mm interference before the first tool was cut.",
+        "Kept the design history file for the counter: 140 controlled documents through two design reviews.",
+        "Planned and ran formative usability studies (14 patients, three rounds) under IEC 62366, and fed the findings into the design history file."
+      ]
+    },
+    {
+      "name": "Polytechnic Prototyping Lab",
+      "position": "Prototyping Technician",
+      "location": "Porto, Portugal",
+      "startDate": "2021-09",
+      "endDate": "2023-02",
+      "highlights": [
+        "Ran a seven-machine prototyping shop — four FDM printers, a resin printer, a benchtop mill and a laser cutter — including the calibration and the repair log.",
+        "Taught the machine-safety induction to about 120 students a year and wrote the handbook for it.",
+        "Designed and printed over 60 jigs and fixtures for student capstone projects, from drill guides to a vacuum-forming frame.",
+        "Kept the shop’s machines running: logged and fixed about 300 faults a year, most of them within a day.",
+        "Wrote the lab’s equipment grant application: €48,000 for a five-axis mill, approved on first submission."
+      ]
+    },
+    {
+      "name": "Self-employed",
+      "position": "Freelance CAD Designer",
+      "location": "Remote",
+      "startDate": "2021-01",
+      "endDate": "2021-08",
+      "highlights": [
+        "CAD and rendering for two small furniture studios, including the assembly drawings they shipped with the product.",
+        "Printed and finished 25 hinge and joint prototypes for the studios’ test assemblies.",
+        "Built a searchable parts library for one studio so their joiners could find hardware by fixing type and load."
+      ]
+    },
+    {
+      "name": "Medisure Contract Manufacturing",
+      "position": "Clean-room Technician",
+      "location": "Porto, Portugal",
+      "startDate": "2018-06",
+      "endDate": "2020-12",
+      "highlights": [
+        "Ran ISO 7 clean-room assembly for three catheter products, about 9,000 units a week across two shifts.",
+        "Cut scrap on the balloon-bonding line from 6% to 2.5% by redesigning the bonding fixture.",
+        "Set up SPC charts on the two highest-scrap stations and trained the line leads to read them.",
+        "Ran the validation build for a new catheter line: installation, operational and performance qualification on 11 stations.",
+        "Wrote or rewrote 22 work instructions after a customer audit, all accepted without findings at the follow-up."
+      ]
+    },
+    {
+      "name": "Atelier Norte",
+      "position": "Design Intern",
+      "location": "Porto, Portugal",
+      "startDate": "2017-06",
+      "endDate": "2017-09",
+      "highlights": [
+        "Modelled and rendered an eight-piece outdoor furniture range for the studio’s trade-fair catalogue."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidade do Porto",
+      "area": "Mechanical Engineering",
+      "studyType": "M.Eng.",
+      "startDate": "2016-09",
+      "endDate": "2021-07",
+      "score": "Distinction"
+    }
+  ],
+  "publications": [
+    {
+      "name": "Dose-counting mechanism for a metered inhaler",
+      "publisher": "EPO",
+      "releaseDate": "2025",
+      "summary": "Co-inventor · EP 3 000 000 B1"
+    }
+  ],
+  "certificates": [
+    {
+      "name": "SolidWorks CSWP",
+      "issuer": "Example Systems"
+    },
+    {
+      "name": "GD&T ASME Y14.5",
+      "issuer": "Example Institute"
+    },
+    {
+      "name": "ISO 13485 internal auditor",
+      "issuer": "Example Certification Body"
+    }
+  ],
+  "skills": [
+    {
+      "name": "CAD & 3D",
+      "keywords": [
+        "SolidWorks (CSWP)",
+        "Creo",
+        "Fusion 360",
+        "KeyShot"
+      ]
+    },
+    {
+      "name": "Fabrication",
+      "keywords": [
+        "3D printing FDM/SLA",
+        "CNC milling",
+        "laser cutting",
+        "silicone tooling",
+        "injection-moulding DFM"
+      ]
+    },
+    {
+      "name": "Test & QA",
+      "keywords": [
+        "ISO 13485",
+        "IEC 62366",
+        "design verification",
+        "first-article inspection",
+        "PPAP"
+      ]
+    },
+    {
+      "name": "Software",
+      "keywords": [
+        "Python",
+        "MATLAB",
+        "Git",
+        "Excel"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Portuguese",
+      "fluency": "Native"
+    },
+    {
+      "language": "English",
+      "fluency": "C2"
+    },
+    {
+      "language": "Hungarian",
+      "fluency": "B1"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Dinghy sailing"
+    },
+    {
+      "name": "Bookbinding"
+    },
+    {
+      "name": "Restoring mechanical watches"
+    }
+  ],
+  "meta": {
+    "version": "v1.0.0",
+    "lastModified": "2026-09-12",
+    "resumeBuilder": {
+      "schema": "resume-recipe/4",
+      "library": {
+        "owner": "Dana Okonkwo (fictional)",
+        "facts": "86a30f9d"
+      },
+      "resume": {
+        "application": "Medtech Lisboa - Mechanical Engineer",
+        "title": "Medtech Lisboa — Mechanical Engineer",
+        "company": "Medtech Lisboa",
+        "role": "Mechanical Engineer",
+        "jobType": "Medical devices",
+        "tags": [
+          "medical"
+        ],
+        "date": "2026-09-12",
+        "savedAt": "2026-09-12",
+        "format": "a4",
+        "theme": "b2-marker",
+        "overlays": [],
+        "summary": "summary",
+        "sections": [
+          {
+            "id": "experience",
+            "weight": 5,
+            "work": [
+              "hydra",
+              "poly",
+              "free",
+              "medisure",
+              "atelier"
+            ]
+          },
+          {
+            "id": "skills"
+          },
+          {
+            "id": "certified"
+          },
+          {
+            "id": "patent"
+          },
+          {
+            "id": "education"
+          },
+          {
+            "id": "languages"
+          },
+          {
+            "id": "interests"
+          },
+          {
+            "id": "projects",
+            "weight": 0,
+            "work": [
+              "caliper-stand",
+              "chassis-jig"
+            ]
+          }
+        ],
+        "picks": {
+          "summary": "summary-v1",
+          "hydra-inhaler": "hydra-inhaler-v3",
+          "hydra-human": "hydra-human-v2",
+          "hydra-suppliers": "hydra-suppliers-v2",
+          "med-scrap": "med-scrap-v1",
+          "hydra-testing": "hydra-testing-v2",
+          "poly-shop": "poly-shop-v2",
+          "free-work": "free-work-v1",
+          "poly-teaching": "poly-teaching-v1",
+          "hydra-dfm": "hydra-dfm-v1"
+        },
+        "overrides": {},
+        "pageLimit": 2,
+        "photo": {
+          "show": false,
+          "shape": "rect"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,256 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Dana Okonkwo",
+    "label": "Mechanical & Design Engineer",
+    "email": "dana@example.org",
+    "phone": "+351 900 000 000",
+    "url": "https://danaokonkwo.example",
+    "summary": "Mechanical engineer working on single-use medical devices from first sketch to tooling release; EU patent holder. Spent three years on the clean-room side of a contract manufacturer before moving into design.",
+    "location": {
+      "city": "Lisbon",
+      "countryCode": "PT"
+    },
+    "profiles": []
+  },
+  "work": [
+    {
+      "name": "Hydra Medical",
+      "position": "Design Engineer",
+      "location": "Lisbon, Portugal",
+      "startDate": "2023-03",
+      "highlights": [
+        "Led the dose-counter redesign on an inhaler running 400,000 units a year, cutting the part count from nine to five and taking two weeks out of the tooling schedule.",
+        "Built the drop and cycle test rig used for design verification, wrote the test protocols, and qualified the moulding suppliers behind them.",
+        "Planned and ran formative usability studies (14 patients, three rounds) under IEC 62366, and fed the findings into the design history file."
+      ]
+    },
+    {
+      "name": "Polytechnic Prototyping Lab",
+      "position": "Prototyping Technician",
+      "location": "Porto, Portugal",
+      "startDate": "2021-09",
+      "endDate": "2023-02",
+      "highlights": [
+        "Ran a seven-machine prototyping shop: four FDM printers, a resin printer, a benchtop mill and a laser cutter."
+      ]
+    },
+    {
+      "name": "Medisure Contract Manufacturing",
+      "position": "Clean-room Technician",
+      "location": "Porto, Portugal",
+      "startDate": "2018-06",
+      "endDate": "2020-12",
+      "highlights": [
+        "Ran ISO 7 clean-room assembly for three catheter products, about 9,000 units a week across two shifts.",
+        "Cut scrap on the balloon-bonding line from 6% to 2.5% by redesigning the bonding fixture."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidade do Porto",
+      "area": "Mechanical Engineering",
+      "studyType": "M.Eng.",
+      "startDate": "2016-09",
+      "endDate": "2021-07",
+      "score": "Distinction"
+    }
+  ],
+  "publications": [
+    {
+      "name": "Dose-counting mechanism for a metered inhaler",
+      "publisher": "EPO",
+      "releaseDate": "2025",
+      "summary": "Co-inventor · EP 3 000 000 B1"
+    }
+  ],
+  "certificates": [
+    {
+      "name": "SolidWorks CSWP",
+      "issuer": "Example Systems"
+    },
+    {
+      "name": "GD&T ASME Y14.5",
+      "issuer": "Example Institute"
+    },
+    {
+      "name": "ISO 13485 internal auditor",
+      "issuer": "Example Certification Body"
+    }
+  ],
+  "skills": [
+    {
+      "name": "CAD & 3D",
+      "keywords": [
+        "SolidWorks (CSWP)",
+        "Creo",
+        "Fusion 360",
+        "KeyShot"
+      ]
+    },
+    {
+      "name": "Fabrication",
+      "keywords": [
+        "3D printing FDM/SLA",
+        "CNC milling",
+        "laser cutting",
+        "silicone tooling",
+        "injection-moulding DFM"
+      ]
+    },
+    {
+      "name": "Test & QA",
+      "keywords": [
+        "ISO 13485",
+        "IEC 62366",
+        "design verification",
+        "first-article inspection",
+        "PPAP"
+      ]
+    },
+    {
+      "name": "Software",
+      "keywords": [
+        "Python",
+        "MATLAB",
+        "Git",
+        "Excel"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Portuguese",
+      "fluency": "Native"
+    },
+    {
+      "language": "English",
+      "fluency": "C2"
+    },
+    {
+      "language": "Hungarian",
+      "fluency": "B1"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Dinghy sailing"
+    },
+    {
+      "name": "Bookbinding"
+    },
+    {
+      "name": "Restoring mechanical watches"
+    }
+  ],
+  "meta": {
+    "version": "v1.0.0",
+    "lastModified": "2026-09-20",
+    "resumeBuilder": {
+      "schema": "resume-recipe/4",
+      "library": {
+        "owner": "Dana Okonkwo (fictional)",
+        "facts": "86a30f9d"
+      },
+      "resume": {
+        "application": "Helix Diagnostics - Product Development Engineer",
+        "title": "Helix Diagnostics — Product Development Engineer",
+        "company": "Helix Diagnostics",
+        "role": "Product Development Engineer",
+        "jobType": "Medical devices",
+        "tags": [
+          "medical",
+          "verification"
+        ],
+        "date": "2026-09-20",
+        "savedAt": "2026-09-20",
+        "format": "a4",
+        "theme": "b2-marker",
+        "overlays": [
+          "tint-tabs"
+        ],
+        "summary": "summary",
+        "sections": [
+          {
+            "id": "experience",
+            "weight": 5,
+            "work": [
+              {
+                "id": "hydra",
+                "highlights": [
+                  "hydra-inhaler",
+                  "hydra-testing",
+                  "hydra-human"
+                ]
+              },
+              {
+                "id": "poly",
+                "highlights": [
+                  "poly-shop"
+                ]
+              },
+              {
+                "id": "medisure",
+                "highlights": [
+                  "med-lines",
+                  "med-scrap"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "skills"
+          },
+          {
+            "id": "patent"
+          },
+          {
+            "id": "education"
+          },
+          {
+            "id": "languages"
+          },
+          {
+            "id": "projects",
+            "weight": 0,
+            "work": [
+              "caliper-stand",
+              "chassis-jig"
+            ]
+          }
+        ],
+        "picks": {
+          "summary": "summary-v1",
+          "hydra-inhaler": "hydra-inhaler-v2",
+          "hydra-testing": "hydra-testing-v2",
+          "hydra-human": "hydra-human-v2",
+          "med-lines": "med-lines-v1"
+        },
+        "overrides": {},
+        "off": [
+          "free-site",
+          "atl-range",
+          "med-wi",
+          "poly-grant",
+          "poly-teaching",
+          "poly-jigs",
+          "poly-repairs",
+          "free-work",
+          "free-proto",
+          "med-spc",
+          "hydra-dfm",
+          "hydra-suppliers",
+          "med-trial",
+          "hydra-dhf",
+          "hydra-tolerance"
+        ],
+        "pageLimit": 1,
+        "photo": {
+          "show": false,
+          "shape": "rect"
+        }
+      }
+    }
+  }
+}

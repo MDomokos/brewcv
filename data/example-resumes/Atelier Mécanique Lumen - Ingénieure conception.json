@@ -1,0 +1,251 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Dana Okonkwo",
+    "label": "Mechanical & Design Engineer",
+    "email": "dana@example.org",
+    "phone": "+351 900 000 000",
+    "url": "https://danaokonkwo.example",
+    "summary": "Ingénierie mécanique de dispositifs médicaux à usage unique, de la première esquisse à la validation de l'outillage ; titulaire d'un brevet européen. Trois ans en salle blanche chez un sous-traitant avant le passage à la conception.",
+    "location": {
+      "city": "Lisbon",
+      "countryCode": "PT"
+    },
+    "profiles": []
+  },
+  "work": [
+    {
+      "name": "Hydra Medical",
+      "position": "Ingénierie conception",
+      "location": "Lisbonne, Portugal",
+      "startDate": "2023-03",
+      "highlights": [
+        "Refonte du compteur de doses d'un inhalateur produit à 400 000 unités par an ; réduction du nombre de pièces de neuf à cinq.",
+        "Conception du banc d'essais de chute et d'endurance désormais utilisé par l'équipe pour la vérification de conception, avec rédaction des protocoles associés.",
+        "Animation des revues DFM hebdomadaires avec le fabricant d'outillages sur trois séries d'échantillons T1 : 41 problèmes sur 44 clos avant la validation de l'outillage."
+      ]
+    },
+    {
+      "name": "Polytechnic Prototyping Lab",
+      "position": "Technique de prototypage",
+      "location": "Porto, Portugal",
+      "startDate": "2021-09",
+      "endDate": "2023-02",
+      "highlights": [
+        "Gestion d'un atelier de prototypage de sept machines : quatre imprimantes FDM, une imprimante résine, une fraiseuse de table et une découpeuse laser."
+      ]
+    },
+    {
+      "name": "Medisure Contract Manufacturing",
+      "position": "Technique en salle blanche",
+      "location": "Porto, Portugal",
+      "startDate": "2018-06",
+      "endDate": "2020-12",
+      "highlights": [
+        "Conduite de l'assemblage en salle blanche ISO 7 pour trois produits de cathéters, environ 9 000 unités par semaine en deux équipes.",
+        "Réduction des rebuts de la ligne de collage de ballonnets de 6 % à 2,5 % grâce à la refonte du montage de collage."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidade do Porto",
+      "area": "Mechanical Engineering",
+      "studyType": "M.Eng.",
+      "startDate": "2016-09",
+      "endDate": "2021-07",
+      "score": "Distinction"
+    }
+  ],
+  "publications": [
+    {
+      "name": "Dose-counting mechanism for a metered inhaler",
+      "publisher": "EPO",
+      "releaseDate": "2025",
+      "summary": "Co-inventor · EP 3 000 000 B1"
+    }
+  ],
+  "certificates": [
+    {
+      "name": "SolidWorks CSWP",
+      "issuer": "Example Systems"
+    },
+    {
+      "name": "GD&T ASME Y14.5",
+      "issuer": "Example Institute"
+    },
+    {
+      "name": "ISO 13485 internal auditor",
+      "issuer": "Example Certification Body"
+    }
+  ],
+  "skills": [
+    {
+      "name": "CAD & 3D",
+      "keywords": [
+        "SolidWorks (CSWP)",
+        "Creo",
+        "Fusion 360",
+        "KeyShot"
+      ]
+    },
+    {
+      "name": "Fabrication",
+      "keywords": [
+        "3D printing FDM/SLA",
+        "CNC milling",
+        "laser cutting",
+        "silicone tooling",
+        "injection-moulding DFM"
+      ]
+    },
+    {
+      "name": "Test & QA",
+      "keywords": [
+        "ISO 13485",
+        "IEC 62366",
+        "design verification",
+        "first-article inspection",
+        "PPAP"
+      ]
+    },
+    {
+      "name": "Software",
+      "keywords": [
+        "Python",
+        "MATLAB",
+        "Git",
+        "Excel"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Portuguese",
+      "fluency": "Native"
+    },
+    {
+      "language": "English",
+      "fluency": "C2"
+    },
+    {
+      "language": "Hungarian",
+      "fluency": "B1"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Dinghy sailing"
+    },
+    {
+      "name": "Bookbinding"
+    },
+    {
+      "name": "Restoring mechanical watches"
+    }
+  ],
+  "meta": {
+    "version": "v1.0.0",
+    "lastModified": "2026-10-06",
+    "resumeBuilder": {
+      "schema": "resume-recipe/4",
+      "library": {
+        "owner": "Dana Okonkwo (fictional)",
+        "facts": "86a30f9d"
+      },
+      "resume": {
+        "application": "Atelier Mécanique Lumen - Ingénieure conception",
+        "title": "Atelier Mécanique Lumen — Ingénieure conception",
+        "company": "Atelier Mécanique Lumen",
+        "role": "Ingénieure conception",
+        "jobType": "Hardware design",
+        "tags": [
+          "hardware"
+        ],
+        "date": "2026-10-06",
+        "savedAt": "2026-10-06",
+        "format": "a4",
+        "theme": "b2-marker",
+        "overlays": [],
+        "lang": "fr",
+        "summary": "summary",
+        "sections": [
+          {
+            "id": "experience",
+            "weight": 5,
+            "work": [
+              {
+                "id": "hydra",
+                "highlights": [
+                  "hydra-inhaler",
+                  "hydra-testing",
+                  "hydra-dfm"
+                ]
+              },
+              {
+                "id": "poly",
+                "highlights": [
+                  "poly-shop"
+                ]
+              },
+              {
+                "id": "medisure",
+                "highlights": [
+                  "med-lines",
+                  "med-scrap"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "skills"
+          },
+          {
+            "id": "patent"
+          },
+          {
+            "id": "education"
+          },
+          {
+            "id": "languages"
+          },
+          {
+            "id": "projects",
+            "weight": 0,
+            "work": [
+              "caliper-stand",
+              "chassis-jig"
+            ]
+          }
+        ],
+        "picks": {
+          "summary": "summary-v1-fr",
+          "hydra-inhaler": "hydra-inhaler-v1-fr"
+        },
+        "overrides": {},
+        "off": [
+          "hydra-suppliers",
+          "hydra-tolerance",
+          "hydra-dhf",
+          "hydra-human",
+          "poly-teaching",
+          "poly-jigs",
+          "poly-repairs",
+          "poly-grant",
+          "free-work",
+          "free-proto",
+          "free-site",
+          "med-spc",
+          "med-trial",
+          "med-wi",
+          "atl-range"
+        ],
+        "pageLimit": 1,
+        "photo": {
+          "show": false,
+          "shape": "rect"
+        }
+      }
+    }
+  }
+}

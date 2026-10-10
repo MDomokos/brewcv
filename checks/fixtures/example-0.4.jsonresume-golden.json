@@ -1,0 +1,129 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Dana Okonkwo",
+    "label": "Mechanical & Design Engineer",
+    "email": "dana@example.org",
+    "phone": "+351 900 000 000",
+    "url": "https://danaokonkwo.example",
+    "summary": "Mechanical engineer working on single-use medical devices from first sketch to tooling release; EU patent holder. Spent three years on the clean-room floor before moving to design, which is why the tolerances are buildable.",
+    "location": {
+      "city": "Lisbon",
+      "countryCode": "PT"
+    },
+    "profiles": [
+      {
+        "network": "Forge",
+        "username": "dana",
+        "url": "https://forge.example/dana"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "Hydra Medical",
+      "position": "Design Engineer",
+      "location": "Lisbon, Portugal",
+      "startDate": "2023-03",
+      "highlights": [
+        "Led the dose-counter redesign on an inhaler running 400,000 units a year; cut the part count from nine to five.",
+        "Built the drop and cycle test rig the team now uses for design verification, and wrote the test protocols that go with it.",
+        "Qualified two moulding suppliers, one in Portugal and one in Poland, and ran the first-article inspections."
+      ]
+    },
+    {
+      "name": "Polytechnic Prototyping Lab",
+      "position": "Prototyping Technician",
+      "location": "Porto",
+      "startDate": "2021-09",
+      "endDate": "2023-02",
+      "highlights": [
+        "Ran a seven-machine prototyping shop: four FDM printers, a resin printer, a benchtop mill and a laser cutter.",
+        "Taught the machine-safety induction to about 120 students a year and wrote the handbook for it."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidade do Porto",
+      "area": "Mechanical Engineering",
+      "studyType": "M.Eng.",
+      "endDate": "2021-07",
+      "courses": [
+        "Distinction"
+      ]
+    }
+  ],
+  "publications": [
+    {
+      "name": "Dose-counting mechanism for a metered inhaler",
+      "publisher": "EPO",
+      "releaseDate": "2025",
+      "summary": "Co-inventor · EP 3 000 000 B1"
+    }
+  ],
+  "certificates": [
+    {
+      "name": "SolidWorks",
+      "issuer": "Example Systems"
+    },
+    {
+      "name": "GD&T ASME Y14.5",
+      "issuer": "Example Institute"
+    }
+  ],
+  "skills": [
+    {
+      "name": "CAD & 3D",
+      "keywords": [
+        "SolidWorks",
+        "Creo",
+        "Fusion 360",
+        "KeyShot"
+      ]
+    },
+    {
+      "name": "Fabrication",
+      "keywords": [
+        "3D printing FDM/SLA",
+        "CNC milling",
+        "laser cutting",
+        "silicone tooling",
+        "soldering"
+      ]
+    },
+    {
+      "name": "Test & QA",
+      "keywords": [
+        "ISO 13485 documentation",
+        "design verification",
+        "first-article inspection"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Portuguese",
+      "fluency": "Native"
+    },
+    {
+      "language": "English",
+      "fluency": "C2"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Dinghy sailing"
+    },
+    {
+      "name": "Bookbinding"
+    }
+  ],
+  "meta": {
+    "version": "resume-data/3",
+    "generator": "resume-builder scripts/to-jsonresume.mjs",
+    "recipe": "Example Instruments - Design Engineer",
+    "format": "a4",
+    "theme": "b2-marker"
+  }
+}

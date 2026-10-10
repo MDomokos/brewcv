@@ -1,0 +1,250 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Dana Okonkwo",
+    "label": "Mechanical & Design Engineer",
+    "email": "dana@example.org",
+    "phone": "+351 900 000 000",
+    "url": "https://danaokonkwo.example",
+    "summary": "Strojní inženýrka vyvíjející jednorázové zdravotnické prostředky od první skici po uvolnění nástrojů; držitelka evropského patentu. Tři roky na čisté straně smluvního výrobce, poté přechod ke konstrukci.",
+    "location": {
+      "city": "Lisbon",
+      "countryCode": "PT"
+    },
+    "profiles": []
+  },
+  "work": [
+    {
+      "name": "Hydra Medical",
+      "position": "Konstruktérka",
+      "location": "Lisabon, Portugalsko",
+      "startDate": "2023-03",
+      "highlights": [
+        "Vedení redesignu počítadla dávek u inhalátoru s produkcí 400 000 kusů ročně; počet dílů snížen z devíti na pět.",
+        "Sestavení zkušebního zařízení pro pádové a cyklické zkoušky, které tým dnes používá k ověřování konstrukce, včetně příslušných zkušebních protokolů."
+      ]
+    },
+    {
+      "name": "Polytechnic Prototyping Lab",
+      "position": "Technička prototypování",
+      "location": "Porto, Portugalsko",
+      "startDate": "2021-09",
+      "endDate": "2023-02",
+      "highlights": [
+        "Provoz prototypové dílny se sedmi stroji: čtyři FDM tiskárny, pryskyřicová tiskárna, stolní frézka a laserová řezačka."
+      ]
+    },
+    {
+      "name": "Medisure Contract Manufacturing",
+      "position": "Technička čistých prostor",
+      "location": "Porto, Portugalsko",
+      "startDate": "2018-06",
+      "endDate": "2020-12",
+      "highlights": [
+        "Řízení montáže v čistém prostoru ISO 7 pro tři katétrové produkty, asi 9 000 kusů týdně na dvě směny.",
+        "Snížení zmetkovitosti na lince lepení balónků z 6 % na 2,5 % novým návrhem lepicího přípravku."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidade do Porto",
+      "area": "Mechanical Engineering",
+      "studyType": "M.Eng.",
+      "startDate": "2016-09",
+      "endDate": "2021-07",
+      "score": "Distinction"
+    }
+  ],
+  "publications": [
+    {
+      "name": "Dose-counting mechanism for a metered inhaler",
+      "publisher": "EPO",
+      "releaseDate": "2025",
+      "summary": "Co-inventor · EP 3 000 000 B1"
+    }
+  ],
+  "certificates": [
+    {
+      "name": "SolidWorks CSWP",
+      "issuer": "Example Systems"
+    },
+    {
+      "name": "GD&T ASME Y14.5",
+      "issuer": "Example Institute"
+    },
+    {
+      "name": "ISO 13485 internal auditor",
+      "issuer": "Example Certification Body"
+    }
+  ],
+  "skills": [
+    {
+      "name": "CAD & 3D",
+      "keywords": [
+        "SolidWorks (CSWP)",
+        "Creo",
+        "Fusion 360",
+        "KeyShot"
+      ]
+    },
+    {
+      "name": "Fabrication",
+      "keywords": [
+        "3D printing FDM/SLA",
+        "CNC milling",
+        "laser cutting",
+        "silicone tooling",
+        "injection-moulding DFM"
+      ]
+    },
+    {
+      "name": "Test & QA",
+      "keywords": [
+        "ISO 13485",
+        "IEC 62366",
+        "design verification",
+        "first-article inspection",
+        "PPAP"
+      ]
+    },
+    {
+      "name": "Software",
+      "keywords": [
+        "Python",
+        "MATLAB",
+        "Git",
+        "Excel"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Portuguese",
+      "fluency": "Native"
+    },
+    {
+      "language": "English",
+      "fluency": "C2"
+    },
+    {
+      "language": "Hungarian",
+      "fluency": "B1"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Dinghy sailing"
+    },
+    {
+      "name": "Bookbinding"
+    },
+    {
+      "name": "Restoring mechanical watches"
+    }
+  ],
+  "meta": {
+    "version": "v1.0.0",
+    "lastModified": "2026-10-06",
+    "resumeBuilder": {
+      "schema": "resume-recipe/4",
+      "library": {
+        "owner": "Dana Okonkwo (fictional)",
+        "facts": "86a30f9d"
+      },
+      "resume": {
+        "application": "Vltava Přístroje - Konstruktérka",
+        "title": "Vltava Přístroje — Konstruktérka",
+        "company": "Vltava Přístroje",
+        "role": "Konstruktérka",
+        "jobType": "Hardware design",
+        "tags": [
+          "hardware"
+        ],
+        "date": "2026-10-06",
+        "savedAt": "2026-10-06",
+        "format": "a4",
+        "theme": "b2-marker",
+        "overlays": [],
+        "lang": "cs",
+        "summary": "summary",
+        "sections": [
+          {
+            "id": "experience",
+            "weight": 5,
+            "work": [
+              {
+                "id": "hydra",
+                "highlights": [
+                  "hydra-inhaler",
+                  "hydra-testing"
+                ]
+              },
+              {
+                "id": "poly",
+                "highlights": [
+                  "poly-shop"
+                ]
+              },
+              {
+                "id": "medisure",
+                "highlights": [
+                  "med-lines",
+                  "med-scrap"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "skills"
+          },
+          {
+            "id": "patent"
+          },
+          {
+            "id": "education"
+          },
+          {
+            "id": "languages"
+          },
+          {
+            "id": "projects",
+            "weight": 0,
+            "work": [
+              "caliper-stand",
+              "chassis-jig"
+            ]
+          }
+        ],
+        "picks": {
+          "summary": "summary-v1-cs",
+          "hydra-inhaler": "hydra-inhaler-v1-cs"
+        },
+        "overrides": {},
+        "off": [
+          "hydra-suppliers",
+          "hydra-dfm",
+          "hydra-tolerance",
+          "hydra-dhf",
+          "hydra-human",
+          "poly-teaching",
+          "poly-jigs",
+          "poly-repairs",
+          "poly-grant",
+          "free-work",
+          "free-proto",
+          "free-site",
+          "med-spc",
+          "med-trial",
+          "med-wi",
+          "atl-range"
+        ],
+        "pageLimit": 1,
+        "photo": {
+          "show": true,
+          "shape": "rect"
+        }
+      }
+    }
+  }
+}

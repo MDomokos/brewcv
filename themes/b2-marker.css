@@ -1,0 +1,474 @@
+/* b2-marker.css: the B2 theme. Every visual decision lives in :root below.
+   Odd values (13.2px, -0.7deg) are measured, not rounded to a grid. */
+
+/* fonts */
+
+@font-face {
+  font-family: "Hanken Grotesk";
+  src: url("../fonts/HankenGrotesk-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  src: url("../fonts/HankenGrotesk-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  src: url("../fonts/HankenGrotesk-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Fira Code";
+  src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+/* tokens */
+
+:root {
+  /* Same value today, kept separate so they can be split with one edit. */
+  --accent:          #ffd900;   /* tabs, marker swipe */
+  --highlight:       #ffd900;   /* marker behind metrics in body text */
+
+  /* Per-surface indirection, so an overlay can re-point one surface. */
+  --tab-fill:        var(--accent);
+  --swipe-fill:      var(--accent);
+  --mark-fill:       var(--highlight);
+
+  --accent-link:     #8a6d00;   /* link hover, screen only */
+  --ink:             #1a1a1a;
+  --ink-body:        #2c2c2c;
+  --ink-summary:     #2a2a2a;
+  --muted:           #55555a;
+  --muted-label:     #6e6e6e;
+  --meta:            #8a8a8a;
+  --paper:           #ffffff;
+  --desk:            #f0f0f0;   /* screen-only backdrop */
+
+  --flag-fill:       #fff3a8;
+  --flag-print-ink:  #b00000;
+  --flag-print-fill: #ffe3e3;
+
+  --font-sans: "Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, Menlo, monospace;
+
+  --fs-name:      35px;
+  --fs-role:      15px;
+  --fs-item:      13.4px;
+  --fs-summary:   13.2px;
+  --fs-bullet:    12.7px;
+  --fs-skill:     12.2px;
+  --fs-tagline:   11.6px;
+  --fs-tab:       10.4px;
+  --fs-contact:   9.8px;
+  --fs-meta:      9.7px;
+
+  --fw-regular:   400;
+  --fw-bold:      700;
+  --fw-black:     800;
+
+  --lh-name:      1.0;
+  --lh-role:      1.2;
+  --lh-item:      1.25;
+  --lh-summary:   1.45;
+  --lh-bullet:    1.45;
+  --lh-skill:     1.4;
+  --lh-tagline:   1.5;
+  --lh-contact:   1.7;
+
+  --ls-name:      -0.026em;
+  --ls-tagline:   0.13em;
+  --ls-tab:       0.13em;
+  --ls-meta:      0.05em;
+  --ls-meta-flat: 0.04em;   /* metadata already uppercase in the source */
+
+  --band-gap:         22px;
+  --band-gap-summary: 24px;
+  --role-gap:         13px;
+  --title-to-meta:    3px;
+  --meta-to-bullets:  6px;
+  --bullet-gap:       3px;
+  --name-to-contact:  11px;
+  --skill-gap-row:    8px;
+  --skill-gap-col:    28px;
+  --summary-in-header-gap: 20px;
+  --portrait-gap:     14px;
+  --pairs-gap-row:     2px;
+  --pairs-gap-col:    16px;
+  --gutter-nudge:     7px;    /* optical: tagline down to the name's cap height */
+  --content-nudge:    1px;    /* optical: content beside a tab */
+  --bullet-indent:    15px;
+
+  --swipe-left:    11px;    /* starts inside the M */
+  --swipe-right:  -12px;    /* overshoots past the final S */
+  --swipe-bottom:   4px;
+  --swipe-h:       13px;
+  --swipe-skew:  -13deg;
+  --swipe-rot:   -0.7deg;
+
+  --mark-top:      10%;
+  --mark-bottom:   90%;
+  --mark-pad-x:     2px;
+
+  /* Left unset: src/model/tokens.js may set --font-name, --font-heading,
+     --weight-name, --weight-heading, --tab-ink, --tab-radius. */
+
+  --tab-fill-cont:  #ffec80;  /* continued tab on page 2 */
+  --tab-pad-t:      4px;
+  --tab-pad-r:      9px;
+  --tab-pad-b:      4px;
+  --tab-pad-l:     11px;
+}
+
+/* page. Geometry (--page-*, --gutter-*, --column-w) comes from a formats/
+   file, loaded before this one. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--desk);
+}
+
+.document { }
+
+.page {
+  position: relative;
+  width: var(--page-w);
+  height: var(--page-h);
+  padding: var(--page-pad-t) var(--page-pad-r) var(--page-pad-b) var(--page-pad-l);
+  margin: 20px auto;
+  background: var(--paper);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, .16);
+  font-family: var(--font-sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  overflow: visible;           /* a clip would hide a fitting failure */
+}
+
+/* band: gutter + content column */
+
+.band {
+  display: flex;
+  gap: var(--gutter-gap);
+}
+
+.band + .band { margin-top: var(--band-gap); }
+.band--summary + .band { margin-top: var(--band-gap-summary); }
+
+.band__gutter {
+  width: var(--gutter-w);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.band__content {
+  width: var(--column-w);
+}
+
+.band--header .band__gutter { padding-top: var(--gutter-nudge); }
+
+/* Optical nudge where the content beside a tab opens with small type. */
+.band--nudged .band__content { padding-top: var(--content-nudge); }
+
+.tagline {
+  margin: 0;
+  font-size: var(--fs-tagline);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-tagline);
+  line-height: var(--lh-tagline);
+  text-transform: uppercase;
+  color: var(--muted-label);
+  text-align: right;
+}
+
+.namemark {
+  position: relative;
+  display: inline-block;
+}
+
+/* The swipe is asymmetric so it reads as a hand gesture, not a rule. */
+.namemark::before {
+  content: "";
+  position: absolute;
+  left: var(--swipe-left);
+  right: var(--swipe-right);
+  bottom: var(--swipe-bottom);
+  height: var(--swipe-h);
+  background: var(--swipe-fill);
+  transform: skewX(var(--swipe-skew)) rotate(var(--swipe-rot));
+  z-index: 0;
+}
+
+.name {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--font-name, var(--font-sans));
+  font-size: var(--fs-name);
+  font-weight: var(--weight-name, var(--fw-black));
+  letter-spacing: var(--ls-name);
+  line-height: var(--lh-name);
+}
+
+.contact {
+  margin: var(--name-to-contact) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-contact);
+  line-height: var(--lh-contact);
+  color: var(--muted);
+}
+
+.contact__sep {
+  white-space: pre;   /* keeps the two spaces each side of the middot */
+}
+
+.contact a {
+  color: inherit;
+  text-decoration: none;
+}
+.contact a:hover { color: var(--accent-link); }
+
+.summary {
+  margin: 0;
+  font-size: var(--fs-summary);
+  line-height: var(--lh-summary);
+  color: var(--ink-summary);
+}
+
+/* section tabs */
+
+/* No horizontal rules anywhere: the tabs do all the separating. */
+.tab {
+  margin: 0;
+  align-self: flex-end;
+  background: var(--tab-fill);
+  color: var(--tab-ink, var(--ink));
+  border-radius: var(--tab-radius, 0);
+  font-family: var(--font-heading, var(--font-sans));
+  padding: var(--tab-pad-t) var(--tab-pad-r) var(--tab-pad-b) var(--tab-pad-l);
+  font-size: var(--fs-tab);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--ls-tab);
+  text-transform: uppercase;
+}
+
+.entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--role-gap);
+}
+
+.entry__title,
+.role-title {
+  margin: 0;
+  font-family: var(--font-heading, var(--font-sans));
+  font-size: var(--fs-role);
+  font-weight: var(--weight-heading, var(--fw-bold));
+  line-height: var(--lh-role);
+}
+
+.meta {
+  margin: var(--title-to-meta) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  letter-spacing: var(--ls-meta);
+  text-transform: uppercase;
+  color: var(--meta);
+}
+
+.meta--flat {
+  letter-spacing: var(--ls-meta-flat);
+  text-transform: none;
+}
+
+.bullets {
+  margin: var(--meta-to-bullets) 0 0;
+  padding-left: var(--bullet-indent);
+  font-size: var(--fs-bullet);
+  line-height: var(--lh-bullet);
+  color: var(--ink-body);
+}
+
+.bullets li + li { margin-top: var(--bullet-gap); }
+
+.skills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--skill-gap-row) var(--skill-gap-col);
+  font-size: var(--fs-skill);
+  line-height: var(--lh-skill);
+}
+
+.skills__group { margin: 0; }
+.skills__label { font-weight: var(--fw-bold); }
+.skills__items { color: var(--muted); }
+
+.item__title {
+  margin: 0;
+  font-family: var(--font-heading, var(--font-sans));
+  font-size: var(--fs-item);
+  font-weight: var(--weight-heading, var(--fw-bold));
+  line-height: var(--lh-item);
+}
+
+.item__title-secondary {
+  font-weight: var(--fw-regular);
+  color: var(--muted-label);
+}
+
+/* highlighter. A gradient band, not a fill, so it sits inside the x-height.
+   Data picks a slot name, never a hex value, so colours stay in the theme. */
+.mark {
+  --mark: var(--mark-fill);
+  background: linear-gradient(
+    to bottom,
+    transparent var(--mark-top),
+    var(--mark) var(--mark-top),
+    var(--mark) var(--mark-bottom),
+    transparent var(--mark-bottom)
+  );
+  padding: 0 var(--mark-pad-x);
+}
+
+.mark--primary { --mark: var(--mark-fill); }
+
+/* placeholders. .gap is a missing value, .gap--check a conflicting one.
+   Both print red so a PDF carrying one is obviously wrong. */
+.gap {
+  background: var(--flag-fill);
+  padding: 0 3px;
+}
+
+@media print {
+  .gap {
+    background: var(--flag-print-fill);
+    color: var(--flag-print-ink);
+    font-weight: var(--fw-bold);
+    box-shadow: inset 0 -1px 0 0 var(--flag-print-ink);
+  }
+}
+
+/* A4 components. The portrait sits in the gutter, so the column edge is untouched. */
+.portrait {
+  display: block;
+  width: var(--gutter-w);
+  aspect-ratio: 1;
+  object-fit: cover;
+  margin-bottom: var(--portrait-gap);
+}
+
+/* recipe.photo.shape; "rect" needs no class. */
+.portrait--soft  { border-radius: 8px; }
+.portrait--round { border-radius: 50%; }
+
+/* No photo file yet: prints red, like .gap. */
+.portrait--missing {
+  background: var(--flag-fill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  letter-spacing: var(--ls-meta-flat);
+  color: var(--meta);
+  text-align: center;
+}
+
+/* Continued tab: quieter, so it is not read as a second section. */
+.tab--cont { background: var(--tab-fill-cont); }
+
+.tab-note {
+  margin: var(--title-to-meta) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  letter-spacing: var(--ls-meta-flat);
+  color: var(--meta);
+  text-align: right;
+}
+
+/* With recipe.photo.show on, the summary moves into the header and the empty
+   summary band stays for pagination. */
+.band--photo .portrait { aspect-ratio: 35 / 45; }      /* passport cut */
+.band.band--absorbed { height: 0; margin-top: 0 !important; overflow: hidden; visibility: hidden; }
+
+.summary--in-header { margin-top: var(--summary-in-header-gap); }
+
+/* Name on every page, in case the sheets get separated. */
+.page-mark {
+  margin: 0;
+  position: absolute;
+  left: calc(var(--page-pad-l) + var(--gutter-w) + var(--gutter-gap));
+  bottom: var(--page-pad-b);
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  letter-spacing: var(--ls-meta-flat);
+  color: var(--meta);
+}
+
+/* Term/value list: Languages, Portfolio. */
+.pairs {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--pairs-gap-row) var(--pairs-gap-col);
+  font-size: var(--fs-skill);
+  line-height: var(--lh-skill);
+}
+.pairs dt { font-weight: var(--fw-bold); }
+.pairs dd { margin: 0; color: var(--muted); }
+.pairs a  { color: inherit; text-decoration: none; }
+.pairs a:hover { color: var(--accent-link); }
+
+/* Links inherit colour with no underline so wrapping a URL changes no metrics. */
+.bullets a { color: inherit; text-decoration: none; }
+.bullets a:hover { color: var(--accent-link); }
+
+/* One-line middot list: Certifications, Interests. */
+.runs {
+  margin: 0;
+  font-size: var(--fs-skill);
+  line-height: var(--lh-skill);
+  color: var(--muted);
+}
+.runs strong { font-weight: var(--fw-bold); color: var(--ink); }
+
+/* print */
+
+@media print {
+  html, body { background: var(--paper); }
+
+  .page {
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .page + .page { break-before: page; }
+
+  .portrait--missing {
+    background: var(--flag-print-fill);
+    color: var(--flag-print-ink);
+    font-weight: var(--fw-bold);
+    box-shadow: inset 0 0 0 2px var(--flag-print-ink);
+  }
+
+  /* Browsers drop background graphics in print unless told otherwise. */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  a { color: inherit; }
+}

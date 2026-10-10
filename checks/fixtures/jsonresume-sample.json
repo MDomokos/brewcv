@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Robin Vale",
+    "label": "Hardware Engineer",
+    "email": "robin@example.org",
+    "phone": "+351 900 000 000",
+    "url": "https://robinvale.example",
+    "summary": "Hardware engineer who designs field instruments that survive mud, salt and drops.",
+    "location": { "city": "Halden", "countryCode": "NO" },
+    "image": "https://robinvale.example/photo.jpg",
+    "profiles": [{ "network": "Portfolio", "username": "robinvale", "url": "https://robinvale.example" }]
+  },
+  "work": [
+    { "name": "Fjord Instruments", "position": "Mechanical Engineer", "location": "Halden", "startDate": "2022-04",
+      "highlights": [
+        "Designed an IP68 housing for a river-gauge logger; it passed a 2 m drop test on the first build.",
+        "Cut the assembly time of the sensor head from 40 to 25 minutes by redesigning the clip-in board mount."
+      ] },
+    { "name": "Northwind Labs", "position": "Design Intern", "startDate": "2021-06", "endDate": "2021-12",
+      "highlights": ["Built test fixtures for a hand-held spectrometer."] },
+    { "name": "Quiet Studio", "position": "Volunteer", "startDate": "2020" }
+  ],
+  "education": [
+    { "institution": "Example Technical University", "studyType": "B.Sc.", "area": "Mechanical Engineering", "endDate": "2022-06", "score": "First class" },
+    { "institution": "Example School", "studyType": "Diploma", "area": "Electronics", "endDate": "2018" }
+  ],
+  "skills": [
+    { "name": "CAD", "keywords": ["SolidWorks", "Onshape"] },
+    { "name": "Test", "keywords": ["IP testing", "drop testing"] }
+  ],
+  "languages": [{ "language": "Norwegian", "fluency": "Native" }, { "language": "English", "fluency": "C1" }],
+  "interests": [{ "name": "Climbing" }],
+  "publications": [{ "name": "Low-cost river gauging", "publisher": "Example Journal", "releaseDate": "2023" }],
+  "projects": [{ "name": "Open-source rain gauge", "description": "A 3D-printed tipping-bucket gauge.", "highlights": ["200 builds"] }],
+  "awards": [{ "title": "Design prize", "awarder": "Example Society", "date": "2022" }]
+}

@@ -1,0 +1,105 @@
+// The Export view: pre-flight checks, then the downloads. The string work is in
+// src/export.js; this module fetches, downloads and prints.
+
+import * as X from '../export.js';
+import { renderPages } from '../render.js';
+import { missingList } from '../model/lang.js';
+import * as RS from '../model/resumes.js';
+import { t, h, errText, docChrome, loadCatalogue } from '../i18n/index.js';
+
+let C = null;
+export function initExport(ctx){ C = ctx; return api; }
+
+const esc = X.escapeHtml;
+const st = () => C.store.state;
+
+async function text(url){ const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.text(); }
+async function dataUrl(url){
+  const r = await fetch(url, { cache: 'no-cache' });
+  if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  const b = await r.blob();
+  return new Promise((ok, bad) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = bad; fr.readAsDataURL(b); });
+}
+
+// The resume as one self-contained HTML document (a string).
+export async function buildHtml(recipe = C.cur(), laid = C.ui.laid){
+  const r = laid && !recipe.pages ? { ...recipe, pages: laid.pages } : recipe;
+  const tpl = await text(`templates/${r.format}.html`);
+  const hrefs = [...tpl.matchAll(/<link\b[^>]*rel=["']?stylesheet["']?[^>]*href=["']([^"']+)["']/gi)].map(m => m[1]);
+  for (const o of r.overlays ?? []) hrefs.push(`../themes/${o}.css`);
+  const css = [];
+  const fonts = new Map();
+  for (const href of hrefs){
+    const path = X.normalisePath(`templates/${href}`);
+    let t = await text(path);
+    const map = new Map();
+    for (const u of X.cssUrls(t, path)){
+      if (!fonts.has(u.url)) fonts.set(u.url, await dataUrl(u.url).catch(() => null));
+      if (fonts.get(u.url)) map.set(u.match, fonts.get(u.url));
+    }
+    t = X.replaceUrls(t, map);
+    css.push({ href, text: t });
+  }
+  const extra = C.extraCss?.(r) ?? '';
+  if (extra) css.push({ href: 'tokens', text: extra });
+  await loadCatalogue(r.lang ?? 'en');
+  const pages = renderPages(C.work(), r, document, { fallback: true, chrome: docChrome(r.lang ?? 'en') }).pages;
+  const documentHtml = X.cleanMarkup(pages.map(p => p.outerHTML).join('\n'));
+  const name = st().record.basics?.name ?? 'Resume';
+  return X.assembleHtml({ templateHtml: tpl, css, documentHtml, title: `${name}${recipe.company ? ` — ${recipe.company}` : ''}`,
+    lang: recipe.lang ?? 'en' });
+}
+
+// Print from a hidden frame. @page sets the paper size; the user saves as PDF from the dialog.
+async function printPdf(){
+  const html = await buildHtml();
+  const fr = document.createElement('iframe');
+  fr.className = 'print-frame';
+  fr.setAttribute('aria-hidden', 'true');
+  fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  document.body.append(fr);
+  await new Promise(ok => { fr.onload = ok; fr.srcdoc = html; });
+  try { await fr.contentDocument.fonts?.ready; } catch {}
+  fr.contentDocument.title = X.exportName(C.cur(), st().record, 'pdf').replace(/\.pdf$/, '');
+  fr.contentWindow.focus();
+  fr.contentWindow.print();
+  setTimeout(() => fr.remove(), 60_000);
+}
+
+function checks(){
+  const s = st();
+  return X.preflight({ model: C.work(), recipe: s.cur, fills: C.ui.fills ?? [], missing: missingList(C.work(), s.cur).length,
+    newer: RS.newerOf(C.work(), s.cur).length, dirty: RS.isDirty(s), vault: s.record.requireSource !== false });
+}
+
+function exportView(){
+  const list = checks();
+  const icon = { ok: '✓', warn: '!', bad: '✕' };
+  return `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a><h2 class="title">${h('head.export')}</h2>
+    <ul class="checks">${list.map(c => `<li class="${c.level}"><span class="ci">${icon[c.level]}</span>${esc(c.text)}</li>`).join('')}</ul>
+    <span class="lbl">${h('export.download')}</span>
+    <div class="dl">
+      <button class="primary" data-act="ex-pdf"><b>PDF</b><small>${h('export.pdfNote')}</small></button>
+      <button data-act="ex-html"><b>${h('export.html')}</b><small>${h('export.htmlNote')}</small></button>
+      <button data-act="ex-txt"><b>${h('export.txt')}</b><small>${h('export.txtNote')}</small></button>
+      <button data-act="ex-json"><b>JSON Resume</b><small>${h('export.jsonNote')}</small></button>
+      <button data-act="ex-backup"><b>${h('export.backup')}</b><small>${h('export.backupNote')}</small></button>
+    </div>
+    <p class="note">${h('export.note')}</p>`;
+}
+
+async function act(a){
+  const s = st();
+  try {
+    switch (a){
+      case 'ex-pdf': C.toast(t('toast.printDialog')); await printPdf(); return true;
+      case 'ex-html': C.download(await buildHtml(), X.exportName(s.cur, s.record, 'html'), 'text/html'); C.toast(t('toast.htmlDone')); return true;
+      case 'ex-txt': { const lang = s.cur.lang ?? 'en'; await loadCatalogue(lang); C.download(X.plainText(X.jsonResumeFile(C.work(), s.cur).file, { lang, chrome: docChrome(lang) }), X.exportName(s.cur, s.record, 'txt'), 'text/plain'); C.toast(t('toast.txtDone')); return true; }
+      case 'ex-json': { const { file, problems } = X.jsonResumeFile(C.work(), s.cur); C.download(JSON.stringify(file, null, 2) + '\n', X.exportName(s.cur, s.record, 'json')); C.toast(problems.length ? t('toast.jsonNotes', { n: problems.length, first: problems[0] }) : t('toast.jsonDone'), problems.length ? 'warn' : ''); return true; }
+      case 'ex-backup': C.downloadBackup(); return true;
+    }
+  } catch (e){ console.error(e); C.toast(t('toast.exportFailed', { msg: errText(e) }), 'bad'); return true; }
+  return false;
+}
+
+const api = { views: { export: exportView }, act, buildHtml, checks };

@@ -1,0 +1,48 @@
+/* a4.css: page geometry only. Load before the theme.
+   The 466px column is the one width where the measure (73.5 characters) and
+   page 1 fill (94.4%) both stay in range. Margins are asymmetric on purpose:
+   the 106px gutter already reads as left margin. The gutter must stay above
+   94.1px (the widest tab) and the five widths must sum to 794. */
+@page { size: A4; margin: 0; }
+:root {
+  --page-w:     794px;   /* 210 x 297 mm at 96 dpi */
+  --page-h:    1123px;
+  --page-pad-t:  56px;
+  --page-pad-l:  64px;
+  --page-pad-r: 130px;
+  --page-pad-b:  44px;
+
+  --gutter-w:   106px;
+  --gutter-gap:  28px;
+  --column-w:   466px;   /* 64 + 106 + 28 + 466 + 130 = 794 */
+}
+
+
+/* The header gutter (portrait plus discipline line) is taller than the
+   header content, so it is taken out of flow and the band reserves the
+   portrait's height. The summary then runs up beside the photo instead of
+   leaving a hole; in flow, page 1 filled to 99.8%. */
+.band--header {
+  position: relative;
+  min-height: calc(var(--gutter-nudge) + var(--gutter-w) + var(--portrait-gap));
+}
+
+.band--header > .band__gutter {
+  position: absolute;
+  top: var(--gutter-nudge);
+  left: 0;
+  width: var(--gutter-w);
+}
+
+.band--header > .band__content {
+  margin-left: calc(var(--gutter-w) + var(--gutter-gap));
+}
+
+.band--header + .band--summary { margin-top: var(--summary-in-header-gap); }
+
+/* Photo switched off (recipe.photo.show false): no portrait height reserved. */
+.page .band--header.band--no-photo { min-height: 0; }
+/* Photo switched on: the gutter goes back in flow so nothing overhangs the next band. */
+.page .band--header.band--photo { min-height: 0; }
+.page .band--header.band--photo > .band__gutter { position: static; flex: none; }
+.page .band--header.band--photo > .band__content { margin-left: 0; }

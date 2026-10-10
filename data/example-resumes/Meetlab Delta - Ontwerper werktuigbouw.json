@@ -1,0 +1,251 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Dana Okonkwo",
+    "label": "Mechanical & Design Engineer",
+    "email": "dana@example.org",
+    "phone": "+351 900 000 000",
+    "url": "https://danaokonkwo.example",
+    "summary": "Werktuigbouwkundig ingenieur voor medische wegwerpproducten, van eerste schets tot vrijgave van gereedschap; houder van een EU-octrooi. Werkte drie jaar in de cleanroom van een contractfabrikant voordat de overstap naar ontwerp volgde.",
+    "location": {
+      "city": "Lisbon",
+      "countryCode": "PT"
+    },
+    "profiles": []
+  },
+  "work": [
+    {
+      "name": "Hydra Medical",
+      "position": "Ontwerpingenieur",
+      "location": "Lissabon, Portugal",
+      "startDate": "2023-03",
+      "highlights": [
+        "Leiding over het herontwerp van de dosisteller van een inhalator met een productie van 400.000 stuks per jaar; aantal onderdelen teruggebracht van negen naar vijf.",
+        "Val- en cyclustestopstelling gebouwd die het team nu gebruikt voor ontwerpverificatie, inclusief de bijbehorende testprotocollen.",
+        "Wekelijkse DFM-besprekingen met de gereedschapsmaker geleid over drie rondes T1-samples; 41 van 44 punten opgelost vóór vrijgave van het gereedschap."
+      ]
+    },
+    {
+      "name": "Polytechnic Prototyping Lab",
+      "position": "Prototypingtechnicus",
+      "location": "Porto, Portugal",
+      "startDate": "2021-09",
+      "endDate": "2023-02",
+      "highlights": [
+        "Beheer van een prototypewerkplaats met zeven machines: vier FDM-printers, een harsprinter, een tafelfrees en een lasersnijder."
+      ]
+    },
+    {
+      "name": "Medisure Contract Manufacturing",
+      "position": "Cleanroomtechnicus",
+      "location": "Porto, Portugal",
+      "startDate": "2018-06",
+      "endDate": "2020-12",
+      "highlights": [
+        "ISO 7-cleanroomassemblage voor drie katheterproducten, circa 9.000 stuks per week in twee ploegen.",
+        "Uitval op de ballonlijmlijn verlaagd van 6% naar 2,5% door herontwerp van de lijmmal."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidade do Porto",
+      "area": "Mechanical Engineering",
+      "studyType": "M.Eng.",
+      "startDate": "2016-09",
+      "endDate": "2021-07",
+      "score": "Distinction"
+    }
+  ],
+  "publications": [
+    {
+      "name": "Dose-counting mechanism for a metered inhaler",
+      "publisher": "EPO",
+      "releaseDate": "2025",
+      "summary": "Co-inventor · EP 3 000 000 B1"
+    }
+  ],
+  "certificates": [
+    {
+      "name": "SolidWorks CSWP",
+      "issuer": "Example Systems"
+    },
+    {
+      "name": "GD&T ASME Y14.5",
+      "issuer": "Example Institute"
+    },
+    {
+      "name": "ISO 13485 internal auditor",
+      "issuer": "Example Certification Body"
+    }
+  ],
+  "skills": [
+    {
+      "name": "CAD & 3D",
+      "keywords": [
+        "SolidWorks (CSWP)",
+        "Creo",
+        "Fusion 360",
+        "KeyShot"
+      ]
+    },
+    {
+      "name": "Fabrication",
+      "keywords": [
+        "3D printing FDM/SLA",
+        "CNC milling",
+        "laser cutting",
+        "silicone tooling",
+        "injection-moulding DFM"
+      ]
+    },
+    {
+      "name": "Test & QA",
+      "keywords": [
+        "ISO 13485",
+        "IEC 62366",
+        "design verification",
+        "first-article inspection",
+        "PPAP"
+      ]
+    },
+    {
+      "name": "Software",
+      "keywords": [
+        "Python",
+        "MATLAB",
+        "Git",
+        "Excel"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Portuguese",
+      "fluency": "Native"
+    },
+    {
+      "language": "English",
+      "fluency": "C2"
+    },
+    {
+      "language": "Hungarian",
+      "fluency": "B1"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Dinghy sailing"
+    },
+    {
+      "name": "Bookbinding"
+    },
+    {
+      "name": "Restoring mechanical watches"
+    }
+  ],
+  "meta": {
+    "version": "v1.0.0",
+    "lastModified": "2026-10-06",
+    "resumeBuilder": {
+      "schema": "resume-recipe/4",
+      "library": {
+        "owner": "Dana Okonkwo (fictional)",
+        "facts": "86a30f9d"
+      },
+      "resume": {
+        "application": "Meetlab Delta - Ontwerper werktuigbouw",
+        "title": "Meetlab Delta — Ontwerper werktuigbouw",
+        "company": "Meetlab Delta",
+        "role": "Ontwerper werktuigbouw",
+        "jobType": "Hardware design",
+        "tags": [
+          "hardware"
+        ],
+        "date": "2026-10-06",
+        "savedAt": "2026-10-06",
+        "format": "a4",
+        "theme": "b2-marker",
+        "overlays": [],
+        "lang": "nl",
+        "summary": "summary",
+        "sections": [
+          {
+            "id": "experience",
+            "weight": 5,
+            "work": [
+              {
+                "id": "hydra",
+                "highlights": [
+                  "hydra-inhaler",
+                  "hydra-testing",
+                  "hydra-dfm"
+                ]
+              },
+              {
+                "id": "poly",
+                "highlights": [
+                  "poly-shop"
+                ]
+              },
+              {
+                "id": "medisure",
+                "highlights": [
+                  "med-lines",
+                  "med-scrap"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "skills"
+          },
+          {
+            "id": "patent"
+          },
+          {
+            "id": "education"
+          },
+          {
+            "id": "languages"
+          },
+          {
+            "id": "projects",
+            "weight": 0,
+            "work": [
+              "caliper-stand",
+              "chassis-jig"
+            ]
+          }
+        ],
+        "picks": {
+          "summary": "summary-v1-nl",
+          "hydra-inhaler": "hydra-inhaler-v1-nl"
+        },
+        "overrides": {},
+        "off": [
+          "hydra-suppliers",
+          "hydra-tolerance",
+          "hydra-dhf",
+          "hydra-human",
+          "poly-teaching",
+          "poly-jigs",
+          "poly-repairs",
+          "poly-grant",
+          "free-work",
+          "free-proto",
+          "free-site",
+          "med-spc",
+          "med-trial",
+          "med-wi",
+          "atl-range"
+        ],
+        "pageLimit": 1,
+        "photo": {
+          "show": false,
+          "shape": "rect"
+        }
+      }
+    }
+  }
+}

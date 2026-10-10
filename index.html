@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resume Builder</title>
+<meta name="description" content="Tailor a resume for each job in minutes: one career record, a version of every claim, and Fit to fill the page.">
+<meta name="theme-color" content="#ffd900">
+
+<!-- The app. Nothing is bundled, so from file:// it cannot start (browsers
+     refuse ES modules there); the classic script at the end says so. -->
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="preload" href="fonts/HankenGrotesk-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/HankenGrotesk-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="src/ui/workbench.css">
+<script>window.__booted = false;</script>
+</head>
+<body data-ws="resume">
+
+<div id="pages" class="pages"><div class="pages__sizer" aria-hidden="true"></div><section id="sheet" class="pagebox" role="region" aria-label="The resume. Click anything on it to work on it."></section></div>
+
+<section id="career" class="career card" hidden aria-label="Career: the timeline of your record"></section>
+<button id="thumb" class="thumb-btn" data-act="ws" data-ws="resume" hidden>Back to your resume</button>
+<span id="thumbcap" class="thumb-cap" hidden aria-hidden="true">← Your resume</span>
+
+<div id="col" class="col">
+  <header id="head" class="card head"></header>
+  <main id="body" class="card body"></main>
+  <footer id="foot" class="card foot"></footer>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<input type="file" id="file" accept="application/json,.json,.css,image/*" hidden>
+
+<div id="no-origin" class="card no-origin" hidden>
+  <h2>This page needs an origin</h2>
+  <p>Browsers won't load an ES module from a <code>file://</code> path. Serve the folder
+  (<code>python3 -m http.server 8000</code>) and open <code>http://localhost:8000/</code>.</p>
+</div>
+
+<script type="module" src="src/ui/shell.js"></script>
+<script>
+  // A module that never booted: almost always file://.
+  setTimeout(() => { if (!window.__booted) document.getElementById('no-origin').hidden = false; }, 1500);
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

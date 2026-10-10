@@ -1,0 +1,18 @@
+/* print-mono.css: overlay for a black-and-white printer. Load after b2-marker.css.
+   Yellow prints as muddy grey on a mono laser, so it goes transparent; greys
+   go one step darker because #8a8a8a prints faint. Layout is unchanged. */
+:root {
+  --tab-fill:      transparent;
+  --tab-fill-cont: transparent;
+  --swipe-fill:    transparent;
+  --mark-fill:     transparent;
+  --meta:          #666666;
+  --muted:         #3f3f44;
+  --muted-label:   #555555;
+}
+.namemark::before { display: none; }
+
+/* Tabs keep their shape as a hairline box, distinct from the grey grouped labels. */
+.tab           { box-shadow: inset 0 0 0 1.2px var(--ink); }
+.tab--cont     { box-shadow: inset 0 0 0 1px #9a9a9a; }
+.page .band--sub .tab { box-shadow: none; }

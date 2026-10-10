@@ -1,0 +1,5 @@
+/* contrast-aa.css: brings mono metadata to WCAG AA at 9.7px. Load after b2-marker.css.
+   #767676 is 4.54:1 on white. Grey on #ffd900 fails at any shade, so a
+   marked run inside metadata goes to full ink. */
+:root { --meta: #767676; }
+.meta .mark { color: var(--ink); }

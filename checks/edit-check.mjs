@@ -1,0 +1,316 @@
+#!/usr/bin/env node
+// node checks/edit-check.mjs
+// The Edit view's model in Node: src/model/record.js (version numbers, save over, save as, delete, the
+// word diff) and the tailoring edits in src/model/resume.js. Fictional data only; nothing is written.
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual as eq } from 'node:util';
+import * as S from '../src/model/schema.js';
+import * as R from '../src/model/record.js';
+import * as T from '../src/model/resume.js';
+import { pinsOf } from '../src/recipe.js';
+import { validate } from './lib/validate.mjs';
+import { createDocument } from '../scripts/lib/dom.mjs';
+import { renderPages } from '../src/render.js';
+import { cost } from '../src/fit.js';
+
+const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
+const clone = x => structuredClone(x);
+let failed = 0;
+const ok = (name, cond, extra = '') => {
+  console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${!cond && extra ? '  — ' + extra : ''}`);
+  if (!cond) failed++;
+};
+const section = t => console.log(`\n— ${t}`);
+const throws = fn => { try { fn(); return false; } catch { return true; } };
+
+const example = S.load(read('data/example.json')).model;
+const names = read('data/example-resumes/index.json');
+const resumes = names.map(n => S.loadResume(read(`data/example-resumes/${n}`), example).recipe);
+const m4 = S.load(read('checks/fixtures/example-0.4.json')).model;
+const m4recipe = S.migrateRecipe(read('checks/fixtures/example-0.4-recipe.json'));
+
+const render = (model, recipe) => {
+  const doc = createDocument();
+  return renderPages(model, recipe, doc, { annotate: true }).pages.map(p => p.outerHTML).join('');
+};
+const printed = (model, recipe) => new Set(cost(model, recipe).claims);
+const errorsOf = (model, recipe) => validate(S.save(model), recipe).errors;
+const nOf = (model, fid, lang = 'en') => R.versionsIn(model, fid, lang).map(v => v.n);
+
+// a fact with several English versions to play with
+const F = example.facts.find(f => R.versionsIn(example, f.id, 'en').length >= 2 && T.jobOfFact(example, f.id)).id;
+
+section('version numbers');
+{
+  const m = clone(example);
+  const base = R.versionsIn(m, F)[0];
+  const top = Math.max(...nOf(m, F).map(n => Number(R.major(n))));
+  ok('a new version from scratch takes the next whole number', R.nextMajor(m, F) === String(top + 1));
+  const a = R.addVersion(m, F, { text: 'First minor wording.', from: base.id, as: 'minor' });
+  ok('save as from v1 makes v1.1', a.n === `${R.major(base.n)}.1`, a.n);
+  const b = R.addVersion(m, F, { text: 'Second minor wording.', from: a.id, as: 'minor' });
+  ok('save as from v1.1 makes v1.2, never v1.1.1', b.n === `${R.major(base.n)}.2`, b.n);
+  ok('a number has at most one dot', [a, b].every(v => R.VERSION_N.test(v.n)));
+  const c = R.addVersion(m, F, { text: 'A whole new take.', from: base.id, as: 'major' });
+  ok('a new major is the next whole number', c.n === String(top + 1), c.n);
+  R.deleteVersion(m, c.id, []);
+  ok('a deleted number is retired', m.facts.find(f => f.id === F).retired.en.includes(c.n));
+  ok('and never reused', R.nextMajor(m, F) === String(top + 2));
+  R.deleteVersion(m, b.id, []);
+  ok('nor a deleted minor', R.nextMinor(m, F, base.n) === `${R.major(base.n)}.3`);
+  ok('numbers are per language', R.nextMajor(m, F, 'hu') === String((nOf(m, F, 'hu').map(n => Number(R.major(n))).sort((x, y) => y - x)[0] ?? 0) + 1));
+  const h = R.addVersion(m, F, { text: 'Magyar változat.', lang: 'hu', from: null, as: 'major' });
+  ok('a version in another language gets a lang suffix on its id', h.lang === 'hu' && /-hu$/.test(h.id));
+  ok('ids are unique', new Set(m.variants.map(v => v.id)).size === m.variants.length);
+  ok('the record still validates', !errorsOf(m).length, errorsOf(m).join(' | '));
+  ok('and saves and loads unchanged', eq(S.load(JSON.parse(S.serialize(S.save(m)))).model, m));
+  ok('the versions list in number order', eq(nOf(m, F), [...nOf(m, F)].sort((x, y) => R.compareN(x, y))));
+  ok('compareN: 2 < 2.1 < 2.10 < 3', ['3', '2.10', '2', '2.1'].sort(R.compareN).join() === '2,2.1,2.10,3');
+}
+
+section('save over, save as, delete');
+{
+  const m = clone(example);
+  const v = R.versionsIn(m, F)[0];
+  const n = v.n, id = v.id;
+  v.metrics.measured = { 'a4@b2-marker': { lines: 2, colWidth: 466, at: '2026-10-06' } };
+  R.saveOver(m, id, '  New words for the same claim.  ');
+  const w = m.variants.find(x => x.id === id);
+  ok('save over keeps the id and the number', w.n === n);
+  ok('and trims the text', w.text === 'New words for the same claim.');
+  ok('metrics.chars follows the text', w.metrics.chars === [...w.text].length);
+  ok('the old line count is cleared, so the probe measures again', eq(w.metrics.measured, {}));
+  ok('empty text is refused', throws(() => R.saveOver(m, id, '   ')));
+
+  const mv = { id: 'x', text: 'Cut cost by 40% in a year', marks: [{ start: 12, end: 15, slot: 'hl', expect: '40%' }], links: [{ start: 0, end: 3, href: 'https://e.example' }] };
+  const mk = clone(example);
+  const fx = mk.facts.find(f => f.id === F);
+  mk.variants.push({ ...mv, id: `${F}-mk`, n: '90', lang: 'en', tags: ['t'], seenIn: [], metrics: { chars: [...mv.text].length } });
+  fx.variants.push(`${F}-mk`);
+  R.saveOver(mk, `${F}-mk`, 'We cut cost by 40% within a year');
+  const re = mk.variants.find(x => x.id === `${F}-mk`);
+  ok('a mark moves to where its words now are', re.marks.length === 1 && [...re.text].slice(re.marks[0].start, re.marks[0].end).join('') === '40%', JSON.stringify(re.marks));
+  ok('a link whose words are gone is dropped, not left pointing at the wrong text', re.links.length === 0);
+  R.saveOver(mk, `${F}-mk`, 'Halved the cost in a year');
+  ok('a mark whose words are gone is dropped', mk.variants.find(x => x.id === `${F}-mk`).marks.length === 0);
+  ok('the record validates after all that', !errorsOf(mk).length, errorsOf(mk).join(' | '));
+
+  const s0 = clone(example);
+  const src = R.versionsIn(s0, F)[0];
+  src.source = 'Career Facts › example';
+  const sib = R.addVersion(s0, F, { text: 'A sibling.', from: src.id, as: 'minor' });
+  ok('save as copies the tags', eq(sib.tags, src.tags));
+  ok('and the source, so it still exports in vault mode', sib.source === src.source);
+  ok('and does not take a format it was never measured in', eq(sib.seenIn, []));
+  ok('it is filed with its fact', s0.facts.find(f => f.id === F).variants.includes(sib.id));
+  ok('a version of another fact can’t be the source', throws(() => R.addVersion(s0, F, { text: 'x', from: 'name-v1', as: 'minor' })));
+
+  const d = clone(example);
+  const vs = R.versionsIn(d, F);
+  const fact = d.facts.find(f => f.id === F);
+  fact.default.en = vs[0].id;
+  const rs = [{ picks: { [F]: vs[0].id } }, { picks: { [F]: vs[1].id } }, { picks: {} }];
+  const res = R.deleteVersion(d, vs[0].id, rs);
+  ok('delete removes the version', !d.variants.some(v => v.id === vs[0].id) && !fact.variants.includes(vs[0].id));
+  ok('a default that pointed at it moves to the lowest left', fact.default.en === R.versionsIn(d, F)[0].id);
+  ok('picks of it are dropped, so those resumes fall back', !('F' in rs[0].picks) && rs[0].picks[F] === undefined && res.touched.join() === '0');
+  ok('other picks are left alone', rs[1].picks[F] === vs[1].id);
+  const only = clone(example);
+  const oneFact = only.facts.find(f => R.versionsIn(only, f.id, 'en').length === 1);
+  ok('the last English version can’t be deleted', throws(() => R.deleteVersion(only, R.versionsIn(only, oneFact.id)[0].id)));
+  const hu = only.facts.find(f => R.versionsIn(only, f.id, 'hu').length === 1 && R.versionsIn(only, f.id, 'en').length >= 1);
+  R.deleteVersion(only, R.versionsIn(only, hu.id, 'hu')[0].id);
+  ok('the last Hungarian one can, and the claim prints in English again', !R.versionsIn(only, hu.id, 'hu').length && !hu.default.hu);
+  ok('the record validates after deletes', !errorsOf(d).length && !errorsOf(only).length, [...errorsOf(d), ...errorsOf(only)].join(' | '));
+
+  R.setDefault(d, R.versionsIn(d, F).at(-1).id);
+  ok('make default', fact.default.en === R.versionsIn(d, F).at(-1).id);
+}
+
+section('compare: the word diff');
+{
+  const df = R.wordDiff('Cut assembly time by 30%', 'Cut assembly time by 40% on line 2');
+  ok('unchanged words are kept', df[0].op === '=' && df[0].text.startsWith('Cut assembly time by '));
+  ok('removed and added words are marked', df.some(x => x.op === '-' && x.text.includes('30%')) && df.some(x => x.op === '+' && x.text.includes('40%')));
+  const ph = R.wordDiff('Led the a b c done', 'Led the x y z done');
+  ok('changes read as phrases, not word by word', ph.length === 4 && ph[1].text === 'a b c' && ph[2].text === 'x y z', JSON.stringify(ph));
+  for (const [a, b] of [['a b', 'c d'], ['one two three', 'one three'], ['x', 'x y z'], ['a  b c', 'a b  c d'], ['', 'new']]){
+    const d = R.wordDiff(a, b);
+    if (d.filter(x => x.op !== '+').map(x => x.text).join('') !== a || d.filter(x => x.op !== '-').map(x => x.text).join('') !== b) ok(`rebuilds ${JSON.stringify([a, b])}`, false, JSON.stringify(d));
+  }
+  ok('the runs rebuild both texts', df.filter(x => x.op !== '+').map(x => x.text).join('') === 'Cut assembly time by 30%'
+     && df.filter(x => x.op !== '-').map(x => x.text).join('') === 'Cut assembly time by 40% on line 2');
+}
+
+section('pins → off and keep');
+{
+  const legacy = { ...clone(resumes[0]), pins: { exclude: ['a'], include: ['b'], phrasing: ['b', 'c'] } };
+  delete legacy.off;
+  const mig = S.migrateRecipe(legacy);
+  ok('migrateRecipe writes off and keep', eq(mig.off, ['a']) && eq(mig.keep, ['b', 'c']) && !('pins' in mig));
+  ok('the fitter reads the same either way', eq([...pinsOf(legacy).exclude, '|', ...pinsOf(legacy).include, '|', ...pinsOf(legacy).phrasing],
+    [...pinsOf(mig).exclude, '|', ...pinsOf(mig).include, '|', ...pinsOf(mig).phrasing]));
+  ok('a saved example resume has off, not pins', resumes.every(r => !('pins' in r)) && resumes.some(r => Array.isArray(r.off)));
+  const file = S.saveResume(example, legacy).file;
+  ok('saving a recipe with pins writes off / keep', !('pins' in file.meta.resumeBuilder.resume) && eq(file.meta.resumeBuilder.resume.keep, ['b', 'c']));
+  ok('loading one with pins migrates it', !('pins' in S.loadResume({ ...file, meta: { ...file.meta, resumeBuilder: { ...file.meta.resumeBuilder, resume: legacy } } }).recipe));
+}
+
+section('bullets on and off, keep, this resume only');
+{
+  const m = example;
+  const r = clone(resumes[0]);
+  const job = T.jobRefs(m, r).map(x => (typeof x === 'string' ? x : x.id))[0];
+  const w = m.work.find(x => x.id === job);
+  const on = T.listedBullets(m, r, job);
+  const b = on[0];
+  T.setBulletOn(m, r, b, false);
+  ok('off takes it off the page', !printed(m, r).has(b));
+  ok('and into off', T.offOf(r).includes(b));
+  T.setBulletOn(m, r, b, true);
+  ok('on puts it back', printed(m, r).has(b) && !T.offOf(r).includes(b));
+  ok('in the record’s order', eq(T.listedBullets(m, r, job), w.highlights.filter(h => T.listedBullets(m, r, job).includes(h))));
+  ok('and the render is the one it started from', render(m, r) === render(m, clone(resumes[0]).off ? (() => { const x = clone(resumes[0]); return x; })() : resumes[0]));
+
+  const offJob = m.work.find(x => !T.jobRefs(m, r).some(ref => (typeof ref === 'string' ? ref : ref.id) === x.id));
+  if (offJob){
+    T.setBulletOn(m, r, offJob.highlights[0], true);
+    ok('turning on a bullet of a job that is off brings the job', T.jobRefs(m, r).some(ref => (typeof ref === 'string' ? ref : ref.id) === offJob.id));
+    ok('with only that bullet if the others are off', T.listedBullets(m, r, offJob.id).includes(offJob.highlights[0]));
+  } else ok('(every job is on in this resume)', true);
+
+  T.setJobOn(m, r, job, false);
+  ok('a job off leaves the page', !printed(m, r).has(w.display.position));
+  T.setJobOn(m, r, job, true);
+  ok('and comes back in the record’s place', (T.jobRefs(m, r).map(x => (typeof x === 'string' ? x : x.id))).indexOf(job) === 0);
+
+  T.setKeep(m, r, b, true);
+  ok('keep on a printing bullet', T.keepOf(r).includes(b) && !T.offOf(r).includes(b) && pinsOf(r).include.has(b));
+  const nb = w.highlights.find(h => !T.listedBullets(m, r, job).includes(h));
+  if (nb){
+    T.setKeep(m, r, nb, true);
+    ok('keep on a bullet that does not print also turns it off, so it stays off', T.offOf(r).includes(nb) && !pinsOf(r).include.has(nb));
+  }
+  T.setKeep(m, r, b, false);
+  ok('keep off', !T.keepOf(r).includes(b));
+  ok('no pins key is ever written', !('pins' in r));
+
+  T.setOverride(r, b, 'Only on this one.');
+  ok('this resume only is an override', r.overrides[b] === 'Only on this one.' && render(m, r).includes('Only on this one.'));
+  T.setOverride(r, b, null);
+  ok('and removing it prints the version again', !render(m, r).includes('Only on this one.'));
+  ok('the resume validates', !errorsOf(m, r).length, errorsOf(m, r).join(' | '));
+}
+
+section('a hand layout (pages)');
+{
+  const m = m4, r = clone(m4recipe);
+  const before = render(m, r);
+  const job = 'poly';
+  const b = m.work.find(w => w.id === job).highlights[0];
+  T.setBulletOn(m, r, b, false);
+  ok('a bullet off edits the slot the renderer reads', !printed(m, r).has(b) && Array.isArray(r.pages));
+  T.setBulletOn(m, r, b, true);
+  ok('on again, and the layout is untouched', render(m, r) === before);
+  T.setSectionOn(m, r, 'skills', false);
+  ok('a section off inside a hand layout is weight 0, and the layout stays', Array.isArray(r.pages) && !render(m, r).includes('data-section="skills"'));
+  T.setSectionOn(m, r, 'skills', true);
+  ok('and back on renders as before', render(m, r) === before);
+
+  const a = clone(m4recipe);
+  const { auto } = T.moveSection(m, a, 'education', 'skills');
+  ok('moving a section switches a hand layout to automatic pages', auto && !('pages' in a) && a.pageLimit === 2);
+  const ids = T.sectionList(m, a).filter(s => s.on && !s.fixed).map(s => s.id);
+  ok('in the new order', ids.indexOf('education') === ids.indexOf('skills') - 1, ids.join());
+  ok('everything that printed still prints', eq([...printed(m, a)].sort(), [...printed(m, clone(m4recipe))].sort()));
+  ok('the switched resume validates', !errorsOf(m, a).length, errorsOf(m, a).join(' | '));
+}
+
+section('sections: list, on/off, move, rename');
+{
+  const m = clone(example), r = clone(resumes[0]);
+  const list = T.sectionList(m, r);
+  ok('name and contact and the summary are fixed on top', list[0].fixed && list[0].id === 'header' && list[1].id === 'summary' && list[1].fixed);
+  ok('every section of the record is listed once', list.length === m.sections.length && new Set(list.map(s => s.id)).size === list.length);
+  const movable = list.filter(s => !s.fixed && s.on).map(s => s.id);
+  const last = movable.at(-1);
+  T.moveSection(m, r, last, movable[0]);
+  const after = T.sectionList(m, r).filter(s => !s.fixed && s.on).map(s => s.id);
+  ok('move to the top of the movable ones', after[0] === last);
+  ok('flowSlots follows the new order', T.sectionList(m, r).filter(s => !s.fixed && s.on).map(s => s.id).join() === r.sections.filter(s => s.weight !== 0).map(s => s.id).join());
+  T.stepSection(m, r, last, 1);
+  ok('↓ moves one down', T.sectionList(m, r).filter(s => !s.fixed && s.on).map(s => s.id)[1] === last);
+  ok('the header can’t move', throws(() => T.moveSection(m, r, 'header', null)));
+
+  const sec = after.find(id => id !== 'experience');
+  T.setSectionOn(m, r, sec, false);
+  ok('a section off is weight 0', r.sections.find(s => s.id === sec).weight === 0 && !render(m, r).includes(`data-section="${sec}"`));
+  T.setSectionOn(m, r, sec, true);
+  ok('and on again prints it', render(m, r).includes(`data-section="${sec}"`));
+  const absent = T.sectionList(m, r).find(s => !s.on && !s.fixed && !r.sections.some(x => x.id === s.id));
+  if (absent){
+    T.setSectionOn(m, r, absent.id, true);
+    ok('a section the resume didn’t list is added', r.sections.some(x => x.id === absent.id) && render(m, r).includes(`data-section="${absent.id}"`));
+  } else ok('(this resume lists every section)', true);
+  ok('the summary can’t be switched off', throws(() => T.setSectionOn(m, r, 'summary', false)));
+  ok('sectionMissing names what has no Hungarian', T.sectionMissing(m, 'interests', 'hu').length > 0 && !T.sectionMissing(m, 'interests', 'en').length);
+
+  T.setSectionLabel(m, r, 'experience', 'en', 'Work');
+  ok('a heading renamed on this resume prints', render(m, r).includes('>Work<'));
+  ok('the id doesn’t change', r.sections.some(s => s.id === 'experience' && s.label.en === 'Work'));
+  T.setSectionLabel(m, r, 'experience', 'hu', 'Munka');
+  ok('per language', T.labelOf(m, r, 'experience', 'hu') === 'Munka' && T.labelOf(m, r, 'experience', 'en') === 'Work');
+  T.setSectionLabel(m, r, 'experience', 'hu', '');
+  ok('reset removes it', T.labelOf(m, r, 'experience', 'hu') === null);
+  ok('the header has no heading', throws(() => T.setSectionLabel(m, r, 'header', 'en', 'x')));
+  T.useLabelEverywhere(m, r, 'experience', 'en');
+  ok('use on all my resumes writes the record’s title', m.sections.find(s => s.id === 'experience').title === 'Work' && T.labelOf(m, r, 'experience', 'en') === null);
+  T.setSectionLabel(m, r, 'skills', 'hu', 'Tudás');
+  T.useLabelEverywhere(m, r, 'skills', 'hu');
+  ok('and in another language its translation', m.i18n.hu.sections.skills === 'Tudás');
+  ok('the resume and the record validate', !errorsOf(m, r).length, errorsOf(m, r).join(' | '));
+}
+
+section('300 random edits in a row');
+{
+  let seed = 7;
+  const rnd = n => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  const m = clone(example);
+  const rs = resumes.map(clone);
+  let r = rs[0];
+  const bullets = m.work.flatMap(w => w.highlights);
+  let bad = null;
+  for (let i = 0; i < 300 && !bad; i++){
+    const f = bullets[rnd(bullets.length)];
+    const k = rnd(9);
+    try {
+      if (k === 0) T.setBulletOn(m, r, f, !!rnd(2));
+      else if (k === 1) T.setKeep(m, r, f, !!rnd(2));
+      else if (k === 2){ const vs = R.versionsIn(m, f, r.lang ?? 'en'); if (vs.length) R.addVersion(m, f, { text: `Edit ${i} of ${f}.`, from: vs[rnd(vs.length)].id, as: rnd(2) ? 'minor' : 'major' }); }
+      else if (k === 3){ const vs = R.versionsIn(m, f, 'en'); if (vs.length > 1) R.deleteVersion(m, vs[rnd(vs.length)].id, rs); }
+      else if (k === 4){ const vs = R.versionsIn(m, f, 'en'); R.saveOver(m, vs[rnd(vs.length)].id, `Saved over ${i}.`); }
+      else if (k === 5){ const ids = T.sectionList(m, r).filter(s => !s.fixed).map(s => s.id); T.moveSection(m, r, ids[rnd(ids.length)], rnd(2) ? ids[rnd(ids.length)] : null); }
+      else if (k === 6){
+        const ids = T.sectionList(m, r).filter(s => !s.fixed).map(s => s.id), id = ids[rnd(ids.length)], on = !!rnd(3);
+        // stay renderable without the app's English fallback
+        if (!on || !T.sectionMissing(m, id, r.lang).length) T.setSectionOn(m, r, id, on);
+      }
+      else if (k === 7) T.setJobOn(m, r, m.work[rnd(m.work.length)].id, !!rnd(3));
+      else { const vs = R.versionsIn(m, f, r.lang ?? 'en'); if (vs.length) r.picks = { ...r.picks, [f]: vs[rnd(vs.length)].id }; }
+      if (rnd(10) === 0) r = rs[rnd(rs.length)];
+    } catch (e){ if (!/can’t be deleted/.test(e.message)) bad = `edit ${i} (${k}): ${e.message}`; }
+  }
+  ok('no edit threw', !bad, bad);
+  const errs = rs.flatMap(x => errorsOf(m, x));
+  ok('the record and all six resumes still validate', !errs.length, errs.slice(0, 3).join(' | '));
+  ok('and all six still render', rs.every(x => { try { render(m, x); return true; } catch (e){ console.log('   ', e.message); return false; } }));
+  ok('numbers are unique per fact per language', m.facts.every(f => S.LANGS.every(L => { const n = nOf(m, f.id, L); return new Set(n).size === n.length; })));
+  ok('no pins key anywhere', rs.every(x => !('pins' in x)));
+}
+
+console.log(failed ? `\n${failed} edit check(s) FAILED` : '\nall edit checks passed');
+process.exit(failed ? 1 : 0);

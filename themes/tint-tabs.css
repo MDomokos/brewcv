@@ -1,0 +1,4 @@
+/* tint-tabs.css: one token. Load after b2-marker.css.
+   Section tabs drop to a 50% tint of the accent; the swipe and highlights
+   stay at full strength. */
+:root { --tab-fill: #ffec80; }

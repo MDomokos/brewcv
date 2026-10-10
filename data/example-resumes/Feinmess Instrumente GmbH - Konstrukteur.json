@@ -1,0 +1,251 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Dana Okonkwo",
+    "label": "Mechanical & Design Engineer",
+    "email": "dana@example.org",
+    "phone": "+351 900 000 000",
+    "url": "https://danaokonkwo.example",
+    "summary": "Maschinenbauingenieur für Einweg-Medizinprodukte, vom ersten Entwurf bis zur Werkzeugfreigabe; EU-Patentinhaber. Drei Jahre im Reinraum eines Lohnfertigers, danach Wechsel in die Konstruktion.",
+    "location": {
+      "city": "Lisbon",
+      "countryCode": "PT"
+    },
+    "profiles": []
+  },
+  "work": [
+    {
+      "name": "Hydra Medical",
+      "position": "Konstrukteur",
+      "location": "Lissabon, Portugal",
+      "startDate": "2023-03",
+      "highlights": [
+        "Leitung der Neukonstruktion des Dosiszählers eines Inhalators mit 400.000 Stück pro Jahr; Teileanzahl von neun auf fünf reduziert.",
+        "Aufbau des Fall- und Zyklustestprüfstands, den das Team heute für die Designverifizierung nutzt, samt zugehörigen Prüfprotokollen.",
+        "Wöchentliche DFM-Reviews mit dem Werkzeugbauer über drei T1-Musterrunden; 41 von 44 Punkten vor der Werkzeugfreigabe abgeschlossen."
+      ]
+    },
+    {
+      "name": "Polytechnic Prototyping Lab",
+      "position": "Prototypentechniker",
+      "location": "Porto, Portugal",
+      "startDate": "2021-09",
+      "endDate": "2023-02",
+      "highlights": [
+        "Leitung einer Prototypenwerkstatt mit sieben Maschinen: vier FDM-Drucker, ein Harzdrucker, eine Tischfräse und ein Laserschneider."
+      ]
+    },
+    {
+      "name": "Medisure Contract Manufacturing",
+      "position": "Reinraumtechniker",
+      "location": "Porto, Portugal",
+      "startDate": "2018-06",
+      "endDate": "2020-12",
+      "highlights": [
+        "ISO-7-Reinraummontage für drei Katheterprodukte, rund 9.000 Stück pro Woche im Zweischichtbetrieb.",
+        "Ausschuss an der Ballonverklebungslinie von 6 % auf 2,5 % gesenkt durch Neukonstruktion der Klebevorrichtung."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidade do Porto",
+      "area": "Mechanical Engineering",
+      "studyType": "M.Eng.",
+      "startDate": "2016-09",
+      "endDate": "2021-07",
+      "score": "Distinction"
+    }
+  ],
+  "publications": [
+    {
+      "name": "Dose-counting mechanism for a metered inhaler",
+      "publisher": "EPO",
+      "releaseDate": "2025",
+      "summary": "Co-inventor · EP 3 000 000 B1"
+    }
+  ],
+  "certificates": [
+    {
+      "name": "SolidWorks CSWP",
+      "issuer": "Example Systems"
+    },
+    {
+      "name": "GD&T ASME Y14.5",
+      "issuer": "Example Institute"
+    },
+    {
+      "name": "ISO 13485 internal auditor",
+      "issuer": "Example Certification Body"
+    }
+  ],
+  "skills": [
+    {
+      "name": "CAD & 3D",
+      "keywords": [
+        "SolidWorks (CSWP)",
+        "Creo",
+        "Fusion 360",
+        "KeyShot"
+      ]
+    },
+    {
+      "name": "Fabrication",
+      "keywords": [
+        "3D printing FDM/SLA",
+        "CNC milling",
+        "laser cutting",
+        "silicone tooling",
+        "injection-moulding DFM"
+      ]
+    },
+    {
+      "name": "Test & QA",
+      "keywords": [
+        "ISO 13485",
+        "IEC 62366",
+        "design verification",
+        "first-article inspection",
+        "PPAP"
+      ]
+    },
+    {
+      "name": "Software",
+      "keywords": [
+        "Python",
+        "MATLAB",
+        "Git",
+        "Excel"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Portuguese",
+      "fluency": "Native"
+    },
+    {
+      "language": "English",
+      "fluency": "C2"
+    },
+    {
+      "language": "Hungarian",
+      "fluency": "B1"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Dinghy sailing"
+    },
+    {
+      "name": "Bookbinding"
+    },
+    {
+      "name": "Restoring mechanical watches"
+    }
+  ],
+  "meta": {
+    "version": "v1.0.0",
+    "lastModified": "2026-10-06",
+    "resumeBuilder": {
+      "schema": "resume-recipe/4",
+      "library": {
+        "owner": "Dana Okonkwo (fictional)",
+        "facts": "86a30f9d"
+      },
+      "resume": {
+        "application": "Feinmess Instrumente GmbH - Konstrukteur",
+        "title": "Feinmess Instrumente GmbH — Konstrukteur",
+        "company": "Feinmess Instrumente GmbH",
+        "role": "Konstrukteur",
+        "jobType": "Hardware design",
+        "tags": [
+          "hardware"
+        ],
+        "date": "2026-10-06",
+        "savedAt": "2026-10-06",
+        "format": "a4",
+        "theme": "b2-marker",
+        "overlays": [],
+        "lang": "de",
+        "summary": "summary",
+        "sections": [
+          {
+            "id": "experience",
+            "weight": 5,
+            "work": [
+              {
+                "id": "hydra",
+                "highlights": [
+                  "hydra-inhaler",
+                  "hydra-testing",
+                  "hydra-dfm"
+                ]
+              },
+              {
+                "id": "poly",
+                "highlights": [
+                  "poly-shop"
+                ]
+              },
+              {
+                "id": "medisure",
+                "highlights": [
+                  "med-lines",
+                  "med-scrap"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "skills"
+          },
+          {
+            "id": "patent"
+          },
+          {
+            "id": "education"
+          },
+          {
+            "id": "languages"
+          },
+          {
+            "id": "projects",
+            "weight": 0,
+            "work": [
+              "caliper-stand",
+              "chassis-jig"
+            ]
+          }
+        ],
+        "picks": {
+          "summary": "summary-v1-de",
+          "hydra-inhaler": "hydra-inhaler-v1-de"
+        },
+        "overrides": {},
+        "off": [
+          "hydra-suppliers",
+          "hydra-tolerance",
+          "hydra-dhf",
+          "hydra-human",
+          "poly-teaching",
+          "poly-jigs",
+          "poly-repairs",
+          "poly-grant",
+          "free-work",
+          "free-proto",
+          "free-site",
+          "med-spc",
+          "med-trial",
+          "med-wi",
+          "atl-range"
+        ],
+        "pageLimit": 1,
+        "photo": {
+          "show": true,
+          "shape": "rect"
+        }
+      }
+    }
+  }
+}

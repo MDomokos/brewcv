@@ -1,0 +1,15 @@
+/* us-letter.css: page geometry only. Load before the theme.
+   A format owns the page box and horizontal grid; a theme owns type and colour. */
+@page { size: letter; margin: 0; }
+:root {
+  --page-w:     816px;   /* 215.9 x 279.4 mm at 96 dpi */
+  --page-h:    1056px;
+  --page-pad-t:  56px;
+  --page-pad-l:  64px;
+  --page-pad-r:  64px;
+  --page-pad-b:  44px;
+
+  --gutter-w:   132px;
+  --gutter-gap:  28px;
+  --column-w:   528px;   /* 64 + 132 + 28 + 528 + 64 = 816 */
+}

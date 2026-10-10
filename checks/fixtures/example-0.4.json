@@ -1,0 +1,1694 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Dana Okonkwo",
+    "label": "Mechanical & Design Engineer",
+    "email": "dana@example.org",
+    "phone": "+351 900 000 000",
+    "url": "https://danaokonkwo.example",
+    "location": {
+      "city": "Lisbon",
+      "countryCode": "PT"
+    },
+    "profiles": [
+      {
+        "network": "Portfolio",
+        "username": "danaokonkwo.example",
+        "url": "https://danaokonkwo.example",
+        "fact": "link-portfolio"
+      },
+      {
+        "network": "Forge",
+        "username": "dana",
+        "url": "https://forge.example/dana",
+        "fact": "link-forge"
+      }
+    ],
+    "summary": "Mechanical engineer working on single-use medical devices from first sketch to tooling release; EU patent holder. Spent three years on the clean-room floor before moving to design, which is why the tolerances are buildable.",
+    "source": "Example Facts.md section 1 · Identity; Example Facts.md section 2 · Work rights",
+    "display": {
+      "name": "name",
+      "label": "tagline",
+      "contact": "contact"
+    },
+    "portrait": {
+      "state": "missing",
+      "placeholder": "⬜",
+      "label": "PHOTO",
+      "source": "Example Facts.md section 12 · Open items · photo file",
+      "formats": [
+        "a4"
+      ]
+    }
+  },
+  "work": [
+    {
+      "id": "hydra",
+      "position": "Design Engineer",
+      "name": "Hydra Medical",
+      "location": "Lisbon, Portugal",
+      "startDate": "2023-03",
+      "source": "Example Facts.md section 5 · Hydra Medical",
+      "display": {
+        "position": "hydra-position",
+        "meta": "hydra-meta"
+      },
+      "highlights": [
+        "Led the dose-counter redesign on an inhaler running 400,000 units a year; cut the part count from nine to five.",
+        "Built the drop and cycle test rig the team now uses for design verification, and wrote the test protocols that go with it.",
+        "Qualified two moulding suppliers, one in Portugal and one in Poland, and ran the first-article inspections."
+      ]
+    },
+    {
+      "id": "poly",
+      "position": "Prototyping Technician",
+      "name": "Polytechnic Prototyping Lab",
+      "location": "Porto",
+      "startDate": "2021-09",
+      "endDate": "2023-02",
+      "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+      "display": {
+        "position": "poly-position",
+        "meta": "poly-meta"
+      },
+      "highlights": [
+        "Ran a seven-machine prototyping shop: four FDM printers, a resin printer, a benchtop mill and a laser cutter.",
+        "Taught the machine-safety induction to about 120 students a year and wrote the handbook for it."
+      ]
+    },
+    {
+      "id": "free",
+      "position": "Freelance CAD Designer",
+      "name": "Self-employed",
+      "location": "Remote",
+      "startDate": "2021-01",
+      "endDate": "2021-08",
+      "source": "Example Facts.md section 5 · Freelance",
+      "display": {
+        "position": "free-position",
+        "meta": "free-meta"
+      },
+      "highlights": [
+        "CAD and rendering for two small furniture studios, including the assembly drawings they shipped with the product."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "id": "porto-meng",
+      "institution": "Universidade do Porto",
+      "studyType": "M.Eng.",
+      "area": "Mechanical Engineering",
+      "endDate": "2021-07",
+      "honours": "Distinction",
+      "display": {
+        "studyType": "edu-degree",
+        "institution": "edu-school",
+        "meta": "edu-meta"
+      },
+      "source": "Example Facts.md section 6 · Education"
+    }
+  ],
+  "publications": [
+    {
+      "id": "dose-counter",
+      "name": "Dose-counting mechanism for a metered inhaler",
+      "publisher": "EPO",
+      "releaseDate": "2025",
+      "identifier": "EP 3 000 000 B1",
+      "role": "Co-inventor",
+      "display": {
+        "name": "patent-title",
+        "meta": "patent-meta"
+      },
+      "source": "Example Facts.md section 7 · Patent"
+    }
+  ],
+  "skills": [
+    {
+      "id": "skills-cad",
+      "name": "CAD & 3D",
+      "keywords": [
+        "SolidWorks",
+        "Creo",
+        "Fusion 360",
+        "KeyShot"
+      ],
+      "source": "Example Facts.md section 8 · Skills & tools"
+    },
+    {
+      "id": "skills-fabrication",
+      "name": "Fabrication",
+      "keywords": [
+        "3D printing FDM/SLA",
+        "CNC milling",
+        "laser cutting",
+        "silicone tooling",
+        "soldering"
+      ],
+      "source": "Example Facts.md section 8 · Skills & tools"
+    },
+    {
+      "id": "skills-testing",
+      "name": "Test & QA",
+      "keywords": [
+        "ISO 13485 documentation",
+        "design verification",
+        "first-article inspection"
+      ],
+      "source": "Example Facts.md section 8 · Skills & tools"
+    }
+  ],
+  "certificates": [
+    {
+      "id": "cert-solidworks",
+      "name": "SolidWorks",
+      "issuer": "Example Systems",
+      "source": "Example Facts.md section 8 · Skills & tools"
+    },
+    {
+      "id": "cert-gdt",
+      "name": "GD&T ASME Y14.5",
+      "issuer": "Example Institute",
+      "source": "Example Facts.md section 8 · Skills & tools"
+    }
+  ],
+  "languages": [
+    {
+      "id": "lang-portuguese",
+      "language": "Portuguese",
+      "fluency": "Native",
+      "source": "Example Facts.md section 3 · Languages"
+    },
+    {
+      "id": "lang-english",
+      "language": "English",
+      "fluency": "C2",
+      "source": "Example Facts.md section 3 · Languages"
+    }
+  ],
+  "interests": [
+    {
+      "id": "interest-sailing",
+      "name": "Dinghy sailing",
+      "source": "Example Facts.md section 8 · Interests"
+    },
+    {
+      "id": "interest-bookbinding",
+      "name": "Bookbinding",
+      "source": "Example Facts.md section 8 · Interests"
+    }
+  ],
+  "meta": {
+    "version": "v1.0.0",
+    "lastModified": "2026-09-15",
+    "resumeBuilder": {
+      "schema": "resume-data/4",
+      "info": {
+        "owner": "Dana Okonkwo (fictional)",
+        "updated": "2026-09-15",
+        "appVersion": "0.2.1",
+        "vocabulary": "JSON Resume field names on the structured spine",
+        "note": "Fictional: every name, number, link, employer and patent number is invented. metrics.measured is written by the renderer, not here. Frozen at 0.5.1 as the 0.4.0 checks fixture; the shipped example is now data/example.json."
+      },
+      "vocabulary": {
+        "slots": [
+          "primary"
+        ],
+        "axes": [
+          "density",
+          "market"
+        ],
+        "tags": [
+          "additive",
+          "cad",
+          "certification",
+          "cnc",
+          "documentation",
+          "education",
+          "fabrication",
+          "field",
+          "hardware",
+          "identity",
+          "interests",
+          "languages",
+          "manufacturing",
+          "patent",
+          "portfolio",
+          "project-management",
+          "prototyping",
+          "teaching",
+          "ux",
+          "vendor",
+          "web",
+          "work-rights"
+        ]
+      },
+      "sections": [
+        {
+          "id": "header",
+          "title": null,
+          "kind": "header",
+          "content": {
+            "basics": true
+          }
+        },
+        {
+          "id": "summary",
+          "title": "Summary",
+          "kind": "prose",
+          "content": {
+            "fact": "summary"
+          }
+        },
+        {
+          "id": "experience",
+          "title": "Experience",
+          "kind": "entries",
+          "content": {
+            "work": [
+              "hydra",
+              "poly",
+              "free"
+            ]
+          }
+        },
+        {
+          "id": "skills",
+          "title": "Skills",
+          "kind": "grid",
+          "content": {
+            "groups": [
+              "skills-cad",
+              "skills-fabrication",
+              "skills-testing"
+            ]
+          }
+        },
+        {
+          "id": "certified",
+          "title": "Certified",
+          "kind": "runs",
+          "content": {
+            "items": [
+              "cert-solidworks",
+              "cert-gdt"
+            ],
+            "separator": " · ",
+            "noteSeparator": " — "
+          }
+        },
+        {
+          "id": "patent",
+          "title": "Patent",
+          "kind": "item",
+          "content": {
+            "title": "patent-title",
+            "meta": "patent-meta"
+          }
+        },
+        {
+          "id": "education",
+          "title": "Education",
+          "kind": "item",
+          "content": {
+            "title": "edu-degree",
+            "subtitle": "edu-school",
+            "meta": "edu-meta",
+            "titleSeparator": "  "
+          }
+        },
+        {
+          "id": "languages",
+          "title": "Languages",
+          "kind": "pairs",
+          "content": {
+            "pairs": [
+              "lang-portuguese",
+              "lang-english"
+            ]
+          }
+        },
+        {
+          "id": "portfolio",
+          "title": "Portfolio",
+          "kind": "pairs",
+          "content": {
+            "pairs": [
+              "link-portfolio",
+              "link-forge"
+            ]
+          }
+        },
+        {
+          "id": "interests",
+          "title": "Interests",
+          "kind": "runs",
+          "content": {
+            "items": [
+              "interest-sailing",
+              "interest-bookbinding"
+            ],
+            "separator": " · "
+          }
+        }
+      ],
+      "facts": [
+        {
+          "id": "cert-gdt",
+          "axis": "density",
+          "summary": "GD&T certification",
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "variants": [
+            "cert-gdt-base"
+          ],
+          "default": {
+            "en": "cert-gdt-base"
+          }
+        },
+        {
+          "id": "cert-solidworks",
+          "axis": "density",
+          "summary": "SolidWorks certification",
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "variants": [
+            "cert-solidworks-base"
+          ],
+          "default": {
+            "en": "cert-solidworks-base"
+          }
+        },
+        {
+          "id": "contact",
+          "axis": "market",
+          "summary": "Contact block and work-rights line",
+          "source": "Example Facts.md section 1 · Identity; Example Facts.md section 2 · Work rights",
+          "variants": [
+            "contact-us",
+            "contact-eu"
+          ],
+          "default": {
+            "en": "contact-us"
+          }
+        },
+        {
+          "id": "edu-degree",
+          "axis": "density",
+          "summary": "Degree",
+          "source": "Example Facts.md section 6 · Education",
+          "variants": [
+            "edu-degree-base"
+          ],
+          "default": {
+            "en": "edu-degree-base"
+          }
+        },
+        {
+          "id": "edu-meta",
+          "axis": "density",
+          "summary": "Conferral date and honours",
+          "source": "Example Facts.md section 6 · Education",
+          "variants": [
+            "edu-meta-base"
+          ],
+          "default": {
+            "en": "edu-meta-base"
+          }
+        },
+        {
+          "id": "edu-school",
+          "axis": "density",
+          "summary": "Institution",
+          "source": "Example Facts.md section 6 · Education",
+          "variants": [
+            "edu-school-base"
+          ],
+          "default": {
+            "en": "edu-school-base"
+          }
+        },
+        {
+          "id": "free-meta",
+          "work": "free",
+          "axis": "density",
+          "summary": "Employer, dates and location",
+          "source": "Example Facts.md section 5 · Freelance",
+          "variants": [
+            "free-meta-base"
+          ],
+          "default": {
+            "en": "free-meta-base"
+          }
+        },
+        {
+          "id": "free-position",
+          "work": "free",
+          "axis": "density",
+          "summary": "Job title",
+          "source": "Example Facts.md section 5 · Freelance",
+          "variants": [
+            "free-position-base"
+          ],
+          "default": {
+            "en": "free-position-base"
+          }
+        },
+        {
+          "id": "free-work",
+          "work": "free",
+          "axis": "density",
+          "summary": "CAD and rendering for two furniture studios",
+          "source": "Example Facts.md section 5 · Freelance",
+          "variants": [
+            "free-work-base"
+          ],
+          "default": {
+            "en": "free-work-base"
+          }
+        },
+        {
+          "id": "hydra-inhaler",
+          "work": "hydra",
+          "axis": "density",
+          "summary": "Led the dose-counter redesign, 400,000 units a year",
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "variants": [
+            "hydra-inhaler-short",
+            "hydra-inhaler-full"
+          ],
+          "default": {
+            "en": "hydra-inhaler-short"
+          }
+        },
+        {
+          "id": "hydra-meta",
+          "work": "hydra",
+          "axis": "density",
+          "summary": "Employer, dates and location",
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "variants": [
+            "hydra-meta-short",
+            "hydra-meta-full"
+          ],
+          "default": {
+            "en": "hydra-meta-short"
+          }
+        },
+        {
+          "id": "hydra-position",
+          "work": "hydra",
+          "axis": "density",
+          "summary": "Job title",
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "variants": [
+            "hydra-position-base"
+          ],
+          "default": {
+            "en": "hydra-position-base"
+          }
+        },
+        {
+          "id": "hydra-suppliers",
+          "work": "hydra",
+          "axis": "density",
+          "summary": "Supplier qualification in two countries",
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "variants": [
+            "hydra-suppliers-base"
+          ],
+          "default": {
+            "en": "hydra-suppliers-base"
+          }
+        },
+        {
+          "id": "hydra-testing",
+          "work": "hydra",
+          "axis": "density",
+          "summary": "Drop and cycle testing rig",
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "variants": [
+            "hydra-testing-merged",
+            "hydra-testing-base"
+          ],
+          "default": {
+            "en": "hydra-testing-base"
+          }
+        },
+        {
+          "id": "interest-bookbinding",
+          "axis": "density",
+          "summary": "Bookbinding",
+          "source": "Example Facts.md section 8 · Interests",
+          "variants": [
+            "interest-bookbinding-base"
+          ],
+          "default": {
+            "en": "interest-bookbinding-base"
+          }
+        },
+        {
+          "id": "interest-sailing",
+          "axis": "density",
+          "summary": "Dinghy sailing",
+          "source": "Example Facts.md section 8 · Interests",
+          "variants": [
+            "interest-sailing-base"
+          ],
+          "default": {
+            "en": "interest-sailing-base"
+          }
+        },
+        {
+          "id": "lang-english",
+          "axis": "density",
+          "term": "English",
+          "summary": "English, C2",
+          "source": "Example Facts.md section 3 · Languages",
+          "variants": [
+            "lang-english-base"
+          ],
+          "default": {
+            "en": "lang-english-base"
+          }
+        },
+        {
+          "id": "lang-portuguese",
+          "axis": "density",
+          "term": "Portuguese",
+          "summary": "Portuguese, native",
+          "source": "Example Facts.md section 3 · Languages",
+          "variants": [
+            "lang-portuguese-base"
+          ],
+          "default": {
+            "en": "lang-portuguese-base"
+          }
+        },
+        {
+          "id": "link-forge",
+          "axis": "density",
+          "term": "Code",
+          "summary": "Code host profile",
+          "source": "Example Facts.md section 1 · Identity",
+          "variants": [
+            "link-forge-base"
+          ],
+          "default": {
+            "en": "link-forge-base"
+          }
+        },
+        {
+          "id": "link-portfolio",
+          "axis": "density",
+          "term": "Portfolio",
+          "summary": "Portfolio site",
+          "source": "Example Facts.md section 1 · Identity",
+          "variants": [
+            "link-portfolio-base"
+          ],
+          "default": {
+            "en": "link-portfolio-base"
+          }
+        },
+        {
+          "id": "name",
+          "axis": "density",
+          "summary": "Full name",
+          "source": "Example Facts.md section 1 · Identity",
+          "variants": [
+            "name-base"
+          ],
+          "default": {
+            "en": "name-base"
+          }
+        },
+        {
+          "id": "patent-meta",
+          "axis": "density",
+          "summary": "Patent metadata line",
+          "source": "Example Facts.md section 7 · Patent",
+          "variants": [
+            "patent-meta-full",
+            "patent-meta-short"
+          ],
+          "default": {
+            "en": "patent-meta-full"
+          }
+        },
+        {
+          "id": "patent-title",
+          "axis": "density",
+          "summary": "Patent title",
+          "source": "Example Facts.md section 7 · Patent",
+          "variants": [
+            "patent-title-base"
+          ],
+          "default": {
+            "en": "patent-title-base"
+          }
+        },
+        {
+          "id": "poly-meta",
+          "work": "poly",
+          "axis": "density",
+          "summary": "Employer, dates and location",
+          "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+          "variants": [
+            "poly-meta-base"
+          ],
+          "default": {
+            "en": "poly-meta-base"
+          }
+        },
+        {
+          "id": "poly-position",
+          "work": "poly",
+          "axis": "density",
+          "summary": "Job title",
+          "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+          "variants": [
+            "poly-position-base"
+          ],
+          "default": {
+            "en": "poly-position-base"
+          }
+        },
+        {
+          "id": "poly-shop",
+          "work": "poly",
+          "axis": "density",
+          "summary": "Ran a seven-machine prototyping shop",
+          "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+          "variants": [
+            "poly-shop-short",
+            "poly-shop-full"
+          ],
+          "default": {
+            "en": "poly-shop-short"
+          }
+        },
+        {
+          "id": "poly-teaching",
+          "work": "poly",
+          "axis": "density",
+          "summary": "Taught the machine-safety induction",
+          "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+          "variants": [
+            "poly-teaching-base"
+          ],
+          "default": {
+            "en": "poly-teaching-base"
+          }
+        },
+        {
+          "id": "skills-cad",
+          "axis": "density",
+          "label": "CAD & 3D",
+          "summary": "CAD and 3D tools",
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "variants": [
+            "skills-cad-full",
+            "skills-cad-short"
+          ],
+          "default": {
+            "en": "skills-cad-full"
+          }
+        },
+        {
+          "id": "skills-fabrication",
+          "axis": "density",
+          "label": "Fabrication",
+          "summary": "Fabrication processes",
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "variants": [
+            "skills-fabrication-short",
+            "skills-fabrication-full"
+          ],
+          "default": {
+            "en": "skills-fabrication-short"
+          }
+        },
+        {
+          "id": "skills-testing",
+          "axis": "density",
+          "label": "Test & QA",
+          "summary": "Verification and regulatory",
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "variants": [
+            "skills-testing-base"
+          ],
+          "default": {
+            "en": "skills-testing-base"
+          }
+        },
+        {
+          "id": "summary",
+          "axis": "density",
+          "summary": "Positioning line",
+          "source": "Example Facts.md section 10 · Positioning; Example Facts.md section 7 · Patent",
+          "variants": [
+            "summary-base"
+          ],
+          "default": {
+            "en": "summary-base"
+          }
+        },
+        {
+          "id": "tagline",
+          "axis": "density",
+          "summary": "Discipline line for the gutter",
+          "source": "Example Facts.md section 1 · Identity",
+          "variants": [
+            "tagline-base"
+          ],
+          "default": {
+            "en": "tagline-base"
+          }
+        }
+      ],
+      "variants": [
+        {
+          "id": "cert-gdt-base",
+          "lang": "en",
+          "text": "GD&T ASME Y14.5",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "cad",
+            "certification"
+          ],
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 15,
+            "measured": {}
+          },
+          "note": "two formal certifications",
+          "n": "1"
+        },
+        {
+          "id": "cert-solidworks-base",
+          "lang": "en",
+          "text": "SolidWorks",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "cad",
+            "certification"
+          ],
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 10,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "contact-eu",
+          "lang": "en",
+          "text": "Lisbon, Portugal  ·  dana@example.org  ·  +351 900 000 000\nPortuguese citizen  ·  no permit required anywhere in the EU",
+          "marks": [],
+          "links": [
+            {
+              "start": 21,
+              "end": 37,
+              "href": "mailto:dana@example.org"
+            }
+          ],
+          "tags": [
+            "identity",
+            "work-rights"
+          ],
+          "source": "Example Facts.md section 1 · Identity; Example Facts.md section 2 · Work rights",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 119,
+            "measured": {}
+          },
+          "separator": "  ·  ",
+          "n": "2"
+        },
+        {
+          "id": "contact-us",
+          "lang": "en",
+          "text": "Lisbon, Portugal  ·  dana@example.org  ·  +351 900 000 000\ndanaokonkwo.example  ·  EU citizen, no sponsorship  ·  English & Portuguese",
+          "marks": [],
+          "links": [
+            {
+              "start": 21,
+              "end": 37,
+              "href": "mailto:dana@example.org"
+            },
+            {
+              "start": 59,
+              "end": 78,
+              "href": "https://danaokonkwo.example"
+            }
+          ],
+          "tags": [
+            "identity",
+            "work-rights"
+          ],
+          "source": "Example Facts.md section 1 · Identity; Example Facts.md section 2 · Work rights",
+          "seenIn": [
+            "us-letter"
+          ],
+          "metrics": {
+            "chars": 134,
+            "measured": {}
+          },
+          "separator": "  ·  ",
+          "n": "1"
+        },
+        {
+          "id": "edu-degree-base",
+          "lang": "en",
+          "text": "M.Eng. Mechanical Engineering",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "education"
+          ],
+          "source": "Example Facts.md section 6 · Education",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 29,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "edu-meta-base",
+          "lang": "en",
+          "text": "JUL 2021 · DISTINCTION",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "education"
+          ],
+          "source": "Example Facts.md section 6 · Education",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 22,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "edu-school-base",
+          "lang": "en",
+          "text": "Universidade do Porto",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "education"
+          ],
+          "source": "Example Facts.md section 6 · Education",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 21,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "free-meta-base",
+          "lang": "en",
+          "text": "Self-employed · Jan 2021 – Aug 2021 · Remote",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "web"
+          ],
+          "source": "Example Facts.md section 5 · Freelance",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 44,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "free-position-base",
+          "lang": "en",
+          "text": "Freelance CAD Designer",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "cad"
+          ],
+          "source": "Example Facts.md section 5 · Freelance",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 22,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "free-work-base",
+          "lang": "en",
+          "text": "CAD and rendering for two small furniture studios, including the assembly drawings they shipped with the product.",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "cad",
+            "ux"
+          ],
+          "source": "Example Facts.md section 5 · Freelance",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 113,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "hydra-inhaler-full",
+          "lang": "en",
+          "text": "Led the dose-counter redesign on an inhaler running 400,000 units a year, cutting the part count from nine to five and taking two weeks out of the tooling lead time.",
+          "marks": [
+            {
+              "start": 52,
+              "end": 72,
+              "slot": "primary",
+              "expect": "400,000 units a year"
+            }
+          ],
+          "links": [],
+          "tags": [
+            "hardware",
+            "cad",
+            "manufacturing",
+            "project-management"
+          ],
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 165,
+            "measured": {}
+          },
+          "n": "2"
+        },
+        {
+          "id": "hydra-inhaler-short",
+          "lang": "en",
+          "text": "Led the dose-counter redesign on an inhaler running 400,000 units a year; cut the part count from nine to five.",
+          "marks": [
+            {
+              "start": 52,
+              "end": 72,
+              "slot": "primary",
+              "expect": "400,000 units a year"
+            }
+          ],
+          "links": [],
+          "tags": [
+            "hardware",
+            "cad",
+            "manufacturing",
+            "project-management"
+          ],
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "seenIn": [
+            "us-letter"
+          ],
+          "metrics": {
+            "chars": 111,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "hydra-meta-full",
+          "lang": "en",
+          "text": "Hydra Medical · Mar 2023 – Present · Lisbon, Portugal",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "hardware"
+          ],
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 53,
+            "measured": {}
+          },
+          "n": "2"
+        },
+        {
+          "id": "hydra-meta-short",
+          "lang": "en",
+          "text": "Hydra Medical · Mar 2023 – Present · Lisbon",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "hardware"
+          ],
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "seenIn": [
+            "us-letter"
+          ],
+          "metrics": {
+            "chars": 43,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "hydra-position-base",
+          "lang": "en",
+          "text": "Design Engineer",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "hardware"
+          ],
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 15,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "hydra-suppliers-base",
+          "lang": "en",
+          "text": "Qualified two moulding suppliers, one in Portugal and one in Poland, and ran the first-article inspections.",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "vendor",
+            "manufacturing"
+          ],
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 107,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "hydra-testing-base",
+          "lang": "en",
+          "text": "Built the drop and cycle test rig the team now uses for design verification, and wrote the test protocols that go with it.",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "prototyping",
+            "hardware",
+            "documentation"
+          ],
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 122,
+            "measured": {}
+          },
+          "n": "2"
+        },
+        {
+          "id": "hydra-testing-merged",
+          "lang": "en",
+          "text": "Built the drop and cycle test rig used for design verification, wrote the test protocols, and qualified the moulding suppliers behind them.",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "prototyping",
+            "hardware",
+            "documentation"
+          ],
+          "source": "Example Facts.md section 5 · Hydra Medical",
+          "seenIn": [
+            "us-letter"
+          ],
+          "metrics": {
+            "chars": 139,
+            "measured": {}
+          },
+          "covers": [
+            "hydra-suppliers"
+          ],
+          "n": "1"
+        },
+        {
+          "id": "interest-bookbinding-base",
+          "lang": "en",
+          "text": "Bookbinding",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "interests"
+          ],
+          "source": "Example Facts.md section 8 · Interests",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 11,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "interest-sailing-base",
+          "lang": "en",
+          "text": "Dinghy sailing",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "interests",
+            "field"
+          ],
+          "source": "Example Facts.md section 8 · Interests",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 14,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "lang-english-base",
+          "lang": "en",
+          "text": "C2",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "languages"
+          ],
+          "source": "Example Facts.md section 3 · Languages",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 2,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "lang-portuguese-base",
+          "lang": "en",
+          "text": "Native",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "languages"
+          ],
+          "source": "Example Facts.md section 3 · Languages",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 6,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "link-forge-base",
+          "lang": "en",
+          "text": "forge.example/dana",
+          "marks": [],
+          "links": [
+            {
+              "start": 0,
+              "end": 18,
+              "href": "https://forge.example/dana"
+            }
+          ],
+          "tags": [
+            "portfolio"
+          ],
+          "source": "Example Facts.md section 1 · Identity",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 18,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "link-portfolio-base",
+          "lang": "en",
+          "text": "danaokonkwo.example",
+          "marks": [],
+          "links": [
+            {
+              "start": 0,
+              "end": 19,
+              "href": "https://danaokonkwo.example"
+            }
+          ],
+          "tags": [
+            "portfolio",
+            "web"
+          ],
+          "source": "Example Facts.md section 1 · Identity",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 19,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "name-base",
+          "lang": "en",
+          "text": "Dana Okonkwo",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "identity"
+          ],
+          "source": "Example Facts.md section 1 · Identity",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 12,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "patent-meta-full",
+          "lang": "en",
+          "text": "CO-INVENTOR · EP 3 000 000 B1 · 2025 · CONCEPT THROUGH TOOLING RELEASE",
+          "marks": [
+            {
+              "start": 14,
+              "end": 29,
+              "slot": "primary",
+              "expect": "EP 3 000 000 B1"
+            }
+          ],
+          "links": [],
+          "tags": [
+            "patent",
+            "cad",
+            "manufacturing"
+          ],
+          "source": "Example Facts.md section 7 · Patent",
+          "seenIn": [
+            "us-letter"
+          ],
+          "metrics": {
+            "chars": 70,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "patent-meta-short",
+          "lang": "en",
+          "text": "CO-INVENTOR · EP 3 000 000 B1 · 2025 · CONCEPT TO TOOLING",
+          "marks": [
+            {
+              "start": 14,
+              "end": 29,
+              "slot": "primary",
+              "expect": "EP 3 000 000 B1"
+            }
+          ],
+          "links": [],
+          "tags": [
+            "patent",
+            "cad",
+            "manufacturing"
+          ],
+          "source": "Example Facts.md section 7 · Patent",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 57,
+            "measured": {}
+          },
+          "n": "2"
+        },
+        {
+          "id": "patent-title-base",
+          "lang": "en",
+          "text": "Dose-counting mechanism for a metered inhaler",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "patent",
+            "hardware"
+          ],
+          "source": "Example Facts.md section 7 · Patent",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 45,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "poly-meta-base",
+          "lang": "en",
+          "text": "Polytechnic Prototyping Lab · Sep 2021 – Feb 2023 · Porto",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "fabrication"
+          ],
+          "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 57,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "poly-position-base",
+          "lang": "en",
+          "text": "Prototyping Technician",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "fabrication"
+          ],
+          "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 22,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "poly-shop-full",
+          "lang": "en",
+          "text": "Ran a seven-machine prototyping shop — four FDM printers, a resin printer, a benchtop mill and a laser cutter — including the calibration and the repairs.",
+          "marks": [
+            {
+              "start": 6,
+              "end": 36,
+              "slot": "primary",
+              "expect": "seven-machine prototyping shop"
+            }
+          ],
+          "links": [],
+          "tags": [
+            "fabrication",
+            "cnc",
+            "additive"
+          ],
+          "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 154,
+            "measured": {}
+          },
+          "n": "2"
+        },
+        {
+          "id": "poly-shop-short",
+          "lang": "en",
+          "text": "Ran a seven-machine prototyping shop: four FDM printers, a resin printer, a benchtop mill and a laser cutter.",
+          "marks": [
+            {
+              "start": 6,
+              "end": 36,
+              "slot": "primary",
+              "expect": "seven-machine prototyping shop"
+            }
+          ],
+          "links": [],
+          "tags": [
+            "fabrication",
+            "cnc",
+            "additive"
+          ],
+          "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+          "seenIn": [
+            "us-letter"
+          ],
+          "metrics": {
+            "chars": 109,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "poly-teaching-base",
+          "lang": "en",
+          "text": "Taught the machine-safety induction to about 120 students a year and wrote the handbook for it.",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "teaching",
+            "documentation"
+          ],
+          "source": "Example Facts.md section 5 · Polytechnic Prototyping Lab",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 95,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "skills-cad-full",
+          "lang": "en",
+          "text": "SolidWorks (certified), Creo, Fusion 360, KeyShot",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "cad"
+          ],
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "seenIn": [
+            "us-letter"
+          ],
+          "metrics": {
+            "chars": 49,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "skills-cad-short",
+          "lang": "en",
+          "text": "SolidWorks, Creo, Fusion 360, KeyShot",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "cad"
+          ],
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 37,
+            "measured": {}
+          },
+          "n": "2"
+        },
+        {
+          "id": "skills-fabrication-full",
+          "lang": "en",
+          "text": "3D printing FDM/SLA, CNC milling, laser cutting, silicone tooling, soldering",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "fabrication",
+            "cnc",
+            "additive"
+          ],
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "seenIn": [
+            "a4"
+          ],
+          "metrics": {
+            "chars": 76,
+            "measured": {}
+          },
+          "n": "2"
+        },
+        {
+          "id": "skills-fabrication-short",
+          "lang": "en",
+          "text": "3D printing FDM/SLA, CNC milling, laser cutting",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "fabrication",
+            "cnc",
+            "additive"
+          ],
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "seenIn": [
+            "us-letter"
+          ],
+          "metrics": {
+            "chars": 47,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "skills-testing-base",
+          "lang": "en",
+          "text": "ISO 13485 documentation, design verification, first-article inspection",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "documentation",
+            "manufacturing"
+          ],
+          "source": "Example Facts.md section 8 · Skills & tools",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 70,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "summary-base",
+          "lang": "en",
+          "text": "Mechanical engineer working on single-use medical devices from first sketch to tooling release; EU patent holder. Spent three years on the clean-room floor before moving to design, which is why the tolerances are buildable.",
+          "marks": [
+            {
+              "start": 96,
+              "end": 112,
+              "slot": "primary",
+              "expect": "EU patent holder"
+            }
+          ],
+          "links": [],
+          "tags": [
+            "hardware",
+            "cad",
+            "prototyping",
+            "patent"
+          ],
+          "source": "Example Facts.md section 10 · Positioning; Example Facts.md section 7 · Patent",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 223,
+            "measured": {}
+          },
+          "n": "1"
+        },
+        {
+          "id": "tagline-base",
+          "lang": "en",
+          "text": "Mechanical &\nDesign Engineer",
+          "marks": [],
+          "links": [],
+          "tags": [
+            "identity"
+          ],
+          "source": "Example Facts.md section 1 · Identity",
+          "seenIn": [
+            "us-letter",
+            "a4"
+          ],
+          "metrics": {
+            "chars": 28,
+            "measured": {}
+          },
+          "n": "1"
+        }
+      ],
+      "same": [],
+      "jobTypes": [],
+      "themes": [],
+      "requireSource": true,
+      "summary": "summary",
+      "highlights": {
+        "hydra": [
+          "hydra-inhaler",
+          "hydra-testing",
+          "hydra-suppliers"
+        ],
+        "poly": [
+          "poly-shop",
+          "poly-teaching"
+        ],
+        "free": [
+          "free-work"
+        ]
+      },
+      "nulls": [
+        [
+          "work",
+          0,
+          "endDate"
+        ]
+      ]
+    }
+  }
+}

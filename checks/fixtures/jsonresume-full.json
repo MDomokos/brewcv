@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Kai Example",
+    "label": "Product Designer",
+    "email": "kai@example.org",
+    "phone": "+00 000 000 000",
+    "url": "https://kai.example",
+    "summary": "A fictional person whose record uses every JSON Resume field.",
+    "location": { "address": "1 Example Street", "postalCode": "0000", "city": "Exampleton", "countryCode": "XX", "region": "Example Region" },
+    "profiles": [{ "network": "GitHub", "username": "kai-example", "url": "https://github.example/kai-example" }]
+  },
+  "work": [{
+    "name": "Example Instruments", "location": "Exampleton", "description": "Makes survey tripods.", "position": "Industrial Designer",
+    "url": "https://instruments.example", "startDate": "2024-06", "endDate": "2025-09", "summary": "Owned the tripod head from sketch to tooling.",
+    "highlights": ["Cut the tripod head from 14 parts to 9.", "Ran five usability sessions with field surveyors."]
+  }],
+  "volunteer": [{
+    "organization": "Repair Example", "position": "Volunteer", "url": "https://repair.example", "startDate": "2022-01", "endDate": "2023-01",
+    "summary": "Weekend repair café.", "highlights": ["Fixed forty toasters."]
+  }],
+  "education": [{
+    "institution": "Example University", "url": "https://uni.example", "area": "Industrial Design", "studyType": "B.F.A.",
+    "startDate": "2020-09", "endDate": "2024-05", "score": "3.8", "courses": ["DES 101 Form", "DES 220 Materials"]
+  }],
+  "awards": [{ "title": "Student Design Award", "date": "2024-04", "awarder": "Example Society", "summary": "For the tripod head." }],
+  "certificates": [{ "name": "Example CAD Associate", "date": "2023-03", "url": "https://cert.example", "issuer": "Example CAD" }],
+  "publications": [{ "name": "A Better Tripod Head", "publisher": "Example Journal", "releaseDate": "2025-01", "url": "https://journal.example", "summary": "Design study." }],
+  "skills": [{ "name": "CAD", "level": "Advanced", "keywords": ["Example CAD", "Example Surface"] }],
+  "languages": [{ "language": "English", "fluency": "Native" }],
+  "interests": [{ "name": "Bouldering", "keywords": ["outdoors", "problem solving"] }],
+  "references": [{ "name": "Robin Example", "reference": "Kai rebuilt our tripod line and got it right the first time." }],
+  "projects": [{
+    "name": "Open Caliper Stand", "description": "A printable caliper stand.", "highlights": ["Published the files."], "keywords": ["3D printing"],
+    "startDate": "2023-02", "endDate": "2023-06", "url": "https://stand.example", "roles": ["Designer"], "entity": "Independent", "type": "application"
+  }],
+  "meta": { "canonical": "https://kai.example/resume.json", "version": "v1.0.0", "lastModified": "2026-10-01" }
+}

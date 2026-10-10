@@ -1,0 +1,23 @@
+{
+  "application": "Example Instruments - Design Engineer",
+  "date": "2026-09-20",
+  "format": "a4",
+  "theme": "b2-marker",
+  "overlays": [],
+  "summary": "summary",
+  "sections": [
+    { "id": "experience", "weight": 5, "work": ["hydra", "poly"] },
+    { "id": "skills", "weight": 3 },
+    { "id": "patent", "weight": 2 },
+    { "id": "education", "weight": 2 }
+  ],
+  "picks": {
+    "hydra-inhaler": "hydra-inhaler-short",
+    "poly-shop": "poly-shop-short"
+  },
+  "overrides": {},
+  "pages": [
+    ["header", "summary", { "id": "experience", "work": ["hydra"] }],
+    [{ "id": "experience", "work": ["poly"] }, "skills", "patent", "education"]
+  ]
+}
