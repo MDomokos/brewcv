@@ -24,11 +24,11 @@ ability able across added addition additional applicant applicants application a
 benefits candidate candidates career closely collaborate collaborative company culture day depending
 deliver desirable desired detail development diverse drive employer employment ensure environment equal
 essential etc excellent experience expertise familiar fast full get global good great group grow growth
-help high hire including individual join知 knowledge level like look looking love make many may meet
+help high hire including individual join knowledge level like look looking love make many may meet
 minimum must need needs new offer office one opportunity opportunities other paced part passion people
 per please plus position preferred proven provide qualifications quality relevant report require required
 requirements responsibilities responsible role salary skills solutions someone strong successful support
-team teams技 their think time together top track using various want we well what why within work working
+team teams their think time together top track using various want we well what why within work working
 world year years you`.split(/\s+/));
 
 const bag = [];
