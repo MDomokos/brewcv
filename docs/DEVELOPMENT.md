@@ -43,7 +43,8 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            resumes, files, export, design, onboarding, career, settings,
                            langmenu, actual size; parts.js, the pure string parts (crumb, rows,
                            version list, editor, write-in) that edit and career share
-scripts/                   render, fit, export-pdf, tokens, build-example, to-jsonresume
+scripts/                   render, fit, export-pdf, tokens, build-example, to-jsonresume,
+                           claims and new-resume (what a coding agent uses; see AGENTS.md)
 checks/                    the Node checks, the Chromium smoke test, the guards
 data/example.json          the fictional sample record, and data/example-resumes/ its fourteen
                            resumes (one or more per language; all but English and Hungarian need
@@ -81,6 +82,8 @@ node checks/parts-check.mjs           the Resume's markup unchanged by the share
 node checks/recipe-check.mjs          weight, off / keep, weight-0 omit
 node checks/preflight-check.mjs       preflight refuses embedded image metadata and a prototypes/ folder
 node checks/history-scan-check.mjs    history-scan reads commit messages, authors and committers
+node checks/agent-check.mjs           the agent workflow on the example: claims, new-resume and every refusal,
+                                      fit on the line model, JSON Resume, the keyword gap
 node checks/fit-check.mjs [lib]       Fit's invariants on a modelled page
 node checks/validate-data.mjs <file>  the schema guard
 node scripts/tokens.mjs --check       the built-in themes' token files are up to date
@@ -112,12 +115,16 @@ node scripts/fit.mjs    <data.json> <recipe.json> --fit [--add]     Fit, measure
 node scripts/fit.mjs    <data.json> <recipe.json> --fit --model 6.7 a labelled dry plan, no browser
 node scripts/export-pdf.mjs out/resume.html out/resume.pdf
 node scripts/to-jsonresume.mjs <data.json> [recipe.json]           flat JSON Resume, the ATS path
+node scripts/claims.mjs <data.json> [--lang en] [--tag t] [--job id] [--json]
+                                                                   every claim and its versions; writes nothing
+node scripts/new-resume.mjs <data.json> <picks.json> <out-dir> [--force]
+                                                                   a saved resume from a list of picks; takes no text
 node checks/keyword-gap.mjs <data.json> <ad.txt>                   ad words the record can't say
 node scripts/build-example.mjs data/example.json                   regenerate the fictional sample
 node scripts/tokens.mjs                                            the built-in themes as DTCG
 ```
 
-Every script reads a record through `src/model/schema.js`, so `resume-data/3` and `/4` both work everywhere; anything that writes one writes v4, and keeps a v3 original once as `<name>.v3.json`. Fit never rewrites prose: it chooses among the versions that exist, drops whole bullets, and reports what it couldn't do.
+Every script that takes `<data.json>` reads either a record file or the one file (the app's backup, `resumeBuilderBackup: 1`; its record is used). Every script reads a record through `src/model/schema.js`, so `resume-data/3` and `/4` both work everywhere; anything that writes one writes v4, and keeps a v3 original once as `<name>.v3.json`. Fit never rewrites prose: it chooses among the versions that exist, drops whole bullets, and reports what it couldn't do.
 
 **Comparing against a reference.** `checks/measure.mjs` (layout, to 0.00px) and `checks/render-diff.mjs` (markup) compare a rendered document with a hand-written one you pass in. New renderer features sit behind recipe keys, so an old recipe renders exactly as it did.
 

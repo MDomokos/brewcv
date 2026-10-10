@@ -33,6 +33,7 @@ Most people end up with ten near-identical Word and PDF files, one per applicati
 - **Design.** One page, two, or as many as needed. Letter or A4, four templates, an accent colour with a live contrast check, and importable themes (CSS, JSON or DTCG design tokens). Photos are cropped to 35 × 45 mm, with a note on which countries expect one.
 - **Export.** Pre-flight checks run first. Then you get a **PDF** (print, with the page size set), a self-contained **HTML page**, **plain text for ATS**, **JSON Resume**, or a full **backup**.
 - **Import and merge.** Open a JSON Resume, a BrewCV record or backup, a saved resume, a theme or a photo. You can drop or paste it too. If a record is already open, a **merge preview** shows what would change before anything does. Edits made to the file in another tool, including an AI, come back as new versions.
+- **Tailor with a coding agent.** [AGENTS.md](AGENTS.md) tells any coding agent how to go from a job ad to a saved resume and a PDF using only wordings that are already in your record. It picks versions; it never writes or edits one, and wording it thinks would help comes back as a list for you to consider.
 - **Undo and history.** Every change can be undone (200 steps). A checkpoint is saved before every import, merge or restore. You can compare a checkpoint with now, restore it, or download it.
 - **Actual size.** After a one-time calibration with a bank card, the page is drawn at its printed size.
 - **On a phone** you can view resumes and pick versions. Editing needs a larger screen.

@@ -1,0 +1,22 @@
+Mechanical Design Engineer, Single-Use Medical Devices
+
+Northgate Dosing Systems is a fictional company. This advertisement is invented.
+
+Join our team in Lisbon and own the mechanical design of a new drug-delivery device, from first sketch to tooling release.
+
+What you will do
+- Lead the mechanical design of injection-moulded drug-delivery devices, working in SolidWorks.
+- Run design verification: build test rigs, write protocols and report the results.
+- Qualify moulding suppliers and run first-article inspection with them.
+- Hold design-for-manufacture reviews with toolmakers and close the issues before tooling release.
+- Build tolerance stacks for small mechanisms and find interference early.
+- Write design history file records under ISO 13485 and IEC 62366.
+- Coach technicians on statistical process control for the moulding line.
+
+What we are looking for
+- A degree in mechanical engineering and experience in regulated product development.
+- Strong GD&T and tolerance analysis.
+- Hands-on prototyping: 3D printing, CNC milling and silicone tooling.
+- Experience with Kanban boards and Agile ceremonies in a hardware team.
+- Aerospace certification experience is a plus.
+- Fluent English; Portuguese is welcome.

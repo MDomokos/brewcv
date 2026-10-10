@@ -10,10 +10,12 @@ export const readJson = f => {
   catch (e){ throw new Error(`${f}: not readable as JSON: ${e.message}`); }
 };
 
-// kind is the file's kind before loading
+// A record file, or the one file (the app's backup, resumeBuilderBackup: 1), whose record is read.
+// kind is the file's kind before loading; saved is the one file's date.
 export function readLibrary(file){
   const json = readJson(file);
   const kind = detect(json);
+  if (kind === 'backup') return { ...load(json.record ?? {}), kind, saved: json.saved ?? null };
   return { ...load(json), kind };
 }
 
