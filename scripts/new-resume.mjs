@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { newResume, setBulletOn } from '../src/model/resume.js';
+import { newResume, setBulletOn, setJobOn } from '../src/model/resume.js';
 import { entriesOf } from '../src/model/entries.js';
 import { LANGS, resumeFileName, migrateRecipe, saveResume } from '../src/model/schema.js';
 import { today } from '../src/model/resumes.js';
@@ -90,6 +90,8 @@ if (errors.length){
 const recipe = newResume(model, { format, lang, pageLimit: picks.pageLimit, theme });
 // exactly the listed bullets
 for (const f of model.facts) if (jobOf.has(f.id)) setBulletOn(model, recipe, f.id, bullets.has(f.id));
+// a job with no picked bullet would print as a bare heading
+for (const j of entriesOf(model)) if (!(j.highlights ?? []).some(h => bullets.has(h))) setJobOn(model, recipe, j.id, false);
 for (const [fact, version] of bullets) recipe.picks[fact] = version;
 if (picks.summary !== undefined) recipe.picks[summaryFact] = picks.summary;
 Object.assign(recipe, { company, role, jobType });
@@ -109,5 +111,5 @@ const problems = writeResume(file, model, recipe);
 const empty = entriesOf(model).filter(j => !(j.highlights ?? []).some(h => bullets.has(h)));
 console.log(`wrote ${file}`);
 console.log(`  ${bullets.size} bullet${bullets.size === 1 ? '' : 's'}${picks.summary !== undefined ? ' and a summary' : ''} picked, ${lang}, ${format}@${theme}, ${picks.pageLimit === 0 ? 'any number of pages' : `${picks.pageLimit} page${picks.pageLimit === 1 ? '' : 's'}`}`);
-if (empty.length) console.log(`  jobs with no picked bullets (not printed): ${empty.map(j => j.id).join(', ')}`);
+if (empty.length) console.log(`  jobs left off, no bullet picked: ${empty.map(j => j.id).join(', ')}`);
 for (const p of problems) console.log(`  ⚠  will not export: ${p}`);
