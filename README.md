@@ -1,19 +1,17 @@
+<p align="center"><img src="icons/icon.svg" width="96" height="96" alt="The BrewCV icon: a teacup drawn from the letters V and C, with a tea bag tag that holds a pair of braces"></p>
+
 # BrewCV
 
-**A resume tailored to each job, without rewriting it every time.**
+You keep one career record. For each job, you make a CV from wordings you already wrote. BrewCV never writes your bullets for you.
 
-Keep one career record. Make as many tailored resumes from it as you need, in ten languages. It runs in your browser, works offline, and never uploads your data.
+<!-- The GIF of tailoring one CV goes here once it's recorded, as docs/brewcv.gif:
+
+![Tailoring one CV to a job in BrewCV](docs/brewcv.gif)
+-->
 
 **[Open BrewCV →](https://MDomokos.github.io/brewcv/)**
 
-<!-- Screenshot slots. Capture these with the example data (Try it with an example).
-     Note: checks/preflight-deploy.mjs refuses images outside icons/, and .gitignore ignores
-     *.png outside icons/. Before adding docs/*.png, add `!docs/*.png` to .gitignore and
-     exclude docs/ from the rsync in .github/workflows/pages.yml.
-
-![The introduction screen](docs/screenshot-intro.png)
-![Editing a tailored resume](docs/screenshot-editor.png)
--->
+It runs in your browser, works offline, comes in ten languages, and [never uploads your data](docs/PRIVACY.md).
 
 ## Why
 
@@ -37,12 +35,29 @@ Most people end up with ten near-identical Word and PDF files, one per applicati
 - **Actual size.** After a one-time calibration with a bank card, the page is drawn at its printed size.
 - **On a phone** you can view resumes and pick versions. Editing needs a larger screen.
 
+## How it differs from other tools
+
+Most resume tools that tailor for a job do it by changing your wording. BrewCV only picks from wordings you wrote. These are the closest ones, as of October 2026:
+
+| Tool | What it does with your wording | Where it runs |
+|---|---|---|
+| [Teal](https://www.tealhq.com) | You enter your experience once and switch items on or off for each resume. Its AI offers rewrites of an achievement. | A hosted service, with a paid plan. Your data is on their servers. |
+| [Resume Matcher](https://github.com/srbhr/Resume-Matcher) | You upload a master resume and paste a job ad. An AI model rewrites your bullets to fit and scores the match. | Open source. You run a server and connect an AI model, local or hosted. |
+| [Reactive Resume](https://github.com/AmruthPillai/Reactive-Resume) | A good editor with one wording per item. Its AI tailors a copy and drafts a cover letter, and an outside agent can edit a resume through its MCP server. | Open source. Self-hosted, with Docker and a database. |
+| [career-ops](https://github.com/santifer/career-ops) | Runs inside a coding agent. You paste a job ad and it writes a tailored CV from your notes, then checks that the numbers match your sources. | Open source. A coding agent plus your files. |
+
+BrewCV never rewrites a line. A bullet can have several versions that you wrote, and a resume picks one. **Fit** chooses among them to fill the page, and tells you what it couldn't fit. There is no server, no account and no API key, and nothing to build: it's plain files that open in a browser.
+
+What those tools have that BrewCV doesn't: cover letters, Word export and application tracking.
+
 ## Your data stays yours
 
-- **Private.** Everything stays in your browser. There is no account, no server and no upload.
+- **Private.** Everything stays in your browser. There is no account, no server and no upload. The page also carries a rule that makes your browser refuse any request to another address, and you can [check it yourself](docs/PRIVACY.md).
 - **Standard files.** Every file it writes is valid [JSON Resume](https://jsonresume.org/schema). Versions, languages and tags live under `meta.resumeBuilder`. A saved resume is a JSON Resume file of the resume as printed, so any JSON Resume community theme can render it.
 - **Why JSON?** It's plain text that any device, editor or tool can open, now and in twenty years. An AI can read and rewrite it directly: tighten wording, translate, spot gaps. And it follows the idea of [file over app](https://stephango.com/file-over-app): your content is a file you own, not data locked inside an app.
 - **No lock-in. Back up!** Your work is saved in the browser on every change, but browser storage can be cleared. Use *⋯ › Back up* to download everything in one file, or *⋯ › Link a folder* (Chrome, Edge) to mirror your record to `resume-data.json`, and each saved resume to `recipes/`, on your disk.
+
+Don't take that on trust. [docs/PRIVACY.md](docs/PRIVACY.md) shows how to watch the network tab yourself in Chrome, Brave, Firefox or Safari, and explains the browser rule in the page that stops it talking to anyone but its own address.
 
 ## Getting started
 
@@ -94,9 +109,21 @@ Each theme has its own licence. Check it before you publish what it renders.
 
 </details>
 
+## Making your own theme
+
+A theme changes colour, type and spacing, never the layout. You can make one from a tokens file, in Figma, in CSS, or with an AI model's help. [docs/THEMES.md](docs/THEMES.md) has the four routes and what to run to check the result.
+
 ## Translations need native speakers
 
-English is the original. The other nine interface translations, and eight of the example resumes, were machine-written and **need a native speaker's review**. The app tells you this when you choose a language. Corrections go in `src/i18n/<lang>.js`. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the check that keeps the translation files consistent.
+English is the original. **Nine of the ten interface languages were written by a machine**, and so were eight of the example resumes. They may have mistakes or read stiffly, and the app tells you so when you choose one.
+
+If you're a native speaker, you can correct one:
+
+1. Run `node scripts/i18n-review.mjs de` (use your language code: `de`, `fr`, `es`, `it`, `pt`, `nl`, `pl`, `cs`, `hu`). It writes a spreadsheet to `out/i18n-review/de.csv` with the English, the current text and an empty *corrected* column. Open it in Excel, Numbers or any spreadsheet, and fill in *corrected* wherever the current text is wrong.
+2. Run `node scripts/i18n-review.mjs --apply out/i18n-review/de.csv` to write your corrections into `src/i18n/de.js`.
+3. Open a pull request with that file. Or, if you'd rather not use git, attach the spreadsheet to an issue and a maintainer can apply it.
+
+You only need Node for that, with nothing to install. The file keeps its machine-written marker until someone has reviewed the whole language.
 
 ## Running it yourself
 
@@ -113,7 +140,11 @@ To host your own copy, fork the repo and enable GitHub Pages with *GitHub Action
 
 ## Contributing
 
-The code layout, the Node and browser checks, the command-line scripts, the deploy guards and the project's history are in **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**. Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+Pull requests are welcome, and so are corrections to a translation. [CONTRIBUTING.md](CONTRIBUTING.md) says how to run the checks and what a change needs. Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
+## Why the name
+
+"CV" is the word for a resume in all ten of the app's languages. And you brew a fresh one from the same record for each job, the way you'd steep the same tea for a different cup.
 
 ## Acknowledgements
 
