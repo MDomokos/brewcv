@@ -26,9 +26,9 @@ Run everything from the repository root.
    It refuses, and writes nothing, if an id doesn't exist, a version is in another language, a version is a draft or tagged `archive`, two versions of one claim are listed, or `picks.json` has any other text. It won't replace a file unless you pass `--force`. Read what it says and fix the picks.
 5. **Fit** (a dry plan with no browser: `--model` gives the furniture lines, e.g. `6.7`; leave it off to measure in Chromium):
    `node scripts/fit.mjs <data> "<out-dir>/<Company> - <Role>.json" --fit --model 6.7 --out "<out-dir>/fitted.json"`
-   Fit chooses among existing versions and drops whole bullets. It never rewrites text. Read its report; if it can't fill or fit the page, change the picks and go back to step 4 rather than accepting it.
+   Fit chooses among existing versions and drops whole bullets. It never rewrites text. Its report is advice, not a verdict. Render both the saved resume from step 4 and the fitted one, and compare them. If Fit dropped a bullet you picked for this ad, prefer the unfitted resume, or change the picks and go back to step 4. Name every bullet Fit dropped in your report.
 6. **Render and export the PDF** (needs a browser):
-   `node scripts/render.mjs <data> <out-dir>/fitted.json <out-dir>/resume.html` (the fitted file from step 5)
+   `node scripts/render.mjs <data> <out-dir>/fitted.json <out-dir>/resume.html` (or the step 4 file, if you prefer the unfitted resume)
    `node scripts/export-pdf.mjs <out-dir>/resume.html <out-dir>/resume.pdf`
 7. **Check the keywords**:
    `node checks/keyword-gap.mjs <data> ad.txt`
@@ -51,6 +51,6 @@ In the app: **Open** the saved-resume file. It is added to their saved resumes a
 Keep it short.
 
 - **Picks and why**: each pick, with the one thing in the ad it meets.
-- **Fit's result**: in the band or not, and what it changed or couldn't do.
+- **Fit's result**: in the band or not, what it changed, which of your picks it dropped, and which resume you recommend (fitted or unfitted) and why.
 - **Keyword gaps**, in two lists: *not claimed anywhere* (the record has nothing for it), and *claimed in other words* (a claim exists under a different name; say which).
 - **Proposed wording**: only if some would help, each tied to its claim.
