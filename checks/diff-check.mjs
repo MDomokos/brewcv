@@ -131,5 +131,16 @@ section('archiving and unarchiving are changes a merge shows and applies');
   ok('two records that agree on what is archived show nothing', both.every(x => x.kind === 'keep'));
 }
 
+section('archiving a whole job is a change too');
+{
+  const theirs3 = clone(mine);
+  theirs3.work.find(w => w.id === 'atelier').archived = true;
+  const it = D.diffRecords(mine, theirs3, { fromResumes: resumes, toResumes: clone(resumes) }).filter(x => x.kind === 'change');
+  ok('it is one change, not ticked', it.length === 1 && it[0].on === false && it[0].b === 'archived', JSON.stringify(it.map(x => x.what)));
+  const d = { record: clone(mine), resumes: clone(resumes) };
+  D.applyItems(d, it.map(x => ({ ...x, on: true })));
+  ok('applying it archives the job here', d.record.work.find(w => w.id === 'atelier').archived === true);
+}
+
 console.log(failed ? `\n${failed} diff check(s) FAILED` : '\nall diff checks passed');
 process.exit(failed ? 1 : 0);

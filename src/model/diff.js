@@ -137,6 +137,8 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
       continue;
     }
     const at = name => d => d.record.work.find(w => w.id === fj.id);
+    if (!!fj.archived !== !!tj.archived) items.push({ kind: 'change', what: `${fj.name} · ${t('arch.diffJob')}`, a: fj.archived ? t('arch.diffArchived') : t('arch.diffNot'), b: tj.archived ? t('arch.diffArchived') : t('arch.diffNot'), on: false,
+      apply: d => { const w = at()(d); if (w){ if (tj.archived) w.archived = true; else delete w.archived; } } });
     for (const [k, label] of [['position', t('diff.title')], ['startDate', t('diff.start')], ['endDate', t('diff.end')], ['location', t('diff.place')]]){
       const a = fj[k] ?? (k === 'endDate' ? 'present' : ''), b = tj[k] ?? (k === 'endDate' ? 'present' : '');
       if (norm(a) !== norm(b)) items.push({ kind: 'change', what: `${fj.name} · ${label}`, a, b, on: false,

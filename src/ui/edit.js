@@ -108,7 +108,7 @@ function sectionView(s){
   const isHeader = sec.kind === 'header';
   let inner = '';
   if (sec.kind === 'entries'){
-    inner = `<span class="lbl">${h('edit.jobs')}</span><div class="list">${(sec.content.work ?? []).map(id => {
+    inner = `<span class="lbl">${h('edit.jobs')}</span><div class="list">${(sec.content.work ?? []).filter(id => !ix().work.get(id)?.archived || jobOn(id)).map(id => {
       const w = ix().work.get(id);
       const on = jobOn(id);
       return `<div class="item row ${on ? '' : 'is-off'}">${sw(`data-jobon="${esc(id)}" aria-label="${esc(t('edit.showX', { name: w?.name }))}"`, on)}

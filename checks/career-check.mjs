@@ -380,5 +380,36 @@ section('the Resume view');
   ok('turning an archived claim on needs it unarchived first', refused);
 }
 
+section('archiving a whole job');
+{
+  const ex = S.load(read('data/example.json')).model;
+  const names = read('data/example-resumes/index.json');
+  const rs = names.map(n => S.loadResume(read(`data/example-resumes/${n}`), ex).recipe);
+  const before = rs.map(r => html(ex, r));
+  const r = K.archiveEntry(ex, 'atelier');
+  ok('archiving sets the flag on the job, deletes nothing', r.changed && ex.work.find(w => w.id === 'atelier').archived === true && ex.facts.some(f => f.id === 'atelier-position' || f.id.startsWith('atl-')));
+  ok('the timeline can hide it, and says it is archived when shown', !K.timelineLayout(ex, { hideArchived: true }).entries.some(e => e.id === 'atelier') && K.timelineLayout(ex).entries.find(e => e.id === 'atelier').archived === true);
+  ok('a new resume leaves it out', !JSON.stringify(newResume(ex).sections).includes('atelier'));
+  ok('saved resumes that print it render byte-identical', rs.every((x, i) => html(ex, x) === before[i]) && rs.some(x => JSON.stringify(x).includes('atelier')));
+  let refused = false; try { T.setJobOn(ex, newResume(ex), 'atelier', true); } catch (e){ refused = e.key === 'arch.jobNeedUnarchive'; }
+  ok('it can not be switched on in a resume that does not print it', refused);
+  ok('unarchiving brings it back into new resumes', K.unarchiveEntry(ex, 'atelier').changed && JSON.stringify(newResume(ex).sections).includes('atelier') && !('archived' in ex.work.find(w => w.id === 'atelier')));
+  ok('the record round-trips the flag', (() => { K.archiveEntry(ex, 'atelier'); return S.load(S.save(ex)).model.work.find(w => w.id === 'atelier').archived === true; })());
+  ok('the validator accepts it', validate(S.save(ex), null).errors.length === 0);
+
+  const u = await makeUi({ ws: 'career' });
+  const tl = () => String(u.career.timelineHtml());
+  ok('(no archived job in the example to start with)', !/c-arch-jobs/.test(tl()));
+  await u.click('c-sel', { what: 'entry', key: 'work', id: 'atelier' });
+  const before2 = JSON.stringify(u.record());
+  await u.click('c-arch-entry', { id: 'atelier' });
+  ok('the job’s panel archives it, with a toast', u.record().work.find(w => w.id === 'atelier').archived === true && u.toasts.at(-1).m === 'Archived. Ctrl+Z undoes it.');
+  ok('the timeline hides it behind a “1 archived” control', !tl().includes('data-id="atelier"') && /archmore" data-act="c-arch-jobs"[^>]*>1 archived/.test(tl()));
+  await u.click('c-arch-jobs');
+  ok('the control reveals it with an archived badge', tl().includes('data-id="atelier"') && /pill arch/.test(tl()));
+  u.store.undo();
+  ok('Ctrl+Z undoes it', JSON.stringify(u.record()) === before2);
+}
+
 console.log(failed ? `\n${failed} career check(s) FAILED` : '\nall career checks passed');
 process.exit(failed ? 1 : 0);

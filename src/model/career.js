@@ -104,17 +104,17 @@ export function entryView(model, key, x, lang = DEFAULT_LANG){
   const claims = Array.isArray(x.highlights) ? x.highlights.filter(h => typeof h === 'string' && (model.facts ?? []).some(f => f.id === h)) : [];
   const toWrite = L === DEFAULT_LANG ? 0
     : claims.filter(h => !hasIn(model, h, L) && !isSame(model, h)).length + (title ? 0 : 1);
-  return { kind, key, id: x.id, title: title || titleEn, titleMissing: !title, org, place, start, end, claims: claims.length, claimIds: claims, toWrite, during: x.during ?? null, posFact };
+  return { kind, key, id: x.id, archived: !!x.archived, title: title || titleEn, titleMissing: !title, org, place, start, end, claims: claims.length, claimIds: claims, toWrite, during: x.during ?? null, posFact };
 }
 
 // Timeline
 // Work in `main`, the rest in `side`, newest first. A band is the year an entry ended; still running is year null.
-export function timelineLayout(model, { lang = DEFAULT_LANG } = {}){
+export function timelineLayout(model, { lang = DEFAULT_LANG, hideArchived = false } = {}){
   const out = [];
-  for (const w of model.work ?? []) out.push(entryView(model, 'work', w, lang));
+  for (const w of model.work ?? []) if (!(hideArchived && w.archived)) out.push(entryView(model, 'work', w, lang));
   (model.education ?? []).forEach((e, i) => { if (e?.institution || e?.studyType) out.push(entryView(model, 'education', { ...e, id: e.id ?? `edu-${i}` }, lang)); });
   for (const k of ['projects', 'volunteer']) for (const x of model[k] ?? []){
-    if (!x?.id) continue;
+    if (!x?.id || (hideArchived && x.archived)) continue;
     const v = entryView(model, k, x, lang);
     if (placeOf(model, v.kind) === 'timeline') out.push(v);
   }
@@ -425,6 +425,21 @@ export function unarchiveClaim(model, factId){
   if (!f) throw new Error(`no such claim: ${factId}`);
   const was = !!f.archived;
   delete f.archived;
+  return { changed: was };
+}
+// Hides a whole job (or project, or volunteering) without deleting it. Saved resumes keep printing it.
+export function archiveEntry(model, id){
+  const w = entriesOf(model).find(x => x.id === id);
+  if (!w) throw new Error(`no such entry: ${id}`);
+  const was = !!w.archived;
+  w.archived = true;
+  return { changed: !was };
+}
+export function unarchiveEntry(model, id){
+  const w = entriesOf(model).find(x => x.id === id);
+  if (!w) throw new Error(`no such entry: ${id}`);
+  const was = !!w.archived;
+  delete w.archived;
   return { changed: was };
 }
 export const archivedOf = (model, entryId) => (entriesOf(model).find(x => x.id === entryId)?.highlights ?? []).filter(h => isArchived(model, h));

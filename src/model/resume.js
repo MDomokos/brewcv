@@ -6,7 +6,7 @@ const langOf = v => v?.lang ?? DEFAULT_LANG;
 export const isDraft = v => /-draft(-|$)/.test(v?.id ?? '');
 
 import { keyed, t } from '../i18n/index.js';
-import { entriesOf, isEntry, archivedIds } from './entries.js';
+import { entriesOf, isEntry, archivedIds, archivedEntryIds } from './entries.js';
 import { offOf, keepOf, migratePins } from '../recipe.js';
 export { offOf, keepOf, migratePins };
 
@@ -252,7 +252,8 @@ export function newResume(model, { format = 'a4', lang = DEFAULT_LANG, pageLimit
   const arch = archivedIds(model);
   const entries = new Map(entriesOf(model).map(w => [w.id, w]));
   // an archived claim is left out; a job with none left is left out too
-  const refs = ids => ids.map(id => {
+  const hiddenJobs = archivedEntryIds(model);
+  const refs = ids => ids.filter(id => !hiddenJobs.has(id)).map(id => {
     const w = entries.get(id);
     if (!w || !(w.highlights ?? []).some(h => arch.has(h))) return id;
     const hs = w.highlights.filter(h => !arch.has(h));
@@ -362,6 +363,7 @@ export function setJobOn(model, recipe, jobId, on){
   if (!w) throw new Error(`no such job: ${jobId}`);
   const sid = sectionOfEntry(model, jobId);
   const lists = workLists(model, recipe, true, sid);
+  if (on && w.archived && !lists.some(l => l.some(r => refId(r) === jobId))) throw keyed('arch.jobNeedUnarchive');
   const has = lists.some(l => l.some(r => refId(r) === jobId));
   if (!on){
     for (const l of lists) for (let i = l.length - 1; i >= 0; i--) if (refId(l[i]) === jobId) l.splice(i, 1);

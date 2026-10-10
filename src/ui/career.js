@@ -32,6 +32,7 @@ const W = {
   delKind: null,
   tip: null,
   shown: new Set(),          // entries whose archived claims are revealed
+  jobs: false,               // archived jobs are revealed in the timeline
 };
 const TIP_KEY = 'rb-career-tips';
 const tipsDone = () => { try { return localStorage.getItem(TIP_KEY) === 'done'; } catch { return true; } };
@@ -169,7 +170,10 @@ function addMenu(){
 }
 
 function timelineCols(){
-  const { bands, entries } = K.timelineLayout(rec(), { lang: L() });
+  const all = K.timelineLayout(rec(), { lang: L() });
+  const nArch = all.entries.filter(x => x.archived).length;
+  const { bands, entries } = nArch && !W.jobs ? K.timelineLayout(rec(), { lang: L(), hideArchived: true }) : all;
+  const archBtn = nArch ? `<button class="sm ghost archmore" data-act="c-arch-jobs" aria-expanded="${W.jobs}">${W.jobs ? h('arch.hideJobs') : h('arch.nJobs', { n: nArch })}</button>` : '';
   if (!entries.length) return `<div class="empty card-ish">
       <p><b>${h('career.emptyWork')}</b></p><div class="btns"><button class="primary sm" data-act="c-add" data-what="work">${h('career.addWork')}</button></div>
       <p class="muted small">${h('career.emptyEdu')}</p><div class="btns"><button class="sm" data-act="c-add" data-what="education">${h('career.addEducation')}</button></div></div>`;
@@ -177,14 +181,14 @@ function timelineCols(){
   const mark = x => (!sameLang() && x.toWrite ? x.toWrite : 0);
   const main = x => `<button class="row" ${kc(x.kind)} data-act="c-sel" data-what="entry" data-key="${x.key}" data-id="${esc(x.id)}" aria-pressed="${sel === x.id}">
       <span class="ic">${icon(look(x.kind).icon)}</span><span class="t ${x.titleMissing ? 'missing' : ''}">${esc(x.title)}</span><span class="w">${esc(years(x))}</span>
-      <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}</span>
+      <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}${x.archived ? ` · <span class="pill arch">${h('arch.badge')}</span>` : ''}</span>
       ${mark(x) ? `<span class="marks"><span class="mk">${h('career.toWriteIn', { n: mark(x), lang: langName(L()) })}</span></span>` : ''}</button>`;
   const side = x => `<button class="srow" ${kc(x.kind)} data-act="c-sel" data-what="entry" data-key="${x.key}" data-id="${esc(x.id)}" aria-pressed="${sel === x.id}" title="${esc(kindLabel(x.kind))}">
       <span class="si">${icon(look(x.kind).icon)}</span><span class="t ${x.titleMissing ? 'missing' : ''}">${esc(x.title)}</span><span class="w">${esc(years(x))}</span>
       <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}${x.during ? ` · ${h('career.during', { org: duringName(x.during) })}` : ''}${mark(x) ? ` · <span class="mkt">${h('career.toWrite', { n: mark(x) })}</span>` : ''}</span></button>`;
   let rows = `<div class="colhead"><span ${kc('work')}>${icon('work')} ${h('career.colMain')}</span><span>${h('career.colSide')}</span></div>`;
   for (const b of bands) rows += `<div class="yr">${esc(b.year ?? t('career.nowBand'))}</div><div class="yrow"><div class="main">${b.main.map(main).join('')}</div><div class="side">${b.side.map(side).join('')}</div></div>`;
-  return `<div class="tl2">${rows}</div>`;
+  return `<div class="tl2">${rows}</div>${archBtn}`;
 }
 const duringName = id => { const m = rec(); return m.work?.find(w => w.id === id)?.name ?? m.education?.find(e => e.id === id)?.institution ?? id; };
 
@@ -253,7 +257,8 @@ function entryView(key, id){
     <p class="sumline">${[v.org, dates, place].filter(Boolean).map(esc).join(' · ')}${v.during ? ` · ${h('career.during', { org: duringName(v.during) })}` : ''}</p>`;
   out += W.details ? `<div class="detbox">${detailsForm(key, x, v)}<div class="btns"><button class="primary sm" data-act="c-save" data-key="${key}" data-id="${esc(id)}">${h('head.save')}</button><button class="sm ghost" data-act="c-details" data-open="0">${h('btn.cancel')}</button>
       ${key !== 'work' && key !== 'education' ? `<span class="grow"></span><button class="sm ghost" data-act="c-del-entry" data-id="${esc(id)}" title="${esc(t('career.ctrlZ'))}">🗑 ${h('career.deleteEntry')}</button>` : ''}</div></div>`
-    : `<button class="sm" data-act="c-details" data-open="1">${h('career.editDetails')}</button>`;
+    : `<button class="sm" data-act="c-details" data-open="1">${h('career.editDetails')}</button>`
+      + (key === 'education' ? '' : ` <button class="sm ghost" data-act="${x.archived ? 'c-unarch-entry' : 'c-arch-entry'}" data-id="${esc(id)}" title="${esc(t(x.archived ? 'arch.unarchiveJobTitle' : 'arch.archiveJobTitle'))}">${h(x.archived ? 'arch.unarchiveJob' : 'arch.archiveJob')}</button>`);
   const withClaims = key === 'work' || key === 'projects' || key === 'volunteer';
   if (withClaims){
     const arch = K.archivedOf(m, id), open = W.shown.has(id);
@@ -505,6 +510,14 @@ async function act(a, tg){
     case 'c-sel-fact': W.sel = { ...W.sel, what: 'aboutfact', fact: tg.dataset.fact, title: tg.dataset.title }; C.renderBody(true); return true;
     case 'c-claim': { const next = { what: 'claim', key: tg.dataset.key, id: tg.dataset.entry, claim: tg.dataset.id }; if (!leave({ kind: 'bullet', id: next.claim })) return true; C.edit.resetPick(); W.sel = next; C.renderBody(true); return true; }
     case 'c-up': up(); return true;
+    case 'c-arch-jobs': W.jobs = !W.jobs; C.renderCareer(); return true;
+    case 'c-arch-entry': case 'c-unarch-entry': {
+      const id = tg.dataset.id, on = a === 'c-arch-entry';
+      let res;
+      commit(d => { res = on ? K.archiveEntry(d.record, id) : K.unarchiveEntry(d.record, id); }, t(on ? 'arch.undoArchiveJob' : 'arch.undoUnarchiveJob'));
+      if (res?.changed){ C.toast(t(on ? 'arch.jobArchived' : 'arch.jobUnarchived')); if (on && !W.jobs) W.sel = null; C.renderCareer(); }
+      return true;
+    }
     case 'c-arch-show': { const id = tg.dataset.id; if (W.shown.has(id)) W.shown.delete(id); else W.shown.add(id); C.renderBody(true); return true; }
     case 'c-details': W.details = tg.dataset.open === '1'; C.renderBody(true); if (W.details) setTimeout(() => $('#c-pos, #c-gname')?.focus(), 30); return true;
     case 'c-step': {

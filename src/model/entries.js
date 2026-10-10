@@ -19,3 +19,5 @@ export function entryKey(model, id){
 // Saved resumes keep printing it: printing reads the lists a resume holds, not this flag.
 export const isArchived = (model, factId) => !!(model?.facts ?? []).find(f => f.id === factId)?.archived;
 export const archivedIds = model => new Set((model?.facts ?? []).filter(f => f.archived).map(f => f.id));
+// An entry (a job, project or volunteering) marked `archived` is hidden in Career and left out of new resumes and Focus.
+export const archivedEntryIds = model => new Set(entriesOf(model).filter(w => w.archived).map(w => w.id));

@@ -2,7 +2,7 @@
 // Tagging never touches a Keep bullet and never empties a job: an untagged job keeps its first bullet.
 
 import { chooseVariant, keepOf, jobRefs, listedBullets, setBulletOn } from './resume.js';
-import { archivedIds } from './entries.js';
+import { archivedIds, archivedEntryIds } from './entries.js';
 
 const langOf = v => v?.lang ?? 'en';
 const refId = r => (typeof r === 'string' ? r : r?.id);
@@ -40,9 +40,10 @@ function walk(model, recipe, T, fn){
   const keep = new Set(keepOf(recipe));
   const onJobs = new Set(jobRefs(model, recipe).map(refId));
   const sec = (model.sections ?? []).find(s => s.kind === 'entries');
-  const arch = archivedIds(model);
+  const arch = archivedIds(model), hiddenJobs = archivedEntryIds(model);
   const jobs = (sec?.content?.work ?? (model.work ?? []).map(w => w.id)).map(id => (model.work ?? []).find(w => w.id === id)).filter(Boolean);
   for (const w of jobs){
+    if (hiddenJobs.has(w.id)) continue;     // an archived job is left as the resume has it
     const listed = new Set(onJobs.has(w.id) ? listedBullets(model, recipe, w.id) : []);
     // an archived claim is left as the resume has it: never switched on, off or re-picked
     const live = w.highlights.filter(h => !arch.has(h));

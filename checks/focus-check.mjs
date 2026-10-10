@@ -125,5 +125,26 @@ section('archived claims');
   ok('tag counts leave archived claims out unless asked', n1 > n0, `${n0} vs ${n1}`);
 }
 
+section('archived jobs');
+{
+  const m = clone(model);
+  const jid = 'free';
+  const mine = (mm, rr) => JSON.stringify(T.listedBullets(mm, rr, jid)) + JSON.stringify(T.listedBullets(mm, rr, jid).map(f => rr.picks?.[f]));
+  // a resume and a job type that do change this job when it is not archived
+  let pair = null;
+  for (const jt of m.jobTypes) for (const base of en){
+    const probe = clone(base);
+    const was = mine(m, probe);
+    F.applyTag(m, probe, jt);
+    if (mine(m, probe) !== was){ pair = [jt, base]; break; }
+  }
+  ok('(setup) some job type changes the job when it is not archived', !!pair);
+  m.work.find(w => w.id === jid).archived = true;
+  const r = clone(pair[1]);
+  const was = mine(m, r);
+  F.applyTag(m, r, pair[0]);
+  ok('Focus leaves an archived job exactly as the resume has it', mine(m, r) === was);
+}
+
 console.log(failed ? `\n${failed} focus check(s) FAILED` : '\nall focus checks passed');
 process.exit(failed ? 1 : 0);
