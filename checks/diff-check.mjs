@@ -106,5 +106,30 @@ section('copying a fact never collides');
   ok('and its default points at its own versions', Object.values(a.facts.find(f => f.id === id).default).every(v => a.facts.find(f => f.id === id).variants.includes(v)));
 }
 
+section('archiving and unarchiving are changes a merge shows and applies');
+{
+  const hydraId = mine.work.find(w => w.id === 'hydra').highlights;
+  const target = hydraId[2];
+  const theirs2 = clone(mine);
+  theirs2.facts.find(f => f.id === target).archived = true;
+  const it = D.diffRecords(mine, theirs2, { fromResumes: resumes, toResumes: clone(resumes) });
+  const arch = it.filter(x => /archived/.test(x.b ?? ''));
+  ok('archiving in theirs is one change, not ticked', arch.length === 1 && arch[0].kind === 'change' && arch[0].on === false && arch[0].b === 'archived' && arch[0].a === 'not archived', JSON.stringify(it.map(x => x.what)));
+  const d = { record: clone(mine), resumes: clone(resumes), frozen: {} };
+  D.applyItems(d, it.map(x => ({ ...x, on: x.kind !== 'keep' })));
+  ok('ticking it archives the claim here', d.record.facts.find(f => f.id === target).archived === true);
+  ok('…and it is the only difference', JSON.stringify(d.record.facts.filter(f => f.archived).map(f => f.id).sort()) === JSON.stringify([...mine.facts.filter(f => f.archived).map(f => f.id), target].sort()));
+  const un = clone(mine);
+  const was = mine.facts.find(f => f.archived).id;
+  delete un.facts.find(f => f.id === was).archived;
+  const back = D.diffRecords(mine, un, { fromResumes: resumes, toResumes: clone(resumes) }).filter(x => x.kind === 'change' && /archived/.test(x.b ?? ''));
+  ok('unarchiving in theirs is a change too', back.length === 1 && back[0].b === 'not archived');
+  const d3 = { record: clone(mine), resumes: clone(resumes) };
+  D.applyItems(d3, back.map(x => ({ ...x, on: true })));
+  ok('…and applying it unarchives the claim', !d3.record.facts.find(f => f.id === was).archived);
+  const both = D.diffRecords(mine, clone(mine), { fromResumes: resumes, toResumes: clone(resumes) });
+  ok('two records that agree on what is archived show nothing', both.every(x => x.kind === 'keep'));
+}
+
 console.log(failed ? `\n${failed} diff check(s) FAILED` : '\nall diff checks passed');
 process.exit(failed ? 1 : 0);

@@ -164,5 +164,33 @@ section('a linked folder');
   ok('a file the app didn’t write is never removed', folder._files.has('recipes/notes.json'));
 }
 
+section('archiving a claim a saved resume prints');
+{
+  const K = await import('../src/model/career.js');
+  const { createDocument } = await import('../scripts/lib/dom.mjs');
+  const { renderPages } = await import('../src/render.js');
+  const html = (m, r) => renderPages(m, r, createDocument()).pages.map(p => p.outerHTML).join('');
+  const st = exampleState();
+  const printed = new Set(st.resumes.flatMap(r => RS.usedVersions(st.record, r).map(u => u.fact)));
+  const before = st.resumes.map(r => html(st.record, r));
+  const body = st.resumes.map(r => JSON.stringify(resolve(st.record, r).body));
+  // archive every printed claim that may be archived
+  let n = 0;
+  for (const w of st.record.work) for (const h of [...w.highlights]) if (printed.has(h)) { try { K.archiveClaim(st.record, h); n++; } catch { /* a job keeps one */ } }
+  ok('claims that saved resumes print were archived', n >= 3 && st.record.facts.filter(f => f.archived).length >= n, String(n));
+  ok('every saved resume renders byte-identical', st.resumes.every((r, i) => html(st.record, r) === before[i]));
+  ok('…and resolves to the same body', st.resumes.every((r, i) => JSON.stringify(resolve(st.record, r).body) === body[i]));
+  ok('…and nothing is newer wording', st.resumes.every((r) => RS.newerOf(st.record, r).length === 0));
+  const again = exampleState();
+  again.record = st.record;
+  RS.openSaved(again, again.resumes[0].id);
+  ok('opening one holds nothing and is no change', !again.cur.held && !RS.isDirty(again));
+  ok('the file it saves as is the same', JSON.stringify(S.saveResume(st.record, again.cur, again.frozen[again.openId]).file.work) === JSON.stringify(S.saveResume(model, again.resumes[0], again.frozen[again.openId]).file.work));
+  // a new resume never uses one
+  const fresh = RS.newFrom(st, { mode: 'all' });
+  const used = new Set(RS.usedVersions(st.record, fresh).map(u => u.fact));
+  ok('a new resume prints none of the archived claims', [...used].every(f => !st.record.facts.find(x => x.id === f)?.archived));
+}
+
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');
 process.exit(failed ? 1 : 0);

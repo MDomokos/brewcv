@@ -45,6 +45,7 @@ const usingOf = id => C.chooseVariant(work(), id, cur()).v;
 const overrideOf = id => cur().overrides?.[id];
 const isOn = id => { const w = T.jobOfFact(rec(), id); return !w || T.listedBullets(rec(), cur(), w.id).includes(id); };
 const isKept = id => T.keepOf(cur()).includes(id);
+const isArch = id => !!ix().facts.get(id)?.archived;
 const jobOn = id => T.jobRefs(rec(), cur()).some(r => (typeof r === 'string' ? r : r.id) === id);
 const linesOf = v => v?.metrics?.measured?.[measureKeyOf(cur())]?.lines;
 
@@ -148,12 +149,12 @@ function jobView(s){
     <span class="lbl">${h('edit.titleMeta')}</span>
     <div class="list">${[w.display?.position, w.display?.meta].filter(Boolean).map(id => factRow(id, { owner: s.id, section: 'experience' })).join('')}</div>
     <span class="lbl">${h('edit.bullets')}</span>
-    <div class="list">${(w.highlights ?? []).map(hl => {
+    <div class="list">${(w.highlights ?? []).filter(hl => !isArch(hl) || isOn(hl)).map(hl => {
       const b = on && isOn(hl);
       const v = usingOf(hl);
       const pill = overrideOf(hl) !== undefined ? t('edit.onlyHere') : v ? `v${v.n}` : t('edit.noLang', { code: L.toUpperCase() });
       return claimRow({ id: hl, text: clip(C.textOfFact(hl) || ix().facts.get(hl)?.summary || hl, 110), on: b, swAttrs: `data-on="${esc(hl)}" aria-label="${esc(t('edit.showBullet'))}"`,
-        pill, pillMiss: !(v || overrideOf(hl) !== undefined), kept: isKept(hl) });
+        pill, pillMiss: !(v || overrideOf(hl) !== undefined), kept: isKept(hl), archived: isArch(hl) });
     }).join('')}</div>
     ${addClaimHtml({ id: s.id, key: entryKeyOf(s.id), draft: E.claimDraft })}
     <p class="note">${h('edit.jobFactsNote')}</p>`;
@@ -171,7 +172,7 @@ function bulletView(s){
 
   return `${crumb(trail)}
     <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
-    ${claimHead({ ws: 'resume', hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id) })}`
+    ${claimHead({ ws: 'resume', hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
     + versionsHtml(versionsX(s.id));
 }
 const isClaim = id => ix().highlight.has(id);
@@ -180,7 +181,7 @@ function claimPanel(id, { crumbHtml, title, deletable = false }){
   if (!ix().facts.has(id)) return '';
   return `${crumbHtml}
     <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(title ?? ix().facts.get(id).summary ?? id)}</h2>
-    ${claimHead({ ws: ws(), deletable: deletable && isClaim(id) })}`
+    ${claimHead({ ws: ws(), deletable: deletable && isClaim(id), archived: deletable && isClaim(id) ? isArch(id) : null })}`
     + versionsHtml(versionsX(id));
 }
 
@@ -195,7 +196,7 @@ function versionsX(id){
     ws: ws(), m: work(), fact: id, lang: L,
     vs, using, over: career ? undefined : overrideOf(id), ed,
     compare: E.compare, openMinor: E.openMinor, focus: E.focus,
-    lines: career ? () => undefined : linesOf, jobTypes: rec().jobTypes ?? [], tagList: allTags(rec()).map(x => x.tag),
+    lines: career ? () => undefined : linesOf, jobTypes: rec().jobTypes ?? [], tagList: allTags(rec(), null, { archived: ws() === 'career' && C.careerReveal() }).map(x => x.tag),
     dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !career && !!(T.jobOfFact(rec(), id) || id === cur().summary), fill: career ? '' : C.fillText(),
     ref: career ? T.defaultVariant(work(), id, DEFAULT_LANG) : C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
     pick: career && E.pickOn ? pickOf(id)?.id : null,
@@ -399,6 +400,27 @@ async function act(a, tg){
         C.toast(t('career.deletedClaim', { name, n: res.versions }));
         if (ws() === 'career') C.careerUp(); else C.select(job ? { kind: 'job', id: job } : { kind: 'none' });
       }
+      return true;
+    }
+    case 'archive-claim': {
+      const id = s.id, job = ix().highlight.get(id);
+      if (!id || !isClaim(id)) return true;
+      let res;
+      E.edit = null; E.compare = null; clearTimeout(E.timer);
+      C.endHover();
+      commit(d => { res = K.archiveClaim(d.record, id); }, t('arch.undoArchive'));
+      if (res?.changed){
+        C.toast(t('arch.archived'));
+        if (ws() === 'career') C.careerUp(); else C.select(job ? { kind: 'job', id: job } : { kind: 'none' });
+      }
+      return true;
+    }
+    case 'unarchive-claim': {
+      const id = tg?.dataset?.id ?? s.id;
+      if (!id) return true;
+      let res;
+      commit(d => { res = K.unarchiveClaim(d.record, id); }, t('arch.undoUnarchive'), t('arch.unarchived'));
+      if (res?.changed && ws() !== 'career') C.renderBody();
       return true;
     }
     case 'add-claim': {

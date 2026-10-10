@@ -14,6 +14,8 @@ import { saveOver } from '../src/model/record.js';
 import { validate } from './lib/validate.mjs';
 import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages } from '../src/render.js';
+import { makeUi } from './lib/ui-harness.mjs';
+import * as T from '../src/model/resume.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -298,6 +300,84 @@ section('JSON Resume\'s other fields, and references (2026-10-09)');
   ok('it validates', validate(file).errors.length === 0, validate(file).errors[0]);
   K.deleteItem(m, 'references', id);
   ok('deleting it takes the fact and the list with it', !m.facts.some(f => f.id === id) && !m.references && !s.content.pairs.length);
+}
+
+section('archiving a claim');
+{
+  const ex = S.load(read('data/example.json')).model;
+  const gone = ex.facts.find(f => f.archived).id;
+  const job = ex.work.find(w => w.highlights.includes(gone));
+  const other = job.highlights.find(h => h !== gone);
+  ok('the example holds an archived claim to start with', !!gone && !!other);
+  ok('K.archivedOf lists a job’s archived claims', K.archivedOf(ex, job.id).join() === gone);
+  const r = K.unarchiveClaim(ex, gone);
+  ok('unarchiving clears the flag, and says so', r.changed && !ex.facts.find(f => f.id === gone).archived && !('archived' in ex.facts.find(f => f.id === gone)));
+  ok('unarchiving twice changes nothing', !K.unarchiveClaim(ex, gone).changed);
+  const a = K.archiveClaim(ex, other);
+  ok('archiving sets the flag on the claim, not its versions', a.changed && ex.facts.find(f => f.id === other).archived === true && !ex.variants.some(v => v.archived));
+  ok('…and deletes nothing', ex.facts.some(f => f.id === other) && ex.variants.some(v => v.id.startsWith(`${other}-`)));
+  const rest = job.highlights.filter(h => !ex.facts.find(f => f.id === h).archived);
+  for (const h of rest.slice(1)) K.archiveClaim(ex, h);
+  let refused = null; try { K.archiveClaim(ex, rest[0]); } catch (e){ refused = e; }
+  ok('a job’s last unarchived claim is refused, with the app’s own message', rest.length >= 2 && refused?.key === 'arch.lastClaim' && !ex.facts.find(f => f.id === rest[0]).archived, refused?.message);
+  const one = ex.work.find(w => w.highlights.length === 1);
+  let lastRefused = null; try { K.archiveClaim(ex, one.highlights[0]); } catch (e){ lastRefused = e; }
+  ok('a job with one claim can not archive it', lastRefused?.key === 'arch.lastClaim', lastRefused?.message);
+  ok('the record still validates and renders', validate(S.save(ex), null).errors.length === 0 && html(ex, newResume(ex)).length > 0);
+}
+
+section('Career hides archived claims, and reveals them');
+{
+  const u = await makeUi({ ws: 'career' });
+  const gone = u.record().facts.find(f => f.archived).id;
+  const job = u.record().work.find(w => w.highlights.includes(gone)).id;
+  const rows = () => String(u.career.views.career());
+  await u.click('c-sel', { what: 'entry', key: 'work', id: job });
+  let h = rows();
+  ok('an archived claim is not in the list by default', !h.includes(`data-id="${gone}"`));
+  ok('…the job shows a muted “1 archived” control', /class="sm ghost archmore"[^>]*aria-expanded="false">1 archived/.test(h));
+  await u.click('c-arch-show', { id: job });
+  h = rows();
+  ok('the control reveals it, dimmed, with an Unarchive button', h.includes(`data-id="${gone}"`) && /is-archived/.test(h) && new RegExp(`data-act="unarchive-claim" data-id="${gone}"`).test(h));
+  ok('…and the same control hides it again', /Hide archived/.test(h) && (await u.click('c-arch-show', { id: job }), !rows().includes(`data-id="${gone}"`)));
+  ok('a job with none archived shows no control', (await u.click('c-sel', { what: 'entry', key: 'work', id: u.record().work.find(w => w.id !== job).id }), !/archmore/.test(rows())));
+
+  await u.click('c-sel', { what: 'entry', key: 'work', id: job });
+  const before = JSON.stringify(u.record());
+  const other = u.record().work.find(w => w.id === job).highlights.find(h2 => h2 !== gone);
+  await u.click('c-claim', { key: 'work', entry: job, id: other });
+  const panel = rows();
+  ok('a claim’s panel has Archive beside 🗑', /data-act="archive-claim"[^>]*>Archive<\/button>/.test(panel) && panel.indexOf('archive-claim') < panel.indexOf('delete-claim'));
+  await u.click('archive-claim');
+  ok('Archive sets the flag, says Ctrl+Z undoes it, and goes back up', u.record().facts.find(f => f.id === other).archived === true && u.toasts.at(-1).m === 'Archived. Ctrl+Z undoes it.');
+  ok('…the list no longer shows it', !rows().includes(`data-id="${other}"`));
+  u.store.undo();
+  ok('Ctrl+Z undoes it', JSON.stringify(u.record()) === before);
+  await u.click('c-arch-show', { id: job });
+  await u.click('unarchive-claim', { id: gone });
+  ok('Unarchive brings it back', !u.record().facts.find(f => f.id === gone).archived && u.toasts.at(-1).m === 'Unarchived.');
+  u.store.undo();
+  ok('…and Ctrl+Z archives it again', u.record().facts.find(f => f.id === gone).archived === true);
+}
+
+section('the Resume view');
+{
+  // a saved resume that prints the archived claim: it keeps printing, badged, and can be turned off
+  const names = read('data/example-resumes/index.json');
+  const ex = S.load(read('data/example.json')).model;
+  const gone = ex.facts.find(f => f.archived).id;
+  const job = ex.work.find(w => w.highlights.includes(gone)).id;
+  const i = names.findIndex(n => T.listedBullets(ex, S.loadResume(read(`data/example-resumes/${n}`), ex).recipe, job).includes(gone));
+  ok('a saved example resume prints the archived claim', i >= 0);
+  const u = await makeUi({ resume: i });
+  u.select({ kind: 'job', id: job });
+  let h = String(u.edit.jobView({ kind: 'job', id: job }));
+  ok('its bullet list shows the claim with an “archived” badge', new RegExp(`data-id="${gone}"[\\s\\S]*?class="pill arch"[^>]*>archived`).test(h));
+  u.tick({ on: gone }, false);
+  h = String(u.edit.jobView({ kind: 'job', id: job }));
+  ok('it can be turned off, and then it leaves the list', !T.listedBullets(u.record(), u.cur(), job).includes(gone) && !h.includes(`data-id="${gone}"`));
+  let refused = false; try { T.setBulletOn(u.work(), u.cur(), gone, true); } catch { refused = true; }
+  ok('turning an archived claim on needs it unarchived first', refused);
 }
 
 console.log(failed ? `\n${failed} career check(s) FAILED` : '\nall career checks passed');

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { isDeepStrictEqual as eq } from 'node:util';
 import * as S from '../src/model/schema.js';
-import { DB_NAME, makeBackup } from '../src/store/persist.js';
+import { DB_NAME, makeBackup, readBackup } from '../src/store/persist.js';
 import { resolve, offOf, keepOf, chooseVariant } from '../src/model/resume.js';
 import { validate } from './lib/validate.mjs';
 import { createDocument, serialize as serializeDom } from '../scripts/lib/dom.mjs';
@@ -316,6 +316,21 @@ section('names that are kept on purpose: renaming any of them orphans saved data
   const saved = S.save(S.load(read('data/example.json')).model);
   ok("a saved library still carries meta.resumeBuilder, with schema resume-data/4", saved.meta.resumeBuilder?.schema === 'resume-data/4' && S.SCHEMA === 'resume-data/4');
   ok("the resume schema id is still resume-recipe/4", S.RESUME_SCHEMA === 'resume-recipe/4');
+}
+
+section('archived claims survive every way the record is written');
+{
+  const m = S.load(read('data/example.json')).model;
+  const archived = m.facts.filter(f => f.archived).map(f => f.id);
+  ok('the example has an archived claim', archived.length >= 1, JSON.stringify(archived));
+  const again = S.load(S.save(m)).model;
+  ok('save then load keeps it', eq(again.facts.filter(f => f.archived).map(f => f.id), archived));
+  ok('…and a second save writes the same bytes', S.serialize(S.save(again)) === S.serialize(S.save(m)));
+  const back = readBackup(JSON.parse(JSON.stringify(makeBackup({ record: m, resumes: [], frozen: {} }))));
+  ok('a backup round trip keeps it', eq(back.state.record.facts.filter(f => f.archived).map(f => f.id), archived));
+  const v3 = S.migrate({ ...JSON.parse(JSON.stringify(m)), schema: 'resume-data/3', facts: m.facts.map(({ archived: _a, ...f }) => f) });
+  ok('a migrated v3 record has none', !v3.facts.some(f => f.archived));
+  ok('the validator accepts the example', validate(S.save(m), null).errors.length === 0);
 }
 
 console.log(failed ? `\n${failed} model check(s) FAILED` : '\nall model checks passed');

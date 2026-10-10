@@ -806,7 +806,7 @@ const edit = initEdit({
   endPreview: () => endPreview(),
   indexOf: m => indexModel(m),
   previewRecipe,
-  careerLang: () => career.lang, careerFact: () => career.fact(), careerUp: () => career.up(),
+  careerLang: () => career.lang, careerFact: () => career.fact(), careerUp: () => career.up(), careerReveal: () => career.reveal(),
 });
 edit.bind($('#body'));
 window.__wb.edit = edit;

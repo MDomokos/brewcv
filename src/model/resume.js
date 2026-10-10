@@ -6,7 +6,7 @@ const langOf = v => v?.lang ?? DEFAULT_LANG;
 export const isDraft = v => /-draft(-|$)/.test(v?.id ?? '');
 
 import { keyed, t } from '../i18n/index.js';
-import { entriesOf, isEntry } from './entries.js';
+import { entriesOf, isEntry, archivedIds } from './entries.js';
 import { offOf, keepOf, migratePins } from '../recipe.js';
 export { offOf, keepOf, migratePins };
 
@@ -249,8 +249,17 @@ export function frozenDiffs(model, recipe, frozen){
 
 // Everything on, paginated by measurement. Empty picks let the selection rule decide.
 export function newResume(model, { format = 'a4', lang = DEFAULT_LANG, pageLimit = 1, theme = 'b2-marker' } = {}){
+  const arch = archivedIds(model);
+  const entries = new Map(entriesOf(model).map(w => [w.id, w]));
+  // an archived claim is left out; a job with none left is left out too
+  const refs = ids => ids.map(id => {
+    const w = entries.get(id);
+    if (!w || !(w.highlights ?? []).some(h => arch.has(h))) return id;
+    const hs = w.highlights.filter(h => !arch.has(h));
+    return hs.length ? { id, highlights: hs } : null;
+  }).filter(Boolean);
   const sections = (model.sections ?? []).filter(s => s.kind !== 'header' && s.id !== 'summary')
-    .map(s => (s.kind === 'entries' ? { id: s.id, weight: s.off ? 0 : 5, work: [...(s.content?.work ?? [])] } : s.off ? { id: s.id, weight: 0 } : { id: s.id }));
+    .map(s => (s.kind === 'entries' ? { id: s.id, weight: s.off ? 0 : 5, work: refs([...(s.content?.work ?? [])]) } : s.off ? { id: s.id, weight: 0 } : { id: s.id }));
   return {
     application: model.basics?.name ? t('resumes.newName', { name: model.basics.name }) : t('resumes.newNameless'),
     company: '', role: '', jobType: '', tags: [],
@@ -361,8 +370,8 @@ export function setJobOn(model, recipe, jobId, on){
     const l = lists.at(-1);
     const rank = id => order.indexOf(id);
     const at = l.findIndex(r => rank(refId(r)) > rank(jobId));
-    const off = new Set(offOf(recipe));
-    l.splice(at < 0 ? l.length : at, 0, tidyRef(w, { id: jobId, highlights: w.highlights.filter(h => !off.has(h)) }));
+    const off = new Set(offOf(recipe)), arch = archivedIds(model);
+    l.splice(at < 0 ? l.length : at, 0, tidyRef(w, { id: jobId, highlights: w.highlights.filter(h => !off.has(h) && !arch.has(h)) }));
   }
   syncSections(model, recipe);
 }
@@ -371,6 +380,7 @@ export function setBulletOn(model, recipe, factId, on){
   const w = jobOfFact(model, factId);
   if (!w) throw new Error(`${factId} is not a bullet of any job`);
   const sid = sectionOfEntry(model, w.id);
+  if (on && archivedIds(model).has(factId) && !listedBullets(model, recipe, w.id).includes(factId)) throw keyed('arch.needUnarchive');
   if (on && !jobRefs(model, recipe, sid).some(r => refId(r) === w.id)){
     setList(recipe, 'off', factId, false);
     setJobOn(model, recipe, w.id, true);

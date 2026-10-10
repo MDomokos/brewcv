@@ -5,7 +5,7 @@ import { keyed } from '../i18n/index.js';
 import { defaultVariant, DEFAULT_LANG, sectionOfEntry } from './resume.js';
 import { saveOver, addVersion } from './record.js';
 import { fmtMonth, ym, addJob, addBullet, addFact, slug, metaLineOf, presentIn, contactText, SEP } from './build.js';
-import { entriesOf, isEntry, entryKey } from './entries.js';
+import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
 
 const now = () => new Date().toISOString().slice(0, 7);
 const months = (a, b) => {
@@ -408,6 +408,26 @@ export function deleteClaim(model, factId, recipes = []){
   if (w && entryKey(model, w.id) !== 'work') syncEntry(model, w);
   return { job: w?.id ?? null, versions: res.versions };
 }
+
+// Hides a claim without deleting it. Saved resumes keep printing it. A job keeps one unarchived claim at least.
+export function archiveClaim(model, factId){
+  const f = (model.facts ?? []).find(x => x.id === factId);
+  if (!f) throw new Error(`no such claim: ${factId}`);
+  const w = entriesOf(model).find(x => (x.highlights ?? []).includes(factId));
+  if (!w) throw new Error(`${factId} is not a claim of any entry`);
+  if (f.archived) return { job: w.id, changed: false };
+  if (entryKey(model, w.id) === 'work' && !w.highlights.some(h => h !== factId && !isArchived(model, h))) throw keyed('arch.lastClaim');
+  f.archived = true;
+  return { job: w.id, changed: true };
+}
+export function unarchiveClaim(model, factId){
+  const f = (model.facts ?? []).find(x => x.id === factId);
+  if (!f) throw new Error(`no such claim: ${factId}`);
+  const was = !!f.archived;
+  delete f.archived;
+  return { changed: was };
+}
+export const archivedOf = (model, entryId) => (entriesOf(model).find(x => x.id === entryId)?.highlights ?? []).filter(h => isArchived(model, h));
 
 function dropFacts(model, ids, recipes = []){
   let versions = 0;

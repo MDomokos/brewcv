@@ -42,7 +42,7 @@ function fact(id, def, versions){
   }
   facts.push({ id, ...(def.work ? { work: def.work } : {}), axis: def.axis ?? 'density',
     ...(def.term ? { term: def.term } : {}), ...(def.label ? { label: def.label } : {}),
-    summary: def.summary, variants: made });
+    ...(def.archived ? { archived: true } : {}), summary: def.summary, variants: made });
 }
 // Written once in English, listed in record.same, printed in every language.
 const same = (text, tags = [], extra = {}) => [['1', text, tags, 'en', extra]];
@@ -191,8 +191,10 @@ const BULLETS = {
     ]],
   ],
 };
+// archived: hidden in Career, never switched on by a new resume (a saved one may still print it)
+const ARCHIVED = new Set(['free-proto']);
 for (const [job, list] of Object.entries(BULLETS))
-  for (const [id, summary, versions] of list) fact(id, { work: job, summary, tags: ['experience'] }, versions);
+  for (const [id, summary, versions] of list) fact(id, { work: job, summary, tags: ['experience'], archived: ARCHIVED.has(id) }, versions);
 
 // the rest
 const SKILLS = [

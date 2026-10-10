@@ -31,6 +31,7 @@ const W = {
   kind: null,                // the kind editor: { id | null, draft }
   delKind: null,
   tip: null,
+  shown: new Set(),          // entries whose archived claims are revealed
 };
 const TIP_KEY = 'rb-career-tips';
 const tipsDone = () => { try { return localStorage.getItem(TIP_KEY) === 'done'; } catch { return true; } };
@@ -255,7 +256,9 @@ function entryView(key, id){
     : `<button class="sm" data-act="c-details" data-open="1">${h('career.editDetails')}</button>`;
   const withClaims = key === 'work' || key === 'projects' || key === 'volunteer';
   if (withClaims){
-    out += `<span class="lbl">${h('career.whatYouDid')}</span><div class="list">${(x.highlights ?? []).map(c => claimRow(c, key, id)).join('')}</div>
+    const arch = K.archivedOf(m, id), open = W.shown.has(id);
+    out += `<span class="lbl">${h('career.whatYouDid')}</span><div class="list">${(x.highlights ?? []).filter(c => open || !arch.includes(c)).map(c => claimRow(c, key, id)).join('')}</div>
+      ${arch.length ? `<button class="sm ghost archmore" data-act="c-arch-show" data-id="${esc(id)}" aria-expanded="${open}">${open ? h('arch.hide') : h('arch.nArchived', { n: arch.length })}</button>` : ''}
       ${addClaimHtml({ id, key, draft: C.edit.claimDraft })}
       <p class="note">${h('career.claimsNote')}</p>`;
   }
@@ -304,7 +307,8 @@ function claimRow(id, key, entry){
   const miss = !vs.length && !sameLang() && !same;
   const text = vs.length ? (defaultVariant(m, id, Lg)?.text ?? vs[0].text) : textEn(id);
   const pill = miss ? t('career.notInYet', { lang: langName(Lg) }) : vs.length > 1 ? t('career.nVersions', { n: vs.length }) : '';
-  return partClaimRow({ id, act: 'c-claim', text: clip(text, 110), pill, pillMiss: miss, attrs: `data-key="${esc(key)}" data-entry="${esc(entry)}"` });
+  const archived = !!(m.facts ?? []).find(f => f.id === id)?.archived;
+  return partClaimRow({ id, act: 'c-claim', text: clip(text, 110), pill, pillMiss: miss, attrs: `data-key="${esc(key)}" data-entry="${esc(entry)}"`, archived, unarchive: archived });
 }
 
 // The versions of one text, all equal. The panel is edit.js's; this adds the way back.
@@ -501,6 +505,7 @@ async function act(a, tg){
     case 'c-sel-fact': W.sel = { ...W.sel, what: 'aboutfact', fact: tg.dataset.fact, title: tg.dataset.title }; C.renderBody(true); return true;
     case 'c-claim': { const next = { what: 'claim', key: tg.dataset.key, id: tg.dataset.entry, claim: tg.dataset.id }; if (!leave({ kind: 'bullet', id: next.claim })) return true; C.edit.resetPick(); W.sel = next; C.renderBody(true); return true; }
     case 'c-up': up(); return true;
+    case 'c-arch-show': { const id = tg.dataset.id; if (W.shown.has(id)) W.shown.delete(id); else W.shown.add(id); C.renderBody(true); return true; }
     case 'c-details': W.details = tg.dataset.open === '1'; C.renderBody(true); if (W.details) setTimeout(() => $('#c-pos, #c-gname')?.focus(), 30); return true;
     case 'c-step': {
       const x = K.timelineLayout(m, { lang: Lg }).entries;
@@ -785,6 +790,7 @@ const api = {
     return C.edit.key(e);
   },
   up, 
+  reveal(){ return W.shown.size > 0; },
   fact(){
     const s = W.sel;
     if (s?.what === 'claim') return s.claim;

@@ -49,8 +49,8 @@ for (const jt of model.jobTypes){
     const turnedOff = [...before].filter(x => !after.has(x)).length;
     const name = `${jt} on ${base.company}`;
     if (!(plan.on === turnedOn && plan.off === turnedOff && applied.on === plan.on)){ ok(`${name}: the plan says what apply does`, false, JSON.stringify({ plan, turnedOn, turnedOff })); continue; }
-    // focus works on the jobs' bullets; a project's are not part of it
-    const tagged = [...after].filter(f => model.work.some(w => w.highlights.includes(f)) && F.taggedVersion(model, f, jt, 'en'));
+    // focus works on the jobs' bullets (a project's are not part of it), and leaves an archived claim as the resume has it
+    const tagged = [...after].filter(f => model.work.some(w => w.highlights.includes(f)) && !model.facts.find(x => x.id === f)?.archived && F.taggedVersion(model, f, jt, 'en'));
     if (!tagged.every(f => r.picks[f] === F.taggedVersion(model, f, jt, 'en').id)){ ok(`${name}: tagged bullets use their tagged version`, false); continue; }
     const v = validate(S.save(model), r);
     if (v.errors.length){ ok(`${name}: validates`, false, v.errors[0]); continue; }
@@ -83,6 +83,46 @@ section('the rules');
   const r2 = clone(en[0]);
   F.applyTag(m2, r2, 'Summary-test');
   ok('the summary switches to its tagged version', r2.picks.summary === sv.id);
+}
+
+section('archived claims');
+{
+  const m = clone(model);
+  const fid = m.facts.find(f => f.archived).id;
+  const job = T.jobOfFact(m, fid);
+  const tag = m.variants.find(v => v.id === m.facts.find(f => f.id === fid).variants[0]).tags.find(x => !m.jobTypes.includes(x)) ?? m.variants.find(v => v.id === m.facts.find(f => f.id === fid).variants[0]).tags[0];
+  ok('the example archives a claim whose version carries a tag', !!tag, tag);
+  const fresh = T.newResume(m);
+  ok('a new resume does not list the archived claim', !on(m, fresh).has(fid) && T.listedBullets(m, fresh, job.id).length === job.highlights.length - 1);
+  const plan = F.planTag(m, fresh, tag);
+  F.applyTag(m, fresh, tag);
+  ok('Focus never switches an archived claim on', !on(m, fresh).has(fid) && !plan.hits.has(fid));
+  ok('tagHits leaves it out', !F.tagHits(m, tag, 'en').has(fid));
+  let refused = false; try { T.setBulletOn(m, fresh, fid, true); } catch { refused = true; }
+  ok('an archived claim can not be switched on by hand', refused && !on(m, fresh).has(fid));
+  T.setJobOn(m, fresh, job.id, false);
+  T.setJobOn(m, fresh, job.id, true);
+  ok('switching its job off and on does not bring it back', !on(m, fresh).has(fid));
+
+  // a saved resume that prints it keeps printing it, whatever Focus does
+  const live = clone(model);
+  const lf = live.facts.find(f => f.id === fid);
+  delete lf.archived;
+  const saved = T.newResume(live);
+  T.setBulletOn(live, saved, fid, true);
+  saved.picks = { [fid]: lf.variants[0] };
+  lf.archived = true;
+  const before = JSON.stringify(saved);
+  F.applyTag(live, saved, tag);
+  ok('a saved resume that prints an archived claim still prints it after Focus', on(live, saved).has(fid) && JSON.stringify(saved.picks[fid]) === JSON.stringify(lf.variants[0]));
+  const other = clone(saved);
+  F.applyTag(live, other, 'a-tag-nothing-has');
+  ok('…and Focus on a tag it does not carry does not switch it off', on(live, other).has(fid));
+  void before;
+
+  const n0 = F.allTags(m, 'en').find(x => x.tag === tag)?.n ?? 0;
+  const n1 = F.allTags(m, 'en', { archived: true }).find(x => x.tag === tag)?.n ?? 0;
+  ok('tag counts leave archived claims out unless asked', n1 > n0, `${n0} vs ${n1}`);
 }
 
 console.log(failed ? `\n${failed} focus check(s) FAILED` : '\nall focus checks passed');

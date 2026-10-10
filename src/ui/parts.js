@@ -30,10 +30,11 @@ export function factRow({ act = 'select-fact', id, text, pill = '', pillMiss = f
 }
 
 // A row with its switch (Resume). Without `swAttrs`, the same row minus the switch (Career).
-export function claimRow({ id, act = 'select-bullet', text, on = true, swAttrs = null, pill = '', pillMiss = false, kept = false, attrs = '' }){
-  return `<div class="item row ${swAttrs ? '' : 'noswitch '}${on ? '' : 'is-off'}">${swAttrs ? sw(swAttrs, on) : ''}
+// archived: dimmed, with a badge. unarchive: its button (Career, where archived claims are revealed).
+export function claimRow({ id, act = 'select-bullet', text, on = true, swAttrs = null, pill = '', pillMiss = false, kept = false, attrs = '', archived = false, unarchive = false }){
+  return `<div class="item row ${swAttrs ? '' : 'noswitch '}${on ? '' : 'is-off'}${archived ? ' is-archived' : ''}">${swAttrs ? sw(swAttrs, on) : ''}
         <a class="t" data-act="${act}" data-id="${esc(id)}"${attrs ? ' ' + attrs : ''}>${esc(text)}</a>
-        ${pill ? `<span class="pill ${pillMiss ? 'miss' : ''}">${esc(pill)}</span>` : ''}${kept ? `<span class="kept" title="${esc(t('edit.keepTitle'))}">📌</span>` : ''}</div>`;
+        ${archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span>` : ''}${pill ? `<span class="pill ${pillMiss ? 'miss' : ''}">${esc(pill)}</span>` : ''}${kept ? `<span class="kept" title="${esc(t('edit.keepTitle'))}">📌</span>` : ''}${unarchive ? `<button class="ghost sm" data-act="unarchive-claim" data-id="${esc(id)}">${h('arch.unarchive')}</button>` : ''}</div>`;
 }
 
 export function missBar({ lang, list, act = 'go-missing' }){
@@ -173,11 +174,13 @@ function flatRow(v, x){
 
 // Under the claim's heading. The Resume adds on/off and Keep; 🗑 deletes the claim and every
 // version of it. deletable: the claim is one of an entry's, not a title or a summary.
-export function claimHead({ ws, hasJob = false, on = false, kept = false, deletable = false }){
+// archived: null for a claim that can't be archived, else whether it is.
+export function claimHead({ ws, hasJob = false, on = false, kept = false, deletable = false, archived = null }){
   const del = deletable ? `<button class="ghost sm" data-act="delete-claim" title="${esc(t('career.deleteClaim'))}" aria-label="${esc(t('career.deleteClaim'))}">🗑</button>` : '';
-  if (ws === 'career') return del ? `<div class="ctlrow"><span class="grow"></span>${del}</div>` : '';
+  const arch = archived === null ? '' : `<button class="ghost sm" data-act="${archived ? 'unarchive-claim' : 'archive-claim'}" title="${esc(t(archived ? 'arch.unarchiveTitle' : 'arch.archiveTitle'))}">${h(archived ? 'arch.unarchive' : 'arch.archive')}</button>`;
+  if (ws === 'career') return del || arch ? `<div class="ctlrow"><span class="grow"></span>${arch}${del}</div>` : '';
   return `<div class="ctlrow">${hasJob ? sw('id="b-on"', on, h('edit.onThis')) : ''}<span class="grow"></span>
-      <button class="keep sm" data-act="keep" aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}">📌 ${kept ? h('edit.kept') : h('edit.keep')}</button>${del}</div>`;
+      <button class="keep sm" data-act="keep" aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}">📌 ${kept ? h('edit.kept') : h('edit.keep')}</button>${arch}${del}</div>`;
 }
 
 export const addClaimHtml = ({ id, key, draft = '' }) =>

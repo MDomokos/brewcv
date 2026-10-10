@@ -92,6 +92,9 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
 
   const claimItems = (fromId, toId, where) => {
     const fvs = versionsOf(F, fromId);
+    const was = !!F.facts.get(fromId)?.archived, now = !!T.facts.get(toId)?.archived;
+    if (was !== now) items.push({ kind: 'change', what: `${where} · ${clip(claimText(F, fromId))}`, a: was ? t('arch.diffArchived') : t('arch.diffNot'), b: now ? t('arch.diffArchived') : t('arch.diffNot'), on: false,
+      apply: d => { const f = d.record.facts.find(x => x.id === fromId); if (f){ if (now) f.archived = true; else delete f.archived; } } });
     for (const v of versionsOf(T, toId)){
       const same = fvs.find(w => norm(w.text) === norm(v.text) && (w.lang ?? 'en') === (v.lang ?? 'en'));
       if (!same){

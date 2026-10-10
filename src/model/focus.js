@@ -2,6 +2,7 @@
 // Tagging never touches a Keep bullet and never empties a job: an untagged job keeps its first bullet.
 
 import { chooseVariant, keepOf, jobRefs, listedBullets, setBulletOn } from './resume.js';
+import { archivedIds } from './entries.js';
 
 const langOf = v => v?.lang ?? 'en';
 const refId = r => (typeof r === 'string' ? r : r?.id);
@@ -22,10 +23,11 @@ export function taggedVersion(model, factId, T, lang = 'en', ix = ixOf(model)){
     .sort((a, b) => { const x = num(a.n), y = num(b.n); return (x[0] - y[0]) || ((x[1] ?? -1) - (y[1] ?? -1)); })[0] ?? null;
 }
 
-// Job types come first, even with no versions yet.
-export function allTags(model, lang = null){
+// Job types come first, even with no versions yet. Versions of archived claims count only with `archived`.
+export function allTags(model, lang = null, { archived = false } = {}){
   const m = new Map();
-  for (const v of model.variants ?? []) if (!lang || langOf(v) === lang) for (const t of v.tags ?? []) m.set(t, (m.get(t) ?? 0) + 1);
+  const hidden = archived ? new Set() : new Set((model.facts ?? []).filter(f => f.archived).flatMap(f => f.variants ?? []));
+  for (const v of model.variants ?? []) if ((!lang || langOf(v) === lang) && !hidden.has(v.id)) for (const t of v.tags ?? []) m.set(t, (m.get(t) ?? 0) + 1);
   const jt = model.jobTypes ?? [];
   for (const t of jt) if (!m.has(t)) m.set(t, 0);
   return [...m].map(([tag, n]) => ({ tag, n, jobType: jt.includes(tag) }))
@@ -38,18 +40,21 @@ function walk(model, recipe, T, fn){
   const keep = new Set(keepOf(recipe));
   const onJobs = new Set(jobRefs(model, recipe).map(refId));
   const sec = (model.sections ?? []).find(s => s.kind === 'entries');
+  const arch = archivedIds(model);
   const jobs = (sec?.content?.work ?? (model.work ?? []).map(w => w.id)).map(id => (model.work ?? []).find(w => w.id === id)).filter(Boolean);
   for (const w of jobs){
     const listed = new Set(onJobs.has(w.id) ? listedBullets(model, recipe, w.id) : []);
-    const hits = w.highlights.filter(h => taggedVersion(model, h, T, lang, ix));
+    // an archived claim is left as the resume has it: never switched on, off or re-picked
+    const live = w.highlights.filter(h => !arch.has(h));
+    const hits = live.filter(h => taggedVersion(model, h, T, lang, ix));
     for (const h of w.highlights){
-      if (keep.has(h)) continue;
+      if (keep.has(h) || arch.has(h)) continue;
       const tv = taggedVersion(model, h, T, lang, ix);
       const on = listed.has(h);
       if (tv){
         const using = chooseVariant(model, h, recipe).v;
         fn({ kind: 'tagged', fact: h, job: w.id, on, switch: using?.id !== tv.id || recipe.overrides?.[h] !== undefined, tv });
-      } else if (on && (hits.length || h !== w.highlights[0])) fn({ kind: 'off', fact: h, job: w.id });
+      } else if (on && (hits.length || h !== live[0])) fn({ kind: 'off', fact: h, job: w.id });
     }
   }
   const s = recipe.summary ?? model.basics?.summary;
@@ -73,7 +78,7 @@ export function planTag(model, recipe, T){
 // Facts with a version tagged T, whatever the resume does with them.
 export function tagHits(model, T, lang = 'en'){
   const ix = ixOf(model);
-  return new Set((model.facts ?? []).filter(f => taggedVersion(model, f.id, T, lang, ix)).map(f => f.id));
+  return new Set((model.facts ?? []).filter(f => !f.archived && taggedVersion(model, f.id, T, lang, ix)).map(f => f.id));
 }
 
 // Mutates the recipe (a store draft's d.cur). Returns the plan.
