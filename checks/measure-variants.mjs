@@ -54,7 +54,7 @@ const exe = process.env.CHROME_PATH
   ?? ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe ? { executablePath: exe } : {});
-const page = await browser.newPage({ viewport: { width: 1000, height: 1400 } });
+const page = await browser.newPage({ viewport: { width: 1000, height: 1400 }, bypassCSP: true });
 
 const measurement = { colWidth: null, lines: {} };
 const widths = new Set();

@@ -32,7 +32,8 @@ export async function openMeasurer({ repo, data, port = 8096 }){
     ?? ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
-  const page = await browser.newPage({ viewport: { width: 1000, height: 1400 } });
+  // the page templates carry a CSP with no script source; measuring imports the app's modules into the page
+  const page = await browser.newPage({ viewport: { width: 1000, height: 1400 }, bypassCSP: true });
   let n = 0;
 
   const model = readLibrary(data).model;

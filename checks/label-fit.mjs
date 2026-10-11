@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
 await new Promise(r => server.listen(8133, r));
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
-const page = await browser.newPage({ viewport: { width: 1000, height: 1400 } });
+const page = await browser.newPage({ viewport: { width: 1000, height: 1400 }, bypassCSP: true });
 
 const measure = async (fmt, words, notes) => {
   await page.goto(`http://localhost:8133/out/label-fit-${fmt}.html`, { waitUntil: 'networkidle' });
