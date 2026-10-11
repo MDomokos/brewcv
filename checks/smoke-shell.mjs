@@ -229,10 +229,10 @@ if (want('the welcome language step, the interface language, Settings')) {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'de-DE' });
     const page = await ctx.newPage();
     const bad = await open(page, '?memory&welcome');
+    ok('a first visit opens on the introduction, with the three starts and no language step yet', await page.isVisible('[data-act=ob-scratch]') && (await page.$$('[data-langtick]')).length === 0);
+    await page.click('[data-act=ob-scratch]'); await settle(page);           // the language step comes after choosing a start
     ok('the browser’s language is ticked on the language step', await page.isChecked('[data-langtick=de]') && !(await page.isChecked('[data-langtick=en]')));
-    await page.click('[data-act=ob-lang-go]'); await page.waitForTimeout(1200);
-    ok('Deutsch, following the resume: the card is in German', (await page.textContent('#body')).includes(de['onb.welcome']));
-    await page.click('[data-act=ob-scratch]'); await page.waitForTimeout(1500);
+    await page.click('[data-act=ob-lang-go]'); await page.waitForTimeout(1500);      // and carries on with the start that was chosen
     let u = await ui(page);
     ok('the first resume is in German, on A4', u.cur === 'de' && u.format === 'a4', JSON.stringify(u));
     ok('the header is in German', u.lang === 'de' && u.design === de['head.design'], JSON.stringify(u));
@@ -279,15 +279,15 @@ if (want('the welcome language step, the interface language, Settings')) {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'en-GB' });
     const page = await ctx.newPage();
     const bad = await open(page, '?memory&welcome');
+    await page.click('[data-act=ob-example]'); await settle(page);
     await page.click('[data-langtick=de]'); await settle(page);
     await page.check('[data-uimode=fixed]');
     ok('the step offers the ticked languages and English for the interface', (await page.$$eval('[data-uilang] option', o => o.map(x => x.value).sort().join())) === 'de,en');
     // French is not ticked; tick it, then choose it
     await page.click('[data-langtick=fr]'); await settle(page);
     await page.check('[data-uimode=fixed]'); await page.selectOption('[data-uilang]', 'fr'); await settle(page);
-    await page.click('[data-act=ob-lang-go]'); await page.waitForTimeout(1200);
-    ok('“always Français”: the card is in French', (await page.textContent('#body')).includes(fr['onb.welcome']));
-    await page.click('[data-act=ob-example]'); await page.waitForTimeout(1800);
+    await page.click('[data-act=ob-lang-go]'); await page.waitForTimeout(2000);
+    ok('“always Français”: the interface is in French', (await page.evaluate(() => document.documentElement.lang)) === 'fr');
     let u = await ui(page);
     ok('the example keeps your languages', JSON.stringify(u.langs) === '["en","de","fr"]', JSON.stringify(u.langs));
     await page.click('#langbtn'); await settle(page);
@@ -303,8 +303,8 @@ if (want('the welcome language step, the interface language, Settings')) {
     await ctx.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get(){ throw new Error('blocked'); } }); });
     const page = await ctx.newPage();
     const bad = await open(page, '?memory&welcome');
-    await page.click('[data-act=ob-lang-go]'); await page.waitForTimeout(800);
-    await page.click('[data-act=ob-example]'); await page.waitForTimeout(1500);
+    await page.click('[data-act=ob-example]'); await settle(page);        // the language step comes after choosing a start
+    await page.click('[data-act=ob-lang-go]'); await page.waitForTimeout(1500);
     ok('storage blocked: English, and no error', (await ui(page)).lang === 'en' && bad.length === 0, bad[0] ?? '');
     await page.click('[data-act=menu]'); await page.click('[data-act=goto][data-v=settings]'); await settle(page);
     await page.click('[data-act=view][data-d]').catch(() => {});
@@ -348,7 +348,7 @@ if (want('Career')) {
   }
   ok('no switch, no resume named and nothing “in use” in any Career view', true);
   await page.click('[data-act=c-area][data-area=more]'); await settle(page);
-  const groups = await page.$$eval('#career .grp', gs => gs.map(g => !!g.querySelector('.gi svg') && getComputedStyle(g.querySelector('.grp-h b')).color));
+  const groups = await page.$$eval('#career .grp:not(.jtypes)', gs => gs.map(g => !!g.querySelector('.gi svg') && getComputedStyle(g.querySelector('.grp-h b')).color));
   ok('every Skills & credentials group has an icon and its colour', groups.length >= 5 && groups.every(Boolean) && new Set(groups).size === groups.length, groups.join(' '));
   await page.click('[data-act=c-area][data-area=timeline]'); await settle(page);
   await page.click('.tl2 .row:has-text("Prototyping Technician")'); await settle(page);
@@ -455,8 +455,8 @@ if (want('Career, no sideways scroll; tips; an empty record')) {
   const ctx3 = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const p3 = await ctx3.newPage();
   await open(p3, '?memory&welcome');
-  await p3.click('[data-act=ob-lang-go]'); await settle(p3);
-  await p3.click('[data-act=ob-scratch]'); await p3.waitForTimeout(1000);
+  await p3.click('[data-act=ob-scratch]'); await settle(p3);           // the language step comes after choosing a start
+  await p3.click('[data-act=ob-lang-go]'); await p3.waitForTimeout(1000);
   await p3.fill('#ob-name', 'Robin Vale'); await p3.waitForTimeout(600);
   await p3.evaluate(() => { document.querySelector('[data-act=ws][data-ws=career]').click(); });
   await p3.waitForTimeout(1000);
@@ -605,8 +605,7 @@ if (want('index.html is the Workbench')) {
   const page = await ctx.newPage();
   const bad = await open(page);
   ok('/ opens the Workbench', await page.isVisible('#col') && /BrewCV/.test(await page.title()));
-  const p2 = await ctx.newPage();
-  const gone = await p2.goto(`http://localhost:${PORT}/picker.html`);
+  const gone = await ctx.request.get(`http://localhost:${PORT}/picker.html`);      // a bare 404 makes goto() throw, so ask for the status
   ok('the 0.4.0 picker is retired', gone.status() === 404);
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
@@ -1045,11 +1044,11 @@ if (want('onboarding and career')) {
   const bad = await open(page, '?memory&welcome');
   const st = () => page.evaluate(() => window.__wb.store.state);
   const text = () => frameDoc(page, d => d.body.textContent);
-  ok('a first visit starts on the welcome card, with the language step first', (await page.getAttribute('#body', 'data-view')) === 'welcome' && !!(await page.$('[data-act=ob-lang-go]')));
-  await page.click('[data-act=ob-lang-go]'); await settle(page);
-  ok('then the three ways in', (await page.$$('.obchoices button')).length === 3);
-  ok('with the privacy line', /stays in this browser/.test(await page.textContent('#body')));
-  await page.click('[data-act=ob-scratch]'); await page.waitForTimeout(1200);
+  ok('a first visit starts on the introduction, with the three ways in and no language step yet', (await page.getAttribute('#body', 'data-view')) === 'welcome' && (await page.$$('.obchoices button')).length === 3 && !(await page.$('[data-act=ob-lang-go]')));
+  ok('and the “Yours to keep” banner, which says it is private', /Yours to keep/.test(await page.textContent('#body')) && /Private/.test(await page.textContent('.obkeep')));
+  await page.click('[data-act=ob-scratch]'); await settle(page);
+  ok('choosing one asks for the language', !!(await page.$('[data-act=ob-lang-go]')));
+  await page.click('[data-act=ob-lang-go]'); await page.waitForTimeout(1200);
   await page.fill('#ob-name', 'Robin Vale'); await page.fill('#ob-label', 'Hardware engineer'); await page.fill('#ob-email', 'robin@example.org'); await page.fill('#ob-city', 'Halden');
   await page.waitForTimeout(1200);
   ok('the sheet fills in while you type', /Robin Vale/.test(await text()) && /robin@example\.org/.test(await text()));
@@ -1297,6 +1296,11 @@ if (want('the session survives a reload')) {
   const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   await open(page, '');                                   // real IndexedDB this time
+  await page.click('[data-act=ob-example]'); await settle(page);        // a first visit opens on the introduction; take the example
+  await page.click('[data-act=ob-lang-go]'); await page.waitForTimeout(1500);
+  // an open example on its own goes back to the start screen on a reload, so make it somebody's
+  await page.evaluate(() => window.__wb.store.commit(d => { d.record.meta.owner = 'Sam Example'; }, 'smoke: make it mine'));
+  await settle(page);
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
   await page.locator('.vrow[data-v]:not(.cur)').first().click(); await settle(page);
   await page.mouse.move(4, 4); await settle(page);
