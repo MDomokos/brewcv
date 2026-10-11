@@ -6,6 +6,7 @@
 import { chromium } from 'playwright';
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -768,8 +769,8 @@ if (want('saved resumes')) {
   await page.keyboard.press('Escape'); await settle(page);
   await page.click('.rrow:has-text("Helix") [data-act=r-reuse]'); await page.waitForTimeout(1200);
   ok('re-use starts an unsaved copy', (await st()).openId === null && /Copy of/.test(await page.textContent('#docname')) && !(await page.isDisabled('#save')));
-  await page.keyboard.press('Control+s'); await settle(page);
-  ok('Ctrl+S on an unsaved resume asks for its name', (await page.getAttribute('#body', 'data-view')) === 'save');
+  await page.click('#save'); await settle(page);          // Ctrl+S saves the one file now, not the resume
+  ok('Save on an unsaved resume asks for its name', (await page.getAttribute('#body', 'data-view')) === 'save');
   await page.fill('#sv-co', 'Northwind Optics'); await page.fill('#sv-role', 'Design Engineer'); await page.fill('#sv-type', 'Optics');
   await page.click('[data-act=sv-do]'); await page.waitForTimeout(1200);
   const s1 = await st();
@@ -779,8 +780,8 @@ if (want('saved resumes')) {
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
   await page.click('#b-on'); await settle(page);
   ok('a change shows as unsaved', !(await page.isDisabled('#save')) && /Unsaved changes/.test(await page.textContent('#savestate')));
-  await page.keyboard.press('Control+s'); await settle(page);
-  ok('Ctrl+S saves it', await page.isDisabled('#save') && (await st()).resumes.find(r => r.id === s1.openId).off?.length > 0);
+  await page.click('#save'); await settle(page);
+  ok('Save saves it', await page.isDisabled('#save') && (await st()).resumes.find(r => r.id === s1.openId).off?.length > 0);
 
   // newer wording: save over a version another saved resume prints
   await page.keyboard.press('Control+o'); await settle(page);
@@ -801,7 +802,7 @@ if (want('saved resumes')) {
     await page.click('.vrow.cur [data-act=edit]'); await settle(page);
     await page.fill('#ed', 'Brand new record wording.'); await page.dispatchEvent('#ed', 'input'); await page.waitForTimeout(300);
     await page.click('[data-act=ed-save]'); await page.waitForTimeout(800);
-    await page.keyboard.press('Control+s'); await settle(page);
+    if (!(await page.isDisabled('#save'))){ await page.click('#save'); await settle(page); }
     await page.keyboard.press('Control+o'); await settle(page);
     await page.click(`.rrow[data-rid="${shared.other}"] [data-act=r-open]`); await page.waitForTimeout(1500);
     await page.keyboard.press('Escape'); await settle(page);
@@ -943,6 +944,147 @@ if (want('import, merge, history')) {
   await ctx.close();
 }
 
+
+if (want('save to file: one file, Ctrl+S, opening it safely')) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-save-'));
+  const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 }, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await page.evaluate(() => window.__wb.store.commit(d => { d.record.meta.owner = 'Sam Example'; }, 'smoke: make it mine'));   // the example on its own is replaced without a warning
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  const fstate = () => page.evaluate(() => { const f = window.__wb.persist.fileState; return { last: f.last, changes: f.changes }; });
+  const head = () => page.textContent('#filestate');
+  const edit = label => page.evaluate(l => window.__wb.store.commit(d => { d.record.basics.label = l; }, 'smoke edit'), label);
+  let n = 0;
+  const downloaded = async trigger => {
+    const [d] = await Promise.all([page.waitForEvent('download'), trigger()]);
+    const p = path.join(tmp, `${++n}-${d.suggestedFilename()}`);
+    await d.saveAs(p);
+    return { name: d.suggestedFilename(), path: p, json: JSON.parse(fs.readFileSync(p, 'utf8')) };
+  };
+  const open1 = async file => { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page); await page.setInputFiles('#file', file); await page.waitForTimeout(900); };
+  const copy = (src, fn, name) => { const j = JSON.parse(fs.readFileSync(src, 'utf8')); fn(j); const p = path.join(tmp, name); fs.writeFileSync(p, JSON.stringify(j, null, 2)); return p; };
+
+  ok('before any file save, the header says so', /Not saved to a file yet/.test(await head()));
+  const f1 = await downloaded(async () => { await page.click('[data-act=menu]'); await page.click('.menu [data-act=save-file]'); });
+  ok('Save to file downloads brewcv.json', f1.name === 'brewcv.json');
+  const s1 = await st();
+  ok('it holds the record, every saved resume and no checkpoints', f1.json.resumeBuilderBackup === 1 && f1.json.resumes.length === s1.resumes.length && s1.resumes.length > 3 && !('checkpoints' in f1.json));
+  ok('it names the app version and the record', f1.json.app === version && f1.json.recordId === s1.record.recordId && !!f1.json.recordId);
+  ok('the header says Saved to file, and it is a button', /^Saved to file/.test(await head()) && (await page.$eval('#filestate', e => e.tagName)) === 'BUTTON');
+  ok('the first save shows the one-time note about the Save dialog', await page.isVisible('[data-act=save-note-ok]') && /Ask where to save each file/.test(await page.textContent('.notice')));
+  const persisted = await page.evaluate(() => window.__wb.ui.persisted);
+  ok('and, if the browser would not promise to keep storage, that the file is the safe copy', persisted !== false || /safe copy/.test(await page.textContent('.notice')));
+  await page.click('[data-act=save-note-ok]'); await settle(page);
+  ok('the note goes away when dismissed', !(await page.isVisible('[data-act=save-note-ok]')));
+
+  await edit('Smoke label one'); await page.waitForTimeout(500);
+  ok('one change since: “1 change not saved to a file”', /^1 change not saved to a file/.test(await head()), await head());
+  await edit('Smoke label two'); await page.waitForTimeout(500);
+  ok('two changes: “2 changes not saved to a file”', /^2 changes not saved to a file/.test(await head()), await head());
+
+  await page.click('[data-act=goto][data-v=export]'); await settle(page);
+  const f2 = await downloaded(() => page.keyboard.press('Control+s'));
+  ok('Ctrl+S saves to the file too, in any view (here Export)', f2.name === 'brewcv.json' && f2.json.record.basics.label === 'Smoke label two' && f2.json.recordId === f1.json.recordId);
+  ok('and the count starts again', /^Saved to file/.test(await head()) && (await fstate()).changes === 0);
+  ok('the note does not come back', !(await page.isVisible('[data-act=save-note-ok]')));
+  const quiet = await Promise.race([page.waitForEvent('download').then(() => false), (async () => {
+    await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, isComposing: true, bubbles: true, cancelable: true })));
+    await page.waitForTimeout(900); return true; })()]);
+  ok('Ctrl+S during an IME composition does nothing', quiet);
+  const mac = await downloaded(() => page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 's', metaKey: true, bubbles: true, cancelable: true }))));
+  ok('Cmd+S does the same', mac.name === 'brewcv.json');
+  await page.keyboard.press('Escape'); await settle(page);
+
+  // opening files next to what this browser has
+  const last = (await fstate()).last;
+  await open1(mac.path);
+  ok('the file just saved, nothing changed since: “Already up to date”', /Already up to date/.test(await page.textContent('#body')) && !(await page.$('[data-act=imp-replace]')) && (await st()).record.basics.label === 'Smoke label two');
+  const old = copy(mac.path, j => { j.saved = '2020-01-01T00:00:00.000Z'; }, 'older.json');
+  await open1(old);
+  ok('an older file of this record warns, with Save them first, Merge and Replace anyway', /older than the one you last saved here/.test(await page.textContent('#body'))
+    && await page.isVisible('[data-act=imp-save-first]') && await page.isVisible('[data-act=imp-merge]') && await page.isVisible('[data-act=imp-replace]'));
+  ok('and nothing has changed', (await st()).record.basics.label === 'Smoke label two' && (await fstate()).last.at === last.at);
+  await edit('Not in any file'); await page.waitForTimeout(500);
+  await open1(mac.path);
+  ok('with changes not in a file: “This browser has 1 change that isn’t in any file”', /This browser has 1 change that isn.t in any file/.test(await page.textContent('#body')) && await page.isVisible('[data-act=imp-save-first]'));
+  const f3 = await downloaded(() => page.click('[data-act=imp-save-first]'));
+  await page.waitForTimeout(1800);
+  ok('Save them first saves those changes to the file…', f3.json.record.basics.label === 'Not in any file');
+  ok('…then opens the file', (await st()).record.basics.label === 'Smoke label two');
+  ok('and that file is now the last one saved here', (await fstate()).last.at === mac.json.saved && (await fstate()).changes === 0);
+  ok('with a checkpoint taken first', await page.evaluate(async () => (await window.__wb.persist.listCheckpoints()).some(c => /Before opening/.test(c.label))));
+  const other = copy(mac.path, j => { j.recordId = 'someone-elses-record'; j.record.meta.resumeBuilder.recordId = 'someone-elses-record'; }, 'other.json');
+  await open1(other);
+  ok('a file from another record says so, with Merge or Replace only', /different record/.test(await page.textContent('#body')) && await page.isVisible('[data-act=imp-merge]') && await page.isVisible('[data-act=imp-replace]') && !(await page.$('[data-act=imp-save-first]')));
+  const edited = copy(mac.path, j => { const w = j.record.work.find(x => (x.highlights ?? []).length); w.highlights[0] = 'Reworded in another tool, outside BrewCV.'; }, 'edited.json');
+  await open1(edited);
+  ok('text edited outside BrewCV in the one file is offered as versions', /Edited outside BrewCV/.test(await page.textContent('table.kv')) && await page.isChecked('#imp-outside'));
+  await page.click('[data-act=imp-replace]'); await page.waitForTimeout(2000);
+  ok('and opening it turns the edit into a version', (await st()).record.variants.some(v => v.text === 'Reworded in another tool, outside BrewCV.'));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+
+  // a fresh browser: the introduction's “Open or import a file”
+  const ctx2 = await browser.newContext({ viewport: { width: 1536, height: 864 } });
+  const page2 = await ctx2.newPage();
+  const bad2 = await open(page2, '?memory&welcome');
+  await page2.click('[data-act=ob-import]'); await settle(page2);
+  await page2.setInputFiles('#file', mac.path); await page2.waitForTimeout(900);
+  ok('a file opened in a fresh browser is offered plainly', /Open it/.test(await page2.textContent('[data-act=imp-replace]')) && !(await page2.$('[data-act=imp-save-first]')));
+  await page2.click('[data-act=imp-replace]'); await page2.waitForTimeout(2500);
+  const r2 = await page2.evaluate(() => { const s = window.__wb.store.state; return { id: s.record.recordId, label: s.record.basics.label, resumes: s.resumes.map(r => r.id).sort(), last: window.__wb.persist.fileState.last }; });
+  ok('it restores the record and every saved resume', r2.id === mac.json.recordId && r2.label === 'Smoke label two' && r2.resumes.length === mac.json.resumes.length, JSON.stringify(r2).slice(0, 200));
+  ok('and the next save carries on from that file', r2.last?.at === mac.json.saved && r2.last?.recordId === mac.json.recordId);
+  const back = await Promise.all([page2.waitForEvent('download'), page2.keyboard.press('Control+s')]).then(async ([d]) => { const p = path.join(tmp, 'again.json'); await d.saveAs(p); return JSON.parse(fs.readFileSync(p, 'utf8')); });
+  ok('saved again from there, it is the same record', back.recordId === mac.json.recordId && back.resumes.length === mac.json.resumes.length);
+  ok('no console errors in the fresh browser', bad2.length === 0, bad2[0] ?? '');
+  await ctx2.close();
+
+  // a phone: the share sheet, and cancelling it
+  const ctx3 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, acceptDownloads: true });
+  await ctx3.addInitScript(() => {
+    window.__shareMode = 'ok';
+    navigator.canShare = () => true;
+    navigator.share = async d => { if (window.__shareMode === 'cancel') throw new DOMException('cancelled', 'AbortError'); window.__shared = { name: d.files[0].name, title: d.title, n: d.files.length, size: d.files[0].size }; };
+  });
+  const page3 = await ctx3.newPage();
+  const bad3 = await open(page3);
+  let downloads = 0; page3.on('download', () => downloads++);
+  ok('on a phone the header shows the file state', await page3.isVisible('#filestate') && /Not saved to a file yet/.test(await page3.textContent('#filestate')));
+  await page3.evaluate(() => { window.__shareMode = 'cancel'; });
+  await page3.click('#filestate'); await page3.waitForTimeout(900);
+  ok('cancelling the share sheet does nothing', downloads === 0 && (await page3.evaluate(() => window.__wb.persist.fileState.last)) === null && !(await page3.evaluate(() => window.__shared)));
+  await page3.evaluate(() => { window.__shareMode = 'ok'; });
+  await page3.click('[data-act=menu]'); await page3.click('.menu [data-act=save-file]'); await page3.waitForTimeout(900);
+  const shared = await page3.evaluate(() => window.__shared);
+  ok('Save opens the share sheet with brewcv.json, and does not download', shared?.name === 'brewcv.json' && shared.n === 1 && shared.size > 1000 && downloads === 0, JSON.stringify(shared));
+  ok('and counts as saved', /^Saved to file/.test(await page3.textContent('#filestate')));
+  ok('no one-time note on a phone', !(await page3.isVisible('[data-act=save-note-ok]')));
+  ok('no console errors on the phone', bad3.length === 0, bad3[0] ?? '');
+  await ctx3.close();
+
+  // a linked folder that was changed by something else
+  await page.evaluate(async () => {
+    const files = new Map(); window.__stubFiles = files;
+    const folder = { name: 'stub-folder', async read(p){ return files.has(p) ? files.get(p) : null; }, async write(p, t){ files.set(p, t); },
+      async list(d){ const pre = d.replace(/\/?$/, '/'); return [...files.keys()].filter(k => k.startsWith(pre)).map(k => k.slice(pre.length)); },
+      async permission(){ return 'granted'; }, async remove(p){ files.delete(p); } };
+    await window.__wb.persist.link(folder);
+  });
+  await edit('Written by the app'); await page.waitForTimeout(900);
+  ok('a linked folder gets what the app writes', await page.evaluate(() => JSON.parse(window.__stubFiles.get('resume-data.json')).basics.label) === 'Written by the app');
+  await page.evaluate(() => window.__stubFiles.set('resume-data.json', window.__stubFiles.get('resume-data.json').replace('Written by the app', 'Changed by hand')));
+  await edit('The app again'); await page.waitForTimeout(900);
+  ok('a file changed outside the app is not written over', await page.evaluate(() => JSON.parse(window.__stubFiles.get('resume-data.json')).basics.label) === 'Changed by hand');
+  ok('the header says it was changed outside, and offers Compare', /changed outside BrewCV/.test(await page.textContent('.notice')) && await page.isVisible('[data-act=folder-compare]'));
+  await page.click('[data-act=folder-compare]'); await page.waitForTimeout(1200);
+  ok('Compare opens the History view with the differences', /compared with now/.test(await page.textContent('#body')) && (await page.$$('#body .mi.ro')).length > 0);
+  await page.click('[data-act=folder-overwrite]'); await page.waitForTimeout(900);
+  ok('Overwrite writes the app’s version and the notice goes', await page.evaluate(() => JSON.parse(window.__stubFiles.get('resume-data.json')).basics.label) === 'The app again' && !(await page.isVisible('[data-act=folder-compare]')));
+  await ctx.close();
+  fs.rmSync(tmp, { recursive: true, force: true });
+}
 
 if (want('export')) {
   const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 }, acceptDownloads: true });

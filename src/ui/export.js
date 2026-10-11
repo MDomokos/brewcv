@@ -96,7 +96,7 @@ async function act(a){
       case 'ex-html': C.download(await buildHtml(), X.exportName(s.cur, s.record, 'html'), 'text/html'); C.toast(t('toast.htmlDone')); return true;
       case 'ex-txt': { const lang = s.cur.lang ?? 'en'; await loadCatalogue(lang); C.download(X.plainText(X.jsonResumeFile(C.work(), s.cur).file, { lang, chrome: docChrome(lang) }), X.exportName(s.cur, s.record, 'txt'), 'text/plain'); C.toast(t('toast.txtDone')); return true; }
       case 'ex-json': { const { file, problems } = X.jsonResumeFile(C.work(), s.cur); C.download(JSON.stringify(file, null, 2) + '\n', X.exportName(s.cur, s.record, 'json')); C.toast(problems.length ? t('toast.jsonNotes', { n: problems.length, first: problems[0] }) : t('toast.jsonDone'), problems.length ? 'warn' : ''); return true; }
-      case 'ex-backup': C.downloadBackup(); return true;
+      case 'ex-backup': C.saveToFile(); return true;
     }
   } catch (e){ console.error(e); C.toast(t('toast.exportFailed', { msg: errText(e) }), 'bad'); return true; }
   return false;

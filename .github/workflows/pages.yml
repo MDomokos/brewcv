@@ -80,6 +80,7 @@ jobs:
           node checks/lang-check.mjs
           node checks/diff-check.mjs
           node checks/import-check.mjs
+          node checks/savefile-check.mjs
           node checks/export-check.mjs
           node checks/tokens-check.mjs
           node checks/career-check.mjs

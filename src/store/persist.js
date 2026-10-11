@@ -3,8 +3,26 @@
 // written, and a declined permission just stops the mirror.
 
 import { t, keyed } from '../i18n/index.js';
-import { save, serialize, load, saveResume, loadResume, detect, resumeFileName } from '../model/schema.js';
+import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, ensureRecordId } from '../model/schema.js';
 import { assetRefs } from './store.js';
+
+// The one file you save and open yourself. Never translated.
+export const SAVE_FILE_NAME = 'brewcv.json';
+// package.json's version, which checks/version-check.mjs keeps equal to it.
+export const APP_VERSION = '0.8.0';
+
+export async function sha256(text){
+  const buf = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Copies a sync tool leaves beside a file when two devices wrote at once. They are never read as saved resumes.
+export const CONFLICT_PATTERNS = [
+  { from: 'Syncthing', re: /\.sync-conflict-\d{8}-\d{6}(?:-[A-Z0-9]+)?(?:\.[^.]+)?$/i },
+  { from: 'Dropbox', re: /\((?:[^)]*['’]s )?conflicted copy(?: [^)]*)?\)/i },
+  { from: 'iCloud', re: /^(?:brewcv|resume-data) \d+\.json$/i },
+];
+export const conflictCopy = name => CONFLICT_PATTERNS.find(p => p.re.test(String(name)))?.from ?? null;
 
 export const AUTO_KINDS = new Set(['import', 'merge', 'replace', 'restore', 'first-save']);
 export const AUTO_KEEP = 50;
@@ -127,11 +145,13 @@ export function filesOf(state){
   return out;
 }
 
-export function makeBackup(state, { saved = new Date().toISOString(), checkpoints } = {}){
+export function makeBackup(state, { saved = new Date().toISOString(), checkpoints, app = APP_VERSION } = {}){
   return {
     // Old name, kept: renaming it would orphan saved data.
     resumeBuilderBackup: 1,
     saved,
+    app,
+    ...(state.record?.recordId ? { recordId: state.record.recordId } : {}),
     record: save(state.record),
     resumes: (state.resumes ?? []).map(r => saveResume(state.record, stripId(r), state.frozen?.[r.id] ?? null).file),
     ...(checkpoints ? { checkpoints } : {}),
@@ -144,8 +164,11 @@ export async function readFolder(folder){
   if (text === null) return null;
   const { model, warnings } = load(JSON.parse(text));
   const resumes = [], frozen = {};
+  const skipped = [];
   for (const name of await folder.list('recipes')){
     if (!name.endsWith('.json')) continue;
+    const from = conflictCopy(name);
+    if (from){ skipped.push(name); warnings.push(`skipped recipes/${name}: a conflict copy made by ${from}`); continue; }
     try {
       const got = loadResume(JSON.parse(await folder.read(`recipes/${name}`)), model);
       resumes.push({ ...got.recipe, id: name });
@@ -153,7 +176,7 @@ export async function readFolder(folder){
     }
     catch (e){ warnings.push(`recipes/${name}: ${e.message}`); }
   }
-  return { state: { record: model, resumes, frozen, cur: resumes[0] ? structuredClone(resumes[0]) : null, openId: resumes[0]?.id ?? null }, warnings };
+  return { state: { record: model, resumes, frozen, cur: resumes[0] ? structuredClone(resumes[0]) : null, openId: resumes[0]?.id ?? null }, warnings, skipped };
 }
 
 export function readBackup(obj){
@@ -166,7 +189,22 @@ export function readBackup(obj){
     resumes.push({ ...got.recipe, id });
     if (got.frozen) frozen[id] = got.frozen;
   }
-  return { state: { record: model, resumes, frozen, cur: resumes[0] ? structuredClone(resumes[0]) : null, openId: resumes[0]?.id ?? null }, warnings };
+  const info = { recordId: obj.recordId ?? model.recordId ?? null, saved: obj.saved ?? null, app: obj.app ?? null };
+  return { state: { record: model, resumes, frozen, cur: resumes[0] ? structuredClone(resumes[0]) : null, openId: resumes[0]?.id ?? null }, warnings, info };
+}
+
+// What to do with a file the person opens, given what this browser last saved to a file.
+//   same: this is the file last saved here and nothing changed since; changes / older: warn and offer
+//   Save first, Merge or Replace; different: another record; ok: carry on as before.
+export function openVerdict({ file, last, localRecordId, changes }){
+  if (!file.recordId || !localRecordId || file.recordId !== localRecordId) return { kind: 'different' };
+  const older = !!(last && last.recordId === file.recordId && file.saved && last.at && String(file.saved) < String(last.at));
+  // the same date and the same text; a file somebody edited after it was saved is not "up to date"
+  const sameText = !file.hash || !last?.hash || file.hash === last.hash;
+  if (!changes && last && last.recordId === file.recordId && last.at === file.saved && sameText) return { kind: 'same' };
+  if (changes) return { kind: 'changes', changes, older };
+  if (older) return { kind: 'older', older };
+  return { kind: 'ok' };
 }
 
 function uniqueName(list, recipe){
@@ -181,11 +219,14 @@ const safe = s => String(s).replace(/[^\p{L}\p{N} _.,()-]+/gu, ' ').replace(/\s+
 
 export function createPersist({ store, backend = memoryBackend(), folder = null, debounceMs = 400,
   now = () => new Date(), setTimer = setTimeout, clearTimer = clearTimeout } = {}){
-  let timer = null, waiters = [], status = 'idle', lastError = null;
+  let timer = null, waiters = [], status = 'idle', lastError = null, errorCode = null;
   let linked = folder;
   const written = new Map();          // path → text last written to the folder
+  let diskHash = null;                // hash of resume-data.json as the app last read or wrote it (a linked folder)
+  const file = { last: null, n: 0 }; // the last save to the one file, and the changes since (kept in the browser's storage)
+  let pendingCommits = 0;
   const statusSubs = new Set();
-  const setStatus = (s, err = null) => { status = s; lastError = err; for (const fn of statusSubs) fn({ status, error: err }); };
+  const setStatus = (s, err = null, code = null) => { status = s; lastError = err; errorCode = code; for (const fn of statusSubs) fn({ status, error: err, code }); };
 
   async function saveNow(){
     clearTimer(timer); timer = null;
@@ -196,6 +237,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       for (const ref of assetRefs(state))
         if ((await backend.get(`asset/${ref}`)) === undefined) await backend.put(`asset/${ref}`, store.asset(ref));
       await backend.put('state/current', { savedAt: now().toISOString(), state });
+      if (pendingCommits){ file.n += pendingCommits; pendingCommits = 0; await backend.put('meta/fileDirty', file.n); }
       const mirrored = linked ? await writeFolder() : [];
       if (mirrored) setStatus('saved');     // null: the folder refused and writeFolder set the error
     } catch (e){ setStatus('error', e.message); }
@@ -208,8 +250,17 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     const out = [];
     for (const [p, text] of files){
       if (written.get(p) === text) continue;
+      if (p === 'resume-data.json'){
+        // never write over a file somebody else changed since the app read or wrote it
+        const onDisk = await linked.read(p);
+        if (onDisk !== null && (diskHash === null || (await sha256(onDisk)) !== diskHash)){
+          setStatus('error', t('save.folderChanged', { name: linked.name }), 'folder-changed');
+          return null;
+        }
+      }
       await linked.write(p, text);
       written.set(p, text);
+      if (p === 'resume-data.json') diskHash = await sha256(text);
       out.push(p);
     }
     // a renamed or deleted resume: remove its old file, but only one written since the folder was
@@ -222,7 +273,8 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     return out;
   }
 
-  const unsub = store.subscribe(() => {
+  const unsub = store.subscribe(ev => {
+    if (['commit', 'undo', 'redo'].includes(ev?.kind)) pendingCommits++;
     clearTimer(timer);
     timer = setTimer(saveNow, debounceMs);
   });
@@ -246,8 +298,28 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     return id;
   }
 
+  // the one file: what to save, and what was saved last
+  async function markFile(m){
+    file.last = { at: m.at, recordId: m.recordId ?? null, hash: m.hash ?? null };
+    file.n = 0; pendingCommits = 0;
+    await backend.put('meta/lastFileSave', file.last);
+    await backend.put('meta/lastBackup', m.at);
+    await backend.put('meta/fileDirty', 0);
+    setStatus(status, lastError, errorCode);
+  }
+
   return {
-    get status(){ return { status, error: lastError, linked: linked?.name ?? null }; },
+    get status(){ return { status, error: lastError, code: errorCode, linked: linked?.name ?? null }; },
+    get fileState(){ return { last: file.last, changes: file.n + pendingCommits, recordId: store.state?.record?.recordId ?? null }; },
+    // the backup text for the one file, without checkpoints; markFileSaved once it was delivered
+    async prepareFile(){
+      if (store.state?.record && !store.state.record.recordId) store.commit(d => { ensureRecordId(d.record); }, t('save.recordId'));
+      const at = now().toISOString();
+      const text = JSON.stringify(makeBackup(store.materialize(), { saved: at }), null, 2) + '\n';
+      return { text, name: SAVE_FILE_NAME, at, recordId: store.state.record?.recordId ?? null, hash: await sha256(text) };
+    },
+    markFileSaved: markFile,
+    markFileOpened: markFile,
     onStatus(fn){ statusSubs.add(fn); return () => statusSubs.delete(fn); },
 
     async flush(){ if (timer) await saveNow(); else if (status === 'saving') await new Promise(r => waiters.push(r)); },
@@ -260,6 +332,12 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       const entries = [];
       for (const ref of refs){ const v = await backend.get(`asset/${ref}`); if (v !== undefined) entries.push([ref, v]); }
       store.loadAssets(entries);
+      // an old session gets its record id now and keeps it: a new one on every reload would make the file saved before look like another record's
+      const had = !!saved.state.record?.recordId;
+      ensureRecordId(saved.state.record);
+      if (!had && saved.state.record?.recordId) await backend.put('state/current', saved);
+      file.last = (await backend.get('meta/lastFileSave')) ?? null;
+      file.n = (await backend.get('meta/fileDirty')) ?? 0;
       store.reset(saved.state, 'restore session');
       return true;
     },
@@ -280,9 +358,19 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
         }
       }
       if (f.handle !== undefined) await backend.put('handle/folder', f.handle);
-      return writeFolder();
+      const there = await f.read('resume-data.json');         // what is on disk now is what the person chose to keep or replace
+      diskHash = there === null ? null : await sha256(there);
+      return (await writeFolder()) ?? [];
     },
-    unlink(){ linked = null; written.clear(); return backend.delete('handle/folder'); },
+    // the person said to overwrite the file that changed outside the app
+    async overwriteFolder(){
+      const there = linked ? await linked.read('resume-data.json') : null;
+      diskHash = there === null ? null : await sha256(there);
+      written.delete('resume-data.json');
+      if (status === 'error' && errorCode === 'folder-changed') setStatus('idle');
+      return linked ? (await writeFolder()) ?? [] : [];
+    },
+    unlink(){ linked = null; written.clear(); diskHash = null; return backend.delete('handle/folder'); },
     rememberedFolder(){ return backend.get('handle/folder'); },
     writeFolder: async () => (linked ? (await writeFolder()) ?? [] : []),
 

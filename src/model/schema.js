@@ -357,6 +357,14 @@ export function resumeFileName(recipe){
   return `${clean}.json`;
 }
 
+// One id per record, made once and kept in meta.resumeBuilder, so a saved file can tell whether it is
+// this record's or another's. Old records get theirs the first time the app opens or saves them.
+export const newRecordId = () => globalThis.crypto?.randomUUID?.() ?? `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+export function ensureRecordId(model){
+  if (model && typeof model === 'object' && !model.recordId) model.recordId = newRecordId();
+  return model?.recordId ?? null;
+}
+
 export function emptyModel(name = ''){
   const m = migrate({
     schema: 'resume-data/3', meta: { owner: name },

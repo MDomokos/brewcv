@@ -44,7 +44,7 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            langmenu, actual size; parts.js, the pure string parts (crumb, rows,
                            version list, editor, write-in) that edit and career share
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,
-                           claims and new-resume (what a coding agent uses; see AGENTS.md)
+                           claims and new-resume (what a coding agent uses; see AGENTS.md), onefile (a folder ↔ the one file)
 checks/                    the Node checks, the Chromium smoke test, the guards
 data/example.json          the fictional sample record, and data/example-resumes/ its fourteen
                            resumes (one or more per language; all but English and Hungarian need
@@ -73,6 +73,8 @@ node checks/lang-check.mjs            the ten languages, missing texts, switchin
 node checks/i18n-check.mjs            every catalogue: keys, placeholders, plurals, markup, the review marker
 node checks/diff-check.mjs            the merge engine on an edited copy of the example
 node checks/import-check.mjs          every kind of file, JSON Resume round trip, outside edits
+node checks/savefile-check.mjs        Save to file: the format and its record id, the four ways a file meets this browser,
+                                      outside edits in a backup, conflict copies, the folder overwrite guard, onefile.mjs
 node checks/export-check.mjs          the HTML page, plain text, JSON Resume, pre-flight
 node checks/tokens-check.mjs          theme tokens: forms, refusals, DTCG round trip, contrast
 node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,
@@ -122,6 +124,8 @@ node scripts/claims.mjs <data.json> [--lang en] [--tag t] [--job id] [--json]
                                                                    every claim and its versions; writes nothing
 node scripts/new-resume.mjs <data.json> <picks.json> <out-dir> [--force]
                                                                    a saved resume from a list of picks; takes no text
+node scripts/onefile.mjs pack <data-dir> <out.json> [--force]       a data folder → the one file (brewcv.json)
+node scripts/onefile.mjs unpack <file.json> <data-dir> [--force]    the one file → a data folder
 node checks/keyword-gap.mjs <data.json> <ad.txt>                   ad words the record can't say
 node scripts/build-example.mjs data/example.json                   regenerate the fictional sample
 node scripts/tokens.mjs                                            the built-in themes as DTCG

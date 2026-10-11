@@ -2,7 +2,7 @@
 // src/store/store.js; selection, preview and the page shown are view state, never undone.
 
 import { createStore } from '../store/store.js';
-import { createPersist, idbBackend, memoryBackend, fsaFolder, readFolder, readBackup, requestPersistence } from '../store/persist.js';
+import { createPersist, idbBackend, memoryBackend, fsaFolder, readFolder, readBackup, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
 import { load, loadResume, detect, resumeFileName } from '../model/schema.js';
 import { chooseVariant, newResume } from '../model/resume.js';
 import { fit, FILL_BAND, key as measureKeyOf } from '../fit.js';
@@ -47,7 +47,7 @@ const ui = {
   sel: NONE, previewing: false, page: 0, mode: pagesMode(), menu: false, laid: null, fills: [],
   fitting: false, lastFit: null, work: null, workKey: null, ix: null, probed: new Set(),
 };
-window.__wb = { store, persist, sheet, ui };      // for checks and the console
+window.__wb = { store, persist, sheet, ui, saveToFile: () => saveToFile() };      // for checks and the console
 
 // The no-origin card stays English: when it shows, no module ran.
 function staticText(){
@@ -76,7 +76,7 @@ function syncUi(redrawAll = false){
 function restyle(){ staticText(); renderAll(); if (ui.ws === 'career') renderCareer(); }
 
 async function boot(){
-  requestPersistence();
+  requestPersistence().then(p => { ui.persisted = p; });
   let restored = false;
   try { restored = await persist.restore(); } catch { /* blocked storage: start fresh */ }
   if (!restored || !store.state.record){
@@ -375,6 +375,7 @@ function renderHead(){
     </div>
     <div class="hrow small only-r">
       <span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate">${dirty ? (store.state.openId ? h('head.unsavedSep') : h('head.notSavedYetSep')) : ''}${saved}${st.linked ? ` · <span title="${esc(t('head.linkedFolder'))}">📁 ${esc(st.linked)}</span>` : ''}</span>
+      <button class="filestate ${fileLine().stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${esc(fileLine().text)}</button>
     </div>
     <div class="hrow tools only-r">
       <button class="tool" data-act="goto" data-v="resumes" aria-pressed="${['resumes', 'compare', 'new', 'save'].includes(ui.view)}">${h('head.resumes')}</button>
@@ -384,9 +385,27 @@ function renderHead(){
       <button class="tool" data-act="actual" title="${esc(t('head.actualTitle'))}">${h('head.actual')}</button>
       <button class="tool" data-act="fullscreen" title="${esc(t('head.fullscreen'))}" aria-label="${esc(t('head.fullscreen'))}">${document.fullscreenElement ? '⤡' : '⤢'}</button>
     </div>
+    ${st.code === 'folder-changed' ? `<div class="hrow notice" role="alert"><span class="small">${esc(st.error)}</span><span class="btns"><button class="sm" data-act="folder-compare">${h('save.folderCompare')}</button><button class="sm" data-act="folder-overwrite">${h('save.folderOverwrite')}</button></span></div>` : ''}
+    ${ui.saveNote ? `<div class="hrow notice" role="status"><span class="small">${esc(t('save.note'))}${ui.persisted === false ? ' ' + esc(t('save.noteStorage')) : ''}</span><button class="sm" data-act="save-note-ok">${h('save.noteOk')}</button></div>` : ''}
     ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}
     ${ui.menu ? menuHtml() : ''}`;
 }
+
+// "n changes not saved to a file", "Saved to file 10 min ago", or "Not saved to a file yet"
+function fileLine(){
+  const { last, changes } = persist.fileState;
+  if (!last) return { text: t('save.never'), stale: true };
+  if (changes) return { text: t('save.changes', { n: changes }), stale: true };
+  const mins = Math.max(0, Math.round((Date.now() - new Date(last.at)) / 60000));
+  const rtf = new Intl.RelativeTimeFormat(uiLang(), { numeric: 'auto', style: 'short' });
+  const when = mins < 1 ? rtf.format(0, 'second') : mins < 60 ? rtf.format(-mins, 'minute') : mins < 1440 ? rtf.format(-Math.round(mins / 60), 'hour') : rtf.format(-Math.round(mins / 1440), 'day');
+  return { text: t('save.ago', { when }), stale: false };
+}
+function refreshFileLine(){
+  const b = $('#filestate'), l = fileLine();
+  if (b){ b.textContent = l.text; b.classList.toggle('stale', l.stale); }
+}
+setInterval(refreshFileLine, 30000);
 
 function langButton(r){
   const L = r.lang ?? 'en';
@@ -422,7 +441,7 @@ function menuHtml(){
   return `<div class="menu card" role="menu">
     <button role="menuitem" data-act="goto" data-v="import">${h('menu.open')}</button>
     <button role="menuitem" data-act="${linked ? 'unlink' : 'link'}" ${'showDirectoryPicker' in window || linked ? '' : `disabled title="${esc(t('menu.linkNeeds'))}"`}>${linked ? h('menu.unlink', { name: linked }) : h('menu.link')}</button>
-    <button role="menuitem" data-act="backup">${h('menu.backup')}</button>
+    <button role="menuitem" data-act="save-file">${h('menu.backup')}</button>
     <button role="menuitem" data-act="goto" data-v="import">${h('menu.restore')}</button>
     <button role="menuitem" data-act="goto" data-v="history">${h('menu.history')}</button>
     <a role="menuitem" href="${SOURCE_URL}" target="_blank" rel="noopener">${h('src.link')}</a>
@@ -575,7 +594,10 @@ async function onClick(e){
     case 'link': ui.menu = false; linkFolder(); break;
     case 'unlink': ui.menu = false; await persist.unlink(); renderHead(); toast(t('toast.unlinked')); break;
     case 'reconnect': reconnect(); break;
-    case 'backup': ui.menu = false; downloadBackup(); break;
+    case 'save-file': ui.menu = false; saveToFile(); break;
+    case 'save-note-ok': ui.saveNote = false; renderHead(); break;
+    case 'folder-compare': files.compareFolder(); break;
+    case 'folder-overwrite': await persist.overwriteFolder(); renderHead(); break;
 
     case 'checkpoint': ui.menu = false; await persist.checkpoint(t('checkpoint.named', { date: new Date().toLocaleString() })); toast(t('toast.checkpointSaved')); renderHead(); break;
     case 'example': ui.menu = false; await loadExample(); toast(t('toast.exampleOpen')); break;
@@ -676,7 +698,7 @@ function key(e){
   if (typing && mod && ['z', 'y'].includes(e.key.toLowerCase())) return;      // the text box's own undo
   if (mod && !e.altKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); e.shiftKey ? store.redo() : store.undo(); return; }
   if (mod && e.key.toLowerCase() === 'y'){ e.preventDefault(); store.redo(); return; }
-  if (mod && e.key.toLowerCase() === 's'){ e.preventDefault(); if (resumes.isDirty() || !store.state.openId) resumes.save(); return; }
+  if (mod && !e.altKey && e.key.toLowerCase() === 's'){ e.preventDefault(); if (!e.isComposing && e.keyCode !== 229) saveToFile(); return; }
   if (mod && e.key.toLowerCase() === 'o'){ e.preventDefault(); setView('resumes'); return; }
   if (typing) return;
   if (ui.ws === 'career' ? career.key(e) : edit.key(e)) return;
@@ -733,16 +755,34 @@ function download(text, name, type = 'application/json'){
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
 }
 
-function downloadBackup(){
-  persist.backup().then(b => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(b, null, 2) + '\n'], { type: 'application/json' }));
-    a.download = t('file.backupName', { date: new Date().toISOString().slice(0, 10) });
-    document.body.append(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-    toast(t('toast.backupDone'));
-  });
+// Save to file: everything in one file with a fixed name. Desktop downloads it; a touch device opens the
+// share sheet when it can. The page never asks for file access. Resolves true once the file was delivered.
+let saving = null;
+function saveToFile(){ return saving ??= doSaveToFile().finally(() => { saving = null; }); }
+async function doSaveToFile(){
+  if (!store.state.record) return false;
+  try {
+    const f = await persist.prepareFile();
+    const touch = !matchMedia('(pointer: fine)').matches;
+    const file = new File([f.text], f.name, { type: 'application/json' });
+    let how = 'download';
+    if (touch && navigator.canShare?.({ files: [file] })){
+      try { await navigator.share({ files: [file], title: SAVE_FILE_NAME }); how = 'share'; }
+      catch (e){ if (e?.name === 'AbortError') return false; how = 'download'; }      // cancelled: do nothing; refused: download
+    }
+    if (how === 'download') download(f.text, f.name);
+    await persist.markFileSaved(f);
+    toast(t('save.done', { name: f.name }));
+    if (how === 'download' && !touch && !readFlag('rb-save-note')){
+      setFlag('rb-save-note');
+      ui.saveNote = true;
+    }
+    renderHead();
+    return true;
+  } catch (e){ toast(t('toast.exportFailed', { msg: errText(e) }), 'bad'); return false; }
 }
+function readFlag(k){ try { return localStorage.getItem(k) === '1'; } catch { return false; } }
+function setFlag(k){ try { localStorage.setItem(k, '1'); } catch { /* shown again next time */ } }
 
 // A linked folder mirrors the record and its resumes to disk. It is never needed.
 async function linkFolder(){
@@ -821,14 +861,14 @@ const resumes = initResumes({
 });
 Object.assign(VIEWS, resumes.views);
 const files = initFiles({
-  store, ui, persist, toast, NONE, setView, pickFile, download,
+  store, ui, persist, toast, NONE, setView, pickFile, download, saveToFile,
   onImage: f => design.setPhoto(f), onThemeText: (t, n) => design.importTheme(t, n), onTheme: (j, n) => design.importTheme(j, n),
   renderBody: () => renderBody(),
 });
 Object.assign(VIEWS, files.views);
 files.bind($('#body'));
 window.__wb.files = files;
-const exporter = initExport({ store, ui, toast, work, cur, download, downloadBackup, renderBody: () => renderBody(),
+const exporter = initExport({ store, ui, toast, work, cur, download, saveToFile, renderBody: () => renderBody(),
   extraCss: r => design.extraCss(store.state.record, r) });
 const design = initDesign({ store, ui, toast, cur, setView, pickFile, download, photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 Object.assign(VIEWS, design.views);

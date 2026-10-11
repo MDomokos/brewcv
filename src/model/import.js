@@ -139,9 +139,12 @@ export function readImport(text, name = 'file'){
   }
   if (kind === 'backup'){
     const { model } = load(json.record);
-    return { kind: 'backup', file: name, json, model,
+    // the one file is also a JSON Resume file inside: an edit made to its body text in another tool counts
+    const outside = outsideEdits(json.record);
+    return { kind: 'backup', file: name, json, model, outside,
       review: { rows: [[t('imp.name'), model.basics?.name || '—'], [t('imp.savedResumes'), String((json.resumes ?? []).length)],
-        [t('imp.checkpoints'), String((json.checkpoints ?? []).length)], [t('imp.saved'), String(json.saved ?? '').slice(0, 10)]], notShown: [] } };
+        [t('imp.checkpoints'), String((json.checkpoints ?? []).length)], [t('imp.saved'), String(json.saved ?? '').slice(0, 10)],
+        ...(outside.length ? [['Edited outside BrewCV', `${outside.length} text${outside.length === 1 ? '' : 's'}`]] : [])], notShown: [] } };
   }
   if (kind === 'resume' || kind === 'recipe-v3'){
     const got = loadResume(json);

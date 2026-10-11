@@ -4,7 +4,8 @@
 import * as I from '../model/import.js';
 import * as D from '../model/diff.js';
 import * as RS from '../model/resumes.js';
-import { readBackup, makeBackup } from '../store/persist.js';
+import { readBackup, makeBackup, openVerdict, sha256 } from '../store/persist.js';
+import { ensureRecordId } from '../model/schema.js';
 import { newResume } from '../model/resume.js';
 import { t, h, errText } from '../i18n/index.js';
 
@@ -16,6 +17,7 @@ const $ = s => document.querySelector(s);
 const st = () => C.store.state;
 const F = { got: null, items: null, outside: true, history: { list: null, sel: null, items: null, compare: null } };
 const KIND = k => ({ library: t('files.kindLibrary'), jsonresume: t('files.kindJsonResume'), backup: t('files.kindBackup'), resume: t('files.kindResume'), theme: t('files.kindTheme'), error: t('files.kindError') }[k]);
+const stamp = iso => (iso ? String(iso).slice(0, 16).replace('T', ' ') : '—');
 const isExample = () => /\(fictional\)/.test(st().record?.meta?.owner ?? '');
 
 function commit(fn, label, done){
@@ -39,8 +41,19 @@ function reviewView(){
   if (!g) return importView();
   if (g.kind === 'error') return `<a class="back" data-act="goto" data-v="import">${h('files.backImport')}</a><h2 class="title">${esc(g.file)}</h2><div class="missbar">${esc(g.message)}</div>`;
   const rows = g.review?.rows ?? [];
-  let actions = '';
-  if (g.kind === 'library' || g.kind === 'jsonresume' || g.kind === 'backup'){
+  let actions = '', warn = '';
+  const v = g.kind === 'backup' ? g.verdict : null;
+  if (v && v.kind !== 'ok'){
+    const lines = [];
+    if (v.kind === 'same') lines.push(t('save.upToDate'));
+    if (v.kind === 'changes') lines.push(t('save.localChanges', { n: v.changes }));
+    if (v.older) lines.push(t('save.older', { file: stamp(g.info?.saved), last: stamp(C.persist.fileState.last?.at) }));
+    if (v.kind === 'different') lines.push(t('save.different'));
+    warn = `<div class="missbar ${v.kind === 'same' ? 'ok' : ''}" role="status">${lines.map(esc).join('<br>')}</div>`;
+    if (v.kind === 'same') actions = '';
+    else if (v.kind === 'different') actions = `<button class="primary" data-act="imp-merge">${h('save.merge')}</button><button data-act="imp-replace">${h('files.replaceMine')}</button>`;
+    else actions = `<button class="primary" data-act="imp-save-first">${h('save.saveFirst')}</button><button data-act="imp-merge">${h('save.merge')}</button><button data-act="imp-replace">${h('save.replaceAnyway')}</button>`;
+  } else if (g.kind === 'library' || g.kind === 'jsonresume' || g.kind === 'backup'){
     actions = isExample()
       ? `<button class="primary" data-act="imp-replace">${h('files.openIt')}</button><button data-act="imp-merge">${h('files.addToExample')}</button>`
       : `<button class="primary" data-act="imp-merge">${h('files.addToMine')}</button><button data-act="imp-replace">${h('files.replaceMine')}</button>`;
@@ -54,12 +67,13 @@ function reviewView(){
   const out = g.outside ?? [];
   return `<a class="back" data-act="goto" data-v="import">${h('files.backImport')}</a><h2 class="title">${esc(KIND(g.kind) ?? g.kind)}</h2>
     <p class="muted small">${esc(g.file)}</p>
+    ${warn}
     <table class="kv">${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
     ${(g.review?.notShown ?? []).length ? `<span class="lbl">${h('files.notShown')}</span><ul class="small">${g.review.notShown.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
     ${out.length ? `<label class="check"><input type="checkbox" id="imp-outside" ${F.outside ? 'checked' : ''}> ${h('files.outside', { n: out.length })}</label>
       <ul class="small">${out.slice(0, 5).map(e => `<li>${esc(e.where)}: “${esc(e.text.slice(0, 60))}${e.text.length > 60 ? '…' : ''}”</li>`).join('')}</ul>` : ''}
     <div class="btns">${actions}</div>
-    <p class="note">${g.kind === 'resume' ? '' : h('files.eitherWay')}</p>`;
+    <p class="note">${g.kind === 'resume' || v?.kind === 'same' ? '' : h('files.eitherWay')}</p>`;
 }
 
 function itemsHtml(items, checkable){
@@ -117,6 +131,14 @@ async function take(text, name, mode = null){
     C.setView('history');
     return;
   }
+  if (got.kind === 'backup'){
+    try {
+      got.info = readBackup(got.json).info;
+      got.hash = await sha256(text);
+      const { last, changes } = C.persist.fileState;
+      got.verdict = isExample() ? { kind: 'ok' } : openVerdict({ file: { ...got.info, hash: got.hash }, last, localRecordId: st().record?.recordId ?? null, changes });
+    } catch { got.verdict = { kind: 'ok' }; }
+  }
   F.got = got;
   F.outside = true;
   C.setView('review');
@@ -130,7 +152,11 @@ export async function openFile(file, mode = null){
 
 function incomingState(){
   const g = F.got;
-  if (g.kind === 'backup') return readBackup(g.json).state;
+  if (g.kind === 'backup'){
+    const next = readBackup(g.json).state;
+    if (F.outside && g.outside?.length) I.applyOutsideEdits(next.record, g.outside);
+    return next;
+  }
   const model = structuredClone(g.model);
   if (g.kind === 'library' && F.outside && g.outside?.length) I.applyOutsideEdits(model, g.outside);
   return { record: model, resumes: [], frozen: {}, cur: newResume(model, { format: 'a4' }), openId: null };
@@ -142,8 +168,11 @@ async function replace(){
   if (next.openId) RS.openSaved(next, next.openId);
   if (!next.cur){ next.cur = newResume(next.record, { format: 'a4' }); next.openId = null; }
   await C.persist.checkpoint(t('checkpoint.beforeOpening', { file: g.file }), g.kind === 'backup' ? 'restore' : 'import');
+  if (g.kind === 'backup') ensureRecordId(next.record);
   C.ui.sel = C.NONE;
   C.store.replace(next, t('undo.open', { name: g.file }));
+  // the file just opened is now the last one saved here, so the next save carries on from it
+  if (g.kind === 'backup') await C.persist.markFileOpened({ at: g.info?.saved ?? new Date().toISOString(), recordId: next.record.recordId ?? null, hash: g.hash ?? null });
   F.got = null; F.items = null;
   C.setView(null);
   C.toast(t('toast.fileOpen', { file: g.file }));
@@ -155,6 +184,7 @@ async function act(a, tg){
     case 'imp-pick': C.pickFile(); return true;
     case 'imp-paste': { const text = $('#imp-paste')?.value ?? ''; if (!text.trim()){ C.toast(t('toast.pasteFirst'), 'warn'); return true; } await take(text, t('files.pasted')); return true; }
     case 'imp-replace': await replace(); return true;
+    case 'imp-save-first': if (await C.saveToFile()) await replace(); return true;
     case 'imp-merge': {
       const inc = incomingState();
       F.items = D.diffRecords(st().record, inc.record, { fromResumes: st().resumes, toResumes: inc.resumes });
@@ -194,6 +224,13 @@ async function act(a, tg){
       return true;
     }
     case 'cp-file': C.pickFile('compare'); return true;
+    case 'cp-folder': {
+      const cmp = await C.persist.compareFolder();
+      if (!cmp.disk){ C.toast(cmp.same ? t('save.folderSame') : t('save.folderNone'), 'warn'); return true; }
+      H.compare = { file: C.persist.status.linked ?? '', items: D.diffRecords(st().record, cmp.disk.record, { fromResumes: st().resumes, toResumes: [] }) };
+      C.setView('history');
+      return true;
+    }
     case 'cp-compare-close': H.compare = null; C.renderBody(); return true;
     case 'cp-sel': {
       H.sel = H.sel === tg.dataset.id ? null : tg.dataset.id;
@@ -243,5 +280,6 @@ function bind(body){
 const api = {
   views: { import: importView, review: reviewView, merge: mergeView, history: historyView },
   act, bind, openFile, take,
+  compareFolder: () => act('cp-folder'),
   resetHistory(){ F.history.list = null; },
 };

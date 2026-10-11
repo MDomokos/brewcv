@@ -54,9 +54,14 @@ body.is-ready .pagebox { opacity: 1; }
 .docname .dn { font-weight: 700; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .docname .dt { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .savestate { white-space: nowrap; }
+.filestate { border: 0; background: transparent; padding: 0 2px; margin-left: auto; font: inherit; font-size: 12px; color: var(--ink-soft); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+.filestate.stale { color: var(--warn); }
+.filestate:hover { color: var(--ink); text-decoration-style: solid; }
 .tool { border: 0; background: transparent; padding: 4px 7px; border-radius: 8px; color: var(--ink-soft); font-size: 12.5px; white-space: nowrap; }
 .tool:hover:not(:disabled) { background: rgba(20, 19, 15, .06); }
 .notice { background: #fff7d6; border-radius: 8px; padding: 4px 8px; justify-content: space-between; }
+.notice { gap: 8px; }
+.notice button, .notice .btns { flex: none; white-space: nowrap; }
 .menu { position: absolute; right: 8px; top: 40px; z-index: 30; padding: 6px; display: grid; gap: 2px; min-width: 260px; max-height: 70vh; overflow: auto; }
 .menu a { color: inherit; text-decoration: none; padding: 6px 10px; font-weight: 500; }
 .menu a:hover { background: var(--mode-soft); }
@@ -426,7 +431,7 @@ body[data-phone=true] .pages { position: absolute; overflow: visible; }
 body[data-phone=true] .col { position: fixed; gap: 0; background: var(--card); border-radius: 16px 16px 0 0; box-shadow: 0 -8px 30px rgba(20, 19, 15, .16); }
 body[data-phone=true] .col > .card { border-radius: 0; box-shadow: none; border: 0; }
 body[data-phone=true] .head { padding: 8px 12px 4px; }
-body[data-phone=true] .head .hrow.tools, body[data-phone=true] .head .hrow.small, body[data-phone=true] .ws, body[data-phone=true] #save, body[data-phone=true] .langs { display: none; }
+body[data-phone=true] .head .hrow.tools, body[data-phone=true] .ws, body[data-phone=true] #save, body[data-phone=true] .langs, body[data-phone=true] .savestate { display: none; }
 body[data-phone=true] .body { padding: 10px 14px 14px; }
 body[data-phone=true] .body::before { display: none; }
 body[data-phone=true] .vbtn, body[data-phone=true] .vrow .acts, body[data-phone=true] .newv, body[data-phone=true] .ctlrow,
