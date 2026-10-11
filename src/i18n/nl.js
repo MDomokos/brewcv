@@ -644,6 +644,8 @@ export default {
   'set.startHead': 'Eerste keer starten',
   'set.askAgain': 'De taalstap opnieuw tonen bij de volgende start',
   'set.thisBrowser': 'Deze worden in deze browser bewaard, niet in je dossier.',
+  'set.versionHead': 'Versie',
+  'set.versionNote': 'De versie van deze kopie van de app. Een uitgerolde kopie noemt ook de commit waaruit ze is gebouwd.',
   'toast.askAgain': 'De taalstap verschijnt weer de volgende keer dat de app start.',
   'toast.langHidden': '{lang} is verborgen in de menu’s. Niets wat erin geschreven is wordt verwijderd.',
 

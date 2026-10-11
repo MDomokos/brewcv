@@ -644,6 +644,8 @@ export default {
   'set.startHead': 'Első indítás',
   'set.askAgain': 'A nyelvválasztó lépés mutatása a következő indításkor',
   'set.thisBrowser': 'Ezeket ez a böngésző tárolja, nem az adataid.',
+  'set.versionHead': 'Verzió',
+  'set.versionNote': 'Az alkalmazás ezen példányának verziója. A kitelepített példány azt a commitot is megadja, amiből készült.',
   'toast.askAgain': 'A nyelvválasztó lépés az app következő indításakor újra megjelenik.',
   'toast.langHidden': '{lang} elrejtve a menükből. Semmi sem törlődik, amit azon írtál.',
 

@@ -53,6 +53,7 @@ function settingsView(){
   const inUse = langsInUse(rec);
   const pref = C.ui.pref;
   const pages = C.ui.mode;
+  loadVersion();
   const langs = `<span class="lbl">${h('set.langsUse')}</span>
     <p class="small muted">${h('set.langsUseNote')}</p>
     ${langChecks(inUse)}
@@ -68,7 +69,22 @@ function settingsView(){
     <p class="note">${h('set.pagesNote')}</p>
     <span class="lbl">${h('set.startHead')}</span>
     <div class="btns"><button class="sm" data-act="set-ask-again">${h('set.askAgain')}</button></div>
-    <p class="note">${h('set.thisBrowser')}</p>`;
+    <p class="note">${h('set.thisBrowser')}</p>
+    <span class="lbl">${h('set.versionHead')}</span>
+    <p class="small" data-appversion>${esc(appVersion ?? '…')}</p>
+    <p class="note">${h('set.versionNote')}</p>`;
+}
+
+// The app's version is the service worker's VERSION: one place, stamped with the commit on deploy.
+let appVersion = null;
+async function loadVersion(){
+  if (appVersion) return;
+  try {
+    const res = await fetch('sw.js');
+    appVersion = (await res.text()).match(/const VERSION = '([^']+)'/)?.[1] ?? null;
+  } catch { /* offline and not cached: show a dash */ }
+  if (!appVersion) appVersion = '—';
+  for (const el of document.querySelectorAll('[data-appversion]')) el.textContent = appVersion;
 }
 
 function setUiPref(pref){

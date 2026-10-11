@@ -644,6 +644,8 @@ export default {
   'set.startHead': 'Pierwsze uruchomienie',
   'set.askAgain': 'Pokaż krok wyboru języka przy następnym uruchomieniu',
   'set.thisBrowser': 'Te ustawienia są w tej przeglądarce, nie w twojej bazie.',
+  'set.versionHead': 'Wersja',
+  'set.versionNote': 'Wersja tej kopii aplikacji. Wdrożona kopia podaje też commit, z którego powstała.',
   'toast.askAgain': 'Krok wyboru języka pojawi się przy następnym uruchomieniu aplikacji.',
   'toast.langHidden': 'Ukryto {lang} w menu. Nic, co w nim napisano, nie jest usuwane.',
 

@@ -644,6 +644,8 @@ export default {
   'set.startHead': 'První spuštění',
   'set.askAgain': 'Při dalším spuštění znovu ukázat krok s jazyky',
   'set.thisBrowser': 'Toto se ukládá v tomto prohlížeči, ne ve vašem záznamu.',
+  'set.versionHead': 'Verze',
+  'set.versionNote': 'Verze této kopie aplikace. Nasazená kopie nese i commit, ze kterého vznikla.',
   'toast.askAgain': 'Krok s jazyky se znovu ukáže při příštím spuštění aplikace.',
   'toast.langHidden': 'Jazyk {lang} je skrytý z nabídek. Nic v něm napsaného se nesmaže.',
 

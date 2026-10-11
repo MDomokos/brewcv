@@ -644,6 +644,8 @@ export default {
   'set.startHead': 'First start-up',
   'set.askAgain': 'Show the language step again on the next start-up',
   'set.thisBrowser': 'These are kept in this browser, not in your record.',
+  'set.versionHead': 'Version',
+  'set.versionNote': 'The version of this copy of the app. A deployed copy also carries the commit it was built from.',
   'toast.askAgain': 'The language step shows again the next time the app starts.',
   'toast.langHidden': '{lang} is hidden from the menus. Nothing written in it is deleted.',
 

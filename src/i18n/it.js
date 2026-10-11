@@ -644,6 +644,8 @@ export default {
   'set.startHead': 'Primo avvio',
   'set.askAgain': 'Mostra di nuovo il passo delle lingue al prossimo avvio',
   'set.thisBrowser': 'Queste impostazioni restano in questo browser, non nel tuo archivio.',
+  'set.versionHead': 'Versione',
+  'set.versionNote': 'La versione di questa copia dell’app. Una copia pubblicata riporta anche il commit da cui è stata costruita.',
   'toast.askAgain': 'Il passo delle lingue ricompare al prossimo avvio dell’app.',
   'toast.langHidden': '{lang} è nascosta dai menu. Nulla di ciò che è scritto in essa viene eliminato.',
 

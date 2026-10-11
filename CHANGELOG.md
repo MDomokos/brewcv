@@ -6,7 +6,10 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ## Unreleased
 
+## 0.9.0 - 2026-10-11
+
 ### Added
+- **Settings shows the app's version.** It is the version in the service worker (`sw.js`), which matches the newest release in this changelog, and a deployed copy adds the commit it was built from. `sw.js` is now in the offline copy, so the version also shows offline.
 - **Job types are bundles of tags.** A job type such as "CAD designer" is a short list of tags. Under Focus it appears first, and one click selects every bullet that has a version with any of those tags, each printing the version that carries the most of them. One undo reverses it. Job types are edited in Career, under Skills & credentials. A job type that is just one tag still works.
 - **Archive a claim or a whole job.** Archived claims and jobs are hidden in Career behind an "n archived" button and are never switched on by a new resume, Focus or Fit. Saved resumes keep printing them exactly as before. Archiving can be undone, and a merge shows it as a change.
 - **A guide to tags, job types and archiving** in docs/TAGS-AND-JOB-TYPES.md.

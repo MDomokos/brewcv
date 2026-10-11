@@ -644,6 +644,8 @@ export default {
   'set.startHead': 'Premier démarrage',
   'set.askAgain': 'Afficher à nouveau l’étape des langues au prochain démarrage',
   'set.thisBrowser': 'Ces réglages sont gardés dans ce navigateur, pas dans votre dossier.',
+  'set.versionHead': 'Version',
+  'set.versionNote': 'La version de cette copie de l’application. Une copie déployée indique aussi le commit dont elle est issue.',
   'toast.askAgain': 'L’étape des langues s’affichera au prochain démarrage de l’application.',
   'toast.langHidden': '{lang} est masqué dans les menus. Rien de ce qui y est écrit n’est supprimé.',
 

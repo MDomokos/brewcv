@@ -644,6 +644,8 @@ export default {
   'set.startHead': 'Erster Start',
   'set.askAgain': 'Den Sprachschritt beim nächsten Start wieder zeigen',
   'set.thisBrowser': 'Diese Einstellungen bleiben in diesem Browser, nicht in deinen Daten.',
+  'set.versionHead': 'Version',
+  'set.versionNote': 'Die Version dieser Kopie der App. Eine veröffentlichte Kopie nennt auch den Commit, aus dem sie gebaut wurde.',
   'toast.askAgain': 'Der Sprachschritt erscheint beim nächsten Start der App wieder.',
   'toast.langHidden': '{lang} ist in den Menüs ausgeblendet. Nichts darin Geschriebenes wird gelöscht.',
 
