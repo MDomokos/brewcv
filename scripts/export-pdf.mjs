@@ -92,6 +92,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const positional = argv.filter((a, i) => cssIdx === -1 || (i !== cssIdx && i !== cssIdx + 1));
   const input = path.resolve(positional[0] ?? 'templates/us-letter.html');
   const output = path.resolve(positional[1] ?? 'out/resume.pdf');
-  try { await exportPdf(input, output, extraCss); console.log('wrote', output); }
+  try {
+    await exportPdf(input, output, extraCss);
+    // the page count of the PDF itself, which is what counts: a plan can say one page and print two
+    const pages = (fs.readFileSync(output).toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g) ?? []).length;
+    console.log('wrote', output + (pages ? ` (${pages} page${pages === 1 ? '' : 's'})` : ''));
+  }
   catch (e) { console.error('export-pdf:', e.message); process.exitCode = 1; }
 }

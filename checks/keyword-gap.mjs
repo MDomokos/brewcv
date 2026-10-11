@@ -12,7 +12,9 @@ if (!dataFile || !adFile){
   process.exit(2);
 }
 const data = readLibrary(dataFile).model;
-const ad = fs.readFileSync(adFile === '-' ? 0 : adFile, 'utf8');
+let ad;
+try { ad = fs.readFileSync(adFile === '-' ? 0 : adFile, 'utf8'); }
+catch (e){ console.error(`${adFile}: cannot read the ad (${e.code ?? e.message}). It takes a plain-text file, or - for stdin.`); process.exit(2); }
 
 const STOP = new Set(`a about above after again against all also am an and any are as at be because been
 before being below between both but by can cannot could did do does doing down during each few for from
