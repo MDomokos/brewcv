@@ -99,6 +99,8 @@ async function boot(){
   persist.onStatus(renderHead);
   store.subscribe(onChange);
   checkFolder();
+  // the column and its first words now; the sheet follows as soon as it has been laid out
+  try { relayout(); renderAll(); } catch (e){ console.error(e); }
   let drew = await redraw();
   if (drew === false && restored){
     // The saved session does not fit this build: keep it as a checkpoint and start over.
@@ -118,10 +120,14 @@ async function loadExample({ quiet = false } = {}){
   const { model } = load(json);
   const names = await (await fetch('./data/example-resumes/index.json', { cache: 'no-cache' })).json();
   const resumes = [], frozen = {};
-  for (const n of names){
+  // all at once; the order of `names` is kept
+  const files = await Promise.all(names.map(async n => {
     const r = await fetch(`./data/example-resumes/${encodeURIComponent(n)}`, { cache: 'no-cache' });
-    if (!r.ok) continue;
-    const got = loadResume(await r.json(), model);
+    return r.ok ? r.json() : null;
+  }));
+  for (const [i, n] of names.entries()){
+    if (!files[i]) continue;
+    const got = loadResume(files[i], model);
     resumes.push({ ...got.recipe, id: n });
     if (got.frozen) frozen[n] = got.frozen;
   }
@@ -184,6 +190,7 @@ async function redraw(){
     sheet.setFocus(edit.focusHits(), ui.ix);
     sheet.setMissing(missingList(w, r), ui.ix);
     renderAll();
+    document.body.classList.add('is-ready');
     if (ui.flashAfter){ sheet.flash(ui.flashAfter); ui.flashAfter = null; }
     const pk = `${measureKeyOf(r)}|${lang()}`;
     if (!ui.probed.has(pk)){

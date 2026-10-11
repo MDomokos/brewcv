@@ -39,7 +39,7 @@ node checks/model-check.mjs && node checks/store-check.mjs && node checks/pagina
 && node checks/import-check.mjs && node checks/export-check.mjs && node checks/tokens-check.mjs \
 && node checks/career-check.mjs && node checks/i18n-check.mjs && node scripts/tokens.mjs --check \
 && node checks/recipe-check.mjs && node checks/parts-check.mjs && node checks/measurement-check.mjs \
-&& node checks/csp-check.mjs && node checks/i18n-review-check.mjs && node checks/version-check.mjs \
+&& node checks/csp-check.mjs && node checks/preload-check.mjs && node checks/i18n-review-check.mjs && node checks/version-check.mjs \
 && node checks/validate-data.mjs data/example.json
 ```
 

@@ -77,6 +77,7 @@ node checks/export-check.mjs          the HTML page, plain text, JSON Resume, pr
 node checks/tokens-check.mjs          theme tokens: forms, refusals, DTCG round trip, contrast
 node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,
                                       no inline script; no outside address in any fetch
+node checks/preload-check.mjs         index.html preloads exactly the modules shell.js imports, and sw.js caches them
 node checks/i18n-review-check.mjs     the translation review sheets: the CSV, and --apply on a temporary copy
 node checks/career-check.mjs          the Career model: timeline, lists, add / edit / delete, projects, kinds
 node checks/parts-check.mjs           the Resume's markup unchanged by the shared parts; the same claim in Career

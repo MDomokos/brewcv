@@ -38,6 +38,21 @@ body.is-ready .pagebox { opacity: 1; }
 .sheet-frame { display: block; border: 0; background: transparent; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .06)) drop-shadow(0 24px 40px rgba(30, 28, 20, .14)); }
 
 .col { position: fixed; display: flex; flex-direction: column; gap: var(--G); z-index: 10; }
+/* First paint: where the page and the column sit before shell.js measures the window.
+   relayout() sets the same things inline from then on, which wins over all of this. */
+.pages { width: calc(100vw - 396px); height: 100vh; }
+.col { top: var(--G); right: var(--G); width: 380px; height: calc(100vh - 2 * var(--G)); }
+.paper-skel { position: absolute; z-index: 1; left: 50%; top: var(--G); height: calc(100vh - 2 * var(--G)); aspect-ratio: 794 / 1123; max-width: calc(100% - 2 * var(--G)); transform: translateX(-50%); pointer-events: none;
+  background: #fff; border-radius: 2px; box-shadow: 0 2px 6px rgba(0, 0, 0, .06), 0 24px 40px rgba(30, 28, 20, .14);
+  background-image: linear-gradient(#e9e6de, #e9e6de), linear-gradient(#efece5, #efece5), linear-gradient(#efece5, #efece5), linear-gradient(#efece5, #efece5), linear-gradient(#efece5, #efece5);
+  background-repeat: no-repeat; background-size: 38% 3.2%, 90% 1.1%, 84% 1.1%, 90% 1.1%, 60% 1.1%; background-position: 7% 6%, 7% 14%, 7% 17%, 7% 20%, 7% 23%; }
+body.is-ready .paper-skel { display: none; }
+.skel-line { height: 10px; margin: 0 0 12px; border-radius: 5px; background: rgba(20, 19, 15, .07); }
+@media (max-width: 719px){
+  .pages { width: 100vw; }
+  .col { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 42vh; }
+  .paper-skel { left: 8px; top: 8px; transform: none; width: calc(100vw - 16px); height: auto; max-width: none; }
+}
 .card { background: var(--card); border: 1px solid rgba(20, 19, 15, .07); border-radius: 16px; box-shadow: 0 1px 2px rgba(20, 19, 15, .05), 0 10px 30px rgba(20, 19, 15, .09); }
 .head { padding: 10px 12px; display: grid; gap: 7px; position: relative; }
 .hrow { display: flex; align-items: center; gap: 6px; min-width: 0; }

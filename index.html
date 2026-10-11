@@ -29,19 +29,60 @@
 <link rel="preload" href="fonts/HankenGrotesk-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/HankenGrotesk-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="src/ui/workbench.css">
-<script src="src/ui/boot.js"></script>
+<!-- The app's whole static import graph, fetched in parallel instead of one level at a time.
+     checks/preload-check.mjs keeps this list equal to what shell.js imports. -->
+<link rel="modulepreload" href="src/ui/shell.js">
+<link rel="modulepreload" href="src/store/store.js">
+<link rel="modulepreload" href="src/store/persist.js">
+<link rel="modulepreload" href="src/i18n/index.js">
+<link rel="modulepreload" href="src/i18n/en.js">
+<link rel="modulepreload" href="src/model/schema.js">
+<link rel="modulepreload" href="src/model/resume.js">
+<link rel="modulepreload" href="src/model/entries.js">
+<link rel="modulepreload" href="src/recipe.js">
+<link rel="modulepreload" href="src/fit.js">
+<link rel="modulepreload" href="src/ui/sheet.js">
+<link rel="modulepreload" href="src/render.js">
+<link rel="modulepreload" href="scripts/lib/html.mjs">
+<link rel="modulepreload" href="src/paginate.js">
+<link rel="modulepreload" href="src/ui/layout.js">
+<link rel="modulepreload" href="src/ui/select.js">
+<link rel="modulepreload" href="src/ui/actual.js">
+<link rel="modulepreload" href="src/ui/edit.js">
+<link rel="modulepreload" href="src/model/record.js">
+<link rel="modulepreload" href="src/model/focus.js">
+<link rel="modulepreload" href="src/model/lang.js">
+<link rel="modulepreload" href="src/model/career.js">
+<link rel="modulepreload" href="src/model/build.js">
+<link rel="modulepreload" href="src/ui/parts.js">
+<link rel="modulepreload" href="src/ui/resumes.js">
+<link rel="modulepreload" href="src/model/resumes.js">
+<link rel="modulepreload" href="src/ui/langmenu.js">
+<link rel="modulepreload" href="src/ui/files.js">
+<link rel="modulepreload" href="src/model/import.js">
+<link rel="modulepreload" href="src/model/diff.js">
+<link rel="modulepreload" href="src/ui/export.js">
+<link rel="modulepreload" href="src/export.js">
+<link rel="modulepreload" href="src/ui/design.js">
+<link rel="modulepreload" href="src/model/tokens.js">
+<link rel="modulepreload" href="src/ui/onboarding.js">
+<link rel="modulepreload" href="src/ui/settings.js">
+<link rel="modulepreload" href="src/ui/career.js">
+<script src="src/ui/boot.js" defer></script>
 </head>
 <body data-ws="resume">
 
-<div id="pages" class="pages"><div class="pages__sizer" aria-hidden="true"></div><section id="sheet" class="pagebox" role="region" aria-label="The resume. Click anything on it to work on it."></section></div>
+<div id="pages" class="pages"><div class="pages__sizer" aria-hidden="true"></div><section id="sheet" class="pagebox" role="region" aria-label="The resume. Click anything on it to work on it."></section>
+  <!-- First paint, before any script runs: a blank page and the column's frame, in the places the app will put them. Both go away when the app is ready. -->
+  <div class="paper-skel" aria-hidden="true"></div></div>
 
 <section id="career" class="career card" hidden aria-label="Career: the timeline of your record"></section>
 <button id="thumb" class="thumb-btn" data-act="ws" data-ws="resume" hidden>Back to your resume</button>
 <span id="thumbcap" class="thumb-cap" hidden aria-hidden="true">← Your resume</span>
 
 <div id="col" class="col">
-  <header id="head" class="card head"></header>
-  <main id="body" class="card body"></main>
+  <header id="head" class="card head"><div class="hrow"><h1 class="logo"><img src="icons/icon.svg" alt="" width="28" height="28">BrewCV</h1></div></header>
+  <main id="body" class="card body"><p class="skel-line" style="width:70%"></p><p class="skel-line"></p><p class="skel-line" style="width:85%"></p></main>
   <footer id="foot" class="card foot"></footer>
 </div>
 
@@ -55,6 +96,6 @@
 </div>
 
 <script type="module" src="src/ui/shell.js"></script>
-<script src="src/ui/after-boot.js"></script>
+<script src="src/ui/after-boot.js" defer></script>
 </body>
 </html>

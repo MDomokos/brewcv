@@ -14,6 +14,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 - **The command-line tools read the one file** the app saves, as well as a record file.
 
 ### Changed
+- **The page appears at once, in its place.** Before, the first thing a visitor saw was three small empty boxes in the top-left corner until everything had loaded. Now a blank page and the column's frame, with the BrewCV name, are drawn in their final places as soon as the page arrives. The app's scripts are fetched in parallel instead of one after another, the example's resumes load together, and the resume is shown as soon as it is laid out instead of after the line-count measuring that follows.
 - **New facts are no longer tagged with their section's name.** Nothing read those tags; they only added clutter to the Focus list.
 - **Exporting a PDF from the command line needs no packages.** `scripts/export-pdf.mjs` now prints through the Chrome, Chromium, Brave or Edge already on the machine (set `CHROME_PATH` to choose one) instead of through Playwright, and the PDFs come out identical. It is optional: the app's own PDF export needs no extra software.
 - **The command-line PDF export says how many pages the PDF has.** A resume that fits on one page in a plan can still print as two in a given browser.
