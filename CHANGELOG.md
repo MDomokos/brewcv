@@ -10,6 +10,8 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 - **Job types are bundles of tags.** A job type such as "CAD designer" is a short list of tags. Under Focus it appears first, and one click selects every bullet that has a version with any of those tags, each printing the version that carries the most of them. One undo reverses it. Job types are edited in Career, under Skills & credentials. A job type that is just one tag still works.
 - **Archive a claim or a whole job.** Archived claims and jobs are hidden in Career behind an "n archived" button and are never switched on by a new resume, Focus or Fit. Saved resumes keep printing them exactly as before. Archiving can be undone, and a merge shows it as a change.
 - **A guide to tags, job types and archiving** in docs/TAGS-AND-JOB-TYPES.md.
+- **A coding agent can tailor a resume from a job ad without writing a bullet.** `AGENTS.md` describes the steps and the rules. `scripts/claims.mjs` lists every claim and its versions, and `scripts/new-resume.mjs` writes a saved resume from a list of picks. It refuses a draft, an archive version, a version in an archived claim or job, a version in another language, or any wording of its own. Open the file in the app to add it to your saved resumes.
+- **The command-line tools read the one file** the app saves, as well as a record file.
 
 ### Changed
 - **New facts are no longer tagged with their section's name.** Nothing read those tags; they only added clutter to the Focus list.
@@ -26,6 +28,8 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ### Fixed
 - **It starts offline again.** The example resumes a first start loads were not in the offline copy, so reloading without a connection stopped before anything was drawn. They are now. Also, offline on localhost the sheet's template was answered with the app page, which left an empty sheet; it is answered from the offline copy now.
+- **Fit never swaps a version for a draft or an archive copy.** It could pick one when it was the shortest way to save a line.
+- **The keyword-gap report no longer lists "join" and "team"** as words your record is missing.
 
 ## 0.8.0 - 2026-10-09
 
