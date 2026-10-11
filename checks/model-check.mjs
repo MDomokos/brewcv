@@ -308,6 +308,49 @@ if (LIB){
   ok('the library file on disk was not touched', fs.readFileSync(LIB).equals(before));
 }
 
+section('snapshots and For: kept by the saved-resume file, a backup, a folder and the JSON Resume export');
+{
+  const RS = await import('../src/model/resumes.js');
+  const X = await import('../src/export.js');
+  const { filesOf, readFolder, memoryFolder } = await import('../src/store/persist.js');
+  const model = S.load(read('data/example.json')).model;
+  const names = read('data/example-resumes/index.json');
+  const resumes = [], frozen = {};
+  for (const n of names){ const got = S.loadResume(read(`data/example-resumes/${n}`), model); resumes.push({ ...got.recipe, id: n }); frozen[n] = got.frozen; }
+  const st = { record: clone(model), resumes, frozen, cur: null, openId: null };
+  RS.openSaved(st, names[0]);
+  ok('an old file has no snapshots and no For kind, and loads as it did', !('snapshots' in resumes[0]) && !('forKind' in resumes[0]) && S.saveResume(model, resumes[0], frozen[names[0]]).file.meta.resumeBuilder.snapshots === undefined);
+  st.cur.forKind = 'outreach'; st.cur.name = 'Geospatial - GIS Solutions Engineer';
+  RS.settle(st);
+  RS.takeSnapshot(st, { kind: 'outreach', company: 'Geospatial', role: 'GIS Engineer', date: '2026-10-02' }, { at: '2026-10-02T09:00:00.000Z' });
+  RS.takeSnapshot(st, { kind: 'company', company: 'Leica Geosystems', role: 'GIS Engineer', date: '2026-10-03' });
+  const saved = RS.savedOf(st);
+  const { id: savedId, ...bareSaved } = saved;
+  const { file } = S.saveResume(st.record, { ...bareSaved }, st.frozen[savedId]);
+  const rb = file.meta.resumeBuilder;
+  ok('the file keeps snapshots beside the recipe, not inside it', Array.isArray(rb.snapshots) && rb.snapshots.length === 1 && !('snapshots' in rb.resume) && rb.resume.forKind === 'outreach');
+  ok('…each with an id, a time, its sends, the recipe and the body that printed', rb.snapshots[0].id && rb.snapshots[0].at && rb.snapshots[0].sends.length === 2 && rb.snapshots[0].recipe.format && rb.snapshots[0].body.basics);
+  ok('…the file is still valid JSON Resume with the same body', validate(S.save(st.record), file).errors.length === 0 && eq(S.checkJsonResume(file), []));
+  const back = S.loadResume(JSON.parse(JSON.stringify(file)), st.record);
+  ok('load → save is lossless for snapshots and For', eq(back.recipe.snapshots, saved.snapshots) && back.recipe.forKind === 'outreach' && back.recipe.name === saved.name && !back.warnings.length);
+  ok('a second round trip gives the same file', eq(JSON.parse(S.serialize(S.saveResume(st.record, back.recipe, back.frozen).file)), JSON.parse(S.serialize(file))));
+  const bk = readBackup(JSON.parse(JSON.stringify(makeBackup(st))));
+  const inBk = bk.state.resumes.find(r => r.name === saved.name);
+  ok('a backup keeps them', eq(inBk.snapshots, saved.snapshots) && inBk.forKind === 'outreach' && !('snapshots' in bk.state.cur));
+  const folder = memoryFolder();
+  for (const [p, text] of filesOf(st)) await folder.write(p, text);
+  const fr = await readFolder(folder);
+  ok('a folder keeps them', eq(fr.state.resumes.find(r => r.name === saved.name).snapshots, saved.snapshots));
+  const jr = X.jsonResumeFile(model, RS.snapshotRecipe(st.record, saved.snapshots[0])).file;
+  ok('the JSON Resume export of a snapshot is the body that was sent, valid and without app keys', eq(S.checkJsonResume(jr), []) && !JSON.stringify(jr).includes('snapshots') && JSON.stringify(jr.work) === JSON.stringify(saved.snapshots[0].body.work));
+  const bad = JSON.parse(JSON.stringify(file));
+  bad.meta.resumeBuilder.snapshots.push({ id: 's9' }, 'junk', { id: 's1', recipe: {}, body: {} });
+  const got = S.loadResume(bad, st.record);
+  ok('a damaged snapshot is dropped with a warning, the rest load', got.recipe.snapshots.length === 1 && got.warnings.length === 3);
+  const odd = JSON.parse(JSON.stringify(file)); odd.meta.resumeBuilder.snapshots[0].sends = [{ kind: 'weird', company: 5 }];
+  ok('an unknown send kind reads as a company', S.loadResume(odd, st.record).recipe.snapshots[0].sends[0].kind === 'company');
+}
+
 section('names that are kept on purpose: renaming any of them orphans saved data');
 {
   ok("the IndexedDB name is still 'resume-builder'", DB_NAME === 'resume-builder');

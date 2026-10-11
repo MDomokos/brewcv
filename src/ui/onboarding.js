@@ -527,11 +527,15 @@ async function act(a, tg){
       C.renderBody(true);
       return true;
     }
-    case 'ob-finish':
+    case 'ob-finish': {
+      // the resume was saved the moment it existed, nameless; now it can carry the person's name
+      const r = RS.savedOf(C.store.state), who = C.store.state.record?.basics?.name;
+      if (r && who && r.name === t('resumes.newNameless')) C.store.commit(d => { RS.renameSaved(d, d.openId, t('resumes.newName', { name: who })); }, t('ux1.undoRename'));
       O.step = 'welcome';
       O.tip = 0;
       C.setView(null);
       return true;
+    }
     case 'tip-next': O.tip = O.tip < TIPS.length - 1 ? O.tip + 1 : null; C.renderBody(true); return true;
     case 'tip-skip': O.tip = null; C.renderBody(true); return true;
     case 'start-over': O.step = 'welcome'; O.after = null; C.setView('welcome'); return true;

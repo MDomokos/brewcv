@@ -120,6 +120,22 @@ section('store: replace is undoable, reset is a new baseline');
   ok('reset clears undo and redo', s.history.undo === 0 && s.history.redo === 0 && s.state.resumes.length === 0);
 }
 
+section('settle: a hook that rides on every commit');
+{
+  const settle = d => { if (d.n !== undefined) d.double = d.n * 2; };
+  const s = createStore({ n: 1 }, { settle });
+  s.commit(d => { d.n = 5; }, 'Edit');
+  ok('what it writes is part of the same commit', s.state.double === 10);
+  s.undo();
+  ok('and of the same undo step', s.state.n === 1 && s.state.double === undefined);
+  s.redo();
+  ok('and the redo', s.state.n === 5 && s.state.double === 10);
+  ok('a commit that changes nothing, settled, is still not a step', s.commit(() => {}, 'Noop') === false);
+  const t = createStore({ n: 1 }, { settle });
+  t.replace({ n: 3 }, 'Replace');
+  ok('replace is settled too', t.state.double === 6);
+}
+
 section('persist: autosave after the debounce, and reload');
 {
   const c = clock();
@@ -128,6 +144,7 @@ section('persist: autosave after the debounce, and reload');
   const p = createPersist({ store: s, backend, now: c.date, setTimer: c.setTimer, clearTimer: c.clearTimer });
   s.commit(d => { d.record.basics.image = PHOTO; d.record.basics.label = 'Saved label'; }, 'Edit');
   ok('nothing is written before the debounce', (await backend.get('state/current')) === undefined && c.pending === 1);
+  ok('between the change and the write the status says so (the header shows Saving…)', p.status.status === 'pending');
   s.commit(d => { d.record.basics.label = 'Saved label 2'; }, 'Edit');
   ok('a second change restarts it, not a second write', c.pending === 1);
   await c.tick();

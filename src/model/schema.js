@@ -287,8 +287,10 @@ export function migrateRecipe(recipe){
 
 // `frozen` is written as is, so a later record edit never rewrites a saved resume's text.
 // ATS-export `problems` are returned, but the file is written regardless.
+// Snapshots (what was sent, and to whom) sit beside the recipe under meta.resumeBuilder, not in it.
 export function saveResume(model, recipe, frozen = null){
-  const r = migrateRecipe(recipe);
+  const { snapshots, ...bare } = recipe ?? {};
+  const r = migrateRecipe(bare);
   const res = resolve(model, r);
   const problems = res.problems;
   const body = frozen ? clone(frozen) : res.body;
@@ -299,7 +301,7 @@ export function saveResume(model, recipe, frozen = null){
       version: JSON_RESUME_VERSION,
       ...(r.savedAt ? { lastModified: r.savedAt } : {}),
       // Old name, kept: renaming it would orphan saved data.
-      resumeBuilder: { schema: RESUME_SCHEMA, library: libraryRef(model), resume: r },
+      resumeBuilder: { schema: RESUME_SCHEMA, library: libraryRef(model), resume: r, ...(Array.isArray(snapshots) && snapshots.length ? { snapshots: clone(snapshots) } : {}) },
     },
   };
   return { file, problems };
@@ -317,7 +319,33 @@ export function loadResume(file, model = null){
     warnings.push(`this resume was saved against a different record (${rb.library.owner || 'unnamed'}); picks that no longer match are reported when it is applied`);
   const frozen = {};
   for (const k of BODY_KEYS) if (file[k] !== undefined) frozen[k] = clone(file[k]);
-  return { recipe: migratePins(clone(rb.resume)), frozen, warnings };
+  const recipe = migratePins(clone(rb.resume));
+  const snaps = readSnapshots(rb.snapshots, warnings);
+  if (snaps.length) recipe.snapshots = snaps;
+  return { recipe, frozen, warnings };
+}
+
+// A snapshot is `{ id, at, label?, sends: [{ kind, company, role, date }], recipe, body }`: the resume as it printed.
+// One that doesn't have that shape is dropped and reported, so an old or hand-edited file still loads.
+const SEND_KINDS = ['company', 'outreach'];
+export function readSnapshots(list, warnings = []){
+  if (list === undefined) return [];
+  if (!Array.isArray(list)){ warnings.push('meta.resumeBuilder.snapshots is not a list; it is ignored'); return []; }
+  const out = [], seen = new Set();
+  for (const s of list){
+    if (!isObj(s) || typeof s.id !== 'string' || !s.id || seen.has(s.id) || !isObj(s.recipe) || !isObj(s.body)){
+      warnings.push('a snapshot without an id, a recipe or a body was ignored');
+      continue;
+    }
+    seen.add(s.id);
+    const sends = (Array.isArray(s.sends) ? s.sends : []).filter(isObj).map(x => ({
+      kind: SEND_KINDS.includes(x.kind) ? x.kind : 'company',
+      company: String(x.company ?? ''), role: String(x.role ?? ''), date: String(x.date ?? ''),
+    }));
+    out.push({ id: s.id, at: String(s.at ?? ''), ...(typeof s.label === 'string' && s.label ? { label: s.label } : {}), sends,
+      recipe: migratePins(clone(s.recipe)), body: clone(s.body) });
+  }
+  return out;
 }
 
 // Compares strings only.
@@ -348,9 +376,10 @@ function asToday(frozen){
   return f;
 }
 
-// "<Company> - <Role>.json", case as typed, no path characters.
+// "<Name>.json" (an older resume has no name: "<Company> - <Role>.json"), case as typed, no path characters.
 export function resumeFileName(recipe){
-  const base = recipe?.company && recipe?.role ? `${recipe.company} - ${recipe.role}`
+  const base = recipe?.name ? recipe.name
+    : recipe?.company && recipe?.role ? `${recipe.company} - ${recipe.role}`
     : recipe?.application || recipe?.title || 'Resume';
   const clean = String(base).replace(/[–—]/g, '-').replace(/&/g, ' and ').replace(/[^\p{L}\p{N} _.,()'-]+/gu, ' ')
     .replace(/\s+/g, ' ').trim().slice(0, 100).trim() || 'Resume';

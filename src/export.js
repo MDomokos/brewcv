@@ -100,7 +100,7 @@ export function plainText(body, { lang = 'en', sections = null, chrome = null } 
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }
 
-export function preflight({ model, recipe, fills = [], missing = 0, newer = 0, dirty = false, vault = false }){
+export function preflight({ model, recipe, fills = [], missing = 0, newer = 0, vault = false }){
   const out = [];
   const add = (level, key, text) => out.push({ level, key, text });
   const over = fills.find(p => p.overflow > 0);
@@ -125,7 +125,6 @@ export function preflight({ model, recipe, fills = [], missing = 0, newer = 0, d
     if (drafts) add('bad', 'draft', t('preflight.drafts', { n: drafts }));
     if (nosrc) add('warn', 'source', t('preflight.noSource', { n: nosrc }));
   }
-  if (dirty) add('warn', 'dirty', t('preflight.dirty'));
   return out;
 }
 

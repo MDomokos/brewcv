@@ -3,10 +3,11 @@
 // cache and installed copies never keep serving old files.
 // Files opened through File System Access never pass through here.
 
-const VERSION = '0.8.0';
+const VERSION = '0.9.0';
 const SHELL = [
   './',
   './index.html',
+  './sw.js',
   './manifest.webmanifest',
   './src/data.js',
   './src/render.js',
@@ -22,6 +23,7 @@ const SHELL = [
   './src/ui/shell.js',
   './src/ui/edit.js',
   './src/ui/resumes.js',
+  './src/ui/switcher.js',
   './src/model/record.js',
   './src/model/resumes.js',
   './src/model/focus.js',

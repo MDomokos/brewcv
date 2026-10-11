@@ -9,7 +9,7 @@ import { assetRefs } from './store.js';
 // The one file you save and open yourself. Never translated.
 export const SAVE_FILE_NAME = 'brewcv.json';
 // package.json's version, which checks/version-check.mjs keeps equal to it.
-export const APP_VERSION = '0.8.0';
+export const APP_VERSION = '0.9.0';
 
 export async function sha256(text){
   const buf = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -158,6 +158,9 @@ export function makeBackup(state, { saved = new Date().toISOString(), checkpoint
   };
 }
 
+// The open resume's working copy: the saved one without its snapshots, which only the saved one keeps.
+const workingCopy = r => { if (!r) return null; const c = structuredClone(r); delete c.snapshots; return c; };
+
 // recipes/ may hold v4 resume files and v3 recipes alike.
 export async function readFolder(folder){
   const text = await folder.read('resume-data.json');
@@ -176,7 +179,7 @@ export async function readFolder(folder){
     }
     catch (e){ warnings.push(`recipes/${name}: ${e.message}`); }
   }
-  return { state: { record: model, resumes, frozen, cur: resumes[0] ? structuredClone(resumes[0]) : null, openId: resumes[0]?.id ?? null }, warnings, skipped };
+  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped };
 }
 
 export function readBackup(obj){
@@ -190,7 +193,7 @@ export function readBackup(obj){
     if (got.frozen) frozen[id] = got.frozen;
   }
   const info = { recordId: obj.recordId ?? model.recordId ?? null, saved: obj.saved ?? null, app: obj.app ?? null };
-  return { state: { record: model, resumes, frozen, cur: resumes[0] ? structuredClone(resumes[0]) : null, openId: resumes[0]?.id ?? null }, warnings, info };
+  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, info };
 }
 
 // What to do with a file the person opens, given what this browser last saved to a file.
@@ -275,6 +278,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
 
   const unsub = store.subscribe(ev => {
     if (['commit', 'undo', 'redo'].includes(ev?.kind)) pendingCommits++;
+    if (status !== 'pending') setStatus('pending');     // changed, not yet written: the header says Saving…
     clearTimer(timer);
     timer = setTimer(saveNow, debounceMs);
   });
