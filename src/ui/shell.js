@@ -20,6 +20,7 @@ import { initCareer } from './career.js';
 import * as RS from '../model/resumes.js';
 import { switchLang, missingList, langName, langsInUse, addLangInUse } from '../model/lang.js';
 import { langMenuHtml, menuKey, focusMenu } from './langmenu.js';
+import { jobTypeLabel } from '../model/focus.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
 import { initSettings, readPref, browserLang } from './settings.js';
 import { crumb } from './parts.js';
@@ -352,7 +353,7 @@ function renderHead(){
   const saved = st.status === 'error' ? `<span class="bad" title="${esc(st.error)}">${h('head.notSaved')}</span>`
     : st.status === 'saving' ? h('head.saving') : st.status === 'saved' ? h('head.savedHere') : h('head.staysHere');
   const dirty = r ? resumes.isDirty() : false;
-  const meta = r ? [r.jobType, (r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
+  const meta = r ? [jobTypeLabel(store.state.record, r.jobType), (r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const careerRow = ui.ws === 'career' ? `<div class="hrow only-c">${career.langControl()}<span class="grow"></span>
       <button class="tool" data-act="undo" ${store.history.undo ? '' : 'disabled'} title="${esc(store.history.next ? t('foot.undoWhat', { what: store.history.next, n: store.history.undo }) : t('foot.undoN', { n: store.history.undo }))}" aria-label="${esc(t('foot.undo'))}">↶</button>
@@ -425,6 +426,7 @@ function menuHtml(){
     <button role="menuitem" data-act="goto" data-v="import">${h('menu.restore')}</button>
     <button role="menuitem" data-act="goto" data-v="history">${h('menu.history')}</button>
     <a role="menuitem" href="${SOURCE_URL}" target="_blank" rel="noopener">${h('src.link')}</a>
+    <a role="menuitem" href="${SOURCE_URL}/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener">${h('priv.link')}</a>
     <hr>
     <button role="menuitem" data-act="goto" data-v="languages"><span>${h('menu.languages')}</span> <small class="muted">${langsInUse(record()).length}</small></button>
     <button role="menuitem" data-act="goto" data-v="settings">${h('menu.settings')}</button>
@@ -806,7 +808,7 @@ const edit = initEdit({
   endPreview: () => endPreview(),
   indexOf: m => indexModel(m),
   previewRecipe,
-  careerLang: () => career.lang, careerFact: () => career.fact(), careerUp: () => career.up(),
+  careerLang: () => career.lang, careerFact: () => career.fact(), careerUp: () => career.up(), careerReveal: () => career.reveal(),
 });
 edit.bind($('#body'));
 window.__wb.edit = edit;

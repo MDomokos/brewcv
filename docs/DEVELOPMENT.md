@@ -43,13 +43,13 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            resumes, files, export, design, onboarding, career, settings,
                            langmenu, actual size; parts.js, the pure string parts (crumb, rows,
                            version list, editor, write-in) that edit and career share
-scripts/                   render, fit, export-pdf, tokens, build-example, to-jsonresume,
+scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,
                            claims and new-resume (what a coding agent uses; see AGENTS.md)
 checks/                    the Node checks, the Chromium smoke test, the guards
 data/example.json          the fictional sample record, and data/example-resumes/ its fourteen
                            resumes (one or more per language; all but English and Hungarian need
                            a native review)
-docs/                      this guide
+docs/                      this guide, THEMES.md (making a theme), PRIVACY.md (checking what the app sends)
 ```
 
 ## Translations
@@ -75,6 +75,9 @@ node checks/diff-check.mjs            the merge engine on an edited copy of the 
 node checks/import-check.mjs          every kind of file, JSON Resume round trip, outside edits
 node checks/export-check.mjs          the HTML page, plain text, JSON Resume, pre-flight
 node checks/tokens-check.mjs          theme tokens: forms, refusals, DTCG round trip, contrast
+node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,
+                                      no inline script; no outside address in any fetch
+node checks/i18n-review-check.mjs     the translation review sheets: the CSV, and --apply on a temporary copy
 node checks/career-check.mjs          the Career model: timeline, lists, add / edit / delete, projects, kinds
 node checks/parts-check.mjs           the Resume's markup unchanged by the shared parts; the same claim in Career
                                       and Resume gives the same panel and the same record; Career's list is flat;
@@ -113,7 +116,7 @@ A library path makes a check read that library's recipes and print counts only, 
 node scripts/render.mjs <data.json> <recipe.json> <out.html>        a record + a resume → a document
 node scripts/fit.mjs    <data.json> <recipe.json> --fit [--add]     Fit, measured in Chromium
 node scripts/fit.mjs    <data.json> <recipe.json> --fit --model 6.7 a labelled dry plan, no browser
-node scripts/export-pdf.mjs out/resume.html out/resume.pdf
+node scripts/export-pdf.mjs out/resume.html out/resume.pdf          optional; a Chrome, Chromium, Brave or Edge, no packages
 node scripts/to-jsonresume.mjs <data.json> [recipe.json]           flat JSON Resume, the ATS path
 node scripts/claims.mjs <data.json> [--lang en] [--tag t] [--job id] [--json]
                                                                    every claim and its versions; writes nothing
@@ -122,6 +125,9 @@ node scripts/new-resume.mjs <data.json> <picks.json> <out-dir> [--force]
 node checks/keyword-gap.mjs <data.json> <ad.txt>                   ad words the record can't say
 node scripts/build-example.mjs data/example.json                   regenerate the fictional sample
 node scripts/tokens.mjs                                            the built-in themes as DTCG
+node scripts/theme-check.mjs <theme.tokens.json|.css>              what the app makes of a theme file
+node scripts/i18n-review.mjs <lang|all> [--out <dir>]              a review sheet (CSV) per language
+node scripts/i18n-review.mjs --apply <sheet.csv>                   write a sheet's corrections into src/i18n/
 ```
 
 Every script that takes `<data.json>` except `checks/validate-data.mjs` reads either a record file or the one file (the app's backup, `resumeBuilderBackup: 1`; its record is used). Every script reads a record through `src/model/schema.js`, so `resume-data/3` and `/4` both work everywhere; anything that writes one writes v4, and keeps a v3 original once as `<name>.v3.json`. Fit never rewrites prose: it chooses among the versions that exist, drops whole bullets, and reports what it couldn't do.
@@ -130,7 +136,7 @@ Every script that takes `<data.json>` except `checks/validate-data.mjs` reads ei
 
 ## The one package.json
 
-`{"type": "module"}`, three lines, no dependencies and no scripts. Node needs it to read `src/render.js` as an ES module when `scripts/render.mjs` imports it; without it, older Node treats a `.js` file as CommonJS and the import fails. It is not a build step and nothing installs from it. `playwright` stays confined to `checks/` and `scripts/export-pdf.mjs`, and the app runs without it.
+`{"type": "module"}`, three lines, no dependencies and no scripts. Node needs it to read `src/render.js` as an ES module when `scripts/render.mjs` imports it; without it, older Node treats a `.js` file as CommonJS and the import fails. It is not a build step and nothing installs from it. `playwright` stays confined to `checks/`; `scripts/export-pdf.mjs` drives an installed Chrome, Chromium, Brave or Edge over the DevTools protocol (set `CHROME_PATH` to choose one), and the app runs without any of it.
 
 ## Deploying
 

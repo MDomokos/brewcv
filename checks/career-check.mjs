@@ -14,6 +14,8 @@ import { saveOver } from '../src/model/record.js';
 import { validate } from './lib/validate.mjs';
 import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages } from '../src/render.js';
+import { makeUi, dom } from './lib/ui-harness.mjs';
+import * as T from '../src/model/resume.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -298,6 +300,159 @@ section('JSON Resume\'s other fields, and references (2026-10-09)');
   ok('it validates', validate(file).errors.length === 0, validate(file).errors[0]);
   K.deleteItem(m, 'references', id);
   ok('deleting it takes the fact and the list with it', !m.facts.some(f => f.id === id) && !m.references && !s.content.pairs.length);
+}
+
+section('archiving a claim');
+{
+  const ex = S.load(read('data/example.json')).model;
+  const gone = ex.facts.find(f => f.archived).id;
+  const job = ex.work.find(w => w.highlights.includes(gone));
+  const other = job.highlights.find(h => h !== gone);
+  ok('the example holds an archived claim to start with', !!gone && !!other);
+  ok('K.archivedOf lists a job’s archived claims', K.archivedOf(ex, job.id).join() === gone);
+  const r = K.unarchiveClaim(ex, gone);
+  ok('unarchiving clears the flag, and says so', r.changed && !ex.facts.find(f => f.id === gone).archived && !('archived' in ex.facts.find(f => f.id === gone)));
+  ok('unarchiving twice changes nothing', !K.unarchiveClaim(ex, gone).changed);
+  const a = K.archiveClaim(ex, other);
+  ok('archiving sets the flag on the claim, not its versions', a.changed && ex.facts.find(f => f.id === other).archived === true && !ex.variants.some(v => v.archived));
+  ok('…and deletes nothing', ex.facts.some(f => f.id === other) && ex.variants.some(v => v.id.startsWith(`${other}-`)));
+  const rest = job.highlights.filter(h => !ex.facts.find(f => f.id === h).archived);
+  for (const h of rest.slice(1)) K.archiveClaim(ex, h);
+  let refused = null; try { K.archiveClaim(ex, rest[0]); } catch (e){ refused = e; }
+  ok('a job’s last unarchived claim is refused, with the app’s own message', rest.length >= 2 && refused?.key === 'arch.lastClaim' && !ex.facts.find(f => f.id === rest[0]).archived, refused?.message);
+  const one = ex.work.find(w => w.highlights.length === 1);
+  let lastRefused = null; try { K.archiveClaim(ex, one.highlights[0]); } catch (e){ lastRefused = e; }
+  ok('a job with one claim can not archive it', lastRefused?.key === 'arch.lastClaim', lastRefused?.message);
+  ok('the record still validates and renders', validate(S.save(ex), null).errors.length === 0 && html(ex, newResume(ex)).length > 0);
+}
+
+section('Career hides archived claims, and reveals them');
+{
+  const u = await makeUi({ ws: 'career' });
+  const gone = u.record().facts.find(f => f.archived).id;
+  const job = u.record().work.find(w => w.highlights.includes(gone)).id;
+  const rows = () => String(u.career.views.career());
+  await u.click('c-sel', { what: 'entry', key: 'work', id: job });
+  let h = rows();
+  ok('an archived claim is not in the list by default', !h.includes(`data-id="${gone}"`));
+  ok('…the job shows a muted “1 archived” control', /class="sm ghost archmore"[^>]*aria-expanded="false">1 archived/.test(h));
+  await u.click('c-arch-show', { id: job });
+  h = rows();
+  ok('the control reveals it, dimmed, with an Unarchive button', h.includes(`data-id="${gone}"`) && /is-archived/.test(h) && new RegExp(`data-act="unarchive-claim" data-id="${gone}"`).test(h));
+  ok('…and the same control hides it again', /Hide archived/.test(h) && (await u.click('c-arch-show', { id: job }), !rows().includes(`data-id="${gone}"`)));
+  ok('a job with none archived shows no control', (await u.click('c-sel', { what: 'entry', key: 'work', id: u.record().work.find(w => w.id !== job).id }), !/archmore/.test(rows())));
+
+  await u.click('c-sel', { what: 'entry', key: 'work', id: job });
+  const before = JSON.stringify(u.record());
+  const other = u.record().work.find(w => w.id === job).highlights.find(h2 => h2 !== gone);
+  await u.click('c-claim', { key: 'work', entry: job, id: other });
+  const panel = rows();
+  ok('a claim’s panel has Archive beside 🗑', /data-act="archive-claim"[^>]*>Archive<\/button>/.test(panel) && panel.indexOf('archive-claim') < panel.indexOf('delete-claim'));
+  await u.click('archive-claim');
+  ok('Archive sets the flag, says Ctrl+Z undoes it, and goes back up', u.record().facts.find(f => f.id === other).archived === true && u.toasts.at(-1).m === 'Archived. Ctrl+Z undoes it.');
+  ok('…the list no longer shows it', !rows().includes(`data-id="${other}"`));
+  u.store.undo();
+  ok('Ctrl+Z undoes it', JSON.stringify(u.record()) === before);
+  await u.click('c-arch-show', { id: job });
+  await u.click('unarchive-claim', { id: gone });
+  ok('Unarchive brings it back', !u.record().facts.find(f => f.id === gone).archived && u.toasts.at(-1).m === 'Unarchived.');
+  u.store.undo();
+  ok('…and Ctrl+Z archives it again', u.record().facts.find(f => f.id === gone).archived === true);
+}
+
+section('the Resume view');
+{
+  // a saved resume that prints the archived claim: it keeps printing, badged, and can be turned off
+  const names = read('data/example-resumes/index.json');
+  const ex = S.load(read('data/example.json')).model;
+  const gone = ex.facts.find(f => f.archived).id;
+  const job = ex.work.find(w => w.highlights.includes(gone)).id;
+  const i = names.findIndex(n => T.listedBullets(ex, S.loadResume(read(`data/example-resumes/${n}`), ex).recipe, job).includes(gone));
+  ok('a saved example resume prints the archived claim', i >= 0);
+  const u = await makeUi({ resume: i });
+  u.select({ kind: 'job', id: job });
+  let h = String(u.edit.jobView({ kind: 'job', id: job }));
+  ok('its bullet list shows the claim with an “archived” badge', new RegExp(`data-id="${gone}"[\\s\\S]*?class="pill arch"[^>]*>archived`).test(h));
+  u.tick({ on: gone }, false);
+  h = String(u.edit.jobView({ kind: 'job', id: job }));
+  ok('it can be turned off, and then it leaves the list', !T.listedBullets(u.record(), u.cur(), job).includes(gone) && !h.includes(`data-id="${gone}"`));
+  let refused = false; try { T.setBulletOn(u.work(), u.cur(), gone, true); } catch { refused = true; }
+  ok('turning an archived claim on needs it unarchived first', refused);
+}
+
+section('archiving a whole job');
+{
+  const ex = S.load(read('data/example.json')).model;
+  const names = read('data/example-resumes/index.json');
+  const rs = names.map(n => S.loadResume(read(`data/example-resumes/${n}`), ex).recipe);
+  const before = rs.map(r => html(ex, r));
+  const r = K.archiveEntry(ex, 'atelier');
+  ok('archiving sets the flag on the job, deletes nothing', r.changed && ex.work.find(w => w.id === 'atelier').archived === true && ex.facts.some(f => f.id === 'atelier-position' || f.id.startsWith('atl-')));
+  ok('the timeline can hide it, and says it is archived when shown', !K.timelineLayout(ex, { hideArchived: true }).entries.some(e => e.id === 'atelier') && K.timelineLayout(ex).entries.find(e => e.id === 'atelier').archived === true);
+  ok('a new resume leaves it out', !JSON.stringify(newResume(ex).sections).includes('atelier'));
+  ok('saved resumes that print it render byte-identical', rs.every((x, i) => html(ex, x) === before[i]) && rs.some(x => JSON.stringify(x).includes('atelier')));
+  let refused = false; try { T.setJobOn(ex, newResume(ex), 'atelier', true); } catch (e){ refused = e.key === 'arch.jobNeedUnarchive'; }
+  ok('it can not be switched on in a resume that does not print it', refused);
+  ok('unarchiving brings it back into new resumes', K.unarchiveEntry(ex, 'atelier').changed && JSON.stringify(newResume(ex).sections).includes('atelier') && !('archived' in ex.work.find(w => w.id === 'atelier')));
+  ok('the record round-trips the flag', (() => { K.archiveEntry(ex, 'atelier'); return S.load(S.save(ex)).model.work.find(w => w.id === 'atelier').archived === true; })());
+  ok('the validator accepts it', validate(S.save(ex), null).errors.length === 0);
+
+  const u = await makeUi({ ws: 'career' });
+  const tl = () => String(u.career.timelineHtml());
+  ok('(no archived job in the example to start with)', !/c-arch-jobs/.test(tl()));
+  await u.click('c-sel', { what: 'entry', key: 'work', id: 'atelier' });
+  const before2 = JSON.stringify(u.record());
+  await u.click('c-arch-entry', { id: 'atelier' });
+  ok('the job’s panel archives it, with a toast', u.record().work.find(w => w.id === 'atelier').archived === true && u.toasts.at(-1).m === 'Archived. Ctrl+Z undoes it.');
+  ok('the timeline hides it behind a “1 archived” control', !tl().includes('data-id="atelier"') && /archmore" data-act="c-arch-jobs"[^>]*>1 archived/.test(tl()));
+  await u.click('c-arch-jobs');
+  ok('the control reveals it with an archived badge', tl().includes('data-id="atelier"') && /pill arch/.test(tl()));
+  u.store.undo();
+  ok('Ctrl+Z undoes it', JSON.stringify(u.record()) === before2);
+}
+
+section('job types in Career');
+{
+  const u = await makeUi({ ws: 'career' });
+  await u.click('c-area', { area: 'more' });
+  const page = () => String(u.career.timelineHtml());
+  ok('the More step lists the job types, tags as chips', /class="grp jtypes"/.test(page()) && /data-act="c-jt-tag-rm" data-id="Prototyping" data-tag="fabrication"/.test(page()));
+  const n = u.record().jobTypes.length;
+  dom.set('jt-new', { value: 'CAD designer' });
+  await u.click('c-jt-add');
+  const made = u.record().jobTypes.at(-1);
+  ok('a new job type gets an id from its name, and no tags yet', u.record().jobTypes.length === n + 1 && made.id === 'cad-designer' && made.label === 'CAD designer' && made.tags.length === 0);
+  let dup = u.toasts.length; dom.set('jt-new', { value: 'cad designer' }); await u.click('c-jt-add');
+  ok('the same name again is refused', u.record().jobTypes.length === n + 1 && u.toasts.length === dup + 1 && u.toasts.at(-1).tone === 'bad');
+  const input = (id, v) => ({ classList: { contains: c => c === 'jt-tag-in' }, dataset: { id }, value: v });
+  u.fire('keydown', input('cad-designer', 'cad'), { key: 'Enter' });
+  u.fire('keydown', input('cad-designer', 'hardware'), { key: 'Enter' });
+  ok('Enter adds a tag, a second one too, never twice', (() => { u.fire('keydown', input('cad-designer', 'cad'), { key: 'Enter' }); return u.record().jobTypes.at(-1).tags.join() === 'cad,hardware'; })());
+  await u.click('c-jt-tag-rm', { id: 'cad-designer', tag: 'hardware' });
+  ok('× removes a tag', u.record().jobTypes.at(-1).tags.join() === 'cad');
+  u.fire('change', { classList: { contains: c => c === 'jt-label' }, dataset: { id: 'cad-designer' }, value: 'CAD designers' });
+  ok('renaming changes the label and keeps the id', u.record().jobTypes.at(-1).label === 'CAD designers' && u.record().jobTypes.at(-1).id === 'cad-designer');
+  // an old string job type becomes an object the first time it is edited
+  await u.click('c-jt-tag-rm', { id: 'Hardware design', tag: 'Hardware design' });
+  ok('an old string job type turns into an object when edited', typeof u.record().jobTypes[0] === 'object' && u.record().jobTypes[0].id === 'Hardware design' && u.record().jobTypes[0].tags.length === 0);
+  await u.click('c-jt-del', { id: 'cad-designer' });
+  ok('deleting removes it', !u.record().jobTypes.some(j => j.id === 'cad-designer'));
+  u.store.undo();
+  ok('Ctrl+Z brings it back', u.record().jobTypes.some(j => j.id === 'cad-designer'));
+}
+
+section('Focus on a job type in the Resume workspace');
+{
+  const u = await makeUi({ resume: 0 });
+  const home = () => String(u.edit.homeView());
+  const first = home().match(/data-act="focus" data-tag="([^"]+)"[^>]*title="[^"]*"[^>]*>([^<]+) <span/);
+  ok('a bundle appears among the chips with its label, its tags as a title', !!first, home().slice(home().indexOf('chips'), home().indexOf('chips') + 200));
+  await u.click('focus', { tag: 'Prototyping' });
+  const before = JSON.stringify(u.cur());
+  await u.click('focus-apply');
+  ok('applying it changes the resume', JSON.stringify(u.cur()) !== before);
+  u.store.undo();
+  ok('one Ctrl+Z puts it all back', JSON.stringify(u.cur()) === before);
 }
 
 console.log(failed ? `\n${failed} career check(s) FAILED` : '\nall career checks passed');

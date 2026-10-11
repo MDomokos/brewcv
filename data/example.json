@@ -1165,6 +1165,7 @@
           "id": "free-proto",
           "work": "free",
           "axis": "density",
+          "archived": true,
           "summary": "Printed prototypes for test assemblies",
           "variants": [
             "free-proto-v1"
@@ -9149,8 +9150,22 @@
       "jobTypes": [
         "Hardware design",
         "Medical devices",
-        "Prototyping",
-        "Manufacturing engineering"
+        {
+          "id": "Prototyping",
+          "label": "Prototyping",
+          "tags": [
+            "Prototyping",
+            "fabrication"
+          ]
+        },
+        {
+          "id": "Manufacturing engineering",
+          "label": "Manufacturing engineering",
+          "tags": [
+            "Manufacturing engineering",
+            "manufacturing"
+          ]
+        }
       ],
       "themes": [],
       "requireSource": false,

@@ -198,6 +198,21 @@ section('bottom job first, and the floor');
   ok('…and the top job is the one that kept two', lb[0] >= lb[3], `left per job ${lb}`);
 }
 
+section('archived claims');
+{
+  // two jobs on a page with room to spare: Fit adds claims, but never an archived one
+  const A = structuredClone(G);
+  const ids = ['hydra', 'orbit'];
+  const hidden = new Set();
+  for (const id of ids) for (const h of A.work.find(w => w.id === id).highlights.slice(1)){ A.facts.find(f => f.id === h).archived = true; hidden.add(h); }
+  const lone = d => onePager(jobs(ids.map(id => ({ id, highlights: [d.work.find(w => w.id === id).highlights[0]] }))));
+  const open = await run('nothing archived: Fit has claims to add', G, lone(G), { add: true, quiet: true });
+  ok('with nothing archived Fit lists more than the first claim of a job', normalisedListed(G, open.recipe).length > ids.length, String(normalisedListed(G, open.recipe).length));
+  const r = await run('every claim after a job’s first archived: nothing to add', A, lone(A), { add: true, quiet: true });
+  const listed = normalisedListed(A, r.recipe);
+  ok('Fit never adds an archived claim', listed.length === ids.length && listed.every(c => !hidden.has(c)), listed.join());
+}
+
 section('off and keep');
 {
   const pinned = onePager({ ...jobs(['hydra', 'orbit', 'nova', 'poly', 'free']),

@@ -3,6 +3,7 @@
 // workspace. A claim opens the Resume's own panel (edit.js claimPanel) minus what tailors.
 
 import * as K from '../model/career.js';
+import { jobTypesOf, allTags } from '../model/focus.js';
 import { versionsIn } from '../model/record.js';
 import { langName, langsInUse, addLangInUse, isSame, sameKey } from '../model/lang.js';
 import { DEFAULT_LANG, defaultVariant } from '../model/resume.js';
@@ -31,6 +32,8 @@ const W = {
   kind: null,                // the kind editor: { id | null, draft }
   delKind: null,
   tip: null,
+  shown: new Set(),          // entries whose archived claims are revealed
+  jobs: false,               // archived jobs are revealed in the timeline
 };
 const TIP_KEY = 'rb-career-tips';
 const tipsDone = () => { try { return localStorage.getItem(TIP_KEY) === 'done'; } catch { return true; } };
@@ -168,7 +171,10 @@ function addMenu(){
 }
 
 function timelineCols(){
-  const { bands, entries } = K.timelineLayout(rec(), { lang: L() });
+  const all = K.timelineLayout(rec(), { lang: L() });
+  const nArch = all.entries.filter(x => x.archived).length;
+  const { bands, entries } = nArch && !W.jobs ? K.timelineLayout(rec(), { lang: L(), hideArchived: true }) : all;
+  const archBtn = nArch ? `<button class="sm ghost archmore" data-act="c-arch-jobs" aria-expanded="${W.jobs}">${W.jobs ? h('arch.hideJobs') : h('arch.nJobs', { n: nArch })}</button>` : '';
   if (!entries.length) return `<div class="empty card-ish">
       <p><b>${h('career.emptyWork')}</b></p><div class="btns"><button class="primary sm" data-act="c-add" data-what="work">${h('career.addWork')}</button></div>
       <p class="muted small">${h('career.emptyEdu')}</p><div class="btns"><button class="sm" data-act="c-add" data-what="education">${h('career.addEducation')}</button></div></div>`;
@@ -176,14 +182,14 @@ function timelineCols(){
   const mark = x => (!sameLang() && x.toWrite ? x.toWrite : 0);
   const main = x => `<button class="row" ${kc(x.kind)} data-act="c-sel" data-what="entry" data-key="${x.key}" data-id="${esc(x.id)}" aria-pressed="${sel === x.id}">
       <span class="ic">${icon(look(x.kind).icon)}</span><span class="t ${x.titleMissing ? 'missing' : ''}">${esc(x.title)}</span><span class="w">${esc(years(x))}</span>
-      <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}</span>
+      <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}${x.archived ? ` · <span class="pill arch">${h('arch.badge')}</span>` : ''}</span>
       ${mark(x) ? `<span class="marks"><span class="mk">${h('career.toWriteIn', { n: mark(x), lang: langName(L()) })}</span></span>` : ''}</button>`;
   const side = x => `<button class="srow" ${kc(x.kind)} data-act="c-sel" data-what="entry" data-key="${x.key}" data-id="${esc(x.id)}" aria-pressed="${sel === x.id}" title="${esc(kindLabel(x.kind))}">
       <span class="si">${icon(look(x.kind).icon)}</span><span class="t ${x.titleMissing ? 'missing' : ''}">${esc(x.title)}</span><span class="w">${esc(years(x))}</span>
       <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}${x.during ? ` · ${h('career.during', { org: duringName(x.during) })}` : ''}${mark(x) ? ` · <span class="mkt">${h('career.toWrite', { n: mark(x) })}</span>` : ''}</span></button>`;
   let rows = `<div class="colhead"><span ${kc('work')}>${icon('work')} ${h('career.colMain')}</span><span>${h('career.colSide')}</span></div>`;
   for (const b of bands) rows += `<div class="yr">${esc(b.year ?? t('career.nowBand'))}</div><div class="yrow"><div class="main">${b.main.map(main).join('')}</div><div class="side">${b.side.map(side).join('')}</div></div>`;
-  return `<div class="tl2">${rows}</div>`;
+  return `<div class="tl2">${rows}</div>${archBtn}`;
 }
 const duringName = id => { const m = rec(); return m.work?.find(w => w.id === id)?.name ?? m.education?.find(e => e.id === id)?.institution ?? id; };
 
@@ -206,6 +212,20 @@ function aboutHtml(){
     <b>${esc(a.title)}</b><span class="w">${a.n > 1 ? h('career.nVersions', { n: a.n }) : ''}</span><span class="o ${a.miss ? 'missing' : ''}">${esc(a.value)}</span></button>`).join('')}</div>`;
 }
 
+function jobTypesHtml(){
+  const jts = jobTypesOf(rec());
+  const tags = allTags(rec(), null).filter(x => !x.jobType).map(x => x.tag);
+  return `<section class="grp jtypes" aria-label="${esc(t('jt.title'))}"><div class="grp-h"><b>${h('jt.title')}</b></div>
+    <p class="muted small">${h('jt.intro')}</p>
+    ${jts.map(j => `<div class="jtrow" data-jt="${esc(j.id)}">
+      <input class="jt-label" data-id="${esc(j.id)}" value="${esc(j.label)}" aria-label="${esc(t('jt.nameOf', { name: j.label }))}" autocomplete="off">
+      <span class="chips">${j.tags.map(tg => `<span class="tag jt">${esc(tg)}<button class="rm" data-act="c-jt-tag-rm" data-id="${esc(j.id)}" data-tag="${esc(tg)}" aria-label="${esc(t('edit.removeTag', { tag: tg }))}">×</button></span>`).join('')}
+        <input class="tag-in jt-tag-in" list="jt-tags" data-id="${esc(j.id)}" placeholder="${esc(t('jt.addTagPh'))}" aria-label="${esc(t('jt.addTagTo', { name: j.label }))}"></span>
+      <button class="ghost sm" data-act="c-jt-del" data-id="${esc(j.id)}" title="${esc(t('jt.delete'))}" aria-label="${esc(t('jt.delete'))}">🗑</button></div>`).join('') || `<p class="muted small empty-line">${h('jt.none')}</p>`}
+    <datalist id="jt-tags">${tags.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+    <div class="jtnew"><input id="jt-new" placeholder="${esc(t('jt.newPh'))}" autocomplete="off" aria-label="${esc(t('jt.new'))}"><button class="sm" data-act="c-jt-add">${h('jt.new')}</button></div></section>`;
+}
+
 function listsHtml(){
   const groups = K.recordLists(rec(), { lang: L() });
   const sel = W.sel?.what === 'item' ? W.sel.id : null;
@@ -217,7 +237,7 @@ function listsHtml(){
     return `<section class="grp" ${kc(g.group)} aria-label="${esc(groupLabel(g.group))}"><div class="grp-h"><span class="gi">${icon(look(g.group).icon)}</span><b>${esc(groupLabel(g.group))}</b>${s ? `<span class="muted tiny">${h('career.goesInShort', { section: s.title })}</span>` : ''}
       ${g.kind ? `<button class="kset sm ghost" data-act="c-kind-edit" data-id="${esc(g.kind)}" aria-label="${esc(t('career.kindSettings', { name: groupLabel(g.group) }))}" title="${esc(t('career.kindSettings', { name: groupLabel(g.group) }))}">⚙</button>` : ''}</div>
       <div class="cards">${g.items.map(x => crd(g.group, x)).join('') || `<p class="muted small empty-line">${h(`career.emptyGroup.${['skills', 'languages', 'certificates', 'publications', 'interests', 'references'].includes(g.group) ? g.group : 'kind'}`)}</p>`}</div></section>`;
-  }).join('')}`;
+  }).join('')}${jobTypesHtml()}`;
 }
 
 function careerView(){
@@ -252,10 +272,13 @@ function entryView(key, id){
     <p class="sumline">${[v.org, dates, place].filter(Boolean).map(esc).join(' · ')}${v.during ? ` · ${h('career.during', { org: duringName(v.during) })}` : ''}</p>`;
   out += W.details ? `<div class="detbox">${detailsForm(key, x, v)}<div class="btns"><button class="primary sm" data-act="c-save" data-key="${key}" data-id="${esc(id)}">${h('head.save')}</button><button class="sm ghost" data-act="c-details" data-open="0">${h('btn.cancel')}</button>
       ${key !== 'work' && key !== 'education' ? `<span class="grow"></span><button class="sm ghost" data-act="c-del-entry" data-id="${esc(id)}" title="${esc(t('career.ctrlZ'))}">🗑 ${h('career.deleteEntry')}</button>` : ''}</div></div>`
-    : `<button class="sm" data-act="c-details" data-open="1">${h('career.editDetails')}</button>`;
+    : `<button class="sm" data-act="c-details" data-open="1">${h('career.editDetails')}</button>`
+      + (key === 'education' ? '' : ` <button class="sm ghost" data-act="${x.archived ? 'c-unarch-entry' : 'c-arch-entry'}" data-id="${esc(id)}" title="${esc(t(x.archived ? 'arch.unarchiveJobTitle' : 'arch.archiveJobTitle'))}">${h(x.archived ? 'arch.unarchiveJob' : 'arch.archiveJob')}</button>`);
   const withClaims = key === 'work' || key === 'projects' || key === 'volunteer';
   if (withClaims){
-    out += `<span class="lbl">${h('career.whatYouDid')}</span><div class="list">${(x.highlights ?? []).map(c => claimRow(c, key, id)).join('')}</div>
+    const arch = K.archivedOf(m, id), open = W.shown.has(id);
+    out += `<span class="lbl">${h('career.whatYouDid')}</span><div class="list">${(x.highlights ?? []).filter(c => open || !arch.includes(c)).map(c => claimRow(c, key, id)).join('')}</div>
+      ${arch.length ? `<button class="sm ghost archmore" data-act="c-arch-show" data-id="${esc(id)}" aria-expanded="${open}">${open ? h('arch.hide') : h('arch.nArchived', { n: arch.length })}</button>` : ''}
       ${addClaimHtml({ id, key, draft: C.edit.claimDraft })}
       <p class="note">${h('career.claimsNote')}</p>`;
   }
@@ -304,7 +327,8 @@ function claimRow(id, key, entry){
   const miss = !vs.length && !sameLang() && !same;
   const text = vs.length ? (defaultVariant(m, id, Lg)?.text ?? vs[0].text) : textEn(id);
   const pill = miss ? t('career.notInYet', { lang: langName(Lg) }) : vs.length > 1 ? t('career.nVersions', { n: vs.length }) : '';
-  return partClaimRow({ id, act: 'c-claim', text: clip(text, 110), pill, pillMiss: miss, attrs: `data-key="${esc(key)}" data-entry="${esc(entry)}"` });
+  const archived = !!(m.facts ?? []).find(f => f.id === id)?.archived;
+  return partClaimRow({ id, act: 'c-claim', text: clip(text, 110), pill, pillMiss: miss, attrs: `data-key="${esc(key)}" data-entry="${esc(entry)}"`, archived, unarchive: archived });
 }
 
 // The versions of one text, all equal. The panel is edit.js's; this adds the way back.
@@ -501,6 +525,22 @@ async function act(a, tg){
     case 'c-sel-fact': W.sel = { ...W.sel, what: 'aboutfact', fact: tg.dataset.fact, title: tg.dataset.title }; C.renderBody(true); return true;
     case 'c-claim': { const next = { what: 'claim', key: tg.dataset.key, id: tg.dataset.entry, claim: tg.dataset.id }; if (!leave({ kind: 'bullet', id: next.claim })) return true; C.edit.resetPick(); W.sel = next; C.renderBody(true); return true; }
     case 'c-up': up(); return true;
+    case 'c-jt-add': {
+      const el = $('#jt-new');
+      if (commit(d => { K.addJobType(d.record, el?.value ?? ''); }, t('jt.undoNew'), t('jt.added'))){ C.renderCareer(); setTimeout(() => $('.jt-tag-in:last-of-type, .jtrow:last-of-type .jt-tag-in')?.focus(), 30); }
+      return true;
+    }
+    case 'c-jt-del': { const id = tg.dataset.id; if (commit(d => K.deleteJobType(d.record, id), t('jt.undoDelete'), t('jt.deleted'))) C.renderCareer(); return true; }
+    case 'c-jt-tag-rm': { const id = tg.dataset.id, tag = tg.dataset.tag; if (commit(d => K.removeJobTypeTag(d.record, id, tag), t('jt.undoTags'))) C.renderCareer(); return true; }
+    case 'c-arch-jobs': W.jobs = !W.jobs; C.renderCareer(); return true;
+    case 'c-arch-entry': case 'c-unarch-entry': {
+      const id = tg.dataset.id, on = a === 'c-arch-entry';
+      let res;
+      commit(d => { res = on ? K.archiveEntry(d.record, id) : K.unarchiveEntry(d.record, id); }, t(on ? 'arch.undoArchiveJob' : 'arch.undoUnarchiveJob'));
+      if (res?.changed){ C.toast(t(on ? 'arch.jobArchived' : 'arch.jobUnarchived')); if (on && !W.jobs) W.sel = null; C.renderCareer(); }
+      return true;
+    }
+    case 'c-arch-show': { const id = tg.dataset.id; if (W.shown.has(id)) W.shown.delete(id); else W.shown.add(id); C.renderBody(true); return true; }
     case 'c-details': W.details = tg.dataset.open === '1'; C.renderBody(true); if (W.details) setTimeout(() => $('#c-pos, #c-gname')?.focus(), 30); return true;
     case 'c-step': {
       const x = K.timelineLayout(m, { lang: Lg }).entries;
@@ -735,10 +775,16 @@ function bind(body){
   body.addEventListener('change', e => {
     const el = e.target;
     if (el.id === 'c-current'){ const end = $('#c-end'); if (end) end.disabled = el.checked; }
+    if (el.classList?.contains('jt-label')){ const id = el.dataset.id; if (commit(d => K.renameJobType(d.record, id, el.value), t('jt.undoRename'))) C.renderCareer(); else C.renderCareer(); }
     if (el.dataset.kplace && W.kind?.draft){ readKind(); W.kind.draft.place = el.dataset.kplace; C.renderBody(); }
   });
   body.addEventListener('keydown', e => {
     const el = e.target;
+    if (el.classList?.contains('jt-tag-in') && (e.key === 'Enter' || e.key === ',')){
+      e.preventDefault();
+      const id = el.dataset.id, v = el.value.trim();
+      if (v && commit(d => K.addJobTypeTag(d.record, id, v), t('jt.undoTags'))){ C.renderCareer(); setTimeout(() => document.querySelector(`.jt-tag-in[data-id="${CSS.escape(id)}"]`)?.focus(), 30); }
+    }
     if (el.id === 'c-kw-in' && (e.key === 'Enter' || e.key === ',')){
       e.preventDefault();
       const v = el.value.trim(); if (!v) return;
@@ -785,6 +831,7 @@ const api = {
     return C.edit.key(e);
   },
   up, 
+  reveal(){ return W.shown.size > 0; },
   fact(){
     const s = W.sel;
     if (s?.what === 'claim') return s.claim;

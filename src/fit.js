@@ -292,7 +292,7 @@ function* adds(ctx, R, ev, pi, si){
     if (!w) continue;
     const listed = new Set(ref.highlights);
     const pool = ctx.add ? null : ctx.pool.get(slotKey(pi, si, ref.id));
-    const next = w.highlights.find(h => !listed.has(h) && !ctx.pins.exclude.has(h) && !ev.claims.has(h) && (!pool || pool.has(h)));
+    const next = w.highlights.find(h => !listed.has(h) && !ctx.ix.facts.get(h)?.archived && !ctx.pins.exclude.has(h) && !ev.claims.has(h) && (!pool || pool.has(h)));
     if (!next) continue;
     const v = shortest(ctx, R, next);
     if (v) yield { kind: 'add', fact: next, order, R2: withHighlight(ctx, R, pi, si, ref.id, next, R.picks?.[next] && ctx.pins.phrasing.has(next) ? null : v.id) };

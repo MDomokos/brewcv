@@ -6,7 +6,7 @@
 import * as R from '../model/record.js';
 import * as T from '../model/resume.js';
 import { key as measureKeyOf } from '../fit.js';
-import { allTags, planTag, applyTag, tagHits } from '../model/focus.js';
+import { allTags, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf } from '../model/focus.js';
 import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
 import * as K from '../model/career.js';
 import { t, h, errText } from '../i18n/index.js';
@@ -45,6 +45,7 @@ const usingOf = id => C.chooseVariant(work(), id, cur()).v;
 const overrideOf = id => cur().overrides?.[id];
 const isOn = id => { const w = T.jobOfFact(rec(), id); return !w || T.listedBullets(rec(), cur(), w.id).includes(id); };
 const isKept = id => T.keepOf(cur()).includes(id);
+const isArch = id => !!ix().facts.get(id)?.archived;
 const jobOn = id => T.jobRefs(rec(), cur()).some(r => (typeof r === 'string' ? r : r.id) === id);
 const linesOf = v => v?.metrics?.measured?.[measureKeyOf(cur())]?.lines;
 
@@ -107,7 +108,7 @@ function sectionView(s){
   const isHeader = sec.kind === 'header';
   let inner = '';
   if (sec.kind === 'entries'){
-    inner = `<span class="lbl">${h('edit.jobs')}</span><div class="list">${(sec.content.work ?? []).map(id => {
+    inner = `<span class="lbl">${h('edit.jobs')}</span><div class="list">${(sec.content.work ?? []).filter(id => !ix().work.get(id)?.archived || jobOn(id)).map(id => {
       const w = ix().work.get(id);
       const on = jobOn(id);
       return `<div class="item row ${on ? '' : 'is-off'}">${sw(`data-jobon="${esc(id)}" aria-label="${esc(t('edit.showX', { name: w?.name }))}"`, on)}
@@ -148,12 +149,12 @@ function jobView(s){
     <span class="lbl">${h('edit.titleMeta')}</span>
     <div class="list">${[w.display?.position, w.display?.meta].filter(Boolean).map(id => factRow(id, { owner: s.id, section: 'experience' })).join('')}</div>
     <span class="lbl">${h('edit.bullets')}</span>
-    <div class="list">${(w.highlights ?? []).map(hl => {
+    <div class="list">${(w.highlights ?? []).filter(hl => !isArch(hl) || isOn(hl)).map(hl => {
       const b = on && isOn(hl);
       const v = usingOf(hl);
       const pill = overrideOf(hl) !== undefined ? t('edit.onlyHere') : v ? `v${v.n}` : t('edit.noLang', { code: L.toUpperCase() });
       return claimRow({ id: hl, text: clip(C.textOfFact(hl) || ix().facts.get(hl)?.summary || hl, 110), on: b, swAttrs: `data-on="${esc(hl)}" aria-label="${esc(t('edit.showBullet'))}"`,
-        pill, pillMiss: !(v || overrideOf(hl) !== undefined), kept: isKept(hl) });
+        pill, pillMiss: !(v || overrideOf(hl) !== undefined), kept: isKept(hl), archived: isArch(hl) });
     }).join('')}</div>
     ${addClaimHtml({ id: s.id, key: entryKeyOf(s.id), draft: E.claimDraft })}
     <p class="note">${h('edit.jobFactsNote')}</p>`;
@@ -171,7 +172,7 @@ function bulletView(s){
 
   return `${crumb(trail)}
     <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
-    ${claimHead({ ws: 'resume', hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id) })}`
+    ${claimHead({ ws: 'resume', hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
     + versionsHtml(versionsX(s.id));
 }
 const isClaim = id => ix().highlight.has(id);
@@ -180,7 +181,7 @@ function claimPanel(id, { crumbHtml, title, deletable = false }){
   if (!ix().facts.has(id)) return '';
   return `${crumbHtml}
     <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(title ?? ix().facts.get(id).summary ?? id)}</h2>
-    ${claimHead({ ws: ws(), deletable: deletable && isClaim(id) })}`
+    ${claimHead({ ws: ws(), deletable: deletable && isClaim(id), archived: deletable && isClaim(id) ? isArch(id) : null })}`
     + versionsHtml(versionsX(id));
 }
 
@@ -194,8 +195,8 @@ function versionsX(id){
   return {
     ws: ws(), m: work(), fact: id, lang: L,
     vs, using, over: career ? undefined : overrideOf(id), ed,
-    compare: E.compare, openMinor: E.openMinor, focus: E.focus,
-    lines: career ? () => undefined : linesOf, jobTypes: rec().jobTypes ?? [], tagList: allTags(rec()).map(x => x.tag),
+    compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,
+    lines: career ? () => undefined : linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: allTags(rec(), null, { archived: ws() === 'career' && C.careerReveal() }).map(x => x.tag),
     dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !career && !!(T.jobOfFact(rec(), id) || id === cur().summary), fill: career ? '' : C.fillText(),
     ref: career ? T.defaultVariant(work(), id, DEFAULT_LANG) : C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
     pick: career && E.pickOn ? pickOf(id)?.id : null,
@@ -205,12 +206,12 @@ function versionsX(id){
 function focusBox(){
   const TG = allTags(rec(), lang()).filter(x => x.n || x.jobType).slice(0, 16);
   if (!TG.length) return '';
-  let out = `<span class="lbl">${h('edit.focusOn')}</span><div class="chips">${TG.map(x => `<button class="tag ${x.jobType ? 'jt' : ''} ${E.focus === x.tag ? 'on' : ''}" data-act="focus" data-tag="${esc(x.tag)}" aria-pressed="${E.focus === x.tag}">${esc(x.tag)} <span class="muted">${x.n}</span></button>`).join('')}</div>`;
+  let out = `<span class="lbl">${h('edit.focusOn')}</span><div class="chips">${TG.map(x => `<button class="tag ${x.jobType ? 'jt' : ''} ${E.focus === x.tag ? 'on' : ''}" data-act="focus" data-tag="${esc(x.tag)}" aria-pressed="${E.focus === x.tag}"${x.jobType && x.tags.length > 1 ? ` title="${esc(x.tags.join(', '))}"` : ''}>${esc(x.label)} <span class="muted">${x.n}</span></button>`).join('')}</div>`;
   if (E.focus){
     const p = planTag(work(), cur(), E.focus);
-    out += `<div class="focusbox">${h('edit.focusBright', { tag: E.focus })}<br>
+    out += `<div class="focusbox">${h('edit.focusBright', { tag: jobTypeLabel(rec(), E.focus) })}<br>
       ${h('edit.focusPlan', { on: p.on, off: p.off, sw: p.sw })}
-      <div class="btns"><button class="sm primary" data-act="focus-apply" ${p.on + p.off + p.sw ? '' : 'disabled'}>${h('edit.focusApply', { tag: E.focus })}</button><button class="sm ghost" data-act="focus-clear">${h('edit.focusClear')}</button></div></div>`;
+      <div class="btns"><button class="sm primary" data-act="focus-apply" ${p.on + p.off + p.sw ? '' : 'disabled'}>${h('edit.focusApply', { tag: jobTypeLabel(rec(), E.focus) })}</button><button class="sm ghost" data-act="focus-clear">${h('edit.focusClear')}</button></div></div>`;
   }
   return out;
 }
@@ -401,6 +402,27 @@ async function act(a, tg){
       }
       return true;
     }
+    case 'archive-claim': {
+      const id = s.id, job = ix().highlight.get(id);
+      if (!id || !isClaim(id)) return true;
+      let res;
+      E.edit = null; E.compare = null; clearTimeout(E.timer);
+      C.endHover();
+      commit(d => { res = K.archiveClaim(d.record, id); }, t('arch.undoArchive'));
+      if (res?.changed){
+        C.toast(t('arch.archived'));
+        if (ws() === 'career') C.careerUp(); else C.select(job ? { kind: 'job', id: job } : { kind: 'none' });
+      }
+      return true;
+    }
+    case 'unarchive-claim': {
+      const id = tg?.dataset?.id ?? s.id;
+      if (!id) return true;
+      let res;
+      commit(d => { res = K.unarchiveClaim(d.record, id); }, t('arch.undoUnarchive'), t('arch.unarchived'));
+      if (res?.changed && ws() !== 'career') C.renderBody();
+      return true;
+    }
     case 'add-claim': {
       const ta = $('#new-claim'), text = ta?.value.trim();
       if (!text){ C.toast(t('career.writeClaimFirst'), 'warn'); ta?.focus(); return true; }
@@ -440,8 +462,8 @@ async function act(a, tg){
     case 'focus-apply': {
       const F = E.focus;
       let p;
-      commit(d => { p = applyTag(d.record, d.cur, F); }, t('undo.selectFor', { tag: F }));
-      if (p) C.toast(t('toast.selectedFor', { tag: F, on: p.on, off: p.off, sw: p.sw }));
+      commit(d => { p = applyTag(d.record, d.cur, F); }, t('undo.selectFor', { tag: jobTypeLabel(rec(), F) }));
+      if (p) C.toast(t('toast.selectedFor', { tag: jobTypeLabel(rec(), F), on: p.on, off: p.off, sw: p.sw }));
       return true;
     }
     case 'tag-rm': {

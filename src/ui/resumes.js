@@ -2,7 +2,7 @@
 // the newer-wording review. Each view replaces the body card. The model is src/model/resumes.js.
 
 import * as RS from '../model/resumes.js';
-import { allTags } from '../model/focus.js';
+import { allTags, jobTypesOf, jobTypeLabel } from '../model/focus.js';
 import { wordDiff } from '../model/record.js';
 import { t, h, errText, loadCatalogue } from '../i18n/index.js';
 import { langName, langsInUse, addLangInUse, switchLang, missingList } from '../model/lang.js';
@@ -19,7 +19,8 @@ const st = () => C.store.state;
 const back = () => `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a>`;
 const metaOf = r => [(r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
   r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('resumes.pShort', { n: r.pageLimit }) : null, r.savedAt].filter(Boolean).join(' · ');
-const types = () => [...new Set([...(st().record.jobTypes ?? []), ...(st().resumes ?? []).map(r => r.jobType).filter(Boolean)])];
+const types = () => [...new Set([...jobTypesOf(st().record).map(j => j.id), ...(st().resumes ?? []).map(r => r.jobType).filter(Boolean)])];
+const typeLabel = id => jobTypeLabel(st().record, id);
 
 const chosenLang = () => V.lang ?? st().cur?.lang ?? 'en';
 function langPick(who){
@@ -35,7 +36,7 @@ function resumesView(){
   return `${back()}<h2 class="title">${h('head.resumes')}</h2>
     <div class="btns"><button class="sm primary" data-act="goto" data-v="new">${h('edit.newResume')}</button>
       <button class="sm" data-act="goto" data-v="compare" ${V.picked.length === 2 ? '' : 'disabled'} title="${esc(t('resumes.tickTwo'))}">${h('resumes.compareN', { n: V.picked.length })}</button></div>
-    ${groups.map(g => `<span class="lbl">${esc(g.type || t('resumes.noType'))}</span>
+    ${groups.map(g => `<span class="lbl">${esc(g.type ? g.label : t('resumes.noType'))}</span>
       <div class="list rlist">${g.resumes.map(r => `
         <div class="item rrow ${st().openId === r.id ? 'is-cur' : ''}" data-rid="${esc(r.id)}">
           <input type="checkbox" class="pick" data-cmp="${esc(r.id)}" ${V.picked.includes(r.id) ? 'checked' : ''} aria-label="${esc(t('resumes.compareX', { name: RS.resumeLabel(r) }))}">
@@ -64,8 +65,8 @@ function newView(){
     ${langPick('new')}
     <div class="btns"><button class="primary" data-act="r-new" data-mode="all">${h('resumes.everything')}</button></div>
     <p class="note">${h('resumes.everythingNote')}</p>
-    ${T.length ? `<span class="lbl">${h('resumes.fromType')}</span><div class="list">${T.map(ty => `<div class="item row2"><span class="t"><span class="tag jt">${esc(ty)}</span></span>
-      <span class="rbtns"><button class="sm" data-act="r-new" data-mode="latest" data-type="${esc(ty)}" ${latest(ty) ? '' : `disabled title="${esc(t('resumes.noneOfType'))}"`}>${h('resumes.latest')}</button><button class="sm" data-act="r-new" data-mode="tagged" data-type="${esc(ty)}">${h('resumes.tagged', { tag: ty })}</button></span></div>`).join('')}</div>` : ''}`;
+    ${T.length ? `<span class="lbl">${h('resumes.fromType')}</span><div class="list">${T.map(ty => `<div class="item row2"><span class="t"><span class="tag jt">${esc(typeLabel(ty))}</span></span>
+      <span class="rbtns"><button class="sm" data-act="r-new" data-mode="latest" data-type="${esc(ty)}" ${latest(ty) ? '' : `disabled title="${esc(t('resumes.noneOfType'))}"`}>${h('resumes.latest')}</button><button class="sm" data-act="r-new" data-mode="tagged" data-type="${esc(ty)}">${h('resumes.tagged', { tag: typeLabel(ty) })}</button></span></div>`).join('')}</div>` : ''}`;
 }
 
 function saveView(){
@@ -75,8 +76,8 @@ function saveView(){
   return `${back()}<h2 class="title">${h('resumes.saveTitle')}</h2>
     <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="sv-co" value="${esc(c.company ?? '')}" autocomplete="off" required></label>
     <label class="field"><span class="lbl inline">${h('resumes.role')}</span><input id="sv-role" value="${esc(c.role ?? '')}" autocomplete="off"></label>
-    <label class="field"><span class="lbl inline">${h('resumes.jobType')}</span><input id="sv-type" list="sv-types" value="${esc(c.jobType ?? '')}" autocomplete="off" placeholder="${esc(t('resumes.jobTypePh'))}"><datalist id="sv-types">${T.map(ty => `<option value="${esc(ty)}">`).join('')}</datalist></label>
-    ${T.length ? `<div class="chips">${T.map(ty => `<button class="tag jt" data-act="sv-type" data-type="${esc(ty)}">${esc(ty)}</button>`).join('')}</div>` : ''}
+    <label class="field"><span class="lbl inline">${h('resumes.jobType')}</span><input id="sv-type" list="sv-types" value="${esc(typeLabel(c.jobType ?? ''))}" autocomplete="off" placeholder="${esc(t('resumes.jobTypePh'))}"><datalist id="sv-types">${T.map(ty => `<option value="${esc(typeLabel(ty))}">`).join('')}</datalist></label>
+    ${T.length ? `<div class="chips">${T.map(ty => `<button class="tag jt" data-act="sv-type" data-type="${esc(typeLabel(ty))}">${esc(typeLabel(ty))}</button>`).join('')}</div>` : ''}
     <label class="field"><span class="lbl inline">${h('resumes.otherTags')}</span><input id="sv-tags" value="${esc((c.tags ?? []).join(', '))}" placeholder="${esc(t('resumes.tagsPh'))}" autocomplete="off"></label>
     <label class="check"><input type="checkbox" id="sv-tagv" checked> ${h('resumes.tagVersions', { n })}</label>
     ${langPick('save')}
@@ -155,7 +156,7 @@ async function act(a, tg){
       const L = chosenLang();
       V.lang = null; V.menu = null;
       commit(d => { RS.newFrom(d, { mode, jobType: type }); switchLang(d.cur, L); }, t('resumes.newTitle'),
-        mode === 'tagged' ? t('toast.newTagged', { tag: type }) : mode === 'latest' ? t('toast.newLatest', { type }) : t('toast.newAll'));
+        mode === 'tagged' ? t('toast.newTagged', { tag: typeLabel(type) }) : mode === 'latest' ? t('toast.newLatest', { type: typeLabel(type) }) : t('toast.newAll'));
       C.setView(null); return true;
     }
     case 'sv-type': $('#sv-type').value = tg.dataset.type; return true;
@@ -170,7 +171,7 @@ async function act(a, tg){
       if (ok){
         C.setView(null);
         await C.persist.checkpoint(t('checkpoint.saved', { name: RS.resumeLabel(st().cur) }), 'first-save').catch(() => {});
-        C.toast(res.tagged ? t('toast.savedTagged', { name: RS.resumeLabel(st().cur), n: res.tagged, type: st().cur.jobType }) : t('toast.savedQuoted', { name: RS.resumeLabel(st().cur) }));
+        C.toast(res.tagged ? t('toast.savedTagged', { name: RS.resumeLabel(st().cur), n: res.tagged, type: typeLabel(st().cur.jobType) }) : t('toast.savedQuoted', { name: RS.resumeLabel(st().cur) }));
       }
       return true;
     }
