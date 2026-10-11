@@ -13,6 +13,7 @@ import * as R from '../src/model/record.js';
 import { resolve, chooseVariant } from '../src/model/resume.js';
 import { filesOf, createPersist, memoryBackend, memoryFolder, readFolder } from '../src/store/persist.js';
 import { createStore } from '../src/store/store.js';
+import { jobTypesOf } from '../src/model/focus.js';
 import { validate } from './lib/validate.mjs';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -114,7 +115,7 @@ section('+ New resume');
   const st = exampleState();
   const all = RS.newFrom(st, { mode: 'all' });
   ok('everything on: every job, no saved name', st.openId === null && all.sections.find(s => s.id === 'experience').work.length === st.record.work.length);
-  const type = st.record.jobTypes[0];
+  const type = jobTypesOf(st.record)[0].id;
   const latest = RS.byNewest(st.resumes).find(r => r.jobType === type);
   RS.newFrom(st, { mode: 'latest', jobType: type });
   ok('latest of a type copies the newest saved one of it', st.openId === null && eq(st.cur.sections, latest.sections) && st.cur.jobType === type);
@@ -128,7 +129,7 @@ section('listing, compare, delete');
 {
   const st = exampleState();
   const g = RS.grouped(st.record, st.resumes);
-  ok('grouped by job type in the record’s order', g.map(x => x.type).join('|') === st.record.jobTypes.filter(t => st.resumes.some(r => r.jobType === t)).join('|'));
+  ok('grouped by job type in the record’s order', g.map(x => x.type).join('|') === jobTypesOf(st.record).map(j => j.id).filter(t => st.resumes.some(r => r.jobType === t)).join('|'));
   ok('newest first in each group', g.every(x => x.resumes.every((r, i, a) => i === 0 || String(a[i - 1].savedAt) >= String(r.savedAt))));
   const [a, b] = st.resumes;
   const rows = RS.compareRows(st.record, a, b);
@@ -162,6 +163,52 @@ section('a linked folder');
   folder._files.set('recipes/notes.json', '{"hello":1}');
   store.commit(d => { d.cur.pageLimit = 0; }, 'x'); await p.flush();
   ok('a file the app didn’t write is never removed', folder._files.has('recipes/notes.json'));
+}
+
+section('archiving a claim a saved resume prints');
+{
+  const K = await import('../src/model/career.js');
+  const { createDocument } = await import('../scripts/lib/dom.mjs');
+  const { renderPages } = await import('../src/render.js');
+  const html = (m, r) => renderPages(m, r, createDocument()).pages.map(p => p.outerHTML).join('');
+  const st = exampleState();
+  const printed = new Set(st.resumes.flatMap(r => RS.usedVersions(st.record, r).map(u => u.fact)));
+  const before = st.resumes.map(r => html(st.record, r));
+  const body = st.resumes.map(r => JSON.stringify(resolve(st.record, r).body));
+  // archive every printed claim that may be archived
+  let n = 0;
+  for (const w of st.record.work) for (const h of [...w.highlights]) if (printed.has(h)) { try { K.archiveClaim(st.record, h); n++; } catch { /* a job keeps one */ } }
+  ok('claims that saved resumes print were archived', n >= 3 && st.record.facts.filter(f => f.archived).length >= n, String(n));
+  ok('every saved resume renders byte-identical', st.resumes.every((r, i) => html(st.record, r) === before[i]));
+  ok('…and resolves to the same body', st.resumes.every((r, i) => JSON.stringify(resolve(st.record, r).body) === body[i]));
+  ok('…and nothing is newer wording', st.resumes.every((r) => RS.newerOf(st.record, r).length === 0));
+  const again = exampleState();
+  again.record = st.record;
+  RS.openSaved(again, again.resumes[0].id);
+  ok('opening one holds nothing and is no change', !again.cur.held && !RS.isDirty(again));
+  ok('the file it saves as is the same', JSON.stringify(S.saveResume(st.record, again.cur, again.frozen[again.openId]).file.work) === JSON.stringify(S.saveResume(model, again.resumes[0], again.frozen[again.openId]).file.work));
+  // a new resume never uses one
+  const fresh = RS.newFrom(st, { mode: 'all' });
+  const used = new Set(RS.usedVersions(st.record, fresh).map(u => u.fact));
+  ok('a new resume prints none of the archived claims', [...used].every(f => !st.record.facts.find(x => x.id === f)?.archived));
+}
+
+section('saving and listing with a bundle job type');
+{
+  const st = exampleState();
+  st.record.jobTypes.push({ id: 'cad-designer', label: 'CAD designer', tags: ['cad', 'Hardware design'] });
+  const r = RS.saveNew(st, { company: 'Bundle Co', role: 'Designer', jobType: 'cad designer' });
+  ok('a typed label finds the job type, and the resume keeps its id', st.cur.jobType === 'cad-designer' && st.record.jobTypes.filter(j => (j.id ?? j) === 'cad-designer' || j === 'cad designer').length === 1);
+  ok('a bundle does not tag the versions the resume used', r.tagged === 0 && !JSON.stringify(st.record.variants).includes('"cad designer"'));
+  const g = RS.grouped(st.record, st.resumes).find(x => x.type === 'cad-designer');
+  ok('listing groups by id and shows the label', g?.label === 'CAD designer' && g.resumes.length === 1);
+  const cmp = RS.compareRows(st.record, st.resumes.find(x => x.jobType === 'cad-designer'), st.resumes[0]).find(x => x.kind === 'setting');
+  ok('compare shows the label', cmp.a === 'CAD designer');
+  const made = RS.newFrom(st, { mode: 'tagged', jobType: 'cad-designer' });
+  ok('a new resume from a bundle applies it and keeps the id', made.jobType === 'cad-designer');
+  const st2 = exampleState();
+  RS.saveNew(st2, { company: 'Old Co', jobType: 'Brand new type' });
+  ok('a new typed name is still the old one-tag form', st2.record.jobTypes.at(-1) === 'Brand new type');
 }
 
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');

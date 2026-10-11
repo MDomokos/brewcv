@@ -49,8 +49,8 @@ for (const jt of model.jobTypes){
     const turnedOff = [...before].filter(x => !after.has(x)).length;
     const name = `${jt} on ${base.company}`;
     if (!(plan.on === turnedOn && plan.off === turnedOff && applied.on === plan.on)){ ok(`${name}: the plan says what apply does`, false, JSON.stringify({ plan, turnedOn, turnedOff })); continue; }
-    // focus works on the jobs' bullets; a project's are not part of it
-    const tagged = [...after].filter(f => model.work.some(w => w.highlights.includes(f)) && F.taggedVersion(model, f, jt, 'en'));
+    // focus works on the jobs' bullets (a project's are not part of it), and leaves an archived claim as the resume has it
+    const tagged = [...after].filter(f => model.work.some(w => w.highlights.includes(f)) && !model.facts.find(x => x.id === f)?.archived && F.taggedVersion(model, f, jt, 'en'));
     if (!tagged.every(f => r.picks[f] === F.taggedVersion(model, f, jt, 'en').id)){ ok(`${name}: tagged bullets use their tagged version`, false); continue; }
     const v = validate(S.save(model), r);
     if (v.errors.length){ ok(`${name}: validates`, false, v.errors[0]); continue; }
@@ -83,6 +83,119 @@ section('the rules');
   const r2 = clone(en[0]);
   F.applyTag(m2, r2, 'Summary-test');
   ok('the summary switches to its tagged version', r2.picks.summary === sv.id);
+}
+
+section('archived claims');
+{
+  const m = clone(model);
+  const fid = m.facts.find(f => f.archived).id;
+  const job = T.jobOfFact(m, fid);
+  const tag = m.variants.find(v => v.id === m.facts.find(f => f.id === fid).variants[0]).tags.find(x => !m.jobTypes.includes(x)) ?? m.variants.find(v => v.id === m.facts.find(f => f.id === fid).variants[0]).tags[0];
+  ok('the example archives a claim whose version carries a tag', !!tag, tag);
+  const fresh = T.newResume(m);
+  ok('a new resume does not list the archived claim', !on(m, fresh).has(fid) && T.listedBullets(m, fresh, job.id).length === job.highlights.length - 1);
+  const plan = F.planTag(m, fresh, tag);
+  F.applyTag(m, fresh, tag);
+  ok('Focus never switches an archived claim on', !on(m, fresh).has(fid) && !plan.hits.has(fid));
+  ok('tagHits leaves it out', !F.tagHits(m, tag, 'en').has(fid));
+  let refused = false; try { T.setBulletOn(m, fresh, fid, true); } catch { refused = true; }
+  ok('an archived claim can not be switched on by hand', refused && !on(m, fresh).has(fid));
+  T.setJobOn(m, fresh, job.id, false);
+  T.setJobOn(m, fresh, job.id, true);
+  ok('switching its job off and on does not bring it back', !on(m, fresh).has(fid));
+
+  // a saved resume that prints it keeps printing it, whatever Focus does
+  const live = clone(model);
+  const lf = live.facts.find(f => f.id === fid);
+  delete lf.archived;
+  const saved = T.newResume(live);
+  T.setBulletOn(live, saved, fid, true);
+  saved.picks = { [fid]: lf.variants[0] };
+  lf.archived = true;
+  const before = JSON.stringify(saved);
+  F.applyTag(live, saved, tag);
+  ok('a saved resume that prints an archived claim still prints it after Focus', on(live, saved).has(fid) && JSON.stringify(saved.picks[fid]) === JSON.stringify(lf.variants[0]));
+  const other = clone(saved);
+  F.applyTag(live, other, 'a-tag-nothing-has');
+  ok('…and Focus on a tag it does not carry does not switch it off', on(live, other).has(fid));
+  void before;
+
+  const n0 = F.allTags(m, 'en').find(x => x.tag === tag)?.n ?? 0;
+  const n1 = F.allTags(m, 'en', { archived: true }).find(x => x.tag === tag)?.n ?? 0;
+  ok('tag counts leave archived claims out unless asked', n1 > n0, `${n0} vs ${n1}`);
+}
+
+section('archived jobs');
+{
+  const m = clone(model);
+  const jid = 'free';
+  const mine = (mm, rr) => JSON.stringify(T.listedBullets(mm, rr, jid)) + JSON.stringify(T.listedBullets(mm, rr, jid).map(f => rr.picks?.[f]));
+  // a resume and a job type that do change this job when it is not archived
+  let pair = null;
+  for (const jt of m.jobTypes) for (const base of en){
+    const probe = clone(base);
+    const was = mine(m, probe);
+    F.applyTag(m, probe, jt);
+    if (mine(m, probe) !== was){ pair = [jt, base]; break; }
+  }
+  ok('(setup) some job type changes the job when it is not archived', !!pair);
+  m.work.find(w => w.id === jid).archived = true;
+  const r = clone(pair[1]);
+  const was = mine(m, r);
+  F.applyTag(m, r, pair[0]);
+  ok('Focus leaves an archived job exactly as the resume has it', mine(m, r) === was);
+}
+
+section('job types as bundles of tags');
+{
+  const m = clone(model);
+  ok('the example has an object job type and an old string one', m.jobTypes.some(j => typeof j === 'string') && m.jobTypes.some(j => typeof j === 'object'));
+  ok('the normaliser reads both', F.jobTypesOf(m).length === m.jobTypes.length && F.jobTypesOf(m).every(j => j.id && j.label && Array.isArray(j.tags) && j.tags.length >= 1));
+  const old = F.normaliseJobType('Medical devices');
+  ok('a string is one tag, which is also its id and label', old.id === 'Medical devices' && old.label === 'Medical devices' && old.tags.join() === 'Medical devices');
+  ok('junk is dropped', F.normaliseJobType(3) === null && F.normaliseJobType({ label: 'x' }) === null && F.jobTypesOf({ jobTypes: [3, '', { id: 'a' }] }).length === 1);
+
+  // ranking: the version carrying the most of the bundle's tags wins, then the lowest number
+  const fact = m.facts.find(f => (m.variants.filter(v => f.variants.includes(v.id) && (v.lang ?? 'en') === 'en').length >= 3));
+  const vs = m.variants.filter(v => fact.variants.includes(v.id) && (v.lang ?? 'en') === 'en').sort((a, b) => parseFloat(a.n) - parseFloat(b.n));
+  for (const v of vs) v.tags = [];
+  vs[0].tags = ['t-a']; vs[1].tags = ['t-a', 't-b']; vs[2].tags = ['t-b'];
+  const bundle = { id: 'bun', label: 'Bundle', tags: ['t-a', 't-b'] };
+  m.jobTypes.push(bundle);
+  ok('the version with most of the bundle’s tags wins', F.taggedVersion(m, fact.id, 'bun', 'en').id === vs[1].id);
+  ok('…a plain tag still takes the lowest number', F.taggedVersion(m, fact.id, 't-b', 'en').id === vs[1].id && F.taggedVersion(m, fact.id, 't-a', 'en').id === vs[0].id);
+  ok('…a job type object works as well as its id', F.taggedVersion(m, fact.id, bundle, 'en').id === vs[1].id);
+  vs[1].tags = ['t-a']; vs[2].tags = ['t-a'];
+  ok('equal counts: the lowest version number', F.taggedVersion(m, fact.id, 'bun', 'en').id === vs[0].id);
+  ok('a fact with none of its tags has no tagged version', F.taggedVersion(m, fact.id, { id: 'z', tags: ['nope'] }, 'en') === null);
+  const hu = m.variants.find(v => (v.lang ?? 'en') === 'hu');
+  const huFact = m.facts.find(f => f.variants.includes(hu.id));
+  hu.tags = ['t-hu'];
+  m.jobTypes.push({ id: 'hu-only', label: 'Hu', tags: ['t-hu'] });
+  ok('language filtering: a Hungarian version is no English hit', F.taggedVersion(m, huFact.id, 'hu-only', 'en') === null && F.taggedVersion(m, huFact.id, 'hu-only', 'hu')?.id === hu.id);
+
+  // a claim is hit if any version carries any tag of the bundle
+  const hits = F.tagHits(m, 'bun', 'en');
+  ok('tagHits: a claim is hit if any version carries any of the tags', hits.has(fact.id));
+  const arch = m.facts.find(f => f.archived);
+  arch && (m.variants.find(v => v.id === arch.variants[0]).tags = ['t-a']);
+  ok('an archived claim is never a hit', !F.tagHits(m, 'bun', 'en').has(arch.id));
+
+  // apply: plan = apply, one resume, idempotent, picks the bundle's version
+  const r = clone(en[0]);
+  const plan = F.planTag(m, r, 'bun');
+  const before = on(m, r);
+  F.applyTag(m, r, 'bun');
+  const after = on(m, r);
+  ok('plan = apply for a bundle', plan.on === [...after].filter(x => !before.has(x)).length && plan.off === [...before].filter(x => !after.has(x)).length);
+  ok('applying twice changes nothing', (a => a.on + a.off + a.sw)(F.planTag(m, r, 'bun')) === 0);
+  ok('the old string form still works through Focus', (() => { const q = clone(en[0]); F.applyTag(model, q, 'Medical devices'); return (a => a.on + a.off + a.sw)(F.planTag(model, q, 'Medical devices')) === 0; })());
+
+  // allTags: job types first, a bundle counts the versions any of its tags is on
+  const tags = F.allTags(m, 'en');
+  const b = tags.find(x => x.tag === 'bun');
+  ok('allTags lists a bundle first, with its label and the versions it hits', b?.jobType && b.label === 'Bundle' && b.tags.join() === 't-a,t-b' && b.n === m.variants.filter(v => (v.lang ?? 'en') === 'en' && ((v.tags ?? []).includes('t-a') || (v.tags ?? []).includes('t-b'))).length - (arch ? 1 : 0) && tags.findIndex(x => !x.jobType) > tags.findLastIndex(x => x.jobType));
+  ok('a tag named like a job type id is not listed twice', tags.filter(x => x.tag === 'Medical devices').length === 1);
 }
 
 console.log(failed ? `\n${failed} focus check(s) FAILED` : '\nall focus checks passed');

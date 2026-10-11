@@ -4,7 +4,7 @@
 import { t, keyed } from '../i18n/index.js';
 import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant } from './resume.js';
 import { resumeFileName } from './schema.js';
-import { applyTag } from './focus.js';
+import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
 
 const clone = x => structuredClone(x);
 export const today = () => new Date().toISOString().slice(0, 10);
@@ -42,8 +42,11 @@ export function usedVersions(model, recipe){
   return out;
 }
 
+// Only a job type that is a single tag (the old form) teaches the record: a bundle's tags are yours to set.
 export function tagVersions(model, recipe, T){
   let n = 0;
+  if (jobTypeById(model, T) && jobTypeById(model, T).tags.length !== 1) return 0;
+  T = tagsOf(model, T)[0];
   for (const { variant } of usedVersions(model, recipe)){
     const v = model.variants.find(x => x.id === variant);
     if (v && !(v.tags ?? []).includes(T)){ v.tags = [...(v.tags ?? []), T]; n++; }
@@ -66,9 +69,12 @@ export function saveNew(state, { company, role = '', jobType = '', tags = [], ta
   delete r.id;
   r.id = uniqueId(state.resumes, r);
   let tagged = 0;
+  // what was typed may be a job type's label
+  const known = jobTypesOf(state.record).find(j => j.id === r.jobType) ?? jobTypesOf(state.record).find(j => j.label.toLowerCase() === r.jobType.toLowerCase());
+  if (known) r.jobType = known.id;
   if (r.jobType){
     state.record.jobTypes ??= [];
-    if (!state.record.jobTypes.includes(r.jobType)) state.record.jobTypes.push(r.jobType);
+    if (!known) state.record.jobTypes.push(r.jobType);
     if (tagThem) tagged = tagVersions(state.record, r, r.jobType);
   }
   delete r.held;
@@ -183,8 +189,8 @@ export const byNewest = list => [...list].sort((a, b) => String(b.savedAt ?? '')
 
 // The record's job types in order, then others, then no job type last.
 export function grouped(model, resumes){
-  const types = [...new Set([...(model.jobTypes ?? []), ...resumes.map(r => r.jobType).filter(Boolean)])];
-  const out = types.map(type => ({ type, resumes: byNewest(resumes.filter(r => r.jobType === type)) })).filter(g => g.resumes.length);
+  const types = [...new Set([...jobTypesOf(model).map(j => j.id), ...resumes.map(r => r.jobType).filter(Boolean)])];
+  const out = types.map(type => ({ type, label: jobTypeLabel(model, type), resumes: byNewest(resumes.filter(r => r.jobType === type)) })).filter(g => g.resumes.length);
   const none = resumes.filter(r => !r.jobType);
   if (none.length) out.push({ type: '', resumes: byNewest(none) });
   return out;
@@ -196,7 +202,7 @@ export function compareRows(model, a, b){
   const pages = r => (r.pageLimit === 0 ? t('cmp.anyPages') : r.pageLimit ? String(r.pageLimit) : Array.isArray(r.pages) ? t('cmp.byHand', { n: r.pages.length }) : '—');
   const nSections = r => (r.sections ?? []).filter(s => s && s.weight !== 0).length;
   const settings = [
-    [t('resumes.jobType'), r => r.jobType || '—'],
+    [t('resumes.jobType'), r => (r.jobType ? jobTypeLabel(model, r.jobType) : '—')],
     [t('cmp.language'), r => (r.lang ?? 'en').toUpperCase()],
     [t('design.paper'), r => (r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'))],
     [t('design.pages'), pages],

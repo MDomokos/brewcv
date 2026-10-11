@@ -6,7 +6,13 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ## Unreleased
 
+### Added
+- **Job types are bundles of tags.** A job type such as "CAD designer" is a short list of tags. Under Focus it appears first, and one click selects every bullet that has a version with any of those tags, each printing the version that carries the most of them. One undo reverses it. Job types are edited in Career, under Skills & credentials. A job type that is just one tag still works.
+- **Archive a claim or a whole job.** Archived claims and jobs are hidden in Career behind an "n archived" button and are never switched on by a new resume, Focus or Fit. Saved resumes keep printing them exactly as before. Archiving can be undone, and a merge shows it as a change.
+- **A guide to tags, job types and archiving** in docs/TAGS-AND-JOB-TYPES.md.
+
 ### Changed
+- **New facts are no longer tagged with their section's name.** Nothing read those tags; they only added clutter to the Focus list.
 - **Exporting a PDF from the command line needs no packages.** `scripts/export-pdf.mjs` now prints through the Chrome, Chromium, Brave or Edge already on the machine (set `CHROME_PATH` to choose one) instead of through Playwright, and the PDFs come out identical. It is optional: the app's own PDF export needs no extra software.
 - **The logo is on the start screen and in the header.** The welcome card opens with the icon and the name at full size, and the header carries the icon beside the name on every working screen.
 - **A reload goes back to the start screen if only the example is open.** Once any of your own records is open, a reload keeps you where you were.

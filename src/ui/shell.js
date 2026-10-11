@@ -20,6 +20,7 @@ import { initCareer } from './career.js';
 import * as RS from '../model/resumes.js';
 import { switchLang, missingList, langName, langsInUse, addLangInUse } from '../model/lang.js';
 import { langMenuHtml, menuKey, focusMenu } from './langmenu.js';
+import { jobTypeLabel } from '../model/focus.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
 import { initSettings, readPref, browserLang } from './settings.js';
 import { crumb } from './parts.js';
@@ -352,7 +353,7 @@ function renderHead(){
   const saved = st.status === 'error' ? `<span class="bad" title="${esc(st.error)}">${h('head.notSaved')}</span>`
     : st.status === 'saving' ? h('head.saving') : st.status === 'saved' ? h('head.savedHere') : h('head.staysHere');
   const dirty = r ? resumes.isDirty() : false;
-  const meta = r ? [r.jobType, (r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
+  const meta = r ? [jobTypeLabel(store.state.record, r.jobType), (r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const careerRow = ui.ws === 'career' ? `<div class="hrow only-c">${career.langControl()}<span class="grow"></span>
       <button class="tool" data-act="undo" ${store.history.undo ? '' : 'disabled'} title="${esc(store.history.next ? t('foot.undoWhat', { what: store.history.next, n: store.history.undo }) : t('foot.undoN', { n: store.history.undo }))}" aria-label="${esc(t('foot.undo'))}">↶</button>
@@ -807,7 +808,7 @@ const edit = initEdit({
   endPreview: () => endPreview(),
   indexOf: m => indexModel(m),
   previewRecipe,
-  careerLang: () => career.lang, careerFact: () => career.fact(), careerUp: () => career.up(),
+  careerLang: () => career.lang, careerFact: () => career.fact(), careerUp: () => career.up(), careerReveal: () => career.reveal(),
 });
 edit.bind($('#body'));
 window.__wb.edit = edit;

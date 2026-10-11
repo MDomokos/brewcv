@@ -42,7 +42,7 @@ function fact(id, def, versions){
   }
   facts.push({ id, ...(def.work ? { work: def.work } : {}), axis: def.axis ?? 'density',
     ...(def.term ? { term: def.term } : {}), ...(def.label ? { label: def.label } : {}),
-    summary: def.summary, variants: made });
+    ...(def.archived ? { archived: true } : {}), summary: def.summary, variants: made });
 }
 // Written once in English, listed in record.same, printed in every language.
 const same = (text, tags = [], extra = {}) => [['1', text, tags, 'en', extra]];
@@ -191,8 +191,10 @@ const BULLETS = {
     ]],
   ],
 };
+// archived: hidden in Career, never switched on by a new resume (a saved one may still print it)
+const ARCHIVED = new Set(['free-proto']);
 for (const [job, list] of Object.entries(BULLETS))
-  for (const [id, summary, versions] of list) fact(id, { work: job, summary, tags: ['experience'] }, versions);
+  for (const [id, summary, versions] of list) fact(id, { work: job, summary, tags: ['experience'], archived: ARCHIVED.has(id) }, versions);
 
 // the rest
 const SKILLS = [
@@ -366,7 +368,10 @@ const record = migrate({
 });
 record.langs = [...LANGS];
 record.same = ['fact:name', 'fact:skills-cad', 'fact:skills-testing', 'fact:skills-software', 'fact:cert-solidworks', 'fact:cert-gdt'];
-record.jobTypes = ['Hardware design', 'Medical devices', 'Prototyping', 'Manufacturing engineering'];
+// two tag-only job types (the old form) and two bundles
+record.jobTypes = ['Hardware design', 'Medical devices',
+  { id: 'Prototyping', label: 'Prototyping', tags: ['Prototyping', 'fabrication'] },
+  { id: 'Manufacturing engineering', label: 'Manufacturing engineering', tags: ['Manufacturing engineering', 'manufacturing'] }];
 record.requireSource = false;
 
 // saved resumes. Off bullets are written twice: as the printed `highlights`

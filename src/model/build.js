@@ -100,10 +100,10 @@ export function setHeader(model, { name = '', label = '', email = '', phone = ''
   b.location = { ...(b.location ?? {}), city, ...(countryCode ? { countryCode } : {}) };
   b.display ??= {};
   for (const id of ['name', 'tagline', 'contact']) dropFact(model, id);
-  addFact(model, 'name', { text: name || t('fact.yourName'), summary: t('fact.fullName'), tags: ['identity'], also: alsoIn(lang, name) });
-  addFact(model, 'tagline', { text: label || ' ', summary: t('fact.tagline'), tags: ['identity'], also: alsoIn(lang, label) });
+  addFact(model, 'name', { text: name || t('fact.yourName'), summary: t('fact.fullName'), tags: [], also: alsoIn(lang, name) });
+  addFact(model, 'tagline', { text: label || ' ', summary: t('fact.tagline'), tags: [], also: alsoIn(lang, label) });
   const c = contactText({ city, email, phone, url, rights });
-  addFact(model, 'contact', { text: c.text || ' ', summary: t('fact.contact'), tags: ['identity'], links: c.links, separator: SEP, also: alsoIn(lang, c.text) });
+  addFact(model, 'contact', { text: c.text || ' ', summary: t('fact.contact'), tags: [], links: c.links, separator: SEP, also: alsoIn(lang, c.text) });
   b.display = { name: 'name', label: 'tagline', contact: 'contact' };
   model.meta = { ...(model.meta ?? {}), owner: name };
   ensureSection(model, { id: 'header', title: null, kind: 'header', content: { basics: true } });
@@ -131,8 +131,8 @@ export function addJob(model, { position = '', name = '', location = '', startDa
   const taken = ids(model);
   const wid = id && !taken.has(id) ? id : slug(name || position, taken, 'job');
   const meta = metaLineOf({ name, startDate, endDate, location });
-  addFact(model, `${wid}-position`, { text: position || name || t('fact.jobTitle'), summary: t('fact.jobTitle'), tags: ['work-history'], work: wid, also: alsoIn(lang, position || name) });
-  addFact(model, `${wid}-meta`, { text: meta, summary: t('fact.jobMeta'), tags: ['work-history'], work: wid, also: alsoIn(lang, metaLineOf({ name, startDate, endDate, location }, lang)) });
+  addFact(model, `${wid}-position`, { text: position || name || t('fact.jobTitle'), summary: t('fact.jobTitle'), tags: [], work: wid, also: alsoIn(lang, position || name) });
+  addFact(model, `${wid}-meta`, { text: meta, summary: t('fact.jobMeta'), tags: [], work: wid, also: alsoIn(lang, metaLineOf({ name, startDate, endDate, location }, lang)) });
   const hs = [];
   for (const b of bullets.map(x => String(x ?? '').trim()).filter(Boolean)){
     const fid = slug(`${wid}-${claimOf(b).split(' ').slice(0, 3).join(' ')}`, ids(model), `${wid}-claim`);
@@ -170,9 +170,9 @@ export function setEducation(model, { institution = '', studyType = '', area = '
     display: { studyType: 'edu-degree', institution: 'edu-school', meta: 'edu-meta' } }];
   const degree = [studyType, area].filter(Boolean).join(' ') || institution;
   const eduMeta = L => [fmtMonth(endDate, L).toUpperCase(), score.toUpperCase()].filter(Boolean).join(' · ');
-  addFact(model, 'edu-degree', { text: degree, summary: t('fact.degree'), tags: ['education'], also: alsoIn(lang, degree) });
-  addFact(model, 'edu-school', { text: institution || ' ', summary: t('fact.institution'), tags: ['education'], also: alsoIn(lang, institution) });
-  addFact(model, 'edu-meta', { text: eduMeta('en') || ' ', summary: t('fact.eduMeta'), tags: ['education'], also: alsoIn(lang, eduMeta(lang)) });
+  addFact(model, 'edu-degree', { text: degree, summary: t('fact.degree'), tags: [], also: alsoIn(lang, degree) });
+  addFact(model, 'edu-school', { text: institution || ' ', summary: t('fact.institution'), tags: [], also: alsoIn(lang, institution) });
+  addFact(model, 'edu-meta', { text: eduMeta('en') || ' ', summary: t('fact.eduMeta'), tags: [], also: alsoIn(lang, eduMeta(lang)) });
   ensureSection(model, { id: 'education', title: 'Education', kind: 'item', content: { title: 'edu-degree', subtitle: 'edu-school', meta: 'edu-meta', titleSeparator: TITLE_SEP } });
   return 'edu';
 }
@@ -198,7 +198,7 @@ export function setLanguages(model, rows){
   for (const l of model.languages ?? []) dropFact(model, l.id);
   const taken = ids(model);
   model.languages = list.map(r => ({ id: slug(`lang-${r.language}`, taken, 'lang'), language: r.language, fluency: r.fluency ?? '' }));
-  for (const l of model.languages) addFact(model, l.id, { text: l.fluency || ' ', term: l.language, summary: `${l.language}${l.fluency ? `, ${l.fluency}` : ''}`, tags: ['languages'] });
+  for (const l of model.languages) addFact(model, l.id, { text: l.fluency || ' ', term: l.language, summary: `${l.language}${l.fluency ? `, ${l.fluency}` : ''}`, tags: [] });
   const sec = ensureSection(model, { id: 'languages', title: 'Languages', kind: 'pairs', content: { pairs: [] } });
   sec.content.pairs = model.languages.map(l => l.id);
   return model.languages.map(l => l.id);
@@ -211,7 +211,7 @@ export function setInterests(model, names){
   for (const i of model.interests ?? []) dropFact(model, i.id);
   const taken = ids(model);
   model.interests = list.map(({ id: _id, ...x }) => ({ id: slug(`interest-${x.name}`, taken, 'interest'), ...x }));
-  for (const i of model.interests) addFact(model, i.id, { text: i.name, summary: i.name, tags: ['interests'] });
+  for (const i of model.interests) addFact(model, i.id, { text: i.name, summary: i.name, tags: [] });
   const sec = ensureSection(model, { id: 'interests', title: 'Interests', kind: 'runs', content: { items: [], separator: RUN_SEP } });
   sec.content.items = model.interests.map(i => i.id);
   return model.interests.map(i => i.id);
@@ -223,8 +223,8 @@ export function setPublication(model, { name = '', publisher = '', releaseDate =
   for (const id of ['pub-title', 'pub-meta']) dropFact(model, id);
   model.publications = [{ id: 'pub', name, publisher: publisher || '—', releaseDate: ym(releaseDate) || String(new Date().getFullYear()),
     ...(url ? { url } : {}), ...(summary ? { summary } : {}), display: { name: 'pub-title', meta: 'pub-meta' } }];
-  addFact(model, 'pub-title', { text: name, summary: t('fact.pubTitle'), tags: ['publication'] });
-  addFact(model, 'pub-meta', { text: [publisher, summary, String(releaseDate ?? '').slice(0, 4)].filter(Boolean).join(' · ').toUpperCase() || ' ', summary: t('fact.pubMeta'), tags: ['publication'] });
+  addFact(model, 'pub-title', { text: name, summary: t('fact.pubTitle'), tags: [] });
+  addFact(model, 'pub-meta', { text: [publisher, summary, String(releaseDate ?? '').slice(0, 4)].filter(Boolean).join(' · ').toUpperCase() || ' ', summary: t('fact.pubMeta'), tags: [] });
   ensureSection(model, { id: 'publication', title: 'Publication', kind: 'item', content: { title: 'pub-title', meta: 'pub-meta' } });
   return 'pub';
 }

@@ -21,9 +21,10 @@ const section = t => console.log(`\n— ${t}`);
 const vals = x => x;
 
 // Added to the Resume on purpose since the snapshot, so taken out before comparing: 🗑 in a claim's
-// header, "+ Add something you did" under a job's claims, and "Esc goes back" in the keys line.
+// header, "+ Add something you did" under a job's claims, "Esc goes back" in the keys line, and Archive beside 🗑.
 const M10_ADDS = html => String(html)
   .replace(/<button class="ghost sm" data-act="delete-claim"[^>]*>🗑<\/button>/g, '')
+  .replace(/<button class="ghost sm" data-act="(?:un)?archive-claim"[^>]*>[^<]*<\/button>/g, '')
   .replace(', <kbd>Esc</kbd> goes back', '')
   .replace(/\n\s*<label class="field addclaim">[\s\S]*?<div class="btns"><button class="sm addc"[^>]*>[^<]*<\/button><\/div>/g, '');
 
@@ -106,7 +107,7 @@ section('the Resume\'s markup is what it was');
 {
   const now = await resumeSnapshot();
   if (WRITE){
-    fs.writeFileSync(SNAP, JSON.stringify(now, null, 1) + '\n');
+    fs.writeFileSync(SNAP, JSON.stringify(Object.fromEntries(Object.entries(now).map(([k, v]) => [k, M10_ADDS(v)])), null, 1) + '\n');     // the later additions stay out, as they are when comparing
     console.log(`wrote ${Object.keys(now).length} views to checks/fixtures/edit-markup.snapshot.json`);
   } else {
     const was = JSON.parse(fs.readFileSync(SNAP, 'utf8'));

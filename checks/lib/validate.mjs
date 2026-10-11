@@ -325,7 +325,22 @@ export function validate(input, recipe = null){
       }
     }
   }
-  for (const k of ['same', 'jobTypes']){
+  if (data.jobTypes !== undefined){
+    // a string (the old form: one tag) or { id, label, tags }
+    if (!Array.isArray(data.jobTypes)) err('jobTypes', 'expected an array');
+    else {
+      const ids = [];
+      data.jobTypes.forEach((j, n) => {
+        if (isStr(j)){ ids.push(j); return; }
+        if (!j || typeof j !== 'object' || Array.isArray(j) || !isStr(j.id)){ err(`jobTypes[${n}]`, 'expected a non-empty string or { id, label, tags }'); return; }
+        ids.push(j.id);
+        if (j.label !== undefined && !isStr(j.label)) err(`jobTypes[${n}].label`, 'expected a non-empty string');
+        if (!Array.isArray(j.tags) || j.tags.some(x => !isStr(x))) err(`jobTypes[${n}].tags`, 'expected an array of non-empty strings');
+      });
+      if (new Set(ids).size !== ids.length) warn('jobTypes', 'has duplicates');
+    }
+  }
+  for (const k of ['same']){
     const list = data[k];
     if (list === undefined) continue;
     if (!Array.isArray(list) || list.some(x => !isStr(x))) err(k, 'expected an array of non-empty strings');
