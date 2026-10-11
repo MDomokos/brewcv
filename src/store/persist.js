@@ -9,7 +9,7 @@ import { assetRefs } from './store.js';
 // The one file you save and open yourself. Never translated.
 export const SAVE_FILE_NAME = 'brewcv.json';
 // package.json's version, which checks/version-check.mjs keeps equal to it.
-export const APP_VERSION = '0.9.0';
+export const APP_VERSION = '0.9.1';
 
 export async function sha256(text){
   const buf = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));

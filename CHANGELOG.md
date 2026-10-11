@@ -6,6 +6,19 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ## Unreleased
 
+## 0.9.1 - 2026-10-12
+
+### Added
+- **Save to file.** One button saves the record and every saved resume as one file, `brewcv.json`, and opening that file anywhere brings everything back. The page never asks for file access: on a computer the browser downloads it (turn on "Ask where to save each file before downloading" in its download settings to save over the same file each time, which the app says once), and on a phone it opens the share sheet. The header says how many changes are not in a file yet, or how long ago you saved one. Ctrl+S or Cmd+S saves it from any view. The file is the same format as the old backup, so old backups still open, and it now carries an id for your record and the app version.
+- **Opening a file is safe.** If this browser has changes that are not in any file, or the file is older than the one you saved last, the app says so and offers Save them first, Merge or Replace anyway. A file from a different record offers Merge or Replace. A file you just saved says it is already up to date.
+- **`scripts/onefile.mjs`** packs a data folder into the one file and unpacks it, so the command-line tools and coding agents can work on a folder while you keep one file. It never overwrites without `--force`.
+
+### Changed
+- **Back up is now Save to file**, in the menu. Ctrl+S saves the file; the Save button, which takes a snapshot of the resume, is unchanged.
+- **Text edited outside BrewCV in the one file** is offered as versions, the same as in a record file.
+- **A linked folder is never written over a file that changed outside the app.** The header says so and offers Compare or Overwrite.
+- **Copies a sync tool leaves after a conflict** (Syncthing, Dropbox, iCloud) are skipped when a linked folder is read, and named.
+
 ## 0.9.0 - 2026-10-11
 
 ### Added
