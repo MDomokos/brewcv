@@ -87,7 +87,6 @@ section('pre-flight');
   ok('newer wording not reviewed', X.preflight({ model, recipe: r, fills: fit, newer: 2 }).some(c => c.key === 'newer'));
   ok('a photo on Letter', X.preflight({ model, recipe: { ...r, format: 'us-letter', photo: { show: true, shape: 'rect' } }, fills: fit }).some(c => c.key === 'photo'));
   ok('a photo switched on with no photo is a problem', X.preflight({ model, recipe: { ...r, photo: { show: true, shape: 'rect' } }, fills: fit }).some(c => c.key === 'photo-missing' && c.level === 'bad'));
-  ok('unsaved changes', X.preflight({ model, recipe: r, fills: fit, dirty: true }).some(c => c.key === 'dirty'));
   ok('a file name from company, role and name', X.exportName(r, model, 'pdf') === `${r.company} - ${r.role} - ${model.basics.name}.pdf`);
 }
 

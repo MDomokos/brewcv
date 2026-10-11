@@ -28,7 +28,7 @@ src/model/                 pure, tested in Node:
   schema.js                  resume-data/4: detect, load, save, migrate, saved-resume files
   resume.js                  the selection rule, resolve(), the tailoring edits
   record.js                  version numbers, save over / as, delete, the word diff
-  resumes.js                 saved resumes: save, open, frozen text, compare, new
+  resumes.js                 saved resumes: autosave (settle), snapshots and sends, open, frozen text, compare, new, duplicate
   focus.js                   tags and job-type focus
   lang.js                    languages: the ten, their paper, missing texts, switching, languages in use
   entries.js                 work, projects and custom kinds as one list of printable entries
@@ -40,7 +40,7 @@ src/store/                 store.js (state + undo) · persist.js (autosave, fold
 src/i18n/                  index.js (t, plurals, fallback to English) · en.js · nine machine-written
                            catalogues, each marked NEEDS A NATIVE REVIEW
 src/ui/                    the Workbench: shell, sheet (the iframe), layout, select, edit,
-                           resumes, files, export, design, onboarding, career, settings,
+                           resumes, switcher, files, export, design, onboarding, career, settings,
                            langmenu, actual size; parts.js, the pure string parts (crumb, rows,
                            version list, editor, write-in) that edit and career share
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume
@@ -66,7 +66,7 @@ node checks/store-check.mjs           undo, autosave, folder mirror, backup, che
 node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, labels, photo, fields
 node checks/shell-check.mjs           layout maths, click targets, Esc, folder read back
 node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
-node checks/resumes-check.mjs         save, frozen text and newer wording, new, compare, folder
+node checks/resumes-check.mjs         autosave, snapshots and sends, frozen text and newer wording, new, duplicate, compare, folder
 node checks/focus-check.mjs           tags, plan = apply, Keep untouched, no job emptied
 node checks/lang-check.mjs            the ten languages, missing texts, switching, A4 formats
 node checks/i18n-check.mjs            every catalogue: keys, placeholders, plurals, markup, the review marker

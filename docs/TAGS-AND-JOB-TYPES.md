@@ -42,7 +42,7 @@ What Focus does and does not do:
 - It leaves archived claims and archived jobs exactly as the resume has them.
 - Click a plain tag instead of a job type to focus on that one tag.
 
-When you save a resume, you can give it a job type. The Resumes list groups saved resumes by job type, and **New resume** has a **From a job type** list: **Latest of this type** starts from the newest resume saved for it, and **Bullets tagged …** starts fresh and applies the job type.
+A resume can have a job type. The resume switcher (the resume's name in the header) groups resumes by job type, and **+ New resume** asks for one. Under **Start from**, **The last … resume** copies the newest resume with that job type, and **Bullets for …** starts fresh and applies the job type.
 
 ## Archive what you no longer use
 

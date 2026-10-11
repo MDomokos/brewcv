@@ -163,5 +163,43 @@ section('job types that are bundles');
   ok('the old string form is still an add', ot.length === 1 && ot[0].b === 'Old style');
 }
 
+section('snapshots: a file whose resume has snapshots mine does not');
+{
+  const RS = await import('../src/model/resumes.js');
+  const frozenOf = {};
+  names.forEach(n => { frozenOf[n] = S.loadResume(read(`data/example-resumes/${n}`), mine).frozen; });
+  const mk = () => { const st = { record: clone(mine), resumes: clone(resumes), frozen: clone(frozenOf), cur: null, openId: null }; RS.openSaved(st, names[0]); return st; };
+  const a = mk(), b = mk();
+  RS.takeSnapshot(b, { company: 'Medtech Lisboa', role: 'Engineer', date: '2026-10-02' }, { at: '2026-10-02T09:00:00.000Z' });
+  RS.takeSnapshot(b, { company: 'Contoso', role: 'Engineer', date: '2026-10-03' });
+  const items = D.diffRecords(a.record, b.record, { fromResumes: a.resumes, toResumes: b.resumes }).filter(x => /^Snapshot of/.test(x.what));
+  ok('the snapshot is an add, ticked, naming the sends', items.length === 1 && items[0].kind === 'add' && items[0].on && /Medtech Lisboa/.test(items[0].b) && /Contoso/.test(items[0].b));
+  const d = { record: clone(a.record), resumes: clone(a.resumes), frozen: clone(a.frozen) };
+  D.applyItems(d, items);
+  const got = RS.snapshotsOf(d.resumes.find(r => r.id === names[0]));
+  ok('applying it gives my resume the snapshot, with both sends', got.length === 1 && got[0].sends.length === 2);
+  ok('…and the same file merged again finds nothing', D.diffRecords(d.record, b.record, { fromResumes: d.resumes, toResumes: b.resumes }).every(x => !/^Snapshot of/.test(x.name ?? x.what)));
+  // a snapshot both have, with one more send in theirs
+  const c = mk();
+  RS.takeSnapshot(c, { company: 'Medtech Lisboa', role: 'Engineer', date: '2026-10-02' }, { at: '2026-10-02T09:00:00.000Z' });
+  RS.takeSnapshot(c, { company: 'Fabrikam', date: '2026-10-09' });
+  const more = D.diffRecords(d.record, c.record, { fromResumes: d.resumes, toResumes: c.resumes }).filter(x => /^Snapshot of/.test(x.what));
+  ok('a send only theirs has is an add of just that send', more.length === 1 && /Fabrikam/.test(more[0].b) && !/Medtech/.test(more[0].b));
+  D.applyItems(d, more);
+  const merged = RS.snapshotsOf(d.resumes.find(r => r.id === names[0]));
+  ok('…it goes onto the same snapshot, not a new one', merged.length === 1 && merged[0].sends.length === 3);
+  // mine has snapshots theirs lacks: nothing to take
+  const none = D.diffRecords(b.record, a.record, { fromResumes: b.resumes, toResumes: a.resumes }).filter(x => /^Snapshot of/.test(x.what));
+  ok('snapshots only mine has are left alone', none.length === 0);
+  // a resume only theirs has comes with its snapshots
+  const lone = mk();
+  RS.newFrom(lone, { start: 'all', name: 'Only theirs' });
+  RS.takeSnapshot(lone, { company: 'Z' });
+  const itemsNew = D.diffRecords(a.record, lone.record, { fromResumes: a.resumes, toResumes: lone.resumes }).filter(x => x.what === 'Saved resume');
+  const d2 = { record: clone(a.record), resumes: clone(a.resumes), frozen: clone(a.frozen) };
+  D.applyItems(d2, itemsNew, lone.frozen);
+  ok('a whole resume only theirs has arrives with its snapshots', RS.snapshotsOf(d2.resumes.find(r => r.name === 'Only theirs')).length === 1);
+}
+
 console.log(failed ? `\n${failed} diff check(s) FAILED` : '\nall diff checks passed');
 process.exit(failed ? 1 : 0);

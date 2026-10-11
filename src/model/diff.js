@@ -3,7 +3,7 @@
 
 import { t } from '../i18n/index.js';
 import { wordDiff, addVersion, versionsIn } from './record.js';
-import { resumeLabel, uniqueId } from './resumes.js';
+import { resumeLabel, uniqueId, snapshotsOf, printedKey, sameSend, sendLabel } from './resumes.js';
 import { slug } from './build.js';
 import { jobTypesOf } from './focus.js';
 
@@ -176,7 +176,31 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
   for (const k of to.same ?? []) if (!(from.same ?? []).includes(k) && F.facts.has(k.replace(/^fact:/, '')))
     items.push({ kind: 'add', what: t('diff.same'), b: k.replace(/^\w+:/, ''), on: true, apply: d => { d.record.same = [...new Set([...(d.record.same ?? []), k])]; } });
   for (const r of toResumes){
-    if (fromResumes.some(x => resumeLabel(x) === resumeLabel(r))) continue;
+    const mine = fromResumes.find(x => resumeLabel(x) === resumeLabel(r));
+    if (mine){
+      // a resume both have: the snapshots (and sends) only theirs has
+      for (const s of snapshotsOf(r)){
+        const key = printedKey(s.recipe, s.body);
+        const have = snapshotsOf(mine).find(x => printedKey(x.recipe, x.body) === key);
+        const sends = have ? s.sends.filter(e => !have.sends.some(h => sameSend(h, e))) : s.sends;
+        if (have && !sends.length) continue;
+        items.push({ kind: 'add', what: t('ux1.diffSnapshot', { name: resumeLabel(r) }), on: true,
+          b: sends.map(e => [sendLabel(e) || t('ux1.noRecipient'), e.date].filter(Boolean).join(' · ')).join('; ') || t('ux1.snapshotWord'),
+          apply: d => {
+            const m = (d.resumes ?? []).find(x => resumeLabel(x) === resumeLabel(r));
+            if (!m) return;
+            const snaps = [...(m.snapshots ?? [])];
+            const at = snaps.findIndex(x => printedKey(x.recipe, x.body) === key);
+            if (at >= 0) snaps[at] = { ...snaps[at], sends: [...snaps[at].sends, ...sends.filter(e => !snaps[at].sends.some(h => sameSend(h, e)))] };
+            else {
+              const n = 1 + Math.max(0, ...snaps.map(x => parseInt(String(x.id).replace(/^\D+/, ''), 10) || 0));
+              snaps.push({ ...clone(s), id: `s${n}` });
+            }
+            m.snapshots = snaps;
+          } });
+      }
+      continue;
+    }
     items.push({ kind: 'add', what: t('diff.savedResume'), b: `${resumeLabel(r)}${r.jobType ? ` · ${r.jobType}` : ''}`, on: true,
       apply: (d, frozen) => {
         if ((d.resumes ?? []).some(x => resumeLabel(x) === resumeLabel(r))) return;

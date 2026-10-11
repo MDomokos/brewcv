@@ -138,6 +138,9 @@ export function makeBackup(state, { saved = new Date().toISOString(), checkpoint
   };
 }
 
+// The open resume's working copy: the saved one without its snapshots, which only the saved one keeps.
+const workingCopy = r => { if (!r) return null; const c = structuredClone(r); delete c.snapshots; return c; };
+
 // recipes/ may hold v4 resume files and v3 recipes alike.
 export async function readFolder(folder){
   const text = await folder.read('resume-data.json');
@@ -153,7 +156,7 @@ export async function readFolder(folder){
     }
     catch (e){ warnings.push(`recipes/${name}: ${e.message}`); }
   }
-  return { state: { record: model, resumes, frozen, cur: resumes[0] ? structuredClone(resumes[0]) : null, openId: resumes[0]?.id ?? null }, warnings };
+  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings };
 }
 
 export function readBackup(obj){
@@ -166,7 +169,7 @@ export function readBackup(obj){
     resumes.push({ ...got.recipe, id });
     if (got.frozen) frozen[id] = got.frozen;
   }
-  return { state: { record: model, resumes, frozen, cur: resumes[0] ? structuredClone(resumes[0]) : null, openId: resumes[0]?.id ?? null }, warnings };
+  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings };
 }
 
 function uniqueName(list, recipe){
@@ -223,6 +226,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
   }
 
   const unsub = store.subscribe(() => {
+    if (status !== 'pending') setStatus('pending');     // changed, not yet written: the header says Saving…
     clearTimer(timer);
     timer = setTimer(saveNow, debounceMs);
   });

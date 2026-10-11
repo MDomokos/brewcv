@@ -76,7 +76,6 @@ const missingBar = () => missBar({ lang: lang(), list: lang() === DEFAULT_LANG ?
 
 function homeView(){
   const list = T.sectionList(rec(), cur());
-  const resumes = C.store.state.resumes ?? [];
   const manual = Array.isArray(cur().pages);
   return `${C.newerBanner()}${missingBar()}
     <p class="lead">${h('edit.lead')}</p>
@@ -89,9 +88,6 @@ function homeView(){
         ${s.fixed ? `<span class="muted tiny">${h('edit.alwaysFirst')}</span>` : sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, s.on)}
       </div>`).join('')}</div>
     <p class="note">${h(manual ? 'edit.dragManual' : 'edit.drag')} ${h('edit.keys')}</p>
-    <span class="lbl">${h('edit.savedResumes')}</span>
-    <div class="list">${resumes.slice(0, 6).map(r => `<button class="item ${C.store.state.openId === r.id ? 'is-cur' : ''}" data-act="r-open" data-id="${esc(r.id)}"><span>${esc(C.resumeName(r))}</span><span class="muted small">${esc(r.jobType ?? '')}</span></button>`).join('') || `<p class="muted small">${h('edit.noneSaved')}</p>`}</div>
-    ${resumes.length > 6 ? `<a class="newv" data-act="goto" data-v="resumes">${h('edit.allResumes', { n: resumes.length })}</a>` : `<a class="newv" data-act="goto" data-v="new">${h('edit.newResume')}</a>`}
     <p class="muted tiny privacy">${h('body.privacy')}</p>`;
 }
 
@@ -131,7 +127,7 @@ function sectionView(s){
     <p class="muted small">${h('edit.sectionId', { id: s.id, kind: sec.kind })}${own ? ` · <a data-act="label-reset">${h('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) })}</a> · <a data-act="label-all">${h('edit.labelAll')}</a>` : ''}</p>`}
     ${me && !me.fixed ? `<div class="ctlrow">${sw(`data-secon="${esc(s.id)}"`, me.on, h('edit.showHere'))}</div>
       <span class="lbl">${h('edit.position', { at: at + 1, n: movable.length })}</span>
-      <div class="btns"><button class="sm" data-act="sec-move" data-d="-1" ${at <= 0 ? 'disabled' : ''}>${h('edit.moveUp')}</button><button class="sm" data-act="sec-move" data-d="1" ${at >= movable.length - 1 ? 'disabled' : ''}>${h('edit.moveDown')}</button></div>`
+      <p class="note">${h('ux1.moveKeys')}</p>`
       : `<p class="muted small">${isHeader ? h('edit.headerFirst') : h('edit.summaryFollows')}</p>`}
     ${inner}`;
 }
@@ -436,12 +432,6 @@ async function act(a, tg){
       setTimeout(() => $('#new-claim')?.focus(), 30);
       return true;
     }
-    case 'sec-move': {
-      let r;
-      commit(d => { r = T.stepSection(d.record, d.cur, sel.id, Number(tg.dataset.d)); }, t('undo.moveSection'));
-      if (r?.moved){ C.flash(sel.id); if (r.auto) C.toast(autoNote(r).trim()); }
-      return true;
-    }
     case 'write-in': {
       const ta = $('#ed-new'), text = ta?.value.trim();
       if (!text){ C.toast(t('toast.writeItFirst'), 'warn'); ta?.focus(); return true; }
@@ -510,7 +500,7 @@ function bind(body){
       commit(d => { const v = d.record.variants.find(x => x.id === vid); if (v && !(v.tags ?? []).includes(tag)) v.tags = [...(v.tags ?? []), tag]; }, tr('undo.addTag'));
       return;
     }
-    if (t.id === 'new-claim' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); body.querySelector('[data-act=add-claim]')?.click(); }
+    if (t.id === 'new-claim' && e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); body.querySelector('[data-act=add-claim]')?.click(); }
     if (t.id === 'sec-label' && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
     if (t.id === 'sec-label' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); t.value = T.labelOf(rec(), cur(), t.dataset.sid, lang()) ?? ''; t.blur(); }
     if (t.id === 'ed'){
@@ -583,8 +573,21 @@ function rename(id, value){
     same ? t('toast.headingReset') : t('toast.renamedHere', { lang: LANG_NAME[L] ?? L, id }));
 }
 
+// Alt+↑ / Alt+↓ move the selected section.
+function moveSelected(d){
+  const sel = C.ui.sel;
+  if (sel.kind !== 'section') return false;
+  let r;
+  commit(x => { r = T.stepSection(x.record, x.cur, sel.id, d); }, t('undo.moveSection'));
+  if (r?.moved){ C.flash(sel.id); if (r.auto) C.toast(autoNote(r).trim()); }
+  return true;
+}
+
 function key(e){
   const plain = !e.ctrlKey && !e.metaKey && !e.altKey;
+  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && ws() !== 'career' && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && C.ui.sel.kind === 'section'){
+    e.preventDefault(); return moveSelected(e.key === 'ArrowDown' ? 1 : -1);
+  }
   if (ws() === 'career'){
     if (!plain || E.edit || !fid() || !R.versionsIn(work(), fid(), lang()).length) return false;
     if (e.key === 'Enter'){ e.preventDefault(); startEdit('edit', pickOf(fid())?.id); return true; }

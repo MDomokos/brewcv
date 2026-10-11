@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
-const PORT = 8131;
+const PORT = Number(process.env.PORT ?? 8131);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((req, res) => {
@@ -47,6 +47,13 @@ async function open(page, q){
 const frameDoc = (page, fn, arg) => page.evaluate(([src, a]) => (0, eval)(src)(document.querySelector('#sheet iframe').contentDocument, a), [fn.toString(), arg]);
 const firstBullet = page => frameDoc(page, d => d.querySelector('.bullets li')?.textContent ?? '');
 const settle = page => page.waitForTimeout(500);
+// Open a saved resume the way a person does: through the switcher in the header.
+async function openByName(page, text){
+  if (!(await page.isVisible('#switcher'))) await page.click('#docname-btn');
+  await page.waitForSelector('#switcher .sopt');
+  await page.click(`#switcher .sopt:has-text("${text}")`);
+  await page.waitForTimeout(1200);
+}
 const rect = (page, s) => page.$eval(s, el => el.getBoundingClientRect().toJSON());
 
 if (want('layout: the sheet at full height, one column of cards beside it')) for (const [w, h] of [[1536, 864], [1440, 960], [1280, 800]]){
@@ -120,7 +127,7 @@ if (want('pages, Fit, the Hungarian resume')) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const bad = await open(page);
-  await page.click('.item[data-act=r-open]:has-text("Medtech")'); await page.waitForTimeout(1500);
+  await openByName(page, 'Medtech'); await page.waitForTimeout(300);
   const pages = await frameDoc(page, d => d.querySelectorAll('.document > .page').length);
   ok('a two-page resume is paginated into two pages', pages === 2, `${pages}`);
   ok('at 1280×800 the pages stack and scroll, with arrows', (await page.textContent('.pnav')).includes('1 / 2') && (await page.evaluate(() => document.body.dataset.stack)) === 'true');
@@ -131,8 +138,7 @@ if (want('pages, Fit, the Hungarian resume')) {
   const fills = await page.evaluate(() => window.__wb.ui.fills.map(p => p.overflow));
   ok('no page before the last overflows', fills.slice(0, -1).every(o => !(o > 0)));
 
-  await page.click('.item[data-act=r-open]:has-text("Example Instruments")').catch(() => {});
-  await page.click('.item[data-act=r-open]:has-text(\"Example Instruments\")'); await page.waitForTimeout(1200);
+  await openByName(page, 'Example Instruments');
   const undoBefore = await page.evaluate(() => window.__wb.store.history.undo);
   await page.click('[data-act=fit]');
   await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 60000 });
@@ -145,7 +151,7 @@ if (want('pages, Fit, the Hungarian resume')) {
     ok('Ctrl+Z undoes a Fit', (await page.evaluate(() => window.__wb.store.history.undo)) === undoBefore);
   } else ok('Fit changed nothing, and said so', true);
 
-  await page.click('.item[data-act=r-open]:has-text(\"Dunamenti\")'); await page.waitForTimeout(1500);
+  await openByName(page, 'Dunamenti'); await page.waitForTimeout(300);
   ok('the Hungarian resume prints its photo placeholder', await frameDoc(page, d => !!d.querySelector('.portrait--missing')));
   ok('and Hungarian tabs', await frameDoc(page, d => /Tapasztalat/i.test(d.body.textContent)));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
@@ -158,7 +164,7 @@ if (want('pages side by side or scrolled')) {
   const page = await ctx.newPage();
   await page.addInitScript(() => { try { localStorage.removeItem('rb-pages'); } catch {} });
   const bad = await open(page);
-  await page.click('.item[data-act=r-open]:has-text("Medtech")'); await page.waitForTimeout(1500);
+  await openByName(page, 'Medtech'); await page.waitForTimeout(300);
   const L = () => page.evaluate(() => ({ stack: document.body.dataset.stack, spread: document.body.dataset.spread, top: document.querySelector('#pages').scrollTop, nav: document.querySelector('.pnav')?.textContent ?? '' }));
   ok('auto at 1280×800: two A4 pages stack', (await L()).stack === 'true');
   const box = await rect(page, '#pages'), col = await rect(page, '#col');
@@ -475,7 +481,7 @@ if (want('projects')) {
   await page.addInitScript(() => { try { localStorage.setItem('rb-career-tips', 'done'); } catch {} });
   const bad = await open(page);
   const st = () => page.evaluate(() => window.__wb.store.state);
-  await page.click('.item[data-act=r-open]:has-text("Medtech")'); await page.waitForTimeout(1500);
+  await openByName(page, 'Medtech'); await page.waitForTimeout(300);
   const before = await frameDoc(page, d => d.body.textContent);
   await page.keyboard.press('c'); await page.waitForTimeout(800);
   await page.click('#c-add'); await settle(page);
@@ -664,7 +670,7 @@ if (want('the Edit view')) {
   const asLabel = await page.textContent('[data-act=ed-saveas]');
   await page.click('[data-act=ed-saveas]'); await settle(page);
   const sib = (await st()).record.variants.find(v => v.text === 'A sibling version.');
-  ok(`${asLabel.trim()} makes a sibling with one dot`, !!sib && /^\d+\.\d+$/.test(sib.n) && asLabel.includes(sib.n));
+  ok(`${asLabel.trim()} makes a sibling with one dot`, !!sib && /^\d+\.\d+$/.test(sib.n) && asLabel.trim() === 'Save as new version');
   ok('and this resume uses it', (await st()).cur.picks[fact] === sib.id && (await fb()) === 'A sibling version.');
   ok('the old version is still there', (await st()).record.variants.length === nBefore + 1);
 
@@ -727,9 +733,10 @@ if (want('the Edit view')) {
      && await frameDoc(page, d => d.querySelector('.band[data-section="patent"] .tab').textContent === 'Invention'));
   await sheet.locator('.band[data-section="skills"] .tab').first().click(); await settle(page);
   const order = async () => (await page.evaluate(() => [...document.querySelectorAll('.srow:not(.fixed)')].map(r => r.dataset.sid)));
-  await page.click('[data-act=sec-move][data-d="1"]'); await settle(page);
+  ok('there are no Move up / Move down buttons', (await page.$$('[data-act=sec-move]')).length === 0);
+  await page.keyboard.press('Alt+ArrowDown'); await settle(page);
   const bands = await frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')));
-  ok('Move down moves it on the page', bands.indexOf('skills') > bands.indexOf('patent'), bands.join());
+  ok('Alt+↓ moves it on the page', bands.indexOf('skills') > bands.indexOf('patent'), bands.join());
   await page.click('#body .ctlrow input[data-secon]'); await settle(page);
   ok('Show on this resume off takes the section off the page', !(await frameDoc(page, d => !!d.querySelector('.band[data-section="skills"]'))));
   await undoTo(base);
@@ -754,61 +761,176 @@ if (want('saved resumes')) {
   const bad = await open(page);
   page.on('dialog', d => d.accept());
   const st = () => page.evaluate(() => window.__wb.store.state);
-  ok('the example opens clean: Save is disabled', await page.isDisabled('#save'));
+  const saved = r => r.openId && r.resumes.find(x => x.id === r.openId);
+  await page.waitForFunction(() => /Saved on this device/.test(document.querySelector('#savestate')?.textContent ?? ''), null, { timeout: 5000 });
+  ok('the header always says where the work is: “Saved on this device”', /✓ Saved on this device/.test(await page.textContent('#savestate')));
+  ok('Save is always there, outline not filled', !(await page.isDisabled('#save')) && !(await page.getAttribute('#save', 'class')).includes('primary'));
+  ok('there is no Resumes tab', (await page.$$('.tools [data-v=resumes]')).length === 0 && !/Resumes/.test(await page.textContent('.tools')));
+  ok('the menu is the short one', await (async () => { await page.click('[data-act=menu]'); const t = await page.textContent('.menu'); await page.keyboard.press('Escape'); await page.click('[data-act=menu]').catch(() => {}); return !/Saved resumes|New resume|Restore a backup|Languages you use/.test(t) && /Open or import/.test(t) && /Back up/.test(t) && /History and checkpoints/.test(t) && /Settings/.test(t) && /Privacy/.test(t) && /Source code/.test(t) && /Load the example/.test(t) && /Start over/.test(t); })());
+  await page.mouse.click(4, 400); await settle(page);
+
+  // the switcher
   await page.keyboard.press('Control+o'); await settle(page);
-  ok('Ctrl+O lists the saved resumes, grouped by job type', (await page.getAttribute('#body', 'data-view')) === 'resumes' && (await page.$$('.rrow')).length === 14);
+  ok('Ctrl+O opens the switcher with the search box focused', await page.isVisible('#switcher') && (await page.evaluate(() => document.activeElement?.id)) === 'sw-q');
+  const uniqueRows = () => page.evaluate(() => new Set([...document.querySelectorAll('#switcher .swrow')].map(r => r.dataset.rid)).size);
+  ok('it lists every resume, grouped by job type', (await uniqueRows()) === 14 && (await page.$$('#switcher .swlist .lbl')).length >= 3);
+  ok('it is a listbox of options for a screen reader', (await page.getAttribute('#sw-list', 'role')) === 'listbox' && (await page.$$('#switcher [role=option]')).length >= 14 && (await page.getAttribute('#switcher', 'role')) === 'dialog');
   const before = await firstBullet(page);
-  await page.hover('.rrow:has-text("Medtech")'); await page.waitForTimeout(1500);
-  ok('hovering one shows it on the sheet', (await firstBullet(page)) !== before && (await st()).openId.startsWith('Example'));
-  await page.mouse.move(4, 4); await page.waitForTimeout(1200);
+  await page.hover('#switcher .sopt:has-text("Medtech")'); await page.waitForTimeout(1500);
+  ok('hovering one shows it on the page', (await firstBullet(page)) !== before && (await st()).openId.startsWith('Example'));
+  await page.mouse.move(700, 400); await page.waitForTimeout(1200);
   ok('and moving away puts the open one back', (await firstBullet(page)) === before);
-  await page.click('.rrow:has-text("Example Instruments") input.pick');
+  await page.keyboard.press('Control+o'); await settle(page);
+  await page.fill('#sw-q', 'medtech'); await settle(page);
+  ok('typing searches', (await uniqueRows()) === 1 && /Medtech/.test(await page.textContent('#switcher .sopt')));
+  await page.fill('#sw-q', ''); await settle(page);
+  await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown');
+  ok('the arrow keys walk the list', await page.evaluate(() => !!document.activeElement?.closest('#switcher') && document.activeElement.id !== 'sw-q'));
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc closes it and gives the focus back', !(await page.isVisible('#switcher')) && (await page.evaluate(() => document.activeElement?.id)) === 'docname-btn');
+  await page.click('#docname-btn'); await settle(page);
+  await page.click('#switcher .sopt:has-text("Medtech")'); await page.waitForTimeout(1200);
+  ok('a click opens it', /Medtech/.test(await page.textContent('#docname')) && !(await page.isVisible('#switcher')));
+  ok('…and the last opened ones come first in the switcher', await (async () => { await page.click('#docname-btn'); await settle(page); const t = await page.textContent('#switcher .swlist .lbl'); await page.keyboard.press('Escape'); return /Recent/.test(t); })());
+
+  // everything autosaves
+  const h0 = await page.evaluate(() => window.__wb.store.history.undo);
+  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+  await page.click('#b-on'); await settle(page);
+  const s0 = await st();
+  ok('a change to the open resume is saved as it happens', JSON.stringify({ ...saved(s0), snapshots: undefined, id: undefined, savedAt: undefined }) === JSON.stringify({ ...s0.cur, snapshots: undefined, id: undefined, savedAt: undefined }) && saved(s0).off?.length > 0);
+  ok('…as one undo step', (await page.evaluate(() => window.__wb.store.history.undo)) === h0 + 1);
+  ok('…and the page never says “Unsaved changes”', !/Unsaved|Not saved/.test(await page.textContent('#savestate')));
+  await page.keyboard.press('Control+z'); await settle(page);
+  ok('undo takes the saved copy back too', !(saved(await st()).off?.length));
+
+  // Save: a snapshot with a send
+  await page.keyboard.press('Control+s'); await settle(page);
+  ok('Ctrl+S asks “Sent to?”, filled in from the resume’s For', (await page.getAttribute('#body', 'data-view')) === 'save' && /Sent to/.test(await page.textContent('#body h2')) && (await page.inputValue('#sv-co')) === (await st()).cur.company && (await page.inputValue('#sv-date')) === new Date().toISOString().slice(0, 10));
+  await page.fill('#sv-co', 'Smoke Test Co'); await page.fill('#sv-role', 'QA Engineer');
+  await page.click('[data-act=sv-do]'); await settle(page);
+  let r = saved(await st());
+  ok('it makes a snapshot with one send', r.snapshots?.length === 1 && r.snapshots[0].sends.length === 1 && r.snapshots[0].sends[0].company === 'Smoke Test Co');
+  await page.click('#save'); await settle(page);
+  ok('Save again with nothing changed says it will add a send', /Nothing printed has changed/.test(await page.textContent('#body')));
+  await page.fill('#sv-co', 'Second Co'); await page.click('[data-act=sv-do]'); await settle(page);
+  r = saved(await st());
+  ok('…and adds it to the same snapshot', r.snapshots.length === 1 && r.snapshots[0].sends.length === 2);
+  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+  await page.click('#b-on'); await settle(page);
+  await page.click('#save'); await settle(page); await page.click('[data-act=sv-do]'); await settle(page);
+  r = saved(await st());
+  ok('after a change, Save makes a second snapshot', r.snapshots.length === 2);
+  await page.click('#docname-btn'); await settle(page);
+  ok('the switcher folds the snapshots under their resume', (await page.$$('#switcher .swrow.is-cur .snapline')).length >= 2 && /Sent to Smoke Test Co/.test(await page.textContent('#switcher .swrow.is-cur')));
+
+  // a snapshot is read-only
+  await page.click('#switcher .swrow.is-cur .snapline >> nth=1'); await settle(page);
+  const bar = await page.textContent('.snapbar');
+  ok('opening a snapshot shows a clear bar', /Snapshot · sent to Smoke Test Co, Second Co/.test(bar) || /Snapshot · sent to/.test(bar), bar);
+  ok('…with Export, Restore as current and Duplicate as new resume', await page.isVisible('[data-act=goto][data-v=export]') && await page.isVisible('[data-act=snap-restore]') && await page.isVisible('[data-act=snap-dup]'));
+  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+  ok('nothing on the page can be edited', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none' && await page.isDisabled('[data-act=fit]') && await page.isDisabled('#save'));
+  const histNow = await page.evaluate(() => window.__wb.store.history.undo);
+  await page.keyboard.press('Enter'); await page.keyboard.press('ArrowDown'); await settle(page);
+  ok('and the keyboard changes nothing', (await page.evaluate(() => window.__wb.store.history.undo)) === histNow);
+  await page.click('[data-act=goto][data-v=export]'); await settle(page);
+  ok('Export is the normal one, and it exports the snapshot', await page.isVisible('[data-act=ex-pdf]') && (await page.$$('[data-act=ex-backup]')).length === 0 && (await page.evaluate(async () => (await window.__wb.export.buildHtml()).length)) > 1000);
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc comes back to the snapshot, Esc again to the resume', await page.isVisible('.snapbar'));
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('…and the bar goes', !(await page.isVisible('.snapbar')) && !(await page.evaluate(() => window.__wb.ui.snap)));
+  await page.click('#docname-btn'); await page.click('#switcher .swrow.is-cur .snapline >> nth=1'); await settle(page);
+  const picksThen = JSON.stringify((await page.evaluate(() => { const s = window.__wb.store.state; return s.resumes.find(x => x.id === s.openId).snapshots[0].recipe.off ?? null; })));
+  await page.click('[data-act=snap-restore]'); await settle(page);
+  ok('Restore as current makes the resume print as it did', !(await page.isVisible('.snapbar')) && JSON.stringify((await st()).cur.off ?? null) === picksThen);
+  const n = (await st()).resumes.length;
+  await page.click('#docname-btn'); await page.click('#switcher .swrow.is-cur .snapline >> nth=0'); await settle(page);
+  await page.click('[data-act=snap-dup]'); await page.waitForTimeout(1200);
+  ok('Duplicate as new resume makes one and opens it', (await st()).resumes.length === n + 1 && !(await page.isVisible('.snapbar')) && /\(/.test(await page.textContent('#docname')));
+
+  // the row menu
+  await page.click('#docname-btn'); await settle(page);
+  await page.click('#switcher .swrow:has-text("Example Instruments") .smore'); await settle(page);
+  ok('⋯ offers Duplicate, Duplicate in another language…, Rename and Delete', await page.evaluate(() => [...document.querySelectorAll('.rowmenu [role=menuitem]')].map(b => b.textContent.trim()).join('|')) === 'Duplicate|Duplicate in another language…|Rename|Delete');
+  await page.click('.rowmenu [data-act=rm-lang]'); await settle(page);
+  await page.click('.rowmenu [data-lang=hu]'); await page.waitForTimeout(2200);
+  const dup = await st();
+  ok('Duplicate in another language: a copy in that language, open, named (HU)', dup.cur.lang === 'hu' && /\(HU\)/.test(dup.cur.name) && dup.openId === dup.cur.id && !(await page.isVisible('#switcher')));
+  const missing = await page.evaluate(async () => { const L = await import('./src/model/lang.js'); const s = window.__wb.store.state; return L.missingList(window.__wb.store.materialize(s.record), s.cur).length; });
+  ok('…the lines with no version in that language are marked on the page, as the app already marks them', missing > 0 && (await frameDoc(page, d => d.querySelectorAll('.rb-miss, .rb-miss-tab').length)) > 0 && await page.isVisible('.missbar'), String(missing));
+  await page.click('#docname-btn'); await settle(page);
+  await page.click('#switcher .swrow.is-cur .smore'); await page.click('.rowmenu [data-act=rm-rename]'); await settle(page);
+  await page.fill('.swren', 'Renamed By Smoke'); await page.keyboard.press('Enter'); await settle(page);
+  ok('Rename changes the name and the file name', (await st()).cur.name === 'Renamed By Smoke' && (await st()).openId === 'Renamed By Smoke.json');
+  ok('…and the switcher stays open with the new name', await page.isVisible('#switcher') && /Renamed By Smoke/.test(await page.textContent('#switcher .swrow.is-cur')));
+  await page.click('#switcher .swrow.is-cur .smore'); await page.click('.rowmenu [data-act=rm-delete]'); await page.waitForTimeout(1000);
+  ok('Delete removes it (Ctrl+Z brings it back) and opens another', !(await st()).resumes.some(x => x.id === 'Renamed By Smoke.json') && !!saved(await st()));
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+z'); await settle(page);
+  ok('Ctrl+Z brings it back', (await st()).resumes.some(x => x.id === 'Renamed By Smoke.json'));
+
+  // + New resume
+  await page.click('#docname-btn'); await settle(page);
+  await page.click('#switcher .swrow[data-rid="Example Instruments - Design Engineer.json"] .sopt'); await page.waitForTimeout(1200);
+  await page.click('#docname-btn'); await settle(page);
+  await page.click('#switcher .swnew'); await settle(page);
+  ok('+ New resume opens the form in the panel', (await page.getAttribute('#body', 'data-view')) === 'new' && !(await page.isVisible('#switcher')));
+  ok('…Start from: the last resume is the default, with the other three', (await page.$$('.startopt')).length === 4 && await page.isChecked('.startopt[data-start=latest] input'));
+  await page.fill('#nv-co', 'Geospatial'); await page.fill('#nv-role', 'GIS Solutions Engineer');
+  ok('the name is filled from For as you type', (await page.inputValue('#nv-name')) === 'Geospatial - GIS Solutions Engineer');
+  await page.selectOption('#nv-kind', 'outreach');
+  const lt = await page.$$eval('#nv-type option', o => o.map(x => x.value).filter(v => v && v !== '+'));
+  await page.selectOption('#nv-type', lt[0]); await settle(page);
+  const tagged = await page.textContent('.startopt[data-start=tagged]');
+  ok('picking a job type enables “Bullets for …” with its plan line', !(await page.getAttribute('.startopt[data-start=tagged]', 'class')).includes('is-off') && /Turns on \d+, turns off \d+, switches \d+/.test(tagged), tagged);
+  const nameBefore = await firstBullet(page);
+  await page.hover('.startopt[data-start=empty]'); await page.waitForTimeout(1500);
+  ok('hovering an option previews it on the page', (await firstBullet(page)) !== nameBefore);
+  await page.mouse.move(700, 400); await page.waitForTimeout(800);
+  await page.check('.startopt[data-start=tagged] input'); await settle(page);
+  await page.click('[data-act=nv-create]'); await page.waitForTimeout(1800);
+  const made = await st();
+  ok('Create saves and opens it: named from For, outreach, with its job type', made.cur.name === 'Geospatial - GIS Solutions Engineer' && made.cur.forKind === 'outreach' && made.cur.jobType === lt[0] && made.openId === made.cur.id);
+  await page.click('#docname-btn'); await settle(page);
+  await page.click('#switcher .swnew'); await settle(page);
+  await page.click('[data-act=nv-create]'); await page.waitForTimeout(1800);
+  ok('and no company is needed', (await st()).resumes.length === made.resumes.length + 1);
+  await page.click('#docname-btn'); await settle(page);
+  await page.click('#switcher [data-act=sw-manage]'); await settle(page);
+  ok('Manage all is the list with compare, a row menu on each row, and a row click opens', (await page.getAttribute('#body', 'data-view')) === 'resumes' && (await page.$$('.rrow .smore')).length > 10 && (await page.$$('.rrow [data-act=r-reuse], .rrow [data-act=r-delete]')).length === 0);
+  await page.click('.rrow[data-rid="Example Instruments - Design Engineer.json"] input.pick');
   await page.click('.rrow:has-text("Helix") input.pick');
   await page.click('[data-act=goto][data-v=compare]'); await settle(page);
   ok('ticking two compares them', (await page.$$('table.cmp tbody tr')).length > 8 && (await page.$$('table.cmp tr.diff-row')).length > 0);
   await page.keyboard.press('Escape'); await settle(page);
-  await page.click('.rrow:has-text("Helix") [data-act=r-reuse]'); await page.waitForTimeout(1200);
-  ok('re-use starts an unsaved copy', (await st()).openId === null && /Copy of/.test(await page.textContent('#docname')) && !(await page.isDisabled('#save')));
-  await page.keyboard.press('Control+s'); await settle(page);
-  ok('Ctrl+S on an unsaved resume asks for its name', (await page.getAttribute('#body', 'data-view')) === 'save');
-  await page.fill('#sv-co', 'Northwind Optics'); await page.fill('#sv-role', 'Design Engineer'); await page.fill('#sv-type', 'Optics');
-  await page.click('[data-act=sv-do]'); await page.waitForTimeout(1200);
-  const s1 = await st();
-  ok('save names it Company — Role', s1.openId === 'Northwind Optics - Design Engineer.json' && /Northwind Optics — Design Engineer/.test(await page.textContent('#docname')));
-  ok('the new job type is in the record and its versions are tagged', s1.record.jobTypes.includes('Optics') && s1.record.variants.some(v => (v.tags ?? []).includes('Optics')));
-  ok('and Save is clean again', await page.isDisabled('#save'));
-  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
-  await page.click('#b-on'); await settle(page);
-  ok('a change shows as unsaved', !(await page.isDisabled('#save')) && /Unsaved changes/.test(await page.textContent('#savestate')));
-  await page.keyboard.press('Control+s'); await settle(page);
-  ok('Ctrl+S saves it', await page.isDisabled('#save') && (await st()).resumes.find(r => r.id === s1.openId).off?.length > 0);
+  await page.click('.rrow[data-rid="Helix Diagnostics - Product Development Engineer.json"] .t'); await page.waitForTimeout(1200);
+  ok('clicking a row opens it', /Helix Diagnostics/.test(await page.textContent('#docname')), await page.textContent('#docname'));
 
   // newer wording: save over a version another saved resume prints
-  await page.keyboard.press('Control+o'); await settle(page);
-  await page.click('.rrow:has-text("Example Instruments") [data-act=r-open]'); await page.waitForTimeout(1200);
   const shared = await page.evaluate(async () => {
     const RS = await import('./src/model/resumes.js');
     const s = window.__wb.store.state;
     const mine = RS.usedVersions(s.record, s.cur).filter(u => s.record.work.some(w => w.highlights.includes(u.fact)));
-    for (const r of s.resumes) if (r.id !== s.openId && !r.id.startsWith('Northwind')){
+    for (const r of s.resumes) if (r.id !== s.openId && r.lang === s.cur.lang && r.snapshots === undefined && r.jobType !== undefined){
       const theirs = new Set(RS.usedVersions(s.record, r).map(u => u.variant));
-      const hit = mine.find(u => theirs.has(u.variant) && r.lang === s.cur.lang);
-      if (hit) return { ...hit, other: r.id, company: r.company, text: s.record.variants.find(v => v.id === hit.variant).text };
+      const hit = mine.find(u => theirs.has(u.variant));
+      if (hit) return { ...hit, other: r.id, company: r.company || r.name, text: s.record.variants.find(v => v.id === hit.variant).text };
     }
     return null;
   });
   if (shared){
+    const otherBefore = JSON.stringify((await st()).frozen[shared.other]);
     await page.frameLocator('#sheet iframe').locator(`[data-variant="${shared.variant}"]`).first().click(); await settle(page);
     await page.click('.vrow.cur [data-act=edit]'); await settle(page);
     await page.fill('#ed', 'Brand new record wording.'); await page.dispatchEvent('#ed', 'input'); await page.waitForTimeout(300);
     await page.click('[data-act=ed-save]'); await page.waitForTimeout(800);
-    await page.keyboard.press('Control+s'); await settle(page);
-    await page.keyboard.press('Control+o'); await settle(page);
-    await page.click(`.rrow[data-rid="${shared.other}"] [data-act=r-open]`); await page.waitForTimeout(1500);
+    ok('editing a version leaves every other saved resume’s text alone', JSON.stringify((await st()).frozen[shared.other]) === otherBefore);
+    await page.click('#docname-btn'); await settle(page);
+    await page.click(`#switcher .swrow[data-rid="${shared.other}"] .sopt`); await page.waitForTimeout(1500);
     await page.keyboard.press('Escape'); await settle(page);
     ok(`${shared.company} keeps the text it was saved with`, (await frameDoc(page, d => d.body.textContent)).includes(shared.text));
     ok('and the card offers the newer wording', await page.isVisible('.banner'));
-    ok('opening it is not a change', await page.isDisabled('#save'));
     await page.click('.banner [data-act=goto]'); await settle(page);
     await page.click('[data-act=nw-accept] >> nth=0'); await page.waitForTimeout(1200);
     ok('accepting prints the newer wording', (await frameDoc(page, d => d.body.textContent)).includes('Brand new record wording.'));
@@ -823,7 +945,7 @@ if (want('tags and focus')) {
   const page = await ctx.newPage();
   const bad = await open(page);
   const st = () => page.evaluate(() => window.__wb.store.state);
-  await page.click('.item[data-act=r-open]:has-text("Medtech")'); await page.waitForTimeout(1500);
+  await openByName(page, 'Medtech'); await page.waitForTimeout(300);
   const chip = page.locator('[data-act=focus]').filter({ hasText: 'Prototyping' });
   ok('the home card lists job types and tags to focus on', (await page.$$('[data-act=focus]')).length > 3);
   await chip.click(); await settle(page);
@@ -952,7 +1074,7 @@ if (want('export')) {
   const os = await import('node:os');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rb-export-'));
   for (const pick of ['Example Instruments', 'Medtech', 'Dunamenti']){
-    await page.click(`.item[data-act=r-open]:has-text("${pick}")`); await page.waitForTimeout(1800);
+    await openByName(page, pick); await page.waitForTimeout(600);
     const sheetPages = await page.evaluate(() => window.__wb.ui.fills.length);
     const html = await page.evaluate(() => window.__wb.export.buildHtml());
     const f = path.join(tmp, `${pick}.html`);
@@ -1256,12 +1378,15 @@ if (want('deployed: a subpath, offline, a phone, names')) {
     .filter(e => !(e.getAttribute('aria-label') || e.title || e.textContent.trim() || e.closest('label') || (e.id && document.querySelector(`label[for="${e.id}"]`)) || e.placeholder))
     .map(e => e.outerHTML.slice(0, 80)));
   const views = [];
-  for (const v of [null, 'resumes', 'design', 'export', 'import', 'history']){
-    if (v) await p2.click(`[data-act=goto][data-v=${v}] >> nth=0`).catch(() => p2.evaluate(x => window.__wb.ui && document.querySelector(`[data-v=${x}]`)?.click(), v));
+  for (const v of [null, 'resumes', 'new', 'save', 'design', 'export', 'import', 'history']){
+    if (v) await p2.evaluate(x => window.__wb.setView(x), v);
     await p2.waitForTimeout(700);
     views.push(...(await unnamed()).map(x => `${v ?? 'home'}: ${x}`));
     await p2.keyboard.press('Escape');
   }
+  await p2.click('#docname-btn'); await settle(p2);
+  views.push(...(await unnamed()).map(x => `switcher: ${x}`));
+  await p2.keyboard.press('Escape');
   await p2.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(p2);
   views.push(...(await unnamed()).map(x => `bullet: ${x}`));
   ok('every visible control has a name', views.length === 0, views.slice(0, 3).join(' | '));
