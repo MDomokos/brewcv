@@ -91,6 +91,7 @@ for (const id of Array.isArray(picks.bullets) ? picks.bullets.filter(b => typeof
   const got = check('bullets', id);
   if (!got) continue;
   if (!jobOf.has(got.f.id)){ bad(`bullets: ${id} is a version of ${got.f.id}, which is not a bullet of any job`); continue; }
+  if (jobOf.get(got.f.id).archived){ bad(`bullets: ${id} can't be picked (archived job: ${jobOf.get(got.f.id).id})`); continue; }
   if (bullets.has(got.f.id)){ bad(`bullets: ${bullets.get(got.f.id)} and ${id} are two versions of ${got.f.id}; pick one`); continue; }
   bullets.set(got.f.id, id);
 }

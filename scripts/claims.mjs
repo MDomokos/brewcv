@@ -30,9 +30,10 @@ if (JOB && !jobs.some(j => j.id === JOB)){
   process.exit(1);
 }
 
-const claim = id => {
+// a claim of an archived job can't be picked either
+const claim = (id, job = null) => {
   const f = ix.fact.get(id);
-  const versions = versionsOf(model, ix, f, LANG);
+  const versions = versionsOf(model, ix, f, LANG).map(v => (job?.archived && !v.refused ? { ...v, refused: 'archived job' } : v));
   return { id, summary: f.summary ?? '', archived: !!f.archived, versions };
 };
 const keep = c => !TAG || c.versions.some(v => v.tags.some(t => String(t).toLowerCase() === TAG.toLowerCase()));
@@ -47,7 +48,7 @@ const out = {
   file: FILE, ...(saved ? { saved } : {}), lang: LANG, options: { ...optionsOf(model), langs: LANGS },
   jobs: jobs.filter(j => !JOB || j.id === JOB).map(j => ({
     id: j.id, position: positionOf(j),
-    employer: j.name ?? j.entity ?? '', claims: (j.highlights ?? []).filter(id => ix.fact.has(id)).map(claim).filter(keep),
+    employer: j.name ?? j.entity ?? '', archived: !!j.archived, claims: (j.highlights ?? []).filter(id => ix.fact.has(id)).map(id => claim(id, j)).filter(keep),
   })),
 };
 if (!JOB){
@@ -73,7 +74,7 @@ else {
   console.log(`${FILE}${saved ? ` (saved ${saved})` : ''} · language ${LANG}${TAG ? ` · tag ${TAG}` : ''}`);
   console.log(`picks.json may use: format ${out.options.formats.join(', ')} · theme ${out.options.themes.join(', ')}`);
   for (const j of out.jobs){
-    console.log(`\n${j.id}: ${j.position}, ${j.employer}`);
+    console.log(`\n${j.id}: ${j.position}, ${j.employer}${j.archived ? '  [archived job]' : ''}`);
     for (const c of j.claims) printClaim(c, '  ');
   }
   if (out.summary){ console.log('\nsummary'); printClaim(out.summary, '  '); }

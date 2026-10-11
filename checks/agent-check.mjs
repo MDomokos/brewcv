@@ -176,7 +176,16 @@ refuse('a missing record file', mkPicks('a.json', picks()), path.join(tmp, 'nope
 {
   const r2 = JSON.parse(JSON.stringify(rec));
   r2.meta.resumeBuilder.facts.find(f => f.id === 'hydra-inhaler').archived = true;
-  refuse('a claim marked archived', mkPicks('a.json', picks({ bullets: ['hydra-inhaler-v1'] })), w('arch.json', r2), /archived claim/);
+  {
+  const r3 = JSON.parse(JSON.stringify(rec));
+  r3.work.find(x => x.id === 'hydra').archived = true;
+  const f3 = w('archjob.json', r3);
+  refuse('a bullet of an archived job', mkPicks('a.json', picks({ bullets: ['hydra-inhaler-v1'] })), f3, /archived job: hydra/);
+  const c3 = JSON.parse(run('scripts/claims.mjs', f3, '--json').out);
+  const h3 = c3.jobs.find(x => x.id === 'hydra');
+  ok('claims marks an archived job and its versions', h3.archived === true && h3.claims.every(c => c.versions.every(v => v.refused)));
+}
+refuse('a claim marked archived', mkPicks('a.json', picks({ bullets: ['hydra-inhaler-v1'] })), w('arch.json', r2), /archived claim/);
 }
 
 section('what the agent did not pick');
