@@ -1,4 +1,4 @@
-// Languages and Settings.
+// Settings.
 // The interface language is a per-browser setting in localStorage['rb-ui'], never in the
 // record, a resume, a backup or undo. With storage blocked: English, following the resume,
 // this session only. "follow" uses the language you're working in; "fixed" always one.
@@ -48,7 +48,7 @@ export function uiChoice(pref, offer, { name = 'ui' } = {}){
   </div>`;
 }
 
-function settingsView({ only = null } = {}){
+function settingsView(){
   const rec = C.store.state.record;
   const inUse = langsInUse(rec);
   const pref = C.ui.pref;
@@ -57,9 +57,6 @@ function settingsView({ only = null } = {}){
     <p class="small muted">${h('set.langsUseNote')}</p>
     ${langChecks(inUse)}
     <p class="note">${h('set.untickNote')}</p>`;
-  if (only === 'langs') return `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a><h2 class="title">${h('set.langsTitle')}</h2>${langs}
-    <span class="lbl">${h('set.uiHead')}</span>${uiChoice(pref, inUse)}
-    <p class="note">${h('set.machineNote')}</p>`;
   return `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a><h2 class="title">${h('set.title')}</h2>
     ${langs}
     <span class="lbl">${h('set.uiHead')}</span>${uiChoice(pref, inUse)}
@@ -89,7 +86,7 @@ async function act(a, tg){
 function bind(body){
   body.addEventListener('change', e => {
     const el = e.target;
-    if (!el.closest?.('[data-mode=settings], [data-mode=languages]')) return;
+    if (!el.closest?.('[data-mode=settings]')) return;
     if (el.dataset.langtick){
       const l = el.dataset.langtick, on = el.checked;
       const now = langsInUse(C.store.state.record);
@@ -108,6 +105,6 @@ function bind(body){
 }
 
 const api = {
-  views: { settings: () => settingsView(), languages: () => settingsView({ only: 'langs' }) },
+  views: { settings: () => settingsView() },
   act, bind,
 };

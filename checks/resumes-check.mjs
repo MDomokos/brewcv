@@ -14,6 +14,7 @@ import { resolve, chooseVariant } from '../src/model/resume.js';
 import { filesOf, createPersist, memoryBackend, memoryFolder, readFolder } from '../src/store/persist.js';
 import { createStore } from '../src/store/store.js';
 import { jobTypesOf } from '../src/model/focus.js';
+import { missingList } from '../src/model/lang.js';
 import { validate } from './lib/validate.mjs';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -25,6 +26,7 @@ const section = t => console.log(`\n— ${t}`);
 const throws = fn => { try { fn(); return false; } catch { return true; } };
 
 const model = S.load(read('data/example.json')).model;
+const noSnaps = r => { const c = clone(r); delete c.snapshots; return c; };
 const names = read('data/example-resumes/index.json');
 function exampleState(){
   const resumes = [], frozen = {};
@@ -42,37 +44,85 @@ section('opening a saved resume');
 {
   const st = exampleState();
   ok('the first example opens', st.openId === names[0] && st.cur.company === 'Example Instruments');
-  ok('opening it is not a change', !RS.isDirty(st));
+  ok('opening it is not a change: the open copy is the saved one', eq(st.cur, noSnaps(RS.savedOf(st))));
   ok('its frozen text is current, so nothing is held', !st.cur.held && RS.newerOf(st.record, st.cur).length === 0);
-  ok('a resume with no saved copy is dirty', RS.isDirty({ ...st, openId: null }));
+  const before = clone(st);
+  RS.settle(st);
+  ok('settling an untouched resume changes nothing', eq(before, st));
 }
 
-section('saving');
+section('autosave: the open resume is always saved');
 {
   const st = exampleState();
-  RS.reuse(st, names[0]);
-  ok('re-use starts an unsaved copy', st.openId === null && st.cur.company === '' && !('id' in st.cur));
-  ok('save refuses a resume without a company', throws(() => RS.saveNew(st, { company: '  ' })));
+  const store = createStore(st, { settle: RS.settle });
+  ok('a change to the open resume is written into it, in the same commit', store.commit(d => { d.cur.pageLimit = 2; }, 'x') && RS.savedOf(store.state).pageLimit === 2 && store.state.cur.pageLimit === 2);
+  ok('…with the date it changed', RS.savedOf(store.state).savedAt === RS.today());
+  const id = store.state.openId;
+  store.undo();
+  ok('undo takes the saved copy back with it', RS.savedOf(store.state).pageLimit === st.cur.pageLimit && store.state.openId === id);
+  store.redo();
+  ok('and redo puts it back', RS.savedOf(store.state).pageLimit === 2);
+  ok('its frozen text follows what it prints', eq(store.state.frozen[id], resolve(store.state.record, store.state.cur).body));
+  // picks and sections and design all mirror
+  store.commit(d => { d.cur.theme = 'other'; d.cur.accent = '#112233'; d.cur.sections = d.cur.sections.slice().reverse(); }, 'design');
+  ok('picks, sections and design are saved as they happen', RS.savedOf(store.state).accent === '#112233' && eq(RS.savedOf(store.state).sections, store.state.cur.sections));
+  ok('a commit that changes nothing is not a step', store.commit(() => {}, 'noop') === false);
+}
+
+section('autosave leaves the other saved resumes alone');
+{
+  const st = exampleState();
+  const store = createStore(st, { settle: RS.settle });
+  const other = names[1];
+  const files = filesOf(store.state), otherFile = files.get(`recipes/${other}`);
+  const frozenOther = JSON.stringify(store.state.frozen[other]);
+  const u = RS.usedVersions(store.state.record, store.state.cur).find(x => store.state.record.work.some(w => w.highlights.includes(x.fact)));
+  store.commit(d => { R.saveOver(d.record, u.variant, 'Reworded in the open resume.'); }, 'edit');
+  ok('editing a version changes the open resume’s frozen text', JSON.stringify(store.state.frozen[store.state.openId]).includes('Reworded in the open resume.'));
+  ok('…and no other resume’s frozen text', JSON.stringify(store.state.frozen[other]) === frozenOther);
+  const printsIt = RS.usedVersions(store.state.record, RS.savedOf(store.state, other)).some(x => x.variant === u.variant);
+  ok('…a resume that prints it is offered the newer wording on opening', !printsIt || RS.openSaved(clone(store.state), other).held.length >= 1);
+  ok('the other resume’s file is byte-identical', filesOf(store.state).get(`recipes/${other}`) === otherFile || printsIt === false);
+}
+
+section('a resume that was never saved is saved');
+{
+  const st = exampleState();
+  const store = createStore(st, { settle: RS.settle });
+  store.commit(d => { RS.newFrom(d, { start: 'all' }); }, 'new');
+  const untitled = store.state.resumes.at(-1);
+  ok('a new resume is saved at once, with a default name', store.state.openId === untitled.id && untitled.name === store.state.cur.name && untitled.name.length > 0);
+  store.commit(d => { d.openId = null; d.cur.pageLimit = 2; }, 'draft');
+  ok('work with no saved copy gets one on the next commit', store.state.openId && store.state.resumes.length === st.resumes.length + 2 && RS.savedOf(store.state).pageLimit === 2);
+  ok('…it validates', validate(S.save(store.state.record), RS.savedOf(store.state)).errors.length === 0);
+  const n = store.state.resumes.length;
+  store.commit(d => { d.cur.pageLimit = 1; }, 'again');
+  ok('and later changes go into that one', store.state.resumes.length === n);
+}
+
+section('saving a new resume');
+{
+  const st = exampleState();
+  RS.duplicate(st, names[0]);
+  ok('a duplicate is a saved resume of its own, open', st.openId !== names[0] && st.resumes.some(r => r.id === st.openId) && st.cur.id === st.openId);
   const n0 = st.resumes.length;
   const used = RS.usedVersions(st.record, st.cur);
   const { id, tagged } = RS.saveNew(st, { company: 'Northwind Optics', role: 'Design Engineer', jobType: 'Optics', tags: ['hardware', ' ', 'remote'] });
-  ok('saveNew adds a saved resume named Company - Role', st.resumes.length === n0 + 1 && id === 'Northwind Optics - Design Engineer.json' && st.openId === id);
+  ok('saveNew adds a saved resume named Company - Role', st.resumes.length === n0 + 1 && id === 'Northwind Optics - Design Engineer.json' && st.openId === id && st.cur.name === 'Northwind Optics - Design Engineer');
+  ok('its For is the company and role, with a kind', st.cur.company === 'Northwind Optics' && st.cur.role === 'Design Engineer' && st.cur.forKind === 'company');
   ok('the job type joins the record’s job types', st.record.jobTypes.includes('Optics'));
   ok('every version it uses is tagged with it', tagged === used.length && used.every(u => st.record.variants.find(v => v.id === u.variant).tags.includes('Optics')));
   ok('blank tags are dropped', eq(st.cur.tags, ['hardware', 'remote']));
   ok('its text is frozen as it prints now', eq(st.frozen[id], resolve(st.record, st.cur).body));
-  ok('and it is not dirty', !RS.isDirty(st));
-  RS.reuse(st, id);
   RS.saveNew(st, { company: 'Northwind Optics', role: 'Design Engineer' });
   ok('a second save with the same name gets " 2"', st.openId === 'Northwind Optics - Design Engineer 2.json');
-  ok('without a job type nothing is tagged', !st.cur.jobType);
-
-  st.cur.pageLimit = 2;
-  ok('a change makes it dirty', RS.isDirty(st));
-  RS.saveOpen(st);
-  ok('save writes it back', !RS.isDirty(st) && RS.savedOf(st).pageLimit === 2);
+  ok('a resume keeps its own job type unless told another', st.cur.jobType === 'Optics');
+  ok('no company is needed', (() => { RS.saveNew(st, { company: '', role: '', name: 'Geospatial - GIS Solutions Engineer' }); return st.cur.name === 'Geospatial - GIS Solutions Engineer' && st.cur.company === '' && !st.cur.forKind && st.openId === 'Geospatial - GIS Solutions Engineer.json'; })());
+  ok('nothing at all is fine too', (() => { RS.saveNew(st, { name: '', company: '', role: '' }); return !!st.cur.name && st.resumes.some(r => r.id === st.openId); })());
+  ok('outreach is a kind of For', (() => { RS.saveNew(st, { company: 'Geospatial', role: 'GIS Engineer', forKind: 'outreach' }); return st.cur.forKind === 'outreach' && st.cur.name === 'Geospatial - GIS Engineer'; })());
   ok('every saved resume validates', st.resumes.every(r => validate(S.save(st.record), r).errors.length === 0),
      st.resumes.map(r => validate(S.save(st.record), r).errors[0]).filter(Boolean)[0]);
+  ok('a name with no For: the job type’s label stands in', (() => { RS.saveNew(st, { jobType: 'Optics', company: '', role: 'Lead' }); return st.cur.name === 'Optics - Lead'; })());
 }
 
 section('frozen text and newer wording');
@@ -88,7 +138,7 @@ section('frozen text and newer wording');
   const { held } = RS.openSaved(st, other);
   ok('opening it holds the old text', st.cur.overrides[fact.fact] === before && st.cur.held.includes(fact.fact));
   ok('and offers the newer wording', held.length === 1 && held[0].live === 'Newer wording for this claim.' && held[0].frozen === before);
-  ok('opening a held resume is still not a change', !RS.isDirty(st));
+  ok('opening a held resume is still not a change', eq(st.cur, noSnaps(RS.savedOf(st))));
   ok('it prints the old text', resolve(st.record, st.cur).body.work.some(w => w.highlights.includes(before)));
   const st2 = clone(st);
   RS.keepOlder(st2.cur, fact.fact);
@@ -96,9 +146,8 @@ section('frozen text and newer wording');
   RS.acceptNewer(st.cur, fact.fact);
   ok('use the newer one: the hold goes', st.cur.overrides[fact.fact] === undefined && !st.cur.held);
   ok('and it prints the new text', resolve(st.record, st.cur).body.work.some(w => w.highlights.includes('Newer wording for this claim.')));
-  ok('accepting is a change to save', RS.isDirty(st));
-  RS.saveOpen(st);
-  ok('saving freezes the new text', JSON.stringify(st.frozen[other]).includes('Newer wording for this claim.') && RS.openSaved(st, other).held.length === 0);
+  RS.settle(st);
+  ok('accepting is saved as it happens, and freezes the new text', JSON.stringify(st.frozen[other]).includes('Newer wording for this claim.') && RS.openSaved(st, other).held.length === 0);
   ok('a "this resume only" text of its own is never taken for a hold', (() => {
     const s3 = exampleState(); const r = RS.savedOf(s3, other);
     const u = RS.usedVersions(s3.record, r)[1];
@@ -113,16 +162,154 @@ section('frozen text and newer wording');
 section('+ New resume');
 {
   const st = exampleState();
-  const all = RS.newFrom(st, { mode: 'all' });
-  ok('everything on: every job, no saved name', st.openId === null && all.sections.find(s => s.id === 'experience').work.length === st.record.work.length);
+  const n0 = st.resumes.length;
   const type = jobTypesOf(st.record)[0].id;
   const latest = RS.byNewest(st.resumes).find(r => r.jobType === type);
-  RS.newFrom(st, { mode: 'latest', jobType: type });
-  ok('latest of a type copies the newest saved one of it', st.openId === null && eq(st.cur.sections, latest.sections) && st.cur.jobType === type);
-  RS.newFrom(st, { mode: 'tagged', jobType: type, lang: 'en' });
-  ok('bullets tagged with it: the tagged versions are picked', Object.values(st.cur.picks).some(vid => (st.record.variants.find(v => v.id === vid)?.tags ?? []).includes(type)));
+  const all = RS.newFrom(st, { start: 'all', name: 'Everything' });
+  ok('everything on: every job, saved and open at once', st.resumes.length === n0 + 1 && st.openId === all.id && st.cur.sections.find(s => s.id === 'experience').work.length === st.record.work.length);
+  RS.newFrom(st, { start: 'latest', jobType: type, fromId: latest.id, company: 'Fabrikam', role: 'Engineer' });
+  ok('the last of a type copies the newest saved one of it', eq(st.cur.sections, latest.sections) && st.cur.jobType === type && st.cur.company === 'Fabrikam' && !st.cur.snapshots);
+  ok('…and starts with none of its snapshots or sends', !RS.savedOf(st).snapshots);
+  const other = RS.byNewest(st.resumes).find(r => r.jobType !== type) ?? st.resumes[0];
+  RS.newFrom(st, { start: 'latest', fromId: other.id, name: 'Copy of another' });
+  ok('"change" picks any resume to copy', eq(st.cur.sections, other.sections));
+  const rec = RS.startRecipe(st, { start: 'tagged', jobType: type });
+  ok('startRecipe previews without saving', st.resumes.length === n0 + 3 && !!rec.picks);
+  RS.newFrom(st, { start: 'tagged', jobType: type, lang: 'en' });
+  ok('bullets for the job type: the tagged versions are picked', Object.values(st.cur.picks).some(vid => (st.record.variants.find(v => v.id === vid)?.tags ?? []).includes(type)));
   ok('…and it validates', validate(S.save(st.record), st.cur).errors.length === 0, validate(S.save(st.record), st.cur).errors[0]);
-  ok('latest of a type with no saved resume is refused', throws(() => RS.newFrom(st, { mode: 'latest', jobType: 'Nope' })));
+  RS.newFrom(st, { start: 'empty', name: 'Blank' });
+  ok('an empty page prints no job', resolve(st.record, st.cur).body.work.length === 0 && validate(S.save(st.record), st.cur).errors.length === 0, validate(S.save(st.record), st.cur).errors[0]);
+  ok('latest of a type with no saved resume is refused', throws(() => RS.newFrom(st, { start: 'latest', jobType: 'Nope' })));
+  RS.newFrom(st, { start: 'all', lang: 'de', format: 'a4-hu' });
+  ok('language and paper are the form’s', st.cur.lang === 'de' && st.cur.format === 'a4-hu');
+  RS.newFrom(st, { start: 'all', company: 'Contoso', role: '' });
+  ok('a company alone names it', st.cur.name === 'Contoso' && st.openId === 'Contoso.json');
+}
+
+section('duplicating');
+{
+  const st = exampleState();
+  const src = names[0];
+  const n0 = st.resumes.length;
+  RS.duplicate(st, src);
+  ok('a copy named after the original, open', st.resumes.length === n0 + 1 && /copy/i.test(st.cur.name) && st.cur.company === RS.savedOf(st, src).company);
+  ok('…its frozen text is the original’s', eq(st.frozen[st.openId], st.frozen[src]));
+  const a4src = st.resumes.find(r => r.format !== 'us-letter');
+  const hu = RS.duplicate(st, a4src.id, { lang: 'hu' });
+  ok('in another language: the language and its paper switch', st.cur.lang === 'hu' && st.cur.format === 'a4-hu' && /HU/.test(st.cur.name) && st.openId === hu.id);
+  const lt = RS.duplicate(st, src, { lang: 'de' });
+  ok('…a Letter resume stays Letter, as switching language does', st.cur.lang === 'de' && st.cur.format === 'us-letter' && st.openId === lt.id);
+  ok('…the original is untouched', (RS.savedOf(st, src).lang ?? 'en') === 'en');
+  ok('…lines with no version in that language are marked as missing', missingList(st.record, st.cur).length > 0);
+  ok('…it validates', validate(S.save(st.record), st.cur).errors.length === 0, validate(S.save(st.record), st.cur).errors[0]);
+  RS.renameSaved(st, st.openId, 'Fabrikam - Ingenieur');
+  ok('rename changes the name and the file name', st.cur.name === 'Fabrikam - Ingenieur' && st.openId === 'Fabrikam - Ingenieur.json' && st.frozen['Fabrikam - Ingenieur.json'] && !st.frozen[lt.id]);
+  const idOf = RS.renameSaved(st, st.openId, '  ').id;
+  ok('an empty name falls back', !!RS.savedOf(st, idOf).name);
+}
+
+section('snapshots: Save freezes what is sent');
+{
+  const st = exampleState();
+  const store = createStore(st, { settle: RS.settle, coalesceMs: 0 });
+  const id = store.state.openId;
+  const printed = () => JSON.stringify(resolve(store.state.record, store.state.cur).body);
+  const sent1 = { kind: 'company', company: 'Medtech Lisboa', role: 'Mechanical Engineer', date: '2026-10-02' };
+  let r1;
+  store.commit(d => { r1 = RS.takeSnapshot(d, sent1, { at: '2026-10-02T09:00:00.000Z' }); }, 'Save');
+  const snaps = () => RS.snapshotsOf(RS.savedOf(store.state));
+  ok('the first Save makes a snapshot with one send', r1.added && snaps().length === 1 && snaps()[0].sends.length === 1 && eq(snaps()[0].sends[0], sent1));
+  ok('…it keeps what the resume printed, its picks, design, paper and language', JSON.stringify(snaps()[0].body) === printed() && eq(snaps()[0].recipe.picks, store.state.cur.picks) && snaps()[0].recipe.format === store.state.cur.format && !('snapshots' in snaps()[0].recipe) && !('snapshots' in store.state.cur));
+  ok('…and the open resume is not changed by it', eq(noSnaps(RS.savedOf(store.state)), store.state.cur));
+  ok('Save again with nothing changed would add a send', RS.sameAsLatest(store.state));
+  store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Contoso', role: 'Engineer', date: '2026-10-03' }); }, 'Save');
+  ok('a second Save with nothing changed adds a send instead of a snapshot', snaps().length === 1 && snaps()[0].sends.length === 2 && snaps()[0].sends[1].company === 'Contoso');
+  store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Contoso', role: 'Engineer', date: '2026-10-03' }); }, 'Save');
+  ok('the same send twice is not recorded twice', snaps()[0].sends.length === 2);
+  store.commit(d => { RS.takeSnapshot(d, { kind: 'outreach', company: 'Geospatial', date: '2026-10-04' }); }, 'Save');
+  ok('outreach is a kind of send', snaps()[0].sends[2].kind === 'outreach' && snaps()[0].sends.length === 3);
+  store.commit(d => { d.cur.accent = '#445566'; }, 'design');
+  ok('a change that prints is a new snapshot on the next Save', !RS.sameAsLatest(store.state));
+  store.commit(d => { RS.takeSnapshot(d, {}, { at: '2026-10-05T09:00:00.000Z', date: '2026-10-05' }); }, 'Save');
+  ok('…which has its own id and the default date', snaps().length === 2 && snaps()[1].id !== snaps()[0].id && snaps()[1].sends[0].date === '2026-10-05' && snaps()[1].sends[0].company === '');
+  ok('…and the first snapshot is untouched', JSON.stringify(snaps()[0].body) !== JSON.stringify(snaps()[1].body) || snaps()[0].recipe.accent !== snaps()[1].recipe.accent);
+  store.commit(d => { d.cur.name = 'Renamed'; d.cur.company = 'Other Co'; d.cur.tags = ['x']; }, 'meta');
+  ok('a new name, For or tags is not a change to what prints', RS.sameAsLatest(store.state));
+  store.undo(); store.undo();
+  ok('undo takes a snapshot back, and the rename before it', snaps().length === 1 && store.state.cur.name !== 'Renamed');
+  store.undo(); store.undo();
+  ok('…and a send, one step at a time', snaps().length === 1 && snaps()[0].sends.length === 2 && store.state.cur.accent !== '#445566');
+  store.redo(); store.redo(); store.redo(); store.redo();
+  // frozen: edits afterwards leave the snapshot as it was
+  const body0 = JSON.stringify(snaps()[0].body);
+  const u = RS.usedVersions(store.state.record, store.state.cur).find(x => store.state.record.work.some(w => w.highlights.includes(x.fact)));
+  store.commit(d => { R.saveOver(d.record, u.variant, 'Wording changed after the snapshot.'); }, 'edit');
+  ok('editing the record afterwards leaves a snapshot as it was sent', JSON.stringify(snaps()[0].body) === body0 && !JSON.stringify(snaps()[0].body).includes('Wording changed after the snapshot.'));
+  const fileText = [...filesOf(store.state)].find(([k]) => k === `recipes/${S.resumeFileName(RS.savedOf(store.state))}`)?.[1];
+  ok('…and the saved resume’s file keeps it', JSON.stringify(S.loadResume(JSON.parse(fileText), store.state.record).recipe.snapshots?.[0]?.body) === body0);
+}
+
+section('opening a snapshot: read-only, restore, duplicate');
+{
+  const st = exampleState();
+  const store = createStore(st, { settle: RS.settle, coalesceMs: 0 });
+  store.commit(d => { RS.takeSnapshot(d, { company: 'Medtech Lisboa', date: '2026-10-02' }); }, 'Save');
+  const sid = RS.snapshotsOf(RS.savedOf(store.state))[0].id;
+  const bodyThen = JSON.stringify(resolve(store.state.record, store.state.cur).body);
+  // the wording it was sent with outlives a later edit in the record
+  const u = RS.usedVersions(store.state.record, store.state.cur).find(x => store.state.record.work.some(w => w.highlights.includes(x.fact)));
+  store.commit(d => { R.saveOver(d.record, u.variant, 'Changed since it was sent.'); d.cur.pageLimit = 2; }, 'edit');
+  const snap = RS.findSnapshot(store.state, sid);
+  const shownR = RS.snapshotRecipe(store.state.record, snap);
+  ok('the page shows the snapshot as it was sent', JSON.stringify(resolve(store.state.record, shownR).body) === bodyThen);
+  const before = JSON.stringify(store.state);
+  RS.snapshotRecipe(store.state.record, snap);
+  ok('looking at it changes nothing in the state', JSON.stringify(store.state) === before);
+  store.commit(d => { RS.restoreSnapshot(d, sid); }, 'Restore');
+  ok('Restore as current: the resume prints as it did', JSON.stringify(resolve(store.state.record, store.state.cur).body) === bodyThen && store.state.cur.pageLimit === snap.recipe.pageLimit);
+  ok('…keeps its name and snapshots, and is saved', store.state.cur.name === RS.savedOf(store.state).name && RS.snapshotsOf(RS.savedOf(store.state)).length === 1 && eq(noSnaps(RS.savedOf(store.state)), store.state.cur));
+  ok('…the wording it was sent with is kept, and the newer wording is offered', RS.newerOf(store.state.record, store.state.cur).length >= 1 && !JSON.stringify(resolve(store.state.record, store.state.cur).body).includes('Changed since it was sent.'));
+  store.undo();
+  ok('undo puts the resume back', store.state.cur.pageLimit === 2);
+  const n0 = store.state.resumes.length, from = store.state.openId;
+  let dup;
+  store.commit(d => { dup = RS.duplicateSnapshot(d, sid); }, 'Duplicate');
+  ok('Duplicate as new resume: a resume of its own, open', store.state.resumes.length === n0 + 1 && store.state.openId === dup.id && dup.id !== from && !RS.savedOf(store.state).snapshots);
+  ok('…printing as the snapshot did', JSON.stringify(resolve(store.state.record, store.state.cur).body) === bodyThen);
+  ok('…and the original is untouched', RS.snapshotsOf(RS.savedOf(store.state, from)).length === 1 && RS.savedOf(store.state, from).pageLimit === 2);
+  ok('…it validates', validate(S.save(store.state.record), RS.savedOf(store.state)).errors.length === 0);
+  // a snapshot of a job type teaches the record
+  const t0 = clone(st);
+  const jt = jobTypesOf(t0.record).find(j => typeof j.tags?.length === 'number' && j.tags.length === 1);
+  if (jt){
+    t0.cur.jobType = jt.id; RS.settle(t0);
+    const before = JSON.stringify(t0.record.variants);
+    RS.takeSnapshot(t0, {});
+    ok('a snapshot of a job type tags the versions it used, as the first save did', JSON.stringify(t0.record.variants) !== before || RS.usedVersions(t0.record, t0.cur).every(x => t0.record.variants.find(v => v.id === x.variant).tags?.includes(jt.tags[0])));
+  }
+  // other resumes' frozen text is untouched by snapshots and by edits in the open one
+  const other = names[1], f0 = JSON.stringify(store.state.frozen[other]), file0 = filesOf(store.state).get(`recipes/${other}`);
+  store.commit(d => { d.cur.pageLimit = 1; RS.takeSnapshot(d, { company: 'X' }); }, 'x');
+  ok('a snapshot and an edit leave every other resume alone', JSON.stringify(store.state.frozen[other]) === f0 && filesOf(store.state).get(`recipes/${other}`) === file0);
+}
+
+section('a reload keeps the open resume, its snapshots and what was sent');
+{
+  const st = exampleState();
+  const backend = memoryBackend();
+  const store = createStore(st, { settle: RS.settle });
+  const p = createPersist({ store, backend, debounceMs: 0, setTimer: fn => { fn(); return 0; }, clearTimer: () => {} });
+  store.commit(d => { d.cur.pageLimit = 2; RS.takeSnapshot(d, { company: 'Medtech Lisboa', date: '2026-10-02' }); }, 'Save');
+  await p.flush();
+  const store2 = createStore({}, { settle: RS.settle });
+  const p2 = createPersist({ store: store2, backend, debounceMs: 0, setTimer: fn => { fn(); return 0; }, clearTimer: () => {} });
+  ok('the session comes back', await p2.restore());
+  const back = store2.state, was = RS.savedOf(store.state);
+  ok('with the open resume, saved and equal to the page', back.openId === store.state.openId && eq(noSnaps(RS.savedOf(back)), back.cur) && back.cur.pageLimit === 2);
+  ok('and its snapshot with its send', eq(RS.snapshotsOf(RS.savedOf(back)), was.snapshots) && RS.savedOf(back).snapshots[0].sends[0].company === 'Medtech Lisboa');
+  ok('a commit after the reload is not an extra step for the restore', store2.history.undo === 0 && store2.commit(() => {}, 'noop') === false);
+  p.stop(); p2.stop();
 }
 
 section('listing, compare, delete');
@@ -139,7 +326,13 @@ section('listing, compare, delete');
   ok('rows that differ say so', rows.some(r => r.differs) && rows.some(r => !r.differs));
   const n = st.resumes.length;
   RS.deleteSaved(st, a.id);
-  ok('delete removes it and its frozen text', st.resumes.length === n - 1 && !st.frozen[a.id] && st.openId === null);
+  ok('delete removes it and its frozen text', st.resumes.length === n - 1 && !st.frozen[a.id]);
+  ok('deleting the open one opens the newest left', st.openId && st.openId !== a.id && st.cur.id === st.openId);
+  const only = exampleState();
+  for (const r of [...only.resumes]) RS.deleteSaved(only, r.id);
+  ok('deleting the last one leaves a fresh page to work on', only.resumes.length === 0 && !!only.cur && only.openId === null);
+  RS.settle(only);
+  ok('…which is saved the moment it changes', only.resumes.length === 1 && only.openId === only.resumes[0].id);
 }
 
 section('a linked folder');
@@ -151,7 +344,7 @@ section('a linked folder');
   await p.link(folder);
   const listed = await folder.list('recipes');
   ok('every saved resume is a file in recipes/', listed.length === names.length && names.every(n => listed.includes(n)));
-  store.commit(d => { RS.reuse(d, names[0]); RS.saveNew(d, { company: 'Contoso Labs', role: 'Engineer' }); }, 'Save');
+  store.commit(d => { RS.duplicate(d, names[0], { name: 'Contoso Labs - Engineer' }); }, 'Save');
   await p.flush();
   ok('a new save appears there', (await folder.list('recipes')).includes('Contoso Labs - Engineer.json'));
   store.commit(d => RS.deleteSaved(d, 'Contoso Labs - Engineer.json'), 'Delete');
@@ -185,11 +378,11 @@ section('archiving a claim a saved resume prints');
   const again = exampleState();
   again.record = st.record;
   RS.openSaved(again, again.resumes[0].id);
-  ok('opening one holds nothing and is no change', !again.cur.held && !RS.isDirty(again));
+  ok('opening one holds nothing and is no change', !again.cur.held && eq(again.cur, noSnaps(RS.savedOf(again))));
   ok('the file it saves as is the same', JSON.stringify(S.saveResume(st.record, again.cur, again.frozen[again.openId]).file.work) === JSON.stringify(S.saveResume(model, again.resumes[0], again.frozen[again.openId]).file.work));
   // a new resume never uses one
-  const fresh = RS.newFrom(st, { mode: 'all' });
-  const used = new Set(RS.usedVersions(st.record, fresh).map(u => u.fact));
+  RS.newFrom(st, { start: 'all' });
+  const used = new Set(RS.usedVersions(st.record, st.cur).map(u => u.fact));
   ok('a new resume prints none of the archived claims', [...used].every(f => !st.record.facts.find(x => x.id === f)?.archived));
 }
 
@@ -197,6 +390,7 @@ section('saving and listing with a bundle job type');
 {
   const st = exampleState();
   st.record.jobTypes.push({ id: 'cad-designer', label: 'CAD designer', tags: ['cad', 'Hardware design'] });
+  RS.duplicate(st, names[0]);
   const r = RS.saveNew(st, { company: 'Bundle Co', role: 'Designer', jobType: 'cad designer' });
   ok('a typed label finds the job type, and the resume keeps its id', st.cur.jobType === 'cad-designer' && st.record.jobTypes.filter(j => (j.id ?? j) === 'cad-designer' || j === 'cad designer').length === 1);
   ok('a bundle does not tag the versions the resume used', r.tagged === 0 && !JSON.stringify(st.record.variants).includes('"cad designer"'));
@@ -204,9 +398,10 @@ section('saving and listing with a bundle job type');
   ok('listing groups by id and shows the label', g?.label === 'CAD designer' && g.resumes.length === 1);
   const cmp = RS.compareRows(st.record, st.resumes.find(x => x.jobType === 'cad-designer'), st.resumes[0]).find(x => x.kind === 'setting');
   ok('compare shows the label', cmp.a === 'CAD designer');
-  const made = RS.newFrom(st, { mode: 'tagged', jobType: 'cad-designer' });
-  ok('a new resume from a bundle applies it and keeps the id', made.jobType === 'cad-designer');
+  RS.newFrom(st, { start: 'tagged', jobType: 'cad-designer' });
+  ok('a new resume from a bundle applies it and keeps the id', st.cur.jobType === 'cad-designer');
   const st2 = exampleState();
+  RS.duplicate(st2, names[0]);
   RS.saveNew(st2, { company: 'Old Co', jobType: 'Brand new type' });
   ok('a new typed name is still the old one-tag form', st2.record.jobTypes.at(-1) === 'Brand new type');
 }

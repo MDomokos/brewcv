@@ -502,8 +502,9 @@ export function validate(input, recipe = null){
       const labels = typeof x.label === 'string' ? [x.label] : (x.label && typeof x.label === 'object' ? Object.values(x.label) : [null]);
       if (labels.some(l => typeof l !== 'string' || !l.trim())) err(w, 'must be a non-empty string, or { lang: non-empty string }');
     }
-    for (const k of ['company', 'role', 'jobType'])
+    for (const k of ['name', 'company', 'role', 'jobType'])
       if (recipe[k] !== undefined && typeof recipe[k] !== 'string') err(`recipe.${k}`, 'must be a string');
+    if (recipe.forKind !== undefined && !['company', 'outreach'].includes(recipe.forKind)) err('recipe.forKind', 'must be "company" or "outreach"');
     if (recipe.tags !== undefined && (!Array.isArray(recipe.tags) || recipe.tags.some(t => !isStr(t)))) err('recipe.tags', 'expected an array of strings');
     if (recipe.accent !== undefined && !HEX.test(recipe.accent ?? '')) err('recipe.accent', `${JSON.stringify(recipe.accent)} is not a #rrggbb colour`);
     if (recipe.photo !== undefined){

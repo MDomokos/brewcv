@@ -26,7 +26,7 @@ const M10_ADDS = html => String(html)
   .replace(/<button class="ghost sm" data-act="delete-claim"[^>]*>🗑<\/button>/g, '')
   .replace(/<button class="ghost sm" data-act="(?:un)?archive-claim"[^>]*>[^<]*<\/button>/g, '')
   .replace(', <kbd>Esc</kbd> goes back', '')
-  .replace(/\n\s*<label class="field addclaim">[\s\S]*?<div class="btns"><button class="sm addc"[^>]*>[^<]*<\/button><\/div>/g, '');
+  .replace(/\n\s*<label class="field addclaim">[\s\S]*?<\/label>/g, '');
 
 async function resumeSnapshot(){
   const out = {};

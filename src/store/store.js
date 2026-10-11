@@ -50,6 +50,7 @@ export function createStore(initial = {}, opts = {}){
   const maxBytes = opts.maxBytes ?? 32e6;
   const coalesceMs = opts.coalesceMs ?? 800;
   const now = opts.now ?? (() => Date.now());
+  const settle = opts.settle ?? null;       // runs on the draft inside every commit, so its writes are part of the same undo step
 
   const assets = new Map(opts.assets ?? []);
   const subs = new Set();
@@ -77,7 +78,9 @@ export function createStore(initial = {}, opts = {}){
     commit(fn, label = 'Edit'){
       const draft = JSON.parse(last.json);
       const ret = fn(draft);
-      const next = internalize(ret !== undefined && ret !== draft && typeof ret === 'object' ? ret : draft, assets);
+      const out = ret !== undefined && ret !== draft && typeof ret === 'object' ? ret : draft;
+      settle?.(out);
+      const next = internalize(out, assets);
       const s = snap(next, label);
       if (s.json === last.json) return false;
       const coalesce = label === last.label && s.at - last.at < coalesceMs && !redoS.length && undoS.length > 0 && last.label !== 'open';

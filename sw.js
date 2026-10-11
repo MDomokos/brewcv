@@ -22,6 +22,7 @@ const SHELL = [
   './src/ui/shell.js',
   './src/ui/edit.js',
   './src/ui/resumes.js',
+  './src/ui/switcher.js',
   './src/model/record.js',
   './src/model/resumes.js',
   './src/model/focus.js',
