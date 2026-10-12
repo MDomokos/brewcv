@@ -116,6 +116,11 @@ section('the logo has two tiles');
   ok('the head, the rail and the start screen draw the logo through logoBtn, never a bare img of their own', ['shell.js', 'dock.js', 'start.js'].every(f => /logoBtn\(/.test(src[f]) && !/<img src="icons\/icon\.svg"/.test(src[f])));
 }
 
+section('switching Tea and Coffee');
+{
+  ok('colours fade and corners, edges and shadows morph while a switch settles (html.is-switching, dur(slow), not under reduced motion)', /html\.is-switching[^{]*\{[^}]*background-color[^}]*border-radius[^}]*box-shadow/.test(read('src/ui/drinks.css')) && /is-switching/.test(src['drink.js']) && /!reduced\(\)/.test(src['drink.js']));
+}
+
 section('every string is in the catalogues');
 {
   const used = new Set();

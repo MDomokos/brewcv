@@ -384,3 +384,9 @@ html[data-motion="reduce"] button.logoswitch:hover img { transform: none; }
 .fx-scan { position: fixed; background: var(--crema); pointer-events: none; }
 .fx-ticket { position: fixed; box-sizing: border-box; padding: 8px 10px 10px; background: var(--paper); color: var(--paper-ink); border: 1px solid var(--line-strong); border-top: 2px solid var(--crema); font: 600 12px/1.5 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; pointer-events: none; }
 .fx-ticket p { margin: 0; white-space: nowrap; }
+
+/* ---------- switching Tea and Coffee, or light and dark: colours fade, shapes morph (drink.js puts html.is-switching on for the length of it) ---------- */
+html.is-switching :is(*, *::before, *::after):not(.matroll, .matroll *, .motionlay *) {
+  transition: background-color var(--m-slow) var(--m-inout), color var(--m-slow) var(--m-inout), border-color var(--m-slow) var(--m-inout), border-radius var(--m-slow) var(--m-inout),
+    box-shadow var(--m-slow) var(--m-inout), fill var(--m-slow) var(--m-inout), stroke var(--m-slow) var(--m-inout), outline-color var(--m-slow) var(--m-inout);
+}

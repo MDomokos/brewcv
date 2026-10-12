@@ -24,7 +24,7 @@ function tokensOf(drink){
   if (now !== drink) root.setAttribute('data-drink', drink);
   const cs = getComputedStyle(root), out = {};
   for (const k of [...TEA, ...COFFEE]) out[k] = cs.getPropertyValue(`--${k}`).trim();
-  if (now !== drink) root.setAttribute('data-drink', now);
+  if (now !== drink){ root.setAttribute('data-drink', now); void document.body.offsetWidth; }       // settled back, so the colours' fade (drink.js) starts from what was on screen
   return out;
 }
 

@@ -7,6 +7,7 @@
 
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
+import { reduced, dur } from './motion.js';
 
 export const DRINKS = ['tea', 'coffee'];
 export const THEMES = ['system', 'light', 'dark'];
@@ -32,7 +33,15 @@ export const onDrinkBefore = fn => { beforeListeners.add(fn); return () => befor
 // the logo is the drink's own: the tea tile or the coffee tile
 export const logoSrc = () => `icons/${state.drink === 'coffee' ? 'icon-coffee' : 'icon'}.svg`;
 
+let applied = false, switchT = 0;
 function apply(){
+  // a switch after the first: while it settles, colours fade and shapes (corners, edges, shadows) morph (src/ui/drinks.css, html.is-switching)
+  if (applied && root && !reduced()){
+    clearTimeout(switchT);
+    root.classList.add('is-switching'); void root.offsetWidth;
+    switchT = setTimeout(() => root.classList.remove('is-switching'), dur('slow') + 80);
+  }
+  applied = true;
   root?.setAttribute('data-drink', state.drink);
   root?.setAttribute('data-theme', resolveTheme(state.pref));
   paint();

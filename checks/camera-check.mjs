@@ -6,7 +6,7 @@
 import { isDeepStrictEqual as eq } from 'node:util';
 import {
   geometry, viewRect, fitCam, screenOf, contentOf, zoomAbout, snapZoom, limits, rubber, softCam, hardCam, stops, magnetize, unmagnetize,
-  settleIndex, visible, brightPage, faded, damping, springStep, atRest, centreOn, writingScale, rowWidth, pageLeft,
+  settleIndex, visible, brightPage, faded, damping, springStep, atRest, centreOn, writingScale, rowWidth, pageLeft, midX,
   BOTH_MIN, BOTH_RATIO, OVERSHOOT, SNAP_FIT, MAGNET, BOUNCE,
 } from '../src/ui/camera.js';
 import { G, RAIL_W, PAGE_GAP, pageSize } from '../src/ui/layout.js';
@@ -43,15 +43,15 @@ section('fitting the pages in the view');
   const v = railView(1280);
   const all = fitCam(g, v, { scene: 'all' });
   ok('both pages: the whole height, 16px above and below', near(all.k, (800 - 2 * G) / 1123) && near(all.y, G));
-  ok('both pages: centred in the view', near(all.x - v.left, v.left + v.width - (all.x + rowWidth(794, 2) * all.k)));
+  ok('both pages: centred in the view', near(all.x + rowWidth(794, 2) * all.k / 2, midX(v)));
   const one = fitCam(g, v, { scene: 'one', page: 0 }), two = fitCam(g, v, { scene: 'one', page: 1 });
   ok('one page: centred, and page 2 is one page-width and a gap to the right', near(one.x + (794 + PAGE_GAP) * one.k, one.x + 818 * one.k) && near((one.x - two.x), (794 + PAGE_GAP) * one.k));
   const centred = screenOf(two, pageLeft(g, 1) + 794 / 2, 0).x;
-  ok('…and travelling there puts page 2 in the middle of the view', near(centred, v.left + v.width / 2));
+  ok('…and travelling there puts page 2 in the middle of the view', near(centred, midX(v)));
   const open = viewRect({ vw: 1280, vh: 800, colLeft: 1280 - G - 358 });
   ok('with the panel open the view is left of it', open.width === 1280 - G - 358 - G);
   const inOpen = fitCam(g, open, { scene: 'one' });
-  ok('…and one page sits centred in what is left', near(screenOf(inOpen, 397, 0).x, open.left + open.width / 2));
+  ok('…and one page sits centred in what is left', near(screenOf(inOpen, 397, 0).x, midX(open)));
   ok('screen and content are inverses', (() => { const s = screenOf(all, 123, 456); const c = contentOf(all, s.x, s.y); return near(c.x, 123) && near(c.y, 456); })());
 }
 
@@ -150,7 +150,7 @@ section('writing zoom');
   const k = writingScale(g, v, 130), one = fitCam(g, v, { scene: 'one' }).k;
   ok('130% is 1.3 times the fit-to-height scale of one page', near(k, one * 1.3));
   const c = centreOn(g, v, k, 500, 300);
-  ok('the block lands in the middle of the view', near(screenOf(c, 500, 300).x, v.left + v.width / 2) && near(screenOf(c, 500, 300).y, v.top + v.height / 2));
+  ok('the block lands in the middle of the view', near(screenOf(c, 500, 300).x, midX(v)) && near(screenOf(c, 500, 300).y, v.top + v.height / 2));
 }
 
 console.log(failed ? `\n${failed} camera check(s) FAILED` : '\nall camera checks passed');

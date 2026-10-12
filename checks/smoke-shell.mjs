@@ -113,11 +113,15 @@ if (want('layout: the page at full height, the panel or the rail beside it')) fo
   ok(`${w}×${h}: nothing is selected, so the panel is folded: the rail is 52px wide, 16px from the edge, and the panel and the head are not on screen`,
     Math.abs(c.width - 52) < 1 && Math.abs(w - c.right - 16) < 1 && (await page.isVisible('#rail')) && !(await page.isVisible('#body')) && !(await page.isVisible('#head')));
   ok(`${w}×${h}: the page runs the full height, 16px from top and bottom`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1, `${s.top.toFixed(1)} / ${(h - s.bottom).toFixed(1)}`);
-  ok(`${w}×${h}: centred in the room left of the rail`, Math.abs(s.left - (c.left - 16 - s.right)) < 1.5, `${s.left.toFixed(1)} vs ${(c.left - 16 - s.right).toFixed(1)}`);
+  ok(`${w}×${h}: with the panel folded the page is centred on the window`, Math.abs(s.left - (w - s.right)) < 1.5, `${s.left.toFixed(1)} vs ${(w - s.right).toFixed(1)}`);
+  await page.evaluate(() => window.__wb.dock.setPanel('open')); await page.waitForTimeout(700);
+  { const so = await rect(page, '#sheet'), co = await rect(page, '#col');
+    ok(`${w}×${h}: with the panel open the page is centred on the free space beside it (the window's edge to the panel's edge)`, Math.abs(so.left - (co.left - so.right)) < 2.5, `${so.left.toFixed(1)} vs ${(co.left - so.right).toFixed(1)}`); }
+  await page.evaluate(() => window.__wb.dock.setPanel('auto')); await page.waitForTimeout(700);
   await page.keyboard.press('e'); await settle(page);
   s = await rect(page, '#sheet'); c = await rect(page, '#col');
   ok(`${w}×${h}: E opens the panel: 380–480px wide, the full height, 16px from the page area`, c.width >= 380 && c.width <= 480 && Math.abs(c.height - (h - 32)) < 1 && (await page.isVisible('#body')) && !(await page.isVisible('#rail')), `${c.width}px`);
-  ok(`${w}×${h}: the page keeps the full height, and sits centred left of the panel`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1 && Math.abs(s.left - (c.left - 16 - s.right)) < 1.5, `${s.left.toFixed(1)} vs ${(c.left - 16 - s.right).toFixed(1)}`);
+  ok(`${w}×${h}: the page keeps the full height, and sits centred left of the panel`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1 && Math.abs(s.left - (c.left - s.right)) < 1.5, `${s.left.toFixed(1)} vs ${(c.left - s.right).toFixed(1)}`);
   ok(`${w}×${h}: the head is two rows: the file, then Edit · Record · Design · Export`, (await page.$$('#head .hrow.top, #head .hrow.modes')).length === 2 && (await page.$$('#head [role=tab]')).length === 4);
   ok(`${w}×${h}: no horizontal scroll`, scrollW <= w);
   await ctx.close();
@@ -225,7 +229,7 @@ if (want('one screen: under 1280px the panel is a drawer; the keyboard path thro
   const bad = await open(page, undefined, { panel: null });
   const sheet = page.frameLocator('#sheet iframe');
   const s0 = await rect(page, '#sheet');
-  ok('1100×800: nothing selected: the page takes the width (all but the rail)', Math.abs(s0.left - (1100 - 52 - 32 - s0.right)) < 3 && (await page.evaluate(() => document.body.dataset.drawer)) === 'true' && (await page.isVisible('#rail')));
+  ok('1100×800: nothing selected: the page is centred in the room left of the rail (a narrow window keeps the toast and the page apart)', Math.abs(s0.left - (1100 - 52 - 16 - s0.right)) < 3 && (await page.evaluate(() => document.body.dataset.drawer)) === 'true' && (await page.isVisible('#rail')));
   await sheet.locator('.bullets li').first().click(); await settle(page);
   const s1 = await rect(page, '#sheet'), c1 = await rect(page, '#col');
   ok('selecting opens the panel as a drawer over the page’s right edge: the page does not move', Math.abs(s1.left - s0.left) < 1 && Math.abs(s1.width - s0.width) < 1 && c1.left < s1.right && c1.width >= 340);
@@ -395,7 +399,7 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     ok(`${w}×${h}: both pages show at once, equal, nothing faded`, c.scene === 'all' && c.equal && c.faded.length === 2 && c.faded.every(f => !f));
     ok(`${w}×${h}: at the full height of the window, 16px above and below`, Math.abs(c.k - (h - 32) / 1123) < 1e-6 && Math.abs(c.y - 16) < 1);
     const s = await rect(page, '#sheet'), col = await rect(page, '#col');
-    ok(`${w}×${h}: centred in the room left of the rail`, Math.abs(s.left - (col.left - 16 - s.right)) < 2, `${s.left.toFixed(1)} vs ${(col.left - 16 - s.right).toFixed(1)}`);
+    ok(`${w}×${h}: with the panel folded the pages are centred on the window`, Math.abs(s.left - (w - s.right)) < 2, `${s.left.toFixed(1)} vs ${(w - s.right).toFixed(1)}`);
     await wheel(page, 700); await page.waitForTimeout(500);
     const after = await camOf(page);
     ok(`${w}×${h}: the wheel does nothing: there is nothing to travel to`, Math.abs(after.x - c.x) < 0.5 && after.page === 0);
@@ -2206,18 +2210,18 @@ if (want('drinks: tea and coffee, light and dark')) {
     return c.tagName === 'ASIDE' && /drinking today/.test(c.textContent) && b.length === 2 && b.every(x => x.querySelector('svg')) && r.left < 30 && innerHeight - r.bottom < 30 && b[0].getAttribute('aria-pressed') === 'true';
   }));
   await page.evaluate(() => { window.__marker = 'same page'; });
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(250);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   ok('Shift+F switches to coffee, in place: no reload, the same page, the choice stored', (await drinkNow()) === 'coffee' && (await page.evaluate(() => window.__marker)) === 'same page' && (await page.evaluate(() => localStorage.getItem('rb-drink'))) === 'coffee');
   ok('the corner shows it, and the rail icons and the meter changed with it, with no redraw of the page', await page.evaluate(() => document.querySelector('#brewmode [data-drink=coffee]').getAttribute('aria-pressed') === 'true') && (await page.evaluate(() => window.__wb.ui.laid != null)));
   await page.click('#brewmode [data-drink=tea]'); await page.waitForTimeout(250);
   ok('the corner’s Tea button switches back', (await drinkNow()) === 'tea');
   // never while typing: the switcher's search is a field
   await page.click('#docname-btn'); await page.waitForSelector('#switcher .sw-q');
-  await page.focus('#switcher .sw-q'); await page.keyboard.press('Shift+F'); await page.waitForTimeout(150);
+  await page.focus('#switcher .sw-q'); await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   ok('Shift+F is ignored in a field, and types the letter', (await drinkNow()) === 'tea' && (await page.inputValue('#switcher .sw-q')) === 'F');
   await page.keyboard.press('Escape');
   // the setting survives a reload
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(200);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   ok('the setting survives a reload', (await drinkNow()) === 'coffee' && (await page.evaluate(() => document.querySelector('#brewmode [data-drink=coffee]').getAttribute('aria-pressed'))) === 'true');
@@ -2271,12 +2275,12 @@ if (want('drinks: Fit, the meters, the moments')) {
   await setFills(used(1.01).map(x => ({ ...x, overflow: 4 })));
   ok('tea: an overflowing page spills over the rim', await page.evaluate(() => { const bar = document.querySelector('#foot .meter.overflow .mbar'); const c = getComputedStyle(bar, '::before'); return c.content !== 'none' && /url/.test(c.webkitMaskImage || c.maskImage); }));
   await setFills(used(0.91));
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(250);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   const glass = await page.evaluate(() => { const m = document.querySelector('#foot .meter'), bar = m.querySelector('.mbar').getBoundingClientRect(), f = m.querySelector('.mfill').getBoundingClientRect(), cs = getComputedStyle(m.querySelector('.mfill')); return { ratio: f.height / (bar.height - 1), bg: cs.backgroundImage, band: getComputedStyle(m.querySelector('.mband')).borderRightStyle, ticks: getComputedStyle(m.querySelector('.mbar'), '::after').backgroundImage }; });
   ok('coffee: the meter is a shot glass: crema on espresso, filled to the level, ticks, and Fit’s band bracketed', Math.abs(glass.ratio - 0.91) < 0.06 && /linear-gradient/.test(glass.bg) && glass.band === 'solid' && /linear-gradient/.test(glass.ticks), JSON.stringify(glass));
   ok('coffee: the rail’s icons are the plain set, the head is an espresso band with a crema line', await page.evaluate(() => { const h = getComputedStyle(document.querySelector('#head')); return /rgb\(43, 29, 20\)/.test(h.backgroundColor) && /190, 127, 74/.test(h.borderBottomColor); }));
   ok('coffee: counts read 5v, boxes are square, the canvas is a cutting mat', await page.evaluate(() => { const cb = document.querySelector('.cb'); return !cb || parseFloat(getComputedStyle(cb).borderTopLeftRadius) <= 2; }) && await page.evaluate(() => /linear-gradient/.test(getComputedStyle(document.body).backgroundImage)));
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(250);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   // steam is a moment: it rises for a few seconds when a page has just reached the band, and stops. At 91 to 93% it is a heart.
   await setFills(used(0.5)); await page.waitForTimeout(100);
   await setFills(used(0.92));
@@ -2304,8 +2308,8 @@ if (want('drinks: Fit, the meters, the moments')) {
   const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const p2 = await c2.newPage();
   await open(p2);
-  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(300);
-  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(120);
+  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
+  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
   ok('tea: switching to tea and the tea bag dunks', await p2.evaluate(() => document.querySelector('#head .logo img').classList.contains('dunk')));
   await p2.waitForTimeout(1100);
   await inRecord(p2, 'hydra'); await settle(p2);
@@ -2313,7 +2317,7 @@ if (want('drinks: Fit, the meters, the moments')) {
   await box.click();
   ok('tea: the tick pops once, on the line just ticked', await p2.waitForFunction(() => document.querySelector('#checklist .cb.pop:checked'), null, { timeout: 2000 }).then(() => true, () => false));
   ok('tea: the toast hangs on a string (a hole and a string above it)', await p2.evaluate(() => { const t = document.querySelector('#toast'); return getComputedStyle(t, '::before').content !== 'none' && getComputedStyle(t, '::after').content !== 'none'; }));
-  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(250);
+  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
   ok('coffee: no tea shapes: the bag does not dunk, the toast has no string', !(await p2.evaluate(() => document.querySelector('#head .logo img').classList.contains('dunk'))) && await p2.evaluate(() => getComputedStyle(document.querySelector('#toast'), '::before').content === 'none'));
   await c2.close();
 }
@@ -2326,11 +2330,11 @@ if (want('drinks: the page marks, exports, the corner at other sizes')) {
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
   const amber = await mark();
   ok('tea: the selection mark on the page is amber (the app’s mark, inside the frame)', amber === 'rgb(183, 122, 44)', amber);
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(300);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   ok('coffee: …and roast ink, changed in place', (await mark()) === 'rgb(28, 20, 16)', await mark());
   const clean = await page.evaluate(async () => { const html = await window.__wb.export.buildHtml(); return { html: html.length, leaks: ['--rb-', 'rb-sel', 'data-drink', 'brewmode', 'drinks.css', 'Fira Code'].filter(w => w !== 'Fira Code' && html.includes(w)) }; });
   ok('an export holds nothing from the app’s theme', clean.html > 1000 && clean.leaks.length === 0, JSON.stringify(clean));
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(200);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   await page.setViewportSize({ width: 1100, height: 800 }); await page.waitForTimeout(500);
   ok('below 1280px the corner is just the two cups: the question names the buttons, with a hint', await page.evaluate(() => { const c = document.querySelector('#brewmode'), q = c.querySelector('.bm-q'); const b = [...c.querySelectorAll('button')]; return getComputedStyle(q).display === 'none' && b.every(x => /drinking today/.test(x.getAttribute('aria-label')) && x.dataset.tip) && c.getBoundingClientRect().width < 70; }));
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(600);

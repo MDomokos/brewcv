@@ -6,7 +6,7 @@
 
 import {
   geometry, viewRect, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
-  brightPage, faded, springStep, atRest, centreOn, writingScale, pageLeft,
+  brightPage, faded, springStep, atRest, centreOn, writingScale, pageLeft, midX,
 } from './camera.js';
 import { clampZoom, PHONE_MAX, G, RAIL_W } from './layout.js';
 import { readMagnet, readBounce } from './dock.js';
@@ -109,7 +109,7 @@ export function initCanvas(C){
   function layout(L, format){
     geo = geometry({ vw: innerWidth, vh: innerHeight, format, pages: pagesN() });
     // a drawer lies over the page, which does not move for it: the view is what the rail leaves
-    view = viewRect({ vh: innerHeight, colLeft: L.drawer ? innerWidth - G - RAIL_W : L.col.left });
+    view = viewRect({ vh: innerHeight, colLeft: L.drawer ? innerWidth - G - RAIL_W : L.col.left, mid: L.folded && !L.drawer ? innerWidth / 2 : undefined });
     scene = (L.folded || L.drawer) && geo.bothUp ? 'all' : 'one';
     sliver = L.drawer && L.wide ? L.col.left : null;
     ui.page = Math.max(0, Math.min(geo.n - 1, ui.page ?? 0));
@@ -124,7 +124,7 @@ export function initCanvas(C){
   }
   const rememberView = () => { ui.fitK = fit?.k; ui.viewWas = view; };
 
-  const centre = () => ({ x: view.left + view.width / 2, y: view.top + view.height / 2 });
+  const centre = () => ({ x: midX(view), y: view.top + view.height / 2 });
 
   // ---- zoom ----
   let want = null;
