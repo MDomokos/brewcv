@@ -25,7 +25,7 @@ export function initCanvas(C){
   let free = false, cam = { k: 1, x: 0, y: 0 };
   let motion = null, raf = 0, idleT = 0, movedT = 0, firedSig = '';
   let sliver = null;                                        // the drawer's left edge while Record covers the page, else null
-  let drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
+  let rawFree = null, drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
   const pointers = new Map();
   const dials = { magnet: readMagnet(), bounce: readBounce() };
 
@@ -214,8 +214,10 @@ export function initCanvas(C){
       return true;
     }
     free = true; rememberView();
-    put(softCam({ ...cam, x: cam.x - dx, y: cam.y - dy }, geo, view));
-    rest(() => go(hardCam(cam, geo, view), { spring: true }));
+    // the pull is kept unrubbered and the rubber is applied to it once: rubbering the already rubbered position, event after event, made the edge jitter
+    rawFree = { x: (rawFree?.x ?? cam.x) - dx, y: (rawFree?.y ?? cam.y) - dy };
+    put(softCam({ ...cam, ...rawFree }, geo, view));
+    rest(() => { rawFree = null; go(hardCam(cam, geo, view), { spring: true }); });
     return true;
   }
   function rest(fn){ clearTimeout(idleT); idleT = setTimeout(fn, IDLE_MS); }
