@@ -67,7 +67,7 @@ function designView(){
   const hasPhoto = !!(rec.basics?.image || rec.basics?.portrait?.state === 'present');
   const a4 = r.format !== 'us-letter';
   const manual = Array.isArray(r.pages);
-  return `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a><h2 class="title">${h('head.design')}</h2>
+  return `<h2 class="title">${h('head.design')}</h2>
     <span class="lbl">${h('design.pages')}</span>
     <div class="seg" role="group" aria-label="${esc(t('design.pages'))}">${[[1, t('design.onePage')], [2, t('design.twoPages')], [0, t('design.anyPages')]].map(([n, l]) => `<button data-act="d-pages" data-n="${n}" aria-pressed="${!manual && (r.pageLimit ?? 1) === n}">${esc(l)}</button>`).join('')}</div>
     <p class="note">${manual ? h('design.manualNote', { n: r.pages.length }) : r.pageLimit === 0 ? h('design.flowNote') : h(r.pageLimit === 2 ? 'design.fitTwo' : 'design.fitOne')}</p>

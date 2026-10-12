@@ -59,6 +59,20 @@ export function allTags(model, lang = null, { archived = false } = {}){
   return [...types.sort(byUse), ...plain.sort(byUse)];
 }
 
+// Tags that name a section or mark a claim as old; they sort the record, they never say what a job is looking for.
+// The Highlight lens never lists them. (Track C removed the section-name ones from the record; this keeps a
+// record that still has them, or an import that brings them back, from filling the lens.)
+export const STRUCTURAL_TAGS = ['identity', 'work-history', 'education', 'languages', 'interests', 'projects', 'certification', 'work-rights', 'publication', 'archive'];
+
+// What the Highlight lens offers: the job types, then (behind "+ tags") the topic tags that are left.
+export function lensChoices(model, lang = null){
+  const all = allTags(model, lang);
+  return {
+    types: all.filter(x => x.jobType),
+    topics: all.filter(x => !x.jobType && x.n && !STRUCTURAL_TAGS.includes(x.tag)),
+  };
+}
+
 function walk(model, recipe, T, fn){
   const lang = recipe.lang ?? 'en';
   const ix = ixOf(model);

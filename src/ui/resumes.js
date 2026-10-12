@@ -18,7 +18,6 @@ const $ = s => document.querySelector(s);
 const V = { picked: [], hover: null, menu: null, more: false, row: null, renaming: null, nv: null, send: null };
 
 const st = () => C.store.state;
-const back = () => `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a>`;
 const metaOf = r => [(r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
   r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('resumes.pShort', { n: r.pageLimit }) : null, r.savedAt].filter(Boolean).join(' · ');
 const typeLabel = id => jobTypeLabel(st().record, id);
@@ -48,30 +47,14 @@ export const moreButton = (id, where = 'group') => `<button class="smore" data-a
 export const renamingHere = (id, where = 'group') => V.renaming?.id === id && V.renaming.where === where;
 export const renameInput = r => `<input class="swren" data-rename="${esc(r.id)}" value="${esc(RS.resumeLabel(r))}" aria-label="${esc(t('ux1.rename'))}" autocomplete="off">`;
 
-// ---- Manage all ----
-
-function resumesView(){
-  const groups = RS.grouped(st().record, st().resumes ?? []);
-  V.picked = V.picked.filter(id => (st().resumes ?? []).some(r => r.id === id));
-  return `${back()}<h2 class="title">${h('ux1.manageTitle', { n: (st().resumes ?? []).length })}</h2>
-    <div class="btns"><button class="sm primary" data-act="goto" data-v="new">${h('ux1.newResume')}</button>
-      <button class="sm" data-act="goto" data-v="compare" ${V.picked.length === 2 ? '' : 'disabled'} title="${esc(t('resumes.tickTwo'))}">${h('resumes.compareN', { n: V.picked.length })}</button></div>
-    ${groups.map(g => `<span class="lbl">${esc(g.type ? g.label : t('resumes.noType'))}</span>
-      <div class="list rlist">${g.resumes.map(r => `
-        <div class="item rrow ${st().openId === r.id ? 'is-cur' : ''}" data-rid="${esc(r.id)}">
-          <input type="checkbox" class="pick" data-cmp="${esc(r.id)}" ${V.picked.includes(r.id) ? 'checked' : ''} aria-label="${esc(t('resumes.compareX', { name: RS.resumeLabel(r) }))}">
- ${renamingHere(r.id, 'manage') ? renameInput(r) : `<a class="t" data-act="r-open" data-id="${esc(r.id)}" role="button" tabindex="0"><b>${esc(RS.resumeLabel(r))}</b><span class="muted small">${esc([forLine(r), metaOf(r)].filter(Boolean).join(' · '))}</span></a>`}
-          <span class="rbtns">${moreButton(r.id, 'manage')}</span>${rowMenuHtml(r.id, 'manage')}
-        </div>`).join('')}</div>`).join('') || `<p class="muted">${h('ux1.noneYet')}</p>`}
-    <p class="note">${h('ux1.manageNote')}</p>`;
-}
+// ---- Compare (the ticks are in the grown switcher) ----
 
 function compareView(){
   const [a, b] = V.picked.map(id => RS.savedOf(st(), id));
-  if (!a || !b) return resumesView();
+  if (!a || !b) return `<p class="muted">${h('ux2.tickTwo')}</p>`;
   const rows = RS.compareRows(C.work(), a, b);
   const cell = c => (typeof c === 'string' ? esc(c) : `<span title="${esc(c.text)}">${esc(c.label)}</span>`);
-  return `<a class="back" data-act="goto" data-v="resumes">${h('resumes.back')}</a><h2 class="title">${h('resumes.compare')}</h2>
+  return `<a class="back" data-act="sw-manage">${h('resumes.back')}</a><h2 class="title">${h('resumes.compare')}</h2>
     <table class="cmp"><thead><tr><th></th><th>${esc(RS.resumeLabel(a))}</th><th>${esc(RS.resumeLabel(b))}</th></tr></thead><tbody>
     ${rows.map(r => `<tr class="${r.differs ? 'diff-row' : ''} ${r.kind}"><th title="${esc(r.label)}">${esc(r.label.length > 46 ? r.label.slice(0, 45) + '…' : r.label)}</th><td>${cell(r.a)}</td><td>${cell(r.b)}</td></tr>`).join('')}
     </tbody></table>
@@ -110,7 +93,7 @@ function newView(){
   const plan = nvPlan(n);
   const L = n.lang, inUse = langsInUse(st().record);
   const opt = (v, label, extra = '', off = false) => `<label class="startopt ${off ? 'is-off' : ''}" data-start="${v}"><input type="radio" name="nv-start" value="${v}" ${n.start === v ? 'checked' : ''} ${off ? 'disabled' : ''}> <span>${label}${extra}</span></label>`;
-  return `${back()}<h2 class="title">${h('ux1.newTitle')}</h2>
+  return `<h2 class="title">${h('ux1.newTitle')}</h2>
     <label class="field"><span class="lbl inline">${h('ux1.name')}</span><input id="nv-name" value="${esc(nvName(n))}" autocomplete="off" placeholder="${esc(t('ux1.namePh'))}"></label>
     <label class="field"><span class="lbl inline">${h('resumes.jobType')}</span><select id="nv-type">
       <option value="">${h('ux1.noType')}</option>${T.map(j => `<option value="${esc(j.id)}" ${n.jobType === j.id ? 'selected' : ''}>${esc(j.label)}</option>`).join('')}<option value="+" ${n.jobType === '+' ? 'selected' : ''}>${h('ux1.newType')}</option></select></label>
@@ -161,7 +144,7 @@ function sendDefaults(){
 function saveView(){
   const s = (V.send ??= sendDefaults());
   const merge = RS.sameAsLatest(st());
-  return `${back()}<h2 class="title">${h('ux1.sentTo')}</h2>
+  return `<h2 class="title">${h('ux1.sentTo')}</h2>
     <label class="field"><span class="lbl inline">${h('ux1.kind')}</span><select id="sv-kind"><option value="company" ${s.kind === 'company' ? 'selected' : ''}>${h('ux1.kindCompany')}</option><option value="outreach" ${s.kind === 'outreach' ? 'selected' : ''}>${h('ux1.kindOutreach')}</option></select></label>
     <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="sv-co" value="${esc(s.company)}" autocomplete="off"></label>
     <label class="field"><span class="lbl inline">${h('resumes.role')}</span><input id="sv-role" value="${esc(s.role)}" autocomplete="off"></label>
@@ -184,7 +167,7 @@ export function snapBarText(snap){
 }
 function snapshotView(){
   const snap = RS.findSnapshot(st(), C.ui.snap?.id);
-  if (!snap) return resumesView();
+  if (!snap) return `<p class="muted">${h('ux1.noneYet')}</p>`;
   return `<a class="back" data-act="snap-close">${h('ux1.backToResume')}</a>
     <h2 class="title">${esc(RS.resumeLabel(st().cur))}</h2>
     <div class="banner snapnote"><span>${esc(snapBarText(snap))}</span></div>
@@ -200,8 +183,8 @@ function snapshotView(){
 
 function reviewView(){
   const items = RS.newerOf(C.work(), st().cur);
-  if (!items.length) return `${back()}<h2 class="title">${h('newer.title')}</h2><p class="muted">${h('newer.none')}</p>`;
-  return `${back()}<h2 class="title">${h('newer.title')}</h2>
+  if (!items.length) return `<h2 class="title">${h('newer.title')}</h2><p class="muted">${h('newer.none')}</p>`;
+  return `<h2 class="title">${h('newer.title')}</h2>
     <p class="small">${h('newer.intro', { n: items.length })}</p>
     ${items.map(x => `<div class="review" data-fact="${esc(x.fact)}">
       <div class="small muted">${esc(C.work().facts.find(f => f.id === x.fact)?.summary ?? x.fact)}</div>
@@ -217,7 +200,7 @@ function newerBanner(){
   return n ? `<div class="banner"><span>${h('newer.banner', { n })}</span><button class="sm" data-act="goto" data-v="newer">${h('newer.review')}</button></div>` : '';
 }
 
-const VIEWS = { resumes: resumesView, compare: compareView, new: newView, save: saveView, newer: reviewView, snapshot: snapshotView };
+const VIEWS = { compare: compareView, new: newView, save: saveView, newer: reviewView, snapshot: snapshotView };
 
 function commit(fn, label, done){
   try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done); return ok; }
@@ -279,7 +262,6 @@ async function act(a, tg){
     }
   }
   switch (a){
-    case 'r-open': open(tg.dataset.id); return true;
     case 'rm-menu': {
       const id = tg.dataset.id, where = tg.dataset.where ?? 'group';
       V.row = V.row?.id === id && V.row.where === where ? null : { id, where, sub: null };

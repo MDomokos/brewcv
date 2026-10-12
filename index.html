@@ -69,22 +69,26 @@
 <link rel="modulepreload" href="src/ui/onboarding.js">
 <link rel="modulepreload" href="src/ui/settings.js">
 <link rel="modulepreload" href="src/ui/career.js">
+<link rel="modulepreload" href="src/model/checklist.js">
+<link rel="modulepreload" href="src/ui/dock.js">
+<link rel="modulepreload" href="src/ui/icons.js">
+<link rel="modulepreload" href="src/ui/checklist.js">
+<link rel="modulepreload" href="src/ui/help.js">
 <script src="src/ui/boot.js" defer></script>
 </head>
-<body data-ws="resume">
+<body>
 
-<div id="pages" class="pages"><div class="pages__sizer" aria-hidden="true"></div><section id="sheet" class="pagebox" role="region" aria-label="The resume. Click anything on it to work on it."></section>
+<div id="pages" class="pages"><div class="pages__sizer" aria-hidden="true"></div><div id="pagelay" class="pagelay"></div><section id="sheet" class="pagebox" role="region" aria-label="The resume. Click anything on it to work on it."></section>
   <!-- First paint, before any script runs: a blank page and the column's frame, in the places the app will put them. Both go away when the app is ready. -->
   <div class="paper-skel" aria-hidden="true"></div></div>
 
-<section id="career" class="career card" hidden aria-label="Career: the timeline of your record"></section>
-<button id="thumb" class="thumb-btn" data-act="ws" data-ws="resume" hidden>Back to your resume</button>
-<span id="thumbcap" class="thumb-cap" hidden aria-hidden="true">← Your resume</span>
+<section id="timeline" class="timeline card" hidden role="dialog" aria-label="Timeline"></section>
 
 <div id="col" class="col">
   <header id="head" class="card head"><div class="hrow"><h1 class="logo"><img src="icons/icon.svg" alt="" width="28" height="28">BrewCV</h1></div></header>
-  <main id="body" class="card body"><p class="skel-line" style="width:70%"></p><p class="skel-line"></p><p class="skel-line" style="width:85%"></p></main>
+  <main id="body" class="card body" role="tabpanel"><p class="skel-line" style="width:70%"></p><p class="skel-line"></p><p class="skel-line" style="width:85%"></p></main>
   <footer id="foot" class="card foot"></footer>
+  <aside id="rail" class="card rail" hidden aria-label="Editor, folded"></aside>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>

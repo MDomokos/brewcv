@@ -27,7 +27,7 @@ function commit(fn, label, done){
 const diffHtml = runs => runs.map(r => (r.op === '=' ? esc(r.text) : r.op === '-' ? `<del>${esc(r.text)}</del>` : `<ins>${esc(r.text)}</ins>`)).join('');
 
 function importView(){
-  return `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a><h2 class="title">${h('files.importTitle')}</h2>
+  return `<h2 class="title">${h('files.importTitle')}</h2>
     <p class="small">${h('files.importIntro')}</p>
     <div class="btns"><button class="primary" data-act="imp-pick">${h('files.choose')}</button></div>
     <p class="note">${h('files.orDrop')}</p>
@@ -102,8 +102,8 @@ function mergeView(){
 
 function historyView(){
   const H = F.history;
-  if (!H.list){ loadHistory(); return `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a><h2 class="title">${h('history.title')}</h2><p class="muted">${h('body.loading')}</p>`; }
-  let out = `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a><h2 class="title">${h('history.title')}</h2>
+  if (!H.list){ loadHistory(); return `<h2 class="title">${h('history.title')}</h2><p class="muted">${h('body.loading')}</p>`; }
+  let out = `<h2 class="title">${h('history.title')}</h2>
     <p class="small">${h('history.intro', { n: C.store.history.undo })}</p>
     <div class="btns"><button class="sm primary" data-act="cp-new">${h('history.save')}</button><button class="sm" data-act="cp-file">${h('history.compareFile')}</button></div>`;
   if (H.compare) out += `<span class="lbl">${h('history.comparedNow', { file: H.compare.file })}</span><p class="note">${h('history.compareNote')}</p>${itemsHtml(H.compare.items, false)}

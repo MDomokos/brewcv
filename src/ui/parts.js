@@ -1,7 +1,6 @@
-// The parts of a panel, shared by the Resume workspace (edit.js) and Career (career.js) so a
-// claim and its versions look and work the same in both. `ws` ('resume' | 'career') adds or
-// hides each workspace's own parts: only the Resume has the version in use (◉), line counts
-// and "this resume only". Pure string functions, rendered in Node by checks/parts-check.mjs.
+// The parts of a panel: a claim, its versions, the editor, the write-in box, the rows of a list. One panel
+// serves a claim wherever it was opened from (the page, the record checklist, the timeline). Pure string
+// functions, rendered in Node by checks/parts-check.mjs.
 
 import * as R from '../model/record.js';
 import { isSame, sameKey, langName, DEFAULT_LANG } from '../model/lang.js';
@@ -58,7 +57,7 @@ export function editorHtml(ed, v, x){
     title = t('edit.editing', { v: v.n });
     btns = `<button class="primary sm" data-act="ed-save" ${x.dirty ? '' : 'disabled'}>${h('edit.saveV', { v: v.n })}</button>
       <button class="sm" data-act="ed-saveas" ${x.dirty ? '' : 'disabled'}>${h('edit.saveAsV', { v: R.nextMinor(x.m, f, v.n, L) })}</button>
-      ${x.ws === 'resume' && x.canOnly ? `<button class="sm" data-act="ed-only" ${x.dirty ? '' : 'disabled'}>${h('edit.thisOnly')}</button>` : ''}`;
+      ${x.canOnly ? `<button class="sm" data-act="ed-only" ${x.dirty ? '' : 'disabled'}>${h('edit.thisOnly')}</button>` : ''}`;
   } else if (ed.mode === 'new'){
     title = t('edit.newV', { v: R.nextMajor(x.m, f, L) });
     btns = `<button class="primary sm" data-act="ed-new" ${x.dirty ? '' : 'disabled'}>${h('edit.saveAsV', { v: R.nextMajor(x.m, f, L) })}</button>`;
@@ -93,56 +92,42 @@ export function writeInHtml({ m, fact, lang, ref }){
 
 // Everything under the claim's heading: the comparison, the version list (the editor in place
 // of the row being edited) and + Write a new version. x.vs: the versions in `lang`, in number
-// order. x.using and x.over: the resume's chosen version and its own text (Resume only).
+// order. x.using and x.over: the resume's chosen version and its own text.
 export function versionsHtml(x){
-  const { ws, m, fact, lang: L, vs, using, over, ed } = x;
-  const career = ws === 'career';
+  const { m, fact, lang: L, vs, using, over, ed } = x;
   let out = '';
 
-  if (x.compare && vs.some(v => v.id === x.compare) && (career || using || over !== undefined)){
+  if (x.compare && vs.some(v => v.id === x.compare) && (using || over !== undefined)){
     const other = vs.find(v => v.id === x.compare);
-    const at = vs.indexOf(other);
-    // Resume: against the one in use. Career: against the version above it.
-    const from = career ? vs[at - 1] : other, to = career ? other : null;
-    if (!career || from){
-      const mine = career ? to.text : over ?? using.text;
-      const base = career ? from.text : other.text;
-      const tag = career ? `<del>v${esc(from.n)}</del> → <ins>v${esc(to.n)}</ins>` : `<del>v${esc(other.n)}</del> → <ins>${over !== undefined ? h('edit.thisResume') : `v${esc(using.n)}`}</ins>`;
-      out += `<div class="diff"><div class="dh"><span>${tag}</span><a data-act="compare-close">${h('body.close')}</a></div>
-      ${R.wordDiff(base, mine).map(y => (y.op === '=' ? esc(y.text) : y.op === '-' ? `<del>${esc(y.text)}</del>` : `<ins>${esc(y.text)}</ins>`)).join('')}</div>`;
-    }
+    const tag = `<del>v${esc(other.n)}</del> → <ins>${over !== undefined ? h('edit.thisResume') : `v${esc(using.n)}`}</ins>`;
+    out += `<div class="diff"><div class="dh"><span>${tag}</span><a data-act="compare-close">${h('body.close')}</a></div>
+      ${R.wordDiff(other.text, over ?? using.text).map(y => (y.op === '=' ? esc(y.text) : y.op === '-' ? `<del>${esc(y.text)}</del>` : `<ins>${esc(y.text)}</ins>`)).join('')}</div>`;
   }
 
   if (!vs.length && over === undefined) return out + `<span class="lbl">${esc(LANG_NAME[L])}</span>` + writeInHtml({ m, fact, lang: L, ref: x.ref });
 
   const E = v => editorHtml(ed, v, x);
-  out += `<span class="lbl">${h('edit.versions', { code: L.toUpperCase() })}</span><div class="vlist${career ? ' flat' : ''}" data-fact="${esc(fact)}">`;
+  out += `<span class="lbl">${h('edit.versions', { code: L.toUpperCase() })}</span><div class="vlist" data-fact="${esc(fact)}">`;
   if (over !== undefined){
     out += ed?.mode === 'only' ? E() : `<div class="vrow cur only"><span class="rad"></span><span class="n" title="${esc(t('edit.onlyTitle'))}">${h('edit.only')}</span><span class="tx">${esc(over)}</span>
       <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editEnter'))}" aria-label="${esc(t('edit.editEnter'))}">✎</button><button class="ghost sm" data-act="only-remove" title="${esc(t('edit.backToSaved'))}" aria-label="${esc(t('edit.backToSaved'))}">↺</button></span></div>`;
   }
-  const row = v => (career ? flatRow(v, x) : vrow(v, using, over, x));
-  if (career){
-    for (const v of vs) out += ed?.mode === 'edit' && ed.vid === v.id ? E(v) : row(v);
-  } else {
-    // grouped by major; minors fold unless one is in use
-    const groups = new Map();
-    for (const v of vs) (groups.get(R.major(v.n)) ?? groups.set(R.major(v.n), []).get(R.major(v.n))).push(v);
-    for (const [M, g] of groups){
-      const head = g.find(v => !String(v.n).includes('.')) ?? g[0];
-      const minors = g.filter(v => v !== head);
-      const open = x.openMinor.has(`${fact}:${L}:${M}`) || minors.some(v => v.id === using?.id);
-      out += ed?.mode === 'edit' && v_isCur(head, using, over) ? E(head) : row(head);
-      if (minors.length){
-        if (open) for (const v of minors) out += ed?.mode === 'edit' && v_isCur(v, using, over) ? E(v) : row(v);
-        else out += `<div class="vmore" data-act="unfold" data-m="${esc(M)}">▸ ${h('edit.moreUnder', { n: minors.length, v: M })}</div>`;
-      }
+  // grouped by major; minors fold unless one is in use
+  const groups = new Map();
+  for (const v of vs) (groups.get(R.major(v.n)) ?? groups.set(R.major(v.n), []).get(R.major(v.n))).push(v);
+  for (const [M, g] of groups){
+    const head = g.find(v => !String(v.n).includes('.')) ?? g[0];
+    const minors = g.filter(v => v !== head);
+    const open = x.openMinor.has(`${fact}:${L}:${M}`) || minors.some(v => v.id === using?.id);
+    out += ed?.mode === 'edit' && v_isCur(head, using, over) ? E(head) : vrow(head, using, over, x);
+    if (minors.length){
+      if (open) for (const v of minors) out += ed?.mode === 'edit' && v_isCur(v, using, over) ? E(v) : vrow(v, using, over, x);
+      else out += `<div class="vmore" data-act="unfold" data-m="${esc(M)}">▸ ${h('edit.moreUnder', { n: minors.length, v: M })}</div>`;
     }
   }
   if (ed?.mode === 'new') out += E();
   out += '</div>';
   if (!ed && vs.length) out += `<a class="newv" data-act="new-version">${h('edit.newVersion', { v: R.nextMajor(m, fact, L) })}</a>`;
-  out += `<p class="note">${career ? h('career.versionsNote') : h('edit.versionsNote')}</p>`;
   return out;
 }
 
@@ -164,21 +149,12 @@ function vrow(v, using, over, x){
     ${(v.tags ?? []).length ? `<div class="vtags">${v.tags.slice(0, 4).map(tg => tagChip(tg, { jobTypes: x.jobTypes, focus: x.focusTags ?? [] })).join('')}${v.tags.length > 4 ? `<span class="muted tiny">+${v.tags.length - 4}</span>` : ''}</div>` : ''}</div>`;
 }
 
-function flatRow(v, x){
-  const minor = String(v.n).includes('.');
-  const star = (x.focusTags ?? []).some(tg => (v.tags ?? []).includes(tg)) ? `<span class="star" title="${esc(t('edit.tagged', { tag: x.focusLabel ?? x.focus }))}">★</span>` : '';
-  return `<div class="vrow flat ${minor ? 'minor' : ''} ${x.pick === v.id ? 'is-pick' : ''}" data-v="${esc(v.id)}"><span class="n">v${esc(v.n)}${star}</span><span class="tx">${esc(v.text)}</span>
-    <span class="vbtn"><button class="ghost sm" data-act="edit" data-v="${esc(v.id)}" title="${esc(t('edit.editEnter'))}" aria-label="${esc(t('edit.editThis'))}">✎</button><button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('career.compareAbove'))}" aria-label="${esc(t('career.compareAbove'))}" ${x.vs[0] === v ? 'disabled' : ''}>⇄</button><button class="ghost sm" data-act="delete-version" data-v="${esc(v.id)}" title="${esc(t('edit.deleteV', { v: v.n }))}" aria-label="${esc(t('edit.deleteV', { v: v.n }))}">🗑</button></span>
-    ${tagBox(v, x)}</div>`;
-}
-
-// Under the claim's heading. The Resume adds on/off and Keep; 🗑 deletes the claim and every
-// version of it. deletable: the claim is one of an entry's, not a title or a summary.
+// Under the claim's heading: on/off for this resume and Keep. 🗑 deletes the claim and every version of it.
+// deletable: the claim is one of an entry's, not a title or a summary.
 // archived: null for a claim that can't be archived, else whether it is.
-export function claimHead({ ws, hasJob = false, on = false, kept = false, deletable = false, archived = null }){
+export function claimHead({ hasJob = false, on = false, kept = false, deletable = false, archived = null }){
   const del = deletable ? `<button class="ghost sm" data-act="delete-claim" title="${esc(t('career.deleteClaim'))}" aria-label="${esc(t('career.deleteClaim'))}">🗑</button>` : '';
   const arch = archived === null ? '' : `<button class="ghost sm" data-act="${archived ? 'unarchive-claim' : 'archive-claim'}" title="${esc(t(archived ? 'arch.unarchiveTitle' : 'arch.archiveTitle'))}">${h(archived ? 'arch.unarchive' : 'arch.archive')}</button>`;
-  if (ws === 'career') return del || arch ? `<div class="ctlrow"><span class="grow"></span>${arch}${del}</div>` : '';
   return `<div class="ctlrow">${hasJob ? sw('id="b-on"', on, h('edit.onThis')) : ''}<span class="grow"></span>
       <button class="keep sm" data-act="keep" aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}">📌 ${kept ? h('edit.kept') : h('edit.keep')}</button>${arch}${del}</div>`;
 }

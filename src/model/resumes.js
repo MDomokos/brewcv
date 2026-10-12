@@ -372,6 +372,52 @@ export function grouped(model, resumes){
   return out;
 }
 
+// ---- the grown switcher's other two views ----
+
+// The Date view: every send, newest first; a resume that was never sent comes in at the day it was last saved.
+export function sendEvents(resumes){
+  const out = [];
+  for (const r of resumes){
+    const snaps = snapshotsOf(r);
+    for (const s of snaps) for (const x of s.sends) out.push({ date: String(x.date || s.at.slice(0, 10)), kind: 'send', resume: r, snap: s, send: x });
+    if (!snaps.length) out.push({ date: String(r.savedAt ?? '').slice(0, 10), kind: 'saved', resume: r, snap: null, send: null });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date) || resumeLabel(a.resume).localeCompare(resumeLabel(b.resume)));
+}
+// …in bands of a year, the way the Career timeline was
+export function sendBands(events){
+  const bands = [];
+  for (const e of events){
+    const year = e.date.slice(0, 4) || '';
+    let b = bands.at(-1);
+    if (!b || b.year !== year){ b = { year, events: [] }; bands.push(b); }
+    b.events.push(e);
+  }
+  return bands;
+}
+// The Company view: the company of a resume's For line and of each send, with the resumes that went there.
+// Outreach is marked, since a sector or a made-up name is not a place you applied. A resume with no company at all
+// comes last, ungrouped. Searching matches the company too.
+export function byCompany(resumes){
+  const groups = new Map();
+  const add = (name, outreach, r, send = null) => {
+    const label = String(name ?? '').trim();
+    const key = label.toLowerCase();
+    const g = groups.get(key) ?? groups.set(key, { key, label, rows: new Map() }).get(key);
+    const row = g.rows.get(r.id) ?? g.rows.set(r.id, { resume: r, outreach, sends: [] }).get(r.id);
+    row.outreach = row.outreach && outreach;
+    if (send) row.sends.push(send);
+  };
+  for (const r of resumes){
+    let any = false;
+    if (String(r.company ?? '').trim()){ add(r.company, r.forKind === 'outreach', r); any = true; }
+    for (const s of snapshotsOf(r)) for (const x of s.sends) if (String(x.company ?? '').trim()){ add(x.company, x.kind === 'outreach', r, { ...x, snapId: s.id }); any = true; }
+    if (!any) add('', false, r);
+  }
+  const list = [...groups.values()].map(g => ({ key: g.key, label: g.label, rows: byNewest([...g.rows.values()].map(x => x.resume)).map(res => g.rows.get(res.id)) }));
+  return list.sort((a, b) => (a.key === '') - (b.key === '') || a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+}
+
 export function compareRows(model, a, b){
   const ix = new Map((model.variants ?? []).map(v => [v.id, v]));
   const facts = new Map((model.facts ?? []).map(f => [f.id, f]));

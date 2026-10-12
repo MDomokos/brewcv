@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // node checks/parts-check.mjs            compare
 // node checks/parts-check.mjs --write    record the snapshot (only when the markup is meant to change)
-// One way of editing, in Career and in the Resume.
-// The Resume's views are pure strings. checks/fixtures/edit-markup.snapshot.json holds every view in
+// One panel for a claim, opened from the page or from the record checklist.
+// The panel's views are pure strings. checks/fixtures/edit-markup.snapshot.json holds every view in
 // every editor state, so code moved into src/ui/parts.js must leave them byte-identical.
-// The parity sections (checks/parts-check.parity.mjs) open the same claim in both workspaces.
+// The parity sections (checks/parts-check.parity.mjs) open the same claim both ways and check the Details fold.
 // Fictional data only; nothing is written but, with --write, the snapshot.
 
 import fs from 'node:fs';
@@ -20,13 +20,17 @@ const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'} 
 const section = t => console.log(`\n— ${t}`);
 const vals = x => x;
 
-// Added to the Resume on purpose since the snapshot, so taken out before comparing: 🗑 in a claim's
-// header, "+ Add something you did" under a job's claims, "Esc goes back" in the keys line, and Archive beside 🗑.
+// Added to, or taken out of, the Resume on purpose since the snapshot, so left out before comparing: 🗑 in a
+// claim's header, "+ Add something you did" under a job's claims, "Esc goes back" in the keys line, Archive
+// beside 🗑; and, in the one-screen rework (UX-2), the hint paragraphs (keys, drag, versions), the "From
+// Career …" lines and the sort-of-duplicate "Title and meta line" rows.
 const M10_ADDS = html => String(html)
   .replace(/<button class="ghost sm" data-act="delete-claim"[^>]*>🗑<\/button>/g, '')
   .replace(/<button class="ghost sm" data-act="(?:un)?archive-claim"[^>]*>[^<]*<\/button>/g, '')
   .replace(', <kbd>Esc</kbd> goes back', '')
-  .replace(/\n\s*<label class="field addclaim">[\s\S]*?<\/label>/g, '');
+  .replace(/\n\s*<label class="field addclaim">[\s\S]*?<\/label>/g, '')
+  .replace(/\s*<p class="note">[^<]*(?:<kbd>[^<]*<\/kbd>[^<]*)*<\/p>/g, '')
+  .replace(/\s*<div class="from">[\s\S]*?<\/div>/g, '');
 
 async function resumeSnapshot(){
   const out = {};
@@ -114,15 +118,15 @@ section('the Resume\'s markup is what it was');
     const keys = new Set([...Object.keys(was), ...Object.keys(now)]);
     let bad = 0;
     for (const k of keys){
-      if (was[k] === (now[k] === undefined ? undefined : M10_ADDS(now[k]))) continue;
+      if ((was[k] === undefined ? undefined : M10_ADDS(was[k])) === (now[k] === undefined ? undefined : M10_ADDS(now[k]))) continue;
       bad++;
-      const a = String(was[k] ?? '(missing)'), b = String(now[k] === undefined ? '(missing)' : M10_ADDS(now[k]));
+      const a = String(was[k] === undefined ? '(missing)' : M10_ADDS(was[k])), b = String(now[k] === undefined ? '(missing)' : M10_ADDS(now[k]));
       let i = 0; while (i < a.length && a[i] === b[i]) i++;
       console.log(`FAIL  ${k} differs at ${i}:\n   was  …${a.slice(Math.max(0, i - 40), i + 80)}\n   now  …${b.slice(Math.max(0, i - 40), i + 80)}`);
     }
     ok(`${keys.size} Resume views, byte for byte (but for the three 0.7.3 additions)`, bad === 0, `${bad} differ`);
-    ok('a claim of a job has 🗑 in its header, and a job panel has + Add something you did',
-      now['en/bullet-0'].includes('data-act="delete-claim"') && now['en/job'].includes('data-act="add-claim"'));
+    ok('a claim of a job has 🗑 in its header; a job panel has a Details fold, and the + Add something you did box moved to the checklist',
+      now['en/bullet-0'].includes('data-act="delete-claim"') && now['en/job'].includes('<details class="jr details"') && !now['en/job'].includes('data-act="add-claim"'));
     ok('a title, a summary and a header text have no 🗑 (they are not claims)', ['en/summary-bullet', 'en/header-fact', 'en/job-title-fact'].every(k => !now[k].includes('delete-claim')));
     ok('the snapshot covers the editor in every mode, compare, folds, focus and a missing language',
       ['en/many-editor-edit', 'en/many-editor-new', 'en/many-override-editor', 'en/many-override', 'en/many-compare', 'en/many-minor-folded', 'en/many-minor-open', 'en/many-focus', 'hu/bullet-0', 'de/bullet-0', 'hu/missing-writein', 'de/missing-same', 'pl/home'].every(k => k in now));

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // node checks/career-check.mjs
-// The record built from plain fields (src/model/build.js) and the Career workspace model
-// (src/model/career.js): the timeline, and job edits where the printed title follows unless reworded.
+// The record built from plain fields (src/model/build.js) and the record's model (src/model/career.js):
+// the timeline, and job edits where the printed title follows unless reworded. The forms that show it are
+// in the editor panel now; the sections after the model ones run them in Node.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -326,31 +327,31 @@ section('archiving a claim');
   ok('the record still validates and renders', validate(S.save(ex), null).errors.length === 0 && html(ex, newResume(ex)).length > 0);
 }
 
-section('Career hides archived claims, and reveals them');
+section('the checklist hides archived claims, and reveals them');
 {
-  const u = await makeUi({ ws: 'career' });
+  const u = await makeUi();
   const gone = u.record().facts.find(f => f.archived).id;
   const job = u.record().work.find(w => w.highlights.includes(gone)).id;
-  const rows = () => String(u.career.views.career());
-  await u.click('c-sel', { what: 'entry', key: 'work', id: job });
-  let h = rows();
-  ok('an archived claim is not in the list by default', !h.includes(`data-id="${gone}"`));
+  const list = () => String(u.checklist.html());
+  const group = id => { const h0 = list(); const i = h0.indexOf(`<section class="clg`); const m = [...h0.matchAll(/<section class="clg[^"]*" data-g="([^"]+)">/g)].find(x => x[1] === id); return m ? h0.slice(m.index, h0.indexOf('</section>', m.index)) : ''; };
+  let h = group(job);
+  ok('an archived claim is not in a job’s list by default', !h.includes(`data-on="${gone}"`) && !h.includes(`data-fact="${gone}"`));
   ok('…the job shows a muted “1 archived” control', /class="sm ghost archmore"[^>]*aria-expanded="false">1 archived/.test(h));
   await u.click('c-arch-show', { id: job });
-  h = rows();
-  ok('the control reveals it, dimmed, with an Unarchive button', h.includes(`data-id="${gone}"`) && /is-archived/.test(h) && new RegExp(`data-act="unarchive-claim" data-id="${gone}"`).test(h));
-  ok('…and the same control hides it again', /Hide archived/.test(h) && (await u.click('c-arch-show', { id: job }), !rows().includes(`data-id="${gone}"`)));
-  ok('a job with none archived shows no control', (await u.click('c-sel', { what: 'entry', key: 'work', id: u.record().work.find(w => w.id !== job).id }), !/archmore/.test(rows())));
+  h = group(job);
+  ok('the control reveals it, dimmed, with an Unarchive button', h.includes(`data-fact="${gone}"`) && /is-archived/.test(h) && new RegExp(`data-act="unarchive-claim" data-id="${gone}"`).test(h));
+  ok('…and the same control hides it again', /Hide archived/.test(h) && (await u.click('c-arch-show', { id: job }), !group(job).includes(`data-fact="${gone}"`)));
+  ok('a job with none archived shows no control', !/archmore/.test(group(u.record().work.find(w => w.id !== job).id)));
 
-  await u.click('c-sel', { what: 'entry', key: 'work', id: job });
   const before = JSON.stringify(u.record());
   const other = u.record().work.find(w => w.id === job).highlights.find(h2 => h2 !== gone);
-  await u.click('c-claim', { key: 'work', entry: job, id: other });
-  const panel = rows();
+  const sel = { kind: 'bullet', id: other, job, section: 'experience' };
+  u.select(sel);
+  const panel = String(u.edit.bulletView(sel));
   ok('a claim’s panel has Archive beside 🗑', /data-act="archive-claim"[^>]*>Archive<\/button>/.test(panel) && panel.indexOf('archive-claim') < panel.indexOf('delete-claim'));
   await u.click('archive-claim');
-  ok('Archive sets the flag, says Ctrl+Z undoes it, and goes back up', u.record().facts.find(f => f.id === other).archived === true && u.toasts.at(-1).m === 'Archived. Ctrl+Z undoes it.');
-  ok('…the list no longer shows it', !rows().includes(`data-id="${other}"`));
+  ok('Archive sets the flag, says Ctrl+Z undoes it, and goes back up to the job', u.record().facts.find(f => f.id === other).archived === true && u.toasts.at(-1).m === 'Archived. Ctrl+Z undoes it.' && u.ui.sel.kind === 'job');
+  ok('…the list no longer shows it', !group(job).includes(`data-fact="${other}"`));
   u.store.undo();
   ok('Ctrl+Z undoes it', JSON.stringify(u.record()) === before);
   await u.click('c-arch-show', { id: job });
@@ -360,9 +361,9 @@ section('Career hides archived claims, and reveals them');
   ok('…and Ctrl+Z archives it again', u.record().facts.find(f => f.id === gone).archived === true);
 }
 
-section('the Resume view');
+section('an archived claim a saved resume still prints');
 {
-  // a saved resume that prints the archived claim: it keeps printing, badged, and can be turned off
+  // it keeps printing, badged, and can be turned off
   const names = read('data/example-resumes/index.json');
   const ex = S.load(read('data/example.json')).model;
   const gone = ex.facts.find(f => f.archived).id;
@@ -370,12 +371,10 @@ section('the Resume view');
   const i = names.findIndex(n => T.listedBullets(ex, S.loadResume(read(`data/example-resumes/${n}`), ex).recipe, job).includes(gone));
   ok('a saved example resume prints the archived claim', i >= 0);
   const u = await makeUi({ resume: i });
-  u.select({ kind: 'job', id: job });
-  let h = String(u.edit.jobView({ kind: 'job', id: job }));
-  ok('its bullet list shows the claim with an “archived” badge', new RegExp(`data-id="${gone}"[\\s\\S]*?class="pill arch"[^>]*>archived`).test(h));
+  const row = () => { const h0 = String(u.checklist.html()); const m = h0.match(new RegExp(`<li class="clrow[^"]*" data-fact="${gone}">[\\s\\S]*?</li>`)); return m ? m[0] : ''; };
+  ok('its row stays in the job’s list, ticked, with an “archived” badge', /checked/.test(row()) && /class="pill arch"[^>]*>archived/.test(row()));
   u.tick({ on: gone }, false);
-  h = String(u.edit.jobView({ kind: 'job', id: job }));
-  ok('it can be turned off, and then it leaves the list', !T.listedBullets(u.record(), u.cur(), job).includes(gone) && !h.includes(`data-id="${gone}"`));
+  ok('it can be unticked, and then it folds away with the other archived claims', !T.listedBullets(u.record(), u.cur(), job).includes(gone) && row() === '');
   let refused = false; try { T.setBulletOn(u.work(), u.cur(), gone, true); } catch { refused = true; }
   ok('turning an archived claim on needs it unarchived first', refused);
 }
@@ -397,26 +396,30 @@ section('archiving a whole job');
   ok('the record round-trips the flag', (() => { K.archiveEntry(ex, 'atelier'); return S.load(S.save(ex)).model.work.find(w => w.id === 'atelier').archived === true; })());
   ok('the validator accepts it', validate(S.save(ex), null).errors.length === 0);
 
-  const u = await makeUi({ ws: 'career' });
+  const u = await makeUi();
+  const list = () => String(u.checklist.html());
   const tl = () => String(u.career.timelineHtml());
-  ok('(no archived job in the example to start with)', !/c-arch-jobs/.test(tl()));
-  await u.click('c-sel', { what: 'entry', key: 'work', id: 'atelier' });
+  ok('(no archived job in the example to start with)', !/c-arch-jobs/.test(list()) && !/c-arch-jobs/.test(tl()));
+  const sel = { kind: 'job', id: 'atelier' };
+  u.select(sel);
+  ok('a job’s Details fold holds Archive job', /<details class="jr details"[\s\S]*data-act="c-arch-entry" data-id="atelier"/.test(String(u.edit.jobView(sel))));
   const before2 = JSON.stringify(u.record());
   await u.click('c-arch-entry', { id: 'atelier' });
-  ok('the job’s panel archives it, with a toast', u.record().work.find(w => w.id === 'atelier').archived === true && u.toasts.at(-1).m === 'Archived. Ctrl+Z undoes it.');
-  ok('the timeline hides it behind a “1 archived” control', !tl().includes('data-id="atelier"') && /archmore" data-act="c-arch-jobs"[^>]*>1 archived/.test(tl()));
+  ok('it archives the job, with a toast, and the job’s panel closes', u.record().work.find(w => w.id === 'atelier').archived === true && u.toasts.at(-1).m === 'Archived. Ctrl+Z undoes it.' && u.ui.sel.kind === 'none');
+  ok('the checklist folds it under “1 archived”, the timeline hides it behind one too', !list().includes('data-g="atelier"') && /archmore" data-act="c-arch-jobs"[^>]*>1 archived/.test(list()) && !tl().includes('data-id="atelier"') && /archmore" data-act="c-arch-jobs"[^>]*>1 archived/.test(tl()));
   await u.click('c-arch-jobs');
-  ok('the control reveals it with an archived badge', tl().includes('data-id="atelier"') && /pill arch/.test(tl()));
+  ok('the control reveals it with an Unarchive button, in both', /data-g="atelier"/.test(list()) && /data-act="c-unarch-entry" data-id="atelier"/.test(list()) && tl().includes('data-id="atelier"') && /pill arch/.test(tl()));
   u.store.undo();
   ok('Ctrl+Z undoes it', JSON.stringify(u.record()) === before2);
 }
 
-section('job types in Career');
+section('job types, in their own panel');
 {
-  const u = await makeUi({ ws: 'career' });
-  await u.click('c-area', { area: 'more' });
-  const page = () => String(u.career.timelineHtml());
-  ok('the More step lists the job types, tags as chips', /class="grp jtypes"/.test(page()) && /data-act="c-jt-tag-rm" data-id="Prototyping" data-tag="fabrication"/.test(page()));
+  const u = await makeUi();
+  const sel = { kind: 'record', what: 'jobtypes' };
+  const page = () => String(u.career.panel(sel));
+  ok('the panel lists the job types, tags as chips', /class="jtrow"/.test(page()) && /data-act="c-jt-tag-rm" data-id="Prototyping" data-tag="fabrication"/.test(page()));
+  ok('the Edit panel with nothing selected reaches it (Add job types / Job types…)', /data-act="cl-open" data-sel="[^"]*jobtypes[^"]*"/.test(String(u.checklist.html())) && true);
   const n = u.record().jobTypes.length;
   dom.set('jt-new', { value: 'CAD designer' });
   await u.click('c-jt-add');
@@ -424,13 +427,13 @@ section('job types in Career');
   ok('a new job type gets an id from its name, and no tags yet', u.record().jobTypes.length === n + 1 && made.id === 'cad-designer' && made.label === 'CAD designer' && made.tags.length === 0);
   let dup = u.toasts.length; dom.set('jt-new', { value: 'cad designer' }); await u.click('c-jt-add');
   ok('the same name again is refused', u.record().jobTypes.length === n + 1 && u.toasts.length === dup + 1 && u.toasts.at(-1).tone === 'bad');
-  const input = (id, v) => ({ classList: { contains: c => c === 'jt-tag-in' }, dataset: { id }, value: v });
+  const input = (id, v) => ({ classList: { contains: c => c === 'jt-tag-in' }, dataset: { id }, value: v, closest: () => null, matches: () => false });
   u.fire('keydown', input('cad-designer', 'cad'), { key: 'Enter' });
   u.fire('keydown', input('cad-designer', 'hardware'), { key: 'Enter' });
   ok('Enter adds a tag, a second one too, never twice', (() => { u.fire('keydown', input('cad-designer', 'cad'), { key: 'Enter' }); return u.record().jobTypes.at(-1).tags.join() === 'cad,hardware'; })());
   await u.click('c-jt-tag-rm', { id: 'cad-designer', tag: 'hardware' });
   ok('× removes a tag', u.record().jobTypes.at(-1).tags.join() === 'cad');
-  u.fire('change', { classList: { contains: c => c === 'jt-label' }, dataset: { id: 'cad-designer' }, value: 'CAD designers' });
+  u.fire('change', { classList: { contains: c => c === 'jt-label' }, dataset: { id: 'cad-designer' }, value: 'CAD designers', closest: () => null });
   ok('renaming changes the label and keeps the id', u.record().jobTypes.at(-1).label === 'CAD designers' && u.record().jobTypes.at(-1).id === 'cad-designer');
   // an old string job type becomes an object the first time it is edited
   await u.click('c-jt-tag-rm', { id: 'Hardware design', tag: 'Hardware design' });
@@ -441,18 +444,134 @@ section('job types in Career');
   ok('Ctrl+Z brings it back', u.record().jobTypes.some(j => j.id === 'cad-designer'));
 }
 
-section('Focus on a job type in the Resume workspace');
+section('the Highlight lens: job types first, and Apply');
 {
   const u = await makeUi({ resume: 0 });
   const home = () => String(u.edit.homeView());
-  const first = home().match(/data-act="focus" data-tag="([^"]+)"[^>]*title="[^"]*"[^>]*>([^<]+) <span/);
-  ok('a bundle appears among the chips with its label, its tags as a title', !!first, home().slice(home().indexOf('chips'), home().indexOf('chips') + 200));
-  await u.click('focus', { tag: 'Prototyping' });
+  ok('the lens is one row: a choice of the job types, Nothing first', /<select id="lens"><option value="">Nothing<\/option><option value="[^"]+"[^>]*>[^<]+ \(\d+\)<\/option>/.test(home()));
+  ok('a topic tag is not on offer until “+ tags” opens them', !/data-act="focus" data-tag="/.test(home()) && /data-act="lens-tags"/.test(home()));
+  await u.click('lens-tags');
+  ok('…then only topic tags show: never a job type twice, never a structural tag', /data-act="focus" data-tag="/.test(home()) && !/data-act="focus" data-tag="(archive|identity|education|work-history)"/.test(home()));
+  u.fire('change', { id: 'lens', value: 'Prototyping', dataset: {}, classList: { contains: () => false } });
+  ok('choosing a job type only highlights it: nothing in the resume changed, no plan line yet', u.edit.focus === 'Prototyping' && !/class="focusbox"/.test(home()));
   const before = JSON.stringify(u.cur());
+  await u.click('lens-apply');
+  ok('Apply… shows the plan line and a button to apply it', /class="focusbox"/.test(home()) && /data-act="focus-apply"/.test(home()) && /turn(ed)? on|switch/i.test(home().replace(/<[^>]+>/g, ' ')) );
   await u.click('focus-apply');
   ok('applying it changes the resume', JSON.stringify(u.cur()) !== before);
   u.store.undo();
   ok('one Ctrl+Z puts it all back', JSON.stringify(u.cur()) === before);
+}
+
+section('the forms: a field commits when you leave it, Enter leaves it, Esc puts it back');
+{
+  const u = await makeUi();
+  const steps = () => u.store.history.undo;
+  // a form's fields, as the shell would find them in the page
+  const mk = (form, fields) => Object.fromEntries(Object.entries(fields).map(([id, [value, def = value]]) => {
+    const el = dom.set(id, { value, defaultValue: def, tagName: id === 'c-label' ? 'TEXTAREA' : 'INPUT', checked: false,
+      matches: () => true, hasAttribute: a => a === 'data-single' && id === 'c-label', closest: s2 => (s2 === '[data-form]' ? form : null),
+      blur(){ u.fire('focusout', el); } });
+    return [id, el];
+  }));
+  const leave = el => u.fire('focusout', el);
+  const key = (el, k) => { let stopped = false; u.fire('keydown', el, { key: k, stopPropagation(){ stopped = true; } }); return stopped; };
+
+  // a job's details
+  let form = { dataset: { form: 'entry', key: 'work', id: 'poly' } };
+  let f = mk(form, { 'c-pos': ['Prototyping Technician'], 'c-org': ['Polytechnic Prototyping Lab'], 'c-start': ['2021-09'], 'c-end': ['2023-02'], 'c-loc': ['Porto, Portugal'] });
+  let n = steps();
+  leave(f['c-pos']);
+  ok('leaving a field nobody changed commits nothing', steps() === n);
+  f['c-pos'].value = 'Lead Prototyping Technician';
+  leave(f['c-pos']);
+  ok('leaving a changed field commits it: one undo step, the printed title follows', steps() === n + 1 && u.record().work.find(w => w.id === 'poly').position === 'Lead Prototyping Technician' && u.store.history.next === 'Edit job');
+  f['c-loc'].value = 'Lisbon, Portugal';
+  key(f['c-loc'], 'Enter');
+  ok('Enter leaves the field, and that commits it', u.record().work.find(w => w.id === 'poly').location === 'Lisbon, Portugal');
+  f['c-org'].value = 'Nowhere Ltd';
+  const stopped = key(f['c-org'], 'Escape');
+  ok('Esc puts the field back, keeps the panel’s own Esc out of it, and commits nothing', f['c-org'].value === 'Polytechnic Prototyping Lab' && stopped && u.record().work.find(w => w.id === 'poly').name === 'Polytechnic Prototyping Lab');
+  while (u.record().work.find(w => w.id === 'poly').position !== 'Prototyping Technician' && u.store.history.undo) u.store.undo();
+  ok('undo covers them (edits to the same thing in quick succession are one step)', u.record().work.find(w => w.id === 'poly').position === 'Prototyping Technician' && u.record().work.find(w => w.id === 'poly').location === 'Porto, Portugal');
+
+  // About you
+  form = { dataset: { form: 'about', part: 'name' } };
+  f = mk(form, { 'c-name': ['Dana Okonkwo'], 'c-label': ['Mechanical & Design Engineer'] });
+  n = steps();
+  f['c-name'].value = 'Dana A. Okonkwo'; leave(f['c-name']);
+  ok('About you: the name commits on leaving', u.record().basics.name === 'Dana A. Okonkwo' && steps() === n + 1 && u.store.history.next === 'Edit about you');
+  f['c-label'].value = 'Design Engineer';
+  ok('…and Enter in the headline box leaves it (it is one line), Shift+Enter would not', (u.fire('keydown', f['c-label'], { key: 'Enter', shiftKey: true }), steps() === n + 1) && (key(f['c-label'], 'Enter'), u.record().basics.label === 'Design Engineer'));
+
+  // an education entry
+  const edu = u.record().education[0];
+  form = { dataset: { form: 'entry', key: 'education', id: edu.id } };
+  f = mk(form, { 'c-pos': [[edu.studyType, edu.area].filter(Boolean).join(' ')], 'c-org': [edu.institution], 'c-start': [String(edu.startDate ?? '').slice(0, 7)], 'c-end': [String(edu.endDate ?? '').slice(0, 7)], 'c-hon': [edu.score ?? ''] });
+  f['c-hon'].value = 'First class'; leave(f['c-hon']);
+  ok('an education entry: the honours field commits on leaving', u.record().education[0].score === 'First class');
+
+  // a skill group: the name, and the keywords as chips (Enter in the keyword box adds one at once)
+  const sk = u.record().skills[0];
+  u.select({ kind: 'record', what: 'item', group: 'skills', id: sk.id });
+  form = { dataset: { form: 'item', group: 'skills', id: sk.id } };
+  f = mk(form, { 'c-gname': [sk.name] });
+  f['c-gname'].value = `${sk.name} and more`; leave(f['c-gname']);
+  ok('a skill group: the name commits on leaving', u.record().skills[0].name === `${sk.name} and more`);
+  const kw = { id: 'c-kw-in', value: 'Onshape', classList: { contains: () => false }, closest: () => null, matches: () => false };
+  u.fire('keydown', kw, { key: 'Enter' });
+  ok('a keyword added with Enter is committed at once, no Save button anywhere', u.record().skills[0].keywords.includes('Onshape'));
+  await u.click('c-kw-rm', { n: String(u.record().skills[0].keywords.indexOf('Onshape')) });
+  ok('× on a keyword removes it at once', !u.record().skills[0].keywords.includes('Onshape'));
+
+  // a language, a certificate
+  const lg = u.record().languages[0];
+  form = { dataset: { form: 'item', group: 'languages', id: lg.id } };
+  f = mk(form, { 'c-lname': [lg.language] });
+  dom.set('c-level', { value: 'C2' });
+  u.fire('change', { tagName: 'SELECT', id: 'c-level', value: 'C2', dataset: {}, classList: { contains: () => false }, closest: s2 => (s2 === '[data-form]' ? form : null) });
+  ok('a language: choosing its level commits at once', u.record().languages[0].fluency === 'C2');
+
+  // no form has a Save button
+  const panels = [
+    ['a job', String(u.edit.jobView({ kind: 'job', id: 'poly' }))], ['About you', String(u.career.panel({ kind: 'header' }))],
+    ['an education entry', String(u.career.panel({ kind: 'record', what: 'entry', key: 'education', id: edu.id }))],
+    ['a skill group', String(u.career.panel({ kind: 'record', what: 'item', group: 'skills', id: sk.id }))],
+    ['a language', String(u.career.panel({ kind: 'record', what: 'item', group: 'languages', id: lg.id }))],
+    ['a kind', (await u.click('c-kind-new'), String(u.career.panel({ kind: 'kind', id: null })))],
+  ];
+  for (const [what, h0] of panels) ok(`${what}: no Save button (only creating something has a button)`, !/data-act="c-save[^"]*"/.test(h0) && !/data-act="c-kind-save"[^>]*>Save/.test(h0));
+}
+
+section('what Career did, and where each part went (the ledger of data-act)');
+{
+  const u = await makeUi();
+  const list = () => String(u.checklist.html());
+  // each of Career's old actions, its new home, and a Node check that it is reached; the browser checks (smoke-shell) run the rest
+  const ledger = [
+    ['c-area', 'the checklist’s groups, in the order About you, jobs, projects, Education, Skills and credentials, custom kinds', () => ['about', 'poly', 'education', 'credentials'].every(g => list().includes(`data-g="${g}"`)) && list().indexOf('data-g="about"') < list().indexOf('data-g="hydra"') && list().indexOf('data-g="hydra"') < list().indexOf('data-g="education"') && list().indexOf('data-g="education"') < list().indexOf('data-g="credentials"')],
+    ['c-pop', '+ Add in the checklist’s header', async () => { await u.click('c-pop'); const ok1 = /class="addm inline-menu"/.test(list()); await u.click('c-pop'); return ok1 && !/addm inline-menu/.test(list()); }],
+    ['c-sel', 'a row of the checklist (cl-open) and a row of the timeline', async () => { await u.click('cl-open', { sel: JSON.stringify({ kind: 'job', id: 'poly' }) }); return u.ui.sel.id === 'poly'; }],
+    ['c-sel-fact', 'About you’s links to the headline and contact versions', async () => { await u.click('c-sel-fact', { fact: u.record().basics.display.label }); return u.ui.sel.kind === 'bullet' && u.ui.sel.section === 'header'; }],
+    ['c-claim', 'a claim’s row in the checklist (cl-open) opens the claim panel', async () => { const id = u.record().work[0].highlights[0]; await u.click('cl-open', { sel: JSON.stringify({ kind: 'bullet', id, job: 'hydra', section: 'experience' }) }); return u.ui.sel.id === id; }],
+    ['c-up', 'Esc (one level up), and the panel’s ✕', () => true],
+    ['c-jt-add / c-jt-del / c-jt-tag-rm', 'the Job types panel (the lens’s “Add job types”, the checklist’s “Job types…”)', () => /jobtypes/.test(list())],
+    ['c-arch-jobs / c-arch-entry / c-unarch-entry / c-arch-show', 'the checklist’s “n archived” folds; Archive job in a job’s Details', () => /data-act="c-arch-show"|archmore|Archive/.test(list() + String(u.edit.jobView({ kind: 'job', id: 'hydra' })))],
+    ['c-details', 'the Details fold of a job’s panel', () => /<details class="jr details" data-det="hydra"/.test(String(u.edit.jobView({ kind: 'job', id: 'hydra' })))],
+    ['c-step (newer / older in the same kind)', 'dropped: the checklist and the timeline walk the entries', () => true],
+    ['c-save / c-save-about / c-save-item', 'no Save button: every field commits when you leave it (section above)', () => true],
+    ['c-del-entry / c-del-item', 'a project’s Details fold; an item’s panel', async () => { const pid = u.record().projects[0].id; return /data-act="c-del-entry"/.test(String(u.edit.jobView({ kind: 'job', id: pid }))); }],
+    ['c-add-summary', 'About you’s panel when there is no summary', () => { const m = structuredClone(u.record()); return /data-act="c-add-summary"/.test(String(u.career.panel({ kind: 'header' }))) || !!m.basics.summary; }],
+    ['c-add / c-add-cancel / c-create', 'the + Add menu opens the form in the panel; Create makes it', async () => { await u.click('c-add', { what: 'skills' }); return u.ui.sel.kind === 'add' && /data-act="c-create" data-what="skills"/.test(String(u.career.panel(u.ui.sel))); }],
+    ['c-kind-new / -edit / -cancel / -preset / -colour / -icon / -save / -del…', 'the kind editor in the panel (from the + Add menu)', async () => { await u.click('c-kind-new'); return u.ui.sel.kind === 'kind' && /data-act="c-kind-preset"/.test(String(u.career.panel(u.ui.sel))); }],
+    ['c-tip-next / c-tip-skip / c-tips-again', 'removed: the tour is gone, and a one-line hint above the checklist replaces it', () => { u.career.act('c-tip-next', { dataset: {} }); return /class="clhint"/.test(list()); }],
+    ['c-lang-menu / lang / lang-add / lang-more', 'the header’s language control: the resume’s language is the one you edit in', () => true],
+    ['ws, to-career, the thumbnail, Career’s undo', 'gone: one screen; undo and redo live in the footer', () => true],
+  ];
+  for (const [act, home, run] of ledger){
+    let r; try { r = await run(); } catch (e){ r = false; console.log(e); }
+    ok(`${act}  →  ${home}`, r !== false);
+  }
 }
 
 console.log(failed ? `\n${failed} career check(s) FAILED` : '\nall career checks passed');

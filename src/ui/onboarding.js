@@ -502,14 +502,15 @@ async function act(a, tg){
     }
     case 'ob-import': C.ui.askLang = false; C.setView('import'); return true;   // a file brings its own languages
     case 'ob-example': {
-      if (C.ui.askLang){ O.after = 'ob-example'; O.step = 'lang'; C.renderBody(true); return true; }
-      if (O.langs){
+      // straight away, in the language the start screen is showing; the languages question waits for your own record
+      const L = C.ui.introLang ?? uiLang();
+      const r0 = (C.store.state.resumes ?? []).find(x => (x.lang ?? 'en') === L);
+      if (r0 && r0.id !== C.store.state.openId){
         const st = structuredClone(C.store.materialize());
-        st.record.langs = [...O.langs];
-        const r = (st.resumes ?? []).find(x => (x.lang ?? 'en') === startLang());
-        if (r) RS.openSaved(st, r.id);
+        RS.openSaved(st, r0.id);
         C.store.reset(st, 'example');
       }
+      await loadCatalogue(L);
       C.setView(null); C.toast(t('toast.thisIsExample')); return true;
     }
     case 'ob-market': O.market = tg.dataset.m; commit(() => {}, t('undo.market')); C.renderBody(); return true;
@@ -533,7 +534,12 @@ async function act(a, tg){
       if (r && who && r.name === t('resumes.newNameless')) C.store.commit(d => { RS.renameSaved(d, d.openId, t('resumes.newName', { name: who })); }, t('ux1.undoRename'));
       O.step = 'welcome';
       O.tip = 0;
+      C.ui.peek = true;               // the editor opens with its panel, and the checklist in it
       C.setView(null);
+      // the rest of the editor comes in with a plain fade: the header, the footer, the checklist with the claims in it
+      const els = ['#head', '#foot', '#body', '#rail'].map(s => document.querySelector(s)).filter(Boolean);
+      els.forEach(e => e.classList.add('fade-in'));
+      setTimeout(() => els.forEach(e => e.classList.remove('fade-in')), 450);
       return true;
     }
     case 'tip-next': O.tip = O.tip < TIPS.length - 1 ? O.tip + 1 : null; C.renderBody(true); return true;

@@ -75,7 +75,7 @@ function checks(){
 function exportView(){
   const list = checks();
   const icon = { ok: '✓', warn: '!', bad: '✕' };
-  return `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a><h2 class="title">${h('head.export')}</h2>
+  return `<h2 class="title">${h('head.export')}</h2>
     <ul class="checks">${list.map(c => `<li class="${c.level}"><span class="ci">${icon[c.level]}</span>${esc(c.text)}</li>`).join('')}</ul>
     <span class="lbl">${h('export.download')}</span>
     <div class="dl">

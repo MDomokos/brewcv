@@ -58,7 +58,7 @@ function settingsView(){
     <p class="small muted">${h('set.langsUseNote')}</p>
     ${langChecks(inUse)}
     <p class="note">${h('set.untickNote')}</p>`;
-  return `<a class="back" data-act="view-back">${h('nav.backToEditing')}</a><h2 class="title">${h('set.title')}</h2>
+  return `<h2 class="title">${h('set.title')}</h2>
     ${langs}
     <span class="lbl">${h('set.uiHead')}</span>${uiChoice(pref, inUse)}
     <p class="note">${h('set.machineNote')}</p>

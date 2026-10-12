@@ -4,10 +4,15 @@
 import { createStore } from '../store/store.js';
 import { createPersist, idbBackend, memoryBackend, fsaFolder, readFolder, readBackup, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
 import { load, loadResume, detect, resumeFileName } from '../model/schema.js';
-import { chooseVariant, newResume } from '../model/resume.js';
+import { chooseVariant, newResume, listedBullets, jobRefs } from '../model/resume.js';
+import { isArchived } from '../model/entries.js';
 import { fit, FILL_BAND, key as measureKeyOf } from '../fit.js';
 import { createSheet } from './sheet.js';
 import { computeLayout, pageSize, pageInView, pageTop } from './layout.js';
+import { initDock } from './dock.js';
+import { initChecklist } from './checklist.js';
+import { initHelp } from './help.js';
+import { icon } from './icons.js';
 import { indexModel, targetOf, up, same, step, versionsOf, NONE } from './select.js';
 import { openActualSize } from './actual.js';
 import { initEdit } from './edit.js';
@@ -24,7 +29,7 @@ import { langMenuHtml, menuKey, focusMenu } from './langmenu.js';
 import { jobTypeLabel } from '../model/focus.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
 import { initSettings, readPref, browserLang } from './settings.js';
-import { crumb } from './parts.js';
+import { ib } from './dock.js';
 
 // Where the source is published; the menu links to it (AGPL-3.0, section 13). Change it here when the repo moves.
 const SOURCE_URL = 'https://github.com/MDomokos/brewcv';
@@ -54,16 +59,14 @@ window.__wb = { store, persist, sheet, ui, setView: v => setView(v), saveToFile:
 function staticText(){
   document.documentElement.lang = uiLang();
   $('#sheet').setAttribute('aria-label', t('aria.sheet'));
-  $('#career').setAttribute('aria-label', t('aria.career'));
-  $('#thumb').textContent = t('career.thumbHover');
-  $('#thumb').setAttribute('aria-label', t('career.thumbHover'));
-  if ($('#thumbcap')) $('#thumbcap').textContent = t('career.thumbCap');
+  $('#timeline').setAttribute('aria-label', t('ux2.timelineTitle'));
+  $('#body').setAttribute('aria-label', t('ux2.panelLabel'));
 }
 
 function wantedUi(){
   if (ui.view === 'welcome' && onboarding.step === 'welcome' && ui.introLang) return ui.introLang;
   if (ui.askLang && ui.view === 'welcome') return ui.introLang ?? browserLang();
-  const working = ui.ws === 'career' ? career.lang : (shown()?.lang ?? 'en');
+  const working = shown()?.lang ?? 'en';
   const want = ui.pref.mode === 'fixed' ? ui.pref.lang : working;
   return UI_LANGS.includes(want) ? want : 'en';
 }
@@ -74,7 +77,7 @@ function syncUi(redrawAll = false){
   if (setUiLangNow(want)){ staticText(); if (redrawAll) restyle(); return; }
   setUiLang(want).then(() => restyle());
 }
-function restyle(){ staticText(); renderAll(); if (ui.ws === 'career') renderCareer(); }
+function restyle(){ staticText(); renderAll(); }
 
 async function boot(){
   requestPersistence().then(p => { ui.persisted = p; });
@@ -93,7 +96,8 @@ async function boot(){
   Promise.all(langsInUse(record()).map(l => loadCatalogue(l))).catch(() => {});
   staticText();
   bindChrome();
-  addEventListener('resize', relayout);
+  dock.bind();
+  addEventListener('resize', () => { relayout(); dock.renderFoot(); });
   $('#pages').addEventListener('scroll', onPagesScroll, { passive: true });
   addEventListener('scroll', onPagesScroll, { passive: true });
   document.addEventListener('fullscreenchange', relayout);
@@ -182,9 +186,9 @@ function onChange({ kind, label }){
   shownKey = null;
   if (store.state.openId && store.state.openId !== notedId){ notedId = store.state.openId; switcher.noteOpen(notedId); }     // the switcher's “recent”
   if (ui.snap && !snapNow()) setSnap(null);
-  if (ui.sel.kind !== 'none' && !stillThere(ui.sel)) ui.sel = NONE;
+  if (ui.sel.kind !== 'none' && !stillThere(ui.sel)){ ui.sel = NONE; dock.sync(); }
   syncUi();
-  if (ui.ws === 'career'){ const cp = $('#career'), keep = cp.scrollTop; cp.innerHTML = career.timelineHtml(); cp.scrollTop = keep; }
+  if (career.tlOpen) renderTimeline();
   if (kind === 'undo') toast(t('toast.undone', { label }));
   if (kind === 'redo') toast(t('toast.redone', { label }));
   schedule();
@@ -195,6 +199,8 @@ function stillThere(sel){
   if (sel.kind === 'bullet') return ix.facts.has(sel.id);
   if (sel.kind === 'job') return ix.work.has(sel.id);
   if (sel.kind === 'section') return ix.sections.has(sel.id);
+  if (sel.kind === 'record' && sel.what === 'entry') return (record().education ?? []).some((e, i) => (e.id ?? `edu-${i}`) === sel.id);
+  if (sel.kind === 'record' && sel.what === 'item'){ const m = record(); return (m[sel.group] ?? []).some(x => x?.id === sel.id) || (m.projects ?? []).concat(m.awards ?? []).some(x => x?.id === sel.id); }
   return true;
 }
 
@@ -214,6 +220,7 @@ async function redraw(){
     sheet.setFocus(edit.focusHits(), ui.ix);
     sheet.setMissing(missingList(w, r), ui.ix);
     renderAll();
+    renderChip();
     document.body.classList.add('is-ready');
     if (ui.flashAfter){ sheet.flash(ui.flashAfter); ui.flashAfter = null; }
     const pk = `${measureKeyOf(r)}|${lang()}`;
@@ -240,10 +247,11 @@ function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: ui.mode });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: ui.mode, folded: dock.folded(), zoom: ui.zoom });
   const host = $('#sheet'), box = $('#pages');
   Object.assign(box.style, { left: `${L.pages.left}px`, top: `${L.pages.top}px`, width: L.phone ? '' : `${L.pages.width}px`, height: L.phone ? '' : `${L.pages.height}px` });
   box.firstElementChild.style.height = `${L.pages.content}px`;
+  box.firstElementChild.style.width = L.phone ? '1px' : `${L.pages.contentW}px`;
   host.style.left = `${L.sheet.left - L.pages.left}px`;
   host.style.top = `${L.sheet.top - L.pages.top}px`;
   const col = $('#col');
@@ -251,29 +259,28 @@ function relayout(){
   col.style.top = `${L.col.top}px`;
   col.style.width = `${L.col.width}px`;
   col.style.height = `${L.col.height}px`;
+  col.classList.toggle('is-folded', L.folded);
+  col.classList.toggle('is-drawer', L.drawer && !L.folded);
+  for (const id of ['head', 'body']){ const el = $(`#${id}`); el.inert = L.folded; }
+  $('#rail').hidden = !L.folded;
+  const tl = $('#timeline');
+  if (L.phone) Object.assign(tl.style, { left: '0px', top: '0px', width: `${innerWidth}px`, height: `${innerHeight - L.col.height}px` });
+  else Object.assign(tl.style, { left: `${G_}px`, top: `${G_}px`, width: `${L.areaW - G_}px`, height: `${innerHeight - 2 * G_}px` });
   ui.layout = L;
   document.body.dataset.phone = String(!!L.phone);
+  document.body.dataset.drawer = String(!!L.drawer);
+  document.body.dataset.folded = String(!!L.folded);
   // on a phone the pages scroll above the bottom sheet
   if (L.phone) document.body.style.minHeight = `${L.sheet.height + 16 + L.col.height}px`; else document.body.style.minHeight = '';
-  // Career: only the transform changes, so the sheet's move to its thumbnail is one transition.
-  const cp = $('#career'), th = $('#thumb');
-  const career = ui.ws === 'career' && L.career;
-  if (career){
-    const P = L.career.panel, T = L.career.thumb;
-    Object.assign(cp.style, { left: `${P.left}px`, top: `${P.top}px`, width: `${P.width}px`, height: `${P.height}px` });
-    const dx = T.left - L.sheet.left, dy = T.top + box.scrollTop - L.sheet.top;
-    host.style.transform = `translate(${dx}px, ${dy}px) scale(${T.scale})`;
-    Object.assign(th.style, { left: `${T.left}px`, top: `${T.top}px`, width: `${T.width}px`, height: `${T.height}px` });
-  } else host.style.transform = `translate(0px, 0px) scale(${L.scale})`;
-  cp.hidden = th.hidden = !career;
-  const cap = $('#thumbcap');
-  if (cap){ cap.hidden = !career; if (career) Object.assign(cap.style, { left: `${L.career.thumb.left}px`, top: `${L.career.thumb.top - 22}px`, width: `${L.career.thumb.width}px` }); }
-  sheet.setView({ mode: career ? 'single' : L.stack ? 'stack' : 'spread', page: 0 });
+  host.style.transform = `translate(0px, 0px) scale(${L.scale})`;
+  sheet.setView({ mode: L.stack ? 'stack' : 'spread', page: 0 });
   document.body.dataset.spread = String(L.spread);
   document.body.dataset.stack = String(!!L.stack);
   if (L.stack) ui.page = pageInView(L, scrollOf(), pages); else ui.page = 0;
   renderFoot();
+  renderChip();
 }
+const G_ = 16;
 
 // The pages scroll in #pages on a big screen, and in the window on a phone.
 const scrollOf = () => (ui.layout?.phone ? scrollY : $('#pages').scrollTop);
@@ -286,14 +293,14 @@ function onPagesScroll(){
   scrollRaf = requestAnimationFrame(() => {
     scrollRaf = 0;
     const L = ui.layout;
-    if (!L?.stack || ui.ws === 'career') return;
+    if (!L?.stack) return;
     const p = pageInView(L, scrollOf(), ui.fills.length || 1);
     if (p !== ui.page){ ui.page = p; renderFoot(); }
   });
 }
 function reveal({ page, top, bottom }){
   const L = ui.layout;
-  if (!L?.stack || ui.ws === 'career') return;
+  if (!L?.stack) return;
   const view = L.phone ? innerHeight - L.col.height : L.pages.height;
   const y0 = L.sheet.top + top * L.scale, y1 = L.sheet.top + bottom * L.scale;
   const at = scrollOf();
@@ -302,20 +309,28 @@ function reveal({ page, top, bottom }){
 }
 
 function pick({ variant, section }){
-  if (ui.fitting || ui.snap) return;
+  if (ui.fitting || ui.snap || ui.view === 'welcome') return;
   const next = targetOf(ui.ix ?? indexModel(work()), { variant, section });
-  select(same(next, ui.sel) && next.kind !== 'none' ? next : next);
+  select(next, { fromPage: true });
+  if (next.kind !== 'none') help.firstTime();
 }
-function select(sel){
+// `fromPage`: the click was on the sheet, so the checklist scrolls to the group it opened. `keepScroll`: it was in the
+// checklist, where the person is already looking, so the panel stays where it is.
+function select(sel, { fromPage = false, keepScroll = false } = {}){
   if (!edit.leaving(sel)) return;
-  if (ui.view && ui.ws !== 'career' && sel.kind !== 'none'){ ui.view = null; renderHead(); }
+  if (ui.view && ui.view !== 'welcome' && sel.kind !== 'none'){ ui.view = null; }
   ui.sel = sel;
   if (ui.previewing){ ui.previewing = false; sheet.endPreview(); }
   sheet.select(sel, ui.ix);
-  renderBody(true);
+  checklist.onSelect(sel, { scroll: fromPage });
+  dock.sync();
+  renderHead();
+  renderBody(!keepScroll);
+  renderChip();
 }
 
 function closeBodyMenus(){ return [resumes, career].some(m => m.closeMenus?.()); }
+const hoverFact = id => sheet.setHover(id, ui.ix);
 
 function bindChrome(){
   document.body.addEventListener('click', onClick);
@@ -325,7 +340,7 @@ function bindChrome(){
   addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) openFile(f); });
 }
 
-function renderAll(){ syncIntro(); renderHead(); renderBody(); renderFoot(); }
+function renderAll(){ syncIntro(); renderHead(); renderBody(); dock.renderRail(); renderFoot(); renderTimeline(); }
 
 // Links that act (no href) are buttons to the keyboard and to a screen reader.
 function keyboardable(root){
@@ -338,33 +353,20 @@ new MutationObserver(() => { keyboardable($('#body')); keyboardable($('#head'));
 
 const resumeName = r => RS.resumeLabel(r);
 
-// A second press mid-animation reverses it, because CSS transitions do that by themselves.
-let wsTimer = 0;
-function setWorkspace(ws){
-  if (ws === (ui.ws ?? 'resume')) return;
-  if (!edit.leaving(NONE)) return;
-  ui.ws = ws;
-  document.body.classList.add('ws-anim');
-  clearTimeout(wsTimer); wsTimer = setTimeout(() => document.body.classList.remove('ws-anim'), 700);
-  document.body.dataset.ws = ws;
-  if (ui.previewing) endPreview();
-  ui.view = ws === 'career' ? 'career' : null;
-  ui.menu = false; ui.langMenu = null;
-  if (ws === 'career'){ setSnap(null); ui.sel = NONE; career.reset(); }
-  syncUi();                       // leaving Career goes back to the resume's language
-  renderCareer();
-  relayout();
-  renderHead();
-  renderFoot();
-}
-function renderCareer(){
-  if (ui.ws === 'career'){
-    const cp = $('#career'), keep = cp.scrollTop;
-    cp.innerHTML = career.timelineHtml();
-    cp.scrollTop = keep;
-    cp.querySelector('[aria-pressed=true].row, [aria-pressed=true].srow, [aria-pressed=true].crd')?.scrollIntoView({ block: 'nearest' });
-  }
-  renderBody(true);
+// The timeline opens over the page, full width, for working through a whole career. Esc closes it.
+let tlWas = false;
+function renderTimeline(){
+  const el = $('#timeline');
+  if (!el) return;
+  const open = career.tlOpen && !!record();
+  el.hidden = !open;
+  document.body.classList.toggle('has-timeline', open);
+  if (!open){ el.innerHTML = ''; tlWas = false; return; }
+  const keep = el.scrollTop;
+  el.innerHTML = career.timelineHtml();
+  el.scrollTop = keep;
+  if (!tlWas){ tlWas = true; el.querySelector('[data-act=tl-close]')?.focus(); }
+  el.querySelector('[aria-pressed=true]')?.scrollIntoView({ block: 'nearest' });
 }
 
 // Views that replace the body card until ← Back or Esc; null is the Edit view.
@@ -374,6 +376,7 @@ function setView(v){
   ui.view = v;
   if (ui.previewing) endPreview();
   resumes.reset();
+  dock.sync();
   renderHead();
   renderBody(true);
 }
@@ -381,44 +384,32 @@ function setView(v){
 function renderHead(){
   const r = shown();
   const st = persist.status;
-  const saved = st.status === 'error' ? `<span class="bad" title="${esc(st.error)}">⚠ ${h('ux1.saveFailed')}</span>`
-    : st.status === 'saving' || st.status === 'pending' ? h('head.saving') : `<span class="ok">✓</span> ${h('ux1.savedDevice')}`;
+  const saving = st.status === 'saving' || st.status === 'pending';
+  const saveText = st.status === 'error' ? t('ux1.saveFailed') : saving ? t('head.saving') : t('ux1.savedDevice');
+  const saved = `<span class="si ${st.status === 'error' ? 'bad' : saving ? '' : 'ok'}" aria-hidden="true">${st.status === 'error' ? '⚠' : saving ? '…' : '✓'}</span><span class="stext2">${esc(st.status === 'error' ? saveText : saving ? t('head.saving') : t('ux2.savedShort'))}</span><span class="sr">${esc(saveText)}${st.status === 'error' && st.error ? ': ' + esc(st.error) : ''}</span>`;
   const meta = r ? [jobTypeLabel(store.state.record, r.jobType), (r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const snap = snapNow();
-  const careerRow = ui.ws === 'career' ? `<div class="hrow only-c">${career.langControl()}<span class="grow"></span>
-      <button class="tool" data-act="undo" ${store.history.undo ? '' : 'disabled'} title="${esc(store.history.next ? t('foot.undoWhat', { what: store.history.next, n: store.history.undo }) : t('foot.undoN', { n: store.history.undo }))}" aria-label="${esc(t('foot.undo'))}">↶</button>
-      <button class="tool" data-act="redo" ${store.history.redo ? '' : 'disabled'} aria-label="${esc(t('foot.redo'))}" title="${esc(t('foot.redo'))}">↷</button></div>` : '';
+  const mode = dock.modeOf();
+  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   $('#head').innerHTML = `
-    <div class="hrow">
-      <h1 class="logo"><img src="icons/icon.svg" alt="" width="28" height="28">BrewCV</h1>
-      <span class="ws" role="group" aria-label="${esc(t('head.workspace'))}">
-        <button data-act="ws" data-ws="career" aria-pressed="${ui.ws === 'career'}" title="${esc(t('head.careerTitle'))}">${h('head.career')}</button>
-        <button data-act="ws" data-ws="resume" aria-pressed="${ui.ws !== 'career'}" title="${esc(t('head.resumeTitle'))}">${h('head.resume')}</button>
-      </span>
-      <button class="tool" data-act="menu" aria-haspopup="true" aria-expanded="${ui.menu}" title="${esc(t('head.menuTitle'))}" aria-label="${esc(t('head.menuTitle'))}">⋯</button>
-    </div>
-    ${careerRow}
-    <div class="hrow only-r">
+    <div class="hrow top">
+      <h1 class="logo"><img src="icons/icon.svg" alt="" width="28" height="28"><span class="sr">BrewCV</span></h1>
       <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ▾</span></span><span class="dt">${esc(meta)}</span></button>
       ${r ? langButton(r) : ''}
-    </div>
-    <div class="hrow small only-r">
-      <span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status">${saved}${st.linked ? ` · <span title="${esc(t('head.linkedFolder'))}">📁 ${esc(st.linked)}</span>` : ''}</span>
-      <button class="filestate ${fileLine().stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${esc(fileLine().text)}</button>
-      <span class="grow"></span>
+      <span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>
       <button class="sm" data-act="save" id="save" title="${esc(t('ux1.saveTitle'))}" ${ui.snap ? 'disabled' : ''}>${h('head.save')}</button>
+      ${ib('panel-toggle', 'right', t('ux2.foldPanel'), t('ux2.foldPanelTip'), '', 'b')}
+      <button class="tool" data-act="menu" aria-haspopup="true" aria-expanded="${ui.menu}" title="${esc(t('head.menuTitle'))}" aria-label="${esc(t('head.menuTitle'))}">⋯</button>
     </div>
-    <div class="hrow tools only-r">
-      <button class="tool" data-act="goto" data-v="design" aria-pressed="${ui.view === 'design'}" ${ui.snap ? 'disabled' : ''}>${h('head.design')}</button>
-      <button class="tool" data-act="goto" data-v="export" aria-pressed="${ui.view === 'export'}">${h('head.export')}</button>
-      <span class="grow"></span>
-      <button class="tool" data-act="actual" title="${esc(t('head.actualTitle'))}">${h('head.actual')}</button>
-      <button class="tool" data-act="fullscreen" title="${esc(t('head.fullscreen'))}" aria-label="${esc(t('head.fullscreen'))}">${document.fullscreenElement ? '⤡' : '⤢'}</button>
+    <div class="hrow modes">
+      <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
+      ${ib('help', 'help', t('ux2.shortcuts'), t('ux2.shortcutsTip'), '', 'b')}
+      <button class="filestate ${fileLine().stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${esc(fileLine().text)}</button>
     </div>
     ${st.code === 'folder-changed' ? `<div class="hrow notice" role="alert"><span class="small">${esc(st.error)}</span><span class="btns"><button class="sm" data-act="folder-compare">${h('save.folderCompare')}</button><button class="sm" data-act="folder-overwrite">${h('save.folderOverwrite')}</button></span></div>` : ''}
     ${ui.saveNote ? `<div class="hrow notice" role="status"><span class="small">${esc(t('save.note'))}${ui.persisted === false ? ' ' + esc(t('save.noteStorage')) : ''}</span><button class="sm" data-act="save-note-ok">${h('save.noteOk')}</button></div>` : ''}
-    ${snap ? `<div class="hrow notice snapbar only-r" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${h('ux1.backToResume')}</button></div>` : ''}
+    ${snap ? `<div class="hrow notice snapbar" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${h('ux1.backToResume')}</button></div>` : ''}
     ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}
     ${ui.menu ? menuHtml() : ''}`;
 }
@@ -444,7 +435,7 @@ function langButton(r){
   const n = missingList(work(), r).length;
   const inUse = langsInUse(record());
   const open = ui.langMenu === 'resume';
-  return `<span class="langs lang-menu"><button class="sm langbtn ${inUse.includes(L) ? '' : 'off'}" id="langbtn" data-act="lang-menu" aria-haspopup="menu" aria-expanded="${open}" ${ui.snap ? 'disabled' : ''} title="${esc(t('head.langGroup'))}${n ? esc(t('head.langMissing', { n })) : ''}">${esc(langName(L))} ▾${n ? `<span class="badge">${n}</span>` : ''}</button>
+  return `<span class="langs lang-menu"><button class="sm langbtn ${inUse.includes(L) ? '' : 'off'}" id="langbtn" data-act="lang-menu" aria-haspopup="menu" aria-expanded="${open}" aria-label="${esc(t('head.langGroup'))}: ${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}" ${ui.snap ? 'disabled' : ''} title="${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}">${esc(L.toUpperCase())} ▾${n ? `<span class="badge">${n}</span>` : ''}</button>
     ${open ? langMenuHtml({ for: 'resume', current: L, inUse, more: ui.langMore, label: t('head.langGroup'),
       count: l => (ui.langCounts?.[l] ?? null) }) : ''}</span>`;
 }
@@ -480,15 +471,17 @@ function menuHtml(){
     <a role="menuitem" href="${SOURCE_URL}/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener">${h('priv.link')}</a>
     <a role="menuitem" href="${SOURCE_URL}" target="_blank" rel="noopener">${h('src.link')}</a>
     <hr>
-    ${ui.ws === 'career' ? `<button role="menuitem" data-act="c-tips-again">${h('menu.tipsAgain')}</button>` : ''}
     <button role="menuitem" data-act="example">${h('menu.example')}</button>
     <button role="menuitem" data-act="start-over">${h('menu.startOver')}</button>
   </div>`;
 }
 
 function syncIntro(){
-  document.body.classList.toggle('is-intro', ui.view === 'welcome' && ['welcome', 'lang'].includes(onboarding.step));
-  document.body.classList.toggle('is-intro-wide', ui.view === 'welcome' && onboarding.step === 'welcome');
+  const welcome = ui.view === 'welcome';
+  document.body.classList.toggle('is-intro', welcome && ['welcome', 'lang'].includes(onboarding.step));
+  document.body.classList.toggle('is-intro-wide', welcome && onboarding.step === 'welcome');
+  // onboarding from scratch is a quiet editor: the page and the question panel, nothing else
+  document.body.classList.toggle('is-quiet', welcome && !['welcome', 'lang'].includes(onboarding.step));
 }
 function renderBody(animate = false){
   syncIntro();
@@ -496,32 +489,40 @@ function renderBody(animate = false){
   if (!record() || !cur()){ el.innerHTML = `<p class="muted">${h('body.loading')}</p>`; return; }
   const s = ui.sel;
   const keep = el.scrollTop;
+  // a form with something typed in it is not redrawn under the caret
+  const ae = document.activeElement;
+  const typing = !animate && el.contains(ae) && ae.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea') && !ae.closest('.editor, .writein');
+  if (typing && ae.value !== ae.defaultValue) return;
+  const had = typing && ae.id ? { id: ae.id, start: ae.selectionStart, end: ae.selectionEnd } : null;
   if (ui.snap && !ui.view && !snapNow()) ui.snap = null;
+  const finish = () => {
+    if (animate){ el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in'); el.scrollTop = 0; } else el.scrollTop = keep;
+    if (had){ const n = document.getElementById(had.id); if (n && n !== document.activeElement){ n.focus(); try { n.setSelectionRange(had.start, had.end); } catch { /* not a text box */ } } }
+  };
   if (ui.snap && !ui.view){
     el.innerHTML = VIEWS.snapshot();
     el.dataset.view = el.dataset.mode = 'snapshot';
-    if (animate){ el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in'); el.scrollTop = 0; } else el.scrollTop = keep;
+    finish();
     return;
   }
   if (ui.view && VIEWS[ui.view]){
     // don't redraw a form under the caret (the claim editor and write-in box excepted)
-    if (!animate && ['welcome', 'career'].includes(ui.view) && el.contains(document.activeElement) && document.activeElement.matches('input:not([type=checkbox]):not([type=radio]), textarea') && !document.activeElement.closest('.editor, .writein')) return;
+    if (!animate && ui.view === 'welcome' && el.contains(document.activeElement) && document.activeElement.matches('input:not([type=checkbox]):not([type=radio]), textarea') && !document.activeElement.closest('.editor, .writein')) return;
     el.innerHTML = VIEWS[ui.view]();
-    if (ui.view === 'career') el.style.setProperty('--kc', career.stripe()); else el.style.removeProperty('--kc');
     el.dataset.view = ui.view;
     el.dataset.mode = ui.view;
-    if (animate){ el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in'); el.scrollTop = 0; } else el.scrollTop = keep;
-    if (ui.view === 'career') edit.afterRender();
+    finish();
     return;
   }
   el.dataset.mode = 'edit';
-  el.innerHTML = s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s) : s.kind === 'section' ? edit.sectionView(s)
-    : s.kind === 'header' ? headerView() : edit.homeView();
+  const main = s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s) : s.kind === 'section' ? edit.sectionView(s)
+    : ['header', 'record', 'add', 'kind'].includes(s.kind) ? career.panel(s) : edit.homeView();
+  el.innerHTML = main + checklist.html() + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
   el.dataset.view = s.kind;
   el.dataset.editing = edit.editing ? edit.editing.mode : '';
-  if (animate){ el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in'); el.scrollTop = 0; }
-  else el.scrollTop = keep;
+  finish();
   edit.afterRender();
+  checklist.afterRender();
 }
 
 
@@ -532,45 +533,38 @@ function sectionTitle(id){
 }
 const textOfFact = id => (id && cur().overrides?.[id]) ?? chooseVariant(ui.work, id, cur()).v?.text ?? '';
 
-function headerView(){
-  const b = record().basics ?? {};
-  return `${crumb([{ t: t('section.header') }])}
-    <div class="from">${h('edit.fromCareerArea', { area: t('career.step1') })} · <a data-act="to-career" data-area="about" data-what="about" data-id="name">${h('edit.editInCareer')}</a></div>
-    <h2 class="title">${esc(textOfFact(b.display?.name) || b.name)}</h2>
-    <span class="lbl">${h('header.texts')}</span>
-    <div class="list">${['name', 'label', 'contact'].map(k => b.display?.[k]).filter(Boolean).map(id => `<button class="item fact" data-act="select-fact" data-id="${esc(id)}" data-section="header"><span>${esc(textOfFact(id)).replace(/\n/g, ' · ')}</span></button>`).join('')}</div>
-    <p class="muted small">${h('header.note')}</p>`;
-}
-
 function fillText(){
   const last = (ui.fills ?? []).at(-1);
   if (!last) return '';
   const over = ui.fills.find(p => p.overflow > 0);
   return over ? t('foot.overflowOn', { page: over.page }) : `${ui.fills.length > 1 ? t('foot.pageSep', { page: ui.fills.length }) : ''}${t('foot.full', { pct: (100 * last.used / last.usable).toFixed(1) })}`;
 }
-function renderFoot(){
-  const fills = ui.fills ?? [];
-  const n = fills.length;
-  const last = fills.at(-1);
-  const pct = last ? 100 * last.used / last.usable : 0;
-  const over = fills.find(p => p.overflow > 0);
-  const status = over ? 'overflow' : pct > FILL_BAND[1] ? 'over' : pct < FILL_BAND[0] ? 'under' : 'ok';
-  const text = !last ? '—' : over ? (over.overflowSection ? t('foot.overflowIn', { section: sectionTitle(over.overflowSection), page: over.page }) : t('foot.overflowPage', { page: over.page }))
-    : `${n > 1 ? t('foot.pageSep', { page: n }) : ''}${t('foot.full', { pct: pct.toFixed(1) })}`;
-  const spread = ui.layout?.spread, stack = ui.layout?.stack;
-  const nav = n > 1 ? `<span class="pnav">${stack ? `<button class="ghost sm" data-act="page" data-d="-1" ${ui.page <= 0 ? 'disabled' : ''} aria-label="${esc(t('foot.prevPage'))}">◂</button><span id="pagenum">${ui.page + 1} / ${n}</span><button class="ghost sm" data-act="page" data-d="1" ${ui.page >= n - 1 ? 'disabled' : ''} aria-label="${esc(t('foot.nextPage'))}">▸</button>` : ''}
-    ${ui.layout?.canSpread ? `<button class="ghost sm" data-act="view" title="${esc(spread ? t('foot.toStack') : t('foot.toSpread'))}" aria-label="${esc(spread ? t('foot.toStack') : t('foot.toSpread'))}">${spread ? '▯' : '▭▭'}</button>` : ''}</span>` : '';
-  const hs = store.history;
-  const limit = shown()?.pageLimit;
-  $('#foot').innerHTML = `
-    <div class="mp ${status}" title="${esc(fills.map(p => t('foot.pageFill', { page: p.page, pct: (100 * p.used / p.usable).toFixed(1) })).join(' · ') + t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] }))}">
-      <div class="mbar"><div class="mband"></div><div class="mfill" style="width:${Math.min(100, pct)}%"></div></div>
-      <span class="mt" id="meter">${esc(text)}</span>
-    </div>
-    ${nav}
-    <button class="primary" data-act="fit" ${ui.fitting || limit === 0 || ui.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${ui.fitting ? h('foot.fitting') : h('foot.fit')}</button>
-    <button class="tool" data-act="undo" ${hs.undo ? '' : 'disabled'} title="${esc(hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }))}" aria-label="${esc(t('foot.undo'))}">↶</button>
-    <button class="tool" data-act="redo" ${hs.redo ? '' : 'disabled'} title="${esc(hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'))}" aria-label="${esc(t('foot.redo'))}">↷</button>`;
+const renderFoot = () => dock.renderFoot();
+
+// The job being worked on wears a chip on the page: its employer and how many of its lines are on this resume.
+function renderChip(){
+  const lay = $('#pagelay');
+  if (!lay) return;
+  const s = ui.sel, L = ui.layout, m = record();
+  const jobId = s.kind === 'job' ? s.id : s.kind === 'bullet' ? (s.job ?? s.owner ?? null) : null;
+  const w = jobId && ui.ix?.work.get(jobId);
+  const r = w && L && !L.phone && !ui.snap && !ui.previewing ? sheet.rectOfJob(jobId, ui.ix) : null;
+  if (!r){ lay.innerHTML = ''; return; }
+  const on = jobRefs(m, cur()).some(x => (typeof x === 'string' ? x : x.id) === jobId) ? listedBullets(m, cur(), jobId).length : 0;
+  const total = (w.highlights ?? []).filter(x => !isArchived(m, x)).length;
+  const left = L.sheet.left - L.pages.left + r.left * L.scale, top = L.sheet.top - L.pages.top + r.top * L.scale;
+  lay.innerHTML = `<button class="jobchip" data-act="select-job" data-id="${esc(jobId)}" style="left:${Math.round(left)}px;top:${Math.max(4, Math.round(top - 30))}px" title="${esc(t('ux2.chipTitle'))}"><span class="jn">${esc(w.name)}</span><span class="jc">${esc(t('ux2.nOfM', { n: on, m: total }))}</span></button>`;
+}
+// a meter was clicked: bring that page into view (stacked pages scroll; zoomed side-by-side pages scroll across)
+function goToPage(i){
+  const L = ui.layout, n = ui.fills.length || 1;
+  ui.page = Math.max(0, Math.min(n - 1, i));
+  if (L?.stack) scrollPagesTo(pageTop(L, ui.page));
+  else if (L && !L.phone && L.sheet.width + 2 * 16 > L.areaW){
+    const { w } = pageSize(shown().format);
+    $('#pages').scrollTo({ left: Math.max(0, L.sheet.left + ui.page * (w + 24) * L.scale - 16), behavior: 'smooth' });
+  }
+  renderFoot();
 }
 
 async function onClick(e){
@@ -582,7 +576,8 @@ async function onClick(e){
   const act = tg.dataset.act, id = tg.dataset.id;
   if (await switcher.act(act, tg)) return;
   if (act === 'goto'){ ui.menu = false; setView(tg.dataset.v); return; }
-  if (act === 'ws'){ ui.menu = false; setWorkspace(tg.dataset.ws); return; }
+  if (await dock.act(act, tg)) return;
+  if (await checklist.act(act, tg)) return;
   if (await onboarding.act(act, tg)) return;
   if (await settings.act(act, tg)) return;
   if (await career.act(act, tg)) return;
@@ -594,12 +589,12 @@ async function onClick(e){
   if (await edit.act(act, tg)) return;
   switch (act){
     case 'menu': ui.menu = !ui.menu; if (ui.menu) switcher.close(); renderHead(); break;
-    case 'to-career': {
+    case 'select-record': {
       const d = tg.dataset;
-      career.focus({ area: d.area, sel: d.what ? { what: d.what, key: d.key, id: d.id } : null });
-      setWorkspace('career');
+      select({ kind: 'record', what: d.what, ...(d.group ? { group: d.group } : {}), ...(d.key ? { key: d.key } : {}), id });
       break;
     }
+    case 'help': help.toggle(); break;
     case 'deselect': select(NONE); break;
     case 'select-section': select({ kind: 'section', id }); sheet.flash(id); break;
     case 'select-job': select({ kind: 'job', id }); break;
@@ -613,15 +608,10 @@ async function onClick(e){
       select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' });
       break;
     }
-    case 'use-version': useVersion(ui.sel.id, tg.dataset.v); break;
+    case 'use-version': useVersion(tg.closest('.vlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
     case 'undo': store.undo(); break;
     case 'redo': store.redo(); break;
     case 'fit': runFit(); break;
-    case 'page': {
-      ui.page = Math.max(0, Math.min((ui.fills.length || 1) - 1, ui.page + Number(tg.dataset.d)));
-      if (ui.layout?.stack) scrollPagesTo(pageTop(ui.layout, ui.page));
-      renderFoot(); break;
-    }
     case 'view': setPagesMode(ui.layout?.spread ? 'stack' : 'spread'); break;
     case 'actual': openActual(); break;
     case 'fullscreen': toggleFullscreen(); break;
@@ -641,14 +631,16 @@ async function onClick(e){
 
 document.addEventListener('mouseover', e => {
   const row = e.target.closest?.('.vrow[data-v]');
-  if (!row || row.classList.contains('cur') || row.classList.contains('flat') || ui.ws === 'career' || ui.fitting || edit.editing) return;
+  if (!row || row.classList.contains('cur') || ui.fitting || edit.editing) return;
   if (ui.hoverV === row.dataset.v) return;
+  const fact = row.closest('.vlist')?.dataset.fact;
+  if (!fact) return;
   ui.hoverV = row.dataset.v;
-  previewVersion(ui.sel.id, row.dataset.v);
+  previewVersion(fact, row.dataset.v);
 });
 document.addEventListener('mouseout', e => {
   const list = e.target.closest?.('.vlist');
-  if (!list || list.contains(e.relatedTarget) || edit.editing || ui.ws === 'career') return;
+  if (!list || list.contains(e.relatedTarget) || edit.editing) return;
   ui.hoverV = null;
   endPreview();
 });
@@ -728,33 +720,44 @@ function fitSummary(r){
 
 function key(e){
   if (menuKey(e)) return;
-  const typing = e.target.closest?.('input, textarea, select, [contenteditable=true]');
+  const typing = e.target.closest?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select, [contenteditable=true]');
   const mod = e.ctrlKey || e.metaKey;
   if (typing && mod && ['z', 'y'].includes(e.key.toLowerCase())) return;      // the text box's own undo
   if (mod && !e.altKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); e.shiftKey ? store.redo() : store.undo(); return; }
   if (mod && e.key.toLowerCase() === 'y'){ e.preventDefault(); store.redo(); return; }
   if (mod && !e.altKey && e.key.toLowerCase() === 's'){ e.preventDefault(); if (!e.isComposing && e.keyCode !== 229) saveToFile(); return; }
-  if (mod && e.key.toLowerCase() === 'o'){ e.preventDefault(); if (ui.ws !== 'career') switcher.openOrFocus(); return; }
+  if (mod && e.key.toLowerCase() === 'o'){ e.preventDefault(); switcher.openOrFocus(); return; }
   if (typing) return;
+  if (ui.view === 'welcome') return;                    // the introduction and the questions have their own keys
   if (ui.snap && e.key !== 'Escape') return;           // a snapshot is read-only
-  if (ui.ws === 'career' ? career.key(e) : edit.key(e)) return;
   if (e.key === 'Escape'){
+    if (help.isOpen){ help.close(); return; }
+    if (dock.closePop()) return;
     if (switcher.isOpen){ switcher.close({ focusBack: true }); return; }
     if (ui.menu){ ui.menu = false; renderHead(); return; }
     if (ui.langMenu){ ui.langMenu = null; renderHead(); $('#langbtn')?.focus(); return; }
     if (closeBodyMenus()) return;
-    if (ui.ws === 'career'){ if (career.escape()) return; setWorkspace('resume'); return; }
-    if (ui.view){ setView(ui.view === 'compare' ? 'resumes' : null); return; }
+    if (career.closeTimeline()) return;
+    if (edit.key(e)) return;
+    if (ui.view){ setView(null); return; }
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
-    select(up(ui.sel)); return;
+    // up one level; at the page level, put everything away: the panel folds (even pinned open) and the view zooms out
+    const next = up(ui.sel);
+    if (next.kind !== 'none'){ select(next); return; }
+    if (ui.sel.kind !== 'none') select(NONE);
+    dock.allTheWayOut();
+    return;
   }
+  if (edit.key(e)) return;
+  if (e.key === '?' && !mod){ e.preventDefault(); help.toggle(); return; }
   if (e.shiftKey && e.key.toLowerCase() === 'f' && !mod){ e.preventDefault(); toggleFullscreen(); return; }
-  if (!mod && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'r') && !ui.view?.match?.(/welcome/)){ setWorkspace(e.key === 'c' ? 'career' : 'resume'); return; }
-  if (ui.ws === 'career') return;
+  if (dock.onKey(e)) return;
+  // the arrows walk the page; inside the panel, the timeline or a menu they belong to what has the focus
+  if (e.target.closest?.('#col, #timeline, #help, #switcher')) return;
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
     const id = step(sheet.order(ui.ix), ui.sel, e.key === 'ArrowDown' ? 1 : -1);
-    if (typeof id === 'string'){ e.preventDefault(); const job = ui.ix.highlight.get(id); select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' }); }
+    if (typeof id === 'string'){ e.preventDefault(); const job = ui.ix.highlight.get(id); select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' }, { fromPage: true }); }
     return;
   }
   if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && ui.sel.kind === 'bullet'){
@@ -886,7 +889,7 @@ const edit = initEdit({
   endPreview: () => endPreview(),
   indexOf: m => indexModel(m),
   previewRecipe,
-  careerLang: () => career.lang, careerFact: () => career.fact(), careerUp: () => career.up(), careerReveal: () => career.reveal(),
+  detailsHtml: id => career.detailsHtml(id),
 });
 edit.bind($('#body'));
 window.__wb.edit = edit;
@@ -902,6 +905,7 @@ const resumes = initResumes({
 });
 const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, resumes,
   endPreview: () => endPreview(),
+  ensurePanel: () => { if (dock.folded()){ ui.peek = true; dock.sync(); } },
   closeMenus: () => { if (ui.menu || ui.langMenu){ ui.menu = false; ui.langMenu = null; renderHead(); } },
 });
 switcher.bind();
@@ -921,11 +925,17 @@ Object.assign(VIEWS, design.views);
 const onboarding = initOnboarding({ store, ui, persist, toast, setView, renderBody: (a) => renderBody(a), restyle: () => restyle() });
 Object.assign(VIEWS, onboarding.views);
 onboarding.bind($('#body'));
-const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi(r), edit, select: s => select(s), setWorkspace: w => setWorkspace(w), renderBody: (a) => renderBody(a), renderCareer: () => renderCareer(),
+const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi(r), edit, lang, select: s => select(s), renderBody: (a) => renderBody(a), renderTimeline: () => renderTimeline(),
   renderHead: () => renderHead(), photoUrl: () => store.materialize(store.state.record?.basics?.image) });
-Object.assign(VIEWS, career.views);
 career.bind($('#body'));
 window.__wb.career = career;
+const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody() });
+checklist.bind($('#body'));
+window.__wb.checklist = checklist;
+const help = initHelp({ ui });
+window.__wb.help = help;
+const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, goToPage, renderAll: () => renderAll() });
+window.__wb.dock = dock;
 design.bind($('#body'));
 window.__wb.design = design;
 Object.assign(VIEWS, exporter.views);

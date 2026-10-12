@@ -36,8 +36,10 @@ const exe = process.env.CHROME_PATH
   ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 
-async function open(page, q){
+async function open(page, q, { help = false } = {}){
   const bad = [];
+  // the shortcut sheet opens by itself on the first selection; a check that is not about it starts with it seen
+  if (!help) await page.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* nothing to set */ } });
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
   await page.goto(URL_(q), { waitUntil: 'networkidle' });

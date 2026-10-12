@@ -19,6 +19,7 @@ html.rb-ui [data-variant]:hover { outline: 2px solid rgba(37, 99, 235, .3); outl
 .rb-sel { outline: 2px solid #2563eb !important; outline-offset: 2px; border-radius: 2px; background-color: rgba(37, 99, 235, .06); }
 .rb-band-sel { outline: 2px solid #2563eb !important; outline-offset: 5px; border-radius: 4px; }
 .rb-prev { outline: 2px solid #0f766e !important; outline-offset: 2px; border-radius: 2px; background-color: #e1f4f1; }
+.rb-hover { outline: 2px solid #0f766e !important; outline-offset: 2px; border-radius: 2px; background-color: #e1f4f1; }
 html.rb-previewing .document > .page { outline: 3px solid #0f766e; outline-offset: 6px; }
 .rb-renaming { outline: 2px solid #2563eb !important; outline-offset: 3px; cursor: text !important; background: #fff !important; color: #16150f !important; }
 html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity .2s; }
@@ -32,7 +33,7 @@ export function createSheet(host, hooks = {}){
   let fr = null;
   let shown = null;
   let view = { mode: 'spread', page: 0 };
-  let marked = { sel: null, ix: null, prev: null, focus: null, miss: null };
+  let marked = { sel: null, ix: null, prev: null, focus: null, miss: null, hover: null };
   let pending = null;
   let revealed = null;            // the selection last scrolled into view (stack mode)
   // One drawing at a time: a preview, its end, a redraw and a Fit can overlap, and two on
@@ -171,7 +172,7 @@ export function createSheet(host, hooks = {}){
 
   function mark(){
     if (!fr) return;
-    for (const el of fr.doc.querySelectorAll('.rb-sel, .rb-band-sel, .rb-prev, .rb-hit, .rb-miss, .rb-miss-tab')) el.classList.remove('rb-sel', 'rb-band-sel', 'rb-prev', 'rb-hit', 'rb-miss', 'rb-miss-tab');
+    for (const el of fr.doc.querySelectorAll('.rb-sel, .rb-band-sel, .rb-prev, .rb-hover, .rb-hit, .rb-miss, .rb-miss-tab')) el.classList.remove('rb-sel', 'rb-band-sel', 'rb-prev', 'rb-hover', 'rb-hit', 'rb-miss', 'rb-miss-tab');
     // texts with no version in the resume's language print in English, outlined
     if (marked.miss && marked.ix){
       for (const el of fr.doc.querySelectorAll('[data-variant]')){
@@ -187,6 +188,10 @@ export function createSheet(host, hooks = {}){
         const f = marked.ix.factOfVariant.get(a) ?? (a.endsWith('-override') ? a.slice(0, -9) : null);
         if (f && marked.focus.has(f)) el.classList.add('rb-hit');
       }
+    }
+    if (marked.hover && marked.ix){
+      const vs = new Set([...(marked.ix.facts.get(marked.hover)?.variants ?? []), `${marked.hover}-override`]);
+      for (const el of fr.doc.querySelectorAll('[data-variant]')) if (vs.has(el.getAttribute('data-variant'))) el.classList.add('rb-hover');
     }
     const { sel, ix } = marked;
     if (!sel || !ix) return;
@@ -285,6 +290,27 @@ export function createSheet(host, hooks = {}){
     setMissing(list, ix){
       marked.miss = list?.length ? { facts: new Set(list.filter(x => x.kind === 'fact').map(x => x.id)), headings: list.filter(x => x.kind === 'heading').map(x => x.id) } : null;
       if (ix) marked.ix = ix; mark();
+    },
+    // a row of the record checklist is under the pointer: its line on the page lights up, if it is on the page
+    setHover(factId, ix){ marked.hover = factId; if (ix) marked.ix = ix; mark(); },
+    // where something is on the page, in the page's own pixels (undefined when it is not there)
+    rectOf(factId, ix){
+      if (!fr) return null;
+      const vs = new Set([...(ix.facts.get(factId)?.variants ?? []), `${factId}-override`]);
+      const el = [...fr.doc.querySelectorAll('[data-variant]')].find(e => vs.has(e.getAttribute('data-variant')));
+      if (!el) return null;
+      const r = el.getBoundingClientRect(), page = el.closest('.page')?.getBoundingClientRect();
+      return { left: r.left, top: r.top, width: r.width, height: r.height, page: page ? { left: page.left, top: page.top } : null };
+    },
+    // a job's box on the page, in the page's own pixels from the sheet's corner
+    rectOfJob(jobId, ix){
+      if (!fr) return null;
+      const w = ix.work.get(jobId);
+      const vs = new Set([...(ix.facts.get(w?.display?.position)?.variants ?? []), `${w?.display?.position}-override`]);
+      const el = [...fr.doc.querySelectorAll('[data-variant]')].find(e => vs.has(e.getAttribute('data-variant')))?.closest('.entry');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, width: r.width, height: r.height };
     },
     setFocus(facts, ix){ marked.focus = facts && facts.size ? facts : null; if (ix) marked.ix = ix; mark(); },
     flash(sectionId){

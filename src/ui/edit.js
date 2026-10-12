@@ -1,16 +1,16 @@
-// The Edit view: what the body card shows for the resume, a section, a job and a bullet, and
-// what its controls do. Career opens the same claim panel (claimPanel) with `ws` set; it has no
-// page and tailors nothing, so a version written there is not picked by the open resume.
-// Every change is one store commit, so one undo step. Typing is not a change until it is saved.
+// The Edit view: what the body card shows for the resume, a section, a job and a bullet, and what its
+// controls do. One panel for a claim wherever you came from: the page, the record checklist below it, or
+// the timeline. Every change is one store commit, so one undo step. Typing is not a change until it is saved.
 
 import * as R from '../model/record.js';
 import * as T from '../model/resume.js';
 import { key as measureKeyOf } from '../fit.js';
-import { allTags, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf } from '../model/focus.js';
+import { allTags, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
 import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
 import * as K from '../model/career.js';
+import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { t, h, errText } from '../i18n/index.js';
-import { esc, clip, crumb, sw, factRow as partFactRow, claimRow, missBar, versionsHtml, statsHtml, claimHead, addClaimHtml } from './parts.js';
+import { esc, clip, crumb, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -19,13 +19,12 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDraft: '', pick: null, pickOn: false };
+const E = { edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDraft: '', lensTags: false, applyOpen: false };
 
 function commit(fn, label, done){
   try {
     const changed = C.store.commit(d => { fn(d); }, label);
     if (changed && done) C.toast(done);
-    if (changed && ws() === 'career'){ work(); C.renderBody(); }     // the Resume redraws after a commit; Career has no page to wait for
     return changed;
   } catch (e){
     C.toast(errText(e), 'bad');
@@ -36,9 +35,9 @@ const autoNote = r => (r?.auto ? ' ' + t('toast.autoPages') : '');
 
 const rec = () => C.record();
 const cur = () => C.cur();
-const ws = () => (C.ui.ws === 'career' ? 'career' : 'resume');
-const lang = () => (ws() === 'career' ? C.careerLang() : C.lang());
-const fid = () => (ws() === 'career' ? C.careerFact() : C.ui.sel.kind === 'bullet' ? C.ui.sel.id : null);
+const lang = () => C.lang();
+// the claim whose versions are open: the selected bullet, or the one an item's form shows
+const fid = () => (C.ui.sel.kind === 'bullet' ? C.ui.sel.id : factOfRecordSel(rec(), C.ui.sel));
 const ix = () => C.ix();
 const work = () => C.work();
 const usingOf = id => C.chooseVariant(work(), id, cur()).v;
@@ -49,46 +48,65 @@ const isArch = id => !!ix().facts.get(id)?.archived;
 const jobOn = id => T.jobRefs(rec(), cur()).some(r => (typeof r === 'string' ? r : r.id) === id);
 const linesOf = v => v?.metrics?.measured?.[measureKeyOf(cur())]?.lines;
 
-const fromCareer = (area, groupKey, attrs = '') => {
-  const a = t(area === 'about' ? 'career.step1' : area === 'more' ? 'career.step3' : 'career.step2');
-  return `<div class="from">${groupKey ? h('edit.fromCareer', { area: a, group: t(groupKey) }) : h('edit.fromCareerArea', { area: a })} · <a data-act="to-career" data-area="${area}" ${attrs}>${h('edit.editInCareer')}</a></div>`;
-};
 const entryKeyOf = id => (['work', 'projects', 'volunteer'].find(k => (rec()[k] ?? []).some(x => x?.id === id)) ?? 'work');
-function sectionFrom(sec){
-  const c = sec.content ?? {};
-  if (sec.kind === 'header') return fromCareer('about', null);
-  if (sec.kind === 'prose') return fromCareer('about', 'career.about.summary', 'data-what="about" data-id="summary"');
-  if (sec.kind === 'entries'){ const key = entryKeyOf((c.work ?? [])[0]); return fromCareer('timeline', key === 'work' ? 'career.kind.work' : key === 'projects' ? 'career.kind.project' : null); }
-  const facts = Object.values(c).flat().filter(x => typeof x === 'string');
-  const m = rec();
-  if ((m.education ?? []).some(e => Object.values(e.display ?? {}).some(f => facts.includes(f)))) return fromCareer('timeline', 'career.kind.education', `data-what="entry" data-key="education" data-id="${esc((m.education ?? []).find(e => Object.values(e.display ?? {}).some(f => facts.includes(f)))?.id ?? '')}"`);
-  const group = sec.kind === 'grid' ? 'skills' : sec.kind === 'pairs' ? ((m.references ?? []).some(x => facts.includes(x.id)) ? 'references' : 'languages') : (m.publications ?? []).some(p => Object.values(p.display ?? {}).some(f => facts.includes(f))) ? 'publications'
-    : (m.certificates ?? []).some(x => facts.includes(x.id)) ? 'certificates' : (m.interests ?? []).some(x => facts.includes(x.id)) ? 'interests' : null;
-  return fromCareer('more', group ? `career.group.${group}` : null);
-}
 function factRow(id, { section = null, owner = null } = {}){
   const L = lang();
   const miss = L !== DEFAULT_LANG && !R.versionsIn(work(), id, L).length && !isSame(rec(), sameKey(id)) && overrideOf(id) === undefined;
-  return partFactRow({ id, section, owner, miss, text: clip(C.textOfFact(id) || ix().facts.get(id)?.summary || id, 120), pill: miss ? h('edit.noLang', { code: L.toUpperCase() }) : '', pillMiss: true });
+  const rs = recordSelOfFact(rec(), id);
+  return partFactRow({ id, section, owner, miss, text: clip(C.textOfFact(id) || ix().facts.get(id)?.summary || id, 120), pill: miss ? h('edit.noLang', { code: L.toUpperCase() }) : '', pillMiss: true,
+    ...(rs ? { act: 'select-record', attrs: `data-what="${esc(rs.what)}" ${rs.group ? `data-group="${esc(rs.group)}"` : ''} ${rs.key ? `data-key="${esc(rs.key)}"` : ''}` } : {}) });
 }
 
 const missingBar = () => missBar({ lang: lang(), list: lang() === DEFAULT_LANG ? [] : missingList(work(), cur()) });
 
+// how much a section holds, for its row
+function sectionCount(s){
+  const sec = ix().sections.get(s.id);
+  if (!sec) return '';
+  if (sec.kind === 'entries'){
+    const n = T.jobRefs(rec(), cur(), s.id).reduce((a, r) => a + T.listedBullets(rec(), cur(), typeof r === 'string' ? r : r.id).length, 0);
+    return t('ux2.nBullets', { n });
+  }
+  const n = Object.values(sec.content ?? {}).flat().filter(x => typeof x === 'string' && ix().facts.has(x)).length;
+  return t('ux2.nLines', { n });
+}
+
+// ---- the Highlight lens: one row, job types only; topic tags behind "+ tags" ----
+function lensBox(){
+  const { types, topics } = lensChoices(rec(), lang());
+  if (!types.length && !topics.length) return `<div class="lens"><span class="muted small">${h('ux2.lensNone')}</span> <button class="sm ghost" data-act="lens-edit">${h('ux2.lensEdit')}</button></div>`;
+  const chosen = E.focus;
+  const known = types.some(x => x.tag === chosen) || topics.some(x => x.tag === chosen);
+  let out = `<div class="lens"><div class="lensrow"><label for="lens" class="lbl inline"><span class="lt">${h('ux2.lens')}</span></label>
+      <select id="lens"><option value="">${h('ux2.lensOff')}</option>${types.map(x => `<option value="${esc(x.tag)}" ${chosen === x.tag ? 'selected' : ''}>${esc(x.label)} (${x.n})</option>`).join('')}
+        ${chosen && !known ? `<option value="${esc(chosen)}" selected>${esc(chosen)}</option>` : ''}</select>
+      ${topics.length ? `<button class="sm ghost" data-act="lens-tags" aria-expanded="${E.lensTags}">${h('ux2.lensTags')}</button>` : ''}
+      <button class="sm" data-act="lens-apply" aria-expanded="${E.applyOpen}" ${chosen ? '' : 'disabled'}>${h('ux2.lensApply')}</button></div>`;
+  if (E.lensTags) out += `<div class="chips">${topics.slice(0, 24).map(x => `<button class="tag ${chosen === x.tag ? 'on' : ''}" data-act="focus" data-tag="${esc(x.tag)}" aria-pressed="${chosen === x.tag}">${esc(x.label)} <span class="muted">${x.n}</span></button>`).join('')}</div>`;
+  if (chosen && E.applyOpen){
+    const p = planTag(work(), cur(), chosen);
+    out += `<div class="focusbox">${h('edit.focusPlan', { on: p.on, off: p.off, sw: p.sw })}
+      <div class="btns"><button class="sm primary" data-act="focus-apply" ${p.on + p.off + p.sw ? '' : 'disabled'}>${h('edit.focusApply', { tag: jobTypeLabel(rec(), chosen) })}</button><button class="sm ghost" data-act="lens-apply">${h('btn.cancel')}</button></div></div>`;
+  }
+  return out + '</div>';
+}
+
 function homeView(){
   const list = T.sectionList(rec(), cur());
+  const on = list.filter(s => s.on), off = list.filter(s => !s.on);
   const manual = Array.isArray(cur().pages);
   return `${C.newerBanner()}${missingBar()}
     <p class="lead">${h('edit.lead')}</p>
-    ${focusBox()}
+    ${lensBox()}
     <span class="lbl">${h('edit.sectionsHere')}</span>
-    <div class="list" id="seclist">${list.map(s => `
-      <div class="item srow ${s.on ? '' : 'is-off'} ${s.fixed ? 'fixed' : ''}" data-sid="${esc(s.id)}" ${s.fixed ? '' : 'draggable="true"'}>
+    <div class="list" id="seclist">${on.map(s => `
+      <div class="item srow ${s.fixed ? 'fixed' : ''}" data-sid="${esc(s.id)}" ${s.fixed ? '' : 'draggable="true"'}>
         <span class="grip" aria-hidden="true">${s.fixed ? '' : '⠿'}</span>
-        <a class="t" data-act="select-section" data-id="${esc(s.id)}">${esc(C.sectionTitle(s.id))}</a>
-        ${s.fixed ? `<span class="muted tiny">${h('edit.alwaysFirst')}</span>` : sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, s.on)}
+        <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${esc(C.sectionTitle(s.id))}</a><span class="muted tiny">${s.fixed ? h('edit.alwaysFirst') : esc(sectionCount(s))}</span></span>
+        ${s.fixed ? '' : sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, true)}
       </div>`).join('')}</div>
-    <p class="note">${h(manual ? 'edit.dragManual' : 'edit.drag')} ${h('edit.keys')}</p>
-    <p class="muted tiny privacy">${h('body.privacy')}</p>`;
+    ${off.length ? `<p class="notonline" id="offline"><span class="muted small">${h('ux2.notOn')}</span> ${off.map(s => `<button class="tag offchip" data-act="section-on" data-id="${esc(s.id)}" draggable="true" data-sid="${esc(s.id)}" title="${esc(t('ux2.turnOnTitle'))}">${esc(C.sectionTitle(s.id))}</button>`).join(' ')}</p>` : ''}
+    ${manual ? `<p class="note">${h('edit.dragManual')}</p>` : ''}`;
 }
 
 function sectionView(s){
@@ -115,19 +133,16 @@ function sectionView(s){
     inner = `<span class="lbl">${h('edit.text')}</span><div class="list"><button class="item" data-act="select-bullet" data-id="${esc(f)}"><span>${esc(clip(C.textOfFact(f), 160))}</span></button></div>`;
   } else if (!isHeader){
     const ids = Object.values(sec.content ?? {}).flat().filter(x => typeof x === 'string' && ix().facts.has(x));
-    inner = `<span class="lbl">${h('edit.items')}</span><div class="list">${ids.map(id => factRow(id, { section: s.id })).join('')}</div>
-      <p class="note">${L !== DEFAULT_LANG ? h('edit.clickOrWrite', { lang: LANG_NAME[L] }) : h('edit.clickOne')}</p>`;
+    inner = `<span class="lbl">${h('edit.items')}</span><div class="list">${ids.map(id => factRow(id, { section: s.id })).join('')}</div>`;
   }
   return `${crumb([{ t: t('head.resume'), act: 'deselect' }, { t: title }])}
-    ${sectionFrom(sec)}
     <h2 class="title">${esc(title)}</h2>
     ${isHeader ? '' : `<label class="field"><span class="lbl inline">${h('edit.headingHere', { lang: LANG_NAME[L] ?? L })}</span>
       <input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" autocomplete="off"></label>
     ${L !== DEFAULT_LANG ? `<div class="ctlrow">${sw(`data-same="section:${esc(s.id)}"`, isSame(rec(), `section:${s.id}`), h('edit.sameHeading'))}</div>` : ''}
     <p class="muted small">${h('edit.sectionId', { id: s.id, kind: sec.kind })}${own ? ` · <a data-act="label-reset">${h('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) })}</a> · <a data-act="label-all">${h('edit.labelAll')}</a>` : ''}</p>`}
     ${me && !me.fixed ? `<div class="ctlrow">${sw(`data-secon="${esc(s.id)}"`, me.on, h('edit.showHere'))}</div>
-      <span class="lbl">${h('edit.position', { at: at + 1, n: movable.length })}</span>
-      <p class="note">${h('ux1.moveKeys')}</p>`
+      <span class="lbl">${h('edit.position', { at: at + 1, n: movable.length })}</span>`
       : `<p class="muted small">${isHeader ? h('edit.headerFirst') : h('edit.summaryFollows')}</p>`}
     ${inner}`;
 }
@@ -136,24 +151,12 @@ function jobView(s){
   const w = ix().work.get(s.id);
   if (!w) return homeView();
   const on = jobOn(s.id);
-  const L = lang();
-  return `${crumb([{ t: C.sectionTitle('experience'), act: 'select-section', attrs: 'data-id="experience"' }, { t: w.name }])}
-    ${fromCareer('timeline', 'career.kind.work', `data-what="entry" data-key="${esc(entryKeyOf(s.id))}" data-id="${esc(s.id)}"`)}
+  const sid = T.sectionOfEntry(rec(), s.id);
+  return `${crumb([{ t: C.sectionTitle(sid), act: 'select-section', attrs: `data-id="${esc(sid)}"` }, { t: w.name }])}
     <h2 class="title">${esc(C.textOfFact(w.display?.position) || w.position)}</h2>
     <p class="meta">${esc(C.textOfFact(w.display?.meta))}</p>
     <div class="ctlrow">${sw(`data-jobon="${esc(s.id)}"`, on, h('edit.showJob'))}</div>
-    <span class="lbl">${h('edit.titleMeta')}</span>
-    <div class="list">${[w.display?.position, w.display?.meta].filter(Boolean).map(id => factRow(id, { owner: s.id, section: 'experience' })).join('')}</div>
-    <span class="lbl">${h('edit.bullets')}</span>
-    <div class="list">${(w.highlights ?? []).filter(hl => !isArch(hl) || isOn(hl)).map(hl => {
-      const b = on && isOn(hl);
-      const v = usingOf(hl);
-      const pill = overrideOf(hl) !== undefined ? t('edit.onlyHere') : v ? `v${v.n}` : t('edit.noLang', { code: L.toUpperCase() });
-      return claimRow({ id: hl, text: clip(C.textOfFact(hl) || ix().facts.get(hl)?.summary || hl, 110), on: b, swAttrs: `data-on="${esc(hl)}" aria-label="${esc(t('edit.showBullet'))}"`,
-        pill, pillMiss: !(v || overrideOf(hl) !== undefined), kept: isKept(hl), archived: isArch(hl) });
-    }).join('')}</div>
-    ${addClaimHtml({ id: s.id, key: entryKeyOf(s.id), draft: E.claimDraft })}
-    <p class="note">${h('edit.jobFactsNote')}</p>`;
+    ${C.detailsHtml(s.id)}`;
 }
 
 function bulletView(s){
@@ -162,77 +165,44 @@ function bulletView(s){
   const w = s.job ? ix().work.get(s.job) : null;
   const jobId = s.job ?? s.owner;
   const jw = jobId ? ix().work.get(jobId) : null;
-  const trail = jobId ? [{ t: C.sectionTitle('experience'), act: 'select-section', attrs: 'data-id="experience"' }, { t: jw?.name ?? jobId, act: 'select-job', attrs: `data-id="${esc(jobId)}"` }, { t: clip(f.summary ?? s.id, 34) }]
+  const sid = jobId ? T.sectionOfEntry(rec(), jobId) : null;
+  const trail = jobId ? [{ t: C.sectionTitle(sid), act: 'select-section', attrs: `data-id="${esc(sid)}"` }, { t: jw?.name ?? jobId, act: 'select-job', attrs: `data-id="${esc(jobId)}"` }, { t: clip(f.summary ?? s.id, 34) }]
     : [{ t: C.sectionTitle(s.section ?? 'summary'), act: 'select-section', attrs: `data-id="${esc(s.section ?? 'summary')}"` }, { t: clip(f.summary ?? s.id, 34) }];
   const on = isOn(s.id) && (!w || jobOn(w.id));
 
   return `${crumb(trail)}
     <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
-    ${claimHead({ ws: 'resume', hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
+    ${claimHead({ hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
     + versionsHtml(versionsX(s.id));
 }
 const isClaim = id => ix().highlight.has(id);
 
-function claimPanel(id, { crumbHtml, title, deletable = false }){
+// the versions of a fact, under an item's form
+function factPanel(id){
   if (!ix().facts.has(id)) return '';
-  return `${crumbHtml}
-    <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(title ?? ix().facts.get(id).summary ?? id)}</h2>
-    ${claimHead({ ws: ws(), deletable: deletable && isClaim(id), archived: deletable && isClaim(id) ? isArch(id) : null })}`
-    + versionsHtml(versionsX(id));
+  return versionsHtml(versionsX(id));
 }
 
 function versionsX(id){
   const L = lang();
-  const career = ws() === 'career';
-  const using = career ? null : usingOf(id);
+  const using = usingOf(id);
   const ed = E.edit?.fact === id ? E.edit : null;
   const en = R.versionsIn(work(), id, DEFAULT_LANG);
   const vs = R.versionsIn(work(), id, L);
   return {
-    ws: ws(), m: work(), fact: id, lang: L,
-    vs, using, over: career ? undefined : overrideOf(id), ed,
+    m: work(), fact: id, lang: L,
+    vs, using, over: overrideOf(id), ed,
     compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,
-    lines: career ? () => undefined : linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: allTags(rec(), null, { archived: ws() === 'career' && C.careerReveal() }).map(x => x.tag),
-    dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !career && !!(T.jobOfFact(rec(), id) || id === cur().summary), fill: career ? '' : C.fillText(),
-    ref: career ? T.defaultVariant(work(), id, DEFAULT_LANG) : C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
-    pick: career && E.pickOn ? pickOf(id)?.id : null,
+    lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: allTags(rec(), null).map(x => x.tag),
+    dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id) || id === cur().summary), fill: C.fillText(),
+    ref: C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
   };
-}
-
-function focusBox(){
-  const TG = allTags(rec(), lang()).filter(x => x.n || x.jobType).slice(0, 16);
-  if (!TG.length) return '';
-  let out = `<span class="lbl">${h('edit.focusOn')}</span><div class="chips">${TG.map(x => `<button class="tag ${x.jobType ? 'jt' : ''} ${E.focus === x.tag ? 'on' : ''}" data-act="focus" data-tag="${esc(x.tag)}" aria-pressed="${E.focus === x.tag}"${x.jobType && x.tags.length > 1 ? ` title="${esc(x.tags.join(', '))}"` : ''}>${esc(x.label)} <span class="muted">${x.n}</span></button>`).join('')}</div>`;
-  if (E.focus){
-    const p = planTag(work(), cur(), E.focus);
-    out += `<div class="focusbox">${h('edit.focusBright', { tag: jobTypeLabel(rec(), E.focus) })}<br>
-      ${h('edit.focusPlan', { on: p.on, off: p.off, sw: p.sw })}
-      <div class="btns"><button class="sm primary" data-act="focus-apply" ${p.on + p.off + p.sw ? '' : 'disabled'}>${h('edit.focusApply', { tag: jobTypeLabel(rec(), E.focus) })}</button><button class="sm ghost" data-act="focus-clear">${h('edit.focusClear')}</button></div></div>`;
-  }
-  return out;
 }
 
 function startEdit(mode = null, vid = null){
   const id = fid();
   if (!id) return;
   const L = lang();
-  if (ws() === 'career'){
-    // every version is an equal: ✎ edits the one it is on (Enter: the one picked, else the default)
-    const vs = R.versionsIn(work(), id, L);
-    const dv = T.defaultVariant(work(), id, L);
-    if (mode === 'new'){
-      if (!vs.length) return;
-      E.edit = { fact: id, mode: 'new', vid: dv?.id ?? null, base: '', draft: dv?.text ?? '', copyOf: dv?.text ?? '', lines0: null, lines: null };
-    } else {
-      const v = vs.find(x => x.id === vid) ?? pickOf(id);
-      if (!v) return;
-      E.edit = { fact: id, mode: 'edit', vid: v.id, base: v.text, draft: v.text, lines0: null, lines: null };
-    }
-    E.compare = null;
-    C.renderBody();
-    focusEditor(mode === 'new');
-    return;
-  }
   const over = overrideOf(id);
   const using = usingOf(id);
   if (!using && over === undefined) return;
@@ -247,20 +217,6 @@ function startEdit(mode = null, vid = null){
   C.endHover();
   C.renderBody();
   focusEditor(m === 'new');
-}
-function pickOf(id){
-  const vs = R.versionsIn(work(), id, lang());
-  return vs.find(v => v.id === E.pick) ?? T.defaultVariant(work(), id, lang()) ?? vs[0] ?? null;
-}
-function stepPick(d){
-  const id = fid();
-  const vs = R.versionsIn(work(), id, lang());
-  if (!vs.length) return false;
-  const at = vs.findIndex(v => v.id === pickOf(id)?.id);
-  const next = vs[Math.max(0, Math.min(vs.length - 1, at + d))];
-  E.pick = next.id; E.pickOn = true;
-  C.renderBody();
-  return true;
 }
 function focusEditor(selectAll = false){
   const ta = $('#ed');
@@ -296,7 +252,7 @@ function onEditorInput(ta){
   for (const b of document.querySelectorAll('.editor [data-act^=ed-]:not([data-act=ed-cancel])'))
     b.disabled = b.dataset.act === 'ed-promote' ? !ed.draft.trim() : !changed;
   clearTimeout(E.timer);
-  if (ws() === 'resume') E.timer = setTimeout(livePreview, 140);     // Career has no page to draw it on
+  E.timer = setTimeout(livePreview, 140);
 }
 
 // The page redraws with the draft as it will look once saved: a copy of the record with the
@@ -326,7 +282,7 @@ function saveEdit(kind){
   if (!text) return C.toast(t('toast.writeFirst'), 'warn');
   const f = ed.fact;
   const v = ed.vid ? ix().variants.get(ed.vid) : null;
-  const resume = ws() === 'resume';     // a version written in Career is not picked: Career tailors nothing
+  const resume = true;
   E.edit = null;
   clearTimeout(E.timer);
   C.ui.previewing = false;
@@ -394,7 +350,7 @@ async function act(a, tg){
       commit(d => { res = K.deleteClaim(d.record, id, [d.cur, ...(d.resumes ?? [])]); }, t('undo.deleteClaim'));
       if (res){
         C.toast(t('career.deletedClaim', { name, n: res.versions }));
-        if (ws() === 'career') C.careerUp(); else C.select(job ? { kind: 'job', id: job } : { kind: 'none' });
+        C.select(job ? { kind: 'job', id: job } : { kind: 'none' });
       }
       return true;
     }
@@ -407,7 +363,7 @@ async function act(a, tg){
       commit(d => { res = K.archiveClaim(d.record, id); }, t('arch.undoArchive'));
       if (res?.changed){
         C.toast(t('arch.archived'));
-        if (ws() === 'career') C.careerUp(); else C.select(job ? { kind: 'job', id: job } : { kind: 'none' });
+        C.select(job ? { kind: 'job', id: job } : { kind: 'none' });
       }
       return true;
     }
@@ -416,7 +372,7 @@ async function act(a, tg){
       if (!id) return true;
       let res;
       commit(d => { res = K.unarchiveClaim(d.record, id); }, t('arch.undoUnarchive'), t('arch.unarchived'));
-      if (res?.changed && ws() !== 'career') C.renderBody();
+      if (res?.changed) C.renderBody();
       return true;
     }
     case 'add-claim': {
@@ -425,7 +381,7 @@ async function act(a, tg){
       const entry = tg.dataset.id;
       commit(d => {
         const made = K.addEntryClaim(d.record, entry, text, lang());
-        if (made && ws() === 'resume' && T.jobRefs(d.record, d.cur).some(r => (typeof r === 'string' ? r : r.id) === entry)) T.setBulletOn(d.record, d.cur, made, true);     // the entry is on: so is its new line
+        if (made && T.jobRefs(d.record, d.cur).some(r => (typeof r === 'string' ? r : r.id) === entry)) T.setBulletOn(d.record, d.cur, made, true);     // the entry is on: so is its new line
       }, t('undo.addClaim'), t('career.claimAdded'));
       E.claimDraft = '';
       C.renderBody();
@@ -437,7 +393,7 @@ async function act(a, tg){
       if (!text){ C.toast(t('toast.writeItFirst'), 'warn'); ta?.focus(); return true; }
       const L = lang(), id = s.id;
       let n;
-      commit(d => { const v = writeIn(d.record, id, L, text, ta.dataset.from || null); n = v.n; if (ws() === 'resume') d.cur.picks = { ...(d.cur.picks ?? {}), [id]: v.id }; }, t('undo.writeIn', { lang: LANG_NAME[L] }));
+      commit(d => { const v = writeIn(d.record, id, L, text, ta.dataset.from || null); n = v.n; d.cur.picks = { ...(d.cur.picks ?? {}), [id]: v.id }; }, t('undo.writeIn', { lang: LANG_NAME[L] }));
       if (n) C.toast(t('toast.langVSaved', { lang: LANG_NAME[L], v: n }));
       return true;
     }
@@ -447,12 +403,17 @@ async function act(a, tg){
       else { const job = T.jobOfFact(rec(), id); C.select(job ? { kind: 'bullet', id, job: job.id, section: 'experience' } : { kind: 'bullet', id, section: tg.dataset.section ?? 'summary', owner: tg.dataset.owner ?? undefined }); }
       return true;
     }
-    case 'focus': E.focus = E.focus === tg.dataset.tag ? null : tg.dataset.tag; C.setFocus(); C.renderBody(); return true;
-    case 'focus-clear': E.focus = null; C.setFocus(); C.renderBody(); return true;
+    case 'focus': E.focus = E.focus === tg.dataset.tag ? null : tg.dataset.tag; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
+    case 'focus-clear': E.focus = null; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
+    case 'lens-tags': E.lensTags = !E.lensTags; C.renderBody(); return true;
+    case 'lens-apply': E.applyOpen = !E.applyOpen && !!E.focus; C.renderBody(); return true;
+    case 'lens-edit': C.select({ kind: 'record', what: 'jobtypes' }); return true;
+    case 'section-on': setSection(tg.dataset.id, true); return true;
     case 'focus-apply': {
       const F = E.focus;
       let p;
       commit(d => { p = applyTag(d.record, d.cur, F); }, t('undo.selectFor', { tag: jobTypeLabel(rec(), F) }));
+      E.applyOpen = false;
       if (p) C.toast(t('toast.selectedFor', { tag: jobTypeLabel(rec(), F), on: p.on, off: p.off, sw: p.sw }));
       return true;
     }
@@ -482,6 +443,7 @@ function bind(body){
     else if (t.dataset.jobon){ const id = t.dataset.jobon, on = t.checked; commit(d => T.setJobOn(d.record, d.cur, id, on), on ? tr('undo.showJob') : tr('undo.hideJob')); }
     else if (t.dataset.on){ const id = t.dataset.on, on = t.checked; setBullet(id, on); }
     else if (t.id === 'b-on') setBullet(C.ui.sel.id, t.checked);
+    else if (t.id === 'lens'){ E.focus = t.value || null; E.applyOpen = false; C.setFocus(); C.renderBody(); }
     else if (t.dataset.same){ const k = t.dataset.same, on = t.checked; commit(d => setSame(d.record, k, on), on ? tr('edit.sameEvery') : tr('undo.notSame')); }
   });
   body.addEventListener('input', e => {
@@ -522,15 +484,17 @@ function bind(body){
   });
 
   body.addEventListener('dragstart', e => {
-    const r = e.target.closest?.('.srow[draggable=true]');
+    const r = e.target.closest?.('.srow[draggable=true], .offchip[draggable=true]');
     if (!r) return;
     E.drag = r.dataset.sid;
+    E.dragOff = r.classList.contains('offchip');
     r.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', E.drag);
   });
   body.addEventListener('dragover', e => {
     const r = e.target.closest?.('.srow:not(.fixed)');
+    if (E.drag && E.dragOff && e.target.closest?.('#seclist')){ e.preventDefault(); if (!r) return; }
     if (!r || !E.drag) return;
     e.preventDefault();
     for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
@@ -539,22 +503,25 @@ function bind(body){
   });
   body.addEventListener('drop', e => {
     const r = e.target.closest?.('.srow:not(.fixed)');
-    const id = E.drag;
-    E.drag = null;
-    if (!r || !id) return;
+    const id = E.drag, fromOff = E.dragOff;
+    E.drag = null; E.dragOff = false;
+    if (!id) return;
+    // a section dragged up from "Not on this resume" turns on where it lands (last, when dropped on the list itself)
+    if (fromOff && !r && e.target.closest?.('#seclist')){ e.preventDefault(); setSection(id, true); return; }
+    if (!r) return;
     e.preventDefault();
     const below = r.classList.contains('drop-below');
-    const ids = T.sectionList(rec(), cur()).filter(x => !x.fixed).map(x => x.id).filter(x => x !== id);
+    const ids = T.sectionList(rec(), cur()).filter(x => !x.fixed && x.on).map(x => x.id).filter(x => x !== id);
     const at = ids.indexOf(r.dataset.sid) + (below ? 1 : 0);
     const before = ids[at] ?? null;
     if (r.dataset.sid === id) return;
     let res;
-    commit(d => { res = T.moveSection(d.record, d.cur, id, before); }, tr('undo.moveSection'));
+    commit(d => { if (fromOff) T.setSectionOn(d.record, d.cur, id, true); res = T.moveSection(d.record, d.cur, id, before); }, fromOff ? tr('undo.showSection') : tr('undo.moveSection'));
     C.flash(id);
     if (res?.auto) C.toast(autoNote(res).trim());
   });
   body.addEventListener('dragend', () => {
-    E.drag = null;
+    E.drag = null; E.dragOff = false;
     for (const n of body.querySelectorAll('.dragging, .drop-above, .drop-below')) n.classList.remove('dragging', 'drop-above', 'drop-below');
   });
 }
@@ -584,15 +551,8 @@ function moveSelected(d){
 }
 
 function key(e){
-  const plain = !e.ctrlKey && !e.metaKey && !e.altKey;
-  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && ws() !== 'career' && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && C.ui.sel.kind === 'section'){
+  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && C.ui.sel.kind === 'section'){
     e.preventDefault(); return moveSelected(e.key === 'ArrowDown' ? 1 : -1);
-  }
-  if (ws() === 'career'){
-    if (!plain || E.edit || !fid() || !R.versionsIn(work(), fid(), lang()).length) return false;
-    if (e.key === 'Enter'){ e.preventDefault(); startEdit('edit', pickOf(fid())?.id); return true; }
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){ e.preventDefault(); return stepPick(e.key === 'ArrowRight' ? 1 : -1); }
-    return false;
   }
   if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && C.ui.sel.kind === 'bullet' && !E.edit && document.body.dataset.phone !== 'true'){ e.preventDefault(); startEdit(); return true; }
   return false;
@@ -610,10 +570,9 @@ function leaving(next){
 }
 
 const api = {
-  homeView, sectionView, jobView, bulletView, claimPanel, act, bind, key, leaving, rename, startEdit, cancelEdit, isDirty,
+  homeView, sectionView, jobView, bulletView, factPanel, act, bind, key, leaving, rename, startEdit, cancelEdit, isDirty,
   get editing(){ return E.edit; },
   get claimDraft(){ return E.claimDraft; },
-  resetPick(){ E.pick = null; E.pickOn = false; },
   afterRender(){
     if (E.edit && $('#ed') && document.activeElement?.id !== 'ed') focusEditor(); else if ($('#ed')) autosize($('#ed'));
     // the tag box keeps focus across the redraw a new tag causes
