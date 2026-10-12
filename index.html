@@ -30,6 +30,7 @@
 <link rel="preload" href="fonts/HankenGrotesk-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="src/ui/workbench.css">
 <link rel="stylesheet" href="src/ui/drinks.css">
+<link rel="stylesheet" href="src/ui/start.css">
 <!-- The app's whole static import graph, fetched in parallel instead of one level at a time.
      checks/preload-check.mjs keeps this list equal to what shell.js imports. -->
 <link rel="modulepreload" href="src/ui/shell.js">
@@ -47,6 +48,11 @@
 <link rel="modulepreload" href="scripts/lib/html.mjs">
 <link rel="modulepreload" href="src/paginate.js">
 <link rel="modulepreload" href="src/ui/layout.js">
+<link rel="modulepreload" href="src/ui/canvas.js">
+<link rel="modulepreload" href="src/ui/onpage.js">
+<link rel="modulepreload" href="src/ui/start.js">
+<link rel="modulepreload" href="src/ui/plain.js">
+<link rel="modulepreload" href="src/ui/camera.js">
 <link rel="modulepreload" href="src/ui/select.js">
 <link rel="modulepreload" href="src/ui/actual.js">
 <link rel="modulepreload" href="src/ui/edit.js">
@@ -82,7 +88,7 @@
 </head>
 <body>
 
-<div id="pages" class="pages"><div class="pages__sizer" aria-hidden="true"></div><div id="pagelay" class="pagelay"></div><section id="sheet" class="pagebox" role="region" aria-label="The resume. Click anything on it to work on it."></section>
+<div id="pages" class="pages"><div class="pages__sizer" aria-hidden="true"></div><div id="ovlay" class="ovlay" aria-hidden="true"></div><div id="editlay" class="editlay"></div><div id="startstage" class="startstage" role="region" aria-label="How it works"></div><section id="sheet" class="pagebox" role="region" aria-label="The resume. Click anything on it to work on it."></section>
   <!-- First paint, before any script runs: a blank page and the column's frame, in the places the app will put them. Both go away when the app is ready. -->
   <div class="paper-skel" aria-hidden="true"></div></div>
 
@@ -97,6 +103,7 @@
 </main>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="announce" class="sr" role="status" aria-live="polite"></div>
 <input type="file" id="file" accept="application/json,.json,.css,image/*" hidden>
 
 <div id="no-origin" class="card no-origin" hidden>

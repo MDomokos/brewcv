@@ -27,7 +27,6 @@ html[data-drink="coffee"] body {
     linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px) 0 0 / 24px 24px,
     var(--canvas);
 }
-html[data-drink="coffee"] .sheet-frame { outline: 1px solid var(--page-edge); }
 
 /* ---------- type ---------- */
 html[data-drink="tea"] :is(.title, .lead) { font-weight: 800; letter-spacing: -.005em; }
@@ -43,7 +42,7 @@ html[data-drink="coffee"] .obhero { font-size: 24px; }
 html[data-drink="coffee"] :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl) { letter-spacing: .08em; }
 
 /* ---------- Coffee: hairlines, no elevation ---------- */
-html[data-drink="coffee"] body:not(.is-intro-wide) .col:not(.is-folded) { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] body:not(.is-intro) .col:not(.is-folded) { border: 1px solid var(--line-strong); }
 html[data-drink="coffee"] .col.is-folded > .card { border: 1px solid var(--line-strong); }
 html[data-drink="coffee"] :is(.pop.card, .zpop, .menu.card, .switcher, .help, .timeline, .obcard) { border: 1px solid var(--line-strong); }
 html[data-drink="coffee"] .seg { padding: 0; gap: 4px; }
@@ -74,14 +73,14 @@ html[data-drink="coffee"] #head :is(.menu, .pop) button { color: var(--ink); bac
 html[data-drink="coffee"] .col.is-folded > .rail { border-top: 3px solid var(--crema); }
 
 /* what sits on the page or the canvas, not on a surface, rings in their own ink */
-.jobchip { --focus: var(--paper-ink); }
+.obcrumb, .obtools, .obpop { --focus: var(--paper-ink); }
 .obkeep { --focus: var(--canvas-ink); }
 
 /* ---------- counts and chips ---------- */
 html[data-drink="coffee"] .clv .sp { display: none; }
 html[data-drink="coffee"] .clv { color: var(--ink-soft); }
-html[data-drink="coffee"] .jobchip { background: var(--surface); border: 1px solid var(--line-strong); font-family: var(--font-mono); color: var(--ink); }
-html[data-drink="coffee"] .jobchip .jc { color: var(--ink-soft); }
+html[data-drink="coffee"] :is(.obcrumb, .obtools, .obpop) { font-family: var(--font-mono); }
+html[data-drink="coffee"] .obcrumb .oc.cur { background: var(--mark); color: var(--on-mark); }
 
 /* ---------- checkboxes: plain, with a visible edge; amber in tea, ink in coffee ---------- */
 .cb {
@@ -124,16 +123,16 @@ html[data-drink="coffee"] .brewmode button[aria-pressed=true] { background: var(
   .brewmode button { padding: 7px; }
 }
 body[data-phone=true] .brewmode { left: auto; right: 10px; bottom: auto; top: 10px; }
-/* on the start screen the question is a slim bar above the cards: part of the welcome */
-body.is-intro-wide:not([data-phone=true]) .brewmode {
-  left: 50%; bottom: auto; top: 10px; transform: translateX(-50%); width: auto; grid-auto-flow: column; align-items: center; gap: 10px; padding: 4px 4px 4px 16px; border-radius: var(--r-pill);
+/* on the start screen the question is a slim bar at the top of the page area: part of the welcome */
+body.is-intro:not([data-phone=true]) .brewmode {
+  left: 16px; bottom: auto; top: 16px; width: auto; grid-auto-flow: column; align-items: center; gap: 10px; padding: 4px 4px 4px 16px; border-radius: var(--r-pill);
 }
-body.is-intro-wide:not([data-phone=true]) .brewmode .bm-q { font-size: 13px; white-space: nowrap; }
-body.is-intro-wide:not([data-phone=true]) .brewmode .bm-row { grid-template-columns: auto auto; }
-body.is-intro-wide:not([data-phone=true]) .brewmode button { grid-auto-flow: column; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--r-pill); }
-body.is-intro-wide:not([data-phone=true]) .brewmode svg { width: 17px; height: 17px; }
-body.is-intro-wide:not([data-phone=true]) .brewmode kbd { display: none; }
-@media (max-width: 1279px){ body.is-intro-wide:not([data-phone=true]) .brewmode :is(.bm-q) { display: none; } body.is-intro-wide:not([data-phone=true]) .brewmode { padding: 4px; } body.is-intro-wide:not([data-phone=true]) .brewmode .bm-row { grid-template-columns: auto auto; } }
+body.is-intro:not([data-phone=true]) .brewmode .bm-q { font-size: 13px; white-space: nowrap; }
+body.is-intro:not([data-phone=true]) .brewmode .bm-row { grid-template-columns: auto auto; }
+body.is-intro:not([data-phone=true]) .brewmode button { grid-auto-flow: column; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--r-pill); }
+body.is-intro:not([data-phone=true]) .brewmode svg { width: 17px; height: 17px; }
+body.is-intro:not([data-phone=true]) .brewmode kbd { display: none; }
+@media (max-width: 1279px){ body.is-intro:not([data-phone=true]) .brewmode :is(.bm-q) { display: none; } body.is-intro:not([data-phone=true]) .brewmode { padding: 4px; } body.is-intro:not([data-phone=true]) .brewmode .bm-row { grid-template-columns: auto auto; } }
 
 /* ---------- the page meters: the V cup in tea, a measuring shot glass in coffee. dock.js sets --p (0 to 100) ---------- */
 html[data-drink="tea"] {
@@ -259,13 +258,17 @@ html[data-drink="tea"] .clv {
 }
 html[data-drink="tea"] .clv::before { content: ""; position: absolute; left: 3px; top: 50%; width: 3px; height: 3px; margin-top: -1.5px; border-radius: var(--r-round); background: var(--tag-line); }
 html[data-drink="tea"] .clv.many { box-shadow: 2px -2px 0 -1px var(--tag-bg), 2px -2px 0 0 var(--tag-line); }
-html[data-drink="tea"] .jobchip {
-  overflow: visible; border-radius: 3px 9px 9px 3px; padding: 4px 12px 4px 19px; font-size: 12.5px; background: var(--tag-bg); color: var(--tag-ink);
+/* the breadcrumb over the page is the job's tag in tea: a hole, and a string down to the job it hangs on */
+html[data-drink="tea"] .obcrumb {
+  overflow: visible; border-radius: 3px 14px 14px 3px; padding: 3px 8px 3px 18px; background: var(--tag-bg); color: var(--tag-ink);
   border: 1px solid var(--tag-line); box-shadow: var(--shadow-chip);
 }
-html[data-drink="tea"] .jobchip .jc { color: var(--tag-ink); opacity: .85; }
-html[data-drink="tea"] .jobchip::before { content: ""; position: absolute; left: 6px; top: 50%; width: 5px; height: 5px; margin-top: -2.5px; border-radius: var(--r-round); background: var(--tag-hole); box-shadow: inset 0 0 0 1px var(--tag-line); }
-html[data-drink="tea"] .jobchip::after { content: ""; position: absolute; left: 8px; top: 100%; width: 1px; height: 11px; background: var(--tag-line); }
+html[data-drink="tea"] .obcrumb .oc { color: var(--tag-ink); }
+html[data-drink="tea"] .obcrumb button.oc:hover { background: transparent; text-decoration: underline; }
+html[data-drink="tea"] .obcrumb .oc.cur { background: var(--tag-ink); color: var(--tag-bg); }
+html[data-drink="tea"] .obcrumb .ocs { color: var(--tag-ink); opacity: .6; }
+html[data-drink="tea"] .obcrumb::before { content: ""; position: absolute; left: 6px; top: 50%; width: 5px; height: 5px; margin-top: -2.5px; border-radius: var(--r-round); background: var(--tag-hole); box-shadow: inset 0 0 0 1px var(--tag-line); }
+html[data-drink="tea"] .obcrumb::after { content: ""; position: absolute; left: 8px; top: 100%; width: 1px; height: 8px; background: var(--tag-line); }
 
 /* the version list and the sections */
 html[data-drink="tea"] .item.srow .t { font-weight: 700; }

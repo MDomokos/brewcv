@@ -53,7 +53,6 @@ function settingsView(){
   const rec = C.store.state.record;
   const inUse = langsInUse(rec);
   const pref = C.ui.pref;
-  const pages = C.ui.mode;
   loadVersion();
   const langs = `<span class="lbl">${h('set.langsUse')}</span>
     <p class="small muted">${h('set.langsUseNote')}</p>
@@ -73,11 +72,6 @@ function settingsView(){
       ${THEMES.map(m => `<label class="opt"><input type="radio" name="theme" data-theme="${m}" ${themePref() === m ? 'checked' : ''}><span class="opt-t">${h(`m11.theme${m[0].toUpperCase()}${m.slice(1)}`)}</span></label>`).join('')}
     </div>
     <p class="note">${h('m11.themeNote')}</p>
-    <span class="lbl">${h('set.pagesHead')}</span>
-    <div class="uichoice" role="radiogroup" aria-label="${esc(t('set.pagesHead'))}">
-      ${[['auto', 'set.pagesAuto'], ['spread', 'set.pagesSpread'], ['stack', 'set.pagesStack']].map(([m, k]) => `<label class="opt"><input type="radio" name="pages" data-pagesmode="${m}" ${pages === m ? 'checked' : ''}><span class="opt-t">${h(k)}</span></label>`).join('')}
-    </div>
-    <p class="note">${h('set.pagesNote')}</p>
     <span class="lbl">${h('set.startHead')}</span>
     <div class="btns"><button class="sm" data-act="set-ask-again">${h('set.askAgain')}</button></div>
     <p class="note">${h('set.thisBrowser')}</p>
@@ -127,7 +121,6 @@ function bind(body){
     }
     if (el.dataset.uimode){ const sel = body.querySelector('[data-uilang]'); setUiPref(el.dataset.uimode === 'fixed' ? { mode: 'fixed', lang: sel?.value ?? 'en' } : { mode: 'follow' }); C.renderBody(); return; }
     if (el.dataset.uilang !== undefined){ setUiPref({ mode: 'fixed', lang: el.value }); C.renderBody(); return; }
-    if (el.dataset.pagesmode){ C.setPagesMode(el.dataset.pagesmode); return; }
     if (el.dataset.drink){ setDrink(el.dataset.drink); return; }
     if (el.dataset.theme){ setThemePref(el.dataset.theme); return; }
   });

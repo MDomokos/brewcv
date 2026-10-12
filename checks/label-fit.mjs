@@ -152,8 +152,15 @@ for (const lang of I.UI_LANGS){
   await pg.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   await pg.waitForTimeout(500);
   const bad = await pg.evaluate(() => {
-    const out = [], c = document.querySelector('#brewmode'), r = c.getBoundingClientRect(), card = document.querySelector('.obcard').getBoundingClientRect();
-    if (r.bottom > card.top) out.push('the bar runs into the cards');
+    const out = [], c = document.querySelector('#brewmode'), r = c.getBoundingClientRect(), card = document.querySelector('#col').getBoundingClientRect();
+    if (r.right > card.left) out.push('the bar runs into the column');
+    // UX-3: the start screen's own labels fit where they are drawn
+    for (const el of document.querySelectorAll('.obchoices b, .obchoices small, .oblang, .obhero, .obsub, .obtile b, .obtile p, .ssh button, #sscap, .sslab b, .sslab span, .obreplay')){
+      if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).display !== 'inline') out.push(`“${el.textContent.trim().slice(0, 30)}” is cut`);
+    }
+    const col = document.querySelector('#col');
+    if (col.scrollWidth > col.clientWidth + 1) out.push('the column is wider than it is');
+    if (document.documentElement.scrollWidth > innerWidth) out.push('the page scrolls sideways');
     if (r.height > 56) out.push(`the bar wraps (${Math.round(r.height)}px tall)`);
     if (r.left < 0 || r.right > innerWidth) out.push('the bar runs off the screen');
     for (const el of c.querySelectorAll('.bm-q, button, button span')) if (el.scrollWidth > el.clientWidth + 1) out.push(`“${el.textContent.trim()}” is cut`);

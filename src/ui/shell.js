@@ -9,7 +9,10 @@ import { isArchived } from '../model/entries.js';
 import { fit, FILL_BAND, key as measureKeyOf } from '../fit.js';
 import { createSheet } from './sheet.js';
 import { computeLayout, pageSize, pageInView, pageTop } from './layout.js';
-import { initDock } from './dock.js';
+import { initCanvas, PAGES_MOVED } from './canvas.js';
+import { initOnPage } from './onpage.js';
+import { pageLeft } from './camera.js';
+import { initDock, storeZoomWrite } from './dock.js';
 import { initChecklist } from './checklist.js';
 import { initHelp } from './help.js';
 import { icon } from './icons.js';
@@ -44,17 +47,25 @@ const store = createStore({ record: null, resumes: [], cur: null, openId: null }
 const persist = createPersist({ store, backend });
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onPage: p => { ui.page = p; renderFoot(); }, onRename: (id, text) => edit.rename(id, text),
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
-  extraCss: r => design.extraCss(store.state.record, r) });
-
-function pagesMode(){ try { const m = localStorage.getItem('rb-pages'); return ['auto', 'spread', 'stack'].includes(m) ? m : 'auto'; } catch { return 'auto'; } }
-function setPagesMode(m){ ui.mode = m; try { localStorage.setItem('rb-pages', m); } catch { /* this session only */ } relayout(); }
+  onDrawn: () => onpage?.afterDraw(), onHover: v => onpage?.onHover(v), onWrite: writeLine,
+  extraCss: r => design.extraCss(store.state.record, r),
+  // the hand, the wheel and the pinch over the page itself go to the canvas
+  frameEvents: {
+    wheel: (...a) => canvas.frameEvents.wheel(...a), down: (...a) => canvas.frameEvents.down(...a), move: (...a) => canvas.frameEvents.move(...a),
+    up: (...a) => canvas.frameEvents.up(...a), gesture: (...a) => canvas.frameEvents.gesture(...a),
+    key: { down: e => canvas.frameEvents.key.down(e), up: e => canvas.frameEvents.key.up(e) },
+  } });
 
 const ui = {
   pref: readPref() ?? { mode: 'follow' }, askLang: !readPref(),
-  sel: NONE, previewing: false, page: 0, mode: pagesMode(), menu: false, laid: null, fills: [],
+  sel: NONE, previewing: false, page: 0, menu: false, laid: null, fills: [], zoom: 1,
   fitting: false, lastFit: null, work: null, workKey: null, ix: null, probed: new Set(), snap: null,
 };
-window.__wb = { store, persist, sheet, ui, setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
+const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, moved: () => { placeOverflow(); onpage?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
+const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
+  ix: () => ui.ix ?? indexModel(work()), fillText: () => fillText(), select: sel => select(sel),
+  writeStarted: () => dock.sync(true), writeEnded: () => dock.sync(true), redrawSoon: () => schedule() });
+window.__wb = { store, persist, sheet, ui, canvas, onpage, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
 
 // The no-origin card stays English: when it shows, no module ran.
 function staticText(){
@@ -102,6 +113,8 @@ async function boot(){
   bindChrome();
   dock.bind();
   addEventListener('resize', () => { relayout(); dock.renderFoot(); });
+  canvas.bind();
+  document.addEventListener(PAGES_MOVED, () => { renderFoot(); renderChip(); });
   $('#pages').addEventListener('scroll', onPagesScroll, { passive: true });
   addEventListener('scroll', onPagesScroll, { passive: true });
   document.addEventListener('fullscreenchange', relayout);
@@ -124,6 +137,7 @@ async function boot(){
     drew = await redraw();
   }
   document.body.classList.add('is-ready');
+  ui.ready = true;
 }
 
 async function loadExample({ quiet = false } = {}){
@@ -251,13 +265,8 @@ function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: ui.mode, folded: dock.folded(), zoom: ui.zoom });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'spread', folded: dock.folded(), zoom: 1 });
   const host = $('#sheet'), box = $('#pages');
-  Object.assign(box.style, { left: `${L.pages.left}px`, top: `${L.pages.top}px`, width: L.phone ? '' : `${L.pages.width}px`, height: L.phone ? '' : `${L.pages.height}px` });
-  box.firstElementChild.style.height = `${L.pages.content}px`;
-  box.firstElementChild.style.width = L.phone ? '1px' : `${L.pages.contentW}px`;
-  host.style.left = `${L.sheet.left - L.pages.left}px`;
-  host.style.top = `${L.sheet.top - L.pages.top}px`;
   const col = $('#col');
   col.style.left = `${L.col.left}px`;
   col.style.top = `${L.col.top}px`;
@@ -274,13 +283,36 @@ function relayout(){
   document.body.dataset.phone = String(!!L.phone);
   document.body.dataset.drawer = String(!!L.drawer);
   document.body.dataset.folded = String(!!L.folded);
-  // on a phone the pages scroll above the bottom sheet
-  if (L.phone) document.body.style.minHeight = `${L.sheet.height + 16 + L.col.height}px`; else document.body.style.minHeight = '';
-  host.style.transform = `translate(0px, 0px) scale(${L.scale})`;
-  sheet.setView({ mode: L.stack ? 'stack' : 'spread', page: 0 });
-  document.body.dataset.spread = String(L.spread);
-  document.body.dataset.stack = String(!!L.stack);
-  if (L.stack) ui.page = pageInView(L, scrollOf(), pages); else ui.page = 0;
+  if (L.phone){
+    // on a phone the pages scroll above the bottom sheet
+    Object.assign(box.style, { left: `${L.pages.left}px`, top: `${L.pages.top}px`, width: '', height: '' });
+    box.firstElementChild.style.height = `${L.pages.content}px`;
+    box.firstElementChild.style.width = '1px';
+    host.style.left = `${L.sheet.left - L.pages.left}px`;
+    host.style.top = `${L.sheet.top - L.pages.top}px`;
+    document.body.style.minHeight = `${L.sheet.height + 16 + L.col.height}px`;
+    host.style.transform = `translate(0px, 0px) scale(${L.scale})`;
+    sheet.setView({ mode: L.stack ? 'stack' : 'spread', page: 0 });
+    document.body.dataset.spread = String(L.spread);
+    document.body.dataset.stack = String(!!L.stack);
+    document.body.dataset.pages = 'phone';
+    if (L.stack) ui.page = pageInView(L, scrollOf(), pages); else ui.page = 0;
+    ui.zoom = 1; ui.equal = false;
+    sheet.setFade([]);
+  } else {
+    // the pages are a canvas under the whole window; the panel and the rail sit on it. The camera places the sheet.
+    document.body.style.minHeight = '';
+    Object.assign(box.style, { left: '0px', top: '0px', width: `${innerWidth}px`, height: `${innerHeight}px` });
+    box.firstElementChild.style.height = '0px';
+    box.firstElementChild.style.width = '0px';
+    sheet.setView({ mode: 'spread', page: 0 });
+    canvas.layout(L, c.format);
+    document.body.dataset.spread = String(canvas.scene === 'all');
+    document.body.dataset.stack = 'false';
+    document.body.dataset.pages = canvas.scene;
+  }
+  // the start screen's picture takes the page area left of the column
+  document.body.style.setProperty('--startw', `${Math.max(240, L.col.left - 2 * G_)}px`);
   renderFoot();
   renderChip();
 }
@@ -312,12 +344,43 @@ function reveal({ page, top, bottom }){
   scrollPagesTo(Math.max(0, Math.min(y0 - 48, pageTop(L, page) + (y1 - y0 > view ? 0 : Math.max(0, y1 - (L.sheet.top + page * L.pageStep) - view + 48)))));
 }
 
-function pick({ variant, section }){
-  if (ui.fitting || ui.snap || ui.view === 'welcome') return;
+function pick({ variant, section, page = -1 }){
+  if (ui.fitting || ui.snap || ui.view === 'welcome' || canvas.handed) return;
   const next = targetOf(ui.ix ?? indexModel(work()), { variant, section });
-  select(next, { fromPage: true });
+  // a faded page stays clickable: its blank paper brings it forward, and a line on it is worked on there
+  const other = !ui.layout?.phone && page >= 0 && page !== ui.page;
+  if (other && next.kind === 'none'){ canvas.goToPage(page); return; }
+  // From the page, one click on a bullet opens its job; a second click on a bullet of that open job writes it. A line outside a
+  // job is only selected. Clicking a bullet of another job moves to that job.
+  const open = next.kind === 'bullet' && next.job && (ui.sel.kind === 'job' || ui.sel.kind === 'bullet') && (ui.sel.kind === 'job' ? ui.sel.id : ui.sel.job) === next.job;
+  // while a line is being written, a click on another line goes on writing there, whichever job or page it is on
+  const wasWriting = !!ui.writing && next.kind === 'bullet';
+  const writes = (open || wasWriting) && !ui.layout?.phone && (wasWriting || !edit.editing);
+  if (wasWriting) onpage.keepView(() => { select(next, { fromPage: true }); if (ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit(); });
+  else {
+    select(next, { fromPage: true });
+    if (writes && ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit();
+  }
+  if (other) canvas.goToPage(page);
   if (next.kind !== 'none') help.firstTime();
 }
+// the page a selection is on (the claim for a bullet, the title for a job), or -1
+function pageOfSel(sel){
+  const ix = ui.ix ?? indexModel(work());
+  const fact = sel.kind === 'bullet' ? sel.id : sel.kind === 'job' ? ix.work.get(sel.id)?.display?.position : null;
+  return fact ? sheet.pageOf(fact, ix) : -1;
+}
+// a double-click on a line writes it at once
+function writeLine({ variant, page = -1 }){
+  if (ui.fitting || ui.snap || ui.view || ui.layout?.phone || canvas.handed) return;
+  const next = targetOf(ui.ix ?? indexModel(work()), { variant, section: null });
+  if (next.kind !== 'bullet') return;
+  if (!(ui.sel.kind === 'bullet' && ui.sel.id === next.id)) select(next, { fromPage: true });
+  if (ui.sel.kind === 'bullet' && ui.sel.id === next.id && !edit.editing) edit.startEdit();
+  if (page >= 0 && page !== ui.page) canvas.goToPage(page);
+}
+// a click on the bare canvas (not on a page) puts you at the page level
+function bareClick(){ if (ui.view || ui.snap) return; if (ui.sel.kind !== 'none') select(NONE); }
 // `fromPage`: the click was on the sheet, so the checklist scrolls to the group it opened. `keepScroll`: it was in the
 // checklist, where the person is already looking, so the panel stays where it is.
 function select(sel, { fromPage = false, keepScroll = false } = {}){
@@ -327,6 +390,8 @@ function select(sel, { fromPage = false, keepScroll = false } = {}){
   if (ui.previewing){ ui.previewing = false; sheet.endPreview(); }
   sheet.select(sel, ui.ix);
   checklist.onSelect(sel, { scroll: fromPage });
+  const at = ui.layout?.phone ? -1 : pageOfSel(sel);
+  if (at >= 0 && at !== ui.page) ui.page = at;       // the camera fits that page when the panel opens
   dock.sync();
   renderHead();
   renderBody(!keepScroll);
@@ -378,6 +443,7 @@ const VIEWS = {};
 function setView(v){
   if (v && !VIEWS[v]) return;
   ui.view = v;
+  syncIntro();                 // the start screen's areas are the editor's again before they are drawn
   if (ui.previewing) endPreview();
   resumes.reset();
   dock.sync();
@@ -393,6 +459,8 @@ function renderHead(){
   if (kept){ const n = $(`#head ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
 }
 function drawHead(){
+  // on the start screen the header area is the logo, the name and the tagline
+  if (document.body.classList.contains('is-intro')){ $('#head').innerHTML = onboarding.headHtml(); return; }
   const r = shown();
   const st = persist.status;
   const saving = st.status === 'saving' || st.status === 'pending';
@@ -489,8 +557,10 @@ function menuHtml(){
 
 function syncIntro(){
   const welcome = ui.view === 'welcome';
-  document.body.classList.toggle('is-intro', welcome && ['welcome', 'lang'].includes(onboarding.step));
-  document.body.classList.toggle('is-intro-wide', welcome && onboarding.step === 'welcome');
+  // the start screen (and the language question that follows a choice on it) is laid out in the editor's own areas
+  const intro = welcome && ['welcome', 'lang'].includes(onboarding.step);
+  document.body.classList.toggle('is-intro', intro);
+  onboarding.stage(intro);
   // onboarding from scratch is a quiet editor: the page and the question panel, nothing else
   document.body.classList.toggle('is-quiet', welcome && !['welcome', 'lang'].includes(onboarding.step));
 }
@@ -567,31 +637,41 @@ function fillText(){
   const over = ui.fills.find(p => p.overflow > 0);
   return over ? t('foot.overflowOn', { page: over.page }) : `${ui.fills.length > 1 ? t('foot.pageSep', { page: ui.fills.length }) : ''}${t('foot.full', { pct: (100 * last.used / last.usable).toFixed(1) })}`;
 }
-const renderFoot = () => dock.renderFoot();
+const renderFoot = () => { dock.renderFoot(); renderOverflow(); };
 
-// The job being worked on wears a chip on the page: its employer and how many of its lines are on this resume.
-function renderChip(){
-  const lay = $('#pagelay');
-  if (!lay) return;
-  const s = ui.sel, L = ui.layout, m = record();
-  const jobId = s.kind === 'job' ? s.id : s.kind === 'bullet' ? (s.job ?? s.owner ?? null) : null;
-  const w = jobId && ui.ix?.work.get(jobId);
-  const r = w && L && !L.phone && !ui.snap && !ui.previewing ? sheet.rectOfJob(jobId, ui.ix) : null;
-  if (!r){ lay.innerHTML = ''; return; }
-  const on = jobRefs(m, cur()).some(x => (typeof x === 'string' ? x : x.id) === jobId) ? listedBullets(m, cur(), jobId).length : 0;
-  const total = (w.highlights ?? []).filter(x => !isArchived(m, x)).length;
-  const left = L.sheet.left - L.pages.left + r.left * L.scale, top = L.sheet.top - L.pages.top + r.top * L.scale;
-  lay.innerHTML = `<button class="jobchip" data-act="select-job" data-id="${esc(jobId)}" style="left:${Math.round(left)}px;top:${Math.max(4, Math.round(top - 30))}px" title="${esc(t('ux2.chipTitle'))}"><span class="jn">${esc(w.name)}</span><span class="jc">${esc(t('ux2.nOfM', { n: on, m: total }))}</span></button>`;
+// A page that overflows shows a dashed line at the bottom margin, and the lines below it faded. Drawn over the page in the app's
+// own layer, never in the page: what prints is untouched.
+let ovBoxes = [];
+function renderOverflow(){
+  const el = $('#ovlay');
+  if (!el) return;
+  ovBoxes = [];
+  if (!ui.layout?.phone && !ui.preview && ui.view !== 'welcome'){
+    const boxes = sheet.pageBoxes();
+    (ui.fills ?? []).forEach((p, i) => { if (p.overflow > 0 && boxes[i]) ovBoxes.push({ ...boxes[i], extra: p.overflow }); });
+  }
+  if (el.children.length !== ovBoxes.length) el.innerHTML = ovBoxes.map(() => '<div class="ov"><i class="ov-veil"></i><i class="ov-line"></i></div>').join('');
+  placeOverflow();
 }
-// a meter was clicked: bring that page into view (stacked pages scroll; zoomed side-by-side pages scroll across)
+function placeOverflow(){
+  const el = $('#ovlay');
+  ovBoxes.forEach((b, i) => {
+    const o = el?.children[i];
+    if (!o) return;
+    const r = canvas.screenRect({ left: b.left, top: b.limit, width: b.width, height: b.top + b.height - b.limit + b.extra });
+    Object.assign(o.style, { left: `${r.left.toFixed(1)}px`, top: `${r.top.toFixed(1)}px`, width: `${r.width.toFixed(1)}px`, height: `${r.height.toFixed(1)}px` });
+  });
+}
+
+// The layers over the page (the job's frame, the breadcrumb that says which job and how many of its lines are on, the tools) are
+// src/ui/onpage.js's; the shell only says when to draw them again
+function renderChip(){ onpage?.render(); }
+// a meter was clicked: bring that page into view (stacked pages on a phone scroll; on a desktop the camera travels)
 function goToPage(i){
   const L = ui.layout, n = ui.fills.length || 1;
+  if (L && !L.phone){ canvas.goToPage(i); renderFoot(); return; }
   ui.page = Math.max(0, Math.min(n - 1, i));
   if (L?.stack) scrollPagesTo(pageTop(L, ui.page));
-  else if (L && !L.phone && L.sheet.width + 2 * 16 > L.areaW){
-    const { w } = pageSize(shown().format);
-    $('#pages').scrollTo({ left: Math.max(0, L.sheet.left + ui.page * (w + 24) * L.scale - 16), behavior: 'smooth' });
-  }
   renderFoot();
 }
 
@@ -602,6 +682,7 @@ async function onClick(e){
   if (!e.target.closest('.langpop') && tg?.dataset.act !== 'lang-menu-body') closeBodyMenus();
   if (!tg || !tg.dataset.act) return;
   const act = tg.dataset.act, id = tg.dataset.id;
+  if (await onpage.act(act, tg)) return;
   if (await switcher.act(act, tg)) return;
   if (act === 'goto'){ ui.menu = false; setView(tg.dataset.v); return; }
   if (await dock.act(act, tg)) return;
@@ -640,7 +721,6 @@ async function onClick(e){
     case 'undo': store.undo(); break;
     case 'redo': store.redo(); break;
     case 'fit': runFit(); break;
-    case 'view': setPagesMode(ui.layout?.spread ? 'stack' : 'spread'); break;
     case 'actual': dock.closePop(); openActual(); break;
     case 'fullscreen': toggleFullscreen(); break;
     case 'open': ui.menu = false; pickFile(); break;
@@ -700,14 +780,23 @@ async function previewRecipe(r, fact = null, w = work()){
     ui.preview = { format: r.format };
     const L = ui.layout, a = pageSize(shown().format), b = pageSize(r.format);
     sheet.setView({ mode: 'single', page: 0 });
-    $('#sheet').style.top = `${L.sheet.top + (L.stack && !L.phone ? $('#pages').scrollTop : 0)}px`;
-    $('#sheet').style.transform = `translate(0px, 0px) scale(${L.scale * Math.min(a.h / b.h, a.w / b.w, 1.2)})`;
+    sheet.setFade([]);
+    const k = Math.min(a.h / b.h, a.w / b.w, 1.2);
+    if (L.phone){
+      $('#sheet').style.top = `${L.sheet.top + (L.stack ? $('#pages').scrollTop : 0)}px`;
+      $('#sheet').style.transform = `translate(0px, 0px) scale(${L.scale * k})`;
+    } else {
+      // its first page, where the bright page was, a little larger or smaller to fill the same room
+      const c = canvas.cam;
+      canvas.showOnly({ k: c.k * k, x: c.x + pageLeft(canvas.geo, ui.page) * c.k, y: c.y });
+    }
   } else if (ui.preview){ ui.preview = null; relayout(); }
   ui.fills = res.pages; renderFoot();
 }
 
 function useVersion(factId, vid){
   ui.previewing = false; ui.hoverV = null;
+  if (edit.editing?.fact === factId && !edit.editing.panel){ onpage.closePop(); edit.pickWhileWriting(vid); return; }
   const v = ui.ix.variants.get(vid);
   store.commit(d => {
     d.cur.picks = { ...(d.cur.picks ?? {}), [factId]: vid };
@@ -748,7 +837,7 @@ function fitSummary(r){
 
 function key(e){
   if (menuKey(e)) return;
-  const typing = e.target.closest?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select, [contenteditable=true]');
+  const typing = e.target.closest?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select, [contenteditable]:not([contenteditable=false])');
   const mod = e.ctrlKey || e.metaKey;
   if (typing && mod && ['z', 'y'].includes(e.key.toLowerCase())) return;      // the text box's own undo
   if (mod && !e.altKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); e.shiftKey ? store.redo() : store.undo(); return; }
@@ -771,10 +860,11 @@ function key(e){
     if (ui.view){ setView(null); return; }
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
-    // up one level; at the page level, put everything away: the panel folds (even pinned open) and the view zooms out
+    // up one level (writing a line is left by edit.js before this); a job, or a line in one, is the job level, and one Esc
+    // goes to the page. At the page level, put everything away: the panel folds (even pinned open) and the view zooms out
     const next = up(ui.sel);
     if (next.kind !== 'none'){ select(next); return; }
-    if (ui.sel.kind !== 'none') select(NONE);
+    if (ui.sel.kind !== 'none'){ select(NONE); return; }
     dock.allTheWayOut();
     return;
   }
@@ -784,6 +874,10 @@ function key(e){
   if (dock.onKey(e)) return;
   // the arrows walk the page; inside the panel, the timeline or a menu they belong to what has the focus
   if (e.target.closest?.('#col, #timeline, #help, #switcher')) return;
+  // between the pages: Page Up and Page Down, and the side arrows when nothing is selected
+  if (!mod && !e.altKey && !ui.layout?.phone && (e.key === 'PageDown' || e.key === 'PageUp' || (ui.sel.kind === 'none' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')))){
+    e.preventDefault(); canvas.travel(e.key === 'PageDown' || e.key === 'ArrowRight' ? 1 : -1); return;
+  }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
     const id = step(sheet.order(ui.ix), ui.sel, e.key === 'ArrowDown' ? 1 : -1);
     if (typeof id === 'string'){ e.preventDefault(); const job = ui.ix.highlight.get(id); select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' }, { fromPage: true }); }
@@ -799,8 +893,12 @@ function key(e){
 
 function toggleFullscreen(){
   if (document.fullscreenElement) document.exitFullscreen?.();
-  else document.documentElement.requestFullscreen?.().catch(() => toast(t('toast.noFullscreen'), 'warn'));
+  else document.documentElement.requestFullscreen?.()
+    // ask the browser to hand Esc to the page: one press steps up a level, and holding it leaves full screen (Chrome and Edge)
+    .then(() => navigator.keyboard?.lock?.(['Escape']).catch(() => {}))
+    .catch(() => toast(t('toast.noFullscreen'), 'warn'));
 }
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) navigator.keyboard?.unlock?.(); });
 function openActual(){
   if (!cur()) return;
   document.body.classList.add('is-actual');
@@ -909,6 +1007,7 @@ function toast(msg, tone = ''){
 const edit = initEdit({
   store, ui, sheet, toast, record, cur, lang, work, chooseVariant, sectionTitle, textOfFact, resumeName, fillText,
   ix: () => ui.ix ?? indexModel(work()),
+  onpage: { begin: () => onpage.begin(), end: () => onpage.end(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
   setFocus: () => sheet.setFocus(edit.focusHits(), ui.ix),
   select: sel => select(sel),
@@ -954,6 +1053,7 @@ Object.assign(VIEWS, design.views);
 const onboarding = initOnboarding({ store, ui, persist, toast, setView, renderBody: (a) => renderBody(a), restyle: () => restyle() });
 Object.assign(VIEWS, onboarding.views);
 onboarding.bind($('#body'));
+window.__wb.onboarding = onboarding;
 const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi(r), edit, lang, select: s => select(s), renderBody: (a) => renderBody(a), renderTimeline: () => renderTimeline(),
   renderHead: () => renderHead(), photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 career.bind($('#body'));
@@ -963,7 +1063,7 @@ checklist.bind($('#body'));
 window.__wb.checklist = checklist;
 const help = initHelp({ ui });
 window.__wb.help = help;
-const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, goToPage, renderAll: () => renderAll() });
+const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, goToPage, renderAll: () => renderAll(), canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
 window.__wb.dock = dock;
 design.bind($('#body'));
 window.__wb.design = design;
@@ -973,7 +1073,7 @@ resumes.bind($('#body'));
 window.__wb.resumes = resumes;
 window.__wb.switcher = switcher;
 
-const settings = initSettings({ store, ui, toast, setView, renderBody: () => renderBody(), syncUi: r => syncUi(r), setPagesMode: m => setPagesMode(m) });
+const settings = initSettings({ store, ui, toast, setView, renderBody: () => renderBody(), syncUi: r => syncUi(r) });
 Object.assign(VIEWS, settings.views);
 settings.bind($('#body'));
 window.__wb.settings = settings;

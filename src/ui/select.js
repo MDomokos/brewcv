@@ -40,9 +40,9 @@ export function targetOf(ix, { variant = null, section = null } = {}){
   return NONE;
 }
 
-// Esc: bullet → its job (or nothing, for the summary) → nothing.
+// Esc: a line selected in a job is the job level (the job is framed, the line marked), and one Esc more is the page; writing
+// the line is a level below, which edit.js and onpage.js leave first. A job is the job level too. So: nothing is above both.
 export function up(sel){
-  if (sel?.kind === 'bullet' && sel.job) return { kind: 'job', id: sel.job };
   return NONE;
 }
 

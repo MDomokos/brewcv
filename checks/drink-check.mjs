@@ -19,7 +19,7 @@ const TABLE = process.argv.includes('--table');
 let failed = 0;
 const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${!cond && extra ? `  — ${extra}` : ''}`); if (!cond) failed++; };
 
-const wb = read('src/ui/workbench.css'), dk = read('src/ui/drinks.css');
+const wb = read('src/ui/workbench.css'), dk = read('src/ui/drinks.css'), st = read('src/ui/start.css');
 const strip = css => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 // ---- the token blocks ----
@@ -45,7 +45,7 @@ ok('the five token blocks exist (:root, tea light, tea dark, coffee light, coffe
 const ROLES = ['canvas', 'canvas-ink', 'canvas-ink-soft', 'canvas-line', 'canvas-label', 'surface', 'raised', 'input', 'pop', 'hover', 'hover-strong', 'fill', 'fill-strong', 'wash', 'seg-bg',
   'ink', 'ink-soft', 'label', 'faint', 'on-ink', 'line', 'line-strong', 'accent', 'on-accent', 'accent-soft', 'accent-line', 'mark', 'on-mark', 'mark-soft', 'focus',
   'ok', 'bad', 'warn', 'ok-bg', 'warn-bg', 'ok-line', 'warn-line', 'ins-bg', 'del-bg', 'del-ink', 'toast-bg', 'toast-ink', 'tag-bg', 'tag-line', 'tag-ink', 'tag-hole',
-  'stage', 'stage-mark', 'stage-on-mark', 'band-bg', 'band-ink', 'band-ink-soft', 'band-line', 'shadow-panel', 'shadow-lift', 'shadow-chip', 'shadow-toast', 'page-shadow', 'page-shadow-soft', 'drop-sm',
+  'stage', 'stage-mark', 'stage-on-mark', 'band-bg', 'band-ink', 'band-ink-soft', 'band-line', 'shadow-panel', 'shadow-lift', 'shadow-chip', 'shadow-toast', 'page-shadow', 'page-shadow-soft', 'page-edge', 'page-edge-soft', 'drop-sm',
   'sel-mark', 'sel-mark-soft', 'prev-mark', 'prev-mark-soft', 'page-warn', 'liq', 'cup-band'];
 for (const [name, blk] of [['tea', B.teaLight], ['coffee', B.coffeeLight]]){
   const missing = ROLES.filter(r => !(`--${r}` in blk));
@@ -119,6 +119,23 @@ for (const drink of ['tea', 'coffee']) for (const mode of ['light', 'dark']){
   const bad = hits.filter(x => !(x.r >= x.min));
   ok(`${drink} ${mode}: ${hits.length} pairs, text at 4.5:1 and edges, focus and marks at 3:1`, !bad.length, bad.map(x => `${x.fg} on ${x.bg} ${Number.isNaN(x.r) ? '?' : x.r.toFixed(2)} (< ${x.min})`).join('; '));
 }
+// ---- the page against the canvas: the sharper look is the default and edges the page at 3:1 in all four combinations
+// (a light canvas by the page's edge, a dark one by the paper itself); the softer look is the old one and only has to be softer ----
+{
+  const against = (T, edgeName) => {
+    const canvases = ['canvas', ...(('--mat-b' in T && colour('var(--mat-b)', T)?.[3] === 1) ? ['mat-b'] : [])];
+    const per = canvases.map(c => Math.max(ratio(edgeName, c, T) ?? 0, ratio('paper', c, T) ?? 0));
+    return Math.min(...per);
+  };
+  for (const drink of ['tea', 'coffee']) for (const mode of ['light', 'dark']){
+    const T = tokens(drink, mode === 'dark');
+    const sharp = against(T, 'page-edge'), soft = against(T, 'page-edge-soft');
+    rows.push({ drink, mode, what: 'the page against the canvas, sharper', fg: 'page-edge or paper', bg: 'canvas', min: EDGE, r: sharp });
+    rows.push({ drink, mode, what: 'the page against the canvas, softer', fg: 'page-edge-soft or paper', bg: 'canvas', min: 1, r: soft });
+    ok(`${drink} ${mode}: the sharper look separates the page from the canvas at 3:1 (${sharp.toFixed(2)})`, sharp >= EDGE, sharp.toFixed(2));
+    ok(`${drink} ${mode}: …and the softer look is never sharper (${soft.toFixed(2)})`, soft <= sharp + 1e-9);
+  }
+}
 if (TABLE){
   // one line per pair, the four combinations side by side
   const by = new Map();
@@ -142,7 +159,7 @@ function outside(css, label){
   const found = [...s.matchAll(COLOUR)].map(m => s.slice(Math.max(0, m.index - 40), m.index + 20).replace(/\s+/g, ' '));
   ok(`${label}: no colour outside the token blocks`, !found.length, found.slice(0, 3).join(' | '));
 }
-outside(wb, 'workbench.css'); outside(dk, 'drinks.css');
+outside(wb, 'workbench.css'); outside(dk, 'drinks.css'); outside(st, 'start.css');
 const sheet = read('src/ui/sheet.js');
 ok('sheet.js: the page\'s marks take their colours from tokens (no colour written in the marks)', !COLOUR.test(sheet.slice(sheet.indexOf('const VIEW_CSS'), sheet.indexOf('`;', sheet.indexOf('const VIEW_CSS')))));
 ok('no yellow resume accent #ffd900 in the app\'s own styles', !/#ffd900/i.test(strip(wb).replace(/--sample-1:[^;]*;/, '')) && !/#ffd900/i.test(dk));
@@ -157,7 +174,7 @@ ok('both set html[data-drink] and html[data-theme]', /data-drink/.test(boot) && 
 ok('the default is tea, following the system', /drink = 'tea'/.test(boot) && /pref = 'system'/.test(boot) && /'tea'\)/.test(drinkJs) && /'system'\)/.test(drinkJs));
 const html = read('index.html');
 ok('index.html runs drink-boot.js before the first paint: a plain script in the head, before the styles are painted and not deferred', /<script src="src\/ui\/drink-boot\.js"><\/script>/.test(html) && html.indexOf('drink-boot.js') < html.indexOf('</head>'));
-ok('index.html loads drinks.css after workbench.css, and sw.js caches the new files', html.indexOf('workbench.css') < html.indexOf('drinks.css') && ['drinks.css', 'drink.js', 'drink-boot.js'].every(f => read('sw.js').includes(f)));
+ok('index.html loads drinks.css after workbench.css, and start.css after both; sw.js caches the new files', html.indexOf('workbench.css') < html.indexOf('drinks.css') && html.indexOf('drinks.css') < html.indexOf('start.css') && ['drinks.css', 'start.css', 'drink.js', 'drink-boot.js'].every(f => read('sw.js').includes(f)));
 ok('Shift+F switches the drink and is ignored in a field (shell.js asks drink.js)', /isDrinkKey\(e\)/.test(read('src/ui/shell.js')) && /contenteditable/.test(drinkJs));
 
 // ---- the resume is not touched ----

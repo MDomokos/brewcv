@@ -50,7 +50,14 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            workbench.css (the tokens: one block per drink and theme, and every rule that uses
                            them) and drinks.css (the shapes and surfaces that make each drink itself);
                            parts.js, the pure string parts (crumb, rows, version list, editor,
-                           write-in) the panels share
+                           write-in, and the on-page breadcrumb, tools and version badge) the panels share;
+                           camera (the pure maths of the page canvas: both pages or one, soft limits, the
+                           magnet, which page is bright, the spring), canvas (moves the sheet with the camera
+                           and reads the wheel, the hand and the pinch), onpage (the three levels drawn over
+                           the page, a line written where it is printed, its tools in the margin), plain (the
+                           text of a line being written, read back from the page), start (the start screen:
+                           its header, inspector and footer areas, and the picture of how it works) with
+                           start.css (every colour a token, like the other two stylesheets)
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,
                            claims and new-resume (what a coding agent uses; see AGENTS.md), onefile (a folder ↔ the one file)
 checks/                    the Node checks, the Chromium smoke test, the guards
@@ -74,6 +81,7 @@ node checks/model-check.mjs [lib]     schema v4, migration, saved-resume files; 
 node checks/store-check.mjs           undo, autosave, folder mirror, backup, checkpoints
 node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, labels, photo, fields
 node checks/shell-check.mjs           layout maths, click targets, Esc, folder read back
+node checks/camera-check.mjs          the canvas camera: both pages or one, soft limits, the magnet, which page is bright, the spring
 node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
 node checks/resumes-check.mjs         autosave, snapshots and sends, frozen text and newer wording, new, duplicate, compare, folder
 node checks/focus-check.mjs           tags, plan = apply, Keep untouched, no job emptied

@@ -51,11 +51,11 @@
   --ins-bg: rgba(143, 196, 138, .25); --del-bg: rgba(239, 154, 132, .22); --del-ink: #F2E6CF;
   --toast-bg: #D9A65A; --toast-ink: #1b2a20;
   --tag-bg: #D9A65A; --tag-line: #8a6416; --tag-ink: #1b2a20; --tag-hole: #e9ddc2;
-  --stage: #efe4cb; --stage-mark: #D9A65A; --stage-on-mark: #1b2a20; --page-edge: transparent;
+  --stage: #efe4cb; --stage-mark: #D9A65A; --stage-on-mark: #1b2a20; --page-edge: rgba(70, 50, 20, .65); --page-edge-soft: transparent;
   /* the pieces of the drink: the cup's tea and its outline, the steam, the shadows (flat and offset in tea) */
   --liq: #D9A65A; --liq-weak: #8f8257; --liq-strong: #cf7d2e; --cup-empty: #24382b; --cup-stroke: #F2E6CF; --cup-band: #ecc583; --steam-ink: #d6cfb4; --heart-ink: #f2a58f;
   --shadow-panel: 7px 8px 0 rgba(30, 40, 25, .2); --shadow-lift: 2px 3px 0 rgba(30, 40, 25, .2); --shadow-chip: 3px 4px 0 rgba(30, 40, 25, .2); --shadow-toast: 4px 5px 0 rgba(30, 40, 25, .22);
-  --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .2)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
+  --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .3)) drop-shadow(12px 14px 0 rgba(60, 45, 15, .12)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
   --page-warn: #b35c00; --sel-mark: #b77a2c; --sel-mark-soft: rgba(217, 166, 90, .14); --prev-mark: #2E4636; --prev-mark-soft: rgba(46, 70, 54, .08);
   --band-bg: var(--surface); --band-ink: var(--ink); --band-ink-soft: var(--ink-soft); --band-line: var(--line); --band-hover: var(--hover); --band-hover-strong: var(--hover-strong);
 }
@@ -65,7 +65,8 @@ html[data-drink="tea"][data-theme="dark"] {
   --surface: #26392d; --raised: #2f4637; --input: #1d2c22; --pop: #22342a;
   --stage: #e9e0c8; --cup-empty: #1d2c22;
   --shadow-panel: 7px 8px 0 rgba(0, 0, 0, .4), 0 0 0 1px rgba(217, 166, 90, .12); --shadow-lift: 2px 3px 0 rgba(0, 0, 0, .35); --shadow-chip: 3px 4px 0 rgba(0, 0, 0, .4); --shadow-toast: 4px 5px 0 rgba(0, 0, 0, .4);
-  --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .45)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
+  --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .55)) drop-shadow(12px 14px 0 rgba(0, 0, 0, .28)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
+  --page-edge: transparent; --page-edge-soft: transparent;
   --tag-hole: #101813;
 }
 
@@ -88,7 +89,7 @@ html[data-drink="coffee"] {
   --ins-bg: rgba(46, 125, 50, .16); --del-bg: rgba(168, 50, 30, .14); --del-ink: #1c1410;
   --toast-bg: #1c1410; --toast-ink: #fbf8f4;
   --tag-bg: #ffffff; --tag-line: rgba(28, 20, 16, .5); --tag-ink: #1c1410; --tag-hole: #ffffff;
-  --stage: #efe9df; --stage-mark: #1c1410; --stage-on-mark: #fbf8f4; --page-edge: rgba(28, 20, 16, .22);
+  --stage: #efe9df; --stage-mark: #1c1410; --stage-on-mark: #fbf8f4; --page-edge: rgba(28, 20, 16, .65); --page-edge-soft: rgba(28, 20, 16, .22);
   --espresso: #3a2618; --crema: #BE7F4A; --foam: #f3ece2; --foam-soft: #d9c8b4; --foam-faint: #b8a894; --foam-line: rgba(243, 236, 226, .32); --foam-warn: #e0b56a;
   --band-bg: #2b1d14; --band-ink: #f3ece2; --band-ink-soft: #d9c8b4; --band-line: rgba(243, 236, 226, .32); --band-hover: rgba(243, 236, 226, .1); --band-hover-strong: rgba(243, 236, 226, .16);
   --shadow-panel: none; --shadow-lift: none; --shadow-chip: none; --shadow-toast: none;
@@ -114,7 +115,7 @@ html[data-drink="coffee"][data-theme="dark"] {
   --ins-bg: rgba(143, 196, 138, .25); --del-bg: rgba(239, 154, 132, .22); --del-ink: #f3ece2;
   --toast-bg: #f3ece2; --toast-ink: #0c0907;
   --tag-bg: #0c0907; --tag-line: rgba(243, 236, 226, .55); --tag-ink: #f3ece2; --tag-hole: #0c0907;
-  --stage: #ece6dc; --page-edge: rgba(243, 236, 226, .25);
+  --stage: #ece6dc; --page-edge: rgba(243, 236, 226, .45); --page-edge-soft: rgba(243, 236, 226, .25);
   --espresso: #c9a27a; --band-bg: #22170f; --band-line: rgba(243, 236, 226, .32);
   --prev-mark: #BE7F4A; --prev-mark-soft: rgba(190, 127, 74, .2);
   --cup-band: #f3ece2;
@@ -567,354 +568,9 @@ body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
 .actual__scroll::-webkit-scrollbar-thumb:hover, body[data-phone=true]::-webkit-scrollbar-thumb:hover { background-color: var(--line-strong); }
 .body::-webkit-scrollbar-corner, .timeline::-webkit-scrollbar-corner, .pages::-webkit-scrollbar-corner { background: transparent; }
 
-/* The introduction is a page of its own. visibility, not display: the sheet is still measured. */
-body:not([data-phone=true]).is-intro .pages { visibility: hidden; }
-body:not([data-phone=true]).is-intro .head, body:not([data-phone=true]).is-intro .foot { display: none; }
-body:not([data-phone=true]).is-intro .col { left: 50% !important; top: 6vh !important; width: min(620px, 92vw) !important; height: auto !important; max-height: 88vh; transform: translateX(-50%); }
-body.is-intro .body { padding: 26px 28px 28px; }
+/* the start screen is src/ui/start.css; two small rules of the questions that follow it */
 .obintro { font-size: 15px; line-height: 1.5; margin: 8px 0 12px; }
-
-.obkeep { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
-.obkeep h3 { margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
-/* on a phone the introduction fills the screen */
-body[data-phone=true].is-intro .pages { visibility: hidden; }
-body[data-phone=true].is-intro .head, body[data-phone=true].is-intro .foot { display: none; }
-body[data-phone=true].is-intro .col { top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; height: 100dvh !important; border-radius: 0; box-shadow: none; }
-
-
-.obkeep__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
-.obtile { display: flex; gap: 10px; align-items: flex-start; }
-.obtile b { display: block; font-size: 13px; color: var(--ink); }
-.obtile p { margin: 1px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--ink-soft); }
-.obico { flex: none; width: 22px; height: 22px; margin-top: 1px; fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-@media (max-width: 560px){ .obkeep__grid { grid-template-columns: 1fr; } }
-
 .obnote { margin: 6px 0 14px; font-size: 13px; line-height: 1.45; color: var(--ink-soft); }
-
-.obwhy { margin: 4px 0 0; font-size: 12.5px; }
-.obwhy summary { cursor: pointer; font-weight: 700; display: inline-block; padding: 2px 10px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--raised); }
-.obwhy summary:hover, .obwhy[open] summary { border-color: var(--ink); }
-.obwhy ul { margin: 8px 0 6px; padding-left: 18px; display: grid; gap: 4px; line-height: 1.4; }
-.obwhy a { font-weight: 600; color: var(--ink); }
-
-.obeye { margin: 0 0 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
-.oblink { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-
-/* The start screen: the start card, then one card that tells how it works (a page drawn as grey lines
-   and its four steps, side by side), then a quiet row of what you keep. */
-body:not([data-phone=true]).is-intro-wide .col { width: min(1180px, 96vw) !important; top: 50% !important; transform: translate(-50%, -50%); max-height: 98vh; overflow-y: auto; padding: 6px 14px 22px; box-sizing: border-box; }
-body:not([data-phone=true]).is-intro-wide .body { background: transparent; border: 0; box-shadow: none; overflow: visible; padding: 0; }
-.obwelcome { display: grid; grid-template-columns: 348px minmax(0, 1fr); gap: 14px; align-items: stretch; }
-.obcard { background: var(--surface); border: 1px solid var(--hover-strong); border-radius: var(--r-l); padding: 20px 22px 22px; box-shadow: var(--shadow-panel); }
-.obcard .obeye { margin: 0; }
-
-/* the start card */
-.obstart { display: flex; flex-direction: column; padding: 20px 22px 16px; }
-.oblogo { display: flex; align-items: center; gap: 14px; margin: 0 0 14px; font-size: 30px; font-weight: 800; letter-spacing: -.01em; }
-.oblogo img { display: block; width: 64px; height: 64px; flex: none; filter: var(--drop-sm); }
-.obhero { font-size: 28px; line-height: 1.1; letter-spacing: -.01em; margin: 0 0 8px; text-wrap: balance; }
-.obsub { margin: 0 0 16px; font-size: 14.5px; line-height: 1.45; color: var(--ink-soft); }
-.obstart .obchoices { flex: 1; display: grid; grid-auto-rows: 1fr; gap: 9px; margin: 0; }
-.obstart .obchoices button { padding: 11px 15px; align-content: center; gap: 3px; }
-.obstart .obchoices button b { font-size: 15px; }
-.oblangs { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 3px; }
-.oblang { font-size: 11px; font-weight: 700; letter-spacing: .03em; padding: 2px 6px; min-height: 0; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink-soft); cursor: pointer; }
-.oblang:hover { color: var(--ink); background: var(--fill); }
-.oblang.on { color: var(--on-mark); background: var(--mark); }
-.obstart.locked .obchoices { flex: 1 1 0; min-height: 0; overflow: hidden; }
-.oblang.pk { color: var(--ink); background: var(--accent-soft); }
-
-/* how it works: the page and its steps share one card */
-.obhow { padding: 16px 20px 18px; display: flex; flex-direction: column; }
-.obhowhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.obreplay { font-size: 12px; font-weight: 700; padding: 2px 11px; min-height: 0; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--raised); cursor: pointer; }
-.obreplay:hover { border-color: var(--ink); }
-.obhowbody { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 214px; gap: 20px; align-items: stretch; }
-.obsidecol { display: flex; flex-direction: column; justify-content: flex-start; gap: 12px; min-width: 0; }
-.obsteplist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.obstep { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; width: 100%; text-align: left; padding: 10px 12px 12px; border-radius: var(--r-m); border: 1px solid transparent; background: transparent; cursor: pointer; overflow: hidden; min-height: 0; }
-.obstep:hover { background: var(--wash); }
-.obstep.on { background: var(--accent-soft); border-color: var(--accent-line); }
-.obn { display: grid; place-items: center; width: 24px; height: 24px; border-radius: var(--r-round); background: var(--fill-strong); font-size: 12px; font-weight: 700; }
-.obstep.on .obn { background: var(--ink); color: var(--on-ink); }
-.obstep.done .obn { background: var(--accent); color: var(--on-accent); }
-.obst b { display: block; font-size: 14px; line-height: 1.25; padding-top: 2px; }
-.obst > span { display: none; margin-top: 3px; font-size: 12px; line-height: 1.35; color: var(--ink-soft); }
-.obstep.on .obst > span { display: block; }
-.obprog { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--ink); }
-.obstep.on .obprog { width: 100%; }
-.obstep.done .obprog { width: 100%; background: var(--accent-line); }
-.obwhy { margin: auto 0 0; }
-
-/* the stage: your record on the left, the page made from it in the middle, finished files out on the right.
-   Tabs above the page are kinds of job; region, photo and pages are the tool row under it. */
-.obstage { container-type: inline-size; position: relative; background: var(--stage); border-radius: var(--r-m); padding: 14px 12px 12px; overflow: hidden; display: grid; place-items: center; min-width: 0; }
-.obstagecol { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 100%; }
-.obscene { --ph: min(clamp(240px, calc(100vh - 385px), 460px), calc((100cqw - 222px) / .74)); display: grid; grid-template-columns: 126px 26px auto 62px; grid-template-rows: auto auto; row-gap: 8px; align-items: start; }
-.obtabs { grid-column: 3; grid-row: 1; justify-self: center; }
-.obrec { grid-column: 1; grid-row: 2; }
-.obflow { grid-column: 2; grid-row: 2; align-self: center; justify-self: center; }
-.obpages { grid-column: 3; grid-row: 2; position: relative; height: var(--ph); aspect-ratio: .74; }
-.obzone.out { grid-column: 4; grid-row: 2; }
-
-/* The stage is a drawing of paper in every theme: its own ink, lines and fills, whatever the panel is. */
-.obstage {
-  --raised: var(--paper); --input: var(--paper); --pop: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --on-ink: var(--paper);
-  --line: var(--paper-line); --line-strong: var(--paper-edge); --fill: var(--paper-fill); --fill-strong: var(--paper-fill-strong); --wash: var(--paper-wash); --hover: var(--paper-hover);
-  --mark: var(--stage-mark); --on-mark: var(--stage-on-mark); --focus: var(--paper-ink); color: var(--ink);
-}
-
-/* the record */
-.obrec { position: relative; height: var(--ph); box-sizing: border-box; padding: 10px 9px 0; display: flex; flex-direction: column; gap: 7px; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-s); box-shadow: var(--shadow-lift); overflow: hidden; }
-.obrechd { display: flex; align-items: center; gap: 6px; }
-.obrechd b { font-size: 12px; line-height: 1.15; }
-.obri { display: grid; flex: none; }
-.obri svg { width: 16px; height: 16px; fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.obby { margin: -3px 0 1px; display: flex; gap: 4px; align-items: flex-start; font-size: 9.5px; line-height: 1.25; color: var(--ink-soft); }
-.obby i { display: grid; flex: none; margin-top: 1px; }
-.obby svg { width: 11px; height: 11px; fill: none; stroke: var(--skel-strong); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.obrg { display: grid; gap: 2px; }
-.obrg.more { opacity: .5; gap: 6px; padding-top: 4px; }
-.obrow { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 7px; align-items: center; width: 100%; padding: 3px 4px; min-height: 0; border: 0; border-radius: var(--r-xs); background: transparent; text-align: left; cursor: pointer; }
-.obrow:hover, .obrow.fh { background: var(--accent-soft); }
-.obrow.pk { background: var(--accent-soft); }
-.obtick { display: grid; place-items: center; width: 14px; height: 14px; box-sizing: border-box; border: 1.5px solid var(--line-strong); border-radius: var(--r-xs); background: var(--raised); }
-.obtick svg { width: 10px; height: 10px; fill: none; stroke: var(--raised); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
-.obrow.on .obtick { background: var(--ink); border-color: var(--ink); }
-.obrow.on .obtick svg { opacity: 1; }
-.obrow.pk .obtick { border-color: var(--accent-line); background: var(--accent-soft); }
-.obrow.pk.on .obtick svg { stroke: var(--ink); }
-.obrow.pk:not(.on) .obtick { border-style: dashed; background: var(--accent-soft); }
-.obls { display: grid; gap: 3px; }
-.obls i { display: block; height: 5px; border-radius: var(--r-xs); background: var(--fill-strong); width: var(--w, 100%); transform-origin: left; }
-.obrec .obls i { background: var(--skel); }
-.obrow.on .obls i { background: var(--skel-strong); }
-.objr { display: flex; justify-content: space-between; align-items: center; }
-.objr i { display: block; border-radius: var(--r-xs); }
-.objr .t { height: 7px; width: 42%; background: var(--skel-strong); }
-.objr .d { height: 5px; width: 22%; background: var(--skel); }
-.obflow { width: 26px; height: 14px; fill: none; stroke: var(--ink-soft); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
-.obflow .fl { stroke-dasharray: 3 3; }
-.obstage:not([data-step="0"]) .obflow { opacity: 1; }
-
-/* the page */
-.obpage { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 4px; padding: 6% 8% 0; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-xs); overflow: hidden; box-shadow: var(--shadow-lift); }
-.obpage.back { z-index: 0; opacity: 0; transform: none; }
-.obpage.front { z-index: 1; }
-.obpage.front::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 18%; background: linear-gradient(transparent, var(--raised) 85%); pointer-events: none; }
-.obpages[data-pages="2"] .back { opacity: 1; transform: translate(15px, 10px) rotate(2.5deg); }
-.obpage i { display: block; height: 6px; border-radius: var(--r-xs); background: var(--fill-strong); width: var(--w, 100%); transform-origin: left; }
-.obpage header { position: relative; display: flex; align-items: center; min-height: 36px; padding-bottom: 8px; margin-bottom: 3px; border-bottom: 2px solid var(--sample-1); }
-.obhd { flex: 1; display: grid; gap: 6px; }
-.obhd .n { height: 11px; width: 60%; background: var(--ink); }
-.obhd .s { height: 6px; width: 40%; background: var(--skel-strong); }
-.obphoto { position: absolute; right: 0; top: 0; width: 34px; height: 34px; border-radius: var(--r-round); background: var(--fill-strong); display: grid; place-items: center; opacity: 0; transform: scale(.4); }
-.obphoto svg { width: 21px; height: 21px; fill: none; stroke: var(--skel-strong); stroke-width: 1.6; stroke-linecap: round; }
-.obpages[data-photo="1"] .obphoto { opacity: 1; transform: none; }
-.oblangtag { position: absolute; z-index: 3; right: 9px; bottom: 8px; font: 700 10px/1 'Fira Code', ui-monospace, monospace; font-style: normal; color: var(--ink-soft); padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--raised); }
-.obsec { margin-top: 3px; }
-.obsec i { height: 7px; width: 30%; background: var(--skel-strong); }
-.obpage .objr { margin-top: 2px; }
-.obb { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; align-items: center; padding: 2px 0 2px 10px; margin-right: -4px; border-radius: var(--r-xs); max-height: 64px; }
-.obb::before { content: ""; position: absolute; left: 1px; top: 8px; width: 4px; height: 4px; border-radius: var(--r-round); background: var(--ink); }
-.obb[data-f]:hover, .obb.lk { background: var(--accent-soft); }
-.obb.plain { grid-template-columns: minmax(0, 1fr); }
-.obb.off { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-top: -4px; overflow: hidden; pointer-events: none; }
-.obb.off::before { display: none; }
-.obpage .obls i { height: 5px; }
-.obvs { display: flex; gap: 3px; align-items: center; opacity: 0; pointer-events: none; }
-.obb.chips .obvs { opacity: 1; pointer-events: auto; }
-.obv { white-space: nowrap; font-size: 10px; font-weight: 700; padding: 1px 5px; min-height: 0; line-height: 1.5; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--raised); cursor: pointer; }
-.obv:hover, .obv.fh { border-color: var(--ink); }
-.obv.pk { background: var(--accent-soft); border-color: var(--accent-line); }
-.obv.on { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
-.obv.on.pk { box-shadow: 0 0 0 2px var(--mark); }
-.obpage i.obplus { display: none; height: auto; width: 18px; background: none; font-style: normal; font-size: 11px; font-weight: 700; text-align: center; line-height: 1.4; border-radius: var(--r-pill); border: 1px dashed var(--ink-soft); color: var(--ink-soft); }
-.obstage[data-step="2"] .obpage i.obplus { display: inline-block; }
-/* the page and the record draw in when the old files land */
-.obstage[data-step="0"] .front i, .obstage[data-step="0"] .obrec .obls i, .obstage[data-step="0"] .obrec .objr i { transform: scaleX(0); }
-.obstage[data-step="0"] .obtick { opacity: 0; transform: scale(.4); }
-.obls.wr i { transform: scaleX(0) !important; transition: none !important; }
-
-/* old files on the record, finished files out */
-.obzone { position: relative; height: 100%; }
-.obzone.old { position: absolute; inset: 0; pointer-events: none; }
-.obfile { position: absolute; width: 52px; }
-.obzone.old .obfile { transform: rotate(var(--r, 0deg)); }
-.obzone.old .obfile:nth-child(1) { top: 15%; left: 12px; --r: -6deg; }
-.obzone.old .obfile:nth-child(2) { top: 39%; left: 48px; --r: 4deg; }
-.obzone.old .obfile:nth-child(3) { top: 63%; left: 16px; --r: -3deg; }
-.obzone.out .obfile { left: 8px; }
-.obzone.out .obfile:nth-child(1) { top: 6%; } .obzone.out .obfile:nth-child(2) { top: 36%; } .obzone.out .obfile:nth-child(3) { top: 66%; }
-.obmini { position: relative; display: grid; gap: 4px; align-content: start; height: 62px; padding: 9px 8px; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-xs); box-shadow: var(--shadow-lift); }
-.obmini i { display: block; height: 4px; border-radius: var(--r-xs); background: var(--fill-strong); width: var(--w); }
-.obmini u { display: block; height: 6px; width: 55%; border-radius: var(--r-xs); background: var(--skel-strong); }
-.obmini em { position: absolute; right: 4px; top: 4px; display: grid; }
-.obmini em svg { width: 12px; height: 12px; fill: none; stroke: var(--skel-strong); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.obfile > span { display: block; margin-top: 4px; font: 700 9px/1 'Fira Code', ui-monospace, monospace; letter-spacing: .04em; color: var(--ink-soft); text-align: center; }
-.obzone.out .obfile > span { color: var(--ink); }
-.obstage:not([data-step="0"]) .obzone.old .obfile { opacity: 0; transform: translateY(-6px) scale(.35) rotate(var(--r, 0deg)); pointer-events: none; }
-.obzone.out .obfile { opacity: 0; }
-.obstage[data-step="4"] .obzone.out .obfile { opacity: 1; }
-
-/* the cursor that plays the tailoring step, and the pen that writes the wordings */
-.obcursor, .obpen { position: absolute; left: 0; top: 0; z-index: 7; pointer-events: none; opacity: 0; }
-.obcursor { width: 22px; height: 26px; fill: var(--ink); stroke: var(--raised); stroke-width: 1.5; stroke-linejoin: round; filter: var(--drop-sm); }
-.obcursor.on, .obpen.on { opacity: 1; }
-.obcursor.click path { fill: var(--mark); stroke: var(--on-mark); }
-.obpen { width: 22px; height: 22px; margin: -19px 0 0 -3px; }
-.obpen svg { width: 22px; height: 22px; fill: var(--raised); stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; filter: var(--drop-sm); }
-.obpen em { position: absolute; right: 2px; top: 24px; white-space: nowrap; font-style: normal; font-size: 10px; font-weight: 700; line-height: 1; padding: 4px 8px; border-radius: var(--r-pill); background: var(--ink); color: var(--on-ink); box-shadow: var(--shadow-lift); }
-
-/* kinds of job, above the page */
-.obtabs { display: inline-flex; gap: 2px; padding: 2px; width: max-content; white-space: nowrap; border-radius: var(--r-pill); background: var(--raised); border: 1px solid var(--line); }
-.obtab { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; padding: 3px 9px 3px 6px; min-height: 0; border: 0; border-radius: var(--r-pill); background: transparent; cursor: pointer; }
-.obtab span { max-width: 78px; overflow: hidden; text-overflow: ellipsis; }
-.obti { display: grid; }
-.obti svg { width: 13px; height: 13px; fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.obtab:hover, .obtab.fh { background: var(--fill); }
-.obtab.pk { background: var(--accent-soft); }
-.obtab.on { background: var(--mark); color: var(--on-mark); }
-.obtab.on svg { stroke: var(--on-mark); }
-
-/* region, photo, pages: one small tool row under the page */
-.obbar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; }
-.obgrp { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--r-pill); background: var(--raised); border: 1px solid var(--line); }
-.obc { font-size: 11px; font-weight: 700; letter-spacing: .03em; padding: 3px 9px; min-height: 0; border: 0; border-radius: var(--r-pill); background: transparent; cursor: pointer; }
-.obc.ico { padding: 3px 7px; display: grid; place-items: center; }
-.obc.ico svg { width: 15px; height: 15px; fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.obc:hover, .obc.fh { background: var(--fill); }
-.obc.pk { background: var(--accent-soft); }
-.obc.on { background: var(--mark); color: var(--on-mark); }
-.obc.on svg { stroke: var(--on-mark); }
-.obstage:is([data-step="0"], [data-step="1"], [data-step="2"]) :is(.obbar, .obtabs) { opacity: .4; pointer-events: none; }
-.obstage:is([data-step="0"], [data-step="1"], [data-step="2"]) .obrow { pointer-events: none; }
-.obhint { margin: -3px 0 0; font-size: 11.5px; color: var(--ink-soft); }
-
-/* what you keep: a quiet row, no box */
-.obkeep { grid-column: 1 / -1; margin: 0; border: 0; padding: 2px 8px 0; --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); color: var(--ink); }
-.obkeep .obeye { margin: 0 0 8px; color: var(--canvas-label); }
-.obkeep__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 26px; padding-top: 10px; border-top: 1px solid var(--canvas-line); }
-.obkeep .obtile { align-items: flex-start; }
-.obkeep .obico { width: 18px; height: 18px; margin-top: 1px; stroke: var(--ink-soft); }
-.obkeep .obtile b { font-size: 12.5px; color: var(--ink); }
-.obkeep .obtile p { margin: 1px 0 0; font-size: 12px; line-height: 1.4; color: var(--ink-soft); min-height: 2.8em; }
-.obkeep .oblink { color: inherit; }
-
-/* a narrower window: start on top, then the record and page with the steps under them */
-@media (max-width: 1100px){
-  .obwelcome { grid-template-columns: minmax(0, 1fr); }
-  .obstart .obchoices { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; flex: none; }
-  .obstart .obchoices button { align-content: start; }
-  .obhowbody { grid-template-columns: minmax(0, 1fr); }
-  .obsteplist { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .obscene { --ph: min(360px, calc((100cqw - 222px) / .74)); }
-  .obsidecol { justify-content: flex-start; }
-}
-@media (max-width: 820px){
-  .obsteplist { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .obkeep__grid { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 640px){
-  .obstart .obchoices { grid-template-columns: minmax(0, 1fr); }
-  .obcard { padding: 16px 16px 18px; }
-  .obhow { padding: 14px 14px 16px; }
-  .obhero { font-size: 25px; }
-  .obsteplist { grid-template-columns: minmax(0, 1fr); }
-  .obstage { padding: 12px 6px 10px; }
-  .obscene { --ph: min(300px, calc((100cqw - 126px) / .74)); grid-template-columns: 88px 14px minmax(0, 1fr); }
-  .obflow { width: 14px; }
-  .obtabs { grid-column: 1 / -1; }
-  .obrec { padding: 8px 6px 0; }
-  .obrechd b { font-size: 11px; }
-  .obrow { grid-template-columns: 13px minmax(0, 1fr); gap: 5px; padding: 3px 2px; }
-  .obzone.old .obfile { width: 44px; }
-  .obzone.old .obfile:nth-child(1) { left: 6px; } .obzone.old .obfile:nth-child(2) { left: 30px; } .obzone.old .obfile:nth-child(3) { left: 10px; }
-  .obzone.out { grid-column: 1 / -1; grid-row: 3; height: auto; display: flex; justify-content: center; gap: 14px; }
-  .obzone.out .obfile, .obzone.out .obfile:nth-child(n) { position: relative; left: auto; top: auto; width: 46px; }
-  .obstage:not([data-step="4"]) .obzone.out { display: none; }
-  .obmini { height: 52px; padding: 6px 5px; gap: 3px; }
-  .obkeep__grid { grid-template-columns: minmax(0, 1fr); }
-  .obkeep .obtile p { min-height: 0; }
-}
-/* a short window (a laptop under a tall browser toolbar): tighter, so nothing scrolls */
-@media (max-height: 760px) and (min-width: 1101px){
-  body:not([data-phone=true]).is-intro-wide .col { padding-bottom: 10px; }
-  .obwelcome { gap: 10px; }
-  .obcard { padding: 14px 18px 14px; }
-  .obhow { padding: 12px 16px 14px; }
-  .obhowhead { margin-bottom: 6px; }
-  .oblogo { margin-bottom: 8px; font-size: 22px; gap: 10px; }
-  .oblogo img { width: 40px; height: 40px; }
-  .obhero { font-size: 24px; margin-bottom: 4px; }
-  .obsub { margin-bottom: 10px; font-size: 13.5px; line-height: 1.35; }
-  .obstart .obchoices { gap: 7px; }
-  .obstart .obchoices button { padding: 7px 14px; }
-  .oblangs { margin-top: 10px; }
-  .obstep { padding: 7px 10px 9px; }
-  .obkeep__grid { padding-top: 8px; }
-  .obkeep .obeye { margin-bottom: 5px; }
-}
-
-/* on a phone the start card sits flat on the screen */
-body[data-phone=true] .obstart { box-shadow: none; border: 0; border-radius: 0; background: none; padding: 0 0 18px; }
-body[data-phone=true] .obstart .obchoices { grid-template-columns: 1fr; }
-body[data-phone=true] .obhow { box-shadow: none; padding: 14px 0 6px; background: none; border: 0; }
-body[data-phone=true] .obkeep { padding: 6px 0 0; }
-
-/* motion: the cards rise in; old files sink into the record and its rows draw in, then the page draws
-   from it; a pen writes the wordings; chips pop in; the tailoring plays; finished files slide out.
-   None of it with reduced motion. */
-@media (prefers-reduced-motion: no-preference){
-  .obwelcome.enter > .obstart { animation: obRise .55s cubic-bezier(.2, .7, .2, 1) both; }
-  .obwelcome.enter > .obhow { animation: obRise .55s cubic-bezier(.2, .7, .2, 1) .12s both; }
-  .obwelcome.enter > .obkeep { animation: obRise .55s cubic-bezier(.2, .7, .2, 1) .24s both; }
-  .obpage i, .obrec .obls i, .obrec .objr i { transition: transform .5s ease; }
-  .obpage .obls i { transition-duration: .6s; }
-  .obtick { transition: opacity .3s ease, transform .3s cubic-bezier(.2, 1.3, .4, 1), background-color .2s ease; }
-  .obpage.back { transition: opacity .35s ease, transform .45s cubic-bezier(.2, .8, .3, 1); }
-  .obphoto { transition: opacity .3s ease, transform .35s cubic-bezier(.2, 1.3, .4, 1); }
-  .obb { transition: max-height .35s ease, margin-top .35s ease, padding .35s ease, opacity .3s ease, background-color .2s ease; }
-  .obvs, .obflow, .obtabs, .obbar { transition: opacity .4s ease; }
-  .obcursor, .obpen { transition: transform .65s cubic-bezier(.4, 0, .2, 1), opacity .25s ease; }
-  .obstage[data-step="1"] .obrec :is(.obls i, .objr i) { transition-delay: var(--d, 0s); }
-  .obstage[data-step="1"] .obtick { transition-delay: calc(var(--d, 0s) + .25s); }
-  .obstage[data-step="1"] .obflow { transition-delay: 1.8s; }
-  .obstage.auto .obflow .fl { animation: obDash .9s linear infinite; }
-  .obstage[data-step="1"] .front > :nth-child(1) i { transition-delay: 1.95s; }
-  .obstage[data-step="1"] .front > :nth-child(2) i { transition-delay: 2.06s; }
-  .obstage[data-step="1"] .front > :nth-child(3) i { transition-delay: 2.17s; }
-  .obstage[data-step="1"] .front > :nth-child(4) i { transition-delay: 2.28s; }
-  .obstage[data-step="1"] .front > :nth-child(5) i { transition-delay: 2.39s; }
-  .obstage[data-step="1"] .front > :nth-child(6) i { transition-delay: 2.5s; }
-  .obstage[data-step="1"] .front > :nth-child(7) i { transition-delay: 2.61s; }
-  .obstage[data-step="1"] .front > :nth-child(8) i { transition-delay: 2.72s; }
-  .obstage[data-step="1"] .front > :nth-child(9) i { transition-delay: 2.83s; }
-  .obstage[data-step="1"] .front > :nth-child(10) i { transition-delay: 2.94s; }
-  .obstage[data-step="1"] .front > :nth-child(11) i { transition-delay: 3.05s; }
-  .obstage[data-step="1"] .front > :nth-child(12) i { transition-delay: 3.16s; }
-  .obstage[data-step="1"] .front > :nth-child(13) i { transition-delay: 3.27s; }
-  .obstage[data-step="1"] .front > :nth-child(14) i { transition-delay: 3.38s; }
-  .obstage[data-step="1"] .obzone.old .obfile { animation: obFly 1s cubic-bezier(.55, .05, .35, 1) calc(var(--i) * .3s + .15s) both; }
-  .obstage[data-step="2"] .obb.chips .obv, .obstage[data-step="2"] .obb.chips .obplus { animation: obPop .4s ease backwards; }
-  .obstage[data-step="2"] .obb.chips .obvs > :nth-child(2) { animation-delay: .1s; }
-  .obstage[data-step="2"] .obb.chips .obvs > :nth-child(3) { animation-delay: .2s; }
-  .obstage[data-step="2"] .obb.chips .obvs > :nth-child(4) { animation-delay: .3s; }
-  .obstage[data-step="4"] .obzone.out .obfile { animation: obOut .6s cubic-bezier(.2, .8, .3, 1) calc(var(--i) * .25s + .2s) backwards; }
-  .obb.obsw { animation: obSwap .8s ease-out; }
-  .obstage .ping, .obc.ping, .obv.ping, .obtab.ping, .obrow.ping { animation: obPing .6s ease-out; }
-  .obstage.auto .obstep.on .obprog.run { animation: obProg var(--dur, 4s) linear forwards; }
-  .obstage.snap *, .obstage.still *, .obstage.still, .obstage.reset * { animation: none !important; transition: none !important; }
-  .obhow:has(.obstage.snap) .obstep, .obhow:has(.obstage.still) .obprog { animation: none !important; }
-  @keyframes obRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  @keyframes obFly { from { opacity: 1; transform: rotate(var(--r, 0deg)); } 55% { opacity: 1; } to { opacity: 0; transform: translateY(-6px) scale(.35) rotate(var(--r, 0deg)); } }
-  @keyframes obPop { 0% { opacity: 0; transform: scale(.6); } 65% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: none; } }
-  @keyframes obOut { from { opacity: 0; transform: translateX(-120px) scale(.6); } to { opacity: 1; transform: none; } }
-  @keyframes obSwap { from { background-color: color-mix(in srgb, var(--accent) 60%, transparent); } to { background-color: transparent; } }
-  @keyframes obPing { 0% { box-shadow: 0 0 0 0 var(--accent); } 100% { box-shadow: 0 0 0 9px transparent; } }
-  @keyframes obProg { from { width: 0; } to { width: 100%; } }
-  @keyframes obDash { to { stroke-dashoffset: -12; } }
-}
 
 /* UX-1: the save indicator, the switcher, the row menu, a snapshot, the new-resume form */
 .savestate .ok { color: var(--ok); font-weight: 700; }
@@ -956,6 +612,11 @@ body[data-phone=true] .obkeep { padding: 6px 0 0; }
 .sheet-frame { filter: var(--page-shadow); }
 body.soft .sheet-frame { filter: var(--page-shadow-soft); }
 .pages { overflow: auto; }
+/* on a desktop the pages are a canvas the camera moves (src/ui/canvas.js), not a scroller */
+body:not([data-phone=true]) .pages { overflow: hidden; touch-action: none; }
+body:not([data-phone=true]) .pagebox { will-change: transform; }
+body.is-space .pages, body.is-space .sheet-frame { cursor: grab; }
+body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: grabbing; }
 .ico { display: inline-block; vertical-align: -2px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .ib { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink-soft); }
 .ib:hover:not(:disabled) { background: var(--hover-strong); color: var(--ink); border: 0; }
@@ -1126,11 +787,39 @@ body[data-phone=true] .checklist { display: none; }
 .timeline { background: var(--pop); }
 .pop.card, .zpop { background: var(--pop); }
 body[data-phone=true] .lens, body[data-phone=true] .notonline, body[data-phone=true] .lead { display: none; }
-.pagelay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }
-.jobchip { position: absolute; display: inline-flex; align-items: center; gap: 8px; max-width: 320px; padding: 3px 11px; border-radius: var(--r-pill); background: var(--raised); border: 1px solid var(--line-strong); box-shadow: var(--shadow-chip); font-size: 12px; white-space: nowrap; }
-.jobchip .jn { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
-.jobchip .jc { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-body.is-intro .pagelay, body.is-quiet .pagelay { display: none; }
+/* ---- editing on the page (UX-3): the layers, the breadcrumb, the tools beside the line. Drawn over the page, in the app's layer ---- */
+.editlay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 7; pointer-events: none; }
+.editlay > * { position: absolute; }
+.obveil { transition: opacity var(--dur-2) var(--ease); }
+.obframe { box-sizing: border-box; border: 2px solid var(--sel-mark); background: var(--sel-mark-soft); border-radius: var(--r-xs); pointer-events: none; }
+.obframe.dashed { border-style: dashed; background: transparent; }
+.obframe.line { border-width: 1.5px; border-style: solid; background: transparent; border-radius: 2px; box-shadow: 0 0 0 4px var(--ob-paper, var(--paper)), 0 4px 14px color-mix(in srgb, var(--paper-ink) 24%, transparent); }
+.obcrumb { display: flex; align-items: center; gap: 4px; padding: 3px 8px 3px 4px; background: var(--raised); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-pill); box-shadow: var(--shadow-chip); font: 600 12px/1.2 var(--font-label); pointer-events: auto; white-space: nowrap; }
+.obcrumb .oc { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--ink-soft); padding: 3px 9px; border-radius: var(--r-pill); font: inherit; cursor: pointer; }
+.obcrumb button.oc:hover { background: var(--hover-strong); color: var(--ink); }
+.obcrumb .oc.cur { background: var(--accent); color: var(--on-accent); cursor: default; }
+.obcrumb .oc .ocn { font-weight: 400; font-variant-numeric: tabular-nums; }
+.obcrumb .oc.dots { border: 1px dashed var(--line-strong); }
+.obcrumb .ocs { color: var(--faint); }
+.obcrumb .oesc { margin-left: 4px; color: inherit; background: transparent; border-color: currentColor; opacity: .85; }
+.obtoolswrap { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.obtools { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--shadow-chip); pointer-events: auto; }
+.obtools .ib { width: 30px; height: 30px; color: var(--ink); }
+.obtools .ib:disabled { opacity: .4; cursor: default; }
+.obv { display: inline-flex; align-items: center; justify-content: center; gap: 2px; height: 28px; padding: 0 6px; border: 0; border-radius: var(--r-s); background: var(--fill); color: var(--ink); font: 700 12px var(--font-mono); cursor: pointer; }
+.obv:hover { background: var(--hover-strong); }
+.obstats { display: flex; flex-direction: column; max-width: 76px; padding: 2px 2px 0; font: 11.5px/1.35 var(--font-mono); color: var(--ink-soft); }
+.obstats span { white-space: nowrap; }
+.obpop { display: block; width: min(330px, 42vw); max-height: 240px; overflow: auto; border: 1px solid var(--line-strong); background: var(--pop); box-shadow: var(--shadow-chip); pointer-events: auto; }
+.obpop .vrow { grid-template-columns: 38px minmax(0, 1fr); }
+@media (prefers-reduced-motion: reduce) { .obveil { transition: none; } }
+body.is-quiet .editlay { display: none; }
+
+.ovlay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; pointer-events: none; }
+.ov { position: absolute; }
+.ov-veil { position: absolute; inset: 0; background: color-mix(in srgb, var(--paper) 72%, transparent); }
+.ov-line { position: absolute; left: 0; right: 0; top: 0; border-top: 2px dashed var(--page-warn); }
+body.is-quiet .ovlay { display: none; }
 .hrow.modes .seg { flex-wrap: nowrap; flex: none; }
 .hrow.modes .seg [role=tab] { padding: 4px 8px; white-space: nowrap; }
 .hrow.modes .filestate { flex: 1 1 0; min-width: 0; text-align: right; max-width: none; margin-left: 0; }
@@ -1143,19 +832,18 @@ body.is-intro .pagelay, body.is-quiet .pagelay { display: none; }
 /* Type. F11 rule 5: helper text 13px, uppercase labels 12px; a label is in the label face (mono) in both drinks. */
 button, input, select, textarea { font-family: inherit; }
 :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl, .mgroup, .hk) { font: 500 12px/1.3 var(--font-label); letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
-:is(.pct, .mpct, .mlab, .clcount, .clall, .clv, .jobchip .jc, .stats, .dial output) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+:is(.pct, .mpct, .mlab, .clcount, .clall, .clv, .obcrumb .ocn, .obstats, .stats, .dial output) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 :is(.note, .clhint, .small, .intro, .obhint, .sumline, .goesin, .obsub, .obnote) { font-size: 13px; }
 :is(.tiny, .vrow .mt2, .pop small, .dl button small, .obchoices button small, .inline-menu small, .vrow .tx, .stats, .kept) { font-size: 12px; }
 :is(.item .t, .clt) { font-size: 13px; }
 
 /* One surface on the right: the head, the panel and the zoom bar, joined by hairlines (the folded rail is its own small card). */
-body:not([data-phone=true]):not(.is-intro-wide) .col:not(.is-folded) { gap: 0; border-radius: var(--r-panel); box-shadow: var(--shadow-panel); }
-body:not([data-phone=true]):not(.is-intro-wide) .col:not(.is-folded) > .card { border-radius: 0; box-shadow: none; border: 0; background: var(--surface); }
-body:not([data-phone=true]):not(.is-intro-wide) .col:not(.is-folded) > #head { border-radius: var(--r-panel) var(--r-panel) 0 0; background: var(--band-bg); color: var(--band-ink); }
-body:not([data-phone=true]):not(.is-intro-wide) .col:not(.is-folded) > #foot { border-radius: 0 0 var(--r-panel) var(--r-panel); border-top: 1px solid var(--line); }
-body:not([data-phone=true]):not(.is-intro-wide) .col:not(.is-folded) > #body { border-top: 1px solid var(--line); }
+body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) { gap: 0; border-radius: var(--r-panel); box-shadow: var(--shadow-panel); }
+body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > .card { border-radius: 0; box-shadow: none; border: 0; background: var(--surface); }
+body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > #head { border-radius: var(--r-panel) var(--r-panel) 0 0; background: var(--band-bg); color: var(--band-ink); }
+body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > #foot { border-radius: 0 0 var(--r-panel) var(--r-panel); border-top: 1px solid var(--line); }
+body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > #body { border-top: 1px solid var(--line); }
 body:not([data-phone=true]):is(.is-quiet, .is-intro) .col:not(.is-folded) > #body { border-radius: var(--r-panel); border-top: 0; }
-body.is-intro-wide .col:not(.is-folded) { box-shadow: none; }
 .col.is-folded > .card { background: var(--surface); border-color: transparent; border-radius: var(--r-panel); box-shadow: var(--shadow-panel); }
 :is(.pop.card, .zpop, .menu.card, .switcher, .help, .timeline) { background: var(--pop); border-color: var(--line); }
 .timeline { background: var(--pop); }

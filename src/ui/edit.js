@@ -31,6 +31,12 @@ function commit(fn, label, done){
     return false;
   }
 }
+// the editor is closed: the line on the page stops being written and the view comes back out
+function clearEdit(){
+  const was = E.edit;
+  E.edit = null;
+  if (was && !was.panel) C.onpage?.end();
+}
 const autoNote = r => (r?.auto ? ' ' + t('toast.autoPages') : '');
 
 const rec = () => C.record();
@@ -188,12 +194,13 @@ function factPanel(id){
 function versionsX(id){
   const L = lang();
   const using = usingOf(id);
-  const ed = E.edit?.fact === id ? E.edit : null;
+  const ed = E.edit?.fact === id && E.edit.panel ? E.edit : null;       // the panel's own editor: only for a line that is not on the page
+  const writing = E.edit?.fact === id && !E.edit.panel;
   const en = R.versionsIn(work(), id, DEFAULT_LANG);
   const vs = R.versionsIn(work(), id, L);
   return {
     m: work(), fact: id, lang: L,
-    vs, using, over: overrideOf(id), ed,
+    vs, using, over: overrideOf(id), ed, writing,
     compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,
     lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: tagVocab(rec()),
     dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id) || id === cur().summary), fill: C.fillText(),
@@ -217,8 +224,10 @@ function startEdit(mode = null, vid = null){
   if (m === 'new') E.edit.copyOf = using.text;
   E.compare = null;
   C.endHover();
+  // a line that is on the page is written there; one that is not (a claim off this resume) keeps the panel's text box
+  E.edit.panel = !C.onpage?.begin();
   C.renderBody();
-  focusEditor(m === 'new');
+  if (E.edit.panel) focusEditor(m === 'new');
 }
 function focusEditor(selectAll = false){
   const ta = $('#ed');
@@ -238,7 +247,7 @@ export function isDirty(){
 async function cancelEdit({ ask = false } = {}){
   if (!E.edit) return true;
   if (ask && isDirty() && !confirm(t('confirm.discard'))) return false;
-  E.edit = null;
+  clearEdit();
   clearTimeout(E.timer);
   await C.endPreview(true);
   C.renderBody();
@@ -257,6 +266,32 @@ function onEditorInput(ta){
   E.timer = setTimeout(livePreview, 140);
 }
 
+// the line on the page was typed in: the same bookkeeping as the text box, from the plain text of the line
+function draftChanged(text){
+  const ed = E.edit;
+  if (!ed) return;
+  ed.draft = text;
+  clearTimeout(E.timer);
+  E.timer = setTimeout(livePreview, 140);
+  C.onpage?.refresh();
+}
+// Ctrl+Enter keeps what was written, the way it did in the text box
+function ctrlEnter(){
+  const ed = E.edit;
+  if (ed && (isDirty() || ed.mode === 'only')) saveEdit(ed.mode === 'edit' ? 'over' : ed.mode === 'new' ? 'new' : 'only');
+}
+// a version picked while writing replaces what was typed
+function pickWhileWriting(vid){
+  const ed = E.edit, v = ix().variants.get(vid);
+  if (!ed || !v) return false;
+  ed.vid = vid; ed.mode = ed.mode === 'only' ? 'edit' : ed.mode;
+  ed.base = ed.mode === 'new' ? '' : v.text; ed.draft = v.text; ed.copyOf = v.text;
+  C.onpage?.setText(v.text);
+  clearTimeout(E.timer);
+  E.timer = setTimeout(livePreview, 60);
+  return true;
+}
+
 // The page redraws with the draft as it will look once saved: a copy of the record with the
 // edit applied (so marks move with their words), or the one-off text for "this resume only".
 async function livePreview(){
@@ -270,11 +305,13 @@ async function livePreview(){
     else if (ed.mode === 'new'){ const nv = R.addVersion(w, ed.fact, { text, from: ed.vid, as: 'major', lang: lang() }); r.picks = { ...(r.picks ?? {}), [ed.fact]: nv.id }; }
     else r.overrides = { ...(r.overrides ?? {}), [ed.fact]: text };
   } catch { return; }
+  ed.ix = C.indexOf(w);
   await C.previewRecipe(r, ed.fact, w);
   if (E.edit !== ed) return;
-  ed.lines = C.sheet.linesOf(C.indexOf(w), ed.fact);
+  ed.lines = C.sheet.linesOf(ed.ix, ed.fact);
   const st = $('#ed-stats');
   if (st) st.innerHTML = statsHtml(ed, C.fillText());
+  C.onpage?.refresh();
 }
 
 function saveEdit(kind){
@@ -285,7 +322,7 @@ function saveEdit(kind){
   const f = ed.fact;
   const v = ed.vid ? ix().variants.get(ed.vid) : null;
   const resume = true;
-  E.edit = null;
+  clearEdit();
   clearTimeout(E.timer);
   C.ui.previewing = false;
   if (kind === 'over') commit(d => { R.saveOver(d.record, ed.vid, text); }, t('undo.saveV', { v: v.n }), t('toast.savedV', { v: v.n }));
@@ -347,7 +384,7 @@ async function act(a, tg){
       if (!id || !isClaim(id)) return true;
       const job = ix().highlight.get(id);
       let res;
-      E.edit = null; E.compare = null; clearTimeout(E.timer);
+      clearEdit(); E.compare = null; clearTimeout(E.timer);
       C.endHover();
       commit(d => { res = K.deleteClaim(d.record, id, [d.cur, ...(d.resumes ?? [])]); }, t('undo.deleteClaim'));
       if (res){
@@ -360,7 +397,7 @@ async function act(a, tg){
       const id = s.id, job = ix().highlight.get(id);
       if (!id || !isClaim(id)) return true;
       let res;
-      E.edit = null; E.compare = null; clearTimeout(E.timer);
+      clearEdit(); E.compare = null; clearTimeout(E.timer);
       C.endHover();
       commit(d => { res = K.archiveClaim(d.record, id); }, t('arch.undoArchive'));
       if (res?.changed){
@@ -622,6 +659,8 @@ function moveWhatIsHere(d){
   return moveSelected(d);
 }
 function key(e){
+  // writing a line on the page: Esc leaves it for the job (asks first if there is a draft), wherever the focus is
+  if (e.key === 'Escape' && E.edit && !E.edit.panel){ e.preventDefault(); cancelEdit({ ask: true }); return true; }
   if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')
     && (C.ui.sel.kind === 'section' || document.activeElement?.closest?.('.clrow[data-item], .clrow[data-bullet]') || (C.ui.sel.kind === 'bullet' && C.ui.sel.job) || (C.ui.sel.kind === 'record' && C.ui.sel.what === 'item'))){
     e.preventDefault(); return moveWhatIsHere(e.key === 'ArrowDown' ? 1 : -1);
@@ -636,13 +675,13 @@ function leaving(next){
   if (!E.edit) return true;
   if (next?.kind === 'bullet' && next.id === E.edit.fact) return true;
   if (isDirty() && !confirm(t('confirm.discard'))) return false;
-  E.edit = null; E.compare = null;
+  clearEdit(); E.compare = null;
   clearTimeout(E.timer);
   return true;
 }
 
 const api = {
-  homeView, sectionView, jobView, bulletView, factPanel, act, bind, key, leaving, rename, startEdit, cancelEdit, isDirty,
+  homeView, sectionView, jobView, bulletView, factPanel, act, bind, key, leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, ctrlEnter,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){

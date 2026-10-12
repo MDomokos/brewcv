@@ -15,6 +15,12 @@ html, body { background: transparent !important; overflow: hidden !important; }
 html.rb-single .document > .page:not(.rb-shown) { display: none; }
 html.rb-stack .document { flex-direction: column; }
 html.rb-ui [data-variant], html.rb-ui .band[data-section] { cursor: pointer; }
+.document > .page { transition: opacity .25s ease; }
+.document > .page { outline: 1px solid var(--rb-edge, transparent); outline-offset: 0; }
+.document > .page.rb-faded { opacity: var(--rb-fade, .35); }
+@media (prefers-reduced-motion: reduce) { .document > .page { transition: none; } }
+html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
+html.rb-space, html.rb-space * { cursor: grab !important; }
 html.rb-ui [data-variant]:hover { outline: 2px solid color-mix(in srgb, var(--rb-sel) 40%, transparent); outline-offset: 2px; border-radius: 2px; }
 .rb-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-sel-soft); }
 .rb-band-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 5px; border-radius: 4px; }
@@ -32,10 +38,12 @@ html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[dat
 // The app's own marks inside the frame (the rb-* classes) wear the drink's colours. The frame's document is a separate page, so
 // the colours are copied across from the app's tokens as custom properties: on the frame's root, which the resume's own
 // stylesheets never read, and which is not in an export.
-const MARK_TOKENS = { '--rb-sel': '--sel-mark', '--rb-sel-soft': '--sel-mark-soft', '--rb-prev': '--prev-mark', '--rb-prev-soft': '--prev-mark-soft', '--rb-miss': '--page-warn', '--rb-paper': '--paper', '--rb-ink': '--paper-ink' };
+const MARK_TOKENS = { '--rb-sel': '--sel-mark', '--rb-sel-soft': '--sel-mark-soft', '--rb-prev': '--prev-mark', '--rb-prev-soft': '--prev-mark-soft', '--rb-miss': '--page-warn', '--rb-paper': '--paper', '--rb-ink': '--paper-ink', '--rb-edge': '--page-edge' };
 function paintMarks(doc){
   const cs = getComputedStyle(document.documentElement);
-  for (const [prop, token] of Object.entries(MARK_TOKENS)) doc.documentElement.style.setProperty(prop, cs.getPropertyValue(token).trim());
+  // the page's edge follows the contrast setting: the sharper look is the default, the softer one is the old look
+  const soft = document.body.classList.contains('soft');
+  for (const [prop, token] of Object.entries(MARK_TOKENS)) doc.documentElement.style.setProperty(prop, cs.getPropertyValue(prop === '--rb-edge' && soft ? '--page-edge-soft' : token).trim());
 }
 
 export function createSheet(host, hooks = {}){
@@ -43,6 +51,7 @@ export function createSheet(host, hooks = {}){
   let shown = null;
   let view = { mode: 'spread', page: 0 };
   let marked = { sel: null, ix: null, prev: null, focus: null, miss: null, hover: null };
+  let fade = [];
   let pending = null;
   let revealed = null;            // the selection last scrolled into view (stack mode)
   // One drawing at a time: a preview, its end, a redraw and a Fit can overlap, and two on
@@ -87,13 +96,37 @@ export function createSheet(host, hooks = {}){
         doc.documentElement.classList.add('rb-ui');
         paintMarks(doc);
         doc.addEventListener('click', e => {
+          if (e.target.closest?.('[contenteditable]:not([contenteditable=false])')) return;      // the line being written takes its own clicks
+          const pg = [...doc.querySelectorAll('.document > .page')].indexOf(e.target.closest?.('.document > .page'));
           const el = e.target.closest?.('[data-variant], .band[data-section]');
-          if (!el) return hooks.onPick?.({ variant: null, section: null });
+          if (!el) return hooks.onPick?.({ variant: null, section: null, page: pg });
           const band = el.closest('.band[data-section]');
-          hooks.onPick?.({ variant: el.getAttribute('data-variant'), section: band?.getAttribute('data-section') ?? null });
+          hooks.onPick?.({ variant: el.getAttribute('data-variant'), section: band?.getAttribute('data-section') ?? null, page: pg });
         });
+        // the line under the pointer: the version badge follows it at the job level
+        let hovered = null;
+        doc.addEventListener('mouseover', e => {
+          const el = e.target.closest?.('[data-variant]');
+          const v = el?.getAttribute('data-variant') ?? null;
+          if (v !== hovered){ hovered = v; hooks.onHover?.(v); }
+        });
+        doc.addEventListener('mouseleave', () => { if (hovered){ hovered = null; hooks.onHover?.(null); } });
+        // the hand, the wheel and the pinch work over the page too: the canvas gets them, in the page's own pixels
+        const fe = hooks.frameEvents;
+        if (fe){
+          doc.addEventListener('wheel', e => { fe.wheel(frame, e); }, { passive: false });
+          doc.addEventListener('pointerdown', e => { fe.down(frame, e); }, { capture: true });
+          doc.addEventListener('pointermove', e => fe.move(frame, e), { passive: true });
+          doc.addEventListener('pointerup', e => fe.up(frame, e));
+          doc.addEventListener('pointercancel', e => fe.up(frame, e));
+          for (const g of ['gesturestart', 'gesturechange', 'gestureend']) doc.addEventListener(g, e => fe.gesture(frame, e));
+          doc.addEventListener('keydown', e => fe.key.down(e), true);
+          doc.addEventListener('keyup', e => fe.key.up(e), true);
+        }
         doc.addEventListener('keydown', e => { if (!e.target.closest?.('.rb-renaming')) hooks.onKey?.(e); });
         doc.addEventListener('dblclick', e => {
+          const line = e.target.closest?.('[data-variant]');
+          if (line && !e.target.closest?.('[contenteditable]') && hooks.onWrite){ hooks.onWrite({ variant: line.getAttribute('data-variant'), page: [...doc.querySelectorAll('.document > .page')].indexOf(line.closest('.document > .page')) }); return; }
           const tab = e.target.closest?.('.band[data-section] h2.tab:not(.tab--cont)');
           const id = tab?.closest('.band').getAttribute('data-section');
           if (!tab || !id || id === 'header' || !hooks.onRename) return;
@@ -159,7 +192,7 @@ export function createSheet(host, hooks = {}){
     const html = fr.doc.documentElement;
     html.classList.toggle('rb-single', view.mode === 'single' && pages.length > 1);
     html.classList.toggle('rb-stack', view.mode === 'stack' && pages.length > 1);
-    pages.forEach((p, i) => p.classList.toggle('rb-shown', i === view.page));
+    pages.forEach((p, i) => { p.classList.toggle('rb-shown', i === view.page); p.classList.toggle('rb-faded', !!fade[i]); });
     size(fr, pages.length, shown.laid.format);
   }
 
@@ -248,6 +281,7 @@ export function createSheet(host, hooks = {}){
       applyView();
       marked.prev = null;
       mark();
+      hooks.onDrawn?.();
       return { laid, pages };
     },
 
@@ -259,6 +293,7 @@ export function createSheet(host, hooks = {}){
       applyView();
       marked.prev = fact;
       mark();
+      hooks.onDrawn?.();
       return { laid, pages };
     },
     endPreview(){ return queue(() => (shown ? this._show(shown.work, shown.recipe) : null)); },
@@ -293,6 +328,35 @@ export function createSheet(host, hooks = {}){
       }
     },
 
+    // each page's box in its own pixels, and where its bottom margin begins: what the overflow line is drawn from
+    pageBoxes(){
+      const win = fr?.doc.defaultView;
+      if (!win || !fr.frame.isConnected) return [];     // the frame was swapped for another one that has not loaded yet
+      return [...fr.root.querySelectorAll(':scope > .page')].map(pg => {
+        const r = pg.getBoundingClientRect(), pb = parseFloat(win.getComputedStyle(pg).paddingBottom) || 0;
+        const cs = win.getComputedStyle(pg);
+        return { left: r.left, top: r.top, width: r.width, height: r.height, limit: r.top + r.height - pb, bg: cs.backgroundColor, padRight: parseFloat(cs.paddingRight) || 0 };
+      });
+    },
+    // the element a claim is printed in (the first, when it is printed twice), for the line to be written in place
+    elOf(factId, ix){
+      if (!fr?.frame.isConnected) return null;
+      const vs = new Set([...(ix.facts.get(factId)?.variants ?? []), `${factId}-override`]);
+      return [...fr.doc.querySelectorAll('[data-variant]')].find(e => vs.has(e.getAttribute('data-variant'))) ?? null;
+    },
+    // which page a claim is printed on (-1 when it is not on the page)
+    pageOf(factId, ix){
+      const el = this.elOf(factId, ix);
+      const pg = el?.closest('.document > .page');
+      return pg ? [...fr.root.querySelectorAll(':scope > .page')].indexOf(pg) : -1;
+    },
+    // a rectangle of an element of the frame, in the page's own pixels
+    rectOfEl(el){ const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; },
+    get doc(){ return fr?.doc ?? null; },
+    // pages the camera has set aside are faded, and stay clickable
+    setFade(list){ fade = list ?? []; if (!fr) return; [...fr.root.querySelectorAll(':scope > .page')].forEach((p, i) => p.classList.toggle('rb-faded', !!fade[i])); },
+    // the cursor over the page while the hand is on the canvas
+    setHand(handing, space){ if (!fr) return; fr.doc.documentElement.classList.toggle('rb-handing', !!handing); fr.doc.documentElement.classList.toggle('rb-space', !!space); },
     setView(next){ const before = view.mode; view = { ...view, ...next }; if (view.mode !== before) revealed = null; applyView(); mark(); },
     get view(){ return { ...view }; },
 

@@ -43,6 +43,7 @@ section('the HTML page');
   ok('every stylesheet inlined, fonts as data: URLs', (html.match(/<style>/g) ?? []).length >= 2 && !/url\("?\.\.\/fonts/.test(html) && /data:font\/woff2/.test(html));
   ok('the pages are in .document', /<div class="document">\s*<article class="page">/.test(html));
   ok('no app attributes', !/data-variant|data-section|rb-/.test(html));
+  ok('no editing affordance: nothing editable, no layer, no tool', !/contenteditable|role="textbox"|obframe|obcrumb|obtools|obveil|rb-faded/.test(html) && X.cleanMarkup('<li contenteditable="plaintext-only" role="textbox" spellcheck="true" class="rb-faded x">t</li>') === '<li class="x">t</li>');
   ok('its title and language', /<title>Dana Okonkwo — Example<\/title>/.test(html) && /<html lang="en">/.test(html));
   ok('the accent is set in :root, and nothing unsafe gets through', /:root \{ --doc-accent: #7fd1ae; \}/.test(html) && !/evil/.test(html) && !/bad name/.test(html));
   ok('@page is kept, so it prints at its size', /@page\s*\{\s*size:\s*letter/.test(html));
