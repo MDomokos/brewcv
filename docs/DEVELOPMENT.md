@@ -44,7 +44,11 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            resumes, switcher, files, export, design, onboarding, settings,
                            langmenu, actual size; dock (the panel that folds to a rail, the zoom bar,
                            hover hints), checklist (the record's checklist in the panel), career (the
-                           record's forms and the timeline), help (the shortcut sheet), icons;
+                           record's forms and the timeline), help (the shortcut sheet), icons, drink (Tea or
+                           Coffee, light or dark: the two settings, the corner that asks, Shift+F),
+                           drink-boot (the same two settings on <html> before the first paint);
+                           workbench.css (the tokens: one block per drink and theme, and every rule that uses
+                           them) and drinks.css (the shapes and surfaces that make each drink itself);
                            parts.js, the pure string parts (crumb, rows, version list, editor,
                            write-in) the panels share
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,
@@ -81,6 +85,8 @@ node checks/savefile-check.mjs        Save to file: the format and its record id
                                       outside edits in a backup, conflict copies, the folder overwrite guard, onefile.mjs
 node checks/export-check.mjs          the HTML page, plain text, JSON Resume, pre-flight
 node checks/tokens-check.mjs          theme tokens: forms, refusals, DTCG round trip, contrast
+node checks/drink-check.mjs [--table] the app's own tokens: every role in Tea and Coffee, text at AA and edges at 3:1 in all four
+                                      light and dark combinations, no colour written outside a token block, the setting
 node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,
                                       no inline script; no outside address in any fetch
 node checks/preload-check.mjs         index.html preloads exactly the modules shell.js imports, and sw.js caches them
@@ -107,7 +113,8 @@ The browser ones need `playwright` and a Chromium on the machine (dev only; the 
 
 ```
 node checks/smoke-shell.mjs                   the app end to end: every view, at three window
-                                              sizes and on a phone, offline, from a subpath
+                                              sizes and on a phone, offline, from a subpath; both drinks in light and dark
+                                              (the switch, the cup and the shot glass, Fit's one filled button, axe in all four)
 ONLY=import,export node checks/smoke-shell.mjs  just the sections whose name has one of those
 node checks/tokens-check.mjs --browser        the built-in themes as tokens measure 0.00px
 node checks/paginate-check.mjs [lib] --browser

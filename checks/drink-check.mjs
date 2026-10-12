@@ -120,8 +120,12 @@ for (const drink of ['tea', 'coffee']) for (const mode of ['light', 'dark']){
   ok(`${drink} ${mode}: ${hits.length} pairs, text at 4.5:1 and edges, focus and marks at 3:1`, !bad.length, bad.map(x => `${x.fg} on ${x.bg} ${Number.isNaN(x.r) ? '?' : x.r.toFixed(2)} (< ${x.min})`).join('; '));
 }
 if (TABLE){
-  console.log('\ndrink  mode   what                               pair                                 ratio  needs');
-  for (const r of rows) console.log(`${r.drink.padEnd(6)} ${r.mode.padEnd(5)}  ${r.what.padEnd(34)} ${(r.fg + ' on ' + r.bg).padEnd(36)} ${r.r.toFixed(2).padStart(5)}  ${r.min}`);
+  // one line per pair, the four combinations side by side
+  const by = new Map();
+  for (const r of rows){ const k = `${r.fg} on ${r.bg}|${r.min}|${r.what}`; if (!by.has(k)) by.set(k, {}); by.get(k)[`${r.drink} ${r.mode}`] = r.r.toFixed(2); }
+  const cols = ['tea light', 'tea dark', 'coffee light', 'coffee dark'];
+  console.log(`\n${'pair'.padEnd(34)} ${'needs'.padEnd(5)} ${cols.map(c => c.padStart(12)).join('')}  what`);
+  for (const [k, v] of by){ const [pair, min, what] = k.split('|'); console.log(`${pair.padEnd(34)} ${min.padEnd(5)} ${cols.map(c => (v[c] ?? '-').padStart(12)).join('')}  ${what}`); }
 }
 
 // ---- no colour written anywhere but a token block ----
