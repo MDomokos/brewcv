@@ -7,7 +7,8 @@ import { icon } from './icons.js';
 import { t, h } from '../i18n/index.js';
 import { FILL_BAND } from '../fit.js';
 import { clampZoom, ZOOM_MIN, ZOOM_MAX, PHONE_MAX, DRAWER_MAX } from './layout.js';
-import { drink, onDrinkChange } from './drink.js';
+import { drink, onDrinkChange, logoBtn } from './drink.js';
+import { play } from './motion.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -170,21 +171,34 @@ function keepFocus(root, draw){
   draw();
   if (k){ const n = $(`${root} ${k}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
 }
-export const renderRail = () => keepFocus('#rail', drawRail);
+// A page's meter fills (or empties) to its new level instead of jumping: Fit, a version under the pointer, a line switched on. The
+// meters are drawn again with each change, so the level they were showing is read from the old ones (a half-way level too, when
+// a new change arrives mid-fill) and eased to the new one. The level itself is already the new one; this only shows it.
+function tween(draw){
+  const was = new Map();
+  for (const m of document.querySelectorAll('.meter, .rmeter')){ const v = parseFloat(getComputedStyle(m).getPropertyValue('--p')); if (Number.isFinite(v)) was.set(`${m.className.split(' ')[0]}:${m.dataset.page}`, v); }
+  draw();
+  if (!was.size) return;
+  for (const m of document.querySelectorAll('.meter, .rmeter')){
+    const k = `${m.className.split(' ')[0]}:${m.dataset.page}`, a = was.get(k), b = parseFloat(m.style.getPropertyValue('--p'));
+    if (Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) > 0.3) play(m, [{ '--p': String(a) }, { '--p': String(b) }], { key: `meter:${k}`, ms: 'slow', kind: 'move', name: 'meter' });
+  }
+}
+export const renderRail = () => keepFocus('#rail', () => tween(drawRail));
 function drawRail(){
   const el = $('#rail');
   if (!el) return;
   const mode = modeOf();
   const tea = drink() === 'tea';
   const m = (id, ic, key) => `<button class="ib" data-act="rail-mode" data-m="${id}" aria-pressed="${mode === id}" data-tip="${esc(t(key))}|${esc(t('ux2.railOpen'))}" data-tip-pos="l" aria-label="${esc(t(key))}">${icon(ic)}</button>`;
-  el.innerHTML = `<span class="logo railogo"><img src="icons/icon.svg" alt="BrewCV" width="28" height="28"></span><hr>
+  el.innerHTML = `${logoBtn(28, { base: 'logo railogo', pos: 'l' })}<hr>
     ${m('edit', tea ? 'leaf' : 'edit', 'ux2.modeEdit')}${m('record', 'record', 'ux3b.modeRecord')}${m('design', tea ? 'teapot' : 'design', 'ux2.modeDesign')}${m('export', tea ? 'cupserved' : 'export', 'ux2.modeExport')}<hr>
     <div class="rmeters" id="rmeters" role="group" aria-label="${esc(t('ux2.meters'))}">${railMeters()}</div>
     ${ib('panel-open', 'left', t('ux2.openPanel'), t('ux2.openPanelTip'), '', 'l')}`;
 }
 
 // ---- the zoom bar and the meters, on one line; Fit and undo under them ----
-export const renderFoot = () => keepFocus('#foot', drawFoot);
+export const renderFoot = () => keepFocus('#foot', () => tween(drawFoot));
 function drawFoot(){
   const el = $('#foot');
   if (!el) return;

@@ -221,11 +221,7 @@ async function act(a, tg){
       O.step = 'welcome';
       O.tip = 0;
       C.ui.peek = true;               // the editor opens with its panel, and the checklist in it
-      C.setView(null);
-      // the rest of the editor comes in with a plain fade: the header, the footer, the checklist with the claims in it
-      const els = ['#head', '#foot', '#body', '#rail'].map(s => document.querySelector(s)).filter(Boolean);
-      els.forEach(e => e.classList.add('fade-in'));
-      setTimeout(() => els.forEach(e => e.classList.remove('fade-in')), 450);
+      C.setView(null);       // the header, the footer, the rail and the zoom bar come in around the page (src/ui/arrive.js, from shell.js)
       return true;
     }
     case 'tip-next': O.tip = O.tip < TIPS.length - 1 ? O.tip + 1 : null; C.renderBody(true); return true;

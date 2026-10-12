@@ -14,13 +14,14 @@
 
 import { t, h, uiLang } from '../i18n/index.js';
 import { icon } from './icons.js';
+import { logoBtn } from './drink.js';
+import { reduced as REDUCED } from './motion.js';
 
 let C = null;
 export function initStart(ctx){ C = ctx; return api; }
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (s, r = document) => r.querySelector(s);
-const REDUCED = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // "JSON Resume" (also spelled JSON-Resume) links to the schema wherever it is named
 export const jr = html => html.replace(/JSON[- ]Resume/, m => `<a class="oblink" href="https://jsonresume.org/schema" target="_blank" rel="noopener noreferrer">${m}</a>`);
@@ -42,7 +43,7 @@ export function whyJson(){
 }
 
 // ---- the header area, the inspector area, the footer area ----
-export const headHtml = () => `<div class="obhead"><span class="oblogo"><img src="icons/icon.svg" alt="" width="40" height="40"><span>BrewCV</span></span>
+export const headHtml = () => `<div class="obhead"><span class="oblogo">${logoBtn(40, { base: 'oblogobtn' })}<span>BrewCV</span></span>
   <h2 class="obhero" data-h="onb.hero">${h('onb.hero')}</h2><p class="obsub" data-h="onb.intro">${h('onb.intro')}</p></div>`;
 
 export function bodyHtml({ langs, current }){

@@ -7,6 +7,8 @@ import { mount, measurePages, measureVariants, applyMeasured, measureKey, probeR
 import { autoLayout, measureBlocks } from '../paginate.js';
 import { pageSize, PAGE_GAP } from './layout.js';
 import { t } from '../i18n/index.js';
+import { reduced, dur, ease, play } from './motion.js';
+import * as PM from './pagemotion.js';
 
 const VIEW_CSS = `
 html, body { background: transparent !important; overflow: hidden !important; }
@@ -15,10 +17,10 @@ html, body { background: transparent !important; overflow: hidden !important; }
 html.rb-single .document > .page:not(.rb-shown) { display: none; }
 html.rb-stack .document { flex-direction: column; }
 html.rb-ui [data-variant], html.rb-ui .band[data-section] { cursor: pointer; }
-.document > .page { transition: opacity .25s ease; }
+.document > .page { transition: opacity var(--rb-m-base, 240ms) var(--rb-m-out, ease-out); }
 .document > .page { outline: 1px solid var(--rb-edge, transparent); outline-offset: 0; }
 .document > .page.rb-faded { opacity: var(--rb-fade, .35); }
-@media (prefers-reduced-motion: reduce) { .document > .page { transition: none; } }
+html.rb-still *, html.rb-still *::before, html.rb-still *::after { transition: none !important; animation: none !important; }
 html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
 html.rb-space, html.rb-space * { cursor: grab !important; }
 html.rb-ui [data-variant]:hover { outline: 2px solid color-mix(in srgb, var(--rb-sel) 40%, transparent); outline-offset: 2px; border-radius: 2px; }
@@ -28,10 +30,12 @@ html.rb-ui [data-variant]:hover { outline: 2px solid color-mix(in srgb, var(--rb
 .rb-hover { outline: 2px solid var(--rb-prev) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-prev-soft); }
 html.rb-previewing .document > .page { outline: 3px solid var(--rb-prev); outline-offset: 6px; }
 .rb-renaming { outline: 2px solid var(--rb-sel) !important; outline-offset: 3px; cursor: text !important; background: var(--rb-paper) !important; color: var(--rb-ink) !important; }
-html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit), html.rb-focus .skills__items[data-variant]:not(.rb-hit), html.rb-focus .pairs dd[data-variant]:not(.rb-hit), html.rb-focus .runs strong[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity .2s; }
+html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit), html.rb-focus .skills__items[data-variant]:not(.rb-hit), html.rb-focus .pairs dd[data-variant]:not(.rb-hit), html.rb-focus .runs strong[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity var(--rb-m-base, 240ms) var(--rb-m-out, ease-out); }
 .rb-miss { outline: 1.5px dashed var(--rb-miss) !important; outline-offset: 2px; }
 .band .tab.rb-miss-tab { background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--rb-miss) 45%, transparent) 0 3px, transparent 3px 7px) !important; }
-.rb-flash { animation: rb-flash .9s ease-out; }
+[data-rb-hid] { -webkit-text-fill-color: transparent; }
+[data-rb-hid]::marker { -webkit-text-fill-color: currentcolor; }
+.rb-flash { animation: rb-flash 900ms var(--rb-m-out, ease-out); }
 @keyframes rb-flash { from { background-color: var(--rb-sel-soft); } to { background-color: transparent; } }
 `;
 
@@ -43,6 +47,10 @@ function paintMarks(doc){
   const cs = getComputedStyle(document.documentElement);
   // the page's edge follows the contrast setting: the sharper look is the default, the softer one is the old look
   const soft = document.body.classList.contains('soft');
+  // the motion tokens and the Reduce motion rule go across the same way (the frame has no :root of the app's)
+  doc.documentElement.style.setProperty('--rb-m-base', `${dur('base')}ms`);
+  doc.documentElement.style.setProperty('--rb-m-out', ease('arrive'));
+  doc.documentElement.classList.toggle('rb-still', reduced());
   for (const [prop, token] of Object.entries(MARK_TOKENS)) doc.documentElement.style.setProperty(prop, cs.getPropertyValue(prop === '--rb-edge' && soft ? '--page-edge-soft' : token).trim());
 }
 
@@ -54,6 +62,7 @@ export function createSheet(host, hooks = {}){
   let fade = [];
   let pending = null;
   let revealed = null;            // the selection last scrolled into view (stack mode)
+  let focusKey = '';              // which lines the lens picks, as one string: a redraw that picks the same ones does not brighten them again
   // One drawing at a time: a preview, its end, a redraw and a Fit can overlap, and two on
   // different templates would each swap the iframe out from under the other.
   let chain = Promise.resolve();
@@ -205,12 +214,39 @@ export function createSheet(host, hooks = {}){
   async function draw(work, recipe){
     const f = await frameFor(recipe);
     tokens(f, recipe);
+    PM.clearGhosts(f);
     if (!f.fonts){ mount(f.root, work, recipe.pages ? recipe : { ...recipe, pages: [['header']] }, ro(recipe)); await settle(f); }
     allShown(f);
     const laid = await layoutIn(f, work, recipe);
     mount(f.root, work, laid, ro(recipe));
     const pages = measurePages(f.root);
     return { f, laid, pages };
+  }
+
+  // ---- moments on the page (src/ui/pagemotion.js) ----
+  // `mo` = { kind, words?, ix?, foreign? } asks for a morph from how the page is now to how this draw leaves it. The "before" is taken
+  // here, inside the queue, so a draw that overlaps another still morphs from what is really on the screen. A draw that follows
+  // while a morph is under way replays it from where its clock is, so the probe's second draw does not cut it short.
+  let ongoing = null;
+  // Fit measures by drawing its candidates in this frame, so it takes its "before" first (take()) and hands it in as mo.pre
+  const before = mo => {
+    if (!mo || reduced() || !fr?.frame.isConnected) return null;
+    if (mo.pre) return mo.pre.f === fr ? { mo, f: fr, snap: mo.pre.snap } : null;
+    return { mo, f: fr, snap: mo.kind === 'switch' ? PM.pageSnapshot(fr) : PM.snapshot(fr, marked.ix ?? mo.ix, { words: mo.words }) };
+  };
+  function after(b){
+    if (reduced()){ ongoing = null; return; }
+    const now = performance.now();
+    let use = b ? { ...b, t0: now } : ongoing && now - ongoing.t0 < ongoing.total ? ongoing : null;
+    if (!use){ ongoing = null; return; }
+    const offset = b ? 0 : now - use.t0, ix = use.mo.ix ?? marked.ix;
+    let total = 0;
+    if (use.mo.kind === 'switch'){
+      if (use.snap.doc === fr.doc) total = PM.crossfade(fr, use.snap, { offset });
+      else if (b){ const a = play(fr.frame, [{ opacity: 0 }, { opacity: 1 }], { ms: dur('base') * 1.2, fill: 'backwards', name: 'switch:frame' }); total = a ? dur('base') * 1.2 : 0; }
+    } else total = PM.morph(fr, use.snap, ix, { kind: use.mo.kind, words: use.mo.words, foreign: use.mo.foreign, offset });
+    use.total = total;
+    ongoing = total > 0 ? use : null;
   }
 
   function mark(){
@@ -273,8 +309,11 @@ export function createSheet(host, hooks = {}){
     get laid(){ return shown?.laid ?? null; },
     get pages(){ return shown?.pages ?? []; },
 
-    show(work, recipe){ return queue(() => this._show(work, recipe)); },
-    async _show(work, recipe){
+    take(mo){ return before(mo); },
+    reveal(){ return fr?.frame.isConnected ? PM.reveal(fr) : 0; },
+    show(work, recipe, mo = null){ return queue(() => this._show(work, recipe, mo)); },
+    async _show(work, recipe, mo = null){
+      const b = before(mo);
       const { laid, pages } = await draw(work, recipe);
       fr.doc.documentElement.classList.remove('rb-previewing');
       shown = { work, recipe, laid, pages };
@@ -282,12 +321,14 @@ export function createSheet(host, hooks = {}){
       applyView();
       marked.prev = null;
       mark();
+      after(b);
       hooks.onDrawn?.();
       return { laid, pages };
     },
 
-    preview(work, recipe, fact = null){ return queue(() => this._preview(work, recipe, fact)); },
-    async _preview(work, recipe, fact = null){
+    preview(work, recipe, fact = null, mo = null){ return queue(() => this._preview(work, recipe, fact, mo)); },
+    async _preview(work, recipe, fact = null, mo = null){
+      const b = before(mo);
       const { laid, pages } = await draw(work, recipe);
       fr.doc.documentElement.classList.add('rb-previewing');
       shown = { ...shown, laid };
@@ -295,10 +336,11 @@ export function createSheet(host, hooks = {}){
       applyView();
       marked.prev = fact;
       mark();
+      after(b);
       hooks.onDrawn?.();
       return { laid, pages };
     },
-    endPreview(){ return queue(() => (shown ? this._show(shown.work, shown.recipe) : null)); },
+    endPreview(mo = null){ return queue(() => (shown ? this._show(shown.work, shown.recipe, mo) : null)); },
 
     // For Fit: the same DOM measurement as the meter; the caller redraws afterwards.
     measure(work, recipe){ return queue(() => this._measure(work, recipe)); },
@@ -400,7 +442,13 @@ export function createSheet(host, hooks = {}){
       const r = el.getBoundingClientRect();
       return { left: r.left, top: r.top, width: r.width, height: r.height };
     },
-    setFocus(facts, ix){ marked.focus = facts && facts.size ? facts : null; if (ix) marked.ix = ix; mark(); },
+    setFocus(facts, ix){
+      const was = focusKey;
+      marked.focus = facts && facts.size ? facts : null; focusKey = marked.focus ? [...marked.focus].sort().join() : '';
+      if (ix) marked.ix = ix; mark();
+      // the lens has just been turned on, or changed: the lines it picks out brighten (the others dim by a transition, in the frame's CSS)
+      if (focusKey && focusKey !== was) for (const el of fr?.doc.querySelectorAll('.rb-hit') ?? []) play(el, [{ filter: 'brightness(1.2)' }, { filter: 'none' }], { ms: 'slow', name: 'lens:hit' });
+    },
     flash(sectionId){
       for (const el of fr?.doc.querySelectorAll(`.band[data-section="${CSS.escape(sectionId)}"]`) ?? []){
         el.classList.remove('rb-flash'); void el.offsetWidth; el.classList.add('rb-flash');

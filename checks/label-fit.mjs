@@ -119,7 +119,7 @@ for (const lang of I.UI_LANGS){
     problems.push(...await probe('lens and sections', '.lens button, .lens select, .lensrow, .offchip, #seclist .srow, .item.srow'));
     // UX-3b: Record, Export's Mark as sent, and the job level
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
-    problems.push(...await probe('record', '#head [role=tab], #checklist .clhead *, #checklist .clhint, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw'));
+    problems.push(...await probe('record', '#head [role=tab], #checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw'));
     await pg.click('#head [data-m=export]'); await pg.waitForTimeout(400);
     problems.push(...await probe('export', '.sentrow *, .sentrule, .dl button'));
     await pg.click('[data-act=mark-sent]'); await pg.waitForTimeout(400);

@@ -148,6 +148,25 @@ section('compare: the word diff');
      && df.filter(x => x.op !== '-').map(x => x.text).join('') === 'Cut assembly time by 40% on line 2');
 }
 
+section('the word move: which words of one version are the words of another');
+{
+  const m = (a, b) => R.wordMoves(a, b);
+  const same = m('Cut assembly time by 30%', 'Cut assembly time by 30%');
+  ok('identical: every word stays, none goes, none comes, all shared', same.pairs.length === 5 && !same.removed.length && !same.added.length && same.shared === 1 && same.pairs.every(([i, j]) => i === j));
+  const one = m('Cut assembly time by 30%', 'Cut assembly time by 40%');
+  ok('one word changed: the other four stay, the old one goes, the new one comes', one.pairs.length === 4 && eq(one.removed, [4]) && eq(one.added, [4]) && one.shared === 0.8, JSON.stringify(one));
+  const re = m('Led the redesign of the counter', 'The counter redesign was led by me');
+  ok('words reordered: the longest run that keeps its order stays; the rest go and come', re.pairs.length >= 1 && re.removed.length + re.pairs.length === 6 && re.added.length + re.pairs.length === 7, JSON.stringify(re));
+  const order = m('one two three', 'three one two');
+  ok('one word moved to the front: two stay (and move), one goes, one comes', order.pairs.length === 2 && eq(order.pairs, [[0, 1], [1, 2]]) && eq(order.removed, [2]) && eq(order.added, [0]), JSON.stringify(order));
+  const long = m('Led the redesign', 'Led the redesign of the dose counter, cutting two weeks from the tooling schedule');
+  ok('a long insertion: the three words stay, the rest come; under a third of the new text is shared', long.pairs.length === 3 && long.added.length === 11 && !long.removed.length && long.shared < 1 / 3, JSON.stringify(long));
+  const hu = m('Led the redesign of the dose counter', 'Vezette az adagolószámláló újratervezését');
+  ok('another language: nothing in common, so the page falls back to a fade (shared is under a third)', hu.pairs.length === 0 && hu.shared === 0 && hu.removed.length === 7 && hu.added.length === 4, JSON.stringify(hu));
+  ok('empty and one-word texts do not break it', eq(m('', 'a').added, [0]) && eq(m('a', '').removed, [0]) && m('', '').shared === 0);
+  ok('the pairs, the removed and the added words account for every word of both', [['a b c d e', 'a x c y e f'], ['x', 'x y z'], ['p q r', 'r q p']].every(([a, b]) => { const r = m(a, b); return r.pairs.length + r.removed.length === a.split(' ').length && r.pairs.length + r.added.length === b.split(' ').length; }));
+}
+
 section('pins → off and keep');
 {
   const legacy = { ...clone(resumes[0]), pins: { exclude: ['a'], include: ['b'], phrasing: ['b', 'c'] } };

@@ -7,6 +7,7 @@ import { LANGS } from '../model/schema.js';
 import { langName, langsInUse, setLangsInUse } from '../model/lang.js';
 import { t, h, errText, MACHINE, UI_LANGS } from '../i18n/index.js';
 import { DRINKS, THEMES, drink, themePref, setDrink, setThemePref } from './drink.js';
+import { readReduce, setReduce } from './motion.js';
 
 let C = null;
 export function initSettings(ctx){ C = ctx; return api; }
@@ -74,6 +75,8 @@ function settingsView(){
     <p class="note">${h('m11.setDrinkNote')}</p>
     <label class="opt"><input type="checkbox" data-garden ${readGarden() ? 'checked' : ''}><span class="opt-t">${h('m11b.garden')}</span></label>
     <p class="note">${h('m11b.gardenNote')}</p>
+    <label class="opt"><input type="checkbox" data-reduce-motion ${readReduce() ? 'checked' : ''}><span class="opt-t">${h('ux4.reduceMotion')}</span></label>
+    <p class="note">${h('ux4.reduceMotionNote')}</p>
     <span class="lbl">${h('m11.setThemeHead')}</span>
     <div class="uichoice" role="radiogroup" aria-label="${esc(t('m11.setThemeHead'))}">
       ${THEMES.map(m => `<label class="opt"><input type="radio" name="theme" data-theme="${m}" ${themePref() === m ? 'checked' : ''}><span class="opt-t">${h(`m11.theme${m[0].toUpperCase()}${m.slice(1)}`)}</span></label>`).join('')}
@@ -128,6 +131,7 @@ function bind(body){
     }
     if (el.dataset.uimode){ const sel = body.querySelector('[data-uilang]'); setUiPref(el.dataset.uimode === 'fixed' ? { mode: 'fixed', lang: sel?.value ?? 'en' } : { mode: 'follow' }); C.renderBody(); return; }
     if (el.dataset.uilang !== undefined){ setUiPref({ mode: 'fixed', lang: el.value }); C.renderBody(); return; }
+    if (el.dataset.reduceMotion !== undefined){ setReduce(el.checked); C.syncGarden(); return; }
     if (el.dataset.garden !== undefined){ writeGarden(el.checked); C.syncGarden(); return; }
     if (el.dataset.drink){ setDrink(el.dataset.drink); return; }
     if (el.dataset.theme){ setThemePref(el.dataset.theme); return; }

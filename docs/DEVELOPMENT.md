@@ -27,7 +27,7 @@ src/export.js              the HTML page, plain text, JSON Resume, pre-flight
 src/model/                 pure, tested in Node:
   schema.js                  resume-data/4: detect, load, save, migrate, saved-resume files
   resume.js                  the selection rule, resolve(), the tailoring edits
-  record.js                  version numbers, save over / as, delete, the word diff
+  record.js                  version numbers, save over / as, delete, the word diff, and the word move (which words of one version are the words of another)
   resumes.js                 saved resumes: autosave (settle), snapshots and sends, open, frozen text, compare, new, duplicate
   focus.js                   tags and job-type focus
   lang.js                    languages: the ten, their paper, missing texts, switching, languages in use
@@ -48,6 +48,12 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            record's forms and the timeline), help (the shortcut sheet), icons, drink (Tea or
                            Coffee, light or dark: the two settings, the corner that asks, Shift+F),
                            drink-boot (the same two settings on <html> before the first paint);
+                           motion (the rules every animation follows: durations and easings read from :root, off under
+                           prefers-reduced-motion and the Reduce motion setting, a new animation replaces the last), pagemotion
+                           (Fit, a version under the pointer, a lens, a tick and a resume switch, shown on the page with
+                           clones in the frame that leave nothing behind), arrive (the start screen and the quiet
+                           onboarding turning into the editor), matroll (the logo as the Tea and Coffee switch: the mat
+                           rolls up and unrolls), exportfx (an export's picture, one for each drink);
                            workbench.css (the tokens: one block per drink and theme, and every rule that uses
                            them) and drinks.css (the shapes and surfaces that make each drink itself);
                            parts.js, the pure string parts (crumb, rows, version list, editor,
@@ -96,6 +102,9 @@ node checks/export-check.mjs          the HTML page, plain text, JSON Resume, pr
 node checks/tokens-check.mjs          theme tokens: forms, refusals, DTCG round trip, contrast
 node checks/drink-check.mjs [--table] the app's own tokens: every role in Tea and Coffee, text at AA and edges at 3:1 in all four
                                       light and dark combinations, no colour written outside a token block, the setting
+node checks/motion-check.mjs          the rules motion follows: tokens of 150 to 400 ms, one reduced-motion rule, nothing blocks or queues, no library,
+                                      the printed page never imported, each of the thirteen moments wired, both logo tiles, the ux4. strings
+                                      (what each moment starts, and that reduced motion starts none, is in smoke-shell's "motion:" section)
 node checks/garden-check.mjs          the tea garden in Chromium (slow, about two minutes; ONLY=flow,rain runs some): a clean start, waves, sweeping, the way back,
                                       rain, creatures, the pause, coffee, the setting, the print gate, axe (AXE_CORE=...)
 node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,

@@ -76,6 +76,7 @@ jobs:
           node checks/shell-check.mjs
           node checks/camera-check.mjs
           node checks/edit-check.mjs
+          node checks/motion-check.mjs
           node checks/resumes-check.mjs
           node checks/focus-check.mjs
           node checks/lang-check.mjs

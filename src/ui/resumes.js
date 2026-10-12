@@ -216,7 +216,7 @@ function open(id, { quiet = false } = {}){
   if (!r) return false;
   C.ui.sel = C.NONE; C.ui.page = 0;
   C.setSnap(null);
-  if (st().openId !== id) commit(d => { res = RS.openSaved(d, id); }, t('undo.open', { name: RS.resumeLabel(r) }));
+  if (st().openId !== id){ if (!C.ui.previewSwitch) C.ui.morph = { kind: 'switch' }; commit(d => { res = RS.openSaved(d, id); }, t('undo.open', { name: RS.resumeLabel(r) })); }
   V.row = null; V.renaming = null;
   C.noteOpen(id);
   C.setView(null);
@@ -241,6 +241,7 @@ async function sendNow(){
   const merge = RS.sameAsLatest(st());
   let res;
   const ok = commit(d => { res = RS.takeSnapshot(d, send); }, t(merge ? 'ux1.undoSend' : 'ux1.undoSnapshot'));
+  if (ok) C.snapshotTaken?.();
   V.send = null;
   C.setView('export');
   if (!ok && res?.repeated){ C.toast(t('ux1.alreadySent')); return; }
