@@ -14,8 +14,6 @@ const P = {
   fitpage: '<rect x="4.2" y="2.4" width="7.6" height="11.2" rx="1.4"/>',
   undo: '<path d="M5.6 3.4 2.6 6.4l3 3"/><path d="M3 6.4h6a3.6 3.6 0 0 1 0 7.2H6.4"/>',
   redo: '<path d="M10.4 3.4l3 3-3 3"/><path d="M13 6.4H7a3.6 3.6 0 0 0 0 7.2h2.6"/>',
-  pages1: '<rect x="4.4" y="2.4" width="7.2" height="11.2" rx="1.2"/>',
-  pages2: '<rect x="1.8" y="3.4" width="5.6" height="9.2" rx="1"/><rect x="8.6" y="3.4" width="5.6" height="9.2" rx="1"/>',
   caret: '<path d="M5 6.4l3 3 3-3"/>',
   help: '<circle cx="8" cy="8" r="6"/><path d="M6.3 6.2a1.8 1.8 0 1 1 2.6 1.6c-.6.3-.9.7-.9 1.4M8 11.3v.1"/>',
   timeline: '<path d="M5 2.6v10.8M5 4.4h7M5 8h5M5 11.6h6.5"/><circle cx="5" cy="4.4" r=".9"/><circle cx="5" cy="8" r=".9"/><circle cx="5" cy="11.6" r=".9"/>',

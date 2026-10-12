@@ -124,7 +124,7 @@ if (want('one screen: the panel folds, the rail, the zoom bar, the shortcut shee
   await page.keyboard.press('e'); await settle(page);
   await page.click('[data-act=zoom-in]'); await page.click('[data-act=zoom-in]'); await settle(page);
   const z = (await S()).zoom;
-  ok('+ zooms the page about the middle: the page grows past its area and scrolls', z > 1.5 && (await page.evaluate(() => { const b = document.querySelector('#pages'); return b.scrollHeight > b.clientHeight + 10 || b.scrollWidth > b.clientWidth + 10; })) && /%/.test(await page.textContent('#zoompct')));
+  ok('+ zooms the page about the middle: the page grows past the window’s height', z > 1.5 && (await page.evaluate(() => { const c = window.__wb.canvas; return c.cam.k * c.geo.h > innerHeight - 32 + 10; })) && /%/.test(await page.textContent('#zoompct')));
   await page.click('[data-act=zoom-out]'); await settle(page);
   ok('− zooms out', (await S()).zoom < z);
   await page.click('[data-act=zoom-fit]'); await settle(page);
@@ -296,14 +296,15 @@ if (want('pages, Fit, the Hungarian resume')) {
   await openByName(page, 'Medtech'); await page.waitForTimeout(300);
   const pages = await frameDoc(page, d => d.querySelectorAll('.document > .page').length);
   ok('a two-page resume is paginated into two pages', pages === 2, `${pages}`);
-  ok('at 1280×800 the pages stack and scroll, with a meter for each page in the one line at the bottom', (await page.$$('#meter .meter')).length === 2 && (await page.evaluate(() => document.body.dataset.stack)) === 'true' && /p1/.test(await page.textContent('#meter')) && /p2/.test(await page.textContent('#meter')));
+  ok('at 1280×800 with the panel open: a meter for each page in the one line at the bottom, and one page in view', (await page.$$('#meter .meter')).length === 2 && (await page.evaluate(() => document.body.dataset.pages)) === 'one' && /p1/.test(await page.textContent('#meter')) && /p2/.test(await page.textContent('#meter')));
   await page.click('[data-act=goto-page][data-page="1"]'); await page.waitForTimeout(900);
-  ok('the meter of page 2 scrolls to page 2', (await page.evaluate(() => document.querySelector('#pages').scrollTop)) > 300 && (await page.getAttribute('#meter .meter[data-page="1"]', 'aria-current')) === 'true');
-  await page.click('[data-act=view]'); await settle(page);
-  ok('▭▭ puts the pages side by side', (await page.evaluate(() => document.body.dataset.spread)) === 'true');
+  ok('the meter of page 2 brings page 2 forward', (await page.evaluate(() => window.__wb.ui.page)) === 1 && (await page.getAttribute('#meter .meter[data-page="1"]', 'aria-current')) === 'true');
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(800);
+  ok('Esc, Esc folds the panel and puts the pages side by side', (await page.evaluate(() => document.body.dataset.spread)) === 'true');
   const fills = await page.evaluate(() => window.__wb.ui.fills.map(p => p.overflow));
   ok('no page before the last overflows', fills.slice(0, -1).every(o => !(o > 0)));
 
+  await page.keyboard.press('e'); await settle(page);
   await openByName(page, 'Example Instruments');
   const undoBefore = await page.evaluate(() => window.__wb.store.history.undo);
   await page.click('[data-act=fit]');
@@ -325,60 +326,207 @@ if (want('pages, Fit, the Hungarian resume')) {
 }
 
 
-if (want('pages side by side or scrolled')) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  const page = await ctx.newPage();
-  await page.addInitScript(() => { try { localStorage.removeItem('rb-pages'); } catch {} });
-  const bad = await open(page);
-  await openByName(page, 'Medtech'); await page.waitForTimeout(300);
-  const L = () => page.evaluate(() => ({ stack: document.body.dataset.stack, spread: document.body.dataset.spread, top: document.querySelector('#pages').scrollTop, nav: `${window.__wb.ui.page + 1} / ${window.__wb.ui.fills.length}` }));
-  ok('auto at 1280×800: two A4 pages stack', (await L()).stack === 'true');
-  const box = await rect(page, '#pages'), col = await rect(page, '#col');
-  ok('the scroller is the window’s height and stops short of the panel', Math.abs(box.height - 800) < 1 && box.right <= col.left);
-  ok('each page at full window height', Math.abs((await page.evaluate(() => window.__wb.ui.layout.scale)) - (800 - 32) / 1123) < 1e-6);
-  const fillsStack = await page.evaluate(() => JSON.stringify(window.__wb.ui.fills.map(p => +(p.used / p.usable).toFixed(4))));
-  await page.mouse.move(300, 400); await page.mouse.wheel(0, 700); await page.waitForTimeout(700);
-  ok('scrolling shows page 2, and its meter is the current one', (await L()).nav.includes('2 / 2'));
-  await page.click('[data-act=goto-page][data-page="0"]'); await page.waitForTimeout(900);
-  ok('the meter of page 1 scrolls back to page 1', (await L()).top < 5 && (await L()).nav.includes('1 / 2'));
-  await page.click('[data-act=goto-page][data-page="1"]'); await page.waitForTimeout(900);
-  const p2top = (await L()).top;
-  ok('the meter of page 2 scrolls to its top', p2top > 300);
-  await page.click('[data-act=goto-page][data-page="0"]'); await page.waitForTimeout(900);
-  // a click on a page-2 bullet (from the card: the last job's bullet) scrolls it into view
-  const lastBullet = await frameDoc(page, d => { const ps = d.querySelectorAll('.document > .page'); const li = ps[ps.length - 1].querySelector('.bullets li[data-variant]'); return li?.getAttribute('data-variant') ?? null; });
-  if (lastBullet){
-    await page.evaluate(v => { const ix = window.__wb.ui.ix; const f = ix.factOfVariant.get(v); const b = document.createElement('button'); b.dataset.act = 'select-bullet'; b.dataset.id = f; b.hidden = true; document.querySelector('#body').append(b); b.click(); }, lastBullet);
-    await page.waitForTimeout(1200);
-    ok('selecting a bullet on page 2 scrolls it into view', (await L()).top > 200, `${(await L()).top}`);
+// The canvas (UX-3): pages side by side on one canvas, the wheel, the hand, the pinch, the bright page, the page-moved event.
+// Medtech has two pages. Both at once needs a wide window; narrower, one at a time.
+const camOf = page => page.evaluate(() => {
+  const w = window.__wb, c = w.canvas, ui = w.ui;
+  const d = document.querySelector('#sheet iframe').contentDocument;
+  return { k: c.cam.k, x: c.cam.x, y: c.cam.y, zoom: ui.zoom, page: ui.page, scene: c.scene, equal: !!ui.equal, free: c.free,
+    faded: [...d.querySelectorAll('.document > .page')].map(p => p.classList.contains('rb-faded')), fit: c.fit, view: c.view, geo: c.geo };
+});
+const movedCount = page => page.evaluate(() => window.__moved ?? 0);
+const watchMoved = page => page.evaluate(() => { window.__moved = 0; document.addEventListener('brewcv:pages-moved', () => { window.__moved++; }); });
+const foldAll = async page => { await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(700); };
+const wheel = async (page, dy, dx = 0, at = [400, 400]) => { await page.mouse.move(...at); await page.mouse.wheel(dx, dy); };
+
+if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bright page')) {
+  // ---- wide: both pages at once ----
+  for (const [w, h] of [[1280, 800], [1440, 900]]){
+    const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    await openByName(page, 'Medtech'); await foldAll(page);
+    const c = await camOf(page);
+    ok(`${w}×${h}: both pages show at once, equal, nothing faded`, c.scene === 'all' && c.equal && c.faded.length === 2 && c.faded.every(f => !f));
+    ok(`${w}×${h}: at the full height of the window, 16px above and below`, Math.abs(c.k - (h - 32) / 1123) < 1e-6 && Math.abs(c.y - 16) < 1);
+    const s = await rect(page, '#sheet'), col = await rect(page, '#col');
+    ok(`${w}×${h}: centred in the room left of the rail`, Math.abs(s.left - (col.left - 16 - s.right)) < 2, `${s.left.toFixed(1)} vs ${(col.left - 16 - s.right).toFixed(1)}`);
+    await wheel(page, 700); await page.waitForTimeout(500);
+    const after = await camOf(page);
+    ok(`${w}×${h}: the wheel does nothing: there is nothing to travel to`, Math.abs(after.x - c.x) < 0.5 && after.page === 0);
+    await wheel(page, 0, 300); await page.waitForTimeout(500);
+    ok(`${w}×${h}: nor does a sideways swipe`, Math.abs((await camOf(page)).x - c.x) < 0.5);
+    ok(`${w}×${h}: the stack and side-by-side toggle is gone`, !(await page.$('[data-act=view]')));
+    await page.click('[data-act=goto-page][data-page="1"]'); await page.waitForTimeout(500);
+    ok(`${w}×${h}: a meter says which page is current; the view stays`, (await camOf(page)).page === 1 && Math.abs((await camOf(page)).x - c.x) < 0.5 && (await page.getAttribute('[data-act=goto-page][data-page="1"]', 'aria-current')) === 'true');
+    await page.click('[data-act=goto-page][data-page="0"]');
+    ok(`${w}×${h}: no console errors`, bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+
+  // ---- the panel opens: one page, the other waits faded, partly behind the panel ----
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    await openByName(page, 'Medtech'); await foldAll(page);
+    await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+    const c = await camOf(page);
+    ok('selecting opens the panel: one page, fit to the height, centred left of the panel', c.scene === 'one' && Math.abs(c.k - (900 - 32) / 1123) < 1e-6 && c.page === 0);
+    ok('…the other page is faded and sits to the right', c.faded[0] === false && c.faded[1] === true);
+    const col = await rect(page, '#col');
+    const p2 = await page.evaluate(() => { const f = document.querySelector('#sheet iframe'), r = f.getBoundingClientRect(), d = f.contentDocument.querySelectorAll('.document > .page')[1].getBoundingClientRect(), k = r.width / f.offsetWidth; return { left: r.left + d.left * k, right: r.left + d.right * k }; });
+    ok('…and reaches in behind the panel', p2.right > col.left);
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(700);
+    const back = await camOf(page);
+    ok('Esc, Esc: the panel folds and both pages are equal again', back.scene === 'all' && back.equal && back.faded.every(f => !f));
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+
+  // ---- narrow: one page at a time, the wheel travels between them with a magnet ----
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1024, height: 700 } });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    await openByName(page, 'Medtech'); await foldAll(page);
+    await watchMoved(page);
+    const c0 = await camOf(page);
+    ok('1024×700: one page at a time, fit to the height', c0.scene === 'one' && c0.page === 0 && Math.abs(c0.k - (700 - 32) / 1123) < 1e-6);
+    ok('…the other waits faded to the right', c0.faded[0] === false && c0.faded[1] === true);
+    const step = (794 + 24) * c0.k;
+    await wheel(page, 30, 0, [300, 350]); await page.waitForTimeout(900);
+    ok('a small push does not leave the page: it springs back (the magnet)', (await camOf(page)).page === 0 && Math.abs((await camOf(page)).x - c0.x) < 1);
+    await wheel(page, 0, 0, [300, 350]);
+    for (let i = 0; i < 6; i++){ await page.mouse.wheel(0, step * 0.18); await page.waitForTimeout(30); }
+    await page.waitForTimeout(1100);
+    const c1 = await camOf(page);
+    ok('a push past halfway carries on to page 2 and settles on it', c1.page === 1 && Math.abs(c1.x - (c0.x - step)) < 1.5, `x ${c1.x.toFixed(1)} vs ${(c0.x - step).toFixed(1)}, page ${c1.page}`);
+    ok('…page 2 is bright and page 1 faded', c1.faded[0] === true && c1.faded[1] === false);
+    ok('a sideways swipe travels too, and back', await (async () => { await page.mouse.wheel(-step * 1.4, 0); await page.waitForTimeout(1100); const c = await camOf(page); return c.page === 0 && Math.abs(c.x - c0.x) < 1.5; })());
+    await page.keyboard.press('PageDown'); await page.waitForTimeout(900);
+    ok('Page Down goes to page 2', (await camOf(page)).page === 1);
+    await page.keyboard.press('PageUp'); await page.waitForTimeout(900);
+    ok('Page Up goes back', (await camOf(page)).page === 0);
+    await page.keyboard.press('ArrowRight'); await page.waitForTimeout(900);
+    ok('→ goes to page 2 when nothing is selected', (await camOf(page)).page === 1);
+    await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(900);
+    ok('← goes back', (await camOf(page)).page === 0);
+    await page.click('[data-act=goto-page][data-page="1"]'); await page.waitForTimeout(900);
+    ok('a meter goes to its page', (await camOf(page)).page === 1 && Math.abs((await camOf(page)).x - (c0.x - step)) < 1.5);
+    ok('the camera told the page layer once it settled', (await movedCount(page)) >= 1);
+
+    // a faded page stays clickable
+    await page.click('[data-act=goto-page][data-page="0"]'); await page.waitForTimeout(900);
+    const blank = await page.evaluate(() => { const f = document.querySelector('#sheet iframe'), r = f.getBoundingClientRect(), k = r.width / f.offsetWidth, p = f.contentDocument.querySelectorAll('.document > .page')[1].getBoundingClientRect(); return { x: r.left + (p.left + 20) * k, y: r.top + (p.top + p.height - 30) * k }; });
+    if (blank.x < 1024 - 60){
+      await page.mouse.click(blank.x, blank.y); await page.waitForTimeout(900);
+      ok('a click on the blank paper of the faded page brings it forward', (await camOf(page)).page === 1);
+    } else ok('a click on the blank paper of the faded page brings it forward (it is behind the rail here: use the meter)', true);
+    await page.click('[data-act=goto-page][data-page="0"]'); await page.waitForTimeout(900);
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+
+  // ---- the hand, the limits, the pinch, Esc ----
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    await openByName(page, 'Medtech'); await foldAll(page);
+    await watchMoved(page);
+    const c0 = await camOf(page);
+    // a drag on the bare canvas pans, within the limits
+    await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(60, 470, { steps: 4 }); await page.mouse.up(); await page.waitForTimeout(900);
+    const c1 = await camOf(page);
+    ok('a drag on the bare canvas pans the pages and leaves them there', c1.free && Math.abs(c1.x - (c0.x + 46)) < 3 && Math.abs(c1.y - (c0.y + 20)) < 3, `${c1.x - c0.x}, ${c1.y - c0.y}`);
+    ok('…and the wheel now pans too (the pages are not in their place)', await (async () => { await wheel(page, 60, 0, [700, 450]); await page.waitForTimeout(700); return Math.abs((await camOf(page)).y - (c1.y - 60)) < 3; })());
+    await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(1000, 450, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(1200);
+    const far = await camOf(page), lim = await page.evaluate(() => window.__wb.canvas.limits());
+    ok('pulled far past the edge it springs back to the soft limit (a third of the view stays in the pages)', far.x <= lim.maxX + 0.5 && far.x > lim.maxX - 4, `${far.x.toFixed(1)} vs ${lim.maxX.toFixed(1)}`);
+    await page.keyboard.press('0'); await page.waitForTimeout(700);
+    const home = await camOf(page);
+    ok('0 puts it all back', !home.free && Math.abs(home.x - c0.x) < 1 && Math.abs(home.y - c0.y) < 1 && home.zoom === 1);
+    // space and drag, over the page too
+    await page.mouse.move(700, 450); await page.keyboard.down('Space'); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up(); await page.keyboard.up('Space'); await page.waitForTimeout(900);
+    const c2 = await camOf(page);
+    ok('Space and drag pans, even over a page, and does not select what is under it', c2.free && Math.abs(c2.x - (c0.x - 60)) < 3 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none', `${c2.x - c0.x}`);
+    await page.keyboard.press('0'); await page.waitForTimeout(700);
+    await page.mouse.move(700, 450); await page.mouse.down({ button: 'middle' }); await page.mouse.move(720, 470, { steps: 3 }); await page.mouse.up({ button: 'middle' }); await page.waitForTimeout(900);
+    ok('the middle button pans too', Math.abs((await camOf(page)).x - (c0.x + 20)) < 3);
+    await page.keyboard.press('0'); await page.waitForTimeout(700);
+    // a pinch: Chrome and Edge send Ctrl and the wheel; it zooms about the pointer
+    const pt = [800, 300];
+    const before = await page.evaluate(([x, y]) => { const c = window.__wb.canvas.cam; return { cx: (x - c.x) / c.k, cy: (y - c.y) / c.k }; }, pt);
+    await page.evaluate(([x, y]) => { document.querySelector('#pages').dispatchEvent(new WheelEvent('wheel', { deltaY: -80, ctrlKey: true, clientX: x, clientY: y, bubbles: true, cancelable: true })); }, pt);
+    await page.waitForTimeout(400);
+    const z = await camOf(page);
+    const after = await page.evaluate(([x, y]) => { const c = window.__wb.canvas.cam; return { cx: (x - c.x) / c.k, cy: (y - c.y) / c.k }; }, pt);
+    ok('a pinch (Ctrl and wheel) zooms the page, not the site, about the pointer', z.zoom > 1.1 && Math.abs(after.cx - before.cx) < 1 && Math.abs(after.cy - before.cy) < 1, `zoom ${z.zoom}`);
+    await page.evaluate(([x, y]) => { document.querySelector('#pages').dispatchEvent(new WheelEvent('wheel', { deltaY: 70, ctrlKey: true, clientX: x, clientY: y, bubbles: true, cancelable: true })); }, pt);
+    await page.waitForTimeout(400);
+    ok('a pinch back to within 5% of the fit view snaps to it', await (async () => { const g = await camOf(page); return g.zoom === 1 || (g.zoom > 1 && g.zoom < 1.12); })());
+    await page.keyboard.press('0'); await page.waitForTimeout(600);
+    await page.evaluate(([x, y]) => { document.querySelector('#pages').dispatchEvent(new WheelEvent('wheel', { deltaY: -4, ctrlKey: true, clientX: x, clientY: y, bubbles: true, cancelable: true })); }, pt);
+    await page.waitForTimeout(500);
+    ok('…a small pinch away from the fit view lands exactly on it, and the view is back in place', (await camOf(page)).zoom === 1 && !(await camOf(page)).free);
+    ok('Ctrl and the wheel over the page itself is the pinch too', await (async () => {
+      const at = await page.evaluate(() => { const f = document.querySelector('#sheet iframe'), r = f.getBoundingClientRect(); return [r.left + 200, r.top + 200]; });
+      await page.evaluate(() => { const d = document.querySelector('#sheet iframe').contentDocument; d.dispatchEvent(new d.defaultView.WheelEvent('wheel', { deltaY: -100, ctrlKey: true, clientX: 300, clientY: 300, bubbles: true, cancelable: true })); });
+      await page.waitForTimeout(400); const g = await camOf(page); return g.zoom > 1.1;
+    })());
+    // Esc at the page level puts everything away, from any zoom
+    await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(800);
+    const out = await camOf(page);
+    ok('Esc, Esc from a zoomed view: selection cleared, panel folded, the whole resume with both pages equal', out.zoom === 1 && !out.free && out.scene === 'all' && out.equal && (await page.evaluate(() => document.body.dataset.folded)) === 'true' && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none');
+    ok('a window resize is told to the page layer once it settles', await (async () => { const n0 = await movedCount(page); await page.setViewportSize({ width: 1300, height: 820 }); await page.waitForTimeout(900); const n1 = await movedCount(page); return n1 > n0 && n1 - n0 <= 2; })());
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+
+  // ---- what the canvas must not touch ----
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    await openByName(page, 'Medtech'); await foldAll(page);
+    const printed = () => page.evaluate(() => { const d = document.querySelector('#sheet iframe').contentDocument; const c = d.querySelector('.document').cloneNode(true); for (const e of c.querySelectorAll('[class]')) { e.className = e.className.replace(/\brb-[\w-]+\b/g, '').trim(); if (!e.className) e.removeAttribute('class'); } return c.innerHTML.replace(/\sdata-variant="[^"]*"/g, ''); });
+    const fills = () => page.evaluate(() => JSON.stringify(window.__wb.ui.fills.map(p => [Math.round(p.used * 100), Math.round(p.usable * 100)])));
+    const html0 = await printed(), fills0 = await fills();
+    await page.keyboard.press('='); await page.keyboard.press('='); await page.waitForTimeout(600);
+    await page.mouse.move(600, 450); await page.keyboard.down('Space'); await page.mouse.down(); await page.mouse.move(660, 500, { steps: 3 }); await page.mouse.up(); await page.keyboard.up('Space'); await page.waitForTimeout(800);
+    await page.keyboard.press('0'); await page.waitForTimeout(600);
+    ok('zooming and panning leave the page’s own markup and its measurements exactly as they were', (await printed()) === html0 && (await fills()) === fills0);
+    // an overflowing page: a dashed line at the bottom margin and the lines below faded, drawn over the page, never in it
+    const real = await page.evaluate(() => window.__wb.ui.fills.map(p => ({ ...p })));
+    ok('a page that fits has no overflow line', (await page.$$('#ovlay .ov')).length === 0);
+    await page.evaluate(f => { window.__wb.ui.fills = f.map((p, i) => (i === 0 ? { ...p, overflow: 36 } : p)); window.__wb.renderOverflow(); }, real);
+    const ov = await page.evaluate(() => {
+      const el = document.querySelector('#ovlay .ov'); if (!el) return null;
+      const r = el.getBoundingClientRect(), line = el.querySelector('.ov-line'), f = document.querySelector('#sheet iframe'), k = f.getBoundingClientRect().width / f.offsetWidth;
+      const pg = f.contentDocument.querySelector('.document > .page'), pb = parseFloat(f.contentDocument.defaultView.getComputedStyle(pg).paddingBottom), pr = pg.getBoundingClientRect(), fr = f.getBoundingClientRect();
+      return { n: document.querySelectorAll('#ovlay .ov').length, top: r.top, want: fr.top + (pr.top + pr.height - pb) * k, style: getComputedStyle(line).borderTopStyle, inFrame: !!f.contentDocument.querySelector('.ov, .ov-line, .ov-veil'), ptr: getComputedStyle(document.querySelector('#ovlay')).pointerEvents };
+    });
+    ok('an overflowing page: one dashed line at the page’s bottom margin', ov && ov.n === 1 && ov.style === 'dashed' && Math.abs(ov.top - ov.want) < 1.5, JSON.stringify(ov));
+    ok('…drawn in the app’s layer: nothing in the page, and it takes no clicks', ov && !ov.inFrame && ov.ptr === 'none');
+    await page.evaluate(f => { window.__wb.ui.fills = f; window.__wb.renderOverflow(); }, real);
+    ok('…and gone when the page fits again', (await page.$$('#ovlay .ov')).length === 0);
+    await page.click('[data-act=fit]');
+    await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 60000 }); await page.waitForTimeout(800);
+    ok('Fit still runs, and reports', await page.evaluate(() => !!window.__wb.ui.lastFit && window.__wb.ui.lastFit.pages.length > 0));
+    await page.keyboard.press('e'); await settle(page);
+    await page.click('#zoompct'); await page.click('[data-act=actual]'); await page.waitForTimeout(1200);
+    ok('actual size still opens', await page.isVisible('.actual'));
+    await page.keyboard.press('Escape'); await settle(page);
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
-  } else ok('page 2 has a bullet to select', false);
-  await page.click('[data-act=goto-page][data-page="0"]'); await page.waitForTimeout(900);
-  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
-  await page.locator('.vrow[data-v]:not(.cur)').first().hover(); await settle(page);
-  ok('hover preview still works in the stack', await frameDoc(page, d => d.documentElement.classList.contains('rb-previewing')));
-  await page.mouse.move(4, 4); await settle(page);
-  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc all the way out folds the panel, and with it out of the way the two pages fit side by side by themselves', (await page.evaluate(() => document.body.dataset.folded)) === 'true' && (await L()).spread === 'true');
-  await page.keyboard.press('e'); await settle(page);
-  ok('E opens the panel again: the pages stack once more', (await page.evaluate(() => document.body.dataset.folded)) === 'false' && (await L()).stack === 'true');
-  await page.click('[data-act=view]'); await page.waitForTimeout(1200);
-  ok('▭▭ puts them side by side', (await L()).spread === 'true' && (await L()).stack === 'false');
-  const fillsSpread = await page.evaluate(() => JSON.stringify(window.__wb.ui.fills.map(p => +(p.used / p.usable).toFixed(4))));
-  ok('the fills are identical in both views (nothing measured differently)', fillsStack === fillsSpread, `${fillsStack} vs ${fillsSpread}`);
-  ok('the choice is remembered in this browser', (await page.evaluate(() => localStorage.getItem('rb-pages'))) === 'spread');
-  await page.click('[data-act=view]'); await page.waitForTimeout(1200);
-  ok('▯ goes back to the scrolled stack', (await L()).stack === 'true' && (await page.evaluate(() => localStorage.getItem('rb-pages'))) === 'stack');
-  const undo0 = await page.evaluate(() => window.__wb.store.history.undo);
-  ok('the view is not an undo step', undo0 === (await page.evaluate(() => window.__wb.store.history.undo)));
-  await page.click('[data-act=fit]');
-  await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 60000 }); await page.waitForTimeout(800);
-  ok('Fit still runs in the stack', /%/.test(await page.textContent('#meter')));
-  await page.click('#zoompct'); await page.click('[data-act=actual]'); await page.waitForTimeout(1200);
-  ok('actual size still opens', await page.isVisible('.actual'));
-  await page.keyboard.press('Escape'); await settle(page);
-  ok('no console errors', bad.length === 0, bad[0] ?? '');
-  await ctx.close();
+    await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+    await page.locator('.vrow[data-v]:not(.cur)').first().hover(); await settle(page);
+    ok('hover preview still works', await frameDoc(page, d => d.documentElement.classList.contains('rb-previewing')));
+    await page.mouse.move(4, 4); await settle(page);
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
 }
 
 if (want('scrollbars')) {

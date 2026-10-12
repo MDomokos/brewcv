@@ -177,7 +177,6 @@ function drawFoot(){
   const limit = C.shown()?.pageLimit;
   const ms = meters();
   const needed = fitFilled(u.fills, limit);
-  const spread = u.layout?.spread;
   el.classList.toggle('is-vertical', f);
   const tipPos = f ? 'l' : 't';
   const view = `<div class="vbar" role="toolbar" aria-label="${esc(t('ux2.viewBar'))}">
@@ -186,7 +185,6 @@ function drawFoot(){
       <button class="pct" id="zoompct" data-act="zoom-pop" aria-haspopup="dialog" aria-expanded="${!!u.zpop}" data-tip="${esc(t('ux2.zoomSettings'))}|${esc(t('ux2.zoomSettingsTip'))}" data-tip-pos="${tipPos}" aria-label="${esc(t('ux2.zoomSettings'))}">${pct}%</button>
       ${ib('zoom-in', 'plus', t('ux2.zoomIn'), t('ux2.zoomInTip'), u.zoom >= ZOOM_MAX - 1e-9 ? 'disabled' : '', tipPos)}
       ${ib('zoom-fit', 'fitpage', t('ux2.zoomFit'), t('ux2.zoomFitTip'), '', tipPos)}
-      ${ms.length > 1 && u.layout?.canSpread ? ib('view', spread ? 'pages1' : 'pages2', spread ? t('foot.toStack') : t('foot.toSpread'), t('ux2.viewTip'), '', tipPos) : ''}
     </div>`;
   const meterHtml = ms.map(m => {
     const sm = steamOf(m.i);
@@ -225,18 +223,13 @@ function openPop(on){
 
 export function applyContrast(){
   document.body.classList.toggle('soft', readContrast() === 'soft');
+  C?.restyleMarks?.();      // the page's edge is one of the marks the frame takes from the tokens
 }
 
 // ---- zoom ----
 const STEP = 1.25;
-function zoomTo(z){
-  const u = C.ui;
-  u.zoom = Math.abs(z - 1) < 0.02 ? 1 : clampZoom(z);
-  C.relayout();
-  if (u.zoom === 1){ const box = $('#pages'); box.scrollLeft = 0; if (!u.layout?.stack) box.scrollTop = 0; }
-  renderFoot();
-}
-const zoomBy = d => zoomTo((C.ui.zoom ?? 1) * (d > 0 ? STEP : 1 / STEP));
+function zoomTo(z){ C.canvas.zoomTo(z); renderFoot(); }
+const zoomBy = d => { C.canvas.zoomBy(d > 0 ? STEP : 1 / STEP); renderFoot(); };
 
 async function act(a, tg){
   switch (a){
@@ -307,7 +300,7 @@ export function initDock(ctx){
       const was = C.ui.panel;
       C.ui.panel = afterEscape(was); set(PANEL_KEY, C.ui.panel);
       C.ui.peek = false;
-      if ((C.ui.zoom ?? 1) !== 1) zoomTo(1);
+      C.canvas.reset();
       sync(true);
     },
   };

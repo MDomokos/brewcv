@@ -51,11 +51,11 @@
   --ins-bg: rgba(143, 196, 138, .25); --del-bg: rgba(239, 154, 132, .22); --del-ink: #F2E6CF;
   --toast-bg: #D9A65A; --toast-ink: #1b2a20;
   --tag-bg: #D9A65A; --tag-line: #8a6416; --tag-ink: #1b2a20; --tag-hole: #e9ddc2;
-  --stage: #efe4cb; --stage-mark: #D9A65A; --stage-on-mark: #1b2a20; --page-edge: transparent;
+  --stage: #efe4cb; --stage-mark: #D9A65A; --stage-on-mark: #1b2a20; --page-edge: rgba(70, 50, 20, .65); --page-edge-soft: transparent;
   /* the pieces of the drink: the cup's tea and its outline, the steam, the shadows (flat and offset in tea) */
   --liq: #D9A65A; --liq-weak: #8f8257; --liq-strong: #cf7d2e; --cup-empty: #24382b; --cup-stroke: #F2E6CF; --cup-band: #ecc583; --steam-ink: #d6cfb4; --heart-ink: #f2a58f;
   --shadow-panel: 7px 8px 0 rgba(30, 40, 25, .2); --shadow-lift: 2px 3px 0 rgba(30, 40, 25, .2); --shadow-chip: 3px 4px 0 rgba(30, 40, 25, .2); --shadow-toast: 4px 5px 0 rgba(30, 40, 25, .22);
-  --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .2)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
+  --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .3)) drop-shadow(12px 14px 0 rgba(60, 45, 15, .12)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
   --page-warn: #b35c00; --sel-mark: #b77a2c; --sel-mark-soft: rgba(217, 166, 90, .14); --prev-mark: #2E4636; --prev-mark-soft: rgba(46, 70, 54, .08);
   --band-bg: var(--surface); --band-ink: var(--ink); --band-ink-soft: var(--ink-soft); --band-line: var(--line); --band-hover: var(--hover); --band-hover-strong: var(--hover-strong);
 }
@@ -65,7 +65,8 @@ html[data-drink="tea"][data-theme="dark"] {
   --surface: #26392d; --raised: #2f4637; --input: #1d2c22; --pop: #22342a;
   --stage: #e9e0c8; --cup-empty: #1d2c22;
   --shadow-panel: 7px 8px 0 rgba(0, 0, 0, .4), 0 0 0 1px rgba(217, 166, 90, .12); --shadow-lift: 2px 3px 0 rgba(0, 0, 0, .35); --shadow-chip: 3px 4px 0 rgba(0, 0, 0, .4); --shadow-toast: 4px 5px 0 rgba(0, 0, 0, .4);
-  --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .45)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
+  --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .55)) drop-shadow(12px 14px 0 rgba(0, 0, 0, .28)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
+  --page-edge: transparent; --page-edge-soft: transparent;
   --tag-hole: #101813;
 }
 
@@ -88,7 +89,7 @@ html[data-drink="coffee"] {
   --ins-bg: rgba(46, 125, 50, .16); --del-bg: rgba(168, 50, 30, .14); --del-ink: #1c1410;
   --toast-bg: #1c1410; --toast-ink: #fbf8f4;
   --tag-bg: #ffffff; --tag-line: rgba(28, 20, 16, .5); --tag-ink: #1c1410; --tag-hole: #ffffff;
-  --stage: #efe9df; --stage-mark: #1c1410; --stage-on-mark: #fbf8f4; --page-edge: rgba(28, 20, 16, .22);
+  --stage: #efe9df; --stage-mark: #1c1410; --stage-on-mark: #fbf8f4; --page-edge: rgba(28, 20, 16, .65); --page-edge-soft: rgba(28, 20, 16, .22);
   --espresso: #3a2618; --crema: #BE7F4A; --foam: #f3ece2; --foam-soft: #d9c8b4; --foam-faint: #b8a894; --foam-line: rgba(243, 236, 226, .32); --foam-warn: #e0b56a;
   --band-bg: #2b1d14; --band-ink: #f3ece2; --band-ink-soft: #d9c8b4; --band-line: rgba(243, 236, 226, .32); --band-hover: rgba(243, 236, 226, .1); --band-hover-strong: rgba(243, 236, 226, .16);
   --shadow-panel: none; --shadow-lift: none; --shadow-chip: none; --shadow-toast: none;
@@ -114,7 +115,7 @@ html[data-drink="coffee"][data-theme="dark"] {
   --ins-bg: rgba(143, 196, 138, .25); --del-bg: rgba(239, 154, 132, .22); --del-ink: #f3ece2;
   --toast-bg: #f3ece2; --toast-ink: #0c0907;
   --tag-bg: #0c0907; --tag-line: rgba(243, 236, 226, .55); --tag-ink: #f3ece2; --tag-hole: #0c0907;
-  --stage: #ece6dc; --page-edge: rgba(243, 236, 226, .25);
+  --stage: #ece6dc; --page-edge: rgba(243, 236, 226, .45); --page-edge-soft: rgba(243, 236, 226, .25);
   --espresso: #c9a27a; --band-bg: #22170f; --band-line: rgba(243, 236, 226, .32);
   --prev-mark: #BE7F4A; --prev-mark-soft: rgba(190, 127, 74, .2);
   --cup-band: #f3ece2;
@@ -956,6 +957,11 @@ body[data-phone=true] .obkeep { padding: 6px 0 0; }
 .sheet-frame { filter: var(--page-shadow); }
 body.soft .sheet-frame { filter: var(--page-shadow-soft); }
 .pages { overflow: auto; }
+/* on a desktop the pages are a canvas the camera moves (src/ui/canvas.js), not a scroller */
+body:not([data-phone=true]) .pages { overflow: hidden; touch-action: none; }
+body:not([data-phone=true]) .pagebox { will-change: transform; }
+body.is-space .pages, body.is-space .sheet-frame { cursor: grab; }
+body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: grabbing; }
 .ico { display: inline-block; vertical-align: -2px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .ib { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink-soft); }
 .ib:hover:not(:disabled) { background: var(--hover-strong); color: var(--ink); border: 0; }
@@ -1126,6 +1132,11 @@ body[data-phone=true] .checklist { display: none; }
 .timeline { background: var(--pop); }
 .pop.card, .zpop { background: var(--pop); }
 body[data-phone=true] .lens, body[data-phone=true] .notonline, body[data-phone=true] .lead { display: none; }
+.ovlay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; pointer-events: none; }
+.ov { position: absolute; }
+.ov-veil { position: absolute; inset: 0; background: color-mix(in srgb, var(--paper) 72%, transparent); }
+.ov-line { position: absolute; left: 0; right: 0; top: 0; border-top: 2px dashed var(--page-warn); }
+body.is-intro .ovlay, body.is-quiet .ovlay { display: none; }
 .pagelay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }
 .jobchip { position: absolute; display: inline-flex; align-items: center; gap: 8px; max-width: 320px; padding: 3px 11px; border-radius: var(--r-pill); background: var(--raised); border: 1px solid var(--line-strong); box-shadow: var(--shadow-chip); font-size: 12px; white-space: nowrap; }
 .jobchip .jn { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }

@@ -47,6 +47,8 @@
 <link rel="modulepreload" href="scripts/lib/html.mjs">
 <link rel="modulepreload" href="src/paginate.js">
 <link rel="modulepreload" href="src/ui/layout.js">
+<link rel="modulepreload" href="src/ui/canvas.js">
+<link rel="modulepreload" href="src/ui/camera.js">
 <link rel="modulepreload" href="src/ui/select.js">
 <link rel="modulepreload" href="src/ui/actual.js">
 <link rel="modulepreload" href="src/ui/edit.js">
@@ -82,7 +84,7 @@
 </head>
 <body>
 
-<div id="pages" class="pages"><div class="pages__sizer" aria-hidden="true"></div><div id="pagelay" class="pagelay"></div><section id="sheet" class="pagebox" role="region" aria-label="The resume. Click anything on it to work on it."></section>
+<div id="pages" class="pages"><div class="pages__sizer" aria-hidden="true"></div><div id="pagelay" class="pagelay"></div><div id="ovlay" class="ovlay" aria-hidden="true"></div><section id="sheet" class="pagebox" role="region" aria-label="The resume. Click anything on it to work on it."></section>
   <!-- First paint, before any script runs: a blank page and the column's frame, in the places the app will put them. Both go away when the app is ready. -->
   <div class="paper-skel" aria-hidden="true"></div></div>
 

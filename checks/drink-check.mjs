@@ -45,7 +45,7 @@ ok('the five token blocks exist (:root, tea light, tea dark, coffee light, coffe
 const ROLES = ['canvas', 'canvas-ink', 'canvas-ink-soft', 'canvas-line', 'canvas-label', 'surface', 'raised', 'input', 'pop', 'hover', 'hover-strong', 'fill', 'fill-strong', 'wash', 'seg-bg',
   'ink', 'ink-soft', 'label', 'faint', 'on-ink', 'line', 'line-strong', 'accent', 'on-accent', 'accent-soft', 'accent-line', 'mark', 'on-mark', 'mark-soft', 'focus',
   'ok', 'bad', 'warn', 'ok-bg', 'warn-bg', 'ok-line', 'warn-line', 'ins-bg', 'del-bg', 'del-ink', 'toast-bg', 'toast-ink', 'tag-bg', 'tag-line', 'tag-ink', 'tag-hole',
-  'stage', 'stage-mark', 'stage-on-mark', 'band-bg', 'band-ink', 'band-ink-soft', 'band-line', 'shadow-panel', 'shadow-lift', 'shadow-chip', 'shadow-toast', 'page-shadow', 'page-shadow-soft', 'drop-sm',
+  'stage', 'stage-mark', 'stage-on-mark', 'band-bg', 'band-ink', 'band-ink-soft', 'band-line', 'shadow-panel', 'shadow-lift', 'shadow-chip', 'shadow-toast', 'page-shadow', 'page-shadow-soft', 'page-edge', 'page-edge-soft', 'drop-sm',
   'sel-mark', 'sel-mark-soft', 'prev-mark', 'prev-mark-soft', 'page-warn', 'liq', 'cup-band'];
 for (const [name, blk] of [['tea', B.teaLight], ['coffee', B.coffeeLight]]){
   const missing = ROLES.filter(r => !(`--${r}` in blk));
@@ -118,6 +118,23 @@ for (const drink of ['tea', 'coffee']) for (const mode of ['light', 'dark']){
   }
   const bad = hits.filter(x => !(x.r >= x.min));
   ok(`${drink} ${mode}: ${hits.length} pairs, text at 4.5:1 and edges, focus and marks at 3:1`, !bad.length, bad.map(x => `${x.fg} on ${x.bg} ${Number.isNaN(x.r) ? '?' : x.r.toFixed(2)} (< ${x.min})`).join('; '));
+}
+// ---- the page against the canvas: the sharper look is the default and edges the page at 3:1 in all four combinations
+// (a light canvas by the page's edge, a dark one by the paper itself); the softer look is the old one and only has to be softer ----
+{
+  const against = (T, edgeName) => {
+    const canvases = ['canvas', ...(('--mat-b' in T && colour('var(--mat-b)', T)?.[3] === 1) ? ['mat-b'] : [])];
+    const per = canvases.map(c => Math.max(ratio(edgeName, c, T) ?? 0, ratio('paper', c, T) ?? 0));
+    return Math.min(...per);
+  };
+  for (const drink of ['tea', 'coffee']) for (const mode of ['light', 'dark']){
+    const T = tokens(drink, mode === 'dark');
+    const sharp = against(T, 'page-edge'), soft = against(T, 'page-edge-soft');
+    rows.push({ drink, mode, what: 'the page against the canvas, sharper', fg: 'page-edge or paper', bg: 'canvas', min: EDGE, r: sharp });
+    rows.push({ drink, mode, what: 'the page against the canvas, softer', fg: 'page-edge-soft or paper', bg: 'canvas', min: 1, r: soft });
+    ok(`${drink} ${mode}: the sharper look separates the page from the canvas at 3:1 (${sharp.toFixed(2)})`, sharp >= EDGE, sharp.toFixed(2));
+    ok(`${drink} ${mode}: …and the softer look is never sharper (${soft.toFixed(2)})`, soft <= sharp + 1e-9);
+  }
 }
 if (TABLE){
   // one line per pair, the four combinations side by side

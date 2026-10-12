@@ -68,6 +68,8 @@ const SHELL = [
   './themes/print-mono.tokens.json',
   './src/ui/sheet.js',
   './src/ui/layout.js',
+  './src/ui/canvas.js',
+  './src/ui/camera.js',
   './src/ui/select.js',
   './src/ui/actual.js',
   './src/ui/workbench.css',

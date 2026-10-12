@@ -27,7 +27,6 @@ html[data-drink="coffee"] body {
     linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px) 0 0 / 24px 24px,
     var(--canvas);
 }
-html[data-drink="coffee"] .sheet-frame { outline: 1px solid var(--page-edge); }
 
 /* ---------- type ---------- */
 html[data-drink="tea"] :is(.title, .lead) { font-weight: 800; letter-spacing: -.005em; }
