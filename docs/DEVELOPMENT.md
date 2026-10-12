@@ -35,14 +35,18 @@ src/model/                 pure, tested in Node:
   build.js, import.js        a record from fields; the one import door; JSON Resume in
   diff.js                    the merge engine (also History and Compare with a file)
   tokens.js                  theme tokens: CSS, simple JSON and DTCG in, DTCG out
-  career.js                  Career: the timeline, the lists, every add / edit / delete, custom kinds
+  career.js                  the record: the timeline, the lists, every add / edit / delete, custom kinds
+  checklist.js               the record as a checklist: the groups, the rows, what is on this resume, the group a selection is in
 src/store/                 store.js (state + undo) · persist.js (autosave, folder, backup, checkpoints)
 src/i18n/                  index.js (t, plurals, fallback to English) · en.js · nine machine-written
                            catalogues, each marked NEEDS A NATIVE REVIEW
 src/ui/                    the Workbench: shell, sheet (the iframe), layout, select, edit,
-                           resumes, switcher, files, export, design, onboarding, career, settings,
-                           langmenu, actual size; parts.js, the pure string parts (crumb, rows,
-                           version list, editor, write-in) that edit and career share
+                           resumes, switcher, files, export, design, onboarding, settings,
+                           langmenu, actual size; dock (the panel that folds to a rail, the zoom bar,
+                           hover hints), checklist (the record's checklist in the panel), career (the
+                           record's forms and the timeline), help (the shortcut sheet), icons;
+                           parts.js, the pure string parts (crumb, rows, version list, editor,
+                           write-in) the panels share
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,
                            claims and new-resume (what a coding agent uses; see AGENTS.md), onefile (a folder ↔ the one file)
 checks/                    the Node checks, the Chromium smoke test, the guards
@@ -81,10 +85,12 @@ node checks/csp-check.mjs             the Content-Security-Policy in index.html 
                                       no inline script; no outside address in any fetch
 node checks/preload-check.mjs         index.html preloads exactly the modules shell.js imports, and sw.js caches them
 node checks/i18n-review-check.mjs     the translation review sheets: the CSV, and --apply on a temporary copy
-node checks/career-check.mjs          the Career model: timeline, lists, add / edit / delete, projects, kinds
-node checks/parts-check.mjs           the Resume's markup unchanged by the shared parts; the same claim in Career
-                                      and Resume gives the same panel and the same record; Career's list is flat;
-                                      🗑, + Add, the keys and Esc
+node checks/career-check.mjs          the record's model (timeline, lists, add / edit / delete, projects, kinds), its forms (a field commits when
+                                      you leave it, Esc puts it back), the checklist's archived folds, job types, the Highlight lens, and
+                                      the ledger of what Career's old actions became
+node checks/parts-check.mjs           the panels' markup unchanged by the shared parts; a claim opened from the page or from the
+                                      checklist is the same panel and writes the same record; 🗑, + Add, the
+                                      Details fold of a job, the keys
 node checks/recipe-check.mjs          weight, off / keep, weight-0 omit
 node checks/preflight-check.mjs       preflight refuses embedded image metadata and a prototypes/ folder
 node checks/history-scan-check.mjs    history-scan reads commit messages, authors and committers
@@ -106,7 +112,10 @@ ONLY=import,export node checks/smoke-shell.mjs  just the sections whose name has
 node checks/tokens-check.mjs --browser        the built-in themes as tokens measure 0.00px
 node checks/paginate-check.mjs [lib] --browser
 node checks/fit-check.mjs [lib] --browser
-node checks/label-fit.mjs                     every language's resume headings fit the gutter
+node checks/label-fit.mjs                     every language's resume headings fit the gutter, and the app's own new labels fit
+                                              the panel (the modes on one row, the header, zoom bar, lens, checklist, switcher)
+AXE_CORE=/path/to/axe.min.js node checks/smoke-shell.mjs
+                                              also runs axe-core on every main view (axe-core is a dev tool, not a dependency)
 node checks/measure.mjs <rendered> <reference>    geometry diff, 0.00px expected
 node checks/render-diff.mjs <rendered> <reference>   markup diff, tag by tag
 ```

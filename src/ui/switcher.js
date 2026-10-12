@@ -37,7 +37,7 @@ function rowHtml(r, where, { ticks = false, outreach = null } = {}){
   return `<div class="swrow ${cur ? 'is-cur' : ''} ${ticks ? 'has-tick' : ''}" role="presentation" data-rid="${esc(r.id)}">
     ${ticks ? `<input type="checkbox" class="pick" data-cmp="${esc(r.id)}" ${picked().includes(r.id) ? 'checked' : ''} aria-label="${esc(t('resumes.compareX', { name: RS.resumeLabel(r) }))}">` : ''}
     ${C.resumes.renamingHere(r.id, where) ? C.resumes.renameInput(r)
-      : `<button class="sopt" role="option" aria-selected="${cur}" data-act="sw-open" data-id="${esc(r.id)}"><span class="sn">${esc(RS.resumeLabel(r))}</span>${sub ? `<span class="muted small">${esc(sub)}</span>` : ''}</button>`}
+      : `<button class="sopt" ${cur ? 'aria-current="true"' : ''} data-act="sw-open" data-id="${esc(r.id)}"><span class="sn">${esc(RS.resumeLabel(r))}</span>${sub ? `<span class="muted small">${esc(sub)}</span>` : ''}</button>`}
     ${C.resumes.moreButton(r.id, where)}
     ${C.resumes.rowMenuHtml(r.id, where)}
     ${snapLines(r)}
@@ -53,7 +53,7 @@ function byDate(list){
   const bands = RS.sendBands(RS.sendEvents(list));
   return bands.map(b => `<div class="yr">${esc(b.year || t('ux2.noDate'))}</div>${b.events.map(e => {
     const r = e.resume;
-    if (e.kind === 'saved') return `<div class="swrow tlrow" data-rid="${esc(r.id)}"><button class="sopt" role="option" data-act="sw-open" data-id="${esc(r.id)}"><span class="sn">${esc(RS.resumeLabel(r))}</span><span class="muted small">${esc(t('ux2.lastSaved', { date: e.date || '—' }))}</span></button></div>`;
+    if (e.kind === 'saved') return `<div class="swrow tlrow" data-rid="${esc(r.id)}"><button class="sopt" data-act="sw-open" data-id="${esc(r.id)}"><span class="sn">${esc(RS.resumeLabel(r))}</span><span class="muted small">${esc(t('ux2.lastSaved', { date: e.date || '—' }))}</span></button></div>`;
     const to = RS.sendLabel(e.send);
     return `<div class="swrow tlrow" data-rid="${esc(r.id)}"><button class="snapline tlsend" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(e.snap.id)}">
         <span class="sn">${esc(to || t('ux1.noRecipient'))}${e.send.kind === 'outreach' ? ` <span class="pill">${h('ux1.outreach')}</span>` : ''}</span><span class="muted small">${esc(e.send.date)} · ${esc(RS.resumeLabel(r))}</span></button></div>`;
@@ -67,13 +67,13 @@ function html(){
   const all = st().resumes ?? [];
   const q = S.q.trim();
   const list = all.filter(r => RS.matches(st().record, r, q) || (S.view === 'company' && q && RS.snapshotsOf(r).some(s => s.sends.some(x => String(x.company).toLowerCase().includes(q.toLowerCase())))));
-  const search = `<input id="sw-q" class="sw-q" type="search" role="combobox" aria-expanded="true" aria-controls="sw-list" aria-label="${esc(t('ux1.search'))}" placeholder="${esc(t('ux1.search'))}" value="${esc(S.q)}" autocomplete="off">`;
+  const search = `<input id="sw-q" class="sw-q" type="search" aria-controls="sw-list" aria-label=""${esc(t('ux1.search'))}" placeholder="${esc(t('ux1.search'))}" value="${esc(S.q)}" autocomplete="off">`;
   if (!S.grown){
     const groups = RS.grouped(st().record, list);
     const recent = q ? [] : recentIds().map(id => all.find(r => r.id === id)).filter(Boolean).slice(0, RECENT_N);
     return `${search}
     <button class="swnew" data-act="sw-new">${h('ux1.newResume')}</button>
-    <div id="sw-list" class="swlist" role="listbox" aria-label="${esc(t('ux1.switcherTitle'))}">
+    <div id="sw-list" class="swlist" role="group" aria-label="${esc(t('ux1.switcherTitle'))}">
       ${recent.length ? `<span class="lbl">${h('ux1.recent')}</span>${recent.map(r => rowHtml(r, 'recent')).join('')}` : ''}
       ${groups.map(g => `<span class="lbl">${esc(g.type ? g.label : t('resumes.noType'))}</span>${g.resumes.map(r => rowHtml(r, 'group')).join('')}`).join('')}
       ${list.length ? '' : `<p class="muted small swnone">${h(all.length ? 'ux1.noMatch' : 'ux1.noneYet')}</p>`}
@@ -84,7 +84,7 @@ function html(){
   const body = S.view === 'date' ? byDate(list) : S.view === 'company' ? byCompany(list) : byType(list);
   return `<div class="swhead">${search}<button class="ghost sm" data-act="sw-close" aria-label="${esc(t('body.close'))}">✕</button></div>
     <div class="swhead2"><div class="seg" role="tablist" aria-label="${esc(t('ux2.manageViews'))}">${views}</div><button class="swnew sm" data-act="sw-new">${h('ux1.newResume')}</button></div>
-    <div id="sw-list" class="swlist" role="${S.view === 'type' || S.view === 'company' ? 'listbox' : 'group'}" aria-label="${esc(t('ux1.manageTitle', { n: all.length }))}">
+    <div id="sw-list" class="swlist" role="group" aria-label=""${esc(t('ux1.manageTitle', { n: all.length }))}">
       ${body}
       ${list.length ? '' : `<p class="muted small swnone">${h(all.length ? 'ux1.noMatch' : 'ux1.noneYet')}</p>`}
     </div>

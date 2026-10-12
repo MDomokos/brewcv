@@ -63,7 +63,7 @@ const modeOf = () => (C.ui.view === 'design' || C.ui.view === 'export' ? C.ui.vi
 
 // ---- hover hints: data-tip="Title|One line" ----
 function installTips(){
-  let tip = $('#tip'); if (!tip){ tip = document.createElement('div'); tip.id = 'tip'; tip.setAttribute('role', 'presentation'); document.body.append(tip); }
+  let tip = $('#tip'); if (!tip){ tip = document.createElement('div'); tip.id = 'tip'; tip.setAttribute('aria-hidden', 'true'); document.body.append(tip); }
   let timer = null, cur = null;
   const hide = () => { clearTimeout(timer); tip.classList.remove('on'); cur = null; };
   document.addEventListener('pointerover', e => {

@@ -37,7 +37,7 @@ const none = await S.applyTo(tmp, csv);
 ok('a sheet with nothing corrected changes nothing', none.text === before && none.changed === 0);
 
 // correct a plain string, a plural form, a text with a line break, and try one that drops a placeholder
-const plain = 'head.notSaved', plural = 'head.pages#other', brk = multi[0], withHole = 'undo.language';
+const plain = 'head.saving', plural = 'head.pages#other', brk = multi[0], withHole = 'undo.language';
 const edit = (k, v) => rows.find(r => r[0] === k)[3] = v;
 edit(plain, 'Még nincs mentve'); edit(plural, '{n} oldal (javítva)'); edit(brk, `Első sor ${(en[brk].match(/\{\w+\}/g) ?? []).join(' ')}\nMásodik "sor" it's`); edit(withHole, 'Nyelv');
 const done = await S.applyTo(tmp, S.toCsv(rows));

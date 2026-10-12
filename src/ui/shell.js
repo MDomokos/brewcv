@@ -401,7 +401,7 @@ function drawHead(){
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   $('#head').innerHTML = `
     <div class="hrow top">
-      <h1 class="logo"><img src="icons/icon.svg" alt="" width="28" height="28"><span class="sr">BrewCV</span></h1>
+      <span class="logo"><img src="icons/icon.svg" alt="" width="28" height="28"><span class="sr">BrewCV</span></span>
       <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ▾</span></span><span class="dt">${esc(meta)}</span></button>
       ${r ? langButton(r) : ''}
       <span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>

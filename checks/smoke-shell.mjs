@@ -952,7 +952,7 @@ if (want('saved resumes')) {
   ok('Ctrl+O opens the switcher with the search box focused', await page.isVisible('#switcher') && (await page.evaluate(() => document.activeElement?.id)) === 'sw-q');
   const uniqueRows = () => page.evaluate(() => new Set([...document.querySelectorAll('#switcher .swrow')].map(r => r.dataset.rid)).size);
   ok('it lists every resume, grouped by job type', (await uniqueRows()) === 14 && (await page.$$('#switcher .swlist .lbl')).length >= 3);
-  ok('it is a listbox of options for a screen reader', (await page.getAttribute('#sw-list', 'role')) === 'listbox' && (await page.$$('#switcher [role=option]')).length >= 14 && (await page.getAttribute('#switcher', 'role')) === 'dialog');
+  ok('it is a dialog with a labelled group of buttons for a screen reader, the open resume marked current', (await page.getAttribute('#sw-list', 'role')) === 'group' && (await page.$$('#switcher .sopt')).length >= 14 && (await page.$$('#switcher .sopt[aria-current=true]')).length >= 1 && (await page.getAttribute('#switcher', 'role')) === 'dialog');
   const before = await firstBullet(page);
   await page.hover('#switcher .sopt:has-text("Medtech")'); await page.waitForTimeout(1500);
   ok('hovering one shows it on the page', (await firstBullet(page)) !== before && (await st()).openId.startsWith('Example'));
@@ -1624,6 +1624,72 @@ if (want('one panel for a claim: from the page and from the checklist')) {
   await ctx.close();
 }
 
+
+// The M8 accessibility pass: axe-core on every main view. axe-core is a dev tool and is not in the repo (nothing in
+// BrewCV has a dependency): AXE_CORE=/path/to/axe.min.js (from `npm install axe-core` anywhere) runs it, else it is skipped.
+if (want('accessibility: axe-core on every view')) {
+  const axePath = process.env.AXE_CORE;
+  if (!axePath || !fs.existsSync(axePath)) console.log('skipped: set AXE_CORE to the path of axe.min.js to run it');
+  else {
+    const axeSrc = fs.readFileSync(axePath, 'utf8');
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    const sheet = page.frameLocator('#sheet iframe');
+    const runAxe = async (pg, name) => {
+      await pg.evaluate(axeSrc);
+      const v = await pg.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 2).map(n => n.target.join(' ')).join(' | ')}`));
+      ok(`axe-core: ${name}`, v.length === 0, v.join(' ; '));
+    };
+    await runAxe(page, 'Edit, nothing selected');
+    await page.click('#checklist .clg[data-g=hydra] .clcaret'); await settle(page);
+    await runAxe(page, 'a checklist group open');
+    await sheet.locator('.bullets li').first().click(); await settle(page);
+    await runAxe(page, 'a claim');
+    await sheet.locator('.role-title').first().click(); await settle(page);
+    await page.click('details.details > summary'); await page.click('details.jr:not(.details) summary'); await settle(page);
+    await runAxe(page, 'a job with Details open');
+    await sheet.locator('.name').click(); await settle(page);
+    await runAxe(page, 'About you');
+    await page.click('[data-act=c-pop]'); await settle(page);
+    await runAxe(page, 'the + Add menu');
+    await page.click('.addm [data-what=work]'); await settle(page);
+    await runAxe(page, 'a form for something new');
+    await page.click('[data-act=c-add-cancel]'); await settle(page);
+    await page.click('[data-act=c-tl]'); await page.waitForTimeout(500);
+    await runAxe(page, 'the timeline');
+    await page.keyboard.press('Escape'); await settle(page);
+    for (const m of ['design', 'export']){ await page.click(`#head [data-m=${m}]`); await page.waitForTimeout(500); await runAxe(page, m); }
+    await page.click('#head [data-m=edit]'); await settle(page);
+    await page.click('#docname-btn'); await settle(page); await runAxe(page, 'the switcher');
+    await page.click('#switcher [data-act=sw-manage]'); await settle(page); await runAxe(page, 'the grown switcher');
+    await page.click('#switcher [data-act=sw-view][data-v=date]'); await settle(page); await runAxe(page, 'the grown switcher by date');
+    await page.keyboard.press('Escape'); await settle(page);
+    await page.click('#zoompct'); await settle(page); await runAxe(page, 'the zoom settings');
+    await page.keyboard.press('Escape');
+    await page.click('[data-act=help]'); await settle(page); await runAxe(page, 'the shortcut sheet');
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => window.__wb.setView('settings')); await settle(page); await runAxe(page, 'Settings');
+    await page.evaluate(() => window.__wb.setView(null));
+    await page.keyboard.press('Escape'); await settle(page);
+    await runAxe(page, 'folded: the rail and the vertical bar');
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+    const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true });
+    const p2 = await c2.newPage();
+    await open(p2, '?memory&welcome');
+    await runAxe(p2, 'the start screen');
+    await p2.click('[data-act=ob-scratch]'); await settle(p2); await runAxe(p2, 'the language step');
+    await p2.click('[data-act=ob-lang-go]'); await p2.waitForTimeout(900); await runAxe(p2, 'the quiet editor');
+    await c2.close();
+    const c3 = await browser.newContext({ viewport: { width: 1100, height: 800 }, bypassCSP: true });
+    const p3 = await c3.newPage();
+    await open(p3, undefined, { panel: null });
+    await p3.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(p3);
+    await runAxe(p3, 'the drawer under 1280px');
+    await c3.close();
+  }
+}
 
 if (want('deployed: a subpath, offline, a phone, names')) {
   // served under /brewcv/ the way GitHub Pages serves a project site

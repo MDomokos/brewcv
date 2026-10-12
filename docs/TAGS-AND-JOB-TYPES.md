@@ -18,11 +18,11 @@ A tag is a way to sort, not a list of everything you can do. Five to ten tags is
 
 A good test: if a tag would never appear in a job type, you probably don't need it.
 
-If you already have many tags, merge near-duplicates. Open a line in Career, remove the tag you don't want from each version (the × on the chip) and add the one you keep.
+If you already have many tags, merge near-duplicates. Open the line (from the page or from the checklist at the bottom of the Edit panel), remove the tag you don't want from each version (the × on the chip) and add the one you keep.
 
 ## Set up job types
 
-1. Open **Career** and go to step 3, **Skills & credentials**. At the bottom is **Job types**.
+1. In the Edit panel with nothing selected, choose **Add job types** beside the Highlight row (or open **Skills and credentials** in the checklist and choose **Job types…**). The panel lists them.
 2. Type a name, for example `CAD designer`, and choose **Add job type**.
 3. In the new row, type a tag and press Enter. The box suggests tags you already use. Add as many as the kind of job needs. Remove one with its ×.
 4. Rename a job type by editing its name. Delete one with the bin; resumes you saved with that job type keep its name as written.
@@ -31,16 +31,16 @@ Job types can share tags. `hardware` can be in both "CAD designer" and "Rugged f
 
 ## Tailor a resume to a job type
 
-1. Open the **Resume** workspace and choose the resume you are working on, or start a new one.
-2. On the home view, under **Focus on a job type or tag**, job types are listed first. Click one. Its tags show when you hover it.
-3. The panel says how many bullets would be switched on, off, or changed to another version. Choose **Select bullets for …** to apply it. One undo (Ctrl+Z) reverses all of it.
+1. Choose the resume you are working on, or start a new one. Click nothing on the page, so the Edit panel shows its home view (press **E** if the panel is folded).
+2. In the **Highlight** row, choose a job type. Only job types are listed; **+ tags** shows the topic tags. Choosing one only highlights: the lines that match stay bright and the rest dim on the page.
+3. Choose **Apply…**. The panel says how many bullets would be switched on, off, or changed to another version. Choose **Select bullets for …** to apply it. One undo (Ctrl+Z) reverses all of it.
 
 What Focus does and does not do:
 
 - It never touches a bullet you marked **Keep**, and never empties a job: a job with no matching bullet keeps its first one.
 - It works in the resume's language. A version in another language is not a match.
 - It leaves archived claims and archived jobs exactly as the resume has them.
-- Click a plain tag instead of a job type to focus on that one tag.
+- Choose a plain tag under **+ tags** instead of a job type to focus on that one tag. Tags that only name a section or mark an old claim (`identity`, `education`, `archive`…) are never offered.
 
 A resume can have a job type. The resume switcher (the resume's name in the header) groups resumes by job type, and **+ New resume** asks for one. Under **Start from**, **The last … resume** copies the newest resume with that job type, and **Bullets for …** starts fresh and applies the job type.
 
@@ -48,10 +48,10 @@ A resume can have a job type. The resume switcher (the resume's name in the head
 
 Old material that saved resumes still print can't be deleted without changing them. Archive it instead.
 
-- **A claim.** Open it in Career and choose **Archive** beside the bin. Career hides it; each job shows a muted "n archived" button that reveals archived claims, dimmed, each with **Unarchive**. A job keeps at least one claim that is not archived.
-- **A whole job.** Open the job in Career and choose **Archive job**. The timeline hides it behind an "n archived" button.
+- **A claim.** Open it and choose **Archive** beside the bin. The checklist hides it; each job's group shows a muted "n archived" button that reveals archived claims, dimmed, each with **Unarchive**. A job keeps at least one claim that is not archived.
+- **A whole job.** Open the job, open its **Details** and choose **Archive job**. The checklist and the timeline hide it behind an "n archived" button.
 - **What archiving changes.** New resumes, Focus and Fit never switch on an archived claim or job. Tag counts leave them out.
-- **What it does not change.** Saved resumes keep printing an archived claim or job exactly as before, including the text they saved. In the Resume workspace an archived claim that a resume prints shows an "archived" badge, and you can turn it off. To switch an archived claim on, unarchive it first.
+- **What it does not change.** Saved resumes keep printing an archived claim or job exactly as before, including the text they saved. In the checklist an archived claim that a resume prints stays in its job's list with an "archived" badge, and you can untick it. To switch an archived claim on, unarchive it first.
 - Archiving can be undone with Ctrl+Z, and merging two records shows archiving and unarchiving as changes you can tick.
 
 ## In your file

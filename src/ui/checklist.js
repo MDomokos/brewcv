@@ -43,15 +43,15 @@ function groupHtml(g, open, ctx){
   const id = `clg-${esc(g.id)}`;
   const body = (inner, extra = '') => `<div class="clbody" id="${id}" ${open ? '' : 'hidden'}>${inner}${extra}</div>`;
   if (g.kind === 'about'){
-    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h4 class="clgh">${caret(g, open, h('career.step1'), nOfM(g.on, g.total))}</h4>
+    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${caret(g, open, h('career.step1'), nOfM(g.on, g.total))}</h3>
       ${body(`<ul class="clrows">${g.rows.map(r => rowHtml(r, g)).join('')}</ul>`)}</section>`;
   }
   if (g.kind === 'entry'){
     const title = `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`;
     const arch = g.archivedRows.length;
     const archOpen = ctx.shown.has(g.id);
-    return `<section class="clg ${open ? 'open' : ''} ${g.archived ? 'is-archived' : ''}" data-g="${esc(g.id)}"><h4 class="clgh">${caret(g, open, title, nOfM(g.on, g.total))}
-        ${g.archived ? `<button class="ghost sm" data-act="c-unarch-entry" data-id="${esc(g.id)}">${h('arch.unarchiveJob')}</button>` : ''}</h4>
+    return `<section class="clg ${open ? 'open' : ''} ${g.archived ? 'is-archived' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${caret(g, open, title, nOfM(g.on, g.total))}
+        ${g.archived ? `<button class="ghost sm" data-act="c-unarch-entry" data-id="${esc(g.id)}">${h('arch.unarchiveJob')}</button>` : ''}</h3>
       ${body(`<ul class="clrows">${g.rows.map(r => rowHtml(r, g)).join('')}</ul>
         <div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr(g.sel)}">${h('ux2.openEntry')}</button></div>
         ${arch ? `<button class="sm ghost archmore" data-act="c-arch-show" data-id="${esc(g.id)}" aria-expanded="${archOpen}">${archOpen ? h('arch.hide') : h('arch.nArchived', { n: arch })}</button>${archOpen ? `<ul class="clrows">${g.archivedRows.map(r => rowHtml(r, g)).join('')}</ul>` : ''}` : ''}
@@ -60,11 +60,11 @@ function groupHtml(g, open, ctx){
   const sectionSwitch = (sid, on, name) => (sid ? `<label class="swl clsec"><input type="checkbox" class="sw" data-secon="${esc(sid)}" ${on ? 'checked' : ''} aria-label="${esc(t('edit.showX', { name }))}"><span class="tiny muted">${h('ux2.onResume')}</span></label>` : '');
   if (g.kind === 'education' || g.kind === 'list'){
     const name = g.kind === 'education' ? t('career.kind.education') : g.title;
-    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h4 class="clgh">${caret(g, open, esc(name), nOfM(g.on, g.total))}</h4>
+    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${caret(g, open, esc(name), nOfM(g.on, g.total))}</h3>
       ${body(`${sectionSwitch(g.section, g.sectionOn, name)}<ul class="clrows">${g.rows.map(r => rowHtml(r, g)).join('')}</ul>`)}</section>`;
   }
   // skills and credentials: each list under the section that prints it
-  return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h4 class="clgh">${caret(g, open, h('ux2.groupCredentials'), nOfM(g.on, g.total))}</h4>
+  return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${caret(g, open, h('ux2.groupCredentials'), nOfM(g.on, g.total))}</h3>
     ${body(g.subs.filter(s => s.rows.length).map(s => `<div class="clsub"><div class="clsubh"><b>${esc(t(`career.group.${s.id}`))}</b>${sectionSwitch(s.section, s.sectionOn, t(`career.group.${s.id}`))}</div>
         <ul class="clrows">${s.rows.map(r => rowHtml(r, g)).join('')}</ul></div>`).join('')
       + `<div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr({ kind: 'record', what: 'jobtypes' })}">${h('ux2.jobTypes')}</button></div>`)}</section>`;
@@ -78,7 +78,7 @@ function html(){
   const archived = cl.groups.filter(g => g.kind === 'entry' && g.archived);
   const isOpen = g => S.open.has(g.id) || (g.id === sel && S.shut !== g.id);
   return `<section class="checklist" id="checklist" aria-labelledby="cl-h">
-    <div class="clhead"><h3 id="cl-h">${h('ux2.onThisResume')}</h3><span class="clall" id="cl-all">${nOfM(cl.on, cl.total)}</span><span class="grow"></span>
+    <div class="clhead"><h2 id="cl-h">${h('ux2.onThisResume')}</h2><span class="clall" id="cl-all">${nOfM(cl.on, cl.total)}</span><span class="grow"></span>
       <button class="sm" data-act="c-tl" aria-haspopup="dialog" aria-expanded="${C.career.tlOpen}">${icon('timeline', { size: 14 })} ${h('ux2.timeline')}</button>
       <button class="sm" data-act="c-pop" aria-haspopup="menu" aria-expanded="${C.career.popOpen}" id="c-add">${h('ux2.add')}</button></div>
     ${S.hint ? `<p class="clhint" role="note"><span>${h('ux2.hint')}</span><button class="ghost sm" data-act="cl-hint-ok" aria-label="${esc(t('ux2.hintOk'))}">✕</button></p>` : ''}

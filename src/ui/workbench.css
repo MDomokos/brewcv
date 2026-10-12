@@ -932,12 +932,12 @@ body.soft .sheet-frame { filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .06)) drop-
 /* the record checklist, at the bottom of the Edit panel */
 .checklist { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); }
 .clhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-.clhead h3 { margin: 0; font-size: 13.5px; font-weight: 750; }
+.clhead h2 { margin: 0; font-size: 13.5px; font-weight: 750; }
 .clall { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .clhint { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 4px 0 8px; padding: 5px 6px 5px 10px; border-radius: 8px; background: var(--mode-soft); font-size: 12.5px; }
 .clg { border: 1px solid var(--line); border-radius: 10px; background: #fff; margin: 0 0 5px; }
 .clg.open { border-color: #c7c2b3; }
-.clgh { margin: 0; display: flex; align-items: center; }
+.clgh { margin: 0; display: flex; align-items: center; font-size: inherit; font-weight: inherit; }
 .clcaret { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; text-align: left; border: 0; background: transparent; padding: 7px 10px; font-weight: 650; font-size: 13px; border-radius: 10px; }
 .clcaret:hover { background: rgba(20, 19, 15, .04); border: 0; }
 .clc { display: inline-grid; transition: transform .15s; transform: rotate(-90deg); color: var(--ink-soft); }
@@ -1037,3 +1037,6 @@ body[data-phone=true] .lens, body[data-phone=true] .notonline, body[data-phone=t
 .jobchip .jn { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
 .jobchip .jc { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 body.is-intro .pagelay, body.is-quiet .pagelay { display: none; }
+.hrow.modes .seg { flex-wrap: nowrap; flex: none; }
+.hrow.modes .seg [role=tab] { padding: 4px 8px; white-space: nowrap; }
+.hrow.modes .filestate { flex: 1 1 0; min-width: 0; text-align: right; max-width: none; margin-left: 0; }
