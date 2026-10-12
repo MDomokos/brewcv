@@ -43,7 +43,7 @@ export function uiChoice(pref, offer, { name = 'ui' } = {}){
   const fixed = pref.mode === 'fixed';
   const opts = [...new Set(['en', ...offer])].filter(l => UI_LANGS.includes(l));
   return `<div class="uichoice" role="radiogroup" aria-label="${esc(t('set.uiHead'))}">
-    <label class="opt"><input type="radio" name="${name}" value="follow" data-uimode="follow" ${fixed ? '' : 'checked'}><span class="opt-t">${h('set.uiFollow')}</span></label>
+    <label class="opt"><input type="radio" name="${name}" value="follow" data-uimode="follow" ${fixed ? '' : 'checked'}><span class="opt-t">${h('ux3b.uiFollow')}</span></label>
     <label class="opt"><input type="radio" name="${name}" value="fixed" data-uimode="fixed" ${fixed ? 'checked' : ''}> ${h('set.uiFixed')}
       <select data-uilang aria-label="${esc(t('set.uiFixedLang'))}">${opts.map(l => `<option value="${l}" ${(fixed ? pref.lang : 'en') === l ? 'selected' : ''}>${esc(langName(l))}${MACHINE.has(l) ? ` ${esc(t('set.machine'))}` : ''}</option>`).join('')}</select></label>
   </div>`;

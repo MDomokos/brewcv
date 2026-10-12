@@ -123,6 +123,34 @@ export function initOnPage(C){
     return html + (popOpen ? badgeListHtml({ fact, versions: versionsOf(C.ix(), fact, C.lang()), usingId: using?.id }) : '');
   }
 
+  // The breadcrumb never covers printed text. It tries the places next to the frame in turn, the full crumb first and then the short one
+  // (without "Write this line" and Esc): above the frame, beside it on the left, above it on the right. The first that overlaps no text
+  // is the one; when none is free, the one that covers least.
+  function placeCrumb(cb, fr){
+    const view = canvas.view ?? { left: 0, top: 0, width: innerWidth, height: innerHeight };
+    const ink = sheet.textRects().map(r => canvas.screenRect(r));
+    const overlap = (x, y, w, h) => ink.reduce((n, r) => n + Math.max(0, Math.min(x + w, r.left + r.width) - Math.max(x, r.left)) * Math.max(0, Math.min(y + h, r.top + r.height) - Math.max(y, r.top)), 0);
+    let best = null;
+    for (const compact of [false, true]){
+      cb.classList.toggle('compact', compact);
+      const w = cb.offsetWidth, h = cb.offsetHeight;
+      const at = [
+        { x: Math.max(6, fr.left), y: fr.top - h - 4 },                    // above the frame
+        { x: fr.left - w - 8, y: fr.top },                                 // beside it, on the left
+        { x: fr.left + fr.width - w, y: fr.top - h - 4 },                  // above it, on the right
+      ];
+      for (const c of at){
+        if (c.x < view.left + 4 || c.y < 4 || c.x + w > view.left + view.width - 4) continue;
+        const o = overlap(c.x, c.y, w, h);
+        if (o === 0){ Object.assign(cb.style, { left: `${Math.round(c.x)}px`, top: `${Math.round(c.y)}px` }); return; }
+        if (!best || o < best.o) best = { ...c, o, compact };
+      }
+    }
+    cb.classList.toggle('compact', !!best?.compact);
+    const c = best ?? { x: Math.max(6, fr.left), y: Math.max(6, fr.top - 32) };
+    Object.assign(cb.style, { left: `${Math.round(c.x)}px`, top: `${Math.round(c.y)}px` });
+  }
+
   // where everything is on the screen: follows the camera
   function place(){
     if (!geom || !lay) return;
@@ -142,10 +170,10 @@ export function initOnPage(C){
     const box = (el, r) => { if (!el || !r) return; Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); };
     box(lay.querySelector('.obframe.job'), R(pad(geom.job, PAD_JOB)));
     box(lay.querySelector('.obframe.line'), R(pad(geom.line, PAD_LINE)));
-    // the breadcrumb sits above the frame (the job's, or the line's when it is outside a job)
+    // the breadcrumb sits by the frame (the job's, or the line's when it is outside a job), where it covers no printed text
     const top = R(pad(geom.job ?? geom.line, geom.job ? PAD_JOB : PAD_LINE));
     const cb = lay.querySelector('.obcrumb');
-    if (cb && top){ cb.style.left = `${Math.max(6, top.left)}px`; cb.style.top = `${Math.max(6, top.top - 32)}px`; }
+    if (cb && top) placeCrumb(cb, top);
     // the tools sit beside the line, in the page's right margin
     const tw = lay.querySelector('.obtoolswrap');
     const fact = badgeFact(lvl);

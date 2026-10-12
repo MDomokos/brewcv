@@ -88,7 +88,9 @@ function exportView(){
       <button data-act="ex-txt"><b>${h('export.txt')}</b><small>${h('export.txtNote')}</small></button>
       <button data-act="ex-json"><b>JSON Resume</b><small>${h('export.jsonNote')}</small></button>
     </div>
-    <p class="note">${h('export.note')}</p>`;
+    <p class="note">${h('export.note')}</p>
+    <hr class="sentrule">
+    <div class="sentrow"><span class="lbl inline">${h('ux3b.sentRow')}</span><button data-act="mark-sent" ${C.ui.snap ? 'disabled' : ''}>${h('ux3b.markSent')}</button></div>`;
 }
 
 async function act(a){

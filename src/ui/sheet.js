@@ -48,7 +48,7 @@ function paintMarks(doc){
 
 export function createSheet(host, hooks = {}){
   let fr = null;
-  let shown = null;
+  let shown = null, textCache = null;
   let view = { mode: 'spread', page: 0 };
   let marked = { sel: null, ix: null, prev: null, focus: null, miss: null, hover: null };
   let fade = [];
@@ -278,6 +278,7 @@ export function createSheet(host, hooks = {}){
       const { laid, pages } = await draw(work, recipe);
       fr.doc.documentElement.classList.remove('rb-previewing');
       shown = { work, recipe, laid, pages };
+      textCache = null;
       applyView();
       marked.prev = null;
       mark();
@@ -290,6 +291,7 @@ export function createSheet(host, hooks = {}){
       const { laid, pages } = await draw(work, recipe);
       fr.doc.documentElement.classList.add('rb-previewing');
       shown = { ...shown, laid };
+      textCache = null;
       applyView();
       marked.prev = fact;
       mark();
@@ -349,6 +351,18 @@ export function createSheet(host, hooks = {}){
       const el = this.elOf(factId, ix);
       const pg = el?.closest('.document > .page');
       return pg ? [...fr.root.querySelectorAll(':scope > .page')].indexOf(pg) : -1;
+    },
+    // every run of printed text, as rectangles in the page's own pixels (what the layers over the page keep clear of); cached until the next draw
+    textRects(){
+      if (!fr?.doc || !fr.frame.isConnected) return [];
+      if (textCache) return textCache;
+      const out = [], walker = fr.doc.createTreeWalker(fr.root, 4), range = fr.doc.createRange();
+      for (let n = walker.nextNode(); n; n = walker.nextNode()){
+        if (!n.nodeValue.trim()) continue;
+        range.selectNodeContents(n);
+        for (const q of range.getClientRects()) if (q.width > 1 && q.height > 1) out.push({ left: q.left, top: q.top, width: q.width, height: q.height });
+      }
+      return (textCache = out);
     },
     // a rectangle of an element of the frame, in the page's own pixels
     rectOfEl(el){ const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; },

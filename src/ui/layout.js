@@ -5,7 +5,8 @@
 // edge: the page never gives up its width to it.
 
 export const G = 16;
-export const COL_MIN = 340, COL_MAX = 420;
+export const COL_MIN = 380, COL_MAX = 480;
+export const RECORD_MIN = 640, RECORD_MAX = 720;      // the panel in Record: about 640 to 720 px, never more than half the window
 export const RAIL_W = 52;
 export const DRAWER_MAX = 1280;
 export const ZOOM_MIN = 0.4, ZOOM_MAX = 4;
@@ -25,12 +26,16 @@ export const SHEET_VH = 0.42;          // the bottom sheet's share of the height
 
 export const stackHeight = (format, n) => { const { h } = pageSize(format); return n * h + Math.max(0, n - 1) * PAGE_GAP; };
 export const clampZoom = z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number.isFinite(z) ? z : 1));
-export const panelWidth = vw => Math.max(COL_MIN, Math.min(COL_MAX, Math.round(vw * 0.28)));
+export const panelWidth = vw => Math.max(COL_MIN, Math.min(COL_MAX, Math.round(vw * 0.32)));
+// Record widens the panel (the page slides left and shrinks). Under DRAWER_MAX it is a drawer of 90% of the window, with a sliver of the page
+// showing; on a phone it is the whole screen.
+export const DRAWER_RECORD = 0.9;
+export const recordWidth = vw => (vw < PHONE_MAX ? vw : vw < DRAWER_MAX ? Math.round(vw * DRAWER_RECORD) : Math.max(RECORD_MIN, Math.min(RECORD_MAX, Math.floor(vw * 0.5))));
 
 // mode: 'auto' | 'spread' | 'stack' (an old 'single' means 'stack'). `pages` is the scroller the sheet
 // sits in, in screen px; `content` is the height it scrolls through, `contentW` the width.
 // folded: the panel is the rail. zoom: 1 is the whole page fitted to the window.
-export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', folded = false, zoom = 1 }){
+export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', folded = false, zoom = 1, wide = false }){
   const { w, h } = pageSize(format);
   const n = Math.max(1, pages);
   const z = clampZoom(zoom);
@@ -41,14 +46,14 @@ export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', folded
     return {
       phone: true, drawer: false, folded: false, scale, fit: (vw - G) / w, zoom: z, spread: false, stack: n > 1, perView: 1,
       sheet: { left: G / 2, top: G / 2, width: w * scale, height },
-      col: { left: 0, top: vh - colH, width: vw, height: colH },
+      col: wide ? { left: 0, top: 0, width: vw, height: vh } : { left: 0, top: vh - colH, width: vw, height: colH },
       pages: { left: 0, top: 0, width: vw, height: G + height, content: G + height, contentW: vw },
       pageStep: (h + PAGE_GAP) * scale, areaW: vw, railW: 0, colW: vw,
       fullHeight: false, canSpread: false,
     };
   }
   const drawer = vw < DRAWER_MAX;
-  const colW = panelWidth(vw);
+  const colW = wide && !folded ? recordWidth(vw) : panelWidth(vw);
   // the page area: it gives way to the open panel on a wide window, and to the rail (always) otherwise
   const areaW = !drawer && !folded ? vw - colW - 2 * G : vw - RAIL_W - 2 * G;
   const tall = (vh - 2 * G) / h;

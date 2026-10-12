@@ -1,8 +1,8 @@
-// "On this resume": the record as a checklist at the bottom of the Edit panel. One group for About you, one for
-// each job and project, Education, Skills and credentials, and the custom kinds. A group opens when it holds the
-// selection; the others stay folded until you open them. Every claim is listed, ticked or not; ticking puts the
-// line on the page and unticking takes it off (edit.js setBullet, one undo step each). Nothing about the
-// claims that are off is drawn on the page. The list is a plain run of checkboxes in tab order.
+// The record as a checklist: the body of the Record tab (record.js), and one compact group at the job level of Edit. One group
+// for About you, one for each job and project, Education, Skills and credentials, and the custom kinds. In Record every group is
+// open and the carets fold a long record. Every claim is listed, ticked or not; ticking puts the line on the page and unticking
+// takes it off (edit.js setBullet, one undo step each). Nothing about the claims that are off is drawn on the page. The list is a
+// plain run of checkboxes in tab order.
 
 import { checklist, groupOf } from '../model/checklist.js';
 import { addClaimHtml } from './parts.js';
@@ -16,7 +16,7 @@ const HINT_KEY = 'rb-cl-hint';
 const hintDone = () => { try { return localStorage.getItem(HINT_KEY) === '1'; } catch { return true; } };
 const setHintDone = () => { try { localStorage.setItem(HINT_KEY, '1'); } catch { /* shown again next time */ } };
 
-const S = { open: new Set(), shut: null, scrollTo: false, hint: !hintDone(), pop: null };
+const S = { shut: new Set(), hint: !hintDone(), pop: null };
 
 export function initChecklist(ctx){ C = ctx; return api; }
 
@@ -40,7 +40,7 @@ function rowHtml(r, g){
       ${r.archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span><button class="ghost sm" data-act="unarchive-claim" data-id="${esc(r.id)}">${h('arch.unarchive')}</button>` : ''}</li>`;
 }
 
-function groupHtml(g, open, ctx){
+function groupHtml(g, open, ctx, { compact = false } = {}){
   const id = `clg-${esc(g.id)}`;
   const body = (inner, extra = '') => `<div class="clbody" id="${id}" ${open ? '' : 'hidden'}>${inner}${extra}</div>`;
   if (g.kind === 'about'){
@@ -51,10 +51,13 @@ function groupHtml(g, open, ctx){
     const title = `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`;
     const arch = g.archivedRows.length;
     const archOpen = ctx.shown.has(g.id);
-    return `<section class="clg ${open ? 'open' : ''} ${g.archived ? 'is-archived' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${caret(g, open, title, nOfM(g.on, g.total))}
-        ${g.archived ? `<button class="ghost sm" data-act="c-unarch-entry" data-id="${esc(g.id)}">${h('arch.unarchiveJob')}</button>` : ''}</h3>
+    // at the job level the group is the job's own lines, always open, headed with the count
+    const head = compact ? `<h3 class="clgh clcompact"><span class="clname">${h('ux3b.thisJob')}</span><span class="clcount">${nOfM(g.on, g.total)}</span></h3>`
+      : `<h3 class="clgh">${caret(g, open, title, nOfM(g.on, g.total))}
+        ${g.archived ? `<button class="ghost sm" data-act="c-unarch-entry" data-id="${esc(g.id)}">${h('arch.unarchiveJob')}</button>` : ''}</h3>`;
+    return `<section class="clg ${open ? 'open' : ''} ${g.archived ? 'is-archived' : ''}" data-g="${esc(g.id)}">${head}
       ${body(`<ul class="clrows">${g.rows.map(r => rowHtml(r, g)).join('')}</ul>
-        <div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr(g.sel)}">${h('ux2.openEntry')}</button></div>
+        ${compact ? '' : `<div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr(g.sel)}">${h('ux2.openEntry')}</button></div>`}
         ${arch ? `<button class="sm ghost archmore" data-act="c-arch-show" data-id="${esc(g.id)}" aria-expanded="${archOpen}">${archOpen ? h('arch.hide') : h('arch.nArchived', { n: arch })}</button>${archOpen ? `<ul class="clrows">${g.archivedRows.map(r => rowHtml(r, g)).join('')}</ul>` : ''}` : ''}
         ${g.archived ? '' : addClaimHtml({ id: g.id, key: g.key, draft: C.edit.claimDraftOf(g.id) })}`)}</section>`;
   }
@@ -71,31 +74,34 @@ function groupHtml(g, open, ctx){
       + `<div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr({ kind: 'record', what: 'jobtypes' })}">${h('ux2.jobTypes')}</button></div>`)}</section>`;
 }
 
+// Record's body: "Your record", the count for the open resume, + Add; then every group, all open. `timeline` is career's, drawn above.
 function html(){
   const cl = checklist(C.work(), C.cur(), C.lang());
-  const sel = groupOf(C.work(), C.ui.sel);
   const shownEntries = C.career.shownArchived;
   const live = cl.groups.filter(g => !(g.kind === 'entry' && g.archived));
   const archived = cl.groups.filter(g => g.kind === 'entry' && g.archived);
-  const isOpen = g => S.open.has(g.id) || (g.id === sel && S.shut !== g.id);
+  const isOpen = g => !S.shut.has(g.id);
   return `<section class="checklist" id="checklist" aria-labelledby="cl-h">
-    <div class="clhead"><h2 id="cl-h">${h('ux2.onThisResume')}</h2><span class="clall" id="cl-all">${nOfM(cl.on, cl.total)}</span><span class="grow"></span>
-      <button class="sm" data-act="c-tl" aria-haspopup="dialog" aria-expanded="${C.career.tlOpen}">${icon('timeline', { size: 14 })} ${h('ux2.timeline')}</button>
+    <div class="clhead"><h2 id="cl-h">${h('ux3b.recordTitle')}</h2><span class="clall" id="cl-all">${nOfM(cl.on, cl.total)}</span><span class="grow"></span>
       <button class="sm" data-act="c-pop" aria-haspopup="menu" aria-expanded="${C.career.popOpen}" id="c-add">${h('ux2.add')}</button></div>
     ${S.hint ? `<p class="clhint" role="note"><span>${h('ux2.hint')}</span><button class="ghost sm" data-act="cl-hint-ok" aria-label="${esc(t('ux2.hintOk'))}">${icon('close', { size: 12 })}</button></p>` : ''}
     ${C.career.popOpen ? C.career.addMenuHtml() : ''}
+    ${C.timelineHtml ? `<div class="rectl">${C.timelineHtml()}</div>` : ''}
     ${live.map(g => groupHtml(g, isOpen(g), { shown: shownEntries })).join('')}
     ${archived.length || C.career.jobsArchived ? `<button class="sm ghost archmore" data-act="c-arch-jobs" aria-expanded="${C.career.jobsArchived}">${C.career.jobsArchived ? h('arch.hideJobs') : h('arch.nJobs', { n: archived.length })}</button>${C.career.jobsArchived ? archived.map(g => groupHtml(g, isOpen(g), { shown: shownEntries })).join('') : ''}` : ''}
   </section>`;
 }
 
-// the selection changed: its group opens, the others fold
-function onSelect(sel, { scroll = false } = {}){
-  const g = groupOf(C.work(), sel);
-  S.open = new Set(g ? [g] : []);
-  S.shut = null;
-  S.scrollTo = scroll && !!g;
+// At the job level of Edit: the job's own lines as one compact group, open, so a line can still be switched on or off beside the
+// job. '' when the selection is not in a job.
+function jobGroupHtml(){
+  const id = groupOf(C.work(), C.ui.sel);
+  if (!id) return '';
+  const g = checklist(C.work(), C.cur(), C.lang()).groups.find(x => x.id === id && x.kind === 'entry');
+  if (!g) return '';
+  return `<section class="checklist compact" id="checklist" aria-label="${esc(t('ux3b.thisJob'))}">${groupHtml(g, true, { shown: C.career.shownArchived }, { compact: true })}</section>`;
 }
+
 function afterRender(){
   // the tick just made pops once, on its own line (the panel is redrawn on every tick, so the line is found again by what it is)
   if (S.pop && performance.now() < S.pop.until){
@@ -103,10 +109,6 @@ function afterRender(){
     if (cb){ cb.classList.add('pop'); cb.addEventListener('animationend', () => cb.classList.remove('pop'), { once: true }); }
   }
   S.pop = null;
-  if (S.scrollTo){
-    S.scrollTo = false;
-    document.querySelector('#checklist .clg.open')?.scrollIntoView({ block: 'nearest' });
-  }
 }
 
 async function act(a, tg){
@@ -114,11 +116,9 @@ async function act(a, tg){
     case 'cl-toggle': {
       const g = tg.dataset.g;
       const open = tg.getAttribute('aria-expanded') === 'true';
-      if (open) S.open.delete(g); else S.open.add(g);
-      // folding the group the selection is in has to stick: remember it as shut
+      if (open) S.shut.add(g); else S.shut.delete(g);
       const body = document.getElementById(`clg-${g}`);
       if (body){ body.hidden = open; tg.setAttribute('aria-expanded', String(!open)); tg.closest('.clg')?.classList.toggle('open', !open); }
-      if (open && groupOf(C.work(), C.ui.sel) === g) S.shut = g;
       return true;
     }
     case 'cl-open': {
@@ -149,4 +149,4 @@ function bind(body){
   body.addEventListener('focusout', e => { const r = e.target.closest?.('#checklist .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });
 }
 
-const api = { html, act, bind, onSelect, afterRender, get open(){ return S.open; } };
+const api = { html, jobGroupHtml, act, bind, afterRender };

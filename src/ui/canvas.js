@@ -179,7 +179,7 @@ export function initCanvas(C){
       if (ui.writing) C.writeZoomChanged?.(Math.round((ui.zoom ?? 1) * 100));      // while writing, a pinch is the writing zoom
       return true;
     }
-    if (e.target?.closest?.('#col, #timeline, #switcher, #help, .zpop, .actual')) return false;
+    if (e.target?.closest?.('#col, #switcher, #help, .zpop, .actual')) return false;
     const dx = e.deltaX * unit(e), dy = e.deltaY * unit(e);
     if (scene === 'all' && !free && !ui.writing){ e.preventDefault(); return true; }   // both pages are in view: nothing to travel to
     e.preventDefault();

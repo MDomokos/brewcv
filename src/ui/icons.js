@@ -33,6 +33,7 @@ const P = {
   update: '<path d="M3.4 8.4 6.6 11.4l6-6.6"/>',
   copyplus: '<rect x="2.6" y="5.4" width="7.6" height="8" rx="1.2"/><path d="M5.8 3.2h6.4a1.2 1.2 0 0 1 1.2 1.2v6.4M6.4 9.4h3.2M8 7.8V11"/>',
   onlyhere: '<rect x="4.2" y="2.4" width="7.6" height="11.2" rx="1.4"/><circle cx="8" cy="8" r="1.7"/>',
+  record: '<path d="M3.4 3.6h9.2M3.4 8h9.2M3.4 12.4h9.2"/><circle cx="1.9" cy="3.6" r=".5"/><circle cx="1.9" cy="8" r=".5"/><circle cx="1.9" cy="12.4" r=".5"/>',
   espresso: '<path d="M4 6.5h6.5l-.6 5.2a1.4 1.4 0 0 1-1.4 1.3H6a1.4 1.4 0 0 1-1.4-1.3z"/><path d="M10.4 7.6h.9a1.4 1.4 0 0 1 0 2.8h-1.2"/><path d="M3 14.5h9"/>',
 };
 

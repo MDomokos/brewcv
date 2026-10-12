@@ -1,4 +1,4 @@
-// Saved resumes in the panel: Manage all (list, compare), + New resume, Sent to? (the Save button), a snapshot
+// Saved resumes in the panel: Manage all (list, compare), + New resume, Mark as sent (the end of Export), a snapshot
 // opened read-only, and the newer-wording review. The switcher in the header (switcher.js) is the way to jump
 // between resumes; the row menu here is shared by both. The model is src/model/resumes.js.
 
@@ -94,11 +94,20 @@ function newView(){
   const plan = nvPlan(n);
   const L = n.lang, inUse = langsInUse(st().record);
   const opt = (v, label, extra = '', off = false) => `<label class="startopt ${off ? 'is-off' : ''}" data-start="${v}"><input type="radio" name="nv-start" value="${v}" ${n.start === v ? 'checked' : ''} ${off ? 'disabled' : ''}> <span>${label}${extra}</span></label>`;
+  // The decision comes first: what kind of job, and what to start from. Then its name and who it is for, and last the language and paper.
   return `<h2 class="title">${h('ux1.newTitle')}</h2>
-    <label class="field"><span class="lbl inline">${h('ux1.name')}</span><input id="nv-name" value="${esc(nvName(n))}" autocomplete="off" placeholder="${esc(t('ux1.namePh'))}"></label>
     <label class="field"><span class="lbl inline">${h('resumes.jobType')}</span><select id="nv-type">
       <option value="">${h('ux1.noType')}</option>${T.map(j => `<option value="${esc(j.id)}" ${n.jobType === j.id ? 'selected' : ''}>${esc(j.label)}</option>`).join('')}<option value="+" ${n.jobType === '+' ? 'selected' : ''}>${h('ux1.newType')}</option></select></label>
     ${n.jobType === '+' ? `<label class="field"><input id="nv-newtype" value="${esc(n.newType)}" autocomplete="off" placeholder="${esc(t('resumes.jobTypePh'))}" aria-label="${esc(t('ux1.newType'))}"></label>` : ''}
+    <span class="lbl">${h('ux1.startFrom')}</span>
+    <div class="startopts">
+      ${opt('latest', typeOf(n) ? h('ux1.startLatestType', { type: typeLabel(typeOf(n)) }) : h('ux1.startLatest'), picked ? ` <b>${esc(RS.resumeLabel(picked))}</b> <a data-act="nv-change" role="button" tabindex="0">${h('ux1.change')}</a>` : '', !last)}
+      ${n.picking ? `<select id="nv-from" aria-label="${esc(t('ux1.change'))}">${(st().resumes ?? []).map(r => `<option value="${esc(r.id)}" ${r.id === n.fromId ? 'selected' : ''}>${esc(RS.resumeLabel(r))}</option>`).join('')}</select>` : ''}
+      ${opt('tagged', h('ux1.startTagged', { type: esc(typeOf(n) ? typeLabel(typeOf(n)) : t('ux1.thisType')) }), plan ? `<span class="muted small block">${h('ux1.startPlan', { on: plan.on, off: plan.off, sw: plan.sw })}</span>` : `<span class="muted small block">${h('ux3b.pickTypeFirst')}</span>`, !plan)}
+      ${opt('all', h('ux1.startAll'))}
+      ${opt('empty', h('ux1.startEmpty'))}
+    </div>
+    <label class="field"><span class="lbl inline">${h('ux1.name')}</span><input id="nv-name" value="${esc(nvName(n))}" autocomplete="off" placeholder="${esc(t('ux1.namePh'))}"></label>
     <span class="lbl">${h('ux1.for')}</span>
     <label class="field"><select id="nv-kind" aria-label="${esc(t('ux1.kind'))}"><option value="company" ${n.kind === 'company' ? 'selected' : ''}>${h('ux1.kindCompany')}</option><option value="outreach" ${n.kind === 'outreach' ? 'selected' : ''}>${h('ux1.kindOutreach')}</option></select></label>
     <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="nv-co" value="${esc(n.company)}" autocomplete="off"></label>
@@ -107,14 +116,6 @@ function newView(){
     <span class="lang-menu inbody"><button class="sm langbtn" data-act="lang-menu-body" data-for="new" aria-haspopup="menu" aria-expanded="${V.menu === 'new'}">${esc(langName(L))} ${icon('caret', { size: 12 })}</button>
     ${V.menu === 'new' ? langMenuHtml({ for: 'new', current: L, inUse, more: V.more, label: t('resumes.language') }) : ''}</span>
     <label class="field"><span class="lbl inline">${h('design.paper')}</span><select id="nv-paper"><option value="a4" ${n.paper !== 'us-letter' ? 'selected' : ''}>${h('paper.a4')}</option><option value="us-letter" ${n.paper === 'us-letter' ? 'selected' : ''}>${h('paper.letter')}</option></select></label>
-    <span class="lbl">${h('ux1.startFrom')}</span>
-    <div class="startopts">
-      ${opt('latest', typeOf(n) ? h('ux1.startLatestType', { type: typeLabel(typeOf(n)) }) : h('ux1.startLatest'), picked ? ` <b>${esc(RS.resumeLabel(picked))}</b> <a data-act="nv-change" role="button" tabindex="0">${h('ux1.change')}</a>` : '', !last)}
-      ${n.picking ? `<select id="nv-from" aria-label="${esc(t('ux1.change'))}">${(st().resumes ?? []).map(r => `<option value="${esc(r.id)}" ${r.id === n.fromId ? 'selected' : ''}>${esc(RS.resumeLabel(r))}</option>`).join('')}</select>` : ''}
-      ${opt('tagged', h('ux1.startTagged', { type: esc(typeOf(n) ? typeLabel(typeOf(n)) : t('ux1.thisType')) }), plan ? `<span class="muted small block">${h('ux1.startPlan', { on: plan.on, off: plan.off, sw: plan.sw })}</span>` : '', !plan)}
-      ${opt('all', h('ux1.startAll'))}
-      ${opt('empty', h('ux1.startEmpty'))}
-    </div>
     <div class="btns"><button class="primary" data-act="nv-create">${h('ux1.create')}</button><button class="ghost" data-act="view-back">${h('btn.cancel')}</button></div>
     <p class="note">${h('ux1.newNote')}</p>`;
 }
@@ -136,7 +137,7 @@ function nvPreview(start){
   } catch { /* the option is not available */ }
 }
 
-// ---- Sent to? (the Save button) ----
+// ---- Sent to? (Mark as sent, at the end of Export) ----
 
 function sendDefaults(){
   const c = st().cur ?? {};
@@ -150,8 +151,8 @@ function saveView(){
     <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="sv-co" value="${esc(s.company)}" autocomplete="off"></label>
     <label class="field"><span class="lbl inline">${h('resumes.role')}</span><input id="sv-role" value="${esc(s.role)}" autocomplete="off"></label>
     <label class="field"><span class="lbl inline">${h('ux1.date')}</span><input id="sv-date" type="date" value="${esc(s.date)}"></label>
-    <div class="btns"><button class="primary" data-act="sv-do">${h(merge ? 'ux1.addSend' : 'ux1.saveSnapshot')}</button><button class="ghost" data-act="view-back">${h('btn.cancel')}</button></div>
-    <p class="note">${h(merge ? 'ux1.sendMerge' : 'ux1.sendNote')}</p>
+    <div class="btns"><button class="primary" data-act="sv-do">${h('ux3b.markSentDo')}</button><button class="ghost" data-act="sent-back">${h('btn.cancel')}</button></div>
+    <p class="note">${h(merge ? 'ux1.sendMerge' : 'ux3b.sentNote')}</p>
     <p class="note">${C.persist.status.linked ? h('resumes.savedLinked', { name: C.persist.status.linked }) : h('resumes.savedHere')}</p>`;
 }
 function readSend(){
@@ -201,7 +202,7 @@ function newerBanner(){
   return n ? `<div class="banner"><span>${h('newer.banner', { n })}</span><button class="sm" data-act="goto" data-v="newer">${h('newer.review')}</button></div>` : '';
 }
 
-const VIEWS = { compare: compareView, new: newView, save: saveView, newer: reviewView, snapshot: snapshotView };
+const VIEWS = { compare: compareView, new: newView, sent: saveView, newer: reviewView, snapshot: snapshotView };
 
 function commit(fn, label, done){
   try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done); return ok; }
@@ -229,10 +230,10 @@ function openSnapshot(rid, sid){
   C.setView(null);
 }
 
-function save(){
+function markSent(){
   if (C.ui.snap) return;
   V.send = null;
-  C.setView('save');
+  C.setView('sent');
 }
 
 async function sendNow(){
@@ -241,7 +242,7 @@ async function sendNow(){
   let res;
   const ok = commit(d => { res = RS.takeSnapshot(d, send); }, t(merge ? 'ux1.undoSend' : 'ux1.undoSnapshot'));
   V.send = null;
-  C.setView(null);
+  C.setView('export');
   if (!ok && res?.repeated){ C.toast(t('ux1.alreadySent')); return; }
   const to = RS.sendLabel(send);
   C.toast(res?.added ? (to ? t('ux1.snapSavedTo', { to }) : t('ux1.snapSaved')) : (to ? t('ux1.sendAddedTo', { to }) : t('ux1.sendAdded')));
@@ -336,7 +337,8 @@ async function act(a, tg){
     case 'nw-accept': commit(d => RS.acceptNewer(d.cur, tg.dataset.id), t('undo.useNewer')); return true;
     case 'nw-keep': commit(d => RS.keepOlder(d.cur, tg.dataset.id), t('undo.keepSaved')); return true;
     case 'nw-all': commit(d => { for (const x of RS.newerOf(d.record, d.cur)) RS.acceptNewer(d.cur, x.fact); }, t('undo.useNewer'), t('toast.newerAll')); C.setView(null); return true;
-    case 'save': save(); return true;
+    case 'mark-sent': markSent(); return true;
+    case 'sent-back': V.send = null; C.setView('export'); return true;
   }
   return false;
 }
@@ -422,7 +424,7 @@ export function previewSaved(id){
 }
 
 const api = {
-  views: VIEWS, act, bind, save, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, renameDone,
+  views: VIEWS, act, bind, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, renameDone,
   reset(){ V.hover = null; V.menu = null; V.row = null; V.renaming = null; V.nv = null; },
   closeMenus(){
     if (V.row){ V.row = null; rerender(); return true; }

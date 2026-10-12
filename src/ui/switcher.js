@@ -32,13 +32,21 @@ function snapLines(r){
     return `<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${icon('right', { size: 12 })} ${esc(label)} · ${esc(first?.date || s.at.slice(0, 10))}${more}</button>`;
   }).join('');
 }
+// A resume's name reads "Company - Role": when it does, the company is what gives way to the width, never the role
+const SPLIT = /^(.*?)\s+[-–—]\s+(.+)$/;
+function nameHtml(r){
+  const label = RS.resumeLabel(r), m = SPLIT.exec(label);
+  return m ? `<span class="swco">${esc(m[1])}</span><span class="swsep" aria-hidden="true"> — </span><span class="swrole">${esc(m[2])}</span><span class="sr">${esc(label)}</span>` : `<span class="swrole">${esc(label)}</span>`;
+}
+// language and pages, as a small tag
+const tagOf = r => [(r.lang ?? 'en').toUpperCase(), r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('resumes.pShort', { n: r.pageLimit }) : null].filter(Boolean).join(' · ');
 function rowHtml(r, where, { ticks = false, outreach = null } = {}){
   const cur = r.id === st().openId;
-  const sub = [(outreach ?? r.forKind === 'outreach') ? t('ux1.outreach') : null, r.company].filter(Boolean).join(' · ');
+  const out = (outreach ?? r.forKind === 'outreach') ? `<span class="pill">${h('ux1.outreach')}</span>` : '';
   return `<div class="swrow ${cur ? 'is-cur' : ''} ${ticks ? 'has-tick' : ''}" role="presentation" data-rid="${esc(r.id)}">
     ${ticks ? `<input type="checkbox" class="pick" data-cmp="${esc(r.id)}" ${picked().includes(r.id) ? 'checked' : ''} aria-label="${esc(t('resumes.compareX', { name: RS.resumeLabel(r) }))}">` : ''}
     ${C.resumes.renamingHere(r.id, where) ? C.resumes.renameInput(r)
-      : `<button class="sopt" ${cur ? 'aria-current="true"' : ''} data-act="sw-open" data-id="${esc(r.id)}"><span class="sn">${esc(RS.resumeLabel(r))}</span>${sub ? `<span class="muted small">${esc(sub)}</span>` : ''}</button>`}
+      : `<button class="sopt" ${cur ? 'aria-current="true"' : ''} data-act="sw-open" data-id="${esc(r.id)}"><span class="sn">${nameHtml(r)}</span>${out}<span class="swtag">${esc(tagOf(r))}</span></button>`}
     ${C.resumes.moreButton(r.id, where)}
     ${C.resumes.rowMenuHtml(r.id, where)}
     ${snapLines(r)}
@@ -104,6 +112,13 @@ function render({ keepFocus = true } = {}){
   const pos = q?.selectionStart ?? null;
   const scroll = el.querySelector('.swlist')?.scrollTop ?? 0;
   el.innerHTML = html();
+  // below the header's two rows, never over the tabs
+  const hd = document.getElementById('head');
+  if (hd){
+    const top = hd.offsetHeight + 6, colTop = document.getElementById('col').getBoundingClientRect().top, foot = document.getElementById('foot')?.getBoundingClientRect().top ?? innerHeight;
+    el.style.setProperty('--sw-top', `${top}px`);
+    el.style.setProperty('--sw-max', `${Math.max(240, Math.round(foot - colTop - top - 8))}px`);      // it ends above the zoom bar
+  }
   const list = el.querySelector('.swlist');
   if (list) list.scrollTop = scroll;
   if (hadFocus){ const n = el.querySelector('#sw-q'); n.focus(); if (pos != null) n.setSelectionRange(pos, pos); }

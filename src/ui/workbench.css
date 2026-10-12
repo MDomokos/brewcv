@@ -176,9 +176,6 @@ body.is-ready .paper-skel { display: none; }
 .docname .dn { font-weight: 700; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .docname .dt { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .savestate { white-space: nowrap; }
-.filestate { border: 0; background: transparent; padding: 0 2px; margin-left: auto; font: inherit; font-size: 12px; color: var(--ink-soft); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
-.filestate.stale { color: var(--warn); }
-.filestate:hover { color: var(--ink); text-decoration-style: solid; }
 .tool { border: 0; background: transparent; padding: 4px 7px; border-radius: var(--r-s); color: var(--ink-soft); font-size: 12.5px; white-space: nowrap; }
 .tool:hover:not(:disabled) { background: var(--hover); }
 .notice { background: var(--warn-bg); border-radius: var(--r-s); padding: 4px 8px; justify-content: space-between; }
@@ -495,8 +492,8 @@ table.kv td { padding: 4px 0; border-top: 1px solid var(--line); }
 .body *, .head * { min-width: 0; }
 /* The rule above also zeroes popups' min-width, which shrank the language menu to its
    button. Popups size to their content instead. */
-.head .pop, .body .pop, .timeline .pop { min-width: 240px; width: max-content; max-width: min(380px, 90vw); }
-.head .pop button, .body .pop button, .timeline .pop button { white-space: nowrap; }
+.head .pop, .body .pop { min-width: 240px; width: max-content; max-width: min(380px, 90vw); }
+.head .pop button, .body .pop button { white-space: nowrap; }
 .head { overflow: visible; }
 
 @media (prefers-reduced-motion: reduce){
@@ -510,7 +507,7 @@ body[data-phone=true] .pages { position: absolute; overflow: visible; }
 body[data-phone=true] .col { position: fixed; gap: 0; background: var(--surface); border-radius: var(--r-l) var(--r-l) 0 0; box-shadow: var(--shadow-panel); }
 body[data-phone=true] .col > .card { border-radius: 0; box-shadow: none; border: 0; }
 body[data-phone=true] .head { padding: 8px 12px 4px; }
-body[data-phone=true] .head .hrow.tools, body[data-phone=true] .ws, body[data-phone=true] #save, body[data-phone=true] .langs, body[data-phone=true] .savestate { display: none; }
+body[data-phone=true] .head .hrow.tools, body[data-phone=true] .ws, body[data-phone=true] .langs, body[data-phone=true] .savestate { display: none; }
 body[data-phone=true] .body { padding: 10px 14px 14px; }
 body[data-phone=true] .vbtn, body[data-phone=true] .vrow .acts, body[data-phone=true] .newv, body[data-phone=true] .ctlrow,
 body[data-phone=true] .tagin input, body[data-phone=true] .vtags .rm, body[data-phone=true] .note, body[data-phone=true] .focusbox,
@@ -553,12 +550,12 @@ body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
 .opt select, .field select { font: inherit; font-size: 13.5px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--raised); color: var(--ink); max-width: 100%; min-width: 0; }
 
 /* thin scrollbars, on the app's own scrollers only */
-.body, .menu, .timeline, .pages, .actual__scroll, body[data-phone=true] {
+.body, .menu, .pages, .actual__scroll, body[data-phone=true] {
   scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
 }
-.body::-webkit-scrollbar, .menu::-webkit-scrollbar, .timeline::-webkit-scrollbar, .pages::-webkit-scrollbar,
+.body::-webkit-scrollbar, .menu::-webkit-scrollbar, .pages::-webkit-scrollbar,
 .actual__scroll::-webkit-scrollbar, body[data-phone=true]::-webkit-scrollbar { width: 10px; height: 10px; }
-.body::-webkit-scrollbar-track, .menu::-webkit-scrollbar-track, .timeline::-webkit-scrollbar-track, .pages::-webkit-scrollbar-track,
+.body::-webkit-scrollbar-track, .menu::-webkit-scrollbar-track, .pages::-webkit-scrollbar-track,
 .actual__scroll::-webkit-scrollbar-track, body[data-phone=true]::-webkit-scrollbar-track { background: transparent; }
 .body::-webkit-scrollbar-thumb, .menu::-webkit-scrollbar-thumb, .pages::-webkit-scrollbar-thumb,
 .actual__scroll::-webkit-scrollbar-thumb, body[data-phone=true]::-webkit-scrollbar-thumb {
@@ -566,7 +563,7 @@ body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
 }
 .body::-webkit-scrollbar-thumb:hover, .menu::-webkit-scrollbar-thumb:hover, .pages::-webkit-scrollbar-thumb:hover,
 .actual__scroll::-webkit-scrollbar-thumb:hover, body[data-phone=true]::-webkit-scrollbar-thumb:hover { background-color: var(--line-strong); }
-.body::-webkit-scrollbar-corner, .timeline::-webkit-scrollbar-corner, .pages::-webkit-scrollbar-corner { background: transparent; }
+.body::-webkit-scrollbar-corner, .pages::-webkit-scrollbar-corner { background: transparent; }
 
 /* the start screen is src/ui/start.css; two small rules of the questions that follow it */
 .obintro { font-size: 15px; line-height: 1.5; margin: 8px 0 12px; }
@@ -679,7 +676,6 @@ body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: 
 @container (min-width: 392px){ .savestate .stext2 { display: inline; } }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .hrow.modes { gap: 6px; }
-.hrow.modes .filestate { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
 .seg [role=tab] { border: 0; background: transparent; border-radius: var(--r-s); padding: 4px 10px; font-size: 12.5px; color: var(--ink-soft); }
 .seg [role=tab][aria-selected=true] { background: var(--raised); color: var(--ink); box-shadow: var(--shadow-lift); }
 .body[data-mode] { padding-top: 16px; }
@@ -734,13 +730,6 @@ details.details > summary { cursor: pointer; font-size: 12.5px; font-weight: 650
 details.details .detacts { margin-top: 8px; }
 .detbox { margin: 6px 0; }
 
-/* the timeline, over the page */
-.timeline { position: fixed; z-index: 20; overflow: auto; padding: 16px 20px 40px; background: var(--surface); }
-.timeline[hidden] { display: none; }
-.timeline .tl2, .timeline .tl-head { max-width: 860px; margin-left: auto; margin-right: auto; }
-.timeline .tl-head { padding-left: 34px; }
-body.has-timeline .pages { pointer-events: none; }
-
 /* the shortcut sheet */
 .help { position: fixed; z-index: 80; right: 24px; bottom: 24px; width: min(420px, calc(100vw - 32px)); max-height: 80vh; overflow: auto; padding: 14px 18px 16px; }
 .help[hidden] { display: none; }
@@ -751,14 +740,13 @@ body.has-timeline .pages { pointer-events: none; }
 .keys dt { white-space: nowrap; } .keys dd { margin: 0; color: var(--ink-soft); }
 
 /* onboarding from scratch is a quiet editor: the page and the question panel, nothing else */
-body.is-quiet .col > #head, body.is-quiet .col > #foot, body.is-quiet .col > #rail, body.is-quiet #timeline { display: none; }
+body.is-quiet .col > #head, body.is-quiet .col > #foot, body.is-quiet .col > #rail { display: none; }
 body.is-quiet .col { gap: 0; }
 .fade-in { animation: fadeIn .3s var(--ease) both; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 body[data-phone=true] #rail, body[data-phone=true] .vbar [data-act=fullscreen] { display: none; }
 body[data-phone=true] .hrow.modes .ib, body[data-phone=true] .head .ib { display: none; }
-body[data-phone=true] .hrow.modes .seg, body[data-phone=true] .hrow.modes .ib { display: none; }
-body[data-phone=true] .hrow.modes .filestate { max-width: none; margin-left: 0; }
+body[data-phone=true] .hrow.modes .ib { display: none; }
 body[data-phone=true] .foot { grid-template-columns: 1fr; }
 body[data-phone=true] .vbar { display: none; }
 body[data-phone=true] .checklist { display: none; }
@@ -784,7 +772,6 @@ body[data-phone=true] .checklist { display: none; }
 .tlsend { display: grid; width: 100%; padding-left: 14px; border-left: 2px dotted var(--line); border-radius: 0 var(--r-s) var(--r-s) 0; }
 .tlsend .sn { font-weight: 650; font-size: 13px; color: var(--ink); }
 .tlsend .muted { font-size: 11.5px; }
-.timeline { background: var(--pop); }
 .pop.card, .zpop { background: var(--pop); }
 body[data-phone=true] .lens, body[data-phone=true] .notonline, body[data-phone=true] .lead { display: none; }
 /* ---- editing on the page (UX-3): the layers, the breadcrumb, the tools beside the line. Drawn over the page, in the app's layer ---- */
@@ -822,7 +809,6 @@ body.is-quiet .editlay { display: none; }
 body.is-quiet .ovlay { display: none; }
 .hrow.modes .seg { flex-wrap: nowrap; flex: none; }
 .hrow.modes .seg [role=tab] { padding: 4px 8px; white-space: nowrap; }
-.hrow.modes .filestate { flex: 1 1 0; min-width: 0; text-align: right; max-width: none; margin-left: 0; }
 .clrow[data-item] { cursor: grab; }
 .clrow.dragging { opacity: .4; }
 .clrow.drop-above { box-shadow: inset 0 2px 0 var(--mark); }
@@ -845,8 +831,7 @@ body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > #foot { border
 body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > #body { border-top: 1px solid var(--line); }
 body:not([data-phone=true]):is(.is-quiet, .is-intro) .col:not(.is-folded) > #body { border-radius: var(--r-panel); border-top: 0; }
 .col.is-folded > .card { background: var(--surface); border-color: transparent; border-radius: var(--r-panel); box-shadow: var(--shadow-panel); }
-:is(.pop.card, .zpop, .menu.card, .switcher, .help, .timeline) { background: var(--pop); border-color: var(--line); }
-.timeline { background: var(--pop); }
+:is(.pop.card, .zpop, .menu.card, .switcher, .help) { background: var(--pop); border-color: var(--line); }
 
 /* Flat rows: no boxes inside the box. */
 .item.srow { background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 8px 2px; }
@@ -877,6 +862,79 @@ button.primary small { color: inherit; opacity: .85; }
 [data-act=fit].primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 
 /* Scroll bars in the surface's own colour. */
-:is(.body, .menu, .timeline, .pages, .switcher, .swlist) { scrollbar-color: var(--line-strong) transparent; }
+:is(.body, .menu, .pages, .switcher, .swlist) { scrollbar-color: var(--line-strong) transparent; }
 :is(.body, .menu, .pages)::-webkit-scrollbar-thumb { background-color: var(--line-strong); }
 
+
+/* ===== UX-3b: the Record tab, one meaning of save, and the panel fixes. Every colour a token. ===== */
+/* the header: row 1 is the name, the language, the autosave state and Save to file */
+.hrow.top .filebtn { flex: none; padding: 3px 9px; font-size: 12px; white-space: nowrap; }
+.filebtn.stale::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: var(--r-round); background: var(--warn); vertical-align: 1px; }
+.hrow.top .docname { flex: 1 1 0; }
+.hrow.modes .seg { flex: none; }
+.examplechip { background: var(--mark-soft); }
+.examplechip .small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* on a phone the modes are Edit and Record */
+body[data-phone=true] .hrow.modes .seg [role=tab]:not([data-m=edit]):not([data-m=record]) { display: none; }
+body[data-phone=true] .hrow.modes .grow { display: none; }
+
+/* Edit: "This resume" */
+.nlink { border: 0; background: transparent; padding: 0; font: inherit; color: var(--ink-soft); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; text-align: left; }
+.nlink:hover { color: var(--ink); text-decoration-style: solid; }
+.allrec { margin: 14px 0 0; }
+.checklist.compact { margin-top: 18px; padding-top: 8px; }
+.clcompact { gap: 8px; padding: 4px 4px 6px; font-size: 13px; font-weight: 650; }
+.clcompact .clname { flex: 1; }
+.col.is-record .checklist.compact { margin-top: 0; }
+
+/* Record: the whole record, in a wide panel */
+.col.is-record #body { padding-left: 20px; padding-right: 20px; }
+.checklist .rectl { margin: 4px 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.clg.is-asked { background: var(--mark-soft); outline: 2px solid var(--mark); outline-offset: -2px; border-radius: var(--r-s); transition: background .4s var(--ease), outline-color .4s var(--ease); }
+body[data-phone=true] .rectl .tl2 { padding-left: 0; }
+body[data-phone=true] .rectl .tl2::before, body[data-phone=true] .rectl .colhead, body[data-phone=true] .rectl .yr { display: none; }
+body[data-phone=true] .rectl .yrow { display: block; }
+body[data-phone=true] .col.is-record { border-radius: 0; }
+
+/* Export ends with Mark as sent */
+.sentrule { border: 0; border-top: 1px solid var(--line); margin: 18px 0 12px; }
+.sentrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sentrow .lbl { margin: 0; }
+
+/* the job chip on the page: the count is a link into Record */
+.obcrumb .oc .ocn, .obcrumb .oc .ocname { border: 0; background: transparent; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.obcrumb .oc .ocn { text-decoration: underline dotted; text-underline-offset: 3px; }
+.obcrumb .oc .ocn:hover, .obcrumb .oc .ocname:hover { text-decoration: underline; }
+.obcrumb .oc span.ocn { cursor: default; text-decoration: none; }
+
+/* the shortcut sheet: the keys column takes the room its keys need, and wraps before it runs into a label */
+.keys { grid-template-columns: minmax(110px, max-content) minmax(0, 1fr); column-gap: 14px; row-gap: 6px; }
+.keys > div { display: contents; }
+.keys dt { white-space: normal; display: flex; flex-wrap: wrap; gap: 3px 5px; align-items: baseline; font-size: 13px; }
+.keys dd { font-size: 13px; }
+
+/* the switcher: a resume's name gives its company up before its role; language and pages are a small tag */
+.sopt { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; column-gap: 6px; }
+.sopt .sn { display: flex; min-width: 0; }
+.swco { flex: 0 3 auto; min-width: 3ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.swsep { flex: none; white-space: pre; color: var(--faint); }
+.swrole { flex: 0 1 auto; min-width: 8ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.swtag { font-size: 11px; font-weight: 500; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 0 6px; }
+.switcher { top: var(--sw-top, 96px); max-height: var(--sw-max, calc(100vh - var(--sw-top, 96px) - 32px)); }
+.switcher.is-grown { top: var(--sw-top, 84px); max-height: var(--sw-max, calc(100vh - var(--sw-top, 84px) - 32px)); background: var(--pop); }
+.swfoot button:disabled { opacity: 1; background: transparent; color: var(--ink-soft); border: 1px dashed var(--line-strong); }
+
+/* a toast never covers the page: under the panel's header, or in the gutter beside the rail */
+.toast.docked { transform: translateY(-8px); max-width: none; }
+.toast.docked.on { transform: none; }
+.toast.railed { left: auto; transform: translateY(-8px); max-width: 360px; }
+.toast.railed.on { transform: none; }
+@media (prefers-reduced-motion: reduce){ .toast.docked, .toast.railed, .clg.is-asked { transition: none; } }
+.obcrumb.compact .oc.dots, .obcrumb.compact .oesc, .obcrumb.compact .ocl { display: none; }
+/* Record starts at the top of the panel: it is the panel's own content, not a block under another */
+.col.is-record #body > .checklist:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+/* Edit's one-line hint */
+.edithint { font-size: 13px; font-weight: 500; color: var(--ink-soft); margin: 0 0 10px; }
+/* a choice that is not open yet stays readable, with its reason */
+.startopt.is-off { opacity: 1; color: var(--ink-soft); cursor: default; }
+.startopt.is-off input { opacity: .5; }
