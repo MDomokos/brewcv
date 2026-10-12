@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // node checks/preload-check.mjs
 // index.html preloads the app's static import graph so the browser fetches it in parallel.
-// The list must be exactly what src/ui/shell.js imports, or a new module loads late (or a
+// The list must be exactly what src/ui/shell.js imports (statically, or on demand with import('./x.js')), or a new module loads late (or a
 // removed one is fetched for nothing).
 
 import fs from 'node:fs';
@@ -17,7 +17,10 @@ const graph = new Set();
   const rel = path.relative(ROOT, file);
   if (graph.has(rel)) return;
   graph.add(rel);
-  for (const m of fs.readFileSync(file, 'utf8').matchAll(/^import[^;]*?from\s+'(\.[^']+)'/gm)) walk(path.resolve(path.dirname(file), m[1]));
+  const src = fs.readFileSync(file, 'utf8');
+  for (const m of src.matchAll(/^import[^;]*?from\s+'(\.[^']+)'/gm)) walk(path.resolve(path.dirname(file), m[1]));
+  // a module loaded on demand (the tea garden) is still preloaded, so it is there the moment it can run
+  for (const m of src.matchAll(/\bimport\('(\.[^']+\.js)'\)/g)) walk(path.resolve(path.dirname(file), m[1]));
 })(path.join(ROOT, 'src/ui/shell.js'));
 
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');

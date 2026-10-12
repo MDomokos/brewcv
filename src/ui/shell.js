@@ -33,9 +33,9 @@ import { switchLang, missingList, langName, langsInUse, addLangInUse } from '../
 import { langMenuHtml, menuKey, focusMenu } from './langmenu.js';
 import { jobTypeLabel } from '../model/focus.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
-import { initSettings, readPref, browserLang } from './settings.js';
+import { initSettings, readPref, browserLang, readGarden } from './settings.js';
 import { ib } from './dock.js';
-import { initDrink, renderCorner, onDrinkChange, isDrinkKey, toggleDrink } from './drink.js';
+import { initDrink, renderCorner, onDrinkChange, isDrinkKey, toggleDrink, drink } from './drink.js';
 
 // Where the source is published; the menu links to it (AGPL-3.0, section 13). Change it here when the repo moves.
 const SOURCE_URL = 'https://github.com/MDomokos/brewcv';
@@ -47,15 +47,17 @@ const params = new URLSearchParams(location.search);
 const backend = params.has('memory') ? memoryBackend() : idbBackend();   // ?memory: a clean, throwaway session (checks)
 const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle });      // autosave of the open resume rides on every commit
 const persist = createPersist({ store, backend });
+let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onPage: p => { ui.page = p; renderFoot(); }, onRename: (id, text) => edit.rename(id, text),
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
   onDrawn: () => onpage?.afterDraw(), onHover: v => onpage?.onHover(v), onWrite: writeLine,
   extraCss: r => design.extraCss(store.state.record, r),
   // the hand, the wheel and the pinch over the page itself go to the canvas
   frameEvents: {
-    wheel: (...a) => canvas.frameEvents.wheel(...a), down: (...a) => canvas.frameEvents.down(...a), move: (...a) => canvas.frameEvents.move(...a),
+    wheel: (...a) => { garden?.wheel(); return canvas.frameEvents.wheel(...a); }, down: (...a) => { garden?.down(...a); return canvas.frameEvents.down(...a); },
+    move: (...a) => { garden?.move(...a); return canvas.frameEvents.move(...a); },
     up: (...a) => canvas.frameEvents.up(...a), gesture: (...a) => canvas.frameEvents.gesture(...a),
-    key: { down: e => canvas.frameEvents.key.down(e), up: e => canvas.frameEvents.key.up(e) },
+    key: { down: e => { garden?.key(e); canvas.frameEvents.key.down(e); }, up: e => canvas.frameEvents.key.up(e) },
   } });
 
 const ui = {
@@ -68,6 +70,20 @@ const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => r
   ix: () => ui.ix ?? indexModel(work()), fillText: () => fillText(), select: sel => select(sel),
   writeStarted: () => dock.sync(true), writeEnded: () => dock.sync(true), redrawSoon: () => schedule() });
 window.__wb = { store, persist, sheet, ui, canvas, onpage, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
+
+// The tea garden runs in tea, with its setting on, with motion allowed, off a phone and off the start screen; otherwise it rests.
+// ?garden-check[=idle seconds] is for checks/garden-check.mjs: a short idle time and the garden's test hooks on __wb.garden.
+function syncGarden(){
+  const can = drink() === 'tea' && readGarden() && !matchMedia('(prefers-reduced-motion: reduce)').matches && !ui.layout?.phone && !introNow();
+  if (garden) return garden.setOn(can);
+  if (!can || gardenLoading) return;
+  gardenLoading = true;
+  import('./garden.js').then(m => {
+    garden = m.initGarden({ ui, canvas, idle: Number(params.get('garden-check')) || 30, check: params.has('garden-check') });
+    if (garden.hooks) window.__wb.garden = garden.hooks;
+    syncGarden();
+  }).catch(() => { gardenLoading = false; });
+}
 
 // The no-origin card stays English: when it shows, no module ran.
 function staticText(){
@@ -107,7 +123,7 @@ async function boot(){
   if (ui.view === 'welcome') onboarding.begin(); else ui.askLang = false;
   await setUiLang(wantedUi());
   initDrink();
-  onDrinkChange(() => { sheet.restyle(); renderChip(); if (ui.view === 'settings') renderBody(); });
+  onDrinkChange(() => { sheet.restyle(); renderChip(); syncGarden(); if (ui.view === 'settings') renderBody(); });
   // the languages you use load now, so switching between them is instant
   Promise.all(langsInUse(record()).map(l => loadCatalogue(l))).catch(() => {});
   staticText();
@@ -282,6 +298,7 @@ function relayout(){
   document.body.dataset.phone = String(!!L.phone);
   document.body.dataset.drawer = String(!!L.drawer);
   document.body.dataset.folded = String(!!L.folded);
+  syncGarden();
   if (L.phone){
     // on a phone the pages scroll above the bottom sheet
     Object.assign(box.style, { left: `${L.pages.left}px`, top: `${L.pages.top}px`, width: '', height: '' });
@@ -543,12 +560,14 @@ function menuHtml(){
   </div>`;
 }
 
+const introNow = () => ui.view === 'welcome' && ['welcome', 'lang'].includes(onboarding.step);
 function syncIntro(){
   const welcome = ui.view === 'welcome';
   // the start screen (and the language question that follows a choice on it) is laid out in the editor's own areas
-  const intro = welcome && ['welcome', 'lang'].includes(onboarding.step);
+  const intro = introNow();
   document.body.classList.toggle('is-intro', intro);
   onboarding.stage(intro);
+  syncGarden();
   // onboarding from scratch is a quiet editor: the page and the question panel, nothing else
   document.body.classList.toggle('is-quiet', welcome && !['welcome', 'lang'].includes(onboarding.step));
 }
@@ -1095,7 +1114,7 @@ resumes.bind($('#body'));
 window.__wb.resumes = resumes;
 window.__wb.switcher = switcher;
 
-const settings = initSettings({ store, ui, toast, setView, renderBody: () => renderBody(), syncUi: r => syncUi(r) });
+const settings = initSettings({ store, ui, toast, setView, renderBody: () => renderBody(), syncUi: r => syncUi(r), syncGarden });
 Object.assign(VIEWS, settings.views);
 settings.bind($('#body'));
 window.__wb.settings = settings;

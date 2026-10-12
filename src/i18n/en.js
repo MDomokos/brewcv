@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Pick a job type first',
   'ux3b.exampleChip': 'This is the example. ⋯ › Start over brings it back.',
   'ux3b.k.record': 'Open your record',
+  'm11b.garden': 'Garden while you rest',
+  'm11b.gardenNote': 'In tea, leaves, petals, rain and a few small visitors come to the mat while you rest. Nothing moves while you work, and nothing reaches the page.',
 };

@@ -32,6 +32,11 @@ export function browserLang(){
   return 'en';
 }
 
+// "Garden while you rest" (tea only): on unless it was switched off; per browser, like the other settings.
+const GARDEN_KEY = 'rb-garden';
+export const readGarden = () => { try { return localStorage.getItem(GARDEN_KEY) !== 'off'; } catch { return true; } };
+const writeGarden = on => { try { localStorage.setItem(GARDEN_KEY, on ? 'on' : 'off'); } catch { /* this session only */ } };
+
 // At least one language stays ticked.
 export function langChecks(ticked, { id = 'langs' } = {}){
   return `<div class="langs-pick" role="group" aria-label="${esc(t('set.langsUse'))}" id="${id}">${LANGS.map(l => {
@@ -67,6 +72,8 @@ function settingsView(){
       ${DRINKS.map(d => `<label class="opt"><input type="radio" name="drink" data-drink="${d}" ${drink() === d ? 'checked' : ''}><span class="opt-t">${h(`m11.${d}`)} <span class="muted">· ${h(`m11.${d}Hint`)}</span></span></label>`).join('')}
     </div>
     <p class="note">${h('m11.setDrinkNote')}</p>
+    <label class="opt"><input type="checkbox" data-garden ${readGarden() ? 'checked' : ''}><span class="opt-t">${h('m11b.garden')}</span></label>
+    <p class="note">${h('m11b.gardenNote')}</p>
     <span class="lbl">${h('m11.setThemeHead')}</span>
     <div class="uichoice" role="radiogroup" aria-label="${esc(t('m11.setThemeHead'))}">
       ${THEMES.map(m => `<label class="opt"><input type="radio" name="theme" data-theme="${m}" ${themePref() === m ? 'checked' : ''}><span class="opt-t">${h(`m11.theme${m[0].toUpperCase()}${m.slice(1)}`)}</span></label>`).join('')}
@@ -121,6 +128,7 @@ function bind(body){
     }
     if (el.dataset.uimode){ const sel = body.querySelector('[data-uilang]'); setUiPref(el.dataset.uimode === 'fixed' ? { mode: 'fixed', lang: sel?.value ?? 'en' } : { mode: 'follow' }); C.renderBody(); return; }
     if (el.dataset.uilang !== undefined){ setUiPref({ mode: 'fixed', lang: el.value }); C.renderBody(); return; }
+    if (el.dataset.garden !== undefined){ writeGarden(el.checked); C.syncGarden(); return; }
     if (el.dataset.drink){ setDrink(el.dataset.drink); return; }
     if (el.dataset.theme){ setThemePref(el.dataset.theme); return; }
   });

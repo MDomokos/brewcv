@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Najpierw wybierz typ stanowiska',
   'ux3b.exampleChip': 'To przykład. ⋯ › Zacznij od nowa przywraca go.',
   'ux3b.k.record': 'Otworzyć zapis',
+  'm11b.garden': 'Ogród, gdy odpoczywasz',
+  'm11b.gardenNote': 'W trybie herbaty na matę wpadają liście, płatki, deszcz i kilku małych gości, gdy odpoczywasz. Nic się nie rusza, gdy pracujesz, i nic nie trafia na stronę.',
 };

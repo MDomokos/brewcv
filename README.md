@@ -24,6 +24,9 @@ Most people end up with ten near-identical Word and PDF files, one per applicati
 
 ## Features
 
+- **Edit on the page.** Click a bullet to open its job, click again to write the line where it is printed. The job is framed, the rest dims, and the tools (the version badge, Update, Save as new version, Only on this resume) sit beside the line. Esc goes up one level: line, job, page.
+- **Pages on one canvas.** A two-page resume shows both pages at once when the window is wide enough, and one at a time otherwise. Pan with Space and drag, zoom with a pinch, and Esc at the page level puts everything away.
+- **Tea or coffee.** Two workspaces, each in light and dark (see below).
 - **One career record, many tailored resumes.** A tailored resume holds which bullets are on, which version each one prints, the section order and headings, the paper and the design.
 - **Fit.** It picks shorter versions and leaves out bullets until the last page is 88–96% full. Fit never rewrites your prose: it only chooses among versions you wrote, and tells you what it couldn't fit.
 - **Tags and job-type focus.** Tag versions, then select every bullet that matches a job type or tag in one step. One undo reverses it, and bullets marked *Keep* are never touched.
@@ -35,6 +38,17 @@ Most people end up with ten near-identical Word and PDF files, one per applicati
 - **Undo and history.** Every change can be undone (200 steps). A checkpoint is saved before every import, merge or restore. You can compare a checkpoint with now, restore it, or download it.
 - **Actual size.** After a one-time calibration with a bank card, the page is drawn at its printed size.
 - **On a phone** you can view resumes and pick versions. Editing needs a larger screen.
+
+## Tea or coffee
+
+The app asks "What are you drinking today?" and keeps your answer. Shift+F switches in place, with no reload. Each drink has a light and a dark look, which follow your system unless you choose one in Settings. The resume itself prints the same either way.
+
+- **Tea** is the default: a deep green panel, amber accents, a bamboo mat under the page, and a V-shaped cup that fills as the page does. Steam rises when the page reaches Fit's band.
+- **Coffee** is for getting it done: monospace type, square corners, no shadows, one crema accent, and a measuring shot glass for the page's fill.
+
+While you rest in tea, the mat comes alive: leaves and petals drift down and settle, rain leaves wet spots, and a ladybug, a snail and a butterfly pass through. Nothing moves while you work. A click into the resume or a key press sweeps the page clear. It is off in coffee, on a phone, with reduced motion and on the start screen, and *Garden while you rest* in Settings turns it off.
+
+![Leaves, petals, a ladybug and rain on the tea mat while the editor rests, then a click into the resume clears the page](docs/tea-garden.gif)
 
 ## How it differs from other tools
 
@@ -67,9 +81,11 @@ Don't take that on trust. [docs/PRIVACY.md](docs/PRIVACY.md) shows how to watch 
    - **Start from scratch.** It asks a few questions (about five minutes) and fills the page as you type.
    - **Open or import a file.** A JSON Resume, a backup, or a BrewCV record.
    - **Try it with an example.** A finished, fictional record with fourteen tailored resumes across all ten languages.
+
+   The start screen shows how it works in one picture: old resumes into one record, the record into a page, the page into a resume for each job.
 3. **Install it** (optional): use your browser's *Install app* / *Add to Home Screen*. Once installed it works offline.
 
-Click anything on the page to edit it.
+Click a bullet on the page to open its job, and click again to edit it. Press ? for the keyboard shortcuts.
 
 ## Other ways out
 

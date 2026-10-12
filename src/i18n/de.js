@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Wähle zuerst eine Stellenart',
   'ux3b.exampleChip': 'Das ist das Beispiel. ⋯ › Neu anfangen bringt es zurück.',
   'ux3b.k.record': 'Deinen Datensatz öffnen',
+  'm11b.garden': 'Garten, während du ruhst',
+  'm11b.gardenNote': 'Im Tee kommen Blätter, Blüten, Regen und ein paar kleine Besucher auf die Matte, während du ruhst. Nichts bewegt sich, solange du arbeitest, und nichts erreicht die Seite.',
 };

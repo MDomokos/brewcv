@@ -1,0 +1,123 @@
+/* The tea garden (src/ui/garden.js): the shapes and the motion of what lives on the bamboo mat while you rest. Loaded by garden.js only when
+   it can run, so none of this is in the page until then. Everything sits in #garden (under the panel, never taking a pointer) except the
+   dappled shade, which lies on the mat under the pages. Nothing here reaches the resume's frame, and nothing prints. The mat itself is
+   the tea canvas in drinks.css; this only adds things on top. */
+
+#garden { position: fixed; inset: 0; z-index: 6; pointer-events: none; overflow: hidden; }
+@media print { #garden, .g-dapple { display: none; } }
+
+#garden, .g-dapple { --gshadow: rgba(50, 36, 12, .3); --rain: rgba(105, 130, 158, .6); --wet: rgba(62, 52, 34, .15); --rainsky: rgba(40, 55, 70, .07); --dap: rgba(60, 45, 15, .09); }
+html[data-theme="dark"] :is(#garden, .g-dapple) { --gshadow: rgba(0, 0, 0, .6); --rain: rgba(200, 215, 235, .45); --wet: rgba(0, 0, 0, .28); --rainsky: rgba(0, 0, 0, .14); --dap: rgba(220, 230, 200, .05); }
+
+/* things and their shadows. Lying things sit above the page (they can rest on it, to be swept away) and below the
+   panel; falling things a little higher. Shadows are separate elements just under them. */
+.g-thing, .g-shade, .g-trail { position: fixed; left: 0; top: 0; pointer-events: none; will-change: transform; }
+.g-shade, .g-shade.g-leaf, .g-shade.g-petal { z-index: 6; background: var(--gshadow); }
+.g-thing { z-index: 7; }
+.g-thing.falling { z-index: 9; } .g-shade.falling { z-index: 8; }
+
+/* leaves: the tea leaf and the rounder camellia leaf; the size comes from garden.js */
+.g-leaf { background: var(--c, #4f6b3c); -webkit-mask: var(--shape) center / 100% 100% no-repeat; mask: var(--shape) center / 100% 100% no-repeat; }
+.g-leaf.s1 { --shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 10' preserveAspectRatio='none'%3E%3Cpath d='M0 5C5-2 16-2 22 5C16 12 5 12 0 5Z'/%3E%3C/svg%3E"); }
+.g-leaf.s2 { --shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 14' preserveAspectRatio='none'%3E%3Cpath d='M0 7C3 1 10 0 15 2C19 4 20 7 20 7S19 10 15 12C10 14 3 13 0 7Z'/%3E%3C/svg%3E"); }
+.g-petal { background: var(--c, #f4c3cf); -webkit-mask: var(--shape) center / 100% 100% no-repeat; mask: var(--shape) center / 100% 100% no-repeat;
+  --shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 13' preserveAspectRatio='none'%3E%3Cpath d='M7.5 13C2 10 0 5 2.5 1.5C4 0 6 .5 7.5 3C9-.5 11 0 12.5 1.5C15 5 13 10 7.5 13Z'/%3E%3C/svg%3E"); }
+/* once landed, a leaf's colour fades back toward the mat */
+.g-thing.g-leaf.landed { filter: saturate(.42) brightness(1.06); }
+.g-thing.g-petal.landed { filter: saturate(.6) brightness(1.03); }
+html[data-theme="dark"] .g-thing.g-leaf.landed { filter: saturate(.45) brightness(.88); }
+
+/* the ladybug: a domed shell (a highlight at the top left, shading toward the edges), a black head, and two, four, six
+   or seven spots */
+.g-bug { width: 16px; height: 18px; z-index: 9;
+  --dot: radial-gradient(circle, #1f1a17 0 1.5px, transparent 1.9px);
+  --spots: var(--dot) 2px 4px / 4px 4px no-repeat, var(--dot) 10px 4px / 4px 4px no-repeat; }
+.g-bug.sp4 { --spots: var(--dot) 2px 3px / 4px 4px no-repeat, var(--dot) 10px 3px / 4px 4px no-repeat, var(--dot) 3px 8px / 4px 4px no-repeat, var(--dot) 9px 8px / 4px 4px no-repeat; }
+.g-bug.sp6 { --spots: var(--dot) 2px 2px / 4px 4px no-repeat, var(--dot) 10px 2px / 4px 4px no-repeat, var(--dot) 1px 6px / 4px 4px no-repeat, var(--dot) 11px 6px / 4px 4px no-repeat, var(--dot) 3px 10px / 4px 4px no-repeat, var(--dot) 9px 10px / 4px 4px no-repeat; }
+.g-bug.sp7 { --spots: var(--dot) 5px 0 / 4px 4px no-repeat, var(--dot) 2px 4px / 4px 4px no-repeat, var(--dot) 10px 4px / 4px 4px no-repeat, var(--dot) 1px 8px / 4px 4px no-repeat, var(--dot) 11px 8px / 4px 4px no-repeat, var(--dot) 3px 10px / 4px 4px no-repeat, var(--dot) 9px 10px / 4px 4px no-repeat; }
+.g-bug::before { content: ""; position: absolute; left: 1px; top: 4px; width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, .55) 0 10%, rgba(255, 255, 255, 0) 32%),
+              var(--spots),
+              linear-gradient(90deg, transparent 0 calc(50% - .5px), #1f1a17 calc(50% - .5px) calc(50% + .5px), transparent calc(50% + .5px)),
+              radial-gradient(circle at 40% 35%, #e3533b, #c9361f 62%, #8f2414 100%);
+  box-shadow: inset -1.5px -2px 2px rgba(60, 10, 0, .35); }
+.g-bug::after { content: ""; position: absolute; left: 4.5px; top: 0; width: 7px; height: 6px; border-radius: 50% 50% 40% 40%;
+  background: radial-gradient(circle at 40% 35%, #3a322c, #1f1a17 70%); }
+.g-bug::after { box-shadow: inset 1.5px 1px 0 rgba(255, 255, 255, .12); }
+.g-bug.walking::before { animation: bugStep .34s steps(2) infinite; }
+@keyframes bugStep { 50% { translate: .4px 0; } }
+.g-shade-bug { z-index: 8; width: 14px; height: 15px; border-radius: 50%; }
+
+/* the snail (its parts are .s-*: the app already has a .body): a soft body with a head and eye stalks, a spiral shell; it hides in its shell when the pointer comes near */
+.g-snail { width: 34px; height: 22px; z-index: 9; }
+.g-snail .s-body { position: absolute; left: 0; bottom: 0; width: 32px; height: 7px; border-radius: 3px 10px 4px 4px; background: #dcc7a0; box-shadow: inset 0 -1.5px 0 #b59e76; transition: opacity .4s; }
+.g-snail .eye { position: absolute; bottom: 5px; width: 1.5px; height: 8px; background: #b59e76; transform-origin: bottom; transition: opacity .4s; }
+.g-snail .eye::after { content: ""; position: absolute; left: -1.3px; top: -2px; width: 4px; height: 4px; border-radius: 50%; background: #6b5536; }
+.g-snail .eye.a { left: 27px; rotate: 18deg; } .g-snail .eye.b { left: 30px; rotate: 32deg; }
+.g-snail .shell { position: absolute; left: 3px; top: 0; width: 18px; height: 18px; border-radius: 50%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7.5' fill='%23c98a45'/%3E%3Cpath d='M8 8.5C8.8 8.5 9 7.6 8.4 7.2C7.4 6.6 6.2 7.5 6.4 8.7C6.7 10.4 9 10.8 10.2 9.7C11.8 8.2 11 5.4 8.8 5C6.2 4.5 4.2 6.8 4.6 9.2C5 11.8 8 13.2 10.6 12.2' fill='none' stroke='%237a4a1e' stroke-width='1.1' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+.g-snail.hid :is(.s-body, .eye) { opacity: 0; }
+.g-shade-snail { z-index: 8; width: 30px; height: 8px; border-radius: 50%; margin-top: 15px; }
+.g-trail { z-index: 6; width: 9px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .32); animation: trail 24s linear forwards; }
+html[data-theme="dark"] .g-trail { background: rgba(220, 230, 200, .18); }
+@keyframes trail { from { opacity: .9; } to { opacity: 0; } }
+
+/* the butterfly: two half-wings that beat from the body; it flies high, so its shadow falls far */
+.g-fly { width: 46px; height: 34px; z-index: 10; }
+.g-fly .w { position: absolute; top: 0; width: 22px; height: 34px; background: var(--wing) center / contain no-repeat; animation: beat .42s ease-in-out infinite alternate; }
+.g-fly .w.r { left: 23px; transform-origin: 0 50%; }
+.g-fly .w.l { left: 1px; transform-origin: 100% 50%; background-image: var(--wingL); }
+@keyframes beat { from { scale: 1 1; } to { scale: .2 1; } }
+.g-fly b { position: absolute; left: 21px; top: 9px; width: 4px; height: 19px; border-radius: 2px; background: #2c2016; }
+.g-fly b::before, .g-fly b::after { content: ""; position: absolute; top: -7px; width: 1px; height: 8px; background: #2c2016; }
+.g-fly b::before { left: 0; rotate: -24deg; transform-origin: bottom; } .g-fly b::after { right: 0; rotate: 24deg; transform-origin: bottom; }
+.g-fly.amber { --wing: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 34'%3E%3Cpath d='M0 13C3 3 13-2 20 3C23 7 19 13 0 15Z' fill='%23e39a3e' stroke='%233a2a1a' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M0 16C10 15 18 19 17 26C16 32 8 33 0 19Z' fill='%23d98a32' stroke='%233a2a1a' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M1 14L17 4M1 15L13 10M1 18L12 25' stroke='%233a2a1a' stroke-width='.7' fill='none'/%3E%3Cg fill='%23fbf2de'%3E%3Ccircle cx='18' cy='4.5' r='1.1'/%3E%3Ccircle cx='15.5' cy='3' r='.8'/%3E%3Ccircle cx='15' cy='27.5' r='.9'/%3E%3Ccircle cx='12' cy='29.5' r='.8'/%3E%3C/g%3E%3C/svg%3E"); --wingL: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 34'%3E%3Cg transform='translate(22 0) scale(-1 1)'%3E%3Cpath d='M0 13C3 3 13-2 20 3C23 7 19 13 0 15Z' fill='%23e39a3e' stroke='%233a2a1a' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M0 16C10 15 18 19 17 26C16 32 8 33 0 19Z' fill='%23d98a32' stroke='%233a2a1a' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M1 14L17 4M1 15L13 10M1 18L12 25' stroke='%233a2a1a' stroke-width='.7' fill='none'/%3E%3Cg fill='%23fbf2de'%3E%3Ccircle cx='18' cy='4.5' r='1.1'/%3E%3Ccircle cx='15.5' cy='3' r='.8'/%3E%3Ccircle cx='15' cy='27.5' r='.9'/%3E%3Ccircle cx='12' cy='29.5' r='.8'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+.g-fly.pale { --wing: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 34'%3E%3Cpath d='M0 13C3 3 13-2 20 3C23 7 19 13 0 15Z' fill='%23f2e6a8' stroke='%235a5a2a' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M0 16C10 15 18 19 17 26C16 32 8 33 0 19Z' fill='%23ece09a' stroke='%235a5a2a' stroke-width='1.2' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='8' r='1.4' fill='%23d9893a'/%3E%3Ccircle cx='10' cy='22' r='1.2' fill='%23d9893a'/%3E%3C/svg%3E"); --wingL: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 34'%3E%3Cg transform='translate(22 0) scale(-1 1)'%3E%3Cpath d='M0 13C3 3 13-2 20 3C23 7 19 13 0 15Z' fill='%23f2e6a8' stroke='%235a5a2a' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M0 16C10 15 18 19 17 26C16 32 8 33 0 19Z' fill='%23ece09a' stroke='%235a5a2a' stroke-width='1.2' stroke-linejoin='round'/%3E%3Ccircle cx='12' cy='8' r='1.4' fill='%23d9893a'/%3E%3Ccircle cx='10' cy='22' r='1.2' fill='%23d9893a'/%3E%3C/g%3E%3C/svg%3E"); }
+.g-shade-fly { z-index: 8; width: 40px; height: 22px; border-radius: 50%; margin: 6px 0 0 3px; }
+
+/* fireflies at night */
+.g-glow { z-index: 9; width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle, #f2f7c8 0 18%, rgba(214, 236, 140, .5) 38%, rgba(214, 236, 140, 0) 70%); animation: glow 4s ease-in-out infinite; }
+@keyframes glow { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+
+/* dappled shade: soft light and shadow drift over the mat (below the page) */
+.g-dapple { position: fixed; inset: -10%; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 6s ease;
+  background:
+    radial-gradient(ellipse 120px 80px at 12% 20%, var(--dap) 0, transparent 70%), radial-gradient(ellipse 90px 140px at 30% 60%, var(--dap) 0, transparent 70%),
+    radial-gradient(ellipse 160px 100px at 8% 78%, var(--dap) 0, transparent 70%), radial-gradient(ellipse 110px 90px at 84% 30%, var(--dap) 0, transparent 70%),
+    radial-gradient(ellipse 140px 110px at 76% 72%, var(--dap) 0, transparent 70%), radial-gradient(ellipse 80px 60px at 52% 10%, var(--dap) 0, transparent 70%);
+  animation: dapple 46s ease-in-out infinite alternate; }
+.g-dapple.on { opacity: 1; }
+@keyframes dapple { from { translate: 0 0; } to { translate: 3% 2%; } }
+
+/* rain: a fast, slightly slanted streak; a splash (a ring and two droplets); a wet spot that darkens the page or the
+   mat and evaporates slowly; a light dimming of the whole scene while it rains */
+.g-drop, .g-drop-sh, .g-splash, .g-wet { position: fixed; left: 0; top: 0; pointer-events: none; }
+/* a drop seen coming toward the screen from in front of it: it grows to its size as it reaches the surface, and its
+   shadow closes in under it */
+.g-drop { z-index: 9; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .95) 0 18%, var(--rain) 45%, rgba(110, 135, 160, .25) 75%); animation: dropIn ease-in forwards; }
+@keyframes dropIn { from { scale: 2.6; opacity: 0; filter: blur(2px); } 60% { opacity: .9; } to { scale: 1; opacity: 1; filter: blur(0); } }
+.g-drop-sh { z-index: 8; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: var(--gshadow); animation: dropShadow ease-in forwards; }
+@keyframes dropShadow { from { translate: 14px 20px; scale: 2.2; opacity: 0; filter: blur(4px); } to { translate: 1px 1.5px; scale: 1; opacity: .5; filter: blur(.5px); } }
+.g-splash { z-index: 9; width: 0; height: 0; }
+.g-splash::before { content: ""; position: absolute; left: -7px; top: -3px; width: 14px; height: 6px; border-radius: 50%; border: 1px solid var(--rain); animation: splashRing .5s ease-out forwards; }
+.g-splash::after { content: ""; position: absolute; left: -1px; top: -1px; width: 2px; height: 2px; border-radius: 50%; background: var(--rain);
+  box-shadow: 6px 0 0 var(--rain); animation: splashDrops .45s ease-out forwards; }
+@keyframes splashRing { from { scale: .2; opacity: .9; } to { scale: 1.6; opacity: 0; } }
+@keyframes splashDrops { 0% { translate: -3px 0; opacity: .9; } 50% { translate: -3px -6px; } 100% { translate: -3px -2px; opacity: 0; } }
+.g-wet { z-index: 6; border-radius: 48% 52% 50% 50% / 52% 48% 52% 48%; background: radial-gradient(ellipse at 50% 50%, var(--wet) 0 52%, transparent 74%); animation: wetDry var(--life, 80s) ease-out forwards; }
+@keyframes wetDry { 0% { opacity: 0; } 2% { opacity: 1; } 35% { opacity: .75; } 100% { opacity: 0; } }
+.g-wet.dry { animation: wetGone 1.4s ease-in forwards; }
+@keyframes wetGone { from { opacity: .75; } to { opacity: 0; } }
+.g-rainsky { position: fixed; inset: 0; z-index: 6; pointer-events: none; background: var(--rainsky); opacity: 0; transition: opacity 5s ease; }
+.g-rainsky.on { opacity: 1; }
+
+/* a breeze swings the hanging tags too */
+html.g-breeze .hrow.modes .seg [role=tab] { animation: tsSwing 1.6s ease-out; }
+html.g-breeze .hrow.modes .seg [role=tab]:nth-child(2) { animation-delay: .12s; }
+html.g-breeze .hrow.modes .seg [role=tab]:nth-child(3) { animation-delay: .24s; }
+
+/* the pause: after five idle minutes everything is still */
+#garden.paused :is(.g-bug, .g-fly .w, .g-glow) { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce){ .g-bug.walking::before, .g-fly .w, .g-glow, .g-dapple { animation: none; } }

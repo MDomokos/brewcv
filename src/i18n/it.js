@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Scegli prima un tipo di lavoro',
   'ux3b.exampleChip': 'Questo è l’esempio. ⋯ › Ricomincia da capo lo ripristina.',
   'ux3b.k.record': 'Aprire il tuo percorso',
+  'm11b.garden': 'Giardino mentre riposi',
+  'm11b.gardenNote': 'Con il tè, foglie, petali, pioggia e qualche piccolo visitatore arrivano sulla stuoia mentre riposi. Niente si muove mentre lavori e niente arriva sulla pagina.',
 };
