@@ -198,5 +198,18 @@ section('job types as bundles of tags');
   ok('a tag named like a job type id is not listed twice', tags.filter(x => x.tag === 'Medical devices').length === 1);
 }
 
+section('the Highlight lens offers job types, and topic tags apart');
+{
+  const m2 = clone(model);
+  // tags that name a section, or mark an old claim, are not what a job asks for
+  const v = m2.variants[0]; v.tags = [...new Set([...(v.tags ?? []), 'identity', 'archive', 'education', 'work-history', 'cad'])];
+  const lens = F.lensChoices(m2, 'en');
+  ok('job types come first, as the lens’s own list', lens.types.length === F.jobTypesOf(m2).length && lens.types.every(x => x.jobType));
+  ok('the topic tags are the rest, with their counts', lens.topics.every(x => !x.jobType && x.n > 0) && lens.topics.some(x => x.tag === 'cad'));
+  ok('a structural tag is never listed: ' + F.STRUCTURAL_TAGS.join(', '), !lens.topics.some(x => F.STRUCTURAL_TAGS.includes(x.tag)) && lens.topics.length > 0);
+  ok('every structural tag is one the record can still hold', F.STRUCTURAL_TAGS.includes('archive') && F.STRUCTURAL_TAGS.includes('identity') && F.STRUCTURAL_TAGS.includes('work-rights'));
+  ok('a job type that is also a tag on versions is listed once, as the type', !lens.topics.some(x => lens.types.some(y => y.tag === x.tag)));
+}
+
 console.log(failed ? `\n${failed} focus check(s) FAILED` : '\nall focus checks passed');
 process.exit(failed ? 1 : 0);

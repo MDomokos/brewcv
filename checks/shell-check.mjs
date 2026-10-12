@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
 import { computeLayout, G, COL_MIN, COL_MAX, RAIL_W, DRAWER_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, panelWidth, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
 import { indexModel, targetOf, up, step, versionsOf, factsOf, NONE } from '../src/ui/select.js';
+import { panelShown, afterEscape, PANEL_MODES, ZOOM_WRITE } from '../src/ui/dock.js';
 import { load, save, serialize, saveResume } from '../src/model/schema.js';
 import { newResume } from '../src/model/resume.js';
 import { memoryFolder, readFolder, createPersist, memoryBackend } from '../src/store/persist.js';
@@ -93,6 +94,17 @@ section('layout: zoom (1 is the whole page in the window)');
   ok('a zoomed sheet that no longer fits starts at the corner and the scroller grows to hold it', big.sheet.left === G && big.sheet.top === G && big.pages.contentW >= big.sheet.width + 2 * G && big.pages.content >= big.sheet.height + 2 * G);
   ok('zoomed out, it stays centred', Math.abs(computeLayout({ vw: 1440, vh: 900, format: 'a4', zoom: 0.5 }).sheet.left - (one.areaW - computeLayout({ vw: 1440, vh: 900, format: 'a4', zoom: 0.5 }).sheet.width) / 2) < 1e-6);
   ok('zoom is kept between its limits, and a bad number means 1', clampZoom(0) === ZOOM_MIN && clampZoom(99) === ZOOM_MAX && clampZoom(NaN) === 1 && clampZoom(1.5) === 1.5);
+}
+
+section('the panel: Auto, Open, Closed');
+{
+  ok('Auto folds while nothing is selected, and opens when something is', !panelShown({ pref: 'auto' }) && panelShown({ pref: 'auto', selected: true }));
+  ok('Open and Closed pin it, whatever is selected', panelShown({ pref: 'open' }) && !panelShown({ pref: 'closed', selected: true }));
+  ok('a view (Design, Export, Settings, a form) needs the panel, even when it is closed', panelShown({ pref: 'closed', view: true }) && panelShown({ pref: 'auto', view: true }));
+  ok('E on a folded Auto panel and the rail’s Edit keep it open until Esc (a peek); a snapshot opens it too', panelShown({ pref: 'auto', peek: true }) && panelShown({ pref: 'auto', snap: true }) && !panelShown({ pref: 'closed', peek: true }));
+  ok('on a phone the column is always the bottom sheet', panelShown({ pref: 'closed', phone: true }));
+  ok('Esc all the way out: Open drops to Auto, Auto and Closed stay', afterEscape('open') === 'auto' && afterEscape('auto') === 'auto' && afterEscape('closed') === 'closed');
+  ok('the three modes, and the zoom-while-writing range from 80 to 220, 130 to start', eq(PANEL_MODES, ['auto', 'open', 'closed']) && ZOOM_WRITE.min === 80 && ZOOM_WRITE.max === 220 && ZOOM_WRITE.def === 130);
 }
 
 section('select: a click means');

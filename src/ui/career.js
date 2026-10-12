@@ -667,6 +667,7 @@ function bind(body){
       const v = el.value.trim(); if (!v) return;
       const s = C.ui.sel; if (s.what !== 'item') return;
       W.kwDraft = [...keywordsNow(s.id), v]; saveItem('skills', s.id); W.kwDraft = null;
+      el.value = ''; C.renderBody();
     }
   });
   body.addEventListener('toggle', e => {

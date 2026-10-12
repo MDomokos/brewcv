@@ -381,7 +381,14 @@ function setView(v){
   renderBody(true);
 }
 
+// the head is redrawn on every save: the control that had the focus keeps it
+const focusKey = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}` : null);
 function renderHead(){
+  const ae = document.activeElement, kept = ae && ae.closest?.('#head') ? focusKey(ae) : null;
+  drawHead();
+  if (kept){ const n = $(`#head ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
+}
+function drawHead(){
   const r = shown();
   const st = persist.status;
   const saving = st.status === 'saving' || st.status === 'pending';
@@ -489,15 +496,32 @@ function renderBody(animate = false){
   if (!record() || !cur()){ el.innerHTML = `<p class="muted">${h('body.loading')}</p>`; return; }
   const s = ui.sel;
   const keep = el.scrollTop;
-  // a form with something typed in it is not redrawn under the caret
+  // a record form with something typed in it is not redrawn under the caret; one you have left or not changed is, and the focus stays where it was
   const ae = document.activeElement;
-  const typing = !animate && el.contains(ae) && ae.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea') && !ae.closest('.editor, .writein');
+  const typing = !animate && el.contains(ae) && ae.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea') && !!ae.closest('[data-form]');
   if (typing && ae.value !== ae.defaultValue) return;
   const had = typing && ae.id ? { id: ae.id, start: ae.selectionStart, end: ae.selectionEnd } : null;
+  // a tick or a switch redraws the panel; the control that had the focus keeps it: found by what it is, else by its place
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, summary, [tabindex]:not([tabindex="-1"])';
+  const q = v => String(v).replace(/["\\]/g, '\\$&');
+  const keyOf = e => {
+    const d = e.dataset ?? {};
+    if (e.id) return `#${CSS.escape(e.id)}`;
+    for (const k of ['on', 'secon', 'jobon', 'same', 'cmp']) if (d[k] !== undefined) return `[data-${k}="${q(d[k])}"]`;
+    if (d.act) return `[data-act="${q(d.act)}"]${d.id ? `[data-id="${q(d.id)}"]` : ''}${d.g ? `[data-g="${q(d.g)}"]` : ''}${d.v ? `[data-v="${q(d.v)}"]` : ''}${d.sel ? `[data-sel="${q(d.sel)}"]` : ''}`;
+    return null;
+  };
+  const tabs0 = !animate && !had && ae && ae !== el && el.contains(ae) ? [...el.querySelectorAll(FOCUSABLE)] : null;
+  const at0 = tabs0 ? tabs0.indexOf(ae) : -1, key0 = tabs0 ? keyOf(ae) : null;
   if (ui.snap && !ui.view && !snapNow()) ui.snap = null;
   const finish = () => {
     if (animate){ el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in'); el.scrollTop = 0; } else el.scrollTop = keep;
     if (had){ const n = document.getElementById(had.id); if (n && n !== document.activeElement){ n.focus(); try { n.setSelectionRange(had.start, had.end); } catch { /* not a text box */ } } }
+    else if (at0 >= 0){
+      const now = [...el.querySelectorAll(FOCUSABLE)];
+      const to = (key0 && el.querySelector(key0)) || (now.length === tabs0.length ? now[at0] : null);
+      if (to && to !== document.activeElement) to.focus({ preventScroll: true });
+    }
   };
   if (ui.snap && !ui.view){
     el.innerHTML = VIEWS.snapshot();
@@ -613,7 +637,7 @@ async function onClick(e){
     case 'redo': store.redo(); break;
     case 'fit': runFit(); break;
     case 'view': setPagesMode(ui.layout?.spread ? 'stack' : 'spread'); break;
-    case 'actual': openActual(); break;
+    case 'actual': dock.closePop(); openActual(); break;
     case 'fullscreen': toggleFullscreen(); break;
     case 'open': ui.menu = false; pickFile(); break;
     case 'link': ui.menu = false; linkFolder(); break;

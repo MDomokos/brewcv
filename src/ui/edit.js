@@ -19,7 +19,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDraft: '', lensTags: false, applyOpen: false };
+const E = { edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), lensTags: false, applyOpen: false };
 
 function commit(fn, label, done){
   try {
@@ -376,16 +376,16 @@ async function act(a, tg){
       return true;
     }
     case 'add-claim': {
-      const ta = $('#new-claim'), text = ta?.value.trim();
+      const ta = tg.closest?.('.addrow')?.querySelector('textarea') ?? $('#new-claim'), text = ta?.value.trim();
       if (!text){ C.toast(t('career.writeClaimFirst'), 'warn'); ta?.focus(); return true; }
       const entry = tg.dataset.id;
       commit(d => {
         const made = K.addEntryClaim(d.record, entry, text, lang());
         if (made && T.jobRefs(d.record, d.cur).some(r => (typeof r === 'string' ? r : r.id) === entry)) T.setBulletOn(d.record, d.cur, made, true);     // the entry is on: so is its new line
       }, t('undo.addClaim'), t('career.claimAdded'));
-      E.claimDraft = '';
+      E.claimDrafts.delete(entry);
       C.renderBody();
-      setTimeout(() => $('#new-claim')?.focus(), 30);
+      setTimeout(() => document.querySelector(`.new-claim[data-entry="${CSS.escape(entry)}"]`)?.focus(), 30);
       return true;
     }
     case 'write-in': {
@@ -449,7 +449,7 @@ function bind(body){
   body.addEventListener('input', e => {
     const t = e.target;
     if (t.id === 'ed') onEditorInput(t);
-    if (t.id === 'new-claim') E.claimDraft = t.value;
+    if (t.classList?.contains('new-claim')) E.claimDrafts.set(t.dataset.entry, t.value);
   });
   // the heading box commits on blur (Enter blurs it), as one undo step
   body.addEventListener('keydown', e => {
@@ -462,7 +462,7 @@ function bind(body){
       commit(d => { const v = d.record.variants.find(x => x.id === vid); if (v && !(v.tags ?? []).includes(tag)) v.tags = [...(v.tags ?? []), tag]; }, tr('undo.addTag'));
       return;
     }
-    if (t.id === 'new-claim' && e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); body.querySelector('[data-act=add-claim]')?.click(); }
+    if (t.classList?.contains('new-claim') && e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); t.closest('.addrow')?.querySelector('[data-act=add-claim]')?.click(); }
     if (t.id === 'sec-label' && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
     if (t.id === 'sec-label' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); t.value = T.labelOf(rec(), cur(), t.dataset.sid, lang()) ?? ''; t.blur(); }
     if (t.id === 'ed'){
@@ -572,7 +572,7 @@ function leaving(next){
 const api = {
   homeView, sectionView, jobView, bulletView, factPanel, act, bind, key, leaving, rename, startEdit, cancelEdit, isDirty,
   get editing(){ return E.edit; },
-  get claimDraft(){ return E.claimDraft; },
+  claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){
     if (E.edit && $('#ed') && document.activeElement?.id !== 'ed') focusEditor(); else if ($('#ed')) autosize($('#ed'));
     // the tag box keeps focus across the redraw a new tag causes

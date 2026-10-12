@@ -1002,7 +1002,8 @@ body.is-quiet .col { gap: 0; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 body[data-phone=true] #rail, body[data-phone=true] .vbar [data-act=fullscreen] { display: none; }
 body[data-phone=true] .hrow.modes .ib, body[data-phone=true] .head .ib { display: none; }
-body[data-phone=true] .hrow.modes { display: none; }
+body[data-phone=true] .hrow.modes .seg, body[data-phone=true] .hrow.modes .ib { display: none; }
+body[data-phone=true] .hrow.modes .filestate { max-width: none; margin-left: 0; }
 body[data-phone=true] .foot { grid-template-columns: 1fr; }
 body[data-phone=true] .vbar { display: none; }
 body[data-phone=true] .checklist { display: none; }

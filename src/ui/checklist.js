@@ -55,7 +55,7 @@ function groupHtml(g, open, ctx){
       ${body(`<ul class="clrows">${g.rows.map(r => rowHtml(r, g)).join('')}</ul>
         <div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr(g.sel)}">${h('ux2.openEntry')}</button></div>
         ${arch ? `<button class="sm ghost archmore" data-act="c-arch-show" data-id="${esc(g.id)}" aria-expanded="${archOpen}">${archOpen ? h('arch.hide') : h('arch.nArchived', { n: arch })}</button>${archOpen ? `<ul class="clrows">${g.archivedRows.map(r => rowHtml(r, g)).join('')}</ul>` : ''}` : ''}
-        ${g.archived ? '' : addClaimHtml({ id: g.id, key: g.key, draft: ctx.draft })}`)}</section>`;
+        ${g.archived ? '' : addClaimHtml({ id: g.id, key: g.key, draft: C.edit.claimDraftOf(g.id) })}`)}</section>`;
   }
   const sectionSwitch = (sid, on, name) => (sid ? `<label class="swl clsec"><input type="checkbox" class="sw" data-secon="${esc(sid)}" ${on ? 'checked' : ''} aria-label="${esc(t('edit.showX', { name }))}"><span class="tiny muted">${h('ux2.onResume')}</span></label>` : '');
   if (g.kind === 'education' || g.kind === 'list'){
@@ -83,8 +83,8 @@ function html(){
       <button class="sm" data-act="c-pop" aria-haspopup="menu" aria-expanded="${C.career.popOpen}" id="c-add">${h('ux2.add')}</button></div>
     ${S.hint ? `<p class="clhint" role="note"><span>${h('ux2.hint')}</span><button class="ghost sm" data-act="cl-hint-ok" aria-label="${esc(t('ux2.hintOk'))}">✕</button></p>` : ''}
     ${C.career.popOpen ? C.career.addMenuHtml() : ''}
-    ${live.map(g => groupHtml(g, isOpen(g), { shown: shownEntries, draft: C.edit.claimDraft })).join('')}
-    ${archived.length || C.career.jobsArchived ? `<button class="sm ghost archmore" data-act="c-arch-jobs" aria-expanded="${C.career.jobsArchived}">${C.career.jobsArchived ? h('arch.hideJobs') : h('arch.nJobs', { n: archived.length })}</button>${C.career.jobsArchived ? archived.map(g => groupHtml(g, isOpen(g), { shown: shownEntries, draft: '' })).join('') : ''}` : ''}
+    ${live.map(g => groupHtml(g, isOpen(g), { shown: shownEntries })).join('')}
+    ${archived.length || C.career.jobsArchived ? `<button class="sm ghost archmore" data-act="c-arch-jobs" aria-expanded="${C.career.jobsArchived}">${C.career.jobsArchived ? h('arch.hideJobs') : h('arch.nJobs', { n: archived.length })}</button>${C.career.jobsArchived ? archived.map(g => groupHtml(g, isOpen(g), { shown: shownEntries })).join('') : ''}` : ''}
   </section>`;
 }
 

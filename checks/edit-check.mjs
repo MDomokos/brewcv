@@ -15,6 +15,7 @@ import { validate } from './lib/validate.mjs';
 import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages } from '../src/render.js';
 import { cost } from '../src/fit.js';
+import * as CL from '../src/model/checklist.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -310,6 +311,37 @@ section('300 random edits in a row');
   ok('and all six still render', rs.every(x => { try { render(m, x); return true; } catch (e){ console.log('   ', e.message); return false; } }));
   ok('numbers are unique per fact per language', m.facts.every(f => S.LANGS.every(L => { const n = nOf(m, f.id, L); return new Set(n).size === n.length; })));
   ok('no pins key anywhere', rs.every(x => !('pins' in x)));
+}
+
+section('the record checklist (src/model/checklist.js)');
+{
+  const m = clone(example);
+  const r = resumes.find(x => (x.lang ?? 'en') === 'en');
+  const c = CL.checklist(m, r);
+  const ids = c.groups.map(g => g.id);
+  ok('the groups: About you, then the jobs newest first, then projects, Education, Skills and credentials', ids[0] === 'about' && ids.slice(1, 6).join() === 'hydra,poly,free,medisure,atelier' && ids.indexOf('caliper-stand') > ids.indexOf('atelier') && ids.indexOf('education') > ids.indexOf('chassis-jig') && ids.at(-1) === 'credentials', ids.join());
+  const hydra = c.groups.find(g => g.id === 'hydra');
+  const listed = T.listedBullets(m, r, 'hydra');
+  ok('a job lists every claim of its own, ticked when this resume prints it', hydra.rows.length + hydra.archivedRows.length === m.work[0].highlights.length && hydra.rows.every(x => x.on === listed.includes(x.id)) && hydra.on === listed.length);
+  ok('claims the resume leaves out are listed too, unticked, never hidden', hydra.rows.some(x => !x.on) && hydra.rows.length === hydra.total);
+  ok('an archived claim folds away unless the resume still prints it', (() => { const a = m.facts.find(f => f.archived).id; const g = c.groups.find(x => x.rows.concat(x.archivedRows ?? []).some(y => y.id === a)); return g.archivedRows.some(y => y.id === a) === !g.rows.some(y => y.id === a); })());
+  ok('the whole record: n of m on is the sum of its groups', c.on === c.groups.reduce((n, g) => n + g.on, 0) && c.total === c.groups.reduce((n, g) => n + g.total, 0) && c.on < c.total);
+  ok('a job that is off has every claim unticked', (() => { const q = clone(r); T.setJobOn(m, q, 'hydra', false); return CL.checklist(m, q).groups.find(g => g.id === 'hydra').on === 0; })());
+  ok('ticking is setBulletOn: the count follows, and a job that was off comes back on', (() => { const q = clone(r); T.setJobOn(m, q, 'hydra', false); const id = m.work[0].highlights[0]; T.setBulletOn(m, q, id, true); const g = CL.checklist(m, q).groups.find(x => x.id === 'hydra'); return g.on >= 1 && g.rows.find(x => x.id === id).on; })());
+  ok('the row’s selection is what a click on the page selects', eq(hydra.rows[0].sel, { kind: 'bullet', id: hydra.rows[0].id, job: 'hydra', section: 'experience' }) && eq(hydra.sel, { kind: 'job', id: 'hydra' }));
+  ok('About you: name and contact are always on, the summary too; the photo row has no tick and does not count', (() => { const a = c.groups[0]; return a.rows.filter(x => !x.noTick).every(x => x.on && x.fixed) && a.total === a.rows.filter(x => !x.noTick).length; })());
+  const edu = c.groups.find(g => g.id === 'education');
+  ok('Education and the lists print with their section: their rows show the section’s state, and the section carries the switch', edu.section === 'education' && edu.rows.every(x => x.on === edu.sectionOn) && c.groups.find(g => g.id === 'credentials').subs.every(s2 => s2.section && s2.rows.every(x => x.on === s2.sectionOn)));
+  ok('a section that is off turns its rows off', (() => { const q = clone(r); T.setSectionOn(m, q, 'education', false); const g = CL.checklist(m, q).groups.find(x => x.id === 'education'); return !g.sectionOn && g.on === 0 && g.total === edu.total; })());
+  // the group that holds the selection is the one that opens
+  const g0 = hydra.rows[0].id;
+  ok('the group of a selection: a bullet’s job, a job, the header, an item, a section is none', CL.groupOf(m, { kind: 'bullet', id: g0 }) === 'hydra' && CL.groupOf(m, { kind: 'job', id: 'poly' }) === 'poly' && CL.groupOf(m, { kind: 'header' }) === 'about'
+    && CL.groupOf(m, { kind: 'bullet', id: m.basics.summary, section: 'summary' }) === 'about' && CL.groupOf(m, { kind: 'record', what: 'item', group: 'skills', id: 'x' }) === 'credentials' && CL.groupOf(m, { kind: 'record', what: 'entry', key: 'education', id: 'e' }) === 'education'
+    && CL.groupOf(m, { kind: 'section', id: 'skills' }) === null && CL.groupOf(m, { kind: 'none' }) === null);
+  const sk = m.skills[0];
+  ok('a skill group’s text finds its form, and the form finds its text', eq(CL.recordSelOfFact(m, sk.id), { kind: 'record', what: 'item', group: 'skills', id: sk.id }) && CL.factOfRecordSel(m, { kind: 'record', what: 'item', group: 'skills', id: sk.id }) === sk.id && CL.recordSelOfFact(m, g0) === null);
+  ok('an education line finds its entry', CL.recordSelOfFact(m, m.education[0].display.studyType)?.what === 'entry');
+  ok('in German the rows show the German text, and a claim with none is still listed', (() => { const de = resumes.find(x => x.lang === 'de'); const cg = CL.checklist(m, de, 'de'); const rows = cg.groups.find(g => g.id === 'hydra').rows; return rows.length > 0 && rows.every(x => x.text); })());
 }
 
 console.log(failed ? `\n${failed} edit check(s) FAILED` : '\nall edit checks passed');

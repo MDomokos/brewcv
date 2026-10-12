@@ -406,5 +406,32 @@ section('saving and listing with a bundle job type');
   ok('a new typed name is still the old one-tag form', st2.record.jobTypes.at(-1) === 'Brand new type');
 }
 
+section('the grown switcher: the Date and Company views');
+{
+  const st = exampleState();
+  const a = st.resumes[0], b = st.resumes[1], c = st.resumes[2];
+  // a is sent to Acme (twice, the second time as outreach), b to Acme and Birch, c never sent
+  RS.openSaved(st, a.id);
+  RS.takeSnapshot(st, { company: 'Acme', role: 'Engineer', date: '2026-03-02' });
+  RS.takeSnapshot(st, { kind: 'outreach', company: 'Acme', role: 'Engineer', date: '2026-04-09' });
+  RS.openSaved(st, b.id);
+  RS.takeSnapshot(st, { company: 'acme', role: 'Lead', date: '2025-12-30' });
+  RS.takeSnapshot(st, { company: 'Birch', role: 'Lead', date: '2026-01-15' });
+  const rs = st.resumes;
+  const ev = RS.sendEvents(rs);
+  ok('Date: every send is an event, newest first', ev.filter(e => e.kind === 'send').length === 4 && ev.filter(e => e.kind === 'send').every((e, i, l) => !i || l[i - 1].date >= e.date), ev.map(e => e.date).join());
+  ok('…a resume never sent comes in once, at the day it was saved', ev.filter(e => e.kind === 'saved').length === rs.length - 2 && ev.filter(e => e.kind === 'saved').every(e => e.resume.id !== a.id && e.resume.id !== b.id));
+  const bands = RS.sendBands(ev);
+  ok('…in bands of a year, newest year first', bands.every(x => x.events.every(e => e.date.slice(0, 4) === x.year)) && bands.map(x => x.year).join() === [...new Set(ev.map(e => e.date.slice(0, 4)))].join());
+  const co = RS.byCompany(rs);
+  ok('Company: one group for Acme however it is spelled, with both resumes that went there', co.filter(g => g.key === 'acme').length === 1 && co.find(g => g.key === 'acme').rows.map(x => x.resume.id).sort().join() === [a.id, b.id].sort().join());
+  ok('…a resume sent to two companies is in both groups', co.find(g => g.key === 'birch').rows.some(x => x.resume.id === b.id));
+  ok('…outreach is marked: a resume only ever sent as outreach to a company is an outreach row, one sent for real is not', co.find(g => g.key === 'acme').rows.find(x => x.resume.id === a.id).outreach === false && (() => { const q = exampleState(); RS.openSaved(q, q.resumes[0].id); RS.takeSnapshot(q, { kind: 'outreach', company: 'Sector', date: '2026-02-01' }); return RS.byCompany(q.resumes).find(g => g.key === 'sector').rows[0].outreach === true; })());
+  const nameless = { ...clone(c), id: 'nameless', name: 'Nameless', company: '', role: '' };
+  const co2 = RS.byCompany([...rs, nameless]);
+  ok('…each row remembers its sends, and a resume with no company is in the last, unnamed group', co.find(g => g.key === 'acme').rows.find(x => x.resume.id === a.id).sends.length === 2 && co2.at(-1).key === '' && co2.at(-1).rows.some(x => x.resume.id === 'nameless'));
+  ok('…the named groups are in alphabetical order', co.slice(0, -1).every((g, i, l) => !i || l[i - 1].label.localeCompare(g.label, undefined, { sensitivity: 'base' }) <= 0));
+}
+
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');
 process.exit(failed ? 1 : 0);

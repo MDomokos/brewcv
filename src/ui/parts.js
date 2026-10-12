@@ -160,6 +160,7 @@ export function claimHead({ hasJob = false, on = false, kept = false, deletable 
 }
 
 // One text box that adds on Enter (Shift+Enter is a new line). The button is only a visible way to do the same.
+// There is one under every job in the checklist, so none of them has an id.
 export const addClaimHtml = ({ id, key, draft = '' }) =>
   `<label class="field addclaim"><span class="lbl inline">${h('career.addClaim')}</span>
-      <span class="addrow"><textarea id="new-claim" rows="1" placeholder="${esc(t('career.claimPh'))}">${esc(draft)}</textarea><button class="sm addc" data-act="add-claim" data-key="${esc(key)}" data-id="${esc(id)}" title="${esc(t('ux1.addEnter'))}" aria-label="${esc(t('career.addClaim'))}">${h('ux1.add')}</button></span></label>`;
+      <span class="addrow"><textarea class="new-claim" data-entry="${esc(id)}" rows="1" placeholder="${esc(t('career.claimPh'))}">${esc(draft)}</textarea><button class="sm addc" data-act="add-claim" data-key="${esc(key)}" data-id="${esc(id)}" title="${esc(t('ux1.addEnter'))}" aria-label="${esc(t('career.addClaim'))}">${h('ux1.add')}</button></span></label>`;

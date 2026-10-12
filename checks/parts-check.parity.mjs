@@ -131,7 +131,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
     const list = String(u.checklist.html());
     const gm = list.match(new RegExp(`<section class="clg open[^"]*" data-g="${job.id}">[\\s\\S]*?</section>`));
     const group = gm ? gm[0] : '';
-    ok('the job’s group (open, as it holds the selection) has the box; the job’s own panel no longer lists its lines', group.includes('data-act="add-claim"') && group.includes('id="new-claim"') && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('data-act="add-claim"'));
+    ok('the job’s group (open, as it holds the selection) has the box; the job’s own panel no longer lists its lines', group.includes('data-act="add-claim"') && group.includes('class="new-claim"') && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('data-act="add-claim"'));
     ok('the other groups are folded, with their rows still in the page', list.includes('aria-expanded="false"') && (list.match(/<section class="clg open[ "]/g) ?? []).length === 1);
     dom.set('new-claim', { value: 'Wrote the fixture drawings and the test procedure.' });
     await u.click('add-claim', { id: job.id, key: 'work' });

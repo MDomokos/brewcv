@@ -109,7 +109,15 @@ function railMeters(){
   return meters().map(m => `<button class="rmeter ${m.status}" data-act="goto-page" data-page="${m.i}" aria-current="${C.ui.page === m.i}" data-tip="${esc(t('ux2.pageShort', { page: m.page }))}|${esc(m.tipText)}" data-tip-pos="l" aria-label="${esc(m.tipText)}"><span class="rmfill" style="height:${Math.min(100, m.pct).toFixed(0)}%"></span></button>`).join('');
 }
 
-export function renderRail(){
+// the rail and the bottom line are redrawn whenever a page is: the control that had the focus keeps it
+const keyOf = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}${el.dataset.page ? `[data-page="${el.dataset.page}"]` : ''}` : null);
+function keepFocus(root, draw){
+  const ae = document.activeElement, k = ae && ae.closest?.(root) ? keyOf(ae) : null;
+  draw();
+  if (k){ const n = $(`${root} ${k}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
+}
+export const renderRail = () => keepFocus('#rail', drawRail);
+function drawRail(){
   const el = $('#rail');
   if (!el) return;
   const mode = modeOf();
@@ -121,7 +129,8 @@ export function renderRail(){
 }
 
 // ---- the zoom bar and the meters, on one line; Fit and undo under them ----
-export function renderFoot(){
+export const renderFoot = () => keepFocus('#foot', drawFoot);
+function drawFoot(){
   const el = $('#foot');
   if (!el) return;
   const u = C.ui, hs = C.store.history;
