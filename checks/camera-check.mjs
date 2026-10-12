@@ -71,7 +71,7 @@ section('soft limits and the rubber band');
   const cam = fitCam(g, v, { scene: 'all' });
   const L = limits(cam, g, v);
   ok('the pages can always be pushed some way, never fully off', L.maxX > cam.x && L.minX < cam.x && L.maxY > cam.y && L.minY < cam.y);
-  ok('at least a third of the view keeps part of the pages at the limit', (() => { const edge = { ...cam, x: L.maxX }; return near(v.left + v.width - edge.x, Math.min(v.width / 3, rowWidth(794, 2) * cam.k)); })());
+  ok('at least two thirds of the view keep part of the pages at the limit', (() => { const edge = { ...cam, x: L.maxX }; return near(v.left + v.width - edge.x, Math.min(v.width * 2 / 3, rowWidth(794, 2) * cam.k)); })());
   ok('inside the limits nothing is pulled', eq(softCam(cam, g, v), cam));
   ok('past a limit it follows at first', rubber(110, 0, 100) > 100 && rubber(110, 0, 100) < 110);
   ok('…gets heavier…', rubber(200, 0, 100) - rubber(150, 0, 100) < rubber(150, 0, 100) - rubber(110, 0, 100));

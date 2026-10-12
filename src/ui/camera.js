@@ -13,7 +13,8 @@ export const FADE = 0.35;             // the page that is not bright
 export const OVERSHOOT = 60;          // how far a pan may be pulled past its limit, at most (px)
 export const MAGNET = 35, BOUNCE = 8; // defaults: round 3 found 60 and 25 too strong
 export const SNAP_FIT = 0.05;         // a zoom within this of the fit view snaps to it
-export const KEEP = 1 / 3;            // at least this share of the view keeps part of the pages in it
+export const KEEP = 2 / 3;            // at least this share of the view keeps part of the pages in it, sideways
+export const KEEP_Y = 0.9;            // …and up and down, where a page runs the whole height: it never goes far off
 
 export const rowWidth = (w, n) => n * w + Math.max(0, n - 1) * PAGE_GAP;
 export const pageLeft = (geo, i) => i * (geo.w + PAGE_GAP);
@@ -55,10 +56,10 @@ export function zoomAbout(cam, k2, px, py){
 // A zoom close to the fit view is the fit view. zoom is relative: 1 is the fit scale.
 export const snapZoom = z => (Math.abs(z - 1) < SNAP_FIT ? 1 : z);
 
-// Where x and y may go: never so far that less than a third of the view (or the whole page, if that is less) keeps part of the pages.
+// Where x and y may go: never so far that less than two thirds of the view (or the whole page, if that is less) keeps part of the pages.
 export function limits(cam, geo, view){
   const W = rowWidth(geo.w, geo.n) * cam.k, H = geo.h * cam.k;
-  const kx = Math.min(view.width * KEEP, W), ky = Math.min(view.height * KEEP, H);
+  const kx = Math.min(view.width * KEEP, W), ky = Math.min(view.height * KEEP_Y, H);
   return { minX: view.left + kx - W, maxX: view.left + view.width - kx, minY: view.top + ky - H, maxY: view.top + view.height - ky };
 }
 
