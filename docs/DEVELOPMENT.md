@@ -36,14 +36,15 @@ src/model/                 pure, tested in Node:
   diff.js                    the merge engine (also History and Compare with a file)
   tokens.js                  theme tokens: CSS, simple JSON and DTCG in, DTCG out
   career.js                  the record: the timeline, the lists, every add / edit / delete, custom kinds
-  checklist.js               the record as a checklist: the groups, the rows, what is on this resume, the group a selection is in
+  checklist.js               the record as a checklist: the groups, the rows, what is on this resume, the group a selection is in, the groups a section prints
 src/store/                 store.js (state + undo) · persist.js (autosave, folder, backup, checkpoints)
 src/i18n/                  index.js (t, plurals, fallback to English) · en.js · nine machine-written
                            catalogues, each marked NEEDS A NATIVE REVIEW
 src/ui/                    the Workbench: shell, sheet (the iframe), layout, select, edit,
                            resumes, switcher, files, export, design, onboarding, settings,
                            langmenu, actual size; dock (the panel that folds to a rail, the zoom bar,
-                           hover hints), checklist (the record's checklist in the panel), career (the
+                           hover hints), checklist (the record's groups, drawn by record.js and, at the job level,
+                           beside the job), record (the Record tab: the way in and the way round), career (the
                            record's forms and the timeline), help (the shortcut sheet), icons, drink (Tea or
                            Coffee, light or dark: the two settings, the corner that asks, Shift+F),
                            drink-boot (the same two settings on <html> before the first paint);
@@ -80,7 +81,7 @@ node checks/model-check.mjs [lib]     schema v4, migration, saved-resume files; 
                                       every recipe renders byte-identical to before 0.5.1
 node checks/store-check.mjs           undo, autosave, folder mirror, backup, checkpoints
 node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, labels, photo, fields
-node checks/shell-check.mjs           layout maths, click targets, Esc, folder read back
+node checks/shell-check.mjs           layout maths (the panel, and Record's wider one), click targets, Esc, folder read back
 node checks/camera-check.mjs          the canvas camera: both pages or one, soft limits, the magnet, which page is bright, the spring
 node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
 node checks/resumes-check.mjs         autosave, snapshots and sends, frozen text and newer wording, new, duplicate, compare, folder

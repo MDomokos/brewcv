@@ -187,10 +187,8 @@ export function crumbBarHtml({ level, jobName = null, jobId = null, on = 0, tota
   const line = level === 'line'
     ? `<span class="oc cur" aria-current="location">${h('ux3.crumbLine')}</span>`
     : canWrite ? `<button class="oc dots" data-act="ob-write">${h('ux3.crumbWrite')}</button>` : '';
-  const sep = cls => `<span class="ocs ${cls}" aria-hidden="true">›</span>`;
-  // the short crumb (onpage.js, when the full one has no clear place) leaves the last part and its separator out
-  const parts = [page, job].filter(Boolean).join(sep('')) + (line ? sep('ocl') + line : '');
-  return `<nav class="obcrumb" aria-label="${esc(t('ux3.crumbNav'))}">${parts}<kbd class="oesc">Esc</kbd></nav>`;
+  const parts = [page, job, line].filter(Boolean);
+  return `<nav class="obcrumb" aria-label="${esc(t('ux3.crumbNav'))}">${parts.join('<span class="ocs" aria-hidden="true">›</span>')}<kbd class="oesc">Esc</kbd></nav>`;
 }
 
 // The column beside the line: the version badge, and while writing the three ways to keep what you wrote, with the counts.

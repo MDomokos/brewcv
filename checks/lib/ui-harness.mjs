@@ -74,7 +74,7 @@ export async function makeUi({ resume = 0, lang = null } = {}){
   let career = null;
   const edit = initEdit({ ...ctx, detailsHtml: id => career.detailsHtml(id) });
   career = initCareer({ ...ctx, edit });
-  const checklist = initChecklist({ ...ctx, edit, career });
+  const checklist = initChecklist({ ...ctx, edit, career, timelineHtml: () => career.timelineHtml() });
   // the handlers edit.bind() puts on #body, to be fired by hand
   const handlers = {};
   edit.bind({ addEventListener: (type, fn) => { (handlers[type] ??= []).push(fn); }, querySelector: () => null, querySelectorAll: () => [] });

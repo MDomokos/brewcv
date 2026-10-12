@@ -138,11 +138,11 @@ function timelineCols(){
   const archBtn = nArch ? `<button class="sm ghost archmore" data-act="c-arch-jobs" aria-expanded="${W.jobs}">${W.jobs ? h('arch.hideJobs') : h('arch.nJobs', { n: nArch })}</button>` : '';
   if (!entries.length) return `<div class="empty card-ish"><p><b>${h('career.emptyWork')}</b></p><div class="btns"><button class="primary sm" data-act="c-add" data-what="work">${h('career.addWork')}</button></div></div>`;
   const mark = x => (!sameLang() && x.toWrite ? x.toWrite : 0);
-  const main = x => `<button class="row" ${kc(x.kind)} data-act="rec-job" data-key="${x.key}" data-id="${esc(x.id)}" data-g="${esc(x.key === 'education' ? 'education' : x.id)}">
+  const main = x => `<button class="row" ${kc(x.kind)} data-act="rec-job" data-key="${x.key}" data-id="${esc(x.id)}" data-grp="${esc(x.key === 'education' ? 'education' : x.id)}">
       <span class="ic">${icon(look(x.kind).icon)}</span><span class="t ${x.titleMissing ? 'missing' : ''}">${esc(x.title)}</span><span class="w">${esc(years(x))}</span>
       <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}${x.archived ? ` · <span class="pill arch">${h('arch.badge')}</span>` : ''}</span>
       ${mark(x) ? `<span class="marks"><span class="mk">${h('career.toWriteIn', { n: mark(x), lang: langName(L()) })}</span></span>` : ''}</button>`;
-  const side = x => `<button class="srow" ${kc(x.kind)} data-act="rec-job" data-key="${x.key}" data-id="${esc(x.id)}" data-g="${esc(x.key === 'education' ? 'education' : x.id)}" title="${esc(kindLabel(x.kind))}">
+  const side = x => `<button class="srow" ${kc(x.kind)} data-act="rec-job" data-key="${x.key}" data-id="${esc(x.id)}" data-grp="${esc(x.key === 'education' ? 'education' : x.id)}" title="${esc(kindLabel(x.kind))}">
       <span class="si">${icon(look(x.kind).icon)}</span><span class="t ${x.titleMissing ? 'missing' : ''}">${esc(x.title)}</span><span class="w">${esc(years(x))}</span>
       <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}${x.during ? ` · ${h('career.during', { org: duringName(x.during) })}` : ''}${mark(x) ? ` · <span class="mkt">${h('career.toWrite', { n: mark(x) })}</span>` : ''}</span></button>`;
   let rows = `<div class="colhead"><span ${kc('work')}>${icon('work')} ${h('career.colMain')}</span><span>${h('career.colSide')}</span></div>`;

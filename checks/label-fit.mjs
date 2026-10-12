@@ -79,7 +79,8 @@ for (const lang of I.UI_LANGS.filter(l => l !== 'en')){
 // ---- the app's own labels ----
 // Things that are meant to shorten with an ellipsis; everything else has to fit whole.
 const ELLIPSIS = '.dn, .dt, .clname, .clt, .tx, .filestate, .sn, .muted, .sopt, .stext, .jn, .lt, .lr, option, .title, .t, .tlsend, .lbl, .where, .kb, .crumb, .sumline, .meta, .field input, .field select, .field textarea';
-const widths = [[1100, 'drawer, 340px'], [1440, '403px']];
+// 461px is the panel at 1440 (UX-3b: 440 to 480 in Edit, Design and Export); 480px is its widest. Below about 1430px the drink corner, which M11b removes, lies over the page's blank left margin.
+const widths = [[1100, 'drawer, 380px'], [1440, '461px'], [1600, '480px']];
 for (const lang of I.UI_LANGS){
   for (const [vw, what] of widths){
     const ctx = await browser.newContext({ viewport: { width: vw, height: 900 }, bypassCSP: true });
@@ -104,7 +105,7 @@ for (const lang of I.UI_LANGS){
     // offsetTop, not the box on screen: tea hangs the tags a little askew, which moves their screen boxes but not their row
     const rows = await pg.evaluate(() => { const t = [...document.querySelectorAll('#head [role=tab]')].map(x => x.offsetTop); return { tabsOnOneRow: new Set(t).size === 1, tabs: t.length, headRows: [...document.querySelectorAll('#head .hrow')].map(r => Math.round(r.getBoundingClientRect().height)) }; });
     let problems = [];
-    if (!rows.tabsOnOneRow) problems.push('the three modes wrap onto more than one row');
+    if (!rows.tabsOnOneRow) problems.push('the four modes wrap onto more than one row');
     problems.push(...await probe('head', '#head button, #head .seg, #head .hrow, #head .docname, #head .savestate'));
     problems.push(...await probe('foot', '#foot button, #foot .vbar, #foot .meters, #foot .frow'));
     // M11a: the drink corner (the question and Tea, Coffee in each language) stays whole, on screen, off the page
@@ -116,10 +117,18 @@ for (const lang of I.UI_LANGS){
       return out;
     }));
     problems.push(...await probe('lens and sections', '.lens button, .lens select, .lensrow, .offchip, #seclist .srow, .item.srow'));
-    problems.push(...await probe('checklist', '#checklist button, #checklist .clhead, #checklist .clcount, #checklist .clcaret, #checklist .clhint'));
-    // the heads of the groups, opened: the count stays whole next to a long name
-    await pg.click('#checklist .clg[data-g=hydra] .clcaret').catch(() => {});
-    problems.push(...await probe('checklist, opened', '#checklist .clg.open button, #checklist .clrow, #checklist .addclaim'));
+    // UX-3b: Record, Export's Mark as sent, and the job level
+    await pg.keyboard.press('r'); await pg.waitForTimeout(700);
+    problems.push(...await probe('record', '#head [role=tab], #checklist .clhead *, #checklist .clhint, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw'));
+    await pg.click('#head [data-m=export]'); await pg.waitForTimeout(400);
+    problems.push(...await probe('export', '.sentrow *, .sentrule, .dl button'));
+    await pg.click('[data-act=mark-sent]'); await pg.waitForTimeout(400);
+    problems.push(...await probe('mark as sent', '#body .btns button, #body .field *, #body .note'));
+    await pg.click('#head [data-m=edit]'); await pg.waitForTimeout(300);
+    problems.push(...await probe('this resume', '#seclist .nlink, #seclist .stext, .edithint, .lensrow *'));
+    await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await pg.waitForTimeout(500);
+    problems.push(...await probe('the job level', '#checklist.compact .clgh *, #body .allrec button, #body .crumb *'));
+    await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); });
     // the grown switcher
     await pg.click('#docname-btn'); await pg.waitForTimeout(250);
     await pg.click('#switcher [data-act=sw-manage]'); await pg.waitForTimeout(350);
@@ -138,7 +147,7 @@ for (const lang of I.UI_LANGS){
     await pg.click('#zoompct'); await pg.waitForTimeout(250);
     problems.push(...await pg.evaluate(() => { const z = document.querySelector('#zpop'); const out = []; if (z.scrollWidth > z.clientWidth + 1) out.push('zoom settings: wider than the card'); for (const b of z.querySelectorAll('.seg button')) if (b.scrollWidth > b.clientWidth + 1) out.push(`zoom settings: “${b.textContent}” is cut`); const seg = z.querySelector('.seg').getBoundingClientRect(); if (seg.right > z.getBoundingClientRect().right - 4) out.push('zoom settings: the panel modes run out of the card'); return out; }));
     await pg.keyboard.press('Escape');
-    ok(`${lang} at ${what}: the new labels fit (modes on one row, header, zoom bar, lens, checklist, switcher, zoom settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
+    ok(`${lang} at ${what}: the new labels fit (four modes on one row, header, zoom bar, lens, Record, Export, the job level, switcher, zoom settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
     await ctx.close();
   }
 }

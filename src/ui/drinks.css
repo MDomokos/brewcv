@@ -273,7 +273,7 @@ html[data-drink="tea"] .obcrumb::after { content: ""; position: absolute; left: 
 /* the version list and the sections */
 html[data-drink="tea"] .item.srow .t { font-weight: 700; }
 html[data-drink="tea"] .vrow.cur .rad { border-color: var(--accent); }
-html[data-drink="tea"] .vrow.cur .n { color: var(--accent); }
+html[data-drink="tea"] .vrow.cur .n { color: var(--ink); }      /* the ring and the row's tint say which; the number stays readable on it (the amber on its tint was 3:1) */
 
 /* ---------- the start screen ---------- */
 html[data-drink="tea"] .oblogo img { width: 76px; height: 76px; }

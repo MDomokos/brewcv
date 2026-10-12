@@ -124,20 +124,23 @@ export function initOnPage(C){
   }
 
   // The breadcrumb never covers printed text. It tries the places next to the frame in turn, the full crumb first and then the short one
-  // (without "Write this line" and Esc): above the frame, beside it on the left, above it on the right. The first that overlaps no text
+  // ("Write this line" shrinks to its pencil): above the frame, beside it on the left, above it on the right. The first that overlaps no text
   // is the one; when none is free, the one that covers least.
   function placeCrumb(cb, fr){
     const view = canvas.view ?? { left: 0, top: 0, width: innerWidth, height: innerHeight };
     const ink = sheet.textRects().map(r => canvas.screenRect(r));
-    const overlap = (x, y, w, h) => ink.reduce((n, r) => n + Math.max(0, Math.min(x + w, r.left + r.width) - Math.max(x, r.left)) * Math.max(0, Math.min(y + h, r.top + r.height) - Math.max(y, r.top)), 0);
+    // a line's box is a little bigger than its letters: two pixels of it all round do not count
+    const overlap = (x, y, w, h) => ink.reduce((n, r) => n + Math.max(0, Math.min(x + w, r.left + r.width - 2) - Math.max(x, r.left + 2)) * Math.max(0, Math.min(y + h, r.top + r.height - 2) - Math.max(y, r.top + 2)), 0);
     let best = null;
     for (const compact of [false, true]){
       cb.classList.toggle('compact', compact);
       const w = cb.offsetWidth, h = cb.offsetHeight;
       const at = [
         { x: Math.max(6, fr.left), y: fr.top - h - 4 },                    // above the frame
-        { x: fr.left - w - 8, y: fr.top },                                 // beside it, on the left
         { x: fr.left + fr.width - w, y: fr.top - h - 4 },                  // above it, on the right
+        { x: Math.max(6, fr.left), y: fr.top - h + 3 },                    // hugging its top edge, on the left
+        { x: fr.left + fr.width - w, y: fr.top - h + 3 },                  // …and on the right
+        { x: fr.left - w - 8, y: fr.top },                                 // beside it, on the left
       ];
       for (const c of at){
         if (c.x < view.left + 4 || c.y < 4 || c.x + w > view.left + view.width - 4) continue;

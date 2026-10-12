@@ -44,7 +44,7 @@ export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', folded
     const colH = Math.round(vh * SHEET_VH);
     const height = stackHeight(format, n) * scale;
     return {
-      phone: true, drawer: false, folded: false, scale, fit: (vw - G) / w, zoom: z, spread: false, stack: n > 1, perView: 1,
+      phone: true, drawer: false, folded: false, wide, scale, fit: (vw - G) / w, zoom: z, spread: false, stack: n > 1, perView: 1,
       sheet: { left: G / 2, top: G / 2, width: w * scale, height },
       col: wide ? { left: 0, top: 0, width: vw, height: vh } : { left: 0, top: vh - colH, width: vw, height: colH },
       pages: { left: 0, top: 0, width: vw, height: G + height, content: G + height, contentW: vw },
@@ -72,7 +72,7 @@ export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', folded
   const top = stack || sheetH + 2 * G > vh ? G : Math.max(G, (vh - pageH) / 2);
   const open = !folded;
   return {
-    scale, fit, zoom: z, spread, stack, perView, phone: false, drawer, folded, railW: RAIL_W, colW, areaW,
+    scale, fit, zoom: z, spread, stack, perView, phone: false, drawer, folded, wide: wide && !folded, railW: RAIL_W, colW, areaW,
     sheet: { left, top, width: sheetW, height: sheetH },
     col: open ? { left: vw - G - colW, top: G, width: colW, height: vh - 2 * G } : { left: vw - G - RAIL_W, top: G, width: RAIL_W, height: vh - 2 * G },
     // the scroller runs from the window's left edge to just short of the column (or the rail)

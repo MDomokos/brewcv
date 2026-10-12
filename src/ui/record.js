@@ -52,7 +52,7 @@ function open(groups = []){
 async function act(a, tg){
   switch (a){
     // a click on the timeline: the list scrolls to that job
-    case 'rec-job': open([tg.dataset.g || tg.dataset.id]); return true;
+    case 'rec-job': open([tg.dataset.grp || tg.dataset.id]); return true;
     // the page's job chip, and a section's "n of m on" in Edit: the groups are named in data-g, separated by commas
     case 'open-record': open((tg.dataset.g ?? '').split(',').map(x => x.trim())); return true;
   }

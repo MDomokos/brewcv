@@ -592,6 +592,34 @@ section('the forms: a field commits when you leave it, Enter leaves it, Esc puts
   for (const [what, h0] of panels) ok(`${what}: no Save button (only creating something has a button)`, !/data-act="c-save[^"]*"/.test(h0) && !/data-act="c-kind-save"[^>]*>Save/.test(h0));
 }
 
+section('the Record tab: the timeline and every kind of addition are there, and a claim opens from it');
+{
+  const u = await makeUi();
+  const rec = () => String(u.checklist.html());
+  const ids = (html, re) => [...html.matchAll(re)].map(m => m[1]);
+  ok('the timeline is in the tab, always open, and every job and project in it scrolls the list to its group', (() => {
+    const jobs = ids(rec(), /data-act="rec-job" data-key="[^"]+" data-id="[^"]+" data-grp="([^"]+)"/g);
+    const groups = new Set(ids(rec(), /<section class="clg[^"]*" data-g="([^"]+)"/g));
+    return jobs.length >= 5 && jobs.every(j => groups.has(j)) && !/data-act="c-sel"/.test(rec()) && !/data-act="tl-close"|data-act="c-tl"/.test(rec());
+  })());
+  ok('…and the timeline is the same rows Career drew over the page, with no header of its own', /class="tl2"/.test(rec()) && !/class="tl-head"/.test(rec()));
+  ok('+ Add is in the tab’s header, and its menu holds every kind: timeline entries, the lists, and a kind of your own', await (async () => {
+    ok('(the menu starts shut)', !/class="addm /.test(rec()));
+    await u.click('c-pop');
+    const html = rec();
+    return /data-act="c-pop"[^>]*aria-expanded="true"/.test(html) && ['work', 'education', 'project', 'skills', 'languages', 'certificates', 'publications', 'interests', 'references'].every(k => html.includes(`data-act="c-add" data-what="${k}"`)) && html.includes('data-act="c-kind-new"');
+  })());
+  await u.click('c-pop');
+  ok('every group lists all its lines, ticked or not, with its count', (() => { const html = rec(); return (html.match(/<li class="clrow/g) ?? []).length >= 30 && /class="clcount"/.test(html); })());
+  ok('a line opens its claim from Record and from the job’s own group: the same selection', (() => {
+    u.select({ kind: 'job', id: 'hydra' });
+    const sels = h => new Set(ids(h, /data-fact="[^"]*"[^>]*>[\s\S]*?data-act="cl-open" data-sel="([^"]*)"/g));
+    const a = sels(String(u.checklist.html())), b = sels(String(u.checklist.jobGroupHtml()));
+    return b.size >= 3 && [...b].every(x => a.has(x));
+  })());
+  ok('the job level has no timeline and no carets: the job’s group is just its lines and a box to add one', (() => { u.select({ kind: 'job', id: 'hydra' }); const g = String(u.checklist.jobGroupHtml()); return !/rectl|tl2|clcaret/.test(g) && /data-act="add-claim"/.test(g); })());
+}
+
 section('what Career did, and where each part went (the ledger of data-act)');
 {
   const u = await makeUi();
