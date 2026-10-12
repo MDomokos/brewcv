@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
-import { computeLayout, G, COL_MIN, COL_MAX, RAIL_W, DRAWER_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, panelWidth, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
+import { computeLayout, G, COL_MIN, COL_MAX, RAIL_W, DRAWER_MAX, PHONE_MAX, RECORD_MIN, RECORD_MAX, recordWidth, ZOOM_MIN, ZOOM_MAX, clampZoom, panelWidth, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
 import { indexModel, targetOf, up, step, versionsOf, factsOf, NONE } from '../src/ui/select.js';
 import { panelShown, afterEscape, PANEL_MODES, ZOOM_WRITE } from '../src/ui/dock.js';
 import { load, save, serialize, saveResume } from '../src/model/schema.js';
@@ -52,7 +52,7 @@ for (const [vw, vh] of [[1536, 864], [1440, 960], [1280, 800], [1920, 1080]]){
   }
 }
 {
-  ok('the panel is 28% of the window, between its minimum and its maximum', panelWidth(1536) === 420 && panelWidth(1280) === 358 && panelWidth(1000) === COL_MIN && panelWidth(2560) === COL_MAX);
+  ok('the panel is 32% of the window, between its minimum and its maximum (440 to 480 px at 1440)', panelWidth(1536) === 480 && panelWidth(1440) >= 440 && panelWidth(1440) <= 480 && panelWidth(1280) === 410 && panelWidth(1000) === COL_MIN && panelWidth(2560) === COL_MAX);
   const narrow = computeLayout({ vw: 1100, vh: 1000, format: 'a4' });
   ok(`under ${DRAWER_MAX}px the panel is a drawer: the page keeps its width (the rail’s), the panel lies over its right edge`,
     narrow.drawer && narrow.areaW === 1100 - RAIL_W - 2 * G && narrow.col.left < narrow.areaW && narrow.col.width >= COL_MIN);
@@ -60,8 +60,8 @@ for (const [vw, vh] of [[1536, 864], [1440, 960], [1280, 800], [1920, 1080]]){
   ok('…while on a wide window folding it gives the page the panel’s room', computeLayout({ vw: 1536, vh: 864, format: 'a4', folded: true }).areaW > computeLayout({ vw: 1536, vh: 864, format: 'a4' }).areaW);
   const wide = computeLayout({ vw: 2560, vh: 1440, format: 'a4' });
   ok('very wide: the panel stops at its maximum', wide.col.width === COL_MAX);
-  const two = computeLayout({ vw: 1536, vh: 864, format: 'a4', pages: 2 });
-  ok('two A4 pages at 1536×864 sit side by side (costs under 15% of height)', two.spread && two.perView === 2);
+  const two = computeLayout({ vw: 1920, vh: 1080, format: 'a4', pages: 2 });
+  ok('two A4 pages at 1920×1080 sit side by side (costs under 15% of height)', two.spread && two.perView === 2);
   const tall = computeLayout({ vw: 1280, vh: 800, format: 'a4', pages: 2 });
   ok('…at 1280×800 they would cost more, so they stack and scroll', !tall.spread && tall.stack && tall.perView === 1);
   ok('the ▭▭ toggle forces a spread', computeLayout({ vw: 1280, vh: 800, format: 'a4', pages: 2, mode: 'spread' }).spread);
@@ -84,6 +84,22 @@ for (const [vw, vh] of [[1536, 864], [1440, 960], [1280, 800], [1920, 1080]]){
   ok('the phone has no rail: the column is the bottom sheet whatever the fold', ph.phone && !ph.folded && ph.col.width === 390 && ph.col.top + ph.col.height === 844);
   ok('actual size: calibrated px per mm → scale', Math.abs(actualScale(NOMINAL_PX_PER_MM) - 1) < 1e-12 && Math.abs(actualScale(340 / CARD_MM) - (340 / CARD_MM) / NOMINAL_PX_PER_MM) < 1e-12);
   ok('there is no Career layout or thumbnail any more', computeLayout({ vw: 1536, vh: 864, format: 'a4' }).career === undefined);
+}
+
+section('layout: the panel in Record');
+{
+  ok(`Record is ${RECORD_MIN} to ${RECORD_MAX} px wide and never more than half the window`, recordWidth(1440) === 720 && recordWidth(1280) === 640 && recordWidth(1600) === 720 && [1280, 1366, 1440, 1920, 2560].every(vw => recordWidth(vw) <= vw / 2 && recordWidth(vw) >= RECORD_MIN));
+  ok('under 1280 px Record is a drawer of 90% of the window, and on a phone the whole screen', recordWidth(1100) === 990 && recordWidth(PHONE_MAX - 1) === PHONE_MAX - 1);
+  for (const [vw, vh] of [[1440, 900], [1280, 800], [1920, 1080]]){
+    const n = computeLayout({ vw, vh, format: 'a4' }), w = computeLayout({ vw, vh, format: 'a4', wide: true });
+    ok(`${vw}×${vh}: Record widens the panel to ${w.col.width}px, keeps it ${G}px from the right, and the page area gives way (${n.areaW} → ${w.areaW})`,
+      w.col.width === recordWidth(vw) && Math.abs(vw - w.col.left - w.col.width - G) < 1e-6 && w.areaW === n.areaW - (w.col.width - n.col.width) && w.sheet.left + w.sheet.width <= w.areaW);
+  }
+  const d = computeLayout({ vw: 1100, vh: 800, format: 'a4', wide: true }), dn = computeLayout({ vw: 1100, vh: 800, format: 'a4' });
+  ok('as a drawer, Record lies over the page, which does not move for it, and a sliver of the page stays in view', d.drawer && d.areaW === dn.areaW && JSON.stringify(d.sheet) === JSON.stringify(dn.sheet) && d.col.left > 0 && d.col.left + d.col.width === 1100 - G);
+  ok('folded, the rail is the rail whatever the mode', computeLayout({ vw: 1440, vh: 900, format: 'a4', folded: true, wide: true }).col.width === RAIL_W);
+  const ph = computeLayout({ vw: 390, vh: 844, format: 'a4', wide: true });
+  ok('on a phone, Record is the whole screen', ph.phone && ph.col.left === 0 && ph.col.top === 0 && ph.col.width === 390 && ph.col.height === 844);
 }
 
 section('layout: zoom (1 is the whole page in the window)');

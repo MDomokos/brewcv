@@ -6,6 +6,7 @@ import { createPersist, idbBackend, memoryBackend, fsaFolder, readFolder, readBa
 import { load, loadResume, detect, resumeFileName } from '../model/schema.js';
 import { chooseVariant, newResume, listedBullets, jobRefs } from '../model/resume.js';
 import { isArchived } from '../model/entries.js';
+import { groupOf } from '../model/checklist.js';
 import { fit, FILL_BAND, key as measureKeyOf } from '../fit.js';
 import { createSheet } from './sheet.js';
 import { computeLayout, pageSize, pageInView, pageTop } from './layout.js';
@@ -14,6 +15,7 @@ import { initOnPage } from './onpage.js';
 import { pageLeft } from './camera.js';
 import { initDock, storeZoomWrite } from './dock.js';
 import { initChecklist } from './checklist.js';
+import { initRecord } from './record.js';
 import { initHelp } from './help.js';
 import { icon } from './icons.js';
 import { indexModel, targetOf, up, same, step, versionsOf, NONE } from './select.js';
@@ -71,7 +73,6 @@ window.__wb = { store, persist, sheet, ui, canvas, onpage, renderOverflow: () =>
 function staticText(){
   document.documentElement.lang = uiLang();
   $('#sheet').setAttribute('aria-label', t('aria.sheet'));
-  $('#timeline').setAttribute('aria-label', t('ux2.timelineTitle'));
   $('#body').setAttribute('aria-label', t('ux2.panelLabel'));
   renderCorner();
 }
@@ -206,7 +207,7 @@ function onChange({ kind, label }){
   if (ui.snap && !snapNow()) setSnap(null);
   if (ui.sel.kind !== 'none' && !stillThere(ui.sel)){ ui.sel = NONE; dock.sync(); }
   syncUi();
-  if (career.tlOpen) renderTimeline();
+  if (ui.exampleChip && !isExample()){ ui.exampleChip = false; renderHead(); }
   if (kind === 'undo') toast(t('toast.undone', { label }));
   if (kind === 'redo') toast(t('toast.redone', { label }));
   schedule();
@@ -265,7 +266,7 @@ function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'spread', folded: dock.folded(), zoom: 1 });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'spread', folded: dock.folded(), zoom: 1, wide: dock.wide() });
   const host = $('#sheet'), box = $('#pages');
   const col = $('#col');
   col.style.left = `${L.col.left}px`;
@@ -276,9 +277,7 @@ function relayout(){
   col.classList.toggle('is-drawer', L.drawer && !L.folded);
   for (const id of ['head', 'body']){ const el = $(`#${id}`); el.inert = L.folded; }
   $('#rail').hidden = !L.folded;
-  const tl = $('#timeline');
-  if (L.phone) Object.assign(tl.style, { left: '0px', top: '0px', width: `${innerWidth}px`, height: `${innerHeight - L.col.height}px` });
-  else Object.assign(tl.style, { left: `${G_}px`, top: `${G_}px`, width: `${L.areaW - G_}px`, height: `${innerHeight - 2 * G_}px` });
+  col.classList.toggle('is-record', dock.wide());
   ui.layout = L;
   document.body.dataset.phone = String(!!L.phone);
   document.body.dataset.drawer = String(!!L.drawer);
@@ -356,9 +355,9 @@ function pick({ variant, section, page = -1 }){
   // while a line is being written, a click on another line goes on writing there, whichever job or page it is on
   const wasWriting = !!ui.writing && next.kind === 'bullet';
   const writes = (open || wasWriting) && !ui.layout?.phone && (wasWriting || !edit.editing);
-  if (wasWriting) onpage.keepView(() => { select(next, { fromPage: true }); if (ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit(); });
+  if (wasWriting) onpage.keepView(() => { select(next); if (ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit(); });
   else {
-    select(next, { fromPage: true });
+    select(next);
     if (writes && ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit();
   }
   if (other) canvas.goToPage(page);
@@ -375,26 +374,27 @@ function writeLine({ variant, page = -1 }){
   if (ui.fitting || ui.snap || ui.view || ui.layout?.phone || canvas.handed) return;
   const next = targetOf(ui.ix ?? indexModel(work()), { variant, section: null });
   if (next.kind !== 'bullet') return;
-  if (!(ui.sel.kind === 'bullet' && ui.sel.id === next.id)) select(next, { fromPage: true });
+  if (!(ui.sel.kind === 'bullet' && ui.sel.id === next.id)) select(next);
   if (ui.sel.kind === 'bullet' && ui.sel.id === next.id && !edit.editing) edit.startEdit();
   if (page >= 0 && page !== ui.page) canvas.goToPage(page);
 }
 // a click on the bare canvas (not on a page) puts you at the page level
 function bareClick(){ if (ui.view || ui.snap) return; if (ui.sel.kind !== 'none') select(NONE); }
-// `fromPage`: the click was on the sheet, so the checklist scrolls to the group it opened. `keepScroll`: it was in the
-// checklist, where the person is already looking, so the panel stays where it is.
-function select(sel, { fromPage = false, keepScroll = false } = {}){
+// `keepScroll`: the click was on a row of the job's own lines, where the person is already looking, so the panel stays where it is.
+function select(sel, { keepScroll = false } = {}){
   if (!edit.leaving(sel)) return;
   if (ui.view && ui.view !== 'welcome' && sel.kind !== 'none'){ ui.view = null; }
   ui.sel = sel;
   if (ui.previewing){ ui.previewing = false; sheet.endPreview(); }
   sheet.select(sel, ui.ix);
-  checklist.onSelect(sel, { scroll: fromPage });
+  const was = ui.view;
   const at = ui.layout?.phone ? -1 : pageOfSel(sel);
   if (at >= 0 && at !== ui.page) ui.page = at;       // the camera fits that page when the panel opens
   dock.sync();
   renderHead();
-  renderBody(!keepScroll);
+  // The panel opens at its top (the line's versions are what you came for). Only a click on a row of the job's own lines, which
+  // keeps the panel where it is, leaves it alone; leaving Record is a new panel.
+  renderBody(!keepScroll || was === 'record');
   renderChip();
 }
 
@@ -409,7 +409,7 @@ function bindChrome(){
   addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) openFile(f); });
 }
 
-function renderAll(){ syncIntro(); renderHead(); renderBody(); dock.renderRail(); renderFoot(); renderTimeline(); }
+function renderAll(){ syncIntro(); renderHead(); renderBody(); dock.renderRail(); renderFoot(); }
 
 // Links that act (no href) are buttons to the keyboard and to a screen reader.
 function keyboardable(root){
@@ -421,27 +421,13 @@ document.addEventListener('keydown', e => {
 new MutationObserver(() => { keyboardable($('#body')); keyboardable($('#head')); }).observe(document.getElementById('col'), { childList: true, subtree: true });
 
 const resumeName = r => RS.resumeLabel(r);
-
-// The timeline opens over the page, full width, for working through a whole career. Esc closes it.
-let tlWas = false;
-function renderTimeline(){
-  const el = $('#timeline');
-  if (!el) return;
-  const open = career.tlOpen && !!record();
-  el.hidden = !open;
-  document.body.classList.toggle('has-timeline', open);
-  if (!open){ el.innerHTML = ''; tlWas = false; return; }
-  const keep = el.scrollTop;
-  el.innerHTML = career.timelineHtml();
-  el.scrollTop = keep;
-  if (!tlWas){ tlWas = true; el.querySelector('[data-act=tl-close]')?.focus(); }
-  el.querySelector('[aria-pressed=true]')?.scrollIntoView({ block: 'nearest' });
-}
+const isExample = () => /\(fictional\)/.test(record()?.meta?.owner ?? '');
 
 // Views that replace the body card until ← Back or Esc; null is the Edit view.
 const VIEWS = {};
 function setView(v){
   if (v && !VIEWS[v]) return;
+  if (v === 'record' && ui.view !== 'record') ui.recordFrom = ui.view;      // Esc goes back to where it was opened from
   ui.view = v;
   syncIntro();                 // the start screen's areas are the editor's again before they are drawn
   if (ui.previewing) endPreview();
@@ -470,22 +456,24 @@ function drawHead(){
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const snap = snapNow();
   const mode = dock.modeOf();
-  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
+  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
+  const file = fileLine();
   $('#head').innerHTML = `
     <div class="hrow top">
       <span class="logo"><img src="icons/icon.svg" alt="" width="28" height="28"><span class="sr">BrewCV</span></span>
       <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { size: 12 })}</span></span><span class="dt">${esc(meta)}</span></button>
       ${r ? langButton(r) : ''}
       <span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>
-      <button class="sm" data-act="save" id="save" title="${esc(t('ux1.saveTitle'))}" ${ui.snap ? 'disabled' : ''}>${h('head.save')}</button>
-      ${ib('panel-toggle', 'right', t('ux2.foldPanel'), t('ux2.foldPanelTip'), '', 'b')}
+      <button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>
       <button class="tool" data-act="menu" aria-haspopup="true" aria-expanded="${ui.menu}" title="${esc(t('head.menuTitle'))}" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>
     </div>
     <div class="hrow modes">
-      <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
+      <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('record', 'ux3b.modeRecord')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
+      <span class="grow"></span>
       ${ib('help', 'help', t('ux2.shortcuts'), t('ux2.shortcutsTip'), '', 'b')}
-      <button class="filestate ${fileLine().stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${esc(fileLine().text)}</button>
+      ${ib('panel-toggle', 'right', t('ux2.foldPanel'), t('ux2.foldPanelTip'), '', 'b')}
     </div>
+    ${ui.exampleChip && isExample() ? `<div class="hrow notice examplechip" role="status"><span class="small" title="${esc(t('toast.thisIsExample'))}">${esc(t('ux3b.exampleChip'))}</span><button class="ghost sm" data-act="example-ok" aria-label="${esc(t('body.close'))}">${icon('close', { size: 12 })}</button></div>` : ''}
     ${st.code === 'folder-changed' ? `<div class="hrow notice" role="alert"><span class="small">${esc(st.error)}</span><span class="btns"><button class="sm" data-act="folder-compare">${h('save.folderCompare')}</button><button class="sm" data-act="folder-overwrite">${h('save.folderOverwrite')}</button></span></div>` : ''}
     ${ui.saveNote ? `<div class="hrow notice" role="status"><span class="small">${esc(t('save.note'))}${ui.persisted === false ? ' ' + esc(t('save.noteStorage')) : ''}</span><button class="sm" data-act="save-note-ok">${h('save.noteOk')}</button></div>` : ''}
     ${snap ? `<div class="hrow notice snapbar" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${h('ux1.backToResume')}</button></div>` : ''}
@@ -505,7 +493,7 @@ function fileLine(){
 }
 function refreshFileLine(){
   const b = $('#filestate'), l = fileLine();
-  if (b){ b.textContent = l.text; b.classList.toggle('stale', l.stale); }
+  if (b){ const sr = b.querySelector('.sr'); if (sr) sr.textContent = ` · ${l.text}`; b.classList.toggle('stale', l.stale); b.title = `${t('save.title', { name: SAVE_FILE_NAME })} · ${l.text}`; }
 }
 setInterval(refreshFileLine, 30000);
 
@@ -610,17 +598,29 @@ function renderBody(animate = false){
     el.dataset.view = ui.view;
     el.dataset.mode = ui.view;
     finish();
+    if (ui.view === 'record') recordTab.afterRender();
     return;
   }
   el.dataset.mode = 'edit';
-  const main = s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s) : s.kind === 'section' ? edit.sectionView(s)
+  const main = s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s, { details: false }) : s.kind === 'section' ? edit.sectionView(s)
     : ['header', 'record', 'add', 'kind'].includes(s.kind) ? career.panel(s) : edit.homeView();
-  el.innerHTML = main + checklist.html() + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
+  el.innerHTML = main + jobTail(s) + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
   el.dataset.view = s.kind;
   el.dataset.editing = edit.editing ? edit.editing.mode : '';
   finish();
   edit.afterRender();
   checklist.afterRender();
+}
+
+// Under a job or a line of one: the job's own lines, its details, and the way to the rest of the record. Under anything else that
+// belongs to a group (About you, a skill, an education line), only the way into the record.
+function jobTail(s){
+  if (!['job', 'bullet', 'record'].includes(s.kind)) return '';
+  const g = groupOf(work(), s);
+  if (!g) return '';
+  const w = ui.ix?.work.get(g);
+  const link = `<p class="allrec"><button class="sm ghost" data-act="open-record" data-g="${esc(g)}">${h('ux3b.allRecord')}</button></p>`;
+  return (w ? checklist.jobGroupHtml() + career.detailsHtml(g) : '') + link;
 }
 
 
@@ -683,6 +683,7 @@ async function onClick(e){
   if (!tg || !tg.dataset.act) return;
   const act = tg.dataset.act, id = tg.dataset.id;
   if (await onpage.act(act, tg)) return;
+  if (await recordTab.act(act, tg)) return;
   if (await switcher.act(act, tg)) return;
   if (act === 'goto'){ ui.menu = false; setView(tg.dataset.v); return; }
   if (await dock.act(act, tg)) return;
@@ -734,6 +735,7 @@ async function onClick(e){
 
     case 'checkpoint': ui.menu = false; await persist.checkpoint(t('checkpoint.named', { date: new Date().toLocaleString() })); toast(t('toast.checkpointSaved')); renderHead(); break;
     case 'example': ui.menu = false; await loadExample(); toast(t('toast.exampleOpen')); break;
+    case 'example-ok': ui.exampleChip = false; renderHead(); break;
   }
 }
 
@@ -855,8 +857,8 @@ function key(e){
     if (ui.menu){ ui.menu = false; renderHead(); return; }
     if (ui.langMenu){ ui.langMenu = null; renderHead(); $('#langbtn')?.focus(); return; }
     if (closeBodyMenus()) return;
-    if (career.closeTimeline()) return;
     if (edit.key(e)) return;
+    if (ui.view === 'record'){ dock.setMode(recordTab.backTo() ?? 'edit'); return; }
     if (ui.view){ setView(null); return; }
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
@@ -880,7 +882,7 @@ function key(e){
   }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
     const id = step(sheet.order(ui.ix), ui.sel, e.key === 'ArrowDown' ? 1 : -1);
-    if (typeof id === 'string'){ e.preventDefault(); const job = ui.ix.highlight.get(id); select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' }, { fromPage: true }); }
+    if (typeof id === 'string'){ e.preventDefault(); const job = ui.ix.highlight.get(id); select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' }); }
     return;
   }
   if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && ui.sel.kind === 'bullet'){
@@ -998,9 +1000,26 @@ async function reconnect(){
   await adoptFolder(f, false);
 }
 
+// A toast never covers the page. With the panel open it hangs under the panel's header, over the panel's own body; with the panel
+// folded it hangs in the gutter beside the rail. (On a phone the page fills the width: it stays at the top.)
+function placeToast(el){
+  const L = ui.layout;
+  el.classList.remove('docked', 'railed');
+  for (const k of ['left', 'right', 'top', 'width', 'maxWidth']) el.style[k] = '';
+  if (!L || L.phone) return;
+  if (L.folded){
+    el.classList.add('railed');
+    Object.assign(el.style, { right: `${L.railW + 2 * G_}px`, top: `${G_}px` });
+    return;
+  }
+  const c = $('#col').getBoundingClientRect(), hd = $('#head').getBoundingClientRect();
+  el.classList.add('docked');
+  Object.assign(el.style, { left: `${Math.round(c.left + 8)}px`, top: `${Math.round(hd.bottom + 8)}px`, width: `${Math.round(c.width - 16)}px` });
+}
 function toast(msg, tone = ''){
   const t = $('#toast');
   t.textContent = msg; t.className = `toast on ${tone}`;
+  placeToast(t);
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 3600);
 }
 
@@ -1038,6 +1057,7 @@ const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, 
 });
 switcher.bind();
 Object.assign(VIEWS, resumes.views);
+VIEWS.record = () => recordTab.view();
 const files = initFiles({
   store, ui, persist, toast, NONE, setView, pickFile, download, saveToFile,
   onImage: f => design.setPhoto(f), onThemeText: (t, n) => design.importTheme(t, n), onTheme: (j, n) => design.importTheme(j, n),
@@ -1054,13 +1074,15 @@ const onboarding = initOnboarding({ store, ui, persist, toast, setView, renderBo
 Object.assign(VIEWS, onboarding.views);
 onboarding.bind($('#body'));
 window.__wb.onboarding = onboarding;
-const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi(r), edit, lang, select: s => select(s), renderBody: (a) => renderBody(a), renderTimeline: () => renderTimeline(),
+const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi(r), edit, lang, select: s => select(s), renderBody: (a) => renderBody(a),
   renderHead: () => renderHead(), photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 career.bind($('#body'));
 window.__wb.career = career;
-const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody() });
+const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
 checklist.bind($('#body'));
 window.__wb.checklist = checklist;
+const recordTab = initRecord({ ui, checklist, renderBody: () => renderBody(), setMode: m => dock.setMode(m) });
+window.__wb.record = recordTab;
 const help = initHelp({ ui });
 window.__wb.help = help;
 const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, goToPage, renderAll: () => renderAll(), canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });

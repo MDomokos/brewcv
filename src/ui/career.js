@@ -2,7 +2,7 @@
 // (checklist.js), and everything you could do to it opens in the inspector, the one panel edit.js draws.
 // This module is what the inspector shows for things that are not a claim: About you, the details of a job,
 // an education entry, a skill group or other list item, a job type, a new entry, a custom kind. It also
-// draws the timeline that opens over the page. Fields commit when you leave them or press Enter, Esc
+// draws the timeline at the top of the Record tab. Fields commit when you leave them or press Enter, Esc
 // puts the field back, and every commit is one undo step; only creating something has a button.
 
 import * as K from '../model/career.js';
@@ -26,7 +26,6 @@ const rec = () => C.work();
 // view state; none of it is undone or saved
 const W = {
   pop: null,                 // 'add': the + Add menu is open
-  tl: false,                 // the timeline is open over the page
   kind: null,                // the kind editor: { id | null, draft }
   delKind: null,
   shown: new Set(),          // entries whose archived claims are revealed
@@ -130,26 +129,20 @@ export function addMenuHtml(){
     ${canKind ? `<hr><button role="menuitem" data-act="c-kind-new"><span class="ai">+</span><span><b>${h('career.somethingElse')}</b><small>${h('career.somethingElseTl')}</small></span></button>` : ''}</div>`;
 }
 
-// ---- the timeline, over the page ----
-export function timelineHtml(){
-  return `<div class="tl-head"><div class="tl-titles"><h2>${h('ux2.timelineTitle')}</h2><p class="muted small">${h('ux2.timelineSub')}</p></div><span class="grow"></span>
-      <button class="sm" data-act="tl-close" aria-label="${esc(t('ux2.timelineClose'))}">${h('ux2.timelineClose')}</button></div>
-    ${timelineCols()}`;
-}
+// ---- the timeline, at the top of the Record tab: a click scrolls the list below to that job ----
+export function timelineHtml(){ return timelineCols(); }
 function timelineCols(){
   const all = K.timelineLayout(rec(), { lang: L() });
   const nArch = all.entries.filter(x => x.archived).length;
   const { bands, entries } = nArch && !W.jobs ? K.timelineLayout(rec(), { lang: L(), hideArchived: true }) : all;
   const archBtn = nArch ? `<button class="sm ghost archmore" data-act="c-arch-jobs" aria-expanded="${W.jobs}">${W.jobs ? h('arch.hideJobs') : h('arch.nJobs', { n: nArch })}</button>` : '';
   if (!entries.length) return `<div class="empty card-ish"><p><b>${h('career.emptyWork')}</b></p><div class="btns"><button class="primary sm" data-act="c-add" data-what="work">${h('career.addWork')}</button></div></div>`;
-  const s = C.ui.sel;
-  const selId = s.kind === 'job' ? s.id : s.kind === 'record' && s.what === 'entry' ? s.id : null;
   const mark = x => (!sameLang() && x.toWrite ? x.toWrite : 0);
-  const main = x => `<button class="row" ${kc(x.kind)} data-act="c-sel" data-key="${x.key}" data-id="${esc(x.id)}" aria-pressed="${selId === x.id}">
+  const main = x => `<button class="row" ${kc(x.kind)} data-act="rec-job" data-key="${x.key}" data-id="${esc(x.id)}" data-grp="${esc(x.key === 'education' ? 'education' : x.id)}">
       <span class="ic">${icon(look(x.kind).icon)}</span><span class="t ${x.titleMissing ? 'missing' : ''}">${esc(x.title)}</span><span class="w">${esc(years(x))}</span>
       <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}${x.archived ? ` · <span class="pill arch">${h('arch.badge')}</span>` : ''}</span>
       ${mark(x) ? `<span class="marks"><span class="mk">${h('career.toWriteIn', { n: mark(x), lang: langName(L()) })}</span></span>` : ''}</button>`;
-  const side = x => `<button class="srow" ${kc(x.kind)} data-act="c-sel" data-key="${x.key}" data-id="${esc(x.id)}" aria-pressed="${selId === x.id}" title="${esc(kindLabel(x.kind))}">
+  const side = x => `<button class="srow" ${kc(x.kind)} data-act="rec-job" data-key="${x.key}" data-id="${esc(x.id)}" data-grp="${esc(x.key === 'education' ? 'education' : x.id)}" title="${esc(kindLabel(x.kind))}">
       <span class="si">${icon(look(x.kind).icon)}</span><span class="t ${x.titleMissing ? 'missing' : ''}">${esc(x.title)}</span><span class="w">${esc(years(x))}</span>
       <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}${x.during ? ` · ${h('career.during', { org: duringName(x.during) })}` : ''}${mark(x) ? ` · <span class="mkt">${h('career.toWrite', { n: mark(x) })}</span>` : ''}</span></button>`;
   let rows = `<div class="colhead"><span ${kc('work')}>${icon('work')} ${h('career.colMain')}</span><span>${h('career.colSide')}</span></div>`;
@@ -555,16 +548,13 @@ function create(what){
 }
 
 async function act(a, tg){
-  if (!a.startsWith('c-') && !a.startsWith('tl-')) return false;
+  if (!a.startsWith('c-')) return false;
   const m = rec();
   switch (a){
     case 'c-pop': W.pop = W.pop === 'add' ? null : 'add'; C.renderBody(); if (W.pop) setTimeout(() => document.querySelector('.addm button')?.focus(), 0); return true;
-    case 'c-tl': W.tl = !W.tl; C.renderTimeline(); return true;
-    case 'tl-close': W.tl = false; C.renderTimeline(); $('[data-act=c-tl]')?.focus(); return true;
     case 'c-sel': {
       const key = tg.dataset.key, id = tg.dataset.id;
       C.select(key === 'education' ? { kind: 'record', what: 'entry', key, id } : { kind: 'job', id });
-      C.renderTimeline();
       return true;
     }
     case 'c-sel-fact': C.select({ kind: 'bullet', id: tg.dataset.fact, section: 'header' }); return true;
@@ -582,7 +572,7 @@ async function act(a, tg){
     case 'c-tag-del': { const tag = tg.dataset.tag; if (commit(d => K.deleteTag(d.record, tag), t('ux2.undoTagDelete'), t('ux2.tagDeleted'))) C.renderBody(); return true; }
     case 'c-jt-del': { const id = tg.dataset.id; if (commit(d => K.deleteJobType(d.record, id), t('jt.undoDelete'), t('jt.deleted'))) C.renderBody(); return true; }
     case 'c-jt-tag-rm': { const id = tg.dataset.id, tag = tg.dataset.tag; if (commit(d => K.removeJobTypeTag(d.record, id, tag), t('jt.undoTags'))) C.renderBody(); return true; }
-    case 'c-arch-jobs': W.jobs = !W.jobs; C.renderBody(); C.renderTimeline(); return true;
+    case 'c-arch-jobs': W.jobs = !W.jobs; C.renderBody(); return true;
     case 'c-arch-entry': case 'c-unarch-entry': {
       const id = tg.dataset.id, on = a === 'c-arch-entry';
       let res;
@@ -702,11 +692,9 @@ const api = {
   panel, act, bind, timelineHtml, addMenuHtml, detailsHtml, keyOfEntry,
   get lang(){ return L(); },
   get popOpen(){ return W.pop === 'add'; },
-  get tlOpen(){ return W.tl; },
   get shownArchived(){ return W.shown; },
   get jobsArchived(){ return W.jobs; },
   closeMenus(){ if (W.pop){ W.pop = null; C.renderBody(); return true; } return false; },
-  closeTimeline(){ if (!W.tl) return false; W.tl = false; C.renderTimeline(); $('[data-act=c-tl]')?.focus(); return true; },
   kindColour: kind => look(kind).colour,
   icon,
 };

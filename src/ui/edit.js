@@ -8,7 +8,7 @@ import { key as measureKeyOf } from '../fit.js';
 import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
 import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
 import * as K from '../model/career.js';
-import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
+import { recordSelOfFact, factOfRecordSel, checklist, sectionCounts } from '../model/checklist.js';
 import { t, h, errText } from '../i18n/index.js';
 import { esc, clip, crumb, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
 
@@ -65,17 +65,19 @@ function factRow(id, { section = null, owner = null } = {}){
 
 const missingBar = () => missBar({ lang: lang(), list: lang() === DEFAULT_LANG ? [] : missingList(work(), cur()) });
 
-// how much a section holds, for its row
-function sectionCount(s){
+// how much a section holds, for its row: "4 of 7 on", a link to those lines in Record
+function sectionCount(s, cl){
   const sec = ix().sections.get(s.id);
   if (!sec) return '';
+  const c = sectionCounts(rec(), cl, s.id);
+  if (c) return `<button class="nlink" data-act="open-record" data-g="${esc(c.groups.join(','))}" title="${esc(t('ux3b.showInRecord'))}">${esc(t('ux2.nOfM', { n: c.on, m: c.total }))}</button>`;
   if (sec.kind === 'entries'){
     const n = T.jobRefs(rec(), cur(), s.id).reduce((a, r) => a + T.listedBullets(rec(), cur(), typeof r === 'string' ? r : r.id).length, 0);
-    return t('ux2.nBullets', { n });
+    return esc(t('ux2.nBullets', { n }));
   }
   const il = T.itemList(rec(), cur(), s.id);
   const n = il ? il.filter(x => x.on).length : Object.values(sec.content ?? {}).flat().filter(x => typeof x === 'string' && ix().facts.has(x)).length;
-  return t('ux2.nLines', { n });
+  return esc(t('ux2.nLines', { n }));
 }
 
 // ---- the Highlight lens: one list of tags, job types (bundles of tags) first ----
@@ -85,12 +87,12 @@ function lensBox(){
   const chosen = E.focus;
   const known = types.some(x => x.tag === chosen) || tags.some(x => x.tag === chosen);
   const opt = x => `<option value="${esc(x.tag)}" ${chosen === x.tag ? 'selected' : ''}>${esc(x.label)} (${x.n})</option>`;
-  let out = `<div class="lens"><div class="lensrow"><label for="lens" class="lbl inline"><span class="lt">${h('ux2.lens')}</span></label>
+  let out = `<div class="lens"><div class="lensrow"><label for="lens" class="lbl inline"><span class="lt">${h('ux3b.lens')}</span></label>
       <select id="lens"><option value="">${h('ux2.lensOff')}</option>
         ${types.length ? `<optgroup label="${esc(t('ux2.lensTypes'))}">${types.map(opt).join('')}</optgroup>` : ''}
         ${tags.length ? `<optgroup label="${esc(t('ux2.lensTagsGroup'))}">${tags.map(opt).join('')}</optgroup>` : ''}
         ${chosen && !known ? `<option value="${esc(chosen)}" selected>${esc(chosen)}</option>` : ''}</select>
-      <button class="sm" data-act="lens-apply" aria-expanded="${E.applyOpen}" ${chosen ? '' : 'disabled'}>${h('ux2.lensApply')}</button></div>`;
+      <button class="sm" data-act="lens-apply" aria-expanded="${E.applyOpen}" ${chosen ? '' : 'disabled'}>${h('ux3b.lensApply')}</button></div>`;
   if (chosen && E.applyOpen){
     const p = planTag(work(), cur(), chosen);
     out += `<div class="focusbox">${h('edit.focusPlan', { on: p.on, off: p.off, sw: p.sw })}
@@ -103,14 +105,16 @@ function homeView(){
   const list = T.sectionList(rec(), cur());
   const on = list.filter(s => s.on), off = list.filter(s => !s.on);
   const manual = Array.isArray(cur().pages);
+  const cl = checklist(rec(), cur(), lang());
   return `${C.newerBanner()}${missingBar()}
-    <p class="lead">${h('edit.lead')}</p>
+    <h2 class="title">${h('ux3b.editTitle')}</h2>
+    <p class="lead edithint">${h('ux3b.editHint')}</p>
     ${lensBox()}
     <span class="lbl">${h('edit.sectionsHere')}</span>
     <div class="list" id="seclist">${on.map(s => `
       <div class="item srow ${s.fixed ? 'fixed' : ''}" data-sid="${esc(s.id)}" ${s.fixed ? '' : 'draggable="true"'}>
         <span class="grip" aria-hidden="true">${s.fixed ? '' : '⠿'}</span>
-        <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${esc(C.sectionTitle(s.id))}</a><span class="muted tiny">${s.fixed ? h('edit.alwaysFirst') : esc(sectionCount(s))}</span></span>
+        <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${esc(C.sectionTitle(s.id))}</a><span class="muted tiny">${s.fixed ? h('edit.alwaysFirst') : sectionCount(s, cl)}</span></span>
         ${s.fixed ? '' : sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, true)}
       </div>`).join('')}</div>
     ${off.length ? `<p class="notonline" id="offline"><span class="muted small">${h('ux2.notOn')}</span> ${off.map(s => `<button class="tag offchip" data-act="section-on" data-id="${esc(s.id)}" draggable="true" data-sid="${esc(s.id)}" title="${esc(t('ux2.turnOnTitle'))}">${esc(C.sectionTitle(s.id))}</button>`).join(' ')}</p>` : ''}
@@ -155,7 +159,8 @@ function sectionView(s){
     ${inner}`;
 }
 
-function jobView(s){
+// `details: false`: the shell puts the job's own lines before the Details fold (src/ui/shell.js jobTail)
+function jobView(s, { details = true } = {}){
   const w = ix().work.get(s.id);
   if (!w) return homeView();
   const on = jobOn(s.id);
@@ -163,8 +168,7 @@ function jobView(s){
   return `${crumb([{ t: C.sectionTitle(sid), act: 'select-section', attrs: `data-id="${esc(sid)}"` }, { t: w.name }])}
     <h2 class="title">${esc(C.textOfFact(w.display?.position) || w.position)}</h2>
     <p class="meta">${esc(C.textOfFact(w.display?.meta))}</p>
-    <div class="ctlrow">${sw(`data-jobon="${esc(s.id)}"`, on, h('edit.showJob'))}</div>
-    ${C.detailsHtml(s.id)}`;
+    <div class="ctlrow">${sw(`data-jobon="${esc(s.id)}"`, on, h('edit.showJob'))}</div>${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
 }
 
 function bulletView(s){

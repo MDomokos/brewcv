@@ -196,7 +196,8 @@ async function act(a, tg){
       }
       await loadCatalogue(L);
       C.ui.peek = true;               // the intro parts become the editor's controls: the panel opens, with the checklist in it
-      C.setView(null); C.toast(t('toast.thisIsExample')); return true;
+      C.ui.exampleChip = true;         // "This is the example…" is a chip at the top of the panel, not a toast over the page
+      C.setView(null); return true;
     }
     case 'ob-market': O.market = tg.dataset.m; commit(() => {}, t('undo.market')); C.renderBody(); return true;
     case 'ob-back': read(); if (O.step === 'lang'){ O.step = 'welcome'; O.after = null; } else O.step = prev(); C.renderBody(true); return true;

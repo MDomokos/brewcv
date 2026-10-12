@@ -177,11 +177,12 @@ const iconButton = (act, ic, name, tip, attrs = '') =>
 // level: 'job' | 'line'; the job crumb shows "n of m" at the job level; a line outside a job has no job crumb.
 export function crumbBarHtml({ level, jobName = null, jobId = null, on = 0, total = 0, canWrite = false, lineSelected = false }){
   const page = `<button class="oc" data-act="ob-page">${h('ux3.crumbPage')}</button>`;
+  const count = esc(t('ux2.nOfM', { n: on, m: total }));
+  // the count is the job chip: it opens the job in Record
+  const nlink = jobId ? `<button class="ocn" data-act="open-record" data-g="${esc(jobId)}" title="${esc(t('ux3b.showInRecord'))}">${count}</button>` : `<span class="ocn">${count}</span>`;
   const job = jobName == null ? '' : level === 'job'
-    ? (lineSelected && jobId
-      // the job crumb is the job level; with a line selected in it, a click selects the job itself
-      ? `<button class="oc cur" data-act="select-job" data-id="${esc(jobId)}" aria-current="location" title="${esc(t('ux2.chipTitle'))}">${esc(clip(jobName, 28))}<span class="ocn">${esc(t('ux2.nOfM', { n: on, m: total }))}</span></button>`
-      : `<span class="oc cur" aria-current="location" title="${esc(t('ux2.chipTitle'))}">${esc(clip(jobName, 28))}<span class="ocn">${esc(t('ux2.nOfM', { n: on, m: total }))}</span></span>`)
+    // the job crumb is the job level; with a line selected in it, a click on the name selects the job itself
+    ? `<span class="oc cur" aria-current="location" title="${esc(t('ux2.chipTitle'))}">${lineSelected && jobId ? `<button class="ocname" data-act="select-job" data-id="${esc(jobId)}">${esc(clip(jobName, 28))}</button>` : esc(clip(jobName, 28))}${nlink}</span>`
     : `<button class="oc" data-act="ob-job">${esc(clip(jobName, 28))}</button>`;
   const line = level === 'line'
     ? `<span class="oc cur" aria-current="location">${h('ux3.crumbLine')}</span>`

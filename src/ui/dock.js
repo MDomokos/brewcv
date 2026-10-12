@@ -60,7 +60,7 @@ function setPanel(pref, { peek = false } = {}){
   sync(true);
 }
 const togglePanel = () => setPanel(shown() ? 'closed' : 'open');
-// the mode segments and the rail's icons: Edit, Design, Export
+// the mode segments and the rail's icons: Edit, Record, Design, Export
 function setMode(m){
   const u = C.ui;
   u.peek = m === 'edit' && u.panel === 'auto';     // Edit with nothing selected stays open until Esc or the fold button
@@ -68,13 +68,16 @@ function setMode(m){
   else C.setView(m);
   sync(true);
 }
+// Record widens the panel; the layout is laid again whenever that changes
+const wide = () => C.ui.view === 'record' && !folded();
+let lastWide = false;
 function sync(force = false){
-  const f = folded();
-  if (force || f !== last){ last = f; C.relayout(); }
+  const f = folded(), w = wide();
+  if (force || f !== last || w !== lastWide){ last = f; lastWide = w; C.relayout(); }
   renderRail();
   renderFoot();
 }
-const modeOf = () => (C.ui.view === 'design' || C.ui.view === 'export' ? C.ui.view : C.ui.view ? null : 'edit');
+const modeOf = () => (['design', 'export', 'record'].includes(C.ui.view) ? C.ui.view : C.ui.view === 'sent' ? 'export' : C.ui.view ? null : 'edit');
 
 // ---- hover hints: data-tip="Title|One line" ----
 function installTips(){
@@ -175,7 +178,7 @@ function drawRail(){
   const tea = drink() === 'tea';
   const m = (id, ic, key) => `<button class="ib" data-act="rail-mode" data-m="${id}" aria-pressed="${mode === id}" data-tip="${esc(t(key))}|${esc(t('ux2.railOpen'))}" data-tip-pos="l" aria-label="${esc(t(key))}">${icon(ic)}</button>`;
   el.innerHTML = `<span class="logo railogo"><img src="icons/icon.svg" alt="BrewCV" width="28" height="28"></span><hr>
-    ${m('edit', tea ? 'leaf' : 'edit', 'ux2.modeEdit')}${m('design', tea ? 'teapot' : 'design', 'ux2.modeDesign')}${m('export', tea ? 'cupserved' : 'export', 'ux2.modeExport')}<hr>
+    ${m('edit', tea ? 'leaf' : 'edit', 'ux2.modeEdit')}${m('record', 'record', 'ux3b.modeRecord')}${m('design', tea ? 'teapot' : 'design', 'ux2.modeDesign')}${m('export', tea ? 'cupserved' : 'export', 'ux2.modeExport')}<hr>
     <div class="rmeters" id="rmeters" role="group" aria-label="${esc(t('ux2.meters'))}">${railMeters()}</div>
     ${ib('panel-open', 'left', t('ux2.openPanel'), t('ux2.openPanelTip'), '', 'l')}`;
 }
@@ -272,6 +275,7 @@ function openPopKeep(fn){ fn(); renderPop(); }
 function onKey(e){
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
   if (e.key === 'e' || e.key === 'E'){ if (e.shiftKey) return false; e.preventDefault(); togglePanel(); return true; }
+  if (e.key === 'r' || e.key === 'R'){ if (e.shiftKey || C.ui.snap) return false; e.preventDefault(); setMode('record'); return true; }
   if (e.key === '-' || e.key === '_'){ e.preventDefault(); zoomBy(-1); return true; }
   if (e.key === '=' || e.key === '+'){ e.preventDefault(); zoomBy(1); return true; }
   if (e.key === '0'){ e.preventDefault(); zoomTo(1); return true; }
@@ -321,7 +325,7 @@ export function initDock(ctx){
   C = ctx;
   C.ui.panel = readPanel(); C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite(); C.ui.peek = false; C.ui.zpop = false;
   return {
-    bind, act, onKey, sync, folded, shown, setPanel, togglePanel, setMode, modeOf, renderRail, renderFoot, zoomBy, zoomTo,
+    bind, act, onKey, sync, folded, shown, wide, setPanel, togglePanel, setMode, modeOf, renderRail, renderFoot, zoomBy, zoomTo,
     closePop(){ if (!C.ui.zpop) return false; openPop(false); return true; },
     // Esc all the way out: the pin drops to Auto, the peek ends, the view zooms out to the whole resume
     allTheWayOut(){

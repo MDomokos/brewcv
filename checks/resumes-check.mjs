@@ -250,6 +250,18 @@ section('snapshots: Save freezes what is sent');
   ok('…and the saved resume’s file keeps it', JSON.stringify(S.loadResume(JSON.parse(fileText), store.state.record).recipe.snapshots?.[0]?.body) === body0);
 }
 
+section('Mark as sent (the end of Export): the same snapshot and send, written through the new door');
+{
+  const ui = fs.readFileSync(path.join(REPO, 'src/ui/resumes.js'), 'utf8'), exp = fs.readFileSync(path.join(REPO, 'src/ui/export.js'), 'utf8'), shell = fs.readFileSync(path.join(REPO, 'src/ui/shell.js'), 'utf8');
+  ok('the button writes through RS.takeSnapshot, with the same send and the same undo labels', /RS\.takeSnapshot\(d, send\)/.test(ui) && /ux1\.undoSend/.test(ui) && /ux1\.undoSnapshot/.test(ui) && /RS\.normalSend\(/.test(ui));
+  ok('Export ends with it, and the header has no Save: no data-act="save" is left anywhere in the app', /data-act="mark-sent"/.test(exp) && !/data-act="save"/.test(shell + ui + exp) && !/case 'save':/.test(ui));
+  const st = exampleState();
+  const store = createStore(st, { settle: RS.settle, coalesceMs: 0 });
+  store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Northgate Dosing Systems', role: 'Mechanical Design Engineer', date: '2026-10-12' }, { at: '2026-10-12T09:00:00.000Z' }); }, 'Mark as sent');
+  const snap = RS.snapshotsOf(RS.savedOf(store.state))[0];
+  ok('the snapshot keeps its shape: id, time, the sends, the recipe and the printed body', eq(Object.keys(snap).sort(), ['at', 'body', 'id', 'recipe', 'sends']) && eq(Object.keys(snap.sends[0]).sort(), ['company', 'date', 'kind', 'role']));
+}
+
 section('opening a snapshot: read-only, restore, duplicate');
 {
   const st = exampleState();

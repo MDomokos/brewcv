@@ -106,6 +106,27 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
   return { groups, on: live.reduce((n, g) => n + g.on, 0), total: live.reduce((n, g) => n + g.total, 0) };
 }
 
+// The groups of the checklist that a section of the resume prints: the jobs of Experience, About you for the header and the
+// summary, Education, the credentials, a custom kind. `cl` is checklist()'s result. Edit's section rows show "n of m on" from
+// this, and the link on one opens Record at the first of these groups.
+export function groupsOfSection(model, cl, sid){
+  if (sid === 'header' || sid === 'summary') return cl.groups.filter(g => g.id === 'about');
+  return cl.groups.filter(g => {
+    if (g.kind === 'entry') return !g.archived && T.sectionOfEntry(model, g.id) === sid;
+    if (g.kind === 'credentials') return g.subs.some(s => s.section === sid);
+    return g.section === sid;
+  });
+}
+export function sectionCounts(model, cl, sid){
+  const gs = groupsOfSection(model, cl, sid);
+  if (!gs.length) return null;
+  if (gs[0].kind === 'credentials'){
+    const rows = gs[0].subs.filter(s => s.section === sid).flatMap(s => s.rows);
+    return { on: rows.filter(r => r.on).length, total: rows.length, groups: [gs[0].id] };
+  }
+  return { on: gs.reduce((n, g) => n + g.on, 0), total: gs.reduce((n, g) => n + g.total, 0), groups: gs.map(g => g.id) };
+}
+
 // The group a selection belongs to, so that group is the one open.
 export function groupOf(model, sel){
   if (!sel || sel.kind === 'none') return null;
