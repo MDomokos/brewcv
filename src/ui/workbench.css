@@ -1132,16 +1132,39 @@ body[data-phone=true] .checklist { display: none; }
 .timeline { background: var(--pop); }
 .pop.card, .zpop { background: var(--pop); }
 body[data-phone=true] .lens, body[data-phone=true] .notonline, body[data-phone=true] .lead { display: none; }
+/* ---- editing on the page (UX-3): the layers, the breadcrumb, the tools beside the line. Drawn over the page, in the app's layer ---- */
+.editlay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 7; pointer-events: none; }
+.editlay > * { position: absolute; }
+.obveil { transition: opacity var(--dur-2) var(--ease); }
+.obframe { box-sizing: border-box; border: 2px solid var(--sel-mark); background: var(--sel-mark-soft); border-radius: var(--r-xs); pointer-events: none; }
+.obframe.dashed { border-style: dashed; background: transparent; }
+.obframe.line { border-width: 1.5px; border-style: solid; background: transparent; border-radius: 2px; box-shadow: 0 0 0 4px var(--ob-paper, var(--paper)), 0 4px 14px color-mix(in srgb, var(--paper-ink) 24%, transparent); }
+.obcrumb { display: flex; align-items: center; gap: 4px; padding: 3px 8px 3px 4px; background: var(--raised); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-pill); box-shadow: var(--shadow-chip); font: 600 12px/1.2 var(--font-label); pointer-events: auto; white-space: nowrap; }
+.obcrumb .oc { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--ink-soft); padding: 3px 9px; border-radius: var(--r-pill); font: inherit; cursor: pointer; }
+.obcrumb button.oc:hover { background: var(--hover-strong); color: var(--ink); }
+.obcrumb .oc.cur { background: var(--accent); color: var(--on-accent); cursor: default; }
+.obcrumb .oc .ocn { font-weight: 400; font-variant-numeric: tabular-nums; }
+.obcrumb .oc.dots { border: 1px dashed var(--line-strong); }
+.obcrumb .ocs { color: var(--faint); }
+.obcrumb .oesc { margin-left: 4px; }
+.obtoolswrap { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.obtools { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--shadow-chip); pointer-events: auto; }
+.obtools .ib { width: 30px; height: 30px; color: var(--ink); }
+.obtools .ib:disabled { opacity: .4; cursor: default; }
+.obv { display: inline-flex; align-items: center; justify-content: center; gap: 2px; height: 28px; padding: 0 6px; border: 0; border-radius: var(--r-s); background: var(--fill); color: var(--ink); font: 700 12px var(--font-mono); cursor: pointer; }
+.obv:hover { background: var(--hover-strong); }
+.obstats { display: flex; flex-direction: column; max-width: 76px; padding: 2px 2px 0; font: 11.5px/1.35 var(--font-mono); color: var(--ink-soft); }
+.obstats span { white-space: nowrap; }
+.obpop { display: block; width: min(330px, 42vw); max-height: 240px; overflow: auto; border: 1px solid var(--line-strong); background: var(--pop); box-shadow: var(--shadow-chip); pointer-events: auto; }
+.obpop .vrow { grid-template-columns: 38px minmax(0, 1fr); }
+@media (prefers-reduced-motion: reduce) { .obveil { transition: none; } }
+body.is-intro .editlay, body.is-quiet .editlay { display: none; }
+
 .ovlay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; pointer-events: none; }
 .ov { position: absolute; }
 .ov-veil { position: absolute; inset: 0; background: color-mix(in srgb, var(--paper) 72%, transparent); }
 .ov-line { position: absolute; left: 0; right: 0; top: 0; border-top: 2px dashed var(--page-warn); }
 body.is-intro .ovlay, body.is-quiet .ovlay { display: none; }
-.pagelay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }
-.jobchip { position: absolute; display: inline-flex; align-items: center; gap: 8px; max-width: 320px; padding: 3px 11px; border-radius: var(--r-pill); background: var(--raised); border: 1px solid var(--line-strong); box-shadow: var(--shadow-chip); font-size: 12px; white-space: nowrap; }
-.jobchip .jn { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
-.jobchip .jc { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-body.is-intro .pagelay, body.is-quiet .pagelay { display: none; }
 .hrow.modes .seg { flex-wrap: nowrap; flex: none; }
 .hrow.modes .seg [role=tab] { padding: 4px 8px; white-space: nowrap; }
 .hrow.modes .filestate { flex: 1 1 0; min-width: 0; text-align: right; max-width: none; margin-left: 0; }
@@ -1154,7 +1177,7 @@ body.is-intro .pagelay, body.is-quiet .pagelay { display: none; }
 /* Type. F11 rule 5: helper text 13px, uppercase labels 12px; a label is in the label face (mono) in both drinks. */
 button, input, select, textarea { font-family: inherit; }
 :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl, .mgroup, .hk) { font: 500 12px/1.3 var(--font-label); letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
-:is(.pct, .mpct, .mlab, .clcount, .clall, .clv, .jobchip .jc, .stats, .dial output) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+:is(.pct, .mpct, .mlab, .clcount, .clall, .clv, .obcrumb .ocn, .obstats, .stats, .dial output) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 :is(.note, .clhint, .small, .intro, .obhint, .sumline, .goesin, .obsub, .obnote) { font-size: 13px; }
 :is(.tiny, .vrow .mt2, .pop small, .dl button small, .obchoices button small, .inline-menu small, .vrow .tx, .stats, .kept) { font-size: 12px; }
 :is(.item .t, .clt) { font-size: 13px; }

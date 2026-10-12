@@ -96,12 +96,21 @@ export function createSheet(host, hooks = {}){
         doc.documentElement.classList.add('rb-ui');
         paintMarks(doc);
         doc.addEventListener('click', e => {
+          if (e.target.closest?.('[contenteditable]:not([contenteditable=false])')) return;      // the line being written takes its own clicks
           const pg = [...doc.querySelectorAll('.document > .page')].indexOf(e.target.closest?.('.document > .page'));
           const el = e.target.closest?.('[data-variant], .band[data-section]');
           if (!el) return hooks.onPick?.({ variant: null, section: null, page: pg });
           const band = el.closest('.band[data-section]');
           hooks.onPick?.({ variant: el.getAttribute('data-variant'), section: band?.getAttribute('data-section') ?? null, page: pg });
         });
+        // the line under the pointer: the version badge follows it at the job level
+        let hovered = null;
+        doc.addEventListener('mouseover', e => {
+          const el = e.target.closest?.('[data-variant]');
+          const v = el?.getAttribute('data-variant') ?? null;
+          if (v !== hovered){ hovered = v; hooks.onHover?.(v); }
+        });
+        doc.addEventListener('mouseleave', () => { if (hovered){ hovered = null; hooks.onHover?.(null); } });
         // the hand, the wheel and the pinch work over the page too: the canvas gets them, in the page's own pixels
         const fe = hooks.frameEvents;
         if (fe){
@@ -116,6 +125,8 @@ export function createSheet(host, hooks = {}){
         }
         doc.addEventListener('keydown', e => { if (!e.target.closest?.('.rb-renaming')) hooks.onKey?.(e); });
         doc.addEventListener('dblclick', e => {
+          const line = e.target.closest?.('[data-variant]');
+          if (line && !e.target.closest?.('[contenteditable]') && hooks.onWrite){ hooks.onWrite({ variant: line.getAttribute('data-variant'), page: [...doc.querySelectorAll('.document > .page')].indexOf(line.closest('.document > .page')) }); return; }
           const tab = e.target.closest?.('.band[data-section] h2.tab:not(.tab--cont)');
           const id = tab?.closest('.band').getAttribute('data-section');
           if (!tab || !id || id === 'header' || !hooks.onRename) return;
@@ -270,6 +281,7 @@ export function createSheet(host, hooks = {}){
       applyView();
       marked.prev = null;
       mark();
+      hooks.onDrawn?.();
       return { laid, pages };
     },
 
@@ -281,6 +293,7 @@ export function createSheet(host, hooks = {}){
       applyView();
       marked.prev = fact;
       mark();
+      hooks.onDrawn?.();
       return { laid, pages };
     },
     endPreview(){ return queue(() => (shown ? this._show(shown.work, shown.recipe) : null)); },
@@ -321,9 +334,25 @@ export function createSheet(host, hooks = {}){
       if (!win || !fr.frame.isConnected) return [];     // the frame was swapped for another one that has not loaded yet
       return [...fr.root.querySelectorAll(':scope > .page')].map(pg => {
         const r = pg.getBoundingClientRect(), pb = parseFloat(win.getComputedStyle(pg).paddingBottom) || 0;
-        return { left: r.left, top: r.top, width: r.width, height: r.height, limit: r.top + r.height - pb };
+        const cs = win.getComputedStyle(pg);
+        return { left: r.left, top: r.top, width: r.width, height: r.height, limit: r.top + r.height - pb, bg: cs.backgroundColor, padRight: parseFloat(cs.paddingRight) || 0 };
       });
     },
+    // the element a claim is printed in (the first, when it is printed twice), for the line to be written in place
+    elOf(factId, ix){
+      if (!fr?.frame.isConnected) return null;
+      const vs = new Set([...(ix.facts.get(factId)?.variants ?? []), `${factId}-override`]);
+      return [...fr.doc.querySelectorAll('[data-variant]')].find(e => vs.has(e.getAttribute('data-variant'))) ?? null;
+    },
+    // which page a claim is printed on (-1 when it is not on the page)
+    pageOf(factId, ix){
+      const el = this.elOf(factId, ix);
+      const pg = el?.closest('.document > .page');
+      return pg ? [...fr.root.querySelectorAll(':scope > .page')].indexOf(pg) : -1;
+    },
+    // a rectangle of an element of the frame, in the page's own pixels
+    rectOfEl(el){ const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; },
+    get doc(){ return fr?.doc ?? null; },
     // pages the camera has set aside are faded, and stay clickable
     setFade(list){ fade = list ?? []; if (!fr) return; [...fr.root.querySelectorAll(':scope > .page')].forEach((p, i) => p.classList.toggle('rb-faded', !!fade[i])); },
     // the cursor over the page while the hand is on the canvas

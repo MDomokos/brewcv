@@ -121,7 +121,7 @@ const vid = id => model.facts.find(f => f.id === id).variants[0];
   ok('a skills group is its section', eq(targetOf(ix, { variant: vid('skills-cad'), section: 'skills' }), { kind: 'section', id: 'skills' }));
   ok('a tab (no phrasing) is its section', eq(targetOf(ix, { section: 'patent' }), { kind: 'section', id: 'patent' }));
   ok('empty paper is nothing', eq(targetOf(ix, {}), NONE));
-  ok('Esc: bullet → job → nothing', eq(up({ kind: 'bullet', id: 'hydra-inhaler', job: 'hydra' }), { kind: 'job', id: 'hydra' }) && eq(up({ kind: 'job', id: 'hydra' }), NONE));
+  ok('Esc: a line in a job is the job level, and one Esc goes to the page; a job likewise', eq(up({ kind: 'bullet', id: 'hydra-inhaler', job: 'hydra' }), NONE) && eq(up({ kind: 'job', id: 'hydra' }), NONE));
   ok('Esc from the summary goes straight to nothing', eq(up({ kind: 'bullet', id: 'summary' }), NONE));
   const order = ['summary', 'hydra-inhaler', 'hydra-testing'];
   ok('↓ from nothing is the first bullet, ↑ the last', step(order, NONE, 1) === 'summary' && step(order, NONE, -1) === 'hydra-testing');

@@ -16,6 +16,7 @@ import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages } from '../src/render.js';
 import { cost } from '../src/fit.js';
 import * as CL from '../src/model/checklist.js';
+import { plainOf } from '../src/ui/plain.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -422,6 +423,75 @@ section('the bullets of a job print in the order this resume sets');
   let key = null; try { T.moveBullet(m, off, a, c); } catch (e){ key = e.key; }
   ok('a bullet that is off has no place in the order', key === 'ux2.errBulletOff');
   ok('the recipe still validates', !errorsOf(m, y).length);
+}
+
+section('on the page: a line written in place holds the text the old text box held');
+{
+  // a stand-in for what a browser leaves in an editable element, in each of the ways it does
+  const text = data => ({ nodeType: 3, data, nodeName: '#text' });
+  const el = (name, ...kids) => ({ nodeType: 1, nodeName: name, childNodes: kids });
+  const BR = () => el('BR');
+  const root = (...kids) => el('DIV', ...kids);
+  // the three shapes of the same lines: one text node with newlines (plaintext-only), <br> between lines, a <div> per line
+  const shapes = s => {
+    const lines = s.split('\n');
+    return {
+      plain: root(text(s)),
+      br: root(...lines.flatMap((l, i) => (i ? [BR(), text(l)] : [text(l)]))),
+      divs: root(...(lines.length > 1 ? [text(lines[0]), ...lines.slice(1).map(l => el('DIV', l ? text(l) : BR()))] : [text(s)])),
+    };
+  };
+  const cases = ['Cut scrap by 40% in a year', 'Two lines\nbelow each other', 'A\n\nblank line between', 'Double  space and\ttab', 'Non breaking space and ‘quotes’ – and an emoji 🙂', 'Ünïcode ß ő ű', ' leading and trailing '];
+  for (const c of cases){
+    const s = shapes(c);
+    const got = Object.fromEntries(Object.entries(s).map(([k, v]) => [k, plainOf(v)]));
+    ok(`the text of ${JSON.stringify(c).slice(0, 40)} reads back as typed, from every shape`, Object.values(got).every(x => x === c), JSON.stringify(got));
+  }
+  ok('an empty line at the end (a browser leaves one) is trimmed away when it is kept, as it was for the text box', R.versionsIn(clone(example), F)[0] && (() => { const m = clone(example); const v = R.versionsIn(m, F)[0]; R.saveOver(m, v.id, plainOf(root(text('Same text'), el('DIV', BR())))); return R.versionsIn(m, F)[0].text === 'Same text'; })());
+  ok('<div><br></div> alone is one empty line, not text', plainOf(root(el('DIV', BR()))) === '');
+  ok('nested inline elements (a pasted bold) are only their text', plainOf(root(text('a '), el('B', text('bold')), text(' word'))) === 'a bold word');
+
+  // writing a line in place and keeping it gives the same record as the text box did, for every version in the example
+  let same = 0, total = 0, marks = 0, links = 0;
+  for (const f of example.facts) for (const vid of f.variants){
+    const v = example.variants.find(x => x.id === vid);
+    if (!v?.text) continue;
+    const typed = `${v.text} (checked)`;
+    const viaBox = clone(example), viaPage = clone(example), viaBr = clone(example), viaDivs = clone(example);
+    R.saveOver(viaBox, vid, typed);
+    const s = shapes(typed);
+    R.saveOver(viaPage, vid, plainOf(s.plain)); R.saveOver(viaBr, vid, plainOf(s.br)); R.saveOver(viaDivs, vid, plainOf(s.divs));
+    total++;
+    if (eq(viaBox, viaPage) && eq(viaBox, viaBr) && eq(viaBox, viaDivs)) same++;
+    if (v.marks?.length) marks++;
+    if (v.links?.length) links++;
+  }
+  ok(`Update vN from the page gives the very same record as the text box did, for all ${total} versions in the example (${marks} with highlight marks, ${links} with links)`, same === total && total > 40, `${same} of ${total}`);
+  // the same for Save as new version and Only on this resume
+  let asNew = 0, only = 0, n2 = 0;
+  for (const f of example.facts.filter(x => T.jobOfFact(example, x.id)).slice(0, 25)){
+    const using = R.versionsIn(example, f.id, 'en')[0];
+    if (!using) continue;
+    const typed = `${using.text} and more`;
+    const a = clone(example), b = clone(example);
+    R.addVersion(a, f.id, { text: typed, from: using.id, as: 'minor', lang: 'en' });
+    R.addVersion(b, f.id, { text: plainOf(shapes(typed).divs), from: using.id, as: 'minor', lang: 'en' });
+    const r1 = clone(resumes[0]), r2 = clone(resumes[0]);
+    T.setOverride(r1, f.id, typed); T.setOverride(r2, f.id, plainOf(shapes(typed).br));
+    n2++;
+    if (eq(a, b)) asNew++;
+    if (eq(r1, r2)) only++;
+  }
+  ok(`Save as new version and Only on this resume agree too (${n2} lines each)`, asNew === n2 && only === n2 && n2 > 10);
+  // the marks follow their words when something is typed before them: through the page, exactly as through the box
+  const mv = { id: 'zz', n: '1', text: 'Cut cost by 40% in a year', marks: [{ start: 12, end: 15, slot: 'hl', expect: '40%' }], links: [] };
+  const mm = clone(example);
+  const fact = mm.facts.find(x => T.jobOfFact(mm, x.id));
+  mm.variants.push({ ...mv, id: `${fact.id}-zz`, lang: 'en', tags: [], seenIn: [], metrics: { chars: 25, measured: {} } }); fact.variants.push(`${fact.id}-zz`);
+  const t1 = 'Really cut cost by 40% in a year', t2 = plainOf(shapes(t1).plain);
+  const m1 = clone(mm), m2 = clone(mm);
+  R.saveOver(m1, `${fact.id}-zz`, t1); R.saveOver(m2, `${fact.id}-zz`, t2);
+  ok('a highlight mark keeps its words when a line is edited on the page', eq(m1, m2) && [...m2.variants.find(x => x.id === `${fact.id}-zz`).text].slice(...(() => { const k = m2.variants.find(x => x.id === `${fact.id}-zz`).marks[0]; return k ? [k.start, k.end] : [0, 0]; })()).join('') === '40%');
 }
 
 console.log(failed ? `\n${failed} edit check(s) FAILED` : '\nall edit checks passed');

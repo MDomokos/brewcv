@@ -6,7 +6,7 @@
 import { icon } from './icons.js';
 import { t, h } from '../i18n/index.js';
 import { FILL_BAND } from '../fit.js';
-import { clampZoom, ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
+import { clampZoom, ZOOM_MIN, ZOOM_MAX, PHONE_MAX, DRAWER_MAX } from './layout.js';
 import { drink, onDrinkChange } from './drink.js';
 
 let C = null;
@@ -14,16 +14,30 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const $ = (s, r = document) => r.querySelector(s);
 
 const PANEL_KEY = 'rb-panel', ZOOMW_KEY = 'rb-zoomwrite', CONTRAST_KEY = 'rb-contrast';
+const ZOOMON_KEY = 'rb-zoomwrite-on', DIMJOB_KEY = 'rb-dim-job', DIMLINE_KEY = 'rb-dim-line', MAGNET_KEY = 'rb-magnet', BOUNCE_KEY = 'rb-bounce';
 export const PANEL_MODES = ['auto', 'open', 'closed'];
 export const ZOOM_WRITE = { min: 80, max: 220, step: 5, def: 130 };
 const get = (k, ok, def) => { try { const v = localStorage.getItem(k); return ok(v) ? v : def; } catch { return def; } };
 const set = (k, v) => { try { localStorage.setItem(k, String(v)); } catch { /* this session only */ } };
 export const readPanel = () => get(PANEL_KEY, v => PANEL_MODES.includes(v), 'auto');
 export const readZoomWrite = () => { const n = Number(get(ZOOMW_KEY, v => v !== null && Number.isFinite(Number(v)), ZOOM_WRITE.def)); return Math.max(ZOOM_WRITE.min, Math.min(ZOOM_WRITE.max, n)); };
+// how the page looks while you write (UX-3): the zoom can be turned off, and how far everything around the line is dimmed
+export const DIM = { job: { min: 40, max: 100, def: 80 }, line: { min: 60, max: 100, def: 94 } };
+const num = (key, lo, hi, def) => { const n = Number(get(key, v => v !== null && Number.isFinite(Number(v)), def)); return Math.max(lo, Math.min(hi, n)); };
+// the writing zoom, remembered (a pinch while writing sets it)
+export function storeZoomWrite(pct){ set(ZOOMW_KEY, Math.max(ZOOM_WRITE.min, Math.min(ZOOM_WRITE.max, Math.round(pct)))); }
+export const readZoomWriteOn = () => get(ZOOMON_KEY, v => v === '0' || v === '1', '1') === '1';
+export const readDimJob = () => num(DIMJOB_KEY, DIM.job.min, DIM.job.max, DIM.job.def);
+export const readDimLine = () => num(DIMLINE_KEY, DIM.line.min, DIM.line.max, DIM.line.def);
+// the travel between pages: how much the pages hold on (magnet) and how much they overshoot (bounce); to retune on a real trackpad
+export const TRAVEL = { magnet: { min: 0, max: 80, def: 35 }, bounce: { min: 0, max: 40, def: 8 } };
+export const readMagnet = () => num(MAGNET_KEY, TRAVEL.magnet.min, TRAVEL.magnet.max, TRAVEL.magnet.def);
+export const readBounce = () => num(BOUNCE_KEY, TRAVEL.bounce.min, TRAVEL.bounce.max, TRAVEL.bounce.def);
 export const readContrast = () => get(CONTRAST_KEY, v => v === 'sharp' || v === 'soft', 'sharp');
 
 // the pure part of "does the panel show": checks/shell-check.mjs
-export function panelShown({ pref = 'auto', selected = false, view = false, peek = false, snap = false, phone = false } = {}){
+export function panelShown({ pref = 'auto', selected = false, view = false, peek = false, snap = false, phone = false, writing = false } = {}){
+  if (writing) return false;           // a drawer closes while you write: the line and its tools are what is on screen
   if (phone || pref === 'open' || view) return true;
   if (pref === 'closed') return false;
   return selected || peek || snap;
@@ -35,7 +49,7 @@ export const afterEscape = pref => (pref === 'open' ? 'auto' : pref);
 let last = null;
 function shown(){
   const u = C.ui;
-  return panelShown({ pref: u.panel, selected: u.sel.kind !== 'none', view: !!u.view, peek: !!u.peek, snap: !!u.snap, phone: innerWidth < PHONE_MAX });
+  return panelShown({ pref: u.panel, selected: u.sel.kind !== 'none', view: !!u.view, peek: !!u.peek, snap: !!u.snap, phone: innerWidth < PHONE_MAX, writing: !!u.writing && innerWidth < DRAWER_MAX });
 }
 const folded = () => !shown();
 
@@ -208,7 +222,12 @@ function renderPop(){
   el.hidden = !C.ui.zpop;
   if (!C.ui.zpop){ el.innerHTML = ''; return; }
   const zw = readZoomWrite(), pref = C.ui.panel, soft = readContrast() === 'soft';
-  el.innerHTML = `<label class="dial"><span class="dl">${h('ux2.zoomWrite')}</span><output id="zw-out">${zw}%</output><input type="range" id="zw" min="${ZOOM_WRITE.min}" max="${ZOOM_WRITE.max}" step="${ZOOM_WRITE.step}" value="${zw}" aria-label="${esc(t('ux2.zoomWrite'))}"></label>
+  const dial = (id, key, v, lo, hi, step = 1) => `<label class="dial"><span class="dl">${h(key)}</span><output id="${id}-out">${v}%</output><input type="range" id="${id}" min="${lo}" max="${hi}" step="${step}" value="${v}" aria-label="${esc(t(key))}"></label>`;
+  const multi = (C.ui.fills?.length ?? 1) > 1;
+  el.innerHTML = `<label class="swl"><input type="checkbox" class="sw" id="zwon" ${readZoomWriteOn() ? 'checked' : ''}><span>${h('ux3.zoomWriteOn')}</span></label>
+    <label class="dial"><span class="dl">${h('ux2.zoomWrite')}</span><output id="zw-out">${zw}%</output><input type="range" id="zw" min="${ZOOM_WRITE.min}" max="${ZOOM_WRITE.max}" step="${ZOOM_WRITE.step}" value="${zw}" aria-label="${esc(t('ux2.zoomWrite'))}"></label>
+    ${dial('dimline', 'ux3.dimLine', readDimLine(), DIM.line.min, DIM.line.max)}${dial('dimjob', 'ux3.dimJob', readDimJob(), DIM.job.min, DIM.job.max)}
+    ${multi ? dial('magnet', 'ux3.magnet', readMagnet(), TRAVEL.magnet.min, TRAVEL.magnet.max) + dial('bounce', 'ux3.bounce', readBounce(), TRAVEL.bounce.min, TRAVEL.bounce.max) : ''}
     <div class="prow"><span id="pm-l">${h('ux2.panelMode')}</span><div class="seg" role="group" aria-labelledby="pm-l">${PANEL_MODES.map(m => `<button data-act="panel-mode" data-pm="${m}" aria-pressed="${pref === m}">${h(`ux2.panel.${m}`)}</button>`).join('')}</div></div>
     <label class="swl"><input type="checkbox" class="sw" id="contrast" ${soft ? '' : 'checked'}><span>${h('ux2.sharper')}</span></label>
     <div class="prow"><button class="sm" data-act="actual">${h('ux2.actualSize')}</button></div>
@@ -278,10 +297,17 @@ function bind(){
   pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', t('ux2.zoomSettings'));
   $('#col').append(pop);
   pop.addEventListener('input', e => {
-    if (e.target.id === 'zw'){ const v = Number(e.target.value); set(ZOOMW_KEY, v); C.ui.zoomWrite = v; $('#zw-out').textContent = `${v}%`; }
+    const v = Number(e.target.value), out = document.getElementById(`${e.target.id}-out`);
+    if (e.target.id === 'zw'){ set(ZOOMW_KEY, v); C.ui.zoomWrite = v; }
+    else if (e.target.id === 'dimline'){ set(DIMLINE_KEY, v); C.layers?.(); }
+    else if (e.target.id === 'dimjob'){ set(DIMJOB_KEY, v); C.layers?.(); }
+    else if (e.target.id === 'magnet'){ set(MAGNET_KEY, v); C.canvas.set({ magnet: v }); }
+    else if (e.target.id === 'bounce'){ set(BOUNCE_KEY, v); C.canvas.set({ bounce: v }); }
+    if (out) out.textContent = `${v}%`;
   });
   pop.addEventListener('change', e => {
     if (e.target.id === 'contrast'){ set(CONTRAST_KEY, e.target.checked ? 'sharp' : 'soft'); applyContrast(); }
+    if (e.target.id === 'zwon') set(ZOOMON_KEY, e.target.checked ? '1' : '0');
   });
   pop.addEventListener('keydown', e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); openPop(false); } });
   document.addEventListener('mousedown', e => { if (C.ui.zpop && !e.target.closest('#zpop') && !e.target.closest('#zoompct')) openPop(false); });

@@ -128,7 +128,8 @@ export function versionsHtml(x){
   }
   if (ed?.mode === 'new') out += E();
   out += '</div>';
-  if (!ed && vs.length) out += `<a class="newv" data-act="new-version">${h('edit.newVersion', { v: R.nextMajor(m, fact, L) })}</a>`;
+  if (x.writing) out += `<p class="note">${h('ux3.writingNote')}</p>`;
+  else if (!ed && vs.length) out += `<a class="newv" data-act="new-version">${h('edit.newVersion', { v: R.nextMajor(m, fact, L) })}</a>`;
   return out;
 }
 
@@ -165,3 +166,56 @@ export function claimHead({ hasJob = false, on = false, kept = false, deletable 
 export const addClaimHtml = ({ id, key, draft = '' }) =>
   `<label class="field addclaim"><span class="lbl inline">${h('career.addClaim')}</span>
       <span class="addrow"><textarea class="new-claim" data-entry="${esc(id)}" rows="1" placeholder="${esc(t('career.claimPh'))}">${esc(draft)}</textarea><button class="sm addc" data-act="add-claim" data-key="${esc(key)}" data-id="${esc(id)}" title="${esc(t('ux1.addEnter'))}" aria-label="${esc(t('career.addClaim'))}">${h('ux1.add')}</button></span></label>`;
+
+// ---- on the page (UX-3): the three levels drawn over the page, and the tools in the line's right margin ----
+// Pure strings, like the rest of this file; src/ui/onpage.js puts them over the page and keeps them in place.
+
+const iconButton = (act, ic, name, tip, attrs = '') =>
+  `<button class="ib" data-act="${act}" ${attrs} data-tip="${esc(name)}|${esc(tip)}" data-tip-pos="l" aria-label="${esc(name)}">${icon(ic)}</button>`;
+
+// Page › Job › Line, the layer you are in filled and "Esc" beside it. Each earlier crumb goes up to its layer.
+// level: 'job' | 'line'; the job crumb shows "n of m" at the job level; a line outside a job has no job crumb.
+export function crumbBarHtml({ level, jobName = null, jobId = null, on = 0, total = 0, canWrite = false, lineSelected = false }){
+  const page = `<button class="oc" data-act="ob-page">${h('ux3.crumbPage')}</button>`;
+  const job = jobName == null ? '' : level === 'job'
+    ? (lineSelected && jobId
+      // the job crumb is the job level; with a line selected in it, a click selects the job itself
+      ? `<button class="oc cur" data-act="select-job" data-id="${esc(jobId)}" aria-current="location" title="${esc(t('ux2.chipTitle'))}">${esc(clip(jobName, 28))}<span class="ocn">${esc(t('ux2.nOfM', { n: on, m: total }))}</span></button>`
+      : `<span class="oc cur" aria-current="location" title="${esc(t('ux2.chipTitle'))}">${esc(clip(jobName, 28))}<span class="ocn">${esc(t('ux2.nOfM', { n: on, m: total }))}</span></span>`)
+    : `<button class="oc" data-act="ob-job">${esc(clip(jobName, 28))}</button>`;
+  const line = level === 'line'
+    ? `<span class="oc cur" aria-current="location">${h('ux3.crumbLine')}</span>`
+    : canWrite ? `<button class="oc dots" data-act="ob-write">${h('ux3.crumbWrite')}</button>` : '';
+  const parts = [page, job, line].filter(Boolean);
+  return `<nav class="obcrumb" aria-label="${esc(t('ux3.crumbNav'))}">${parts.join('<span class="ocs" aria-hidden="true">›</span>')}<kbd class="oesc">Esc</kbd></nav>`;
+}
+
+// The column beside the line: the version badge, and while writing the three ways to keep what you wrote, with the counts.
+// ed: the draft being written (or null); vn: the number of the version in use; dirty: the draft differs from it.
+export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, open = false, counts = '' }){
+  const badge = `<button class="obv" data-act="ob-badge" aria-haspopup="listbox" aria-expanded="${open}" data-tip="${esc(t('ux3.badge'))}|${esc(t('ux3.badgeTip'))}" data-tip-pos="l" aria-label="${esc(t('ux3.badgeName', { v: vn }))}">v${esc(vn)} ${icon('caret', { size: 12 })}</button>`;
+  if (!ed) return `<div class="obtools" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}</div>`;
+  const dis = dirty ? '' : 'disabled';
+  const isNew = ed.mode === 'new', isOnly = ed.mode === 'only';
+  const act1 = isNew ? iconButton('ed-new', 'update', t('edit.saveAsV'), t('ux3.saveNewTip'), dis)
+    : isOnly ? iconButton('ed-only', 'update', t('head.save'), t('ux3.onlySaveTip'), dis)
+    : iconButton('ed-save', 'update', t('edit.saveV', { v: vn }), t('ux3.updateTip'), dis);
+  const act2 = isNew ? '' : isOnly ? iconButton('ed-promote', 'copyplus', t('edit.saveAsV'), t('ux3.saveAsTip'), dis)
+    : iconButton('ed-saveas', 'copyplus', t('edit.saveAsV'), t('ux3.saveAsTip'), dis);
+  const act3 = isNew || isOnly || !canOnly ? '' : iconButton('ed-only', 'onlyhere', t('edit.thisOnly'), t('ux3.onlyTip'), dis);
+  return `<div class="obtools writing" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}${act1}${act2}${act3}<div class="obstats" id="ob-stats">${counts}</div></div>`;
+}
+
+// The other versions, under the badge. Rows are the inspector's (.vrow inside .vlist), so hovering one shows it on the page
+// and clicking uses it, by the same handlers.
+export function badgeListHtml({ fact, versions, usingId }){
+  return `<div class="obpop vlist" data-fact="${esc(fact)}" role="listbox" aria-label="${esc(t('ux3.badge'))}">${versions.map(v =>
+    `<div class="vrow ${v.id === usingId ? 'cur' : ''}" role="option" aria-selected="${v.id === usingId}" ${v.id === usingId ? '' : 'data-act="use-version" tabindex="0"'} data-v="${esc(v.id)}"><span class="n">v${esc(v.n)}</span><span class="tx">${esc(clip(v.text, 120))}</span></div>`).join('')}</div>`;
+}
+
+// The counts under the tools: short, because the column is narrow. Characters, lines on the page, and how many more or fewer.
+export function statsCompactHtml(ed){
+  const ch = [...ed.draft].length, ln = ed.lines;
+  const d = ln != null && ed.lines0 != null ? ln - ed.lines0 : 0;
+  return `<span>${h('edit.chShort', { n: ch })}</span>${ln != null ? `<span>${h('edit.lnShort', { n: ln })}</span>` : ''}${d ? `<span class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '+' : ''}${d}</span>` : ''}`;
+}

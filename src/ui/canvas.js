@@ -6,9 +6,10 @@
 
 import {
   geometry, viewRect, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
-  brightPage, faded, springStep, atRest, centreOn, MAGNET, BOUNCE,
+  brightPage, faded, springStep, atRest, centreOn, writingScale,
 } from './camera.js';
 import { clampZoom, PHONE_MAX, G, RAIL_W } from './layout.js';
+import { readMagnet, readBounce } from './dock.js';
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const EASE_MS = 300;                                    // the ease between views (a setting in the zoom pop-up scales the zoom, not this)
@@ -24,7 +25,7 @@ export function initCanvas(C){
   let motion = null, raf = 0, idleT = 0, movedT = 0, firedSig = '';
   let drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
   const pointers = new Map();
-  const dials = { magnet: MAGNET, bounce: BOUNCE };
+  const dials = { magnet: readMagnet(), bounce: readBounce() };
 
   const phone = () => innerWidth < PHONE_MAX;
   const pagesN = () => Math.max(1, ui.laid?.pages?.length ?? ui.fills?.length ?? 1);
@@ -103,8 +104,9 @@ export function initCanvas(C){
     ui.geo = geo; ui.pageView = view;
     if (!free){ go(fit); return; }
     // the view was put somewhere on purpose: it keeps its zoom and the content in the middle, whatever the window does
-    const was = cam.k / (ui.fitK ?? fit.k);
-    const mid = contentOf(cam, (ui.viewWas ?? view).left + (ui.viewWas ?? view).width / 2, (ui.viewWas ?? view).top + (ui.viewWas ?? view).height / 2);
+    const at = motion ? motion.to : cam;                // a move under way counts as already made
+    const was = at.k / (ui.fitK ?? fit.k);
+    const mid = contentOf(at, (ui.viewWas ?? view).left + (ui.viewWas ?? view).width / 2, (ui.viewWas ?? view).top + (ui.viewWas ?? view).height / 2);
     go(hardCam(centreOn(geo, view, fit.k * was, mid.x, mid.y), geo, view));
   }
   const rememberView = () => { ui.fitK = fit?.k; ui.viewWas = view; };
@@ -133,6 +135,25 @@ export function initCanvas(C){
     go(fit);
   }
 
+  // ---- writing: the view eases to the writing zoom around the block, and follows it from line to line ----
+  // r is the block in the page's own pixels. keepZoom: already writing, so only pan to the next block.
+  function writeTo(r, percent, { keepZoom = false } = {}){
+    if (!geo) return;
+    const k = keepZoom ? cam.k : writingScale(geo, view, percent);
+    const next = hardCam(centreOn(geo, view, k, r.left + r.width / 2, r.top + r.height / 2), geo, view);
+    free = true; want = null; rememberView();
+    go(next);
+  }
+  // keep a block (a line that grows as you type) inside the view, with some room
+  function ensureVisible(r, room = 70){
+    if (!geo || motion || drag) return;
+    const s = { left: cam.x + r.left * cam.k, top: cam.y + r.top * cam.k, right: cam.x + (r.left + r.width) * cam.k, bottom: cam.y + (r.top + r.height) * cam.k };
+    let dx = 0, dy = 0;
+    if (s.top < view.top + room) dy = view.top + room - s.top; else if (s.bottom > view.top + view.height - room) dy = view.top + view.height - room - s.bottom;
+    if (s.left < view.left + room) dx = view.left + room - s.left; else if (s.right > view.left + view.width - room) dx = view.left + view.width - room - s.right;
+    if (dx || dy){ free = true; rememberView(); go(hardCam({ ...cam, x: cam.x + dx, y: cam.y + dy }, geo, view)); }
+  }
+
   // ---- a page: from a meter, a key, a click on a faded page ----
   function goToPage(i){
     if (!geo) return;
@@ -155,6 +176,7 @@ export function initCanvas(C){
     if (e.ctrlKey){                                                         // a trackpad pinch (Chrome, Edge) or Ctrl and the wheel
       e.preventDefault();
       zoomTo((ui.zoom ?? 1) * Math.exp(-e.deltaY * unit(e) * 0.01), at ?? { x: e.clientX, y: e.clientY }, { animate: false });
+      if (ui.writing) C.writeZoomChanged?.(Math.round((ui.zoom ?? 1) * 100));      // while writing, a pinch is the writing zoom
       return true;
     }
     if (e.target?.closest?.('#col, #timeline, #switcher, #help, .zpop, .actual')) return false;
@@ -190,7 +212,7 @@ export function initCanvas(C){
     if (!geo || phone() || ui.view === 'welcome') return false;
     if (e.pointerType === 'touch' || e.pointerType === 'pen') pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 2){ drag = null; pinchStart(); return true; }
-    const bare = !inFrame && (e.target === box || e.target === box.firstElementChild || e.target.id === 'pagelay');
+    const bare = !inFrame && (e.target === box || e.target === box.firstElementChild);
     const hand = e.button === 1 || (space && e.button === 0) || (bare && e.button === 0);
     if (!hand) return false;
     e.preventDefault();
@@ -271,7 +293,7 @@ export function initCanvas(C){
 
   // ---- for the rest of the shell ----
   return {
-    bind, layout, zoomTo, zoomBy: (f, at) => zoomTo((want ?? ui.zoom ?? 1) * f, at), reset, goToPage, travel, frameEvents,
+    bind, layout, writeTo, ensureVisible, zoomTo, zoomBy: (f, at) => zoomTo((want ?? ui.zoom ?? 1) * f, at), reset, goToPage, travel, frameEvents,
     get cam(){ return { ...cam }; },
     get free(){ return free; },
     // a drag that moved the pages must not also be a click on a line

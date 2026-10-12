@@ -51,6 +51,12 @@ async function open(page, q, { help = false, panel = 'open', drink = null, theme
 const frameDoc = (page, fn, arg) => page.evaluate(([src, a]) => (0, eval)(src)(document.querySelector('#sheet iframe').contentDocument, a), [fn.toString(), arg]);
 const firstBullet = page => frameDoc(page, d => d.querySelector('.bullets li')?.textContent ?? '');
 const settle = page => page.waitForTimeout(500);
+// the line being written on the page: an editable element in the frame
+const lineEl = page => page.frameLocator('#sheet iframe').locator('[contenteditable]');
+const lineText = page => page.evaluate(() => window.__wb.edit.editing?.draft ?? null);
+const writeLine = async (page, text) => { await lineEl(page).focus(); await page.keyboard.press('ControlOrMeta+a'); await page.keyboard.insertText(text); await page.waitForTimeout(450); };
+const caretTo = (page, where) => page.evaluate(w => { const el = window.__wb.onpage.el(); const d = el.ownerDocument, sel = d.defaultView.getSelection(), r = d.createRange(); r.selectNodeContents(el); r.collapse(w === 'start'); sel.removeAllRanges(); sel.addRange(r); }, where);
+const appendLine = async (page, text) => { await lineEl(page).focus(); await caretTo(page, 'end'); await page.keyboard.insertText(text); await page.waitForTimeout(450); };
 // Open a saved resume the way a person does: through the switcher in the header.
 async function openByName(page, text){
   if (!(await page.isVisible('#switcher'))) await page.click('#docname-btn');
@@ -113,13 +119,14 @@ if (want('one screen: the panel folds, the rail, the zoom bar, the shortcut shee
   await page.keyboard.press('Home'); await settle(page);
   ok('Home goes back to Edit', (await page.getAttribute('#head [data-m=edit]', 'aria-selected')) === 'true' && (await page.getAttribute('#body', 'data-view')) !== 'export');
   ok('the stripe on the panel’s top is gone', await page.evaluate(() => ['none', 'normal'].includes(getComputedStyle(document.querySelector('#body'), '::before').content)));
-  // Esc all the way out, even from Open
+  // Esc all the way out, even from Open (a line is selected from before: one Esc goes to the page, so the click below opens a job)
+  await page.keyboard.press('Escape'); await settle(page);
   await page.evaluate(() => window.__wb.dock.setPanel('open'));
   await page.keyboard.press('=');
   await sheet.locator('.bullets li').first().click(); await settle(page);
   ok('= zooms in (and 100% is the whole page)', (await S()).zoom > 1 && /^1[2-9]\d%$/.test(await page.textContent('#zoompct')));
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc all the way out: folds the panel even though it was pinned Open, clears the selection, and zooms back to the whole page', (await S()).folded === 'true' && (await S()).sel === 'none' && (await S()).zoom === 1 && (await S()).panel === 'auto');
+  ok('Esc all the way out: folds the panel even though it was pinned Open, clears the selection, and zooms back to the whole page', (await S()).folded === 'true' && (await S()).sel === 'none' && (await S()).zoom === 1 && (await S()).panel === 'auto', JSON.stringify(await S()));
   // the zoom bar
   await page.keyboard.press('e'); await settle(page);
   await page.click('[data-act=zoom-in]'); await page.click('[data-act=zoom-in]'); await settle(page);
@@ -210,14 +217,14 @@ if (want('one screen: under 1280px the panel is a drawer; the keyboard path thro
   await p2.keyboard.press('Tab');
   ok('Tab goes on inside the inspector (not back to the top of the page)', await p2.evaluate(() => !!document.activeElement?.closest('#body')));
   await p2.keyboard.press('Escape'); await settle(p2);
-  ok('Esc goes up to the job', (await p2.getAttribute('#body', 'data-view')) === 'job');
+  ok('Esc goes up: a line in a job is the job level, and one Esc goes to the page', (await p2.getAttribute('#body', 'data-view')) === 'none');
   await p2.keyboard.press('Escape'); await settle(p2);
   ok('and out: nothing selected, the panel put away', (await p2.evaluate(() => document.body.dataset.folded)) === 'true' && (await p2.getAttribute('#body', 'data-view')) === 'none');
   ok('no console errors', bad.length === 0 && bad2.length === 0, bad[0] ?? bad2[0] ?? '');
   await ctx2.close();
 }
 
-if (want('one screen: nothing is drawn on the page for claims that are off, and the job chip')) {
+if (want('one screen: nothing is drawn on the page for claims that are off, and the job’s breadcrumb')) {
   const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -226,13 +233,14 @@ if (want('one screen: nothing is drawn on the page for claims that are off, and 
   await sheet.locator('.bullets li').first().click(); await settle(page);
   const after = await frameDoc(page, d => [d.querySelectorAll('*').length, d.querySelectorAll('input, button, .ghost, [data-toggle]').length]);
   ok('the page’s own markup has no controls: no circles, no switches, no faded rows (only the outline of the selection)', after[1] === 0 && after[0] === before);
-  const chip = await rect(page, '.jobchip'), job = await frameDoc(page, d => { const e = d.querySelector('.entry'); const r = e.getBoundingClientRect(); return { left: r.left, top: r.top }; });
+  const bar = await rect(page, '.obcrumb'), job = await frameDoc(page, d => { const e = d.querySelector('.entry'); const r = e.getBoundingClientRect(); return { left: r.left, top: r.top }; });
   const sh = await rect(page, '#sheet');
-  ok('the job chip is a button over the page, above the job’s own corner', Math.abs(chip.left - (sh.left + job.left * (sh.width / 794))) < 6 && chip.top < sh.top + job.top * (sh.width / 794) + 4);
-  await page.click('.jobchip'); await settle(page);
-  ok('clicking it selects the job (the level of the chip)', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job');
+  ok('the breadcrumb is a bar over the page, above the job’s own corner, and says which job and how many of its lines are on', Math.abs(bar.left - (sh.left + job.left * (sh.width / 794))) < 14 && bar.bottom < sh.top + job.top * (sh.width / 794) + 4 && /Page/.test(await page.textContent('.obcrumb')) && /Hydra Medical/.test(await page.textContent('.obcrumb')) && /4 of 7 on/.test(await page.textContent('.obcrumb')));
+  await page.click('.obcrumb [data-act=select-job]'); await settle(page);
+  ok('clicking the job in it selects the job', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job');
+  ok('there is no chip any more', !(await page.$('.jobchip')));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('it goes when nothing is selected', !(await page.$('.jobchip')));
+  ok('it goes when nothing is selected', !(await page.$('.obcrumb')));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
@@ -273,9 +281,7 @@ if (want('selecting, preview, versions, undo')) {
   ok('→ uses the next version', (await firstBullet(page)) !== v0);
   await page.keyboard.press('Control+z'); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc goes up to the job', (await page.getAttribute('#body', 'data-view')) === 'job');
-  await page.keyboard.press('Escape'); await settle(page);
-  ok('and again to nothing', (await page.getAttribute('#body', 'data-view')) === 'none');
+  ok('Esc goes to the page', (await page.getAttribute('#body', 'data-view')) === 'none');
 
   await sheet.locator('.role-title').first().click(); await settle(page);
   ok('clicking a job title selects the job', (await page.getAttribute('#body', 'data-view')) === 'job');
@@ -529,6 +535,263 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
   }
 }
 
+// Editing on the page (UX-3): three levels, Esc goes up one; a line is written where it is printed, with its tools in the margin.
+const lay = page => page.evaluate(() => { const el = document.querySelector('#editlay'); const q = s => el.querySelector(s); return {
+  veil: [...el.querySelectorAll('.obveil')].map(v => +getComputedStyle(v).opacity), job: !!q('.obframe.job'), dashed: !!q('.obframe.job.dashed'), line: !!q('.obframe.line'),
+  crumb: q('.obcrumb')?.innerText.replace(/\s+/g, ' ').trim() ?? null, cur: q('.obcrumb .oc.cur')?.innerText.replace(/\s+/g, ' ').trim() ?? null,
+  tools: [...el.querySelectorAll('.obtools [data-act]')].map(b => b.dataset.act), badge: q('.obv')?.textContent.trim() ?? null }; });
+const zoomOf = page => page.evaluate(() => window.__wb.ui.zoom);
+const selOf = page => page.evaluate(() => { const s = window.__wb.ui.sel; return `${s.kind}:${s.id ?? ''}`; });
+
+if (want('on the page: three levels, writing a line where it is printed, the tools in the margin')) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  page.on('dialog', d => d.accept());
+  const bad = await open(page);
+  await openByName(page, 'Medtech'); await foldAll(page);
+  const sheet = page.frameLocator('#sheet iframe');
+  const jobs = sheet.locator('.entry');
+  const l0 = await lay(page);
+  ok('at the page level nothing is framed, dimmed or crumbed', !l0.job && !l0.line && l0.veil.length === 0 && l0.crumb === null);
+
+  // the job level
+  await jobs.nth(0).locator('.bullets li').first().click(); await settle(page);
+  const l1 = await lay(page);
+  ok('one click on a bullet opens its job: the job is framed (solid), the rest of the page is dimmed to 80%', l1.job && !l1.dashed && !l1.line && l1.veil.length >= 1 && l1.veil.every(o => Math.abs(o - 0.2) < 0.02), JSON.stringify(l1.veil));
+  ok('…the breadcrumb reads Page › the job › n of m, with Esc beside it, and offers to write the selected line', /^Page › .+ \d+ of \d+ on › Write this line Esc$/.test(l1.crumb ?? ''), l1.crumb);
+  ok('…and the panel opens with its checklist group, the line selected, nothing written', (await page.evaluate(() => document.body.dataset.folded)) === 'false' && (await lineEl(page).count()) === 0 && (await selOf(page)).startsWith('bullet:'));
+  ok('…the version badge shows beside the selected line; no tools to keep anything yet', l1.badge && /^v/.test(l1.badge) && l1.tools.every(a => a === 'ob-badge'));
+  const first = await selOf(page);
+  await jobs.nth(1).locator('.bullets li').first().click(); await settle(page);
+  ok('a click on a bullet of another job moves to that job (still the job level)', (await selOf(page)) !== first && !(await lay(page)).dashed && (await lineEl(page).count()) === 0);
+  await jobs.nth(0).locator('.bullets li').nth(1).click(); await settle(page);
+  ok('…and back', !(await lay(page)).dashed && (await lineEl(page).count()) === 0);
+
+  // the line level
+  const z0 = await zoomOf(page);
+  await jobs.nth(0).locator('.bullets li').nth(2).click(); await page.waitForTimeout(900);
+  const l2 = await lay(page);
+  ok('a second click on a bullet in that job writes it: an editable line in the frame', (await lineEl(page).count()) === 1 && (await page.evaluate(() => window.__wb.ui.writing === true)));
+  ok('…the job keeps a dashed frame, the line has its own outline, the lines around stay readable (94%)', l2.dashed && l2.line && l2.veil.every(o => Math.abs(o - 0.06) < 0.02), JSON.stringify(l2.veil));
+  ok('…the crumb is Page › job › Line, the line filled', /^Page › .+ › Line Esc$/.test(l2.crumb ?? '') && l2.cur === 'Line', l2.crumb);
+  ok('…the view eased to the writing zoom: 130% of the whole page', Math.abs((await zoomOf(page)) - 1.3) < 0.02 && z0 === 1, `${await zoomOf(page)}`);
+  ok('…the tools stand in the margin: Update, Save as new version, Only on this resume, and the counts', JSON.stringify(l2.tools) === JSON.stringify(['ob-badge', 'ed-save', 'ed-saveas', 'ed-only']) && /ch/.test(await page.textContent('#ob-stats')));
+  ok('…and all three are off until something changes', await page.isDisabled('#editlay [data-act=ed-save]') && await page.isDisabled('#editlay [data-act=ed-saveas]') && await page.isDisabled('#editlay [data-act=ed-only]'));
+  ok('…each is named, with a hover hint of a title and one line', await page.evaluate(() => [...document.querySelectorAll('#editlay .obtools .ib')].every(b => b.getAttribute('aria-label') && /\|/.test(b.dataset.tip))));
+  ok('…nothing is drawn in the page itself, and nothing here takes a click it should not', await page.evaluate(() => { const d = document.querySelector('#sheet iframe').contentDocument; return !d.querySelector('.obframe, .obveil, .obtools, .obcrumb') && getComputedStyle(document.querySelector('#editlay')).pointerEvents === 'none'; }));
+  ok('…entering write mode is announced to a screen reader', /Writing this line/.test(await page.textContent('#announce')) && (await lineEl(page).getAttribute('role')) === 'textbox');
+  const text0 = await lineText(page), undo0 = await page.evaluate(() => window.__wb.store.history.undo);
+  await appendLine(page, ' Zebra.');
+  const l3 = await lay(page);
+  ok('typing: the draft is the line’s plain text, the tools wake, the page redraws', (await lineText(page)) === text0 + ' Zebra.' && !(await page.isDisabled('#editlay [data-act=ed-save]')) && (await frameDoc(page, d => d.body.textContent)).includes('Zebra.'));
+  ok('…and it is still the same line: the layers follow it', l3.line && l3.dashed && (await lineEl(page).count()) === 1);
+  ok('…nothing is committed while typing', (await page.evaluate(() => window.__wb.store.history.undo)) === undo0);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(700);
+  ok('Esc (asking first, since there is a draft) leaves the line for its job: the page is back as it was, zoomed out', (await lineEl(page).count()) === 0 && !(await frameDoc(page, d => d.body.textContent)).includes('Zebra.') && (await zoomOf(page)) === 1 && !(await lay(page)).dashed && (await lay(page)).job);
+  ok('…the line is still selected, and leaving was announced', (await selOf(page)).startsWith('bullet:') && /Back at the job/.test(await page.textContent('#announce')));
+  await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+  ok('Esc again goes to the page: nothing framed, nothing dimmed, the panel folded', (await selOf(page)) === 'none:' && (await lay(page)).crumb === null && (await page.evaluate(() => document.body.dataset.folded)) === 'true');
+
+  // writing at once
+  await jobs.nth(0).locator('.bullets li').first().click(); await settle(page);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(700);
+  ok('Enter on a selected line writes it at once', (await lineEl(page).count()) === 1);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+  await jobs.nth(0).locator('.bullets li').nth(1).dblclick(); await page.waitForTimeout(900);
+  ok('a double-click on a line, from the page level, writes it at once', (await lineEl(page).count()) === 1 && (await selOf(page)).startsWith('bullet:'));
+
+  // the next line, without zooming out
+  const f0 = await page.evaluate(() => window.__wb.edit.editing.fact), zW = await zoomOf(page);
+  await lineEl(page).focus(); await page.keyboard.press('Tab'); await page.waitForTimeout(800);
+  const f1 = await page.evaluate(() => window.__wb.edit.editing?.fact);
+  ok('Tab goes to the next line in print order and writes it, without zooming out', !!f1 && f1 !== f0 && (await lineEl(page).count()) === 1 && Math.abs((await zoomOf(page)) - zW) < 0.02, `${f0} → ${f1}, zoom ${await zoomOf(page)}`);
+  await page.keyboard.press('Shift+Tab'); await page.waitForTimeout(800);
+  ok('Shift+Tab goes back', (await page.evaluate(() => window.__wb.edit.editing?.fact)) === f0);
+  await caretTo(page, 'end'); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(800);
+  ok('↓ at the last line of the block goes to the next one', (await page.evaluate(() => window.__wb.edit.editing?.fact)) === f1);
+  await caretTo(page, 'start'); await page.keyboard.press('ArrowUp'); await page.waitForTimeout(800);
+  ok('↑ at the first line goes back', (await page.evaluate(() => window.__wb.edit.editing?.fact)) === f0);
+  ok('the view followed it, still at the writing zoom, and the line is inside the window', await page.evaluate(() => { const r = window.__wb.onpage.el()?.getBoundingClientRect(), f = document.querySelector('#sheet iframe').getBoundingClientRect(); if (!r) return false; const k = f.width / document.querySelector('#sheet iframe').offsetWidth; const top = f.top + r.top * k; return top > 0 && top < innerHeight; }));
+
+  // keeping what was written: the same three ways
+  const nV = () => page.evaluate(() => window.__wb.store.state.record.variants.length);
+  const n0 = await nV();
+  await appendLine(page, ' Kept with Ctrl+Enter.');
+  await page.keyboard.press('ControlOrMeta+Enter'); await page.waitForTimeout(900);
+  ok('Ctrl+Enter keeps it (Update vN), as it did in the text box; the line is left and the view comes back out', (await frameDoc(page, d => d.body.textContent)).includes('Kept with Ctrl+Enter.') && (await lineEl(page).count()) === 0 && (await zoomOf(page)) === 1 && (await nV()) === n0);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(700);
+  await appendLine(page, ' As a new one.');
+  await page.click('#editlay [data-act=ed-saveas]'); await page.waitForTimeout(900);
+  ok('Save as new version from the tools makes a version', (await nV()) === n0 + 1 && (await lineEl(page).count()) === 0);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(700);
+  await appendLine(page, ' Only here.');
+  await page.click('#editlay [data-act=ed-only]'); await page.waitForTimeout(900);
+  ok('Only on this resume from the tools writes a one-off text, and no version', (await nV()) === n0 + 1 && /Only here\./.test(await frameDoc(page, d => d.body.textContent)));
+  await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z'); await page.waitForTimeout(900);
+
+  // the version badge
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+  await jobs.nth(0).locator('.bullets li').first().click(); await settle(page);
+  await page.click('#editlay .obv'); await settle(page);
+  ok('the badge lists the line’s versions', await page.isVisible('#editlay .obpop') && (await page.$$('#editlay .obpop .vrow')).length >= 2);
+  const shown0 = await frameDoc(page, d => d.querySelector('.bullets li').textContent);
+  await page.hover('#editlay .obpop .vrow:not(.cur)'); await page.waitForTimeout(700);
+  ok('hovering one shows it on the page', await page.evaluate(() => window.__wb.ui.previewing === true) && (await frameDoc(page, d => d.querySelector('.bullets li').textContent)) !== shown0);
+  ok('…the layers stay while it does', (await lay(page)).job && await page.isVisible('#editlay .obpop'));
+  await page.mouse.move(4, 4); await page.waitForTimeout(700);
+  ok('moving away puts the page back', (await frameDoc(page, d => d.querySelector('.bullets li').textContent)) === shown0);
+  const picks0 = await page.evaluate(() => JSON.stringify(window.__wb.store.state.cur.picks));
+  if (!(await page.isVisible('#editlay .obpop'))){ await page.click('#editlay .obv'); await settle(page); }
+  await page.click('#editlay .obpop .vrow:not(.cur)'); await page.waitForTimeout(900);
+  ok('clicking one uses it, as one undo step', (await page.evaluate(() => JSON.stringify(window.__wb.store.state.cur.picks))) !== picks0 && (await page.evaluate(() => window.__wb.store.history.undo)) >= 1);
+  await page.keyboard.press('Control+z'); await settle(page);
+  // while writing, picking a version replaces the typed text
+  await page.keyboard.press('Enter'); await page.waitForTimeout(700);
+  await appendLine(page, ' typed words');
+  await page.click('#editlay .obv'); await settle(page);
+  const other = await page.getAttribute('#editlay .obpop .vrow:not(.cur)', 'data-v');
+  await page.click('#editlay .obpop .vrow:not(.cur)'); await page.waitForTimeout(800);
+  const vText = await page.evaluate(v => window.__wb.store.state.record.variants.find(x => x.id === v).text, other);
+  ok('while writing, picking a version replaces what was typed', (await lineText(page)) === vText && (await lineEl(page).count()) === 1);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(700);
+
+  // lines outside a job are only selected
+  const summary = sheet.locator('.summary[data-variant]').first();
+  await summary.click(); await settle(page);
+  const ls = await lay(page);
+  ok('a line outside a job is only selected: no frame, no dimming; the crumb is Page › Line', !ls.job && ls.veil.length === 0 && /^Page › Line Esc$/.test(ls.crumb ?? ''), JSON.stringify(ls));
+  await summary.click(); await settle(page);
+  ok('…a second click does not write it', (await lineEl(page).count()) === 0);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(700);
+  ok('…Enter does', (await lineEl(page).count()) === 1 && (await lay(page)).line && !(await lay(page)).job);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+
+  // two pages: writing on one fades the other, which stays clickable
+  const pg2 = sheet.locator('.document > .page').nth(1).locator('.bullets li, .runs strong, .skills__items').first();
+  if (await pg2.count()){
+    await pg2.click(); await settle(page);
+    await pg2.click().catch(() => {}); await page.waitForTimeout(700);
+    const c2 = await camOf(page);
+    ok('with two pages, working on the second brings it forward and fades the first', c2.page === 1 && c2.faded[0] === true && c2.faded[1] === false);
+  } else ok('page 2 has a line to write', false);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+
+  // clicking another line while writing goes on writing there; a pinch while writing is the writing zoom
+  await jobs.nth(0).locator('.bullets li').first().click(); await settle(page);
+  await jobs.nth(0).locator('.bullets li').first().click(); await page.waitForTimeout(800);
+  const wz = await zoomOf(page), wf = await page.evaluate(() => window.__wb.edit.editing?.fact);
+  await jobs.nth(1).locator('.bullets li').first().click(); await page.waitForTimeout(900);
+  const wf2 = await page.evaluate(() => window.__wb.edit.editing?.fact ?? null);
+  ok('while writing, a click on a line in another job goes on writing there, without zooming out', !!wf2 && wf2 !== wf && Math.abs((await zoomOf(page)) - wz) < 0.02, `${wf} → ${wf2}, ${await zoomOf(page)}`);
+  await page.evaluate(() => { document.querySelector('#pages').dispatchEvent(new WheelEvent('wheel', { deltaY: -60, ctrlKey: true, clientX: 600, clientY: 400, bubbles: true, cancelable: true })); });
+  await page.waitForTimeout(400);
+  ok('a pinch while writing changes the writing zoom, and it is remembered', (await zoomOf(page)) > wz + 0.1 && Number(await page.evaluate(() => localStorage.getItem('rb-zoomwrite'))) === Math.min(220, Math.round((await zoomOf(page)) * 100)), `${await zoomOf(page)} ${await page.evaluate(() => localStorage.getItem('rb-zoomwrite'))}`);
+  await page.evaluate(() => localStorage.removeItem('rb-zoomwrite'));
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+  // a line on the second page, chosen from the panel: that page comes forward
+  const f2 = await page.evaluate(() => { const w = window.__wb, ix = w.ui.ix; for (const id of w.sheet.order(ix)) if (w.sheet.pageOf(id, ix) === 1) return id; return null; });
+  if (f2){
+    await page.evaluate(id => { const b = document.createElement('button'); b.dataset.act = 'select-bullet'; b.dataset.id = id; b.hidden = true; document.querySelector('#body').append(b); b.click(); }, f2);
+    await page.waitForTimeout(1100);
+    ok('choosing a line on the second page (from the panel) brings that page forward', (await camOf(page)).page === 1 && (await camOf(page)).faded[0] === true);
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+  } else ok('the second page has a line', false);
+
+  // what leaves nothing behind
+  const html1 = await frameDoc(page, d => d.querySelector('.document').innerHTML.replace(/\s(?:contenteditable|role|aria-multiline|aria-label|spellcheck|style)="[^"]*"/g, '').replace(/\brb-[\w-]+/g, '').replace(/\sclass="\s*"/g, ''));
+  await jobs.nth(0).locator('.bullets li').first().click(); await settle(page);
+  await jobs.nth(0).locator('.bullets li').first().click(); await page.waitForTimeout(700);
+  await appendLine(page, ' x'); await page.keyboard.press('Escape'); await page.waitForTimeout(900);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  const html2 = await frameDoc(page, d => d.querySelector('.document').innerHTML.replace(/\s(?:contenteditable|role|aria-multiline|aria-label|spellcheck|style)="[^"]*"/g, '').replace(/\brb-[\w-]+/g, '').replace(/\sclass="\s*"/g, ''));
+  const at = [...html1].findIndex((c, i) => c !== html2[i]);
+  ok('writing and leaving without keeping leaves the page’s own markup exactly as it was', html1 === html2, `at ${at}: ${html1.slice(at - 60, at + 80)} ≠ ${html2.slice(at - 60, at + 80)}`);
+  ok('…with nothing editable left in the frame', (await frameDoc(page, d => d.querySelectorAll('[contenteditable]').length)) === 0);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+// ---- smaller windows, the settings and reduced motion ----
+if (want('on the page: a drawer, zoom off, reduced motion, a line that is not on the page')) {
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+    const page = await ctx.newPage();
+    page.on('dialog', d => d.accept());
+    const bad = await open(page);
+    const sheet = page.frameLocator('#sheet iframe');
+    await foldAll(page);
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
+    ok('under 1280px, selecting opens the panel as a drawer over the page, as before', (await page.evaluate(() => document.body.dataset.drawer)) === 'true' && (await page.evaluate(() => document.body.dataset.folded)) === 'false');
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(900);
+    ok('writing closes the drawer while you type: the tools in the margin carry the actions', (await lineEl(page).count()) === 1 && (await page.evaluate(() => document.body.dataset.folded)) === 'true' && !(await page.isVisible('#body')) && !!(await page.$('#editlay [data-act=ed-save]')));
+    await appendLine(page, ' drawer');
+    ok('…the tools are on screen, not under the rail', await page.evaluate(() => { const r = document.querySelector('#editlay .obtools').getBoundingClientRect(), c = document.querySelector('#rail').getBoundingClientRect(); return r.right <= c.left + 2 && r.left >= 0 && r.top >= 0 && r.bottom <= innerHeight; }));
+    await page.click('#editlay [data-act=ed-saveas]'); await page.waitForTimeout(900);
+    ok('Save as new version works from the tools alone', (await page.evaluate(() => window.__wb.store.state.record.variants.some(v => /drawer$/.test(v.text)))) && (await lineEl(page).count()) === 0);
+    ok('…and the drawer is back, with the line selected', (await page.evaluate(() => document.body.dataset.folded)) === 'false');
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    page.on('dialog', d => d.accept());
+    const bad = await open(page);
+    const sheet = page.frameLocator('#sheet iframe');
+    await foldAll(page);
+    await page.evaluate(() => localStorage.setItem('rb-zoomwrite-on', '0'));
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(800);
+    ok('with “Zoom in when writing” off, the line is written in place and the view stays whole', (await lineEl(page).count()) === 1 && (await zoomOf(page)) === 1);
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+    await page.evaluate(() => { localStorage.setItem('rb-zoomwrite-on', '1'); localStorage.setItem('rb-zoomwrite', '200'); });
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(900);
+    ok('the writing zoom is the setting: 200%', Math.abs((await zoomOf(page)) - 2) < 0.03, `${await zoomOf(page)}`);
+    await page.evaluate(() => { localStorage.setItem('rb-dim-line', '70'); });
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(900);
+    ok('the dim levels are settings too: other lines at 70%', (await lay(page)).veil.every(o => Math.abs(o - 0.3) < 0.02), JSON.stringify((await lay(page)).veil));
+    await page.evaluate(() => { localStorage.removeItem('rb-zoomwrite'); localStorage.removeItem('rb-dim-line'); localStorage.removeItem('rb-zoomwrite-on'); });
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+    const page = await ctx.newPage();
+    page.on('dialog', d => d.accept());
+    const bad = await open(page);
+    const sheet = page.frameLocator('#sheet iframe');
+    await foldAll(page);
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(60);
+    ok('with reduced motion the view jumps to the writing zoom: no ease', Math.abs((await zoomOf(page)) - 1.3) < 0.02);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(60);
+    ok('…and back out at once', (await zoomOf(page)) === 1);
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+  {
+    // a line that is not on this resume has no place on the page: the panel keeps a text box for it
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    page.on('dialog', d => d.accept());
+    const bad = await open(page);
+    const sheet = page.frameLocator('#sheet iframe');
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
+    const off = page.locator('#checklist .clg.open .clrow.is-off .clt').first();
+    if (await off.count()){
+      await off.click(); await settle(page);
+      await page.keyboard.press('Enter'); await settle(page);
+      ok('a claim that is off this resume is written in the panel (there is no line to write on)', await page.isVisible('#ed') && (await lineEl(page).count()) === 0);
+      await page.keyboard.press('Escape'); await settle(page);
+    } else ok('this resume has a claim that is off', false);
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+}
+
 if (want('scrollbars')) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
@@ -658,7 +921,7 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   const total = await rows.count(), ticked = await page.locator('#checklist .clg[data-g=hydra] .clrow .cb:checked').count();
   ok('the job’s claims are all listed, the ones on this resume ticked, the others with an empty box', total === 7 && ticked === 4 && /4 of 7 on/.test(await page.textContent('#checklist .clg[data-g=hydra] .clcount')), `${ticked}/${total}`);
   ok('a row: a checkbox, the claim’s text, its version count', (await rows.first().locator('.cb').count()) === 1 && /\d v/.test(await rows.first().locator('.clv').textContent()));
-  ok('the job wears a chip on the page: its employer and how many lines are on', /Hydra Medical/.test(await page.textContent('.jobchip')) && /4 of 7 on/.test(await page.textContent('.jobchip')));
+  ok('the job wears a breadcrumb on the page: its employer and how many lines are on', /Hydra Medical/.test(await page.textContent('.obcrumb')) && /4 of 7 on/.test(await page.textContent('.obcrumb')));
 
   const n0 = await bullets(), undo0 = await page.evaluate(() => window.__wb.store.history.undo);
   const first = rows.first();
@@ -680,8 +943,8 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   ok('moving away puts the lights out', (await frameDoc(page, d => d.querySelectorAll('.rb-hover').length)) === 0);
   await rows.nth(1).locator('.clt').click(); await settle(page);
   ok('clicking a row’s text opens the claim in the inspector, with its versions', (await page.getAttribute('#body', 'data-view')) === 'bullet' && (await page.locator('.vrow').count()) >= 1 && (await page.evaluate(() => document.activeElement?.classList.contains('title'))));
-  await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc goes up to the job: its panel, with the Details fold shut', (await page.getAttribute('#body', 'data-view')) === 'job' && (await page.isVisible('details.details > summary')) && !(await page.isVisible('#c-pos')));
+  await page.click('.obcrumb [data-act=select-job]'); await settle(page);
+  ok('the job in the breadcrumb opens the job: its panel, with the Details fold shut', (await page.getAttribute('#body', 'data-view')) === 'job' && (await page.isVisible('details.details > summary')) && !(await page.isVisible('#c-pos')));
 
   // a job not on the page at all: its claims are listed and can be ticked
   const freeRows = page.locator('#checklist .clg[data-g=free]');
@@ -964,18 +1227,17 @@ if (want('the Edit view')) {
 
   const nBefore = (await st()).record.variants.length;
   await page.keyboard.press('Enter'); await settle(page);
-  ok('Enter opens the editor in place', await page.isVisible('#ed') && (await page.textContent('.ed-h')).startsWith('Editing v'));
-  await page.focus('#ed'); await page.keyboard.press('End');
-  await page.keyboard.type(' Zebra-check.'); await page.waitForTimeout(700);
+  ok('Enter writes the line on the page: an editable line in the frame, no text box in the panel', (await lineEl(page).count()) === 1 && !(await page.$('#ed')) && /Esc/.test(await page.textContent('#body .note')));
+  await appendLine(page, ' Zebra-check.'); await page.waitForTimeout(300);
   ok('the page redraws as you type', (await fb()).includes('Zebra-check.'));
-  ok('the editor counts lines on the page', /line/.test(await page.textContent('#ed-stats')));
+  ok('the tools count the characters and the lines on the page', /ch/.test(await page.textContent('#ob-stats')) && /ln/.test(await page.textContent('#ob-stats')));
   ok('nothing is committed while typing', (await page.evaluate(() => window.__wb.store.history.undo)) === base);
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc (after asking) closes it and puts the page back', !(await page.isVisible('#ed')) && (await fb()) === text0);
+  ok('Esc (after asking) leaves the line and puts the page back', (await lineEl(page).count()) === 0 && (await fb()) === text0);
 
   const using = await page.evaluate(f => { const w = window.__wb.store.state; const v = w.record.variants.find(x => x.id === (document.querySelector('.vrow.cur')?.dataset.v)); return v && { id: v.id, n: v.n }; }, fact);
   await page.click('.vrow.cur [data-act=edit]'); await settle(page);
-  await page.fill('#ed', 'Saved over with new words.'); await page.dispatchEvent('#ed', 'input'); await page.waitForTimeout(500);
+  await writeLine(page, 'Saved over with new words.');
   await page.click('[data-act=ed-save]'); await settle(page);
   const after = (await st()).record.variants.find(v => v.id === using.id);
   ok(`Save v${using.n} keeps the number and changes the words`, after.n === using.n && after.text === 'Saved over with new words.');
@@ -984,8 +1246,8 @@ if (want('the Edit view')) {
   ok('Ctrl+Z puts the old words back', (await fb()) === text0);
 
   await page.click('.vrow.cur [data-act=edit]'); await settle(page);
-  await page.fill('#ed', 'A sibling version.'); await page.dispatchEvent('#ed', 'input'); await page.waitForTimeout(400);
-  const asLabel = await page.textContent('[data-act=ed-saveas]');
+  await writeLine(page, 'A sibling version.');
+  const asLabel = await page.getAttribute('[data-act=ed-saveas]', 'aria-label');
   await page.click('[data-act=ed-saveas]'); await settle(page);
   const sib = (await st()).record.variants.find(v => v.text === 'A sibling version.');
   ok(`${asLabel.trim()} makes a sibling with one dot`, !!sib && /^\d+\.\d+$/.test(sib.n) && asLabel.trim() === 'Save as new version');
@@ -993,20 +1255,25 @@ if (want('the Edit view')) {
   ok('the old version is still there', (await st()).record.variants.length === nBefore + 1);
 
   await page.click('.vrow.cur [data-act=edit]'); await settle(page);
-  await page.fill('#ed', 'Only on this resume.'); await page.dispatchEvent('#ed', 'input'); await page.waitForTimeout(400);
+  await writeLine(page, 'Only on this resume.');
   await page.click('[data-act=ed-only]'); await settle(page);
   ok('this resume only writes a one-off text', (await st()).cur.overrides[fact] === 'Only on this resume.' && (await st()).record.variants.length === nBefore + 1);
   ok('it prints, and is listed as "only"', (await fb()) === 'Only on this resume.' && await page.isVisible('.vrow.only'));
+  await page.keyboard.press('Escape'); await settle(page);
   await sheet.locator('.bullets li').first().click(); await settle(page);
-  ok('clicking it on the page still selects the bullet', (await page.evaluate(() => window.__wb.ui.sel.id)) === fact);
+  ok('from the page, one click on it selects the bullet (the job level), and does not write it', (await page.evaluate(() => window.__wb.ui.sel.id)) === fact && (await lineEl(page).count()) === 0);
+  await sheet.locator('.bullets li').first().click(); await settle(page);
+  ok('a second click on a bullet of that job writes it', (await lineEl(page).count()) === 1);
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc leaves the line for the job: still selected, no longer written', (await lineEl(page).count()) === 0 && (await page.evaluate(() => window.__wb.ui.sel.id)) === fact);
   await page.click('[data-act=only-remove]'); await settle(page);
   ok('↺ goes back to the saved version', (await fb()) === 'A sibling version.');
 
   const major = await page.textContent('[data-act=new-version]');
   await page.click('[data-act=new-version]'); await settle(page);
-  ok('+ Write a new version opens the editor on a copy', await page.isVisible('#ed') && (await page.inputValue('#ed')) === 'A sibling version.');
+  ok('+ Write a new version writes a copy on the page', (await lineEl(page).count()) === 1 && (await lineText(page)) === 'A sibling version.');
   ok('and can’t save an unchanged copy', await page.isDisabled('[data-act=ed-new]'));
-  await page.fill('#ed', 'A whole new take.'); await page.dispatchEvent('#ed', 'input'); await page.waitForTimeout(400);
+  await writeLine(page, 'A whole new take.');
   await page.click('[data-act=ed-new]'); await settle(page);
   const nv = (await st()).record.variants.find(v => v.text === 'A whole new take.');
   ok(`${major.trim()} is the next whole number`, !!nv && !nv.n.includes('.') && major.includes(`v${nv.n}`));
@@ -1273,7 +1540,7 @@ if (want('saved resumes')) {
     const otherBefore = JSON.stringify((await st()).frozen[shared.other]);
     await page.frameLocator('#sheet iframe').locator(`[data-variant="${shared.variant}"]`).first().click(); await settle(page);
     await page.click('.vrow.cur [data-act=edit]'); await settle(page);
-    await page.fill('#ed', 'Brand new record wording.'); await page.dispatchEvent('#ed', 'input'); await page.waitForTimeout(300);
+    await writeLine(page, 'Brand new record wording.');
     await page.click('[data-act=ed-save]'); await page.waitForTimeout(800);
     ok('editing a version leaves every other saved resume’s text alone', JSON.stringify((await st()).frozen[shared.other]) === otherBefore);
     await page.click('#docname-btn'); await settle(page);
@@ -1349,7 +1616,9 @@ if (want('languages')) {
   await page.fill('#ed-new', 'Vitorlázás'); await page.click('[data-act=write-in]'); await page.waitForTimeout(1500);
   ok('saving writes Hungarian v1, and the page prints it', /Vitorlázás/.test(await frameDoc(page, d => d.body.textContent)) && (await st()).record.variants.some(v => v.lang === 'hu' && v.text === 'Vitorlázás' && v.n === '1'));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc from a line that is in no job goes straight to the page, and that puts the panel away', (await page.evaluate(() => document.body.dataset.folded)) === 'true');
+  ok('Esc from a line that is in no job goes to the page', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none');
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('…and one more puts the panel away', (await page.evaluate(() => document.body.dataset.folded)) === 'true');
   await page.keyboard.press('e'); await settle(page);
   const outlined = await frameDoc(page, d => d.querySelectorAll('.rb-miss').length);
   await page.click('.missbar .miss-go:has-text("Bookbinding")'); await settle(page);
@@ -1357,7 +1626,7 @@ if (want('languages')) {
   ok('"same in every language" takes it off the list', (await st()).record.same.some(k => /interest-bookbinding/.test(k)) && !(await page.$('.missbar .miss-go:has-text("Bookbinding")')));
   const after = await frameDoc(page, d => d.querySelectorAll('.rb-miss').length);
   ok('and off the page’s outlines', after === outlined - 1, `${outlined} → ${after}`);
-  await page.keyboard.press('Escape'); await settle(page); await page.keyboard.press('e'); await settle(page);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page); await page.keyboard.press('e'); await settle(page);
   await page.click('#langbtn'); await settle(page); await page.click('.langpop [data-act=lang][data-lang=en]'); await page.waitForTimeout(2000);
   ok('back to English', !(await st()).cur.lang && /Experience/i.test(await frameDoc(page, d => d.body.textContent)));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
@@ -1830,15 +2099,15 @@ if (want('one panel for a claim: from the page and from the checklist')) {
   ok('no keyboard hint paragraph under it: the keys are on the ? sheet', !(await page.$('#body .keys')) && !(await page.$('#body kbd')));
   const picks0 = JSON.stringify((await st()).cur.picks), n0 = await nOf();
   await page.click('#body .vrow.cur [data-act=edit]'); await settle(page);
-  ok('✎ opens the editor in place of the row, with “This resume only” (it is a resume you are in)', await page.isVisible('#ed') && !!(await page.$('#body [data-act=ed-only]')));
-  await page.fill('#ed', (await page.inputValue('#ed')) + ' Reworded.'); await settle(page);
+  ok('✎ writes the line on the page, with “Only on this resume” among its tools (it is a resume you are in)', (await lineEl(page).count()) === 1 && !(await page.$('#ed')) && !!(await page.$('#editlay [data-act=ed-only]')));
+  await appendLine(page, ' Reworded.'); await settle(page);
   await page.click('[data-act=ed-saveas]'); await page.waitForTimeout(900);
   ok('Save as vN.1 writes a version, and this resume uses it', (await nOf()) === n0 + 1 && JSON.stringify((await st()).cur.picks) !== picks0 && !(await page.$('#ed')));
   await page.click('#body [data-act=new-version]'); await settle(page);
-  await page.fill('#ed', 'A different take, for another kind of job.'); await page.click('[data-act=ed-new]'); await page.waitForTimeout(900);
+  await writeLine(page, 'A different take, for another kind of job.'); await page.click('[data-act=ed-new]'); await page.waitForTimeout(900);
   ok('+ Write a new version writes the next whole number', (await nOf()) === n0 + 2);
-  await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc goes up to the job: its group stays open in the checklist', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job' && (await page.$$('#checklist .clg.open')).length === 1);
+  await page.click('.obcrumb [data-act=select-job]'); await settle(page);
+  ok('the job in the breadcrumb goes to the job: its group stays open in the checklist', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job' && (await page.$$('#checklist .clg.open')).length === 1);
   const jobId = await page.evaluate(() => window.__wb.ui.sel.id);
   const hl = async () => (await st()).record.work.find(w => w.id === jobId).highlights.length;
   const h0 = await hl();
