@@ -55,7 +55,9 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            magnet, which page is bright, the spring), canvas (moves the sheet with the camera
                            and reads the wheel, the hand and the pinch), onpage (the three levels drawn over
                            the page, a line written where it is printed, its tools in the margin), plain (the
-                           text of a line being written, read back from the page)
+                           text of a line being written, read back from the page), start (the start screen:
+                           its header, inspector and footer areas, and the picture of how it works) with
+                           start.css (every colour a token, like the other two stylesheets)
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,
                            claims and new-resume (what a coding agent uses; see AGENTS.md), onefile (a folder ↔ the one file)
 checks/                    the Node checks, the Chromium smoke test, the guards

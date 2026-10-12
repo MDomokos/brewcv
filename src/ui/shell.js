@@ -311,6 +311,8 @@ function relayout(){
     document.body.dataset.stack = 'false';
     document.body.dataset.pages = canvas.scene;
   }
+  // the start screen's picture takes the page area left of the column
+  document.body.style.setProperty('--startw', `${Math.max(240, L.col.left - 2 * G_)}px`);
   renderFoot();
   renderChip();
 }
@@ -441,6 +443,7 @@ const VIEWS = {};
 function setView(v){
   if (v && !VIEWS[v]) return;
   ui.view = v;
+  syncIntro();                 // the start screen's areas are the editor's again before they are drawn
   if (ui.previewing) endPreview();
   resumes.reset();
   dock.sync();
@@ -456,6 +459,8 @@ function renderHead(){
   if (kept){ const n = $(`#head ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
 }
 function drawHead(){
+  // on the start screen the header area is the logo, the name and the tagline
+  if (document.body.classList.contains('is-intro')){ $('#head').innerHTML = onboarding.headHtml(); return; }
   const r = shown();
   const st = persist.status;
   const saving = st.status === 'saving' || st.status === 'pending';
@@ -552,8 +557,10 @@ function menuHtml(){
 
 function syncIntro(){
   const welcome = ui.view === 'welcome';
-  document.body.classList.toggle('is-intro', welcome && ['welcome', 'lang'].includes(onboarding.step));
-  document.body.classList.toggle('is-intro-wide', welcome && onboarding.step === 'welcome');
+  // the start screen (and the language question that follows a choice on it) is laid out in the editor's own areas
+  const intro = welcome && ['welcome', 'lang'].includes(onboarding.step);
+  document.body.classList.toggle('is-intro', intro);
+  onboarding.stage(intro);
   // onboarding from scratch is a quiet editor: the page and the question panel, nothing else
   document.body.classList.toggle('is-quiet', welcome && !['welcome', 'lang'].includes(onboarding.step));
 }
@@ -1046,6 +1053,7 @@ Object.assign(VIEWS, design.views);
 const onboarding = initOnboarding({ store, ui, persist, toast, setView, renderBody: (a) => renderBody(a), restyle: () => restyle() });
 Object.assign(VIEWS, onboarding.views);
 onboarding.bind($('#body'));
+window.__wb.onboarding = onboarding;
 const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi(r), edit, lang, select: s => select(s), renderBody: (a) => renderBody(a), renderTimeline: () => renderTimeline(),
   renderHead: () => renderHead(), photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 career.bind($('#body'));
@@ -1055,7 +1063,7 @@ checklist.bind($('#body'));
 window.__wb.checklist = checklist;
 const help = initHelp({ ui });
 window.__wb.help = help;
-const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, goToPage, renderAll: () => renderAll(), canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true) });
+const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, goToPage, renderAll: () => renderAll(), canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
 window.__wb.dock = dock;
 design.bind($('#body'));
 window.__wb.design = design;

@@ -9,7 +9,7 @@
 // and nothing here is in an export. The camera (src/ui/canvas.js) eases to the writing zoom and back.
 
 import { plainOf, caretOf, setCaret } from './plain.js';
-import { crumbBarHtml, toolsHtml, badgeListHtml, statsCompactHtml } from './parts.js';
+import { crumbBarHtml, toolsHtml, badgeListHtml, statsCompactHtml, esc } from './parts.js';
 import { readZoomWrite, readZoomWriteOn, readDimJob, readDimLine } from './dock.js';
 import { step, versionsOf } from './select.js';
 import * as T from '../model/resume.js';
@@ -90,7 +90,7 @@ export function initOnPage(C){
     if (lvl === 'line' && geom.line) html.push('<div class="obframe line"></div>');
     html.push(crumb(lvl));
     const tools = toolsFor(lvl);
-    if (tools) html.push(`<div class="obtoolswrap">${tools}</div>`);
+    if (tools) html.push(`<div class="obtoolswrap" role="region" aria-label="${esc(t('ux3.tools'))}">${tools}</div>`);
     lay.innerHTML = html.join('');
     lay.style.setProperty('--ob-paper', geom.boxes[0]?.bg ?? '#fff');
     place();

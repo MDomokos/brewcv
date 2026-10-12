@@ -891,7 +891,6 @@ if (want('the welcome language step, the interface language, Settings')) {
     const bad = await open(page, '?memory&welcome');
     await page.click('[data-act=ob-example]'); await page.waitForTimeout(1500);
     ok('storage blocked: English, and no error', (await ui(page)).lang === 'en' && bad.length === 0, bad[0] ?? '');
-    await page.keyboard.press('e'); await settle(page);
     await page.click('[data-act=menu]'); await page.click('[data-act=goto][data-v=settings]'); await settle(page);
     await page.click('[data-act=view][data-d]').catch(() => {});
     ok('Settings still opens', /Settings/.test(await page.textContent('#body .title')) && bad.length === 0, bad[0] ?? '');
@@ -1105,7 +1104,7 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   const pj = s.record.projects?.find(p => p.name === 'Formula Student chassis jig' && p.highlights?.length === 2);
   ok('a project goes in the record, with its claims and “during”', pj?.during === 'porto-meng');
   ok('it opens in the inspector as a job does, with its group open in the checklist', (await page.getAttribute('#body', 'data-view')) === 'job' && (await page.$$('#checklist .clg.open')).length === 1);
-  await page.keyboard.press('Escape'); await settle(page); await page.keyboard.press('e'); await settle(page);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page); await page.keyboard.press('e'); await settle(page);
   await page.click('[data-act=c-tl]'); await page.waitForTimeout(600);
   ok('it shows on the timeline beside the degree, saying so', /during Universidade do Porto/.test(await page.textContent('#timeline .tl2')));
   await page.keyboard.press('Escape'); await settle(page);
@@ -1130,7 +1129,7 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   await page.click('[data-act=c-create]'); await page.waitForTimeout(1000);
   ok('the entry is a JSON Resume award', (await st()).record.awards?.[0]?.title === 'Best student design');
   ok('it is listed in its own group in the checklist, which opens', /Best student design/.test(await page.textContent('#checklist .clg[data-g=awards]')) && (await page.$$('#checklist .clg[data-g=awards].open')).length === 1);
-  await page.keyboard.press('Escape'); await settle(page); await page.keyboard.press('e'); await settle(page);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page); await page.keyboard.press('e'); await settle(page);
   await page.click('.offchip[data-id=awards]'); await page.waitForTimeout(2000);
   ok('put on a resume, it prints as a run line', (await frameDoc(page, d => d.body.textContent)).includes('Best student design · Example Society · 2020'));
   // another list kind, then delete Awards moving its entry there
@@ -1160,7 +1159,7 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   ok('it is a JSON Resume reference with a text behind it', s.record.references?.[0]?.name === 'Ana Exemplo' && s.record.facts.some(f => f.id === s.record.references[0].id));
   ok('it shows under References in Skills and credentials', /Ana Exemplo/.test(await page.textContent('#checklist .clg[data-g=credentials]')));
   ok('the resume does not print it yet', !(await frameDoc(page, d => d.body.textContent)).includes('Ana Exemplo'));
-  await page.keyboard.press('Escape'); await settle(page); await page.keyboard.press('e'); await settle(page);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page); await page.keyboard.press('e'); await settle(page);
   await page.click('.offchip[data-id=references]'); await page.waitForTimeout(2000);
   ok('put on the resume, it prints the name and the text', (await frameDoc(page, d => d.body.textContent)).includes('Ana Exemplo') && (await frameDoc(page, d => d.body.textContent)).includes('dose counter in a week'));
   await page.click('#seclist .srow[data-sid=references] input'); await page.waitForTimeout(2000);
@@ -1933,7 +1932,7 @@ if (want('onboarding and the record')) {
   const st = () => page.evaluate(() => window.__wb.store.state);
   const text = () => frameDoc(page, d => d.body.textContent);
   ok('a first visit starts on the introduction, with the three ways in and no language step yet', (await page.getAttribute('#body', 'data-view')) === 'welcome' && (await page.$$('.obchoices button')).length === 3 && !(await page.$('[data-act=ob-lang-go]')));
-  ok('and the “Yours to keep” banner, which says it is private', /Yours to keep/.test(await page.textContent('#body')) && /Private/.test(await page.textContent('.obkeep')));
+  ok('and the “Yours to keep” banner, which says it is private', /Yours to keep/.test(await page.textContent('#foot')) && /Private/.test(await page.textContent('.obkeep')));
   await page.click('[data-act=ob-scratch]'); await settle(page);
   ok('choosing one asks for the language', !!(await page.$('[data-act=ob-lang-go]')));
   await page.click('[data-act=ob-lang-go]'); await page.waitForTimeout(1200);
@@ -2302,9 +2301,129 @@ if (want('drinks: the page marks, exports, the corner at other sizes')) {
     const c = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const p = await c.newPage();
     await open(p, '?memory&welcome', { drink });
-    ok(`${drink}: the start screen has the question as a slim bar above the cards`, await p.evaluate(() => { const b = document.querySelector('#brewmode').getBoundingClientRect(), card = document.querySelector('.obcard').getBoundingClientRect(); return b.bottom < card.top && b.top < 30 && b.width > 250 && b.height < 60; }));
-    ok(`${drink}: the cards are the drink’s own surface, and the start button is the one filled control`, await p.evaluate(d => { const c = getComputedStyle(document.querySelector('.obcard')); const prim = [...document.querySelectorAll('.obchoices button.primary')]; return c.backgroundColor === (d === 'tea' ? 'rgb(46, 70, 54)' : 'rgb(255, 255, 255)') && prim.length === 1; }, drink));
+    ok(`${drink}: the start screen has the question as a slim bar at the top of the page area`, await p.evaluate(() => { const b = document.querySelector('#brewmode').getBoundingClientRect(), col = document.querySelector('#col').getBoundingClientRect(); return b.right < col.left && b.top < 30 && b.width > 250 && b.height < 60; }));
+    ok(`${drink}: the inspector is the drink’s own surface, and the start button is the one filled control`, await p.evaluate(d => { const c = getComputedStyle(document.querySelector('#body')); const prim = [...document.querySelectorAll('.obchoices button.primary')]; return c.backgroundColor === (d === 'tea' ? 'rgb(46, 70, 54)' : 'rgb(255, 255, 255)') && prim.length === 1; }, drink));
     await c.close();
+  }
+}
+
+// The start screen (UX-3), built from the editor's own areas: the header, the inspector and the footer are the column; the page area
+// holds the picture of how it works. The three ways in change state rather than screens.
+const ssOf = page => page.evaluate(() => { const ss = document.querySelector('#ss'); return ss ? { step: ss.dataset.step, ly: ss.dataset.ly, front: ss.dataset.front, type: ss.dataset.type, cap: document.querySelector('#sscap')?.textContent ?? '', prog: document.querySelector('.ssprog i')?.style.width ?? '' } : null; });
+const nOfMs = page => page.evaluate(() => [...document.querySelectorAll('#ss .ssk[data-k]')].map(k => k.textContent));
+
+if (want('the start screen: the editor’s areas, the story, the three ways in')) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  const bad = [];
+  page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
+  page.on('pageerror', e => bad.push(String(e)));
+  await page.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch {} });
+  await page.goto(URL_('?memory&welcome'), { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.body.classList.contains('is-ready'));
+  await page.waitForTimeout(800);
+  const r = s => page.$eval(s, el => { const b = el.getBoundingClientRect(); return { left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: b.width, height: b.height }; });
+
+  // the areas
+  const head = await r('#head'), body = await r('#body'), foot = await r('#foot'), col = await r('#col'), stage = await r('#ss');
+  ok('the start screen is the editor’s own layout: the column on the right holds a header, the inspector and a footer, in that order', head.bottom <= body.top + 1 && body.bottom <= foot.top + 1 && Math.abs(col.right - 1440 + 16) < 2 && col.width >= 340 && col.width <= 420);
+  ok('the page area holds the picture, left of the column and clear of it', stage.right <= col.left && stage.left >= 0 && stage.width > 500);
+  ok('header area: the logo, the name and the tagline', /BrewCV/.test(await page.textContent('#head .oblogo')) && /One record\. Every resume\./.test(await page.textContent('#head .obhero')) && /tailored to each job/.test(await page.textContent('#head .obsub')));
+  ok('inspector area: the three ways in, with the start button the one filled control', (await page.$$('#body .obchoices button')).length === 3 && (await page.$$('#body .obchoices button.primary')).length === 1 && /Start from scratch/.test(await page.textContent('#body .obchoices .primary')));
+  ok('…the interface language row, one chip for each of the ten languages', (await page.$$('#body .oblangs .oblang')).length === 10 && (await page.getAttribute('#body .oblang.on', 'data-l')) === 'en');
+  const bodyH = (await r('#body')).height;
+  await page.click('#body .obwhy summary'); await settle(page);
+  ok('“Why JSON?” opens in place: its four points and the link, inside the inspector', (await page.isVisible('#body .obwhy li')) && (await page.$$('#body .obwhy li')).length === 4 && /File over app|Steph Ango/.test(await page.textContent('#body .obwhy')) && (await r('#body')).height > bodyH);
+  await page.click('#body .obwhy summary'); await settle(page);
+  ok('footer area: the four “Yours to keep” points, private first among them, JSON Resume linked', (await page.$$('#foot .obtile')).length === 4 && /Private/.test(await page.textContent('#foot')) && !!(await page.$('#foot a[href="https://jsonresume.org/schema"]')));
+  ok('…light, and not equal to the inspector: no card around them', await page.evaluate(() => { const f = getComputedStyle(document.querySelector('#foot')); return f.backgroundColor === 'rgba(0, 0, 0, 0)' && f.boxShadow === 'none'; }));
+  ok('nothing of the editor shows: no rail, no zoom bar, no meter, no Fit, and the sheet waits', !(await page.isVisible('#rail')) && !(await page.$('[data-act=fit]')) && (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'hidden');
+
+  // the story: four steps, named above their zones
+  const heads = await page.$$eval('#ss .ssh button', bs => bs.map(b => `${b.querySelector('.n').textContent} ${b.querySelector('b').textContent}`));
+  ok('four step names are the only numbers, set as headers above the zones', JSON.stringify(heads) === JSON.stringify(['1 Bring in what you have', '2 Keep several wordings', '3 Tailor to each job', '4 Export']), JSON.stringify(heads));
+  ok('…under the picture sit a progress bar, one instruction line and a replay button, and no dots', !!(await page.$('#ss .ssprog')) && (await page.textContent('#sscap')).length > 20 && !!(await page.$('#ss [data-act=ob-replay]')) && !(await page.$('#ss .obdots')));
+  ok('the record is the editor panel’s own checklist: two jobs open, the rest folded, ticks and version counts', await page.evaluate(() => { const r = document.querySelector('#ss .ss-rec'); return r.querySelectorAll('.ssg.open').length === 2 && r.querySelectorAll('.ssg.shut').length >= 2 && r.querySelectorAll('.cb').length >= 6 && r.querySelectorAll('.ssv').length >= 6; }));
+  ok('the page area starts with the page drawn as grey lines', await page.evaluate(() => { const pg = document.querySelector('#ss .ss-page'); return pg.querySelectorAll('i').length > 15 && getComputedStyle(pg).backgroundColor !== 'rgba(0, 0, 0, 0)'; }));
+
+  // it plays: step 1, then 2 with the layers, then 3 and 4, by itself
+  await page.evaluate(() => window.__wb.onboarding.start.replay());
+  await page.waitForTimeout(1200);
+  const s1 = await ssOf(page);
+  ok('it starts playing at step 1 by itself, and says what it is doing', s1.step === '1' && /old resume/.test(s1.cap));
+  const seq = [];
+  const t0 = Date.now();
+  while (Date.now() - t0 < 14000 && !(await ssOf(page)).step.startsWith('3')){ const x = await ssOf(page); const k = `${x.step}:${x.ly}`; if (seq.at(-1) !== k) seq.push(k); await page.waitForTimeout(100); }
+  const two = seq.filter(k => k.startsWith('2:')).map(k => k.slice(2)).join(' ');
+  ok('step 2 plays the layers, as the editor draws them: the page, then the job (a click), then the line (a second click), then back to the job and the page (Esc, Esc)', two === 'page job line job page', two);
+  const lyText = await page.evaluate(() => document.querySelector('#ss .sscrumb').innerText.replace(/\s+/g, ' ').trim());
+  ok('…the breadcrumb is the editor’s: Page › Job › Line, with Esc beside it', /^Page › Job › Line Esc$/.test(lyText), lyText);
+  await page.waitForFunction(() => document.querySelector('#ss')?.dataset.step === '3', null, { timeout: 12000 }).catch(() => {});
+  const ticks3 = await nOfMs(page);
+  await page.waitForTimeout(3500);
+  ok('step 3 tailors: other lines ticked for another kind of job', JSON.stringify(await nOfMs(page)) !== JSON.stringify(ticks3) || (await ssOf(page)).type !== 'start', `${JSON.stringify(ticks3)} → ${JSON.stringify(await nOfMs(page))}`);
+  await page.waitForFunction(() => document.querySelector('#ss')?.dataset.step === '4', null, { timeout: 15000 });
+  await page.waitForTimeout(2000);
+  const rest = await page.evaluate(() => { const pg = document.querySelector('#ss .ss-page').getBoundingClientRect(), ex = document.querySelector('#ss .ssx[data-i="0"]').getBoundingClientRect(); return { dx: Math.abs(pg.left - ex.left), dy: Math.abs(pg.top - ex.top), dw: Math.abs(pg.width - ex.width) }; });
+  ok('step 4: the page shrinks into the front resume of the stack, which is the resting view', rest.dx < 4 && rest.dy < 4 && rest.dw < 4, JSON.stringify(rest));
+  ok('…three resumes with a label row beside each: job type, language, paper, pages, file', await page.evaluate(() => [...document.querySelectorAll('#ss .sslab')].map(b => b.innerText.replace(/\s+/g, ' ').trim()).join('|')) === 'Startup EN · Letter · 1 page HTML|Big company DE · A4 · 2 pages TXT|Public sector HU · A4 · 1 page PDF', await page.evaluate(() => [...document.querySelectorAll('#ss .sslab')].map(b => b.innerText.replace(/\s+/g, ' ').trim()).join('|')));
+  const t4 = await nOfMs(page);
+  await page.hover('#ss .sslab[data-i="1"]'); await page.waitForTimeout(500);
+  const s4 = await ssOf(page);
+  ok('pointing at a label row brings that resume forward and shows its ticks in the record', s4.front === '1' && JSON.stringify(await nOfMs(page)) !== JSON.stringify(t4) && (await page.getAttribute('#ss .sslab[data-i="1"]', 'aria-pressed')) === 'true', JSON.stringify(s4));
+  await page.click('#ss .ssh button[data-s="2"]'); await page.waitForTimeout(400);
+  const j2 = await ssOf(page);
+  ok('a step name goes to that step, and the autoplay stops', j2.step === '2' && /Your own words/.test(j2.cap) && j2.prog === '50%');
+  await page.click('#ss [data-act=ob-replay]'); await page.waitForTimeout(900);
+  ok('Replay starts it again from the beginning', ['0', '1'].includes((await ssOf(page)).step));
+
+  // language chips preview in place, on hover; a click keeps it
+  const chipBefore = await page.evaluate(() => { const c = document.querySelector('.oblang[data-l=de]'); c.dataset.mark = 'same'; return document.querySelector('#head .obhero').textContent; });
+  await page.hover('.oblang[data-l=de]'); await page.waitForTimeout(900);
+  ok('hovering a language chip shows the whole screen in that language, in place (the chip is not redrawn)', (await page.textContent('#head .obhero')) !== chipBefore && (await page.getAttribute('.oblang[data-l=de]', 'data-mark')) === 'same');
+  await page.mouse.move(700, 800); await page.waitForTimeout(700);
+  ok('…and moving away puts it back', (await page.textContent('#head .obhero')) === chipBefore);
+
+  // choosing: a state change, not another screen
+  await page.click('[data-act=ob-example]'); await page.waitForTimeout(1500);
+  ok('“Try it with an example” turns the intro parts into the editor’s controls: the same column, now the editor’s header, panel and footer', !(await page.evaluate(() => document.body.classList.contains('is-intro'))) && await page.isVisible('#head [role=tablist]') && await page.isVisible('#foot [data-act=fit]'));
+  ok('…the grey lines give way to the real page, which fades in where they were', (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'visible' && (await page.evaluate(() => getComputedStyle(document.querySelector('#startstage')).visibility)) === 'hidden' && /Okonkwo|Dana/.test(await frameDoc(page, d => d.body.textContent)));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('the start screen: other windows, a phone, reduced motion, a record that exists')) {
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1100, height: 760 } });
+    const page = await ctx.newPage();
+    const bad = await open(page, '?memory&welcome');
+    const col = await page.$eval('#col', el => { const b = el.getBoundingClientRect(); return { left: b.left, width: b.width, scroll: el.scrollHeight <= el.clientHeight + 2 || getComputedStyle(el).overflowY === 'auto' }; });
+    const stage = await page.$eval('#ss', el => el.getBoundingClientRect().toJSON());
+    ok('1100×760: the picture and the column share the window without overlap, and the column scrolls rather than cutting anything off', stage.right <= col.left && col.scroll && (await page.evaluate(() => document.documentElement.scrollWidth)) <= 1100);
+    ok('…the three ways in are all reachable', await page.evaluate(() => [...document.querySelectorAll('#body .obchoices button')].every(b => { const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })));
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const page = await ctx.newPage();
+    const bad = await open(page, '?memory&welcome');
+    const at = await page.evaluate(() => ['#head', '#body', '#startstage', '#foot'].map(s => Math.round(document.querySelector(s).getBoundingClientRect().top + document.querySelector('#col').scrollTop)));
+    ok('a phone: stacked, the buttons first, then the picture, then what you keep', at[0] < at[1] && at[1] < at[2] && at[2] < at[3], JSON.stringify(at));
+    ok('…nothing runs off the side', (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390 && (await page.evaluate(() => { const s = document.querySelector('#ss .ss-frame').getBoundingClientRect(); return s.left >= 0 && s.right <= innerWidth + 1; })));
+    ok('…the step names stand in a grid above the picture', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .ss-heads')).display === 'grid'));
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+    const page = await ctx.newPage();
+    const bad = await open(page, '?memory&welcome');
+    await page.waitForTimeout(300);
+    const s = await ssOf(page);
+    ok('with reduced motion the picture opens on its resting view: nothing plays, nothing moves', s.step === '4' && await page.evaluate(() => [...document.querySelectorAll('#ss *')].every(e => getComputedStyle(e).transitionDuration.split(',').every(d => parseFloat(d) === 0) || e.tagName === 'svg')));
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
   }
 }
 
@@ -2326,6 +2445,13 @@ if (want('accessibility: axe-core on every view')) {
         const v = await pg.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map(n => n.target.join(' ') + (n.any?.[0]?.data?.contrastRatio ? ` [${n.any[0].data.fgColor} on ${n.any[0].data.bgColor} ${n.any[0].data.contrastRatio}]` : '')).join(' | ')}`));
         ok(`axe-core, ${drink} ${theme}: ${name}`, v.length === 0, v.join(' ; '));
       };
+      // the start screen: at the start, and at rest
+      const pw = await ctx.newPage();
+      await open(pw, '?memory&welcome', { drink, theme });
+      await runAxe(pw, 'the start screen');
+      await pw.evaluate(() => window.__wb.onboarding.start.setStep(4, { user: true })); await pw.waitForTimeout(1500);
+      await runAxe(pw, 'the start screen, at rest');
+      await pw.close();
       await runAxe(page, 'Edit, nothing selected');
       await page.click('#checklist .clg[data-g=hydra] .clcaret'); await settle(page);
       await runAxe(page, 'a checklist group open');

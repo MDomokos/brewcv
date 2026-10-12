@@ -185,6 +185,8 @@ export const renderFoot = () => keepFocus('#foot', drawFoot);
 function drawFoot(){
   const el = $('#foot');
   if (!el) return;
+  // on the start screen the footer area is "Yours to keep"
+  if (document.body.classList.contains('is-intro')){ el.classList.remove('is-vertical'); el.innerHTML = C.startFoot(); return; }
   const u = C.ui, hs = C.store.history;
   const pct = Math.round((u.zoom ?? 1) * 100);
   const f = folded();
