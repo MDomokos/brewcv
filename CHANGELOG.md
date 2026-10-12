@@ -6,6 +6,9 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ## Unreleased
 
+### Changed
+- **AGENTS.md covers what a person may ask a coding agent for beyond picking.** New wording goes into the record as new versions, each with a source, never as the default, and tagged `needs-review` in any language but English. A saved resume already in the one file can be changed in place, with every other saved resume checked to print exactly as before. It also says how to measure page fill, what to look for in the PDF, and why a claim without a source makes the tools refuse the whole record.
+
 ## 0.9.1 - 2026-10-12
 
 ### Added
