@@ -13,7 +13,7 @@ import { play, reduced, dur, cancel } from './motion.js';
 import { onDrinkBefore, onDrinkChange } from './drink.js';
 
 const root = document.documentElement;
-const TEA = ['mat-a', 'mat-b', 'mat-c', 'mat-gap', 'mat-thread', 'mat-wash'], COFFEE = ['canvas', 'grid-major', 'grid-minor'];
+const TEA = ['mat-a', 'mat-b', 'mat-c', 'mat-gap', 'mat-thread', 'mat-wash', 'mat-lit'], COFFEE = ['canvas', 'grid-major', 'grid-minor'];
 const PEEK = 0.16;                     // how far a hover rolls the mat: a sixth of the canvas
 // the slats are solid, so the roll goes slat by slat, not smoothly: about one step for every 34 px of canvas
 const steps = frac => `steps(${Math.max(3, Math.round(innerHeight * frac / 34))}, jump-end)`;
