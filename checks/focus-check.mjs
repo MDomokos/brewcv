@@ -198,17 +198,26 @@ section('job types as bundles of tags');
   ok('a tag named like a job type id is not listed twice', tags.filter(x => x.tag === 'Medical devices').length === 1);
 }
 
-section('the Highlight lens offers job types, and topic tags apart');
+section('one tagging system: the Highlight lens lists every tag, and a tag reaches every item');
 {
   const m2 = clone(model);
-  // tags that name a section, or mark an old claim, are not what a job asks for
-  const v = m2.variants[0]; v.tags = [...new Set([...(v.tags ?? []), 'identity', 'archive', 'education', 'work-history', 'cad'])];
+  const v = m2.variants[0]; v.tags = [...new Set([...(v.tags ?? []), 'identity', 'archive', 'education', 'cad'])];
   const lens = F.lensChoices(m2, 'en');
-  ok('job types come first, as the lens’s own list', lens.types.length === F.jobTypesOf(m2).length && lens.types.every(x => x.jobType));
-  ok('the topic tags are the rest, with their counts', lens.topics.every(x => !x.jobType && x.n > 0) && lens.topics.some(x => x.tag === 'cad'));
-  ok('a structural tag is never listed: ' + F.STRUCTURAL_TAGS.join(', '), !lens.topics.some(x => F.STRUCTURAL_TAGS.includes(x.tag)) && lens.topics.length > 0);
-  ok('every structural tag is one the record can still hold', F.STRUCTURAL_TAGS.includes('archive') && F.STRUCTURAL_TAGS.includes('identity') && F.STRUCTURAL_TAGS.includes('work-rights'));
-  ok('a job type that is also a tag on versions is listed once, as the type', !lens.topics.some(x => lens.types.some(y => y.tag === x.tag)));
+  ok('job types (bundles of tags) come first', lens.types.length === F.jobTypesOf(m2).length && lens.types.every(x => x.jobType));
+  ok('then every tag there is, with its count: nothing is hidden, not even identity, education or archive', ['identity', 'education', 'archive', 'cad'].every(t => lens.tags.some(x => x.tag === t)) && lens.tags.every(x => !x.jobType && x.n > 0));
+  ok('a job type that is also a tag on versions is listed once', !lens.tags.some(x => lens.types.some(y => y.tag === x.tag)));
+  ok('there is no second list of tags kept out of the lens', F.STRUCTURAL_TAGS === undefined);
+  // a tag on a skill group or a language is as good as one on a bullet
+  const m3 = clone(model), r = clone(en[0]);
+  const sid = 'skills', ids = T.itemsOf(m3, sid);
+  const target = ids[0];
+  const vs = m3.facts.find(f => f.id === target).variants.map(id => m3.variants.find(x => x.id === id)).filter(x => (x.lang ?? 'en') === 'en');
+  vs[0].tags = [...(vs[0].tags ?? []), 'zz-tag'];
+  F.applyTag(m3, r, 'zz-tag');
+  ok('the tag is found on the skill group by Highlight and by the plan', F.tagHits(m3, 'zz-tag', 'en').has(target) && F.planTag(m3, clone(en[0]), 'zz-tag').hits.has(target));
+  const r2 = clone(en[0]); T.setItemOn(m3, r2, target, false); const before = JSON.stringify(r2);
+  const p2 = F.planTag(m3, r2, 'zz-tag');
+  ok('applying turns a tagged item that is off back on, and picks its tagged version; one with no tag is not touched', p2.on >= 1 && (() => { F.applyTag(m3, r2, 'zz-tag'); return !(r2.off ?? []).includes(target) && r2.picks?.[target] === vs[0].id; })());
 }
 
 console.log(failed ? `\n${failed} focus check(s) FAILED` : '\nall focus checks passed');

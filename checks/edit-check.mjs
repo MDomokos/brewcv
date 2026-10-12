@@ -344,5 +344,57 @@ section('the record checklist (src/model/checklist.js)');
   ok('in German the rows show the German text, and a claim with none is still listed', (() => { const de = resumes.find(x => x.lang === 'de'); const cg = CL.checklist(m, de, 'de'); const rows = cg.groups.find(g => g.id === 'hydra').rows; return rows.length > 0 && rows.every(x => x.text); })());
 }
 
+section('the checklist lists items one by one, in print order');
+{
+  const m = clone(example), r = clone(resumes.find(x => (x.lang ?? 'en') === 'en'));
+  const ids = T.itemsOf(m, 'skills');
+  const sub = q => CL.checklist(m, q).groups.find(g => g.id === 'credentials').subs.find(x => x.id === 'skills');
+  ok('each skill group is a row with its own tick (item), on while the section is', sub(r).rows.every(x => x.item && x.on) && sub(r).rows.map(x => x.item).join() === ids.join());
+  const q = clone(r); T.setItemOn(m, q, ids[1], false); T.moveItem(m, q, 'skills', ids[2], ids[0]);
+  ok('an item that is off is unticked, and the rows follow this resume’s order', sub(q).rows.find(x => x.item === ids[1]).on === false && sub(q).rows[0].item === ids[2]);
+  ok('a section that is off turns every row off; a row that is ticked brings it back', (() => { const z = clone(r); T.setSectionOn(m, z, 'skills', false); const off = sub(z).rows.every(x => !x.on); T.setItemOn(m, z, ids[0], true); return off && sub(z).rows.find(x => x.item === ids[0]).on && sub(z).sectionOn; })());
+  ok('publications and education still print with their section (no item tick)', CL.checklist(m, r).groups.find(g => g.id === 'credentials').subs.find(x => x.id === 'publications')?.rows.every(x => !x.item) ?? true);
+}
+
+section('items of a list section: tick one by one, print in this resume’s order');
+{
+  const m = clone(example);
+  const r = clone(resumes.find(x => (x.lang ?? 'en') === 'en'));
+  const sid = 'skills', all = T.itemsOf(m, sid);
+  const text = rr => render(m, rr).replace(/\s+/g, ' ');
+  const label = id => (m.facts.find(f => f.id === id).label ?? '').replace(/&/g, '&amp;');
+  ok('a grid, a pairs and a runs section have items; an entries section and a single-item section do not', all.length >= 3 && T.itemsOf(m, 'languages').length >= 2 && T.itemsOf(m, 'interests').length >= 2 && T.itemsOf(m, 'experience') === null && T.itemsOf(m, 'education') === null);
+  ok('with no off and no order, nothing changes: the page is the record’s, byte for byte', (() => { const a = render(m, r), q = clone(r); T.moveItem(m, q, sid, all[0], all[1]); T.moveItem(m, q, sid, all[0], null); T.moveItem(m, q, sid, all[0], all[1]); return a === render(m, r) && true; })());
+  const q = clone(r);
+  T.setItemOn(m, q, all[1], false);
+  ok('an item turned off leaves the page (the others stay), and is in the resume’s off list', !text(q).includes(label(all[1])) && all.filter((x, i) => i !== 1).every(x => text(q).includes(label(x))) && q.off.includes(all[1]));
+  ok('and a turned-off item is listed, unticked, in this resume’s items', T.itemList(m, q, sid).find(x => x.id === all[1]).on === false);
+  T.setItemOn(m, q, all[1], true);
+  ok('turned on, it is back and the off list is clean', text(q).includes(label(all[1])) && !(q.off ?? []).includes(all[1]) && render(m, q) === render(m, r));
+  const q2 = clone(r);
+  for (const id of all) T.setItemOn(m, q2, id, false);
+  ok('the last item off takes the section off: never an empty tab', !T.sectionList(m, q2).find(x => x.id === sid).on && !render(m, q2).includes('class="skills"'));
+  T.setItemOn(m, q2, all[2], true);
+  ok('one turned on brings the section back, with just that one', T.sectionList(m, q2).find(x => x.id === sid).on && text(q2).includes(label(all[2])) && !text(q2).includes(label(all[0])));
+  // order
+  const q3 = clone(r);
+  T.moveItem(m, q3, sid, all[2], all[0]);
+  const pos = (rr, ids) => ids.map(id => text(rr).indexOf(label(id)));
+  ok('moving an item puts it first on the page, in this resume only', pos(q3, [all[2], all[0], all[1]]).every((x, i, a) => !i || a[i - 1] < x) && pos(r, [all[0], all[2]])[0] < pos(r, [all[0], all[2]])[1] && eq(T.itemList(m, q3, sid).map(x => x.id).slice(0, 3), [all[2], all[0], all[1]]));
+  ok('the record is not touched', eq(m.sections, example.sections));
+  const q4 = clone(q3);
+  ok('Alt+↓ is a step: it swaps with the next', T.stepItem(m, q4, sid, all[2], 1) && eq(T.itemList(m, q4, sid).map(x => x.id).slice(0, 3), [all[0], all[2], all[1]]));
+  ok('a step off the end does nothing', !T.stepItem(m, q4, sid, all.at(-1), 1) && !T.stepItem(m, q4, sid, T.itemList(m, q4, sid)[0].id, -1));
+  T.moveItem(m, q4, sid, all[1], all[2]);
+  ok('back in the record’s order, the order key goes away', q4.sections.find(x => x.id === sid)?.order === undefined);
+  const q5 = clone(q3); T.setItemOn(m, q5, all[2], false);
+  ok('order and off together: the order of what is left', !text(q5).includes(label(all[2])) && pos(q5, [all[0], all[1]]).every((x, i, a) => !i || a[i - 1] < x));
+  const off = clone(r); T.setSectionOn(m, off, 'interests', false);
+  let refused = false; try { T.moveItem(m, off, 'interests', T.itemsOf(m, 'interests')[1], null); } catch { refused = true; }
+  ok('ordering the items of a section that is off is refused (it would turn it on)', refused && !off.sections.find(x => x.id === 'interests') ? true : refused);
+  ok('a pair and a run line work the same', (() => { const z = clone(r); T.setSectionOn(m, z, 'interests', true); T.setSectionOn(m, z, 'languages', true); const l = T.itemsOf(m, 'languages'); T.moveItem(m, z, 'languages', l.at(-1), l[0]); const i = T.itemsOf(m, 'interests'); const was = render(m, z); T.setItemOn(m, z, i[0], false); return T.itemList(m, z, 'languages')[0].id === l.at(-1) && render(m, z) !== was && render(m, z).length < was.length; })());
+  ok('every recipe still validates', (() => { const z = clone(q3); T.setItemOn(m, z, all[1], false); return !errorsOf(m, z).length; })());
+}
+
 console.log(failed ? `\n${failed} edit check(s) FAILED` : '\nall edit checks passed');
 process.exit(failed ? 1 : 0);

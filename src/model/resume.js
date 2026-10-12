@@ -524,6 +524,63 @@ export function stepSection(model, recipe, id, dir){
   return { ...moveSection(model, recipe, id, dir < 0 ? ids[j] : ids[j + 1] ?? null), moved: true };
 }
 
+// The items of a list section (skill groups, language pairs, run lines), in the record's order. null for any
+// other kind: an entries section has bullets, the rest print as one item and are switched as a section.
+const LIST_KEY = { grid: 'groups', pairs: 'pairs', runs: 'items' };
+export function itemsOf(model, sid){
+  const sec = factIx(model).sections.get(sid);
+  const key = sec && LIST_KEY[sec.kind];
+  return key ? (sec.content[key] ?? []).filter(x => typeof x === 'string') : null;
+}
+// …in this resume's order, with the ones it leaves out marked
+export function itemList(model, recipe, sid){
+  const all = itemsOf(model, sid);
+  if (!all) return null;
+  const order = entryOf(recipe, sid)?.order;
+  const ids = Array.isArray(order) && order.length ? [...order.filter(x => all.includes(x)), ...all.filter(x => !order.includes(x))] : all;
+  const off = new Set(offOf(recipe));
+  return ids.map(id => ({ id, on: !off.has(id) }));
+}
+export const sectionOfItem = (model, id) => (model.sections ?? []).find(s => (itemsOf(model, s.id) ?? []).includes(id))?.id ?? null;
+
+// Switch one item of a list section. The last one off takes the section off, and one turned on brings it back,
+// so a printed section is never an empty tab.
+export function setItemOn(model, recipe, id, on){
+  const sid = sectionOfItem(model, id);
+  if (!sid) throw new Error(`${id} is not an item of any list section`);
+  setList(recipe, 'off', id, !on);
+  const list = itemList(model, recipe, sid);
+  const secOn = sectionList(model, recipe).find(x => x.id === sid)?.on;
+  if (!on && list.every(x => !x.on) && secOn) setSectionOn(model, recipe, sid, false);
+  if (on && !secOn) setSectionOn(model, recipe, sid, true);
+  return { section: sid };
+}
+
+// Put an item before another of its section (null: last), in this resume only.
+export function moveItem(model, recipe, sid, id, beforeId = null){
+  const list = itemList(model, recipe, sid);
+  if (!list || !list.some(x => x.id === id)) throw new Error(`${id} is not an item of ${sid}`);
+  const ids = list.map(x => x.id).filter(x => x !== id);
+  const at = beforeId == null ? ids.length : ids.indexOf(beforeId);
+  ids.splice(at < 0 ? ids.length : at, 0, id);
+  recipe.sections ??= [];
+  let e = entryOf(recipe, sid);
+  if (!e){
+    // an entry for a section that is off would turn it on
+    if (!Array.isArray(recipe.pages) && !sectionList(model, recipe).find(x => x.id === sid)?.on) throw keyed('ux2.errItemSectionOff');
+    e = { id: sid }; recipe.sections.push(e);
+  }
+  const natural = itemsOf(model, sid);
+  if (ids.every((x, i) => x === natural[i])) delete e.order; else e.order = ids;
+}
+export function stepItem(model, recipe, sid, id, dir){
+  const ids = itemList(model, recipe, sid)?.map(x => x.id) ?? [];
+  const i = ids.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return false;
+  moveItem(model, recipe, sid, id, dir < 0 ? ids[j] : ids[j + 1] ?? null);
+  return true;
+}
+
 // A heading on this resume, per language. null or '' resets it.
 export function setSectionLabel(model, recipe, id, lang, text){
   if (isFixed(model, id) && factIx(model).sections.get(id)?.kind === 'header') throw keyed('error.headerNoHeading');

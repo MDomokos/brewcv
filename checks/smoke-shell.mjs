@@ -1147,10 +1147,7 @@ if (want('tags and focus')) {
   const bad = await open(page);
   const st = () => page.evaluate(() => window.__wb.store.state);
   await openByName(page, 'Medtech'); await page.waitForTimeout(300);
-  ok('the Edit panel has one lens row: Highlight, with the job types to choose from, never a tag', await page.isVisible('#lens') && (await page.$$('#lens option')).length >= 4 && (await page.$$('.lens [data-act=focus]')).length === 0);
-  await page.click('[data-act=lens-tags]'); await settle(page);
-  ok('+ tags reveals the topic tags, and no structural ones (identity, work-history, archive…)', (await page.$$('.lens [data-act=focus]')).length > 1 && !(await page.$('.lens [data-act=focus][data-tag=identity], .lens [data-act=focus][data-tag=archive], .lens [data-act=focus][data-tag="work-history"]')));
-  await page.click('[data-act=lens-tags]'); await settle(page);
+  ok('the Edit panel has one lens row: Highlight, one list: the job types, then every tag', await page.isVisible('#lens') && (await page.$$('#lens optgroup')).length === 2 && (await page.evaluate(() => document.querySelectorAll('#lens optgroup')[1].children.length)) > 3 && !(await page.$('[data-act=lens-tags]')));
   const undo0 = await page.evaluate(() => window.__wb.store.history.undo);
   await page.selectOption('#lens', 'Prototyping'); await settle(page);
   const faded = await frameDoc(page, d => [d.documentElement.classList.contains('rb-focus'), d.querySelectorAll('.rb-hit').length, d.querySelectorAll('.bullets li').length]);
@@ -1574,6 +1571,54 @@ if (want('onboarding and the record')) {
   await ctx.close();
 }
 
+
+if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging system')) {
+  const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  const sheetSkills = () => frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent));
+  await page.click('#checklist .clg[data-g=credentials] .clcaret'); await settle(page);
+  const rows = page.locator('#checklist .clg[data-g=credentials] .clrow[data-sec=skills]');
+  ok('every skill group is a row with its own tick, draggable, with a hint', (await rows.count()) === 4 && (await rows.first().locator('.cb[data-item]').count()) === 1 && (await rows.first().getAttribute('draggable')) === 'true' && /Alt/.test(await rows.first().getAttribute('title')));
+  const before = await sheetSkills();
+  await rows.nth(1).locator('.cb').uncheck(); await page.waitForTimeout(1000);
+  const after = await sheetSkills();
+  ok('unticking one takes just that line off the page; the others stay', after.length === before.length - 1 && !after.includes(before[1]) && /3 of/.test(await page.textContent('#checklist .clg[data-g=credentials] .clsubh')) === false);
+  ok('…it is one undo step, kept in the resume’s off list, and the row stays, unticked', (await st()).cur.off.length >= 1 && (await rows.count()) === 4 && !(await rows.nth(1).locator('.cb').isChecked()));
+  await rows.nth(1).locator('.cb').check(); await page.waitForTimeout(1000);
+  ok('ticking brings it back in place', JSON.stringify(await sheetSkills()) === JSON.stringify(before));
+  // keyboard: Alt+↓ on a row
+  await rows.nth(0).locator('.cb').focus();
+  await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
+  const moved = await sheetSkills();
+  ok('Alt+↓ on a row moves the item down in print: the page follows', moved[0] === before[1] && moved[1] === before[0] && moved.length === before.length);
+  ok('…and the focus stays on the moved row’s tick, which is now second', await page.evaluate(() => document.activeElement?.closest('.clrow')?.dataset.item) === (await st()).cur.sections.find(x => x.id === 'skills').order[1]);
+  await page.keyboard.press('Alt+ArrowUp'); await page.waitForTimeout(900);
+  ok('Alt+↑ puts it back, and the record is untouched', JSON.stringify(await sheetSkills()) === JSON.stringify(before) && (await st()).cur.sections.find(x => x.id === 'skills').order === undefined);
+  // drag
+  await rows.nth(3).dragTo(rows.nth(0), { targetPosition: { x: 60, y: 2 } }); await page.waitForTimeout(1000);
+  const dragged = await sheetSkills();
+  ok('dragging a row up puts that item first on the page', dragged[0] === before[3] && dragged.length === before.length);
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
+  ok('one Ctrl+Z undoes the move', JSON.stringify(await sheetSkills()) === JSON.stringify(before));
+  // the item's own panel, with Alt+arrows
+  await rows.nth(1).locator('.clt').click(); await settle(page);
+  await page.keyboard.press('Alt+ArrowUp'); await page.waitForTimeout(900);
+  ok('with an item open in the inspector, Alt+↑ moves it too', (await sheetSkills())[0] === before[1]);
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(700);
+  // a section's items: all off takes the section off
+  await page.click('[data-act=deselect]'); await settle(page);
+  // one tagging system: a tag on an item is found like a tag on a bullet
+  await page.evaluate(() => { const w = window.__wb.store; w.commit(d => { const f = d.record.facts.find(x => x.id === d.record.sections.find(s => s.id === 'skills').content.groups[2]); const v = d.record.variants.find(x => x.id === f.variants[0]); v.tags = [...(v.tags ?? []), 'zz-everything']; }, 'seed'); });
+  await settle(page);
+  ok('the lens lists that tag with the others, in the one list', await page.evaluate(() => [...document.querySelectorAll('#lens optgroup')[1].children].some(o => o.value === 'zz-everything')));
+  await page.selectOption('#lens', 'zz-everything'); await settle(page);
+  ok('choosing it highlights the skill group on the page, and dims the rest', (await frameDoc(page, d => d.querySelectorAll('.skills__items.rb-hit').length)) === 1);
+  await page.selectOption('#lens', ''); await settle(page);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
 
 if (want('one panel for a claim: from the page and from the checklist')) {
   const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });

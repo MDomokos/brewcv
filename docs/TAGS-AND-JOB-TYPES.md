@@ -32,7 +32,7 @@ Job types can share tags. `hardware` can be in both "CAD designer" and "Rugged f
 ## Tailor a resume to a job type
 
 1. Choose the resume you are working on, or start a new one. Click nothing on the page, so the Edit panel shows its home view (press **E** if the panel is folded).
-2. In the **Highlight** row, choose a job type. Only job types are listed; **+ tags** shows the topic tags. Choosing one only highlights: the lines that match stay bright and the rest dim on the page.
+2. In the **Highlight** row, choose from the one list: the job types first (named bundles of tags), then every tag. Choosing one only highlights: the lines that match stay bright and the rest dim on the page.
 3. Choose **Apply…**. The panel says how many bullets would be switched on, off, or changed to another version. Choose **Select bullets for …** to apply it. One undo (Ctrl+Z) reverses all of it.
 
 What Focus does and does not do:
@@ -40,7 +40,7 @@ What Focus does and does not do:
 - It never touches a bullet you marked **Keep**, and never empties a job: a job with no matching bullet keeps its first one.
 - It works in the resume's language. A version in another language is not a match.
 - It leaves archived claims and archived jobs exactly as the resume has them.
-- Choose a plain tag under **+ tags** instead of a job type to focus on that one tag. Tags that only name a section or mark an old claim (`identity`, `education`, `archive`…) are never offered.
+- There is one tagging system, and it applies to everything: a tag on a skill group, a language or a certificate is found, highlighted and applied like a tag on a bullet. Apply turns a tagged item on and picks its tagged version; an item with no tag is left as it is.
 
 A resume can have a job type. The resume switcher (the resume's name in the header) groups resumes by job type, and **+ New resume** asks for one. Under **Start from**, **The last … resume** copies the newest resume with that job type, and **Bullets for …** starts fresh and applies the job type.
 

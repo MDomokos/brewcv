@@ -22,7 +22,7 @@ html.rb-ui [data-variant]:hover { outline: 2px solid rgba(37, 99, 235, .3); outl
 .rb-hover { outline: 2px solid #0f766e !important; outline-offset: 2px; border-radius: 2px; background-color: #e1f4f1; }
 html.rb-previewing .document > .page { outline: 3px solid #0f766e; outline-offset: 6px; }
 .rb-renaming { outline: 2px solid #2563eb !important; outline-offset: 3px; cursor: text !important; background: #fff !important; color: #16150f !important; }
-html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity .2s; }
+html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit), html.rb-focus .skills__items[data-variant]:not(.rb-hit), html.rb-focus .pairs dd[data-variant]:not(.rb-hit), html.rb-focus .runs strong[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity .2s; }
 .rb-miss { outline: 1.5px dashed #d97706 !important; outline-offset: 2px; }
 .band .tab.rb-miss-tab { background-image: repeating-linear-gradient(-45deg, rgba(217, 119, 6, .45) 0 3px, transparent 3px 7px) !important; }
 .rb-flash { animation: rb-flash .9s ease-out; }

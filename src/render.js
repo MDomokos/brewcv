@@ -2,7 +2,7 @@
 // Class names are the contract with themes/: nothing here sets a colour, size or position.
 
 import { render as renderInline, encode } from '../scripts/lib/html.mjs';
-import { isOmitted } from './recipe.js';
+import { isOmitted, offOf } from './recipe.js';
 import { entriesOf } from './model/entries.js';
 
 const GAP = '⬜';
@@ -297,6 +297,21 @@ function makeCtx(data, recipe, doc, opts){
     return v;
   };
 
+  // A resume can leave single items out of a list section (its `off` names them, as it does a bullet) and print
+  // them in its own order (the section's `order` in the recipe). With neither, the section is exactly the record's.
+  const LIST = { grid: 'groups', pairs: 'pairs', runs: 'items' };
+  const off = new Set(offOf(recipe));
+  const shaped = s => {
+    const key = s && LIST[s.kind];
+    if (!key) return s;
+    const was = s.content[key] ?? [];
+    const order = recipe.sections?.find(x => x && typeof x === 'object' && x.id === s.id)?.order;
+    let list = was;
+    if (Array.isArray(order) && order.length) list = [...order.filter(x => was.includes(x)), ...was.filter(x => !order.includes(x))];
+    if (off.size) list = list.filter(x => !off.has(x));
+    return list.length === was.length && list.every((x, i) => x === was[i]) ? s : { ...s, content: { ...s.content, [key]: list } };
+  };
+
   return {
     doc, data, recipe, pick, chosen, annotate: !!opts.annotate,
     // src/i18n docChrome, for a non-English resume in the app only.
@@ -308,7 +323,7 @@ function makeCtx(data, recipe, doc, opts){
       return w;
     },
     section: id => {
-      const s = sections.get(id);
+      const s = shaped(sections.get(id));
       if (!s) throw new RenderError(`no such section: ${id}`);
       // A recipe's label (a string, or { lang: string }) wins. A missing translation
       // falls back to English rather than failing: one English tab is fixable, a

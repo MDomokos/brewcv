@@ -1040,3 +1040,7 @@ body.is-intro .pagelay, body.is-quiet .pagelay { display: none; }
 .hrow.modes .seg { flex-wrap: nowrap; flex: none; }
 .hrow.modes .seg [role=tab] { padding: 4px 8px; white-space: nowrap; }
 .hrow.modes .filestate { flex: 1 1 0; min-width: 0; text-align: right; max-width: none; margin-left: 0; }
+.clrow[data-item] { cursor: grab; }
+.clrow.dragging { opacity: .4; }
+.clrow.drop-above { box-shadow: inset 0 2px 0 var(--mode); }
+.clrow.drop-below { box-shadow: inset 0 -2px 0 var(--mode); }

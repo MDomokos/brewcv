@@ -507,7 +507,7 @@ function renderBody(animate = false){
   const keyOf = e => {
     const d = e.dataset ?? {};
     if (e.id) return `#${CSS.escape(e.id)}`;
-    for (const k of ['on', 'secon', 'jobon', 'same', 'cmp']) if (d[k] !== undefined) return `[data-${k}="${q(d[k])}"]`;
+    for (const k of ['on', 'item', 'secon', 'jobon', 'same', 'cmp']) if (d[k] !== undefined) return `input[data-${k}="${q(d[k])}"]`;
     if (d.act) return `[data-act="${q(d.act)}"]${d.id ? `[data-id="${q(d.id)}"]` : ''}${d.g ? `[data-g="${q(d.g)}"]` : ''}${d.v ? `[data-v="${q(d.v)}"]` : ''}${d.sel ? `[data-sel="${q(d.sel)}"]` : ''}`;
     return null;
   };

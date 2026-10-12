@@ -9,6 +9,7 @@
 import * as T from './resume.js';
 import * as K from './career.js';
 import { versionsIn } from './record.js';
+import { offOf } from '../recipe.js';
 import { entriesOf, isArchived } from './entries.js';
 
 const DEFAULT_LANG = T.DEFAULT_LANG;
@@ -65,12 +66,25 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
   });
   groups.push({ id: 'education', kind: 'education', section: 'education', sectionOn: eduOn, rows: edu, archived: [] });
 
-  // skills and credentials: the lists, each under its section
+  // skills and credentials: the lists, each under its section. Items of a list section tick one by one and
+  // print in this resume's order; a publication or an education line prints with its section.
   const lists = K.recordLists(model, { lang });
+  const offSet = new Set(offOf(recipe));
+  const listRows = (group, sid, sectionOnNow, items) => {
+    const order = T.itemList(model, recipe, sid);
+    const rank = new Map((order ?? []).map((x, i) => [x.id, i]));
+    const rows = items.map(x => {
+      const itemId = order && rank.has(x.id) ? x.id : null;
+      return { id: `${group}:${x.id}`, kind: 'item', item: itemId, section: sid, text: x.title + (x.sub && group !== 'skills' ? ` · ${x.sub}` : ''),
+        nv: nvOf(model, ['skills', 'languages', 'interests', 'references'].includes(group) ? x.id : null, lang), on: sectionOnNow && !(itemId && offSet.has(itemId)),
+        sel: { kind: 'record', what: 'item', group, id: x.id } };
+    });
+    return order ? rows.sort((a, c) => (rank.get(a.item) ?? 1e9) - (rank.get(c.item) ?? 1e9)) : rows;
+  };
   const sub = lists.filter(g => CREDENTIALS.includes(g.group)).map(g => {
     const sid = K.sectionFor(model, g.group, g.items[0]?.id ?? null);
     const on = sectionOn(sid);
-    return { id: g.group, section: sid, sectionOn: on, rows: g.items.map(x => ({ id: `${g.group}:${x.id}`, kind: 'item', text: x.title + (x.sub && g.group !== 'skills' ? ` · ${x.sub}` : ''), nv: nvOf(model, g.group === 'skills' || g.group === 'languages' || g.group === 'interests' || g.group === 'references' ? x.id : null, lang), on, sel: { kind: 'record', what: 'item', group: g.group, id: x.id } })) };
+    return { id: g.group, section: sid, sectionOn: on, rows: listRows(g.group, sid, on, g.items) };
   });
   groups.push({ id: 'credentials', kind: 'credentials', subs: sub, rows: sub.flatMap(s => s.rows), archived: [] });
 
@@ -80,7 +94,7 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
     const k = K.kindOf(model, g.kind);
     const on = sectionOn(k?.section);
     groups.push({ id: g.kind, kind: 'list', title: K.kindName(model, g.kind, lang), section: k?.section, sectionOn: on,
-      rows: g.items.map(x => ({ id: `${g.kind}:${x.id}`, kind: 'item', text: x.title + (x.sub ? ` · ${x.sub}` : ''), nv: 0, on, sel: { kind: 'record', what: 'item', group: g.kind, id: x.id } })), archived: [] });
+      rows: listRows(g.kind, k?.section, on, g.items), archived: [] });
   }
 
   for (const g of groups){

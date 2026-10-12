@@ -1,7 +1,8 @@
 // Job-type and tag focus. Pure: no DOM, no I/O.
 // Tagging never touches a Keep bullet and never empties a job: an untagged job keeps its first bullet.
 
-import { chooseVariant, keepOf, jobRefs, listedBullets, setBulletOn } from './resume.js';
+import { chooseVariant, keepOf, jobRefs, listedBullets, setBulletOn, itemsOf, setItemOn, sectionList } from './resume.js';
+import { offOf } from '../recipe.js';
 import { archivedIds, archivedEntryIds } from './entries.js';
 
 const langOf = v => v?.lang ?? 'en';
@@ -59,19 +60,14 @@ export function allTags(model, lang = null, { archived = false } = {}){
   return [...types.sort(byUse), ...plain.sort(byUse)];
 }
 
-// Tags that name a section or mark a claim as old; they sort the record, they never say what a job is looking for.
-// The Highlight lens never lists them. (Track C removed the section-name ones from the record; this keeps a
-// record that still has them, or an import that brings them back, from filling the lens.)
-export const STRUCTURAL_TAGS = ['identity', 'work-history', 'education', 'languages', 'interests', 'projects', 'certification', 'work-rights', 'publication', 'archive'];
-
-// What the Highlight lens offers: the job types, then (behind "+ tags") the topic tags that are left.
+// What the Highlight lens offers: one list of tags. A job type is a named bundle of tags, so it comes first; then
+// every tag there is. Nothing is hidden: there is one tagging system, and it applies to every claim and item.
 export function lensChoices(model, lang = null){
   const all = allTags(model, lang);
-  return {
-    types: all.filter(x => x.jobType),
-    topics: all.filter(x => !x.jobType && x.n && !STRUCTURAL_TAGS.includes(x.tag)),
-  };
+  return { types: all.filter(x => x.jobType), tags: all.filter(x => !x.jobType && x.n) };
 }
+
+const sectionIsOn = (model, recipe, sid) => !!sectionList(model, recipe).find(x => x.id === sid)?.on;
 
 function walk(model, recipe, T, fn){
   const lang = recipe.lang ?? 'en';
@@ -97,6 +93,19 @@ function walk(model, recipe, T, fn){
       } else if (on && (hits.length || h !== live[0])) fn({ kind: 'off', fact: h, job: w.id });
     }
   }
+  // the items of the list sections (skill groups, languages, certificates…) are tagged like any claim: a tagged one
+  // goes on and prints its tagged version; one with no tag is left as the resume has it
+  for (const sec of model.sections ?? []){
+    const ids = itemsOf(model, sec.id);
+    if (!ids) continue;
+    for (const id of ids){
+      if (keep.has(id) || arch.has(id)) continue;
+      const tv = taggedVersion(model, id, T, lang, ix);
+      if (!tv) continue;
+      const using = chooseVariant(model, id, recipe).v;
+      fn({ kind: 'item', fact: id, on: !offOf(recipe).includes(id) && sectionIsOn(model, recipe, sec.id), switch: using?.id !== tv.id || recipe.overrides?.[id] !== undefined, tv });
+    }
+  }
   const s = recipe.summary ?? model.basics?.summary;
   if (s && !keep.has(s)){
     const tv = taggedVersion(model, s, T, lang, ix);
@@ -111,6 +120,7 @@ export function planTag(model, recipe, T){
     if (x.kind === 'tagged'){ hits.add(x.fact); if (!x.on) on++; if (x.switch) sw++; }
     else if (x.kind === 'off') off++;
     else if (x.kind === 'summary'){ sw++; hits.add(x.fact); }
+    else if (x.kind === 'item'){ hits.add(x.fact); if (!x.on) on++; if (x.switch) sw++; }
   });
   return { on, off, sw, hits };
 }
@@ -133,6 +143,11 @@ export function applyTag(model, recipe, T){
       if (recipe.overrides?.[x.fact] !== undefined) delete recipe.overrides[x.fact];
     } else if (x.kind === 'off') setBulletOn(model, recipe, x.fact, false);
     else if (x.kind === 'summary') recipe.picks = { ...(recipe.picks ?? {}), [x.fact]: x.tv.id };
+    else if (x.kind === 'item'){
+      if (!x.on) setItemOn(model, recipe, x.fact, true);
+      recipe.picks = { ...(recipe.picks ?? {}), [x.fact]: x.tv.id };
+      if (recipe.overrides?.[x.fact] !== undefined) delete recipe.overrides[x.fact];
+    }
   }
   return plan;
 }

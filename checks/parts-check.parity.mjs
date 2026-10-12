@@ -21,7 +21,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
   const fromPage = (u, c) => { u.select(sel(c)); return u.edit.bulletView(u.ui.sel); };
   // the checklist's row for it: its button carries the selection; the shell selects exactly that
   const fromList = async (u, c) => {
-    const row = String(u.checklist.html()).match(new RegExp(`<li class="clrow[^"]*" data-fact="${c.id}">[\\s\\S]*?data-act="cl-open" data-sel="([^"]*)"`));
+    const row = String(u.checklist.html()).match(new RegExp(`<li class="clrow[^"]*" data-fact="${c.id}"[^>]*>[\\s\\S]*?data-act="cl-open" data-sel="([^"]*)"`));
     const picked = row ? JSON.parse(row[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&')) : null;
     await u.click('cl-open', { sel: JSON.stringify(picked) });
     return { picked, html: u.edit.bulletView(u.ui.sel) };
@@ -43,7 +43,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
       const u = await makeUi({ resume: 0 });
       const w = u.work();
       const off = w.work.flatMap(j => j.highlights.map(id => ({ job: j.id, id }))).find(c => !T.listedBullets(u.record(), u.cur(), c.job).includes(c.id) && !(w.facts.find(f => f.id === c.id)?.archived));
-      const row = String(u.checklist.html()).match(new RegExp(`<li class="clrow is-off[^"]*" data-fact="${off.id}">[\\s\\S]*?</li>`));
+      const row = String(u.checklist.html()).match(new RegExp(`<li class="clrow is-off[^"]*" data-fact="${off.id}"[^>]*>[\\s\\S]*?</li>`));
       const { html: h } = await fromList(u, off);
       return !!off && !!row && !/checked/.test(row[0].match(/<input[^>]*>/)[0]) && h.includes('<h2 class="title"') && h.includes('class="vlist"');
     })());

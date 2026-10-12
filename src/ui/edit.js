@@ -19,7 +19,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), lensTags: false, applyOpen: false };
+const E = { edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null };
 
 function commit(fn, label, done){
   try {
@@ -67,22 +67,24 @@ function sectionCount(s){
     const n = T.jobRefs(rec(), cur(), s.id).reduce((a, r) => a + T.listedBullets(rec(), cur(), typeof r === 'string' ? r : r.id).length, 0);
     return t('ux2.nBullets', { n });
   }
-  const n = Object.values(sec.content ?? {}).flat().filter(x => typeof x === 'string' && ix().facts.has(x)).length;
+  const il = T.itemList(rec(), cur(), s.id);
+  const n = il ? il.filter(x => x.on).length : Object.values(sec.content ?? {}).flat().filter(x => typeof x === 'string' && ix().facts.has(x)).length;
   return t('ux2.nLines', { n });
 }
 
-// ---- the Highlight lens: one row, job types only; topic tags behind "+ tags" ----
+// ---- the Highlight lens: one list of tags, job types (bundles of tags) first ----
 function lensBox(){
-  const { types, topics } = lensChoices(rec(), lang());
-  if (!types.length && !topics.length) return `<div class="lens"><span class="muted small">${h('ux2.lensNone')}</span> <button class="sm ghost" data-act="lens-edit">${h('ux2.lensEdit')}</button></div>`;
+  const { types, tags } = lensChoices(rec(), lang());
+  if (!types.length && !tags.length) return `<div class="lens"><span class="muted small">${h('ux2.lensNone')}</span> <button class="sm ghost" data-act="lens-edit">${h('ux2.lensEdit')}</button></div>`;
   const chosen = E.focus;
-  const known = types.some(x => x.tag === chosen) || topics.some(x => x.tag === chosen);
+  const known = types.some(x => x.tag === chosen) || tags.some(x => x.tag === chosen);
+  const opt = x => `<option value="${esc(x.tag)}" ${chosen === x.tag ? 'selected' : ''}>${esc(x.label)} (${x.n})</option>`;
   let out = `<div class="lens"><div class="lensrow"><label for="lens" class="lbl inline"><span class="lt">${h('ux2.lens')}</span></label>
-      <select id="lens"><option value="">${h('ux2.lensOff')}</option>${types.map(x => `<option value="${esc(x.tag)}" ${chosen === x.tag ? 'selected' : ''}>${esc(x.label)} (${x.n})</option>`).join('')}
+      <select id="lens"><option value="">${h('ux2.lensOff')}</option>
+        ${types.length ? `<optgroup label="${esc(t('ux2.lensTypes'))}">${types.map(opt).join('')}</optgroup>` : ''}
+        ${tags.length ? `<optgroup label="${esc(t('ux2.lensTagsGroup'))}">${tags.map(opt).join('')}</optgroup>` : ''}
         ${chosen && !known ? `<option value="${esc(chosen)}" selected>${esc(chosen)}</option>` : ''}</select>
-      ${topics.length ? `<button class="sm ghost" data-act="lens-tags" aria-expanded="${E.lensTags}">${h('ux2.lensTags')}</button>` : ''}
       <button class="sm" data-act="lens-apply" aria-expanded="${E.applyOpen}" ${chosen ? '' : 'disabled'}>${h('ux2.lensApply')}</button></div>`;
-  if (E.lensTags) out += `<div class="chips">${topics.slice(0, 24).map(x => `<button class="tag ${chosen === x.tag ? 'on' : ''}" data-act="focus" data-tag="${esc(x.tag)}" aria-pressed="${chosen === x.tag}">${esc(x.label)} <span class="muted">${x.n}</span></button>`).join('')}</div>`;
   if (chosen && E.applyOpen){
     const p = planTag(work(), cur(), chosen);
     out += `<div class="focusbox">${h('edit.focusPlan', { on: p.on, off: p.off, sw: p.sw })}
@@ -405,7 +407,6 @@ async function act(a, tg){
     }
     case 'focus': E.focus = E.focus === tg.dataset.tag ? null : tg.dataset.tag; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
     case 'focus-clear': E.focus = null; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
-    case 'lens-tags': E.lensTags = !E.lensTags; C.renderBody(); return true;
     case 'lens-apply': E.applyOpen = !E.applyOpen && !!E.focus; C.renderBody(); return true;
     case 'lens-edit': C.select({ kind: 'record', what: 'jobtypes' }); return true;
     case 'section-on': setSection(tg.dataset.id, true); return true;
@@ -443,6 +444,7 @@ function bind(body){
     else if (t.dataset.jobon){ const id = t.dataset.jobon, on = t.checked; commit(d => T.setJobOn(d.record, d.cur, id, on), on ? tr('undo.showJob') : tr('undo.hideJob')); }
     else if (t.dataset.on){ const id = t.dataset.on, on = t.checked; setBullet(id, on); }
     else if (t.id === 'b-on') setBullet(C.ui.sel.id, t.checked);
+    else if (t.dataset.item){ const id = t.dataset.item, on = t.checked; commit(d => T.setItemOn(d.record, d.cur, id, on), on ? tr('undo.turnOn') : tr('undo.turnOff')); }
     else if (t.id === 'lens'){ E.focus = t.value || null; E.applyOpen = false; C.setFocus(); C.renderBody(); }
     else if (t.dataset.same){ const k = t.dataset.same, on = t.checked; commit(d => setSame(d.record, k, on), on ? tr('edit.sameEvery') : tr('undo.notSame')); }
   });
@@ -484,6 +486,8 @@ function bind(body){
   });
 
   body.addEventListener('dragstart', e => {
+    const it = e.target.closest?.('.clrow[data-item][draggable=true]');
+    if (it){ E.dragItem = { id: it.dataset.item, sec: it.dataset.sec }; it.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', it.dataset.item); return; }
     const r = e.target.closest?.('.srow[draggable=true], .offchip[draggable=true]');
     if (!r) return;
     E.drag = r.dataset.sid;
@@ -493,6 +497,16 @@ function bind(body){
     e.dataTransfer.setData('text/plain', E.drag);
   });
   body.addEventListener('dragover', e => {
+    const tr0 = e.target.closest?.('.clrow[data-item]');
+    if (E.dragItem){
+      if (tr0 && tr0.dataset.sec === E.dragItem.sec){
+        e.preventDefault();
+        for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
+        const bb = tr0.getBoundingClientRect();
+        tr0.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
+      }
+      return;
+    }
     const r = e.target.closest?.('.srow:not(.fixed)');
     if (E.drag && E.dragOff && e.target.closest?.('#seclist')){ e.preventDefault(); if (!r) return; }
     if (!r || !E.drag) return;
@@ -502,6 +516,18 @@ function bind(body){
     r.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
   });
   body.addEventListener('drop', e => {
+    if (E.dragItem){
+      const row = e.target.closest?.('.clrow[data-item]'), from = E.dragItem;
+      E.dragItem = null;
+      if (!row || row.dataset.sec !== from.sec || row.dataset.item === from.id) return;
+      e.preventDefault();
+      const below = row.classList.contains('drop-below');
+      const ids = (T.itemList(rec(), cur(), from.sec) ?? []).map(x => x.id).filter(x => x !== from.id);
+      const at = ids.indexOf(row.dataset.item) + (below ? 1 : 0);
+      commit(d => T.moveItem(d.record, d.cur, from.sec, from.id, ids[at] ?? null), tr('ux2.undoMoveItem'));
+      C.flash(from.sec);
+      return;
+    }
     const r = e.target.closest?.('.srow:not(.fixed)');
     const id = E.drag, fromOff = E.dragOff;
     E.drag = null; E.dragOff = false;
@@ -521,7 +547,7 @@ function bind(body){
     if (res?.auto) C.toast(autoNote(res).trim());
   });
   body.addEventListener('dragend', () => {
-    E.drag = null; E.dragOff = false;
+    E.drag = null; E.dragOff = false; E.dragItem = null;
     for (const n of body.querySelectorAll('.dragging, .drop-above, .drop-below')) n.classList.remove('dragging', 'drop-above', 'drop-below');
   });
 }
@@ -550,9 +576,25 @@ function moveSelected(d){
   return true;
 }
 
+// Alt+↑ / Alt+↓ moves what has the focus or is selected: an item of a list section in its section's print order,
+// else the selected section
+function moveWhatIsHere(d){
+  const row = document.activeElement?.closest?.('.clrow[data-item]');
+  const sel = C.ui.sel;
+  const id = row?.dataset.item ?? (sel.kind === 'record' && sel.what === 'item' && T.sectionOfItem(rec(), sel.id) ? sel.id : null);
+  if (id){
+    const sid = T.sectionOfItem(rec(), id);
+    let moved = false;
+    commit(x => { moved = T.stepItem(x.record, x.cur, sid, id, d); }, t('ux2.undoMoveItem'));
+    if (moved) C.flash(sid);
+    return true;
+  }
+  return moveSelected(d);
+}
 function key(e){
-  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && C.ui.sel.kind === 'section'){
-    e.preventDefault(); return moveSelected(e.key === 'ArrowDown' ? 1 : -1);
+  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')
+    && (C.ui.sel.kind === 'section' || document.activeElement?.closest?.('.clrow[data-item]') || (C.ui.sel.kind === 'record' && C.ui.sel.what === 'item'))){
+    e.preventDefault(); return moveWhatIsHere(e.key === 'ArrowDown' ? 1 : -1);
   }
   if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && C.ui.sel.kind === 'bullet' && !E.edit && document.body.dataset.phone !== 'true'){ e.preventDefault(); startEdit(); return true; }
   return false;
