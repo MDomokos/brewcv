@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Kies eerst een functietype',
   'ux3b.exampleChip': 'Dit is het voorbeeld. ⋯ › Opnieuw beginnen haalt het terug.',
   'ux3b.k.record': 'Je record openen',
+  'm11b.garden': 'Tuin terwijl je rust',
+  'm11b.gardenNote': 'Bij thee komen er bladeren, bloemblaadjes, regen en een paar kleine bezoekers op de mat terwijl je rust. Er beweegt niets terwijl je werkt, en niets komt op de pagina.',
 };

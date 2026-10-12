@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Nejprve vyberte typ pozice',
   'ux3b.exampleChip': 'Toto je ukázka. ⋯ › Začít znovu ji vrátí.',
   'ux3b.k.record': 'Otevřít váš záznam',
+  'm11b.garden': 'Zahrada, když odpočíváš',
+  'm11b.gardenNote': 'U čaje se na podložku, když odpočíváš, snášejí listy, okvětní lístky, déšť a pár malých návštěvníků. Když pracuješ, nic se nehýbe a nic se nedostane na stránku.',
 };

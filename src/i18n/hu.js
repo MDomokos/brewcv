@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Előbb válassz állástípust',
   'ux3b.exampleChip': 'Ez a példa. A ⋯ › Újrakezdés visszahozza.',
   'ux3b.k.record': 'A rekord megnyitása',
+  'm11b.garden': 'Kert, amíg pihensz',
+  'm11b.gardenNote': 'Teánál levelek, szirmok, eső és néhány apró látogató érkezik a gyékényre, amíg pihensz. Munka közben semmi sem mozdul, és semmi sem kerül az oldalra.',
 };

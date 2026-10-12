@@ -96,9 +96,11 @@ node checks/export-check.mjs          the HTML page, plain text, JSON Resume, pr
 node checks/tokens-check.mjs          theme tokens: forms, refusals, DTCG round trip, contrast
 node checks/drink-check.mjs [--table] the app's own tokens: every role in Tea and Coffee, text at AA and edges at 3:1 in all four
                                       light and dark combinations, no colour written outside a token block, the setting
+node checks/garden-check.mjs          the tea garden in Chromium (slow, about two minutes; ONLY=flow,rain runs some): a clean start, waves, sweeping, the way back,
+                                      rain, creatures, the pause, coffee, the setting, the print gate, axe (AXE_CORE=...)
 node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,
                                       no inline script; no outside address in any fetch
-node checks/preload-check.mjs         index.html preloads exactly the modules shell.js imports, and sw.js caches them
+node checks/preload-check.mjs         index.html preloads exactly the modules shell.js imports (or loads on demand), and sw.js caches them
 node checks/i18n-review-check.mjs     the translation review sheets: the CSV, and --apply on a temporary copy
 node checks/career-check.mjs          the record's model (timeline, lists, add / edit / delete, projects, kinds), its forms (a field commits when
                                       you leave it, Esc puts it back), the checklist's archived folds, job types, the Highlight lens, and

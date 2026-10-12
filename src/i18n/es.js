@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Elige primero un tipo de puesto',
   'ux3b.exampleChip': 'Este es el ejemplo. ⋯ › Empezar de cero lo recupera.',
   'ux3b.k.record': 'Abrir tu historial',
+  'm11b.garden': 'Jardín mientras descansas',
+  'm11b.gardenNote': 'Con el té, hojas, pétalos, lluvia y algunos pequeños visitantes llegan a la esterilla mientras descansas. Nada se mueve mientras trabajas y nada llega a la página.',
 };

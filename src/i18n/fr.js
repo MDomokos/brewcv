@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Choisissez d’abord un type de poste',
   'ux3b.exampleChip': 'Voici l’exemple. ⋯ › Tout recommencer le ramène.',
   'ux3b.k.record': 'Ouvrir votre parcours',
+  'm11b.garden': 'Jardin pendant votre pause',
+  'm11b.gardenNote': 'Avec le thé, des feuilles, des pétales, de la pluie et quelques petits visiteurs viennent sur la natte pendant votre pause. Rien ne bouge pendant que vous travaillez, et rien n’atteint la page.',
 };

@@ -1186,4 +1186,6 @@ export default {
   'ux3b.pickTypeFirst': 'Escolha primeiro um tipo de função',
   'ux3b.exampleChip': 'Este é o exemplo. ⋯ › Recomeçar traz isto de volta.',
   'ux3b.k.record': 'Abrir o seu registo',
+  'm11b.garden': 'Jardim enquanto descansas',
+  'm11b.gardenNote': 'No chá, folhas, pétalas, chuva e alguns pequenos visitantes chegam à esteira enquanto descansas. Nada se mexe enquanto trabalhas e nada chega à página.',
 };
