@@ -4,7 +4,9 @@
 export const DEFAULT_LANG = 'en';
 const langOf = v => v?.lang ?? DEFAULT_LANG;
 export const isDraft = v => /-draft(-|$)/.test(v?.id ?? '');
-export const isArchive = v => (v?.tags ?? []).some(t => String(t).toLowerCase() === 'archive');
+// One archive: the `archived` flag, on a claim, a job or (when its claim is not wholly archived) one wording.
+// The old `archive` tag is still read, so a file nobody has opened yet is refused as before; loading removes it.
+export const isArchive = v => v?.archived === true || (v?.tags ?? []).some(t => String(t).toLowerCase() === 'archive');
 // Why a version must not be chosen for a new resume, or null. Fit and the command-line tools share it.
 // `fact.archived` is honoured if the record has it.
 export function refusal(fact, v){
@@ -403,8 +405,11 @@ export function setBulletOn(model, recipe, factId, on){
     let hs = highlightsOfRef(w, r);
     if (!on) hs = hs.filter(h => h !== factId);
     else if (!placed && !hs.includes(factId)){
-      const set = new Set([...hs, factId]);
-      hs = w.highlights.filter(h => set.has(h)).concat(hs.filter(h => !w.highlights.includes(h)));
+      // after the nearest earlier bullet that is already listed, so an order the person set stays as it is
+      const lib = w.highlights, at = lib.indexOf(factId);
+      let after = -1;
+      hs.forEach((h, i) => { const k = lib.indexOf(h); if (k >= 0 && k < at) after = i; });
+      hs.splice(after + 1, 0, factId);
     }
     if (on && hs.includes(factId)) placed = true;
     l[i] = tidyRef(w, { ...(typeof r === 'object' ? r : {}), id: w.id, highlights: hs });
@@ -545,12 +550,41 @@ export const sectionOfItem = (model, id) => (model.sections ?? []).find(s => (it
 
 // Switch one item of a list section. The last one off takes the section off, and one turned on brings it back,
 // so a printed section is never an empty tab.
+// The order a job's bullets print in on this resume. beforeId null puts it last. A bullet that is off has no place.
+export function moveBullet(model, recipe, factId, beforeId = null){
+  const w = jobOfFact(model, factId);
+  if (!w) throw new Error(`${factId} is not a bullet of any job`);
+  const sid = sectionOfEntry(model, w.id);
+  let done = false;
+  for (const l of workLists(model, recipe, true, sid)) l.forEach((r, i) => {
+    if (done || refId(r) !== w.id) return;
+    const hs = highlightsOfRef(w, r);
+    if (!hs.includes(factId)) return;
+    const rest = hs.filter(h => h !== factId);
+    const at = beforeId == null ? rest.length : rest.indexOf(beforeId);
+    rest.splice(at < 0 ? rest.length : at, 0, factId);
+    l[i] = tidyRef(w, { ...(typeof r === 'object' ? r : {}), id: w.id, highlights: rest });
+    done = true;
+  });
+  if (!done) throw keyed('ux2.errBulletOff');
+}
+export function stepBullet(model, recipe, factId, dir){
+  const w = jobOfFact(model, factId);
+  const ids = w ? listedBullets(model, recipe, w.id) : [];
+  const i = ids.indexOf(factId), j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return false;
+  moveBullet(model, recipe, factId, dir < 0 ? ids[j] : ids[j + 1] ?? null);
+  return true;
+}
+
 export function setItemOn(model, recipe, id, on){
   const sid = sectionOfItem(model, id);
   if (!sid) throw new Error(`${id} is not an item of any list section`);
+  const secOn = sectionList(model, recipe).find(x => x.id === sid)?.on;
+  // the rows of a section that is off show unticked, so ticking one brings back that one alone
+  if (on && !secOn) for (const x of itemsOf(model, sid)) if (x !== id) setList(recipe, 'off', x, true);
   setList(recipe, 'off', id, !on);
   const list = itemList(model, recipe, sid);
-  const secOn = sectionList(model, recipe).find(x => x.id === sid)?.on;
   if (!on && list.every(x => !x.on) && secOn) setSectionOn(model, recipe, sid, false);
   if (on && !secOn) setSectionOn(model, recipe, sid, true);
   return { section: sid };

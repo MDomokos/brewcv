@@ -436,12 +436,63 @@ section('job types, in their own panel');
   u.fire('change', { classList: { contains: c => c === 'jt-label' }, dataset: { id: 'cad-designer' }, value: 'CAD designers', closest: () => null });
   ok('renaming changes the label and keeps the id', u.record().jobTypes.at(-1).label === 'CAD designers' && u.record().jobTypes.at(-1).id === 'cad-designer');
   // an old string job type becomes an object the first time it is edited
-  await u.click('c-jt-tag-rm', { id: 'Hardware design', tag: 'Hardware design' });
-  ok('an old string job type turns into an object when edited', typeof u.record().jobTypes[0] === 'object' && u.record().jobTypes[0].id === 'Hardware design' && u.record().jobTypes[0].tags.length === 0);
+  await u.click('c-jt-tag-rm', { id: 'Medical devices', tag: 'Medical devices' });
+  const old = u.record().jobTypes.find(j => (j.id ?? j) === 'Medical devices');
+  ok('an old string job type turns into an object when edited', typeof old === 'object' && old.id === 'Medical devices' && old.tags.length === 0);
   await u.click('c-jt-del', { id: 'cad-designer' });
   ok('deleting removes it', !u.record().jobTypes.some(j => j.id === 'cad-designer'));
   u.store.undo();
   ok('Ctrl+Z brings it back', u.record().jobTypes.some(j => j.id === 'cad-designer'));
+}
+
+section('tags, in the same panel: one closed list, made and tidied here');
+{
+  const u = await makeUi();
+  const page = () => String(u.career.panel({ kind: 'record', what: 'jobtypes' }));
+  const before = u.record().vocabulary.tags.length;
+  ok('the panel lists every tag with its name box, a merge menu and a bin, and counts them against the cap', /class="tag-name" data-tag="cad"/.test(page()) && /class="tag-merge" data-tag="cad"/.test(page()) && /data-act="c-tag-del" data-tag="cad"/.test(page()) && /id="tag-count"/.test(page()));
+  ok('the example has 11 of the 12 the list allows, and the new-tag box is open', /11 of 12 tags/.test(page()) && !/id="tag-new"[^>]*disabled/.test(page()));
+  dom.set('tag-new', { value: 'laser' }); await u.click('c-tag-add');
+  ok('one more fills the list: the box shuts and says how to make room', /12 of 12 tags/.test(page()) && /id="tag-new"[^>]*disabled/.test(page()) && /Merge two tags/.test(page()));
+  u.store.undo();
+  const t = (name, v) => ({ classList: { contains: c => c === 'tag-name' }, dataset: { tag: name }, value: v, closest: () => null });
+  const m = (name, v) => ({ classList: { contains: c => c === 'tag-merge' }, dataset: { tag: name }, value: v, closest: () => null });
+  const usedBy = tg => u.record().variants.filter(v => (v.tags ?? []).includes(tg)).length;
+  const nCad = usedBy('cad');
+  u.fire('change', t('cad', 'cad-design'));
+  ok('renaming a tag renames it on every wording, and in the list', usedBy('cad-design') === nCad && usedBy('cad') === 0 && u.record().vocabulary.tags.includes('cad-design') && !u.record().vocabulary.tags.includes('cad'));
+  const nLead = usedBy('leadership');
+  u.fire('change', m('leadership', 'teaching'));
+  ok('merging a tag into another leaves one, on all their wordings', nLead > 0 && usedBy('leadership') === 0 && usedBy('teaching') >= nLead && !u.record().vocabulary.tags.includes('leadership'));
+  u.store.undo();
+  ok('one undo brings the merge back whole', usedBy('leadership') === nLead && u.record().vocabulary.tags.includes('leadership'));
+  const tagged = u.record().variants[0];
+  const input = v => ({ classList: { contains: c => c === 'tag-in' }, dataset: { vid: tagged.id }, value: v, closest: () => null, matches: () => false });
+  const toasts = u.toasts.length;
+  u.fire('keydown', input('brand-new-zz'), { key: 'Enter' });
+  ok('a tag typed on a wording that is not in the list is refused, with a message; none is made', !(u.record().variants[0].tags ?? []).includes('brand-new-zz') && u.toasts.length === toasts + 1 && u.toasts.at(-1).tone === 'bad' && !u.record().vocabulary.tags.includes('brand-new-zz'));
+  await u.click('c-tag-del', { tag: 'web' });
+  ok('the bin removes a tag from the list and from every wording', !u.record().vocabulary.tags.includes('web') && usedBy('web') === 0 && u.record().vocabulary.tags.length === before - 1);
+  u.store.undo();
+  ok('and Ctrl+Z puts it back', u.record().vocabulary.tags.includes('web') && usedBy('web') >= 1);
+  // below the cap a tag is added from the box
+  const v = await makeUi();
+  v.store.commit(d => { d.record.vocabulary.tags = ['cad']; for (const x of d.record.variants) delete x.tags; d.record.jobTypes = []; }, 'seed');
+  dom.set('tag-new', { value: 'laser' });
+  await v.click('c-tag-add');
+  ok('under the cap, a new tag is added from its box', v.record().vocabulary.tags.join() === 'cad,laser');
+}
+
+section('a new person starts with no tags, and the panel says how to use them');
+{
+  const B = await import('../src/model/build.js');
+  const F = await import('../src/model/focus.js');
+  const blank = B.blankRecord({ name: 'Pat Example' });
+  ok('a blank record has an empty tag list and no job types', F.tagVocab(blank).length === 0 && F.jobTypesOf(blank).length === 0 && (blank.vocabulary.tags ?? []).length === 0);
+  const u = await makeUi();
+  u.store.commit(d => { d.record.vocabulary = { ...d.record.vocabulary, tags: [] }; d.record.jobTypes = []; for (const v of d.record.variants) delete v.tags; }, 'seed');
+  const html = String(u.career.panel({ kind: 'record', what: 'jobtypes' }));
+  ok('its Tags part is empty, open to a three-step how-to, with the new-tag box ready', /No tags yet/.test(html) && /<details class="taghow" open>/.test(html) && /How to use tags/.test(html) && !/id="tag-new"[^>]*disabled/.test(html));
 }
 
 section('the Highlight lens: job types first, and Apply');

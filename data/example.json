@@ -300,30 +300,16 @@
         ],
         "tags": [
           "cad",
-          "certification",
-          "documentation",
-          "education",
           "fabrication",
           "hardware",
-          "Hardware design",
-          "identity",
-          "interests",
-          "languages",
           "leadership",
           "manufacturing",
-          "Manufacturing engineering",
           "Medical devices",
           "needs-review",
-          "patent",
-          "projects",
-          "prototyping",
-          "Prototyping",
           "teaching",
           "ux",
           "verification",
-          "web",
-          "work-history",
-          "work-rights"
+          "web"
         ]
       },
       "sections": [
@@ -1773,9 +1759,7 @@
           "text": "Dana Okonkwo",
           "marks": [],
           "links": [],
-          "tags": [
-            "identity"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 12,
@@ -1789,9 +1773,7 @@
           "text": "Mechanical &\nDesign Engineer",
           "marks": [],
           "links": [],
-          "tags": [
-            "identity"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 28,
@@ -1805,9 +1787,7 @@
           "text": "Gépész- és\ntervezőmérnök",
           "marks": [],
           "links": [],
-          "tags": [
-            "identity"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 24,
@@ -1832,10 +1812,7 @@
               "href": "https://danaokonkwo.example"
             }
           ],
-          "tags": [
-            "identity",
-            "work-rights"
-          ],
+          "tags": [],
           "seenIn": [
             "us-letter"
           ],
@@ -1863,10 +1840,7 @@
               "href": "https://danaokonkwo.example"
             }
           ],
-          "tags": [
-            "identity",
-            "work-rights"
-          ],
+          "tags": [],
           "seenIn": [
             "a4"
           ],
@@ -1894,10 +1868,7 @@
               "href": "https://danaokonkwo.example"
             }
           ],
-          "tags": [
-            "identity",
-            "work-rights"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 136,
@@ -1943,7 +1914,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -1975,7 +1946,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -1991,7 +1962,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Prototyping"
+            "fabrication"
           ],
           "seenIn": [],
           "metrics": {
@@ -2014,7 +1985,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -2030,7 +2001,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -2045,9 +2016,7 @@
           "text": "Design Engineer",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 15,
@@ -2061,9 +2030,7 @@
           "text": "Tervezőmérnök",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 13,
@@ -2077,9 +2044,7 @@
           "text": "Hydra Medical · Mar 2023 – Present · Lisbon",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 43,
@@ -2093,9 +2058,7 @@
           "text": "Hydra Medical · 2023. márc. – jelenleg · Lisszabon",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 50,
@@ -2109,9 +2072,7 @@
           "text": "Prototyping Technician",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 22,
@@ -2125,9 +2086,7 @@
           "text": "Prototípus-technikus",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 20,
@@ -2141,9 +2100,7 @@
           "text": "Polytechnic Prototyping Lab · Sep 2021 – Feb 2023 · Porto",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 57,
@@ -2157,9 +2114,7 @@
           "text": "Polytechnic Prototyping Lab · 2021. szept. – 2023. febr. · Porto",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 64,
@@ -2173,9 +2128,7 @@
           "text": "Freelance CAD Designer",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 22,
@@ -2189,9 +2142,7 @@
           "text": "Szabadúszó CAD-tervező",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 22,
@@ -2205,9 +2156,7 @@
           "text": "Self-employed · Jan 2021 – Aug 2021 · Remote",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 44,
@@ -2221,9 +2170,7 @@
           "text": "Egyéni vállalkozó · 2021. jan. – 2021. aug. · Távmunka",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 54,
@@ -2237,9 +2184,7 @@
           "text": "Clean-room Technician",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 21,
@@ -2253,9 +2198,7 @@
           "text": "Tisztatéri technikus",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 20,
@@ -2269,9 +2212,7 @@
           "text": "Medisure Contract Manufacturing · Jun 2018 – Dec 2020 · Porto",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 61,
@@ -2285,9 +2226,7 @@
           "text": "Medisure Contract Manufacturing · 2018. jún. – 2020. dec. · Porto",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 65,
@@ -2301,9 +2240,7 @@
           "text": "Design Intern",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 13,
@@ -2317,9 +2254,7 @@
           "text": "Tervezőgyakornok",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 16,
@@ -2333,9 +2268,7 @@
           "text": "Atelier Norte · Jun 2017 – Sep 2017 · Porto",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 43,
@@ -2349,9 +2282,7 @@
           "text": "Atelier Norte · 2017. jún. – 2017. szept. · Porto",
           "marks": [],
           "links": [],
-          "tags": [
-            "work-history"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 49,
@@ -2397,7 +2328,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design",
+            "hardware",
             "manufacturing",
             "leadership"
           ],
@@ -2445,7 +2376,7 @@
           ],
           "links": [],
           "tags": [
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -2491,7 +2422,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -2514,7 +2445,7 @@
           ],
           "links": [],
           "tags": [
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -2530,9 +2461,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
-            "Medical devices",
-            "Prototyping"
+            "fabrication",
+            "Medical devices"
           ],
           "seenIn": [],
           "metrics": {
@@ -2548,7 +2478,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Hardware design"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -2564,7 +2494,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
+            "fabrication",
             "manufacturing"
           ],
           "seenIn": [],
@@ -2581,7 +2511,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Hardware design"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -2598,8 +2528,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -2631,7 +2560,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -2648,8 +2577,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -2681,7 +2609,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -2698,7 +2626,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design",
+            "hardware",
             "Medical devices"
           ],
           "seenIn": [],
@@ -2715,7 +2643,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "documentation",
             "Medical devices"
           ],
           "seenIn": [],
@@ -2749,8 +2676,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Medical devices",
-            "documentation"
+            "Medical devices"
           ],
           "seenIn": [],
           "metrics": {
@@ -2789,8 +2715,7 @@
           ],
           "links": [],
           "tags": [
-            "fabrication",
-            "Prototyping"
+            "fabrication"
           ],
           "seenIn": [],
           "metrics": {
@@ -2814,7 +2739,7 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Hardware design"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -2854,7 +2779,7 @@
           "links": [],
           "tags": [
             "teaching",
-            "Prototyping"
+            "fabrication"
           ],
           "seenIn": [],
           "metrics": {
@@ -2903,8 +2828,7 @@
           "links": [],
           "tags": [
             "fabrication",
-            "cad",
-            "Prototyping"
+            "cad"
           ],
           "seenIn": [],
           "metrics": {
@@ -2920,7 +2844,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -2953,8 +2877,7 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Prototyping",
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -2970,7 +2893,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Prototyping",
+            "fabrication",
             "leadership"
           ],
           "seenIn": [],
@@ -3020,7 +2943,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -3036,7 +2959,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Prototyping",
             "fabrication"
           ],
           "seenIn": [],
@@ -3070,7 +2992,6 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Manufacturing engineering",
             "Medical devices"
           ],
           "seenIn": [],
@@ -3103,7 +3024,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -3119,9 +3040,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering",
             "manufacturing",
-            "Hardware design"
+            "hardware"
           ],
           "seenIn": [],
           "metrics": {
@@ -3153,7 +3073,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -3169,8 +3089,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "manufacturing",
-            "Manufacturing engineering"
+            "manufacturing"
           ],
           "seenIn": [],
           "metrics": {
@@ -3204,7 +3123,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "documentation",
             "Medical devices"
           ],
           "seenIn": [],
@@ -3317,8 +3235,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "cad",
-            "certification"
+            "cad"
           ],
           "seenIn": [],
           "metrics": {
@@ -3334,8 +3251,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "cad",
-            "certification"
+            "cad"
           ],
           "seenIn": [],
           "metrics": {
@@ -3350,10 +3266,7 @@
           "text": "ISO 13485 internal auditor",
           "marks": [],
           "links": [],
-          "tags": [
-            "certification",
-            "documentation"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 26,
@@ -3367,10 +3280,7 @@
           "text": "ISO 13485 belső auditor",
           "marks": [],
           "links": [],
-          "tags": [
-            "certification",
-            "documentation"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 23,
@@ -3384,9 +3294,7 @@
           "text": "Dose-counting mechanism for a metered inhaler",
           "marks": [],
           "links": [],
-          "tags": [
-            "patent"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 45,
@@ -3400,9 +3308,7 @@
           "text": "Adagszámláló mechanizmus adagolós inhalátorhoz",
           "marks": [],
           "links": [],
-          "tags": [
-            "patent"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 46,
@@ -3423,9 +3329,7 @@
             }
           ],
           "links": [],
-          "tags": [
-            "patent"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 36,
@@ -3446,9 +3350,7 @@
             }
           ],
           "links": [],
-          "tags": [
-            "patent"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 38,
@@ -3462,9 +3364,7 @@
           "text": "M.Eng. Mechanical Engineering",
           "marks": [],
           "links": [],
-          "tags": [
-            "education"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 29,
@@ -3478,9 +3378,7 @@
           "text": "Gépészmérnök MSc",
           "marks": [],
           "links": [],
-          "tags": [
-            "education"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 16,
@@ -3494,9 +3392,7 @@
           "text": "Universidade do Porto",
           "marks": [],
           "links": [],
-          "tags": [
-            "education"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 21,
@@ -3510,9 +3406,7 @@
           "text": "Portói Egyetem",
           "marks": [],
           "links": [],
-          "tags": [
-            "education"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 14,
@@ -3526,9 +3420,7 @@
           "text": "JUL 2021 · DISTINCTION",
           "marks": [],
           "links": [],
-          "tags": [
-            "education"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 22,
@@ -3542,9 +3434,7 @@
           "text": "2021. JÚL. · KITÜNTETÉSSEL",
           "marks": [],
           "links": [],
-          "tags": [
-            "education"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 26,
@@ -3558,9 +3448,7 @@
           "text": "Native",
           "marks": [],
           "links": [],
-          "tags": [
-            "languages"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 6,
@@ -3574,9 +3462,7 @@
           "text": "anyanyelv",
           "marks": [],
           "links": [],
-          "tags": [
-            "languages"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 9,
@@ -3590,9 +3476,7 @@
           "text": "C2",
           "marks": [],
           "links": [],
-          "tags": [
-            "languages"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 2,
@@ -3606,9 +3490,7 @@
           "text": "C2",
           "marks": [],
           "links": [],
-          "tags": [
-            "languages"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 2,
@@ -3622,9 +3504,7 @@
           "text": "B1",
           "marks": [],
           "links": [],
-          "tags": [
-            "languages"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 2,
@@ -3638,9 +3518,7 @@
           "text": "B1",
           "marks": [],
           "links": [],
-          "tags": [
-            "languages"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 2,
@@ -3654,9 +3532,7 @@
           "text": "Dinghy sailing",
           "marks": [],
           "links": [],
-          "tags": [
-            "interests"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 14,
@@ -3670,9 +3546,7 @@
           "text": "Bookbinding",
           "marks": [],
           "links": [],
-          "tags": [
-            "interests"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 11,
@@ -3686,9 +3560,7 @@
           "text": "Restoring mechanical watches",
           "marks": [],
           "links": [],
-          "tags": [
-            "interests"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 28,
@@ -3703,7 +3575,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "identity",
             "needs-review"
           ],
           "seenIn": [],
@@ -3731,8 +3602,6 @@
             }
           ],
           "tags": [
-            "identity",
-            "work-rights",
             "needs-review"
           ],
           "seenIn": [],
@@ -3757,7 +3626,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -3959,9 +3828,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
+            "fabrication",
             "Medical devices",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -3979,8 +3847,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -3998,8 +3865,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -4017,7 +3883,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design",
+            "hardware",
             "Medical devices",
             "needs-review"
           ],
@@ -4043,7 +3909,6 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -4061,7 +3926,7 @@
           "links": [],
           "tags": [
             "teaching",
-            "Prototyping",
+            "fabrication",
             "needs-review"
           ],
           "seenIn": [],
@@ -4080,7 +3945,6 @@
           "tags": [
             "fabrication",
             "cad",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -4098,7 +3962,6 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Manufacturing engineering",
             "Medical devices",
             "needs-review"
           ],
@@ -4116,9 +3979,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering",
             "manufacturing",
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -4169,7 +4031,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "certification",
             "needs-review"
           ],
           "seenIn": [],
@@ -4186,7 +4047,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -4210,7 +4070,6 @@
           ],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -4227,7 +4086,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -4244,7 +4102,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -4261,7 +4118,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -4278,7 +4134,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -4295,7 +4150,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -4312,7 +4166,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -4329,7 +4182,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "identity",
             "needs-review"
           ],
           "seenIn": [],
@@ -4357,8 +4209,6 @@
             }
           ],
           "tags": [
-            "identity",
-            "work-rights",
             "needs-review"
           ],
           "seenIn": [],
@@ -4383,7 +4233,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -4585,9 +4435,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
+            "fabrication",
             "Medical devices",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -4605,8 +4454,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -4624,8 +4472,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -4643,7 +4490,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design",
+            "hardware",
             "Medical devices",
             "needs-review"
           ],
@@ -4669,7 +4516,6 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -4687,7 +4533,7 @@
           "links": [],
           "tags": [
             "teaching",
-            "Prototyping",
+            "fabrication",
             "needs-review"
           ],
           "seenIn": [],
@@ -4706,7 +4552,6 @@
           "tags": [
             "fabrication",
             "cad",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -4724,7 +4569,6 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Manufacturing engineering",
             "Medical devices",
             "needs-review"
           ],
@@ -4742,9 +4586,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering",
             "manufacturing",
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -4795,7 +4638,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "certification",
             "needs-review"
           ],
           "seenIn": [],
@@ -4812,7 +4654,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -4836,7 +4677,6 @@
           ],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -4853,7 +4693,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -4870,7 +4709,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -4887,7 +4725,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -4904,7 +4741,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -4921,7 +4757,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -4938,7 +4773,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -4955,7 +4789,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "identity",
             "needs-review"
           ],
           "seenIn": [],
@@ -4983,8 +4816,6 @@
             }
           ],
           "tags": [
-            "identity",
-            "work-rights",
             "needs-review"
           ],
           "seenIn": [],
@@ -5009,7 +4840,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -5211,9 +5042,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
+            "fabrication",
             "Medical devices",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -5231,8 +5061,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -5250,8 +5079,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -5269,7 +5097,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design",
+            "hardware",
             "Medical devices",
             "needs-review"
           ],
@@ -5295,7 +5123,6 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -5313,7 +5140,7 @@
           "links": [],
           "tags": [
             "teaching",
-            "Prototyping",
+            "fabrication",
             "needs-review"
           ],
           "seenIn": [],
@@ -5332,7 +5159,6 @@
           "tags": [
             "fabrication",
             "cad",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -5350,7 +5176,6 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Manufacturing engineering",
             "Medical devices",
             "needs-review"
           ],
@@ -5368,9 +5193,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering",
             "manufacturing",
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -5421,7 +5245,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "certification",
             "needs-review"
           ],
           "seenIn": [],
@@ -5438,7 +5261,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -5462,7 +5284,6 @@
           ],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -5479,7 +5300,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -5496,7 +5316,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -5513,7 +5332,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -5530,7 +5348,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -5547,7 +5364,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -5564,7 +5380,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -5581,7 +5396,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "identity",
             "needs-review"
           ],
           "seenIn": [],
@@ -5609,8 +5423,6 @@
             }
           ],
           "tags": [
-            "identity",
-            "work-rights",
             "needs-review"
           ],
           "seenIn": [],
@@ -5635,7 +5447,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -5837,9 +5649,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
+            "fabrication",
             "Medical devices",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -5857,8 +5668,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -5876,8 +5686,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -5895,7 +5704,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design",
+            "hardware",
             "Medical devices",
             "needs-review"
           ],
@@ -5921,7 +5730,6 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -5939,7 +5747,7 @@
           "links": [],
           "tags": [
             "teaching",
-            "Prototyping",
+            "fabrication",
             "needs-review"
           ],
           "seenIn": [],
@@ -5958,7 +5766,6 @@
           "tags": [
             "fabrication",
             "cad",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -5976,7 +5783,6 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Manufacturing engineering",
             "Medical devices",
             "needs-review"
           ],
@@ -5994,9 +5800,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering",
             "manufacturing",
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -6047,7 +5852,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "certification",
             "needs-review"
           ],
           "seenIn": [],
@@ -6064,7 +5868,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -6088,7 +5891,6 @@
           ],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -6105,7 +5907,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -6122,7 +5923,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -6139,7 +5939,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -6156,7 +5955,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -6173,7 +5971,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -6190,7 +5987,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -6207,7 +6003,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "identity",
             "needs-review"
           ],
           "seenIn": [],
@@ -6235,8 +6030,6 @@
             }
           ],
           "tags": [
-            "identity",
-            "work-rights",
             "needs-review"
           ],
           "seenIn": [],
@@ -6261,7 +6054,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -6463,9 +6256,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
+            "fabrication",
             "Medical devices",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -6483,8 +6275,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -6502,8 +6293,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -6521,7 +6311,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design",
+            "hardware",
             "Medical devices",
             "needs-review"
           ],
@@ -6547,7 +6337,6 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -6565,7 +6354,7 @@
           "links": [],
           "tags": [
             "teaching",
-            "Prototyping",
+            "fabrication",
             "needs-review"
           ],
           "seenIn": [],
@@ -6584,7 +6373,6 @@
           "tags": [
             "fabrication",
             "cad",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -6602,7 +6390,6 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Manufacturing engineering",
             "Medical devices",
             "needs-review"
           ],
@@ -6620,9 +6407,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering",
             "manufacturing",
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -6673,7 +6459,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "certification",
             "needs-review"
           ],
           "seenIn": [],
@@ -6690,7 +6475,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -6714,7 +6498,6 @@
           ],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -6731,7 +6514,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -6748,7 +6530,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -6765,7 +6546,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -6782,7 +6562,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -6799,7 +6578,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -6816,7 +6594,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -6833,7 +6610,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "identity",
             "needs-review"
           ],
           "seenIn": [],
@@ -6861,8 +6637,6 @@
             }
           ],
           "tags": [
-            "identity",
-            "work-rights",
             "needs-review"
           ],
           "seenIn": [],
@@ -6887,7 +6661,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -7089,9 +6863,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
+            "fabrication",
             "Medical devices",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -7109,8 +6882,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -7128,8 +6900,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -7147,7 +6918,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design",
+            "hardware",
             "Medical devices",
             "needs-review"
           ],
@@ -7173,7 +6944,6 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -7191,7 +6961,7 @@
           "links": [],
           "tags": [
             "teaching",
-            "Prototyping",
+            "fabrication",
             "needs-review"
           ],
           "seenIn": [],
@@ -7210,7 +6980,6 @@
           "tags": [
             "fabrication",
             "cad",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -7228,7 +6997,6 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Manufacturing engineering",
             "Medical devices",
             "needs-review"
           ],
@@ -7246,9 +7014,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering",
             "manufacturing",
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -7299,7 +7066,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "certification",
             "needs-review"
           ],
           "seenIn": [],
@@ -7316,7 +7082,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -7340,7 +7105,6 @@
           ],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -7357,7 +7121,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -7374,7 +7137,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -7391,7 +7153,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -7408,7 +7169,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -7425,7 +7185,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -7442,7 +7201,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -7459,7 +7217,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "identity",
             "needs-review"
           ],
           "seenIn": [],
@@ -7487,8 +7244,6 @@
             }
           ],
           "tags": [
-            "identity",
-            "work-rights",
             "needs-review"
           ],
           "seenIn": [],
@@ -7513,7 +7268,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -7715,9 +7470,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
+            "fabrication",
             "Medical devices",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -7735,8 +7489,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -7754,8 +7507,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -7773,7 +7525,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design",
+            "hardware",
             "Medical devices",
             "needs-review"
           ],
@@ -7799,7 +7551,6 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -7817,7 +7568,7 @@
           "links": [],
           "tags": [
             "teaching",
-            "Prototyping",
+            "fabrication",
             "needs-review"
           ],
           "seenIn": [],
@@ -7836,7 +7587,6 @@
           "tags": [
             "fabrication",
             "cad",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -7854,7 +7604,6 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Manufacturing engineering",
             "Medical devices",
             "needs-review"
           ],
@@ -7872,9 +7621,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering",
             "manufacturing",
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -7925,7 +7673,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "certification",
             "needs-review"
           ],
           "seenIn": [],
@@ -7942,7 +7689,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -7966,7 +7712,6 @@
           ],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -7983,7 +7728,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -8000,7 +7744,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -8017,7 +7760,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -8034,7 +7776,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -8051,7 +7792,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -8068,7 +7808,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -8085,7 +7824,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "identity",
             "needs-review"
           ],
           "seenIn": [],
@@ -8113,8 +7851,6 @@
             }
           ],
           "tags": [
-            "identity",
-            "work-rights",
             "needs-review"
           ],
           "seenIn": [],
@@ -8139,7 +7875,7 @@
           ],
           "links": [],
           "tags": [
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -8341,9 +8077,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "prototyping",
+            "fabrication",
             "Medical devices",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -8361,8 +8096,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -8380,8 +8114,7 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Hardware design",
-            "Manufacturing engineering",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -8399,7 +8132,7 @@
           "links": [],
           "tags": [
             "cad",
-            "Hardware design",
+            "hardware",
             "Medical devices",
             "needs-review"
           ],
@@ -8425,7 +8158,6 @@
           "links": [],
           "tags": [
             "fabrication",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -8443,7 +8175,7 @@
           "links": [],
           "tags": [
             "teaching",
-            "Prototyping",
+            "fabrication",
             "needs-review"
           ],
           "seenIn": [],
@@ -8462,7 +8194,6 @@
           "tags": [
             "fabrication",
             "cad",
-            "Prototyping",
             "needs-review"
           ],
           "seenIn": [],
@@ -8480,7 +8211,6 @@
           "links": [],
           "tags": [
             "manufacturing",
-            "Manufacturing engineering",
             "Medical devices",
             "needs-review"
           ],
@@ -8498,9 +8228,8 @@
           "marks": [],
           "links": [],
           "tags": [
-            "Manufacturing engineering",
             "manufacturing",
-            "Hardware design",
+            "hardware",
             "needs-review"
           ],
           "seenIn": [],
@@ -8551,7 +8280,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "certification",
             "needs-review"
           ],
           "seenIn": [],
@@ -8568,7 +8296,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -8592,7 +8319,6 @@
           ],
           "links": [],
           "tags": [
-            "patent",
             "needs-review"
           ],
           "seenIn": [],
@@ -8609,7 +8335,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -8626,7 +8351,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -8643,7 +8367,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "education",
             "needs-review"
           ],
           "seenIn": [],
@@ -8660,7 +8383,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -8677,7 +8399,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -8694,7 +8415,6 @@
           "marks": [],
           "links": [],
           "tags": [
-            "languages",
             "needs-review"
           ],
           "seenIn": [],
@@ -8710,9 +8430,7 @@
           "text": "Open-source caliper stand",
           "marks": [],
           "links": [],
-          "tags": [
-            "projects"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 25,
@@ -8726,9 +8444,7 @@
           "text": "Independent · Apr 2022 – Sep 2022",
           "marks": [],
           "links": [],
-          "tags": [
-            "projects"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 33,
@@ -8743,8 +8459,7 @@
           "marks": [],
           "links": [],
           "tags": [
-            "fabrication",
-            "Prototyping"
+            "fabrication"
           ],
           "seenIn": [],
           "metrics": {
@@ -8759,9 +8474,7 @@
           "text": "Formula Student chassis jig",
           "marks": [],
           "links": [],
-          "tags": [
-            "projects"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 27,
@@ -8775,9 +8488,7 @@
           "text": "FEUP Formula Student team · Oct 2019 – Jun 2020 · Porto",
           "marks": [],
           "links": [],
-          "tags": [
-            "projects"
-          ],
+          "tags": [],
           "seenIn": [],
           "metrics": {
             "chars": 55,
@@ -9148,13 +8859,19 @@
         "fact:cert-gdt"
       ],
       "jobTypes": [
-        "Hardware design",
         "Medical devices",
+        {
+          "id": "Hardware design",
+          "label": "Hardware design",
+          "tags": [
+            "hardware",
+            "cad"
+          ]
+        },
         {
           "id": "Prototyping",
           "label": "Prototyping",
           "tags": [
-            "Prototyping",
             "fabrication"
           ]
         },
@@ -9162,7 +8879,6 @@
           "id": "Manufacturing engineering",
           "label": "Manufacturing engineering",
           "tags": [
-            "Manufacturing engineering",
             "manufacturing"
           ]
         }

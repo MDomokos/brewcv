@@ -5,7 +5,7 @@
 import * as R from '../model/record.js';
 import * as T from '../model/resume.js';
 import { key as measureKeyOf } from '../fit.js';
-import { allTags, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
+import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
 import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
@@ -19,7 +19,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null };
+const E = { edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null };
 
 function commit(fn, label, done){
   try {
@@ -195,7 +195,7 @@ function versionsX(id){
     m: work(), fact: id, lang: L,
     vs, using, over: overrideOf(id), ed,
     compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,
-    lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: allTags(rec(), null).map(x => x.tag),
+    lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: tagVocab(rec()),
     dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id) || id === cur().summary), fill: C.fillText(),
     ref: C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
   };
@@ -461,7 +461,7 @@ function bind(body){
       e.preventDefault();
       const tag = t.value.trim(), vid = t.dataset.vid;
       if (!tag) return;
-      commit(d => { const v = d.record.variants.find(x => x.id === vid); if (v && !(v.tags ?? []).includes(tag)) v.tags = [...(v.tags ?? []), tag]; }, tr('undo.addTag'));
+      commit(d => K.tagVersion(d.record, vid, tag), tr('undo.addTag'));
       return;
     }
     if (t.classList?.contains('new-claim') && e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); t.closest('.addrow')?.querySelector('[data-act=add-claim]')?.click(); }
@@ -486,6 +486,8 @@ function bind(body){
   });
 
   body.addEventListener('dragstart', e => {
+    const bu = e.target.closest?.('.clrow[data-bullet][draggable=true]');
+    if (bu){ E.dragBullet = { id: bu.dataset.bullet, job: bu.dataset.bjob }; bu.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', bu.dataset.bullet); return; }
     const it = e.target.closest?.('.clrow[data-item][draggable=true]');
     if (it){ E.dragItem = { id: it.dataset.item, sec: it.dataset.sec }; it.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', it.dataset.item); return; }
     const r = e.target.closest?.('.srow[draggable=true], .offchip[draggable=true]');
@@ -497,6 +499,16 @@ function bind(body){
     e.dataTransfer.setData('text/plain', E.drag);
   });
   body.addEventListener('dragover', e => {
+    if (E.dragBullet){
+      const tb = e.target.closest?.('.clrow[data-bullet]');
+      if (tb && tb.dataset.bjob === E.dragBullet.job){
+        e.preventDefault();
+        for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
+        const bb = tb.getBoundingClientRect();
+        tb.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
+      }
+      return;
+    }
     const tr0 = e.target.closest?.('.clrow[data-item]');
     if (E.dragItem){
       if (tr0 && tr0.dataset.sec === E.dragItem.sec){
@@ -516,6 +528,18 @@ function bind(body){
     r.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
   });
   body.addEventListener('drop', e => {
+    if (E.dragBullet){
+      const row = e.target.closest?.('.clrow[data-bullet]'), from = E.dragBullet;
+      E.dragBullet = null;
+      if (!row || row.dataset.bjob !== from.job || row.dataset.bullet === from.id) return;
+      e.preventDefault();
+      const below = row.classList.contains('drop-below');
+      const w = T.jobOfFact(rec(), from.id);
+      const ids = (w ? T.listedBullets(rec(), cur(), w.id) : []).filter(x => x !== from.id);
+      const at = ids.indexOf(row.dataset.bullet) + (below ? 1 : 0);
+      commit(d => T.moveBullet(d.record, d.cur, from.id, ids[at] ?? null), tr('ux2.undoMoveItem'));
+      return;
+    }
     if (E.dragItem){
       const row = e.target.closest?.('.clrow[data-item]'), from = E.dragItem;
       E.dragItem = null;
@@ -547,7 +571,7 @@ function bind(body){
     if (res?.auto) C.toast(autoNote(res).trim());
   });
   body.addEventListener('dragend', () => {
-    E.drag = null; E.dragOff = false; E.dragItem = null;
+    E.drag = null; E.dragOff = false; E.dragItem = null; E.dragBullet = null;
     for (const n of body.querySelectorAll('.dragging, .drop-above, .drop-below')) n.classList.remove('dragging', 'drop-above', 'drop-below');
   });
 }
@@ -579,6 +603,12 @@ function moveSelected(d){
 // Alt+↑ / Alt+↓ moves what has the focus or is selected: an item of a list section in its section's print order,
 // else the selected section
 function moveWhatIsHere(d){
+  const bullet = document.activeElement?.closest?.('.clrow[data-bullet]')?.dataset.bullet
+    ?? (C.ui.sel.kind === 'bullet' && C.ui.sel.job ? C.ui.sel.id : null);
+  if (bullet){
+    commit(x => T.stepBullet(x.record, x.cur, bullet, d), t('ux2.undoMoveItem'));
+    return true;
+  }
   const row = document.activeElement?.closest?.('.clrow[data-item]');
   const sel = C.ui.sel;
   const id = row?.dataset.item ?? (sel.kind === 'record' && sel.what === 'item' && T.sectionOfItem(rec(), sel.id) ? sel.id : null);
@@ -593,7 +623,7 @@ function moveWhatIsHere(d){
 }
 function key(e){
   if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')
-    && (C.ui.sel.kind === 'section' || document.activeElement?.closest?.('.clrow[data-item]') || (C.ui.sel.kind === 'record' && C.ui.sel.what === 'item'))){
+    && (C.ui.sel.kind === 'section' || document.activeElement?.closest?.('.clrow[data-item], .clrow[data-bullet]') || (C.ui.sel.kind === 'bullet' && C.ui.sel.job) || (C.ui.sel.kind === 'record' && C.ui.sel.what === 'item'))){
     e.preventDefault(); return moveWhatIsHere(e.key === 'ArrowDown' ? 1 : -1);
   }
   if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && C.ui.sel.kind === 'bullet' && !E.edit && document.body.dataset.phone !== 'true'){ e.preventDefault(); startEdit(); return true; }

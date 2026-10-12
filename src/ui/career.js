@@ -6,7 +6,7 @@
 // puts the field back, and every commit is one undo step; only creating something has a button.
 
 import * as K from '../model/career.js';
-import { jobTypesOf, allTags } from '../model/focus.js';
+import { jobTypesOf, allTags, tagVocab, TAG_CAP } from '../model/focus.js';
 import { versionsIn } from '../model/record.js';
 import { langName, isSame, sameKey } from '../model/lang.js';
 import { DEFAULT_LANG, defaultVariant } from '../model/resume.js';
@@ -160,7 +160,8 @@ const duringName = id => { const m = rec(); return m.work?.find(w => w.id === id
 // ---- job types ----
 function jobTypesHtml(){
   const jts = jobTypesOf(rec());
-  const tags = allTags(rec(), null).filter(x => !x.jobType).map(x => x.tag);
+  const vocab = tagVocab(rec());
+  const counts = new Map(allTags(rec(), null, { archived: true }).filter(x => !x.jobType).map(x => [x.tag, x.n]));
   return `${crumb([{ t: t('jt.title') }])}<h2 class="title">${h('jt.title')}</h2>
     <p class="muted small">${h('jt.intro')}</p>
     ${jts.map(j => `<div class="jtrow" data-jt="${esc(j.id)}">
@@ -168,8 +169,19 @@ function jobTypesHtml(){
       <span class="chips">${j.tags.map(tg => `<span class="tag jt">${esc(tg)}<button class="rm" data-act="c-jt-tag-rm" data-id="${esc(j.id)}" data-tag="${esc(tg)}" aria-label="${esc(t('edit.removeTag', { tag: tg }))}">×</button></span>`).join('')}
         <input class="tag-in jt-tag-in" list="jt-tags" data-id="${esc(j.id)}" placeholder="${esc(t('jt.addTagPh'))}" aria-label="${esc(t('jt.addTagTo', { name: j.label }))}"></span>
       <button class="ghost sm" data-act="c-jt-del" data-id="${esc(j.id)}" title="${esc(t('jt.delete'))}" aria-label="${esc(t('jt.delete'))}">🗑</button></div>`).join('') || `<p class="muted small empty-line">${h('jt.none')}</p>`}
-    <datalist id="jt-tags">${tags.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
-    <div class="jtnew"><input id="jt-new" placeholder="${esc(t('jt.newPh'))}" autocomplete="off" aria-label="${esc(t('jt.new'))}"><button class="sm" data-act="c-jt-add">${h('jt.new')}</button></div>`;
+    <datalist id="jt-tags">${vocab.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+    <div class="jtnew"><input id="jt-new" placeholder="${esc(t('jt.newPh'))}" autocomplete="off" aria-label="${esc(t('jt.new'))}"><button class="sm" data-act="c-jt-add">${h('jt.new')}</button></div>
+    <h3 class="sub">${h('ux2.tagsTitle')}</h3>
+    <p class="muted small">${h('ux2.tagsIntro', { max: TAG_CAP })}</p>
+    <p class="small tagcount" id="tag-count">${h('ux2.tagsCount', { n: vocab.length, max: TAG_CAP })}</p>
+    ${vocab.map(tg => `<div class="tagrow" data-tag-row="${esc(tg)}">
+      <input class="tag-name" data-tag="${esc(tg)}" value="${esc(tg)}" aria-label="${esc(t('ux2.tagName', { tag: tg }))}" autocomplete="off">
+      <span class="muted small">${h('ux2.tagUsed', { n: counts.get(tg) ?? 0 })}</span>
+      ${vocab.length > 1 ? `<select class="tag-merge" data-tag="${esc(tg)}" aria-label="${esc(t('ux2.tagMergeInto', { tag: tg }))}"><option value="">${h('ux2.tagMerge')}</option>${vocab.filter(x => x !== tg).map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select>` : ''}
+      <button class="ghost sm" data-act="c-tag-del" data-tag="${esc(tg)}" title="${esc(t('ux2.tagDelete', { tag: tg }))}" aria-label="${esc(t('ux2.tagDelete', { tag: tg }))}">🗑</button></div>`).join('') || `<p class="muted small empty-line">${h('ux2.tagsNone')}</p>`}
+    <div class="jtnew"><input id="tag-new" placeholder="${esc(t('ux2.tagNewPh'))}" autocomplete="off" aria-label="${esc(t('ux2.tagNew'))}" ${vocab.length >= TAG_CAP ? 'disabled' : ''}><button class="sm" data-act="c-tag-add" ${vocab.length >= TAG_CAP ? 'disabled' : ''}>${h('ux2.tagNew')}</button></div>
+    ${vocab.length >= TAG_CAP ? `<p class="muted small">${h('ux2.tagsFull')}</p>` : ''}
+    <details class="taghow" ${vocab.length ? '' : 'open'}><summary>${h('ux2.tagsHowTitle')}</summary><p class="small">${h('ux2.tagsHow1')}</p><p class="small">${h('ux2.tagsHow2')}</p><p class="small">${h('ux2.tagsHow3')}</p></details>`;
 }
 
 // ---- what the inspector shows for a selection that is not a claim ----
@@ -561,6 +573,12 @@ async function act(a, tg){
       if (commit(d => { K.addJobType(d.record, el?.value ?? ''); }, t('jt.undoNew'), t('jt.added'))){ C.renderBody(); setTimeout(() => $('.jtrow:last-of-type .jt-tag-in')?.focus(), 30); }
       return true;
     }
+    case 'c-tag-add': {
+      const el = $('#tag-new');
+      if (commit(d => { K.addTag(d.record, el?.value ?? ''); }, t('ux2.undoTagNew'), t('ux2.tagAdded'))){ C.renderBody(); setTimeout(() => $('#tag-new')?.focus(), 30); }
+      return true;
+    }
+    case 'c-tag-del': { const tag = tg.dataset.tag; if (commit(d => K.deleteTag(d.record, tag), t('ux2.undoTagDelete'), t('ux2.tagDeleted'))) C.renderBody(); return true; }
     case 'c-jt-del': { const id = tg.dataset.id; if (commit(d => K.deleteJobType(d.record, id), t('jt.undoDelete'), t('jt.deleted'))) C.renderBody(); return true; }
     case 'c-jt-tag-rm': { const id = tg.dataset.id, tag = tg.dataset.tag; if (commit(d => K.removeJobTypeTag(d.record, id, tag), t('jt.undoTags'))) C.renderBody(); return true; }
     case 'c-arch-jobs': W.jobs = !W.jobs; C.renderBody(); C.renderTimeline(); return true;
@@ -637,6 +655,8 @@ function bind(body){
     const el = e.target;
     const form = el.closest?.('[data-form]');
     if (el.id === 'c-current'){ const end = $('#c-end'); if (end) end.disabled = el.checked; }
+    if (el.classList?.contains('tag-name')){ const tag = el.dataset.tag; commit(d => K.renameTag(d.record, tag, el.value), t('ux2.undoTagRename')); C.renderBody(); return; }
+    if (el.classList?.contains('tag-merge')){ const tag = el.dataset.tag, into = el.value; if (into) commit(d => K.mergeTag(d.record, tag, into), t('ux2.undoTagMerge'), t('ux2.tagMerged', { from: tag, into })); C.renderBody(); return; }
     if (el.classList?.contains('jt-label')){ const id = el.dataset.id; commit(d => K.renameJobType(d.record, id, el.value), t('jt.undoRename')); C.renderBody(); return; }
     if (el.dataset.kplace && W.kind?.draft){ readKind(); W.kind.draft.place = el.dataset.kplace; C.renderBody(); return; }
     // a choice, a month, a tick: no caret to wait for
@@ -662,6 +682,7 @@ function bind(body){
       const id = el.dataset.id, v = el.value.trim();
       if (v && commit(d => K.addJobTypeTag(d.record, id, v), t('jt.undoTags'))){ C.renderBody(); setTimeout(() => document.querySelector(`.jt-tag-in[data-id="${CSS.escape(id)}"]`)?.focus(), 30); }
     }
+    if (el.id === 'tag-new' && e.key === 'Enter'){ e.preventDefault(); $('[data-act=c-tag-add]')?.click(); return; }
     if (el.id === 'c-kw-in' && (e.key === 'Enter' || e.key === ',')){
       e.preventDefault();
       const v = el.value.trim(); if (!v) return;

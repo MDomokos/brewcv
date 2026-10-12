@@ -24,21 +24,25 @@ const model = S.load(read('data/example.json')).model;
 const names = read('data/example-resumes/index.json');
 const resumes = names.map(n => S.loadResume(read(`data/example-resumes/${n}`), model).recipe);
 const en = resumes.filter(r => (r.lang ?? 'en') === 'en');
-const on = (m, r) => new Set(T.jobRefs(m, r).flatMap(ref => T.listedBullets(m, r, typeof ref === 'string' ? ref : ref.id)));
+// the claims a resume prints: the bullets of its jobs, and the items of its list sections that are ticked
+const on = (m, r) => new Set([
+  ...T.jobRefs(m, r).flatMap(ref => T.listedBullets(m, r, typeof ref === 'string' ? ref : ref.id)),
+  ...T.sectionList(m, r).filter(s => s.on).flatMap(s => (T.itemList(m, r, s.id) ?? []).filter(x => x.on !== false).map(x => x.id)),
+]);
 
 section('tags');
 {
   const tags = F.allTags(model, 'en');
   ok('job types come first', tags.slice(0, model.jobTypes.length).every(t => t.jobType));
   ok('then by how many versions carry them', tags.filter(t => !t.jobType).every((t, i, a) => i === 0 || a[i - 1].n >= t.n));
-  const jt = model.jobTypes[0];
+  const jt = F.jobTypesOf(model)[0].id;
   const hits = F.tagHits(model, jt, 'en');
   ok(`tagHits finds the facts with a version tagged "${jt}"`, hits.size > 0 && [...hits].every(f => F.taggedVersion(model, f, jt, 'en')));
   ok('a tag in another language is not an English hit', [...F.tagHits(model, jt, 'hu')].every(f => F.taggedVersion(model, f, jt, 'hu')));
 }
 
 section('plan and apply');
-for (const jt of model.jobTypes){
+for (const jt of F.jobTypesOf(model).map(j => j.id)){
   for (const base of en){
     const r = clone(base);
     const plan = F.planTag(model, r, jt);
@@ -64,7 +68,7 @@ ok('every job type on every English example: plan = apply, tagged versions picke
 section('the rules');
 {
   let jt, r, keepMe;
-  for (const t of model.jobTypes) for (const b of en){
+  for (const t of F.jobTypesOf(model).map(j => j.id)) for (const b of en){
     const k = [...on(model, b)].find(f => { const c = clone(b); F.applyTag(model, c, t); return !on(model, c).has(f); });
     if (k && !keepMe){ jt = t; r = clone(b); keepMe = k; }
   }
@@ -201,10 +205,10 @@ section('job types as bundles of tags');
 section('one tagging system: the Highlight lens lists every tag, and a tag reaches every item');
 {
   const m2 = clone(model);
-  const v = m2.variants[0]; v.tags = [...new Set([...(v.tags ?? []), 'identity', 'archive', 'education', 'cad'])];
+  const v = m2.variants[0]; v.tags = [...new Set([...(v.tags ?? []), 'identity', 'education', 'cad'])];
   const lens = F.lensChoices(m2, 'en');
   ok('job types (bundles of tags) come first', lens.types.length === F.jobTypesOf(m2).length && lens.types.every(x => x.jobType));
-  ok('then every tag there is, with its count: nothing is hidden, not even identity, education or archive', ['identity', 'education', 'archive', 'cad'].every(t => lens.tags.some(x => x.tag === t)) && lens.tags.every(x => !x.jobType && x.n > 0));
+  ok('then every tag there is, with its count: nothing is hidden, not even identity or education', ['identity', 'education', 'cad'].every(t => lens.tags.some(x => x.tag === t)) && lens.tags.every(x => !x.jobType && x.n > 0));
   ok('a job type that is also a tag on versions is listed once', !lens.tags.some(x => lens.types.some(y => y.tag === x.tag)));
   ok('there is no second list of tags kept out of the lens', F.STRUCTURAL_TAGS === undefined);
   // a tag on a skill group or a language is as good as one on a bullet
@@ -218,6 +222,63 @@ section('one tagging system: the Highlight lens lists every tag, and a tag reach
   const r2 = clone(en[0]); T.setItemOn(m3, r2, target, false); const before = JSON.stringify(r2);
   const p2 = F.planTag(m3, r2, 'zz-tag');
   ok('applying turns a tagged item that is off back on, and picks its tagged version; one with no tag is not touched', p2.on >= 1 && (() => { F.applyTag(m3, r2, 'zz-tag'); return !(r2.off ?? []).includes(target) && r2.picks?.[target] === vs[0].id; })());
+}
+
+section('one closed list of tags, and one archive');
+{
+  const K = await import('../src/model/career.js');
+  const S = await import('../src/model/schema.js');
+  const m0 = clone(model);
+  const vocab0 = F.tagVocab(m0);
+  ok('the list is the tags in use and the ones a job type bundles, sorted, and holds no "archive"', vocab0.length > 0 && vocab0.every(x => x.toLowerCase() !== 'archive') && vocab0.join() === [...vocab0].sort((a, b) => a.localeCompare(b)).join());
+  // the example has more tags than the cap (a record may; it just cannot add more), so the rest starts from none
+  const m = clone(model);
+  for (const v of m.variants) delete v.tags;
+  m.jobTypes = []; m.vocabulary = { ...m.vocabulary, tags: [] };
+  let err = null;
+  try { K.tagVersion(m, m.variants[0].id, 'not-a-tag-zz'); } catch (e){ err = e; }
+  ok('a wording takes only a tag from the list', err?.key === 'ux2.errTagUnknown' && !(m.variants[0].tags ?? []).includes('not-a-tag-zz'));
+  K.addTag(m, 'zzone');
+  K.tagVersion(m, m.variants[0].id, 'ZZONE');
+  ok('a new tag joins the list, and is found whatever its case', F.tagVocab(m).includes('zzone') && m.variants[0].tags.includes('zzone'));
+  err = null; try { K.addTag(m, 'ZzOne'); } catch (e){ err = e; }
+  ok('a tag that is there already is refused', err?.key === 'ux2.errTagExists');
+  err = null; try { K.addTag(m, 'archive'); } catch (e){ err = e; }
+  ok('"archive" is not a tag', err?.key === 'ux2.errTagBad');
+  // fill the list: the next one is refused with the way out
+  let n = 0;
+  while (F.tagVocab(m).length < F.TAG_CAP) K.addTag(m, 'fill' + String.fromCharCode(97 + n++));
+  err = null; try { K.addTag(m, 'one-too-many'); } catch (e){ err = e; }
+  ok(`at ${F.TAG_CAP} tags a new one is refused (merge two instead)`, err?.key === 'ux2.errTagCap' && F.tagVocab(m).length === F.TAG_CAP);
+  // rename, merge and delete reach every wording and job type at once
+  const tagged = m.variants.filter(v => (v.tags ?? []).includes('zzone')).length;
+  K.renameTag(m, 'zzone', 'zztwo');
+  ok('a rename changes every wording that has the tag', m.variants.filter(v => (v.tags ?? []).includes('zztwo')).length === tagged && !F.tagVocab(m).includes('zzone'));
+  K.addJobType(m, 'Zz type', []); K.addJobTypeTag(m, 'zz-type', 'zztwo');
+  const some = m.variants.find(v => !(v.tags ?? []).includes('filla'));
+  K.tagVersion(m, some.id, 'filla'); K.tagVersion(m, some.id, 'zztwo');
+  K.mergeTag(m, 'zztwo', 'filla');
+  ok('a merge puts one tag in place of the other, once, on wordings and job types', !F.tagVocab(m).includes('zztwo')
+    && m.variants.every(v => new Set(v.tags ?? []).size === (v.tags ?? []).length && !(v.tags ?? []).includes('zztwo'))
+    && F.jobTypesOf(m).find(j => j.id === 'zz-type').tags.join() === 'filla');
+  K.deleteTag(m, 'filla');
+  ok('a delete takes the tag off every wording and job type, and the list has room again', !m.variants.some(v => (v.tags ?? []).includes('filla')) && F.tagVocab(m).length < F.TAG_CAP && F.jobTypesOf(m).find(j => j.id === 'zz-type').tags.length === 0);
+  err = null; try { K.mergeTag(m, 'fillb', 'fillb'); } catch (e){ err = e; }
+  ok('a tag is not merged into itself', err?.key === 'ux2.errTagSame');
+
+  // the archive tag becomes the archived flag
+  const a = clone(model);
+  const f1 = a.facts.find(f => f.variants.length === 1 && a.work.some(w => w.highlights.includes(f.id) && w.highlights.length > 1));
+  const w1 = a.work.find(w => w.highlights.includes(f1.id));
+  const v1 = a.variants.find(v => v.id === f1.variants[0]); v1.tags = [...(v1.tags ?? []), 'Archive', 'cad'];
+  const f2 = a.facts.find(f => f.variants.length > 1);
+  const v2 = a.variants.find(v => v.id === f2.variants[0]); v2.tags = ['archive'];
+  const n1 = S.mergeArchiveTag(a);
+  ok('the archive tag is gone from every wording', n1 === 2 && !a.variants.some(v => (v.tags ?? []).some(x => x.toLowerCase() === 'archive')) && v1.tags.includes('cad'));
+  ok('a claim whose every wording was tagged is archived, as a claim', f1.archived === true && v1.archived === undefined);
+  ok('one tagged wording of a claim that has others is archived alone, and is still refused', v2.archived === true && !f2.archived && T.refusal(f2, v2) === 'archive' && !T.refusal(f2, a.variants.find(v => v.id === f2.variants[1])));
+  ok('merging again changes nothing', S.mergeArchiveTag(a) === 0);
+  ok('an archived wording is out of the tag counts', !F.allTags(a, null).some(x => x.tag.toLowerCase() === 'archive'));
 }
 
 console.log(failed ? `\n${failed} focus check(s) FAILED` : '\nall focus checks passed');

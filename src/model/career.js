@@ -6,7 +6,7 @@ import { defaultVariant, DEFAULT_LANG, sectionOfEntry } from './resume.js';
 import { saveOver, addVersion } from './record.js';
 import { fmtMonth, ym, addJob, addBullet, addFact, slug, metaLineOf, presentIn, contactText, SEP } from './build.js';
 import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
-import { jobTypesOf, normaliseJobType } from './focus.js';
+import { jobTypesOf, normaliseJobType, tagVocab, TAG_CAP } from './focus.js';
 
 const now = () => new Date().toISOString().slice(0, 7);
 const months = (a, b) => {
@@ -434,9 +434,63 @@ export function renameJobType(model, id, label){
   jobTypeAt(model, id).label = text;
 }
 export function addJobTypeTag(model, id, tag){
-  const t = String(tag ?? '').trim();
+  const t = knownTag(model, tag);
   const j = jobTypeAt(model, id);
-  if (t && !j.tags.includes(t)) j.tags.push(t);
+  if (!j.tags.includes(t)) j.tags.push(t);
+}
+
+// ---- tags: one closed list ----
+// A wording or a job type takes a tag from the list only. Making, renaming, merging and deleting happen here,
+// each across every wording and job type at once, and the list stops at TAG_CAP: to add one, merge two.
+const tagKey = x => String(x ?? '').trim().toLowerCase();
+function cleanTag(name){
+  const text = String(name ?? '').replace(/\s+/g, ' ').trim();
+  if (!text) throw keyed('ux2.errTagName');
+  if (text.length > 30 || /[<>$]/.test(text) || tagKey(text) === 'archive') throw keyed('ux2.errTagBad', { name: text });
+  return text;
+}
+// The list's own spelling of a tag (an exact match first, since the list may hold Cad and cad), or a keyed error if the list has none like it.
+function knownTag(model, name){
+  const k = tagKey(name), list = tagVocab(model);
+  const hit = list.find(x => x === String(name ?? '').trim()) ?? list.find(x => tagKey(x) === k);
+  if (!hit) throw keyed('ux2.errTagUnknown', { name: String(name ?? '').trim() });
+  return hit;
+}
+const swapTag = (model, from, to) => {
+  const put = list => [...new Set((list ?? []).map(x => (x === from ? to : x)))];
+  for (const v of model.variants ?? []) if ((v.tags ?? []).includes(from)) v.tags = put(v.tags);
+  model.jobTypes = (model.jobTypes ?? []).map(j => { const n = normaliseJobType(j); if (!n || !n.tags.includes(from)) return j; return { ...n, tags: put(n.tags) }; });
+  if (model.vocabulary?.tags) model.vocabulary.tags = put(model.vocabulary.tags);
+};
+export function addTag(model, name){
+  const text = cleanTag(name);
+  if (tagVocab(model).some(x => tagKey(x) === tagKey(text))) throw keyed('ux2.errTagExists', { name: text });
+  if (tagVocab(model).length >= TAG_CAP) throw keyed('ux2.errTagCap', { n: TAG_CAP });
+  ((model.vocabulary ??= {}).tags ??= []).push(text);
+  return text;
+}
+export function renameTag(model, from, to){
+  const was = knownTag(model, from), text = cleanTag(to);
+  if (text === was) return;
+  if (tagVocab(model).some(x => x !== was && tagKey(x) === tagKey(text))) throw keyed('ux2.errTagExists', { name: text });
+  swapTag(model, was, text);
+}
+export function mergeTag(model, from, into){
+  const a = knownTag(model, from), b = knownTag(model, into);
+  if (a === b) throw keyed('ux2.errTagSame');
+  swapTag(model, a, b);
+}
+export function deleteTag(model, name){
+  const a = knownTag(model, name);
+  const drop = list => (list ?? []).filter(x => x !== a);
+  for (const v of model.variants ?? []) if ((v.tags ?? []).includes(a)){ v.tags = drop(v.tags); if (!v.tags.length) delete v.tags; }
+  model.jobTypes = (model.jobTypes ?? []).map(j => { const n = normaliseJobType(j); return n && n.tags.includes(a) ? { ...n, tags: drop(n.tags) } : j; });
+  if (model.vocabulary?.tags) model.vocabulary.tags = drop(model.vocabulary.tags);
+}
+// Puts a tag from the list on one wording.
+export function tagVersion(model, vid, name){
+  const a = knownTag(model, name), v = (model.variants ?? []).find(x => x.id === vid);
+  if (v && !(v.tags ?? []).includes(a)) v.tags = [...(v.tags ?? []), a];
 }
 export function removeJobTypeTag(model, id, tag){
   const j = jobTypeAt(model, id);

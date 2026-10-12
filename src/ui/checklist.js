@@ -34,7 +34,7 @@ function rowHtml(r, g){
     : r.fixed ? `<input type="checkbox" class="cb" checked disabled aria-label="${esc(t('ux2.alwaysOn', { text: r.text.slice(0, 60) }))}">`
     : `<input type="checkbox" class="cb" ${r.on ? 'checked' : ''} disabled aria-label="${esc(t('ux2.printsWithSection', { text: r.text.slice(0, 60) }))}">`;
   const text = r.id === 'about:photo' ? t('career.about.photo') : r.text || t('ux2.empty');
-  return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${r.item ? `data-item="${esc(r.item)}" data-sec="${esc(r.section)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>
+  return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${r.item ? `data-item="${esc(r.item)}" data-sec="${esc(r.section)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : r.kind === 'claim' && r.on && !r.archived && !r.fixed && g?.kind === 'entry' ? `data-bullet="${esc(r.id)}" data-bjob="${esc(g.id)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>
       ${box}<button class="clt" data-act="cl-open" data-sel="${selAttr(r.sel)}">${esc(text.replace(/\n/g, ' · '))}</button>
       ${r.nv ? `<span class="clv" title="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv }))}</span>` : ''}
       ${r.archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span><button class="ghost sm" data-act="unarchive-claim" data-id="${esc(r.id)}">${h('arch.unarchive')}</button>` : ''}</li>`;

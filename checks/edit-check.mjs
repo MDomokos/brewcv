@@ -396,5 +396,33 @@ section('items of a list section: tick one by one, print in this resume’s orde
   ok('every recipe still validates', (() => { const z = clone(q3); T.setItemOn(m, z, all[1], false); return !errorsOf(m, z).length; })());
 }
 
+section('the bullets of a job print in the order this resume sets');
+{
+  const m = clone(example), r = clone(resumes.find(x => (x.lang ?? 'en') === 'en'));
+  const job = m.work.find(w => T.listedBullets(m, r, w.id).length >= 3);
+  const [a, b, c] = T.listedBullets(m, r, job.id);
+  const before = render(m, r);
+  const q = clone(r);
+  T.moveBullet(m, q, c, a);
+  const order = () => T.listedBullets(m, q, job.id);
+  ok('moving a bullet before another puts it there, and no other job changes', order().slice(0, 3).join() === [c, a, b].join() && eq(T.listedBullets(m, r, job.id).slice(0, 3), [a, b, c]));
+  ok('the page prints them in that order', (() => { const html = render(m, q); const at = x => html.indexOf(T.chooseVariant(m, x, q).v.text.match(/^[A-Za-z ]{10,}/)?.[0] ?? '\0'); return html !== before && at(a) > 0 && at(c) > 0 && at(c) < at(a); })());
+  T.moveBullet(m, q, c, null);
+  ok('before nothing means last', order().at(-1) === c);
+  T.moveBullet(m, q, c, a);
+  ok('moving it back to where it was leaves the recipe as it was', (() => { const z = clone(r); T.moveBullet(m, z, c, a); T.moveBullet(m, z, c, T.listedBullets(m, r, job.id)[3] ?? null); return eq(z, r) && render(m, z) === before; })());
+  const z = clone(r);
+  ok('one step down and one step up are inverses; the ends stop', T.stepBullet(m, z, a, 1) && T.listedBullets(m, z, job.id)[1] === a && T.stepBullet(m, z, a, -1) && eq(T.listedBullets(m, z, job.id), T.listedBullets(m, r, job.id)) && !T.stepBullet(m, z, a, -1));
+  ok('a recipe stepped down and back up is the recipe it was', eq(z, r));
+  // ticking a moved bullet off and on keeps the others where the person put them
+  const y = clone(r); T.moveBullet(m, y, c, a);
+  T.setBulletOn(m, y, b, false); T.setBulletOn(m, y, b, true);
+  ok('ticking one off and on again does not undo the order of the rest', T.listedBullets(m, y, job.id).slice(0, 3).join() === [c, a, b].join(), T.listedBullets(m, y, job.id).join());
+  const off = clone(r); T.setBulletOn(m, off, a, false);
+  let key = null; try { T.moveBullet(m, off, a, c); } catch (e){ key = e.key; }
+  ok('a bullet that is off has no place in the order', key === 'ux2.errBulletOff');
+  ok('the recipe still validates', !errorsOf(m, y).length);
+}
+
 console.log(failed ? `\n${failed} edit check(s) FAILED` : '\nall edit checks passed');
 process.exit(failed ? 1 : 0);

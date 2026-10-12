@@ -300,6 +300,12 @@ const PROJECTS = [
     during: 'porto-meng', display: { position: 'chassis-jig-position', meta: 'chassis-jig-meta' }, highlights: ['chassis-jig-welding'] },
 ];
 
+// One short list of tags (the record's list is capped at 12): near-duplicates are merged, and the section names
+// nothing reads are left off.
+const MERGE = { 'Hardware design': 'hardware', 'Prototyping': 'fabrication', 'prototyping': 'fabrication', 'Manufacturing engineering': 'manufacturing' };
+const DROP_TAGS = new Set(['education', 'languages', 'identity', 'work-history', 'patent', 'certification', 'work-rights', 'documentation', 'projects', 'interests']);
+for (const v of variants) v.tags = [...new Set(v.tags.map(t => MERGE[t] ?? t).filter(t => !DROP_TAGS.has(t)))];
+
 // the record
 const tags = [...new Set(variants.flatMap(v => v.tags))].sort((a, b) => a.localeCompare(b));
 const record = migrate({
@@ -368,10 +374,11 @@ const record = migrate({
 });
 record.langs = [...LANGS];
 record.same = ['fact:name', 'fact:skills-cad', 'fact:skills-testing', 'fact:skills-software', 'fact:cert-solidworks', 'fact:cert-gdt'];
-// two tag-only job types (the old form) and two bundles
-record.jobTypes = ['Hardware design', 'Medical devices',
-  { id: 'Prototyping', label: 'Prototyping', tags: ['Prototyping', 'fabrication'] },
-  { id: 'Manufacturing engineering', label: 'Manufacturing engineering', tags: ['Manufacturing engineering', 'manufacturing'] }];
+// one tag-only job type (the old form) and three bundles
+record.jobTypes = ['Medical devices',
+  { id: 'Hardware design', label: 'Hardware design', tags: ['hardware', 'cad'] },
+  { id: 'Prototyping', label: 'Prototyping', tags: ['fabrication'] },
+  { id: 'Manufacturing engineering', label: 'Manufacturing engineering', tags: ['manufacturing'] }];
 record.requireSource = false;
 
 // saved resumes. Off bullets are written twice: as the printed `highlights`

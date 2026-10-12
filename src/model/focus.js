@@ -45,11 +45,24 @@ export function taggedVersion(model, factId, T, lang = 'en', ix = ixOf(model)){
     .sort((a, b) => (hit(b) - hit(a)) || (() => { const x = num(a.n), y = num(b.n); return (x[0] - y[0]) || ((x[1] ?? -1) - (y[1] ?? -1)); })())[0] ?? null;
 }
 
+const isLegacyArchive = t => String(t).toLowerCase() === 'archive';
+
+// The tags there are: the ones in the list the record keeps (`vocabulary.tags`), the ones on a wording, and the ones a
+// job type bundles. The list is closed: a wording takes only a tag from it, and it holds at most TAG_CAP new ones.
+export const TAG_CAP = 12;
+export function tagVocab(model){
+  const set = new Set((model.vocabulary?.tags ?? []).filter(t => typeof t === 'string' && t && !isLegacyArchive(t)));
+  for (const v of model.variants ?? []) for (const t of v.tags ?? []) if (!isLegacyArchive(t)) set.add(t);
+  for (const j of jobTypesOf(model)) for (const t of j.tags) if (!isLegacyArchive(t)) set.add(t);
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
 // Job types come first, even with no versions yet. Versions of archived claims count only with `archived`.
 export function allTags(model, lang = null, { archived = false } = {}){
   const m = new Map();
-  const hidden = archived ? new Set() : new Set((model.facts ?? []).filter(f => f.archived).flatMap(f => f.variants ?? []));
-  for (const v of model.variants ?? []) if ((!lang || langOf(v) === lang) && !hidden.has(v.id)) for (const t of v.tags ?? []) m.set(t, (m.get(t) ?? 0) + 1);
+  const hidden = archived ? new Set() : new Set([...(model.facts ?? []).filter(f => f.archived).flatMap(f => f.variants ?? []), ...(model.variants ?? []).filter(v => v.archived).map(v => v.id)]);
+  for (const v of model.variants ?? []) if ((!lang || langOf(v) === lang) && !hidden.has(v.id)) for (const t of v.tags ?? []) if (!isLegacyArchive(t)) m.set(t, (m.get(t) ?? 0) + 1);
+  for (const t of model.vocabulary?.tags ?? []) if (!m.has(t) && !isLegacyArchive(t)) m.set(t, 0);
   const jts = jobTypesOf(model);
   const ids = new Set(jts.map(j => j.id));
   // a job type counts the versions any of its tags is on

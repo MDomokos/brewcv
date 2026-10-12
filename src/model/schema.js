@@ -70,6 +70,32 @@ export function migrate(v3){
   return m;
 }
 
+// The `archive` tag and the `archived` flag were two ways to say one thing. The tag becomes the flag: on the claim
+// when every wording of it was tagged and the job keeps another live claim, else on the wording. In place and
+// idempotent; returns how many wordings it changed.
+export function mergeArchiveTag(m){
+  const isTag = t => String(t).toLowerCase() === 'archive';
+  const byId = new Map((m?.variants ?? []).map(v => [v.id, v]));
+  let n = 0;
+  for (const v of m?.variants ?? []){
+    if (!Array.isArray(v.tags) || !v.tags.some(isTag)) continue;
+    const keep = v.tags.filter(t => !isTag(t));
+    if (keep.length) v.tags = keep; else delete v.tags;
+    v.archived = true;
+    n++;
+  }
+  for (const f of m?.facts ?? []){
+    const vs = (f.variants ?? []).map(id => byId.get(id)).filter(Boolean);
+    if (f.archived || !vs.length || !vs.every(v => v.archived === true)) continue;
+    const job = (m.work ?? []).find(w => (w.highlights ?? []).includes(f.id));
+    const live = job && (job.highlights ?? []).some(h => h !== f.id && !(m.facts ?? []).find(x => x.id === h)?.archived);
+    if (job && !live) continue;
+    f.archived = true;
+    for (const v of vs) delete v.archived;
+  }
+  return n;
+}
+
 // Fields this app once named differently take JSON Resume's name (education `honours` → `score`).
 // In place and idempotent; returns how many it renamed.
 export const RENAMED = [['education', 'honours', 'score']];
@@ -162,7 +188,9 @@ export const serialize = file => JSON.stringify(file, null, 2) + '\n';
 export function load(file){
   const kind = detect(file);
   if (kind === 'library-v3'){
-    return { model: migrate(file), warnings: [`${file.schema} was read and migrated in memory; saving writes ${SCHEMA}`] };
+    const model = migrate(file);
+    mergeArchiveTag(model);
+    return { model, warnings: [`${file.schema} was read and migrated in memory; saving writes ${SCHEMA}`] };
   }
   if (kind !== 'library')
     throw new Error(kind === 'unknown' ? 'that is not a BrewCV library' : `that is a ${kind} file, not a library`);
@@ -179,6 +207,7 @@ export function load(file){
   const extraMeta = Object.fromEntries(Object.entries(file.meta).filter(([k]) => !OWN_META.has(k)));
   if (Object.keys(extraMeta).length) model.jsonMeta = clone(extraMeta);
   toJsonResumeNames(model);
+  mergeArchiveTag(model);
 
   const b = model.basics;
   if (b && rb.image === 'portrait' && b.portrait){

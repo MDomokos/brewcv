@@ -59,8 +59,9 @@ const fact = rb.facts.find(f => f.id === 'hydra-inhaler');
 const withChars = v => ({ ...v, marks: [], metrics: { chars: [...v.text].length, measured: {} } });
 const mk = (id, n, extra) => withChars({ ...rb.variants.find(v => v.id === 'hydra-inhaler-v1'), id, n, ...extra });
 // the archive copy is the shortest, so Fit would take it
-rb.variants.push(mk('hydra-inhaler-draft-1', '9', {}), mk('hydra-inhaler-old', '10', { tags: ['Archive'], text: 'Led the redesign.' }));
-fact.variants.push('hydra-inhaler-draft-1', 'hydra-inhaler-old');
+rb.variants.push(mk('hydra-inhaler-draft-1', '9', {}), mk('hydra-inhaler-old', '10', { tags: ['Archive'], text: 'Led the redesign.' }),
+  mk('hydra-inhaler-shelved', '11', { archived: true, text: 'Redesigned it.' }));
+fact.variants.push('hydra-inhaler-draft-1', 'hydra-inhaler-old', 'hydra-inhaler-shelved');
 // a version that already says another bullet
 const cov = JSON.parse(JSON.stringify(rec)), crb = cov.meta.resumeBuilder;
 crb.variants.push(mk('hydra-inhaler-merged', '11', { covers: ['hydra-testing'] }));
@@ -86,7 +87,8 @@ const oneFile = w('one.json', { resumeBuilderBackup: 1, saved: '2026-01-02T03:04
   const vs = j.jobs.find(x => x.id === 'hydra').claims.find(c => c.id === 'hydra-inhaler').versions;
   ok('a draft and an archive version are marked, not hidden',
     vs.find(v => v.id === 'hydra-inhaler-draft-1')?.refused === 'draft' && vs.find(v => v.id === 'hydra-inhaler-old')?.refused === 'archive'
-    && vs.filter(v => v.refused).length === 2);
+    && vs.find(v => v.id === 'hydra-inhaler-shelved')?.refused === 'archive'     // the archived flag is the archive; the old tag is still read
+    && vs.filter(v => v.refused).length === 3);
   ok('the text output says why', /hydra-inhaler-draft-1[^\n]*can't pick: draft/.test(run('scripts/claims.mjs', traps).out));
   const o = JSON.parse(run('scripts/claims.mjs', oneFile, '--json').out);
   ok('the one file reads like the record, and says when it was saved', o.saved === '2026-01-02T03:04:05Z' && JSON.stringify(o.jobs) === JSON.stringify(j.jobs));

@@ -1161,12 +1161,15 @@ if (want('tags and focus')) {
   await page.keyboard.press('Control+z'); await page.waitForTimeout(1000);
   await page.frameLocator('#sheet iframe').locator('.bullets li.rb-hit').first().click(); await settle(page);
   ok('a focused tag stars its versions in the list', (await page.$$('.vrow .star')).length >= 1);
-  await page.fill('.tag-in', 'smoke-tag'); await page.press('.tag-in', 'Enter'); await settle(page);
   const vid = await page.getAttribute('.vrow.cur', 'data-v');
-  ok('Enter in the tag box tags the version in use', (await st()).record.variants.find(v => v.id === vid).tags.includes('smoke-tag'));
+  await page.fill('.tag-in', 'smoke-tag'); await page.press('.tag-in', 'Enter'); await settle(page);
+  ok('a tag that is not on the list is refused: no tag is made', !((await st()).record.variants.find(v => v.id === vid).tags ?? []).includes('smoke-tag') && !(await st()).record.vocabulary.tags.includes('smoke-tag'));
+  const pick = await page.evaluate(id => { const s = window.__wb.store.state.record; return s.vocabulary.tags.find(t => !(s.variants.find(v => v.id === id).tags ?? []).includes(t)); }, vid);
+  await page.fill('.tag-in', pick); await page.press('.tag-in', 'Enter'); await settle(page);
+  ok('Enter in the tag box tags the version in use with a tag from the list', (await st()).record.variants.find(v => v.id === vid).tags.includes(pick));
   ok('and the box keeps focus for the next one', await page.evaluate(() => document.activeElement?.classList.contains('tag-in')));
-  await page.click('.vrow.cur .tag:has-text("smoke-tag") .rm'); await settle(page);
-  ok('× removes it', !(await st()).record.variants.find(v => v.id === vid).tags.includes('smoke-tag'));
+  await page.click(`.vrow.cur .tag:has-text("${pick}") .rm`); await settle(page);
+  ok('× removes it', !((await st()).record.variants.find(v => v.id === vid).tags ?? []).includes(pick));
   await page.click('[data-act=deselect]'); await settle(page);
   await page.selectOption('#lens', ''); await settle(page);
   ok('choosing Nothing brings the page back', !(await frameDoc(page, d => d.documentElement.classList.contains('rb-focus'))));
@@ -1571,6 +1574,43 @@ if (want('onboarding and the record')) {
   await ctx.close();
 }
 
+
+if (want('bullets: re-arrange within a job; tags: one closed list')) {
+  const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  const lis = () => frameDoc(page, d => [...d.querySelectorAll('.bullets li')].slice(0, 3).map(x => x.textContent.slice(0, 24)));
+  await page.click('[data-act=select-section][data-id=experience]'); await settle(page);
+  await page.click('#body [data-act=select-job] >> nth=0'); await settle(page);
+  const rows = page.locator('#checklist .clg.open .clrow[data-bullet]');
+  ok('the ticked bullets of a job are draggable rows', (await rows.count()) >= 3 && (await rows.first().getAttribute('draggable')) === 'true');
+  const before = await lis();
+  await rows.nth(0).locator('.cb').focus();
+  await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
+  const moved = await lis();
+  ok('Alt+↓ on a bullet row moves it down in print: the page follows', moved[0] === before[1] && moved[1] === before[0] && moved[2] === before[2]);
+  ok('…the recipe holds the order for that job only, and undo puts it back', JSON.stringify((await st()).cur.work ?? (await st()).cur.sections).includes('highlights'));
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
+  ok('one Ctrl+Z undoes it', JSON.stringify(await lis()) === JSON.stringify(before));
+  await rows.nth(2).dragTo(rows.nth(0), { targetPosition: { x: 60, y: 2 } }); await page.waitForTimeout(1000);
+  const dragged = await lis();
+  ok('dragging a bullet row up puts that bullet first', dragged[0] === before[2] && dragged[1] === before[0]);
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
+  // tags: the panel for them is the job types one
+  await page.click('[data-act=deselect]'); await settle(page);
+  await page.click('#checklist .clg[data-g=credentials] .clcaret'); await settle(page);
+  await page.click('#checklist [data-act=cl-open][data-sel*=jobtypes]'); await settle(page);
+  ok('the Tags part lists each tag with a name box, a merge menu and a bin', (await page.locator('#body .tagrow').count()) >= 5 && (await page.locator('#body .tagrow .tag-merge').count()) >= 5 && (await page.locator('#body #tag-count').count()) === 1);
+  const n0 = (await st()).record.vocabulary.tags.length;
+  await page.locator('#body .tagrow .tag-name').first().fill('zz-renamed'); await page.keyboard.press('Enter'); await settle(page);
+  ok('renaming one changes it in the list', (await st()).record.vocabulary.tags.includes('zz-renamed') && (await st()).record.vocabulary.tags.length === n0);
+  await page.locator('#body .tagrow .tag-merge[data-tag="zz-renamed"]').selectOption({ index: 1 }); await settle(page);
+  ok('merging it into another takes it out of the list', !(await st()).record.vocabulary.tags.includes('zz-renamed') && (await st()).record.vocabulary.tags.length === n0 - 1);
+  ok('no sideways scroll in the tag list', await page.evaluate(() => { const b = document.querySelector('#body'); return b.scrollWidth <= b.clientWidth + 1; }));
+  ok('nothing threw', bad.length === 0, bad.join('; '));
+  await ctx.close();
+}
 
 if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging system')) {
   const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
