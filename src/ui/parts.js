@@ -5,12 +5,13 @@
 import * as R from '../model/record.js';
 import { isSame, sameKey, langName, DEFAULT_LANG } from '../model/lang.js';
 import { t, h } from '../i18n/index.js';
+import { icon } from './icons.js';
 
 export const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const clip = (s, n = 90) => (String(s).length > n ? String(s).slice(0, n - 1).trimEnd() + '…' : String(s));
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
-export const crumb = (parts, { close = 'deselect' } = {}) => `<div class="crumb">${parts.map((p, i) => (p.act ? `<a data-act="${p.act}" ${p.attrs ?? ''}>${esc(p.t)}</a>` : `<span>${esc(p.t)}</span>`) + (i < parts.length - 1 ? '<span>›</span>' : '')).join('')}<button class="x ghost sm" data-act="${close}" title="Esc" aria-label="${esc(t('body.close'))}">✕</button></div>`;
+export const crumb = (parts, { close = 'deselect' } = {}) => `<div class="crumb">${parts.map((p, i) => (p.act ? `<a data-act="${p.act}" ${p.attrs ?? ''}>${esc(p.t)}</a>` : `<span>${esc(p.t)}</span>`) + (i < parts.length - 1 ? '<span>›</span>' : '')).join('')}<button class="x ghost sm" data-act="${close}" title="Esc" aria-label="${esc(t('body.close'))}">${icon('close')}</button></div>`;
 
 export const sw = (attrs, on, label = '', disabled = false) =>
   `<label class="swl" ${disabled ? 'aria-disabled="true"' : ''}><input type="checkbox" class="sw" ${attrs} ${on ? 'checked' : ''} ${disabled ? 'disabled' : ''}>${label ? `<span>${label}</span>` : ''}</label>`;
@@ -33,7 +34,7 @@ export function factRow({ act = 'select-fact', id, text, pill = '', pillMiss = f
 export function claimRow({ id, act = 'select-bullet', text, on = true, swAttrs = null, pill = '', pillMiss = false, kept = false, attrs = '', archived = false, unarchive = false }){
   return `<div class="item row ${swAttrs ? '' : 'noswitch '}${on ? '' : 'is-off'}${archived ? ' is-archived' : ''}">${swAttrs ? sw(swAttrs, on) : ''}
         <a class="t" data-act="${act}" data-id="${esc(id)}"${attrs ? ' ' + attrs : ''}>${esc(text)}</a>
-        ${archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span>` : ''}${pill ? `<span class="pill ${pillMiss ? 'miss' : ''}">${esc(pill)}</span>` : ''}${kept ? `<span class="kept" title="${esc(t('edit.keepTitle'))}">📌</span>` : ''}${unarchive ? `<button class="ghost sm" data-act="unarchive-claim" data-id="${esc(id)}">${h('arch.unarchive')}</button>` : ''}</div>`;
+        ${archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span>` : ''}${pill ? `<span class="pill ${pillMiss ? 'miss' : ''}">${esc(pill)}</span>` : ''}${kept ? `<span class="kept" title="${esc(t('edit.keepTitle'))}">${icon('pin', { size: 12 })}</span>` : ''}${unarchive ? `<button class="ghost sm" data-act="unarchive-claim" data-id="${esc(id)}">${h('arch.unarchive')}</button>` : ''}</div>`;
 }
 
 export function missBar({ lang, list, act = 'go-missing' }){
@@ -110,7 +111,7 @@ export function versionsHtml(x){
   out += `<span class="lbl">${h('edit.versions', { code: L.toUpperCase() })}</span><div class="vlist" data-fact="${esc(fact)}">`;
   if (over !== undefined){
     out += ed?.mode === 'only' ? E() : `<div class="vrow cur only"><span class="rad"></span><span class="n" title="${esc(t('edit.onlyTitle'))}">${h('edit.only')}</span><span class="tx">${esc(over)}</span>
-      <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editEnter'))}" aria-label="${esc(t('edit.editEnter'))}">✎</button><button class="ghost sm" data-act="only-remove" title="${esc(t('edit.backToSaved'))}" aria-label="${esc(t('edit.backToSaved'))}">↺</button></span></div>`;
+      <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editEnter'))}" aria-label="${esc(t('edit.editEnter'))}">${icon('edit')}</button><button class="ghost sm" data-act="only-remove" title="${esc(t('edit.backToSaved'))}" aria-label="${esc(t('edit.backToSaved'))}">↺</button></span></div>`;
   }
   // grouped by major; minors fold unless one is in use
   const groups = new Map();
@@ -122,7 +123,7 @@ export function versionsHtml(x){
     out += ed?.mode === 'edit' && v_isCur(head, using, over) ? E(head) : vrow(head, using, over, x);
     if (minors.length){
       if (open) for (const v of minors) out += ed?.mode === 'edit' && v_isCur(v, using, over) ? E(v) : vrow(v, using, over, x);
-      else out += `<div class="vmore" data-act="unfold" data-m="${esc(M)}">▸ ${h('edit.moreUnder', { n: minors.length, v: M })}</div>`;
+      else out += `<div class="vmore" data-act="unfold" data-m="${esc(M)}">${icon('right', { size: 12 })} ${h('edit.moreUnder', { n: minors.length, v: M })}</div>`;
     }
   }
   if (ed?.mode === 'new') out += E();
@@ -140,12 +141,12 @@ function vrow(v, using, over, x){
   const ln = x.lines(v);
   const star = (x.focusTags ?? []).some(tg => (v.tags ?? []).includes(tg)) ? `<span class="star" title="${esc(t('edit.tagged', { tag: x.focusLabel ?? x.focus }))}">★</span>` : '';
   if (isCur) return `<div class="vrow cur ${minor ? 'minor' : ''}" data-v="${esc(v.id)}"><span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${esc(v.text)}</span>
-    <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editThis'))}" aria-label="${esc(t('edit.editThis'))}">✎</button></span>
+    <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editThis'))}" aria-label="${esc(t('edit.editThis'))}">${icon('edit')}</button></span>
     ${tagBox(v, x)}</div>`;
   return `<div class="vrow ${minor ? 'minor' : ''}" data-act="use-version" data-v="${esc(v.id)}" tabindex="0" title="${esc(v.text)}">
     <span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${gist(v.text, over ?? using?.text ?? '')}</span>
     <span class="mt2">${ln ? `${h('edit.lnShort', { n: ln })} · ` : ''}${h('edit.chShort', { n: [...v.text].length })}</span>
-    <span class="acts"><button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('edit.compareTitle'))}" aria-label="${esc(t('edit.compareTitle'))}">⇄</button><button class="ghost sm" data-act="delete-version" data-v="${esc(v.id)}" title="${esc(t('edit.deleteV', { v: v.n }))}" aria-label="${esc(t('edit.deleteV', { v: v.n }))}">🗑</button></span>
+    <span class="acts"><button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('edit.compareTitle'))}" aria-label="${esc(t('edit.compareTitle'))}">${icon('compare')}</button><button class="ghost sm" data-act="delete-version" data-v="${esc(v.id)}" title="${esc(t('edit.deleteV', { v: v.n }))}" aria-label="${esc(t('edit.deleteV', { v: v.n }))}">${icon('trash')}</button></span>
     ${(v.tags ?? []).length ? `<div class="vtags">${v.tags.slice(0, 4).map(tg => tagChip(tg, { jobTypes: x.jobTypes, focus: x.focusTags ?? [] })).join('')}${v.tags.length > 4 ? `<span class="muted tiny">+${v.tags.length - 4}</span>` : ''}</div>` : ''}</div>`;
 }
 
@@ -153,10 +154,10 @@ function vrow(v, using, over, x){
 // deletable: the claim is one of an entry's, not a title or a summary.
 // archived: null for a claim that can't be archived, else whether it is.
 export function claimHead({ hasJob = false, on = false, kept = false, deletable = false, archived = null }){
-  const del = deletable ? `<button class="ghost sm" data-act="delete-claim" title="${esc(t('career.deleteClaim'))}" aria-label="${esc(t('career.deleteClaim'))}">🗑</button>` : '';
+  const del = deletable ? `<button class="ghost sm" data-act="delete-claim" title="${esc(t('career.deleteClaim'))}" aria-label="${esc(t('career.deleteClaim'))}">${icon('trash')}</button>` : '';
   const arch = archived === null ? '' : `<button class="ghost sm" data-act="${archived ? 'unarchive-claim' : 'archive-claim'}" title="${esc(t(archived ? 'arch.unarchiveTitle' : 'arch.archiveTitle'))}">${h(archived ? 'arch.unarchive' : 'arch.archive')}</button>`;
   return `<div class="ctlrow">${hasJob ? sw('id="b-on"', on, h('edit.onThis')) : ''}<span class="grow"></span>
-      <button class="keep sm" data-act="keep" aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}">📌 ${kept ? h('edit.kept') : h('edit.keep')}</button>${arch}${del}</div>`;
+      <button class="keep sm" data-act="keep" aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}">${icon('pin', { size: 14 })} ${kept ? h('edit.kept') : h('edit.keep')}</button>${arch}${del}</div>`;
 }
 
 // One text box that adds on Enter (Shift+Enter is a new line). The button is only a visible way to do the same.

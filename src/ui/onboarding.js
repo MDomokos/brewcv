@@ -9,6 +9,7 @@ import * as RS from '../model/resumes.js';
 import { LANG_INFO, a4FormatOf, langName } from '../model/lang.js';
 import { t, h, setUiLang, setUiLangNow, loadCatalogue, uiLang } from '../i18n/index.js';
 import { langChecks, uiChoice, browserLang, writePref } from './settings.js';
+import { icon } from './icons.js';
 
 let C = null;
 export function initOnboarding(ctx){ C = ctx; return api; }
@@ -41,7 +42,7 @@ const jr = html => html.replace(/JSON[- ]Resume/, m => `<a class="oblink" href="
 function whyJson(){
   return `<details class="obwhy"><summary data-h="onb.whyJson">${h('onb.whyJson')}</summary>
     <ul>${['onb.why1', 'onb.why2', 'onb.why3', 'onb.why4'].map(k => `<li data-h="${k}"${k === 'onb.why3' ? ' data-jr' : ''}>${k === 'onb.why3' ? jr(h(k)) : h(k)}</li>`).join('')}</ul>
-    <a href="https://stephango.com/file-over-app" target="_blank" rel="noopener noreferrer"><span data-h="onb.whyLink">${h('onb.whyLink')}</span> ↗</a></details>`;
+    <a href="https://stephango.com/file-over-app" target="_blank" rel="noopener noreferrer"><span data-h="onb.whyLink">${h('onb.whyLink')}</span> ${icon('external', { size: 12 })}</a></details>`;
 }
 
 // ---- the story: one record, four steps ------------------------------------------------------
@@ -388,7 +389,7 @@ function view(){
           <button data-act="ob-example"><b data-h="onb.example">${h('onb.example')}</b><small data-h="onb.exampleNote">${h('onb.exampleNote')}</small></button>
         </div>
         <ul class="oblangs">${Object.keys(LANG_INFO).map(l => `<li><button lang="${l}" class="oblang${l === cur ? ' on' : ''}" data-act="ob-intro-lang" data-l="${l}" aria-pressed="${l === cur}" aria-label="${esc(langName(l))}" title="${esc(langName(l))}">${l.toUpperCase()}</button></li>`).join('')}</ul></section>
-      <section class="obcard obhow"><div class="obhowhead"><h3 class="obeye" data-h="onb.hdHow">${h('onb.hdHow')}</h3><button class="obreplay" data-act="ob-replay">↻ <span data-h="onb.replay">${h('onb.replay')}</span></button></div>
+      <section class="obcard obhow"><div class="obhowhead"><h3 class="obeye" data-h="onb.hdHow">${h('onb.hdHow')}</h3><button class="obreplay" data-act="ob-replay">${icon('replay', { size: 12 })} <span data-h="onb.replay">${h('onb.replay')}</span></button></div>
         <div class="obhowbody">
           ${stageHtml()}
           <div class="obsidecol">

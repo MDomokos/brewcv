@@ -6,6 +6,8 @@ import { renderPages } from '../render.js';
 import { missingList } from '../model/lang.js';
 import * as RS from '../model/resumes.js';
 import { t, h, errText, docChrome, loadCatalogue } from '../i18n/index.js';
+import { fitFilled } from './dock.js';
+import { icon as drawn } from './icons.js';
 
 let C = null;
 export function initExport(ctx){ C = ctx; return api; }
@@ -74,12 +76,14 @@ function checks(){
 
 function exportView(){
   const list = checks();
-  const icon = { ok: '✓', warn: '!', bad: '✕' };
+  const icon = { ok: drawn('check', { size: 12 }), warn: drawn('warn', { size: 12 }), bad: drawn('close', { size: 12 }) };
+  // one filled button on the screen: Fit when it would change something, else PDF
+  const fitFirst = fitFilled(C.ui.fills, C.cur()?.pageLimit);
   return `<h2 class="title">${h('head.export')}</h2>
     <ul class="checks">${list.map(c => `<li class="${c.level}"><span class="ci">${icon[c.level]}</span>${esc(c.text)}</li>`).join('')}</ul>
     <span class="lbl">${h('export.download')}</span>
     <div class="dl">
-      <button class="primary" data-act="ex-pdf"><b>PDF</b><small>${h('export.pdfNote')}</small></button>
+      <button class="${fitFirst ? '' : 'primary'}" data-act="ex-pdf"><b>PDF</b><small>${h('export.pdfNote')}</small></button>
       <button data-act="ex-html"><b>${h('export.html')}</b><small>${h('export.htmlNote')}</small></button>
       <button data-act="ex-txt"><b>${h('export.txt')}</b><small>${h('export.txtNote')}</small></button>
       <button data-act="ex-json"><b>JSON Resume</b><small>${h('export.jsonNote')}</small></button>

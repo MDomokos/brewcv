@@ -16,7 +16,7 @@ const HINT_KEY = 'rb-cl-hint';
 const hintDone = () => { try { return localStorage.getItem(HINT_KEY) === '1'; } catch { return true; } };
 const setHintDone = () => { try { localStorage.setItem(HINT_KEY, '1'); } catch { /* shown again next time */ } };
 
-const S = { open: new Set(), shut: null, scrollTo: false, hint: !hintDone() };
+const S = { open: new Set(), shut: null, scrollTo: false, hint: !hintDone(), pop: null };
 
 export function initChecklist(ctx){ C = ctx; return api; }
 
@@ -36,7 +36,7 @@ function rowHtml(r, g){
   const text = r.id === 'about:photo' ? t('career.about.photo') : r.text || t('ux2.empty');
   return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${r.item ? `data-item="${esc(r.item)}" data-sec="${esc(r.section)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : r.kind === 'claim' && r.on && !r.archived && !r.fixed && g?.kind === 'entry' ? `data-bullet="${esc(r.id)}" data-bjob="${esc(g.id)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>
       ${box}<button class="clt" data-act="cl-open" data-sel="${selAttr(r.sel)}">${esc(text.replace(/\n/g, ' · '))}</button>
-      ${r.nv ? `<span class="clv" title="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv }))}</span>` : ''}
+      ${r.nv ? `<span class="clv${r.nv > 1 ? ' many' : ''}" title="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv })).replace(/\s+/, '<span class="sp"> </span>')}</span>` : ''}
       ${r.archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span><button class="ghost sm" data-act="unarchive-claim" data-id="${esc(r.id)}">${h('arch.unarchive')}</button>` : ''}</li>`;
 }
 
@@ -82,7 +82,7 @@ function html(){
     <div class="clhead"><h2 id="cl-h">${h('ux2.onThisResume')}</h2><span class="clall" id="cl-all">${nOfM(cl.on, cl.total)}</span><span class="grow"></span>
       <button class="sm" data-act="c-tl" aria-haspopup="dialog" aria-expanded="${C.career.tlOpen}">${icon('timeline', { size: 14 })} ${h('ux2.timeline')}</button>
       <button class="sm" data-act="c-pop" aria-haspopup="menu" aria-expanded="${C.career.popOpen}" id="c-add">${h('ux2.add')}</button></div>
-    ${S.hint ? `<p class="clhint" role="note"><span>${h('ux2.hint')}</span><button class="ghost sm" data-act="cl-hint-ok" aria-label="${esc(t('ux2.hintOk'))}">✕</button></p>` : ''}
+    ${S.hint ? `<p class="clhint" role="note"><span>${h('ux2.hint')}</span><button class="ghost sm" data-act="cl-hint-ok" aria-label="${esc(t('ux2.hintOk'))}">${icon('close', { size: 12 })}</button></p>` : ''}
     ${C.career.popOpen ? C.career.addMenuHtml() : ''}
     ${live.map(g => groupHtml(g, isOpen(g), { shown: shownEntries })).join('')}
     ${archived.length || C.career.jobsArchived ? `<button class="sm ghost archmore" data-act="c-arch-jobs" aria-expanded="${C.career.jobsArchived}">${C.career.jobsArchived ? h('arch.hideJobs') : h('arch.nJobs', { n: archived.length })}</button>${C.career.jobsArchived ? archived.map(g => groupHtml(g, isOpen(g), { shown: shownEntries })).join('') : ''}` : ''}
@@ -97,6 +97,12 @@ function onSelect(sel, { scroll = false } = {}){
   S.scrollTo = scroll && !!g;
 }
 function afterRender(){
+  // the tick just made pops once, on its own line (the panel is redrawn on every tick, so the line is found again by what it is)
+  if (S.pop && performance.now() < S.pop.until){
+    const cb = document.querySelector(`#checklist .cb[${S.pop.attr}="${CSS.escape(S.pop.val)}"]:checked`);
+    if (cb){ cb.classList.add('pop'); cb.addEventListener('animationend', () => cb.classList.remove('pop'), { once: true }); }
+  }
+  S.pop = null;
   if (S.scrollTo){
     S.scrollTo = false;
     document.querySelector('#checklist .clg.open')?.scrollIntoView({ block: 'nearest' });
@@ -128,7 +134,14 @@ async function act(a, tg){
 }
 
 function bind(body){
-  body.addEventListener('change', e => { if (e.target.matches?.('#checklist .cb[data-on]') && S.hint){ S.hint = false; setHintDone(); } });
+  body.addEventListener('change', e => {
+    const cb = e.target;
+    if (cb.matches?.('#checklist .cb[data-on]') && S.hint){ S.hint = false; setHintDone(); }
+    if (cb.matches?.('#checklist .cb') && cb.checked){
+      const attr = cb.dataset.on !== undefined ? 'data-on' : cb.dataset.item !== undefined ? 'data-item' : null;
+      S.pop = attr ? { attr, val: cb.getAttribute(attr), until: performance.now() + 1500 } : null;
+    }
+  });
   const hover = id => C.hoverFact(id || null);
   body.addEventListener('mouseover', e => { const r = e.target.closest?.('#checklist .clrow[data-fact]'); if (r) hover(r.dataset.fact); });
   body.addEventListener('mouseout', e => { const r = e.target.closest?.('#checklist .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });

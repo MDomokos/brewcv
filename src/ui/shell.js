@@ -30,6 +30,7 @@ import { jobTypeLabel } from '../model/focus.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
 import { initSettings, readPref, browserLang } from './settings.js';
 import { ib } from './dock.js';
+import { initDrink, renderCorner, onDrinkChange, isDrinkKey, toggleDrink } from './drink.js';
 
 // Where the source is published; the menu links to it (AGPL-3.0, section 13). Change it here when the repo moves.
 const SOURCE_URL = 'https://github.com/MDomokos/brewcv';
@@ -61,6 +62,7 @@ function staticText(){
   $('#sheet').setAttribute('aria-label', t('aria.sheet'));
   $('#timeline').setAttribute('aria-label', t('ux2.timelineTitle'));
   $('#body').setAttribute('aria-label', t('ux2.panelLabel'));
+  renderCorner();
 }
 
 function wantedUi(){
@@ -92,6 +94,8 @@ async function boot(){
   }
   if (ui.view === 'welcome') onboarding.begin(); else ui.askLang = false;
   await setUiLang(wantedUi());
+  initDrink();
+  onDrinkChange(() => { sheet.restyle(); renderChip(); if (ui.view === 'settings') renderBody(); });
   // the languages you use load now, so switching between them is instant
   Promise.all(langsInUse(record()).map(l => loadCatalogue(l))).catch(() => {});
   staticText();
@@ -393,7 +397,7 @@ function drawHead(){
   const st = persist.status;
   const saving = st.status === 'saving' || st.status === 'pending';
   const saveText = st.status === 'error' ? t('ux1.saveFailed') : saving ? t('head.saving') : t('ux1.savedDevice');
-  const saved = `<span class="si ${st.status === 'error' ? 'bad' : saving ? '' : 'ok'}" aria-hidden="true">${st.status === 'error' ? '⚠' : saving ? '…' : '✓'}</span><span class="stext2">${esc(st.status === 'error' ? saveText : saving ? t('head.saving') : t('ux2.savedShort'))}</span><span class="sr">${esc(saveText)}${st.status === 'error' && st.error ? ': ' + esc(st.error) : ''}</span>`;
+  const saved = `<span class="si ${st.status === 'error' ? 'bad' : saving ? '' : 'ok'}" aria-hidden="true">${st.status === 'error' ? icon('warn', { size: 12 }) : saving ? '…' : icon('check', { size: 12 })}</span><span class="stext2">${esc(st.status === 'error' ? saveText : saving ? t('head.saving') : t('ux2.savedShort'))}</span><span class="sr">${esc(saveText)}${st.status === 'error' && st.error ? ': ' + esc(st.error) : ''}</span>`;
   const meta = r ? [jobTypeLabel(store.state.record, r.jobType), (r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const snap = snapNow();
@@ -402,12 +406,12 @@ function drawHead(){
   $('#head').innerHTML = `
     <div class="hrow top">
       <span class="logo"><img src="icons/icon.svg" alt="" width="28" height="28"><span class="sr">BrewCV</span></span>
-      <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ▾</span></span><span class="dt">${esc(meta)}</span></button>
+      <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { size: 12 })}</span></span><span class="dt">${esc(meta)}</span></button>
       ${r ? langButton(r) : ''}
       <span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>
       <button class="sm" data-act="save" id="save" title="${esc(t('ux1.saveTitle'))}" ${ui.snap ? 'disabled' : ''}>${h('head.save')}</button>
       ${ib('panel-toggle', 'right', t('ux2.foldPanel'), t('ux2.foldPanelTip'), '', 'b')}
-      <button class="tool" data-act="menu" aria-haspopup="true" aria-expanded="${ui.menu}" title="${esc(t('head.menuTitle'))}" aria-label="${esc(t('head.menuTitle'))}">⋯</button>
+      <button class="tool" data-act="menu" aria-haspopup="true" aria-expanded="${ui.menu}" title="${esc(t('head.menuTitle'))}" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>
     </div>
     <div class="hrow modes">
       <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
@@ -442,7 +446,7 @@ function langButton(r){
   const n = missingList(work(), r).length;
   const inUse = langsInUse(record());
   const open = ui.langMenu === 'resume';
-  return `<span class="langs lang-menu"><button class="sm langbtn ${inUse.includes(L) ? '' : 'off'}" id="langbtn" data-act="lang-menu" aria-haspopup="menu" aria-expanded="${open}" aria-label="${esc(t('head.langGroup'))}: ${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}" ${ui.snap ? 'disabled' : ''} title="${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}">${esc(L.toUpperCase())} ▾${n ? `<span class="badge">${n}</span>` : ''}</button>
+  return `<span class="langs lang-menu"><button class="sm langbtn ${inUse.includes(L) ? '' : 'off'}" id="langbtn" data-act="lang-menu" aria-haspopup="menu" aria-expanded="${open}" aria-label="${esc(t('head.langGroup'))}: ${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}" ${ui.snap ? 'disabled' : ''} title="${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}">${esc(L.toUpperCase())} ${icon('caret', { size: 12 })}${n ? `<span class="badge">${n}</span>` : ''}</button>
     ${open ? langMenuHtml({ for: 'resume', current: L, inUse, more: ui.langMore, label: t('head.langGroup'),
       count: l => (ui.langCounts?.[l] ?? null) }) : ''}</span>`;
 }
@@ -752,6 +756,7 @@ function key(e){
   if (mod && !e.altKey && e.key.toLowerCase() === 's'){ e.preventDefault(); if (!e.isComposing && e.keyCode !== 229) saveToFile(); return; }
   if (mod && e.key.toLowerCase() === 'o'){ e.preventDefault(); switcher.openOrFocus(); return; }
   if (typing) return;
+  if (isDrinkKey(e)){ e.preventDefault(); toggleDrink(); return; }          // Shift+F: tea or coffee, in place
   if (ui.view === 'welcome') return;                    // the introduction and the questions have their own keys
   if (ui.snap && e.key !== 'Escape') return;           // a snapshot is read-only
   if (e.key === 'Escape'){
@@ -775,7 +780,7 @@ function key(e){
   }
   if (edit.key(e)) return;
   if (e.key === '?' && !mod){ e.preventDefault(); help.toggle(); return; }
-  if (e.shiftKey && e.key.toLowerCase() === 'f' && !mod){ e.preventDefault(); toggleFullscreen(); return; }
+  if (e.key.toLowerCase() === 'f' && !e.shiftKey && !mod){ e.preventDefault(); toggleFullscreen(); return; }
   if (dock.onKey(e)) return;
   // the arrows walk the page; inside the panel, the timeline or a menu they belong to what has the focus
   if (e.target.closest?.('#col, #timeline, #help, #switcher')) return;

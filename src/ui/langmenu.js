@@ -3,6 +3,7 @@
 import { LANGS } from '../model/schema.js';
 import { langName } from '../model/lang.js';
 import { t, h } from '../i18n/index.js';
+import { icon } from './icons.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -12,11 +13,11 @@ export function langMenuHtml({ for: who, current, inUse, count = () => null, mor
   const row = l => {
     const n = count(l);
     const note = n == null ? '' : n ? h('lang.toWrite', { n }) : h('lang.complete');
-    return `<button role="menuitemradio" aria-checked="${l === current}" data-act="lang" data-for="${who}" data-lang="${l}" lang="${l}"><span>${l === current ? '✓ ' : ''}${esc(langName(l))}</span><small>${note}</small></button>`;
+    return `<button role="menuitemradio" aria-checked="${l === current}" data-act="lang" data-for="${who}" data-lang="${l}" lang="${l}"><span>${l === current ? `${icon('check', { size: 12 })} ` : ''}${esc(langName(l))}</span><small>${note}</small></button>`;
   };
   return `<div class="pop card langpop" role="menu" aria-label="${esc(label)}" data-menu="${who}">
     ${inUse.map(row).join('')}
-    ${current && !inUse.includes(current) ? `<button role="menuitemradio" aria-checked="true" data-act="lang" data-for="${who}" data-lang="${current}" class="off"><span>✓ ${esc(langName(current))}</span><small>${h('lang.notInList')}</small></button>` : ''}
+    ${current && !inUse.includes(current) ? `<button role="menuitemradio" aria-checked="true" data-act="lang" data-for="${who}" data-lang="${current}" class="off"><span>${icon('check', { size: 12 })} ${esc(langName(current))}</span><small>${h('lang.notInList')}</small></button>` : ''}
     ${others.length ? `<hr>${more
       ? `<div class="pop__sub">${h('lang.addHead')}</div>${others.map(l => `<button role="menuitem" data-act="lang-add" data-for="${who}" data-lang="${l}" lang="${l}"><span>+ ${esc(langName(l))}</span></button>`).join('')}`
       : `<button role="menuitem" data-act="lang-more" data-for="${who}"><span>${h('lang.add')}</span><small>${h('lang.more', { n: others.length })}</small></button>`}` : ''}

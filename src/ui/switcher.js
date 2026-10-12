@@ -6,6 +6,7 @@
 
 import * as RS from '../model/resumes.js';
 import { t, h } from '../i18n/index.js';
+import { icon } from './icons.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -28,7 +29,7 @@ function snapLines(r){
     const first = s.sends.find(x => RS.sendLabel(x)) ?? s.sends[0];
     const more = s.sends.length > 1 ? ` +${s.sends.length - 1}` : '';
     const label = first && RS.sendLabel(first) ? t('ux1.sentTo2', { to: RS.sendLabel(first) }) : t('ux1.snapshotWord');
-    return `<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">⤷ ${esc(label)} · ${esc(first?.date || s.at.slice(0, 10))}${more}</button>`;
+    return `<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${icon('right', { size: 12 })} ${esc(label)} · ${esc(first?.date || s.at.slice(0, 10))}${more}</button>`;
   }).join('');
 }
 function rowHtml(r, where, { ticks = false, outreach = null } = {}){
@@ -82,7 +83,7 @@ function html(){
   }
   const views = VIEWS.map(v => `<button role="tab" data-act="sw-view" data-v="${v}" aria-selected="${S.view === v}" tabindex="${S.view === v ? 0 : -1}">${h(`ux2.view.${v}`)}</button>`).join('');
   const body = S.view === 'date' ? byDate(list) : S.view === 'company' ? byCompany(list) : byType(list);
-  return `<div class="swhead">${search}<button class="ghost sm" data-act="sw-close" aria-label="${esc(t('body.close'))}">✕</button></div>
+  return `<div class="swhead">${search}<button class="ghost sm" data-act="sw-close" aria-label="${esc(t('body.close'))}">${icon('close')}</button></div>
     <div class="swhead2"><div class="seg" role="tablist" aria-label="${esc(t('ux2.manageViews'))}">${views}</div><button class="swnew sm" data-act="sw-new">${h('ux1.newResume')}</button></div>
     <div id="sw-list" class="swlist" role="group" aria-label=""${esc(t('ux1.manageTitle', { n: all.length }))}">
       ${body}

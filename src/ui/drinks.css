@@ -1,0 +1,319 @@
+/* The two drinks: the shapes and the surfaces that make Tea and Coffee look like themselves. Loaded after workbench.css.
+   Every colour is a token from workbench.css (one block per drink and theme there); nothing here writes a colour of its own,
+   so a new screen written with tokens is right in all four combinations. Selectors start with html[data-drink="tea"] or
+   html[data-drink="coffee"]; what both share is in workbench.css, and none of this reaches the resume, which is drawn in
+   its own frame (the app's selection marks inside it take the drink's colours in sheet.js).
+
+   Tea: the icon's green tile on a bamboo mat. The modes hang as tags from a string, Fit is a luggage tag, the page meter is the
+   logo's V cup, the toast hangs on its string. Motion comes as moments (steam, a heart, a swing, a pop), never as a loop,
+   and none of it under reduced motion.
+   Coffee: Plane Text. Monospace, 2px corners, hairlines, no shadows; an espresso band for a head, a cutting mat for a canvas,
+   a measuring shot glass for the meter, one crema accent. No tea shapes. */
+
+/* ---------- the canvas ---------- */
+html[data-drink="tea"] body {
+  background:
+    linear-gradient(var(--mat-wash), var(--mat-wash)),
+    linear-gradient(90deg, transparent 0 calc(50% - 3px), var(--mat-thread) calc(50% - 3px) calc(50% - 1.5px), transparent calc(50% - 1.5px) calc(50% + 1.5px), var(--mat-thread) calc(50% + 1.5px) calc(50% + 3px), transparent calc(50% + 3px)) 0 0 / 260px 100%,
+    repeating-linear-gradient(0deg, transparent 0 13px, var(--mat-gap) 13px 14.5px),
+    repeating-linear-gradient(0deg, var(--mat-a) 0 43.5px, var(--mat-b) 43.5px 72.5px, var(--mat-c) 72.5px 101.5px, var(--mat-a) 101.5px 130.5px, var(--mat-b) 130.5px 145px);
+}
+html[data-drink="coffee"] body {
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+  background:
+    linear-gradient(var(--grid-major) 1px, transparent 1px) 0 0 / 120px 120px,
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px) 0 0 / 120px 120px,
+    linear-gradient(var(--grid-minor) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--canvas);
+}
+html[data-drink="coffee"] .sheet-frame { outline: 1px solid var(--page-edge); }
+
+/* ---------- type ---------- */
+html[data-drink="tea"] :is(.title, .lead) { font-weight: 800; letter-spacing: -.005em; }
+html[data-drink="tea"] .title { font-size: 18px; }
+html[data-drink="tea"] .clhead h2 { font-weight: 800; font-size: 14px; }
+html[data-drink="tea"] .clcaret { font-weight: 700; }
+html[data-drink="tea"] :is(.clcount, .clall) { color: var(--label); }
+html[data-drink="tea"] .ico { stroke-width: 1.8; }
+html[data-drink="coffee"] :is(.title, .lead, .clhead h2, .obhero, .oblogo, .clcaret, .item .t, .sopt .sn, .docname .dn) { font-weight: 700; letter-spacing: -.01em; }
+html[data-drink="coffee"] .title { font-size: 15px; }
+html[data-drink="coffee"] .lead { font-size: 14px; }
+html[data-drink="coffee"] .obhero { font-size: 24px; }
+html[data-drink="coffee"] :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl) { letter-spacing: .08em; }
+
+/* ---------- Coffee: hairlines, no elevation ---------- */
+html[data-drink="coffee"] body:not(.is-intro-wide) .col:not(.is-folded) { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] .col.is-folded > .card { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] :is(.pop.card, .zpop, .menu.card, .switcher, .help, .timeline, .obcard) { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] .seg { padding: 0; gap: 4px; }
+html[data-drink="coffee"] .seg [role=tab], html[data-drink="coffee"] .seg button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 4px 6px; color: var(--faint); }
+html[data-drink="coffee"] .seg [role=tab][aria-selected=true], html[data-drink="coffee"] .seg button[aria-pressed=true] { background: transparent; color: var(--ink); border-bottom-color: var(--ink); box-shadow: none; }
+html[data-drink="coffee"] .tpl[aria-pressed=true] { outline: 1px solid var(--ink); }
+html[data-drink="coffee"] .swatch[aria-pressed=true] { outline: 2px solid var(--ink); outline-offset: 2px; box-shadow: none; }
+html[data-drink="coffee"] .clhint, html[data-drink="coffee"] .tag.jt { background: transparent; border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] .rail .ib[aria-pressed=true] { background: var(--mark); color: var(--on-mark); }
+
+/* the espresso band: the head, foam ink, a crema line under it */
+html[data-drink="coffee"] #head {
+  --ink: var(--band-ink); --ink-soft: var(--band-ink-soft); --label: var(--band-ink-soft); --faint: var(--foam-faint); --line: var(--band-line); --line-strong: var(--foam-soft);
+  --hover: var(--band-hover); --hover-strong: var(--band-hover-strong); --warn: var(--foam-warn); --focus: var(--crema);
+  border-bottom: 2px solid var(--crema);
+}
+html[data-drink="coffee"] #head :is(button, .langbtn) { background: transparent; color: var(--band-ink); }
+html[data-drink="coffee"] #head :is(.ib, .tool, .docname, .filestate, .seg [role=tab]) { border-color: transparent; }
+html[data-drink="coffee"] #head .filestate { color: var(--foam-warn); }
+html[data-drink="coffee"] #head .seg [role=tab][aria-selected=true] { color: var(--band-ink); border-bottom-color: var(--crema); }
+/* the head's own menus open on the surface again */
+html[data-drink="coffee"] #head :is(.menu, .pop) {
+  --ink: var(--menu-ink); --ink-soft: var(--menu-ink-soft); --line: var(--menu-line); --line-strong: var(--menu-line-strong); --hover: var(--menu-hover); --hover-strong: var(--menu-hover);
+  color: var(--ink); background: var(--pop);
+}
+html[data-drink="coffee"] #head :is(.menu, .pop) button { color: var(--ink); background: transparent; border-color: transparent; }
+/* the folded rail carries a crema rim, so coffee shows even with the panel away */
+html[data-drink="coffee"] .col.is-folded > .rail { border-top: 3px solid var(--crema); }
+
+/* what sits on the page or the canvas, not on a surface, rings in their own ink */
+.jobchip { --focus: var(--paper-ink); }
+.obkeep { --focus: var(--canvas-ink); }
+
+/* ---------- counts and chips ---------- */
+html[data-drink="coffee"] .clv .sp { display: none; }
+html[data-drink="coffee"] .clv { color: var(--ink-soft); }
+html[data-drink="coffee"] .jobchip { background: var(--surface); border: 1px solid var(--line-strong); font-family: var(--font-mono); color: var(--ink); }
+html[data-drink="coffee"] .jobchip .jc { color: var(--ink-soft); }
+
+/* ---------- checkboxes: plain, with a visible edge; amber in tea, ink in coffee ---------- */
+.cb {
+  -webkit-appearance: none; appearance: none; width: 17px; height: 17px; margin: 0; display: inline-grid; place-content: center; cursor: pointer;
+  border-radius: var(--r-xs); border: 1.5px solid var(--line-strong); background: var(--input);
+}
+.cb::before {
+  content: ""; width: 11px; height: 11px; opacity: 0; background: var(--cb-check);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.4 4.9 9.3 10.2 3' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.4 4.9 9.3 10.2 3' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.cb:checked { background: var(--cb-on); border-color: var(--cb-on); }
+.cb:checked::before { opacity: 1; }
+.cb:disabled { opacity: .5; cursor: default; }
+html[data-drink="tea"] { --cb-on: var(--accent); --cb-check: var(--on-accent); }
+html[data-drink="coffee"] { --cb-on: var(--ink); --cb-check: var(--surface); }
+.clrow.is-off .clt { color: var(--faint); }
+
+/* ---------- the drink question, in a corner of its own ---------- */
+.brewmode {
+  position: fixed; left: 14px; bottom: 14px; z-index: 40; width: 118px; display: grid; gap: 8px; padding: 10px 10px 8px;
+  border-radius: var(--r-panel); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-panel); color: var(--ink);
+}
+.brewmode .bm-q { margin: 0; font: 400 12px/1.3 var(--font-ui); color: var(--ink-soft); text-align: center; text-wrap: balance; }
+.brewmode .bm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.brewmode button { display: grid; justify-items: center; gap: 3px; border: 0; border-radius: calc(var(--r-panel) - 4px); padding: 7px 0 5px; background: transparent; color: var(--ink-soft); cursor: pointer; font: 600 12px/1 var(--font-ui); }
+.brewmode button:hover { color: var(--ink); background: var(--hover); }
+.brewmode button[aria-pressed=true] { background: var(--mark); color: var(--on-mark); }
+.brewmode svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.brewmode kbd { justify-self: center; font: 500 10px/1 var(--font-mono); border: 0; padding: 0; color: var(--ink-soft); background: transparent; }
+html[data-drink="coffee"] .brewmode .bm-q { font-family: var(--font-mono); font-size: 11.5px; }
+html[data-drink="coffee"] .brewmode button { font-family: var(--font-mono); font-weight: 500; }
+html[data-drink="coffee"] .brewmode { --ink: var(--foam); --ink-soft: var(--foam-soft); --hover: var(--band-hover); background: var(--band-bg); border-color: transparent; color: var(--foam); }
+html[data-drink="coffee"] .brewmode button[aria-pressed=true] { background: var(--crema); color: var(--on-accent); }
+/* narrower than the page leaves room for: just the two cups */
+@media (max-width: 1279px){
+  .brewmode { width: auto; padding: 4px; }
+  .brewmode :is(.bm-q, kbd, button span) { display: none; }
+  .brewmode .bm-row { grid-template-columns: 1fr; }
+  .brewmode button { padding: 7px; }
+}
+body[data-phone=true] .brewmode { left: auto; right: 10px; bottom: auto; top: 10px; }
+/* on the start screen the question is a slim bar above the cards: part of the welcome */
+body.is-intro-wide:not([data-phone=true]) .brewmode {
+  left: 50%; bottom: auto; top: 10px; transform: translateX(-50%); width: auto; grid-auto-flow: column; align-items: center; gap: 10px; padding: 4px 4px 4px 16px; border-radius: var(--r-pill);
+}
+body.is-intro-wide:not([data-phone=true]) .brewmode .bm-q { font-size: 13px; white-space: nowrap; }
+body.is-intro-wide:not([data-phone=true]) .brewmode .bm-row { grid-template-columns: auto auto; }
+body.is-intro-wide:not([data-phone=true]) .brewmode button { grid-auto-flow: column; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--r-pill); }
+body.is-intro-wide:not([data-phone=true]) .brewmode svg { width: 17px; height: 17px; }
+body.is-intro-wide:not([data-phone=true]) .brewmode kbd { display: none; }
+@media (max-width: 1279px){ body.is-intro-wide:not([data-phone=true]) .brewmode :is(.bm-q) { display: none; } body.is-intro-wide:not([data-phone=true]) .brewmode { padding: 4px; } body.is-intro-wide:not([data-phone=true]) .brewmode .bm-row { grid-template-columns: auto auto; } }
+
+/* ---------- the page meters: the V cup in tea, a measuring shot glass in coffee. dock.js sets --p (0 to 100) ---------- */
+html[data-drink="tea"] {
+  --cup-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' preserveAspectRatio='none'%3E%3Cpath d='M0 0H20L11.3 18.8Q10 21 8.7 18.8Z'/%3E%3C/svg%3E");
+  --cup-line: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-8 -2.5 32 25' preserveAspectRatio='none'%3E%3Cpath d='M0 0L10 20.4L20 0' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M1.4 4.2A4.3 4.3 0 1 0 2.6 11.6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M12.2 10.2L16.4 1Q17.6 -1.6 19.4 0.6V3.2' fill='none' stroke='black' stroke-width='.9' stroke-linecap='round'/%3E%3Crect x='17.6' y='3.2' width='4' height='4.6' rx='.8'/%3E%3C/svg%3E");
+  --spill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6 24' preserveAspectRatio='none'%3E%3Cpath d='M0 1Q3 0 4 3V17Q6 20 4.5 22.5Q3 24 1.5 22.5Q0 20.5 2 17V4Q1 2 0 1Z'/%3E%3C/svg%3E");
+  --steam: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M4 13C2 10.5 6 9 4 6.5S5 2.5 4 1M10 13C8 10.5 12 9 10 6.5S11 2.5 10 1' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E");
+  --heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 12.5C4.6 10.6 1.6 8.4 1.6 5.4A2.7 2.7 0 0 1 7 4.2A2.7 2.7 0 0 1 12.4 5.4C12.4 8.4 9.4 10.6 7 12.5Z' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --cup-w: 20px; --cup-h: 20px; --rcup-w: 14px; --rcup-h: 14px;
+  --cup-line-inset: -2.5px -4px -2.5px -8px; --rcup-line-inset: -1.75px -2.8px auto -5.6px; --rcup-line-extra: 3.5px;
+}
+html[data-drink="tea"] .meter { gap: 8px; padding: 4px 8px 3px 6px; --cup-margin: 4px 7px 2px 11px; --band-x: -2px; }
+html[data-drink="tea"] .meter .mfill, html[data-drink="tea"] .rmeter .rmfill {
+  background: linear-gradient(to top, var(--liq) calc(var(--p, 0) * 1%), var(--cup-empty) 0);
+  -webkit-mask: var(--cup-mask) center / 100% 100% no-repeat; mask: var(--cup-mask) center / 100% 100% no-repeat;
+}
+html[data-drink="tea"] :is(.meter, .rmeter).under { --liq: var(--liq-weak); }
+html[data-drink="tea"] :is(.meter, .rmeter):is(.over, .overflow) { --liq: var(--liq-strong); }
+/* the cup's outline, drawn over the tea */
+html[data-drink="tea"] .meter .mbar::after, html[data-drink="tea"] .rmeter::after {
+  content: ""; position: absolute; inset: var(--cup-line-inset); pointer-events: none; background: var(--cup-stroke);
+  -webkit-mask: var(--cup-line) center / 100% 100% no-repeat; mask: var(--cup-line) center / 100% 100% no-repeat;
+}
+/* Fit's band, 88 to 96 percent: a fill line just under the rim */
+html[data-drink="tea"] .meter .mband {
+  left: var(--band-x, -3px); right: var(--band-x, -3px); top: auto; bottom: 88%; height: 8%;
+  border-top: 1px dashed var(--cup-band); border-bottom: 1px dashed var(--cup-band); z-index: 2;
+}
+/* the rail: one small cup per page, the current page underlined */
+html[data-drink="tea"] .rmeter { height: calc(var(--rcup-h) + 6px); }
+html[data-drink="tea"] .rmeter .rmfill { height: var(--rcup-h); }
+html[data-drink="tea"] .rmeter::after { bottom: auto; height: calc(var(--rcup-h) + var(--rcup-line-extra)); }
+html[data-drink="tea"] .rmeter::before {
+  content: ""; position: absolute; left: -3px; right: -3px; top: calc(var(--rcup-h) * .04); height: calc(var(--rcup-h) * .08);
+  border-top: 1px dashed var(--cup-band); border-bottom: 1px dashed var(--cup-band); pointer-events: none; z-index: 2;
+}
+html[data-drink="tea"] .rmeter[aria-current=true] { background: linear-gradient(var(--mark), var(--mark)) center bottom / 70% 2px no-repeat; }
+html[data-drink="tea"] .rmeter:hover { background: linear-gradient(var(--line-strong), var(--line-strong)) center bottom / 70% 2px no-repeat; }
+html[data-drink="tea"] .rmeter[aria-current=true]:hover { background: linear-gradient(var(--mark), var(--mark)) center bottom / 70% 2px no-repeat; }
+/* an overflowing page spills over the rim */
+html[data-drink="tea"] .rmeter.overflow::before { border: 0; left: auto; right: -5px; top: -2px; width: 6px; height: calc(var(--rcup-h) + 4px); background: var(--liq-strong); -webkit-mask: var(--spill) center / 100% 100% no-repeat; mask: var(--spill) center / 100% 100% no-repeat; }
+html[data-drink="tea"] .meter.overflow .mbar::before {
+  content: ""; position: absolute; right: -6px; top: -2px; width: 7px; height: calc(100% + 6px); background: var(--liq-strong); z-index: 3;
+  -webkit-mask: var(--spill) center / 100% 100% no-repeat; mask: var(--spill) center / 100% 100% no-repeat;
+}
+html[data-drink="coffee"] .meter { gap: 7px; }
+html[data-drink="coffee"] .meter .mbar { --cup-w: 13px; --cup-h: 20px; --cup-margin: 1px 6px 1px 6px; border: 1px solid var(--ink-soft); border-top: 0; }
+html[data-drink="coffee"] .meter .mfill, html[data-drink="coffee"] .rmeter .rmfill {
+  inset: auto 0 0 0; height: calc(var(--p, 0) * 1%); background: linear-gradient(var(--crema) 0 2px, var(--espresso) 2px);
+}
+html[data-drink="coffee"] :is(.meter, .rmeter).under :is(.mfill, .rmfill) { opacity: .55; }
+/* ticks at the quarters, and Fit's band bracketed */
+html[data-drink="coffee"] .meter .mbar::after, html[data-drink="coffee"] .rmeter::after {
+  content: ""; position: absolute; left: -5px; width: 3px; top: 0; bottom: 0; pointer-events: none;
+  background: linear-gradient(var(--ink-soft), var(--ink-soft)) 0 0 / 3px 1px no-repeat, linear-gradient(var(--ink-soft), var(--ink-soft)) 0 25% / 2px 1px no-repeat,
+    linear-gradient(var(--ink-soft), var(--ink-soft)) 0 50% / 3px 1px no-repeat, linear-gradient(var(--ink-soft), var(--ink-soft)) 0 75% / 2px 1px no-repeat;
+}
+html[data-drink="coffee"] .meter .mband, html[data-drink="coffee"] .rmeter::before {
+  content: ""; position: absolute; right: -5px; left: auto; width: 3px; top: auto; bottom: 88%; height: 8%; pointer-events: none; border: 1px solid var(--ink); border-left: 0;
+}
+html[data-drink="coffee"] .meter.overflow .mbar, html[data-drink="coffee"] .rmeter.overflow { border-color: var(--bad); }
+html[data-drink="coffee"] .rmeters { gap: 10px; }
+html[data-drink="coffee"] .rmeter { --rcup-w: 11px; --rcup-h: 26px; border: 1px solid var(--ink-soft); border-top: 0; }
+html[data-drink="coffee"] .rmeter .rmfill { inset: auto 0 0 0; height: calc(var(--p, 0) * 1%); }
+html[data-drink="coffee"] .rmeter[aria-current=true] { border-bottom: 2px solid var(--ink); }
+
+/* ---------- Tea: the panel, the modes, Fit, the toast, the tags ---------- */
+html[data-drink="tea"] .rail .ib[aria-pressed=true] { background: var(--accent); color: var(--on-accent); border-radius: var(--r-m); }
+html[data-drink="tea"] .rail .ib:hover:not([aria-pressed=true]) { background: var(--hover); color: var(--ink); }
+
+/* the modes hang as tags from one string: a hole, a string to the line above, a slight tilt at rest */
+html[data-drink="tea"] .hrow.modes .seg { position: relative; background: none; border-radius: 0; padding: 10px 2px 2px; gap: 7px; }
+html[data-drink="tea"] .hrow.modes .seg::before { content: ""; position: absolute; left: -6px; right: -6px; top: 1px; height: 1.5px; border-radius: 1px; background: var(--line-strong); }
+html[data-drink="tea"] .hrow.modes .seg [role=tab] {
+  position: relative; padding: 9px 11px 5px; border: 1px solid var(--line-strong); border-radius: 3px 3px 9px 9px; background: var(--surface);
+  color: var(--ink); transform-origin: 50% -9px; rotate: 0deg; transition: rotate var(--dur-2) var(--ease);
+}
+html[data-drink="tea"] .hrow.modes .seg [role=tab]::before { content: ""; position: absolute; left: 50%; top: -10px; width: 1px; height: 10px; background: var(--line-strong); }
+html[data-drink="tea"] .hrow.modes .seg [role=tab]::after { content: ""; position: absolute; left: 50%; top: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: var(--r-round); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
+html[data-drink="tea"] .hrow.modes .seg [role=tab]:nth-child(1) { rotate: 2.5deg; }
+html[data-drink="tea"] .hrow.modes .seg [role=tab]:nth-child(3) { rotate: -2.5deg; }
+html[data-drink="tea"] .hrow.modes .seg [role=tab]:hover { rotate: 0deg; }
+html[data-drink="tea"] .hrow.modes .seg [role=tab][aria-selected=true] { rotate: 0deg; background: var(--accent); color: var(--on-accent); border-color: var(--accent); box-shadow: var(--shadow-lift); }
+html[data-drink="tea"] .hrow.modes .seg [role=tab][aria-selected=true]::after { box-shadow: none; }
+
+/* Fit is a luggage tag: a pointed end and a hole. Filled only when it would change something; otherwise plain, still with an edge.
+   The shape is drawn behind the button (its ::before is the edge, its ::after the fill), so the button keeps a focus ring that is not clipped. */
+html[data-drink="tea"] [data-act=fit], html[data-drink="tea"] .obstart .obchoices button.primary {
+  position: relative; isolation: isolate; border: 0; border-radius: 0; background: transparent; color: var(--ink); padding: 4px 14px 4px 20px;
+  --tag-notch: 11px; --tag-hole-x: 9px; --tag-hole-r: 2.3px;
+}
+html[data-drink="tea"] [data-act=fit]::before, html[data-drink="tea"] .obstart .obchoices button.primary::before {
+  content: ""; position: absolute; z-index: -2; inset: 0; border-radius: 0 7px 7px 0; background: var(--line-strong);
+  clip-path: polygon(var(--tag-notch) 0, 100% 0, 100% 100%, var(--tag-notch) 100%, 0 50%);
+}
+html[data-drink="tea"] [data-act=fit]::after, html[data-drink="tea"] .obstart .obchoices button.primary::after {
+  content: ""; position: absolute; z-index: -1; inset: 1.5px; border-radius: 0 6px 6px 0;
+  background: var(--surface) radial-gradient(circle at calc(var(--tag-hole-x) - 1.5px) 50%, var(--line-strong) var(--tag-hole-r), transparent calc(var(--tag-hole-r) + .4px));
+  clip-path: polygon(calc(var(--tag-notch) - 1px) 0, 100% 0, 100% 100%, calc(var(--tag-notch) - 1px) 100%, 0 50%);
+}
+html[data-drink="tea"] [data-act=fit].primary, html[data-drink="tea"] .obstart .obchoices button.primary { color: var(--on-accent); }
+html[data-drink="tea"] [data-act=fit].primary::before, html[data-drink="tea"] .obstart .obchoices button.primary::before { background: var(--accent); }
+html[data-drink="tea"] [data-act=fit].primary::after, html[data-drink="tea"] .obstart .obchoices button.primary::after {
+  inset: 0; border-radius: 0 7px 7px 0; clip-path: polygon(var(--tag-notch) 0, 100% 0, 100% 100%, var(--tag-notch) 100%, 0 50%);
+  background: var(--accent) radial-gradient(circle at var(--tag-hole-x) 50%, var(--surface) var(--tag-hole-r), transparent calc(var(--tag-hole-r) + .4px));
+}
+html[data-drink="tea"] [data-act=fit]:disabled { opacity: .4; }
+html[data-drink="tea"] .is-vertical .factions [data-act=fit] { padding: 3px 7px 3px 14px; }
+html[data-drink="tea"] [data-act=fit]:active:not(:disabled) { translate: 0 1px; }
+/* the start screen's one filled button is a tag too, a bigger one */
+html[data-drink="tea"] .obstart .obchoices button.primary { padding: 11px 15px 11px 30px; --tag-notch: 16px; --tag-hole-x: 13px; --tag-hole-r: 3.5px; text-align: left; }
+html[data-drink="tea"] .obstart .obchoices button.primary::before, html[data-drink="tea"] .obstart .obchoices button.primary::after { border-radius: 0 var(--r-m) var(--r-m) 0; }
+
+/* the toast drops in on its string */
+html[data-drink="tea"] .toast { border-radius: 3px 3px 12px 12px; padding: 12px 18px 9px; font-weight: 650; overflow: visible; box-shadow: var(--shadow-toast); transform-origin: 50% -20px; }
+html[data-drink="tea"] .toast::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1.5px; height: 20px; background: var(--toast-bg); }
+html[data-drink="tea"] .toast::after { content: ""; position: absolute; left: 50%; top: 4px; width: 5px; height: 5px; margin-left: -2px; border-radius: var(--r-round); background: var(--tag-hole); }
+
+/* a count of versions is a tag, stacked when there is more than one; the job chip hangs from a string onto its job */
+html[data-drink="tea"] .clv {
+  position: relative; display: inline-block; font-size: 11px; line-height: 1; padding: 3px 5px 3px 10px; margin: 0 3px 0 0;
+  color: var(--tag-ink); background: var(--tag-bg); border: 1px solid var(--tag-line); border-radius: 2px 5px 5px 2px;
+}
+html[data-drink="tea"] .clv::before { content: ""; position: absolute; left: 3px; top: 50%; width: 3px; height: 3px; margin-top: -1.5px; border-radius: var(--r-round); background: var(--tag-line); }
+html[data-drink="tea"] .clv.many { box-shadow: 2px -2px 0 -1px var(--tag-bg), 2px -2px 0 0 var(--tag-line); }
+html[data-drink="tea"] .jobchip {
+  overflow: visible; border-radius: 3px 9px 9px 3px; padding: 4px 12px 4px 19px; font-size: 12.5px; background: var(--tag-bg); color: var(--tag-ink);
+  border: 1px solid var(--tag-line); box-shadow: var(--shadow-chip);
+}
+html[data-drink="tea"] .jobchip .jc { color: var(--tag-ink); opacity: .85; }
+html[data-drink="tea"] .jobchip::before { content: ""; position: absolute; left: 6px; top: 50%; width: 5px; height: 5px; margin-top: -2.5px; border-radius: var(--r-round); background: var(--tag-hole); box-shadow: inset 0 0 0 1px var(--tag-line); }
+html[data-drink="tea"] .jobchip::after { content: ""; position: absolute; left: 8px; top: 100%; width: 1px; height: 11px; background: var(--tag-line); }
+
+/* the version list and the sections */
+html[data-drink="tea"] .item.srow .t { font-weight: 700; }
+html[data-drink="tea"] .vrow.cur .rad { border-color: var(--accent); }
+html[data-drink="tea"] .vrow.cur .n { color: var(--accent); }
+
+/* ---------- the start screen ---------- */
+html[data-drink="tea"] .oblogo img { width: 76px; height: 76px; }
+html[data-drink="tea"] .obhero { font-weight: 800; font-size: 30px; }
+html[data-drink="tea"] .obstart .obchoices button { border-radius: var(--r-m); }
+html[data-drink="tea"] .obstep { border-radius: 4px 12px 12px 4px; }
+html[data-drink="tea"] .obstep.on { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+html[data-drink="tea"] .obstep.on .obst > span { color: var(--on-accent); }
+html[data-drink="tea"] .obstep.on .obn { background: var(--on-accent); color: var(--accent); }
+html[data-drink="tea"] .obstep.on .obprog { background: var(--on-accent); }
+html[data-drink="coffee"] .obstep.on { background: var(--mark-soft); border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] .obstep.done .obn, html[data-drink="coffee"] .obstep.done .obprog { background: var(--ink); color: var(--on-mark); }
+
+/* ---------- the moments ---------- */
+@media (prefers-reduced-motion: no-preference){
+  /* steam for a few seconds when a page has just reached the band; at 91 to 93 percent, a perfect steep, the steam is a heart */
+  html[data-drink="tea"]:not([data-motion="reduce"]) .meter.steam:not(.under):not(.over):not(.overflow) .mbar::before {
+    content: ""; position: absolute; left: 3px; top: -15px; width: 14px; height: 13px; background: var(--steam-ink);
+    -webkit-mask: var(--steam) center / contain no-repeat; mask: var(--steam) center / contain no-repeat;
+  }
+  html[data-drink="tea"]:not([data-motion="reduce"]) .meter.steam.perfect:not(.under):not(.over):not(.overflow) .mbar::before { -webkit-mask-image: var(--heart); mask-image: var(--heart); background: var(--heart-ink); }
+
+  html[data-drink="tea"]:not([data-motion="reduce"]) .rmeter .rsteam {
+    position: absolute; left: 1px; top: -12px; width: 12px; height: 11px; background: var(--steam-ink); pointer-events: none;
+    -webkit-mask: var(--steam) center / contain no-repeat; mask: var(--steam) center / contain no-repeat;
+  }
+  html[data-drink="tea"]:not([data-motion="reduce"]) .rmeter.perfect .rsteam { -webkit-mask-image: var(--heart); mask-image: var(--heart); background: var(--heart-ink); }
+  html[data-drink="tea"]:not([data-motion="reduce"]) :is(.rmeter.under, .rmeter.over, .rmeter.overflow) .rsteam { display: none; }
+  /* steam rises for a few seconds, twice, and stops; dock.js starts it where it left off when the foot is redrawn (--el) */
+  html[data-drink="tea"]:not([data-motion="reduce"]) .meter.steam:not(.under):not(.over):not(.overflow) .mbar::before { animation: tsSteam 2.2s ease-out 2 both; animation-delay: calc(var(--el, 0ms) * -1); }
+  html[data-drink="tea"]:not([data-motion="reduce"]) .rmeter.steam .rsteam { animation: tsSteam 2.2s ease-out 2 both; animation-delay: calc(var(--el, 0ms) * -1); }
+  /* the tags swing when the pointer brushes them */
+  html[data-drink="tea"]:not([data-motion="reduce"]) .hrow.modes .seg [role=tab]:hover { animation: tsSwing var(--dur-moment) ease-out; }
+  html[data-drink="tea"]:not([data-motion="reduce"]) [data-act=fit].primary:not(:disabled):hover { animation: tsSwing var(--dur-moment) ease-out; transform-origin: 0 50%; }
+  /* the toast swings as it settles on its string */
+  html[data-drink="tea"]:not([data-motion="reduce"]) .toast.on { animation: tsToast var(--dur-moment) ease-out; }
+  /* a tick pops once, on the line just ticked */
+  html[data-drink="tea"]:not([data-motion="reduce"]) .cb.pop:checked { animation: tsPop 350ms var(--ease-pop); }
+  /* the bag dunks */
+  html[data-drink="tea"]:not([data-motion="reduce"]) :is(.logo img, .railogo img, .oblogo img).dunk { animation: tsDunk 900ms var(--ease-swing); }
+  @keyframes tsSteam { 0% { opacity: 0; transform: translateY(4px) scaleY(.8); } 40% { opacity: .85; } 100% { opacity: 0; transform: translateY(-6px) scaleY(1.1); } }
+  @keyframes tsSwing { 0% { rotate: 0deg; } 15% { rotate: 5deg; } 35% { rotate: -3.5deg; } 55% { rotate: 2deg; } 75% { rotate: -.8deg; } 100% { rotate: 0deg; } }
+  @keyframes tsToast { 0% { rotate: 6deg; } 25% { rotate: -4deg; } 50% { rotate: 2deg; } 75% { rotate: -.7deg; } 100% { rotate: 0deg; } }
+  @keyframes tsPop { from { scale: .7; } to { scale: 1; } }
+  @keyframes tsDunk { 0% { translate: 0 0; } 30% { translate: 0 5px; } 60% { translate: 0 -2px; } 100% { translate: 0 0; } }
+}

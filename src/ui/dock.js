@@ -7,6 +7,7 @@ import { icon } from './icons.js';
 import { t, h } from '../i18n/index.js';
 import { FILL_BAND } from '../fit.js';
 import { clampZoom, ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
+import { drink, onDrinkChange } from './drink.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -93,20 +94,56 @@ export const ib = (act, ic, name, tip, attrs = '', pos = 'b') =>
   `<button class="ib" data-act="${act}" ${attrs} data-tip="${esc(name)}|${esc(tip)}" data-tip-pos="${pos}" aria-label="${esc(name)}">${icon(ic)}</button>`;
 
 // ---- the meters: one per page ----
+// A page's fill says how it stands against Fit's band: ok (inside 88 to 96 percent), under or over (the last page only), or overflowing.
+export const meterStatus = (p, last = true) => {
+  const pct = 100 * p.used / p.usable;
+  return p.overflow > 0 ? 'overflow' : last && pct > FILL_BAND[1] ? 'over' : last && pct < FILL_BAND[0] ? 'under' : 'ok';
+};
+// Would Fit change something? It is the one filled button on the screen when it would; Export's PDF is filled while it would not.
+export const fitNeeded = fills => (fills ?? []).some((p, i, a) => meterStatus(p, i === a.length - 1) !== 'ok');
+// ...and Fit is the filled one only if it can run (a resume with as many pages as needed has no Fit)
+export const fitFilled = (fills, limit) => limit !== 0 && fitNeeded(fills);
+
+// The steam moment: a page that has just reached the band steams for a few seconds, once, and at 91 to 93 percent (a perfect
+// steep) the steam is a heart. Never a loop; the foot is redrawn often, so a redraw carries on from how long it has been going.
+const STEAM_MS = 4400;
+const steam = new Map();           // page index → { status, at, until, perfect }
+let steamTimer = 0;
+function noteSteam(ms){
+  if (C.ui.previewing) return;      // a version under the pointer is not a page reaching the band
+  const now = Date.now();
+  for (const m of ms){
+    const s = steam.get(m.i) ?? { status: null, at: 0, until: 0, perfect: false };
+    if (m.status === 'ok' && s.status !== 'ok') Object.assign(s, { at: now, until: now + STEAM_MS, perfect: m.pct >= 91 && m.pct <= 93 });
+    s.status = m.status; steam.set(m.i, s);
+  }
+  for (const k of [...steam.keys()]) if (k >= ms.length) steam.delete(k);
+  const left = Math.max(0, ...[...steam.values()].map(s => s.until - now));
+  clearTimeout(steamTimer);
+  if (left > 0) steamTimer = setTimeout(() => { if (C) renderFoot(); }, left + 50);
+}
+const steamOf = i => { const s = steam.get(i), now = Date.now(); return s && s.until > now && s.status === 'ok' ? { on: true, perfect: s.perfect, el: now - s.at } : { on: false }; };
+
 function meters(){
   const fills = C.ui.fills ?? [];
   const n = fills.length;
-  return fills.map((p, i) => {
+  const out = fills.map((p, i) => {
     const pct = 100 * p.used / p.usable;
-    const last = i === n - 1;
-    const status = p.overflow > 0 ? 'overflow' : last && pct > FILL_BAND[1] ? 'over' : last && pct < FILL_BAND[0] ? 'under' : 'ok';
+    const status = meterStatus(p, i === n - 1);
     const tipText = p.overflow > 0 ? t('foot.overflowPage', { page: p.page }) : t('foot.pageFill', { page: p.page, pct: pct.toFixed(1) });
     return { i, pct, status, tipText, page: p.page };
   });
+  noteSteam(out);
+  return out;
 }
 
+// the cup (tea) or the shot glass (coffee) is filled to --p, 0 to 100; src/ui/drinks.css draws it
+const level = pct => Math.max(0, Math.min(100, pct)).toFixed(1);
 function railMeters(){
-  return meters().map(m => `<button class="rmeter ${m.status}" data-act="goto-page" data-page="${m.i}" aria-current="${C.ui.page === m.i}" data-tip="${esc(t('ux2.pageShort', { page: m.page }))}|${esc(m.tipText)}" data-tip-pos="l" aria-label="${esc(m.tipText)}"><span class="rmfill" style="height:${Math.min(100, m.pct).toFixed(0)}%"></span></button>`).join('');
+  return meters().map(m => {
+    const sm = steamOf(m.i);
+    return `<button class="rmeter ${m.status}${sm.on ? ' steam' : ''}${sm.on && sm.perfect ? ' perfect' : ''}" style="--p:${level(m.pct)}${sm.on ? `;--el:${sm.el}ms` : ''}" data-act="goto-page" data-page="${m.i}" aria-current="${C.ui.page === m.i}" data-tip="${esc(t('ux2.pageShort', { page: m.page }))}|${esc(m.tipText)}" data-tip-pos="l" aria-label="${esc(m.tipText)}"><span class="rmfill"></span>${sm.on ? '<span class="rsteam" aria-hidden="true"></span>' : ''}</button>`;
+  }).join('');
 }
 
 // the rail and the bottom line are redrawn whenever a page is: the control that had the focus keeps it
@@ -121,9 +158,10 @@ function drawRail(){
   const el = $('#rail');
   if (!el) return;
   const mode = modeOf();
+  const tea = drink() === 'tea';
   const m = (id, ic, key) => `<button class="ib" data-act="rail-mode" data-m="${id}" aria-pressed="${mode === id}" data-tip="${esc(t(key))}|${esc(t('ux2.railOpen'))}" data-tip-pos="l" aria-label="${esc(t(key))}">${icon(ic)}</button>`;
   el.innerHTML = `<span class="logo railogo"><img src="icons/icon.svg" alt="BrewCV" width="28" height="28"></span><hr>
-    ${m('edit', 'edit', 'ux2.modeEdit')}${m('design', 'design', 'ux2.modeDesign')}${m('export', 'export', 'ux2.modeExport')}<hr>
+    ${m('edit', tea ? 'leaf' : 'edit', 'ux2.modeEdit')}${m('design', tea ? 'teapot' : 'design', 'ux2.modeDesign')}${m('export', tea ? 'cupserved' : 'export', 'ux2.modeExport')}<hr>
     <div class="rmeters" id="rmeters" role="group" aria-label="${esc(t('ux2.meters'))}">${railMeters()}</div>
     ${ib('panel-open', 'left', t('ux2.openPanel'), t('ux2.openPanelTip'), '', 'l')}`;
 }
@@ -138,6 +176,7 @@ function drawFoot(){
   const f = folded();
   const limit = C.shown()?.pageLimit;
   const ms = meters();
+  const needed = fitFilled(u.fills, limit);
   const spread = u.layout?.spread;
   el.classList.toggle('is-vertical', f);
   const tipPos = f ? 'l' : 't';
@@ -149,9 +188,12 @@ function drawFoot(){
       ${ib('zoom-fit', 'fitpage', t('ux2.zoomFit'), t('ux2.zoomFitTip'), '', tipPos)}
       ${ms.length > 1 && u.layout?.canSpread ? ib('view', spread ? 'pages1' : 'pages2', spread ? t('foot.toStack') : t('foot.toSpread'), t('ux2.viewTip'), '', tipPos) : ''}
     </div>`;
-  const meterHtml = ms.map(m => `<button class="meter ${m.status}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" title="${esc(m.tipText + t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] }))}"><span class="mlab">${esc(t('ux2.pageShort', { page: m.page }))}</span><span class="mbar"><span class="mband"></span><span class="mfill" style="width:${Math.min(100, m.pct).toFixed(1)}%"></span></span><span class="mpct">${m.pct.toFixed(0)}%</span></button>`).join('');
+  const meterHtml = ms.map(m => {
+    const sm = steamOf(m.i);
+    return `<button class="meter ${m.status}${sm.on ? ' steam' : ''}${sm.on && sm.perfect ? ' perfect' : ''}" style="--p:${level(m.pct)}${sm.on ? `;--el:${sm.el}ms` : ''}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" title="${esc(m.tipText + t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] }))}"><span class="mlab">${esc(t('ux2.pageShort', { page: m.page }))}</span><span class="mbar" aria-hidden="true"><span class="mband"></span><span class="mfill"></span></span><span class="mpct">${m.pct.toFixed(0)}%</span></button>`;
+  }).join('');
   const act = `<div class="factions">
-      <button class="primary" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>
+      <button class="fit${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>
       <span class="grow"></span>
       ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', tipPos)}
       ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', tipPos)}
@@ -237,6 +279,7 @@ function onModesKey(e){
 
 function bind(){
   installTips();
+  onDrinkChange(() => { renderRail(); renderFoot(); });
   const pop = document.createElement('div');
   pop.id = 'zpop'; pop.className = 'card zpop'; pop.hidden = true;
   pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', t('ux2.zoomSettings'));

@@ -13,6 +13,7 @@ import { DEFAULT_LANG, defaultVariant } from '../model/resume.js';
 import { entryKey } from '../model/entries.js';
 import { t, h, tIn, errText } from '../i18n/index.js';
 import { crumb } from './parts.js';
+import { icon as drawn } from './icons.js';
 
 let C = null;
 export function initCareer(ctx){ C = ctx; return api; }
@@ -168,7 +169,7 @@ function jobTypesHtml(){
       <input class="jt-label" data-id="${esc(j.id)}" value="${esc(j.label)}" aria-label="${esc(t('jt.nameOf', { name: j.label }))}" autocomplete="off">
       <span class="chips">${j.tags.map(tg => `<span class="tag jt">${esc(tg)}<button class="rm" data-act="c-jt-tag-rm" data-id="${esc(j.id)}" data-tag="${esc(tg)}" aria-label="${esc(t('edit.removeTag', { tag: tg }))}">×</button></span>`).join('')}
         <input class="tag-in jt-tag-in" list="jt-tags" data-id="${esc(j.id)}" placeholder="${esc(t('jt.addTagPh'))}" aria-label="${esc(t('jt.addTagTo', { name: j.label }))}"></span>
-      <button class="ghost sm" data-act="c-jt-del" data-id="${esc(j.id)}" title="${esc(t('jt.delete'))}" aria-label="${esc(t('jt.delete'))}">🗑</button></div>`).join('') || `<p class="muted small empty-line">${h('jt.none')}</p>`}
+      <button class="ghost sm" data-act="c-jt-del" data-id="${esc(j.id)}" title="${esc(t('jt.delete'))}" aria-label="${esc(t('jt.delete'))}">${drawn('trash')}</button></div>`).join('') || `<p class="muted small empty-line">${h('jt.none')}</p>`}
     <datalist id="jt-tags">${vocab.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
     <div class="jtnew"><input id="jt-new" placeholder="${esc(t('jt.newPh'))}" autocomplete="off" aria-label="${esc(t('jt.new'))}"><button class="sm" data-act="c-jt-add">${h('jt.new')}</button></div>
     <h3 class="sub">${h('ux2.tagsTitle')}</h3>
@@ -178,7 +179,7 @@ function jobTypesHtml(){
       <input class="tag-name" data-tag="${esc(tg)}" value="${esc(tg)}" aria-label="${esc(t('ux2.tagName', { tag: tg }))}" autocomplete="off">
       <span class="muted small">${h('ux2.tagUsed', { n: counts.get(tg) ?? 0 })}</span>
       ${vocab.length > 1 ? `<select class="tag-merge" data-tag="${esc(tg)}" aria-label="${esc(t('ux2.tagMergeInto', { tag: tg }))}"><option value="">${h('ux2.tagMerge')}</option>${vocab.filter(x => x !== tg).map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select>` : ''}
-      <button class="ghost sm" data-act="c-tag-del" data-tag="${esc(tg)}" title="${esc(t('ux2.tagDelete', { tag: tg }))}" aria-label="${esc(t('ux2.tagDelete', { tag: tg }))}">🗑</button></div>`).join('') || `<p class="muted small empty-line">${h('ux2.tagsNone')}</p>`}
+      <button class="ghost sm" data-act="c-tag-del" data-tag="${esc(tg)}" title="${esc(t('ux2.tagDelete', { tag: tg }))}" aria-label="${esc(t('ux2.tagDelete', { tag: tg }))}">${drawn('trash')}</button></div>`).join('') || `<p class="muted small empty-line">${h('ux2.tagsNone')}</p>`}
     <div class="jtnew"><input id="tag-new" placeholder="${esc(t('ux2.tagNewPh'))}" autocomplete="off" aria-label="${esc(t('ux2.tagNew'))}" ${vocab.length >= TAG_CAP ? 'disabled' : ''}><button class="sm" data-act="c-tag-add" ${vocab.length >= TAG_CAP ? 'disabled' : ''}>${h('ux2.tagNew')}</button></div>
     ${vocab.length >= TAG_CAP ? `<p class="muted small">${h('ux2.tagsFull')}</p>` : ''}
     <details class="taghow" ${vocab.length ? '' : 'open'}><summary>${h('ux2.tagsHowTitle')}</summary><p class="small">${h('ux2.tagsHow1')}</p><p class="small">${h('ux2.tagsHow2')}</p><p class="small">${h('ux2.tagsHow3')}</p></details>`;
@@ -215,7 +216,7 @@ export function detailsHtml(id){
   const v = K.entryView(m, key, { ...x, id }, L());
   const open = W.det.get(id) ?? false;
   const arch = key === 'education' ? '' : `<button class="sm ghost" data-act="${x.archived ? 'c-unarch-entry' : 'c-arch-entry'}" data-id="${esc(id)}" title="${esc(t(x.archived ? 'arch.unarchiveJobTitle' : 'arch.archiveJobTitle'))}">${h(x.archived ? 'arch.unarchiveJob' : 'arch.archiveJob')}</button>`;
-  const del = key !== 'work' ? `<button class="sm ghost" data-act="c-del-entry" data-id="${esc(id)}" title="${esc(t('career.ctrlZ'))}">🗑 ${h('career.deleteEntry')}</button>` : '';
+  const del = key !== 'work' ? `<button class="sm ghost" data-act="c-del-entry" data-id="${esc(id)}" title="${esc(t('career.ctrlZ'))}">${drawn('trash')} ${h('career.deleteEntry')}</button>` : '';
   return `<details class="jr details" data-det="${esc(id)}" ${open ? 'open' : ''}><summary>${h('ux2.details')}</summary>
     <div class="detbox" data-form="entry" data-key="${esc(key)}" data-id="${esc(id)}">${detailsForm(key, x, v)}</div>
     <div class="btns detacts">${arch}${del}</div></details>`;
@@ -291,7 +292,7 @@ function itemView(group, id){
     `${crumb([{ t: t(`career.item.${group}`) }, { t: title }])}<div class="where" ${kc(group)}><span class="kb">${icon(look(group).icon)}${esc(t(`career.item.${group}`))}${n ? ` · ${esc(n)}` : ''}</span></div>
       <h2 class="title ${missing ? 'missing' : ''}">${esc(name)}</h2>
       <div class="detbox" data-form="item" data-group="${esc(group)}" data-id="${esc(id)}">${inner}</div>
-      ${del ? `<div class="btns detacts"><span class="grow"></span><button class="sm ghost" data-act="c-del-item" data-group="${esc(group)}" data-id="${esc(id)}" title="${esc(t('career.ctrlZ'))}">🗑 ${h('career.delete')}</button></div>` : ''}
+      ${del ? `<div class="btns detacts"><span class="grow"></span><button class="sm ghost" data-act="c-del-item" data-group="${esc(group)}" data-id="${esc(id)}" title="${esc(t('career.ctrlZ'))}">${drawn('trash')} ${h('career.delete')}</button></div>` : ''}
       ${versions ? C.edit.factPanel(versions) : ''}${goesIn(sid)}`;
   const sid = K.sectionFor(m, group, id);
   if (k){
@@ -302,7 +303,7 @@ function itemView(group, id){
     return `${crumb([{ t: K.kindName(m, group, Lg) }, { t: v.title }])}<div class="where" ${kc(group)}><span class="kb">${icon(look(group).icon)}${esc(K.kindName(m, group, Lg))}</span></div>
       <h2 class="title ${v.titleMissing ? 'missing' : ''}">${esc(v.title)}</h2>
       <div class="detbox" data-form="entry" data-key="${store}" data-id="${esc(id)}">${detailsForm(store, x, v)}</div>
-      <div class="btns detacts"><span class="grow"></span><button class="sm ghost" data-act="c-del-entry" data-id="${esc(id)}" title="${esc(t('career.ctrlZ'))}">🗑 ${h('career.deleteEntry')}</button></div>${goesIn(sid)}`;
+      <div class="btns detacts"><span class="grow"></span><button class="sm ghost" data-act="c-del-entry" data-id="${esc(id)}" title="${esc(t('career.ctrlZ'))}">${drawn('trash')} ${h('career.deleteEntry')}</button></div>${goesIn(sid)}`;
   }
   if (group === 'skills'){
     const s = (m.skills ?? []).find(x => x.id === id); if (!s) return '';
@@ -407,7 +408,7 @@ function kindView(id){
   out += `<div ${id ? 'data-form="kind"' : ''}>${field('kn-org', h('career.orgCalled'), d.org, { ph: t('career.orgPh') })}</div>
     <p class="note">${h('career.kindSection')}</p>
     <div class="btns">${id ? '' : `<button class="primary sm" data-act="c-kind-save">${h('career.createKind')}</button>`}
-      ${id ? `<span class="grow"></span><button class="sm ghost" data-act="c-kind-del">🗑 ${h('career.deleteKind')}</button>` : ''}</div>`;
+      ${id ? `<span class="grow"></span><button class="sm ghost" data-act="c-kind-del">${drawn('trash')} ${h('career.deleteKind')}</button>` : ''}</div>`;
   if (id && W.delKind){
     const others = [...(d.place === 'timeline' ? [['project', t('career.kind.project')]] : []), ...K.kindsOf(m).filter(k => k.id !== id && k.place === d.place).map(k => [k.id, K.kindName(m, k.id, Lg)])];
     out += `<div class="missbar">${h('career.deleteKindAsk', { n })}

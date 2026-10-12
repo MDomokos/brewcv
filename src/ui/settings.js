@@ -6,6 +6,7 @@
 import { LANGS } from '../model/schema.js';
 import { langName, langsInUse, setLangsInUse } from '../model/lang.js';
 import { t, h, errText, MACHINE, UI_LANGS } from '../i18n/index.js';
+import { DRINKS, THEMES, drink, themePref, setDrink, setThemePref } from './drink.js';
 
 let C = null;
 export function initSettings(ctx){ C = ctx; return api; }
@@ -62,6 +63,16 @@ function settingsView(){
     ${langs}
     <span class="lbl">${h('set.uiHead')}</span>${uiChoice(pref, inUse)}
     <p class="note">${h('set.machineNote')}</p>
+    <span class="lbl">${h('m11.setDrinkHead')}</span>
+    <div class="uichoice" role="radiogroup" aria-label="${esc(t('m11.setDrinkHead'))}">
+      ${DRINKS.map(d => `<label class="opt"><input type="radio" name="drink" data-drink="${d}" ${drink() === d ? 'checked' : ''}><span class="opt-t">${h(`m11.${d}`)} <span class="muted">· ${h(`m11.${d}Hint`)}</span></span></label>`).join('')}
+    </div>
+    <p class="note">${h('m11.setDrinkNote')}</p>
+    <span class="lbl">${h('m11.setThemeHead')}</span>
+    <div class="uichoice" role="radiogroup" aria-label="${esc(t('m11.setThemeHead'))}">
+      ${THEMES.map(m => `<label class="opt"><input type="radio" name="theme" data-theme="${m}" ${themePref() === m ? 'checked' : ''}><span class="opt-t">${h(`m11.theme${m[0].toUpperCase()}${m.slice(1)}`)}</span></label>`).join('')}
+    </div>
+    <p class="note">${h('m11.themeNote')}</p>
     <span class="lbl">${h('set.pagesHead')}</span>
     <div class="uichoice" role="radiogroup" aria-label="${esc(t('set.pagesHead'))}">
       ${[['auto', 'set.pagesAuto'], ['spread', 'set.pagesSpread'], ['stack', 'set.pagesStack']].map(([m, k]) => `<label class="opt"><input type="radio" name="pages" data-pagesmode="${m}" ${pages === m ? 'checked' : ''}><span class="opt-t">${h(k)}</span></label>`).join('')}
@@ -117,6 +128,8 @@ function bind(body){
     if (el.dataset.uimode){ const sel = body.querySelector('[data-uilang]'); setUiPref(el.dataset.uimode === 'fixed' ? { mode: 'fixed', lang: sel?.value ?? 'en' } : { mode: 'follow' }); C.renderBody(); return; }
     if (el.dataset.uilang !== undefined){ setUiPref({ mode: 'fixed', lang: el.value }); C.renderBody(); return; }
     if (el.dataset.pagesmode){ C.setPagesMode(el.dataset.pagesmode); return; }
+    if (el.dataset.drink){ setDrink(el.dataset.drink); return; }
+    if (el.dataset.theme){ setThemePref(el.dataset.theme); return; }
   });
 }
 

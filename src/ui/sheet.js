@@ -15,19 +15,28 @@ html, body { background: transparent !important; overflow: hidden !important; }
 html.rb-single .document > .page:not(.rb-shown) { display: none; }
 html.rb-stack .document { flex-direction: column; }
 html.rb-ui [data-variant], html.rb-ui .band[data-section] { cursor: pointer; }
-html.rb-ui [data-variant]:hover { outline: 2px solid rgba(37, 99, 235, .3); outline-offset: 2px; border-radius: 2px; }
-.rb-sel { outline: 2px solid #2563eb !important; outline-offset: 2px; border-radius: 2px; background-color: rgba(37, 99, 235, .06); }
-.rb-band-sel { outline: 2px solid #2563eb !important; outline-offset: 5px; border-radius: 4px; }
-.rb-prev { outline: 2px solid #0f766e !important; outline-offset: 2px; border-radius: 2px; background-color: #e1f4f1; }
-.rb-hover { outline: 2px solid #0f766e !important; outline-offset: 2px; border-radius: 2px; background-color: #e1f4f1; }
-html.rb-previewing .document > .page { outline: 3px solid #0f766e; outline-offset: 6px; }
-.rb-renaming { outline: 2px solid #2563eb !important; outline-offset: 3px; cursor: text !important; background: #fff !important; color: #16150f !important; }
+html.rb-ui [data-variant]:hover { outline: 2px solid color-mix(in srgb, var(--rb-sel) 40%, transparent); outline-offset: 2px; border-radius: 2px; }
+.rb-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-sel-soft); }
+.rb-band-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 5px; border-radius: 4px; }
+.rb-prev { outline: 2px solid var(--rb-prev) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-prev-soft); }
+.rb-hover { outline: 2px solid var(--rb-prev) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-prev-soft); }
+html.rb-previewing .document > .page { outline: 3px solid var(--rb-prev); outline-offset: 6px; }
+.rb-renaming { outline: 2px solid var(--rb-sel) !important; outline-offset: 3px; cursor: text !important; background: var(--rb-paper) !important; color: var(--rb-ink) !important; }
 html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit), html.rb-focus .skills__items[data-variant]:not(.rb-hit), html.rb-focus .pairs dd[data-variant]:not(.rb-hit), html.rb-focus .runs strong[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity .2s; }
-.rb-miss { outline: 1.5px dashed #d97706 !important; outline-offset: 2px; }
-.band .tab.rb-miss-tab { background-image: repeating-linear-gradient(-45deg, rgba(217, 119, 6, .45) 0 3px, transparent 3px 7px) !important; }
+.rb-miss { outline: 1.5px dashed var(--rb-miss) !important; outline-offset: 2px; }
+.band .tab.rb-miss-tab { background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--rb-miss) 45%, transparent) 0 3px, transparent 3px 7px) !important; }
 .rb-flash { animation: rb-flash .9s ease-out; }
-@keyframes rb-flash { from { background-color: rgba(37, 99, 235, .25); } to { background-color: transparent; } }
+@keyframes rb-flash { from { background-color: var(--rb-sel-soft); } to { background-color: transparent; } }
 `;
+
+// The app's own marks inside the frame (the rb-* classes) wear the drink's colours. The frame's document is a separate page, so
+// the colours are copied across from the app's tokens as custom properties: on the frame's root, which the resume's own
+// stylesheets never read, and which is not in an export.
+const MARK_TOKENS = { '--rb-sel': '--sel-mark', '--rb-sel-soft': '--sel-mark-soft', '--rb-prev': '--prev-mark', '--rb-prev-soft': '--prev-mark-soft', '--rb-miss': '--page-warn', '--rb-paper': '--paper', '--rb-ink': '--paper-ink' };
+function paintMarks(doc){
+  const cs = getComputedStyle(document.documentElement);
+  for (const [prop, token] of Object.entries(MARK_TOKENS)) doc.documentElement.style.setProperty(prop, cs.getPropertyValue(token).trim());
+}
 
 export function createSheet(host, hooks = {}){
   let fr = null;
@@ -76,6 +85,7 @@ export function createSheet(host, hooks = {}){
         st.textContent = VIEW_CSS;
         doc.head.append(st);
         doc.documentElement.classList.add('rb-ui');
+        paintMarks(doc);
         doc.addEventListener('click', e => {
           const el = e.target.closest?.('[data-variant], .band[data-section]');
           if (!el) return hooks.onPick?.({ variant: null, section: null });
@@ -328,6 +338,8 @@ export function createSheet(host, hooks = {}){
       }
       return out;
     },
+    // the drink or the theme changed: the marks take the new colours
+    restyle(){ if (fr?.doc) paintMarks(fr.doc); },
     focus(){ fr?.frame.focus(); },
     linesOf(ix, factId){
       if (!fr) return null;

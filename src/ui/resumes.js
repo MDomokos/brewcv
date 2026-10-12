@@ -9,6 +9,7 @@ import { t, h, errText, loadCatalogue } from '../i18n/index.js';
 import { langName, langsInUse, addLangInUse, a4FormatOf } from '../model/lang.js';
 import { newResume } from '../model/resume.js';
 import { langMenuHtml, focusMenu } from './langmenu.js';
+import { icon } from './icons.js';
 
 let C = null;
 export function initResumes(ctx){ C = ctx; return api; }
@@ -43,7 +44,7 @@ export function rowMenuHtml(id, where = 'group'){
     <button role="menuitem" data-act="rm-delete" data-id="${esc(id)}">${h('ux1.delete')}</button>
   </div>`;
 }
-export const moreButton = (id, where = 'group') => `<button class="smore" data-act="rm-menu" data-id="${esc(id)}" data-where="${where}" aria-haspopup="menu" aria-expanded="${V.row?.id === id && V.row.where === where}" title="${esc(t('ux1.rowMenuTitle'))}" aria-label="${esc(t('ux1.rowMenu', { name: RS.resumeLabel(RS.savedOf(st(), id)) }))}">⋯</button>`;
+export const moreButton = (id, where = 'group') => `<button class="smore" data-act="rm-menu" data-id="${esc(id)}" data-where="${where}" aria-haspopup="menu" aria-expanded="${V.row?.id === id && V.row.where === where}" title="${esc(t('ux1.rowMenuTitle'))}" aria-label="${esc(t('ux1.rowMenu', { name: RS.resumeLabel(RS.savedOf(st(), id)) }))}">${icon('more')}</button>`;
 export const renamingHere = (id, where = 'group') => V.renaming?.id === id && V.renaming.where === where;
 export const renameInput = r => `<input class="swren" data-rename="${esc(r.id)}" value="${esc(RS.resumeLabel(r))}" aria-label="${esc(t('ux1.rename'))}" autocomplete="off">`;
 
@@ -103,7 +104,7 @@ function newView(){
     <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="nv-co" value="${esc(n.company)}" autocomplete="off"></label>
     <label class="field"><span class="lbl inline">${h('resumes.role')}</span><input id="nv-role" value="${esc(n.role)}" autocomplete="off"></label>
     <span class="lbl">${h('resumes.language')}</span>
-    <span class="lang-menu inbody"><button class="sm langbtn" data-act="lang-menu-body" data-for="new" aria-haspopup="menu" aria-expanded="${V.menu === 'new'}">${esc(langName(L))} ▾</button>
+    <span class="lang-menu inbody"><button class="sm langbtn" data-act="lang-menu-body" data-for="new" aria-haspopup="menu" aria-expanded="${V.menu === 'new'}">${esc(langName(L))} ${icon('caret', { size: 12 })}</button>
     ${V.menu === 'new' ? langMenuHtml({ for: 'new', current: L, inUse, more: V.more, label: t('resumes.language') }) : ''}</span>
     <label class="field"><span class="lbl inline">${h('design.paper')}</span><select id="nv-paper"><option value="a4" ${n.paper !== 'us-letter' ? 'selected' : ''}>${h('paper.a4')}</option><option value="us-letter" ${n.paper === 'us-letter' ? 'selected' : ''}>${h('paper.letter')}</option></select></label>
     <span class="lbl">${h('ux1.startFrom')}</span>
