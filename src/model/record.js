@@ -190,3 +190,19 @@ export function wordDiff(a, b){
   if (gap) res.push({ op: '=', text: gap });
   return res;
 }
+
+// Which words of one version are the words of another (the same longest common subsequence as wordDiff, on words only): the pairs
+// [index in a, index in b] that stay, the indexes that go and the indexes that come, and the share of the longer text that stays.
+// What the page's word-move (src/ui/pagemotion.js) animates; the inspector's underlined differences read the same diff.
+export function wordMoves(a, b){
+  const count = text => text.split(/\s+/).filter(Boolean).length;
+  const pairs = [], removed = [], added = [];
+  let i = 0, j = 0;
+  for (const d of wordDiff(a, b)){
+    const n = count(d.text);
+    for (let k = 0; k < n; k++){
+      if (d.op === '='){ pairs.push([i++, j++]); } else if (d.op === '-') removed.push(i++); else added.push(j++);
+    }
+  }
+  return { pairs, removed, added, shared: pairs.length / Math.max(i, j, 1) };
+}

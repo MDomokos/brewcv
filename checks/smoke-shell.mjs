@@ -113,11 +113,15 @@ if (want('layout: the page at full height, the panel or the rail beside it')) fo
   ok(`${w}×${h}: nothing is selected, so the panel is folded: the rail is 52px wide, 16px from the edge, and the panel and the head are not on screen`,
     Math.abs(c.width - 52) < 1 && Math.abs(w - c.right - 16) < 1 && (await page.isVisible('#rail')) && !(await page.isVisible('#body')) && !(await page.isVisible('#head')));
   ok(`${w}×${h}: the page runs the full height, 16px from top and bottom`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1, `${s.top.toFixed(1)} / ${(h - s.bottom).toFixed(1)}`);
-  ok(`${w}×${h}: centred in the room left of the rail`, Math.abs(s.left - (c.left - 16 - s.right)) < 1.5, `${s.left.toFixed(1)} vs ${(c.left - 16 - s.right).toFixed(1)}`);
+  ok(`${w}×${h}: with the panel folded the page is centred on the window`, Math.abs(s.left - (w - s.right)) < 1.5, `${s.left.toFixed(1)} vs ${(w - s.right).toFixed(1)}`);
+  await page.evaluate(() => window.__wb.dock.setPanel('open')); await page.waitForTimeout(700);
+  { const so = await rect(page, '#sheet'), co = await rect(page, '#col');
+    ok(`${w}×${h}: with the panel open the page is centred on the free space beside it (the window's edge to the panel's edge)`, Math.abs(so.left - (co.left - so.right)) < 2.5, `${so.left.toFixed(1)} vs ${(co.left - so.right).toFixed(1)}`); }
+  await page.evaluate(() => window.__wb.dock.setPanel('auto')); await page.waitForTimeout(700);
   await page.keyboard.press('e'); await settle(page);
   s = await rect(page, '#sheet'); c = await rect(page, '#col');
   ok(`${w}×${h}: E opens the panel: 380–480px wide, the full height, 16px from the page area`, c.width >= 380 && c.width <= 480 && Math.abs(c.height - (h - 32)) < 1 && (await page.isVisible('#body')) && !(await page.isVisible('#rail')), `${c.width}px`);
-  ok(`${w}×${h}: the page keeps the full height, and sits centred left of the panel`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1 && Math.abs(s.left - (c.left - 16 - s.right)) < 1.5, `${s.left.toFixed(1)} vs ${(c.left - 16 - s.right).toFixed(1)}`);
+  ok(`${w}×${h}: the page keeps the full height, and sits centred left of the panel`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1 && Math.abs(s.left - (c.left - s.right)) < 1.5, `${s.left.toFixed(1)} vs ${(c.left - s.right).toFixed(1)}`);
   ok(`${w}×${h}: the head is two rows: the file, then Edit · Record · Design · Export`, (await page.$$('#head .hrow.top, #head .hrow.modes')).length === 2 && (await page.$$('#head [role=tab]')).length === 4);
   ok(`${w}×${h}: no horizontal scroll`, scrollW <= w);
   await ctx.close();
@@ -225,7 +229,7 @@ if (want('one screen: under 1280px the panel is a drawer; the keyboard path thro
   const bad = await open(page, undefined, { panel: null });
   const sheet = page.frameLocator('#sheet iframe');
   const s0 = await rect(page, '#sheet');
-  ok('1100×800: nothing selected: the page takes the width (all but the rail)', Math.abs(s0.left - (1100 - 52 - 32 - s0.right)) < 3 && (await page.evaluate(() => document.body.dataset.drawer)) === 'true' && (await page.isVisible('#rail')));
+  ok('1100×800: nothing selected: the page is centred in the room left of the rail (a narrow window keeps the toast and the page apart)', Math.abs(s0.left - (1100 - 52 - 16 - s0.right)) < 3 && (await page.evaluate(() => document.body.dataset.drawer)) === 'true' && (await page.isVisible('#rail')));
   await sheet.locator('.bullets li').first().click(); await settle(page);
   const s1 = await rect(page, '#sheet'), c1 = await rect(page, '#col');
   ok('selecting opens the panel as a drawer over the page’s right edge: the page does not move', Math.abs(s1.left - s0.left) < 1 && Math.abs(s1.width - s0.width) < 1 && c1.left < s1.right && c1.width >= 340);
@@ -395,7 +399,7 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     ok(`${w}×${h}: both pages show at once, equal, nothing faded`, c.scene === 'all' && c.equal && c.faded.length === 2 && c.faded.every(f => !f));
     ok(`${w}×${h}: at the full height of the window, 16px above and below`, Math.abs(c.k - (h - 32) / 1123) < 1e-6 && Math.abs(c.y - 16) < 1);
     const s = await rect(page, '#sheet'), col = await rect(page, '#col');
-    ok(`${w}×${h}: centred in the room left of the rail`, Math.abs(s.left - (col.left - 16 - s.right)) < 2, `${s.left.toFixed(1)} vs ${(col.left - 16 - s.right).toFixed(1)}`);
+    ok(`${w}×${h}: with the panel folded the pages are centred on the window`, Math.abs(s.left - (w - s.right)) < 2, `${s.left.toFixed(1)} vs ${(w - s.right).toFixed(1)}`);
     await wheel(page, 700); await page.waitForTimeout(500);
     const after = await camOf(page);
     ok(`${w}×${h}: the wheel does nothing: there is nothing to travel to`, Math.abs(after.x - c.x) < 0.5 && after.page === 0);
@@ -488,7 +492,7 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     ok('…and the wheel now pans too (the pages are not in their place)', await (async () => { await wheel(page, 60, 0, [700, 450]); await page.waitForTimeout(700); return Math.abs((await camOf(page)).y - (c1.y - 60)) < 3; })());
     await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(1000, 450, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(1200);
     const far = await camOf(page), lim = await page.evaluate(() => window.__wb.canvas.limits());
-    ok('pulled far past the edge it springs back to the soft limit (a third of the view stays in the pages)', far.x <= lim.maxX + 0.5 && far.x > lim.maxX - 4, `${far.x.toFixed(1)} vs ${lim.maxX.toFixed(1)}`);
+    ok('pulled far past the edge it springs back to the soft limit (two thirds of the view stay in the pages)', far.x <= lim.maxX + 0.5 && far.x > lim.maxX - 4, `${far.x.toFixed(1)} vs ${lim.maxX.toFixed(1)}`);
     await page.keyboard.press('0'); await page.waitForTimeout(700);
     const home = await camOf(page);
     ok('0 puts it all back', !home.free && Math.abs(home.x - c0.x) < 1 && Math.abs(home.y - c0.y) < 1 && home.zoom === 1);
@@ -949,7 +953,7 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   const names = await page.$$eval('#checklist .clg', gs => gs.map(g => g.dataset.g));
   ok('the groups: About you, then the jobs newest first, projects, Education, Skills and credentials', names[0] === 'about' && names.slice(1, 6).join() === 'hydra,poly,free,medisure,atelier' && names.indexOf('education') > names.indexOf('chassis-jig') && names.at(-1) === 'credentials', names.join());
   ok('every group is open, and its rows are on screen or below it in the scroll', (await page.$$('#checklist .clg.open')).length === names.length && (await page.$$('#checklist .clg[data-g=hydra] .clrow')).length === 7);
-  ok('the hint above the list is one line, the first time', /Tick a line to put it on this resume/.test(await page.textContent('#checklist .clhint')));
+  ok('no hint above the list: what a tick does is shown once, by a line travelling to the page (UX-4)', !(await page.$('#checklist .clhint')) && await page.evaluate(() => localStorage.getItem('rb-cl-hint') === '1'));
 
   await page.evaluate(() => document.querySelector('#checklist .clg[data-g=hydra]').scrollIntoView({ block: 'center' })); await settle(page);
   const rows = page.locator('#checklist .clg[data-g=hydra] .clrow');
@@ -968,7 +972,7 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   ok('each tick is one undo step', (await bullets()) === n0 - 1);
   await page.keyboard.press('Control+z'); await page.waitForTimeout(700);
   ok('…so two Ctrl+Z take both back', (await bullets()) === n0 && (await page.evaluate(() => window.__wb.store.history.undo)) === undo0);
-  ok('the first tick hid the hint for good', !(await page.$('#checklist .clhint')));
+  ok('…and the sample does not play again', !(await page.$('#checklist .clhint')) && await page.evaluate(() => window.__wb.motion.stats.names.filter(n => n === 'tick:sample').length <= 1));
 
   await rows.nth(1).hover(); await page.waitForTimeout(300);
   ok('hovering a row lights its line on the page', (await frameDoc(page, d => d.querySelectorAll('.rb-hover').length)) === 1);
@@ -2013,7 +2017,7 @@ if (want('onboarding and the record')) {
   await page.click('[data-act=tip-skip]'); await settle(page);
 
   await inRecord(page); await page.waitForTimeout(500);
-  ok('Record: the claims are already in it, with the one-line hint above the list', (await page.$$('#checklist .clg')).length >= 4 && /Fjord Instruments/.test(await page.textContent('#checklist')) && /Tick a line to put it on this resume/.test(await page.textContent('#checklist .clhint')));
+  ok('Record: the claims are already in it', (await page.$$('#checklist .clg')).length >= 4 && /Fjord Instruments/.test(await page.textContent('#checklist')));
   ok('the timeline shows the two jobs on the left, the degree beside them', await page.isVisible('#checklist .rectl .tl2') && (await page.$$('#checklist .rectl .tl2 .row')).length === 2 && (await page.$$('#checklist .rectl .tl2 .srow')).length === 1);
   await page.click('#checklist .clg:has-text("Northwind") [data-act=cl-open][data-sel*="job"]'); await settle(page);
   await page.click('details.details > summary'); await settle(page);
@@ -2206,18 +2210,18 @@ if (want('drinks: tea and coffee, light and dark')) {
     return c.tagName === 'ASIDE' && /drinking today/.test(c.textContent) && b.length === 2 && b.every(x => x.querySelector('svg')) && r.left < 30 && innerHeight - r.bottom < 30 && b[0].getAttribute('aria-pressed') === 'true';
   }));
   await page.evaluate(() => { window.__marker = 'same page'; });
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(250);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   ok('Shift+F switches to coffee, in place: no reload, the same page, the choice stored', (await drinkNow()) === 'coffee' && (await page.evaluate(() => window.__marker)) === 'same page' && (await page.evaluate(() => localStorage.getItem('rb-drink'))) === 'coffee');
   ok('the corner shows it, and the rail icons and the meter changed with it, with no redraw of the page', await page.evaluate(() => document.querySelector('#brewmode [data-drink=coffee]').getAttribute('aria-pressed') === 'true') && (await page.evaluate(() => window.__wb.ui.laid != null)));
   await page.click('#brewmode [data-drink=tea]'); await page.waitForTimeout(250);
   ok('the corner’s Tea button switches back', (await drinkNow()) === 'tea');
   // never while typing: the switcher's search is a field
   await page.click('#docname-btn'); await page.waitForSelector('#switcher .sw-q');
-  await page.focus('#switcher .sw-q'); await page.keyboard.press('Shift+F'); await page.waitForTimeout(150);
+  await page.focus('#switcher .sw-q'); await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   ok('Shift+F is ignored in a field, and types the letter', (await drinkNow()) === 'tea' && (await page.inputValue('#switcher .sw-q')) === 'F');
   await page.keyboard.press('Escape');
   // the setting survives a reload
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(200);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   ok('the setting survives a reload', (await drinkNow()) === 'coffee' && (await page.evaluate(() => document.querySelector('#brewmode [data-drink=coffee]').getAttribute('aria-pressed'))) === 'true');
@@ -2271,12 +2275,12 @@ if (want('drinks: Fit, the meters, the moments')) {
   await setFills(used(1.01).map(x => ({ ...x, overflow: 4 })));
   ok('tea: an overflowing page spills over the rim', await page.evaluate(() => { const bar = document.querySelector('#foot .meter.overflow .mbar'); const c = getComputedStyle(bar, '::before'); return c.content !== 'none' && /url/.test(c.webkitMaskImage || c.maskImage); }));
   await setFills(used(0.91));
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(250);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   const glass = await page.evaluate(() => { const m = document.querySelector('#foot .meter'), bar = m.querySelector('.mbar').getBoundingClientRect(), f = m.querySelector('.mfill').getBoundingClientRect(), cs = getComputedStyle(m.querySelector('.mfill')); return { ratio: f.height / (bar.height - 1), bg: cs.backgroundImage, band: getComputedStyle(m.querySelector('.mband')).borderRightStyle, ticks: getComputedStyle(m.querySelector('.mbar'), '::after').backgroundImage }; });
   ok('coffee: the meter is a shot glass: crema on espresso, filled to the level, ticks, and Fit’s band bracketed', Math.abs(glass.ratio - 0.91) < 0.06 && /linear-gradient/.test(glass.bg) && glass.band === 'solid' && /linear-gradient/.test(glass.ticks), JSON.stringify(glass));
   ok('coffee: the rail’s icons are the plain set, the head is an espresso band with a crema line', await page.evaluate(() => { const h = getComputedStyle(document.querySelector('#head')); return /rgb\(43, 29, 20\)/.test(h.backgroundColor) && /190, 127, 74/.test(h.borderBottomColor); }));
   ok('coffee: counts read 5v, boxes are square, the canvas is a cutting mat', await page.evaluate(() => { const cb = document.querySelector('.cb'); return !cb || parseFloat(getComputedStyle(cb).borderTopLeftRadius) <= 2; }) && await page.evaluate(() => /linear-gradient/.test(getComputedStyle(document.body).backgroundImage)));
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(250);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   // steam is a moment: it rises for a few seconds when a page has just reached the band, and stops. At 91 to 93% it is a heart.
   await setFills(used(0.5)); await page.waitForTimeout(100);
   await setFills(used(0.92));
@@ -2300,20 +2304,20 @@ if (want('drinks: Fit, the meters, the moments')) {
   ok('…and the bag does not dunk', await pg.evaluate(() => getComputedStyle(document.querySelector('#head .logo img')).animationName === 'none'));
   await rm.close();
 
-  // the logo dunks on a triple click (tea only), a tick pops once, and the toast hangs on a string
+  // the bag dunks when the drink becomes tea (tea only), a tick pops once, and the toast hangs on a string
   const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const p2 = await c2.newPage();
   await open(p2);
-  await p2.click('#head .logo', { clickCount: 3 }); await p2.waitForTimeout(100);
-  ok('tea: triple-click the logo and the tea bag dunks', await p2.evaluate(() => document.querySelector('#head .logo img').classList.contains('dunk')));
+  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
+  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
+  ok('tea: switching to tea and the tea bag dunks', await p2.evaluate(() => document.querySelector('#head .logo img').classList.contains('dunk')));
   await p2.waitForTimeout(1100);
   await inRecord(p2, 'hydra'); await settle(p2);
   const box = p2.locator('#checklist .cb[data-on]:not(:checked)').first();
   await box.click();
   ok('tea: the tick pops once, on the line just ticked', await p2.waitForFunction(() => document.querySelector('#checklist .cb.pop:checked'), null, { timeout: 2000 }).then(() => true, () => false));
   ok('tea: the toast hangs on a string (a hole and a string above it)', await p2.evaluate(() => { const t = document.querySelector('#toast'); return getComputedStyle(t, '::before').content !== 'none' && getComputedStyle(t, '::after').content !== 'none'; }));
-  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(250);
-  await p2.click('#head .logo', { clickCount: 3 }); await p2.waitForTimeout(150);
+  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
   ok('coffee: no tea shapes: the bag does not dunk, the toast has no string', !(await p2.evaluate(() => document.querySelector('#head .logo img').classList.contains('dunk'))) && await p2.evaluate(() => getComputedStyle(document.querySelector('#toast'), '::before').content === 'none'));
   await c2.close();
 }
@@ -2326,11 +2330,11 @@ if (want('drinks: the page marks, exports, the corner at other sizes')) {
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
   const amber = await mark();
   ok('tea: the selection mark on the page is amber (the app’s mark, inside the frame)', amber === 'rgb(183, 122, 44)', amber);
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(300);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   ok('coffee: …and roast ink, changed in place', (await mark()) === 'rgb(28, 20, 16)', await mark());
   const clean = await page.evaluate(async () => { const html = await window.__wb.export.buildHtml(); return { html: html.length, leaks: ['--rb-', 'rb-sel', 'data-drink', 'brewmode', 'drinks.css', 'Fira Code'].filter(w => w !== 'Fira Code' && html.includes(w)) }; });
   ok('an export holds nothing from the app’s theme', clean.html > 1000 && clean.leaks.length === 0, JSON.stringify(clean));
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(200);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   await page.setViewportSize({ width: 1100, height: 800 }); await page.waitForTimeout(500);
   ok('below 1280px the corner is just the two cups: the question names the buttons, with a hint', await page.evaluate(() => { const c = document.querySelector('#brewmode'), q = c.querySelector('.bm-q'); const b = [...c.querySelectorAll('button')]; return getComputedStyle(q).display === 'none' && b.every(x => /drinking today/.test(x.getAttribute('aria-label')) && x.dataset.tip) && c.getBoundingClientRect().width < 70; }));
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(600);
@@ -2924,6 +2928,168 @@ if (want('the session survives a reload')) {
   ok('a reload opens the same resume with the same choice', (await firstBullet(page)) === chosen);
   ok('with a fresh undo stack', (await page.evaluate(() => window.__wb.store.history.undo)) === 0);
   await ctx.close();
+}
+
+if (want('motion: the thirteen moments play, are off under reduced motion, and leave the same page')) {
+  // One walk through every moment, once with motion and once with reduced motion emulated. With motion, each moment starts the
+  // animations it names (window.__wb.motion.stats.names); with reduced motion, nothing starts at all, nothing is left running, and the
+  // printed page (the frame's .document) is the same, character for character, after every step.
+  const walk = async reduced => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    const got = {}, docs = {};
+    const names = () => page.evaluate(() => [...new Set(window.__wb.motion.stats.names)]);
+    const clear = () => page.evaluate(() => { window.__wb.motion.stats.names.length = 0; });
+    const doc = () => frameDoc(page, d => d.querySelector('.document').outerHTML);
+    const running = () => page.evaluate(() => { const mine = a => !(a instanceof CSSAnimation) && !(a instanceof CSSTransition); return document.getAnimations().filter(mine).length + document.querySelector('#sheet iframe').contentDocument.getAnimations().filter(mine).length + document.querySelectorAll('#motionlay *, .matroll').length; });
+    const fr = page.frameLocator('#sheet iframe');
+    // a version under the pointer: the words move; the pointer leaves, and they move back
+    docs.start = await doc();
+    await fr.locator('.bullets li').first().click(); await settle(page); await clear();
+    docs.selected = await doc();
+    await page.locator('#body .vrow[data-v]:not(.cur)').nth(1).hover(); await page.waitForTimeout(120);
+    got.hover = await names(); got.hoverRunning = await running();
+    await page.waitForTimeout(700); docs.hovered = await doc();
+    await page.mouse.move(4, 4); await page.waitForTimeout(900); docs.unhovered = await doc();
+    // a new version: its row slides into the list
+    await page.click('[data-act=new-version]'); await settle(page);
+    await page.evaluate(() => window.__wb.edit.draftChanged('A new wording of this line, written for the check.')); await settle(page); await clear();
+    await page.evaluate(async () => { await window.__wb.edit.act('ed-new', { dataset: {} }); }); await page.waitForTimeout(500);
+    got.version = await names();
+    await page.keyboard.press('Control+z'); await page.waitForTimeout(700);
+    // overflow: every line of every job on one page; Fit then puts it right
+    await page.evaluate(async () => {
+      const T = await import('/src/model/resume.js');
+      window.__wb.store.commit(d => { for (const w of d.record.work) for (const h of (w.highlights ?? [])) { try { T.setBulletOn(d.record, d.cur, h.id ?? h, true); } catch { /* archived */ } } }, 'smoke: all lines');
+    });
+    await page.waitForTimeout(900);
+    got.overflow = await page.evaluate(() => { const o = document.querySelector('.ov'); return o ? getComputedStyle(o).animationName : null; });
+    docs.over = await doc();
+    await clear();
+    await page.click('[data-act=fit]'); await page.waitForTimeout(250);
+    // never blocks input: Ctrl+Z while Fit's animation is under way takes it back at once
+    await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 15000 });
+    await page.waitForTimeout(80); got.fit = await names(); got.chip = await page.evaluate(() => document.querySelector('.fitchip')?.textContent ?? null);
+    docs.fitted = await doc();
+    await page.keyboard.press('Control+z'); await page.waitForTimeout(120);
+    got.undoAtOnce = (await doc()) === docs.over || await page.evaluate(() => window.__wb.store.history.redo) === 1;
+    await page.waitForTimeout(900); docs.unfitted = await doc();
+    got.chipGone = await page.evaluate(() => !document.querySelector('.fitchip'));
+    await page.keyboard.press('Control+Shift+z'); await page.waitForTimeout(1200); docs.refitted = await doc();
+    // the lens: the matching lines brighten, then Apply: lines join and leave
+    await page.mouse.move(4, 4);
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
+    await page.evaluate(() => window.__wb.dock.setMode('edit')); await settle(page);
+    const type = await page.evaluate(() => [...document.querySelectorAll('#lens option')].map(o => o.value).find(v => v)); await clear();
+    await page.selectOption('#lens', type); await page.waitForTimeout(400);
+    got.lens = await names(); docs.lens = await doc(); await clear();
+    await page.click('[data-act=lens-apply]'); await page.click('[data-act=focus-apply]'); await page.waitForTimeout(250);
+    got.apply = await names(); await page.waitForTimeout(700); docs.applied = await doc();
+    await page.selectOption('#lens', ''); await settle(page);
+    // a tick in the Record tab: the line travels (and the first time, one line makes the trip on its own)
+    await page.evaluate(() => localStorage.removeItem('rb-cl-hint'));
+    await page.keyboard.press('r'); await page.waitForTimeout(900);
+    got.sample = await names(); await clear();
+    await page.locator('#checklist .cb[data-on]:checked').first().click(); await page.waitForTimeout(300);
+    got.untick = await names(); await clear();
+    await page.locator('#checklist .cb[data-on]:not(:checked)').first().click(); await page.waitForTimeout(700);
+    got.tick = await names(); docs.ticked = await doc();
+    // another resume: the page crossfades, the name slides
+    await page.keyboard.press('Escape'); await clear();
+    const ids = await page.evaluate(() => window.__wb.store.state.resumes.map(r => r.id));
+    await page.evaluate(id => window.__wb.resumes.open(id), ids[2]); await page.waitForTimeout(250);
+    got.switch = await names(); await page.waitForTimeout(800);
+    // a snapshot: a small copy of the page drops into the name, and "Sent to" appears under it
+    await page.evaluate(() => window.__wb.resumes.markSent()); await page.waitForTimeout(300);
+    await page.fill('#sv-co', 'Acme Corp'); await page.fill('#sv-role', 'Engineer'); await clear();
+    await page.click('[data-act=sv-do]'); await page.waitForTimeout(300);
+    got.snapshot = await names(); await page.waitForTimeout(700);
+    got.sent = await page.evaluate(() => document.querySelector('#head .dsent')?.textContent ?? null);
+    // the logo: hovering says what it will do, and starts the mat; a click rolls it up (Tea to Coffee), another unrolls it
+    await clear();
+    await page.hover('#head .logoswitch'); await page.waitForTimeout(350);
+    got.peek = await page.evaluate(() => ({ layer: !!document.querySelector('.matroll'), tip: document.querySelector('#head .logoswitch').dataset.tip, to: document.querySelector('#head .logoswitch').dataset.to, drink: document.documentElement.dataset.drink }));
+    await page.click('#head .logoswitch'); await page.waitForTimeout(150);
+    got.roll = await names(); await page.waitForTimeout(700);
+    got.coffee = await page.evaluate(() => ({ drink: document.documentElement.dataset.drink, logo: document.querySelector('#head .logoswitch img').getAttribute('src'), to: document.querySelector('#head .logoswitch').dataset.to, layer: !!document.querySelector('.matroll') }));
+    // an export in coffee: a crema line reads the page and a receipt prints
+    await page.evaluate(() => window.__wb.setView('export')); await settle(page); await clear();
+    await page.click('[data-act=ex-html]'); await page.waitForTimeout(900);
+    got.exportCoffee = await names(); await page.waitForTimeout(2200);
+    await page.mouse.move(4, 4);
+    await page.hover('#head .logoswitch'); await page.waitForTimeout(300); await clear();
+    await page.click('#head .logoswitch'); await page.waitForTimeout(150);
+    got.unroll = await names(); await page.waitForTimeout(700);
+    got.tea = await page.evaluate(() => ({ drink: document.documentElement.dataset.drink, logo: document.querySelector('#head .logoswitch img').getAttribute('src') }));
+    await page.evaluate(() => window.__wb.setView('export')); await settle(page); await clear();
+    await page.click('[data-act=ex-html]'); await page.waitForTimeout(500);
+    got.exportTea = await names(); await page.waitForTimeout(2600);
+    got.left = await running();
+    got.played = await page.evaluate(() => window.__wb.motion.stats.played);
+    got.errors = bad.length;
+    await ctx.close();
+    return { got, docs };
+  };
+  const has = (list, ...want) => want.every(w => (list ?? []).some(n => n.startsWith(w)));
+  const A = await walk(false), B = await walk(true);
+  ok('with motion: a version under the pointer moves its words, and the lines below slide', has(A.got.hover, 'hover:') && A.got.hoverRunning > 0, A.got.hover.join());
+  ok('with motion: a saved version slides into its list', has(A.got.version, 'version:in'));
+  ok('with motion: the lens brightens the lines it picks, and Apply slides the joining lines in and folds the leaving ones away', has(A.got.lens, 'lens:hit') && has(A.got.apply, 'apply:'), JSON.stringify([A.got.lens, A.got.apply]));
+  ok('with motion: a page that overflows fades its dashed edge in', A.got.overflow === 'ovIn', String(A.got.overflow));
+  ok('with motion: Fit crossfades the swapped lines, folds the dropped ones, fills the meter, and leaves a chip with Undo', has(A.got.fit, 'fit:', 'chip:in') && /·|shorter|left out|swapped/.test(A.got.chip ?? '') || A.got.chip === null && has(A.got.fit, 'fit:'), JSON.stringify([A.got.fit, A.got.chip]));
+  ok('…the chip says what Fit did in the interface language’s words, never a key', !/^ux4\./.test(A.got.chip ?? ''), A.got.chip ?? '');
+  ok('…Ctrl+Z while Fit is still moving takes it back at once, nothing queues', A.got.undoAtOnce && A.got.chipGone);
+  ok('with motion: the first time, one line of the record makes the trip to the page; each tick after it travels', has(A.got.sample, 'tick:sample') && has(A.got.untick, 'tick:') && has(A.got.tick, 'tick:'), JSON.stringify([A.got.sample, A.got.untick, A.got.tick]));
+  ok('with motion: another resume crossfades the page and slides its name', has(A.got.switch, 'switch:name') && (has(A.got.switch, 'switch:out') || has(A.got.switch, 'switch:frame')), A.got.switch.join());
+  ok('with motion: a snapshot drops a small page into the name, and "Sent to" appears under it', has(A.got.snapshot, 'snapshot:drop', 'snapshot:line') && /Acme Corp/.test(A.got.sent ?? ''), JSON.stringify([A.got.snapshot, A.got.sent]));
+  ok('with motion: hovering the logo says what a click does, and starts the mat rolling up', A.got.peek.layer && A.got.peek.to === 'coffee' && /\|/.test(A.got.peek.tip) && !/^ux4\./.test(A.got.peek.tip) && A.got.peek.drink === 'tea', JSON.stringify(A.got.peek));
+  ok('…a click carries it on: the mat rolls up, the drink is Coffee, the logo is the coffee tile and now offers Tea', has(A.got.roll, 'mat:up') && A.got.coffee.drink === 'coffee' && /icon-coffee/.test(A.got.coffee.logo) && A.got.coffee.to === 'tea');
+  ok('…and back: the mat unrolls, the drink is Tea, the logo is the tea tile', has(A.got.unroll, 'mat:down') && A.got.tea.drink === 'tea' && /icons\/icon\.svg/.test(A.got.tea.logo));
+  ok('with motion: an export has a picture in each drink: a crema line and a receipt in coffee, a wrapped scroll and steam in tea', has(A.got.exportCoffee, 'export:coffee-scan', 'export:coffee-print') && has(A.got.exportTea, 'export:tea-wrap', 'export:tea-carry'), JSON.stringify([A.got.exportCoffee, A.got.exportTea]));
+  ok('with motion: everything is over, and nothing it drew is left behind', A.got.left === 0, String(A.got.left));
+  ok('with motion: no console errors', A.got.errors === 0);
+
+  ok('reduced motion: not one animation was started, in any moment', B.got.played === 0, String(B.got.played));
+  ok('…nothing is running or drawn over the app (no layer, no roll, no chip animation)', B.got.hoverRunning === 0 && B.got.left === 0 && !B.got.peek.layer);
+  ok('…yet every change happened: the same words on the page, the same Fit, the same ticks, the same drink and logo, a "Sent to" line, a chip', B.got.coffee.drink === 'coffee' && /icon-coffee/.test(B.got.coffee.logo) && B.got.tea.drink === 'tea' && /Acme Corp/.test(B.got.sent ?? '') && B.got.chip !== null);
+  ok('the printed page is identical, after every step, with and without motion', Object.keys(A.docs).every(k => A.docs[k] === B.docs[k]), Object.keys(A.docs).filter(k => A.docs[k] !== B.docs[k]).join());
+  ok('…and what an animation touched is gone: the page after a hover is the page before it, after Fit and Undo it is the unfitted page', A.docs.selected === A.docs.unhovered && A.docs.over === A.docs.unfitted);
+  ok('reduced motion: no console errors', B.got.errors === 0);
+
+  // the setting: Reduce motion in Settings does the same as the system's wish, on its own
+  const sctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const sp = await sctx.newPage();
+  await open(sp);
+  await sp.evaluate(() => window.__wb.setView('settings')); await settle(sp);
+  ok('Settings has a Reduce motion checkbox, off by default', await sp.isVisible('[data-reduce-motion]') && !(await sp.isChecked('[data-reduce-motion]')) && (await sp.evaluate(() => document.documentElement.dataset.motion)) === 'full');
+  await sp.check('[data-reduce-motion]'); await settle(sp);
+  ok('…checked, the page says so (html[data-motion=reduce]) and it is remembered per browser', (await sp.evaluate(() => document.documentElement.dataset.motion)) === 'reduce' && (await sp.evaluate(() => localStorage.getItem('rb-reduce-motion'))) === '1');
+  await sp.evaluate(() => window.__wb.motion.stats.played = 0);
+  await sp.evaluate(() => window.__wb.setView(null)); await sp.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(sp);
+  await sp.locator('#body .vrow[data-v]:not(.cur)').nth(1).hover(); await sp.waitForTimeout(500);
+  ok('…and with it on, a version under the pointer changes the page without moving a word', (await sp.evaluate(() => window.__wb.motion.stats.played)) === 0 && (await sp.evaluate(() => document.querySelector('#sheet iframe').contentDocument.getAnimations().length)) === 0);
+  await sctx.close();
+
+  // the start screen and the onboarding: skeleton lines become text, the controls come in around the page
+  const ictx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const ip = await ictx.newPage();
+  await open(ip, '?memory&welcome');
+  await ip.waitForTimeout(500); await ip.evaluate(() => window.__wb.motion.stats.names.length = 0);
+  await ip.click('[data-act=ob-example]'); await ip.waitForTimeout(250);
+  const first = await ip.evaluate(() => [...new Set(window.__wb.motion.stats.names)]);
+  ok('start screen to editor: the page’s lines are written in one after another, and the header, panel and footer come in', has(first, 'start:line', 'start:head', 'start:body', 'start:foot'), first.join());
+  await ictx.close();
+  const qctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const qp = await qctx.newPage();
+  await open(qp, '?memory&welcome');
+  await qp.waitForTimeout(500);
+  await qp.click('[data-act=ob-scratch]'); await qp.waitForTimeout(400); await qp.click('[data-act=ob-lang-go]'); await qp.waitForTimeout(700);
+  await qp.evaluate(() => window.__wb.motion.stats.names.length = 0);
+  await qp.evaluate(() => window.__wb.onboarding.act('ob-finish')); await qp.waitForTimeout(200);
+  const quiet = await qp.evaluate(() => [...new Set(window.__wb.motion.stats.names)]);
+  ok('onboarding to Start editing: the header and the footer fade and slide in around the page', has(quiet, 'quiet:head', 'quiet:foot'), quiet.join());
+  await qctx.close();
 }
 
 if (want('file://')) {

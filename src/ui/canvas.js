@@ -6,13 +6,13 @@
 
 import {
   geometry, viewRect, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
-  brightPage, faded, springStep, atRest, centreOn, writingScale, pageLeft,
+  brightPage, faded, springStep, atRest, centreOn, writingScale, pageLeft, midX,
 } from './camera.js';
 import { clampZoom, PHONE_MAX, G, RAIL_W } from './layout.js';
 import { readMagnet, readBounce } from './dock.js';
+import { reduced, dur } from './motion.js';
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-const EASE_MS = 300;                                    // the ease between views (a setting in the zoom pop-up scales the zoom, not this)
+// the ease between views is --m-travel (a setting in the zoom pop-up scales the zoom, not this)
 const easeOut = p => 1 - Math.pow(1 - p, 3);
 const SLIVER = 56;                                      // Record as a drawer leaves this much of the page's left edge in view
 const IDLE_MS = 140;                                    // the wheel or the hand has stopped
@@ -25,7 +25,7 @@ export function initCanvas(C){
   let free = false, cam = { k: 1, x: 0, y: 0 };
   let motion = null, raf = 0, idleT = 0, movedT = 0, firedSig = '';
   let sliver = null;                                        // the drawer's left edge while Record covers the page, else null
-  let drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
+  let rawFree = null, drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
   const pointers = new Map();
   const dials = { magnet: readMagnet(), bounce: readBounce() };
 
@@ -55,7 +55,7 @@ export function initCanvas(C){
 
   // ---- moving: an ease, or a spring ----
   function stop(){ cancelAnimationFrame(raf); raf = 0; motion = null; }
-  function go(to, { spring = false, ms = EASE_MS } = {}){
+  function go(to, { spring = false, ms = dur('travel') } = {}){
     clearTimeout(movedT);
     if (reduced() || !ui.ready){ stop(); put(to); settled(); return; }
     motion = { from: { ...cam }, to, t0: performance.now(), ms, spring, sx: { x: cam.x, v: 0 }, sy: { x: cam.y, v: 0 }, last: performance.now() };
@@ -109,7 +109,7 @@ export function initCanvas(C){
   function layout(L, format){
     geo = geometry({ vw: innerWidth, vh: innerHeight, format, pages: pagesN() });
     // a drawer lies over the page, which does not move for it: the view is what the rail leaves
-    view = viewRect({ vh: innerHeight, colLeft: L.drawer ? innerWidth - G - RAIL_W : L.col.left });
+    view = viewRect({ vh: innerHeight, colLeft: L.drawer ? innerWidth - G - RAIL_W : L.col.left, mid: L.folded && !L.drawer ? innerWidth / 2 : undefined });
     scene = (L.folded || L.drawer) && geo.bothUp ? 'all' : 'one';
     sliver = L.drawer && L.wide ? L.col.left : null;
     ui.page = Math.max(0, Math.min(geo.n - 1, ui.page ?? 0));
@@ -124,7 +124,7 @@ export function initCanvas(C){
   }
   const rememberView = () => { ui.fitK = fit?.k; ui.viewWas = view; };
 
-  const centre = () => ({ x: view.left + view.width / 2, y: view.top + view.height / 2 });
+  const centre = () => ({ x: midX(view), y: view.top + view.height / 2 });
 
   // ---- zoom ----
   let want = null;
@@ -214,8 +214,10 @@ export function initCanvas(C){
       return true;
     }
     free = true; rememberView();
-    put(softCam({ ...cam, x: cam.x - dx, y: cam.y - dy }, geo, view));
-    rest(() => go(hardCam(cam, geo, view), { spring: true }));
+    // the pull is kept unrubbered and the rubber is applied to it once: rubbering the already rubbered position, event after event, made the edge jitter
+    rawFree = { x: (rawFree?.x ?? cam.x) - dx, y: (rawFree?.y ?? cam.y) - dy };
+    put(softCam({ ...cam, ...rawFree }, geo, view));
+    rest(() => { rawFree = null; go(hardCam(cam, geo, view), { spring: true }); });
     return true;
   }
   function rest(fn){ clearTimeout(idleT); idleT = setTimeout(fn, IDLE_MS); }

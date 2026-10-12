@@ -15,13 +15,14 @@
 
 import { PAGES_MOVED } from './canvas.js';
 import { pageLeft } from './camera.js';
+import { reduced } from './motion.js';
 
 const css = document.createElement('link');
 css.rel = 'stylesheet'; css.href = new URL('./garden.css', import.meta.url).href;
 document.head.append(css);
 
 const root = document.documentElement;
-const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const still = () => reduced();
 const night = () => root.dataset.theme === 'dark';
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];

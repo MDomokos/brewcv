@@ -4,11 +4,11 @@
 // a click on the timeline scrolls the list to that job, and the group that was asked for is marked for a moment.
 // Pure view state; nothing here is undone or saved.
 
+import { reduced } from './motion.js';
 import { t } from '../i18n/index.js';
 
 let C = null;
 const FLASH_MS = 1600;
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // the group to show once the panel has been drawn, and the groups to mark
 const R = { goto: null, mark: [], timer: 0 };

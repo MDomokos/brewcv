@@ -19,6 +19,9 @@
   /* motion, for the moments tea has and for UX-4: durations and easings. A moment is never a loop. */
   --dur-1: 110ms; --dur-2: 200ms; --dur-3: 320ms; --dur-moment: 1200ms;
   --ease: cubic-bezier(.2, .8, .2, 1); --ease-in-out: cubic-bezier(.4, 0, .2, 1); --ease-pop: cubic-bezier(.3, 1.6, .5, 1); --ease-swing: cubic-bezier(.3, 1.5, .5, 1);
+  /* UX-4 (src/ui/motion.js reads these): a moment is 150 to 400 ms; things arriving ease out, things leaving ease in. Tune them here. */
+  --m-fast: 150ms; --m-base: 240ms; --m-slow: 400ms; --m-travel: 300ms; --m-roll: 1000ms; --m-stagger: 60ms;
+  --m-out: cubic-bezier(.2, .8, .2, 1); --m-in: cubic-bezier(.4, 0, 1, 1); --m-inout: cubic-bezier(.4, 0, .2, 1);
   --font-ui: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Fira Code", ui-monospace, "SF Mono", Menlo, monospace;
   --font-label: var(--font-mono);
@@ -174,6 +177,7 @@ body.is-ready .paper-skel { display: none; }
 .dirty { color: var(--warn); }
 .tool[aria-pressed=true] { color: var(--ink); background: var(--hover-strong); }
 .docname .dn { font-weight: 700; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.docname .dsent { font-size: 11.5px; color: var(--label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .docname .dt { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .savestate { white-space: nowrap; }
 .tool { border: 0; background: transparent; padding: 4px 7px; border-radius: var(--r-s); color: var(--ink-soft); font-size: 12.5px; white-space: nowrap; }
@@ -500,6 +504,14 @@ table.kv td { padding: 4px 0; border-top: 1px solid var(--line); }
   body, .pagebox { transition: none !important; }
   .anim-in, .fade-in { animation: none !important; }
 }
+/* Reduce motion, the setting and the system's wish alike (src/ui/motion.js puts html[data-motion="reduce"] on the page): no
+   transition and no animation anywhere in the app; every state is already the final one. */
+html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-motion="reduce"] *::after { animation: none !important; transition: none !important; }
+/* a page meter's fill is animated by its --p, so --p is a number the browser can ease */
+@property --p { syntax: "<number>"; inherits: true; initial-value: 0; }
+/* what the moments draw: a layer over the app, never in the page, and the ghosts that move in it */
+.motionlay { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
+.mo-ghost { position: fixed; margin: 0; pointer-events: none; will-change: transform, opacity; }
 
 /* phone: view and pick versions only */
 body[data-phone=true] { overflow-y: auto; overflow-x: hidden; height: auto; }
@@ -685,7 +697,6 @@ body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: 
 .clhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .clhead h2 { margin: 0; font-size: 13.5px; font-weight: 750; }
 .clall { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.clhint { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 4px 0 8px; padding: 5px 6px 5px 10px; border-radius: var(--r-s); background: var(--mark-soft); font-size: 12.5px; }
 .clg { border: 1px solid var(--line); border-radius: var(--r-m); background: var(--raised); margin: 0 0 5px; }
 .clg.open { border-color: var(--line-strong); }
 .clgh { margin: 0; display: flex; align-items: center; font-size: inherit; font-weight: inherit; }
@@ -803,7 +814,8 @@ body[data-phone=true] .lens, body[data-phone=true] .notonline, body[data-phone=t
 body.is-quiet .editlay { display: none; }
 
 .ovlay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; pointer-events: none; }
-.ov { position: absolute; }
+.ov { position: absolute; animation: ovIn var(--m-base) var(--m-out) both; }
+@keyframes ovIn { from { opacity: 0; } to { opacity: 1; } }
 .ov-veil { position: absolute; inset: 0; background: color-mix(in srgb, var(--paper) 72%, transparent); }
 .ov-line { position: absolute; left: 0; right: 0; top: 0; border-top: 2px dashed var(--page-warn); }
 body.is-quiet .ovlay { display: none; }
@@ -819,7 +831,7 @@ body.is-quiet .ovlay { display: none; }
 button, input, select, textarea { font-family: inherit; }
 :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl, .mgroup, .hk) { font: 500 12px/1.3 var(--font-label); letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
 :is(.pct, .mpct, .mlab, .clcount, .clall, .clv, .obcrumb .ocn, .obstats, .stats, .dial output) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-:is(.note, .clhint, .small, .intro, .obhint, .sumline, .goesin, .obsub, .obnote) { font-size: 13px; }
+:is(.note, .small, .intro, .obhint, .sumline, .goesin, .obsub, .obnote) { font-size: 13px; }
 :is(.tiny, .vrow .mt2, .pop small, .dl button small, .obchoices button small, .inline-menu small, .vrow .tx, .stats, .kept) { font-size: 12px; }
 :is(.item .t, .clt) { font-size: 13px; }
 
@@ -839,9 +851,8 @@ body:not([data-phone=true]):is(.is-quiet, .is-intro) .col:not(.is-folded) > #bod
 .srow.fixed .t { color: var(--ink-soft); }
 .list:has(> .item.srow) { gap: 0; border-top: 1px solid var(--line); }
 .clg, .clg.open { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; margin: 0; }
-.checklist .clhint + .clg, .checklist .clhead + .clg { border-top: 1px solid var(--line); }
+.checklist .clhead + .clg { border-top: 1px solid var(--line); }
 .clcaret { border-radius: var(--r-xs); padding: 8px 4px; }
-.clhint { background: var(--mark-soft); color: var(--ink); }
 
 /* Controls keep an edge you can see: 3:1 against what they sit on. */
 button { border-color: var(--line-strong); }
@@ -939,3 +950,14 @@ body[data-phone=true] .col.is-record { border-radius: 0; }
 /* a choice that is not open yet stays readable, with its reason */
 .startopt.is-off { opacity: 1; color: var(--ink-soft); cursor: default; }
 .startopt.is-off input { opacity: .5; }
+
+/* ---------- UX-4: the chip after Fit ---------- */
+.fitchip { position: fixed; z-index: 58; bottom: 76px; transform: translate(-50%, 0); display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: var(--r-pill); background: var(--toast-bg); color: var(--toast-ink); box-shadow: var(--shadow-toast); font: 600 13px/1.2 var(--font-ui); white-space: nowrap; }
+.fitchip .sm { background: transparent; color: inherit; border: 1.5px solid currentColor; border-radius: var(--r-pill); padding: 3px 10px; font-weight: 700; cursor: pointer; }
+.fitchip .sm:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
+body[data-phone=true] .fitchip { bottom: auto; top: 56px; }
+.mo-pill { display: flex; align-items: center; box-sizing: border-box; padding: 0 8px; border-radius: var(--r-s); background: var(--accent); color: var(--on-accent); font: 600 13px/1.2 var(--font-ui); overflow: hidden; white-space: nowrap; box-shadow: var(--shadow-lift); }
+.mo-pill > span { overflow: hidden; text-overflow: ellipsis; }
+.mo-mini { box-sizing: border-box; background: var(--paper); border-radius: 3px; box-shadow: var(--shadow-chip); padding: 8% 10%; display: grid; align-content: start; gap: 7%; overflow: hidden; }
+.mo-mini i { display: block; height: 3px; border-radius: 2px; background: var(--skel-strong); }
+.mo-mini i:nth-child(odd) { width: 70%; }

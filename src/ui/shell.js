@@ -35,7 +35,11 @@ import { jobTypeLabel } from '../model/focus.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
 import { initSettings, readPref, browserLang, readGarden } from './settings.js';
 import { ib } from './dock.js';
-import { initDrink, renderCorner, onDrinkChange, isDrinkKey, toggleDrink, drink } from './drink.js';
+import * as motion from './motion.js';
+import { reduced, onMotionChange, play, ghost, fly } from './motion.js';
+import * as arrive from './arrive.js';
+import { initDrink, renderCorner, onDrinkChange, isDrinkKey, toggleDrink, drink, logoBtn } from './drink.js';
+import { initMatRoll } from './matroll.js';
 
 // Where the source is published; the menu links to it (AGPL-3.0, section 13). Change it here when the repo moves.
 const SOURCE_URL = 'https://github.com/MDomokos/brewcv';
@@ -74,7 +78,7 @@ window.__wb = { store, persist, sheet, ui, canvas, onpage, renderOverflow: () =>
 // The tea garden runs in tea, with its setting on, with motion allowed, off a phone and off the start screen; otherwise it rests.
 // ?garden-check[=idle seconds] is for checks/garden-check.mjs: a short idle time and the garden's test hooks on __wb.garden.
 function syncGarden(){
-  const can = drink() === 'tea' && readGarden() && !matchMedia('(prefers-reduced-motion: reduce)').matches && !ui.layout?.phone && !introNow();
+  const can = drink() === 'tea' && readGarden() && !reduced() && !ui.layout?.phone && !introNow();
   if (garden) return garden.setOn(can);
   if (!can || gardenLoading) return;
   gardenLoading = true;
@@ -123,7 +127,9 @@ async function boot(){
   if (ui.view === 'welcome') onboarding.begin(); else ui.askLang = false;
   await setUiLang(wantedUi());
   initDrink();
-  onDrinkChange(() => { sheet.restyle(); renderChip(); syncGarden(); if (ui.view === 'settings') renderBody(); });
+  initMatRoll();
+  onDrinkChange(() => { sheet.restyle(); renderChip(); syncGarden(); renderHead(); if (ui.view === 'settings') renderBody(); });
+  onMotionChange(() => { sheet.restyle(); syncGarden(); });
   // the languages you use load now, so switching between them is instant
   Promise.all(langsInUse(record()).map(l => loadCatalogue(l))).catch(() => {});
   staticText();
@@ -219,6 +225,7 @@ const schedule = () => { clearTimeout(timer); timer = setTimeout(redraw, 40); };
 let notedId = null;
 function onChange({ kind, label }){
   shownKey = null;
+  if (chipEl && store.history.undo !== chipAt) dropChip();      // the chip's Undo is for Fit's change only
   if (store.state.openId && store.state.openId !== notedId){ notedId = store.state.openId; switcher.noteOpen(notedId); }     // the switcher's “recent”
   if (ui.snap && !snapNow()) setSnap(null);
   if (ui.sel.kind !== 'none' && !stillThere(ui.sel)){ ui.sel = NONE; dock.sync(); }
@@ -247,15 +254,17 @@ async function redraw(){
     await loadCatalogue(lang());
     const w = work();
     const r = structuredClone(shownNow);
-    const res = await sheet.show(w, r);
+    const mo = ui.morph; ui.morph = null;           // an action that asked for its change to be shown moving (Fit, a lens, a tick, another resume)
+    const res = await sheet.show(w, r, mo ? { ...mo, ix: mo.ix ?? ui.ix } : null);
     if (my !== seq) return;
-    ui.laid = res.laid; ui.fills = res.pages; ui.previewing = false;
+    ui.laid = res.laid; ui.fills = res.pages; ui.previewing = false; ui.previewSwitch = false;
     relayout();
     sheet.select(ui.sel, ui.ix);
     sheet.setFocus(edit.focusHits(), ui.ix);
     sheet.setMissing(missingList(w, r), ui.ix);
     renderAll();
     renderChip();
+    checklist.landed();
     document.body.classList.add('is-ready');
     if (ui.flashAfter){ sheet.flash(ui.flashAfter); ui.flashAfter = null; }
     const pk = `${measureKeyOf(r)}|${lang()}`;
@@ -475,10 +484,11 @@ function drawHead(){
   const mode = dock.modeOf();
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   const file = fileLine();
+  const sent = sentLine();
   $('#head').innerHTML = `
     <div class="hrow top">
-      <span class="logo"><img src="icons/icon.svg" alt="" width="28" height="28"><span class="sr">BrewCV</span></span>
-      <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { size: 12 })}</span></span><span class="dt">${esc(meta)}</span></button>
+      ${logoBtn(28)}
+      <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { size: 12 })}</span></span><span class="dt">${esc(meta)}</span>${sent ? `<span class="dsent">${esc(sent)}</span>` : ''}</button>
       ${r ? langButton(r) : ''}
       <span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>
       <button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>
@@ -496,6 +506,35 @@ function drawHead(){
     ${snap ? `<div class="hrow notice snapbar" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${h('ux1.backToResume')}</button></div>` : ''}
     ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}
     ${ui.menu ? menuHtml() : ''}`;
+  headMoments(sent);
+}
+
+// "Sent to Company - Role · 2026-10-11": the open resume's latest send, under its name (none until it has been sent)
+function sentLine(){
+  const r = RS.savedOf(store.state, store.state.openId), snap = r && !ui.snap ? RS.snapshotsOf(r).at(-1) : null, send = snap?.sends.at(-1);
+  return send && RS.sendLabel(send) ? `${t('ux1.sentTo2', { to: RS.sendLabel(send) })} · ${send.date || snap.at.slice(0, 10)}` : '';
+}
+
+// ---- moments in the header (UX-4) ----
+// Another resume was opened: its name slides in. A snapshot was taken: a small copy of the page drops into the name, and the "Sent to"
+// line appears under it. All of it after the fact: the head already says the new thing.
+let namedId;
+function headMoments(sent){
+  const id = store.state.openId;
+  if (namedId !== undefined && id !== namedId) play($('#docname'), [{ opacity: 0.2, transform: 'translateX(-14px)' }, { opacity: 1, transform: 'none' }], { key: 'name', name: 'switch:name' });
+  namedId = id;
+  if (ui.sentEnter && sent){
+    ui.sentEnter = false;
+    play($('#head .dsent'), [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { key: 'sent', name: 'snapshot:line', delay: 160, fill: 'backwards' });
+  }
+}
+function snapshotTaken(){
+  ui.sentEnter = true;
+  const box = ui.layout?.phone ? null : sheet.pageBoxes()[ui.page], to = $('#docname-btn')?.getBoundingClientRect();
+  if (!box || !to) return;
+  const from = canvas.screenRect(box);
+  const g = ghost(from, '<i></i><i></i><i></i><i></i><i></i>', 'mo-ghost mo-mini');
+  fly(g, from, { left: to.left + 6, top: to.top + 2, width: 22, height: 31 }, { key: 'snapshot', ms: 'slow', name: 'snapshot:drop' });
 }
 
 // "n changes not saved to a file", "Saved to file 10 min ago", or "Not saved to a file yet"
@@ -561,6 +600,7 @@ function menuHtml(){
 }
 
 const introNow = () => ui.view === 'welcome' && ['welcome', 'lang'].includes(onboarding.step);
+let wasIntro = null, wasQuiet = null;
 function syncIntro(){
   const welcome = ui.view === 'welcome';
   // the start screen (and the language question that follows a choice on it) is laid out in the editor's own areas
@@ -569,7 +609,13 @@ function syncIntro(){
   onboarding.stage(intro);
   syncGarden();
   // onboarding from scratch is a quiet editor: the page and the question panel, nothing else
-  document.body.classList.toggle('is-quiet', welcome && !['welcome', 'lang'].includes(onboarding.step));
+  const quiet = welcome && !['welcome', 'lang'].includes(onboarding.step);
+  document.body.classList.toggle('is-quiet', quiet);
+  // leaving the start screen for the editor, or the quiet editor for the whole one: the change is shown moving (src/ui/arrive.js)
+  const left = wasIntro === true && !intro && !quiet, opened = wasQuiet === true && !quiet && !intro;
+  wasIntro = intro; wasQuiet = quiet;
+  if (left) requestAnimationFrame(() => arrive.fromStart({ sheet }));
+  else if (opened) requestAnimationFrame(() => arrive.fromQuiet());
 }
 function renderBody(animate = false){
   syncIntro();
@@ -738,6 +784,8 @@ async function onClick(e){
       break;
     }
     case 'use-version': useVersion(tg.closest('.vlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
+    case 'drink-switch': toggleDrink(); break;
+    case 'chip-undo': store.undo(); dropChip(); break;
     case 'undo': store.undo(); break;
     case 'redo': store.redo(); break;
     case 'fit': runFit(); break;
@@ -777,15 +825,16 @@ document.addEventListener('mouseout', e => {
 async function previewVersion(factId, vid){
   const r = structuredClone(cur());
   r.picks = { ...r.picks, [factId]: vid };
-  ui.previewing = true;
-  const res = await sheet.preview(work(), r, factId);
-  if (!ui.previewing) return sheet.endPreview();
+  ui.previewing = true; ui.hoverFact = factId;
+  const res = await sheet.preview(work(), r, factId, { kind: 'hover', words: factId, ix: ui.ix });      // the words move from one version to the other
+  if (!ui.previewing) return sheet.endPreview({ kind: 'hover', words: factId, ix: ui.ix });
   ui.fills = res.pages; renderFoot();
 }
 async function endPreview(){
   if (!ui.previewing) return;
   ui.previewing = false;
-  const res = await sheet.endPreview();
+  const back = ui.hoverFact, sw = ui.previewSwitch; ui.hoverFact = null; ui.previewSwitch = false;
+  const res = await sheet.endPreview(back ? { kind: 'hover', words: back, ix: ui.ix } : sw ? { kind: 'switch' } : null);
   if (ui.preview){ ui.preview = null; relayout(); }    // back to the open resume's size and view
   if (res){ ui.fills = res.pages; renderFoot(); }
   sheet.select(ui.sel, ui.ix);
@@ -793,7 +842,8 @@ async function endPreview(){
 async function previewRecipe(r, fact = null, w = work()){
   ui.previewing = true;
   const my = ui.previewSeq = (ui.previewSeq ?? 0) + 1;
-  const res = await sheet.preview(w, r, fact);
+  if (!fact) ui.previewSwitch = true;            // another resume under the pointer: the page crossfades to it, and back
+  const res = await sheet.preview(w, r, fact, fact ? null : { kind: 'switch' });
   if (!ui.previewing || my !== ui.previewSeq) return;
   // Another saved resume can be another paper size or page count. The column never moves:
   // its first page is shown in the space the open resume's page has.
@@ -828,6 +878,7 @@ function useVersion(factId, vid){
 
 async function runFit(){
   if (ui.fitting || !cur() || ui.snap) return;
+  const pre = sheet.take({ kind: 'fit', ix: ui.ix });      // how the page is now, before Fit draws its candidates in the frame
   ui.fitting = true; renderFoot();
   const w = work();
   const before = structuredClone(cur());
@@ -840,14 +891,42 @@ async function runFit(){
     if (res.error){ toast(res.errorKey ? t(res.errorKey) : res.error, 'bad'); return; }
     ui.lastFit = res.report;
     const changed = JSON.stringify(res.recipe) !== JSON.stringify(before);
-    if (changed) store.commit(d => { d.cur = res.recipe; }, t('undo.fit'));
+    if (changed){ ui.morph = { kind: 'fit', pre }; store.commit(d => { d.cur = res.recipe; }, t('undo.fit')); }
     toast(fitSummary(res.report) + (changed ? ' ' + t('toast.ctrlZUndoes') : ''), res.report.converged ? '' : 'warn');
+    if (changed) fitChip(res.report);
   } catch (e){
     console.error(e); toast(t('fit.stopped', { msg: errText(e) }), 'bad');
   } finally {
     ui.fitting = false;
     await redraw();
   }
+}
+
+// After Fit: what it did, in a chip that stays a few seconds, with Undo. Fit only chose among wordings that were already there.
+let chipEl = null, chipT = 0, chipAt = -1;
+function dropChip(now = false){
+  clearTimeout(chipT);
+  const el = chipEl; chipEl = null; chipAt = -1;
+  if (!el) return;
+  const a = now ? null : play(el, [{ opacity: 1, transform: 'translate(-50%, 0)' }, { opacity: 0, transform: 'translate(-50%, 8px)' }], { kind: 'leave', ms: 'fast', fill: 'forwards', name: 'chip:out' });
+  if (a) a.finished.catch(() => {}).then(() => el.remove()); else el.remove();
+}
+function fitChip(rep){
+  const shorter = rep.swaps.filter(x => x.lines[1] < x.lines[0]).length, longer = rep.swaps.filter(x => x.lines[1] > x.lines[0]).length;
+  const same = rep.swaps.length - shorter - longer, out = rep.dropped.length, added = rep.added.length;
+  const parts = [shorter && t('ux4.chipShorter', { n: shorter }), longer && t('ux4.chipLonger', { n: longer }), same && t('ux4.chipSwapped', { n: same }),
+    out && t('ux4.chipOut', { n: out }), added && t('ux4.chipAdded', { n: added })].filter(Boolean);
+  dropChip(true);
+  if (!parts.length) return;
+  chipEl = document.createElement('div');
+  chipEl.className = 'fitchip'; chipEl.setAttribute('role', 'status');
+  chipEl.innerHTML = `<span>${esc(parts.join(' · '))}</span><button class="sm" data-act="chip-undo">${h('foot.undo')}</button>`;
+  document.body.append(chipEl);
+  const col = ui.layout?.col, left = col && !ui.layout.phone && !ui.layout.folded ? col.left / 2 : innerWidth / 2;
+  chipEl.style.left = `${Math.round(left)}px`;
+  chipAt = store.history.undo;
+  play(chipEl, [{ opacity: 0, transform: 'translate(-50%, 10px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { kind: 'arrive', fill: 'backwards', name: 'chip:in' });
+  chipT = setTimeout(() => dropChip(), 6000);
 }
 
 // the first line of Fit's report (src/fit.js formatReport, which the CLI prints in English)
@@ -1059,8 +1138,9 @@ const edit = initEdit({
 });
 edit.bind($('#body'));
 window.__wb.edit = edit;
+window.__wb.motion = motion;
 const resumes = initResumes({
-  store, ui, persist, toast, work, NONE, setView, setSnap,
+  store, ui, persist, toast, work, NONE, setView, setSnap, snapshotTaken: () => snapshotTaken(),
   renderBody: () => renderBody(), renderHead: () => renderHead(),
   leaveOk: () => edit.leaving(NONE),
   endPreview: () => endPreview(),
@@ -1086,6 +1166,7 @@ Object.assign(VIEWS, files.views);
 files.bind($('#body'));
 window.__wb.files = files;
 const exporter = initExport({ store, ui, toast, work, cur: () => shown(), download, renderBody: () => renderBody(),
+  pageBox: () => { const b = ui.layout?.phone ? null : sheet.pageBoxes()[ui.page]; return b ? canvas.screenRect(b) : null; },
   extraCss: r => design.extraCss(store.state.record, r) });
 const design = initDesign({ store, ui, toast, cur, setView, pickFile, download, photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 Object.assign(VIEWS, design.views);
@@ -1097,7 +1178,7 @@ const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi
   renderHead: () => renderHead(), photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 career.bind($('#body'));
 window.__wb.career = career;
-const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
+const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, lineBox: id => { const r = ui.ix && sheet.rectOf(id, ui.ix); return r ? canvas.screenRect(r) : null; }, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
 checklist.bind($('#body'));
 window.__wb.checklist = checklist;
 const recordTab = initRecord({ ui, checklist, renderBody: () => renderBody(), setMode: m => dock.setMode(m) });

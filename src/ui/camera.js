@@ -13,7 +13,8 @@ export const FADE = 0.35;             // the page that is not bright
 export const OVERSHOOT = 60;          // how far a pan may be pulled past its limit, at most (px)
 export const MAGNET = 35, BOUNCE = 8; // defaults: round 3 found 60 and 25 too strong
 export const SNAP_FIT = 0.05;         // a zoom within this of the fit view snaps to it
-export const KEEP = 1 / 3;            // at least this share of the view keeps part of the pages in it
+export const KEEP = 2 / 3;            // at least this share of the view keeps part of the pages in it, sideways
+export const KEEP_Y = 0.9;            // …and up and down, where a page runs the whole height: it never goes far off
 
 export const rowWidth = (w, n) => n * w + Math.max(0, n - 1) * PAGE_GAP;
 export const pageLeft = (geo, i) => i * (geo.w + PAGE_GAP);
@@ -32,7 +33,10 @@ export function geometry({ vw, vh, format, pages = 1 }){
 }
 
 // The part of the window the pages may use. `colLeft` is the left edge of the open panel (or the rail).
-export const viewRect = ({ vh, colLeft }) => ({ left: 0, top: 0, width: Math.max(1, colLeft - G), height: vh });
+// `mid` is the x the pages are centred on: with the panel open, the middle of the free space beside it (the window's left edge to the
+// panel's left edge); with it folded, the middle of the window. The width still keeps clear of the panel or the rail, so nothing overlaps.
+export const viewRect = ({ vh, colLeft, mid }) => ({ left: 0, top: 0, width: Math.max(1, colLeft - G), height: vh, mid: mid ?? colLeft / 2 });
+export const midX = view => view.mid ?? view.left + view.width / 2;
 
 // A camera that shows `scene` whole: 'all' pages, or the one page `page`, fit to the height and centred in the view.
 export function fitCam(geo, view, { scene = 'all', page = 0 } = {}){
@@ -40,7 +44,7 @@ export function fitCam(geo, view, { scene = 'all', page = 0 } = {}){
   const span = all ? rowWidth(geo.w, geo.n) : geo.w;
   const k = Math.max(0.1, Math.min((view.height - 2 * G) / geo.h, (view.width - 2 * G) / span));
   const left = all ? 0 : pageLeft(geo, Math.max(0, Math.min(geo.n - 1, page)));
-  return { k, x: view.left + (view.width - span * k) / 2 - left * k, y: view.top + (view.height - geo.h * k) / 2 };
+  return { k, x: midX(view) - span * k / 2 - left * k, y: view.top + (view.height - geo.h * k) / 2 };
 }
 
 export const screenOf = (cam, cx, cy) => ({ x: cam.x + cx * cam.k, y: cam.y + cy * cam.k });
@@ -55,10 +59,10 @@ export function zoomAbout(cam, k2, px, py){
 // A zoom close to the fit view is the fit view. zoom is relative: 1 is the fit scale.
 export const snapZoom = z => (Math.abs(z - 1) < SNAP_FIT ? 1 : z);
 
-// Where x and y may go: never so far that less than a third of the view (or the whole page, if that is less) keeps part of the pages.
+// Where x and y may go: never so far that less than two thirds of the view (or the whole page, if that is less) keeps part of the pages.
 export function limits(cam, geo, view){
   const W = rowWidth(geo.w, geo.n) * cam.k, H = geo.h * cam.k;
-  const kx = Math.min(view.width * KEEP, W), ky = Math.min(view.height * KEEP, H);
+  const kx = Math.min(view.width * KEEP, W), ky = Math.min(view.height * KEEP_Y, H);
   return { minX: view.left + kx - W, maxX: view.left + view.width - kx, minY: view.top + ky - H, maxY: view.top + view.height - ky };
 }
 
@@ -79,7 +83,7 @@ export const hardCam = (cam, geo, view) => {
 };
 
 // The x each page sits at when it is centred in the view at scale k: the places the wheel snaps between.
-export const stops = (geo, view, k) => Array.from({ length: geo.n }, (_, i) => view.left + (view.width - geo.w * k) / 2 - pageLeft(geo, i) * k);
+export const stops = (geo, view, k) => Array.from({ length: geo.n }, (_, i) => midX(view) - geo.w * k / 2 - pageLeft(geo, i) * k);
 
 // Travel between pages with a magnetic feel: resistance near each page, a quick move across. `raw` is where the pointer
 // has taken the camera; the result is where it is drawn. The stops run from the largest x (page 1) down.
@@ -149,7 +153,7 @@ export const atRest = (s, to, eps = 0.15) => Math.abs(s.x - to) < eps && Math.ab
 // ---- zoom while writing ----
 // A camera at `k` with content point (cx, cy) in the middle of the view.
 export function centreOn(geo, view, k, cx, cy){
-  return { k, x: view.left + view.width / 2 - cx * k, y: view.top + view.height / 2 - cy * k };
+  return { k, x: midX(view) - cx * k, y: view.top + view.height / 2 - cy * k };
 }
 // The scale of the fit-to-height view of one page, times a zoom given in percent (130 is the default for writing).
 export const writingScale = (geo, view, percent) => fitCam(geo, view, { scene: 'one' }).k * (percent / 100);

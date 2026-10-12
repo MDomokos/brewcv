@@ -641,7 +641,7 @@ section('what Career did, and where each part went (the ledger of data-act)');
     ['c-add-summary', 'About you’s panel when there is no summary', () => { const m = structuredClone(u.record()); return /data-act="c-add-summary"/.test(String(u.career.panel({ kind: 'header' }))) || !!m.basics.summary; }],
     ['c-add / c-add-cancel / c-create', 'the + Add menu opens the form in the panel; Create makes it', async () => { await u.click('c-add', { what: 'skills' }); return u.ui.sel.kind === 'add' && /data-act="c-create" data-what="skills"/.test(String(u.career.panel(u.ui.sel))); }],
     ['c-kind-new / -edit / -cancel / -preset / -colour / -icon / -save / -del…', 'the kind editor in the panel (from the + Add menu)', async () => { await u.click('c-kind-new'); return u.ui.sel.kind === 'kind' && /data-act="c-kind-preset"/.test(String(u.career.panel(u.ui.sel))); }],
-    ['c-tip-next / c-tip-skip / c-tips-again', 'removed: the tour is gone, and a one-line hint above the checklist replaces it', () => { u.career.act('c-tip-next', { dataset: {} }); return /class="clhint"/.test(list()); }],
+    ['c-tip-next / c-tip-skip / c-tips-again', 'removed: the tour is gone, and a line that travels from its row to the page shows what a tick does (UX-4)', () => { u.career.act('c-tip-next', { dataset: {} }); return !/class="clhint"/.test(list()); }],
     ['c-lang-menu / lang / lang-add / lang-more', 'the header’s language control: the resume’s language is the one you edit in', () => true],
     ['ws, to-career, the thumbnail, Career’s undo', 'gone: one screen; undo and redo live in the footer', () => true],
   ];

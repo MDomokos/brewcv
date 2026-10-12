@@ -8,15 +8,18 @@ import { checklist, groupOf } from '../model/checklist.js';
 import { addClaimHtml } from './parts.js';
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
+import { ghost, fly, reduced } from './motion.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+// What a tick does is shown once, on a line of the person's own resume (a line travels from its row to its place on the page), where a
+// one-line hint used to say it (UX-2)
 const HINT_KEY = 'rb-cl-hint';
 const hintDone = () => { try { return localStorage.getItem(HINT_KEY) === '1'; } catch { return true; } };
 const setHintDone = () => { try { localStorage.setItem(HINT_KEY, '1'); } catch { /* shown again next time */ } };
 
-const S = { shut: new Set(), hint: !hintDone(), pop: null };
+const S = { shut: new Set(), pop: null, travel: null };
 
 export function initChecklist(ctx){ C = ctx; return api; }
 
@@ -84,7 +87,6 @@ function html(){
   return `<section class="checklist" id="checklist" aria-labelledby="cl-h">
     <div class="clhead"><h2 id="cl-h">${h('ux3b.recordTitle')}</h2><span class="clall" id="cl-all">${nOfM(cl.on, cl.total)}</span><span class="grow"></span>
       <button class="sm" data-act="c-pop" aria-haspopup="menu" aria-expanded="${C.career.popOpen}" id="c-add">${h('ux2.add')}</button></div>
-    ${S.hint ? `<p class="clhint" role="note"><span>${h('ux2.hint')}</span><button class="ghost sm" data-act="cl-hint-ok" aria-label="${esc(t('ux2.hintOk'))}">${icon('close', { size: 12 })}</button></p>` : ''}
     ${C.career.popOpen ? C.career.addMenuHtml() : ''}
     ${C.timelineHtml ? `<div class="rectl">${C.timelineHtml()}</div>` : ''}
     ${live.map(g => groupHtml(g, isOpen(g), { shown: shownEntries })).join('')}
@@ -109,6 +111,37 @@ function afterRender(){
     if (cb){ cb.classList.add('pop'); cb.addEventListener('animationend', () => cb.classList.remove('pop'), { once: true }); }
   }
   S.pop = null;
+  const tr = S.travel;
+  if (tr && tr.on === false && performance.now() < tr.until) arriveRow(tr);
+  if (!hintDone() && document.getElementById('checklist') && !C.ui.snap) sample();
+}
+
+// ---- a line travels between its row and its place on the page ----
+// The tick has already changed the resume. Switched on: the line leaves its row and lands where the page now prints it (once the page
+// has been drawn again: shell.js calls landed()). Switched off: it leaves where it was printed and lands on its row. A line that
+// is not on the page, or no motion, travels nowhere.
+const pill = (text, box) => ghost(box, `<span>${esc(text)}</span>`, 'mo-ghost mo-pill');
+const rowBox = id => { const r = document.querySelector(`#checklist .clrow[data-fact="${CSS.escape(id)}"] .clt`)?.getBoundingClientRect(); return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null; };
+function arriveRow(tr){
+  S.travel = null;
+  const to = rowBox(tr.id);
+  if (to && tr.from) fly(pill(tr.text, tr.from), tr.from, to, { key: 'tick', name: 'tick:back' });
+}
+function landed(){
+  const tr = S.travel;
+  if (!tr || tr.on !== true || performance.now() > tr.until) return;
+  S.travel = null;
+  const to = C.lineBox?.(tr.id);
+  if (to && tr.from) fly(pill(tr.text, tr.from), tr.from, { ...to, height: Math.max(to.height, 14) }, { key: 'tick', name: 'tick:land' });
+}
+// the first time the checklist is on screen: one line of the open resume makes the trip, so the person sees what a tick does
+function sample(){
+  if (reduced()) return;
+  const row = [...document.querySelectorAll('#checklist .clrow:not(.is-off)[data-fact]')].find(r => r.dataset.fact && C.lineBox?.(r.dataset.fact));
+  if (!row) return;
+  setHintDone();
+  const id = row.dataset.fact, from = rowBox(id), to = C.lineBox(id), text = row.querySelector('.clt')?.textContent ?? '';
+  if (from && to) fly(pill(text, from), from, { ...to, height: Math.max(to.height, 14) }, { key: 'tick', name: 'tick:sample' });
 }
 
 async function act(a, tg){
@@ -128,7 +161,6 @@ async function act(a, tg){
       if (title){ title.tabIndex = -1; title.focus({ preventScroll: true }); }
       return true;
     }
-    case 'cl-hint-ok': S.hint = false; setHintDone(); C.renderBody(); return true;
   }
   return false;
 }
@@ -136,10 +168,16 @@ async function act(a, tg){
 function bind(body){
   body.addEventListener('change', e => {
     const cb = e.target;
-    if (cb.matches?.('#checklist .cb[data-on]') && S.hint){ S.hint = false; setHintDone(); }
     if (cb.matches?.('#checklist .cb') && cb.checked){
       const attr = cb.dataset.on !== undefined ? 'data-on' : cb.dataset.item !== undefined ? 'data-item' : null;
       S.pop = attr ? { attr, val: cb.getAttribute(attr), until: performance.now() + 1500 } : null;
+    }
+    if (cb.matches?.('#checklist .cb[data-on]')){
+      setHintDone();
+      const row = cb.closest('.clrow'), id = cb.dataset.on, clt = row?.querySelector('.clt')?.getBoundingClientRect();
+      const text = row?.querySelector('.clt')?.textContent ?? '';
+      // before the page is drawn again: the row's box going on, the line's box (where it is printed now) going off
+      S.travel = { id, on: cb.checked, text, until: performance.now() + 1500, from: cb.checked ? (clt ? { left: clt.left, top: clt.top, width: clt.width, height: clt.height } : null) : C.lineBox?.(id) };
     }
   });
   const hover = id => C.hoverFact(id || null);
@@ -149,4 +187,4 @@ function bind(body){
   body.addEventListener('focusout', e => { const r = e.target.closest?.('#checklist .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });
 }
 
-const api = { html, jobGroupHtml, act, bind, afterRender };
+const api = { html, jobGroupHtml, act, bind, afterRender, landed };

@@ -10,6 +10,7 @@ import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG 
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel, checklist, sectionCounts } from '../model/checklist.js';
 import { t, h, errText } from '../i18n/index.js';
+import { play } from './motion.js';
 import { esc, clip, crumb, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
 
 let C = null;
@@ -19,7 +20,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null };
+const E = { enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null };
 
 function commit(fn, label, done){
   try {
@@ -334,7 +335,7 @@ function saveEdit(kind){
     let n;
     commit(d => {
       const nv = R.addVersion(d.record, f, { text, from: ed.vid, as: 'minor', lang: lang() });
-      n = nv.n;
+      n = nv.n; E.enter = nv.id;
       if (resume) d.cur.picks = { ...(d.cur.picks ?? {}), [f]: nv.id };
       if (kind === 'promote') T.setOverride(d.cur, f, null);
       E.openMinor.add(`${f}:${lang()}:${R.major(nv.n)}`);
@@ -344,7 +345,7 @@ function saveEdit(kind){
     let n;
     commit(d => {
       const nv = R.addVersion(d.record, f, { text, from: ed.vid, as: 'major', lang: lang() });
-      n = nv.n;
+      n = nv.n; E.enter = nv.id;
       if (resume) d.cur.picks = { ...(d.cur.picks ?? {}), [f]: nv.id };
     }, t('undo.writeNew'), null);
     if (n) C.toast(t('toast.savedNewV', { v: n }));
@@ -454,6 +455,7 @@ async function act(a, tg){
     case 'focus-apply': {
       const F = E.focus;
       let p;
+      C.ui.morph = { kind: 'apply' };       // joining lines slide in, leaving ones fold away
       commit(d => { p = applyTag(d.record, d.cur, F); }, t('undo.selectFor', { tag: jobTypeLabel(rec(), F) }));
       E.applyOpen = false;
       if (p) C.toast(t('toast.selectedFor', { tag: jobTypeLabel(rec(), F), on: p.on, off: p.off, sw: p.sw }));
@@ -618,6 +620,7 @@ function bind(body){
 }
 
 function setBullet(id, on){
+  C.ui.morph = { kind: 'tick' };       // the page shows the change moving (src/ui/pagemotion.js)
   commit(d => T.setBulletOn(d.record, d.cur, id, on), on ? t('undo.turnOn') : t('undo.turnOff'));
 }
 
@@ -693,6 +696,15 @@ const api = {
     // the tag box keeps focus across the redraw a new tag causes
     const ti = E.tagFocus && document.querySelector(`.tag-in[data-vid="${CSS.escape(E.tagFocus)}"]`);
     if (ti && document.activeElement !== ti) ti.focus();
+    // a version just saved: its row slides into the list under its parent (the list already has it; this shows where it came from)
+    if (E.enter){
+      const row = document.querySelector(`#body .vlist .vrow[data-v="${CSS.escape(E.enter)}"]`);
+      E.enter = null;
+      if (row){
+        const hgt = row.offsetHeight;
+        play(row, [{ opacity: 0, height: '0px', transform: 'translateY(-10px)', overflow: 'hidden' }, { opacity: 1, height: `${hgt}px`, transform: 'none', overflow: 'hidden' }], { name: 'version:in', key: 'version-row' });
+      }
+    }
   },
   get focus(){ return E.focus; },
   focusHits(){ return E.focus ? tagHits(work(), E.focus, lang()) : null; },

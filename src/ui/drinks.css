@@ -50,7 +50,7 @@ html[data-drink="coffee"] .seg [role=tab], html[data-drink="coffee"] .seg button
 html[data-drink="coffee"] .seg [role=tab][aria-selected=true], html[data-drink="coffee"] .seg button[aria-pressed=true] { background: transparent; color: var(--ink); border-bottom-color: var(--ink); box-shadow: none; }
 html[data-drink="coffee"] .tpl[aria-pressed=true] { outline: 1px solid var(--ink); }
 html[data-drink="coffee"] .swatch[aria-pressed=true] { outline: 2px solid var(--ink); outline-offset: 2px; box-shadow: none; }
-html[data-drink="coffee"] .clhint, html[data-drink="coffee"] .tag.jt { background: transparent; border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] .tag.jt { background: transparent; border: 1px solid var(--line-strong); }
 html[data-drink="coffee"] .rail .ib[aria-pressed=true] { background: var(--mark); color: var(--on-mark); }
 
 /* the espresso band: the head, foam ink, a crema line under it */
@@ -319,4 +319,74 @@ html[data-drink="coffee"] .obstep.done .obn, html[data-drink="coffee"] .obstep.d
   @keyframes tsToast { 0% { rotate: 6deg; } 25% { rotate: -4deg; } 50% { rotate: 2deg; } 75% { rotate: -.7deg; } 100% { rotate: 0deg; } }
   @keyframes tsPop { from { scale: .7; } to { scale: 1; } }
   @keyframes tsDunk { 0% { translate: 0 0; } 30% { translate: 0 5px; } 60% { translate: 0 -2px; } 100% { translate: 0 0; } }
+}
+
+/* the light on the roll: daylight on the cream mat, a warm lamp on the dark one (the tea tokens, in tea only) */
+html[data-drink="tea"] { --mat-lit: var(--paper); }
+html[data-drink="tea"][data-theme="dark"] { --mat-lit: color-mix(in srgb, var(--accent) 50%, var(--mat-b)); }
+
+/* ---------- the logo is the switch; the mat rolls up and unrolls (src/ui/matroll.js, UX-4) ---------- */
+button.logoswitch { background: transparent; border: 0; padding: 0; margin: 0; color: inherit; line-height: 0; border-radius: var(--r-s); cursor: pointer; }
+button.logoswitch:hover:not(:disabled) { border: 0; }
+button.logoswitch:active:not(:disabled) { transform: none; }
+button.logoswitch img { transition: transform var(--m-fast) var(--m-out); }
+button.logoswitch:hover img { transform: rotate(-4deg) scale(1.06); }
+html[data-motion="reduce"] button.logoswitch:hover img { transform: none; }
+@property --mr-y { syntax: "<length>"; inherits: true; initial-value: 0px; }
+/* One layer under the page and the panel (the pages are z-index 5), over the canvas: the other canvas, on one side of the roller. The
+   mat's slats run across, so it rolls up and unrolls vertically; --mr-y is how far the roller is from the bottom edge. Its colours are
+   --mr-* properties, set by matroll.js from the tokens of both drinks; nothing here is a colour of its own. */
+.matroll { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; --mr-r0: 14px; --mr-k: .085; }
+.matroll[data-kind="down"] { --mr-r0: 100px; --mr-k: -.1; transform: scaleY(-1); }   /* coming back it unrolls from the top, down */
+.matroll .mr-bg { position: absolute; inset: 0; }
+.matroll[data-side="below"] .mr-bg { clip-path: inset(calc(100% - var(--mr-y)) 0 0 0); }
+.matroll[data-side="above"] .mr-bg { clip-path: inset(0 0 var(--mr-y) 0); }
+.matroll .mr-bg[data-bg="tea"] {
+  background:
+    linear-gradient(var(--mr-mat-wash), var(--mr-mat-wash)),
+    linear-gradient(90deg, transparent 0 calc(50% - 3px), var(--mr-mat-thread) calc(50% - 3px) calc(50% - 1.5px), transparent calc(50% - 1.5px) calc(50% + 1.5px), var(--mr-mat-thread) calc(50% + 1.5px) calc(50% + 3px), transparent calc(50% + 3px)) 0 0 / 260px 100%,
+    repeating-linear-gradient(0deg, transparent 0 13px, var(--mr-mat-gap) 13px 14.5px),
+    repeating-linear-gradient(0deg, var(--mr-mat-a) 0 43.5px, var(--mr-mat-b) 43.5px 72.5px, var(--mr-mat-c) 72.5px 101.5px, var(--mr-mat-a) 101.5px 130.5px, var(--mr-mat-b) 130.5px 145px);
+}
+.matroll .mr-bg[data-bg="coffee"] {
+  background:
+    linear-gradient(var(--mr-grid-major) 1px, transparent 1px) 0 0 / 120px 120px,
+    linear-gradient(90deg, var(--mr-grid-major) 1px, transparent 1px) 0 0 / 120px 120px,
+    linear-gradient(var(--mr-grid-minor) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, var(--mr-grid-minor) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--mr-canvas);
+}
+/* the roll: a horizontal bundle of solid slats, each a flat face with real thickness, so it is faceted, not a smooth tube (hard edges
+   between faces, each face its own shade); it grows as the mat rolls up and shrinks as it unrolls */
+.matroll .roller { position: absolute; left: 0; right: 0; bottom: calc(var(--mr-y) - var(--mr-h) / 2); --mr-h: max(6px, calc(var(--mr-r0) + var(--mr-y) * var(--mr-k))); height: var(--mr-h); }
+.mo-roller { position: fixed; pointer-events: none; border-radius: 3px; box-shadow: 0 8px 14px var(--mr-mat-gap, var(--mat-gap));
+  --g: var(--mr-mat-gap, var(--mat-gap)); --l: var(--mr-mat-lit, var(--mat-lit));
+  /* lit from above: each face its own shade, from the dark underside to the bright face near the top, seams between them */
+  background:
+    linear-gradient(0deg, transparent 0 13%, var(--g) 13% 15%, transparent 15% 29%, var(--g) 29% 31%, transparent 31% 49%, var(--g) 49% 51%, transparent 51% 67%, var(--g) 67% 69%, transparent 69% 85%, var(--g) 85% 87%, transparent 87%),
+    linear-gradient(0deg,
+      color-mix(in srgb, var(--mr-mat-a, var(--mat-a)) 65%, var(--g)) 0 14%,
+      color-mix(in srgb, var(--mr-mat-b, var(--mat-b)) 60%, var(--g)) 14% 30%,
+      var(--mr-mat-c, var(--mat-c)) 30% 50%,
+      color-mix(in srgb, var(--mr-mat-a, var(--mat-a)) 70%, var(--l)) 50% 68%,
+      color-mix(in srgb, var(--mr-mat-b, var(--mat-b)) 45%, var(--l)) 68% 84%,
+      color-mix(in srgb, var(--mr-mat-c, var(--mat-c)) 78%, var(--l)) 84%); }
+
+/* ---------- exports: a scroll of the bamboo mat in tea, a till receipt in coffee (src/ui/exportfx.js, UX-4) ---------- */
+.mo-mat { position: fixed; pointer-events: none; border-radius: 2px;
+  background:
+    linear-gradient(var(--mat-wash), var(--mat-wash)),
+    repeating-linear-gradient(0deg, transparent 0 13px, var(--mat-gap) 13px 14.5px),
+    repeating-linear-gradient(0deg, var(--mat-a) 0 43.5px, var(--mat-b) 43.5px 72.5px, var(--mat-c) 72.5px 101.5px, var(--mat-a) 101.5px 130.5px, var(--mat-b) 130.5px 145px);
+  box-shadow: var(--shadow-lift); }
+.fx-steam { position: fixed; background: var(--steam-ink); -webkit-mask: var(--steam) center / contain no-repeat; mask: var(--steam) center / contain no-repeat; pointer-events: none; }
+.fx-read { position: fixed; background: color-mix(in srgb, var(--crema) 16%, transparent); pointer-events: none; }
+.fx-scan { position: fixed; background: var(--crema); pointer-events: none; }
+.fx-ticket { position: fixed; box-sizing: border-box; padding: 8px 10px 10px; background: var(--paper); color: var(--paper-ink); border: 1px solid var(--line-strong); border-top: 2px solid var(--crema); font: 600 12px/1.5 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; pointer-events: none; }
+.fx-ticket p { margin: 0; white-space: nowrap; }
+
+/* ---------- switching Tea and Coffee, or light and dark: colours fade, shapes morph (drink.js puts html.is-switching on for the length of it) ---------- */
+html.is-switching :is(*, *::before, *::after):not(.matroll, .matroll *, .motionlay *) {
+  transition: background-color var(--m-slow) var(--m-inout), color var(--m-slow) var(--m-inout), border-color var(--m-slow) var(--m-inout), border-radius var(--m-slow) var(--m-inout),
+    box-shadow var(--m-slow) var(--m-inout), fill var(--m-slow) var(--m-inout), stroke var(--m-slow) var(--m-inout), outline-color var(--m-slow) var(--m-inout);
 }
