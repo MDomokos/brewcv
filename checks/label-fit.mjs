@@ -101,11 +101,20 @@ for (const lang of I.UI_LANGS){
       }
       return bad;
     }, [name, sel, ELLIPSIS]);
-    const rows = await pg.evaluate(() => { const t = [...document.querySelectorAll('#head [role=tab]')].map(x => Math.round(x.getBoundingClientRect().top)); return { tabsOnOneRow: new Set(t).size === 1, tabs: t.length, headRows: [...document.querySelectorAll('#head .hrow')].map(r => Math.round(r.getBoundingClientRect().height)) }; });
+    // offsetTop, not the box on screen: tea hangs the tags a little askew, which moves their screen boxes but not their row
+    const rows = await pg.evaluate(() => { const t = [...document.querySelectorAll('#head [role=tab]')].map(x => x.offsetTop); return { tabsOnOneRow: new Set(t).size === 1, tabs: t.length, headRows: [...document.querySelectorAll('#head .hrow')].map(r => Math.round(r.getBoundingClientRect().height)) }; });
     let problems = [];
     if (!rows.tabsOnOneRow) problems.push('the three modes wrap onto more than one row');
     problems.push(...await probe('head', '#head button, #head .seg, #head .hrow, #head .docname, #head .savestate'));
     problems.push(...await probe('foot', '#foot button, #foot .vbar, #foot .meters, #foot .frow'));
+    // M11a: the drink corner (the question and Tea, Coffee in each language) stays whole, on screen, off the page
+    problems.push(...await pg.evaluate(() => {
+      const out = [], c = document.querySelector('#brewmode'), r = c.getBoundingClientRect(), page = document.querySelector('#sheet iframe').getBoundingClientRect();
+      if (r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) out.push('the drink corner runs off the screen');
+      for (const el of c.querySelectorAll('.bm-q, button, button span')) if (el.offsetParent && el.scrollWidth > el.clientWidth + 1) out.push(`the drink corner: “${el.textContent.trim()}” is cut`);
+      if (innerWidth >= 1280 && r.right > page.left && r.top < page.bottom && r.bottom > page.top) out.push('the drink corner covers the page');
+      return out;
+    }));
     problems.push(...await probe('lens and sections', '.lens button, .lens select, .lensrow, .offchip, #seclist .srow, .item.srow'));
     problems.push(...await probe('checklist', '#checklist button, #checklist .clhead, #checklist .clcount, #checklist .clcaret, #checklist .clhint'));
     // the heads of the groups, opened: the count stays whole next to a long name
@@ -132,6 +141,26 @@ for (const lang of I.UI_LANGS){
     ok(`${lang} at ${what}: the new labels fit (modes on one row, header, zoom bar, lens, checklist, switcher, zoom settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
     await ctx.close();
   }
+}
+
+// M11a: on the start screen the question is a slim bar above the cards, on one line, in every language
+for (const lang of I.UI_LANGS){
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true });
+  await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } }, lang);
+  const pg = await ctx.newPage();
+  await pg.goto('http://localhost:8133/index.html?memory&welcome', { waitUntil: 'networkidle' });
+  await pg.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
+  await pg.waitForTimeout(500);
+  const bad = await pg.evaluate(() => {
+    const out = [], c = document.querySelector('#brewmode'), r = c.getBoundingClientRect(), card = document.querySelector('.obcard').getBoundingClientRect();
+    if (r.bottom > card.top) out.push('the bar runs into the cards');
+    if (r.height > 56) out.push(`the bar wraps (${Math.round(r.height)}px tall)`);
+    if (r.left < 0 || r.right > innerWidth) out.push('the bar runs off the screen');
+    for (const el of c.querySelectorAll('.bm-q, button, button span')) if (el.scrollWidth > el.clientWidth + 1) out.push(`“${el.textContent.trim()}” is cut`);
+    return out;
+  });
+  ok(`${lang} on the start screen: the question and the two drinks fit the slim bar`, bad.length === 0, bad.join(' ; '));
+  await ctx.close();
 }
 
 await browser.close(); server.close();

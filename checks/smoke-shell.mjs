@@ -36,11 +36,11 @@ const exe = process.env.CHROME_PATH
   ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 
-async function open(page, q, { help = false, panel = 'open' } = {}){
+async function open(page, q, { help = false, panel = 'open', drink = null, theme = null } = {}){
   const bad = [];
   // the shortcut sheet opens by itself on the first selection, and the panel folds while nothing is selected:
   // a check that is not about either starts with the sheet seen and the panel pinned open
-  await page.addInitScript(([h, p]) => { try { if (!h) localStorage.setItem('rb-help-seen', '1'); if (p) localStorage.setItem('rb-panel', p); } catch { /* nothing to set */ } }, [help, panel]);
+  await page.addInitScript(([h, p, d, t]) => { try { if (!h) localStorage.setItem('rb-help-seen', '1'); if (p) localStorage.setItem('rb-panel', p); if (d) localStorage.setItem('rb-drink', d); if (t) localStorage.setItem('rb-theme', t); } catch { /* nothing to set */ } }, [help, panel, drink, theme]);
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
   await page.goto(URL_(q), { waitUntil: 'networkidle' });
@@ -112,7 +112,7 @@ if (want('one screen: the panel folds, the rail, the zoom bar, the shortcut shee
   ok('→ moves to Export and shows it', (await page.getAttribute('#head [data-m=export]', 'aria-selected')) === 'true' && (await page.getAttribute('#body', 'data-view')) === 'export');
   await page.keyboard.press('Home'); await settle(page);
   ok('Home goes back to Edit', (await page.getAttribute('#head [data-m=edit]', 'aria-selected')) === 'true' && (await page.getAttribute('#body', 'data-view')) !== 'export');
-  ok('the stripe on the panel’s top is gone', await page.evaluate(() => getComputedStyle(document.querySelector('#body'), '::before').display === 'none'));
+  ok('the stripe on the panel’s top is gone', await page.evaluate(() => ['none', 'normal'].includes(getComputedStyle(document.querySelector('#body'), '::before').content)));
   // Esc all the way out, even from Open
   await page.evaluate(() => window.__wb.dock.setPanel('open'));
   await page.keyboard.press('=');
@@ -387,7 +387,7 @@ if (want('scrollbars')) {
   const bad = await open(page);
   const sb = sel => page.$eval(sel, el => { const c = getComputedStyle(el); return { w: c.scrollbarWidth, c: c.scrollbarColor }; });
   const b = await sb('#body'), p = await sb('#pages'), c = await sb('#timeline');
-  ok('the body card’s scrollbar is thin and warm grey', b.w === 'thin' && /201, 196, 184/.test(b.c), JSON.stringify(b));
+  ok('the body card’s scrollbar is thin, in the drink’s own edge colour (tea’s, here)', b.w === 'thin' && /122, 150, 132/.test(b.c), JSON.stringify(b));
   ok('the page scroller’s too', p.w === 'thin', JSON.stringify(p));
   ok('so is the timeline’s', c.w === 'thin', JSON.stringify(c));
   ok('nothing scrollbar-related inside the resume’s iframe', await frameDoc(page, d => [...d.styleSheets].every(s => { try { return [...s.cssRules].every(r => !/scrollbar/.test(r.cssText)); } catch { return true; } })));
@@ -1710,6 +1710,187 @@ if (want('one panel for a claim: from the page and from the checklist')) {
 }
 
 
+
+// M11a: Tea and Coffee, light and dark. One app, two looks; the resume prints the same in all of them.
+if (want('drinks: tea and coffee, light and dark')) {
+  const EXPECT = {   // the panel's surface and the page canvas, per drink and theme (src/ui/workbench.css)
+    'tea light': { surface: 'rgb(46, 70, 54)', radius: '24px', mono: false }, 'tea dark': { surface: 'rgb(38, 57, 45)', radius: '24px', mono: false },
+    'coffee light': { surface: 'rgb(255, 255, 255)', radius: '2px', mono: true }, 'coffee dark': { surface: 'rgb(12, 9, 7)', radius: '2px', mono: true },
+  };
+  for (const drink of ['tea', 'coffee']) for (const theme of ['light', 'dark']){
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: theme });
+    const page = await ctx.newPage();
+    // every value html[data-drink] takes while the page loads: the right one from the start, never the other drink first
+    await page.addInitScript(() => { window.__drinks = []; new MutationObserver(() => window.__drinks.push(document.documentElement.dataset.drink + '/' + document.documentElement.dataset.theme)).observe(document, { attributes: true, subtree: true, attributeFilter: ['data-drink', 'data-theme'] }); });
+    const bad = await open(page, undefined, { drink, theme });
+    const E = EXPECT[`${drink} ${theme}`];
+    const seen = await page.evaluate(() => window.__drinks);
+    ok(`${drink} ${theme}: html carries data-drink and data-theme before the first paint, and nothing else ever`, seen.every(x => x === `${drink}/${theme}`) && seen.length >= 1, JSON.stringify(seen));
+    const look = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#col')), b = getComputedStyle(document.querySelector('#body')); return { surface: b.backgroundColor, radius: c.borderTopLeftRadius, font: getComputedStyle(document.body).fontFamily, shadow: c.boxShadow }; });
+    ok(`${drink} ${theme}: the panel is the drink’s surface, ${E.radius} corners, ${E.mono ? 'monospace' : 'Hanken'}`, look.surface === E.surface && look.radius === E.radius && /Fira Code/.test(look.font) === E.mono, JSON.stringify(look));
+    ok(`${drink} ${theme}: ${drink === 'tea' ? 'a flat, offset shadow' : 'no shadow, a hairline'}`, drink === 'tea' ? /\d+px \d+px 0px 0px/.test(look.shadow) : look.shadow === 'none');
+    // the resume is the same everywhere: its first bullet's computed style does not know the drink
+    const resume = await frameDoc(page, d => { const li = d.querySelector('.bullets li'), cs = getComputedStyle(li); return [cs.color, cs.fontFamily, cs.fontSize, getComputedStyle(d.body).backgroundColor].join('|'); });
+    if (!globalThis.__resumeLook) globalThis.__resumeLook = resume;
+    ok(`${drink} ${theme}: the resume looks the same as in every other combination`, resume === globalThis.__resumeLook, resume);
+    ok(`${drink} ${theme}: no console errors`, bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const drinkNow = () => page.evaluate(() => document.documentElement.dataset.drink);
+  ok('Tea is the default', (await drinkNow()) === 'tea' && (await page.evaluate(() => localStorage.getItem('rb-drink'))) === null);
+  ok('the corner asks the question, bottom left, with Tea and Coffee and their cups', await page.evaluate(() => {
+    const c = document.querySelector('#brewmode'), r = c.getBoundingClientRect(), b = [...c.querySelectorAll('button')];
+    return c.tagName === 'ASIDE' && /drinking today/.test(c.textContent) && b.length === 2 && b.every(x => x.querySelector('svg')) && r.left < 30 && innerHeight - r.bottom < 30 && b[0].getAttribute('aria-pressed') === 'true';
+  }));
+  await page.evaluate(() => { window.__marker = 'same page'; });
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(250);
+  ok('Shift+F switches to coffee, in place: no reload, the same page, the choice stored', (await drinkNow()) === 'coffee' && (await page.evaluate(() => window.__marker)) === 'same page' && (await page.evaluate(() => localStorage.getItem('rb-drink'))) === 'coffee');
+  ok('the corner shows it, and the rail icons and the meter changed with it, with no redraw of the page', await page.evaluate(() => document.querySelector('#brewmode [data-drink=coffee]').getAttribute('aria-pressed') === 'true') && (await page.evaluate(() => window.__wb.ui.laid != null)));
+  await page.click('#brewmode [data-drink=tea]'); await page.waitForTimeout(250);
+  ok('the corner’s Tea button switches back', (await drinkNow()) === 'tea');
+  // never while typing: the switcher's search is a field
+  await page.click('#docname-btn'); await page.waitForSelector('#switcher .sw-q');
+  await page.focus('#switcher .sw-q'); await page.keyboard.press('Shift+F'); await page.waitForTimeout(150);
+  ok('Shift+F is ignored in a field, and types the letter', (await drinkNow()) === 'tea' && (await page.inputValue('#switcher .sw-q')) === 'F');
+  await page.keyboard.press('Escape');
+  // the setting survives a reload
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(200);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
+  ok('the setting survives a reload', (await drinkNow()) === 'coffee' && (await page.evaluate(() => document.querySelector('#brewmode [data-drink=coffee]').getAttribute('aria-pressed'))) === 'true');
+  // Settings: the drink and light, dark or system
+  await page.evaluate(() => window.__wb.setView('settings')); await settle(page);
+  ok('Settings offers Tea or Coffee, and System, Light or Dark (System by default)', (await page.$$('#body input[name=drink]')).length === 2 && (await page.$$('#body input[name=theme]')).length === 3 && await page.isChecked('#body input[data-theme=system]') && await page.isChecked('#body input[data-drink=coffee]'));
+  await page.click('#body input[data-theme=dark]'); await settle(page);
+  ok('Dark: html[data-theme] is dark whatever the system says, and it is stored', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark' && (await page.evaluate(() => localStorage.getItem('rb-theme'))) === 'dark');
+  await page.click('#body input[data-theme=light]'); await settle(page);
+  ok('Light follows', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'light');
+  await page.click('#body input[data-theme=system]'); await settle(page);
+  await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForTimeout(250);
+  ok('System follows the device, live', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark');
+  await page.emulateMedia({ colorScheme: 'light' }); await page.waitForTimeout(250);
+  ok('…and back', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'light');
+  await page.click('#body input[data-drink=tea]'); await settle(page);
+  ok('the Tea radio switches too', (await drinkNow()) === 'tea');
+  await page.evaluate(() => window.__wb.setView(null));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('drinks: Fit, the meters, the moments')) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const setFills = fills => page.evaluate(f => { window.__wb.ui.fills = f; window.__wb.dock.renderFoot(); window.__wb.dock.renderRail(); }, fills);
+  const fitFilled = () => page.$eval('#foot [data-act=fit]', b => b.classList.contains('primary'));
+  const real = await page.evaluate(() => window.__wb.ui.fills);
+  ok('the example opens at 92%: in the band, so Fit is plain', !(await fitFilled()) && Math.abs(100 * real[0].used / real[0].usable - 92) < 2);
+  await page.click('#head [data-m=export]'); await settle(page);
+  ok('…and Export fills PDF instead: one filled button on the screen', (await page.$eval('[data-act=ex-pdf]', b => b.classList.contains('primary'))) && (await page.$$('#body button.primary')).length === 1);
+  await page.click('#head [data-m=edit]'); await settle(page);
+  const wasFills = real.map(x => ({ ...x }));
+  const used = f => wasFills.map(x => ({ ...x, used: x.usable * f, overflow: 0 }));
+  await setFills(used(0.5));
+  ok('50% (a short page): Fit is filled', await fitFilled());
+  await page.click('#head [data-m=export]'); await settle(page);
+  ok('…and PDF is not', !(await page.$eval('[data-act=ex-pdf]', b => b.classList.contains('primary'))));
+  await page.click('#head [data-m=edit]'); await settle(page);
+  await setFills(used(0.99));
+  ok('99% (too full): Fit is filled', await fitFilled());
+  await setFills(wasFills.map(x => ({ ...x, used: x.usable * 1.05, overflow: 12 })));
+  ok('overflowing: Fit is filled', await fitFilled());
+  await setFills(used(0.89));
+  ok('89%, just inside the band: Fit is plain again', !(await fitFilled()));
+  // the cup (tea) and the shot glass (coffee), filled to the page's level
+  await setFills(used(0.6));
+  const cup = await page.evaluate(() => { const m = document.querySelector('#foot .meter'), f = m.querySelector('.mfill'), cs = getComputedStyle(f), band = getComputedStyle(m.querySelector('.mband')); return { p: m.style.getPropertyValue('--p'), mask: cs.webkitMaskImage || cs.maskImage, bg: cs.backgroundImage, band: band.borderTopStyle, hasBar: !!m.querySelector('.mbar') && getComputedStyle(m.querySelector('.mbar')).overflow !== 'hidden' }; });
+  ok('tea: the page meter is the cup, drawn from --p = 60, with a dashed fill line for Fit’s band', cup.p === '60.0' && /url/.test(cup.mask) && /linear-gradient/.test(cup.bg) && cup.band === 'dashed' && cup.hasBar, JSON.stringify(cup));
+  await setFills(used(1.01).map(x => ({ ...x, overflow: 4 })));
+  ok('tea: an overflowing page spills over the rim', await page.evaluate(() => { const bar = document.querySelector('#foot .meter.overflow .mbar'); const c = getComputedStyle(bar, '::before'); return c.content !== 'none' && /url/.test(c.webkitMaskImage || c.maskImage); }));
+  await setFills(used(0.91));
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(250);
+  const glass = await page.evaluate(() => { const m = document.querySelector('#foot .meter'), bar = m.querySelector('.mbar').getBoundingClientRect(), f = m.querySelector('.mfill').getBoundingClientRect(), cs = getComputedStyle(m.querySelector('.mfill')); return { ratio: f.height / (bar.height - 1), bg: cs.backgroundImage, band: getComputedStyle(m.querySelector('.mband')).borderRightStyle, ticks: getComputedStyle(m.querySelector('.mbar'), '::after').backgroundImage }; });
+  ok('coffee: the meter is a shot glass: crema on espresso, filled to the level, ticks, and Fit’s band bracketed', Math.abs(glass.ratio - 0.91) < 0.06 && /linear-gradient/.test(glass.bg) && glass.band === 'solid' && /linear-gradient/.test(glass.ticks), JSON.stringify(glass));
+  ok('coffee: the rail’s icons are the plain set, the head is an espresso band with a crema line', await page.evaluate(() => { const h = getComputedStyle(document.querySelector('#head')); return /rgb\(43, 29, 20\)/.test(h.backgroundColor) && /190, 127, 74/.test(h.borderBottomColor); }));
+  ok('coffee: counts read 5v, boxes are square, the canvas is a cutting mat', await page.evaluate(() => { const cb = document.querySelector('.cb'); return !cb || parseFloat(getComputedStyle(cb).borderTopLeftRadius) <= 2; }) && await page.evaluate(() => /linear-gradient/.test(getComputedStyle(document.body).backgroundImage)));
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(250);
+  // steam is a moment: it rises for a few seconds when a page has just reached the band, and stops. At 91 to 93% it is a heart.
+  await setFills(used(0.5)); await page.waitForTimeout(100);
+  await setFills(used(0.92));
+  ok('tea: a page that has just reached the band steams, and at 92% the steam is a heart', await page.evaluate(() => { const m = document.querySelector('#foot .meter'); return m.classList.contains('steam') && m.classList.contains('perfect'); }));
+  ok('…the steam animation runs twice and stops (no loop)', await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#foot .meter .mbar'), '::before'); return c.animationIterationCount === '2'; }));
+  await page.waitForTimeout(5200);
+  ok('…and after a few seconds there is no steam', await page.evaluate(() => !document.querySelector('#foot .meter').classList.contains('steam')));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+
+  // reduced motion: no swing, no steam, no pop, no dunk. State changes still happen.
+  const rm = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+  const pg = await rm.newPage();
+  await open(pg);
+  ok('reduced motion: no steam', await pg.evaluate(() => { const m = document.querySelector('#foot .meter'); return !m.classList.contains('steam') || getComputedStyle(m.querySelector('.mbar'), '::before').content === 'none'; }));
+  await pg.hover('#head [role=tab][data-m=export]'); await pg.waitForTimeout(100);
+  ok('reduced motion: the tags do not swing, and the toast does not', await pg.evaluate(() => getComputedStyle(document.querySelector('#head [role=tab][data-m=export]')).animationName === 'none'));
+  await pg.evaluate(() => { const t = document.querySelector('#toast'); t.textContent = 'x'; t.className = 'toast on'; }); await pg.waitForTimeout(500);
+  ok('…the toast still appears, without swinging', await pg.evaluate(() => { const t = document.querySelector('#toast'); return t.classList.contains('on') && getComputedStyle(t).animationName === 'none' && getComputedStyle(t).opacity === '1'; }));
+  await pg.evaluate(() => { const i = document.querySelector('#head .logo img'); i.classList.add('dunk'); });
+  ok('…and the bag does not dunk', await pg.evaluate(() => getComputedStyle(document.querySelector('#head .logo img')).animationName === 'none'));
+  await rm.close();
+
+  // the logo dunks on a triple click (tea only), a tick pops once, and the toast hangs on a string
+  const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const p2 = await c2.newPage();
+  await open(p2);
+  await p2.click('#head .logo', { clickCount: 3 }); await p2.waitForTimeout(100);
+  ok('tea: triple-click the logo and the tea bag dunks', await p2.evaluate(() => document.querySelector('#head .logo img').classList.contains('dunk')));
+  await p2.waitForTimeout(1100);
+  await p2.click('#checklist .clg[data-g=hydra] .clcaret'); await settle(p2);
+  const box = p2.locator('#checklist .cb[data-on]:not(:checked)').first();
+  await box.click();
+  ok('tea: the tick pops once, on the line just ticked', await p2.waitForFunction(() => document.querySelector('#checklist .cb.pop:checked'), null, { timeout: 2000 }).then(() => true, () => false));
+  ok('tea: the toast hangs on a string (a hole and a string above it)', await p2.evaluate(() => { const t = document.querySelector('#toast'); return getComputedStyle(t, '::before').content !== 'none' && getComputedStyle(t, '::after').content !== 'none'; }));
+  await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(250);
+  await p2.click('#head .logo', { clickCount: 3 }); await p2.waitForTimeout(150);
+  ok('coffee: no tea shapes: the bag does not dunk, the toast has no string', !(await p2.evaluate(() => document.querySelector('#head .logo img').classList.contains('dunk'))) && await p2.evaluate(() => getComputedStyle(document.querySelector('#toast'), '::before').content === 'none'));
+  await c2.close();
+}
+
+if (want('drinks: the page marks, exports, the corner at other sizes')) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const mark = () => frameDoc(page, d => { const e = d.querySelector('.rb-sel'); return e ? getComputedStyle(e).outlineColor : null; });
+  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+  const amber = await mark();
+  ok('tea: the selection mark on the page is amber (the app’s mark, inside the frame)', amber === 'rgb(183, 122, 44)', amber);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(300);
+  ok('coffee: …and roast ink, changed in place', (await mark()) === 'rgb(28, 20, 16)', await mark());
+  const clean = await page.evaluate(async () => { const html = await window.__wb.export.buildHtml(); return { html: html.length, leaks: ['--rb-', 'rb-sel', 'data-drink', 'brewmode', 'drinks.css', 'Fira Code'].filter(w => w !== 'Fira Code' && html.includes(w)) }; });
+  ok('an export holds nothing from the app’s theme', clean.html > 1000 && clean.leaks.length === 0, JSON.stringify(clean));
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(200);
+  await page.setViewportSize({ width: 1100, height: 800 }); await page.waitForTimeout(500);
+  ok('below 1280px the corner is just the two cups: the question names the buttons, with a hint', await page.evaluate(() => { const c = document.querySelector('#brewmode'), q = c.querySelector('.bm-q'); const b = [...c.querySelectorAll('button')]; return getComputedStyle(q).display === 'none' && b.every(x => /drinking today/.test(x.getAttribute('aria-label')) && x.dataset.tip) && c.getBoundingClientRect().width < 70; }));
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(600);
+  ok('on a phone the corner is at the top right, and nothing else changed', await page.evaluate(() => { const r = document.querySelector('#brewmode').getBoundingClientRect(); return r.top < 20 && innerWidth - r.right < 20 && !document.querySelector('#rail:not([hidden])'); }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+
+  // the start screen in both drinks: a slim bar above the cards
+  for (const drink of ['tea', 'coffee']){
+    const c = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await c.newPage();
+    await open(p, '?memory&welcome', { drink });
+    ok(`${drink}: the start screen has the question as a slim bar above the cards`, await p.evaluate(() => { const b = document.querySelector('#brewmode').getBoundingClientRect(), card = document.querySelector('.obcard').getBoundingClientRect(); return b.bottom < card.top && b.top < 30 && b.width > 250 && b.height < 60; }));
+    ok(`${drink}: the cards are the drink’s own surface, and the start button is the one filled control`, await p.evaluate(d => { const c = getComputedStyle(document.querySelector('.obcard')); const prim = [...document.querySelectorAll('.obchoices button.primary')]; return c.backgroundColor === (d === 'tea' ? 'rgb(46, 70, 54)' : 'rgb(255, 255, 255)') && prim.length === 1; }, drink));
+    await c.close();
+  }
+}
+
 // The M8 accessibility pass: axe-core on every main view. axe-core is a dev tool and is not in the repo (nothing in
 // BrewCV has a dependency): AXE_CORE=/path/to/axe.min.js (from `npm install axe-core` anywhere) runs it, else it is skipped.
 if (want('accessibility: axe-core on every view')) {
@@ -1717,62 +1898,65 @@ if (want('accessibility: axe-core on every view')) {
   if (!axePath || !fs.existsSync(axePath)) console.log('skipped: set AXE_CORE to the path of axe.min.js to run it');
   else {
     const axeSrc = fs.readFileSync(axePath, 'utf8');
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true });
-    const page = await ctx.newPage();
-    const bad = await open(page);
-    const sheet = page.frameLocator('#sheet iframe');
-    const runAxe = async (pg, name) => {
-      await pg.evaluate(axeSrc);
-      const v = await pg.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 2).map(n => n.target.join(' ')).join(' | ')}`));
-      ok(`axe-core: ${name}`, v.length === 0, v.join(' ; '));
-    };
-    await runAxe(page, 'Edit, nothing selected');
-    await page.click('#checklist .clg[data-g=hydra] .clcaret'); await settle(page);
-    await runAxe(page, 'a checklist group open');
-    await sheet.locator('.bullets li').first().click(); await settle(page);
-    await runAxe(page, 'a claim');
-    await sheet.locator('.role-title').first().click(); await settle(page);
-    await page.click('details.details > summary'); await page.click('details.jr:not(.details) summary'); await settle(page);
-    await runAxe(page, 'a job with Details open');
-    await sheet.locator('.name').click(); await settle(page);
-    await runAxe(page, 'About you');
-    await page.click('[data-act=c-pop]'); await settle(page);
-    await runAxe(page, 'the + Add menu');
-    await page.click('.addm [data-what=work]'); await settle(page);
-    await runAxe(page, 'a form for something new');
-    await page.click('[data-act=c-add-cancel]'); await settle(page);
-    await page.click('[data-act=c-tl]'); await page.waitForTimeout(500);
-    await runAxe(page, 'the timeline');
-    await page.keyboard.press('Escape'); await settle(page);
-    for (const m of ['design', 'export']){ await page.click(`#head [data-m=${m}]`); await page.waitForTimeout(500); await runAxe(page, m); }
-    await page.click('#head [data-m=edit]'); await settle(page);
-    await page.click('#docname-btn'); await settle(page); await runAxe(page, 'the switcher');
-    await page.click('#switcher [data-act=sw-manage]'); await settle(page); await runAxe(page, 'the grown switcher');
-    await page.click('#switcher [data-act=sw-view][data-v=date]'); await settle(page); await runAxe(page, 'the grown switcher by date');
-    await page.keyboard.press('Escape'); await settle(page);
-    await page.click('#zoompct'); await settle(page); await runAxe(page, 'the zoom settings');
-    await page.keyboard.press('Escape');
-    await page.click('[data-act=help]'); await settle(page); await runAxe(page, 'the shortcut sheet');
-    await page.keyboard.press('Escape');
-    await page.evaluate(() => window.__wb.setView('settings')); await settle(page); await runAxe(page, 'Settings');
-    await page.evaluate(() => window.__wb.setView(null));
-    await page.keyboard.press('Escape'); await settle(page);
-    await runAxe(page, 'folded: the rail and the vertical bar');
-    ok('no console errors', bad.length === 0, bad[0] ?? '');
-    await ctx.close();
-    const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true });
-    const p2 = await c2.newPage();
-    await open(p2, '?memory&welcome');
-    await runAxe(p2, 'the start screen');
-    await p2.click('[data-act=ob-scratch]'); await settle(p2); await runAxe(p2, 'the language step');
-    await p2.click('[data-act=ob-lang-go]'); await p2.waitForTimeout(900); await runAxe(p2, 'the quiet editor');
-    await c2.close();
-    const c3 = await browser.newContext({ viewport: { width: 1100, height: 800 }, bypassCSP: true });
-    const p3 = await c3.newPage();
-    await open(p3, undefined, { panel: null });
-    await p3.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(p3);
-    await runAxe(p3, 'the drawer under 1280px');
-    await c3.close();
+    // tea and coffee, each in light and dark: the same views, the same rules
+    for (const [drink, theme] of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']]){
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true, colorScheme: theme });
+      const page = await ctx.newPage();
+      const bad = await open(page, undefined, { drink, theme });
+      const sheet = page.frameLocator('#sheet iframe');
+      const runAxe = async (pg, name) => {
+        await pg.evaluate(axeSrc);
+        const v = await pg.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map(n => n.target.join(' ') + (n.any?.[0]?.data?.contrastRatio ? ` [${n.any[0].data.fgColor} on ${n.any[0].data.bgColor} ${n.any[0].data.contrastRatio}]` : '')).join(' | ')}`));
+        ok(`axe-core, ${drink} ${theme}: ${name}`, v.length === 0, v.join(' ; '));
+      };
+      await runAxe(page, 'Edit, nothing selected');
+      await page.click('#checklist .clg[data-g=hydra] .clcaret'); await settle(page);
+      await runAxe(page, 'a checklist group open');
+      await sheet.locator('.bullets li').first().click(); await settle(page);
+      await runAxe(page, 'a claim');
+      await sheet.locator('.role-title').first().click(); await settle(page);
+      await page.click('details.details > summary'); await page.click('details.jr:not(.details) summary'); await settle(page);
+      await runAxe(page, 'a job with Details open');
+      await sheet.locator('.name').click(); await settle(page);
+      await runAxe(page, 'About you');
+      await page.click('[data-act=c-pop]'); await settle(page);
+      await runAxe(page, 'the + Add menu');
+      await page.click('.addm [data-what=work]'); await settle(page);
+      await runAxe(page, 'a form for something new');
+      await page.click('[data-act=c-add-cancel]'); await settle(page);
+      await page.click('[data-act=c-tl]'); await page.waitForTimeout(500);
+      await runAxe(page, 'the timeline');
+      await page.keyboard.press('Escape'); await settle(page);
+      for (const m of ['design', 'export']){ await page.click(`#head [data-m=${m}]`); await page.waitForTimeout(500); await runAxe(page, m); }
+      await page.click('#head [data-m=edit]'); await settle(page);
+      await page.click('#docname-btn'); await settle(page); await runAxe(page, 'the switcher');
+      await page.click('#switcher [data-act=sw-manage]'); await settle(page); await runAxe(page, 'the grown switcher');
+      await page.click('#switcher [data-act=sw-view][data-v=date]'); await settle(page); await runAxe(page, 'the grown switcher by date');
+      await page.keyboard.press('Escape'); await settle(page);
+      await page.click('#zoompct'); await settle(page); await runAxe(page, 'the zoom settings');
+      await page.keyboard.press('Escape');
+      await page.click('[data-act=help]'); await settle(page); await runAxe(page, 'the shortcut sheet');
+      await page.keyboard.press('Escape');
+      await page.evaluate(() => window.__wb.setView('settings')); await settle(page); await runAxe(page, 'Settings');
+      await page.evaluate(() => window.__wb.setView(null));
+      await page.keyboard.press('Escape'); await settle(page);
+      await runAxe(page, 'folded: the rail and the vertical bar');
+      ok(`${drink} ${theme}: no console errors`, bad.length === 0, bad[0] ?? '');
+      await ctx.close();
+      const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true, colorScheme: theme });
+      const p2 = await c2.newPage();
+      await open(p2, '?memory&welcome', { drink, theme });
+      await runAxe(p2, 'the start screen');
+      await p2.click('[data-act=ob-scratch]'); await settle(p2); await runAxe(p2, 'the language step');
+      await p2.click('[data-act=ob-lang-go]'); await p2.waitForTimeout(900); await runAxe(p2, 'the quiet editor');
+      await c2.close();
+      const c3 = await browser.newContext({ viewport: { width: 1100, height: 800 }, bypassCSP: true, colorScheme: theme });
+      const p3 = await c3.newPage();
+      await open(p3, undefined, { panel: null, drink, theme });
+      await p3.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(p3);
+      await runAxe(p3, 'the drawer under 1280px');
+      await c3.close();
+    }
   }
 }
 

@@ -25,7 +25,7 @@ const vals = x => x;
 // beside 🗑; and, in the one-screen rework (UX-2), the hint paragraphs (keys, drag, versions), the "From
 // Career …" lines and the sort-of-duplicate "Title and meta line" rows.
 const M10_ADDS = html => String(html)
-  .replace(/<button class="ghost sm" data-act="delete-claim"[^>]*>🗑<\/button>/g, '')
+  .replace(/<button class="ghost sm" data-act="delete-claim"[^>]*>(?:🗑|<svg class="ico"[^>]*>.*?<\/svg>)<\/button>/g, '')
   .replace(/<button class="ghost sm" data-act="(?:un)?archive-claim"[^>]*>[^<]*<\/button>/g, '')
   .replace(', <kbd>Esc</kbd> goes back', '')
   .replace(/\n\s*<label class="field addclaim">[\s\S]*?<\/label>/g, '')
