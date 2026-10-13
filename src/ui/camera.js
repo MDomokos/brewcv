@@ -11,8 +11,7 @@ export const FADE = 0.35;             // the page that is not bright
 export const OVERSHOOT = 60;          // how far a pan may be pulled past its limit, at most (px)
 export const MAGNET = 35, BOUNCE = 8; // defaults: round 3 found 60 and 25 too strong
 export const SNAP_FIT = 0.05;         // a zoom within this of the fit view snaps to it
-export const KEEP = 2 / 3;            // at least this share of the view keeps part of the pages in it, sideways
-export const KEEP_Y = 0.9;            // …and up and down, where a page runs the whole height: it never goes far off
+export const KEEP_Y = 0.9;            // up and down, where a page runs the whole height: it never goes far off
 
 export const rowWidth = (w, n) => n * w + Math.max(0, n - 1) * PAGE_GAP;
 export const pageLeft = (geo, i) => i * (geo.w + PAGE_GAP);
@@ -50,13 +49,16 @@ export function zoomAbout(cam, k2, px, py){
 // A zoom close to the fit view is the fit view. zoom is relative: 1 is the fit scale.
 export const snapZoom = z => (Math.abs(z - 1) < SNAP_FIT ? 1 : z);
 
-// Where x and y may go: never so far that less than two thirds of the view (or the whole page, if that is less) keeps part of the pages.
+// Where x and y may go. Sideways: pages that fit the view (with the margin G each side) stay centred on its middle and cannot be panned;
+// zoomed in, they may go until an edge is G in from the view's edge, never further. Up and down: never so far that less than
+// nine tenths of the view (or the whole page, if that is less) keeps part of the pages.
 export function limits(cam, geo, view){
   const W = rowWidth(geo.w, geo.n) * cam.k, H = geo.h * cam.k;
-  const kx = Math.min(view.width * KEEP, W), ky = Math.min(view.height * KEEP_Y, H);
-  return { minX: view.left + kx - W, maxX: view.left + view.width - kx, minY: view.top + ky - H, maxY: view.top + view.height - ky };
+  const ky = Math.min(view.height * KEEP_Y, H);
+  const c = midX(view) - W / 2, lo = view.left + view.width - G - W, hi = view.left + G;
+  const fits = lo >= hi;
+  return { minX: fits ? c : Math.min(lo, c), maxX: fits ? c : Math.max(hi, c), minY: view.top + ky - H, maxY: view.top + view.height - ky };
 }
-
 // A value pulled past its limit: it follows at first, then gets heavier, and stops about `max` px past.
 export function rubber(v, lo, hi, max = OVERSHOOT){
   if (v > hi){ const o = v - hi; return hi + (max * o) / (o + max); }
@@ -66,7 +68,7 @@ export function rubber(v, lo, hi, max = OVERSHOOT){
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const softCam = (cam, geo, view, max = OVERSHOOT) => {
   const L = limits(cam, geo, view);
-  return { ...cam, x: rubber(cam.x, L.minX, L.maxX, max), y: rubber(cam.y, L.minY, L.maxY, max) };
+  return { ...cam, x: L.minX === L.maxX ? L.minX : rubber(cam.x, L.minX, L.maxX, max), y: rubber(cam.y, L.minY, L.maxY, max) };
 };
 export const hardCam = (cam, geo, view) => {
   const L = limits(cam, geo, view);

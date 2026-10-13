@@ -531,11 +531,18 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     // a drag on the bare canvas pans, within the limits
     await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(60, 470, { steps: 4 }); await page.mouse.up(); await page.waitForTimeout(900);
     const c1 = await camOf(page);
-    ok('a drag on the bare canvas pans the pages and leaves them there', c1.free && Math.abs(c1.x - (c0.x + 46)) < 3 && Math.abs(c1.y - (c0.y + 20)) < 3, `${c1.x - c0.x}, ${c1.y - c0.y}`);
+    ok('a drag on the bare canvas pans the pages up and down and leaves them there; sideways they stay centred, as they fit the room', c1.free && Math.abs(c1.x - c0.x) < 1 && Math.abs(c1.y - (c0.y + 20)) < 3, `${c1.x - c0.x}, ${c1.y - c0.y}`);
     ok('…and the wheel now pans too (the pages are not in their place)', await (async () => { await wheel(page, 60, 0, [700, 450]); await page.waitForTimeout(700); return Math.abs((await camOf(page)).y - (c1.y - 60)) < 3; })());
     await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(1000, 450, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(1200);
-    const far = await camOf(page), lim = await page.evaluate(() => window.__wb.canvas.limits());
-    ok('pulled far past the edge it springs back to the soft limit (two thirds of the view stay in the pages)', far.x <= lim.maxX + 0.5 && far.x > lim.maxX - 4, `${far.x.toFixed(1)} vs ${lim.maxX.toFixed(1)}`);
+    ok('pulled far sideways with the pages fitting: they are still centred where they were', Math.abs((await camOf(page)).x - c0.x) < 0.5, `${(await camOf(page)).x} vs ${c0.x}`);
+    // zoomed in so they do not fit: they pan until the page edge is G inside the view's edge, and no further
+    await page.evaluate(() => window.__wb.canvas.zoomTo(2, undefined, { animate: false })); await page.evaluate(() => document.activeElement?.blur()); await page.waitForTimeout(500);
+    for (const [to, edge] of [[1, 'maxX'], [-1, 'minX']]){
+      await page.mouse.move(to > 0 ? 100 : 1300, 450); await page.keyboard.down('Space'); await page.mouse.down(); await page.mouse.move(to > 0 ? 1250 : 50, 450, { steps: 8 }); await page.mouse.up(); await page.keyboard.up('Space'); await page.waitForTimeout(1200);
+      const far = await camOf(page), lim = await page.evaluate(() => window.__wb.canvas.limits()), v = await page.evaluate(() => window.__wb.canvas.view);
+      const G = 16, shown = await page.evaluate(() => { const c = window.__wb.canvas, g = c.geo; return import('/src/ui/layout.js').then(L => ({ left: c.cam.x, right: c.cam.x + (g.n * g.w + (g.n - 1) * L.PAGE_GAP) * c.cam.k })); });
+      ok(`zoomed in and pulled far ${to > 0 ? 'right' : 'left'}: it springs back to ${to > 0 ? 'the left' : 'the right'} edge of the pages, G inside the view`, Math.abs(far.x - lim[edge]) < 0.6 && (to > 0 ? Math.abs(shown.left - (v.left + G)) < 0.6 : Math.abs(shown.right - (v.left + v.width - G)) < 0.6), `${far.x.toFixed(1)} vs ${lim[edge].toFixed(1)}`);
+    }
     await page.keyboard.press('0'); await page.waitForTimeout(700);
     const home = await camOf(page);
     ok('0 puts it all back', !home.free && Math.abs(home.x - c0.x) < 1 && Math.abs(home.y - c0.y) < 1 && home.zoom === 1);
@@ -543,10 +550,10 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     await page.evaluate(() => document.activeElement?.blur());          // (E leaves the focus on the open tab: Space would press it)
     await page.mouse.move(700, 450); await page.keyboard.down('Space'); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up(); await page.keyboard.up('Space'); await page.waitForTimeout(900);
     const c2 = await camOf(page);
-    ok('Space and drag pans, even over a page, and does not select what is under it', c2.free && Math.abs(c2.x - (c0.x - 60)) < 3 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none', `${c2.x - c0.x}`);
+    ok('Space and drag pans, even over a page, and does not select what is under it', c2.free && Math.abs(c2.x - c0.x) < 1 && Math.abs(c2.y - (c0.y - 50)) < 3 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none', `${c2.x - c0.x}`);
     await page.keyboard.press('0'); await page.waitForTimeout(700);
     await page.mouse.move(700, 450); await page.mouse.down({ button: 'middle' }); await page.mouse.move(720, 470, { steps: 3 }); await page.mouse.up({ button: 'middle' }); await page.waitForTimeout(900);
-    ok('the middle button pans too', Math.abs((await camOf(page)).x - (c0.x + 20)) < 3);
+    ok('the middle button pans too (up and down: the pages fit sideways)', Math.abs((await camOf(page)).y - (c0.y + 20)) < 3 && Math.abs((await camOf(page)).x - c0.x) < 1);
     await page.keyboard.press('0'); await page.waitForTimeout(700);
     // a pinch: Chrome and Edge send Ctrl and the wheel; it zooms about the pointer
     const pt = [800, 300];
