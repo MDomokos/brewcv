@@ -46,6 +46,10 @@ To see it: right-click the page and choose *View Page Source*. The line starts w
 
 The policy is a seat belt on top of the claim, not the claim itself. The claim holds because the code never sends your data anywhere, and `checks/csp-check.mjs` and the network panel are how you'd catch a change.
 
+## The desktop build
+
+The experimental macOS app (see [DEVELOPMENT.md](DEVELOPMENT.md#desktop-build-macos-preview)) runs the same page from files inside the app, not from a website. Its policy is the page's policy with one addition: `connect-src` also lists `ipc:` and `http://ipc.localhost`, which Tauri uses to talk to the app's own native side on this computer (the Save dialog and writing the PDF). The web page's policy is unchanged, and `checks/desktop-check.mjs` fails if the desktop copy's rule leaks into it. The app has no update check yet, so it makes no network requests of its own; when one is added, it will be listed here.
+
 ## What it can't promise
 
 - **Browser extensions.** An extension can read any page you open, BrewCV included, and the policy doesn't bind it. Look at what you've installed.

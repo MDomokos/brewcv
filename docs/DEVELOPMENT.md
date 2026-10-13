@@ -187,6 +187,19 @@ npx @tauri-apps/cli@2.12.2 build --debug --no-bundle         # stages, then buil
 npx @tauri-apps/cli@2.12.2 icon icons/icon.svg -o src-tauri/icons   # after the icon changes (then delete android/ and ios/)
 ```
 
+### Rules the desktop PDF export depends on
+
+Each of these was learned from a failure on a Mac; the checks and comments name them where they can.
+
+- **Only the modal print call.** `print_pdf` (`src-tauri/src/lib.rs`) uses `runOperationModalForWindow`. Plain `runOperation` blocks the main thread, freezes the app and wrote a PDF that grew past 600 MB. When testing a change to it, keep a guard that kills the app and deletes any test PDF over 50 MB.
+- **The print window needs the app's CSP rules for styles, fonts and images.** The export is one page with inline `<style>` and `data:` fonts. `desktop/print.html` must allow them or the PDF is unstyled serif text; `checks/desktop-check.mjs` asserts it. Scripts there stay limited to the app's own files.
+- **Paper follows the format.** The page size in CSS px (`pageSize()` in `src/ui/layout.js`) times 0.75 is the paper in points, so Letter prints on Letter. WebKit still takes the sheet size from the stylesheet's `@page`, which is why `.page` is one pixel shorter in print (`themes/b2-marker.css`): A4 is 1122.5 px, the page box 1123 px, and the sliver made a blank page after every page.
+- **Print CSS stays plain.** macOS's PDF engine drew dark fringes round a gradient with hard `transparent` edges (the highlighter); it is one solid band now. Avoid transparent gradient stops, masks, blend modes and blurred shadows in anything the print path loads.
+- **No ligatures** (`font-variant-ligatures: none` on `html, body`). The macOS engine wrote the "ff" glyph as "!" in the text layer, which breaks copy-paste and ATS parsers. Off everywhere so the screen, Fit and every export wrap the same.
+- **File names are NFC.** macOS can hold names with decomposed accents, and Tauri then serves its own page instead of the file (the example resumes failed to load). The stage script normalises names, and `loadExample` skips an example that comes back as a page.
+
+Not in the desktop build yet: folder linking (WKWebView has no `showDirectoryPicker`), the updater, a Windows or Linux PDF save (they fall back to the print dialog), a release build with signing and notarization. The Version line in Settings shows a dash, because `sw.js` is not staged.
+
 ## The one package.json
 
 `{"type": "module"}`, three lines, no dependencies and no scripts. Node needs it to read `src/render.js` as an ES module when `scripts/render.mjs` imports it; without it, older Node treats a `.js` file as CommonJS and the import fails. It is not a build step and nothing installs from it. `playwright` stays confined to `checks/`; `scripts/export-pdf.mjs` drives an installed Chrome, Chromium, Brave or Edge over the DevTools protocol (set `CHROME_PATH` to choose one), and the app runs without any of it.
