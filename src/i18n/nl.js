@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'De bamboemat rolt uit over het raster.',
   'ux4.fxExport': 'Exporteren',
   'ux4.fxDone': 'Klaar',
+  'ux5a.helpHint': '? toont de sneltoetsen',
 };

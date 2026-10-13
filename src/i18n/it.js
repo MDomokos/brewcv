@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'La stuoia di bambù si srotola sopra la griglia.',
   'ux4.fxExport': 'Esporta',
   'ux4.fxDone': 'Fatto',
+  'ux5a.helpHint': '? mostra le scorciatoie',
 };

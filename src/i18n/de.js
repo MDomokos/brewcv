@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'Die Bambusmatte rollt sich über dem Raster aus.',
   'ux4.fxExport': 'Export',
   'ux4.fxDone': 'Fertig',
+  'ux5a.helpHint': '? zeigt die Tastenkürzel',
 };

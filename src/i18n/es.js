@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'La esterilla de bambú se desenrolla sobre la cuadrícula.',
   'ux4.fxExport': 'Exportar',
   'ux4.fxDone': 'Listo',
+  'ux5a.helpHint': '? muestra los atajos',
 };

@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'A bambuszszőnyeg kigördül a rács fölé.',
   'ux4.fxExport': 'Exportálás',
   'ux4.fxDone': 'Kész',
+  'ux5a.helpHint': 'A ? megmutatja a billentyűparancsokat',
 };

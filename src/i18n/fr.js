@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'Le tapis de bambou se déroule sur la grille.',
   'ux4.fxExport': 'Exporter',
   'ux4.fxDone': 'Terminé',
+  'ux5a.helpHint': '? affiche les raccourcis',
 };

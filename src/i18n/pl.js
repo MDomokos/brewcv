@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'Bambusowa mata rozwija się nad siatką.',
   'ux4.fxExport': 'Eksport',
   'ux4.fxDone': 'Gotowe',
+  'ux5a.helpHint': '? pokazuje skróty klawiszowe',
 };

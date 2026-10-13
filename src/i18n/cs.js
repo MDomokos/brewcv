@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'Bambusová rohož se rozvine přes mřížku.',
   'ux4.fxExport': 'Export',
   'ux4.fxDone': 'Hotovo',
+  'ux5a.helpHint': '? zobrazí klávesové zkratky',
 };

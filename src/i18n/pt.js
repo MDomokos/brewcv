@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'A esteira de bambu desenrola-se sobre a grelha.',
   'ux4.fxExport': 'Exportar',
   'ux4.fxDone': 'Pronto',
+  'ux5a.helpHint': '? mostra os atalhos',
 };

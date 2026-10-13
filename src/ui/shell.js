@@ -387,7 +387,6 @@ function pick({ variant, section, page = -1 }){
     if (writes && ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit();
   }
   if (other) canvas.goToPage(page);
-  if (next.kind !== 'none') help.firstTime();
 }
 // the page a selection is on (the claim for a bullet, the title for a job), or -1
 function pageOfSel(sel){
@@ -669,7 +668,7 @@ function renderBody(animate = false){
   el.dataset.mode = 'edit';
   const main = s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s, { details: false }) : s.kind === 'section' ? edit.sectionView(s)
     : ['header', 'record', 'add', 'kind'].includes(s.kind) ? career.panel(s) : edit.homeView();
-  el.innerHTML = main + jobTail(s) + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
+  el.innerHTML = (help.hintDue ? `<p class="tiny muted kbdhint">${h('ux5a.helpHint')}</p>` : '') + main + jobTail(s) + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
   el.dataset.view = s.kind;
   el.dataset.editing = edit.editing ? edit.editing.mode : '';
   finish();

@@ -1196,4 +1196,5 @@ export default {
   'ux4.logoToTeaTip': 'The bamboo mat unrolls over the grid.',
   'ux4.fxExport': 'Export',
   'ux4.fxDone': 'Done',
+  'ux5a.helpHint': '? shows the shortcuts',
 };

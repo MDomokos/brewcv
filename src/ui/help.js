@@ -1,5 +1,5 @@
 // The shortcut sheet: every key the editor answers to, in one place instead of a hint under every panel.
-// It opens from the ? button or the ? key, and once by itself the first time something on the page is selected.
+// It opens from the ? button or the ? key. Until it has been opened once, the Edit panel carries a one-line hint (src/ui/shell.js).
 
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
@@ -32,6 +32,7 @@ function open(from = null){
   el.innerHTML = html();
   el.hidden = false;
   markSeen();
+  for (const n of document.querySelectorAll('.kbdhint')) n.remove();
   el.querySelector('[data-act=help-close]')?.focus();
 }
 function close(){
@@ -51,7 +52,6 @@ export function initHelp(ctx){
   el.addEventListener('keydown', e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); close(); } });
   return {
     open, close, toggle: () => (el.hidden ? open() : close()), get isOpen(){ return !el.hidden; },
-    // the first time something on the page is selected
-    firstTime(){ if (!seen()) open(null); },
+    get hintDue(){ return !seen(); },
   };
 }
