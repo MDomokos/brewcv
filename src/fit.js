@@ -267,8 +267,9 @@ function withHighlight(ctx, R, pi, si, job, h, vid){
   const R2 = structuredClone(R);
   const ref = jobRef(R2, pi, si, job);
   const order = ctx.ix.work.get(job).highlights;
-  const set = new Set([...ref.highlights, h]);
-  ref.highlights = order.filter(x => set.has(x));
+  // keep the listed order; the new bullet goes before the first listed one that follows it in the record
+  const after = ref.highlights.findIndex(x => order.indexOf(x) > order.indexOf(h));
+  ref.highlights.splice(after < 0 ? ref.highlights.length : after, 0, h);
   if (vid) R2.picks = { ...R2.picks, [h]: vid };
   return R2;
 }

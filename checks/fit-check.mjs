@@ -283,6 +283,20 @@ section('a moved job: its place is its priority');
     && flipped.res.recipe.sections.find(s => s.id === 'experience').order.join() === [...ids].reverse().join());
 }
 
+section('a reordered job: the order of bullets survives Fit');
+{
+  const J = G.work.reduce((a, x) => x.highlights.length > a.highlights.length ? x : a), hs = J.highlights, rev = [...hs].reverse();
+  const hl = r => r.recipe.sections.find(s => s.id === 'experience').work.find(x => x.id === J.id)?.highlights ?? [];
+  const mk = list => onePager({ sections: [{ id: 'experience', weight: 5, work: [{ id: J.id, highlights: list }] }, { id: 'skills', weight: 3 }, { id: 'patent', weight: 2 }, { id: 'education', weight: 2 }] });
+  const g = { usable: 956, lineH: 18.41, furniture: 6.7 };
+  const tight = await fit(G, mk(rev), { measure: modelMeasure(G, { ...g, usable: 330 }) , add: false });
+  const kept = hl(tight);
+  ok('a tight page cuts from the bottom of the listed order and keeps the rest in it', !tight.error && kept.length > 0 && kept.length < rev.length && kept.join() === rev.slice(0, kept.length).join(), JSON.stringify([tight.error, kept]));
+  const two = rev.slice(0, 2), loose = await fit(G, mk(two), { measure: modelMeasure(G, { ...g, usable: 5000 }), add: true });
+  const got = hl(loose);
+  ok('an added bullet does not reorder the ones already listed', !loose.error && got.length > 2 && got.filter(h => two.includes(h)).join() === two.join(), JSON.stringify([loose.error, got]));
+}
+
 section('stability');
 {
   const a = await run('first fit', G, full, { add: true, quiet: true });
