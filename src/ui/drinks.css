@@ -325,3 +325,15 @@ html[data-drink="coffee"] .tab .ti, html[data-drink="coffee"] .tab.is-open .ti, 
 html[data-drink="coffee"] .tabfoot, html[data-drink="coffee"] .tabs.is-folded .tab, html[data-drink="coffee"] .tabs.is-folded .tabfoot { border-radius: var(--r-l); box-shadow: inset 0 0 0 1px var(--line-strong); }
 html[data-drink="coffee"] .tabs.is-folded .tab.is-open, html[data-drink="coffee"] .tabs.is-folded .tab.also { margin-right: 0; width: 54px; }
 html[data-drink="coffee"] .zoombar { border: 1px solid var(--line-strong); }
+
+/* Tea, folded: the tags hang on one thread through a punched hole near each top (decoration: no clicks, nothing for a reader).
+   Under 1700px the thread runs up out of the frame; wider, it starts at a small loop 14px above the first tag. */
+html[data-drink="tea"] .tabs.is-folded .tablist { position: relative; }
+html[data-drink="tea"] .tabs.is-folded .tablist::before { content: ""; position: absolute; left: 26.2px; top: -100vh; bottom: 51.5px; width: 1.6px; background: var(--thread); pointer-events: none; }
+html[data-drink="tea"] .tabs.is-folded .tab { transform-origin: 50% 8.5px; }
+html[data-drink="tea"] .tabs.is-folded .tab::after { display: block; content: ""; position: absolute; inset: 5px auto auto 23.5px; width: 7px; height: 7px; border-radius: 50%; pointer-events: none;
+  background: linear-gradient(var(--thread), var(--thread)) center / 1.6px 100% no-repeat, var(--hole); }
+@media (min-width: 1700px) {
+  html[data-drink="tea"] .tabs.is-folded .tablist::before { top: -14px; }
+  html[data-drink="tea"] .tabs.is-folded .tablist::after { content: ""; position: absolute; left: 21px; top: -26px; width: 12px; height: 12px; box-sizing: border-box; border: 1.6px solid var(--thread); border-radius: 50%; pointer-events: none; }
+}
