@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Ordner verknüpfen…',
   'menu.linkNeeds': 'Ordner verknüpfen geht nur in Chrome oder Edge',
   'menu.unlink': 'Nicht mehr in {name} schreiben',
-  'menu.backup': 'In Datei speichern',
   'menu.history': 'Verlauf und Sicherungspunkte…',
   'menu.example': 'Beispiel laden',
   'menu.startOver': 'Neu anfangen…',

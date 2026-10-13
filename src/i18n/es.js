@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Vincular una carpeta…',
   'menu.linkNeeds': 'Vincular una carpeta requiere Chrome o Edge',
   'menu.unlink': 'Dejar de escribir en {name}',
-  'menu.backup': 'Guardar en un archivo',
   'menu.history': 'Historial y puntos de control…',
   'menu.example': 'Cargar el ejemplo',
   'menu.startOver': 'Empezar de cero…',

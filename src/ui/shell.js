@@ -476,7 +476,7 @@ function drawHead(){
   const saving = st.status === 'saving' || st.status === 'pending';
   const saveText = st.status === 'error' ? t('ux1.saveFailed') : saving ? t('head.saving') : t('ux1.savedDevice');
   const saved = `<span class="si ${st.status === 'error' ? 'bad' : saving ? '' : 'ok'}" aria-hidden="true">${st.status === 'error' ? icon('warn', { size: 12 }) : saving ? '…' : icon('check', { size: 12 })}</span><span class="stext2">${esc(st.status === 'error' ? saveText : saving ? t('head.saving') : t('ux2.savedShort'))}</span><span class="sr">${esc(saveText)}${st.status === 'error' && st.error ? ': ' + esc(st.error) : ''}</span>`;
-  const meta = r ? [jobTypeLabel(store.state.record, r.jobType), (r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
+  const meta = r ? [jobTypeLabel(store.state.record, r.jobType), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const snap = snapNow();
   const mode = dock.modeOf();
@@ -584,7 +584,6 @@ function menuHtml(){
   const linked = persist.status.linked;
   return `<div class="menu card" role="menu">
     <button role="menuitem" data-act="goto" data-v="import">${h('menu.open')}</button>
-    <button role="menuitem" data-act="save-file">${h('menu.backup')}</button>
     <button role="menuitem" data-act="${linked ? 'unlink' : 'link'}" ${'showDirectoryPicker' in window || linked ? '' : `disabled title="${esc(t('menu.linkNeeds'))}"`}>${linked ? h('menu.unlink', { name: linked }) : h('menu.link')}</button>
     <button role="menuitem" data-act="goto" data-v="history">${h('menu.history')}</button>
     <hr>

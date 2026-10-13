@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Collega una cartella…',
   'menu.linkNeeds': 'Per collegare una cartella serve Chrome o Edge',
   'menu.unlink': 'Smetti di scrivere in {name}',
-  'menu.backup': 'Salva in un file',
   'menu.history': 'Cronologia e checkpoint…',
   'menu.example': 'Carica l’esempio',
   'menu.startOver': 'Ricomincia da capo…',

@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Połącz folder…',
   'menu.linkNeeds': 'Łączenie folderu wymaga Chrome lub Edge',
   'menu.unlink': 'Przestań zapisywać do {name}',
-  'menu.backup': 'Zapisz do pliku',
   'menu.history': 'Historia i punkty kontrolne…',
   'menu.example': 'Wczytaj przykład',
   'menu.startOver': 'Zacznij od nowa…',

@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Link a folder…',
   'menu.linkNeeds': 'Linking a folder needs Chrome or Edge',
   'menu.unlink': 'Stop writing to {name}',
-  'menu.backup': 'Save to file',
   'menu.history': 'History and checkpoints…',
   'menu.example': 'Load the example',
   'menu.startOver': 'Start over…',

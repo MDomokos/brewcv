@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Lier un dossier…',
   'menu.linkNeeds': 'Lier un dossier nécessite Chrome ou Edge',
   'menu.unlink': 'Ne plus écrire dans {name}',
-  'menu.backup': 'Enregistrer dans un fichier',
   'menu.history': 'Historique et points de sauvegarde…',
   'menu.example': 'Charger l’exemple',
   'menu.startOver': 'Tout recommencer…',

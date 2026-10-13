@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Map koppelen…',
   'menu.linkNeeds': 'Een map koppelen kan alleen in Chrome of Edge',
   'menu.unlink': 'Stoppen met schrijven naar {name}',
-  'menu.backup': 'Opslaan in bestand',
   'menu.history': 'Geschiedenis en herstelpunten…',
   'menu.example': 'Voorbeeld laden',
   'menu.startOver': 'Opnieuw beginnen…',

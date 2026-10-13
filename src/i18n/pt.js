@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Ligar uma pasta…',
   'menu.linkNeeds': 'Ligar uma pasta requer Chrome ou Edge',
   'menu.unlink': 'Deixar de escrever em {name}',
-  'menu.backup': 'Guardar num ficheiro',
   'menu.history': 'Histórico e pontos de restauro…',
   'menu.example': 'Carregar o exemplo',
   'menu.startOver': 'Recomeçar…',

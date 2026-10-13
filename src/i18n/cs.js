@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Propojit složku…',
   'menu.linkNeeds': 'Propojení složky vyžaduje Chrome nebo Edge',
   'menu.unlink': 'Přestat zapisovat do {name}',
-  'menu.backup': 'Uložit do souboru',
   'menu.history': 'Historie a kontrolní body…',
   'menu.example': 'Načíst ukázku',
   'menu.startOver': 'Začít znovu…',

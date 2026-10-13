@@ -25,7 +25,6 @@ export default {
   'menu.link': 'Mappa csatolása…',
   'menu.linkNeeds': 'Mappa csatolásához Chrome vagy Edge kell',
   'menu.unlink': 'Írás leállítása ide: {name}',
-  'menu.backup': 'Mentés fájlba',
   'menu.history': 'Előzmények és mentési pontok…',
   'menu.example': 'Példa betöltése',
   'menu.startOver': 'Újrakezdés…',
