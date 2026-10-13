@@ -1,0 +1,49 @@
+app-id: io.github.MDomokos.BrewCV
+runtime: org.gnome.Platform
+# GNOME 51 (freedesktop 26.08): current stable runtime, still ships webkit2gtk-4.1 (what Tauri 2 links) and GTK 3.
+runtime-version: '51'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable   # the crate needs Rust 1.90 or newer
+  - org.freedesktop.Sdk.Extension.node22        # only to run scripts/desktop-stage.mjs (no npm packages)
+command: brewcv
+
+# Privacy claim: nothing leaves the computer, so there is NO --share=network and no broad --filesystem.
+# The Save dialog and Link a folder go through the XDG file-chooser portal (GTK uses it automatically in a sandbox);
+# the app then reaches only what the person picked, through the document portal.
+finish-args:
+  - --socket=wayland        # show the window on Wayland
+  - --socket=fallback-x11   # ...or on X11 when there is no Wayland
+  - --share=ipc             # X11 shared memory; without it X11 rendering is broken
+  - --device=dri            # GPU for WebKitGTK compositing; try removing it if software rendering is acceptable
+  # If the window is blank on some drivers, test with these (do not ship them unless needed):
+  #   --env=WEBKIT_DISABLE_COMPOSITING_MODE=1   or   --env=WEBKIT_DISABLE_DMABUF_RENDERER=1
+  # Option, not default: --filesystem=xdg-documents lets Link a folder keep real paths if the portal paths prove stale.
+
+modules:
+  - name: brewcv
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node22/bin
+      env:
+        CARGO_HOME: /run/build/brewcv/cargo
+    sources:
+      # The checkout this manifest sits in. Build output and flatpak-builder's own folders are skipped.
+      - type: dir
+        path: ..
+        skip: [.git, .flatpak-builder, flatpak_app, repo, _desktop, node_modules, src-tauri/target, src-tauri/gen]
+      # Rust crates, vendored offline; regenerate with scripts/flatpak-sources.sh after Cargo.lock changes.
+      - cargo-sources.json
+    build-commands:
+      # tauri.conf.json's beforeBuildCommand, done by hand because the Tauri CLI is not used: stage the frontend.
+      - node scripts/desktop-stage.mjs
+      # the deploy's privacy gate on the staged copy, as beforeBuildCommand does: nothing private goes into the binary
+      - node checks/preflight-deploy.mjs _desktop --app
+      # custom-protocol is what the Tauri CLI adds for a release build: it embeds _desktop/ instead of loading a dev URL.
+      - cargo --offline build --release --locked --manifest-path src-tauri/Cargo.toml --features tauri/custom-protocol
+      - install -Dm755 src-tauri/target/release/brewcv /app/bin/brewcv
+      - install -Dm644 flatpak/io.github.MDomokos.BrewCV.desktop /app/share/applications/io.github.MDomokos.BrewCV.desktop
+      - install -Dm644 flatpak/io.github.MDomokos.BrewCV.metainfo.xml /app/share/metainfo/io.github.MDomokos.BrewCV.metainfo.xml
+      - install -Dm644 icons/icon.svg /app/share/icons/hicolor/scalable/apps/io.github.MDomokos.BrewCV.svg
+      - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/io.github.MDomokos.BrewCV.png
+      - install -Dm644 src-tauri/icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/io.github.MDomokos.BrewCV.png

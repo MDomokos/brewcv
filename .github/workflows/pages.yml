@@ -42,6 +42,9 @@ jobs:
             --exclude '_site' \
             --exclude 'node_modules' \
             --exclude 'out' \
+            --exclude 'src-tauri' \
+            --exclude 'desktop' \
+            --exclude 'flatpak' \
             --exclude 'docs/*.png' \
             --exclude 'docs/*.gif' \
             --exclude '*.local.json' \

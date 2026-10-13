@@ -110,6 +110,7 @@ node checks/garden-check.mjs          the tea garden in Chromium (slow, about tw
                                       rain, creatures, the pause, coffee, the setting, the print gate, axe (AXE_CORE=...)
 node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,
                                       no inline script; no outside address in any fetch
+node checks/flatpak-check.mjs         the Flatpak files agree: one app id and version, no network or broad file access, cargo-sources.json current, a workflow that only runs by hand or on a tag
 node checks/preload-check.mjs         index.html preloads exactly the modules shell.js imports (or loads on demand), and sw.js caches them
 node checks/i18n-review-check.mjs     the translation review sheets: the CSV, and --apply on a temporary copy
 node checks/career-check.mjs          the record's model (timeline, lists, add / edit / delete, projects, kinds), its forms (a field commits when
@@ -182,12 +183,13 @@ Every script that takes `<data.json>` except `checks/validate-data.mjs` reads ei
 
 ## Desktop build (macOS, preview)
 
-An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Link a folder works too (below); updates are not in this build.
+An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. The stage script leaves out what the website's deploy leaves out (`*.local.json`, `resume-data.json`, `data/recipes/`): `data/identity.local.json` is ignored by git but sits in the working tree, and the app would embed it in its binary. `beforeBuildCommand` then runs `checks/preflight-deploy.mjs _desktop --app`, the deploy's privacy gate without its web-only requirements (`sw.js`, `.nojekyll`), and the build stops on a finding. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Link a folder works too (below); updates are not in this build.
 
 Prerequisites: Rust (`brew install rustup`, then `rustup default stable`) and the Tauri CLI, which is not a dependency of this repo. Run it with `npx @tauri-apps/cli@2.12.2 ...` (or `cargo install tauri-cli --version '~2.12'` and `cargo tauri ...`). The `tauri` crate is pinned to a minor version because the raw WKWebView types behind the PDF export can change between minors.
 
 ```
 node scripts/desktop-stage.mjs                              # only the staging
+node checks/preflight-deploy.mjs _desktop --app              # the deploy's gate on the staged copy (the build runs it too)
 npx @tauri-apps/cli@2.12.2 build --debug --no-bundle         # stages, then builds src-tauri/target/debug/brewcv
 npx @tauri-apps/cli@2.12.2 icon icons/icon.svg -o src-tauri/icons   # after the icon changes (then delete android/ and ios/)
 ```
@@ -215,6 +217,24 @@ Each of these was learned from a failure on a Mac; the checks and comments name 
 - **File names are NFC.** macOS can hold names with decomposed accents, and Tauri then serves its own page instead of the file (the example resumes failed to load). The stage script normalises names, and `loadExample` skips an example that comes back as a page.
 
 Not in the desktop build yet: the updater, a Windows or Linux PDF save (they fall back to the print dialog), a release build with signing and notarization. The Version line in Settings shows a dash, because `sw.js` is not staged.
+
+## Desktop build (Linux, Flatpak)
+
+Experimental, and **never built or run by the author**: the files were written and checked as text on a Mac (`node checks/flatpak-check.mjs`). Expect the first real build to need fixes.
+
+- **Files.** `flatpak/io.github.MDomokos.BrewCV.yml` (manifest), `.metainfo.xml`, `.desktop`, `cargo-sources.json` (generated), and `src-tauri/tauri.linux.conf.json`. Tauri merges `tauri.<platform>.conf.json` over `tauri.conf.json`; this one changes only `identifier` to the Flatpak id, because on Linux the identifier is the GTK application id and Wayland matches the `.desktop` file and icon by it. macOS and Windows keep `dev.brewcv.app`. `checks/flatpak-check.mjs` fails if the id, the version (package.json, tauri.conf.json, Cargo.toml, metainfo) or the installed files drift apart.
+- **Runtime.** GNOME 51 (freedesktop 26.08) with the `rust-stable` and `node22` SDK extensions. It ships `webkit2gtk-4.1`, which Tauri 2 links. When GNOME 52 or later drops 4.1, or 51 reaches end of life, change `runtime-version`.
+- **Offline build.** Rust crates come from `cargo-sources.json`, made from `src-tauri/Cargo.lock` by flatpak-builder-tools' `flatpak-cargo-generator.py`; the manifest points `CARGO_HOME` at it and runs `cargo --offline build --release`. Node only runs `node scripts/desktop-stage.mjs` (no npm packages), which is the `beforeBuildCommand` the Tauri CLI would have run. The CLI is not used, so the manifest passes `--features tauri/custom-protocol`, which the CLI adds for a release build: without it the binary looks for a dev server instead of the embedded `_desktop/`.
+- **Local build** (on Linux, with `flatpak` and `flatpak-builder`, and Flathub added):
+  ```
+  flatpak-builder --user --install --install-deps-from=flathub --force-clean build-dir flatpak/io.github.MDomokos.BrewCV.yml
+  flatpak run io.github.MDomokos.BrewCV
+  ```
+- **After Cargo.lock changes**, run `scripts/flatpak-sources.sh` (needs `python3` and `pip install aiohttp tomlkit`) and commit `flatpak/cargo-sources.json`; the check fails while it is stale.
+- **CI bundle.** `.github/workflows/flatpak.yml` runs by hand (Actions > Flatpak > Run workflow) or on a `v*` tag, builds with `flatpak/flatpak-github-actions` and keeps `BrewCV-x86_64.flatpak` as a workflow artifact. It runs in the `gnome-51` image (the one that matches the manifest's runtime; `checks/flatpak-check.mjs` keeps the two in step) and deploys nothing. The build stages the app like the macOS one and runs the deploy's privacy gate on it (`node checks/preflight-deploy.mjs _desktop --app`). The website's deploy leaves `flatpak/`, `src-tauri/` and `desktop/` out of the site (`pages.yml`), or its own preflight would refuse the icons and config. Install it with `flatpak install --user BrewCV-x86_64.flatpak` (the GNOME 51 runtime is fetched from Flathub), remove it with `flatpak uninstall --user io.github.MDomokos.BrewCV`.
+- **Sandbox.** Wayland or X11, shared IPC and the GPU; no network and no `--filesystem`. The Save dialog and Link a folder use GTK's file chooser, which goes through the XDG desktop portal inside a Flatpak (the host needs `xdg-desktop-portal` and a backend). The picked folder is then reached through the document portal, at a path such as `/run/user/1000/doc/<id>/<folder>`, and `tauri-plugin-persisted-scope` saves that path. What to test: reconnect after a relaunch and after a logout, and whether Syncthing or another tool on the real folder sees the writes. If the path goes stale, `--filesystem=xdg-documents` is a narrow fallback, at the price that the app can then read and write all of Documents.
+- **PDF.** Linux has no save-to-file print call (WebKit bug 212814), so `print_pdf` answers "unsupported" and the page uses its print dialog, where the person chooses "Print to File". The dialog comes from GTK and also goes through a portal.
+- **Not tested:** everything above: the build, the WebKitGTK window (some drivers show a blank one; the manifest comments name the two `WEBKIT_*` variables to try), the icon and name on Wayland and X11, the portal dialogs, aarch64, and screenshots (Flathub needs them; the metainfo has a TODO).
 
 ## The one package.json
 

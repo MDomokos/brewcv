@@ -18,6 +18,10 @@ export const FILES = ['index.html', 'manifest.webmanifest', 'scripts/lib/html.mj
 // connect-src stays 'self' in the web build; only this staged copy adds the desktop IPC schemes
 export const IPC = "connect-src 'self' ipc: http://ipc.localhost";
 
+// What the website's deploy leaves out (.github/workflows/pages.yml) stays out of the app as well: a private file that is only
+// ignored by git (data/identity.local.json, a library or recipes someone dropped in data/) must not be embedded in a binary.
+export const isPrivate = rel => /\.local\.json$/.test(rel) || /(^|\/)resume-data\.json$/.test(rel) || /^data\/recipes\//.test(rel) || /\.jsonresume\.json$/.test(rel);
+
 const nfc = rel => rel.split('/').map(s => s.normalize('NFC')).join('/');
 
 function put(rel, data){
@@ -35,7 +39,7 @@ function* walk(dir){
 
 export function stage(){
   fs.rmSync(OUT, { recursive: true, force: true });
-  const files = [...FILES, ...DIRS.flatMap(d => [...walk(d)])].filter(f => f !== '.DS_Store' && !f.endsWith('/.DS_Store'));
+  const files = [...FILES, ...DIRS.flatMap(d => [...walk(d)])].filter(f => f !== '.DS_Store' && !f.endsWith('/.DS_Store') && !isPrivate(f));
   for (const f of files){
     let data = fs.readFileSync(path.join(ROOT, f));
     if (f === 'index.html'){
