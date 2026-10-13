@@ -445,5 +445,36 @@ section('the grown switcher: the Date and Company views');
   ok('…the named groups are in alphabetical order', co.slice(0, -1).every((g, i, l) => !i || l[i - 1].label.localeCompare(g.label, undefined, { sensitivity: 'base' }) <= 0));
 }
 
+section('accents in file names (composed and decomposed are one name)');
+{
+  const nfc = 'Ingénieure conception', nfd = nfc.normalize('NFD');
+  ok('the fixture really differs', nfc !== nfd);
+  ok('a saved resume\'s file name has composed accents', S.resumeFileName({ name: nfd }) === `${nfc}.json`);
+  ok('index.json lists composed names', names.every(n => n === n.normalize('NFC')));
+  ok('a name typed either way is taken', RS.uniqueId([{ id: `${nfc}.json` }], { name: nfd }) === `${nfc} 2.json`);
+  const st = exampleState();
+  const store = createStore(st);
+  const folder = memoryFolder();
+  const p = createPersist({ store, backend: memoryBackend(), debounceMs: 0, setTimer: (fn) => { fn(); return 0; }, clearTimer: () => {} });
+  await p.link(folder);
+  store.commit(d => { RS.duplicate(d, names[0], { name: nfc }); }, 'Save');
+  store.commit(d => { RS.duplicate(d, names[0], { name: nfd }); }, 'Save');
+  await p.flush();
+  const files = (await folder.list('recipes')).filter(n => n.startsWith('Ingénieure'));
+  ok('two resumes named the same way write two files, never one over the other', files.length === 2 && files.every(n => n === n.normalize('NFC')), files.join(' | '));
+  const disk = memoryFolder({ 'resume-data.json': folder._files.get('resume-data.json'), [`recipes/${nfd}.json`]: folder._files.get(`recipes/${nfc}.json`) });
+  const back = await readFolder(disk);
+  ok('a file a Mac or a sync tool named with decomposed accents opens under the composed name', back.state.resumes.length === 1 && back.state.resumes[0].id === `${nfc}.json`, JSON.stringify(back.state.resumes.map(r => r.id)));
+  const text = folder._files.get(`recipes/${nfc}.json`);
+  const twin = memoryFolder({ 'resume-data.json': folder._files.get('resume-data.json'), [`recipes/${nfd}.json`]: text, [`recipes/${nfc}.json`]: text });
+  const both = await readFolder(twin);
+  ok('both spellings with the same text load once, silently', both.state.resumes.length === 1 && both.state.resumes[0].id === `${nfc}.json` && both.warnings.length === 0, JSON.stringify(both.warnings));
+  const later = JSON.parse(text); later.meta.resumeBuilder.resume.savedAt = '2099-01-01'; later.meta.resumeBuilder.resume.company = 'Newer Co';
+  const diff = memoryFolder({ 'resume-data.json': folder._files.get('resume-data.json'), [`recipes/${nfd}.json`]: JSON.stringify(later), [`recipes/${nfc}.json`]: text });
+  const merged = await readFolder(diff);
+  ok('two different ones: the one saved last opens, under the composed name', merged.state.resumes.length === 1 && merged.state.resumes[0].company === 'Newer Co' && merged.state.resumes[0].id === `${nfc}.json`);
+  ok('…and the other is named in a warning, not removed', merged.warnings.some(w => /same name/.test(w)) && diff._files.has(`recipes/${nfc}.json`) && diff._files.has(`recipes/${nfd}.json`));
+}
+
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');
 process.exit(failed ? 1 : 0);

@@ -3,7 +3,7 @@
 // written, and a declined permission just stops the mirror.
 
 import { t, keyed } from '../i18n/index.js';
-import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, ensureRecordId } from '../model/schema.js';
+import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId } from '../model/schema.js';
 import { assetRefs } from './store.js';
 
 // The one file you save and open yourself. Never translated.
@@ -138,8 +138,8 @@ export function filesOf(state){
   const used = new Set();
   for (const r of state?.resumes ?? []){
     let name = resumeFileName(r), n = 2;
-    while (used.has(name.toLowerCase())) name = resumeFileName(r).replace(/\.json$/, ` ${n++}.json`);
-    used.add(name.toLowerCase());
+    while (used.has(nameKey(name))) name = resumeFileName(r).replace(/\.json$/, ` ${n++}.json`);
+    used.add(nameKey(name));
     out.set(`recipes/${name}`, serialize(saveResume(state.record, stripId(r), state.frozen?.[r.id] ?? null).file));
   }
   return out;
@@ -168,16 +168,31 @@ export async function readFolder(folder){
   const { model, warnings } = load(JSON.parse(text));
   const resumes = [], frozen = {};
   const skipped = [];
+  // one saved resume can be on disk under two spellings of its name (composed or decomposed accents): the files are
+  // grouped by that, and a group is one resume
+  const groups = new Map();
   for (const name of await folder.list('recipes')){
     if (!name.endsWith('.json')) continue;
     const from = conflictCopy(name);
     if (from){ skipped.push(name); warnings.push(`skipped recipes/${name}: a conflict copy made by ${from}`); continue; }
-    try {
-      const got = loadResume(JSON.parse(await folder.read(`recipes/${name}`)), model);
-      resumes.push({ ...got.recipe, id: name });
-      if (got.frozen) frozen[name] = got.frozen;
+    const k = nameKey(name);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(name);
+  }
+  for (const names of groups.values()){
+    names.sort((x, y) => Number(y === y.normalize('NFC')) - Number(x === x.normalize('NFC')));   // the name the app writes first
+    const read = [];
+    for (const name of names){
+      try { const text = await folder.read(`recipes/${name}`); read.push({ name, text, got: loadResume(JSON.parse(text), model) }); }
+      catch (e){ warnings.push(`recipes/${name}: ${e.message}`); }
     }
-    catch (e){ warnings.push(`recipes/${name}: ${e.message}`); }
+    if (!read.length) continue;
+    // the one saved last wins, the composed name on a tie; a copy with the same text is no news, a different one stays on disk, untouched
+    const keep = read.reduce((a, b) => (b.got.recipe.savedAt ?? '') > (a.got.recipe.savedAt ?? '') ? b : a);
+    for (const o of read) if (o !== keep && o.text !== keep.text) warnings.push(`recipes/${o.name}: same name as recipes/${keep.name} once accents are composed; the one saved last is open and this file is left as it is`);
+    const id = keep.name.normalize('NFC');
+    resumes.push({ ...keep.got.recipe, id });
+    if (keep.got.frozen) frozen[id] = keep.got.frozen;
   }
   return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped };
 }
@@ -213,7 +228,7 @@ export function openVerdict({ file, last, localRecordId, changes }){
 function uniqueName(list, recipe){
   const base = resumeFileName(recipe);
   let id = base, n = 2;
-  while (list.some(r => r.id.toLowerCase() === id.toLowerCase())) id = base.replace(/\.json$/, ` ${n++}.json`);
+  while (list.some(r => nameKey(r.id) === nameKey(id))) id = base.replace(/\.json$/, ` ${n++}.json`);
   return id;
 }
 

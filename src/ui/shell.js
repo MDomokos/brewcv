@@ -171,7 +171,8 @@ async function loadExample({ quiet = false } = {}){
   // all at once; the order of `names` is kept
   const files = await Promise.all(names.map(async n => {
     const r = await fetch(`./data/example-resumes/${encodeURIComponent(n)}`, { cache: 'no-cache' });
-    return r.ok ? r.json() : null;
+    // a server that answers a missing file with its own page (Tauri does) must not stop the start
+    return r.ok ? r.json().catch(() => null) : null;
   }));
   for (const [i, n] of names.entries()){
     if (!files[i]) continue;

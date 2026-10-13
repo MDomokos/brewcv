@@ -13,7 +13,7 @@
 
 import { t, keyed } from '../i18n/index.js';
 import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant } from './resume.js';
-import { resumeFileName } from './schema.js';
+import { resumeFileName, nameKey } from './schema.js';
 import { switchLang } from './lang.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
 
@@ -25,10 +25,10 @@ export const nameFrom = ({ company = '', role = '', jobLabel = '' } = {}) => [St
 
 // unique case-insensitively
 export function uniqueId(resumes, recipe, except = null){
-  const taken = new Set((resumes ?? []).filter(r => r.id !== except).map(r => String(r.id).toLowerCase()));
+  const taken = new Set((resumes ?? []).filter(r => r.id !== except).map(r => nameKey(r.id)));
   const base = resumeFileName(recipe);
   let id = base, n = 2;
-  while (taken.has(id.toLowerCase())) id = base.replace(/\.json$/, ` ${n++}.json`);
+  while (taken.has(nameKey(id))) id = base.replace(/\.json$/, ` ${n++}.json`);
   return id;
 }
 

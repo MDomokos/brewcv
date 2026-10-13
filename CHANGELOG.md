@@ -4,6 +4,12 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 0.8.0 is the first public release. Versions before it were never deployed or tagged. Each minor version up to 0.7 was a milestone, and each patch version a step within it. Their entries are grouped by feature, not by type of change.
 
+## Unreleased
+
+### Fixed
+- **A resume named with accents keeps its name, whichever way the accents were typed.** A letter such as é pasted or synced as "e plus an accent" used to lose the accent and split the word ("Inge nieure") in the saved file's name. Names are now composed first, two names that differ only in that way count as the same name (so one saved resume can no longer write over another in a linked folder on a Mac), and a file a Mac or a sync tool named the other way opens under the composed name. If the folder holds one resume under both spellings, it opens once: a copy with the same text is dropped silently, and when they differ the one saved last opens and the other is named in a warning and left as it is.
+- **One example resume that cannot be read no longer stops the app from starting.** If a server answers a missing file with a page of its own, that example is skipped and the rest load.
+
 ## 1.0.0 - 2026-10-13
 
 ### Added
