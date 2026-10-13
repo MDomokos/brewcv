@@ -1035,7 +1035,6 @@ export default {
   'ux2.zoomFit': 'Pokaż całą stronę',
   'ux2.zoomFitTip': 'Klawisz 0',
   'ux2.zoomSettings': 'Ustawienia powiększenia',
-  'ux2.zoomSettingsTip': 'Jak duża jest strona podczas pisania, i panel',
   'ux2.zoomWrite': 'Powiększenie podczas pisania',
   'ux2.panelMode': 'Panel edycji',
   'ux2.panel.auto': 'Auto',
@@ -1196,4 +1195,6 @@ export default {
   'ux4.fxExport': 'Eksport',
   'ux4.fxDone': 'Gotowe',
   'ux5a.helpHint': '? pokazuje skróty klawiszowe',
+  'ux5a.viewHead': 'Strona i panel',
+  'ux5a.zoomTip': 'Strona w rzeczywistym rozmiarze',
 };

@@ -1035,7 +1035,6 @@ export default {
   'ux2.zoomFit': 'Zobrazit celou stranu',
   'ux2.zoomFitTip': 'Klávesa 0',
   'ux2.zoomSettings': 'Nastavení zvětšení',
-  'ux2.zoomSettingsTip': 'Jak velká je strana při psaní, a panel',
   'ux2.zoomWrite': 'Zvětšení při psaní',
   'ux2.panelMode': 'Panel úprav',
   'ux2.panel.auto': 'Auto',
@@ -1196,4 +1195,6 @@ export default {
   'ux4.fxExport': 'Export',
   'ux4.fxDone': 'Hotovo',
   'ux5a.helpHint': '? zobrazí klávesové zkratky',
+  'ux5a.viewHead': 'Stránka a panel',
+  'ux5a.zoomTip': 'Stránka ve skutečné velikosti',
 };

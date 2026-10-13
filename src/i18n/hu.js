@@ -1035,7 +1035,6 @@ export default {
   'ux2.zoomFit': 'Az egész oldal mutatása',
   'ux2.zoomFitTip': '0 billentyű',
   'ux2.zoomSettings': 'Nagyítás beállításai',
-  'ux2.zoomSettingsTip': 'Mekkora az oldal íráskor, és a panel',
   'ux2.zoomWrite': 'Nagyítás íráskor',
   'ux2.panelMode': 'Szerkesztőpanel',
   'ux2.panel.auto': 'Auto',
@@ -1196,4 +1195,6 @@ export default {
   'ux4.fxExport': 'Exportálás',
   'ux4.fxDone': 'Kész',
   'ux5a.helpHint': 'A ? megmutatja a billentyűparancsokat',
+  'ux5a.viewHead': 'Oldal és panel',
+  'ux5a.zoomTip': 'Az oldal valódi méretben',
 };

@@ -1035,7 +1035,6 @@ export default {
   'ux2.zoomFit': 'Ganze Seite zeigen',
   'ux2.zoomFitTip': 'Taste 0',
   'ux2.zoomSettings': 'Zoom-Einstellungen',
-  'ux2.zoomSettingsTip': 'Wie groß die Seite beim Schreiben ist, und das Feld',
   'ux2.zoomWrite': 'Zoom beim Schreiben',
   'ux2.panelMode': 'Bearbeitungsfeld',
   'ux2.panel.auto': 'Auto',
@@ -1196,4 +1195,6 @@ export default {
   'ux4.fxExport': 'Export',
   'ux4.fxDone': 'Fertig',
   'ux5a.helpHint': '? zeigt die Tastenkürzel',
+  'ux5a.viewHead': 'Seite und Panel',
+  'ux5a.zoomTip': 'Die Seite in echter Größe',
 };

@@ -1035,7 +1035,6 @@ export default {
   'ux2.zoomFit': 'Ver toda la página',
   'ux2.zoomFitTip': 'Tecla 0',
   'ux2.zoomSettings': 'Ajustes del zoom',
-  'ux2.zoomSettingsTip': 'Qué tamaño tiene la página al escribir, y el panel',
   'ux2.zoomWrite': 'Zoom al escribir',
   'ux2.panelMode': 'Panel de edición',
   'ux2.panel.auto': 'Auto',
@@ -1196,4 +1195,6 @@ export default {
   'ux4.fxExport': 'Exportar',
   'ux4.fxDone': 'Listo',
   'ux5a.helpHint': '? muestra los atajos',
+  'ux5a.viewHead': 'Página y panel',
+  'ux5a.zoomTip': 'La página a su tamaño real',
 };

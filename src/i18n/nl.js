@@ -1035,7 +1035,6 @@ export default {
   'ux2.zoomFit': 'De hele pagina tonen',
   'ux2.zoomFitTip': 'Toets 0',
   'ux2.zoomSettings': 'Zoominstellingen',
-  'ux2.zoomSettingsTip': 'Hoe groot de pagina is als je schrijft, en het paneel',
   'ux2.zoomWrite': 'Zoom tijdens het schrijven',
   'ux2.panelMode': 'Bewerkpaneel',
   'ux2.panel.auto': 'Auto',
@@ -1196,4 +1195,6 @@ export default {
   'ux4.fxExport': 'Exporteren',
   'ux4.fxDone': 'Klaar',
   'ux5a.helpHint': '? toont de sneltoetsen',
+  'ux5a.viewHead': 'Pagina en paneel',
+  'ux5a.zoomTip': 'De pagina op ware grootte',
 };

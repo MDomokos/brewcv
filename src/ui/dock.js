@@ -226,7 +226,7 @@ function drawFoot(){
   const view = `<div class="vbar" role="toolbar" aria-label="${esc(t('ux2.viewBar'))}">
       ${ib('fullscreen', 'full', t('head.fullscreen'), t('ux2.fullTip'), '', tipPos)}
       ${ib('zoom-out', 'minus', t('ux2.zoomOut'), t('ux2.zoomOutTip'), u.zoom <= ZOOM_MIN + 1e-9 ? 'disabled' : '', tipPos)}
-      <button class="pct" id="zoompct" data-act="zoom-pop" aria-haspopup="dialog" aria-expanded="${!!u.zpop}" data-tip="${esc(t('ux2.zoomSettings'))}|${esc(t('ux2.zoomSettingsTip'))}" data-tip-pos="${tipPos}" aria-label="${esc(t('ux2.zoomSettings'))}">${pct}%</button>
+      <button class="pct" id="zoompct" data-act="zoom-pop" aria-haspopup="dialog" aria-expanded="${!!u.zpop}" data-tip="${esc(t('ux2.zoomSettings'))}|${esc(t('ux5a.zoomTip'))}" data-tip-pos="${tipPos}" aria-label="${esc(t('ux2.zoomSettings'))}">${pct}%</button>
       ${ib('zoom-in', 'plus', t('ux2.zoomIn'), t('ux2.zoomInTip'), u.zoom >= ZOOM_MAX - 1e-9 ? 'disabled' : '', tipPos)}
       ${ib('zoom-fit', 'fitpage', t('ux2.zoomFit'), t('ux2.zoomFitTip'), '', tipPos)}
     </div>`;
@@ -245,28 +245,48 @@ function drawFoot(){
   renderPop();
 }
 
-// ---- the zoom settings pop-up ----
+// ---- the zoom pop-up: Actual size ----
 function renderPop(){
   const el = $('#zpop');
   if (!el) return;
   el.hidden = !C.ui.zpop;
   if (!C.ui.zpop){ el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="prow"><button class="sm" data-act="actual">${h('ux2.actualSize')}</button></div>`;
+}
+
+// ---- the page and panel settings, shown in Settings (settings.js) ----
+// Their keys and read functions are above; this draws them and applies a change at once.
+export function viewSettingsHtml(){
   const zw = readZoomWrite(), pref = C.ui.panel, soft = readContrast() === 'soft';
   const dial = (id, key, v, lo, hi, step = 1) => `<label class="dial"><span class="dl">${h(key)}</span><output id="${id}-out">${v}%</output><input type="range" id="${id}" min="${lo}" max="${hi}" step="${step}" value="${v}" aria-label="${esc(t(key))}"></label>`;
   const multi = (C.ui.fills?.length ?? 1) > 1;
-  el.innerHTML = `<label class="swl"><input type="checkbox" class="sw" id="zwon" ${readZoomWriteOn() ? 'checked' : ''}><span>${h('ux3.zoomWriteOn')}</span></label>
+  return `<label class="swl"><input type="checkbox" class="sw" id="zwon" ${readZoomWriteOn() ? 'checked' : ''}><span>${h('ux3.zoomWriteOn')}</span></label>
     <label class="dial"><span class="dl">${h('ux2.zoomWrite')}</span><output id="zw-out">${zw}%</output><input type="range" id="zw" min="${ZOOM_WRITE.min}" max="${ZOOM_WRITE.max}" step="${ZOOM_WRITE.step}" value="${zw}" aria-label="${esc(t('ux2.zoomWrite'))}"></label>
     ${dial('dimline', 'ux3.dimLine', readDimLine(), DIM.line.min, DIM.line.max)}${dial('dimjob', 'ux3.dimJob', readDimJob(), DIM.job.min, DIM.job.max)}
     ${multi ? dial('magnet', 'ux3.magnet', readMagnet(), TRAVEL.magnet.min, TRAVEL.magnet.max) + dial('bounce', 'ux3.bounce', readBounce(), TRAVEL.bounce.min, TRAVEL.bounce.max) : ''}
     <div class="prow"><span id="pm-l">${h('ux2.panelMode')}</span><div class="seg" role="group" aria-labelledby="pm-l">${PANEL_MODES.map(m => `<button data-act="panel-mode" data-pm="${m}" aria-pressed="${pref === m}">${h(`ux2.panel.${m}`)}</button>`).join('')}</div></div>
     <label class="swl"><input type="checkbox" class="sw" id="contrast" ${soft ? '' : 'checked'}><span>${h('ux2.sharper')}</span></label>
-    <div class="prow"><button class="sm" data-act="actual">${h('ux2.actualSize')}</button></div>
     <p class="note">${h('ux2.zoomNote')}</p>`;
+}
+// a slider moved (input) or a switch flipped (change) in Settings
+export function viewSettingChanged(e){
+  const el = e.target, v = Number(el.value), out = document.getElementById(`${el.id}-out`);
+  if (e.type === 'input'){
+    if (el.id === 'zw'){ set(ZOOMW_KEY, v); C.ui.zoomWrite = v; }
+    else if (el.id === 'dimline'){ set(DIMLINE_KEY, v); C.layers?.(); }
+    else if (el.id === 'dimjob'){ set(DIMJOB_KEY, v); C.layers?.(); }
+    else if (el.id === 'magnet'){ set(MAGNET_KEY, v); C.canvas.set({ magnet: v }); }
+    else if (el.id === 'bounce'){ set(BOUNCE_KEY, v); C.canvas.set({ bounce: v }); }
+    if (out) out.textContent = `${v}%`;
+  } else {
+    if (el.id === 'contrast'){ set(CONTRAST_KEY, el.checked ? 'sharp' : 'soft'); applyContrast(); }
+    if (el.id === 'zwon') set(ZOOMON_KEY, el.checked ? '1' : '0');
+  }
 }
 function openPop(on){
   C.ui.zpop = on ?? !C.ui.zpop;
   renderFoot();
-  if (C.ui.zpop) $('#zpop [data-act=panel-mode][aria-pressed=true], #zpop input')?.focus();
+  if (C.ui.zpop) $('#zpop button')?.focus();
   else $('#zoompct')?.focus();
 }
 
@@ -288,14 +308,13 @@ async function act(a, tg){
     case 'zoom-pop': openPop(); return true;
     case 'panel-toggle': togglePanel(); return true;
     case 'panel-open': setPanel('open'); return true;
-    case 'panel-mode': { openPopKeep(() => setPanel(tg.dataset.pm)); return true; }
+    case 'panel-mode': setPanel(tg.dataset.pm); C.renderAll(); return true;
     case 'rail-mode': { C.ui.panel !== 'open' && setPanel('open'); setMode(tg.dataset.m); return true; }
     case 'mode': setMode(tg.dataset.m); return true;
     case 'goto-page': C.goToPage(Number(tg.dataset.page)); return true;
   }
   return false;
 }
-function openPopKeep(fn){ fn(); renderPop(); }
 
 function onKey(e){
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
@@ -327,19 +346,6 @@ function bind(){
   pop.id = 'zpop'; pop.className = 'card zpop'; pop.hidden = true;
   pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', t('ux2.zoomSettings'));
   $('#col').append(pop);
-  pop.addEventListener('input', e => {
-    const v = Number(e.target.value), out = document.getElementById(`${e.target.id}-out`);
-    if (e.target.id === 'zw'){ set(ZOOMW_KEY, v); C.ui.zoomWrite = v; }
-    else if (e.target.id === 'dimline'){ set(DIMLINE_KEY, v); C.layers?.(); }
-    else if (e.target.id === 'dimjob'){ set(DIMJOB_KEY, v); C.layers?.(); }
-    else if (e.target.id === 'magnet'){ set(MAGNET_KEY, v); C.canvas.set({ magnet: v }); }
-    else if (e.target.id === 'bounce'){ set(BOUNCE_KEY, v); C.canvas.set({ bounce: v }); }
-    if (out) out.textContent = `${v}%`;
-  });
-  pop.addEventListener('change', e => {
-    if (e.target.id === 'contrast'){ set(CONTRAST_KEY, e.target.checked ? 'sharp' : 'soft'); applyContrast(); }
-    if (e.target.id === 'zwon') set(ZOOMON_KEY, e.target.checked ? '1' : '0');
-  });
   pop.addEventListener('keydown', e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); openPop(false); } });
   document.addEventListener('mousedown', e => { if (C.ui.zpop && !e.target.closest('#zpop') && !e.target.closest('#zoompct')) openPop(false); });
   $('#head').addEventListener('keydown', onModesKey);

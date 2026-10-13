@@ -8,6 +8,7 @@ import { langName, langsInUse, setLangsInUse } from '../model/lang.js';
 import { t, h, errText, MACHINE, UI_LANGS } from '../i18n/index.js';
 import { DRINKS, THEMES, drink, themePref, setDrink, setThemePref } from './drink.js';
 import { readReduce, setReduce } from './motion.js';
+import { viewSettingsHtml, viewSettingChanged } from './dock.js';
 
 let C = null;
 export function initSettings(ctx){ C = ctx; return api; }
@@ -82,6 +83,8 @@ function settingsView(){
       ${THEMES.map(m => `<label class="opt"><input type="radio" name="theme" data-theme="${m}" ${themePref() === m ? 'checked' : ''}><span class="opt-t">${h(`m11.theme${m[0].toUpperCase()}${m.slice(1)}`)}</span></label>`).join('')}
     </div>
     <p class="note">${h('m11.themeNote')}</p>
+    <span class="lbl">${h('ux5a.viewHead')}</span>
+    ${viewSettingsHtml()}
     <span class="lbl">${h('set.startHead')}</span>
     <div class="btns"><button class="sm" data-act="set-ask-again">${h('set.askAgain')}</button></div>
     <p class="note">${h('set.thisBrowser')}</p>
@@ -115,9 +118,11 @@ async function act(a, tg){
 }
 
 function bind(body){
+  body.addEventListener('input', e => { if (e.target.closest?.('[data-mode=settings]') && e.target.type === 'range') viewSettingChanged(e); });
   body.addEventListener('change', e => {
     const el = e.target;
     if (!el.closest?.('[data-mode=settings]')) return;
+    if (el.id === 'zwon' || el.id === 'contrast'){ viewSettingChanged(e); return; }
     if (el.dataset.langtick){
       const l = el.dataset.langtick, on = el.checked;
       const now = langsInUse(C.store.state.record);
