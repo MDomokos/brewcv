@@ -45,7 +45,8 @@ const everSeen = new Set(
   git('log', '--all', '--pretty=format:', '--name-only', '--diff-filter=AM')
     .split('\n').map(s => s.trim()).filter(Boolean));
 for (const f of everSeen){
-  if (/^(src-tauri\/)?icons\//.test(f) || /^docs\/[^/]+\.(png|gif)$/i.test(f)) continue;
+  // docs/moments/*.gif are recordings of the app on the example data (a fictional person), looked at frame by frame before they were added
+  if (/^(src-tauri\/)?icons\//.test(f) || /^docs\/[^/]+\.(png|gif)$/i.test(f) || /^docs\/moments\/[^/]+\.gif$/i.test(f)) continue;
   for (const [re, what] of NEVER)
     if (re.test(f)){ findings.push({ kind: 'file', detail: `${f}: ${what}` }); break; }
 }
