@@ -7,7 +7,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Added
-- **An experimental macOS desktop build.** A Tauri app (`src-tauri/`) that runs the same BrewCV from its own window. In it, Export > PDF asks for a file name once and saves the PDF there, with no print dialog. Other systems fall back to the print dialog. See Desktop build in docs/DEVELOPMENT.md.
+- **An experimental macOS desktop build.** A Tauri app (`src-tauri/`) that runs the same BrewCV from its own window. In it, Export > PDF asks for a file name once and saves the PDF there, with no print dialog. Other systems fall back to the print dialog. See Desktop build in docs/DEVELOPMENT.md. What goes into the app is checked the way the website's deploy is: files that only git ignores (`*.local.json`, a library, recipes) are left out, and the build stops if the staged copy holds anything private.
 - **Link a folder in the desktop app.** The macOS app can mirror your record and saved resumes to a folder you pick, as Chrome and Edge do, and it reconnects to that folder when you reopen the app, without asking again. If the folder has moved or been deleted, the app asks you to pick it again.
 
 ### Fixed

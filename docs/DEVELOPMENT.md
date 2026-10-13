@@ -177,12 +177,13 @@ Every script that takes `<data.json>` except `checks/validate-data.mjs` reads ei
 
 ## Desktop build (macOS, preview)
 
-An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Link a folder works too (below); updates are not in this build.
+An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. The stage script leaves out what the website's deploy leaves out (`*.local.json`, `resume-data.json`, `data/recipes/`): `data/identity.local.json` is ignored by git but sits in the working tree, and the app would embed it in its binary. `beforeBuildCommand` then runs `checks/preflight-deploy.mjs _desktop --app`, the deploy's privacy gate without its web-only requirements (`sw.js`, `.nojekyll`), and the build stops on a finding. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Link a folder works too (below); updates are not in this build.
 
 Prerequisites: Rust (`brew install rustup`, then `rustup default stable`) and the Tauri CLI, which is not a dependency of this repo. Run it with `npx @tauri-apps/cli@2.12.2 ...` (or `cargo install tauri-cli --version '~2.12'` and `cargo tauri ...`). The `tauri` crate is pinned to a minor version because the raw WKWebView types behind the PDF export can change between minors.
 
 ```
 node scripts/desktop-stage.mjs                              # only the staging
+node checks/preflight-deploy.mjs _desktop --app              # the deploy's gate on the staged copy (the build runs it too)
 npx @tauri-apps/cli@2.12.2 build --debug --no-bundle         # stages, then builds src-tauri/target/debug/brewcv
 npx @tauri-apps/cli@2.12.2 icon icons/icon.svg -o src-tauri/icons   # after the icon changes (then delete android/ and ios/)
 ```

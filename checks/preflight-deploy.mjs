@@ -11,6 +11,9 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const ROOT = path.resolve(process.argv[2] ?? '.');
+// --app: a desktop build's staged copy (scripts/desktop-stage.mjs). Nothing private may be in it either, but a service worker and
+// .nojekyll belong to the website, so they are not required.
+const APP = process.argv.includes('--app');
 
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'out', '.github']);
 const TEXT = /\.(html|css|js|mjs|json|webmanifest|md|txt|svg|yml|yaml)$/i;
@@ -211,7 +214,7 @@ for (const f of files){
   }
 }
 
-const need = ['index.html', 'manifest.webmanifest', 'sw.js', '.nojekyll',
+const need = ['index.html', 'manifest.webmanifest', ...(APP ? [] : ['sw.js', '.nojekyll']),
               'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
               'icons/icon-maskable-512.png', 'data/example.json'];
 for (const n of need)

@@ -5,7 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT, DIRS, FILES, IPC } from '../scripts/desktop-stage.mjs';
+import { ROOT, DIRS, FILES, IPC, isPrivate } from '../scripts/desktop-stage.mjs';
 
 let failed = 0;
 const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${!cond && extra ? `  — ${extra}` : ''}`); if (!cond) failed++; };
@@ -30,6 +30,10 @@ ok('every file it names exists', FILES.every(f => fs.existsSync(path.join(ROOT, 
 const names = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/example-resumes/index.json'), 'utf8'));
 const bad = names.filter(n => n !== n.normalize('NFC'));
 ok('every name in data/example-resumes/index.json is NFC', !bad.length, bad.join(', '));
+
+// the website's deploy drops these (pages.yml); so must the app, which would embed them in its binary
+ok('private files are not staged: *.local.json, a library, recipes', ['data/identity.local.json', 'x/y.local.json', 'data/resume-data.json', 'data/recipes/a.json', 'data/me.jsonresume.json'].every(isPrivate)
+  && !['data/example.json', 'data/example-resumes/index.json', 'src/ui/shell.js'].some(isPrivate));
 
 const csp = /connect-src[^;]*/.exec(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'))?.[0];
 ok("the web build's connect-src is still 'self' only (the desktop copy alone adds the IPC schemes)", csp === "connect-src 'self'" && IPC.startsWith(csp));

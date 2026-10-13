@@ -5,7 +5,7 @@
   "identifier": "dev.brewcv.app",
   "build": {
     "frontendDist": "../_desktop",
-    "beforeBuildCommand": "node scripts/desktop-stage.mjs"
+    "beforeBuildCommand": "node scripts/desktop-stage.mjs && node checks/preflight-deploy.mjs _desktop --app"
   },
   "app": {
     "withGlobalTauri": true,
