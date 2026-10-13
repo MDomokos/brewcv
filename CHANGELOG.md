@@ -11,6 +11,8 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 - **Link a folder in the desktop app.** The macOS app can mirror your record and saved resumes to a folder you pick, as Chrome and Edge do, and it reconnects to that folder when you reopen the app, without asking again. If the folder has moved or been deleted, the app asks you to pick it again.
 
 ### Fixed
+- **Naming a checkpoint works in the desktop app.** History has a name field there, since the window has no browser prompt.
+- **Under 1280 px, a click on the rail's icons while you write opens the panel.** The drawer closes while you write, and that used to override the click: the view changed and nothing appeared. It now opens, and stays until you stop writing.
 - **In the desktop app, leaving a bullet you have typed in asks before discarding.** The question was a browser `confirm()`, which the desktop window answered for you, so clicking away threw your text away. It now asks with the system dialog, and also when you link a folder whose record differs.
 - **Linking a folder that already holds the same files writes nothing.** A sync tool such as Syncthing no longer sees every file change each time you link or reconnect; only files that differ are written.
 - **In the desktop app, Reconnect opens the folder dialog,** so a folder that has moved can be found again.

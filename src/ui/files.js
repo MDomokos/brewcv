@@ -1,6 +1,7 @@
 // Files: opening any file (picker, drop, paste), the review card, the merge preview, History
 // with checkpoints, and Compare with a file. Models: src/model/import.js and src/model/diff.js.
 
+import { inDesktop } from './ask.js';
 import * as I from '../model/import.js';
 import * as D from '../model/diff.js';
 import * as RS from '../model/resumes.js';
@@ -105,6 +106,7 @@ function historyView(){
   if (!H.list){ loadHistory(); return `<h2 class="title">${h('history.title')}</h2><p class="muted">${h('body.loading')}</p>`; }
   let out = `<h2 class="title">${h('history.title')}</h2>
     <p class="small">${h('history.intro', { n: C.store.history.undo })}</p>
+    ${inDesktop() ? `<label class="field"><span class="lbl">${h('history.namePrompt')}</span><input id="cp-name" type="text" maxlength="80" autocomplete="off" value="${esc(t('checkpoint.named', { date: new Date().toLocaleString() }))}"></label>` : ''}
     <div class="btns"><button class="sm primary" data-act="cp-new">${h('history.save')}</button><button class="sm" data-act="cp-file">${h('history.compareFile')}</button></div>`;
   if (H.compare) out += `<span class="lbl">${h('history.comparedNow', { file: H.compare.file })}</span><p class="note">${h('history.compareNote')}</p>${itemsHtml(H.compare.items, false)}
     <div class="btns"><button class="sm ghost" data-act="cp-compare-close">${h('body.close')}</button></div>`;
@@ -217,7 +219,8 @@ async function act(a, tg){
     }
     case 'imp-theme': if (C.onTheme) C.onTheme(F.got.json, F.got.file); else C.toast(t('toast.themesInDesign'), 'warn'); return true;
     case 'cp-new': {
-      const l = prompt(t('history.namePrompt'), t('checkpoint.named', { date: new Date().toLocaleString() }));
+      const field = $('#cp-name');
+      const l = (field ? field.value : prompt(t('history.namePrompt'), t('checkpoint.named', { date: new Date().toLocaleString() })))?.trim();
       if (!l) return true;
       await C.persist.checkpoint(l);
       H.list = null; C.renderBody(); C.toast(t('toast.checkpointSaved'));
@@ -265,6 +268,7 @@ async function act(a, tg){
 
 const tr = (k, p) => t(k, p);     // t(), where `t` is the event target below
 function bind(body){
+  body.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'cp-name'){ e.preventDefault(); $('[data-act=cp-new]')?.click(); } });
   body.addEventListener('change', e => {
     const t = e.target;
     if (t.dataset.mi !== undefined && F.items){
