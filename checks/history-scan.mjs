@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 // node checks/history-scan.mjs   (run it before adding a remote)
+// Private values come from deny.local.json, kept outside the repo ($BREWCV_PRIVATE_DIR or the platform default; see
+// scripts/lib/private-files.mjs). It does NOT read identity.local.json: add the owner's email, phone and city to "deny" to have
+// them searched for in commit messages. File contents are only checked for shapes.
 // .gitignore covers the working tree; this covers the commits. A file added and deleted again is still in
 // every clone, and preflight-deploy.mjs only reads the tree about to ship.
 // While the repo is unpushed, a bad history costs one `git checkout --orphan`.
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import { findPrivate } from '../scripts/lib/private-files.mjs';
 
 const git = (...args) => {
   try { return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 28 }); }
@@ -41,7 +45,7 @@ const everSeen = new Set(
   git('log', '--all', '--pretty=format:', '--name-only', '--diff-filter=AM')
     .split('\n').map(s => s.trim()).filter(Boolean));
 for (const f of everSeen){
-  if (f.startsWith('icons/') || /^docs\/[^/]+\.(png|gif)$/i.test(f)) continue;
+  if (/^(src-tauri\/)?icons\//.test(f) || /^docs\/[^/]+\.(png|gif)$/i.test(f)) continue;
   for (const [re, what] of NEVER)
     if (re.test(f)){ findings.push({ kind: 'file', detail: `${f}: ${what}` }); break; }
 }
@@ -52,7 +56,7 @@ const PATTERNS = [
   ['phone number',  '\\+[0-9][0-9 ().-]{7,}[0-9]'],
   ['embedded image', 'data:image/(png|jpeg|webp);base64,'],
 ];
-const ALLOW = /example\.(org|com|net)|@example|noreply@|dana@|\+351 900|\+1 555|\+00 000/;
+const ALLOW = /@[0-9]x\.(png|jpe?g|webp)|example\.(org|com|net)|@example|noreply@|dana@|\+351 900|\+1 555|\+00 000/;
 
 if (revs.length > 400)
   console.log(`  (${revs.length} commits; the content scan may take a moment)`);
@@ -75,8 +79,11 @@ for (const [what, pattern] of PATTERNS){
 }
 
 // commit metadata: messages, authors and committers, against the private overlay
+// deny.local.json lives outside the repo (scripts/lib/private-files.mjs); the old checks/deny.local.json is read with a warning.
 let overlay = {};
-try { overlay = JSON.parse(fs.readFileSync('checks/deny.local.json', 'utf8')); } catch {}
+const priv = findPrivate('deny.local.json', { roots: [process.cwd()] });
+if (priv) try { overlay = JSON.parse(fs.readFileSync(priv.path, 'utf8')); } catch { console.warn('history-scan: the deny file is not valid JSON, so it was not used'); }
+else console.log('history-scan: no deny file found (not set up, or CI): commit messages and author emails are not checked against private values');
 const deny = (overlay.deny ?? []).filter(v => typeof v === 'string' && v.trim().length >= 4).map(v => v.trim());
 const emails = (overlay.commitEmails ?? []).map(e => e.toLowerCase());
 const log = git('log', '--all', '--format=%H%x1f%an%x1f%ae%x1f%cn%x1f%ce%x1f%B%x1e');

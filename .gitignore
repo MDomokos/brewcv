@@ -6,6 +6,12 @@
 # directory, and a private file usually reaches a commit by being copied
 # somewhere else first. These match at any depth.
 
+# Private check files live OUTSIDE the repo (docs/DEVELOPMENT.md, "Real data is not in this repo"). These catch one dropped in
+# or renamed anyway; *.local.json alone would not catch identity.json.
+identity*.json
+deny*.json
+.filled-*
+
 # The library and anything derived from it
 resume-data.json
 *.local.json
@@ -32,7 +38,13 @@ prototypes/
 out/
 *.pdf
 
-# Resume sources and exports
+# Resume sources, exports and archives of a working tree
+*.zip
+*.tgz
+*.tar.gz
+*.bak
+*.odt
+*.rtf
 *.afpub
 *.psd
 *.docx
@@ -45,7 +57,9 @@ out/
 # Deploy
 _site/
 
-# Desktop build: the staged copy of the app, and Cargo's output
+# Desktop build: the staged copy of the app, and Cargo's output. flatpak-builder caches a copy of the whole tree.
+.flatpak-builder/
+flatpak_app/
 _desktop/
 src-tauri/target/
 src-tauri/gen/

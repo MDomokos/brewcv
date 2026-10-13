@@ -94,6 +94,7 @@ jobs:
           node checks/recipe-check.mjs
           node checks/preflight-check.mjs
           node checks/history-scan-check.mjs
+          node checks/private-files-check.mjs
           node checks/agent-check.mjs
 
       - name: The JSON Resume export must still work

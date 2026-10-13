@@ -2,13 +2,16 @@
 // node checks/preflight-deploy.mjs [dir]   (exit 1 means do not publish)
 // Checks the tree about to ship (CI runs it on _site). The only person in this repo is fictional,
 // so any contactable address is a finding, without needing the real values.
-// Two gitignored files add values that must not ship and must not be written here either:
-//   data/identity.local.json   { "email": "...", "phone": "...", "city": "..." }
-//   checks/deny.local.json     { "deny": ["a retired address", "an old figure"] }
+// Two private files add values that must not ship and must not be written here either. They live OUTSIDE the repo
+// ($BREWCV_PRIVATE_DIR, else ~/.config/brewcv, ~/Library/Application Support/BrewCV or %APPDATA%\BrewCV; see scripts/lib/private-files.mjs):
+//   identity.local.json   { "email": "...", "phone": "...", "city": "..." }
+//   deny.local.json       { "deny": ["a retired address", "an old figure"] }
+// The old in-tree paths (data/identity.local.json, checks/deny.local.json) are still read, with a warning. CI has neither file.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { findPrivate, REPO } from '../scripts/lib/private-files.mjs';
 
 const ROOT = path.resolve(process.argv[2] ?? '.');
 // --app: a desktop build's staged copy (scripts/desktop-stage.mjs). Nothing private may be in it either, but a service worker and
@@ -79,7 +82,7 @@ function provenance(name, buf){
 
 const EMAIL = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 const PHONE = /\+\d[\d  ().-]{7,}\d/g;
-const EXAMPLE_DOMAIN = /(^|\.)(example\.(com|org|net)|example|test|invalid|localhost)$/i;
+const EXAMPLE_DOMAIN = /(^|\.)(example\.(com|org|net)|example|test|invalid|localhost)$|^\d+x\.(png|jpe?g|webp|gif)$/i; // the last: icon@2x.png
 
 const findings = [];
 const flag = (file, line, what, detail) =>
@@ -154,7 +157,7 @@ for (const f of files){
   if (/\.pdf$/i.test(rel))             flag(f, 0, 'PDF', `${rel}: rendered documents stay outside the repo`);
   if (/^data\/recipes\//.test(rel))    flag(f, 0, 'recipe', `${rel}: recipes name real applications`);
   // The only images that ship are the app's own icons.
-  if (RASTER.test(rel) && !rel.startsWith('icons/'))
+  if (RASTER.test(rel) && !/^(src-tauri\/)?icons\//.test(rel))
     flag(f, 0, 'image', `${rel}: the only images that ship are icons/`);
   if (rel.split('/').includes('prototypes'))
     flag(f, 0, 'prototype', `${rel}: prototypes live outside the repo`);
@@ -166,11 +169,13 @@ for (const f of files){
 
 const deny = [];
 let shortSkipped = 0;
-for (const [p, keys] of [['data/identity.local.json', null], ['checks/deny.local.json', 'deny']]){
-  const full = path.join(ROOT, p);
-  if (!fs.existsSync(full)) continue;
+// The private files live outside the tree (scripts/lib/private-files.mjs). The old in-tree path is read from the scanned
+// tree and from this repo, with a warning: a staged copy (_desktop) never holds them, so the repo's own are the ones that count.
+for (const [name, keys] of [['identity.local.json', null], ['deny.local.json', 'deny']]){
+  const hit = findPrivate(name, { roots: [ROOT, REPO] });
+  if (!hit) continue;
   try {
-    const j = JSON.parse(fs.readFileSync(full, 'utf8'));
+    const j = JSON.parse(fs.readFileSync(hit.path, 'utf8'));
     // A country code ("HU") or any value under four characters would match ordinary code,
     // so those are skipped and counted.
     const vals = keys ? (j[keys] ?? []) : Object.entries(j).filter(([k]) => k !== 'countryCode').map(([, v]) => v);
@@ -179,8 +184,10 @@ for (const [p, keys] of [['data/identity.local.json', null], ['checks/deny.local
       if (v.trim().length < 4){ shortSkipped++; continue; }
       deny.push(v.trim());
     }
-  } catch { flag(full, 0, 'unreadable overlay', p); }
+  } catch { flag(hit.path, 0, 'unreadable overlay', name); }
 }
+console.log(deny.length ? `preflight: ${deny.length} private value${deny.length === 1 ? '' : 's'} loaded, checked as well as the shapes`
+  : 'preflight: no private identity or deny file found (CI, or not set up): checking shapes only. See docs/DEVELOPMENT.md, "Real data is not in this repo"');
 
 for (const f of files){
   if (!TEXT.test(f)) continue;
