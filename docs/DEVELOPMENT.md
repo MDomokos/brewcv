@@ -121,6 +121,7 @@ node checks/parts-check.mjs           the panels' markup unchanged by the shared
 node checks/recipe-check.mjs          weight, off / keep, weight-0 omit
 node checks/preflight-check.mjs       preflight refuses embedded image metadata and a prototypes/ folder
 node checks/history-scan-check.mjs    history-scan reads commit messages, authors and committers
+node checks/private-files-check.mjs  the private check files are found outside the repo, in the old place with a warning, or not at all
 node checks/agent-check.mjs           the agent workflow on the example: claims, new-resume and every refusal,
                                       fit on the line model, JSON Resume, the keyword gap
 node checks/fit-check.mjs [lib]       Fit's invariants on a modelled page
@@ -245,7 +246,7 @@ The service worker (`sw.js`) is cache-first on a deployed copy and network-first
 
 ## Real data is not in this repo
 
-Contact details live in `data/identity.local.json`, which is gitignored. The frozen 0.1.0 documents carry `{{email}}`, `{{phone}}` and `{{city}}`, and `scripts/lib/identity.mjs` fills them in for the checks that measure those documents (`measure.mjs`, `render-diff.mjs`). The one-off script that extracted the first library from them, and its data, live outside the repo. Without that file everything runs on placeholders.
+Contact details live in `identity.local.json`, **outside the repo** (see below). The frozen 0.1.0 documents carry `{{email}}`, `{{phone}}` and `{{city}}`, and `scripts/lib/identity.mjs` fills them in for the checks that measure those documents (`measure.mjs`, `render-diff.mjs`). The one-off script that extracted the first library from them, and its data, live outside the repo. Without that file everything runs on placeholders.
 
 Nothing in `templates/` carries any of it any more: the content is a hole, the library lives outside the repo, and a rendered document goes to `out/`, which is gitignored.
 
@@ -281,9 +282,18 @@ Every rule matches at **any depth**: `resume-data.json`, not `/data/resume-data.
 **It passes as of 0.3.0**, which replaced the content in `templates/` with holes. Before the first `git init` there is no git to ask what is ignored, so the check reads `.gitignore` itself and says which way it answered. Two gitignored files extend the check for values that must never ship but must also not be written down in a public repo:
 
 ```
-data/identity.local.json    { "email": "…", "phone": "…", "city": "…" }
-checks/deny.local.json      { "deny": ["a retired address", "an old figure"] }
+identity.local.json    { "email": "…", "phone": "…", "city": "…" }
+deny.local.json        { "deny": ["a retired address", "an old figure"], "commitEmails": ["the address commits may carry"] }
 ```
+
+**These two files live outside the working tree**, because a gitignored file inside it is still carried out by anything that copies the tree (`desktop-stage` once put `identity.local.json` into an app binary; a Flatpak `type: dir` source, a zip or an AI agent opened on the repo would do the same). `scripts/lib/private-files.mjs` is the one place that finds them: `$BREWCV_PRIVATE_DIR`, else `~/.config/brewcv` (`$XDG_CONFIG_HOME/brewcv`) on Linux, `~/Library/Application Support/BrewCV` on macOS, `%APPDATA%\BrewCV` on Windows. The old in-tree paths (`data/identity.local.json`, `checks/deny.local.json`) are still read, with a loud warning; move them:
+
+```
+mkdir -p "$HOME/Library/Application Support/BrewCV" && chmod 700 "$HOME/Library/Application Support/BrewCV"
+mv data/identity.local.json checks/deny.local.json "$HOME/Library/Application Support/BrewCV/"
+```
+
+`preflight-deploy` and `history-scan` read them from there whatever tree they scan, so the gate on `_desktop --app` now knows the real values too. With no file (CI, a new contributor) they check shapes only and say so. `node checks/private-files-check.mjs` plants fake files in each place and runs the gate. `history-scan` reads `deny.local.json` only: put the identity values in its `deny` list to have commit messages searched for them.
 
 `resume-data.json` itself lives outside the repo, and `.gitignore`, written before any other file here, keeps it and the rendered PDFs out. Check `.gitignore` before the first `git add`, not after.
 
