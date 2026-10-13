@@ -4,7 +4,7 @@
 //   - A line is written where it is printed: the element on the page becomes editable, holding the plain text of the version
 //     (src/ui/plain.js reads it back, so the text is exactly what the old text box held). Everything else is the editor's own
 //     (src/ui/edit.js): the draft, the live preview, the three ways of keeping it.
-//   - The tools sit beside the line, in the page's right margin: the version badge, the three icons, the counts.
+//   - The tools sit beside the line, in the page's right margin: the version badge (only while Edit is not showing), the three icons, the counts.
 // All of it is drawn in the app's layer (#editlay), over the page; the page's own markup and its measurements are never touched,
 // and nothing here is in an export. The camera (src/ui/canvas.js) eases to the writing zoom and back.
 
@@ -66,7 +66,7 @@ export function initOnPage(C){
   // ---- drawing the layers ----
   function signature(lvl){
     const ed = edit().editing, tg = geom?.tg;
-    return JSON.stringify([lvl, tg?.fact, tg?.jobId, hover, popOpen, !!ed, ed?.mode, ed ? edit().isDirty() : null, ed ? lineEnds(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang()]);
+    return JSON.stringify([lvl, tg?.fact, tg?.jobId, hover, popOpen, !!ed, ed?.mode, ed ? edit().isDirty() : null, ed ? lineEnds(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), !!C.editShown?.()]);
   }
   function render(force = false){
     lay ??= $('#editlay');
@@ -106,6 +106,7 @@ export function initOnPage(C){
     const fact = badgeFact(lvl);
     if (!fact) return '';
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
+    if (!ed && C.editShown?.()) return '';          // Edit shows the line's versions: the badge is for when it does not
     const using = C.chooseVariant(C.work(), fact, C.cur()).v;
     const over = C.cur().overrides?.[fact];
     const vn = over !== undefined && !ed ? t('edit.only') : (ed?.mode === 'only' ? t('edit.only') : using?.n ?? '·');

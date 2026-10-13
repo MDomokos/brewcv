@@ -1206,4 +1206,9 @@ export default {
   'ux5b.reset': 'Restablecer',
   'ux5b.resetTitle': 'Devolver {name} al orden del historial',
   'ux5b.undoReset': 'Restablecer el orden',
+  'ux5c.tabOutline': 'Esquema',
+  'ux5c.outlineFoot': 'Fit recorta por abajo. Pon lo importante primero.',
+  'ux5c.editNone': 'Haz clic en una línea de la página, o elige una en el esquema, para ver sus versiones.',
+  'ux5c.line': '+ línea',
+  'ux5c.more': '+ {n} más',
 };

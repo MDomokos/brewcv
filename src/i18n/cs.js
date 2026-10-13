@@ -1206,4 +1206,9 @@ export default {
   'ux5b.reset': 'Obnovit',
   'ux5b.resetTitle': 'Vrátit {name} do pořadí záznamu',
   'ux5b.undoReset': 'Obnovit pořadí',
+  'ux5c.tabOutline': 'Osnova',
+  'ux5c.outlineFoot': 'Fit krátí odspodu. Důležité dejte nahoru.',
+  'ux5c.editNone': 'Klepněte na řádek na stránce nebo ho vyberte v osnově a uvidíte jeho verze.',
+  'ux5c.line': '+ řádek',
+  'ux5c.more': '+ {n} dalších',
 };

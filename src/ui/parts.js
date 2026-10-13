@@ -25,6 +25,9 @@ export function gist(text, curText){
   return k < 3 ? esc(text) : `<span class="muted">…</span>${esc(a.slice(Math.max(0, k - 1)).join(' '))}`;
 }
 
+// a version in full, with the words that are not in the one in use marked
+export const marked = (text, curText) => R.wordDiff(curText, text).filter(y => y.op !== '-').map(y => (y.op === '+' ? `<mark class="dw">${esc(y.text)}</mark>` : esc(y.text))).join('');
+
 export function factRow({ act = 'select-fact', id, text, pill = '', pillMiss = false, miss = false, section = null, owner = null, attrs = '', cls = '', tcls = '' }){
   return `<button class="item fact ${cls ? cls + ' ' : ''}${miss ? 'miss' : ''}" data-act="${act}" data-id="${esc(id)}" ${section ? `data-section="${esc(section)}"` : ''} ${owner ? `data-owner="${esc(owner)}"` : ''}${attrs ? ' ' + attrs : ''}>
     <span${tcls ? ` class="${tcls}"` : ''}>${esc(text).replace(/\n/g, ' · ')}</span>${pill ? `<span class="pill${pillMiss ? ' miss' : ''}">${pill}</span>` : ''}</button>`;
@@ -109,7 +112,7 @@ export function versionsHtml(x){
   if (!vs.length && over === undefined) return out + `<span class="lbl">${esc(LANG_NAME[L])}</span>` + writeInHtml({ m, fact, lang: L, ref: x.ref });
 
   const E = v => editorHtml(ed, v, x);
-  out += `<span class="lbl">${h('edit.versions', { code: L.toUpperCase() })}</span><div class="vlist" data-fact="${esc(fact)}">`;
+  out += `<span class="lbl">${h('edit.versions', { code: L.toUpperCase() })}</span><div class="vlist${x.full ? ' full' : ''}" data-fact="${esc(fact)}">`;
   if (over !== undefined){
     out += ed?.mode === 'only' ? E() : `<div class="vrow cur only"><span class="rad"></span><span class="n" title="${esc(t('edit.onlyTitle'))}">${h('edit.only')}</span><span class="tx">${esc(over)}</span>
       <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editEnter'))}" aria-label="${esc(t('edit.editEnter'))}">${icon('edit')}</button><button class="ghost sm" data-act="only-remove" title="${esc(t('edit.backToSaved'))}" aria-label="${esc(t('edit.backToSaved'))}">↺</button></span></div>`;
@@ -146,7 +149,7 @@ function vrow(v, using, over, x){
     <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editThis'))}" aria-label="${esc(t('edit.editThis'))}">${icon('edit')}</button></span>
     ${tagBox(v, x)}</div>`;
   return `<div class="vrow ${minor ? 'minor' : ''}" data-act="use-version" data-v="${esc(v.id)}" tabindex="0" title="${esc(v.text)}">
-    <span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${gist(v.text, over ?? using?.text ?? '')}</span>
+    <span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${x.full ? marked(v.text, over ?? using?.text ?? '') : gist(v.text, over ?? using?.text ?? '')}</span>
     <span class="mt2">${ln ? `${h('edit.lnShort', { n: ln })} · ` : ''}${h('edit.chShort', { n: [...v.text].length })}</span>
     <span class="acts"><button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('edit.compareTitle'))}" aria-label="${esc(t('edit.compareTitle'))}">${icon('compare')}</button><button class="ghost sm" data-act="delete-version" data-v="${esc(v.id)}" title="${esc(t('edit.deleteV', { v: v.n }))}" aria-label="${esc(t('edit.deleteV', { v: v.n }))}">${icon('trash')}</button></span>
     ${(v.tags ?? []).length ? `<div class="vtags">${v.tags.slice(0, 4).map(tg => tagChip(tg, { jobTypes: x.jobTypes, focus: x.focusTags ?? [] })).join('')}${v.tags.length > 4 ? `<span class="muted tiny">+${v.tags.length - 4}</span>` : ''}</div>` : ''}</div>`;

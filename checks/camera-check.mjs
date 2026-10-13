@@ -7,9 +7,9 @@ import { isDeepStrictEqual as eq } from 'node:util';
 import {
   geometry, viewRect, fitCam, screenOf, contentOf, zoomAbout, snapZoom, limits, rubber, softCam, hardCam, stops, magnetize, unmagnetize,
   settleIndex, visible, brightPage, faded, damping, springStep, atRest, centreOn, writingScale, rowWidth, pageLeft, midX, keepPageEdge,
-  BOTH_MIN, BOTH_RATIO, OVERSHOOT, SNAP_FIT, MAGNET, BOUNCE,
+  OVERSHOOT, SNAP_FIT, MAGNET, BOUNCE,
 } from '../src/ui/camera.js';
-import { G, RAIL_W, PAGE_GAP, pageSize } from '../src/ui/layout.js';
+import { G, PAGE_GAP, pageSize } from '../src/ui/layout.js';
 
 let failed = 0;
 const ok = (name, cond, extra = '') => {
@@ -18,24 +18,7 @@ const ok = (name, cond, extra = '') => {
 };
 const section = t => console.log(`\n— ${t}`);
 const near = (a, b, e = 1e-6) => Math.abs(a - b) < e;
-const railView = vw => viewRect({ vw, vh: 800, colLeft: vw - G - RAIL_W });
-
-section('both pages at once, or one at a time');
-{
-  for (const format of ['a4', 'us-letter', 'a4-hu']){
-    for (const vw of [1280, 1440, 1536, 1920]){
-      const g = geometry({ vw, vh: vw === 1536 ? 864 : 800, format, pages: 2 });
-      ok(`${format} at ${vw} wide: both pages at once (scale ${g.both.toFixed(3)}, at least ${BOTH_MIN} and ${BOTH_RATIO} of ${g.tall.toFixed(3)})`, g.bothUp);
-    }
-    const narrow = geometry({ vw: 1024, vh: 700, format, pages: 2 });
-    ok(`${format} at 1024 wide: one page at a time`, !narrow.bothUp);
-  }
-  ok('one page is never "both"', !geometry({ vw: 1440, vh: 900, format: 'a4', pages: 1 }).bothUp);
-  const rail = geometry({ vw: 1280, vh: 800, format: 'a4', pages: 2 });
-  ok('the width is measured with the rail: the same answer whatever the panel does', rail.both === geometry({ vw: 1280, vh: 800, format: 'a4', pages: 2 }).both && near(rail.both, Math.min((800 - 2 * G) / 1123, (1280 - RAIL_W - 4 * G) / rowWidth(794, 2))));
-  const tallWindow = geometry({ vw: 1300, vh: 1700, format: 'a4', pages: 2 });
-  ok('a tall, narrow window can fail the 85% test even above 0.6', tallWindow.both >= BOTH_MIN ? tallWindow.bothUp === (tallWindow.both >= BOTH_RATIO * tallWindow.tall) : !tallWindow.bothUp);
-}
+const railView = vw => viewRect({ vh: 800, colLeft: vw - G - 52 });
 
 section('fitting the pages in the view');
 {

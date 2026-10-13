@@ -1206,4 +1206,9 @@ export default {
   'ux5b.reset': 'Visszaállítás',
   'ux5b.resetTitle': '{name} visszaállítása a rekord sorrendjére',
   'ux5b.undoReset': 'Sorrend visszaállítása',
+  'ux5c.tabOutline': 'Vázlat',
+  'ux5c.outlineFoot': 'A Fit alulról vág. Ami számít, az kerüljön előre.',
+  'ux5c.editNone': 'Kattints egy sorra az oldalon, vagy válassz egyet a vázlatban, hogy lásd a változatait.',
+  'ux5c.line': '+ sor',
+  'ux5c.more': '+ {n} további',
 };

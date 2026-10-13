@@ -5,10 +5,8 @@
 // A camera { k, x, y } puts content (cx, cy) at the screen point (x + cx * k, y + cy * k).
 // A view is the rectangle of the window the pages may use: left of the open panel, or of the rail when it is folded.
 
-import { pageSize, PAGE_GAP, G, RAIL_W } from './layout.js';
+import { pageSize, PAGE_GAP, G } from './layout.js';
 
-export const BOTH_MIN = 0.6;          // both pages at once only at a scale this large...
-export const BOTH_RATIO = 0.85;       // ...and at least this share of the one-page fit-to-height scale
 export const FADE = 0.35;             // the page that is not bright
 export const OVERSHOOT = 60;          // how far a pan may be pulled past its limit, at most (px)
 export const MAGNET = 35, BOUNCE = 8; // defaults: round 3 found 60 and 25 too strong
@@ -19,30 +17,23 @@ export const KEEP_Y = 0.9;            // …and up and down, where a page runs t
 export const rowWidth = (w, n) => n * w + Math.max(0, n - 1) * PAGE_GAP;
 export const pageLeft = (geo, i) => i * (geo.w + PAGE_GAP);
 
-// What the window and the pages allow, before anything is panned or zoomed. The both-up test measures the
-// width with the rail, never the open panel: the panel folds away at the page level.
+// What the window and the pages allow, before anything is panned or zoomed. Whether both pages show at once is computeLayout's.
 export function geometry({ vw, vh, format, pages = 1 }){
   const { w, h } = pageSize(format);
   const n = Math.max(1, pages);
-  const tall = (vh - 2 * G) / h;
-  const room = vw - RAIL_W - 4 * G;
-  const one = Math.max(0.1, Math.min(tall, room / w));
-  const both = n > 1 ? Math.max(0.1, Math.min(tall, room / rowWidth(w, n))) : one;
-  const bothUp = n > 1 && both >= BOTH_MIN && both >= BOTH_RATIO * tall;
-  return { w, h, n, tall, one, both, bothUp };
+  return { w, h, n, tall: (vh - 2 * G) / h };
 }
 
-// The part of the window the pages may use. `colLeft` is the left edge of the open panel (or the rail).
-// `mid` is the x the pages are centred on: with the panel open, the middle of the free space beside it (the window's left edge to the
-// panel's left edge); with it folded, the middle of the window. The width still keeps clear of the panel or the rail, so nothing overlaps.
-export const viewRect = ({ vh, colLeft, mid }) => ({ left: 0, top: 0, width: Math.max(1, colLeft - G), height: vh, mid: mid ?? colLeft / 2 });
+// The part of the window the pages may use. `colLeft` is the left edge of the tabs. `mid` is the x the pages are centred on, and
+// `fitW` the width a fitted page may have (the room beside the panel at its minimum): computeLayout (layout.js) gives both.
+export const viewRect = ({ vh, colLeft, mid, fitW }) => ({ left: 0, top: 0, width: Math.max(1, colLeft - G), height: vh, mid: mid ?? colLeft / 2, fitW });
 export const midX = view => view.mid ?? view.left + view.width / 2;
 
 // A camera that shows `scene` whole: 'all' pages, or the one page `page`, fit to the height and centred in the view.
 export function fitCam(geo, view, { scene = 'all', page = 0 } = {}){
   const all = scene === 'all' && geo.n > 1;
   const span = all ? rowWidth(geo.w, geo.n) : geo.w;
-  const k = Math.max(0.1, Math.min((view.height - 2 * G) / geo.h, (view.width - 2 * G) / span));
+  const k = Math.max(0.1, Math.min((view.height - 2 * G) / geo.h, ((view.fitW ?? view.width) - 2 * G) / span));
   const left = all ? 0 : pageLeft(geo, Math.max(0, Math.min(geo.n - 1, page)));
   return { k, x: midX(view) - span * k / 2 - left * k, y: view.top + (view.height - geo.h * k) / 2 };
 }

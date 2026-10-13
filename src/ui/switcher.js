@@ -112,12 +112,12 @@ function render({ keepFocus = true } = {}){
   const pos = q?.selectionStart ?? null;
   const scroll = el.querySelector('.swlist')?.scrollTop ?? 0;
   el.innerHTML = html();
-  // below the header's two rows, never over the tabs
+  // below the header row
   const hd = document.getElementById('head');
   if (hd){
-    const top = hd.offsetHeight + 6, colTop = document.getElementById('col').getBoundingClientRect().top, foot = document.getElementById('foot')?.getBoundingClientRect().top ?? innerHeight;
+    const top = hd.offsetHeight + 6, col = document.getElementById('col').getBoundingClientRect();
     el.style.setProperty('--sw-top', `${top}px`);
-    el.style.setProperty('--sw-max', `${Math.max(240, Math.round(foot - colTop - top - 8))}px`);      // it ends above the zoom bar
+    el.style.setProperty('--sw-max', `${Math.max(240, Math.round(col.height - top - 8))}px`);      // it ends at the panel's foot
   }
   const list = el.querySelector('.swlist');
   if (list) list.scrollTop = scroll;

@@ -1,11 +1,12 @@
-// The record as a checklist: the body of the Record tab (record.js), and one compact group at the job level of Edit. One group
+// The record as a checklist: the body of the Record tab (record.js), and the Outline of this resume (outlineHtml). One group
 // for About you, one for each job and project, Education, Skills and credentials, and the custom kinds. In Record every group is
 // open and the carets fold a long record. Every claim is listed, ticked or not; ticking puts the line on the page and unticking
 // takes it off (edit.js setBullet, one undo step each). Nothing about the claims that are off is drawn on the page. The list is a
 // plain run of checkboxes in tab order.
 
-import { checklist, groupOf } from '../model/checklist.js';
-import { addClaimHtml, orderMarkHtml, moveButtonsHtml } from './parts.js';
+import { checklist, groupOf, groupsOfSection, sectionCounts, sectionsCustom } from '../model/checklist.js';
+import * as T from '../model/resume.js';
+import { addClaimHtml, orderMarkHtml, moveButtonsHtml, sw } from './parts.js';
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { ghost, fly, reduced, play } from './motion.js';
@@ -19,7 +20,9 @@ const HINT_KEY = 'rb-cl-hint';
 const hintDone = () => { try { return localStorage.getItem(HINT_KEY) === '1'; } catch { return true; } };
 const setHintDone = () => { try { localStorage.setItem(HINT_KEY, '1'); } catch { /* shown again next time */ } };
 
-const S = { shut: new Set(), pop: null, travel: null, moved: null };
+// shut: the Record's groups folded by hand. fold: the Outline's, by hand ('open' or 'shut'; the job in focus opens by itself).
+// more: jobs whose lines that are off are shown. adding: the job whose "+ line" box is open.
+const S = { shut: new Set(), fold: new Map(), more: new Set(), adding: null, pop: null, travel: null, moved: null };
 
 export function initChecklist(ctx){ C = ctx; return api; }
 
@@ -48,13 +51,13 @@ function rowHtml(r, g, move){
   const text = r.id === 'about:photo' ? t('career.about.photo') : r.text || t('ux2.empty');
   const drag = r.item ? `data-item="${esc(r.item)}" data-sec="${esc(r.section)}"` : bulletMovable(r, g) ? `data-bullet="${esc(r.id)}" data-bjob="${esc(g.id)}"` : '';
   const grip = drag ? `<span class="clgrip" aria-hidden="true">${icon('grip')}</span>${moveButtonsHtml('cl-up', 'cl-down', r.item ?? r.id, text, move)}` : '';
-  return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''} ${drag && isSel(r) ? 'is-sel' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${drag ? `${drag} draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>
+  return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''} ${isSel(r) ? 'is-sel' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${drag ? `${drag} draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>
       ${box}<button class="clt" data-act="cl-open" data-sel="${selAttr(r.sel)}">${esc(text.replace(/\n/g, ' · '))}</button>
-      ${r.nv ? `<span class="clv${r.nv > 1 ? ' many' : ''}" title="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv })).replace(/\s+/, '<span class="sp"> </span>')}</span>` : ''}
+      ${r.nv ? `<button class="clv${r.nv > 1 ? ' many' : ''}" data-act="cl-edit" data-sel="${selAttr(r.sel)}" title="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv })).replace(/\s+/, '<span class="sp"> </span>')}</button>` : ''}
       ${r.archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span><button class="ghost sm" data-act="unarchive-claim" data-id="${esc(r.id)}">${h('arch.unarchive')}</button>` : ''}${grip}</li>`;
 }
 
-function groupHtml(g, open, ctx, { compact = false } = {}){
+function groupHtml(g, open, ctx){
   const id = `clg-${esc(g.id)}`;
   const body = (inner, extra = '') => `<div class="clbody" id="${id}" ${open ? '' : 'hidden'}>${inner}${extra}</div>`;
   if (g.kind === 'about'){
@@ -65,15 +68,13 @@ function groupHtml(g, open, ctx, { compact = false } = {}){
     const title = `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`;
     const arch = g.archivedRows.length;
     const archOpen = ctx.shown.has(g.id);
-    // at the job level the group is the job's own lines, always open, headed with the count
-    const head = compact ? `<h3 class="clgh clcompact"><span class="clname">${h('ux3b.thisJob')}</span><span class="clcount">${nOfM(g.on, g.total)}</span>${orderMarkHtml(g.custom, 'job', g.id, g.title)}</h3>`
-      : `<h3 class="clgh">${caret(g, open, title, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}
+    const head = `<h3 class="clgh">${caret(g, open, title, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}
         ${g.archived ? `<button class="ghost sm" data-act="c-unarch-entry" data-id="${esc(g.id)}">${h('arch.unarchiveJob')}</button>` : ''}</h3>`;
     return `<section class="clg ${open ? 'open' : ''} ${g.archived ? 'is-archived' : ''}" data-g="${esc(g.id)}">${head}
       ${body(`<ul class="clrows">${rowsHtml(g.rows, g)}</ul>
-        ${compact ? '' : `<div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr(g.sel)}">${h('ux2.openEntry')}</button></div>`}
+        <div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr(g.sel)}">${h('ux2.openEntry')}</button></div>
         ${arch ? `<button class="sm ghost archmore" data-act="c-arch-show" data-id="${esc(g.id)}" aria-expanded="${archOpen}">${archOpen ? h('arch.hide') : h('arch.nArchived', { n: arch })}</button>${archOpen ? `<ul class="clrows">${g.archivedRows.map(r => rowHtml(r, g)).join('')}</ul>` : ''}` : ''}
-        ${g.archived ? '' : addClaimHtml({ id: g.id, key: g.key, draft: C.edit.claimDraftOf(g.id) })}`)}</section>`;
+        ${g.archived ? '' : addLineHtml(g)}`)}</section>`;
   }
   const sectionSwitch = (sid, on, name) => (sid ? `<label class="swl clsec"><input type="checkbox" class="sw" data-secon="${esc(sid)}" ${on ? 'checked' : ''} aria-label="${esc(t('edit.showX', { name }))}"><span class="tiny muted">${h('ux2.onResume')}</span></label>` : '');
   if (g.kind === 'education' || g.kind === 'list'){
@@ -86,6 +87,81 @@ function groupHtml(g, open, ctx, { compact = false } = {}){
     ${body(g.subs.filter(s => s.rows.length).map(s => `<div class="clsub"><div class="clsubh"><b>${esc(t(`career.group.${s.id}`))}</b>${orderMarkHtml(s.custom, 'items', s.section, t(`career.group.${s.id}`))}${sectionSwitch(s.section, s.sectionOn, t(`career.group.${s.id}`))}</div>
         <ul class="clrows">${rowsHtml(s.rows, g)}</ul></div>`).join('')
       + `<div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr({ kind: 'record', what: 'jobtypes' })}">${h('ux2.jobTypes')}</button></div>`)}</section>`;
+}
+
+
+// One "+ line" under a job: it opens the box that adds a claim (Enter or Add), where the six always-open boxes used to be.
+const addLineHtml = g => (S.adding === g.id ? addClaimHtml({ id: g.id, key: g.key, draft: C.edit.claimDraftOf(g.id) })
+  : `<button class="sm ghost addline" data-act="ol-addline" data-id="${esc(g.id)}">${h('ux5c.line')}</button>`);
+
+// ---- the Outline: this resume in print order ----
+// The sections as they print, each with its count; a job folds to its count and opens when the selected line is in it (or by hand,
+// and then it stays); under an open job its lines that are on, "+ n more" for the ones that are off, and "+ line". Skills, Patent
+// and the other lists fold to one row until opened. Every row has its tick, its grip and ↑ ↓ (checklist rows), and "n v" to open
+// Edit at the line.
+const folded = (key, forced) => { const f = S.fold.get(key); return f === 'open' || (f !== 'shut' && forced) ? false : true; };
+const ocaret = (key, open, label, count = '') =>
+  `<button class="clcaret ocaret" data-act="ol-toggle" data-g="${esc(key)}" aria-expanded="${open}" aria-controls="ol-${esc(key)}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span><span class="clname">${label}</span>${count ? `<span class="clcount">${count}</span>` : ''}</button>`;
+
+export function outlineHtml(){
+  const m = C.work(), cur = C.cur();
+  const cl = checklist(m, cur, C.lang());
+  const list = T.sectionList(m, cur);
+  const on = list.filter(s => s.on), off = list.filter(s => !s.on);
+  const movable = on.filter(s => !s.fixed);
+  const sel = C.ui.sel, focus = groupOf(m, sel);
+  const focusSec = !focus ? null : T.sectionOfEntry(m, focus) ?? (focus === 'education' ? 'education' : sel.kind === 'record' && sel.what === 'item' ? T.sectionOfItem(m, sel.id) : cl.groups.find(g => g.id === focus)?.section ?? null);
+  const about = cl.groups.find(g => g.id === 'about')?.rows ?? [];
+
+  const jobHtml = (g, isOn) => {
+    if (!isOn) return `<div class="item row is-off ojob"><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a></div>`;
+    const open = !folded(g.id, focus === g.id);
+    const byId = new Map(g.rows.map(r => [r.id, r]));
+    const printed = g.printed.map(id => byId.get(id)).filter(Boolean), more = g.rows.filter(r => !r.on);
+    const showMore = S.more.has(g.id);
+    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${ocaret(g.id, open, `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}</h3>
+      <div class="clbody" id="ol-${esc(g.id)}" ${open ? '' : 'hidden'}><ul class="clrows">${rowsHtml(printed, g)}</ul>
+        ${more.length ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('ux5c.more', { n: more.length })}</button>${showMore ? `<ul class="clrows">${rowsHtml(more, g)}</ul>` : ''}` : ''}
+        ${addLineHtml(g)}</div></section>`;
+  };
+
+  const bodyOf = s => {
+    if (s.id === 'header') return `<ul class="clrows">${rowsHtml(about.filter(r => r.kind !== 'claim'), null)}</ul>`;
+    if (s.id === 'summary') return `<ul class="clrows">${rowsHtml(about.filter(r => r.kind === 'claim'), null)}</ul>`;
+    const gs = groupsOfSection(m, cl, s.id);
+    if (gs[0]?.kind === 'entry'){
+      const refs = T.jobRefs(m, cur, s.id).map(r => (typeof r === 'string' ? r : r.id));
+      return refs.map(id => gs.find(g => g.id === id)).filter(Boolean).map(g => jobHtml(g, true)).join('') + gs.filter(g => !refs.includes(g.id)).map(g => jobHtml(g, false)).join('');
+    }
+    const rows = gs.flatMap(g => (g.kind === 'credentials' ? g.subs.filter(x => x.section === s.id).flatMap(x => x.rows) : g.rows));
+    return rows.length ? `<ul class="clrows">${rowsHtml(rows, gs[0])}</ul>` : '';
+  };
+
+  const secHtml = s => {
+    const counts = sectionCounts(m, cl, s.id);
+    const isEntries = groupsOfSection(m, cl, s.id)[0]?.kind === 'entry';
+    const foldable = s.id !== 'summary' && !isEntries;
+    const open = !foldable || !folded(`sec:${s.id}`, focusSec === s.id);
+    const title = esc(C.sectionTitle(s.id));
+    const info = s.fixed ? h('edit.alwaysFirst') : counts ? esc(nOfM(counts.on, counts.total)) : '';
+    const chosen = sel.kind === 'section' && sel.id === s.id;
+    return `<div class="osec ${open ? 'open' : ''}" data-sid="${esc(s.id)}">
+      <div class="item srow ${s.fixed ? 'fixed' : ''} ${chosen ? 'is-sel' : ''}" data-sid="${esc(s.id)}" ${s.fixed ? '' : 'draggable="true"'}>
+        <span class="grip" aria-hidden="true">${s.fixed ? '' : icon('grip')}</span>
+        ${foldable ? `<button class="osecaret" data-act="ol-toggle" data-g="sec:${esc(s.id)}" aria-expanded="${open}" aria-controls="ol-sec-${esc(s.id)}" aria-label="${title}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span></button>` : '<span class="osecaret"></span>'}
+        <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${title}</a><span class="muted tiny">${info}</span></span>
+        ${s.fixed ? '' : moveButtonsHtml('sec-up', 'sec-down', s.id, C.sectionTitle(s.id), { first: s.id === movable[0].id, last: s.id === movable.at(-1).id })
+          + sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, true)}
+      </div>
+      <div class="obody" id="ol-sec-${esc(s.id)}" ${open ? '' : 'hidden'}>${bodyOf(s)}</div></div>`;
+  };
+
+  const manual = Array.isArray(cur.pages);
+  return `<section class="outline" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}">
+    ${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere')) ? `<div class="ordhead">${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere'))}</div>` : ''}
+    <div class="list" id="seclist">${on.map(secHtml).join('')}</div>
+    ${off.length ? `<p class="notonline" id="offline"><span class="muted small">${h('ux2.notOn')}</span> ${off.map(s => `<button class="tag offchip" data-act="section-on" data-id="${esc(s.id)}" draggable="true" data-sid="${esc(s.id)}" title="${esc(t('ux2.turnOnTitle'))}">${esc(C.sectionTitle(s.id))}</button>`).join(' ')}</p>` : ''}
+    ${manual ? `<p class="note">${h('edit.dragManual')}</p>` : ''}</section>`;
 }
 
 // Record's body: "Your record", the count for the open resume, + Add; then every group, all open. `timeline` is career's, drawn above.
@@ -103,16 +179,6 @@ function html(){
     ${live.map(g => groupHtml(g, isOpen(g), { shown: shownEntries })).join('')}
     ${archived.length || C.career.jobsArchived ? `<button class="sm ghost archmore" data-act="c-arch-jobs" aria-expanded="${C.career.jobsArchived}">${C.career.jobsArchived ? h('arch.hideJobs') : h('arch.nJobs', { n: archived.length })}</button>${C.career.jobsArchived ? archived.map(g => groupHtml(g, isOpen(g), { shown: shownEntries })).join('') : ''}` : ''}
   </section>`;
-}
-
-// At the job level of Edit: the job's own lines as one compact group, open, so a line can still be switched on or off beside the
-// job. '' when the selection is not in a job.
-function jobGroupHtml(){
-  const id = groupOf(C.work(), C.ui.sel);
-  if (!id) return '';
-  const g = checklist(C.work(), C.cur(), C.lang()).groups.find(x => x.id === id && x.kind === 'entry');
-  if (!g) return '';
-  return `<section class="checklist compact" id="checklist" aria-label="${esc(t('ux3b.thisJob'))}">${groupHtml(g, true, { shown: C.career.shownArchived }, { compact: true })}</section>`;
 }
 
 function afterRender(){
@@ -178,11 +244,30 @@ async function act(a, tg){
       if (!C.edit.stepRow(row, a === 'cl-up' ? -1 : 1)) S.moved = null;
       return true;
     }
+    // a click on a row: in the Outline it selects the line and the Outline stays; in the Record it opens Edit at the line
     case 'cl-open': {
-      C.select(JSON.parse(tg.dataset.sel));
-      // the panel's heading takes the focus, so the keyboard carries on in the inspector and Esc goes back out
-      const title = document.querySelector('#body .title');
-      if (title){ title.tabIndex = -1; title.focus({ preventScroll: true }); }
+      const outline = !!tg.closest?.('#outline');
+      C.select(JSON.parse(tg.dataset.sel), { pane: outline ? (C.ui.layout?.two ? null : 'outline') : 'edit' });       // in Edit's two sheets the Outline is already beside the selection
+      if (!outline){
+        // the panel's heading takes the focus, so the keyboard carries on in the inspector and Esc goes back out
+        const title = document.querySelector('#body .title');
+        if (title){ title.tabIndex = -1; title.focus({ preventScroll: true }); }
+      }
+      return true;
+    }
+    // "n v": Edit at that line
+    case 'cl-edit': C.select(JSON.parse(tg.dataset.sel), { pane: 'edit' }); return true;
+    case 'ol-toggle': {
+      const g = tg.dataset.g, open = tg.getAttribute('aria-expanded') === 'true';
+      S.fold.set(g, open ? 'shut' : 'open');
+      const body = document.getElementById(g.startsWith('sec:') ? `ol-sec-${g.slice(4)}` : `ol-${g}`);
+      if (body){ body.hidden = open; tg.setAttribute('aria-expanded', String(!open)); tg.closest?.('.clg, .osec')?.classList.toggle('open', !open); }
+      return true;
+    }
+    case 'ol-more': { const id = tg.dataset.id; if (S.more.has(id)) S.more.delete(id); else S.more.add(id); C.renderBody(); return true; }
+    case 'ol-addline': {
+      S.adding = tg.dataset.id; C.renderBody();
+      document.querySelector(`.new-claim[data-entry="${CSS.escape(S.adding)}"]`)?.focus();
       return true;
     }
   }
@@ -211,4 +296,4 @@ function bind(body){
   body.addEventListener('focusout', e => { const r = e.target.closest?.('#checklist .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });
 }
 
-const api = { html, jobGroupHtml, act, bind, afterRender, landed };
+const api = { html, outlineHtml, act, bind, afterRender, landed };

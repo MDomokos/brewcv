@@ -498,7 +498,7 @@ section('a new person starts with no tags, and the panel says how to use them');
 section('the Highlight lens: job types first, and Apply');
 {
   const u = await makeUi({ resume: 0 });
-  const home = () => String(u.edit.homeView());
+  const home = () => String(u.edit.outlineView());
   ok('the lens is one row: Nothing first, then the job types', /<select id="lens"><option value="">Nothing<\/option>\s*<optgroup label="Job types"><option value="[^"]+"[^>]*>[^<]+ \(\d+\)<\/option>/.test(home()));
   ok('one list: job types in their own group, then every tag (nothing hidden), no “+ tags” switch', /<optgroup label="Job types">/.test(home()) && /<optgroup label="Tags">/.test(home()) && !/data-act="lens-tags"/.test(home()) && !/data-act="focus" data-tag="/.test(home()));
   u.fire('change', { id: 'lens', value: 'Prototyping', dataset: {}, classList: { contains: () => false } });
@@ -611,13 +611,13 @@ section('the Record tab: the timeline and every kind of addition are there, and 
   })());
   await u.click('c-pop');
   ok('every group lists all its lines, ticked or not, with its count', (() => { const html = rec(); return (html.match(/<li class="clrow/g) ?? []).length >= 30 && /class="clcount"/.test(html); })());
-  ok('a line opens its claim from Record and from the job’s own group: the same selection', (() => {
+  ok('a line opens its claim from Record and from the Outline’s open job: the same selection', (() => {
     u.select({ kind: 'job', id: 'hydra' });
     const sels = h => new Set(ids(h, /data-fact="[^"]*"[^>]*>[\s\S]*?data-act="cl-open" data-sel="([^"]*)"/g));
-    const a = sels(String(u.checklist.html())), b = sels(String(u.checklist.jobGroupHtml()));
+    const a = sels(String(u.checklist.html())), b = sels(String(u.checklist.outlineHtml()));
     return b.size >= 3 && [...b].every(x => a.has(x));
   })());
-  ok('the job level has no timeline and no carets: the job’s group is just its lines and a box to add one', (() => { u.select({ kind: 'job', id: 'hydra' }); const g = String(u.checklist.jobGroupHtml()); return !/rectl|tl2|clcaret/.test(g) && /data-act="add-claim"/.test(g); })());
+  ok('the Outline has no timeline: the open job is its lines, “+ n more” and a “+ line”', (() => { u.select({ kind: 'job', id: 'hydra' }); const g = String(u.checklist.outlineHtml()); return !/rectl|tl2/.test(g) && /data-act="ol-addline"/.test(g) && /data-act="ol-more"/.test(g); })());
 }
 
 section('what Career did, and where each part went (the ledger of data-act)');

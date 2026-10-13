@@ -1206,4 +1206,9 @@ export default {
   'ux5b.reset': 'Zurücksetzen',
   'ux5b.resetTitle': '{name} wieder in die Reihenfolge des Datensatzes bringen',
   'ux5b.undoReset': 'Reihenfolge zurücksetzen',
+  'ux5c.tabOutline': 'Gliederung',
+  'ux5c.outlineFoot': 'Fit kürzt von unten. Das Wichtige gehört nach oben.',
+  'ux5c.editNone': 'Klicke eine Zeile auf der Seite an oder wähle eine in der Gliederung, um ihre Fassungen zu sehen.',
+  'ux5c.line': '+ Zeile',
+  'ux5c.more': '+ {n} weitere',
 };

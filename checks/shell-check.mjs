@@ -7,9 +7,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
-import { computeLayout, G, COL_MIN, COL_MAX, RAIL_W, DRAWER_MAX, PHONE_MAX, RECORD_MIN, RECORD_MAX, recordWidth, ZOOM_MIN, ZOOM_MAX, clampZoom, panelWidth, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
+import { computeLayout, G, TAB_GAP, TABS_W, PANEL_MIN, PANEL_ONE, PANEL_TWO, TWO_FROM, FOLD_INSET, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
 import { indexModel, targetOf, up, step, versionsOf, factsOf, NONE } from '../src/ui/select.js';
-import { panelShown, afterEscape, PANEL_MODES, ZOOM_WRITE } from '../src/ui/dock.js';
+import { ZOOM_WRITE } from '../src/ui/dock.js';
 import { load, save, serialize, saveResume } from '../src/model/schema.js';
 import { newResume } from '../src/model/resume.js';
 import { memoryFolder, readFolder, createPersist, memoryBackend } from '../src/store/persist.js';
@@ -39,88 +39,80 @@ section('the source link (AGPL-3.0, section 13)');
   ok('all ten catalogues name the licence in src.link', have.length === 10, `missing: ${langs.filter(l => !have.includes(l))}`);
 }
 
-section('layout: the page area and the panel, the sheet at full height');
-for (const [vw, vh] of [[1536, 864], [1440, 960], [1280, 800], [1920, 1080]]){
-  for (const format of ['us-letter', 'a4']){
-    const L = computeLayout({ vw, vh, format });
-    const s = L.sheet, c = L.col;
-    ok(`${vw}×${vh} ${format}: full height`, L.fullHeight && Math.abs(s.top - G) < 1e-6 && Math.abs(s.height - (vh - 2 * G)) < 1e-6);
-    ok(`${vw}×${vh} ${format}: panel ${c.width.toFixed(0)}px within ${COL_MIN}–${COL_MAX}, ${G}px from the right and the top`, c.width >= COL_MIN && c.width <= COL_MAX && Math.abs(vw - c.left - c.width - G) < 1e-6 && c.top === G && c.height === vh - 2 * G);
-    ok(`${vw}×${vh} ${format}: the page is centred in the area left of the panel`, Math.abs(c.left - G - L.areaW) < 1e-6 && Math.abs(s.left - (L.areaW - s.left - s.width)) < 1e-6 && !L.drawer);
-    const F = computeLayout({ vw, vh, format, folded: true });
-    ok(`${vw}×${vh} ${format}: folded, the rail is ${RAIL_W}px and the page area grows to meet it`, F.col.width === RAIL_W && F.areaW > L.areaW && Math.abs(F.col.left - G - F.areaW) < 1e-6 && F.fullHeight);
+section('layout: the page and the panel float together');
+// the five tabs; Edit alone can show two sheets
+const TABS = { outline: false, edit: true, design: false, export: false, record: false };
+const SIZES = [[1200, 750], [1280, 720], [1470, 832], [1920, 1080], [2560, 1440]];
+const lay = (vw, vh, o = {}) => computeLayout({ vw, vh, format: 'a4', ...o });
+for (const [vw, vh] of SIZES){
+  const one = lay(vw, vh), two = lay(vw, vh, { two: true });
+  const widest = Math.max(one.col.width, two.col.width);
+  const tag = `${vw}×${vh}`;
+  ok(`${tag}: the panel is ${PANEL_MIN} to ${PANEL_ONE} px with one sheet (${one.col.width.toFixed(0)})`, one.col.width >= PANEL_MIN && one.col.width <= PANEL_ONE);
+  ok(`${tag}: the group is page, ${TAB_GAP}px, the tabs (${TABS_W}px), the panel, in the window`, Math.abs(one.tabs.left - (one.sheet.left + one.sheet.width + TAB_GAP)) < 1e-6 && Math.abs(one.col.left - (one.tabs.left + TABS_W)) < 1e-6 && widest + one.col.left <= vw - G + 1e-6 && one.sheet.left >= G / 2);
+  ok(`${tag}: the group is centred on the panel's widest state (${widest.toFixed(0)}px)`, Math.abs(one.sheet.left - (vw - (one.col.left + widest))) < 1e-6 || one.sheet.left === G / 2);
+  ok(`${tag}: two sheets only with ${TWO_FROM}px beside the page, up to ${PANEL_TWO}px`, two.twoSheets === (vw - 2 * G - TABS_W - TAB_GAP - one.sheet.width >= TWO_FROM) && (two.twoSheets ? two.col.width > one.col.width && two.col.width <= PANEL_TWO : two.col.width === one.col.width));
+  ok(`${tag}: the panel is ${G}px from the top and the bottom; the tabs run alongside`, one.col.top === G && one.col.height === vh - 2 * G && one.tabs.top === G && one.tabs.height === vh - 2 * G);
+  for (const [tab, wantTwo] of Object.entries(TABS)){
+    const L = lay(vw, vh, { two: wantTwo });
+    if (JSON.stringify(L.sheet) !== JSON.stringify(one.sheet) || L.tabs.left !== one.tabs.left || L.col.left !== one.col.left || L.view.mid !== one.view.mid){ ok(`${tag}: the ${tab} tab leaves the page, the tabs and the panel's left edge where they were`, false); break; }
   }
+  ok(`${tag}: …whichever of the five tabs is open, the page's x and the tabs do not move`, true);
 }
 {
-  ok('the panel is 32% of the window, between its minimum and its maximum (440 to 480 px at 1440)', panelWidth(1536) === 480 && panelWidth(1440) >= 440 && panelWidth(1440) <= 480 && panelWidth(1280) === 410 && panelWidth(1000) === COL_MIN && panelWidth(2560) === COL_MAX);
-  const narrow = computeLayout({ vw: 1100, vh: 1000, format: 'a4' });
-  ok(`under ${DRAWER_MAX}px the panel is a drawer: the page keeps its width (the rail’s), the panel lies over its right edge`,
-    narrow.drawer && narrow.areaW === 1100 - RAIL_W - 2 * G && narrow.col.left < narrow.areaW && narrow.col.width >= COL_MIN);
-  ok('…and folding it changes nothing about the page', JSON.stringify(narrow.sheet) === JSON.stringify(computeLayout({ vw: 1100, vh: 1000, format: 'a4', folded: true }).sheet));
-  ok('…while on a wide window folding it gives the page the panel’s room', computeLayout({ vw: 1536, vh: 864, format: 'a4', folded: true }).areaW > computeLayout({ vw: 1536, vh: 864, format: 'a4' }).areaW);
-  const wide = computeLayout({ vw: 2560, vh: 1440, format: 'a4' });
-  ok('very wide: the panel stops at its maximum', wide.col.width === COL_MAX);
-  const two = computeLayout({ vw: 1920, vh: 1080, format: 'a4', pages: 2 });
-  ok('two A4 pages at 1920×1080 sit side by side (costs under 15% of height)', two.spread && two.perView === 2);
-  const tall = computeLayout({ vw: 1280, vh: 800, format: 'a4', pages: 2 });
-  ok('…at 1280×800 they would cost more, so they stack and scroll', !tall.spread && tall.stack && tall.perView === 1);
-  ok('the ▭▭ toggle forces a spread', computeLayout({ vw: 1280, vh: 800, format: 'a4', pages: 2, mode: 'spread' }).spread);
-  ok('and ▯ forces the scrolled stack', computeLayout({ vw: 1536, vh: 864, format: 'a4', pages: 2, mode: 'stack' }).stack);
-  ok('"single" from before 0.6.1 means the stack', computeLayout({ vw: 1536, vh: 864, format: 'a4', pages: 2, mode: 'single' }).stack);
-  for (const folded of [false, true]) for (const [vw, vh, format, n] of [[1280, 800, 'a4', 2], [1536, 864, 'a4', 3], [1440, 960, 'us-letter', 2]]){
-    const L = computeLayout({ vw, vh, format, pages: n, mode: 'stack', folded });
-    const one = computeLayout({ vw, vh, format, pages: 1, folded });
+  const a = lay(1470, 832);
+  ok('1470×832, A4: the page runs the full height, 16px from top and bottom', a.fullHeight && Math.abs(a.sheet.top - G) < 1e-6 && Math.abs(a.sheet.height - (832 - 2 * G)) < 1e-6);
+  const narrow = lay(1100, 1000);
+  ok('under about 1100px the page shrinks so the panel keeps 560px', narrow.col.width === PANEL_MIN && !narrow.fullHeight && narrow.sheet.width < lay(1400, 1000).sheet.width && narrow.col.left + narrow.col.width <= 1100 - G + 1e-6);
+  ok('1920×1080 with one page has room for two sheets, 1470×832 does not', lay(1920, 1080).twoSheets && !lay(1470, 832).twoSheets && !lay(1280, 720).twoSheets);
+  ok('a tab that is not Edit never has two sheets', lay(1920, 1080, { two: false }).col.width <= PANEL_ONE && lay(1920, 1080, { two: true }).col.width > PANEL_ONE);
+  const wide = lay(2560, 1440);
+  ok('very wide: the panel stops at 1080px with two sheets, 760px with one', wide.col.width === PANEL_ONE && lay(2560, 1440, { two: true }).col.width === PANEL_TWO);
+  ok('the page is the same size in every panel state', lay(1920, 1080).scale === lay(1920, 1080, { two: true }).scale);
+}
+section('layout: pages side by side or one at a time');
+{
+  const n2 = (vw, vh, o = {}) => lay(vw, vh, { pages: 2, ...o });
+  const wide = n2(2560, 1440), tall = n2(1280, 800), mid = n2(1920, 1080);
+  ok('two A4 pages at 2560×1440 sit side by side (costs under 15% with the panel at its minimum)', wide.spread && wide.perView === 2 && wide.sheet.width > lay(2560, 1440).sheet.width);
+  ok('…at 1280×800 and at 1920×1080 they would cost more, so they travel one at a time (stack)', !tall.spread && tall.stack && tall.perView === 1 && !mid.spread && mid.stack);
+  ok('the spread is counted with the panel at its minimum, so opening a wider sheet changes nothing', JSON.stringify(n2(2560, 1440, { two: true }).sheet) === JSON.stringify(wide.sheet));
+  ok('mode "spread" forces a spread, "stack" a stack, an old "single" means "stack"', n2(1280, 800, { mode: 'spread' }).spread && n2(2560, 1440, { mode: 'stack' }).stack && n2(2560, 1440, { mode: 'single' }).stack);
+  ok('a spread group is centred like a single page: the tabs follow the two pages', Math.abs(wide.tabs.left - (wide.sheet.left + wide.sheet.width + TAB_GAP)) < 1e-6 && wide.col.left + wide.col.width <= 2560 - G + 1e-6);
+  for (const [vw, vh, format, n] of [[1280, 800, 'a4', 2], [1536, 864, 'a4', 3], [1440, 960, 'us-letter', 2]]){
+    const L = computeLayout({ vw, vh, format, pages: n, mode: 'stack' });
+    const one = computeLayout({ vw, vh, format, pages: 1 });
     const { h } = pageSize(format);
-    const tag = `${folded ? 'folded ' : ''}stack ${vw}×${vh} ${format} ×${n}`;
+    const tag = `stack ${vw}×${vh} ${format} ×${n}`;
     ok(`${tag}: each page at the one-page scale (full height)`, Math.abs(L.scale - one.scale) < 1e-9 && L.fullHeight);
     ok(`  the sheet is n pages tall plus the gaps, scaled`, Math.abs(L.sheet.height - stackHeight(format, n) * L.scale) < 1e-6 && Math.abs(stackHeight(format, n) - (n * h + (n - 1) * PAGE_GAP)) < 1e-9);
-    ok(`  the scroller is the window's height and scrolls through all of it`, L.pages.height === vh && Math.abs(L.pages.content - (G + L.sheet.height + G)) < 1e-6);
-    ok(`  the panel doesn't move`, Math.abs(L.col.left - one.col.left) < 1e-9 && L.col.width === one.col.width);
-    ok(`  the scroller stops short of the panel`, L.pages.width <= L.col.left && L.pages.width > L.sheet.left + L.sheet.width);
+    ok(`  the panel and the tabs don't move`, Math.abs(L.col.left - one.col.left) < 1e-9 && L.col.width === one.col.width && L.tabs.left === one.tabs.left);
     ok(`  page in view: 1 at the top, then each page as it reaches the middle`, pageInView(L, 0, n) === 0 && pageInView(L, pageTop(L, 1), n) === 1 && pageInView(L, pageTop(L, n - 1) + 9999, n) === n - 1);
   }
-  ok('the phone stacks the pages too (decision 6)', computeLayout({ vw: 390, vh: 844, format: 'a4', pages: 2 }).stack);
+}
+section('layout: folded');
+for (const [vw, vh] of SIZES){
+  const F = lay(vw, vh, { folded: true }), O = lay(vw, vh);
+  const tag = `${vw}×${vh}`;
+  ok(`${tag}: folded, the tabs stay at the right edge, ${FOLD_INSET}px in, and keep their height`, F.folded && Math.abs(F.tabs.left - (vw - FOLD_INSET - TABS_W)) < 1e-6 && F.tabs.top === O.tabs.top && F.tabs.height === O.tabs.height && F.tabs.width === TABS_W);
+  ok(`${tag}: …and the page is centred in the room left`, Math.abs(F.sheet.left - (F.tabs.left - F.sheet.left - F.sheet.width)) < 1e-6 && F.sheet.width >= O.sheet.width);
+  ok(`${tag}: …with no sheet beside them (the panel keeps its place to slide back to)`, F.twoSheets === false && F.col.left >= O.col.left - 1e-6 && F.view.mid === F.tabs.left / 2);
+}
+{
+  ok('zoom is kept between its limits, and a bad number means 1', clampZoom(0) === ZOOM_MIN && clampZoom(99) === ZOOM_MAX && clampZoom(NaN) === 1 && clampZoom(1.5) === 1.5);
+  const z = lay(1470, 832, { zoom: 2 }), one = lay(1470, 832);
+  ok('zoom 2 doubles the sheet, not the group', Math.abs(z.scale - 2 * one.scale) < 1e-9 && z.tabs.left === one.tabs.left && z.col.left === one.col.left && !z.fullHeight);
+}
+section('layout: a phone');
+{
+  ok('the phone stacks the pages (decision 6)', computeLayout({ vw: 390, vh: 844, format: 'a4', pages: 2 }).stack);
   const ph = computeLayout({ vw: 390, vh: 844, format: 'a4', folded: true });
-  ok('the phone has no rail: the column is the bottom sheet whatever the fold', ph.phone && !ph.folded && ph.col.width === 390 && ph.col.top + ph.col.height === 844);
+  ok('the phone has no tabs or fold: the column is the bottom sheet whatever the fold', ph.phone && !ph.folded && ph.col.width === 390 && ph.col.top + ph.col.height === 844 && ph.tabs.width === 0);
+  const rec = computeLayout({ vw: 390, vh: 844, format: 'a4', wide: true });
+  ok('on a phone, Record is the whole screen', rec.phone && rec.col.left === 0 && rec.col.top === 0 && rec.col.width === 390 && rec.col.height === 844);
   ok('actual size: calibrated px per mm → scale', Math.abs(actualScale(NOMINAL_PX_PER_MM) - 1) < 1e-12 && Math.abs(actualScale(340 / CARD_MM) - (340 / CARD_MM) / NOMINAL_PX_PER_MM) < 1e-12);
   ok('there is no Career layout or thumbnail any more', computeLayout({ vw: 1536, vh: 864, format: 'a4' }).career === undefined);
-}
-
-section('layout: the panel in Record');
-{
-  ok(`Record is ${RECORD_MIN} to ${RECORD_MAX} px wide and never more than half the window`, recordWidth(1440) === 720 && recordWidth(1280) === 640 && recordWidth(1600) === 720 && [1280, 1366, 1440, 1920, 2560].every(vw => recordWidth(vw) <= vw / 2 && recordWidth(vw) >= RECORD_MIN));
-  ok('under 1280 px Record is a drawer of 90% of the window, and on a phone the whole screen', recordWidth(1100) === 990 && recordWidth(PHONE_MAX - 1) === PHONE_MAX - 1);
-  for (const [vw, vh] of [[1440, 900], [1280, 800], [1920, 1080]]){
-    const n = computeLayout({ vw, vh, format: 'a4' }), w = computeLayout({ vw, vh, format: 'a4', wide: true });
-    ok(`${vw}×${vh}: Record widens the panel to ${w.col.width}px, keeps it ${G}px from the right, and the page area gives way (${n.areaW} → ${w.areaW})`,
-      w.col.width === recordWidth(vw) && Math.abs(vw - w.col.left - w.col.width - G) < 1e-6 && w.areaW === n.areaW - (w.col.width - n.col.width) && w.sheet.left + w.sheet.width <= w.areaW);
-  }
-  const d = computeLayout({ vw: 1100, vh: 800, format: 'a4', wide: true }), dn = computeLayout({ vw: 1100, vh: 800, format: 'a4' });
-  ok('as a drawer, Record lies over the page, which does not move for it, and a sliver of the page stays in view', d.drawer && d.areaW === dn.areaW && JSON.stringify(d.sheet) === JSON.stringify(dn.sheet) && d.col.left > 0 && d.col.left + d.col.width === 1100 - G);
-  ok('folded, the rail is the rail whatever the mode', computeLayout({ vw: 1440, vh: 900, format: 'a4', folded: true, wide: true }).col.width === RAIL_W);
-  const ph = computeLayout({ vw: 390, vh: 844, format: 'a4', wide: true });
-  ok('on a phone, Record is the whole screen', ph.phone && ph.col.left === 0 && ph.col.top === 0 && ph.col.width === 390 && ph.col.height === 844);
-}
-
-section('layout: zoom (1 is the whole page in the window)');
-{
-  const one = computeLayout({ vw: 1440, vh: 900, format: 'a4' });
-  const big = computeLayout({ vw: 1440, vh: 900, format: 'a4', zoom: 2 });
-  ok('zoom 2 doubles the sheet, not the area', Math.abs(big.scale - 2 * one.scale) < 1e-9 && big.areaW === one.areaW && !big.fullHeight);
-  ok('a zoomed sheet that no longer fits starts at the corner and the scroller grows to hold it', big.sheet.left === G && big.sheet.top === G && big.pages.contentW >= big.sheet.width + 2 * G && big.pages.content >= big.sheet.height + 2 * G);
-  ok('zoomed out, it stays centred', Math.abs(computeLayout({ vw: 1440, vh: 900, format: 'a4', zoom: 0.5 }).sheet.left - (one.areaW - computeLayout({ vw: 1440, vh: 900, format: 'a4', zoom: 0.5 }).sheet.width) / 2) < 1e-6);
-  ok('zoom is kept between its limits, and a bad number means 1', clampZoom(0) === ZOOM_MIN && clampZoom(99) === ZOOM_MAX && clampZoom(NaN) === 1 && clampZoom(1.5) === 1.5);
-}
-
-section('the panel: Auto, Open, Closed');
-{
-  ok('Auto folds while nothing is selected, and opens when something is', !panelShown({ pref: 'auto' }) && panelShown({ pref: 'auto', selected: true }));
-  ok('Open and Closed pin it, whatever is selected', panelShown({ pref: 'open' }) && !panelShown({ pref: 'closed', selected: true }));
-  ok('a view (Design, Export, Settings, a form) needs the panel, even when it is closed', panelShown({ pref: 'closed', view: true }) && panelShown({ pref: 'auto', view: true }));
-  ok('E on a folded Auto panel and the rail’s Edit keep it open until Esc (a peek); a snapshot opens it too', panelShown({ pref: 'auto', peek: true }) && panelShown({ pref: 'auto', snap: true }) && !panelShown({ pref: 'closed', peek: true }));
-  ok('on a phone the column is always the bottom sheet', panelShown({ pref: 'closed', phone: true }));
-  ok('Esc all the way out: Open drops to Auto, Auto and Closed stay', afterEscape('open') === 'auto' && afterEscape('auto') === 'auto' && afterEscape('closed') === 'closed');
-  ok('the three modes, and the zoom-while-writing range from 80 to 180, 130 to start', eq(PANEL_MODES, ['auto', 'open', 'closed']) && ZOOM_WRITE.min === 80 && ZOOM_WRITE.max === 180 && ZOOM_WRITE.def === 130);
+  ok('there is no panel mode left: no Auto, no peek, no drawer on a desktop', computeLayout({ vw: 1100, vh: 800, format: 'a4' }).drawer === undefined && ZOOM_WRITE.min === 80 && ZOOM_WRITE.max === 180 && ZOOM_WRITE.def === 130);
 }
 
 section('select: a click means');

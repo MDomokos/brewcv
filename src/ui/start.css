@@ -19,7 +19,7 @@ body.is-intro .col > #head, body.is-intro .col > #foot { background: transparent
 body.is-intro .col > #head { padding: 4px 6px 0; }
 body.is-intro .col > #foot { padding: 0 6px; }
 body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); box-shadow: var(--shadow-panel); padding: 16px; }
-body.is-intro .col > #rail { display: none; }
+body.is-intro #tabs { display: none; }
 
 /* ---------- the header ---------- */
 .obhead { display: grid; gap: 6px; }

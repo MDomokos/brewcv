@@ -68,29 +68,34 @@ function designView(){
   const a4 = r.format !== 'us-letter';
   const manual = Array.isArray(r.pages);
   return `<h2 class="title">${h('head.design')}</h2>
-    <span class="lbl">${h('design.pages')}</span>
-    <div class="seg" role="group" aria-label="${esc(t('design.pages'))}">${[[1, t('design.onePage')], [2, t('design.twoPages')], [0, t('design.anyPages')]].map(([n, l]) => `<button data-act="d-pages" data-n="${n}" aria-pressed="${!manual && (r.pageLimit ?? 1) === n}">${esc(l)}</button>`).join('')}</div>
+    <div class="drow">
+      <div><span class="lbl">${h('design.pages')}</span>
+        <div class="seg" role="group" aria-label="${esc(t('design.pages'))}">${[[1, t('design.onePage')], [2, t('design.twoPages')], [0, t('design.anyPages')]].map(([n, l]) => `<button data-act="d-pages" data-n="${n}" aria-pressed="${!manual && (r.pageLimit ?? 1) === n}">${esc(l)}</button>`).join('')}</div></div>
+      <div><span class="lbl">${h('design.paper')}</span>
+        <div class="seg" role="group" aria-label="${esc(t('design.paper'))}"><button data-act="d-paper" data-f="us-letter" aria-pressed="${!a4}">${h('paper.letter')}</button><button data-act="d-paper" data-f="a4" aria-pressed="${a4}">${h('paper.a4')}</button></div></div>
+    </div>
     <p class="note">${manual ? h('design.manualNote', { n: r.pages.length }) : r.pageLimit === 0 ? h('design.flowNote') : h(r.pageLimit === 2 ? 'design.fitTwo' : 'design.fitOne')}</p>
-    <span class="lbl">${h('design.paper')}</span>
-    <div class="seg" role="group" aria-label="${esc(t('design.paper'))}"><button data-act="d-paper" data-f="us-letter" aria-pressed="${!a4}">${h('paper.letter')}</button><button data-act="d-paper" data-f="a4" aria-pressed="${a4}">${h('paper.a4')}</button></div>
     <span class="lbl">${h('design.template')}</span>
     <div class="tpls">${TEMPLATES.map(x => `<button class="tpl" data-act="d-tpl" data-t="${x.id}" aria-pressed="${tpl?.id === x.id}" title="${esc(tplNote(x))}"><i class="tpl-${x.id}"></i>${esc(tplName(x))}</button>`).join('')}</div>
-    <span class="lbl">${h('design.accent')}</span>
-    <div class="sws">${SWATCHES.map(c => `<button class="swatch" style="background:${c}" data-act="d-accent" data-c="${c}" aria-pressed="${accent === c}" aria-label="${esc(t('design.accentX', { c }))}"></button>`).join('')}
-      <label class="swatch custom" title="${esc(t('design.anyColour'))}"><input type="color" id="d-color" value="${esc(accent)}" aria-label="${esc(t('design.pickColour'))}"></label>
-      ${r.accent ? `<button class="sm ghost" data-act="d-accent" data-c="">${h('design.themesOwn')}</button>` : ''}</div>
-    <p class="note ${chk.ok ? '' : 'bad'}">${chk.ok ? h('design.contrastOk', { r: chk.ratio.toFixed(1) }) : h('design.contrastBad', { r: chk.ratio?.toFixed(1) })}</p>
-    <span class="lbl">${h('design.theme')}</span>
-    <div class="list">${['', ...themes.map(x => x.id)].map(id => { const th = themes.find(x => x.id === id);
-      return `<button class="item ${(r.look ?? '') === id ? 'is-cur' : ''}" data-act="d-look" data-id="${esc(id)}"><span>${esc(th ? th.name : t('design.templatesOwn'))}</span><span class="muted small">${th ? h('design.tokensImported', { n: Object.keys(th.tokens).length }) : h('design.builtIn')}</span></button>`; }).join('')}</div>
-    ${fontWarn.length ? `<p class="note bad">${h('design.fontWarn', { fonts: fontWarn.join(', '), n: fontWarn.length })}</p>` : ''}
-    <div class="btns"><button class="sm" data-act="d-import">${h('design.import')}</button><button class="sm ghost" data-act="d-export">${h('design.export')}</button>${look ? `<button class="sm ghost" data-act="d-drop" data-id="${esc(look.id)}">${h('design.removeX', { name: look.name })}</button>` : ''}</div>
+    <div class="drow two">
+      <div><span class="lbl">${h('design.accent')}</span>
+        <div class="sws">${SWATCHES.map(c => `<button class="swatch" style="background:${c}" data-act="d-accent" data-c="${c}" aria-pressed="${accent === c}" aria-label="${esc(t('design.accentX', { c }))}"></button>`).join('')}
+          <label class="swatch custom" title="${esc(t('design.anyColour'))}"><input type="color" id="d-color" value="${esc(accent)}" aria-label="${esc(t('design.pickColour'))}"></label>
+          ${r.accent ? `<button class="sm ghost" data-act="d-accent" data-c="">${h('design.themesOwn')}</button>` : ''}</div>
+        <p class="note ${chk.ok ? '' : 'bad'}">${chk.ok ? h('design.contrastOk', { r: chk.ratio.toFixed(1) }) : h('design.contrastBad', { r: chk.ratio?.toFixed(1) })}</p></div>
+      <div><span class="lbl">${h('design.theme')}</span>
+        <div class="list">${['', ...themes.map(x => x.id)].map(id => { const th = themes.find(x => x.id === id);
+          return `<button class="item ${(r.look ?? '') === id ? 'is-cur' : ''}" data-act="d-look" data-id="${esc(id)}"><span>${esc(th ? th.name : t('design.templatesOwn'))}</span><span class="muted small">${th ? h('design.tokensImported', { n: Object.keys(th.tokens).length }) : h('design.builtIn')}</span></button>`; }).join('')}</div>
+        ${fontWarn.length ? `<p class="note bad">${h('design.fontWarn', { fonts: fontWarn.join(', '), n: fontWarn.length })}</p>` : ''}
+        <div class="btns"><button class="sm" data-act="d-import">${h('design.import')}</button><button class="sm ghost" data-act="d-export">${h('design.export')}</button>${look ? `<button class="sm ghost" data-act="d-drop" data-id="${esc(look.id)}">${h('design.removeX', { name: look.name })}</button>` : ''}</div></div>
+    </div>
     <span class="lbl">${h('design.photo')}</span>
     <div class="photo-row">${hasPhoto && rec.basics?.image ? `<img class="thumb" src="${esc(C.photoUrl())}" alt="">` : `<span class="thumb empty">${hasPhoto ? h('design.photoWord') : h('design.none')}</span>`}
-      <div class="btns"><button class="sm" data-act="d-photo">${hasPhoto ? h('design.replacePhoto') : h('design.addPhoto')}</button>${rec.basics?.image ? `<button class="sm ghost" data-act="d-photo-rm">${h('design.remove')}</button>` : ''}</div></div>
-    <div class="ctlrow"><label class="swl"><input type="checkbox" class="sw" id="d-photo-on" ${r.photo?.show ? 'checked' : ''}><span>${h('design.showPhoto')}</span></label></div>
-    <div class="seg" role="group" aria-label="${esc(t('design.shape'))}">${[['rect', t('design.passport')], ['soft', t('design.rounded')], ['round', t('design.circle')]].map(([s, l]) => `<button data-act="d-shape" data-s="${s}" aria-pressed="${(r.photo?.shape ?? 'rect') === s}">${esc(l)}</button>`).join('')}</div>
-    <p class="note">${h('design.photoNote')}${r.photo?.show && !a4 ? ' ' + h('design.letterPhoto') : ''} ${h('design.photoCrop')}</p>`;
+      <div class="photo-ctl">
+        <div class="btns"><button class="sm" data-act="d-photo">${hasPhoto ? h('design.replacePhoto') : h('design.addPhoto')}</button>${rec.basics?.image ? `<button class="sm ghost" data-act="d-photo-rm">${h('design.remove')}</button>` : ''}
+          <label class="swl"><input type="checkbox" class="sw" id="d-photo-on" ${r.photo?.show ? 'checked' : ''}><span>${h('design.showPhoto')}</span></label></div>
+        <div class="seg" role="group" aria-label="${esc(t('design.shape'))}">${[['rect', t('design.passport')], ['soft', t('design.rounded')], ['round', t('design.circle')]].map(([s, l]) => `<button data-act="d-shape" data-s="${s}" aria-pressed="${(r.photo?.shape ?? 'rect') === s}">${esc(l)}</button>`).join('')}</div>
+        <p class="note">${h('design.photoNote')}${r.photo?.show && !a4 ? ' ' + h('design.letterPhoto') : ''} ${h('design.photoCrop')}</p></div></div>`;
 }
 
 function commit(fn, label, done){

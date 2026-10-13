@@ -195,7 +195,7 @@ async function act(a, tg){
         C.store.reset(st, 'example');
       }
       await loadCatalogue(L);
-      C.ui.peek = true;               // the intro parts become the editor's controls: the panel opens, with the checklist in it
+      C.ui.folded = false;            // the intro parts become the editor's controls: the panel opens, with the Outline in it
       C.ui.exampleChip = true;         // "This is the example…" is a chip at the top of the panel, not a toast over the page
       C.setView(null); return true;
     }
@@ -220,8 +220,8 @@ async function act(a, tg){
       if (r && who && r.name === t('resumes.newNameless')) C.store.commit(d => { RS.renameSaved(d, d.openId, t('resumes.newName', { name: who })); }, t('ux1.undoRename'));
       O.step = 'welcome';
       O.tip = 0;
-      C.ui.peek = true;               // the editor opens with its panel, and the checklist in it
-      C.setView(null);       // the header, the footer, the rail and the zoom bar come in around the page (src/ui/arrive.js, from shell.js)
+      C.ui.folded = false;            // the editor opens with its panel, and the Outline in it
+      C.setView(null);       // the header, the tabs and the zoom bar come in around the page (src/ui/arrive.js, from shell.js)
       return true;
     }
     case 'tip-next': O.tip = O.tip < TIPS.length - 1 ? O.tip + 1 : null; C.renderBody(true); return true;

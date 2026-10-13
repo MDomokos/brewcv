@@ -1206,4 +1206,9 @@ export default {
   'ux5b.reset': 'Reset',
   'ux5b.resetTitle': 'Put {name} back in the record’s order',
   'ux5b.undoReset': 'Reset order',
+  'ux5c.tabOutline': 'Outline',
+  'ux5c.outlineFoot': 'Fit cuts from the bottom. Put what matters first.',
+  'ux5c.editNone': 'Click a line on the page, or pick one in the Outline, to see its versions.',
+  'ux5c.line': '+ line',
+  'ux5c.more': '+ {n} more',
 };

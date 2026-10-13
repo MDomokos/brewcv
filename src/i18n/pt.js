@@ -1206,4 +1206,9 @@ export default {
   'ux5b.reset': 'Repor',
   'ux5b.resetTitle': 'Repor {name} na ordem do registo',
   'ux5b.undoReset': 'Repor a ordem',
+  'ux5c.tabOutline': 'Estrutura',
+  'ux5c.outlineFoot': 'O Fit corta pelo fim. Coloque primeiro o que importa.',
+  'ux5c.editNone': 'Clique numa linha da página, ou escolha uma na estrutura, para ver as suas versões.',
+  'ux5c.line': '+ linha',
+  'ux5c.more': '+ {n} mais',
 };

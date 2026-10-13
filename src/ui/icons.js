@@ -1,5 +1,5 @@
-// The few line icons the app uses, drawn on a 16px grid with one stroke. Pure strings. The tea pictograms (leaf, teapot,
-// served cup) are the rail's modes while the drink is tea; the two cups are the drink corner's.
+// The few line icons the app uses, drawn on a 16px grid with one stroke. Pure strings. The tea pictograms (steep, latte, cupout,
+// recordbook) are the tabs' icons while the drink is tea; the plain set (list, edit, design, export, timeline) is Coffee's.
 // Every use sits in a button that has its own name, so the drawing itself is hidden from a screen reader.
 
 const P = {
@@ -28,14 +28,15 @@ const P = {
   more: '<circle cx="3.6" cy="8" r=".9"/><circle cx="8" cy="8" r=".9"/><circle cx="12.4" cy="8" r=".9"/>',
   warn: '<path d="M8 2.8l5.6 9.8H2.4z"/><path d="M8 6.8v2.8M8 11.3v.1"/>',
   check: '<path d="M3.4 8.4 6.6 11.4l6-6.6"/>',
-  leaf: '<path d="M3 13C3 7.5 6.5 3 13 3c0 6.5-4.5 10-10 10z"/><path d="M3 13l6.5-6.5"/>',
-  teapot: '<path d="M3.5 7.5h8v2.2a3.8 3.8 0 0 1-3.8 3.8h-.4a3.8 3.8 0 0 1-3.8-3.8z"/><path d="M11.5 8.6c1.4-.6 2.6.2 2.4 1.6-.2 1.2-1.3 1.8-2.6 1.6"/><path d="M3.5 9 1.6 7.2"/><path d="M5.8 7.5V6h3.4v1.5M7.5 6V4.8"/>',
-  cupserved: '<path d="M3 7.5h8.5v2.6a3.4 3.4 0 0 1-3.4 3.4H6.4A3.4 3.4 0 0 1 3 10.1z"/><path d="M11.5 8.4h.7a1.5 1.5 0 0 1 0 3h-.9"/><path d="M6 2.4c-.6.8.6 1.5 0 2.5M8.6 2.4c-.6.8.6 1.5 0 2.5"/>',
   teacup: '<path d="M2.5 6.5h9v2.8a3.6 3.6 0 0 1-3.6 3.6H6.1a3.6 3.6 0 0 1-3.6-3.6z"/><path d="M11.5 7.4h.8a1.6 1.6 0 0 1 0 3.2h-1"/><path d="M5.5 2.2c-.6.8.6 1.4 0 2.4M8.2 2.2c-.6.8.6 1.4 0 2.4"/>',
   update: '<path d="M3.4 8.4 6.6 11.4l6-6.6"/>',
   copyplus: '<rect x="2.6" y="5.4" width="7.6" height="8" rx="1.2"/><path d="M5.8 3.2h6.4a1.2 1.2 0 0 1 1.2 1.2v6.4M6.4 9.4h3.2M8 7.8V11"/>',
   onlyhere: '<rect x="4.2" y="2.4" width="7.6" height="11.2" rx="1.4"/><circle cx="8" cy="8" r="1.7"/>',
-  record: '<path d="M3.4 3.6h9.2M3.4 8h9.2M3.4 12.4h9.2"/><circle cx="1.9" cy="3.6" r=".5"/><circle cx="1.9" cy="8" r=".5"/><circle cx="1.9" cy="12.4" r=".5"/>',
+  list: '<path d="M5.4 3.6h8M5.4 8h8M5.4 12.4h8"/><circle cx="2.6" cy="3.6" r=".6"/><circle cx="2.6" cy="8" r=".6"/><circle cx="2.6" cy="12.4" r=".6"/>',
+  steep: '<path d="M2.6 8.4h9.2v2.2a3.4 3.4 0 0 1-3.4 3.4H6a3.4 3.4 0 0 1-3.4-3.4z"/><path d="M11.8 9.2h.7a1.4 1.4 0 0 1 0 2.8h-1"/><path d="M7.2 1.6v2.8"/><path d="M5.4 4.4h3.6l-.5 4H5.9z"/>',
+  latte: '<circle cx="8" cy="8" r="5.8"/><path d="M8 11.4c-2.6-1.5-3.4-2.6-3.4-3.7 0-1 .8-1.7 1.7-1.7.8 0 1.4.5 1.7 1 .3-.5.9-1 1.7-1 .9 0 1.7.7 1.7 1.7 0 1.1-.8 2.2-3.4 3.7z"/>',
+  cupout: '<path d="M2.6 3.4h7.4v1.6H2.6z"/><path d="M3.2 5l.7 8.4h4.8L9.4 5"/><path d="M10.8 9.2h3.4M12.8 7.4l1.8 1.8-1.8 1.8"/>',
+  recordbook: '<path d="M3.2 2.6h8.2a1 1 0 0 1 1 1v9.8H4.2a1 1 0 0 1-1-1z"/><path d="M3.2 12.4a1 1 0 0 1 1-1h8.2"/><path d="M6 9.4c0-2.6 1.6-4 4.4-4 0 2.6-1.6 4-4.4 4z"/><path d="M6 9.4l2.4-2.4"/>',
   espresso: '<path d="M4 6.5h6.5l-.6 5.2a1.4 1.4 0 0 1-1.4 1.3H6a1.4 1.4 0 0 1-1.4-1.3z"/><path d="M10.4 7.6h.9a1.4 1.4 0 0 1 0 2.8h-1.2"/><path d="M3 14.5h9"/>',
 };
 

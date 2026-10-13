@@ -1206,4 +1206,9 @@ export default {
   'ux5b.reset': 'Herstellen',
   'ux5b.resetTitle': '{name} terugzetten in de volgorde van het record',
   'ux5b.undoReset': 'Volgorde herstellen',
+  'ux5c.tabOutline': 'Overzicht',
+  'ux5c.outlineFoot': 'Fit snijdt onderaan weg. Zet wat telt vooraan.',
+  'ux5c.editNone': 'Klik op een regel op de pagina, of kies er een in het overzicht, om de versies te zien.',
+  'ux5c.line': '+ regel',
+  'ux5c.more': '+ {n} meer',
 };

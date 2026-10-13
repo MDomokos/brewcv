@@ -9,7 +9,7 @@ import { isArchived } from '../model/entries.js';
 import { groupOf } from '../model/checklist.js';
 import { fit, FILL_BAND, key as measureKeyOf } from '../fit.js';
 import { createSheet } from './sheet.js';
-import { computeLayout, pageSize, pageInView, pageTop } from './layout.js';
+import { computeLayout, pageSize, pageInView, pageTop, PHONE_MAX, G } from './layout.js';
 import { initCanvas, PAGES_MOVED } from './canvas.js';
 import { initOnPage } from './onpage.js';
 import { pageLeft } from './camera.js';
@@ -34,7 +34,6 @@ import { langMenuHtml, menuKey, focusMenu } from './langmenu.js';
 import { jobTypeLabel } from '../model/focus.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
 import { initSettings, readPref, browserLang, readGarden } from './settings.js';
-import { ib } from './dock.js';
 import * as motion from './motion.js';
 import { reduced, onMotionChange, play, ghost, fly } from './motion.js';
 import * as arrive from './arrive.js';
@@ -70,7 +69,7 @@ const ui = {
   fitting: false, lastFit: null, work: null, workKey: null, ix: null, probed: new Set(), snap: null,
 };
 const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, moved: () => { placeOverflow(); onpage?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
-const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
+const onpage = initOnPage({ ui, sheet, canvas, editShown: () => dock.modeOf() === 'edit' && !dock.folded(), edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
   ix: () => ui.ix ?? indexModel(work()), fillText: () => fillText(), select: sel => select(sel),
   writeStarted: () => dock.sync(true), writeEnded: () => dock.sync(true), redrawSoon: () => schedule() });
 window.__wb = { store, persist, sheet, ui, canvas, onpage, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
@@ -290,21 +289,18 @@ function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'spread', folded: dock.folded(), zoom: 1, wide: dock.wide() });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'auto', folded: dock.folded(), zoom: 1, wide: ui.view === 'record', two: dock.twoNow() });
   const host = $('#sheet'), box = $('#pages');
-  const col = $('#col');
-  col.style.left = `${L.col.left}px`;
-  col.style.top = `${L.col.top}px`;
-  col.style.width = `${L.col.width}px`;
-  col.style.height = `${L.col.height}px`;
+  const col = $('#col'), tabs = $('#tabs');
+  for (const [el, r] of [[col, L.col], [tabs, L.tabs]]) Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  col.style.setProperty('--col-out', `${innerWidth - L.col.left + 40}px`);       // folded, the panel slides this far to the right
   col.classList.toggle('is-folded', L.folded);
-  col.classList.toggle('is-drawer', L.drawer && !L.folded);
+  col.classList.toggle('is-two', L.two);
+  tabs.hidden = L.phone;
+  tabs.classList.toggle('is-folded', L.folded);
   for (const id of ['head', 'body']){ const el = $(`#${id}`); el.inert = L.folded; }
-  $('#rail').hidden = !L.folded;
-  col.classList.toggle('is-record', dock.wide());
   ui.layout = L;
   document.body.dataset.phone = String(!!L.phone);
-  document.body.dataset.drawer = String(!!L.drawer);
   document.body.dataset.folded = String(!!L.folded);
   syncGarden();
   if (L.phone){
@@ -324,7 +320,7 @@ function relayout(){
     ui.zoom = 1; ui.equal = false;
     sheet.setFade([]);
   } else {
-    // the pages are a canvas under the whole window; the panel and the rail sit on it. The camera places the sheet.
+    // the pages are a canvas under the whole window; the panel and the tabs sit on it. The camera places the sheet.
     document.body.style.minHeight = '';
     Object.assign(box.style, { left: '0px', top: '0px', width: `${innerWidth}px`, height: `${innerHeight}px` });
     box.firstElementChild.style.height = '0px';
@@ -334,13 +330,15 @@ function relayout(){
     document.body.dataset.spread = String(canvas.scene === 'all');
     document.body.dataset.stack = 'false';
     document.body.dataset.pages = canvas.scene;
+    // the zoom bar sits at the foot of the page area, under the page
+    const zb = $('#zoombar');
+    if (zb){ zb.style.left = `${L.view.mid}px`; }
   }
   // the start screen's picture takes the page area left of the column
-  document.body.style.setProperty('--startw', `${Math.max(240, L.col.left - 2 * G_)}px`);
+  document.body.style.setProperty('--startw', `${Math.max(240, L.col.left - 2 * G)}px`);
   renderFoot();
   renderChip();
 }
-const G_ = 16;
 
 // The pages scroll in #pages on a big screen, and in the window on a phone.
 const scrollOf = () => (ui.layout?.phone ? scrollY : $('#pages').scrollTop);
@@ -382,7 +380,7 @@ function pick({ variant, section, page = -1 }){
   const writes = (open || wasWriting) && !ui.layout?.phone && (wasWriting || !edit.editing);
   if (wasWriting) onpage.keepView(() => { select(next); if (ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit(); });
   else {
-    select(next);
+    select(next, { pane: 'edit' });
     if (writes && ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit();
   }
   if (other) canvas.goToPage(page);
@@ -405,9 +403,11 @@ function writeLine({ variant, page = -1 }){
 // a click on the bare canvas (not on a page) puts you at the page level
 function bareClick(){ if (ui.view || ui.snap) return; if (ui.sel.kind !== 'none') select(NONE); }
 // `keepScroll`: the click was on a row of the job's own lines, where the person is already looking, so the panel stays where it is.
-function select(sel, { keepScroll = false } = {}){
+// `pane`: the sheet the selection shows in (a click on the page opens Edit, a click in the Outline keeps the Outline); the tab stays when none is said.
+function select(sel, { keepScroll = false, pane = null } = {}){
   if (!edit.leaving(sel)) return;
   if (ui.view && ui.view !== 'welcome' && sel.kind !== 'none'){ ui.view = null; }
+  if (pane) ui.pane = pane;
   ui.sel = sel;
   if (ui.previewing){ ui.previewing = false; sheet.endPreview(); }
   sheet.select(sel, ui.ix);
@@ -416,9 +416,9 @@ function select(sel, { keepScroll = false } = {}){
   if (at >= 0 && at !== ui.page) ui.page = at;       // the camera fits that page when the panel opens
   dock.sync();
   renderHead();
-  // The panel opens at its top (the line's versions are what you came for). Only a click on a row of the job's own lines, which
-  // keeps the panel where it is, leaves it alone; leaving Record is a new panel.
-  renderBody(!keepScroll || was === 'record');
+  // The panel opens at its top (the line's versions are what you came for). Only a click on a row of the Outline or the Record,
+  // which keeps the panel where it is, leaves it alone; leaving a view is a new panel.
+  renderBody(!keepScroll || !!was);
   renderChip();
 }
 
@@ -433,7 +433,7 @@ function bindChrome(){
   addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) openFile(f); });
 }
 
-function renderAll(){ syncIntro(); renderHead(); renderBody(); dock.renderRail(); renderFoot(); }
+function renderAll(){ syncIntro(); renderHead(); renderBody(); renderFoot(); }
 
 // Links that act (no href) are buttons to the keyboard and to a screen reader.
 function keyboardable(root){
@@ -449,16 +449,28 @@ const isExample = () => /\(fictional\)/.test(record()?.meta?.owner ?? '');
 
 // Views that replace the body card until ← Back or Esc; null is the Edit view.
 const VIEWS = {};
+// Outline or Edit: the resume's two sheets (the others are views)
+function setPane(p){
+  ui.pane = p;
+  if (ui.view){ setView(null); return; }
+  if (ui.previewing) endPreview();
+  dock.sync();
+  renderHead();
+  renderBody(true);
+  renderChip();
+}
 function setView(v){
   if (v && !VIEWS[v]) return;
-  if (v === 'record' && ui.view !== 'record') ui.recordFrom = ui.view;      // Esc goes back to where it was opened from
+  if (v === 'record' && ui.view !== 'record') ui.recordFrom = ui.view ?? ui.pane;      // Esc goes back to where it was opened from
   ui.view = v;
+  if (v) dock.unfold();
   syncIntro();                 // the start screen's areas are the editor's again before they are drawn
   if (ui.previewing) endPreview();
   resumes.reset();
   dock.sync();
   renderHead();
   renderBody(true);
+  renderChip();
 }
 
 // the head is redrawn on every save: the control that had the focus keeps it
@@ -467,6 +479,7 @@ function renderHead(){
   const ae = document.activeElement, kept = ae && ae.closest?.('#head') ? focusKey(ae) : null;
   drawHead();
   if (kept){ const n = $(`#head ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
+  dock.renderTabs();       // the tabs, and the menu that opens from their foot card
 }
 function drawHead(){
   // on the start screen the header area is the logo, the name and the tagline
@@ -476,34 +489,51 @@ function drawHead(){
   const saving = st.status === 'saving' || st.status === 'pending';
   const saveText = st.status === 'error' ? t('ux1.saveFailed') : saving ? t('head.saving') : t('ux1.savedDevice');
   const saved = `<span class="si ${st.status === 'error' ? 'bad' : saving ? '' : 'ok'}" aria-hidden="true">${st.status === 'error' ? icon('warn', { size: 12 }) : saving ? '…' : icon('check', { size: 12 })}</span><span class="stext2">${esc(st.status === 'error' ? saveText : saving ? t('head.saving') : t('ux2.savedShort'))}</span><span class="sr">${esc(saveText)}${st.status === 'error' && st.error ? ': ' + esc(st.error) : ''}</span>`;
-  const meta = r ? [jobTypeLabel(store.state.record, r.jobType), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
-    r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const snap = snapNow();
-  const mode = dock.modeOf();
-  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   const file = fileLine();
   const sent = sentLine();
+  const notices = `${ui.exampleChip && isExample() ? `<div class="hrow notice examplechip" role="status"><span class="small" title="${esc(t('toast.thisIsExample'))}">${esc(t('ux3b.exampleChip'))}</span><button class="ghost sm" data-act="example-ok" aria-label="${esc(t('body.close'))}">${icon('close', { size: 12 })}</button></div>` : ''}
+    ${st.code === 'folder-changed' ? `<div class="hrow notice" role="alert"><span class="small">${esc(st.error)}</span><span class="btns"><button class="sm" data-act="folder-compare">${h('save.folderCompare')}</button><button class="sm" data-act="folder-overwrite">${h('save.folderOverwrite')}</button></span></div>` : ''}
+    ${ui.saveNote ? `<div class="hrow notice" role="status"><span class="small">${esc(t('save.note'))}${ui.persisted === false ? ' ' + esc(t('save.noteStorage')) : ''}</span><button class="sm" data-act="save-note-ok">${h('save.noteOk')}</button></div>` : ''}
+    ${snap ? `<div class="hrow notice snapbar" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${h('ux1.backToResume')}</button></div>` : ''}
+    ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}`;
+  const savebtn = `<button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>`;
+  const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
+  if (!ui.layout?.phone){
+    // the header row: the logo (the drink switch), the resume's name with what it is, the fill and Fit, then Saved and Save to file
+    const type = r ? jobTypeLabel(store.state.record, r.jobType) : '', paper = r ? (r.format === 'us-letter' ? t('paper.letter') : t('paper.a4')) : '';
+    const pages = r ? (r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null) : null;
+    $('#head').innerHTML = `
+    <div class="hrow top">
+      ${logoBtn(28)}
+      <div class="docblock"><button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { size: 12 })}</span></span></button>
+        <div class="dline">${type ? `<span class="dt">${esc(type)}</span>` : ''}${r ? langButton(r) : ''}<span class="dt">${esc([paper, pages].filter(Boolean).join(' · '))}</span></div></div>
+      ${dock.fillHtml()}
+      ${savedState}
+      ${savebtn}
+    </div>
+    ${sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
+    ${notices}`;
+  } else {
+  const mode = dock.modeOf();
+  const meta = r ? [jobTypeLabel(store.state.record, r.jobType), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
+    r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
+  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'outline') ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   $('#head').innerHTML = `
     <div class="hrow top">
       ${logoBtn(28)}
       <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { size: 12 })}</span></span><span class="dt">${esc(meta)}</span>${sent ? `<span class="dsent">${esc(sent)}</span>` : ''}</button>
       ${r ? langButton(r) : ''}
-      <span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>
-      <button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>
+      ${savedState}
+      ${savebtn}
       <button class="tool" data-act="menu" aria-haspopup="true" aria-expanded="${ui.menu}" title="${esc(t('head.menuTitle'))}" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>
     </div>
     <div class="hrow modes">
-      <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('record', 'ux3b.modeRecord')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
-      <span class="grow"></span>
-      ${ib('help', 'help', t('ux2.shortcuts'), t('ux2.shortcutsTip'), '', 'b')}
-      ${ib('panel-toggle', 'right', t('ux2.foldPanel'), t('ux2.foldPanelTip'), '', 'b')}
+      <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('outline', 'ux5c.tabOutline')}${tab('edit', 'ux2.modeEdit')}${tab('record', 'ux3b.modeRecord')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
     </div>
-    ${ui.exampleChip && isExample() ? `<div class="hrow notice examplechip" role="status"><span class="small" title="${esc(t('toast.thisIsExample'))}">${esc(t('ux3b.exampleChip'))}</span><button class="ghost sm" data-act="example-ok" aria-label="${esc(t('body.close'))}">${icon('close', { size: 12 })}</button></div>` : ''}
-    ${st.code === 'folder-changed' ? `<div class="hrow notice" role="alert"><span class="small">${esc(st.error)}</span><span class="btns"><button class="sm" data-act="folder-compare">${h('save.folderCompare')}</button><button class="sm" data-act="folder-overwrite">${h('save.folderOverwrite')}</button></span></div>` : ''}
-    ${ui.saveNote ? `<div class="hrow notice" role="status"><span class="small">${esc(t('save.note'))}${ui.persisted === false ? ' ' + esc(t('save.noteStorage')) : ''}</span><button class="sm" data-act="save-note-ok">${h('save.noteOk')}</button></div>` : ''}
-    ${snap ? `<div class="hrow notice snapbar" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${h('ux1.backToResume')}</button></div>` : ''}
-    ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}
+    ${notices}
     ${ui.menu ? menuHtml() : ''}`;
+  }
   headMoments(sent);
 }
 
@@ -588,6 +618,7 @@ function menuHtml(){
     <button role="menuitem" data-act="goto" data-v="history">${h('menu.history')}</button>
     <hr>
     <button role="menuitem" data-act="goto" data-v="settings">${h('menu.settings')}</button>
+    <button role="menuitem" data-act="help">${h('ux2.shortcuts')}</button>
     <a role="menuitem" href="${SOURCE_URL}/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener">${h('priv.link')}</a>
     <a role="menuitem" href="${SOURCE_URL}" target="_blank" rel="noopener">${h('src.link')}</a>
     <hr>
@@ -619,7 +650,7 @@ function renderBody(animate = false){
   const el = $('#body');
   if (!record() || !cur()){ el.innerHTML = `<p class="muted">${h('body.loading')}</p>`; return; }
   const s = ui.sel;
-  const keep = el.scrollTop;
+  const keep = el.scrollTop, keepPanes = new Map([...el.querySelectorAll('.pane')].map(p => [p.dataset.pane, p.scrollTop]));
   // a record form with something typed in it is not redrawn under the caret; one you have left or not changed is, and the focus stays where it was
   const ae = document.activeElement;
   const typing = !animate && el.contains(ae) && ae.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea') && !!ae.closest('[data-form]');
@@ -640,6 +671,7 @@ function renderBody(animate = false){
   if (ui.snap && !ui.view && !snapNow()) ui.snap = null;
   const finish = () => {
     if (animate){ el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in'); el.scrollTop = 0; } else el.scrollTop = keep;
+    for (const p of el.querySelectorAll('.pane')) p.scrollTop = animate && p.dataset.pane === 'edit' ? 0 : keepPanes.get(p.dataset.pane) ?? 0;
     if (had){ const n = document.getElementById(had.id); if (n && n !== document.activeElement){ n.focus(); try { n.setSelectionRange(had.start, had.end); } catch { /* not a text box */ } } }
     else if (at0 >= 0){
       const now = [...el.querySelectorAll(FOCUSABLE)];
@@ -663,18 +695,26 @@ function renderBody(animate = false){
     if (ui.view === 'record') recordTab.afterRender();
     return;
   }
-  el.dataset.mode = 'edit';
-  const main = s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s, { details: false }) : s.kind === 'section' ? edit.sectionView(s)
-    : ['header', 'record', 'add', 'kind'].includes(s.kind) ? career.panel(s) : edit.homeView();
-  el.innerHTML = (help.hintDue ? `<p class="tiny muted kbdhint">${h('ux5a.helpHint')}</p>` : '') + main + jobTail(s) + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
-  el.dataset.view = s.kind;
+  // Outline and Edit are the resume's two sheets: one tab each, or side by side when the room allows
+  const two = !!ui.layout?.two;
+  const pane = two ? 'both' : ui.pane === 'edit' ? 'edit' : 'outline';
+  const sheetOf = p => {
+    if (p === 'outline') return edit.outlineView();
+    const main = s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s, { details: false }) : s.kind === 'section' ? edit.sectionView(s)
+      : ['header', 'record', 'add', 'kind'].includes(s.kind) ? career.panel(s) : edit.noneView();
+    return (help.hintDue && s.kind === 'none' ? `<p class="tiny muted kbdhint">${h('ux5a.helpHint')}</p>` : '') + main + jobTail(s) + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
+  };
+  el.dataset.mode = pane === 'outline' ? 'outline' : 'edit';
+  el.dataset.pane = pane;
+  el.innerHTML = pane === 'both' ? `<div class="pane" data-tea="outline" data-pane="outline">${sheetOf('outline')}</div><div class="pane" data-tea="edit" data-pane="edit">${sheetOf('edit')}</div>` : sheetOf(pane);
+  el.dataset.view = pane === 'outline' ? 'outline' : s.kind;
   el.dataset.editing = edit.editing ? edit.editing.mode : '';
   finish();
   edit.afterRender();
   checklist.afterRender();
 }
 
-// Under a job or a line of one: the job's own lines, its details, and the way to the rest of the record. Under anything else that
+// Under a job or a line of one: its details, and the way to the rest of the record. Under anything else that
 // belongs to a group (About you, a skill, an education line), only the way into the record.
 function jobTail(s){
   if (!['job', 'bullet', 'record'].includes(s.kind)) return '';
@@ -682,7 +722,7 @@ function jobTail(s){
   if (!g) return '';
   const w = ui.ix?.work.get(g);
   const link = `<p class="allrec"><button class="sm ghost" data-act="open-record" data-g="${esc(g)}">${h('ux3b.allRecord')}</button></p>`;
-  return (w ? checklist.jobGroupHtml() + career.detailsHtml(g) : '') + link;
+  return (w ? career.detailsHtml(g) : '') + link;
 }
 
 
@@ -899,13 +939,23 @@ async function runFit(){
   }
 }
 
+// The chip sits by Fit's place and never over the page: under the panel's header (below the toast), or in the gutter beside the folded
+// tabs; on a phone it stays above the sheet.
+function placeChip(el){
+  const L = ui.layout;
+  for (const k of ['left', 'right', 'top', 'maxWidth']) el.style[k] = '';
+  if (!L || L.phone) return;
+  if (L.folded){ Object.assign(el.style, { right: `${innerWidth - L.tabs.left + G}px`, top: `${G + 56}px` }); return; }
+  const hd = $('#head').getBoundingClientRect();
+  Object.assign(el.style, { left: `${Math.round(L.col.left + 8)}px`, top: `${Math.round(hd.bottom + 8 + 48)}px` });
+}
 // After Fit: what it did, in a chip that stays a few seconds, with Undo. Fit only chose among wordings that were already there.
 let chipEl = null, chipT = 0, chipAt = -1;
 function dropChip(now = false){
   clearTimeout(chipT);
   const el = chipEl; chipEl = null; chipAt = -1;
   if (!el) return;
-  const a = now ? null : play(el, [{ opacity: 1, transform: 'translate(-50%, 0)' }, { opacity: 0, transform: 'translate(-50%, 8px)' }], { kind: 'leave', ms: 'fast', fill: 'forwards', name: 'chip:out' });
+  const a = now ? null : play(el, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(8px)' }], { kind: 'leave', ms: 'fast', fill: 'forwards', name: 'chip:out' });
   if (a) a.finished.catch(() => {}).then(() => el.remove()); else el.remove();
 }
 function fitChip(rep){
@@ -919,10 +969,9 @@ function fitChip(rep){
   chipEl.className = 'fitchip'; chipEl.setAttribute('role', 'status');
   chipEl.innerHTML = `<span>${esc(parts.join(' · '))}</span><button class="sm" data-act="chip-undo">${h('foot.undo')}</button>`;
   document.body.append(chipEl);
-  const col = ui.layout?.col, left = col && !ui.layout.phone && !ui.layout.folded ? col.left / 2 : innerWidth / 2;
-  chipEl.style.left = `${Math.round(left)}px`;
+  placeChip(chipEl);
   chipAt = store.history.undo;
-  play(chipEl, [{ opacity: 0, transform: 'translate(-50%, 10px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { kind: 'arrive', fill: 'backwards', name: 'chip:in' });
+  play(chipEl, [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { kind: 'arrive', fill: 'backwards', name: 'chip:in' });
   chipT = setTimeout(() => dropChip(), 6000);
 }
 
@@ -953,7 +1002,7 @@ function key(e){
     if (ui.langMenu){ ui.langMenu = null; renderHead(); $('#langbtn')?.focus(); return; }
     if (closeBodyMenus()) return;
     if (edit.key(e)) return;
-    if (ui.view === 'record'){ dock.setMode(recordTab.backTo() ?? 'edit'); return; }
+    if (ui.view === 'record'){ dock.setMode(recordTab.backTo() ?? 'outline'); return; }
     if (ui.view){ setView(null); return; }
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
@@ -970,7 +1019,7 @@ function key(e){
   if (e.key.toLowerCase() === 'f' && !e.shiftKey && !mod){ e.preventDefault(); toggleFullscreen(); return; }
   if (dock.onKey(e)) return;
   // the arrows walk the page; inside the panel, the timeline or a menu they belong to what has the focus
-  if (e.target.closest?.('#col, #timeline, #help, #switcher')) return;
+  if (e.target.closest?.('#col, #tabs, #timeline, #help, #switcher')) return;
   // between the pages: Page Up and Page Down, and the side arrows when nothing is selected
   if (!mod && !e.altKey && !ui.layout?.phone && (e.key === 'PageDown' || e.key === 'PageUp' || (ui.sel.kind === 'none' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')))){
     e.preventDefault(); canvas.travel(e.key === 'PageDown' || e.key === 'ArrowRight' ? 1 : -1); return;
@@ -1096,7 +1145,7 @@ async function reconnect(){
 }
 
 // A toast never covers the page. With the panel open it hangs under the panel's header, over the panel's own body; with the panel
-// folded it hangs in the gutter beside the rail. (On a phone the page fills the width: it stays at the top.)
+// folded it hangs in the gutter beside the tabs. (On a phone the page fills the width: it stays at the top.)
 function placeToast(el){
   const L = ui.layout;
   el.classList.remove('docked', 'railed');
@@ -1104,7 +1153,7 @@ function placeToast(el){
   if (!L || L.phone) return;
   if (L.folded){
     el.classList.add('railed');
-    Object.assign(el.style, { right: `${L.railW + 2 * G_}px`, top: `${G_}px` });
+    Object.assign(el.style, { right: `${innerWidth - L.tabs.left + G}px`, top: `${G}px` });
     return;
   }
   const c = $('#col').getBoundingClientRect(), hd = $('#head').getBoundingClientRect();
@@ -1123,6 +1172,7 @@ const edit = initEdit({
   ix: () => ui.ix ?? indexModel(work()),
   onpage: { begin: () => onpage.begin(), end: () => onpage.end(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
+  outlineHtml: () => checklist.outlineHtml(),
   setFocus: () => sheet.setFocus(edit.focusHits(), ui.ix),
   select: sel => select(sel),
   renderBody: () => renderBody(),
@@ -1148,7 +1198,7 @@ const resumes = initResumes({
 });
 const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, resumes,
   endPreview: () => endPreview(),
-  ensurePanel: () => { if (dock.folded()){ ui.peek = true; dock.sync(); } },
+  ensurePanel: () => dock.unfold(),
   closeMenus: () => { if (ui.menu || ui.langMenu){ ui.menu = false; ui.langMenu = null; renderHead(); } },
 });
 switcher.bind();
@@ -1175,14 +1225,14 @@ const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi
   renderHead: () => renderHead(), photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 career.bind($('#body'));
 window.__wb.career = career;
-const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, lineBox: id => { const r = ui.ix && sheet.rectOf(id, ui.ix); return r ? canvas.screenRect(r) : null; }, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
+const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, sectionTitle, lineBox: id => { const r = ui.ix && sheet.rectOf(id, ui.ix); return r ? canvas.screenRect(r) : null; }, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
 checklist.bind($('#body'));
 window.__wb.checklist = checklist;
 const recordTab = initRecord({ ui, checklist, renderBody: () => renderBody(), setMode: m => dock.setMode(m) });
 window.__wb.record = recordTab;
 const help = initHelp({ ui });
 window.__wb.help = help;
-const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, goToPage, renderAll: () => renderAll(), canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
+const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, setPane, menuHtml: () => menuHtml(), renderHead: () => renderHead(), goToPage, renderAll: () => renderAll(), canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
 window.__wb.dock = dock;
 design.bind($('#body'));
 window.__wb.design = design;

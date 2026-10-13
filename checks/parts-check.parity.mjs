@@ -45,7 +45,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
       const off = w.work.flatMap(j => j.highlights.map(id => ({ job: j.id, id }))).find(c => !T.listedBullets(u.record(), u.cur(), c.job).includes(c.id) && !(w.facts.find(f => f.id === c.id)?.archived));
       const row = String(u.checklist.html()).match(new RegExp(`<li class="clrow is-off[^"]*" data-fact="${off.id}"[^>]*>[\\s\\S]*?</li>`));
       const { html: h } = await fromList(u, off);
-      return !!off && !!row && !/checked/.test(row[0].match(/<input[^>]*>/)[0]) && h.includes('<h2 class="title"') && h.includes('class="vlist"');
+      return !!off && !!row && !/checked/.test(row[0].match(/<input[^>]*>/)[0]) && h.includes('<h2 class="title"') && /class="vlist( full)?"/.test(h);
     })());
   }
 
@@ -131,14 +131,16 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
     const list = String(u.checklist.html());
     const gm = list.match(new RegExp(`<section class="clg open[^"]*" data-g="${job.id}">[\\s\\S]*?</section>`));
     const group = gm ? gm[0] : '';
-    ok('in Record every group is open, and the job’s has the box', group.includes('data-act="add-claim"') && group.includes('class="new-claim"') && !/data-act="cl-toggle"[^>]*aria-expanded="false"/.test(list)
-      && (list.match(/<section class="clg open[ "]/g) ?? []).length === (list.match(/<section class="clg[ "]/g) ?? []).length);
-    const compact = String(u.checklist.jobGroupHtml());
-    ok('at the job level the job’s own lines are one compact group, headed with the count, with the box; the job’s panel no longer lists its lines',
-      (compact.match(/<section class="clg /g) ?? []).length === 1 && compact.includes('clcompact') && compact.includes(`data-g="${job.id}"`) && compact.includes('data-act="add-claim"')
-      && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('data-act="add-claim"'));
-    ok('…and a line that is not in a job has no such group', (u.select({ kind: 'bullet', id: w.basics.summary, section: 'summary' }), u.checklist.jobGroupHtml() === ''));
+    ok('in Record every group is open, and the job’s has one “+ line” (the six boxes that were always open are gone)', group.includes('data-act="ol-addline"') && !group.includes('class="new-claim"') && !/data-act="cl-toggle"[^>]*aria-expanded="false"/.test(list)
+      && (list.match(/<section class="clg open[ "]/g) ?? []).length === (list.match(/<section class="clg[ "]/g) ?? []).length && !list.includes('class="new-claim"'));
+    const outline = String(u.checklist.outlineHtml());
+    const og = (outline.match(new RegExp(`<section class="clg open[^"]*" data-g="${job.id}">[\\s\\S]*?</section>`)) ?? [''])[0];
+    ok('in the Outline the job in focus is open, with its lines that are on, “+ n more” and “+ line”; Edit’s job panel no longer lists its lines or the box',
+      og.includes('class="clrow') && og.includes('data-act="ol-addline"') && /data-act="ol-more"/.test(og) && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('data-act="add-claim"') && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('class="clrow'));
+    ok('…and a line that is not in a job has no open job in the Outline', (u.select({ kind: 'bullet', id: w.basics.summary, section: 'summary' }), !/<section class="clg open/.test(String(u.checklist.outlineHtml()))));
     u.select({ kind: 'job', id: job.id });
+    await u.click('ol-addline', { id: job.id });
+    ok('“+ line” opens the box for that job', String(u.checklist.html()).includes(`class="new-claim" data-entry="${job.id}"`));
     dom.set('new-claim', { value: 'Wrote the fixture drawings and the test procedure.' });
     await u.click('add-claim', { id: job.id, key: 'work' });
     const made = u.work().work.find(x => x.id === job.id).highlights.find(x => !before.has(x));

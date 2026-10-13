@@ -60,7 +60,7 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
     const jobOn = T.jobRefs(model, recipe).some(r => (typeof r === 'string' ? r : r.id) === w.id);
     const lb = T.listedBullets(model, recipe, w.id), listed = new Set(lb);
     const rows = (w.highlights ?? []).map(id => claimRow(id, w, listed, jobOn));
-    return { id: w.id, kind: 'entry', entryKind: v.kind, key: v.key, title: v.title, org: v.org, archived: !!w.archived, jobOn, custom: differs(lb, (w.highlights ?? []).filter(h => listed.has(h))),
+    return { id: w.id, kind: 'entry', entryKind: v.kind, key: v.key, title: v.title, org: v.org, archived: !!w.archived, jobOn, printed: lb, custom: differs(lb, (w.highlights ?? []).filter(h => listed.has(h))),
       // an archived claim that this resume still prints stays in the list, badged; the others fold away
       sel: { kind: 'job', id: w.id }, rows: rows.filter(r => !r.archived || r.on), archivedRows: rows.filter(r => r.archived && !r.on) };
   }).filter(Boolean);

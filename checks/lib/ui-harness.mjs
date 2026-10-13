@@ -72,9 +72,10 @@ export async function makeUi({ resume = 0, lang = null } = {}){
   };
   work();
   let career = null;
-  const edit = initEdit({ ...ctx, detailsHtml: id => career.detailsHtml(id) });
+  let checklist = null;
+  const edit = initEdit({ ...ctx, detailsHtml: id => career.detailsHtml(id), outlineHtml: () => checklist.outlineHtml() });
   career = initCareer({ ...ctx, edit });
-  const checklist = initChecklist({ ...ctx, edit, career, timelineHtml: () => career.timelineHtml() });
+  checklist = initChecklist({ ...ctx, edit, career, timelineHtml: () => career.timelineHtml() });
   // the handlers edit.bind() puts on #body, to be fired by hand
   const handlers = {};
   edit.bind({ addEventListener: (type, fn) => { (handlers[type] ??= []).push(fn); }, querySelector: () => null, querySelectorAll: () => [] });
@@ -95,5 +96,8 @@ export async function makeUi({ resume = 0, lang = null } = {}){
   };
   return api;
 }
+
+// a phone's sheet keeps the short form of a version (the gist); a desktop panel shows every version in full
+export const setPhone = on => { document.body.dataset.phone = on ? 'true' : 'false'; };
 
 export { NONE };

@@ -9,11 +9,14 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { makeUi, dom, REPO } from './lib/ui-harness.mjs';
+import { makeUi, dom, REPO, setPhone } from './lib/ui-harness.mjs';
 import * as R from '../src/model/record.js';
 import * as T from '../src/model/resume.js';
 import { toolsHtml, badgeListHtml, statsCompactHtml } from '../src/ui/parts.js';
 
+// The snapshot is a phone's sheet: it keeps the short form of a version (where it starts to differ), as it always did. The desktop
+// panel shows every version in full (the section at the end).
+setPhone(true);
 const SNAP = path.join(REPO, 'checks/fixtures/edit-markup.snapshot.json');
 const WRITE = process.argv.includes('--write');
 let failed = 0;
@@ -43,7 +46,7 @@ async function resumeSnapshot(){
     const ix = u.ctx.ix();
     const job = w.work[0];
     const bullets = job.highlights;
-    const view = (sel, name) => put(`${tag}/${name}`, sel.kind === 'bullet' ? u.edit.bulletView(sel) : sel.kind === 'job' ? u.edit.jobView(sel) : sel.kind === 'section' ? u.edit.sectionView(sel) : u.edit.homeView());
+    const view = (sel, name) => put(`${tag}/${name}`, sel.kind === 'bullet' ? u.edit.bulletView(sel) : sel.kind === 'job' ? u.edit.jobView(sel) : sel.kind === 'section' ? u.edit.sectionView(sel) : u.edit.outlineView());
 
     view({ kind: 'none' }, 'home');
     for (const sid of ['experience', 'summary', 'skills', 'education', 'languages', 'interests', 'projects', 'certified']) if (ix.sections.has(sid)) view({ kind: 'section', id: sid }, `section-${sid}`);
@@ -148,6 +151,24 @@ section('the Resume\'s markup is what it was');
       ['en/many-editor-edit', 'en/many-editor-new', 'en/many-override-editor', 'en/many-override', 'en/many-compare', 'en/many-minor-folded', 'en/many-minor-open', 'en/many-focus', 'hu/bullet-0', 'de/bullet-0', 'hu/missing-writein', 'de/missing-same', 'pl/home'].every(k => k in now));
     ok('the missing-language page has the write-in box and the home page the missing list', now['hu/missing-writein'].includes('id="ed-new"') && now['pl/home'].includes('missbar') && now['pl/home'].includes('miss-go'));
   }
+}
+
+section('the desktop panel shows every version in full, with the words that differ from the one in use marked');
+{
+  setPhone(false);
+  const u = await makeUi({ resume: 0 });
+  const sel = { kind: 'bullet', id: 'hydra-inhaler', job: 'hydra', section: 'experience' };
+  const html = String(u.edit.bulletView(sel));
+  const vs = R.versionsIn(u.work(), 'hydra-inhaler', 'en');
+  const text = html.replace(/<mark class="dw">|<\/mark>/g, '').replace(/&amp;/g, '&');
+  ok('the list is the full one, and no version is cut to a gist or an ellipsis', html.includes('class="vlist full"') && !/…/.test(html.slice(html.indexOf('class="vlist'))) && vs.every(v => text.includes(v.text.replace(/&/g, '&'))));
+  const cur = T.chooseVariant(u.work(), 'hydra-inhaler', u.cur()).v;
+  const others = vs.filter(v => v.id !== cur.id);
+  ok('the words that are not in the version in use are marked (<mark class="dw">), the version in use is not marked', others.every(v => html.includes(`data-v="${v.id}"`)) && (html.match(/<mark class="dw">/g) ?? []).length >= others.length && !/class="vrow cur[^>]*>[^]*?<mark/.test(html.slice(html.indexOf('vrow cur'), html.indexOf('vrow cur') + 400).split('</div>')[0]));
+  setPhone(true);
+  const phone = String(u.edit.bulletView(sel));
+  ok('a phone keeps the gist: no full list, no marks', !phone.includes('vlist full') && !phone.includes('class="dw"'));
+  setPhone(false);
 }
 
 // PARTS_STAGE=10.1 runs the snapshot alone

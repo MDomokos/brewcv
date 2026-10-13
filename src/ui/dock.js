@@ -1,12 +1,13 @@
-// The editor column's furniture: the panel that folds to a 52px rail (Auto, Open, Closed), the rail, and
-// the one line at the bottom with the zoom controls and a fill meter for every page. Hover hints too.
-// The panel's own content is edit.js's; the shell calls sync() whenever something that decides whether
-// the panel shows has changed (the selection, the view, the pin).
+// The editor's furniture around the panel: the five tabs on its left edge (and the cream tags they become when the panel is folded),
+// the foot card (undo, redo, the menu), the fill meter and Fit in the header, the zoom bar that shows while the pointer is over the
+// page, and the hover hints. On a phone the column is the bottom sheet and keeps its two-row head and its foot with the zoom bar.
+// The panel's own content is edit.js's, checklist.js's and the other sheets'; the shell calls sync() whenever something that
+// decides which tab is open, or whether the panel shows, has changed.
 
 import { icon } from './icons.js';
 import { t, h } from '../i18n/index.js';
 import { FILL_BAND } from '../fit.js';
-import { clampZoom, ZOOM_MIN, ZOOM_MAX, PHONE_MAX, DRAWER_MAX } from './layout.js';
+import { clampZoom, ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
 import { drink, onDrinkChange, logoBtn } from './drink.js';
 import { play } from './motion.js';
 
@@ -14,13 +15,12 @@ let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (s, r = document) => r.querySelector(s);
 
-const PANEL_KEY = 'rb-panel', ZOOMW_KEY = 'rb-zoomwrite', CONTRAST_KEY = 'rb-contrast';
+const FOLD_KEY = 'rb-folded', ZOOMW_KEY = 'rb-zoomwrite', CONTRAST_KEY = 'rb-contrast';
 const ZOOMON_KEY = 'rb-zoomwrite-on', DIMJOB_KEY = 'rb-dim-job', DIMLINE_KEY = 'rb-dim-line', MAGNET_KEY = 'rb-magnet', BOUNCE_KEY = 'rb-bounce';
-export const PANEL_MODES = ['auto', 'open', 'closed'];
 export const ZOOM_WRITE = { min: 80, max: 180, step: 5, def: 130 };
 const get = (k, ok, def) => { try { const v = localStorage.getItem(k); return ok(v) ? v : def; } catch { return def; } };
 const set = (k, v) => { try { localStorage.setItem(k, String(v)); } catch { /* this session only */ } };
-export const readPanel = () => get(PANEL_KEY, v => PANEL_MODES.includes(v), 'auto');
+export const readFolded = () => get(FOLD_KEY, v => v === '0' || v === '1', '0') === '1';
 export const readZoomWrite = () => { const n = Number(get(ZOOMW_KEY, v => v !== null && Number.isFinite(Number(v)), ZOOM_WRITE.def)); return Math.max(ZOOM_WRITE.min, Math.min(ZOOM_WRITE.max, n)); };
 // how the page looks while you write (UX-3): the zoom can be turned off, and how far everything around the line is dimmed
 export const DIM = { job: { min: 40, max: 100, def: 80 }, line: { min: 60, max: 100, def: 94 } };
@@ -36,49 +36,51 @@ export const readMagnet = () => num(MAGNET_KEY, TRAVEL.magnet.min, TRAVEL.magnet
 export const readBounce = () => num(BOUNCE_KEY, TRAVEL.bounce.min, TRAVEL.bounce.max, TRAVEL.bounce.def);
 export const readContrast = () => get(CONTRAST_KEY, v => v === 'sharp' || v === 'soft', 'sharp');
 
-// the pure part of "does the panel show": checks/shell-check.mjs
-export function panelShown({ pref = 'auto', selected = false, view = false, peek = false, snap = false, phone = false, writing = false } = {}){
-  if (writing) return false;           // a drawer closes while you write: the line and its tools are what is on screen
-  if (phone || pref === 'open' || view) return true;
-  if (pref === 'closed') return false;
-  return selected || peek || snap;
-}
-// Esc all the way out: a pin that was Open drops to Auto; Closed stays closed
-export const afterEscape = pref => (pref === 'open' ? 'auto' : pref);
+// ---- the tabs and the fold ----
+// Five tabs: Outline and Edit are the two sheets of the resume (ui.pane says which, with no other view open); the others are views.
+// Icons: Tea draws each tab's own picture, Coffee the plain set.
+export const TABS = [
+  { id: 'outline', key: 'ux5c.tabOutline', tea: 'list', plain: 'list' },
+  { id: 'edit', key: 'ux2.modeEdit', tea: 'steep', plain: 'edit' },
+  { id: 'design', key: 'ux2.modeDesign', tea: 'latte', plain: 'design' },
+  { id: 'export', key: 'ux2.modeExport', tea: 'cupout', plain: 'export' },
+  { id: 'record', key: 'ux3b.modeRecord', tea: 'recordbook', plain: 'timeline' },
+];
+export const GROUPS = [['outline', 'edit'], ['design', 'export'], ['record']];
+const phone = () => innerWidth < PHONE_MAX;
+const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : (C.ui.pane === 'edit' ? 'edit' : 'outline'); };
+// Open or folded, nothing between. The start screen is laid out in the panel's areas, so it is never folded; selecting never folds or unfolds.
+const folded = () => !phone() && !!C.ui.folded && C.ui.view !== 'welcome';
+// Edit shows its two sheets (the Outline and the selection) when there is room: computeLayout says whether there is
+const twoNow = () => !phone() && tabOf() === 'edit';
 
-// ---- the state ----
-let last = null;
-function shown(){
-  const u = C.ui;
-  return panelShown({ pref: u.panel, selected: u.sel.kind !== 'none', view: !!u.view, peek: !!u.peek, snap: !!u.snap, phone: innerWidth < PHONE_MAX, writing: !!u.writing && innerWidth < DRAWER_MAX });
-}
-const folded = () => !shown();
-
-function setPanel(pref, { peek = false } = {}){
-  if (!PANEL_MODES.includes(pref)) return;
-  C.ui.panel = pref; set(PANEL_KEY, pref);
-  C.ui.peek = peek;
-  sync(true);
-}
-const togglePanel = () => setPanel(shown() ? 'closed' : 'open');
-// the mode segments and the rail's icons: Edit, Record, Design, Export
-function setMode(m){
-  const u = C.ui;
-  u.peek = m === 'edit' && u.panel === 'auto';     // Edit with nothing selected stays open until Esc or the fold button
-  if (m === 'edit'){ if (u.view) C.setView(null); }
-  else C.setView(m);
-  sync(true);
-}
-// Record widens the panel; the layout is laid again whenever that changes
-const wide = () => C.ui.view === 'record' && !folded();
-let lastWide = false;
+let lastFolded = null, lastTwo = false;
 function sync(force = false){
-  const f = folded(), w = wide();
-  if (force || f !== last || w !== lastWide){ last = f; lastWide = w; C.relayout(); }
-  renderRail();
+  const f = folded(), w = twoNow();
+  if (force || f !== lastFolded || w !== lastTwo){ lastFolded = f; lastTwo = w; C.relayout(); }
+  renderTabs();
   renderFoot();
 }
-const modeOf = () => (['design', 'export', 'record'].includes(C.ui.view) ? C.ui.view : C.ui.view === 'sent' ? 'export' : C.ui.view ? null : 'edit');
+function setFolded(on, { focus = true } = {}){
+  if (phone() || on === !!C.ui.folded) return;
+  C.ui.folded = on; set(FOLD_KEY, on ? '1' : '0');
+  sync(true);
+  C.renderHead?.();
+  if (focus) activeTab()?.focus({ preventScroll: true });
+}
+const toggleFold = () => setFolded(!folded());
+const unfold = () => { if (folded()) setFolded(false, { focus: false }); };
+const activeTab = () => $('#tabs [role=tab][tabindex="0"]');
+// a tab: the one that is open folds the panel, a closed one opens (and unfolds the panel on it)
+function setMode(m){
+  const u = C.ui;
+  if (m === 'outline' || m === 'edit') C.setPane(m); else C.setView(m);
+  if (folded()) setFolded(false, { focus: false });
+  else sync(true);
+  $(`#tab-${m}`)?.focus({ preventScroll: true });
+  return u;
+}
+const modeOf = tabOf;
 
 // ---- hover hints: data-tip="Title|One line" ----
 function installTips(){
@@ -168,14 +170,8 @@ function meters(){
 
 // the cup (tea) or the shot glass (coffee) is filled to --p, 0 to 100; src/ui/drinks.css draws it
 const level = pct => Math.max(0, Math.min(100, pct)).toFixed(1);
-function railMeters(){
-  return meters().map(m => {
-    const sm = steamOf(m.i);
-    return `<button class="rmeter ${m.status}${sm.on ? ' steam' : ''}${sm.on && sm.perfect ? ' perfect' : ''}" style="--p:${level(m.pct)}${sm.on ? `;--el:${sm.el}ms` : ''}" data-act="goto-page" data-page="${m.i}" aria-current="${C.ui.page === m.i}" data-tip="${esc(t('ux2.pageShort', { page: m.page }))}|${esc(m.tipText)}" data-tip-pos="l" aria-label="${esc(m.tipText)}"><span class="rmfill"></span>${sm.on ? '<span class="rsteam" aria-hidden="true"></span>' : ''}</button>`;
-  }).join('');
-}
 
-// the rail and the bottom line are redrawn whenever a page is: the control that had the focus keeps it
+// the controls keep the focus when they are drawn again
 const keyOf = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}${el.dataset.page ? `[data-page="${el.dataset.page}"]` : ''}` : null);
 function keepFocus(root, draw){
   const ae = document.activeElement, k = ae && ae.closest?.(root) ? keyOf(ae) : null;
@@ -187,61 +183,110 @@ function keepFocus(root, draw){
 // a new change arrives mid-fill) and eased to the new one. The level itself is already the new one; this only shows it.
 function tween(draw){
   const was = new Map();
-  for (const m of document.querySelectorAll('.meter, .rmeter')){ const v = parseFloat(getComputedStyle(m).getPropertyValue('--p')); if (Number.isFinite(v)) was.set(`${m.className.split(' ')[0]}:${m.dataset.page}`, v); }
+  for (const m of document.querySelectorAll('.meter')){ const v = parseFloat(getComputedStyle(m).getPropertyValue('--p')); if (Number.isFinite(v)) was.set(`${m.className.split(' ')[0]}:${m.dataset.page}`, v); }
   draw();
   if (!was.size) return;
-  for (const m of document.querySelectorAll('.meter, .rmeter')){
+  for (const m of document.querySelectorAll('.meter')){
     const k = `${m.className.split(' ')[0]}:${m.dataset.page}`, a = was.get(k), b = parseFloat(m.style.getPropertyValue('--p'));
     if (Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) > 0.3) play(m, [{ '--p': String(a) }, { '--p': String(b) }], { key: `meter:${k}`, ms: 'slow', kind: 'move', name: 'meter' });
   }
 }
-export const renderRail = () => keepFocus('#rail', () => tween(drawRail));
-function drawRail(){
-  const el = $('#rail');
+
+// ---- the five tabs, and the foot card under them ----
+// A tab is an icon over a word. Open, the tab is the panel's colour and joins its edge; closed, or when the panel is folded, it is a
+// cream tag. In Edit's two sheets the Outline is open too (`also`). The foot card is undo, redo and the menu; folded, the logo joins it.
+export const renderTabs = () => keepFocus('#tabs', drawTabs);
+function drawTabs(){
+  const el = $('#tabs');
   if (!el) return;
-  const mode = modeOf();
-  const tea = drink() === 'tea';
-  const m = (id, ic, key) => `<button class="ib" data-act="rail-mode" data-m="${id}" aria-pressed="${mode === id}" data-tip="${esc(t(key))}|${esc(t('ux2.railOpen'))}" data-tip-pos="l" aria-label="${esc(t(key))}">${icon(ic)}</button>`;
-  el.innerHTML = `${logoBtn(28, { base: 'logo railogo', pos: 'l' })}<hr>
-    ${m('edit', tea ? 'leaf' : 'edit', 'ux2.modeEdit')}${m('record', 'record', 'ux3b.modeRecord')}${m('design', tea ? 'teapot' : 'design', 'ux2.modeDesign')}${m('export', tea ? 'cupserved' : 'export', 'ux2.modeExport')}<hr>
-    <div class="rmeters" id="rmeters" role="group" aria-label="${esc(t('ux2.meters'))}">${railMeters()}</div>
-    ${ib('panel-open', 'left', t('ux2.openPanel'), t('ux2.openPanelTip'), '', 'l')}`;
+  const tab = tabOf(), tea = drink() === 'tea', f = folded(), hs = C.store.history;
+  const two = !f && !!C.ui.layout?.two;
+  const col = $('#col');
+  if (col) col.dataset.tea = phone() ? '' : two ? 'edit' : tab ?? 'edit';       // the panel's tea is the open tab's
+  if (phone() || document.body.classList.contains('is-intro')){ el.innerHTML = ''; return; }
+  const one = tab ?? 'outline';
+  const b = ({ id, key, tea: te, plain }) => `<button role="tab" class="tab${tab === id ? ' is-open' : ''}${two && id === 'outline' ? ' also' : ''}" id="tab-${id}" data-act="tab" data-m="${id}" data-tea="${id}" aria-selected="${tab === id}" aria-controls="body" tabindex="${one === id ? 0 : -1}" ${(id === 'design' || id === 'record') && C.ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? te : plain, { size: 22 })}</span><span class="tl">${esc(t(key))}</span></button>`;
+  const grp = ids => `<div class="tgroup" role="presentation">${ids.map(id => b(TABS.find(x => x.id === id))).join('')}</div>`;
+  const menu = `<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!C.ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" data-tip-pos="l" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>`;
+  el.dataset.tab = tab ?? '';
+  el.innerHTML = `<div class="tablist" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}">${GROUPS.map(grp).join('')}</div>
+    <div class="tabfoot" id="tabfoot">${f ? logoBtn(28, { base: 'logo footlogo', pos: 'l' }) : ''}
+      ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
+      ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 'l')}
+      ${menu}${C.ui.menu ? C.menuHtml() : ''}</div>`;
 }
 
-// ---- the zoom bar and the meters, on one line; Fit and undo under them ----
-export const renderFoot = () => keepFocus('#foot', () => tween(drawFoot));
+// ---- the fill meter and Fit, in the header (in the zoom bar when the panel is folded), and the zoom bar ----
+const fitBtn = (u, limit, needed) => `<button class="fit${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
+function meterHtml(){
+  const u = C.ui;
+  const rows = meters().map(m => {
+    const sm = steamOf(m.i);
+    return `<button class="meter ${m.status}${sm.on ? ' steam' : ''}${sm.on && sm.perfect ? ' perfect' : ''}" style="--p:${level(m.pct)}${sm.on ? `;--el:${sm.el}ms` : ''}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" title="${esc(m.tipText + t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] }))}"><span class="mlab">${esc(t('ux2.pageShort', { page: m.page }))}</span><span class="mbar" aria-hidden="true"><span class="mband"></span><span class="mfill"></span></span><span class="mpct">${m.pct.toFixed(0)}%</span></button>`;
+  }).join('');
+  return `<div class="meters" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${rows || '<span class="muted tiny">—</span>'}</div>`;
+}
+// the header's: '' while the panel is folded (the zoom bar has them then)
+export function fillHtml(){
+  if (folded()) return '';
+  const u = C.ui, limit = C.shown()?.pageLimit;
+  return `<div class="hfill" id="hfill">${meterHtml()}${fitBtn(u, limit, fitFilled(u.fills, limit))}</div>`;
+}
+const viewBar = (u, tipPos) => `<div class="vbar" role="toolbar" aria-label="${esc(t('ux2.viewBar'))}">
+      ${ib('fullscreen', 'full', t('head.fullscreen'), t('ux2.fullTip'), '', tipPos)}
+      ${ib('zoom-out', 'minus', t('ux2.zoomOut'), t('ux2.zoomOutTip'), u.zoom <= ZOOM_MIN + 1e-9 ? 'disabled' : '', tipPos)}
+      <button class="pct" id="zoompct" data-act="zoom-pop" aria-haspopup="dialog" aria-expanded="${!!u.zpop}" data-tip="${esc(t('ux2.zoomSettings'))}|${esc(t('ux5a.zoomTip'))}" data-tip-pos="${tipPos}" aria-label="${esc(t('ux2.zoomSettings'))}">${Math.round((u.zoom ?? 1) * 100)}%</button>
+      ${ib('zoom-in', 'plus', t('ux2.zoomIn'), t('ux2.zoomInTip'), u.zoom >= ZOOM_MAX - 1e-9 ? 'disabled' : '', tipPos)}
+      ${ib('zoom-fit', 'fitpage', t('ux2.zoomFit'), t('ux2.zoomFitTip'), '', tipPos)}
+    </div>`;
+
+export const renderFoot = () => {
+  const intro = document.body.classList.contains('is-intro');
+  if (phone() || intro){ keepFocus('#foot', () => tween(drawFoot)); return; }
+  keepFocus('#hfill', () => tween(drawFill));
+  keepFocus('#zoombar', () => tween(drawZoombar));
+  keepFocus('#tabfoot', drawTabfoot);
+};
+function drawFill(){
+  const el = $('#hfill');
+  if (el) el.outerHTML = fillHtml();
+}
+function drawZoombar(){
+  const el = $('#zoombar');
+  if (!el) return;
+  const f = folded(), u = C.ui, limit = C.shown()?.pageLimit;
+  const pop = $('#zpop');
+  el.innerHTML = `${viewBar(u, 't')}${f ? `<div class="hfill" id="zfill">${meterHtml()}${fitBtn(u, limit, fitFilled(u.fills, limit))}</div>` : ''}`;
+  if (pop) el.append(pop);
+  renderPop();
+}
+// undo and redo are drawn again with the tabs: only their state changes between saves
+function drawTabfoot(){
+  const hs = C.store.history;
+  for (const [a, can] of [['undo', hs.undo], ['redo', hs.redo]]){
+    const b = $(`#tabfoot [data-act=${a}]`);
+    if (!b) continue;
+    b.disabled = !can;
+    b.dataset.tip = `${a === 'undo' ? t('foot.undo') : t('foot.redo')}|${a === 'undo' ? (hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo })) : (hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'))}`;
+  }
+}
+
+// ---- the phone's foot, and the start screen's: the zoom bar and the meters on one line, Fit and undo under them ----
 function drawFoot(){
   const el = $('#foot');
   if (!el) return;
   // on the start screen the footer area is "Yours to keep"
-  if (document.body.classList.contains('is-intro')){ el.classList.remove('is-vertical'); el.innerHTML = C.startFoot(); return; }
+  if (document.body.classList.contains('is-intro')){ el.innerHTML = C.startFoot(); return; }
   const u = C.ui, hs = C.store.history;
-  const pct = Math.round((u.zoom ?? 1) * 100);
-  const f = folded();
   const limit = C.shown()?.pageLimit;
-  const ms = meters();
   const needed = fitFilled(u.fills, limit);
-  el.classList.toggle('is-vertical', f);
-  const tipPos = f ? 'l' : 't';
-  const view = `<div class="vbar" role="toolbar" aria-label="${esc(t('ux2.viewBar'))}">
-      ${ib('fullscreen', 'full', t('head.fullscreen'), t('ux2.fullTip'), '', tipPos)}
-      ${ib('zoom-out', 'minus', t('ux2.zoomOut'), t('ux2.zoomOutTip'), u.zoom <= ZOOM_MIN + 1e-9 ? 'disabled' : '', tipPos)}
-      <button class="pct" id="zoompct" data-act="zoom-pop" aria-haspopup="dialog" aria-expanded="${!!u.zpop}" data-tip="${esc(t('ux2.zoomSettings'))}|${esc(t('ux5a.zoomTip'))}" data-tip-pos="${tipPos}" aria-label="${esc(t('ux2.zoomSettings'))}">${pct}%</button>
-      ${ib('zoom-in', 'plus', t('ux2.zoomIn'), t('ux2.zoomInTip'), u.zoom >= ZOOM_MAX - 1e-9 ? 'disabled' : '', tipPos)}
-      ${ib('zoom-fit', 'fitpage', t('ux2.zoomFit'), t('ux2.zoomFitTip'), '', tipPos)}
-    </div>`;
-  const meterHtml = ms.map(m => {
-    const sm = steamOf(m.i);
-    return `<button class="meter ${m.status}${sm.on ? ' steam' : ''}${sm.on && sm.perfect ? ' perfect' : ''}" style="--p:${level(m.pct)}${sm.on ? `;--el:${sm.el}ms` : ''}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" title="${esc(m.tipText + t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] }))}"><span class="mlab">${esc(t('ux2.pageShort', { page: m.page }))}</span><span class="mbar" aria-hidden="true"><span class="mband"></span><span class="mfill"></span></span><span class="mpct">${m.pct.toFixed(0)}%</span></button>`;
-  }).join('');
   const act = `<div class="factions">
-      <button class="fit${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>
+      ${fitBtn(u, limit, needed)}
       <span class="grow"></span>
-      ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', tipPos)}
-      ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', tipPos)}
+      ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 't')}
+      ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 't')}
     </div>`;
-  el.innerHTML = f ? `${view}${act}` : `<div class="frow">${view}<div class="meters" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${meterHtml || '<span class="muted tiny">—</span>'}</div></div>${act}`;
-  if (f) { const rm = $('#rmeters'); if (rm) rm.innerHTML = railMeters(); }
+  el.innerHTML = `<div class="frow">${viewBar(u, 't')}${meterHtml()}</div>${act}`;
   renderPop();
 }
 
@@ -254,17 +299,32 @@ function renderPop(){
   el.innerHTML = `<div class="prow"><button class="sm" data-act="actual">${h('ux2.actualSize')}</button></div>`;
 }
 
+// ---- the zoom bar shows while the pointer is over the page ----
+// It fades out 0.4 s after the pointer leaves, and flashes for 1.2 s when the keys zoom. The bar is in the page area, at its foot.
+const BAR_OUT_MS = 400, BAR_FLASH_MS = 1200;
+let barOver = 0, barT = 0, flashT = 0;
+function bar(){ return $('#zoombar'); }
+function showBar(on){
+  clearTimeout(barT);
+  if (on){ bar()?.classList.add('on'); return; }
+  barT = setTimeout(() => { if (!barOver && !bar()?.matches(':focus-within') && !flashT) bar()?.classList.remove('on'); }, BAR_OUT_MS);
+}
+function flashBar(){
+  bar()?.classList.add('on');
+  clearTimeout(flashT);
+  flashT = setTimeout(() => { flashT = 0; if (!barOver) showBar(false); }, BAR_FLASH_MS);
+}
+
 // ---- the page and panel settings, shown in Settings (settings.js) ----
 // Their keys and read functions are above; this draws them and applies a change at once.
 export function viewSettingsHtml(){
-  const zw = readZoomWrite(), pref = C.ui.panel, soft = readContrast() === 'soft';
+  const zw = readZoomWrite(), soft = readContrast() === 'soft';
   const dial = (id, key, v, lo, hi, step = 1) => `<label class="dial"><span class="dl">${h(key)}</span><output id="${id}-out">${v}%</output><input type="range" id="${id}" min="${lo}" max="${hi}" step="${step}" value="${v}" aria-label="${esc(t(key))}"></label>`;
   const multi = (C.ui.fills?.length ?? 1) > 1;
   return `<label class="swl"><input type="checkbox" class="sw" id="zwon" ${readZoomWriteOn() ? 'checked' : ''}><span>${h('ux3.zoomWriteOn')}</span></label>
     <label class="dial"><span class="dl">${h('ux2.zoomWrite')}</span><output id="zw-out">${zw}%</output><input type="range" id="zw" min="${ZOOM_WRITE.min}" max="${ZOOM_WRITE.max}" step="${ZOOM_WRITE.step}" value="${zw}" aria-label="${esc(t('ux2.zoomWrite'))}"></label>
     ${dial('dimline', 'ux3.dimLine', readDimLine(), DIM.line.min, DIM.line.max)}${dial('dimjob', 'ux3.dimJob', readDimJob(), DIM.job.min, DIM.job.max)}
     ${multi ? dial('magnet', 'ux3.magnet', readMagnet(), TRAVEL.magnet.min, TRAVEL.magnet.max) + dial('bounce', 'ux3.bounce', readBounce(), TRAVEL.bounce.min, TRAVEL.bounce.max) : ''}
-    <div class="prow"><span id="pm-l">${h('ux2.panelMode')}</span><div class="seg" role="group" aria-labelledby="pm-l">${PANEL_MODES.map(m => `<button data-act="panel-mode" data-pm="${m}" aria-pressed="${pref === m}">${h(`ux2.panel.${m}`)}</button>`).join('')}</div></div>
     <label class="swl"><input type="checkbox" class="sw" id="contrast" ${soft ? '' : 'checked'}><span>${h('ux2.sharper')}</span></label>
     <p class="note">${h('ux2.zoomNote')}</p>`;
 }
@@ -285,6 +345,7 @@ export function viewSettingChanged(e){
 }
 function openPop(on){
   C.ui.zpop = on ?? !C.ui.zpop;
+  if (C.ui.zpop) showBar(true);
   renderFoot();
   if (C.ui.zpop) $('#zpop button')?.focus();
   else $('#zoompct')?.focus();
@@ -306,10 +367,9 @@ async function act(a, tg){
     case 'zoom-out': zoomBy(-1); return true;
     case 'zoom-fit': zoomTo(1); return true;
     case 'zoom-pop': openPop(); return true;
-    case 'panel-toggle': togglePanel(); return true;
-    case 'panel-open': setPanel('open'); return true;
-    case 'panel-mode': setPanel(tg.dataset.pm); C.renderAll(); return true;
-    case 'rail-mode': { C.ui.panel !== 'open' && setPanel('open'); setMode(tg.dataset.m); return true; }
+    case 'panel-toggle': toggleFold(); return true;
+    // the open tab folds the panel; a tag of the folded panel unfolds it on that tab
+    case 'tab': if (tg.dataset.m === tabOf() && !folded()) setFolded(true); else setMode(tg.dataset.m); return true;
     case 'mode': setMode(tg.dataset.m); return true;
     case 'goto-page': C.goToPage(Number(tg.dataset.page)); return true;
   }
@@ -318,16 +378,27 @@ async function act(a, tg){
 
 function onKey(e){
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
-  if (e.key === 'e' || e.key === 'E'){ if (e.shiftKey) return false; e.preventDefault(); togglePanel(); return true; }
+  if (e.key === 'e' || e.key === 'E'){ if (e.shiftKey) return false; e.preventDefault(); toggleFold(); return true; }
   if (e.key === 'r' || e.key === 'R'){ if (e.shiftKey || C.ui.snap) return false; e.preventDefault(); setMode('record'); return true; }
-  if (e.key === '-' || e.key === '_'){ e.preventDefault(); zoomBy(-1); return true; }
-  if (e.key === '=' || e.key === '+'){ e.preventDefault(); zoomBy(1); return true; }
-  if (e.key === '0'){ e.preventDefault(); zoomTo(1); return true; }
+  if (e.key === '-' || e.key === '_'){ e.preventDefault(); zoomBy(-1); flashBar(); return true; }
+  if (e.key === '=' || e.key === '+'){ e.preventDefault(); zoomBy(1); flashBar(); return true; }
+  if (e.key === '0'){ e.preventDefault(); zoomTo(1); flashBar(); return true; }
   return false;
 }
-// the segments of the mode control are one tab stop; the arrows move between them
+// the tabs are one tab stop; ↑ ↓ (Home, End) move between them, Enter or Space opens the one that has the focus
+function onTabsKey(e){
+  const tab = e.target.closest?.('#tabs [role=tab]');
+  if (!tab || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+  const tabs = [...document.querySelectorAll('#tabs [role=tab]:not(:disabled)')];
+  const at = tabs.indexOf(tab);
+  const to = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + (e.key === 'ArrowDown' ? 1 : -1) + tabs.length) % tabs.length;
+  e.preventDefault();
+  for (const x of tabs) x.tabIndex = x === tabs[to] ? 0 : -1;
+  tabs[to].focus();
+}
+// the phone's two-row head keeps its horizontal tabs: the arrows move between them and open each
 function onModesKey(e){
-  const tab = e.target.closest?.('[role=tab][data-m]');
+  const tab = e.target.closest?.('#head [role=tab][data-m]');
   if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
   const tabs = [...tab.parentElement.querySelectorAll('[role=tab]')];
   const at = tabs.indexOf(tab);
@@ -341,30 +412,36 @@ function onModesKey(e){
 
 function bind(){
   installTips();
-  onDrinkChange(() => { renderRail(); renderFoot(); });
+  onDrinkChange(() => { renderTabs(); renderFoot(); });
+  const bar = document.createElement('div');
+  bar.id = 'zoombar'; bar.className = 'zoombar';
+  document.body.append(bar);
   const pop = document.createElement('div');
   pop.id = 'zpop'; pop.className = 'card zpop'; pop.hidden = true;
   pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', t('ux2.zoomSettings'));
-  $('#col').append(pop);
+  bar.append(pop);
   pop.addEventListener('keydown', e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); openPop(false); } });
   document.addEventListener('mousedown', e => { if (C.ui.zpop && !e.target.closest('#zpop') && !e.target.closest('#zoompct')) openPop(false); });
+  // over the page (or the bar itself, or a key inside it) the bar shows
+  const pages = $('#pages');
+  for (const el of [pages, bar]){
+    el.addEventListener('pointerenter', () => { barOver++; showBar(true); });
+    el.addEventListener('pointerleave', () => { barOver = Math.max(0, barOver - 1); if (!barOver) showBar(false); });
+  }
+  bar.addEventListener('focusin', () => showBar(true));
+  bar.addEventListener('focusout', () => showBar(false));
   $('#head').addEventListener('keydown', onModesKey);
+  $('#tabs').addEventListener('keydown', onTabsKey);
   applyContrast();
 }
 
 export function initDock(ctx){
   C = ctx;
-  C.ui.panel = readPanel(); C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite(); C.ui.peek = false; C.ui.zpop = false;
+  C.ui.folded = readFolded(); C.ui.pane = 'outline'; C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite(); C.ui.zpop = false;
   return {
-    bind, act, onKey, sync, folded, shown, wide, setPanel, togglePanel, setMode, modeOf, renderRail, renderFoot, zoomBy, zoomTo,
+    bind, act, onKey, sync, folded, twoNow, setFolded, toggleFold, unfold, setMode, modeOf, renderTabs, renderFoot, fillHtml, zoomBy, zoomTo,
     closePop(){ if (!C.ui.zpop) return false; openPop(false); return true; },
-    // Esc all the way out: the pin drops to Auto, the peek ends, the view zooms out to the whole resume
-    allTheWayOut(){
-      const was = C.ui.panel;
-      C.ui.panel = afterEscape(was); set(PANEL_KEY, C.ui.panel);
-      C.ui.peek = false;
-      C.canvas.reset();
-      sync(true);
-    },
+    // Esc all the way out: the view zooms out to the whole resume
+    allTheWayOut(){ C.canvas.reset(); },
   };
 }

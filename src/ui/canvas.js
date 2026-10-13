@@ -5,16 +5,15 @@
 // bright page. `free` is true once the person has zoomed or panned: the view then stays where it was put until 0, Fit, or Esc.
 
 import {
-  geometry, viewRect, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, keepPageEdge, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
+  geometry, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, keepPageEdge, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
   brightPage, faded, springStep, atRest, centreOn, writingScale, pageLeft, midX,
 } from './camera.js';
-import { clampZoom, PHONE_MAX, G, RAIL_W } from './layout.js';
+import { clampZoom, PHONE_MAX } from './layout.js';
 import { readMagnet, readBounce } from './dock.js';
 import { reduced, dur } from './motion.js';
 
 // the ease between views is --m-travel (a setting in the zoom pop-up scales the zoom, not this)
 const easeOut = p => 1 - Math.pow(1 - p, 3);
-const SLIVER = 56;                                      // Record as a drawer leaves this much of the page's left edge in view
 const IDLE_MS = 140;                                    // the wheel or the hand has stopped
 
 export const PAGES_MOVED = 'brewcv:pages-moved';        // fired on document once the pages have come to rest in a new place
@@ -24,7 +23,6 @@ export function initCanvas(C){
   let geo = null, view = null, fit = null, scene = 'all';
   let free = false, cam = { k: 1, x: 0, y: 0 };
   let motion = null, raf = 0, idleT = 0, movedT = 0, firedSig = '';
-  let sliver = null;                                        // the drawer's left edge while Record covers the page, else null
   let rawFree = null, drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
   const pointers = new Map();
   const dials = { magnet: readMagnet(), bounce: readBounce() };
@@ -95,23 +93,13 @@ export function initCanvas(C){
     }, 90);
   }
 
-  // The camera that shows the whole page, or the whole spread. A drawer in Record lies over the page, so the page is slid left until
-  // a strip of its edge is in the strip the drawer leaves.
-  function fitOf(opts){
-    const f = fitCam(geo, view, opts);
-    if (sliver == null) return f;
-    const left = f.x + (opts.scene === 'all' && geo.n > 1 ? 0 : pageLeft(geo, opts.page ?? 0)) * f.k;
-    const want = Math.max(8, sliver - SLIVER);
-    return left > want ? { ...f, x: f.x - (left - want) } : f;
-  }
+  const fitOf = opts => fitCam(geo, view, opts);
 
   // ---- the layout: called whenever the window, the panel, the pages or the page size changes ----
   function layout(L, format){
     geo = geometry({ vw: innerWidth, vh: innerHeight, format, pages: pagesN() });
-    // a drawer lies over the page, which does not move for it: the view is what the rail leaves
-    view = viewRect({ vh: innerHeight, colLeft: L.drawer ? innerWidth - G - RAIL_W : L.col.left, mid: L.folded && !L.drawer ? innerWidth / 2 : undefined });
-    scene = (L.folded || L.drawer) && geo.bothUp ? 'all' : 'one';
-    sliver = L.drawer && L.wide ? L.col.left : null;
+    view = L.view;
+    scene = L.spread ? 'all' : 'one';
     ui.page = Math.max(0, Math.min(geo.n - 1, ui.page ?? 0));
     fit = fitOf({ scene, page: ui.page });
     ui.geo = geo; ui.pageView = view;

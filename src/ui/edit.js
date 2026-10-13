@@ -8,11 +8,10 @@ import { key as measureKeyOf } from '../fit.js';
 import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
 import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
 import * as K from '../model/career.js';
-import { recordSelOfFact, factOfRecordSel, checklist, sectionCounts, sectionsCustom } from '../model/checklist.js';
+import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { t, h, errText } from '../i18n/index.js';
 import { play } from './motion.js';
-import { esc, clip, crumb, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead, orderMarkHtml, moveButtonsHtml } from './parts.js';
-import { icon } from './icons.js';
+import { esc, clip, crumb, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -67,21 +66,6 @@ function factRow(id, { section = null, owner = null } = {}){
 
 const missingBar = () => missBar({ lang: lang(), list: lang() === DEFAULT_LANG ? [] : missingList(work(), cur()) });
 
-// how much a section holds, for its row: "4 of 7 on", a link to those lines in Record
-function sectionCount(s, cl){
-  const sec = ix().sections.get(s.id);
-  if (!sec) return '';
-  const c = sectionCounts(rec(), cl, s.id);
-  if (c) return `<button class="nlink" data-act="open-record" data-g="${esc(c.groups.join(','))}" title="${esc(t('ux3b.showInRecord'))}">${esc(t('ux2.nOfM', { n: c.on, m: c.total }))}</button>`;
-  if (sec.kind === 'entries'){
-    const n = T.jobRefs(rec(), cur(), s.id).reduce((a, r) => a + T.listedBullets(rec(), cur(), typeof r === 'string' ? r : r.id).length, 0);
-    return esc(t('ux2.nBullets', { n }));
-  }
-  const il = T.itemList(rec(), cur(), s.id);
-  const n = il ? il.filter(x => x.on).length : Object.values(sec.content ?? {}).flat().filter(x => typeof x === 'string' && ix().facts.has(x)).length;
-  return esc(t('ux2.nLines', { n }));
-}
-
 // ---- the Highlight lens: one list of tags, job types (bundles of tags) first ----
 function lensBox(){
   const { types, tags } = lensChoices(rec(), lang());
@@ -103,31 +87,26 @@ function lensBox(){
   return out + '</div>';
 }
 
-function homeView(){
-  const list = T.sectionList(rec(), cur());
-  const on = list.filter(s => s.on), off = list.filter(s => !s.on);
-  const movable = on.filter(s => !s.fixed);
-  const manual = Array.isArray(cur().pages);
-  const cl = checklist(rec(), cur(), lang());
+// The Outline: this resume in print order. The Highlight lens at its head, then the sections (checklist.js outlineHtml), and the way
+// Fit works at the foot.
+function outlineView(){
   return `${C.newerBanner()}${missingBar()}
-    <h2 class="title">${h('ux3b.editTitle')}</h2>
-    <p class="lead edithint">${h('ux3b.editHint')}</p>
     ${lensBox()}
-    <div class="ordhead"><span class="lbl">${h('edit.sectionsHere')}</span>${orderMarkHtml(sectionsCustom(rec(), cur()), 'sections', 'sections', t('edit.sectionsHere'))}</div>
-    <div class="list" id="seclist">${on.map(s => `
-      <div class="item srow ${s.fixed ? 'fixed' : ''} ${C.ui.sel.kind === 'section' && C.ui.sel.id === s.id ? 'is-sel' : ''}" data-sid="${esc(s.id)}" ${s.fixed ? '' : 'draggable="true"'}>
-        <span class="grip" aria-hidden="true">${s.fixed ? '' : icon('grip')}</span>
-        <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${esc(C.sectionTitle(s.id))}</a><span class="muted tiny">${s.fixed ? h('edit.alwaysFirst') : sectionCount(s, cl)}</span></span>
-        ${s.fixed ? '' : moveButtonsHtml('sec-up', 'sec-down', s.id, C.sectionTitle(s.id), { first: s.id === movable[0].id, last: s.id === movable.at(-1).id })
-          + sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, true)}
-      </div>`).join('')}</div>
-    ${off.length ? `<p class="notonline" id="offline"><span class="muted small">${h('ux2.notOn')}</span> ${off.map(s => `<button class="tag offchip" data-act="section-on" data-id="${esc(s.id)}" draggable="true" data-sid="${esc(s.id)}" title="${esc(t('ux2.turnOnTitle'))}">${esc(C.sectionTitle(s.id))}</button>`).join(' ')}</p>` : ''}
-    ${manual ? `<p class="note">${h('edit.dragManual')}</p>` : ''}`;
+    ${C.outlineHtml()}
+    <p class="muted tiny outfoot">${h('ux5c.outlineFoot')}</p>`;
+}
+// Edit with nothing selected: what this resume is for, and one line on how to pick a line
+function noneView(){
+  const r = cur(), type = r.jobType ? jobTypeLabel(rec(), r.jobType) : '';
+  return `${C.newerBanner()}${missingBar()}
+    <h2 class="title">${esc(C.resumeName(r))}</h2>
+    ${type ? `<p class="meta">${esc(type)}</p>` : ''}
+    <p class="lead edithint">${h('ux5c.editNone')}</p>`;
 }
 
 function sectionView(s){
   const sec = ix().sections.get(s.id);
-  if (!sec) return homeView();
+  if (!sec) return noneView();
   const L = lang();
   const title = C.sectionTitle(s.id);
   const own = T.labelOf(rec(), cur(), s.id, L);
@@ -166,7 +145,7 @@ function sectionView(s){
 // `details: false`: the shell puts the job's own lines before the Details fold (src/ui/shell.js jobTail)
 function jobView(s, { details = true } = {}){
   const w = ix().work.get(s.id);
-  if (!w) return homeView();
+  if (!w) return noneView();
   const on = jobOn(s.id);
   const sid = T.sectionOfEntry(rec(), s.id);
   return `${crumb([{ t: C.sectionTitle(sid), act: 'select-section', attrs: `data-id="${esc(sid)}"` }, { t: w.name }])}
@@ -177,7 +156,7 @@ function jobView(s, { details = true } = {}){
 
 function bulletView(s){
   const f = ix().facts.get(s.id);
-  if (!f) return homeView();
+  if (!f) return noneView();
   const w = s.job ? ix().work.get(s.job) : null;
   const jobId = s.job ?? s.owner;
   const jw = jobId ? ix().work.get(jobId) : null;
@@ -207,7 +186,7 @@ function versionsX(id){
   const en = R.versionsIn(work(), id, DEFAULT_LANG);
   const vs = R.versionsIn(work(), id, L);
   return {
-    m: work(), fact: id, lang: L,
+    m: work(), fact: id, lang: L, full: document.body.dataset.phone !== 'true',     // every version in full, with what differs marked (the phone's sheet keeps the gist)
     vs, using, over: overrideOf(id), ed, writing,
     compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,
     lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: tagVocab(rec()),
@@ -707,7 +686,7 @@ function leaving(next){
 }
 
 const api = {
-  homeView, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, ctrlEnter,
+  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, ctrlEnter,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){

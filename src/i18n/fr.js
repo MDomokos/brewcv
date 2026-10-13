@@ -1206,4 +1206,9 @@ export default {
   'ux5b.reset': 'Réinitialiser',
   'ux5b.resetTitle': 'Remettre {name} dans l’ordre du parcours',
   'ux5b.undoReset': 'Réinitialiser l’ordre',
+  'ux5c.tabOutline': 'Plan',
+  'ux5c.outlineFoot': 'Fit coupe par le bas. Mettez l’essentiel en premier.',
+  'ux5c.editNone': 'Cliquez sur une ligne de la page, ou choisissez-en une dans le plan, pour voir ses versions.',
+  'ux5c.line': '+ ligne',
+  'ux5c.more': '+ {n} de plus',
 };

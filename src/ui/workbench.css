@@ -61,6 +61,13 @@
   --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .3)) drop-shadow(12px 14px 0 rgba(60, 45, 15, .12)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
   --page-warn: #b35c00; --sel-mark: #b77a2c; --sel-mark-soft: rgba(217, 166, 90, .14); --prev-mark: #2E4636; --prev-mark-soft: rgba(46, 70, 54, .08);
   --band-bg: var(--surface); --band-ink: var(--ink); --band-ink-soft: var(--ink-soft); --band-line: var(--line); --band-hover: var(--hover); --band-hover-strong: var(--hover-strong);
+  /* UX-5c: the five teas. A tab's sheet takes its tea (Edit's is --surface, today's matcha); each tea gives the roles a sheet needs.
+     The tabs are cream when closed, with the icon in their tea. */
+  --tea-outline: #4d3d1e; --tea-outline-raised: #58482a; --tea-outline-input: #3f3219; --tea-outline-pop: #47381c; --tea-outline-line: #6b5b3e; --tea-outline-edge: #998b6f;
+  --tea-design: #5c2b22; --tea-design-raised: #66372d; --tea-design-input: #4b231c; --tea-design-pop: #55281f; --tea-design-line: #774d41; --tea-design-edge: #a18172;
+  --tea-export: #2c3a4f; --tea-export-raised: #394557; --tea-export-input: #243041; --tea-export-pop: #283549; --tea-export-line: #505966; --tea-export-edge: #87898a;
+  --tea-record: #3b2723; --tea-record-raised: #47342e; --tea-record-input: #30201d; --tea-record-pop: #362420; --tea-record-line: #5c4942; --tea-record-edge: #8f7f72;
+  --tab-bg: #efe4cb; --tab-ink: #22302a; --tab-line: #c9b481;
 }
 html[data-drink="tea"][data-theme="dark"] {
   --canvas: #101813; --canvas-ink: #F2E6CF; --canvas-ink-soft: #d6cfb4; --canvas-line: rgba(242, 230, 207, .22); --canvas-label: #D9A65A;
@@ -71,6 +78,12 @@ html[data-drink="tea"][data-theme="dark"] {
   --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .55)) drop-shadow(12px 14px 0 rgba(0, 0, 0, .28)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
   --page-edge: transparent; --page-edge-soft: transparent;
   --tag-hole: #101813;
+  /* the teas, darkened the way the matcha is (82 percent) */
+  --tea-outline: #3f3219; --tea-outline-raised: #4b3e25; --tea-outline-input: #312613; --tea-outline-pop: #3a2e17; --tea-outline-line: #5f523a; --tea-outline-edge: #91856d;
+  --tea-design: #4b231c; --tea-design-raised: #563028; --tea-design-input: #3a1b16; --tea-design-pop: #45201a; --tea-design-line: #69463c; --tea-design-edge: #987d6e;
+  --tea-export: #243041; --tea-export-raised: #323c4a; --tea-export-input: #1c2532; --tea-export-pop: #212c3c; --tea-export-line: #49515b; --tea-export-edge: #838482;
+  --tea-record: #30201d; --tea-record-raised: #3d2d29; --tea-record-input: #251916; --tea-record-pop: #2c1d1b; --tea-record-line: #53443d; --tea-record-edge: #897b6f;
+  --tab-bg: #d8cdb0; --tab-ink: #1b2a20; --tab-line: #8f8257;
 }
 
 /* ---- Coffee, light: a flat white on a cutting mat, an espresso band for a head, one crema accent ---- */
@@ -100,6 +113,7 @@ html[data-drink="coffee"] {
   --page-warn: #8a5a12; --sel-mark: #1c1410; --sel-mark-soft: rgba(28, 20, 16, .05); --prev-mark: #a8693a; --prev-mark-soft: rgba(190, 127, 74, .14);
   --liq: #BE7F4A; --cup-band: #1c1410;
   --menu-ink: #1c1410; --menu-ink-soft: #5a5048; --menu-line: rgba(28, 20, 16, .22); --menu-line-strong: rgba(28, 20, 16, .5); --menu-hover: rgba(28, 20, 16, .05);
+  --tab-bg: var(--surface); --tab-ink: var(--ink); --tab-line: var(--line-strong);
 }
 /* ---- Coffee, dark: espresso, warm black, milk-foam ink ---- */
 html[data-drink="coffee"][data-theme="dark"] {
@@ -123,6 +137,7 @@ html[data-drink="coffee"][data-theme="dark"] {
   --prev-mark: #BE7F4A; --prev-mark-soft: rgba(190, 127, 74, .2);
   --cup-band: #f3ece2;
   --menu-ink: #f3ece2; --menu-ink-soft: #c9c0b3; --menu-line: rgba(243, 236, 226, .25); --menu-line-strong: rgba(243, 236, 226, .55); --menu-hover: rgba(243, 236, 226, .06);
+  --tab-bg: var(--surface); --tab-ink: var(--ink); --tab-line: var(--line-strong);
 }
 
 * { box-sizing: border-box; }
@@ -617,7 +632,7 @@ body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
 .addrow { display: flex; gap: 6px; align-items: flex-start; }
 .addrow textarea { flex: 1; min-width: 0; resize: vertical; }
 
-/* ===== UX-2: one screen. The page, and on the right the editor panel or the rail it folds to. ===== */
+/* ===== UX-2: one screen. The page, and on the right the editor panel (its tabs stay when it folds). ===== */
 .sheet-frame { filter: var(--page-shadow); }
 body.soft .sheet-frame { filter: var(--page-shadow-soft); }
 .pages { overflow: auto; }
@@ -634,28 +649,13 @@ body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: 
 #tip.on { opacity: 1; }
 #tip b { display: block; font-weight: 700; }
 
-/* the column: head, panel and the bottom line; or the rail and the vertical zoom bar under it */
-.col.is-drawer { z-index: 30; }
-.col.is-drawer:not(.is-folded) > .card { box-shadow: var(--shadow-panel); }
-.col.is-folded { gap: 8px; align-items: stretch; }
-.col.is-folded > #head, .col.is-folded > #body { display: none; }
-.rail { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; flex: none; }
-.rail[hidden] { display: none; }
-.rail hr { width: 28px; border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
-.railogo img { display: block; width: 28px; height: 28px; }
-.rmeters { display: flex; gap: 6px; justify-content: center; padding: 4px 0 2px; }
-/* The page meters (the foot's and the rail's) are drawn by dock.js: a cup in tea, a shot glass in coffee, filled to --p (0 to 100) and
+/* the column: the head, the panel and (on a phone, and on the start screen) the bottom line */
+/* The page meters (the header's, the zoom bar's and the phone's foot) are drawn by dock.js: a cup in tea, a shot glass in coffee, filled to --p (0 to 100) and
    marked with Fit's band. Their look is src/ui/drinks.css; here only where they sit. */
-.rmeter { position: relative; flex: none; width: var(--rcup-w, 14px); height: var(--rcup-h, 24px); padding: 0; border: 0; background: transparent; overflow: visible; }
-.rmeter .rmfill { position: absolute; inset: 0 0 auto 0; }
-.rmeter[aria-current=true] { outline: none; }
 .foot { padding: 8px 10px; display: grid; gap: 6px; flex: none; }
-.foot.is-vertical { justify-items: center; padding: 8px 0; width: 100%; }
 .vbar { display: flex; align-items: center; gap: 2px; }
-.is-vertical .vbar { flex-direction: column; }
 .pct { min-width: 46px; padding: 3px 4px; border: 0; background: transparent; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; border-radius: var(--r-s); color: var(--ink); }
 .pct:hover:not(:disabled) { background: var(--hover-strong); border: 0; }
-.is-vertical .pct { min-width: 0; width: 44px; font-size: 12px; }
 .frow { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .meters { display: flex; gap: 6px; flex: 1; min-width: 0; justify-content: flex-end; }
 .meter { display: grid; grid-template-columns: auto auto auto; align-items: center; gap: 6px; padding: 3px 6px; border: 0; background: transparent; border-radius: var(--r-s); font-size: 11.5px; color: var(--ink-soft); min-width: 0; }
@@ -670,7 +670,6 @@ body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: 
 .factions .fit { padding: 3px 14px; }
 .zpop { position: absolute; right: 0; bottom: 56px; z-index: 50; width: 300px; padding: 12px 14px; display: grid; gap: 10px; }
 .zpop[hidden] { display: none; }
-.col.is-folded .zpop { right: calc(100% + 8px); bottom: 0; }
 .dial { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; font-size: 13px; }
 .dial input[type=range] { grid-column: 1 / -1; width: 100%; }
 .dial output { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
@@ -751,26 +750,21 @@ details.details .detacts { margin-top: 8px; }
 .keys dt { white-space: nowrap; } .keys dd { margin: 0; color: var(--ink-soft); }
 
 /* onboarding from scratch is a quiet editor: the page and the question panel, nothing else */
-body.is-quiet .col > #head, body.is-quiet .col > #foot, body.is-quiet .col > #rail { display: none; }
+body.is-quiet .col > #head, body.is-quiet .col > #foot, body.is-quiet #tabs { display: none; }
 body.is-quiet .col { gap: 0; }
 .fade-in { animation: fadeIn .3s var(--ease) both; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-body[data-phone=true] #rail, body[data-phone=true] .vbar [data-act=fullscreen] { display: none; }
+body[data-phone=true] #tabs, body[data-phone=true] .vbar [data-act=fullscreen] { display: none; }
 body[data-phone=true] .hrow.modes .ib, body[data-phone=true] .head .ib { display: none; }
 body[data-phone=true] .hrow.modes .ib { display: none; }
 body[data-phone=true] .foot { grid-template-columns: 1fr; }
 body[data-phone=true] .vbar { display: none; }
 body[data-phone=true] .checklist { display: none; }
-.is-vertical .factions { flex-direction: column; gap: 2px; }
-.is-vertical .factions .grow { display: none; }
-.is-vertical .factions .fit { padding: 3px 6px; font-size: 12px; }
-.col.is-folded .foot { padding: 8px 0; }
 .clhead .sm .ico { display: inline-block; vertical-align: -2px; }
 .help { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); }
 
 /* the switcher, grown: search, three views, tick boxes for Compare */
 .switcher.is-grown { left: auto; right: 0; top: 84px; width: min(560px, calc(100vw - 32px)); max-width: none; max-height: 70vh; }
-.col.is-drawer .switcher.is-grown { width: min(560px, calc(100vw - 32px)); }
 .swhead { display: flex; align-items: center; gap: 6px; }
 .swhead .sw-q { flex: 1; min-width: 0; }
 .swhead2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -827,14 +821,7 @@ button, input, select, textarea { font-family: inherit; }
 :is(.tiny, .vrow .mt2, .pop small, .dl button small, .obchoices button small, .inline-menu small, .vrow .tx, .stats, .kept) { font-size: 12px; }
 :is(.item .t, .clt) { font-size: 13px; }
 
-/* One surface on the right: the head, the panel and the zoom bar, joined by hairlines (the folded rail is its own small card). */
-body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) { gap: 0; border-radius: var(--r-panel); box-shadow: var(--shadow-panel); }
-body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > .card { border-radius: 0; box-shadow: none; border: 0; background: var(--surface); }
-body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > #head { border-radius: var(--r-panel) var(--r-panel) 0 0; background: var(--band-bg); color: var(--band-ink); }
-body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > #foot { border-radius: 0 0 var(--r-panel) var(--r-panel); border-top: 1px solid var(--line); }
-body:not([data-phone=true]):not(.is-intro) .col:not(.is-folded) > #body { border-top: 1px solid var(--line); }
 body:not([data-phone=true]):is(.is-quiet, .is-intro) .col:not(.is-folded) > #body { border-radius: var(--r-panel); border-top: 0; }
-.col.is-folded > .card { background: var(--surface); border-color: transparent; border-radius: var(--r-panel); box-shadow: var(--shadow-panel); }
 :is(.pop.card, .zpop, .menu.card, .switcher, .help) { background: var(--pop); border-color: var(--line); }
 
 /* Flat rows: no boxes inside the box. */
@@ -885,19 +872,13 @@ body[data-phone=true] .hrow.modes .grow { display: none; }
 .nlink { border: 0; background: transparent; padding: 0; font: inherit; color: var(--ink-soft); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; text-align: left; }
 .nlink:hover { color: var(--ink); text-decoration-style: solid; }
 .allrec { margin: 14px 0 0; }
-.checklist.compact { margin-top: 18px; padding-top: 8px; }
-.clcompact { gap: 8px; padding: 4px 4px 6px; font-size: 13px; font-weight: 650; }
-.clcompact .clname { flex: 1; }
-.col.is-record .checklist.compact { margin-top: 0; }
 
 /* Record: the whole record, in a wide panel */
-.col.is-record #body { padding-left: 20px; padding-right: 20px; }
 .checklist .rectl { margin: 4px 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .clg.is-asked { background: var(--mark-soft); outline: 2px solid var(--mark); outline-offset: -2px; border-radius: var(--r-s); transition: background .4s var(--ease), outline-color .4s var(--ease); }
 body[data-phone=true] .rectl .tl2 { padding-left: 0; }
 body[data-phone=true] .rectl .tl2::before, body[data-phone=true] .rectl .colhead, body[data-phone=true] .rectl .yr { display: none; }
 body[data-phone=true] .rectl .yrow { display: block; }
-body[data-phone=true] .col.is-record { border-radius: 0; }
 
 /* Export ends with Mark as sent */
 .sentrule { border: 0; border-top: 1px solid var(--line); margin: 18px 0 12px; }
@@ -921,14 +902,13 @@ body[data-phone=true] .col.is-record { border-radius: 0; }
 .switcher.is-grown { top: var(--sw-top, 84px); max-height: var(--sw-max, calc(100vh - var(--sw-top, 84px) - 32px)); background: var(--pop); }
 .swfoot button:disabled { opacity: 1; background: transparent; color: var(--ink-soft); border: 1px dashed var(--line-strong); }
 
-/* a toast never covers the page: under the panel's header, or in the gutter beside the rail */
+/* a toast never covers the page: under the panel's header, or in the gutter beside the tabs */
 .toast.docked { transform: translateY(-8px); max-width: none; }
 .toast.docked.on { transform: none; }
 .toast.railed { left: auto; transform: translateY(-8px); max-width: 360px; }
 .toast.railed.on { transform: none; }
 @media (prefers-reduced-motion: reduce){ .toast.docked, .toast.railed, .clg.is-asked { transition: none; } }
 /* Record starts at the top of the panel: it is the panel's own content, not a block under another */
-.col.is-record #body > .checklist:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 /* Edit's one-line hint */
 .edithint { font-size: 13px; font-weight: 500; color: var(--ink-soft); margin: 0 0 10px; }
 /* a choice that is not open yet stays readable, with its reason */
@@ -936,10 +916,10 @@ body[data-phone=true] .col.is-record { border-radius: 0; }
 .startopt.is-off input { opacity: .5; }
 
 /* ---------- UX-4: the chip after Fit ---------- */
-.fitchip { position: fixed; z-index: 58; bottom: 76px; transform: translate(-50%, 0); display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: var(--r-pill); background: var(--toast-bg); color: var(--toast-ink); box-shadow: var(--shadow-toast); font: 600 13px/1.2 var(--font-ui); white-space: nowrap; }
+.fitchip { position: fixed; z-index: 58; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: var(--r-pill); background: var(--toast-bg); color: var(--toast-ink); box-shadow: var(--shadow-toast); font: 600 13px/1.2 var(--font-ui); white-space: nowrap; }
 .fitchip .sm { background: transparent; color: inherit; border: 1.5px solid currentColor; border-radius: var(--r-pill); padding: 3px 10px; font-weight: 700; cursor: pointer; }
 .fitchip .sm:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
-body[data-phone=true] .fitchip { bottom: auto; top: 56px; }
+
 .mo-pill { display: flex; align-items: center; box-sizing: border-box; padding: 0 8px; border-radius: var(--r-s); background: var(--accent); color: var(--on-accent); font: 600 13px/1.2 var(--font-ui); overflow: hidden; white-space: nowrap; box-shadow: var(--shadow-lift); }
 .mo-pill > span { overflow: hidden; text-overflow: ellipsis; }
 .mo-mini { box-sizing: border-box; background: var(--paper); border-radius: 3px; box-shadow: var(--shadow-chip); padding: 8% 10%; display: grid; align-content: start; gap: 7%; overflow: hidden; }
@@ -963,3 +943,144 @@ body[data-phone=true] .fitchip { bottom: auto; top: 56px; }
 .pill.custom { flex: none; }
 .clgh .pill.custom, .clsubh .pill.custom { margin-left: 6px; }
 @media (hover: none) { .clmv { opacity: 1; pointer-events: auto; } }
+
+/* ===== UX-5c: the floating panel =====
+   The page and the panel float together, centred in the window (layout.js). The panel is one sheet in the open tab's tea, with a
+   50px header; five tabs stand on its left edge and the foot card (undo, redo, the menu) under them. Folded, the panel slides away
+   and the tabs stay at the right edge as cream tags. The zoom bar shows while the pointer is over the page. */
+html[data-drink="tea"] [data-tea="outline"] { --tea: var(--tea-outline); --surface: var(--tea-outline); --raised: var(--tea-outline-raised); --input: var(--tea-outline-input); --pop: var(--tea-outline-pop); --line: var(--tea-outline-line); --line-strong: var(--tea-outline-edge); }
+html[data-drink="tea"] [data-tea="design"] { --tea: var(--tea-design); --surface: var(--tea-design); --raised: var(--tea-design-raised); --input: var(--tea-design-input); --pop: var(--tea-design-pop); --line: var(--tea-design-line); --line-strong: var(--tea-design-edge); }
+html[data-drink="tea"] [data-tea="export"] { --tea: var(--tea-export); --surface: var(--tea-export); --raised: var(--tea-export-raised); --input: var(--tea-export-input); --pop: var(--tea-export-pop); --line: var(--tea-export-line); --line-strong: var(--tea-export-edge); }
+html[data-drink="tea"] [data-tea="record"] { --tea: var(--tea-record); --surface: var(--tea-record); --raised: var(--tea-record-raised); --input: var(--tea-record-input); --pop: var(--tea-record-pop); --line: var(--tea-record-line); --line-strong: var(--tea-record-edge); }
+[data-tea]:not([data-tea="outline"], [data-tea="design"], [data-tea="export"], [data-tea="record"]), html[data-drink="coffee"] [data-tea] { --tea: var(--surface); }
+
+/* the panel */
+body:not([data-phone=true]):not(.is-intro) .col { gap: 0; background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel);
+  transition: transform var(--dur-3) var(--ease), background-color var(--m-base) var(--m-out); }
+body:not([data-phone=true]):not(.is-intro) .col > .card { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+body:not([data-phone=true]):not(.is-intro) .col > #foot { display: none; }
+body:not([data-phone=true]) .col.is-folded { transform: translateX(var(--col-out, 100vw)); visibility: hidden; transition: transform var(--dur-3) var(--ease), visibility 0s linear var(--dur-3); }
+.col > #head { flex: none; min-height: 50px; padding: 0 12px; display: flex; flex-direction: column; justify-content: center; border-bottom: 1px solid var(--line); position: relative; }
+.col > #head .hrow.top { height: 50px; gap: 8px; }
+.col > #head .hrow.notice { margin: 0 0 6px; }
+.col > #head .docblock { flex: 1 1 0; min-width: 0; display: grid; gap: 0; }
+.col > #head .docblock .docname { flex: none; padding: 0 4px; line-height: 1.25; }
+.col > #head .dline { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 11.5px; line-height: 1.2; color: var(--ink-soft); }
+.col > #head .dline .dt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.col > #head .dline .dt + .lang-menu::before { content: "·"; }
+.col > #head .dline .langs .langbtn { padding: 0 5px; font-size: 11px; line-height: 1.4; }
+.col > #head .sentrow { margin: -4px 0 4px; padding: 0 4px; }
+.col > #head .sentrow .dsent { font-size: 11.5px; color: var(--label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hfill { display: flex; align-items: center; gap: 6px; flex: none; min-width: 0; }
+.col > #head .hfill .meters { flex: none; }
+.col > #head .hfill .meter { padding: 2px 4px; }
+@container (max-width: 700px){ .col > #head .meter .mlab, .col > #head .savestate .stext2 { display: none; } }
+.hfill .fit { padding: 3px 12px; }
+
+/* the body: one sheet, or two side by side (Outline and Edit, when the room allows) */
+.col > #body { padding: 14px 16px 14px; scroll-padding: 8px; }
+.col > #body[data-pane=both] { display: flex; padding: 0; overflow: hidden; }
+.pane { flex: 1 1 0; min-width: 0; overflow-y: auto; overflow-x: hidden; padding: 14px 16px 14px; background: var(--surface); transition: background-color var(--m-base) var(--m-out); }
+.pane[data-pane=outline] { flex: 0 0 44%; border-radius: 0 0 0 var(--r-panel); }
+.pane[data-pane=edit] { border-radius: 0 0 var(--r-panel) 0; }
+:is(.pane, .body) { scrollbar-color: var(--line-strong) transparent; }
+
+/* the tabs */
+.tabs { position: fixed; z-index: 11; display: flex; flex-direction: column; justify-content: space-between; padding: 30px 0 0; pointer-events: none; transition: left var(--dur-3) var(--ease); }
+.tabs[hidden] { display: none; }
+.tabs > * { pointer-events: auto; }
+.tablist { display: flex; flex-direction: column; gap: 18px; }
+.tgroup { display: flex; flex-direction: column; gap: 10px; }
+.tab { position: relative; flex: none; width: 54px; height: 60px; padding: 0; display: grid; place-items: center; align-content: center; gap: 3px; border: 0; border-radius: 12px 0 0 12px;
+  background: var(--tab-bg); color: var(--tab-ink); font: 650 11px/1.1 var(--font-ui); cursor: pointer; transition: background-color var(--m-base) var(--m-out), color var(--m-base) var(--m-out); }
+.tab:hover:not(:disabled) { border: 0; background: color-mix(in srgb, var(--tab-bg) 88%, var(--tea)); }
+.tab:disabled { opacity: .45; }
+.tab .ti { display: grid; place-items: center; color: var(--tea, var(--tab-ink)); }
+.tab .tl { white-space: nowrap; }
+.tab.is-open, .tab.also { background: var(--tea); color: var(--ink); }
+.tab.is-open .ti, .tab.also .ti { color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
+/* the open tab joins the panel's edge through two inside curves */
+.tab.is-open::before, .tab.is-open::after, .tab.also::before, .tab.also::after { content: ""; position: absolute; right: 0; width: 10px; height: 10px; pointer-events: none; }
+.tab.is-open::before, .tab.also::before { top: -10px; background: radial-gradient(circle at 0 0, transparent 9.5px, var(--tea) 10px); }
+.tab.is-open::after, .tab.also::after { bottom: -10px; background: radial-gradient(circle at 0 100%, transparent 9.5px, var(--tea) 10px); }
+/* two open tabs side by side are one shape */
+.tab.also::after { right: auto; left: 0; width: 100%; background: var(--tea-edit-join, var(--surface)); }
+.tab.also + .tab.is-open::before { display: none; }
+/* the foot card */
+.tabfoot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: 12px 0 0 12px; background: var(--tab-bg); color: var(--tab-ink); }
+.tabfoot .ib { width: 32px; height: 32px; color: var(--tab-ink); }
+.tabfoot .ib:hover:not(:disabled) { background: color-mix(in srgb, var(--tab-bg) 80%, var(--tea, var(--tab-ink))); color: var(--tab-ink); }
+.tabfoot .ib:disabled { opacity: .4; }
+.tabfoot .footlogo { margin-bottom: 4px; }
+.tabfoot .menu { left: calc(100% + 8px); right: auto; top: auto; bottom: 0; color: var(--ink); }
+.tabs.is-folded .tabfoot .menu { left: auto; right: calc(100% + 8px); }
+/* folded, the tabs stand alone: cream tags, the foot card under them */
+.tabs.is-folded .tab, .tabs.is-folded .tabfoot { border-radius: 14px; box-shadow: var(--shadow-chip); }
+.tabs.is-folded .tab.is-open, .tabs.is-folded .tab.also { background: var(--tab-bg); color: var(--tab-ink); }
+.tabs.is-folded .tab.is-open .ti, .tabs.is-folded .tab.also .ti { color: var(--tea, var(--tab-ink)); }
+.tabs.is-folded .tab::before, .tabs.is-folded .tab::after { display: none; }
+body.is-intro .tabs, body.is-quiet .tabs, body[data-phone=true] .tabs { display: none; }
+
+/* the zoom bar: only while the pointer is over the page */
+.zoombar { position: fixed; z-index: 12; bottom: var(--G); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: var(--r-pill);
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-chip); opacity: 0; pointer-events: none; transition: opacity var(--m-base) var(--m-out); }
+.zoombar.on { opacity: 1; pointer-events: auto; }
+.zoombar .zpop { right: auto; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); }
+body.is-intro .zoombar, body.is-quiet .zoombar, body[data-phone=true] .zoombar { display: none; }
+
+/* the chip after Fit hangs where Fit is, never over the page */
+.fitchip { bottom: auto; top: 90px; transform: none; }
+body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: auto; width: max-content; }
+
+/* the Outline: this resume in print order. Compact rows: the sheet must show the whole outline of a resume in 720px of window. */
+.outline .osec .item.srow { grid-template-columns: 22px 20px minmax(0, 1fr) auto auto; gap: 4px; padding: 3px 2px; }
+.outline .osec .item.srow .stext { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.outline .osec .item.srow .stext .t { font-weight: 650; }
+.osecaret { display: grid; place-items: center; width: 20px; height: 24px; padding: 0; border: 0; background: transparent; color: var(--ink-soft); border-radius: var(--r-xs); }
+.osecaret:hover { background: var(--hover); border: 0; }
+.osecaret .clc { transform: rotate(-90deg); }
+.osecaret[aria-expanded=true] .clc { transform: none; }
+.obody { padding: 0 0 4px 22px; }
+.obody[hidden] { display: none; }
+.outline .clg { margin: 0; }
+.outline .clcaret { padding: 4px 4px; }
+.outline .clrows { padding-left: 0; }
+.outline .addline, .outline .archmore { margin: 2px 0 0 4px; padding: 1px 6px; }
+.outline .ojob { padding: 3px 6px; border-radius: 0; background: transparent; border: 0; }
+.outline .ojob .swl { width: auto; }
+.outfoot { margin: 10px 0 0; }
+.outline .ordhead { justify-content: flex-end; margin: 0 0 4px; }
+.outline .notonline { margin-top: 6px; }
+button.clv { border: 0; background: transparent; padding: 1px 5px; border-radius: var(--r-pill); cursor: pointer; }
+button.clv:hover:not(:disabled) { background: var(--hover-strong); border: 0; color: var(--ink); }
+.tab:not(.is-open, .also) { box-shadow: inset 0 0 0 1px var(--tab-line); }
+.tabfoot { box-shadow: inset 0 0 0 1px var(--tab-line); }
+
+/* Edit: every version in full, the words that are not in the one in use marked */
+.vlist.full .vrow .tx { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }
+.vlist.full .vrow:not(.cur) .tx { color: var(--ink); }
+mark.dw { background: var(--ins-bg); color: inherit; border-radius: 2px; padding: 0 1px; }
+
+/* Design: one sheet. Pages and Paper side by side, the four templates in a row, Accent beside Theme, the photo's controls beside its picture. */
+.drow { display: flex; flex-wrap: wrap; gap: 0 18px; align-items: flex-end; }
+.drow.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 18px; align-items: start; }
+.drow .lbl, .photo-row ~ .lbl { margin-top: 12px; }
+.drow + .note, .drow .note { margin-top: 6px; }
+[data-mode=design] .tpls { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+[data-mode=design] .tpl { font-size: 12px; line-height: 1.25; padding: 6px; align-content: start; }
+.photo-row .photo-ctl { display: grid; gap: 6px; min-width: 0; flex: 1; align-content: start; }
+.photo-row { align-items: flex-start; }
+.photo-ctl .note { margin: 0; }
+.outline .clt { -webkit-line-clamp: 1; }
+.clrow.is-sel { background: var(--mark-soft); }
+/* the sheets are dense: a line with its five versions, a job, Design and Export each show whole in 720px of window */
+.col > #body .lbl { margin: 12px 0 5px; }
+.col > #body .vrow { padding: 6px 10px; }
+.col > #body .title { margin: 0 0 6px; }
+.col > #body .crumb { margin-bottom: 2px; }
+.col > #body .newv { margin-top: 6px; }
+.col > #body .allrec { margin: 8px 0 0; }
+.col > #body details.details { margin-top: 6px; }
+.vlist.full .vrow { grid-template-columns: 16px 46px minmax(0, 1fr) auto; }
+.vrow .n { white-space: nowrap; }

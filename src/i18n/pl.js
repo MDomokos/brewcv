@@ -1206,4 +1206,9 @@ export default {
   'ux5b.reset': 'Przywróć',
   'ux5b.resetTitle': 'Przywróć kolejność zapisu dla: {name}',
   'ux5b.undoReset': 'Przywróć kolejność',
+  'ux5c.tabOutline': 'Konspekt',
+  'ux5c.outlineFoot': 'Fit tnie od dołu. Najważniejsze daj na początek.',
+  'ux5c.editNone': 'Kliknij wiersz na stronie albo wybierz go w konspekcie, aby zobaczyć jego wersje.',
+  'ux5c.line': '+ wiersz',
+  'ux5c.more': '+ {n} więcej',
 };
