@@ -1105,3 +1105,6 @@ mark.dw { background: var(--ins-bg); color: inherit; border-radius: 2px; padding
 /* Record: the groups in two columns once the sheet is 560px wide */
 .col > #body { container-type: inline-size; }
 @container (min-width: 520px){ .clcols { columns: 2; column-gap: 18px; } .clcols > .clg { break-inside: avoid; } }
+
+/* The macOS desktop window's drag strip (src/ui/after-boot.js): the top gutter, above the toast; the window buttons float over its left end. */
+html[data-titlebar] #tbdrag { position: fixed; z-index: 70; left: 0; right: 0; top: 0; height: var(--G); }

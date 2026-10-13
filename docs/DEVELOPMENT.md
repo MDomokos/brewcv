@@ -207,6 +207,10 @@ WKWebView has no `showDirectoryPicker`, so `src/store/persist.js` has a third fo
 - Not run on a second Mac, Windows or Linux, or in a sandboxed or notarized build. `checks/tauri-folder-check.mjs` drives the folder object against a fake `window.__TAURI__` (an in-memory disk with a scope).
 - **Still disabled for lack of the File System Access API:** nothing else is gated by it. Open and Save to file in `src/data.js` use `showOpenFilePicker` / `showSaveFilePicker` when present and fall back to a file input and an anchor download. The file input is standard; whether WKWebView in Tauri saves the anchor download was not tested (the PDF has its own save path).
 
+### The desktop title bar (macOS)
+
+The main window has `titleBarStyle: "Overlay"` and `hiddenTitle` in `src-tauri/tauri.conf.json`, so the page runs to the top edge and the window buttons float over it. `trafficLightPosition` `{ x: 16, y: 18 }` (tao sets only x on the buttons; y is the title bar container's extra height, so the real height depends on the macOS version) puts them over the blank top margin of the page, which the layout starts at 16 px (`G` in `src/ui/layout.js`); no header or control is under them, so there is no inset and nothing to undo in native full screen. The window is dragged by `#tbdrag`, a 16 px strip along the top that `src/ui/after-boot.js` adds, with `html[data-titlebar]`, only when `window.__TAURI__` exists and the user agent is a Mac; `data-tauri-drag-region` works only on the element it is on. The main window's capability adds `core:window:allow-start-dragging` (double-click to zoom and `isFullscreen` are in `core:default`); the print windows' capability stays as it was. The page's own background (`--canvas`) is what shows behind the buttons, in both drinks and themes.
+
 ### Rules the desktop PDF export depends on
 
 Each of these was learned from a failure on a Mac; the checks and comments name them where they can.

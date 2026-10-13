@@ -4,6 +4,11 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 0.8.0 is the first public release. Versions before it were never deployed or tagged. Each minor version up to 0.7 was a milestone, and each patch version a step within it. Their entries are grouped by feature, not by type of change.
 
+## Unreleased
+
+### Changed
+- **The macOS desktop app has no grey title bar.** The app runs up to the top edge of the window and the red, yellow and green buttons float over its top left. Drag the window by the thin strip along the top. Browsers are unchanged.
+
 ## 1.1.0 - 2026-10-13
 
 ### Added
