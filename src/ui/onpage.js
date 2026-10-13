@@ -1,6 +1,6 @@
 // Editing on the page (UX-3). Three layers: the page, a job, a line. Esc goes up one.
 //   - At the job level the job is framed and the rest of the page dims; at the line level the job keeps a dashed frame and the
-//     line has its own outline and a small lift. A breadcrumb above the frame says where you are, and goes up.
+//     line has its own outline and a small lift.
 //   - A line is written where it is printed: the element on the page becomes editable, holding the plain text of the version
 //     (src/ui/plain.js reads it back, so the text is exactly what the old text box held). Everything else is the editor's own
 //     (src/ui/edit.js): the draft, the live preview, the three ways of keeping it.
@@ -9,11 +9,10 @@
 // and nothing here is in an export. The camera (src/ui/canvas.js) eases to the writing zoom and back.
 
 import { plainOf, caretOf, setCaret } from './plain.js';
-import { crumbBarHtml, toolsHtml, badgeListHtml, statsCompactHtml, esc } from './parts.js';
+import { toolsHtml, badgeListHtml, statsCompactHtml, esc } from './parts.js';
 import { readZoomWrite, readZoomWriteOn, readDimJob, readDimLine } from './dock.js';
 import { step, versionsOf } from './select.js';
 import * as T from '../model/resume.js';
-import { isArchived } from '../model/entries.js';
 import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
 
@@ -88,24 +87,12 @@ export function initOnPage(C){
     if (lvl === 'job' || lvl === 'line') for (let i = 0; i < geom.boxes.length; i++) html.push(`<div class="obveil" data-p="${i}" style="opacity:${((100 - dim) / 100).toFixed(3)}"></div>`);
     if (geom.job && (lvl === 'job' || lvl === 'line')) html.push(`<div class="obframe job${lvl === 'line' ? ' dashed' : ''}"></div>`);
     if (lvl === 'line' && geom.line) html.push('<div class="obframe line"></div>');
-    html.push(crumb(lvl));
     const tools = toolsFor(lvl);
     if (tools) html.push(`<div class="obtoolswrap" role="region" aria-label="${esc(t('ux3.tools'))}">${tools}</div>`);
     lay.innerHTML = html.join('');
     lay.style.setProperty('--ob-paper', geom.boxes[0]?.bg ?? '#fff');
     place();
     if (keep) lay.querySelector(`[data-act="${keep}"]`)?.focus({ preventScroll: true });
-  }
-
-  function crumb(lvl){
-    const tg = geom.tg, m = C.record();
-    const w = geom.jobId ? C.ix().work.get(geom.jobId) : null;
-    let on = 0, total = 0;
-    if (w){
-      on = T.jobRefs(m, C.cur()).some(x => (typeof x === 'string' ? x : x.id) === geom.jobId) ? T.listedBullets(m, C.cur(), geom.jobId).length : 0;
-      total = (w.highlights ?? []).filter(x => !isArchived(m, x)).length;
-    }
-    return crumbBarHtml({ level: lvl === 'line' || lvl === 'lineSel' ? 'line' : 'job', jobName: w?.name ?? null, jobId: geom.jobId, on, total, canWrite: lvl === 'job' && !!tg?.fact, lineSelected: lvl === 'job' && !!tg?.fact });
   }
 
   // the line the badge is for: the one written, else the one under the pointer, else the one selected
@@ -121,37 +108,6 @@ export function initOnPage(C){
     const canOnly = !!(T.jobOfFact(C.record(), fact) || fact === C.cur().summary);
     const html = toolsHtml({ vn, ed, dirty: !!ed && edit().isDirty(), canOnly, open: popOpen, counts: ed ? statsCompactHtml(ed) : '' });
     return html + (popOpen ? badgeListHtml({ fact, versions: versionsOf(C.ix(), fact, C.lang()), usingId: using?.id }) : '');
-  }
-
-  // The breadcrumb never covers printed text. It tries the places next to the frame in turn, the full crumb first and then the short one
-  // ("Write this line" shrinks to its pencil): above the frame, beside it on the left, above it on the right. The first that overlaps no text
-  // is the one; when none is free, the one that covers least.
-  function placeCrumb(cb, fr){
-    const view = canvas.view ?? { left: 0, top: 0, width: innerWidth, height: innerHeight };
-    const ink = sheet.textRects().map(r => canvas.screenRect(r));
-    // a line's box is a little bigger than its letters: two pixels of it all round do not count
-    const overlap = (x, y, w, h) => ink.reduce((n, r) => n + Math.max(0, Math.min(x + w, r.left + r.width - 2) - Math.max(x, r.left + 2)) * Math.max(0, Math.min(y + h, r.top + r.height - 2) - Math.max(y, r.top + 2)), 0);
-    let best = null;
-    for (const compact of [false, true]){
-      cb.classList.toggle('compact', compact);
-      const w = cb.offsetWidth, h = cb.offsetHeight;
-      const at = [
-        { x: Math.max(6, fr.left), y: fr.top - h - 4 },                    // above the frame
-        { x: fr.left + fr.width - w, y: fr.top - h - 4 },                  // above it, on the right
-        { x: Math.max(6, fr.left), y: fr.top - h + 3 },                    // hugging its top edge, on the left
-        { x: fr.left + fr.width - w, y: fr.top - h + 3 },                  // …and on the right
-        { x: fr.left - w - 8, y: fr.top },                                 // beside it, on the left
-      ];
-      for (const c of at){
-        if (c.x < view.left + 4 || c.y < 4 || c.x + w > view.left + view.width - 4) continue;
-        const o = overlap(c.x, c.y, w, h);
-        if (o === 0){ Object.assign(cb.style, { left: `${Math.round(c.x)}px`, top: `${Math.round(c.y)}px` }); return; }
-        if (!best || o < best.o) best = { ...c, o, compact };
-      }
-    }
-    cb.classList.toggle('compact', !!best?.compact);
-    const c = best ?? { x: Math.max(6, fr.left), y: Math.max(6, fr.top - 32) };
-    Object.assign(cb.style, { left: `${Math.round(c.x)}px`, top: `${Math.round(c.y)}px` });
   }
 
   // where everything is on the screen: follows the camera
@@ -173,10 +129,6 @@ export function initOnPage(C){
     const box = (el, r) => { if (!el || !r) return; Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); };
     box(lay.querySelector('.obframe.job'), R(pad(geom.job, PAD_JOB)));
     box(lay.querySelector('.obframe.line'), R(pad(geom.line, PAD_LINE)));
-    // the breadcrumb sits by the frame (the job's, or the line's when it is outside a job), where it covers no printed text
-    const top = R(pad(geom.job ?? geom.line, geom.job ? PAD_JOB : PAD_LINE));
-    const cb = lay.querySelector('.obcrumb');
-    if (cb && top) placeCrumb(cb, top);
     // the tools sit beside the line, in the page's right margin
     const tw = lay.querySelector('.obtoolswrap');
     const fact = badgeFact(lvl);
@@ -338,7 +290,7 @@ export function initOnPage(C){
     render();
   }
 
-  // ---- the badge and the breadcrumb ----
+  // ---- the badge ----
   function onHover(variant){
     clearTimeout(hoverT);
     const lvl = level();
@@ -352,9 +304,6 @@ export function initOnPage(C){
   async function act(a){
     switch (a){
       case 'ob-badge': popOpen = !popOpen; render(true); return true;
-      case 'ob-page': if (ui.writing && !(await edit().cancelEdit({ ask: true }))) return true; C.select({ kind: 'none' }); return true;
-      case 'ob-job': await edit().cancelEdit({ ask: true }); return true;
-      case 'ob-write': edit().startEdit(); return true;
     }
     return false;
   }

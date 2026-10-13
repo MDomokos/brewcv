@@ -173,24 +173,6 @@ export const addClaimHtml = ({ id, key, draft = '' }) =>
 const iconButton = (act, ic, name, tip, attrs = '') =>
   `<button class="ib" data-act="${act}" ${attrs} data-tip="${esc(name)}|${esc(tip)}" data-tip-pos="l" aria-label="${esc(name)}">${icon(ic)}</button>`;
 
-// Page › Job › Line, the layer you are in filled and "Esc" beside it. Each earlier crumb goes up to its layer.
-// level: 'job' | 'line'; the job crumb shows "n of m" at the job level; a line outside a job has no job crumb.
-export function crumbBarHtml({ level, jobName = null, jobId = null, on = 0, total = 0, canWrite = false, lineSelected = false }){
-  const page = `<button class="oc" data-act="ob-page">${h('ux3.crumbPage')}</button>`;
-  const count = esc(t('ux2.nOfM', { n: on, m: total }));
-  // the count is the job chip: it opens the job in Record
-  const nlink = jobId ? `<button class="ocn" data-act="open-record" data-g="${esc(jobId)}" title="${esc(t('ux3b.showInRecord'))}">${count}</button>` : `<span class="ocn">${count}</span>`;
-  const job = jobName == null ? '' : level === 'job'
-    // the job crumb is the job level; with a line selected in it, a click on the name selects the job itself
-    ? `<span class="oc cur" aria-current="location" title="${esc(t('ux2.chipTitle'))}">${lineSelected && jobId ? `<button class="ocname" data-act="select-job" data-id="${esc(jobId)}">${esc(clip(jobName, 28))}</button>` : esc(clip(jobName, 28))}${nlink}</span>`
-    : `<button class="oc" data-act="ob-job">${esc(clip(jobName, 28))}</button>`;
-  const line = level === 'line'
-    ? `<span class="oc cur" aria-current="location">${h('ux3.crumbLine')}</span>`
-    : canWrite ? `<button class="oc dots" data-act="ob-write">${h('ux3.crumbWrite')}</button>` : '';
-  const parts = [page, job, line].filter(Boolean);
-  return `<nav class="obcrumb" aria-label="${esc(t('ux3.crumbNav'))}">${parts.join('<span class="ocs" aria-hidden="true">›</span>')}<kbd class="oesc">Esc</kbd></nav>`;
-}
-
 // The column beside the line: the version badge, and while writing the three ways to keep what you wrote, with the counts.
 // ed: the draft being written (or null); vn: the number of the version in use; dirty: the draft differs from it.
 export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, open = false, counts = '' }){

@@ -57,7 +57,7 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            workbench.css (the tokens: one block per drink and theme, and every rule that uses
                            them) and drinks.css (the shapes and surfaces that make each drink itself);
                            parts.js, the pure string parts (crumb, rows, version list, editor,
-                           write-in, and the on-page breadcrumb, tools and version badge) the panels share;
+                           write-in, and the on-page tools and version badge) the panels share;
                            camera (the pure maths of the page canvas: both pages or one, soft limits, the
                            magnet, which page is bright, the spring), canvas (moves the sheet with the camera
                            and reads the wheel, the hand and the pinch), onpage (the three levels drawn over
