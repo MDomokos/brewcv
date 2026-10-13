@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "BrewCV desktop app (experimental)"
 license = "AGPL-3.0-or-later"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.90"
 
 [lib]
 name = "brewcv_lib"
@@ -17,6 +17,8 @@ tauri-build = { version = "~2.7", features = [] }
 # Minor versions pinned: with_webview hands out raw WKWebView / WebView2 types from objc2 / webview2-com, which can change between minors.
 tauri = { version = "~2.12", features = [] }
 tauri-plugin-dialog = "~2.7"
+tauri-plugin-fs = "~2.7"
+tauri-plugin-persisted-scope = "~2.4"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

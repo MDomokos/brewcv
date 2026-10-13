@@ -755,6 +755,23 @@ if (want('on the page: three levels, writing a line where it is printed, the too
 }
 
 // ---- smaller windows, the settings and reduced motion ----
+if (want('History: naming a checkpoint in the desktop app')) {
+  // the desktop web view has no prompt(): the name is typed into a field on the page (window.__TAURI__ stands in for being there)
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  let dialogs = 0; page.on('dialog', d => { dialogs++; d.dismiss(); });
+  await page.addInitScript(() => { window.__TAURI__ = {}; });
+  const bad = await open(page);
+  await page.click('[data-act=menu]'); await page.click('.menu [data-v=history]'); await page.waitForTimeout(1200);
+  ok('History has a name field, filled with a dated name', /^Checkpoint /.test(await page.inputValue('#cp-name')));
+  await page.fill('#cp-name', 'Before the Hungarian edit'); await page.press('#cp-name', 'Enter'); await page.waitForTimeout(1200);
+  ok('Enter in it saves a checkpoint under that name, and no dialog was asked', /Before the Hungarian edit/.test(await page.textContent('#body')) && dialogs === 0);
+  await page.fill('#cp-name', '   '); await page.click('[data-act=cp-new]'); await page.waitForTimeout(600);
+  ok('an empty name saves nothing', (await page.$$('.cprow:has-text("Before the Hungarian edit")')).length === 1 && dialogs === 0);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('on the page: a drawer, zoom off, reduced motion, a line that is not on the page')) {
   {
     const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
@@ -772,6 +789,21 @@ if (want('on the page: a drawer, zoom off, reduced motion, a line that is not on
     await page.click('#editlay [data-act=ed-saveas]'); await page.waitForTimeout(900);
     ok('Save as new version works from the tools alone', (await page.evaluate(() => window.__wb.store.state.record.variants.some(v => /drawer$/.test(v.text)))) && (await lineEl(page).count()) === 0);
     ok('…and the drawer is back, with the line selected', (await page.evaluate(() => document.body.dataset.folded)) === 'false');
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+    const page = await ctx.newPage();
+    page.on('dialog', d => d.accept());
+    const bad = await open(page);
+    const sheet = page.frameLocator('#sheet iframe');
+    await foldAll(page);
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
+    await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(900);
+    await appendLine(page, ' drawer');
+    await page.click('[data-act=rail-mode][data-m=design]'); await page.waitForTimeout(700);
+    ok('under 1280px, a click on a rail icon while you write opens the drawer (the person asked for it), and the line is still being written', (await page.evaluate(() => document.body.dataset.folded)) === 'false' && (await page.evaluate(() => window.__wb.ui.view)) === 'design' && (await lineEl(page).count()) === 1 && (await page.evaluate(() => window.__wb.edit.isDirty())));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }

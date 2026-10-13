@@ -301,7 +301,7 @@ export function initOnPage(C){
   function end(){
     if (!S && !ui.writing) return;
     release();
-    S = null; ui.writing = false; popOpen = false;
+    S = null; ui.writing = false; ui.writingOpen = false; popOpen = false;
     if (!moving) say(t('ux3.announceOff'));
     if (!moving){
       if (zoomed){ zoomed = false; canvas.reset(); }

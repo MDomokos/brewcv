@@ -50,12 +50,14 @@ export const afterEscape = pref => (pref === 'open' ? 'auto' : pref);
 let last = null;
 function shown(){
   const u = C.ui;
-  return panelShown({ pref: u.panel, selected: u.sel.kind !== 'none', view: !!u.view, peek: !!u.peek, snap: !!u.snap, phone: innerWidth < PHONE_MAX, writing: !!u.writing && innerWidth < DRAWER_MAX });
+  return panelShown({ pref: u.panel, selected: u.sel.kind !== 'none', view: !!u.view, peek: !!u.peek, snap: !!u.snap, phone: innerWidth < PHONE_MAX, writing: !!u.writing && !u.writingOpen && innerWidth < DRAWER_MAX });
 }
 const folded = () => !shown();
 
 function setPanel(pref, { peek = false } = {}){
   if (!PANEL_MODES.includes(pref)) return;
+  // under DRAWER_MAX a drawer closes while you write; a click that asks for it is the person's choice, kept until the writing ends
+  if (C.ui.writing && pref === 'open') C.ui.writingOpen = true;
   C.ui.panel = pref; set(PANEL_KEY, pref);
   C.ui.peek = peek;
   sync(true);
@@ -64,6 +66,7 @@ const togglePanel = () => setPanel(shown() ? 'closed' : 'open');
 // the mode segments and the rail's icons: Edit, Record, Design, Export
 function setMode(m){
   const u = C.ui;
+  if (u.writing && m !== 'edit') u.writingOpen = true;
   u.peek = m === 'edit' && u.panel === 'auto';     // Edit with nothing selected stays open until Esc or the fold button
   if (m === 'edit'){ if (u.view) C.setView(null); }
   else C.setView(m);
