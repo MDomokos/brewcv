@@ -7,7 +7,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
-- **The macOS desktop app has no grey title bar.** The app runs up to the top edge of the window and the red, yellow and green buttons float over its top left. Drag the window by the thin strip along the top. Browsers are unchanged.
+- **The macOS desktop app has no grey title bar.** The app runs up to the top edge of the window and the red, yellow and green buttons float over its top left. Drag the window by the generous strip along the top (56 px; every control stays clickable). Browsers are unchanged.
 
 ## 1.1.0 - 2026-10-13
 

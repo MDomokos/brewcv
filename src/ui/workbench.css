@@ -1106,5 +1106,6 @@ mark.dw { background: var(--ins-bg); color: inherit; border-radius: 2px; padding
 .col > #body { container-type: inline-size; }
 @container (min-width: 520px){ .clcols { columns: 2; column-gap: 18px; } .clcols > .clg { break-inside: avoid; } }
 
-/* The macOS desktop window's drag strip (src/ui/after-boot.js): the top gutter, above the toast; the window buttons float over its left end. */
-html[data-titlebar] #tbdrag { position: fixed; z-index: 70; left: 0; right: 0; top: 0; height: var(--G); }
+/* The macOS desktop window's drag strip (src/ui/after-boot.js). Nothing shows where it is, so it is generous: 56px along the top. It sits above the
+   page canvas (z 5) and below the panel, tabs, zoom bar, fit chip and toast (z 10 and up), so every control stays clickable and only bare canvas drags. */
+html[data-titlebar] #tbdrag { position: fixed; z-index: 9; left: 0; right: 0; top: 0; height: 56px; }
