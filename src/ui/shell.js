@@ -9,7 +9,7 @@ import { isArchived } from '../model/entries.js';
 import { groupOf } from '../model/checklist.js';
 import { fit, FILL_BAND, key as measureKeyOf } from '../fit.js';
 import { createSheet } from './sheet.js';
-import { computeLayout, pageSize, pageInView, pageTop, PHONE_MAX, G } from './layout.js';
+import { computeLayout, pageSize, pageInView, pageTop, G } from './layout.js';
 import { initCanvas, PAGES_MOVED } from './canvas.js';
 import { initOnPage } from './onpage.js';
 import { pageLeft } from './camera.js';
@@ -199,6 +199,7 @@ function shown(){
 function setSnap(id){
   const had = !!ui.snap;
   ui.snap = id ? { id } : null;
+  if (id) dock.unfold();          // a snapshot is read in the panel
   shownKey = null;
   if (id || had){ ui.sel = NONE; sheet.select(NONE, ui.ix); if (ui.previewing) endPreview(); schedule(); }
 }
@@ -289,7 +290,7 @@ function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'auto', folded: dock.folded(), zoom: 1, wide: ui.view === 'record', two: dock.twoNow() });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'auto', folded: dock.folded(), zoom: 1, wide: ui.view === 'record', two: dock.twoNow(), slim: ui.view === 'welcome' });
   const host = $('#sheet'), box = $('#pages');
   const col = $('#col'), tabs = $('#tabs');
   for (const [el, r] of [[col, L.col], [tabs, L.tabs]]) Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
@@ -1179,7 +1180,7 @@ const edit = initEdit({
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
   outlineHtml: () => checklist.outlineHtml(),
   setFocus: () => sheet.setFocus(edit.focusHits(), ui.ix),
-  select: sel => select(sel),
+  select: (sel, o) => select(sel, o),
   renderBody: () => renderBody(),
   flash: id => { ui.flashAfter = id; },
   endHover: () => { ui.hoverV = null; if (ui.previewing) endPreview(); },
@@ -1237,7 +1238,7 @@ const recordTab = initRecord({ ui, checklist, renderBody: () => renderBody(), se
 window.__wb.record = recordTab;
 const help = initHelp({ ui });
 window.__wb.help = help;
-const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, setPane, menuHtml: () => menuHtml(), renderHead: () => renderHead(), goToPage, renderAll: () => renderAll(), canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
+const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, setPane, leaveWriting: () => edit.cancelEdit({ ask: true }), menuHtml: () => menuHtml(), renderHead: () => renderHead(), goToPage, renderAll: () => renderAll(), canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
 window.__wb.dock = dock;
 design.bind($('#body'));
 window.__wb.design = design;

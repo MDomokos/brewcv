@@ -35,6 +35,11 @@ section('fitting the pages in the view');
   ok('with the panel open the view is left of it', open.width === 1280 - G - 358 - G);
   const inOpen = fitCam(g, open, { scene: 'one' });
   ok('…and one page sits centred in what is left', near(screenOf(inOpen, 397, 0).x, midX(open)));
+  // the floating group (computeLayout): the page is fitted to the room beside the panel at its minimum (fitW), centred on `mid`, and the
+  // view reaches the tabs, which is wider
+  const grp = viewRect({ vh: 800, colLeft: 700, mid: 300, fitW: 400 });
+  const fg = fitCam(g, grp, { scene: 'one', page: 0 });
+  ok('fitW sets the scale (not the wider view), and mid the place', near(fg.k, Math.min((800 - 2 * G) / 1123, (400 - 2 * G) / 794)) && near(fg.x + 794 * fg.k / 2, 300) && grp.width > 400 - 2 * G);
   ok('screen and content are inverses', (() => { const s = screenOf(all, 123, 456); const c = contentOf(all, s.x, s.y); return near(c.x, 123) && near(c.y, 456); })());
 }
 

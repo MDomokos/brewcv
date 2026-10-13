@@ -6,7 +6,7 @@
 
 import {
   geometry, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, keepPageEdge, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
-  brightPage, faded, springStep, atRest, centreOn, writingScale, pageLeft, midX,
+  brightPage, faded, springStep, atRest, centreOn, writingScale, midX,
 } from './camera.js';
 import { clampZoom, PHONE_MAX } from './layout.js';
 import { readMagnet, readBounce } from './dock.js';

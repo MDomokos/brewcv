@@ -425,8 +425,9 @@ async function act(a, tg){
     }
     case 'go-missing': {
       const k = tg.dataset.kind, id = tg.dataset.id;
-      if (k === 'heading') C.select({ kind: 'section', id });
-      else { const job = T.jobOfFact(rec(), id); C.select(job ? { kind: 'bullet', id, job: job.id, section: 'experience' } : { kind: 'bullet', id, section: tg.dataset.section ?? 'summary', owner: tg.dataset.owner ?? undefined }); }
+      // the missing text is written in Edit, wherever the list was
+      if (k === 'heading') C.select({ kind: 'section', id }, { pane: 'edit' });
+      else { const job = T.jobOfFact(rec(), id); C.select(job ? { kind: 'bullet', id, job: job.id, section: 'experience' } : { kind: 'bullet', id, section: tg.dataset.section ?? 'summary', owner: tg.dataset.owner ?? undefined }, { pane: 'edit' }); }
       return true;
     }
     case 'focus': E.focus = E.focus === tg.dataset.tag ? null : tg.dataset.tag; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;

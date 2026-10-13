@@ -957,7 +957,7 @@ html[data-drink="tea"] [data-tea="record"] { --tea: var(--tea-record); --surface
 /* the panel */
 body:not([data-phone=true]):not(.is-intro) .col { gap: 0; background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel);
   transition: transform var(--dur-3) var(--ease), background-color var(--m-base) var(--m-out); }
-body:not([data-phone=true]):not(.is-intro) .col > .card { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+body:where(:not([data-phone=true], .is-intro)) .col > :where(#head, #body, #foot) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 body:not([data-phone=true]):not(.is-intro) .col > #foot { display: none; }
 body:not([data-phone=true]) .col.is-folded { transform: translateX(var(--col-out, 100vw)); visibility: hidden; transition: transform var(--dur-3) var(--ease), visibility 0s linear var(--dur-3); }
 .col > #head { flex: none; min-height: 50px; padding: 0 12px; display: flex; flex-direction: column; justify-content: center; border-bottom: 1px solid var(--line); position: relative; }
@@ -994,7 +994,7 @@ body:not([data-phone=true]) .col.is-folded { transform: translateX(var(--col-out
 .tgroup { display: flex; flex-direction: column; gap: 10px; }
 .tab { position: relative; flex: none; width: 54px; height: 60px; padding: 0; display: grid; place-items: center; align-content: center; gap: 3px; border: 0; border-radius: 12px 0 0 12px;
   background: var(--tab-bg); color: var(--tab-ink); font: 650 11px/1.1 var(--font-ui); cursor: pointer; transition: background-color var(--m-base) var(--m-out), color var(--m-base) var(--m-out); }
-.tab:hover:not(:disabled) { border: 0; background: color-mix(in srgb, var(--tab-bg) 88%, var(--tea)); }
+.tab:hover:not(:disabled, .is-open, .also) { border: 0; background: color-mix(in srgb, var(--tab-bg) 88%, var(--tea)); }
 .tab:disabled { opacity: .45; }
 .tab .ti { display: grid; place-items: center; color: var(--tea, var(--tab-ink)); }
 .tab .tl { white-space: nowrap; }
@@ -1085,3 +1085,7 @@ mark.dw { background: var(--ins-bg); color: inherit; border-radius: 2px; padding
 .col > #body details.details { margin-top: 6px; }
 .vlist.full .vrow { grid-template-columns: 16px 46px minmax(0, 1fr) auto; }
 .vrow .n { white-space: nowrap; }
+
+/* Record: the groups in two columns once the sheet is 560px wide */
+.col > #body { container-type: inline-size; }
+@container (min-width: 520px){ .clcols { columns: 2; column-gap: 18px; } .clcols > .clg { break-inside: avoid; } }

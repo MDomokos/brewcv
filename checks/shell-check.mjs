@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
-import { computeLayout, G, TAB_GAP, TABS_W, PANEL_MIN, PANEL_ONE, PANEL_TWO, TWO_FROM, FOLD_INSET, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
+import { computeLayout, SLIM_MIN, SLIM_MAX, G, TAB_GAP, TABS_W, PANEL_MIN, PANEL_ONE, PANEL_TWO, TWO_FROM, FOLD_INSET, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
 import { indexModel, targetOf, up, step, versionsOf, factsOf, NONE } from '../src/ui/select.js';
 import { ZOOM_WRITE } from '../src/ui/dock.js';
 import { load, save, serialize, saveResume } from '../src/model/schema.js';
@@ -102,6 +102,11 @@ for (const [vw, vh] of SIZES){
   ok('zoom is kept between its limits, and a bad number means 1', clampZoom(0) === ZOOM_MIN && clampZoom(99) === ZOOM_MAX && clampZoom(NaN) === 1 && clampZoom(1.5) === 1.5);
   const z = lay(1470, 832, { zoom: 2 }), one = lay(1470, 832);
   ok('zoom 2 doubles the sheet, not the group', Math.abs(z.scale - 2 * one.scale) < 1e-9 && z.tabs.left === one.tabs.left && z.col.left === one.col.left && !z.fullHeight);
+}
+section('layout: the start screen keeps its slim column');
+for (const [vw, vh] of [[1536, 864], [1440, 900], [1100, 760]]){
+  const L = lay(vw, vh, { slim: true });
+  ok(`${vw}×${vh}: one column of ${L.col.width}px (380 to 480), ${G}px from the right and the top, no tabs; the page centred in the room left of it`, L.col.width >= SLIM_MIN && L.col.width <= SLIM_MAX && Math.abs(vw - L.col.left - L.col.width - G) < 1e-6 && L.tabs.width === 0 && Math.abs(L.sheet.left - (L.col.left - G - L.sheet.left - L.sheet.width)) < 1e-6 && !L.twoSheets);
 }
 section('layout: a phone');
 {

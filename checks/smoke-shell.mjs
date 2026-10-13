@@ -91,6 +91,8 @@ const rect = (page, s) => page.$eval(s, el => el.getBoundingClientRect().toJSON(
 async function markSent(page){ await page.evaluate(() => window.__wb.dock.setMode('export')); await page.waitForTimeout(500); await page.click('[data-act=mark-sent]'); }          // (a click on the open tab would fold the panel)
 // The Outline, with nothing selected, the panel open
 async function toEditHome(page){ await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.dock.setFolded(false); window.__wb.ui.pane = 'outline'; window.__wb.setView(null); }); await page.waitForTimeout(500); }
+// The Outline with the first job in focus (its lines are the movable rows)
+async function toJobOutline(page){ await page.frameLocator('#sheet iframe').locator('.role-title').first().click(); await page.waitForTimeout(500); await page.evaluate(() => window.__wb.dock.setMode('outline')); await page.waitForTimeout(500); }
 // + Add lives in the Record tab's header
 async function openAdd(page){ await inRecord(page); await page.click('[data-act=c-pop]'); }
 // The Record tab lists the record's groups, all open. Open it, and make sure one group is open and in view.
@@ -799,12 +801,13 @@ if (want('on the page: a narrow window, zoom off, reduced motion, a line that is
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
     ok('at 1100px the panel stays beside the page, at 560px: there is no drawer, and selecting a line leaves the layout alone', (await page.evaluate(() => document.body.dataset.drawer)) === undefined && (await page.evaluate(() => document.body.dataset.folded)) === 'false' && Math.abs((await rect(page, '#col')).width - 560) < 1);
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(900);
-    ok('writing a line leaves the panel where it is: the tools in the margin carry the actions', (await lineEl(page).count()) === 1 && (await page.evaluate(() => document.body.dataset.folded)) === 'false' && (await page.isVisible('#body')) && !!(await page.$('#editlay [data-act=ed-save]')));
+    ok('writing a line slides the panel away (the page needs the room to zoom): the tabs stay as tags and the tools in the margin carry the actions', (await lineEl(page).count()) === 1 && (await page.evaluate(() => document.body.dataset.folded)) === 'true' && !(await page.isVisible('#body')) && await page.isVisible('#tabs') && !!(await page.$('#editlay [data-act=ed-save]')));
     await appendLine(page, ' drawer');
     ok('…the tools are on screen, not under the tabs', await page.evaluate(() => { const r = document.querySelector('#editlay .obtools').getBoundingClientRect(), c = document.querySelector('#tabs').getBoundingClientRect(); return r.right <= c.left + 2 && r.left >= 0 && r.top >= 0 && r.bottom <= innerHeight; }));
     await page.click('#editlay [data-act=ed-saveas]'); await page.waitForTimeout(900);
     ok('Save as new version works from the tools alone', (await page.evaluate(() => window.__wb.store.state.record.variants.some(v => /drawer$/.test(v.text)))) && (await lineEl(page).count()) === 0);
-    ok('…and the panel is as it was, with the line selected', (await page.evaluate(() => document.body.dataset.folded)) === 'false' && (await selOf(page)).startsWith('bullet:'));
+    await page.waitForTimeout(500);
+    ok('…and the panel slides back, with the line selected', (await page.evaluate(() => document.body.dataset.folded)) === 'false' && (await page.isVisible('#body')) && (await selOf(page)).startsWith('bullet:'));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -1490,6 +1493,7 @@ if (want('saved resumes')) {
   await page.fill('#sv-co', 'Second Co'); await page.click('[data-act=sv-do]'); await settle(page);
   r = saved(await st());
   ok('…and adds it to the same snapshot', r.snapshots.length === 1 && r.snapshots[0].sends.length === 2);
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);     // (a second click on a line of the open job would write it)
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
   await page.click('#b-on'); await settle(page);
   await markSent(page); await settle(page); await page.click('[data-act=sv-do]'); await settle(page);
@@ -1504,7 +1508,7 @@ if (want('saved resumes')) {
   ok('opening a snapshot shows a clear bar', /Snapshot · sent to Smoke Test Co, Second Co/.test(bar) || /Snapshot · sent to/.test(bar), bar);
   ok('…with Export, Restore as current and Duplicate as new resume', await page.isVisible('[data-act=goto][data-v=export]') && await page.isVisible('[data-act=snap-restore]') && await page.isVisible('[data-act=snap-dup]'));
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
-  ok('nothing on the page can be edited', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none' && await page.isDisabled('[data-act=fit]') && await page.isDisabled('#head [data-m=record]'));
+  ok('nothing on the page can be edited', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none' && await page.isDisabled('[data-act=fit]') && await page.isDisabled('#tab-record'));
   const histNow = await page.evaluate(() => window.__wb.store.history.undo);
   await page.keyboard.press('Enter'); await page.keyboard.press('ArrowDown'); await settle(page);
   ok('and the keyboard changes nothing', (await page.evaluate(() => window.__wb.store.history.undo)) === histNow);
@@ -1573,7 +1577,7 @@ if (want('saved resumes')) {
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher [data-act=sw-manage]'); await settle(page);
   const grown = await rect(page, '#switcher');
-  ok('Manage all grows the same menu: up to about 560px wide, ending above the zoom bar, still the dialog', await page.isVisible('#switcher.is-grown') && grown.width > 480 && grown.width <= 562 && grown.bottom <= (await rect(page, '#foot')).top + 1 && (await page.getAttribute('#switcher', 'role')) === 'dialog', JSON.stringify(grown));
+  ok('Manage all grows the same menu: up to about 560px wide, ending inside the panel, still the dialog', await page.isVisible('#switcher.is-grown') && grown.width > 480 && grown.width <= 562 && grown.bottom <= (await rect(page, '#col')).bottom + 1 && (await page.getAttribute('#switcher', 'role')) === 'dialog', JSON.stringify(grown));
   ok('…with the search box, three views (Job type, Date, Company), a tick box and a row menu on each row, and no old Resumes page', (await page.$$('#switcher [role=tab]')).length === 3 && (await page.getAttribute('#switcher [role=tab][aria-selected=true]', 'data-v')) === 'type' && (await page.$$('#switcher .swrow .smore')).length > 10 && (await page.$$('#switcher .swrow .pick')).length > 10 && (await page.$$('#switcher [data-act=r-reuse], #switcher [data-act=r-delete]')).length === 0 && (await page.getAttribute('#body', 'data-view')) !== 'resumes');
   ok('the Compare button is at the bottom, off until two are ticked', await page.isDisabled('#switcher [data-act=sw-compare]') && /0\/2/.test(await page.textContent('#switcher [data-act=sw-compare]')));
   await page.click('#switcher .swrow[data-rid="Example Instruments - Design Engineer.json"] input.pick');
@@ -1643,7 +1647,7 @@ if (want('tags and focus')) {
   const bad = await open(page);
   const st = () => page.evaluate(() => window.__wb.store.state);
   await openByName(page, 'Medtech'); await page.waitForTimeout(300);
-  ok('the Edit panel has one lens row: Highlight, one list: the job types, then every tag', await page.isVisible('#lens') && (await page.$$('#lens optgroup')).length === 2 && (await page.evaluate(() => document.querySelectorAll('#lens optgroup')[1].children.length)) > 3 && !(await page.$('[data-act=lens-tags]')));
+  ok('the Outline has one lens row: Highlight, one list: the job types, then every tag', await page.isVisible('#lens') && (await page.$$('#lens optgroup')).length === 2 && (await page.evaluate(() => document.querySelectorAll('#lens optgroup')[1].children.length)) > 3 && !(await page.$('[data-act=lens-tags]')));
   const undo0 = await page.evaluate(() => window.__wb.store.history.undo);
   await page.selectOption('#lens', 'Prototyping'); await settle(page);
   const faded = await frameDoc(page, d => [d.documentElement.classList.contains('rb-focus'), d.querySelectorAll('.rb-hit').length, d.querySelectorAll('.bullets li').length]);
@@ -1666,7 +1670,7 @@ if (want('tags and focus')) {
   ok('and the box keeps focus for the next one', await page.evaluate(() => document.activeElement?.classList.contains('tag-in')));
   await page.click(`.vrow.cur .tag:has-text("${pick}") .rm`); await settle(page);
   ok('× removes it', !((await st()).record.variants.find(v => v.id === vid).tags ?? []).includes(pick));
-  await page.click('[data-act=deselect]'); await settle(page);
+  await toEditHome(page);
   await page.selectOption('#lens', ''); await settle(page);
   ok('choosing Nothing brings the page back', !(await frameDoc(page, d => d.documentElement.classList.contains('rb-focus'))));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
@@ -1699,15 +1703,14 @@ if (want('languages')) {
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc from a line that is in no job goes to the page', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none');
   await page.keyboard.press('Escape'); await settle(page);
-  ok('…and one more puts the panel away', (await page.evaluate(() => document.body.dataset.folded)) === 'true');
-  await page.keyboard.press('e'); await settle(page);
+  ok('…and one more zooms out and leaves the panel where it is', (await page.evaluate(() => document.body.dataset.folded)) === 'false');
   const outlined = await frameDoc(page, d => d.querySelectorAll('.rb-miss').length);
   await page.click('.missbar .miss-go:has-text("Bookbinding")'); await settle(page);
   await page.click('.writein input[data-same]'); await page.waitForTimeout(1500);
   ok('"same in every language" takes it off the list', (await st()).record.same.some(k => /interest-bookbinding/.test(k)) && !(await page.$('.missbar .miss-go:has-text("Bookbinding")')));
   const after = await frameDoc(page, d => d.querySelectorAll('.rb-miss').length);
   ok('and off the page’s outlines', after === outlined - 1, `${outlined} → ${after}`);
-  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page); await page.keyboard.press('e'); await settle(page);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   await page.click('#langbtn'); await settle(page); await page.click('.langpop [data-act=lang][data-lang=en]'); await page.waitForTimeout(2000);
   ok('back to English', !(await st()).cur.lang && /Experience/i.test(await frameDoc(page, d => d.body.textContent)));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
@@ -2047,7 +2050,7 @@ if (want('onboarding and the record')) {
   await page.click('[data-act=ob-finish]'); await page.waitForTimeout(2000);
   const page1 = await text();
   ok('blank → a finished resume: both jobs, their claims, the degree, the skills', ['Fjord Instruments', 'IP68 housing', 'Northwind Labs', 'B.Sc.', 'Onshape'].every(x => page1.includes(x)));
-  ok('Start editing brings the rest in: the header, the footer with its meter, Fit, and This resume', await page.isVisible('#head') && await page.isVisible('#foot') && await page.isVisible('[data-act=fit]') && /\d+%/.test(await page.textContent('#meter')) && /This resume/.test(await page.textContent('#body')));
+  ok('Start editing brings the rest in: the header with its meter and Fit, the tabs, and the Outline', await page.isVisible('#head') && await page.isVisible('#tabs') && await page.isVisible('[data-act=fit]') && /\d+%/.test(await page.textContent('#meter')) && /Fit cuts from the bottom/.test(await page.textContent('#body')));
   ok('on A4', (await st()).cur.format === 'a4');
   ok('the first tip shows', /Tip 1 of 3/.test(await page.textContent('#body')));
   ok('and the record validates', await page.evaluate(async () => { const V = await import('./checks/lib/validate.mjs'); const S = await import('./src/model/schema.js'); const s = window.__wb.store.state; return V.validate(S.save(window.__wb.store.materialize(s.record)), s.cur).errors.length === 0; }));
@@ -2060,9 +2063,11 @@ if (want('onboarding and the record')) {
   await page.click('details.details > summary'); await settle(page);
   await page.fill('#c-pos', 'Design Engineering Intern'); await page.fill('#c-end', '2022-01'); await page.keyboard.press('Tab'); await page.waitForTimeout(1200);
   ok('editing a job’s facts: they commit as you leave the fields', (await st()).record.work.find(w => w.name === 'Northwind Labs').position === 'Design Engineering Intern');
-  await page.fill('#checklist .clg.open .new-claim', 'Wrote the fixture drawings and the test procedure.'); await page.click('#checklist .clg.open [data-act=add-claim]'); await page.waitForTimeout(1000);
-  ok('adding a claim, in the job’s group of the checklist', (await st()).record.work.find(w => w.name === 'Northwind Labs').highlights.length === 2);
-  await page.click('#checklist .clg.open .clrow >> nth=1 >> .clt'); await settle(page);
+  await page.evaluate(() => window.__wb.dock.setMode('record')); await page.waitForTimeout(800);
+  await page.click('#checklist .clg:has-text("Northwind") [data-act=ol-addline]'); await settle(page);
+  await page.fill('#checklist .clg:has-text("Northwind") .new-claim', 'Wrote the fixture drawings and the test procedure.'); await page.click('#checklist .clg:has-text("Northwind") [data-act=add-claim]'); await page.waitForTimeout(1000);
+  ok('adding a claim, with the job’s “+ line” in the Record', (await st()).record.work.find(w => w.name === 'Northwind Labs').highlights.length === 2);
+  await page.click('#checklist .clg:has-text("Northwind") .clrow >> nth=1 >> .clt'); await settle(page);
   await page.click('[data-act=delete-claim]'); await page.waitForTimeout(1000);
   ok('🗑 deletes a claim, saying Ctrl+Z brings it back', (await st()).record.work.find(w => w.name === 'Northwind Labs').highlights.length === 1 && /Ctrl\+Z brings it back/.test(await page.textContent('#toast')));
   await page.click('[data-act=undo]'); await page.waitForTimeout(1000);
@@ -2080,9 +2085,8 @@ if (want('bullets: re-arrange within a job; tags: one closed list')) {
   const bad = await open(page);
   const st = () => page.evaluate(() => window.__wb.store.state);
   const lis = () => frameDoc(page, d => [...d.querySelectorAll('.bullets li')].slice(0, 3).map(x => x.textContent.slice(0, 24)));
-  await page.click('[data-act=select-section][data-id=experience]'); await settle(page);
-  await page.click('#body [data-act=select-job] >> nth=0'); await settle(page);
-  const rows = page.locator('#checklist .clg.open .clrow[data-bullet]');
+  await toJobOutline(page);
+  const rows = page.locator('#outline .clg.open .clrow[data-bullet]');
   ok('the ticked bullets of a job are draggable rows', (await rows.count()) >= 3 && (await rows.first().getAttribute('draggable')) === 'true');
   const before = await lis();
   await rows.nth(0).locator('.cb').focus();
@@ -2097,7 +2101,7 @@ if (want('bullets: re-arrange within a job; tags: one closed list')) {
   ok('dragging a bullet row up puts that bullet first', dragged[0] === before[2] && dragged[1] === before[0]);
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
   // tags: the panel for them is the job types one
-  await page.click('[data-act=deselect]'); await settle(page);
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
   await inRecord(page, 'credentials'); await settle(page);
   await page.click('#checklist [data-act=cl-open][data-sel*=jobtypes]'); await settle(page);
   ok('the Tags part lists each tag with a name box, a merge menu and a bin', (await page.locator('#body .tagrow').count()) >= 5 && (await page.locator('#body .tagrow .tag-merge').count()) >= 5 && (await page.locator('#body #tag-count').count()) === 1);
@@ -2120,15 +2124,14 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   const lis = () => frameDoc(page, d => [...d.querySelectorAll('.bullets li')].slice(0, 3).map(x => x.textContent.slice(0, 24)));
   const big = async loc => { const b = await loc.boundingBox(); return !!b && b.width >= 24 && b.height >= 24; };
   const focusedMove = () => page.evaluate(() => { const a = document.activeElement; return { act: a?.dataset?.act, bullet: a?.closest?.('.clrow')?.dataset.bullet ?? null }; });
-  await page.click('[data-act=select-section][data-id=experience]'); await settle(page);
-  await page.click('#body [data-act=select-job] >> nth=0'); await settle(page);
-  const rows = page.locator('#checklist .clg.open .clrow[data-bullet]');
+  await toJobOutline(page);
+  const rows = page.locator('#outline .clg.open .clrow[data-bullet]');
   const n = await rows.count();
-  ok('a job’s ticked bullets each have a grip and ↑ ↓; no other row does', n >= 3 && (await page.locator('#checklist .clgrip').count()) === n && (await page.locator('#checklist .clmv').count()) === n && (await page.locator('#checklist .clrow:not([draggable]) .clgrip').count()) === 0);
-  ok('a job that was not moved shows no "custom"', (await page.locator('#checklist .pill.custom').count()) === 0);
+  ok('a job’s ticked bullets each have a grip and ↑ ↓; no other row does', n >= 3 && (await page.locator('#outline .clg.open .clgrip').count()) === n && (await page.locator('#outline .clg.open .clmv').count()) === n && (await page.locator('#outline .clg.open .clrow:not([draggable]) .clgrip').count()) === 0);
+  ok('a job that was not moved shows no "custom"', (await page.locator('#outline .pill.custom').count()) === 0);
   await rows.nth(1).hover();
   // the ↑ ↓ cluster has its own room: on hover, focus and selection it never covers the version chip or the row's text, at 1100 and 1536
-  const overlaps = () => page.evaluate(() => [...document.querySelectorAll('#checklist .clrow .clmv')].flatMap(m => {
+  const overlaps = () => page.evaluate(() => [...document.querySelectorAll('#outline .clg.open .clrow .clmv')].flatMap(m => {
     const row = m.closest('.clrow'), h0 = row.offsetHeight;
     const mine = [...m.querySelectorAll('.ib')].map(b => b.getBoundingClientRect());
     return [...row.querySelectorAll('.clv, .clt')].filter(el => mine.some(r => { const q = el.getBoundingClientRect(); return r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top; })).map(el => el.className + ' ' + h0);
@@ -2138,13 +2141,13 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
     await rows.nth(1).hover();
     const rowH = await rows.nth(1).evaluate(r => r.offsetHeight);
     await rows.nth(1).locator('.clt').focus();
-    ok(`at ${w} px no ↑ ↓ button covers the chip or the text of its row, and the row keeps its height`, (await overlaps()).length === 0 && await rows.nth(1).evaluate(r => r.offsetHeight) === rowH && (await page.locator('#checklist .clv').count()) > 0, (await overlaps()).join('; '));
+    ok(`at ${w} px no ↑ ↓ button covers the chip or the text of its row, and the row keeps its height`, (await overlaps()).length === 0 && await rows.nth(1).evaluate(r => r.offsetHeight) === rowH && (await page.locator('#outline .clv').count()) > 0, (await overlaps()).join('; '));
   }
   // every movable row is as tall as the same row without grip and ↑ ↓ (a clone, stripped of them, in the same list)
-  const heights = await page.evaluate(() => [...document.querySelectorAll('#checklist .clrow[draggable]')].flatMap(r => [false, true].map(short => { const m = r.cloneNode(true), c = r.cloneNode(true); c.removeAttribute('draggable'); c.querySelectorAll('.clgrip, .clmv').forEach(x => x.remove()); for (const x of [m, c]) if (short) x.querySelector('.clt').textContent = 'Short'; r.after(m, c); const h = [m.offsetHeight, c.offsetHeight]; m.remove(); c.remove(); return h; })));
+  const heights = await page.evaluate(() => [...document.querySelectorAll('#outline .clg.open .clrow[draggable]')].flatMap(r => [false, true].map(short => { const m = r.cloneNode(true), c = r.cloneNode(true); c.removeAttribute('draggable'); c.querySelectorAll('.clgrip, .clmv').forEach(x => x.remove()); for (const x of [m, c]) if (short) x.querySelector('.clt').textContent = 'Short'; r.after(m, c); const h = [m.offsetHeight, c.offsetHeight]; m.remove(); c.remove(); return h; })));
   ok('a movable row is as tall as the same row without grip and ↑ ↓, at 1536 px', heights.length >= 6 && heights.every(h => h[0] === h[1]), heights.join(' | '));
   await page.setViewportSize({ width: 1536, height: 864 }); await settle(page);
-  ok('hovering a row shows ↑ ↓; the grip, ↑ and ↓ are each at least 24 px', await page.locator('#checklist .clrow >> nth=1').evaluate(r => getComputedStyle(r.querySelector('.clmv')).opacity === '1') && await big(rows.nth(1).locator('.clgrip')) && await big(rows.nth(1).locator('[data-act=cl-up]')) && await big(rows.nth(1).locator('[data-act=cl-down]')));
+  ok('hovering a row shows ↑ ↓; the grip, ↑ and ↓ are each at least 24 px', await page.locator('#outline .clg.open .clrow >> nth=1').evaluate(r => getComputedStyle(r.querySelector('.clmv')).opacity === '1') && await big(rows.nth(1).locator('.clgrip')) && await big(rows.nth(1).locator('[data-act=cl-up]')) && await big(rows.nth(1).locator('[data-act=cl-down]')));
   ok('the first row’s ↑ and the last row’s ↓ are aria-disabled (still in the page); the others are not', (await rows.first().locator('[data-act=cl-up]').getAttribute('aria-disabled')) === 'true' && (await rows.last().locator('[data-act=cl-down]').getAttribute('aria-disabled')) === 'true'
     && (await rows.first().locator('[data-act=cl-down]').getAttribute('aria-disabled')) === 'false' && (await rows.last().locator('[data-act=cl-up]').getAttribute('aria-disabled')) === 'false');
   const before = await lis(), u0 = await undoN(), id0 = await rows.first().getAttribute('data-bullet');
@@ -2155,16 +2158,16 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   const moved = await lis();
   ok('↓ on the first row moves it down on the page, in one undo step', moved[0] === before[1] && moved[1] === before[0] && (await undoN()) === u0 + 1);
   ok('…the focus stays on the moved row’s ↓, and that row flashed', JSON.stringify(await focusedMove()) === JSON.stringify({ act: 'cl-down', bullet: id0 }) && (await page.evaluate(() => window.__wb.motion?.stats?.names?.includes('row:moved') ?? true)));
-  ok('…the job now shows "custom" with a Reset', (await page.locator('#checklist .clgh .pill.custom').count()) === 1 && (await page.locator('#checklist [data-act=order-reset]').count()) === 1);
+  ok('…the job now shows "custom" with a Reset', (await page.locator('#outline .clgh .pill.custom').count()) === 1 && (await page.locator('#outline .clg.open [data-act=order-reset]').count()) === 1);
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
-  ok('Ctrl+Z puts it back, and "custom" goes', JSON.stringify(await lis()) === JSON.stringify(before) && (await page.locator('#checklist .pill.custom').count()) === 0);
+  ok('Ctrl+Z puts it back, and "custom" goes', JSON.stringify(await lis()) === JSON.stringify(before) && (await page.locator('#outline .pill.custom').count()) === 0);
   await page.keyboard.press('Control+Shift+z'); await page.waitForTimeout(800);
   const u0b = await undoN();
-  await page.click('#checklist [data-act=order-reset]'); await page.waitForTimeout(900);
-  ok('Reset puts the record’s order back, in one undo step, and the mark goes', JSON.stringify(await lis()) === JSON.stringify(before) && (await undoN()) === u0b + 1 && (await page.locator('#checklist .pill.custom').count()) === 0);
+  await page.click('#outline .clg.open [data-act=order-reset]'); await page.waitForTimeout(900);
+  ok('Reset puts the record’s order back, in one undo step, and the mark goes', JSON.stringify(await lis()) === JSON.stringify(before) && (await undoN()) === u0b + 1 && (await page.locator('#outline .pill.custom').count()) === 0);
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
-  ok('…one Ctrl+Z brings the custom order back', JSON.stringify(await lis()) === JSON.stringify(moved) && (await page.locator('#checklist .pill.custom').count()) === 1);
-  await page.click('#checklist [data-act=order-reset]'); await page.waitForTimeout(900);
+  ok('…one Ctrl+Z brings the custom order back', JSON.stringify(await lis()) === JSON.stringify(moved) && (await page.locator('#outline .pill.custom').count()) === 1);
+  await page.click('#outline .clg.open [data-act=order-reset]'); await page.waitForTimeout(900);
   // ↑ on the row below it
   await rows.nth(1).hover(); await rows.nth(1).locator('[data-act=cl-up]').click(); await page.waitForTimeout(900);
   ok('↑ on the second row moves it up', JSON.stringify(await lis()) === JSON.stringify([before[1], before[0], before[2]]));
@@ -2259,7 +2262,7 @@ if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging s
   ok('with an item open in the inspector, Alt+↑ moves it too', (await sheetSkills())[0] === before[1]);
   await page.keyboard.press('Control+z'); await page.waitForTimeout(700);
   // a section's items: all off takes the section off
-  await page.click('[data-act=deselect]'); await settle(page);
+  await toEditHome(page);
   // one tagging system: a tag on an item is found like a tag on a bullet
   await page.evaluate(() => { const w = window.__wb.store; w.commit(d => { const f = d.record.facts.find(x => x.id === d.record.sections.find(s => s.id === 'skills').content.groups[2]); const v = d.record.variants.find(x => x.id === f.variants[0]); v.tags = [...(v.tags ?? []), 'zz-everything']; }, 'seed'); });
   await settle(page);
@@ -2277,16 +2280,16 @@ if (want('one panel for a claim: from the page and from the checklist')) {
   const bad = await open(page);
   const st = () => page.evaluate(() => window.__wb.store.state);
   const nOf = async () => (await st()).record.variants.length;
-  await page.click('[data-act=select-section][data-id=experience]'); await settle(page);
+  await page.frameLocator('#sheet iframe').locator('.band[data-section="experience"] .tab').first().click(); await settle(page);
   await page.click('#body [data-act=select-job] >> nth=0'); await settle(page);
-  await page.click('#checklist .clg.open .clrow >> nth=0 >> .clt'); await settle(page);
+  await page.click('#tab-outline'); await settle(page);
+  await page.click('#outline .clg.open .clrow >> nth=0 >> .clv'); await settle(page);          // “n v” opens Edit at that line
   const fact = await page.getAttribute('#body .vlist', 'data-fact');
   const fromList = await page.$$eval('#body .vrow .n', e => e.map(x => x.textContent.replace(/\D*$/, '')));
   ok('the claim panel: ◉ on the one in use, ✎ on it, 🗑 in the header above the versions', (await page.$$('#body .vrow .rad')).length >= 1 && (await page.$$('#body .vrow.cur')).length === 1
     && await page.evaluate(() => { const d = document.querySelector('#body [data-act=delete-claim]'), l = document.querySelector('#body .lbl'); return !!d && !!(d.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING); }));
   await page.mouse.move(4, 4); await settle(page);      // off the versions: a hovered one is a preview, and the first Esc ends that
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
-  await page.keyboard.press('e'); await settle(page);
   await page.frameLocator('#sheet iframe').locator(`[data-variant^="${fact}"]`).first().click(); await settle(page);
   const fromPage = await page.$$eval('#body .vrow .n', e => e.map(x => x.textContent.replace(/\D*$/, '')));
   ok('opened from the page it is the same panel: the same claim, the same versions in the same order', (await page.getAttribute('#body .vlist', 'data-fact')) === fact && JSON.stringify(fromList) === JSON.stringify(fromPage), `${fromList} / ${fromPage}`);
@@ -2302,18 +2305,21 @@ if (want('one panel for a claim: from the page and from the checklist')) {
   await writeLine(page, 'A different take, for another kind of job.'); await page.click('[data-act=ed-new]'); await page.waitForTimeout(900);
   ok('+ Write a new version writes the next whole number', (await nOf()) === n0 + 2);
   await page.click('#body .crumb [data-act=select-job]'); await settle(page);
-  ok('the job in the panel’s path goes to the job: its group stays open in the checklist', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job' && (await page.$$('#checklist .clg.open')).length === 1);
+  await page.click('#tab-outline'); await settle(page);
+  ok('the job in the panel’s path goes to the job: its group stays open in the Outline', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job' && (await page.$$('#outline .clg.open')).length === 1);
   const jobId = await page.evaluate(() => window.__wb.ui.sel.id);
   const hl = async () => (await st()).record.work.find(w => w.id === jobId).highlights.length;
   const h0 = await hl();
-  await page.fill('#checklist .clg.open .new-claim', 'Wrote the fixture drawings and the test procedure.'); await page.click('#checklist .clg.open [data-act=add-claim]'); await page.waitForTimeout(1000);
-  ok('+ Add something you did, under the job in the checklist: the claim is added and on', (await hl()) === h0 + 1 && /fixture drawings/.test(await frameDoc(page, d => d.body.textContent)));
-  await page.click('#checklist .clg.open .clrow >> nth=-1 >> .clt'); await settle(page);
+  await page.click('#outline .clg.open [data-act=ol-addline]'); await settle(page);
+  await page.fill('#outline .clg.open .new-claim', 'Wrote the fixture drawings and the test procedure.'); await page.click('#outline .clg.open [data-act=add-claim]'); await page.waitForTimeout(1000);
+  ok('+ line, under the job in the Outline: the claim is added and on', (await hl()) === h0 + 1 && /fixture drawings/.test(await frameDoc(page, d => d.body.textContent)));
+  await page.click('#outline .clg.open .clrow >> nth=-1 >> .clv'); await settle(page);
   await page.click('#body [data-act=delete-claim]'); await page.waitForTimeout(1000);
   ok('🗑 deletes it and goes back to the job; Ctrl+Z brings it back', (await hl()) === h0 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job');
   await page.keyboard.press('Control+z'); await page.waitForTimeout(1000);
   ok('…which it does', (await hl()) === h0 + 1);
-  await page.click('#checklist .clg.open .clrow >> nth=0 >> .clt'); await settle(page);
+  await page.click('#tab-outline'); await settle(page);
+  await page.click('#outline .clg.open .clrow >> nth=0 >> .clv'); await settle(page);
   const before = await page.textContent('#body .title');
   await page.keyboard.press('ArrowDown'); await settle(page);
   ok('↓ walks the bullets (from the page’s focus)', (await page.textContent('#body .title')) !== before || true);
@@ -2338,9 +2344,17 @@ if (want('drinks: tea and coffee, light and dark')) {
     const E = EXPECT[`${drink} ${theme}`];
     const seen = await page.evaluate(() => window.__drinks);
     ok(`${drink} ${theme}: html carries data-drink and data-theme before the first paint, and nothing else ever`, seen.every(x => x === `${drink}/${theme}`) && seen.length >= 1, JSON.stringify(seen));
-    const look = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#col')), b = getComputedStyle(document.querySelector('#body')); return { surface: b.backgroundColor, radius: c.borderTopLeftRadius, font: getComputedStyle(document.body).fontFamily, shadow: c.boxShadow }; });
+    await page.click('#tab-edit'); await settle(page);
+    const look = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#col')), b = c; return { surface: b.backgroundColor, radius: c.borderTopLeftRadius, font: getComputedStyle(document.body).fontFamily, shadow: c.boxShadow }; });
     ok(`${drink} ${theme}: the panel is the drink’s surface, ${E.radius} corners, ${E.mono ? 'monospace' : 'Hanken'}`, look.surface === E.surface && look.radius === E.radius && /Fira Code/.test(look.font) === E.mono, JSON.stringify(look));
     ok(`${drink} ${theme}: ${drink === 'tea' ? 'a flat, offset shadow' : 'no shadow, a hairline'}`, drink === 'tea' ? /\d+px \d+px 0px 0px/.test(look.shadow) : look.shadow === 'none');
+    // each tab has its own tea in Tea (the sheet and its open tab), and every tab is the one plain surface in Coffee
+    const TEAS = { light: { outline: 'rgb(77, 61, 30)', edit: 'rgb(46, 70, 54)', design: 'rgb(92, 43, 34)', export: 'rgb(44, 58, 79)', record: 'rgb(59, 39, 35)' }, dark: { outline: 'rgb(63, 50, 25)', edit: 'rgb(38, 57, 45)', design: 'rgb(75, 35, 28)', export: 'rgb(36, 48, 65)', record: 'rgb(48, 32, 29)' } };
+    const seenTabs = {};
+    for (const m of ['outline', 'edit', 'design', 'export', 'record']){ await page.evaluate(m => window.__wb.dock.setMode(m), m); await page.waitForTimeout(450); seenTabs[m] = await page.evaluate(m => [getComputedStyle(document.querySelector('#col')).backgroundColor, getComputedStyle(document.querySelector(`#tab-${m}`)).backgroundColor, getComputedStyle(document.querySelector(`#tab-${m}`)).boxShadow], m); }
+    ok(`${drink} ${theme}: ${drink === 'tea' ? 'the five sheets are oolong, matcha, rooibos, earl grey and pu-erh' + (theme === 'dark' ? ' (darkened)' : '') : 'every sheet is the one surface'}, and the open tab is its sheet's colour`, Object.entries(seenTabs).every(([m, v]) => v[0] === (drink === 'tea' ? TEAS[theme][m] : E.surface) && v[1] === v[0]), JSON.stringify(seenTabs));
+    ok(`${drink} ${theme}: a closed tab is cream in Tea, the plain card with a hairline in Coffee`, await page.evaluate(([d]) => { const t = getComputedStyle(document.querySelector('#tab-design')), c = getComputedStyle(document.querySelector('#col')); return d === 'tea' ? t.backgroundColor !== c.backgroundColor && /\d/.test(t.backgroundColor) : t.backgroundColor === c.backgroundColor && /inset/.test(t.boxShadow); }, [drink]));
+    await page.evaluate(() => window.__wb.dock.setMode('edit'));
     // the resume is the same everywhere: its first bullet's computed style does not know the drink
     const resume = await frameDoc(page, d => { const li = d.querySelector('.bullets li'), cs = getComputedStyle(li); return [cs.color, cs.fontFamily, cs.fontSize, getComputedStyle(d.body).backgroundColor].join('|'); });
     if (!globalThis.__resumeLook) globalThis.__resumeLook = resume;
@@ -2358,7 +2372,7 @@ if (want('drinks: tea and coffee, light and dark')) {
   await page.evaluate(() => { window.__marker = 'same page'; });
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   ok('Shift+F switches to coffee, in place: no reload, the same page, the choice stored', (await drinkNow()) === 'coffee' && (await page.evaluate(() => window.__marker)) === 'same page' && (await page.evaluate(() => localStorage.getItem('rb-drink'))) === 'coffee');
-  ok('the logo now offers Tea, and the rail icons and the meter changed with it, with no redraw of the page', await page.evaluate(() => document.querySelector('#head .logoswitch').dataset.to === 'tea') && (await page.evaluate(() => window.__wb.ui.laid != null)));
+  ok('the logo now offers Tea, and the tab icons and the meter changed with it, with no redraw of the page', await page.evaluate(() => document.querySelector('#head .logoswitch').dataset.to === 'tea') && (await page.evaluate(() => window.__wb.ui.laid != null)));
   await page.click('#head .logoswitch'); await page.waitForTimeout(900);
   ok('the logo switches back to Tea', (await drinkNow()) === 'tea');
   // never while typing: the switcher's search is a field
@@ -2395,7 +2409,7 @@ if (want('drinks: Fit, the meters, the moments')) {
   const page = await ctx.newPage();
   const bad = await open(page);
   const setFills = fills => page.evaluate(f => { window.__wb.ui.fills = f; window.__wb.dock.renderFoot(); window.__wb.dock.renderTabs(); }, fills);
-  const fitFilled = () => page.$eval('#foot [data-act=fit]', b => b.classList.contains('primary'));
+  const fitFilled = () => page.$eval('#head [data-act=fit]', b => b.classList.contains('primary'));
   const real = await page.evaluate(() => window.__wb.ui.fills);
   ok('the example opens at 92%: in the band, so Fit is plain', !(await fitFilled()) && Math.abs(100 * real[0].used / real[0].usable - 92) < 2);
   await page.click('#tab-export'); await settle(page);
@@ -2416,24 +2430,24 @@ if (want('drinks: Fit, the meters, the moments')) {
   ok('89%, just inside the band: Fit is plain again', !(await fitFilled()));
   // the cup (tea) and the shot glass (coffee), filled to the page's level
   await setFills(used(0.6));
-  const cup = await page.evaluate(() => { const m = document.querySelector('#foot .meter'), f = m.querySelector('.mfill'), cs = getComputedStyle(f), band = getComputedStyle(m.querySelector('.mband')); return { p: m.style.getPropertyValue('--p'), mask: cs.webkitMaskImage || cs.maskImage, bg: cs.backgroundImage, band: band.borderTopStyle, hasBar: !!m.querySelector('.mbar') && getComputedStyle(m.querySelector('.mbar')).overflow !== 'hidden' }; });
+  const cup = await page.evaluate(() => { const m = document.querySelector('#head .meter'), f = m.querySelector('.mfill'), cs = getComputedStyle(f), band = getComputedStyle(m.querySelector('.mband')); return { p: m.style.getPropertyValue('--p'), mask: cs.webkitMaskImage || cs.maskImage, bg: cs.backgroundImage, band: band.borderTopStyle, hasBar: !!m.querySelector('.mbar') && getComputedStyle(m.querySelector('.mbar')).overflow !== 'hidden' }; });
   ok('tea: the page meter is the cup, drawn from --p = 60, with a dashed fill line for Fit’s band', cup.p === '60.0' && /url/.test(cup.mask) && /linear-gradient/.test(cup.bg) && cup.band === 'dashed' && cup.hasBar, JSON.stringify(cup));
   await setFills(used(1.01).map(x => ({ ...x, overflow: 4 })));
-  ok('tea: an overflowing page spills over the rim', await page.evaluate(() => { const bar = document.querySelector('#foot .meter.overflow .mbar'); const c = getComputedStyle(bar, '::before'); return c.content !== 'none' && /url/.test(c.webkitMaskImage || c.maskImage); }));
+  ok('tea: an overflowing page spills over the rim', await page.evaluate(() => { const bar = document.querySelector('#head .meter.overflow .mbar'); const c = getComputedStyle(bar, '::before'); return c.content !== 'none' && /url/.test(c.webkitMaskImage || c.maskImage); }));
   await setFills(used(0.91));
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
-  const glass = await page.evaluate(() => { const m = document.querySelector('#foot .meter'), bar = m.querySelector('.mbar').getBoundingClientRect(), f = m.querySelector('.mfill').getBoundingClientRect(), cs = getComputedStyle(m.querySelector('.mfill')); return { ratio: f.height / (bar.height - 1), bg: cs.backgroundImage, band: getComputedStyle(m.querySelector('.mband')).borderRightStyle, ticks: getComputedStyle(m.querySelector('.mbar'), '::after').backgroundImage }; });
+  const glass = await page.evaluate(() => { const m = document.querySelector('#head .meter'), bar = m.querySelector('.mbar').getBoundingClientRect(), f = m.querySelector('.mfill').getBoundingClientRect(), cs = getComputedStyle(m.querySelector('.mfill')); return { ratio: f.height / (bar.height - 1), bg: cs.backgroundImage, band: getComputedStyle(m.querySelector('.mband')).borderRightStyle, ticks: getComputedStyle(m.querySelector('.mbar'), '::after').backgroundImage }; });
   ok('coffee: the meter is a shot glass: crema on espresso, filled to the level, ticks, and Fit’s band bracketed', Math.abs(glass.ratio - 0.91) < 0.06 && /linear-gradient/.test(glass.bg) && glass.band === 'solid' && /linear-gradient/.test(glass.ticks), JSON.stringify(glass));
-  ok('coffee: the rail’s icons are the plain set, the head is an espresso band with a crema line', await page.evaluate(() => { const h = getComputedStyle(document.querySelector('#head')); return /rgb\(43, 29, 20\)/.test(h.backgroundColor) && /190, 127, 74/.test(h.borderBottomColor); }));
+  ok('coffee: the head is an espresso band with a crema line', await page.evaluate(() => { const h = getComputedStyle(document.querySelector('#head')); return /rgb\(43, 29, 20\)/.test(h.backgroundColor) && /190, 127, 74/.test(h.borderBottomColor); }));
   ok('coffee: counts read 5v, boxes are square, the canvas is a cutting mat', await page.evaluate(() => { const cb = document.querySelector('.cb'); return !cb || parseFloat(getComputedStyle(cb).borderTopLeftRadius) <= 2; }) && await page.evaluate(() => /linear-gradient/.test(getComputedStyle(document.body).backgroundImage)));
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   // steam is a moment: it rises for a few seconds when a page has just reached the band, and stops. At 91 to 93% it is a heart.
   await setFills(used(0.5)); await page.waitForTimeout(100);
   await setFills(used(0.92));
-  ok('tea: a page that has just reached the band steams, and at 92% the steam is a heart', await page.evaluate(() => { const m = document.querySelector('#foot .meter'); return m.classList.contains('steam') && m.classList.contains('perfect'); }));
-  ok('…the steam animation runs twice and stops (no loop)', await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#foot .meter .mbar'), '::before'); return c.animationIterationCount === '2'; }));
+  ok('tea: a page that has just reached the band steams, and at 92% the steam is a heart', await page.evaluate(() => { const m = document.querySelector('#head .meter'); return m.classList.contains('steam') && m.classList.contains('perfect'); }));
+  ok('…the steam animation runs twice and stops (no loop)', await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#head .meter .mbar'), '::before'); return c.animationIterationCount === '2'; }));
   await page.waitForTimeout(5200);
-  ok('…and after a few seconds there is no steam', await page.evaluate(() => !document.querySelector('#foot .meter').classList.contains('steam')));
+  ok('…and after a few seconds there is no steam', await page.evaluate(() => !document.querySelector('#head .meter').classList.contains('steam')));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 
@@ -2441,9 +2455,9 @@ if (want('drinks: Fit, the meters, the moments')) {
   const rm = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   const pg = await rm.newPage();
   await open(pg);
-  ok('reduced motion: no steam', await pg.evaluate(() => { const m = document.querySelector('#foot .meter'); return !m.classList.contains('steam') || getComputedStyle(m.querySelector('.mbar'), '::before').content === 'none'; }));
-  await pg.hover('#head [role=tab][data-m=export]'); await pg.waitForTimeout(100);
-  ok('reduced motion: the tags do not swing, and the toast does not', await pg.evaluate(() => getComputedStyle(document.querySelector('#head [role=tab][data-m=export]')).animationName === 'none'));
+  ok('reduced motion: no steam', await pg.evaluate(() => { const m = document.querySelector('#head .meter'); return !m.classList.contains('steam') || getComputedStyle(m.querySelector('.mbar'), '::before').content === 'none'; }));
+  await pg.hover('#head [data-act=fit]'); await pg.waitForTimeout(100);
+  ok('reduced motion: the tags do not swing, and the toast does not', await pg.evaluate(() => getComputedStyle(document.querySelector('#head [data-act=fit]')).animationName === 'none' && getComputedStyle(document.querySelector('#tab-export')).animationName === 'none'));
   await pg.evaluate(() => { const t = document.querySelector('#toast'); t.textContent = 'x'; t.className = 'toast on'; }); await pg.waitForTimeout(500);
   ok('…the toast still appears, without swinging', await pg.evaluate(() => { const t = document.querySelector('#toast'); return t.classList.contains('on') && getComputedStyle(t).animationName === 'none' && getComputedStyle(t).opacity === '1'; }));
   await pg.evaluate(() => { const i = document.querySelector('#head .logo img'); i.classList.add('dunk'); });
@@ -2530,7 +2544,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.click('#body .obwhy summary'); await settle(page);
   ok('footer area: the four “Yours to keep” points, private first among them, JSON Resume linked', (await page.$$('#foot .obtile')).length === 4 && /Private/.test(await page.textContent('#foot')) && !!(await page.$('#foot a[href="https://jsonresume.org/schema"]')));
   ok('…light, and not equal to the inspector: no card around them', await page.evaluate(() => { const f = getComputedStyle(document.querySelector('#foot')); return f.backgroundColor === 'rgba(0, 0, 0, 0)' && f.boxShadow === 'none'; }));
-  ok('nothing of the editor shows: no rail, no zoom bar, no meter, no Fit, and the sheet waits', !(await page.isVisible('#rail')) && !(await page.$('[data-act=fit]')) && (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'hidden');
+  ok('nothing of the editor shows: no tabs, no zoom bar, no meter, no Fit, and the sheet waits', !(await page.isVisible('#tabs')) && !(await page.$('[data-act=fit]')) && (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'hidden');
 
   // the story: four steps, named above their zones
   const heads = await page.$$eval('#ss .ssh button', bs => bs.map(b => `${b.querySelector('.n').textContent} ${b.querySelector('b').textContent}`));
@@ -2579,7 +2593,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
 
   // choosing: a state change, not another screen
   await page.click('[data-act=ob-example]'); await page.waitForTimeout(1500);
-  ok('“Try it with an example” turns the intro parts into the editor’s controls: the same column, now the editor’s header, panel and footer', !(await page.evaluate(() => document.body.classList.contains('is-intro'))) && await page.isVisible('#head [role=tablist]') && await page.isVisible('#foot [data-act=fit]'));
+  ok('“Try it with an example” turns the intro parts into the editor’s controls: the same column, now the editor’s header, panel and tabs', !(await page.evaluate(() => document.body.classList.contains('is-intro'))) && await page.isVisible('#tabs [role=tablist]') && await page.isVisible('#head [data-act=fit]'));
   ok('…the grey lines give way to the real page, which fades in where they were', (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'visible' && (await page.evaluate(() => getComputedStyle(document.querySelector('#startstage')).visibility)) === 'hidden' && /Okonkwo|Dana/.test(await frameDoc(page, d => d.body.textContent)));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
@@ -2636,22 +2650,22 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     const tag = `${drink} ${theme}`;
     const col = () => rect(page, '#col');
 
-    // ---- the four tabs, and R ----
-    const tabs = await page.$$eval('#head [role=tab]', els => els.map(e => e.textContent.trim()));
-    ok(`${tag}: the tablist is Edit · Record · Design · Export`, tabs.join('|') === 'Edit|Record|Design|Export', tabs.join('|'));
-    ok(`${tag}: …with the same tablist semantics, one tab stop`, await page.evaluate(() => { const t = [...document.querySelectorAll('#head [role=tab]')]; return t.length === 4 && t.filter(x => x.tabIndex === 0).length === 1 && t.filter(x => x.getAttribute('aria-selected') === 'true').length === 1; }));
-    await page.keyboard.press('Escape'); await page.keyboard.press('e'); await page.keyboard.press('e'); await page.keyboard.press('e'); await settle(page);   // pinned open, nothing selected
+    // ---- the five tabs, and R ----
+    const tabs = await page.$$eval('#tabs [role=tab]', els => els.map(e => e.textContent.trim()));
+    ok(`${tag}: the tablist is Outline · Edit · Design · Export · Record`, tabs.length === 5 && tabs.join('|').split('|').every(x => x.length > 2) && (await page.$$eval('#tabs [role=tab]', els => els.map(e => e.dataset.m).join())) === 'outline,edit,design,export,record', tabs.join('|'));
+    ok(`${tag}: …with the same tablist semantics, one tab stop`, await page.evaluate(() => { const t = [...document.querySelectorAll('#tabs [role=tab]')]; return t.length === 5 && t.filter(x => x.tabIndex === 0).length === 1 && t.filter(x => x.getAttribute('aria-selected') === 'true').length === 1; }));
+    await page.keyboard.press('Escape'); await settle(page);   // nothing selected
     const before = await col(), pageBefore = await rect(page, '#sheet');
-    ok(`${tag}: the panel is 440–480px wide in Edit at 1440`, before.width >= 440 && before.width <= 480, `${before.width}px`);
+    ok(`${tag}: the panel is 560–760px wide in the Outline at 1440`, before.width >= 559 && before.width <= 761, `${before.width}px`);
     await page.evaluate(() => { window.__moved = 0; document.addEventListener('brewcv:pages-moved', () => { window.__moved++; }); });
     await page.keyboard.press('r'); await page.waitForTimeout(1100);
     const after = await col(), pageAfter = await rect(page, '#sheet');
     ok(`${tag}: R opens Record, and Record is the selected tab`, (await page.evaluate(() => window.__wb.ui.view)) === 'record' && (await page.getAttribute('#tab-record', 'aria-selected')) === 'true' && (await page.getAttribute('#body', 'data-mode')) === 'record');
-    ok(`${tag}: Record widens the panel to 640–720px, never more than half the window`, after.width >= 640 && after.width <= 720 && after.width <= 720.5 && after.width > before.width, `${after.width}px`);
+    ok(`${tag}: Record is a tab of the same panel: nothing widens, and the page does not move`, Math.abs(after.width - before.width) < 1 && Math.abs(after.left - before.left) < 1 && Math.abs(pageAfter.left - pageBefore.left) < 1 && Math.abs(pageAfter.width - pageBefore.width) < 1, `${before.width}px → ${after.width}px`);
     const boxes = await pageRects(page);
-    ok(`${tag}: the page slides left and shrinks beside it; it is not covered`, pageAfter.width < pageBefore.width && boxes.every(b => b.left + b.width <= after.left + 1 && b.left >= 0) && boxes.every(b => b.top >= 0 && b.top + b.height <= 900), `${pageBefore.width.toFixed(0)} → ${pageAfter.width.toFixed(0)}`);
-    ok(`${tag}: the pages' own event fired once for the change, not per frame`, (await page.evaluate(() => window.__moved)) === 1, String(await page.evaluate(() => window.__moved)));
-    ok(`${tag}: the rail is not in the way: the panel keeps 16px from the right`, Math.abs(1440 - after.right - 16) < 1);
+    ok(`${tag}: the page is beside the panel, not covered`, boxes.every(b => b.left + b.width <= after.left + 1 && b.left >= 0) && boxes.every(b => b.top >= 0 && b.top + b.height <= 900));
+    ok(`${tag}: the pages' own event did not fire: the pages did not move`, (await page.evaluate(() => window.__moved)) === 0, String(await page.evaluate(() => window.__moved)));
+    ok(`${tag}: the panel keeps 16px from the right`, Math.abs(1440 - after.right - 16) < 1);
 
     // ---- what Record shows ----
     ok(`${tag}: a header row: Your record, n of m on, + Add`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && /Your record/.test(h.textContent) && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]'); }));
@@ -2674,15 +2688,15 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
 
     // ---- Esc goes back, and the panel narrows ----
     await page.keyboard.press('Escape'); await page.waitForTimeout(1100);
-    ok(`${tag}: Esc from Record goes back to Edit, and the panel narrows again`, (await page.evaluate(() => window.__wb.ui.view)) === null && Math.abs((await col()).width - before.width) < 1 && (await page.evaluate(() => window.__moved)) === 2);
+    ok(`${tag}: Esc from Record goes back to the tab it was opened from (the Outline)`, (await page.evaluate(() => window.__wb.ui.view)) === null && (await page.getAttribute('#tab-outline', 'aria-selected')) === 'true' && Math.abs((await col()).width - before.width) < 1);
 
     // ---- the ways in: the tab, the rail, the job chip and a section's count ----
     await page.click('#tab-record'); await settle(page);
     ok(`${tag}: the tab opens Record`, (await page.evaluate(() => window.__wb.ui.view)) === 'record');
     await page.keyboard.press('Escape'); await settle(page);
-    await page.click('[data-act=panel-toggle]'); await settle(page);                    // fold to the rail
+    await page.keyboard.press('e'); await settle(page);                    // fold: the tabs stay
     await page.click('#tab-record'); await page.waitForTimeout(900);
-    ok(`${tag}: the rail has a Record icon between Edit and Design, and it opens Record`, (await page.evaluate(() => window.__wb.ui.view)) === 'record' && (await page.evaluate(() => [...document.querySelectorAll('#rail [data-m]')].map(b => b.dataset.m).join())) === 'edit,record,design,export');
+    ok(`${tag}: the folded tag for Record unfolds the panel on Record`, (await page.evaluate(() => window.__wb.ui.view)) === 'record' && (await page.evaluate(() => document.body.dataset.folded)) === 'false');
     await page.keyboard.press('Escape'); await settle(page);
     // from the page: a bullet, then the way into the record under the job's lines
     await sheet.locator('.bullets li').first().click(); await settle(page);
@@ -2699,23 +2713,24 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.click('#checklist .clg[data-g=atelier] .clt'); await page.waitForTimeout(800);
     ok(`${tag}: a click on a line's text opens the claim (Edit), and the panel is at its top`, (await page.evaluate(() => window.__wb.ui.view)) === null && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'bullet' && (await page.evaluate(() => document.querySelector('#body').scrollTop)) === 0);
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
-    // Edit: the section rows' counts are links
-    await page.keyboard.press('e'); await settle(page); if (!(await page.evaluate(() => window.__wb.dock.shown()))) await page.keyboard.press('e'); await settle(page);
-    ok(`${tag}: Edit with nothing selected is "This resume", with its sections and counts, and no checklist`, await page.evaluate(() => { const t = document.querySelector('#body h2.title'); return /This resume/.test(t?.textContent ?? '') && !document.querySelector('#checklist') && document.querySelectorAll('#seclist .nlink[data-act=open-record]').length >= 3 && !!document.querySelector('.edithint') && !document.querySelector('[data-act=c-tl]'); }));
-    await page.click('#seclist .srow[data-sid=experience] .nlink'); await page.waitForTimeout(1100);
-    ok(`${tag}: a section's "n of m on" opens Record at that section's group`, await page.evaluate(() => { const g = document.querySelector('#checklist .clg[data-g=hydra]'), b = document.querySelector('#body'); const d = g.getBoundingClientRect().top - b.getBoundingClientRect().top; return window.__wb.ui.view === 'record' && d >= -2 && d < 200; }));
+    // the Outline: sections with their counts, in print order
+    await toEditHome(page);
+    ok(`${tag}: the Outline lists the sections in print order with "n of m on", and no checklist`, await page.evaluate(() => { const t = document.querySelector('#outline'); return !!t && !document.querySelector('#checklist') && document.querySelectorAll('#seclist .osec').length >= 5 && /\d+ of \d+ on/.test(document.querySelector('#seclist .osec[data-sid=experience] .srow')?.textContent ?? '') && !document.querySelector('[data-act=c-tl]'); }));
+    ok(`${tag}: Fixed sections say "always first", and the foot says how Fit works`, await page.evaluate(() => document.querySelectorAll('#seclist .osec .srow.fixed').length >= 2 && /Fit cuts from the bottom/.test(document.querySelector('#body').textContent)));
     await page.keyboard.press('Escape'); await settle(page);
 
     // ---- the job level: versions, then the job's own lines, then Details, then the way to the record ----
     await sheet.locator('.bullets li').first().click(); await settle(page);
-    const order = await page.evaluate(() => { const y = s => document.querySelector(s)?.getBoundingClientRect().top ?? null; return { crumb: y('#body .crumb'), versions: y('#body .vlist'), group: y('#checklist.compact'), details: y('#body details.details'), all: y('#body .allrec'), top: document.querySelector('#body').scrollTop, head: /This job/.test(document.querySelector('#checklist.compact .clgh')?.textContent ?? '') && /\d of \d+ on/.test(document.querySelector('#checklist.compact .clgh')?.textContent ?? '') }; });
-    ok(`${tag}: the job level shows the line's versions, then "This job · n of m on", then Details, then "All of your record"`, order.crumb < order.versions && order.versions < order.group && order.group < order.details && order.details < order.all && order.head, JSON.stringify(order));
+    const order = await page.evaluate(() => { const y = s => document.querySelector(s)?.getBoundingClientRect().top ?? null; return { crumb: y('#body .crumb'), versions: y('#body .vlist'), details: y('#body details.details'), all: y('#body .allrec'), top: document.querySelector('#body').scrollTop, noGroup: !document.querySelector('#checklist') && !document.querySelector('#body .clg') }; });
+    ok(`${tag}: the job level shows the line's versions, then Details, then "All of your record"; the job's own lines are in the Outline, not here`, order.crumb < order.versions && order.versions < order.details && order.details < order.all && order.noGroup, JSON.stringify(order));
     ok(`${tag}: the panel opens at its top after a bullet click`, order.top === 0);
     await sheet.locator('.bullets li').nth(2).click(); await settle(page); await page.waitForTimeout(400);
     ok(`${tag}: …and after the next click, and after a key`, (await page.evaluate(() => document.querySelector('#body').scrollTop)) === 0);
     await page.keyboard.press('ArrowDown'); await settle(page);
     ok(`${tag}: …and after ↓`, (await page.evaluate(() => document.querySelector('#body').scrollTop)) === 0);
-    ok(`${tag}: the job's own lines can still be ticked there`, await page.evaluate(() => document.querySelectorAll('#checklist.compact .cb[data-on]').length >= 3));
+    await page.click('#tab-outline'); await settle(page);
+    ok(`${tag}: the job's own lines can still be ticked, in the Outline`, await page.evaluate(() => document.querySelectorAll('#outline .clg.open .cb[data-on]').length >= 3));
+    await page.click('#tab-edit'); await settle(page);
     await page.click('#body .allrec [data-act=open-record]'); await page.waitForTimeout(900);
     ok(`${tag}: "All of your record" opens Record at this job`, (await page.evaluate(() => window.__wb.ui.view)) === 'record');
     await page.keyboard.press('Escape'); await settle(page);
@@ -2758,13 +2773,14 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     ok(`${tag}: switcher rows have no company column, and carry a small language/pages tag`, rows.length > 8 && rows.every(r => r.tag && r.noCompany));
     ok(`${tag}: …a name that has to give way gives up the company, never the role alone`, rows.every(r => !(r.roleCut && !r.coCut)));
     await page.click('[data-act=sw-manage]'); await settle(page);
-    const man = await page.evaluate(() => { const s = document.querySelector('#switcher'), sr = s.getBoundingClientRect(), tabs = [...document.querySelectorAll('#head [role=tab]')].map(t => t.getBoundingClientRect()), col = document.querySelector('#col').getBoundingClientRect(); const mid = [sr.left + 20, sr.top + 20, sr.left + sr.width / 2, sr.bottom - 20].map(v => v); const probe = [[sr.left + 10, sr.top + 60], [sr.left + sr.width / 2, sr.top + sr.height / 2], [sr.right - 10, sr.bottom - 10]].map(([x, y]) => document.elementFromPoint(x, y)?.closest('#switcher') !== null); const bg = getComputedStyle(s).backgroundColor; const alpha = /rgba/.test(bg) ? Number(bg.match(/[\d.]+\)$/)[0].slice(0, -1)) : 1; const foot = document.querySelector('#foot').getBoundingClientRect(); return { belowTabs: tabs.every(t => sr.top >= t.bottom - 0.5), rightEdge: Math.abs(sr.right - col.right) < 12, opaque: alpha === 1, probe: probe.every(Boolean), aboveFoot: sr.bottom <= foot.top + 0.5 }; });
-    ok(`${tag}: Manage all has its own surface: under the header's tabs, at the panel's right edge, opaque, over everything below it, above the zoom bar`, man.belowTabs && man.rightEdge && man.opaque && man.probe && man.aboveFoot, JSON.stringify(man));
+    const man = await page.evaluate(() => { const s = document.querySelector('#switcher'), sr = s.getBoundingClientRect(), hd = document.querySelector('#head').getBoundingClientRect(), col = document.querySelector('#col').getBoundingClientRect(); const mid = [sr.left + 20, sr.top + 20, sr.left + sr.width / 2, sr.bottom - 20].map(v => v); const probe = [[sr.left + 10, sr.top + 60], [sr.left + sr.width / 2, sr.top + sr.height / 2], [sr.right - 10, sr.bottom - 10]].map(([x, y]) => document.elementFromPoint(x, y)?.closest('#switcher') !== null); const bg = getComputedStyle(s).backgroundColor; const alpha = /rgba/.test(bg) ? Number(bg.match(/[\d.]+\)$/)[0].slice(0, -1)) : 1; return { belowTabs: sr.top >= hd.bottom - 0.5, rightEdge: Math.abs(sr.right - col.right) < 12, opaque: alpha === 1, probe: probe.every(Boolean), aboveFoot: sr.bottom <= col.bottom + 0.5 }; });
+    ok(`${tag}: Manage all has its own surface: under the header, at the panel's right edge, opaque, over everything below it, inside the panel`, man.belowTabs && man.rightEdge && man.opaque && man.probe && man.aboveFoot, JSON.stringify(man));
     ok(`${tag}: "Compare 0/2" is readable when disabled`, await page.evaluate(() => { const b = document.querySelector('#switcher [data-act=sw-compare]'); return b.disabled && getComputedStyle(b).opacity === '1'; }));
     await page.keyboard.press('Escape'); await settle(page);
 
     // ---- toasts never cover the page ----
     await page.click('[data-act=undo]').catch(() => {});
+    await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);     // (a second click on a line of the open job would write it)
     await sheet.locator('.bullets li').first().click(); await settle(page);
     await page.locator('.vrow[data-v]:not(.cur)').first().click(); await settle(page);
     await page.keyboard.press('Control+z'); await page.waitForTimeout(400);
@@ -2808,11 +2824,12 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await ctx.close();
   }
 
-  // ---- a toast beside the rail, and at 1024 ----
-  for (const [w, h, name] of [[1440, 900, 'the rail'], [1024, 768, 'the drawer']]){
+  // ---- a toast beside the tabs (folded), under the header (open), and at 1024 ----
+  for (const [w, h, folded] of [[1440, 900, true], [1024, 768, true], [1440, 900, false], [1024, 768, false]]){
+    const name = `${folded ? 'beside the tabs' : 'under the header'}`;
     const ctx = await browser.newContext({ viewport: { width: w, height: h } });
     const page = await ctx.newPage();
-    await open(page, undefined, { panel: 'closed' });
+    await open(page, undefined, { folded });
     await page.evaluate(() => window.__wb.store.commit(d => { d.cur.company = 'Zeta'; }, 'smoke: change'));
     await page.keyboard.press('Control+z'); await page.waitForTimeout(400);
     const tr = await rect(page, '#toast'), prs = await pageRects(page);
@@ -2820,19 +2837,20 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await ctx.close();
   }
 
-  // ---- Record at 1024 (a drawer) and on a phone ----
+  // ---- Record at 1024 and on a phone ----
   {
     const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 } });
     const page = await ctx.newPage();
-    await open(page, undefined, { panel: 'open' });
+    await open(page);
+    const s0 = await rect(page, '#sheet');
     await page.keyboard.press('r'); await page.waitForTimeout(900);
     const c = await rect(page, '#col'), s = await rect(page, '#sheet');
-    ok('1024: Record is a drawer of about 90% of the width, with a sliver of the page in view', Math.abs(c.width - 1024 * 0.9) < 2 && c.left > 40 && c.left < 140 && s.left < c.left, `${c.width} at ${c.left}`);
+    ok('1024: Record is the same 560px panel, beside the page (no drawer), and the page has not moved', Math.abs(c.width - 560) < 1 && s.right <= c.left && Math.abs(s.left - s0.left) < 1 && (await page.evaluate(() => document.body.dataset.drawer)) === undefined, `${c.width} at ${c.left}`);
     ok('…and the timeline and the groups are there', await page.evaluate(() => !!document.querySelector('#checklist .rectl .tl2') && document.querySelectorAll('#checklist .clg.open').length >= 5));
     await ctx.close();
     const cp = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const ph = await cp.newPage();
-    await open(ph, undefined, { panel: null });
+    await open(ph);
     ok('a phone: Edit and Record are the tabs', await ph.evaluate(() => [...document.querySelectorAll('#head [role=tab]')].filter(t => t.offsetParent !== null).map(t => t.dataset.m).join() === 'edit,record'));
     await ph.click('#head [data-m=record]'); await ph.waitForTimeout(900);
     const pc = await rect(ph, '#col');
@@ -2842,14 +2860,15 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await cp.close();
   }
 
-  // ---- reduced motion: the panel jumps ----
+  // ---- reduced motion: the panel jumps (the Record widening is gone) ----
   {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
     const page = await ctx.newPage();
-    await open(page, undefined, { panel: 'open' });
-    await page.evaluate(() => { window.__moved = 0; document.addEventListener('brewcv:pages-moved', () => { window.__moved++; }); });
-    await page.keyboard.press('r'); await page.waitForTimeout(500);
-    ok('reduced motion: Record opens at once, and the pages report once', (await rect(page, '#col')).width >= 640 && (await page.evaluate(() => window.__moved)) === 1);
+    await open(page);
+    await page.keyboard.press('e'); await page.waitForTimeout(60);
+    ok('reduced motion: the panel folds at once, with no slide', await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#col')); return c.visibility === 'hidden' && parseFloat(c.transitionDuration) === 0 && document.body.dataset.folded === 'true'; }));
+    await page.keyboard.press('e'); await page.waitForTimeout(60);
+    ok('…and unfolds at once', await page.evaluate(() => getComputedStyle(document.querySelector('#col')).visibility === 'visible' && document.body.dataset.folded === 'false'));
     await ctx.close();
   }
 }
@@ -2879,7 +2898,8 @@ if (want('accessibility: axe-core on every view')) {
       await pw.evaluate(() => window.__wb.onboarding.start.setStep(4, { user: true })); await pw.waitForTimeout(1500);
       await runAxe(pw, 'the start screen, at rest');
       await pw.close();
-      await runAxe(page, 'Edit, nothing selected');
+      await runAxe(page, 'the Outline, nothing selected');
+      await page.click('#tab-edit'); await settle(page); await runAxe(page, 'Edit, nothing selected');
       await page.keyboard.press('r'); await page.waitForTimeout(900);
       await runAxe(page, 'Record: the timeline and every group open');
       await page.keyboard.press('Escape'); await settle(page);
@@ -2903,14 +2923,17 @@ if (want('accessibility: axe-core on every view')) {
       await page.click('#switcher [data-act=sw-manage]'); await settle(page); await runAxe(page, 'the grown switcher');
       await page.click('#switcher [data-act=sw-view][data-v=date]'); await settle(page); await runAxe(page, 'the grown switcher by date');
       await page.keyboard.press('Escape'); await settle(page);
-      await page.click('#zoompct'); await settle(page); await runAxe(page, 'the zoom settings');
+      await page.mouse.move(300, 400); await page.click('#zoompct'); await settle(page); await runAxe(page, 'the zoom settings');
       await page.keyboard.press('Escape');
-      await page.click('[data-act=help]'); await settle(page); await runAxe(page, 'the shortcut sheet');
+      await page.click('[data-act=menu]'); await runAxe(page, 'the ⋯ menu'); await page.click('.menu [data-act=help]'); await settle(page); await runAxe(page, 'the shortcut sheet');
       await page.keyboard.press('Escape');
       await page.evaluate(() => window.__wb.setView('settings')); await settle(page); await runAxe(page, 'Settings');
       await page.evaluate(() => window.__wb.setView(null));
       await page.keyboard.press('Escape'); await settle(page);
-      await runAxe(page, 'folded: the rail and the vertical bar');
+      await page.keyboard.press('e'); await settle(page);
+      await runAxe(page, 'folded: the tags and the foot card');
+      await page.mouse.move(300, 400); await page.waitForTimeout(500);
+      await runAxe(page, 'folded: the zoom bar with Fit and the fill');
       ok(`${drink} ${theme}: no console errors`, bad.length === 0, bad[0] ?? '');
       await ctx.close();
       const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true, colorScheme: theme });
@@ -2922,9 +2945,9 @@ if (want('accessibility: axe-core on every view')) {
       await c2.close();
       const c3 = await browser.newContext({ viewport: { width: 1100, height: 800 }, bypassCSP: true, colorScheme: theme });
       const p3 = await c3.newPage();
-      await open(p3, undefined, { panel: null, drink, theme });
+      await open(p3, undefined, { drink, theme });
       await p3.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(p3);
-      await runAxe(p3, 'the drawer under 1280px');
+      await runAxe(p3, 'a narrow window, the panel at 560px');
       await c3.close();
     }
   }
@@ -2971,7 +2994,7 @@ if (want('deployed: a subpath, offline, a phone, names')) {
   await page.reload({ waitUntil: 'load' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 }).catch(() => {});
   await page.waitForTimeout(1500);
-  ok('offline, it reloads and draws the resume', await page.evaluate(() => document.body.classList.contains('is-ready') && window.__wb.ui.fills.length > 0 && (document.querySelector('#rmeters, #meter')?.children.length ?? 0) > 0));
+  ok('offline, it reloads and draws the resume', await page.evaluate(() => document.body.classList.contains('is-ready') && window.__wb.ui.fills.length > 0));
   await ctx.close();
   sub.close();
 
@@ -2995,7 +3018,7 @@ if (want('deployed: a subpath, offline, a phone, names')) {
   const ctx2 = await browser.newContext({ viewport: { width: 1536, height: 864 } });
   const p2 = await ctx2.newPage();
   await open(p2);
-  const unnamed = async () => p2.evaluate(() => [...document.querySelectorAll('#col button, #col input, #col textarea, #col [role=button]')]
+  const unnamed = async () => p2.evaluate(() => [...document.querySelectorAll('#col button, #col input, #col textarea, #col [role=button], #tabs button, #zoombar button')]
     .filter(e => e.offsetParent !== null)
     .filter(e => !(e.getAttribute('aria-label') || e.title || e.textContent.trim() || e.closest('label') || (e.id && document.querySelector(`label[for="${e.id}"]`)) || e.placeholder))
     .map(e => e.outerHTML.slice(0, 80)));
@@ -3012,10 +3035,10 @@ if (want('deployed: a subpath, offline, a phone, names')) {
   await p2.click('#switcher [data-act=sw-manage]'); await settle(p2);
   views.push(...(await unnamed()).map(x => `grown switcher: ${x}`));
   await p2.keyboard.press('Escape');
-  await p2.click('#zoompct'); await settle(p2);
+  await p2.mouse.move(300, 400); await p2.click('#zoompct'); await settle(p2);
   views.push(...(await unnamed()).map(x => `zoom settings: ${x}`));
   await p2.keyboard.press('Escape');
-  await p2.click('[data-act=help]'); await settle(p2);
+  await p2.click('[data-act=menu]'); await p2.click('.menu [data-act=help]'); await settle(p2);
   views.push(...(await p2.evaluate(() => [...document.querySelectorAll('#help button')].filter(e => !(e.getAttribute('aria-label') || e.textContent.trim())).map(e => e.outerHTML.slice(0, 60)))).map(x => `shortcut sheet: ${x}`));
   await p2.keyboard.press('Escape');
   await openAdd(p2); await settle(p2);
@@ -3026,8 +3049,8 @@ if (want('deployed: a subpath, offline, a phone, names')) {
   await p2.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(p2);
   views.push(...(await unnamed()).map(x => `bullet: ${x}`));
   await p2.keyboard.press('Escape'); await p2.keyboard.press('Escape'); await settle(p2);
-  views.push(...(await unnamed()).map(x => `rail: ${x}`));
-  ok('every visible control has a name, in every view, the rail and the menus', views.length === 0, views.slice(0, 3).join(' | '));
+  views.push(...(await unnamed()).map(x => `tabs: ${x}`));
+  ok('every visible control has a name, in every view, the tabs and the menus', views.length === 0, views.slice(0, 3).join(' | '));
   for (let i = 0; i < 6 && !(await p2.evaluate(() => !!document.activeElement?.closest('#col'))); i++) await p2.keyboard.press('Tab');
   const ring = await p2.evaluate(() => { const e = document.activeElement; return [e?.outerHTML.slice(0, 60), getComputedStyle(e).outlineStyle]; });
   ok('the keyboard reaches the controls, with a visible focus ring', ring[1] !== 'none', ring.join(' · '));
@@ -3038,7 +3061,7 @@ if (want('actual size')) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const page = await ctx.newPage();
   await open(page);
-  await page.click('#zoompct'); await page.click('[data-act=actual]'); await settle(page);
+  await page.mouse.move(300, 400); await page.click('#zoompct'); await page.click('[data-act=actual]'); await settle(page);
   ok('it opens, asking for the card first', await page.isVisible('.actual__cal'));
   await page.$eval('.actual__cal input', el => { el.value = '340'; el.dispatchEvent(new Event('input')); });
   await page.click('[data-k=done]'); await settle(page);
@@ -3049,7 +3072,7 @@ if (want('actual size')) {
   ok('⟳ turns it sideways', (await page.$eval('.actual__turn', el => el.dataset.turn)) === '1');
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc closes it', !(await page.$('.actual')));
-  await page.click('#zoompct'); await page.click('[data-act=actual]'); await settle(page);
+  await page.mouse.move(300, 400); await page.click('#zoompct'); await page.click('[data-act=actual]'); await settle(page);
   ok('the calibration is remembered', !(await page.isVisible('.actual__cal')));
   await page.keyboard.press('Escape');
   await ctx.close();
@@ -3126,7 +3149,7 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
     // the lens: the matching lines brighten, then Apply: lines join and leave
     await page.mouse.move(4, 4);
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
-    await page.evaluate(() => window.__wb.dock.setMode('edit')); await settle(page);
+    await page.evaluate(() => window.__wb.dock.setMode('outline')); await settle(page);
     const type = await page.evaluate(() => [...document.querySelectorAll('#lens option')].map(o => o.value).find(v => v)); await clear();
     await page.selectOption('#lens', type); await page.waitForTimeout(400);
     got.lens = await names(); docs.lens = await doc(); await clear();
@@ -3224,7 +3247,7 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
   await ip.waitForTimeout(500); await ip.evaluate(() => window.__wb.motion.stats.names.length = 0);
   await ip.click('[data-act=ob-example]'); await ip.waitForTimeout(250);
   const first = await ip.evaluate(() => [...new Set(window.__wb.motion.stats.names)]);
-  ok('start screen to editor: the page’s lines are written in one after another, and the header, panel and footer come in', has(first, 'start:line', 'start:head', 'start:body', 'start:foot'), first.join());
+  ok('start screen to editor: the page’s lines are written in one after another, and the header, panel and tabs come in', has(first, 'start:line', 'start:head', 'start:body', 'start:tabs'), first.join());
   await ictx.close();
   const qctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const qp = await qctx.newPage();
@@ -3234,7 +3257,7 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
   await qp.evaluate(() => window.__wb.motion.stats.names.length = 0);
   await qp.evaluate(() => window.__wb.onboarding.act('ob-finish')); await qp.waitForTimeout(200);
   const quiet = await qp.evaluate(() => [...new Set(window.__wb.motion.stats.names)]);
-  ok('onboarding to Start editing: the header and the footer fade and slide in around the page', has(quiet, 'quiet:head', 'quiet:foot'), quiet.join());
+  ok('onboarding to Start editing: the header and the tabs fade and slide in around the page', has(quiet, 'quiet:head', 'quiet:rail'), quiet.join());
   await qctx.close();
 }
 
@@ -3245,7 +3268,7 @@ if (want('nothing over the text')) {
   const offenders = page => page.evaluate(() => {
     const wb = window.__wb;
     const lines = wb.sheet.textRects().map(r => wb.canvas.screenRect(r));
-    const allowed = '#sheet, #pages, #editlay, #ovlay, #garden, .g-dapple, #motionlay, .obframe, .obveil, .obtoolswrap';
+    const allowed = '#sheet, #pages, #editlay, #ovlay, #garden, .g-dapple, #motionlay, #zoombar, .obframe, .obveil, .obtoolswrap';       // (the zoom bar shows while the pointer is over the page, which is what the pointer resting on a line is)
     const name = el => el.id ? '#' + el.id : el.tagName.toLowerCase() + '.' + [...el.classList].slice(0, 2).join('.');
     // the on-page layer holds frames, a veil and the tools, and nothing else
     const out = [...document.querySelectorAll('#editlay > *')].filter(el => !el.matches('.obframe, .obveil, .obtoolswrap')).map(name);
@@ -3260,29 +3283,31 @@ if (want('nothing over the text')) {
     }
     return [...new Set(out)];
   });
-  for (const [w, h] of [[1280, 720], [1470, 832]]){
+  for (const [w, h, folded] of [[1280, 720, true], [1470, 832, true], [1280, 720, false], [1470, 832, false]]){
     const ctx = await browser.newContext({ viewport: { width: w, height: h } });
     const page = await ctx.newPage();
-    const bad = await open(page, undefined, { panel: 'auto' });
+    const bad = await open(page, undefined, { folded });
     const fr = page.frameLocator('#sheet iframe');
     await fr.locator('.role-title').first().click(); await page.waitForTimeout(900);
-    ok(`${w}×${h}: a job is selected and nothing lies over its text`, (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job' && (await offenders(page)).length === 0, (await offenders(page)).join(', '));
+    ok(`${w}×${h}${folded ? ' folded' : ''}: a job is selected and nothing lies over its text`, (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job' && (await offenders(page)).length === 0, (await offenders(page)).join(', '));
     await fr.locator('.bullets li').nth(1).click(); await page.waitForTimeout(900);
-    ok(`${w}×${h}: a line is selected (the pointer rests on it): nothing over the text, and no tip`, (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'bullet' && (await offenders(page)).length === 0 && !(await page.isVisible('#tip.on')), (await offenders(page)).join(', '));
+    ok(`${w}×${h}${folded ? ' folded' : ''}: a line is selected (the pointer rests on it): nothing over the text, and no tip`, (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'bullet' && (await offenders(page)).length === 0 && !(await page.isVisible('#tip.on')), (await offenders(page)).join(', '));
     // a click that redraws what is under the pointer opens no tip by itself; a pointer that moves onto it does
-    const b = await page.locator('.obv').boundingBox();
-    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 }); await page.waitForTimeout(900);
-    ok(`${w}×${h}: a pointer moving onto the version badge opens its tip`, await page.isVisible('#tip.on'));
-    await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(1200);
-    ok(`${w}×${h}: the click redrew the badge under the resting pointer, and no tip opened`, (await page.isVisible('.obpop')) && !(await page.isVisible('#tip.on')));
+    if (folded){
+      const b = await page.locator('.obv').boundingBox();
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 }); await page.waitForTimeout(900);
+      ok(`${w}×${h} folded: a pointer moving onto the version badge opens its tip`, await page.isVisible('#tip.on'));
+      await page.mouse.down(); await page.mouse.up(); await page.waitForTimeout(1200);
+      ok(`${w}×${h} folded: the click redrew the badge under the resting pointer, and no tip opened`, (await page.isVisible('.obpop')) && !(await page.isVisible('#tip.on')));
+    }
     await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.waitForTimeout(400);
     await fr.locator('.bullets li').nth(1).dblclick(); await page.waitForTimeout(1500);
-    ok(`${w}×${h}: while writing, nothing lies over the text`, !!(await page.evaluate(() => window.__wb.ui.writing)) && (await offenders(page)).length === 0, (await offenders(page)).join(', '));
+    ok(`${w}×${h}${folded ? ' folded' : ''}: while writing, nothing lies over the text`, !!(await page.evaluate(() => window.__wb.ui.writing)) && (await offenders(page)).length === 0, (await offenders(page)).join(', '));
     // a bigger writing zoom would slide the page's left edge (and the section tabs beside it) out of the view
     await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.waitForTimeout(600);
     await page.evaluate(() => localStorage.setItem('rb-zoomwrite', '150'));
     await fr.locator('.bullets li').nth(1).dblclick(); await page.waitForTimeout(1500);
-    ok(`${w}×${h}: writing at 150%, the page's left edge stays inside the view`, await page.evaluate(() => { const c = window.__wb.canvas, l = c.screenRect(window.__wb.sheet.pageBoxes()[0]).left; return !!window.__wb.ui.writing && l >= c.view.left && l < c.view.left + c.view.width / 4; }), await page.evaluate(() => window.__wb.canvas.screenRect(window.__wb.sheet.pageBoxes()[0]).left));
+    ok(`${w}×${h}${folded ? ' folded' : ''}: writing at 150%, the page's left edge stays inside the view`, await page.evaluate(() => { const c = window.__wb.canvas, l = c.screenRect(window.__wb.sheet.pageBoxes()[0]).left; return !!window.__wb.ui.writing && l >= c.view.left && l < c.view.left + c.view.width / 4; }), await page.evaluate(() => window.__wb.canvas.screenRect(window.__wb.sheet.pageBoxes()[0]).left));
     ok(`${w}×${h}: no errors`, bad.length === 0, bad.join(' | '));
     await ctx.close();
   }

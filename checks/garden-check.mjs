@@ -163,11 +163,11 @@ async function keyClear(){
 
 // ---- the page stays clear when the pages move: two pages side by side, then a zoom ----
 async function editing(){
-  const ok = reporter('editing'), s = await open(ok, { rb: { 'rb-folded': '1' } }), { page } = s;
+  const ok = reporter('editing'), s = await open(ok, { rb: { 'rb-folded': '0' } }), { page } = s;
   await ready(page);
   await page.click('#docname-btn'); await page.waitForSelector('#switcher .sopt');
   await page.click('#switcher .sopt:has-text("Medtech")'); await sleep(1500);
-  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await sleep(1200);
+  await page.evaluate(() => window.__wb.dock.setFolded(true)); await sleep(1200);          // fold: both pages at once
   ok('two pages side by side', (await pagesNow(page)).length === 2 && await page.evaluate(() => window.__wb.canvas.scene === 'all'));
   await page.mouse.move(1270, 790);
   await hook(page, 'rest'); await hook(page, 'wave', 7); await hook(page, 'wave', 7);

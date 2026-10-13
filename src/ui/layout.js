@@ -29,7 +29,10 @@ export const clampZoom = z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number.isFin
 
 // mode: 'auto' | 'spread' | 'stack' (an old 'single' means 'stack'). `two`: Edit is showing its two sheets (when the room allows).
 // `wide`: on a phone, the panel is the whole screen. zoom: 1 is the whole page fitted to the window.
-export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', folded = false, zoom = 1, wide = false, two = false }){
+// `slim`: the start screen and the first questions, which have no tabs: one column at the right, 32% of the window (380 to 480px),
+// and the page centred in the room left of it.
+export const SLIM_MIN = 380, SLIM_MAX = 480;
+export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', folded = false, zoom = 1, wide = false, two = false, slim = false }){
   const { w, h } = pageSize(format);
   const n = Math.max(1, pages);
   const z = clampZoom(zoom);
@@ -52,7 +55,8 @@ export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', folded
   const rowW = k => k * w + (k - 1) * PAGE_GAP;
   // The room the page may have: with the panel at its minimum (open), or what the tabs leave (folded).
   const foldW = TABS_W + FOLD_INSET;
-  const room = folded ? vw - foldW - 2 * G : vw - 2 * G - lane - PANEL_MIN;
+  const slimW = Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.32)));
+  const room = slim ? vw - slimW - 4 * G : folded ? vw - foldW - 2 * G : vw - 2 * G - lane - PANEL_MIN;
   const single = Math.max(0.1, Math.min(tall, room / w));
   const spreadScale = n > 1 ? Math.max(0.1, Math.min(tall, room / rowW(n))) : single;
   const spread = n > 1 && (mode === 'spread' || (mode === 'auto' && spreadScale >= (1 - SPREAD_COST) * single));
@@ -64,22 +68,24 @@ export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', folded
   const sheetH = stack ? stackHeight(format, n) * scale : pageH * z;
   // the panel: what is left beside the page, at most its widest
   const beside = vw - 2 * G - lane - sheetW;
-  const twoSheets = !folded && beside >= TWO_FROM;
+  const twoSheets = !slim && !folded && beside >= TWO_FROM;
   const widest = Math.max(PANEL_MIN, Math.min(twoSheets ? PANEL_TWO : PANEL_ONE, beside));
-  const colW = folded ? widest : Math.max(PANEL_MIN, Math.min(two && twoSheets ? PANEL_TWO : PANEL_ONE, beside));
+  let colW = folded ? widest : Math.max(PANEL_MIN, Math.min(two && twoSheets ? PANEL_TWO : PANEL_ONE, beside));
   const groupW = sheetW + lane + widest;
-  const left0 = folded ? (vw - foldW - sheetW) / 2 : (vw - groupW) / 2;
+  const left0 = slim ? (vw - slimW - 2 * G - sheetW) / 2 : folded ? (vw - foldW - sheetW) / 2 : (vw - groupW) / 2;
   const left = Math.max(G / 2, left0);
   const top = stack || sheetH + 2 * G > vh ? G : Math.max(G, (vh - pageH) / 2);
-  const tabsLeft = folded ? vw - foldW : left + sheetW + TAB_GAP;
-  const areaW = folded ? vw - foldW : tabsLeft - G;          // the pages' room: everything left of the tabs
-  const mid = folded ? (vw - foldW) / 2 : left + sheetW / 2;
+  let tabsLeft = folded ? vw - foldW : left + sheetW + TAB_GAP;
+  let colLeft = left + sheetW + lane;
+  if (slim){ colW = slimW; colLeft = tabsLeft = vw - G - slimW; }
+  const areaW = slim ? colLeft - G : folded ? vw - foldW : tabsLeft - G;          // the pages' room: everything left of the tabs
+  const mid = slim ? areaW / 2 : folded ? (vw - foldW) / 2 : left + sheetW / 2;
   return {
     scale, fit, zoom: z, spread, stack, perView, phone: false, folded, wide: false, two: two && twoSheets && !folded, twoSheets, colW, areaW, mid,
     sheet: { left, top, width: sheetW * z, height: sheetH },
     // folded, the panel keeps the place it will slide back to
-    col: { left: left + sheetW + lane, top: G, width: colW, height: vh - 2 * G },
-    tabs: { left: tabsLeft, top: G, width: TABS_W, height: vh - 2 * G },
+    col: { left: colLeft, top: G, width: colW, height: vh - 2 * G },
+    tabs: { left: tabsLeft, top: G, width: slim ? 0 : TABS_W, height: vh - 2 * G },
     // the camera's view: the room left of the tabs, and the width the page is fitted to (the room beside the panel at its minimum)
     view: { left: 0, top: 0, width: Math.max(1, areaW), height: vh, mid, fitW: room + 2 * G },
     pages: { left: 0, top: 0, width: areaW, height: vh, content: stack || top + sheetH + G > vh ? top + sheetH + G : vh, contentW: Math.max(areaW, left + sheetW * z + G) },

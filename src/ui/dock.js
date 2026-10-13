@@ -7,7 +7,7 @@
 import { icon } from './icons.js';
 import { t, h } from '../i18n/index.js';
 import { FILL_BAND } from '../fit.js';
-import { clampZoom, ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
+import { ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
 import { drink, onDrinkChange, logoBtn } from './drink.js';
 import { play } from './motion.js';
 
@@ -50,8 +50,10 @@ export const TABS = [
 export const GROUPS = [['outline', 'edit'], ['design', 'export'], ['record']];
 const phone = () => innerWidth < PHONE_MAX;
 const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : (C.ui.pane === 'edit' || phone() ? 'edit' : 'outline'); };
-// Open or folded, nothing between. The start screen is laid out in the panel's areas, so it is never folded; selecting never folds or unfolds.
-const folded = () => !phone() && !!C.ui.folded && C.ui.view !== 'welcome';
+// Open or folded, nothing between. The start screen is laid out in the panel's areas, so it is never folded; selecting never folds or
+// unfolds. While a line is written on the page the panel slides away (the page needs the room to zoom, and the tools are in its margin)
+// and comes back when the line is left.
+const folded = () => !phone() && (!!C.ui.folded || !!C.ui.writing) && C.ui.view !== 'welcome';
 // Edit shows its two sheets (the Outline and the selection) when there is room: computeLayout says whether there is
 const twoNow = () => !phone() && tabOf() === 'edit';
 
@@ -72,14 +74,14 @@ function setFolded(on, { focus = true } = {}){
 const toggleFold = () => setFolded(!folded());
 const unfold = () => { if (folded()) setFolded(false, { focus: false }); };
 const activeTab = () => $('#tabs [role=tab][tabindex="0"]');
-// a tab: the one that is open folds the panel, a closed one opens (and unfolds the panel on it)
-function setMode(m){
-  const u = C.ui;
+// a tab: the one that is open folds the panel, a closed one opens (and unfolds the panel on it). A line being written is left first
+// (asking, if there is a draft): the panel is away while it is written.
+async function setMode(m){
+  if (C.ui.writing && !(await C.leaveWriting())) return;
   if (m === 'outline' || m === 'edit') C.setPane(m); else C.setView(m);
   if (folded()) setFolded(false, { focus: false });
   else sync(true);
   $(`#tab-${m}`)?.focus({ preventScroll: true });
-  return u;
 }
 const modeOf = tabOf;
 
@@ -210,6 +212,7 @@ function drawTabs(){
   const grp = ids => `<div class="tgroup" role="presentation">${ids.map(id => b(TABS.find(x => x.id === id))).join('')}</div>`;
   const menu = `<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!C.ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" data-tip-pos="l" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>`;
   el.dataset.tab = tab ?? '';
+  el.setAttribute('aria-label', t('ux2.modes'));
   el.innerHTML = `<div class="tablist" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}">${GROUPS.map(grp).join('')}</div>
     <div class="tabfoot" id="tabfoot">${f ? logoBtn(28, { base: 'logo footlogo', pos: 'l' }) : ''}
       ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
@@ -416,6 +419,7 @@ function bind(){
   onDrinkChange(() => { renderTabs(); renderFoot(); });
   const bar = document.createElement('div');
   bar.id = 'zoombar'; bar.className = 'zoombar';
+  bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', t('ux2.viewBar'));
   document.body.append(bar);
   const pop = document.createElement('div');
   pop.id = 'zpop'; pop.className = 'card zpop'; pop.hidden = true;

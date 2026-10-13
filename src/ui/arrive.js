@@ -13,10 +13,11 @@ export function fromStart({ sheet }){
   rise($('#head'), 0, -12, 'start:head');
   rise($('#body'), 0, 10, 'start:body', 60);
   rise($('#foot'), 0, 12, 'start:foot', 120);
+  rise($('#tabs'), 14, 0, 'start:tabs', 120);
 }
 export function fromQuiet(){
   rise($('#head'), 0, -14, 'quiet:head');
   rise($('#foot'), 0, 14, 'quiet:foot', 60);
   const tabs = $('#tabs');
-  if (tabs && !tabs.hidden) rise(tabs, 14, 0, 'quiet:rail', 120);
+  if (tabs && !tabs.hidden) rise(tabs, 14, 0, 'quiet:rail', 120);       // (named for the rail it replaced)
 }
