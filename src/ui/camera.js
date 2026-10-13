@@ -3,7 +3,7 @@
 //
 // Content coordinates are the pages' own pixels: page i runs from i * (w + PAGE_GAP) across, 0 to h down.
 // A camera { k, x, y } puts content (cx, cy) at the screen point (x + cx * k, y + cy * k).
-// A view is the rectangle of the window the pages may use: left of the open panel, or of the rail when it is folded.
+// A view is the rectangle of the window the pages may use: left of the open panel, or of the folded tags.
 
 import { pageSize, PAGE_GAP, G } from './layout.js';
 

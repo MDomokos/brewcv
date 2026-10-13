@@ -1013,7 +1013,7 @@ function key(e){
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
     // up one level (writing a line is left by edit.js before this); a job, or a line in one, is the job level, and one Esc
-    // goes to the page. At the page level, put everything away: the panel folds (even pinned open) and the view zooms out
+    // goes to the page. At the page level, the view zooms out (the panel no longer folds)
     const next = up(ui.sel);
     if (next.kind !== 'none'){ select(next); return; }
     if (ui.sel.kind !== 'none'){ select(NONE); return; }

@@ -58,7 +58,7 @@ export function setThemePref(p){
 export const toggleDrink = () => setDrink(state.drink === 'tea' ? 'coffee' : 'tea');
 
 // The logo is the switch: a button that says what it will do (its hint), and src/ui/matroll.js shows the mat starting to go. `base` is
-// the class that sizes it where it sits (the header, the rail, the start screen's own).
+// the class that sizes it where it sits (the header, the folded tags, the start screen's own).
 export function logoBtn(size = 28, { base = 'logo', pos = 'b' } = {}){
   const to = state.drink === 'tea' ? 'coffee' : 'tea', k = to === 'coffee' ? 'ux4.logoToCoffee' : 'ux4.logoToTea';
   return `<button type="button" class="${base} logoswitch" data-act="drink-switch" data-to="${to}" data-tip="${esc(t(k))}|${esc(t(`${k}Tip`))}" data-tip-pos="${pos}" aria-label="${esc(t(k))}"><img src="${logoSrc()}" alt="" width="${size}" height="${size}"></button>`;
