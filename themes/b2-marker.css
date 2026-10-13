@@ -138,6 +138,9 @@ html, body {
   margin: 0;
   padding: 0;
   background: var(--desk);
+  /* No ligatures: macOS's PDF engine wrote the "ff" glyph as "!" in the text layer ("off" read "o!"), which breaks copy-paste
+     and applicant-tracking parsers. Off everywhere, so the screen, Fit's measuring and every export wrap the same. */
+  font-variant-ligatures: none;
 }
 
 .document { }
