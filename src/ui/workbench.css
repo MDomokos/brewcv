@@ -968,6 +968,7 @@ body:not([data-phone=true]) .col.is-folded { transform: translateX(var(--col-out
 .col > #head .dline { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 11.5px; line-height: 1.2; color: var(--ink-soft); }
 .col > #head .dline .dt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .col > #head .dline .dt + .lang-menu::before { content: "·"; }
+.col > #head .lang-menu .pop { left: 0; right: auto; }
 .col > #head .dline .langs .langbtn { padding: 0 5px; font-size: 11px; line-height: 1.4; }
 .col > #head .sentrow { margin: -4px 0 4px; padding: 0 4px; }
 .col > #head .sentrow .dsent { font-size: 11.5px; color: var(--label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

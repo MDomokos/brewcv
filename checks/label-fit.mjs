@@ -2,10 +2,10 @@
 // node checks/label-fit.mjs
 // Every default heading (doc.section.*) and its "continued" note fits the gutter of its language's A4
 // format and of Letter, measured in Chromium with the real theme, clearing it by at least 3px (the
-// margin a4-hu.css sets). Then the app's own labels in each of the ten languages, at the narrowest panel
-// (340px, in the drawer) and a wide one: the three modes on one row, the header, the checklist, the lens, the
-// zoom bar, the grown switcher and the zoom settings all fit what they are in. Writes only to out/. Needs
-// playwright and a Chromium.
+// margin a4-hu.css sets). Then the app's own labels in each of the ten languages, with the panel at its narrowest (560px) and
+// at 760px, and Edit's two sheets: the five tab labels at 48px, the header, the zoom bar, the Outline, the checklist, the lens,
+// the switcher and the zoom settings all fit what they are in. A tab label that is too wide is reported with its language, its
+// text and its measured width (the check never shortens one). Writes only to out/. Needs playwright and a Chromium.
 
 import { chromium } from 'playwright';
 import http from 'node:http';
@@ -80,11 +80,13 @@ for (const lang of I.UI_LANGS.filter(l => l !== 'en')){
 // Things that are meant to shorten with an ellipsis; everything else has to fit whole.
 const ELLIPSIS = '.dn, .dt, .clname, .clt, .tx, .filestate, .sn, .muted, .sopt, .stext, .jn, .lt, .lr, option, .title, .t, .tlsend, .lbl, .where, .kb, .crumb, .sumline, .meta, .field input, .field select, .field textarea';
 // 461px is the panel at 1440 (UX-3b: 440 to 480 in Edit, Design and Export); 480px is its widest.
-const widths = [[1100, 'drawer, 380px'], [1440, '461px'], [1600, '480px']];
+const widths = [[1200, 750, 'the panel at its narrowest, 560px'], [1470, 832, 'the panel at 748px'], [1920, 1080, 'Edit’s two sheets']];
+const TAB_W = 48;
+const tabFlags = [];
 for (const lang of I.UI_LANGS){
-  for (const [vw, what] of widths){
-    const ctx = await browser.newContext({ viewport: { width: vw, height: 900 }, bypassCSP: true });
-    await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); localStorage.setItem('rb-panel', 'open'); localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } }, lang);
+  for (const [vw, vh, what] of widths){
+    const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, bypassCSP: true });
+    await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } }, lang);
     const pg = await ctx.newPage();
     await pg.goto('http://localhost:8133/index.html?memory', { waitUntil: 'networkidle' });
     await pg.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
@@ -102,24 +104,26 @@ for (const lang of I.UI_LANGS){
       }
       return bad;
     }, [name, sel, ELLIPSIS]);
-    // offsetTop, not the box on screen: tea hangs the tags a little askew, which moves their screen boxes but not their row
-    const rows = await pg.evaluate(() => { const t = [...document.querySelectorAll('#head [role=tab]')].map(x => x.offsetTop); return { tabsOnOneRow: new Set(t).size === 1, tabs: t.length, headRows: [...document.querySelectorAll('#head .hrow')].map(r => Math.round(r.getBoundingClientRect().height)) }; });
     let problems = [];
-    if (!rows.tabsOnOneRow) problems.push('the four modes wrap onto more than one row');
-    problems.push(...await probe('head', '#head button, #head .seg, #head .hrow, #head .docname, #head .savestate'));
-    problems.push(...await probe('foot', '#foot button, #foot .vbar, #foot .meters, #foot .frow'));
-    problems.push(...await probe('lens and sections', '.lens button, .lens select, .lensrow, .offchip, #seclist .srow, .item.srow'));
-    // UX-3b: Record, Export's Mark as sent, and the job level
+    // the five tab labels at 48px: each word as wide as it is drawn, against the room a tab leaves it
+    const tabs = await pg.evaluate(() => [...document.querySelectorAll('#tabs [role=tab]')].map(b => { const l = b.querySelector('.tl'); const r = document.createRange(); r.selectNodeContents(l); return [b.dataset.m, l.textContent.trim(), Math.round(r.getBoundingClientRect().width * 10) / 10]; }));
+    if (vw === 1470) for (const [m, text, w] of tabs) if (w > TAB_W) tabFlags.push(`${lang} ${m} “${text}” ${w}px`);
+    problems.push(...await probe('tabs', '#tabs .tab, #tabs .tabfoot button'));
+    problems.push(...await probe('head', '#head button, #head .hrow, #head .docblock, #head .dline, #head .hfill, #head .savestate'));
+    problems.push(...await probe('zoom bar', '#zoombar button, #zoombar .vbar, #zoombar .meters'));
+    problems.push(...await probe('outline', '#outline .srow *, #outline .clcaret, #outline .clcount, #outline .archmore, #outline .addline, .lens button, .lens select, .lensrow, .offchip'));
+    // Record, Export's Mark as sent, and the job level
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
-    problems.push(...await probe('record', '#head [role=tab], #checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw'));
-    await pg.click('#head [data-m=export]'); await pg.waitForTimeout(400);
+    problems.push(...await probe('record', '#checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw, #checklist .addline'));
+    await pg.click('#tab-export'); await pg.waitForTimeout(400);
     problems.push(...await probe('export', '.sentrow *, .sentrule, .dl button'));
     await pg.click('[data-act=mark-sent]'); await pg.waitForTimeout(400);
     problems.push(...await probe('mark as sent', '#body .btns button, #body .field *, #body .note'));
-    await pg.click('#head [data-m=edit]'); await pg.waitForTimeout(300);
-    problems.push(...await probe('this resume', '#seclist .nlink, #seclist .stext, .edithint, .lensrow *'));
+    await pg.click('#tab-design'); await pg.waitForTimeout(400);
+    problems.push(...await probe('design', '#body .seg button, #body .tpl, #body .drow .item, #body .drow .btns button, #body .drow .note, #body .photo-ctl .btns button, #body .photo-ctl .note'));
+    await pg.click('#tab-edit'); await pg.waitForTimeout(300);
     await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await pg.waitForTimeout(500);
-    problems.push(...await probe('the job level', '#checklist.compact .clgh *, #body .allrec button, #body .crumb *'));
+    problems.push(...await probe('the job level', '#body .allrec button, #body .crumb *, #body .ctlrow *'));
     await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); });
     // the grown switcher
     await pg.click('#docname-btn'); await pg.waitForTimeout(250);
@@ -136,13 +140,14 @@ for (const lang of I.UI_LANGS){
     }, ELLIPSIS));
     await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
     // the zoom pop-up (Actual size), and the page and panel settings, which live in Settings
+    await pg.mouse.move(300, 400); await pg.waitForTimeout(300);
     await pg.click('#zoompct'); await pg.waitForTimeout(250);
     problems.push(...await pg.evaluate(() => { const z = document.querySelector('#zpop'); const out = []; if (z.scrollWidth > z.clientWidth + 1) out.push('zoom settings: wider than the card'); for (const b of z.querySelectorAll('button')) if (b.scrollWidth > b.clientWidth + 1) out.push(`zoom settings: “${b.textContent}” is cut`); return out; }));
     await pg.keyboard.press('Escape');
     await pg.evaluate(() => window.__wb.setView('settings')); await pg.waitForTimeout(400);
-    problems.push(...await pg.evaluate(() => { const z = document.querySelector('[data-mode=settings]'); const out = []; if (!z) return ['settings: not open']; for (const b of z.querySelectorAll('.seg button, .dial .dl, .swl span')) if (b.scrollWidth > b.clientWidth + 1) out.push(`settings: “${b.textContent.trim()}” is cut`); const seg = z.querySelector('.seg')?.getBoundingClientRect(), box = document.querySelector('#body').getBoundingClientRect(); if (!seg) out.push('settings: no panel mode'); else if (seg.right > box.right - 4) out.push('settings: the panel modes run out of the panel'); if (document.querySelector('#body').scrollWidth > document.querySelector('#body').clientWidth + 1) out.push('settings: wider than the panel'); return out; }));
+    problems.push(...await pg.evaluate(() => { const z = document.querySelector('[data-mode=settings]'); const out = []; if (!z) return ['settings: not open']; for (const b of z.querySelectorAll('.seg button, .dial .dl, .swl span')) if (b.scrollWidth > b.clientWidth + 1) out.push(`settings: “${b.textContent.trim()}” is cut`); if (document.querySelector('#body').scrollWidth > document.querySelector('#body').clientWidth + 1) out.push('settings: wider than the panel'); return out; }));
     await pg.evaluate(() => window.__wb.setView(null));
-    ok(`${lang} at ${what}: the new labels fit (four modes on one row, header, zoom bar, lens, Record, Export, the job level, switcher, zoom pop-up, the settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
+    ok(`${lang} at ${what}: the new labels fit (tabs, header, zoom bar, Outline, Record, Export, Design, the job level, switcher, zoom pop-up, the settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
     await ctx.close();
   }
 }
@@ -169,6 +174,11 @@ for (const lang of I.UI_LANGS){
   ok(`${lang} on the start screen: its labels fit`, bad.length === 0, bad.join(' ; '));
   await ctx.close();
 }
+
+// ---- the five tab labels at 48px: what is too wide is flagged, never shortened ----
+console.log(`\nTab labels at ${TAB_W}px, in ten languages: ${tabFlags.length ? `${tabFlags.length} too wide` : 'all fit'}`);
+for (const f of tabFlags) console.log(`      FLAG  ${f}`);
+ok(`every tab label fits ${TAB_W}px in all ten languages (see FLAG lines above for the ones that do not)`, tabFlags.length === 0, tabFlags.slice(0, 6).join(' ; '));
 
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} label-fit check(s) FAILED` : '\nall label-fit checks passed');

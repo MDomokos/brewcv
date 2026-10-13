@@ -38,6 +38,7 @@ export const readContrast = () => get(CONTRAST_KEY, v => v === 'sharp' || v === 
 
 // ---- the tabs and the fold ----
 // Five tabs: Outline and Edit are the two sheets of the resume (ui.pane says which, with no other view open); the others are views.
+// A phone has no Outline: its sheet is Edit and Record.
 // Icons: Tea draws each tab's own picture, Coffee the plain set.
 export const TABS = [
   { id: 'outline', key: 'ux5c.tabOutline', tea: 'list', plain: 'list' },
@@ -48,7 +49,7 @@ export const TABS = [
 ];
 export const GROUPS = [['outline', 'edit'], ['design', 'export'], ['record']];
 const phone = () => innerWidth < PHONE_MAX;
-const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : (C.ui.pane === 'edit' ? 'edit' : 'outline'); };
+const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : (C.ui.pane === 'edit' || phone() ? 'edit' : 'outline'); };
 // Open or folded, nothing between. The start screen is laid out in the panel's areas, so it is never folded; selecting never folds or unfolds.
 const folded = () => !phone() && !!C.ui.folded && C.ui.view !== 'welcome';
 // Edit shows its two sheets (the Outline and the selection) when there is room: computeLayout says whether there is

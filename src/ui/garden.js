@@ -50,8 +50,8 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
   // ---- the pages, the margins: read when the canvas says the pages moved ----
   let pg = [], span = null, panel = innerWidth;
   const refreshGeo = () => {
-    const g = ui.geo, col = document.getElementById('col')?.getBoundingClientRect();
-    panel = col && col.width ? col.left : innerWidth;
+    const g = ui.geo, tabs = ui.layout?.tabs;
+    panel = tabs?.width ? tabs.left : innerWidth;       // the garden keeps to the mat left of the tabs
     pg = !g || !ui.cam ? [] : Array.from({ length: g.n }, (_, i) => canvas.screenRect({ left: pageLeft(g, i), top: 0, width: g.w, height: g.h }))
       .map(r => ({ left: r.left, right: r.left + r.width, top: r.top, bottom: r.top + r.height })).filter(r => r.right > 0 && r.left < panel && r.right - r.left > 50);
     // pages side by side clear as one block: a leaf blown off one must not land on the next

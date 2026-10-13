@@ -142,9 +142,11 @@ export function initOnPage(C){
       const pg = geom.boxes.find(b => lr.left >= b.left - 1 && lr.left < b.left + b.width) ?? geom.boxes[0];
       const edgeR = R({ left: pg.left + pg.width - pg.padRight, top: lr.top, width: 0, height: 0 });
       const sr = R(lr);
-      const view = canvas.view;
-      const x = Math.min(edgeR.left + 8, (view ? view.left + view.width : innerWidth) - 44);
-      Object.assign(tw.style, { left: `${Math.max(sr.left + sr.width + 6 > x ? sr.left + sr.width + 6 : x, 6)}px`, top: `${Math.max(6, sr.top - 4)}px` });
+      const view = canvas.view, room = view ? view.left + view.width : innerWidth, twW = tw.offsetWidth;
+      const x = Math.min(edgeR.left + 8, room - Math.max(44, twW + 6));
+      let left = Math.max(sr.left + sr.width + 6 > x ? sr.left + sr.width + 6 : x, 6);
+      if (left + twW > room) left = Math.max(6, sr.left - twW - 6);       // no room right of the line (a narrow window): to its left, never under the tabs
+      Object.assign(tw.style, { left: `${left}px`, top: `${Math.max(6, sr.top - 4)}px` });
     } else if (tw) tw.style.display = 'none';
   }
 

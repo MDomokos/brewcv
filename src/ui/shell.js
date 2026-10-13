@@ -406,6 +406,8 @@ function bareClick(){ if (ui.view || ui.snap) return; if (ui.sel.kind !== 'none'
 // `pane`: the sheet the selection shows in (a click on the page opens Edit, a click in the Outline keeps the Outline); the tab stays when none is said.
 function select(sel, { keepScroll = false, pane = null } = {}){
   if (!edit.leaving(sel)) return;
+  // a selection made from Record, Design or Export (a row, a form to add something) is looked at in Edit
+  if (!pane && ui.view && ui.view !== 'welcome' && sel.kind !== 'none') pane = 'edit';
   if (ui.view && ui.view !== 'welcome' && sel.kind !== 'none'){ ui.view = null; }
   if (pane) ui.pane = pane;
   ui.sel = sel;
@@ -413,7 +415,7 @@ function select(sel, { keepScroll = false, pane = null } = {}){
   sheet.select(sel, ui.ix);
   const was = ui.view;
   const at = ui.layout?.phone ? -1 : pageOfSel(sel);
-  if (at >= 0 && at !== ui.page) ui.page = at;       // the camera fits that page when the panel opens
+  if (at >= 0 && at !== ui.page){ ui.page = at; canvas.goToPage(at); }       // a line on another page, chosen from the panel: that page comes forward
   dock.sync();
   renderHead();
   // The panel opens at its top (the line's versions are what you came for). Only a click on a row of the Outline or the Record,
@@ -518,7 +520,7 @@ function drawHead(){
   const mode = dock.modeOf();
   const meta = r ? [jobTypeLabel(store.state.record, r.jobType), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
-  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'outline') ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
+  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   $('#head').innerHTML = `
     <div class="hrow top">
       ${logoBtn(28)}
@@ -529,7 +531,7 @@ function drawHead(){
       <button class="tool" data-act="menu" aria-haspopup="true" aria-expanded="${ui.menu}" title="${esc(t('head.menuTitle'))}" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>
     </div>
     <div class="hrow modes">
-      <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('outline', 'ux5c.tabOutline')}${tab('edit', 'ux2.modeEdit')}${tab('record', 'ux3b.modeRecord')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
+      <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('record', 'ux3b.modeRecord')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
     </div>
     ${notices}
     ${ui.menu ? menuHtml() : ''}`;
@@ -650,6 +652,7 @@ function renderBody(animate = false){
   const el = $('#body');
   if (!record() || !cur()){ el.innerHTML = `<p class="muted">${h('body.loading')}</p>`; return; }
   const s = ui.sel;
+  delete el.dataset.pane;          // only the resume's own sheets (Outline, Edit) say so, below
   const keep = el.scrollTop, keepPanes = new Map([...el.querySelectorAll('.pane')].map(p => [p.dataset.pane, p.scrollTop]));
   // a record form with something typed in it is not redrawn under the caret; one you have left or not changed is, and the focus stays where it was
   const ae = document.activeElement;
@@ -697,7 +700,7 @@ function renderBody(animate = false){
   }
   // Outline and Edit are the resume's two sheets: one tab each, or side by side when the room allows
   const two = !!ui.layout?.two;
-  const pane = two ? 'both' : ui.pane === 'edit' ? 'edit' : 'outline';
+  const pane = two ? 'both' : ui.pane === 'edit' || ui.layout?.phone ? 'edit' : 'outline';
   const sheetOf = p => {
     if (p === 'outline') return edit.outlineView();
     const main = s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s, { details: false }) : s.kind === 'section' ? edit.sectionView(s)
@@ -863,7 +866,9 @@ async function previewVersion(factId, vid){
   const r = structuredClone(cur());
   r.picks = { ...r.picks, [factId]: vid };
   ui.previewing = true; ui.hoverFact = factId;
-  const res = await sheet.preview(work(), r, factId, { kind: 'hover', words: factId, ix: ui.ix });      // the words move from one version to the other
+  let res;
+  try { res = await sheet.preview(work(), r, factId, { kind: 'hover', words: factId, ix: ui.ix }); }      // the words move from one version to the other
+  catch { ui.previewing = false; ui.hoverFact = null; return; }       // the version was deleted under the pointer: nothing to show
   if (!ui.previewing) return sheet.endPreview({ kind: 'hover', words: factId, ix: ui.ix });
   ui.fills = res.pages; renderFoot();
 }

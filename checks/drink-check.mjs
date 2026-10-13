@@ -46,7 +46,7 @@ const ROLES = ['canvas', 'canvas-ink', 'canvas-ink-soft', 'canvas-line', 'canvas
   'ink', 'ink-soft', 'label', 'faint', 'on-ink', 'line', 'line-strong', 'accent', 'on-accent', 'accent-soft', 'accent-line', 'mark', 'on-mark', 'mark-soft', 'focus',
   'ok', 'bad', 'warn', 'ok-bg', 'warn-bg', 'ok-line', 'warn-line', 'ins-bg', 'del-bg', 'del-ink', 'toast-bg', 'toast-ink', 'tag-bg', 'tag-line', 'tag-ink', 'tag-hole',
   'stage', 'stage-mark', 'stage-on-mark', 'band-bg', 'band-ink', 'band-ink-soft', 'band-line', 'shadow-panel', 'shadow-lift', 'shadow-chip', 'shadow-toast', 'page-shadow', 'page-shadow-soft', 'page-edge', 'page-edge-soft', 'drop-sm',
-  'sel-mark', 'sel-mark-soft', 'prev-mark', 'prev-mark-soft', 'page-warn', 'liq', 'cup-band'];
+  'sel-mark', 'sel-mark-soft', 'prev-mark', 'prev-mark-soft', 'page-warn', 'liq', 'cup-band', 'tab-bg', 'tab-ink', 'tab-line'];
 for (const [name, blk] of [['tea', B.teaLight], ['coffee', B.coffeeLight]]){
   const missing = ROLES.filter(r => !(`--${r}` in blk));
   ok(`${name}: every role has a value in its light block`, !missing.length, missing.join(', '));
@@ -98,6 +98,7 @@ const PAIRS = [
   ['the head', 'band-ink', ['band-bg'], TEXT], ['the head', 'band-ink-soft', ['band-bg'], TEXT],
   ['the start screen\'s stage', 'stage-on-mark', ['stage-mark'], TEXT],
   ['the page\'s own paper', 'paper-ink', ['paper'], TEXT], ['the page\'s own paper', 'paper-soft', ['paper'], TEXT],
+  ['a tab\'s word', 'tab-ink', ['tab-bg'], TEXT], ['a tab\'s hairline', 'tab-line', ['canvas'], 1.1],
   ['edge of a control', 'line-strong', ['surface', 'input'], EDGE], ['focus ring on a surface', 'focus', ['surface', 'raised', 'pop', 'input'], EDGE], ['focus ring on the canvas', 'canvas-ink', ['canvas'], EDGE], ['focus ring on the page', 'paper-ink', ['paper'], EDGE],
   ['selected mark', 'mark', ['surface'], EDGE], ['the cup / glass outline', 'ink-soft', ['surface'], EDGE],
   ['mark on the page', 'sel-mark', ['paper'], EDGE], ['mark on the page', 'prev-mark', ['paper'], EDGE], ['mark on the page', 'page-warn', ['paper'], EDGE],
@@ -119,6 +120,33 @@ for (const drink of ['tea', 'coffee']) for (const mode of ['light', 'dark']){
   const bad = hits.filter(x => !(x.r >= x.min));
   ok(`${drink} ${mode}: ${hits.length} pairs, text at 4.5:1 and edges, focus and marks at 3:1`, !bad.length, bad.map(x => `${x.fg} on ${x.bg} ${Number.isNaN(x.r) ? '?' : x.r.toFixed(2)} (< ${x.min})`).join('; '));
 }
+// ---- UX-5c: the four other teas (Edit is --surface, today's matcha), light and dark: cream ink on every one, the amber labels on the sheet,
+// the edge of a control, and each tea's icon on the cream of a closed tab ----
+for (const mode of ['light', 'dark']){
+  const T = tokens('tea', mode === 'dark');
+  const hits = [];
+  for (const n of ['outline', 'design', 'export', 'record']){
+    const on = [`tea-${n}`, `tea-${n}-raised`, `tea-${n}-input`, `tea-${n}-pop`];
+    const pairs = [['ink', on, TEXT], ['ink-soft', on, TEXT], ['faint', [`tea-${n}`, `tea-${n}-raised`, `tea-${n}-pop`], TEXT], ['label', on, TEXT], ['label', [`tea-${n}`], 6], [`tea-${n}-edge`, [`tea-${n}`, `tea-${n}-input`], EDGE],
+      ['accent', [`tea-${n}`], EDGE], ['on-accent', ['accent'], TEXT], [`tea-${n}`, ['tab-bg'], EDGE], ['mark', [`tea-${n}`], EDGE], ['focus', [`tea-${n}`, `tea-${n}-raised`], EDGE]];
+    for (const [fg, bgs, min] of pairs) for (const bg of bgs){
+      const r = ratio(fg, bg, T);
+      rows.push({ drink: 'tea', mode, what: `the ${n} tea`, fg, bg, min, r: r ?? NaN });
+      hits.push({ n, fg, bg, min, r });
+    }
+  }
+  const bad = hits.filter(x => !(x.r >= x.min));
+  ok(`tea ${mode}: the five teas, ${hits.length} pairs: cream ink at 4.5:1, amber labels at 6:1 on the sheet, edges and icons at 3:1${mode === 'dark' ? ' (darkened to 82 percent)' : ''}`, !bad.length, bad.map(x => `${x.n}: ${x.fg} on ${x.bg} ${Number.isNaN(x.r) ? '?' : x.r.toFixed(2)} (< ${x.min})`).join('; '));
+}
+{
+  const dk = (h, k) => hex(h).map(v => Math.round(v * k));
+  const L = tokens('tea', false), D = tokens('tea', true);
+  const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 1);
+  ok('the dark teas are the light ones darkened to 82 percent (the way the matcha is: #2E4636 → #26392d)', ['outline', 'design', 'export', 'record'].every(n => near(hex(D[`--tea-${n}`]), dk(L[`--tea-${n}`], 0.82))) && near(hex(D['--surface']), dk(L['--surface'], 0.82)));
+  ok('the teas are the plan\'s: oolong #4d3d1e, rooibos #5c2b22, earl grey #2c3a4f, pu-erh #3b2723, and Edit\'s matcha #2E4636', L['--tea-outline'] === '#4d3d1e' && L['--tea-design'] === '#5c2b22' && L['--tea-export'] === '#2c3a4f' && L['--tea-record'] === '#3b2723' && L['--surface'].toLowerCase() === '#2e4636');
+  ok('coffee has no per-tab colours: its tab cards are its own surface, ink and hairline', ['coffeeLight', 'coffeeDark'].every(b => B[b]['--tab-bg'] === 'var(--surface)' && B[b]['--tab-ink'] === 'var(--ink)'));
+}
+
 // ---- the page against the canvas: the sharper look is the default and edges the page at 3:1 in all four combinations
 // (a light canvas by the page's edge, a dark one by the paper itself); the softer look is the old one and only has to be softer ----
 {

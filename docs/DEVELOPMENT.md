@@ -42,8 +42,8 @@ src/i18n/                  index.js (t, plurals, fallback to English) · en.js �
                            catalogues, each marked NEEDS A NATIVE REVIEW
 src/ui/                    the Workbench: shell, sheet (the iframe), layout, select, edit,
                            resumes, switcher, files, export, design, onboarding, settings,
-                           langmenu, actual size; dock (the panel that folds to a rail, the zoom bar,
-                           hover hints), checklist (the record's groups, drawn by record.js and, at the job level,
+                           langmenu, actual size; dock (the five tabs and their foot card, the fold, the fill and Fit in the
+                           header, the zoom bar over the page, hover hints), checklist (the record's groups, drawn by record.js and, at the job level,
                            beside the job), record (the Record tab: the way in and the way round), career (the
                            record's forms and the timeline), help (the shortcut sheet), icons, drink (Tea or
                            Coffee, light or dark: the two settings, the logo that switches them, Shift+F),
@@ -87,7 +87,7 @@ node checks/model-check.mjs [lib]     schema v4, migration, saved-resume files; 
                                       every recipe renders byte-identical to before 0.5.1
 node checks/store-check.mjs           undo, autosave, folder mirror, backup, checkpoints
 node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, labels, photo, fields
-node checks/shell-check.mjs           layout maths (the panel, and Record's wider one), click targets, Esc, folder read back
+node checks/shell-check.mjs           layout maths (the page and the panel as one centred group, two sheets, folded, a phone), click targets, Esc, folder read back
 node checks/camera-check.mjs          the canvas camera: both pages or one, soft limits, the magnet, which page is bright, the spring, the page edge while writing
 node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
 node checks/resumes-check.mjs         autosave, snapshots and sends, frozen text and newer wording, new, duplicate, compare, folder
@@ -101,7 +101,8 @@ node checks/savefile-check.mjs        Save to file: the format and its record id
 node checks/export-check.mjs          the HTML page, plain text, JSON Resume, pre-flight
 node checks/tokens-check.mjs          theme tokens: forms, refusals, DTCG round trip, contrast
 node checks/drink-check.mjs [--table] the app's own tokens: every role in Tea and Coffee, text at AA and edges at 3:1 in all four
-                                      light and dark combinations, no colour written outside a token block, the setting
+                                      light and dark combinations, the five teas (cream ink, amber labels, edges and icons; the dark ones darkened
+                                      to 82 percent), no colour written outside a token block, the setting
 node checks/motion-check.mjs          the rules motion follows: tokens of 150 to 400 ms, one reduced-motion rule, nothing blocks or queues, no library,
                                       the printed page never imported, each of the thirteen moments wired, both logo tiles, the ux4. strings
                                       (what each moment starts, and that reduced motion starts none, is in smoke-shell's "motion:" section)
@@ -140,7 +141,11 @@ node checks/tokens-check.mjs --browser        the built-in themes as tokens meas
 node checks/paginate-check.mjs [lib] --browser
 node checks/fit-check.mjs [lib] --browser
 node checks/label-fit.mjs                     every language's resume headings fit the gutter, and the app's own new labels fit
-                                              the panel (the modes on one row, the header, zoom bar, lens, checklist, switcher)
+                                              the panel (the five tab labels at 48px, the header, zoom bar, lens, Outline, checklist,
+                                              switcher); a tab label that is too wide is flagged with its text and width
+node checks/room-check.mjs                    the open sheet's hidden share at 1280×720, 1470×832 and 1200×750 (a line, a job, Design and Export
+                                              show whole; the Outline and a line being written hide at most 5% at the smallest), and each
+                                              tab's and foot button's centre is the same open and folded
 AXE_CORE=/path/to/axe.min.js node checks/smoke-shell.mjs
                                               also runs axe-core on every main view (axe-core is a dev tool, not a dependency)
 node checks/measure.mjs <rendered> <reference>    geometry diff, 0.00px expected

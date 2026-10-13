@@ -46,7 +46,7 @@ async function open(ok, { idle = 600, query = '', drink = null, rb = {}, ctx = {
   const bad = [];
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
-  await page.addInitScript(([d, extra]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-panel', 'auto'); if (d) localStorage.setItem('rb-drink', d); for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v); } catch { /* nothing to set */ } }, [drink, rb]);
+  await page.addInitScript(([d, extra]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-folded', '1'); if (d) localStorage.setItem('rb-drink', d); for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v); } catch { /* nothing to set */ } }, [drink, rb]);
   await page.goto(`http://localhost:${PORT}/?memory&garden-check=${idle}${query}`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   await page.waitForFunction(() => (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
@@ -163,7 +163,7 @@ async function keyClear(){
 
 // ---- the page stays clear when the pages move: two pages side by side, then a zoom ----
 async function editing(){
-  const ok = reporter('editing'), s = await open(ok, { rb: { 'rb-panel': 'open' } }), { page } = s;
+  const ok = reporter('editing'), s = await open(ok, { rb: { 'rb-folded': '1' } }), { page } = s;
   await ready(page);
   await page.click('#docname-btn'); await page.waitForSelector('#switcher .sopt');
   await page.click('#switcher .sopt:has-text("Medtech")'); await sleep(1500);
