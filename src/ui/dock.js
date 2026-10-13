@@ -83,10 +83,9 @@ const modeOf = () => (['design', 'export', 'record'].includes(C.ui.view) ? C.ui.
 // ---- hover hints: data-tip="Title|One line" ----
 function installTips(){
   let tip = $('#tip'); if (!tip){ tip = document.createElement('div'); tip.id = 'tip'; tip.setAttribute('aria-hidden', 'true'); document.body.append(tip); }
-  let timer = null, cur = null;
+  let timer = null, cur = null, at = null;      // at: where the pointer last was
   const hide = () => { clearTimeout(timer); tip.classList.remove('on'); cur = null; };
-  document.addEventListener('pointerover', e => {
-    const el = e.target.closest?.('[data-tip]'); if (el === cur) return;
+  const arm = el => {
     hide(); if (!el) return; cur = el;
     timer = setTimeout(() => {
       const [head, ...rest] = (el.dataset.tip || '').split('|');
@@ -102,8 +101,20 @@ function installTips(){
       if (y + th > innerHeight - 6) y = r.top - th - 8;
       tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(Math.max(6, y))}px)`; tip.classList.add('on');
     }, 380);
+  };
+  // A tip is for a pointer that moved onto the element. A click that redraws the element under a still pointer makes the browser
+  // send a pointerover from the same spot: that is not a move, so it waits for the next one.
+  document.addEventListener('pointerover', e => {
+    const el = e.target.closest?.('[data-tip]'); if (el === cur) return;
+    if (el && at && e.clientX === at.x && e.clientY === at.y){ hide(); return; }
+    arm(el);
   });
-  document.addEventListener('pointerdown', hide);
+  document.addEventListener('pointermove', e => {
+    const moved = !at || e.clientX !== at.x || e.clientY !== at.y;
+    at = { x: e.clientX, y: e.clientY };
+    if (moved && !cur) arm(e.target.closest?.('[data-tip]'));
+  });
+  document.addEventListener('pointerdown', e => { at = { x: e.clientX, y: e.clientY }; hide(); });
   document.addEventListener('wheel', hide, { passive: true });
   document.addEventListener('pointerout', e => { if (!e.relatedTarget || !e.relatedTarget.closest?.('[data-tip]')) hide(); });
 }
