@@ -79,7 +79,7 @@ for (const lang of I.UI_LANGS.filter(l => l !== 'en')){
 // ---- the app's own labels ----
 // Things that are meant to shorten with an ellipsis; everything else has to fit whole.
 const ELLIPSIS = '.dn, .dt, .clname, .clt, .tx, .filestate, .sn, .muted, .sopt, .stext, .jn, .lt, .lr, option, .title, .t, .tlsend, .lbl, .where, .kb, .crumb, .sumline, .meta, .field input, .field select, .field textarea';
-// 461px is the panel at 1440 (UX-3b: 440 to 480 in Edit, Design and Export); 480px is its widest. Below about 1430px the drink corner, which M11b removes, lies over the page's blank left margin.
+// 461px is the panel at 1440 (UX-3b: 440 to 480 in Edit, Design and Export); 480px is its widest.
 const widths = [[1100, 'drawer, 380px'], [1440, '461px'], [1600, '480px']];
 for (const lang of I.UI_LANGS){
   for (const [vw, what] of widths){
@@ -108,14 +108,6 @@ for (const lang of I.UI_LANGS){
     if (!rows.tabsOnOneRow) problems.push('the four modes wrap onto more than one row');
     problems.push(...await probe('head', '#head button, #head .seg, #head .hrow, #head .docname, #head .savestate'));
     problems.push(...await probe('foot', '#foot button, #foot .vbar, #foot .meters, #foot .frow'));
-    // M11a: the drink corner (the question and Tea, Coffee in each language) stays whole, on screen, off the page
-    problems.push(...await pg.evaluate(() => {
-      const out = [], c = document.querySelector('#brewmode'), r = c.getBoundingClientRect(), page = document.querySelector('#sheet iframe').getBoundingClientRect();
-      if (r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) out.push('the drink corner runs off the screen');
-      for (const el of c.querySelectorAll('.bm-q, button, button span')) if (el.offsetParent && el.scrollWidth > el.clientWidth + 1) out.push(`the drink corner: “${el.textContent.trim()}” is cut`);
-      if (innerWidth >= 1280 && r.right > page.left && r.top < page.bottom && r.bottom > page.top) out.push('the drink corner covers the page');
-      return out;
-    }));
     problems.push(...await probe('lens and sections', '.lens button, .lens select, .lensrow, .offchip, #seclist .srow, .item.srow'));
     // UX-3b: Record, Export's Mark as sent, and the job level
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
@@ -143,16 +135,19 @@ for (const lang of I.UI_LANGS){
       return out;
     }, ELLIPSIS));
     await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
-    // the zoom settings
+    // the zoom pop-up (Actual size), and the page and panel settings, which live in Settings
     await pg.click('#zoompct'); await pg.waitForTimeout(250);
-    problems.push(...await pg.evaluate(() => { const z = document.querySelector('#zpop'); const out = []; if (z.scrollWidth > z.clientWidth + 1) out.push('zoom settings: wider than the card'); for (const b of z.querySelectorAll('.seg button')) if (b.scrollWidth > b.clientWidth + 1) out.push(`zoom settings: “${b.textContent}” is cut`); const seg = z.querySelector('.seg').getBoundingClientRect(); if (seg.right > z.getBoundingClientRect().right - 4) out.push('zoom settings: the panel modes run out of the card'); return out; }));
+    problems.push(...await pg.evaluate(() => { const z = document.querySelector('#zpop'); const out = []; if (z.scrollWidth > z.clientWidth + 1) out.push('zoom settings: wider than the card'); for (const b of z.querySelectorAll('button')) if (b.scrollWidth > b.clientWidth + 1) out.push(`zoom settings: “${b.textContent}” is cut`); return out; }));
     await pg.keyboard.press('Escape');
-    ok(`${lang} at ${what}: the new labels fit (four modes on one row, header, zoom bar, lens, Record, Export, the job level, switcher, zoom settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
+    await pg.evaluate(() => window.__wb.setView('settings')); await pg.waitForTimeout(400);
+    problems.push(...await pg.evaluate(() => { const z = document.querySelector('[data-mode=settings]'); const out = []; if (!z) return ['settings: not open']; for (const b of z.querySelectorAll('.seg button, .dial .dl, .swl span')) if (b.scrollWidth > b.clientWidth + 1) out.push(`settings: “${b.textContent.trim()}” is cut`); const seg = z.querySelector('.seg')?.getBoundingClientRect(), box = document.querySelector('#body').getBoundingClientRect(); if (!seg) out.push('settings: no panel mode'); else if (seg.right > box.right - 4) out.push('settings: the panel modes run out of the panel'); if (document.querySelector('#body').scrollWidth > document.querySelector('#body').clientWidth + 1) out.push('settings: wider than the panel'); return out; }));
+    await pg.evaluate(() => window.__wb.setView(null));
+    ok(`${lang} at ${what}: the new labels fit (four modes on one row, header, zoom bar, lens, Record, Export, the job level, switcher, zoom pop-up, the settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
     await ctx.close();
   }
 }
 
-// M11a: on the start screen the question is a slim bar above the cards, on one line, in every language
+// the start screen's labels, in every language
 for (const lang of I.UI_LANGS){
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true });
   await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } }, lang);
@@ -161,8 +156,7 @@ for (const lang of I.UI_LANGS){
   await pg.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   await pg.waitForTimeout(500);
   const bad = await pg.evaluate(() => {
-    const out = [], c = document.querySelector('#brewmode'), r = c.getBoundingClientRect(), card = document.querySelector('#col').getBoundingClientRect();
-    if (r.right > card.left) out.push('the bar runs into the column');
+    const out = [];
     // UX-3: the start screen's own labels fit where they are drawn
     for (const el of document.querySelectorAll('.obchoices b, .obchoices small, .oblang, .obhero, .obsub, .obtile b, .obtile p, .ssh button, #sscap, .sslab b, .sslab span, .obreplay')){
       if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).display !== 'inline') out.push(`“${el.textContent.trim().slice(0, 30)}” is cut`);
@@ -170,12 +164,9 @@ for (const lang of I.UI_LANGS){
     const col = document.querySelector('#col');
     if (col.scrollWidth > col.clientWidth + 1) out.push('the column is wider than it is');
     if (document.documentElement.scrollWidth > innerWidth) out.push('the page scrolls sideways');
-    if (r.height > 56) out.push(`the bar wraps (${Math.round(r.height)}px tall)`);
-    if (r.left < 0 || r.right > innerWidth) out.push('the bar runs off the screen');
-    for (const el of c.querySelectorAll('.bm-q, button, button span')) if (el.scrollWidth > el.clientWidth + 1) out.push(`“${el.textContent.trim()}” is cut`);
     return out;
   });
-  ok(`${lang} on the start screen: the question and the two drinks fit the slim bar`, bad.length === 0, bad.join(' ; '));
+  ok(`${lang} on the start screen: its labels fit`, bad.length === 0, bad.join(' ; '));
   await ctx.close();
 }
 

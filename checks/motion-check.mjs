@@ -130,10 +130,10 @@ section('every string is in the catalogues');
   const langs = ['en', 'de', 'es', 'fr', 'hu', 'it', 'nl', 'pl', 'pt', 'cs'];
   const miss = [];
   for (const l of langs){ const text = read(`src/i18n/${l}.js`); for (const k of new Set(keys)) if (!text.includes(`'${k}'`)) miss.push(`${l}:${k}`); }
-  ok('the ux4. block (the Fit chip, the setting, the logo hints, the export ticket) is in all ten, at the end', !miss.length, miss.join());
+  ok('the ux4. block (the Fit chip, the setting, the logo hints, the export ticket) is in all ten', !miss.length, miss.join());
   const en = read('src/i18n/en.js');
   ok('English has no leftover from the retired hint (ux2.hint, ux2.hintOk)', !/'ux2\.hint(Ok)?'/.test(en));
-  ok('the ux4. keys are one contiguous block at the end of each catalogue (so parallel tracks merge cleanly)', langs.every(l => { const lines = read(`src/i18n/${l}.js`).trimEnd().split('\n'); const at = lines.findIndex(x => x.includes("'ux4."), 0); return at > 0 && lines.slice(at, -1).every(x => x.includes("'ux4.")) && lines.at(-1) === '};'; }));
+  ok('the ux4. keys are one contiguous block in each catalogue (a later block may follow it)', langs.every(l => { const lines = read(`src/i18n/${l}.js`).trimEnd().split('\n'); const at = lines.findIndex(x => x.includes("'ux4."), 0); let end = at; while (lines[end]?.includes("'ux4.")) end++; return at > 0 && !lines.slice(end).some(x => x.includes("'ux4.")) && lines.at(-1) === '};'; }));
 }
 
 console.log(failed ? `\n${failed} motion check(s) FAILED` : '\nall motion checks passed');

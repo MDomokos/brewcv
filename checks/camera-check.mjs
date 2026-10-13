@@ -6,7 +6,7 @@
 import { isDeepStrictEqual as eq } from 'node:util';
 import {
   geometry, viewRect, fitCam, screenOf, contentOf, zoomAbout, snapZoom, limits, rubber, softCam, hardCam, stops, magnetize, unmagnetize,
-  settleIndex, visible, brightPage, faded, damping, springStep, atRest, centreOn, writingScale, rowWidth, pageLeft, midX,
+  settleIndex, visible, brightPage, faded, damping, springStep, atRest, centreOn, writingScale, rowWidth, pageLeft, midX, keepPageEdge,
   BOTH_MIN, BOTH_RATIO, OVERSHOOT, SNAP_FIT, MAGNET, BOUNCE,
 } from '../src/ui/camera.js';
 import { G, RAIL_W, PAGE_GAP, pageSize } from '../src/ui/layout.js';
@@ -151,6 +151,20 @@ section('writing zoom');
   ok('130% is 1.3 times the fit-to-height scale of one page', near(k, one * 1.3));
   const c = centreOn(g, v, k, 500, 300);
   ok('the block lands in the middle of the view', near(screenOf(c, 500, 300).x, midX(v)) && near(screenOf(c, 500, 300).y, v.top + v.height / 2));
+}
+
+section('writing keeps the page edge in view');
+{
+  const g = geometry({ vw: 1280, vh: 720, format: 'us-letter', pages: 1 });
+  const v = viewRect({ vh: 720, colLeft: 854 });
+  const line = { left: 230, top: 400, width: 540, height: 20 };                       // a line in the page's own pixels
+  const at = pct => hardCam(centreOn(g, v, writingScale(g, v, pct), line.left + line.width / 2, 410), g, v);
+  const edge = c => screenOf(c, 0, 0).x, right = c => screenOf(c, line.left + line.width, 0).x;
+  ok('at 130% the page starts inside the view and only settles G from its edge', edge(at(130)) >= v.left && near(edge(keepPageEdge(at(130), g, v, line)), v.left + G));
+  ok('at 150% the centred page starts left of the view...', edge(at(150)) < v.left);
+  const kept = keepPageEdge(at(150), g, v, line);
+  ok('...and is brought back into it, with its line still in room', edge(kept) >= v.left && right(kept) <= v.left + v.width - 70 + 1e-6, `${edge(kept)} ${right(kept)}`);
+  ok('at 220% the line wins: the camera stays where it is', eq(keepPageEdge(at(220), g, v, line), at(220)));
 }
 
 console.log(failed ? `\n${failed} camera check(s) FAILED` : '\nall camera checks passed');
