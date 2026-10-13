@@ -21,7 +21,7 @@
   --ease: cubic-bezier(.2, .8, .2, 1); --ease-in-out: cubic-bezier(.4, 0, .2, 1); --ease-pop: cubic-bezier(.3, 1.6, .5, 1); --ease-swing: cubic-bezier(.3, 1.5, .5, 1);
   /* UX-4 (src/ui/motion.js reads these): a moment is 150 to 400 ms; things arriving ease out, things leaving ease in. Tune them here. */
   --m-fast: 150ms; --m-base: 240ms; --m-slow: 400ms; --m-travel: 300ms; --m-roll: 1000ms; --m-stagger: 60ms;
-  --swing-deg: 2.5; --swing-deg-step: 1.1; --swing-ms: 1250; --swing-ms-step: 120; --swing-near: .45;   /* the folded Tea tags: degrees and ms for Outline, added per tag below it; neighbours swing at this share */
+  --swing-deg: 2.5; --swing-deg-step: 1.1; --swing-ms: 600; --swing-ms-step: 150; --swing-near: .45;   /* the folded Tea tags: degrees and ms for Outline, added per tag below it; neighbours swing at this share */
   --m-out: cubic-bezier(.2, .8, .2, 1); --m-in: cubic-bezier(.4, 0, 1, 1); --m-inout: cubic-bezier(.4, 0, .2, 1);
   --font-ui: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Fira Code", ui-monospace, "SF Mono", Menlo, monospace;

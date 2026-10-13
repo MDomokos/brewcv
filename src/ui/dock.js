@@ -414,19 +414,18 @@ function onModesKey(e){
   $('#head [role=tab][aria-selected=true]')?.focus();
 }
 
-// Tea, folded: brushing over a tag swings it from its hole, the way the pointer pushed it; lower tags swing further and slower, the
-// neighbours at a share of that. Decoration: play() is null under reduced motion, and a click never waits for it.
+// Tea, folded: brushing over a tag pushes it from its hole, the way a finger would: one swing out, one soft settle (a tiny overshoot,
+// no wiggle). Lower tags hang on longer strings, so they travel further and settle slower; the neighbours at a share of that. Decoration: play() is null under reduced motion, and a click never waits for it.
 function swingTags(e){
   const tab = e.target.closest?.('.tabs.is-folded .tab'), from = e.relatedTarget;
   if (!tab || drink() !== 'tea' || tab.contains(from)) return;
   const all = [...document.querySelectorAll('.tabs.is-folded .tab')], at = all.indexOf(tab);
   const v = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0;
   const r = tab.getBoundingClientRect(), dir = e.clientX < r.left + r.width / 2 ? -1 : 1;     // from the left pushes the tag right
-  const deg = v('--swing-deg') + v('--swing-deg-step') * at, ms = v('--swing-ms') + v('--swing-ms-step') * at;
   all.forEach((x, i) => {
     if (Math.abs(i - at) > 1) return;
-    const a = deg * dir * (i === at ? 1 : v('--swing-near'));
-    play(x, [0, 1, -.7, .4, -.16, 0].map((k, j) => ({ rotate: `${a * k}deg`, offset: [0, .15, .35, .55, .75, 1][j] })), { key: `tag-${x.dataset.m}`, ms, kind: 'move', name: 'tagswing' });
+    const a = (v('--swing-deg') + v('--swing-deg-step') * i) * dir * (i === at ? 1 : v('--swing-near')), ms = v('--swing-ms') + v('--swing-ms-step') * i;   // each tag's own string
+    play(x, [0, 1, -.06, 0].map((k, j) => ({ rotate: `${a * k}deg`, offset: [0, .3, .78, 1][j] })), { key: `tag-${x.dataset.m}`, ms, kind: 'move', name: 'tagswing' });
   });
 }
 

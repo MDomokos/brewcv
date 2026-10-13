@@ -2501,8 +2501,17 @@ if (want('drinks: the folded Tea tags hang on a thread and swing; Coffee and red
     const sw = await page.evaluate(() => ['design', 'export', 'record'].map(m => document.querySelector('#tab-' + m).getAnimations().filter(a => a.effect.getKeyframes().some(k => 'rotate' in k)).length));
     ok(`${name}: brushing a tag ${drink === 'tea' && !reduce ? 'swings it and its neighbour, not a tag two away' : 'moves nothing'}`, drink === 'tea' && !reduce ? sw[2] === 1 && sw[1] === 1 && sw[0] === 0 : sw.every(n => n === 0), JSON.stringify(sw));
     if (drink === 'tea' && !reduce){
-      const slow = await page.evaluate(() => { const d = m => document.querySelector('#tab-' + m).getAnimations().find(a => a.effect.getKeyframes().some(k => 'rotate' in k)).effect.getTiming().duration; return d('record'); });
-      ok('the lowest tag swings 1.73 s', Math.abs(slow - 1730) < 1, String(slow));
+      const dur = await page.evaluate(() => { const d = m => document.querySelector('#tab-' + m).getAnimations().find(a => a.effect.getKeyframes().some(k => 'rotate' in k)).effect.getTiming().duration; return [d('export'), d('record')]; });
+      ok('the fifth tag settles in 1.2 s, the fourth sooner (the first in 0.6 s)', Math.abs(dur[1] - 1200) < 1 && dur[0] < dur[1] && dur[0] >= 600, JSON.stringify(dur));
+      // a push and a settle, not a wiggle: the angle crosses zero at most once (a tiny overshoot), and the overshoot is small
+      const track = await page.evaluate(async () => {
+        const a = document.querySelector('#tab-record').getAnimations().find(x => x.effect.getKeyframes().some(k => 'rotate' in k));
+        a.pause(); const d = a.effect.getTiming().duration, v = [];
+        for (let i = 0; i <= 60; i++){ a.currentTime = d * i / 60; v.push(parseFloat(getComputedStyle(document.querySelector('#tab-record')).rotate) || 0); }
+        a.play(); return v;
+      });
+      const peak = Math.max(...track.map(Math.abs)), flips = track.slice(1).filter((x, i) => Math.abs(x) > 0.01 && Math.abs(track[i]) > 0.01 && Math.sign(x) !== Math.sign(track[i])).length;
+      ok('a tag swings once and settles: at most one sign change, overshoot under a tenth of the push', flips <= 1 && Math.max(...track.map(x => -x * Math.sign(track.find(y => Math.abs(y) > 0.01)))) < peak * 0.1 && Math.abs(track.at(-1)) < 0.01, `peak ${peak.toFixed(2)}deg flips ${flips}`);
     }
     await page.click('#tab-record'); // a click during the swing unfolds at once
     ok(`${name}: a click on a tag unfolds the panel at once`, await page.waitForFunction(() => !document.querySelector('#tabs').classList.contains('is-folded'), null, { timeout: 400 }).then(() => true, () => false));
