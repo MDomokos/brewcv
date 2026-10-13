@@ -3,7 +3,7 @@
 // cache and installed copies never keep serving old files.
 // Files opened through File System Access never pass through here.
 
-const VERSION = '0.9.1';
+const VERSION = '1.0.0';
 const SHELL = [
   './',
   './index.html',
