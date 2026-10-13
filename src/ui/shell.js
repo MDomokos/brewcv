@@ -69,7 +69,7 @@ const ui = {
   sel: NONE, previewing: false, page: 0, menu: false, laid: null, fills: [], zoom: 1,
   fitting: false, lastFit: null, work: null, workKey: null, ix: null, probed: new Set(), snap: null,
 };
-const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, moved: () => { placeOverflow(); onpage?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
+const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: on => dock?.sheetOver(on), moved: () => { placeOverflow(); onpage?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
 const onpage = initOnPage({ ui, sheet, canvas, editShown: () => dock.modeOf() === 'edit' && !dock.folded(), edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
   ix: () => ui.ix ?? indexModel(work()), fillText: () => fillText(), select: sel => select(sel),
   writeStarted: () => dock.sync(true), writeEnded: () => dock.sync(true), redrawSoon: () => schedule() });
@@ -336,6 +336,8 @@ function relayout(){
     // the zoom bar sits at the foot of the page area, under the page
     const zb = $('#zoombar');
     if (zb){ zb.style.left = `${L.view.mid}px`; }
+    const zf = $('#zfill');
+    if (zf) zf.style.right = `${innerWidth - L.areaW + 8}px`;      // folded: the fill and Fit, beside the tabs
   }
   // the start screen's picture takes the page area left of the column
   document.body.style.setProperty('--startw', `${Math.max(240, L.col.left - 2 * G)}px`);

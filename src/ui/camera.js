@@ -114,6 +114,11 @@ export function visible(cam, geo, view, i){
   const w = Math.min(x1, view.left + view.width) - Math.max(x0, view.left), h = Math.min(y1, view.top + view.height) - Math.max(y0, view.top);
   return w > 0 && h > 0 ? (w * h) / ((x1 - x0) * (y1 - y0)) : 0;
 }
+// Whether the window point (x, y) is on a sheet: the white page itself, not the mat, the gap between pages or the panel.
+export function onPage(cam, geo, x, y){
+  const cx = (x - cam.x) / cam.k, cy = (y - cam.y) / cam.k;
+  return cy >= 0 && cy <= geo.h && Array.from({ length: geo.n }, (_, i) => pageLeft(geo, i)).some(l => cx >= l && cx <= l + geo.w);
+}
 // The page that is more than half in view and more in view than the current one becomes the bright page.
 export function brightPage(cam, geo, view, current){
   const fr = Array.from({ length: geo.n }, (_, i) => visible(cam, geo, view, i));

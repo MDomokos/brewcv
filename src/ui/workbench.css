@@ -1045,6 +1045,9 @@ body.is-intro .tabs, body.is-quiet .tabs, body[data-phone=true] .tabs { display:
 .zoombar.on { opacity: 1; pointer-events: auto; }
 .zoombar .zpop { right: auto; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); }
 body.is-intro .zoombar, body.is-quiet .zoombar, body[data-phone=true] .zoombar { display: none; }
+/* folded, the fill and Fit: a chip like the zoom bar, but always there, beside the tabs */
+.zfill { position: fixed; z-index: 12; bottom: var(--G); padding: 3px 6px; border-radius: var(--r-pill); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-chip); }
+.zfill[hidden], body.is-intro .zfill, body.is-quiet .zfill, body[data-phone=true] .zfill { display: none; }
 
 /* the chip after Fit hangs where Fit is, never over the page */
 .fitchip { bottom: auto; top: 90px; transform: none; }

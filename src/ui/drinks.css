@@ -324,7 +324,7 @@ html[data-drink="coffee"] .tab::before, html[data-drink="coffee"] .tab::after { 
 html[data-drink="coffee"] .tab .ti, html[data-drink="coffee"] .tab.is-open .ti, html[data-drink="coffee"] .tab.also .ti { color: var(--tab-ink); }
 html[data-drink="coffee"] .tabfoot, html[data-drink="coffee"] .tabs.is-folded .tab, html[data-drink="coffee"] .tabs.is-folded .tabfoot { border-radius: var(--r-l); box-shadow: inset 0 0 0 1px var(--line-strong); }
 html[data-drink="coffee"] .tabs.is-folded .tab.is-open, html[data-drink="coffee"] .tabs.is-folded .tab.also { margin-right: 0; width: 54px; }
-html[data-drink="coffee"] .zoombar { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] :is(.zoombar, .zfill) { border: 1px solid var(--line-strong); }
 
 /* Tea, folded: the tags hang on one thread through a punched hole near each top (decoration: no clicks, nothing for a reader).
    Under 1700px the thread runs up out of the frame; wider, it starts at a small loop 14px above the first tag. */

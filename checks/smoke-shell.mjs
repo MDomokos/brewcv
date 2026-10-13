@@ -138,6 +138,17 @@ if (want('one screen: the panel folds, the tabs, the zoom bar, the shortcut shee
   // the zoom bar: only while the pointer is over the page
   await page.mouse.move(1450, 20); await page.waitForTimeout(800);
   ok('the zoom bar is hidden while the pointer is away from the page', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))) && (await page.evaluate(() => +getComputedStyle(document.querySelector('#zoombar')).opacity)) < 0.05);
+  // only over the white sheet: the mat beside it (and above and below it), and the gap, leave it hidden
+  const sr = await rect(page, '#sheet');
+  for (const [what, x, y] of [['the mat beside the page', sr.left - 30, 400], ['the mat under the page', sr.left + sr.width / 2, sr.bottom + 8]]){
+    if (x < 5 || y > 860) continue;
+    await page.mouse.move(x, y, { steps: 4 }); await page.waitForTimeout(900);
+    ok(`the zoom bar stays hidden over ${what}`, !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))), `${x.toFixed(0)},${y.toFixed(0)}`);
+  }
+  await page.mouse.move(sr.left + sr.width / 2, sr.top + 200, { steps: 4 }); await page.waitForTimeout(500);
+  ok('over the white sheet it shows, in the frame too (the page is an iframe)', await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on')));
+  await page.mouse.move(sr.left - 30, 400, { steps: 4 }); await page.waitForTimeout(900);
+  ok('…and leaving the sheet for the mat hides it again', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))));
   await page.mouse.move(300, 400); await page.waitForTimeout(500);
   ok('over the page it shows: full screen, −, the percentage, +, fit — at the foot of the page area, under the page', await page.evaluate(() => { const z = document.querySelector('#zoombar'), r = z.getBoundingClientRect(); return z.classList.contains('on') && +getComputedStyle(z).opacity > 0.9 && ['fullscreen', 'zoom-out', 'zoom-pop', 'zoom-in', 'zoom-fit'].every(a => z.querySelector(`[data-act=${a}]`)) && r.bottom > innerHeight - 40 && r.right < document.querySelector('#tabs').getBoundingClientRect().left; }));
   await page.mouse.move(1450, 400); await page.waitForTimeout(250);
@@ -156,7 +167,9 @@ if (want('one screen: the panel folds, the tabs, the zoom bar, the shortcut shee
   ok('E folds the panel away: it is not on screen, the tabs stay at the right edge, 16px in, and the foot card with the logo under them', (await S()).folded === 'true' && !(await page.isVisible('#body')) && !(await page.isVisible('#head')) && Math.abs(1536 - tf.right - 16) < 1.5 && (await page.isVisible('#tabs [role=tab][data-m=edit]')) && await page.isVisible('#tabfoot .footlogo') && !(await page.$('#rail')));
   ok('…the page centres in the room left of the tabs', Math.abs(f0.left - (tf.left - f0.right)) < 2, `${f0.left.toFixed(1)} vs ${(tf.left - f0.right).toFixed(1)}`);
   ok('…the tabs are cream tags, none the colour of a panel', await page.evaluate(() => { const bg = e => getComputedStyle(document.querySelector(e)).backgroundColor; return bg('#tab-outline') === bg('#tab-edit') && bg('#tab-edit') === bg('#tab-record'); }));
-  ok('…and Fit and the fill join the zoom bar over the page', await page.evaluate(() => { const z = document.querySelector('#zoombar'); return !!z.querySelector('[data-act=fit]') && !!z.querySelector('.meter') && !document.querySelector('#head [data-act=fit]'); }));
+  ok('…and Fit and the fill stay in view as a small chip beside the tabs (not in the zoom bar), reachable and clickable', await page.evaluate(() => { const z = document.querySelector('#zoombar'), c = document.querySelector('#zfill'), r = c.getBoundingClientRect(); return !z.querySelector('[data-act=fit]') && !z.querySelector('.meter') && !!c.querySelector('[data-act=fit]') && !!c.querySelector('.meter') && !c.hidden && getComputedStyle(c).display !== 'none' && r.right <= document.querySelector('#tabs').getBoundingClientRect().left && r.bottom <= innerHeight && !document.querySelector('#head [data-act=fit]'); }));
+  await page.mouse.move(4, 4);
+  ok('…the chip is there with the pointer away from the page, and Fit in it can be clicked', await page.evaluate(() => { const b = document.querySelector('#zfill [data-act=fit]'), r = b.getBoundingClientRect(), at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!b.closest('#zfill') && (at === b || b.contains(at)) && !!b.title; }));
   await sheet.locator('.bullets li').first().click(); await settle(page);
   ok('selecting never folds or unfolds: folded stays folded', (await S()).folded === 'true' && (await S()).sel === 'bullet');
   await page.click('#tab-design'); await settle(page);
@@ -3054,7 +3067,7 @@ if (want('accessibility: axe-core on every view')) {
       await page.keyboard.press('e'); await settle(page);
       await runAxe(page, 'folded: the tags and the foot card');
       await page.mouse.move(300, 400); await page.waitForTimeout(500);
-      await runAxe(page, 'folded: the zoom bar with Fit and the fill');
+      await runAxe(page, 'folded: the zoom bar, and the chip with Fit and the fill');
       ok(`${drink} ${theme}: no console errors`, bad.length === 0, bad[0] ?? '');
       await ctx.close();
       const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true, colorScheme: theme });

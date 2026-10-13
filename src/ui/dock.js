@@ -220,7 +220,7 @@ function drawTabs(){
       ${menu}${C.ui.menu ? C.menuHtml() : ''}</div>`;
 }
 
-// ---- the fill meter and Fit, in the header (in the zoom bar when the panel is folded), and the zoom bar ----
+// ---- the fill meter and Fit, in the header (in a small chip beside the tabs, at the foot of the page area, when the panel is folded), and the zoom bar ----
 const fitBtn = (u, limit, needed) => `<button class="fit${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
 function meterHtml(){
   const u = C.ui;
@@ -230,7 +230,7 @@ function meterHtml(){
   }).join('');
   return `<div class="meters" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${rows || '<span class="muted tiny">—</span>'}</div>`;
 }
-// the header's: '' while the panel is folded (the zoom bar has them then)
+// the header's: '' while the panel is folded (the chip #zfill has them then)
 export function fillHtml(){
   if (folded()) return '';
   const u = C.ui, limit = C.shown()?.pageLimit;
@@ -249,6 +249,7 @@ export const renderFoot = () => {
   if (phone() || intro){ keepFocus('#foot', () => tween(drawFoot)); return; }
   keepFocus('#hfill', () => tween(drawFill));
   keepFocus('#zoombar', () => tween(drawZoombar));
+  keepFocus('#zfill', () => tween(drawZfill));
   keepFocus('#tabfoot', drawTabfoot);
 };
 function drawFill(){
@@ -258,11 +259,17 @@ function drawFill(){
 function drawZoombar(){
   const el = $('#zoombar');
   if (!el) return;
-  const f = folded(), u = C.ui, limit = C.shown()?.pageLimit;
   const pop = $('#zpop');
-  el.innerHTML = `${viewBar(u, 't')}${f ? `<div class="hfill" id="zfill">${meterHtml()}${fitBtn(u, limit, fitFilled(u.fills, limit))}</div>` : ''}`;
+  el.innerHTML = viewBar(C.ui, 't');
   if (pop) el.append(pop);
   renderPop();
+}
+// folded: the fill and Fit stay in view as a small chip beside the tabs, not in the zoom bar that comes and goes
+function drawZfill(){
+  const el = $('#zfill'), u = C.ui, limit = C.shown()?.pageLimit;
+  if (!el) return;
+  el.hidden = !folded();
+  el.innerHTML = folded() ? `${meterHtml()}${fitBtn(u, limit, fitFilled(u.fills, limit))}` : '';
 }
 // undo and redo are drawn again with the tabs: only their state changes between saves
 function drawTabfoot(){
@@ -303,20 +310,25 @@ function renderPop(){
   el.innerHTML = `<div class="prow"><button class="sm" data-act="actual">${h('ux2.actualSize')}</button></div>`;
 }
 
-// ---- the zoom bar shows while the pointer is over the page ----
+// ---- the zoom bar shows while the pointer is over a sheet (the white page, not the mat) or the bar ----
 // It fades out 0.4 s after the pointer leaves, and flashes for 1.2 s when the keys zoom. The bar is in the page area, at its foot.
 const BAR_OUT_MS = 400, BAR_FLASH_MS = 1200;
-let barOver = 0, barT = 0, flashT = 0;
+let barOver = 0, sheetOn = false, barT = 0, flashT = 0;
 function bar(){ return $('#zoombar'); }
 function showBar(on){
   clearTimeout(barT);
   if (on){ bar()?.classList.add('on'); return; }
-  barT = setTimeout(() => { if (!barOver && !bar()?.matches(':focus-within') && !flashT) bar()?.classList.remove('on'); }, BAR_OUT_MS);
+  barT = setTimeout(() => { if (!barOver && !sheetOn && !bar()?.matches(':focus-within') && !flashT) bar()?.classList.remove('on'); }, BAR_OUT_MS);
+}
+function sheetOver(on){
+  if (on === sheetOn) return;
+  sheetOn = on;
+  showBar(on || !!barOver);
 }
 function flashBar(){
   bar()?.classList.add('on');
   clearTimeout(flashT);
-  flashT = setTimeout(() => { flashT = 0; if (!barOver) showBar(false); }, BAR_FLASH_MS);
+  flashT = setTimeout(() => { flashT = 0; if (!barOver && !sheetOn) showBar(false); }, BAR_FLASH_MS);
 }
 
 // ---- the page and panel settings, shown in Settings (settings.js) ----
@@ -437,18 +449,18 @@ function bind(){
   bar.id = 'zoombar'; bar.className = 'zoombar';
   bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', t('ux2.viewBar'));
   document.body.append(bar);
+  const zf = document.createElement('div');
+  zf.id = 'zfill'; zf.className = 'hfill zfill'; zf.hidden = true;
+  document.body.append(zf);
   const pop = document.createElement('div');
   pop.id = 'zpop'; pop.className = 'card zpop'; pop.hidden = true;
   pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', t('ux2.zoomSettings'));
   bar.append(pop);
   pop.addEventListener('keydown', e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); openPop(false); } });
   document.addEventListener('mousedown', e => { if (C.ui.zpop && !e.target.closest('#zpop') && !e.target.closest('#zoompct')) openPop(false); });
-  // over the page (or the bar itself, or a key inside it) the bar shows
-  const pages = $('#pages');
-  for (const el of [pages, bar]){
-    el.addEventListener('pointerenter', () => { barOver++; showBar(true); });
-    el.addEventListener('pointerleave', () => { barOver = Math.max(0, barOver - 1); if (!barOver) showBar(false); });
-  }
+  // over a sheet (canvas.js tells us), or the bar itself, or a key inside it, the bar shows
+  bar.addEventListener('pointerenter', () => { barOver = 1; showBar(true); });
+  bar.addEventListener('pointerleave', () => { barOver = 0; showBar(sheetOn); });
   bar.addEventListener('focusin', () => showBar(true));
   bar.addEventListener('focusout', () => showBar(false));
   $('#head').addEventListener('keydown', onModesKey);
@@ -460,7 +472,7 @@ export function initDock(ctx){
   C = ctx;
   C.ui.folded = readFolded(); C.ui.pane = 'outline'; C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite(); C.ui.zpop = false;
   return {
-    bind, act, onKey, sync, folded, twoNow, setFolded, toggleFold, unfold, setMode, modeOf, renderTabs, renderFoot, fillHtml, zoomBy, zoomTo,
+    bind, act, onKey, sync, sheetOver, folded, twoNow, setFolded, toggleFold, unfold, setMode, modeOf, renderTabs, renderFoot, fillHtml, zoomBy, zoomTo,
     closePop(){ if (!C.ui.zpop) return false; openPop(false); return true; },
     // Esc all the way out: the view zooms out to the whole resume
     allTheWayOut(){ C.canvas.reset(); },

@@ -6,7 +6,7 @@
 
 import {
   geometry, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, keepPageEdge, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
-  brightPage, faded, springStep, atRest, centreOn, writingScale, midX,
+  brightPage, onPage, faded, springStep, atRest, centreOn, writingScale, midX,
 } from './camera.js';
 import { clampZoom, PHONE_MAX } from './layout.js';
 import { readMagnet, readBounce } from './dock.js';
@@ -233,6 +233,8 @@ export function initCanvas(C){
     free = true; rememberView();
     put(softCam({ ...drag.cam, x: drag.cam.x + e.clientX - drag.x, y: drag.cam.y + e.clientY - drag.y }, geo, view));
   }
+  // the pointer is over a sheet (not the mat, the gap or the panel): `inPages` is false when something else (the panel) is on top
+  const sheetOver = (x, y, inPages = true) => { if (geo) C.sheetOver?.(inPages && onPage(cam, geo, x, y)); };
   function up(e){
     pointers.delete(e.pointerId);
     if (pinch && pointers.size < 2){ pinch = null; go(hardCam(cam, geo, view), { spring: true }); }
@@ -273,7 +275,8 @@ export function initCanvas(C){
   function bind(){
     box.addEventListener('wheel', e => wheel(e), { passive: false });
     box.addEventListener('pointerdown', e => down(e));
-    addEventListener('pointermove', move);
+    addEventListener('pointermove', e => { move(e); sheetOver(e.clientX, e.clientY, !!e.target.closest?.('#pages')); });
+    document.documentElement.addEventListener('pointerleave', () => C.sheetOver?.(false));
     addEventListener('pointerup', up);
     addEventListener('pointercancel', up);
     document.addEventListener('keydown', keydown, true);
@@ -287,7 +290,7 @@ export function initCanvas(C){
   const frameEvents = {
     wheel(fr, e){ const p = toWindow(fr, e); return wheel({ ...copy(e), clientX: p.x, clientY: p.y, target: box }, p) ? (e.preventDefault(), true) : false; },
     down(fr, e){ const p = toWindow(fr, e); const fake = { ...copy(e), clientX: p.x, clientY: p.y, target: e.target, button: e.button, pointerId: e.pointerId, pointerType: e.pointerType, preventDefault: () => e.preventDefault() }; return down(fake, true); },
-    move(fr, e){ const p = toWindow(fr, e); move({ clientX: p.x, clientY: p.y, pointerId: e.pointerId }); },
+    move(fr, e){ const p = toWindow(fr, e); move({ clientX: p.x, clientY: p.y, pointerId: e.pointerId }); sheetOver(p.x, p.y); },
     up(fr, e){ const p = toWindow(fr, e); up({ clientX: p.x, clientY: p.y, pointerId: e.pointerId }); },
     gesture(fr, e){ const p = toWindow(fr, e); gesture({ type: e.type, scale: e.scale, clientX: p.x, clientY: p.y, preventDefault: () => e.preventDefault() }); },
     key: { down: keydown, up: keyup },

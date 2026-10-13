@@ -7,6 +7,8 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
+- **The zoom bar shows only over the white page.** It no longer appears when the pointer is over the mat beside or around the page, or over the panel; it still shows when you tab into it and when the keys zoom.
+- **With the panel folded, Fit and the fill meter are a small chip beside the tags, always in view,** instead of sitting in the zoom bar. The zoom bar is just full screen, zoom out, the percentage, zoom in and fit to window.
 - **The folded Tea tags move like tags on strings.** Brushing a tag now pushes it gently once and it settles, with no wiggle. The lower the tag, the longer its string: it travels further and settles slower (about 0.6 s for the first, 1.2 s for the fifth).
 - **The macOS desktop app has no grey title bar.** The app runs up to the top edge of the window and the red, yellow and green buttons float over its top left. Drag the window by the generous strip along the top (56 px; every control stays clickable). Browsers are unchanged.
 
