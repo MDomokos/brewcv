@@ -950,9 +950,9 @@ body[data-phone=true] .fitchip { bottom: auto; top: 56px; }
 /* the grip is always there on a row that moves; ↑ ↓ show while the row is hovered, focused or selected (they stay tabbable) */
 .clrow { position: relative; }
 .clrow[draggable] { grid-template-columns: 18px minmax(0, 1fr) auto auto auto; }
-.clgrip { grid-column: 5; display: grid; place-items: center; width: 24px; height: 24px; color: var(--faint); cursor: grab; }
+.clgrip { grid-column: 5; grid-row: 1; display: grid; place-items: center; width: 24px; height: 24px; color: var(--faint); cursor: grab; }
 .clmv { display: flex; opacity: 0; pointer-events: none; }
-.clrow .clmv { grid-column: 4; }
+.clrow .clmv { grid-column: 4; grid-row: 1; }
 .clrow:hover .clmv, .clrow:focus-within .clmv, .clrow.is-sel .clmv, .srow:hover .clmv, .srow:focus-within .clmv, .srow.is-sel .clmv { opacity: 1; pointer-events: auto; }
 .clmv .ib { width: 24px; height: 24px; }
 .clmv .ib[aria-disabled=true] { opacity: .4; cursor: default; }

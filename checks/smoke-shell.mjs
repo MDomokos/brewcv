@@ -2102,6 +2102,9 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
     await rows.nth(1).locator('.clt').focus();
     ok(`at ${w} px no ↑ ↓ button covers the chip or the text of its row, and the row keeps its height`, (await overlaps()).length === 0 && await rows.nth(1).evaluate(r => r.offsetHeight) === rowH && (await page.locator('#checklist .clv').count()) > 0, (await overlaps()).join('; '));
   }
+  // every movable row is as tall as the same row without grip and ↑ ↓ (a clone, stripped of them, in the same list)
+  const heights = await page.evaluate(() => [...document.querySelectorAll('#checklist .clrow[draggable]')].flatMap(r => [false, true].map(short => { const m = r.cloneNode(true), c = r.cloneNode(true); c.removeAttribute('draggable'); c.querySelectorAll('.clgrip, .clmv').forEach(x => x.remove()); for (const x of [m, c]) if (short) x.querySelector('.clt').textContent = 'Short'; r.after(m, c); const h = [m.offsetHeight, c.offsetHeight]; m.remove(); c.remove(); return h; })));
+  ok('a movable row is as tall as the same row without grip and ↑ ↓, at 1536 px', heights.length >= 6 && heights.every(h => h[0] === h[1]), heights.join(' | '));
   await page.setViewportSize({ width: 1536, height: 864 }); await settle(page);
   ok('hovering a row shows ↑ ↓; the grip, ↑ and ↓ are each at least 24 px', await page.locator('#checklist .clrow >> nth=1').evaluate(r => getComputedStyle(r.querySelector('.clmv')).opacity === '1') && await big(rows.nth(1).locator('.clgrip')) && await big(rows.nth(1).locator('[data-act=cl-up]')) && await big(rows.nth(1).locator('[data-act=cl-down]')));
   ok('the first row’s ↑ and the last row’s ↓ are aria-disabled (still in the page); the others are not', (await rows.first().locator('[data-act=cl-up]').getAttribute('aria-disabled')) === 'true' && (await rows.last().locator('[data-act=cl-down]').getAttribute('aria-disabled')) === 'true'
