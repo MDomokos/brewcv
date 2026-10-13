@@ -20,6 +20,8 @@ const view = () => C.checklist.html();
 // Draw the panel again, and then bring the group asked for into view.
 function afterRender(){
   C.checklist.afterRender();
+  const tl = document.querySelector('#checklist .tl2');
+  if (tl) tl.scrollLeft = tl.scrollWidth;       // the newest year is in view
   if (!R.goto) return;
   const id = R.goto, mark = R.mark;
   R.goto = null; R.mark = [];

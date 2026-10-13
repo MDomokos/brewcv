@@ -128,7 +128,7 @@ if (want('one screen: the panel folds, the tabs, the zoom bar, the shortcut shee
   const page = await ctx.newPage();
   const bad = await open(page);
   const sheet = page.frameLocator('#sheet iframe');
-  const S = () => page.evaluate(() => ({ folded: document.body.dataset.folded, sel: window.__wb.ui.sel.kind, zoom: window.__wb.ui.zoom, view: window.__wb.ui.view ?? null, tab: document.querySelector('#tabs [role=tab][aria-selected=true]')?.dataset.m ?? null, pane: window.__wb.ui.pane }));
+  const S = () => page.evaluate(() => ({ folded: document.body.dataset.folded, sel: window.__wb.ui.sel.kind, zoom: window.__wb.ui.zoom, view: window.__wb.ui.view ?? null, tab: document.querySelector('#tabs .tab.is-open')?.dataset.m ?? null, pane: window.__wb.ui.pane }));
   const col = () => rect(page, '#col');
   const key = k => page.keyboard.press(k);
   ok('Open is the default: the panel and the tabs are on screen, and there is no rail, no Auto and no panel mode', (await S()).folded === 'false' && await page.isVisible('#body') && !(await page.$('#rail')) && (await page.evaluate(() => window.__wb.ui.panel)) === undefined);
@@ -2670,6 +2670,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     // ---- what Record shows ----
     ok(`${tag}: a header row: Your record, n of m on, + Add`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && /Your record/.test(h.textContent) && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]'); }));
     ok(`${tag}: the timeline is open across the panel, always`, await page.evaluate(() => { const t = document.querySelector('#checklist .rectl .tl2'); const b = document.querySelector('#body'); return !!t && t.getBoundingClientRect().width > b.getBoundingClientRect().width * 0.8 && !document.querySelector('#timeline'); }));
+    ok(`${tag}: the timeline is about 118px high and its years run left to right`, await page.evaluate(() => { const t = document.querySelector('#checklist .rectl .tl2'); const y = [...t.querySelectorAll('.yr')].map(e => e.getBoundingClientRect().left); return Math.abs(t.getBoundingClientRect().height - 118) <= 1 && y.length >= 3 && y.every((x, k) => k === 0 || x > y[k - 1]); }));
     ok(`${tag}: every group is open by default, and the carets stay`, await page.evaluate(() => { const gs = [...document.querySelectorAll('#checklist .clg')]; return gs.length >= 5 && gs.every(g => g.classList.contains('open')) && gs.every(g => g.querySelector('.clcaret[aria-expanded=true]')); }));
     ok(`${tag}: jobs newest first, then education, skills…`, await page.evaluate(() => { const ids = [...document.querySelectorAll('#checklist .clg')].map(g => g.dataset.g); return ids[0] === 'about' && ids.indexOf('hydra') < ids.indexOf('poly') && ids.indexOf('education') > ids.indexOf('atelier') && ids.includes('credentials'); }));
     await page.click('#checklist .clg[data-g=hydra] .clcaret'); await settle(page);

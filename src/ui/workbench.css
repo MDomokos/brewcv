@@ -876,6 +876,17 @@ body[data-phone=true] .hrow.modes .grow { display: none; }
 /* Record: the whole record, in a wide panel */
 .checklist .rectl { margin: 4px 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .clg.is-asked { background: var(--mark-soft); outline: 2px solid var(--mark); outline-offset: -2px; border-radius: var(--r-s); transition: background .4s var(--ease), outline-color .4s var(--ease); }
+/* Record's timeline runs across the top: a column a year, oldest at the left, 118 px high; the dates and the organisation stay for a screen reader */
+body:not([data-phone=true]) .rectl .tl2 { display: grid; grid-auto-flow: column; grid-template-rows: auto 1fr; grid-auto-columns: 168px; gap: 0 8px; box-sizing: border-box; height: 118px; padding: 0 0 6px; overflow: auto; }
+body:not([data-phone=true]) .rectl .tl2::before, body:not([data-phone=true]) .rectl .colhead { display: none; }
+body:not([data-phone=true]) .rectl .yr { margin: 0; padding-bottom: 2px; border-bottom: 2px solid var(--line); }
+body:not([data-phone=true]) .rectl .yr::before { display: none; }
+body:not([data-phone=true]) .rectl .yrow { display: block; min-width: 0; }
+body:not([data-phone=true]) .rectl .main, body:not([data-phone=true]) .rectl .side { gap: 2px; padding: 3px 0 0; border: 0; }
+body:not([data-phone=true]) .rectl .row, body:not([data-phone=true]) .rectl .srow { display: flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 6px; }
+body:not([data-phone=true]) .rectl .row .ic { position: static; flex: none; width: 18px; height: 18px; border-width: 1px; }
+body:not([data-phone=true]) .rectl .row .w, body:not([data-phone=true]) .rectl .row .o, body:not([data-phone=true]) .rectl .row .marks, body:not([data-phone=true]) .rectl .srow .w, body:not([data-phone=true]) .rectl .srow .o { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+body:not([data-phone=true]) .rectl .row .t, body:not([data-phone=true]) .rectl .srow .t { min-width: 0; font-size: 12.5px; }
 body[data-phone=true] .rectl .tl2 { padding-left: 0; }
 body[data-phone=true] .rectl .tl2::before, body[data-phone=true] .rectl .colhead, body[data-phone=true] .rectl .yr { display: none; }
 body[data-phone=true] .rectl .yrow { display: block; }
