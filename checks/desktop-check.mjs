@@ -33,4 +33,9 @@ ok('every name in data/example-resumes/index.json is NFC', !bad.length, bad.join
 
 const csp = /connect-src[^;]*/.exec(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'))?.[0];
 ok("the web build's connect-src is still 'self' only (the desktop copy alone adds the IPC schemes)", csp === "connect-src 'self'" && IPC.startsWith(csp));
+// The export is one HTML page with its CSS and fonts inlined (inline <style>, data: fonts). The print window writes it into itself, so
+// its own CSP must allow those, or the PDF comes out as unstyled serif text; scripts stay limited to this app's files.
+const printCsp = fs.readFileSync(path.join(ROOT, 'desktop/print.html'), 'utf8').match(/Content-Security-Policy" content="([^"]+)"/)?.[1] ?? '';
+ok('the print window lets the export keep its inline styles, data: fonts and images', /style-src[^;]*'unsafe-inline'/.test(printCsp) && /font-src[^;]*data:/.test(printCsp) && /img-src[^;]*data:/.test(printCsp), printCsp);
+ok('…and still allows script only from the app\'s own files', /script-src 'self'(;|$)/.test(printCsp));
 process.exit(failed ? 1 : 0);

@@ -1,6 +1,7 @@
 // The Export view: pre-flight checks, then the downloads. The string work is in
 // src/export.js; this module fetches, downloads and prints.
 
+import { pageSize } from './layout.js';
 import * as X from '../export.js';
 import { renderPages } from '../render.js';
 import { missingList } from '../model/lang.js';
@@ -64,7 +65,8 @@ async function savePdfFile(html){
   await new Promise((ok, no) => { w.once('tauri://created', ok); w.once('tauri://error', e => no(new Error(String(e.payload)))); });
   const done = new Promise(ok => T.event.once('pdf-done', e => ok(e.payload)));
   await new Promise(ok => setTimeout(ok, 600)); // the page's listener is set up a moment after the window exists
-  await w.emit('html', { html, path });
+  const { w: pw, h: ph } = pageSize(C.cur().format);   // the page box in CSS px; the paper is the same size in points, so nothing spills onto a blank page
+  await w.emit('html', { html, path, width: pw * 0.75, height: ph * 0.75 });
   const r = await done;
   if (r.unsupported) return false;
   C.toast(r.ok ? t('toast.pdfSaved', { path }) : t('toast.pdfFailed', { msg: r.msg }), r.ok ? '' : 'bad');

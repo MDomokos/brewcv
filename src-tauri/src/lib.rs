@@ -3,10 +3,10 @@ use std::{path::Path, time::Duration};
 // Prints the calling window's page to a PDF file, no print panel (macOS). Resolves when the file has stopped growing.
 // Async so it runs off the main thread, which with_webview needs free.
 #[tauri::command]
-async fn print_pdf(window: tauri::WebviewWindow, path: String) -> Result<(), String> {
+async fn print_pdf(window: tauri::WebviewWindow, path: String, width: f64, height: f64) -> Result<(), String> {
     // a file left from before would look like the finished one
     let _ = std::fs::remove_file(&path);
-    start_print(&window, &path)?;
+    start_print(&window, &path, width, height)?;
     wait_for_file(Path::new(&path)).await
 }
 
@@ -28,7 +28,7 @@ async fn sleep_ms(ms: u64) {
 }
 
 #[cfg(target_os = "macos")]
-fn start_print(window: &tauri::WebviewWindow, path: &str) -> Result<(), String> {
+fn start_print(window: &tauri::WebviewWindow, path: &str, width: f64, height: f64) -> Result<(), String> {
     use objc2::{msg_send, rc::Retained, runtime::AnyObject};
     use objc2_app_kit::{NSPrintInfo, NSPrintJobSavingURL, NSPrintOperation, NSPrintSaveJob};
     use objc2_foundation::{NSSize, NSString, NSURL};
@@ -39,7 +39,7 @@ fn start_print(window: &tauri::WebviewWindow, path: &str) -> Result<(), String> 
             let web_view: &AnyObject = &*(wv.inner() as *const AnyObject);
             let shared = NSPrintInfo::sharedPrintInfo();
             let info: Retained<NSPrintInfo> = msg_send![&*shared, copy];
-            info.setPaperSize(NSSize { width: 595.0, height: 842.0 }); // A4 in points
+            info.setPaperSize(NSSize { width, height }); // the page box of the resume's format, in points
             info.setTopMargin(0.0);
             info.setBottomMargin(0.0);
             info.setLeftMargin(0.0);
@@ -60,7 +60,7 @@ fn start_print(window: &tauri::WebviewWindow, path: &str) -> Result<(), String> 
 
 // The page falls back to the browser's print dialog on this error.
 #[cfg(not(target_os = "macos"))]
-fn start_print(_window: &tauri::WebviewWindow, _path: &str) -> Result<(), String> {
+fn start_print(_window: &tauri::WebviewWindow, _path: &str, _width: f64, _height: f64) -> Result<(), String> {
     Err("unsupported".into())
 }
 
