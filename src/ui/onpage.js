@@ -106,7 +106,7 @@ export function initOnPage(C){
     const over = C.cur().overrides?.[fact];
     const vn = over !== undefined && !ed ? t('edit.only') : (ed?.mode === 'only' ? t('edit.only') : using?.n ?? '·');
     const canOnly = !!(T.jobOfFact(C.record(), fact) || fact === C.cur().summary);
-    const html = toolsHtml({ vn, ed, dirty: !!ed && edit().isDirty(), canOnly, open: popOpen, counts: ed ? statsCompactHtml(ed) : '' });
+    const html = toolsHtml({ vn, ed, dirty: !!ed && edit().isDirty(), canOnly, canMove: !!ed && !!T.jobOfFact(C.record(), fact), open: popOpen, counts: ed ? statsCompactHtml(ed) : '' });
     return html + (popOpen ? badgeListHtml({ fact, versions: versionsOf(C.ix(), fact, C.lang()), usingId: using?.id }) : '');
   }
 
@@ -304,6 +304,7 @@ export function initOnPage(C){
   async function act(a){
     switch (a){
       case 'ob-badge': popOpen = !popOpen; render(true); return true;
+      case 'ob-up': case 'ob-down': edit().stepLine(a === 'ob-up' ? -1 : 1); return true;
     }
     return false;
   }

@@ -15,6 +15,8 @@ const P = {
   undo: '<path d="M5.6 3.4 2.6 6.4l3 3"/><path d="M3 6.4h6a3.6 3.6 0 0 1 0 7.2H6.4"/>',
   redo: '<path d="M10.4 3.4l3 3-3 3"/><path d="M13 6.4H7a3.6 3.6 0 0 0 0 7.2h2.6"/>',
   caret: '<path d="M5 6.4l3 3 3-3"/>',
+  up: '<path d="M5 9.6l3-3 3 3"/>',
+  grip: '<circle cx="6" cy="4" r=".9"/><circle cx="10" cy="4" r=".9"/><circle cx="6" cy="8" r=".9"/><circle cx="10" cy="8" r=".9"/><circle cx="6" cy="12" r=".9"/><circle cx="10" cy="12" r=".9"/>',
   help: '<circle cx="8" cy="8" r="6"/><path d="M6.3 6.2a1.8 1.8 0 1 1 2.6 1.6c-.6.3-.9.7-.9 1.4M8 11.3v.1"/>',
   timeline: '<path d="M5 2.6v10.8M5 4.4h7M5 8h5M5 11.6h6.5"/><circle cx="5" cy="4.4" r=".9"/><circle cx="5" cy="8" r=".9"/><circle cx="5" cy="11.6" r=".9"/>',
   close: '<path d="M4 4l8 8M12 4l-8 8"/>',

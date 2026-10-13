@@ -12,6 +12,8 @@ const markSeen = () => { try { localStorage.setItem(SEEN_KEY, '1'); } catch { /*
 // Ctrl is ⌘ on a Mac, and Alt is ⌥ (the keys are the same; the names are not)
 const isMac = () => /Mac|iPhone|iPad|iPod/.test(globalThis.navigator?.platform ?? '');
 const MAC = { Ctrl: '⌘', Alt: '⌥' };
+// the same keys as plain text, for a tooltip: ⌥↑ on a Mac, Alt+↑ elsewhere
+export const keyText = (...keys) => keys.map(k => (isMac() ? (MAC[k] ?? k) : k)).join(isMac() ? '' : '+');
 const K = (...keys) => keys.map(k => `<kbd>${isMac() ? (MAC[k] ?? k) : k}</kbd>`).join(' ');
 // [keys, i18n key]
 const groups = () => [

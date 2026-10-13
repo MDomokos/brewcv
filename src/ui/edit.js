@@ -8,10 +8,11 @@ import { key as measureKeyOf } from '../fit.js';
 import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
 import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
 import * as K from '../model/career.js';
-import { recordSelOfFact, factOfRecordSel, checklist, sectionCounts } from '../model/checklist.js';
+import { recordSelOfFact, factOfRecordSel, checklist, sectionCounts, sectionsCustom } from '../model/checklist.js';
 import { t, h, errText } from '../i18n/index.js';
 import { play } from './motion.js';
-import { esc, clip, crumb, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
+import { esc, clip, crumb, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead, orderMarkHtml, moveButtonsHtml } from './parts.js';
+import { icon } from './icons.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -105,18 +106,20 @@ function lensBox(){
 function homeView(){
   const list = T.sectionList(rec(), cur());
   const on = list.filter(s => s.on), off = list.filter(s => !s.on);
+  const movable = on.filter(s => !s.fixed);
   const manual = Array.isArray(cur().pages);
   const cl = checklist(rec(), cur(), lang());
   return `${C.newerBanner()}${missingBar()}
     <h2 class="title">${h('ux3b.editTitle')}</h2>
     <p class="lead edithint">${h('ux3b.editHint')}</p>
     ${lensBox()}
-    <span class="lbl">${h('edit.sectionsHere')}</span>
+    <div class="ordhead"><span class="lbl">${h('edit.sectionsHere')}</span>${orderMarkHtml(sectionsCustom(rec(), cur()), 'sections', 'sections', t('edit.sectionsHere'))}</div>
     <div class="list" id="seclist">${on.map(s => `
-      <div class="item srow ${s.fixed ? 'fixed' : ''}" data-sid="${esc(s.id)}" ${s.fixed ? '' : 'draggable="true"'}>
-        <span class="grip" aria-hidden="true">${s.fixed ? '' : '⠿'}</span>
+      <div class="item srow ${s.fixed ? 'fixed' : ''} ${C.ui.sel.kind === 'section' && C.ui.sel.id === s.id ? 'is-sel' : ''}" data-sid="${esc(s.id)}" ${s.fixed ? '' : 'draggable="true"'}>
+        <span class="grip" aria-hidden="true">${s.fixed ? '' : icon('grip')}</span>
         <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${esc(C.sectionTitle(s.id))}</a><span class="muted tiny">${s.fixed ? h('edit.alwaysFirst') : sectionCount(s, cl)}</span></span>
-        ${s.fixed ? '' : sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, true)}
+        ${s.fixed ? '' : moveButtonsHtml('sec-up', 'sec-down', s.id, C.sectionTitle(s.id), { first: s.id === movable[0].id, last: s.id === movable.at(-1).id })
+          + sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, true)}
       </div>`).join('')}</div>
     ${off.length ? `<p class="notonline" id="offline"><span class="muted small">${h('ux2.notOn')}</span> ${off.map(s => `<button class="tag offchip" data-act="section-on" data-id="${esc(s.id)}" draggable="true" data-sid="${esc(s.id)}" title="${esc(t('ux2.turnOnTitle'))}">${esc(C.sectionTitle(s.id))}</button>`).join(' ')}</p>` : ''}
     ${manual ? `<p class="note">${h('edit.dragManual')}</p>` : ''}`;
@@ -466,6 +469,8 @@ async function act(a, tg){
       commit(d => { const v = d.record.variants.find(x => x.id === vid); if (v) v.tags = (v.tags ?? []).filter(x => x !== tag); }, t('undo.removeTag'));
       return true;
     }
+    case 'sec-up': case 'sec-down': if (tg.getAttribute('aria-disabled') !== 'true') stepSectionBy(tg.dataset.id, a === 'sec-up' ? -1 : 1); return true;
+    case 'order-reset': resetOrder(tg.dataset.kind, tg.dataset.id); return true;
     case 'label-reset': commit(d => T.setSectionLabel(d.record, d.cur, sel.id, lang(), null), t('undo.resetHeading')); return true;
     case 'label-all': commit(d => T.useLabelEverywhere(d.record, d.cur, sel.id, lang()), t('undo.headingAll'), t('toast.headingAll')); return true;
   }
@@ -634,36 +639,50 @@ function rename(id, value){
     same ? t('toast.headingReset') : t('toast.renamedHere', { lang: LANG_NAME[L] ?? L, id }));
 }
 
-// Alt+↑ / Alt+↓ move the selected section.
-function moveSelected(d){
-  const sel = C.ui.sel;
-  if (sel.kind !== 'section') return false;
+// The commands behind Alt+↑ / Alt+↓, the ↑ ↓ buttons and the margin's arrows: one step, one undo step. They return whether anything moved.
+function stepSectionBy(id, d){
   let r;
-  commit(x => { r = T.stepSection(x.record, x.cur, sel.id, d); }, t('undo.moveSection'));
-  if (r?.moved){ C.flash(sel.id); if (r.auto) C.toast(autoNote(r).trim()); }
-  return true;
+  commit(x => { r = T.stepSection(x.record, x.cur, id, d); }, t('undo.moveSection'));
+  if (r?.moved){ C.flash(id); if (r.auto) C.toast(autoNote(r).trim()); }
+  return !!r?.moved;
 }
+function stepBulletBy(id, d){
+  let moved = false;
+  commit(x => { moved = T.stepBullet(x.record, x.cur, id, d); }, t('ux2.undoMoveItem'));
+  return moved;
+}
+function stepItemBy(id, d){
+  const sid = T.sectionOfItem(rec(), id);
+  let moved = false;
+  commit(x => { moved = T.stepItem(x.record, x.cur, sid, id, d); }, t('ux2.undoMoveItem'));
+  if (moved) C.flash(sid);
+  return moved;
+}
+const stepRow = (row, d) => (row.dataset.bullet ? stepBulletBy(row.dataset.bullet, d) : stepItemBy(row.dataset.item, d));
 
-// Alt+↑ / Alt+↓ moves what has the focus or is selected: an item of a list section in its section's print order,
-// else the selected section
+// Alt+↑ / Alt+↓ move what has the focus or is selected: a bullet of a job, an item of a list section in its section's print
+// order, else the selected section
 function moveWhatIsHere(d){
   const bullet = document.activeElement?.closest?.('.clrow[data-bullet]')?.dataset.bullet
     ?? (C.ui.sel.kind === 'bullet' && C.ui.sel.job ? C.ui.sel.id : null);
-  if (bullet){
-    commit(x => T.stepBullet(x.record, x.cur, bullet, d), t('ux2.undoMoveItem'));
-    return true;
-  }
+  if (bullet){ stepBulletBy(bullet, d); return true; }
   const row = document.activeElement?.closest?.('.clrow[data-item]');
   const sel = C.ui.sel;
   const id = row?.dataset.item ?? (sel.kind === 'record' && sel.what === 'item' && T.sectionOfItem(rec(), sel.id) ? sel.id : null);
-  if (id){
-    const sid = T.sectionOfItem(rec(), id);
-    let moved = false;
-    commit(x => { moved = T.stepItem(x.record, x.cur, sid, id, d); }, t('ux2.undoMoveItem'));
-    if (moved) C.flash(sid);
-    return true;
-  }
-  return moveSelected(d);
+  if (id){ stepItemBy(id, d); return true; }
+  if (sel.kind !== 'section') return false;
+  stepSectionBy(sel.id, d);
+  return true;
+}
+// "custom" → Reset: this resume's order goes back to the record's, as one undo step
+function resetOrder(kind, id){
+  let auto = false;
+  commit(d => {
+    if (kind === 'job'){ const on = new Set(T.listedBullets(d.record, d.cur, id)); for (const b of ix().work.get(id)?.highlights ?? []) if (on.has(b)) T.moveBullet(d.record, d.cur, b); }
+    else if (kind === 'items') for (const x of T.itemsOf(d.record, id) ?? []) T.moveItem(d.record, d.cur, id, x);
+    else { const on = new Set(T.sectionList(d.record, d.cur).filter(s => s.on && !s.fixed).map(s => s.id)); for (const s of d.record.sections) if (on.has(s.id)) auto ||= T.moveSection(d.record, d.cur, s.id).auto; }
+  }, t('ux5b.undoReset'));
+  if (auto) C.toast(t('toast.autoPages'));
 }
 function key(e){
   // writing a line on the page: Esc leaves it for the job (asks first if there is a draft), wherever the focus is
@@ -688,7 +707,7 @@ function leaving(next){
 }
 
 const api = {
-  homeView, sectionView, jobView, bulletView, factPanel, act, bind, key, leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, ctrlEnter,
+  homeView, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, ctrlEnter,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){

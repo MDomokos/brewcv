@@ -6,6 +6,7 @@ import * as R from '../model/record.js';
 import { isSame, sameKey, langName, DEFAULT_LANG } from '../model/lang.js';
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
+import { keyText } from './help.js';
 
 export const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const clip = (s, n = 90) => (String(s).length > n ? String(s).slice(0, n - 1).trimEnd() + '…' : String(s));
@@ -175,7 +176,7 @@ const iconButton = (act, ic, name, tip, attrs = '') =>
 
 // The column beside the line: the version badge, and while writing the three ways to keep what you wrote, with the counts.
 // ed: the draft being written (or null); vn: the number of the version in use; dirty: the draft differs from it.
-export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, open = false, counts = '' }){
+export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, canMove = false, open = false, counts = '' }){
   const badge = `<button class="obv" data-act="ob-badge" aria-haspopup="listbox" aria-expanded="${open}" data-tip="${esc(t('ux3.badge'))}|${esc(t('ux3.badgeTip'))}" data-tip-pos="l" aria-label="${esc(t('ux3.badgeName', { v: vn }))}">v${esc(vn)} ${icon('caret', { size: 12 })}</button>`;
   if (!ed) return `<div class="obtools" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}</div>`;
   const dis = dirty ? '' : 'disabled';
@@ -186,7 +187,9 @@ export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, open 
   const act2 = isNew ? '' : isOnly ? iconButton('ed-promote', 'copyplus', t('edit.saveAsV'), t('ux3.saveAsTip'), dis)
     : iconButton('ed-saveas', 'copyplus', t('edit.saveAsV'), t('ux3.saveAsTip'), dis);
   const act3 = isNew || isOnly || !canOnly ? '' : iconButton('ed-only', 'onlyhere', t('edit.thisOnly'), t('ux3.onlyTip'), dis);
-  return `<div class="obtools writing" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}${act1}${act2}${act3}<div class="obstats" id="ob-stats">${counts}</div></div>`;
+  const tip = (k, arrow) => t(k, { keys: keyText('Alt', arrow) });
+  const mv = !canMove ? '' : iconButton('ob-up', 'up', t('ux5b.lineUp'), tip('ux5b.lineUpTip', '↑')) + iconButton('ob-down', 'caret', t('ux5b.lineDown'), tip('ux5b.lineDownTip', '↓'));
+  return `<div class="obtools writing" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}${act1}${act2}${act3}${mv}<div class="obstats" id="ob-stats">${counts}</div></div>`;
 }
 
 // The other versions, under the badge. Rows are the inspector's (.vrow inside .vlist), so hovering one shows it on the page
@@ -202,3 +205,14 @@ export function statsCompactHtml(ed){
   const d = ln != null && ed.lines0 != null ? ln - ed.lines0 : 0;
   return `<span>${h('edit.chShort', { n: ch })}</span>${ln != null ? `<span>${h('edit.lnShort', { n: ln })}</span>` : ''}${d ? `<span class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '+' : ''}${d}</span>` : ''}`;
 }
+
+// "custom" and Reset, at the header of a job, a list or the sections: this resume's order is not the record's. kind: job | items | sections
+export const orderMarkHtml = (custom, kind, id, name) => (custom
+  ? `<span class="pill custom">${h('ux5b.custom')}</span><button class="ghost sm" data-act="order-reset" data-kind="${kind}" data-id="${esc(id)}" aria-label="${esc(t('ux5b.resetTitle', { name }))}">${h('ux5b.reset')}</button>` : '');
+
+// ↑ and ↓ on a row of a list that can be re-arranged (shown while the row is hovered, focused or selected). They stay in place at
+// the ends, aria-disabled, so the focus can stay.
+export const moveButtonsHtml = (up, down, id, text, { first, last }) => `<span class="clmv">${[[up, 'up', 'ux5b.up', first], [down, 'caret', 'ux5b.down', last]].map(([act, ic, k, off]) => {
+  const name = esc(t(k, { text: String(text).slice(0, 60) }));
+  return `<button class="ib" data-act="${act}" data-id="${esc(id)}" aria-label="${name}" title="${name}" aria-disabled="${!!off}">${icon(ic)}</button>`;
+}).join('')}</span>`;
