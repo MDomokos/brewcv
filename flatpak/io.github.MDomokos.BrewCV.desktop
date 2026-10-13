@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=BrewCV
+Comment=Tailor a résumé from one record of claims
+Exec=brewcv
+Icon=io.github.MDomokos.BrewCV
+Terminal=false
+Categories=Office;Utility;
+Keywords=resume;CV;curriculum vitae;job;
+StartupNotify=true

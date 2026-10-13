@@ -8,6 +8,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ### Added
 - **An experimental macOS desktop build.** A Tauri app (`src-tauri/`) that runs the same BrewCV from its own window. In it, Export > PDF asks for a file name once and saves the PDF there, with no print dialog. Other systems fall back to the print dialog. See Desktop build in docs/DEVELOPMENT.md.
+- **An experimental Linux Flatpak build** (`flatpak/`, built by a manual or tag-triggered GitHub workflow). It runs with no network permission. Untested on a real Linux system yet; PDF export uses the print dialog there.
 - **Link a folder in the desktop app.** The macOS app can mirror your record and saved resumes to a folder you pick, as Chrome and Edge do, and it reconnects to that folder when you reopen the app, without asking again. If the folder has moved or been deleted, the app asks you to pick it again.
 
 ### Fixed
