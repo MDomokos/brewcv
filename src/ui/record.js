@@ -11,17 +11,18 @@ let C = null;
 const FLASH_MS = 1600;
 
 // the group to show once the panel has been drawn, and the groups to mark
-const R = { goto: null, mark: [], timer: 0 };
+const R = { goto: null, mark: [], timer: 0, left: null };
 
 export function initRecord(ctx){ C = ctx; return api; }
 
-const view = () => C.checklist.html();
+// the strip's place is read just before the panel is drawn again; no strip yet means the tab is just being shown
+const view = () => { R.left = document.querySelector('#checklist .tl2')?.scrollLeft ?? null; return C.checklist.html(); };
 
 // Draw the panel again, and then bring the group asked for into view.
 function afterRender(){
   C.checklist.afterRender();
   const tl = document.querySelector('#checklist .tl2');
-  if (tl) tl.scrollLeft = tl.scrollWidth;       // the newest year is in view
+  if (tl) tl.scrollLeft = R.left ?? tl.scrollWidth;       // the newest year is in view when the tab is shown, else where the user left it
   if (!R.goto) return;
   const id = R.goto, mark = R.mark;
   R.goto = null; R.mark = [];
