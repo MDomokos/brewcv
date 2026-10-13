@@ -44,6 +44,7 @@ jobs:
             --exclude 'out' \
             --exclude 'src-tauri' \
             --exclude 'desktop' \
+            --exclude 'flatpak' \
             --exclude 'docs/*.png' \
             --exclude 'docs/*.gif' \
             --exclude '*.local.json' \
