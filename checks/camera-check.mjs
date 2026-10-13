@@ -164,7 +164,7 @@ section('writing keeps the page edge in view');
   ok('at 150% the centred page starts left of the view...', edge(at(150)) < v.left);
   const kept = keepPageEdge(at(150), g, v, line);
   ok('...and is brought back into it, with its line still in room', edge(kept) >= v.left && right(kept) <= v.left + v.width - 70 + 1e-6, `${edge(kept)} ${right(kept)}`);
-  ok('at 180% the line wins: the camera stays where it is', eq(keepPageEdge(at(180), g, v, line), at(180)));
+  ok('at 180% the line wins: the camera stays where it is', eq(keepPageEdge(at(180), g, v, { ...line, width: 600 }), at(180)));
 }
 
 console.log(failed ? `\n${failed} camera check(s) FAILED` : '\nall camera checks passed');
