@@ -333,13 +333,9 @@ html, body {
    Data picks a slot name, never a hex value, so colours stay in the theme. */
 .mark {
   --mark: var(--mark-fill);
-  background: linear-gradient(
-    to bottom,
-    transparent var(--mark-top),
-    var(--mark) var(--mark-top),
-    var(--mark) var(--mark-bottom),
-    transparent var(--mark-bottom)
-  );
+  /* One solid band with no transparent stops. A gradient with a hard `transparent` edge printed with dark fringes through
+     macOS's PDF engine (WebKit, as in Tauri); this has the same height and place. */
+  background: linear-gradient(var(--mark), var(--mark)) center / 100% calc(var(--mark-bottom) - var(--mark-top)) no-repeat;
   padding: 0 var(--mark-pad-x);
 }
 
