@@ -50,6 +50,28 @@ While you rest in tea, the mat comes alive: leaves and petals drift down and set
 
 ![Leaves, petals, a ladybug and rain on the tea mat while the editor rests, then a click into the resume clears the page](docs/tea-garden.gif)
 
+## Motion that explains
+
+Changes move instead of jumping, so you can see what happened. All of it turns off under your system's reduced-motion setting, and Settings has its own switch. The printed resume never changes. These are the example data, a fictional person.
+
+**Fit** shortens lines and leaves some out until the page is in its band, and says what it did.
+
+![Fit shortening lines and leaving some out, then a chip with Undo](docs/moments/01-fit.gif)
+
+**A version under the pointer** moves its words: shared words slide to their new place, removed words fade out and new ones fade in.
+
+![Hovering over another version of a line moves its words on the page](docs/moments/02-hover-version-words-move.gif)
+
+**Writing a line where it is printed** zooms the page to it, with the tools beside the line.
+
+![Clicking into a bullet zooms the page to it and opens it for writing](docs/moments/05-write-mode-zoom.gif)
+
+**Tea and coffee** change colours and morph corners, edges and shadows.
+
+![Clicking the logo changes the look from tea to coffee](docs/moments/12a-tea-to-coffee-logo.gif)
+
+Fifteen short recordings are in [docs/MOMENTS.md](docs/MOMENTS.md).
+
 ## How it differs from other tools
 
 Most resume tools that tailor for a job do it by changing your wording. BrewCV only picks from wordings you wrote. These are the closest ones:

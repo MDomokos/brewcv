@@ -30,6 +30,7 @@ recipes/
 !src-tauri/icons/*.png
 !docs/*.png
 !docs/*.gif
+!docs/moments/*.gif
 
 # Prototypes live in the vault, never here
 prototypes/
