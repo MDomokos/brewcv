@@ -1012,7 +1012,7 @@ export default {
   // UX-2: one screen
   'ux2.modes': 'Ce que montre le panneau',
   'ux2.modeEdit': 'Modifier',
-  'ux2.modeDesign': 'Mise en page',
+  'ux2.modeDesign': 'Style',
   'ux2.modeExport': 'Exporter',
   'ux2.panelLabel': 'Panneau d’édition',
   'ux2.savedShort': 'Enregistré',

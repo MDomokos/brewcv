@@ -1190,7 +1190,7 @@ export default {
   'ux5b.reset': 'Ripristina',
   'ux5b.resetTitle': 'Riporta {name} all’ordine del percorso',
   'ux5b.undoReset': 'Ripristina l’ordine',
-  'ux5c.tabOutline': 'Struttura',
+  'ux5c.tabOutline': 'Schema',
   'ux5c.outlineFoot': 'Fit taglia dal fondo. Metti per prime le cose importanti.',
   'ux5c.editNone': 'Fai clic su una riga della pagina, o sceglila nella struttura, per vederne le versioni.',
   'ux5c.line': '+ riga',
