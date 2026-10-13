@@ -130,6 +130,31 @@ export function fsaFolder(dir){
   };
 }
 
+// The desktop app (Tauri) has no showDirectoryPicker. Its fs and dialog plugins stand in; the folder's PATH is the handle kept for the
+// next launch (the persisted-scope plugin keeps the permission the dialog gave it). `T` is window.__TAURI__ (a fake in the checks).
+export const tauriApi = (T = globalThis.__TAURI__) => (T?.fs && T?.dialog ? T : null);
+export function tauriFolder(path, T = tauriApi()){
+  const fs = T.fs, at = p => `${path.replace(/[\\/]+$/, '')}/${p}`;
+  return {
+    name: path.split(/[\\/]/).filter(Boolean).at(-1) ?? path,
+    handle: path,
+    // no prompt here: a path the plugin still lets us reach is granted; otherwise the person picks the folder again
+    async permission(){ try { return (await fs.exists(path)) ? 'granted' : 'prompt'; } catch { return 'prompt'; } },
+    async read(p){ try { return await fs.readTextFile(at(p)); } catch { return null; } },
+    async list(sub){
+      try { return (await fs.readDir(at(sub))).filter(e => e.isFile).map(e => e.name).sort(); } catch { return []; }
+    },
+    async write(p, text){
+      const i = p.lastIndexOf('/');
+      if (i > 0) await fs.mkdir(at(p.slice(0, i)), { recursive: true });
+      await fs.writeTextFile(at(p), text);
+    },
+    async remove(p){ try { await fs.remove(at(p)); } catch { /* already gone */ } },
+  };
+}
+// what a remembered handle was: a path (desktop) or a FileSystemDirectoryHandle (browser)
+export const folderOf = (h, T) => (typeof h === 'string' ? tauriFolder(h, T) : fsaFolder(h));
+
 // a saved resume's `id` is its file name, not part of what the file says
 const stripId = r => { const c = { ...r }; delete c.id; return c; };
 export function filesOf(state){

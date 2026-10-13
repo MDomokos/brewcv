@@ -8,6 +8,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ### Added
 - **An experimental macOS desktop build.** A Tauri app (`src-tauri/`) that runs the same BrewCV from its own window. In it, Export > PDF asks for a file name once and saves the PDF there, with no print dialog. Other systems fall back to the print dialog. See Desktop build in docs/DEVELOPMENT.md.
+- **Link a folder in the desktop app.** The macOS app can mirror your record and saved resumes to a folder you pick, as Chrome and Edge do, and it reconnects to that folder when you reopen the app, without asking again. If the folder has moved or been deleted, the app asks you to pick it again.
 
 ### Fixed
 - **A resume named with accents keeps its name, whichever way the accents were typed.** A letter such as é pasted or synced as "e plus an accent" used to lose the accent and split the word ("Inge nieure") in the saved file's name. Names are now composed first, two names that differ only in that way count as the same name (so one saved resume can no longer write over another in a linked folder on a Mac), and a file a Mac or a sync tool named the other way opens under the composed name. If the folder holds one resume under both spellings, it opens once: a copy with the same text is dropped silently, and when they differ the one saved last opens. When you choose to use a folder's resumes, the other spelling is removed once the open one is written under the composed name.

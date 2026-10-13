@@ -5,6 +5,13 @@
   "permissions": [
     "core:default",
     "dialog:allow-save",
+    "dialog:allow-open",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-read-dir",
+    "fs:allow-mkdir",
+    "fs:allow-remove",
+    "fs:allow-exists",
     "core:webview:allow-create-webview-window",
     "core:window:allow-close"
   ]

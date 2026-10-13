@@ -177,7 +177,7 @@ Every script that takes `<data.json>` except `checks/validate-data.mjs` reads ei
 
 ## Desktop build (macOS, preview)
 
-An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Folder linking and updates are not in this build.
+An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Link a folder works too (below); updates are not in this build.
 
 Prerequisites: Rust (`brew install rustup`, then `rustup default stable`) and the Tauri CLI, which is not a dependency of this repo. Run it with `npx @tauri-apps/cli@2.12.2 ...` (or `cargo install tauri-cli --version '~2.12'` and `cargo tauri ...`). The `tauri` crate is pinned to a minor version because the raw WKWebView types behind the PDF export can change between minors.
 
@@ -186,6 +186,16 @@ node scripts/desktop-stage.mjs                              # only the staging
 npx @tauri-apps/cli@2.12.2 build --debug --no-bundle         # stages, then builds src-tauri/target/debug/brewcv
 npx @tauri-apps/cli@2.12.2 icon icons/icon.svg -o src-tauri/icons   # after the icon changes (then delete android/ and ios/)
 ```
+
+### Folder linking in the desktop app
+
+WKWebView has no `showDirectoryPicker`, so `src/store/persist.js` has a third folder object beside `fsaFolder` and `memoryFolder`: `tauriFolder(path)`, with the same methods, on the fs plugin's `readTextFile`, `writeTextFile`, `readDir`, `mkdir`, `remove` and `exists`. `tauriApi()` detects `window.__TAURI__.fs` and `.dialog`; without them (every browser) nothing changes. Link a folder then uses `dialog.open({ directory: true, recursive: true })`, and the rest of the flow (`adoptFolder`, the "use the folder's resumes?" question) is the same.
+
+- **What is kept across restarts is the folder's path** (a string), stored where the browser keeps its handle (`handle/folder`); `folderOf(h)` turns either kind back into a folder. The permission is kept by `tauri-plugin-persisted-scope`, which saves the scope the dialog added and restores it at launch. It must be registered after `tauri-plugin-fs`, and needs Rust 1.90 or newer.
+- **No prompt on reconnect.** `permission()` is `granted` while `exists(path)` works and `prompt` when it throws or says no (folder moved, deleted, scope lost); the existing reconnect row then asks the person to pick the folder again.
+- **What the capability allows.** `capabilities/default.json` lists `dialog:allow-open` and the fs commands the code uses (`read-text-file`, `write-text-file`, `read-dir`, `mkdir`, `remove`, `exists`), and no fs scope. Those permissions carry no pre-configured scope, so every fs call is refused until the person picks a folder in the dialog; then the app can reach that folder and below, nothing else. The `main` and `print*` windows share the capability; both load only the app's own files.
+- Not run on a second Mac, Windows or Linux, or in a sandboxed or notarized build. `checks/tauri-folder-check.mjs` drives the folder object against a fake `window.__TAURI__` (an in-memory disk with a scope).
+- **Still disabled for lack of the File System Access API:** nothing else is gated by it. Open and Save to file in `src/data.js` use `showOpenFilePicker` / `showSaveFilePicker` when present and fall back to a file input and an anchor download. The file input is standard; whether WKWebView in Tauri saves the anchor download was not tested (the PDF has its own save path).
 
 ### Rules the desktop PDF export depends on
 
@@ -198,7 +208,7 @@ Each of these was learned from a failure on a Mac; the checks and comments name 
 - **No ligatures** (`font-variant-ligatures: none` on `html, body`). The macOS engine wrote the "ff" glyph as "!" in the text layer, which breaks copy-paste and ATS parsers. Off everywhere so the screen, Fit and every export wrap the same.
 - **File names are NFC.** macOS can hold names with decomposed accents, and Tauri then serves its own page instead of the file (the example resumes failed to load). The stage script normalises names, and `loadExample` skips an example that comes back as a page.
 
-Not in the desktop build yet: folder linking (WKWebView has no `showDirectoryPicker`), the updater, a Windows or Linux PDF save (they fall back to the print dialog), a release build with signing and notarization. The Version line in Settings shows a dash, because `sw.js` is not staged.
+Not in the desktop build yet: the updater, a Windows or Linux PDF save (they fall back to the print dialog), a release build with signing and notarization. The Version line in Settings shows a dash, because `sw.js` is not staged.
 
 ## The one package.json
 

@@ -2,7 +2,7 @@
 // src/store/store.js; selection, preview and the page shown are view state, never undone.
 
 import { createStore } from '../store/store.js';
-import { createPersist, idbBackend, memoryBackend, fsaFolder, readFolder, readBackup, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
+import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, readFolder, readBackup, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
 import { load, loadResume, detect, resumeFileName } from '../model/schema.js';
 import { chooseVariant, newResume, listedBullets, jobRefs } from '../model/resume.js';
 import { isArchived } from '../model/entries.js';
@@ -588,7 +588,7 @@ function menuHtml(){
   return `<div class="menu card" role="menu">
     <button role="menuitem" data-act="goto" data-v="import">${h('menu.open')}</button>
     <button role="menuitem" data-act="save-file">${h('menu.backup')}</button>
-    <button role="menuitem" data-act="${linked ? 'unlink' : 'link'}" ${'showDirectoryPicker' in window || linked ? '' : `disabled title="${esc(t('menu.linkNeeds'))}"`}>${linked ? h('menu.unlink', { name: linked }) : h('menu.link')}</button>
+    <button role="menuitem" data-act="${linked ? 'unlink' : 'link'}" ${'showDirectoryPicker' in window || tauriApi() || linked ? '' : `disabled title="${esc(t('menu.linkNeeds'))}"`}>${linked ? h('menu.unlink', { name: linked }) : h('menu.link')}</button>
     <button role="menuitem" data-act="goto" data-v="history">${h('menu.history')}</button>
     <hr>
     <button role="menuitem" data-act="goto" data-v="settings">${h('menu.settings')}</button>
@@ -1055,10 +1055,12 @@ function setFlag(k){ try { localStorage.setItem(k, '1'); } catch { /* shown agai
 
 // A linked folder mirrors the record and its resumes to disk. It is never needed.
 async function linkFolder(){
-  let handle;
-  try { handle = await showDirectoryPicker({ id: 'brewcv', mode: 'readwrite' }); }
-  catch { return; }
-  const f = fsaFolder(handle);
+  let f;
+  try {
+    const T = tauriApi();
+    if (T){ const dir = await T.dialog.open({ directory: true, recursive: true }); if (!dir) return; f = tauriFolder(dir); }
+    else f = fsaFolder(await showDirectoryPicker({ id: 'brewcv', mode: 'readwrite' }));
+  } catch { return; }
   if ((await f.permission(true)) !== 'granted') return toast(t('toast.noFolderPermission'), 'warn');
   await adoptFolder(f, true);
 }
@@ -1091,7 +1093,7 @@ async function adoptFolder(f, fresh){
 async function checkFolder(){
   const h = await persist.rememberedFolder().catch(() => null);
   if (!h) return;
-  const f = fsaFolder(h);
+  const f = folderOf(h);
   if ((await f.permission(false)) === 'granted') return adoptFolder(f, false);
   ui.reconnect = f; renderHead();
 }

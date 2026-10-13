@@ -48,7 +48,7 @@ The policy is a seat belt on top of the claim, not the claim itself. The claim h
 
 ## The desktop build
 
-The experimental macOS app (see [DEVELOPMENT.md](DEVELOPMENT.md#desktop-build-macos-preview)) runs the same page from files inside the app, not from a website. Its policy is the page's policy with one addition: `connect-src` also lists `ipc:` and `http://ipc.localhost`, which Tauri uses to talk to the app's own native side on this computer (the Save dialog and writing the PDF). The web page's policy is unchanged, and `checks/desktop-check.mjs` fails if the desktop copy's rule leaks into it. The app has no update check yet, so it makes no network requests of its own; when one is added, it will be listed here.
+The experimental macOS app (see [DEVELOPMENT.md](DEVELOPMENT.md#desktop-build-macos-preview)) runs the same page from files inside the app, not from a website. Its policy is the page's policy with one addition: `connect-src` also lists `ipc:` and `http://ipc.localhost`, which Tauri uses to talk to the app's own native side on this computer (the Save dialog and writing the PDF). The web page's policy is unchanged, and `checks/desktop-check.mjs` fails if the desktop copy's rule leaks into it. The app has no update check yet, so it makes no network requests of its own; when one is added, it will be listed here. The app can read and write only the folder you pick with Link a folder (and what is inside it), and remembers its location on this computer.
 
 ## What it can't promise
 

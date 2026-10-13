@@ -68,6 +68,8 @@ fn start_print(_window: &tauri::WebviewWindow, _path: &str, _width: f64, _height
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_persisted_scope::init())   // after fs: it restores the folders the person picked
         .invoke_handler(tauri::generate_handler![print_pdf])
         .run(tauri::generate_context!())
         .expect("error while running BrewCV");
