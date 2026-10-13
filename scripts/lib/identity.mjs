@@ -1,11 +1,12 @@
-// Contact details from data/identity.local.json, gitignored so they stay out of
-// the repo. Without the file everything runs on obvious placeholders.
+// Contact details from identity.local.json, kept outside the repo (scripts/lib/private-files.mjs says where).
+// Without the file everything runs on obvious placeholders.
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { findPrivate, privateDirs } from './private-files.mjs';
 
-const FILE = path.resolve(fileURLToPath(new URL('../../data/identity.local.json', import.meta.url)));
+const found = findPrivate('identity.local.json');
+const FILE = found?.path ?? path.join(privateDirs()[0], 'identity.local.json');
 
 const PLACEHOLDER = {
   email: 'you@example.org',
@@ -15,7 +16,7 @@ const PLACEHOLDER = {
   countryCode: 'ZZ',
 };
 
-export const hasIdentity = fs.existsSync(FILE);
+export const hasIdentity = !!found;
 export const IDENTITY = hasIdentity
   ? { ...PLACEHOLDER, ...JSON.parse(fs.readFileSync(FILE, 'utf8')) }
   : PLACEHOLDER;
