@@ -1065,6 +1065,7 @@ async function linkFolder(){
 
 async function adoptFolder(f, fresh){
   const disk = await readFolder(f).catch(e => { toast(`${f.name}: ${errText(e)}`, 'bad'); return null; });
+  let adopted = false;
   if (disk){
     const cmp = await persist.compareFolder(f);
     if (!cmp.same){
@@ -1076,10 +1077,12 @@ async function adoptFolder(f, fresh){
         if (st.openId) RS.openSaved(st, st.openId);
         if (!st.cur){ st.cur = newResume(st.record); st.openId = null; }
         store.replace(st, t('undo.useFolder', { name: f.name }));
+        adopted = true;
       }
     }
   }
   const wrote = await persist.link(f);
+  if (adopted) await persist.dropMerged(disk.leftovers).catch(() => {});     // a spelling of a name that was merged into the one just written
   ui.reconnect = null;
   renderHead();
   toast(wrote.length ? t('toast.linkedWrote', { name: f.name, n: wrote.length }) : t('toast.linked', { name: f.name }));

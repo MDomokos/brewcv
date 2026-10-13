@@ -167,7 +167,7 @@ export async function readFolder(folder){
   if (text === null) return null;
   const { model, warnings } = load(JSON.parse(text));
   const resumes = [], frozen = {};
-  const skipped = [];
+  const skipped = [], leftovers = [];
   // one saved resume can be on disk under two spellings of its name (composed or decomposed accents): the files are
   // grouped by that, and a group is one resume
   const groups = new Map();
@@ -189,12 +189,13 @@ export async function readFolder(folder){
     if (!read.length) continue;
     // the one saved last wins, the composed name on a tie; a copy with the same text is no news, a different one stays on disk, untouched
     const keep = read.reduce((a, b) => (b.got.recipe.savedAt ?? '') > (a.got.recipe.savedAt ?? '') ? b : a);
-    for (const o of read) if (o !== keep && o.text !== keep.text) warnings.push(`recipes/${o.name}: same name as recipes/${keep.name} once accents are composed; the one saved last is open and this file is left as it is`);
+    for (const o of read) if (o !== keep && o.text !== keep.text) warnings.push(`recipes/${o.name}: same name as recipes/${keep.name} once accents are composed; the one saved last is open`);
     const id = keep.name.normalize('NFC');
+    for (const o of read) if (o.name !== id && read.length > 1) leftovers.push(o.name);   // every other spelling, the open one included
     resumes.push({ ...keep.got.recipe, id });
     if (keep.got.frozen) frozen[id] = keep.got.frozen;
   }
-  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped };
+  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped, leftovers };
 }
 
 export function readBackup(obj){
@@ -380,6 +381,18 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       const there = await f.read('resume-data.json');         // what is on disk now is what the person chose to keep or replace
       diskHash = there === null ? null : await sha256(there);
       return (await writeFolder()) ?? [];
+    },
+    // After link() has written the open resumes under their composed names: the other spelling of a merged resume is
+    // removed, but only when the composed file is there and this one is not it.
+    async dropMerged(names){
+      const gone = [];
+      for (const name of names){
+        if (name === name.normalize('NFC') || !linked?.remove) continue;
+        if ((await linked.read(`recipes/${name.normalize('NFC')}`)) === null) continue;
+        await linked.remove(`recipes/${name}`);
+        gone.push(name);
+      }
+      return gone;
     },
     // the person said to overwrite the file that changed outside the app
     async overwriteFolder(){

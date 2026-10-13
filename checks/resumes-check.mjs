@@ -473,7 +473,15 @@ section('accents in file names (composed and decomposed are one name)');
   const diff = memoryFolder({ 'resume-data.json': folder._files.get('resume-data.json'), [`recipes/${nfd}.json`]: JSON.stringify(later), [`recipes/${nfc}.json`]: text });
   const merged = await readFolder(diff);
   ok('two different ones: the one saved last opens, under the composed name', merged.state.resumes.length === 1 && merged.state.resumes[0].company === 'Newer Co' && merged.state.resumes[0].id === `${nfc}.json`);
-  ok('…and the other is named in a warning, not removed', merged.warnings.some(w => /same name/.test(w)) && diff._files.has(`recipes/${nfc}.json`) && diff._files.has(`recipes/${nfd}.json`));
+  ok('…and the other is named in a warning, and listed to be dropped', merged.warnings.some(w => /same name/.test(w)) && merged.leftovers.length === 1 && diff._files.has(`recipes/${nfd}.json`));
+  const st2 = merged.state; st2.cur = RS.savedOf(st2) ? JSON.parse(JSON.stringify(RS.savedOf(st2))) : st2.cur;
+  const p2 = createPersist({ store: createStore(st2), backend: memoryBackend(), debounceMs: 0, setTimer: (fn) => { fn(); return 0; }, clearTimer: () => {} });
+  await p2.link(diff);
+  const gone = await p2.dropMerged(merged.leftovers);
+  ok('after the write, the other spelling is removed and the composed file holds the newer resume', gone.length === 1 && !diff._files.has(`recipes/${nfd}.json`) && JSON.parse(diff._files.get(`recipes/${nfc}.json`)).meta.resumeBuilder.resume.company === 'Newer Co');
+  const same2 = await readFolder(diff);
+  ok('and the folder reads back as one resume with nothing to warn about', same2.state.resumes.length === 1 && same2.warnings.length === 0 && same2.leftovers.length === 0, JSON.stringify(same2.warnings));
+  ok('a spelling that is the composed one is never dropped', (await p2.dropMerged([`${nfc}.json`])).length === 0 && diff._files.has(`recipes/${nfc}.json`));
 }
 
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');
