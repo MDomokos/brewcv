@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "BrewCV desktop app (experimental)"
 license = "AGPL-3.0-or-later"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.90"
 
 [lib]
 name = "brewcv_lib"
