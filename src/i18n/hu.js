@@ -1128,7 +1128,6 @@ export default {
   'ux2.tagsHow1': '1. Adj hozzá egy címkét minden munkatípushoz, amelyre jelentkezel, például cad vagy web. Kezdd néhánnyal; ez a lista a tiéd, és üresen indul.',
   'ux2.tagsHow2': '2. Nyiss meg egy sort, és adj egy megfogalmazásának egy címkét a listából.',
   'ux2.tagsHow3': '3. Fogj össze címkéket munkatípussá (fent). Egy önéletrajzban válaszd ki a Kiemelés alatt, hogy lásd a megfelelő sorokat, majd az Alkalmaz… gombbal kapcsold be őket.',
-  'm11.question': 'Mit iszol ma?',
   'm11.tea': 'Tea',
   'm11.coffee': 'Kávé',
   'm11.teaHint': 'Sietség nélkül, levegővel. A Shift+F vált.',

@@ -1128,7 +1128,6 @@ export default {
   'ux2.tagsHow1': '1. Voeg een tag toe voor elke soort baan waarop je solliciteert, zoals cad of web. Begin met een paar; deze lijst is van jou en begint leeg.',
   'ux2.tagsHow2': '2. Open een regel en geef een van zijn formuleringen een tag uit de lijst.',
   'ux2.tagsHow3': '3. Voeg tags samen tot een soort baan (hierboven). Kies die in een cv onder Markeren om de passende regels te zien en dan Toepassen… om ze aan te zetten.',
-  'm11.question': 'Wat drink je vandaag?',
   'm11.tea': 'Thee',
   'm11.coffee': 'Koffie',
   'm11.teaHint': 'Zonder haast, met ruimte om te ademen. Shift+F wisselt.',

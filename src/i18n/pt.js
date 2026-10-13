@@ -1128,7 +1128,6 @@ export default {
   'ux2.tagsHow1': '1. Adiciona uma etiqueta para cada tipo de trabalho a que te candidatas, como cad ou web. Começa com poucas; esta lista é tua e começa vazia.',
   'ux2.tagsHow2': '2. Abre uma linha e dá a uma das suas redações uma etiqueta da lista.',
   'ux2.tagsHow3': '3. Junta etiquetas num tipo de trabalho (acima). Num currículo, escolhe-o em Destacar para ver as linhas que combinam e depois Aplicar… para as ativar.',
-  'm11.question': 'O que estás a beber hoje?',
   'm11.tea': 'Chá',
   'm11.coffee': 'Café',
   'm11.teaHint': 'Sem pressa, com espaço para respirar. Shift+F alterna.',

@@ -1128,7 +1128,6 @@ export default {
   'ux2.tagsHow1': '1. Lege für jede Art von Stelle, auf die du dich bewirbst, einen Tag an, etwa cad oder web. Fang mit wenigen an; die Liste gehört dir und beginnt leer.',
   'ux2.tagsHow2': '2. Öffne eine Zeile und gib einer ihrer Fassungen einen Tag aus der Liste.',
   'ux2.tagsHow3': '3. Fasse Tags zu einer Stellenart zusammen (oben). Wähle sie in einem Lebenslauf unter Hervorheben, um die passenden Zeilen zu sehen, und dann Anwenden…, um sie einzuschalten.',
-  'm11.question': 'Was trinkst du heute?',
   'm11.tea': 'Tee',
   'm11.coffee': 'Kaffee',
   'm11.teaHint': 'Ohne Eile, mit Raum zum Atmen. Shift+F wechselt.',

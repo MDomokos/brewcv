@@ -1128,7 +1128,6 @@ export default {
   'ux2.tagsHow1': '1. Añade una etiqueta por cada tipo de puesto al que te presentas, como cad o web. Empieza con pocas; esta lista es tuya y empieza vacía.',
   'ux2.tagsHow2': '2. Abre una línea y da a una de sus redacciones una etiqueta de la lista.',
   'ux2.tagsHow3': '3. Reúne etiquetas en un tipo de puesto (arriba). En un currículum, elígelo en Resaltar para ver las líneas que encajan y luego Aplicar… para activarlas.',
-  'm11.question': '¿Qué bebes hoy?',
   'm11.tea': 'Té',
   'm11.coffee': 'Café',
   'm11.teaHint': 'Sin prisa y con espacio para respirar. Mayús+F cambia.',

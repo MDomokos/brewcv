@@ -1128,7 +1128,6 @@ export default {
   'ux2.tagsHow1': '1. Aggiungi un tag per ogni tipo di lavoro a cui ti candidi, come cad o web. Parti con pochi; questo elenco è tuo e inizia vuoto.',
   'ux2.tagsHow2': '2. Apri una riga e dai a una sua formulazione un tag dell’elenco.',
   'ux2.tagsHow3': '3. Riunisci i tag in un tipo di lavoro (sopra). In un CV sceglilo sotto Evidenzia per vedere le righe corrispondenti, poi Applica… per attivarle.',
-  'm11.question': 'Cosa bevi oggi?',
   'm11.tea': 'Tè',
   'm11.coffee': 'Caffè',
   'm11.teaHint': 'Senza fretta, con spazio per respirare. Maiusc+F cambia.',

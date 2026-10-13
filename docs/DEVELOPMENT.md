@@ -46,7 +46,7 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            hover hints), checklist (the record's groups, drawn by record.js and, at the job level,
                            beside the job), record (the Record tab: the way in and the way round), career (the
                            record's forms and the timeline), help (the shortcut sheet), icons, drink (Tea or
-                           Coffee, light or dark: the two settings, the corner that asks, Shift+F),
+                           Coffee, light or dark: the two settings, the logo that switches them, Shift+F),
                            drink-boot (the same two settings on <html> before the first paint);
                            motion (the rules every animation follows: durations and easings read from :root, off under
                            prefers-reduced-motion and the Reduce motion setting, a new animation replaces the last), pagemotion

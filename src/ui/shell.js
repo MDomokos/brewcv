@@ -38,7 +38,7 @@ import { ib } from './dock.js';
 import * as motion from './motion.js';
 import { reduced, onMotionChange, play, ghost, fly } from './motion.js';
 import * as arrive from './arrive.js';
-import { initDrink, renderCorner, onDrinkChange, isDrinkKey, toggleDrink, drink, logoBtn } from './drink.js';
+import { initDrink, onDrinkChange, isDrinkKey, toggleDrink, drink, logoBtn } from './drink.js';
 import { initMatRoll } from './matroll.js';
 
 // Where the source is published; the menu links to it (AGPL-3.0, section 13). Change it here when the repo moves.
@@ -94,7 +94,6 @@ function staticText(){
   document.documentElement.lang = uiLang();
   $('#sheet').setAttribute('aria-label', t('aria.sheet'));
   $('#body').setAttribute('aria-label', t('ux2.panelLabel'));
-  renderCorner();
 }
 
 function wantedUi(){

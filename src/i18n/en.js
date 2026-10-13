@@ -1128,7 +1128,6 @@ export default {
   'ux2.tagsHow1': '1. Add a tag for each kind of work you apply for, such as cad or web. Start with a few; this list is yours and starts empty.',
   'ux2.tagsHow2': '2. Open a line, and give one of its wordings a tag from the list.',
   'ux2.tagsHow3': '3. Put tags together as a job type (above). On a resume, choose it under Highlight to see the matching lines, then Apply… to switch them on.',
-  'm11.question': 'What are you drinking today?',
   'm11.tea': 'Tea',
   'm11.coffee': 'Coffee',
   'm11.teaHint': 'Unhurried, with room to breathe. Shift+F switches.',

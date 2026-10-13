@@ -1128,7 +1128,6 @@ export default {
   'ux2.tagsHow1': '1. Ajoute une étiquette pour chaque type de poste visé, comme cao ou web. Commence par quelques-unes ; cette liste est à toi et démarre vide.',
   'ux2.tagsHow2': '2. Ouvre une ligne et donne à l’une de ses formulations une étiquette de la liste.',
   'ux2.tagsHow3': '3. Regroupe des étiquettes en type de poste (ci-dessus). Dans un CV, choisis-le sous Mettre en avant pour voir les lignes correspondantes, puis Appliquer… pour les activer.',
-  'm11.question': 'Que bois-tu aujourd’hui ?',
   'm11.tea': 'Thé',
   'm11.coffee': 'Café',
   'm11.teaHint': 'Sans se presser, avec de l’air. Maj+F bascule.',

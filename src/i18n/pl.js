@@ -1128,7 +1128,6 @@ export default {
   'ux2.tagsHow1': '1. Dodaj tag na każdy rodzaj pracy, o którą się ubiegasz, na przykład cad lub web. Zacznij od kilku; ta lista jest twoja i zaczyna jako pusta.',
   'ux2.tagsHow2': '2. Otwórz wiersz i nadaj jednemu z jego sformułowań tag z listy.',
   'ux2.tagsHow3': '3. Połącz tagi w rodzaj pracy (wyżej). W CV wybierz go w Wyróżnij, aby zobaczyć pasujące wiersze, a potem Zastosuj…, aby je włączyć.',
-  'm11.question': 'Co dziś pijesz?',
   'm11.tea': 'Herbata',
   'm11.coffee': 'Kawa',
   'm11.teaHint': 'Bez pośpiechu, z miejscem na oddech. Shift+F przełącza.',

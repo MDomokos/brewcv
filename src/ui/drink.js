@@ -1,12 +1,10 @@
 // "What are you drinking today?" Two settings, both per browser, both in localStorage like the app's other settings:
 //   rb-drink  tea (the default) | coffee: which look the app wears
 //   rb-theme  system (the default) | light | dark: html[data-theme] is always the resolved light or dark
-// src/ui/drink-boot.js has already put both on <html> before the first paint; this module keeps them, draws the corner that
-// asks the question, and switches in place (no reload, nothing redrawn but the marks inside the page's frame).
+// src/ui/drink-boot.js has already put both on <html> before the first paint; this module keeps them and switches in place (no reload, nothing redrawn but the marks inside the page's frame).
 // The resume is never touched: it prints the same in every drink and theme.
 
-import { t, h } from '../i18n/index.js';
-import { icon } from './icons.js';
+import { t } from '../i18n/index.js';
 import { reduced, dur } from './motion.js';
 
 export const DRINKS = ['tea', 'coffee'];
@@ -44,7 +42,6 @@ function apply(){
   applied = true;
   root?.setAttribute('data-drink', state.drink);
   root?.setAttribute('data-theme', resolveTheme(state.pref));
-  paint();
   for (const fn of listeners) fn(state);
 }
 export function setDrink(d){
@@ -65,27 +62,6 @@ export const toggleDrink = () => setDrink(state.drink === 'tea' ? 'coffee' : 'te
 export function logoBtn(size = 28, { base = 'logo', pos = 'b' } = {}){
   const to = state.drink === 'tea' ? 'coffee' : 'tea', k = to === 'coffee' ? 'ux4.logoToCoffee' : 'ux4.logoToTea';
   return `<button type="button" class="${base} logoswitch" data-act="drink-switch" data-to="${to}" data-tip="${esc(t(k))}|${esc(t(`${k}Tip`))}" data-tip-pos="${pos}" aria-label="${esc(t(k))}"><img src="${logoSrc()}" alt="" width="${size}" height="${size}"></button>`;
-}
-
-// ---- the corner ----
-let corner = null;
-function paint(){
-  if (!corner) return;
-  for (const b of corner.querySelectorAll('button[data-drink]')) b.setAttribute('aria-pressed', String(b.dataset.drink === state.drink));
-}
-export function renderCorner(){
-  if (!corner){
-    corner = document.createElement('aside');                       // a landmark of its own: the question
-    corner.id = 'brewmode'; corner.className = 'brewmode';
-    corner.setAttribute('aria-labelledby', 'bm-q');
-    corner.addEventListener('click', e => { const b = e.target.closest('button[data-drink]'); if (b) setDrink(b.dataset.drink); });
-    document.body.append(corner);
-  }
-  const q = t('m11.question');
-  const cup = (d, ic, name, hint) => `<button data-drink="${d}" aria-pressed="${state.drink === d}" aria-label="${esc(`${q} ${name}`)}" data-tip="${esc(name)}|${esc(hint)}" data-tip-pos="r">${icon(ic, { size: 20 })}<span>${esc(name)}</span></button>`;
-  corner.innerHTML = `<p class="bm-q" id="bm-q">${h('m11.question')}</p>
-    <div class="bm-row">${cup('tea', 'teacup', t('m11.tea'), t('m11.teaHint'))}${cup('coffee', 'espresso', t('m11.coffee'), t('m11.coffeeHint'))}</div>
-    <kbd aria-hidden="true">⇧F</kbd>`;
 }
 
 // Shift+F, unless a field or an editable line has the keyboard
@@ -109,6 +85,5 @@ export function initDrink(){
       for (const img of document.querySelectorAll('.logoswitch img')){ img.classList.remove('dunk'); void img.offsetWidth; img.classList.add('dunk'); img.addEventListener('animationend', () => img.classList.remove('dunk'), { once: true }); }
     });
   });
-  renderCorner();
   apply();
 }
