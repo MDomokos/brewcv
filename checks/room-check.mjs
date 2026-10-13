@@ -79,6 +79,8 @@ for (const [i, [w, h]] of SIZES.entries()){
     const off = open.map((o, k) => Math.abs(o[1] - folded[k][1])), tall = open.map((o, k) => Math.abs(o[2] - folded[k][2]));
     ok('each tab and each foot button has its centre at the same height folded as open, to 1px', Math.max(...off) <= 1, open.map((o, k) => `${o[0]} ${o[1]}→${folded[k][1]}`).join(', '));
     ok('…and the same height', Math.max(...tall) <= 1);
+    const claim = await page.evaluate(() => [...document.querySelectorAll('#tabs [role=tab]')].map(b => `${b.getAttribute('aria-selected')}/${b.hasAttribute('aria-controls')}`));
+    ok('folded, no tab is selected and none points at the hidden body', claim.length === 5 && claim.every(c => c === 'false/false'), claim.join(' '));
     await page.keyboard.press('e'); await page.waitForTimeout(700);
     const again = await centres();
     ok('unfolded again, they are where they were', open.every((o, k) => Math.abs(o[1] - again[k][1]) <= 1));

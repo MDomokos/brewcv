@@ -208,7 +208,7 @@ function drawTabs(){
   if (col) col.dataset.tea = phone() ? '' : two ? 'edit' : tab ?? 'edit';       // the panel's tea is the open tab's
   if (phone() || document.body.classList.contains('is-intro')){ el.innerHTML = ''; return; }
   const one = tab ?? 'outline';
-  const b = ({ id, key, tea: te, plain }) => `<button role="tab" class="tab${tab === id ? ' is-open' : ''}${two && id === 'outline' ? ' also' : ''}" id="tab-${id}" data-act="tab" data-m="${id}" data-tea="${id}" aria-selected="${tab === id}" aria-controls="body" tabindex="${one === id ? 0 : -1}" ${(id === 'design' || id === 'record') && C.ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? te : plain, { size: 22 })}</span><span class="tl">${esc(t(key))}</span></button>`;
+  const b = ({ id, key, tea: te, plain }) => `<button role="tab" class="tab${tab === id ? ' is-open' : ''}${two && id === 'outline' ? ' also' : ''}" id="tab-${id}" data-act="tab" data-m="${id}" data-tea="${id}" aria-selected="${!f && tab === id}"${f ? '' : ' aria-controls="body"'} tabindex="${one === id ? 0 : -1}" ${(id === 'design' || id === 'record') && C.ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? te : plain, { size: 22 })}</span><span class="tl">${esc(t(key))}</span></button>`;
   const grp = ids => `<div class="tgroup" role="presentation">${ids.map(id => b(TABS.find(x => x.id === id))).join('')}</div>`;
   const menu = `<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!C.ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" data-tip-pos="l" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>`;
   el.dataset.tab = tab ?? '';
