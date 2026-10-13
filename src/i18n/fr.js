@@ -263,6 +263,8 @@ export default {
   'export.jsonNote': 'Le format standard, tel qu’imprimé',
   'export.note': 'Tout est produit ici, dans ce navigateur. D’autres sorties (Figma, thèmes de la communauté) sont dans le README.',
   'toast.printDialog': 'Ouverture de la boîte d’impression : choisissez « Enregistrer en PDF ».',
+  'toast.pdfSaved': 'Enregistré : {path}',
+  'toast.pdfFailed': 'Échec du PDF : {msg}',
   'toast.htmlDone': 'Page HTML téléchargée.',
   'toast.txtDone': 'Texte brut téléchargé.',
   'toast.jsonDone': 'JSON Resume téléchargé.',

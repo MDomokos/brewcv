@@ -406,11 +406,16 @@ function asToday(frozen){
 }
 
 // "<Name>.json" (an older resume has no name: "<Company> - <Role>.json"), case as typed, no path characters.
+// A file name as one key: composed accents, lower case. macOS and some sync tools write a decomposed "é" (e + accent), a
+// keyboard types a composed one; on a Mac's disk those are the same file, on Windows and Linux two. Compare through this.
+export const nameKey = s => String(s).normalize('NFC').toLowerCase();
+
 export function resumeFileName(recipe){
   const base = recipe?.name ? recipe.name
     : recipe?.company && recipe?.role ? `${recipe.company} - ${recipe.role}`
     : recipe?.application || recipe?.title || 'Resume';
-  const clean = String(base).replace(/[–—]/g, '-').replace(/&/g, ' and ').replace(/[^\p{L}\p{N} _.,()'-]+/gu, ' ')
+  // composed first: the cleaning below drops a combining mark, which would split "é" typed as e + accent into "e "
+  const clean = String(base).normalize('NFC').replace(/[–—]/g, '-').replace(/&/g, ' and ').replace(/[^\p{L}\p{N} _.,()'-]+/gu, ' ')
     .replace(/\s+/g, ' ').trim().slice(0, 100).trim() || 'Resume';
   return `${clean}.json`;
 }

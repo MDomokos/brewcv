@@ -3,13 +3,13 @@
 // written, and a declined permission just stops the mirror.
 
 import { t, keyed } from '../i18n/index.js';
-import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, ensureRecordId } from '../model/schema.js';
+import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId } from '../model/schema.js';
 import { assetRefs } from './store.js';
 
 // The one file you save and open yourself. Never translated.
 export const SAVE_FILE_NAME = 'brewcv.json';
 // package.json's version, which checks/version-check.mjs keeps equal to it.
-export const APP_VERSION = '1.0.1';
+export const APP_VERSION = '1.1.0';
 
 export async function sha256(text){
   const buf = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -130,6 +130,31 @@ export function fsaFolder(dir){
   };
 }
 
+// The desktop app (Tauri) has no showDirectoryPicker. Its fs and dialog plugins stand in; the folder's PATH is the handle kept for the
+// next launch (the persisted-scope plugin keeps the permission the dialog gave it). `T` is window.__TAURI__ (a fake in the checks).
+export const tauriApi = (T = globalThis.__TAURI__) => (T?.fs && T?.dialog ? T : null);
+export function tauriFolder(path, T = tauriApi()){
+  const fs = T.fs, at = p => `${path.replace(/[\\/]+$/, '')}/${p}`;
+  return {
+    name: path.split(/[\\/]/).filter(Boolean).at(-1) ?? path,
+    handle: path,
+    // no prompt here: a path the plugin still lets us reach is granted; otherwise the person picks the folder again
+    async permission(){ try { return (await fs.exists(path)) ? 'granted' : 'prompt'; } catch { return 'prompt'; } },
+    async read(p){ try { return await fs.readTextFile(at(p)); } catch { return null; } },
+    async list(sub){
+      try { return (await fs.readDir(at(sub))).filter(e => e.isFile).map(e => e.name).sort(); } catch { return []; }
+    },
+    async write(p, text){
+      const i = p.lastIndexOf('/');
+      if (i > 0) await fs.mkdir(at(p.slice(0, i)), { recursive: true });
+      await fs.writeTextFile(at(p), text);
+    },
+    async remove(p){ try { await fs.remove(at(p)); } catch { /* already gone */ } },
+  };
+}
+// what a remembered handle was: a path (desktop) or a FileSystemDirectoryHandle (browser)
+export const folderOf = (h, T) => (typeof h === 'string' ? tauriFolder(h, T) : fsaFolder(h));
+
 // a saved resume's `id` is its file name, not part of what the file says
 const stripId = r => { const c = { ...r }; delete c.id; return c; };
 export function filesOf(state){
@@ -138,8 +163,8 @@ export function filesOf(state){
   const used = new Set();
   for (const r of state?.resumes ?? []){
     let name = resumeFileName(r), n = 2;
-    while (used.has(name.toLowerCase())) name = resumeFileName(r).replace(/\.json$/, ` ${n++}.json`);
-    used.add(name.toLowerCase());
+    while (used.has(nameKey(name))) name = resumeFileName(r).replace(/\.json$/, ` ${n++}.json`);
+    used.add(nameKey(name));
     out.set(`recipes/${name}`, serialize(saveResume(state.record, stripId(r), state.frozen?.[r.id] ?? null).file));
   }
   return out;
@@ -167,19 +192,35 @@ export async function readFolder(folder){
   if (text === null) return null;
   const { model, warnings } = load(JSON.parse(text));
   const resumes = [], frozen = {};
-  const skipped = [];
+  const skipped = [], leftovers = [];
+  // one saved resume can be on disk under two spellings of its name (composed or decomposed accents): the files are
+  // grouped by that, and a group is one resume
+  const groups = new Map();
   for (const name of await folder.list('recipes')){
     if (!name.endsWith('.json')) continue;
     const from = conflictCopy(name);
     if (from){ skipped.push(name); warnings.push(`skipped recipes/${name}: a conflict copy made by ${from}`); continue; }
-    try {
-      const got = loadResume(JSON.parse(await folder.read(`recipes/${name}`)), model);
-      resumes.push({ ...got.recipe, id: name });
-      if (got.frozen) frozen[name] = got.frozen;
-    }
-    catch (e){ warnings.push(`recipes/${name}: ${e.message}`); }
+    const k = nameKey(name);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(name);
   }
-  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped };
+  for (const names of groups.values()){
+    names.sort((x, y) => Number(y === y.normalize('NFC')) - Number(x === x.normalize('NFC')));   // the name the app writes first
+    const read = [];
+    for (const name of names){
+      try { const text = await folder.read(`recipes/${name}`); read.push({ name, text, got: loadResume(JSON.parse(text), model) }); }
+      catch (e){ warnings.push(`recipes/${name}: ${e.message}`); }
+    }
+    if (!read.length) continue;
+    // the one saved last wins, the composed name on a tie; a copy with the same text is no news, a different one stays on disk, untouched
+    const keep = read.reduce((a, b) => (b.got.recipe.savedAt ?? '') > (a.got.recipe.savedAt ?? '') ? b : a);
+    for (const o of read) if (o !== keep && o.text !== keep.text) warnings.push(`recipes/${o.name}: same name as recipes/${keep.name} once accents are composed; the one saved last is open`);
+    const id = keep.name.normalize('NFC');
+    for (const o of read) if (o.name !== id && read.length > 1) leftovers.push(o.name);   // every other spelling, the open one included
+    resumes.push({ ...keep.got.recipe, id });
+    if (keep.got.frozen) frozen[id] = keep.got.frozen;
+  }
+  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped, leftovers };
 }
 
 export function readBackup(obj){
@@ -213,7 +254,7 @@ export function openVerdict({ file, last, localRecordId, changes }){
 function uniqueName(list, recipe){
   const base = resumeFileName(recipe);
   let id = base, n = 2;
-  while (list.some(r => r.id.toLowerCase() === id.toLowerCase())) id = base.replace(/\.json$/, ` ${n++}.json`);
+  while (list.some(r => nameKey(r.id) === nameKey(id))) id = base.replace(/\.json$/, ` ${n++}.json`);
   return id;
 }
 
@@ -364,7 +405,21 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       if (f.handle !== undefined) await backend.put('handle/folder', f.handle);
       const there = await f.read('resume-data.json');         // what is on disk now is what the person chose to keep or replace
       diskHash = there === null ? null : await sha256(there);
+      // a file already on disk with the same text is left alone: no new modification time for a sync tool to carry to other devices
+      for (const [p, text] of filesOf(store.materialize())) if ((await f.read(p)) === text) written.set(p, text);
       return (await writeFolder()) ?? [];
+    },
+    // After link() has written the open resumes under their composed names: the other spelling of a merged resume is
+    // removed, but only when the composed file is there and this one is not it.
+    async dropMerged(names){
+      const gone = [];
+      for (const name of names){
+        if (name === name.normalize('NFC') || !linked?.remove) continue;
+        if ((await linked.read(`recipes/${name.normalize('NFC')}`)) === null) continue;
+        await linked.remove(`recipes/${name}`);
+        gone.push(name);
+      }
+      return gone;
     },
     // the person said to overwrite the file that changed outside the app
     async overwriteFolder(){

@@ -445,5 +445,44 @@ section('the grown switcher: the Date and Company views');
   ok('…the named groups are in alphabetical order', co.slice(0, -1).every((g, i, l) => !i || l[i - 1].label.localeCompare(g.label, undefined, { sensitivity: 'base' }) <= 0));
 }
 
+section('accents in file names (composed and decomposed are one name)');
+{
+  const nfc = 'Ingénieure conception', nfd = nfc.normalize('NFD');
+  ok('the fixture really differs', nfc !== nfd);
+  ok('a saved resume\'s file name has composed accents', S.resumeFileName({ name: nfd }) === `${nfc}.json`);
+  ok('index.json lists composed names', names.every(n => n === n.normalize('NFC')));
+  ok('a name typed either way is taken', RS.uniqueId([{ id: `${nfc}.json` }], { name: nfd }) === `${nfc} 2.json`);
+  const st = exampleState();
+  const store = createStore(st);
+  const folder = memoryFolder();
+  const p = createPersist({ store, backend: memoryBackend(), debounceMs: 0, setTimer: (fn) => { fn(); return 0; }, clearTimer: () => {} });
+  await p.link(folder);
+  store.commit(d => { RS.duplicate(d, names[0], { name: nfc }); }, 'Save');
+  store.commit(d => { RS.duplicate(d, names[0], { name: nfd }); }, 'Save');
+  await p.flush();
+  const files = (await folder.list('recipes')).filter(n => n.startsWith('Ingénieure'));
+  ok('two resumes named the same way write two files, never one over the other', files.length === 2 && files.every(n => n === n.normalize('NFC')), files.join(' | '));
+  const disk = memoryFolder({ 'resume-data.json': folder._files.get('resume-data.json'), [`recipes/${nfd}.json`]: folder._files.get(`recipes/${nfc}.json`) });
+  const back = await readFolder(disk);
+  ok('a file a Mac or a sync tool named with decomposed accents opens under the composed name', back.state.resumes.length === 1 && back.state.resumes[0].id === `${nfc}.json`, JSON.stringify(back.state.resumes.map(r => r.id)));
+  const text = folder._files.get(`recipes/${nfc}.json`);
+  const twin = memoryFolder({ 'resume-data.json': folder._files.get('resume-data.json'), [`recipes/${nfd}.json`]: text, [`recipes/${nfc}.json`]: text });
+  const both = await readFolder(twin);
+  ok('both spellings with the same text load once, silently', both.state.resumes.length === 1 && both.state.resumes[0].id === `${nfc}.json` && both.warnings.length === 0, JSON.stringify(both.warnings));
+  const later = JSON.parse(text); later.meta.resumeBuilder.resume.savedAt = '2099-01-01'; later.meta.resumeBuilder.resume.company = 'Newer Co';
+  const diff = memoryFolder({ 'resume-data.json': folder._files.get('resume-data.json'), [`recipes/${nfd}.json`]: JSON.stringify(later), [`recipes/${nfc}.json`]: text });
+  const merged = await readFolder(diff);
+  ok('two different ones: the one saved last opens, under the composed name', merged.state.resumes.length === 1 && merged.state.resumes[0].company === 'Newer Co' && merged.state.resumes[0].id === `${nfc}.json`);
+  ok('…and the other is named in a warning, and listed to be dropped', merged.warnings.some(w => /same name/.test(w)) && merged.leftovers.length === 1 && diff._files.has(`recipes/${nfd}.json`));
+  const st2 = merged.state; st2.cur = RS.savedOf(st2) ? JSON.parse(JSON.stringify(RS.savedOf(st2))) : st2.cur;
+  const p2 = createPersist({ store: createStore(st2), backend: memoryBackend(), debounceMs: 0, setTimer: (fn) => { fn(); return 0; }, clearTimer: () => {} });
+  await p2.link(diff);
+  const gone = await p2.dropMerged(merged.leftovers);
+  ok('after the write, the other spelling is removed and the composed file holds the newer resume', gone.length === 1 && !diff._files.has(`recipes/${nfd}.json`) && JSON.parse(diff._files.get(`recipes/${nfc}.json`)).meta.resumeBuilder.resume.company === 'Newer Co');
+  const same2 = await readFolder(diff);
+  ok('and the folder reads back as one resume with nothing to warn about', same2.state.resumes.length === 1 && same2.warnings.length === 0 && same2.leftovers.length === 0, JSON.stringify(same2.warnings));
+  ok('a spelling that is the composed one is never dropped', (await p2.dropMerged([`${nfc}.json`])).length === 0 && diff._files.has(`recipes/${nfc}.json`));
+}
+
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');
 process.exit(failed ? 1 : 0);

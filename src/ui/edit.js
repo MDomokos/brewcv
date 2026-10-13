@@ -2,6 +2,7 @@
 // controls do. One panel for a claim wherever you came from: the page, the record checklist below it, or
 // the timeline. Every change is one store commit, so one undo step. Typing is not a change until it is saved.
 
+import { askOk, desktopAsk } from './ask.js';
 import * as R from '../model/record.js';
 import * as T from '../model/resume.js';
 import { key as measureKeyOf } from '../fit.js';
@@ -20,7 +21,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null, dragJob: null };
+const E = { asking: false, enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null, dragJob: null };
 
 function commit(fn, label, done){
   try {
@@ -233,7 +234,7 @@ export function isDirty(){
 
 async function cancelEdit({ ask = false } = {}){
   if (!E.edit) return true;
-  if (ask && isDirty() && !confirm(t('confirm.discard'))) return false;
+  if (ask && isDirty() && !(await askOk(t('confirm.discard')))) return false;
   clearEdit();
   clearTimeout(E.timer);
   await C.endPreview(true);
@@ -718,7 +719,20 @@ function key(e){
 function leaving(next){
   if (!E.edit) return true;
   if (next?.kind === 'bullet' && next.id === E.edit.fact) return true;
-  if (isDirty() && !confirm(t('confirm.discard'))) return false;
+  if (isDirty()){
+    if (desktopAsk()){
+      // the native question is asynchronous: stay where you are, ask, and on yes drop the draft and go where you were going
+      if (!E.asking){
+        E.asking = true;
+        askOk(t('confirm.discard')).then(yes => {
+          E.asking = false;
+          if (yes){ clearEdit(); E.compare = null; clearTimeout(E.timer); C.select(next); }
+        });
+      }
+      return false;
+    }
+    if (!confirm(t('confirm.discard'))) return false;
+  }
   clearEdit(); E.compare = null;
   clearTimeout(E.timer);
   return true;
