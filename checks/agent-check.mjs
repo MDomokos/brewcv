@@ -173,6 +173,34 @@ ok('it takes the one file too', run('scripts/new-resume.mjs', oneFile, mkPicks('
   refuse('a jobOrder with an archived job', mkPicks('a.json', { ...two, jobOrder: ['poly'] }), (() => { const r = JSON.parse(JSON.stringify(rec)); r.work.find(x => x.id === 'poly').archived = true; return w('archpoly.json', r); })(), /poly can't be placed \(archived job\)/);
 }
 
+// the order of bullets is the print order within a job
+{
+  const hy = ['hydra-inhaler-v2-1', 'hydra-testing-v1-1', 'hydra-dfm-v1'];      // the record's order
+  const build = (name, bullets, extra = {}) => {
+    const d = path.join(tmp, name);
+    const r = run('scripts/new-resume.mjs', EX, mkPicks(name + '.json', picks({ bullets, ...extra })), d);
+    const f = path.join(d, fs.readdirSync(d)[0] ?? 'none');
+    const saved = r.code === 0 ? JSON.parse(fs.readFileSync(f, 'utf8')) : null;
+    const html = path.join(tmp, name + '.html');
+    const rr = r.code === 0 ? run('scripts/render.mjs', EX, f, html) : r;
+    return { r, saved, text: rr.code === 0 ? fs.readFileSync(html, 'utf8') : '', refs: saved?.meta.resumeBuilder.resume.sections.find(x => x.id === 'experience').work };
+  };
+  const at = (t, i) => t.indexOf(model.variants.find(v => v.id === i).text.slice(0, 30));
+  const fwd = build('bo-fwd', hy), rev = build('bo-rev', [...hy].reverse());
+  ok('bullets in the record\'s order store no highlight order beyond the picked list', fwd.r.code === 0
+    && JSON.stringify(fwd.refs[0].highlights) === JSON.stringify(['hydra-inhaler', 'hydra-testing', 'hydra-dfm']), fwd.r.err);
+  ok('reversed bullets are reversed in the saved resume\'s highlights, the JSON Resume work and the printed page', rev.r.code === 0
+    && JSON.stringify(rev.refs[0].highlights) === JSON.stringify(['hydra-dfm', 'hydra-testing', 'hydra-inhaler'])
+    && rev.saved.work[0].highlights[0].startsWith('Ran the weekly DFM') && fwd.saved.work[0].highlights[0].startsWith('Led the dose-counter')
+    && at(fwd.text, 'hydra-inhaler-v2-1') >= 0 && at(fwd.text, 'hydra-inhaler-v2-1') < at(fwd.text, 'hydra-dfm-v1')
+    && at(rev.text, 'hydra-dfm-v1') >= 0 && at(rev.text, 'hydra-dfm-v1') < at(rev.text, 'hydra-inhaler-v2-1'), rev.r.err);
+  const mix = build('bo-mix', ['poly-jigs-v1', 'hydra-dfm-v1', 'poly-shop-v1', 'hydra-inhaler-v2-1'], { jobOrder: ['hydra', 'poly'] });
+  const ord = mix.refs?.map(r => [r.id ?? r, r.highlights]);
+  ok('two jobs interleaved keep each job\'s own order, and jobOrder decides the jobs', mix.r.code === 0
+    && mix.refs.map(r => r.id).join() === 'hydra,poly' && mix.refs[0].highlights.join() === 'hydra-dfm,hydra-inhaler'
+    && mix.refs[1].highlights.join() === 'poly-jigs,poly-shop', JSON.stringify(ord) + mix.r.err);
+}
+
 refuse('an id that does not exist', mkPicks('a.json', picks({ bullets: ['hydra-inhaler-v99'] })), EX, /not a version in the record/);
 refuse('a summary that does not exist', mkPicks('a.json', picks({ summary: 'nope' })), EX, /not a version in the record/);
 refuse('a version in another language', mkPicks('a.json', picks({ bullets: ['hydra-inhaler-v1-hu'] })), EX, /is in hu, and this resume is en/);

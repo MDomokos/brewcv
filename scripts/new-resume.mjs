@@ -5,12 +5,13 @@
 //
 // picks.json: { company, role, lang, format, pageLimit, theme, jobType?, summary?: versionId, bullets: [versionId, ...],
 //   jobOrder?: [jobId, ...] }  (print order of the jobs that have picked bullets: some or all; the rest follow in the record's order)
+// The order of bullets is the print order within each job; an order equal to the record's is not stored.
 // Writes nothing, and says why, if anything in it is wrong. Never overwrites a file without --force.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { newResume, setBulletOn, setJobOn, moveEntry, jobRefs, chooseVariant, refusal } from '../src/model/resume.js';
+import { newResume, setBulletOn, setJobOn, moveEntry, moveBullet, jobRefs, chooseVariant, refusal } from '../src/model/resume.js';
 import { entriesOf, entryKey } from '../src/model/entries.js';
 import { LANGS, resumeFileName, migrateRecipe, saveResume } from '../src/model/schema.js';
 import { today } from '../src/model/resumes.js';
@@ -126,6 +127,8 @@ for (const j of entriesOf(model)) if (!(j.highlights ?? []).some(h => bullets.ha
 // the listed jobs first, in the order given, then the others as they were; moveEntry drops an order that is the record's
 const sec = (model.sections ?? []).find(x => x.kind === 'entries')?.id ?? 'experience';
 if (jobOrder.length) for (const id of [...jobOrder, ...jobRefs(model, recipe, sec).map(r => (typeof r === 'string' ? r : r.id)).filter(id => !jobOrder.includes(id) && entryKey(model, id) === 'work')]) moveEntry(model, recipe, id);
+// each bullet to the end of its job, in the order listed: the job ends up in the listed order (moveBullet stores nothing for the record's own)
+for (const fact of bullets.keys()) moveBullet(model, recipe, fact);
 for (const [fact, version] of bullets) recipe.picks[fact] = version;
 if (picks.summary !== undefined) recipe.picks[summaryFact] = picks.summary;
 Object.assign(recipe, { company, role, jobType });
