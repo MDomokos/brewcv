@@ -5,7 +5,7 @@
 // bright page. `free` is true once the person has zoomed or panned: the view then stays where it was put until 0, Fit, or Esc.
 
 import {
-  geometry, viewRect, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
+  geometry, viewRect, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, keepPageEdge, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
   brightPage, faded, springStep, atRest, centreOn, writingScale, pageLeft, midX,
 } from './camera.js';
 import { clampZoom, PHONE_MAX, G, RAIL_W } from './layout.js';
@@ -153,7 +153,7 @@ export function initCanvas(C){
   function writeTo(r, percent, { keepZoom = false } = {}){
     if (!geo) return;
     const k = keepZoom ? cam.k : writingScale(geo, view, percent);
-    const next = hardCam(centreOn(geo, view, k, r.left + r.width / 2, r.top + r.height / 2), geo, view);
+    const next = keepPageEdge(hardCam(centreOn(geo, view, k, r.left + r.width / 2, r.top + r.height / 2), geo, view), geo, view, r);
     free = true; want = null; rememberView();
     go(next);
   }

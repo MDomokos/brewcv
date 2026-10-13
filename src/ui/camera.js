@@ -157,3 +157,10 @@ export function centreOn(geo, view, k, cx, cy){
 }
 // The scale of the fit-to-height view of one page, times a zoom given in percent (130 is the default for writing).
 export const writingScale = (geo, view, percent) => fitCam(geo, view, { scene: 'one' }).k * (percent / 100);
+// While writing, the page's left edge (and the section tabs hung beside it) stays in the view, as far as the line can stay in view
+// with it: `r` is the line in content coordinates, `room` is how far (px) the line keeps from the view's right edge.
+export function keepPageEdge(cam, geo, view, r, room = 70){
+  const page = Math.max(0, Math.min(geo.n - 1, Math.floor((r.left + r.width / 2) / (geo.w + PAGE_GAP))));
+  const dx = Math.min(view.left + G - (cam.x + pageLeft(geo, page) * cam.k), view.left + view.width - room - (cam.x + (r.left + r.width) * cam.k));
+  return dx > 0 ? { ...cam, x: cam.x + dx } : cam;
+}
