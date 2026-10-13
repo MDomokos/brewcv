@@ -184,7 +184,7 @@ if (want('one screen: the panel folds, the rail, the zoom bar, the shortcut shee
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc closes the pop-up', !(await page.isVisible('#zpop')));
   await page.evaluate(() => window.__wb.setView('settings')); await settle(page);
-  ok('Settings holds zoom while writing (80–220%, 130 to start), the switch, the dim levels, the panel mode and sharper contrast', (await page.inputValue('#zw')) === '130' && (await page.getAttribute('#zw', 'min')) === '80' && (await page.getAttribute('#zw', 'max')) === '220' && await page.isChecked('#zwon') && await page.isVisible('#dimline') && await page.isVisible('#dimjob') && (await page.$$('[data-mode=settings] [data-act=panel-mode]')).length === 3 && await page.isChecked('#contrast'));
+  ok('Settings holds zoom while writing (80–180%, 130 to start), the switch, the dim levels, the panel mode and sharper contrast', (await page.inputValue('#zw')) === '130' && (await page.getAttribute('#zw', 'min')) === '80' && (await page.getAttribute('#zw', 'max')) === '180' && await page.isChecked('#zwon') && await page.isVisible('#dimline') && await page.isVisible('#dimjob') && (await page.$$('[data-mode=settings] [data-act=panel-mode]')).length === 3 && await page.isChecked('#contrast'));
   await page.fill('#zw', '150'); await page.dispatchEvent('#zw', 'input');
   await page.click('[data-mode=settings] [data-act=panel-mode][data-pm=closed]'); await settle(page);
   ok('the settings stick (this browser): zoom while writing, the panel mode', (await page.evaluate(() => localStorage.getItem('rb-zoomwrite'))) === '150' && (await page.evaluate(() => localStorage.getItem('rb-panel'))) === 'closed' && (await S()).panel === 'closed' && (await page.inputValue('#zw')) === '150');
@@ -728,7 +728,7 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   ok('while writing, a click on a line in another job goes on writing there, without zooming out', !!wf2 && wf2 !== wf && Math.abs((await zoomOf(page)) - wz) < 0.02, `${wf} → ${wf2}, ${await zoomOf(page)}`);
   await page.evaluate(() => { document.querySelector('#pages').dispatchEvent(new WheelEvent('wheel', { deltaY: -60, ctrlKey: true, clientX: 600, clientY: 400, bubbles: true, cancelable: true })); });
   await page.waitForTimeout(400);
-  ok('a pinch while writing changes the writing zoom, and it is remembered', (await zoomOf(page)) > wz + 0.1 && Number(await page.evaluate(() => localStorage.getItem('rb-zoomwrite'))) === Math.min(220, Math.round((await zoomOf(page)) * 100)), `${await zoomOf(page)} ${await page.evaluate(() => localStorage.getItem('rb-zoomwrite'))}`);
+  ok('a pinch while writing changes the writing zoom, and it is remembered', (await zoomOf(page)) > wz + 0.1 && Number(await page.evaluate(() => localStorage.getItem('rb-zoomwrite'))) === Math.min(180, Math.round((await zoomOf(page)) * 100)), `${await zoomOf(page)} ${await page.evaluate(() => localStorage.getItem('rb-zoomwrite'))}`);
   await page.evaluate(() => localStorage.removeItem('rb-zoomwrite'));
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(600);
   // a line on the second page, chosen from the panel: that page comes forward
@@ -787,10 +787,10 @@ if (want('on the page: a drawer, zoom off, reduced motion, a line that is not on
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(800);
     ok('with “Zoom in when writing” off, the line is written in place and the view stays whole', (await lineEl(page).count()) === 1 && (await zoomOf(page)) === 1);
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
-    await page.evaluate(() => { localStorage.setItem('rb-zoomwrite-on', '1'); localStorage.setItem('rb-zoomwrite', '200'); });
+    await page.evaluate(() => { localStorage.setItem('rb-zoomwrite-on', '1'); localStorage.setItem('rb-zoomwrite', '180'); });
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(900);
-    ok('the writing zoom is the setting: 200%', Math.abs((await zoomOf(page)) - 2) < 0.03, `${await zoomOf(page)}`);
+    ok('the writing zoom is the setting: 180%', Math.abs((await zoomOf(page)) - 1.8) < 0.03, `${await zoomOf(page)}`);
     await page.evaluate(() => { localStorage.setItem('rb-dim-line', '70'); });
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);

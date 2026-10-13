@@ -17,7 +17,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const PANEL_KEY = 'rb-panel', ZOOMW_KEY = 'rb-zoomwrite', CONTRAST_KEY = 'rb-contrast';
 const ZOOMON_KEY = 'rb-zoomwrite-on', DIMJOB_KEY = 'rb-dim-job', DIMLINE_KEY = 'rb-dim-line', MAGNET_KEY = 'rb-magnet', BOUNCE_KEY = 'rb-bounce';
 export const PANEL_MODES = ['auto', 'open', 'closed'];
-export const ZOOM_WRITE = { min: 80, max: 220, step: 5, def: 130 };
+export const ZOOM_WRITE = { min: 80, max: 180, step: 5, def: 130 };
 const get = (k, ok, def) => { try { const v = localStorage.getItem(k); return ok(v) ? v : def; } catch { return def; } };
 const set = (k, v) => { try { localStorage.setItem(k, String(v)); } catch { /* this session only */ } };
 export const readPanel = () => get(PANEL_KEY, v => PANEL_MODES.includes(v), 'auto');

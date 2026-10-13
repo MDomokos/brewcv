@@ -120,7 +120,7 @@ section('the panel: Auto, Open, Closed');
   ok('E on a folded Auto panel and the rail’s Edit keep it open until Esc (a peek); a snapshot opens it too', panelShown({ pref: 'auto', peek: true }) && panelShown({ pref: 'auto', snap: true }) && !panelShown({ pref: 'closed', peek: true }));
   ok('on a phone the column is always the bottom sheet', panelShown({ pref: 'closed', phone: true }));
   ok('Esc all the way out: Open drops to Auto, Auto and Closed stay', afterEscape('open') === 'auto' && afterEscape('auto') === 'auto' && afterEscape('closed') === 'closed');
-  ok('the three modes, and the zoom-while-writing range from 80 to 220, 130 to start', eq(PANEL_MODES, ['auto', 'open', 'closed']) && ZOOM_WRITE.min === 80 && ZOOM_WRITE.max === 220 && ZOOM_WRITE.def === 130);
+  ok('the three modes, and the zoom-while-writing range from 80 to 180, 130 to start', eq(PANEL_MODES, ['auto', 'open', 'closed']) && ZOOM_WRITE.min === 80 && ZOOM_WRITE.max === 180 && ZOOM_WRITE.def === 130);
 }
 
 section('select: a click means');
