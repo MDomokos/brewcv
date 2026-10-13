@@ -138,6 +138,9 @@ html, body {
   margin: 0;
   padding: 0;
   background: var(--desk);
+  /* No ligatures: macOS's PDF engine wrote the "ff" glyph as "!" in the text layer ("off" read "o!"), which breaks copy-paste
+     and applicant-tracking parsers. Off everywhere, so the screen, Fit's measuring and every export wrap the same. */
+  font-variant-ligatures: none;
 }
 
 .document { }
@@ -449,6 +452,9 @@ html, body {
   .page {
     margin: 0;
     box-shadow: none;
+    /* A4 is 1122.5px tall and the page box is 1123px: macOS's print engine counts the sliver as overflow and adds a blank page
+       after every page. One pixel less fits the sheet; the bottom padding is 44px or more, so nothing shows. */
+    height: calc(var(--page-h) - 1px);
   }
 
   .page + .page { break-before: page; }
