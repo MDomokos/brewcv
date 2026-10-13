@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { isDeepStrictEqual as eq } from 'node:util';
 import * as S from '../src/model/schema.js';
 import { DB_NAME, makeBackup, readBackup } from '../src/store/persist.js';
-import { resolve, offOf, keepOf, chooseVariant } from '../src/model/resume.js';
+import { resolve, offOf, keepOf, chooseVariant, moveEntry, jobRefs } from '../src/model/resume.js';
 import { validate } from './lib/validate.mjs';
 import { createDocument, serialize as serializeDom } from '../scripts/lib/dom.mjs';
 import { renderPages } from '../src/render.js';
@@ -201,6 +201,22 @@ section('saved resumes: one JSON Resume file each');
   ok('a v3 recipe opens unchanged, with nothing frozen', eq(S.loadResume(recipe3).recipe, recipe3) && S.loadResume(recipe3).frozen === null);
   ok('file name: Company - Role', S.resumeFileName({ company: 'A&B Ltd', role: 'Engineer / Designer' }) === 'A and B Ltd - Engineer Designer.json');
   ok('file name: falls back to the application', S.resumeFileName({ application: 'US One-Pager' }) === 'US One-Pager.json');
+}
+
+section('saved resumes: the order of the jobs');
+{
+  const m = S.load(example).model;
+  const names = read('data/example-resumes/index.json');
+  const r0 = names.map(n => S.loadResume(read(`data/example-resumes/${n}`), m).recipe).find(x => (x.lang ?? 'en') === 'en' && jobRefs(m, x, 'experience').length >= 2);
+  const r = clone(r0), [first, second] = jobRefs(m, r, 'experience').map(x => (typeof x === 'string' ? x : x.id));
+  moveEntry(m, r, second, first);
+  const { file } = S.saveResume(m, r);
+  const back = S.loadResume(file, m);
+  ok('a moved job round-trips: save, load, resolve', eq(back.recipe.sections.find(x => x.id === 'experience').order?.slice(0, 2), [second, first]) && back.warnings.length === 0
+    && eq(resolve(m, back.recipe).body.work.map(w => w.name), file.work.map(w => w.name)) && file.work[0].name === m.work.find(w => w.id === second).name);
+  ok('the file’s plain JSON Resume body is valid', S.checkJsonResume(file).length === 0);
+  const same = S.saveResume(m, r0).file;
+  ok('a resume with no order is saved as before: no order key anywhere', !JSON.stringify(same).includes('"order"'));
 }
 
 section('validate: the v4 rules');

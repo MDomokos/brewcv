@@ -8,6 +8,15 @@ export const PIN_KINDS = ['include', 'exclude', 'phrasing'];
 const entryOf = (recipe, id) =>
   (recipe?.sections ?? []).find(x => x && typeof x === 'object' && x.id === id);
 
+// The jobs of an entries section in this resume's own order: its `order`, then the jobs it names no place for, as listed.
+// Ids that are no longer listed are ignored; with no order the list is returned as it is.
+export function inOrder(refs, order){
+  if (!Array.isArray(order) || !order.length) return refs;
+  const id = r => (typeof r === 'string' ? r : r?.id);
+  const named = order.map(o => refs.find(r => id(r) === o)).filter((r, i, a) => r && a.indexOf(r) === i);
+  return [...named, ...refs.filter(r => !named.includes(r))];
+}
+
 export const weightOf = (recipe, id) => entryOf(recipe, id)?.weight ?? DEFAULT_WEIGHT;
 
 // The header and the summary have no weight.

@@ -14,7 +14,8 @@ import { renderPages } from '../src/render.js';
 import { pinsOf } from '../src/recipe.js';
 import { validate } from './lib/validate.mjs';
 import { geometryFor } from './lib/geometry.mjs';
-import { fit, modelMeasure, cost, chosen, FILL_BAND, formatReport } from '../src/fit.js';
+import { autoLayout } from '../src/paginate.js';
+import { fit, modelMeasure, modelFlow, cost, chosen, FILL_BAND, formatReport } from '../src/fit.js';
 
 import { REPO, base, baseRecipe, grown, onePager, jobs } from './lib/fixtures.mjs';
 import { readLibrary, readRecipe } from '../scripts/lib/library.mjs';
@@ -257,6 +258,29 @@ section('a decoy: the shortest phrasings are Hungarian');
   ok('none of the library\'s -hu phrasings was picked or printed',
      !Object.values(r.recipe.picks ?? {}).some(v => /-hu$/.test(v))
      && !cost(G, r.recipe).pages.flatMap(p => p.rows).some(x => /-hu$/.test(x.variant)));
+}
+
+section('a moved job: its place is its priority');
+{
+  const ids = ['poly', 'pola', 'polb', 'polc'];
+  const D = structuredClone(G);
+  D.sections.find(s => s.id === 'experience').content.work = ids;     // the record lists them, in this order
+  const auto = onePager(jobs(ids));
+  delete auto.pages;
+  auto.pageLimit = 1;
+  const g = { usable: 956, lineH: 18.41, furniture: 6.7 }, layout = r => autoLayout(D, r, modelFlow(D, g));
+  const left = async order => {
+    const a = structuredClone(auto);
+    if (order) a.sections.find(s => s.id === 'experience').order = order;
+    const res = await fit(D, a, { measure: modelMeasure(D, g), layout, add: true });
+    return { res, n: Object.fromEntries(res.recipe.sections.find(s => s.id === 'experience').work.map(r => [r.id ?? r, (r.highlights ?? D.work.find(w => w.id === r).highlights).length])) };
+  };
+  const plain = await left(null), flipped = await left([...ids].reverse());
+  ok('Fit runs on both', !plain.res.error && !flipped.res.error, plain.res.error ?? flipped.res.error);
+  ok('without an order the last job in the record gives up bullets first', plain.n.poly > plain.n.polc, JSON.stringify(plain.n));
+  ok('with the order flipped, the job printed last gives up bullets first, and the first keeps its bullets', flipped.n.polc > flipped.n.poly, JSON.stringify(flipped.n));
+  ok('the fitted lists go back to the record’s order, beside the stored order', flipped.res.recipe.sections.find(s => s.id === 'experience').work.map(r => r.id ?? r).join() === ids.join()
+    && flipped.res.recipe.sections.find(s => s.id === 'experience').order.join() === [...ids].reverse().join());
 }
 
 section('stability');

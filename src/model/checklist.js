@@ -10,7 +10,7 @@ import * as T from './resume.js';
 import * as K from './career.js';
 import { versionsIn } from './record.js';
 import { offOf } from '../recipe.js';
-import { entriesOf, isArchived } from './entries.js';
+import { entriesOf, entryKey, isArchived } from './entries.js';
 
 const DEFAULT_LANG = T.DEFAULT_LANG;
 const CREDENTIALS = ['skills', 'languages', 'certificates', 'publications', 'interests', 'references'];
@@ -27,6 +27,10 @@ export const claimSel = (id, job) => (job ? { kind: 'bullet', id, job, section: 
 // order is compared, not looked up.
 const differs = (now, record) => now.some((x, i) => x !== record[i]);
 const itemsCustom = (model, recipe, sid) => { const l = T.itemList(model, recipe, sid); return !!l && differs(l.map(x => x.id), T.itemsOf(model, sid)); };
+export function jobsCustom(model, recipe, sid){
+  const now = T.jobRefs(model, recipe, sid).map(r => (typeof r === 'string' ? r : r.id)).filter(id => entryKey(model, id) === 'work');
+  return differs(now, ((model.sections ?? []).find(s => s.id === sid)?.content?.work ?? []).filter(id => now.includes(id)));
+}
 export function sectionsCustom(model, recipe){
   const on = T.sectionList(model, recipe).filter(s => s.on && !s.fixed).map(s => s.id);
   return differs(on, (model.sections ?? []).map(s => s.id).filter(id => on.includes(id)));

@@ -110,6 +110,19 @@ section('flowSlots: what a recipe without pages prints');
   ok('a manual layout is not auto', !isAuto({ pages: [] }) && isAuto({}));
 }
 
+section('a moved job: flowSlots and the pages keep this resume’s order');
+{
+  const r = { format: 'a4', theme: 'b2-marker', summary: 'summary', sections: [{ id: 'experience', work: ['hydra', { id: 'poly', highlights: ['poly-shop'] }, 'free'], order: ['free', 'poly', 'gone'] }] };
+  const s = flowSlots(example, r).find(x => x.id === 'experience');
+  ok('the slot lists the jobs in the order the resume sets; a stale id is ignored, one it does not name follows', eq(s.work.map(w => (typeof w === 'string' ? w : w.id)), ['free', 'poly', 'hydra']));
+  const { order, ...plain } = r.sections[0];
+  ok('the same recipe without the order lists the work as it is', eq(flowSlots(example, { ...r, sections: [plain] }).find(x => x.id === 'experience').work.map(w => (typeof w === 'string' ? w : w.id)), ['hydra', 'poly', 'free']));
+  ok('the page prints the jobs in that order, like the plan', html(example, flowRecipe(example, r)) === html(example, r) && html(example, r).indexOf('Self-employed') < html(example, r).indexOf('Hydra Medical'));
+  const g = geometryFor(REPO, r);
+  const laid = await autoLayout(example, r, modelFlow(example, g));
+  ok('pagination keeps the moved order', eq(jobsIn(laid.pages), ['free', 'poly', 'hydra']));
+}
+
 section('the line model: the example resumes, paginated');
 for (const { name, recipe } of resumes){
   const auto = stripped(recipe);

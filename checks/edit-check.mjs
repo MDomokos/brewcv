@@ -468,6 +468,41 @@ section('"custom": this resume’s order is not the record’s');
   ok('…and the record’s order again ends it', !CL.sectionsCustom(m, qs));
 }
 
+section('the jobs of a resume print in the order it sets');
+{
+  const m = clone(example);
+  const r = clone(resumes.find(x => (x.lang ?? 'en') === 'en' && T.jobRefs(m, x, 'experience').length >= 3));
+  const refs = q => T.jobRefs(m, q, 'experience').map(x => (typeof x === 'string' ? x : x.id));
+  const [a, b, c] = refs(r);
+  const printed = q => T.resolve(m, q).body.work.map(w => w.name);
+  const named = id => m.work.find(w => w.id === id).name;
+  const html = q => render(m, q);
+  const e = q => q.sections.find(x => x.id === 'experience');
+  ok('with no order, nothing is stored and a move to the end of the record’s order stores nothing', e(r).order === undefined && (() => { const q = clone(r); T.moveEntry(m, q, a, b); T.moveEntry(m, q, a); T.moveEntry(m, q, a, b); return e(q).order === undefined && html(q) === html(r); })());
+  const q = clone(r);
+  const res = T.moveEntry(m, q, c, a);
+  ok('moving a job puts it first on the page and in the JSON Resume body, this resume only', eq(refs(q), [c, a, b, ...refs(r).slice(3)]) && printed(q)[0] === named(c) && html(q).indexOf(named(c)) < html(q).indexOf(named(a)) && html(r).indexOf(named(a)) < html(r).indexOf(named(c)) && !res.auto);
+  ok('…the work list stays in the record’s order (an older app prints the record’s), the order is stored beside it', eq(e(q).work, e(r).work) && e(q).order[0] === c);
+  ok('…and the record is untouched', eq(m.sections, example.sections));
+  const back = S.loadResume(S.saveResume(m, q).file, m);
+  ok('it round-trips through the saved-resume file with no warnings', eq(e(back.recipe).order, e(q).order) && back.warnings.length === 0 && eq(refs(back.recipe), refs(q)), back.warnings.join('; '));
+  ok('Alt+↓ is a step, off the ends nothing', (() => { const z = clone(q); return T.stepEntry(m, z, c, 1).moved && eq(refs(z).slice(0, 2), [a, c]) && !T.stepEntry(m, z, refs(z)[0], -1).moved && !T.stepEntry(m, z, refs(z).at(-1), 1).moved; })());
+  ok('the jobs list is custom; the record’s order again ends it and the key goes', CL.jobsCustom(m, q, 'experience') && !CL.jobsCustom(m, r, 'experience') && (() => { const z = clone(q); for (const id of example.sections.find(x => x.id === 'experience').content.work) if (refs(z).includes(id)) T.moveEntry(m, z, id); return !CL.jobsCustom(m, z, 'experience') && e(z).order === undefined; })());
+  const stale = clone(q); e(stale).order = ['gone', ...e(q).order, 'gone-too', c];
+  ok('ids that are no longer in the record, and a repeat, are ignored', eq(refs(stale), refs(q)) && printed(stale).join() === printed(q).join());
+  const part = clone(r); e(part).order = [c];
+  ok('a job missing from the order follows, in the listed order', eq(refs(part), [c, a, b, ...refs(r).slice(3)]));
+  const off = clone(r); T.setJobOn(m, off, a, false);
+  ok('a job that is off has no place', throws(() => T.moveEntry(m, off, a, null)) && !throws(() => T.moveEntry(m, off, b, null)));
+  const arch = clone(m); arch.work.find(w => w.id === b).archived = true;
+  ok('an archived job has no place, and is not in a stored order', throws(() => T.moveEntry(arch, clone(r), b, null)) && !(e((() => { const z = clone(r); T.moveEntry(arch, z, c, a); return z; })()).order ?? []).includes(b));
+  ok('a project is not a job to order', throws(() => T.moveEntry(m, clone(r), m.projects[0].id, null)));
+  const pg = clone(r); pg.pages = [['header', 'summary', { id: 'experience', work: clone(e(r).work) }, 'skills']];
+  const auto = T.moveEntry(m, pg, c, a);
+  ok('a hand layout switches to automatic pages, as moving a section does', auto.auto && !pg.pages && eq(refs(pg).slice(0, 2), [c, a]));
+  ok('the recipe still validates', !errorsOf(m, q).length);
+}
+
 section('on the page: a line written in place holds the text the old text box held');
 {
   // a stand-in for what a browser leaves in an editable element, in each of the ways it does

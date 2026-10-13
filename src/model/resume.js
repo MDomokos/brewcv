@@ -17,9 +17,9 @@ export function refusal(fact, v){
 }
 
 import { keyed, t } from '../i18n/index.js';
-import { entriesOf, isEntry, archivedIds, archivedEntryIds } from './entries.js';
-import { offOf, keepOf, migratePins } from '../recipe.js';
-export { offOf, keepOf, migratePins };
+import { entriesOf, entryKey, isEntry, archivedIds, archivedEntryIds } from './entries.js';
+import { offOf, keepOf, migratePins, inOrder } from '../recipe.js';
+export { offOf, keepOf, migratePins, inOrder };
 
 function index(model){
   return {
@@ -114,7 +114,7 @@ export function resolve(model, recipe = null){
   for (const [factId, text] of Object.entries(recipe?.overrides ?? {}))
     problems.push(`recipe overrides ${factId} with one-off text ("${String(text).slice(0, 40)}…"): overrides have no source, so they cannot go to an ATS export`);
 
-  const workRefs = ((recipe && recipe.sections?.find(s => s.id === 'experience')?.work) ?? (model.work ?? []).map(w => w.id))
+  const workRefs = inOrder((recipe && recipe.sections?.find(s => s.id === 'experience')?.work) ?? (model.work ?? []).map(w => w.id), recipe?.sections?.find(s => s.id === 'experience')?.order)
     .map(r => (typeof r === 'string' ? { id: r } : r));
   const workById = new Map((model.work ?? []).map(w => [w.id, w]));
   const wantSection = id => !recipe ? true : (recipe.sections ?? []).some(s => s.id === id) || id === 'header';
@@ -223,7 +223,7 @@ export function printedFacts(model, recipe = null){
   const b = model.basics ?? {};
   const summaryFact = recipe?.summary ?? b.summary;
   const out = { summary: summaryFact ? { fact: summaryFact, text: textOf2(summaryFact) } : null, work: [] };
-  const workRefs = ((recipe && recipe.sections?.find(s => s.id === 'experience')?.work) ?? (model.work ?? []).map(w => w.id))
+  const workRefs = inOrder((recipe && recipe.sections?.find(s => s.id === 'experience')?.work) ?? (model.work ?? []).map(w => w.id), recipe?.sections?.find(s => s.id === 'experience')?.order)
     .map(r => (typeof r === 'string' ? { id: r } : r));
   const workById = new Map((model.work ?? []).map(w => [w.id, w]));
   for (const ref of workRefs){
@@ -360,7 +360,7 @@ function setList(recipe, k, id, on){
 export function jobRefs(model, recipe, sid = null){
   const one = id => (Array.isArray(recipe.pages)
     ? recipe.pages.flat().filter(s => typeof s === 'object' && s.id === id).map(s => s.work ?? [])
-    : [entryOf(recipe, id)?.work ?? (entryOf(recipe, id) ? factIx(model).sections.get(id)?.content?.work ?? [] : [])]).flat();
+    : [inOrder(entryOf(recipe, id)?.work ?? (entryOf(recipe, id) ? factIx(model).sections.get(id)?.content?.work ?? [] : []), entryOf(recipe, id)?.order)]).flat();
   return (sid ? [sid] : entriesIds(model)).flatMap(one);
 }
 export function listedBullets(model, recipe, jobId){
@@ -575,6 +575,31 @@ export function stepBullet(model, recipe, factId, dir){
   if (i < 0 || j < 0 || j >= ids.length) return false;
   moveBullet(model, recipe, factId, dir < 0 ? ids[j] : ids[j + 1] ?? null);
   return true;
+}
+
+// The order the jobs of a section print in on this resume: the section's `order`, dropped when it is the record's. beforeId null puts
+// the job last. A job that is off or archived has no place. A hand layout switches to automatic pages, as moving a section does.
+export function moveEntry(model, recipe, id, beforeId = null){
+  if (entryKey(model, id) !== 'work') throw new Error(`${id} is not a job`);
+  const sid = sectionOfEntry(model, id);
+  if (archivedEntryIds(model).has(id) || !jobRefs(model, recipe, sid).some(r => refId(r) === id)) throw new Error(`${id} is not on this resume`);
+  const auto = toAuto(model, recipe);
+  const e = entryOf(recipe, sid);
+  const hidden = archivedEntryIds(model);
+  const ids = jobRefs(model, recipe, sid).map(refId).filter(x => x !== id && !hidden.has(x));
+  const at = beforeId == null ? ids.length : ids.indexOf(beforeId);
+  ids.splice(at < 0 ? ids.length : at, 0, id);
+  const natural = (factIx(model).sections.get(sid)?.content?.work ?? []).filter(x => ids.includes(x));
+  if (ids.length === natural.length && ids.every((x, i) => x === natural[i])) delete e.order; else e.order = ids;
+  return { auto };
+}
+export function stepEntry(model, recipe, id, dir){
+  const sid = sectionOfEntry(model, id);
+  const hidden = archivedEntryIds(model);
+  const ids = jobRefs(model, recipe, sid).map(refId).filter(x => !hidden.has(x) && entryKey(model, x) === 'work');
+  const i = ids.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return { auto: false, moved: false };
+  return { ...moveEntry(model, recipe, id, dir < 0 ? ids[j] : ids[j + 1] ?? null), moved: true };
 }
 
 export function setItemOn(model, recipe, id, on){

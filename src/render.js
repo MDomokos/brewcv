@@ -2,7 +2,7 @@
 // Class names are the contract with themes/: nothing here sets a colour, size or position.
 
 import { render as renderInline, encode } from '../scripts/lib/html.mjs';
-import { isOmitted, offOf } from './recipe.js';
+import { isOmitted, offOf, inOrder } from './recipe.js';
 import { entriesOf } from './model/entries.js';
 
 const GAP = '⬜';
@@ -339,7 +339,7 @@ function makeCtx(data, recipe, doc, opts){
     term: fid => data.i18n?.[lang]?.terms?.[fid] ?? facts.get(fid)?.term ?? fid,
     label: fid => data.i18n?.[lang]?.labels?.[fid] ?? facts.get(fid)?.label ?? '',
     proseFact: s => (s.id === 'summary' && recipe.summary) || s.content.fact,
-    workOrder: s => recipe.sections?.find(x => x.id === s.id)?.work ?? s.content.work,
+    workOrder: s => { const e = recipe.sections?.find(x => x.id === s.id); return inOrder(e?.work ?? s.content.work, e?.order); },
     // A merged phrasing drops the facts it covers, so nothing prints twice.
     highlights: (w, only) => {
       const ids = only ?? w.highlights;

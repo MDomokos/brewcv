@@ -507,6 +507,12 @@ async function fitAuto(data, recipe, opts){
     if (res.error) return res;
     const out = structuredClone(res.recipe);
     delete out.pages;
+    // the lists were laid out in this resume's job order; an older app reads them with the record's, so they go back to it
+    for (const x of out.sections ?? []) if (x?.order && x.work){
+      const rec = index(data).sections.get(x.id)?.content.work ?? [];
+      const at = r => { const i = rec.indexOf(typeof r === 'string' ? r : r.id); return i < 0 ? rec.length : i; };
+      x.work.sort((a, b) => at(a) - at(b));
+    }
     if (same(await opts.layout(out), res.recipe)) return { ...res, recipe: out, paginated: true, passes: pass };
     r = out;
   }

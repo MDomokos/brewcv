@@ -3,7 +3,7 @@
 // `pages` is left alone. Past `pageLimit` the rest stays on the last page and
 // overflows, which is what Fit trims.
 
-import { isOmitted } from './recipe.js';
+import { isOmitted, inOrder } from './recipe.js';
 
 const TOLERANCE = 0.5;      // px, the same slack pageFill() gives a band
 
@@ -14,8 +14,8 @@ export function flowSlots(data, recipe){
   return ids.map(id => {
     const s = sections.get(id);
     if (s.kind !== 'entries') return { id };
-    const work = recipe.sections?.find(x => x?.id === id)?.work ?? s.content.work ?? [];
-    return { id, work: structuredClone(work) };
+    const e = recipe.sections?.find(x => x?.id === id);
+    return { id, work: structuredClone(inOrder(e?.work ?? s.content.work ?? [], e?.order)) };
   });
 }
 

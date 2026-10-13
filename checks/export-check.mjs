@@ -75,6 +75,17 @@ section('JSON Resume and plain text');
   ok('one column: no line starts with a tab or runs two columns', !txt.split('\n').some(l => /^\t|\t/.test(l)));
 }
 
+section('a moved job is exported in the resume’s order');
+{
+  const q = structuredClone(resumes.find(x => T.jobRefs(model, x, 'experience').length >= 2));
+  const [a, b] = T.jobRefs(model, q, 'experience').map(x => (typeof x === 'string' ? x : x.id));
+  const names0 = X.jsonResumeFile(model, q).file.work.map(w => w.name);
+  T.moveEntry(model, q, b, a);
+  const names1 = X.jsonResumeFile(model, q).file.work.map(w => w.name);
+  ok('the JSON Resume work follows the moved order, and is the same jobs', names1[0] === names0[1] && names1[1] === names0[0] && [...names1].sort().join() === [...names0].sort().join());
+  ok('the plain text follows too', (t => t.indexOf(names1[0]) < t.indexOf(names1[1]))(X.plainText(X.jsonResumeFile(model, q).file, { lang: 'en', chrome: {} })));
+}
+
 section('pre-flight');
 {
   const fit = [{ page: 1, used: 900, usable: 1000, overflow: 0 }];
