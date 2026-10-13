@@ -1,6 +1,7 @@
 // The Export view: pre-flight checks, then the downloads. The string work is in
 // src/export.js; this module fetches, downloads and prints.
 
+import { pageSize } from './layout.js';
 import * as X from '../export.js';
 import { renderPages } from '../render.js';
 import { missingList } from '../model/lang.js';
@@ -54,9 +55,31 @@ export async function buildHtml(recipe = C.cur(), laid = C.ui.laid){
     lang: recipe.lang ?? 'en' });
 }
 
+// The desktop app (Tauri): one Save dialog, then a hidden window prints the page straight to that file (desktop/print.js).
+// Returns true when it handled the export; false means "use the print dialog instead" (not macOS, or the export failed to start).
+async function savePdfFile(html){
+  const T = window.__TAURI__;
+  const path = await T.dialog.save({ defaultPath: X.exportName(C.cur(), st().record, 'pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  if (!path) return true;
+  const w = new T.webviewWindow.WebviewWindow('print' + Date.now(), { url: 'desktop/print.html', visible: false, width: 900, height: 1100 });
+  await new Promise((ok, no) => { w.once('tauri://created', ok); w.once('tauri://error', e => no(new Error(String(e.payload)))); });
+  const done = new Promise(ok => T.event.once('pdf-done', e => ok(e.payload)));
+  await new Promise(ok => setTimeout(ok, 600)); // the page's listener is set up a moment after the window exists
+  const { w: pw, h: ph } = pageSize(C.cur().format);   // the page box in CSS px; the paper is the same size in points, so nothing spills onto a blank page
+  await w.emit('html', { html, path, width: pw * 0.75, height: ph * 0.75 });
+  const r = await done;
+  if (r.unsupported) return false;
+  C.toast(r.ok ? t('toast.pdfSaved', { path }) : t('toast.pdfFailed', { msg: r.msg }), r.ok ? '' : 'bad');
+  return true;
+}
+
 // Print from a hidden frame. @page sets the paper size; the user saves as PDF from the dialog.
 async function printPdf(){
   const html = await buildHtml();
+  if (window.__TAURI__){
+    try { if (await savePdfFile(html)) return; } catch (e){ console.error(e); }
+    C.toast(t('toast.printDialog'));
+  }
   const fr = document.createElement('iframe');
   fr.className = 'print-frame';
   fr.setAttribute('aria-hidden', 'true');
@@ -101,7 +124,7 @@ async function act(a, tg){
   const fx = fmt => exportFx({ drink: drink(), from: C.pageBox?.() ?? null, to: tg?.getBoundingClientRect?.() ?? null, fmt, pages: C.ui.fills?.length ?? 1 });
   try {
     switch (a){
-      case 'ex-pdf': C.toast(t('toast.printDialog')); fx('PDF'); await printPdf(); return true;
+      case 'ex-pdf': if (!window.__TAURI__) C.toast(t('toast.printDialog')); fx('PDF'); await printPdf(); return true;
       case 'ex-html': C.download(await buildHtml(), X.exportName(C.cur(), s.record, 'html'), 'text/html'); C.toast(t('toast.htmlDone')); fx('HTML'); return true;
       case 'ex-txt': { const r = C.cur(), lang = r.lang ?? 'en'; await loadCatalogue(lang); C.download(X.plainText(X.jsonResumeFile(C.work(), r).file, { lang, chrome: docChrome(lang) }), X.exportName(r, s.record, 'txt'), 'text/plain'); C.toast(t('toast.txtDone')); fx('TXT'); return true; }
       case 'ex-json': { const { file, problems } = X.jsonResumeFile(C.work(), C.cur()); C.download(JSON.stringify(file, null, 2) + '\n', X.exportName(C.cur(), s.record, 'json')); C.toast(problems.length ? t('toast.jsonNotes', { n: problems.length, first: problems[0] }) : t('toast.jsonDone'), problems.length ? 'warn' : ''); fx('JSON'); return true; }

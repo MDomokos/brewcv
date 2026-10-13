@@ -264,6 +264,8 @@ export default {
   'export.jsonNote': 'Standardní formát, jak je vytištěno',
   'export.note': 'Vše vzniká zde, v tomto prohlížeči. Další cesty ven (Figma, komunitní motivy) najdete v README.',
   'toast.printDialog': 'Otevírá se dialog tisku: zvolte „Uložit jako PDF“.',
+  'toast.pdfSaved': 'Uloženo: {path}',
+  'toast.pdfFailed': 'PDF se nepodařilo uložit: {msg}',
   'toast.htmlDone': 'Stránka HTML stažena.',
   'toast.txtDone': 'Prostý text stažen.',
   'toast.jsonDone': 'JSON Resume stažen.',

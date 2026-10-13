@@ -264,6 +264,8 @@ export default {
   'export.jsonNote': 'A szabványos formátum, ahogy nyomtatódik',
   'export.note': 'Minden itt, ebben a böngészőben készül. Más kimeneti lehetőségek (Figma, közösségi témák) a README-ben.',
   'toast.printDialog': 'Megnyílik a nyomtatás: válaszd a „Mentés PDF-ként” lehetőséget.',
+  'toast.pdfSaved': 'Mentve: {path}',
+  'toast.pdfFailed': 'A PDF nem sikerült: {msg}',
   'toast.htmlDone': 'HTML-oldal letöltve.',
   'toast.txtDone': 'Egyszerű szöveg letöltve.',
   'toast.jsonDone': 'JSON Resume letöltve.',

@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "windows": ["main", "print*"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-save",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-close"
+  ]
+}
