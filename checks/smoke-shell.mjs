@@ -2404,6 +2404,38 @@ if (want('drinks: tea and coffee, light and dark')) {
   await ctx.close();
 }
 
+if (want('drinks: the folded Tea tags hang on a thread and swing; Coffee and reduced motion have none')) {
+  const look = page => page.evaluate(() => {
+    const ps = (el, w) => getComputedStyle(el, w);
+    const tl = document.querySelector('.tabs .tablist'), tab = document.querySelector('#tab-record');
+    return { thread: ps(tl, '::before').content !== 'none' ? [ps(tl, '::before').width, ps(tl, '::before').backgroundColor, ps(tl, '::before').pointerEvents] : null,
+      loop: ps(tl, '::after').content !== 'none', hole: ps(tab, '::after').display !== 'none' && ps(tab, '::after').content !== 'none' };
+  });
+  const THREAD = [1.6, 'rgb(168, 138, 92)', 'none'];
+  for (const [drink, w, reduce] of [['tea', 1280, false], ['tea', 1920, false], ['coffee', 1920, false], ['tea', 1280, true]]){
+    const ctx = await browser.newContext({ viewport: { width: w, height: 800 }, reducedMotion: reduce ? 'reduce' : 'no-preference' });
+    const page = await ctx.newPage();
+    const bad = await open(page, undefined, { folded: true, drink });
+    await settle(page);
+    const L = await look(page), name = `${drink} ${w}${reduce ? ' reduced' : ''}`;
+    ok(`${name}: ${drink === 'tea' ? 'a 1.6px thread that takes no clicks, a hole in each tag' + (w >= 1700 ? ', and a loop above the first' : ', no loop under 1700px') : 'no thread, hole or loop'}`,
+      drink === 'tea' ? L.thread && Math.abs(parseFloat(L.thread[0]) - THREAD[0]) < .1 && L.thread[1] === THREAD[1] && L.thread[2] === THREAD[2] && L.hole && L.loop === (w >= 1700) : !L.thread && !L.hole && !L.loop, JSON.stringify(L));
+    const box = await (await page.$('#tab-record')).boundingBox();
+    await page.mouse.move(box.x - 30, box.y + 30); await page.mouse.move(box.x + 10, box.y + 30);
+    await page.waitForTimeout(150);
+    const sw = await page.evaluate(() => ['design', 'export', 'record'].map(m => document.querySelector('#tab-' + m).getAnimations().filter(a => a.effect.getKeyframes().some(k => 'rotate' in k)).length));
+    ok(`${name}: brushing a tag ${drink === 'tea' && !reduce ? 'swings it and its neighbour, not a tag two away' : 'moves nothing'}`, drink === 'tea' && !reduce ? sw[2] === 1 && sw[1] === 1 && sw[0] === 0 : sw.every(n => n === 0), JSON.stringify(sw));
+    if (drink === 'tea' && !reduce){
+      const slow = await page.evaluate(() => { const d = m => document.querySelector('#tab-' + m).getAnimations().find(a => a.effect.getKeyframes().some(k => 'rotate' in k)).effect.getTiming().duration; return d('record'); });
+      ok('the lowest tag swings 1.73 s', Math.abs(slow - 1730) < 1, String(slow));
+    }
+    await page.click('#tab-record'); // a click during the swing unfolds at once
+    ok(`${name}: a click on a tag unfolds the panel at once`, await page.waitForFunction(() => !document.querySelector('#tabs').classList.contains('is-folded'), null, { timeout: 400 }).then(() => true, () => false));
+    ok(`${name}: no console errors`, bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+}
+
 if (want('drinks: Fit, the meters, the moments')) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
