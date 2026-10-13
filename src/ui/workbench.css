@@ -813,6 +813,9 @@ body.is-quiet .ovlay { display: none; }
 .clrow.dragging { opacity: .4; }
 .clrow.drop-above { box-shadow: inset 0 2px 0 var(--mark); }
 .clrow.drop-below { box-shadow: inset 0 -2px 0 var(--mark); }
+.clg.drop-above { box-shadow: inset 0 2px 0 var(--mark); }
+.clg.drop-below { box-shadow: inset 0 -2px 0 var(--mark); }
+.clg.dragging { opacity: .4; }
 
 /* ===== M11a: what both drinks share ===== */
 /* Type. F11 rule 5: helper text 13px, uppercase labels 12px; a label is in the label face (mono) in both drinks. */
@@ -946,7 +949,7 @@ body[data-phone=true] .rectl .yrow { display: block; }
 .clgrip { grid-column: 5; grid-row: 1; display: grid; place-items: center; width: 24px; height: 24px; color: var(--faint); cursor: grab; }
 .clmv { display: flex; opacity: 0; pointer-events: none; }
 .clrow .clmv { grid-column: 4; grid-row: 1; }
-.clrow:hover .clmv, .clrow:focus-within .clmv, .clrow.is-sel .clmv, .srow:hover .clmv, .srow:focus-within .clmv, .srow.is-sel .clmv { opacity: 1; pointer-events: auto; }
+.clgh:hover .clmv, .clgh:focus-within .clmv, .clrow:hover .clmv, .clrow:focus-within .clmv, .clrow.is-sel .clmv, .srow:hover .clmv, .srow:focus-within .clmv, .srow.is-sel .clmv { opacity: 1; pointer-events: auto; }
 .clmv .ib { width: 24px; height: 24px; }
 .clmv .ib[aria-disabled=true] { opacity: .4; cursor: default; }
 .item.srow { grid-template-columns: 24px minmax(0, 1fr) auto auto; }

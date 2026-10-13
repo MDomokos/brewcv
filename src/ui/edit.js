@@ -20,7 +20,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null };
+const E = { enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null, dragJob: null };
 
 function commit(fn, label, done){
   try {
@@ -514,6 +514,8 @@ function bind(body){
   });
 
   body.addEventListener('dragstart', e => {
+    const jb = e.target.closest?.('.clgh[data-job][draggable=true]');
+    if (jb){ E.dragJob = jb.dataset.job; jb.closest('.clg').classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', jb.dataset.job); return; }
     const bu = e.target.closest?.('.clrow[data-bullet][draggable=true]');
     if (bu){ E.dragBullet = { id: bu.dataset.bullet, job: bu.dataset.bjob }; bu.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', bu.dataset.bullet); return; }
     const it = e.target.closest?.('.clrow[data-item][draggable=true]');
@@ -527,6 +529,16 @@ function bind(body){
     e.dataTransfer.setData('text/plain', E.drag);
   });
   body.addEventListener('dragover', e => {
+    if (E.dragJob){
+      const tj = e.target.closest?.('.clg:has(> .clgh[data-job])');
+      if (tj && tj.closest('.obody') === body.querySelector(`.clgh[data-job="${CSS.escape(E.dragJob)}"]`)?.closest('.obody')){
+        e.preventDefault();
+        for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
+        const bb = tj.getBoundingClientRect();
+        tj.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
+      }
+      return;
+    }
     if (E.dragBullet){
       const tb = e.target.closest?.('.clrow[data-bullet]');
       if (tb && tb.dataset.bjob === E.dragBullet.job){
@@ -556,6 +568,20 @@ function bind(body){
     r.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
   });
   body.addEventListener('drop', e => {
+    if (E.dragJob){
+      const from = E.dragJob, tj = e.target.closest?.('.clg:has(> .clgh[data-job])');
+      E.dragJob = null;
+      const to = tj?.dataset.g;
+      if (!to || to === from) return;
+      e.preventDefault();
+      const ids = [...tj.closest('.obody').querySelectorAll('.clgh[data-job]')].map(n => n.dataset.job).filter(x => x !== from);
+      const at = ids.indexOf(to) + (tj.classList.contains('drop-below') ? 1 : 0);
+      let r;
+      commit(d => { r = T.moveEntry(d.record, d.cur, from, ids[at] ?? null); }, tr('ux2.undoMoveItem'));
+      C.flash(T.sectionOfEntry(rec(), from));
+      if (r?.auto) C.toast(autoNote(r).trim());
+      return;
+    }
     if (E.dragBullet){
       const row = e.target.closest?.('.clrow[data-bullet]'), from = E.dragBullet;
       E.dragBullet = null;
@@ -599,7 +625,7 @@ function bind(body){
     if (res?.auto) C.toast(autoNote(res).trim());
   });
   body.addEventListener('dragend', () => {
-    E.drag = null; E.dragOff = false; E.dragItem = null; E.dragBullet = null;
+    E.drag = null; E.dragOff = false; E.dragItem = null; E.dragBullet = null; E.dragJob = null;
     for (const n of body.querySelectorAll('.dragging, .drop-above, .drop-below')) n.classList.remove('dragging', 'drop-above', 'drop-below');
   });
 }
@@ -631,6 +657,12 @@ function stepBulletBy(id, d){
   commit(x => { moved = T.stepBullet(x.record, x.cur, id, d); }, t('ux2.undoMoveItem'));
   return moved;
 }
+function stepJobBy(id, d){
+  let r;
+  commit(x => { r = T.stepEntry(x.record, x.cur, id, d); }, t('ux2.undoMoveItem'));
+  if (r?.moved){ C.flash(T.sectionOfEntry(rec(), id)); if (r.auto) C.toast(autoNote(r).trim()); }
+  return !!r?.moved;
+}
 function stepItemBy(id, d){
   const sid = T.sectionOfItem(rec(), id);
   let moved = false;
@@ -643,6 +675,8 @@ const stepRow = (row, d) => (row.dataset.bullet ? stepBulletBy(row.dataset.bulle
 // Alt+↑ / Alt+↓ move what has the focus or is selected: a bullet of a job, an item of a list section in its section's print
 // order, else the selected section
 function moveWhatIsHere(d){
+  const job = document.activeElement?.closest?.('.clgh[data-job]')?.dataset.job;
+  if (job){ stepJobBy(job, d); return true; }
   const bullet = document.activeElement?.closest?.('.clrow[data-bullet]')?.dataset.bullet
     ?? (C.ui.sel.kind === 'bullet' && C.ui.sel.job ? C.ui.sel.id : null);
   if (bullet){ stepBulletBy(bullet, d); return true; }
@@ -658,7 +692,11 @@ function moveWhatIsHere(d){
 function resetOrder(kind, id){
   let auto = false;
   commit(d => {
-    if (kind === 'job'){ const on = new Set(T.listedBullets(d.record, d.cur, id)); for (const b of ix().work.get(id)?.highlights ?? []) if (on.has(b)) T.moveBullet(d.record, d.cur, b); }
+    if (kind === 'jobs'){
+      const listed = new Set(T.jobRefs(d.record, d.cur, id).map(r => (typeof r === 'string' ? r : r.id)));
+      for (const x of d.record.sections.find(s => s.id === id)?.content.work ?? []) if (listed.has(x) && d.record.work.some(w => w.id === x && !w.archived)) auto ||= T.moveEntry(d.record, d.cur, x).auto;
+    }
+    else if (kind === 'job'){ const on = new Set(T.listedBullets(d.record, d.cur, id)); for (const b of ix().work.get(id)?.highlights ?? []) if (on.has(b)) T.moveBullet(d.record, d.cur, b); }
     else if (kind === 'items') for (const x of T.itemsOf(d.record, id) ?? []) T.moveItem(d.record, d.cur, id, x);
     else { const on = new Set(T.sectionList(d.record, d.cur).filter(s => s.on && !s.fixed).map(s => s.id)); for (const s of d.record.sections) if (on.has(s.id)) auto ||= T.moveSection(d.record, d.cur, s.id).auto; }
   }, t('ux5b.undoReset'));
@@ -668,7 +706,7 @@ function key(e){
   // writing a line on the page: Esc leaves it for the job (asks first if there is a draft), wherever the focus is
   if (e.key === 'Escape' && E.edit && !E.edit.panel){ e.preventDefault(); cancelEdit({ ask: true }); return true; }
   if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')
-    && (C.ui.sel.kind === 'section' || document.activeElement?.closest?.('.clrow[data-item], .clrow[data-bullet]') || (C.ui.sel.kind === 'bullet' && C.ui.sel.job) || (C.ui.sel.kind === 'record' && C.ui.sel.what === 'item'))){
+    && (C.ui.sel.kind === 'section' || document.activeElement?.closest?.('.clrow[data-item], .clrow[data-bullet], .clgh[data-job]') || (C.ui.sel.kind === 'bullet' && C.ui.sel.job) || (C.ui.sel.kind === 'record' && C.ui.sel.what === 'item'))){
     e.preventDefault(); return moveWhatIsHere(e.key === 'ArrowDown' ? 1 : -1);
   }
   if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && C.ui.sel.kind === 'bullet' && !E.edit && document.body.dataset.phone !== 'true'){ e.preventDefault(); startEdit(); return true; }
@@ -687,7 +725,7 @@ function leaving(next){
 }
 
 const api = {
-  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, ctrlEnter,
+  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, ctrlEnter,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){

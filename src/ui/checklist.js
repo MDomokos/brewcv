@@ -4,7 +4,7 @@
 // takes it off (edit.js setBullet, one undo step each). Nothing about the claims that are off is drawn on the page. The list is a
 // plain run of checkboxes in tab order.
 
-import { checklist, groupOf, groupsOfSection, sectionCounts, sectionsCustom } from '../model/checklist.js';
+import { checklist, groupOf, groupsOfSection, sectionCounts, sectionsCustom, jobsCustom } from '../model/checklist.js';
 import * as T from '../model/resume.js';
 import { addClaimHtml, orderMarkHtml, moveButtonsHtml, sw } from './parts.js';
 import { t, h } from '../i18n/index.js';
@@ -113,13 +113,14 @@ export function outlineHtml(){
   const focusSec = !focus ? null : T.sectionOfEntry(m, focus) ?? (focus === 'education' ? 'education' : sel.kind === 'record' && sel.what === 'item' ? T.sectionOfItem(m, sel.id) : cl.groups.find(g => g.id === focus)?.section ?? null);
   const about = cl.groups.find(g => g.id === 'about')?.rows ?? [];
 
-  const jobHtml = (g, isOn) => {
+  const jobHtml = (g, isOn, move = null) => {
     if (!isOn) return `<div class="item row is-off ojob"><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a></div>`;
     const open = !folded(g.id, focus === g.id);
     const byId = new Map(g.rows.map(r => [r.id, r]));
     const printed = g.printed.map(id => byId.get(id)).filter(Boolean), more = g.rows.filter(r => !r.on);
     const showMore = S.more.has(g.id);
-    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${ocaret(g.id, open, `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}</h3>
+    const grip = move ? `<span class="clgrip" aria-hidden="true">${icon('grip')}</span>${moveButtonsHtml('job-up', 'job-down', g.id, g.title, move)}` : '';
+    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${move ? `data-job="${esc(g.id)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>${ocaret(g.id, open, `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}${grip}</h3>
       <div class="clbody" id="ol-${esc(g.id)}" ${open ? '' : 'hidden'}><ul class="clrows">${rowsHtml(printed, g)}</ul>
         ${more.length ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('ux5c.more', { n: more.length })}</button>${showMore ? `<ul class="clrows">${rowsHtml(more, g)}</ul>` : ''}` : ''}
         ${addLineHtml(g)}</div></section>`;
@@ -131,7 +132,10 @@ export function outlineHtml(){
     const gs = groupsOfSection(m, cl, s.id);
     if (gs[0]?.kind === 'entry'){
       const refs = T.jobRefs(m, cur, s.id).map(r => (typeof r === 'string' ? r : r.id));
-      return refs.map(id => gs.find(g => g.id === id)).filter(Boolean).map(g => jobHtml(g, true)).join('') + gs.filter(g => !refs.includes(g.id)).map(g => jobHtml(g, false)).join('');
+      // the jobs of the record that print can be re-arranged; a project or an archived job that still prints keeps its place
+      const on = refs.map(id => gs.find(g => g.id === id)).filter(Boolean), free = on.filter(g => m.work.some(w => w.id === g.id && !w.archived)).map(g => g.id);
+      const head = jobsCustom(m, cur, s.id) ? `<div class="ordhead">${orderMarkHtml(true, 'jobs', s.id, C.sectionTitle(s.id))}</div>` : '';
+      return head + on.map(g => jobHtml(g, true, free.includes(g.id) ? { first: g.id === free[0], last: g.id === free.at(-1) } : null)).join('') + gs.filter(g => !refs.includes(g.id)).map(g => jobHtml(g, false)).join('');
     }
     const rows = gs.flatMap(g => (g.kind === 'credentials' ? g.subs.filter(x => x.section === s.id).flatMap(x => x.rows) : g.rows));
     return rows.length ? `<ul class="clrows">${rowsHtml(rows, gs[0])}</ul>` : '';
@@ -190,7 +194,7 @@ function afterRender(){
   S.pop = null;
   // a row just moved flashes where it landed
   if (S.moved){
-    const row = document.querySelector(`#body .clrow[data-bullet="${CSS.escape(S.moved)}"], #body .clrow[data-item="${CSS.escape(S.moved)}"]`);
+    const row = document.querySelector(`#body .clrow[data-bullet="${CSS.escape(S.moved)}"], #body .clrow[data-item="${CSS.escape(S.moved)}"], #body .clgh[data-job="${CSS.escape(S.moved)}"]`);
     S.moved = null;
     if (row) play(row, [{ backgroundColor: 'var(--mark-soft)' }, { backgroundColor: 'transparent' }], { name: 'row:moved', key: 'row-moved', ms: 'slow' });
   }
@@ -242,6 +246,12 @@ async function act(a, tg){
       const row = tg.closest('.clrow');
       S.moved = row.dataset.bullet ?? row.dataset.item;
       if (!C.edit.stepRow(row, a === 'cl-up' ? -1 : 1)) S.moved = null;
+      return true;
+    }
+    case 'job-up': case 'job-down': {
+      if (tg.getAttribute('aria-disabled') === 'true') return true;
+      S.moved = tg.dataset.id;
+      if (!C.edit.stepJob(tg.dataset.id, a === 'job-up' ? -1 : 1)) S.moved = null;
       return true;
     }
     // a click on a row: in the Outline it selects the line and the Outline stays; in the Record it opens Edit at the line
