@@ -2089,6 +2089,20 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   ok('a job’s ticked bullets each have a grip and ↑ ↓; no other row does', n >= 3 && (await page.locator('#checklist .clgrip').count()) === n && (await page.locator('#checklist .clmv').count()) === n && (await page.locator('#checklist .clrow:not([draggable]) .clgrip').count()) === 0);
   ok('a job that was not moved shows no "custom"', (await page.locator('#checklist .pill.custom').count()) === 0);
   await rows.nth(1).hover();
+  // the ↑ ↓ cluster has its own room: on hover, focus and selection it never covers the version chip or the row's text, at 1100 and 1536
+  const overlaps = () => page.evaluate(() => [...document.querySelectorAll('#checklist .clrow .clmv')].flatMap(m => {
+    const row = m.closest('.clrow'), h0 = row.offsetHeight;
+    const mine = [...m.querySelectorAll('.ib')].map(b => b.getBoundingClientRect());
+    return [...row.querySelectorAll('.clv, .clt')].filter(el => mine.some(r => { const q = el.getBoundingClientRect(); return r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top; })).map(el => el.className + ' ' + h0);
+  }));
+  for (const w of [1100, 1536]){
+    await page.setViewportSize({ width: w, height: 864 }); await settle(page);
+    await rows.nth(1).hover();
+    const rowH = await rows.nth(1).evaluate(r => r.offsetHeight);
+    await rows.nth(1).locator('.clt').focus();
+    ok(`at ${w} px no ↑ ↓ button covers the chip or the text of its row, and the row keeps its height`, (await overlaps()).length === 0 && await rows.nth(1).evaluate(r => r.offsetHeight) === rowH && (await page.locator('#checklist .clv').count()) > 0, (await overlaps()).join('; '));
+  }
+  await page.setViewportSize({ width: 1536, height: 864 }); await settle(page);
   ok('hovering a row shows ↑ ↓; the grip, ↑ and ↓ are each at least 24 px', await page.locator('#checklist .clrow >> nth=1').evaluate(r => getComputedStyle(r.querySelector('.clmv')).opacity === '1') && await big(rows.nth(1).locator('.clgrip')) && await big(rows.nth(1).locator('[data-act=cl-up]')) && await big(rows.nth(1).locator('[data-act=cl-down]')));
   ok('the first row’s ↑ and the last row’s ↓ are aria-disabled (still in the page); the others are not', (await rows.first().locator('[data-act=cl-up]').getAttribute('aria-disabled')) === 'true' && (await rows.last().locator('[data-act=cl-down]').getAttribute('aria-disabled')) === 'true'
     && (await rows.first().locator('[data-act=cl-down]').getAttribute('aria-disabled')) === 'false' && (await rows.last().locator('[data-act=cl-up]').getAttribute('aria-disabled')) === 'false');
@@ -2122,6 +2136,9 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   const u1 = await undoN();
   ok('writing a line of a job puts ↑ and ↓ in the margin, named, with the keys in the hint, at least 24 px', (await page.locator('#editlay [data-act=ob-up]').count()) === 1 && (await page.locator('#editlay [data-act=ob-down]').count()) === 1
     && await big(page.locator('#editlay [data-act=ob-up]')) && await big(page.locator('#editlay [data-act=ob-down]')) && (await page.locator('#editlay [data-act=ob-down]').getAttribute('aria-label')).length > 0 && /Alt|⌥/.test(await page.locator('#editlay [data-act=ob-down]').getAttribute('data-tip')));
+  ok('on the first line the margin’s ↑ is aria-disabled, ↓ is not; a click on the ↑ does nothing', (await page.locator('#editlay [data-act=ob-up]').getAttribute('aria-disabled')) === 'true' && (await page.locator('#editlay [data-act=ob-down]').getAttribute('aria-disabled')) === 'false');
+  await page.click('#editlay [data-act=ob-up]', { force: true }); await page.waitForTimeout(600);
+  ok('…and the undo count and the page are as they were', (await undoN()) === u1 && JSON.stringify(await lis()) === JSON.stringify(before));
   await page.click('#editlay [data-act=ob-down]'); await page.waitForTimeout(1200);
   ok('the margin’s ↓ moves the line being written: one undo step, still writing the same line', (await undoN()) === u1 + 1 && (await lis())[1] === before[0] && (await lineEl(page).count()) === 1 && (await page.evaluate(() => window.__wb.edit.editing?.fact)) === fact);
   await appendLine(page, ' Zebra.');

@@ -66,7 +66,7 @@ export function initOnPage(C){
   // ---- drawing the layers ----
   function signature(lvl){
     const ed = edit().editing, tg = geom?.tg;
-    return JSON.stringify([lvl, tg?.fact, tg?.jobId, hover, popOpen, !!ed, ed?.mode, ed ? edit().isDirty() : null, geom?.boxes.length, ui.lang, C.lang()]);
+    return JSON.stringify([lvl, tg?.fact, tg?.jobId, hover, popOpen, !!ed, ed?.mode, ed ? edit().isDirty() : null, ed ? lineEnds(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang()]);
   }
   function render(force = false){
     lay ??= $('#editlay');
@@ -97,6 +97,10 @@ export function initOnPage(C){
 
   // the line the badge is for: the one written, else the one under the pointer, else the one selected
   const badgeFact = lvl => (lvl === 'line' ? S?.fact : hover ?? geom?.tg?.fact) ?? null;
+  function lineEnds(fact){
+    const w = T.jobOfFact(C.record(), fact), ids = w ? T.listedBullets(C.record(), C.cur(), w.id) : [];
+    return { first: ids[0] === fact, last: ids.at(-1) === fact };
+  }
   function toolsFor(lvl){
     if (lvl === 'lineSel') return '';
     const fact = badgeFact(lvl);
@@ -106,7 +110,7 @@ export function initOnPage(C){
     const over = C.cur().overrides?.[fact];
     const vn = over !== undefined && !ed ? t('edit.only') : (ed?.mode === 'only' ? t('edit.only') : using?.n ?? '·');
     const canOnly = !!(T.jobOfFact(C.record(), fact) || fact === C.cur().summary);
-    const html = toolsHtml({ vn, ed, dirty: !!ed && edit().isDirty(), canOnly, canMove: !!ed && !!T.jobOfFact(C.record(), fact), open: popOpen, counts: ed ? statsCompactHtml(ed) : '' });
+    const html = toolsHtml({ vn, ed, dirty: !!ed && edit().isDirty(), canOnly, canMove: !!ed && !!T.jobOfFact(C.record(), fact), ends: lineEnds(fact), open: popOpen, counts: ed ? statsCompactHtml(ed) : '' });
     return html + (popOpen ? badgeListHtml({ fact, versions: versionsOf(C.ix(), fact, C.lang()), usingId: using?.id }) : '');
   }
 
@@ -304,7 +308,7 @@ export function initOnPage(C){
   async function act(a){
     switch (a){
       case 'ob-badge': popOpen = !popOpen; render(true); return true;
-      case 'ob-up': case 'ob-down': edit().stepLine(a === 'ob-up' ? -1 : 1); return true;
+      case 'ob-up': case 'ob-down': { const e = lineEnds(edit().editing?.fact); if (!(a === 'ob-up' ? e.first : e.last)) edit().stepLine(a === 'ob-up' ? -1 : 1); return true; }
     }
     return false;
   }

@@ -176,7 +176,7 @@ const iconButton = (act, ic, name, tip, attrs = '') =>
 
 // The column beside the line: the version badge, and while writing the three ways to keep what you wrote, with the counts.
 // ed: the draft being written (or null); vn: the number of the version in use; dirty: the draft differs from it.
-export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, canMove = false, open = false, counts = '' }){
+export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, canMove = false, ends = {}, open = false, counts = '' }){
   const badge = `<button class="obv" data-act="ob-badge" aria-haspopup="listbox" aria-expanded="${open}" data-tip="${esc(t('ux3.badge'))}|${esc(t('ux3.badgeTip'))}" data-tip-pos="l" aria-label="${esc(t('ux3.badgeName', { v: vn }))}">v${esc(vn)} ${icon('caret', { size: 12 })}</button>`;
   if (!ed) return `<div class="obtools" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}</div>`;
   const dis = dirty ? '' : 'disabled';
@@ -188,7 +188,7 @@ export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, canMo
     : iconButton('ed-saveas', 'copyplus', t('edit.saveAsV'), t('ux3.saveAsTip'), dis);
   const act3 = isNew || isOnly || !canOnly ? '' : iconButton('ed-only', 'onlyhere', t('edit.thisOnly'), t('ux3.onlyTip'), dis);
   const tip = (k, arrow) => t(k, { keys: keyText('Alt', arrow) });
-  const mv = !canMove ? '' : iconButton('ob-up', 'up', t('ux5b.lineUp'), tip('ux5b.lineUpTip', '↑')) + iconButton('ob-down', 'caret', t('ux5b.lineDown'), tip('ux5b.lineDownTip', '↓'));
+  const mv = !canMove ? '' : iconButton('ob-up', 'up', t('ux5b.lineUp'), tip('ux5b.lineUpTip', '↑'), `aria-disabled="${!!ends.first}"`) + iconButton('ob-down', 'caret', t('ux5b.lineDown'), tip('ux5b.lineDownTip', '↓'), `aria-disabled="${!!ends.last}"`);
   return `<div class="obtools writing" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}${act1}${act2}${act3}${mv}<div class="obstats" id="ob-stats">${counts}</div></div>`;
 }
 
