@@ -34,7 +34,8 @@ const M10_ADDS = html => String(html)
   .replace(', <kbd>Esc</kbd> goes back', '')
   .replace(/\n\s*<label class="field addclaim">[\s\S]*?<\/label>/g, '')
   .replace(/\s*<p class="note">[^<]*(?:<kbd>[^<]*<\/kbd>[^<]*)*<\/p>/g, '')
-  .replace(/\s*<div class="from">[\s\S]*?<\/div>/g, '');
+  .replace(/\s*<div class="from">[\s\S]*?<\/div>/g, '')
+  .replace(/\+351(?: ?\d+)+/g, '<phone>');     // the example person's number, whole or cut by an aria-label, stays out of the fixture
 
 async function resumeSnapshot(){
   const out = {};
