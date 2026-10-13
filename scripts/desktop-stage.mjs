@@ -12,7 +12,10 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 export const OUT = path.join(ROOT, '_desktop');
-export const DIRS = ['src', 'fonts', 'icons', 'themes', 'formats', 'templates', 'data', 'desktop'];
+export const DIRS = ['src', 'fonts', 'icons', 'themes', 'formats', 'templates', 'desktop'];
+// data/ is an allowlist, not a folder copy: whatever else lands in data/ (a backup, a private file with an unexpected name) is not
+// embedded in the binary. These are the only data/ paths the app fetches; checks/desktop-check.mjs re-reads src/ to keep that true.
+export const DATA = ['data/example.json', 'data/example-resumes'];
 // the one module the app imports from outside src/ (found by walking the import graph; the check re-walks it)
 export const FILES = ['index.html', 'manifest.webmanifest', 'scripts/lib/html.mjs'];
 // connect-src stays 'self' in the web build; only this staged copy adds the desktop IPC schemes
@@ -37,9 +40,14 @@ function* walk(dir){
   }
 }
 
+export function listFiles(){
+  const data = DATA.flatMap(d => fs.statSync(path.join(ROOT, d)).isDirectory() ? [...walk(d)] : [d]);
+  return [...FILES, ...DIRS.flatMap(d => [...walk(d)]), ...data].filter(f => f !== '.DS_Store' && !f.endsWith('/.DS_Store') && !isPrivate(f));
+}
+
 export function stage(){
   fs.rmSync(OUT, { recursive: true, force: true });
-  const files = [...FILES, ...DIRS.flatMap(d => [...walk(d)])].filter(f => f !== '.DS_Store' && !f.endsWith('/.DS_Store') && !isPrivate(f));
+  const files = listFiles();
   for (const f of files){
     let data = fs.readFileSync(path.join(ROOT, f));
     if (f === 'index.html'){

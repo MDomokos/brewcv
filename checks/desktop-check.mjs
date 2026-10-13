@@ -5,7 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT, DIRS, FILES, IPC, isPrivate } from '../scripts/desktop-stage.mjs';
+import { ROOT, DIRS, FILES, DATA, IPC, isPrivate, listFiles } from '../scripts/desktop-stage.mjs';
 
 let failed = 0;
 const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${!cond && extra ? `  — ${extra}` : ''}`); if (!cond) failed++; };
@@ -30,6 +30,14 @@ ok('every file it names exists', FILES.every(f => fs.existsSync(path.join(ROOT, 
 const names = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/example-resumes/index.json'), 'utf8'));
 const bad = names.filter(n => n !== n.normalize('NFC'));
 ok('every name in data/example-resumes/index.json is NFC', !bad.length, bad.join(', '));
+
+// data/ is staged from an allowlist: only what the app fetches, nothing else that happens to sit in the folder
+const inData = f => DATA.some(d => f === d || f.startsWith(`${d}/`));
+const fetched = new Set();
+for (const file of fs.readdirSync(path.join(ROOT, 'src'), { recursive: true }).filter(f => f.endsWith('.js')))
+  for (const m of fs.readFileSync(path.join(ROOT, 'src', file), 'utf8').matchAll(/fetch\(\s*[`'"]\.\/(data\/[^`'"$]*)/g)) fetched.add(m[1].replace(/\/$/, ''));
+ok('every data/ path the app fetches is on the allowlist', fetched.size >= 2 && [...fetched].every(p => inData(p) || DATA.some(d => p.startsWith(`${d}/`))), [...fetched].join(', '));
+ok('nothing else under data/ is staged (not example-recipe.json, not a stray private file)', listFiles().filter(f => f.startsWith('data/')).every(inData));
 
 // the website's deploy drops these (pages.yml); so must the app, which would embed them in its binary
 ok('private files are not staged: *.local.json, a library, recipes', ['data/identity.local.json', 'x/y.local.json', 'data/resume-data.json', 'data/recipes/a.json', 'data/me.jsonresume.json'].every(isPrivate)
