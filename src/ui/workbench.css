@@ -904,8 +904,6 @@ body[data-phone=true] .col.is-record { border-radius: 0; }
 .sentrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sentrow .lbl { margin: 0; }
 
-/* the job chip on the page: the count is a link into Record */
-
 /* the shortcut sheet: the keys column takes the room its keys need, and wraps before it runs into a label */
 .keys { grid-template-columns: minmax(110px, max-content) minmax(0, 1fr); column-gap: 14px; row-gap: 6px; }
 .keys > div { display: contents; }
