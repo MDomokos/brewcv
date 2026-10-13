@@ -72,6 +72,10 @@ ok('the workflow runs only by hand or on a v* tag', /workflow_dispatch:/.test(on
 ok('the workflow has read-only contents and deploys nothing', /^permissions:\n\s+contents: read\s*$/m.test(wf) && !/pages: write|id-token|deploy|publish|gh-release|upload-pages/i.test(wf));
 ok('the workflow pins its actions to a full version tag', [...wf.matchAll(/uses:\s*(\S+)/g)].every(m => /@v\d+\.\d+(\.\d+)?$/.test(m[1])), [...wf.matchAll(/uses:\s*(\S+)/g)].map(m => m[1]).join(', '));
 ok('the workflow builds the manifest', wf.includes(`manifest-path: flatpak/${ID}.yml`));
+// the manifest copies the working tree: private and generated folders must stay in its skip list
+const skipLine = read(`flatpak/${ID}.yml`).match(/skip:\s*\[([^\]]*)\]/s)?.[1] ?? '';
+const skipped = skipLine.split(',').map(x => x.replace(/#.*$/gm, '').trim()).filter(Boolean);
+ok('the manifest\'s source copy skips the private and generated folders', ['.git', 'out', '_desktop', 'src-tauri/target', 'data/resume-data.json', 'data/recipes'].every(x => skipped.includes(x)), skipped.join(' '));
 const pages = read('.github/workflows/pages.yml');
 ok('pages.yml is still the only workflow that deploys the site (it does not build or run the Flatpak)', !/flatpak-github-actions|flatpak-builder|flatpak\.yml/i.test(pages));
 // the deploy copies the whole repo and refuses private-looking files and images outside icons/ (src-tauri/icons, and a file name

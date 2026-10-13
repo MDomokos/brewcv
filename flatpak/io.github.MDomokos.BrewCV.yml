@@ -31,7 +31,11 @@ modules:
       # The checkout this manifest sits in. Build output and flatpak-builder's own folders are skipped.
       - type: dir
         path: ..
-        skip: [.git, .flatpak-builder, flatpak_app, repo, _desktop, node_modules, src-tauri/target, src-tauri/gen]
+        # `type: dir` copies the WORKING tree, ignored files included. Keep private and generated folders out. The flatpak-builder docs do
+        # not say whether entries are matched by name or by path, so folders are listed by their top-level name and the old in-tree
+        # private paths by path; the privacy gate that runs inside the build (below) is the backstop either way.
+        skip: [.git, .flatpak-builder, flatpak_app, repo, _desktop, node_modules, src-tauri/target, src-tauri/gen,
+               out, data/identity.local.json, checks/deny.local.json, data/resume-data.json, data/recipes]
       # Rust crates, vendored offline; regenerate with scripts/flatpak-sources.sh after Cargo.lock changes.
       - cargo-sources.json
     build-commands:
