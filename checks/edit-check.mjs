@@ -444,6 +444,30 @@ section('the bullets of a job print in the order this resume sets');
   ok('the recipe still validates', !errorsOf(m, y).length);
 }
 
+section('"custom": this resume’s order is not the record’s');
+{
+  const m = clone(example), r = clone(resumes.find(x => (x.lang ?? 'en') === 'en'));
+  const job = m.work.find(w => T.listedBullets(m, r, w.id).length >= 2);
+  const grp = q => CL.checklist(m, q).groups.find(g => g.id === job.id);
+  const sub = q => CL.checklist(m, q).groups.find(g => g.id === 'credentials').subs.find(x => x.id === 'skills');
+  ok('nothing moved: no job, list or section list is custom', !grp(r).custom && !sub(r).custom && !CL.sectionsCustom(m, r) && CL.checklist(m, r).groups.every(g => !g.custom && (g.subs ?? []).every(x => !x.custom)));
+  const q = clone(r);
+  T.stepBullet(m, q, T.listedBullets(m, q, job.id)[0], 1);
+  ok('a bullet stepped down makes its job custom, and no other', grp(q).custom && CL.checklist(m, q).groups.filter(g => g.custom).length === 1);
+  for (const b of job.highlights) if (T.listedBullets(m, q, job.id).includes(b)) T.moveBullet(m, q, b);
+  ok('putting the listed bullets in the record’s order, one by one, ends it', !grp(q).custom && eq(T.listedBullets(m, q, job.id), job.highlights.filter(b => T.listedBullets(m, r, job.id).includes(b))));
+  const ids = T.itemsOf(m, 'skills'), qi = clone(r);
+  T.stepItem(m, qi, 'skills', ids[0], 1);
+  ok('an item stepped down makes its list custom', sub(qi).custom);
+  for (const x of ids) T.moveItem(m, qi, 'skills', x);
+  ok('…and the record’s order again ends it, with no order stored', !sub(qi).custom && qi.sections.find(x => x.id === 'skills').order === undefined);
+  const qs = clone(r), movable = T.sectionList(m, qs).filter(x => x.on && !x.fixed).map(x => x.id);
+  T.stepSection(m, qs, movable[0], 1);
+  ok('a section stepped down makes the sections list custom', CL.sectionsCustom(m, qs));
+  for (const x of m.sections.map(y => y.id)) if (movable.includes(x)) T.moveSection(m, qs, x);
+  ok('…and the record’s order again ends it', !CL.sectionsCustom(m, qs));
+}
+
 section('on the page: a line written in place holds the text the old text box held');
 {
   // a stand-in for what a browser leaves in an editable element, in each of the ways it does
