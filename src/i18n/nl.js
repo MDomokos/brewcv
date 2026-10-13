@@ -264,6 +264,8 @@ export default {
   'export.jsonNote': 'Het standaardformaat, zoals afgedrukt',
   'export.note': 'Alles wordt hier gemaakt, in deze browser. Andere uitvoermogelijkheden (Figma, communitythema’s) staan in de README.',
   'toast.printDialog': 'Afdrukvenster wordt geopend: kies “Opslaan als PDF”.',
+  'toast.pdfSaved': 'Opgeslagen: {path}',
+  'toast.pdfFailed': 'PDF mislukt: {msg}',
   'toast.htmlDone': 'HTML-pagina gedownload.',
   'toast.txtDone': 'Platte tekst gedownload.',
   'toast.jsonDone': 'JSON Resume gedownload.',

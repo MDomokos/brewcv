@@ -21,6 +21,7 @@ recipes/
 *.avif
 *.heic
 !icons/*.png
+!src-tauri/icons/*.png
 !docs/*.png
 !docs/*.gif
 
@@ -43,6 +44,11 @@ out/
 
 # Deploy
 _site/
+
+# Desktop build: the staged copy of the app, and Cargo's output
+_desktop/
+src-tauri/target/
+src-tauri/gen/
 
 # Tooling
 node_modules/

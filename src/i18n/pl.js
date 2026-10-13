@@ -264,6 +264,8 @@ export default {
   'export.jsonNote': 'Standardowy format, tak jak w wydruku',
   'export.note': 'Wszystko powstaje tutaj, w tej przeglądarce. Inne sposoby eksportu (Figma, motywy społeczności) opisuje README.',
   'toast.printDialog': 'Otwieram okno drukowania: wybierz „Zapisz jako PDF”.',
+  'toast.pdfSaved': 'Zapisano: {path}',
+  'toast.pdfFailed': 'Nie udało się utworzyć PDF: {msg}',
   'toast.htmlDone': 'Pobrano stronę HTML.',
   'toast.txtDone': 'Pobrano czysty tekst.',
   'toast.jsonDone': 'Pobrano JSON Resume.',
