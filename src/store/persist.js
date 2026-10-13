@@ -405,6 +405,8 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       if (f.handle !== undefined) await backend.put('handle/folder', f.handle);
       const there = await f.read('resume-data.json');         // what is on disk now is what the person chose to keep or replace
       diskHash = there === null ? null : await sha256(there);
+      // a file already on disk with the same text is left alone: no new modification time for a sync tool to carry to other devices
+      for (const [p, text] of filesOf(store.materialize())) if ((await f.read(p)) === text) written.set(p, text);
       return (await writeFolder()) ?? [];
     },
     // After link() has written the open resumes under their composed names: the other spelling of a merged resume is

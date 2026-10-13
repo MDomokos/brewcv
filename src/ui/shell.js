@@ -1054,16 +1054,19 @@ function readFlag(k){ try { return localStorage.getItem(k) === '1'; } catch { re
 function setFlag(k){ try { localStorage.setItem(k, '1'); } catch { /* shown again next time */ } }
 
 // A linked folder mirrors the record and its resumes to disk. It is never needed.
-async function linkFolder(){
+async function linkFolder(startAt){
   let f;
   try {
     const T = tauriApi();
-    if (T){ const dir = await T.dialog.open({ directory: true, recursive: true }); if (!dir) return; f = tauriFolder(dir); }
+    if (T){ const dir = await T.dialog.open({ directory: true, recursive: true, ...(startAt ? { defaultPath: startAt } : {}) }); if (!dir) return; f = tauriFolder(dir); }
     else f = fsaFolder(await showDirectoryPicker({ id: 'brewcv', mode: 'readwrite' }));
   } catch { return; }
   if ((await f.permission(true)) !== 'granted') return toast(t('toast.noFolderPermission'), 'warn');
   await adoptFolder(f, true);
 }
+
+// confirm() is not certain to show in the desktop app's web view, and a question that guards your data must not silently answer no
+const askOk = async msg => { const T = tauriApi(); return T ? T.dialog.ask(msg, { kind: 'warning', okLabel: 'OK', cancelLabel: 'Cancel' }) : confirm(msg); };
 
 async function adoptFolder(f, fresh){
   const disk = await readFolder(f).catch(e => { toast(`${f.name}: ${errText(e)}`, 'bad'); return null; });
@@ -1071,7 +1074,7 @@ async function adoptFolder(f, fresh){
   if (disk){
     const cmp = await persist.compareFolder(f);
     if (!cmp.same){
-      const useDisk = confirm(t(disk.state.resumes.length ? 'confirm.folderHasResumes' : 'confirm.folderHas', { name: f.name, n: disk.state.resumes.length }));
+      const useDisk = await askOk(t(disk.state.resumes.length ? 'confirm.folderHasResumes' : 'confirm.folderHas', { name: f.name, n: disk.state.resumes.length }));
       if (useDisk){
         await persist.checkpoint(t('checkpoint.beforeFolder', { name: f.name }), 'replace');
         ui.sel = NONE;
@@ -1100,6 +1103,8 @@ async function checkFolder(){
 async function reconnect(){
   const f = ui.reconnect;
   if (!f) return;
+  // desktop: a path has no permission to ask for and the folder may have moved, so the person picks it again, starting beside the old one
+  if (typeof f.handle === 'string') return linkFolder(f.handle.replace(/[\\/][^\\/]*$/, '') || undefined);
   if ((await f.permission(true)) !== 'granted') return toast(t('toast.stillNoDisk'), 'warn');
   await adoptFolder(f, false);
 }

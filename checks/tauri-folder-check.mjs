@@ -139,4 +139,20 @@ section('a folder that is gone, or no longer granted');
   T3._picked = null;
   ok('cancelling the dialog gives no folder', (await T3.dialog.open({ directory: true })) === null);
 }
+section('linking a folder that already holds the same files');
+{
+  const T4 = fakeTauri({}, ['/E']); T4._picked = '/E'; await T4.dialog.open({});
+  const folder = tauriFolder('/E', T4);
+  const st = exampleState(), store = createStore(st);
+  const first = await createPersist({ store, backend: memoryBackend(), ...instant }).link(folder);
+  ok('the first link writes every file', first.length === st.resumes.length + 1, String(first.length));
+  const again = createPersist({ store, backend: memoryBackend(), ...instant });
+  ok('linking the same folder again writes nothing (no new modification times for a sync tool to carry about)', (await again.link(folder)).length === 0);
+  const id = st.resumes[0].id;
+  store.commit(d => { d.resumes.find(r => r.id === id).pageLimit = 2; }, 'x');
+  await again.flush();
+  T4._disk.set('/E/recipes/' + id, 'changed elsewhere');
+  const third = await createPersist({ store, backend: memoryBackend(), ...instant }).link(folder);
+  ok('a file that differs on disk is written again, and only that one', third.length === 1 && third[0] === 'recipes/' + id, third.join(' | '));
+}
 process.exit(failed ? 1 : 0);
