@@ -123,6 +123,7 @@ node checks/recipe-check.mjs          weight, off / keep, weight-0 omit
 node checks/preflight-check.mjs       preflight refuses embedded image metadata and a prototypes/ folder
 node checks/history-scan-check.mjs    history-scan reads commit messages, authors and committers
 node checks/private-files-check.mjs  the private check files are found outside the repo, in the old place with a warning, or not at all
+node checks/prepush-check.mjs        the pre-push hook refuses private content, scans only what is pushed, and dry-runs the site for main
 node checks/agent-check.mjs           the agent workflow on the example: claims, new-resume and every refusal,
                                       fit on the line model, JSON Resume, the keyword gap
 node checks/fit-check.mjs [lib]       Fit's invariants on a modelled page
@@ -184,7 +185,7 @@ Every script that takes `<data.json>` except `checks/validate-data.mjs` reads ei
 
 ## Desktop build (macOS, preview)
 
-An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. The stage script leaves out what the website's deploy leaves out (`*.local.json`, `resume-data.json`, `data/recipes/`): `data/identity.local.json` is ignored by git but sits in the working tree, and the app would embed it in its binary. `beforeBuildCommand` then runs `checks/preflight-deploy.mjs _desktop --app`, the deploy's privacy gate without its web-only requirements (`sw.js`, `.nojekyll`), and the build stops on a finding. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Link a folder works too (below); updates are not in this build.
+An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. The stage script leaves out what the website's deploy leaves out (`*.local.json`, `resume-data.json`, `data/recipes/`): `data/identity.local.json` was ignored by git but sat in the working tree, and the app would have embedded it in its binary (the private files now live outside the repo, see above). `data/` is staged from an allowlist (`data/example.json`, `data/example-resumes/`: the only paths the app fetches; `checks/desktop-check.mjs` re-reads `src/` to keep that true), so a stray file in `data/` is never copied. `beforeBuildCommand` then runs `checks/preflight-deploy.mjs _desktop --app`, the deploy's privacy gate without its web-only requirements (`sw.js`, `.nojekyll`), and the build stops on a finding. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Link a folder works too (below); updates are not in this build.
 
 Prerequisites: Rust (`brew install rustup`, then `rustup default stable`) and the Tauri CLI, which is not a dependency of this repo. Run it with `npx @tauri-apps/cli@2.12.2 ...` (or `cargo install tauri-cli --version '~2.12'` and `cargo tauri ...`). The `tauri` crate is pinned to a minor version because the raw WKWebView types behind the PDF export can change between minors.
 
@@ -279,6 +280,21 @@ git branch -D main && git branch -m clean main
 ```
 
 After a push it costs a force-push that rewrites every clone, and the old objects stay reachable on GitHub's side for a while regardless. Commit freely now, run `history-scan` before the first `git remote add`, reset the history then if it finds anything.
+
+### The pre-push hook: the check you do not have to remember
+
+Hooks live in `.git/hooks`, which is not part of the repo, so each clone installs it once (worktrees share one hooks folder):
+
+```
+node scripts/install-hooks.mjs            # adds ONLY a pre-push file; your other hooks are left alone
+```
+
+`git push` then runs `scripts/pre-push.mjs`, which refuses the push when what is about to be published holds something private:
+
+1. **The commits being pushed** (not the whole history) go through `checks/history-scan.mjs` with the range git gives the hook: private file names (a renamed identity or deny file, archives and backups, recipes, a library), contactable addresses and phone numbers, your private values in commit messages, and author identities outside `commitEmails`.
+2. **A push to `main`**, which the Pages workflow deploys, also assembles the site the way `.github/workflows/pages.yml` does, from the pushed commit with `git archive` (so ignored files cannot get in; the excludes are read from `pages.yml` itself), and runs `version-check`, `name-check` and `preflight-deploy` on it. CI runs the same gates but cannot recognise your private values; this one can, because it runs on your machine. It is also how a deploy that would have been refused (the desktop icons and config in the site copy) is caught before the push, not after.
+
+`git push --no-verify` skips it. If a different `pre-push` hook is already installed, the installer stops; `--force` keeps it as `pre-push.local` and runs it after ours. `checks/prepush-check.mjs` tests the script against throwaway repositories.
 
 ### The ignore rules are not anchored
 

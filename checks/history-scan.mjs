@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// node checks/history-scan.mjs   (run it before adding a remote)
+// node checks/history-scan.mjs [rev-list arguments]   (run it before adding a remote; the pre-push hook gives it the range being pushed)
+// With no arguments it scans every commit on every ref. With arguments (for example `abc123..def456`, or `HEAD --not --remotes=origin`)
+// it scans only those commits: their files, contents, messages and author identities.
 // Private values come from deny.local.json, kept outside the repo ($BREWCV_PRIVATE_DIR or the platform default; see
 // scripts/lib/private-files.mjs). It does NOT read identity.local.json: add the owner's email, phone and city to "deny" to have
 // them searched for in commit messages. File contents are only checked for shapes.
@@ -21,7 +23,8 @@ if (!fs.existsSync('.git')){
   process.exit(0);
 }
 
-const revs = git('rev-list', '--all').trim().split('\n').filter(Boolean);
+const SELECT = process.argv.slice(2).length ? process.argv.slice(2) : ['--all'];
+const revs = git('rev-list', ...SELECT).trim().split('\n').filter(Boolean);
 if (!revs.length){
   console.log('history-scan: no commits yet, nothing to scan');
   process.exit(0);
@@ -39,10 +42,13 @@ const NEVER = [
   [/\.pdf$/i,                       'a rendered document'],
   [/\.jsonresume\.json$/,           'a JSON Resume export'],
   [/^\.env/,                        'an env file'],
+  [/(^|\/)(identity|deny)[^/]*\.json$/, 'an identity or deny file (these live outside the repo)'],
+  [/(^|\/)\.filled-/,               'a temporary file with filled-in identity values'],
+  [/\.(zip|tgz|tar\.gz|7z|bak)$/i,  'an archive or backup (it can hold a whole working tree)'],
   [/\.(png|jpe?g|webp|gif|avif|heic)$/i, 'an image outside icons/ and docs/'],
 ];
 const everSeen = new Set(
-  git('log', '--all', '--pretty=format:', '--name-only', '--diff-filter=AM')
+  git('log', ...SELECT, '--pretty=format:', '--name-only', '--diff-filter=AM')
     .split('\n').map(s => s.trim()).filter(Boolean));
 for (const f of everSeen){
   // docs/moments/*.gif are recordings of the app on the example data (a fictional person), looked at frame by frame before they were added
@@ -87,7 +93,7 @@ if (priv) try { overlay = JSON.parse(fs.readFileSync(priv.path, 'utf8')); } catc
 else console.log('history-scan: no deny file found (not set up, or CI): commit messages and author emails are not checked against private values');
 const deny = (overlay.deny ?? []).filter(v => typeof v === 'string' && v.trim().length >= 4).map(v => v.trim());
 const emails = (overlay.commitEmails ?? []).map(e => e.toLowerCase());
-const log = git('log', '--all', '--format=%H%x1f%an%x1f%ae%x1f%cn%x1f%ce%x1f%B%x1e');
+const log = git('log', ...SELECT, '--format=%H%x1f%an%x1f%ae%x1f%cn%x1f%ce%x1f%B%x1e');
 for (const rec of log.split('\x1e')){
   if (!rec.trim()) continue;
   const [hash, , aEmail, , cEmail, message = ''] = rec.trim().split('\x1f');
