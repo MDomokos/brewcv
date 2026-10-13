@@ -2,6 +2,7 @@
 // src/store/store.js; selection, preview and the page shown are view state, never undone.
 
 import { createStore } from '../store/store.js';
+import { askOk } from './ask.js';
 import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, readFolder, readBackup, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
 import { load, loadResume, detect, resumeFileName } from '../model/schema.js';
 import { chooseVariant, newResume, listedBullets, jobRefs } from '../model/resume.js';
@@ -1065,16 +1066,13 @@ async function linkFolder(startAt){
   await adoptFolder(f, true);
 }
 
-// confirm() is not certain to show in the desktop app's web view, and a question that guards your data must not silently answer no
-const askOk = async msg => { const T = tauriApi(); return T ? T.dialog.ask(msg, { kind: 'warning', okLabel: 'OK', cancelLabel: 'Cancel' }) : confirm(msg); };
-
 async function adoptFolder(f, fresh){
   const disk = await readFolder(f).catch(e => { toast(`${f.name}: ${errText(e)}`, 'bad'); return null; });
   let adopted = false;
   if (disk){
     const cmp = await persist.compareFolder(f);
     if (!cmp.same){
-      const useDisk = await askOk(t(disk.state.resumes.length ? 'confirm.folderHasResumes' : 'confirm.folderHas', { name: f.name, n: disk.state.resumes.length }));
+      const useDisk = await askOk(t(disk.state.resumes.length ? 'confirm.folderHasResumes' : 'confirm.folderHas', { name: f.name, n: disk.state.resumes.length }), { ok: 'OK', cancel: 'Cancel' });
       if (useDisk){
         await persist.checkpoint(t('checkpoint.beforeFolder', { name: f.name }), 'replace');
         ui.sel = NONE;

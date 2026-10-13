@@ -22,6 +22,7 @@ const SHELL = [
   './src/ui/boot.js',
   './src/ui/after-boot.js',
   './src/ui/shell.js',
+  './src/ui/ask.js',
   './src/ui/edit.js',
   './src/ui/resumes.js',
   './src/ui/switcher.js',
