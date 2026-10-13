@@ -22,6 +22,16 @@ const shortOf = (model, id, text) => String(text || (model.facts ?? []).find(f =
 // the selection that opens a claim of an entry in the inspector
 export const claimSel = (id, job) => (job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' });
 
+// This resume's order differs from the record's: a job's bullets, a list section's items, the sections on the page. Nothing is stored
+// when nothing was moved (a bullet list in the record's order is the bare id, an item order equal to the record's is dropped), so the
+// order is compared, not looked up.
+const differs = (now, record) => now.some((x, i) => x !== record[i]);
+const itemsCustom = (model, recipe, sid) => { const l = T.itemList(model, recipe, sid); return !!l && differs(l.map(x => x.id), T.itemsOf(model, sid)); };
+export function sectionsCustom(model, recipe){
+  const on = T.sectionList(model, recipe).filter(s => s.on && !s.fixed).map(s => s.id);
+  return differs(on, (model.sections ?? []).map(s => s.id).filter(id => on.includes(id)));
+}
+
 export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
   const sections = new Map(T.sectionList(model, recipe).map(s => [s.id, s]));
   const sectionOn = sid => !!sections.get(sid)?.on;
@@ -48,9 +58,9 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
     const w = byId.get(v.id);
     if (!w) return null;
     const jobOn = T.jobRefs(model, recipe).some(r => (typeof r === 'string' ? r : r.id) === w.id);
-    const listed = new Set(T.listedBullets(model, recipe, w.id));
+    const lb = T.listedBullets(model, recipe, w.id), listed = new Set(lb);
     const rows = (w.highlights ?? []).map(id => claimRow(id, w, listed, jobOn));
-    return { id: w.id, kind: 'entry', entryKind: v.kind, key: v.key, title: v.title, org: v.org, archived: !!w.archived, jobOn,
+    return { id: w.id, kind: 'entry', entryKind: v.kind, key: v.key, title: v.title, org: v.org, archived: !!w.archived, jobOn, custom: differs(lb, (w.highlights ?? []).filter(h => listed.has(h))),
       // an archived claim that this resume still prints stays in the list, badged; the others fold away
       sel: { kind: 'job', id: w.id }, rows: rows.filter(r => !r.archived || r.on), archivedRows: rows.filter(r => r.archived && !r.on) };
   }).filter(Boolean);
@@ -84,7 +94,7 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
   const sub = lists.filter(g => CREDENTIALS.includes(g.group)).map(g => {
     const sid = K.sectionFor(model, g.group, g.items[0]?.id ?? null);
     const on = sectionOn(sid);
-    return { id: g.group, section: sid, sectionOn: on, rows: listRows(g.group, sid, on, g.items) };
+    return { id: g.group, section: sid, sectionOn: on, custom: itemsCustom(model, recipe, sid), rows: listRows(g.group, sid, on, g.items) };
   });
   groups.push({ id: 'credentials', kind: 'credentials', subs: sub, rows: sub.flatMap(s => s.rows), archived: [] });
 
@@ -93,7 +103,7 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
   for (const g of lists.filter(g => g.kind)){
     const k = K.kindOf(model, g.kind);
     const on = sectionOn(k?.section);
-    groups.push({ id: g.kind, kind: 'list', title: K.kindName(model, g.kind, lang), section: k?.section, sectionOn: on,
+    groups.push({ id: g.kind, kind: 'list', title: K.kindName(model, g.kind, lang), section: k?.section, sectionOn: on, custom: itemsCustom(model, recipe, k?.section),
       rows: listRows(g.kind, k?.section, on, g.items), archived: [] });
   }
 
