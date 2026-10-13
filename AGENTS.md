@@ -19,9 +19,9 @@ Run everything from the repository root.
    ```json
    { "company": "Northgate Dosing Systems", "role": "Mechanical Design Engineer", "lang": "en", "format": "a4",
      "pageLimit": 1, "theme": "b2-marker", "jobType": "Medical devices", "summary": "summary-v1",
-     "bullets": ["hydra-inhaler-v2-1", "hydra-testing-v1-1", "hydra-dfm-v1"] }
+     "bullets": ["hydra-inhaler-v2-1", "hydra-testing-v1-1", "hydra-dfm-v1"], "jobOrder": ["hydra"] }
    ```
-   `company`, `role` and `jobType` are plain names (at most 80 characters, no `<`, `>` or `$`, no line breaks) and the only text it takes. Everything else is a version id, a number or a setting: `format` and `theme` come from the lists `claims.mjs` prints. `bullets` can't be empty.
+   `company`, `role` and `jobType` are plain names (at most 80 characters, no `<`, `>` or `$`, no line breaks) and the only text it takes. Everything else is a version id, a number or a setting: `format` and `theme` come from the lists `claims.mjs` prints. `bullets` can't be empty. `jobOrder` is optional: job ids (the ones `claims.mjs` prints for `--job`), in print order, for some or all of the jobs that have a picked bullet; the rest follow in the record's order. Use it when the ad's most relevant job should print first. Fit cuts from the bottom, so a job's place is its priority. An order that is the record's own is not stored.
 4. **Write the saved resume**:
    `node scripts/new-resume.mjs <data> picks.json <out-dir>`
    It refuses, and writes nothing, if an id doesn't exist, a version is in another language, a draft, archived (or still tagged `archive`), in an archived claim or job, or has no source where the record asks for one, two versions of one claim are listed (or one says another bullet that is also picked), or `picks.json` has any other text. It won't replace a file unless you pass `--force`. Read what it says and fix the picks.

@@ -151,6 +151,28 @@ ok('an existing file is not overwritten', run('scripts/new-resume.mjs', EX, mkPi
 ok('--force replaces it', run('scripts/new-resume.mjs', EX, mkPicks('good.json', picks()), out, '--force').code === 0);
 ok('it takes the one file too', run('scripts/new-resume.mjs', oneFile, mkPicks('good.json', picks()), path.join(tmp, 'out1')).code === 0);
 
+// jobOrder: the print order of the jobs
+{
+  const two = picks({ bullets: [...picks().bullets, 'poly-jigs-v1'] });
+  const d = path.join(tmp, 'jobs');
+  const jobsOf = f => JSON.parse(fs.readFileSync(f, 'utf8')).work.map(x => x.name);
+  const r0 = run('scripts/new-resume.mjs', EX, mkPicks('two.json', two), d);
+  const f0 = path.join(d, fs.readdirSync(d)[0] ?? 'none');
+  const r1 = run('scripts/new-resume.mjs', EX, mkPicks('two-order.json', { ...two, jobOrder: ['poly'] }), path.join(tmp, 'jobs1'));
+  const f1 = path.join(tmp, 'jobs1', fs.readdirSync(path.join(tmp, 'jobs1'))[0] ?? 'none');
+  const saved1 = JSON.parse(fs.readFileSync(f1, 'utf8'));
+  const rec1 = S.loadResume(saved1, model);
+  ok('jobOrder puts the job first on the page, and the saved resume holds it as the experience order', r0.code === 0 && r1.code === 0
+    && jobsOf(f0)[0] !== jobsOf(f1)[0] && jobsOf(f1)[0] === 'Polytechnic Prototyping Lab' && rec1.recipe.sections.find(x => x.id === 'experience').order?.[0] === 'poly' && rec1.warnings.length === 0, r1.err);
+  ok('a jobOrder equal to the record\'s order stores nothing', run('scripts/new-resume.mjs', EX, mkPicks('two-same.json', { ...two, jobOrder: ['hydra', 'poly'] }), path.join(tmp, 'jobs2')).code === 0
+    && S.loadResume(JSON.parse(fs.readFileSync(path.join(tmp, 'jobs2', fs.readdirSync(path.join(tmp, 'jobs2'))[0]), 'utf8')), model).recipe.sections.find(x => x.id === 'experience').order === undefined);
+  refuse('a jobOrder that is not a list', mkPicks('a.json', picks({ jobOrder: 'poly' })), EX, /jobOrder: must be a list/);
+  refuse('a jobOrder with an unknown job', mkPicks('a.json', { ...two, jobOrder: ['nope'] }), EX, /jobOrder: nope is not a job/);
+  refuse('a jobOrder with a job twice', mkPicks('a.json', { ...two, jobOrder: ['poly', 'poly'] }), EX, /poly is listed twice/);
+  refuse('a jobOrder with a job that has no picked bullet', mkPicks('a.json', { ...two, jobOrder: ['free'] }), EX, /free has no picked bullet/);
+  refuse('a jobOrder with an archived job', mkPicks('a.json', { ...two, jobOrder: ['poly'] }), (() => { const r = JSON.parse(JSON.stringify(rec)); r.work.find(x => x.id === 'poly').archived = true; return w('archpoly.json', r); })(), /poly can't be placed \(archived job\)/);
+}
+
 refuse('an id that does not exist', mkPicks('a.json', picks({ bullets: ['hydra-inhaler-v99'] })), EX, /not a version in the record/);
 refuse('a summary that does not exist', mkPicks('a.json', picks({ summary: 'nope' })), EX, /not a version in the record/);
 refuse('a version in another language', mkPicks('a.json', picks({ bullets: ['hydra-inhaler-v1-hu'] })), EX, /is in hu, and this resume is en/);

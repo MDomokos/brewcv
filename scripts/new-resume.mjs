@@ -3,14 +3,15 @@
 // Writes a saved resume from a list of picks: which version of which claim to print. It chooses among the
 // versions that exist and never takes text, so an agent can tailor a resume without writing a bullet.
 //
-// picks.json: { company, role, lang, format, pageLimit, theme, jobType?, summary?: versionId, bullets: [versionId, ...] }
+// picks.json: { company, role, lang, format, pageLimit, theme, jobType?, summary?: versionId, bullets: [versionId, ...],
+//   jobOrder?: [jobId, ...] }  (print order of the jobs that have picked bullets: some or all; the rest follow in the record's order)
 // Writes nothing, and says why, if anything in it is wrong. Never overwrites a file without --force.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { newResume, setBulletOn, setJobOn, chooseVariant, refusal } from '../src/model/resume.js';
-import { entriesOf } from '../src/model/entries.js';
+import { newResume, setBulletOn, setJobOn, moveEntry, jobRefs, chooseVariant, refusal } from '../src/model/resume.js';
+import { entriesOf, entryKey } from '../src/model/entries.js';
 import { LANGS, resumeFileName, migrateRecipe, saveResume } from '../src/model/schema.js';
 import { today } from '../src/model/resumes.js';
 import { readLibrary, readJson, writeResume } from './lib/library.mjs';
@@ -37,7 +38,7 @@ const ix = indexOf(model);
 const errors = [];
 const bad = m => errors.push(m);
 
-const ALLOWED = ['company', 'role', 'lang', 'format', 'pageLimit', 'theme', 'jobType', 'summary', 'bullets'];
+const ALLOWED = ['company', 'role', 'lang', 'format', 'pageLimit', 'theme', 'jobType', 'summary', 'bullets', 'jobOrder'];
 if (!picks || typeof picks !== 'object' || Array.isArray(picks)){ console.error(`${PICKS}: not an object`); process.exit(1); }
 for (const k of Object.keys(picks))
   if (!ALLOWED.includes(k)) bad(`${k}: not allowed in picks.json. The only text it takes is company and role; wording comes from the record's versions, by id.`);
@@ -100,6 +101,17 @@ for (const [fact, id] of bullets)
   for (const c of ix.version.get(id).covers ?? [])
     if (bullets.has(c)) bad(`bullets: ${id} already says ${c}, which is also picked; pick one of them`);
 
+// jobOrder: ids as claims.mjs prints them for --job, each a job with a picked bullet, none twice
+const jobOrder = picks.jobOrder ?? [];
+if (!Array.isArray(jobOrder) || jobOrder.some(j => typeof j !== 'string')) bad('jobOrder: must be a list of job ids');
+else for (const [i, id] of jobOrder.entries()){
+  const job = entriesOf(model).find(j => j.id === id);
+  if (!job || entryKey(model, id) !== 'work') bad(`jobOrder: ${id} is not a job in the record`);
+  else if (job.archived) bad(`jobOrder: ${id} can't be placed (archived job)`);
+  else if (!(job.highlights ?? []).some(h => bullets.has(h))) bad(`jobOrder: ${id} has no picked bullet, so it is not on the page and has no place`);
+  else if (jobOrder.indexOf(id) !== i) bad(`jobOrder: ${id} is listed twice`);
+}
+
 if (errors.length){
   console.error(`refusing, ${errors.length} problem${errors.length === 1 ? '' : 's'}; nothing was written:`);
   for (const e of errors) console.error(`  ✗ ${e}`);
@@ -111,6 +123,9 @@ const recipe = newResume(model, { format, lang, pageLimit: picks.pageLimit, them
 for (const f of model.facts) if (jobOf.has(f.id)) setBulletOn(model, recipe, f.id, bullets.has(f.id));
 // a job with no picked bullet would print as a bare heading
 for (const j of entriesOf(model)) if (!(j.highlights ?? []).some(h => bullets.has(h))) setJobOn(model, recipe, j.id, false);
+// the listed jobs first, in the order given, then the others as they were; moveEntry drops an order that is the record's
+const sec = (model.sections ?? []).find(x => x.kind === 'entries')?.id ?? 'experience';
+if (jobOrder.length) for (const id of [...jobOrder, ...jobRefs(model, recipe, sec).map(r => (typeof r === 'string' ? r : r.id)).filter(id => !jobOrder.includes(id) && entryKey(model, id) === 'work')]) moveEntry(model, recipe, id);
 for (const [fact, version] of bullets) recipe.picks[fact] = version;
 if (picks.summary !== undefined) recipe.picks[summaryFact] = picks.summary;
 Object.assign(recipe, { company, role, jobType });
