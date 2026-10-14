@@ -164,6 +164,22 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   ok('→ moves to Design and opens it, the focus on it', (await S()).tab === 'design' && (await S()).view === 'design' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-design');
   await key('End'); await settle(page);
   ok('End goes to Export, Home back to Edit', (await S()).tab === 'export' && (await (async () => { await key('Home'); await settle(page); return (await S()).tab === 'edit' && (await page.getAttribute('#body', 'data-view')) === 'outline'; })()));
+  // keyboard: a disabled tab is skipped, Record leaves Edit as the tab stop, the menu takes the focus, an Outline line hands it to the inspector and Esc hands it back
+  await page.evaluate(() => { document.querySelector('#tab-design').disabled = true; });
+  await page.focus('#tab-edit'); await key('ArrowRight'); await settle(page);
+  ok('→ skips a disabled Design tab', (await S()).tab === 'export' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-export');
+  await page.click('#tab-edit'); await settle(page);
+  await page.evaluate(() => window.__wb.setView('record')); await settle(page);
+  ok('in Record no tab is selected on the desktop, and Edit is the one tab stop', (await page.evaluate(() => window.__wb.ui.view)) === 'record' && await page.evaluate(() => { const t = [...document.querySelectorAll('#head [role=tab]')]; return t.filter(x => x.tabIndex === 0).map(x => x.id).join() === 'tab-edit'; }));
+  await key('Escape'); await settle(page);
+  await page.click('[data-act=menu]'); await page.waitForTimeout(100);
+  ok('the ⋯ menu takes the focus on its first item, and ↓ moves on', await page.evaluate(() => document.activeElement?.closest('.menu') !== null) && await (async () => { await key('ArrowDown'); return page.evaluate(() => !!document.activeElement?.closest('.menu') && document.activeElement !== document.querySelector('.menu [role=menuitem]')); })());
+  await key('Escape'); await settle(page);
+  await page.click('#tab-edit'); await settle(page);
+  await page.locator('#outline .clt:visible').first().click(); await settle(page);
+  ok('opening a line from the Outline puts the focus on the inspector’s heading', await page.evaluate(() => document.activeElement?.matches('#body .title')));
+  for (let i = 0; i < 3 && (await page.evaluate(() => window.__wb.ui.sel.kind)) !== 'none'; i++){ await key('Escape'); await settle(page); }
+  ok('…and Esc back to the Outline leaves the focus on Edit’s tab, not the page body', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-edit');
   ok('the stripe on the sidebar’s top is gone', await page.evaluate(() => ['none', 'normal'].includes(getComputedStyle(document.querySelector('#body'), '::before').content)));
   // the page's x never moves with a sheet or a selection
   const xs = [];

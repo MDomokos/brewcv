@@ -263,13 +263,10 @@ async function act(a, tg){
     }
     // a click on a row: in the Outline it selects the line and the Outline stays; in the Record it opens Edit at the line
     case 'cl-open': {
-      const outline = !!tg.closest?.('#outline');
-      C.select(JSON.parse(tg.dataset.sel), { pane: outline ? (C.ui.layout?.two ? null : 'outline') : 'edit' });       // in Edit's two sheets the Outline is already beside the selection
-      if (!outline){
-        // the panel's heading takes the focus, so the keyboard carries on in the inspector and Esc goes back out
-        const title = document.querySelector('#body .title');
-        if (title){ title.tabIndex = -1; title.focus({ preventScroll: true }); }
-      }
+      C.select(JSON.parse(tg.dataset.sel));
+      // the panel's heading takes the focus, so the keyboard carries on in the inspector and Esc goes back out
+      const title = document.querySelector('#body .title');
+      if (title){ title.tabIndex = -1; title.focus({ preventScroll: true }); }
       return true;
     }
     // "n v": Edit at that line

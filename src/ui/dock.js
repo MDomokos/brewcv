@@ -1,6 +1,6 @@
 // The editor's furniture around the page: the foot card (the meters and Fit), the zoom bar that shows while the pointer is over the
 // page (with Actual size), and the hover hints. On a phone the column is the bottom sheet and keeps its two-row head and its foot with
-// the zoom bar. The sidebar's content is edit.js's, checklist.js's and the other sheets'; the shell calls sync() whenever something
+// the zoom bar. The sidebar's content is edit.js's, checklist.js's and the other sheets'; the shell calls renderFoot() whenever something
 // that decides which sheet is open has changed.
 
 import { icon } from './icons.js';
@@ -295,7 +295,7 @@ function onKey(e){
 function onModesKey(e){
   const tab = e.target.closest?.('#head [role=tab][data-m]');
   if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
-  const tabs = [...tab.parentElement.querySelectorAll('[role=tab]')];
+  const tabs = [...tab.parentElement.querySelectorAll('[role=tab]:not(:disabled)')];
   const at = tabs.indexOf(tab);
   const to = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
   e.preventDefault();
@@ -325,7 +325,7 @@ export function initDock(ctx){
   C = ctx;
   C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite();
   return {
-    bind, act, onKey, sync: renderFoot, sheetOver, setMode, modeOf, renderFoot, zoomBy, zoomTo,
+    bind, act, onKey, sheetOver, setMode, modeOf, renderFoot, zoomBy, zoomTo,
     // Esc all the way out: the view zooms out to the whole resume
     allTheWayOut(){ C.canvas.reset(); },
   };

@@ -12,7 +12,7 @@ import { clampZoom, PHONE_MAX } from './layout.js';
 import { readMagnet, readBounce } from './dock.js';
 import { reduced, dur } from './motion.js';
 
-// the ease between views is --m-travel (a setting in the zoom pop-up scales the zoom, not this)
+// the ease between views is --m-travel
 const easeOut = p => 1 - Math.pow(1 - p, 3);
 const IDLE_MS = 140;                                    // the wheel or the hand has stopped
 
@@ -327,7 +327,7 @@ export function initCanvas(C){
     // a drag that moved the pages must not also be a click on a line
     get handed(){ return performance.now() - handedAt < 250; },
     get geo(){ return geo; }, get view(){ return view; }, get fit(){ return fit; }, get scene(){ return scene; },
-    // dials from the zoom pop-up and the console
+    // dials from the console
     set(d){ Object.assign(dials, d); },
     // where a rectangle of the page (its own pixels, from the sheet's corner) is on the screen
     screenRect(r){ return { left: cam.x + r.left * cam.k, top: cam.y + r.top * cam.k, width: r.width * cam.k, height: r.height * cam.k }; },

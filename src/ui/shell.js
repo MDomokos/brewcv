@@ -54,7 +54,7 @@ const persist = createPersist({ store, backend });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onPage: p => { ui.page = p; renderFoot(); }, onRename: (id, text) => edit.rename(id, text),
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
-  onDrawn: () => onpage?.afterDraw(), onHover: v => onpage?.onHover(v), onWrite: writeLine,
+  onDrawn: () => onpage?.afterDraw(), onWrite: writeLine,
   extraCss: r => design.extraCss(store.state.record, r),
   // the hand, the wheel and the pinch over the page itself go to the canvas
   frameEvents: {
@@ -72,7 +72,7 @@ const ui = {
 const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: on => dock?.sheetOver(on), moved: () => { placeOverflow(); onpage?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
 const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
   ix: () => ui.ix ?? indexModel(work()), fillText: () => fillText(), select: sel => select(sel),
-  writeStarted: () => dock.sync(), writeEnded: () => dock.sync(), redrawSoon: () => schedule() });
+  writeStarted: () => dock.renderFoot(), writeEnded: () => dock.renderFoot(), redrawSoon: () => schedule() });
 window.__wb = { store, persist, sheet, ui, canvas, onpage, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
 
 // The tea garden runs in tea, with its setting on, with motion allowed, off a phone and off the start screen; otherwise it rests.
@@ -228,7 +228,7 @@ function onChange({ kind, label }){
   if (chipEl && store.history.undo !== chipAt) dropChip();      // the chip's Undo is for Fit's change only
   if (store.state.openId && store.state.openId !== notedId){ notedId = store.state.openId; switcher.noteOpen(notedId); }     // the switcher's “recent”
   if (ui.snap && !snapNow()) setSnap(null);
-  if (ui.sel.kind !== 'none' && !stillThere(ui.sel)){ ui.sel = NONE; dock.sync(); }
+  if (ui.sel.kind !== 'none' && !stillThere(ui.sel)){ ui.sel = NONE; dock.renderFoot(); }
   syncUi();
   if (ui.exampleChip && !isExample()){ ui.exampleChip = false; renderHead(); }
   if (kind === 'undo') toast(t('toast.undone', { label }));
@@ -418,7 +418,7 @@ function select(sel, { keepScroll = false } = {}){
   const at = ui.layout?.phone ? -1 : pageOfSel(sel);
   if (at >= 0 && at !== ui.page){ ui.page = at; canvas.goToPage(at); }       // a line on another page, chosen from the panel: that page comes forward
   if (left) syncFull();         // Record fills the window; Edit does not
-  dock.sync();
+  dock.renderFoot();
   renderHead();
   // The sidebar opens at its top (the line's versions are what you came for). Only a click on a row of the Outline or the Record,
   // which keeps it where it is, leaves it alone; leaving a view is a new sheet.
@@ -461,7 +461,7 @@ function setView(v){
   if (ui.previewing) endPreview();
   resumes.reset();
   syncFull();                  // Record fills the window; the others are the sidebar
-  dock.sync();
+  dock.renderFoot();
   renderHead();
   renderBody(true);
   renderChip();
@@ -493,7 +493,7 @@ function drawHead(){
   const savebtn = `<button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>`;
   const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
   const mode = dock.modeOf();
-  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
+  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !(ui.layout?.phone ? ['edit', 'record', 'design', 'export'] : ['edit', 'design', 'export']).includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
     // the sidebar's head: the logo (the drink switch), the resume's name with what it is, Saved and Save to file, undo and redo, the
     // menu; under them the segmented control (Edit, Design, Export)
@@ -793,7 +793,7 @@ async function onClick(e){
   if (await design.act(act, tg)) return;
   if (await edit.act(act, tg)) return;
   switch (act){
-    case 'menu': ui.menu = !ui.menu; if (ui.menu) switcher.close(); renderHead(); break;
+    case 'menu': ui.menu = !ui.menu; if (ui.menu) switcher.close(); renderHead(); if (ui.menu) focusMenu('.menu'); break;
     case 'select-record': {
       const d = tg.dataset;
       select({ kind: 'record', what: d.what, ...(d.group ? { group: d.group } : {}), ...(d.key ? { key: d.key } : {}), id });
@@ -974,6 +974,8 @@ function fitSummary(r){
   return t(r.converged ? 'fit.inBand' : 'fit.notInBand', { n: r.rounds, pages, lo: r.band[0], hi: r.band[1] });
 }
 
+// the panel redraws on leaving a line, which drops the focus to the body: Edit's tab takes it
+function backToTab(){ if (document.activeElement === document.body || !document.activeElement) $('#tab-edit')?.focus({ preventScroll: true }); }
 function key(e){
   if (menuKey(e)) return;
   const typing = e.target.closest?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select, [contenteditable]:not([contenteditable=false])');
@@ -1002,7 +1004,7 @@ function key(e){
     // goes to the page. At the page level, the view zooms out (the panel no longer folds)
     const next = up(ui.sel);
     if (next.kind !== 'none'){ select(next); return; }
-    if (ui.sel.kind !== 'none'){ select(NONE); return; }
+    if (ui.sel.kind !== 'none'){ select(NONE); backToTab(); return; }
     dock.allTheWayOut();
     return;
   }
