@@ -1,6 +1,8 @@
 // Versions of the career record. Pure: changes the model in place, as a store draft wants.
 // Numbers are per fact and language, at most one dot, and never reused: deleted ones stay in `fact.retired[lang]`.
 
+import { isDraft, isArchive } from './resume.js';
+
 export const DEFAULT_LANG = 'en';
 export const VERSION_N = /^\d+(\.\d+)?$/;
 const langOf = v => v?.lang ?? DEFAULT_LANG;
@@ -96,7 +98,8 @@ function freeId(model, base){
 }
 
 // Tags, language and source come from `from`. `as`: 'minor' (vN.x under from's major) or 'major'.
-export function addVersion(model, factId, { text, lang, from = null, as = 'major', tagsFrom = null } = {}){
+// `marks` are the highlights the text already has; without them `from`'s are moved onto the new text. `source` wins over from's.
+export function addVersion(model, factId, { text, lang, from = null, as = 'major', tagsFrom = null, marks = null, source = null } = {}){
   const ix = index(model);
   const f = ix.fact(factId);
   if (!f) throw new RecordError(`no such fact: ${factId}`);
@@ -110,11 +113,12 @@ export function addVersion(model, factId, { text, lang, from = null, as = 'major
   const v = {
     id, n, lang: L, text: t, marks: [], links: [],
     tags: [...(src?.tags ?? (tagsFrom ? ix.variant(tagsFrom)?.tags : null) ?? [])],
-    ...(src?.source ? { source: src.source } : {}),
+    ...(source ?? src?.source ? { source: source ?? src.source } : {}),
     seenIn: [],
     metrics: { chars: cps(t).length, measured: {} },
   };
   if (src && langOf(src) === L){ v.marks = reanchor(src.marks, src.text, t, m => m.expect ?? cps(src.text).slice(m.start, m.end).join('')); v.links = reanchor(src.links, src.text, t); }
+  if (marks) v.marks = marks;
   // after the fact's last version, so the record stays grouped by fact
   const at = Math.max(-1, ...f.variants.map(x => model.variants.findIndex(y => y.id === x)));
   model.variants.splice(at + 1, 0, v);
@@ -205,4 +209,18 @@ export function wordMoves(a, b){
     }
   }
   return { pairs, removed, added, shared: pairs.length / Math.max(i, j, 1) };
+}
+
+// What number would this edited text get? Close to a live version (at least `threshold` of the longer text's words
+// kept): a sub-version of the nearest one. Else a new major. `tiny`: two words or fewer changed, nearly all kept.
+export function suggestNumber(model, factId, text, lang = DEFAULT_LANG, threshold = 0.7){
+  const vs = versionsIn(model, factId, lang).filter(v => !isDraft(v) && !isArchive(v) && String(v.text ?? '').trim());
+  if (!vs.length) return { as: 'major', n: nextMajor(model, factId, lang), near: null, shared: 0, tiny: false };
+  let best = null;
+  for (const v of vs){
+    const w = wordMoves(v.text, text);
+    if (!best || w.shared > best.shared) best = { v, shared: w.shared, changed: Math.max(w.removed.length, w.added.length) };
+  }
+  const close = best.shared >= threshold;
+  return { as: close ? 'minor' : 'major', n: close ? nextMinor(model, factId, best.v.n, lang) : nextMajor(model, factId, lang), near: best.v, shared: best.shared, tiny: best.changed <= 2 && best.shared >= 0.8 };
 }
