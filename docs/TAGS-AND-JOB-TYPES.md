@@ -47,7 +47,7 @@ What Focus does and does not do:
 - It leaves archived claims and archived jobs exactly as the resume has them.
 - There is one tagging system, and it applies to everything: a tag on a skill group, a language or a certificate is found, highlighted and applied like a tag on a bullet. Apply turns a tagged item on and picks its tagged version; an item with no tag is left as it is.
 
-A resume can have a job type. The resume switcher (the resume's name in the header) groups resumes by job type, and **+ New resume** asks for one. Under **Start from**, **The last … resume** copies the newest resume with that job type, and **Bullets for …** starts fresh and applies the job type.
+A resume can have a job type. The resume switcher (click the resume's name; **Manage all** lists every resume) groups resumes by job type, and **+ New resume** asks for one. Under **Start from**, **The last … resume** copies the newest resume with that job type, and **Bullets for …** starts fresh and applies the job type.
 
 ## Archive what you no longer use
 

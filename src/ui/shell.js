@@ -4,7 +4,7 @@
 import { createStore } from '../store/store.js';
 import { askOk } from './ask.js';
 import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, readFolder, readBackup, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
-import { load, loadResume, detect, resumeFileName } from '../model/schema.js';
+import { load, loadResume, detect, resumeFileName, LANGS } from '../model/schema.js';
 import { chooseVariant, newResume, listedBullets, jobRefs } from '../model/resume.js';
 import { isArchived } from '../model/entries.js';
 import { groupOf } from '../model/checklist.js';
@@ -23,7 +23,7 @@ import { indexModel, targetOf, up, same, step, versionsOf, NONE } from './select
 import { openActualSize } from './actual.js';
 import { initEdit } from './edit.js';
 import { initResumes, snapBarText } from './resumes.js';
-import { initSwitcher } from './switcher.js';
+import { initSwitcher, nameHtml } from './switcher.js';
 import { initFiles } from './files.js';
 import { initExport } from './export.js';
 import { initDesign } from './design.js';
@@ -94,6 +94,7 @@ function staticText(){
   document.documentElement.lang = uiLang();
   $('#sheet').setAttribute('aria-label', t('aria.sheet'));
   $('#body').setAttribute('aria-label', t('ux2.panelLabel'));
+  $('#rail').setAttribute('aria-label', t('ux6b.rail'));
 }
 
 function wantedUi(){
@@ -341,6 +342,7 @@ function relayout(){
   document.body.style.setProperty('--startw', `${Math.max(240, L.col.left - 2 * G)}px`);
   renderFoot();
   renderChip();
+  placeRail();
 }
 
 // The pages scroll in #pages on a big screen, and in the window on a phone.
@@ -435,6 +437,7 @@ function bindChrome(){
   $('#file').addEventListener('change', e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); });
   addEventListener('dragover', e => { e.preventDefault(); });
   addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) openFile(f); });
+  new ResizeObserver(placeRail).observe($('#head'));        // the name wraps to more or fewer lines: the tabs follow the editor card
 }
 
 function renderAll(){ syncIntro(); renderHead(); renderBody(); renderFoot(); }
@@ -470,18 +473,19 @@ function setView(v){
 // the head is redrawn on every save: the control that had the focus keeps it
 const focusKey = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}` : null);
 function renderHead(){
-  const ae = document.activeElement, kept = ae && ae.closest?.('#head') ? focusKey(ae) : null;
+  const ae = document.activeElement, kept = ae && ae.closest?.('#head, #rail') ? focusKey(ae) : null;
   drawHead();
-  if (kept){ const n = $(`#head ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
+  if (kept){ const n = $(`#head ${kept}`) ?? $(`#rail ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
 }
 function drawHead(){
   // on the start screen the header area is the logo, the name and the tagline
-  if (document.body.classList.contains('is-intro')){ $('#head').innerHTML = onboarding.headHtml(); return; }
+  if (document.body.classList.contains('is-intro')){ $('#head').innerHTML = onboarding.headHtml(); $('#rail').innerHTML = ''; return; }
   const r = shown();
   const st = persist.status;
   const saving = st.status === 'saving' || st.status === 'pending';
   const saveText = st.status === 'error' ? t('ux1.saveFailed') : saving ? t('head.saving') : t('ux1.savedDevice');
-  const saved = `<span class="si ${st.status === 'error' ? 'bad' : saving ? '' : 'ok'}" aria-hidden="true">${st.status === 'error' ? icon('warn', { size: 12 }) : saving ? '…' : icon('check', { size: 12 })}</span><span class="stext2">${esc(st.status === 'error' ? saveText : saving ? t('head.saving') : t('ux2.savedShort'))}</span><span class="sr">${esc(saveText)}${st.status === 'error' && st.error ? ': ' + esc(st.error) : ''}</span>`;
+  // Saved is an icon: a check (saved), a turning arrow (saving), a triangle (not saved); the words are in its tip and for a screen reader
+  const saved = `<span class="si ${st.status === 'error' ? 'bad' : saving ? 'wait' : 'ok'}" aria-hidden="true">${icon(st.status === 'error' ? 'warn' : saving ? 'replay' : 'check', { size: 14 })}</span><span class="sr">${esc(saveText)}${st.status === 'error' && st.error ? ': ' + esc(st.error) : ''}</span>`;
   const snap = snapNow();
   const file = fileLine();
   const sent = sentLine();
@@ -490,34 +494,25 @@ function drawHead(){
     ${ui.saveNote ? `<div class="hrow notice" role="status"><span class="small">${esc(t('save.note'))}${ui.persisted === false ? ' ' + esc(t('save.noteStorage')) : ''}</span><button class="sm" data-act="save-note-ok">${h('save.noteOk')}</button></div>` : ''}
     ${snap ? `<div class="hrow notice snapbar" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${h('ux1.backToResume')}</button></div>` : ''}
     ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}`;
-  const savebtn = `<button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>`;
-  const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
+  const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" tabindex="0" data-tip="${esc(savedTip())}" data-tip-pos="b">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
   const mode = dock.modeOf();
-  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !(ui.layout?.phone ? ['edit', 'record', 'design', 'export'] : ['edit', 'design', 'export']).includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
+  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
-    // the sidebar's head: the logo (the drink switch), the resume's name with what it is, Saved and Save to file, undo and redo, the
-    // menu; the segmented control (Edit, Design, Export) sits beside the name
-    const type = r ? jobTypeLabel(store.state.record, r.jobType) : '', paper = r ? (r.format === 'us-letter' ? t('paper.letter') : t('paper.a4')) : '';
-    const pages = r ? (r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null) : null;
-    const hs = store.history;
+    // the name card: the resume's name (never cut: it wraps), Saved and the menu. The tabs, the screens and undo are the rail's.
     $('#head').innerHTML = `
     <div class="hrow top">
-      ${logoBtn(28)}
-      <div class="docblock"><button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { size: 12 })}</span></span></button>
-        <div class="dline">${type ? `<span class="dt">${esc(type)}</span>` : ''}${r ? langButton(r) : ''}<span class="dt">${esc([paper, pages].filter(Boolean).join(' · '))}</span></div></div>
-      <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
+      <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { size: 12 })}</span></button>
       ${savedState}
-      ${savebtn}
-      ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled')}
-      ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled')}
       <button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>
     </div>
     ${sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
     ${notices}
     ${ui.menu ? menuHtml() : ''}`;
+    drawRail(mode);
   } else {
   const meta = r ? [jobTypeLabel(store.state.record, r.jobType), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
+  const savebtn = `<button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>`;
   $('#head').innerHTML = `
     <div class="hrow top">
       ${logoBtn(28)}
@@ -532,9 +527,39 @@ function drawHead(){
     </div>
     ${notices}
     ${ui.menu ? menuHtml() : ''}`;
+  $('#rail').innerHTML = '';
   }
   headMoments(sent);
 }
+
+// ---- the rail (a desktop): the logo, the editor's tabs, the other screens, undo and redo. Three containers: the tabs touch the editor card,
+// the screens are dashed and icon only, undo and redo sit at the foot. ----
+function drawRail(mode){
+  const hs = store.history, tea = drink() === 'tea';
+  const tab = (m, key, ic) => `<button role="tab" class="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'design', 'export'].includes(mode)) ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? ic[1] : ic[0], { size: 22 })}</span><span class="tl">${h(key)}</span></button>`;
+  const screen = (act, name, ic) => `<button class="scr" data-act="${act}" data-tip="${esc(name)}|${esc(t('ux6b.fullWindow'))}" data-tip-pos="l" aria-label="${esc(name)}"><span class="ti">${icon(ic, { size: 22 })}</span><span class="cue">${icon('external', { size: 10 })}</span></button>`;
+  $('#rail').innerHTML = `${logoBtn(30, { base: 'logo', pos: 'l' })}
+    <div class="rtabs" id="rtabs" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}" data-tea="${esc(dock.teaNow())}">${tab('edit', 'ux2.modeEdit', ['edit', 'steep'])}${tab('design', 'ux2.modeDesign', ['design', 'latte'])}${tab('export', 'ux2.modeExport', ['export', 'cupout'])}</div>
+    <div class="rscreens" role="group" aria-label="${esc(t('ux6b.screens'))}">${screen('sw-manage', t('ux1.manageAll', { n: store.state.resumes?.length ?? 0 }), 'list')}${screen('sw-record', t('ux3b.modeRecord'), 'recordbook')}</div>
+    <div class="rhist" role="group" aria-label="${esc(t('ux6b.history'))}">
+      ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
+      ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 'l')}
+    </div>`;
+  placeRail();
+}
+// The tabs hang off the editor card: the first starts 30px below its top, whatever the name card's height. Not while the name window
+// has the card's place (the body is not there to measure).
+function placeRail(){
+  const body = $('#body');
+  if (!body || !body.offsetParent || ui.layout?.phone) return;
+  $('#rail').style.setProperty('--tt', `${body.offsetTop + 30}px`);
+}
+
+// "Saved on this device", and under it where the file stands
+const savedTip = () => {
+  const st = persist.status, saving = st.status === 'saving' || st.status === 'pending';
+  return `${st.status === 'error' ? t('ux1.saveFailed') : saving ? t('head.saving') : t('ux1.savedDevice')}|${fileLine().text}`;
+};
 
 // "Sent to Company - Role · 2026-10-11": the open resume's latest send, under its name (none until it has been sent)
 function sentLine(){
@@ -577,6 +602,8 @@ function fileLine(){
 function refreshFileLine(){
   const b = $('#filestate'), l = fileLine();
   if (b){ const sr = b.querySelector('.sr'); if (sr) sr.textContent = ` · ${l.text}`; b.classList.toggle('stale', l.stale); b.title = `${t('save.title', { name: SAVE_FILE_NAME })} · ${l.text}`; }
+  const f = $('#fileline'); if (f) f.textContent = l.text;
+  const sv = $('#savestate'); if (sv) sv.dataset.tip = savedTip();
 }
 setInterval(refreshFileLine, 30000);
 
@@ -601,12 +628,28 @@ async function openLangMenu(){
 }
 async function useLanguage(to, { add = false } = {}){
   ui.langMenu = null;
+  switcher.close({ focusBack: true });
   if (to === lang() && !add){ renderHead(); return; }
   ui.sel = NONE;
   await loadCatalogue(to);
   store.commit(d => { if (add) addLangInUse(d.record, to); switchLang(d.cur, to); }, add ? t('undo.addLanguage', { lang: langName(to) }) : t('undo.language', { lang: langName(to) }));
   const n = missingList(work(), cur()).length;
   toast(t('toast.langNow', { lang: langName(to) }) + (n ? ' ' + t('toast.langMissing', { n, lang: langName(to) }) : ''));
+}
+
+// The name window's language: the languages in use (with how many texts each lacks), then the others to add. Chosen from a list, as a
+// phone's button opens a menu.
+const langNote = l => { const n = ui.langCounts?.[l]; return n == null ? '' : ` · ${n ? t('lang.toWrite', { n }) : t('lang.complete')}`; };
+function langSelect(){
+  const L = cur()?.lang ?? 'en', inUse = langsInUse(record()), used = inUse.includes(L) ? inUse : [...inUse, L], others = LANGS.filter(l => !used.includes(l));
+  return `<select id="sw-lang" class="sw-q" ${ui.snap ? 'disabled' : ''}>${used.map(l => `<option value="${l}" lang="${l}" ${l === L ? 'selected' : ''}>${esc(langName(l) + langNote(l))}</option>`).join('')}${others.length ? `<optgroup label="${esc(t('lang.add'))}">${others.map(l => `<option value="+${l}" lang="${l}">+ ${esc(langName(l))}</option>`).join('')}</optgroup>` : ''}</select>`;
+}
+async function loadLangCounts(){
+  const inUse = langsInUse(record());
+  await Promise.all(inUse.map(l => loadCatalogue(l)));
+  ui.langCounts = Object.fromEntries(inUse.map(l => [l, l === 'en' ? 0 : missingList(work(), { ...cur(), lang: l }).length]));
+  const sel = $('#sw-lang');
+  if (sel && document.activeElement !== sel) sel.outerHTML = langSelect();
 }
 
 function menuHtml(){
@@ -774,7 +817,7 @@ async function onClick(e){
   const tg = e.target.closest('[data-act]');
   if (ui.menu && !e.target.closest('.menu') && tg?.dataset.act !== 'menu'){ ui.menu = false; renderHead(); }
   if (ui.langMenu && !e.target.closest('.langpop') && tg?.dataset.act !== 'lang-menu'){ ui.langMenu = null; renderHead(); }
-  if (!e.target.closest('.langpop') && tg?.dataset.act !== 'lang-menu-body') closeBodyMenus();
+  if (!e.target.closest('.langpop, .rowmenu') && tg?.dataset.act !== 'lang-menu-body') closeBodyMenus();      // a click on a row menu's own item is its act's to handle, which needs the row it came from
   if (!tg || !tg.dataset.act) return;
   const act = tg.dataset.act, id = tg.dataset.id;
   if (await onpage.act(act, tg)) return;
@@ -940,7 +983,7 @@ function placeChip(el){
   for (const k of ['left', 'right', 'top', 'maxWidth']) el.style[k] = '';
   if (!L || L.phone) return;
   const ft = $('#foot').getBoundingClientRect();
-  Object.assign(el.style, { left: `${Math.round(L.col.left + 8)}px`, top: `${Math.round(ft.top - el.offsetHeight - 8)}px` });
+  Object.assign(el.style, { left: `${Math.round(L.col.left + 8)}px`, top: `${Math.round(ft.top - el.offsetHeight - 8)}px`, maxWidth: `${L.col.width - 16}px` });
 }
 // After Fit: what it did, in a chip that stays a few seconds, with Undo. Fit only chose among wordings that were already there.
 let chipEl = null, chipT = 0, chipAt = -1;
@@ -1085,7 +1128,7 @@ async function doSaveToFile(){
       setFlag('rb-save-note');
       ui.saveNote = true;
     }
-    renderHead();
+    renderHead(); refreshFileLine();
     return true;
   } catch (e){ toast(t('toast.exportFailed', { msg: errText(e) }), 'bad'); return false; }
 }
@@ -1194,6 +1237,9 @@ const resumes = initResumes({
 });
 const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, resumes,
   endPreview: () => endPreview(),
+  langSelect, opened: loadLangCounts,
+  chooseLang: v => { const add = v.startsWith('+'); useLanguage(add ? v.slice(1) : v, { add }); },
+  choosePaper: v => design.act('d-paper', { dataset: { f: v === 'us-letter' ? 'us-letter' : 'a4' } }),
   relayout: () => syncFull(),
   closeMenus: () => { if (ui.menu || ui.langMenu){ ui.menu = false; ui.langMenu = null; renderHead(); } },
 });
@@ -1208,7 +1254,7 @@ const files = initFiles({
 Object.assign(VIEWS, files.views);
 files.bind($('#body'));
 window.__wb.files = files;
-const exporter = initExport({ store, ui, toast, work, cur: () => shown(), download, renderBody: () => renderBody(),
+const exporter = initExport({ store, ui, toast, work, cur: () => shown(), download, fileLine, renderBody: () => renderBody(),
   pageBox: () => { const b = ui.layout?.phone ? null : sheet.pageBoxes()[ui.page]; return b ? canvas.screenRect(b) : null; },
   extraCss: r => design.extraCss(store.state.record, r) });
 const design = initDesign({ store, ui, toast, cur, setView, pickFile, download, photoUrl: () => store.materialize(store.state.record?.basics?.image) });

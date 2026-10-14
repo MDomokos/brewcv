@@ -1,11 +1,12 @@
 // Where the page and the sidebar go. Pure: numbers in, numbers out (checks/shell-check.mjs).
-// The sidebar is one column at the right with one width, wide enough for its widest body; the page is centred in the room left of it,
-// so no selection and no switch between Edit, Design and Export moves it. A page is always as big as the window's height allows;
+// The sidebar is one skinny column at the right (340px, 316px under 1400px windows) with the 54px rail beside it; the page is centred
+// in the room left of both, so no selection and no switch between Edit, Design and Export moves it. A page is always as big as the window's height allows;
 // several pages sit beside each other, all in view when the row fits the room, otherwise the view travels sideways from page to page
 // (the sidebar floats over the rest). Under PHONE_MAX the column is a bottom sheet.
 
 export const G = 16;
-export const SIDE_W = 560;                              // the sidebar's width
+export const sideWidth = vw => (vw < 1400 ? 316 : 340);      // the sidebar's width: a fixed rule
+export const RAIL_W = 54;                               // the tabs, the screens and the history, left of the sidebar
 export const ZOOM_MIN = 0.4, ZOOM_MAX = 4;
 export const PAGE_GAP = 24;           // between pages, in page px
 
@@ -25,7 +26,7 @@ export const clampZoom = z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number.isFin
 
 // `wide`: on a phone, the panel is the whole screen.
 // zoom: 1 is the whole page fitted to the window.
-// `slim`: the start screen and the first questions: the column is 32% of the window (380 to 480px) instead of SIDE_W.
+// `slim`: the start screen and the first questions: the column is 32% of the window (380 to 480px) and has no rail.
 export const SLIM_MIN = 380, SLIM_MAX = 480;
 export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = false, slim = false }){
   const { w, h } = pageSize(format);
@@ -46,21 +47,22 @@ export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = fals
   }
   const tall = (vh - 2 * G) / h;
   const rowW = k => k * w + (k - 1) * PAGE_GAP;
-  const colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.32))) : SIDE_W;
-  // the room the page may have: left of the column, a gutter at each side of it
-  const room = vw - colW - 4 * G;
+  const colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.32))) : sideWidth(vw);
+  const railW = slim ? 0 : RAIL_W;
+  // the room the page may have: left of the rail and the column, a gutter at each side of them
+  const room = vw - colW - railW - 4 * G;
   const fit = Math.max(0.1, Math.min(tall, room / w));
   const spread = n > 1 && rowW(n) * fit <= room + 1e-6;     // else the view travels from page to page, at the same size
   const scale = fit * z;
   const sheetW = rowW(spread ? n : 1) * fit, pageH = h * fit;      // laid for the fitted page; a zoom is the camera's
   const sheetH = pageH * z;
   const colLeft = vw - G - colW;
-  const areaW = colLeft - G;                                // the pages' room: everything left of the column
+  const areaW = colLeft - railW - G;                        // the pages' room: everything left of the rail
   const mid = areaW / 2;
   const left = Math.max(G / 2, mid - sheetW / 2);
   const top = sheetH + 2 * G > vh ? G : Math.max(G, (vh - pageH) / 2);
   return {
-    scale, fit, zoom: z, spread, phone: false, wide: false, colW, areaW, mid,
+    scale, fit, zoom: z, spread, phone: false, wide: false, colW, railW, areaW, mid,
     sheet: { left, top, width: sheetW * z, height: sheetH },
     col: { left: colLeft, top: G, width: colW, height: vh - 2 * G },
     // the camera's view: the room left of the column, and the width the page is fitted to

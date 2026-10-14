@@ -68,7 +68,6 @@
   --tea-export: #2c3a4f; --tea-export-raised: #394557; --tea-export-input: #243041; --tea-export-pop: #283549; --tea-export-line: #505966; --tea-export-edge: #87898a;
   --tea-record: #3b2723; --tea-record-raised: #47342e; --tea-record-input: #30201d; --tea-record-pop: #362420; --tea-record-line: #5c4942; --tea-record-edge: #8f7f72;
   --tab-bg: #efe4cb; --tab-ink: #22302a; --tab-line: #c9b481;
-  --thread: #a88a5c; --hole: rgba(30, 40, 25, .45);
 }
 html[data-drink="tea"][data-theme="dark"] {
   --canvas: #101813; --canvas-ink: #F2E6CF; --canvas-ink-soft: #d6cfb4; --canvas-line: rgba(242, 230, 207, .22); --canvas-label: #D9A65A;
@@ -253,7 +252,8 @@ details.jr { margin: 12px 0 0; border-top: 1px solid var(--line); padding-top: 8
 details.jr > summary { cursor: pointer; font-size: 12px; color: var(--ink-soft); }
 details.jr[open] > summary { margin-bottom: 4px; }
 .grow { flex: 1; }
-.ctlrow { display: flex; align-items: center; gap: 10px; margin: 2px 0 6px; }
+.ctlrow { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 2px 0 6px; }
+.ctlrow .swl, .ctlrow button { white-space: nowrap; }
 .btns { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .field { display: grid; gap: 3px; margin: 4px 0 4px; }
 .lbl.inline { margin: 6px 0 0; }
@@ -483,8 +483,8 @@ table.kv td { padding: 4px 0; border-top: 1px solid var(--line); }
 .detbox { border: 1px solid var(--line); border-radius: var(--r-m); padding: 4px 10px 10px; background: var(--wash); }
 .detbox .btns { margin-top: 8px; }
 .lbl.inline { display: flex; justify-content: space-between; gap: 8px; }
-.lbl.inline .lr { text-transform: none; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lbl.inline .lt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lbl.inline { flex-wrap: wrap; }      /* in a 340px sidebar a label and its hint go on two lines, cut by nothing */
+.lbl.inline .lr { text-transform: none; letter-spacing: 0; }
 .field input.miss, .field textarea.miss { border: 1px dashed var(--warn); }
 .addclaim { margin-top: 6px; }
 .addc { margin-top: 2px; }
@@ -617,7 +617,7 @@ body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
 .swrow:hover, .swrow:focus-within { background: var(--hover); }
 .swrow.is-cur { background: var(--mark-soft); }
 .sopt { display: grid; text-align: left; border: 0; background: transparent; padding: 5px 8px; font-weight: 500; min-width: 0; gap: 0; }
-.sopt .sn { font-weight: 650; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sopt .sn { font-weight: 650; font-size: 13px; }
 .sopt .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
 .smore { border: 0; background: transparent; padding: 2px 9px; color: var(--ink-soft); }
 .snapline { grid-column: 1 / -1; text-align: left; border: 0; background: transparent; font-size: 12px; font-weight: 500; color: var(--ink-soft); padding: 2px 8px 3px 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -681,9 +681,8 @@ body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: 
 .docname .dn { max-width: 100%; }
 .langs .langbtn { padding: 2px 6px; }
 .savestate { display: inline-flex; align-items: center; gap: 4px; flex: none; font-size: 12px; }
-.savestate .si.ok { color: var(--ok); } .savestate .si.bad { color: var(--bad); }
-.savestate .stext2 { display: none; }
-@container (min-width: 392px){ .savestate .stext2 { display: inline; } }
+.savestate .si { display: grid; place-items: center; }
+.savestate .si.ok { color: var(--ok); } .savestate .si.bad { color: var(--bad); } .savestate .si.wait { color: var(--warn); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .hrow.modes { gap: 6px; }
 .seg [role=tab] { border: 0; background: transparent; border-radius: var(--r-s); padding: 4px 10px; font-size: 12.5px; color: var(--ink-soft); }
@@ -903,10 +902,10 @@ body[data-phone=true] .rectl .yrow { display: block; }
 
 /* the switcher: a resume's name gives its company up before its role; language and pages are a small tag */
 .sopt { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; column-gap: 6px; }
-.sopt .sn { display: flex; min-width: 0; }
-.swco { flex: 0 3 auto; min-width: 3ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.swsep { flex: none; white-space: pre; color: var(--faint); }
-.swrole { flex: 0 1 auto; min-width: 8ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sopt .sn { display: grid; min-width: 0; }
+.swco, .swrole { display: block; min-width: 0; overflow-wrap: anywhere; }      /* a resume's name is never cut: it wraps, the company over the role */
+.swco { font-weight: 700; }
+.swrole { font-weight: 500; color: var(--ink-soft); }
 .swtag { font-size: 11px; font-weight: 500; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 0 6px; }
 .switcher { top: var(--sw-top, 96px); max-height: var(--sw-max, calc(100vh - var(--sw-top, 96px) - 32px)); }
 .switcher.is-grown { top: var(--sw-top, 84px); max-height: var(--sw-max, calc(100vh - var(--sw-top, 84px) - 32px)); background: var(--pop); }
@@ -952,40 +951,95 @@ body[data-phone=true] .rectl .yrow { display: block; }
 .clgh .pill.custom, .clsubh .pill.custom { margin-left: 6px; }
 @media (hover: none) { .clmv { opacity: 1; pointer-events: auto; } }
 
-/* ===== UX-5c: the floating panel =====
-   The page is centred in the room left of the sidebar (layout.js). The sidebar is one sheet in the open sheet's tea: a head (the name,
-   Saved, Save to file, undo and redo, the menu, and Edit, Design and Export), the body, and a foot (the meters and Fit). The zoom bar
-   shows while the pointer is over the page. */
+/* ===== UX-5c, UX-6b: the floating panel =====
+   The page is centred in the room left of the rail and the sidebar (layout.js). The sidebar is 340px (316 under 1400px windows), in three parts:
+   the name card (the name, which wraps and is never cut, Saved and the menu), the editor card (the body, and its foot: one thin bar for each
+   page, and Fit), and, beside it, the rail (the logo, Edit, Design and Export touching the editor card, the other screens, undo and redo).
+   Clicking the name grows the name card down over the editor card (the name window); the foot stays. The zoom bar shows while the pointer
+   is over the page. */
 html[data-drink="tea"] [data-tea="outline"] { --tea: var(--tea-outline); --surface: var(--tea-outline); --raised: var(--tea-outline-raised); --input: var(--tea-outline-input); --pop: var(--tea-outline-pop); --line: var(--tea-outline-line); --line-strong: var(--tea-outline-edge); }
 html[data-drink="tea"] [data-tea="design"] { --tea: var(--tea-design); --surface: var(--tea-design); --raised: var(--tea-design-raised); --input: var(--tea-design-input); --pop: var(--tea-design-pop); --line: var(--tea-design-line); --line-strong: var(--tea-design-edge); }
 html[data-drink="tea"] [data-tea="export"] { --tea: var(--tea-export); --surface: var(--tea-export); --raised: var(--tea-export-raised); --input: var(--tea-export-input); --pop: var(--tea-export-pop); --line: var(--tea-export-line); --line-strong: var(--tea-export-edge); }
 html[data-drink="tea"] [data-tea="record"] { --tea: var(--tea-record); --surface: var(--tea-record); --raised: var(--tea-record-raised); --input: var(--tea-record-input); --pop: var(--tea-record-pop); --line: var(--tea-record-line); --line-strong: var(--tea-record-edge); }
 [data-tea]:not([data-tea="outline"], [data-tea="design"], [data-tea="export"], [data-tea="record"]), html[data-drink="coffee"] [data-tea] { --tea: var(--surface); }
 
-/* the sidebar */
-body:not([data-phone=true]):not(.is-intro) .col { gap: 0; background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel);
-  transition: background-color var(--m-base) var(--m-out); }
+/* the name card, the editor card (the body above, the foot under it) */
+body:not([data-phone=true]):not(.is-intro) .col { gap: 0; }
 body:where(:not([data-phone=true], .is-intro)) .col > :where(#head, #body, #foot) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
-body:not([data-phone=true]):not(.is-intro) .col > #foot { padding: 8px 12px; border-top: 1px solid var(--line); }
+body:not([data-phone=true]):not(.is-intro) .col > #head { flex: none; min-height: 0; margin-bottom: 8px; padding: 5px 6px 5px 4px; position: relative; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head { display: block; }
+body:not([data-phone=true]):not(.is-intro) .col > #body { background: var(--surface); border-radius: var(--r-panel) var(--r-panel) 0 0; box-shadow: var(--shadow-panel); transition: background-color var(--m-base) var(--m-out); }
+body:not([data-phone=true]):not(.is-intro) .col > #foot { flex: none; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 var(--r-panel) var(--r-panel); box-shadow: var(--shadow-panel); transition: background-color var(--m-base) var(--m-out); }
+body.is-quiet .col > #body { border-radius: var(--r-panel); }
+/* the name window: the name card and the switcher are one card; the editor card is gone, the foot stays */
+body:not([data-phone=true]) .col.is-name > #body { display: none; }
+body:not([data-phone=true]):not(.is-intro) .col.is-name > #head { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: var(--line); }
+body:not([data-phone=true]):not(.is-intro) .col.is-name > #foot { border-top: 0; border-radius: var(--r-panel); }
+body:not([data-phone=true]) .switcher { position: static; flex: 1 1 0; min-height: 0; max-height: none; width: auto; margin: 0 0 8px; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 4px; overflow: auto; z-index: auto;
+  background: var(--surface); border: 1px solid var(--line-strong); border-top: 0; border-radius: 0 0 var(--r-l) var(--r-l); }
+body:not([data-phone=true]) .switcher[hidden] { display: none; }
+body:not([data-phone=true]) .switcher > * { flex: none; }
+body:not([data-phone=true]) .switcher > .swlist { flex: 1 1 auto; }
+body:not([data-phone=true]) .switcher > .lbl { margin: 6px 0 0; }
+body:not([data-phone=true]) .switcher > .lbl:first-child { margin-top: 0; }
+body:not([data-phone=true]) .switcher .swacts { flex-wrap: wrap; }
+body:not([data-phone=true]) .switcher .swacts button { flex: 1 1 auto; text-align: center; white-space: normal; overflow-wrap: anywhere; }
+body:not([data-phone=true]) .switcher .swacts button:not(.swnew) { background: var(--raised); border: 1px solid var(--line-strong); }
+.swlang { display: flex; gap: 6px; }
+.swlang #sw-lang { flex: 1 1 0; min-width: 0; }
+.swlang #sw-paper { flex: none; width: auto; }
+.switcher select.sw-q { font-size: 13px; padding: 5px 8px; }
+.swfrom { margin: -2px 0 0; overflow-wrap: anywhere; }
 .col > #head { flex: none; min-height: 50px; padding: 0 12px; display: flex; flex-direction: column; justify-content: center; border-bottom: 1px solid var(--line); position: relative; }
 .col > #head .hrow.top { height: 50px; gap: 6px; }
 .col > #head .hrow.notice { margin: 0 0 6px; }
-.col > #head .docblock { flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
-.col > #head .docblock .docname { flex: none; padding: 0 4px; line-height: 1.25; }
-.col > #head .dline { display: flex; align-items: center; gap: 2px; min-width: 0; font-size: 11.5px; line-height: 1.2; color: var(--ink-soft); }
-.col > #head .dline .dt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.col > #head .dline .dt + .lang-menu::before { content: "·"; }
-.col > #head .lang-menu .pop { left: 0; right: auto; }
-.col > #head .dline .langs .langbtn { padding: 0 5px; font-size: 11px; line-height: 1.4; }
-.col > #head .sentrow { margin: -4px 0 4px; padding: 0 4px; }
-.col > #head .sentrow .dsent { font-size: 11.5px; color: var(--label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body:not([data-phone=true]) .col > #head .hrow.notice { margin: 4px 0 2px; }
+.col > #head .sentrow { padding: 0 6px; }
+.col > #head .sentrow .dsent { font-size: 11.5px; color: var(--label); overflow-wrap: anywhere; }
+body:not([data-phone=true]):not(.is-intro) .col > #head .hrow.top { height: auto; align-items: flex-start; gap: 2px; }
+body:not([data-phone=true]) .docname { flex: 1 1 0; min-width: 0; display: flex; align-items: flex-start; gap: 4px; padding: 4px 6px; line-height: 1.25; }
+body:not([data-phone=true]) .docname .dn { flex: 1 1 0; min-width: 0; display: grid; font-size: 13.5px; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; }
+body:not([data-phone=true]) .docname .dn .swco { font-size: 13.5px; }
+body:not([data-phone=true]) .docname .dn .swrole { font-size: 12px; }
+body:not([data-phone=true]) .docname .car { flex: none; margin-top: 2px; display: grid; }
+body:not([data-phone=true]) .docname[aria-expanded=true] .car { transform: rotate(180deg); }
+body:not([data-phone=true]) .savestate { width: 28px; height: 28px; justify-content: center; border-radius: var(--r-s); }
+@media (prefers-reduced-motion: no-preference){ html:not([data-motion="reduce"]) .savestate .si.wait .ico { animation: savespin var(--m-slow) var(--m-inout); } }      /* one turn, not a loop */
+@keyframes savespin { to { transform: rotate(360deg); } }
 .hfill { display: flex; align-items: center; gap: 6px; flex: none; min-width: 0; }
 .col > #foot .meters { flex: none; justify-content: flex-start; }
+.col > #foot .hfill .meters { flex: 1 1 0; min-width: 0; gap: 2px; }
 .hfill .fit { padding: 3px 12px; }
-.col > #head .hrow.top .seg { flex: none; flex-wrap: nowrap; gap: 2px; position: relative; z-index: 1; }   /* above the name block, which truncates first */
-.col > #head .hrow.top .seg [role=tab] { padding: 4px 6px; white-space: nowrap; }
 .col > #head .menu { top: 46px; right: 8px; }
+body:not([data-phone=true]) .col > #head .menu { top: 40px; right: 6px; }
 .col > #head .ib { flex: none; }
+
+/* the rail: left of the sidebar, in the room the layout keeps for it. Three containers: the tabs (touching the editor card), the other
+   screens (dashed, icon only) and undo and redo. Hung from the column, so it follows it. */
+.rail { position: absolute; right: 100%; top: 0; bottom: 0; width: 54px; z-index: 2; }
+.rail > * { position: absolute; }
+body:is([data-phone=true], .is-intro, .is-quiet) .rail, .col.is-full > .rail { display: none; }
+.rail .logo { left: 7px; top: 4px; width: 40px; height: 40px; display: grid; place-items: center; padding: 0; }
+.rail .logo img { width: 30px; height: 30px; }
+.rtabs { left: 0; top: var(--tt, 90px); width: 54px; display: flex; flex-direction: column; gap: 8px; }
+.rtabs .tab { position: relative; flex: none; width: 54px; height: 58px; padding: 0; display: grid; place-items: center; align-content: center; gap: 3px; border: 0; border-radius: 12px 0 0 12px;
+  background: var(--tab-bg); color: var(--tab-ink); font: 650 11px/1.1 var(--font-ui); white-space: nowrap; box-shadow: inset 0 0 0 1px var(--tab-line); }
+.rtabs .tab:hover:not(:disabled, [aria-selected=true]) { background: color-mix(in srgb, var(--tab-bg) 88%, var(--tea)); border: 0; }
+.rtabs .tab:disabled { opacity: .45; }
+.rtabs .tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
+.rtabs .tab .ti { display: grid; place-items: center; color: var(--tea, var(--tab-ink)); }
+/* the open tab is the editor card's own surface and joins its edge through two inside curves; while the name window has the card's place, none is open */
+.col:not(.is-name) .rtabs .tab[aria-selected=true] { background: var(--surface); color: var(--ink); box-shadow: none; }
+.col:not(.is-name) .rtabs .tab[aria-selected=true] .ti { color: var(--accent); }
+.col:not(.is-name) .rtabs .tab[aria-selected=true]::before, .col:not(.is-name) .rtabs .tab[aria-selected=true]::after { content: ""; position: absolute; right: 0; width: 10px; height: 10px; pointer-events: none; }
+.col:not(.is-name) .rtabs .tab[aria-selected=true]::before { top: -10px; background: radial-gradient(circle at 0 0, transparent 9.5px, var(--surface) 10px); }
+.col:not(.is-name) .rtabs .tab[aria-selected=true]::after { bottom: -10px; background: radial-gradient(circle at 0 100%, transparent 9.5px, var(--surface) 10px); }
+.rscreens { left: 3px; width: 43px; top: calc(var(--tt, 90px) + 206px); display: flex; flex-direction: column; gap: 4px; padding: 5px 3px; border: 1.5px dashed color-mix(in srgb, var(--tab-ink) 60%, transparent); border-radius: 12px; }
+.rscreens .scr { position: relative; width: 100%; height: 40px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--tab-ink); }
+.rscreens .scr:hover:not(:disabled) { background: color-mix(in srgb, var(--tab-ink) 14%, transparent); border: 0; }
+.rscreens .scr .cue { position: absolute; top: 2px; right: 2px; opacity: .8; display: grid; }
+.rhist { left: 0; bottom: 0; width: 46px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
+.rhist .ib { width: 32px; height: 32px; }
 
 /* the body: one sheet, or two side by side (Outline and Edit, when the room allows) */
 .col > #body { padding: 14px 16px 14px; scroll-padding: 8px; }
@@ -1033,12 +1087,15 @@ mark.dw { background: var(--ins-bg); color: inherit; border-radius: 2px; padding
 .drow.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 18px; align-items: start; }
 .drow .lbl, .photo-row ~ .lbl { margin-top: 12px; }
 .drow + .note, .drow .note { margin-top: 6px; }
-[data-mode=design] .tpls { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+[data-mode=design] .tpls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+[data-mode=design] .drow.two { grid-template-columns: minmax(0, 1fr); }
 [data-mode=design] .tpl { font-size: 12px; line-height: 1.25; padding: 6px; align-content: start; }
 .photo-row .photo-ctl { display: grid; gap: 6px; min-width: 0; flex: 1; align-content: start; }
 .photo-row { align-items: flex-start; }
 .photo-ctl .note { margin: 0; }
 .outline .clt { -webkit-line-clamp: 1; }
+.outline.only .clt { -webkit-line-clamp: 2; }      /* a job's lines: two lines each in the narrow sidebar */
+.outline .ojob .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }      /* an archived job's row ends in an ellipsis: its subtitle may be cut */
 .clrow.is-sel { background: var(--mark-soft); }
 /* the sheets are dense: a line with its five versions, a job, Design and Export each show whole in 720px of window */
 .col > #body .lbl { margin: 12px 0 5px; }

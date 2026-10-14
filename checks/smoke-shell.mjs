@@ -83,8 +83,16 @@ const appendLine = async (page, text) => { await lineEl(page).focus(); await car
 async function openByName(page, text){
   if (!(await page.isVisible('#switcher'))) await page.click('#docname-btn');
   await page.waitForSelector('#switcher .sopt');
+  await page.fill('#switcher #sw-q', text);       // the name window lists the recent ones; a search lists them all
+  await page.waitForSelector(`#switcher .sopt:has-text("${text}")`);
   await page.click(`#switcher .sopt:has-text("${text}")`);
   await page.waitForTimeout(1200);
+}
+// The language of the open resume: in the name window, a list of the languages in use, then the ones to add (the window closes on a choice)
+async function pickLang(page, code){
+  if (!(await page.isVisible('#switcher'))) await page.click('#docname-btn');
+  await page.waitForSelector('#sw-lang');
+  await page.selectOption('#sw-lang', (await page.$(`#sw-lang option[value="${code}"]`)) ? code : `+${code}`);
 }
 const rect = (page, s) => page.$eval(s, el => el.getBoundingClientRect().toJSON());
 // Mark as sent: the end of Export
@@ -113,12 +121,13 @@ if (want('layout: the page and the sidebar, centred in the window')) for (const 
   let s = await rect(page, '#sheet'), c = await rect(page, '#col'), hd = await rect(page, '#head'), ft = await rect(page, '#foot');
   const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
   ok(`${w}×${h}: loads with no console errors`, bad.length === 0, bad[0] ?? '');
-  ok(`${w}×${h}: the sidebar is open, with no tabs beside it; Edit, Design and Export are in its head, Edit is selected; nothing is selected, so Edit shows the Outline`, await page.isVisible('#body') && await page.isVisible('#head') && !(await page.$('#tabs')) && (await page.$$('#head [role=tab]')).length === 3 && (await page.getAttribute('#tab-edit', 'aria-selected')) === 'true' && (await page.getAttribute('#body', 'data-mode')) === 'outline');
-  ok(`${w}×${h}: the page runs the full height (16px from top and bottom) and sits in the room left of the sidebar`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1 && s.right < c.left - 16 + 1, `${s.right.toFixed(1)} ${c.left.toFixed(1)}`);
-  ok(`${w}×${h}: the sidebar is 560px wide, 16px from the top, the bottom and the right`, Math.abs(c.width - 560) < 1 && Math.abs(c.top - 16) < 1 && Math.abs(c.height - (h - 32)) < 1 && Math.abs(w - c.right - 16) < 1, `${c.width}px`);
-  ok(`${w}×${h}: the page is centred in the room left of the sidebar`, Math.abs((s.left + s.right) / 2 - (c.left - 16) / 2) < 2, `${((s.left + s.right) / 2).toFixed(1)} vs ${((c.left - 16) / 2).toFixed(1)}`);
-  ok(`${w}×${h}: the head: the logo, the name, Saved, Save to file, undo, redo, the menu, and under them Edit, Design and Export; the meters and Fit are not in it`, await page.evaluate(() => { const hd = document.querySelector('#head'); return !!hd.querySelector('.logoswitch') && !!hd.querySelector('#docname-btn') && !!hd.querySelector('#savestate') && !!hd.querySelector('#filestate') && ['undo', 'redo', 'menu'].every(a => hd.querySelector(`[data-act=${a}]`)) && !hd.querySelector('.meter') && !hd.querySelector('[data-act=fit]'); }));
-  ok(`${w}×${h}: the foot is the page meters and Fit and nothing else, at the bottom of the sidebar`, await page.evaluate(() => [...document.querySelectorAll('#foot button')].every(b => ['goto-page', 'fit'].includes(b.dataset.act)) && !!document.querySelector('#foot .meter') && !!document.querySelector('#foot [data-act=fit]')) && Math.abs(ft.bottom - c.bottom) < 1 && hd.top === c.top);
+  ok(`${w}×${h}: the sidebar is open, with the rail beside it: Edit, Design and Export are its tabs (none in the name card), Edit is selected; nothing is selected, so Edit shows the Outline`, await page.isVisible('#body') && await page.isVisible('#head') && await page.isVisible('#rail') && !(await page.$('#tabs')) && (await page.$$('#rail [role=tab]')).length === 3 && (await page.$$('#head [role=tab]')).length === 0 && (await page.getAttribute('#tab-edit', 'aria-selected')) === 'true' && (await page.getAttribute('#body', 'data-mode')) === 'outline');
+  const rl = await rect(page, '#rail');
+  ok(`${w}×${h}: the page runs the full height (16px from top and bottom) and sits in the room left of the rail`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1 && s.right < rl.left - 16 + 1, `${s.right.toFixed(1)} ${rl.left.toFixed(1)}`);
+  ok(`${w}×${h}: the sidebar is ${w < 1400 ? 316 : 340}px wide (340, 316 under 1400px windows), 16px from the top, the bottom and the right; the 54px rail touches it`, Math.abs(c.width - (w < 1400 ? 316 : 340)) < 1 && Math.abs(c.top - 16) < 1 && Math.abs(c.height - (h - 32)) < 1 && Math.abs(w - c.right - 16) < 1 && Math.abs(rl.width - 54) < 1 && Math.abs(rl.right - c.left) < 1, `${c.width}px`);
+  ok(`${w}×${h}: the page is centred in the room left of the rail`, Math.abs((s.left + s.right) / 2 - (rl.left - 16) / 2) < 2, `${((s.left + s.right) / 2).toFixed(1)} vs ${((rl.left - 16) / 2).toFixed(1)}`);
+  ok(`${w}×${h}: the name card: the name, Saved and the menu (no logo, Save to file, undo, redo or tabs); the rail: the logo, the tabs, Resumes and Record, undo and redo; the meters and Fit are in neither`, await page.evaluate(() => { const hd = document.querySelector('#head'), rail = document.querySelector('#rail'); return !hd.querySelector('.logoswitch') && !!hd.querySelector('#docname-btn') && !!hd.querySelector('#savestate') && !hd.querySelector('#filestate') && !hd.querySelector('[data-act=undo]') && !!hd.querySelector('[data-act=menu]') && !!rail.querySelector('.logoswitch') && ['undo', 'redo', 'sw-manage', 'sw-record'].every(a => rail.querySelector(`[data-act=${a}]`)) && !hd.querySelector('.meter') && !rail.querySelector('.meter') && !hd.querySelector('[data-act=fit]'); }));
+  ok(`${w}×${h}: the foot is the page meters and Fit and nothing else, at the bottom of the sidebar, under the editor card`, await page.evaluate(() => [...document.querySelectorAll('#foot button')].every(b => ['goto-page', 'fit'].includes(b.dataset.act)) && !!document.querySelector('#foot .meter') && !!document.querySelector('#foot [data-act=fit]')) && Math.abs(ft.bottom - c.bottom) < 1 && hd.top === c.top && hd.bottom < (await rect(page, '#body')).top);
   ok(`${w}×${h}: no horizontal scroll`, scrollW <= w);
   await ctx.close();
 }
@@ -128,11 +137,11 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   const page = await ctx.newPage();
   const bad = await open(page);
   const sheet = page.frameLocator('#sheet iframe');
-  const S = () => page.evaluate(() => ({ sel: window.__wb.ui.sel.kind, zoom: window.__wb.ui.zoom, view: window.__wb.ui.view ?? null, tab: document.querySelector('#head [role=tab][aria-selected=true]')?.dataset.m ?? null }));
+  const S = () => page.evaluate(() => ({ sel: window.__wb.ui.sel.kind, zoom: window.__wb.ui.zoom, view: window.__wb.ui.view ?? null, tab: document.querySelector('#rail [role=tab][aria-selected=true]')?.dataset.m ?? null }));
   const key = k => page.keyboard.press(k);
-  ok('the sidebar is on screen with no rail, no tabs, no fold and no panel mode', await page.isVisible('#body') && !(await page.$('#rail')) && !(await page.$('#tabs')) && !(await page.$('.is-folded')) && (await page.evaluate(() => window.__wb.ui.panel)) === undefined && (await page.evaluate(() => window.__wb.ui.folded)) === undefined);
+  ok('the sidebar is on screen with its rail, no old tabs, no fold and no panel mode', await page.isVisible('#body') && await page.isVisible('#rail') && !(await page.$('#tabs')) && !(await page.$('.is-folded')) && (await page.evaluate(() => window.__wb.ui.panel)) === undefined && (await page.evaluate(() => window.__wb.ui.folded)) === undefined);
   ok('E does nothing now: the sidebar does not fold', (await key('e'), await settle(page), await page.isVisible('#body') && await page.isVisible('#head')));
-  ok('Edit, Design and Export are a tab list in the head: one tab stop, roving', await page.evaluate(() => { const l = document.querySelector('#head [role=tablist]'); return !!l && [...l.querySelectorAll('[role=tab]')].map(b => b.dataset.m).join() === 'edit,design,export' && l.querySelectorAll('[tabindex="0"]').length === 1 && l.querySelectorAll('[tabindex="-1"]').length === 2 && l.getAttribute('aria-label') && [...l.querySelectorAll('[role=tab]')].every(b => b.getAttribute('aria-controls') === 'body'); }));
+  ok('Edit, Design and Export are a vertical tab list in the rail: one tab stop, roving', await page.evaluate(() => { const l = document.querySelector('#rail [role=tablist]'); return !!l && l.getAttribute('aria-orientation') === 'vertical' && [...l.querySelectorAll('[role=tab]')].map(b => b.dataset.m).join() === 'edit,design,export' && l.querySelectorAll('[tabindex="0"]').length === 1 && l.querySelectorAll('[tabindex="-1"]').length === 2 && l.getAttribute('aria-label') && [...l.querySelectorAll('[role=tab]')].every(b => b.getAttribute('aria-controls') === 'body'); }));
   // the zoom bar: only while the pointer is over the page
   await page.mouse.move(1450, 20); await page.waitForTimeout(800);
   ok('the zoom bar is hidden while the pointer is away from the page', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))) && (await page.evaluate(() => +getComputedStyle(document.querySelector('#zoombar')).opacity)) < 0.05);
@@ -160,17 +169,17 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   await key('0'); await settle(page);
   // Edit, Design and Export: the arrows move between the tabs and open each
   await page.click('#tab-edit'); await settle(page);
-  await page.focus('#tab-edit'); await key('ArrowRight'); await settle(page);
-  ok('→ moves to Design and opens it, the focus on it', (await S()).tab === 'design' && (await S()).view === 'design' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-design');
+  await page.focus('#tab-edit'); await key('ArrowDown'); await settle(page);
+  ok('↓ moves to Design and opens it, the focus on it', (await S()).tab === 'design' && (await S()).view === 'design' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-design');
   await key('End'); await settle(page);
   ok('End goes to Export, Home back to Edit', (await S()).tab === 'export' && (await (async () => { await key('Home'); await settle(page); return (await S()).tab === 'edit' && (await page.getAttribute('#body', 'data-view')) === 'outline'; })()));
   // keyboard: a disabled tab is skipped, Record leaves Edit as the tab stop, the menu takes the focus, an Outline line hands it to the inspector and Esc hands it back
   await page.evaluate(() => { document.querySelector('#tab-design').disabled = true; });
-  await page.focus('#tab-edit'); await key('ArrowRight'); await settle(page);
-  ok('→ skips a disabled Design tab', (await S()).tab === 'export' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-export');
+  await page.focus('#tab-edit'); await key('ArrowDown'); await settle(page);
+  ok('↓ skips a disabled Design tab', (await S()).tab === 'export' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-export');
   await page.click('#tab-edit'); await settle(page);
   await page.evaluate(() => window.__wb.setView('record')); await settle(page);
-  ok('in Record no tab is selected on the desktop, and Edit is the one tab stop', (await page.evaluate(() => window.__wb.ui.view)) === 'record' && await page.evaluate(() => { const t = [...document.querySelectorAll('#head [role=tab]')]; return t.filter(x => x.tabIndex === 0).map(x => x.id).join() === 'tab-edit'; }));
+  ok('in Record no tab is selected on the desktop, and Edit is the one tab stop', (await page.evaluate(() => window.__wb.ui.view)) === 'record' && await page.evaluate(() => { const t = [...document.querySelectorAll('#rail [role=tab]')]; return t.filter(x => x.tabIndex === 0).map(x => x.id).join() === 'tab-edit'; }));
   await key('Escape'); await settle(page);
   await page.click('[data-act=menu]'); await page.waitForTimeout(100);
   ok('the ⋯ menu takes the focus on its first item, and ↓ moves on', await page.evaluate(() => document.activeElement?.closest('.menu') !== null) && await (async () => { await key('ArrowDown'); return page.evaluate(() => !!document.activeElement?.closest('.menu') && document.activeElement !== document.querySelector('.menu [role=menuitem]')); })());
@@ -227,9 +236,17 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   await page.check('#zwon'); await page.fill('#dimline', '94'); await page.dispatchEvent('#dimline', 'input');
   await page.evaluate(() => window.__wb.setView(null)); await settle(page);
   // the hints
-  await page.hover('#head [data-act=undo]'); await page.waitForTimeout(700);
-  ok('the head’s icons have a hover hint: a title and one line', await page.isVisible('#tip.on') && /Undo/.test(await page.textContent('#tip b')) && (await page.textContent('#tip')).length > 8);
+  await page.hover('#rail [data-act=undo]'); await page.waitForTimeout(700);
+  ok('the rail’s icons have a hover hint: a title and one line', await page.isVisible('#tip.on') && /Undo/.test(await page.textContent('#tip b')) && (await page.textContent('#tip')).length > 8);
   await page.mouse.move(4, 4);
+  // the same hints for a keyboard: on focus, and Esc takes one away
+  await page.focus('#savestate'); await page.keyboard.press('Tab'); await page.waitForTimeout(700);
+  ok('a hint shows on keyboard focus too: Tab to the menu button', await page.evaluate(() => document.activeElement?.matches('[data-act=menu]')) && await page.isVisible('#tip.on'));
+  await page.keyboard.press('Escape'); await page.waitForTimeout(150);
+  ok('…and Esc takes it away', !(await page.isVisible('#tip.on')));
+  await page.focus('#savestate'); await page.waitForTimeout(700);
+  ok('Saved is an icon with a hint on focus: the words, then where the file stands', await page.isVisible('#tip.on') && /Saved on this device/.test(await page.textContent('#tip b')) && /file/i.test(await page.textContent('#tip')));
+  await page.evaluate(() => document.activeElement.blur()); await page.mouse.move(4, 4);
   // the shortcut sheet
   ok('no hint paragraphs under the keys any more: no .keys note in any panel', !(await page.$('#body .note.keys')));
   await page.click('[data-act=menu]'); await page.click('.menu [data-act=help]');
@@ -259,22 +276,25 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   await p2.click('#tab-edit'); await settle(p2);
   ok('…not after a reload either (remembered in this browser): no sheet, no hint', !(await p2.isVisible('#help')) && !(await p2.$('#body .kbdhint')));
   await p2.click('[data-act=menu]');
-  ok('the ⋯ menu has no Save to file (the header has it); the header’s meta line is “job type · EN · paper · pages”, with the language a menu button between', !(await p2.$('.menu [data-act=save-file]')) && await p2.isVisible('#filestate') && await p2.isVisible('#head .dline #langbtn') && !/(^| · )[A-Z]{2}( · |$)/.test(await p2.textContent('#head .dline .dt')), await p2.textContent('#head .dline'));
+  ok('the ⋯ menu has no Save to file (Export has it); the name card has no language tag (the name window has the language and paper)', !(await p2.$('.menu [data-act=save-file]')) && !(await p2.$('#head #filestate')) && !(await p2.$('#head #langbtn')) && !(await p2.$('#head .dline')));
+  await p2.keyboard.press('Escape'); await p2.click('#docname-btn'); await settle(p2);
+  ok('the name window has the language and the paper, as lists', await p2.isVisible('#switcher #sw-lang') && /English/.test(await p2.$eval('#sw-lang', e => e.selectedOptions[0].textContent)) && await p2.isVisible('#switcher #sw-paper'));
   await ctx2.close();
 }
 
-if (want('one screen: a narrow window keeps the panel at 560px and shrinks the page; the keyboard path through the checklist')) {
+if (want('one screen: a narrow window keeps the sidebar at its width; the keyboard path through the checklist')) {
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
   const page = await ctx.newPage();
   const bad = await open(page);
   const sheet = page.frameLocator('#sheet iframe');
   const s0 = await rect(page, '#sheet'), c0 = await rect(page, '#col');
-  ok('1100×800: the panel keeps 560px and the page shrinks to make room (no drawer over the page)', Math.abs(c0.width - 560) < 1 && s0.height < 800 - 32 - 1 && s0.right < c0.left && (await page.evaluate(() => document.body.dataset.drawer)) === undefined);
+  const r0 = await rect(page, '#rail');
+  ok('1100×800: the sidebar keeps 316px and the rail 54px, and the page sits left of them (no drawer over the page)', Math.abs(c0.width - 316) < 1 && Math.abs(r0.width - 54) < 1 && s0.height <= 800 - 32 + 1 && s0.right < r0.left && (await page.evaluate(() => document.body.dataset.drawer)) === undefined);
   await sheet.locator('.bullets li').first().click(); await settle(page);
   const s1 = await rect(page, '#sheet'), c1 = await rect(page, '#col');
-  ok('selecting changes nothing about the page or the panel’s edge', Math.abs(s1.left - s0.left) < 1 && Math.abs(s1.width - s0.width) < 1 && Math.abs(c1.left - c0.left) < 1 && Math.abs(c1.width - 560) < 1);
-  ok('…the panel and the page do not overlap, and there is no sideways scroll', c1.left >= s1.right && (await page.evaluate(() => document.documentElement.scrollWidth)) <= 1100);
-  ok('the head’s first row still holds the name, Save to file, undo, redo and the menu at 560px', await page.evaluate(() => { const h = document.querySelector('#head').getBoundingClientRect(); return ['#docname-btn', '[data-act=menu]', '[data-act=undo]', '#filestate', '#savestate'].every(s => { const r = document.querySelector(`#head ${s}`).getBoundingClientRect(); return r.right <= h.right + 1 && r.left >= h.left - 1 && r.width > 0; }); }));
+  ok('selecting changes nothing about the page or the panel’s edge', Math.abs(s1.left - s0.left) < 1 && Math.abs(s1.width - s0.width) < 1 && Math.abs(c1.left - c0.left) < 1 && Math.abs(c1.width - 316) < 1);
+  ok('…the sidebar and the page do not overlap, and there is no sideways scroll', c1.left >= s1.right && (await page.evaluate(() => document.documentElement.scrollWidth)) <= 1100);
+  ok('the name card still holds the name, Saved and the menu at 316px', await page.evaluate(() => { const h = document.querySelector('#head').getBoundingClientRect(); return ['#docname-btn', '[data-act=menu]', '#savestate'].every(s => { const r = document.querySelector(`#head ${s}`).getBoundingClientRect(); return r.right <= h.right + 1 && r.left >= h.left - 1 && r.width > 0; }); }));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 
@@ -377,7 +397,7 @@ if (want('pages, Fit, the Hungarian resume')) {
   await openByName(page, 'Medtech'); await page.waitForTimeout(300);
   const pages = await frameDoc(page, d => d.querySelectorAll('.document > .page').length);
   ok('a two-page resume is paginated into two pages', pages === 2, `${pages}`);
-  ok('at 1280×800: a meter for each page in the one line at the bottom, and one page in view', (await page.$$('#meter .meter')).length === 2 && (await page.evaluate(() => document.body.dataset.pages)) === 'one' && /p1/.test(await page.textContent('#meter')) && /p2/.test(await page.textContent('#meter')));
+  ok('at 1280×800: a thin bar for each page in the one line at the bottom, named by its page, and one page in view', (await page.$$('#meter .meter')).length === 2 && (await page.evaluate(() => document.body.dataset.pages)) === 'one' && await page.evaluate(() => { const n = [...document.querySelectorAll('#meter .meter')].map(m => m.getAttribute('aria-label')); return /page 1/.test(n[0]) && /page 2/.test(n[1]); }));
   await page.click('[data-act=goto-page][data-page="1"]'); await page.waitForTimeout(900);
   ok('the meter of page 2 brings page 2 forward', (await page.evaluate(() => window.__wb.ui.page)) === 1 && (await page.getAttribute('#meter .meter[data-page="1"]', 'aria-current')) === 'true');
   const fills = await page.evaluate(() => window.__wb.ui.fills.map(p => p.overflow));
@@ -388,7 +408,7 @@ if (want('pages, Fit, the Hungarian resume')) {
   await page.click('[data-act=fit]');
   await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 60000 });
   await page.waitForTimeout(800);
-  const meter = await page.textContent('#meter');
+  const meter = await page.$$eval('#meter .meter', ms => ms.map(m => m.getAttribute('aria-label')).join(' | '));
   ok('Fit runs and the meter reads the result', /%/.test(meter), meter);
   const fitted = await page.evaluate(() => window.__wb.store.history.undo) > undoBefore;
   if (fitted){
@@ -427,8 +447,8 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     const c = await camOf(page);
     ok(`${w}×${h}: both pages show at once, equal, nothing faded`, c.scene === 'all' && c.equal && c.faded.length === 2 && c.faded.every(f => !f));
     ok(`${w}×${h}: at the full height of the window, 16px above and below`, Math.abs(c.k - (h - 32) / 1123) < 1e-6 && Math.abs(c.y - 16) < 1);
-    const s = await rect(page, '#sheet'), col = await rect(page, '#col');
-    ok(`${w}×${h}: the pages are centred in the room left of the sidebar`, Math.abs(s.left - (col.left - 16 - s.right)) < 2, `${s.left.toFixed(1)} vs ${(col.left - 16 - s.right).toFixed(1)}`);
+    const s = await rect(page, '#sheet'), col = await rect(page, '#rail');
+    ok(`${w}×${h}: the pages are centred in the room left of the rail and the sidebar`, Math.abs(s.left - (col.left - 16 - s.right)) < 2, `${s.left.toFixed(1)} vs ${(col.left - 16 - s.right).toFixed(1)}`);
     await wheel(page, 700); await page.waitForTimeout(500);
     const after = await camOf(page);
     ok(`${w}×${h}: the wheel does nothing: there is nothing to travel to`, Math.abs(after.x - c.x) < 0.5 && after.page === 0);
@@ -450,7 +470,7 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     await openByName(page, 'Medtech');
     await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
     const c = await camOf(page);
-    ok('one page, fit to the room left of the sidebar', c.scene === 'one' && Math.abs(c.k - Math.min((900 - 32) / 1123, (1440 - 560 - 64) / 794)) < 1e-6 && c.page === 0);
+    ok('one page, fit to the room left of the sidebar', c.scene === 'one' && Math.abs(c.k - Math.min((900 - 32) / 1123, (1440 - 340 - 54 - 64) / 794)) < 1e-6 && c.page === 0);
     ok('…the other page is faded and sits to the right', c.faded[0] === false && c.faded[1] === true);
     const col = await rect(page, '#col');
     const p2 = await page.evaluate(() => { const f = document.querySelector('#sheet iframe'), r = f.getBoundingClientRect(), d = f.contentDocument.querySelectorAll('.document > .page')[1].getBoundingClientRect(), k = r.width / f.offsetWidth; return { left: r.left + d.left * k, right: r.left + d.right * k }; });
@@ -479,7 +499,7 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     await openByName(page, 'Medtech');
     await watchMoved(page);
     const c0 = await camOf(page);
-    ok('1024×700: one page at a time, the page shrunk so the sidebar keeps 560px', c0.scene === 'one' && c0.page === 0 && Math.abs(c0.k - Math.min((700 - 32) / 1123, (1024 - 560 - 64) / 794)) < 1e-6);
+    ok('1024×700: one page at a time, the page shrunk to the room left of the rail and the 316px sidebar', c0.scene === 'one' && c0.page === 0 && Math.abs(c0.k - Math.min((700 - 32) / 1123, (1024 - 316 - 54 - 64) / 794)) < 1e-6);
     ok('…the other waits faded to the right', c0.faded[0] === false && c0.faded[1] === true);
     const step = (794 + 24) * c0.k;
     await wheel(page, 30, 0, [300, 350]); await page.waitForTimeout(900);
@@ -824,7 +844,7 @@ if (want('on the page: a narrow window, zoom off, reduced motion, a line that is
     const bad = await open(page);
     const sheet = page.frameLocator('#sheet iframe');
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
-    ok('at 1100px the sidebar stays beside the page, at 560px: there is no drawer, and selecting a line leaves the layout alone', (await page.evaluate(() => document.body.dataset.drawer)) === undefined && Math.abs((await rect(page, '#col')).width - 560) < 1);
+    ok('at 1100px the sidebar stays beside the page, at 316px: there is no drawer, and selecting a line leaves the layout alone', (await page.evaluate(() => document.body.dataset.drawer)) === undefined && Math.abs((await rect(page, '#col')).width - 316) < 1);
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(900);
     ok('writing a line leaves the sidebar where it is: the line is written on the page and the tools in the margin carry the actions', (await lineEl(page).count()) === 1 && await page.isVisible('#body') && await page.isVisible('#head') && !!(await page.$('#editlay [data-act=ed-save]')));
     await appendLine(page, ' drawer');
@@ -950,16 +970,14 @@ if (want('the welcome language step, the interface language, Settings')) {
     await page.click('[data-act=ob-skip]'); await settle(page); await page.click('[data-act=ob-skip]'); await settle(page);
     if (await page.$('[data-act=ob-skip]')){ await page.click('[data-act=ob-skip]'); await settle(page); }
     await page.click('[data-act=ob-finish]'); await page.waitForTimeout(1200);
-    await page.click('#langbtn'); await settle(page);
-    await page.click('.langpop [data-act=lang-more]'); await settle(page);
-    await page.click('.langpop [data-act=lang-add][data-lang=en]'); await page.waitForTimeout(1500);
+    await pickLang(page, 'en'); await page.waitForTimeout(1500);
     u = await ui(page);
     ok('+ Add a language adds English and switches the resume to it', u.cur === 'en' && JSON.stringify(u.langs) === '["de","en"]', JSON.stringify(u));
     ok('the interface follows the resume into English', u.lang === 'en' && u.design === 'Design');
     ok('and the toast is already in English', /This resume is now in English/.test(await page.textContent('#toast')));
-    await page.click('#langbtn'); await settle(page);
-    ok('the menu now lists just the two', (await page.$$('.langpop [role=menuitemradio]')).length === 2);
-    await page.click('.langpop [data-act=lang][data-lang=de]'); await page.waitForTimeout(1200);
+    await page.click('#docname-btn'); await settle(page);
+    ok('the language list now has just the two in use', (await page.$$eval('#sw-lang option', o => o.filter(x => !x.value.startsWith('+')).length)) === 2);
+    await pickLang(page, 'de'); await page.waitForTimeout(1200);
     ok('back to German, and so is the interface', (await ui(page)).lang === 'de');
     await page.click('[data-act=menu]'); await page.click('[data-act=goto][data-v=settings]'); await settle(page);
     await page.check('[data-uimode=fixed]'); await page.selectOption('[data-uilang]', 'en').catch(() => {});
@@ -992,8 +1010,7 @@ if (want('the welcome language step, the interface language, Settings')) {
     await page.check('[data-uimode=fixed]'); await page.selectOption('[data-uilang]', 'fr'); await page.waitForTimeout(1200);
     ok('“always Français”: the interface is in French', (await page.evaluate(() => document.documentElement.lang)) === 'fr');
     await page.click('#tab-edit'); await settle(page);
-    await page.click('#langbtn'); await settle(page);
-    await page.click('.langpop [data-act=lang][data-lang=de]'); await page.waitForTimeout(1500);
+    await pickLang(page, 'de'); await page.waitForTimeout(1500);
     u = await ui(page);
     ok('switching the resume to German leaves the interface in French', u.cur === 'de' && u.lang === 'fr' && u.design === fr['ux2.modeDesign'], JSON.stringify(u));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
@@ -1144,11 +1161,9 @@ if (want('the record in German: edit in the resume’s language')) {
   const bad = await open(page);
   const sheet = page.frameLocator('#sheet iframe');
   const st = () => page.evaluate(() => window.__wb.store.state);
-  await page.click('#langbtn'); await settle(page);
-  if (!(await page.$('.langpop [data-act=lang][data-lang=de]'))){ await page.click('.langpop [data-act=lang-more]'); await settle(page); await page.click('.langpop [data-act=lang-add][data-lang=de]'); }
-  else await page.click('.langpop [data-act=lang][data-lang=de]');
+  await pickLang(page, 'de');
   await page.waitForTimeout(1500);
-  ok('the resume’s language is the one you edit in: the page and the interface go German', (await page.evaluate(() => document.documentElement.lang)) === 'de' && (await page.evaluate(() => window.__wb.store.state.cur.lang)) === 'de' && (await page.textContent('#head')).includes(de6['ux3b.saveFile']));
+  ok('the resume’s language is the one you edit in: the page and the interface go German', (await page.evaluate(() => document.documentElement.lang)) === 'de' && (await page.evaluate(() => window.__wb.store.state.cur.lang)) === 'de' && (await page.textContent('#rail [role=tablist]')).includes(de6['ux2.modeEdit']));
   await sheet.locator('.role-title').first().click(); await settle(page);
   await page.click('details.details > summary'); await settle(page);
   ok('the form says what translates and what is the same in every language', /Deutsch/.test(await page.textContent('#body .detbox')) && (await page.textContent('#body .detbox')).includes(de6['career.shared']));
@@ -1476,8 +1491,10 @@ if (want('saved resumes')) {
   const saved = r => r.openId && r.resumes.find(x => x.id === r.openId);
   await page.waitForFunction(() => /Saved on this device/.test(document.querySelector('#savestate')?.textContent ?? ''), null, { timeout: 5000 });
   ok('the header always says where the work is: “Saved on this device”', /Saved on this device/.test(await page.textContent('#savestate')) && (await page.$$('#savestate .si.ok')).length === 1 && (await page.getAttribute('#savestate', 'role')) === 'status');
-  ok('Save to file is always there, outline not filled', !(await page.isDisabled('#filestate')) && !(await page.getAttribute('#filestate', 'class')).includes('primary'));
-  ok('there is no Resumes tab: the head has Edit, Design and Export', (await page.$$('#head [role=tab]')).length === 3 && !/Resumes/.test(await page.textContent('#head [role=tablist]')));
+  await page.click('#tab-export'); await settle(page);
+  ok('Save to file is always there (in Export), outline not filled, with where the file stands', !(await page.isDisabled('#filestate')) && !(await page.getAttribute('#filestate', 'class')).includes('primary') && /Not saved to a file yet/.test(await page.textContent('#fileline')));
+  await page.click('#tab-edit'); await settle(page);
+  ok('there is no Resumes tab: the rail’s tab list has Edit, Design and Export; Resumes is a screen button beside it', (await page.$$('#rail [role=tab]')).length === 3 && !/Resumes/.test(await page.textContent('#rail [role=tablist]')) && (await page.$$('#rail .scr')).length === 2);
   ok('the menu is the short one', await (async () => { await page.click('[data-act=menu]'); const t = await page.textContent('.menu'); await page.keyboard.press('Escape'); await page.click('[data-act=menu]').catch(() => {}); return !/Saved resumes|New resume|Restore a backup|Languages you use/.test(t) && /Open or import/.test(t) && !/Save to file/.test(t) && /History and checkpoints/.test(t) && /Settings/.test(t) && /Privacy/.test(t) && /Source code/.test(t) && /Load the example/.test(t) && /Start over/.test(t); })());
   await page.mouse.click(4, 400); await settle(page);
 
@@ -1485,8 +1502,11 @@ if (want('saved resumes')) {
   await page.keyboard.press('Control+o'); await settle(page);
   ok('Ctrl+O opens the switcher with the search box focused', await page.isVisible('#switcher') && (await page.evaluate(() => document.activeElement?.id)) === 'sw-q');
   const uniqueRows = () => page.evaluate(() => new Set([...document.querySelectorAll('#switcher .swrow')].map(r => r.dataset.rid)).size);
-  ok('it lists every resume, grouped by job type', (await uniqueRows()) === 14 && (await page.$$('#switcher .swlist .lbl')).length >= 3);
-  ok('it is a dialog with a labelled group of buttons for a screen reader, the open resume marked current', (await page.getAttribute('#sw-list', 'role')) === 'group' && (await page.$$('#switcher .sopt')).length >= 14 && (await page.$$('#switcher .sopt[aria-current=true]')).length >= 1 && (await page.getAttribute('#switcher', 'role')) === 'dialog');
+  ok('the name window lists the recent resumes, the open one first and marked; Manage all says how many there are', (await uniqueRows()) >= 1 && (await uniqueRows()) <= 4 && /Recent/.test(await page.textContent('#switcher .swlist .lbl')) && (await page.$$('#switcher .swrow.is-cur')).length === 1 && /Manage all \(14\)/.test(await page.textContent('#switcher .swfoot')));
+  ok('an older resume, with no parent on record, shows no “Duplicated from” line', !(await page.$('#switcher .swfrom')));
+  ok('it is a dialog with a labelled group of buttons for a screen reader, the open resume marked current', (await page.getAttribute('#sw-list', 'role')) === 'group' && (await page.$$('#switcher .sopt')).length >= 1 && (await page.$$('#switcher .sopt[aria-current=true]')).length >= 1 && (await page.getAttribute('#switcher', 'role')) === 'dialog');
+  await page.fill('#sw-q', 'medtech'); await settle(page);
+  ok('a search lists every match, grouped by job type', (await uniqueRows()) === 1 && /Medtech/.test(await page.textContent('#switcher .sopt')));
   const before = await firstBullet(page);
   await page.hover('#switcher .sopt:has-text("Medtech")'); await page.waitForTimeout(1500);
   ok('hovering one shows it on the page', (await firstBullet(page)) !== before && (await st()).openId.startsWith('Example'));
@@ -1501,6 +1521,7 @@ if (want('saved resumes')) {
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc closes it and gives the focus back', !(await page.isVisible('#switcher')) && (await page.evaluate(() => document.activeElement?.id)) === 'docname-btn');
   await page.click('#docname-btn'); await settle(page);
+  await page.fill('#sw-q', 'medtech'); await settle(page);
   await page.click('#switcher .sopt:has-text("Medtech")'); await page.waitForTimeout(1200);
   ok('a click opens it', /Medtech/.test(await page.textContent('#docname')) && !(await page.isVisible('#switcher')));
   ok('…and the last opened ones come first in the switcher', await (async () => { await page.click('#docname-btn'); await settle(page); const t = await page.textContent('#switcher .swlist .lbl'); await page.keyboard.press('Escape'); return /Recent/.test(t); })());
@@ -1564,6 +1585,7 @@ if (want('saved resumes')) {
 
   // the row menu
   await page.click('#docname-btn'); await settle(page);
+  await page.fill('#sw-q', 'Example Instruments'); await settle(page);
   await page.click('#switcher .swrow:has-text("Example Instruments") .smore'); await settle(page);
   ok('⋯ offers Duplicate, Duplicate in another language…, Rename and Delete', await page.evaluate(() => [...document.querySelectorAll('.rowmenu [role=menuitem]')].map(b => b.textContent.trim()).join('|')) === 'Duplicate|Duplicate in another language…|Rename|Delete');
   await page.click('.rowmenu [data-act=rm-lang]'); await settle(page);
@@ -1573,6 +1595,7 @@ if (want('saved resumes')) {
   const missing = await page.evaluate(async () => { const L = await import('./src/model/lang.js'); const s = window.__wb.store.state; return L.missingList(window.__wb.store.materialize(s.record), s.cur).length; });
   ok('…the lines with no version in that language are marked on the page, as the app already marks them', missing > 0 && (await frameDoc(page, d => d.querySelectorAll('.rb-miss, .rb-miss-tab').length)) > 0 && await page.isVisible('.missbar'), String(missing));
   await page.click('#docname-btn'); await settle(page);
+  ok('the name window says where a copy came from: “Duplicated from …”', /Duplicated from Example Instruments/.test(await page.textContent('#switcher .swfrom')));
   await page.click('#switcher .swrow.is-cur .smore'); await page.click('.rowmenu [data-act=rm-rename]'); await settle(page);
   await page.fill('.swren', 'Renamed By Smoke'); await page.keyboard.press('Enter'); await settle(page);
   ok('Rename changes the name and the file name', (await st()).cur.name === 'Renamed By Smoke' && (await st()).openId === 'Renamed By Smoke.json');
@@ -1585,6 +1608,7 @@ if (want('saved resumes')) {
 
   // + New resume
   await page.click('#docname-btn'); await settle(page);
+  await page.fill('#sw-q', 'Example Instruments'); await settle(page);
   await page.click('#switcher .swrow[data-rid="Example Instruments - Design Engineer.json"] .sopt'); await page.waitForTimeout(1200);
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher .swnew'); await settle(page);
@@ -1664,6 +1688,7 @@ if (want('saved resumes')) {
     await page.click('[data-act=ed-save]'); await page.waitForTimeout(800);
     ok('editing a version leaves every other saved resume’s text alone', JSON.stringify((await st()).frozen[shared.other]) === otherBefore);
     await page.click('#docname-btn'); await settle(page);
+    await page.fill('#sw-q', shared.other.split(' - ')[0]); await settle(page);
     await page.click(`#switcher .swrow[data-rid="${shared.other}"] .sopt`); await page.waitForTimeout(1500);
     ok(`${shared.company} keeps the text it was saved with`, (await frameDoc(page, d => d.body.textContent)).includes(shared.text));
     ok('and the card offers the newer wording', await page.isVisible('.banner'));
@@ -1718,14 +1743,13 @@ if (want('languages')) {
   const page = await ctx.newPage();
   const bad = await open(page);
   const st = () => page.evaluate(() => window.__wb.store.state);
-  ok('the header has a language switch: one button beside Save', (await page.$$('#langbtn')).length === 1 && /English/.test(await page.getAttribute('#langbtn', 'aria-label')) && /EN/.test(await page.textContent('#langbtn')));
-  await page.click('#langbtn'); await settle(page);
-  ok('it opens a menu of the languages you use (the example lists all ten), keyboard-operable', (await page.$$('.langpop [role=menuitemradio]')).length === 10 && (await page.getAttribute('.langpop', 'role')) === 'menu');
-  ok('each with what is left to write', /to write|complete/.test(await page.textContent('.langpop')));
+  ok('the name card has no language button; the name window has a language list, a labelled select', !(await page.$('#langbtn')) && !(await page.$('#head .dline')));
+  await page.click('#docname-btn'); await settle(page);
+  ok('it lists the languages you use (the example lists all ten) and the current one is chosen, with a label', (await page.$$eval('#sw-lang option', o => o.filter(x => !x.value.startsWith('+')).length)) === 10 && /English/.test(await page.$eval('#sw-lang', e => e.selectedOptions[0].textContent)) && (await page.$$('label[for=sw-lang]')).length === 1);
+  ok('each with what is left to write', /to write|complete/.test(await page.$$eval('#sw-lang option', o => o.map(x => x.textContent).join())));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc closes it', !(await page.$('.langpop')));
-  await page.click('#langbtn'); await settle(page);
-  await page.click('.langpop [data-act=lang][data-lang=hu]'); await page.waitForTimeout(2500);
+  ok('Esc closes the window', !(await page.isVisible('#switcher')));
+  await pickLang(page, 'hu'); await page.waitForTimeout(2500);
   ok('the Hungarian button switches the resume to Hungarian', (await st()).cur.lang === 'hu' && /Tapasztalat/i.test(await frameDoc(page, d => d.body.textContent)));
   await page.click('.offchip[data-id=interests]'); await page.waitForTimeout(2000);
   ok('a section with no Hungarian still prints, in English', /Dinghy sailing/.test(await frameDoc(page, d => d.body.textContent)));
@@ -1746,7 +1770,7 @@ if (want('languages')) {
   const after = await frameDoc(page, d => d.querySelectorAll('.rb-miss').length);
   ok('and off the page’s outlines', after === outlined - 1, `${outlined} → ${after}`);
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
-  await page.click('#langbtn'); await settle(page); await page.click('.langpop [data-act=lang][data-lang=en]'); await page.waitForTimeout(2000);
+  await pickLang(page, 'en'); await page.waitForTimeout(2000);
   ok('back to English', !(await st()).cur.lang && /Experience/i.test(await frameDoc(page, d => d.body.textContent)));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
@@ -1819,7 +1843,9 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   await page.evaluate(() => window.__wb.store.commit(d => { d.record.meta.owner = 'Sam Example'; }, 'smoke: make it mine'));   // the example on its own is replaced without a warning
   const st = () => page.evaluate(() => window.__wb.store.state);
   const fstate = () => page.evaluate(() => { const f = window.__wb.persist.fileState; return { last: f.last, changes: f.changes }; });
-  const head = async () => (await page.textContent('#filestate .sr')).replace(/^ · /, '');
+  // where the file stands: the second line of Saved’s hint (the Export panel says it too)
+  const head = async () => page.evaluate(() => document.querySelector('#savestate').dataset.tip.split('|')[1]);
+  const saveClick = async () => { if (!(await page.$('#body #filestate'))){ await page.click('#tab-export'); await settle(page); } await page.click('#filestate'); };
   const edit = label => page.evaluate(l => window.__wb.store.commit(d => { d.record.basics.label = l; }, 'smoke edit'), label);
   let n = 0;
   const downloaded = async trigger => {
@@ -1831,13 +1857,13 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   const open1 = async file => { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page); await page.setInputFiles('#file', file); await page.waitForTimeout(900); };
   const copy = (src, fn, name) => { const j = JSON.parse(fs.readFileSync(src, 'utf8')); fn(j); const p = path.join(tmp, name); fs.writeFileSync(p, JSON.stringify(j, null, 2)); return p; };
 
-  ok('before any file save, the header says so', /Not saved to a file yet/.test(await head()));
-  const f1 = await downloaded(async () => { await page.click('#filestate'); });
+  ok('before any file save, Saved’s hint says so', /Not saved to a file yet/.test(await head()));
+  const f1 = await downloaded(saveClick);
   ok('Save to file downloads brewcv.json', f1.name === 'brewcv.json');
   const s1 = await st();
   ok('it holds the record, every saved resume and no checkpoints', f1.json.resumeBuilderBackup === 1 && f1.json.resumes.length === s1.resumes.length && s1.resumes.length > 3 && !('checkpoints' in f1.json));
   ok('it names the app version and the record', f1.json.app === version && f1.json.recordId === s1.record.recordId && !!f1.json.recordId);
-  ok('the header says Saved to file, and it is a button', /^Saved to file/.test(await head()) && (await page.$eval('#filestate', e => e.tagName)) === 'BUTTON');
+  ok('Saved’s hint says Saved to file, and the Export panel says so beside its button', /^Saved to file/.test(await head()) && (await page.$eval('#filestate', e => e.tagName)) === 'BUTTON' && /^Saved to file/.test(await page.textContent('#fileline')));
   ok('the first save shows the one-time note about the Save dialog', await page.isVisible('[data-act=save-note-ok]') && /Ask where to save each file/.test(await page.textContent('.notice')));
   const persisted = await page.evaluate(() => window.__wb.ui.persisted);
   ok('and, if the browser would not promise to keep storage, that the file is the safe copy', persisted !== false || /safe copy/.test(await page.textContent('.notice')));
@@ -2085,7 +2111,7 @@ if (want('onboarding and the record')) {
   await page.click('[data-act=ob-finish]'); await page.waitForTimeout(2000);
   const page1 = await text();
   ok('blank → a finished resume: both jobs, their claims, the degree, the skills', ['Fjord Instruments', 'IP68 housing', 'Northwind Labs', 'B.Sc.', 'Onshape'].every(x => page1.includes(x)));
-  ok('Start editing brings the rest in: the header with Edit, Design and Export, the foot with its meter and Fit, and the Outline', await page.isVisible('#head') && await page.isVisible('#tab-edit') && await page.isVisible('[data-act=fit]') && /\d+%/.test(await page.textContent('#meter')) && /Fit cuts from the bottom/.test(await page.textContent('#body')));
+  ok('Start editing brings the rest in: the header with Edit, Design and Export, the foot with its meter and Fit, and the Outline', await page.isVisible('#head') && await page.isVisible('#tab-edit') && await page.isVisible('[data-act=fit]') && /\d+%/.test(await page.getAttribute('#meter .meter', 'aria-label')) && /Fit cuts from the bottom/.test(await page.textContent('#body')));
   ok('on A4', (await st()).cur.format === 'a4');
   ok('the first tip shows', /Tip 1 of 3/.test(await page.textContent('#body')));
   ok('and the record validates', await page.evaluate(async () => { const V = await import('./checks/lib/validate.mjs'); const S = await import('./src/model/schema.js'); const s = window.__wb.store.state; return V.validate(S.save(window.__wb.store.materialize(s.record)), s.cur).errors.length === 0; }));
@@ -2445,18 +2471,18 @@ if (want('drinks: tea and coffee, light and dark')) {
     const seen = await page.evaluate(() => window.__drinks);
     ok(`${drink} ${theme}: html carries data-drink and data-theme before the first paint, and nothing else ever`, seen.every(x => x === `${drink}/${theme}`) && seen.length >= 1, JSON.stringify(seen));
     await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
-    const look = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#col')), b = c; return { surface: b.backgroundColor, radius: c.borderTopLeftRadius, font: getComputedStyle(document.body).fontFamily, shadow: c.boxShadow }; });
-    ok(`${drink} ${theme}: the sidebar is the drink’s surface, ${E.radius} corners, ${E.mono ? 'monospace' : 'Hanken'}`, look.surface === E.surface && look.radius === E.radius && /Fira Code/.test(look.font) === E.mono, JSON.stringify(look));
+    const look = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#body')), b = c; return { surface: b.backgroundColor, radius: c.borderTopLeftRadius, font: getComputedStyle(document.body).fontFamily, shadow: c.boxShadow }; });
+    ok(`${drink} ${theme}: the editor card is the drink’s surface, ${E.radius} corners, ${E.mono ? 'monospace' : 'Hanken'}`, look.surface === E.surface && look.radius === E.radius && /Fira Code/.test(look.font) === E.mono, JSON.stringify(look));
     ok(`${drink} ${theme}: ${drink === 'tea' ? 'a flat, offset shadow' : 'no shadow, a hairline'}`, drink === 'tea' ? /\d+px \d+px 0px 0px/.test(look.shadow) : look.shadow === 'none');
     // each sheet has its own tea in Tea (the Outline is Edit with nothing selected), and every sheet is the one plain surface in Coffee
     const TEAS = { light: { outline: 'rgb(77, 61, 30)', edit: 'rgb(46, 70, 54)', design: 'rgb(92, 43, 34)', export: 'rgb(44, 58, 79)', record: 'rgb(59, 39, 35)' }, dark: { outline: 'rgb(63, 50, 25)', edit: 'rgb(38, 57, 45)', design: 'rgb(75, 35, 28)', export: 'rgb(36, 48, 65)', record: 'rgb(48, 32, 29)' } };
     const seenTabs = {};
-    const bgOf = () => page.evaluate(() => getComputedStyle(document.querySelector('#col')).backgroundColor);
+    const bgOf = () => page.evaluate(() => getComputedStyle(document.querySelector('#body')).backgroundColor);
     for (const m of ['design', 'export', 'record']){ await page.evaluate(m => window.__wb.dock.setMode(m), m); await page.waitForTimeout(450); seenTabs[m] = await bgOf(); }
     await toEditHome(page); await page.waitForTimeout(450); seenTabs.outline = await bgOf();
     await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await page.waitForTimeout(450); seenTabs.edit = await bgOf();
     ok(`${drink} ${theme}: ${drink === 'tea' ? 'the five sheets are oolong (the Outline), matcha, rooibos, earl grey and pu-erh' + (theme === 'dark' ? ' (darkened)' : '') : 'every sheet is the one surface'}`, Object.entries(seenTabs).every(([m, v]) => v === (drink === 'tea' ? TEAS[theme][m] : E.surface)), JSON.stringify(seenTabs));
-    ok(`${drink} ${theme}: the selected tab of the head is raised from the sheet in Tea, a hairline underline in Coffee, the others plain`, await page.evaluate(([d]) => { const on = document.querySelector('#head [role=tab][aria-selected=true]'), off = document.querySelector('#head [role=tab][aria-selected=false]'); return !!on && !!off && (d === 'tea' ? getComputedStyle(on).backgroundColor !== getComputedStyle(off).backgroundColor : /\d/.test(getComputedStyle(on).borderBottomColor) && getComputedStyle(on).borderBottomWidth !== '0px'); }, [drink]));
+    ok(`${drink} ${theme}: the open tab of the rail is the editor card’s own surface and touches it, in both drinks (Tea: the others are cream tags; Coffee: the others are plain cards)`, await page.evaluate(([d]) => { const on = document.querySelector('#rail [role=tab][aria-selected=true]'), off = document.querySelector('#rail [role=tab][aria-selected=false]'), body = document.querySelector('#body'); return !!on && !!off && getComputedStyle(on).backgroundColor === getComputedStyle(body).backgroundColor && on.getBoundingClientRect().right >= body.getBoundingClientRect().left - 0.5 && (d === 'tea' ? getComputedStyle(on).backgroundColor !== getComputedStyle(off).backgroundColor : on.getBoundingClientRect().width > off.getBoundingClientRect().width); }, [drink]));
     await page.evaluate(() => window.__wb.dock.setMode('edit'));
     // the resume is the same everywhere: its first bullet's computed style does not know the drink
     const resume = await frameDoc(page, d => { const li = d.querySelector('.bullets li'), cs = getComputedStyle(li); return [cs.color, cs.fontFamily, cs.fontSize, getComputedStyle(d.body).backgroundColor].join('|'); });
@@ -2471,23 +2497,23 @@ if (want('drinks: tea and coffee, light and dark')) {
   const bad = await open(page);
   const drinkNow = () => page.evaluate(() => document.documentElement.dataset.drink);
   ok('Tea is the default', (await drinkNow()) === 'tea' && (await page.evaluate(() => localStorage.getItem('rb-drink'))) === null);
-  ok('there is no drink corner: the logo is the switch, and says what it will do', !(await page.$('#brewmode')) && await page.evaluate(() => document.querySelector('#head .logoswitch').dataset.to === 'coffee'));
+  ok('there is no drink corner: the logo is the switch, and says what it will do', !(await page.$('#brewmode')) && await page.evaluate(() => document.querySelector('#rail .logoswitch').dataset.to === 'coffee'));
   await page.evaluate(() => { window.__marker = 'same page'; });
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   ok('Shift+F switches to coffee, in place: no reload, the same page, the choice stored', (await drinkNow()) === 'coffee' && (await page.evaluate(() => window.__marker)) === 'same page' && (await page.evaluate(() => localStorage.getItem('rb-drink'))) === 'coffee');
-  ok('the logo now offers Tea, and the tab icons and the meter changed with it, with no redraw of the page', await page.evaluate(() => document.querySelector('#head .logoswitch').dataset.to === 'tea') && (await page.evaluate(() => window.__wb.ui.laid != null)));
-  await page.click('#head .logoswitch'); await page.waitForTimeout(900);
+  ok('the logo now offers Tea, and the tab icons and the meter changed with it, with no redraw of the page', await page.evaluate(() => document.querySelector('#rail .logoswitch').dataset.to === 'tea') && (await page.evaluate(() => window.__wb.ui.laid != null)));
+  await page.click('#rail .logoswitch'); await page.waitForTimeout(900);
   ok('the logo switches back to Tea', (await drinkNow()) === 'tea');
   // never while typing: the switcher's search is a field
-  await page.click('#docname-btn'); await page.waitForSelector('#switcher .sw-q');
-  await page.focus('#switcher .sw-q'); await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
-  ok('Shift+F is ignored in a field, and types the letter', (await drinkNow()) === 'tea' && (await page.inputValue('#switcher .sw-q')) === 'F');
+  await page.click('#docname-btn'); await page.waitForSelector('#switcher #sw-q');
+  await page.focus('#switcher #sw-q'); await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
+  ok('Shift+F is ignored in a field, and types the letter', (await drinkNow()) === 'tea' && (await page.inputValue('#switcher #sw-q')) === 'F');
   await page.keyboard.press('Escape');
   // the setting survives a reload
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
-  ok('the setting survives a reload', (await drinkNow()) === 'coffee' && (await page.evaluate(() => document.querySelector('#head .logoswitch').dataset.to)) === 'tea');
+  ok('the setting survives a reload', (await drinkNow()) === 'coffee' && (await page.evaluate(() => document.querySelector('#rail .logoswitch').dataset.to)) === 'tea');
   // Settings: the drink and light, dark or system
   await page.evaluate(() => window.__wb.setView('settings')); await settle(page);
   ok('Settings offers Tea or Coffee, and System, Light or Dark (System by default)', (await page.$$('#body input[name=drink]')).length === 2 && (await page.$$('#body input[name=theme]')).length === 3 && await page.isChecked('#body input[data-theme=system]') && await page.isChecked('#body input[data-drink=coffee]'));
@@ -2531,17 +2557,18 @@ if (want('drinks: Fit, the meters, the moments')) {
   ok('overflowing: Fit is filled', await fitFilled());
   await setFills(used(0.89));
   ok('89%, just inside the band: Fit is plain again', !(await fitFilled()));
-  // the cup (tea) and the shot glass (coffee), filled to the page's level
+  // one thin bar for each page, the same in both drinks: filled to the page's level, a notch for Fit's band, the colour says the state
+  const bar = async () => { await page.waitForTimeout(600); return page.evaluate(() => { const m = document.querySelector('#foot .meter'), b = m.querySelector('.mbar').getBoundingClientRect(), f = m.querySelector('.mfill'), fr = f.getBoundingClientRect(), band = m.querySelector('.mband').getBoundingClientRect(), cs = getComputedStyle(f); return { p: m.style.getPropertyValue('--p'), h: b.height, w: fr.width / b.width, bandL: (band.left - b.left) / b.width, bandW: band.width / b.width, bg: cs.backgroundColor, img: cs.backgroundImage, mask: cs.webkitMaskImage || cs.maskImage, cls: m.className, text: m.textContent.trim() }; }); };
   await setFills(used(0.6));
-  const cup = await page.evaluate(() => { const m = document.querySelector('#foot .meter'), f = m.querySelector('.mfill'), cs = getComputedStyle(f), band = getComputedStyle(m.querySelector('.mband')); return { p: m.style.getPropertyValue('--p'), mask: cs.webkitMaskImage || cs.maskImage, bg: cs.backgroundImage, band: band.borderTopStyle, hasBar: !!m.querySelector('.mbar') && getComputedStyle(m.querySelector('.mbar')).overflow !== 'hidden' }; });
-  ok('tea: the page meter is the cup, drawn from --p = 60, with a dashed fill line for Fit’s band', cup.p === '60.0' && /url/.test(cup.mask) && /linear-gradient/.test(cup.bg) && cup.band === 'dashed' && cup.hasBar, JSON.stringify(cup));
+  const cup = await bar();
+  ok('tea: the page meter is one thin bar drawn from --p = 60: a fill 60% wide, a notch at Fit’s band (88 to 96%), under in the warning colour, no text', cup.p === '60.0' && cup.h <= 10 && Math.abs(cup.w - 0.6) < 0.02 && Math.abs(cup.bandL - 0.88) < 0.02 && Math.abs(cup.bandW - 0.08) < 0.02 && /under/.test(cup.cls) && cup.mask === 'none' && cup.text === '', JSON.stringify(cup));
   await setFills(used(1.01).map(x => ({ ...x, overflow: 4 })));
-  ok('tea: an overflowing page spills over the rim', await page.evaluate(() => { const bar = document.querySelector('#foot .meter.overflow .mbar'); const c = getComputedStyle(bar, '::before'); return c.content !== 'none' && /url/.test(c.webkitMaskImage || c.maskImage); }));
+  ok('tea: an overflowing page is a striped bar in the over colour', /repeating-linear-gradient/.test((await bar()).img));
   await setFills(used(0.91));
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
-  const glass = await page.evaluate(() => { const m = document.querySelector('#foot .meter'), bar = m.querySelector('.mbar').getBoundingClientRect(), f = m.querySelector('.mfill').getBoundingClientRect(), cs = getComputedStyle(m.querySelector('.mfill')); return { ratio: f.height / (bar.height - 1), bg: cs.backgroundImage, band: getComputedStyle(m.querySelector('.mband')).borderRightStyle, ticks: getComputedStyle(m.querySelector('.mbar'), '::after').backgroundImage }; });
-  ok('coffee: the meter is a shot glass: crema on espresso, filled to the level, ticks, and Fit’s band bracketed', Math.abs(glass.ratio - 0.91) < 0.06 && /linear-gradient/.test(glass.bg) && glass.band === 'solid' && /linear-gradient/.test(glass.ticks), JSON.stringify(glass));
-  ok('coffee: the head is an espresso band with a crema line', await page.evaluate(() => { const h = getComputedStyle(document.querySelector('#head')); return /rgb\(43, 29, 20\)/.test(h.backgroundColor) && /190, 127, 74/.test(h.borderBottomColor); }));
+  const glass = await bar();
+  ok('coffee: the same thin bar, filled to the level, in the band: the drink’s own ink', Math.abs(glass.w - 0.91) < 0.02 && glass.h <= 10 && Math.abs(glass.bandL - 0.88) < 0.02 && /ok/.test(glass.cls) && glass.mask === 'none' && glass.bg === 'rgb(28, 20, 16)', JSON.stringify(glass));
+  ok('coffee: the name card is an espresso band with a crema line', await page.evaluate(() => { const h = getComputedStyle(document.querySelector('#head')); return /rgb\(43, 29, 20\)/.test(h.backgroundColor) && /190, 127, 74/.test(h.borderBottomColor); }));
   ok('coffee: counts read 5v, boxes are square, the canvas is a cutting mat', await page.evaluate(() => { const cb = document.querySelector('.cb'); return !cb || parseFloat(getComputedStyle(cb).borderTopLeftRadius) <= 2; }) && await page.evaluate(() => /linear-gradient/.test(getComputedStyle(document.body).backgroundImage)));
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   // steam is a moment: it rises for a few seconds when a page has just reached the band, and stops. At 91 to 93% it is a heart.
@@ -2560,11 +2587,11 @@ if (want('drinks: Fit, the meters, the moments')) {
   await open(pg);
   ok('reduced motion: no steam', await pg.evaluate(() => { const m = document.querySelector('#foot .meter'); return !m.classList.contains('steam') || getComputedStyle(m.querySelector('.mbar'), '::before').content === 'none'; }));
   await pg.hover('#foot [data-act=fit]'); await pg.waitForTimeout(100);
-  ok('reduced motion: Fit and the head’s tabs do not swing, and the toast does not', await pg.evaluate(() => getComputedStyle(document.querySelector('#foot [data-act=fit]')).animationName === 'none' && getComputedStyle(document.querySelector('#tab-export')).animationName === 'none'));
+  ok('reduced motion: Fit and the rail’s tabs do not swing, and the toast does not', await pg.evaluate(() => getComputedStyle(document.querySelector('#foot [data-act=fit]')).animationName === 'none' && getComputedStyle(document.querySelector('#tab-export')).animationName === 'none'));
   await pg.evaluate(() => { const t = document.querySelector('#toast'); t.textContent = 'x'; t.className = 'toast on'; }); await pg.waitForTimeout(500);
   ok('…the toast still appears, without swinging', await pg.evaluate(() => { const t = document.querySelector('#toast'); return t.classList.contains('on') && getComputedStyle(t).animationName === 'none' && getComputedStyle(t).opacity === '1'; }));
-  await pg.evaluate(() => { const i = document.querySelector('#head .logo img'); i.classList.add('dunk'); });
-  ok('…and the bag does not dunk', await pg.evaluate(() => getComputedStyle(document.querySelector('#head .logo img')).animationName === 'none'));
+  await pg.evaluate(() => { const i = document.querySelector('#rail .logo img'); i.classList.add('dunk'); });
+  ok('…and the bag does not dunk', await pg.evaluate(() => getComputedStyle(document.querySelector('#rail .logo img')).animationName === 'none'));
   await rm.close();
 
   // the bag dunks when the drink becomes tea (tea only), a tick pops once, and the toast hangs on a string
@@ -2573,7 +2600,7 @@ if (want('drinks: Fit, the meters, the moments')) {
   await open(p2);
   await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
   await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
-  ok('tea: switching to tea and the tea bag dunks', await p2.evaluate(() => document.querySelector('#head .logo img').classList.contains('dunk')));
+  ok('tea: switching to tea and the tea bag dunks', await p2.evaluate(() => document.querySelector('#rail .logo img').classList.contains('dunk')));
   await p2.waitForTimeout(1100);
   await inRecord(p2, 'hydra'); await settle(p2);
   const box = p2.locator('#checklist .cb[data-on]:not(:checked)').first();
@@ -2581,7 +2608,7 @@ if (want('drinks: Fit, the meters, the moments')) {
   ok('tea: the tick pops once, on the line just ticked', await p2.waitForFunction(() => document.querySelector('#checklist .cb.pop:checked'), null, { timeout: 2000 }).then(() => true, () => false));
   ok('tea: the toast hangs on a string (a hole and a string above it)', await p2.evaluate(() => { const t = document.querySelector('#toast'); return getComputedStyle(t, '::before').content !== 'none' && getComputedStyle(t, '::after').content !== 'none'; }));
   await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
-  ok('coffee: no tea shapes: the bag does not dunk, the toast has no string', !(await p2.evaluate(() => document.querySelector('#head .logo img').classList.contains('dunk'))) && await p2.evaluate(() => getComputedStyle(document.querySelector('#toast'), '::before').content === 'none'));
+  ok('coffee: no tea shapes: the bag does not dunk, the toast has no string', !(await p2.evaluate(() => document.querySelector('#rail .logo img').classList.contains('dunk'))) && await p2.evaluate(() => getComputedStyle(document.querySelector('#toast'), '::before').content === 'none'));
   await c2.close();
 }
 
@@ -2599,7 +2626,7 @@ if (want('drinks: the page marks, exports, no corner at other sizes')) {
   ok('an export holds nothing from the app’s theme', clean.html > 1000 && clean.leaks.length === 0, JSON.stringify(clean));
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   await page.setViewportSize({ width: 1100, height: 800 }); await page.waitForTimeout(500);
-  ok('below 1280px there is still no corner, and the logo is the switch', !(await page.$('#brewmode')) && await page.isVisible('#head .logoswitch'));
+  ok('below 1280px there is still no corner, and the logo is the switch', !(await page.$('#brewmode')) && await page.isVisible('#rail .logoswitch'));
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(600);
   ok('on a phone there is no corner either', !(await page.$('#brewmode')));
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -2696,7 +2723,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
 
   // choosing: a state change, not another screen
   await page.click('[data-act=ob-example]'); await page.waitForTimeout(1500);
-  ok('“Try it with an example” turns the intro parts into the editor’s controls: the same column, now the editor’s header, panel and foot', !(await page.evaluate(() => document.body.classList.contains('is-intro'))) && await page.isVisible('#head [role=tablist]') && await page.isVisible('#foot [data-act=fit]'));
+  ok('“Try it with an example” turns the intro parts into the editor’s controls: the same column, now the editor’s name card, rail, panel and foot', !(await page.evaluate(() => document.body.classList.contains('is-intro'))) && await page.isVisible('#rail [role=tablist]') && await page.isVisible('#foot [data-act=fit]'));
   ok('…the grey lines give way to the real page, which fades in where they were', (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'visible' && (await page.evaluate(() => getComputedStyle(document.querySelector('#startstage')).visibility)) === 'hidden' && /Okonkwo|Dana/.test(await frameDoc(page, d => d.body.textContent)));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
@@ -2754,16 +2781,16 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     const col = () => rect(page, '#col');
 
     // ---- Edit, Design and Export, and R ----
-    const tabs = await page.$$eval('#head [role=tab]', els => els.map(e => e.textContent.trim()));
-    ok(`${tag}: the head’s tab list is Edit · Design · Export`, tabs.length === 3 && tabs.every(x => x.length > 2) && (await page.$$eval('#head [role=tab]', els => els.map(e => e.dataset.m).join())) === 'edit,design,export', tabs.join('|'));
-    ok(`${tag}: …with the same tablist semantics, one tab stop`, await page.evaluate(() => { const t = [...document.querySelectorAll('#head [role=tab]')]; return t.length === 3 && t.filter(x => x.tabIndex === 0).length === 1 && t.filter(x => x.getAttribute('aria-selected') === 'true').length === 1; }));
+    const tabs = await page.$$eval('#rail [role=tab]', els => els.map(e => e.textContent.trim()));
+    ok(`${tag}: the rail’s tab list is Edit · Design · Export`, tabs.length === 3 && tabs.every(x => x.length > 2) && (await page.$$eval('#rail [role=tab]', els => els.map(e => e.dataset.m).join())) === 'edit,design,export', tabs.join('|'));
+    ok(`${tag}: …with the same tablist semantics, one tab stop`, await page.evaluate(() => { const t = [...document.querySelectorAll('#rail [role=tab]')]; return t.length === 3 && t.filter(x => x.tabIndex === 0).length === 1 && t.filter(x => x.getAttribute('aria-selected') === 'true').length === 1; }));
     await page.keyboard.press('Escape'); await settle(page);   // nothing selected
     const before = await col(), pageBefore = await rect(page, '#sheet');
-    ok(`${tag}: the sidebar is 560px wide in the Outline at 1440`, Math.abs(before.width - 560) < 1, `${before.width}px`);
+    ok(`${tag}: the sidebar is 340px wide in the Outline at 1440`, Math.abs(before.width - 340) < 1, `${before.width}px`);
     await page.evaluate(() => { window.__moved = 0; document.addEventListener('brewcv:pages-moved', () => { window.__moved++; }); });
     await page.keyboard.press('r'); await page.waitForTimeout(1100);
     const after = await col(), pageAfter = await rect(page, '#sheet');
-    ok(`${tag}: R opens Record, and none of Edit, Design, Export is selected`, (await page.evaluate(() => window.__wb.ui.view)) === 'record' && (await page.$$('#head [role=tab][aria-selected=true]')).length === 0 && (await page.getAttribute('#body', 'data-mode')) === 'record');
+    ok(`${tag}: R opens Record, and none of Edit, Design, Export is selected`, (await page.evaluate(() => window.__wb.ui.view)) === 'record' && (await page.$$('#rail [role=tab][aria-selected=true]')).length === 0 && (await page.getAttribute('#body', 'data-mode')) === 'record');
     ok(`${tag}: Record fills the window for now (its own redesign comes later): the sidebar is the whole window less 16px each side, and the page stays where it was under it`, Math.abs(after.left - 16) < 1 && Math.abs(after.width - (1440 - 32)) < 1 && Math.abs(after.height - (900 - 32)) < 1 && Math.abs(pageAfter.left - pageBefore.left) < 1 && Math.abs(pageAfter.width - pageBefore.width) < 1, `${before.width}px → ${after.width}px`);
     ok(`${tag}: the pages' own event did not fire: the pages did not move`, (await page.evaluate(() => window.__moved)) === 0, String(await page.evaluate(() => window.__moved)));
     ok(`${tag}: the sidebar keeps 16px from the right`, Math.abs(1440 - after.right - 16) < 1);
@@ -2839,12 +2866,12 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
 
     // ---- one meaning of save ----
     ok(`${tag}: no control in the header says only Save, and there is no data-act=save`, await page.evaluate(() => ![...document.querySelectorAll('#head button')].some(b => /^\s*Save\s*$/i.test(b.textContent)) && !document.querySelector('[data-act=save]') && !document.querySelector('#save')));
-    ok(`${tag}: row 1 is the name, the language, ✓ Saved and Save to file`, await page.evaluate(() => { const r = document.querySelector('#head .hrow.top'); return !!r.querySelector('#docname-btn') && !!r.querySelector('#langbtn') && !!r.querySelector('#savestate') && /Save to file/.test(r.querySelector('#filestate')?.textContent ?? ''); }));
-    ok(`${tag}: its hint says whether the file is saved`, /Not saved to a file yet/.test(await page.getAttribute('#filestate', 'title')));
+    ok(`${tag}: the name card is the name, ✓ Saved and the menu: no language, no Save to file`, await page.evaluate(() => { const r = document.querySelector('#head .hrow.top'); return !!r.querySelector('#docname-btn') && !r.querySelector('#langbtn') && !!r.querySelector('#savestate') && !!r.querySelector('[data-act=menu]') && !r.querySelector('#filestate'); }));
+    await page.click('#tab-export'); await settle(page);
+    ok(`${tag}: Save to file is in Export, and the line beside it says whether the file is saved`, /Save to file/.test(await page.textContent('#filestate')) && /Not saved to a file yet/.test(await page.textContent('#fileline')));
     const dl = await Promise.all([page.waitForEvent('download'), page.click('#filestate')]);
     await page.waitForTimeout(700);
-    ok(`${tag}: Save to file downloads the one file, and the hint says so`, /brewcv/.test(dl[0].suggestedFilename()) && /Saved to file/.test(await page.getAttribute('#filestate', 'title')));
-    await page.click('#tab-export'); await settle(page);
+    ok(`${tag}: Save to file downloads the one file, and the line says so`, /brewcv/.test(dl[0].suggestedFilename()) && /Saved to file/.test(await page.textContent('#fileline')));
     ok(`${tag}: Export ends with "Sent it?" and Mark as sent…, after the downloads`, await page.evaluate(() => { const b = document.querySelector('#body [data-act=mark-sent]'), d = document.querySelector('#body .dl'); return !!b && /Mark as sent…/.test(b.textContent) && b.getBoundingClientRect().top > d.getBoundingClientRect().bottom && /Sent it\?/.test(document.querySelector('.sentrow')?.textContent ?? ''); }));
     const s0 = await snapsOf(page);
     await page.click('[data-act=mark-sent]'); await settle(page);
@@ -2872,7 +2899,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     // ---- the switcher and Manage all ----
     await page.click('#docname-btn'); await settle(page);
     const rows = await page.evaluate(() => [...document.querySelectorAll('#switcher .swrow')].map(r => { const co = r.querySelector('.swco'), ro = r.querySelector('.swrole'); return { tag: !!r.querySelector('.swtag'), roleCut: ro ? ro.scrollWidth > ro.clientWidth + 1 : false, coCut: co ? co.scrollWidth > co.clientWidth + 1 : false, noCompany: !r.querySelector('.sopt .muted') }; }));
-    ok(`${tag}: switcher rows have no company column, and carry a small language/pages tag`, rows.length > 8 && rows.every(r => r.tag && r.noCompany));
+    ok(`${tag}: the window’s rows (the recent ones) have no company column, and carry a small language/pages tag`, rows.length >= 1 && rows.length <= 3 && rows.every(r => r.tag && r.noCompany));
     ok(`${tag}: …a name that has to give way gives up the company, never the role alone`, rows.every(r => !(r.roleCut && !r.coCut)));
     await page.click('[data-act=sw-manage]'); await settle(page);
     const man = await page.evaluate(() => { const s = document.querySelector('#switcher'), sr = s.getBoundingClientRect(), hd = document.querySelector('#head').getBoundingClientRect(), col = document.querySelector('#col').getBoundingClientRect(); const mid = [sr.left + 20, sr.top + 20, sr.left + sr.width / 2, sr.bottom - 20].map(v => v); const probe = [[sr.left + 10, sr.top + 60], [sr.left + sr.width / 2, sr.top + sr.height / 2], [sr.right - 10, sr.bottom - 10]].map(([x, y]) => document.elementFromPoint(x, y)?.closest('#switcher') !== null); const bg = getComputedStyle(s).backgroundColor; const alpha = /rgba/.test(bg) ? Number(bg.match(/[\d.]+\)$/)[0].slice(0, -1)) : 1; return { belowTabs: sr.top >= hd.bottom - 0.5, rightEdge: Math.abs(sr.right - col.right) < 12, opaque: alpha === 1, probe: probe.every(Boolean), aboveFoot: sr.bottom <= col.bottom + 0.5 }; });
@@ -3263,20 +3290,20 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
     got.sent = await page.evaluate(() => document.querySelector('#head .dsent')?.textContent ?? null);
     // the logo: hovering says what it will do, and starts the mat; a click rolls it up (Tea to Coffee), another unrolls it
     await clear();
-    await page.hover('#head .logoswitch'); await page.waitForTimeout(350);
-    got.peek = await page.evaluate(() => ({ layer: !!document.querySelector('.matroll'), tip: document.querySelector('#head .logoswitch').dataset.tip, to: document.querySelector('#head .logoswitch').dataset.to, drink: document.documentElement.dataset.drink }));
-    await page.click('#head .logoswitch'); await page.waitForTimeout(150);
+    await page.hover('#rail .logoswitch'); await page.waitForTimeout(350);
+    got.peek = await page.evaluate(() => ({ layer: !!document.querySelector('.matroll'), tip: document.querySelector('#rail .logoswitch').dataset.tip, to: document.querySelector('#rail .logoswitch').dataset.to, drink: document.documentElement.dataset.drink }));
+    await page.click('#rail .logoswitch'); await page.waitForTimeout(150);
     got.roll = await names(); await page.waitForTimeout(700);
-    got.coffee = await page.evaluate(() => ({ drink: document.documentElement.dataset.drink, logo: document.querySelector('#head .logoswitch img').getAttribute('src'), to: document.querySelector('#head .logoswitch').dataset.to, layer: !!document.querySelector('.matroll') }));
+    got.coffee = await page.evaluate(() => ({ drink: document.documentElement.dataset.drink, logo: document.querySelector('#rail .logoswitch img').getAttribute('src'), to: document.querySelector('#rail .logoswitch').dataset.to, layer: !!document.querySelector('.matroll') }));
     // an export in coffee: a crema line reads the page and a receipt prints
     await page.evaluate(() => window.__wb.setView('export')); await settle(page); await clear();
     await page.click('[data-act=ex-html]'); await page.waitForTimeout(900);
     got.exportCoffee = await names(); await page.waitForTimeout(2200);
     await page.mouse.move(4, 4);
-    await page.hover('#head .logoswitch'); await page.waitForTimeout(300); await clear();
-    await page.click('#head .logoswitch'); await page.waitForTimeout(150);
+    await page.hover('#rail .logoswitch'); await page.waitForTimeout(300); await clear();
+    await page.click('#rail .logoswitch'); await page.waitForTimeout(150);
     got.unroll = await names(); await page.waitForTimeout(700);
-    got.tea = await page.evaluate(() => ({ drink: document.documentElement.dataset.drink, logo: document.querySelector('#head .logoswitch img').getAttribute('src') }));
+    got.tea = await page.evaluate(() => ({ drink: document.documentElement.dataset.drink, logo: document.querySelector('#rail .logoswitch img').getAttribute('src') }));
     await page.evaluate(() => window.__wb.setView('export')); await settle(page); await clear();
     await page.click('[data-act=ex-html]'); await page.waitForTimeout(500);
     got.exportTea = await names(); await page.waitForTimeout(2600);

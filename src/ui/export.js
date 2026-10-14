@@ -11,6 +11,7 @@ import { fitFilled } from './dock.js';
 import { icon as drawn } from './icons.js';
 import { exportFx } from './exportfx.js';
 import { drink } from './drink.js';
+import { SAVE_FILE_NAME } from '../store/persist.js';
 
 let C = null;
 export function initExport(ctx){ C = ctx; return api; }
@@ -104,6 +105,7 @@ function exportView(){
   const icon = { ok: drawn('check', { size: 12 }), warn: drawn('warn', { size: 12 }), bad: drawn('close', { size: 12 }) };
   // one filled button on the screen: Fit when it would change something, else PDF
   const fitFirst = fitFilled(C.ui.fills, C.cur()?.pageLimit);
+  const file = C.fileLine();
   return `<h2 class="title">${h('head.export')}</h2>
     <ul class="checks">${list.map(c => `<li class="${c.level}"><span class="ci">${icon[c.level]}</span>${esc(c.text)}</li>`).join('')}</ul>
     <span class="lbl">${h('export.download')}</span>
@@ -115,7 +117,10 @@ function exportView(){
     </div>
     <p class="note">${h('export.note')}</p>
     <hr class="sentrule">
-    <div class="sentrow"><span class="lbl inline">${h('ux3b.sentRow')}</span><button data-act="mark-sent" ${C.ui.snap ? 'disabled' : ''}>${h('ux3b.markSent')}</button></div>`;
+    <div class="sentrow"><span class="lbl inline">${h('ux3b.sentRow')}</span><button data-act="mark-sent" ${C.ui.snap ? 'disabled' : ''}>${h('ux3b.markSent')}</button></div>
+    <hr class="sentrule">
+    <span class="lbl">${h('ux6b.backup')}</span>
+    <div class="filerow"><button class="filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${h('ux3b.saveFile')}</button><span class="small muted" id="fileline">${esc(file.text)}</span></div>`;
 }
 
 async function act(a, tg){

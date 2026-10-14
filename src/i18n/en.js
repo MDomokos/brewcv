@@ -1197,4 +1197,14 @@ export default {
   'ux5c.editNone': 'Click a line on the page, or pick one in the Outline, to see its versions.',
   'ux5c.line': '+ line',
   'ux5c.more': '+ {n} more',
+  // UX-6b: the rail, the name card and window, the thin page meters
+  'ux6b.rail': 'Views, other screens and history',
+  'ux6b.screens': 'Other screens',
+  'ux6b.history': 'History',
+  'ux6b.fullWindow': 'Opens in the full window',
+  'ux6b.duplicatedFrom': 'Duplicated from {name}',
+  'ux6b.fillUnder': 'under the band',
+  'ux6b.fillIn': 'in the band',
+  'ux6b.fillOver': 'over the band',
+  'ux6b.backup': 'Backup',
 };

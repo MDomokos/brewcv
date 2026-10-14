@@ -1,7 +1,7 @@
-// The editor's furniture around the page: the foot card (the meters and Fit), the zoom bar that shows while the pointer is over the
-// page (with Actual size), and the hover hints. On a phone the column is the bottom sheet and keeps its two-row head and its foot with
-// the zoom bar. The sidebar's content is edit.js's, checklist.js's and the other sheets'; the shell calls renderFoot() whenever something
-// that decides which sheet is open has changed.
+// The editor's furniture around the page: the foot (one thin bar for each page, and Fit), the zoom bar that shows while the pointer is
+// over the page (with Actual size), the hints, and the rail's keys. On a phone the column is the bottom sheet and keeps its two-row head
+// and its foot with the zoom bar. The sidebar's content is edit.js's, checklist.js's and the other sheets'; the shell calls renderFoot()
+// whenever something that decides which sheet is open has changed.
 
 import { icon } from './icons.js';
 import { t, h } from '../i18n/index.js';
@@ -35,12 +35,13 @@ export const readBounce = () => num(BOUNCE_KEY, TRAVEL.bounce.min, TRAVEL.bounce
 export const readContrast = () => get(CONTRAST_KEY, v => v === 'sharp' || v === 'soft', 'sharp');
 
 // ---- the sheets ----
-// Edit, Design and Export are the segmented control in the sidebar's head; Record is opened from the name menu (and R). On a phone
+// Edit, Design and Export are the rail's tabs, beside the editor card; Record is a screen button of the rail (and R). On a phone
 // the head has its own tabs, Record among them. Edit is whatever is selected, so it has no tab of its own for the Outline.
 const phone = () => innerWidth < PHONE_MAX;
 const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : 'edit'; };
 // the sidebar's tea: the open sheet's (the Outline is Edit with nothing selected)
 const teaOf = () => (phone() ? '' : tabOf() === 'edit' ? (C.ui.sel.kind === 'none' ? 'outline' : 'edit') : tabOf() ?? 'edit');
+const TEA_ON = ['body', 'foot', 'rtabs'];      // the editor card (body and foot) and the tabs that touch it wear the open sheet's tea
 // a tab: Edit leaves the view that replaces it; the others open one. A line being written is left first (asking, if there is a draft).
 async function setMode(m){
   if (C.ui.writing && !(await C.leaveWriting())) return;
@@ -86,6 +87,10 @@ function installTips(){
   document.addEventListener('pointerdown', e => { at = { x: e.clientX, y: e.clientY }; hide(); });
   document.addEventListener('wheel', hide, { passive: true });
   document.addEventListener('pointerout', e => { if (!e.relatedTarget || !e.relatedTarget.closest?.('[data-tip]')) hide(); });
+  // a keyboard gets the same hints: on focus, and Esc takes one away
+  document.addEventListener('focusin', e => { const el = e.target.closest?.('[data-tip]'); if (el && e.target.matches?.(':focus-visible')) arm(el); });
+  document.addEventListener('focusout', hide);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
 }
 // a button that is only an icon: its hint (title and one line) and its name
 export const ib = (act, ic, name, tip, attrs = '', pos = 'b') =>
@@ -161,11 +166,17 @@ function tween(draw){
 
 // ---- the foot card: each page's fill and Fit; the zoom bar over the page ----
 const fitBtn = (u, limit, needed) => `<button class="fit${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
+const STATE_WORD = { under: 'ux6b.fillUnder', ok: 'ux6b.fillIn', over: 'ux6b.fillOver', overflow: 'ux6b.fillOver' };
 function meterHtml(){
-  const u = C.ui;
+  const u = C.ui, thin = !phone();
   const rows = meters().map(m => {
     const sm = steamOf(m.i);
-    return `<button class="meter ${m.status}${sm.on ? ' steam' : ''}${sm.on && sm.perfect ? ' perfect' : ''}" style="--p:${level(m.pct)}${sm.on ? `;--el:${sm.el}ms` : ''}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" title="${esc(m.tipText + t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] }))}"><span class="mlab">${esc(t('ux2.pageShort', { page: m.page }))}</span><span class="mbar" aria-hidden="true"><span class="mband"></span><span class="mfill"></span></span><span class="mpct">${m.pct.toFixed(0)}%</span></button>`;
+    const tip = m.tipText + t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] });
+    const cls = `meter ${m.status}${thin ? ' thin' : ''}${sm.on ? ' steam' : ''}${sm.on && sm.perfect ? ' perfect' : ''}`, style = `--p:${level(m.pct)}${sm.on ? `;--el:${sm.el}ms` : ''}`;
+    const bar = '<span class="mbar" aria-hidden="true"><span class="mband"></span><span class="mfill"></span></span>';
+    // a desktop's bar is only the bar: the page, the exact fill and the state are its tip and its name
+    if (thin) return `<button class="${cls}" style="${style}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" data-tip="${esc(tip)}|${esc(t(STATE_WORD[m.status]))}" data-tip-pos="t" aria-label="${esc(`${tip}: ${t(STATE_WORD[m.status])}`)}">${bar}</button>`;
+    return `<button class="${cls}" style="${style}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" title="${esc(tip)}"><span class="mlab">${esc(t('ux2.pageShort', { page: m.page }))}</span>${bar}<span class="mpct">${m.pct.toFixed(0)}%</span></button>`;
   }).join('');
   return `<div class="meters" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${rows || '<span class="muted tiny">—</span>'}</div>`;
 }
@@ -184,8 +195,8 @@ const viewBar = (u, tipPos) => `<div class="vbar" role="toolbar" aria-label="${e
     </div>`;
 
 export const renderFoot = () => {
-  const col = $('#col');
-  if (col) col.dataset.tea = teaOf();
+  const tea = teaOf();
+  for (const id of TEA_ON){ const e = document.getElementById(id); if (e) e.dataset.tea = tea; }
   keepFocus('#foot', () => tween(drawFoot));
   if (!phone() && !document.body.classList.contains('is-intro')) keepFocus('#zoombar', () => tween(drawZoombar));
 };
@@ -291,18 +302,20 @@ function onKey(e){
   if (e.key === '0'){ e.preventDefault(); zoomTo(1); flashBar(); return true; }
   return false;
 }
-// the head's tabs (Edit, Design, Export; on a phone Record too) are one tab stop: the arrows move between them and open each
+// The tabs (the rail's, up and down; a phone's, in its head, left and right) are one tab stop: the arrows move between them and open each
 function onModesKey(e){
-  const tab = e.target.closest?.('#head [role=tab][data-m]');
-  if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  const tab = e.target.closest?.('[role=tab][data-m]');
+  if (!tab) return;
+  const vertical = tab.parentElement.getAttribute('aria-orientation') === 'vertical', [back, fwd] = vertical ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight'];
+  if (![back, fwd, 'Home', 'End'].includes(e.key)) return;
   const tabs = [...tab.parentElement.querySelectorAll('[role=tab]:not(:disabled)')];
   const at = tabs.indexOf(tab);
-  const to = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-  e.preventDefault();
+  const to = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + (e.key === fwd ? 1 : -1) + tabs.length) % tabs.length;
+  e.preventDefault(); e.stopPropagation();      // the tab is drawn again below: the page's own arrow keys must not take this key for theirs
   tabs[to].focus();
   setMode(tabs[to].dataset.m);
   tabs.forEach((x, i) => { x.tabIndex = i === to ? 0 : -1; });
-  $('#head [role=tab][aria-selected=true]')?.focus();
+  $('#col [role=tab][aria-selected=true]')?.focus();
 }
 
 function bind(){
@@ -317,7 +330,7 @@ function bind(){
   bar.addEventListener('pointerleave', () => { barOver = 0; showBar(sheetOn); });
   bar.addEventListener('focusin', () => showBar(true));
   bar.addEventListener('focusout', () => showBar(false));
-  $('#head').addEventListener('keydown', onModesKey);
+  $('#col').addEventListener('keydown', onModesKey);
   applyContrast();
 }
 
@@ -325,7 +338,7 @@ export function initDock(ctx){
   C = ctx;
   C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite();
   return {
-    bind, act, onKey, sheetOver, setMode, modeOf, renderFoot, zoomBy, zoomTo,
+    bind, act, onKey, sheetOver, setMode, modeOf, teaNow: teaOf, renderFoot, zoomBy, zoomTo,
     // Esc all the way out: the view zooms out to the whole resume
     allTheWayOut(){ C.canvas.reset(); },
   };

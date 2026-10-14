@@ -42,12 +42,18 @@ src/i18n/                  index.js (t, plurals, fallback to English) · en.js �
                            catalogues, each marked NEEDS A NATIVE REVIEW
 src/ui/                    the Workbench: shell, sheet (the iframe), layout, select, edit,
                            resumes, switcher, files, export, design, onboarding, settings,
-                           langmenu, actual size; layout (one fixed sidebar at the right, the page centred in the room left of it;
+                           langmenu, actual size; layout (one skinny sidebar at the right, 340px wide and 316px under 1400px windows, with a
+                           54px rail beside it; the page centred in the room left of both;
                            pages always sit side by side at the window's height and the view scrolls sideways when the row is wider than the room (the sidebar floats over it);
-                           the head is one row: the name menu, Edit · Design · Export, Saved, Save to file, undo and redo, the menu; the body is
-                           what is selected: nothing is the Outline, a job its lines, a line its versions; the foot has the page meters and
-                           Fit; Record and the grown resume list fill the window until their own redesign), dock (the foot card, the zoom bar
-                           over the page with Actual size, hover hints), checklist (the record's groups, drawn by record.js and, at the job
+                           the sidebar is three parts: the name card (the resume's name, which wraps and is never cut, Saved as an icon with a
+                           tip, the menu); the editor card, whose body is what is selected (nothing is the Outline, a job its lines, a line its
+                           versions) and whose foot has one thin bar for each page and Fit; and, when the name is clicked, the name window: the name
+                           card grows down over the editor card (the foot stays) with the rename field, where the resume was copied from,
+                           Duplicate, Record, New resume, the language and paper, the search, the recent resumes and Manage all. The rail is the
+                           logo (the drink switch); Edit · Design · Export as a vertical tab list touching the editor card; Resumes and Record
+                           as icon buttons in a dashed box (they open the full-window lists); and undo and redo. Save to file is in the Export
+                           panel (and Ctrl+S). Record and the grown resume list fill the window, rail and all, until their own redesign),
+                           dock (the foot, the zoom bar over the page with Actual size, hover hints that show on keyboard focus too, the rail's keys), checklist (the record's groups, drawn by record.js and, at the job
                            level, beside the job), record (the Record view: the way in and the way round), career (the
                            record's forms and the timeline), help (the shortcut sheet), icons, drink (Tea or
                            Coffee, light or dark: the two settings, the logo that switches them, Shift+F),
@@ -91,14 +97,15 @@ node checks/model-check.mjs [lib]     schema v4, migration, saved-resume files; 
                                       every recipe renders byte-identical to before 0.5.1
 node checks/store-check.mjs           undo, autosave, folder mirror, backup, checkpoints
 node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, labels, photo, fields
-node checks/shell-check.mjs           layout maths (the sidebar's one width, the page centred in the room left of it, pages side by side, a phone), click targets, Esc, folder read back
+node checks/shell-check.mjs           layout maths (the sidebar's width, the rail, the page centred in the room left of them, pages side by side, a phone), click targets, Esc, folder read back
 node checks/camera-check.mjs          the canvas camera: both pages or one, limits (centred when the pages fit, an edge each side when zoomed in), the magnet, which page is bright, the spring, the page edge while writing
 node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
 node checks/direct-check.mjs          the model behind editing on the page: the 70 percent cut-off, parked edits, parents, skill sets per language, the new saved-resume keys
 node checks/resumes-check.mjs         autosave, snapshots and sends, frozen text and newer wording, new, duplicate, compare, folder
 node checks/focus-check.mjs           tags, plan = apply, Keep untouched, no job emptied
 node checks/lang-check.mjs            the ten languages, missing texts, switching, A4 formats
-node checks/i18n-check.mjs            every catalogue: keys, placeholders, plurals, markup, the review marker
+node checks/i18n-check.mjs            every catalogue: keys, placeholders, plurals, markup, the review marker (until UX-6f, which translates them,
+                                      keys of UX-6b to UX-6e, prefixes ux6b. to ux6e., may be missing from the nine other catalogues)
 node checks/diff-check.mjs            the merge engine on an edited copy of the example
 node checks/import-check.mjs          every kind of file, JSON Resume round trip, outside edits
 node checks/savefile-check.mjs        Save to file: the format and its record id, the four ways a file meets this browser,
@@ -149,12 +156,18 @@ node checks/tokens-check.mjs --browser        the built-in themes as tokens meas
 node checks/paginate-check.mjs [lib] --browser
 node checks/fit-check.mjs [lib] --browser
 node checks/label-fit.mjs                     every language's resume headings fit the gutter, and the app's own new labels fit
-                                              the sidebar (Edit · Design · Export in the head, the header, zoom bar, lens, Outline, checklist,
-                                              switcher); a label that is too wide is flagged with its text and width
+                                              the 340px sidebar (the name card, foot, zoom bar, lens, Outline, checklist, switcher);
+                                              a label that is too wide is flagged with its text and width
 node checks/room-check.mjs                    the sidebar and the layout around the page: the body's hidden share at 1280×720, 1470×832 and 1200×750 (a line, a job,
                                               Design and Export show whole at 1470×832), no element outside the page wider than half the window at 1280×720,
                                               1470×832 and 1920×1080, the page filling the height less 32px, its x the same for every selection and sheet, and
-                                              the shape of the head (the logo, Save to file, undo, redo, the menu, the tab list) and the foot (meters and Fit)
+                                              the shape of the name card (name, Saved, menu), the rail (logo, tab list, Resumes, Record, undo, redo) and the foot
+                                              (thin meters and Fit); a line's versions and Design scroll in the 340px sidebar, and the check holds them to what they hide now
+node checks/head-check.mjs                    the name card, the name window, the rail and the foot in all ten languages, in Tea light and Coffee dark, at 1280×720, 1470×832
+                                              and 1920×1080, with a long name, a 60-character name and a 40-character word: no control covered by or overlapping another
+                                              (the element at each one's centre is itself), no label out of its box, the name never cut (no ellipsis, no clipping, three
+                                              lines at most), the name window whole without scrolling at 1280×720 with the page where it was and Esc back to the name, and the
+                                              foot's bars at 1, 2 and 3 pages in the three states (ONLY=de,hu for a few languages)
 AXE_CORE=/path/to/axe.min.js node checks/smoke-shell.mjs
                                               also runs axe-core on every main view (axe-core is a dev tool, not a dependency)
 node checks/measure.mjs <rendered> <reference>    geometry diff, 0.00px expected

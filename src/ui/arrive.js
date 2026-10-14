@@ -2,7 +2,7 @@
 // Both are told after the fact (the editor is already what it is); shell.js calls them when it sees the screen change.
 //   fromStart:   the grey skeleton lines of the start screen become the page's text, line by line (src/ui/pagemotion.js reveal), and
 //                the intro parts become the editor's controls: the header, the panel and the footer come in from where they were.
-//   fromQuiet:   the header and the footer fade and slide in around the page (the question panel stays).
+//   fromQuiet:   the header, the footer and the rail fade and slide in around the page (the question panel stays).
 import { play } from './motion.js';
 
 const $ = s => document.querySelector(s);
@@ -13,8 +13,10 @@ export function fromStart({ sheet }){
   rise($('#head'), 0, -12, 'start:head');
   rise($('#body'), 0, 10, 'start:body', 60);
   rise($('#foot'), 0, 12, 'start:foot', 120);
+  rise($('#rail'), 12, 0, 'start:rail', 90);
 }
 export function fromQuiet(){
   rise($('#head'), 0, -14, 'quiet:head');
   rise($('#foot'), 0, 14, 'quiet:foot', 60);
+  rise($('#rail'), 14, 0, 'quiet:rail', 30);
 }

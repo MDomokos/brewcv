@@ -42,7 +42,10 @@ html[data-drink="coffee"] .obhero { font-size: 24px; }
 html[data-drink="coffee"] :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl) { letter-spacing: .08em; }
 
 /* ---------- Coffee: hairlines, no elevation ---------- */
-html[data-drink="coffee"] body:not(.is-intro) .col { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] body[data-phone=true]:not(.is-intro) .col { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #body { border: 1px solid var(--line-strong); border-bottom: 0; }
+html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #foot { border: 1px solid var(--line-strong); border-top-color: var(--line); }
+html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col.is-name > #foot { border-top-color: var(--line-strong); }
 html[data-drink="coffee"] :is(.pop.card, .menu.card, .switcher, .help, .obcard) { border: 1px solid var(--line-strong); }
 html[data-drink="coffee"] .seg { padding: 0; gap: 4px; }
 html[data-drink="coffee"] .seg [role=tab], html[data-drink="coffee"] .seg button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 4px 6px; color: var(--faint); }
@@ -142,6 +145,15 @@ html[data-drink="coffee"] .meter .mband {
   content: ""; position: absolute; right: -5px; left: auto; width: 3px; top: auto; bottom: 88%; height: 8%; pointer-events: none; border: 1px solid var(--ink); border-left: 0;
 }
 html[data-drink="coffee"] .meter.overflow .mbar { border-color: var(--bad); }
+/* a desktop's meters: one thin bar for each page, the same in both drinks. The state is the colour (under, in the band, over) and the tip says it in words. */
+html[data-drink] .meter.thin { position: relative; display: block; flex: 0 1 52px; min-width: 28px; height: 28px; padding: 0; gap: 0; }
+html[data-drink] .meter.thin .mbar { position: absolute; left: 3px; right: 3px; top: 10px; width: auto; height: 8px; margin: 0; border: 0; border-radius: 4px; background: var(--line); }
+html[data-drink] .meter.thin .mbar::after { content: none; }
+html[data-drink] .meter.thin .mfill { position: absolute; inset: 0 auto 0 0; width: calc(var(--p, 0) * 1%); height: auto; border-radius: 4px; -webkit-mask: none; mask: none; background: var(--ok); opacity: 1; }
+html[data-drink] .meter.thin.under .mfill { background: var(--warn); }
+html[data-drink] .meter.thin:is(.over, .overflow) .mfill { background: repeating-linear-gradient(135deg, var(--bad) 0 3px, color-mix(in srgb, var(--bad) 55%, var(--surface)) 3px 6px); }
+html[data-drink] .meter.thin .mband { left: 88%; right: auto; width: 8%; top: 0; bottom: 0; height: auto; border: 0; background: color-mix(in srgb, var(--ink) 40%, transparent); z-index: 1; }
+html[data-drink="tea"] .meter.thin.overflow .mbar::before { content: none; }
 
 /* ---------- Tea: the panel, the modes, Fit, the toast, the tags ---------- */
 
@@ -317,6 +329,15 @@ html.is-switching :is(*, *::before, *::after):not(.matroll, .matroll *, .motionl
 /* ---------- the sidebar, in each drink ---------- */
 /* Coffee: the same parts, plain. The head keeps its espresso band; every sheet is the one surface. */
 html[data-drink="coffee"] .col > #head { background: var(--band-bg); border-radius: var(--r-panel) var(--r-panel) 0 0; }
+html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #head { background: var(--band-bg); border-radius: var(--r-l); border-bottom: 2px solid var(--crema); }
+html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col.is-name > #head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+/* the rail's tabs and screens: cards of the surface, a hairline each; the open tab overlaps the editor card's edge */
+html[data-drink="coffee"] .rtabs .tab { border-radius: var(--r-l) 0 0 var(--r-l); border: 1px solid var(--line-strong); border-right: 0; box-shadow: none; }
+html[data-drink="coffee"] .rtabs .tab .ti { color: var(--tab-ink); }
+html[data-drink="coffee"] .col:not(.is-name) .rtabs .tab[aria-selected=true] { width: 55px; margin-right: -1px; z-index: 1; }
+html[data-drink="coffee"] .col:not(.is-name) .rtabs .tab[aria-selected=true] .ti { color: var(--tab-ink); }
+html[data-drink="coffee"] .rtabs .tab::before, html[data-drink="coffee"] .rtabs .tab::after { display: none; }
+html[data-drink="coffee"] .rscreens { border-radius: var(--r-l); }
 html[data-drink="coffee"] .zoombar { border: 1px solid var(--line-strong); }
 
 /* Tea: a page that moves lifts off the mat, as paper slid along a table does (canvas.js sets body.is-panning for a wheel pan or a drag, --lx/--ly, the lean in degrees, and --lift, 0 to 1: it rises with the pan and falls with the camera's own remaining travel, so there is no transition here and the page is down when the camera is at rest).

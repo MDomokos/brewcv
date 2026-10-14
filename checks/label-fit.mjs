@@ -2,8 +2,8 @@
 // node checks/label-fit.mjs
 // Every default heading (doc.section.*) and its "continued" note fits the gutter of its language's A4
 // format and of Letter, measured in Chromium with the real theme, clearing it by at least 3px (the
-// margin a4-hu.css sets). Then the app's own labels in each of the ten languages, with the sidebar at its one width (560px) in
-// three windows: the head (its tab list too), the foot, the zoom bar with Actual size, the Outline, the checklist, the lens, the
+// margin a4-hu.css sets). Then the app's own labels in each of the ten languages, with the sidebar at its width (340px, 316px under 1400px
+// windows) in three windows: the name card, the foot, the zoom bar with Actual size, the Outline, the checklist, the lens, the
 // switcher and Settings all fit what they are in. A label that is too wide is reported with its language, its text and its
 // measured width (the check never shortens one). Writes only to out/. Needs playwright and a Chromium.
 
@@ -38,13 +38,14 @@ const server = http.createServer((req, res) => {
   if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()){ res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'content-type': TYPES[path.extname(f)] ?? 'application/octet-stream' }); res.end(fs.readFileSync(f));
 });
-await new Promise(r => server.listen(8133, r));
+const PORT = Number(process.env.PORT ?? 8133);
+await new Promise(r => server.listen(PORT, r));
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 const page = await browser.newPage({ viewport: { width: 1000, height: 1400 }, bypassCSP: true });
 
 const measure = async (fmt, words, notes) => {
-  await page.goto(`http://localhost:8133/out/label-fit-${fmt}.html`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/out/label-fit-${fmt}.html`, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   return page.evaluate(([words, notes]) => {
     const tab = [...document.querySelectorAll('.band--section h2.tab:not(.tab--cont)')][1];
@@ -79,14 +80,14 @@ for (const lang of I.UI_LANGS.filter(l => l !== 'en')){
 // ---- the app's own labels ----
 // Things that are meant to shorten with an ellipsis; everything else has to fit whole.
 const ELLIPSIS = '.dn, .dt, .clname, .clt, .tx, .filestate, .sn, .muted, .sopt, .stext, .jn, .lt, .lr, option, .title, .t, .tlsend, .lbl, .where, .kb, .crumb, .sumline, .meta, .field input, .field select, .field textarea';
-// the sidebar is 560px wide whatever the window
+// the sidebar is 340px wide (316px under 1400px windows); the name card, the rail and the name window are checked in every language by head-check.mjs
 const widths = [[1200, 750, '1200×750'], [1470, 832, '1470×832'], [1920, 1080, '1920×1080']];
 for (const lang of I.UI_LANGS){
   for (const [vw, vh, what] of widths){
     const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, bypassCSP: true });
     await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } }, lang);
     const pg = await ctx.newPage();
-    await pg.goto('http://localhost:8133/index.html?memory', { waitUntil: 'networkidle' });
+    await pg.goto(`http://localhost:${PORT}/index.html?memory`, { waitUntil: 'networkidle' });
     await pg.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
     await pg.waitForTimeout(600);
     await pg.waitForTimeout(300);
@@ -103,17 +104,16 @@ for (const lang of I.UI_LANGS){
       return bad;
     }, [name, sel, ELLIPSIS]);
     let problems = [];
-    // the head's tab list (Edit, Design, Export) on one line, and the head's first row inside the sidebar
-    problems.push(...await pg.evaluate(() => { const l = document.querySelector('#head [role=tablist]'), out = []; const tops = [...l.querySelectorAll('[role=tab]')].map(b => Math.round(b.getBoundingClientRect().top)); if (new Set(tops).size !== 1) out.push('the head’s tabs wrap'); if (l.scrollWidth > l.clientWidth + 1) out.push('the head’s tab list is cut'); return out; }));
-    problems.push(...await probe('head', '#head button, #head .hrow, #head .docblock, #head .dline, #head .savestate, #head .seg'));
+    problems.push(...await probe('head', '#head button, #head .hrow, #head .savestate'));
     problems.push(...await probe('foot', '#foot button, #foot .hfill, #foot .meters'));
     problems.push(...await probe('zoom bar', '#zoombar button, #zoombar .vbar, #zoombar .meters'));
     problems.push(...await probe('outline', '#outline .srow *, #outline .clcaret, #outline .clcount, #outline .archmore, #outline .addline, .lens button, .lens select, .lensrow, .offchip'));
     // Record, Export's Mark as sent, and the job level
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
     problems.push(...await probe('record', '#checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw, #checklist .addline'));
+    await pg.keyboard.press('Escape'); await pg.waitForTimeout(500);      // Record fills the window, rail and all: back to the editor
     await pg.click('#tab-export'); await pg.waitForTimeout(400);
-    problems.push(...await probe('export', '.sentrow *, .sentrule, .dl button'));
+    problems.push(...await probe('export', '.sentrow *, .filerow *, .sentrule, .dl button'));
     await pg.click('[data-act=mark-sent]'); await pg.waitForTimeout(400);
     problems.push(...await probe('mark as sent', '#body .btns button, #body .field *, #body .note'));
     await pg.click('#tab-design'); await pg.waitForTimeout(400);
@@ -141,7 +141,7 @@ for (const lang of I.UI_LANGS){
     await pg.evaluate(() => window.__wb.setView('settings')); await pg.waitForTimeout(400);
     problems.push(...await pg.evaluate(() => { const z = document.querySelector('[data-mode=settings]'); const out = []; if (!z) return ['settings: not open']; for (const b of z.querySelectorAll('.seg button, .dial .dl, .swl span')) if (b.scrollWidth > b.clientWidth + 1) out.push(`settings: “${b.textContent.trim()}” is cut`); if (document.querySelector('#body').scrollWidth > document.querySelector('#body').clientWidth + 1) out.push('settings: wider than the panel'); return out; }));
     await pg.evaluate(() => window.__wb.setView(null));
-    ok(`${lang} at ${what}: the new labels fit (header and its tabs, foot, zoom bar, Outline, Record, Export, Design, the job level, switcher, the settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
+    ok(`${lang} at ${what}: the new labels fit (name card, foot, zoom bar, Outline, Record, Export, Design, the job level, switcher, the settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
     await ctx.close();
   }
 }
@@ -151,7 +151,7 @@ for (const lang of I.UI_LANGS){
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true });
   await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } }, lang);
   const pg = await ctx.newPage();
-  await pg.goto('http://localhost:8133/index.html?memory&welcome', { waitUntil: 'networkidle' });
+  await pg.goto(`http://localhost:${PORT}/index.html?memory&welcome`, { waitUntil: 'networkidle' });
   await pg.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   await pg.waitForTimeout(500);
   const bad = await pg.evaluate(() => {
