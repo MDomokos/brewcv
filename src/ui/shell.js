@@ -296,7 +296,7 @@ function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'auto', zoom: 1, wide: ui.view === 'record', slim: ui.view === 'welcome' });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: ui.view === 'record', slim: ui.view === 'welcome' });
   const full = !L.phone && fullWindow();
   if (full) L.col = { left: G, top: G, width: innerWidth - 2 * G, height: innerHeight - 2 * G };
   const host = $('#sheet'), box = $('#pages');
@@ -496,7 +496,7 @@ function drawHead(){
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !(ui.layout?.phone ? ['edit', 'record', 'design', 'export'] : ['edit', 'design', 'export']).includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
     // the sidebar's head: the logo (the drink switch), the resume's name with what it is, Saved and Save to file, undo and redo, the
-    // menu; under them the segmented control (Edit, Design, Export)
+    // menu; the segmented control (Edit, Design, Export) sits beside the name
     const type = r ? jobTypeLabel(store.state.record, r.jobType) : '', paper = r ? (r.format === 'us-letter' ? t('paper.letter') : t('paper.a4')) : '';
     const pages = r ? (r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null) : null;
     const hs = store.history;
@@ -505,13 +505,13 @@ function drawHead(){
       ${logoBtn(28)}
       <div class="docblock"><button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { size: 12 })}</span></span></button>
         <div class="dline">${type ? `<span class="dt">${esc(type)}</span>` : ''}${r ? langButton(r) : ''}<span class="dt">${esc([paper, pages].filter(Boolean).join(' · '))}</span></div></div>
+      <div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div>
       ${savedState}
       ${savebtn}
       ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled')}
       ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled')}
       <button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>
     </div>
-    <div class="hrow segrow"><div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div></div>
     ${sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
     ${notices}
     ${ui.menu ? menuHtml() : ''}`;

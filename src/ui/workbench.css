@@ -968,11 +968,11 @@ body:not([data-phone=true]):not(.is-intro) .col { gap: 0; background: var(--surf
 body:where(:not([data-phone=true], .is-intro)) .col > :where(#head, #body, #foot) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 body:not([data-phone=true]):not(.is-intro) .col > #foot { padding: 8px 12px; border-top: 1px solid var(--line); }
 .col > #head { flex: none; min-height: 50px; padding: 0 12px; display: flex; flex-direction: column; justify-content: center; border-bottom: 1px solid var(--line); position: relative; }
-.col > #head .hrow.top { height: 50px; gap: 8px; }
+.col > #head .hrow.top { height: 50px; gap: 6px; }
 .col > #head .hrow.notice { margin: 0 0 6px; }
-.col > #head .docblock { flex: 1 1 0; min-width: 0; display: grid; gap: 0; }
+.col > #head .docblock { flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
 .col > #head .docblock .docname { flex: none; padding: 0 4px; line-height: 1.25; }
-.col > #head .dline { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 11.5px; line-height: 1.2; color: var(--ink-soft); }
+.col > #head .dline { display: flex; align-items: center; gap: 2px; min-width: 0; font-size: 11.5px; line-height: 1.2; color: var(--ink-soft); }
 .col > #head .dline .dt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .col > #head .dline .dt + .lang-menu::before { content: "·"; }
 .col > #head .lang-menu .pop { left: 0; right: auto; }
@@ -982,7 +982,8 @@ body:not([data-phone=true]):not(.is-intro) .col > #foot { padding: 8px 12px; bor
 .hfill { display: flex; align-items: center; gap: 6px; flex: none; min-width: 0; }
 .col > #foot .meters { flex: none; justify-content: flex-start; }
 .hfill .fit { padding: 3px 12px; }
-.col > #head .hrow.segrow { height: 38px; }
+.col > #head .hrow.top .seg { flex: none; flex-wrap: nowrap; gap: 2px; position: relative; z-index: 1; }   /* above the name block, which truncates first */
+.col > #head .hrow.top .seg [role=tab] { padding: 4px 6px; white-space: nowrap; }
 .col > #head .menu { top: 46px; right: 8px; }
 .col > #head .ib { flex: none; }
 

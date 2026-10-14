@@ -43,7 +43,8 @@ src/i18n/                  index.js (t, plurals, fallback to English) · en.js �
 src/ui/                    the Workbench: shell, sheet (the iframe), layout, select, edit,
                            resumes, switcher, files, export, design, onboarding, settings,
                            langmenu, actual size; layout (one fixed sidebar at the right, the page centred in the room left of it;
-                           the head has the name menu, Saved, Save to file, undo and redo, the menu and Edit · Design · Export; the body is
+                           pages always sit side by side at the window's height and the view scrolls sideways when the row is wider than the room (the sidebar floats over it);
+                           the head is one row: the name menu, Edit · Design · Export, Saved, Save to file, undo and redo, the menu; the body is
                            what is selected: nothing is the Outline, a job its lines, a line its versions; the foot has the page meters and
                            Fit; Record and the grown resume list fill the window until their own redesign), dock (the foot card, the zoom bar
                            over the page with Actual size, hover hints), checklist (the record's groups, drawn by record.js and, at the job
@@ -90,7 +91,7 @@ node checks/model-check.mjs [lib]     schema v4, migration, saved-resume files; 
                                       every recipe renders byte-identical to before 0.5.1
 node checks/store-check.mjs           undo, autosave, folder mirror, backup, checkpoints
 node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, labels, photo, fields
-node checks/shell-check.mjs           layout maths (the sidebar's one width, the page centred in the room left of it, pages side by side or one at a time, a phone), click targets, Esc, folder read back
+node checks/shell-check.mjs           layout maths (the sidebar's one width, the page centred in the room left of it, pages side by side, a phone), click targets, Esc, folder read back
 node checks/camera-check.mjs          the canvas camera: both pages or one, limits (centred when the pages fit, an edge each side when zoomed in), the magnet, which page is bright, the spring, the page edge while writing
 node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
 node checks/direct-check.mjs          the model behind editing on the page: the 70 percent cut-off, parked edits, parents, skill sets per language, the new saved-resume keys

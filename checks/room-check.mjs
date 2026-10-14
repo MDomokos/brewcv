@@ -2,8 +2,8 @@
 // node checks/room-check.mjs
 // The sidebar's room and the layout around the page, as a test: on the example,
 //  (d) at 1280×720, 1470×832 and 1200×750, how much of the open body's content is below its visible area (the scroll height beyond the
-//      client height, as a share of the scroll height)? A line, a job, Design and Export must show whole at every size; the Outline and a
-//      line being written may hide 5% at 1280×720 and nothing at the others.
+//      client height, as a share of the scroll height)? Everything shows whole at every size except a line's
+//      versions, which may hide 7.8% at 1280×720 and 3.1% at 1200×750 (LIMITS are the measured numbers).
 //  (a) at 1280×720, 1470×832 and 1920×1080 no element outside the page layer is wider than half the window (no bar across the top),
 //  (b) the page at fit fills the window's height less 32px, and
 //  (c) the page's x is the same for nothing selected, a line, a job, Design, Export and back.
@@ -37,8 +37,8 @@ const hidden = page => page.evaluate(() => {
   const e = document.querySelector('#body');
   return e.scrollHeight <= e.clientHeight + 2 ? 0 : (e.scrollHeight - e.clientHeight) / e.scrollHeight;
 });
-// (1470×832 is the size the sidebar must fit whole; the smaller windows lose 96px of body to the head's second row and the foot)
-const LIMITS = { line: [15, 0, 10.5], job: [0, 0, 0], design: [3.5, 0, 0], export: [0, 0, 0], outline: [5, 0, 0], writing: [5, 0, 0] };
+// (1470×832 is the size the sidebar must fit whole; at 1280×720 and 1200×750 only a line's versions run a little past the fold)
+const LIMITS = { line: [7.8, 0, 3.1], job: [0, 0, 0], design: [0, 0, 0], export: [0, 0, 0], outline: [0, 0, 0], writing: [0, 0, 0] };
 const SIZES = [[1280, 720], [1470, 832], [1200, 750]];
 
 for (const [i, [w, h]] of SIZES.entries()){
@@ -110,6 +110,7 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
     const shape = await page.evaluate(() => ({
       tabs: !!document.querySelector('#tabs'), folded: !!document.querySelector('.is-folded'),
       segs: [...document.querySelectorAll('#head [role=tab]')].map(b => b.dataset.m),
+      oneRow: (() => { const a = document.querySelector('#head .seg').getBoundingClientRect(), b = document.querySelector('#docname-btn').getBoundingClientRect(); const h = document.querySelector('#head').getBoundingClientRect(); return a.bottom <= h.top + 52 && b.bottom <= h.top + 52 && h.height < 60; })(),
       segRole: document.querySelector('#head [role=tablist]')?.getAttribute('aria-label') ?? null,
       head: ['undo', 'redo', 'menu', 'save-file', 'drink-switch'].filter(a => document.querySelector(`#head [data-act="${a}"]`)),
       foot: [...document.querySelectorAll('#foot button')].map(b => b.dataset.act),
@@ -117,6 +118,7 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
     }));
     ok('no tabs and no fold', !shape.tabs && !shape.folded);
     ok('the head has Edit, Design and Export as a labelled tab list', shape.segs.join() === 'edit,design,export' && !!shape.segRole, shape.segs.join());
+    ok('the segmented control sits on the first row beside the name; the head is one row tall', shape.oneRow);
     ok('the head has the logo, Save to file, undo, redo and the menu', shape.head.length === 5, shape.head.join());
     ok('the foot has the page meters and Fit, nothing else', shape.foot.length >= 2 && shape.foot.every(a => a === 'goto-page' || a === 'fit') && shape.foot.at(-1) === 'fit', shape.foot.join());
     ok('Actual size is on the zoom bar', shape.zoombar.includes('actual'), shape.zoombar.join());
