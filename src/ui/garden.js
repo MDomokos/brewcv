@@ -10,10 +10,12 @@
 //  - Return: moving the mouse back clears nothing on the page. A click into the resume or a key press clears it (a gust
 //    front from there), dries its wet spots, and the page stays clear: when the pages move (the canvas fires PAGES_MOVED)
 //    it is cleared again. Leaves and wet spots belong to the screen, not the page.
+//  - A page that starts to move (PAGES_MOVING) clears what lies on it the same way, and while it moves (body.is-moving) the whole
+//    garden sits under it, so it covers whatever lies on the mat; no wet spot lands on it. Once settled the garden is above it again.
 //  - One requestAnimationFrame loop, only while something moves; drops, splashes, wet spots, the snail's trail, the dappled
 //    shade and the fireflies are animated in CSS. The pages' geometry is read when the canvas says they moved.
 
-import { PAGES_MOVED } from './canvas.js';
+import { PAGES_MOVED, PAGES_MOVING } from './canvas.js';
 import { pageLeft } from './camera.js';
 import { reduced } from './motion.js';
 
@@ -321,7 +323,7 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
   let raining = false, rainT = null;
   const endRain = () => { raining = false; clearTimeout(rainT); rainSky.classList.remove('on'); };
   const wet = (x, y) => {
-    if (!resting && onPage(x, y)) return;
+    if (onPage(x, y) && (!resting || document.body.classList.contains('is-moving'))) return;
     const d = div('g-wet'), r = rnd(5, 12);
     Object.assign(d.style, { width: `${r * 2}px`, height: `${r * rnd(1.6, 2)}px`, transform: `translate(${(x - r).toFixed(0)}px, ${(y - r).toFixed(0)}px)` });
     d.style.setProperty('--life', `${rnd(60, 100).toFixed(0)}s`);   // a variable, so the 1.4 s drying (.dry) isn't overridden
@@ -466,6 +468,12 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
     lastClear = performance.now();
     clearPage(x, y); dryPage();
   };
+  // a page starting to move (a pan, a pinch, a zoom) clears what lies on it, as a click does; the garden sits under it until it has settled
+  document.addEventListener(PAGES_MOVING, () => {
+    if (!active || still()) return;
+    refreshGeo();
+    clearPage(px ?? innerWidth / 2, py ?? innerHeight / 2); dryPage();
+  });
   // while you edit, the pages can move (the panel opens, the view zooms or pans): whatever they now cover is cleared too
   document.addEventListener(PAGES_MOVED, () => {
     refreshGeo();

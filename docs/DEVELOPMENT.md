@@ -107,7 +107,7 @@ node checks/motion-check.mjs          the rules motion follows: tokens of 150 to
                                       the printed page never imported, each of the thirteen moments wired, both logo tiles, the ux4. strings
                                       (what each moment starts, and that reduced motion starts none, is in smoke-shell's "motion:" section)
 node checks/garden-check.mjs          the tea garden in Chromium (slow, about two minutes; ONLY=flow,rain runs some): a clean start, waves, sweeping, the way back,
-                                      rain, creatures, the pause, coffee, the setting, the print gate, axe (AXE_CORE=...)
+                                      rain, a page on the move (cleared, garden under it), creatures, the pause, coffee, the setting, the print gate, axe (AXE_CORE=...)
 node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,
                                       no inline script; no outside address in any fetch
 node checks/flatpak-check.mjs         the Flatpak files agree: one app id and version, no network or broad file access, cargo-sources.json current, a workflow that only runs by hand or on a tag

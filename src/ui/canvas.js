@@ -17,13 +17,14 @@ const easeOut = p => 1 - Math.pow(1 - p, 3);
 const IDLE_MS = 140;                                    // the wheel or the hand has stopped
 
 export const PAGES_MOVED = 'brewcv:pages-moved';        // fired on document once the pages have come to rest in a new place
+export const PAGES_MOVING = 'brewcv:pages-moving';      // fired on document as they start to move, before they have; body.is-moving lasts until PAGES_MOVED
 
 export function initCanvas(C){
   const { ui, host, box } = C;
   let geo = null, view = null, fit = null, scene = 'all';
   let free = false, cam = { k: 1, x: 0, y: 0 };
   let motion = null, raf = 0, idleT = 0, movedT = 0, firedSig = '';
-  let rawFree = null, drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
+  let moving = false, rawFree = null, drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
   const pointers = new Map();
   const dials = { magnet: readMagnet(), bounce: readBounce() };
 
@@ -32,6 +33,7 @@ export function initCanvas(C){
 
   // ---- placing the sheet ----
   function put(next){
+    if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); document.body.classList.add('is-moving'); }
     cam = next; ui.cam = cam;
     host.style.left = '0px'; host.style.top = '0px';
     host.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.k.toFixed(5)})`;
@@ -86,6 +88,7 @@ export function initCanvas(C){
     clearTimeout(movedT);
     movedT = setTimeout(() => {
       if (motion || drag || raw !== null) return;
+      moving = false; document.body.classList.remove('is-moving');
       const sig = `${cam.k.toFixed(3)}|${cam.x.toFixed(1)}|${cam.y.toFixed(1)}|${innerWidth}|${innerHeight}|${ui.layout?.folded}`;
       if (sig === firedSig) return;
       firedSig = sig;
