@@ -3,7 +3,7 @@
 
 import { keyed } from '../i18n/index.js';
 import { defaultVariant, DEFAULT_LANG, sectionOfEntry } from './resume.js';
-import { saveOver, addVersion } from './record.js';
+import { saveOver, addVersion, RecordError } from './record.js';
 import { fmtMonth, ym, addJob, addBullet, addFact, slug, metaLineOf, presentIn, contactText, SEP } from './build.js';
 import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
 import { jobTypesOf, normaliseJobType, tagVocab, TAG_CAP } from './focus.js';
@@ -381,21 +381,24 @@ export function updateProject(model, id, fields, lang = DEFAULT_LANG){
   return res;
 }
 
-export function addEntryClaim(model, entryId, text, lang = DEFAULT_LANG){
+// A record that requires sources refuses a claim without one; the source goes on every wording the claim starts with.
+export function addEntryClaim(model, entryId, text, lang = DEFAULT_LANG, source = null){
   const key = entryKey(model, entryId);
   const t = String(text ?? '').trim();
   if (!key || !t) return null;
+  if (!source && model.requireSource !== false) throw new RecordError('a new claim needs a source');
+  const sourced = fid => { if (source) for (const id of model.facts.find(f => f.id === fid).variants) model.variants.find(v => v.id === id).source = source; return fid; };
   if (key === 'work'){
     const fid = addBullet(model, entryId, t);
     if (fid && lang !== DEFAULT_LANG) addVersion(model, fid, { text: t, lang, as: 'major' });
-    return fid;
+    return fid && sourced(fid);
   }
   const x = model[key].find(e => e.id === entryId);
   const fid = slug(`${entryId}-${t.split(' ').slice(0, 3).join(' ')}`, takenIds(model), `${entryId}-claim`);
   addFact(model, fid, { text: t, tags: [], also: alsoIn(lang, t) });
   x.highlights.push(fid);
   syncEntry(model, x);
-  return fid;
+  return sourced(fid);
 }
 
 // Also removes it from `recipes`. A job keeps one claim at least: with none it can't print.
