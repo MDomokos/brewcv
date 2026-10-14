@@ -21,6 +21,8 @@ const shortOf = (model, id, text) => String(text || (model.facts ?? []).find(f =
 
 // the selection that opens a claim of an entry in the inspector
 export const claimSel = (id, job) => (job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' });
+// the versions of a header line (the headline, the contact line); the row itself opens the About you form
+const headerSel = id => ({ kind: 'bullet', id, section: 'header' });
 
 // This resume's order differs from the record's: a job's bullets, a list section's items, the sections on the page. Nothing is stored
 // when nothing was moved (a bullet list in the record's order is the bare id, an item order equal to the record's is dropped), so the
@@ -48,8 +50,8 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
   // About you: always printed
   const b = model.basics ?? {}, d = b.display ?? {};
   const about = [
-    { id: 'about:name', kind: 'about', text: [b.name, textOf(model, recipe, d.label)].filter(Boolean).join(' · '), nv: nvOf(model, d.label, lang), on: true, fixed: true, sel: { kind: 'header', id: 'name' } },
-    { id: 'about:contact', kind: 'about', text: textOf(model, recipe, d.contact) || [b.email, b.phone].filter(Boolean).join(' · '), nv: nvOf(model, d.contact, lang), on: true, fixed: true, sel: { kind: 'header', id: 'contact' } },
+    { id: 'about:name', kind: 'about', text: [b.name, textOf(model, recipe, d.label)].filter(Boolean).join(' · '), nv: nvOf(model, d.label, lang), on: true, fixed: true, sel: { kind: 'header', id: 'name' }, vsel: headerSel(d.label) },
+    { id: 'about:contact', kind: 'about', text: textOf(model, recipe, d.contact) || [b.email, b.phone].filter(Boolean).join(' · '), nv: nvOf(model, d.contact, lang), on: true, fixed: true, sel: { kind: 'header', id: 'contact' }, vsel: headerSel(d.contact) },
     { id: 'about:photo', kind: 'about', text: '', nv: 0, on: !!recipe?.photo?.show, fixed: true, noTick: true, sel: { kind: 'header', id: 'photo' } },
   ];
   if (b.summary) about.push({ id: b.summary, kind: 'claim', text: shortOf(model, b.summary, textOf(model, recipe, b.summary)), nv: nvOf(model, b.summary, lang), on: true, fixed: true, sel: claimSel(b.summary, null) });
@@ -63,7 +65,9 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
     if (!w) return null;
     const jobOn = T.jobRefs(model, recipe).some(r => (typeof r === 'string' ? r : r.id) === w.id);
     const lb = T.listedBullets(model, recipe, w.id), listed = new Set(lb);
-    const rows = (w.highlights ?? []).map(id => claimRow(id, w, listed, jobOn));
+    // the ticked lines sit in print order (this resume's), in the places the record gives them; the ones that are off keep theirs
+    const next = lb.filter(x => (w.highlights ?? []).includes(x))[Symbol.iterator]();
+    const rows = (w.highlights ?? []).map(id => claimRow(listed.has(id) ? next.next().value : id, w, listed, jobOn));
     return { id: w.id, kind: 'entry', entryKind: v.kind, key: v.key, title: v.title, org: v.org, archived: !!w.archived, jobOn, printed: lb, custom: differs(lb, (w.highlights ?? []).filter(h => listed.has(h))),
       // an archived claim that this resume still prints stays in the list, badged; the others fold away
       sel: { kind: 'job', id: w.id }, rows: rows.filter(r => !r.archived || r.on), archivedRows: rows.filter(r => r.archived && !r.on) };
