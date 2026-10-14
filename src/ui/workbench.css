@@ -165,7 +165,7 @@ kbd { font: 600 11px var(--font-mono); border: 1px solid var(--line); border-bot
 .pages__sizer { width: 1px; }
 .pagebox { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 5; opacity: 0; transition: opacity .25s var(--ease); }
 body.is-ready .pagebox { opacity: 1; }
-.sheet-frame { display: block; border: 0; background: transparent; filter: var(--page-shadow-soft); }
+.sheet-frame { display: block; border: 0; background: transparent; filter: var(--page-shadow-soft); color-scheme: light; }   /* the page is always a light document: a frame whose scheme differs from the app's (Tea declares dark) is painted opaque white, which showed as a white bar in the gap between two pages */
 
 .col { position: fixed; display: flex; flex-direction: column; gap: var(--G); z-index: 10; }
 /* First paint: where the page and the column sit before shell.js measures the window.

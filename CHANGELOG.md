@@ -15,6 +15,9 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 - **The folded Tea tags move like tags on strings.** Brushing a tag now pushes it gently once and it settles, with no wiggle. The lower the tag, the longer its string: it travels further and settles slower (about 0.6 s for the first, 1.2 s for the fifth).
 - **The macOS desktop app has no grey title bar.** The app runs up to the top edge of the window and the red, yellow and green buttons float over its top left. Drag the window by the generous strip along the top (56 px; every control stays clickable). Browsers are unchanged.
 
+### Fixed
+- **No white bar between two pages.** In Tea (and in dark Coffee) the gap between two pages side by side showed white paper; it now shows the mat, as light Coffee did.
+
 ## 1.1.0 - 2026-10-13
 
 ### Added

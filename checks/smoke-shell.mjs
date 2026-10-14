@@ -28,6 +28,7 @@ import { chromium } from 'playwright';
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
+import zlib from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -3455,6 +3456,22 @@ if (want('nothing over the text')) {
     await fr.locator('.bullets li').nth(1).dblclick(); await page.waitForTimeout(1500);
     ok(`${w}×${h}${folded ? ' folded' : ''}: writing at 150%, the page's left edge stays inside the view`, await page.evaluate(() => { const c = window.__wb.canvas, l = c.screenRect(window.__wb.sheet.pageBoxes()[0]).left; return !!window.__wb.ui.writing && l >= c.view.left && l < c.view.left + c.view.width / 4; }), await page.evaluate(() => window.__wb.canvas.screenRect(window.__wb.sheet.pageBoxes()[0]).left));
     ok(`${w}×${h}: no errors`, bad.length === 0, bad.join(' | '));
+    await ctx.close();
+  }
+}
+
+if (want('the gap between two pages shows the mat, in both drinks and both themes')) {
+  // one pixel of the screen as the person sees it (a 1×1 PNG: inflate the data, skip the filter byte)
+  const pixel = async (page, x, y) => { const png = await page.screenshot({ clip: { x, y, width: 1, height: 1 } }); let o = 8, idat = []; while (o < png.length){ const n = png.readUInt32BE(o), ty = png.toString('ascii', o + 4, o + 8); if (ty === 'IDAT') idat.push(png.subarray(o + 8, o + 8 + n)); o += 12 + n; } return [...zlib.inflateSync(Buffer.concat(idat)).subarray(1, 4)]; };
+  for (const [drink, theme] of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']]){
+    const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
+    const page = await ctx.newPage();
+    const bad = await open(page, undefined, { folded: true, drink, theme });
+    await openByName(page, 'Medtech'); await page.waitForTimeout(600); await page.mouse.move(5, 5);
+    const g = await page.evaluate(() => { const f = document.querySelector('#sheet iframe'), r = f.getBoundingClientRect(), k = r.width / f.offsetWidth, p = [...f.contentDocument.querySelectorAll('.document > .page')].map(e => e.getBoundingClientRect()); return p.length === 2 ? { x: r.left + (p[0].right + p[1].left) / 2 * k, y: r.top + 400, wide: (p[1].left - p[0].right) * k } : null; });
+    const px = g ? await pixel(page, Math.round(g.x), Math.round(g.y)) : null;
+    ok(`${drink} ${theme}: two pages side by side, and the gap between them is the mat, not white paper`, !!g && g.wide > 8 && !!px && px.some(c => c < 225), JSON.stringify({ g, px }));
+    ok(`${drink} ${theme}: no console errors`, bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
 }
