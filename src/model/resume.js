@@ -427,12 +427,72 @@ export function setKeep(model, recipe, factId, on){
   }
 }
 
-// One-off text for this resume only. null removes it.
-export function setOverride(recipe, factId, text){
+// One-off text for this resume only. null removes it. `{ marks, base }` (the highlights it keeps and the version it was
+// written from) go in recipe.overrideMeta; without them the call leaves the recipe's other keys alone.
+export function setOverride(recipe, factId, text, meta = null){
   recipe.overrides = { ...(recipe.overrides ?? {}) };
-  if (text == null || text === '') delete recipe.overrides[factId];
-  else recipe.overrides[factId] = String(text);
+  if (text == null || text === '') return dropOverride(recipe, factId);
+  recipe.overrides[factId] = String(text);
+  if (!meta) return;
+  recipe.overrideMeta = { ...(recipe.overrideMeta ?? {}), [factId]: { marks: meta.marks ?? [], base: meta.base ?? recipe.overrideMeta?.[factId]?.base ?? null } };
+  if (recipe.parked) delete recipe.parked[factId];
 }
+
+// An edit set aside (parked) when a version is picked over it; picking the edit again (unpark) puts it back.
+export function dropOverride(recipe, factId){
+  if (recipe.overrides) delete recipe.overrides[factId];
+  if (recipe.overrideMeta) delete recipe.overrideMeta[factId];
+  if (recipe.parked) delete recipe.parked[factId];
+}
+export function parkOverride(recipe, factId){
+  if (!(factId in (recipe.overrides ?? {}))) return;
+  recipe.parked = { ...(recipe.parked ?? {}), [factId]: { text: recipe.overrides[factId], meta: recipe.overrideMeta?.[factId] } };
+  delete recipe.overrides[factId];
+  if (recipe.overrideMeta) delete recipe.overrideMeta[factId];
+}
+export function unparkOverride(recipe, factId){
+  const p = recipe.parked?.[factId];
+  if (p) setOverride(recipe, factId, p.text, p.meta ?? {});
+}
+export const overrideOf = (recipe, factId) => (factId in (recipe.overrides ?? {})
+  ? { text: recipe.overrides[factId], ...(recipe.overrideMeta?.[factId] ?? {}), on: true }
+  : recipe.parked?.[factId] ? { text: recipe.parked[factId].text, ...(recipe.parked[factId].meta ?? {}), on: false } : null);
+// The edits not yet decided on (UX-6d's Review list).
+export const pendingEdits = recipe => Object.keys(recipe.overrides ?? {}).filter(f => !recipe.overrideMeta?.[f]?.kept);
+export function keepHere(recipe, factId){
+  recipe.overrideMeta = { ...(recipe.overrideMeta ?? {}), [factId]: { ...recipe.overrideMeta?.[factId], kept: true } };
+}
+// Picking a version sets any edit of that claim aside.
+export function pickVersion(recipe, factId, vid){
+  recipe.picks = { ...(recipe.picks ?? {}), [factId]: vid };
+  parkOverride(recipe, factId);
+}
+
+// ---- skill sets: model.skillSets[name] = { [lang]: [{ id, items }] }, one per job type or tag ----
+export const skillSets = model => model.skillSets ?? {};
+const groupsOf = (model, name, lang) => skillSets(model)[name]?.[lang] ?? skillSets(model)[name]?.[DEFAULT_LANG] ?? null;
+// This resume's own arrangement, or the skills section as it prints now; `from` names the set it matches by name.
+export function arrangementOf(model, recipe){
+  if (recipe.skillArrangement) return recipe.skillArrangement;
+  const lang = recipe.lang ?? DEFAULT_LANG;
+  const groups = (itemList(model, recipe, 'skills') ?? []).filter(g => g.on)
+    .map(g => ({ id: g.id, items: String(chooseVariant(model, g.id, recipe).v?.text ?? '').split(/,\s*/).filter(Boolean) }));
+  return { from: recipe.jobType && groupsOf(model, recipe.jobType, lang) ? recipe.jobType : null, groups };
+}
+export function setArrangement(recipe, arrangement){ recipe.skillArrangement = structuredClone(arrangement); }
+export function applySet(model, recipe, name){
+  const groups = groupsOf(model, name, recipe.lang ?? DEFAULT_LANG);
+  if (!groups) throw new Error(`no skill set ${name}`);
+  recipe.skillArrangement = { from: name, groups: structuredClone(groups) };
+}
+export function saveSetForTag(model, name, arrangement, lang = DEFAULT_LANG){
+  model.skillSets = { ...skillSets(model), [name]: { ...skillSets(model)[name], [lang]: structuredClone(arrangement.groups) } };
+}
+export const groupLabel = (model, recipe, gid) => model.i18n?.[recipe.lang ?? DEFAULT_LANG]?.labels?.[gid] ?? (model.facts ?? []).find(f => f.id === gid)?.label ?? gid;
+
+// The resume's photo switch (recipe.photo) and the record's photo (basics.image).
+export function setPhoto(recipe, patch){ recipe.photo = { show: false, shape: 'rect', ...(recipe.photo ?? {}), ...patch }; }
+export function setRecordPhoto(model, src){ model.basics.image = src; }
 
 // Sections
 // Fixed header and summary first, then printed sections in order, then the record's others, off.
