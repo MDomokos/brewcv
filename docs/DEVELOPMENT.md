@@ -224,6 +224,12 @@ Each of these was learned from a failure on a Mac; the checks and comments name 
 
 Not in the desktop build yet: the updater, a Windows or Linux PDF save (they fall back to the print dialog), a release build with signing and notarization. The Version line in Settings shows a dash, because `sw.js` is not staged.
 
+## Desktop build (macOS, GitHub Actions)
+
+`.github/workflows/macos.yml` builds the macOS app on a hosted Apple-silicon runner and keeps it as the workflow artifact `BrewCV-macos-arm64` (a zip of `BrewCV.app`). It runs by hand (Actions > macOS > Run workflow, once the workflow is on the default branch) or when a `v*` tag is pushed; it does not run on pushes to `main`, has read-only permissions, and deploys nothing. It runs the same command as a local build (`npx @tauri-apps/cli@2.12.2 build --bundles app`), so `beforeBuildCommand` stages the app and runs the privacy gate on it first; CI holds none of your private values, so there the gate checks shapes only.
+
+The app is **not signed or notarized** (no certificate or Apple account is involved). An app you build on your own Mac opens normally. A copy downloaded from the artifact carries the quarantine flag, and macOS refuses it until you approve it: right-click the app and choose Open, or clear the flag once with `xattr -dr com.apple.quarantine BrewCV.app`. Signing and notarization (an Apple Developer account, about $99 a year) are what would remove that step; they are not set up. The build is arm64 only; an Intel or universal build would need another runner or `--target universal-apple-darwin`, and is not built.
+
 ## Desktop build (Linux, Flatpak)
 
 Experimental, and **never built or run by the author**: the files were written and checked as text on a Mac (`node checks/flatpak-check.mjs`). Expect the first real build to need fixes.
