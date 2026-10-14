@@ -31,10 +31,12 @@ const say = (file, kind, n) => { console.error(`  ${file}: ${kind}${n > 1 ? ` ($
 function scan(label, buf){
   const text = buf.toString('latin1');
   const homes = new Map();
-  for (const m of text.matchAll(HOME)) if (!GENERIC.has(m[2])) homes.set(m[2], (homes.get(m[2]) ?? 0) + 1);
+  // a generic name is harmless in a path, unless it is this machine's own user: /Users/user/ on a laptop whose user is "user" is that person's path
+  for (const m of text.matchAll(HOME)) if (!GENERIC.has(m[2]) || m[2] === user) homes.set(m[2], (homes.get(m[2]) ?? 0) + 1);
   for (const [who, n] of homes) say(label, `a home-folder path of a user (${who === user ? 'this machine\'s user' : `"${who.slice(0, 1)}…"`})`, n);
   const count = s => s && (text.split(s).length - 1);
-  if (user.length > 3 && count(user) && !homes.has(user)) say(label, 'this machine\'s user name', count(user));
+  // as plain text only when the name is distinctive: a short common word ("user") is all over any program, and its paths are caught above
+  if (user.length >= 6 && count(user) && !homes.has(user)) say(label, 'this machine\'s user name', count(user));
   if (host.length > 3 && count(host)) say(label, 'this machine\'s host name', count(host));
   for (const v of values) if (count(v)) say(label, 'one of the owner\'s private values (not shown)', count(v));
   if (KEY.test(text)) say(label, 'a private-key marker');

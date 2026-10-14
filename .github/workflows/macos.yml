@@ -29,11 +29,25 @@ jobs:
       - name: Build the app
         run: npx @tauri-apps/cli@2.12.2 build --bundles app
 
+      # Tauri's ad-hoc signature covers the executable but does not seal the bundle's contents, and macOS can call a downloaded copy
+      # "damaged" instead of asking whether to open it. Seal it: still ad hoc, with no certificate and no key of any kind.
+      - name: Seal the app (ad hoc)
+        run: codesign --force --deep --sign - src-tauri/target/release/bundle/macos/BrewCV.app
+
       # a zip keeps the bundle's permissions and links; an uploaded folder would not
       - name: Zip it
-        run: ditto -c -k --keepParent src-tauri/target/release/bundle/macos/BrewCV.app BrewCV-macos-arm64.zip
+        run: ditto -c -k --keepParent --norsrc --noextattr --noacl src-tauri/target/release/bundle/macos/BrewCV.app BrewCV-macos-arm64.zip
+
+      - name: Disk image
+        run: |
+          mkdir stage
+          cp -R src-tauri/target/release/bundle/macos/BrewCV.app stage/
+          ln -s /Applications stage/Applications
+          hdiutil create -volname "BrewCV" -srcfolder stage -ov -format UDZO -fs HFS+ BrewCV-macos-arm64.dmg
 
       - uses: actions/upload-artifact@v4
         with:
           name: BrewCV-macos-arm64
-          path: BrewCV-macos-arm64.zip
+          path: |
+            BrewCV-macos-arm64.zip
+            BrewCV-macos-arm64.dmg
