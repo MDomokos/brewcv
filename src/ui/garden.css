@@ -4,8 +4,8 @@
    the tea canvas in drinks.css; this only adds things on top. */
 
 #garden { position: fixed; inset: 0; z-index: 6; pointer-events: none; overflow: hidden; }
-/* a page on the move goes over everything on the mat: the garden drops under it until it has settled (canvas.js) */
-body.is-moving #garden { z-index: 4; }
+/* a page on the move goes over everything on the mat: the garden drops under it once what lay on the page has left (garden.js sets g-clearing until then), and stays there until it has settled (canvas.js) */
+body.is-moving:not(.g-clearing) #garden { z-index: 4; }
 @media print { #garden, .g-dapple { display: none; } }
 
 #garden, .g-dapple { --gshadow: rgba(50, 36, 12, .3); --rain: rgba(105, 130, 158, .6); --wet: rgba(62, 52, 34, .15); --rainsky: rgba(40, 55, 70, .07); --dap: rgba(60, 45, 15, .09); }
