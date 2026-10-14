@@ -2505,39 +2505,65 @@ if (want('drinks: tea and coffee, light and dark')) {
   await ctx.close();
 }
 
-if (want('drinks: the folded Tea tags hang on a thread and swing; Coffee and reduced motion have none')) {
+if (want('drinks: the folded Tea tags hang on strings and follow the pointer; Coffee and reduced motion have none')) {
   const look = page => page.evaluate(() => {
     const ps = (el, w) => getComputedStyle(el, w);
-    const tl = document.querySelector('.tabs .tablist'), tab = document.querySelector('#tab-record');
-    return { thread: ps(tl, '::before').content !== 'none' ? [ps(tl, '::before').width, ps(tl, '::before').backgroundColor, ps(tl, '::before').pointerEvents] : null,
+    const tl = document.querySelector('.tabs .tablist'), tab = document.querySelector('#tab-record'), str = [...document.querySelectorAll('.tabs .tstr')];
+    return { strings: str.length, thread: str[0] ? [ps(str[0]).width, ps(str[0]).backgroundColor, ps(str[0]).pointerEvents] : null, above: ps(tl, '::before').content !== 'none' && ps(tl, '::before').display !== 'none',
       loop: ps(tl, '::after').content !== 'none', hole: ps(tab, '::after').display !== 'none' && ps(tab, '::after').content !== 'none' };
   });
   const THREAD = [1.6, 'rgb(168, 138, 92)', 'none'];
+  // each string's angle (its own rotation about the anchor) and each tag's angle relative to its string (the tag's whole rotation less the string's), in degrees
+  const angles = page => page.evaluate(() => {
+    const rot = el => { const m = getComputedStyle(el).transform; if (m === 'none') return 0; const v = m.match(/matrix\(([^)]*)\)/)[1].split(',').map(Number); return Math.atan2(v[1], v[0]) * 180 / Math.PI; };
+    return ['outline', 'edit', 'design', 'export', 'record'].map(m => { const a = rot(document.querySelector(`.tstr[data-m=${m}]`) ?? document.body), t = rot(document.querySelector('#tab-' + m)); return { string: a, tag: t - a }; });
+  });
+  // the pointer sweeps sideways across a tag (dir 1: to the right); then the time (ms) until every string and tag is exactly at rest
+  const brush = async (page, id, dir) => {
+    const b = await (await page.$('#tab-' + id)).boundingBox(), x0 = dir > 0 ? b.x - 10 : b.x + b.width + 10;
+    await page.mouse.move(x0 - dir * 40, b.y + 30); await page.waitForTimeout(150);
+    await page.mouse.move(x0, b.y + 30); await page.mouse.move(x0 + dir * 60, b.y + 30, { steps: 5 });
+    const t0 = Date.now(); let peak = null, flips = 0, last = 0;
+    await page.waitForTimeout(120);
+    for (;;){
+      const a = await angles(page), big = a.reduce((m, x, i) => Math.abs(x.tag) > Math.abs(m.v) ? { v: x.tag, i } : m, { v: 0, i: 0 });
+      peak = peak ?? a;
+      if (last && big.v && Math.sign(big.v) !== last && Math.abs(big.v) > 0.05) flips++;
+      if (Math.abs(big.v) > 0.05) last = Math.sign(big.v);
+      const rest = await page.evaluate(() => [...document.querySelectorAll('.tabs .tab, .tabs .tstr')].every(e => e.style.transform === ''));
+      if (rest || Date.now() - t0 > 4000) return { peak, flips, ms: Date.now() - t0, rest };
+      await page.waitForTimeout(30);
+    }
+  };
   for (const [drink, w, reduce] of [['tea', 1280, false], ['tea', 1920, false], ['coffee', 1920, false], ['tea', 1280, true]]){
     const ctx = await browser.newContext({ viewport: { width: w, height: 800 }, reducedMotion: reduce ? 'reduce' : 'no-preference' });
     const page = await ctx.newPage();
     const bad = await open(page, undefined, { folded: true, drink });
     await settle(page);
     const L = await look(page), name = `${drink} ${w}${reduce ? ' reduced' : ''}`;
-    ok(`${name}: ${drink === 'tea' ? 'a 1.6px thread that takes no clicks, a hole in each tag' + (w >= 1700 ? ', and a loop above the first' : ', no loop under 1700px') : 'no thread, hole or loop'}`,
-      drink === 'tea' ? L.thread && Math.abs(parseFloat(L.thread[0]) - THREAD[0]) < .1 && L.thread[1] === THREAD[1] && L.thread[2] === THREAD[2] && L.hole && L.loop === (w >= 1700) : !L.thread && !L.hole && !L.loop, JSON.stringify(L));
-    const box = await (await page.$('#tab-record')).boundingBox();
-    await page.mouse.move(box.x - 30, box.y + 30); await page.mouse.move(box.x + 10, box.y + 30);
-    await page.waitForTimeout(150);
-    const sw = await page.evaluate(() => ['design', 'export', 'record'].map(m => document.querySelector('#tab-' + m).getAnimations().filter(a => a.effect.getKeyframes().some(k => 'rotate' in k)).length));
-    ok(`${name}: brushing a tag ${drink === 'tea' && !reduce ? 'swings it and its neighbour, not a tag two away' : 'moves nothing'}`, drink === 'tea' && !reduce ? sw[2] === 1 && sw[1] === 1 && sw[0] === 0 : sw.every(n => n === 0), JSON.stringify(sw));
+    ok(`${name}: ${drink === 'tea' ? 'five strings of 1.6px that take no clicks, a hole in each tag, ' + (w >= 1700 ? 'a loop above the first' : 'the thread running up out of the frame') : 'no string, thread, hole or loop'}`,
+      drink === 'tea' ? L.strings === 5 && L.thread && Math.abs(parseFloat(L.thread[0]) - THREAD[0]) < .1 && L.thread[1] === THREAD[1] && L.thread[2] === THREAD[2] && L.hole && L.loop === (w >= 1700) && L.above === (w < 1700) : L.strings === 0 && !L.thread && !L.hole && !L.loop && !L.above, JSON.stringify(L));
     if (drink === 'tea' && !reduce){
-      const dur = await page.evaluate(() => { const d = m => document.querySelector('#tab-' + m).getAnimations().find(a => a.effect.getKeyframes().some(k => 'rotate' in k)).effect.getTiming().duration; return [d('export'), d('record')]; });
-      ok('the fifth tag settles in 1.2 s, the fourth sooner (the first in 0.6 s)', Math.abs(dur[1] - 1200) < 1 && dur[0] < dur[1] && dur[0] >= 600, JSON.stringify(dur));
-      // a push and a settle, not a wiggle: the angle crosses zero at most once (a tiny overshoot), and the overshoot is small
-      const track = await page.evaluate(async () => {
-        const a = document.querySelector('#tab-record').getAnimations().find(x => x.effect.getKeyframes().some(k => 'rotate' in k));
-        a.pause(); const d = a.effect.getTiming().duration, v = [];
-        for (let i = 0; i <= 60; i++){ a.currentTime = d * i / 60; v.push(parseFloat(getComputedStyle(document.querySelector('#tab-record')).rotate) || 0); }
-        a.play(); return v;
-      });
-      const peak = Math.max(...track.map(Math.abs)), flips = track.slice(1).filter((x, i) => Math.abs(x) > 0.01 && Math.abs(track[i]) > 0.01 && Math.sign(x) !== Math.sign(track[i])).length;
-      ok('a tag swings once and settles: at most one sign change, overshoot under a tenth of the push', flips <= 1 && Math.max(...track.map(x => -x * Math.sign(track.find(y => Math.abs(y) > 0.01)))) < peak * 0.1 && Math.abs(track.at(-1)) < 0.01, `peak ${peak.toFixed(2)}deg flips ${flips}`);
+      const rest = await angles(page);
+      ok('at rest every string and tag is at angle 0 and nothing is set on them', rest.every(a => a.string === 0 && a.tag === 0) && await page.evaluate(() => [...document.querySelectorAll('.tabs .tab, .tabs .tstr')].every(e => e.style.transform === '')), JSON.stringify(rest));
+      const mid = async (id, dir) => { const b = await (await page.$('#tab-' + id)).boundingBox(), x0 = dir > 0 ? b.x - 10 : b.x + b.width + 10; await page.mouse.move(x0 - dir * 40, b.y + 30); await page.waitForTimeout(300); await page.mouse.move(x0, b.y + 30); await page.mouse.move(x0 + dir * 60, b.y + 30, { steps: 5 }); await page.waitForTimeout(150); return angles(page); };
+      const ar = await mid('edit', 1);
+      ok('a pointer moving right across a tag turns its string and the tag (about its hole) both to the right (negative angles), the tag more than the string', ar[1].string < -0.2 && ar[1].tag < -0.5 && Math.abs(ar[1].tag) > Math.abs(ar[1].string), JSON.stringify(ar[1]));
+      ok('…its neighbours move the same way but less, and a tag two away does not move', ar[0].tag < 0 && ar[2].tag < 0 && Math.abs(ar[0].tag) < Math.abs(ar[1].tag) && Math.abs(ar[2].tag) < Math.abs(ar[1].tag) && ar[3].tag === 0 && ar[4].tag === 0 && ar[3].string === 0, JSON.stringify(ar));
+      await page.waitForTimeout(2500);
+      const al = await mid('edit', -1);
+      ok('a pointer moving left does the reverse: positive angles', al[1].string > 0.2 && al[1].tag > 0.5, JSON.stringify(al[1]));
+      await page.waitForTimeout(2500);
+      const a0 = await mid('outline', 1); await page.waitForTimeout(2500); const a4 = await mid('record', 1); await page.waitForTimeout(2500);
+      ok('the same brush swings the lowest tag (the longest string) further than the first: both string and tag', Math.abs(a4[4].string) > Math.abs(a0[0].string) && Math.abs(a4[4].tag) > Math.abs(a0[0].tag), JSON.stringify({ first: a0[0], fifth: a4[4] }));
+      const top = await brush(page, 'outline', 1), low = await brush(page, 'record', 1);
+      ok(`both come exactly to rest: the first tag in ${top.ms} ms, the fifth in ${low.ms} ms, the lower one slower (about 0.6 s to about 1.2 s once the pointer has left)`, top.rest && low.rest && low.ms > top.ms * 1.4 && top.ms < 1400 && low.ms < 2400, JSON.stringify({ top, low }));
+      ok('the push is a swing and a settle: the tag never changes direction on its way back', top.flips === 0 && low.flips === 0, JSON.stringify({ top: top.flips, low: low.flips }));
+    }
+    if (drink !== 'tea' || reduce){
+      const b = await (await page.$('#tab-record')).boundingBox();
+      await page.mouse.move(b.x - 40, b.y + 30); await page.mouse.move(b.x + 10, b.y + 30, { steps: 4 }); await page.mouse.move(b.x + 50, b.y + 30, { steps: 4 }); await page.waitForTimeout(150);
+      ok(`${name}: brushing a tag moves nothing`, await page.evaluate(() => [...document.querySelectorAll('.tabs .tab, .tabs .tstr')].every(e => e.style.transform === '' && getComputedStyle(e).transform === 'none')));
     }
     await page.click('#tab-record'); // a click during the swing unfolds at once
     ok(`${name}: a click on a tag unfolds the panel at once`, await page.waitForFunction(() => !document.querySelector('#tabs').classList.contains('is-folded'), null, { timeout: 400 }).then(() => true, () => false));

@@ -9,7 +9,8 @@ import { t, h } from '../i18n/index.js';
 import { FILL_BAND } from '../fit.js';
 import { ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
 import { drink, onDrinkChange, logoBtn } from './drink.js';
-import { play } from './motion.js';
+import { play, reduced } from './motion.js';
+import { springStep, atRest } from './camera.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -213,11 +214,12 @@ function drawTabs(){
   const menu = `<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!C.ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" data-tip-pos="l" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>`;
   el.dataset.tab = tab ?? '';
   el.setAttribute('aria-label', t('ux2.modes'));
-  el.innerHTML = `<div class="tablist" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}">${GROUPS.map(grp).join('')}</div>
+  el.innerHTML = `<div class="tablist" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}">${tea && f ? TABS.map(x => `<i class="tstr" data-m="${x.id}" aria-hidden="true"></i>`).join('') : ''}${GROUPS.map(grp).join('')}</div>
     <div class="tabfoot" id="tabfoot">${f ? logoBtn(28, { base: 'logo footlogo', pos: 'l' }) : ''}
       ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
       ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 'l')}
       ${menu}${C.ui.menu ? C.menuHtml() : ''}</div>`;
+  swPlace();
 }
 
 // ---- the fill meter and Fit, in the header (and, as quiet text with Fit, in the Export view), and the zoom bar ----
@@ -429,24 +431,61 @@ function onModesKey(e){
   $('#head [role=tab][aria-selected=true]')?.focus();
 }
 
-// Tea, folded: brushing over a tag pushes it from its hole, the way a finger would: one swing out, one soft settle (a tiny overshoot,
-// no wiggle). Lower tags hang on longer strings, so they travel further and settle slower; the neighbours at a share of that. Decoration: play() is null under reduced motion, and a click never waits for it.
-function swingTags(e){
-  const tab = e.target.closest?.('.tabs.is-folded .tab'), from = e.relatedTarget;
-  if (!tab || drink() !== 'tea' || tab.contains(from)) return;
-  const all = [...document.querySelectorAll('.tabs.is-folded .tab')], at = all.indexOf(tab);
-  const v = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0;
-  const r = tab.getBoundingClientRect(), dir = e.clientX < r.left + r.width / 2 ? -1 : 1;     // from the left pushes the tag right
-  all.forEach((x, i) => {
-    if (Math.abs(i - at) > 1) return;
-    const a = (v('--swing-deg') + v('--swing-deg-step') * i) * dir * (i === at ? 1 : v('--swing-near')), ms = v('--swing-ms') + v('--swing-ms-step') * i;   // each tag's own string
-    play(x, [0, 1, -.06, 0].map((k, j) => ({ rotate: `${a * k}deg`, offset: [0, .3, .78, 1][j] })), { key: `tag-${x.dataset.m}`, ms, kind: 'move', name: 'tagswing' });
+// Tea, folded: the tags hang on strings from an anchor above the first tag, through a hole each. Two things swing per tag: its string (about
+// the anchor) and the tag (about its hole, relative to the string). The pointer pushes them as it pushes the garden's leaves (garden.js
+// sweepAt): its sideways movement near a tag (dx, not just entering) adds angular velocity, the neighbours get a share, and a spring
+// (camera.js springStep, critically damped: no wiggle) brings each back to zero. The loop runs only while something moves. A lower tag hangs on
+// a longer string: it swings further and settles slower (--swing-* in workbench.css: degrees and settle time for the first tag, and the step per tag).
+// Nothing moves under reduced motion; Coffee has no strings. Decoration: a click never waits for it.
+const SW = { z: 6.64, string: .35, tag: .8, hole: 8.5, anchor: 14, pad: 10, ref: 60, rest: .03 };   // z: omega x settle time for a critically damped spring to be within 1%
+const sw = [];                       // per tag: { a: string, b: tag } as springs { x: degrees, v: degrees/s }
+let swRaf = 0, swLast = 0, swPx = null;
+const swTok = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0;
+const swOn = () => drink() === 'tea' && folded() && !reduced();
+const swPar = i => { const T = (swTok('--swing-ms') + swTok('--swing-ms-step') * i) / 1000; return { A: swTok('--swing-deg') + swTok('--swing-deg-step') * i, ws: SW.z / T, wt: SW.z / (T * SW.tag) }; };
+// draw the strings and tags as they are now: at rest nothing is set, so everything is exactly where the stylesheet puts it
+function swPlace(){
+  const tabs = document.querySelectorAll('.tabs.is-folded .tab'), strs = document.querySelectorAll('.tabs.is-folded .tstr');
+  tabs.forEach((tab, i) => {
+    const L = tab.offsetTop + SW.hole + SW.anchor, a = sw[i]?.a.x ?? 0, b = sw[i]?.b.x ?? 0, str = strs[i];
+    if (str){ str.style.height = `${L}px`; str.style.transform = a ? `rotate(${a.toFixed(3)}deg)` : ''; }
+    tab.style.transform = a || b ? `translate(0, ${-L}px) rotate(${a.toFixed(3)}deg) translate(0, ${L}px) rotate(${b.toFixed(3)}deg)` : '';
   });
+}
+function swFrame(now){
+  swRaf = 0;
+  if (!swOn()){ sw.length = 0; swPlace(); return; }
+  const dt = Math.min(.05, (now - swLast) / 1000); swLast = now;
+  let live = false;
+  sw.forEach((s, i) => {
+    const p = swPar(i);
+    s.a = springStep(s.a, 0, dt, { omega: p.ws, bounce: 0 }); s.b = springStep(s.b, 0, dt, { omega: p.wt, bounce: 0 });
+    if (atRest(s.a, 0, SW.rest) && atRest(s.b, 0, SW.rest)) s.a = s.b = { x: 0, v: 0 }; else live = true;
+  });
+  swPlace();
+  if (live) swRaf = requestAnimationFrame(swFrame);
+}
+function swingTags(e){
+  const px = swPx; swPx = e.clientX;
+  if (px === null || !swOn()) return;
+  const dx = Math.max(-45, Math.min(45, e.clientX - px));
+  if (!dx) return;
+  const tabs = [...document.querySelectorAll('.tabs.is-folded .tab')];
+  const at = tabs.findIndex(x => { const r = x.getBoundingClientRect(); return e.clientX > r.left - SW.pad && e.clientX < r.right + SW.pad && e.clientY > r.top - SW.pad && e.clientY < r.bottom + SW.pad; });
+  if (at < 0) return;
+  tabs.forEach((x, i) => {
+    if (Math.abs(i - at) > 1) return;
+    const p = swPar(i), share = i === at ? 1 : swTok('--swing-near'), k = -dx / SW.ref * share * Math.E;    // a push of `ref` px gives a peak of A degrees (an impulse v gives a peak of v / (omega e))
+    const s = sw[i] ??= { a: { x: 0, v: 0 }, b: { x: 0, v: 0 } };
+    const cap = (v, A, w) => Math.max(-1.4 * A * w * Math.E, Math.min(1.4 * A * w * Math.E, v));
+    s.a.v = cap(s.a.v + k * SW.string * p.A * p.ws, SW.string * p.A, p.ws); s.b.v = cap(s.b.v + k * p.A * p.wt, p.A, p.wt);
+  });
+  if (!swRaf){ swLast = performance.now(); swRaf = requestAnimationFrame(swFrame); }
 }
 
 function bind(){
   installTips();
-  $('#tabs').addEventListener('pointerover', swingTags);
+  document.addEventListener('pointermove', swingTags, { passive: true });
   onDrinkChange(() => { renderTabs(); renderFoot(); });
   const bar = document.createElement('div');
   bar.id = 'zoombar'; bar.className = 'zoombar';
