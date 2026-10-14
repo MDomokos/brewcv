@@ -2327,6 +2327,28 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   await ctx.close();
 }
 
+if (want('record: a dragged bullet moves in the list too; "n v" on the contact line opens its versions')) {
+  const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const lis = () => frameDoc(page, d => [...d.querySelectorAll('.bullets li')].slice(0, 3).map(x => x.textContent.slice(0, 24)));
+  await inRecord(page, 'hydra'); await settle(page);
+  const rows = page.locator('#checklist .clg[data-g=hydra] .clrow[data-bullet]');
+  const listed = () => rows.evaluateAll(els => els.map(e => e.querySelector('.clt').textContent.trim().slice(0, 24)));
+  const before = await lis();
+  await rows.nth(2).dragTo(rows.nth(0), { targetPosition: { x: 60, y: 2 } }); await page.waitForTimeout(1000);
+  const after = await lis();
+  ok('dragging a bullet in the Record changes the page', after[0] === before[2]);
+  ok('…and the Record’s list shows the same order as the page', JSON.stringify((await listed()).slice(0, 3)) === JSON.stringify(after));
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
+  await toEditHome(page);
+  await page.click('#outline .osec[data-sid=header] .osecaret').catch(() => {}); await settle(page);
+  await page.locator('#outline .osec[data-sid=header] .clrow').nth(1).locator('.clv').click(); await settle(page);
+  ok('"n v" on the contact line opens its versions, where a new one can be written', (await page.locator('#body [data-act=new-version]').count()) === 1 && (await page.locator('#body [data-act=use-version]').count()) >= 1);
+  ok('nothing threw', bad.length === 0, bad.join('; '));
+  await ctx.close();
+}
+
 if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging system')) {
   const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();

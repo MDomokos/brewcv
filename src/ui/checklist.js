@@ -53,7 +53,7 @@ function rowHtml(r, g, move){
   const grip = drag ? `<span class="clgrip" aria-hidden="true">${icon('grip')}</span>${moveButtonsHtml('cl-up', 'cl-down', r.item ?? r.id, text, move)}` : '';
   return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''} ${isSel(r) ? 'is-sel' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${drag ? `${drag} draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>
       ${box}<button class="clt" data-act="cl-open" data-sel="${selAttr(r.sel)}">${esc(text.replace(/\n/g, ' · '))}</button>
-      ${r.nv ? `<button class="clv${r.nv > 1 ? ' many' : ''}" data-act="cl-edit" data-sel="${selAttr(r.sel)}" title="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv })).replace(/\s+/, '<span class="sp"> </span>')}</button>` : ''}
+      ${r.nv ? `<button class="clv${r.nv > 1 ? ' many' : ''}" data-act="cl-edit" data-sel="${selAttr(r.vsel ?? r.sel)}" title="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv })).replace(/\s+/, '<span class="sp"> </span>')}</button>` : ''}
       ${r.archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span><button class="ghost sm" data-act="unarchive-claim" data-id="${esc(r.id)}">${h('arch.unarchive')}</button>` : ''}${grip}</li>`;
 }
 
