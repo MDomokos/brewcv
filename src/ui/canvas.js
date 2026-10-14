@@ -24,6 +24,7 @@ export function initCanvas(C){
   let geo = null, view = null, fit = null, scene = 'all';
   let free = false, cam = { k: 1, x: 0, y: 0 };
   let motion = null, raf = 0, idleT = 0, movedT = 0, firedSig = '';
+  let lift = 0;                                         // 0 to 1: how far the page is off the mat (drinks.css). Rises with a pan; falls with the camera's own remaining travel, so it is down when the camera is at rest
   let lean = { x: 0, y: 0 };                            // the pan's recent speed in px per step, smoothed: how far the sheet's edge lifts (drinks.css)
   let moving = false, rawFree = null, drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
   const pointers = new Map();
@@ -35,8 +36,9 @@ export function initCanvas(C){
   // ---- placing the sheet ----
   function put(next, panned){                           // panned: a wheel pan or a drag, the only moves that lift the page (body.is-panning, drinks.css)
     if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); document.body.classList.add('is-moving'); }
-    if (panned) document.body.classList.add('is-panning');
+    if (panned){ document.body.classList.add('is-panning'); lift += (1 - lift) * .4; }
     lean = { x: lean.x * .6 + (next.x - cam.x) * .4, y: lean.y * .6 + (next.y - cam.y) * .4 };
+    host.style.setProperty('--lift', lift.toFixed(3));
     host.style.setProperty('--lx', (-Math.max(-1, Math.min(1, lean.x / 24)) * .8).toFixed(3)); host.style.setProperty('--ly', (Math.max(-1, Math.min(1, lean.y / 24)) * .8).toFixed(3));
     cam = next; ui.cam = cam;
     host.style.left = '0px'; host.style.top = '0px';
@@ -82,6 +84,8 @@ export function initCanvas(C){
       x = m.from.x + (m.to.x - m.from.x) * e; y = m.from.y + (m.to.y - m.from.y) * e;
       done = p >= 1;
     }
+    // the lift follows what is left of the move (24 px or more of it keeps the page fully up), and falls at least as fast as 80 ms
+    if (lift) lift = done ? 0 : Math.min(lift, Math.max(Math.min(1, (Math.abs(x - m.to.x) + Math.abs(y - m.to.y)) / 24), 1 - (now - m.t0) / 80));
     if (done){ motion = null; put({ ...m.to }); settled(); return; }
     put({ k, x, y });
     raf = requestAnimationFrame(frame);
@@ -92,8 +96,8 @@ export function initCanvas(C){
     clearTimeout(movedT);
     movedT = setTimeout(() => {
       if (motion || drag || raw !== null) return;
-      moving = false; document.body.classList.remove('is-moving', 'is-panning');
-      lean = { x: 0, y: 0 }; host.style.removeProperty('--lx'); host.style.removeProperty('--ly');
+      moving = false; lift = 0; document.body.classList.remove('is-moving', 'is-panning');
+      lean = { x: 0, y: 0 }; host.style.removeProperty('--lx'); host.style.removeProperty('--ly'); host.style.removeProperty('--lift');
       const sig = `${cam.k.toFixed(3)}|${cam.x.toFixed(1)}|${cam.y.toFixed(1)}|${innerWidth}|${innerHeight}|${ui.layout?.folded}`;
       if (sig === firedSig) return;
       firedSig = sig;

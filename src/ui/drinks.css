@@ -338,17 +338,16 @@ html[data-drink="tea"] .tabs.is-folded .tab::after { display: block; content: ""
   html[data-drink="tea"] .tabs.is-folded .tablist::after { content: ""; position: absolute; left: 21px; top: -26px; width: 12px; height: 12px; box-sizing: border-box; border: 1.6px solid var(--thread); border-radius: 50%; pointer-events: none; }
 }
 
-/* Tea: a page that moves lifts off the mat, as paper slid along a table does (canvas.js sets body.is-panning for a wheel pan or a drag, and --lx/--ly, the lean in degrees).
+/* Tea: a page that moves lifts off the mat, as paper slid along a table does (canvas.js sets body.is-panning for a wheel pan or a drag, --lx/--ly, the lean in degrees, and --lift, 0 to 1: it rises with the pan and falls with the camera's own remaining travel, so there is no transition here and the page is down when the camera is at rest).
    The sheet's frame and the .lift layers under and over each page share one transform (a small scale, a tilt of at most .8deg toward
-   the way it goes); a soft shadow fades in under it and a shading toward the edges over it. Only transform and opacity change.
+   the way it goes); a soft shadow fades in under it and a shading toward the edges over it, all in proportion to --lift. Only transform and opacity change.
    Coffee is flat, so it does not lift. Not under reduced motion. Never in the resume's own document or what is exported. */
 .lift { display: none; }
 html[data-drink="tea"]:not([data-motion="reduce"]) .lift { display: block; position: absolute; top: 0; pointer-events: none; }
 html[data-drink="tea"] .lift::before, html[data-drink="tea"] .lift::after { content: ""; position: absolute; inset: 0; border-radius: 3px; opacity: 0; visibility: hidden; transform-origin: var(--o); }   /* hidden at rest: a layer over the page, even clear, changes how its text is drawn */
 html[data-drink="tea"] .lift::before { z-index: -1; box-shadow: var(--lift-shadow); }
 html[data-drink="tea"] .lift::after { z-index: 1; box-shadow: var(--lift-shade); }
-html[data-drink="tea"]:not([data-motion="reduce"]) .sheet-frame, html[data-drink="tea"]:not([data-motion="reduce"]) .lift::before, html[data-drink="tea"]:not([data-motion="reduce"]) .lift::after { transform: var(--lt, none); transition: transform .3s cubic-bezier(.3, 0, .4, 1), opacity .3s cubic-bezier(.3, 0, .4, 1), translate .3s cubic-bezier(.3, 0, .4, 1), visibility 0s .3s; }
-html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning #sheet { --lt: perspective(1400px) rotateX(calc(var(--ly, 0) * 1deg)) rotateY(calc(var(--lx, 0) * 1deg)) scale(1.012); }
-html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning .sheet-frame, html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning .lift::before, html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning .lift::after { transition-duration: .14s; transition-delay: 0s; transition-timing-function: cubic-bezier(.2, .8, .2, 1); }
-html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning .lift::before { opacity: 1; visibility: visible; translate: 3px 6px; }
-html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning .lift::after { opacity: 1; visibility: visible; }
+html[data-drink="tea"]:not([data-motion="reduce"]) .sheet-frame, html[data-drink="tea"]:not([data-motion="reduce"]) .lift::before, html[data-drink="tea"]:not([data-motion="reduce"]) .lift::after { transform: var(--lt, none); }
+html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning #sheet { --lt: perspective(1400px) rotateX(calc(var(--ly, 0) * var(--lift, 0) * 1deg)) rotateY(calc(var(--lx, 0) * var(--lift, 0) * 1deg)) scale(calc(1 + .012 * var(--lift, 0))); }
+html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning .lift::before { opacity: var(--lift, 0); visibility: visible; translate: calc(3px * var(--lift, 0)) calc(6px * var(--lift, 0)); }
+html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning .lift::after { opacity: var(--lift, 0); visibility: visible; }

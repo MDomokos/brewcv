@@ -3482,6 +3482,9 @@ if (want('a page on the move lifts and curls a little (Tea), and rests exactly (
       ok(`${what}: the shadow layer and the edge shading are on, and the sheet is above the garden`, mid.shadow > 0.9 && mid.shade > 0.9 && mid.vis === 'visible' && (mid.gardenZ === null || mid.gardenZ < mid.sheetZ), JSON.stringify(mid));
     }
     if (drag){ await page.mouse.up(); await page.keyboard.up('Space'); }
+    // the lift follows the camera's own travel: by the time the camera is at rest (its transform unchanged for 6 frames) the page is back down
+    const liftAtRest = await page.evaluate(() => new Promise(res => { let prev = '', same = 0; const f = () => { const s = document.getElementById('sheet'), c = s.style.transform; same = c === prev ? same + 1 : 0; prev = c; if (same >= 6) res(Number(s.style.getPropertyValue('--lift') || 0)); else requestAnimationFrame(f); }; f(); }));
+    if (!o.drink && !o.reduced) ok(`${what}: when the camera comes to rest the lift is already down (${liftAtRest.toFixed(3)})`, liftAtRest < 0.05, String(liftAtRest));
     await page.waitForTimeout(2200);
     const end = await look(page);
     ok(`${what}: settled, everything is exactly back at rest`, !end.moving && !end.panning && end.tf === 'none' && end.shadow === 0 && end.shade === 0 && end.vis === 'hidden' || (o.drink === 'coffee' && end.tf === 'none' && !end.moving), JSON.stringify(end));
