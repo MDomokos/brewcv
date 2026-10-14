@@ -1,13 +1,13 @@
 // Where the page and the sidebar go. Pure: numbers in, numbers out (checks/shell-check.mjs).
 // The sidebar is one column at the right with one width, wide enough for its widest body; the page is centred in the room left of it,
-// so no selection and no switch between Edit, Design and Export moves it. Several pages sit side by side when that costs less than
-// SPREAD_COST of a page's size; otherwise they travel one at a time. Under PHONE_MAX the column is a bottom sheet.
+// so no selection and no switch between Edit, Design and Export moves it. A page is always as big as the window's height allows;
+// several pages sit beside each other, all in view when the row fits the room, otherwise the view travels sideways from page to page
+// (the sidebar floats over the rest). Under PHONE_MAX the column is a bottom sheet.
 
 export const G = 16;
 export const SIDE_W = 560;                              // the sidebar's width
 export const ZOOM_MIN = 0.4, ZOOM_MAX = 4;
 export const PAGE_GAP = 24;           // between pages, in page px
-export const SPREAD_COST = 0.15;
 
 export const PAGE_SIZE = {
   'us-letter': { w: 816, h: 1056, mm: [215.9, 279.4] },
@@ -23,11 +23,11 @@ export const SHEET_VH = 0.42;          // the bottom sheet's share of the height
 export const stackHeight = (format, n) => { const { h } = pageSize(format); return n * h + Math.max(0, n - 1) * PAGE_GAP; };
 export const clampZoom = z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number.isFinite(z) ? z : 1));
 
-// mode: 'auto' | 'spread' | 'stack' (an old 'single' means 'stack'). `wide`: on a phone, the panel is the whole screen.
+// `wide`: on a phone, the panel is the whole screen.
 // zoom: 1 is the whole page fitted to the window.
 // `slim`: the start screen and the first questions: the column is 32% of the window (380 to 480px) instead of SIDE_W.
 export const SLIM_MIN = 380, SLIM_MAX = 480;
-export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', zoom = 1, wide = false, slim = false }){
+export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = false, slim = false }){
   const { w, h } = pageSize(format);
   const n = Math.max(1, pages);
   const z = clampZoom(zoom);
@@ -36,12 +36,12 @@ export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', zoom =
     const colH = Math.round(vh * SHEET_VH);
     const height = stackHeight(format, n) * scale;
     return {
-      phone: true, wide, scale, fit: (vw - G) / w, zoom: z, spread: false, stack: n > 1, perView: 1,
+      phone: true, wide, scale, fit: (vw - G) / w, zoom: z, spread: false, stack: n > 1,
       sheet: { left: G / 2, top: G / 2, width: w * scale, height },
       col: wide ? { left: 0, top: 0, width: vw, height: vh } : { left: 0, top: vh - colH, width: vw, height: colH },
       pages: { left: 0, top: 0, width: vw, height: G + height, content: G + height, contentW: vw },
       pageStep: (h + PAGE_GAP) * scale, areaW: vw, colW: vw,
-      view: null, fullHeight: false, canSpread: false,
+      view: null, fullHeight: false,
     };
   }
   const tall = (vh - 2 * G) / h;
@@ -49,30 +49,25 @@ export function computeLayout({ vw, vh, format, pages = 1, mode = 'auto', zoom =
   const colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.32))) : SIDE_W;
   // the room the page may have: left of the column, a gutter at each side of it
   const room = vw - colW - 4 * G;
-  const single = Math.max(0.1, Math.min(tall, room / w));
-  const spreadScale = n > 1 ? Math.max(0.1, Math.min(tall, room / rowW(n))) : single;
-  const spread = n > 1 && (mode === 'spread' || (mode === 'auto' && spreadScale >= (1 - SPREAD_COST) * single));
-  const stack = n > 1 && !spread;
-  const fit = spread ? spreadScale : single;
+  const fit = Math.max(0.1, Math.min(tall, room / w));
+  const spread = n > 1 && rowW(n) * fit <= room + 1e-6;     // else the view travels from page to page, at the same size
   const scale = fit * z;
-  const perView = spread ? n : 1;
-  const sheetW = rowW(perView) * fit, pageH = h * fit;      // laid for the fitted page; a zoom is the camera's
-  const sheetH = stack ? stackHeight(format, n) * scale : pageH * z;
+  const sheetW = rowW(spread ? n : 1) * fit, pageH = h * fit;      // laid for the fitted page; a zoom is the camera's
+  const sheetH = pageH * z;
   const colLeft = vw - G - colW;
   const areaW = colLeft - G;                                // the pages' room: everything left of the column
   const mid = areaW / 2;
   const left = Math.max(G / 2, mid - sheetW / 2);
-  const top = stack || sheetH + 2 * G > vh ? G : Math.max(G, (vh - pageH) / 2);
+  const top = sheetH + 2 * G > vh ? G : Math.max(G, (vh - pageH) / 2);
   return {
-    scale, fit, zoom: z, spread, stack, perView, phone: false, wide: false, colW, areaW, mid,
+    scale, fit, zoom: z, spread, phone: false, wide: false, colW, areaW, mid,
     sheet: { left, top, width: sheetW * z, height: sheetH },
     col: { left: colLeft, top: G, width: colW, height: vh - 2 * G },
     // the camera's view: the room left of the column, and the width the page is fitted to
     view: { left: 0, top: 0, width: Math.max(1, areaW), height: vh, mid, fitW: room + 2 * G },
-    pages: { left: 0, top: 0, width: areaW, height: vh, content: stack || top + sheetH + G > vh ? top + sheetH + G : vh, contentW: Math.max(areaW, left + sheetW * z + G) },
+    pages: { left: 0, top: 0, width: areaW, height: vh, content: top + sheetH + G > vh ? top + sheetH + G : vh, contentW: Math.max(areaW, left + sheetW * z + G) },
     pageStep: (h + PAGE_GAP) * scale,
     fullHeight: z === 1 && Math.abs(fit - tall) < 1e-9,
-    canSpread: n > 1,
   };
 }
 

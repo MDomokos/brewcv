@@ -405,7 +405,7 @@ if (want('pages, Fit, the Hungarian resume')) {
 
 
 // The canvas (UX-3): pages side by side on one canvas, the wheel, the hand, the pinch, the bright page, the page-moved event.
-// Medtech has two pages. Both at once needs a wide window; narrower, one at a time.
+// Medtech has two pages. Both at once needs the row at the full height to fit left of the sidebar; otherwise the pages keep that size and the view travels sideways.
 const camOf = page => page.evaluate(() => {
   const w = window.__wb, c = w.canvas, ui = w.ui;
   const d = document.querySelector('#sheet iframe').contentDocument;
@@ -455,6 +455,18 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     const col = await rect(page, '#col');
     const p2 = await page.evaluate(() => { const f = document.querySelector('#sheet iframe'), r = f.getBoundingClientRect(), d = f.contentDocument.querySelectorAll('.document > .page')[1].getBoundingClientRect(), k = r.width / f.offsetWidth; return { left: r.left + d.left * k, right: r.left + d.right * k }; });
     ok('…and reaches in behind the sidebar', p2.right > col.left);
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+
+  // ---- the row is a little too wide: the pages keep the full height (they are not shrunk to fit), the view travels ----
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    await openByName(page, 'Medtech');
+    const c = await camOf(page);
+    ok('1920×1080: the two pages would need to shrink to share the room, so they do not: one at the full height, the other faded beside it', c.scene === 'one' && Math.abs(c.k - (1080 - 32) / 1123) < 1e-6 && c.faded[0] === false && c.faded[1] === true);
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }

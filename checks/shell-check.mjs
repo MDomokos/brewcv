@@ -58,23 +58,23 @@ for (const [vw, vh] of SIZES){
   ok('under about 1100px the page shrinks so the sidebar keeps its width', narrow.col.width === SIDE_W && !narrow.fullHeight && narrow.sheet.width < lay(1400, 1000).sheet.width && narrow.col.left + narrow.col.width <= 1100 - G + 1e-6);
   ok('very wide: the sidebar does not grow', lay(2560, 1440).col.width === SIDE_W);
 }
-section('layout: pages side by side or one at a time');
+section('layout: pages always side by side');
 {
   const n2 = (vw, vh, o = {}) => lay(vw, vh, { pages: 2, ...o });
-  const wide = n2(2560, 1440), tall = n2(1280, 800), mid = n2(1920, 1080);
-  ok('two A4 pages at 2560×1440 sit side by side (costs under 15% with the panel at its minimum)', wide.spread && wide.perView === 2 && wide.sheet.width > lay(2560, 1440).sheet.width);
-  ok('…at 1280×800 they would cost more, so they travel one at a time (stack); at 1920×1080 the room left of the sidebar is enough for both', !tall.spread && tall.stack && tall.perView === 1 && mid.spread && mid.perView === 2);
-    ok('mode "spread" forces a spread, "stack" a stack, an old "single" means "stack"', n2(1280, 800, { mode: 'spread' }).spread && n2(2560, 1440, { mode: 'stack' }).stack && n2(2560, 1440, { mode: 'single' }).stack);
-  ok('a spread group is centred like a single page: in the room left of the sidebar', Math.abs(wide.sheet.left + wide.sheet.width / 2 - wide.view.mid) < 1e-6 && wide.col.left + wide.col.width <= 2560 - G + 1e-6);
-  for (const [vw, vh, format, n] of [[1280, 800, 'a4', 2], [1536, 864, 'a4', 3], [1440, 960, 'us-letter', 2]]){
-    const L = computeLayout({ vw, vh, format, pages: n, mode: 'stack' });
-    const one = computeLayout({ vw, vh, format, pages: 1 });
+  const wide = n2(3200, 1080), tall = n2(1280, 800), mid = n2(1920, 1080);
+  ok('two A4 pages at 3200×1080 sit side by side, the room left of the sidebar wide enough for both at the full height', wide.spread && wide.sheet.width > lay(3200, 1080).sheet.width);
+  ok('…at 1920×1080 they do not fit and are not shrunk to: the view scrolls', !mid.spread && mid.fullHeight);
+  ok('…at 1280×800 the row is wider than the room: the pages stay at the full height of one page and the view scrolls sideways (no spread, no stack, no shrinking)',
+    !tall.spread && !tall.stack && Math.abs(tall.scale - lay(1280, 800).scale) < 1e-9 && tall.fullHeight && tall.pages.contentW <= tall.areaW + 1e-6);
+  ok('there is no stack heuristic or mode left', tall.canSpread === undefined && tall.perView === undefined && n2(1280, 800, { mode: 'spread' }).spread === false);
+  ok('a spread group is centred like a single page: in the room left of the sidebar', Math.abs(wide.sheet.left + wide.sheet.width / 2 - wide.view.mid) < 1e-6 && wide.col.left + wide.col.width <= 3200 - G + 1e-6);
+  ok('the page area has the width of everything left of the sidebar, so a wider row can float under it', tall.view.width === tall.areaW && tall.areaW === tall.col.left - G);
+  ok('the page does not move with the number of pages while the row does not fit', n2(1280, 800).sheet.left === lay(1280, 800).sheet.left && n2(1280, 800, { pages: 3 }).sheet.left === lay(1280, 800).sheet.left);
+  for (const [format, n] of [['a4', 2], ['us-letter', 3]]){
+    const L = computeLayout({ vw: 390, vh: 844, format, pages: n });
     const { h } = pageSize(format);
-    const tag = `stack ${vw}×${vh} ${format} ×${n}`;
-    ok(`${tag}: each page at the one-page scale (full height)`, Math.abs(L.scale - one.scale) < 1e-9 && L.fullHeight);
-    ok(`  the sheet is n pages tall plus the gaps, scaled`, Math.abs(L.sheet.height - stackHeight(format, n) * L.scale) < 1e-6 && Math.abs(stackHeight(format, n) - (n * h + (n - 1) * PAGE_GAP)) < 1e-9);
-    ok(`  the sidebar doesn't move`, Math.abs(L.col.left - one.col.left) < 1e-9 && L.col.width === one.col.width);
-    ok(`  page in view: 1 at the top, then each page as it reaches the middle`, pageInView(L, 0, n) === 0 && pageInView(L, pageTop(L, 1), n) === 1 && pageInView(L, pageTop(L, n - 1) + 9999, n) === n - 1);
+    const tag = `phone ${format} ×${n}`;
+    ok(`${tag}: the sheet is n pages tall plus the gaps, scaled`, Math.abs(L.sheet.height - stackHeight(format, n) * L.scale) < 1e-6 && Math.abs(stackHeight(format, n) - (n * h + (n - 1) * PAGE_GAP)) < 1e-9);
   }
 }
 {
