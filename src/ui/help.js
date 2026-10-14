@@ -18,7 +18,7 @@ const K = (...keys) => keys.map(k => `<kbd>${isMac() ? (MAC[k] ?? k) : k}</kbd>`
 // [keys, i18n key]
 const groups = () => [
   ['ux2.helpPage', [[K('↑', '↓'), 'ux2.k.walk'], [K('←', '→'), 'ux2.k.versions'], [K('Enter'), 'ux2.k.edit'], [K('Ctrl', 'Enter'), 'ux2.k.saveEdit'], [K('Esc'), 'ux2.k.esc']]],
-  ['ux2.helpPanel', [[K('E'), 'ux2.k.panel'], [K('R'), 'ux3b.k.record'], [K('Alt', '↑') + ' ' + K('Alt', '↓'), 'ux2.k.moveSection'], [K('Ctrl', 'O'), 'ux2.k.switcher'], [K('?'), 'ux2.k.help']]],
+  ['ux2.helpPanel', [[K('R'), 'ux3b.k.record'], [K('Alt', '↑') + ' ' + K('Alt', '↓'), 'ux2.k.moveSection'], [K('Ctrl', 'O'), 'ux2.k.switcher'], [K('?'), 'ux2.k.help']]],
   ['ux2.helpView', [[K('-') + ' ' + K('='), 'ux2.k.zoom'], [K('0'), 'ux2.k.fit'], [K('F'), 'ux2.k.full'], [K('Shift', 'F'), 'm11.k.drink']]],
   ['ux2.helpFile', [[K('Ctrl', 'Z') + ' ' + K('Ctrl', 'Shift', 'Z'), 'ux2.k.undo'], [K('Ctrl', 'S'), 'ux2.k.save']]],
 ];

@@ -4,14 +4,14 @@
 //   - A line is written where it is printed: the element on the page becomes editable, holding the plain text of the version
 //     (src/ui/plain.js reads it back, so the text is exactly what the old text box held). Everything else is the editor's own
 //     (src/ui/edit.js): the draft, the live preview, the three ways of keeping it.
-//   - The tools sit beside the line, in the page's right margin: the version badge (only while Edit is not showing), the three icons, the counts.
+//   - The tools sit beside a line being written, in the page's right margin: the version number, the three icons, the counts.
 // All of it is drawn in the app's layer (#editlay), over the page; the page's own markup and its measurements are never touched,
 // and nothing here is in an export. The camera (src/ui/canvas.js) eases to the writing zoom and back.
 
 import { plainOf, caretOf, setCaret } from './plain.js';
-import { toolsHtml, badgeListHtml, statsCompactHtml, esc } from './parts.js';
+import { toolsHtml, statsCompactHtml, esc } from './parts.js';
 import { readZoomWrite, readZoomWriteOn, readDimJob, readDimLine } from './dock.js';
-import { step, versionsOf } from './select.js';
+import { step } from './select.js';
 import * as T from '../model/resume.js';
 import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
@@ -25,7 +25,6 @@ export function initOnPage(C){
   const edit = () => C.edit();
   let lay = null, geom = null, sig = '';
   let S = null;                    // the line being written: { fact, el, caret }
-  let hover = null, hoverT = 0, popOpen = false;
   let moving = false;              // from one line to the next: the view stays where it is
   let zoomed = false;              // the camera has been eased to the writing zoom
   const phone = () => innerWidth < PHONE_MAX;
@@ -66,7 +65,7 @@ export function initOnPage(C){
   // ---- drawing the layers ----
   function signature(lvl){
     const ed = edit().editing, tg = geom?.tg;
-    return JSON.stringify([lvl, tg?.fact, tg?.jobId, hover, popOpen, !!ed, ed?.mode, ed ? edit().isDirty() : null, ed ? lineEnds(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), !!C.editShown?.()]);
+    return JSON.stringify([lvl, tg?.fact, tg?.jobId, !!ed, ed?.mode, ed ? edit().isDirty() : null, ed ? lineEnds(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang()]);
   }
   function render(force = false){
     lay ??= $('#editlay');
@@ -78,7 +77,7 @@ export function initOnPage(C){
     if (!geom.boxes.length || (!geom.job && !geom.line)){ if (lay.firstChild) lay.replaceChildren(); sig = ''; return; }
     const sg = signature(lvl);
     if (!force && sg === sig && lay.firstChild){ place(); return; }
-    // a preview under the pointer (a version hovered in the badge) is a redraw: the layers stay as they are
+    // a preview under the pointer (a version hovered in the sidebar) is a redraw: the layers stay as they are
     if (ui.previewing && lay.firstChild && !force){ place(); return; }
     sig = sg;
     const keep = document.activeElement?.closest?.('#editlay') ? document.activeElement.dataset?.act : null;
@@ -95,24 +94,20 @@ export function initOnPage(C){
     if (keep) lay.querySelector(`[data-act="${keep}"]`)?.focus({ preventScroll: true });
   }
 
-  // the line the badge is for: the one written, else the one under the pointer, else the one selected
-  const badgeFact = lvl => (lvl === 'line' ? S?.fact : hover ?? geom?.tg?.fact) ?? null;
   function lineEnds(fact){
     const w = T.jobOfFact(C.record(), fact), ids = w ? T.listedBullets(C.record(), C.cur(), w.id) : [];
     return { first: ids[0] === fact, last: ids.at(-1) === fact };
   }
+  // the tools are for the line being written; the sidebar shows the versions
   function toolsFor(lvl){
-    if (lvl === 'lineSel') return '';
-    const fact = badgeFact(lvl);
+    const fact = lvl === 'line' ? S?.fact : null;
     if (!fact) return '';
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
-    if (!ed && C.editShown?.()) return '';          // Edit shows the line's versions: the badge is for when it does not
+    if (!ed) return '';
     const using = C.chooseVariant(C.work(), fact, C.cur()).v;
-    const over = C.cur().overrides?.[fact];
-    const vn = over !== undefined && !ed ? t('edit.only') : (ed?.mode === 'only' ? t('edit.only') : using?.n ?? '·');
+    const vn = ed.mode === 'only' ? t('edit.only') : using?.n ?? '·';
     const canOnly = !!(T.jobOfFact(C.record(), fact) || fact === C.cur().summary);
-    const html = toolsHtml({ vn, ed, dirty: !!ed && edit().isDirty(), canOnly, canMove: !!ed && !!T.jobOfFact(C.record(), fact), ends: lineEnds(fact), open: popOpen, counts: ed ? statsCompactHtml(ed) : '' });
-    return html + (popOpen ? badgeListHtml({ fact, versions: versionsOf(C.ix(), fact, C.lang()), usingId: using?.id }) : '');
+    return toolsHtml({ vn, ed, dirty: edit().isDirty(), canOnly, canMove: !!T.jobOfFact(C.record(), fact), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
   }
 
   // where everything is on the screen: follows the camera
@@ -136,7 +131,7 @@ export function initOnPage(C){
     box(lay.querySelector('.obframe.line'), R(pad(geom.line, PAD_LINE)));
     // the tools sit beside the line, in the page's right margin
     const tw = lay.querySelector('.obtoolswrap');
-    const fact = badgeFact(lvl);
+    const fact = lvl === 'line' ? S?.fact : null;
     const lr = fact ? (fact === geom.tg?.fact || (S && fact === S.fact) ? geom.line : rectOfFact(fact, edit().editing?.ix ?? C.ix())) : null;
     if (tw && lr){
       const pg = geom.boxes.find(b => lr.left >= b.left - 1 && lr.left < b.left + b.width) ?? geom.boxes[0];
@@ -234,7 +229,6 @@ export function initOnPage(C){
     if (!el) return false;
     ui.writing = true;
     S = { fact: ed.fact, el: null, caret: null, composing: false };
-    popOpen = false; hover = null;
     attach(el);
     if (readZoomWriteOn()){
       const r = sheet.rectOfEl(el);
@@ -260,7 +254,7 @@ export function initOnPage(C){
   function end(){
     if (!S && !ui.writing) return;
     release();
-    S = null; ui.writing = false; popOpen = false;
+    S = null; ui.writing = false;
     if (!moving) say(t('ux3.announceOff'));
     if (!moving){
       if (zoomed){ zoomed = false; canvas.reset(); }
@@ -297,33 +291,19 @@ export function initOnPage(C){
     render();
   }
 
-  // ---- the badge ----
-  function onHover(variant){
-    clearTimeout(hoverT);
-    const lvl = level();
-    if (lvl !== 'job' || ui.writing) return;
-    const ix = C.ix();
-    const fact = variant ? (ix.factOfVariant.get(variant) ?? (variant.endsWith('-override') ? variant.slice(0, -9) : null)) : null;
-    if (fact && ix.facts.has(fact) && !ix.header.has(fact)){ if (fact !== hover){ hover = fact; render(); } return; }
-    // the pointer left the line: the badge stays a moment, so the pointer can reach it
-    hoverT = setTimeout(() => { if (!popOpen && !lay?.matches(':hover') && !lay?.querySelector(':hover')){ hover = null; render(); } }, 450);
-  }
+  // ---- the tools ----
   async function act(a){
     switch (a){
-      case 'ob-badge': popOpen = !popOpen; render(true); return true;
       case 'ob-up': case 'ob-down': { const e = lineEnds(edit().editing?.fact); if (!(a === 'ob-up' ? e.first : e.last)) edit().stepLine(a === 'ob-up' ? -1 : 1); return true; }
     }
     return false;
   }
-  document.addEventListener('mousedown', e => { if (popOpen && !e.target.closest?.('#editlay')){ popOpen = false; render(true); } });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && popOpen){ popOpen = false; render(true); e.stopPropagation(); } }, true);
 
   // run something that leaves one line and writes another, with the view staying where it is (no zoom out and in again)
   function keepView(fn){ moving = true; try { return fn(); } finally { moving = false; } }
   return {
-    begin, end, setText, refresh, afterDraw, render, place, onHover, act, keepView,
+    begin, end, setText, refresh, afterDraw, render, place, act, keepView,
     get writing(){ return !!ui.writing; },
-    closePop(){ if (!popOpen) return false; popOpen = false; render(true); return true; },
     el: () => S?.el ?? null,
     level,
   };

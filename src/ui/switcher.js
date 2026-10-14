@@ -1,6 +1,6 @@
-// The resume switcher: the resume's name in the header opens it. Search, + New resume, the last few opened, then
+// The resume switcher, the menu under the resume's name in the sidebar's head: Duplicate, Record, search, + New resume, the last few opened, then
 // every resume by job type, with the snapshots folded under the row they belong to. "Manage all…" grows the same
-// menu to about 560px: the search stays and three views show the whole list, by Job type, by Date (every send,
+// menu to the whole window (until the resume list is redesigned): the search stays and three views show the whole list, by Job type, by Date (every send,
 // newest first) or by Company, with the tick boxes for Compare. It lives outside #head, which is redrawn on every
 // save, so the search box keeps its caret.
 
@@ -80,7 +80,8 @@ function html(){
   if (!S.grown){
     const groups = RS.grouped(st().record, list);
     const recent = q ? [] : recentIds().map(id => all.find(r => r.id === id)).filter(Boolean).slice(0, RECENT_N);
-    return `${search}
+    return `<div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.dup')}</button><button class="sm" data-act="sw-record">${h('ux3b.modeRecord')}</button></div>
+    ${search}
     <button class="swnew" data-act="sw-new">${h('ux1.newResume')}</button>
     <div id="sw-list" class="swlist" role="group" aria-label="${esc(t('ux1.switcherTitle'))}">
       ${recent.length ? `<span class="lbl">${h('ux1.recent')}</span>${recent.map(r => rowHtml(r, 'recent')).join('')}` : ''}
@@ -125,10 +126,10 @@ function render({ keepFocus = true } = {}){
 }
 
 function open({ grown = false } = {}){
-  if (S.open){ if (grown && !S.grown){ S.grown = true; S.view = savedView(); render({ keepFocus: false }); el.querySelector('#sw-q')?.focus(); } return; }
+  if (S.open){ if (grown && !S.grown){ S.grown = true; S.view = savedView(); C.relayout(); render({ keepFocus: false }); el.querySelector('#sw-q')?.focus(); } return; }
   C.closeMenus();
-  C.ensurePanel?.();
   S.open = true; S.q = ''; S.grown = grown; S.view = savedView();
+  C.relayout();
   render({ keepFocus: false });
   el.querySelector('#sw-q')?.focus();
   // the open resume, in view
@@ -137,6 +138,7 @@ function open({ grown = false } = {}){
 function close({ focusBack = false } = {}){
   if (!S.open) return;
   S.open = false; S.q = ''; S.grown = false;
+  C.relayout();
   render();
   C.resumes.reset();
   C.endPreview();
@@ -146,7 +148,7 @@ const toggle = () => (S.open ? close({ focusBack: true }) : open());
 // Ctrl+O: open it, or if it is open already, back to the search box
 const openOrFocus = () => { if (S.open) el.querySelector('#sw-q')?.focus(); else open(); };
 
-function navItems(){ return [...el.querySelectorAll('#sw-q, .swnew, [role=tab][aria-selected=true], .pick, .sopt, .smore, .snapline, .swfoot button:not(:disabled)')].filter(x => !x.closest('.rowmenu')); }
+function navItems(){ return [...el.querySelectorAll('.swacts button:not(:disabled), #sw-q, .swnew, [role=tab][aria-selected=true], .pick, .sopt, .smore, .snapline, .swfoot button:not(:disabled)')].filter(x => !x.closest('.rowmenu')); }
 
 async function act(a, tg){
   switch (a){
@@ -154,7 +156,8 @@ async function act(a, tg){
     case 'sw-open': if (C.resumes.open(tg.dataset.id)) close(); return true;
     case 'sw-snap': C.resumes.openSnapshot(tg.dataset.id, tg.dataset.sid); close(); return true;
     case 'sw-new': close(); C.setView('new'); return true;
-    case 'sw-manage': open({ grown: true }); if (!S.grown){ S.grown = true; S.view = savedView(); render({ keepFocus: false }); } el.querySelector('#sw-q')?.focus(); return true;
+    case 'sw-record': close(); C.setView('record'); return true;
+    case 'sw-manage': open({ grown: true }); if (!S.grown){ S.grown = true; S.view = savedView(); C.relayout(); render({ keepFocus: false }); } el.querySelector('#sw-q')?.focus(); return true;
     case 'sw-close': close({ focusBack: true }); return true;
     case 'sw-view': S.view = tg.dataset.v; saveView(S.view); render({ keepFocus: false }); el.querySelector('[role=tab][aria-selected=true]')?.focus(); return true;
     case 'sw-compare': if (picked().length === 2){ close(); C.setView('compare'); } return true;

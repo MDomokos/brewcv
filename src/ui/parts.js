@@ -177,11 +177,11 @@ export const addClaimHtml = ({ id, key, draft = '' }) =>
 const iconButton = (act, ic, name, tip, attrs = '') =>
   `<button class="ib" data-act="${act}" ${attrs} data-tip="${esc(name)}|${esc(tip)}" data-tip-pos="l" aria-label="${esc(name)}">${icon(ic)}</button>`;
 
-// The column beside the line: the version badge, and while writing the three ways to keep what you wrote, with the counts.
-// ed: the draft being written (or null); vn: the number of the version in use; dirty: the draft differs from it.
-export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, canMove = false, ends = {}, open = false, counts = '' }){
-  const badge = `<button class="obv" data-act="ob-badge" aria-haspopup="listbox" aria-expanded="${open}" data-tip="${esc(t('ux3.badge'))}|${esc(t('ux3.badgeTip'))}" data-tip-pos="l" aria-label="${esc(t('ux3.badgeName', { v: vn }))}">v${esc(vn)} ${icon('caret', { size: 12 })}</button>`;
-  if (!ed) return `<div class="obtools" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}</div>`;
+// The column beside the line being written: the number of the version in use, the three ways to keep what you wrote, the counts.
+// ed: the draft being written; vn: the number of the version in use; dirty: the draft differs from it. (The sidebar lists the
+// other versions.)
+export function toolsHtml({ vn, ed, dirty = false, canOnly = false, canMove = false, ends = {}, counts = '' }){
+  const badge = `<span class="obv">v${esc(vn)}</span>`;
   const dis = dirty ? '' : 'disabled';
   const isNew = ed.mode === 'new', isOnly = ed.mode === 'only';
   const act1 = isNew ? iconButton('ed-new', 'update', t('edit.saveAsV'), t('ux3.saveNewTip'), dis)
@@ -193,13 +193,6 @@ export function toolsHtml({ vn, ed = null, dirty = false, canOnly = false, canMo
   const tip = (k, arrow) => t(k, { keys: keyText('Alt', arrow) });
   const mv = !canMove ? '' : iconButton('ob-up', 'up', t('ux5b.lineUp'), tip('ux5b.lineUpTip', '↑'), `aria-disabled="${!!ends.first}"`) + iconButton('ob-down', 'caret', t('ux5b.lineDown'), tip('ux5b.lineDownTip', '↓'), `aria-disabled="${!!ends.last}"`);
   return `<div class="obtools writing" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}${act1}${act2}${act3}${mv}<div class="obstats" id="ob-stats">${counts}</div></div>`;
-}
-
-// The other versions, under the badge. Rows are the inspector's (.vrow inside .vlist), so hovering one shows it on the page
-// and clicking uses it, by the same handlers.
-export function badgeListHtml({ fact, versions, usingId }){
-  return `<div class="obpop vlist" data-fact="${esc(fact)}" role="listbox" aria-label="${esc(t('ux3.badge'))}">${versions.map(v =>
-    `<div class="vrow ${v.id === usingId ? 'cur' : ''}" role="option" aria-selected="${v.id === usingId}" ${v.id === usingId ? '' : 'data-act="use-version" tabindex="0"'} data-v="${esc(v.id)}"><span class="n">v${esc(v.n)}</span><span class="tx">${esc(clip(v.text, 120))}</span></div>`).join('')}</div>`;
 }
 
 // The counts under the tools: short, because the column is narrow. Characters, lines on the page, and how many more or fewer.

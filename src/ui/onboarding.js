@@ -195,7 +195,6 @@ async function act(a, tg){
         C.store.reset(st, 'example');
       }
       await loadCatalogue(L);
-      C.ui.folded = false;            // the intro parts become the editor's controls: the panel opens, with the Outline in it
       C.ui.exampleChip = true;         // "This is the example…" is a chip at the top of the panel, not a toast over the page
       C.setView(null); return true;
     }
@@ -220,7 +219,6 @@ async function act(a, tg){
       if (r && who && r.name === t('resumes.newNameless')) C.store.commit(d => { RS.renameSaved(d, d.openId, t('resumes.newName', { name: who })); }, t('ux1.undoRename'));
       O.step = 'welcome';
       O.tip = 0;
-      C.ui.folded = false;            // the editor opens with its panel, and the Outline in it
       C.setView(null);       // the header, the tabs and the zoom bar come in around the page (src/ui/arrive.js, from shell.js)
       return true;
     }

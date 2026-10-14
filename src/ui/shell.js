@@ -14,7 +14,7 @@ import { computeLayout, pageSize, pageInView, pageTop, G } from './layout.js';
 import { initCanvas, PAGES_MOVED } from './canvas.js';
 import { initOnPage } from './onpage.js';
 import { pageLeft } from './camera.js';
-import { initDock, storeZoomWrite } from './dock.js';
+import { initDock, storeZoomWrite, ib } from './dock.js';
 import { initChecklist } from './checklist.js';
 import { initRecord } from './record.js';
 import { initHelp } from './help.js';
@@ -70,9 +70,9 @@ const ui = {
   fitting: false, lastFit: null, work: null, workKey: null, ix: null, probed: new Set(), snap: null,
 };
 const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: on => dock?.sheetOver(on), moved: () => { placeOverflow(); onpage?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
-const onpage = initOnPage({ ui, sheet, canvas, editShown: () => dock.modeOf() === 'edit' && !dock.folded(), edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
+const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
   ix: () => ui.ix ?? indexModel(work()), fillText: () => fillText(), select: sel => select(sel),
-  writeStarted: () => dock.sync(true), writeEnded: () => dock.sync(true), redrawSoon: () => schedule() });
+  writeStarted: () => dock.sync(), writeEnded: () => dock.sync(), redrawSoon: () => schedule() });
 window.__wb = { store, persist, sheet, ui, canvas, onpage, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
 
 // The tea garden runs in tea, with its setting on, with motion allowed, off a phone and off the start screen; otherwise it rests.
@@ -201,7 +201,6 @@ function shown(){
 function setSnap(id){
   const had = !!ui.snap;
   ui.snap = id ? { id } : null;
-  if (id) dock.unfold();          // a snapshot is read in the panel
   shownKey = null;
   if (id || had){ ui.sel = NONE; sheet.select(NONE, ui.ix); if (ui.previewing) endPreview(); schedule(); }
 }
@@ -288,23 +287,24 @@ async function redraw(){
   }
 }
 
+// Record and the grown resume list fill the window (until their own redesign); everything else is the sidebar
+const fullWindow = () => ui.view === 'record' || (switcher.isOpen && switcher.grown);
+// the layout changes only when the sidebar becomes the whole window or stops being it
+// (on a phone Record is the whole screen, as it was)
+const syncFull = () => { if ($('#col').classList.contains('is-full') !== (ui.layout?.phone ? ui.view === 'record' : fullWindow())) relayout(); };
 function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'auto', folded: dock.folded(), zoom: 1, wide: ui.view === 'record', two: dock.twoNow(), slim: ui.view === 'welcome' });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, mode: 'auto', zoom: 1, wide: ui.view === 'record', slim: ui.view === 'welcome' });
+  const full = !L.phone && fullWindow();
+  if (full) L.col = { left: G, top: G, width: innerWidth - 2 * G, height: innerHeight - 2 * G };
   const host = $('#sheet'), box = $('#pages');
-  const col = $('#col'), tabs = $('#tabs');
-  for (const [el, r] of [[col, L.col], [tabs, L.tabs]]) Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
-  col.style.setProperty('--col-out', `${innerWidth - L.col.left + 40}px`);       // folded, the panel slides this far to the right
-  col.classList.toggle('is-folded', L.folded);
-  col.classList.toggle('is-two', L.two);
-  tabs.hidden = L.phone;
-  tabs.classList.toggle('is-folded', L.folded);
-  for (const id of ['head', 'body']){ const el = $(`#${id}`); el.inert = L.folded; }
+  const col = $('#col');
+  Object.assign(col.style, { left: `${L.col.left}px`, top: `${L.col.top}px`, width: `${L.col.width}px`, height: `${L.col.height}px` });
+  col.classList.toggle('is-full', L.phone ? ui.view === 'record' : full);
   ui.layout = L;
   document.body.dataset.phone = String(!!L.phone);
-  document.body.dataset.folded = String(!!L.folded);
   syncGarden();
   if (L.phone){
     // on a phone the pages scroll above the bottom sheet
@@ -323,7 +323,7 @@ function relayout(){
     ui.zoom = 1; ui.equal = false;
     sheet.setFade([]);
   } else {
-    // the pages are a canvas under the whole window; the panel and the tabs sit on it. The camera places the sheet.
+    // the pages are a canvas under the whole window; the sidebar sits on it. The camera places the sheet.
     document.body.style.minHeight = '';
     Object.assign(box.style, { left: '0px', top: '0px', width: `${innerWidth}px`, height: `${innerHeight}px` });
     box.firstElementChild.style.height = '0px';
@@ -383,7 +383,7 @@ function pick({ variant, section, page = -1 }){
   const writes = (open || wasWriting) && !ui.layout?.phone && (wasWriting || !edit.editing);
   if (wasWriting) onpage.keepView(() => { select(next); if (ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit(); });
   else {
-    select(next, { pane: 'edit' });
+    select(next);
     if (writes && ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit();
   }
   if (other) canvas.goToPage(page);
@@ -406,23 +406,22 @@ function writeLine({ variant, page = -1 }){
 // a click on the bare canvas (not on a page) puts you at the page level
 function bareClick(){ if (ui.view || ui.snap) return; if (ui.sel.kind !== 'none') select(NONE); }
 // `keepScroll`: the click was on a row of the job's own lines, where the person is already looking, so the panel stays where it is.
-// `pane`: the sheet the selection shows in (a click on the page opens Edit, a click in the Outline keeps the Outline); the tab stays when none is said.
-function select(sel, { keepScroll = false, pane = null } = {}){
+function select(sel, { keepScroll = false } = {}){
   if (!edit.leaving(sel)) return;
   // a selection made from Record, Design or Export (a row, a form to add something) is looked at in Edit
-  if (!pane && ui.view && ui.view !== 'welcome' && sel.kind !== 'none') pane = 'edit';
-  if (ui.view && ui.view !== 'welcome' && sel.kind !== 'none'){ ui.view = null; }
-  if (pane) ui.pane = pane;
+  const left = ui.view && ui.view !== 'welcome' && sel.kind !== 'none';
+  if (left) ui.view = null;
   ui.sel = sel;
   if (ui.previewing){ ui.previewing = false; sheet.endPreview(); }
   sheet.select(sel, ui.ix);
   const was = ui.view;
   const at = ui.layout?.phone ? -1 : pageOfSel(sel);
   if (at >= 0 && at !== ui.page){ ui.page = at; canvas.goToPage(at); }       // a line on another page, chosen from the panel: that page comes forward
+  if (left) syncFull();         // Record fills the window; Edit does not
   dock.sync();
   renderHead();
-  // The panel opens at its top (the line's versions are what you came for). Only a click on a row of the Outline or the Record,
-  // which keeps the panel where it is, leaves it alone; leaving a view is a new panel.
+  // The sidebar opens at its top (the line's versions are what you came for). Only a click on a row of the Outline or the Record,
+  // which keeps it where it is, leaves it alone; leaving a view is a new sheet.
   renderBody(!keepScroll || !!was);
   renderChip();
 }
@@ -454,24 +453,14 @@ const isExample = () => /\(fictional\)/.test(record()?.meta?.owner ?? '');
 
 // Views that replace the body card until ← Back or Esc; null is the Edit view.
 const VIEWS = {};
-// Outline or Edit: the resume's two sheets (the others are views)
-function setPane(p){
-  ui.pane = p;
-  if (ui.view){ setView(null); return; }
-  if (ui.previewing) endPreview();
-  dock.sync();
-  renderHead();
-  renderBody(true);
-  renderChip();
-}
 function setView(v){
   if (v && !VIEWS[v]) return;
-  if (v === 'record' && ui.view !== 'record') ui.recordFrom = ui.view ?? ui.pane;      // Esc goes back to where it was opened from
+  if (v === 'record' && ui.view !== 'record') ui.recordFrom = ui.view ?? 'edit';      // Esc goes back to where it was opened from
   ui.view = v;
-  if (v) dock.unfold();
   syncIntro();                 // the start screen's areas are the editor's again before they are drawn
   if (ui.previewing) endPreview();
   resumes.reset();
+  syncFull();                  // Record fills the window; the others are the sidebar
   dock.sync();
   renderHead();
   renderBody(true);
@@ -484,7 +473,6 @@ function renderHead(){
   const ae = document.activeElement, kept = ae && ae.closest?.('#head') ? focusKey(ae) : null;
   drawHead();
   if (kept){ const n = $(`#head ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
-  dock.renderTabs();       // the tabs, and the menu that opens from their foot card
 }
 function drawHead(){
   // on the start screen the header area is the logo, the name and the tagline
@@ -504,26 +492,32 @@ function drawHead(){
     ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}`;
   const savebtn = `<button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>`;
   const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" title="${esc(saveText)}">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
+  const mode = dock.modeOf();
+  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
-    // the header row: the logo (the drink switch), the resume's name with what it is, the fill and Fit, then Saved and Save to file
+    // the sidebar's head: the logo (the drink switch), the resume's name with what it is, Saved and Save to file, undo and redo, the
+    // menu; under them the segmented control (Edit, Design, Export)
     const type = r ? jobTypeLabel(store.state.record, r.jobType) : '', paper = r ? (r.format === 'us-letter' ? t('paper.letter') : t('paper.a4')) : '';
     const pages = r ? (r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null) : null;
+    const hs = store.history;
     $('#head').innerHTML = `
     <div class="hrow top">
       ${logoBtn(28)}
       <div class="docblock"><button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { size: 12 })}</span></span></button>
         <div class="dline">${type ? `<span class="dt">${esc(type)}</span>` : ''}${r ? langButton(r) : ''}<span class="dt">${esc([paper, pages].filter(Boolean).join(' · '))}</span></div></div>
-      ${dock.fillHtml()}
       ${savedState}
       ${savebtn}
+      ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled')}
+      ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled')}
+      <button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>
     </div>
+    <div class="hrow segrow"><div class="seg" role="tablist" aria-label="${esc(t('ux2.modes'))}">${tab('edit', 'ux2.modeEdit')}${tab('design', 'ux2.modeDesign')}${tab('export', 'ux2.modeExport')}</div></div>
     ${sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
-    ${notices}`;
+    ${notices}
+    ${ui.menu ? menuHtml() : ''}`;
   } else {
-  const mode = dock.modeOf();
   const meta = r ? [jobTypeLabel(store.state.record, r.jobType), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
-  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (!mode && m === 'edit') ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   $('#head').innerHTML = `
     <div class="hrow top">
       ${logoBtn(28)}
@@ -655,8 +649,7 @@ function renderBody(animate = false){
   const el = $('#body');
   if (!record() || !cur()){ el.innerHTML = `<p class="muted">${h('body.loading')}</p>`; return; }
   const s = ui.sel;
-  delete el.dataset.pane;          // only the resume's own sheets (Outline, Edit) say so, below
-  const keep = el.scrollTop, keepPanes = new Map([...el.querySelectorAll('.pane')].map(p => [p.dataset.pane, p.scrollTop]));
+  const keep = el.scrollTop;
   // a record form with something typed in it is not redrawn under the caret; one you have left or not changed is, and the focus stays where it was
   const ae = document.activeElement;
   const typing = !animate && el.contains(ae) && ae.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea') && !!ae.closest('[data-form]');
@@ -677,7 +670,6 @@ function renderBody(animate = false){
   if (ui.snap && !ui.view && !snapNow()) ui.snap = null;
   const finish = () => {
     if (animate){ el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in'); el.scrollTop = 0; } else el.scrollTop = keep;
-    for (const p of el.querySelectorAll('.pane')) p.scrollTop = animate && p.dataset.pane === 'edit' ? 0 : keepPanes.get(p.dataset.pane) ?? 0;
     if (had){ const n = document.getElementById(had.id); if (n && n !== document.activeElement){ n.focus(); try { n.setSelectionRange(had.start, had.end); } catch { /* not a text box */ } } }
     else if (at0 >= 0){
       const now = [...el.querySelectorAll(FOCUSABLE)];
@@ -701,19 +693,14 @@ function renderBody(animate = false){
     if (ui.view === 'record') recordTab.afterRender();
     return;
   }
-  // Outline and Edit are the resume's two sheets: one tab each, or side by side when the room allows
-  const two = !!ui.layout?.two;
-  const pane = two ? 'both' : ui.pane === 'edit' || ui.layout?.phone ? 'edit' : 'outline';
-  const sheetOf = p => {
-    if (p === 'outline') return edit.outlineView();
-    const main = s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s, { details: false }) : s.kind === 'section' ? edit.sectionView(s)
-      : ['header', 'record', 'add', 'kind'].includes(s.kind) ? career.panel(s) : edit.noneView();
-    return (help.hintDue && s.kind === 'none' ? `<p class="tiny muted kbdhint">${h('ux5a.helpHint')}</p>` : '') + main + jobTail(s) + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
-  };
-  el.dataset.mode = pane === 'outline' ? 'outline' : 'edit';
-  el.dataset.pane = pane;
-  el.innerHTML = pane === 'both' ? `<div class="pane" data-tea="outline" data-pane="outline">${sheetOf('outline')}</div><div class="pane" data-tea="edit" data-pane="edit">${sheetOf('edit')}</div>` : sheetOf(pane);
-  el.dataset.view = pane === 'outline' ? 'outline' : s.kind;
+  // Edit is whatever is selected: nothing selected is the Outline, a job is its lines, a line its versions (a phone has no Outline: its
+  // Edit says how to pick a line)
+  const outline = s.kind === 'none' && !ui.layout?.phone;
+  const main = outline ? edit.outlineView() : s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s, { details: false }) + checklist.outlineHtml(s.id) : s.kind === 'section' ? edit.sectionView(s)
+    : ['header', 'record', 'add', 'kind'].includes(s.kind) ? career.panel(s) : edit.noneView();
+  el.innerHTML = (help.hintDue && s.kind === 'none' ? `<p class="tiny muted kbdhint">${h('ux5a.helpHint')}</p>` : '') + main + jobTail(s) + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
+  el.dataset.mode = outline ? 'outline' : 'edit';
+  el.dataset.view = outline ? 'outline' : s.kind;
   el.dataset.editing = edit.editing ? edit.editing.mode : '';
   finish();
   edit.afterRender();
@@ -812,7 +799,7 @@ async function onClick(e){
       select({ kind: 'record', what: d.what, ...(d.group ? { group: d.group } : {}), ...(d.key ? { key: d.key } : {}), id });
       break;
     }
-    case 'help': help.toggle(); break;
+    case 'help': if (ui.menu){ ui.menu = false; renderHead(); } help.toggle(); break;
     case 'deselect': select(NONE); break;
     case 'select-section': select({ kind: 'section', id }); sheet.flash(id); break;
     case 'select-job': select({ kind: 'job', id }); break;
@@ -832,7 +819,7 @@ async function onClick(e){
     case 'undo': store.undo(); break;
     case 'redo': store.redo(); break;
     case 'fit': runFit(); break;
-    case 'actual': dock.closePop(); openActual(); break;
+    case 'actual': openActual(); break;
     case 'fullscreen': toggleFullscreen(); break;
     case 'open': ui.menu = false; pickFile(); break;
     case 'link': ui.menu = false; linkFolder(); break;
@@ -912,7 +899,7 @@ async function previewRecipe(r, fact = null, w = work()){
 
 function useVersion(factId, vid){
   ui.previewing = false; ui.hoverV = null;
-  if (edit.editing?.fact === factId && !edit.editing.panel){ onpage.closePop(); edit.pickWhileWriting(vid); return; }
+  if (edit.editing?.fact === factId && !edit.editing.panel){ edit.pickWhileWriting(vid); return; }
   const v = ui.ix.variants.get(vid);
   store.commit(d => {
     d.cur.picks = { ...(d.cur.picks ?? {}), [factId]: vid };
@@ -947,15 +934,13 @@ async function runFit(){
   }
 }
 
-// The chip sits by Fit's place and never over the page: under the panel's header (below the toast), or in the gutter beside the folded
-// tabs; on a phone it stays above the sheet.
+// The chip sits by Fit's place and never over the page: in the sidebar, just above its foot where Fit is; on a phone it stays above the sheet.
 function placeChip(el){
   const L = ui.layout;
   for (const k of ['left', 'right', 'top', 'maxWidth']) el.style[k] = '';
   if (!L || L.phone) return;
-  if (L.folded){ Object.assign(el.style, { right: `${innerWidth - L.tabs.left + G}px`, top: `${G + 56}px` }); return; }
-  const hd = $('#head').getBoundingClientRect();
-  Object.assign(el.style, { left: `${Math.round(L.col.left + 8)}px`, top: `${Math.round(hd.bottom + 8 + 48)}px` });
+  const ft = $('#foot').getBoundingClientRect();
+  Object.assign(el.style, { left: `${Math.round(L.col.left + 8)}px`, top: `${Math.round(ft.top - el.offsetHeight - 8)}px` });
 }
 // After Fit: what it did, in a chip that stays a few seconds, with Undo. Fit only chose among wordings that were already there.
 let chipEl = null, chipT = 0, chipAt = -1;
@@ -1004,13 +989,12 @@ function key(e){
   if (ui.snap && e.key !== 'Escape') return;           // a snapshot is read-only
   if (e.key === 'Escape'){
     if (help.isOpen){ help.close(); return; }
-    if (dock.closePop()) return;
     if (switcher.isOpen){ switcher.close({ focusBack: true }); return; }
     if (ui.menu){ ui.menu = false; renderHead(); return; }
     if (ui.langMenu){ ui.langMenu = null; renderHead(); $('#langbtn')?.focus(); return; }
     if (closeBodyMenus()) return;
     if (edit.key(e)) return;
-    if (ui.view === 'record'){ dock.setMode(recordTab.backTo() ?? 'outline'); return; }
+    if (ui.view === 'record'){ dock.setMode(recordTab.backTo() ?? 'edit'); return; }
     if (ui.view){ setView(null); return; }
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
@@ -1027,7 +1011,7 @@ function key(e){
   if (e.key.toLowerCase() === 'f' && !e.shiftKey && !mod){ e.preventDefault(); toggleFullscreen(); return; }
   if (dock.onKey(e)) return;
   // the arrows walk the page; inside the panel, the timeline or a menu they belong to what has the focus
-  if (e.target.closest?.('#col, #tabs, #timeline, #help, #switcher')) return;
+  if (e.target.closest?.('#col, #timeline, #help, #switcher')) return;
   // between the pages: Page Up and Page Down, and the side arrows when nothing is selected
   if (!mod && !e.altKey && !ui.layout?.phone && (e.key === 'PageDown' || e.key === 'PageUp' || (ui.sel.kind === 'none' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')))){
     e.preventDefault(); canvas.travel(e.key === 'PageDown' || e.key === 'ArrowRight' ? 1 : -1); return;
@@ -1159,18 +1143,13 @@ async function reconnect(){
   await adoptFolder(f, false);
 }
 
-// A toast never covers the page. With the panel open it hangs under the panel's header, over the panel's own body; with the panel
-// folded it hangs in the gutter beside the tabs. (On a phone the page fills the width: it stays at the top.)
+// A toast never covers the page. It hangs under the sidebar's header, over the sidebar's own body. (On a phone the page fills the
+// width: it stays at the top.)
 function placeToast(el){
   const L = ui.layout;
-  el.classList.remove('docked', 'railed');
+  el.classList.remove('docked');
   for (const k of ['left', 'right', 'top', 'width', 'maxWidth']) el.style[k] = '';
   if (!L || L.phone) return;
-  if (L.folded){
-    el.classList.add('railed');
-    Object.assign(el.style, { right: `${innerWidth - L.tabs.left + G}px`, top: `${G}px` });
-    return;
-  }
   const c = $('#col').getBoundingClientRect(), hd = $('#head').getBoundingClientRect();
   el.classList.add('docked');
   Object.assign(el.style, { left: `${Math.round(c.left + 8)}px`, top: `${Math.round(hd.bottom + 8)}px`, width: `${Math.round(c.width - 16)}px` });
@@ -1213,7 +1192,7 @@ const resumes = initResumes({
 });
 const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, resumes,
   endPreview: () => endPreview(),
-  ensurePanel: () => dock.unfold(),
+  relayout: () => syncFull(),
   closeMenus: () => { if (ui.menu || ui.langMenu){ ui.menu = false; ui.langMenu = null; renderHead(); } },
 });
 switcher.bind();
@@ -1247,7 +1226,7 @@ const recordTab = initRecord({ ui, checklist, renderBody: () => renderBody(), se
 window.__wb.record = recordTab;
 const help = initHelp({ ui });
 window.__wb.help = help;
-const dock = initDock({ store, ui, shown, relayout: () => relayout(), setView, setPane, leaveWriting: () => edit.cancelEdit({ ask: true }), menuHtml: () => menuHtml(), renderHead: () => renderHead(), goToPage, renderAll: () => renderAll(), canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
+const dock = initDock({ store, ui, shown, setView, leaveWriting: () => edit.cancelEdit({ ask: true }), goToPage, canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
 window.__wb.dock = dock;
 design.bind($('#body'));
 window.__wb.design = design;

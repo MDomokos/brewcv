@@ -1,27 +1,24 @@
-// The editor's furniture around the panel: the five tabs on its left edge (and the cream tags they become when the panel is folded),
-// the foot card (undo, redo, the menu), the fill meter and Fit in the header, the zoom bar that shows while the pointer is over the
-// page, and the hover hints. On a phone the column is the bottom sheet and keeps its two-row head and its foot with the zoom bar.
-// The panel's own content is edit.js's, checklist.js's and the other sheets'; the shell calls sync() whenever something that
-// decides which tab is open, or whether the panel shows, has changed.
+// The editor's furniture around the page: the foot card (the meters and Fit), the zoom bar that shows while the pointer is over the
+// page (with Actual size), and the hover hints. On a phone the column is the bottom sheet and keeps its two-row head and its foot with
+// the zoom bar. The sidebar's content is edit.js's, checklist.js's and the other sheets'; the shell calls sync() whenever something
+// that decides which sheet is open has changed.
 
 import { icon } from './icons.js';
 import { t, h } from '../i18n/index.js';
 import { FILL_BAND } from '../fit.js';
 import { ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
-import { drink, onDrinkChange, logoBtn } from './drink.js';
-import { play, reduced } from './motion.js';
-import { springStep, atRest } from './camera.js';
+import { onDrinkChange } from './drink.js';
+import { play } from './motion.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (s, r = document) => r.querySelector(s);
 
-const FOLD_KEY = 'rb-folded', ZOOMW_KEY = 'rb-zoomwrite', CONTRAST_KEY = 'rb-contrast';
+const ZOOMW_KEY = 'rb-zoomwrite', CONTRAST_KEY = 'rb-contrast';
 const ZOOMON_KEY = 'rb-zoomwrite-on', DIMJOB_KEY = 'rb-dim-job', DIMLINE_KEY = 'rb-dim-line', MAGNET_KEY = 'rb-magnet', BOUNCE_KEY = 'rb-bounce';
 export const ZOOM_WRITE = { min: 80, max: 180, step: 5, def: 130 };
 const get = (k, ok, def) => { try { const v = localStorage.getItem(k); return ok(v) ? v : def; } catch { return def; } };
 const set = (k, v) => { try { localStorage.setItem(k, String(v)); } catch { /* this session only */ } };
-export const readFolded = () => get(FOLD_KEY, v => v === '0' || v === '1', '0') === '1';
 export const readZoomWrite = () => { const n = Number(get(ZOOMW_KEY, v => v !== null && Number.isFinite(Number(v)), ZOOM_WRITE.def)); return Math.max(ZOOM_WRITE.min, Math.min(ZOOM_WRITE.max, n)); };
 // how the page looks while you write (UX-3): the zoom can be turned off, and how far everything around the line is dimmed
 export const DIM = { job: { min: 40, max: 100, def: 80 }, line: { min: 60, max: 100, def: 94 } };
@@ -37,51 +34,17 @@ export const readMagnet = () => num(MAGNET_KEY, TRAVEL.magnet.min, TRAVEL.magnet
 export const readBounce = () => num(BOUNCE_KEY, TRAVEL.bounce.min, TRAVEL.bounce.max, TRAVEL.bounce.def);
 export const readContrast = () => get(CONTRAST_KEY, v => v === 'sharp' || v === 'soft', 'sharp');
 
-// ---- the tabs and the fold ----
-// Five tabs: Outline and Edit are the two sheets of the resume (ui.pane says which, with no other view open); the others are views.
-// A phone has no Outline: its sheet is Edit and Record.
-// Icons: Tea draws each tab's own picture, Coffee the plain set.
-export const TABS = [
-  { id: 'outline', key: 'ux5c.tabOutline', tea: 'list', plain: 'list' },
-  { id: 'edit', key: 'ux2.modeEdit', tea: 'steep', plain: 'edit' },
-  { id: 'design', key: 'ux2.modeDesign', tea: 'latte', plain: 'design' },
-  { id: 'export', key: 'ux2.modeExport', tea: 'cupout', plain: 'export' },
-  { id: 'record', key: 'ux3b.modeRecord', tea: 'recordbook', plain: 'timeline' },
-];
-export const GROUPS = [['outline', 'edit'], ['design', 'export'], ['record']];
+// ---- the sheets ----
+// Edit, Design and Export are the segmented control in the sidebar's head; Record is opened from the name menu (and R). On a phone
+// the head has its own tabs, Record among them. Edit is whatever is selected, so it has no tab of its own for the Outline.
 const phone = () => innerWidth < PHONE_MAX;
-const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : (C.ui.pane === 'edit' || phone() ? 'edit' : 'outline'); };
-// Open or folded, nothing between. The start screen is laid out in the panel's areas, so it is never folded; selecting never folds or
-// unfolds. While a line is written on the page the panel slides away (the page needs the room to zoom, and the tools are in its margin)
-// and comes back when the line is left.
-const folded = () => !phone() && (!!C.ui.folded || !!C.ui.writing) && C.ui.view !== 'welcome';
-// Edit shows its two sheets (the Outline and the selection) when there is room: computeLayout says whether there is
-const twoNow = () => !phone() && tabOf() === 'edit';
-
-let lastFolded = null, lastTwo = false;
-function sync(force = false){
-  const f = folded(), w = twoNow();
-  if (force || f !== lastFolded || w !== lastTwo){ lastFolded = f; lastTwo = w; C.relayout(); }
-  renderTabs();
-  renderFoot();
-}
-function setFolded(on, { focus = true } = {}){
-  if (phone() || on === !!C.ui.folded) return;
-  C.ui.folded = on; set(FOLD_KEY, on ? '1' : '0');
-  sync(true);
-  C.renderHead?.();
-  if (focus) activeTab()?.focus({ preventScroll: true });
-}
-const toggleFold = () => setFolded(!folded());
-const unfold = () => { if (folded()) setFolded(false, { focus: false }); };
-const activeTab = () => $('#tabs [role=tab][tabindex="0"]');
-// a tab: the one that is open folds the panel, a closed one opens (and unfolds the panel on it). A line being written is left first
-// (asking, if there is a draft): the panel is away while it is written.
+const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : 'edit'; };
+// the sidebar's tea: the open sheet's (the Outline is Edit with nothing selected)
+const teaOf = () => (phone() ? '' : tabOf() === 'edit' ? (C.ui.sel.kind === 'none' ? 'outline' : 'edit') : tabOf() ?? 'edit');
+// a tab: Edit leaves the view that replaces it; the others open one. A line being written is left first (asking, if there is a draft).
 async function setMode(m){
   if (C.ui.writing && !(await C.leaveWriting())) return;
-  if (m === 'outline' || m === 'edit') C.setPane(m); else C.setView(m);
-  if (folded()) setFolded(false, { focus: false });
-  else sync(true);
+  if (m !== 'edit') C.setView(m); else if (C.ui.view) C.setView(null);
   $(`#tab-${m}`)?.focus({ preventScroll: true });
 }
 const modeOf = tabOf;
@@ -196,33 +159,7 @@ function tween(draw){
   }
 }
 
-// ---- the five tabs, and the foot card under them ----
-// A tab is an icon over a word. Open, the tab is the panel's colour and joins its edge; closed, or when the panel is folded, it is a
-// cream tag. In Edit's two sheets the Outline is open too (`also`). The foot card is undo, redo and the menu; folded, the logo joins it.
-export const renderTabs = () => keepFocus('#tabs', drawTabs);
-function drawTabs(){
-  const el = $('#tabs');
-  if (!el) return;
-  const tab = tabOf(), tea = drink() === 'tea', f = folded(), hs = C.store.history;
-  const two = !f && !!C.ui.layout?.two;
-  const col = $('#col');
-  if (col) col.dataset.tea = phone() ? '' : two ? 'edit' : tab ?? 'edit';       // the panel's tea is the open tab's
-  if (phone() || document.body.classList.contains('is-intro')){ el.innerHTML = ''; return; }
-  const one = tab ?? 'outline';
-  const b = ({ id, key, tea: te, plain }) => `<button role="tab" class="tab${tab === id ? ' is-open' : ''}${two && id === 'outline' ? ' also' : ''}" id="tab-${id}" data-act="tab" data-m="${id}" data-tea="${id}" aria-selected="${!f && tab === id}"${f ? '' : ' aria-controls="body"'} tabindex="${one === id ? 0 : -1}" ${(id === 'design' || id === 'record') && C.ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? te : plain, { size: 22 })}</span><span class="tl">${esc(t(key))}</span></button>`;
-  const grp = ids => `<div class="tgroup" role="presentation">${ids.map(id => b(TABS.find(x => x.id === id))).join('')}</div>`;
-  const menu = `<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!C.ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" data-tip-pos="l" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>`;
-  el.dataset.tab = tab ?? '';
-  el.setAttribute('aria-label', t('ux2.modes'));
-  el.innerHTML = `<div class="tablist" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}">${tea && f ? TABS.map(x => `<i class="tstr" data-m="${x.id}" aria-hidden="true"></i>`).join('') : ''}${GROUPS.map(grp).join('')}</div>
-    <div class="tabfoot" id="tabfoot">${f ? logoBtn(28, { base: 'logo footlogo', pos: 'l' }) : ''}
-      ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
-      ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 'l')}
-      ${menu}${C.ui.menu ? C.menuHtml() : ''}</div>`;
-  swPlace();
-}
-
-// ---- the fill meter and Fit, in the header (and, as quiet text with Fit, in the Export view), and the zoom bar ----
+// ---- the foot card: each page's fill and Fit; the zoom bar over the page ----
 const fitBtn = (u, limit, needed) => `<button class="fit${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
 function meterHtml(){
   const u = C.ui;
@@ -232,68 +169,39 @@ function meterHtml(){
   }).join('');
   return `<div class="meters" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${rows || '<span class="muted tiny">—</span>'}</div>`;
 }
-// the header's: '' while the panel is folded (the Export view has them then)
+// the sidebar's foot: the meters, then Fit
 export function fillHtml(){
-  if (folded()) return '';
   const u = C.ui, limit = C.shown()?.pageLimit;
   return `<div class="hfill" id="hfill">${meterHtml()}${fitBtn(u, limit, fitFilled(u.fills, limit))}</div>`;
 }
 const viewBar = (u, tipPos) => `<div class="vbar" role="toolbar" aria-label="${esc(t('ux2.viewBar'))}">
       ${ib('fullscreen', 'full', t('head.fullscreen'), t('ux2.fullTip'), '', tipPos)}
       ${ib('zoom-out', 'minus', t('ux2.zoomOut'), t('ux2.zoomOutTip'), u.zoom <= ZOOM_MIN + 1e-9 ? 'disabled' : '', tipPos)}
-      <button class="pct" id="zoompct" data-act="zoom-pop" aria-haspopup="dialog" aria-expanded="${!!u.zpop}" data-tip="${esc(t('ux2.zoomSettings'))}|${esc(t('ux5a.zoomTip'))}" data-tip-pos="${tipPos}" aria-label="${esc(t('ux2.zoomSettings'))}">${Math.round((u.zoom ?? 1) * 100)}%</button>
+      <span class="pct" id="zoompct">${Math.round((u.zoom ?? 1) * 100)}%</span>
       ${ib('zoom-in', 'plus', t('ux2.zoomIn'), t('ux2.zoomInTip'), u.zoom >= ZOOM_MAX - 1e-9 ? 'disabled' : '', tipPos)}
       ${ib('zoom-fit', 'fitpage', t('ux2.zoomFit'), t('ux2.zoomFitTip'), '', tipPos)}
+      <button class="sm" data-act="actual">${h('ux2.actualSize')}</button>
     </div>`;
 
 export const renderFoot = () => {
-  const intro = document.body.classList.contains('is-intro');
-  if (phone() || intro){ keepFocus('#foot', () => tween(drawFoot)); return; }
-  keepFocus('#hfill', () => tween(drawFill));
-  keepFocus('#zoombar', () => tween(drawZoombar));
-  keepFocus('#exfit', drawExFit);
-  keepFocus('#tabfoot', drawTabfoot);
+  const col = $('#col');
+  if (col) col.dataset.tea = teaOf();
+  keepFocus('#foot', () => tween(drawFoot));
+  if (!phone() && !document.body.classList.contains('is-intro')) keepFocus('#zoombar', () => tween(drawZoombar));
 };
-function drawFill(){
-  const el = $('#hfill');
-  if (el) el.outerHTML = fillHtml();
-}
 function drawZoombar(){
   const el = $('#zoombar');
-  if (!el) return;
-  const pop = $('#zpop');
-  el.innerHTML = viewBar(C.ui, 't');
-  if (pop) el.append(pop);
-  renderPop();
-}
-// the Export view's: each page's fill, and Fit beside it
-export function exFitHtml(){
-  const u = C.ui, limit = C.shown()?.pageLimit, n = (u.fills ?? []).length;
-  const pages = (u.fills ?? []).map(p => p.overflow > 0 ? t('foot.overflowPage', { page: p.page }) : t('foot.pageFill', { page: p.page, pct: (100 * p.used / p.usable).toFixed(0) })).join(' · ');
-  return `<div class="exfit" id="exfit"><span class="muted tiny">${esc(pages)}${esc(t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] }))}</span>${fitBtn(u, limit, false)}</div>`;
-}
-function drawExFit(){
-  const el = $('#exfit');
-  if (el) el.outerHTML = exFitHtml();
-}
-// undo and redo are drawn again with the tabs: only their state changes between saves
-function drawTabfoot(){
-  const hs = C.store.history;
-  for (const [a, can] of [['undo', hs.undo], ['redo', hs.redo]]){
-    const b = $(`#tabfoot [data-act=${a}]`);
-    if (!b) continue;
-    b.disabled = !can;
-    b.dataset.tip = `${a === 'undo' ? t('foot.undo') : t('foot.redo')}|${a === 'undo' ? (hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo })) : (hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'))}`;
-  }
+  if (el) el.innerHTML = viewBar(C.ui, 't');
 }
 
-// ---- the phone's foot, and the start screen's: the zoom bar and the meters on one line, Fit and undo under them ----
+// ---- the foot: on a desktop the meters and Fit; on a phone the zoom bar and the meters on one line, Fit and undo under them;
+// on the start screen the footer area is "Yours to keep" ----
 function drawFoot(){
   const el = $('#foot');
   if (!el) return;
-  // on the start screen the footer area is "Yours to keep"
   if (document.body.classList.contains('is-intro')){ el.innerHTML = C.startFoot(); return; }
   const u = C.ui, hs = C.store.history;
+  if (!phone()){ el.innerHTML = fillHtml(); return; }
   const limit = C.shown()?.pageLimit;
   const needed = fitFilled(u.fills, limit);
   const act = `<div class="factions">
@@ -303,16 +211,6 @@ function drawFoot(){
       ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 't')}
     </div>`;
   el.innerHTML = `<div class="frow">${viewBar(u, 't')}${meterHtml()}</div>${act}`;
-  renderPop();
-}
-
-// ---- the zoom pop-up: Actual size ----
-function renderPop(){
-  const el = $('#zpop');
-  if (!el) return;
-  el.hidden = !C.ui.zpop;
-  if (!C.ui.zpop){ el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="prow"><button class="sm" data-act="actual">${h('ux2.actualSize')}</button></div>`;
 }
 
 // ---- the zoom bar shows while the pointer is over a sheet (the white page, not the mat) or the bar ----
@@ -364,14 +262,6 @@ export function viewSettingChanged(e){
     if (el.id === 'zwon') set(ZOOMON_KEY, el.checked ? '1' : '0');
   }
 }
-function openPop(on){
-  C.ui.zpop = on ?? !C.ui.zpop;
-  if (C.ui.zpop) showBar(true);
-  renderFoot();
-  if (C.ui.zpop) $('#zpop button')?.focus();
-  else $('#zoompct')?.focus();
-}
-
 export function applyContrast(){
   document.body.classList.toggle('soft', readContrast() === 'soft');
   C?.restyleMarks?.();      // the page's edge is one of the marks the frame takes from the tokens
@@ -387,10 +277,6 @@ async function act(a, tg){
     case 'zoom-in': zoomBy(1); return true;
     case 'zoom-out': zoomBy(-1); return true;
     case 'zoom-fit': zoomTo(1); return true;
-    case 'zoom-pop': openPop(); return true;
-    case 'panel-toggle': toggleFold(); return true;
-    // the open tab folds the panel; a tag of the folded panel unfolds it on that tab
-    case 'tab': if (tg.dataset.m === tabOf() && !folded()) setFolded(true); else setMode(tg.dataset.m); return true;
     case 'mode': setMode(tg.dataset.m); return true;
     case 'goto-page': C.goToPage(Number(tg.dataset.page)); return true;
   }
@@ -399,25 +285,13 @@ async function act(a, tg){
 
 function onKey(e){
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
-  if (e.key === 'e' || e.key === 'E'){ if (e.shiftKey) return false; e.preventDefault(); toggleFold(); return true; }
   if (e.key === 'r' || e.key === 'R'){ if (e.shiftKey || C.ui.snap) return false; e.preventDefault(); setMode('record'); return true; }
   if (e.key === '-' || e.key === '_'){ e.preventDefault(); zoomBy(-1); flashBar(); return true; }
   if (e.key === '=' || e.key === '+'){ e.preventDefault(); zoomBy(1); flashBar(); return true; }
   if (e.key === '0'){ e.preventDefault(); zoomTo(1); flashBar(); return true; }
   return false;
 }
-// the tabs are one tab stop; ↑ ↓ (Home, End) move between them, Enter or Space opens the one that has the focus
-function onTabsKey(e){
-  const tab = e.target.closest?.('#tabs [role=tab]');
-  if (!tab || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
-  const tabs = [...document.querySelectorAll('#tabs [role=tab]:not(:disabled)')];
-  const at = tabs.indexOf(tab);
-  const to = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + (e.key === 'ArrowDown' ? 1 : -1) + tabs.length) % tabs.length;
-  e.preventDefault();
-  for (const x of tabs) x.tabIndex = x === tabs[to] ? 0 : -1;
-  tabs[to].focus();
-}
-// the phone's two-row head keeps its horizontal tabs: the arrows move between them and open each
+// the head's tabs (Edit, Design, Export; on a phone Record too) are one tab stop: the arrows move between them and open each
 function onModesKey(e){
   const tab = e.target.closest?.('#head [role=tab][data-m]');
   if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
@@ -431,91 +305,27 @@ function onModesKey(e){
   $('#head [role=tab][aria-selected=true]')?.focus();
 }
 
-// Tea, folded: the tags hang on strings from an anchor above the first tag, through a hole each. Two things swing per tag: its string (about
-// the anchor) and the tag (about its hole, relative to the string). The pointer pushes them as it pushes the garden's leaves (garden.js
-// sweepAt): its sideways movement near a tag (dx, not just entering) adds angular velocity, the neighbours get a share, and a spring
-// (camera.js springStep, critically damped: no wiggle) brings each back to zero. The loop runs only while something moves. A lower tag hangs on
-// a longer string: it swings further and settles slower (--swing-* in workbench.css: degrees and settle time for the first tag, and the step per tag).
-// Nothing moves under reduced motion; Coffee has no strings. Decoration: a click never waits for it.
-const SW = { z: 6.64, string: .35, tag: .8, hole: 8.5, anchor: 14, pad: 10, ref: 60, rest: .03 };   // z: omega x settle time for a critically damped spring to be within 1%
-const sw = [];                       // per tag: { a: string, b: tag } as springs { x: degrees, v: degrees/s }
-let swRaf = 0, swLast = 0, swPx = null;
-const swToks = new Map();            // read once per swing: getComputedStyle per tab per frame forced a style recalculation each time
-const swTok = n => { if (!swToks.has(n)) swToks.set(n, parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0); return swToks.get(n); };
-const swOn = () => drink() === 'tea' && folded() && !reduced();
-const swPar = i => { const T = (swTok('--swing-ms') + swTok('--swing-ms-step') * i) / 1000; return { A: swTok('--swing-deg') + swTok('--swing-deg-step') * i, ws: SW.z / T, wt: SW.z / (T * SW.tag) }; };
-// draw the strings and tags as they are now: at rest nothing is set, so everything is exactly where the stylesheet puts it
-function swPlace(){
-  const tabs = document.querySelectorAll('.tabs.is-folded .tab'), strs = document.querySelectorAll('.tabs.is-folded .tstr');
-  const tops = [...tabs].map(tab => tab.offsetTop);        // all the reads before the writes: one layout, not one per tab
-  tabs.forEach((tab, i) => {
-    const L = tops[i] + SW.hole + SW.anchor, a = sw[i]?.a.x ?? 0, b = sw[i]?.b.x ?? 0, str = strs[i];
-    if (str){ str.style.height = `${L}px`; str.style.transform = a ? `rotate(${a.toFixed(3)}deg)` : ''; }
-    tab.style.transform = a || b ? `translate(0, ${-L}px) rotate(${a.toFixed(3)}deg) translate(0, ${L}px) rotate(${b.toFixed(3)}deg)` : '';
-  });
-}
-function swFrame(now){
-  swRaf = 0;
-  if (!swOn()){ sw.length = 0; swToks.clear(); swPlace(); return; }
-  const dt = Math.min(.05, (now - swLast) / 1000); swLast = now;
-  let live = false;
-  sw.forEach((s, i) => {
-    const p = swPar(i);
-    s.a = springStep(s.a, 0, dt, { omega: p.ws, bounce: 0 }); s.b = springStep(s.b, 0, dt, { omega: p.wt, bounce: 0 });
-    if (atRest(s.a, 0, SW.rest) && atRest(s.b, 0, SW.rest)) s.a = s.b = { x: 0, v: 0 }; else live = true;
-  });
-  swPlace();
-  if (live) swRaf = requestAnimationFrame(swFrame); else swToks.clear();
-}
-function swingTags(e){
-  const px = swPx; swPx = e.clientX;
-  if (px === null || !swOn()) return;
-  const dx = Math.max(-45, Math.min(45, e.clientX - px));
-  if (!dx) return;
-  const tabs = [...document.querySelectorAll('.tabs.is-folded .tab')];
-  if (!tabs.length) return;
-  const at = tabs.findIndex(x => { const r = x.getBoundingClientRect(); return e.clientX > r.left - SW.pad && e.clientX < r.right + SW.pad && e.clientY > r.top - SW.pad && e.clientY < r.bottom + SW.pad; });
-  if (at < 0) return;
-  tabs.forEach((x, i) => {
-    if (Math.abs(i - at) > 1) return;
-    const p = swPar(i), share = i === at ? 1 : swTok('--swing-near'), k = -dx / SW.ref * share * Math.E;    // a push of `ref` px gives a peak of A degrees (an impulse v gives a peak of v / (omega e))
-    const s = sw[i] ??= { a: { x: 0, v: 0 }, b: { x: 0, v: 0 } };
-    const cap = (v, A, w) => Math.max(-1.4 * A * w * Math.E, Math.min(1.4 * A * w * Math.E, v));
-    s.a.v = cap(s.a.v + k * SW.string * p.A * p.ws, SW.string * p.A, p.ws); s.b.v = cap(s.b.v + k * p.A * p.wt, p.A, p.wt);
-  });
-  if (!swRaf){ swLast = performance.now(); swRaf = requestAnimationFrame(swFrame); }
-}
-
 function bind(){
   installTips();
-  document.addEventListener('pointermove', swingTags, { passive: true });
-  onDrinkChange(() => { renderTabs(); renderFoot(); });
+  onDrinkChange(renderFoot);
   const bar = document.createElement('div');
   bar.id = 'zoombar'; bar.className = 'zoombar';
   bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', t('ux2.viewBar'));
   document.body.append(bar);
-  const pop = document.createElement('div');
-  pop.id = 'zpop'; pop.className = 'card zpop'; pop.hidden = true;
-  pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', t('ux2.zoomSettings'));
-  bar.append(pop);
-  pop.addEventListener('keydown', e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); openPop(false); } });
-  document.addEventListener('mousedown', e => { if (C.ui.zpop && !e.target.closest('#zpop') && !e.target.closest('#zoompct')) openPop(false); });
   // over a sheet (canvas.js tells us), or the bar itself, or a key inside it, the bar shows
   bar.addEventListener('pointerenter', () => { barOver = 1; showBar(true); });
   bar.addEventListener('pointerleave', () => { barOver = 0; showBar(sheetOn); });
   bar.addEventListener('focusin', () => showBar(true));
   bar.addEventListener('focusout', () => showBar(false));
   $('#head').addEventListener('keydown', onModesKey);
-  $('#tabs').addEventListener('keydown', onTabsKey);
   applyContrast();
 }
 
 export function initDock(ctx){
   C = ctx;
-  C.ui.folded = readFolded(); C.ui.pane = 'outline'; C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite(); C.ui.zpop = false;
+  C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite();
   return {
-    bind, act, onKey, sync, sheetOver, folded, twoNow, setFolded, toggleFold, unfold, setMode, modeOf, renderTabs, renderFoot, fillHtml, exFitHtml, zoomBy, zoomTo,
-    closePop(){ if (!C.ui.zpop) return false; openPop(false); return true; },
+    bind, act, onKey, sync: renderFoot, sheetOver, setMode, modeOf, renderFoot, zoomBy, zoomTo,
     // Esc all the way out: the view zooms out to the whole resume
     allTheWayOut(){ C.canvas.reset(); },
   };

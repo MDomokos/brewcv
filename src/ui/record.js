@@ -62,7 +62,7 @@ async function act(a, tg){
   return false;
 }
 
-// Esc: back to the tab Record was opened from (the Outline unless it was another)
-const backTo = () => (['outline', 'edit', 'design', 'export'].includes(C.ui.recordFrom) ? C.ui.recordFrom : null);
+// Esc: back to the sheet Record was opened from (Edit unless it was another)
+const backTo = () => (['edit', 'design', 'export'].includes(C.ui.recordFrom) ? C.ui.recordFrom : null);
 
 const api = { view, afterRender, open, act, backTo, label: () => t('ux3b.modeRecord') };

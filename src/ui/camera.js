@@ -3,7 +3,7 @@
 //
 // Content coordinates are the pages' own pixels: page i runs from i * (w + PAGE_GAP) across, 0 to h down.
 // A camera { k, x, y } puts content (cx, cy) at the screen point (x + cx * k, y + cy * k).
-// A view is the rectangle of the window the pages may use: left of the open panel, or of the folded tags.
+// A view is the rectangle of the window the pages may use: left of the sidebar.
 
 import { pageSize, PAGE_GAP, G } from './layout.js';
 
@@ -24,7 +24,7 @@ export function geometry({ vw, vh, format, pages = 1 }){
 }
 
 // The part of the window the pages may use. `colLeft` is the left edge of the tabs. `mid` is the x the pages are centred on, and
-// `fitW` the width a fitted page may have (the room beside the panel at its minimum): computeLayout (layout.js) gives both.
+// `fitW` the width a fitted page may have (the room beside the sidebar): computeLayout (layout.js) gives both.
 export const viewRect = ({ vh, colLeft, mid, fitW }) => ({ left: 0, top: 0, width: Math.max(1, colLeft - G), height: vh, mid: mid ?? colLeft / 2, fitW });
 export const midX = view => view.mid ?? view.left + view.width / 2;
 

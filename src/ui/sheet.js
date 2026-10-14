@@ -112,14 +112,6 @@ export function createSheet(host, hooks = {}){
           const band = el.closest('.band[data-section]');
           hooks.onPick?.({ variant: el.getAttribute('data-variant'), section: band?.getAttribute('data-section') ?? null, page: pg });
         });
-        // the line under the pointer: the version badge follows it at the job level
-        let hovered = null;
-        doc.addEventListener('mouseover', e => {
-          const el = e.target.closest?.('[data-variant]');
-          const v = el?.getAttribute('data-variant') ?? null;
-          if (v !== hovered){ hovered = v; hooks.onHover?.(v); }
-        });
-        doc.addEventListener('mouseleave', () => { if (hovered){ hovered = null; hooks.onHover?.(null); } });
         // the hand, the wheel and the pinch work over the page too: the canvas gets them, in the page's own pixels
         const fe = hooks.frameEvents;
         if (fe){

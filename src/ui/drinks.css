@@ -42,8 +42,8 @@ html[data-drink="coffee"] .obhero { font-size: 24px; }
 html[data-drink="coffee"] :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl) { letter-spacing: .08em; }
 
 /* ---------- Coffee: hairlines, no elevation ---------- */
-html[data-drink="coffee"] body:not(.is-intro) .col:not(.is-folded) { border: 1px solid var(--line-strong); }
-html[data-drink="coffee"] :is(.pop.card, .zpop, .menu.card, .switcher, .help, .obcard) { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] body:not(.is-intro) .col { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] :is(.pop.card, .menu.card, .switcher, .help, .obcard) { border: 1px solid var(--line-strong); }
 html[data-drink="coffee"] .seg { padding: 0; gap: 4px; }
 html[data-drink="coffee"] .seg [role=tab], html[data-drink="coffee"] .seg button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 4px 6px; color: var(--faint); }
 html[data-drink="coffee"] .seg [role=tab][aria-selected=true], html[data-drink="coffee"] .seg button[aria-pressed=true] { background: transparent; color: var(--ink); border-bottom-color: var(--ink); box-shadow: none; }
@@ -69,13 +69,13 @@ html[data-drink="coffee"] #head :is(.menu, .pop) {
 html[data-drink="coffee"] #head :is(.menu, .pop) button { color: var(--ink); background: transparent; border-color: transparent; }
 
 /* what sits on the page or the canvas, not on a surface, rings in their own ink */
-.obtools, .obpop { --focus: var(--paper-ink); }
+.obtools { --focus: var(--paper-ink); }
 .obkeep { --focus: var(--canvas-ink); }
 
 /* ---------- counts and chips ---------- */
 html[data-drink="coffee"] .clv .sp { display: none; }
 html[data-drink="coffee"] .clv { color: var(--ink-soft); }
-html[data-drink="coffee"] :is(.obtools, .obpop) { font-family: var(--font-mono); }
+html[data-drink="coffee"] .obtools { font-family: var(--font-mono); }
 
 /* ---------- checkboxes: plain, with a visible edge; amber in tea, ink in coffee ---------- */
 .cb {
@@ -228,7 +228,7 @@ html[data-drink="coffee"] .obstep.done .obn, html[data-drink="coffee"] .obstep.d
 
   /* steam rises for a few seconds, twice, and stops; dock.js starts it where it left off when the foot is redrawn (--el) */
   html[data-drink="tea"]:not([data-motion="reduce"]) .meter.steam:not(.under):not(.over):not(.overflow) .mbar::before { animation: tsSteam 2.2s ease-out 2 both; animation-delay: calc(var(--el, 0ms) * -1); }
-  /* the tags swing when the pointer brushes them */
+  /* the phone's tags swing when the pointer brushes them */
   html[data-drink="tea"]:not([data-motion="reduce"]) .hrow.modes .seg [role=tab]:hover { animation: tsSwing var(--dur-moment) ease-out; }
   html[data-drink="tea"]:not([data-motion="reduce"]) [data-act=fit].primary:not(:disabled):hover { animation: tsSwing var(--dur-moment) ease-out; transform-origin: 0 50%; }
   /* the toast swings as it settles on its string */
@@ -236,7 +236,7 @@ html[data-drink="coffee"] .obstep.done .obn, html[data-drink="coffee"] .obstep.d
   /* a tick pops once, on the line just ticked */
   html[data-drink="tea"]:not([data-motion="reduce"]) .cb.pop:checked { animation: tsPop 350ms var(--ease-pop); }
   /* the bag dunks */
-  html[data-drink="tea"]:not([data-motion="reduce"]) :is(.logo img, .footlogo img, .oblogo img).dunk { animation: tsDunk 900ms var(--ease-swing); }
+  html[data-drink="tea"]:not([data-motion="reduce"]) :is(.logo img, .oblogo img).dunk { animation: tsDunk 900ms var(--ease-swing); }
   @keyframes tsSteam { 0% { opacity: 0; transform: translateY(4px) scaleY(.8); } 40% { opacity: .85; } 100% { opacity: 0; transform: translateY(-6px) scaleY(1.1); } }
   @keyframes tsSwing { 0% { rotate: 0deg; } 15% { rotate: 5deg; } 35% { rotate: -3.5deg; } 55% { rotate: 2deg; } 75% { rotate: -.8deg; } 100% { rotate: 0deg; } }
   @keyframes tsToast { 0% { rotate: 6deg; } 25% { rotate: -4deg; } 50% { rotate: 2deg; } 75% { rotate: -.7deg; } 100% { rotate: 0deg; } }
@@ -314,31 +314,10 @@ html.is-switching :is(*, *::before, *::after):not(.matroll, .matroll *, .motionl
     box-shadow var(--m-slow) var(--m-inout), fill var(--m-slow) var(--m-inout), stroke var(--m-slow) var(--m-inout), outline-color var(--m-slow) var(--m-inout);
 }
 
-/* ---------- UX-5c: the floating panel, in each drink ---------- */
-/* Coffee: the same parts, plain. The head keeps its espresso band; every sheet is the one surface; the tabs are hairline cards that
-   join the panel's edge with no curves (no per-tab colours, no strings, no swing). */
+/* ---------- the sidebar, in each drink ---------- */
+/* Coffee: the same parts, plain. The head keeps its espresso band; every sheet is the one surface. */
 html[data-drink="coffee"] .col > #head { background: var(--band-bg); border-radius: var(--r-panel) var(--r-panel) 0 0; }
-html[data-drink="coffee"] .tab { border-radius: var(--r-l) 0 0 var(--r-l); }
-html[data-drink="coffee"] .tab.is-open, html[data-drink="coffee"] .tab.also { margin-right: -1px; width: 55px; box-shadow: inset 1px 0 0 var(--line-strong), inset 0 1px 0 var(--line-strong), inset 0 -1px 0 var(--line-strong); }
-html[data-drink="coffee"] .tab::before, html[data-drink="coffee"] .tab::after { display: none; }
-html[data-drink="coffee"] .tab .ti, html[data-drink="coffee"] .tab.is-open .ti, html[data-drink="coffee"] .tab.also .ti { color: var(--tab-ink); }
-html[data-drink="coffee"] .tabfoot, html[data-drink="coffee"] .tabs.is-folded .tab, html[data-drink="coffee"] .tabs.is-folded .tabfoot { border-radius: var(--r-l); box-shadow: inset 0 0 0 1px var(--line-strong); }
-html[data-drink="coffee"] .tabs.is-folded .tab.is-open, html[data-drink="coffee"] .tabs.is-folded .tab.also { margin-right: 0; width: 54px; }
 html[data-drink="coffee"] .zoombar { border: 1px solid var(--line-strong); }
-
-/* Tea, folded: the tags hang on one thread through a punched hole near each top (decoration: no clicks, nothing for a reader).
-   Under 1700px the thread runs up out of the frame; wider, it starts at a small loop 14px above the first tag. */
-html[data-drink="tea"] .tabs.is-folded .tablist { position: relative; }
-html[data-drink="tea"] .tabs.is-folded .tablist::before { content: ""; position: absolute; left: 26.2px; top: -100vh; height: calc(100vh - 14px); width: 1.6px; background: var(--thread); pointer-events: none; }   /* the part above the anchor, which stays still */
-/* a string per tag, from the anchor 14px above the first tag to its hole: they lie on one another at rest (dock.js sets each one's length and swings it about the anchor) */
-html[data-drink="tea"] .tabs.is-folded .tstr { position: absolute; left: 26.2px; top: -14px; width: 1.6px; background: var(--thread); transform-origin: 50% 0; pointer-events: none; }
-html[data-drink="tea"] .tabs.is-folded .tab { transform-origin: 50% 8.5px; }
-html[data-drink="tea"] .tabs.is-folded .tab::after { display: block; content: ""; position: absolute; inset: 5px auto auto 23.5px; width: 7px; height: 7px; border-radius: 50%; pointer-events: none;
-  background: linear-gradient(var(--thread), var(--thread)) center / 1.6px 100% no-repeat, var(--hole); }
-@media (min-width: 1700px) {
-  html[data-drink="tea"] .tabs.is-folded .tablist::before { display: none; }
-  html[data-drink="tea"] .tabs.is-folded .tablist::after { content: ""; position: absolute; left: 21px; top: -26px; width: 12px; height: 12px; box-sizing: border-box; border: 1.6px solid var(--thread); border-radius: 50%; pointer-events: none; }
-}
 
 /* Tea: a page that moves lifts off the mat, as paper slid along a table does (canvas.js sets body.is-panning for a wheel pan or a drag, --lx/--ly, the lean in degrees, and --lift, 0 to 1: it rises with the pan and falls with the camera's own remaining travel, so there is no transition here and the page is down when the camera is at rest).
    The sheet's frame and the .lift layers under and over each page share one transform (a small scale, a tilt of at most .8deg toward

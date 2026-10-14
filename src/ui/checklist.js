@@ -103,7 +103,8 @@ const folded = (key, forced) => { const f = S.fold.get(key); return f === 'open'
 const ocaret = (key, open, label, count = '') =>
   `<button class="clcaret ocaret" data-act="ol-toggle" data-g="${esc(key)}" aria-expanded="${open}" aria-controls="ol-${esc(key)}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span><span class="clname">${label}</span>${count ? `<span class="clcount">${count}</span>` : ''}</button>`;
 
-export function outlineHtml(){
+// `only`: a job's id, for the sidebar when that job is selected: just its lines (its own title and switch are above them)
+export function outlineHtml(only = null){
   const m = C.work(), cur = C.cur();
   const cl = checklist(m, cur, C.lang());
   const list = T.sectionList(m, cur);
@@ -113,17 +114,21 @@ export function outlineHtml(){
   const focusSec = !focus ? null : T.sectionOfEntry(m, focus) ?? (focus === 'education' ? 'education' : sel.kind === 'record' && sel.what === 'item' ? T.sectionOfItem(m, sel.id) : cl.groups.find(g => g.id === focus)?.section ?? null);
   const about = cl.groups.find(g => g.id === 'about')?.rows ?? [];
 
-  const jobHtml = (g, isOn, move = null) => {
-    if (!isOn) return `<div class="item row is-off ojob"><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a></div>`;
-    const open = !folded(g.id, focus === g.id);
+  // a job's lines that print, "+ n more" for the ones that are off, and "+ line"
+  const jobBody = g => {
     const byId = new Map(g.rows.map(r => [r.id, r]));
     const printed = g.printed.map(id => byId.get(id)).filter(Boolean), more = g.rows.filter(r => !r.on);
     const showMore = S.more.has(g.id);
+    return `<ul class="clrows">${rowsHtml(printed, g)}</ul>
+        ${more.length ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('ux5c.more', { n: more.length })}</button>${showMore ? `<ul class="clrows">${rowsHtml(more, g)}</ul>` : ''}` : ''}
+        ${addLineHtml(g)}`;
+  };
+  const jobHtml = (g, isOn, move = null) => {
+    if (!isOn) return `<div class="item row is-off ojob"><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a></div>`;
+    const open = !folded(g.id, focus === g.id);
     const grip = move ? `<span class="clgrip" aria-hidden="true">${icon('grip')}</span>${moveButtonsHtml('job-up', 'job-down', g.id, g.title, move)}` : '';
     return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${move ? `data-job="${esc(g.id)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>${ocaret(g.id, open, `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}${grip}</h3>
-      <div class="clbody" id="ol-${esc(g.id)}" ${open ? '' : 'hidden'}><ul class="clrows">${rowsHtml(printed, g)}</ul>
-        ${more.length ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('ux5c.more', { n: more.length })}</button>${showMore ? `<ul class="clrows">${rowsHtml(more, g)}</ul>` : ''}` : ''}
-        ${addLineHtml(g)}</div></section>`;
+      <div class="clbody" id="ol-${esc(g.id)}" ${open ? '' : 'hidden'}>${jobBody(g)}</div></section>`;
   };
 
   const bodyOf = s => {
@@ -160,6 +165,8 @@ export function outlineHtml(){
       <div class="obody" id="ol-sec-${esc(s.id)}" ${open ? '' : 'hidden'}>${bodyOf(s)}</div></div>`;
   };
 
+  const onlyG = only && cl.groups.find(g => g.id === only && g.kind === 'entry');
+  if (onlyG) return `<section class="outline only" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><div class="clg open" data-g="${esc(only)}">${onlyG.custom ? `<div class="ordhead">${orderMarkHtml(true, 'job', only, onlyG.title)}</div>` : ''}<div class="clbody" id="ol-${esc(only)}">${jobBody(onlyG)}</div></div></section>`;
   const manual = Array.isArray(cur.pages);
   return `<section class="outline" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><h2 class="sr">${h('ux5c.tabOutline')}</h2>
     ${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere')) ? `<div class="ordhead">${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere'))}</div>` : ''}

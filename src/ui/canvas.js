@@ -100,7 +100,7 @@ export function initCanvas(C){
       if (motion || drag || raw !== null) return;
       moving = false; lift = 0; document.body.classList.remove('is-moving', 'is-panning');
       lean = { x: 0, y: 0 }; for (const k of ['--lx', '--ly', '--lift']) host.style.removeProperty(k); for (const k in shown) delete shown[k];
-      const sig = `${cam.k.toFixed(3)}|${cam.x.toFixed(1)}|${cam.y.toFixed(1)}|${innerWidth}|${innerHeight}|${ui.layout?.folded}`;
+      const sig = `${cam.k.toFixed(3)}|${cam.x.toFixed(1)}|${cam.y.toFixed(1)}|${innerWidth}|${innerHeight}`;
       if (sig === firedSig) return;
       firedSig = sig;
       document.dispatchEvent(new CustomEvent(PAGES_MOVED, { detail: { cam: { ...cam }, zoom: ui.zoom, page: ui.page } }));
@@ -202,7 +202,7 @@ export function initCanvas(C){
       if (ui.writing) C.writeZoomChanged?.(Math.round((ui.zoom ?? 1) * 100));      // while writing, a pinch is the writing zoom
       return true;
     }
-    if (e.target?.closest?.('#col, #switcher, #help, .zpop, .actual')) return false;
+    if (e.target?.closest?.('#col, #switcher, #help, .actual')) return false;
     const dx = e.deltaX * unit(e), dy = e.deltaY * unit(e);
     if (scene === 'all' && !free && !ui.writing){ e.preventDefault(); return true; }   // both pages are in view: nothing to travel to
     e.preventDefault();

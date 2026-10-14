@@ -7,7 +7,7 @@ import { renderPages } from '../render.js';
 import { missingList } from '../model/lang.js';
 import * as RS from '../model/resumes.js';
 import { t, h, errText, docChrome, loadCatalogue } from '../i18n/index.js';
-import { fitFilled, exFitHtml } from './dock.js';
+import { fitFilled } from './dock.js';
 import { icon as drawn } from './icons.js';
 import { exportFx } from './exportfx.js';
 import { drink } from './drink.js';
@@ -106,7 +106,6 @@ function exportView(){
   const fitFirst = fitFilled(C.ui.fills, C.cur()?.pageLimit);
   return `<h2 class="title">${h('head.export')}</h2>
     <ul class="checks">${list.map(c => `<li class="${c.level}"><span class="ci">${icon[c.level]}</span>${esc(c.text)}</li>`).join('')}</ul>
-    ${exFitHtml()}
     <span class="lbl">${h('export.download')}</span>
     <div class="dl">
       <button class="${fitFirst ? '' : 'primary'}" data-act="ex-pdf"><b>PDF</b><small>${h('export.pdfNote')}</small></button>

@@ -14,12 +14,11 @@ body.is-intro .startstage { opacity: 1; visibility: visible; pointer-events: non
 body.is-intro .startstage .ss { pointer-events: auto; }
 
 /* the column on the start screen: the header and the footer sit on the canvas; the inspector is the one card */
-body.is-intro .col:not(.is-folded) { background: none; border: 0; box-shadow: none; border-radius: 0; gap: var(--G); justify-content: safe center; overflow-y: auto; scrollbar-width: none; padding: 0 2px; }
+body.is-intro .col { background: none; border: 0; box-shadow: none; border-radius: 0; gap: var(--G); justify-content: safe center; overflow-y: auto; scrollbar-width: none; padding: 0 2px; }
 body.is-intro .col > #head, body.is-intro .col > #foot { background: transparent; border: 0; border-radius: 0; box-shadow: none; --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); color: var(--ink); flex: none; height: auto; }
 body.is-intro .col > #head { padding: 4px 6px 0; }
 body.is-intro .col > #foot { padding: 0 6px; }
 body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); box-shadow: var(--shadow-panel); padding: 16px; }
-body.is-intro #tabs { display: none; }
 
 /* ---------- the header ---------- */
 .obhead { display: grid; gap: 6px; }
