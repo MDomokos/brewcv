@@ -34,12 +34,14 @@ export function initCanvas(C){
   const pagesN = () => Math.max(1, ui.laid?.pages?.length ?? ui.fills?.length ?? 1);
 
   // ---- placing the sheet ----
+  const shown = {};
+  const setVar = (k, v) => { if (shown[k] !== v){ shown[k] = v; host.style.setProperty(k, v); } };
   function put(next, panned){                           // panned: a wheel pan or a drag, the only moves that lift the page (body.is-panning, drinks.css)
     if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); document.body.classList.add('is-moving'); }
     if (panned){ document.body.classList.add('is-panning'); lift += (1 - lift) * .4; }
     lean = { x: lean.x * .6 + (next.x - cam.x) * .4, y: lean.y * .6 + (next.y - cam.y) * .4 };
-    host.style.setProperty('--lift', lift.toFixed(3));
-    host.style.setProperty('--lx', (-Math.max(-1, Math.min(1, lean.x / 24)) * .8).toFixed(3)); host.style.setProperty('--ly', (Math.max(-1, Math.min(1, lean.y / 24)) * .8).toFixed(3));
+    setVar('--lift', lift.toFixed(2));                  // a changed custom property restyles the whole sheet: write only when the shown value moves
+    setVar('--lx', (-Math.max(-1, Math.min(1, lean.x / 24)) * .8).toFixed(2)); setVar('--ly', (Math.max(-1, Math.min(1, lean.y / 24)) * .8).toFixed(2));
     cam = next; ui.cam = cam;
     host.style.left = '0px'; host.style.top = '0px';
     host.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.k.toFixed(5)})`;
@@ -97,7 +99,7 @@ export function initCanvas(C){
     movedT = setTimeout(() => {
       if (motion || drag || raw !== null) return;
       moving = false; lift = 0; document.body.classList.remove('is-moving', 'is-panning');
-      lean = { x: 0, y: 0 }; host.style.removeProperty('--lx'); host.style.removeProperty('--ly'); host.style.removeProperty('--lift');
+      lean = { x: 0, y: 0 }; for (const k of ['--lx', '--ly', '--lift']) host.style.removeProperty(k); for (const k in shown) delete shown[k];
       const sig = `${cam.k.toFixed(3)}|${cam.x.toFixed(1)}|${cam.y.toFixed(1)}|${innerWidth}|${innerHeight}|${ui.layout?.folded}`;
       if (sig === firedSig) return;
       firedSig = sig;

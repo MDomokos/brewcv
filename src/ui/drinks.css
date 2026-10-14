@@ -259,9 +259,9 @@ html[data-motion="reduce"] button.logoswitch:hover img { transform: none; }
 /* One layer under the page and the panel (the pages are z-index 5), over the canvas: the other canvas, on one side of the roller. The
    mat's slats run across, so it rolls up and unrolls vertically; --mr-y is how far the roller is from the bottom edge. Its colours are
    --mr-* properties, set by matroll.js from the tokens of both drinks; nothing here is a colour of its own. */
-.matroll { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; --mr-r0: 14px; --mr-k: .085; }
+.matroll { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; contain: strict; --mr-r0: 14px; --mr-k: .085; }
 .matroll[data-kind="down"] { --mr-r0: 100px; --mr-k: -.1; transform: scaleY(-1); }   /* coming back it unrolls from the top, down */
-.matroll .mr-bg { position: absolute; inset: 0; }
+.matroll .mr-bg { position: absolute; inset: 0; will-change: clip-path; }
 .matroll[data-side="below"] .mr-bg { clip-path: inset(calc(100% - var(--mr-y)) 0 0 0); }
 .matroll[data-side="above"] .mr-bg { clip-path: inset(0 0 var(--mr-y) 0); }
 .matroll .mr-bg[data-bg="tea"] {

@@ -440,21 +440,23 @@ function onModesKey(e){
 const SW = { z: 6.64, string: .35, tag: .8, hole: 8.5, anchor: 14, pad: 10, ref: 60, rest: .03 };   // z: omega x settle time for a critically damped spring to be within 1%
 const sw = [];                       // per tag: { a: string, b: tag } as springs { x: degrees, v: degrees/s }
 let swRaf = 0, swLast = 0, swPx = null;
-const swTok = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0;
+const swToks = new Map();            // read once per swing: getComputedStyle per tab per frame forced a style recalculation each time
+const swTok = n => { if (!swToks.has(n)) swToks.set(n, parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0); return swToks.get(n); };
 const swOn = () => drink() === 'tea' && folded() && !reduced();
 const swPar = i => { const T = (swTok('--swing-ms') + swTok('--swing-ms-step') * i) / 1000; return { A: swTok('--swing-deg') + swTok('--swing-deg-step') * i, ws: SW.z / T, wt: SW.z / (T * SW.tag) }; };
 // draw the strings and tags as they are now: at rest nothing is set, so everything is exactly where the stylesheet puts it
 function swPlace(){
   const tabs = document.querySelectorAll('.tabs.is-folded .tab'), strs = document.querySelectorAll('.tabs.is-folded .tstr');
+  const tops = [...tabs].map(tab => tab.offsetTop);        // all the reads before the writes: one layout, not one per tab
   tabs.forEach((tab, i) => {
-    const L = tab.offsetTop + SW.hole + SW.anchor, a = sw[i]?.a.x ?? 0, b = sw[i]?.b.x ?? 0, str = strs[i];
+    const L = tops[i] + SW.hole + SW.anchor, a = sw[i]?.a.x ?? 0, b = sw[i]?.b.x ?? 0, str = strs[i];
     if (str){ str.style.height = `${L}px`; str.style.transform = a ? `rotate(${a.toFixed(3)}deg)` : ''; }
     tab.style.transform = a || b ? `translate(0, ${-L}px) rotate(${a.toFixed(3)}deg) translate(0, ${L}px) rotate(${b.toFixed(3)}deg)` : '';
   });
 }
 function swFrame(now){
   swRaf = 0;
-  if (!swOn()){ sw.length = 0; swPlace(); return; }
+  if (!swOn()){ sw.length = 0; swToks.clear(); swPlace(); return; }
   const dt = Math.min(.05, (now - swLast) / 1000); swLast = now;
   let live = false;
   sw.forEach((s, i) => {
@@ -463,7 +465,7 @@ function swFrame(now){
     if (atRest(s.a, 0, SW.rest) && atRest(s.b, 0, SW.rest)) s.a = s.b = { x: 0, v: 0 }; else live = true;
   });
   swPlace();
-  if (live) swRaf = requestAnimationFrame(swFrame);
+  if (live) swRaf = requestAnimationFrame(swFrame); else swToks.clear();
 }
 function swingTags(e){
   const px = swPx; swPx = e.clientX;
@@ -471,6 +473,7 @@ function swingTags(e){
   const dx = Math.max(-45, Math.min(45, e.clientX - px));
   if (!dx) return;
   const tabs = [...document.querySelectorAll('.tabs.is-folded .tab')];
+  if (!tabs.length) return;
   const at = tabs.findIndex(x => { const r = x.getBoundingClientRect(); return e.clientX > r.left - SW.pad && e.clientX < r.right + SW.pad && e.clientY > r.top - SW.pad && e.clientY < r.bottom + SW.pad; });
   if (at < 0) return;
   tabs.forEach((x, i) => {

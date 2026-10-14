@@ -34,7 +34,7 @@ export const logoSrc = () => `icons/${state.drink === 'coffee' ? 'icon-coffee' :
 let applied = false, switchT = 0;
 function apply(){
   // a switch after the first: while it settles, colours fade and shapes (corners, edges, shadows) morph (src/ui/drinks.css, html.is-switching)
-  if (applied && root && !reduced()){
+  if (applied && root && !reduced() && !document.querySelector('.matroll')){   // the mat's roll already carries a drink switch; fading every element too made it hitch
     clearTimeout(switchT);
     root.classList.add('is-switching'); void root.offsetWidth;
     switchT = setTimeout(() => root.classList.remove('is-switching'), dur('slow') + 80);

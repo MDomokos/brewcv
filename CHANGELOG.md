@@ -6,6 +6,11 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ## Unreleased
 
+### Fixed
+- **The mat's roll no longer stutters.** Switching drink by the logo skips the all-elements colour fade while the mat rolls, and the roll's layer is isolated from the rest of the page.
+- **The folded Tea tags swing more smoothly.** Positions and tokens are read once per frame or swing instead of once per tag.
+- **Panning in Tea restyles the sheet less.** The lift's custom properties are written only when their rounded value changes.
+
 ## 1.2.0 - 2026-10-14
 
 ### Changed
