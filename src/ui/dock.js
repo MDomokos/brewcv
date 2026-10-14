@@ -220,7 +220,7 @@ function drawTabs(){
       ${menu}${C.ui.menu ? C.menuHtml() : ''}</div>`;
 }
 
-// ---- the fill meter and Fit, in the header (in a small chip beside the tabs, at the foot of the page area, when the panel is folded), and the zoom bar ----
+// ---- the fill meter and Fit, in the header (and, as quiet text with Fit, in the Export view), and the zoom bar ----
 const fitBtn = (u, limit, needed) => `<button class="fit${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
 function meterHtml(){
   const u = C.ui;
@@ -230,7 +230,7 @@ function meterHtml(){
   }).join('');
   return `<div class="meters" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${rows || '<span class="muted tiny">—</span>'}</div>`;
 }
-// the header's: '' while the panel is folded (the chip #zfill has them then)
+// the header's: '' while the panel is folded (the Export view has them then)
 export function fillHtml(){
   if (folded()) return '';
   const u = C.ui, limit = C.shown()?.pageLimit;
@@ -249,7 +249,7 @@ export const renderFoot = () => {
   if (phone() || intro){ keepFocus('#foot', () => tween(drawFoot)); return; }
   keepFocus('#hfill', () => tween(drawFill));
   keepFocus('#zoombar', () => tween(drawZoombar));
-  keepFocus('#zfill', () => tween(drawZfill));
+  keepFocus('#exfit', drawExFit);
   keepFocus('#tabfoot', drawTabfoot);
 };
 function drawFill(){
@@ -264,12 +264,15 @@ function drawZoombar(){
   if (pop) el.append(pop);
   renderPop();
 }
-// folded: the fill and Fit stay in view as a small chip beside the tabs, not in the zoom bar that comes and goes
-function drawZfill(){
-  const el = $('#zfill'), u = C.ui, limit = C.shown()?.pageLimit;
-  if (!el) return;
-  el.hidden = !folded();
-  el.innerHTML = folded() ? `${meterHtml()}${fitBtn(u, limit, fitFilled(u.fills, limit))}` : '';
+// the Export view's: each page's fill, and Fit beside it
+export function exFitHtml(){
+  const u = C.ui, limit = C.shown()?.pageLimit, n = (u.fills ?? []).length;
+  const pages = (u.fills ?? []).map(p => p.overflow > 0 ? t('foot.overflowPage', { page: p.page }) : t('foot.pageFill', { page: p.page, pct: (100 * p.used / p.usable).toFixed(0) })).join(' · ');
+  return `<div class="exfit" id="exfit"><span class="muted tiny">${esc(pages)}${esc(t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] }))}</span>${fitBtn(u, limit, false)}</div>`;
+}
+function drawExFit(){
+  const el = $('#exfit');
+  if (el) el.outerHTML = exFitHtml();
 }
 // undo and redo are drawn again with the tabs: only their state changes between saves
 function drawTabfoot(){
@@ -449,9 +452,6 @@ function bind(){
   bar.id = 'zoombar'; bar.className = 'zoombar';
   bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', t('ux2.viewBar'));
   document.body.append(bar);
-  const zf = document.createElement('div');
-  zf.id = 'zfill'; zf.className = 'hfill zfill'; zf.hidden = true;
-  document.body.append(zf);
   const pop = document.createElement('div');
   pop.id = 'zpop'; pop.className = 'card zpop'; pop.hidden = true;
   pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', t('ux2.zoomSettings'));
@@ -472,7 +472,7 @@ export function initDock(ctx){
   C = ctx;
   C.ui.folded = readFolded(); C.ui.pane = 'outline'; C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite(); C.ui.zpop = false;
   return {
-    bind, act, onKey, sync, sheetOver, folded, twoNow, setFolded, toggleFold, unfold, setMode, modeOf, renderTabs, renderFoot, fillHtml, zoomBy, zoomTo,
+    bind, act, onKey, sync, sheetOver, folded, twoNow, setFolded, toggleFold, unfold, setMode, modeOf, renderTabs, renderFoot, fillHtml, exFitHtml, zoomBy, zoomTo,
     closePop(){ if (!C.ui.zpop) return false; openPop(false); return true; },
     // Esc all the way out: the view zooms out to the whole resume
     allTheWayOut(){ C.canvas.reset(); },

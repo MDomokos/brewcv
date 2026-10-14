@@ -313,6 +313,7 @@ details.jr[open] > summary { margin-bottom: 4px; }
 .back:hover { color: var(--ink); }
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: var(--r-m); padding: 7px 10px; font-size: 13px; margin-bottom: 10px; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 8px; }
+body[data-phone=true] .exfit { display: none; }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 1px 8px; background: var(--raised); color: var(--ink-soft); }
 .tag.jt { background: var(--accent-soft); border-color: var(--accent-line); color: var(--ink); }
 button.tag { cursor: pointer; }
@@ -992,7 +993,8 @@ body:not([data-phone=true]) .col.is-folded { transform: translateX(var(--col-out
 .col > #head .hfill .meters { flex: none; }
 .col > #head .hfill .meter { padding: 2px 4px; }
 @container (max-width: 700px){ .col > #head .meter .mlab, .col > #head .savestate .stext2 { display: none; } }
-.hfill .fit { padding: 3px 12px; }
+.hfill .fit, .exfit .fit { padding: 3px 12px; }
+.exfit { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 8px; }
 
 /* the body: one sheet, or two side by side (Outline and Edit, when the room allows) */
 .col > #body { padding: 14px 16px 14px; scroll-padding: 8px; }
@@ -1045,10 +1047,6 @@ body.is-intro .tabs, body.is-quiet .tabs, body[data-phone=true] .tabs { display:
 .zoombar.on { opacity: 1; pointer-events: auto; }
 .zoombar .zpop { right: auto; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); }
 body.is-intro .zoombar, body.is-quiet .zoombar, body[data-phone=true] .zoombar { display: none; }
-/* folded, the fill and Fit: a chip like the zoom bar, but always there, beside the tabs */
-.zfill { position: fixed; z-index: 12; bottom: var(--G); padding: 3px 6px; border-radius: var(--r-pill); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-chip); }
-.zfill[hidden], body.is-intro .zfill, body.is-quiet .zfill, body[data-phone=true] .zfill { display: none; }
-
 /* the chip after Fit hangs where Fit is, never over the page */
 .fitchip { bottom: auto; top: 90px; transform: none; }
 body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: auto; width: max-content; }

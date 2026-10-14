@@ -336,8 +336,6 @@ function relayout(){
     // the zoom bar sits at the foot of the page area, under the page
     const zb = $('#zoombar');
     if (zb){ zb.style.left = `${L.view.mid}px`; }
-    const zf = $('#zfill');
-    if (zf) zf.style.right = `${innerWidth - L.areaW + 8}px`;      // folded: the fill and Fit, beside the tabs
   }
   // the start screen's picture takes the page area left of the column
   document.body.style.setProperty('--startw', `${Math.max(240, L.col.left - 2 * G)}px`);

@@ -167,9 +167,11 @@ if (want('one screen: the panel folds, the tabs, the zoom bar, the shortcut shee
   ok('E folds the panel away: it is not on screen, the tabs stay at the right edge, 16px in, and the foot card with the logo under them', (await S()).folded === 'true' && !(await page.isVisible('#body')) && !(await page.isVisible('#head')) && Math.abs(1536 - tf.right - 16) < 1.5 && (await page.isVisible('#tabs [role=tab][data-m=edit]')) && await page.isVisible('#tabfoot .footlogo') && !(await page.$('#rail')));
   ok('…the page centres in the room left of the tabs', Math.abs(f0.left - (tf.left - f0.right)) < 2, `${f0.left.toFixed(1)} vs ${(tf.left - f0.right).toFixed(1)}`);
   ok('…the tabs are cream tags, none the colour of a panel', await page.evaluate(() => { const bg = e => getComputedStyle(document.querySelector(e)).backgroundColor; return bg('#tab-outline') === bg('#tab-edit') && bg('#tab-edit') === bg('#tab-record'); }));
-  ok('…and Fit and the fill stay in view as a small chip beside the tabs (not in the zoom bar), reachable and clickable', await page.evaluate(() => { const z = document.querySelector('#zoombar'), c = document.querySelector('#zfill'), r = c.getBoundingClientRect(); return !z.querySelector('[data-act=fit]') && !z.querySelector('.meter') && !!c.querySelector('[data-act=fit]') && !!c.querySelector('.meter') && !c.hidden && getComputedStyle(c).display !== 'none' && r.right <= document.querySelector('#tabs').getBoundingClientRect().left && r.bottom <= innerHeight && !document.querySelector('#head [data-act=fit]'); }));
+  ok('…folded, no Fit or fill chip stays on screen: not in the zoom bar, not in the header, and nothing called #zfill', await page.evaluate(() => { const z = document.querySelector('#zoombar'); return !z.querySelector('[data-act=fit]') && !z.querySelector('.meter') && !document.querySelector('#zfill') && !document.querySelector('#head [data-act=fit]') && !document.querySelector('.meter'); }));
   await page.mouse.move(4, 4);
-  ok('…the chip is there with the pointer away from the page, and Fit in it can be clicked', await page.evaluate(() => { const b = document.querySelector('#zfill [data-act=fit]'), r = b.getBoundingClientRect(), at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!b.closest('#zfill') && (at === b || b.contains(at)) && !!b.title; }));
+  await page.click('#tab-export'); await settle(page);
+  ok('…Export carries the pages\' fill as quiet text and the Fit button, which can be clicked', await page.evaluate(() => { const e = document.querySelector('#exfit'), b = e?.querySelector('[data-act=fit]'); if (!b) return false; const r = b.getBoundingClientRect(), at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return /\d+%/.test(e.textContent) && /88/.test(e.textContent) && (at === b || b.contains(at)) && !!b.title; }));
+  await page.click('#tab-export'); await settle(page);
   await sheet.locator('.bullets li').first().click(); await settle(page);
   ok('selecting never folds or unfolds: folded stays folded', (await S()).folded === 'true' && (await S()).sel === 'bullet');
   await page.click('#tab-design'); await settle(page);
@@ -449,9 +451,9 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     await wheel(page, 0, 300); await page.waitForTimeout(500);
     ok(`${w}×${h}: nor does a sideways swipe`, Math.abs((await camOf(page)).x - c.x) < 0.5);
     ok(`${w}×${h}: the stack and side-by-side toggle is gone`, !(await page.$('[data-act=view]')));
-    await page.click('[data-act=goto-page][data-page="1"]'); await page.waitForTimeout(500);
-    ok(`${w}×${h}: a meter says which page is current; the view stays`, (await camOf(page)).page === 1 && Math.abs((await camOf(page)).x - c.x) < 0.5 && (await page.getAttribute('[data-act=goto-page][data-page="1"]', 'aria-current')) === 'true');
-    await page.click('[data-act=goto-page][data-page="0"]');
+    await page.evaluate(() => window.__wb.canvas.goToPage(1)); await page.waitForTimeout(500);       // folded, no meter is on screen: the page comes forward by the canvas
+    ok(`${w}×${h}: the current page changes without a meter; the view stays`, (await camOf(page)).page === 1 && Math.abs((await camOf(page)).x - c.x) < 0.5);
+    await page.evaluate(() => window.__wb.canvas.goToPage(0));
     ok(`${w}×${h}: no console errors`, bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -612,9 +614,12 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     ok('…drawn in the app’s layer: nothing in the page, and it takes no clicks', ov && !ov.inFrame && ov.ptr === 'none');
     await page.evaluate(f => { window.__wb.ui.fills = f; window.__wb.renderOverflow(); }, real);
     ok('…and gone when the page fits again', (await page.$$('#ovlay .ov')).length === 0);
+    const unfolded = !(await page.$('[data-act=fit]'));
+    if (unfolded){ await page.keyboard.press('e'); await page.waitForTimeout(700); }      // folded, Fit is in the open panel's header (and the Export view)
     await page.click('[data-act=fit]');
     await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 60000 }); await page.waitForTimeout(800);
     ok('Fit still runs, and reports', await page.evaluate(() => !!window.__wb.ui.lastFit && window.__wb.ui.lastFit.pages.length > 0));
+    if (unfolded){ await page.keyboard.press('e'); await page.waitForTimeout(700); }
     await page.mouse.move(300, 400); await page.click('#zoompct'); await page.click('[data-act=actual]'); await page.waitForTimeout(1200);
     ok('actual size still opens', await page.isVisible('.actual'));
     await page.keyboard.press('Escape'); await settle(page);
