@@ -322,7 +322,8 @@ export const projectMeta = ({ entity, startDate, endDate, location }, lang = DEF
 const takenIds = model => { const t = factIds(model); for (const k of ['projects', 'volunteer', 'awards', 'references']) for (const x of model[k] ?? []) if (x?.id) t.add(x.id); return t; };
 const alsoIn = (lang, t) => (lang !== DEFAULT_LANG && String(t ?? '').trim() ? { lang, text: t } : null);
 
-export function addProject(model, { name = '', entity = '', startDate = '', endDate = '', url = '', during = null, location = '', bullets = [], type = null, lang = DEFAULT_LANG } = {}){
+export function addProject(model, { name = '', entity = '', startDate = '', endDate = '', url = '', during = null, location = '', bullets = [], type = null, lang = DEFAULT_LANG, source = null } = {}){
+  refuseUnsourced(model, bullets, source);
   const id = slug(name || 'project', takenIds(model), 'project');
   const p = { id, name: String(name).trim() || 'Project', ...(entity ? { entity } : {}), ...(ym(startDate) ? { startDate: ym(startDate) } : {}),
     ...(ym(endDate) ? { endDate: ym(endDate) } : {}), ...(url ? { url } : {}), ...(location ? { location } : {}), ...(type ? { type } : {}),
@@ -331,7 +332,7 @@ export function addProject(model, { name = '', entity = '', startDate = '', endD
   addFact(model, `${id}-meta`, { text: projectMeta(p) || ' ', summary: 'With whom and when', tags: [], also: alsoIn(lang, projectMeta(p, lang)) });
   (model.projects ??= []).push(p);
   if (!type) ensureEntriesSection(model, 'projects', 'Projects');
-  for (const b of (bullets ?? []).map(x => String(x ?? '').trim()).filter(Boolean)) addEntryClaim(model, id, b, lang);
+  for (const b of (bullets ?? []).map(x => String(x ?? '').trim()).filter(Boolean)) addEntryClaim(model, id, b, lang, source);
   syncEntry(model, p);
   return id;
 }
@@ -381,6 +382,10 @@ export function updateProject(model, id, fields, lang = DEFAULT_LANG){
   return res;
 }
 
+// Before anything is written, so an entry is not left half-added.
+const refuseUnsourced = (model, bullets, source) => {
+  if (!source && model.requireSource !== false && (bullets ?? []).some(b => String(b ?? '').trim())) throw new RecordError('a new claim needs a source');
+};
 // A record that requires sources refuses a claim without one; the source goes on every wording the claim starts with.
 export function addEntryClaim(model, entryId, text, lang = DEFAULT_LANG, source = null){
   const key = entryKey(model, entryId);
@@ -932,10 +937,11 @@ export function deleteKind(model, id, { moveTo = null, recipes = [] } = {}){
   return { moved: moveTo ? mine.length : 0, deleted: moveTo ? 0 : mine.length };
 }
 // A list kind's entry is one run text: "Name · Organisation · Year".
-export function addKindEntry(model, kindId, { name = '', org = '', startDate = '', endDate = '', location = '', bullets = [], lang = DEFAULT_LANG } = {}){
+export function addKindEntry(model, kindId, { name = '', org = '', startDate = '', endDate = '', location = '', bullets = [], lang = DEFAULT_LANG, source = null } = {}){
+  refuseUnsourced(model, bullets, source);
   const k = kindOf(model, kindId);
   if (!k) throw new Error(`no such kind: ${kindId}`);
-  if (k.store === 'projects' && k.place === 'timeline') return addProject(model, { name: name || k.name.en, entity: org, startDate, endDate, location, bullets, type: k.id, lang });
+  if (k.store === 'projects' && k.place === 'timeline') return addProject(model, { name: name || k.name.en, entity: org, startDate, endDate, location, bullets, type: k.id, lang, source });
   const id = slug(name || k.name.en, takenIds(model), k.id);
   if (k.store === 'volunteer'){
     const x = { id, organization: org, position: String(name).trim() || k.name.en, ...(ym(startDate) ? { startDate: ym(startDate) } : {}), ...(ym(endDate) ? { endDate: ym(endDate) } : {}),
@@ -944,7 +950,7 @@ export function addKindEntry(model, kindId, { name = '', org = '', startDate = '
     addFact(model, `${id}-position`, { text: x.position, summary: k.name.en, tags: [], also: alsoIn(lang, name) });
     addFact(model, `${id}-meta`, { text: meta(DEFAULT_LANG) || ' ', summary: 'Where and when', tags: [], also: alsoIn(lang, meta(lang)) });
     (model.volunteer ??= []).push(x);
-    for (const b of (bullets ?? []).map(t => String(t ?? '').trim()).filter(Boolean)) addEntryClaim(model, id, b, lang);
+    for (const b of (bullets ?? []).map(t => String(t ?? '').trim()).filter(Boolean)) addEntryClaim(model, id, b, lang, source);
     syncEntry(model, x);
     return id;
   }

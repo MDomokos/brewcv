@@ -433,22 +433,22 @@ export function setOverride(recipe, factId, text, meta = null){
   recipe.overrides = { ...(recipe.overrides ?? {}) };
   if (text == null || text === '') return dropOverride(recipe, factId);
   recipe.overrides[factId] = String(text);
-  if (!meta) return;
+  if (!meta){ if (recipe.overrideMeta?.[factId]) recipe.overrideMeta = Object.fromEntries(Object.entries(recipe.overrideMeta).filter(([k]) => k !== factId)); return; }
   recipe.overrideMeta = { ...(recipe.overrideMeta ?? {}), [factId]: { marks: meta.marks ?? [], base: meta.base ?? recipe.overrideMeta?.[factId]?.base ?? null } };
   if (recipe.parked) delete recipe.parked[factId];
 }
 
 // An edit set aside (parked) when a version is picked over it; picking the edit again (unpark) puts it back.
 export function dropOverride(recipe, factId){
-  if (recipe.overrides) delete recipe.overrides[factId];
-  if (recipe.overrideMeta) delete recipe.overrideMeta[factId];
-  if (recipe.parked) delete recipe.parked[factId];
+  if (recipe.overrides) recipe.overrides = Object.fromEntries(Object.entries(recipe.overrides).filter(([k]) => k !== factId));
+  if (recipe.overrideMeta) recipe.overrideMeta = Object.fromEntries(Object.entries(recipe.overrideMeta).filter(([k]) => k !== factId));
+  if (recipe.parked) recipe.parked = Object.fromEntries(Object.entries(recipe.parked).filter(([k]) => k !== factId));
 }
 export function parkOverride(recipe, factId){
   if (!(factId in (recipe.overrides ?? {}))) return;
   recipe.parked = { ...(recipe.parked ?? {}), [factId]: { text: recipe.overrides[factId], meta: recipe.overrideMeta?.[factId] } };
-  delete recipe.overrides[factId];
-  if (recipe.overrideMeta) delete recipe.overrideMeta[factId];
+  const { [factId]: _o, ...overrides } = recipe.overrides; recipe.overrides = overrides;
+  if (recipe.overrideMeta){ const { [factId]: _m, ...meta } = recipe.overrideMeta; recipe.overrideMeta = meta; }
 }
 export function unparkOverride(recipe, factId){
   const p = recipe.parked?.[factId];
