@@ -90,6 +90,7 @@ node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, la
 node checks/shell-check.mjs           layout maths (the page and the panel as one centred group, two sheets, folded, a phone), click targets, Esc, folder read back
 node checks/camera-check.mjs          the canvas camera: both pages or one, limits (centred when the pages fit, an edge each side when zoomed in), the magnet, which page is bright, the spring, the page edge while writing
 node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
+node checks/direct-check.mjs          the model behind editing on the page: the 70 percent cut-off, parked edits, parents, skill sets per language, the new saved-resume keys
 node checks/resumes-check.mjs         autosave, snapshots and sends, frozen text and newer wording, new, duplicate, compare, folder
 node checks/focus-check.mjs           tags, plan = apply, Keep untouched, no job emptied
 node checks/lang-check.mjs            the ten languages, missing texts, switching, A4 formats
