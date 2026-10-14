@@ -62,7 +62,7 @@ export function tagVersions(model, recipe, T){
 
 // Key order and bookkeeping don't change what a resume prints.
 const canon = x => (Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(k => [k, canon(x[k])])) : x);
-const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang'];
+const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked'];
 export const printedKey = (recipe, body) => {
   const r = clone(recipe);
   for (const k of NOT_PRINTED) delete r[k];
@@ -180,7 +180,7 @@ export function openSaved(state, id){
 // A copy of a saved resume's recipe to start something else from: no name, no snapshots, no For.
 function copyOf(src){
   const r = clone(src);
-  for (const k of ['id', 'savedAt', 'date', 'held', 'snapshots', 'forKind']) delete r[k];
+  for (const k of ['id', 'savedAt', 'date', 'held', 'snapshots', 'forKind', 'parent']) delete r[k];
   r.company = ''; r.role = '';
   return r;
 }
@@ -222,6 +222,7 @@ export function duplicate(state, id, { lang = null, name = null } = {}){
   if (!src) throw new Error(`no saved resume ${id}`);
   const r = copyOf(src);
   r.company = src.company ?? ''; r.role = src.role ?? '';
+  r.parent = src.id;
   if (src.forKind) r.forKind = src.forKind;
   holdFrozen(state.record, r, state.frozen?.[id] ?? null);
   const base = resumeLabel(src);
@@ -243,6 +244,7 @@ export function renameSaved(state, id, name){
     r.id = nid;
     if (state.frozen?.[id] !== undefined){ state.frozen = { ...state.frozen, [nid]: state.frozen[id] }; delete state.frozen[id]; }
   }
+  if (nid !== id) for (const o of [...state.resumes, state.cur]) if (o?.parent === id) o.parent = nid;    // a parent link is an id, and a rename changes the id
   if (state.openId === id){
     state.openId = nid;
     state.cur = { ...state.cur, id: nid, name: r.name, application: r.name, title: r.name };
@@ -353,6 +355,26 @@ export function duplicateSnapshot(state, sid, { name = null } = {}){
   state.openId = null;
   return saveNew(state, { name: name ?? t('ux1.copyOfSnap', { name: resumeLabel(src), date: when }), company: src.company, role: src.role, forKind: src.forKind, tagVersions: false });
 }
+
+// The resume this one was copied from, if it is still saved.
+export const parentOf = (state, r) => (r?.parent ? savedOf(state, r.parent) : null);
+// For resumes made before parents were recorded: the other resume in the same language that prints most of the same lines.
+// printedOf(r) lists what r prints.
+export function closestTo(state, r, printedOf){
+  const mine = new Set(printedOf(r));
+  let best = null;
+  for (const o of state.resumes ?? []){
+    if (o === r || (o.lang ?? 'en') !== (r.lang ?? 'en')) continue;
+    const theirs = new Set(printedOf(o));
+    let n = 0;
+    for (const x of mine) if (theirs.has(x)) n++;
+    const s = n / Math.max(mine.size, theirs.size, 1);
+    if (!best || s > best.s) best = { r: o, s };
+  }
+  return best;
+}
+// Other resumes for the same company.
+export const sameCompany = (state, r) => (state.resumes ?? []).filter(o => o !== r && o.company && r.company && o.company.trim().toLowerCase() === r.company.trim().toLowerCase());
 
 // The search box in the switcher.
 export function matches(model, r, q){
