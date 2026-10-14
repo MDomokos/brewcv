@@ -3454,6 +3454,42 @@ if (want('nothing over the text')) {
   }
 }
 
+if (want('a page on the move lifts and curls a little (Tea), and rests exactly (Coffee, reduced motion: nothing)')) {
+  // the sheet's frame and the shadow layer (.lift::before) as the person's browser draws them: scale, tilt (degrees about each axis) and opacity
+  const look = page => page.evaluate(() => {
+    const m = getComputedStyle(document.querySelector('#sheet iframe')).transform, v = m === 'none' ? null : m.match(/matrix3d\((.*)\)/)?.[1].split(',').map(Number);
+    const g = document.querySelector('#garden');
+    return { tf: m, scale: v ? v[0] : 1, tiltX: v ? Math.asin(Math.max(-1, Math.min(1, v[6]))) * 180 / Math.PI : 0, tiltY: v ? Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI : 0,
+      shadow: Number(getComputedStyle(document.querySelector('#sheet .lift'), '::before').opacity), shade: Number(getComputedStyle(document.querySelector('#sheet .lift'), '::after').opacity),
+      vis: getComputedStyle(document.querySelector('#sheet .lift'), '::before').visibility, shown: getComputedStyle(document.querySelector('#sheet .lift')).display !== 'none', moving: document.body.classList.contains('is-moving'), panning: document.body.classList.contains('is-panning'),
+      sheetZ: Number(getComputedStyle(document.querySelector('#sheet')).zIndex), gardenZ: g ? Number(getComputedStyle(g).zIndex) : null };
+  });
+  for (const [what, o, drag] of [['Tea, a wheel pan', {}, false], ['Tea, dark, a Space drag', { theme: 'dark' }, true], ['Coffee', { drink: 'coffee' }, false], ['Tea, reduced motion', { reduced: true }, false]]){
+    const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 }, reducedMotion: o.reduced ? 'reduce' : 'no-preference' });
+    const page = await ctx.newPage();
+    const bad = await open(page, undefined, { folded: true, ...o });
+    await page.mouse.move(500, 400);
+    await page.keyboard.down('Control'); await page.mouse.wheel(0, -25); await page.keyboard.up('Control'); await page.waitForTimeout(1200);      // zoomed in: a pan is free
+    const rest = await look(page);
+    ok(`${what}: at rest the frame has no transform and the lift layer is clear`, rest.tf === 'none' && rest.shadow === 0 && rest.vis === 'hidden' || (o.drink === 'coffee' && rest.tf === 'none'), JSON.stringify(rest));
+    if (drag){ await page.keyboard.down('Space'); await page.mouse.down(); for (let i = 1; i <= 12; i++){ await page.mouse.move(500 - i * 14, 400 - i * 6); await page.waitForTimeout(16); } }
+    else for (let i = 0; i < 12; i++){ await page.mouse.wheel(-40, -25); await page.waitForTimeout(16); }
+    await page.waitForTimeout(60);
+    const mid = await look(page);
+    if (o.drink === 'coffee' || o.reduced) ok(`${what}: it moves and nothing lifts`, mid.moving && mid.tf === 'none' && !mid.shown, JSON.stringify(mid));
+    else {
+      ok(`${what}: while it moves the page is lifted, within bounds (scale to 1.02, tilt to 1 degree)`, mid.panning && mid.scale > 1.005 && mid.scale <= 1.02 && Math.abs(mid.tiltX) <= 1 && Math.abs(mid.tiltY) <= 1 && Math.abs(mid.tiltX) + Math.abs(mid.tiltY) > 0.05, JSON.stringify(mid));
+      ok(`${what}: the shadow layer and the edge shading are on, and the sheet is above the garden`, mid.shadow > 0.9 && mid.shade > 0.9 && mid.vis === 'visible' && (mid.gardenZ === null || mid.gardenZ < mid.sheetZ), JSON.stringify(mid));
+    }
+    if (drag){ await page.mouse.up(); await page.keyboard.up('Space'); }
+    await page.waitForTimeout(2200);
+    const end = await look(page);
+    ok(`${what}: settled, everything is exactly back at rest`, !end.moving && !end.panning && end.tf === 'none' && end.shadow === 0 && end.shade === 0 && end.vis === 'hidden' || (o.drink === 'coffee' && end.tf === 'none' && !end.moving), JSON.stringify(end));
+    ok(`${what}: no console errors`, bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+}
+
 if (want('file://')) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();

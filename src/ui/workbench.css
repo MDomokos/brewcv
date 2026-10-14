@@ -59,7 +59,7 @@
   /* the pieces of the drink: the cup's tea and its outline, the steam, the shadows (flat and offset in tea) */
   --liq: #D9A65A; --liq-weak: #8f8257; --liq-strong: #cf7d2e; --cup-empty: #24382b; --cup-stroke: #F2E6CF; --cup-band: #ecc583; --steam-ink: #d6cfb4; --heart-ink: #f2a58f;
   --shadow-panel: 7px 8px 0 rgba(30, 40, 25, .2); --shadow-lift: 2px 3px 0 rgba(30, 40, 25, .2); --shadow-chip: 3px 4px 0 rgba(30, 40, 25, .2); --shadow-toast: 4px 5px 0 rgba(30, 40, 25, .22);
-  --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .3)) drop-shadow(12px 14px 0 rgba(60, 45, 15, .12)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
+  --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .3)) drop-shadow(12px 14px 0 rgba(60, 45, 15, .12)); --lift-shadow: 9px 15px 26px rgba(60, 45, 15, .32); --lift-shade: inset 0 0 14px rgba(70, 55, 25, .2); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
   --page-warn: #b35c00; --sel-mark: #b77a2c; --sel-mark-soft: rgba(217, 166, 90, .14); --prev-mark: #2E4636; --prev-mark-soft: rgba(46, 70, 54, .08);
   --band-bg: var(--surface); --band-ink: var(--ink); --band-ink-soft: var(--ink-soft); --band-line: var(--line); --band-hover: var(--hover); --band-hover-strong: var(--hover-strong);
   /* UX-5c: the five teas. A tab's sheet takes its tea (Edit's is --surface, today's matcha); each tea gives the roles a sheet needs.
@@ -77,7 +77,7 @@ html[data-drink="tea"][data-theme="dark"] {
   --surface: #26392d; --raised: #2f4637; --input: #1d2c22; --pop: #22342a;
   --stage: #e9e0c8; --cup-empty: #1d2c22;
   --shadow-panel: 7px 8px 0 rgba(0, 0, 0, .4), 0 0 0 1px rgba(217, 166, 90, .12); --shadow-lift: 2px 3px 0 rgba(0, 0, 0, .35); --shadow-chip: 3px 4px 0 rgba(0, 0, 0, .4); --shadow-toast: 4px 5px 0 rgba(0, 0, 0, .4);
-  --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .55)) drop-shadow(12px 14px 0 rgba(0, 0, 0, .28)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
+  --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .55)) drop-shadow(12px 14px 0 rgba(0, 0, 0, .28)); --lift-shadow: 9px 15px 26px rgba(0, 0, 0, .6); --lift-shade: inset 0 0 14px rgba(70, 55, 25, .2); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
   --page-edge: transparent; --page-edge-soft: transparent;
   --tag-hole: #101813;
   /* the teas, darkened the way the matcha is (82 percent) */

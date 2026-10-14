@@ -163,7 +163,7 @@ export function createSheet(host, hooks = {}){
         pending = null;
         resolve(fr);
       }, { once: true });
-      host.replaceChildren(frame);
+      host.querySelector('.sheet-frame')?.remove(); host.prepend(frame);          // the lift layers (canvas.js) stay
     });
     pending = { sig, p };
     return p;

@@ -6,7 +6,7 @@
 
 import {
   geometry, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, keepPageEdge, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
-  brightPage, onPage, faded, springStep, atRest, centreOn, writingScale, midX,
+  brightPage, onPage, faded, springStep, atRest, centreOn, writingScale, midX, pageLeft, rowWidth,
 } from './camera.js';
 import { clampZoom, PHONE_MAX } from './layout.js';
 import { readMagnet, readBounce } from './dock.js';
@@ -24,6 +24,7 @@ export function initCanvas(C){
   let geo = null, view = null, fit = null, scene = 'all';
   let free = false, cam = { k: 1, x: 0, y: 0 };
   let motion = null, raf = 0, idleT = 0, movedT = 0, firedSig = '';
+  let lean = { x: 0, y: 0 };                            // the pan's recent speed in px per step, smoothed: how far the sheet's edge lifts (drinks.css)
   let moving = false, rawFree = null, drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
   const pointers = new Map();
   const dials = { magnet: readMagnet(), bounce: readBounce() };
@@ -32,8 +33,11 @@ export function initCanvas(C){
   const pagesN = () => Math.max(1, ui.laid?.pages?.length ?? ui.fills?.length ?? 1);
 
   // ---- placing the sheet ----
-  function put(next){
+  function put(next, panned){                           // panned: a wheel pan or a drag, the only moves that lift the page (body.is-panning, drinks.css)
     if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); document.body.classList.add('is-moving'); }
+    if (panned) document.body.classList.add('is-panning');
+    lean = { x: lean.x * .6 + (next.x - cam.x) * .4, y: lean.y * .6 + (next.y - cam.y) * .4 };
+    host.style.setProperty('--lx', (-Math.max(-1, Math.min(1, lean.x / 24)) * .8).toFixed(3)); host.style.setProperty('--ly', (Math.max(-1, Math.min(1, lean.y / 24)) * .8).toFixed(3));
     cam = next; ui.cam = cam;
     host.style.left = '0px'; host.style.top = '0px';
     host.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.k.toFixed(5)})`;
@@ -88,7 +92,8 @@ export function initCanvas(C){
     clearTimeout(movedT);
     movedT = setTimeout(() => {
       if (motion || drag || raw !== null) return;
-      moving = false; document.body.classList.remove('is-moving');
+      moving = false; document.body.classList.remove('is-moving', 'is-panning');
+      lean = { x: 0, y: 0 }; host.style.removeProperty('--lx'); host.style.removeProperty('--ly');
       const sig = `${cam.k.toFixed(3)}|${cam.x.toFixed(1)}|${cam.y.toFixed(1)}|${innerWidth}|${innerHeight}|${ui.layout?.folded}`;
       if (sig === firedSig) return;
       firedSig = sig;
@@ -106,6 +111,14 @@ export function initCanvas(C){
     ui.page = Math.max(0, Math.min(geo.n - 1, ui.page ?? 0));
     fit = fitOf({ scene, page: ui.page });
     ui.geo = geo; ui.pageView = view;
+    // one soft layer per page for the lift to draw its shadow and edge shading on (drinks.css); sheet.js keeps them when the frame is swapped
+    host.querySelectorAll('.lift').forEach(e => e.remove());
+    for (let i = 0; i < geo.n; i++){
+      const e = document.createElement('i'), left = pageLeft(geo, i);
+      e.className = 'lift'; e.setAttribute('aria-hidden', 'true');
+      e.style.cssText = `left:${left}px;width:${geo.w}px;height:${geo.h}px;--o:${rowWidth(geo.w, geo.n) / 2 - left}px ${geo.h / 2}px`;
+      host.append(e);
+    }
     if (!free){ go(fit); return; }
     // the view was put somewhere on purpose: it keeps its zoom and the content in the middle, whatever the window does
     const at = motion ? motion.to : cam;                // a move under way counts as already made
@@ -195,7 +208,7 @@ export function initCanvas(C){
       vel = lastWheel ? -d / Math.max(8, now - lastWheel) * 1000 : 0; lastWheel = now;
       raw = (raw ?? unmagnetize(cam.x, xs, dials.magnet)) - d;
       const lo = xs[xs.length - 1], hi = xs[0];
-      put({ ...cam, y: fit.y, x: raw > hi || raw < lo ? rubber(raw, lo, hi) : magnetize(raw, xs, dials.magnet) });
+      put({ ...cam, y: fit.y, x: raw > hi || raw < lo ? rubber(raw, lo, hi) : magnetize(raw, xs, dials.magnet) }, true);
       rest(() => {
         const at = settleIndex(cam.x, xs, vel);
         raw = null; vel = 0; lastWheel = 0;
@@ -207,7 +220,7 @@ export function initCanvas(C){
     free = true; rememberView();
     // the pull is kept unrubbered and the rubber is applied to it once: rubbering the already rubbered position, event after event, made the edge jitter
     rawFree = { x: (rawFree?.x ?? cam.x) - dx, y: (rawFree?.y ?? cam.y) - dy };
-    put(softCam({ ...cam, ...rawFree }, geo, view));
+    put(softCam({ ...cam, ...rawFree }, geo, view), true);
     rest(() => { rawFree = null; go(hardCam(cam, geo, view), { spring: true }); });
     return true;
   }
@@ -234,7 +247,7 @@ export function initCanvas(C){
     if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) return;
     drag.moved = true;
     free = true; rememberView();
-    put(softCam({ ...drag.cam, x: drag.cam.x + e.clientX - drag.x, y: drag.cam.y + e.clientY - drag.y }, geo, view));
+    put(softCam({ ...drag.cam, x: drag.cam.x + e.clientX - drag.x, y: drag.cam.y + e.clientY - drag.y }, geo, view), true);
   }
   // the pointer is over a sheet (not the mat, the gap or the panel): `inPages` is false when something else (the panel) is on top
   const sheetOver = (x, y, inPages = true) => { if (geo) C.sheetOver?.(inPages && onPage(cam, geo, x, y)); };

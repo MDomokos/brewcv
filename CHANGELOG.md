@@ -7,6 +7,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
+- **In Tea, a page you move lifts off the mat.** While you pan or drag it, the page rises a hair with a softer, larger shadow and a little shading toward its edges, and tips under a degree toward the way it goes; it settles back when you stop. Coffee stays flat, and nothing lifts under reduced motion or with Motion off. It lives in the app only: the resume, print and exports are unchanged.
 - **A page you move goes above the garden, and what lay on it is cleared.** In Tea, when you pan, pinch or zoom the page, the leaves, petals and rain spots on it blow or dry away, and while it moves the page covers everything lying on the mat; when it settles, the garden is above it again.
 - **The page no longer slides off to the side when there is room.** While the pages fit the space beside the panel they stay centred and cannot be panned sideways; zoomed in, they pan only until their edge is a margin inside the window's edge, no further. Up and down is as it was.
 - **The zoom bar shows only over the white page.** It no longer appears when the pointer is over the mat beside or around the page, or over the panel; it still shows when you tab into it and when the keys zoom.
