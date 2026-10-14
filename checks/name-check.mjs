@@ -21,6 +21,8 @@ const released = v => cmp(v, [0, 8, 0]) <= 0;
 function walk(dir, out = []){
   for (const e of fs.readdirSync(dir, { withFileTypes: true })){
     if (SKIP.has(e.name)) continue;
+    // other dot-folders (a tool's own folder, with copies of this repo in it) are not the repo; .github is
+    if (e.isDirectory() && e.name.startsWith('.') && e.name !== '.github') continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walk(p, out); else if (TEXT.test(e.name)) out.push(p);
   }
