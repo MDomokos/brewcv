@@ -6,6 +6,8 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ## Unreleased
 
+## 1.2.0 - 2026-10-14
+
 ### Changed
 - **In Tea, a page you move lifts off the mat.** While you pan or drag it, the page rises a hair with a softer, larger shadow and a little shading toward its edges, and tips under a degree toward the way it goes; it comes back down together with the page, reaching the mat just as the page, or its spring back from the edge, comes to rest. Coffee stays flat, and nothing lifts under reduced motion or with Motion off. It lives in the app only: the resume, print and exports are unchanged.
 - **A page you move goes above the garden, and what lay on it is cleared.** In Tea, when you pan, pinch or zoom the page, the leaves, petals and rain spots on it blow or dry away in plain view, and once they have gone the page covers everything else lying on the mat while it moves; when it settles, the garden is above it again.

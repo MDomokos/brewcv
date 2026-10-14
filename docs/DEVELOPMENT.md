@@ -355,7 +355,7 @@ From 1.0.0 on, breaking changes take the major number instead, and features the 
 **Releasing.**
 1. Decide the number from what is under `## Unreleased`.
 2. In `CHANGELOG.md`, rename `## Unreleased` to `## X.Y.Z - YYYY-MM-DD` (today), and open a new, empty `## Unreleased` above it.
-3. Set `"version"` in `package.json` and `VERSION = 'X.Y.Z'` in `sw.js`.
+3. Set `"version"` in `package.json`, `VERSION = 'X.Y.Z'` in `sw.js` and `APP_VERSION` in `src/store/persist.js` (the version a saved file says wrote it; `checks/savefile-check.mjs` insists it equals package.json's), plus `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` (building updates `Cargo.lock`) and a `<release>` in `flatpak/*.metainfo.xml`; `checks/version-check.mjs` and `checks/flatpak-check.mjs` check them.
 4. `node checks/version-check.mjs` and the other checks pass.
 5. Commit as `Release X.Y.Z`, tag it `vX.Y.Z` (annotated: `git tag -a vX.Y.Z -m "X.Y.Z"`), and push the commit and the tag. Optionally, make a GitHub release from the tag with that version's changelog section as its notes.
 
