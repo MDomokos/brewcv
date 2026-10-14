@@ -42,9 +42,12 @@ src/i18n/                  index.js (t, plurals, fallback to English) · en.js �
                            catalogues, each marked NEEDS A NATIVE REVIEW
 src/ui/                    the Workbench: shell, sheet (the iframe), layout, select, edit,
                            resumes, switcher, files, export, design, onboarding, settings,
-                           langmenu, actual size; dock (the five tabs and their foot card, the fold, the fill and Fit in the
-                           header, the zoom bar over the page, hover hints), checklist (the record's groups, drawn by record.js and, at the job level,
-                           beside the job), record (the Record tab: the way in and the way round), career (the
+                           langmenu, actual size; layout (one fixed sidebar at the right, the page centred in the room left of it;
+                           the head has the name menu, Saved, Save to file, undo and redo, the menu and Edit · Design · Export; the body is
+                           what is selected: nothing is the Outline, a job its lines, a line its versions; the foot has the page meters and
+                           Fit; Record and the grown resume list fill the window until their own redesign), dock (the foot card, the zoom bar
+                           over the page with Actual size, hover hints), checklist (the record's groups, drawn by record.js and, at the job
+                           level, beside the job), record (the Record view: the way in and the way round), career (the
                            record's forms and the timeline), help (the shortcut sheet), icons, drink (Tea or
                            Coffee, light or dark: the two settings, the logo that switches them, Shift+F),
                            drink-boot (the same two settings on <html> before the first paint);
@@ -87,7 +90,7 @@ node checks/model-check.mjs [lib]     schema v4, migration, saved-resume files; 
                                       every recipe renders byte-identical to before 0.5.1
 node checks/store-check.mjs           undo, autosave, folder mirror, backup, checkpoints
 node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, labels, photo, fields
-node checks/shell-check.mjs           layout maths (the page and the panel as one centred group, two sheets, folded, a phone), click targets, Esc, folder read back
+node checks/shell-check.mjs           layout maths (the sidebar's one width, the page centred in the room left of it, pages side by side or one at a time, a phone), click targets, Esc, folder read back
 node checks/camera-check.mjs          the canvas camera: both pages or one, limits (centred when the pages fit, an edge each side when zoomed in), the magnet, which page is bright, the spring, the page edge while writing
 node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
 node checks/direct-check.mjs          the model behind editing on the page: the 70 percent cut-off, parked edits, parents, skill sets per language, the new saved-resume keys
@@ -145,11 +148,12 @@ node checks/tokens-check.mjs --browser        the built-in themes as tokens meas
 node checks/paginate-check.mjs [lib] --browser
 node checks/fit-check.mjs [lib] --browser
 node checks/label-fit.mjs                     every language's resume headings fit the gutter, and the app's own new labels fit
-                                              the panel (the five tab labels at 48px, the header, zoom bar, lens, Outline, checklist,
-                                              switcher); a tab label that is too wide is flagged with its text and width
-node checks/room-check.mjs                    the open sheet's hidden share at 1280×720, 1470×832 and 1200×750 (a line, a job, Design and Export
-                                              show whole; the Outline and a line being written hide at most 5% at the smallest), and each
-                                              tab's and foot button's centre is the same open and folded
+                                              the sidebar (Edit · Design · Export in the head, the header, zoom bar, lens, Outline, checklist,
+                                              switcher); a label that is too wide is flagged with its text and width
+node checks/room-check.mjs                    the sidebar and the layout around the page: the body's hidden share at 1280×720, 1470×832 and 1200×750 (a line, a job,
+                                              Design and Export show whole at 1470×832), no element outside the page wider than half the window at 1280×720,
+                                              1470×832 and 1920×1080, the page filling the height less 32px, its x the same for every selection and sheet, and
+                                              the shape of the head (the logo, Save to file, undo, redo, the menu, the tab list) and the foot (meters and Fit)
 AXE_CORE=/path/to/axe.min.js node checks/smoke-shell.mjs
                                               also runs axe-core on every main view (axe-core is a dev tool, not a dependency)
 node checks/measure.mjs <rendered> <reference>    geometry diff, 0.00px expected
@@ -210,7 +214,7 @@ WKWebView has no `showDirectoryPicker`, so `src/store/persist.js` has a third fo
 
 ### The desktop title bar (macOS)
 
-The main window has `titleBarStyle: "Overlay"` and `hiddenTitle` in `src-tauri/tauri.conf.json`, so the page runs to the top edge and the window buttons float over it. `trafficLightPosition` `{ x: 16, y: 18 }` (tao sets only x on the buttons; y is the title bar container's extra height, so the real height depends on the macOS version) puts them over the blank top margin of the page, which the layout starts at 16 px (`G` in `src/ui/layout.js`); no header or control is under them, so there is no inset and nothing to undo in native full screen. The window is dragged by `#tbdrag`, a 56 px strip along the top (nothing shows where it is, so it is generous) that `src/ui/after-boot.js` adds, stacked at z 9: above the page canvas, below the panel, tabs, zoom bar, fit chip and toast, so controls stay clickable and only bare canvas drags (a page panned up under it is not clickable there), with `html[data-titlebar]`, only when `window.__TAURI__` exists and the user agent is a Mac; `data-tauri-drag-region` works only on the element it is on. The main window's capability adds `core:window:allow-start-dragging` (double-click to zoom and `isFullscreen` are in `core:default`); the print windows' capability stays as it was. The page's own background (`--canvas`) is what shows behind the buttons, in both drinks and themes.
+The main window has `titleBarStyle: "Overlay"` and `hiddenTitle` in `src-tauri/tauri.conf.json`, so the page runs to the top edge and the window buttons float over it. `trafficLightPosition` `{ x: 16, y: 18 }` (tao sets only x on the buttons; y is the title bar container's extra height, so the real height depends on the macOS version) puts them over the blank top margin of the page, which the layout starts at 16 px (`G` in `src/ui/layout.js`); no header or control is under them, so there is no inset and nothing to undo in native full screen. The window is dragged by `#tbdrag`, a 56 px strip along the top (nothing shows where it is, so it is generous) that `src/ui/after-boot.js` adds, stacked at z 9: above the page canvas, below the sidebar, zoom bar, fit chip and toast, so controls stay clickable and only bare canvas drags (a page panned up under it is not clickable there), with `html[data-titlebar]`, only when `window.__TAURI__` exists and the user agent is a Mac; `data-tauri-drag-region` works only on the element it is on. The main window's capability adds `core:window:allow-start-dragging` (double-click to zoom and `isFullscreen` are in `core:default`); the print windows' capability stays as it was. The page's own background (`--canvas`) is what shows behind the buttons, in both drinks and themes.
 
 ### Rules the desktop PDF export depends on
 
