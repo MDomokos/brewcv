@@ -12,7 +12,7 @@ import path from 'node:path';
 import { makeUi, dom, REPO, setPhone } from './lib/ui-harness.mjs';
 import * as R from '../src/model/record.js';
 import * as T from '../src/model/resume.js';
-import { toolsHtml, badgeListHtml, statsCompactHtml } from '../src/ui/parts.js';
+import { toolsHtml, statsCompactHtml } from '../src/ui/parts.js';
 
 // The snapshot is a phone's sheet: it keeps the short form of a version (where it starts to differ), as it always did. The desktop
 // panel shows every version in full (the section at the end).
@@ -109,14 +109,11 @@ async function resumeSnapshot(){
     u.store.commit(d => T.setJobOn(d.record, d.cur, job.id, false), 'seed');
     view({ kind: 'job', id: job.id }, 'job-off'); view(sel, 'many-job-off');
 
-    // on the page (UX-3): the tools in the line's margin, the version badge's list, and the panel
+    // on the page (UX-3): the tools in the line's margin (the version number, no list: the sidebar has the versions), and the panel
     // while a line is written there (the versions and a note: no text box, no "Write a new version")
     {
       const now = u.ctx.chooseVariant(u.work(), many, u.cur()).v;
-      const all = R.versionsIn(u.work(), many, 'en');
       const ed = (mode, extra = {}) => ({ fact: many, mode, vid: now.id, base: now.text, draft: `${now.text} and more`, lines0: 2, lines: 3, ...extra });
-      put('en/onpage-tools-badge', toolsHtml({ vn: now.n }));
-      put('en/onpage-tools-badge-open', toolsHtml({ vn: now.n, open: true }) + badgeListHtml({ fact: many, versions: all, usingId: now.id }));
       for (const [name, e, dirty, canOnly] of [['edit-clean', ed('edit', { draft: now.text }), false, true], ['edit-dirty', ed('edit'), true, true], ['edit-no-only', ed('edit'), true, false], ['new', ed('new'), true, true], ['only', ed('only'), true, true]])
         put(`en/onpage-tools-${name}`, toolsHtml({ vn: now.n, ed: e, dirty, canOnly, counts: statsCompactHtml(e) }));
       u.ctx.onpage = { begin: () => true, end(){}, setText(){}, refresh(){} };

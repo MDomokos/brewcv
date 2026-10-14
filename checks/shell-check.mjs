@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
-import { computeLayout, SLIM_MIN, SLIM_MAX, G, TAB_GAP, TABS_W, PANEL_MIN, PANEL_ONE, PANEL_TWO, TWO_FROM, FOLD_INSET, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
+import { computeLayout, SLIM_MIN, SLIM_MAX, G, SIDE_W, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
 import { indexModel, targetOf, up, step, versionsOf, factsOf, NONE } from '../src/ui/select.js';
 import { ZOOM_WRITE } from '../src/ui/dock.js';
 import { load, save, serialize, saveResume } from '../src/model/schema.js';
@@ -39,46 +39,33 @@ section('the source link (AGPL-3.0, section 13)');
   ok('all ten catalogues name the licence in src.link', have.length === 10, `missing: ${langs.filter(l => !have.includes(l))}`);
 }
 
-section('layout: the page and the panel float together');
-// the five tabs; Edit alone can show two sheets
-const TABS = { outline: false, edit: true, design: false, export: false, record: false };
+section('layout: the page and the sidebar');
 const SIZES = [[1200, 750], [1280, 720], [1470, 832], [1920, 1080], [2560, 1440]];
 const lay = (vw, vh, o = {}) => computeLayout({ vw, vh, format: 'a4', ...o });
 for (const [vw, vh] of SIZES){
-  const one = lay(vw, vh), two = lay(vw, vh, { two: true });
-  const widest = Math.max(one.col.width, two.col.width);
+  const L = lay(vw, vh);
   const tag = `${vw}×${vh}`;
-  ok(`${tag}: the panel is ${PANEL_MIN} to ${PANEL_ONE} px with one sheet (${one.col.width.toFixed(0)})`, one.col.width >= PANEL_MIN && one.col.width <= PANEL_ONE);
-  ok(`${tag}: the group is page, ${TAB_GAP}px, the tabs (${TABS_W}px), the panel, in the window`, Math.abs(one.tabs.left - (one.sheet.left + one.sheet.width + TAB_GAP)) < 1e-6 && Math.abs(one.col.left - (one.tabs.left + TABS_W)) < 1e-6 && widest + one.col.left <= vw - G + 1e-6 && one.sheet.left >= G / 2);
-  ok(`${tag}: the group is centred on the panel's widest state (${widest.toFixed(0)}px)`, Math.abs(one.sheet.left - (vw - (one.col.left + widest))) < 1e-6 || one.sheet.left === G / 2);
-  ok(`${tag}: two sheets only with ${TWO_FROM}px beside the page, up to ${PANEL_TWO}px`, two.twoSheets === (vw - 2 * G - TABS_W - TAB_GAP - one.sheet.width >= TWO_FROM) && (two.twoSheets ? two.col.width > one.col.width && two.col.width <= PANEL_TWO : two.col.width === one.col.width));
-  ok(`${tag}: the panel is ${G}px from the top and the bottom; the tabs run alongside`, one.col.top === G && one.col.height === vh - 2 * G && one.tabs.top === G && one.tabs.height === vh - 2 * G);
-  for (const [tab, wantTwo] of Object.entries(TABS)){
-    const L = lay(vw, vh, { two: wantTwo });
-    if (JSON.stringify(L.sheet) !== JSON.stringify(one.sheet) || L.tabs.left !== one.tabs.left || L.col.left !== one.col.left || L.view.mid !== one.view.mid){ ok(`${tag}: the ${tab} tab leaves the page, the tabs and the panel's left edge where they were`, false); break; }
-  }
-  ok(`${tag}: …whichever of the five tabs is open, the page's x and the tabs do not move`, true);
+  ok(`${tag}: the sidebar is one column of ${SIDE_W}px, ${G}px from the right, the top and the bottom`, L.col.width === SIDE_W && L.col.left + L.col.width === vw - G && L.col.top === G && L.col.height === vh - 2 * G);
+  ok(`${tag}: the page is centred in the room left of the sidebar, and is not under it`, Math.abs(L.sheet.left + L.sheet.width / 2 - (L.col.left - G) / 2) < 1e-6 && L.sheet.left + L.sheet.width <= L.col.left - G + 1e-6 && L.sheet.left >= G / 2);
+  ok(`${tag}: the page and the view are the same in every state: the layout takes no selection and no sheet`, JSON.stringify(L) === JSON.stringify(lay(vw, vh, { wide: false, slim: false })) && L.view.mid === (L.col.left - G) / 2);
+  ok(`${tag}: no tabs, no fold, no second sheet`, L.tabs === undefined && L.folded === undefined && L.two === undefined && L.twoSheets === undefined);
+  ok(`${tag}: the sidebar is under half the window (${(100 * SIDE_W / vw).toFixed(0)}%) where the window is 1121px or wider`, vw < 1121 || L.col.width < vw / 2);
 }
 {
   const a = lay(1470, 832);
   ok('1470×832, A4: the page runs the full height, 16px from top and bottom', a.fullHeight && Math.abs(a.sheet.top - G) < 1e-6 && Math.abs(a.sheet.height - (832 - 2 * G)) < 1e-6);
   const narrow = lay(1100, 1000);
-  ok('under about 1100px the page shrinks so the panel keeps 560px', narrow.col.width === PANEL_MIN && !narrow.fullHeight && narrow.sheet.width < lay(1400, 1000).sheet.width && narrow.col.left + narrow.col.width <= 1100 - G + 1e-6);
-  ok('1920×1080 with one page has room for two sheets, 1470×832 does not', lay(1920, 1080).twoSheets && !lay(1470, 832).twoSheets && !lay(1280, 720).twoSheets);
-  ok('a tab that is not Edit never has two sheets', lay(1920, 1080, { two: false }).col.width <= PANEL_ONE && lay(1920, 1080, { two: true }).col.width > PANEL_ONE);
-  const wide = lay(2560, 1440);
-  ok('very wide: the panel stops at 1080px with two sheets, 760px with one', wide.col.width === PANEL_ONE && lay(2560, 1440, { two: true }).col.width === PANEL_TWO);
-  ok('the page is the same size in every panel state', lay(1920, 1080).scale === lay(1920, 1080, { two: true }).scale);
+  ok('under about 1100px the page shrinks so the sidebar keeps its width', narrow.col.width === SIDE_W && !narrow.fullHeight && narrow.sheet.width < lay(1400, 1000).sheet.width && narrow.col.left + narrow.col.width <= 1100 - G + 1e-6);
+  ok('very wide: the sidebar does not grow', lay(2560, 1440).col.width === SIDE_W);
 }
 section('layout: pages side by side or one at a time');
 {
   const n2 = (vw, vh, o = {}) => lay(vw, vh, { pages: 2, ...o });
   const wide = n2(2560, 1440), tall = n2(1280, 800), mid = n2(1920, 1080);
   ok('two A4 pages at 2560×1440 sit side by side (costs under 15% with the panel at its minimum)', wide.spread && wide.perView === 2 && wide.sheet.width > lay(2560, 1440).sheet.width);
-  ok('…at 1280×800 and at 1920×1080 they would cost more, so they travel one at a time (stack)', !tall.spread && tall.stack && tall.perView === 1 && !mid.spread && mid.stack);
-  ok('the spread is counted with the panel at its minimum, so opening a wider sheet changes nothing', JSON.stringify(n2(2560, 1440, { two: true }).sheet) === JSON.stringify(wide.sheet));
-  ok('mode "spread" forces a spread, "stack" a stack, an old "single" means "stack"', n2(1280, 800, { mode: 'spread' }).spread && n2(2560, 1440, { mode: 'stack' }).stack && n2(2560, 1440, { mode: 'single' }).stack);
-  ok('a spread group is centred like a single page: the tabs follow the two pages', Math.abs(wide.tabs.left - (wide.sheet.left + wide.sheet.width + TAB_GAP)) < 1e-6 && wide.col.left + wide.col.width <= 2560 - G + 1e-6);
+  ok('…at 1280×800 they would cost more, so they travel one at a time (stack); at 1920×1080 the room left of the sidebar is enough for both', !tall.spread && tall.stack && tall.perView === 1 && mid.spread && mid.perView === 2);
+    ok('mode "spread" forces a spread, "stack" a stack, an old "single" means "stack"', n2(1280, 800, { mode: 'spread' }).spread && n2(2560, 1440, { mode: 'stack' }).stack && n2(2560, 1440, { mode: 'single' }).stack);
+  ok('a spread group is centred like a single page: in the room left of the sidebar', Math.abs(wide.sheet.left + wide.sheet.width / 2 - wide.view.mid) < 1e-6 && wide.col.left + wide.col.width <= 2560 - G + 1e-6);
   for (const [vw, vh, format, n] of [[1280, 800, 'a4', 2], [1536, 864, 'a4', 3], [1440, 960, 'us-letter', 2]]){
     const L = computeLayout({ vw, vh, format, pages: n, mode: 'stack' });
     const one = computeLayout({ vw, vh, format, pages: 1 });
@@ -86,33 +73,25 @@ section('layout: pages side by side or one at a time');
     const tag = `stack ${vw}×${vh} ${format} ×${n}`;
     ok(`${tag}: each page at the one-page scale (full height)`, Math.abs(L.scale - one.scale) < 1e-9 && L.fullHeight);
     ok(`  the sheet is n pages tall plus the gaps, scaled`, Math.abs(L.sheet.height - stackHeight(format, n) * L.scale) < 1e-6 && Math.abs(stackHeight(format, n) - (n * h + (n - 1) * PAGE_GAP)) < 1e-9);
-    ok(`  the panel and the tabs don't move`, Math.abs(L.col.left - one.col.left) < 1e-9 && L.col.width === one.col.width && L.tabs.left === one.tabs.left);
+    ok(`  the sidebar doesn't move`, Math.abs(L.col.left - one.col.left) < 1e-9 && L.col.width === one.col.width);
     ok(`  page in view: 1 at the top, then each page as it reaches the middle`, pageInView(L, 0, n) === 0 && pageInView(L, pageTop(L, 1), n) === 1 && pageInView(L, pageTop(L, n - 1) + 9999, n) === n - 1);
   }
-}
-section('layout: folded');
-for (const [vw, vh] of SIZES){
-  const F = lay(vw, vh, { folded: true }), O = lay(vw, vh);
-  const tag = `${vw}×${vh}`;
-  ok(`${tag}: folded, the tabs stay at the right edge, ${FOLD_INSET}px in, and keep their height`, F.folded && Math.abs(F.tabs.left - (vw - FOLD_INSET - TABS_W)) < 1e-6 && F.tabs.top === O.tabs.top && F.tabs.height === O.tabs.height && F.tabs.width === TABS_W);
-  ok(`${tag}: …and the page is centred in the room left`, Math.abs(F.sheet.left - (F.tabs.left - F.sheet.left - F.sheet.width)) < 1e-6 && F.sheet.width >= O.sheet.width);
-  ok(`${tag}: …with no sheet beside them (the panel keeps its place to slide back to)`, F.twoSheets === false && F.col.left >= O.col.left - 1e-6 && F.view.mid === F.tabs.left / 2);
 }
 {
   ok('zoom is kept between its limits, and a bad number means 1', clampZoom(0) === ZOOM_MIN && clampZoom(99) === ZOOM_MAX && clampZoom(NaN) === 1 && clampZoom(1.5) === 1.5);
   const z = lay(1470, 832, { zoom: 2 }), one = lay(1470, 832);
-  ok('zoom 2 doubles the sheet, not the group', Math.abs(z.scale - 2 * one.scale) < 1e-9 && z.tabs.left === one.tabs.left && z.col.left === one.col.left && !z.fullHeight);
+  ok('zoom 2 doubles the sheet, not the sidebar', Math.abs(z.scale - 2 * one.scale) < 1e-9 && z.col.left === one.col.left && !z.fullHeight);
 }
 section('layout: the start screen keeps its slim column');
 for (const [vw, vh] of [[1536, 864], [1440, 900], [1100, 760]]){
   const L = lay(vw, vh, { slim: true });
-  ok(`${vw}×${vh}: one column of ${L.col.width}px (380 to 480), ${G}px from the right and the top, no tabs; the page centred in the room left of it`, L.col.width >= SLIM_MIN && L.col.width <= SLIM_MAX && Math.abs(vw - L.col.left - L.col.width - G) < 1e-6 && L.tabs.width === 0 && Math.abs(L.sheet.left - (L.col.left - G - L.sheet.left - L.sheet.width)) < 1e-6 && !L.twoSheets);
+  ok(`${vw}×${vh}: one column of ${L.col.width}px (380 to 480), ${G}px from the right and the top; the page centred in the room left of it`, L.col.width >= SLIM_MIN && L.col.width <= SLIM_MAX && Math.abs(vw - L.col.left - L.col.width - G) < 1e-6 && Math.abs(L.sheet.left - (L.col.left - G - L.sheet.left - L.sheet.width)) < 1e-6);
 }
 section('layout: a phone');
 {
   ok('the phone stacks the pages (decision 6)', computeLayout({ vw: 390, vh: 844, format: 'a4', pages: 2 }).stack);
-  const ph = computeLayout({ vw: 390, vh: 844, format: 'a4', folded: true });
-  ok('the phone has no tabs or fold: the column is the bottom sheet whatever the fold', ph.phone && !ph.folded && ph.col.width === 390 && ph.col.top + ph.col.height === 844 && ph.tabs.width === 0);
+  const ph = computeLayout({ vw: 390, vh: 844, format: 'a4' });
+  ok('the phone: the column is the bottom sheet', ph.phone && ph.col.width === 390 && ph.col.top + ph.col.height === 844);
   const rec = computeLayout({ vw: 390, vh: 844, format: 'a4', wide: true });
   ok('on a phone, Record is the whole screen', rec.phone && rec.col.left === 0 && rec.col.top === 0 && rec.col.width === 390 && rec.col.height === 844);
   ok('actual size: calibrated px per mm → scale', Math.abs(actualScale(NOMINAL_PX_PER_MM) - 1) < 1e-12 && Math.abs(actualScale(340 / CARD_MM) - (340 / CARD_MM) / NOMINAL_PX_PER_MM) < 1e-12);

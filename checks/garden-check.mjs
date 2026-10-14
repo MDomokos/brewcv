@@ -38,6 +38,8 @@ const reporter = name => (label, cond, extra = '') => { lines.push(`${cond ? 'PA
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// the pointer at rest in the window's bottom right corner, which is the sidebar's (the mat is the garden's)
+const park = page => page.evaluate(() => [innerWidth - 10, innerHeight - 10]).then(([x, y]) => page.mouse.move(x, y));
 
 // a page with the garden's hooks; idle is the garden's idle period in seconds (600: it never rests by itself)
 async function open(ok, { idle = 600, query = '', drink = null, rb = {}, ctx = {} } = {}){
@@ -46,7 +48,7 @@ async function open(ok, { idle = 600, query = '', drink = null, rb = {}, ctx = {
   const bad = [];
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
-  await page.addInitScript(([d, extra]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-folded', '1'); if (d) localStorage.setItem('rb-drink', d); for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v); } catch { /* nothing to set */ } }, [drink, rb]);
+  await page.addInitScript(([d, extra]) => { try { localStorage.setItem('rb-help-seen', '1'); if (d) localStorage.setItem('rb-drink', d); for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v); } catch { /* nothing to set */ } }, [drink, rb]);
   await page.goto(`http://localhost:${PORT}/?memory&garden-check=${idle}${query}`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   await page.waitForFunction(() => (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
@@ -85,7 +87,7 @@ async function flow(){
   await ready(page);
   ok('the start is clean: nothing lies on the mat', (await page.$$('#garden .g-thing')).length === 0);
   ok('the garden is hidden from assistive technology and takes no pointer', await page.evaluate(() => { const g = document.getElementById('garden'); return g.getAttribute('aria-hidden') === 'true' && getComputedStyle(g).pointerEvents === 'none'; }));
-  await page.mouse.move(1270, 790);
+  await park(page);
   await hook(page, 'rest'); await hook(page, 'wave', 7); await hook(page, 'wave', 6);
   await landed(page);
   const ls = await leaves(page);
@@ -120,7 +122,7 @@ async function flow(){
 async function sweep(){
   const ok = reporter('sweep'), s = await open(ok), { page } = s;
   await ready(page);
-  await page.mouse.move(1270, 790);
+  await park(page);
   await hook(page, 'rest'); await hook(page, 'wave', 7); await hook(page, 'wave', 6);
   await landed(page);
   const ls = await leaves(page);
@@ -147,7 +149,7 @@ async function sweep(){
 async function keyClear(){
   const ok = reporter('key'), s = await open(ok), { page } = s;
   await ready(page);
-  await page.mouse.move(1270, 790);
+  await park(page);
   await hook(page, 'rest'); await hook(page, 'wave', 7); await hook(page, 'wave', 7);
   await landed(page);
   const n = (await leaves(page)).filter(l => l.on).length;
@@ -163,13 +165,13 @@ async function keyClear(){
 
 // ---- the page stays clear when the pages move: two pages side by side, then a zoom ----
 async function editing(){
-  const ok = reporter('editing'), s = await open(ok, { rb: { 'rb-folded': '0' } }), { page } = s;
+  const ok = reporter('editing'), s = await open(ok, { ctx: { viewport: { width: 2560, height: 1100 } } }), { page } = s;      // wide enough for both pages beside the sidebar
   await ready(page);
   await page.click('#docname-btn'); await page.waitForSelector('#switcher .sopt');
   await page.click('#switcher .sopt:has-text("Medtech")'); await sleep(1500);
-  await page.evaluate(() => window.__wb.dock.setFolded(true)); await sleep(1200);          // fold: both pages at once
+  await sleep(1200);
   ok('two pages side by side', (await pagesNow(page)).length === 2 && await page.evaluate(() => window.__wb.canvas.scene === 'all'));
-  await page.mouse.move(1270, 790);
+  await park(page);
   await hook(page, 'rest'); await hook(page, 'wave', 7); await hook(page, 'wave', 7);
   await landed(page);
   const [fx, fy] = await freeSpot(page);
@@ -193,7 +195,7 @@ async function editing(){
 async function rain(){
   const ok = reporter('rain'), s = await open(ok), { page } = s;
   await ready(page);
-  await page.mouse.move(1270, 790);
+  await park(page);
   await hook(page, 'rest'); await hook(page, 'rain');
   await sleep(14000);
   const count = () => page.evaluate(() => {
@@ -219,9 +221,10 @@ async function rain(){
 
 // ---- the creatures ----
 async function creatures(){
-  const ok = reporter('creatures'), s = await open(ok), { page } = s;
+  // (the mat left of the sidebar must have room beside the page for a creature to come in: a wider window)
+  const ok = reporter('creatures'), s = await open(ok, { ctx: { viewport: { width: 1920, height: 1000 } } }), { page } = s;
   await ready(page);
-  await page.mouse.move(1270, 790);
+  await park(page);
   await hook(page, 'rest');
   ok('the ladybug comes', await hook(page, 'bug') === true);
   ok('only one of a kind at a time: a second one gives way', await hook(page, 'bug') === false);
@@ -253,7 +256,7 @@ async function creatures(){
 async function petals(){
   const ok = reporter('petals'), s = await open(ok), { page } = s;
   await ready(page);
-  await page.mouse.move(1270, 790);
+  await park(page);
   await hook(page, 'rest'); await hook(page, 'petals');
   for (let i = 0, n = -1, same = 0; i < 20 && same < 2; i++){ await sleep(700); const c = await page.evaluate(() => document.querySelectorAll('#garden .g-thing.g-petal').length); same = c === n ? same + 1 : 0; n = c; }
   const xs = await page.evaluate(() => [...document.querySelectorAll('#garden .g-thing.g-petal')].map(e => Math.round(e.getBoundingClientRect().x)));
@@ -284,7 +287,7 @@ async function pause(){
 async function drinks(){
   const ok = reporter('coffee'), s = await open(ok), { page } = s;
   await ready(page);
-  await page.mouse.move(1270, 790);
+  await park(page);
   await hook(page, 'rest'); await hook(page, 'wave', 4); await hook(page, 'bug');
   await sleep(7000);
   const lying = (await page.$$('#garden .g-thing.g-leaf')).length;
@@ -340,7 +343,7 @@ async function axe(){
   for (const theme of ['light', 'dark']){
     const s = await open(ok, { ctx: { bypassCSP: true, colorScheme: theme }, rb: { 'rb-theme': theme } }), { page } = s;
     await ready(page);
-    await page.mouse.move(1270, 790);
+    await park(page);
     await hook(page, 'rest'); await hook(page, 'wave', 5); await hook(page, 'petals'); await hook(page, 'rain'); await hook(page, 'bug'); await hook(page, 'snail'); await hook(page, 'butterfly');
     await sleep(6000);
     await page.evaluate(src);

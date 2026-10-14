@@ -2,10 +2,10 @@
 // node checks/label-fit.mjs
 // Every default heading (doc.section.*) and its "continued" note fits the gutter of its language's A4
 // format and of Letter, measured in Chromium with the real theme, clearing it by at least 3px (the
-// margin a4-hu.css sets). Then the app's own labels in each of the ten languages, with the panel at its narrowest (560px) and
-// at 760px, and Edit's two sheets: the five tab labels at 48px, the header, the zoom bar, the Outline, the checklist, the lens,
-// the switcher and the zoom settings all fit what they are in. A tab label that is too wide is reported with its language, its
-// text and its measured width (the check never shortens one). Writes only to out/. Needs playwright and a Chromium.
+// margin a4-hu.css sets). Then the app's own labels in each of the ten languages, with the sidebar at its one width (560px) in
+// three windows: the head (its tab list too), the foot, the zoom bar with Actual size, the Outline, the checklist, the lens, the
+// switcher and Settings all fit what they are in. A label that is too wide is reported with its language, its text and its
+// measured width (the check never shortens one). Writes only to out/. Needs playwright and a Chromium.
 
 import { chromium } from 'playwright';
 import http from 'node:http';
@@ -79,10 +79,8 @@ for (const lang of I.UI_LANGS.filter(l => l !== 'en')){
 // ---- the app's own labels ----
 // Things that are meant to shorten with an ellipsis; everything else has to fit whole.
 const ELLIPSIS = '.dn, .dt, .clname, .clt, .tx, .filestate, .sn, .muted, .sopt, .stext, .jn, .lt, .lr, option, .title, .t, .tlsend, .lbl, .where, .kb, .crumb, .sumline, .meta, .field input, .field select, .field textarea';
-// 461px is the panel at 1440 (UX-3b: 440 to 480 in Edit, Design and Export); 480px is its widest.
-const widths = [[1200, 750, 'the panel at its narrowest, 560px'], [1470, 832, 'the panel at 748px'], [1920, 1080, 'Edit’s two sheets']];
-const TAB_W = 48;
-const tabFlags = [];
+// the sidebar is 560px wide whatever the window
+const widths = [[1200, 750, '1200×750'], [1470, 832, '1470×832'], [1920, 1080, '1920×1080']];
 for (const lang of I.UI_LANGS){
   for (const [vw, vh, what] of widths){
     const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, bypassCSP: true });
@@ -105,11 +103,10 @@ for (const lang of I.UI_LANGS){
       return bad;
     }, [name, sel, ELLIPSIS]);
     let problems = [];
-    // the five tab labels at 48px: each word as wide as it is drawn, against the room a tab leaves it
-    const tabs = await pg.evaluate(() => [...document.querySelectorAll('#tabs [role=tab]')].map(b => { const l = b.querySelector('.tl'); const r = document.createRange(); r.selectNodeContents(l); return [b.dataset.m, l.textContent.trim(), Math.round(r.getBoundingClientRect().width * 10) / 10]; }));
-    if (vw === 1470) for (const [m, text, w] of tabs) if (w > TAB_W) tabFlags.push(`${lang} ${m} “${text}” ${w}px`);
-    problems.push(...await probe('tabs', '#tabs .tab, #tabs .tabfoot button'));
-    problems.push(...await probe('head', '#head button, #head .hrow, #head .docblock, #head .dline, #head .hfill, #head .savestate'));
+    // the head's tab list (Edit, Design, Export) on one line, and the head's first row inside the sidebar
+    problems.push(...await pg.evaluate(() => { const l = document.querySelector('#head [role=tablist]'), out = []; const tops = [...l.querySelectorAll('[role=tab]')].map(b => Math.round(b.getBoundingClientRect().top)); if (new Set(tops).size !== 1) out.push('the head’s tabs wrap'); if (l.scrollWidth > l.clientWidth + 1) out.push('the head’s tab list is cut'); return out; }));
+    problems.push(...await probe('head', '#head button, #head .hrow, #head .docblock, #head .dline, #head .savestate, #head .seg'));
+    problems.push(...await probe('foot', '#foot button, #foot .hfill, #foot .meters'));
     problems.push(...await probe('zoom bar', '#zoombar button, #zoombar .vbar, #zoombar .meters'));
     problems.push(...await probe('outline', '#outline .srow *, #outline .clcaret, #outline .clcount, #outline .archmore, #outline .addline, .lens button, .lens select, .lensrow, .offchip'));
     // Record, Export's Mark as sent, and the job level
@@ -139,15 +136,12 @@ for (const lang of I.UI_LANGS){
       return out;
     }, ELLIPSIS));
     await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
-    // the zoom pop-up (Actual size), and the page and panel settings, which live in Settings
+    // the zoom bar over the page, with Actual size, and the page and sidebar settings, which live in Settings
     await pg.mouse.move(300, 400); await pg.waitForTimeout(300);
-    await pg.click('#zoompct'); await pg.waitForTimeout(250);
-    problems.push(...await pg.evaluate(() => { const z = document.querySelector('#zpop'); const out = []; if (z.scrollWidth > z.clientWidth + 1) out.push('zoom settings: wider than the card'); for (const b of z.querySelectorAll('button')) if (b.scrollWidth > b.clientWidth + 1) out.push(`zoom settings: “${b.textContent}” is cut`); return out; }));
-    await pg.keyboard.press('Escape');
     await pg.evaluate(() => window.__wb.setView('settings')); await pg.waitForTimeout(400);
     problems.push(...await pg.evaluate(() => { const z = document.querySelector('[data-mode=settings]'); const out = []; if (!z) return ['settings: not open']; for (const b of z.querySelectorAll('.seg button, .dial .dl, .swl span')) if (b.scrollWidth > b.clientWidth + 1) out.push(`settings: “${b.textContent.trim()}” is cut`); if (document.querySelector('#body').scrollWidth > document.querySelector('#body').clientWidth + 1) out.push('settings: wider than the panel'); return out; }));
     await pg.evaluate(() => window.__wb.setView(null));
-    ok(`${lang} at ${what}: the new labels fit (tabs, header, zoom bar, Outline, Record, Export, Design, the job level, switcher, zoom pop-up, the settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
+    ok(`${lang} at ${what}: the new labels fit (header and its tabs, foot, zoom bar, Outline, Record, Export, Design, the job level, switcher, the settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
     await ctx.close();
   }
 }
@@ -174,11 +168,6 @@ for (const lang of I.UI_LANGS){
   ok(`${lang} on the start screen: its labels fit`, bad.length === 0, bad.join(' ; '));
   await ctx.close();
 }
-
-// ---- the five tab labels at 48px: what is too wide is flagged, never shortened ----
-console.log(`\nTab labels at ${TAB_W}px, in ten languages: ${tabFlags.length ? `${tabFlags.length} too wide` : 'all fit'}`);
-for (const f of tabFlags) console.log(`      FLAG  ${f}`);
-ok(`every tab label fits ${TAB_W}px in all ten languages (see FLAG lines above for the ones that do not)`, tabFlags.length === 0, tabFlags.slice(0, 6).join(' ; '));
 
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} label-fit check(s) FAILED` : '\nall label-fit checks passed');

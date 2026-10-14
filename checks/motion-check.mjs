@@ -113,7 +113,7 @@ section('the logo has two tiles');
   ok('icon-coffee.svg is the same shape as the tea tile: same size, same corner, the same C and V', /viewBox="0 0 512 512"/.test(cof) && /rx="114"/.test(cof) && cof.includes('M168 168 L268 392 L368 168') && tea.includes('M168 168 L268 392 L368 168'));
   ok('…in the coffee palette (espresso and crema), and clean: no metadata, no script, no link', /#3A2618/i.test(cof) && /#BE7F4A/i.test(cof) && !/<metadata|c2pa|jumbf|xmp|<script|href=/i.test(cof));
   ok('drink.js picks the tile by the drink; the service worker caches both', /icon-coffee/.test(src['drink.js']) && read('sw.js').includes('./icons/icon-coffee.svg') && read('sw.js').includes('./icons/icon.svg'));
-  ok('the head, the rail and the start screen draw the logo through logoBtn, never a bare img of their own', ['shell.js', 'dock.js', 'start.js'].every(f => /logoBtn\(/.test(src[f]) && !/<img src="icons\/icon\.svg"/.test(src[f])));
+  ok('the head and the start screen draw the logo through logoBtn, never a bare img of their own', ['shell.js', 'start.js'].every(f => /logoBtn\(/.test(src[f]) && !/<img src="icons\/icon\.svg"/.test(src[f])));
 }
 
 section('switching Tea and Coffee');
