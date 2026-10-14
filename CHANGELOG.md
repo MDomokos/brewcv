@@ -7,7 +7,16 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
+- **In Tea, a page you move lifts off the mat.** While you pan or drag it, the page rises a hair with a softer, larger shadow and a little shading toward its edges, and tips under a degree toward the way it goes; it comes back down together with the page, reaching the mat just as the page, or its spring back from the edge, comes to rest. Coffee stays flat, and nothing lifts under reduced motion or with Motion off. It lives in the app only: the resume, print and exports are unchanged.
+- **A page you move goes above the garden, and what lay on it is cleared.** In Tea, when you pan, pinch or zoom the page, the leaves, petals and rain spots on it blow or dry away in plain view, and once they have gone the page covers everything else lying on the mat while it moves; when it settles, the garden is above it again.
+- **The page no longer slides off to the side when there is room.** While the pages fit the space beside the panel they stay centred and cannot be panned sideways; zoomed in, they pan only until their edge is a margin inside the window's edge, no further. Up and down is as it was.
+- **The zoom bar shows only over the white page.** It no longer appears when the pointer is over the mat beside or around the page, or over the panel; it still shows when you tab into it and when the keys zoom.
+- **Fit and the page fill are in the Export view, not on the page.** Export shows how full each page is, as quiet text with the band it aims for, and a Fit button; the open panel's header keeps its meters and Fit. Folded, nothing of them is left on screen, and the zoom bar is just full screen, zoom out, the percentage, zoom in and fit to window.
+- **The folded Tea tags follow the pointer, on strings.** Each tag hangs on its own string from an anchor above the first tag. Sweep the pointer sideways across a tag and both swing the way it goes: the string about the anchor, the tag about its hole, a little less for the neighbours. There is no set animation: the motion is the pointer's, and it settles with no wiggle. The lower the tag, the longer its string: it travels further and settles slower (about 0.6 s for the first, 1.2 s for the fifth). Nothing moves under reduced motion or with Motion off; Coffee has no strings.
 - **The macOS desktop app has no grey title bar.** The app runs up to the top edge of the window and the red, yellow and green buttons float over its top left. Drag the window by the generous strip along the top (56 px; every control stays clickable). Browsers are unchanged.
+
+### Fixed
+- **No white bar between two pages.** In Tea (and in dark Coffee) the gap between two pages side by side showed white paper; it now shows the mat, as light Coffee did.
 
 ## 1.1.0 - 2026-10-13
 

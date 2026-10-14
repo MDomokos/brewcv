@@ -329,11 +329,27 @@ html[data-drink="coffee"] .zoombar { border: 1px solid var(--line-strong); }
 /* Tea, folded: the tags hang on one thread through a punched hole near each top (decoration: no clicks, nothing for a reader).
    Under 1700px the thread runs up out of the frame; wider, it starts at a small loop 14px above the first tag. */
 html[data-drink="tea"] .tabs.is-folded .tablist { position: relative; }
-html[data-drink="tea"] .tabs.is-folded .tablist::before { content: ""; position: absolute; left: 26.2px; top: -100vh; bottom: 51.5px; width: 1.6px; background: var(--thread); pointer-events: none; }
+html[data-drink="tea"] .tabs.is-folded .tablist::before { content: ""; position: absolute; left: 26.2px; top: -100vh; height: calc(100vh - 14px); width: 1.6px; background: var(--thread); pointer-events: none; }   /* the part above the anchor, which stays still */
+/* a string per tag, from the anchor 14px above the first tag to its hole: they lie on one another at rest (dock.js sets each one's length and swings it about the anchor) */
+html[data-drink="tea"] .tabs.is-folded .tstr { position: absolute; left: 26.2px; top: -14px; width: 1.6px; background: var(--thread); transform-origin: 50% 0; pointer-events: none; }
 html[data-drink="tea"] .tabs.is-folded .tab { transform-origin: 50% 8.5px; }
 html[data-drink="tea"] .tabs.is-folded .tab::after { display: block; content: ""; position: absolute; inset: 5px auto auto 23.5px; width: 7px; height: 7px; border-radius: 50%; pointer-events: none;
   background: linear-gradient(var(--thread), var(--thread)) center / 1.6px 100% no-repeat, var(--hole); }
 @media (min-width: 1700px) {
-  html[data-drink="tea"] .tabs.is-folded .tablist::before { top: -14px; }
+  html[data-drink="tea"] .tabs.is-folded .tablist::before { display: none; }
   html[data-drink="tea"] .tabs.is-folded .tablist::after { content: ""; position: absolute; left: 21px; top: -26px; width: 12px; height: 12px; box-sizing: border-box; border: 1.6px solid var(--thread); border-radius: 50%; pointer-events: none; }
 }
+
+/* Tea: a page that moves lifts off the mat, as paper slid along a table does (canvas.js sets body.is-panning for a wheel pan or a drag, --lx/--ly, the lean in degrees, and --lift, 0 to 1: it rises with the pan and falls with the camera's own remaining travel, so there is no transition here and the page is down when the camera is at rest).
+   The sheet's frame and the .lift layers under and over each page share one transform (a small scale, a tilt of at most .8deg toward
+   the way it goes); a soft shadow fades in under it and a shading toward the edges over it, all in proportion to --lift. Only transform and opacity change.
+   Coffee is flat, so it does not lift. Not under reduced motion. Never in the resume's own document or what is exported. */
+.lift { display: none; }
+html[data-drink="tea"]:not([data-motion="reduce"]) .lift { display: block; position: absolute; top: 0; pointer-events: none; }
+html[data-drink="tea"] .lift::before, html[data-drink="tea"] .lift::after { content: ""; position: absolute; inset: 0; border-radius: 3px; opacity: 0; visibility: hidden; transform-origin: var(--o); }   /* hidden at rest: a layer over the page, even clear, changes how its text is drawn */
+html[data-drink="tea"] .lift::before { z-index: -1; box-shadow: var(--lift-shadow); }
+html[data-drink="tea"] .lift::after { z-index: 1; box-shadow: var(--lift-shade); }
+html[data-drink="tea"]:not([data-motion="reduce"]) .sheet-frame, html[data-drink="tea"]:not([data-motion="reduce"]) .lift::before, html[data-drink="tea"]:not([data-motion="reduce"]) .lift::after { transform: var(--lt, none); }
+html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning #sheet { --lt: perspective(1400px) rotateX(calc(var(--ly, 0) * var(--lift, 0) * 1deg)) rotateY(calc(var(--lx, 0) * var(--lift, 0) * 1deg)) scale(calc(1 + .012 * var(--lift, 0))); }
+html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning .lift::before { opacity: var(--lift, 0); visibility: visible; translate: calc(3px * var(--lift, 0)) calc(6px * var(--lift, 0)); }
+html[data-drink="tea"]:not([data-motion="reduce"]) body.is-panning .lift::after { opacity: var(--lift, 0); visibility: visible; }

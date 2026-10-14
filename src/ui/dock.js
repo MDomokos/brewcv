@@ -9,7 +9,8 @@ import { t, h } from '../i18n/index.js';
 import { FILL_BAND } from '../fit.js';
 import { ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
 import { drink, onDrinkChange, logoBtn } from './drink.js';
-import { play } from './motion.js';
+import { play, reduced } from './motion.js';
+import { springStep, atRest } from './camera.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -213,14 +214,15 @@ function drawTabs(){
   const menu = `<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!C.ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" data-tip-pos="l" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>`;
   el.dataset.tab = tab ?? '';
   el.setAttribute('aria-label', t('ux2.modes'));
-  el.innerHTML = `<div class="tablist" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}">${GROUPS.map(grp).join('')}</div>
+  el.innerHTML = `<div class="tablist" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}">${tea && f ? TABS.map(x => `<i class="tstr" data-m="${x.id}" aria-hidden="true"></i>`).join('') : ''}${GROUPS.map(grp).join('')}</div>
     <div class="tabfoot" id="tabfoot">${f ? logoBtn(28, { base: 'logo footlogo', pos: 'l' }) : ''}
       ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
       ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 'l')}
       ${menu}${C.ui.menu ? C.menuHtml() : ''}</div>`;
+  swPlace();
 }
 
-// ---- the fill meter and Fit, in the header (in the zoom bar when the panel is folded), and the zoom bar ----
+// ---- the fill meter and Fit, in the header (and, as quiet text with Fit, in the Export view), and the zoom bar ----
 const fitBtn = (u, limit, needed) => `<button class="fit${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
 function meterHtml(){
   const u = C.ui;
@@ -230,7 +232,7 @@ function meterHtml(){
   }).join('');
   return `<div class="meters" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${rows || '<span class="muted tiny">—</span>'}</div>`;
 }
-// the header's: '' while the panel is folded (the zoom bar has them then)
+// the header's: '' while the panel is folded (the Export view has them then)
 export function fillHtml(){
   if (folded()) return '';
   const u = C.ui, limit = C.shown()?.pageLimit;
@@ -249,6 +251,7 @@ export const renderFoot = () => {
   if (phone() || intro){ keepFocus('#foot', () => tween(drawFoot)); return; }
   keepFocus('#hfill', () => tween(drawFill));
   keepFocus('#zoombar', () => tween(drawZoombar));
+  keepFocus('#exfit', drawExFit);
   keepFocus('#tabfoot', drawTabfoot);
 };
 function drawFill(){
@@ -258,11 +261,20 @@ function drawFill(){
 function drawZoombar(){
   const el = $('#zoombar');
   if (!el) return;
-  const f = folded(), u = C.ui, limit = C.shown()?.pageLimit;
   const pop = $('#zpop');
-  el.innerHTML = `${viewBar(u, 't')}${f ? `<div class="hfill" id="zfill">${meterHtml()}${fitBtn(u, limit, fitFilled(u.fills, limit))}</div>` : ''}`;
+  el.innerHTML = viewBar(C.ui, 't');
   if (pop) el.append(pop);
   renderPop();
+}
+// the Export view's: each page's fill, and Fit beside it
+export function exFitHtml(){
+  const u = C.ui, limit = C.shown()?.pageLimit, n = (u.fills ?? []).length;
+  const pages = (u.fills ?? []).map(p => p.overflow > 0 ? t('foot.overflowPage', { page: p.page }) : t('foot.pageFill', { page: p.page, pct: (100 * p.used / p.usable).toFixed(0) })).join(' · ');
+  return `<div class="exfit" id="exfit"><span class="muted tiny">${esc(pages)}${esc(t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] }))}</span>${fitBtn(u, limit, false)}</div>`;
+}
+function drawExFit(){
+  const el = $('#exfit');
+  if (el) el.outerHTML = exFitHtml();
 }
 // undo and redo are drawn again with the tabs: only their state changes between saves
 function drawTabfoot(){
@@ -303,20 +315,25 @@ function renderPop(){
   el.innerHTML = `<div class="prow"><button class="sm" data-act="actual">${h('ux2.actualSize')}</button></div>`;
 }
 
-// ---- the zoom bar shows while the pointer is over the page ----
+// ---- the zoom bar shows while the pointer is over a sheet (the white page, not the mat) or the bar ----
 // It fades out 0.4 s after the pointer leaves, and flashes for 1.2 s when the keys zoom. The bar is in the page area, at its foot.
 const BAR_OUT_MS = 400, BAR_FLASH_MS = 1200;
-let barOver = 0, barT = 0, flashT = 0;
+let barOver = 0, sheetOn = false, barT = 0, flashT = 0;
 function bar(){ return $('#zoombar'); }
 function showBar(on){
   clearTimeout(barT);
   if (on){ bar()?.classList.add('on'); return; }
-  barT = setTimeout(() => { if (!barOver && !bar()?.matches(':focus-within') && !flashT) bar()?.classList.remove('on'); }, BAR_OUT_MS);
+  barT = setTimeout(() => { if (!barOver && !sheetOn && !bar()?.matches(':focus-within') && !flashT) bar()?.classList.remove('on'); }, BAR_OUT_MS);
+}
+function sheetOver(on){
+  if (on === sheetOn) return;
+  sheetOn = on;
+  showBar(on || !!barOver);
 }
 function flashBar(){
   bar()?.classList.add('on');
   clearTimeout(flashT);
-  flashT = setTimeout(() => { flashT = 0; if (!barOver) showBar(false); }, BAR_FLASH_MS);
+  flashT = setTimeout(() => { flashT = 0; if (!barOver && !sheetOn) showBar(false); }, BAR_FLASH_MS);
 }
 
 // ---- the page and panel settings, shown in Settings (settings.js) ----
@@ -414,25 +431,61 @@ function onModesKey(e){
   $('#head [role=tab][aria-selected=true]')?.focus();
 }
 
-// Tea, folded: brushing over a tag swings it from its hole, the way the pointer pushed it; lower tags swing further and slower, the
-// neighbours at a share of that. Decoration: play() is null under reduced motion, and a click never waits for it.
-function swingTags(e){
-  const tab = e.target.closest?.('.tabs.is-folded .tab'), from = e.relatedTarget;
-  if (!tab || drink() !== 'tea' || tab.contains(from)) return;
-  const all = [...document.querySelectorAll('.tabs.is-folded .tab')], at = all.indexOf(tab);
-  const v = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0;
-  const r = tab.getBoundingClientRect(), dir = e.clientX < r.left + r.width / 2 ? -1 : 1;     // from the left pushes the tag right
-  const deg = v('--swing-deg') + v('--swing-deg-step') * at, ms = v('--swing-ms') + v('--swing-ms-step') * at;
-  all.forEach((x, i) => {
-    if (Math.abs(i - at) > 1) return;
-    const a = deg * dir * (i === at ? 1 : v('--swing-near'));
-    play(x, [0, 1, -.7, .4, -.16, 0].map((k, j) => ({ rotate: `${a * k}deg`, offset: [0, .15, .35, .55, .75, 1][j] })), { key: `tag-${x.dataset.m}`, ms, kind: 'move', name: 'tagswing' });
+// Tea, folded: the tags hang on strings from an anchor above the first tag, through a hole each. Two things swing per tag: its string (about
+// the anchor) and the tag (about its hole, relative to the string). The pointer pushes them as it pushes the garden's leaves (garden.js
+// sweepAt): its sideways movement near a tag (dx, not just entering) adds angular velocity, the neighbours get a share, and a spring
+// (camera.js springStep, critically damped: no wiggle) brings each back to zero. The loop runs only while something moves. A lower tag hangs on
+// a longer string: it swings further and settles slower (--swing-* in workbench.css: degrees and settle time for the first tag, and the step per tag).
+// Nothing moves under reduced motion; Coffee has no strings. Decoration: a click never waits for it.
+const SW = { z: 6.64, string: .35, tag: .8, hole: 8.5, anchor: 14, pad: 10, ref: 60, rest: .03 };   // z: omega x settle time for a critically damped spring to be within 1%
+const sw = [];                       // per tag: { a: string, b: tag } as springs { x: degrees, v: degrees/s }
+let swRaf = 0, swLast = 0, swPx = null;
+const swTok = n => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)) || 0;
+const swOn = () => drink() === 'tea' && folded() && !reduced();
+const swPar = i => { const T = (swTok('--swing-ms') + swTok('--swing-ms-step') * i) / 1000; return { A: swTok('--swing-deg') + swTok('--swing-deg-step') * i, ws: SW.z / T, wt: SW.z / (T * SW.tag) }; };
+// draw the strings and tags as they are now: at rest nothing is set, so everything is exactly where the stylesheet puts it
+function swPlace(){
+  const tabs = document.querySelectorAll('.tabs.is-folded .tab'), strs = document.querySelectorAll('.tabs.is-folded .tstr');
+  tabs.forEach((tab, i) => {
+    const L = tab.offsetTop + SW.hole + SW.anchor, a = sw[i]?.a.x ?? 0, b = sw[i]?.b.x ?? 0, str = strs[i];
+    if (str){ str.style.height = `${L}px`; str.style.transform = a ? `rotate(${a.toFixed(3)}deg)` : ''; }
+    tab.style.transform = a || b ? `translate(0, ${-L}px) rotate(${a.toFixed(3)}deg) translate(0, ${L}px) rotate(${b.toFixed(3)}deg)` : '';
   });
+}
+function swFrame(now){
+  swRaf = 0;
+  if (!swOn()){ sw.length = 0; swPlace(); return; }
+  const dt = Math.min(.05, (now - swLast) / 1000); swLast = now;
+  let live = false;
+  sw.forEach((s, i) => {
+    const p = swPar(i);
+    s.a = springStep(s.a, 0, dt, { omega: p.ws, bounce: 0 }); s.b = springStep(s.b, 0, dt, { omega: p.wt, bounce: 0 });
+    if (atRest(s.a, 0, SW.rest) && atRest(s.b, 0, SW.rest)) s.a = s.b = { x: 0, v: 0 }; else live = true;
+  });
+  swPlace();
+  if (live) swRaf = requestAnimationFrame(swFrame);
+}
+function swingTags(e){
+  const px = swPx; swPx = e.clientX;
+  if (px === null || !swOn()) return;
+  const dx = Math.max(-45, Math.min(45, e.clientX - px));
+  if (!dx) return;
+  const tabs = [...document.querySelectorAll('.tabs.is-folded .tab')];
+  const at = tabs.findIndex(x => { const r = x.getBoundingClientRect(); return e.clientX > r.left - SW.pad && e.clientX < r.right + SW.pad && e.clientY > r.top - SW.pad && e.clientY < r.bottom + SW.pad; });
+  if (at < 0) return;
+  tabs.forEach((x, i) => {
+    if (Math.abs(i - at) > 1) return;
+    const p = swPar(i), share = i === at ? 1 : swTok('--swing-near'), k = -dx / SW.ref * share * Math.E;    // a push of `ref` px gives a peak of A degrees (an impulse v gives a peak of v / (omega e))
+    const s = sw[i] ??= { a: { x: 0, v: 0 }, b: { x: 0, v: 0 } };
+    const cap = (v, A, w) => Math.max(-1.4 * A * w * Math.E, Math.min(1.4 * A * w * Math.E, v));
+    s.a.v = cap(s.a.v + k * SW.string * p.A * p.ws, SW.string * p.A, p.ws); s.b.v = cap(s.b.v + k * p.A * p.wt, p.A, p.wt);
+  });
+  if (!swRaf){ swLast = performance.now(); swRaf = requestAnimationFrame(swFrame); }
 }
 
 function bind(){
   installTips();
-  $('#tabs').addEventListener('pointerover', swingTags);
+  document.addEventListener('pointermove', swingTags, { passive: true });
   onDrinkChange(() => { renderTabs(); renderFoot(); });
   const bar = document.createElement('div');
   bar.id = 'zoombar'; bar.className = 'zoombar';
@@ -444,12 +497,9 @@ function bind(){
   bar.append(pop);
   pop.addEventListener('keydown', e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); openPop(false); } });
   document.addEventListener('mousedown', e => { if (C.ui.zpop && !e.target.closest('#zpop') && !e.target.closest('#zoompct')) openPop(false); });
-  // over the page (or the bar itself, or a key inside it) the bar shows
-  const pages = $('#pages');
-  for (const el of [pages, bar]){
-    el.addEventListener('pointerenter', () => { barOver++; showBar(true); });
-    el.addEventListener('pointerleave', () => { barOver = Math.max(0, barOver - 1); if (!barOver) showBar(false); });
-  }
+  // over a sheet (canvas.js tells us), or the bar itself, or a key inside it, the bar shows
+  bar.addEventListener('pointerenter', () => { barOver = 1; showBar(true); });
+  bar.addEventListener('pointerleave', () => { barOver = 0; showBar(sheetOn); });
   bar.addEventListener('focusin', () => showBar(true));
   bar.addEventListener('focusout', () => showBar(false));
   $('#head').addEventListener('keydown', onModesKey);
@@ -461,7 +511,7 @@ export function initDock(ctx){
   C = ctx;
   C.ui.folded = readFolded(); C.ui.pane = 'outline'; C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite(); C.ui.zpop = false;
   return {
-    bind, act, onKey, sync, folded, twoNow, setFolded, toggleFold, unfold, setMode, modeOf, renderTabs, renderFoot, fillHtml, zoomBy, zoomTo,
+    bind, act, onKey, sync, sheetOver, folded, twoNow, setFolded, toggleFold, unfold, setMode, modeOf, renderTabs, renderFoot, fillHtml, exFitHtml, zoomBy, zoomTo,
     closePop(){ if (!C.ui.zpop) return false; openPop(false); return true; },
     // Esc all the way out: the view zooms out to the whole resume
     allTheWayOut(){ C.canvas.reset(); },

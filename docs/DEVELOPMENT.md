@@ -88,7 +88,7 @@ node checks/model-check.mjs [lib]     schema v4, migration, saved-resume files; 
 node checks/store-check.mjs           undo, autosave, folder mirror, backup, checkpoints
 node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, labels, photo, fields
 node checks/shell-check.mjs           layout maths (the page and the panel as one centred group, two sheets, folded, a phone), click targets, Esc, folder read back
-node checks/camera-check.mjs          the canvas camera: both pages or one, soft limits, the magnet, which page is bright, the spring, the page edge while writing
+node checks/camera-check.mjs          the canvas camera: both pages or one, limits (centred when the pages fit, an edge each side when zoomed in), the magnet, which page is bright, the spring, the page edge while writing
 node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
 node checks/resumes-check.mjs         autosave, snapshots and sends, frozen text and newer wording, new, duplicate, compare, folder
 node checks/focus-check.mjs           tags, plan = apply, Keep untouched, no job emptied
@@ -107,7 +107,7 @@ node checks/motion-check.mjs          the rules motion follows: tokens of 150 to
                                       the printed page never imported, each of the thirteen moments wired, both logo tiles, the ux4. strings
                                       (what each moment starts, and that reduced motion starts none, is in smoke-shell's "motion:" section)
 node checks/garden-check.mjs          the tea garden in Chromium (slow, about two minutes; ONLY=flow,rain runs some): a clean start, waves, sweeping, the way back,
-                                      rain, creatures, the pause, coffee, the setting, the print gate, axe (AXE_CORE=...)
+                                      rain, a page on the move (cleared, garden under it), creatures, the pause, coffee, the setting, the print gate, axe (AXE_CORE=...)
 node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,
                                       no inline script; no outside address in any fetch
 node checks/flatpak-check.mjs         the Flatpak files agree: one app id and version, no network or broad file access, cargo-sources.json current, a workflow that only runs by hand or on a tag

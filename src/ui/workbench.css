@@ -21,7 +21,7 @@
   --ease: cubic-bezier(.2, .8, .2, 1); --ease-in-out: cubic-bezier(.4, 0, .2, 1); --ease-pop: cubic-bezier(.3, 1.6, .5, 1); --ease-swing: cubic-bezier(.3, 1.5, .5, 1);
   /* UX-4 (src/ui/motion.js reads these): a moment is 150 to 400 ms; things arriving ease out, things leaving ease in. Tune them here. */
   --m-fast: 150ms; --m-base: 240ms; --m-slow: 400ms; --m-travel: 300ms; --m-roll: 1000ms; --m-stagger: 60ms;
-  --swing-deg: 2.5; --swing-deg-step: 1.1; --swing-ms: 1250; --swing-ms-step: 120; --swing-near: .45;   /* the folded Tea tags: degrees and ms for Outline, added per tag below it; neighbours swing at this share */
+  --swing-deg: 2; --swing-deg-step: .9; --swing-ms: 600; --swing-ms-step: 150; --swing-near: .45;   /* the folded Tea tags (dock.js): the tag's swing in degrees for a 60px brush, and the ms it takes to settle, for Outline, added per tag below it; neighbours swing at this share */
   --m-out: cubic-bezier(.2, .8, .2, 1); --m-in: cubic-bezier(.4, 0, 1, 1); --m-inout: cubic-bezier(.4, 0, .2, 1);
   --font-ui: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Fira Code", ui-monospace, "SF Mono", Menlo, monospace;
@@ -59,7 +59,7 @@
   /* the pieces of the drink: the cup's tea and its outline, the steam, the shadows (flat and offset in tea) */
   --liq: #D9A65A; --liq-weak: #8f8257; --liq-strong: #cf7d2e; --cup-empty: #24382b; --cup-stroke: #F2E6CF; --cup-band: #ecc583; --steam-ink: #d6cfb4; --heart-ink: #f2a58f;
   --shadow-panel: 7px 8px 0 rgba(30, 40, 25, .2); --shadow-lift: 2px 3px 0 rgba(30, 40, 25, .2); --shadow-chip: 3px 4px 0 rgba(30, 40, 25, .2); --shadow-toast: 4px 5px 0 rgba(30, 40, 25, .22);
-  --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .3)) drop-shadow(12px 14px 0 rgba(60, 45, 15, .12)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
+  --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .3)) drop-shadow(12px 14px 0 rgba(60, 45, 15, .12)); --lift-shadow: 9px 15px 26px rgba(60, 45, 15, .32); --lift-shade: inset 0 0 14px rgba(70, 55, 25, .2); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
   --page-warn: #b35c00; --sel-mark: #b77a2c; --sel-mark-soft: rgba(217, 166, 90, .14); --prev-mark: #2E4636; --prev-mark-soft: rgba(46, 70, 54, .08);
   --band-bg: var(--surface); --band-ink: var(--ink); --band-ink-soft: var(--ink-soft); --band-line: var(--line); --band-hover: var(--hover); --band-hover-strong: var(--hover-strong);
   /* UX-5c: the five teas. A tab's sheet takes its tea (Edit's is --surface, today's matcha); each tea gives the roles a sheet needs.
@@ -77,7 +77,7 @@ html[data-drink="tea"][data-theme="dark"] {
   --surface: #26392d; --raised: #2f4637; --input: #1d2c22; --pop: #22342a;
   --stage: #e9e0c8; --cup-empty: #1d2c22;
   --shadow-panel: 7px 8px 0 rgba(0, 0, 0, .4), 0 0 0 1px rgba(217, 166, 90, .12); --shadow-lift: 2px 3px 0 rgba(0, 0, 0, .35); --shadow-chip: 3px 4px 0 rgba(0, 0, 0, .4); --shadow-toast: 4px 5px 0 rgba(0, 0, 0, .4);
-  --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .55)) drop-shadow(12px 14px 0 rgba(0, 0, 0, .28)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
+  --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .55)) drop-shadow(12px 14px 0 rgba(0, 0, 0, .28)); --lift-shadow: 9px 15px 26px rgba(0, 0, 0, .6); --lift-shade: inset 0 0 14px rgba(70, 55, 25, .2); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
   --page-edge: transparent; --page-edge-soft: transparent;
   --tag-hole: #101813;
   /* the teas, darkened the way the matcha is (82 percent) */
@@ -165,7 +165,7 @@ kbd { font: 600 11px var(--font-mono); border: 1px solid var(--line); border-bot
 .pages__sizer { width: 1px; }
 .pagebox { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 5; opacity: 0; transition: opacity .25s var(--ease); }
 body.is-ready .pagebox { opacity: 1; }
-.sheet-frame { display: block; border: 0; background: transparent; filter: var(--page-shadow-soft); }
+.sheet-frame { display: block; border: 0; background: transparent; filter: var(--page-shadow-soft); color-scheme: light; }   /* the page is always a light document: a frame whose scheme differs from the app's (Tea declares dark) is painted opaque white, which showed as a white bar in the gap between two pages */
 
 .col { position: fixed; display: flex; flex-direction: column; gap: var(--G); z-index: 10; }
 /* First paint: where the page and the column sit before shell.js measures the window.
@@ -313,6 +313,7 @@ details.jr[open] > summary { margin-bottom: 4px; }
 .back:hover { color: var(--ink); }
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: var(--r-m); padding: 7px 10px; font-size: 13px; margin-bottom: 10px; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 8px; }
+body[data-phone=true] .exfit { display: none; }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 1px 8px; background: var(--raised); color: var(--ink-soft); }
 .tag.jt { background: var(--accent-soft); border-color: var(--accent-line); color: var(--ink); }
 button.tag { cursor: pointer; }
@@ -992,7 +993,8 @@ body:not([data-phone=true]) .col.is-folded { transform: translateX(var(--col-out
 .col > #head .hfill .meters { flex: none; }
 .col > #head .hfill .meter { padding: 2px 4px; }
 @container (max-width: 700px){ .col > #head .meter .mlab, .col > #head .savestate .stext2 { display: none; } }
-.hfill .fit { padding: 3px 12px; }
+.hfill .fit, .exfit .fit { padding: 3px 12px; }
+.exfit { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 8px; }
 
 /* the body: one sheet, or two side by side (Outline and Edit, when the room allows) */
 .col > #body { padding: 14px 16px 14px; scroll-padding: 8px; }
@@ -1045,7 +1047,6 @@ body.is-intro .tabs, body.is-quiet .tabs, body[data-phone=true] .tabs { display:
 .zoombar.on { opacity: 1; pointer-events: auto; }
 .zoombar .zpop { right: auto; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); }
 body.is-intro .zoombar, body.is-quiet .zoombar, body[data-phone=true] .zoombar { display: none; }
-
 /* the chip after Fit hangs where Fit is, never over the page */
 .fitchip { bottom: auto; top: 90px; transform: none; }
 body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: auto; width: max-content; }

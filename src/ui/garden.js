@@ -10,10 +10,12 @@
 //  - Return: moving the mouse back clears nothing on the page. A click into the resume or a key press clears it (a gust
 //    front from there), dries its wet spots, and the page stays clear: when the pages move (the canvas fires PAGES_MOVED)
 //    it is cleared again. Leaves and wet spots belong to the screen, not the page.
+//  - A page that starts to move (PAGES_MOVING) clears what lies on it the same way, and while it moves (body.is-moving) the whole
+//    garden sits under it, so it covers whatever lies on the mat; no wet spot lands on it. Once settled the garden is above it again.
 //  - One requestAnimationFrame loop, only while something moves; drops, splashes, wet spots, the snail's trail, the dappled
 //    shade and the fireflies are animated in CSS. The pages' geometry is read when the canvas says they moved.
 
-import { PAGES_MOVED } from './canvas.js';
+import { PAGES_MOVED, PAGES_MOVING } from './canvas.js';
 import { pageLeft } from './camera.js';
 import { reduced } from './motion.js';
 
@@ -194,6 +196,7 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
         place(t); busy = true;
       } else if (!t.gust && (t.moving || t.lift)){ t.vx = t.vy = t.va = 0; t.lift = 0; t.moving = false; t.glide = false; nudge(t); place(t); }
     }
+    if (document.body.classList.contains('g-clearing')) leaving();
     if (busy) requestAnimationFrame(tick); else running = false;
   }
 
@@ -321,12 +324,12 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
   let raining = false, rainT = null;
   const endRain = () => { raining = false; clearTimeout(rainT); rainSky.classList.remove('on'); };
   const wet = (x, y) => {
-    if (!resting && onPage(x, y)) return;
+    if (onPage(x, y) && (!resting || document.body.classList.contains('is-moving'))) return;
     const d = div('g-wet'), r = rnd(5, 12);
     Object.assign(d.style, { width: `${r * 2}px`, height: `${r * rnd(1.6, 2)}px`, transform: `translate(${(x - r).toFixed(0)}px, ${(y - r).toFixed(0)}px)` });
     d.style.setProperty('--life', `${rnd(60, 100).toFixed(0)}s`);   // a variable, so the 1.4 s drying (.dry) isn't overridden
     d._x = x; d._y = y; wets.push(d);
-    d.addEventListener('animationend', () => { d.remove(); const i = wets.indexOf(d); if (i >= 0) wets.splice(i, 1); });
+    d.addEventListener('animationend', () => { d.remove(); const i = wets.indexOf(d); if (i >= 0) wets.splice(i, 1); leaving(); });
     while (wets.length > 140) wets.shift().remove();
   };
   const splash = (x, y) => { const sp = div('g-splash'); sp.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)`; sp.addEventListener('animationend', () => sp.remove()); };
@@ -359,6 +362,11 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
     for (const d of box.querySelectorAll('.g-drop, .g-drop-sh')) d.remove(); // drops still on their way don't land
   };
 
+  // body.g-clearing keeps the garden above a page that moves until what lay on it has left (a leaf gliding off the page) or dried
+  const leaving = () => {
+    refreshGeo();
+    document.body.classList.toggle('g-clearing', active && (things.some(t => (t.gust || t.glide) && onPage(t.x + t.w / 2, t.y + t.h / 2)) || wets.some(d => d.classList.contains('dry'))));
+  };
   const steer = (t, tx, ty, turn) => { const want = Math.atan2(ty - t.y, tx - t.x) * 180 / Math.PI + 90; let d = ((want - t.a + 540) % 360) - 180; t.a += Math.max(-turn, Math.min(turn, d)); };
   const STEP = {
     bug(t, dt){
@@ -466,6 +474,12 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
     lastClear = performance.now();
     clearPage(x, y); dryPage();
   };
+  // a page starting to move (a pan, a pinch, a zoom) clears what lies on it, as a click does; what lay on it leaves in view first, then the garden sits under it until it has settled
+  document.addEventListener(PAGES_MOVING, () => {
+    if (!active || still()) return;
+    refreshGeo();
+    clearPage(px ?? innerWidth / 2, py ?? innerHeight / 2); dryPage(); leaving();
+  });
   // while you edit, the pages can move (the panel opens, the view zooms or pans): whatever they now cover is cleared too
   document.addEventListener(PAGES_MOVED, () => {
     refreshGeo();
@@ -485,6 +499,7 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
     if (on === active) return;
     active = on; box.hidden = dappleEl.hidden = !on;
     if (on){ refreshGeo(); poke(); run(); return; }
+    document.body.classList.remove('g-clearing');
     clearTimeout(timer); endRain(); clearTimeout(dappleT); dappleEl.classList.remove('on');
     for (const t of [...things]) if (['bug', 'fly', 'glow', 'snail'].includes(t.kind)) drop(t);
     for (const d of box.querySelectorAll('.g-drop, .g-drop-sh, .g-splash')) d.remove();

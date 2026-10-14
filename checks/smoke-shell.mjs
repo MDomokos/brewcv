@@ -28,6 +28,7 @@ import { chromium } from 'playwright';
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
+import zlib from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -138,6 +139,17 @@ if (want('one screen: the panel folds, the tabs, the zoom bar, the shortcut shee
   // the zoom bar: only while the pointer is over the page
   await page.mouse.move(1450, 20); await page.waitForTimeout(800);
   ok('the zoom bar is hidden while the pointer is away from the page', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))) && (await page.evaluate(() => +getComputedStyle(document.querySelector('#zoombar')).opacity)) < 0.05);
+  // only over the white sheet: the mat beside it (and above and below it), and the gap, leave it hidden
+  const sr = await rect(page, '#sheet');
+  for (const [what, x, y] of [['the mat beside the page', sr.left - 30, 400], ['the mat under the page', sr.left + sr.width / 2, sr.bottom + 8]]){
+    if (x < 5 || y > 860) continue;
+    await page.mouse.move(x, y, { steps: 4 }); await page.waitForTimeout(900);
+    ok(`the zoom bar stays hidden over ${what}`, !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))), `${x.toFixed(0)},${y.toFixed(0)}`);
+  }
+  await page.mouse.move(sr.left + sr.width / 2, sr.top + 200, { steps: 4 }); await page.waitForTimeout(500);
+  ok('over the white sheet it shows, in the frame too (the page is an iframe)', await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on')));
+  await page.mouse.move(sr.left - 30, 400, { steps: 4 }); await page.waitForTimeout(900);
+  ok('…and leaving the sheet for the mat hides it again', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))));
   await page.mouse.move(300, 400); await page.waitForTimeout(500);
   ok('over the page it shows: full screen, −, the percentage, +, fit — at the foot of the page area, under the page', await page.evaluate(() => { const z = document.querySelector('#zoombar'), r = z.getBoundingClientRect(); return z.classList.contains('on') && +getComputedStyle(z).opacity > 0.9 && ['fullscreen', 'zoom-out', 'zoom-pop', 'zoom-in', 'zoom-fit'].every(a => z.querySelector(`[data-act=${a}]`)) && r.bottom > innerHeight - 40 && r.right < document.querySelector('#tabs').getBoundingClientRect().left; }));
   await page.mouse.move(1450, 400); await page.waitForTimeout(250);
@@ -156,7 +168,11 @@ if (want('one screen: the panel folds, the tabs, the zoom bar, the shortcut shee
   ok('E folds the panel away: it is not on screen, the tabs stay at the right edge, 16px in, and the foot card with the logo under them', (await S()).folded === 'true' && !(await page.isVisible('#body')) && !(await page.isVisible('#head')) && Math.abs(1536 - tf.right - 16) < 1.5 && (await page.isVisible('#tabs [role=tab][data-m=edit]')) && await page.isVisible('#tabfoot .footlogo') && !(await page.$('#rail')));
   ok('…the page centres in the room left of the tabs', Math.abs(f0.left - (tf.left - f0.right)) < 2, `${f0.left.toFixed(1)} vs ${(tf.left - f0.right).toFixed(1)}`);
   ok('…the tabs are cream tags, none the colour of a panel', await page.evaluate(() => { const bg = e => getComputedStyle(document.querySelector(e)).backgroundColor; return bg('#tab-outline') === bg('#tab-edit') && bg('#tab-edit') === bg('#tab-record'); }));
-  ok('…and Fit and the fill join the zoom bar over the page', await page.evaluate(() => { const z = document.querySelector('#zoombar'); return !!z.querySelector('[data-act=fit]') && !!z.querySelector('.meter') && !document.querySelector('#head [data-act=fit]'); }));
+  ok('…folded, no Fit or fill chip stays on screen: not in the zoom bar, not in the header, and nothing called #zfill', await page.evaluate(() => { const z = document.querySelector('#zoombar'); return !z.querySelector('[data-act=fit]') && !z.querySelector('.meter') && !document.querySelector('#zfill') && !document.querySelector('#head [data-act=fit]') && !document.querySelector('.meter'); }));
+  await page.mouse.move(4, 4);
+  await page.click('#tab-export'); await settle(page);
+  ok('…Export carries the pages\' fill as quiet text and the Fit button, which can be clicked', await page.evaluate(() => { const e = document.querySelector('#exfit'), b = e?.querySelector('[data-act=fit]'); if (!b) return false; const r = b.getBoundingClientRect(), at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return /\d+%/.test(e.textContent) && /88/.test(e.textContent) && (at === b || b.contains(at)) && !!b.title; }));
+  await page.click('#tab-export'); await settle(page);
   await sheet.locator('.bullets li').first().click(); await settle(page);
   ok('selecting never folds or unfolds: folded stays folded', (await S()).folded === 'true' && (await S()).sel === 'bullet');
   await page.click('#tab-design'); await settle(page);
@@ -436,9 +452,9 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     await wheel(page, 0, 300); await page.waitForTimeout(500);
     ok(`${w}×${h}: nor does a sideways swipe`, Math.abs((await camOf(page)).x - c.x) < 0.5);
     ok(`${w}×${h}: the stack and side-by-side toggle is gone`, !(await page.$('[data-act=view]')));
-    await page.click('[data-act=goto-page][data-page="1"]'); await page.waitForTimeout(500);
-    ok(`${w}×${h}: a meter says which page is current; the view stays`, (await camOf(page)).page === 1 && Math.abs((await camOf(page)).x - c.x) < 0.5 && (await page.getAttribute('[data-act=goto-page][data-page="1"]', 'aria-current')) === 'true');
-    await page.click('[data-act=goto-page][data-page="0"]');
+    await page.evaluate(() => window.__wb.canvas.goToPage(1)); await page.waitForTimeout(500);       // folded, no meter is on screen: the page comes forward by the canvas
+    ok(`${w}×${h}: the current page changes without a meter; the view stays`, (await camOf(page)).page === 1 && Math.abs((await camOf(page)).x - c.x) < 0.5);
+    await page.evaluate(() => window.__wb.canvas.goToPage(0));
     ok(`${w}×${h}: no console errors`, bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -518,11 +534,18 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     // a drag on the bare canvas pans, within the limits
     await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(60, 470, { steps: 4 }); await page.mouse.up(); await page.waitForTimeout(900);
     const c1 = await camOf(page);
-    ok('a drag on the bare canvas pans the pages and leaves them there', c1.free && Math.abs(c1.x - (c0.x + 46)) < 3 && Math.abs(c1.y - (c0.y + 20)) < 3, `${c1.x - c0.x}, ${c1.y - c0.y}`);
+    ok('a drag on the bare canvas pans the pages up and down and leaves them there; sideways they stay centred, as they fit the room', c1.free && Math.abs(c1.x - c0.x) < 1 && Math.abs(c1.y - (c0.y + 20)) < 3, `${c1.x - c0.x}, ${c1.y - c0.y}`);
     ok('…and the wheel now pans too (the pages are not in their place)', await (async () => { await wheel(page, 60, 0, [700, 450]); await page.waitForTimeout(700); return Math.abs((await camOf(page)).y - (c1.y - 60)) < 3; })());
     await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(1000, 450, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(1200);
-    const far = await camOf(page), lim = await page.evaluate(() => window.__wb.canvas.limits());
-    ok('pulled far past the edge it springs back to the soft limit (two thirds of the view stay in the pages)', far.x <= lim.maxX + 0.5 && far.x > lim.maxX - 4, `${far.x.toFixed(1)} vs ${lim.maxX.toFixed(1)}`);
+    ok('pulled far sideways with the pages fitting: they are still centred where they were', Math.abs((await camOf(page)).x - c0.x) < 0.5, `${(await camOf(page)).x} vs ${c0.x}`);
+    // zoomed in so they do not fit: they pan until the page edge is G inside the view's edge, and no further
+    await page.evaluate(() => window.__wb.canvas.zoomTo(2, undefined, { animate: false })); await page.evaluate(() => document.activeElement?.blur()); await page.waitForTimeout(500);
+    for (const [to, edge] of [[1, 'maxX'], [-1, 'minX']]){
+      await page.mouse.move(to > 0 ? 100 : 1300, 450); await page.keyboard.down('Space'); await page.mouse.down(); await page.mouse.move(to > 0 ? 1250 : 50, 450, { steps: 8 }); await page.mouse.up(); await page.keyboard.up('Space'); await page.waitForTimeout(1200);
+      const far = await camOf(page), lim = await page.evaluate(() => window.__wb.canvas.limits()), v = await page.evaluate(() => window.__wb.canvas.view);
+      const G = 16, shown = await page.evaluate(() => { const c = window.__wb.canvas, g = c.geo; return import('/src/ui/layout.js').then(L => ({ left: c.cam.x, right: c.cam.x + (g.n * g.w + (g.n - 1) * L.PAGE_GAP) * c.cam.k })); });
+      ok(`zoomed in and pulled far ${to > 0 ? 'right' : 'left'}: it springs back to ${to > 0 ? 'the left' : 'the right'} edge of the pages, G inside the view`, Math.abs(far.x - lim[edge]) < 0.6 && (to > 0 ? Math.abs(shown.left - (v.left + G)) < 0.6 : Math.abs(shown.right - (v.left + v.width - G)) < 0.6), `${far.x.toFixed(1)} vs ${lim[edge].toFixed(1)}`);
+    }
     await page.keyboard.press('0'); await page.waitForTimeout(700);
     const home = await camOf(page);
     ok('0 puts it all back', !home.free && Math.abs(home.x - c0.x) < 1 && Math.abs(home.y - c0.y) < 1 && home.zoom === 1);
@@ -530,10 +553,10 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     await page.evaluate(() => document.activeElement?.blur());          // (E leaves the focus on the open tab: Space would press it)
     await page.mouse.move(700, 450); await page.keyboard.down('Space'); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up(); await page.keyboard.up('Space'); await page.waitForTimeout(900);
     const c2 = await camOf(page);
-    ok('Space and drag pans, even over a page, and does not select what is under it', c2.free && Math.abs(c2.x - (c0.x - 60)) < 3 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none', `${c2.x - c0.x}`);
+    ok('Space and drag pans, even over a page, and does not select what is under it', c2.free && Math.abs(c2.x - c0.x) < 1 && Math.abs(c2.y - (c0.y - 50)) < 3 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none', `${c2.x - c0.x}`);
     await page.keyboard.press('0'); await page.waitForTimeout(700);
     await page.mouse.move(700, 450); await page.mouse.down({ button: 'middle' }); await page.mouse.move(720, 470, { steps: 3 }); await page.mouse.up({ button: 'middle' }); await page.waitForTimeout(900);
-    ok('the middle button pans too', Math.abs((await camOf(page)).x - (c0.x + 20)) < 3);
+    ok('the middle button pans too (up and down: the pages fit sideways)', Math.abs((await camOf(page)).y - (c0.y + 20)) < 3 && Math.abs((await camOf(page)).x - c0.x) < 1);
     await page.keyboard.press('0'); await page.waitForTimeout(700);
     // a pinch: Chrome and Edge send Ctrl and the wheel; it zooms about the pointer
     const pt = [800, 300];
@@ -592,9 +615,12 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     ok('…drawn in the app’s layer: nothing in the page, and it takes no clicks', ov && !ov.inFrame && ov.ptr === 'none');
     await page.evaluate(f => { window.__wb.ui.fills = f; window.__wb.renderOverflow(); }, real);
     ok('…and gone when the page fits again', (await page.$$('#ovlay .ov')).length === 0);
+    const unfolded = !(await page.$('[data-act=fit]'));
+    if (unfolded){ await page.keyboard.press('e'); await page.waitForTimeout(700); }      // folded, Fit is in the open panel's header (and the Export view)
     await page.click('[data-act=fit]');
     await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 60000 }); await page.waitForTimeout(800);
     ok('Fit still runs, and reports', await page.evaluate(() => !!window.__wb.ui.lastFit && window.__wb.ui.lastFit.pages.length > 0));
+    if (unfolded){ await page.keyboard.press('e'); await page.waitForTimeout(700); }
     await page.mouse.move(300, 400); await page.click('#zoompct'); await page.click('[data-act=actual]'); await page.waitForTimeout(1200);
     ok('actual size still opens', await page.isVisible('.actual'));
     await page.keyboard.press('Escape'); await settle(page);
@@ -2479,30 +2505,65 @@ if (want('drinks: tea and coffee, light and dark')) {
   await ctx.close();
 }
 
-if (want('drinks: the folded Tea tags hang on a thread and swing; Coffee and reduced motion have none')) {
+if (want('drinks: the folded Tea tags hang on strings and follow the pointer; Coffee and reduced motion have none')) {
   const look = page => page.evaluate(() => {
     const ps = (el, w) => getComputedStyle(el, w);
-    const tl = document.querySelector('.tabs .tablist'), tab = document.querySelector('#tab-record');
-    return { thread: ps(tl, '::before').content !== 'none' ? [ps(tl, '::before').width, ps(tl, '::before').backgroundColor, ps(tl, '::before').pointerEvents] : null,
+    const tl = document.querySelector('.tabs .tablist'), tab = document.querySelector('#tab-record'), str = [...document.querySelectorAll('.tabs .tstr')];
+    return { strings: str.length, thread: str[0] ? [ps(str[0]).width, ps(str[0]).backgroundColor, ps(str[0]).pointerEvents] : null, above: ps(tl, '::before').content !== 'none' && ps(tl, '::before').display !== 'none',
       loop: ps(tl, '::after').content !== 'none', hole: ps(tab, '::after').display !== 'none' && ps(tab, '::after').content !== 'none' };
   });
   const THREAD = [1.6, 'rgb(168, 138, 92)', 'none'];
+  // each string's angle (its own rotation about the anchor) and each tag's angle relative to its string (the tag's whole rotation less the string's), in degrees
+  const angles = page => page.evaluate(() => {
+    const rot = el => { const m = getComputedStyle(el).transform; if (m === 'none') return 0; const v = m.match(/matrix\(([^)]*)\)/)[1].split(',').map(Number); return Math.atan2(v[1], v[0]) * 180 / Math.PI; };
+    return ['outline', 'edit', 'design', 'export', 'record'].map(m => { const a = rot(document.querySelector(`.tstr[data-m=${m}]`) ?? document.body), t = rot(document.querySelector('#tab-' + m)); return { string: a, tag: t - a }; });
+  });
+  // the pointer sweeps sideways across a tag (dir 1: to the right); then the time (ms) until every string and tag is exactly at rest
+  const brush = async (page, id, dir) => {
+    const b = await (await page.$('#tab-' + id)).boundingBox(), x0 = dir > 0 ? b.x - 10 : b.x + b.width + 10;
+    await page.mouse.move(x0 - dir * 40, b.y + 30); await page.waitForTimeout(150);
+    await page.mouse.move(x0, b.y + 30); await page.mouse.move(x0 + dir * 60, b.y + 30, { steps: 5 });
+    const t0 = Date.now(); let peak = null, flips = 0, last = 0;
+    await page.waitForTimeout(120);
+    for (;;){
+      const a = await angles(page), big = a.reduce((m, x, i) => Math.abs(x.tag) > Math.abs(m.v) ? { v: x.tag, i } : m, { v: 0, i: 0 });
+      peak = peak ?? a;
+      if (last && big.v && Math.sign(big.v) !== last && Math.abs(big.v) > 0.05) flips++;
+      if (Math.abs(big.v) > 0.05) last = Math.sign(big.v);
+      const rest = await page.evaluate(() => [...document.querySelectorAll('.tabs .tab, .tabs .tstr')].every(e => e.style.transform === ''));
+      if (rest || Date.now() - t0 > 4000) return { peak, flips, ms: Date.now() - t0, rest };
+      await page.waitForTimeout(30);
+    }
+  };
   for (const [drink, w, reduce] of [['tea', 1280, false], ['tea', 1920, false], ['coffee', 1920, false], ['tea', 1280, true]]){
     const ctx = await browser.newContext({ viewport: { width: w, height: 800 }, reducedMotion: reduce ? 'reduce' : 'no-preference' });
     const page = await ctx.newPage();
     const bad = await open(page, undefined, { folded: true, drink });
     await settle(page);
     const L = await look(page), name = `${drink} ${w}${reduce ? ' reduced' : ''}`;
-    ok(`${name}: ${drink === 'tea' ? 'a 1.6px thread that takes no clicks, a hole in each tag' + (w >= 1700 ? ', and a loop above the first' : ', no loop under 1700px') : 'no thread, hole or loop'}`,
-      drink === 'tea' ? L.thread && Math.abs(parseFloat(L.thread[0]) - THREAD[0]) < .1 && L.thread[1] === THREAD[1] && L.thread[2] === THREAD[2] && L.hole && L.loop === (w >= 1700) : !L.thread && !L.hole && !L.loop, JSON.stringify(L));
-    const box = await (await page.$('#tab-record')).boundingBox();
-    await page.mouse.move(box.x - 30, box.y + 30); await page.mouse.move(box.x + 10, box.y + 30);
-    await page.waitForTimeout(150);
-    const sw = await page.evaluate(() => ['design', 'export', 'record'].map(m => document.querySelector('#tab-' + m).getAnimations().filter(a => a.effect.getKeyframes().some(k => 'rotate' in k)).length));
-    ok(`${name}: brushing a tag ${drink === 'tea' && !reduce ? 'swings it and its neighbour, not a tag two away' : 'moves nothing'}`, drink === 'tea' && !reduce ? sw[2] === 1 && sw[1] === 1 && sw[0] === 0 : sw.every(n => n === 0), JSON.stringify(sw));
+    ok(`${name}: ${drink === 'tea' ? 'five strings of 1.6px that take no clicks, a hole in each tag, ' + (w >= 1700 ? 'a loop above the first' : 'the thread running up out of the frame') : 'no string, thread, hole or loop'}`,
+      drink === 'tea' ? L.strings === 5 && L.thread && Math.abs(parseFloat(L.thread[0]) - THREAD[0]) < .1 && L.thread[1] === THREAD[1] && L.thread[2] === THREAD[2] && L.hole && L.loop === (w >= 1700) && L.above === (w < 1700) : L.strings === 0 && !L.thread && !L.hole && !L.loop && !L.above, JSON.stringify(L));
     if (drink === 'tea' && !reduce){
-      const slow = await page.evaluate(() => { const d = m => document.querySelector('#tab-' + m).getAnimations().find(a => a.effect.getKeyframes().some(k => 'rotate' in k)).effect.getTiming().duration; return d('record'); });
-      ok('the lowest tag swings 1.73 s', Math.abs(slow - 1730) < 1, String(slow));
+      const rest = await angles(page);
+      ok('at rest every string and tag is at angle 0 and nothing is set on them', rest.every(a => a.string === 0 && a.tag === 0) && await page.evaluate(() => [...document.querySelectorAll('.tabs .tab, .tabs .tstr')].every(e => e.style.transform === '')), JSON.stringify(rest));
+      const mid = async (id, dir) => { const b = await (await page.$('#tab-' + id)).boundingBox(), x0 = dir > 0 ? b.x - 10 : b.x + b.width + 10; await page.mouse.move(x0 - dir * 40, b.y + 30); await page.waitForTimeout(300); await page.mouse.move(x0, b.y + 30); await page.mouse.move(x0 + dir * 60, b.y + 30, { steps: 5 }); await page.waitForTimeout(150); return angles(page); };
+      const ar = await mid('edit', 1);
+      ok('a pointer moving right across a tag turns its string and the tag (about its hole) both to the right (negative angles), the tag more than the string', ar[1].string < -0.2 && ar[1].tag < -0.5 && Math.abs(ar[1].tag) > Math.abs(ar[1].string), JSON.stringify(ar[1]));
+      ok('…its neighbours move the same way but less, and a tag two away does not move', ar[0].tag < 0 && ar[2].tag < 0 && Math.abs(ar[0].tag) < Math.abs(ar[1].tag) && Math.abs(ar[2].tag) < Math.abs(ar[1].tag) && ar[3].tag === 0 && ar[4].tag === 0 && ar[3].string === 0, JSON.stringify(ar));
+      await page.waitForTimeout(2500);
+      const al = await mid('edit', -1);
+      ok('a pointer moving left does the reverse: positive angles', al[1].string > 0.2 && al[1].tag > 0.5, JSON.stringify(al[1]));
+      await page.waitForTimeout(2500);
+      const a0 = await mid('outline', 1); await page.waitForTimeout(2500); const a4 = await mid('record', 1); await page.waitForTimeout(2500);
+      ok('the same brush swings the lowest tag (the longest string) further than the first: both string and tag', Math.abs(a4[4].string) > Math.abs(a0[0].string) && Math.abs(a4[4].tag) > Math.abs(a0[0].tag), JSON.stringify({ first: a0[0], fifth: a4[4] }));
+      const top = await brush(page, 'outline', 1), low = await brush(page, 'record', 1);
+      ok(`both come exactly to rest: the first tag in ${top.ms} ms, the fifth in ${low.ms} ms, the lower one slower (about 0.6 s to about 1.2 s once the pointer has left)`, top.rest && low.rest && low.ms > top.ms * 1.4 && top.ms < 1400 && low.ms < 2400, JSON.stringify({ top, low }));
+      ok('the push is a swing and a settle: the tag never changes direction on its way back', top.flips === 0 && low.flips === 0, JSON.stringify({ top: top.flips, low: low.flips }));
+    }
+    if (drink !== 'tea' || reduce){
+      const b = await (await page.$('#tab-record')).boundingBox();
+      await page.mouse.move(b.x - 40, b.y + 30); await page.mouse.move(b.x + 10, b.y + 30, { steps: 4 }); await page.mouse.move(b.x + 50, b.y + 30, { steps: 4 }); await page.waitForTimeout(150);
+      ok(`${name}: brushing a tag moves nothing`, await page.evaluate(() => [...document.querySelectorAll('.tabs .tab, .tabs .tstr')].every(e => e.style.transform === '' && getComputedStyle(e).transform === 'none')));
     }
     await page.click('#tab-record'); // a click during the swing unfolds at once
     ok(`${name}: a click on a tag unfolds the panel at once`, await page.waitForFunction(() => !document.querySelector('#tabs').classList.contains('is-folded'), null, { timeout: 400 }).then(() => true, () => false));
@@ -3045,7 +3106,7 @@ if (want('accessibility: axe-core on every view')) {
       await page.keyboard.press('e'); await settle(page);
       await runAxe(page, 'folded: the tags and the foot card');
       await page.mouse.move(300, 400); await page.waitForTimeout(500);
-      await runAxe(page, 'folded: the zoom bar with Fit and the fill');
+      await runAxe(page, 'folded: the zoom bar, and the chip with Fit and the fill');
       ok(`${drink} ${theme}: no console errors`, bad.length === 0, bad[0] ?? '');
       await ctx.close();
       const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true, colorScheme: theme });
@@ -3421,6 +3482,61 @@ if (want('nothing over the text')) {
     await fr.locator('.bullets li').nth(1).dblclick(); await page.waitForTimeout(1500);
     ok(`${w}×${h}${folded ? ' folded' : ''}: writing at 150%, the page's left edge stays inside the view`, await page.evaluate(() => { const c = window.__wb.canvas, l = c.screenRect(window.__wb.sheet.pageBoxes()[0]).left; return !!window.__wb.ui.writing && l >= c.view.left && l < c.view.left + c.view.width / 4; }), await page.evaluate(() => window.__wb.canvas.screenRect(window.__wb.sheet.pageBoxes()[0]).left));
     ok(`${w}×${h}: no errors`, bad.length === 0, bad.join(' | '));
+    await ctx.close();
+  }
+}
+
+if (want('the gap between two pages shows the mat, in both drinks and both themes')) {
+  // one pixel of the screen as the person sees it (a 1×1 PNG: inflate the data, skip the filter byte)
+  const pixel = async (page, x, y) => { const png = await page.screenshot({ clip: { x, y, width: 1, height: 1 } }); let o = 8, idat = []; while (o < png.length){ const n = png.readUInt32BE(o), ty = png.toString('ascii', o + 4, o + 8); if (ty === 'IDAT') idat.push(png.subarray(o + 8, o + 8 + n)); o += 12 + n; } return [...zlib.inflateSync(Buffer.concat(idat)).subarray(1, 4)]; };
+  for (const [drink, theme] of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']]){
+    const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
+    const page = await ctx.newPage();
+    const bad = await open(page, undefined, { folded: true, drink, theme });
+    await openByName(page, 'Medtech'); await page.waitForTimeout(600); await page.mouse.move(5, 5);
+    const g = await page.evaluate(() => { const f = document.querySelector('#sheet iframe'), r = f.getBoundingClientRect(), k = r.width / f.offsetWidth, p = [...f.contentDocument.querySelectorAll('.document > .page')].map(e => e.getBoundingClientRect()); return p.length === 2 ? { x: r.left + (p[0].right + p[1].left) / 2 * k, y: r.top + 400, wide: (p[1].left - p[0].right) * k } : null; });
+    const px = g ? await pixel(page, Math.round(g.x), Math.round(g.y)) : null;
+    ok(`${drink} ${theme}: two pages side by side, and the gap between them is the mat, not white paper`, !!g && g.wide > 8 && !!px && px.some(c => c < 225), JSON.stringify({ g, px }));
+    ok(`${drink} ${theme}: no console errors`, bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+}
+
+if (want('a page on the move lifts and curls a little (Tea), and rests exactly (Coffee, reduced motion: nothing)')) {
+  // the sheet's frame and the shadow layer (.lift::before) as the person's browser draws them: scale, tilt (degrees about each axis) and opacity
+  const look = page => page.evaluate(() => {
+    const m = getComputedStyle(document.querySelector('#sheet iframe')).transform, v = m === 'none' ? null : m.match(/matrix3d\((.*)\)/)?.[1].split(',').map(Number);
+    const g = document.querySelector('#garden');
+    return { tf: m, scale: v ? v[0] : 1, tiltX: v ? Math.asin(Math.max(-1, Math.min(1, v[6]))) * 180 / Math.PI : 0, tiltY: v ? Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI : 0,
+      shadow: Number(getComputedStyle(document.querySelector('#sheet .lift'), '::before').opacity), shade: Number(getComputedStyle(document.querySelector('#sheet .lift'), '::after').opacity),
+      vis: getComputedStyle(document.querySelector('#sheet .lift'), '::before').visibility, shown: getComputedStyle(document.querySelector('#sheet .lift')).display !== 'none', moving: document.body.classList.contains('is-moving'), panning: document.body.classList.contains('is-panning'),
+      sheetZ: Number(getComputedStyle(document.querySelector('#sheet')).zIndex), gardenZ: g ? Number(getComputedStyle(g).zIndex) : null };
+  });
+  for (const [what, o, drag] of [['Tea, a wheel pan', {}, false], ['Tea, dark, a Space drag', { theme: 'dark' }, true], ['Coffee', { drink: 'coffee' }, false], ['Tea, reduced motion', { reduced: true }, false]]){
+    const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 }, reducedMotion: o.reduced ? 'reduce' : 'no-preference' });
+    const page = await ctx.newPage();
+    const bad = await open(page, undefined, { folded: true, ...o });
+    await page.mouse.move(500, 400);
+    await page.keyboard.down('Control'); await page.mouse.wheel(0, -25); await page.keyboard.up('Control'); await page.waitForTimeout(1200);      // zoomed in: a pan is free
+    const rest = await look(page);
+    ok(`${what}: at rest the frame has no transform and the lift layer is clear`, rest.tf === 'none' && rest.shadow === 0 && rest.vis === 'hidden' || (o.drink === 'coffee' && rest.tf === 'none'), JSON.stringify(rest));
+    if (drag){ await page.keyboard.down('Space'); await page.mouse.down(); for (let i = 1; i <= 12; i++){ await page.mouse.move(500 - i * 14, 400 - i * 6); await page.waitForTimeout(16); } }
+    else for (let i = 0; i < 12; i++){ await page.mouse.wheel(-40, -25); await page.waitForTimeout(16); }
+    await page.waitForTimeout(60);
+    const mid = await look(page);
+    if (o.drink === 'coffee' || o.reduced) ok(`${what}: it moves and nothing lifts`, mid.moving && mid.tf === 'none' && !mid.shown, JSON.stringify(mid));
+    else {
+      ok(`${what}: while it moves the page is lifted, within bounds (scale to 1.02, tilt to 1 degree)`, mid.panning && mid.scale > 1.005 && mid.scale <= 1.02 && Math.abs(mid.tiltX) <= 1 && Math.abs(mid.tiltY) <= 1 && Math.abs(mid.tiltX) + Math.abs(mid.tiltY) > 0.05, JSON.stringify(mid));
+      ok(`${what}: the shadow layer and the edge shading are on, and the sheet is above the garden`, mid.shadow > 0.9 && mid.shade > 0.9 && mid.vis === 'visible' && (mid.gardenZ === null || mid.gardenZ < mid.sheetZ), JSON.stringify(mid));
+    }
+    if (drag){ await page.mouse.up(); await page.keyboard.up('Space'); }
+    // the lift follows the camera's own travel: by the time the camera is at rest (its transform unchanged for 6 frames) the page is back down
+    const liftAtRest = await page.evaluate(() => new Promise(res => { let prev = '', same = 0; const f = () => { const s = document.getElementById('sheet'), c = s.style.transform; same = c === prev ? same + 1 : 0; prev = c; if (same >= 6) res(Number(s.style.getPropertyValue('--lift') || 0)); else requestAnimationFrame(f); }; f(); }));
+    if (!o.drink && !o.reduced) ok(`${what}: when the camera comes to rest the lift is already down (${liftAtRest.toFixed(3)})`, liftAtRest < 0.05, String(liftAtRest));
+    await page.waitForTimeout(2200);
+    const end = await look(page);
+    ok(`${what}: settled, everything is exactly back at rest`, !end.moving && !end.panning && end.tf === 'none' && end.shadow === 0 && end.shade === 0 && end.vis === 'hidden' || (o.drink === 'coffee' && end.tf === 'none' && !end.moving), JSON.stringify(end));
+    ok(`${what}: no console errors`, bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
 }
