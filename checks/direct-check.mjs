@@ -518,6 +518,35 @@ section('an edited contact line keeps the links whose words it still has');
   const page = html(rc);
   ok('the link whose words are still there stays, re-anchored; the one whose words went is dropped, with a warning', page.includes('<a href="mailto:dana@example.org">dana@example.org</a>') && !page.includes('https://danaokonkwo.example') && T.resolve(m, rc).problems.some(x => x.includes('dropped the link to https://danaokonkwo.example')) && !T.resolve(m, rc).problems.some(x => x.includes('dropped the link to mailto')));
 }
+section('every printed text can be written on the resume: an edit with its base and highlights, a heading, a language\'s name (UX-6c-iii-a)');
+{
+  const m = clone(model), page = r => renderPages(m, r, createDocument(), { fallback: true, annotate: true }).pages.map(p => p.outerHTML).join('');
+  const rc = clone(S.loadResume(read('data/example-resumes/Medtech Lisboa - Mechanical Engineer.json'), m).recipe);
+  const baseOf = id => m.facts.find(f => f.id === id).variants.map(v => m.variants.find(x => x.id === v)).find(v => (v.lang ?? 'en') === 'en').id;
+  // the header, a job's title and dates, education's three fields, patent, a certificate, a language's level, an interest
+  const ids = ['tagline', 'name', 'contact', 'hydra-position', 'hydra-meta', 'edu-degree', 'edu-school', 'edu-meta', 'patent-title', 'patent-meta', 'cert-gdt', 'lang-portuguese', 'interest-sailing'];
+  ids.forEach((id, n) => T.setOverride(rc, id, `Edited ${n}`, { marks: [], base: baseOf(id) }));
+  const printed = page(rc);
+  ok('each of them prints as an edit, on the page the app draws and in what is sent', ids.every((id, n) => printed.includes(`data-variant="${id}-override"`) && printed.includes(`Edited ${n}`)));
+  ok('each is on the Review list (pendingEdits) with its base version and its marks, so UX-6d can offer it as a version', eq(T.pendingEdits(rc).sort(), [...ids].sort()) && ids.every(id => rc.overrideMeta[id].base === baseOf(id) && Array.isArray(rc.overrideMeta[id].marks)));
+  ok('an edit equal to its base drops, and the resume is as it was', (() => { const r2 = clone(rc); for (const id of ids) T.dropOverride(r2, id); return !r2.overrides || !Object.keys(r2.overrides).length; })());
+  // a heading: the existing per-language label
+  const r3 = clone(S.loadResume(read('data/example-resumes/Medtech Lisboa - Mechanical Engineer.json'), m).recipe), before = JSON.stringify(r3);
+  T.setLabel(m, r3, '~h:education', 'en', 'Study');
+  ok('a heading is written in the resume\'s language and prints, with its page key', T.labelOf(m, r3, 'education', 'en') === 'Study' && page(r3).includes('data-label="h:education">Study</h2>') && T.labelNow(m, r3, '~h:education', 'en') === 'Study');
+  T.setLabel(m, r3, '~h:education', 'hu', 'Tanulmányok');
+  ok('…another language keeps its own', T.labelOf(m, r3, 'education', 'en') === 'Study' && T.labelOf(m, r3, 'education', 'hu') === 'Tanulmányok');
+  T.setLabel(m, r3, '~h:education', 'hu', T.recordTitle(m, 'education', 'hu')); T.setLabel(m, r3, '~h:education', 'en', ' Education ');
+  ok('the record\'s own words (or none) take it back, and the resume is as it was', JSON.stringify(r3) === before && T.labelNow(m, r3, '~h:education', 'en') === 'Education');
+  // a language's name: this resume's own, per language
+  T.setLabel(m, r3, '~t:lang-portuguese', 'en', 'Portuguese (native)');
+  const html3 = page(r3);
+  ok('a language\'s name is kept on this resume and prints, with its page key', eq(r3.terms, { 'lang-portuguese': { en: 'Portuguese (native)' } }) && html3.includes('data-label="t:lang-portuguese">Portuguese (native)</dt>') && T.labelNow(m, r3, '~t:lang-portuguese', 'en') === 'Portuguese (native)');
+  ok('…the same text in another language is not it', !renderPages(m, { ...r3, lang: 'hu', picks: {}, overrides: {} }, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('').includes('Portuguese (native)'));
+  T.setLabel(m, r3, '~t:lang-portuguese', 'en', 'Portuguese');
+  ok('the record\'s name takes it back: no `terms` key is left', JSON.stringify(r3) === before && !('terms' in r3));
+  ok('a name or heading that was never written leaves no trace in what is sent', !renderPages(m, rc, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('').includes('data-label'));
+}
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {
   // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i. Change it only when the example or the renderer is meant to change.

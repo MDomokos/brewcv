@@ -106,8 +106,18 @@ const ix = indexModel(model);
 const vid = id => model.facts.find(f => f.id === id).variants[0];
 {
   ok('a bullet', eq(targetOf(ix, { variant: vid('hydra-inhaler'), section: 'experience' }), { kind: 'bullet', id: 'hydra-inhaler', job: 'hydra', section: 'experience' }));
-  ok('a job title is the job', eq(targetOf(ix, { variant: vid('poly-position'), section: 'experience' }), { kind: 'job', id: 'poly' }));
-  ok('its meta line too', eq(targetOf(ix, { variant: vid('poly-meta'), section: 'experience' }), { kind: 'job', id: 'poly' }));
+  ok('a job title is a text of its job, written where it prints', eq(targetOf(ix, { variant: vid('poly-position'), section: 'experience' }), { kind: 'bullet', id: 'poly-position', section: 'experience', owner: 'poly' }));
+  ok('its meta line too', eq(targetOf(ix, { variant: vid('poly-meta'), section: 'experience' }), { kind: 'bullet', id: 'poly-meta', section: 'experience', owner: 'poly' }));
+  ok('an item of education, patent, a language (its level), a certificate, an interest is a text of its section',
+    eq(targetOf(ix, { variant: vid('edu-degree'), section: 'education' }), { kind: 'bullet', id: 'edu-degree', section: 'education' })
+    && eq(targetOf(ix, { variant: vid('edu-school'), section: 'education' }), { kind: 'bullet', id: 'edu-school', section: 'education' })
+    && eq(targetOf(ix, { variant: vid('patent-meta'), section: 'patent' }), { kind: 'bullet', id: 'patent-meta', section: 'patent' })
+    && eq(targetOf(ix, { variant: vid('lang-portuguese'), section: 'languages' }), { kind: 'bullet', id: 'lang-portuguese', section: 'languages' })
+    && eq(targetOf(ix, { variant: vid('cert-gdt'), section: 'certified' }), { kind: 'bullet', id: 'cert-gdt', section: 'certified' })
+    && eq(targetOf(ix, { variant: vid('interest-sailing'), section: 'interests' }), { kind: 'bullet', id: 'interest-sailing', section: 'interests' }));
+  ok('a heading is the selection of its section, written (a label, not a claim)', eq(targetOf(ix, { label: 'h:experience', section: 'experience' }), { kind: 'section', id: 'experience', heading: true }));
+  ok('a language\'s name is its own text, the level\'s section', eq(targetOf(ix, { label: 't:lang-portuguese', section: 'languages' }), { kind: 'bullet', id: '~t:lang-portuguese', section: 'languages' }));
+  ok('the arrows and Tab find a heading and a name by their keys', step(['a', '~h:x', '~t:y'], { kind: 'section', id: 'x', heading: true }, 1) === '~t:y' && step(['a', '~h:x', '~t:y'], { kind: 'bullet', id: '~t:y' }, -1) === '~h:x');
   ok('the summary is a bullet of its own', targetOf(ix, { variant: vid('summary'), section: 'summary' }).kind === 'bullet');
   ok('a "this resume only" text selects its bullet', eq(targetOf(ix, { variant: 'hydra-inhaler-override', section: 'experience' }), { kind: 'bullet', id: 'hydra-inhaler', job: 'hydra', section: 'experience' }));
   ok('the name is a line of the header, written where it prints', eq(targetOf(ix, { variant: vid('name'), section: 'header' }), { kind: 'bullet', id: 'name', section: 'header' }));

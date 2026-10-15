@@ -100,7 +100,7 @@ async function markSent(page){ await page.evaluate(() => window.__wb.dock.setMod
 // The Outline: Edit with nothing selected
 async function toEditHome(page){ await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(500); }
 // The first job selected: its lines are the movable rows
-async function toJobOutline(page){ await page.frameLocator('#sheet iframe').locator('.role-title').first().click(); await page.waitForTimeout(500); }
+async function toJobOutline(page){ await toEditHome(page); await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(400); await page.locator('#body .jobname').first().click(); await page.waitForTimeout(500); }      // from the Outline: the section, then the job by its name (a click on the page would write the title)
 // + Add lives in the Record tab's header
 async function openAdd(page){ await inRecord(page); await page.click('[data-act=c-pop]'); }
 // The Record tab lists the record's groups, all open. Open it, and make sure one group is open and in view.
@@ -195,8 +195,8 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   for (const m of ['edit', 'design', 'export']){ await page.click(`#tab-${m}`); await settle(page); xs.push(Math.round((await rect(page, '#sheet')).left * 10)); }
   await page.mouse.move(4, 4); await key('ArrowDown'); await settle(page); xs.push(Math.round((await rect(page, '#sheet')).left * 10));      // a line selected (a click would write it, and zoom)
   await key('Escape'); await key('Escape'); await settle(page);
-  await sheet.locator('.role-title').first().click(); await settle(page); xs.push(Math.round((await rect(page, '#sheet')).left * 10));
-  ok('the page’s x is the same on Edit, Design and Export and for a line or a job selected', new Set(xs).size === 1, xs.join());
+  await page.click('#outline [data-act=select-section][data-id=experience]'); await settle(page); await page.locator('#body .jobname').first().click(); await settle(page); xs.push(Math.round((await rect(page, '#sheet')).left * 10));      // a job, from the sidebar (a click on its title would write it, and zoom)
+  ok('the page’s x is the same on Edit, Design and Export and for a line or a job selected', new Set(xs).size === 1 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job', xs.join());
   await page.mouse.move(4, 4); await key('Escape'); await key('Escape'); await settle(page);
   // Esc goes up a level
   await sheet.locator('.bullets li').first().click(); await settle(page);
@@ -309,6 +309,8 @@ if (want('one screen: a narrow window keeps the sidebar at its width; the keyboa
   for (let i = 0; i < 60 && !(await p2.evaluate(() => document.activeElement?.dataset?.g === 'hydra' && document.activeElement.classList.contains('clcaret'))); i++) await p2.keyboard.press('Tab');
   ok('every group is open, and Enter on a group’s caret folds it (aria-expanded)', (await p2.getAttribute('#checklist .clg[data-g=hydra] .clcaret', 'aria-expanded')) === 'true' && await (async () => { await p2.keyboard.press('Enter'); await settle(p2); return (await p2.getAttribute('#checklist .clg[data-g=hydra] .clcaret', 'aria-expanded')) === 'false'; })());
   await p2.keyboard.press('Enter'); await settle(p2);
+  await p2.keyboard.press('Tab');
+  ok('the stop after the caret is the entry\'s name: a button named with the job, not a separate “Open it”', await p2.evaluate(() => { const b = document.activeElement; return b?.classList.contains('jobname') && b.tagName === 'BUTTON' && b.textContent.trim().length > 3 && !!b.closest('#checklist') && !/^Open it$/.test(b.textContent.trim()); }));
   await p2.keyboard.press('Tab'); await p2.keyboard.press('Space'); await p2.waitForTimeout(900);
   const rowOn = await p2.evaluate(() => { const cb = document.activeElement; return { box: cb?.classList.contains('cb'), label: cb?.getAttribute('aria-label') }; });
   ok('the next stop is a row’s checkbox, named with the line’s text, and Space toggles it', rowOn.box && /\w/.test(rowOn.label ?? '') && (await p2.evaluate(() => window.__wb.store.history.undo)) === 1);
@@ -382,9 +384,13 @@ if (want('selecting, preview, versions, undo')) {
   ok('Esc goes to the page', (await page.getAttribute('#body', 'data-view')) === 'outline');
 
   await sheet.locator('.role-title').first().click(); await settle(page);
-  ok('clicking a job title selects the job', (await page.getAttribute('#body', 'data-view')) === 'job');
+  ok('clicking a job title writes it, as a text of its job: its versions are in the card', (await page.getAttribute('#body', 'data-view')) === 'bullet' && (await page.evaluate(() => window.__wb.ui.sel.id ?? '')).endsWith('-position') && (await lineEl(page).count()) === 1);
+  await page.click('#editlay .obchip [data-act=select-job]'); await settle(page);
+  ok('the chip\'s job level selects the job', (await page.getAttribute('#body', 'data-view')) === 'job');
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
   await sheet.locator('.band[data-section="skills"] .tab').first().click(); await settle(page);
-  ok('clicking a section tab selects the section', (await page.getAttribute('#body', 'data-view')) === 'section');
+  ok('clicking a section\'s heading writes it, in the card the section\'s own view', (await page.getAttribute('#body', 'data-view')) === 'section' && (await lineEl(page).count()) === 1);
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   await sheet.locator('.name').click(); await settle(page);
   ok('clicking the name writes it where it prints: it is a line of the header, with its versions in the card', (await page.getAttribute('#body', 'data-view')) === 'bullet' && (await page.evaluate(() => `${window.__wb.ui.sel.id}/${window.__wb.ui.sel.section}`)) === 'name/header' && (await sheet.locator('[contenteditable]').count()) === 1);
   await page.click('#body .depth [data-act=select-header]'); await settle(page);
@@ -683,8 +689,12 @@ if (want('on the page: the chip on the frame, at four sizes')) {
     const fails = [];
     for (const sid of secs) {
       await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
-      await sheet.locator(`.band[data-section="${sid}"] h2.tab`).first().click().catch(() => sheet.locator(`.band[data-section="${sid}"]`).first().click());
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(400);
+      if (await frameDoc(page, (d, q) => !!d.querySelector(`.band[data-section="${q}"] h2.tab`), sid)) await page.click(`#outline [data-act=select-section][data-id="${sid}"]`);      // from the sidebar: a click on the heading would write it, and zoom
+      else await sheet.locator(`.band[data-section="${sid}"]`).first().click();      // the header and the summary have no heading
+      const at = await frameDoc(page, (d, q) => [...d.querySelectorAll('.document > .page')].findIndex(p => p.querySelector(`.band[data-section="${q}"]`)), sid);
+      if (at !== (await page.evaluate(() => window.__wb.ui.page))) await page.evaluate(i => window.__wb.canvas.goToPage(i), at);
+      await page.waitForTimeout(900);
       const g = await page.evaluate(() => !!document.querySelector('#editlay .obchip')) ? await chipGeomOf(page) : null;
       if (!g || !g.onEdge || !g.nearRight || g.over || !g.room) fails.push(`${sid} ${JSON.stringify(g)}`);
     }
@@ -699,6 +709,18 @@ if (want('on the page: the chip on the frame, at four sizes')) {
     await page.click('#body .outline.only [data-act=cl-open]'); await page.waitForTimeout(700);
     const gs = await chipGeomOf(page), ws = await page.$$eval('#editlay .obchip .dp-w', e => e.map(x => x.textContent));
     ok(`${w}x${h}: …and for a skill group: Page › Skills › CAD, on the section's frame`, JSON.stringify(ws) === JSON.stringify(['Page', 'Skills', 'CAD']) && gs.onEdge && gs.nearRight && gs.over === 0 && gs.room, JSON.stringify([ws, gs]));
+    // an item of education, a language, a certificate and a job's title: the frame goes round the item (or the job), the chip stands on it
+    const items = [];
+    for (const [what, sel] of [['an item of education', '.band[data-section=education] .item__title'], ['a language', '.band[data-section=languages] dd'], ['a certificate', '.band[data-section=certified] .runs strong'], ['a job\'s title', '.band[data-section=experience] .role-title']]){
+      await page.mouse.move(4, 4); for (let k = 0; k < 2; k++) await page.keyboard.press('Escape');
+      await page.waitForTimeout(500);
+      const at = await frameDoc(page, (d, q) => [...d.querySelectorAll('.document > .page')].findIndex(p => p.querySelector(q)), sel);
+      if (at !== (await page.evaluate(() => window.__wb.ui.page))){ await page.evaluate(i => window.__wb.canvas.goToPage(i), at); await page.waitForTimeout(1100); }
+      await sheet.locator(sel).first().click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(800);
+      const gi = await chipGeomOf(page);
+      if (!gi.onEdge || gi.over || !gi.room) items.push(`${what} ${JSON.stringify(gi)}`);      // (a small item's frame is narrower than the chip: the chip is not asked to be in its right half)
+    }
+    ok(`${w}x${h}: …and for an item of education, a language, a certificate and a job's title: on its frame, clear of text, tools, rail, sidebar and zoom bar`, items.length === 0, items.join(' ; '));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -906,7 +928,7 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   ok('a section: Page › Experience, on a dashed frame of the section’s band; the editor card opens with the same component', JSON.stringify(cs?.words) === JSON.stringify(['Page', 'Experience']) && (await page.textContent('#body .depth')).includes('Section') && !!(await page.$('#editlay .obframe.sec.dashed')) && (await chipGeom()).onEdge && (await chipGeom()).over === 0);
   await sheet.locator('.band[data-section="header"] [data-variant]').first().click(); await page.waitForTimeout(700);
   const ch = (await lay(page)).chip;
-  ok('the header: Page › Header, in the chip and atop the editor card', JSON.stringify(ch?.words) === JSON.stringify(['Page', 'Header']) && (await page.textContent('#body .depth')).includes('Header'), JSON.stringify(ch));
+  ok('the header: Page › Header › Headline, in the chip and atop the editor card: the chip names the field', JSON.stringify(ch?.words) === JSON.stringify(['Page', 'Header', 'Headline']) && (await page.textContent('#body .depth')).includes('Header') && (await page.textContent('#body .depth')).includes('Headline'), JSON.stringify(ch));
   await esc3();
 
   // picking a version over an edit parks it; picking the edit again puts it back
@@ -1296,7 +1318,7 @@ if (want('the record forms: details, About you, languages, no Save button')) {
   const bad = await open(page);
   const sheet = page.frameLocator('#sheet iframe');
   const st = () => page.evaluate(() => window.__wb.store.state);
-  await sheet.locator('.role-title').first().click(); await settle(page);
+  await toJobOutline(page); await settle(page);
   ok('a job’s panel: no “Title and meta line” fields, no “Edit in Career →”, a Details fold that starts shut', !(await page.$('#body [data-act=to-career]')) && !/Title and meta line/i.test(await page.textContent('#body')) && !(await page.isVisible('#c-pos')));
   await page.click('details.details > summary'); await settle(page);
   ok('opened: title, employer, dates, “works here now”, place, and More fields (JSON Resume), folded', ['#c-pos', '#c-org', '#c-start', '#c-current', '#c-loc'].every(async s => await page.isVisible(s)) && await page.isVisible('details.jr:not(.details) summary') && !(await page.isVisible('#c-wurl')));
@@ -1315,7 +1337,7 @@ if (want('the record forms: details, About you, languages, no Save button')) {
   await page.click('details.details > summary'); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
   await page.click('[data-act=cl-open][data-sel*="job"] >> nth=0').catch(() => {});
-  await sheet.locator('.role-title').first().click(); await settle(page);
+  await toJobOutline(page); await settle(page);
   ok('the fold stays open when you come back to the job', await page.isVisible('#c-pos') === false);
 
   // About you
@@ -1355,7 +1377,7 @@ if (want('the record in German: edit in the resume’s language')) {
   await pickLang(page, 'de');
   await page.waitForTimeout(1500);
   ok('the resume’s language is the one you edit in: the page and the interface go German', (await page.evaluate(() => document.documentElement.lang)) === 'de' && (await page.evaluate(() => window.__wb.store.state.cur.lang)) === 'de' && (await page.textContent('#rail [role=tablist]')).includes(de6['ux2.modeEdit']));
-  await sheet.locator('.role-title').first().click(); await settle(page);
+  await toJobOutline(page); await settle(page);
   await page.click('details.details > summary'); await settle(page);
   ok('the form says what translates and what is the same in every language', /Deutsch/.test(await page.textContent('#body .detbox')) && (await page.textContent('#body .detbox')).includes(de6['career.shared']));
   await page.fill('#c-pos', 'Konstrukteur Medizintechnik'); await page.fill('#c-loc', 'Lissabon, Portugal'); await page.keyboard.press('Tab'); await page.waitForTimeout(1200);
@@ -1613,16 +1635,19 @@ if (want('the Edit view')) {
   await undoTo(base);
 
   await sheet.locator('.band[data-section="skills"] .tab').first().click(); await settle(page);
+  await page.keyboard.press('Escape'); await settle(page);      // out of the heading it wrote: the section stays selected
   await page.fill('#sec-label', 'Tools'); await page.press('#sec-label', 'Enter'); await settle(page);
   ok('a heading typed in the panel prints on the page', await frameDoc(page, d => d.querySelector('.band[data-section="skills"] .tab').textContent === 'Tools'));
   ok('the section keeps its id', (await st()).cur.sections.find(s => s.id === 'skills').label.en === 'Tools');
   await page.click('[data-act=label-reset]'); await settle(page);
   ok('reset puts the record’s heading back', await frameDoc(page, d => d.querySelector('.band[data-section="skills"] .tab').textContent === 'Skills'));
-  await sheet.locator('.band[data-section="patent"] .tab').first().dblclick(); await settle(page);
-  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a'); await page.keyboard.type('Invention'); await page.keyboard.press('Enter'); await settle(page);
-  ok('double-clicking a tab on the page renames it in place', (await st()).cur.sections.find(s => s.id === 'patent')?.label?.en === 'Invention'
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
+  await sheet.locator('.band[data-section="patent"] .tab').first().click(); await settle(page);
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a'); await page.keyboard.type('Invention'); await page.keyboard.press('Escape'); await settle(page);
+  ok('one click on a heading writes it in place (no double-click): Esc keeps it on this resume, in its language', (await st()).cur.sections.find(s => s.id === 'patent')?.label?.en === 'Invention'
      && await frameDoc(page, d => d.querySelector('.band[data-section="patent"] .tab').textContent === 'Invention'));
   await sheet.locator('.band[data-section="skills"] .tab').first().click(); await settle(page);
+  await page.keyboard.press('Escape'); await settle(page);
   const order = async () => (await page.evaluate(() => [...document.querySelectorAll('.srow:not(.fixed)')].map(r => r.dataset.sid)));
   ok('there are no Move up / Move down buttons', (await page.$$('[data-act=sec-move]')).length === 0);
   await page.keyboard.press('Alt+ArrowDown'); await settle(page);
@@ -3204,7 +3229,7 @@ if (want('accessibility: axe-core on every view')) {
       await page.keyboard.press('Escape'); await settle(page);
       await sheet.locator('.bullets li').first().click(); await settle(page);
       await runAxe(page, 'a claim, with the job’s own lines under its versions');
-      await sheet.locator('.role-title').first().click(); await settle(page);
+      await toJobOutline(page); await settle(page);
       await page.click('details.details > summary'); await page.click('details.jr:not(.details) summary'); await settle(page);
       await runAxe(page, 'a job with Details open');
       await sheet.locator('.name').click(); await settle(page);
@@ -3581,7 +3606,7 @@ if (want('nothing over the text')) {
     const page = await ctx.newPage();
     const bad = await open(page);
     const fr = page.frameLocator('#sheet iframe');
-    await fr.locator('.role-title').first().click(); await page.waitForTimeout(900);
+    await toJobOutline(page); await page.waitForTimeout(500);
     ok(`${w}×${h}: a job is selected and nothing lies over its text`, (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job' && (await offenders(page)).length === 0, (await offenders(page)).join(', '));
     await fr.locator('.bullets li').nth(1).click(); await page.waitForTimeout(900);
     ok(`${w}×${h}: a line is written (the pointer rests on it): nothing over the text, and no tip`, (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'bullet' && (await offenders(page)).length === 0 && !(await page.isVisible('#tip.on')), (await offenders(page)).join(', '));
@@ -3734,7 +3759,7 @@ if (want('on the page: moving lines within their job, the hover areas, and + at 
   const after = (await printed(page))[0];
   ok('dropped inside its job, the line moves there: one undo step, the others keep their order', JSON.stringify(after) === JSON.stringify([before[1], before[2], before[0], before[3]]) && (await undoN(page)) === u0 + 1, JSON.stringify(after));
   await page.mouse.move(a.x + 60, a.y + 4, { steps: 2 }); await page.mouse.click(a.x + 60, a.y + 4); await page.waitForTimeout(700); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
-  await page.frameLocator('#sheet iframe').locator('.entry').first().locator('.role-title').click(); await page.waitForTimeout(800);
+  await toJobOutline(page); await page.waitForTimeout(500);
   ok('…and the sidebar\'s list of the job\'s lines (with its ↑ ↓) shows the same order', JSON.stringify(await page.$$eval('#body .clrow .clt', e => e.map(x => x.textContent.slice(0, 18)))) === JSON.stringify(after), JSON.stringify(await page.$$eval('#body .clrow .clt', e => e.map(x => x.textContent.slice(0, 18)))));
   await page.mouse.move(4, 4); for (let k = 0; k < 2; k++) await page.keyboard.press('Escape'); await page.waitForTimeout(500);
   await page.mouse.move(a.x + 60, a.y + 4, { steps: 3 }); await page.waitForTimeout(350);
@@ -3956,6 +3981,174 @@ if (want('on the page: a job opens by its name')) {
   ok('…and a visible focus ring', await page.evaluate(() => { const o = getComputedStyle(document.querySelector('#body .jobname')); return document.activeElement.classList.contains('jobname') && o.outlineStyle !== 'none' && parseFloat(o.outlineWidth) >= 2; }));
   await page.locator('#body .jobname').nth(1).click(); await settle(page);
   ok('clicking the name selects that job', (await selOf(page)) === `job:${await page.evaluate(() => [...window.__wb.ui.ix.work.keys()][1])}`, await selOf(page));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+// ---- UX-6c-iii-a: every printed text is written where it is printed, and each item is selected ----
+// The audit made a check: for every kind of text the renderer prints (Medtech, and a scratch record with a custom section, volunteering,
+// awards, references and projects), one click writes it in place (an editable element on that text, with a role and a name), typing and Esc keep
+// it on this resume (an edit with its base version and marks, a heading in the resume's language, a language's name on the resume), and the
+// page prints it. An item of education, patent, a language, a certificate or an interest is selected as a whole.
+if (want('on the page: every printed text is written where it is printed, and each item is selected')) {
+  const ctx = await browser.newContext({ viewport: { width: 2560, height: 1100 } });      // both pages of Medtech side by side
+  const page = await ctx.newPage();
+  let dialogs = 0; page.on('dialog', d => { dialogs++; d.accept(); });
+  const bad = await open(page);
+  await openByName(page, 'Medtech');
+  await page.evaluate(async () => {
+    const K = await import('/src/model/career.js'), T = await import('/src/model/resume.js');
+    window.__wb.store.commit(d => {
+      const vol = K.createKind(d.record, { ...K.KIND_PRESETS.volunteering, name: { en: 'Volunteering' } });
+      const aw = K.createKind(d.record, { ...K.KIND_PRESETS.awards, name: { en: 'Awards' } });
+      K.addKindEntry(d.record, vol, { name: 'Volunteer repairer', org: 'Porto Repair Cafe', startDate: '2019-03', endDate: '2022-06', bullets: ['Fixed small appliances.'] });
+      K.addKindEntry(d.record, aw, { name: 'Best student design', org: 'Example Society', startDate: '2020-11' });
+      K.addReference(d.record, { name: 'Ana Costa', reference: 'Worked with Dana for two years.' });
+      for (const sid of ['volunteer', 'awards', 'projects', 'references']) T.setSectionOn(d.record, d.cur, sid, true);
+    }, 'scratch record');
+  });
+  await page.waitForTimeout(1800);
+  const fr = page.frameLocator('#sheet iframe');
+  const esc2 = async () => { await page.mouse.move(4, 4); for (let k = 0; k < 2; k++) await page.keyboard.press('Escape'); await page.waitForTimeout(700); };
+  const cur = () => page.evaluate(() => window.__wb.store.state.cur);
+  const printedIn = (sel, n) => frameDoc(page, (d, [s, m]) => [...d.querySelectorAll(s)].some(e => e.textContent.includes(m)), [sel, n]);
+  // [name, selector, kind, key (the text's own), chip words of its item (or null)]
+  const S = id => `.band[data-section=${id}]`;
+  const rows = [
+    ['the name', `${S('header')} .name`, 'fact', 'name', null], ['the headline', `${S('header')} .tagline`, 'fact', 'tagline', null], ['the contact line', `${S('header')} .contact`, 'fact', 'contact', null],
+    ['the summary', '.summary', 'fact', 'summary', null],
+    ['a heading', `${S('experience')} h2.tab`, 'head', '~h:experience', null],
+    ['a job’s title', `${S('experience')} .role-title`, 'fact', 'hydra-position', null], ['a job’s date line', `${S('experience')} .entry .meta`, 'fact', 'hydra-meta', null], ['a bullet', `${S('experience')} .bullets li`, 'fact', 'hydra-inhaler', null],
+    ['a skill group', `${S('skills')} .skills__items`, 'group', 'skills-cad', null],
+    ['a certificate', `${S('certified')} .runs strong`, 'fact', 'cert-solidworks', ['Page', 'Certified', 'SolidWorks']],
+    ['the patent’s title', `${S('patent')} .item__title`, 'fact', 'patent-title', ['Page', 'Patent', 'Patent']], ['the patent’s line', `${S('patent')} .meta--flat`, 'fact', 'patent-meta', ['Page', 'Patent', 'Patent']],
+    ['education’s degree', `${S('education')} .item__title`, 'fact', 'edu-degree', ['Page', 'Education', 'Degree']], ['education’s school', `${S('education')} .item__title-secondary`, 'fact', 'edu-school', ['Page', 'Education', 'Institution']], ['education’s date line', `${S('education')} .meta--flat`, 'fact', 'edu-meta', ['Page', 'Education', 'Conferral']],
+    ['a language’s name', `${S('languages')} dt`, 'term', '~t:lang-portuguese', ['Page', 'Languages', 'Portuguese']], ['a language’s level', `${S('languages')} dd`, 'fact', 'lang-portuguese', ['Page', 'Languages', 'Portuguese']],
+    ['an interest', `${S('interests')} .runs strong`, 'fact', 'interest-sailing', ['Page', 'Interests', 'Dinghy']],
+    ['a custom section’s heading', `${S('awards')} h2.tab`, 'head', '~h:awards', null], ['an award (a custom run)', `${S('awards')} .runs strong`, 'fact', 'best-student-design', ['Page', 'Awards', 'Best']],
+    ['volunteering’s title', `${S('volunteer')} .role-title`, 'fact', 'volunteer-repairer-position', null], ['volunteering’s line', `${S('volunteer')} .entry .meta`, 'fact', 'volunteer-repairer-meta', null], ['a volunteering bullet', `${S('volunteer')} .bullets li`, 'fact', 'volunteer-repairer-fixed', null],
+    ['a reference’s name', `${S('references')} dt`, 'term', '~t:ref-ana-costa', ['Page', 'References', 'Ana']], ['a reference’s words', `${S('references')} dd`, 'fact', 'ref-ana-costa', ['Page', 'References', 'Reference']],
+    ['a project’s title', `${S('projects')} .role-title`, 'fact', 'caliper-stand-position', null], ['a project’s line', `${S('projects')} .entry .meta`, 'fact', 'caliper-stand-meta', null], ['a project’s bullet', `${S('projects')} .bullets li`, 'fact', 'caliper-stand-files', null],
+  ];
+  const bring = async sel => {
+    const at = await frameDoc(page, (d, s) => [...d.querySelectorAll('.document > .page')].findIndex(p => p.querySelector(s)), sel);
+    if (at >= 0 && at !== (await page.evaluate(() => window.__wb.ui.page))){ await page.evaluate(i => window.__wb.canvas.goToPage(i), at); await page.waitForTimeout(1100); }
+  };
+  // a click lands on the left of the text (an item's title shares its line with the subtitle; a run shares its paragraph)
+  const clickText = async (sel, nth = 0) => { await bring(sel); await fr.locator(sel).nth(nth).click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(800); };
+  const keys = [];
+  let n = 0;
+  for (const [name, sel, kind, key, chip] of rows){
+    await esc2();
+    const mark = ` +x${++n}`;
+    await clickText(sel);
+    const got = await page.evaluate(() => ({ key: window.__wb.edit.editing?.fact ?? null, ce: document.querySelector('#sheet iframe').contentDocument.querySelectorAll('[contenteditable]').length, role: window.__wb.onpage.el()?.getAttribute('role'), label: window.__wb.onpage.el()?.getAttribute('aria-label'), draft: window.__wb.edit.editing?.draft }));
+    ok(`${name}: one click writes it where it is printed (an editable element with a role and a name)`, got.key === key && got.ce === 1 && got.role === 'textbox' && !!got.label && !!got.draft?.trim(), JSON.stringify(got));
+    await appendLine(page, mark);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(900);
+    const c = await cur(), id = key.slice(3), L = 'en';
+    const stored = kind === 'fact' ? c.overrides?.[key]?.endsWith(mark) && !!c.overrideMeta?.[key]?.base && Array.isArray(c.overrideMeta[key].marks)
+      : kind === 'group' ? c.skillArrangement?.groups.find(g => g.id === key)?.items.at(-1).endsWith(mark)
+      : kind === 'head' ? c.sections.find(s => s.id === id)?.label?.[L]?.endsWith(mark) : c.terms?.[id]?.[L]?.endsWith(mark);
+    ok(`${name}: Esc keeps it on this resume (${kind === 'fact' ? 'an edit with its base version and its highlights' : kind === 'group' ? 'the skills of this resume\'s own arrangement' : kind === 'head' ? 'the heading in the resume’s language' : 'the name on this resume, in its language'}), asking nothing`, !!stored && dialogs === 0, JSON.stringify(kind === 'fact' ? c.overrideMeta?.[key] : kind === 'group' ? c.skillArrangement : kind === 'head' ? c.sections.find(s => s.id === id)?.label : c.terms));
+    ok(`${name}: the page prints it`, await printedIn(kind === 'head' || kind === 'term' ? '[data-label]' : '[data-variant]', mark));
+    if (kind === 'fact') keys.push(key);
+    if (chip){
+      // selected as an item: the chip names the item, the frame goes round it, the card is the text's own view
+      const words = await page.$$eval('#editlay .obchip .dp-w', e => e.map(x => x.textContent));
+      const fb = await page.$eval('#editlay .obframe.sec.dashed', e => e.getBoundingClientRect().toJSON()).catch(() => null);
+      const bx = await fr.locator(sel).first().boundingBox();
+      ok(`${name}: selected, the chip says ${chip.join(' › ')} and a dashed frame goes round the item`, JSON.stringify(words) === JSON.stringify(chip) && !!fb && !!bx && fb.left <= bx.x + 1 && fb.right >= bx.x + bx.width - 1 && fb.top <= bx.y + 1 && fb.bottom >= bx.y + bx.height - 1 && fb.height < 200, JSON.stringify([words, fb, bx]));
+      const g = await chipGeomOf(page);
+      ok(`${name}: the chip stands on the frame’s top edge, over no printed text, tools, rail, sidebar or zoom bar`, g.onEdge && g.over === 0 && g.room, JSON.stringify(g));
+    }
+  }
+  await esc2();
+
+  // each edit is on the Review list's data with its base (UX-6d offers it as a version)
+  const pend = await page.evaluate(async () => { const T = await import('/src/model/resume.js'), c = window.__wb.store.state.cur; return T.pendingEdits(c).filter(id => c.overrideMeta?.[id]?.base).sort(); });
+  ok('every text edited above is listed by pendingEdits with its base version (header facts too)', keys.every(k => pend.includes(k)), JSON.stringify(keys.filter(k => !pend.includes(k))));
+
+  // the arrows and Tab walk every text, the header facts first, then the summary
+  const order = await page.evaluate(() => window.__wb.sheet.order(window.__wb.ui.ix));
+  ok('the keys the arrows and Tab walk are every printed text in print order: the header facts first, then the summary, the headings and the items', JSON.stringify(order.slice(0, 4)) === JSON.stringify(['tagline', 'name', 'contact', 'summary']) && ['~h:experience', 'hydra-position', 'patent-title', 'edu-school', '~t:lang-portuguese', 'lang-portuguese', 'cert-gdt'].every(k => order.includes(k)) && order.indexOf('~h:education') < order.indexOf('edu-degree') && order.indexOf('~t:lang-english') > order.indexOf('lang-portuguese'), order.slice(0, 8).join());
+  await clickText(`${S('header')} .tagline`);
+  const seen = [await factOf(page)];
+  for (let k = 0; k < 3; k++){ await page.keyboard.press('Tab'); await page.waitForTimeout(700); seen.push(await factOf(page)); }
+  ok('Tab from a header fact goes to the next header fact, then the summary (not the page’s first line)', JSON.stringify(seen) === JSON.stringify(['tagline', 'name', 'contact', 'summary']), seen.join());
+  await page.keyboard.press('Shift+Tab'); await page.waitForTimeout(700);
+  ok('Shift+Tab goes back, and Enter goes on', (await factOf(page)) === 'contact' && (await (async () => { await page.keyboard.press('Enter'); await page.waitForTimeout(700); return (await factOf(page)) === 'summary'; })()));
+  await esc2();
+  // from the page level the arrow keys select a text and Enter writes it, a heading too
+  await page.keyboard.press('ArrowDown'); await page.waitForTimeout(500);
+  ok('↓ from the page level selects the first text (the headline), and Enter writes it', (await selOf(page)) === 'bullet:tagline' && (await (async () => { await page.keyboard.press('Enter'); await page.waitForTimeout(800); return (await lineEl(page).count()) === 1 && (await factOf(page)) === 'tagline'; })()));
+  await esc2();
+  const hAt = order.indexOf('~h:experience');
+  for (let k = 0; k <= hAt; k++){ await page.keyboard.press('ArrowDown'); await page.waitForTimeout(150); }
+  await page.waitForTimeout(500);
+  ok('the arrows reach a heading: it is selected as the section, and Enter writes it', (await selOf(page)) === 'section:experience' && (await page.evaluate(() => window.__wb.ui.sel.heading)) === true && (await (async () => { await page.keyboard.press('Enter'); await page.waitForTimeout(800); return (await lineEl(page).count()) === 1 && (await factOf(page)) === '~h:experience'; })()));
+  await esc2();
+
+  // no lost text: a heading, a language's name, an item's title and a job's title, left five ways
+  for (const [name, sel, nth, kind, key] of [['a heading', `${S('education')} h2.tab`, 0, 'head', '~h:education'], ['a language’s name', `${S('languages')} dt`, 1, 'term', '~t:lang-english'], ['an item’s title', `${S('patent')} .item__title`, 0, 'fact', 'patent-title'], ['a job’s title', `${S('experience')} .role-title`, 1, 'fact', 'poly-position']]){
+    for (const [how, go] of [['Tab', () => page.keyboard.press('Tab')], ['Enter', () => page.keyboard.press('Enter')], ['a click on the bare canvas', () => page.mouse.click(4, 300)], ['a click on another text', () => fr.locator('.summary').click({ position: { x: 4, y: 3 } })], ['the Design tab', () => page.click('#tab-design')]]){
+      await esc2(); await page.click('#tab-edit'); await page.waitForTimeout(300);
+      const mark = ` +${how.replace(/\W/g, '').slice(0, 5)}`;
+      await clickText(sel, nth);
+      if (!(await lineEl(page).count())){ ok(`no lost text: ${how} keeps what was typed in ${name}`, false, 'nothing was written'); continue; }
+      await appendLine(page, mark);
+      await go(); await page.waitForTimeout(900);
+      const c = await cur(), id = key.slice(3);
+      const kept = kind === 'fact' ? c.overrides?.[key]?.endsWith(mark) : kind === 'head' ? c.sections.find(s => s.id === id)?.label?.en?.endsWith(mark) : c.terms?.[id]?.en?.endsWith(mark);
+      ok(`no lost text: ${how} keeps what was typed in ${name}`, !!kept && dialogs === 0, kind === 'fact' ? c.overrides?.[key] : JSON.stringify([c.terms, c.sections.find(s => s.id === id)?.label]));
+    }
+  }
+  await esc2(); await page.click('#tab-edit'); await page.waitForTimeout(500);
+
+  // a one-item section keeps no grip; the photo slot is still on the header
+  const eb = await frameBox(page, `${S('education')} .item__title`);
+  await page.mouse.move(eb.x + 60, eb.y + 6, { steps: 4 }); await page.waitForTimeout(400);
+  const hs = await hands(page);
+  ok('hovering an item of a one-item section shows no grip, no plus and no photo slot', !hs.grip && !hs.plus && !hs.slot, JSON.stringify(hs));
+
+  // the sidebar: the education row opens the item's own view (not the record's form); the way to the record's own fields stays
+  await toEditHome(page);
+  await page.click('#outline [data-act=ol-toggle][data-g="sec:education"]'); await page.waitForTimeout(300);
+  await page.click('#outline .osec[data-sid=education] .clt'); await page.waitForTimeout(700);
+  ok('the education row in the sidebar opens the item\'s own view: its degree, with the versions in the card (the Edit tab stays)', (await selOf(page)) === 'bullet:edu-degree' && (await page.getAttribute('#body', 'data-view')) === 'bullet' && (await page.evaluate(() => window.__wb.ui.view)) == null && (await page.locator('#body .vrow').count()) >= 1);
+  ok('…with a clear way to the record\'s own fields (the grade, the dates, the courses)', /Other fields of this entry/.test(await page.textContent('#body')) && /All of your record/.test(await page.textContent('#body')));
+  await page.click('#body [data-act=cl-open]'); await page.waitForTimeout(700);
+  ok('…which opens the record\'s form for the entry', await page.evaluate(() => window.__wb.ui.sel.kind === 'record' && window.__wb.ui.sel.what === 'entry'));
+  // a language's name in the sidebar: a box that does what the page does
+  await toEditHome(page);
+  await clickText(`${S('languages')} dt`); await page.keyboard.press('Escape'); await page.waitForTimeout(700);
+  ok('a language\'s name selected has its own view with a box for the name on this resume', !!(await page.$('#body #term-in')) && (await page.inputValue('#body #term-in')).includes('+x'));
+  await page.fill('#body #term-in', ''); await page.press('#body #term-in', 'Enter'); await page.waitForTimeout(800);
+  ok('…emptying it takes the record\'s name back', !((await cur()).terms?.['lang-portuguese']) && (await printedIn('[data-label^="t:"]', 'Portuguese')) && !(await printedIn('[data-label="t:lang-portuguese"]', '+x')), JSON.stringify((await cur()).terms));
+  await esc2();
+
+  // the Record's groups: the entry's name opens it (no "Open it" button)
+  await page.evaluate(() => window.__wb.dock.setMode('record')); await page.waitForTimeout(900);
+  const nm = await page.evaluate(() => [...document.querySelectorAll('#checklist .clg[data-g=hydra] .jobname')].map(b => ({ tag: b.tagName, name: b.textContent.trim(), h: b.getBoundingClientRect().height, act: b.dataset.act })));
+  ok('in the Record each entry\'s name is the button that opens it (at least 24 px), and there is no separate "Open it"', nm.length === 1 && nm[0].tag === 'BUTTON' && nm[0].h >= 24 && nm[0].act === 'cl-open' && nm[0].name.length > 3 && !(await page.$$eval('#checklist button', bs => bs.some(b => /^Open it$/.test(b.textContent.trim())))), JSON.stringify(nm));
+  await page.hover('#checklist .clg[data-g=hydra] .jobname');
+  ok('…it shows a hover state', (await page.evaluate(() => getComputedStyle(document.querySelector('#checklist .clg[data-g=hydra] .jobname')).textDecorationLine)) === 'underline');
+  await page.focus('#checklist .clg[data-g=hydra] .jobname'); await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab');
+  ok('…and a visible focus ring', await page.evaluate(() => { const b = document.activeElement, o = getComputedStyle(b); return b.classList.contains('jobname') && o.outlineStyle !== 'none' && parseFloat(o.outlineWidth) >= 2; }));
+  await page.click('#checklist .clg[data-g=hydra] .jobname'); await page.waitForTimeout(800);
+  ok('clicking it opens the job in Edit', (await selOf(page)) === 'job:hydra' && (await page.evaluate(() => window.__wb.ui.view)) == null);
+
+  // the header's field in the chip, and the photo
+  await esc2();
+  for (const [sel, word] of [['.name', 'Name'], ['.tagline', 'Headline'], ['.contact', 'Contact']]){
+    await clickText(`${S('header')} ${sel}`);
+    const ws = await page.$$eval('#editlay .obchip .dp-w', e => e.map(x => x.textContent)), side = await page.$$eval('#body .depth .dp-w', e => e.map(x => x.textContent));
+    ok(`the chip names the header field: Page › Header › ${word}, and so does the card`, JSON.stringify(ws) === JSON.stringify(['Page', 'Header', word]) && side.includes(word), JSON.stringify([ws, side]));
+    await esc2();
+  }
+  await page.click('#outline [data-act=ol-toggle][data-g="sec:header"]'); await page.waitForTimeout(300);
+  await page.click('#outline [data-act=cl-open][data-sel*="photo"]'); await page.waitForTimeout(800);
+  ok('…and the photo: Page › Header › Photo', JSON.stringify(await page.$$eval('#editlay .obchip .dp-w', e => e.map(x => x.textContent))) === JSON.stringify(['Page', 'Header', 'Photo']));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }

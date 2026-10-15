@@ -83,7 +83,7 @@ const variantIds = s => new Set([...s.matchAll(/data-variant="([^"]+)"/g)].map(m
   ok('the names are section ids, in page order', names.join() === 'header,summary,experience,experience,skills,patent,education',
      names.join());
   ok('annotating changes nothing but the attributes',
-     annotated.replace(/ data-(variant|section)="[^"]*"/g, '') === plain);
+     annotated.replace(/ data-(variant|section|label)="[^"]*"/g, '') === plain);
 }
 
 function probeCoverage(label, d, recipe, { quiet = false } = {}){

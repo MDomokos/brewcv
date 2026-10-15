@@ -56,7 +56,7 @@ for (const [i, [w, h]] of SIZES.entries()){
   const rest = async () => { await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await page.waitForTimeout(300); };
   const states = {
     line: async () => { await frame.locator('.bullets li').first().click(); await page.keyboard.press('Escape'); },      // one click writes; Esc leaves the line selected
-    job: async () => { await frame.locator('.role-title').first().click(); },
+    job: async () => { await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(300); await page.locator('#body .jobname').first().click(); },      // by its name in the sidebar: a click on its title on the page writes it
     design: async () => { await page.click('#tab-design'); },
     export: async () => { await page.click('#tab-export'); },
     outline: async () => { await frame.locator('.bullets li').first().click(); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); },
@@ -106,7 +106,7 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
     const zoomed = (await pageRect(page)).width > r0.width + 1;
     await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(700); xs.push((await pageRect(page)).left);
     ok(`${w}×${h}: writing a line zooms in, and Esc to the page brings the page back`, zoomed && Math.abs(xs.at(-1) - r0.left) < 0.5);
-    await frame.locator('.role-title').first().click(); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
+    await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(300); await page.locator('#body .jobname').first().click(); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);      // a job, by its name in the sidebar (a click on its title would write it, and zoom)
     await page.click('#tab-design'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
     await page.click('#tab-export'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
     await page.click('#tab-edit'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
