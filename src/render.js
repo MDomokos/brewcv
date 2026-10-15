@@ -261,7 +261,7 @@ function makeCtx(data, recipe, doc, opts){
     const over = probing ? undefined : recipe.overrides?.[ref];
     const want = probing ? undefined : recipe.picks?.[ref];
     if (over !== undefined){
-      v = { id: `${ref}-override`, text: over, marks: [], links: [], override: true,
+      v = { id: `${ref}-override`, text: over, marks: recipe.overrideMeta?.[ref]?.marks ?? [], links: [], override: true,      // an edit keeps its highlights
             source: `recipe override — ${recipe.application ?? 'this application'}`,
             metrics: { chars: [...over].length, measured: {} } };
     } else if (want){

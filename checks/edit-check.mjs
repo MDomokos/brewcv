@@ -222,8 +222,10 @@ section('bullets on and off, keep, this resume only');
 
   T.setOverride(r, b, 'Only on this one.');
   ok('this resume only is an override', r.overrides[b] === 'Only on this one.' && render(m, r).includes('Only on this one.'));
+  T.setOverride(r, b, 'Only on this one.', { marks: [{ start: 8, end: 12 }], base: null });
+  ok('an edit on this resume prints its highlights (UX-6c): the marked words are a mark on the page', /<span class="mark[^"]*"[^>]*>this<\/span>/.test(render(m, r)) && r.overrideMeta[b].marks.length === 1);
   T.setOverride(r, b, null);
-  ok('and removing it prints the version again', !render(m, r).includes('Only on this one.'));
+  ok('and removing it prints the version again', !render(m, r).includes('Only on this one.') && !('overrideMeta' in r && b in r.overrideMeta));
   ok('the resume validates', !errorsOf(m, r).length, errorsOf(m, r).join(' | '));
 }
 
