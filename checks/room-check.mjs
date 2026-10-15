@@ -41,7 +41,7 @@ const hidden = page => page.evaluate(() => {
 // The sidebar is 340px (316px under 1400px windows): a job, Export and (at 1470×832) the Outline and a line being written show whole; a line's
 // versions (five, each four or five lines long), Design (a form) and, at 1280×720 and 1200×750, the Outline and writing scroll. LIMITS are the
 // measured shares, in percent, for 1280×720, 1470×832 and 1200×750.
-const LIMITS = { line: [44.1, 27.3, 41.2], job: [0, 0, 0], design: [37.5, 18.4, 34.3], export: [0, 0, 0], outline: [7.3, 0, 2.5], writing: [17.9, 0, 13.6] };
+const LIMITS = { line: [29.5, 5.7, 25.9], job: [0, 0, 0], design: [30.4, 10.4, 26.9], export: [0, 0, 0], outline: [7.3, 0, 2.5], writing: [17.9, 0, 13.6] };
 const SIZES = [[1280, 720], [1470, 832], [1200, 750]];
 
 for (const [i, [w, h]] of SIZES.entries()){

@@ -26,11 +26,12 @@ const vals = x => x;
 
 // Added to, or taken out of, the Resume on purpose since the snapshot, so left out before comparing: 🗑 in a
 // claim's header, "+ Add something you did" under a job's claims, "Esc goes back" in the keys line, Archive
-// beside 🗑; and, in the one-screen rework (UX-2), the hint paragraphs (keys, drag, versions), the "From
+// beside 🗑, the Keep button; and, in the one-screen rework (UX-2), the hint paragraphs (keys, drag, versions), the "From
 // Career …" lines and the sort-of-duplicate "Title and meta line" rows.
 const M10_ADDS = html => String(html)
   .replace(/<button class="ghost sm" data-act="delete-claim"[^>]*>(?:🗑|<svg class="ico"[^>]*>.*?<\/svg>)<\/button>/g, '')
   .replace(/<button class="ghost sm" data-act="(?:un)?archive-claim"[^>]*>[^<]*<\/button>/g, '')
+  .replace(/<button class="keep sm"[^>]*>.*?<\/button>/g, '')      // Keep is an icon since UX-6b: its name is in aria-label
   .replace(', <kbd>Esc</kbd> goes back', '')
   .replace(/\n\s*<label class="field addclaim">[\s\S]*?<\/label>/g, '')
   .replace(/\s*<p class="note">[^<]*(?:<kbd>[^<]*<\/kbd>[^<]*)*<\/p>/g, '')

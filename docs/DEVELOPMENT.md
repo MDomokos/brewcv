@@ -158,8 +158,9 @@ node checks/fit-check.mjs [lib] --browser
 node checks/label-fit.mjs                     every language's resume headings fit the gutter, and the app's own new labels fit
                                               the 340px sidebar (the name card, foot, zoom bar, lens, Outline, checklist, switcher);
                                               a label that is too wide is flagged with its text and width
-node checks/room-check.mjs                    the sidebar and the layout around the page: the body's hidden share at 1280×720, 1470×832 and 1200×750 (a line, a job,
-                                              Design and Export show whole at 1470×832), no element outside the page wider than half the window at 1280×720,
+node checks/room-check.mjs                    the sidebar and the layout around the page: the body's hidden share at 1280×720, 1470×832 and 1200×750 (a job and Export show
+                                              whole everywhere; a line (5.7%) and Design (10.4%) at 1470×832, the rest at the measured LIMITS: a version's tags
+                                              run on its number line, and no version text is cut or clamped), no element outside the page wider than half the window at 1280×720,
                                               1470×832 and 1920×1080, the page filling the height less 32px, its x the same for every selection and sheet, and
                                               the shape of the name card (name, Saved, menu), the rail (logo, tab list, Resumes, Record, undo, redo) and the foot
                                               (thin meters and Fit); a line's versions and Design scroll in the 340px sidebar, and the check holds them to what they hide now

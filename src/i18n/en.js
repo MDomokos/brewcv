@@ -1207,4 +1207,5 @@ export default {
   'ux6b.fillIn': 'in the band',
   'ux6b.fillOver': 'over the band',
   'ux6b.backup': 'Backup',
+  'ux6b.photoHint': 'Usual in Central Europe, not in the US or UK.',
 };

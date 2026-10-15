@@ -162,7 +162,7 @@ export function claimHead({ hasJob = false, on = false, kept = false, deletable 
   const del = deletable ? `<button class="ghost sm" data-act="delete-claim" title="${esc(t('career.deleteClaim'))}" aria-label="${esc(t('career.deleteClaim'))}">${icon('trash')}</button>` : '';
   const arch = archived === null ? '' : `<button class="ghost sm" data-act="${archived ? 'unarchive-claim' : 'archive-claim'}" title="${esc(t(archived ? 'arch.unarchiveTitle' : 'arch.archiveTitle'))}">${h(archived ? 'arch.unarchive' : 'arch.archive')}</button>`;
   return `<div class="ctlrow">${hasJob ? sw('id="b-on"', on, h('edit.onThis')) : ''}<span class="grow"></span>
-      <button class="keep sm" data-act="keep" aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}">${icon('pin', { size: 14 })} ${kept ? h('edit.kept') : h('edit.keep')}</button>${arch}${del}</div>`;
+      <button class="keep sm" data-act="keep" aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}" aria-label="${esc(t('edit.keepTitle'))}">${icon('pin', { size: 14 })}</button>${arch}${del}</div>`;
 }
 
 // One text box that adds on Enter (Shift+Enter is a new line). The button is only a visible way to do the same.
