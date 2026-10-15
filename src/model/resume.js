@@ -543,7 +543,8 @@ export function applySet(model, recipe, name){
   recipe.skillArrangement = { from: name, ...(skillSets(model)[name][L] ? {} : { lang: DEFAULT_LANG }), groups: structuredClone(groups) };
 }
 export function saveSetForTag(model, name, arrangement, lang = DEFAULT_LANG){
-  model.skillSets = { ...skillSets(model), [name]: { ...skillSets(model)[name], [lang]: structuredClone(arrangement.groups) } };
+  const L = arrangement.lang ?? lang;      // groups that are still the English fallback are the English set, not the resume's language's
+  model.skillSets = { ...skillSets(model), [name]: { ...skillSets(model)[name], [L]: structuredClone(arrangement.groups) } };
 }
 export const groupLabel = (model, recipe, gid) => model.i18n?.[recipe.lang ?? DEFAULT_LANG]?.labels?.[gid] ?? (model.facts ?? []).find(f => f.id === gid)?.label ?? gid;
 

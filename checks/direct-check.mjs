@@ -486,6 +486,30 @@ section('skills arranged on the page (UX-6c-ii)');
   ok('saved as the set for a tag, and applied from it, the arrangement is the same', eq(again.skillArrangement.groups, arranged.skillArrangement.groups) && again.skillArrangement.from === 'Medical');
 }
 
+section('skill sets follow their tag and job type; a fallback set is saved as English; no skills, no band');
+{
+  const m = clone(model), html = r => renderPages(m, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
+  const rc = clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe);
+  T.writeGroup(m, rc, 'skills-cad', 'Tools\nCreo');
+  const emptied = clone(rc); emptied.skillArrangement.groups = [];
+  ok('an arrangement with no groups prints no Skills band, and none with only empty groups', !html(emptied).includes('data-section="skills"') && !/>Skills</.test(html(emptied)) && html(rc).includes('>Tools</span>'));
+  const [t1, t2] = m.vocabulary.tags;      // two tags of the record's own list
+  const arr = clone(T.arrangementOf(m, rc));
+  T.saveSetForTag(m, t1, { ...arr, lang: 'en' }, 'hu');
+  ok('groups that are still the English fallback are saved as the English set', eq(Object.keys(m.skillSets[t1]), ['en']));
+  T.saveSetForTag(m, t2, arr, 'hu');
+  const mine = clone(rc); mine.skillArrangement.from = t1;
+  K.renameTag(m, t1, 'Renamed tag', [mine]);
+  ok('renaming a tag renames its skill set and the arrangements that began as it', !m.skillSets[t1] && !!m.skillSets['Renamed tag'] && mine.skillArrangement.from === 'Renamed tag');
+  K.mergeTag(m, 'Renamed tag', t2, [mine]);
+  ok('merging keeps the target\'s sets and adds the other\'s', eq(Object.keys(m.skillSets), [t2]) && eq(Object.keys(m.skillSets[t2]).sort(), ['en', 'hu']) && mine.skillArrangement.from === t2);
+  K.deleteTag(m, t2, [mine]);
+  ok('deleting a tag deletes its set and unlinks the arrangements', !m.skillSets && mine.skillArrangement.from === undefined);
+  const jt = K.addJobType(m, 'CAD jobs', []); T.saveSetForTag(m, 'CAD jobs', arr, 'en');
+  const two = clone(rc); two.skillArrangement.from = 'CAD jobs';
+  K.renameJobType(m, jt, 'Design jobs', [two]);
+  ok('renaming a job type renames its set too', !!m.skillSets['Design jobs'] && !m.skillSets['CAD jobs'] && two.skillArrangement.from === 'Design jobs');
+}
 section('an edited contact line keeps the links whose words it still has');
 {
   const m = clone(model), html = r => renderPages(m, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');

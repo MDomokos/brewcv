@@ -435,11 +435,23 @@ export function addJobType(model, label, tags = []){
   (model.jobTypes ??= []).push({ id, label: text, tags: [...new Set(tags.map(x => String(x).trim()).filter(Boolean))] });
   return id;
 }
-export function renameJobType(model, id, label){
+// A skill set is named by a tag or a job type, and an arrangement's `from` names the set it began as: they follow a rename or a merge, and go with a delete (`to` null).
+function moveSet(model, from, to, recipes = []){
+  const sets = model.skillSets;
+  if (sets?.[from]){
+    const { [from]: set, ...rest } = sets;
+    model.skillSets = to == null ? rest : { ...rest, [to]: { ...set, ...rest[to] } };
+    if (!Object.keys(model.skillSets).length) delete model.skillSets;
+  }
+  for (const r of recipes) if (r?.skillArrangement?.from === from){ if (to == null) delete r.skillArrangement.from; else r.skillArrangement.from = to; }
+}
+export function renameJobType(model, id, label, recipes = []){
   const text = String(label ?? '').trim();
   if (!text) throw keyed('jt.needName');
   if (jobTypesOf(model).some(j => j.id !== id && j.label.toLowerCase() === text.toLowerCase())) throw keyed('jt.exists', { name: text });
-  jobTypeAt(model, id).label = text;
+  const j = jobTypeAt(model, id), was = j.label;
+  j.label = text;
+  if (was !== text) moveSet(model, was, text, recipes);
 }
 export function addJobTypeTag(model, id, tag){
   const t = knownTag(model, tag);
@@ -464,7 +476,8 @@ function knownTag(model, name){
   if (!hit) throw keyed('ux2.errTagUnknown', { name: String(name ?? '').trim() });
   return hit;
 }
-const swapTag = (model, from, to) => {
+const swapTag = (model, from, to, recipes) => {
+  moveSet(model, from, to, recipes);
   const put = list => [...new Set((list ?? []).map(x => (x === from ? to : x)))];
   for (const v of model.variants ?? []) if ((v.tags ?? []).includes(from)) v.tags = put(v.tags);
   model.jobTypes = (model.jobTypes ?? []).map(j => { const n = normaliseJobType(j); if (!n || !n.tags.includes(from)) return j; return { ...n, tags: put(n.tags) }; });
@@ -477,19 +490,20 @@ export function addTag(model, name){
   ((model.vocabulary ??= {}).tags ??= []).push(text);
   return text;
 }
-export function renameTag(model, from, to){
+export function renameTag(model, from, to, recipes = []){
   const was = knownTag(model, from), text = cleanTag(to);
   if (text === was) return;
   if (tagVocab(model).some(x => x !== was && tagKey(x) === tagKey(text))) throw keyed('ux2.errTagExists', { name: text });
-  swapTag(model, was, text);
+  swapTag(model, was, text, recipes);
 }
-export function mergeTag(model, from, into){
+export function mergeTag(model, from, into, recipes = []){
   const a = knownTag(model, from), b = knownTag(model, into);
   if (a === b) throw keyed('ux2.errTagSame');
-  swapTag(model, a, b);
+  swapTag(model, a, b, recipes);
 }
-export function deleteTag(model, name){
+export function deleteTag(model, name, recipes = []){
   const a = knownTag(model, name);
+  moveSet(model, a, null, recipes);
   const drop = list => (list ?? []).filter(x => x !== a);
   for (const v of model.variants ?? []) if ((v.tags ?? []).includes(a)){ v.tags = drop(v.tags); if (!v.tags.length) delete v.tags; }
   model.jobTypes = (model.jobTypes ?? []).map(j => { const n = normaliseJobType(j); return n && n.tags.includes(a) ? { ...n, tags: drop(n.tags) } : j; });

@@ -194,6 +194,7 @@ export function grid(ctx, s){
   // claim's. The page's copy marks each group and skill so they can be written and moved there; one with no skills prints only there.
   const own = s.id === 'skills' ? ctx.recipe.skillArrangement?.groups : null;
   if (own){
+    if (!ctx.annotate && !own.some(a => a.items.length)) return null;      // every group emptied: no band, not a heading over nothing
     for (const a of own){
       if (!a.items.length && !ctx.annotate) continue;
       const items = ctx.annotate ? a.items.map(x => `<span data-skill>${encode(x)}</span>`).join(', ') : encode(a.items.join(', '));
@@ -411,6 +412,7 @@ export function renderPages(data, recipe, doc = globalThis.document, opts = {}){
       const cont = (seen.get(s.id) ?? 0) > 0;
       seen.set(s.id, (seen.get(s.id) ?? 0) + 1);
       const el = s.kind === 'entries' ? fn(ctx, s, { work: slot.work, cont }) : fn(ctx, s);
+      if (!el) continue;
       // Opt-in slot keys. `style` adds a band modifier (a4-hu.css "sub": a section
       // grouped under the one above, with a quiet label). `qr` names a basics.codes image.
       if (slot.style) el.className += ` band--${slot.style}`;

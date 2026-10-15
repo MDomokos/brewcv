@@ -571,7 +571,7 @@ async function act(a, tg){
       if (commit(d => { K.addTag(d.record, el?.value ?? ''); }, t('ux2.undoTagNew'), t('ux2.tagAdded'))){ C.renderBody(); setTimeout(() => $('#tag-new')?.focus(), 30); }
       return true;
     }
-    case 'c-tag-del': { const tag = tg.dataset.tag; if (commit(d => K.deleteTag(d.record, tag), t('ux2.undoTagDelete'), t('ux2.tagDeleted'))) C.renderBody(); return true; }
+    case 'c-tag-del': { const tag = tg.dataset.tag; if (commit(d => K.deleteTag(d.record, tag, [d.cur, ...(d.resumes ?? [])]), t('ux2.undoTagDelete'), t('ux2.tagDeleted'))) C.renderBody(); return true; }
     case 'c-jt-del': { const id = tg.dataset.id; if (commit(d => K.deleteJobType(d.record, id), t('jt.undoDelete'), t('jt.deleted'))) C.renderBody(); return true; }
     case 'c-jt-tag-rm': { const id = tg.dataset.id, tag = tg.dataset.tag; if (commit(d => K.removeJobTypeTag(d.record, id, tag), t('jt.undoTags'))) C.renderBody(); return true; }
     case 'c-arch-jobs': W.jobs = !W.jobs; C.renderBody(); return true;
@@ -648,9 +648,9 @@ function bind(body){
     const el = e.target;
     const form = el.closest?.('[data-form]');
     if (el.id === 'c-current'){ const end = $('#c-end'); if (end) end.disabled = el.checked; }
-    if (el.classList?.contains('tag-name')){ const tag = el.dataset.tag; commit(d => K.renameTag(d.record, tag, el.value), t('ux2.undoTagRename')); C.renderBody(); return; }
-    if (el.classList?.contains('tag-merge')){ const tag = el.dataset.tag, into = el.value; if (into) commit(d => K.mergeTag(d.record, tag, into), t('ux2.undoTagMerge'), t('ux2.tagMerged', { from: tag, into })); C.renderBody(); return; }
-    if (el.classList?.contains('jt-label')){ const id = el.dataset.id; commit(d => K.renameJobType(d.record, id, el.value), t('jt.undoRename')); C.renderBody(); return; }
+    if (el.classList?.contains('tag-name')){ const tag = el.dataset.tag; commit(d => K.renameTag(d.record, tag, el.value, [d.cur, ...(d.resumes ?? [])]), t('ux2.undoTagRename')); C.renderBody(); return; }
+    if (el.classList?.contains('tag-merge')){ const tag = el.dataset.tag, into = el.value; if (into) commit(d => K.mergeTag(d.record, tag, into, [d.cur, ...(d.resumes ?? [])]), t('ux2.undoTagMerge'), t('ux2.tagMerged', { from: tag, into })); C.renderBody(); return; }
+    if (el.classList?.contains('jt-label')){ const id = el.dataset.id; commit(d => K.renameJobType(d.record, id, el.value, [d.cur, ...(d.resumes ?? [])]), t('jt.undoRename')); C.renderBody(); return; }
     if (el.dataset.kplace && W.kind?.draft){ readKind(); W.kind.draft.place = el.dataset.kplace; C.renderBody(); return; }
     // a choice, a month, a tick: no caret to wait for
     if (form && (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'month')) saveForm(form);
