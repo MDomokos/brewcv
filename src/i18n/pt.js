@@ -82,7 +82,6 @@ export default {
 
   'body.privacy': 'O seu CV fica neste navegador. Nada é enviado.',
   'btn.cancel': 'Cancelar',
-  'confirm.discard': 'Descartar o que escreveu?',
 
   'edit.lead': 'Clique em qualquer coisa na página para a trabalhar.',
   'edit.sectionsHere': 'Secções neste CV',
@@ -1134,11 +1133,6 @@ export default {
   'ux3.badgeTip': 'As outras redações desta linha. Passa o ponteiro para a ver na página, clica para a usar.',
   'ux3.badgeName': 'Versão {v}: mostrar as outras versões',
   'ux3.tools': 'Ferramentas desta linha',
-  'ux3.updateTip': 'Alterar o texto desta versão, onde quer que seja usada.',
-  'ux3.saveNewTip': 'Guardar isto como uma versão nova.',
-  'ux3.onlySaveTip': 'Guardar este texto só neste currículo.',
-  'ux3.saveAsTip': 'Deixar a versão como estava e guardar isto como nova.',
-  'ux3.onlyTip': 'Alterar esta linha só neste currículo; cada versão fica como está.',
   'ux3.writingNote': 'Estás a escrever esta linha na página. Esc sai dela.',
   'ux3.lineField': 'A linha, para escrever',
   'ux3.announceOn': 'A escrever esta linha. Esc sai dela.',

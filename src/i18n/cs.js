@@ -82,7 +82,6 @@ export default {
 
   'body.privacy': 'Váš životopis zůstává v tomto prohlížeči. Nic se nenahrává.',
   'btn.cancel': 'Zrušit',
-  'confirm.discard': 'Zahodit, co jste napsali?',
 
   'edit.lead': 'Klikněte na cokoli na stránce a pracujte s tím.',
   'edit.sectionsHere': 'Oddíly v tomto životopise',
@@ -1134,11 +1133,6 @@ export default {
   'ux3.badgeTip': 'Další znění tohoto řádku. Najetím ho uvidíte na stránce, kliknutím ho použijete.',
   'ux3.badgeName': 'Verze {v}: zobrazit ostatní verze',
   'ux3.tools': 'Nástroje pro tento řádek',
-  'ux3.updateTip': 'Změnit text této verze všude, kde se používá.',
-  'ux3.saveNewTip': 'Uložit jako novou verzi.',
-  'ux3.onlySaveTip': 'Ponechat tento text jen v tomto životopisu.',
-  'ux3.saveAsTip': 'Verzi nechat, jaká byla, a uložit tento text jako novou.',
-  'ux3.onlyTip': 'Změnit tento řádek jen v tomto životopisu; každá verze zůstane, jaká je.',
   'ux3.writingNote': 'Píšete tento řádek na stránce. Esc ho opustí.',
   'ux3.lineField': 'Řádek k psaní',
   'ux3.announceOn': 'Píšete tento řádek. Esc ho opustí.',

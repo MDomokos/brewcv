@@ -82,7 +82,6 @@ export default {
 
   'body.privacy': 'Dein Lebenslauf bleibt in diesem Browser. Nichts wird hochgeladen.',
   'btn.cancel': 'Abbrechen',
-  'confirm.discard': 'Eingabe verwerfen?',
 
   'edit.lead': 'Klick auf etwas auf der Seite, um es zu bearbeiten.',
   'edit.sectionsHere': 'Abschnitte in diesem Lebenslauf',
@@ -1134,11 +1133,6 @@ export default {
   'ux3.badgeTip': 'Die anderen Formulierungen dieser Zeile. Zeiger darauf: auf der Seite ansehen, Klick: verwenden.',
   'ux3.badgeName': 'Version {v}: die anderen Versionen zeigen',
   'ux3.tools': 'Werkzeuge für diese Zeile',
-  'ux3.updateTip': 'Den Text dieser Version ändern, überall wo sie verwendet wird.',
-  'ux3.saveNewTip': 'Als neue Version behalten.',
-  'ux3.onlySaveTip': 'Diesen Text nur für diesen Lebenslauf behalten.',
-  'ux3.saveAsTip': 'Die Version so lassen, wie sie war, und dies als neue speichern.',
-  'ux3.onlyTip': 'Diese Zeile nur in diesem Lebenslauf ändern; jede Version bleibt, wie sie ist.',
   'ux3.writingNote': 'Du schreibst diese Zeile auf der Seite. Esc verlässt sie.',
   'ux3.lineField': 'Die Zeile zum Schreiben',
   'ux3.announceOn': 'Du schreibst diese Zeile. Esc verlässt sie.',

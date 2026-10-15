@@ -116,6 +116,9 @@ export function versionsHtml(x){
   if (over !== undefined){
     out += ed?.mode === 'only' ? E() : `<div class="vrow cur only"><span class="rad"></span><span class="n" title="${esc(t('edit.onlyTitle'))}">${h('edit.only')}</span><span class="tx">${esc(over)}</span>
       <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editEnter'))}" aria-label="${esc(t('edit.editEnter'))}">${icon('edit')}</button><button class="ghost sm" data-act="only-remove" title="${esc(t('edit.backToSaved'))}" aria-label="${esc(t('edit.backToSaved'))}">↺</button></span></div>`;
+  } else if (x.parked !== undefined){
+    // an edit set aside when a version was picked over it: picking it puts it back
+    out += `<div class="vrow only" data-act="use-edit" tabindex="0" title="${esc(x.parked)}"><span class="rad"></span><span class="n" title="${esc(t('edit.onlyTitle'))}">${h('edit.only')}</span><span class="tx">${esc(x.parked)}</span></div>`;
   }
   // grouped by major; minors fold unless one is in use
   const groups = new Map();
@@ -177,22 +180,13 @@ export const addClaimHtml = ({ id, key, draft = '' }) =>
 const iconButton = (act, ic, name, tip, attrs = '') =>
   `<button class="ib" data-act="${act}" ${attrs} data-tip="${esc(name)}|${esc(tip)}" data-tip-pos="l" aria-label="${esc(name)}">${icon(ic)}</button>`;
 
-// The column beside the line being written: the number of the version in use, the three ways to keep what you wrote, the counts.
-// ed: the draft being written; vn: the number of the version in use; dirty: the draft differs from it. (The sidebar lists the
-// other versions.)
-export function toolsHtml({ vn, ed, dirty = false, canOnly = false, canMove = false, ends = {}, counts = '' }){
+// The column beside the line being written: the number of the version it was written from, ↑ and ↓, the counts. Nothing to save:
+// leaving the line keeps it on this resume. (The sidebar lists the other versions.)
+export function toolsHtml({ vn, canMove = false, ends = {}, counts = '' }){
   const badge = `<span class="obv">v${esc(vn)}</span>`;
-  const dis = dirty ? '' : 'disabled';
-  const isNew = ed.mode === 'new', isOnly = ed.mode === 'only';
-  const act1 = isNew ? iconButton('ed-new', 'update', t('edit.saveAsV'), t('ux3.saveNewTip'), dis)
-    : isOnly ? iconButton('ed-only', 'update', t('head.save'), t('ux3.onlySaveTip'), dis)
-    : iconButton('ed-save', 'update', t('edit.saveV', { v: vn }), t('ux3.updateTip'), dis);
-  const act2 = isNew ? '' : isOnly ? iconButton('ed-promote', 'copyplus', t('edit.saveAsV'), t('ux3.saveAsTip'), dis)
-    : iconButton('ed-saveas', 'copyplus', t('edit.saveAsV'), t('ux3.saveAsTip'), dis);
-  const act3 = isNew || isOnly || !canOnly ? '' : iconButton('ed-only', 'onlyhere', t('edit.thisOnly'), t('ux3.onlyTip'), dis);
   const tip = (k, arrow) => t(k, { keys: keyText('Alt', arrow) });
   const mv = !canMove ? '' : iconButton('ob-up', 'up', t('ux5b.lineUp'), tip('ux5b.lineUpTip', '↑'), `aria-disabled="${!!ends.first}"`) + iconButton('ob-down', 'caret', t('ux5b.lineDown'), tip('ux5b.lineDownTip', '↓'), `aria-disabled="${!!ends.last}"`);
-  return `<div class="obtools writing" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}${act1}${act2}${act3}${mv}<div class="obstats" id="ob-stats">${counts}</div></div>`;
+  return `<div class="obtools writing" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}${mv}<div class="obstats" id="ob-stats">${counts}</div></div>`;
 }
 
 // The counts under the tools: short, because the column is narrow. Characters, lines on the page, and how many more or fewer.
@@ -212,3 +206,12 @@ export const moveButtonsHtml = (up, down, id, text, { first, last }) => `<span c
   const name = esc(t(k, { text: String(text).slice(0, 60) }));
   return `<button class="ib" data-act="${act}" data-id="${esc(id)}" aria-label="${name}" title="${name}" aria-disabled="${!!off}">${icon(ic)}</button>`;
 }).join('')}</span>`;
+
+// One depth indicator (UX-6c), the same markup and styles on the page (the floating chip) and at the top of the editor card: Page ›
+// Job › Line, Page › Section › Item, Page › Header. levels: [{ word, name?, act, attrs? }] from the page down, the last is where you
+// are; a name gives way with an ellipsis, a level's word never does. next: the level below, offered; escKey: the Esc key, as a button.
+export function depthHtml(levels, { next = null, escKey = false } = {}){
+  const btn = (l, cls = '') => `<button type="button" class="dp-l${cls}" data-act="${l.act}" ${l.attrs ?? ''}${cls === ' cur' ? ' aria-current="location"' : ''}><span class="dp-w">${esc(l.word)}</span>${l.name ? `<span class="dp-n">${esc(l.name)}</span>` : ''}</button>`;
+  const sep = '<span class="dp-s" aria-hidden="true">›</span>';
+  return `<nav class="depth" aria-label="${esc(t('ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '')).join(sep)}${next ? sep + btn(next, ' next') : ''}${escKey ? `<button type="button" class="dp-esc" data-act="depth-up" aria-label="${esc(t('ux6c.up'))}"><kbd>Esc</kbd></button>` : ''}</nav>`;
+}

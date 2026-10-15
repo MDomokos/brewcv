@@ -67,11 +67,16 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            workbench.css (the tokens: one block per drink and theme, and every rule that uses
                            them) and drinks.css (the shapes and surfaces that make each drink itself);
                            parts.js, the pure string parts (crumb, rows, version list, editor,
-                           write-in, and the on-page tools and version badge) the panels share;
+                           write-in, the on-page tools and version badge, and depthHtml: the one depth
+                           indicator, Page › Job › Line, drawn as the chip over the page and as the row
+                           at the top of the editor card) the panels share;
                            camera (the pure maths of the page canvas: both pages or one, soft limits, the
                            magnet, which page is bright, the spring), canvas (moves the sheet with the camera
                            and reads the wheel, the hand and the pinch), onpage (the three levels drawn over
-                           the page, a line written where it is printed, its tools in the margin), plain (the
+                           the page; one click writes a line where it is printed, and leaving it keeps
+                           what was typed on this resume, as an override with its highlights and the
+                           version it came from, with nothing asked; the chip; the tools in the margin;
+                           the writing zoom: in on the first line, out at the page level), plain (the
                            text of a line being written, read back from the page), start (the start screen:
                            its header, inspector and footer areas, and the picture of how it works) with
                            start.css (every colour a token, like the other two stylesheets)
@@ -222,7 +227,7 @@ WKWebView has no `showDirectoryPicker`, so `src/store/persist.js` has a third fo
 
 - **What is kept across restarts is the folder's path** (a string), stored where the browser keeps its handle (`handle/folder`); `folderOf(h)` turns either kind back into a folder. The permission is kept by `tauri-plugin-persisted-scope`, which saves the scope the dialog added and restores it at launch. It must be registered after `tauri-plugin-fs`, and needs Rust 1.90 or newer.
 - **No prompt on reconnect.** `permission()` is `granted` while `exists(path)` works and `prompt` when it throws or says no (folder moved, deleted, scope lost). The reconnect row's button then opens the folder dialog, starting beside the old folder, so a folder that has moved can be found; a path has no permission to ask for, unlike a browser handle.
-- **Questions use Tauri's own dialog (`src/ui/ask.js`).** The desktop web view does not show a blocking `confirm()`: the code carried on as if the answer were yes, and a typed draft was discarded without a word. `askOk()` uses `dialog.ask` there and `confirm()` in browsers. The folder question (`adoptFolder`) and "discard what you typed?" (`cancelEdit`, `leaving`) go through it; because the native dialog is asynchronous, `leaving()` stays where you are, asks, and on yes drops the draft and goes where you were going. `prompt()` is not available there either: in the desktop app, History has a name field on the page (`inDesktop()` in `src/ui/ask.js`), and browsers keep `prompt()`.
+- **Questions use Tauri's own dialog (`src/ui/ask.js`).** The desktop web view does not show a blocking `confirm()`: the code carried on as if the answer were yes, and a typed draft was discarded without a word. `askOk()` uses `dialog.ask` there and `confirm()` in browsers. The folder question (`adoptFolder`) goes through it. Leaving a line asks nothing (UX-6c): what was typed is kept on this resume, so there is no "discard what you typed?" any more. `prompt()` is not available there either: in the desktop app, History has a name field on the page (`inDesktop()` in `src/ui/ask.js`), and browsers keep `prompt()`.
 - **What the capability allows.** `capabilities/default.json` lists `dialog:allow-open` and the fs commands the code uses (`read-text-file`, `write-text-file`, `read-dir`, `mkdir`, `remove`, `exists`), and no fs scope. Those permissions carry no pre-configured scope, so every fs call is refused until the person picks a folder in the dialog; then the app can reach that folder and below, nothing else. Only the `main` window has them (`capabilities/default.json`); the hidden `print*` windows have `capabilities/print.json`: events and closing themselves. They call `print_pdf`, a command of the app's own, and nothing else.
 - Not run on a second Mac, Windows or Linux, or in a sandboxed or notarized build. `checks/tauri-folder-check.mjs` drives the folder object against a fake `window.__TAURI__` (an in-memory disk with a scope).
 - **Still disabled for lack of the File System Access API:** nothing else is gated by it. Open and Save to file in `src/data.js` use `showOpenFilePicker` / `showSaveFilePicker` when present and fall back to a file input and an anchor download. The file input is standard; whether WKWebView in Tauri saves the anchor download was not tested (the PDF has its own save path).

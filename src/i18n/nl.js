@@ -82,7 +82,6 @@ export default {
 
   'body.privacy': 'Je cv blijft in deze browser. Er wordt niets geüpload.',
   'btn.cancel': 'Annuleren',
-  'confirm.discard': 'Wat je typte weggooien?',
 
   'edit.lead': 'Klik op iets op de pagina om eraan te werken.',
   'edit.sectionsHere': 'Secties op dit cv',
@@ -1134,11 +1133,6 @@ export default {
   'ux3.badgeTip': 'De andere formuleringen van deze regel. Wijs er een aan om hem op de pagina te zien, klik om hem te gebruiken.',
   'ux3.badgeName': 'Versie {v}: de andere versies tonen',
   'ux3.tools': 'Hulpmiddelen voor deze regel',
-  'ux3.updateTip': 'De tekst van deze versie wijzigen, overal waar ze wordt gebruikt.',
-  'ux3.saveNewTip': 'Dit bewaren als nieuwe versie.',
-  'ux3.onlySaveTip': 'Deze tekst alleen op dit cv bewaren.',
-  'ux3.saveAsTip': 'De versie laten zoals ze was en dit als nieuwe opslaan.',
-  'ux3.onlyTip': 'Deze regel alleen op dit cv wijzigen; elke versie blijft zoals ze is.',
   'ux3.writingNote': 'Je schrijft deze regel op de pagina. Esc verlaat hem.',
   'ux3.lineField': 'De regel, om te schrijven',
   'ux3.announceOn': 'Je schrijft deze regel. Esc verlaat hem.',

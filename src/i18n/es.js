@@ -82,7 +82,6 @@ export default {
 
   'body.privacy': 'Tu currículum se queda en este navegador. No se sube nada.',
   'btn.cancel': 'Cancelar',
-  'confirm.discard': '¿Descartar lo que has escrito?',
 
   'edit.lead': 'Haz clic en cualquier parte de la página para trabajar en ella.',
   'edit.sectionsHere': 'Secciones de este currículum',
@@ -1134,11 +1133,6 @@ export default {
   'ux3.badgeTip': 'Las otras redacciones de esta línea. Pasa el puntero para verla en la página, haz clic para usarla.',
   'ux3.badgeName': 'Versión {v}: mostrar las otras versiones',
   'ux3.tools': 'Herramientas de esta línea',
-  'ux3.updateTip': 'Cambiar el texto de esta versión, allí donde se use.',
-  'ux3.saveNewTip': 'Guardar esto como una versión nueva.',
-  'ux3.onlySaveTip': 'Guardar este texto solo en este currículum.',
-  'ux3.saveAsTip': 'Dejar la versión como estaba y guardar esto como una nueva.',
-  'ux3.onlyTip': 'Cambiar esta línea solo en este currículum; cada versión sigue igual.',
   'ux3.writingNote': 'Estás escribiendo esta línea en la página. Esc la deja.',
   'ux3.lineField': 'La línea, para escribir',
   'ux3.announceOn': 'Escribiendo esta línea. Esc la deja.',

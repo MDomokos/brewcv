@@ -82,7 +82,6 @@ export default {
 
   'body.privacy': 'Az önéletrajzod ebben a böngészőben marad. Semmi sem töltődik fel.',
   'btn.cancel': 'Mégse',
-  'confirm.discard': 'Elveted, amit beírtál?',
 
   'edit.lead': 'Kattints bármire az oldalon a szerkesztéshez.',
   'edit.sectionsHere': 'Szakaszok ezen az önéletrajzon',
@@ -1134,11 +1133,6 @@ export default {
   'ux3.badgeTip': 'A sor többi megfogalmazása. Ráállva látod az oldalon, kattintásra használod.',
   'ux3.badgeName': '{v}. változat: a többi változat mutatása',
   'ux3.tools': 'Eszközök ehhez a sorhoz',
-  'ux3.updateTip': 'A változat szövegének módosítása mindenhol, ahol használod.',
-  'ux3.saveNewTip': 'Mentés új változatként.',
-  'ux3.onlySaveTip': 'A szöveg megtartása csak ebben az önéletrajzban.',
-  'ux3.saveAsTip': 'A változat marad, ahogy volt, ez pedig új változatként mentődik.',
-  'ux3.onlyTip': 'A sor módosítása csak ebben az önéletrajzban; minden változat marad, ahogy volt.',
   'ux3.writingNote': 'Ezt a sort az oldalon írod. Az Esc kilép belőle.',
   'ux3.lineField': 'A sor, szerkesztésre',
   'ux3.announceOn': 'Ezt a sort írod. Az Esc kilép belőle.',

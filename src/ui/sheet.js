@@ -31,6 +31,9 @@ html.rb-ui [data-variant]:hover { outline: 2px solid color-mix(in srgb, var(--rb
 html.rb-previewing .document > .page { outline: 3px solid var(--rb-prev); outline-offset: 6px; }
 .rb-renaming { outline: 2px solid var(--rb-sel) !important; outline-offset: 3px; cursor: text !important; background: var(--rb-paper) !important; color: var(--rb-ink) !important; }
 html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit), html.rb-focus .skills__items[data-variant]:not(.rb-hit), html.rb-focus .pairs dd[data-variant]:not(.rb-hit), html.rb-focus .runs strong[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity var(--rb-m-base, 240ms) var(--rb-m-out, ease-out); }
+html.rb-writing [data-variant]:not([contenteditable]) { opacity: var(--rb-wdim, .94); }
+html.rb-ui [contenteditable] { cursor: text; }
+html.rb-writing .rb-sel { outline: none !important; background-color: transparent; }
 .rb-miss { outline: 1.5px dashed var(--rb-miss) !important; outline-offset: 2px; }
 .band .tab.rb-miss-tab { background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--rb-miss) 45%, transparent) 0 3px, transparent 3px 7px) !important; }
 [data-rb-hid] { -webkit-text-fill-color: transparent; }
@@ -110,7 +113,7 @@ export function createSheet(host, hooks = {}){
           const el = e.target.closest?.('[data-variant], .band[data-section]');
           if (!el) return hooks.onPick?.({ variant: null, section: null, page: pg });
           const band = el.closest('.band[data-section]');
-          hooks.onPick?.({ variant: el.getAttribute('data-variant'), section: band?.getAttribute('data-section') ?? null, page: pg });
+          hooks.onPick?.({ variant: el.getAttribute('data-variant'), section: band?.getAttribute('data-section') ?? null, page: pg, at: { x: e.clientX, y: e.clientY } });
         });
         // the hand, the wheel and the pinch work over the page too: the canvas gets them, in the page's own pixels
         const fe = hooks.frameEvents;
@@ -126,8 +129,6 @@ export function createSheet(host, hooks = {}){
         }
         doc.addEventListener('keydown', e => { if (!e.target.closest?.('.rb-renaming')) hooks.onKey?.(e); });
         doc.addEventListener('dblclick', e => {
-          const line = e.target.closest?.('[data-variant]');
-          if (line && !e.target.closest?.('[contenteditable]') && hooks.onWrite){ hooks.onWrite({ variant: line.getAttribute('data-variant'), page: [...doc.querySelectorAll('.document > .page')].indexOf(line.closest('.document > .page')) }); return; }
           const tab = e.target.closest?.('.band[data-section] h2.tab:not(.tab--cont)');
           const id = tab?.closest('.band').getAttribute('data-section');
           if (!tab || !id || id === 'header' || !hooks.onRename) return;
@@ -424,6 +425,10 @@ export function createSheet(host, hooks = {}){
       const r = el.getBoundingClientRect(), page = el.closest('.page')?.getBoundingClientRect();
       return { left: r.left, top: r.top, width: r.width, height: r.height, page: page ? { left: page.left, top: page.top } : null };
     },
+    // a section's band (the first, when it runs over two pages), in the page's own pixels
+    rectOfBand(id){ const el = fr?.doc.querySelector(`.band[data-section="${CSS.escape(id)}"]`); return el ? this.rectOfEl(el) : null; },
+    // a line being written is part of the page: the rest of the text fades a little (dim, 60 to 100); null when nothing is written
+    setWriting(dim){ const d = fr?.doc?.documentElement; if (!d) return; d.classList.toggle('rb-writing', dim != null); if (dim != null) d.style.setProperty('--rb-wdim', String(dim / 100)); },
     // a job's box on the page, in the page's own pixels from the sheet's corner
     rectOfJob(jobId, ix){
       if (!fr) return null;

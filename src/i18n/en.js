@@ -82,7 +82,6 @@ export default {
 
   'body.privacy': 'Your resume stays in this browser. Nothing is uploaded.',
   'btn.cancel': 'Cancel',
-  'confirm.discard': 'Discard what you typed?',
 
   'edit.lead': 'Click anything on the page to work on it.',
   'edit.sectionsHere': 'Sections on this resume',
@@ -1134,11 +1133,6 @@ export default {
   'ux3.badgeTip': 'The other wordings of this line. Hover one to see it on the page, click to use it.',
   'ux3.badgeName': 'Version {v}: show the other versions',
   'ux3.tools': 'Tools for this line',
-  'ux3.updateTip': 'Change this version’s text, wherever it is used.',
-  'ux3.saveNewTip': 'Keep this as a new version.',
-  'ux3.onlySaveTip': 'Keep this text on this resume only.',
-  'ux3.saveAsTip': 'Keep the version as it was and save this as a new one.',
-  'ux3.onlyTip': 'Change this line on this resume only; every version stays as it is.',
   'ux3.writingNote': 'You are writing this line on the page. Esc leaves it.',
   'ux3.lineField': 'The line, to write',
   'ux3.announceOn': 'Writing this line. Esc leaves it.',
@@ -1208,4 +1202,10 @@ export default {
   'ux6b.fillOver': 'over the band',
   'ux6b.backup': 'Backup',
   'ux6b.photoHint': 'Usual in Central Europe, not in the US or UK.',
+  // UX-6c: writing on the page, and where you are
+  'ux6c.depth': 'Where you are',
+  'ux6c.up': 'Up one level',
+  'ux6c.section': 'Section',
+  'ux6c.item': 'Item',
+  'ux6c.header': 'Header',
 };

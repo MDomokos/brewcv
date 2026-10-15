@@ -5,7 +5,7 @@ import { createStore } from '../store/store.js';
 import { askOk } from './ask.js';
 import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, readFolder, readBackup, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
 import { load, loadResume, detect, resumeFileName, LANGS } from '../model/schema.js';
-import { chooseVariant, newResume, listedBullets, jobRefs } from '../model/resume.js';
+import { chooseVariant, newResume, listedBullets, jobRefs, pickVersion } from '../model/resume.js';
 import { isArchived } from '../model/entries.js';
 import { groupOf } from '../model/checklist.js';
 import { fit, FILL_BAND, key as measureKeyOf } from '../fit.js';
@@ -54,7 +54,7 @@ const persist = createPersist({ store, backend });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onPage: p => { ui.page = p; renderFoot(); }, onRename: (id, text) => edit.rename(id, text),
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
-  onDrawn: () => onpage?.afterDraw(), onWrite: writeLine,
+  onDrawn: () => onpage?.afterDraw(),
   extraCss: r => design.extraCss(store.state.record, r),
   // the hand, the wheel and the pinch over the page itself go to the canvas
   frameEvents: {
@@ -371,24 +371,19 @@ function reveal({ page, top, bottom }){
   scrollPagesTo(Math.max(0, Math.min(y0 - 48, pageTop(L, page) + (y1 - y0 > view ? 0 : Math.max(0, y1 - (L.sheet.top + page * L.pageStep) - view + 48)))));
 }
 
-function pick({ variant, section, page = -1 }){
+function pick({ variant, section, page = -1, at = null }){
   if (ui.fitting || ui.snap || ui.view === 'welcome' || canvas.handed) return;
   const next = targetOf(ui.ix ?? indexModel(work()), { variant, section });
   // a faded page stays clickable: its blank paper brings it forward, and a line on it is worked on there
   const other = !ui.layout?.phone && page >= 0 && page !== ui.page;
   if (other && next.kind === 'none'){ canvas.goToPage(page); return; }
-  // From the page, one click on a bullet opens its job; a second click on a bullet of that open job writes it. A line outside a
-  // job is only selected. Clicking a bullet of another job moves to that job.
-  const open = next.kind === 'bullet' && next.job && (ui.sel.kind === 'job' || ui.sel.kind === 'bullet') && (ui.sel.kind === 'job' ? ui.sel.id : ui.sel.job) === next.job;
-  // while a line is being written, a click on another line goes on writing there, whichever job or page it is on
-  const wasWriting = !!ui.writing && next.kind === 'bullet';
-  const writes = (open || wasWriting) && !ui.layout?.phone && (wasWriting || !edit.editing);
-  if (wasWriting) onpage.keepView(() => { select(next); if (ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit(); });
-  else {
-    select(next);
-    if (writes && ui.sel.kind === 'bullet' && ui.sel.id === next.id) edit.startEdit();
-  }
-  if (other) canvas.goToPage(page);
+  // From the page, one click on a line puts the caret in it, where it was clicked (no mode to enter first); while a line is written, a
+  // click on another goes on writing there, in the same zoom, whichever job or page it is on. A phone only selects.
+  const writes = next.kind === 'bullet' && !ui.layout?.phone;
+  const go = () => { select(next, { stay: writes }); if (writes && ui.sel.kind === 'bullet' && ui.sel.id === next.id && !edit.editing){ ui.clickAt = at; edit.startEdit(); } };
+  if (other && writes) ui.page = page;      // the page it is on is the bright one once the writing zoom has moved there
+  if (ui.writing && writes) onpage.keepView(go); else go();
+  if (other && !ui.writing) canvas.goToPage(page);      // a line written there is brought into view by the writing zoom
 }
 // the page a selection is on (the claim for a bullet, the title for a job), or -1
 function pageOfSel(sel){
@@ -396,19 +391,11 @@ function pageOfSel(sel){
   const fact = sel.kind === 'bullet' ? sel.id : sel.kind === 'job' ? ix.work.get(sel.id)?.display?.position : null;
   return fact ? sheet.pageOf(fact, ix) : -1;
 }
-// a double-click on a line writes it at once
-function writeLine({ variant, page = -1 }){
-  if (ui.fitting || ui.snap || ui.view || ui.layout?.phone || canvas.handed) return;
-  const next = targetOf(ui.ix ?? indexModel(work()), { variant, section: null });
-  if (next.kind !== 'bullet') return;
-  if (!(ui.sel.kind === 'bullet' && ui.sel.id === next.id)) select(next);
-  if (ui.sel.kind === 'bullet' && ui.sel.id === next.id && !edit.editing) edit.startEdit();
-  if (page >= 0 && page !== ui.page) canvas.goToPage(page);
-}
 // a click on the bare canvas (not on a page) puts you at the page level
 function bareClick(){ if (ui.view || ui.snap) return; if (ui.sel.kind !== 'none') select(NONE); }
 // `keepScroll`: the click was on a row of the job's own lines, where the person is already looking, so the panel stays where it is.
-function select(sel, { keepScroll = false } = {}){
+// `stay`: a line clicked on the page, about to be written: the camera stays for the writing zoom to move it.
+function select(sel, { keepScroll = false, stay = false } = {}){
   if (!edit.leaving(sel)) return;
   if (sel.kind !== 'none') switcher.close();       // a click on the page never reaches the document, so the name window's outside click does not run
   // a selection made from Record, Design or Export (a row, a form to add something) is looked at in Edit
@@ -419,7 +406,7 @@ function select(sel, { keepScroll = false } = {}){
   sheet.select(sel, ui.ix);
   const was = ui.view;
   const at = ui.layout?.phone ? -1 : pageOfSel(sel);
-  if (at >= 0 && at !== ui.page){ ui.page = at; canvas.goToPage(at); }       // a line on another page, chosen from the panel: that page comes forward
+  if (at >= 0 && at !== ui.page && !stay){ ui.page = at; canvas.goToPage(at); }       // a line on another page, chosen from the panel: that page comes forward
   if (left) syncFull();         // Record fills the window; Edit does not
   dock.renderFoot();
   renderHead();
@@ -848,6 +835,8 @@ async function onClick(e){
     }
     case 'help': if (ui.menu){ ui.menu = false; renderHead(); } help.toggle(); break;
     case 'deselect': select(NONE); break;
+    case 'select-header': select({ kind: 'header' }); break;
+    case 'depth-up': if (edit.editing && !edit.editing.panel) edit.cancelEdit(); else select(NONE); break;      // the chip's Esc
     case 'select-section': select({ kind: 'section', id }); sheet.flash(id); break;
     case 'select-job': select({ kind: 'job', id }); break;
     case 'select-fact': select({ kind: 'bullet', id, section: tg.dataset.section ?? 'summary', ...(tg.dataset.owner ? { owner: tg.dataset.owner } : {}) }); break;
@@ -948,10 +937,7 @@ function useVersion(factId, vid){
   ui.previewing = false; ui.hoverV = null;
   if (edit.editing?.fact === factId && !edit.editing.panel){ edit.pickWhileWriting(vid); return; }
   const v = ui.ix.variants.get(vid);
-  store.commit(d => {
-    d.cur.picks = { ...(d.cur.picks ?? {}), [factId]: vid };
-    if (d.cur.overrides?.[factId] !== undefined) delete d.cur.overrides[factId];   // back from "this resume only"
-  }, t('undo.useVersion', { n: v?.n ?? '?' }));
+  store.commit(d => pickVersion(d.cur, factId, vid), t('undo.useVersion', { n: v?.n ?? '?' }));      // an edit on this resume is set aside, not lost
 }
 
 
@@ -1116,6 +1102,7 @@ let saving = null;
 function saveToFile(){ return saving ??= doSaveToFile().finally(() => { saving = null; }); }
 async function doSaveToFile(){
   if (!store.state.record) return false;
+  if (edit.editing) await edit.cancelEdit();      // the line being written is kept on this resume first, so the file has it
   try {
     const f = await persist.prepareFile();
     const touch = !matchMedia('(pointer: fine)').matches;
@@ -1222,7 +1209,6 @@ const edit = initEdit({
   flash: id => { ui.flashAfter = id; },
   endHover: () => { ui.hoverV = null; if (ui.previewing) endPreview(); },
   endPreview: () => endPreview(),
-  indexOf: m => indexModel(m),
   previewRecipe,
   detailsHtml: id => career.detailsHtml(id),
 });
@@ -1278,7 +1264,7 @@ const recordTab = initRecord({ ui, checklist, renderBody: () => renderBody(), se
 window.__wb.record = recordTab;
 const help = initHelp({ ui });
 window.__wb.help = help;
-const dock = initDock({ store, ui, shown, setView, leaveWriting: () => edit.cancelEdit({ ask: true }), goToPage, canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
+const dock = initDock({ store, ui, shown, setView, leaveWriting: () => edit.cancelEdit(), goToPage, canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
 window.__wb.dock = dock;
 design.bind($('#body'));
 window.__wb.design = design;

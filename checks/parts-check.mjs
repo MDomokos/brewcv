@@ -110,13 +110,12 @@ async function resumeSnapshot(){
     u.store.commit(d => T.setJobOn(d.record, d.cur, job.id, false), 'seed');
     view({ kind: 'job', id: job.id }, 'job-off'); view(sel, 'many-job-off');
 
-    // on the page (UX-3): the tools in the line's margin (the version number, no list: the sidebar has the versions), and the panel
-    // while a line is written there (the versions and a note: no text box, no "Write a new version")
+    // on the page (UX-3, UX-6c): the tools in the line's margin (the version number, ↑ and ↓, the counts; nothing to save, since leaving
+    // the line keeps it), and the panel while a line is written there (the versions and a note: no text box, no "Write a new version")
     {
       const now = u.ctx.chooseVariant(u.work(), many, u.cur()).v;
-      const ed = (mode, extra = {}) => ({ fact: many, mode, vid: now.id, base: now.text, draft: `${now.text} and more`, lines0: 2, lines: 3, ...extra });
-      for (const [name, e, dirty, canOnly] of [['edit-clean', ed('edit', { draft: now.text }), false, true], ['edit-dirty', ed('edit'), true, true], ['edit-no-only', ed('edit'), true, false], ['new', ed('new'), true, true], ['only', ed('only'), true, true]])
-        put(`en/onpage-tools-${name}`, toolsHtml({ vn: now.n, ed: e, dirty, canOnly, counts: statsCompactHtml(e) }));
+      const e = { fact: many, mode: 'edit', vid: now.id, base: now.text, draft: `${now.text} and more`, lines0: 2, lines: 3 };
+      put('en/onpage-tools', toolsHtml({ vn: now.n, canMove: true, ends: { first: true }, counts: statsCompactHtml(e) }));
       u.ctx.onpage = { begin: () => true, end(){}, setText(){}, refresh(){} };
       u.edit.startEdit('edit');   view(sel, 'many-written-on-page');   u.edit.cancelEdit();
       delete u.ctx.onpage;
@@ -168,6 +167,45 @@ section('the desktop panel shows every version in full, with the words that diff
   const phone = String(u.edit.bulletView(sel));
   ok('a phone keeps the gist: no full list, no marks', !phone.includes('vlist full') && !phone.includes('class="dw"'));
   setPhone(false);
+}
+
+section('leaving a line keeps it on this resume (UX-6c): an edit with its base and highlights, the base’s words drop it, nothing asks');
+{
+  const u = await makeUi({ resume: 0 });
+  const id = u.work().work[0].highlights.find(f => (T.chooseVariant(u.work(), f, u.cur()).v?.marks ?? []).length) ?? u.work().work[0].highlights[0];
+  u.select({ kind: 'bullet', id, job: u.work().work[0].id, section: 'experience' });
+  const base = T.chooseVariant(u.work(), id, u.cur()).v, undo0 = u.store.history.undo;
+  u.edit.startEdit(); await u.edit.cancelEdit();
+  ok('leaving a line where nothing was typed changes nothing', u.store.history.undo === undo0 && !T.overrideOf(u.cur(), id));
+  u.edit.startEdit(); u.edit.draftChanged(`${base.text} More.`);
+  ok('leaving is always allowed, and asks nothing (there is no question to ask in Node)', u.edit.leaving({ kind: 'none' }) === true);
+  const o = T.overrideOf(u.cur(), id);
+  ok('…what was typed is this resume’s edit, as one undo step, with the version it came from and that version’s highlights', o?.on && o.text === `${base.text} More.` && o.base === base.id && JSON.stringify(o.marks) === JSON.stringify(base.marks ?? []) && (base.marks ?? []).length > 0 && u.store.history.undo === undo0 + 1, JSON.stringify(o));
+  u.edit.startEdit(); u.edit.draftChanged(`${base.text} More, and more.`); await u.edit.cancelEdit();
+  ok('an edit written again keeps its base', T.overrideOf(u.cur(), id)?.text === `${base.text} More, and more.` && T.overrideOf(u.cur(), id)?.base === base.id);
+  u.edit.startEdit(); u.edit.draftChanged(base.text); await u.edit.cancelEdit();
+  ok('the base version’s own words again drop the edit: nothing is stored', !T.overrideOf(u.cur(), id) && !(id in (u.cur().overrides ?? {})) && !(id in (u.cur().overrideMeta ?? {})));
+  u.edit.startEdit(); u.edit.draftChanged('Kept, then set aside.'); await u.edit.cancelEdit();
+  const other = R.versionsIn(u.work(), id, 'en').find(v => v.id !== base.id);
+  u.store.commit(d => T.pickVersion(d.cur, id, other.id), 'pick');
+  ok('a version picked over the edit sets it aside (parked), and the versions list offers it back', T.overrideOf(u.cur(), id)?.on === false && String(u.edit.bulletView(u.ui.sel)).includes('data-act="use-edit"'));
+  await u.click('use-edit');
+  ok('…picking the edit puts it back', T.overrideOf(u.cur(), id)?.on === true && T.overrideOf(u.cur(), id)?.text === 'Kept, then set aside.');
+  u.edit.startEdit(); u.edit.draftChanged('Thrown away.'); await u.click('ed-cancel');
+  ok('only the panel’s own Cancel button drops what was typed', T.overrideOf(u.cur(), id)?.text === 'Kept, then set aside.');
+}
+
+section('one depth indicator: the sidebar’s row is parts.js depthHtml, the chip’s markup');
+{
+  const u = await makeUi({ resume: 0 });
+  const job = u.work().work[0], id = job.highlights[0];
+  const row = String(u.edit.bulletView({ kind: 'bullet', id, job: job.id, section: 'experience' }));
+  const chip = u.edit.depthHtml({ kind: 'bullet', id, job: job.id, section: 'experience' }, { next: true, escKey: true });
+  ok('the editor card opens with the same <nav class="depth"> the chip draws, minus Esc', row.startsWith(chip.replace(/<button type="button" class="dp-esc"[^]*?<\/button>/, '')) && chip.includes('dp-esc') && !row.includes('class="crumb"'));
+  ok('Page › Job › Line: three level buttons, the line current, the job’s name and the line’s name inside their levels', (chip.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Line<\/span><span class="dp-n">/.test(chip) && chip.includes(`<span class="dp-n">${job.name}</span>`));
+  const j = u.edit.depthHtml({ kind: 'job', id: job.id }, { next: true });
+  ok('a job: Page › Job, and the line below offered', /dp-l cur[^>]*><span class="dp-w">Job/.test(j) && /class="dp-l next" data-act="select-bullet" data-id="[^"]+"/.test(j));
+  ok('a section: Page › Section; the header: Page › Header', /<span class="dp-w">Section<\/span>/.test(u.edit.depthHtml({ kind: 'section', id: 'experience' })) && /<span class="dp-w">Header<\/span>/.test(u.edit.depthHtml({ kind: 'header' })));
 }
 
 // PARTS_STAGE=10.1 runs the snapshot alone

@@ -2,7 +2,6 @@
 // controls do. One panel for a claim wherever you came from: the page, the record checklist below it, or
 // the timeline. Every change is one store commit, so one undo step. Typing is not a change until it is saved.
 
-import { askOk, desktopAsk } from './ask.js';
 import * as R from '../model/record.js';
 import * as T from '../model/resume.js';
 import { key as measureKeyOf } from '../fit.js';
@@ -12,7 +11,7 @@ import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { t, h, errText } from '../i18n/index.js';
 import { play } from './motion.js';
-import { esc, clip, crumb, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
+import { esc, clip, depthHtml as depthMarkup, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -21,7 +20,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { asking: false, enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null, dragJob: null };
+const E = { enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null, dragJob: null };
 
 function commit(fn, label, done){
   try {
@@ -33,12 +32,28 @@ function commit(fn, label, done){
     return false;
   }
 }
-// the editor is closed: the line on the page stops being written and the view comes back out
-function clearEdit(){
+// the editor is closed: the line on the page stops being written. `keep`: what was typed stays on this resume (E1)
+function clearEdit(keep = true){
   const was = E.edit;
   E.edit = null;
+  clearTimeout(E.timer);
   if (was && !was.panel) C.onpage?.end();
+  if (was && keep) keepEdit(was);
 }
+// Leaving a line keeps what was typed on this resume, and nothing asks: one override with the highlights it keeps and the version it
+// was written from. The words of that version again drop the override.
+function keepEdit(ed){
+  if (!isDirty(ed)) return;
+  const text = ed.draft.trim(), base = ix().variants.get(ed.vid);
+  C.ui.previewing = false;
+  commit(d => {
+    if (text && text !== base?.text.trim()) return T.setOverride(d.cur, ed.fact, text, { marks: marksFor(ed, text), base: base?.id ?? null });
+    T.dropOverride(d.cur, ed.fact);
+    if (base && usingOf(ed.fact)?.id !== base.id) T.pickVersion(d.cur, ed.fact, base.id);
+  }, t('edit.thisOnly'));
+}
+// the highlights of the text the line started from, moved onto what was typed (a mark whose words are gone is dropped)
+const marksFor = (ed, text) => { const from = ed.mode === 'new' ? ed.copyOf : ed.base; return R.reanchor(ed.marks, from, text, m => m.expect ?? [...from].slice(m.start, m.end).join('')); };
 const autoNote = r => (r?.auto ? ' ' + t('toast.autoPages') : '');
 
 const rec = () => C.record();
@@ -105,6 +120,31 @@ function noneView(){
     <p class="lead edithint">${h('ux5c.editNone')}</p>`;
 }
 
+// One depth indicator (UX-6c): the levels of what is selected, from the page down. The chip on the page and the row at the top of
+// the editor card both draw it, from parts.js depthHtml. `next`: the level below, offered on the page.
+function depth(sel = C.ui.sel){
+  const L = [{ word: t('ux3.crumbPage'), act: 'deselect' }];
+  let next = null;
+  const at = id => `data-id="${esc(id)}"`;
+  const jobId = sel.kind === 'job' ? sel.id : sel.kind === 'bullet' ? sel.job ?? sel.owner : null;
+  const sid = sel.kind === 'section' ? sel.id : sel.kind === 'bullet' ? sel.section ?? 'summary' : null;
+  if (jobId){
+    L.push({ word: t('ux3.crumbJob'), name: ix().work.get(jobId)?.name ?? jobId, act: 'select-job', attrs: at(jobId) });
+    const first = sel.kind === 'job' ? T.listedBullets(rec(), cur(), jobId)[0] : null;
+    if (first) next = { word: t('ux3.crumbLine'), act: 'select-bullet', attrs: at(first) };
+  } else if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
+  else if (sid){
+    L.push({ word: t('ux6c.section'), name: C.sectionTitle(sid), act: 'select-section', attrs: at(sid) });
+    const sec = sel.kind === 'section' ? ix().sections.get(sid) : null;
+    const first = sec?.kind === 'entries' ? (sec.content.work ?? []).find(jobOn) : sec?.kind === 'prose' ? (sid === 'summary' && cur().summary) || sec.content.fact : null;
+    if (first) next = sec.kind === 'entries' ? { word: t('ux3.crumbJob'), act: 'select-job', attrs: at(first) } : { word: t('ux6c.item'), act: 'select-bullet', attrs: at(first) };
+  }
+  if (sel.kind === 'bullet') L.push({ word: jobId ? t('ux3.crumbLine') : t('ux6c.item'), name: ix().facts.get(sel.id)?.summary ?? sel.id,
+    act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
+  return { levels: L, next };
+}
+const depthHtml = (sel = C.ui.sel, o = {}) => { const d = depth(sel); return depthMarkup(d.levels, { ...o, next: o.next ? d.next : null }); };
+
 function sectionView(s){
   const sec = ix().sections.get(s.id);
   if (!sec) return noneView();
@@ -131,7 +171,7 @@ function sectionView(s){
     const ids = Object.values(sec.content ?? {}).flat().filter(x => typeof x === 'string' && ix().facts.has(x));
     inner = `<span class="lbl">${h('edit.items')}</span><div class="list">${ids.map(id => factRow(id, { section: s.id })).join('')}</div>`;
   }
-  return `${crumb([{ t: t('head.resume'), act: 'deselect' }, { t: title }])}
+  return `${depthHtml(s)}
     <h2 class="title">${esc(title)}</h2>
     ${isHeader ? '' : `<label class="field"><span class="lbl inline">${h('edit.headingHere', { lang: LANG_NAME[L] ?? L })}</span>
       <input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" autocomplete="off"></label>
@@ -149,7 +189,7 @@ function jobView(s, { details = true } = {}){
   if (!w) return noneView();
   const on = jobOn(s.id);
   const sid = T.sectionOfEntry(rec(), s.id);
-  return `${crumb([{ t: C.sectionTitle(sid), act: 'select-section', attrs: `data-id="${esc(sid)}"` }, { t: w.name }])}
+  return `${depthHtml(s)}
     <h2 class="title">${esc(C.textOfFact(w.display?.position) || w.position)}</h2>
     <p class="meta">${esc(C.textOfFact(w.display?.meta))}</p>
     <div class="ctlrow">${sw(`data-jobon="${esc(s.id)}"`, on, h('edit.showJob'))}</div>${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
@@ -159,14 +199,9 @@ function bulletView(s){
   const f = ix().facts.get(s.id);
   if (!f) return noneView();
   const w = s.job ? ix().work.get(s.job) : null;
-  const jobId = s.job ?? s.owner;
-  const jw = jobId ? ix().work.get(jobId) : null;
-  const sid = jobId ? T.sectionOfEntry(rec(), jobId) : null;
-  const trail = jobId ? [{ t: C.sectionTitle(sid), act: 'select-section', attrs: `data-id="${esc(sid)}"` }, { t: jw?.name ?? jobId, act: 'select-job', attrs: `data-id="${esc(jobId)}"` }, { t: clip(f.summary ?? s.id, 34) }]
-    : [{ t: C.sectionTitle(s.section ?? 'summary'), act: 'select-section', attrs: `data-id="${esc(s.section ?? 'summary')}"` }, { t: clip(f.summary ?? s.id, 34) }];
   const on = isOn(s.id) && (!w || jobOn(w.id));
 
-  return `${crumb(trail)}
+  return `${depthHtml(s)}
     <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
     ${claimHead({ hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
     + versionsHtml(versionsX(s.id));
@@ -188,7 +223,7 @@ function versionsX(id){
   const vs = R.versionsIn(work(), id, L);
   return {
     m: work(), fact: id, lang: L, full: document.body.dataset.phone !== 'true',     // every version in full, with what differs marked (the phone's sheet keeps the gist)
-    vs, using, over: overrideOf(id), ed, writing,
+    vs, using, over: overrideOf(id), parked: cur().parked?.[id]?.text, ed, writing,
     compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,
     lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: tagVocab(rec()),
     dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id) || id === cur().summary), fill: C.fillText(),
@@ -207,7 +242,8 @@ function startEdit(mode = null, vid = null){
   const m = mode ?? (over !== undefined ? 'only' : 'edit');
   const text = m === 'only' ? over : using.text;
   const lines0 = C.sheet.linesOf(ix(), id);
-  E.edit = { fact: id, mode: m, vid: using?.id ?? null, base: m === 'new' ? using.text : text, draft: text, lines0, lines: lines0 };
+  const meta = m === 'only' ? cur().overrideMeta?.[id] : null;       // an edit already on this resume: its highlights and the version it came from
+  E.edit = { fact: id, mode: m, vid: meta?.base ?? using?.id ?? null, marks: (meta ? meta.marks : using?.marks) ?? [], base: m === 'new' ? using.text : text, draft: text, lines0, lines: lines0 };
   if (m === 'new') E.edit.base = '';     // anything typed (or the copy) can be saved, if it differs from every version
   if (m === 'new') E.edit.copyOf = using.text;
   E.compare = null;
@@ -226,17 +262,15 @@ function focusEditor(selectAll = false){
 }
 const autosize = ta => { ta.style.height = 'auto'; ta.style.height = `${ta.scrollHeight + 2}px`; };
 
-export function isDirty(){
-  const ed = E.edit;
+export function isDirty(ed = E.edit){
   if (!ed) return false;
   return ed.mode === 'new' ? ed.draft.trim() !== (ed.copyOf ?? '').trim() : ed.draft.trim() !== ed.base.trim();
 }
 
-async function cancelEdit({ ask = false } = {}){
+// Esc and the like: what was typed is kept on this resume. `discard`: only the panel's own Cancel button drops it
+async function cancelEdit({ discard = false } = {}){
   if (!E.edit) return true;
-  if (ask && isDirty() && !(await askOk(t('confirm.discard')))) return false;
-  clearEdit();
-  clearTimeout(E.timer);
+  clearEdit(!discard);
   await C.endPreview(true);
   C.renderBody();
   return true;
@@ -263,40 +297,28 @@ function draftChanged(text){
   E.timer = setTimeout(livePreview, 140);
   C.onpage?.refresh();
 }
-// Ctrl+Enter keeps what was written, the way it did in the text box
-function ctrlEnter(){
-  const ed = E.edit;
-  if (ed && (isDirty() || ed.mode === 'only')) saveEdit(ed.mode === 'edit' ? 'over' : ed.mode === 'new' ? 'new' : 'only');
-}
-// a version picked while writing replaces what was typed
+// A version picked while writing: what was typed is kept first, so the pick sets it aside (parks it) and the line goes on from the
+// version's words
 function pickWhileWriting(vid){
   const ed = E.edit, v = ix().variants.get(vid);
   if (!ed || !v) return false;
-  ed.vid = vid; ed.mode = ed.mode === 'only' ? 'edit' : ed.mode;
-  ed.base = ed.mode === 'new' ? '' : v.text; ed.draft = v.text; ed.copyOf = v.text;
-  C.onpage?.setText(v.text);
   clearTimeout(E.timer);
-  E.timer = setTimeout(livePreview, 60);
+  keepEdit(ed);
+  commit(d => T.pickVersion(d.cur, ed.fact, vid), t('undo.useVersion', { n: v.n }));
+  Object.assign(ed, { vid, mode: 'edit', base: v.text, draft: v.text, copyOf: v.text, marks: v.marks ?? [] });
+  C.onpage?.setText(v.text);
   return true;
 }
 
-// The page redraws with the draft as it will look once saved: a copy of the record with the
-// edit applied (so marks move with their words), or the one-off text for "this resume only".
+// The page redraws with the draft as it will be kept: this resume's own text for the line, with its highlights.
 async function livePreview(){
   const ed = E.edit;
   if (!ed || !ed.draft.trim()) return;
-  const text = ed.draft.trim();
-  const w = structuredClone(work());
-  const r = structuredClone(cur());
-  try {
-    if (ed.mode === 'edit') R.saveOver(w, ed.vid, text);
-    else if (ed.mode === 'new'){ const nv = R.addVersion(w, ed.fact, { text, from: ed.vid, as: 'major', lang: lang() }); r.picks = { ...(r.picks ?? {}), [ed.fact]: nv.id }; }
-    else r.overrides = { ...(r.overrides ?? {}), [ed.fact]: text };
-  } catch { return; }
-  ed.ix = C.indexOf(w);
-  await C.previewRecipe(r, ed.fact, w);
+  const text = ed.draft.trim(), r = structuredClone(cur());
+  T.setOverride(r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid });
+  await C.previewRecipe(r, ed.fact);
   if (E.edit !== ed) return;
-  ed.lines = C.sheet.linesOf(ed.ix, ed.fact);
+  ed.lines = C.sheet.linesOf(ix(), ed.fact);
   const st = $('#ed-stats');
   if (st) st.innerHTML = statsHtml(ed, C.fillText());
   C.onpage?.refresh();
@@ -310,8 +332,7 @@ function saveEdit(kind){
   const f = ed.fact;
   const v = ed.vid ? ix().variants.get(ed.vid) : null;
   const resume = true;
-  clearEdit();
-  clearTimeout(E.timer);
+  clearEdit(false);
   C.ui.previewing = false;
   if (kind === 'over') commit(d => { R.saveOver(d.record, ed.vid, text); }, t('undo.saveV', { v: v.n }), t('toast.savedV', { v: v.n }));
   else if (kind === 'as' || kind === 'promote'){
@@ -344,7 +365,8 @@ async function act(a, tg){
   switch (a){
     case 'edit': startEdit(null, tg?.dataset?.v ?? null); return true;
     case 'new-version': startEdit('new'); return true;
-    case 'ed-cancel': cancelEdit(); return true;
+    case 'ed-cancel': cancelEdit({ discard: true }); return true;
+    case 'use-edit': commit(d => T.unparkOverride(d.cur, s.id), t('edit.thisOnly')); return true;
     case 'ed-save': saveEdit('over'); return true;
     case 'ed-saveas': saveEdit('as'); return true;
     case 'ed-only': saveEdit('only'); return true;
@@ -372,7 +394,7 @@ async function act(a, tg){
       if (!id || !isClaim(id)) return true;
       const job = ix().highlight.get(id);
       let res;
-      clearEdit(); E.compare = null; clearTimeout(E.timer);
+      clearEdit(false); E.compare = null;
       C.endHover();
       commit(d => { res = K.deleteClaim(d.record, id, [d.cur, ...(d.resumes ?? [])]); }, t('undo.deleteClaim'));
       if (res){
@@ -385,7 +407,7 @@ async function act(a, tg){
       const id = s.id, job = ix().highlight.get(id);
       if (!id || !isClaim(id)) return true;
       let res;
-      clearEdit(); E.compare = null; clearTimeout(E.timer);
+      clearEdit(false); E.compare = null;
       C.endHover();
       commit(d => { res = K.archiveClaim(d.record, id); }, t('arch.undoArchive'));
       if (res?.changed){
@@ -497,7 +519,7 @@ function bind(body){
     if (t.id === 'sec-label' && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
     if (t.id === 'sec-label' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); t.value = T.labelOf(rec(), cur(), t.dataset.sid, lang()) ?? ''; t.blur(); }
     if (t.id === 'ed'){
-      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); cancelEdit({ ask: true }); }
+      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); cancelEdit(); }
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
         e.preventDefault();
         const ed = E.edit;
@@ -704,8 +726,8 @@ function resetOrder(kind, id){
   if (auto) C.toast(t('toast.autoPages'));
 }
 function key(e){
-  // writing a line on the page: Esc leaves it for the job (asks first if there is a draft), wherever the focus is
-  if (e.key === 'Escape' && E.edit && !E.edit.panel){ e.preventDefault(); cancelEdit({ ask: true }); return true; }
+  // writing a line on the page: Esc leaves it for the job, keeping what was typed, wherever the focus is
+  if (e.key === 'Escape' && E.edit && !E.edit.panel){ e.preventDefault(); cancelEdit(); return true; }
   if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')
     && (C.ui.sel.kind === 'section' || document.activeElement?.closest?.('.clrow[data-item], .clrow[data-bullet], .clgh[data-job]') || (C.ui.sel.kind === 'bullet' && C.ui.sel.job) || (C.ui.sel.kind === 'record' && C.ui.sel.what === 'item'))){
     e.preventDefault(); return moveWhatIsHere(e.key === 'ArrowDown' ? 1 : -1);
@@ -714,32 +736,16 @@ function key(e){
   return false;
 }
 
-// Leaving a bullet with a typed draft asks first. Synchronous: the shell's
-// select() ends any preview itself.
+// Leaving a line keeps what was typed (E1), so leaving is always allowed. The shell's select() ends any preview itself.
 function leaving(next){
   if (!E.edit) return true;
   if (next?.kind === 'bullet' && next.id === E.edit.fact) return true;
-  if (isDirty()){
-    if (desktopAsk()){
-      // the native question is asynchronous: stay where you are, ask, and on yes drop the draft and go where you were going
-      if (!E.asking){
-        E.asking = true;
-        askOk(t('confirm.discard')).then(yes => {
-          E.asking = false;
-          if (yes){ clearEdit(); E.compare = null; clearTimeout(E.timer); C.select(next); }
-        });
-      }
-      return false;
-    }
-    if (!confirm(t('confirm.discard'))) return false;
-  }
   clearEdit(); E.compare = null;
-  clearTimeout(E.timer);
   return true;
 }
 
 const api = {
-  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, ctrlEnter,
+  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){

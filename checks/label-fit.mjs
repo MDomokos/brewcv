@@ -79,7 +79,7 @@ for (const lang of I.UI_LANGS.filter(l => l !== 'en')){
 
 // ---- the app's own labels ----
 // Things that are meant to shorten with an ellipsis; everything else has to fit whole.
-const ELLIPSIS = '.dn, .dt, .clname, .clt, .tx, .filestate, .sn, .muted, .sopt, .stext, .jn, .lt, .lr, option, .title, .t, .tlsend, .lbl, .where, .kb, .crumb, .sumline, .meta, .field input, .field select, .field textarea';
+const ELLIPSIS = '.dn, .dt, .clname, .clt, .tx, .filestate, .sn, .muted, .sopt, .stext, .jn, .lt, .lr, .dp-n, option, .title, .t, .tlsend, .lbl, .where, .kb, .crumb, .sumline, .meta, .field input, .field select, .field textarea';
 // the sidebar is 340px wide (316px under 1400px windows); the name card, the rail and the name window are checked in every language by head-check.mjs
 const widths = [[1200, 750, '1200×750'], [1470, 832, '1470×832'], [1920, 1080, '1920×1080']];
 for (const lang of I.UI_LANGS){
@@ -120,7 +120,11 @@ for (const lang of I.UI_LANGS){
     problems.push(...await probe('design', '#body .seg button, #body .tpl, #body .drow .item, #body .drow .btns button, #body .drow .note, #body .photo-ctl .btns button, #body .photo-ctl .note'));
     await pg.click('#tab-edit'); await pg.waitForTimeout(300);
     await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await pg.waitForTimeout(500);
-    problems.push(...await probe('the job level', '#body .allrec button, #body .crumb *, #body .ctlrow *'));
+    problems.push(...await probe('the job level', '#body .allrec button, #body .depth, #body .depth > *, #body .depth .dp-w, #body .ctlrow *'));
+    // the row at the top of the editor card (the chip's component): Page › Job › Line fits its row, the names give way, the level words never do
+    await pg.evaluate(() => { const w = window.__wb, j = w.store.state.record.work[0]; w.ui.sel = { kind: 'bullet', id: j.highlights[0], job: j.id, section: 'experience' }; w.setView(null); }); await pg.waitForTimeout(500);
+    problems.push(...await probe('the line level', '#body .depth, #body .depth > *, #body .depth .dp-w'));
+    problems.push(...await pg.evaluate(() => { const d = document.querySelector('#body .depth'), c = document.querySelector('#body').getBoundingClientRect(); if (!d) return ['the line level: no depth row']; const r = d.getBoundingClientRect(); return [...d.querySelectorAll('.dp-w')].filter(w => w.scrollWidth > w.clientWidth + 1 || w.getBoundingClientRect().right > r.right + 0.5).map(w => `the line level: the level word “${w.textContent}” is clipped`).concat(r.right > c.right + 0.5 ? ['the line level: the depth row runs out of the card'] : []); }));
     await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); });
     // the grown switcher
     await pg.click('#docname-btn'); await pg.waitForTimeout(250);

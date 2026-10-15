@@ -159,13 +159,17 @@ export function initCanvas(C){
   }
 
   // ---- writing: the view eases to the writing zoom around the block, and follows it from line to line ----
-  // r is the block in the page's own pixels. keepZoom: already writing, so only pan to the next block.
+  // r is the block in the page's own pixels. keepZoom: already writing, so only pan to the next block. A page already at the writing
+  // size or larger is not zoomed: the block is only kept in view. True when it zoomed in.
   function writeTo(r, percent, { keepZoom = false } = {}){
-    if (!geo) return;
-    const k = keepZoom ? cam.k : writingScale(geo, view, percent);
+    if (!geo) return false;
+    const ws = writingScale(geo, view, percent);
+    if (!keepZoom && cam.k >= ws - 1e-3){ ensureVisible(r); return false; }
+    const k = keepZoom ? cam.k : ws;
     const next = keepPageEdge(hardCam(centreOn(geo, view, k, r.left + r.width / 2, r.top + r.height / 2), geo, view), geo, view, r);
     free = true; want = null; rememberView();
     go(next);
+    return !keepZoom;
   }
   // keep a block (a line that grows as you type) inside the view, with some room
   function ensureVisible(r, room = 70){

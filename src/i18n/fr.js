@@ -82,7 +82,6 @@ export default {
 
   'body.privacy': 'Votre CV reste dans ce navigateur. Rien n’est envoyé.',
   'btn.cancel': 'Annuler',
-  'confirm.discard': 'Abandonner ce que vous avez saisi ?',
 
   'edit.lead': 'Cliquez sur un élément de la page pour le modifier.',
   'edit.sectionsHere': 'Rubriques de ce CV',
@@ -1134,11 +1133,6 @@ export default {
   'ux3.badgeTip': 'Les autres formulations de cette ligne. Survolez-en une pour la voir sur la page, cliquez pour l’utiliser.',
   'ux3.badgeName': 'Version {v} : afficher les autres versions',
   'ux3.tools': 'Outils pour cette ligne',
-  'ux3.updateTip': 'Modifier le texte de cette version, partout où elle est utilisée.',
-  'ux3.saveNewTip': 'Garder ceci comme nouvelle version.',
-  'ux3.onlySaveTip': 'Garder ce texte pour ce CV seulement.',
-  'ux3.saveAsTip': 'Laisser la version telle quelle et enregistrer ceci comme nouvelle version.',
-  'ux3.onlyTip': 'Modifier cette ligne pour ce CV seulement ; chaque version reste telle quelle.',
   'ux3.writingNote': 'Vous écrivez cette ligne sur la page. Échap la quitte.',
   'ux3.lineField': 'La ligne, à écrire',
   'ux3.announceOn': 'Vous écrivez cette ligne. Échap la quitte.',

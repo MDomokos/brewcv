@@ -82,7 +82,6 @@ export default {
 
   'body.privacy': 'Il tuo CV resta in questo browser. Non viene caricato nulla.',
   'btn.cancel': 'Annulla',
-  'confirm.discard': 'Scartare quello che hai scritto?',
 
   'edit.lead': 'Clicca su qualsiasi cosa nella pagina per modificarla.',
   'edit.sectionsHere': 'Sezioni di questo CV',
@@ -1134,11 +1133,6 @@ export default {
   'ux3.badgeTip': 'Le altre formulazioni di questa riga. Passa sopra per vederla nella pagina, fai clic per usarla.',
   'ux3.badgeName': 'Versione {v}: mostra le altre versioni',
   'ux3.tools': 'Strumenti per questa riga',
-  'ux3.updateTip': 'Cambia il testo di questa versione, ovunque sia usata.',
-  'ux3.saveNewTip': 'Conserva questo come nuova versione.',
-  'ux3.onlySaveTip': 'Conserva questo testo solo in questo CV.',
-  'ux3.saveAsTip': 'Lascia la versione com’era e salva questo come nuova.',
-  'ux3.onlyTip': 'Cambia questa riga solo in questo CV; ogni versione resta com’è.',
   'ux3.writingNote': 'Stai scrivendo questa riga nella pagina. Esc la lascia.',
   'ux3.lineField': 'La riga, da scrivere',
   'ux3.announceOn': 'Stai scrivendo questa riga. Esc la lascia.',

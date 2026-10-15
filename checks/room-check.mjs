@@ -6,7 +6,8 @@
 //      in the 340px sidebar (LIMITS are the measured numbers).
 //  (a) at 1280×720, 1470×832 and 1920×1080 no element outside the page layer is wider than half the window (no bar across the top),
 //  (b) the page at fit fills the window's height less 32px, and
-//  (c) the page's x is the same for nothing selected, a line, a job, Design, Export and back.
+//  (c) the page's x is the same for nothing selected, a line, a job, Design, Export and back; writing a line zooms in, and the page is back
+//      where it was at the page level.
 // And the shape: the name card (name, Saved, menu), the rail (logo, Edit, Design and Export, Resumes and Record, undo and redo) and a foot with
 // the thin meters and Fit and nothing else. The sidebar is 340px (316 under 1400px), the rail 54px more.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes only to out/.
@@ -54,12 +55,12 @@ for (const [i, [w, h]] of SIZES.entries()){
   const frame = page.frameLocator('#sheet iframe');
   const rest = async () => { await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await page.waitForTimeout(300); };
   const states = {
-    line: async () => { await frame.locator('.bullets li').first().click(); },
+    line: async () => { await frame.locator('.bullets li').first().click(); await page.keyboard.press('Escape'); },      // one click writes; Esc leaves the line selected
     job: async () => { await frame.locator('.role-title').first().click(); },
     design: async () => { await page.click('#tab-design'); },
     export: async () => { await page.click('#tab-export'); },
     outline: async () => { await frame.locator('.bullets li').first().click(); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); },
-    writing: async () => { await frame.locator('.bullets li').nth(1).dblclick(); await page.waitForTimeout(500); },
+    writing: async () => { await frame.locator('.bullets li').nth(1).click(); await page.waitForTimeout(500); },
   };
   for (const [name, go] of Object.entries(states)){
     let share = null, err = '';
@@ -97,13 +98,19 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
     ok(`${w}×${h}: the page fills the height less at most 32px (${r0.height.toFixed(0)} of ${h})`, r0.height >= h - 32 - 1 && r0.height <= h);
     // (c) the page's x for every selection and sheet
     const xs = [r0.left];
-    await frame.locator('.bullets li').first().click(); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
+    // a line chosen with the arrow keys is selected, not written: the page stays; one written on the page zooms, and is back at the page level
+    await page.mouse.move(4, 4); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
+    const chose = await page.evaluate(() => window.__wb.ui.sel.kind === 'bullet' && !window.__wb.ui.writing);
     await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    await frame.locator('.bullets li').first().click(); await page.waitForTimeout(500);
+    const zoomed = (await pageRect(page)).width > r0.width + 1;
+    await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(700); xs.push((await pageRect(page)).left);
+    ok(`${w}×${h}: writing a line zooms in, and Esc to the page brings the page back`, zoomed && Math.abs(xs.at(-1) - r0.left) < 0.5);
     await frame.locator('.role-title').first().click(); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
     await page.click('#tab-design'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
     await page.click('#tab-export'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
     await page.click('#tab-edit'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
-    ok(`${w}×${h}: the page's x is the same for nothing selected, a line, a job, Design, Export and Edit`, Math.max(...xs) - Math.min(...xs) < 0.5, xs.map(x => x.toFixed(1)).join(' '));
+    ok(`${w}×${h}: the page's x is the same for nothing selected, a line, a job, Design, Export and Edit`, chose && Math.max(...xs) - Math.min(...xs) < 0.5, xs.map(x => x.toFixed(1)).join(' '));
   } catch (e){ ok(`${w}×${h}: the layout measures`, false, String(e.message ?? e).split('\n')[0].slice(0, 100)); }
   await ctx.close();
 }

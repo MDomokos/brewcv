@@ -249,13 +249,14 @@ function detailsForm(key, x, v){
 }
 
 // About you: name and headline, contact, the photo, and a summary if there is none yet
-function aboutView(){
+// the header, chosen on the page: it is headed by where you are, as the page's chip says
+function aboutView(sel){
   const m = rec(), b = m.basics ?? {}, d = b.display ?? {}, Lg = L(), tr = trLabel();
   const where = `<div class="where" ${kc('about')}><span class="kb">${icon('about')}${h('career.step1')}</span></div>`;
   const photo = `<div class="photo-row">${b.image ? `<img class="thumb" src="${esc(C.photoUrl())}" alt="">` : `<span class="thumb empty">${h('design.none')}</span>`}
       <div class="btns"><button class="sm" data-act="d-photo">${b.image ? h('design.replacePhoto') : h('design.addPhoto')}</button>${b.image ? `<button class="sm ghost" data-act="d-photo-rm">${h('design.remove')}</button>` : ''}</div></div>
     <p class="note">${h('design.photoNote')} ${h('design.photoCrop')}</p>`;
-  return `${crumb([{ t: t('career.step1') }])}${where}<h2 class="title">${h('career.about.name')}</h2>
+  return `${C.edit.depthHtml(sel)}${where}<h2 class="title">${h('career.about.name')}</h2>
     <div class="detbox" data-form="about" data-part="name">
       ${field('c-name', h('career.f.name'), sameLang() ? b.name : (textIn(d.name) || b.name), { right: tr, ph: sameLang() ? '' : b.name })}
       ${area('c-label', h('career.f.headline'), sameLang() ? b.label ?? textEn(d.label) : textIn(d.label), { right: tr, single: true, ph: textEn(d.label), miss: !sameLang() && d.label && !textIn(d.label) })}
@@ -414,7 +415,7 @@ function kindView(id){
 
 // the inspector for a selection that is not a claim, a job or a section
 function panel(sel){
-  if (sel.kind === 'header') return aboutView();
+  if (sel.kind === 'header') return aboutView(sel);
   if (sel.kind === 'add') return addView(sel.what);
   if (sel.kind === 'kind') return kindView(sel.id ?? null);
   if (sel.kind === 'record'){
