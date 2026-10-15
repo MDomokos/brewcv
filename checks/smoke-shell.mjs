@@ -1105,6 +1105,9 @@ if (want('on the page: a narrow window, zoom off, reduced motion, a line that is
     const lines = () => ph.evaluate(() => Object.values(window.__wb.store.state.cur.localLines ?? {}).flat().map(l => l.id));
     ok('phone: “+ line” in the job’s sidebar adds an empty line only on this resume, selected', (await lines()).length === 1 && (await ph.evaluate(() => window.__wb.ui.sel.id)) === (await lines())[0] && (await ph.evaluate(() => window.__wb.ui.writing)) !== true);
     ok('phone: its panel has the note, “Remove this line” and a way to write it', /Only on this resume\./.test(await ph.textContent('#body')) && !!(await ph.$('#body [data-act=local-remove]')) && !!(await ph.$('#body [data-act=edit]')));
+    await ph.evaluate(() => document.querySelector('#body .depth [data-act=select-job]').click()); await ph.waitForTimeout(900);
+    ok('phone: going up from the empty line (nothing was written) removes it, and no blank bullet is left', (await lines()).length === 0 && await frameDoc(ph, d => [...d.querySelectorAll('.entry .bullets li')].every(li => li.textContent.trim())));
+    await ph.evaluate(() => document.querySelector('#body [data-act=ol-newline]').click()); await ph.waitForTimeout(1500);
     await ph.evaluate(() => document.querySelector('#body [data-act=edit]').click()); await ph.waitForTimeout(500);
     await ph.fill('#ed', 'Wrote the fixture drawings.'); await ph.evaluate(() => document.querySelector('#body [data-act=ed-only]').click()); await ph.waitForTimeout(900);
     ok('phone: what is typed there is kept on the line', (await ph.evaluate(id => window.__wb.store.state.cur.overrides[id], (await lines())[0])) === 'Wrote the fixture drawings.' && /fixture drawings/.test(await frameDoc(ph, d => d.body.textContent)));

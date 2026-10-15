@@ -45,7 +45,8 @@ function clearEdit(keep = true){
 function dropLine(fact){
   const job = ix().highlight.get(fact);
   if (C.ui.sel.kind === 'bullet' && C.ui.sel.id === fact && job) C.ui.sel = { kind: 'job', id: job };      // Esc goes up to the job, not to the page
-  commit(d => T.removeLocalLine(d.cur, fact), t('ux6c.undoRemoveLine'));
+  const had = !!cur().overrides?.[fact];      // a line you wrote and emptied is a delete: say so, and Ctrl+Z brings it back
+  commit(d => T.removeLocalLine(d.cur, fact), t('ux6c.undoRemoveLine'), had ? `${t('ux6c.lineRemoved')} ${t('toast.ctrlZUndoes')}` : undefined);
 }
 // Leaving a line keeps what was typed on this resume, and nothing asks: one override with the highlights it keeps and the version it
 // was written from. The words of that version again drop the override.
@@ -757,7 +758,8 @@ function key(e){
 
 // Leaving a line keeps what was typed (E1), so leaving is always allowed. The shell's select() ends any preview itself.
 function leaving(next){
-  if (!E.edit) return true;
+  const s = C.ui.sel;      // no editor open (the phone, a click on the sidebar): an empty line is still dropped when the selection leaves it
+  if (!E.edit){ if (s.kind === 'bullet' && T.isLocal(cur(), s.id) && cur().overrides?.[s.id] === '' && !(next?.kind === 'bullet' && next.id === s.id)) dropLine(s.id); return true; }
   if (next?.kind === 'bullet' && next.id === E.edit.fact) return true;
   clearEdit(); E.compare = null;
   return true;

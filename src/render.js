@@ -312,7 +312,9 @@ function makeCtx(data, recipe, doc, opts){
     return list.length === was.length && list.every((x, i) => x === was[i]) ? s : { ...s, content: { ...s.content, [key]: list } };
   };
 
+  const slotsOf = new Map(), slotAt = new Map();   // a job's slots in the plan, and how many of them are drawn
   return {
+    slotsOf,
     doc, data, recipe, pick, chosen, annotate: !!opts.annotate,
     // src/i18n docChrome, for a non-English resume in the app only.
     chrome: lang !== 'en' && opts.chrome?.lang === lang ? opts.chrome : null,
@@ -346,7 +348,10 @@ function makeCtx(data, recipe, doc, opts){
       for (const id of base)
         if (!w.highlights.includes(id))
           throw new RenderError(`the recipe asks ${w.id} for ${id}, which is not one of its highlights`);
-      const ids = withLocal(recipe, w.id, base);
+      const mine = slotsOf.get(w.id) ?? [], n = slotAt.get(w.id) ?? 0;
+      slotAt.set(w.id, n + 1);
+      const ids = withLocal(recipe, w.id, base, { blank: !!opts.annotate, full: w.highlights,
+        slots: mine.length > 1 ? { union: mine.flatMap(x => x ?? w.highlights), first: n === 0 } : null });
       // A covered fact never prints, so it needs no phrasing in this language.
       const picked = ids.map(id => {
         try { return [id, pick(id), null]; }
@@ -377,6 +382,10 @@ export function renderPages(data, recipe, doc = globalThis.document, opts = {}){
   const ctx = makeCtx(data, recipe, doc, opts);
   const plan = planPages(data, recipe);
   ctx.plansSummary = plan.some(slots => slots.some(x => x.id === 'summary'));
+  for (const r of plan.flat().flatMap(s => s.work ?? [])){
+    const id = typeof r === 'string' ? r : r.id;
+    ctx.slotsOf.set(id, [...(ctx.slotsOf.get(id) ?? []), typeof r === 'string' ? null : r.highlights]);
+  }
   const seen = new Map();
   const pages = [];
 

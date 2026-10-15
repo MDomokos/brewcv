@@ -571,6 +571,7 @@ export function validate(input, recipe = null){
           if (!isStr(l?.id) || byFact.has(l.id) || local.has(l.id)) err(`recipe.localLines.${job}`, `${JSON.stringify(l?.id)} is not a new id`);
           else local.add(l.id);
           if (l?.after != null && !isStr(l.after)) err(`recipe.localLines.${job}`, 'after must be an id or null');
+          else if (l?.after != null && !((data.work ?? []).find(w => w?.id === job)?.highlights ?? []).includes(l.after) && !lines.some(x => x?.id === l.after)) err(`recipe.localLines.${job}`, `${l.id} follows ${l.after}, which is not a line of the job`);
         }
       }
     }

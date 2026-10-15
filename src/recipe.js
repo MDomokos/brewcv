@@ -63,13 +63,24 @@ export const localJob = (recipe, id) => Object.keys(recipe?.localLines ?? {}).fi
 export const localEntry = (recipe, id) => Object.values(recipe?.localLines ?? {}).flat().find(l => l.id === id) ?? null;
 export const isLocal = (recipe, id) => localJob(recipe, id) !== null;
 export const localIds = recipe => new Set(Object.values(recipe?.localLines ?? {}).flat().map(l => l.id));
-// A job's bullets with its local lines merged in at their places; those switched off print nowhere.
-// shortcut: a hand layout that splits one job over slots prints its local line in each slot that holds its anchor.
-export function withLocal(recipe, jobId, ids, keepOff = false){
+// A job's bullets with its local lines merged in at their places. Those switched off print nowhere (`keepOff` keeps
+// them); neither does one whose text is empty, unless `blank` (the page being written, the lists). `full` is the job's
+// whole bullet list: a line whose anchor is not in `ids` (Fit dropped it) follows the anchor's predecessor. `slots`
+// ({ union, first }) is a job split over page slots: a line prints only in the slot that holds its anchor, else the first.
+export function withLocal(recipe, jobId, ids, { keepOff = false, blank = false, full = [], slots = null } = {}){
   const out = [...ids], here = localOf(recipe, jobId), off = new Set(offOf(recipe));
+  const prev = a => { const l = here.find(x => x.id === a); if (l) return l.after; const i = full.indexOf(a); return i < 0 ? undefined : full[i - 1] ?? null; };
+  const root = a => { for (let n = 0; a != null && here.some(l => l.id === a) && n < 99; n++) a = prev(a); return a; };
   for (const { id, after } of here){
-    const k = after == null ? -1 : out.indexOf(after);
-    out.splice(after != null && k < 0 ? out.length : k + 1, 0, id);
+    if (slots){
+      const r = root(after), home = r == null || !slots.union.includes(r) ? slots.first : out.includes(r);
+      if (!home) continue;
+    }
+    let a = after;
+    if (!slots) for (let n = 0; a != null && !out.includes(a) && n < 99; n++) a = prev(a);
+    const k = a === undefined ? out.length - 1 : a == null ? -1 : out.indexOf(a);
+    out.splice(a != null && k < 0 ? out.length : k + 1, 0, id);
   }
-  return here.length && !keepOff ? out.filter(id => !(off.has(id) && here.some(l => l.id === id))) : out;
+  const gone = id => here.some(l => l.id === id) && ((!keepOff && off.has(id)) || (!blank && recipe.overrides?.[id] === ''));
+  return here.length ? out.filter(id => !gone(id)) : out;
 }

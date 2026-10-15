@@ -458,13 +458,14 @@ export function compareRows(model, a, b){
     const v = chooseVariant(model, factId, r).v;
     return v ? { label: `v${v.n}`, text: v.text, variant: v.id } : { label: '—', text: '' };
   };
-  const printed = r => { const p = printedFacts(model, r); return [p.summary?.fact, ...p.work.flatMap(w => w.highlights.map(h => h.fact))].filter(Boolean); };
-  const pa = printed(a), pb = new Set(printed(b));
-  const order = [...new Set([...pa, ...printed(b)])];
-  const claims = order.map(f => {
-    const x = pa.includes(f) ? cell(a, f) : { label: '—', text: '' };
-    const y = pb.has(f) ? cell(b, f) : { label: '—', text: '' };
-    return { kind: 'claim', fact: f, label: facts.get(f)?.summary ?? (isLocal(a, f) || isLocal(b, f) ? (x.text || y.text).slice(0, 60) : f), a: x, b: y, differs: x.label !== y.label || x.text !== y.text };
+  // a line only on one resume has an id of its own on each: it is one claim when the job and the words are the same
+  const printed = r => { const p = printedFacts(model, r); return new Map([p.summary && [p.summary.fact, p.summary.fact], ...p.work.flatMap(w => w.highlights.map(h => [isLocal(r, h.fact) ? `local:${w.job}:${h.text}` : h.fact, h.fact]))].filter(Boolean)); };
+  const pa = printed(a), pb = printed(b);
+  const claims = [...new Set([...pa.keys(), ...pb.keys()])].map(k => {
+    const f = pa.get(k) ?? pb.get(k), none = { label: '—', text: '' };
+    const x = pa.has(k) ? cell(a, pa.get(k)) : none;
+    const y = pb.has(k) ? cell(b, pb.get(k)) : none;
+    return { kind: 'claim', fact: f, label: facts.get(f)?.summary ?? (k.startsWith('local:') ? (x.text || y.text).slice(0, 60) : f), a: x, b: y, differs: x.label !== y.label || x.text !== y.text };
   });
   return [...settings, ...claims];
 }

@@ -568,6 +568,11 @@ function dropFacts(model, ids, recipes = []){
       if (o.held) o.held = o.held.filter(x => !drop.has(x));
     }
     for (const k of ['off', 'keep', 'held']) if (Array.isArray(r[k])){ r[k] = r[k].filter(x => !drop.has(x)); if (!r[k].length) delete r[k]; }
+    // a line only on this resume that followed a dropped bullet follows the bullet before it, not the job's end
+    for (const [job, lines] of Object.entries(r.localLines ?? {})){
+      const hs = entriesOf(model).find(e => e.id === job)?.highlights ?? [];
+      r.localLines[job] = lines.map(l => (drop.has(l.after) ? { ...l, after: hs.slice(0, Math.max(0, hs.indexOf(l.after))).reverse().find(h => !drop.has(h)) ?? null } : l));
+    }
   }
   return { versions };
 }
@@ -590,6 +595,9 @@ export function deleteEntry(model, id, recipes = []){
     const drop = list => list.filter(w => (typeof w === 'string' ? w : w.id) !== id);
     for (const s of r.sections ?? []) if (s && typeof s === 'object' && s.work) s.work = drop(s.work);
     for (const page of r.pages ?? []) for (const s of page) if (s && typeof s === 'object' && s.work) s.work = drop(s.work);
+    for (const { id: line } of r.localLines?.[id] ?? []) for (const k of ['overrides', 'overrideMeta']) delete r[k]?.[line];
+    if (r.localLines?.[id]) delete r.localLines[id];
+    if (r.localLines && !Object.keys(r.localLines).length) delete r.localLines;
   }
   return { facts: facts.length };
 }

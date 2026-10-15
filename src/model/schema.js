@@ -349,9 +349,27 @@ export function loadResume(file, model = null){
   const frozen = {};
   for (const k of BODY_KEYS) if (file[k] !== undefined) frozen[k] = clone(file[k]);
   const recipe = migratePins(clone(rb.resume));
+  cleanLocal(recipe, model, warnings);
   const snaps = readSnapshots(rb.snapshots, warnings);
   if (snaps.length) recipe.snapshots = snaps;
   return { recipe, frozen, warnings };
+}
+
+// recipe.localLines = { jobId: [{ id, after }] } is read from a file anyone can edit: a malformed entry, an id used twice or one
+// that is a record fact is dropped, and an `after` that follows nothing in the job becomes null (the job's first line).
+function cleanLocal(recipe, model, warnings){
+  if (recipe.localLines === undefined) return;
+  const facts = new Set((model?.facts ?? []).map(f => f.id)), seen = new Set(), out = {};
+  const lines = isObj(recipe.localLines) ? recipe.localLines : (warnings.push('localLines is not an object; it is ignored'), {});
+  for (const [job, list] of Object.entries(lines)){
+    if (!Array.isArray(list)){ warnings.push(`localLines.${job} is not a list; it is ignored`); continue; }
+    const w = model?.work?.find(x => x.id === job), mine = list.filter(l => isObj(l) && typeof l.id === 'string' && l.id && !facts.has(l.id) && !seen.has(l.id) && seen.add(l.id));
+    if (mine.length !== list.length) warnings.push(`localLines.${job} had a line without an id of its own; it was dropped`);
+    const keep = mine.map(l => ({ ...l, after: typeof l.after === 'string' && (!w || w.highlights.includes(l.after) || mine.some(x => x.id === l.after)) ? l.after : null }));
+    if (keep.some((l, i) => l.after !== (mine[i].after ?? null))) warnings.push(`localLines.${job} had a line that follows nothing in the job; it is now the first`);
+    if (keep.length) out[job] = keep;
+  }
+  if (Object.keys(out).length) recipe.localLines = out; else delete recipe.localLines;
 }
 
 // A snapshot is `{ id, at, label?, sends: [{ kind, company, role, date }], recipe, body }`: the resume as it printed.

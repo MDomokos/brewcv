@@ -99,7 +99,7 @@ export function resolve(model, recipe = null, { local = true } = {}){
   function highlightsOf(w, only){
     const base = only ?? w.highlights;
     for (const id of base) if (!w.highlights.includes(id)) problems.push(`recipe asks ${w.id} for ${id}, which is not one of its highlights`);
-    const ids = local ? withLocal(recipe, w.id, base) : base;
+    const ids = local ? withLocal(recipe, w.id, base, { full: w.highlights }) : base;
     const got = ids.map(id => [id, chooseVariant(model, id, recipe, ix)]);
     const covered = new Set();
     for (const [, { v }] of got) for (const c of v?.covers ?? []) covered.add(c);
@@ -233,7 +233,7 @@ export function printedFacts(model, recipe = null){
   for (const ref of workRefs){
     const w = workById.get(ref.id);
     if (!w) continue;
-    const ids = withLocal(recipe, w.id, ref.highlights ?? w.highlights);
+    const ids = withLocal(recipe, w.id, ref.highlights ?? w.highlights, { full: w.highlights });
     const got = ids.map(id => [id, chooseVariant(model, id, recipe, ix).v]);
     const covered = new Set(got.flatMap(([, v]) => v?.covers ?? []));
     const hs = got.filter(([id, v]) => !covered.has(id) && (v || recipe?.overrides?.[id] !== undefined)).map(([id]) => ({ fact: id, text: textOf2(id) }));
@@ -376,9 +376,9 @@ const listedFacts = (model, recipe, jobId) => {
   return w ? jobRefs(model, recipe).filter(r => refId(r) === jobId).flatMap(r => highlightsOfRef(w, r)) : [];
 };
 // what prints, in order: the job's bullets and its local lines
-export const listedBullets = (model, recipe, jobId) => withLocal(recipe, jobId, listedFacts(model, recipe, jobId));
+export const listedBullets = (model, recipe, jobId) => withLocal(recipe, jobId, listedFacts(model, recipe, jobId), { blank: true, full: factIx(model).work.get(jobId)?.highlights });
 // …with the local lines that are switched off kept in their places
-const fullOrder = (model, recipe, jobId) => withLocal(recipe, jobId, listedFacts(model, recipe, jobId), true);
+const fullOrder = (model, recipe, jobId) => withLocal(recipe, jobId, listedFacts(model, recipe, jobId), { keepOff: true, blank: true, full: factIx(model).work.get(jobId)?.highlights });
 // A local line follows the one before it in `order`; the list is kept in print order so each anchor comes first.
 function reanchor(recipe, jobId, order){
   const mine = localOf(recipe, jobId);
@@ -474,9 +474,13 @@ export function setKeep(model, recipe, factId, on){
 // One-off text for this resume only. null removes it. `{ marks, base }` (the highlights it keeps and the version it was
 // written from) go in recipe.overrideMeta; without them the call leaves the recipe's other keys alone.
 export function setOverride(recipe, factId, text, meta = null){
-  recipe.overrides = { ...(recipe.overrides ?? {}) };
   if (text == null || text === '') return isLocal(recipe, factId) ? removeLocalLine(recipe, factId) : dropOverride(recipe, factId);   // a line only here, emptied, is gone
-  recipe.overrides[factId] = String(text);
+  recipe.overrides = { ...(recipe.overrides ?? {}), [factId]: String(text) };
+  const job = localJob(recipe, factId);      // a line only here is in the language it was last typed in
+  if (job){
+    const to = recipe.lang ?? DEFAULT_LANG;
+    recipe.localLines = { ...recipe.localLines, [job]: localOf(recipe, job).map(l => { if (l.id !== factId) return l; const { lang: _, ...r } = l; return to === DEFAULT_LANG ? r : { ...r, lang: to }; }) };
+  }
   if (!meta){ if (recipe.overrideMeta?.[factId]) recipe.overrideMeta = Object.fromEntries(Object.entries(recipe.overrideMeta).filter(([k]) => k !== factId)); return; }
   recipe.overrideMeta = { ...(recipe.overrideMeta ?? {}), [factId]: { marks: meta.marks ?? [], base: meta.base ?? recipe.overrideMeta?.[factId]?.base ?? null } };
   if (recipe.parked) delete recipe.parked[factId];
@@ -485,8 +489,11 @@ export function setOverride(recipe, factId, text, meta = null){
 // An edit set aside (parked) when a version is picked over it; picking the edit again (unpark) puts it back.
 export function dropOverride(recipe, factId){
   if (recipe.overrides) recipe.overrides = Object.fromEntries(Object.entries(recipe.overrides).filter(([k]) => k !== factId));
-  if (recipe.overrideMeta) recipe.overrideMeta = Object.fromEntries(Object.entries(recipe.overrideMeta).filter(([k]) => k !== factId));
-  if (recipe.parked) recipe.parked = Object.fromEntries(Object.entries(recipe.parked).filter(([k]) => k !== factId));
+  for (const k of ['overrideMeta', 'parked']){      // an emptied map goes too, so a recipe that is back where it was is byte-identical
+    if (!recipe[k]) continue;
+    const rest = Object.fromEntries(Object.entries(recipe[k]).filter(([id]) => id !== factId));
+    if (Object.keys(rest).length) recipe[k] = rest; else delete recipe[k];
+  }
 }
 export function parkOverride(recipe, factId){
   if (!(factId in (recipe.overrides ?? {}))) return;

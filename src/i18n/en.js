@@ -1209,4 +1209,5 @@ export default {
   'ux6c.removeLine': 'Remove this line',
   'ux6c.undoAddLine': 'Add a line',
   'ux6c.undoRemoveLine': 'Remove a line',
+  'ux6c.lineRemoved': 'Line removed.',
 };

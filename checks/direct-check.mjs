@@ -92,7 +92,7 @@ section('overrides: meta, parking');
   T.pickVersion(r, 'f', 'f-v2');
   ok('picking a version parks the edit', r.picks.f === 'f-v2' && !('f' in r.overrides) && r.parked.f.text === 'Edited again');
   T.dropOverride(r, 'f');
-  ok('drop forgets it wherever it is', !r.parked.f && !('f' in r.overrides) && T.overrideOf(r, 'f') === null);
+  ok('drop forgets it wherever it is', !r.parked?.f && !('f' in (r.overrides ?? {})) && T.overrideOf(r, 'f') === null);
   T.setOverride(r, 'f', 'Again', { marks: [] }); T.setOverride(r, 'g', 'Other', { marks: [] });
   ok('both are pending', eq(T.pendingEdits(r), ['f', 'g']));
   T.keepHere(r, 'f');
@@ -349,6 +349,86 @@ section('a line that exists only on this resume');
     ok('the previous commit opens a file with a line only on this resume, and renders it without throwing', !err && old && !out.includes('Piloted the bench trial'), String(err));
     fs.rmSync(tree, { recursive: true, force: true });
   }
+}
+
+section('a line only on this resume: empty, language, add and remove, anchors, slots, trust');
+{
+  const { validate } = await import('./lib/validate.mjs');
+  const { withLocal } = await import('../src/recipe.js');
+  const job = model.work[0].id, hs = model.work[0].highlights;
+  const mk = n => clone(S.loadResume(read(`data/example-resumes/${n}`), model).recipe);
+  const html = (r, o = {}) => renderPages(model, r, createDocument(), { fallback: true, ...o }).pages.map(p => p.outerHTML).join('');
+  const lis = h => (h.match(/<li[ >]/g) ?? []).length;
+  const plain = mk(names[0]), rc = clone(plain), first = T.listedBullets(model, rc, job);
+  const a = T.addLocalLine(model, rc, job, first.at(-1));
+  ok('an empty line prints nowhere: no extra bullet in the page or the PDF', lis(html(rc)) === lis(html(plain)) && html(rc) === html(plain));
+  ok('…nor in the body, the printed facts or the frozen body', eq(T.resolve(model, rc).body.work, T.resolve(model, plain).body.work) && !T.printedFacts(model, rc).work.some(w => w.highlights.some(h => h.fact === a)) && (({ meta: _, ...b }) => !JSON.stringify(b).includes('~new-1'))(S.saveResume(model, rc).file));
+  ok('…but the page being written and the lists keep it', lis(html(rc, { annotate: true })) === lis(html(plain)) + 1 && T.listedBullets(model, rc, job).includes(a));
+  const full = clone(rc); T.setOverride(full, a, 'x', { marks: [], base: null });
+  ok('with a word in it, it prints', lis(html(full)) === lis(html(plain)) + 1);
+  const lines = clone(rc), a2 = T.addLocalLine(model, lines, job, a); T.setOverride(lines, a2, 'second', { marks: [], base: null });
+  ok('a line after an empty one keeps its place', T.resolve(model, lines).body.work[0].highlights.at(-1) === 'second');
+
+  const x = clone(plain), id = T.addLocalLine(model, x, job, null);
+  T.setOverride(x, id, 'Typed', { marks: [], base: null });
+  L.switchLang(x, 'hu'); const flagged = L.missingList(model, x).some(m => m.id === id);
+  T.setOverride(x, id, 'Gépelt', { marks: [], base: null }); const cleared = !L.missingList(model, x).some(m => m.id === id);
+  const xen = clone(x); L.switchLang(xen, 'en');      // the Review list is empty in English by design; the line keeps the language it was typed in
+  ok('retyping a line in another language clears its flag, and it is flagged in a third', flagged && cleared && xen.localLines[job][0].lang === 'hu' && L.missingList(model, { ...x, lang: 'de' }).some(m => m.id === id));
+
+  let same = 0;
+  for (const n of names){
+    const r = mk(n), was = JSON.stringify(r), j = model.work.find(w => T.listedBullets(model, r, w.id).length)?.id ?? job;
+    const i1 = T.addLocalLine(model, r, j, null); T.removeLocalLine(r, i1);
+    const i2 = T.addLocalLine(model, r, j, null); T.setOverride(r, i2, '');
+    if (JSON.stringify(r) === was) same++;
+  }
+  ok('add then remove leaves every example resume byte-identical', same === names.length && names.length > 10, `${same} of ${names.length}`);
+
+  // an anchor that goes
+  const m2 = clone(model), r2 = clone(plain);
+  r2.localLines = { [job]: [{ id: '~new-1', after: hs[1] }, { id: '~new-2', after: hs[0] }] };
+  K.deleteClaim(m2, hs[1], [r2]);
+  const mid = r2.localLines[job][0].after;
+  K.deleteClaim(m2, hs[0], [r2]);
+  ok('deleting the bullet a line follows re-points it to the one before, or to the first place', mid === hs[0] && r2.localLines[job][0].after === null && r2.localLines[job][1].after === null);
+  const r3 = clone(plain); r3.localLines = { [job]: [{ id: '~new-1', after: hs[2] }] }; r3.overrides = { ...r3.overrides, '~new-1': 'L' };
+  ok('Fit leaving the anchor out leaves the line after the bullet before it, not at the end', eq(withLocal(r3, job, hs.filter(h => h !== hs[2]), { full: hs }), [hs[0], hs[1], '~new-1', ...hs.slice(3)]));
+  const r4 = clone(plain), pr = model.projects[0].id;
+  r4.localLines = { [pr]: [{ id: '~new-1', after: null }] }; r4.overrides = { ...r4.overrides, '~new-1': 'L' }; r4.overrideMeta = { '~new-1': { marks: [], base: null } };
+  K.deleteEntry(clone(model), pr, [r4]);
+  ok('deleting a project takes its lines and their text', r4.localLines === undefined && !('~new-1' in r4.overrides) && !('~new-1' in r4.overrideMeta));
+
+  // a job over page slots
+  const r5 = clone(plain), lb = T.listedBullets(model, r5, job), b5 = T.addLocalLine(model, r5, job, lb[1]);
+  T.setOverride(r5, b5, 'LOCALXYZ', { marks: [], base: null });
+  const slot = h => [{ id: 'experience', work: [{ id: job, highlights: h }] }];
+  r5.pages = [slot([lb[0], lb[1]]), slot([lb[2], lb[3]])]; delete r5.pageLimit;
+  const count = r => (html(r).match(/LOCALXYZ/g) ?? []).length;
+  ok('a job over two slots prints the line once, in the slot that holds its anchor', count(r5) === 1 && html(r5).indexOf('LOCALXYZ') < html(r5).indexOf('class="page', 10));
+  const r6 = clone(r5); r6.localLines[job][0].after = null;
+  const r7 = clone(r5); r7.localLines[job][0].after = lb[3];
+  ok('…with no anchor, in the first slot; in the last slot when it follows a line there', count(r6) === 1 && count(r7) === 1 && html(r7).indexOf('LOCALXYZ') > html(r6).indexOf('class="page', 10));
+
+  // a file anyone can edit
+  const bad = loc => { const f = S.saveResume(model, clone(plain)).file; f.meta.resumeBuilder.resume.localLines = loc; return S.loadResume(JSON.parse(JSON.stringify(f)), model); };
+  const o = [bad({ [job]: 'x' }), bad({ [job]: [null, 7, { id: 5 }] }), bad({ [job]: [{ id: hs[0], after: null }] }), bad({ [job]: [{ id: '~a', after: null }], [model.work[1].id]: [{ id: '~a', after: null }] }), bad({ [job]: [{ id: '~a', after: 'nope' }] }), bad('x')];
+  ok('malformed lines, a fact id, a repeated id and a dangling anchor are cleaned, each with a warning, and the page renders',
+    o.every(w => w.warnings.length && (() => { try { html(w.recipe); return true; } catch { return false; } })())
+    && [0, 1, 2, 5].every(i => o[i].recipe.localLines === undefined) && o[3].recipe.localLines[job].length === 1 && !o[3].recipe.localLines[model.work[1].id] && o[4].recipe.localLines[job][0].after === null);
+  const dang = clone(plain); dang.localLines = { [job]: [{ id: '~a', after: 'nope' }] };
+  const v = validate(S.save(model), dang);
+  ok('the validator reports a dangling anchor', v.errors.some(e => e.includes('follows nope')), v.errors.join('|'));
+
+  // compare
+  const ca = clone(plain), cb = clone(plain), j2 = model.work[1].id;
+  const t1 = T.addLocalLine(model, ca, job, null), t2 = T.addLocalLine(model, cb, job, null), t3 = T.addLocalLine(model, cb, j2, null);
+  for (const [r, i] of [[ca, t1], [cb, t2], [cb, t3]]) T.setOverride(r, i, 'Same words', { marks: [], base: null });
+  const rows = RS.compareRows(model, ca, cb).filter(r => r.kind === 'claim' && r.label === 'Same words');
+  ok('compare treats the same words in the same job as one claim, and in another job as another', rows.length === 2 && rows.filter(r => !r.differs).length === 1, JSON.stringify(rows.map(r => r.differs)));
+  const cc = clone(plain); T.setOverride(cc, T.addLocalLine(model, cc, j2, null), 'Same words', { marks: [], base: null });
+  const other = RS.compareRows(model, ca, cc).filter(r => r.kind === 'claim' && r.label === 'Same words');
+  ok('the same id in two resumes, on different jobs, is two claims that differ', other.length === 2 && other.every(r => r.differs));
 }
 
 console.log(failed ? `\n${failed} direct check(s) FAILED` : '\nall direct checks passed');
