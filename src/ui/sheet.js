@@ -130,10 +130,13 @@ export function createSheet(host, hooks = {}){
           doc.addEventListener('keydown', e => fe.key.down(e), true);
           doc.addEventListener('keyup', e => fe.key.up(e), true);
         }
-        // what is under the pointer, for the grip and the "+" over the page (src/ui/onpage.js), and a skill dragged from where it is printed
+        // what is under the pointer, for the grip and the "+" over the page (src/ui/hands.js), and a skill dragged from where it is printed
         for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) doc.addEventListener(ev, e => hooks.onPointer?.(e), { passive: true });
         doc.documentElement.addEventListener('mouseleave', () => hooks.onPointer?.({ type: 'leave' }));
         doc.addEventListener('keydown', e => { if (!e.target.closest?.('.rb-renaming')) hooks.onKey?.(e); });
+        // a file dropped on the page goes to the same door as one dropped on the window (the page is a frame: its drops stay inside it)
+        doc.addEventListener('dragover', e => { if ([...(e.dataTransfer?.types ?? [])].includes('Files')) e.preventDefault(); });
+        doc.addEventListener('drop', e => hooks.onDrop?.(e));
         doc.addEventListener('dblclick', e => {
           const tab = e.target.closest?.('.band[data-section] h2.tab:not(.tab--cont)');
           const id = tab?.closest('.band').getAttribute('data-section');

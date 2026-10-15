@@ -120,17 +120,16 @@ export function askPhoto(file){
   document.querySelector('.photoask')?.remove();
   const box = document.createElement('div');
   box.className = 'photoask';
-  box.setAttribute('role', 'dialog');
+  box.setAttribute('role', 'group');
   box.setAttribute('aria-label', t('ux6c.imgFor'));
   box.innerHTML = `<p class="pa-q">${esc(t('ux6c.imgFor'))}</p><p class="pa-f muted small">${esc(file.name)}</p>
     <div class="pa-btns"><button class="primary sm" data-pa="resume">${esc(t('ux6c.imgResume'))}</button><button class="sm" data-pa="record">${esc(t('ux6c.imgRecord'))}</button><button class="sm ghost" data-pa="cancel">${esc(t('btn.cancel'))}</button></div>`;
-  box.style.left = `${C.ui.pageView?.mid ?? innerWidth / 2}px`;
-  document.body.append(box);
+  document.getElementById('body').prepend(box);        // an inline notice at the top of the editor card: it covers no printed text
   const done = a => {
     box.remove(); document.removeEventListener('keydown', onKey, true);
     if (a === 'resume') setPhoto(file); else if (a === 'record') setPhoto(file, { show: false });
   };
-  const onKey = e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); done('cancel'); } };
+  const onKey = e => { if (!box.isConnected) return document.removeEventListener('keydown', onKey, true); if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); done('cancel'); } };
   document.addEventListener('keydown', onKey, true);
   box.addEventListener('click', e => { const a = e.target.closest('[data-pa]')?.dataset.pa; if (a) done(a); });
   box.querySelector('button').focus();

@@ -242,5 +242,5 @@ export function initHands(C){
   plus.addEventListener('click', () => { if (plus.dataset.k === 'line') C.edit().addLine(plus.dataset.job); else C.edit().addGroup(plus.dataset.fact); });
   slot.addEventListener('click', () => C.togglePhoto());
 
-  return { pointer, place, refresh, get dragging(){ return !!drag?.moved; }, justDragged: () => performance.now() - dragEnded < 250 };
+  return { pointer, place, refresh, justDragged: () => performance.now() - dragEnded < 250 };
 }

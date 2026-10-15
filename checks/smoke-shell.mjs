@@ -3914,16 +3914,17 @@ if (want('on the page: the header written in place, the photo slot, a dropped pi
   await page.mouse.click(hs2.slot.left + 9, hs2.slot.top + 9); await page.waitForTimeout(900);
   ok('…and clicking again takes it off', (await page.evaluate(() => window.__wb.store.state.cur.photo?.show)) === false);
   // a dropped picture asks what it is for
-  const drop = () => page.evaluate(async () => {
+  const drop = (inFrame = false) => page.evaluate(async inFrame => {
     const c = document.createElement('canvas'); c.width = 80; c.height = 100; c.getContext('2d').fillRect(0, 0, 80, 100);
     const blob = await new Promise(r => c.toBlob(r, 'image/png'));
     const dt = new DataTransfer(); dt.items.add(new File([blob], 'me.png', { type: 'image/png' }));
-    window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
-  });
+    const fw = document.querySelector('#sheet iframe').contentWindow;       // the page is a frame: a drop inside it stays inside it
+    (inFrame ? fw.document.querySelector('.page') : window).dispatchEvent(new (inFrame ? fw : window).DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  }, inFrame);
   const img0 = await page.evaluate(() => window.__wb.store.state.record.basics.image ?? null), u0 = await undoN(page);
-  await drop(); await page.waitForTimeout(400);
-  const q = await page.evaluate(() => { const b = document.querySelector('.photoask'); return b ? { role: b.getAttribute('role'), btns: [...b.querySelectorAll('button')].map(x => x.textContent), focus: b.contains(document.activeElement) } : null; });
-  ok('a picture dropped on the page asks what it is for: this resume\'s photo, your record, or cancel (and nothing is stored yet)', q?.role === 'dialog' && JSON.stringify(q.btns) === JSON.stringify(['The photo for this resume', 'For your record, not printed', 'Cancel']) && q.focus && (await page.evaluate(() => window.__wb.store.state.record.basics.image ?? null)) === img0 && (await undoN(page)) === u0, JSON.stringify(q));
+  await drop(true); await page.waitForTimeout(400);
+  const q = await page.evaluate(() => { const b = document.querySelector('.photoask'); return b ? { role: b.getAttribute('role'), inCard: b.parentElement.id === 'body', btns: [...b.querySelectorAll('button')].map(x => x.textContent), focus: b.contains(document.activeElement) } : null; });
+  ok('a picture dropped on the page asks what it is for: this resume\'s photo, your record, or cancel (and nothing is stored yet)', q?.role === 'group' && q.inCard && JSON.stringify(q.btns) === JSON.stringify(['The photo for this resume', 'For your record, not printed', 'Cancel']) && q.focus && (await page.evaluate(() => window.__wb.store.state.record.basics.image ?? null)) === img0 && (await undoN(page)) === u0, JSON.stringify(q));
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   ok('…Esc cancels it: nothing changes', !(await page.$('.photoask')) && (await page.evaluate(() => window.__wb.store.state.record.basics.image ?? null)) === img0 && (await undoN(page)) === u0);
   await drop(); await page.waitForTimeout(300); await page.click('.photoask [data-pa=record]'); await page.waitForTimeout(900);

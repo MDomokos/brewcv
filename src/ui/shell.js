@@ -53,7 +53,7 @@ const backend = params.has('memory') ? memoryBackend() : idbBackend();   // ?mem
 const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle });      // autosave of the open resume rides on every commit
 const persist = createPersist({ store, backend });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
-const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onPage: p => { ui.page = p; renderFoot(); }, onRename: (id, text) => edit.rename(id, text),
+const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); }, onRename: (id, text) => edit.rename(id, text),
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
   onDrawn: () => { onpage?.afterDraw(); hands?.refresh(); }, onPointer: e => hands?.pointer(e),
   extraCss: r => design.extraCss(store.state.record, r),
@@ -419,6 +419,9 @@ function select(sel, { keepScroll = false, stay = false } = {}){
   renderChip();
 }
 
+// a picture dropped on the editor or on the page asks what it is for; any other file goes through the one door
+function dropFile(e){ e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (!f) return; if (/^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view)) design.askPhoto(f); else openFile(f); }
+
 function closeBodyMenus(){ return [resumes, career].some(m => m.closeMenus?.()); }
 const hoverFact = id => sheet.setHover(id, ui.ix);
 
@@ -427,8 +430,7 @@ function bindChrome(){
   document.addEventListener('keydown', key);
   $('#file').addEventListener('change', e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); });
   addEventListener('dragover', e => { e.preventDefault(); });
-  // a picture dropped on the editor asks what it is for; any other file goes through the one door
-  addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (!f) return; if (/^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view)) design.askPhoto(f); else openFile(f); });
+  addEventListener('drop', dropFile);
   new ResizeObserver(placeRail).observe($('#head'));        // the name wraps to more or fewer lines: the tabs follow the editor card
 }
 

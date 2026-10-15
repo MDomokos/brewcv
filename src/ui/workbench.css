@@ -1177,7 +1177,7 @@ html[data-titlebar] #tbdrag { position: fixed; z-index: 9; left: 0; right: 0; to
 .obtip { max-width: 240px; padding: 5px 9px; border-radius: var(--r-s); background: var(--raised); color: var(--ink); border: 1px solid var(--warn); box-shadow: var(--shadow-chip); font-size: 12px; line-height: 1.3; pointer-events: none; }
 body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
 /* A picture dropped on the page asks what it is for */
-.photoask { position: fixed; top: 34%; transform: translateX(-50%); z-index: 30; max-width: 320px; padding: 14px 16px; background: var(--raised); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-l, 12px); box-shadow: var(--shadow-lift); }
+.photoask { margin: 0 0 10px; padding: 12px 14px; background: var(--raised); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-m); }
 .photoask p { margin: 0; } .pa-q { font-weight: 700; } .pa-f { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pa-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 /* Skills on this resume: the groups with their skills as buttons */
