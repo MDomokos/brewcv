@@ -68,6 +68,18 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await ctx.close();
 }
 
+// ---- two labels for "+ line" ----
+{
+  const { ctx, page } = await open(1470, 832);
+  await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(500);
+  const out = await page.$$eval('#body [data-act=ol-newline]', bs => bs.map(b => b.textContent.trim()));
+  ok('the Outline\u2019s button (a line only on this resume) reads "+ line here"', out.length > 0 && out.every(x => x === '+ line here'), out.join('|'));
+  await page.click('#rail [data-act=sw-record]'); await page.waitForTimeout(700);
+  const rec = await page.$$eval('#checklist [data-act=ol-addline]', bs => bs.map(b => b.textContent.trim()));
+  ok('the Record\u2019s button (a new claim in the record) reads "+ new claim"', rec.length > 0 && rec.every(x => x === '+ new claim'), rec.join('|'));
+  await ctx.close();
+}
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} symmetry check(s) FAILED` : '\nall symmetry checks passed');
 process.exit(failed ? 1 : 0);

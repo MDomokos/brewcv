@@ -1180,7 +1180,7 @@ export default {
   'ux5c.tabOutline': 'Outline',
   'ux5c.outlineFoot': 'Fit cuts from the bottom. Put what matters first.',
   'ux5c.editNone': 'Click a line on the page, or pick one in the Outline, to see its versions.',
-  'ux5c.line': '+ line',
+  'ux5c.line': '+ line here',
   'ux5c.more': '+ {n} more',
   // UX-6b: the rail, the name card and window, the thin page meters
   'ux6b.rail': 'Views, other screens and history',
@@ -1281,6 +1281,7 @@ export default {
   'ux6c.lockedOnAsk': 'Delete this from your record?\n\nLocked on: {names}. A lock does not keep it in the record.',
   'ux6c.refused.job': 'A job moves within its own section.',
   'ux6c.refused.section': 'A section moves within the page.',
+  'ux6c.newClaim': '+ new claim',
   'ux6c.refused.item': 'An item moves within its own section.',
   'ux6c.morePages': { one: '{n} more page', other: '{n} more pages' },
 };

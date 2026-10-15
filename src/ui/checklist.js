@@ -88,7 +88,7 @@ function groupHtml(g, open, ctx){
 
 // One "+ line" under a job: it opens the box that adds a claim (Enter or Add), where the six always-open boxes used to be.
 const addLineHtml = g => (S.adding === g.id ? addClaimHtml({ id: g.id, key: g.key, draft: C.edit.claimDraftOf(g.id) })
-  : `<button class="sm ghost addline" data-act="ol-addline" data-id="${esc(g.id)}">${h('ux5c.line')}</button>`);
+  : `<button class="sm ghost addline" data-act="ol-addline" data-id="${esc(g.id)}">${h('ux6c.newClaim')}</button>`);
 
 // ---- the Outline: this resume in print order ----
 // The sections as they print, each with its count; a job folds to its count and opens when the selected line is in it (or by hand,
