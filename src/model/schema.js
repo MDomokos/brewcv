@@ -350,6 +350,7 @@ export function loadResume(file, model = null){
   for (const k of BODY_KEYS) if (file[k] !== undefined) frozen[k] = clone(file[k]);
   const recipe = migratePins(clone(rb.resume));
   cleanLocal(recipe, model, warnings);
+  cleanArrangement(recipe, warnings);
   const snaps = readSnapshots(rb.snapshots, warnings);
   if (snaps.length) recipe.snapshots = snaps;
   return { recipe, frozen, warnings };
@@ -370,6 +371,19 @@ function cleanLocal(recipe, model, warnings){
     if (keep.length) out[job] = keep;
   }
   if (Object.keys(out).length) recipe.localLines = out; else delete recipe.localLines;
+}
+
+// recipe.skillArrangement = { from, groups: [{ id, items, label? }] } is read from a file anyone can edit: a group that is not that, or
+// whose id repeats, is dropped, and the whole key goes when it is not an arrangement at all.
+function cleanArrangement(recipe, warnings){
+  const a = recipe.skillArrangement;
+  if (a === undefined) return;
+  if (!isObj(a) || !Array.isArray(a.groups)){ warnings.push('skillArrangement is not { from, groups }; it is ignored'); delete recipe.skillArrangement; return; }
+  const seen = new Set();
+  const groups = a.groups.filter(g => isObj(g) && typeof g.id === 'string' && g.id && Array.isArray(g.items) && g.items.every(x => typeof x === 'string') && !seen.has(g.id) && seen.add(g.id))
+    .map(({ label, ...g }) => (typeof label === 'string' ? { ...g, label } : g));
+  if (groups.length !== a.groups.length) warnings.push('skillArrangement had a group without an id of its own or a list of skills; it was dropped');
+  recipe.skillArrangement = { ...a, groups };
 }
 
 // A snapshot is `{ id, at, label?, sends: [{ kind, company, role, date }], recipe, body }`: the resume as it printed.

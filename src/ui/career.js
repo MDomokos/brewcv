@@ -256,7 +256,9 @@ function aboutView(sel){
   const photo = `<div class="photo-row">${b.image ? `<img class="thumb" src="${esc(C.photoUrl())}" alt="">` : `<span class="thumb empty">${h('design.none')}</span>`}
       <div class="btns"><button class="sm" data-act="d-photo">${b.image ? h('design.replacePhoto') : h('design.addPhoto')}</button>${b.image ? `<button class="sm ghost" data-act="d-photo-rm">${h('design.remove')}</button>` : ''}</div></div>
     <p class="note">${h('design.photoNote')} ${h('design.photoCrop')}</p>`;
-  return `${C.edit.depthHtml(sel)}${where}<h2 class="title">${h('career.about.name')}</h2>
+  // in the page's order: the photo, the name, the headline, the contact
+  return `${C.edit.depthHtml(sel)}${where}<span class="lbl">${h('career.about.photo')}</span>${photo}
+    <h2 class="title">${h('career.about.name')}</h2>
     <div class="detbox" data-form="about" data-part="name">
       ${field('c-name', h('career.f.name'), sameLang() ? b.name : (textIn(d.name) || b.name), { right: tr, ph: sameLang() ? '' : b.name })}
       ${area('c-label', h('career.f.headline'), sameLang() ? b.label ?? textEn(d.label) : textIn(d.label), { right: tr, single: true, ph: textEn(d.label), miss: !sameLang() && d.label && !textIn(d.label) })}
@@ -271,7 +273,6 @@ function aboutView(sel){
     </div>
     ${d.contact ? `<a class="newv inline" data-act="c-sel-fact" data-fact="${esc(d.contact)}">${h('career.contactVersions')}</a>` : ''}
     <p class="note">${h('career.contactNote')}</p>
-    <span class="lbl">${h('career.about.photo')}</span>${photo}
     ${b.summary ? '' : `<span class="lbl">${h('career.about.summary')}</span>
       <label class="field"><span class="lbl inline">${h('career.about.summary')}</span><textarea id="c-summary" rows="4" placeholder="${esc(t('career.summaryPh'))}"></textarea></label>
       <div class="btns"><button class="primary sm" data-act="c-add-summary">${h('ux2.addSummary')}</button></div>`}

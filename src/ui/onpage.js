@@ -15,7 +15,7 @@
 import { plainOf, caretOf, setCaret } from './plain.js';
 import { toolsHtml, statsCompactHtml, esc } from './parts.js';
 import { readZoomWrite, readZoomWriteOn, readDimJob, readDimLine } from './dock.js';
-import { step } from './select.js';
+import { step, lineSel } from './select.js';
 import * as T from '../model/resume.js';
 import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
@@ -118,7 +118,7 @@ export function initOnPage(C){
     const fact = lvl === 'line' ? S?.fact : null;
     if (!fact) return '';
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
-    if (!ed) return '';
+    if (!ed || ed.group) return '';      // a skill group has no versions
     const vn = C.work().variants.find(v => v.id === ed.vid)?.n ?? '·';       // the version the line was written from
     return toolsHtml({ vn, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
   }
@@ -210,7 +210,7 @@ export function initOnPage(C){
     else {
       const sel = el.ownerDocument.defaultView.getSelection(), r = el.ownerDocument.createRange();
       r.selectNodeContents(el);
-      if (ed.mode !== 'new') r.collapse(false);       // a new version starts with the copy selected, as the text box did
+      if (ed.mode !== 'new') r.collapse(!!ed.group && !ed.base.trim());      // a new skill group starts at its name       // a new version starts with the copy selected, as the text box did
       sel.removeAllRanges(); sel.addRange(r);
     }
     rememberCaret();
@@ -267,8 +267,7 @@ export function initOnPage(C){
     const ix = C.ix();
     const id = step(sheet.order(ix), { kind: 'bullet', id: ed.fact }, dir);
     if (typeof id !== 'string' || id === ed.fact) return false;
-    const job = ix.highlight.get(id);
-    const sel = job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' };
+    const sel = lineSel(ix, id);
     moving = true;
     try { C.select(sel); if (ui.sel.kind === 'bullet' && ui.sel.id === id) edit().startEdit(); }
     finally { moving = false; }
@@ -355,6 +354,7 @@ export function initOnPage(C){
     begin, end, text: () => (S?.composing && S.el?.isConnected ? plainOf(S.el) : null), setText, refresh, afterDraw, render, place, act, keepView,
     get writing(){ return !!ui.writing; },
     el: () => S?.el ?? null,
+    fact: () => S?.fact ?? null,
     level,
   };
 }

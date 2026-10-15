@@ -4,7 +4,7 @@
 // and the exports add after the base theme. Neither touches the renderer.
 
 import * as K from '../model/tokens.js';
-import { toAuto } from '../model/resume.js';
+import { toAuto, setPhoto as setResumePhoto, setRecordPhoto } from '../model/resume.js';
 import { t, h, errText, keyed } from '../i18n/index.js';
 import { LANG_INFO } from '../model/lang.js';
 
@@ -103,11 +103,37 @@ function commit(fn, label, done){
   catch (e){ C.toast(errText(e), 'bad'); return false; }
 }
 
-export async function setPhoto(file){
+// The picture goes in the record (basics.image); `show`: and on this resume
+export async function setPhoto(file, { show = true } = {}){
   try {
     const data = await cropPhoto(file);
-    commit(d => { d.record.basics.image = data; d.cur.photo = { shape: 'rect', ...(d.cur.photo ?? {}), show: true }; }, t('design.photo'), t('toast.photoAdded'));
+    commit(d => { setRecordPhoto(d.record, data); if (show) setResumePhoto(d.cur, { show: true }); }, t('design.photo'), show ? t('toast.photoAdded') : t('ux6c.photoKept'));
   } catch (e){ C.toast(errText(e), 'bad'); }
+}
+// The photo slot by the name on the page: the photo is printed on this resume, or not
+export function togglePhoto(){
+  const on = !C.cur().photo?.show;
+  commit(d => setResumePhoto(d.cur, { show: on }), on ? t('undo.showPhoto') : t('undo.hidePhoto'));
+}
+// A picture dropped on the page asks what it is for: this resume's photo, or only the record's
+export function askPhoto(file){
+  document.querySelector('.photoask')?.remove();
+  const box = document.createElement('div');
+  box.className = 'photoask';
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-label', t('ux6c.imgFor'));
+  box.innerHTML = `<p class="pa-q">${esc(t('ux6c.imgFor'))}</p><p class="pa-f muted small">${esc(file.name)}</p>
+    <div class="pa-btns"><button class="primary sm" data-pa="resume">${esc(t('ux6c.imgResume'))}</button><button class="sm" data-pa="record">${esc(t('ux6c.imgRecord'))}</button><button class="sm ghost" data-pa="cancel">${esc(t('btn.cancel'))}</button></div>`;
+  box.style.left = `${C.ui.pageView?.mid ?? innerWidth / 2}px`;
+  document.body.append(box);
+  const done = a => {
+    box.remove(); document.removeEventListener('keydown', onKey, true);
+    if (a === 'resume') setPhoto(file); else if (a === 'record') setPhoto(file, { show: false });
+  };
+  const onKey = e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); done('cancel'); } };
+  document.addEventListener('keydown', onKey, true);
+  box.addEventListener('click', e => { const a = e.target.closest('[data-pa]')?.dataset.pa; if (a) done(a); });
+  box.querySelector('button').focus();
 }
 
 export function importTheme(input, fileName){
@@ -169,4 +195,4 @@ function bind(body){
   });
 }
 
-const api = { views: { design: designView }, act, bind, setPhoto, importTheme, extraCss: (rec, r) => extraCss(rec, r), tokensOf };
+const api = { views: { design: designView }, act, bind, setPhoto, togglePhoto, askPhoto, importTheme, extraCss: (rec, r) => extraCss(rec, r), tokensOf };

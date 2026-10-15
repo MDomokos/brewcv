@@ -13,13 +13,14 @@ import { createSheet } from './sheet.js';
 import { computeLayout, pageSize, pageInView, pageTop, G } from './layout.js';
 import { initCanvas, PAGES_MOVED } from './canvas.js';
 import { initOnPage } from './onpage.js';
+import { initHands } from './hands.js';
 import { pageLeft } from './camera.js';
 import { initDock, storeZoomWrite, ib } from './dock.js';
 import { initChecklist } from './checklist.js';
 import { initRecord } from './record.js';
 import { initHelp } from './help.js';
 import { icon } from './icons.js';
-import { indexModel, targetOf, up, same, step, versionsOf, NONE } from './select.js';
+import { indexModel, targetOf, up, same, step, lineSel, versionsOf, NONE } from './select.js';
 import { openActualSize } from './actual.js';
 import { initEdit } from './edit.js';
 import { initResumes, snapBarText } from './resumes.js';
@@ -54,7 +55,7 @@ const persist = createPersist({ store, backend });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onPage: p => { ui.page = p; renderFoot(); }, onRename: (id, text) => edit.rename(id, text),
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
-  onDrawn: () => onpage?.afterDraw(),
+  onDrawn: () => { onpage?.afterDraw(); hands?.refresh(); }, onPointer: e => hands?.pointer(e),
   extraCss: r => design.extraCss(store.state.record, r),
   // the hand, the wheel and the pinch over the page itself go to the canvas
   frameEvents: {
@@ -69,11 +70,13 @@ const ui = {
   sel: NONE, previewing: false, page: 0, menu: false, laid: null, fills: [], zoom: 1,
   fitting: false, lastFit: null, work: null, workKey: null, ix: null, probed: new Set(), snap: null,
 };
-const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: on => dock?.sheetOver(on), moved: () => { placeOverflow(); onpage?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
+const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: on => dock?.sheetOver(on), moved: () => { placeOverflow(); onpage?.place(); hands?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
 const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
   ix: () => ui.ix ?? indexModel(work(), cur()), fillText: () => fillText(), select: sel => select(sel),
   writeStarted: () => dock.renderFoot(), writeEnded: () => dock.renderFoot(), redrawSoon: () => schedule() });
-window.__wb = { store, persist, sheet, ui, canvas, onpage, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
+const hands = initHands({ ui, sheet, canvas, edit: () => edit, cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k),
+  jobName: id => (ui.ix ?? indexModel(work(), cur())).work.get(id)?.name ?? id, writingFact: () => onpage.fact(), togglePhoto: () => design.togglePhoto() });
+window.__wb = { store, persist, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
 
 // The tea garden runs in tea, with its setting on, with motion allowed, off a phone and off the start screen; otherwise it rests.
 // ?garden-check[=idle seconds] is for checks/garden-check.mjs: a short idle time and the garden's test hooks on __wb.garden.
@@ -210,7 +213,7 @@ const lang = () => shown()?.lang ?? 'en';
 // The renderer's mutable copy of the record, rebuilt when the record changes. The probe
 // caches line counts in it, never in the store.
 function work(){
-  const k = JSON.stringify(record()) + JSON.stringify(cur()?.localLines ?? null);
+  const k = JSON.stringify(record()) + JSON.stringify(cur()?.localLines ?? null) + JSON.stringify(cur()?.skillArrangement?.groups?.map(g => g.id) ?? null);       // the index lists a resume's own lines and skill groups
   if (k !== ui.workKey){
     ui.work = store.materialize(record());
     ui.workKey = k;
@@ -372,7 +375,7 @@ function reveal({ page, top, bottom }){
 }
 
 function pick({ variant, section, page = -1, at = null }){
-  if (ui.fitting || ui.snap || ui.view === 'welcome' || canvas.handed) return;
+  if (ui.fitting || ui.snap || ui.view === 'welcome' || canvas.handed || hands.justDragged()) return;
   const next = targetOf(ui.ix ?? indexModel(work(), cur()), { variant, section });
   // a faded page stays clickable: its blank paper brings it forward, and a line on it is worked on there
   const other = !ui.layout?.phone && page >= 0 && page !== ui.page;
@@ -424,7 +427,8 @@ function bindChrome(){
   document.addEventListener('keydown', key);
   $('#file').addEventListener('change', e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); });
   addEventListener('dragover', e => { e.preventDefault(); });
-  addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) openFile(f); });
+  // a picture dropped on the editor asks what it is for; any other file goes through the one door
+  addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (!f) return; if (/^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view)) design.askPhoto(f); else openFile(f); });
   new ResizeObserver(placeRail).observe($('#head'));        // the name wraps to more or fewer lines: the tabs follow the editor card
 }
 
@@ -730,7 +734,7 @@ function renderBody(animate = false){
   // Edit is whatever is selected: nothing selected is the Outline, a job is its lines, a line its versions (a phone has no Outline: its
   // Edit says how to pick a line)
   const outline = s.kind === 'none' && !ui.layout?.phone;
-  const main = outline ? edit.outlineView() : s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s, { details: false }) + checklist.outlineHtml(s.id) : s.kind === 'section' ? edit.sectionView(s)
+  const main = outline ? edit.outlineView() : s.kind === 'bullet' && s.section === 'skills' ? edit.sectionView({ kind: 'section', id: 'skills' }, s) : s.kind === 'bullet' ? edit.bulletView(s) : s.kind === 'job' ? edit.jobView(s, { details: false }) + checklist.outlineHtml(s.id) : s.kind === 'section' ? edit.sectionView(s)
     : ['header', 'record', 'add', 'kind'].includes(s.kind) ? career.panel(s) : edit.noneView();
   el.innerHTML = (help.hintDue && s.kind === 'none' ? `<p class="tiny muted kbdhint">${h('ux5a.helpHint')}</p>` : '') + main + jobTail(s) + (s.kind === 'none' ? `<p class="muted tiny privacy">${h('body.privacy')}</p>` : '');
   el.dataset.mode = outline ? 'outline' : 'edit';
@@ -794,7 +798,7 @@ function placeOverflow(){
 
 // The layers over the page (the job's frame, the breadcrumb that says which job and how many of its lines are on, the tools) are
 // src/ui/onpage.js's; the shell only says when to draw them again
-function renderChip(){ onpage?.render(); }
+function renderChip(){ onpage?.render(); hands?.refresh(); }
 // a meter was clicked: bring that page into view (stacked pages on a phone scroll; on a desktop the camera travels)
 function goToPage(i){
   const L = ui.layout, n = ui.fills.length || 1;
@@ -1054,10 +1058,10 @@ function key(e){
   }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
     const id = step(sheet.order(ui.ix), ui.sel, e.key === 'ArrowDown' ? 1 : -1);
-    if (typeof id === 'string'){ e.preventDefault(); const job = ui.ix.highlight.get(id); select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' }); }
+    if (typeof id === 'string'){ e.preventDefault(); select(lineSel(ui.ix, id)); }
     return;
   }
-  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && ui.sel.kind === 'bullet'){
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && ui.sel.kind === 'bullet' && ui.sel.section !== 'skills'){
     const vs = versionsOf(ui.ix, ui.sel.id, lang());
     const at = vs.findIndex(v => v.id === chooseVariant(ui.work, ui.sel.id, cur()).v?.id);
     const next = vs[at + (e.key === 'ArrowRight' ? 1 : -1)];

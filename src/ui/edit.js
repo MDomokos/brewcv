@@ -11,7 +11,7 @@ import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { t, h, errText } from '../i18n/index.js';
 import { play } from './motion.js';
-import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
+import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, statsHtml, claimHead, moveButtonsHtml } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -51,6 +51,7 @@ function dropLine(fact){
 // Leaving a line keeps what was typed on this resume, and nothing asks: one override with the highlights it keeps and the version it
 // was written from. The words of that version again drop the override.
 function keepEdit(ed){
+  if (ed.group) return keepGroup(ed);
   if (!isDirty(ed) || !ed.draft.trim()) return;      // an emptied line keeps what it had: the last kept edit, or the version's words
   const text = ed.draft.trim(), base = ix().variants.get(ed.vid);
   C.ui.previewing = false;
@@ -59,6 +60,14 @@ function keepEdit(ed){
     T.dropOverride(d.cur, ed.fact);
     if (base && usingOf(ed.fact)?.id !== base.id) T.pickVersion(d.cur, ed.fact, base.id);
   }, t('edit.thisOnly'));
+}
+// A skill group written on the page: its name and skills, kept on this resume's arrangement. No skills left (a new group, or all
+// of them deleted): the group goes, and Ctrl+Z brings it back.
+function keepGroup(ed){
+  const had = T.arrangementOf(rec(), cur()).groups.find(g => g.id === ed.fact)?.items.length;
+  if (ed.draft === ed.base && had) return;
+  C.ui.previewing = false;
+  commit(d => T.writeGroup(d.record, d.cur, ed.fact, ed.draft), t('ux6c.undoSkills'), had && !T.readGroup(ed.draft).items.length ? `${t('ux6c.groupRemoved')} ${t('toast.ctrlZUndoes')}` : undefined);
 }
 // the highlights of the text the line started from, moved onto what was typed (a mark whose words are gone is dropped)
 const marksFor = (ed, text) => { const from = ed.mode === 'new' ? ed.copyOf : ed.base; return R.reanchor(ed.marks, from, text, m => m.expect ?? [...from].slice(m.start, m.end).join('')); };
@@ -121,7 +130,8 @@ function noneView(){
 }
 
 // what a line is called in the depth chip and the card: its summary, else its words; a new empty line only on this resume is "New line"
-const lineName = id => ix().facts.get(id)?.summary || C.textOfFact(id) || (T.isLocal(cur(), id) ? t('ux6c.newLine') : id);
+const lineName = id => (ix().skillGroups.has(id) ? T.arrangementOf(rec(), cur()).groups.find(g => g.id === id)?.label ?? T.groupLabel(rec(), cur(), id) : '')
+  || ix().facts.get(id)?.summary || C.textOfFact(id) || (T.isLocal(cur(), id) ? t('ux6c.newLine') : id);
 
 // One depth indicator (UX-6c): the levels of what is selected, from the page down. The chip on the page and the row at the top of
 // the editor card both draw it, from parts.js depthHtml. The sidebar's row names the specific content (full job and line names); the
@@ -144,13 +154,62 @@ function depth(sel = C.ui.sel, page = false){
   if (jobId) L.push({ word: t('ux3.crumbJob'), name: ix().work.get(jobId)?.name ?? jobId, act: 'select-job', attrs: at(jobId) });
   else if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
   else if (sid) L.push({ word: t('ux6c.section'), name: C.sectionTitle(sid), act: 'select-section', attrs: at(sid) });
-  if (sel.kind === 'bullet') L.push({ word: jobId ? t('ux3.crumbLine') : t('ux6c.item'), name: T.isLocal(cur(), sel.id) ? lineName(sel.id) : ix().facts.get(sel.id)?.summary ?? sel.id,
+  if (sel.kind === 'bullet') L.push({ word: jobId ? t('ux3.crumbLine') : t('ux6c.item'), name: T.isLocal(cur(), sel.id) || ix().skillGroups.has(sel.id) ? lineName(sel.id) : ix().facts.get(sel.id)?.summary ?? sel.id,
     act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
   return L;
 }
 const depthHtml = (sel = C.ui.sel, { page = false } = {}) => depthMarkup(depth(sel, page), { small: page });
 
-function sectionView(s){
+// The skills of this resume as groups of skills: where to start from, the groups and skills to arrange, and where to keep the result.
+// Each skill is a button (Alt+← → moves it in its group, Alt+↑ ↓ to the group above or below) and can be dragged to another group.
+function skillsHtml(){
+  const m = rec(), arr = T.arrangementOf(m, cur()), sets = Object.keys(T.skillSets(m)), { types, tags } = lensChoices(m, lang());
+  const tag = cur().jobType ?? arr.from ?? '', all = [...types, ...tags];
+  return `<div class="skarr">
+    <label class="field"><span class="lbl inline">${h('ux6c.startFrom')}</span><select id="sk-set" ${sets.length ? '' : 'disabled'}><option value="">${esc(arr.from ? t('ux6c.setNow', { name: jobTypeLabel(m, arr.from) }) : t('ux6c.setNone'))}</option>
+      ${sets.map(n => `<option value="${esc(n)}">${esc(jobTypeLabel(m, n))}</option>`).join('')}</select></label>
+    ${sets.length ? '' : `<p class="muted small">${h('ux6c.noSets')}</p>`}
+    ${arr.groups.map((g, i) => { const name = g.label ?? T.groupLabel(m, cur(), g.id) ?? ''; return `<div class="skgroup" data-g="${esc(g.id)}"><div class="skghead"><b>${esc(name || t('ux6c.newGroup'))}</b>${moveButtonsHtml('sk-up', 'sk-down', g.id, name, { first: i === 0, last: i === arr.groups.length - 1 })}</div>
+      <div class="skchips">${g.items.map((x, k) => `<button class="skchip" draggable="true" data-g="${esc(g.id)}" data-k="${k}" title="${esc(t('ux6c.skillTip', { name: x }))}">${esc(x)}</button>`).join('')}</div></div>`; }).join('')}
+    <div class="skfoot"><label class="field"><span class="lbl inline">${h('ux6c.saveFor')}</span><select id="sk-tag">${all.map(x => `<option value="${esc(x.tag)}" ${x.tag === tag ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select></label>
+      <button class="sm" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button></div>
+  </div>`;
+}
+// a skill group one place up or down, or before another (the drag on the page); a line before another of its job
+function stepGroupBy(id, d){
+  const ids = T.arrangementOf(rec(), cur()).groups.map(g => g.id), i = ids.indexOf(id), j = i + d;
+  if (i < 0 || !ids[j]) return false;
+  return moveGroupBy(id, d < 0 ? ids[j] : ids[j + 1] ?? null);
+}
+function moveGroupBy(id, before){
+  commit(d => T.moveSkillGroup(d.record, d.cur, id, before), t('ux6c.undoSkills'));
+  return true;
+}
+function moveLineBy(id, before){
+  commit(d => T.moveBullet(d.record, d.cur, id, before), t('ux2.undoMoveItem'));
+  return true;
+}
+// A new empty skill group after `afterId`, written at once on the page. It goes again if it is left empty.
+async function addGroup(afterId = null){
+  clearEdit();
+  let id;
+  commit(d => { id = T.addSkillGroup(d.record, d.cur, afterId); }, t('ux6c.undoSkills'));
+  if (!id) return false;
+  C.work();
+  await C.redrawNow?.();
+  C.select({ kind: 'bullet', id, section: 'skills' });
+  if (C.ui.sel.id === id && document.body.dataset.phone !== 'true') startEdit();
+  return true;
+}
+// one skill of a group to a place in another group (the keyboard route, the drag in the sidebar and the drag on the page share it);
+// `j` is its place there once it has left
+function moveSkillBy(g, k, to, j){
+  let ok = true;
+  commit(d => { try { T.moveSkill(d.record, d.cur, g, k, to, j); } catch { ok = false; } }, t('ux6c.undoSkills'));
+  return ok;
+}
+
+function sectionView(s, sel = s){
   const sec = ix().sections.get(s.id);
   if (!sec) return noneView();
   const L = lang();
@@ -162,8 +221,8 @@ function sectionView(s){
   const at = movable.findIndex(x => x.id === s.id);
   const isHeader = sec.kind === 'header';
   // its own list: the jobs or the items, each with a tick, a grip and ↑ ↓ (the Outline's rows)
-  const inner = isHeader ? '' : C.outlineHtml(null, s.id);
-  return `${depthHtml(s)}
+  const inner = isHeader ? '' : s.id === 'skills' ? skillsHtml() + (cur().skillArrangement ? '' : C.outlineHtml(null, s.id)) : C.outlineHtml(null, s.id);
+  return `${depthHtml(sel)}
     <h2 class="title">${esc(title)}</h2>
     ${isHeader ? '' : `<label class="field"><span class="lbl inline">${h('edit.headingHere', { lang: LANG_NAME[L] ?? L })}</span>
       <input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" autocomplete="off"></label>
@@ -249,6 +308,7 @@ async function addLine(jobId, afterId = undefined){
 function startEdit(mode = null, vid = null){
   const id = fid();
   if (!id) return;
+  if (ix().skillGroups.has(id)) return startGroup(id);
   const L = lang();
   const over = overrideOf(id);
   const using = usingOf(id);
@@ -267,6 +327,16 @@ function startEdit(mode = null, vid = null){
   E.edit.panel = !C.onpage?.begin();
   C.renderBody();
   if (E.edit.panel) focusEditor(m === 'new');
+}
+// A skill group is written on the page only: its name, a line break, its skills (nothing to pick from, no versions)
+function startGroup(id){
+  const text = T.groupText(rec(), cur(), id);
+  E.edit = { fact: id, group: true, mode: 'edit', vid: null, marks: [], base: text, draft: text };
+  E.compare = null;
+  C.endHover();
+  if (!C.onpage?.begin()){ E.edit = null; return; }
+  E.edit.panel = false;
+  C.renderBody();
 }
 function focusEditor(selectAll = false){
   const ta = $('#ed');
@@ -332,7 +402,8 @@ async function livePreview(){
   const ed = E.edit;
   if (!ed || !ed.draft.trim()) return;
   const text = ed.draft.trim(), r = structuredClone(cur());
-  T.setOverride(r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid });
+  if (ed.group){ if (!T.readGroup(ed.draft).items.length) return; T.writeGroup(rec(), r, ed.fact, ed.draft); }      // a group with no skills yet is left as it is until the line is left
+  else T.setOverride(r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid });
   await C.previewRecipe(r, ed.fact);
   if (E.edit !== ed) return;
   ed.lines = C.sheet.linesOf(ix(), ed.fact);
@@ -489,6 +560,13 @@ async function act(a, tg){
       commit(d => { const v = d.record.variants.find(x => x.id === vid); if (v) v.tags = (v.tags ?? []).filter(x => x !== tag); }, t('undo.removeTag'));
       return true;
     }
+    case 'sk-up': case 'sk-down': if (tg.getAttribute('aria-disabled') !== 'true') stepGroupBy(tg.dataset.id, a === 'sk-up' ? -1 : 1); return true;
+    case 'sk-save': {
+      const name = $('#sk-tag')?.value;
+      if (!name) return true;
+      commit(d => { const arr = T.arrangementOf(d.record, d.cur); T.saveSetForTag(d.record, name, arr, d.cur.lang ?? DEFAULT_LANG); T.setArrangement(d.cur, { ...arr, from: name }); }, t('ux6c.undoSaveSet'), t('ux6c.setSaved', { name: jobTypeLabel(rec(), name) }));
+      return true;
+    }
     case 'sec-up': case 'sec-down': if (tg.getAttribute('aria-disabled') !== 'true') stepSectionBy(tg.dataset.id, a === 'sec-up' ? -1 : 1); return true;
     case 'order-reset': resetOrder(tg.dataset.kind, tg.dataset.id); return true;
     case 'label-reset': commit(d => T.setSectionLabel(d.record, d.cur, sel.id, lang(), null), t('undo.resetHeading')); return true;
@@ -513,6 +591,7 @@ function bind(body){
     else if (t.dataset.on){ const id = t.dataset.on, on = t.checked; setBullet(id, on); }
     else if (t.id === 'b-on') setBullet(C.ui.sel.id, t.checked);
     else if (t.dataset.item){ const id = t.dataset.item, on = t.checked; commit(d => T.setItemOn(d.record, d.cur, id, on), on ? tr('undo.turnOn') : tr('undo.turnOff')); }
+    else if (t.id === 'sk-set'){ if (t.value){ const name = t.value; commit(d => T.applySet(d.record, d.cur, name), tr('ux6c.undoStartFrom'), tr('ux6c.setApplied', { name: jobTypeLabel(rec(), name) })); } }
     else if (t.id === 'lens'){ E.focus = t.value || null; E.applyOpen = false; C.setFocus(); C.renderBody(); }
     else if (t.dataset.same){ const k = t.dataset.same, on = t.checked; commit(d => setSame(d.record, k, on), on ? tr('edit.sameEvery') : tr('undo.notSame')); }
   });
@@ -533,6 +612,15 @@ function bind(body){
       return;
     }
     if (t.classList?.contains('new-claim') && e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); t.closest('.addrow')?.querySelector('[data-act=add-claim]')?.click(); }
+    if (t.classList?.contains('skchip') && e.altKey && e.key.startsWith('Arrow')){
+      e.preventDefault(); e.stopPropagation();
+      const g = t.dataset.g, k = Number(t.dataset.k), ids = T.arrangementOf(rec(), cur()).groups.map(x => x.id), at = ids.indexOf(g);
+      const n = (id, i) => T.arrangementOf(rec(), cur()).groups.find(x => x.id === id)?.items.length ?? i;
+      const to = e.key === 'ArrowLeft' || e.key === 'ArrowRight' ? [g, k + (e.key === 'ArrowLeft' ? -1 : 1)]
+        : e.key === 'ArrowUp' ? [ids[at - 1], n(ids[at - 1], 0)] : [ids[at + 1], 0];
+      if (to[0] && to[1] >= 0 && (to[0] !== g || to[1] < n(g, 0)) && moveSkillBy(g, k, to[0], to[1])) E.chip = { g: to[0], k: to[1] };
+      return;
+    }
     if (t.id === 'sec-label' && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
     if (t.id === 'sec-label' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); t.value = T.labelOf(rec(), cur(), t.dataset.sid, lang()) ?? ''; t.blur(); }
     if (t.id === 'ed'){
@@ -554,6 +642,8 @@ function bind(body){
   });
 
   body.addEventListener('dragstart', e => {
+    const sk = e.target.closest?.('.skchip[draggable=true]');
+    if (sk){ E.dragSkill = { g: sk.dataset.g, k: Number(sk.dataset.k) }; sk.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', sk.textContent); return; }
     const jb = e.target.closest?.('.clgh[data-job][draggable=true]');
     if (jb){ E.dragJob = jb.dataset.job; jb.closest('.clg').classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', jb.dataset.job); return; }
     const bu = e.target.closest?.('.clrow[data-bullet][draggable=true]');
@@ -569,6 +659,15 @@ function bind(body){
     e.dataTransfer.setData('text/plain', E.drag);
   });
   body.addEventListener('dragover', e => {
+    if (E.dragSkill){
+      const chip = e.target.closest?.('.skchip'), box = chip?.parentElement ?? e.target.closest?.('.skchips');
+      if (box){
+        e.preventDefault();
+        for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
+        if (chip){ const bb = chip.getBoundingClientRect(); chip.classList.add(e.clientX < bb.left + bb.width / 2 ? 'drop-above' : 'drop-below'); }
+      }
+      return;
+    }
     if (E.dragJob){
       const tj = e.target.closest?.('.clg:has(> .clgh[data-job])');
       if (tj && tj.closest('.obody') === body.querySelector(`.clgh[data-job="${CSS.escape(E.dragJob)}"]`)?.closest('.obody')){
@@ -608,6 +707,15 @@ function bind(body){
     r.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
   });
   body.addEventListener('drop', e => {
+    if (E.dragSkill){
+      const from = E.dragSkill, chip = e.target.closest?.('.skchip'), box = chip?.parentElement ?? e.target.closest?.('.skchips');
+      E.dragSkill = null;
+      if (!box) return;
+      e.preventDefault();
+      const to = box.closest('.skgroup').dataset.g, at = chip ? Number(chip.dataset.k) + (chip.classList.contains('drop-below') ? 1 : 0) : box.children.length;
+      moveSkillBy(from.g, from.k, to, to === from.g && at > from.k ? at - 1 : at);
+      return;
+    }
     if (E.dragJob){
       const from = E.dragJob, tj = e.target.closest?.('.clg:has(> .clgh[data-job])');
       E.dragJob = null;
@@ -665,7 +773,7 @@ function bind(body){
     if (res?.auto) C.toast(autoNote(res).trim());
   });
   body.addEventListener('dragend', () => {
-    E.drag = null; E.dragOff = false; E.dragItem = null; E.dragBullet = null; E.dragJob = null;
+    E.drag = null; E.dragOff = false; E.dragItem = null; E.dragBullet = null; E.dragJob = null; E.dragSkill = null;
     for (const n of body.querySelectorAll('.dragging, .drop-above, .drop-below')) n.classList.remove('dragging', 'drop-above', 'drop-below');
   });
 }
@@ -766,11 +874,14 @@ function leaving(next){
 }
 
 const api = {
+  leaveLine: () => { if (E.edit) clearEdit(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
   outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){
     if (E.edit && $('#ed') && document.activeElement?.id !== 'ed') focusEditor(); else if ($('#ed')) autosize($('#ed'));
+    // a skill moved with the keyboard keeps the focus, where it landed (it may have left its group empty: that group is gone)
+    if (E.chip){ const c = document.querySelector(`#body .skchip[data-g="${CSS.escape(E.chip.g)}"][data-k="${E.chip.k}"]`); E.chip = null; c?.focus(); }
     // the tag box keeps focus across the redraw a new tag causes
     const ti = E.tagFocus && document.querySelector(`.tag-in[data-vid="${CSS.escape(E.tagFocus)}"]`);
     if (ti && document.activeElement !== ti) ti.focus();

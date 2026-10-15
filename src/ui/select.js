@@ -17,10 +17,13 @@ export function indexModel(model, recipe = null){
   }
   const facts = new Map((model.facts ?? []).map(f => [f.id, f]));
   for (const [job, lines] of Object.entries(recipe?.localLines ?? {})) for (const { id } of lines){ highlight.set(id, job); facts.set(id, { id, variants: [] }); }
+  // the skill groups: the record's, and the ones this resume's arrangement has (one made on the page is a claim with no versions)
+  const skillGroups = new Set([...(model.sections ?? []).find(s => s.id === 'skills')?.content?.groups ?? [], ...(recipe?.skillArrangement?.groups ?? []).map(g => g.id)]);
+  for (const id of skillGroups) if (!facts.has(id)) facts.set(id, { id, variants: [] });
   const header = new Set(Object.values(model.basics?.display ?? {}));
   const summaries = new Set([model.basics?.summary, ...(model.sections ?? []).filter(s => s.kind === 'prose').map(s => s.content?.fact)].filter(Boolean));
   return {
-    factOfVariant, display, highlight, header, summaries,
+    factOfVariant, display, highlight, header, summaries, skillGroups,
     facts,
     variants: new Map((model.variants ?? []).map(v => [v.id, v])),
     work: new Map(entriesOf(model).map(w => [w.id, w])),
@@ -33,7 +36,8 @@ export function targetOf(ix, { variant = null, section = null } = {}){
   const fact = !variant ? null : ix.factOfVariant.get(variant)
     ?? (variant.endsWith('-override') && ix.facts.has(variant.slice(0, -9)) ? variant.slice(0, -9) : null);
   if (fact){
-    if (ix.header.has(fact)) return { kind: 'header' };
+    if (ix.header.has(fact)) return { kind: 'bullet', id: fact, section: 'header' };      // the name, the headline and the contact line are written where they print
+    if (ix.skillGroups.has(fact)) return { kind: 'bullet', id: fact, section: 'skills' };
     if (ix.display.has(fact)) return { kind: 'job', id: ix.display.get(fact) };
     if (ix.highlight.has(fact)) return { kind: 'bullet', id: fact, job: ix.highlight.get(fact), section: section ?? 'experience' };
     if (ix.summaries.has(fact) || section === 'summary') return { kind: 'bullet', id: fact, section: section ?? 'summary' };
@@ -47,6 +51,12 @@ export function targetOf(ix, { variant = null, section = null } = {}){
 // the line is a level below, which edit.js and onpage.js leave first. A job is the job level too. So: nothing is above both.
 export function up(sel){
   return NONE;
+}
+
+// The selection for a line of the page by its claim: a bullet of a job, a skill group, or the summary
+export function lineSel(ix, id){
+  const job = ix.highlight.get(id);
+  return job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: ix.skillGroups.has(id) ? 'skills' : 'summary' };
 }
 
 export const same = (a, b) => (a?.kind ?? 'none') === (b?.kind ?? 'none') && (a?.id ?? null) === (b?.id ?? null);

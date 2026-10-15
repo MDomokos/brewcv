@@ -551,13 +551,14 @@ const groupAt = (groups, gid) => { const i = groups.findIndex(g => g.id === gid)
 // the skills as typed: separated by commas or line breaks
 export const parseItems = text => String(text).split(/[,\n]/).map(x => x.trim()).filter(Boolean);
 // What was written in a group: the first line is its name, the rest its skills; one line only is its skills. No skills left: the group goes.
+export const readGroup = text => { const lines = String(text).split('\n'), named = lines.length > 1; return { name: named ? lines[0].trim() : null, items: parseItems(named ? lines.slice(1).join('\n') : text) }; };
 export function writeGroup(model, recipe, gid, text){
-  const lines = String(text).split('\n'), named = lines.length > 1;
+  const { name, items } = readGroup(text);
   arrange(model, recipe, groups => {
-    const i = groupAt(groups, gid), items = parseItems(named ? lines.slice(1).join('\n') : text);
+    const i = groupAt(groups, gid);
     if (!items.length) groups.splice(i, 1);
     else {
-      const was = groups[i].label, label = named && lines[0].trim() !== (was ?? groupLabel(model, recipe, gid)) ? lines[0].trim() : was;
+      const was = groups[i].label, label = name !== null && name !== (was ?? groupLabel(model, recipe, gid)) ? name : was;
       groups[i] = { ...groups[i], items, lang: recipe.lang ?? DEFAULT_LANG, ...(label !== undefined ? { label } : {}) };      // typed here: in this language
     }
   });

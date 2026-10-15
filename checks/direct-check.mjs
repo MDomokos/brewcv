@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
@@ -461,6 +462,11 @@ section('skills arranged on the page (UX-6c-ii)');
   const back = S.loadResume(JSON.parse(JSON.stringify(S.saveResume(m, arranged).file)), m);
   ok('the arrangement comes back from the saved file, with no warnings', back.warnings.length === 0 && eq(back.recipe.skillArrangement, arranged.skillArrangement));
   ok('the JSON Resume export says the arrangement is not in it', T.resolve(m, rc, { local: false }).problems.some(x => x.includes('arranges its skills')) && !T.resolve(m, clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe)).problems.some(x => x.includes('arranges')));
+  // a file anyone can edit
+  const mal = v => { const f = S.saveResume(m, clone(arranged)).file; f.meta.resumeBuilder.resume.skillArrangement = v; return S.loadResume(JSON.parse(JSON.stringify(f)), m); };
+  const bad = [mal('x'), mal({ groups: 'x' }), mal({ groups: [null, { id: 'a' }, { id: 'a', items: ['x'] }, { id: 'a', items: ['y'] }, { id: 'b', items: [1] }, { id: 'c', items: ['z'], label: 5 }] })];
+  ok('a malformed arrangement is cleaned, each with a warning, and the page renders', bad.every(w => w.warnings.length && (() => { try { html(w.recipe); return true; } catch { return false; } })())
+    && bad[0].recipe.skillArrangement === undefined && bad[1].recipe.skillArrangement === undefined && eq(bad[2].recipe.skillArrangement.groups, [{ id: 'a', items: ['x'] }, { id: 'c', items: ['z'] }]), JSON.stringify(bad.map(w => w.recipe.skillArrangement)));
   // sets per language: hu falls back to en, and what falls back is listed as untranslated
   const hr = T.newResume(m, { lang: 'hu' });
   T.saveSetForTag(m, 'Hardware', { groups: [{ id: 'skills-fabrication', items: ['CAD', 'FEA'] }] });
@@ -476,6 +482,15 @@ section('skills arranged on the page (UX-6c-ii)');
   T.saveSetForTag(m, 'Medical', T.arrangementOf(m, arranged), 'en');
   const again = clone(rc); T.applySet(m, again, 'Medical');
   ok('saved as the set for a tag, and applied from it, the arrangement is the same', eq(again.skillArrangement.groups, arranged.skillArrangement.groups) && again.skillArrangement.from === 'Medical');
+}
+
+section('a resume that uses none of it renders as before (the 14 example resumes)');
+{
+  // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i. Change it only when the example or the renderer is meant to change.
+  const h = crypto.createHash('sha256');
+  for (const n of fs.readdirSync(path.join(REPO, 'data/example-resumes')).filter(f => f.endsWith('.json') && f !== 'index.json').sort())
+    h.update(renderPages(model, S.loadResume(read(`data/example-resumes/${n}`), model).recipe, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join(''));
+  ok('the 14 example resumes hash to what they always did', h.digest('hex') === 'a8e35aad45ca8f34f3a8a53a4f9cdfd44ff68f1a465445b43e5f5fa17b5c406d');
 }
 
 console.log(failed ? `\n${failed} direct check(s) FAILED` : '\nall direct checks passed');

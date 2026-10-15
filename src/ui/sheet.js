@@ -22,6 +22,7 @@ html.rb-ui [data-variant], html.rb-ui .band[data-section] { cursor: pointer; }
 .document > .page.rb-faded { opacity: var(--rb-fade, .35); }
 html.rb-still *, html.rb-still *::before, html.rb-still *::after { transition: none !important; animation: none !important; }
 html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
+html.rb-dragging, html.rb-dragging * { cursor: grabbing !important; user-select: none !important; }
 html.rb-space, html.rb-space * { cursor: grab !important; }
 html.rb-ui [data-variant]:hover { outline: 2px solid color-mix(in srgb, var(--rb-sel) 40%, transparent); outline-offset: 2px; border-radius: 2px; }
 .rb-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-sel-soft); }
@@ -56,6 +57,8 @@ function paintMarks(doc){
   doc.documentElement.classList.toggle('rb-still', reduced());
   for (const [prop, token] of Object.entries(MARK_TOKENS)) doc.documentElement.style.setProperty(prop, cs.getPropertyValue(prop === '--rb-edge' && soft ? '--page-edge-soft' : token).trim());
 }
+
+const factOfVariant = (ix, a) => ix.factOfVariant.get(a) ?? (a.endsWith('-override') && ix.facts.has(a.slice(0, -9)) ? a.slice(0, -9) : null);
 
 export function createSheet(host, hooks = {}){
   let fr = null;
@@ -127,6 +130,9 @@ export function createSheet(host, hooks = {}){
           doc.addEventListener('keydown', e => fe.key.down(e), true);
           doc.addEventListener('keyup', e => fe.key.up(e), true);
         }
+        // what is under the pointer, for the grip and the "+" over the page (src/ui/onpage.js), and a skill dragged from where it is printed
+        for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) doc.addEventListener(ev, e => hooks.onPointer?.(e), { passive: true });
+        doc.documentElement.addEventListener('mouseleave', () => hooks.onPointer?.({ type: 'leave' }));
         doc.addEventListener('keydown', e => { if (!e.target.closest?.('.rb-renaming')) hooks.onKey?.(e); });
         doc.addEventListener('dblclick', e => {
           const tab = e.target.closest?.('.band[data-section] h2.tab:not(.tab--cont)');
@@ -248,7 +254,7 @@ export function createSheet(host, hooks = {}){
     // texts with no version in the resume's language print in English, outlined
     if (marked.miss && marked.ix){
       for (const el of fr.doc.querySelectorAll('[data-variant]')){
-        const f = marked.ix.factOfVariant.get(el.getAttribute('data-variant'));
+        const f = factOfVariant(marked.ix, el.getAttribute('data-variant'));       // a skill group of an arrangement is printed as <fact>-override
         if (f && marked.miss.facts.has(f)) el.classList.add('rb-miss');
       }
       for (const id of marked.miss.headings) for (const t of fr.doc.querySelectorAll(`.band[data-section="${CSS.escape(id)}"] .tab`)) t.classList.add('rb-miss-tab');
@@ -457,12 +463,60 @@ export function createSheet(host, hooks = {}){
     order(ix){
       if (!fr) return [];
       const out = [];
-      for (const el of fr.doc.querySelectorAll('.summary[data-variant], .bullets li[data-variant]')){
+      for (const el of fr.doc.querySelectorAll('.summary[data-variant], .bullets li[data-variant], .skills__items[data-variant], .skills__group[data-variant]')){
         const a = el.getAttribute('data-variant');
         const f = ix.factOfVariant.get(a) ?? (a.endsWith('-override') && ix.facts.has(a.slice(0, -9)) ? a.slice(0, -9) : null);
         if (f && !out.includes(f)) out.push(f);
       }
       return out;
+    },
+    // ---- what the grip, the "+" and the photo slot over the page are placed by (rectangles in the page's own pixels) ----
+    // The line, skill group or header under a point. A line owns the margin left of its text and the gap below it, so the gaps between
+    // lines belong to a line and not to the job: the nearest one within reach gets the point, a point inside one beats a point near one.
+    handAt(ix, x, y){
+      if (!fr?.frame.isConnected) return null;
+      let best = null, bd = Infinity;
+      const take = (k, el, fact) => {
+        const r = this.rectOfEl(el);
+        if (x < r.left - 48 || x > r.left + r.width + 6 || y < r.top - 20 || y > r.top + r.height + 20) return;
+        const d = (x < r.left ? r.left - x : x > r.left + r.width ? x - r.left - r.width : 0) + (y < r.top ? r.top - y : y > r.top + r.height ? y - r.top - r.height : 0);
+        if (d < bd){ bd = d; best = { k, fact, rect: r, edge: this.edgeOf(el), job: k === 'line' ? ix.highlight.get(fact) ?? null : null }; }
+      };
+      for (const li of fr.doc.querySelectorAll('.entry .bullets li[data-variant]')){ const f = factOfVariant(ix, li.getAttribute('data-variant')); if (f) take('line', li, f); }
+      for (const g of fr.doc.querySelectorAll('.skills__group')){ const f = factOfVariant(ix, (g.getAttribute('data-variant') ?? g.querySelector('[data-variant]')?.getAttribute('data-variant')) ?? ''); if (f) take('group', g, f); }
+      const hd = fr.doc.querySelector('.band--header');
+      if (!best && hd){ const r = this.rectOfEl(hd); if (x >= r.left && x <= r.left + r.width && y >= r.top && y <= r.top + r.height) best = { k: 'header', rect: r }; }
+      return best;
+    },
+    // a job's lines in print order (every page)
+    jobLines(jobId, ix){
+      if (!fr?.frame.isConnected) return [];
+      return [...fr.doc.querySelectorAll('.entry .bullets li[data-variant]')].map(li => ({ fact: factOfVariant(ix, li.getAttribute('data-variant')), rect: this.rectOfEl(li), edge: this.edgeOf(li) }))
+        .filter(l => l.fact && ix.highlight.get(l.fact) === jobId);
+    },
+    // where the text column of what an element is part of begins (a job's title, a skill group's name): a line's bullet hangs right of it
+    edgeOf(el){ return (el.closest('.entry, .skills__group') ?? el).getBoundingClientRect().left; },
+    // the skill groups with the rectangle of each of their skills (the page's copy of an arranged group marks them)
+    skillGroups(ix){
+      if (!fr?.frame.isConnected) return [];
+      return [...fr.doc.querySelectorAll('.skills__group')].map(g => ({ fact: factOfVariant(ix, (g.getAttribute('data-variant') ?? g.querySelector('[data-variant]')?.getAttribute('data-variant')) ?? ''), rect: this.rectOfEl(g), edge: this.edgeOf(g),
+        items: [...g.querySelectorAll('[data-skill]')].map(e => this.rectOfEl(e)) })).filter(g => g.fact);
+    },
+    // the skill under a point: { fact, k }
+    skillAt(ix, x, y){
+      for (const g of this.skillGroups(ix)){
+        const k = g.items.findIndex(r => x >= r.left && x <= r.left + r.width && y >= r.top && y <= r.top + r.height);
+        if (k >= 0) return { fact: g.fact, k };
+      }
+      return null;
+    },
+    // the header's parts: the text of the name, and the photo if it is printed
+    headerRects(){
+      const hd = fr?.doc.querySelector('.band--header'), name = hd?.querySelector('.name');
+      if (!hd || !name) return null;
+      const rg = fr.doc.createRange(); rg.selectNodeContents(name);
+      const q = rg.getBoundingClientRect(), pt = hd.querySelector('.portrait');
+      return { band: this.rectOfEl(hd), name: { left: q.left, top: q.top, width: q.width, height: q.height }, portrait: pt ? this.rectOfEl(pt) : null };
     },
     // the drink or the theme changed: the marks take the new colours
     restyle(){ if (fr?.doc) paintMarks(fr.doc); },
