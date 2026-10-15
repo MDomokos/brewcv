@@ -144,6 +144,32 @@ for (const [drink, theme] of LOOKS){
     await ctx.close();
   }
 }
+// ---- the name window and the page, the language select and the arrow keys ----
+{
+  const ctx = await browser.newContext({ viewport: { width: 1470, height: 832 } });
+  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  const page = await ctx.newPage();
+  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  await page.waitForTimeout(500);
+  const shown = () => page.evaluate(() => { const e = document.querySelector('#switcher'); return !!e && !e.hidden; });
+  await page.click('#docname-btn'); await settle(page);
+  await page.focus('#sw-lang'); await page.keyboard.press('ArrowDown'); await settle(page);
+  ok('ArrowDown on the language select changes the select and leaves the focus in it', await page.evaluate(() => document.activeElement?.id) === 'sw-lang');
+  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+  ok('a click on a line of the page closes the name window', !(await shown()));
+  await ctx.close();
+}
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  const page = await ctx.newPage();
+  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
+  await page.evaluate(() => window.__wb.dock.setMode('export')); await settle(page);
+  ok('on a phone, Export has one Save to file and one place that says where the file stands', await page.evaluate(() => document.querySelectorAll('#filestate').length === 1 && document.querySelectorAll('[data-act=save-file]').length === 1));
+  await ctx.close();
+}
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} head check(s) FAILED` : '\nall head checks passed');
 process.exit(failed ? 1 : 0);

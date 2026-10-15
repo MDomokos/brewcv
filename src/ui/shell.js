@@ -410,6 +410,7 @@ function bareClick(){ if (ui.view || ui.snap) return; if (ui.sel.kind !== 'none'
 // `keepScroll`: the click was on a row of the job's own lines, where the person is already looking, so the panel stays where it is.
 function select(sel, { keepScroll = false } = {}){
   if (!edit.leaving(sel)) return;
+  if (sel.kind !== 'none') switcher.close();       // a click on the page never reaches the document, so the name window's outside click does not run
   // a selection made from Record, Design or Export (a row, a form to add something) is looked at in Edit
   const left = ui.view && ui.view !== 'welcome' && sel.kind !== 'none';
   if (left) ui.view = null;
@@ -477,6 +478,7 @@ function renderHead(){
   drawHead();
   if (kept){ const n = $(`#head ${kept}`) ?? $(`#rail ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
 }
+let saidSave = '';
 function drawHead(){
   // on the start screen the header area is the logo, the name and the tagline
   if (document.body.classList.contains('is-intro')){ $('#head').innerHTML = onboarding.headHtml(); $('#rail').innerHTML = ''; return; }
@@ -484,6 +486,8 @@ function drawHead(){
   const st = persist.status;
   const saving = st.status === 'saving' || st.status === 'pending';
   const saveText = st.status === 'error' ? t('ux1.saveFailed') : saving ? t('head.saving') : t('ux1.savedDevice');
+  // the head is drawn afresh, so a live region inside it is unreliable: say the end of a save through #announce
+  if (saveText !== saidSave){ if (saidSave && !saving && $('#announce')) $('#announce').textContent = saveText; saidSave = saveText; }
   // Saved is an icon: a check (saved), a turning arrow (saving), a triangle (not saved); the words are in its tip and for a screen reader
   const saved = `<span class="si ${st.status === 'error' ? 'bad' : saving ? 'wait' : 'ok'}" aria-hidden="true">${icon(st.status === 'error' ? 'warn' : saving ? 'replay' : 'check', { size: 14 })}</span><span class="sr">${esc(saveText)}${st.status === 'error' && st.error ? ': ' + esc(st.error) : ''}</span>`;
   const snap = snapNow();
@@ -494,7 +498,7 @@ function drawHead(){
     ${ui.saveNote ? `<div class="hrow notice" role="status"><span class="small">${esc(t('save.note'))}${ui.persisted === false ? ' ' + esc(t('save.noteStorage')) : ''}</span><button class="sm" data-act="save-note-ok">${h('save.noteOk')}</button></div>` : ''}
     ${snap ? `<div class="hrow notice snapbar" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${h('ux1.backToResume')}</button></div>` : ''}
     ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}`;
-  const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" role="status" tabindex="0" data-tip="${esc(savedTip())}" data-tip-pos="b">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
+  const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" tabindex="0" data-tip="${esc(savedTip())}" data-tip-pos="b">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
   const mode = dock.modeOf();
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){

@@ -262,6 +262,7 @@ function bind(){
       return;
     }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if (e.target.tagName === 'SELECT') return;
       const items = navItems();
       const at = items.indexOf(document.activeElement);
       const next = items[Math.max(0, Math.min(items.length - 1, at + (e.key === 'ArrowDown' ? 1 : -1)))];

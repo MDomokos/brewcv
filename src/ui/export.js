@@ -118,9 +118,9 @@ function exportView(){
     <p class="note">${h('export.note')}</p>
     <hr class="sentrule">
     <div class="sentrow"><span class="lbl inline">${h('ux3b.sentRow')}</span><button data-act="mark-sent" ${C.ui.snap ? 'disabled' : ''}>${h('ux3b.markSent')}</button></div>
-    <hr class="sentrule">
+    ${C.ui.layout?.phone ? '' : `<hr class="sentrule">
     <span class="lbl">${h('ux6b.backup')}</span>
-    <div class="filerow"><button class="filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${h('ux3b.saveFile')}</button><span class="small muted" id="fileline">${esc(file.text)}</span></div>`;
+    <div class="filerow"><button class="filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${h('ux3b.saveFile')}</button><span class="small muted" id="fileline">${esc(file.text)}</span></div>`}`;
 }
 
 async function act(a, tg){
