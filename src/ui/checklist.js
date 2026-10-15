@@ -128,7 +128,7 @@ export function outlineHtml(only = null, section = null){
         <button class="sm ghost addline" data-act="ol-newline" data-id="${esc(g.id)}">${h('ux5c.line')}</button>`;
   };
   const jobHtml = (g, isOn, move = null) => {
-    if (!isOn) return `<div class="item row is-off ojob"><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label><a class="t" data-act="select-job" data-id="${esc(g.id)}" title="${esc(g.title + (g.org ? ' · ' + g.org : ''))}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a></div>`;
+    if (!isOn) return `<div class="item row is-off ojob"><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a></div>`;
     const open = !folded(g.id, focus === g.id);
     // in a section's own view the job also has its tick; its name (nameCaret) opens it
     const pickJob = section ? sw(`data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"`, true) : '';
