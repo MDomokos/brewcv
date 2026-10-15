@@ -262,6 +262,7 @@ section('a locked line: Fit never drops it or changes its words');
      JSON.stringify([listed(control, 'hydra'), listed(locked, 'hydra')]));
   const page = await run('a locked page keeps every job whole', G, { ...full, locked: ['~page'] }, squeeze);
   ok('…and no phrasing changed', JSON.stringify(page.recipe.picks) === JSON.stringify(full.picks) && ['hydra', 'orbit', 'nova', 'poly', 'free'].every(j => listed(page, j).length === G.work.find(w => w.id === j).highlights.length));
+  ok('the shortfall names the lock, not a job down to one bullet', page.report.shortfall.some(x => /kept by a lock/.test(x.text)) && !page.report.shortfall.some(x => /down to one bullet/.test(x.text)), JSON.stringify(page.report.shortfall.map(x => x.text)));
   const one = await run('one locked bullet is kept where the others are cut', G, { ...full, locked: ['hydra-testing'] }, squeeze);
   ok('…and its words are the ones it had', listed(one, 'hydra').includes('hydra-testing') && chosen(G, one.recipe, 'hydra-testing').id === chosen(G, full, 'hydra-testing').id);
 }

@@ -634,7 +634,7 @@ function report(data, before, after, notes, alloc, m, o, rounds){
       const lastBullets = [...printed.values()].filter(c => c === 1).length - rows.filter(r => r.hl && lockedHl.has(r.fact) && printed.get(`${r.slot}.${r.job}`) === 1).length;
       const locked = ca.pages[pg.page - 1].rows.filter(r => pins.phrasing.has(r.fact)).length;
       const pinnedIn = ca.pages[pg.page - 1].rows.filter(r => r.hl && pins.include.has(r.fact)).length;
-      hold(lockedHl.size, `${lockedHl.size} bullet${lockedHl.size === 1 ? ' is' : 's are'} locked (the lock keeps ${lockedHl.size === 1 ? 'it' : 'them'} on the page)`);
+      hold(lockedHl.size, `${lockedHl.size} bullet${lockedHl.size === 1 ? '' : 's'} kept by a lock`);
       hold(lastBullets, `${lastBullets} job${lastBullets === 1 ? ' is' : 's are'} down to one bullet`);
       hold(locked, `${locked} phrasing${locked === 1 ? '' : 's'} locked`);
       hold(pinnedIn, `${pinnedIn} bullet${pinnedIn === 1 ? '' : 's'} pinned in`);

@@ -64,6 +64,7 @@ Only when the person says so in as many words, and only for the file and the res
 - Use the app's own code: `readBackup` and `makeBackup` in `src/store/persist.js`.
 - Change only that resume's `picks`, `sections` and, if it has them, `pages`, and keep the last two in step. A section can continue on the next page: list it there again with the jobs that remain.
 - Remove the picks of claims it no longer prints, and don't print one claim twice (under a job, and again under a project).
+- Respect `recipe.locked`: a locked line, job, section or the page is held, so do not change its picks, text, switches or place.
 - Delete its entry in `frozen`, the text it printed when last saved, so it is made again from the record.
 - Before you write, check that every other saved resume renders byte-identical (`renderPages` in `src/render.js`). After, check that the new file reads back with no warnings and that every saved resume opens with no differences (`openSaved` in `src/model/resumes.js`).
 
