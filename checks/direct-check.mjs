@@ -5,7 +5,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import os from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
 import * as S from '../src/model/schema.js';
 import * as RS from '../src/model/resumes.js';
@@ -15,6 +17,8 @@ import * as K from '../src/model/career.js';
 import { renderPages } from '../src/render.js';
 import { createDocument } from '../scripts/lib/dom.mjs';
 import { createStore } from '../src/store/store.js';
+import * as X from '../src/export.js';
+import * as L from '../src/model/lang.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -220,6 +224,131 @@ section('the saved-resume file: new keys round trip, old files open, nothing pri
   const ignorant = clone(back.recipe); for (const k of ['parent', 'parked', 'overrideMeta', 'skillArrangement']) delete ignorant[k];
   ok('code that ignores the keys prints the same as code that reads them', html(back.recipe) === html(ignorant));
   ok('and a copy\'s parent link is not part of what it prints', RS.printedKey(rc, {}) === RS.printedKey({ ...rc, parent: 'x', parked: {} }, {}));
+}
+
+section('a line that exists only on this resume');
+{
+  const job = model.work[0].id;
+  const mk = () => clone(S.loadResume(read(`data/example-resumes/${names[0]}`), model).recipe);
+  const html = r => renderPages(model, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
+  const rc = mk(), plain = clone(rc);
+  const first = T.listedBullets(model, rc, job);
+  const a = T.addLocalLine(model, rc, job, first.at(-1));
+  ok('a new line has its own id and follows the line it was added after', a === '~new-1' && eq(T.listedBullets(model, rc, job), [...first, a]) && T.isLocal(rc, a) && !T.isLocal(rc, first[0]));
+  ok('…empty, with a place for its text and highlights', rc.overrides[a] === '' && eq(rc.overrideMeta[a], { marks: [], base: null }));
+  const b = T.addLocalLine(model, rc, job, null);
+  ok('another is unique in the recipe, and null puts it first', b === '~new-2' && T.listedBullets(model, rc, job)[0] === b);
+  T.setOverride(rc, a, 'Piloted the bench trial', { marks: [{ start: 12, end: 17 }], base: null });
+  T.setOverride(rc, b, 'Ran the first build', { marks: [], base: null });
+  const page = html(rc);
+  ok('it prints as a bullet of its job, with its highlights', /<li[^>]*>Piloted the <span[^>]*>bench<\/span> trial<\/li>/.test(page));
+  const at = txt => page.indexOf(txt.slice(0, 15));
+  ok('in its place: after the job\'s last line, and first for null', at('Piloted the ') > at(T.textOf(model, first.at(-1), plain)) && at('Ran the first') < at(T.textOf(model, first[0], plain)));
+  ok('a resume without one prints the same as before', html(plain) === html(mk()) && !html(plain).includes("Piloted the bench"));
+  ok('pending edits list it', T.pendingEdits(rc).includes(a) && T.pendingEdits(rc).includes(b));
+
+  // moving: stepBullet and moveBullet, past records' bullets and past each other
+  const order = () => T.listedBullets(model, rc, job);
+  const n0 = order().length;
+  ok('↑ moves it above the line before it', T.stepBullet(model, rc, a, -1) && order().indexOf(a) === n0 - 2 && order().length === n0);
+  ok('↓ moves it back', T.stepBullet(model, rc, a, 1) && order().at(-1) === a);
+  const mid = order()[2];
+  T.moveBullet(model, rc, a, mid);
+  ok('moveBullet puts it before a named line', order().indexOf(a) === order().indexOf(mid) - 1);
+  const fact = first[0];
+  T.moveBullet(model, rc, fact, a);
+  ok('a record bullet moved past it keeps its place, and the local line stays where it was', order().indexOf(fact) === order().indexOf(a) - 1);
+  ok('the stored list holds the record\'s bullets only', !JSON.stringify(rc).includes('"highlights":["~') && rc.localLines[job].every(l => l.after === null || order().includes(l.after)));
+  T.moveBullet(model, rc, a);
+  ok('and it goes last', order().at(-1) === a);
+
+  // off and on
+  T.setBulletOn(model, rc, a, false);
+  ok('switched off it prints nowhere, but is still on the resume\'s list', !order().includes(a) && !html(rc).includes('Piloted the') && T.isLocal(rc, a) && T.offOf(rc).includes(a));
+  T.setBulletOn(model, rc, a, true);
+  ok('switched on it is back in place', order().at(-1) === a && html(rc).includes('Piloted the') && !T.offOf(rc).includes(a));
+  T.setBulletOn(model, rc, first[1], false);
+  ok('a line it followed switched off leaves it where it is', order().includes(a) && order().indexOf(a) === order().length - 1);
+  T.setBulletOn(model, rc, first[1], true);
+
+  // the exports
+  const jr = X.jsonResumeFile(model, rc);
+  ok('the JSON Resume file leaves it out, and the pre-flight list says why', !JSON.stringify(jr.file).includes('bench trial') && jr.problems.some(p => /exists only on this resume/.test(p) && /left out of an ATS export/.test(p)));
+  const txt = X.plainText(T.resolve(model, rc).body);
+  ok('the text export prints it', txt.includes('- Piloted the bench trial'));
+  ok('resolve names a record override as before', (() => { const r2 = mk(); T.setOverride(r2, first[0], 'x'); return T.resolve(model, r2).problems.some(p => /overrides hydra-inhaler with one-off text/.test(p)); })());
+
+  // remove
+  const gone = clone(rc);
+  T.removeLocalLine(gone, b);
+  ok('removing takes the line, its text and its place', !T.isLocal(gone, b) && !(b in gone.overrides) && !(b in (gone.overrideMeta ?? {})) && !T.listedBullets(model, gone, job).includes(b) && T.isLocal(gone, a));
+  T.removeLocalLine(gone, a);
+  ok('the last one takes the key too', gone.localLines === undefined && eq(T.listedBullets(model, gone, job), first));
+  const emptied = clone(rc); T.setOverride(emptied, a, '');
+  ok('emptying its text removes the line', !T.isLocal(emptied, a));
+
+  // saved resume, the one file, copies
+  const { file } = S.saveResume(model, rc);
+  const back = S.loadResume(JSON.parse(JSON.stringify(file)), model);
+  ok('a saved resume keeps it, text, highlights and place, with no warnings', back.warnings.length === 0 && eq(back.recipe.localLines, rc.localLines) && eq(back.recipe.overrides, rc.overrides) && eq(back.recipe.overrideMeta, rc.overrideMeta));
+  ok('the frozen text has it', JSON.stringify(back.frozen).includes('Piloted the bench trial') && html(back.recipe) === html(rc));
+  ok('and nothing in it is newer than the record', S.newerWording(model, back.frozen, back.recipe).length === 0);
+  const st = exampleState();
+  st.cur.localLines = clone(rc.localLines); st.cur.overrides = clone(rc.overrides); st.cur.overrideMeta = clone(rc.overrideMeta);
+  const id0 = st.openId;
+  RS.settle(st);
+  ok('saving the open resume keeps it', eq(RS.savedOf(st, id0).localLines, rc.localLines) && JSON.stringify(st.frozen[id0]).includes('Piloted the bench trial'));
+  const dup = RS.duplicate(st, id0);
+  ok('a duplicate has it', eq(st.cur.localLines, rc.localLines) && st.cur.overrides[a] === 'Piloted the bench trial');
+  const snap = RS.takeSnapshot(Object.assign(st, { openId: id0, cur: clone(RS.savedOf(st, id0)) }), { company: 'Acme', role: 'Engineer' });
+  const kept = RS.snapshotsOf(RS.savedOf(st, id0)).find(x => x.id === snap.id);
+  ok('a snapshot keeps it', eq(kept.recipe.localLines, rc.localLines) && JSON.stringify(kept.body).includes('Piloted the bench trial'));
+  const before = JSON.stringify(kept);
+  T.removeLocalLine(st.cur, a); RS.settle(st);
+  ok('and removing it from the resume never changes the snapshot', JSON.stringify(RS.snapshotsOf(RS.savedOf(st, id0)).find(x => x.id === snap.id)) === before);
+
+  // the language: the line stays as typed and is listed as untranslated
+  const hu = clone(rc);
+  L.switchLang(hu, 'hu');
+  ok('switching language keeps the line, as typed', hu.overrides[a] === 'Piloted the bench trial' && T.listedBullets(model, hu, job).includes(a));
+  ok('and lists it as a text with no version in that language', L.missingList(model, hu).some(m => m.id === a));
+  const there = clone(hu); T.setOverride(there, a, 'Vezette a padi próbát');
+  L.switchLang(there, 'en');
+  ok('the line is the same one back in English; a record edit of the other language is unaffected', there.overrides[a] === 'Vezette a padi próbát' && !L.missingList(model, there).some(m => m.id === a));
+  const typedHu = clone(plain); typedHu.lang = 'hu'; const c = T.addLocalLine(model, typedHu, job, null);
+  T.setOverride(typedHu, c, 'Vezette a próbát');
+  ok('a line typed in a language is not listed in that language, and is in another', !L.missingList(model, typedHu).some(m => m.id === c) && L.missingList(model, { ...typedHu, lang: 'de' }).some(m => m.id === c));
+
+  // undo, through the store
+  const store = createStore({ record: clone(model), cur: mk() });
+  let id;
+  store.commit(d => { id = T.addLocalLine(d.record, d.cur, job, T.listedBullets(d.record, d.cur, job).at(-1)); }, 'add a line');
+  store.commit(d => { T.setOverride(d.cur, id, 'Typed once', { marks: [], base: null }); }, 'edit');
+  ok('the store has the line', T.isLocal(store.state.cur, id) && store.state.cur.overrides[id] === 'Typed once');
+  store.undo(); store.undo();
+  ok('undo takes it back out', !T.isLocal(store.state.cur, id) && store.state.cur.localLines === undefined);
+  store.redo(); store.redo();
+  ok('and redo brings it back', T.isLocal(store.state.cur, id) && store.state.cur.overrides[id] === 'Typed once');
+
+  // an older app (the commit before this one): opens the file, renders it, and leaves the line out
+  let tree = null;
+  try {
+    execFileSync('git', ['cat-file', '-e', 'ae6f472^{commit}'], { cwd: REPO, stdio: 'ignore' });
+    tree = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-old-'));
+    execFileSync('sh', ['-c', `git archive ae6f472 src scripts/lib | tar -x -C "${tree}"`], { cwd: REPO });
+  } catch { console.log('SKIP  the previous commit is not in this clone: the older app is not tried'); }
+  if (tree){
+    const O = await Promise.all(['src/model/schema.js', 'src/model/resume.js', 'src/render.js'].map(f => import(pathToFileURL(path.join(tree, f)).href)));
+    let err = null, old = null, out = '';
+    try {
+      const m = O[0].load(read('data/example.json')).model;
+      old = O[0].loadResume(JSON.parse(JSON.stringify(file)), m);
+      O[1].resolve(m, old.recipe);
+      out = O[2].renderPages(m, old.recipe, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
+    } catch (e){ err = e; }
+    ok('the previous commit opens a file with a line only on this resume, and renders it without throwing', !err && old && !out.includes('Piloted the bench trial'), String(err));
+    fs.rmSync(tree, { recursive: true, force: true });
+  }
 }
 
 console.log(failed ? `\n${failed} direct check(s) FAILED` : '\nall direct checks passed');

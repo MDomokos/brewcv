@@ -60,7 +60,7 @@ export function normalisePath(p){
 export const replaceUrls = (text, map) => String(text).replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/g, (m, q, u) => (map.has(m) ? `url("${map.get(m)}")` : m));
 
 export function jsonResumeFile(model, recipe, { now = new Date().toISOString().slice(0, 10) } = {}){
-  const { body, problems } = resolve(model, recipe);
+  const { body, problems } = resolve(model, recipe, { local: false });
   return { file: { $schema: JSON_RESUME_SCHEMA, ...body, meta: { version: JSON_RESUME_VERSION, lastModified: now } }, problems };
 }
 

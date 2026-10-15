@@ -5,6 +5,7 @@ import { addVersion } from './record.js';
 import { t, docChrome, keyed } from '../i18n/index.js';
 import { LANGS } from './schema.js';
 import { entriesOf } from './entries.js';
+import { localEntry, isLocal } from '../recipe.js';
 import { listedBullets, jobRefs, sectionList, chooseVariant } from './resume.js';
 
 export const DEFAULT_LANG = 'en';
@@ -92,6 +93,9 @@ export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? 
   for (const p of printedFactIds(model, recipe)){
     if (seen.has(p.fact)) continue;
     seen.add(p.fact);
+    // a line only on this resume has one language, the one it was typed in: in another it stays as typed and is listed
+    const own = localEntry(recipe, p.fact), text = String(recipe.overrides?.[p.fact] ?? '').trim();
+    if (own){ if ((own.lang ?? DEFAULT_LANG) !== lang && text) out.push({ key: `local:${p.fact}`, kind: 'fact', id: p.fact, label: text.slice(0, 80), where: p }); continue; }
     if (recipe.overrides?.[p.fact] !== undefined) continue;
     if (hasVersionIn(model, p.fact, lang) || isSame(model, sameKey(p.fact))) continue;
     const f = facts.get(p.fact);
@@ -107,10 +111,14 @@ export function switchLang(recipe, to){
   recipe.byLang = { ...(recipe.byLang ?? {}) };
   const keep = {};
   for (const k of ['picks', 'overrides', 'held']) if (recipe[k] !== undefined && (Array.isArray(recipe[k]) ? recipe[k].length : Object.keys(recipe[k]).length)) keep[k] = recipe[k];
+  // the lines only on this resume have no other language: their text stays where it is
+  const own = Object.fromEntries(Object.entries(recipe.overrides ?? {}).filter(([k]) => isLocal(recipe, k)));
+  if (keep.overrides) keep.overrides = Object.fromEntries(Object.entries(keep.overrides).filter(([k]) => !(k in own)));
+  if (keep.overrides && !Object.keys(keep.overrides).length) delete keep.overrides;
   if (Object.keys(keep).length) recipe.byLang[from] = keep; else delete recipe.byLang[from];
   const back = recipe.byLang[to] ?? {};
   recipe.picks = back.picks ?? {};
-  recipe.overrides = back.overrides ?? {};
+  recipe.overrides = { ...(back.overrides ?? {}), ...own };
   if (back.held) recipe.held = back.held; else delete recipe.held;
   delete recipe.byLang[to];
   if (!Object.keys(recipe.byLang).length) delete recipe.byLang;

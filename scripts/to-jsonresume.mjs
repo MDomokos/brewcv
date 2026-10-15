@@ -17,7 +17,7 @@ if (!dataFile){ console.error('usage: node scripts/to-jsonresume.mjs <resume-dat
 const data = readLibrary(dataFile).model;
 const recipe = recipeFile ? readRecipe(recipeFile, data).recipe : null;
 
-const { body, problems } = resolve(data, recipe);
+const { body, problems } = resolve(data, recipe, { local: false });
 
 const jr = {
   $schema: JSON_RESUME_SCHEMA,

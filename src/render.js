@@ -2,7 +2,7 @@
 // Class names are the contract with themes/: nothing here sets a colour, size or position.
 
 import { render as renderInline, encode } from '../scripts/lib/html.mjs';
-import { isOmitted, offOf, inOrder } from './recipe.js';
+import { isOmitted, offOf, inOrder, isLocal, withLocal } from './recipe.js';
 import { entriesOf } from './model/entries.js';
 
 const GAP = '⬜';
@@ -251,14 +251,14 @@ function makeCtx(data, recipe, doc, opts){
   const pick = ref => {
     if (!ref) throw new RenderError('a section asked for a phrasing and named none');
     const f = facts.get(ref);
-    if (!f){
+    if (!f && !isLocal(recipe, ref)){
       if (variants.has(ref)) return variants.get(ref);
       throw new RenderError(`no such fact: ${ref}`);
     }
     if (chosen.has(ref)) return chosen.get(ref);
 
     let v;
-    const over = probing ? undefined : recipe.overrides?.[ref];
+    const over = probing && f ? undefined : recipe.overrides?.[ref] ?? (f ? undefined : '');   // a line only on this resume has no versions
     const want = probing ? undefined : recipe.picks?.[ref];
     if (over !== undefined){
       v = { id: `${ref}-override`, text: over, marks: recipe.overrideMeta?.[ref]?.marks ?? [], links: [], override: true,      // an edit keeps its highlights
@@ -342,10 +342,11 @@ function makeCtx(data, recipe, doc, opts){
     workOrder: s => { const e = recipe.sections?.find(x => x.id === s.id); return inOrder(e?.work ?? s.content.work, e?.order); },
     // A merged phrasing drops the facts it covers, so nothing prints twice.
     highlights: (w, only) => {
-      const ids = only ?? w.highlights;
-      for (const id of ids)
+      const base = only ?? w.highlights;
+      for (const id of base)
         if (!w.highlights.includes(id))
           throw new RenderError(`the recipe asks ${w.id} for ${id}, which is not one of its highlights`);
+      const ids = withLocal(recipe, w.id, base);
       // A covered fact never prints, so it needs no phrasing in this language.
       const picked = ids.map(id => {
         try { return [id, pick(id), null]; }

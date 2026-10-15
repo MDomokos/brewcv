@@ -43,8 +43,8 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
   const sectionOn = sid => !!sections.get(sid)?.on;
   const groups = [];
   const claimRow = (id, w, listed, jobOn) => {
-    const arch = isArchived(model, id);
-    return { id, kind: 'claim', text: shortOf(model, id, textOf(model, recipe, id)), nv: nvOf(model, id, lang), on: jobOn && listed.has(id), archived: arch, sel: claimSel(id, w.id) };
+    const arch = isArchived(model, id), own = T.isLocal(recipe, id);
+    return { id, kind: 'claim', local: own, text: own ? textOf(model, recipe, id).replace(/\n/g, ' · ') : shortOf(model, id, textOf(model, recipe, id)), nv: nvOf(model, id, lang), on: jobOn && listed.has(id), archived: arch, sel: claimSel(id, w.id) };
   };
 
   // About you: always printed
@@ -64,11 +64,12 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
     const w = byId.get(v.id);
     if (!w) return null;
     const jobOn = T.jobRefs(model, recipe).some(r => (typeof r === 'string' ? r : r.id) === w.id);
-    const lb = T.listedBullets(model, recipe, w.id), listed = new Set(lb);
+    const lb = T.listedBullets(model, recipe, w.id), listed = new Set(lb), lbf = lb.filter(x => !T.isLocal(recipe, x));
     // the ticked lines sit in print order (this resume's), in the places the record gives them; the ones that are off keep theirs
-    const next = lb.filter(x => (w.highlights ?? []).includes(x))[Symbol.iterator]();
-    const rows = (w.highlights ?? []).map(id => claimRow(listed.has(id) ? next.next().value : id, w, listed, jobOn));
-    return { id: w.id, kind: 'entry', entryKind: v.kind, key: v.key, title: v.title, org: v.org, archived: !!w.archived, jobOn, printed: lb, custom: differs(lb, (w.highlights ?? []).filter(h => listed.has(h))),
+    const next = lbf.filter(x => (w.highlights ?? []).includes(x))[Symbol.iterator]();
+    const rows = [...(w.highlights ?? []).map(id => claimRow(listed.has(id) ? next.next().value : id, w, listed, jobOn)),
+      ...T.localOf(recipe, w.id).map(l => claimRow(l.id, w, listed, jobOn))];       // the lines only on this resume
+    return { id: w.id, kind: 'entry', entryKind: v.kind, key: v.key, title: v.title, org: v.org, archived: !!w.archived, jobOn, printed: lb, custom: differs(lbf, (w.highlights ?? []).filter(h => listed.has(h))),
       // an archived claim that this resume still prints stays in the list, badged; the others fold away
       sel: { kind: 'job', id: w.id }, rows: rows.filter(r => !r.archived || r.on), archivedRows: rows.filter(r => r.archived && !r.on) };
   }).filter(Boolean);

@@ -12,7 +12,7 @@
 //  - A snapshot is the open resume as it printed when Save was pressed, plus the sends (where and when it went).
 
 import { t, keyed } from '../i18n/index.js';
-import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant } from './resume.js';
+import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal } from './resume.js';
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang } from './lang.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
@@ -464,7 +464,7 @@ export function compareRows(model, a, b){
   const claims = order.map(f => {
     const x = pa.includes(f) ? cell(a, f) : { label: '—', text: '' };
     const y = pb.has(f) ? cell(b, f) : { label: '—', text: '' };
-    return { kind: 'claim', fact: f, label: facts.get(f)?.summary ?? f, a: x, b: y, differs: x.label !== y.label || x.text !== y.text };
+    return { kind: 'claim', fact: f, label: facts.get(f)?.summary ?? (isLocal(a, f) || isLocal(b, f) ? (x.text || y.text).slice(0, 60) : f), a: x, b: y, differs: x.label !== y.label || x.text !== y.text };
   });
   return [...settings, ...claims];
 }

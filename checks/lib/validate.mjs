@@ -560,6 +560,20 @@ export function validate(input, recipe = null){
           if (inc.has(id)) err('recipe.pins', `${id} is pinned both in and out`);
       }
     }
+    // localLines: lines that exist only on this resume, { jobId: [{ id, after }] }; their text is in overrides
+    const local = new Set();
+    if (recipe.localLines !== undefined){
+      if (!recipe.localLines || typeof recipe.localLines !== 'object' || Array.isArray(recipe.localLines)) err('recipe.localLines', 'expected an object of job ids');
+      else for (const [job, lines] of Object.entries(recipe.localLines)){
+        if (!workIds.has(job)) err(`recipe.localLines.${job}`, 'no such work entry');
+        if (!Array.isArray(lines)){ err(`recipe.localLines.${job}`, 'expected an array of { id, after }'); continue; }
+        for (const l of lines){
+          if (!isStr(l?.id) || byFact.has(l.id) || local.has(l.id)) err(`recipe.localLines.${job}`, `${JSON.stringify(l?.id)} is not a new id`);
+          else local.add(l.id);
+          if (l?.after != null && !isStr(l.after)) err(`recipe.localLines.${job}`, 'after must be an id or null');
+        }
+      }
+    }
     for (const k of ['off', 'keep']){
       const list = recipe[k];
       if (list === undefined) continue;
@@ -567,7 +581,7 @@ export function validate(input, recipe = null){
       if (!Array.isArray(list)){ err(`recipe.${k}`, 'expected an array of fact ids'); continue; }
       const dup = new Set();
       for (const id of list){
-        if (!isStr(id) || !byFact.has(id)) err(`recipe.${k}`, `${JSON.stringify(id)} is not a fact`);
+        if (!isStr(id) || !(byFact.has(id) || (k === 'off' && local.has(id)))) err(`recipe.${k}`, `${JSON.stringify(id)} is not a fact`);
         else if (dup.has(id)) warn(`recipe.${k}`, `${id} is listed twice`);
         dup.add(id);
       }
@@ -609,8 +623,8 @@ export function validate(input, recipe = null){
     }
 
     for (const [factId, text] of Object.entries(recipe.overrides ?? {}))
-      if (!byFact.has(factId)) err(`recipe.overrides[${JSON.stringify(factId)}]`, 'overrides a fact that does not exist');
-      else if (typeof text !== 'string' || !text) err(`recipe.overrides[${JSON.stringify(factId)}]`, 'empty override');
+      if (!byFact.has(factId) && !local.has(factId)) err(`recipe.overrides[${JSON.stringify(factId)}]`, 'overrides a fact that does not exist');
+      else if (typeof text !== 'string' || (!text && !local.has(factId))) err(`recipe.overrides[${JSON.stringify(factId)}]`, 'empty override');
   }
 
   return { errors, warnings };

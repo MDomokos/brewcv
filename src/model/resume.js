@@ -18,8 +18,8 @@ export function refusal(fact, v){
 
 import { keyed, t } from '../i18n/index.js';
 import { entriesOf, entryKey, isEntry, archivedIds, archivedEntryIds } from './entries.js';
-import { offOf, keepOf, migratePins, inOrder } from '../recipe.js';
-export { offOf, keepOf, migratePins, inOrder };
+import { offOf, keepOf, migratePins, inOrder, localOf, localJob, localIds, isLocal, withLocal } from '../recipe.js';
+export { offOf, keepOf, migratePins, inOrder, isLocal, localOf };
 
 function index(model){
   return {
@@ -87,7 +87,8 @@ const JR = {
 const std = (x, keys) => Object.fromEntries(keys.filter(k => x?.[k] !== undefined && x[k] !== null && x[k] !== '').map(k => [k, structuredClone(x[k])]));
 
 // The body is built even with ATS `problems`: a saved resume must record what it printed.
-export function resolve(model, recipe = null){
+// `local: false` leaves out the lines that exist only on this resume (the JSON Resume file).
+export function resolve(model, recipe = null, { local = true } = {}){
   const ix = index(model);
   const problems = [];
   const over = id => recipe?.overrides?.[id];
@@ -96,8 +97,9 @@ export function resolve(model, recipe = null){
 
   // bullets a picked -merged version covers never print, so they are dropped unreported
   function highlightsOf(w, only){
-    const ids = only ?? w.highlights;
-    for (const id of ids) if (!w.highlights.includes(id)) problems.push(`recipe asks ${w.id} for ${id}, which is not one of its highlights`);
+    const base = only ?? w.highlights;
+    for (const id of base) if (!w.highlights.includes(id)) problems.push(`recipe asks ${w.id} for ${id}, which is not one of its highlights`);
+    const ids = local ? withLocal(recipe, w.id, base) : base;
     const got = ids.map(id => [id, chooseVariant(model, id, recipe, ix)]);
     const covered = new Set();
     for (const [, { v }] of got) for (const c of v?.covers ?? []) covered.add(c);
@@ -112,7 +114,9 @@ export function resolve(model, recipe = null){
   }
 
   for (const [factId, text] of Object.entries(recipe?.overrides ?? {}))
-    problems.push(`recipe overrides ${factId} with one-off text ("${String(text).slice(0, 40)}…"): overrides have no source, so they cannot go to an ATS export`);
+    problems.push(isLocal(recipe, factId)
+      ? `recipe has a line that exists only on this resume ("${String(text).slice(0, 40)}…"): it has no source, so it is left out of an ATS export`
+      : `recipe overrides ${factId} with one-off text ("${String(text).slice(0, 40)}…"): overrides have no source, so they cannot go to an ATS export`);
 
   const workRefs = inOrder((recipe && recipe.sections?.find(s => s.id === 'experience')?.work) ?? (model.work ?? []).map(w => w.id), recipe?.sections?.find(s => s.id === 'experience')?.order)
     .map(r => (typeof r === 'string' ? { id: r } : r));
@@ -229,7 +233,7 @@ export function printedFacts(model, recipe = null){
   for (const ref of workRefs){
     const w = workById.get(ref.id);
     if (!w) continue;
-    const ids = ref.highlights ?? w.highlights;
+    const ids = withLocal(recipe, w.id, ref.highlights ?? w.highlights);
     const got = ids.map(id => [id, chooseVariant(model, id, recipe, ix).v]);
     const covered = new Set(got.flatMap(([, v]) => v?.covers ?? []));
     const hs = got.filter(([id, v]) => !covered.has(id) && (v || recipe?.overrides?.[id] !== undefined)).map(([id]) => ({ fact: id, text: textOf2(id) }));
@@ -302,7 +306,11 @@ const entriesIds = model => { const ids = (model.sections ?? []).filter(s => s.k
 export const sectionOfEntry = (model, id) => (model.sections ?? []).find(s => s.kind === 'entries' && (s.content?.work ?? []).includes(id))?.id ?? entriesId(model);
 
 // also finds projects and volunteering
-export const jobOfFact = (model, factId) => entriesOf(model).find(w => (w.highlights ?? []).includes(factId)) ?? null;
+// A line that exists only on this resume belongs to its job through `recipe`.
+export const jobOfFact = (model, factId, recipe = null) => {
+  const own = recipe && localJob(recipe, factId);
+  return entriesOf(model).find(w => own ? w.id === own : (w.highlights ?? []).includes(factId)) ?? null;
+};
 
 // A hand layout's page slots, else the section entry (made if missing).
 function workLists(model, recipe, make = true, sid = entriesId(model)){
@@ -363,10 +371,43 @@ export function jobRefs(model, recipe, sid = null){
     : [inOrder(entryOf(recipe, id)?.work ?? (entryOf(recipe, id) ? factIx(model).sections.get(id)?.content?.work ?? [] : []), entryOf(recipe, id)?.order)]).flat();
   return (sid ? [sid] : entriesIds(model)).flatMap(one);
 }
-export function listedBullets(model, recipe, jobId){
+const listedFacts = (model, recipe, jobId) => {
   const w = factIx(model).work.get(jobId);
-  if (!w) return [];
-  return jobRefs(model, recipe).filter(r => refId(r) === jobId).flatMap(r => highlightsOfRef(w, r));
+  return w ? jobRefs(model, recipe).filter(r => refId(r) === jobId).flatMap(r => highlightsOfRef(w, r)) : [];
+};
+// what prints, in order: the job's bullets and its local lines
+export const listedBullets = (model, recipe, jobId) => withLocal(recipe, jobId, listedFacts(model, recipe, jobId));
+// …with the local lines that are switched off kept in their places
+const fullOrder = (model, recipe, jobId) => withLocal(recipe, jobId, listedFacts(model, recipe, jobId), true);
+// A local line follows the one before it in `order`; the list is kept in print order so each anchor comes first.
+function reanchor(recipe, jobId, order){
+  const mine = localOf(recipe, jobId);
+  recipe.localLines = { ...recipe.localLines, [jobId]: order.filter(id => mine.some(l => l.id === id))
+    .map(id => ({ ...mine.find(l => l.id === id), after: order[order.indexOf(id) - 1] ?? null })) };
+}
+
+// A new empty line on this resume only, after `afterId` (a bullet or local line of the job; null: first).
+export function addLocalLine(model, recipe, jobId, afterId = null){
+  if (!factIx(model).work.has(jobId)) throw new Error(`no such job: ${jobId}`);
+  const used = localIds(recipe);
+  let n = 1; while (used.has(`~new-${n}`)) n++;
+  const id = `~new-${n}`, order = fullOrder(model, recipe, jobId), at = order.indexOf(afterId);
+  order.splice(afterId == null ? 0 : at < 0 ? order.length : at + 1, 0, id);
+  recipe.localLines = { ...recipe.localLines, [jobId]: [...localOf(recipe, jobId), { id, after: null, ...((recipe.lang ?? DEFAULT_LANG) !== DEFAULT_LANG ? { lang: recipe.lang } : {}) }] };
+  reanchor(recipe, jobId, order);
+  // empty, so the page has a line to write in; leaving it empty removes the line
+  recipe.overrides = { ...recipe.overrides, [id]: '' };
+  recipe.overrideMeta = { ...recipe.overrideMeta, [id]: { marks: [], base: null } };
+  return id;
+}
+export function removeLocalLine(recipe, id){
+  const job = localJob(recipe, id);
+  if (!job) return;
+  const rest = localOf(recipe, job).filter(l => l.id !== id).map(l => (l.after === id ? { ...l, after: localOf(recipe, job).find(x => x.id === id).after } : l));
+  recipe.localLines = Object.fromEntries(Object.entries({ ...recipe.localLines, [job]: rest }).filter(([, l]) => l.length));
+  if (!Object.keys(recipe.localLines).length) delete recipe.localLines;
+  dropOverride(recipe, id);
+  setList(recipe, 'off', id, false);
 }
 
 export function setJobOn(model, recipe, jobId, on){
@@ -390,8 +431,10 @@ export function setJobOn(model, recipe, jobId, on){
 }
 
 export function setBulletOn(model, recipe, factId, on){
-  const w = jobOfFact(model, factId);
+  const w = jobOfFact(model, factId, recipe);
   if (!w) throw new Error(`${factId} is not a bullet of any job`);
+  if (isLocal(recipe, factId)) return setList(recipe, 'off', factId, !on);
+  const order = on || !localOf(recipe, w.id).length ? null : fullOrder(model, recipe, w.id);
   const sid = sectionOfEntry(model, w.id);
   if (on && archivedIds(model).has(factId) && !listedBullets(model, recipe, w.id).includes(factId)) throw keyed('arch.needUnarchive');
   if (on && !jobRefs(model, recipe, sid).some(r => refId(r) === w.id)){
@@ -415,6 +458,7 @@ export function setBulletOn(model, recipe, factId, on){
     l[i] = tidyRef(w, { ...(typeof r === 'object' ? r : {}), id: w.id, highlights: hs });
   });
   setList(recipe, 'off', factId, !on);
+  if (order) reanchor(recipe, w.id, order.filter(x => x !== factId));   // its local lines stay where they were
   syncSections(model, recipe);
 }
 
@@ -431,7 +475,7 @@ export function setKeep(model, recipe, factId, on){
 // written from) go in recipe.overrideMeta; without them the call leaves the recipe's other keys alone.
 export function setOverride(recipe, factId, text, meta = null){
   recipe.overrides = { ...(recipe.overrides ?? {}) };
-  if (text == null || text === '') return dropOverride(recipe, factId);
+  if (text == null || text === '') return isLocal(recipe, factId) ? removeLocalLine(recipe, factId) : dropOverride(recipe, factId);   // a line only here, emptied, is gone
   recipe.overrides[factId] = String(text);
   if (!meta){ if (recipe.overrideMeta?.[factId]) recipe.overrideMeta = Object.fromEntries(Object.entries(recipe.overrideMeta).filter(([k]) => k !== factId)); return; }
   recipe.overrideMeta = { ...(recipe.overrideMeta ?? {}), [factId]: { marks: meta.marks ?? [], base: meta.base ?? recipe.overrideMeta?.[factId]?.base ?? null } };
@@ -612,24 +656,33 @@ export const sectionOfItem = (model, id) => (model.sections ?? []).find(s => (it
 // so a printed section is never an empty tab.
 // The order a job's bullets print in on this resume. beforeId null puts it last. A bullet that is off has no place.
 export function moveBullet(model, recipe, factId, beforeId = null){
-  const w = jobOfFact(model, factId);
+  const w = jobOfFact(model, factId, recipe);
   if (!w) throw new Error(`${factId} is not a bullet of any job`);
   const sid = sectionOfEntry(model, w.id);
+  const rest = fullOrder(model, recipe, w.id).filter(h => h !== factId);
+  const at = beforeId == null ? rest.length : rest.indexOf(beforeId);
+  const order = [...rest.slice(0, at < 0 ? rest.length : at), factId, ...rest.slice(at < 0 ? rest.length : at)];
   let done = false;
-  for (const l of workLists(model, recipe, true, sid)) l.forEach((r, i) => {
-    if (done || refId(r) !== w.id) return;
-    const hs = highlightsOfRef(w, r);
-    if (!hs.includes(factId)) return;
-    const rest = hs.filter(h => h !== factId);
-    const at = beforeId == null ? rest.length : rest.indexOf(beforeId);
-    rest.splice(at < 0 ? rest.length : at, 0, factId);
-    l[i] = tidyRef(w, { ...(typeof r === 'object' ? r : {}), id: w.id, highlights: rest });
-    done = true;
-  });
+  if (isLocal(recipe, factId)) done = listedBullets(model, recipe, w.id).includes(factId);
+  else {
+    // the stored list holds the record's bullets only: the one that follows it
+    const next = order.slice(order.indexOf(factId) + 1).find(h => !isLocal(recipe, h)) ?? null;
+    for (const l of workLists(model, recipe, true, sid)) l.forEach((r, i) => {
+      if (done || refId(r) !== w.id) return;
+      const hs = highlightsOfRef(w, r);
+      if (!hs.includes(factId)) return;
+      const rest = hs.filter(h => h !== factId);
+      const at = next == null ? rest.length : rest.indexOf(next);
+      rest.splice(at < 0 ? rest.length : at, 0, factId);
+      l[i] = tidyRef(w, { ...(typeof r === 'object' ? r : {}), id: w.id, highlights: rest });
+      done = true;
+    });
+  }
   if (!done) throw keyed('ux2.errBulletOff');
+  if (localOf(recipe, w.id).length) reanchor(recipe, w.id, order);
 }
 export function stepBullet(model, recipe, factId, dir){
-  const w = jobOfFact(model, factId);
+  const w = jobOfFact(model, factId, recipe);
   const ids = w ? listedBullets(model, recipe, w.id) : [];
   const i = ids.indexOf(factId), j = i + dir;
   if (i < 0 || j < 0 || j >= ids.length) return false;

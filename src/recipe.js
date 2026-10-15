@@ -54,3 +54,22 @@ export function migratePins(recipe){
   if (keep.length && r.keep === undefined) r.keep = keep;
   return r;
 }
+
+// A line that exists only on this resume: recipe.localLines = { [jobId]: [{ id, after, lang? }] }, its text in
+// `overrides` and its highlights in `overrideMeta`. `after` is the bullet or local line it follows (null: first).
+// A separate key, not the job's highlights, so an older app that does not know it just leaves the line out.
+export const localOf = (recipe, jobId) => recipe?.localLines?.[jobId] ?? [];
+export const localJob = (recipe, id) => Object.keys(recipe?.localLines ?? {}).find(j => recipe.localLines[j].some(l => l.id === id)) ?? null;
+export const localEntry = (recipe, id) => Object.values(recipe?.localLines ?? {}).flat().find(l => l.id === id) ?? null;
+export const isLocal = (recipe, id) => localJob(recipe, id) !== null;
+export const localIds = recipe => new Set(Object.values(recipe?.localLines ?? {}).flat().map(l => l.id));
+// A job's bullets with its local lines merged in at their places; those switched off print nowhere.
+// shortcut: a hand layout that splits one job over slots prints its local line in each slot that holds its anchor.
+export function withLocal(recipe, jobId, ids, keepOff = false){
+  const out = [...ids], here = localOf(recipe, jobId), off = new Set(offOf(recipe));
+  for (const { id, after } of here){
+    const k = after == null ? -1 : out.indexOf(after);
+    out.splice(after != null && k < 0 ? out.length : k + 1, 0, id);
+  }
+  return here.length && !keepOff ? out.filter(id => !(off.has(id) && here.some(l => l.id === id))) : out;
+}
