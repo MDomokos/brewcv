@@ -1302,7 +1302,7 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   const tl = await rect(page, '#checklist .rectl'), col = await rect(page, '#col');
   ok('it is as wide as the sidebar’s content, and the Record fills the window (until its own redesign)', tl.left >= col.left && tl.right <= col.right && Math.abs(col.left - 16) < 1 && Math.abs(col.right - (await page.evaluate(() => innerWidth - 16))) < 1, `${tl.left}-${tl.right} vs ${col.left}`);
   await page.click('#checklist .rectl .row:has-text("Prototyping Technician")'); await page.waitForTimeout(900);
-  ok('an entry in it scrolls the list to that job, and the tab stays', (await page.getAttribute('#body', 'data-view')) === 'record' && await page.evaluate(() => { const g = document.querySelector('#checklist .clg[data-g=poly]'), b = document.querySelector('#body'); const d = g.getBoundingClientRect().top - b.getBoundingClientRect().top; return d >= -2 && d < 120; }));
+  ok('an entry in it scrolls the list to that job, and the tab stays', (await page.getAttribute('#body', 'data-view')) === 'record' && await page.evaluate(() => { const g = document.querySelector('#checklist .clg[data-g=poly]'), b = document.querySelector('#body'); const d = g.getBoundingClientRect().top - b.getBoundingClientRect().top; return d >= -2 && (d < 120 || b.scrollTop + b.clientHeight >= b.scrollHeight - 2); }));      // or the list is already at its end: the taller body (no footer) cannot scroll further
   await page.evaluate(() => { document.querySelector('#body').scrollTop = 0; });
   await page.click('#checklist .rectl .srow:has-text("M.Eng.")'); await page.waitForTimeout(900);
   ok('the degree takes the list to Education', await page.evaluate(() => { const g = document.querySelector('#checklist .clg[data-g=education]'), b = document.querySelector('#body'); const d = g.getBoundingClientRect().top - b.getBoundingClientRect().top; return window.__wb.ui.view === 'record' && d >= -2 && d < 200; }));
@@ -2852,7 +2852,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
 
   // choosing: a state change, not another screen
   await page.click('[data-act=ob-example]'); await page.waitForTimeout(1500);
-  ok('“Try it with an example” turns the intro parts into the editor’s controls: the same column, now the editor’s name card, rail, panel and foot', !(await page.evaluate(() => document.body.classList.contains('is-intro'))) && await page.isVisible('#rail [role=tablist]') && await page.isVisible('#foot [data-act=fit]'));
+  ok('“Try it with an example” turns the intro parts into the editor’s controls: the same column, now the editor’s name card, rail and panel', !(await page.evaluate(() => document.body.classList.contains('is-intro'))) && await page.isVisible('#rail [role=tablist]') && await page.isVisible('#head [data-act=fit]'));
   ok('…the grey lines give way to the real page, which fades in where they were', (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'visible' && (await page.evaluate(() => getComputedStyle(document.querySelector('#startstage')).visibility)) === 'hidden' && /Okonkwo|Dana/.test(await frameDoc(page, d => d.body.textContent)));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
