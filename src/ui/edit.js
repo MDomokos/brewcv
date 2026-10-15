@@ -15,7 +15,7 @@ import { t, h, errText } from '../i18n/index.js';
 import { askIfLocked } from './ask.js';
 import { play } from './motion.js';
 import { icon } from './icons.js';
-import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, statsHtml, claimHead, moveButtonsHtml } from './parts.js';
+import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -24,7 +24,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, drag: null, focus: null, claimDrafts: new Map(), applyOpen: false, dragItem: null, dragBullet: null, dragJob: null };
+const E = { enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, focus: null, claimDrafts: new Map(), applyOpen: false };
 
 function commit(fn, label, done){
   try {
@@ -288,7 +288,7 @@ function skillsHtml(){
     <label class="field"><span class="lbl inline">${h('ux6c.startFrom')}</span><select id="sk-set" ${sets.length ? '' : 'disabled'}><option value="">${esc(arr.from ? t('ux6c.setNow', { name: jobTypeLabel(m, arr.from) }) : t('ux6c.setNone'))}</option>
       ${sets.map(n => `<option value="${esc(n)}">${esc(jobTypeLabel(m, n))}</option>`).join('')}</select></label>
     ${sets.length ? '' : `<p class="muted small">${h('ux6c.noSets')}</p>`}
-    ${arr.groups.map((g, i) => { const name = g.label ?? T.groupLabel(m, cur(), g.id) ?? ''; return `<div class="skgroup" data-g="${esc(g.id)}"><div class="skghead"><b>${esc(name || t('ux6c.newGroup'))}</b>${moveButtonsHtml('sk-up', 'sk-down', g.id, name, { first: i === 0, last: i === arr.groups.length - 1 })}</div>
+    ${arr.groups.map(g => { const name = g.label ?? T.groupLabel(m, cur(), g.id) ?? ''; return `<div class="skgroup" data-g="${esc(g.id)}"><div class="skghead"><b>${esc(name || t('ux6c.newGroup'))}</b></div>
       <div class="skchips">${g.items.map((x, k) => `<button class="skchip" draggable="true" data-g="${esc(g.id)}" data-k="${k}" title="${esc(t('ux6c.skillTip', { name: x }))}">${esc(x)}</button>`).join('')}</div></div>`; }).join('')}
     <div class="skfoot"><label class="field"><span class="lbl inline">${h('ux6c.saveFor')}</span><select id="sk-tag">${all.map(x => `<option value="${esc(x.tag)}" ${x.tag === tag ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select></label>
       <button class="sm" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button></div>
@@ -713,14 +713,12 @@ async function act(a, tg){
       commit(d => { const v = d.record.variants.find(x => x.id === vid); if (v) v.tags = (v.tags ?? []).filter(x => x !== tag); }, t('undo.removeTag'));
       return true;
     }
-    case 'sk-up': case 'sk-down': if (tg.getAttribute('aria-disabled') !== 'true') stepGroupBy(tg.dataset.id, a === 'sk-up' ? -1 : 1); return true;
     case 'sk-save': {
       const name = $('#sk-tag')?.value;
       if (!name) return true;
       commit(d => { const arr = T.arrangementOf(d.record, d.cur); T.saveSetForTag(d.record, name, arr, d.cur.lang ?? DEFAULT_LANG); T.setArrangement(d.cur, { ...arr, from: name }); }, t('ux6c.undoSaveSet'), t('ux6c.setSaved', { name: jobTypeLabel(rec(), name) }));
       return true;
     }
-    case 'sec-up': case 'sec-down': if (tg.getAttribute('aria-disabled') !== 'true') stepSectionBy(tg.dataset.id, a === 'sec-up' ? -1 : 1); return true;
     case 'order-reset': resetOrder(tg.dataset.kind, tg.dataset.id); return true;
     case 'label-reset': commit(d => T.setSectionLabel(d.record, d.cur, sel.id, lang(), null), t('undo.resetHeading')); return true;
     case 'lock-toggle': case 'row-lock': lockToggle(tg.dataset.id); return true;
@@ -806,137 +804,28 @@ function bind(body){
 
   body.addEventListener('dragstart', e => {
     const sk = e.target.closest?.('.skchip[draggable=true]');
-    if (sk){ E.dragSkill = { g: sk.dataset.g, k: Number(sk.dataset.k) }; sk.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', sk.textContent); return; }
-    const jb = e.target.closest?.('.clgh[data-job][draggable=true]');
-    if (jb){ E.dragJob = jb.dataset.job; jb.closest('.clg').classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', jb.dataset.job); return; }
-    const bu = e.target.closest?.('.clrow[data-bullet][draggable=true]');
-    if (bu){ E.dragBullet = { id: bu.dataset.bullet, job: bu.dataset.bjob }; bu.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', bu.dataset.bullet); return; }
-    const it = e.target.closest?.('.clrow[data-item][draggable=true]');
-    if (it){ E.dragItem = { id: it.dataset.item, sec: it.dataset.sec }; it.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', it.dataset.item); return; }
-    const r = e.target.closest?.('.srow[draggable=true], .offchip[draggable=true]');
-    if (!r) return;
-    E.drag = r.dataset.sid;
-    E.dragOff = r.classList.contains('offchip');
-    r.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', E.drag);
+    if (!sk) return;
+    E.dragSkill = { g: sk.dataset.g, k: Number(sk.dataset.k) }; sk.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', sk.textContent);
   });
   body.addEventListener('dragover', e => {
-    if (E.dragSkill){
-      const chip = e.target.closest?.('.skchip'), box = chip?.parentElement ?? e.target.closest?.('.skchips');
-      if (box){
-        e.preventDefault();
-        for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
-        if (chip){ const bb = chip.getBoundingClientRect(); chip.classList.add(e.clientX < bb.left + bb.width / 2 ? 'drop-above' : 'drop-below'); }
-      }
-      return;
-    }
-    if (E.dragJob){
-      const tj = e.target.closest?.('.clg:has(> .clgh[data-job])');
-      if (tj && tj.closest('.obody') === body.querySelector(`.clgh[data-job="${CSS.escape(E.dragJob)}"]`)?.closest('.obody')){
-        e.preventDefault();
-        for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
-        const bb = tj.getBoundingClientRect();
-        tj.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
-      }
-      return;
-    }
-    if (E.dragBullet){
-      const tb = e.target.closest?.('.clrow[data-bullet]');
-      if (tb && tb.dataset.bjob === E.dragBullet.job){
-        e.preventDefault();
-        for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
-        const bb = tb.getBoundingClientRect();
-        tb.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
-      }
-      return;
-    }
-    const tr0 = e.target.closest?.('.clrow[data-item]');
-    if (E.dragItem){
-      if (tr0 && tr0.dataset.sec === E.dragItem.sec){
-        e.preventDefault();
-        for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
-        const bb = tr0.getBoundingClientRect();
-        tr0.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
-      }
-      return;
-    }
-    const r = e.target.closest?.('.srow:not(.fixed)');
-    if (E.drag && E.dragOff && e.target.closest?.('#seclist')){ e.preventDefault(); if (!r) return; }
-    if (!r || !E.drag) return;
+    if (!E.dragSkill) return;
+    const chip = e.target.closest?.('.skchip'), box = chip?.parentElement ?? e.target.closest?.('.skchips');
+    if (!box) return;
     e.preventDefault();
     for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
-    const bb = r.getBoundingClientRect();
-    r.classList.add(e.clientY < bb.top + bb.height / 2 ? 'drop-above' : 'drop-below');
+    if (chip){ const bb = chip.getBoundingClientRect(); chip.classList.add(e.clientX < bb.left + bb.width / 2 ? 'drop-above' : 'drop-below'); }
   });
   body.addEventListener('drop', e => {
-    if (E.dragSkill){
-      const from = E.dragSkill, chip = e.target.closest?.('.skchip'), box = chip?.parentElement ?? e.target.closest?.('.skchips');
-      E.dragSkill = null;
-      if (!box) return;
-      e.preventDefault();
-      const to = box.closest('.skgroup').dataset.g, at = chip ? Number(chip.dataset.k) + (chip.classList.contains('drop-below') ? 1 : 0) : box.children.length;
-      moveSkillBy(from.g, from.k, to, to === from.g && at > from.k ? at - 1 : at);
-      return;
-    }
-    if (E.dragJob){
-      const from = E.dragJob, tj = e.target.closest?.('.clg:has(> .clgh[data-job])');
-      E.dragJob = null;
-      const to = tj?.dataset.g;
-      if (!to || to === from) return;
-      e.preventDefault();
-      const ids = [...tj.closest('.obody').querySelectorAll('.clgh[data-job]')].map(n => n.dataset.job).filter(x => x !== from);
-      const at = ids.indexOf(to) + (tj.classList.contains('drop-below') ? 1 : 0);
-      let r;
-      commit(d => { r = T.moveEntry(d.record, d.cur, from, ids[at] ?? null); }, tr('ux2.undoMoveItem'));
-      C.flash(T.sectionOfEntry(rec(), from));
-      if (r?.auto) C.toast(autoNote(r).trim());
-      return;
-    }
-    if (E.dragBullet){
-      const row = e.target.closest?.('.clrow[data-bullet]'), from = E.dragBullet;
-      E.dragBullet = null;
-      if (!row || row.dataset.bjob !== from.job || row.dataset.bullet === from.id) return;
-      e.preventDefault();
-      const below = row.classList.contains('drop-below');
-      const w = T.jobOfFact(rec(), from.id, cur());
-      const ids = (w ? T.listedBullets(rec(), cur(), w.id) : []).filter(x => x !== from.id);
-      const at = ids.indexOf(row.dataset.bullet) + (below ? 1 : 0);
-      commit(d => T.moveBullet(d.record, d.cur, from.id, ids[at] ?? null), tr('ux2.undoMoveItem'));
-      return;
-    }
-    if (E.dragItem){
-      const row = e.target.closest?.('.clrow[data-item]'), from = E.dragItem;
-      E.dragItem = null;
-      if (!row || row.dataset.sec !== from.sec || row.dataset.item === from.id) return;
-      e.preventDefault();
-      const below = row.classList.contains('drop-below');
-      const ids = (T.itemList(rec(), cur(), from.sec) ?? []).map(x => x.id).filter(x => x !== from.id);
-      const at = ids.indexOf(row.dataset.item) + (below ? 1 : 0);
-      commit(d => T.moveItem(d.record, d.cur, from.sec, from.id, ids[at] ?? null), tr('ux2.undoMoveItem'));
-      C.flash(from.sec);
-      return;
-    }
-    const r = e.target.closest?.('.srow:not(.fixed)');
-    const id = E.drag, fromOff = E.dragOff;
-    E.drag = null; E.dragOff = false;
-    if (!id) return;
-    // a section dragged up from "Not on this resume" turns on where it lands (last, when dropped on the list itself)
-    if (fromOff && !r && e.target.closest?.('#seclist')){ e.preventDefault(); setSection(id, true); return; }
-    if (!r) return;
+    if (!E.dragSkill) return;
+    const from = E.dragSkill, chip = e.target.closest?.('.skchip'), box = chip?.parentElement ?? e.target.closest?.('.skchips');
+    E.dragSkill = null;
+    if (!box) return;
     e.preventDefault();
-    const below = r.classList.contains('drop-below');
-    const ids = T.sectionList(rec(), cur()).filter(x => !x.fixed && x.on).map(x => x.id).filter(x => x !== id);
-    const at = ids.indexOf(r.dataset.sid) + (below ? 1 : 0);
-    const before = ids[at] ?? null;
-    if (r.dataset.sid === id) return;
-    let res;
-    commit(d => { if (fromOff) T.setSectionOn(d.record, d.cur, id, true); res = T.moveSection(d.record, d.cur, id, before); }, fromOff ? tr('undo.showSection') : tr('undo.moveSection'));
-    C.flash(id);
-    if (res?.auto) C.toast(autoNote(res).trim());
+    const to = box.closest('.skgroup').dataset.g, at = chip ? Number(chip.dataset.k) + (chip.classList.contains('drop-below') ? 1 : 0) : box.children.length;
+    moveSkillBy(from.g, from.k, to, to === from.g && at > from.k ? at - 1 : at);
   });
   body.addEventListener('dragend', () => {
-    E.drag = null; E.dragOff = false; E.dragItem = null; E.dragBullet = null; E.dragJob = null; E.dragSkill = null;
+    E.dragSkill = null;
     for (const n of body.querySelectorAll('.dragging, .drop-above, .drop-below')) n.classList.remove('dragging', 'drop-above', 'drop-below');
   });
 }
@@ -1005,7 +894,6 @@ function stepItemBy(id, d){
   if (moved) C.flash(sid);
   return moved;
 }
-const stepRow = (row, d) => (row.dataset.bullet ? stepBulletBy(row.dataset.bullet, d) : stepItemBy(row.dataset.item, d));
 
 // Alt+↑ / Alt+↓ move what has the focus or is selected: a bullet of a job, an item of a list section in its section's print
 // order, else the selected section
@@ -1066,10 +954,7 @@ function lockPass(){
     if (!by) continue;
     host.classList.add('is-locked'); if (by !== id) host.classList.add('is-inherited');
     host.draggable = false;
-    for (const el of host.querySelectorAll('input[type=checkbox], .clmv .ib')){
-      if (!el.matches('input')){ el.setAttribute('aria-disabled', 'true'); el.title = why; }
-      else if (el.checked || by !== id || el.dataset.on){ el.disabled = true; el.title = why; }      // a hidden locked block can be shown again
-    }
+    for (const el of host.querySelectorAll('input[type=checkbox]')) if (el.checked || by !== id || el.dataset.on){ el.disabled = true; el.title = why; }      // a hidden locked block can be shown again
   }
   // an unlocked block that holds a locked line cannot be hidden either
   for (const row of rec_ ? body.querySelectorAll('.clrow, .srow[data-sid], section.clg[data-g]') : []){
@@ -1112,7 +997,7 @@ function leaving(next){
 
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
-  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, fieldName, multiline,
+  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, fieldName, multiline,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){

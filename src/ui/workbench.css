@@ -266,7 +266,6 @@ body.is-ready .paper-skel { display: none; }
 /* the rows of the Outline: a padlock at the end of each; a locked row shows it, a row under a lock shows it inherited and greyed */
 .rowlock { position: relative; flex: none; display: inline-grid; place-items: center; width: 24px; height: 22px; margin-left: auto; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); opacity: .4; cursor: pointer; }
 .clgh > .rowlock { margin-left: 0; }
-.clrow > .rowlock, .srow > .rowlock { grid-column: 7; grid-row: 1; margin-left: 0; }      /* after the grip and the move buttons, on the row's own line */
 .clrow:hover > .rowlock, .srow:hover > .rowlock, .clgh:hover > .rowlock, .rowlock:focus-visible, .rowlock.is-locked { opacity: 1; }
 .rowlock::after { content: ''; position: absolute; inset: -1px 0; }      /* 24 px tall: it stays inside the row, so nothing spills */
 .rowlock:hover { background: var(--hover-strong); color: var(--ink); }
@@ -335,11 +334,7 @@ details.jr[open] > summary { margin-bottom: 4px; }
 .item.is-off .t { color: var(--ink-soft); }
 .item.row.is-off { opacity: 1; }
 .item.row.is-off .t { text-decoration: line-through; text-decoration-color: var(--line-strong); }
-.grip { color: var(--faint); cursor: grab; font-size: 13px; }
 .srow.fixed { background: var(--wash); }
-.srow.dragging { opacity: .4; }
-.srow.drop-above { box-shadow: inset 0 2px 0 var(--mark); }
-.srow.drop-below { box-shadow: inset 0 -2px 0 var(--mark); }
 .item .pill { font-size: 11px; font-weight: 700; border: 1px solid var(--line); background: transparent; padding: 0 7px; white-space: nowrap; }
 .pill.miss { color: var(--warn); border-color: var(--warn-line); }
 .kept { font-size: 12px; }
@@ -795,7 +790,6 @@ body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: 
 .item.srow .stext { display: grid; min-width: 0; }
 .item.srow { grid-template-columns: 12px minmax(0, 1fr) auto; }
 .notonline { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-.offchip { cursor: grab; }
 details.details > summary { cursor: pointer; font-size: 12.5px; font-weight: 650; }
 details.details .detacts { margin-top: 8px; }
 .detbox { margin: 6px 0; }
@@ -864,13 +858,6 @@ body.is-quiet .editlay { display: none; }
 body.is-quiet .ovlay { display: none; }
 .hrow.modes .seg { flex-wrap: nowrap; flex: none; }
 .hrow.modes .seg [role=tab] { padding: 4px 8px; white-space: nowrap; }
-.clrow[data-item] { cursor: grab; }
-.clrow.dragging { opacity: .4; }
-.clrow.drop-above { box-shadow: inset 0 2px 0 var(--mark); }
-.clrow.drop-below { box-shadow: inset 0 -2px 0 var(--mark); }
-.clg.drop-above { box-shadow: inset 0 2px 0 var(--mark); }
-.clg.drop-below { box-shadow: inset 0 -2px 0 var(--mark); }
-.clg.dragging { opacity: .4; }
 
 /* ===== M11a: what both drinks share ===== */
 /* Type. F11 rule 5: helper text 13px, uppercase labels 12px; a label is in the label face (mono) in both drinks. */
@@ -998,20 +985,10 @@ body[data-phone=true] .rectl .yrow { display: block; }
 /* ===== UX-5b: reordering, visible ===== */
 /* the grip is always there on a row that moves; ↑ ↓ show while the row is hovered, focused or selected (they stay tabbable) */
 .clrow { position: relative; }
-.clrow[draggable] { grid-template-columns: 18px minmax(0, 1fr) auto auto auto; }
-.clgrip { grid-column: 5; grid-row: 1; display: grid; place-items: center; width: 24px; height: 24px; color: var(--faint); cursor: grab; }
-.clmv { display: flex; opacity: 0; pointer-events: none; }
-.clrow .clmv { grid-column: 4; grid-row: 1; }
-.clgh:hover .clmv, .clgh:focus-within .clmv, .clrow:hover .clmv, .clrow:focus-within .clmv, .clrow.is-sel .clmv, .srow:hover .clmv, .srow:focus-within .clmv, .srow.is-sel .clmv { opacity: 1; pointer-events: auto; }
-.clmv .ib { width: 24px; height: 24px; }
-.clmv .ib[aria-disabled=true] { opacity: .4; cursor: default; }
-.item.srow { grid-template-columns: 24px minmax(0, 1fr) auto auto; }
-.item.srow .grip { display: grid; place-items: center; width: 24px; height: 24px; margin-left: -6px; }
 .ordhead { display: flex; align-items: center; gap: 8px; }
 .ordhead .lbl { flex: 1; }
 .pill.custom { flex: none; }
 .clgh .pill.custom, .clsubh .pill.custom { margin-left: 6px; }
-@media (hover: none) { .clmv { opacity: 1; pointer-events: auto; } }
 
 /* ===== UX-5c, UX-6b: the floating panel =====
    The page is centred in the room left of the rail and the sidebar (layout.js). The sidebar is 340px (316 under 1400px windows), in three parts:
@@ -1244,7 +1221,6 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .skarr { margin: 6px 0 4px; }
 .skgroup { margin: 8px 0 0; }
 .skghead { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12.5px; }
-.skghead:hover .clmv, .skghead:focus-within .clmv { opacity: 1; pointer-events: auto; }
 .skchips { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 0; }
 .skchip { padding: 2px 9px; font-size: 12px; line-height: 1.4; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-pill); cursor: grab; }
 .skchip.dragging { opacity: .5; }

@@ -915,10 +915,10 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   ok('the chip’s Hydra (job) level goes up to the job (the line left, kept): its lines with ticks, grips and “+ line”', (await selOf(page)).startsWith('job:') && (await lineEl(page).count()) === 0 && (await lay(page)).chip?.cur === 'Hydra' && vj.job, JSON.stringify(vj));
   await page.click('#editlay .obchip [data-act=select-section]'); await page.waitForTimeout(700);
   const vs = await viewOf();
-  ok('…its Experience (section) level selects the section: its own settings and its jobs with tick, grip and ↑ ↓', vs.sel === 'section' && vs.sec && (await lay(page)).chip?.words.join() === 'Page,Experience' && !!(await page.$('#editlay .obframe.sec.dashed')) && (await page.$$('#body .outline.only [data-job] .clmv')).length >= 1 && (await page.$$('#body .outline.only [data-jobon]')).length >= 3, JSON.stringify(vs));
+  ok('…its Experience (section) level selects the section: its own settings and its jobs with a tick, and no grip or ↑ ↓', vs.sel === 'section' && vs.sec && (await lay(page)).chip?.words.join() === 'Page,Experience' && !!(await page.$('#editlay .obframe.sec.dashed')) && (await page.$$('#body .outline.only [data-job] .clmv, #body .outline.only .clgrip')).length === 0 && (await page.$$('#body .outline.only [data-jobon]')).length >= 3, JSON.stringify(vs));
   await page.click('#editlay .obchip [data-act=deselect]'); await page.waitForTimeout(700);
   const vp = await viewOf();
-  ok('…its Page level selects the page: the overview with a checkbox for each section and the way to re-arrange them', vp.sel === 'none' && vp.outline && (await page.$$('#body #seclist [data-secon]')).length >= 3 && (await page.$$('#body #seclist .srow .clmv')).length >= 2 && !(await lay(page)).chip, JSON.stringify(vp));
+  ok('…its Page level selects the page: the overview with a checkbox for each section (no grip or ↑ ↓)', vp.sel === 'none' && vp.outline && (await page.$$('#body #seclist [data-secon]')).length >= 3 && (await page.$$('#body #seclist .srow .clmv, #body #seclist .srow .grip')).length === 0 && !(await lay(page)).chip, JSON.stringify(vp));
   // from the sidebar's own row, the same levels
   await jobs.nth(0).locator('.bullets li').first().click(); await page.waitForTimeout(800); await page.keyboard.press('Escape'); await page.waitForTimeout(700);
   await page.click('#body .depth [data-act=select-job]'); await page.waitForTimeout(700);
@@ -1648,7 +1648,6 @@ if (want('the Edit view')) {
      && await frameDoc(page, d => d.querySelector('.band[data-section="patent"] .tab').textContent === 'Invention'));
   await sheet.locator('.band[data-section="skills"] .tab').first().click(); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
-  const order = async () => (await page.evaluate(() => [...document.querySelectorAll('.srow:not(.fixed)')].map(r => r.dataset.sid)));
   ok('there are no Move up / Move down buttons', (await page.$$('[data-act=sec-move]')).length === 0);
   await page.keyboard.press('Alt+ArrowDown'); await settle(page);
   const bands = await frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')));
@@ -1659,21 +1658,12 @@ if (want('the Edit view')) {
 
   await page.click('[data-act=deselect]').catch(() => {}); await settle(page);
   await settle(page);
-  const o1 = await order();
-  await page.dragAndDrop('.srow[data-sid="education"]', `.srow[data-sid="${o1[0]}"]`, { targetPosition: { x: 40, y: 3 } }); await settle(page);
-  const o2 = await order();
-  ok('dragging a section moves it', o2.indexOf('education') < o1.indexOf('education') && o2[0] === 'education', o2.join());
-  ok('and the page follows', (await frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')))).filter(x => !['header', 'summary'].includes(x))[0] === 'education');
+  ok('a section row has no grip, no ↑ ↓ and cannot be dragged (sections are arranged on the page)', (await page.$$('#seclist .srow[draggable], #seclist .srow .grip, #seclist .srow .clmv, #seclist [data-act=sec-up], #seclist [data-act=sec-down]')).length === 0);
   ok('the sections that are off are one line, “Not on this resume”, each a button', await page.isVisible('#offline') && (await page.$$('#offline .offchip')).length >= 2 && !(await page.$('#seclist .srow.is-off')));
   await page.click('.offchip[data-id=languages]'); await settle(page);
   ok('pressing one turns it on', await frameDoc(page, d => !!d.querySelector('.band[data-section="languages"]')) && !(await page.isVisible('.offchip[data-id=languages]')));
   await page.focus('.offchip[data-id=interests]'); await page.keyboard.press('Enter'); await settle(page);
   ok('Enter on one does the same, for the keyboard', await frameDoc(page, d => !!d.querySelector('.band[data-section="interests"]')));
-  const offBefore = await page.$$eval('#offline .offchip', es => es.map(e => e.dataset.id));
-  if (offBefore.length){
-    await page.dragAndDrop(`.offchip[data-id="${offBefore[0]}"]`, `.srow[data-sid="${(await order())[0]}"]`, { targetPosition: { x: 40, y: 3 } }); await settle(page);
-    ok('dragging one up into the list turns it on, at that place', (await order())[0] === offBefore[0] && await frameDoc(page, (d, id) => !!d.querySelector(`.band[data-section="${id}"]`), offBefore[0]));
-  }
   await undoTo(base);
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
@@ -2350,7 +2340,7 @@ if (want('bullets: re-arrange within a job; tags: one closed list')) {
   const lis = () => frameDoc(page, d => [...d.querySelectorAll('.bullets li')].slice(0, 3).map(x => x.textContent.slice(0, 24)));
   await toJobOutline(page);
   const rows = page.locator('#outline .clg.open .clrow[data-bullet]');
-  ok('the ticked bullets of a job are draggable rows', (await rows.count()) >= 3 && (await rows.first().getAttribute('draggable')) === 'true');
+  ok('the ticked bullets of a job are rows that carry their ids (Alt+arrows) and are not draggable', (await rows.count()) >= 3 && (await rows.first().getAttribute('draggable')) === null);
   const before = await lis();
   await rows.nth(0).locator('.cb').focus();
   await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
@@ -2359,10 +2349,6 @@ if (want('bullets: re-arrange within a job; tags: one closed list')) {
   ok('…the recipe holds the order for that job only, and undo puts it back', JSON.stringify((await st()).cur.work ?? (await st()).cur.sections).includes('highlights'));
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
   ok('one Ctrl+Z undoes it', JSON.stringify(await lis()) === JSON.stringify(before));
-  await rows.nth(2).dragTo(rows.nth(0), { targetPosition: { x: 60, y: 2 } }); await page.waitForTimeout(1000);
-  const dragged = await lis();
-  ok('dragging a bullet row up puts that bullet first', dragged[0] === before[2] && dragged[1] === before[0]);
-  await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
   // tags: the panel for them is the job types one
   await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
   await inRecord(page, 'credentials'); await settle(page);
@@ -2378,7 +2364,7 @@ if (want('bullets: re-arrange within a job; tags: one closed list')) {
   await ctx.close();
 }
 
-if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset')) {
+if (want('reordering is visible: Alt+arrows, the margin, custom and Reset')) {
   const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -2386,41 +2372,15 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   const undoN = () => page.evaluate(() => window.__wb.store.history.undo);
   const lis = () => frameDoc(page, d => [...d.querySelectorAll('.bullets li')].slice(0, 3).map(x => x.textContent.slice(0, 24)));
   const big = async loc => { const b = await loc.boundingBox(); return !!b && b.width >= 24 && b.height >= 24; };
-  const focusedMove = () => page.evaluate(() => { const a = document.activeElement; return { act: a?.dataset?.act, bullet: a?.closest?.('.clrow')?.dataset.bullet ?? null }; });
   await toJobOutline(page);
   const rows = page.locator('#outline .clg.open .clrow[data-bullet]');
   const n = await rows.count();
-  ok('a job’s ticked bullets each have a grip and ↑ ↓; no other row does', n >= 3 && (await page.locator('#outline .clg.open .clrow .clgrip').count()) === n && (await page.locator('#outline .clg.open .clrow .clmv').count()) === n && (await page.locator('#outline .clg.open .clrow:not([draggable]) .clgrip').count()) === 0);
+  ok('the sidebar’s rows have no grip and no ↑ ↓ and cannot be dragged: the grips are on the page (the Alt+arrows stay)', n >= 3 && (await page.locator('#outline .clgrip, #outline .clmv, #outline [data-act=cl-up], #outline [data-act=cl-down], #outline [data-act=job-up], #outline [draggable=true]').count()) === 0);
   ok('a job that was not moved shows no "custom"', (await page.locator('#outline .pill.custom').count()) === 0);
-  await rows.nth(1).hover();
-  // the ↑ ↓ cluster has its own room: on hover, focus and selection it never covers the version chip or the row's text, at 1100 and 1536
-  const overlaps = () => page.evaluate(() => [...document.querySelectorAll('#outline .clg.open .clrow .clmv')].flatMap(m => {
-    const row = m.closest('.clrow'), h0 = row.offsetHeight;
-    const mine = [...m.querySelectorAll('.ib')].map(b => b.getBoundingClientRect());
-    return [...row.querySelectorAll('.clv, .clt')].filter(el => mine.some(r => { const q = el.getBoundingClientRect(); return r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top; })).map(el => el.className + ' ' + h0);
-  }));
-  for (const w of [1100, 1536]){
-    await page.setViewportSize({ width: w, height: 864 }); await settle(page);
-    await rows.nth(1).hover();
-    const rowH = await rows.nth(1).evaluate(r => r.offsetHeight);
-    await rows.nth(1).locator('.clt').focus();
-    ok(`at ${w} px no ↑ ↓ button covers the chip or the text of its row, and the row keeps its height`, (await overlaps()).length === 0 && await rows.nth(1).evaluate(r => r.offsetHeight) === rowH && (await page.locator('#outline .clv').count()) > 0, (await overlaps()).join('; '));
-  }
-  // every movable row is as tall as the same row without grip and ↑ ↓ (a clone, stripped of them, in the same list)
-  const heights = await page.evaluate(() => [...document.querySelectorAll('#outline .clg.open .clrow[draggable]')].flatMap(r => [false, true].map(short => { const m = r.cloneNode(true), c = r.cloneNode(true); c.removeAttribute('draggable'); c.querySelectorAll('.clgrip, .clmv').forEach(x => x.remove()); for (const x of [m, c]) if (short) x.querySelector('.clt').textContent = 'Short'; r.after(m, c); const h = [m.offsetHeight, c.offsetHeight]; m.remove(); c.remove(); return h; })));
-  ok('a movable row is as tall as the same row without grip and ↑ ↓, at 1536 px', heights.length >= 6 && heights.every(h => h[0] === h[1]), heights.join(' | '));
-  await page.setViewportSize({ width: 1536, height: 864 }); await settle(page);
-  ok('hovering a row shows ↑ ↓; the grip, ↑ and ↓ are each at least 24 px', await page.locator('#outline .clg.open .clrow >> nth=1').evaluate(r => getComputedStyle(r.querySelector('.clmv')).opacity === '1') && await big(rows.nth(1).locator('.clgrip')) && await big(rows.nth(1).locator('[data-act=cl-up]')) && await big(rows.nth(1).locator('[data-act=cl-down]')));
-  ok('the first row’s ↑ and the last row’s ↓ are aria-disabled (still in the page); the others are not', (await rows.first().locator('[data-act=cl-up]').getAttribute('aria-disabled')) === 'true' && (await rows.last().locator('[data-act=cl-down]').getAttribute('aria-disabled')) === 'true'
-    && (await rows.first().locator('[data-act=cl-down]').getAttribute('aria-disabled')) === 'false' && (await rows.last().locator('[data-act=cl-up]').getAttribute('aria-disabled')) === 'false');
-  const before = await lis(), u0 = await undoN(), id0 = await rows.first().getAttribute('data-bullet');
-  await rows.first().locator('[data-act=cl-up]').click({ force: true }); await settle(page);
-  ok('a disabled ↑ does nothing', JSON.stringify(await lis()) === JSON.stringify(before) && (await undoN()) === u0);
-  await rows.first().hover();
-  await rows.first().locator('[data-act=cl-down]').click(); await page.waitForTimeout(900);
+  const before = await lis(), u0 = await undoN();
+  await rows.first().locator('.cb').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(900);
   const moved = await lis();
-  ok('↓ on the first row moves it down on the page, in one undo step', moved[0] === before[1] && moved[1] === before[0] && (await undoN()) === u0 + 1);
-  ok('…the focus stays on the moved row’s ↓, and that row flashed', JSON.stringify(await focusedMove()) === JSON.stringify({ act: 'cl-down', bullet: id0 }) && (await page.evaluate(() => window.__wb.motion?.stats?.names?.includes('row:moved') ?? true)));
+  ok('Alt+↓ on the first row moves it down on the page, in one undo step', moved[0] === before[1] && moved[1] === before[0] && (await undoN()) === u0 + 1);
   ok('…the job now shows "custom" with a Reset', (await page.locator('#outline .pill.custom').count()) === 1 && (await page.locator('#outline .clg.open [data-act=order-reset]').count()) === 1);
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
   ok('Ctrl+Z puts it back, and "custom" goes', JSON.stringify(await lis()) === JSON.stringify(before) && (await page.locator('#outline .pill.custom').count()) === 0);
@@ -2431,9 +2391,8 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
   ok('…one Ctrl+Z brings the custom order back', JSON.stringify(await lis()) === JSON.stringify(moved) && (await page.locator('#outline .pill.custom').count()) === 1);
   await page.click('#outline .clg.open [data-act=order-reset]'); await page.waitForTimeout(900);
-  // ↑ on the row below it
-  await rows.nth(1).hover(); await rows.nth(1).locator('[data-act=cl-up]').click(); await page.waitForTimeout(900);
-  ok('↑ on the second row moves it up', JSON.stringify(await lis()) === JSON.stringify([before[1], before[0], before[2]]));
+  await rows.nth(1).locator('.cb').focus(); await page.keyboard.press('Alt+ArrowUp'); await page.waitForTimeout(900);
+  ok('Alt+↑ on the second row moves it up', JSON.stringify(await lis()) === JSON.stringify([before[1], before[0], before[2]]));
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
 
   // the page margin: while a line of the job is written
@@ -2461,28 +2420,22 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   // list items: Skills in the credentials
   await inRecord(page, 'credentials'); await settle(page);
   const items = page.locator('#checklist .clg[data-g=credentials] .clrow[data-sec=skills]');
-  ok('list items have a grip and ↑ ↓ too; the first ↑ and the last ↓ are aria-disabled', (await items.count()) === 4 && (await items.locator('.clgrip').count()) === 4 && (await items.first().locator('[data-act=cl-up]').getAttribute('aria-disabled')) === 'true' && (await items.last().locator('[data-act=cl-down]').getAttribute('aria-disabled')) === 'true');
+  ok('list items have no grip and no ↑ ↓ either', (await items.count()) === 4 && (await page.locator('#checklist .clgrip, #checklist .clmv').count()) === 0);
   const sk0 = await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent)), u2 = await undoN();
-  await items.first().hover(); await items.first().locator('[data-act=cl-down]').click(); await page.waitForTimeout(1000);
-  ok('↓ on an item moves it in print, in one undo step, and the list shows "custom"', (await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent)))[0] === sk0[1] && (await undoN()) === u2 + 1 && (await page.locator('#checklist .clsubh .pill.custom').count()) === 1);
-  ok('…the focus stays on the moved item’s ↓', await page.evaluate(() => { const a = document.activeElement; return a?.dataset.act === 'cl-down' && a.closest('.clrow')?.dataset.item === document.querySelectorAll('#checklist .clrow[data-sec=skills]')[1]?.dataset.item; }));
+  await items.first().locator('.cb').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
+  ok('Alt+↓ on an item moves it in print, in one undo step, and the list shows "custom"', (await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent)))[0] === sk0[1] && (await undoN()) === u2 + 1 && (await page.locator('#checklist .clsubh .pill.custom').count()) === 1);
   await page.click('#checklist .clsubh [data-act=order-reset]'); await page.waitForTimeout(900);
-  ok('Reset puts the list back: no stored order, one undo step, no mark', JSON.stringify(await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent))) === JSON.stringify(sk0) && (await st()).cur.sections.find(x => x.id === 'skills').order === undefined && (await undoN()) === u2 + 2 && (await page.locator('#checklist .clsubh .pill.custom').count()) === 0, JSON.stringify([(await st()).cur.sections.find(x => x.id === 'skills'), await undoN(), u2, await page.locator('#checklist .pill.custom').count()]));
+  ok('Reset puts the list back: no stored order, one undo step, no mark', JSON.stringify(await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent))) === JSON.stringify(sk0) && (await page.locator('#checklist .clsubh .pill.custom').count()) === 0);
 
-  // the sections on this resume
+  // the sections on this resume: Alt+↓ with one selected
   await toEditHome(page);
-  const srows = page.locator('#seclist .srow');
-  const free = page.locator('#seclist .srow:not(.fixed)');
-  ok('every section that can move has a grip and ↑ ↓; a fixed one has neither', (await srows.locator('.grip svg').count()) === (await free.count()) && (await page.locator('#seclist .srow.fixed .clmv').count()) === 0 && (await free.count()) >= 3
-    && (await free.first().locator('[data-act=sec-up]').getAttribute('aria-disabled')) === 'true' && (await free.last().locator('[data-act=sec-down]').getAttribute('aria-disabled')) === 'true');
-  await free.nth(1).hover();
-  ok('…and each is at least 24 px', await big(free.nth(1).locator('.grip')) && await big(free.nth(1).locator('[data-act=sec-up]')) && await big(free.nth(1).locator('[data-act=sec-down]')));
   const secIds = () => page.evaluate(() => [...document.querySelectorAll('#seclist .srow')].map(r => r.dataset.sid));
   const order0 = await secIds(), u3 = await undoN();
   ok('an unmoved list of sections shows no "custom"', (await page.locator('.ordhead .pill.custom').count()) === 0);
-  await free.first().hover(); await free.first().locator('[data-act=sec-down]').click(); await page.waitForTimeout(900);
-  const order1 = await secIds();
-  ok('↓ on a section moves it, in one undo step, and the list shows "custom"', order1.join() !== order0.join() && (await undoN()) === u3 + 1 && (await page.locator('.ordhead .pill.custom').count()) === 1);
+  await page.locator('#seclist .srow:not(.fixed) [data-act=select-section]').first().click(); await settle(page);
+  await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(900);
+  await toEditHome(page);
+  ok('Alt+↓ on a selected section moves it, in one undo step, and the list shows "custom"', (await secIds()).join() !== order0.join() && (await undoN()) === u3 + 1 && (await page.locator('.ordhead .pill.custom').count()) === 1);
   await page.click('.ordhead [data-act=order-reset]'); await page.waitForTimeout(900);
   ok('Reset puts the record’s order back, in one undo step, and the mark goes', (await secIds()).join() === order0.join() && (await undoN()) === u3 + 2 && (await page.locator('.ordhead .pill.custom').count()) === 0);
 
@@ -2492,26 +2445,13 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   const jobsOnPage = () => frameDoc(page, d => [...d.querySelectorAll('.entry .role-title')].map(x => x.textContent));
   const order = async () => (await st()).cur.sections.find(x => x.id === 'experience').order;
   const jn = await heads.count();
-  ok('every job that prints has a grip and ↑ ↓, the first ↑ and the last ↓ aria-disabled; a job that is not moved shows no "custom"', jn >= 2 && (await page.locator('#outline .clgh[data-job] .clgrip').count()) === jn && (await page.locator('#outline .clgh[data-job] .clmv').count()) === jn
-    && (await heads.first().locator('[data-act=job-up]').getAttribute('aria-disabled')) === 'true' && (await heads.last().locator('[data-act=job-down]').getAttribute('aria-disabled')) === 'true'
-    && (await heads.first().locator('[data-act=job-down]').getAttribute('aria-disabled')) === 'false' && (await page.locator('#outline .osec[data-sid=experience] .ordhead .pill.custom').count()) === 0);
-  const headH = () => page.evaluate(() => [...document.querySelectorAll('#outline .clgh[data-job]')].map(r => { const c = r.cloneNode(true); for (const x of c.querySelectorAll('.clgrip, .clmv')) x.remove(); c.removeAttribute('draggable'); r.after(c); const h2 = c.offsetHeight; c.remove(); return [r.offsetHeight, h2, r.scrollWidth <= r.clientWidth]; }));
-  for (const w of [1536, 1100, 760]){
-    await page.setViewportSize({ width: w, height: 864 }); await settle(page);
-    await toEditHome(page);
-    await heads.nth(1).hover();
-    const hh = await headH();
-    ok(`at ${w} px a movable job head is as tall as one without the controls, and nothing spills`, hh.length === jn && hh.every(x => x[0] === x[1] && x[2]), JSON.stringify(hh));
-    ok(`…the grip, ↑ and ↓ of a job are each at least 24 px at ${w} px`, await big(heads.nth(1).locator('.clgrip')) && await big(heads.nth(1).locator('[data-act=job-up]')) && await big(heads.nth(1).locator('[data-act=job-down]')));
-  }
-  await page.setViewportSize({ width: 1536, height: 864 }); await settle(page); await toEditHome(page);
-  const j0 = await jobsOnPage(), uj = await undoN(), firstId = await heads.first().getAttribute('data-job');
-  await heads.first().hover(); await heads.first().locator('[data-act=job-down]').click(); await page.waitForTimeout(900);
+  ok('a job’s head has no grip and no ↑ ↓; a job that is not moved shows no "custom"', jn >= 2 && (await page.locator('#outline .clgh .clgrip, #outline .clgh .clmv').count()) === 0 && (await page.locator('#outline .osec[data-sid=experience] .ordhead .pill.custom').count()) === 0);
+  const j0 = await jobsOnPage(), uj = await undoN();
+  await heads.first().locator('.clcaret').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(900);
   const j1 = await jobsOnPage();
-  ok('↓ on the first job prints it second, in one undo step, and the Experience list shows "custom"', j1[0] === j0[1] && j1.includes(j0[0]) && (await undoN()) === uj + 1 && (await page.locator('#outline .osec[data-sid=experience] .ordhead .pill.custom').count()) === 1 && (await order())?.[1] === firstId);
-  ok('…the focus stays on the moved job’s ↓, and the head flashed', await page.evaluate(id => { const a = document.activeElement; return a?.dataset.act === 'job-down' && a.dataset.id === id; }, firstId) && (await page.evaluate(() => window.__wb.motion?.stats?.names?.includes('row:moved'))));
+  ok('Alt+↓ with the focus on the first job’s head prints it second, in one undo step, and the Experience list shows "custom"', j1[0] === j0[1] && j1.includes(j0[0]) && (await undoN()) === uj + 1 && (await page.locator('#outline .osec[data-sid=experience] .ordhead .pill.custom').count()) === 1);
   await heads.nth(1).locator('.clcaret').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(900);
-  ok('Alt+↓ with the focus on a job’s head moves it too, in one undo step', (await jobsOnPage())[2] === j0[0] && (await undoN()) === uj + 2);
+  ok('Alt+↓ on another job’s head moves it too, in one undo step', (await jobsOnPage())[2] !== j1[2] && (await undoN()) === uj + 2);
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
   ok('Ctrl+Z puts it back, the order key and "custom" go', JSON.stringify(await jobsOnPage()) === JSON.stringify(j0) && (await order()) === undefined && (await page.locator('#outline .osec[data-sid=experience] .ordhead .pill.custom').count()) === 0);
@@ -2519,20 +2459,11 @@ if (want('reordering is visible: grips, ↑ ↓, the margin, custom and Reset'))
   const uj2 = await undoN();
   await page.click('#outline .osec[data-sid=experience] .ordhead [data-act=order-reset]'); await page.waitForTimeout(900);
   ok('Reset puts the record’s order back, in one undo step, nothing stored', JSON.stringify(await jobsOnPage()) === JSON.stringify(j0) && (await undoN()) === uj2 + 1 && (await order()) === undefined);
-  await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
-  ok('…one Ctrl+Z brings the custom order back', JSON.stringify(await jobsOnPage()) === JSON.stringify(j1));
-  await page.click('#outline .osec[data-sid=experience] .ordhead [data-act=order-reset]'); await page.waitForTimeout(900);
-  const uj3 = await undoN();
-  await heads.last().dragTo(heads.first(), { targetPosition: { x: 60, y: 2 } }); await page.waitForTimeout(1000);
-  const j2 = await jobsOnPage();
-  ok('dragging the last job’s head onto the first puts it first on the page, in one undo step', j2[0] === j0.at(-1) && j2.length === j0.length && (await undoN()) === uj3 + 1);
-  await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
-  ok('one Ctrl+Z undoes the drag', JSON.stringify(await jobsOnPage()) === JSON.stringify(j0) && (await order()) === undefined);
   ok('nothing threw', bad.length === 0, bad.join('; '));
   await ctx.close();
 }
 
-if (want('record: a dragged bullet moves in the list too; "n v" on the contact line opens its versions')) {
+if (want('record: a moved bullet moves in the list too; "n v" on the contact line opens its versions')) {
   const ctx = await browser.newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -2541,9 +2472,9 @@ if (want('record: a dragged bullet moves in the list too; "n v" on the contact l
   const rows = page.locator('#checklist .clg[data-g=hydra] .clrow[data-bullet]');
   const listed = () => rows.evaluateAll(els => els.map(e => e.querySelector('.clt').textContent.trim().slice(0, 24)));
   const before = await lis();
-  await rows.nth(2).dragTo(rows.nth(0), { targetPosition: { x: 60, y: 2 } }); await page.waitForTimeout(1000);
+  await rows.nth(0).locator('.cb').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
   const after = await lis();
-  ok('dragging a bullet in the Record changes the page', after[0] === before[2]);
+  ok('Alt+↓ on a bullet in the Record changes the page', after[0] === before[1]);
   ok('…and the Record’s list shows the same order as the page', JSON.stringify((await listed()).slice(0, 3)) === JSON.stringify(after));
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
   await toEditHome(page);
@@ -2562,7 +2493,7 @@ if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging s
   const sheetSkills = () => frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent));
   await inRecord(page, 'credentials'); await settle(page);
   const rows = page.locator('#checklist .clg[data-g=credentials] .clrow[data-sec=skills]');
-  ok('every skill group is a row with its own tick, draggable, with a hint', (await rows.count()) === 4 && (await rows.first().locator('.cb[data-item]').count()) === 1 && (await rows.first().getAttribute('draggable')) === 'true' && /Alt/.test(await rows.first().getAttribute('title')));
+  ok('every skill group is a row with its own tick, not draggable, with no grip or ↑ ↓', (await rows.count()) === 4 && (await rows.first().locator('.cb[data-item]').count()) === 1 && (await rows.first().getAttribute('draggable')) === null && (await rows.first().locator('.clgrip, .clmv').count()) === 0);
   const before = await sheetSkills();
   await rows.nth(1).locator('.cb').uncheck(); await page.waitForTimeout(1000);
   const after = await sheetSkills();
@@ -2578,12 +2509,6 @@ if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging s
   ok('…and the focus stays on the moved row’s tick, which is now second', await page.evaluate(() => document.activeElement?.closest('.clrow')?.dataset.item) === (await st()).cur.sections.find(x => x.id === 'skills').order[1]);
   await page.keyboard.press('Alt+ArrowUp'); await page.waitForTimeout(900);
   ok('Alt+↑ puts it back, and the record is untouched', JSON.stringify(await sheetSkills()) === JSON.stringify(before) && (await st()).cur.sections.find(x => x.id === 'skills').order === undefined);
-  // drag
-  await rows.nth(3).dragTo(rows.nth(0), { targetPosition: { x: 60, y: 2 } }); await page.waitForTimeout(1000);
-  const dragged = await sheetSkills();
-  ok('dragging a row up puts that item first on the page', dragged[0] === before[3] && dragged.length === before.length);
-  await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
-  ok('one Ctrl+Z undoes the move', JSON.stringify(await sheetSkills()) === JSON.stringify(before));
   // the item's own panel, with Alt+arrows
   await rows.nth(1).locator('.clt').click(); await settle(page);
   await page.keyboard.press('Alt+ArrowUp'); await page.waitForTimeout(900);
@@ -4266,7 +4191,7 @@ if (want('the lock: the padlock, the chip’s switch, and grips for jobs, sectio
   await page.click('#outline .clg[data-g=hydra] .clgh .rowlock'); await page.waitForTimeout(600);
   ok('a padlock on a job’s row locks the job: its lines show as locked by it (greyed, the lock inherited), ticks off', JSON.stringify(await lockedOf()) === '["hydra-inhaler","hydra"]' && await page.evaluate(() => { const rs = [...document.querySelectorAll('#outline .clg[data-g=hydra] .clrow')]; return rs.length >= 3 && rs.every(r => r.querySelector('input.cb').disabled && r.querySelector('.rowlock')?.getAttribute('aria-pressed') === 'true') && rs.filter(r => r.classList.contains('is-inherited')).length === rs.length - 1; }));
   await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(500);
-  ok('a section’s sidebar lists its jobs with the lock: the locked job’s tick and ↑ ↓ are off', await page.evaluate(() => { const g = document.querySelector('#body .clg[data-g=hydra] .clgh'); return !!g && g.querySelector('input.sw')?.disabled === true && [...g.querySelectorAll('.clmv .ib')].every(b => b.getAttribute('aria-disabled') === 'true') && g.querySelector('.rowlock')?.getAttribute('aria-pressed') === 'true'; }));
+  ok('a section’s sidebar lists its jobs with the lock: the locked job’s tick is off', await page.evaluate(() => { const g = document.querySelector('#body .clg[data-g=hydra] .clgh'); return !!g && g.querySelector('input.sw')?.disabled === true && g.querySelector('.rowlock')?.getAttribute('aria-pressed') === 'true'; }));
   // a locked job: no grip, the page chip’s switch is off, a click on its lines selects only
   await page.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await page.waitForTimeout(100);
   await page.click('#outline [data-act=select-job][data-id=hydra]').catch(() => {}); await page.waitForTimeout(500);

@@ -194,13 +194,6 @@ export function statsCompactHtml(ed){
 export const orderMarkHtml = (custom, kind, id, name) => (custom
   ? `<span class="pill custom">${h('ux5b.custom')}</span><button class="ghost sm" data-act="order-reset" data-kind="${kind}" data-id="${esc(id)}" aria-label="${esc(t('ux5b.resetTitle', { name }))}">${h('ux5b.reset')}</button>` : '');
 
-// ↑ and ↓ on a row of a list that can be re-arranged (shown while the row is hovered, focused or selected). They stay in place at
-// the ends, aria-disabled, so the focus can stay.
-export const moveButtonsHtml = (up, down, id, text, { first, last }) => `<span class="clmv">${[[up, 'up', 'ux5b.up', first], [down, 'caret', 'ux5b.down', last]].map(([act, ic, k, off]) => {
-  const name = esc(t(k, { text: String(text).slice(0, 60) }));
-  return `<button class="ib" data-act="${act}" data-id="${esc(id)}" aria-label="${name}" title="${name}" aria-disabled="${!!off}">${icon(ic)}</button>`;
-}).join('')}</span>`;
-
 // One depth indicator (UX-6c), the same markup and styles on the page (the floating chip, `small`) and at the top of the editor card:
 // Page › Job › Line, Page › Section › Item, Page › Header. levels: [{ word, name?, act, attrs? }] from the page down, the last is where
 // you are; a name gives way with an ellipsis, a level's word never does.

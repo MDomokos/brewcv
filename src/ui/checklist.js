@@ -6,7 +6,7 @@
 
 import { checklist, groupOf, groupsOfSection, sectionCounts, sectionsCustom, jobsCustom } from '../model/checklist.js';
 import * as T from '../model/resume.js';
-import { addClaimHtml, orderMarkHtml, moveButtonsHtml, sw } from './parts.js';
+import { addClaimHtml, orderMarkHtml, sw } from './parts.js';
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { ghost, fly, reduced, play } from './motion.js';
@@ -22,30 +22,25 @@ const setHintDone = () => { try { localStorage.setItem(HINT_KEY, '1'); } catch {
 
 // shut: the Record's groups folded by hand. fold: the Outline's, by hand ('open' or 'shut'; the job in focus opens by itself).
 // more: jobs whose lines that are off are shown. adding: the job whose "+ line" box is open.
-const S = { shut: new Set(), fold: new Map(), more: new Set(), adding: null, pop: null, travel: null, moved: null };
+const S = { shut: new Set(), fold: new Map(), more: new Set(), adding: null, pop: null, travel: null };
 
 export function initChecklist(ctx){ C = ctx; return api; }
 
 const selAttr = sel => esc(JSON.stringify(sel));
+// the count is "2/5" to the eye and "2 of 5 on" to a screen reader and in the tip
 // a job's name: the title wraps, the company after it gives way with an ellipsis
 const jobLabel = g => `<span class="jtl">${esc(g.title)}</span>${g.org ? `<span class="muted org"> · ${esc(g.org)}</span>` : ''}`;
-// the count is "2/5" to the eye and "2 of 5 on" to a screen reader and in the tip
 const nOfM = (n, m) => { const full = esc(t('ux2.nOfM', { n, m })); return `<span title="${full}"><span aria-hidden="true">${n}/${m}</span><span class="sr">${full}</span></span>`; };
 
 function caret(g, open, label, count){
   return `<button class="clcaret" data-act="cl-toggle" data-g="${esc(g.id)}" aria-expanded="${open}" aria-controls="clg-${esc(g.id)}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span><span class="clname">${label}</span><span class="clcount">${count}</span></button>`;
 }
-// A row that can be dragged, and so moved with ↑ ↓: a ticked bullet of a job, or an item of a list section. `move` says where it stands
-// among those: { first, last }. A row that cannot move has no grip.
+// A ticked bullet of a job, or an item of a list section, can be moved (Alt+arrows on the row; the grips are on the page): it carries its ids.
 const bulletMovable = (r, g) => r.kind === 'claim' && r.on && !r.archived && !r.fixed && g?.kind === 'entry';
-const moveKey = (r, g) => (r.item ? `i:${r.section}` : bulletMovable(r, g) ? `b:${g.id}` : null);
 // `end`: in the Outline the tick is the last control of the row, after the padlock, where the page chip has its switch
-const rowsHtml = (rows, g, end = false) => {
-  const keys = rows.map(r => moveKey(r, g));
-  return rows.map((r, i) => rowHtml(r, g, { first: keys.indexOf(keys[i]) === i, last: keys.lastIndexOf(keys[i]) === i }, end)).join('');
-};
+const rowsHtml = (rows, g, end = false) => rows.map(r => rowHtml(r, g, end)).join('');
 const isSel = r => { const s = C.ui.sel; return s.kind === r.sel.kind && s.id === r.sel.id && s.what === r.sel.what; };
-function rowHtml(r, g, move, end){
+function rowHtml(r, g, end){
   const label = t('ux2.tickLine', { text: r.text.slice(0, 80) });
   const box = r.noTick ? '<span class="cbnone" aria-hidden="true"></span>'
     : r.item ? `<input type="checkbox" class="cb" data-item="${esc(r.item)}" ${r.on ? 'checked' : ''} aria-label="${esc(label)}">`
@@ -54,11 +49,10 @@ function rowHtml(r, g, move, end){
     : `<input type="checkbox" class="cb" ${r.on ? 'checked' : ''} disabled aria-label="${esc(t('ux2.printsWithSection', { text: r.text.slice(0, 60) }))}">`;
   const text = r.id === 'about:photo' ? t('career.about.photo') : r.text || t('ux2.empty');
   const drag = r.item ? `data-item="${esc(r.item)}" data-sec="${esc(r.section)}"` : bulletMovable(r, g) ? `data-bullet="${esc(r.id)}" data-bjob="${esc(g.id)}"` : '';
-  const grip = drag ? `<span class="clgrip" aria-hidden="true">${icon('grip')}</span>${moveButtonsHtml('cl-up', 'cl-down', r.item ?? r.id, text, move)}` : '';
-  return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''} ${isSel(r) ? 'is-sel' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${drag ? `${drag} draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>
+  return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''} ${isSel(r) ? 'is-sel' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${drag}>
       ${end ? '' : box}<button class="clt" data-act="cl-open" data-sel="${selAttr(r.sel)}">${esc(text.replace(/\n/g, ' · '))}</button>
       ${r.nv ? `<button class="clv${r.nv > 1 ? ' many' : ''}" data-act="cl-edit" data-sel="${selAttr(r.vsel ?? r.sel)}" title="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv })).replace(/\s+/, '<span class="sp"> </span>')}</button>` : ''}
-      ${r.archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span><button class="ghost sm" data-act="unarchive-claim" data-id="${esc(r.id)}">${h('arch.unarchive')}</button>` : ''}${grip}${end ? box : ''}</li>`;
+      ${r.archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span><button class="ghost sm" data-act="unarchive-claim" data-id="${esc(r.id)}">${h('arch.unarchive')}</button>` : ''}${end ? box : ''}</li>`;
 }
 
 function groupHtml(g, open, ctx){
@@ -99,7 +93,8 @@ const addLineHtml = g => (S.adding === g.id ? addClaimHtml({ id: g.id, key: g.ke
 // ---- the Outline: this resume in print order ----
 // The sections as they print, each with its count; a job folds to its count and opens when the selected line is in it (or by hand,
 // and then it stays); under an open job its lines that are on, "+ n more" for the ones that are off, and "+ line". Skills, Patent
-// and the other lists fold to one row until opened. Every row has its tick, its grip and ↑ ↓ (checklist rows), and "n v" to open
+// and the other lists fold to one row until opened. An open section is a container (its head is the container's header). Every row has its
+// tick at the right end (the padlock before it, as on the page chip), and "n v" to open
 // Edit at the line.
 const folded = (key, forced) => { const f = S.fold.get(key); return f === 'open' || (f !== 'shut' && forced) ? false : true; };
 const ocaret = (key, open, label, count = '') =>
@@ -116,7 +111,6 @@ export function outlineHtml(only = null, section = null){
   const cl = checklist(m, cur, C.lang());
   const list = T.sectionList(m, cur);
   const on = list.filter(s => s.on), off = list.filter(s => !s.on);
-  const movable = on.filter(s => !s.fixed);
   const sel = C.ui.sel, focus = groupOf(m, sel);
   const focusSec = !focus ? null : T.sectionOfEntry(m, focus) ?? (focus === 'education' ? 'education' : sel.kind === 'record' && sel.what === 'item' ? T.sectionOfItem(m, sel.id) : cl.groups.find(g => g.id === focus)?.section ?? null);
   const about = cl.groups.find(g => g.id === 'about')?.rows ?? [];
@@ -130,13 +124,12 @@ export function outlineHtml(only = null, section = null){
         ${more.length ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('ux5c.more', { n: more.length })}</button>${showMore ? `<ul class="clrows">${rowsHtml(more, g, true)}</ul>` : ''}` : ''}
         <button class="sm ghost addline" data-act="ol-newline" data-id="${esc(g.id)}">${h('ux5c.line')}</button>`;
   };
-  const jobHtml = (g, isOn, move = null) => {
+  const jobHtml = (g, isOn, movable = false) => {
     if (!isOn) return `<div class="item row is-off ojob"><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label></div>`;
     const open = !folded(g.id, focus === g.id);
     // in a section's own view the job also has its tick; its name (nameCaret) opens it
     const pickJob = section ? sw(`data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"`, true) : '';
-    const grip = move ? `<span class="clgrip" aria-hidden="true">${icon('grip')}</span>${moveButtonsHtml('job-up', 'job-down', g.id, g.title, move)}` : '';
-    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${move ? `data-job="${esc(g.id)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>${section ? nameCaret(g, open, nOfM(g.on, g.total)) : ocaret(g.id, open, jobLabel(g), nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}${pickJob}${grip}</h3>
+    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${movable ? `data-job="${esc(g.id)}"` : ''}>${section ? nameCaret(g, open, nOfM(g.on, g.total)) : ocaret(g.id, open, jobLabel(g), nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}${pickJob}</h3>
       <div class="clbody" id="ol-${esc(g.id)}" ${open ? '' : 'hidden'}>${jobBody(g)}</div></section>`;
   };
 
@@ -149,7 +142,7 @@ export function outlineHtml(only = null, section = null){
       // the jobs of the record that print can be re-arranged; a project or an archived job that still prints keeps its place
       const on = refs.map(id => gs.find(g => g.id === id)).filter(Boolean), free = on.filter(g => m.work.some(w => w.id === g.id && !w.archived)).map(g => g.id);
       const head = jobsCustom(m, cur, s.id) ? `<div class="ordhead">${orderMarkHtml(true, 'jobs', s.id, C.sectionTitle(s.id))}</div>` : '';
-      return head + on.map(g => jobHtml(g, true, free.includes(g.id) ? { first: g.id === free[0], last: g.id === free.at(-1) } : null)).join('') + gs.filter(g => !refs.includes(g.id)).map(g => jobHtml(g, false)).join('');
+      return head + on.map(g => jobHtml(g, true, free.includes(g.id))).join('') + gs.filter(g => !refs.includes(g.id)).map(g => jobHtml(g, false)).join('');
     }
     const rows = gs.flatMap(g => (g.kind === 'credentials' ? g.subs.filter(x => x.section === s.id).flatMap(x => x.rows) : g.rows));
     return rows.length ? `<ul class="clrows">${rowsHtml(rows, gs[0], true)}</ul>` : '';
@@ -164,25 +157,23 @@ export function outlineHtml(only = null, section = null){
     const info = s.fixed ? h('edit.alwaysFirst') : counts ? nOfM(counts.on, counts.total) : '';
     const chosen = sel.kind === 'section' && sel.id === s.id;
     return `<div class="osec ${open ? 'open' : ''}" data-sid="${esc(s.id)}" role="group" aria-label="${title}">
-      <div class="item srow ${s.fixed ? 'fixed' : ''} ${chosen ? 'is-sel' : ''}" data-sid="${esc(s.id)}" ${s.fixed ? '' : 'draggable="true"'}>
-        <span class="grip" aria-hidden="true">${s.fixed ? '' : icon('grip')}</span>
+      <div class="item srow ${s.fixed ? 'fixed' : ''} ${chosen ? 'is-sel' : ''}" data-sid="${esc(s.id)}">
         ${foldable ? `<button class="osecaret" data-act="ol-toggle" data-g="sec:${esc(s.id)}" aria-expanded="${open}" aria-controls="ol-sec-${esc(s.id)}" aria-label="${title}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span></button>` : '<span class="osecaret"></span>'}
         <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${title}</a><span class="scount muted tiny">${info}</span></span>
-        ${s.fixed ? '' : moveButtonsHtml('sec-up', 'sec-down', s.id, C.sectionTitle(s.id), { first: s.id === movable[0].id, last: s.id === movable.at(-1).id })
-          + sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, true)}
+        ${s.fixed ? '' : sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, true)}
       </div>
       <div class="obody" id="ol-sec-${esc(s.id)}" ${open ? '' : 'hidden'}>${bodyOf(s)}</div></div>`;
   };
 
   const onlyG = only && cl.groups.find(g => g.id === only && g.kind === 'entry');
   if (onlyG) return `<section class="outline only" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><div class="clg open" data-g="${esc(only)}">${onlyG.custom ? `<div class="ordhead">${orderMarkHtml(true, 'job', only, onlyG.title)}</div>` : ''}<div class="clbody" id="ol-${esc(only)}">${jobBody(onlyG)}</div></div></section>`;
-  // `section`: a section's id, for the sidebar when that section is selected: its jobs or items, with tick, grip and ↑ ↓
+  // `section`: a section's id, for the sidebar when that section is selected: its jobs or items
   if (section) return `<section class="outline only" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}">${bodyOf({ id: section })}</section>`;
   const manual = Array.isArray(cur.pages);
   return `<section class="outline" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><h2 class="sr">${h('ux5c.tabOutline')}</h2>
     ${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere')) ? `<div class="ordhead">${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere'))}</div>` : ''}
     <div class="list" id="seclist">${on.map(secHtml).join('')}</div>
-    ${off.length ? `<p class="notonline" id="offline"><span class="muted small">${h('ux2.notOn')}</span> ${off.map(s => `<button class="tag offchip" data-act="section-on" data-id="${esc(s.id)}" draggable="true" data-sid="${esc(s.id)}" title="${esc(t('ux2.turnOnTitle'))}">${esc(C.sectionTitle(s.id))}</button>`).join(' ')}</p>` : ''}
+    ${off.length ? `<p class="notonline" id="offline"><span class="muted small">${h('ux2.notOn')}</span> ${off.map(s => `<button class="tag offchip" data-act="section-on" data-id="${esc(s.id)}" title="${esc(t('ux2.turnOnTitle'))}">${esc(C.sectionTitle(s.id))}</button>`).join(' ')}</p>` : ''}
     ${manual ? `<p class="note">${h('edit.dragManual')}</p>` : ''}</section>`;
 }
 
@@ -210,12 +201,6 @@ function afterRender(){
     if (cb){ cb.classList.add('pop'); cb.addEventListener('animationend', () => cb.classList.remove('pop'), { once: true }); }
   }
   S.pop = null;
-  // a row just moved flashes where it landed
-  if (S.moved){
-    const row = document.querySelector(`#body .clrow[data-bullet="${CSS.escape(S.moved)}"], #body .clrow[data-item="${CSS.escape(S.moved)}"], #body .clgh[data-job="${CSS.escape(S.moved)}"]`);
-    S.moved = null;
-    if (row) play(row, [{ backgroundColor: 'var(--mark-soft)' }, { backgroundColor: 'transparent' }], { name: 'row:moved', key: 'row-moved', ms: 'slow' });
-  }
   const tr = S.travel;
   if (tr && tr.on === false && performance.now() < tr.until) arriveRow(tr);
   if (!hintDone() && document.querySelector('#body .clrow') && !C.ui.snap) sample();
@@ -257,19 +242,6 @@ async function act(a, tg){
       if (open) S.shut.add(g); else S.shut.delete(g);
       const body = document.getElementById(`clg-${g}`);
       if (body){ body.hidden = open; tg.setAttribute('aria-expanded', String(!open)); tg.closest('.clg')?.classList.toggle('open', !open); }
-      return true;
-    }
-    case 'cl-up': case 'cl-down': {
-      if (tg.getAttribute('aria-disabled') === 'true') return true;
-      const row = tg.closest('.clrow');
-      S.moved = row.dataset.bullet ?? row.dataset.item;
-      if (!C.edit.stepRow(row, a === 'cl-up' ? -1 : 1)) S.moved = null;
-      return true;
-    }
-    case 'job-up': case 'job-down': {
-      if (tg.getAttribute('aria-disabled') === 'true') return true;
-      S.moved = tg.dataset.id;
-      if (!C.edit.stepJob(tg.dataset.id, a === 'job-up' ? -1 : 1)) S.moved = null;
       return true;
     }
     // a click on a row: in the Outline it selects the line and the Outline stays; in the Record it opens Edit at the line
