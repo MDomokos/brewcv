@@ -15,7 +15,7 @@ import { t, keyed } from '../i18n/index.js';
 import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal } from './resume.js';
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang } from './lang.js';
-import { guard, isLocked } from './lock.js';
+import { LockedError, guard, isLocked } from './lock.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
 
 const clone = x => structuredClone(x);
@@ -340,6 +340,7 @@ const KEEP_ON_RESTORE = ['id', 'name', 'application', 'title', 'company', 'role'
 export function restoreSnapshot(state, sid){
   const snap = findSnapshot(state, sid);
   if (!snap) throw new Error(`no snapshot ${sid}`);
+  if (state.cur?.locked?.length) throw new LockedError(null, 'ux6c.restoreLocked');      // a restore would replace the locked text and drop the lock
   const r = snapshotRecipe(state.record, snap);
   for (const k of KEEP_ON_RESTORE){ if (state.cur[k] === undefined) delete r[k]; else r[k] = state.cur[k]; }
   state.cur = r;

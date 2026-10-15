@@ -143,7 +143,7 @@ section('frozen text and newer wording');
   const st2 = clone(st);
   RS.keepOlder(st2.cur, fact.fact);
   ok('keep the saved one: it stays, as this resume’s own text', st2.cur.overrides[fact.fact] === before && !st2.cur.held && RS.newerOf(st2.record, st2.cur).length === 0);
-  RS.acceptNewer(st.cur, fact.fact);
+  RS.acceptNewer(st.cur, fact.fact, st.record);
   ok('use the newer one: the hold goes', st.cur.overrides[fact.fact] === undefined && !st.cur.held);
   ok('and it prints the new text', resolve(st.record, st.cur).body.work.some(w => w.highlights.includes('Newer wording for this claim.')));
   RS.settle(st);

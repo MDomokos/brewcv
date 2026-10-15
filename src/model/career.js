@@ -6,6 +6,7 @@ import { defaultVariant, DEFAULT_LANG, sectionOfEntry } from './resume.js';
 import { saveOver, addVersion, RecordError } from './record.js';
 import { fmtMonth, ym, addJob, addBullet, addFact, slug, metaLineOf, presentIn, contactText, SEP } from './build.js';
 import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
+import { lockedHolders, guard } from './lock.js';
 import { jobTypesOf, normaliseJobType, tagVocab, TAG_CAP } from './focus.js';
 
 const now = () => new Date().toISOString().slice(0, 7);
@@ -581,7 +582,7 @@ function dropFacts(model, ids, recipes = []){
       for (const id of drop){ if (o.picks) delete o.picks[id]; if (o.overrides) delete o.overrides[id]; }
       if (o.held) o.held = o.held.filter(x => !drop.has(x));
     }
-    if (r.locked){ r.locked = r.locked.filter(x => !drop.has(x)); if (!r.locked.length) delete r.locked; }      // a claim that is gone has nothing to hold
+    if (r.locked){ r.locked = r.locked.filter(x => !drop.has(x) && !drop.has(x.replace(/^~t:/, ''))); if (!r.locked.length) delete r.locked; }      // a claim that is gone has nothing to hold
     if (r.terms){ for (const id of drop) delete r.terms[id]; if (!Object.keys(r.terms).length) delete r.terms; }
     for (const k of ['off', 'keep', 'held']) if (Array.isArray(r[k])){ r[k] = r[k].filter(x => !drop.has(x)); if (!r[k].length) delete r[k]; }
     // a line only on this resume that followed a dropped bullet follows the bullet before it, not the job's end
@@ -599,7 +600,7 @@ export function deleteEntry(model, id, recipes = []){
   if (!key || key === 'work') throw new Error(`no such entry: ${id}`);
   const x = model[key].find(e => e?.id === id);
   const facts = [...Object.values(x.display ?? {}), ...(x.highlights ?? []).filter(h => (model.facts ?? []).some(f => f.id === h))];
-  dropFacts(model, facts, recipes);
+  dropFacts(model, [...facts, id], recipes);      // the entry's own id too: nothing stays locked under a name that is gone
   model[key] = model[key].filter(e => e !== x);
   if (!model[key].length) delete model[key];
   for (const s of model.sections ?? []){
@@ -903,9 +904,10 @@ export function createKind(model, def){
   return k.id;
 }
 // A rename changes every heading, record or resume, that still says the old name.
-export function updateKind(model, id, patch, recipes = []){
+export function updateKind(model, id, patch, recipes = [], recipe = null){
   const k = kindOf(model, id);
   if (!k) throw new Error(`no such kind: ${id}`);
+  if (recipe?.locked?.length) guard(model, recipe, `~h:${k.section}`);      // the open resume keeps its locked heading as it is
   const s = (model.sections ?? []).find(x => x.id === k.section);
   for (const [lang, v] of Object.entries(patch.name ?? {})){
     const old = k.name[lang] ?? '';
@@ -955,6 +957,7 @@ export function deleteKind(model, id, { moveTo = null, recipes = [] } = {}){
   model.sections = (model.sections ?? []).filter(s => s.id !== k.section);
   for (const r of recipes){
     if (!r) continue;
+    if (r.locked){ r.locked = r.locked.filter(x => x !== k.section && x !== `~h:${k.section}`); if (!r.locked.length) delete r.locked; }
     if (r.sections) r.sections = r.sections.filter(e => (typeof e === 'string' ? e : e?.id) !== k.section);
     if (r.pages) r.pages = r.pages.map(p => p.filter(e => (typeof e === 'string' ? e : e?.id) !== k.section));
   }
@@ -1035,3 +1038,13 @@ export function adoptImported(model){
 }
 
 export { addJob, addBullet };
+
+// Which of `recipes` (their indices) hold a lock on what `remove(model, recipes)` takes out of the record. It runs on copies and
+// reads what is gone, so the person can be asked first. A resume whose lock is on an ancestor of a removed claim is listed too.
+export function lockedOnDelete(model, recipes, remove){
+  const ids = m => new Set([...(m.facts ?? []).map(f => f.id), ...(m.sections ?? []).map(s => s.id), ...entriesOf(m).map(e => e.id)]);
+  const m = structuredClone(model), had = ids(model);
+  remove(m, structuredClone(recipes));
+  const now = ids(m), gone = [...had].filter(x => !now.has(x));
+  return lockedHolders(model, recipes, gone.flatMap(x => [x, `~t:${x}`, `~h:${x}`]));
+}

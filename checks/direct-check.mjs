@@ -734,6 +734,65 @@ section('UX-6c-iii-b: the lock');
     }
   }
 }
+section('UX-6c-iii-b fix round: hiding, layout, stale locks, restore, record edits');
+{
+  const LK = await import('../src/model/lock.js');
+  const lockedErr = fn => { try { fn(); return false; } catch (e){ return e instanceof LK.LockedError; } };
+  const withLock = (r, ...ids) => { const c = clone(r); for (const id of ids) LK.setLocked(c, id, true); return c; };
+  const base = T.newResume(model, {}); delete base.locked;
+  const job = 'hydra', line = 'hydra-inhaler', itemA = 'cert-gdt', sec = 'certified';
+  const other = (model.sections.find(s => s.id === sec).content.runs ?? model.sections.find(s => s.id === sec).content.items ?? []).find(x => x !== itemA);
+  // 1. hiding a block that holds locked content
+  ok('hiding a job with a locked line in it is refused, and the same call works unlocked', lockedErr(() => T.setJobOn(model, withLock(base, line), job, false)) && !lockedErr(() => T.setJobOn(model, clone(base), job, false)));
+  ok('hiding a section with a locked line (two levels down) is refused', lockedErr(() => T.setSectionOn(model, withLock(base, line), 'experience', false)) && !lockedErr(() => T.setSectionOn(model, clone(base), 'experience', false)));
+  ok('hiding the last item of a section is refused when a hidden item in it is locked, with nothing written', (() => {
+    const r = clone(base); T.setItemOn(model, r, itemA, false); const only = T.itemList(model, r, sec).filter(x => x.on).map(x => x.id);
+    for (const x of only.slice(1)) T.setItemOn(model, r, x, false);
+    const hold = withLock(r, itemA); const before = JSON.stringify(hold);
+    return only.length >= 1 && lockedErr(() => T.setItemOn(model, hold, only[0], false)) && JSON.stringify(hold) === before;
+  })());
+  ok('showing a hidden locked job, section or item is allowed', (() => {
+    const r = clone(base); T.setJobOn(model, r, job, false); T.setSectionOn(model, r, sec, false);
+    const l = withLock(r, job, sec);
+    const a = !lockedErr(() => T.setJobOn(model, l, job, true)), b = !lockedErr(() => T.setSectionOn(model, l, sec, true));
+    return a && b && T.sectionList(model, l).find(x => x.id === sec).on;
+  })());
+  ok('showing a row of an off section leaves a locked row as it is', (() => {
+    const r = clone(base); T.setSectionOn(model, r, sec, false); const l = withLock(r, other);
+    T.setItemOn(model, l, itemA, true);
+    return !(l.off ?? []).includes(other) && !(l.off ?? []).includes(itemA);
+  })());
+  // 8. a hand layout is not reset under a lock
+  const hand = clone(base); hand.pages = [['header', 'summary', { id: 'experience', work: model.work.map(w => ({ id: w.id, highlights: [...w.highlights] })) }, 'skills']]; delete hand.pageLimit;
+  ok('moving a section, or switching one on, would reset a hand layout: refused under a lock', lockedErr(() => T.moveSection(model, withLock(hand, 'name'), 'education', null)) && lockedErr(() => T.toAuto(model, withLock(hand, 'name'))) && !lockedErr(() => T.moveSection(model, clone(hand), 'education', null)));
+  // 9. stale locks
+  ok('a new local line is not born locked by an old lock on that name', (() => { const r = withLock(base, '~new-1'); return T.addLocalLine(model, r, job, null) === '~new-2'; })());
+  ok('deleting an entry takes its lock away', (() => { const m = clone(model), r = withLock(base, 'caliper-stand'); K.deleteEntry(m, 'caliper-stand', [r]); return !r.locked; })());
+  ok('deleting a kind takes the lock on its section away', (() => { const m = clone(model); const id = K.createKind(m, { name: { en: 'Clubs' }, store: 'projects' }); const k = m.kinds.find(x => x.id === id); const r = withLock(base, k.section, `~h:${k.section}`); K.deleteKind(m, id, { recipes: [r] }); return !r.locked; })());
+  // 10. who holds a lock on what a delete takes out
+  ok('a delete lists the resumes whose lock covers it, and none when nothing is locked', (() => {
+    const r1 = withLock(base, job), r2 = clone(base);
+    const got = K.lockedOnDelete(model, [r1, r2], (m, rs) => K.deleteClaim(m, line, rs));
+    const none = K.lockedOnDelete(model, [r2], (m, rs) => K.deleteClaim(m, line, rs));
+    const entry = K.lockedOnDelete(model, [withLock(base, 'caliper-stand'), r2], (m, rs) => K.deleteEntry(m, 'caliper-stand', rs));
+    return eq(got, [0]) && eq(none, []) && eq(entry, [0]);
+  })());
+  // 11. the record is needed once there is a lock
+  ok('lockedBy and guard throw a TypeError when a locked resume is asked without the record', (() => { const r = withLock(base, line); try { LK.lockedBy(undefined, r, line); return false; } catch (e){ return e instanceof TypeError; } })() && LK.lockedBy(undefined, base, line) === null);
+  // 4. restoring a snapshot
+  ok('restore as current is refused while the open resume has a lock, and works without', (() => {
+    const st = exampleState(); const snap = RS.takeSnapshot(st, { company: 'Acme', role: 'Engineer' });
+    st.cur.locked = [line]; const before = JSON.stringify(st.cur);
+    let refused = false; try { RS.restoreSnapshot(st, snap.id); } catch (e){ refused = /Unlock/.test(e.message); }
+    delete st.cur.locked; RS.restoreSnapshot(st, snap.id);
+    return refused && JSON.stringify(st.cur) !== before;
+  })());
+  // 3. record edits that change what the open resume prints
+  const vid = model.facts.find(f => f.id === line).variants[0];
+  const heads = (() => { const m = clone(model), id = K.createKind(m, { name: { en: 'Clubs' }, store: 'projects' }); return { m, id, sec: m.kinds.find(k => k.id === id).section }; })();
+  ok('saving over a version, deleting one, and renaming a kind refuse when the open resume has it locked', lockedErr(() => R.saveOver(clone(model), vid, 'New words', withLock(base, line))) && lockedErr(() => R.deleteVersion(clone(model), vid, [], withLock(base, job))) && lockedErr(() => K.updateKind(heads.m, heads.id, { name: { en: 'Societies' } }, [], withLock(base, `~h:${heads.sec}`)))
+    && !lockedErr(() => R.saveOver(clone(model), vid, 'New words', clone(base))));
+}
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {
   // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i. Change it only when the example or the renderer is meant to change.

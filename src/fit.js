@@ -630,9 +630,11 @@ function report(data, before, after, notes, alloc, m, o, rounds){
       const hold = (cond, msg) => { if (cond) held.push(msg); };
       const printed = new Map();
       for (const r of ca.pages[pg.page - 1].rows) if (r.hl) printed.set(`${r.slot}.${r.job}`, (printed.get(`${r.slot}.${r.job}`) ?? 0) + 1);
-      const lastBullets = [...printed.values()].filter(c => c === 1).length;
+      const rows = ca.pages[pg.page - 1].rows, lockedHl = new Set(rows.filter(r => r.hl && isLocked(data, after, r.fact)).map(r => r.fact));
+      const lastBullets = [...printed.values()].filter(c => c === 1).length - rows.filter(r => r.hl && lockedHl.has(r.fact) && printed.get(`${r.slot}.${r.job}`) === 1).length;
       const locked = ca.pages[pg.page - 1].rows.filter(r => pins.phrasing.has(r.fact)).length;
       const pinnedIn = ca.pages[pg.page - 1].rows.filter(r => r.hl && pins.include.has(r.fact)).length;
+      hold(lockedHl.size, `${lockedHl.size} bullet${lockedHl.size === 1 ? ' is' : 's are'} locked (the lock keeps ${lockedHl.size === 1 ? 'it' : 'them'} on the page)`);
       hold(lastBullets, `${lastBullets} job${lastBullets === 1 ? ' is' : 's are'} down to one bullet`);
       hold(locked, `${locked} phrasing${locked === 1 ? '' : 's'} locked`);
       hold(pinnedIn, `${pinnedIn} bullet${pinnedIn === 1 ? '' : 's'} pinned in`);

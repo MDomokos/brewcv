@@ -10,7 +10,7 @@ import { localJob } from '../recipe.js';
 export const PAGE = '~page';
 
 export class LockedError extends Error {
-  constructor(id){ const k = keyed('ux6c.locked'); super(k.message); this.name = 'LockedError'; this.key = k.key; this.id = id; }
+  constructor(id, key = 'ux6c.locked'){ const k = keyed(key); super(k.message); this.name = 'LockedError'; this.key = k.key; this.id = id; }
 }
 
 const sectionsOf = model => model?.sections ?? [];
@@ -39,12 +39,22 @@ export function parentOfId(model, recipe, id){
 export function lockedBy(model, recipe, id){
   const locked = recipe?.locked;
   if (!Array.isArray(locked) || !locked.length) return null;
+  if (!model) throw new TypeError('lockedBy needs the record when the resume has a lock');      // the ancestors are read from it
   const set = new Set(locked);
   for (let at = id, n = 0; at != null && n < 20; at = parentOfId(model ?? {}, recipe, at), n++) if (set.has(at)) return at;
   return null;
 }
 export const isLocked = (model, recipe, id) => lockedBy(model, recipe, id) !== null;
 export function guard(model, recipe, id){ if (isLocked(model, recipe, id)) throw new LockedError(id); }
+// True when something inside `id` is locked (a hidden parent would hide locked content).
+export function lockedInside(model, recipe, id){
+  for (const l of recipe?.locked ?? []) for (let at = l, n = 0; at != null && n < 20; at = parentOfId(model ?? {}, recipe, at), n++) if (at === id) return true;
+  return false;
+}
+// Turning a block off: refused when it, an ancestor, or anything inside is locked. Showing never changes text, so it is always allowed.
+// Showing: the block's own lock does not matter (no text changes), a locked ancestor still holds.
+export function guardUp(model, recipe, id){ const p = parentOfId(model ?? {}, recipe, id); if (p != null) guard(model, recipe, p); }
+export function guardOff(model, recipe, id){ guard(model, recipe, id); if (lockedInside(model, recipe, id)) throw new LockedError(id); }
 
 // Lock or unlock the element itself (a lock inherited from an ancestor is lifted there). No key is left when nothing is locked.
 export function setLocked(recipe, id, on){
@@ -52,3 +62,6 @@ export function setLocked(recipe, id, on){
   const next = on ? [...rest, id] : rest;
   if (next.length) recipe.locked = next; else delete recipe.locked;
 }
+
+// The resumes (indices of `recipes`) that hold a lock on any of `ids`, before something is removed from the record.
+export const lockedHolders = (model, recipes, ids) => recipes.flatMap((r, i) => (ids.some(id => isLocked(model, r, id)) ? [i] : []));

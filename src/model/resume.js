@@ -19,7 +19,7 @@ export function refusal(fact, v){
 import { keyed, t } from '../i18n/index.js';
 import { entriesOf, entryKey, isEntry, archivedIds, archivedEntryIds } from './entries.js';
 import { offOf, keepOf, keepLinks, migratePins, inOrder, localOf, localJob, localIds, isLocal, withLocal, termOf } from '../recipe.js';
-import { guard, isLocked, skillsSection } from './lock.js';
+import { LockedError, guard, guardOff, guardUp, isLocked, skillsSection } from './lock.js';
 export { offOf, keepOf, migratePins, inOrder, isLocal, localOf, termOf };
 
 function index(model){
@@ -397,7 +397,7 @@ export function addLocalLine(model, recipe, jobId, afterId = null){
   if (!factIx(model).work.has(jobId)) throw new Error(`no such job: ${jobId}`);
   guard(model, recipe, jobId);
   const used = localIds(recipe);
-  let n = 1; while (used.has(`~new-${n}`)) n++;
+  let n = 1; while (used.has(`~new-${n}`) || recipe.locked?.includes(`~new-${n}`)) n++;      // a stale lock on that name must not be inherited
   const id = `~new-${n}`, order = fullOrder(model, recipe, jobId), at = order.indexOf(afterId);
   order.splice(afterId == null ? 0 : at < 0 ? order.length : at + 1, 0, id);
   recipe.localLines = { ...recipe.localLines, [jobId]: [...localOf(recipe, jobId), { id, after: null, ...((recipe.lang ?? DEFAULT_LANG) !== DEFAULT_LANG ? { lang: recipe.lang } : {}) }] };
@@ -421,7 +421,7 @@ export function removeLocalLine(model, recipe, id){
 export function setJobOn(model, recipe, jobId, on){
   const w = factIx(model).work.get(jobId);
   if (!w) throw new Error(`no such job: ${jobId}`);
-  guard(model, recipe, jobId);
+  if (on) guardUp(model, recipe, jobId); else guardOff(model, recipe, jobId);
   const sid = sectionOfEntry(model, jobId);
   const lists = workLists(model, recipe, true, sid);
   if (on && w.archived && !lists.some(l => l.some(r => refId(r) === jobId))) throw keyed('arch.jobNeedUnarchive');
@@ -640,6 +640,7 @@ export function sectionList(model, recipe){
 // Hand layout to automatic pages. Slot styles and QR codes are lost.
 export function toAuto(model, recipe){
   if (!Array.isArray(recipe.pages)) return false;
+  if (recipe.locked?.length) throw new LockedError(null, 'ux6c.layoutLocked');      // the hand-made layout is part of what the lock holds
   const ix = factIx(model);
   const sids = entriesIds(model);
   const order = [...new Set(recipe.pages.flat().map(refId))].filter(id => ix.sections.has(id) && !isFixed(model, id));
@@ -668,7 +669,7 @@ export function toAuto(model, recipe){
 // Off is weight 0. Turning on a section a hand layout can't place switches to automatic pages.
 export function setSectionOn(model, recipe, id, on){
   if (!hasBudgetIn(model, id)) throw keyed('error.alwaysOn', { id });
-  guard(model, recipe, id);
+  if (on) guardUp(model, recipe, id); else guardOff(model, recipe, id);
   let auto = false;
   recipe.sections ??= [];
   let e = entryOf(recipe, id);
@@ -801,10 +802,11 @@ export function stepEntry(model, recipe, id, dir){
 export function setItemOn(model, recipe, id, on){
   const sid = sectionOfItem(model, id);
   if (!sid) throw new Error(`${id} is not an item of any list section`);
-  guard(model, recipe, id);
+  if (on) guardUp(model, recipe, id); else guardOff(model, recipe, id);
   const secOn = sectionList(model, recipe).find(x => x.id === sid)?.on;
-  // the rows of a section that is off show unticked, so ticking one brings back that one alone
-  if (on && !secOn) for (const x of itemsOf(model, sid)) if (x !== id) setList(recipe, 'off', x, true);
+  // the rows of a section that is off show unticked, so ticking one brings back that one alone (a locked row is left as it is)
+  if (on && !secOn) for (const x of itemsOf(model, sid)) if (x !== id && !isLocked(model, recipe, x)) setList(recipe, 'off', x, true);
+  if (!on && secOn && itemList(model, recipe, sid).every(x => x.id === id || !x.on)) guardOff(model, recipe, sid);      // before anything is written
   setList(recipe, 'off', id, !on);
   const list = itemList(model, recipe, sid);
   if (!on && list.every(x => !x.on) && secOn) setSectionOn(model, recipe, sid, false);

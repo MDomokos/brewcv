@@ -2,6 +2,7 @@
 // Numbers are per fact and language, at most one dot, and never reused: deleted ones stay in `fact.retired[lang]`.
 
 import { isDraft, isArchive } from './resume.js';
+import { guard } from './lock.js';
 
 export const DEFAULT_LANG = 'en';
 export const VERSION_N = /^\d+(\.\d+)?$/;
@@ -82,9 +83,11 @@ const clean = t => String(t ?? '').replace(/[ \t]+$/gm, '').trim();
 
 export class RecordError extends Error {}
 
-export function saveOver(model, vid, text){
+// `recipe`: the open resume. It refuses when that resume has the claim locked (its printed words would change under the lock).
+export function saveOver(model, vid, text, recipe = null){
   const v = index(model).variant(vid);
   if (!v) throw new RecordError(`no such version: ${vid}`);
+  if (recipe?.locked?.length && factOf(model, vid)) guard(model, recipe, factOf(model, vid).id);
   const t = clean(text);
   if (!t) throw new RecordError('a version needs some text');
   setText(v, t);
@@ -129,11 +132,12 @@ export function addVersion(model, factId, { text, lang, from = null, as = 'major
 }
 
 // The last default-language version can't go: a claim needs one to print. Picks of it fall back to the default.
-export function deleteVersion(model, vid, recipes = []){
+export function deleteVersion(model, vid, recipes = [], recipe = null){
   const ix = index(model);
   const v = ix.variant(vid);
   const f = v && factOf(model, vid);
   if (!v || !f) throw new RecordError(`no such version: ${vid}`);
+  if (recipe?.locked?.length) guard(model, recipe, f.id);      // clearing the pick would change a locked line
   const L = langOf(v);
   const same = versionsIn(model, f.id, L);
   if (L === DEFAULT_LANG && same.length < 2) throw new RecordError('the last version of a claim can’t be deleted');

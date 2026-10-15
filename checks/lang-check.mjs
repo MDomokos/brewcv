@@ -83,18 +83,18 @@ section('switching language');
   const picks = clone(r.picks);
   T.setOverride(model, r, Object.keys(picks)[0] ?? 'summary', 'Only here.');
   const ov = clone(r.overrides);
-  L.switchLang(r, 'hu');
+  L.switchLang(r, 'hu', model);
   ok('English → Hungarian: lang and the Hungarian A4', r.lang === 'hu' && (r.format === 'a4-hu' || r.format === 'us-letter'));
   ok('English picks and one-off texts are put aside', eq(r.byLang.en.picks, picks) && eq(r.byLang.en.overrides, ov) && eq(r.picks, {}) && eq(r.overrides, {}));
   ok('it validates and renders', validate(S.save(model), r).errors.length === 0 && !!html(model, r, { fallback: true }), validate(S.save(model), r).errors[0]);
   const huv = model.variants.find(v => v.lang === 'hu' && model.facts.find(f => f.id === 'summary').variants.includes(v.id));
   r.picks.summary = huv.id;
-  L.switchLang(r, 'en');
+  L.switchLang(r, 'en', model);
   ok('Hungarian → English brings them back', eq(r.picks, picks) && eq(r.overrides, ov) && !('lang' in r));
   ok('and keeps the Hungarian ones aside', r.byLang.hu.picks.summary === huv.id);
-  L.switchLang(r, 'hu');
+  L.switchLang(r, 'hu', model);
   ok('so switching again restores the Hungarian pick', r.picks.summary === huv.id && !r.byLang?.hu);
-  ok('switching to the language it is in does nothing', L.switchLang(r, 'hu') === false);
+  ok('switching to the language it is in does nothing', L.switchLang(r, 'hu', model) === false);
   const m2 = clone(model);
   R.deleteVersion(m2, huv.id, [r]);
   ok('deleting a version drops a pick of it put aside too', r.picks.summary === undefined);
@@ -113,13 +113,13 @@ section('ten languages');
   for (const from of S.LANGS) for (const to of S.LANGS.filter(x => x !== from)){
     for (const fmt of ['a4', 'a4-hu', 'us-letter']){
       const r = clone(en); if (from !== 'en') r.lang = from; else delete r.lang; r.format = fmt;
-      L.switchLang(r, to);
+      L.switchLang(r, to, model);
       const want = fmt === 'us-letter' ? 'us-letter' : L.LANG_INFO[to].a4Format;
       if ((r.lang ?? 'en') !== to || r.format !== want){ good = false; console.log(`      ${from}→${to} ${fmt}: ${r.lang} ${r.format}`); }
     }
   }
   ok('switching between any two of the ten: the A4 format follows the language, Letter stays', good);
-  const de = clone(en); L.switchLang(de, 'de');
+  const de = clone(en); L.switchLang(de, 'de', model);
   ok('a German resume validates and renders (text in English, outlined)', validate(S.save(model), de).errors.length === 0 && !!html(model, de, { fallback: true }));
   const chrome = { lang: 'de', sections: { experience: 'Berufserfahrung', skills: 'Kenntnisse', education: 'Ausbildung', languages: 'Sprachen', interests: 'Interessen', summary: 'Profil', certified: 'Zertifikate', patent: 'Patent' }, continued: 'FORTSETZUNG', present: 'heute', plain: {} };
   const without = L.missingList(model, de, { chrome: null }).filter(x => x.kind === 'heading').length;
