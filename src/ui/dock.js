@@ -1,4 +1,4 @@
-// The editor's furniture around the page: the foot (one thin bar for each page, and Fit), the zoom bar that shows while the pointer is
+// The editor's furniture around the page: the page bars (one thin vertical bar for each page, in the rail beside undo and redo), Fit (in the name card), the zoom bar that shows while the pointer is
 // over the page (with Actual size), the hints, and the rail's keys. On a phone the column is the bottom sheet and keeps its two-row head
 // and its foot with the zoom bar. The sidebar's content is edit.js's, checklist.js's and the other sheets'; the shell calls renderFoot()
 // whenever something that decides which sheet is open has changed.
@@ -41,7 +41,7 @@ const phone = () => innerWidth < PHONE_MAX;
 const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : 'edit'; };
 // the sidebar's tea: the open sheet's (the Outline is Edit with nothing selected)
 const teaOf = () => (phone() ? '' : tabOf() === 'edit' ? (C.ui.sel.kind === 'none' ? 'outline' : 'edit') : tabOf() ?? 'edit');
-const TEA_ON = ['body', 'foot', 'rtabs'];      // the editor card (body and foot) and the tabs that touch it wear the open sheet's tea
+const TEA_ON = ['body', 'rtabs'];      // the editor card and the tabs that touch it wear the open sheet's tea
 // a tab: Edit leaves the view that replaces it; the others open one. A line being written is left first (asking, if there is a draft).
 async function setMode(m){
   if (C.ui.writing && !(await C.leaveWriting())) return;
@@ -164,27 +164,28 @@ function tween(draw){
   }
 }
 
-// ---- the foot card: each page's fill and Fit; the zoom bar over the page ----
-const fitBtn = (u, limit, needed) => `<button class="fit${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
+// ---- Fit (the name card's, and the phone's foot); the page bars (the rail's, beside undo and redo; a phone's foot has the cups); the zoom bar over the page ----
+const fitBtn = (u, limit, needed) => `<button class="fit sm${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
 const STATE_WORD = { under: 'ux6b.fillUnder', ok: 'ux6b.fillIn', over: 'ux6b.fillOver', overflow: 'ux6b.fillOver' };
+// A desktop draws at most this many bars; more pages end in a "+n" that goes to the first page not drawn.
+const MAX_BARS = 3;
 function meterHtml(){
   const u = C.ui, thin = !phone();
-  const rows = meters().map(m => {
+  const all = meters(), shown = thin ? all.slice(0, MAX_BARS) : all, more = all.length - shown.length;
+  const rows = shown.map(m => {
     const sm = steamOf(m.i);
     const tip = m.tipText + t('foot.band', { lo: FILL_BAND[0], hi: FILL_BAND[1] });
     const cls = `meter ${m.status}${thin ? ' thin' : ''}${sm.on ? ' steam' : ''}${sm.on && sm.perfect ? ' perfect' : ''}`, style = `--p:${level(m.pct)}${sm.on ? `;--el:${sm.el}ms` : ''}`;
     const bar = '<span class="mbar" aria-hidden="true"><span class="mband"></span><span class="mfill"></span></span>';
     // a desktop's bar is only the bar: the page, the exact fill and the state are its tip and its name
-    if (thin) return `<button class="${cls}" style="${style}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" data-tip="${esc(tip)}|${esc(t(STATE_WORD[m.status]))}" data-tip-pos="t" aria-label="${esc(`${tip}: ${t(STATE_WORD[m.status])}`)}">${bar}</button>`;
+    if (thin) return `<button class="${cls}" style="${style}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" data-tip="${esc(tip)}|${esc(t(STATE_WORD[m.status]))}" data-tip-pos="l" aria-label="${esc(`${tip}: ${t(STATE_WORD[m.status])}`)}">${bar}</button>`;
     return `<button class="${cls}" style="${style}" data-act="goto-page" data-page="${m.i}" aria-current="${u.page === m.i}" title="${esc(tip)}"><span class="mlab">${esc(t('ux2.pageShort', { page: m.page }))}</span>${bar}<span class="mpct">${m.pct.toFixed(0)}%</span></button>`;
-  }).join('');
-  return `<div class="meters" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${rows || '<span class="muted tiny">—</span>'}</div>`;
+  }).join('') + (more > 0 ? `<button class="rmore ${all.slice(MAX_BARS).some(m => m.status === 'overflow') ? 'overflow' : ''}" data-act="goto-page" data-page="${MAX_BARS}" aria-label="${esc(t('ux6c.morePages', { n: more }))}" data-tip="${esc(t('ux6c.morePages', { n: more }))}|" data-tip-pos="l">+${more}</button>` : '');
+  return `<div class="meters${thin ? ' rbars' : ''}" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${rows || '<span class="muted tiny">—</span>'}</div>`;
 }
-// the sidebar's foot: the meters, then Fit
-export function fillHtml(){
-  const u = C.ui, limit = C.shown()?.pageLimit;
-  return `<div class="hfill" id="hfill">${meterHtml()}${fitBtn(u, limit, fitFilled(u.fills, limit))}</div>`;
-}
+// Fit: the compact button under Saved and the menu in the name card
+const fitHtml = () => { const u = C.ui, limit = C.shown()?.pageLimit; return fitBtn(u, limit, fitFilled(u.fills, limit)); };
+// the rail's page bars, drawn in the rail by the shell (the bars it already has stay, so their fill eases)
 const viewBar = (u, tipPos) => `<div class="vbar" role="toolbar" aria-label="${esc(t('ux2.viewBar'))}">
       ${ib('fullscreen', 'full', t('head.fullscreen'), t('ux2.fullTip'), '', tipPos)}
       ${ib('zoom-out', 'minus', t('ux2.zoomOut'), t('ux2.zoomOutTip'), u.zoom <= ZOOM_MIN + 1e-9 ? 'disabled' : '', tipPos)}
@@ -197,7 +198,7 @@ const viewBar = (u, tipPos) => `<div class="vbar" role="toolbar" aria-label="${e
 export const renderFoot = () => {
   const tea = teaOf();
   for (const id of TEA_ON){ const e = document.getElementById(id); if (e) e.dataset.tea = tea; }
-  keepFocus('#foot', () => tween(drawFoot));
+  keepFocus('#head', () => keepFocus('#rail', () => keepFocus('#foot', () => tween(drawFoot))));
   if (!phone() && !document.body.classList.contains('is-intro')) keepFocus('#zoombar', () => tween(drawZoombar));
 };
 function drawZoombar(){
@@ -205,14 +206,20 @@ function drawZoombar(){
   if (el) el.innerHTML = viewBar(C.ui, 't');
 }
 
-// ---- the foot: on a desktop the meters and Fit; on a phone the zoom bar and the meters on one line, Fit and undo under them;
-// on the start screen the footer area is "Yours to keep" ----
+// ---- the foot: a desktop has none (Fit is in the name card, the page bars in the rail); on a phone the zoom bar and the cups on one line, Fit
+// and undo under them; on the start screen the footer area is "Yours to keep" ----
 function drawFoot(){
   const el = $('#foot');
   if (!el) return;
   if (document.body.classList.contains('is-intro')){ el.innerHTML = C.startFoot(); return; }
   const u = C.ui, hs = C.store.history;
-  if (!phone()){ el.innerHTML = fillHtml(); return; }
+  if (!phone()){
+    el.textContent = '';
+    const fit = $('#head .fitslot'), bars = $('#meter');
+    if (fit) fit.innerHTML = fitHtml();
+    if (bars) bars.outerHTML = meterHtml();
+    return;
+  }
   const limit = C.shown()?.pageLimit;
   const needed = fitFilled(u.fills, limit);
   const act = `<div class="factions">
@@ -338,7 +345,7 @@ export function initDock(ctx){
   C = ctx;
   C.ui.zoom = 1; C.ui.zoomWrite = readZoomWrite();
   return {
-    bind, act, onKey, sheetOver, setMode, modeOf, teaNow: teaOf, renderFoot, zoomBy, zoomTo,
+    bind, act, onKey, sheetOver, setMode, modeOf, teaNow: teaOf, renderFoot, fitHtml, barsHtml: meterHtml, zoomBy, zoomTo,
     // Esc all the way out: the view zooms out to the whole resume
     allTheWayOut(){ C.canvas.reset(); },
   };

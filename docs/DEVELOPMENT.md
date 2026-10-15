@@ -46,14 +46,17 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            54px rail beside it; the page centred in the room left of both;
                            pages always sit side by side at the window's height and the view scrolls sideways when the row is wider than the room (the sidebar floats over it);
                            the sidebar is three parts: the name card (the resume's name, which wraps and is never cut, Saved as an icon with a
-                           tip, the menu); the editor card, whose body is what is selected (nothing is the Outline, a job its lines, a line its
-                           versions) and whose foot has one thin bar for each page and Fit; and, when the name is clicked, the name window: the name
-                           card grows down over the editor card (the foot stays) with the rename field, where the resume was copied from,
+                           tip, the menu, and under them Fit); the editor card, whose body is what is selected (nothing is the Outline, a job its lines, a line its
+                           versions) and which runs to the column's end (a desktop has no footer; a phone and the start screen still use `#foot`);
+                           and, when the name is clicked, the name window: the name
+                           card grows down over the editor card with the rename field, where the resume was copied from,
                            Duplicate, Record, New resume, the language and paper, the search, the recent resumes and Manage all. The rail is the
                            logo (the drink switch); Edit · Design · Export as a vertical tab list touching the editor card; Resumes and Record
-                           as icon buttons in a dashed box (they open the full-window lists); and undo and redo. Save to file is in the Export
+                           as icon buttons in a dashed box (they open the full-window lists); and, at the foot, the page bars (one thin vertical bar for each page, at most
+                           three and then a "+n", beside undo and redo). The Outline's open sections are containers (a header row with an accent bar, their rows inside
+                           under a rule); a row's count reads n/m, and its padlock and tick are at its right end, as on the page chip. Save to file is in the Export
                            panel (and Ctrl+S). Record and the grown resume list fill the window, rail and all, until their own redesign),
-                           dock (the foot, the zoom bar over the page with Actual size, hover hints that show on keyboard focus too, the rail's keys), checklist (the record's groups, drawn by record.js and, at the job
+                           dock (the page bars and Fit, the phone's foot, the zoom bar over the page with Actual size, hover hints that show on keyboard focus too, the rail's keys), checklist (the record's groups, drawn by record.js and, at the job
                            level, beside the job), record (the Record view: the way in and the way round), career (the
                            record's forms and the timeline), help (the shortcut sheet), icons, drink (Tea or
                            Coffee, light or dark: the two settings, the logo that switches them, Shift+F),
@@ -130,7 +133,7 @@ The browser ones need `playwright` and a Chromium on the machine (dev only; the 
 
 ```
 node checks/smoke-shell.mjs           the app end to end, about 1,000 checks (use smoke-parallel.mjs for speed)
-node checks/head-check.mjs            the name card, name window, rail and foot in all ten languages (ONLY=de,hu for a few)
+node checks/head-check.mjs            the name card (with Fit), name window, rail and page bars in all ten languages (ONLY=de,hu for a few)
 node checks/room-check.mjs            the sidebar and the layout around the page, at three window sizes
 node checks/label-fit.mjs             every language's headings fit the gutter, and the app's labels fit the sidebar
 node checks/garden-check.mjs          the tea garden, about two minutes (ONLY=flow,rain runs some)

@@ -1061,7 +1061,8 @@ function lockPass(){
     if (!host) continue;
     const by = lockBy(id), name = t(by ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lockName(id) });
     const inh = by && by !== id ? t('ux6c.lockedUnder', { name: lockName(by) }) : null;
-    host.insertAdjacentHTML('beforeend', `<button type="button" class="rowlock${by ? ' is-locked' : ''}${inh ? ' inherited' : ''}" data-act="row-lock" data-id="${esc(id)}" aria-pressed="${by !== null}"${inh ? ' aria-disabled="true"' : ''} aria-label="${esc(inh ?? name)}" title="${esc(inh ?? name)}">${icon(by ? 'lock' : 'unlock', { size: 12 })}</button>`);
+    const tick = host.querySelector(':scope > .cb, :scope > .cbnone, :scope > .swl');      // the padlock comes before the tick, as on the page chip
+    (tick ?? host).insertAdjacentHTML(tick ? 'beforebegin' : 'beforeend', `<button type="button" class="rowlock${by ? ' is-locked' : ''}${inh ? ' inherited' : ''}" data-act="row-lock" data-id="${esc(id)}" aria-pressed="${by !== null}"${inh ? ' aria-disabled="true"' : ''} aria-label="${esc(inh ?? name)}" title="${esc(inh ?? name)}">${icon(by ? 'lock' : 'unlock', { size: 12 })}</button>`);
     if (!by) continue;
     host.classList.add('is-locked'); if (by !== id) host.classList.add('is-inherited');
     host.draggable = false;

@@ -1285,4 +1285,5 @@ export default {
   'ux6c.refused.job': 'A job moves within its own section.',
   'ux6c.refused.section': 'A section moves within the page.',
   'ux6c.refused.item': 'An item moves within its own section.',
+  'ux6c.morePages': { one: '{n} more page', other: '{n} more pages' },
 };

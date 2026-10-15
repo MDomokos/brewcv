@@ -499,12 +499,11 @@ function drawHead(){
   const mode = dock.modeOf();
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
-    // the name card: the resume's name (never cut: it wraps), Saved and the menu. The tabs, the screens and undo are the rail's.
+    // the name card: the resume's name (never cut: it wraps); in the right column Saved and the menu, with Fit under them. The tabs, the screens, undo and the page bars are the rail's.
     $('#head').innerHTML = `
     <div class="hrow top">
       <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { size: 12 })}</span></button>
-      ${savedState}
-      <button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>
+      <div class="hside"><div class="hsidetop">${savedState}<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button></div><span class="fitslot">${dock.fitHtml()}</span></div>
     </div>
     ${sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
     ${notices}
@@ -536,16 +535,19 @@ function drawHead(){
 // ---- the rail (a desktop): the logo, the editor's tabs, the other screens, undo and redo. Three containers: the tabs touch the editor card,
 // the screens are dashed and icon only, undo and redo sit at the foot. ----
 function drawRail(mode){
-  const hs = store.history, tea = drink() === 'tea';
+  const hs = store.history, tea = drink() === 'tea', bars = $('#meter');      // the page bars stay through a redraw, so their fill can ease
   const tab = (m, key, ic) => `<button role="tab" class="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'design', 'export'].includes(mode)) ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? ic[1] : ic[0], { size: 22 })}</span><span class="tl">${h(key)}</span></button>`;
   const screen = (act, name, ic) => `<button class="scr" data-act="${act}" data-tip="${esc(name)}|${esc(t('ux6b.fullWindow'))}" data-tip-pos="l" aria-label="${esc(name)}"><span class="ti">${icon(ic, { size: 22 })}</span><span class="cue">${icon('external', { size: 10 })}</span></button>`;
   $('#rail').innerHTML = `${logoBtn(30, { base: 'logo', pos: 'l' })}
     <div class="rtabs" id="rtabs" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}" data-tea="${esc(dock.teaNow())}">${tab('edit', 'ux2.modeEdit', ['edit', 'steep'])}${tab('design', 'ux2.modeDesign', ['design', 'latte'])}${tab('export', 'ux2.modeExport', ['export', 'cupout'])}</div>
     <div class="rscreens" role="group" aria-label="${esc(t('ux6b.screens'))}">${screen('sw-manage', t('ux1.manageAll', { n: store.state.resumes?.length ?? 0 }), 'list')}${screen('sw-record', t('ux3b.modeRecord'), 'recordbook')}</div>
     <div class="rhist" role="group" aria-label="${esc(t('ux6b.history'))}">
+      <div class="rbarslot"></div>
       ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
       ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 'l')}
     </div>`;
+  const slot = $('#rail .rbarslot');
+  if (bars) slot.replaceWith(bars); else slot.outerHTML = dock.barsHtml();
   placeRail();
 }
 // The tabs hang off the editor card: the first starts 30px below its top, whatever the name card's height. Not while the name window
@@ -976,13 +978,13 @@ async function runFit(){
   }
 }
 
-// The chip sits by Fit's place and never over the page: in the sidebar, just above its foot where Fit is; on a phone it stays above the sheet.
+// The chip sits by Fit's place and never over the page: in the sidebar, just under the Fit button in the name card, at the card's right edge; on a phone it stays above the sheet.
 function placeChip(el){
   const L = ui.layout;
   for (const k of ['left', 'right', 'top', 'maxWidth']) el.style[k] = '';
   if (!L || L.phone) return;
-  const ft = $('#foot').getBoundingClientRect();
-  Object.assign(el.style, { left: `${Math.round(L.col.left + 8)}px`, top: `${Math.round(ft.top - el.offsetHeight - 8)}px`, maxWidth: `${L.col.width - 16}px` });
+  const ft = $('#head .fit').getBoundingClientRect();
+  Object.assign(el.style, { left: `${Math.round(Math.max(L.col.left + 8, ft.right - el.offsetWidth))}px`, top: `${Math.round(ft.bottom + 6)}px`, maxWidth: `${L.col.width - 16}px` });
 }
 // After Fit: what it did, in a chip that stays a few seconds, with Undo. Fit only chose among wordings that were already there.
 let chipEl = null, chipT = 0, chipAt = -1;

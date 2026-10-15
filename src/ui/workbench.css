@@ -1015,9 +1015,8 @@ body[data-phone=true] .rectl .yrow { display: block; }
 
 /* ===== UX-5c, UX-6b: the floating panel =====
    The page is centred in the room left of the rail and the sidebar (layout.js). The sidebar is 340px (316 under 1400px windows), in three parts:
-   the name card (the name, which wraps and is never cut, Saved and the menu), the editor card (the body, and its foot: one thin bar for each
-   page, and Fit), and, beside it, the rail (the logo, Edit, Design and Export touching the editor card, the other screens, undo and redo).
-   Clicking the name grows the name card down over the editor card (the name window); the foot stays. The zoom bar shows while the pointer
+   the name card (the name, which wraps and is never cut, Saved and the menu), the editor card (the body, to the column's end), and, beside it, the rail (the logo, Edit, Design and Export touching the editor card, the other screens, the page
+   bars with undo and redo). Fit is in the name card under Saved and the menu. Clicking the name grows the name card down over the editor card (the name window). The zoom bar shows while the pointer
    is over the page. */
 html[data-drink="tea"] [data-tea="outline"] { --tea: var(--tea-outline); --surface: var(--tea-outline); --raised: var(--tea-outline-raised); --input: var(--tea-outline-input); --pop: var(--tea-outline-pop); --line: var(--tea-outline-line); --line-strong: var(--tea-outline-edge); }
 html[data-drink="tea"] [data-tea="design"] { --tea: var(--tea-design); --surface: var(--tea-design); --raised: var(--tea-design-raised); --input: var(--tea-design-input); --pop: var(--tea-design-pop); --line: var(--tea-design-line); --line-strong: var(--tea-design-edge); }
@@ -1025,18 +1024,17 @@ html[data-drink="tea"] [data-tea="export"] { --tea: var(--tea-export); --surface
 html[data-drink="tea"] [data-tea="record"] { --tea: var(--tea-record); --surface: var(--tea-record); --raised: var(--tea-record-raised); --input: var(--tea-record-input); --pop: var(--tea-record-pop); --line: var(--tea-record-line); --line-strong: var(--tea-record-edge); }
 [data-tea]:not([data-tea="outline"], [data-tea="design"], [data-tea="export"], [data-tea="record"]), html[data-drink="coffee"] [data-tea] { --tea: var(--surface); }
 
-/* the name card, the editor card (the body above, the foot under it) */
+/* the name card and the editor card */
 body:not([data-phone=true]):not(.is-intro) .col { gap: 0; }
-body:where(:not([data-phone=true], .is-intro)) .col > :where(#head, #body, #foot) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+body:where(:not([data-phone=true], .is-intro)) .col > :where(#head, #body) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 body:not([data-phone=true]):not(.is-intro) .col > #head { flex: none; min-height: 0; margin-bottom: 8px; padding: 5px 6px 5px 4px; position: relative; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head { display: block; }
 body:not([data-phone=true]):not(.is-intro) .col > #body { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel), inset -1px 0 0 var(--line-strong), inset 0 1px 0 var(--line-strong), inset 0 -1px 0 var(--line-strong); transition: background-color var(--m-base) var(--m-out); }
-body:not([data-phone=true]):not(.is-intro) .col > #foot { flex: none; margin-top: 1px; padding: 7px 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); box-shadow: var(--shadow-lift); transition: background-color var(--m-base) var(--m-out); }
 body.is-quiet .col > #body { border-radius: var(--r-panel); }
-/* the name window: the name card and the switcher are one card; the editor card is gone, the foot stays */
+/* the name window: the name card and the switcher are one card; the editor card is gone. A desktop's editor has no footer: the editor card takes the column down to its end. */
+body:not([data-phone=true]):not(.is-intro) .col > #foot { display: none; }
 body:not([data-phone=true]) .col.is-name > #body { display: none; }
 body:not([data-phone=true]):not(.is-intro) .col.is-name > #head { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: var(--line); }
-body:not([data-phone=true]):not(.is-intro) .col.is-name > #foot { margin-top: 0; }
 body:not([data-phone=true]) .switcher { position: static; flex: 1 1 0; min-height: 0; max-height: none; width: auto; margin: 0 0 8px; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 4px; overflow: auto; z-index: auto;
   background: var(--surface); border: 1px solid var(--line-strong); border-top: 0; border-radius: 0 0 var(--r-l) var(--r-l); }
 body:not([data-phone=true]) .switcher[hidden] { display: none; }
@@ -1066,18 +1064,17 @@ body:not([data-phone=true]) .docname .dn .swrole { font-size: 12px; }
 body:not([data-phone=true]) .docname .car { flex: none; margin-top: 2px; display: grid; }
 body:not([data-phone=true]) .docname[aria-expanded=true] .car { transform: rotate(180deg); }
 body:not([data-phone=true]) .savestate { width: 28px; height: 28px; justify-content: center; border-radius: var(--r-s); }
+.hside { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.hsidetop { display: flex; align-items: center; gap: 2px; }
+.hside .fit { padding: 2px 10px; font-size: 12px; line-height: 1.4; white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference){ html:not([data-motion="reduce"]) .savestate .si.wait .ico { animation: savespin var(--m-slow) var(--m-inout); } }      /* one turn, not a loop */
 @keyframes savespin { to { transform: rotate(360deg); } }
-.hfill { display: flex; align-items: center; gap: 6px; flex: none; min-width: 0; }
-.col > #foot .meters { flex: none; justify-content: flex-start; }
-.col > #foot .hfill .meters { flex: 1 1 0; min-width: 0; gap: 2px; }
-.hfill .fit { padding: 3px 12px; }
 .col > #head .menu { top: 46px; right: 8px; }
 body:not([data-phone=true]) .col > #head .menu { top: 40px; right: 6px; }
 .col > #head .ib { flex: none; }
 
-/* the constant chrome (name card, name window, foot, undo and redo) is one paper-or-espresso look, apart from the editor sheet's own surface */
-html body:not([data-phone=true]):not(.is-intro) :is(.col > #head, .col > .switcher, .col > #foot, .rhist) {
+/* the constant chrome (name card, name window, undo, redo and the page bars) is one paper-or-espresso look, apart from the editor sheet's own surface */
+html body:not([data-phone=true]):not(.is-intro) :is(.col > #head, .col > .switcher, .rhist) {
   --surface: var(--chrome); --band-bg: var(--chrome); --raised: var(--chrome-raised); --input: var(--chrome-input); --pop: var(--chrome); --ink: var(--chrome-ink); --ink-soft: var(--chrome-soft); --label: var(--chrome-soft); --faint: var(--chrome-soft);
   --line: var(--chrome-line); --line-strong: var(--chrome-edge); --hover: var(--chrome-hover); --hover-strong: var(--chrome-hover-strong); --fill: var(--chrome-hover); --fill-strong: var(--chrome-hover-strong); --wash: var(--chrome-hover); --seg-bg: transparent;
   --accent: var(--chrome-accent); --on-accent: var(--chrome-on-accent); --accent-soft: transparent; --focus: var(--chrome-accent); --ok: var(--chrome-ok); --warn: var(--chrome-warn); --bad: var(--chrome-bad); --cup-empty: var(--chrome-hover-strong); --cup-stroke: var(--chrome-ink); --menu-ink: var(--chrome-ink); --menu-ink-soft: var(--chrome-soft); --menu-line: var(--chrome-line); --menu-line-strong: var(--chrome-edge); --menu-hover: var(--chrome-hover); color: var(--ink);
@@ -1107,7 +1104,11 @@ body:is([data-phone=true], .is-intro, .is-quiet) .rail, .col.is-full > .rail { d
 .rscreens .scr { position: relative; width: 100%; height: 40px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--tab-ink); }
 .rscreens .scr:hover:not(:disabled) { background: color-mix(in srgb, var(--tab-ink) 14%, transparent); border: 0; }
 .rscreens .scr .cue { position: absolute; top: 2px; right: 2px; opacity: .8; display: grid; }
-.rhist { left: 0; bottom: 0; width: 46px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
+.rbars { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 2px; width: 100%; padding: 0 2px 3px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
+.rmore { flex: 0 0 100%; padding: 0 2px; border: 0; background: transparent; color: var(--ink-soft); font: 700 11px/1 var(--font-mono); border-radius: var(--r-xs); min-height: 24px; }
+.rmore:hover { background: var(--hover-strong); border: 0; }
+.rmore.overflow { color: var(--bad); }
+.rhist { left: 0; bottom: 0; width: 46px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 4px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
 .rhist .ib { width: 32px; height: 32px; }
 
 /* the body: one sheet, or two side by side (Outline and Edit, when the room allows) */
@@ -1125,16 +1126,19 @@ body.is-intro .zoombar, body.is-quiet .zoombar, body[data-phone=true] .zoombar {
 body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: auto; width: max-content; }
 
 /* the Outline: this resume in print order. Compact rows: the sheet must show the whole outline of a resume in 720px of window. */
-.outline .osec .item.srow { grid-template-columns: 22px 20px minmax(0, 1fr) auto auto; gap: 4px; padding: 3px 2px; }
-.outline .osec .item.srow .stext { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.outline .osec .item.srow .stext .t { font-weight: 650; }
-.outline .osec .item.srow .stext .tiny { flex: none; white-space: nowrap; }      /* the count stays on the name's line (the padlock took a little width); the name gives way */
-.outline .osec .item.srow .stext .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* the Outline's columns, from the left: the fold caret, the name (it wraps; a subtitle may be cut), then at the right end the count, the padlock and the
+   tick, each in a fixed column so they line up from row to row. The padlock stands before the tick, as on the page chip. */
+.outline .osec .item.srow { display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 2px; }
+.outline .osec .item.srow .stext { display: contents; }
+.outline .osec .item.srow .stext .t { flex: 1 1 0; font-weight: 650; min-width: 0; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.25; padding: 3px 0; }
+.outline .osec .item.srow .scount { flex: none; min-width: 3.4em; text-align: right; white-space: nowrap; }
+.outline .osec .item.srow > :is(.rowlock, .osecaret, .swl) { flex: none; }
+.outline .osec .item.srow > .swl, .outline .clgh > .swl { width: 30px; justify-content: center; }
 .osecaret { display: grid; place-items: center; width: 20px; height: 24px; padding: 0; border: 0; background: transparent; color: var(--ink-soft); border-radius: var(--r-xs); }
 .osecaret:hover { background: var(--hover); border: 0; }
 .osecaret .clc { transform: rotate(-90deg); }
 .osecaret[aria-expanded=true] .clc { transform: none; }
-.obody { padding: 0 0 4px 22px; }
+.obody { padding: 0 0 4px 8px; }
 .obody[hidden] { display: none; }
 .outline .clg { margin: 0; }
 .outline .clcaret { padding: 4px 4px; }
@@ -1142,6 +1146,26 @@ body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: au
 .outline .addline, .outline .archmore { margin: 2px 0 0 4px; padding: 1px 6px; }
 .outline .ojob { padding: 3px 6px; border-radius: 0; background: transparent; border: 0; }
 .outline .ojob .swl { width: auto; }
+/* a line: the text, then "n v", then the padlock and the tick (flex, so a missing control leaves no hole in the grid) */
+.outline .clrow { display: flex; align-items: center; gap: 4px; }
+.outline .clrow > .clt { flex: 1 1 0; }
+.outline .clrow > :is(.cb, .cbnone) { flex: none; margin: 0 7.5px; }      /* a slot as wide as a switch, so the ticks line up with the sections' */
+.outline .clrow > .rowlock, .outline .clgh > .rowlock { margin-left: 0; }
+.outline .clgh { gap: 2px; padding-right: 4px; }
+.outline .clgh > .clcount { min-width: 3.4em; text-align: right; }
+.outline .clgh > .rowlock:last-child { margin-right: 34px; }      /* a job's head has no tick of its own here: its padlock stays over the lines' */
+.outline .osec .clname, .outline .clgh .clname { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.25; }
+.clname:has(> .jtl), .jobname { display: flex; align-items: baseline; gap: .3em; }
+.jtl { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.org { flex: 1 1 0; min-width: 2.5em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* an open section is one container: its head is the container's header (stronger surface, an accent bar at the left edge, a rule under it), its
+   contents sit inside under a connecting rule, and the next one stands apart from it. A closed section is a plain row with none of that. */
+.outline .osec.open { margin: 5px 0; background: var(--raised); border: 1px solid var(--line-strong); border-left: 4px solid var(--accent); border-radius: var(--r-m); }
+.outline .osec.open > .item.srow { background: color-mix(in srgb, var(--accent) 14%, var(--raised)); border-bottom: 1px solid var(--line-strong); border-radius: 0 calc(var(--r-m) - 1px) 0 0; padding: 3px 4px 3px 2px; }
+.outline .osec.open > .item.srow.is-sel { background: var(--mark-soft); }
+.outline .osec.open > .obody { margin: 3px 6px 3px 12px; padding: 0 0 0 8px; border-left: 2px solid color-mix(in srgb, var(--accent) 55%, var(--line-strong)); }
+.outline .osec.open > .obody > :is(.clg, .item.ojob):last-child { border-bottom: 0; }
+.outline .osec.open .clg.open > .clgh { background: var(--hover); border-radius: var(--r-xs); }
 .outfoot { margin: 10px 0 0; }
 .outline .ordhead { justify-content: flex-end; margin: 0 0 4px; }
 .outline .notonline { margin-top: 6px; }
@@ -1173,7 +1197,9 @@ mark.dw { background: var(--ins-bg); color: inherit; border-radius: 2px; padding
 .photo-ctl .note { margin: 0; }
 .outline .clt { -webkit-line-clamp: 1; }
 .outline.only .clt { -webkit-line-clamp: 2; }      /* a job's lines: two lines each in the narrow sidebar */
-.outline .ojob .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }      /* an archived job's row ends in an ellipsis: its subtitle may be cut */
+.outline .ojob .t { min-width: 0; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.25; }      /* a job's name is never cut: it wraps */
+.outline .ojob { grid-template-columns: minmax(0, 1fr) 30px; }
+.outline .ojob .swl { grid-column: 2; justify-content: center; }
 .clrow.is-sel { background: var(--mark-soft); }
 /* the sheets are dense: a line with its five versions, a job, Design and Export each show whole in 720px of window */
 .col > #body .lbl { margin: 12px 0 5px; }

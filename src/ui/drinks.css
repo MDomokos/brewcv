@@ -44,8 +44,6 @@ html[data-drink="coffee"] :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .
 /* ---------- Coffee: hairlines, no elevation ---------- */
 html[data-drink="coffee"] body[data-phone=true]:not(.is-intro) .col { border: 1px solid var(--line-strong); }
 html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #body { border: 1px solid var(--line-strong); border-bottom: 0; }
-html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #foot { border: 1px solid var(--line-strong); border-top-color: var(--line); }
-html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col.is-name > #foot { border-top-color: var(--line-strong); }
 html[data-drink="coffee"] :is(.pop.card, .menu.card, .switcher, .help, .obcard) { border: 1px solid var(--line-strong); }
 html[data-drink="coffee"] .seg { padding: 0; gap: 4px; }
 html[data-drink="coffee"] .seg [role=tab], html[data-drink="coffee"] .seg button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 4px 6px; color: var(--faint); }
@@ -145,15 +143,17 @@ html[data-drink="coffee"] .meter .mband {
   content: ""; position: absolute; right: -5px; left: auto; width: 3px; top: auto; bottom: 88%; height: 8%; pointer-events: none; border: 1px solid var(--ink); border-left: 0;
 }
 html[data-drink="coffee"] .meter.overflow .mbar { border-color: var(--bad); }
-/* a desktop's meters: one thin bar for each page, the same in both drinks. The state is the colour (under, in the band, over) and the tip says it in words. */
-html[data-drink] .meter.thin { position: relative; display: block; flex: 0 1 52px; min-width: 28px; height: 28px; padding: 0; gap: 0; }
-html[data-drink] .meter.thin .mbar { position: absolute; left: 3px; right: 3px; top: 10px; width: auto; height: 8px; margin: 0; border: 0; border-radius: 4px; background: var(--line); }
+/* a desktop's page bars, in the rail beside undo and redo: one thin vertical bar for each page, the same in both drinks. The state is the colour (under, in the band, over)
+   and the tip says it in words. */
+html[data-drink] .meter.thin { position: relative; display: block; flex: 1 1 0; min-width: 12px; max-width: 24px; height: 52px; padding: 0; gap: 0; }
+html[data-drink] .meter.thin .mbar { position: absolute; left: 50%; width: 6px; margin: 0 0 0 -3px; top: 14px; bottom: 4px; height: auto; border: 0; border-radius: 3px; background: var(--line); }
 html[data-drink] .meter.thin .mbar::after { content: none; }
-html[data-drink] .meter.thin .mfill { position: absolute; inset: 0 auto 0 0; width: calc(var(--p, 0) * 1%); height: auto; border-radius: 4px; -webkit-mask: none; mask: none; background: var(--ok); opacity: 1; }
+html[data-drink] .meter.thin .mfill { position: absolute; inset: auto 0 0 0; width: auto; height: calc(var(--p, 0) * 1%); border-radius: 3px; -webkit-mask: none; mask: none; background: var(--ok); opacity: 1; }
 html[data-drink] .meter.thin.under .mfill { background: var(--warn); }
 html[data-drink] .meter.thin:is(.over, .overflow) .mfill { background: repeating-linear-gradient(135deg, var(--bad) 0 3px, color-mix(in srgb, var(--bad) 55%, var(--surface)) 3px 6px); }
-html[data-drink] .meter.thin .mband { left: 88%; right: auto; width: 8%; top: 0; bottom: 0; height: auto; border: 0; background: color-mix(in srgb, var(--ink) 40%, transparent); z-index: 1; }
+html[data-drink] .meter.thin .mband { left: -2px; right: -2px; width: auto; top: auto; bottom: 88%; height: 8%; border: 0; background: color-mix(in srgb, var(--ink) 40%, transparent); z-index: 1; }
 html[data-drink="tea"] .meter.thin.overflow .mbar::before { content: none; }
+html[data-drink="tea"] .meter.thin .mband { border: 0; }
 
 /* ---------- Tea: the panel, the modes, Fit, the toast, the tags ---------- */
 
@@ -240,6 +240,7 @@ html[data-drink="coffee"] .obstep.done .obn, html[data-drink="coffee"] .obstep.d
 
   /* steam rises for a few seconds, twice, and stops; dock.js starts it where it left off when the foot is redrawn (--el) */
   html[data-drink="tea"]:not([data-motion="reduce"]) .meter.steam:not(.under):not(.over):not(.overflow) .mbar::before { animation: tsSteam 2.2s ease-out 2 both; animation-delay: calc(var(--el, 0ms) * -1); }
+  html[data-drink="tea"]:not([data-motion="reduce"]) .meter.thin.steam:not(.under):not(.over):not(.overflow) .mbar::before { left: -4px; top: -14px; }      /* over the page bar in the rail */
   /* the phone's tags swing when the pointer brushes them */
   html[data-drink="tea"]:not([data-motion="reduce"]) .hrow.modes .seg [role=tab]:hover { animation: tsSwing var(--dur-moment) ease-out; }
   html[data-drink="tea"]:not([data-motion="reduce"]) [data-act=fit].primary:not(:disabled):hover { animation: tsSwing var(--dur-moment) ease-out; transform-origin: 0 50%; }
