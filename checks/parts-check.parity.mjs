@@ -136,7 +136,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
     const outline = String(u.checklist.outlineHtml());
     const og = (outline.match(new RegExp(`<section class="clg open[^"]*" data-g="${job.id}">[\\s\\S]*?</section>`)) ?? [''])[0];
     ok('in the Outline the job in focus is open, with its lines that are on, “+ n more” and “+ line”; Edit’s job panel no longer lists its lines or the box',
-      og.includes('class="clrow') && og.includes('data-act="ol-addline"') && /data-act="ol-more"/.test(og) && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('data-act="add-claim"') && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('class="clrow'));
+      og.includes('class="clrow') && og.includes('data-act="ol-newline"') && !og.includes('data-act="ol-addline"') && /data-act="ol-more"/.test(og) && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('data-act="add-claim"') && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('class="clrow'));
     ok('…and a line that is not in a job has no open job in the Outline', (u.select({ kind: 'bullet', id: w.basics.summary, section: 'summary' }), !/<section class="clg open/.test(String(u.checklist.outlineHtml()))));
     u.select({ kind: 'job', id: job.id });
     await u.click('ol-addline', { id: job.id });

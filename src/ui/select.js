@@ -6,7 +6,8 @@ import { entriesOf } from '../model/entries.js';
 
 export const NONE = Object.freeze({ kind: 'none' });
 
-export function indexModel(model){
+// `recipe`: its lines that exist only on this resume count as claims of their job (they have no versions).
+export function indexModel(model, recipe = null){
   const factOfVariant = new Map();
   for (const f of model.facts ?? []) for (const v of f.variants ?? []) factOfVariant.set(v, f.id);
   const display = new Map(), highlight = new Map();
@@ -14,11 +15,13 @@ export function indexModel(model){
     for (const k of ['position', 'meta']) if (w.display?.[k]) display.set(w.display[k], w.id);
     for (const h of w.highlights ?? []) highlight.set(h, w.id);
   }
+  const facts = new Map((model.facts ?? []).map(f => [f.id, f]));
+  for (const [job, lines] of Object.entries(recipe?.localLines ?? {})) for (const { id } of lines){ highlight.set(id, job); facts.set(id, { id, variants: [] }); }
   const header = new Set(Object.values(model.basics?.display ?? {}));
   const summaries = new Set([model.basics?.summary, ...(model.sections ?? []).filter(s => s.kind === 'prose').map(s => s.content?.fact)].filter(Boolean));
   return {
     factOfVariant, display, highlight, header, summaries,
-    facts: new Map((model.facts ?? []).map(f => [f.id, f])),
+    facts,
     variants: new Map((model.variants ?? []).map(v => [v.id, v])),
     work: new Map(entriesOf(model).map(w => [w.id, w])),
     sections: new Map((model.sections ?? []).map(s => [s.id, s])),

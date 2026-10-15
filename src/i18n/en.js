@@ -1204,4 +1204,9 @@ export default {
   'ux6c.section': 'Section',
   'ux6c.item': 'Item',
   'ux6c.header': 'Header',
+  'ux6c.newLine': 'New line',
+  'ux6c.localNote': 'Only on this resume. The Review list will offer it as a new claim.',
+  'ux6c.removeLine': 'Remove this line',
+  'ux6c.undoAddLine': 'Add a line',
+  'ux6c.undoRemoveLine': 'Remove a line',
 };

@@ -47,8 +47,8 @@ export async function makeUi({ resume = 0, lang = null } = {}){
   const cur = () => store.state.cur;
   const langOf = () => cur()?.lang ?? 'en';
   const work = () => {
-    const k = JSON.stringify(record());
-    if (k !== ui.workKey){ ui.work = store.materialize(record()); ui.workKey = k; ui.ix = indexModel(ui.work); }
+    const k = JSON.stringify(record()) + JSON.stringify(cur()?.localLines ?? null);
+    if (k !== ui.workKey){ ui.work = store.materialize(record()); ui.workKey = k; ui.ix = indexModel(ui.work, cur()); }
     return ui.work;
   };
   const sectionTitle = id => {

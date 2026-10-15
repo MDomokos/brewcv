@@ -71,7 +71,7 @@ const ui = {
 };
 const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: on => dock?.sheetOver(on), moved: () => { placeOverflow(); onpage?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
 const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
-  ix: () => ui.ix ?? indexModel(work()), fillText: () => fillText(), select: sel => select(sel),
+  ix: () => ui.ix ?? indexModel(work(), cur()), fillText: () => fillText(), select: sel => select(sel),
   writeStarted: () => dock.renderFoot(), writeEnded: () => dock.renderFoot(), redrawSoon: () => schedule() });
 window.__wb = { store, persist, sheet, ui, canvas, onpage, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
 
@@ -210,11 +210,11 @@ const lang = () => shown()?.lang ?? 'en';
 // The renderer's mutable copy of the record, rebuilt when the record changes. The probe
 // caches line counts in it, never in the store.
 function work(){
-  const k = JSON.stringify(record());
+  const k = JSON.stringify(record()) + JSON.stringify(cur()?.localLines ?? null);
   if (k !== ui.workKey){
     ui.work = store.materialize(record());
     ui.workKey = k;
-    ui.ix = indexModel(ui.work);
+    ui.ix = indexModel(ui.work, cur());
     ui.probed.clear();
   }
   return ui.work;
@@ -238,7 +238,7 @@ function onChange({ kind, label }){
 }
 
 function stillThere(sel){
-  const ix = indexModel(record());
+  const ix = indexModel(record(), cur());
   if (sel.kind === 'bullet') return ix.facts.has(sel.id);
   if (sel.kind === 'job') return ix.work.has(sel.id);
   if (sel.kind === 'section') return ix.sections.has(sel.id);
@@ -373,7 +373,7 @@ function reveal({ page, top, bottom }){
 
 function pick({ variant, section, page = -1, at = null }){
   if (ui.fitting || ui.snap || ui.view === 'welcome' || canvas.handed) return;
-  const next = targetOf(ui.ix ?? indexModel(work()), { variant, section });
+  const next = targetOf(ui.ix ?? indexModel(work(), cur()), { variant, section });
   // a faded page stays clickable: its blank paper brings it forward, and a line on it is worked on there
   const other = !ui.layout?.phone && page >= 0 && page !== ui.page;
   if (other && next.kind === 'none'){ canvas.goToPage(page); return; }
@@ -387,7 +387,7 @@ function pick({ variant, section, page = -1, at = null }){
 }
 // the page a selection is on (the claim for a bullet, the title for a job), or -1
 function pageOfSel(sel){
-  const ix = ui.ix ?? indexModel(work());
+  const ix = ui.ix ?? indexModel(work(), cur());
   const fact = sel.kind === 'bullet' ? sel.id : sel.kind === 'job' ? ix.work.get(sel.id)?.display?.position : null;
   return fact ? sheet.pageOf(fact, ix) : -1;
 }
@@ -1200,8 +1200,9 @@ function toast(msg, tone = ''){
 
 const edit = initEdit({
   store, ui, sheet, toast, record, cur, lang, work, chooseVariant, sectionTitle, textOfFact, resumeName, fillText,
-  ix: () => ui.ix ?? indexModel(work()),
-  onpage: { begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },
+  ix: () => ui.ix ?? indexModel(work(), cur()),
+  redrawNow: () => { clearTimeout(timer); return redraw(); },
+  onpage: { keepView: fn => onpage.keepView(fn), begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
   outlineHtml: (...a) => checklist.outlineHtml(...a),
   setFocus: () => sheet.setFocus(edit.focusHits(), ui.ix),

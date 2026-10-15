@@ -38,7 +38,14 @@ function clearEdit(keep = true){
   E.edit = null;
   clearTimeout(E.timer);
   if (was && !was.panel){ const live = C.onpage?.text(); if (live?.trim()) was.draft = live; C.onpage?.end(); }      // a composition not yet ended is not in the draft
-  if (was && keep) keepEdit(was);
+  if (was && keep && T.isLocal(cur(), was.fact) && !was.draft.trim()) dropLine(was.fact);
+  else if (was && keep) keepEdit(was);
+}
+// A line only on this resume that is left empty is not kept (an empty bullet holds nothing, and undo brings it back). The job is selected.
+function dropLine(fact){
+  const job = ix().highlight.get(fact);
+  if (C.ui.sel.kind === 'bullet' && C.ui.sel.id === fact && job) C.ui.sel = { kind: 'job', id: job };      // Esc goes up to the job, not to the page
+  commit(d => T.removeLocalLine(d.cur, fact), t('ux6c.undoRemoveLine'));
 }
 // Leaving a line keeps what was typed on this resume, and nothing asks: one override with the highlights it keeps and the version it
 // was written from. The words of that version again drop the override.
@@ -65,7 +72,7 @@ const ix = () => C.ix();
 const work = () => C.work();
 const usingOf = id => C.chooseVariant(work(), id, cur()).v;
 const overrideOf = id => cur().overrides?.[id];
-const isOn = id => { const w = T.jobOfFact(rec(), id); return !w || T.listedBullets(rec(), cur(), w.id).includes(id); };
+const isOn = id => { const w = T.jobOfFact(rec(), id, cur()); return !w || T.listedBullets(rec(), cur(), w.id).includes(id); };
 const isKept = id => T.keepOf(cur()).includes(id);
 const isArch = id => !!ix().facts.get(id)?.archived;
 const jobOn = id => T.jobRefs(rec(), cur()).some(r => (typeof r === 'string' ? r : r.id) === id);
@@ -112,6 +119,9 @@ function noneView(){
     <p class="lead edithint">${h('ux5c.editNone')}</p>`;
 }
 
+// what a line is called in the depth chip and the card: its summary, else its words; a new empty line only on this resume is "New line"
+const lineName = id => ix().facts.get(id)?.summary || C.textOfFact(id) || (T.isLocal(cur(), id) ? t('ux6c.newLine') : id);
+
 // One depth indicator (UX-6c): the levels of what is selected, from the page down. The chip on the page and the row at the top of
 // the editor card both draw it, from parts.js depthHtml. The sidebar's row names the specific content (full job and line names); the
 // page's chip is general and in single words (Page › Experience › Hydra, Page › Skills › CAD, no line level).
@@ -127,13 +137,13 @@ function depth(sel = C.ui.sel, page = false){
     else if (sid) L.push({ word: word(C.sectionTitle(sid)), act: 'select-section', attrs: at(sid) });
     if (jobId) L.push({ word: word(ix().work.get(jobId)?.name ?? jobId), act: 'select-job', attrs: at(jobId) });
     else if (item) L.push({ word: word(ix().facts.get(sel.id)?.summary || C.textOfFact(sel.id) || sel.id), act: 'select-record', attrs: `${at(sel.id)} data-what="item" data-group="${esc(sel.group ?? '')}"` });
-    else if (sel.kind === 'bullet' && sid !== 'header' && sid !== 'summary') L.push({ word: word(ix().facts.get(sel.id)?.summary || C.textOfFact(sel.id)), act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
+    else if (sel.kind === 'bullet' && sid !== 'header' && sid !== 'summary') L.push({ word: word(lineName(sel.id)), act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
     return L;
   }
   if (jobId) L.push({ word: t('ux3.crumbJob'), name: ix().work.get(jobId)?.name ?? jobId, act: 'select-job', attrs: at(jobId) });
   else if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
   else if (sid) L.push({ word: t('ux6c.section'), name: C.sectionTitle(sid), act: 'select-section', attrs: at(sid) });
-  if (sel.kind === 'bullet') L.push({ word: jobId ? t('ux3.crumbLine') : t('ux6c.item'), name: ix().facts.get(sel.id)?.summary ?? sel.id,
+  if (sel.kind === 'bullet') L.push({ word: jobId ? t('ux3.crumbLine') : t('ux6c.item'), name: T.isLocal(cur(), sel.id) ? lineName(sel.id) : ix().facts.get(sel.id)?.summary ?? sel.id,
     act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
   return L;
 }
@@ -181,13 +191,20 @@ function bulletView(s){
   if (!f) return noneView();
   const w = s.job ? ix().work.get(s.job) : null;
   const on = isOn(s.id) && (!w || jobOn(w.id));
+  // a line that exists only on this resume has no versions: what it is, the tick, and the way to remove it
+  if (T.isLocal(cur(), s.id)) return `${depthHtml(s)}
+    <h2 class="title">${esc(clip(lineName(s.id), 80))}</h2>
+    <div class="ctlrow">${sw('id="b-on"', on, h('edit.onThis'))}</div>
+    <p class="note">${h('ux6c.localNote')}</p>
+    ${document.body.dataset.phone === 'true' ? versionsHtml(versionsX(s.id)) : ''}
+    <div class="ctlrow"><button class="sm" data-act="local-remove">${h('ux6c.removeLine')}</button></div>`;
 
   return `${depthHtml(s)}
     <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
     ${claimHead({ hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
     + versionsHtml(versionsX(s.id));
 }
-const isClaim = id => ix().highlight.has(id);
+const isClaim = id => ix().highlight.has(id) && !T.isLocal(cur(), id);
 
 // the versions of a fact, under an item's form
 function factPanel(id){
@@ -207,9 +224,25 @@ function versionsX(id){
     vs, using, over: overrideOf(id), parked: cur().parked?.[id]?.text, ed, writing,
     compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,
     lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: tagVocab(rec()),
-    dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id) || id === cur().summary), fill: C.fillText(),
+    dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id, cur()) || id === cur().summary), fill: C.fillText(),
     ref: C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
   };
+}
+
+// A new empty line only on this resume, after `afterId` (the job's last line when none is given), written at once on the page.
+// The line being written is kept first. The page is drawn again before the new line is looked for on it.
+async function addLine(jobId, afterId = undefined){
+  if (!ix().work.has(jobId) || !jobOn(jobId)) return false;
+  const after = afterId === undefined ? T.listedBullets(rec(), cur(), jobId).at(-1) ?? null : afterId;
+  clearEdit();
+  let id;
+  commit(d => { id = T.addLocalLine(d.record, d.cur, jobId, after); }, t('ux6c.undoAddLine'));
+  if (!id) return false;
+  C.work();
+  await C.redrawNow?.();
+  C.select({ kind: 'bullet', id, job: jobId, section: 'experience' });
+  if (C.ui.sel.id === id && document.body.dataset.phone !== 'true') startEdit();
+  return true;
 }
 
 function startEdit(mode = null, vid = null){
@@ -251,7 +284,9 @@ export function isDirty(ed = E.edit){
 // Esc and the like: what was typed is kept on this resume. `discard`: only the panel's own Cancel button drops it
 async function cancelEdit({ discard = false } = {}){
   if (!E.edit) return true;
+  const fact = E.edit.fact;
   clearEdit(!discard);
+  if (discard && T.isLocal(cur(), fact) && !cur().overrides?.[fact]) dropLine(fact);
   await C.endPreview(true);
   C.renderBody();
   return true;
@@ -352,6 +387,7 @@ async function act(a, tg){
     case 'ed-only': saveEdit('only'); return true;
     case 'ed-new': saveEdit('new'); return true;
     case 'ed-promote': saveEdit('promote'); return true;
+    case 'local-remove': clearEdit(false); dropLine(s.id); C.renderBody(); return true;
     case 'only-remove': commit(d => T.setOverride(d.cur, s.id, null), t('edit.backToSaved'), t('toast.backToSaved')); return true;
     case 'unfold': E.openMinor.add(`${s.id}:${lang()}:${tg.dataset.m}`); C.renderBody(); return true;
     case 'compare': E.compare = E.compare === tg.dataset.v ? null : tg.dataset.v; C.renderBody(); return true;
@@ -430,7 +466,7 @@ async function act(a, tg){
       const k = tg.dataset.kind, id = tg.dataset.id;
       // the missing text is written in Edit, wherever the list was
       if (k === 'heading') C.select({ kind: 'section', id }, { pane: 'edit' });
-      else { const job = T.jobOfFact(rec(), id); C.select(job ? { kind: 'bullet', id, job: job.id, section: 'experience' } : { kind: 'bullet', id, section: tg.dataset.section ?? 'summary', owner: tg.dataset.owner ?? undefined }, { pane: 'edit' }); }
+      else { const job = T.jobOfFact(rec(), id, cur()); C.select(job ? { kind: 'bullet', id, job: job.id, section: 'experience' } : { kind: 'bullet', id, section: tg.dataset.section ?? 'summary', owner: tg.dataset.owner ?? undefined }, { pane: 'edit' }); }
       return true;
     }
     case 'focus': E.focus = E.focus === tg.dataset.tag ? null : tg.dataset.tag; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
@@ -591,7 +627,7 @@ function bind(body){
       if (!row || row.dataset.bjob !== from.job || row.dataset.bullet === from.id) return;
       e.preventDefault();
       const below = row.classList.contains('drop-below');
-      const w = T.jobOfFact(rec(), from.id);
+      const w = T.jobOfFact(rec(), from.id, cur());
       const ids = (w ? T.listedBullets(rec(), cur(), w.id) : []).filter(x => x !== from.id);
       const at = ids.indexOf(row.dataset.bullet) + (below ? 1 : 0);
       commit(d => T.moveBullet(d.record, d.cur, from.id, ids[at] ?? null), tr('ux2.undoMoveItem'));
@@ -699,7 +735,10 @@ function resetOrder(kind, id){
       const listed = new Set(T.jobRefs(d.record, d.cur, id).map(r => (typeof r === 'string' ? r : r.id)));
       for (const x of d.record.sections.find(s => s.id === id)?.content.work ?? []) if (listed.has(x) && d.record.work.some(w => w.id === x && !w.archived)) auto ||= T.moveEntry(d.record, d.cur, x).auto;
     }
-    else if (kind === 'job'){ const on = new Set(T.listedBullets(d.record, d.cur, id)); for (const b of ix().work.get(id)?.highlights ?? []) if (on.has(b)) T.moveBullet(d.record, d.cur, b); }
+    else if (kind === 'job'){
+      const on = new Set(T.listedBullets(d.record, d.cur, id));
+      for (const b of [...(ix().work.get(id)?.highlights ?? []), ...T.listedBullets(d.record, d.cur, id).filter(x => T.isLocal(d.cur, x))]) if (on.has(b)) T.moveBullet(d.record, d.cur, b);       // the lines only here stay after the record's
+    }
     else if (kind === 'items') for (const x of T.itemsOf(d.record, id) ?? []) T.moveItem(d.record, d.cur, id, x);
     else { const on = new Set(T.sectionList(d.record, d.cur).filter(s => s.on && !s.fixed).map(s => s.id)); for (const s of d.record.sections) if (on.has(s.id)) auto ||= T.moveSection(d.record, d.cur, s.id).auto; }
   }, t('ux5b.undoReset'));
@@ -725,7 +764,7 @@ function leaving(next){
 }
 
 const api = {
-  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml,
+  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){

@@ -815,12 +815,49 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   await page.keyboard.press('Enter'); await page.waitForTimeout(900);
   ok('Enter keeps the line and writes the next one, in the same zoom', (await factOf(page)) === order[order.indexOf(e0) + 1] && (await lineEl(page).count()) === 1 && Math.abs((await zoomOf(page)) - 1.3) < 0.02, `${e0} → ${await factOf(page)}`);
   await esc3();
+  // Enter at a job's last line adds a line that exists only on this resume (no claim: that needs a source, which only the Review list asks for)
   const nFacts = await page.evaluate(() => window.__wb.store.state.record.facts.length);
+  const locals = () => page.evaluate(() => Object.values(window.__wb.store.state.cur.localLines ?? {}).flat().map(l => l.id));
+  const emptyLis = () => frameDoc(page, d => [...d.querySelectorAll('.bullets li')].filter(li => !li.textContent.trim()).length);
   await jobs.nth(0).locator('.bullets li').last().click(); await page.waitForTimeout(800);
   const eL = await factOf(page);
-  await page.keyboard.press('Enter'); await page.waitForTimeout(900);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(1400);
   const eN = await factOf(page);
-  ok('Enter at a job’s last line goes on to the next job’s first line, and adds no claim (a new line needs a source, which only the Review list asks for)', !!eN && eN === order[order.indexOf(eL) + 1] && (await page.evaluate(() => window.__wb.store.state.record.facts.length)) === nFacts, `${eL} → ${eN}`);
+  ok('Enter at a job’s last line adds an empty line after it and writes it, in the same zoom, and adds no claim', /^~new-/.test(eN) && (await locals()).includes(eN) && (await lineEl(page).count()) === 1 && !(await lineText(page)).trim()
+    && Math.abs((await zoomOf(page)) - 1.3) < 0.02 && (await page.evaluate(() => window.__wb.store.state.record.facts.length)) === nFacts && (await page.evaluate(() => window.__wb.sheet.order(window.__wb.ui.ix))).at(-1) !== eL, `${eL} → ${eN}`);
+  ok('…its place is the job’s end, and the sidebar names it', (await page.evaluate(({ id }) => { const j = Object.entries(window.__wb.store.state.cur.localLines).find(([, l]) => l.some(x => x.id === id)); return j && j[1].find(x => x.id === id).after; }, { id: eN })) === eL && /New line/.test(await page.textContent('#body .depth')));
+  await page.keyboard.press('Escape'); await page.waitForTimeout(900);
+  ok('Esc on an empty new line leaves no empty bullet: the line is gone, the job is selected', (await locals()).length === 0 && (await emptyLis()) === 0 && (await selOf(page)).startsWith('job:') && (await lineEl(page).count()) === 0);
+  await esc3();
+  await jobs.nth(0).locator('.bullets li').last().click(); await page.waitForTimeout(800);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(1400);
+  const eT = await factOf(page);
+  await page.keyboard.insertText('Ran the bench trial on site.'); await page.waitForTimeout(500);
+  await page.keyboard.press('Tab'); await page.waitForTimeout(1000);
+  ok('typing in the new line keeps it as a line on this resume only (Tab moved on, nothing asked, nothing lost)', (await locals()).includes(eT) && (await page.evaluate(id => window.__wb.store.state.cur.overrides[id], eT)) === 'Ran the bench trial on site.' && dialogs === 0
+    && /Ran the bench trial on site\./.test(await frameDoc(page, d => d.body.textContent)) && (await page.evaluate(() => window.__wb.store.state.record.facts.length)) === nFacts);
+  await esc3();
+  await sheet.locator('.bullets li', { hasText: 'Ran the bench trial on site.' }).click(); await page.waitForTimeout(900);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(700);
+  ok('the sidebar of such a line shows the note, the tick and “Remove this line”, and no versions', /Only on this resume\. The Review list will offer it as a new claim\./.test(await page.textContent('#body')) && !!(await page.$('#body #b-on')) && !!(await page.$('#body [data-act=local-remove]')) && !(await page.$('#body .vlist')));
+  await page.click('#body #b-on'); await page.waitForTimeout(900);
+  ok('…its tick switches it off: it leaves the page but stays on the resume', !/Ran the bench trial on site\./.test(await frameDoc(page, d => d.body.textContent)) && (await locals()).includes(eT));
+  await page.click('#body #b-on'); await page.waitForTimeout(900);
+  ok('…and on again', /Ran the bench trial on site\./.test(await frameDoc(page, d => d.body.textContent)));
+  await page.click('#body [data-act=local-remove]'); await page.waitForTimeout(900);
+  ok('“Remove this line” removes it, text and all, and undo brings it back', (await locals()).length === 0 && !/Ran the bench trial on site\./.test(await frameDoc(page, d => d.body.textContent)));
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(900);
+  ok('…which it does', (await locals()).includes(eT) && /Ran the bench trial on site\./.test(await frameDoc(page, d => d.body.textContent)));
+  // "+ line" in the job’s sidebar view does the same as Enter
+  await page.click('#editlay .obchip [data-act=select-job]'); await page.waitForTimeout(700);
+  await page.click('#body [data-act=ol-newline]'); await page.waitForTimeout(1400);
+  const eP = await factOf(page);
+  ok('“+ line” in the job’s sidebar adds an empty line only on this resume and writes it', /^~new-/.test(eP) && eP !== eT && (await locals()).includes(eP) && (await lineEl(page).count()) === 1);
+  await page.keyboard.insertText('Drew the fixtures.'); await page.waitForTimeout(500);
+  await page.mouse.click(4, 4); await page.waitForTimeout(900);
+  ok('…a click elsewhere keeps what was typed in it', (await page.evaluate(id => window.__wb.store.state.cur.overrides[id], eP)) === 'Drew the fixtures.' && dialogs === 0);
+  await page.evaluate(async ids => { const T = await import('./src/model/resume.js'); window.__wb.store.commit(d => { for (const id of ids) T.removeLocalLine(d.cur, id); }, 'clean'); }, [eT, eP]);
+  await page.waitForTimeout(900);
   await esc3();
 
   // the zoom rule: in on the first line written, stays from line to line (a click, Tab, Enter), out only at the page level
@@ -847,7 +884,7 @@ if (want('on the page: three levels, writing a line where it is printed, the too
 
   // the chip's levels: each selects its level, and the sidebar shows that level's own view
   const body = page.locator('#body');
-  const viewOf = () => page.evaluate(() => { const q = s => !!document.querySelector(s); return { sel: window.__wb.ui.sel.kind, outline: q('#body #seclist'), sec: q('#body #sec-label') && q('#body .outline.only [data-job]'), job: q('#body .outline.only [data-bullet]') && q('#body [data-act=ol-addline]') && !q('#body #sec-label'), line: q('#body .vrow') && !q('#body .outline'), header: q('#body [data-view=header], #body .about, #body .headerform') }; });
+  const viewOf = () => page.evaluate(() => { const q = s => !!document.querySelector(s); return { sel: window.__wb.ui.sel.kind, outline: q('#body #seclist'), sec: q('#body #sec-label') && q('#body .outline.only [data-job]'), job: q('#body .outline.only [data-bullet]') && q('#body [data-act=ol-newline]') && !q('#body #sec-label'), line: q('#body .vrow') && !q('#body .outline'), header: q('#body [data-view=header], #body .about, #body .headerform') }; });
   await jobs.nth(0).locator('.bullets li').first().click(); await page.waitForTimeout(800);
   await page.click('#editlay .obchip [data-act=select-job]'); await page.waitForTimeout(700);
   const vj = await viewOf();
@@ -1055,6 +1092,25 @@ if (want('on the page: a narrow window, zoom off, reduced motion, a line that is
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
+
+  // a phone does not write on the page: a line only on this resume is added from the job’s “+ line” and written in the panel
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });       // (not isMobile: that makes innerWidth 774, which the page tests read)
+    const ph = await ctx.newPage();
+    const bad = await open(ph);
+    await openByName(ph, 'Medtech');
+    await ph.frameLocator('#sheet iframe').locator('.entry .bullets li').first().tap(); await ph.waitForTimeout(800);
+    await ph.evaluate(() => document.querySelector('#body .depth [data-act=select-job]').click()); await ph.waitForTimeout(700);
+    await ph.evaluate(() => document.querySelector('#body [data-act=ol-newline]').click()); await ph.waitForTimeout(1500);
+    const lines = () => ph.evaluate(() => Object.values(window.__wb.store.state.cur.localLines ?? {}).flat().map(l => l.id));
+    ok('phone: “+ line” in the job’s sidebar adds an empty line only on this resume, selected', (await lines()).length === 1 && (await ph.evaluate(() => window.__wb.ui.sel.id)) === (await lines())[0] && (await ph.evaluate(() => window.__wb.ui.writing)) !== true);
+    ok('phone: its panel has the note, “Remove this line” and a way to write it', /Only on this resume\./.test(await ph.textContent('#body')) && !!(await ph.$('#body [data-act=local-remove]')) && !!(await ph.$('#body [data-act=edit]')));
+    await ph.evaluate(() => document.querySelector('#body [data-act=edit]').click()); await ph.waitForTimeout(500);
+    await ph.fill('#ed', 'Wrote the fixture drawings.'); await ph.evaluate(() => document.querySelector('#body [data-act=ed-only]').click()); await ph.waitForTimeout(900);
+    ok('phone: what is typed there is kept on the line', (await ph.evaluate(id => window.__wb.store.state.cur.overrides[id], (await lines())[0])) === 'Wrote the fixture drawings.' && /fixture drawings/.test(await frameDoc(ph, d => d.body.textContent)));
+    ok('phone: no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
 }
 
 if (want('scrollbars')) {
@@ -1157,6 +1213,7 @@ if (want('the welcome language step, the interface language, Settings')) {
     ok('Settings still opens', /Settings/.test(await page.textContent('#body .title')) && bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
+
 }
 
 if (want('the record checklist: groups, ticks, the page and the timeline')) {
@@ -2550,9 +2607,10 @@ if (want('one panel for a claim: from the page and from the checklist')) {
   const jobId = await page.evaluate(() => window.__wb.ui.sel.id);
   const hl = async () => (await st()).record.work.find(w => w.id === jobId).highlights.length;
   const h0 = await hl();
-  await page.click('#outline .clg.open [data-act=ol-addline]'); await settle(page);
-  await page.fill('#outline .clg.open .new-claim', 'Wrote the fixture drawings and the test procedure.'); await page.click('#outline .clg.open [data-act=add-claim]'); await page.waitForTimeout(1000);
-  ok('+ line, under the job in the Outline: the claim is added and on', (await hl()) === h0 + 1 && /fixture drawings/.test(await frameDoc(page, d => d.body.textContent)));
+  // a claim of the record added to the job (the Outline's "+ line" now adds a line only on this resume; the claim box is the Record's)
+  await page.evaluate(async id => { const K = await import('./src/model/career.js'), T = await import('./src/model/resume.js'); window.__wb.store.commit(d => { const made = K.addEntryClaim(d.record, id, 'Wrote the fixture drawings and the test procedure.', 'en', 'Fixture log'); T.setBulletOn(d.record, d.cur, made, true); }, 'add a claim'); }, jobId);
+  await page.waitForTimeout(1000);
+  ok('a claim added to the job is on, a row of the Outline and on the page', (await hl()) === h0 + 1 && /fixture drawings/.test(await frameDoc(page, d => d.body.textContent)));
   await page.click('#outline .clg.open .clrow >> nth=-1 >> .clv'); await settle(page);
   await page.click('#body [data-act=delete-claim]'); await page.waitForTimeout(1000);
   ok('🗑 deletes it and goes back to the job; Ctrl+Z brings it back', (await hl()) === h0 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job');

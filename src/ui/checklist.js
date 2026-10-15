@@ -121,7 +121,7 @@ export function outlineHtml(only = null, section = null){
     const showMore = S.more.has(g.id);
     return `<ul class="clrows">${rowsHtml(printed, g)}</ul>
         ${more.length ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('ux5c.more', { n: more.length })}</button>${showMore ? `<ul class="clrows">${rowsHtml(more, g)}</ul>` : ''}` : ''}
-        ${addLineHtml(g)}`;
+        <button class="sm ghost addline" data-act="ol-newline" data-id="${esc(g.id)}">${h('ux5c.line')}</button>`;
   };
   const jobHtml = (g, isOn, move = null) => {
     if (!isOn) return `<div class="item row is-off ojob"><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a></div>`;
@@ -283,6 +283,8 @@ async function act(a, tg){
       return true;
     }
     case 'ol-more': { const id = tg.dataset.id; if (S.more.has(id)) S.more.delete(id); else S.more.add(id); C.renderBody(); return true; }
+    // a new empty line only on this resume, written at once
+    case 'ol-newline': C.edit.addLine(tg.dataset.id); return true;
     case 'ol-addline': {
       S.adding = tg.dataset.id; C.renderBody();
       document.querySelector(`.new-claim[data-entry="${CSS.escape(S.adding)}"]`)?.focus();

@@ -110,7 +110,7 @@ export function initOnPage(C){
   }
 
   function lineEnds(fact){
-    const w = T.jobOfFact(C.record(), fact), ids = w ? T.listedBullets(C.record(), C.cur(), w.id) : [];
+    const w = T.jobOfFact(C.record(), fact, C.cur()), ids = w ? T.listedBullets(C.record(), C.cur(), w.id) : [];
     return { first: ids[0] === fact, last: ids.at(-1) === fact };
   }
   // the tools are for the line being written; the sidebar shows the versions
@@ -120,7 +120,7 @@ export function initOnPage(C){
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
     if (!ed) return '';
     const vn = C.work().variants.find(v => v.id === ed.vid)?.n ?? '·';       // the version the line was written from
-    return toolsHtml({ vn, canMove: !!T.jobOfFact(C.record(), fact), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
+    return toolsHtml({ vn, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
   }
 
   // where everything is on the screen: follows the camera
@@ -245,12 +245,22 @@ export function initOnPage(C){
     const mod = e.ctrlKey || e.metaKey;
     const done = () => { e.preventDefault(); e.stopPropagation(); };
     if (e.key === 'Escape'){ done(); edit().cancelEdit(); return; }
-    if (e.key === 'Enter' && !e.shiftKey && !e.altKey){ done(); if (!next(1)) edit().cancelEdit(); return; }
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey){ done(); if (!addAfter() && !next(1)) edit().cancelEdit(); return; }
     if (e.key === 'Tab' && !mod && !e.altKey){ done(); next(e.shiftKey ? -1 : 1); return; }
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !mod && !e.altKey && !e.shiftKey && atEdge(e.target.closest('[contenteditable]') ?? S.el, e.key === 'ArrowDown' ? 1 : -1)){ done(); next(e.key === 'ArrowDown' ? 1 : -1); }
   }
-  // The next line in print order, written at once, in the same zoom. A job's last line goes on to the next job's first: a new empty
-  // line needs a claim of its own, which only the Review list (UX-6d) can add with a source. False at the page's last line.
+  // Enter at a job's last line (with words in it): a new empty line after it, only on this resume until the Review list (UX-6d) makes
+  // it a claim with a source. Written at once, in the same zoom. False when this is not that, or the job's last line is empty.
+  function addAfter(){
+    const ed = edit().editing;
+    if (!ed || !ed.draft.trim()) return false;
+    const w = T.jobOfFact(C.record(), ed.fact, C.cur());
+    if (!w || !lineEnds(ed.fact).last) return false;
+    keepView(() => edit().addLine(w.id, ed.fact));
+    return true;
+  }
+  // The next line in print order, written at once, in the same zoom. A job's last line goes on to the next job's first.
+  // False at the page's last line.
   function next(dir){
     const ed = edit().editing;
     if (!ed) return false;

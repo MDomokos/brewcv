@@ -617,7 +617,7 @@ section('the Record tab: the timeline and every kind of addition are there, and 
     const a = sels(String(u.checklist.html())), b = sels(String(u.checklist.outlineHtml()));
     return b.size >= 3 && [...b].every(x => a.has(x));
   })());
-  ok('the Outline has no timeline: the open job is its lines, “+ n more” and a “+ line”', (() => { u.select({ kind: 'job', id: 'hydra' }); const g = String(u.checklist.outlineHtml()); return !/rectl|tl2/.test(g) && /data-act="ol-addline"/.test(g) && /data-act="ol-more"/.test(g); })());
+  ok('the Outline has no timeline: the open job is its lines, “+ n more” and a “+ line”', (() => { u.select({ kind: 'job', id: 'hydra' }); const g = String(u.checklist.outlineHtml()); return !/rectl|tl2/.test(g) && /data-act="ol-newline"/.test(g) && /data-act="ol-more"/.test(g); })());
 }
 
 section('what Career did, and where each part went (the ledger of data-act)');
