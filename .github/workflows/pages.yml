@@ -72,33 +72,8 @@ jobs:
       - name: The examples ship, every saved resume index.json names, one in every language
         run: node -e "const fs=require('fs');const n=JSON.parse(fs.readFileSync('_site/data/example-resumes/index.json'));const raw=fs.readdirSync('_site/data/example-resumes');const on=f=>raw.find(x=>x.normalize('NFC')===f.normalize('NFC'));const miss=n.filter(f=>!on(f));const langs=new Set(n.filter(on).map(f=>JSON.parse(fs.readFileSync('_site/data/example-resumes/'+on(f))).meta.resumeBuilder.resume.lang||'en'));const want=['en','de','fr','es','it','pt','nl','pl','cs','hu'];const gone=want.filter(l=>!langs.has(l));if(miss.length||n.length<14||gone.length){console.error('missing examples:',miss,'languages with none:',gone);process.exit(1)}console.log(n.length+' example resumes ship, in '+langs.size+' languages')"
 
-      - name: Schema v4, saved resumes, undo and persistence (Node)
-        run: |
-          node checks/model-check.mjs
-          node checks/store-check.mjs
-          node checks/paginate-check.mjs
-          node checks/shell-check.mjs
-          node checks/camera-check.mjs
-          node checks/edit-check.mjs
-          node checks/motion-check.mjs
-          node checks/direct-check.mjs
-          node checks/resumes-check.mjs
-          node checks/focus-check.mjs
-          node checks/lang-check.mjs
-          node checks/diff-check.mjs
-          node checks/import-check.mjs
-          node checks/savefile-check.mjs
-          node checks/export-check.mjs
-          node checks/tokens-check.mjs
-          node checks/career-check.mjs
-          node checks/i18n-check.mjs
-          node scripts/tokens.mjs --check
-          node checks/recipe-check.mjs
-          node checks/preflight-check.mjs
-          node checks/history-scan-check.mjs
-          node checks/private-files-check.mjs
-          node checks/prepush-check.mjs
-          node checks/agent-check.mjs
+      - name: "Every Node check (checks/check-map.json lists them)"
+        run: node checks/run.mjs
 
       - name: The JSON Resume export must still work
         run: node scripts/to-jsonresume.mjs _site/data/example.json _site/data/example-recipe.json -o /dev/null

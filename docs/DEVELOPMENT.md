@@ -96,90 +96,46 @@ docs/                      this guide, THEMES.md (making a theme), PRIVACY.md (c
 
 Every catalogue but English is **machine-written and needs a native review**; the app says so where you choose one. Corrections go in `src/i18n/<lang>.js`, and `checks/i18n-check.mjs` keeps them honest (keys, placeholders, plurals, markup, the review marker).
 
-## Checks
-
-The Node ones need nothing installed:
+## Running the checks
 
 ```
-node checks/model-check.mjs [lib]     schema v4, migration, saved-resume files; with your library,
-                                      every recipe renders byte-identical to before 0.5.1
-node checks/store-check.mjs           undo, autosave, folder mirror, backup, checkpoints
-node checks/paginate-check.mjs [lib]  block pagination, Fit on the last page, labels, photo, fields
-node checks/shell-check.mjs           layout maths (the sidebar's width, the rail, the page centred in the room left of them, pages side by side, a phone), click targets, Esc, folder read back
-node checks/camera-check.mjs          the canvas camera: both pages or one, limits (centred when the pages fit, an edge each side when zoomed in), the magnet, which page is bright, the spring, the page edge while writing
-node checks/edit-check.mjs            version numbers, edits, off/keep, sections, 300 random edits
-node checks/direct-check.mjs          the model behind editing on the page: the 70 percent cut-off, parked edits, parents, skill sets per language, the new saved-resume keys, and a line that exists only on one resume (add, move, off, remove, save and load, copies, snapshots, language, undo, exports, and that the commit before it opens such a file)
-node checks/resumes-check.mjs         autosave, snapshots and sends, frozen text and newer wording, new, duplicate, compare, folder
-node checks/focus-check.mjs           tags, plan = apply, Keep untouched, no job emptied
-node checks/lang-check.mjs            the ten languages, missing texts, switching, A4 formats
-node checks/i18n-check.mjs            every catalogue: keys, placeholders, plurals, markup, the review marker (until UX-6f, which translates them,
-                                      keys of UX-6b to UX-6e, prefixes ux6b. to ux6e., may be missing from the nine other catalogues)
-node checks/diff-check.mjs            the merge engine on an edited copy of the example
-node checks/import-check.mjs          every kind of file, JSON Resume round trip, outside edits
-node checks/savefile-check.mjs        Save to file: the format and its record id, the four ways a file meets this browser,
-                                      outside edits in a backup, conflict copies, the folder overwrite guard, onefile.mjs
-node checks/export-check.mjs          the HTML page, plain text, JSON Resume, pre-flight
-node checks/tokens-check.mjs          theme tokens: forms, refusals, DTCG round trip, contrast
-node checks/drink-check.mjs [--table] the app's own tokens: every role in Tea and Coffee, text at AA and edges at 3:1 in all four
-                                      light and dark combinations, the five teas (cream ink, amber labels, edges and icons; the dark ones darkened
-                                      to 82 percent), no colour written outside a token block, the setting
-node checks/motion-check.mjs          the rules motion follows: tokens of 150 to 400 ms, one reduced-motion rule, nothing blocks or queues, no library,
-                                      the printed page never imported, each of the thirteen moments wired, both logo tiles, the ux4. strings
-                                      (what each moment starts, and that reduced motion starts none, is in smoke-shell's "motion:" section)
-node checks/garden-check.mjs          the tea garden in Chromium (slow, about two minutes; ONLY=flow,rain runs some): a clean start, waves, sweeping, the way back,
-                                      rain, a page on the move (cleared, garden under it), creatures, the pause, coffee, the setting, the print gate, axe (AXE_CORE=...)
-node checks/csp-check.mjs             the Content-Security-Policy in index.html and the templates: same-origin only,
-                                      no inline script; no outside address in any fetch
-node checks/flatpak-check.mjs         the Flatpak files agree: one app id and version, no network or broad file access, cargo-sources.json current, a workflow that only runs by hand or on a tag
-node checks/preload-check.mjs         index.html preloads exactly the modules shell.js imports (or loads on demand), and sw.js caches them
-node checks/i18n-review-check.mjs     the translation review sheets: the CSV, and --apply on a temporary copy
-node checks/career-check.mjs          the record's model (timeline, lists, add / edit / delete, projects, kinds), its forms (a field commits when
-                                      you leave it, Esc puts it back), the checklist's archived folds, job types, the Highlight lens, and
-                                      the ledger of what Career's old actions became
-node checks/parts-check.mjs           the panels' markup unchanged by the shared parts; a claim opened from the page or from the
-                                      checklist is the same panel and writes the same record; 🗑, + Add, the
-                                      Details fold of a job, the keys
-node checks/recipe-check.mjs          weight, off / keep, weight-0 omit
-node checks/preflight-check.mjs       preflight refuses embedded image metadata and a prototypes/ folder
-node checks/history-scan-check.mjs    history-scan reads commit messages, authors and committers
-node checks/private-files-check.mjs  the private check files are found outside the repo, in the old place with a warning, or not at all
-node checks/prepush-check.mjs        the pre-push hook refuses private content, scans only what is pushed, and dry-runs the site for main
-node checks/agent-check.mjs           the agent workflow on the example: claims, new-resume and every refusal,
-                                      fit on the line model, JSON Resume, the keyword gap
-node checks/fit-check.mjs [lib]       Fit's invariants on a modelled page
-node checks/validate-data.mjs <file>  the schema guard
-node scripts/tokens.mjs --check       the built-in themes' token files are up to date
-node checks/version-check.mjs         package.json, sw.js and CHANGELOG.md name the same version
-node checks/name-check.mjs [dir]      the old product name only in released changelog entries and kept identifiers
+node checks/run.mjs                   every Node check (about 40, side by side, a few seconds) and one summary:
+                                      a line each with PASS or FAIL and the time, the details of the failures only,
+                                      then ALL CHECKS PASSED or N CHECKS FAILED: names. Exit 1 on any failure.
+node checks/run.mjs --changed         only what checks/check-map.json names for the files changed since HEAD
+                                      (plus untracked): the Node checks, then the browser checks and the smoke sections
+node checks/run.mjs --since <ref>     the same against another ref;  add --list to see the plan without running it
+node checks/smoke-parallel.mjs        checks/smoke-shell.mjs in shards on separate ports (from 8201), one merged result;
+                                      [--workers N] (default: the cores, at most 4) [--only text]... [--list] [--log file]
 ```
 
-The browser ones need `playwright` and a Chromium on the machine (dev only; the app needs neither):
+**`checks/check-map.json` is the map, and the standing note of what each check covers.** Its `checks` and `browser` entries say what each check is for (`covers`); its `rules` say which checks, browser checks and smoke sections a path needs. The first rule that matches a file decides for it, a file no rule matches runs everything, and a changed check runs itself. When you add a check, add it to the map (`checks/run-check.mjs` fails until you do), and when a section or a file area moves, fix its rule. CI keeps running everything.
+
+The smoke runner reads the section titles from `smoke-shell.mjs` and hands each worker its share through the smoke test's own `ONLY` filter, so no section is changed to be sharded. It merges the workers' output into total PASS and FAIL counts, every FAIL line with its section, and a failure for a worker that crashes, times out (30 minutes; `--timeout`) or leaves a section unrun. `ONLY=a,b node checks/smoke-shell.mjs` still runs one section by hand, and `AXE_CORE=/path/to/axe.min.js` adds axe-core to either (it is a dev tool, not a dependency). `PW_BUNDLED=1` uses Playwright's own Chromium, set unless `CHROME_PATH` names a browser.
+
+What the Node checks cover (the map has the full sentence for each):
+
+| check | covers |
+|---|---|
+| model, store, resumes, savefile, import, diff | schema v4 and migration, autosave and checkpoints, saved resumes, Save to file, every kind of import, the merge engine |
+| edit, direct, focus, lang, career, recipe | the tailoring edits, editing on the page (and lines only on one resume), tags and focus, the ten languages, the record's model, weight and off/keep |
+| paginate, fit, measurement, export, tokens | block pagination and Fit, the page-fill arithmetic, the exports, theme tokens |
+| shell, camera, parts, motion, drink, preload, csp | the layout maths, the canvas camera, the shared panel markup, the motion rules, the app's tokens, the preloaded modules, the Content-Security-Policy |
+| i18n, i18n-review | the catalogues, the review sheets |
+| version, name, validate-data, to-jsonresume, tokens-built-in | one version, the product name, the example record, the JSON Resume export, the built-in token files |
+| preflight, history-scan, private-files, prepush | the privacy guards and the pre-push hook |
+| agent, flatpak, desktop, tauri-folder, runner | the agent workflow, the Flatpak and desktop files, the Tauri folder object, this map and the smoke runner |
+
+The browser ones need `playwright` and a Chromium on the machine (dev only; the app needs neither). The map names them in the same way:
 
 ```
-node checks/smoke-shell.mjs                   the app end to end: every view, at three window
-                                              sizes and on a phone, offline, from a subpath; both drinks in light and dark
-                                              (the switch, the cup and the shot glass, Fit's one filled button, axe in all four)
-ONLY=import,export node checks/smoke-shell.mjs  just the sections whose name has one of those
-node checks/tokens-check.mjs --browser        the built-in themes as tokens measure 0.00px
-node checks/paginate-check.mjs [lib] --browser
-node checks/fit-check.mjs [lib] --browser
-node checks/label-fit.mjs                     every language's resume headings fit the gutter, and the app's own new labels fit
-                                              the 340px sidebar (the name card, foot, zoom bar, lens, Outline, checklist, switcher);
-                                              a label that is too wide is flagged with its text and width
-node checks/room-check.mjs                    the sidebar and the layout around the page: the body's hidden share at 1280×720, 1470×832 and 1200×750 (a job and Export show
-                                              whole everywhere; a line (5.7%) and Design (10.4%) at 1470×832, the rest at the measured LIMITS: a version's tags
-                                              run on its number line, and no version text is cut or clamped), no element outside the page wider than half the window at 1280×720,
-                                              1470×832 and 1920×1080, the page filling the height less 32px, its x the same for every selection and sheet, and
-                                              the shape of the name card (name, Saved, menu), the rail (logo, tab list, Resumes, Record, undo, redo) and the foot
-                                              (thin meters and Fit); a line's versions and Design scroll in the 340px sidebar, and the check holds them to what they hide now
-node checks/head-check.mjs                    the name card, the name window, the rail and the foot in all ten languages, in Tea light and Coffee dark, at 1280×720, 1470×832
-                                              and 1920×1080, with a long name, a 60-character name and a 40-character word: no control covered by or overlapping another
-                                              (the element at each one's centre is itself), no label out of its box, the name never cut (no ellipsis, no clipping, three
-                                              lines at most), the name window whole without scrolling at 1280×720 with the page where it was and Esc back to the name, and the
-                                              foot's bars at 1, 2 and 3 pages in the three states (ONLY=de,hu for a few languages)
-AXE_CORE=/path/to/axe.min.js node checks/smoke-shell.mjs
-                                              also runs axe-core on every main view (axe-core is a dev tool, not a dependency)
-node checks/measure.mjs <rendered> <reference>    geometry diff, 0.00px expected
+node checks/smoke-shell.mjs           the app end to end, about 1,000 checks (use smoke-parallel.mjs for speed)
+node checks/head-check.mjs            the name card, name window, rail and foot in all ten languages (ONLY=de,hu for a few)
+node checks/room-check.mjs            the sidebar and the layout around the page, at three window sizes
+node checks/label-fit.mjs             every language's headings fit the gutter, and the app's labels fit the sidebar
+node checks/garden-check.mjs          the tea garden, about two minutes (ONLY=flow,rain runs some)
+node checks/tokens-check.mjs --browser, paginate-check.mjs --browser, fit-check.mjs --browser     the same checks measured in Chromium
+node checks/measure.mjs <rendered> <reference>       geometry diff, 0.00px expected
 node checks/render-diff.mjs <rendered> <reference>   markup diff, tag by tag
 ```
 
