@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // node checks/head-check.mjs
-// The name card, the name window, the rail and the foot, at 1280×720, 1470×832 and 1920×1080, in all ten interface languages, in Tea light and
+// The name card (with Fit under Saved and the menu), the name window and the rail (with the page bars by undo and redo), at 1280×720, 1470×832 and 1920×1080, in all ten interface languages, in Tea light and
 // Coffee dark, with three names: 'Example Instruments — Mechanical Design Engineer', one of 60 characters and one unbroken word of 40.
 //   - no control is covered by another or overlaps one (the control at the centre of each is itself), and no label runs out of its control,
 //   - the name is never cut: no ellipsis style on it, its box wide enough for it (scrollWidth <= clientWidth), at most three lines,
 //   - the name window (the name card grown over the editor card) shows all its items without scrolling at 1280×720 and the page does not move,
-//   - the foot: one thin bar for each page (1, 2 and 3 pages; under, in the band, over), no text in a bar, its page, fill and state in its name.
+//   - the page bars: one thin vertical bar for each page (1, 2 and 3 pages; under, in the band, over; a 4th page is a "+1"), no text in a bar, its page, fill and state in its name.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
 
 import { chromium } from 'playwright';
@@ -41,14 +41,14 @@ const PROBE = `(() => {
   const label = el => (el.getAttribute('aria-label') || el.textContent || el.id || el.className || el.tagName).toString().trim().replace(/\\s+/g, ' ').slice(0, 28);
   const textRects = el => { const out = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());){ if (!n.nodeValue.trim() || n.parentElement.closest('.sr')) continue; const g = document.createRange(); g.selectNodeContents(n); out.push(...g.getClientRects()); } return out; };
   const out = { covered: [], overlap: [], clipped: [], name: {}, items: 0 };
-  const scope = ['#rail', '#head', '#foot', '#switcher'].map(s => document.querySelector(s)).filter(e => e && vis(e));
-  const controls = [...document.querySelectorAll('#rail button, #head button, #head [tabindex], #foot button, #switcher button, #switcher input, #switcher select')].filter(vis);
+  const scope = ['#rail', '#head', '#switcher'].map(s => document.querySelector(s)).filter(e => e && vis(e));
+  const controls = [...document.querySelectorAll('#rail button, #head button, #head [tabindex], #switcher button, #switcher input, #switcher select')].filter(vis);
   out.items = controls.length;
   for (const el of controls){
     const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) continue;
     const top = document.elementFromPoint(cx, cy);
-    if (!(top === el || el.contains(top) || (top && top.contains(el) && !top.matches('#col, #rail, #head, #foot, #switcher, body, html')))) out.covered.push(label(el) + ' under ' + (top ? top.tagName.toLowerCase() + (top.id ? '#' + top.id : '.' + String(top.className).split(' ')[0]) : 'nothing'));
+    if (!(top === el || el.contains(top) || (top && top.contains(el) && !top.matches('#col, #rail, #head, #switcher, body, html')))) out.covered.push(label(el) + ' under ' + (top ? top.tagName.toLowerCase() + (top.id ? '#' + top.id : '.' + String(top.className).split(' ')[0]) : 'nothing'));
     for (const t of textRects(el)) if (t.right > r.right + 1 || t.left < r.left - 1 || t.bottom > r.bottom + 1 || t.top < r.top - 1){ out.clipped.push(label(el) + ' runs out of its box'); break; }
   }
   for (let i = 0; i < controls.length; i++) for (let j = i + 1; j < controls.length; j++){
@@ -66,6 +66,8 @@ const PROBE = `(() => {
   const sw = document.querySelector('#switcher');
   const list = sw?.querySelector('.swlist');
   out.window = sw && vis(sw) ? { scroll: Math.max(sw.scrollHeight - sw.clientHeight, list ? list.scrollHeight - list.clientHeight : 0), spare: sw.clientHeight - [...sw.children].reduce((n, c) => n + c.getBoundingClientRect().height + 6, 0) } : null;
+  const ft = document.querySelector('#head [data-act=fit]'), sv = document.querySelector('#head .savestate'), mn = document.querySelector('#head [data-act=menu]');
+  if (!ft) out.clipped.push('no Fit in the name card'); else if (ft.getBoundingClientRect().top < Math.max(sv.getBoundingClientRect().bottom, mn.getBoundingClientRect().bottom) - 1) out.clipped.push('Fit is not under Saved and the menu');
   const sel = document.querySelectorAll('#switcher select');
   for (const s of sel) if (s.scrollWidth > s.clientWidth + 1 && vis(s)) out.clipped.push('a select is cut');
   return out;
@@ -113,34 +115,39 @@ for (const [drink, theme] of LOOKS){
           if (await page.evaluate(() => document.activeElement?.id) !== 'docname-btn') bad.opened.push(`${key}: Esc did not give the focus back to the name`);
         } catch (e){ bad.opened.push(`${key}: ${String(e.message ?? e).split('\n')[0].slice(0, 80)}`); }
       }
-      ok(`${tag} ${lang}: the name card, rail and foot: nothing covered, overlapping or cut; the name whole`, bad.closed.length === 0, [...new Set(bad.closed)].slice(0, 3).join(' ; '));
+      ok(`${tag} ${lang}: the name card (with Fit), rail and page bars: nothing covered, overlapping or cut; the name whole`, bad.closed.length === 0, [...new Set(bad.closed)].slice(0, 3).join(' ; '));
       ok(`${tag} ${lang}: the name window: nothing covered, overlapping or cut${h === 720 ? ', no scrolling' : ''}; the page stays; Esc returns to the name`, bad.opened.length === 0, [...new Set(bad.opened)].slice(0, 3).join(' ; '));
     }
-    // ---- the foot: 1, 2 and 3 pages in the three states ----
+    // ---- the page bars in the rail: 1, 2 and 3 pages in the three states, and a fourth ----
     await page.evaluate(() => window.__wb.store.commit(d => { d.cur.name = 'Example Instruments — Mechanical Design Engineer'; }, 'name'));
     await page.evaluate(async () => { const I = await import('/src/i18n/index.js'); await I.loadCatalogue('de'); window.__wb.ui.pref = { mode: 'fixed', lang: 'de' }; window.__wb.store.commit(d => { d.cur.name = 'Beispiel'; }, 'name'); });
     await settle(page);
-    const footBad = [];
-    for (const n of [1, 2, 3]) for (const [state, pct] of [['under', 60], ['in the band', 92], ['over', 99]]){
+    const barBad = [];
+    for (const n of [1, 2, 3, 4]) for (const [state, pct] of [['under', 60], ['in the band', 92], ['over', 99]]){
       const got = await page.evaluate(([n, pct]) => {
         const u = window.__wb.ui, keep = u.fills;
         u.fills = Array.from({ length: n }, (_, i) => ({ page: i + 1, used: i === n - 1 ? pct : 100, usable: 100, overflow: 0 }));
         window.__wb.dock.renderFoot();
-        const ms = [...document.querySelectorAll('#foot .meter')], f = document.querySelector('#foot [data-act=fit]'), foot = document.querySelector('#foot').getBoundingClientRect();
-        const r = { n: ms.length, text: ms.map(m => m.textContent.trim()).join(''), names: ms.map(m => m.getAttribute('aria-label')), tips: ms.map(m => m.dataset.tip), classes: ms.map(m => m.className), bars: ms.map(m => m.getBoundingClientRect().width), fit: f.getBoundingClientRect(), last: ms.at(-1).getBoundingClientRect(), foot: [foot.left, foot.right] };
+        const ms = [...document.querySelectorAll('#rail .meter')], more = document.querySelector('#rail .rmore'), hist = document.querySelector('#rail .rhist').getBoundingClientRect(), undo = document.querySelector('#rail [data-act=undo]').getBoundingClientRect();
+        const R = e => e.getBoundingClientRect();
+        const r = { n: ms.length, text: ms.map(m => m.textContent.trim()).join(''), names: ms.map(m => m.getAttribute('aria-label')), tips: ms.map(m => m.dataset.tip), classes: ms.map(m => m.className), bars: ms.map(m => R(m).width), tall: ms.map(m => R(m).height), more: more ? more.textContent : null, moreName: more?.getAttribute('aria-label'),
+          inside: [...ms, ...(more ? [more] : [])].every(m => R(m).left >= hist.left - 0.5 && R(m).right <= hist.right + 0.5 && R(m).bottom <= undo.top + 0.5), apart: ms.every((m, i) => i === 0 || R(m).left >= R(ms[i - 1]).right - 0.5), fills: ms.map(m => parseFloat(getComputedStyle(m.querySelector('.mfill')).height) / parseFloat(getComputedStyle(m.querySelector('.mbar')).height)) };
         u.fills = keep;
         return r;
       }, [n, pct]);
-      const want = state === 'under' ? 'under' : state === 'over' ? 'over' : 'ok';
-      if (got.n !== n) footBad.push(`${n} pages: ${got.n} bars`);
-      if (got.text) footBad.push(`${n} pages: text in a bar “${got.text}”`);
-      if (!got.names.every(x => /\d/.test(x ?? ''))) footBad.push(`${n} pages: a bar without its page and fill in its name`);
-      if (!got.classes.at(-1).split(' ').includes(want)) footBad.push(`${n} pages, ${state}: the last bar is ${got.classes.at(-1)}`);
-      if (got.bars.some(b => b < 24)) footBad.push(`${n} pages: a bar under 24px`);
-      if (got.last.right > got.fit.left + 1 || got.fit.right > got.foot[1] + 1) footBad.push(`${n} pages: Fit and the bars collide or run out`);
+      const want = state === 'under' ? 'under' : state === 'over' ? 'over' : 'ok', shown = Math.min(n, 3);
+      if (got.n !== shown) barBad.push(`${n} pages: ${got.n} bars`);
+      if ((got.more ?? null) !== (n > 3 ? `+${n - 3}` : null)) barBad.push(`${n} pages: the "+n" says ${got.more}`);
+      if (n > 3 && !/\d/.test(got.moreName ?? '')) barBad.push(`${n} pages: "+n" has no name`);
+      if (got.text) barBad.push(`${n} pages: text in a bar “${got.text}”`);
+      if (!got.names.every(x => /\d/.test(x ?? '') && /%/.test(x ?? '') && x.length > 10)) barBad.push(`${n} pages: a bar without its page, fill and state in its name`);
+      if (!got.tips.every(x => /%/.test(x ?? ''))) barBad.push(`${n} pages: a bar without its tip`);
+      if (n <= 3 && !got.classes.at(-1).split(' ').includes(want)) barBad.push(`${n} pages, ${state}: the last bar is ${got.classes.at(-1)}`);
+      if (got.bars.some(b => b < 12) || got.tall.some(b => b < 40)) barBad.push(`${n} pages: a bar under 12 x 40px`);
+      if (!got.inside || !got.apart) barBad.push(`${n} pages: the bars run out of their card or overlap`);
     }
     await page.evaluate(() => window.__wb.dock.renderFoot());
-    ok(`${tag}: the foot: one thin bar for each page (1, 2, 3; under, in the band, over), no text in it, its page, fill and state in its name, Fit beside them`, footBad.length === 0, [...new Set(footBad)].slice(0, 3).join(' ; '));
+    ok(`${tag}: the rail's page bars: one thin vertical bar for each page (1, 2, 3 and a +1; under, in the band, over), no text in it, its page, fill and state in its name, inside the card above undo and redo`, barBad.length === 0, [...new Set(barBad)].slice(0, 3).join(' ; '));
     await ctx.close();
   }
 }

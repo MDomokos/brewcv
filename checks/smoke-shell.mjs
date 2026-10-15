@@ -118,7 +118,7 @@ if (want('layout: the page and the sidebar, centred in the window')) for (const 
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
   const page = await ctx.newPage();
   const bad = await open(page);
-  let s = await rect(page, '#sheet'), c = await rect(page, '#col'), hd = await rect(page, '#head'), ft = await rect(page, '#foot');
+  let s = await rect(page, '#sheet'), c = await rect(page, '#col'), hd = await rect(page, '#head');
   const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
   ok(`${w}×${h}: loads with no console errors`, bad.length === 0, bad[0] ?? '');
   ok(`${w}×${h}: the sidebar is open, with the rail beside it: Edit, Design and Export are its tabs (none in the name card), Edit is selected; nothing is selected, so Edit shows the Outline`, await page.isVisible('#body') && await page.isVisible('#head') && await page.isVisible('#rail') && !(await page.$('#tabs')) && (await page.$$('#rail [role=tab]')).length === 3 && (await page.$$('#head [role=tab]')).length === 0 && (await page.getAttribute('#tab-edit', 'aria-selected')) === 'true' && (await page.getAttribute('#body', 'data-mode')) === 'outline');
@@ -126,8 +126,8 @@ if (want('layout: the page and the sidebar, centred in the window')) for (const 
   ok(`${w}×${h}: the page runs the full height (16px from top and bottom) and sits in the room left of the rail`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1 && s.right < rl.left - 16 + 1, `${s.right.toFixed(1)} ${rl.left.toFixed(1)}`);
   ok(`${w}×${h}: the sidebar is ${w < 1400 ? 316 : 340}px wide (340, 316 under 1400px windows), 16px from the top, the bottom and the right; the 54px rail touches it`, Math.abs(c.width - (w < 1400 ? 316 : 340)) < 1 && Math.abs(c.top - 16) < 1 && Math.abs(c.height - (h - 32)) < 1 && Math.abs(w - c.right - 16) < 1 && Math.abs(rl.width - 54) < 1 && Math.abs(rl.right - c.left) < 1, `${c.width}px`);
   ok(`${w}×${h}: the page is centred in the room left of the rail`, Math.abs((s.left + s.right) / 2 - (rl.left - 16) / 2) < 2, `${((s.left + s.right) / 2).toFixed(1)} vs ${((rl.left - 16) / 2).toFixed(1)}`);
-  ok(`${w}×${h}: the name card: the name, Saved and the menu (no logo, Save to file, undo, redo or tabs); the rail: the logo, the tabs, Resumes and Record, undo and redo; the meters and Fit are in neither`, await page.evaluate(() => { const hd = document.querySelector('#head'), rail = document.querySelector('#rail'); return !hd.querySelector('.logoswitch') && !!hd.querySelector('#docname-btn') && !!hd.querySelector('#savestate') && !hd.querySelector('#filestate') && !hd.querySelector('[data-act=undo]') && !!hd.querySelector('[data-act=menu]') && !!rail.querySelector('.logoswitch') && ['undo', 'redo', 'sw-manage', 'sw-record'].every(a => rail.querySelector(`[data-act=${a}]`)) && !hd.querySelector('.meter') && !rail.querySelector('.meter') && !hd.querySelector('[data-act=fit]'); }));
-  ok(`${w}×${h}: the foot is the page meters and Fit and nothing else, at the bottom of the sidebar, under the editor card`, await page.evaluate(() => [...document.querySelectorAll('#foot button')].every(b => ['goto-page', 'fit'].includes(b.dataset.act)) && !!document.querySelector('#foot .meter') && !!document.querySelector('#foot [data-act=fit]')) && Math.abs(ft.bottom - c.bottom) < 1 && hd.top === c.top && hd.bottom < (await rect(page, '#body')).top);
+  ok(`${w}×${h}: the name card: the name, Saved, the menu and Fit (no logo, Save to file, undo, redo or tabs); the rail: the logo, the tabs, Resumes and Record, the page bars, undo and redo`, await page.evaluate(() => { const hd = document.querySelector('#head'), rail = document.querySelector('#rail'); return !hd.querySelector('.logoswitch') && !!hd.querySelector('#docname-btn') && !!hd.querySelector('#savestate') && !hd.querySelector('#filestate') && !hd.querySelector('[data-act=undo]') && !!hd.querySelector('[data-act=menu]') && !!rail.querySelector('.logoswitch') && ['undo', 'redo', 'sw-manage', 'sw-record'].every(a => rail.querySelector(`[data-act=${a}]`)) && !hd.querySelector('.meter') && !!rail.querySelector('.rhist .meter') && !!hd.querySelector('[data-act=fit]'); }));
+  ok(`${w}×${h}: there is no footer: nothing is drawn at the bottom, and the editor card runs to the column's end, under the name card`, await page.evaluate(() => !document.querySelector('#foot')?.getClientRects().length && !document.querySelector('#foot')?.children.length) && Math.abs((await rect(page, '#body')).bottom - c.bottom) < 1 && hd.top === c.top && hd.bottom < (await rect(page, '#body')).top);
   ok(`${w}×${h}: no horizontal scroll`, scrollW <= w);
   await ctx.close();
 }
@@ -408,7 +408,7 @@ if (want('pages, Fit, the Hungarian resume')) {
   await openByName(page, 'Medtech'); await page.waitForTimeout(300);
   const pages = await frameDoc(page, d => d.querySelectorAll('.document > .page').length);
   ok('a two-page resume is paginated into two pages', pages === 2, `${pages}`);
-  ok('at 1280×800: a thin bar for each page in the one line at the bottom, named by its page, and one page in view', (await page.$$('#meter .meter')).length === 2 && (await page.evaluate(() => document.body.dataset.pages)) === 'one' && await page.evaluate(() => { const n = [...document.querySelectorAll('#meter .meter')].map(m => m.getAttribute('aria-label')); return /page 1/.test(n[0]) && /page 2/.test(n[1]); }));
+  ok('at 1280×800: a thin bar for each page in the rail beside undo and redo, named by its page, and one page in view', (await page.$$('#meter .meter')).length === 2 && (await page.evaluate(() => document.body.dataset.pages)) === 'one' && await page.evaluate(() => { const n = [...document.querySelectorAll('#meter .meter')].map(m => m.getAttribute('aria-label')); return /page 1/.test(n[0]) && /page 2/.test(n[1]); }));
   await page.click('[data-act=goto-page][data-page="1"]'); await page.waitForTimeout(900);
   ok('the meter of page 2 brings page 2 forward', (await page.evaluate(() => window.__wb.ui.page)) === 1 && (await page.getAttribute('#meter .meter[data-page="1"]', 'aria-current')) === 'true');
   const fills = await page.evaluate(() => window.__wb.ui.fills.map(p => p.overflow));
@@ -1252,7 +1252,7 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   const bullets = () => frameDoc(page, d => d.querySelectorAll('.bullets li').length);
   const all = () => page.textContent('#cl-all');
   await page.keyboard.press('r'); await page.waitForTimeout(900);
-  ok('the Record tab starts with “Your record”, with the whole record counted', /Your record/.test(await page.textContent('#checklist')) && /^\d+ of \d+ on$/.test((await all()).trim()));
+  ok('the Record tab starts with “Your record”, with the whole record counted', /Your record/.test(await page.textContent('#checklist')) && /^\d+\/\d+\d+ of \d+ on$/.test((await all()).trim()));
   const names = await page.$$eval('#checklist .clg', gs => gs.map(g => g.dataset.g));
   ok('the groups: About you, then the jobs newest first, projects, Education, Skills and credentials', names[0] === 'about' && names.slice(1, 6).join() === 'hydra,poly,free,medisure,atelier' && names.indexOf('education') > names.indexOf('chassis-jig') && names.at(-1) === 'credentials', names.join());
   ok('every group is open, and its rows are on screen or below it in the scroll', (await page.$$('#checklist .clg.open')).length === names.length && (await page.$$('#checklist .clg[data-g=hydra] .clrow')).length === 7);
@@ -2741,7 +2741,7 @@ if (want('drinks: Fit, the meters, the moments')) {
   const page = await ctx.newPage();
   const bad = await open(page);
   const setFills = fills => page.evaluate(f => { window.__wb.ui.fills = f; window.__wb.dock.renderFoot(); }, fills);
-  const fitFilled = () => page.$eval('#foot [data-act=fit]', b => b.classList.contains('primary'));
+  const fitFilled = () => page.$eval('#head [data-act=fit]', b => b.classList.contains('primary'));
   const real = await page.evaluate(() => window.__wb.ui.fills);
   ok('the example opens at 92%: in the band, so Fit is plain', !(await fitFilled()) && Math.abs(100 * real[0].used / real[0].usable - 92) < 2);
   await page.click('#tab-export'); await settle(page);
@@ -2760,11 +2760,11 @@ if (want('drinks: Fit, the meters, the moments')) {
   ok('overflowing: Fit is filled', await fitFilled());
   await setFills(used(0.89));
   ok('89%, just inside the band: Fit is plain again', !(await fitFilled()));
-  // one thin bar for each page, the same in both drinks: filled to the page's level, a notch for Fit's band, the colour says the state
-  const bar = async () => { await page.waitForTimeout(600); return page.evaluate(() => { const m = document.querySelector('#foot .meter'), b = m.querySelector('.mbar').getBoundingClientRect(), f = m.querySelector('.mfill'), fr = f.getBoundingClientRect(), band = m.querySelector('.mband').getBoundingClientRect(), cs = getComputedStyle(f); return { p: m.style.getPropertyValue('--p'), h: b.height, w: fr.width / b.width, bandL: (band.left - b.left) / b.width, bandW: band.width / b.width, bg: cs.backgroundColor, img: cs.backgroundImage, mask: cs.webkitMaskImage || cs.maskImage, cls: m.className, text: m.textContent.trim() }; }); };
+  // one thin vertical bar for each page (in the rail), the same in both drinks: filled to the page's level, a notch for Fit's band, the colour says the state
+  const bar = async () => { await page.waitForTimeout(600); return page.evaluate(() => { const m = document.querySelector('#rail .meter'), b = m.querySelector('.mbar').getBoundingClientRect(), f = m.querySelector('.mfill'), fr = f.getBoundingClientRect(), band = m.querySelector('.mband').getBoundingClientRect(), cs = getComputedStyle(f); return { p: m.style.getPropertyValue('--p'), h: b.width, w: fr.height / b.height, bandL: (b.bottom - band.bottom) / b.height, bandW: band.height / b.height, bg: cs.backgroundColor, img: cs.backgroundImage, mask: cs.webkitMaskImage || cs.maskImage, cls: m.className, text: m.textContent.trim() }; }); };
   await setFills(used(0.6));
   const cup = await bar();
-  ok('tea: the page meter is one thin bar drawn from --p = 60: a fill 60% wide, a notch at Fit’s band (88 to 96%), under in the warning colour, no text', cup.p === '60.0' && cup.h <= 10 && Math.abs(cup.w - 0.6) < 0.02 && Math.abs(cup.bandL - 0.88) < 0.02 && Math.abs(cup.bandW - 0.08) < 0.02 && /under/.test(cup.cls) && cup.mask === 'none' && cup.text === '', JSON.stringify(cup));
+  ok('tea: the page meter is one thin vertical bar drawn from --p = 60: a fill 60% high, a notch at Fit’s band (88 to 96%), under in the warning colour, no text', cup.p === '60.0' && cup.h <= 10 && Math.abs(cup.w - 0.6) < 0.02 && Math.abs(cup.bandL - 0.88) < 0.02 && Math.abs(cup.bandW - 0.08) < 0.02 && /under/.test(cup.cls) && cup.mask === 'none' && cup.text === '', JSON.stringify(cup));
   await setFills(used(1.01).map(x => ({ ...x, overflow: 4 })));
   ok('tea: an overflowing page is a striped bar in the over colour', /repeating-linear-gradient/.test((await bar()).img));
   await setFills(used(0.91));
@@ -2777,10 +2777,10 @@ if (want('drinks: Fit, the meters, the moments')) {
   // steam is a moment: it rises for a few seconds when a page has just reached the band, and stops. At 91 to 93% it is a heart.
   await setFills(used(0.5)); await page.waitForTimeout(100);
   await setFills(used(0.92));
-  ok('tea: a page that has just reached the band steams, and at 92% the steam is a heart', await page.evaluate(() => { const m = document.querySelector('#foot .meter'); return m.classList.contains('steam') && m.classList.contains('perfect'); }));
-  ok('…the steam animation runs twice and stops (no loop)', await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#foot .meter .mbar'), '::before'); return c.animationIterationCount === '2'; }));
+  ok('tea: a page that has just reached the band steams, and at 92% the steam is a heart', await page.evaluate(() => { const m = document.querySelector('#rail .meter'); return m.classList.contains('steam') && m.classList.contains('perfect'); }));
+  ok('…the steam animation runs twice and stops (no loop)', await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#rail .meter .mbar'), '::before'); return c.animationIterationCount === '2'; }));
   await page.waitForTimeout(5200);
-  ok('…and after a few seconds there is no steam', await page.evaluate(() => !document.querySelector('#foot .meter').classList.contains('steam')));
+  ok('…and after a few seconds there is no steam', await page.evaluate(() => !document.querySelector('#rail .meter').classList.contains('steam')));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 
@@ -2788,9 +2788,9 @@ if (want('drinks: Fit, the meters, the moments')) {
   const rm = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   const pg = await rm.newPage();
   await open(pg);
-  ok('reduced motion: no steam', await pg.evaluate(() => { const m = document.querySelector('#foot .meter'); return !m.classList.contains('steam') || getComputedStyle(m.querySelector('.mbar'), '::before').content === 'none'; }));
-  await pg.hover('#foot [data-act=fit]'); await pg.waitForTimeout(100);
-  ok('reduced motion: Fit and the rail’s tabs do not swing, and the toast does not', await pg.evaluate(() => getComputedStyle(document.querySelector('#foot [data-act=fit]')).animationName === 'none' && getComputedStyle(document.querySelector('#tab-export')).animationName === 'none'));
+  ok('reduced motion: no steam', await pg.evaluate(() => { const m = document.querySelector('#rail .meter'); return !m.classList.contains('steam') || getComputedStyle(m.querySelector('.mbar'), '::before').content === 'none'; }));
+  await pg.hover('#head [data-act=fit]'); await pg.waitForTimeout(100);
+  ok('reduced motion: Fit and the rail’s tabs do not swing, and the toast does not', await pg.evaluate(() => getComputedStyle(document.querySelector('#head [data-act=fit]')).animationName === 'none' && getComputedStyle(document.querySelector('#tab-export')).animationName === 'none'));
   await pg.evaluate(() => { const t = document.querySelector('#toast'); t.textContent = 'x'; t.className = 'toast on'; }); await pg.waitForTimeout(500);
   ok('…the toast still appears, without swinging', await pg.evaluate(() => { const t = document.querySelector('#toast'); return t.classList.contains('on') && getComputedStyle(t).animationName === 'none' && getComputedStyle(t).opacity === '1'; }));
   await pg.evaluate(() => { const i = document.querySelector('#rail .logo img'); i.classList.add('dunk'); });
@@ -3000,7 +3000,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     ok(`${tag}: the sidebar keeps 16px from the right`, Math.abs(1440 - after.right - 16) < 1);
 
     // ---- what Record shows ----
-    ok(`${tag}: a header row: Your record, n of m on, + Add`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && /Your record/.test(h.textContent) && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]'); }));
+    ok(`${tag}: a header row: Your record, n/m (n of m on to a screen reader), + Add`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && /Your record/.test(h.textContent) && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]'); }));
     ok(`${tag}: the timeline is open across the panel, always`, await page.evaluate(() => { const t = document.querySelector('#checklist .rectl .tl2'); const b = document.querySelector('#body'); return !!t && t.getBoundingClientRect().width > b.getBoundingClientRect().width * 0.8 && !document.querySelector('#timeline'); }));
     ok(`${tag}: the timeline is about 118px high and its years run left to right`, await page.evaluate(() => { const t = document.querySelector('#checklist .rectl .tl2'); const y = [...t.querySelectorAll('.yr')].map(e => e.getBoundingClientRect().left); return Math.abs(t.getBoundingClientRect().height - 118) <= 1 && y.length >= 3 && y.every((x, k) => k === 0 || x > y[k - 1]); }));
     await page.evaluate(() => { document.querySelector('#checklist .tl2').scrollLeft = 0; });
@@ -3049,7 +3049,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
     // the Outline: sections with their counts, in print order
     await toEditHome(page);
-    ok(`${tag}: the Outline lists the sections in print order with "n of m on", and no checklist`, await page.evaluate(() => { const t = document.querySelector('#outline'); return !!t && !document.querySelector('#checklist') && document.querySelectorAll('#seclist .osec').length >= 5 && /\d+ of \d+ on/.test(document.querySelector('#seclist .osec[data-sid=experience] .srow')?.textContent ?? '') && !document.querySelector('[data-act=c-tl]'); }));
+    ok(`${tag}: the Outline lists the sections in print order with "n/m", and no checklist`, await page.evaluate(() => { const t = document.querySelector('#outline'); return !!t && !document.querySelector('#checklist') && document.querySelectorAll('#seclist .osec').length >= 5 && /\d+ of \d+ on/.test(document.querySelector('#seclist .osec[data-sid=experience] .srow')?.textContent ?? '') && !document.querySelector('[data-act=c-tl]'); }));
     ok(`${tag}: Fixed sections say "always first", and the foot says how Fit works`, await page.evaluate(() => document.querySelectorAll('#seclist .osec .srow.fixed').length >= 2 && /Fit cuts from the bottom/.test(document.querySelector('#body').textContent)));
     await page.keyboard.press('Escape'); await settle(page);
 
