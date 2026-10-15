@@ -1066,7 +1066,6 @@ export default {
   'ux2.k.walk': 'Recorrer las viñetas',
   'ux2.k.versions': 'Cambiar de versión',
   'ux2.k.edit': 'Editar la línea seleccionada',
-  'ux2.k.saveEdit': 'Guardar lo que has escrito',
   'ux2.k.esc': 'Subir un nivel; en la página, recogerlo todo',
   'ux2.k.panel': 'Plegar o abrir el panel',
   'ux2.k.moveSection': 'Mover la sección o el elemento seleccionado',

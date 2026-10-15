@@ -1066,7 +1066,6 @@ export default {
   'ux2.k.walk': 'Walk the bullets',
   'ux2.k.versions': 'Switch versions',
   'ux2.k.edit': 'Edit the selected line',
-  'ux2.k.saveEdit': 'Save what you typed',
   'ux2.k.esc': 'Go back one level; at the page, put everything away',
   'ux2.k.panel': 'Fold or open the panel',
   'ux2.k.moveSection': 'Move the selected section or item',
@@ -1203,6 +1202,8 @@ export default {
   'ux6b.backup': 'Backup',
   'ux6b.photoHint': 'Usual in Central Europe, not in the US or UK.',
   // UX-6c: writing on the page, and where you are
+  'ux6c.k.nextLine': 'Keep the line you are writing and write the next',
+  'ux6c.k.lineBreak': 'A line break inside the line',
   'ux6c.depth': 'Where you are',
   'ux6c.up': 'Up one level',
   'ux6c.section': 'Section',

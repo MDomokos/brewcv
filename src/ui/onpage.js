@@ -329,7 +329,7 @@ export function initOnPage(C){
   // run something that leaves one line and writes another, with the view staying where it is (no zoom out and in again)
   function keepView(fn){ moving = true; try { return fn(); } finally { moving = false; } }
   return {
-    begin, end, setText, refresh, afterDraw, render, place, act, keepView,
+    begin, end, text: () => (S?.composing && S.el?.isConnected ? plainOf(S.el) : null), setText, refresh, afterDraw, render, place, act, keepView,
     get writing(){ return !!ui.writing; },
     el: () => S?.el ?? null,
     level,

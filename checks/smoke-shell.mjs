@@ -78,7 +78,7 @@ const lineEl = page => page.frameLocator('#sheet iframe').locator('[contentedita
 const lineText = page => page.evaluate(() => window.__wb.edit.editing?.draft ?? null);
 const writeLine = async (page, text) => { await lineEl(page).focus(); await page.keyboard.press('ControlOrMeta+a'); await page.keyboard.insertText(text); await page.waitForTimeout(450); };
 const caretTo = (page, where) => page.evaluate(w => { const el = window.__wb.onpage.el(); const d = el.ownerDocument, sel = d.defaultView.getSelection(), r = d.createRange(); r.selectNodeContents(el); r.collapse(w === 'start'); sel.removeAllRanges(); sel.addRange(r); }, where);
-const appendLine = async (page, text) => { await lineEl(page).focus(); await caretTo(page, 'end'); await page.keyboard.insertText(text); await page.waitForTimeout(450); };
+const appendLine = async (page, text) => { await lineEl(page).first().focus(); await caretTo(page, 'end'); await page.keyboard.insertText(text); await page.waitForTimeout(450); };
 // Open a saved resume the way a person does: through the switcher under the name in the head.
 async function openByName(page, text){
   if (!(await page.isVisible('#switcher'))) await page.click('#docname-btn');
@@ -735,6 +735,33 @@ if (want('on the page: three levels, writing a line where it is printed, the too
     const o = await overOf(page, f);
     ok(`no lost text: ${how} keeps what was typed on this resume, and asks nothing`, dialogs === d0 && !!o.text?.endsWith(`Kept by ${how}.`) && (await frameDoc(page, d => d.body.textContent)).includes(`Kept by ${how}.`), JSON.stringify(o).slice(0, 160));
   }
+  await esc3();
+
+  // emptying a line that has a kept edit leaves the edit alone; a composition not yet ended is kept; undo leaves the line first
+  await jobs.nth(0).locator('.bullets li').first().click(); await page.waitForTimeout(800);
+  const fE = await factOf(page);
+  await appendLine(page, ' Emptied.'); await page.keyboard.press('Escape'); await page.waitForTimeout(800);
+  const oE = await overOf(page, fE);
+  await jobs.nth(0).locator('.bullets li').first().click(); await page.waitForTimeout(800);
+  await lineEl(page).focus(); await page.keyboard.press('ControlOrMeta+a'); await page.keyboard.press('Backspace'); await page.waitForTimeout(450);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(800);
+  const oE2 = await overOf(page, fE);
+  ok('emptying a line that has a kept edit leaves the edit as it was', !!oE.text && oE2.text === oE.text && JSON.stringify(oE2.meta) === JSON.stringify(oE.meta), JSON.stringify(oE2).slice(0, 160));
+  await esc3();
+  await jobs.nth(0).locator('.bullets li').nth(1).click(); await page.waitForTimeout(800);
+  const fI = await factOf(page);
+  await page.evaluate(() => { const el = window.__wb.onpage.el(); el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })); });
+  await appendLine(page, ' Composed.');
+  await jobs.nth(1).locator('.bullets li').first().click(); await page.waitForTimeout(900);
+  ok('text typed in a composition that has not ended is kept when the line is left', !!(await overOf(page, fI)).text?.endsWith('Composed.'));
+  await esc3();
+  await jobs.nth(0).locator('.bullets li').nth(2).click(); await page.waitForTimeout(800);
+  const fU = await factOf(page), uH = await page.evaluate(() => window.__wb.store.history.undo);
+  await appendLine(page, ' Undone.');
+  await page.click('[data-act=undo]'); await page.waitForTimeout(900);
+  ok('undo while writing leaves the line first: the line is closed, nothing of it is half-kept', (await lineEl(page).count()) === 0 && (await page.evaluate(() => window.__wb.edit.editing)) === null && (await page.evaluate(() => window.__wb.store.history.undo)) === uH && (await page.evaluate(() => window.__wb.store.history.redo)) > 0 && (await overOf(page, fU)).text === undefined);
+  await page.click('[data-act=redo]'); await page.waitForTimeout(700);
+  ok('…and redo brings the kept text back', !!(await overOf(page, fU)).text?.endsWith('Undone.'));
   await esc3();
 
   // Enter, Shift+Enter, and Enter at a job's last line (E18)
@@ -1523,9 +1550,11 @@ if (want('saved resumes')) {
   const saved = r => r.openId && r.resumes.find(x => x.id === r.openId);
   await page.waitForFunction(() => /Saved on this device/.test(document.querySelector('#savestate')?.textContent ?? ''), null, { timeout: 5000 });
   ok('the header always says where the work is: “Saved on this device”', /Saved on this device/.test(await page.textContent('#savestate')) && (await page.$$('#savestate .si.ok')).length === 1);
+  const nameWas = await page.evaluate(() => window.__wb.store.state.cur.name);
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.name = 'Saved announce'; }, 'name'));
   await page.waitForFunction(() => /Saved on this device/.test(document.querySelector('#announce')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
   ok('Saved has no role of its own; a finished save is said through the #announce live region', (await page.getAttribute('#savestate', 'role')) === null && /Saved on this device/.test(await page.textContent('#announce')));
+  await page.evaluate(n => window.__wb.store.commit(d => { d.cur.name = n; }, 'name'), nameWas);      // later steps look the resume up by its name
   await page.click('#tab-export'); await settle(page);
   ok('Save to file is always there (in Export), outline not filled, with where the file stands', !(await page.isDisabled('#filestate')) && !(await page.getAttribute('#filestate', 'class')).includes('primary') && /Not saved to a file yet/.test(await page.textContent('#fileline')));
   await page.click('#tab-edit'); await settle(page);

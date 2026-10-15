@@ -37,17 +37,17 @@ function clearEdit(keep = true){
   const was = E.edit;
   E.edit = null;
   clearTimeout(E.timer);
-  if (was && !was.panel) C.onpage?.end();
+  if (was && !was.panel){ const live = C.onpage?.text(); if (live?.trim()) was.draft = live; C.onpage?.end(); }      // a composition not yet ended is not in the draft
   if (was && keep) keepEdit(was);
 }
 // Leaving a line keeps what was typed on this resume, and nothing asks: one override with the highlights it keeps and the version it
 // was written from. The words of that version again drop the override.
 function keepEdit(ed){
-  if (!isDirty(ed)) return;
+  if (!isDirty(ed) || !ed.draft.trim()) return;      // an emptied line keeps what it had: the last kept edit, or the version's words
   const text = ed.draft.trim(), base = ix().variants.get(ed.vid);
   C.ui.previewing = false;
   commit(d => {
-    if (text && text !== base?.text.trim()) return T.setOverride(d.cur, ed.fact, text, { marks: marksFor(ed, text), base: base?.id ?? null });
+    if (text !== base?.text.trim()) return T.setOverride(d.cur, ed.fact, text, { marks: marksFor(ed, text), base: base?.id ?? null });
     T.dropOverride(d.cur, ed.fact);
     if (base && usingOf(ed.fact)?.id !== base.id) T.pickVersion(d.cur, ed.fact, base.id);
   }, t('edit.thisOnly'));

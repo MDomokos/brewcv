@@ -852,8 +852,8 @@ async function onClick(e){
     case 'use-version': useVersion(tg.closest('.vlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
     case 'drink-switch': toggleDrink(); break;
     case 'chip-undo': store.undo(); dropChip(); break;
-    case 'undo': store.undo(); break;
-    case 'redo': store.redo(); break;
+    case 'undo': stepHistory('undo'); break;
+    case 'redo': stepHistory('redo'); break;
     case 'fit': runFit(); break;
     case 'actual': openActual(); break;
     case 'fullscreen': toggleFullscreen(); break;
@@ -1009,13 +1009,15 @@ function fitSummary(r){
 
 // the panel redraws on leaving a line, which drops the focus to the body: Edit's tab takes it
 function backToTab(){ if (document.activeElement === document.body || !document.activeElement) $('#tab-edit')?.focus({ preventScroll: true }); }
+// the line being written is left first (its text kept, as Esc does), so undo never runs under an open draft
+const stepHistory = async kind => { if (edit.editing) await edit.cancelEdit(); store[kind](); };
 function key(e){
   if (menuKey(e)) return;
   const typing = e.target.closest?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select, [contenteditable]:not([contenteditable=false])');
   const mod = e.ctrlKey || e.metaKey;
   if (typing && mod && ['z', 'y'].includes(e.key.toLowerCase())) return;      // the text box's own undo
-  if (mod && !e.altKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); e.shiftKey ? store.redo() : store.undo(); return; }
-  if (mod && e.key.toLowerCase() === 'y'){ e.preventDefault(); store.redo(); return; }
+  if (mod && !e.altKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); stepHistory(e.shiftKey ? 'redo' : 'undo'); return; }
+  if (mod && e.key.toLowerCase() === 'y'){ e.preventDefault(); stepHistory('redo'); return; }
   if (mod && !e.altKey && e.key.toLowerCase() === 's'){ e.preventDefault(); if (!e.isComposing && e.keyCode !== 229) saveToFile(); return; }
   if (mod && e.key.toLowerCase() === 'o'){ e.preventDefault(); switcher.openOrFocus(); return; }
   if (typing) return;
@@ -1200,7 +1202,7 @@ function toast(msg, tone = ''){
 const edit = initEdit({
   store, ui, sheet, toast, record, cur, lang, work, chooseVariant, sectionTitle, textOfFact, resumeName, fillText,
   ix: () => ui.ix ?? indexModel(work()),
-  onpage: { begin: () => onpage.begin(), end: () => onpage.end(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },
+  onpage: { begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
   outlineHtml: () => checklist.outlineHtml(),
   setFocus: () => sheet.setFocus(edit.focusHits(), ui.ix),

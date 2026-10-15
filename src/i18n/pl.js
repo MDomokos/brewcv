@@ -1066,7 +1066,6 @@ export default {
   'ux2.k.walk': 'Przechodzenie po punktach',
   'ux2.k.versions': 'Zmiana wersji',
   'ux2.k.edit': 'Edycja zaznaczonego wiersza',
-  'ux2.k.saveEdit': 'Zapisanie wpisanego tekstu',
   'ux2.k.esc': 'Poziom wyżej; na stronie schowaj wszystko',
   'ux2.k.panel': 'Zwinięcie lub otwarcie panelu',
   'ux2.k.moveSection': 'Przesunięcie zaznaczonej sekcji lub pozycji',

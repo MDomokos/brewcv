@@ -1066,7 +1066,6 @@ export default {
   'ux2.k.walk': 'Langs de punten lopen',
   'ux2.k.versions': 'Van versie wisselen',
   'ux2.k.edit': 'De gekozen regel bewerken',
-  'ux2.k.saveEdit': 'Opslaan wat je typte',
   'ux2.k.esc': 'Een niveau terug; op de pagina alles opruimen',
   'ux2.k.panel': 'Het paneel in- of uitklappen',
   'ux2.k.moveSection': 'Het gekozen onderdeel of item verplaatsen',

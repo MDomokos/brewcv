@@ -1066,7 +1066,6 @@ export default {
   'ux2.k.walk': 'Procházet odrážky',
   'ux2.k.versions': 'Přepnout verzi',
   'ux2.k.edit': 'Upravit vybraný řádek',
-  'ux2.k.saveEdit': 'Uložit, co jste napsali',
   'ux2.k.esc': 'O úroveň zpět; na straně vše uklidit',
   'ux2.k.panel': 'Sbalit nebo otevřít panel',
   'ux2.k.moveSection': 'Přesunout vybranou sekci nebo položku',

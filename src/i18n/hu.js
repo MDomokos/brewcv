@@ -1066,7 +1066,6 @@ export default {
   'ux2.k.walk': 'Végigjárni a pontokat',
   'ux2.k.versions': 'Változatot váltani',
   'ux2.k.edit': 'A kijelölt sort szerkeszteni',
-  'ux2.k.saveEdit': 'Elmenteni, amit begépeltél',
   'ux2.k.esc': 'Egy szintet vissza; az oldalon mindent elrakni',
   'ux2.k.panel': 'A panelt összecsukni vagy megnyitni',
   'ux2.k.moveSection': 'A kijelölt szakasz vagy elem áthelyezése',

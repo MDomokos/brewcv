@@ -1066,7 +1066,6 @@ export default {
   'ux2.k.walk': 'Parcourir les puces',
   'ux2.k.versions': 'Changer de version',
   'ux2.k.edit': 'Modifier la ligne sélectionnée',
-  'ux2.k.saveEdit': 'Enregistrer ce que vous avez saisi',
   'ux2.k.esc': 'Remonter d’un niveau ; sur la page, tout ranger',
   'ux2.k.panel': 'Replier ou ouvrir le panneau',
   'ux2.k.moveSection': 'Déplacer la rubrique ou l’élément sélectionné',

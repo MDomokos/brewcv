@@ -1066,7 +1066,6 @@ export default {
   'ux2.k.walk': 'Scorrere i punti',
   'ux2.k.versions': 'Cambiare versione',
   'ux2.k.edit': 'Modificare la riga selezionata',
-  'ux2.k.saveEdit': 'Salvare ciò che hai scritto',
   'ux2.k.esc': 'Salire di un livello; sulla pagina, mettere tutto a posto',
   'ux2.k.panel': 'Chiudere o aprire il pannello',
   'ux2.k.moveSection': 'Spostare la sezione o la voce selezionata',

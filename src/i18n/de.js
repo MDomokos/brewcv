@@ -1066,7 +1066,6 @@ export default {
   'ux2.k.walk': 'Durch die Stichpunkte gehen',
   'ux2.k.versions': 'Version wechseln',
   'ux2.k.edit': 'Die gewählte Zeile bearbeiten',
-  'ux2.k.saveEdit': 'Das Getippte speichern',
   'ux2.k.esc': 'Eine Ebene zurück; auf der Seite alles wegräumen',
   'ux2.k.panel': 'Das Feld ein- oder ausklappen',
   'ux2.k.moveSection': 'Den gewählten Abschnitt oder Eintrag verschieben',
