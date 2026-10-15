@@ -1208,3 +1208,20 @@ body:not([data-phone=true]) .col.is-full > :is(#head, #foot) { align-self: flex-
 .diffsum ul { margin: 0; padding-left: 18px; } .diffsum p { margin: 0; }
 .cmp thead .rthumb { width: 150px; }
 .scrticks button:disabled { opacity: 1; background: transparent; color: var(--ink-soft); border: 1px dashed var(--line-strong); }
+
+/* phone: Resumes cards two to a row; the thumbnail shows the top of the page and runs behind the text; the header in tidy rows */
+@media (max-width: 719px){
+  .rgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .rcard { padding: 6px; }
+  .rcard .rname { font-size: 12px; }
+  .rcard .rmeta { font-size: 10.5px; }
+  .rcard .thumbwrap { position: relative; aspect-ratio: 1 / .55; overflow: hidden; margin-bottom: -26px; -webkit-mask-image: linear-gradient(var(--ink) 45%, transparent); mask-image: linear-gradient(var(--ink) 45%, transparent); }
+  .rcard > :not(.thumbwrap):not(.rtick) { position: relative; }
+  .rcard button.sm, .scrn .scrhead button.sm { min-height: 24px; }
+  .scrn .scrhead .sw-q { flex: 1 1 100%; width: auto; }
+  .scrn .scrhead .seg { flex: 1 1 100%; }
+  .scrn .scrhead .seg button { flex: 1; }
+  .scrn .scrhead .grow { display: none; }
+  .scrn .scrhead #scr-tickinfo { display: none; }
+  .scrn .scrhead .scrticks { display: contents; }
+}

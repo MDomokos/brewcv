@@ -247,6 +247,50 @@ for (const [w, h] of SIZES){
   }
   await ctx.close();
 }
+// ---------------------------------------------------------------- a phone: Resumes cards two to a row, thumbnails cropped behind the text, a tidy header
+{
+  const { ctx, page } = await open(390, 844);
+  await page.evaluate(() => { window.__wb.thumbs.fill = () => {}; });
+  const s0 = await st(page);
+  for (const lang of LANGS){
+    const bad = [];
+    for (const [key, name] of Object.entries(NAMES)){
+      await page.evaluate(async ([l, n, other]) => {
+        const I = await import('/src/i18n/index.js'); await I.loadCatalogue(l);
+        window.__wb.ui.pref = { mode: 'fixed', lang: l };
+        window.__wb.store.commit(d => { d.cur.name = n; const o = d.resumes.find(r => r.id === other); o.name = n + ' (2)'; }, 'name');
+      }, [lang, name, s0.ids[1]]);
+      await page.evaluate(() => window.__wb.setView('resumes')); await page.waitForTimeout(200);
+      const a = await page.evaluate(() => {
+        const R = e => e.getBoundingClientRect(), cards = [...document.querySelectorAll('#body .rcard')], c0 = cards[0], w = R(c0).width;
+        const body = R(document.querySelector('#resumes')), q = R(document.querySelector('#scr-q')), seg = R(document.querySelector('#resumes .seg'));
+        const thumb = R(c0.querySelector('.thumbwrap'));
+        const over = [];
+        for (const c of cards){
+          const tk = R(c.querySelector('.rtick')), tb = R(c.querySelector('.thumbwrap')), cw = R(c).width;
+          if (tb.height >= cw * 0.7) over.push('uncropped');
+          for (const b of c.querySelectorAll('button:not(.thumbwrap), .rtick ~ .rname')){
+            const r = R(b); if (!r.width) continue;
+            if (b !== c.querySelector('.rtick') && Math.min(r.right, tk.right) - Math.max(r.left, tk.left) > 1.5 && Math.min(r.bottom, tk.bottom) - Math.max(r.top, tk.top) > 1.5) over.push('tick covered by ' + (b.textContent || '').trim().slice(0, 12));
+          }
+          const bs = [...c.querySelectorAll('.racts button')].filter(b => R(b).width);
+          for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++){ const p = R(bs[i]), r = R(bs[j]); if (Math.min(p.right, r.right) - Math.max(p.left, r.left) > 1.5 && Math.min(p.bottom, r.bottom) - Math.max(p.top, r.top) > 1.5) over.push('buttons overlap'); }
+          for (const b of bs) if (R(b).height < 24 - 0.5) over.push('target under 24px');
+        }
+        return { cols: new Set(cards.map(c => Math.round(R(c).left))).size, qw: q.width / body.width, segw: seg.width / body.width, thumbH: thumb.height / w, over: [...new Set(over)], scroll: document.querySelector('#body').scrollWidth - document.querySelector('#body').clientWidth };
+      });
+      if (a.cols !== 2) bad.push(`${key}: ${a.cols} columns`);
+      if (a.qw < 0.9) bad.push(`${key}: search ${Math.round(a.qw * 100)}% wide`);
+      if (a.segw < 0.9) bad.push(`${key}: views ${Math.round(a.segw * 100)}% wide`);
+      if (a.thumbH >= 0.7) bad.push(`${key}: thumbnail ${a.thumbH.toFixed(2)} of the card width`);
+      bad.push(...a.over.map(x => `${key}: ${x}`));
+      if (a.scroll > 1) bad.push(`${key}: sideways scroll ${a.scroll}`);
+      await page.evaluate(() => window.__wb.setView(null));
+    }
+    ok(`390 phone ${lang}: Resumes in two columns, search and views full width, thumbnail cropped, nothing over the tick or buttons`, bad.length === 0, [...new Set(bad)].slice(0, 3).join(' ; '));
+  }
+  await ctx.close();
+}
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} screens check(s) FAILED` : '\nall screens checks passed');
 process.exit(failed ? 1 : 0);
