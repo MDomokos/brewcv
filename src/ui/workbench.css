@@ -264,11 +264,11 @@ body.is-ready .paper-skel { display: none; }
 .depth.sm:hover .dp-t[aria-disabled=true], .depth.sm:focus-within .dp-t[aria-disabled=true] { opacity: .4; }
 .oblockmark { position: absolute; width: 16px; height: 16px; box-sizing: border-box; display: grid; place-items: center; border-radius: 50%; background: var(--raised); color: var(--ink-soft); border: 1px solid var(--line); pointer-events: none; }
 /* the rows of the Outline: a padlock at the end of each; a locked row shows it, a row under a lock shows it inherited and greyed */
-.rowlock { position: relative; flex: none; display: inline-grid; place-items: center; width: 18px; height: 22px; margin-left: auto; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); opacity: .4; cursor: pointer; }
+.rowlock { position: relative; flex: none; display: inline-grid; place-items: center; width: 24px; height: 22px; margin-left: auto; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); opacity: .4; cursor: pointer; }
 .clgh > .rowlock { margin-left: 0; }
 .clrow > .rowlock, .srow > .rowlock { grid-column: 7; grid-row: 1; margin-left: 0; }      /* after the grip and the move buttons, on the row's own line */
 .clrow:hover > .rowlock, .srow:hover > .rowlock, .clgh:hover > .rowlock, .rowlock:focus-visible, .rowlock.is-locked { opacity: 1; }
-.rowlock::after { content: ''; position: absolute; inset: -1px -3px; }      /* a 24 px target on an 18 px button */
+.rowlock::after { content: ''; position: absolute; inset: -1px 0; }      /* 24 px tall: it stays inside the row, so nothing spills */
 .rowlock:hover { background: var(--hover-strong); color: var(--ink); }
 .is-inherited > :not(.rowlock) { opacity: .6; }
 .vlist .vrow[aria-disabled=true] { opacity: .6; cursor: default; }
