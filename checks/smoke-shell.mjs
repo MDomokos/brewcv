@@ -4200,6 +4200,317 @@ if (want('on the page: an item frame stays off its neighbours, at four sizes')) 
   }
 }
 
+if (want('the lock: the padlock, the chip’s switch, and grips for jobs, sections and items')) {
+  const ctx = await browser.newContext({ viewport: { width: 1470, height: 832 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const fr = page.frameLocator('#sheet iframe');
+  const lockedOf = () => page.evaluate(() => window.__wb.store.state.cur.locked ?? null);
+  const hint = () => page.evaluate(() => { const t = document.querySelector('#handlay .obtip'); return t && !t.hidden ? t.textContent : ''; });
+  const tool = (s, o = '#editlay .obchip') => page.evaluate(([sel]) => { const b = document.querySelector(sel); if (!b) return null; const r = b.getBoundingClientRect(); return { tag: b.tagName, tab: b.tabIndex, pressed: b.getAttribute('aria-pressed'), name: b.getAttribute('aria-label'), dis: b.getAttribute('aria-disabled') === 'true' || b.disabled, h: r.height, w: r.width }; }, [`${o} ${s}`]);
+  const esc2 = async () => { await page.mouse.move(4, 4); for (let k = 0; k < 2; k++) await page.keyboard.press('Escape'); await page.waitForTimeout(600); };
+  const lines = () => printed(page);
+  const hydraLine = (n = 0) => fr.locator('.entry:first-child .bullets li').nth(n);
+
+  // ---- the padlock on the chip ----
+  await hydraLine(0).click(); await page.waitForTimeout(800);
+  const lk = await tool('.dp-lock'), sh = await tool('.dp-show');
+  ok('the chip of a line has a padlock and a switch at its right end: real buttons in the focus order, each at least 24 px, named for what the chip names, the padlock aria-pressed false',
+    lk?.tag === 'BUTTON' && sh?.tag === 'BUTTON' && lk.tab === 0 && sh.tab === 0 && lk.h + 6 >= 24 && lk.w + 8 >= 24 && /^Lock the line in Hydra/.test(lk.name) && lk.pressed === 'false' && /^Hide the line in Hydra/.test(sh.name) && sh.pressed === 'true', JSON.stringify([lk, sh]));
+  const typed = 'Led the dose-counter redesign, written here and locked';
+  await writeLine(page, typed);
+  const u0 = await undoN(page);
+  await page.evaluate(() => { window.__said = []; new MutationObserver(() => window.__said.push(document.querySelector('#announce').textContent)).observe(document.querySelector('#announce'), { childList: true, characterData: true, subtree: true }); });
+  await page.click('#editlay .dp-lock'); await page.waitForTimeout(700);
+  let c = await page.evaluate(() => window.__wb.store.state.cur);
+  ok('the padlock locks the line it names, and what was being written is kept first: the text is on this resume, nothing is lost', JSON.stringify(c.locked) === '["hydra-inhaler"]' && c.overrides['hydra-inhaler'] === typed, JSON.stringify([c.locked, c.overrides['hydra-inhaler']]));
+  ok('…the kept text and the lock are one undo step each, and the page keeps printing the text', (await undoN(page)) === u0 + 2 && (await printed(page))[0][0].startsWith('Led the dose-count'));
+  ok('…the padlock now says Unlock, is pressed, and the same padlock is at the top of the sidebar', (await tool('.dp-lock'))?.pressed === 'true' && /^Unlock the line in Hydra/.test((await tool('.dp-lock')).name) && (await tool('.dp-lock', '#body .depth'))?.pressed === 'true');
+  ok('…it is announced in the live region', (await page.evaluate(() => window.__said)).some(x => /^Locked the line in Hydra/.test(x)), JSON.stringify(await page.evaluate(() => window.__said)));
+  ok('…a small padlock stands at the frame’s corner (a locked block has no grip there)', (await page.locator('#editlay .oblockmark').count()) === 1);
+
+  // ---- locked text is not written ----
+  const before = await lines();
+  await hydraLine(0).click(); await page.waitForTimeout(700);
+  ok('a click on locked text starts no caret: nothing on the page is editable, the line’s block is selected, the chip shows', (await fr.locator('[contenteditable]').count()) === 0 && (await page.evaluate(() => window.__wb.ui.sel.id)) === 'hydra-inhaler' && !(await page.evaluate(() => window.__wb.ui.writing)) && (await page.locator('#editlay .obchip').count()) === 1);
+  ok('…a quiet hint appears by the padlock and in the live region: “Locked. Click the padlock to unlock.”', (await hint()) === 'Locked. Click the padlock to unlock.' && (await page.textContent('#announce')) === 'Locked. Click the padlock to unlock.', JSON.stringify([await hint(), await page.textContent('#announce')]));
+  const hr = await page.evaluate(() => { const t = document.querySelector('#handlay .obtip').getBoundingClientRect(), l = document.querySelector('#editlay .dp-lock').getBoundingClientRect(); return { dx: Math.abs(t.right - l.right), dy: t.top - l.bottom, near: t.top >= l.bottom - 1 || t.bottom <= l.top + 1 }; });
+  ok('…and stands next to the padlock', hr.dx < 24 && hr.near && Math.abs(hr.dy) < 40, JSON.stringify(hr));
+  await page.keyboard.press('Enter'); await page.waitForTimeout(500);
+  ok('Enter on a locked line does not write it either', (await fr.locator('[contenteditable]').count()) === 0);
+  ok('the sidebar: the tick, the versions and the ones that would change the text are off, with the reason in a tooltip, and a note says so', await page.evaluate(() => {
+    const b = document.querySelector('#body');
+    return !!b.querySelector('.locknote') && b.querySelector('#b-on')?.disabled === true && /Locked/.test(b.querySelector('#b-on').title)
+      && [...b.querySelectorAll('.vlist .vrow')].every(r => !r.hasAttribute('data-act') && r.getAttribute('aria-disabled') === 'true' || r.classList.contains('cur') && !r.hasAttribute('data-act'));
+  }));
+  // hover: no grip, no "+"
+  const b0 = await hydraLine(0).boundingBox();
+  await page.mouse.move(b0.x + 60, b0.y + 4, { steps: 3 }); await page.waitForTimeout(450);
+  const hs = await hands(page);
+  ok('hovering a locked line shows no grip (the job’s “+” stays: the job is not locked)', !hs.grip && !!hs.plus, JSON.stringify(hs));
+  // the keyboard and the sidebar's ↑↓
+  await page.mouse.move(4, 4);
+  await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(500);
+  ok('Alt+↓ on a locked line moves nothing and says why', JSON.stringify(await lines()) === JSON.stringify(before) && /Locked/.test(await page.textContent('#toast')), JSON.stringify(await lines()));
+  // a local line: remove and tick are off
+  await esc2();
+
+  // ---- the Outline: the lock icons, inherited ones, and the rows ----
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(500);
+  await page.click('#outline .clg[data-g=hydra] .ocaret'); await page.waitForTimeout(300);
+  const row = '#outline .clrow[data-fact=hydra-inhaler]';
+  const rl = await page.evaluate(r => { const e = document.querySelector(r), b = e?.querySelector('.rowlock'); return b && { pressed: b.getAttribute('aria-pressed'), name: b.getAttribute('aria-label'), tag: b.tagName, tab: b.tabIndex, h: b.getBoundingClientRect().height, cb: e.querySelector('input.cb').disabled, drag: e.draggable, inh: e.classList.contains('is-inherited') }; }, row);
+  ok('the Outline: a locked line’s row shows its padlock (pressed, named, a button, at least 24 px), its tick is off and it cannot be dragged', !!rl && rl.pressed === 'true' && /^Unlock/.test(rl.name) && rl.tag === 'BUTTON' && rl.tab === 0 && rl.h + 2 >= 24 && rl.cb && !rl.drag && !rl.inh, JSON.stringify(rl));
+  const other = await page.evaluate(() => { const e = document.querySelector('#outline .clrow[data-fact=hydra-testing]'), b = e?.querySelector('.rowlock'); return b && { pressed: b.getAttribute('aria-pressed'), cb: e.querySelector('input.cb').disabled }; });
+  ok('…and the other lines have a padlock of their own, unpressed, with their ticks on', other?.pressed === 'false' && other.cb === false, JSON.stringify(other));
+  await page.click('#outline .clg[data-g=hydra] .clgh .rowlock'); await page.waitForTimeout(600);
+  ok('a padlock on a job’s row locks the job: its lines show as locked by it (greyed, the lock inherited), ticks off', JSON.stringify(await lockedOf()) === '["hydra-inhaler","hydra"]' && await page.evaluate(() => { const rs = [...document.querySelectorAll('#outline .clg[data-g=hydra] .clrow')]; return rs.length >= 3 && rs.every(r => r.querySelector('input.cb').disabled && r.querySelector('.rowlock')?.getAttribute('aria-pressed') === 'true') && rs.filter(r => r.classList.contains('is-inherited')).length === rs.length - 1; }));
+  await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(500);
+  ok('a section’s sidebar lists its jobs with the lock: the locked job’s tick and ↑ ↓ are off', await page.evaluate(() => { const g = document.querySelector('#body .clg[data-g=hydra] .clgh'); return !!g && g.querySelector('input.sw')?.disabled === true && [...g.querySelectorAll('.clmv .ib')].every(b => b.getAttribute('aria-disabled') === 'true') && g.querySelector('.rowlock')?.getAttribute('aria-pressed') === 'true'; }));
+  // a locked job: no grip, the page chip’s switch is off, a click on its lines selects only
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await page.waitForTimeout(100);
+  await page.click('#outline [data-act=select-job][data-id=hydra]').catch(() => {}); await page.waitForTimeout(500);
+  const gj = await page.evaluate(() => { const g = document.querySelector('.obfgrip'); return g && !g.hidden; });
+  const sw2 = await tool('.dp-show');
+  ok('a locked job shows no grip on its frame, and the chip’s switch is disabled with the padlock pressed', !gj && sw2?.dis === true && (await tool('.dp-lock'))?.pressed === 'true', JSON.stringify([gj, sw2]));
+  const lb0 = await hydraLine(2).boundingBox();
+  await page.mouse.move(lb0.x + 60, lb0.y + 4, { steps: 3 }); await page.waitForTimeout(450);
+  const hs2 = await hands(page);
+  ok('hovering a line of a locked job shows neither a grip nor a “+”', !hs2.grip && !hs2.plus, JSON.stringify(hs2));
+  const lbl = await fr.locator('.entry:first-child .role-title').boundingBox();
+  await page.click('#editlay .dp-show', { force: true }).catch(() => {}); await page.waitForTimeout(400);
+  ok('…clicking the disabled switch changes nothing: the job still prints', (await printed(page)).length >= 3 && JSON.stringify(await lockedOf()) === '["hydra-inhaler","hydra"]' && !!lbl);
+  // unlock restores everything
+  await page.click('#body .depth .dp-lock'); await page.waitForTimeout(500);
+  ok('the padlock of the job (pressed) unlocks it: the line’s own lock stays, and the job’s lines are free again', JSON.stringify(await lockedOf()) === '["hydra-inhaler"]');
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(400);
+  await page.click('#outline .clg[data-g=hydra] .clrow[data-fact=hydra-inhaler] .rowlock'); await page.waitForTimeout(500);
+  ok('unlocking the last lock leaves no locked key at all, and the ticks work again', (await lockedOf()) === null && await page.evaluate(() => !document.querySelector('#outline .clrow[data-fact=hydra-inhaler] input.cb').disabled));
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(300);
+  await hydraLine(0).click(); await page.waitForTimeout(800);
+  ok('…and a click writes the line again, with the caret', (await fr.locator('[contenteditable]').count()) === 1 && (await lineText(page)) === typed);
+  await esc2();
+  await page.evaluate(() => { window.__wb.store.commit(d => { delete d.cur.overrides['hydra-inhaler']; delete d.cur.overrideMeta; }, 'reset'); }); await page.waitForTimeout(300);
+
+  // ---- lock and undo, the page lock ----
+  const u1 = await undoN(page);
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(400);
+  const pl = await page.evaluate(() => { const b = document.querySelector('#body .pagelock'); return b && { pressed: b.getAttribute('aria-pressed'), name: b.getAttribute('aria-label'), tag: b.tagName }; });
+  ok('with nothing selected the sidebar offers the whole page’s padlock', pl?.tag === 'BUTTON' && pl.pressed === 'false' && pl.name === 'Lock the page', JSON.stringify(pl));
+  await page.click('#body .pagelock'); await page.waitForTimeout(500);
+  ok('locking the page is one undo step; every row of the Outline shows locked by it, and a click on any line selects only', JSON.stringify(await lockedOf()) === '["~page"]' && (await undoN(page)) === u1 + 1
+    && await page.evaluate(() => [...document.querySelectorAll('#outline .clrow, #outline .srow')].filter(r => r.querySelector('.rowlock')).every(r => r.querySelector('.rowlock').getAttribute('aria-pressed') === 'true')));
+  await hydraLine(1).click(); await page.waitForTimeout(600);
+  ok('…a click on a line of a locked page writes nothing', (await fr.locator('[contenteditable]').count()) === 0 && /Locked with the page/.test(await hint()), await hint());
+  await page.evaluate(() => window.__wb.store.undo()); await page.waitForTimeout(400);
+  ok('undo takes the page lock away: no key is left', (await lockedOf()) === null);
+  await page.evaluate(() => window.__wb.store.redo()); await page.waitForTimeout(300);
+  ok('redo brings it back', JSON.stringify(await lockedOf()) === '["~page"]');
+  await page.evaluate(() => window.__wb.store.undo()); await page.waitForTimeout(300);
+
+  // ---- the page's headings and the other kinds of text ----
+  await openByName(page, 'Medtech');
+  await esc2();
+  await page.evaluate(() => { window.__wb.store.commit(d => { d.cur.locked = ['~h:experience', 'skills-cad', 'lang-portuguese']; }, 'lock some'); }); await page.waitForTimeout(800);
+  const tryClick = async (sel, nth = 0) => { await fr.locator(sel).nth(nth).click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(700); return fr.locator('[contenteditable]').count(); };
+  ok('locked texts of other kinds are not written either: a heading, a skill group, a language’s level', (await tryClick('.band[data-section=experience] h2.tab')) === 0 && (await tryClick('.band[data-section=skills] .skills__items')) === 0 && (await tryClick('.band[data-section=languages] dd')) === 0);
+  ok('…while an unlocked heading is written as before', (await tryClick('.band[data-section=education] h2.tab')) === 1);
+  await esc2();
+  // a drag that starts on a locked skill refuses with the reason and moves nothing
+  await page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => T.setArrangement(d.cur, T.arrangementOf(d.record, d.cur)), 'arrange'); }); await page.waitForTimeout(900);
+  const sk = await frameBox(page, '.band[data-section=skills] [data-skill]', 0), skBefore = await frameDoc(page, d => [...d.querySelectorAll('.skills__group')].map(g => g.textContent.slice(0, 20)));
+  if (sk){
+    await page.mouse.move(sk.x + 4, sk.y + 4); await page.mouse.down(); await page.mouse.move(sk.x + 60, sk.y + 90, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(500);
+    ok('a drag that starts on a locked skill group’s skill is refused with the reason, and nothing moves', /Locked/.test(await page.textContent('#toast')) && JSON.stringify(await frameDoc(page, d => [...d.querySelectorAll('.skills__group')].map(g => g.textContent.slice(0, 20)))) === JSON.stringify(skBefore));
+  }
+  await esc2();
+  await page.evaluate(() => { window.__wb.store.commit(d => { delete d.cur.locked; }, 'unlock'); });
+
+  // ---- the chip’s switch: a section, a job, an item and a line ----
+  await openByName(page, 'Example Instruments');
+  await esc2();
+  const bands = () => frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')).filter((s, i, a) => a.indexOf(s) === i));
+  await page.click('#outline [data-act=select-section][data-id=skills]'); await page.waitForTimeout(600);
+  const s0 = await page.evaluate(() => window.__wb.store.history.undo);
+  await page.hover('#editlay .obchip'); await page.waitForTimeout(250);
+  const shw = await tool('.dp-show');
+  ok('the switch comes up when the chip is hovered (it takes no room before): a button with a 24 px target, named for the section, pressed (shown)', shw?.tag === 'BUTTON' && shw.w + 8 >= 24 && shw.h + 6 >= 24 && /^Hide Skills/.test(shw.name) && shw.pressed === 'true', JSON.stringify(shw));
+  await page.click('#editlay .dp-show'); await page.waitForTimeout(800);
+  ok('the chip’s switch hides the section: it is off the page, one undo step', !(await bands()).includes('skills') && (await undoN(page)) === s0 + 1, JSON.stringify(await bands()));
+  ok('…and the sidebar’s copy of the switch (same component) shows it again', await (async () => { await page.click('#body .depth .dp-show'); await page.waitForTimeout(800); return (await bands()).includes('skills'); })());
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(400);
+  await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(500);
+  await page.click('#body [data-act=select-job][data-id=poly]'); await page.waitForTimeout(600);
+  const jobsOn = () => frameDoc(page, d => [...d.querySelectorAll('.entry .role-title')].map(e => e.textContent.slice(0, 12)));
+  const j0 = (await jobsOn()).length;
+  await page.hover('#editlay .obchip'); await page.waitForTimeout(250);
+  await page.click('#editlay .dp-show'); await page.waitForTimeout(800);
+  ok('the chip’s switch hides a job (and the sidebar’s shows it again)', (await jobsOn()).length === j0 - 1 && await (async () => { await page.click('#body .depth .dp-show'); await page.waitForTimeout(800); return (await jobsOn()).length === j0; })());
+  await hydraLine(1).click(); await page.waitForTimeout(700);
+  const l0 = (await printed(page))[0].length;
+  await page.hover('#editlay .obchip'); await page.waitForTimeout(250);
+  await page.click('#editlay .dp-show'); await page.waitForTimeout(800);
+  ok('…and a line of a job', (await printed(page))[0].length === l0 - 1 && await (async () => { await page.click('#body .depth .dp-show'); await page.waitForTimeout(800); return (await printed(page))[0].length === l0; })());
+  await openByName(page, 'Medtech'); await esc2();
+  const langs = () => frameDoc(page, d => d.querySelectorAll('.band[data-section=languages] dt').length);
+  const n0 = await langs();
+  await fr.locator('.band[data-section=languages] dt').nth(1).click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(800);
+  await page.hover('#editlay .obchip'); await page.waitForTimeout(250);
+  await page.click('#editlay .dp-show'); await page.waitForTimeout(800);
+  ok('…and an item of a list section (a language)', (await langs()) === n0 - 1 && await (async () => { await page.click('#body .depth .dp-show'); await page.waitForTimeout(800); return (await langs()) === n0; })());
+  await esc2(); await page.evaluate(() => window.__wb.canvas.goToPage(0)); await page.waitForTimeout(1300);
+  await fr.locator('.band--header .name').click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(900);
+  const hdr = [await tool('.dp-show'), await tool('.dp-lock'), await page.evaluate(() => window.__wb.ui.sel)];
+  ok('the header has a padlock and no switch on the chip', hdr[0] === null && hdr[1] !== null, JSON.stringify(hdr));
+  await esc2();
+
+  // ---- the phone: the padlock lives in the sidebar ----
+  {
+    const pctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const pp = await pctx.newPage();
+    const pbad = await open(pp);
+    const pnone = await pp.evaluate(() => { const b = document.querySelector('#body .pagelock'); return b && { tag: b.tagName, pressed: b.getAttribute('aria-pressed') }; });
+    ok('on a phone the page’s padlock is in the sidebar’s Edit', pnone?.tag === 'BUTTON' && pnone.pressed === 'false', JSON.stringify(pnone));
+    await pp.evaluate(() => { window.__wb.ui.sel = { kind: 'bullet', id: 'hydra-inhaler', job: 'hydra', section: 'experience' }; window.__wb.setView(null); });
+    await pp.evaluate(() => window.__wb.onpage && 0); await pp.waitForTimeout(300);
+    await pp.evaluate(async () => { const m = await import('/src/model/lock.js'); window.__wb.store.commit(d => m.setLocked(d.cur, 'hydra-inhaler', true), 'lock'); });
+    await pp.waitForTimeout(500);
+    ok('…and the line’s own view has the padlock in its depth row, pressed, with the tick off', await pp.evaluate(() => { const b = document.querySelector('#body .depth .dp-lock'); return !!b && b.getAttribute('aria-pressed') === 'true' && document.querySelector('#b-on')?.disabled === true; }));
+    ok('…no console errors on the phone', pbad.length === 0, pbad[0] ?? '');
+    await pctx.close();
+  }
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('the lock: the grips for jobs, sections and items, at four sizes')) {
+  // the grip stands on the selected block's frame at its top edge's left end: in the pages' room, off text, the chip, the zoom bar
+  const esc2 = async page => { await page.mouse.move(4, 4); for (let k = 0; k < 2; k++) await page.keyboard.press('Escape'); await page.waitForTimeout(600); };
+  for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080], [2560, 1100]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    await openByName(page, 'Medtech');
+    const fr = page.frameLocator('#sheet iframe');
+    const geo = () => page.evaluate(() => {
+      const wb = window.__wb, g = document.querySelector('#handlay .obfgrip'), zb = document.querySelector('#zoombar')?.getBoundingClientRect(), chip = document.querySelector('#editlay .obchip')?.getBoundingClientRect(), v = wb.canvas.view;
+      if (!g || g.hidden) return null;
+      const r = g.getBoundingClientRect(), f = wb.onpage.frame();
+      const hit = (a, b) => !!b && a.left < b.left + b.width && a.right > b.left && a.top < b.top + b.height && a.bottom > b.top;
+      return { name: g.getAttribute('aria-label'), tag: g.tagName, tab: g.tabIndex, inRoom: r.left >= v.left && r.right <= v.left + v.width && r.top >= v.top && r.bottom <= v.top + v.height,
+        text: wb.sheet.textRects().map(q => wb.canvas.screenRect(q)).some(q => hit(r, q)), bar: hit(r, zb), chip: hit(r, chip), near: !!f && Math.abs((r.top + r.height / 2) - f.top) <= 24 && (r.left + r.width / 2) >= f.left - 24 && (r.left + r.width / 2) <= f.left + f.width };
+    });
+    const fails = [];
+    for (const [name, pick] of [['a job', async () => { await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(300); await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(400); await page.click('#body [data-act=select-job][data-id=poly]'); }],
+      ['a section', async () => { await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(300); await page.click('#outline [data-act=select-section][data-id=education]'); }],
+      ['an item', async () => { await fr.locator('.band[data-section=languages] dt').nth(1).click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(500); await page.keyboard.press('Escape'); }]]){
+      await esc2(page);
+      await pick(); await page.waitForTimeout(900);
+      const g = await geo();
+      if (!g) fails.push(`${name}: no grip`); else if (g.tag !== 'BUTTON' || g.tab !== 0 || !g.inRoom || g.text || g.bar || g.chip || !g.near) fails.push(`${name}: ${JSON.stringify(g)}`);
+    }
+    ok(`${w}x${h}: a job, a section and an item each show a grip button on the frame’s top edge near its left end, in the room, over no text, the chip or the zoom bar`, fails.length === 0, fails.join('; '));
+    ok(`${w}x${h}: no console errors`, bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+
+  const ctx = await browser.newContext({ viewport: { width: 1470, height: 832 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await openByName(page, 'Medtech');
+  const fr = page.frameLocator('#sheet iframe');
+  const toHome = async () => { await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(400); };
+  const grab = () => page.evaluate(() => { const g = document.querySelector('#handlay .obfgrip'); if (!g || g.hidden) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, name: g.getAttribute('aria-label') }; });
+  const jobsOrder = () => frameDoc(page, d => [...d.querySelectorAll('.entry .role-title')].map(e => e.textContent.slice(0, 14)));
+  const secOrder = () => frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')).filter((s, i, a) => a.indexOf(s) === i));
+  const dragTo = async (g, x, y) => { await page.mouse.move(g.x, g.y); await page.mouse.down(); await page.mouse.move(x, y, { steps: 10 }); await page.waitForTimeout(150); };
+  const tip = () => page.evaluate(() => { const t = document.querySelector('#handlay .obtip'); return t && !t.hidden ? t.textContent : ''; });
+
+  // a job moves within its section
+  await toHome(); await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(400); await page.click('#body [data-act=select-job][data-id=hydra]'); await page.waitForTimeout(800);
+  let g = await grab();
+  ok('a job’s grip is named for what it moves', g && /^Move this job within its section/.test(g.name), JSON.stringify(g));
+  const order0 = await jobsOrder(), u0 = await undoN(page);
+  const t1 = await frameBox(page, '.entry .role-title', 1), t2 = await frameBox(page, '.entry .role-title', 2);
+  await dragTo(g, t2.x + 40, t2.y + t2.height + 40);
+  const during = await hands(page);
+  ok('dragging a job shows where it will land', during.drop && !during.tip, JSON.stringify(during));
+  await page.mouse.up(); await page.waitForTimeout(900);
+  const order1 = await jobsOrder();
+  ok('dropped below the next jobs, the job moves there: one undo step, the others keep their order', order1[0] === order0[1] && order1.includes(order0[0]) && order1.indexOf(order0[0]) > 0 && (await undoN(page)) === u0 + 1, JSON.stringify([order0, order1]));
+  // refused elsewhere
+  await toHome(); await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(400); await page.click('#body [data-act=select-job][data-id=hydra]'); await page.waitForTimeout(800);
+  g = await grab();
+  const sb = await frameBox(page, '.band[data-section=education] .item__title', 0), orderN = await jobsOrder(), uN = await undoN(page);
+  await dragTo(g, sb.x + 20, sb.y + 4);
+  const refused = await tip();
+  ok('dragging a job into another section is refused, with the reason on the page', /A job moves within its own section/.test(refused), refused);
+  await page.mouse.up(); await page.waitForTimeout(600);
+  ok('…let go there, nothing changes: no undo step, the same order, the reason said again', JSON.stringify(await jobsOrder()) === JSON.stringify(orderN) && (await undoN(page)) === uN && /own section/.test(await page.textContent('#toast')));
+  // the keyboard
+  await toHome(); await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(400); await page.click('#body [data-act=select-job][data-id=hydra]'); await page.waitForTimeout(800);
+  const o2 = await jobsOrder();
+  const hi = o2.findIndex(x => x.startsWith('Design Engin'));
+  await page.focus('#handlay .obfgrip'); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(700);
+  const o3 = await jobsOrder();
+  ok('with the focus on a job’s grip, ↓ moves the job down one place', hi >= 0 && o3[hi + 1] === o2[hi] && o3[hi] === o2[hi + 1], JSON.stringify([o2, o3]));
+  await page.focus('#handlay .obfgrip'); await page.keyboard.press('ArrowUp'); await page.waitForTimeout(700);
+  ok('…and ↑ moves it back', JSON.stringify(await jobsOrder()) === JSON.stringify(o2));
+
+  // a section moves within the page
+  await toHome(); await page.click('#outline [data-act=select-section][data-id=education]'); await page.waitForTimeout(800);
+  g = await grab();
+  ok('a section’s grip is named for what it moves', g && /^Move this section within the page/.test(g.name), JSON.stringify(g));
+  const s0 = await secOrder(), exp = await frameBox(page, '.band[data-section=experience]', 0), su = await undoN(page);
+  await dragTo(g, exp.x + 100, exp.y + 10);
+  await page.mouse.up(); await page.waitForTimeout(900);
+  const s1 = await secOrder();
+  ok('dropped above Experience, the section moves there: one undo step', s1.indexOf('education') < s1.indexOf('experience') && s0.indexOf('education') > s0.indexOf('experience') && (await undoN(page)) === su + 1, JSON.stringify([s0, s1]));
+  await page.evaluate(() => window.__wb.store.undo()); await page.waitForTimeout(500);
+  await toHome(); await page.click('#outline [data-act=select-section][data-id=education]'); await page.waitForTimeout(800);
+  g = await grab();
+  await dragTo(g, 40, g.y);
+  ok('dragging a section off the page is refused, with the reason', /A section moves within the page/.test(await tip()), await tip());
+  await page.mouse.up(); await page.waitForTimeout(500);
+  ok('…and nothing changes', JSON.stringify(await secOrder()) === JSON.stringify(s0));
+  await page.focus('#handlay .obfgrip'); await page.keyboard.press('ArrowUp'); await page.waitForTimeout(800);
+  const s2 = await secOrder();
+  ok('with the focus on a section’s grip, ↑ moves it up one place', s2.indexOf('education') === s0.indexOf('education') - 1, JSON.stringify([s0, s2]));
+  await page.evaluate(() => window.__wb.store.undo()); await page.waitForTimeout(500);
+
+  // an item moves within its section
+  await esc2(page);
+  const lang = () => frameDoc(page, d => [...d.querySelectorAll('.band[data-section=languages] dt')].map(e => e.textContent.slice(0, 10)));
+  await fr.locator('.band[data-section=languages] dt').nth(0).click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(600); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  g = await grab();
+  ok('an item’s grip is named for what it moves', g && /^Move this item within its section/.test(g.name), JSON.stringify(g));
+  const i0 = await lang(), l2 = await frameBox(page, '.band[data-section=languages] dt', 2), iu = await undoN(page);
+  await dragTo(g, l2.x + 20, l2.y + l2.height + 6);
+  await page.mouse.up(); await page.waitForTimeout(900);
+  const i1 = await lang();
+  ok('dropped below the last language, the item moves there: one undo step', i1.at(-1) === i0[0] && (await undoN(page)) === iu + 1, JSON.stringify([i0, i1]));
+  await page.evaluate(() => window.__wb.store.undo()); await page.waitForTimeout(500);
+  await fr.locator('.band[data-section=languages] dt').nth(0).click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(600); await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  g = await grab();
+  const ed = await frameBox(page, '.band[data-section=education] .item__title', 0);
+  await dragTo(g, ed.x + 20, ed.y + 4);
+  ok('an item dragged into another section is refused, with the reason', /An item moves within its own section/.test(await tip()), await tip());
+  await page.mouse.up(); await page.waitForTimeout(500);
+  ok('…and nothing changes', JSON.stringify(await lang()) === JSON.stringify(i0));
+  await page.focus('#handlay .obfgrip'); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(800);
+  const i2 = await lang();
+  ok('with the focus on an item’s grip, ↓ moves it down one place', i2[1] === i0[0] && i2[0] === i0[1], JSON.stringify([i0, i2]));
+  await page.evaluate(() => window.__wb.store.undo()); await page.waitForTimeout(500);
+
+  // a locked block shows no grip
+  await page.evaluate(() => { window.__wb.store.commit(d => { d.cur.locked = ['languages']; }, 'lock'); }); await page.waitForTimeout(500);
+  await fr.locator('.band[data-section=languages] dt').nth(0).click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(900);
+  ok('a locked item and a locked section have no grip', (await grab()) === null && (await fr.locator('[contenteditable]').count()) === 0);
+  ok('…and the locked section’s own sidebar view has the item’s switch and ↑ ↓ off', await page.evaluate(() => { const r = document.querySelector('#body .depth .dp-show'); return !r || r.getAttribute('aria-disabled') === 'true'; }));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('file://')) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();

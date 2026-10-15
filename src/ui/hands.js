@@ -5,6 +5,9 @@
 //     with the reason, and nothing changes. The sidebar's ↑ ↓ and chips are the keyboard route; the grip itself takes ↑ ↓ too.
 //   - The grip and the "+" stay reachable on the way to them: a line owns the margin left of its text and the gap below it (the
 //     sheet's handAt), and leaving the page waits a moment (motion.js `fast`) before they go, unless the pointer is on them.
+//   - A job, a section and an item (UX-6c-iii-b) have a grip on the dashed frame of the selected block: at its top edge's left end, mirrored from
+//     the chip. It moves the block within its parent (jobs within their section, sections within the page, items within their section); a drop
+//     elsewhere is refused with the reason. A locked block has no grip (the padlock stands at its corner), no "+" and no skill drag.
 //   - A drag shows a drop line and, when refused, the reason. Off under reduced motion: the grip's fade only; the drop line is
 //     feedback, not motion.
 
@@ -24,16 +27,17 @@ export function initHands(C){
   const ix = () => C.ix();
   const phone = () => innerWidth < PHONE_MAX;
   const btn = (cls, icn, size = 12) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.hidden = true; b.innerHTML = icon(icn, { size }); return b; };
-  const grip = btn('obgrip', 'grip'), plus = btn('obplus', 'plus'), slot = btn('obslot', 'photo', 15);
+  const grip = btn('obgrip', 'grip'), plus = btn('obplus', 'plus'), slot = btn('obslot', 'photo', 15), fgrip = btn('obgrip obfgrip', 'grip');
   const dropEl = document.createElement('div'), tip = document.createElement('div');
   dropEl.className = 'obdrop'; dropEl.hidden = true;
   tip.className = 'obtip'; tip.hidden = true; tip.setAttribute('role', 'status');
-  lay?.append(grip, plus, slot, dropEl, tip);
+  lay?.append(grip, plus, slot, fgrip, dropEl, tip);
 
   let hover = null;                 // under the pointer: { k: 'line' | 'group' | 'header', fact, rect, job }
   let drag = null, pend = null;     // a drag under way; a skill pressed on the page that may become one
   let graceT = 0, onHands = false, dragEnded = 0, raf = 0, shown = '';
 
+  const locked = id => !!id && C.edit().lockedId(id);
   const on = () => !!lay && !phone() && !ui.view && !ui.snap && !ui.preview && !ui.fitting && !document.body.classList.contains('is-quiet');
   const pt = e => { const c = canvas.cam; return { x: (e.clientX - c.x) / c.k, y: (e.clientY - c.y) / c.k }; };      // a window point, in the page's pixels
   const R = r => canvas.screenRect(r);
@@ -65,13 +69,13 @@ export function initHands(C){
   const put = (el, x, y, ok) => { el.hidden = !ok; if (ok) { el.style.left = `${Math.round(x)}px`; el.style.top = `${Math.round(y)}px`; } };
   function place(){
     if (!lay) return;
-    if (drag){ plus.hidden = slot.hidden = true; if (!drag.press) grip.hidden = true; return; }      // the grip being dragged stays where it is
+    if (drag){ plus.hidden = slot.hidden = true; if (!drag.press) grip.hidden = fgrip.hidden = true; return; }      // the grip being dragged stays where it is
     const h = on() ? target() : null;
     const writing = h?.k && ui.writing && h.fact && C.writingFact() === h.fact;
     const x = ix();
     let gb = null;
     // the grip: beside the first row of the line or group
-    if (h && (h.k === 'line' || h.k === 'group') && !h.selOnly && !writing && on()){
+    if (h && (h.k === 'line' || h.k === 'group') && !h.selOnly && !writing && on() && !locked(h.fact)){
       const r = R(h.rect), row = Math.min(r.height, 16 * canvas.cam.k);
       const gx = R({ left: h.edge ?? h.rect.left, top: 0, width: 0, height: 0 }).left - OFF, gy = r.top + row / 2 - GRIP.h / 2;
       const ok = free(gx, gy, GRIP.w, GRIP.h);
@@ -82,7 +86,7 @@ export function initHands(C){
     } else grip.hidden = true;
     // the "+": just under the job's last line, or under the skill group it stands by
     let last = null, label = '';
-    if (h && on() && (h.k === 'line' || h.k === 'group')){
+    if (h && on() && (h.k === 'line' || h.k === 'group') && !locked(h.k === 'line' ? h.job : h.fact)){
       if (h.k === 'line'){ last = sheet.jobLines(h.job, x).at(-1); label = t('ux6c.plusLine', { job: C.jobName(h.job) }); }
       else { last = h; label = t('ux6c.plusGroup'); }      // a skill group is added after the one it stands by: each column has its own
     }
@@ -93,7 +97,7 @@ export function initHands(C){
       if (ok){ plus.setAttribute('aria-label', label); plus.title = label; plus.dataset.k = h.k; plus.dataset.job = h.job ?? ''; plus.dataset.fact = h.fact; }
     } else plus.hidden = true;
     // the photo slot: beside the name when there is no photo printed, on the photo's corner when there is
-    const hd = h?.k === 'header' && on() ? sheet.headerRects() : null;
+    const hd = h?.k === 'header' && on() && !locked('photo') ? sheet.headerRects() : null;
     if (hd){
       const showing = !!C.cur().photo?.show;
       let sx, sy;
@@ -103,9 +107,39 @@ export function initHands(C){
       put(slot, sx, sy, free(sx, sy, SLOT.w, SLOT.h) || !!hd.portrait);
       slot.setAttribute('aria-label', lb); slot.title = lb; slot.setAttribute('aria-pressed', String(showing));
     } else slot.hidden = true;
+    // the grip of the selected job, section or item: on its dashed frame, at the top edge's left end
+    const ft = on() && !ui.writing ? frameTarget() : null;
+    placeFrameGrip(ft);
     // a hand that has just appeared fades in (off under reduced motion)
-    const sig = `${!grip.hidden}${!plus.hidden}${!slot.hidden}${h?.fact ?? h?.k ?? ''}`;
-    if (sig !== shown){ shown = sig; for (const b of [grip, plus, slot]) if (!b.hidden) play(b, [{ opacity: 0 }, { opacity: 1 }], { key: `hand:${b.className}`, ms: 'fast', name: 'hand:in' }); }
+    const sig = `${!grip.hidden}${!plus.hidden}${!slot.hidden}${!fgrip.hidden}${h?.fact ?? h?.k ?? ''}${ft?.id ?? ''}`;
+    if (sig !== shown){ shown = sig; for (const b of [grip, plus, slot, fgrip]) if (!b.hidden) play(b, [{ opacity: 0 }, { opacity: 1 }], { key: `hand:${b.className}`, ms: 'fast', name: 'hand:in' }); }
+  }
+  // ---- the grips of jobs, sections and items ----
+  const rec = () => C.record();
+  // what the selection is, if it can be moved by a grip on its frame: { k: 'job' | 'section' | 'item', id, sid }
+  function frameTarget(){
+    const s = ui.sel;
+    let ft = null;
+    if (s.kind === 'job' && T.jobRefs(rec(), C.cur()).some(r => (typeof r === 'string' ? r : r.id) === s.id)) ft = { k: 'job', id: s.id, sid: T.sectionOfEntry(rec(), s.id) };
+    else if (s.kind === 'section' && !s.heading && T.sectionList(rec(), C.cur()).some(x => x.id === s.id && x.on && !x.fixed)) ft = { k: 'section', id: s.id };
+    else if (s.kind === 'bullet' && !s.job && s.section !== 'skills' && s.section !== 'header'){ const id = s.id.replace(/^~t:/, ''), sid = T.sectionOfItem(rec(), id); if (sid && sid !== 'skills') ft = { k: 'item', id, sid }; }
+    return ft && !locked(ft.id) ? ft : null;
+  }
+  function placeFrameGrip(ft){
+    const f = ft && C.onpage().frame();
+    if (!f){ fgrip.hidden = true; return; }
+    const chip = document.querySelector('#editlay .obchip')?.getBoundingClientRect();
+    const hitChip = (x, y) => !!chip && x < chip.right && x + GRIP.w > chip.left && y < chip.bottom && y + GRIP.h > chip.top;
+    // centred on the top edge's left end; else just outside the frame's left edge; else just above the edge, or above the chip; else along the
+    // edge, to the first place clear of text, the chip and the zoom bar
+    const ys = [f.top - GRIP.h / 2, f.top - GRIP.h - 1, f.top - GRIP.h - 12], xs = [f.left - GRIP.w / 2, f.left - GRIP.w - 3];      // the last row clears the chip, which may stand over the left end of a frame half under the sidebar
+    const along = Array.from({ length: Math.max(0, Math.floor((f.width - GRIP.w - 40) / 8)) }, (_, k) => xs[0] + 8 * (k + 1));
+    const spots = [...ys.flatMap(y => xs.map(x => ({ x, y }))), ...ys.flatMap(y => along.map(x => ({ x, y })))];
+    const at = spots.find(q => free(q.x, q.y, GRIP.w, GRIP.h) && !hitChip(q.x, q.y)) ?? null;
+    put(fgrip, at?.x ?? 0, at?.y ?? 0, !!at);
+    if (!at) return;
+    const name = t(`ux6c.grip.${ft.k}`);
+    fgrip.setAttribute('aria-label', name); fgrip.title = name; fgrip.dataset.k = ft.k; fgrip.dataset.fact = ft.id; fgrip.dataset.sid = ft.sid ?? '';
   }
   // the page was drawn again, or the selection changed: what the hands stood by is found again
   function refresh(){ if (!on()) { hover = null; drag = null; } place(); }
@@ -129,6 +163,7 @@ export function initHands(C){
     if (e.type !== 'pointermove') return;
     if (drag?.kind === 'skill'){ dragMove({ x, y }); return; }
     if (pend && (e.buttons & 1) && Math.hypot(x - pend.x, y - pend.y) > MOVE){
+      if (locked(pend.fact)){ C.toast(t('ux6c.lockedTip'), 'warn'); pend = null; return; }      // a drag that starts on locked text is refused, with the reason
       startDrag('skill', { fact: pend.fact, k: pend.k });
       try { sheet.doc?.documentElement.setPointerCapture(pend.id); } catch { /* the drag still follows the pointer over the page */ }
       sheet.doc?.documentElement.classList.add('rb-dragging');
@@ -143,7 +178,7 @@ export function initHands(C){
       else if (hover) grace();
     });
   }
-  for (const b of [grip, plus, slot]){
+  for (const b of [grip, plus, slot, fgrip]){
     b.addEventListener('pointerenter', () => { onHands = true; clearTimeout(graceT); });
     b.addEventListener('pointerleave', () => { onHands = false; if (!drag) grace(); });
   }
@@ -183,6 +218,21 @@ export function initHands(C){
       const from = gs.findIndex(g => g.fact === d.fact);
       d.ok = at !== from && at !== from + 1; d.to = gs[at]?.fact ?? null;
       if (d.ok){ const r = near.g.rect; showDrop({ left: r.left, width: r.width, top: after ? r.top + r.height + 3 : r.top - 3, height: 0 }); }
+    } else if (d.kind === 'job' || d.kind === 'section' || d.kind === 'item'){
+      // a block among its siblings: the parent's room is the band (or the pages), a drop outside it is refused
+      const ids = d.kind === 'job' ? T.jobRefs(rec(), C.cur(), d.sid).map(r => (typeof r === 'string' ? r : r.id)).filter(id => rec().work.some(w => w.id === id && !w.archived))
+        : d.kind === 'section' ? T.sectionList(rec(), C.cur()).filter(s => s.on && !s.fixed).map(s => s.id) : (T.itemList(rec(), C.cur(), d.sid) ?? []).filter(i => i.on).map(i => i.id);
+      const rectOf = id => (d.kind === 'job' ? sheet.rectOfJob(id, x) : d.kind === 'section' ? sheet.rectOfBand(id) : sheet.rectOfItem(id, x));
+      const sibs = ids.map(id => ({ id, rect: rectOf(id) })).filter(s => s.rect);
+      const room = d.kind === 'section' ? sheet.pageBoxes() : [sheet.rectOfBand(d.kind === 'job' ? d.sid : d.sid)].filter(Boolean);
+      if (!sibs.length || !room.length) return;
+      if (!room.some(b => within(p, box([b]), 70, 14, 30))){ refuse(p, t(`ux6c.refused.${d.kind}`)); return; }
+      const near = sibs.map((s, i) => ({ s, i, c: { x: s.rect.left + s.rect.width / 2, y: s.rect.top + s.rect.height / 2 } })).sort((a, b) => Math.hypot(p.x - a.c.x, p.y - a.c.y) - Math.hypot(p.x - b.c.x, p.y - b.c.y))[0];
+      // items of a run (certificates, interests) share a line: along the line the side of the neighbour decides, else above or below it
+      const dy = p.y - near.c.y, inline = d.kind === 'item' && Math.abs(dy) < near.s.rect.height / 2 && sibs.some((o, k) => k !== near.i && Math.abs(o.rect.top - near.s.rect.top) < 3);
+      const after = inline ? p.x > near.c.x : dy > 0, at = near.i + (after ? 1 : 0), from = sibs.findIndex(s => s.id === d.fact);
+      d.ok = at !== from && at !== from + 1; d.to = sibs[at]?.id ?? null;
+      if (d.ok){ const r = near.s.rect; if (inline) showDrop({ left: after ? r.left + r.width + 2 : r.left - 2, top: r.top, width: 0, height: r.height }, true); else showDrop({ left: r.left, width: r.width, top: after ? r.top + r.height + 2 : r.top - 2, height: 0 }); }
     } else {
       const gs = sheet.skillGroups(x).filter(g => g.items.length || g.fact === d.fact);
       const g = gs.find(g => within(p, box([g.rect]), 8, 8, 6));
@@ -203,6 +253,9 @@ export function initHands(C){
     else if (d.ok){
       if (d.kind === 'line') C.edit().moveLine(d.fact, d.to);
       else if (d.kind === 'group') C.edit().moveGroup(d.fact, d.to);
+      else if (d.kind === 'job') C.edit().moveJob(d.fact, d.to);
+      else if (d.kind === 'section') C.edit().moveSectionTo(d.fact, d.to);
+      else if (d.kind === 'item') C.edit().moveItemTo(d.sid, d.fact, d.to);
       else C.edit().moveSkill(d.fact, d.k, d.to.g, d.to.j);
     }
     place();
@@ -210,37 +263,55 @@ export function initHands(C){
   // the reason a drop is refused is shown while dragging and said again, as a note, if it is let go there
   const dragMove = p => { drag.moved = true; dragTo(p); drag.refused = tip.hidden ? '' : tip.textContent; };
 
-  // the grip: a press that moves is a drag; a press that does not is a click, which selects the line and writes it
-  grip.addEventListener('pointerdown', e => {
-    if (e.button !== 0) return;
-    const h = target();
-    if (!h) return;
-    e.preventDefault();
-    grip.setPointerCapture(e.pointerId);
-    pend = null;
-    drag = { kind: h.k, fact: h.fact, job: h.job, target: h, start: { x: e.clientX, y: e.clientY }, ok: false, to: null, moved: false, id: e.pointerId, press: true };
-  });
-  grip.addEventListener('pointermove', e => {
-    if (!drag?.press) return;
-    if (!drag.moved && Math.hypot(e.clientX - drag.start.x, e.clientY - drag.start.y) < MOVE) return;
-    if (!drag.moved){ C.edit().leaveLine(); document.body.classList.add('is-dragging'); place(); }
-    dragMove(pt(e));
-  });
-  grip.addEventListener('pointerup', e => { if (drag?.press){ const moved = drag.moved; if (moved) endDrag(pt(e)); else drag = null; if (moved) e.preventDefault(); else place(); } });
-  grip.addEventListener('pointercancel', () => { if (drag?.press) endDrag(null); });
-  grip.addEventListener('click', e => { if (performance.now() - dragEnded < 250) return; e.preventDefault(); openLine(grip.dataset.fact); });
-  // the keyboard: ↑ ↓ on the grip move the line or group one place; Enter or Space (a click) writes it
-  grip.addEventListener('keydown', e => {
-    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-    e.preventDefault(); e.stopPropagation();
-    const dir = e.key === 'ArrowDown' ? 1 : -1;
-    if (grip.dataset.k === 'line') C.edit().stepBullet(grip.dataset.fact, dir); else C.edit().stepGroup(grip.dataset.fact, dir);
-    place();
-  });
+  // a grip: a press that moves is a drag; a press that does not is a click. `mk` says what it holds, `click` what a click does, `stepBy` what ↑ ↓ do.
+  function wire(el, mk, click, stepBy){
+    el.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      const what = mk();
+      if (!what) return;
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      pend = null;
+      drag = { ...what, start: { x: e.clientX, y: e.clientY }, ok: false, to: null, moved: false, id: e.pointerId, press: true };
+    });
+    el.addEventListener('pointermove', e => {
+      if (!drag?.press) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.start.x, e.clientY - drag.start.y) < MOVE) return;
+      if (!drag.moved){ C.edit().leaveLine(); document.body.classList.add('is-dragging'); place(); }
+      dragMove(pt(e));
+    });
+    el.addEventListener('pointerup', e => { if (drag?.press){ const moved = drag.moved; if (moved) endDrag(pt(e)); else drag = null; if (moved) e.preventDefault(); else place(); } });
+    el.addEventListener('pointercancel', () => { if (drag?.press) endDrag(null); });
+    el.addEventListener('click', e => { if (performance.now() - dragEnded < 250) return; e.preventDefault(); click(); });
+    // the keyboard: ↑ ↓ on the grip move what it holds one place
+    el.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault(); e.stopPropagation();
+      stepBy(e.key === 'ArrowDown' ? 1 : -1);
+      place();
+    });
+  }
+  // a line or skill group writes on a click; a job, a section or an item only has its grip
+  wire(grip, () => { const h = target(); return h && { kind: h.k, fact: h.fact, job: h.job, target: h }; }, () => openLine(grip.dataset.fact),
+    dir => { if (grip.dataset.k === 'line') C.edit().stepBullet(grip.dataset.fact, dir); else C.edit().stepGroup(grip.dataset.fact, dir); });
+  wire(fgrip, () => { const ft = frameTarget(); return ft && { kind: ft.k, fact: ft.id, sid: ft.sid }; }, () => {},
+    dir => { const { k, fact } = fgrip.dataset; if (k === 'job') C.edit().stepJob(fact, dir); else if (k === 'section') C.edit().stepSection(fact, dir); else C.edit().stepItem(fact, dir); });
   function openLine(fact){ C.select(lineSel(ix(), fact)); C.edit().startEdit(); }
   // "+": a new empty line at the job's end, or a new skill group after this one, written at once
   plus.addEventListener('click', () => { if (plus.dataset.k === 'line') C.edit().addLine(plus.dataset.job); else C.edit().addGroup(plus.dataset.fact); });
   slot.addEventListener('click', () => C.togglePhoto());
 
-  return { pointer, place, refresh, justDragged: () => performance.now() - dragEnded < 250 };
+  // the reason a locked block is not written: beside the page chip's padlock for a moment. False when the chip is not on the page.
+  let hintT = 0;
+  function hint(text){
+    const a = document.querySelector('#editlay .obchip .dp-lock'), r = a?.getBoundingClientRect();
+    if (!r || !r.width) return false;
+    tip.textContent = text; tip.hidden = false; tip.classList.add('is-hint'); tip.style.left = '0px';      // measured at its own width
+    const w = tip.offsetWidth, hgt = tip.offsetHeight;
+    Object.assign(tip.style, { left: `${Math.round(Math.max(8, Math.min(r.right - w, innerWidth - w - 8)))}px`, top: `${Math.round(r.bottom + hgt + 10 > innerHeight - 60 ? r.top - hgt - 6 : r.bottom + 6)}px` });
+    clearTimeout(hintT);
+    hintT = setTimeout(() => { if (tip.classList.contains('is-hint')){ tip.hidden = true; tip.classList.remove('is-hint'); } }, 2800);
+    return true;
+  }
+  return { pointer, place, refresh, hint, justDragged: () => performance.now() - dragEnded < 250 };
 }

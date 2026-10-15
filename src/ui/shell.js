@@ -74,7 +74,7 @@ const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writ
 const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
   ix: () => ui.ix ?? indexModel(work(), cur()), fillText: () => fillText(), select: sel => select(sel),
   writeStarted: () => dock.renderFoot(), writeEnded: () => dock.renderFoot(), redrawSoon: () => schedule() });
-const hands = initHands({ ui, sheet, canvas, edit: () => edit, cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k),
+const hands = initHands({ ui, sheet, canvas, edit: () => edit, onpage: () => onpage, record: () => record(), cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k),
   jobName: id => (ui.ix ?? indexModel(work(), cur())).work.get(id)?.name ?? id, writingFact: () => onpage.fact(), togglePhoto: () => design.togglePhoto() });
 window.__wb = { store, persist, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
 
@@ -1197,6 +1197,9 @@ function placeToast(el){
   el.classList.add('docked');
   Object.assign(el.style, { left: `${Math.round(c.left + 8)}px`, top: `${Math.round(hd.bottom + 8)}px`, width: `${Math.round(c.width - 16)}px` });
 }
+// the live region, and a quiet reason beside the page chip's padlock (a toast when the chip is not on the page: a phone, a block off the page)
+const say = text => { const el = $('#announce'); if (el){ el.textContent = ''; setTimeout(() => { el.textContent = text; }, 30); } };
+const hint = text => { say(text); if (!hands.hint(text)) toast(text); };
 function toast(msg, tone = ''){
   const t = $('#toast');
   t.textContent = msg; t.className = `toast on ${tone}`;
@@ -1205,7 +1208,7 @@ function toast(msg, tone = ''){
 }
 
 const edit = initEdit({
-  store, ui, sheet, toast, record, cur, lang, work, chooseVariant, sectionTitle, textOfFact, resumeName, fillText,
+  store, ui, sheet, toast, say, hint, record, cur, lang, work, chooseVariant, sectionTitle, textOfFact, resumeName, fillText,
   ix: () => ui.ix ?? indexModel(work(), cur()),
   redrawNow: () => { clearTimeout(timer); return redraw(); },
   onpage: { keepView: fn => onpage.keepView(fn), begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },

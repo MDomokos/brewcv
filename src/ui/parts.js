@@ -204,7 +204,14 @@ export const moveButtonsHtml = (up, down, id, text, { first, last }) => `<span c
 // One depth indicator (UX-6c), the same markup and styles on the page (the floating chip, `small`) and at the top of the editor card:
 // Page › Job › Line, Page › Section › Item, Page › Header. levels: [{ word, name?, act, attrs? }] from the page down, the last is where
 // you are; a name gives way with an ellipsis, a level's word never does.
-export function depthHtml(levels, { small = false } = {}){
+// `lock` ({ id, on, by, name }) and `show` ({ kind, id, on, name, disabled }) are the two small buttons at its right end (UX-6c-iii-b): the
+// padlock of the block the chip names, and its on/off switch. Both are real buttons with a name; the padlock is aria-pressed when locked.
+export function depthHtml(levels, { small = false, lock = null, show = null } = {}){
   const btn = (l, cls = '') => `<button type="button" class="dp-l${cls}" data-act="${l.act}" ${l.attrs ?? ''}${cls === ' cur' ? ' aria-current="location"' : ''}><span class="dp-w">${esc(l.word)}</span>${l.name ? `<span class="dp-n">${esc(l.name)}</span>` : ''}</button>`;
-  return `<nav class="depth${small ? ' sm' : ''}" aria-label="${esc(t('ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '')).join('<span class="dp-s" aria-hidden="true">›</span>')}</nav>`;
+  const tool = (cls, ic, act, attrs, name, pressed, disabled = false) => `<button type="button" class="dp-t ${cls}" data-act="${act}" ${attrs} aria-pressed="${pressed}" aria-label="${esc(name)}" title="${esc(name)}"${disabled ? ' aria-disabled="true"' : ''}>${icon(ic, { size: 12 })}</button>`;
+  const tools = [
+    lock && tool(`dp-lock${lock.on ? ' is-locked' : ''}`, lock.on ? 'lock' : 'unlock', 'lock-toggle', `data-id="${esc(lock.id)}"`, t(lock.on ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lock.name }), lock.on),
+    show && tool('dp-show', 'eye', 'chip-on', `data-kind="${esc(show.kind)}" data-id="${esc(show.id)}"`, t(show.on ? 'ux6c.hideX' : 'ux6c.showX', { name: show.name }), show.on, show.disabled),
+  ].filter(Boolean);
+  return `<nav class="depth${small ? ' sm' : ''}" aria-label="${esc(t('ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '')).join('<span class="dp-s" aria-hidden="true">›</span>')}${tools.length ? `<span class="dp-tools">${tools.join('')}</span>` : ''}</nav>`;
 }

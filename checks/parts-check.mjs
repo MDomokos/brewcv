@@ -33,6 +33,9 @@ const M10_ADDS = html => String(html)
   .replace(/<button class="ghost sm" data-act="(?:un)?archive-claim"[^>]*>[^<]*<\/button>/g, '')
   .replace(/<button class="keep sm"[^>]*>.*?<\/button>/g, '')      // Keep is an icon since UX-6b: its name is in aria-label
   .replace(', <kbd>Esc</kbd> goes back', '')
+  .replace(/<span class="dp-tools">.*?<\/span><\/nav>/gs, '</nav>')      // the padlock and the switch on the depth row (UX-6c-iii-b)
+  .replace(/\s*<p class="lockbar">[\s\S]*?<\/p>/g, '')       // the page's padlock
+  .replace(/<button type="button" class="sm ghost pagelock[^"]*"[^>]*>.*?<\/button>/gs, '')
   .replace(/\n\s*<label class="field addclaim">[\s\S]*?<\/label>/g, '')
   .replace(/\s*<p class="note">[^<]*(?:<kbd>[^<]*<\/kbd>[^<]*)*<\/p>/g, '')
   .replace(/\s*<div class="from">[\s\S]*?<\/div>/g, '')
@@ -210,6 +213,21 @@ section('one depth indicator: the sidebar’s row is parts.js depthHtml, the chi
   const sk = u.edit.depthHtml({ kind: 'section', id: 'skills' }, { page: true });
   ok('a section on the page: Page › Skills, a custom heading’s first word, long words cut with an ellipsis', /<span class="dp-w">Skills<\/span>/.test(sk) && !/dp-n/.test(sk));
   ok('a section: Page › Section; the header: Page › Header', /<span class="dp-w">Section<\/span>/.test(u.edit.depthHtml({ kind: 'section', id: 'experience' })) && /<span class="dp-w">Header<\/span>/.test(u.edit.depthHtml({ kind: 'header' })));
+}
+
+section('the padlock and the switch on the depth row (UX-6c-iii-b): one component, a name each, aria-pressed');
+{
+  const u = await makeUi({ resume: 0 });
+  const job = u.work().work[0], id = job.highlights[0], sel = { kind: 'bullet', id, job: job.id, section: 'experience' };
+  const chip = u.edit.depthHtml(sel, { page: true }), row = String(u.edit.bulletView(sel));
+  const btn = (h, cls) => (h.match(new RegExp(`<button[^>]*class="dp-t ${cls}[^"]*"[^>]*>`)) ?? [])[0] ?? '';
+  ok('the chip and the sidebar’s row both end with a padlock and a switch, in that order, inside the nav', [chip, row].every(h => /<span class="dp-tools"><button[^>]*dp-lock[^>]*>.*<\/button><button[^>]*dp-show[^>]*>.*<\/button><\/span><\/nav>/s.test(h)));
+  ok('the padlock is a button named for what the chip names, not pressed, and says Lock; the switch says Hide and is pressed', /aria-pressed="false" aria-label="Lock the line in /.test(btn(chip, 'dp-lock')) && /aria-pressed="true" aria-label="Hide the line in /.test(btn(chip, 'dp-show')) && /data-act="lock-toggle" data-id="/.test(btn(chip, 'dp-lock')));
+  ok('the header, a heading and the page have a padlock and no switch', [{ kind: 'header', id: 'name' }, { kind: 'section', id: 'experience', heading: true }].every(x => { const h = u.edit.depthHtml(x, { page: true }); return /dp-lock/.test(h) && !/dp-show/.test(h); }));
+  u.store.commit(d => { d.cur.locked = [id]; }, 'lock');
+  const locked = u.edit.depthHtml(sel, { page: true });
+  ok('a locked line: the padlock is pressed and says Unlock, and the switch is aria-disabled', /is-locked[^>]*aria-pressed="true" aria-label="Unlock the line in /.test(btn(locked, 'dp-lock')) && /aria-disabled="true"/.test(btn(locked, 'dp-show')));
+  u.store.commit(d => { delete d.cur.locked; }, 'unlock');
 }
 
 // PARTS_STAGE=10.1 runs the snapshot alone

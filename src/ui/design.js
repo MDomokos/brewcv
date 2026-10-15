@@ -181,7 +181,7 @@ async function act(a, tg){
     }
     case 'd-photo': C.pickFile('photo'); return true;
     case 'd-photo-rm': commit(d => { delete d.record.basics.image; for (const x of [d.cur]) if (x.photo) x.photo.show = false; }, t('undo.removePhoto'), t('toast.photoRemoved')); return true;
-    case 'd-shape': { const s = tg.dataset.s; commit(d => { d.cur.photo = { show: true, ...(d.cur.photo ?? {}), shape: s }; }, t('design.shape')); return true; }
+    case 'd-shape': { const s = tg.dataset.s; commit(d => setResumePhoto(d.record, d.cur, { shape: s, ...(d.cur.photo ? {} : { show: true }) }), t('design.shape')); return true; }
   }
   return false;
 }
@@ -189,7 +189,7 @@ async function act(a, tg){
 function bind(body){
   body.addEventListener('change', e => {
     const el = e.target;
-    if (el.id === 'd-photo-on'){ const on = el.checked; commit(d => { d.cur.photo = { shape: 'rect', ...(d.cur.photo ?? {}), show: on }; }, on ? t('undo.showPhoto') : t('undo.hidePhoto')); }
+    if (el.id === 'd-photo-on'){ const on = el.checked; commit(d => setResumePhoto(d.record, d.cur, { show: on }), on ? t('undo.showPhoto') : t('undo.hidePhoto')); }
     if (el.id === 'd-color'){ const c = el.value; if (/^#[0-9a-f]{6}$/i.test(c)) commit(d => { d.cur.accent = c.toLowerCase(); }, t('design.accent')); }
   });
 }

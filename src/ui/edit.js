@@ -4,6 +4,7 @@
 
 import * as R from '../model/record.js';
 import * as T from '../model/resume.js';
+import * as LK from '../model/lock.js';
 import { key as measureKeyOf } from '../fit.js';
 import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
 import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
@@ -12,6 +13,7 @@ import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { keyOf, isLabelKey } from './select.js';
 import { t, h, errText } from '../i18n/index.js';
 import { play } from './motion.js';
+import { icon } from './icons.js';
 import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, statsHtml, claimHead, moveButtonsHtml } from './parts.js';
 
 let C = null;
@@ -100,9 +102,9 @@ const entryKeyOf = id => (['work', 'projects', 'volunteer'].find(k => (rec()[k] 
 const missingBar = () => missBar({ lang: lang(), list: lang() === DEFAULT_LANG ? [] : missingList(work(), cur()) });
 
 // ---- the Highlight lens: one list of tags, job types (bundles of tags) first ----
-function lensBox(){
+function lensBox(extra = ''){
   const { types, tags } = lensChoices(rec(), lang());
-  if (!types.length && !tags.length) return `<div class="lens"><span class="muted small">${h('ux2.lensNone')}</span> <button class="sm ghost" data-act="lens-edit">${h('ux2.lensEdit')}</button></div>`;
+  if (!types.length && !tags.length) return `<div class="lens"><span class="muted small">${h('ux2.lensNone')}</span> <button class="sm ghost" data-act="lens-edit">${h('ux2.lensEdit')}</button>${extra}</div>`;
   const chosen = E.focus;
   const known = types.some(x => x.tag === chosen) || tags.some(x => x.tag === chosen);
   const opt = x => `<option value="${esc(x.tag)}" ${chosen === x.tag ? 'selected' : ''}>${esc(x.label)} (${x.n})</option>`;
@@ -111,7 +113,7 @@ function lensBox(){
         ${types.length ? `<optgroup label="${esc(t('ux2.lensTypes'))}">${types.map(opt).join('')}</optgroup>` : ''}
         ${tags.length ? `<optgroup label="${esc(t('ux2.lensTagsGroup'))}">${tags.map(opt).join('')}</optgroup>` : ''}
         ${chosen && !known ? `<option value="${esc(chosen)}" selected>${esc(chosen)}</option>` : ''}</select>
-      <button class="sm" data-act="lens-apply" aria-expanded="${E.applyOpen}" ${chosen ? '' : 'disabled'}>${h('ux3b.lensApply')}</button></div>`;
+      <button class="sm" data-act="lens-apply" aria-expanded="${E.applyOpen}" ${chosen ? '' : 'disabled'}>${h('ux3b.lensApply')}</button>${extra}</div>`;
   if (chosen && E.applyOpen){
     const p = planTag(work(), cur(), chosen);
     out += `<div class="focusbox">${h('edit.focusPlan', { on: p.on, off: p.off, sw: p.sw })}
@@ -124,9 +126,16 @@ function lensBox(){
 // Fit works at the foot.
 function outlineView(){
   return `${C.newerBanner()}${missingBar()}
-    ${lensBox()}
+    ${lensBox(pageLockHtml('lensrow-end'))}
     ${C.outlineHtml()}
     <p class="muted tiny outfoot">${h('ux5c.outlineFoot')}</p>`;
+}
+// the whole page's padlock: Edit with nothing selected has it
+function pageLockHtml(cls = ''){
+  if (C.ui.snap) return '';
+  const on = lockBy(LK.PAGE) !== null, name = t(on ? 'ux6c.unlockX' : 'ux6c.lockX', { name: t('ux6c.thePage') });
+  const btn = `<button type="button" class="sm ghost pagelock${on ? ' is-locked' : ''}${cls ? ' ' + cls : ''}" data-act="lock-toggle" data-id="${LK.PAGE}" aria-pressed="${on}" aria-label="${esc(name)}" title="${esc(name)}">${icon(on ? 'lock' : 'unlock', { size: 12 })}${cls ? '' : `<span>${esc(t(on ? 'ux6c.pageLocked' : 'ux6c.lockPage'))}</span>`}</button>`;
+  return cls ? btn : `<p class="lockbar">${btn}</p>`;      // in the Outline it is an icon on the lens's last line (no extra height); alone it has a line of its own
 }
 // Edit with nothing selected: what this resume is for, and one line on how to pick a line
 function noneView(){
@@ -134,6 +143,7 @@ function noneView(){
   return `${C.newerBanner()}${missingBar()}
     <h2 class="title">${esc(C.resumeName(r))}</h2>
     ${type ? `<p class="meta">${esc(type)}</p>` : ''}
+    ${pageLockHtml()}
     <p class="lead edithint">${h('ux5c.editNone')}</p>`;
 }
 
@@ -189,7 +199,73 @@ function depth(sel = C.ui.sel, page = false){
     act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
   return L;
 }
-const depthHtml = (sel = C.ui.sel, { page = false } = {}) => depthMarkup(depth(sel, page), { small: page });
+const depthHtml = (sel = C.ui.sel, { page = false } = {}) => depthMarkup(depth(sel, page), { small: page, ...chipTools(sel, page) });
+
+// ---- the lock (UX-6c-iii-b) ----
+// the id the padlock holds for a selection: the block the chip names (a heading is its own block)
+function lockIdOf(sel = C.ui.sel){
+  switch (sel.kind){
+    case 'none': return LK.PAGE;
+    case 'header': return sel.id ?? 'header';
+    case 'job': return sel.id;
+    case 'section': return sel.heading ? `~h:${sel.id}` : sel.id;
+    case 'bullet': return sel.id;
+    case 'record': return sel.what === 'item' ? sel.id : null;
+  }
+  return null;
+}
+const lockBy = id => (id ? LK.lockedBy(rec(), cur(), id) : null);
+const isLockedId = id => lockBy(id) !== null;
+// what a lock is called to a person
+function lockName(id){
+  if (id === LK.PAGE) return t('ux6c.thePage');
+  if (id.startsWith('~h:')) return t('ux6c.headingOf', { name: C.sectionTitle(id.slice(3)) });
+  if (ix().sections.has(id)) return C.sectionTitle(id);
+  if (ix().work.has(id)){ const w = ix().work.get(id); return w.name ?? w.organization ?? w.entity ?? id; }
+  return clip(lineName(id), 40);
+}
+// the switch the chip offers for the block it names: a section, a job, a line, or an item of a list section; null for the others
+function showOf(sel){
+  const un = id => id.replace(/^~t:/, '');
+  if (sel.kind === 'section' && !sel.heading){ const me = T.sectionList(rec(), cur()).find(x => x.id === sel.id); return me && !me.fixed ? { kind: 'section', id: sel.id, on: me.on } : null; }
+  if (sel.kind === 'job') return { kind: 'job', id: sel.id, on: jobOn(sel.id) };
+  const id = sel.kind === 'bullet' || (sel.kind === 'record' && sel.what === 'item') ? un(sel.id) : null;
+  if (!id) return null;
+  if (sel.kind === 'bullet' && sel.job) return { kind: 'line', id, on: isOn(id) };
+  const sid = T.sectionOfItem(rec(), id);
+  return sid ? { kind: 'item', id, on: !!T.itemList(rec(), cur(), sid)?.find(x => x.id === id)?.on && !!T.sectionList(rec(), cur()).find(x => x.id === sid)?.on } : null;
+}
+// the padlock and the switch at the right end of the depth row (not on a sent copy)
+function chipTools(sel, page){
+  const id = !C.ui.snap && lockIdOf(sel);
+  if (!id) return {};
+  const lv = depth(sel, page).at(-1), by = lockBy(id), s = showOf(sel);
+  // the page's chip stops at the job: a line in it is named for what it is
+  const name = sel.kind === 'section' && sel.heading ? lockName(id) : sel.kind === 'bullet' && sel.job ? t('ux6c.lineIn', { name: lockName(sel.job) }) : lv.name ? `${lv.word} ${lv.name}` : lv.word;
+  return { lock: { id, on: by !== null, name }, show: s ? { ...s, name, disabled: by !== null } : null };
+}
+// Lock or unlock: what is being written is kept first. A lock held by an ancestor is lifted there (the person asked for this block to be free).
+function lockToggle(id){
+  const by = lockBy(id), on = by === null;
+  clearEdit();
+  commit(d => LK.setLocked(d.cur, by ?? id, on), on ? t('ux6c.undoLock') : t('ux6c.undoUnlock'));
+  const name = id === lockIdOf() ? chipTools(C.ui.sel, true).lock.name : lockName(by ?? id);      // as the chip names it
+  C.say(on ? t('ux6c.nowLocked', { name }) : t('ux6c.nowUnlocked', { name }));
+}
+// a click on locked text selects its block and says why nothing is written
+function lockedHint(sel = C.ui.sel){
+  const id = lockIdOf(sel), by = lockBy(id);
+  C.hint(by && by !== id ? t('ux6c.lockedWith', { name: lockName(by) }) : t('ux6c.lockedHint'));
+}
+// the chip's switch (show or hide)
+function chipOn(kind, id){
+  if (isLockedId(id)) return;
+  const on = kind === 'section' ? T.sectionList(rec(), cur()).find(x => x.id === id)?.on : kind === 'job' ? jobOn(id) : kind === 'line' ? isOn(id) : !!showOf({ kind: 'bullet', id })?.on;
+  if (kind === 'section') setSection(id, !on);
+  else if (kind === 'job') commit(d => T.setJobOn(d.record, d.cur, id, !on), !on ? t('undo.showJob') : t('undo.hideJob'));
+  else if (kind === 'line') setBullet(id, !on);
+  else commit(d => T.setItemOn(d.record, d.cur, id, !on), !on ? t('undo.turnOn') : t('undo.turnOff'));
+}
 
 // The skills of this resume as groups of skills: where to start from, the groups and skills to arrange, and where to keep the result.
 // Each skill is a button (Alt+← → moves it in its group, Alt+↑ ↓ to the group above or below) and can be dragged to another group.
@@ -340,6 +416,7 @@ function versionsX(id){
 // The line being written is kept first. The page is drawn again before the new line is looked for on it.
 async function addLine(jobId, afterId = undefined){
   if (!ix().work.has(jobId) || !jobOn(jobId)) return false;
+  if (isLockedId(jobId)){ lockedHint({ kind: 'job', id: jobId }); return false; }
   const after = afterId === undefined ? T.listedBullets(rec(), cur(), jobId).at(-1) ?? null : afterId;
   clearEdit();
   let id;
@@ -353,6 +430,7 @@ async function addLine(jobId, afterId = undefined){
 }
 
 function startEdit(mode = null, vid = null){
+  if (isLockedId(lockIdOf())) return lockedHint();      // a locked text is not written: its block is selected and the reason said
   const key = keyOf(C.ui.sel), id = isLabelKey(key) ? null : fid();
   if (isLabelKey(key)) return startLabel(key);
   if (!id) return;
@@ -589,7 +667,7 @@ async function act(a, tg){
       if (!text){ C.toast(t('toast.writeItFirst'), 'warn'); ta?.focus(); return true; }
       const L = lang(), id = s.id;
       let n;
-      commit(d => { const v = writeIn(d.record, id, L, text, ta.dataset.from || null); n = v.n; d.cur.picks = { ...(d.cur.picks ?? {}), [id]: v.id }; }, t('undo.writeIn', { lang: LANG_NAME[L] }));
+      commit(d => { LK.guard(d.record, d.cur, id); const v = writeIn(d.record, id, L, text, ta.dataset.from || null); n = v.n; T.pickVersion(d.record, d.cur, id, v.id); }, t('undo.writeIn', { lang: LANG_NAME[L] }));
       if (n) C.toast(t('toast.langVSaved', { lang: LANG_NAME[L], v: n }));
       return true;
     }
@@ -629,6 +707,8 @@ async function act(a, tg){
     case 'sec-up': case 'sec-down': if (tg.getAttribute('aria-disabled') !== 'true') stepSectionBy(tg.dataset.id, a === 'sec-up' ? -1 : 1); return true;
     case 'order-reset': resetOrder(tg.dataset.kind, tg.dataset.id); return true;
     case 'label-reset': commit(d => T.setSectionLabel(d.record, d.cur, sel.id, lang(), null), t('undo.resetHeading')); return true;
+    case 'lock-toggle': case 'row-lock': lockToggle(tg.dataset.id); return true;
+    case 'chip-on': if (tg.getAttribute('aria-disabled') !== 'true') chipOn(tg.dataset.kind, tg.dataset.id); return true;
     case 'label-all': commit(d => T.useLabelEverywhere(d.record, d.cur, sel.id, lang()), t('undo.headingAll'), t('toast.headingAll')); return true;
   }
   return false;
@@ -859,6 +939,25 @@ function renameTerm(key, value){
 }
 
 // The commands behind Alt+↑ / Alt+↓, the ↑ ↓ buttons and the margin's arrows: one step, one undo step. They return whether anything moved.
+// …and the same to a place: the grips on the page drop a job, a section or an item before another (null: last)
+function moveJobBy(id, before){
+  let r;
+  commit(x => { r = T.moveEntry(x.record, x.cur, id, before); }, t('ux2.undoMoveItem'));
+  if (r){ C.flash(T.sectionOfEntry(rec(), id)); if (r.auto) C.toast(autoNote(r).trim()); }
+  return !!r;
+}
+function moveSectionBy(id, before){
+  let r;
+  commit(x => { r = T.moveSection(x.record, x.cur, id, before); }, t('undo.moveSection'));
+  if (r){ C.flash(id); if (r.auto) C.toast(autoNote(r).trim()); }
+  return !!r;
+}
+function moveItemBy(sid, id, before){
+  let ok = false;
+  commit(x => { T.moveItem(x.record, x.cur, sid, id, before); ok = true; }, t('ux2.undoMoveItem'));
+  if (ok) C.flash(sid);
+  return ok;
+}
 function stepSectionBy(id, d){
   let r;
   commit(x => { r = T.stepSection(x.record, x.cur, id, d); }, t('undo.moveSection'));
@@ -918,6 +1017,35 @@ function resetOrder(kind, id){
   }, t('ux5b.undoReset'));
   if (auto) C.toast(t('toast.autoPages'));
 }
+// ---- a locked block in the sidebar ----
+// Every row of the Outline gets its padlock (a locked ancestor shows its children locked, greyed, with the lock inherited); a locked row's
+// tick, move buttons and drag are off. A locked block's own view has its switches, its versions and its removal off, with the reason.
+function lockPass(){
+  const body = $('#body');
+  if (!body || C.ui.snap || C.ui.view) return;
+  const why = t('ux6c.lockedTip');
+  const off = (el, tip = why) => {
+    if (el.matches('input, select, textarea, button')) el.disabled = true;
+    else { el.removeAttribute('data-act'); el.removeAttribute('data-v'); el.removeAttribute('tabindex'); el.setAttribute('aria-disabled', 'true'); }
+    el.title = tip;
+  };
+  for (const row of body.querySelectorAll('.clrow, .srow[data-sid], section.clg[data-g]')){
+    const id = row.dataset.fact || row.dataset.item || row.dataset.sid || (ix().work.has(row.dataset.g) ? row.dataset.g : '');
+    if (!id) continue;
+    const host = row.matches('section.clg') ? row.querySelector(':scope > .clgh') : row;
+    if (!host) continue;
+    const by = lockBy(id), name = t(by ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lockName(id) });
+    host.insertAdjacentHTML('beforeend', `<button type="button" class="rowlock${by ? ' is-locked' : ''}${by && by !== id ? ' inherited' : ''}" data-act="row-lock" data-id="${esc(id)}" aria-pressed="${by !== null}" aria-label="${esc(name)}" title="${esc(by && by !== id ? t('ux6c.lockedWith', { name: lockName(by) }) : name)}">${icon(by ? 'lock' : 'unlock', { size: 12 })}</button>`);
+    if (!by) continue;
+    host.classList.add('is-locked'); if (by !== id) host.classList.add('is-inherited');
+    host.draggable = false;
+    for (const el of host.querySelectorAll('input[type=checkbox], .clmv .ib')) el.matches('input') ? (el.disabled = true, el.title = why) : (el.setAttribute('aria-disabled', 'true'), el.title = why);
+  }
+  const sel = C.ui.sel, id = lockIdOf(sel);
+  if (sel.kind === 'none' || !isLockedId(id)) return;
+  body.querySelector('.depth')?.insertAdjacentHTML('afterend', `<p class="note locknote">${esc(t('ux6c.lockedNote'))}</p>`);
+  for (const el of body.querySelectorAll('#b-on, #sec-label, #term-in, #sk-set, #ed-new, [data-act="write-in"], .ctlrow > .swl > [data-jobon], .ctlrow > .swl > [data-secon], .skchip, .vlist .vrow, .vlist button, .vlist input, [data-act="local-remove"], [data-act="keep"], [data-act="delete-claim"], [data-act="archive-claim"], [data-act="label-reset"], [data-act="label-all"], [data-act^="sk-"]')) off(el);
+}
 function key(e){
   // writing a line on the page: Esc leaves it for the job, keeping what was typed, wherever the focus is
   if (e.key === 'Escape' && E.edit && !E.edit.panel){ e.preventDefault(); cancelEdit(); return true; }
@@ -940,10 +1068,11 @@ function leaving(next){
 
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
-  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, fieldName, multiline,
+  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, fieldName, multiline,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){
+    lockPass();
     if (E.edit && $('#ed') && document.activeElement?.id !== 'ed') focusEditor(); else if ($('#ed')) autosize($('#ed'));
     // a skill moved with the keyboard keeps the focus, where it landed (it may have left its group empty: that group is gone)
     if (E.chip){ const c = document.querySelector(`#body .skchip[data-g="${CSS.escape(E.chip.g)}"][data-k="${E.chip.k}"]`); E.chip = null; c?.focus(); }

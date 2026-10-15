@@ -20,6 +20,7 @@ import * as T from '../model/resume.js';
 import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
 import { reduced } from './motion.js';
+import { icon } from './icons.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const PAD_JOB = 6, PAD_LINE = 4, PAD_ITEM = 2, PAD_SEC = 12;       // a section's frame stands off enough for the chip's lower half to clear its first line; an item's stands off less, so it stays off its neighbours (the chip finds a free place)
@@ -31,6 +32,7 @@ export function initOnPage(C){
   let lay = null, geom = null, sig = '';
   let S = null;                    // the line being written: { fact, el, caret }
   let moving = false;              // from one line to the next: nothing is announced
+  let frameNow = null;             // the frame the chip stands on, in screen pixels (the grips of a job, a section and an item stand by it)
   let zoomed = false;              // the camera has been eased to the writing zoom; it comes back at the page level
   const phone = () => innerWidth < PHONE_MAX;
   // entering and leaving write mode is announced
@@ -82,9 +84,9 @@ export function initOnPage(C){
   }
 
   // ---- drawing the layers ----
-  function signature(lvl){
+  function signature(lvl, chip){
     const ed = edit().editing, tg = geom?.tg;
-    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang()]);
+    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
   }
   function render(force = false){
     lay ??= $('#editlay');
@@ -96,7 +98,8 @@ export function initOnPage(C){
     read();
     // a job or a line that is not on this resume has nothing on the page to frame
     if (!geom.boxes.length || (!geom.job && !geom.line && !geom.band)){ if (lay.firstChild) lay.replaceChildren(); sig = ''; return; }
-    const sg = signature(lvl);
+    const chipHtml = edit().depthHtml(ui.sel, { page: true });      // the padlock and the switch change with the lock and the switch
+    const sg = signature(lvl, chipHtml);
     if (!force && sg === sig && lay.firstChild){ place(); return; }
     // a preview under the pointer (a version hovered in the sidebar) is a redraw: the layers stay as they are
     if (ui.previewing && lay.firstChild && !force){ place(); return; }
@@ -110,7 +113,8 @@ export function initOnPage(C){
     if (lvl === 'line' && geom.line) html.push('<div class="obframe line"></div>');
     const tools = toolsFor(lvl);
     if (tools) html.push(`<div class="obtoolswrap" role="region" aria-label="${esc(t('ux3.tools'))}">${tools}</div>`);
-    html.push(`<div class="obchip">${edit().depthHtml(ui.sel, { page: true })}</div>`);
+    if (edit().lockedId(edit().lockIdOf())) html.push(`<div class="oblockmark" aria-hidden="true">${icon('lock', { size: 11 })}</div>`);      // a locked block shows no grip: the padlock stands at its corner
+    html.push(`<div class="obchip">${chipHtml}</div>`);
     lay.innerHTML = html.join('');
     place();
     if (keep) lay.querySelector(`[data-act="${keep}"]`)?.focus({ preventScroll: true });
@@ -165,7 +169,10 @@ export function initOnPage(C){
       if (left + twW > room) left = Math.max(6, sr.left - twW - 6);       // no room right of the line (a narrow window): to its left, never under the tabs
       Object.assign(tw.style, { left: `${left}px`, top: `${Math.max(6, sr.top - 4)}px` });
     } else if (tw) tw.style.display = 'none';
-    placeChip(lay.querySelector('.obchip'), (geom.job && (lvl === 'job' || lvl === 'line') ? R(pad(geom.job, PAD_JOB)) : R(pad(geom.sec ?? geom.job ?? geom.line, secPad()))));
+    frameNow = geom.job && (lvl === 'job' || lvl === 'line') ? R(pad(geom.job, PAD_JOB)) : R(pad(geom.sec ?? geom.job ?? geom.line, secPad()));
+    placeChip(lay.querySelector('.obchip'), frameNow);
+    const mark = lay.querySelector('.oblockmark');
+    if (mark && frameNow) Object.assign(mark.style, { left: `${Math.round(frameNow.left - 8)}px`, top: `${Math.round(frameNow.top - 8)}px` });
   }
   // One rule: the chip lies on the dashed frame of the current block (the job's, or the section's), centred on its top edge in its
   // top-right corner. Kept inside the page, in the pages' room (never under the rail or the sidebar) and above the zoom bar; moved
@@ -289,8 +296,14 @@ export function initOnPage(C){
     const ed = edit().editing;
     if (!ed) return false;
     const ix = C.ix();
-    const id = step(sheet.order(ix), { kind: 'bullet', id: ed.fact }, dir);
-    if (typeof id !== 'string' || id === ed.fact) return false;
+    const order = sheet.order(ix);
+    let id = step(order, lineSel(ix, ed.fact), dir);
+    for (let n = 0; typeof id === 'string' && id !== ed.fact && edit().lockedId(id) && n < order.length; n++){      // a locked text is passed over: it cannot be written
+      const after = step(order, lineSel(ix, id), dir);
+      if (after === id) return false;
+      id = after;
+    }
+    if (typeof id !== 'string' || id === ed.fact || edit().lockedId(id)) return false;
     const sel = lineSel(ix, id);
     moving = true;
     try { C.select(sel); if (keyOf(ui.sel) === id) edit().startEdit(); }
@@ -377,6 +390,7 @@ export function initOnPage(C){
   return {
     begin, end, text: () => (S?.composing && S.el?.isConnected ? plainOf(S.el) : null), setText, refresh, afterDraw, render, place, act, keepView,
     get writing(){ return !!ui.writing; },
+    frame: () => (lay?.firstChild ? frameNow : null),
     el: () => S?.el ?? null,
     fact: () => S?.fact ?? null,
     level,
