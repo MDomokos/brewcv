@@ -507,6 +507,17 @@ section('compare any number, and what differs (UX-6e)');
   ok('what differs: the name, the edit, the line only here, the photo and the skills, in plain words', d.length === 5 && /^Named Child/.test(d[0]) && d.some(x => /^Edited on this resume: /.test(x)) && d.some(x => /^Adds a line only on this resume: A line only the copy has\./.test(x)) && d.some(x => /^Photo: /.test(x)) && d.some(x => /^Skills arranged as: Renamed/.test(x)), JSON.stringify(d));
   ok('…and the other way round: the line is left out, the edit is a version again', (() => { const e = RS.differences(m, kid, parent); return e.some(x => /^Leaves out: A line only the copy has/.test(x)) && e.some(x => /^[^:]+: only here to v\d/.test(x)); })(), JSON.stringify(RS.differences(m, kid, parent)));
   ok('a version picked instead is "v1 to v2"', (() => { const x = clone(a), f = m.facts.find(q => q.id === 'tagline'); const other = f.variants.map(v => m.variants.find(q => q.id === v)).find(v => v.lang === 'en' && v.id !== chooseVariant(m, 'tagline', a).v.id); if (!other) return true; x.picks = { ...x.picks, tagline: other.id }; return RS.differences(m, a, x).some(q => /^Discipline line for the gutter: v\d+ to v\d+/.test(q)); })());
+  // UX-6e fix round: names, not ids, and only the jobs that print
+  const jobsRow = r => RS.compareMany(m, [r]).find(q => q.label === 'Job order').cells[0];
+  ok('the Job order row names projects as well as jobs, never an id', [...m.work, ...m.projects].every(w => !jobsRow(a).includes(w.id)) && jobsRow(a).includes(m.projects[0].name), jobsRow(a));
+  const withOff = ids => { const x = clone(a), e = x.sections.find(q => q.id === 'experience'); e.work = [...e.work.map(w => (typeof w === 'string' ? { id: w } : w)), ...ids.map(id => ({ id, highlights: [] }))]; return x; };
+  const off1 = withOff(['free', 'atelier']), off2 = withOff(['atelier', 'free']);
+  ok('jobs with no picked bullet are not in the Job order, so reordering them is no difference', !jobsRow(off1).includes('Self-employed') && !RS.differences(m, off1, off2).some(q => /^Job order/i.test(q) || q.includes('›')), JSON.stringify(RS.differences(m, off1, off2)));
+  const stc = { resumes: [{ id: 'p', savedAt: '2026-01-01' }, { id: 'q', savedAt: '2026-02-01' }, { id: 'r', savedAt: '2026-03-01' }, { id: 'z', savedAt: '2026-04-01' }] };
+  const lines = { p: ['x'], q: ['x'], r: ['x'], z: ['y'] };
+  ok('closest: no common line gives no guess', RS.closestTo(stc, stc.resumes[3], r => lines[r.id]) === null);
+  ok('closest: of resumes that print the same, the newest', RS.closestTo(stc, stc.resumes[0], r => lines[r.id])?.r.id === 'r');
+  ok('printedIds is kept by content: the same answer, not recomputed', RS.printedIds(m, a) === RS.printedIds(m, a) && RS.printedIds(m, a) !== RS.printedIds(m, b));
   ok('printedIds names what a resume prints, for the closest-resume guess', RS.printedIds(m, a).includes('tagline') && RS.printedIds(m, a).length > 5);
 }
 

@@ -361,7 +361,7 @@ export const parentOf = (state, r) => (r?.parent ? savedOf(state, r.parent) : nu
 // For resumes made before parents were recorded: the other resume in the same language that prints most of the same lines.
 // printedOf(r) lists what r prints.
 export function closestTo(state, r, printedOf){
-  const mine = new Set(printedOf(r));
+  const mine = new Set(printedOf(r));   // no common line: no guess; a tie goes to the newest
   let best = null;
   for (const o of state.resumes ?? []){
     if (o === r || (o.lang ?? 'en') !== (r.lang ?? 'en')) continue;
@@ -369,7 +369,7 @@ export function closestTo(state, r, printedOf){
     let n = 0;
     for (const x of mine) if (theirs.has(x)) n++;
     const s = n / Math.max(mine.size, theirs.size, 1);
-    if (!best || s > best.s) best = { r: o, s };
+    if (s > 0 && (!best || s > best.s || (s === best.s && String(o.savedAt ?? '') > String(best.r.savedAt ?? '')))) best = { r: o, s };
   }
   return best;
 }
@@ -454,9 +454,18 @@ function claimsOf(model, r){
   const p = printedFacts(model, r), header = Object.values(model.basics?.display ?? {}).filter(f => (model.facts ?? []).some(x => x.id === f));
   return new Map([...header.map(f => [f, f]), p.summary && [p.summary.fact, p.summary.fact], ...p.work.flatMap(w => w.highlights.map(h => [isLocal(r, h.fact) ? `local:${w.job}:${h.text}` : h.fact, h.fact]))].filter(Boolean));
 }
-export const printedIds = (model, r) => [...claimsOf(model, r).keys()];
-const jobIdsOf = (model, r) => jobRefs(model, r).map(x => (typeof x === 'string' ? x : x.id));
-const jobName = (model, id) => (model.work ?? []).find(w => w.id === id)?.name ?? id;
+// kept by the record and the resume's content, so a search keystroke or a redraw does not lay every resume out again
+const idsKept = new WeakMap();
+export const printedIds = (model, r) => {
+  const kept = idsKept.get(model) ?? idsKept.set(model, new Map()).get(model), key = JSON.stringify(r);
+  return kept.get(key) ?? kept.set(key, [...claimsOf(model, r).keys()]).get(key);
+};
+// the jobs that print: a job with no picked bullet is left off the page, so its place in the order is not a difference
+const jobIdsOf = (model, r) => {
+  const on = new Set(printedFacts(model, r).work.map(w => w.job)), isJob = new Set((model.work ?? []).map(w => w.id));
+  return jobRefs(model, r).map(x => (typeof x === 'string' ? x : x.id)).filter(id => !isJob.has(id) || on.has(id));
+};
+const jobName = (model, id) => [...(model.work ?? []), ...(model.projects ?? [])].find(w => w.id === id)?.name ?? id;
 const skillNames = (model, r) => arrangementOf(model, r).groups.map(g => g.label ?? groupLabel(model, r, g.id)).join(', ');
 const claimLabel = (model, key, f, cells) => (model.facts ?? []).find(x => x.id === f)?.summary ?? (key.startsWith('local:') ? (cells.find(c => c.text)?.text ?? '').slice(0, 60) : f);
 
