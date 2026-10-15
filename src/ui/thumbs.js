@@ -51,7 +51,8 @@ export function fill(root, recipeOf, onShown = null){
       if (!e || !slot.isConnected) return;
       const { w, h } = pageSize(e.format), f = document.createElement('iframe');
       f.title = t('ux6e.thumb'); f.tabIndex = -1; f.setAttribute('scrolling', 'no'); f.srcdoc = e.src;
-      f.style.cssText = `width:${w}px;height:${h}px;transform:scale(${slot.clientWidth / w});`;
+      f.style.cssText = `width:${w}px;height:${h}px;`;
+      new ResizeObserver(() => { f.style.transform = `scale(${slot.clientWidth / w})`; }).observe(slot);   // follows the box when the window is resized
       slot.replaceChildren(f); slot.dataset.pages = String(e.pages); stats.shown++;
       play(f, [{ opacity: 0 }, { opacity: 1 }], { ms: 'fast', name: 'thumb:in' });
       onShown?.(slot.dataset.thumb, e);

@@ -74,6 +74,10 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
   ok('Esc goes back to the editor, with the selection and the page as they were, and the focus on the rail button that opened the screen', await view(page) === null && await page.evaluate(() => JSON.stringify({ sel: window.__wb.ui.sel, page: window.__wb.ui.page })) === left && await page.evaluate(() => document.activeElement?.matches('#rail [data-act=sw-manage]')), left);
   await page.click('#rail [data-act=sw-manage]'); await thumbsDone(page, n);
   ok('a second visit draws no picture again: the pictures are kept by what each resume prints', await page.evaluate(() => window.__wb.thumbs.stats.drawn) === drawn);
+  { const fit = w => page.evaluate(w => { const slot = document.querySelector('#resumes [data-thumb]'); slot.style.width = `${w}px`; return new Promise(r => setTimeout(() => r(slot.querySelector('iframe').getBoundingClientRect().width / slot.clientWidth), 150)); }, w);
+    const a = await fit(120), b = await fit(80);
+    ok('a thumbnail follows its box at two widths (the picture fills the box, not the size it had when drawn)', Math.abs(a - 1) < 0.02 && Math.abs(b - 1) < 0.02, `${a} ${b}`);
+    await page.evaluate(() => { document.querySelector('#resumes [data-thumb]').style.width = ''; }); }
   await page.click('#resumes [data-act=scr-back]'); await settle(page);
   ok('the back button does the same', await view(page) === null && await page.evaluate(() => JSON.stringify({ sel: window.__wb.ui.sel, page: window.__wb.ui.page })) === left);
 
@@ -134,6 +138,7 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Smoke Co', role: 'Role' }); }, 'send'); });
   await page.click('#rail [data-act=sw-manage]'); await settle(page);
   ok('a sent copy has its own tick box on its resume\'s card', await page.isVisible(`#resumes .rcard[data-rid="${copy2}"] .rsent .rtick`));
+  ok('the sent-copy tick box names its resume, so the ticks can be told apart', await page.evaluate(id => { const c = document.querySelector(`#resumes .rcard[data-rid="${id}"]`); return c.querySelector('.rsent .rtick').getAttribute('aria-label').includes(c.querySelector('.rname').textContent.replace(/\s*·.*$/, '').trim()); }, copy2));
   ok('Compare is off until two are ticked, and says how many', await page.isDisabled('#scr-cmp'));
   await page.check(`#resumes .rcard[data-rid="${s0.ids[1]}"] .rtick`); await page.check(`#resumes .rcard[data-rid="${s0.ids[2]}"] .rtick`); await page.check(`#resumes .rcard[data-rid="${copy2}"] .rsent .rtick`);
   ok('three ticks turn Compare on: "Compare 3"', !(await page.isDisabled('#scr-cmp')) && /Compare 3/.test(await page.textContent('#scr-cmp')) && (await page.$$('#resumes .rcard.ticked')).length >= 2);
@@ -165,6 +170,10 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
   ok('Rename is in place on the card', await page.isVisible('#resumes .rcard .swren'));
   await page.fill('#resumes .swren', 'Renamed here'); await page.keyboard.press('Enter'); await settle(page);
   ok('…and keeps what was typed', Object.values((await st(page)).names).includes('Renamed here'));
+  { const rid = Object.entries((await st(page)).names).find(([, n]) => n === 'Renamed here')[0];
+    await page.click(`#resumes .rcard[data-rid="${rid}"] .smore`); await settle(page); await page.click('#resumes .rowmenu [data-act=rm-rename]'); await settle(page);
+    await page.fill('#resumes .swren', 'Typed then Esc'); await page.keyboard.press('Escape'); await settle(page);
+    ok('Esc in the card rename keeps what was typed, and stays on the screen', Object.values((await st(page)).names).includes('Typed then Esc') && await view(page) === 'resumes'); }
   await page.keyboard.press('Escape'); await settle(page);
   ok('no errors on the screens', errors.length === 0, errors[0] ?? '');
   await ctx.close();

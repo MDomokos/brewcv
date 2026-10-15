@@ -389,7 +389,7 @@ function bind(body){
     if (e.key === 'Enter' && e.target.closest?.('#nv-name, #nv-co, #nv-role, #nv-newtype')){ e.preventDefault(); act('nv-create', e.target); }
     if (e.target.classList?.contains('swren')){
       if (e.key === 'Enter'){ e.preventDefault(); renameDone(e.target, true); }
-      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); renameDone(e.target, false); }
+      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); renameDone(e.target, true); }
     }
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.rrow .t, [data-act=nv-change]')){ e.preventDefault(); e.target.click(); }
   });

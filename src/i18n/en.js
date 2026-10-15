@@ -1237,7 +1237,7 @@ export default {
   'ux6e.under': 'Under {name}',
   'ux6e.closest': 'Closest: {name} (a guess)',
   'ux6e.tick': 'Tick {name} to compare',
-  'ux6e.tickSent': 'Tick the copy sent {date} to compare',
+  'ux6e.tickSent': 'Tick the copy of {name} sent {date} to compare',
   'ux6e.open': 'Open {name}',
   'ux6e.openBtn': 'Open',
   'ux6e.isOpen': 'open now',

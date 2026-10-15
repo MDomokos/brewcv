@@ -51,7 +51,7 @@ function card(r, parentOfClosest){
     <p class="rmeta">${esc(metaOf(r))}</p>
     ${under ? `<p class="rmeta rfrom">${esc(under)}</p>` : ''}
     ${pend ? `<p class="rmeta rpend">${h('ux6e.pending', { n: pend })}</p>` : ''}
-    ${RS.snapshotsOf(r).slice().reverse().map(s => `<div class="rsent">${tick(`${r.id}|${s.id}`, t('ux6e.tickSent', { date: sentDate(s) }))}<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${esc(t('ux6e.sent', { to: RS.sendLabel(s.sends[0]) || t('ux1.noRecipient'), date: sentDate(s) }))}${s.sends.length > 1 ? ` +${s.sends.length - 1}` : ''}</button></div>`).join('')}
+    ${RS.snapshotsOf(r).slice().reverse().map(s => `<div class="rsent">${tick(`${r.id}|${s.id}`, t('ux6e.tickSent', { name: label(r), date: sentDate(s) }))}<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${esc(t('ux6e.sent', { to: RS.sendLabel(s.sends[0]) || t('ux1.noRecipient'), date: sentDate(s) }))}${s.sends.length > 1 ? ` +${s.sends.length - 1}` : ''}</button></div>`).join('')}
     <div class="racts"><button class="sm" data-act="sw-open" data-id="${esc(r.id)}">${h('ux6e.openBtn')}</button><button class="sm" data-act="rm-dup" data-id="${esc(r.id)}">${h('ux1.dup')}</button>${p || guess ? `<button class="sm" data-act="scr-differs" data-id="${esc(r.id)}">${h('ux6e.differs')}</button>` : ''}
       <span class="rmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span></div>
   </article>`;
@@ -60,7 +60,7 @@ function card(r, parentOfClosest){
 function sentCard(e){
   const r = e.resume, key = `${r.id}|${e.snap.id}`, to = RS.sendLabel(e.send);
   return `<article class="rcard ${V.ticked.has(key) ? 'ticked' : ''}" data-rid="${esc(r.id)}">
-    ${tick(key, t('ux6e.tickSent', { date: e.date }))}
+    ${tick(key, t('ux6e.tickSent', { name: label(r), date: e.date }))}
     <button class="thumbwrap" tabindex="-1" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(e.snap.id)}" aria-label="${esc(t('ux6e.open', { name: to || label(r) }))}">${thumb(key, e.snap.recipe.format)}</button>
     <h4 class="rname">${esc(to || t('ux1.noRecipient'))}${e.send.kind === 'outreach' ? ` <span class="pill">${h('ux1.outreach')}</span>` : ''}</h4>
     <p class="rmeta">${esc(e.date)} · ${esc(label(r))}</p>

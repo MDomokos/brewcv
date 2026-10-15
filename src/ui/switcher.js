@@ -207,7 +207,7 @@ function bind(){
   el.addEventListener('keydown', e => {
     if (e.target.classList?.contains('swren')){
       if (e.key === 'Enter'){ e.preventDefault(); C.resumes.renameDone(e.target, true); }
-      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); C.resumes.renameDone(e.target, false); }
+      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); C.resumes.renameDone(e.target, true); }
       return;
     }
     if (e.target.closest('.rowmenu')){ if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); C.resumes.closeMenus(); } return; }
