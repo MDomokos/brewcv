@@ -119,16 +119,17 @@ export function outlineHtml(only = null, section = null){
   const jobBody = g => {
     const byId = new Map(g.rows.map(r => [r.id, r]));
     const printed = g.printed.map(id => byId.get(id)).filter(Boolean), more = g.rows.filter(r => !r.on);
+    const arch = g.archivedRows.map(r => ({ ...r, noTick: true })), n = more.length + arch.length;      // an archived line can only be unarchived: no tick
     const showMore = S.more.has(g.id);
     return `<ul class="clrows">${rowsHtml(printed, g, true)}</ul>
-        ${more.length ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('ux5c.more', { n: more.length })}</button>${showMore ? `<ul class="clrows">${rowsHtml(more, g, true)}</ul>` : ''}` : ''}
+        ${n ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('ux5c.more', { n })}</button>${showMore ? `<ul class="clrows">${rowsHtml(more.concat(arch), g, true)}</ul>` : ''}` : ''}
         <button class="sm ghost addline" data-act="ol-newline" data-id="${esc(g.id)}">${h('ux5c.line')}</button>`;
   };
   const jobHtml = (g, isOn, movable = false) => {
     if (!isOn) return `<div class="item row is-off ojob"><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label></div>`;
     const open = !folded(g.id, focus === g.id);
-    // in a section's own view the job also has its tick; its name (nameCaret) opens it
-    const pickJob = section ? sw(`data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"`, true) : '';
+    // the job's switch is on its head, in a section's own view too; its name (nameCaret) opens it
+    const pickJob = sw(`data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"`, true);
     return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${movable ? `data-job="${esc(g.id)}"` : ''}>${section ? nameCaret(g, open, nOfM(g.on, g.total)) : ocaret(g.id, open, jobLabel(g), nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}${pickJob}</h3>
       <div class="clbody" id="ol-${esc(g.id)}" ${open ? '' : 'hidden'}>${jobBody(g)}</div></section>`;
   };

@@ -80,6 +80,29 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await ctx.close();
 }
 
+// ---- the Outline: a pill on every job's head, archived lines under "+ n more" ----
+{
+  const { ctx, page } = await open(1470, 832);
+  const heads = await page.$$eval('#outline section.clg > .clgh', hs => hs.map(h => ({ pill: !!h.querySelector('.swl > input.sw[data-jobon]'), name: h.querySelector('.jobname, .clname')?.textContent.trim().slice(0, 20) })));
+  ok('every job head in the Outline carries the pill switch', heads.length >= 2 && heads.every(h => h.pill), JSON.stringify(heads));
+  const gap = await page.evaluate(() => [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch { return []; } }).some(r => /clgh > \.rowlock:last-child/.test(r.selectorText ?? '')));
+  ok('…and the margin that stood in for a missing head switch is gone', !gap);
+  const id = await page.evaluate(async () => {
+    const K = await import('/src/model/career.js');
+    const w = window.__wb.store.state.record.work.find(w => w.id === 'hydra'), hl = (w.highlights ?? []).map(x => x.id ?? x).find(Boolean);
+    let a; window.__wb.store.commit(d => { a = K.archiveClaim(d.record, hl); }, 'check: archive'); return hl;
+  });
+  await page.waitForTimeout(700);
+  await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(500);
+  await page.click('#body [data-act=select-job][data-id=hydra]'); await page.waitForTimeout(600);
+  await page.click('#body [data-act=ol-more][data-id=hydra]'); await page.waitForTimeout(400);
+  const row = await page.$(`#body .clrow[data-fact="${id}"].is-archived`);
+  ok('an archived line is listed under "+ n more", with Unarchive', !!row && !!(await row.$('[data-act=unarchive-claim]')));
+  await (await row.$('[data-act=unarchive-claim]')).click(); await page.waitForTimeout(700);
+  ok('…Unarchive brings it back into the list as an ordinary line that is off', !(await page.$(`#body .clrow[data-fact="${id}"].is-archived`)) && !!(await page.$(`#body .clrow[data-fact="${id}"]`)));
+  await ctx.close();
+}
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} symmetry check(s) FAILED` : '\nall symmetry checks passed');
 process.exit(failed ? 1 : 0);

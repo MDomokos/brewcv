@@ -1130,7 +1130,6 @@ body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: au
 .outline .clrow > .rowlock, .outline .clgh > .rowlock { margin-left: 0; }
 .outline .clgh { gap: 2px; padding-right: 4px; }
 .outline .clgh > .clcount { min-width: 3.4em; text-align: right; }
-.outline .clgh > .rowlock:last-child { margin-right: 34px; }      /* a job's head has no tick of its own here: its padlock stays over the lines' */
 .outline .osec .clname, .outline .clgh .clname { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.25; }
 .clname:has(> .jtl), .jobname { display: flex; align-items: baseline; gap: .3em; }
 .jtl { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
