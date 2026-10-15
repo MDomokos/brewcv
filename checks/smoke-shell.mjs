@@ -2422,7 +2422,7 @@ if (want('reordering is visible: Alt+arrows, the margin, custom and Reset')) {
   const items = page.locator('#checklist .clg[data-g=credentials] .clrow[data-sec=skills]');
   ok('list items have no grip and no ↑ ↓ either', (await items.count()) === 4 && (await page.locator('#checklist .clgrip, #checklist .clmv').count()) === 0);
   const sk0 = await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent)), u2 = await undoN();
-  await items.first().locator('.sw').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
+  await items.first().locator('.cb').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
   ok('Alt+↓ on an item moves it in print, in one undo step, and the list shows "custom"', (await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent)))[0] === sk0[1] && (await undoN()) === u2 + 1 && (await page.locator('#checklist .clsubh .pill.custom').count()) === 1);
   await page.click('#checklist .clsubh [data-act=order-reset]'); await page.waitForTimeout(900);
   ok('Reset puts the list back: no stored order, one undo step, no mark', JSON.stringify(await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent))) === JSON.stringify(sk0) && (await page.locator('#checklist .clsubh .pill.custom').count()) === 0);
@@ -2472,7 +2472,7 @@ if (want('record: a moved bullet moves in the list too; "n v" on the contact lin
   const rows = page.locator('#checklist .clg[data-g=hydra] .clrow[data-bullet]');
   const listed = () => rows.evaluateAll(els => els.map(e => e.querySelector('.clt').textContent.trim().slice(0, 24)));
   const before = await lis();
-  await rows.nth(0).locator('.sw').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
+  await rows.nth(0).locator('.cb').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
   const after = await lis();
   ok('Alt+↓ on a bullet in the Record changes the page', after[0] === before[1]);
   ok('…and the Record’s list shows the same order as the page', JSON.stringify((await listed()).slice(0, 3)) === JSON.stringify(after));
@@ -2493,16 +2493,16 @@ if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging s
   const sheetSkills = () => frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent));
   await inRecord(page, 'credentials'); await settle(page);
   const rows = page.locator('#checklist .clg[data-g=credentials] .clrow[data-sec=skills]');
-  ok('every skill group is a row with its own tick, not draggable, with no grip or ↑ ↓', (await rows.count()) === 4 && (await rows.first().locator('.sw[data-item]').count()) === 1 && (await rows.first().getAttribute('draggable')) === null && (await rows.first().locator('.clgrip, .clmv').count()) === 0);
+  ok('every skill group is a row with its own tick, not draggable, with no grip or ↑ ↓', (await rows.count()) === 4 && (await rows.first().locator('.cb[data-item]').count()) === 1 && (await rows.first().getAttribute('draggable')) === null && (await rows.first().locator('.clgrip, .clmv').count()) === 0);
   const before = await sheetSkills();
-  await rows.nth(1).locator('.sw').uncheck(); await page.waitForTimeout(1000);
+  await rows.nth(1).locator('.cb').uncheck(); await page.waitForTimeout(1000);
   const after = await sheetSkills();
   ok('unticking one takes just that line off the page; the others stay', after.length === before.length - 1 && !after.includes(before[1]) && /3 of/.test(await page.textContent('#checklist .clg[data-g=credentials] .clsubh')) === false);
-  ok('…it is one undo step, kept in the resume’s off list, and the row stays, unticked', (await st()).cur.off.length >= 1 && (await rows.count()) === 4 && !(await rows.nth(1).locator('.sw').isChecked()));
-  await rows.nth(1).locator('.sw').check(); await page.waitForTimeout(1000);
+  ok('…it is one undo step, kept in the resume’s off list, and the row stays, unticked', (await st()).cur.off.length >= 1 && (await rows.count()) === 4 && !(await rows.nth(1).locator('.cb').isChecked()));
+  await rows.nth(1).locator('.cb').check(); await page.waitForTimeout(1000);
   ok('ticking brings it back in place', JSON.stringify(await sheetSkills()) === JSON.stringify(before));
   // keyboard: Alt+↓ on a row
-  await rows.nth(0).locator('.sw').focus();
+  await rows.nth(0).locator('.cb').focus();
   await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
   const moved = await sheetSkills();
   ok('Alt+↓ on a row moves the item down in print: the page follows', moved[0] === before[1] && moved[1] === before[0] && moved.length === before.length);
