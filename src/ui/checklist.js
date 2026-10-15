@@ -6,7 +6,7 @@
 
 import { checklist, groupOf, groupsOfSection, sectionCounts, sectionsCustom, jobsCustom } from '../model/checklist.js';
 import * as T from '../model/resume.js';
-import { addClaimHtml, orderMarkHtml, sw } from './parts.js';
+import { addClaimHtml, orderMarkHtml, showSw, sw } from './parts.js';
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { ghost, fly, reduced, play } from './motion.js';
@@ -41,12 +41,17 @@ const bulletMovable = (r, g) => r.kind === 'claim' && r.on && !r.archived && !r.
 const rowsHtml = (rows, g, end = false) => rows.map(r => rowHtml(r, g, end)).join('');
 const isSel = r => { const s = C.ui.sel; return s.kind === r.sel.kind && s.id === r.sel.id && s.what === r.sel.what; };
 function rowHtml(r, g, end){
-  const label = t('ux2.tickLine', { text: r.text.slice(0, 80) });
-  const box = r.noTick ? '<span class="cbnone" aria-hidden="true"></span>'
-    : r.item ? `<input type="checkbox" class="cb" data-item="${esc(r.item)}" ${r.on ? 'checked' : ''} aria-label="${esc(label)}">`
-    : r.kind === 'claim' && !r.fixed ? `<input type="checkbox" class="cb" data-on="${esc(r.id)}" ${r.on ? 'checked' : ''} aria-label="${esc(label)}">`
-    : r.fixed ? `<input type="checkbox" class="cb" checked disabled aria-label="${esc(t('ux2.alwaysOn', { text: r.text.slice(0, 60) }))}">`
-    : `<input type="checkbox" class="cb" ${r.on ? 'checked' : ''} disabled aria-label="${esc(t('ux2.printsWithSection', { text: r.text.slice(0, 60) }))}">`;
+  const photo = r.id === 'about:photo', name = photo ? t('design.photoWord') : r.text.slice(0, 80);
+  const act = t(r.on ? 'ux6c.hideX' : 'ux6c.showX', { name });
+  const key = photo ? 'data-photo="1"' : r.item ? `data-item="${esc(r.item)}"` : r.kind === 'claim' && !r.fixed ? `data-on="${esc(r.id)}"` : '';
+  const why = r.fixed ? t('ux2.alwaysOn', { text: r.text.slice(0, 60) }) : t('ux2.printsWithSection', { text: r.text.slice(0, 60) });
+  // the Outline's switch is the pill, as everywhere; the Record's is the tick (it waits for the Record screens, UX-6e)
+  const on = r.fixed || r.on;
+  const box = r.noTick && !photo ? '<span class="cbnone" aria-hidden="true"></span>'
+    : end ? (key ? showSw(key, r.on, name) : sw(`aria-label="${esc(why)}"`, on, '', true))
+    : r.noTick ? '<span class="cbnone" aria-hidden="true"></span>'
+    : key ? `<input type="checkbox" class="cb" ${key} ${r.on ? 'checked' : ''} aria-label="${esc(act)}">`
+    : `<input type="checkbox" class="cb" ${on ? 'checked' : ''} disabled aria-label="${esc(why)}">`;
   const text = r.id === 'about:photo' ? t('career.about.photo') : r.text || t('ux2.empty');
   const drag = r.item ? `data-item="${esc(r.item)}" data-sec="${esc(r.section)}"` : bulletMovable(r, g) ? `data-bullet="${esc(r.id)}" data-bjob="${esc(g.id)}"` : '';
   return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''} ${isSel(r) ? 'is-sel' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${drag}>
@@ -72,7 +77,7 @@ function groupHtml(g, open, ctx){
         ${arch ? `<button class="sm ghost archmore" data-act="c-arch-show" data-id="${esc(g.id)}" aria-expanded="${archOpen}">${archOpen ? h('arch.hide') : h('arch.nArchived', { n: arch })}</button>${archOpen ? `<ul class="clrows">${g.archivedRows.map(r => rowHtml(r, g)).join('')}</ul>` : ''}` : ''}
         ${g.archived ? '' : addLineHtml(g)}`)}</section>`;
   }
-  const sectionSwitch = (sid, on, name) => (sid ? `<label class="swl clsec"><input type="checkbox" class="sw" data-secon="${esc(sid)}" ${on ? 'checked' : ''} aria-label="${esc(t('edit.showX', { name }))}"><span class="tiny muted">${h('ux2.onResume')}</span></label>` : '');
+  const sectionSwitch = (sid, on, name) => (sid ? `<span class="clsec">${showSw(`data-secon="${esc(sid)}"`, on, name, { text: true })}</span>` : '');
   if (g.kind === 'education' || g.kind === 'list'){
     const name = g.kind === 'education' ? t('career.kind.education') : g.title;
     return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${caret(g, open, esc(name), nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'items', g.section, name)}</h3>
@@ -126,10 +131,10 @@ export function outlineHtml(only = null, section = null){
         <button class="sm ghost addline" data-act="ol-newline" data-id="${esc(g.id)}">${h('ux5c.line')}</button>`;
   };
   const jobHtml = (g, isOn, movable = false) => {
-    if (!isOn) return `<div class="item row is-off ojob"><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label></div>`;
+    if (!isOn) return `<div class="item row is-off ojob"><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a>${showSw(`data-jobon="${esc(g.id)}"`, false, g.title)}</div>`;
     const open = !folded(g.id, focus === g.id);
     // the job's switch is on its head, in a section's own view too; its name (nameCaret) opens it
-    const pickJob = sw(`data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"`, true);
+    const pickJob = showSw(`data-jobon="${esc(g.id)}"`, true, g.title);
     return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${movable ? `data-job="${esc(g.id)}"` : ''}>${section ? nameCaret(g, open, nOfM(g.on, g.total)) : ocaret(g.id, open, jobLabel(g), nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}${pickJob}</h3>
       <div class="clbody" id="ol-${esc(g.id)}" ${open ? '' : 'hidden'}>${jobBody(g)}</div></section>`;
   };
@@ -161,7 +166,7 @@ export function outlineHtml(only = null, section = null){
       <div class="item srow ${s.fixed ? 'fixed' : ''} ${chosen ? 'is-sel' : ''}" data-sid="${esc(s.id)}">
         ${foldable ? `<button class="osecaret" data-act="ol-toggle" data-g="sec:${esc(s.id)}" aria-expanded="${open}" aria-controls="ol-sec-${esc(s.id)}" aria-label="${title}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span></button>` : '<span class="osecaret"></span>'}
         <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${title}</a><span class="scount muted tiny">${info}</span></span>
-        ${s.fixed ? '' : sw(`data-secon="${esc(s.id)}" aria-label="${esc(t('edit.showX', { name: C.sectionTitle(s.id) }))}"`, true)}
+        ${s.fixed ? '' : showSw(`data-secon="${esc(s.id)}"`, true, C.sectionTitle(s.id))}
       </div>
       <div class="obody" id="ol-sec-${esc(s.id)}" ${open ? '' : 'hidden'}>${bodyOf(s)}</div></div>`;
   };
@@ -281,7 +286,7 @@ function bind(body){
       const attr = cb.dataset.on !== undefined ? 'data-on' : cb.dataset.item !== undefined ? 'data-item' : null;
       S.pop = attr ? { attr, val: cb.getAttribute(attr), until: performance.now() + 1500 } : null;
     }
-    if (cb.matches?.('#body .cb[data-on]')){
+    if (cb.matches?.('#body :is(.cb, .sw)[data-on]')){
       setHintDone();
       const row = cb.closest('.clrow'), id = cb.dataset.on, clt = row?.querySelector('.clt')?.getBoundingClientRect();
       const text = row?.querySelector('.clt')?.textContent ?? '';

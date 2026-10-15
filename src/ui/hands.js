@@ -14,12 +14,13 @@
 import * as T from '../model/resume.js';
 import { lineSel } from './select.js';
 import { icon } from './icons.js';
+import { pillHtml } from './parts.js';
 import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
 import { dur, play } from './motion.js';
 
 const $ = s => document.querySelector(s);
-const GRIP = { w: 18, h: 18 }, PLUS = { w: 18, h: 18 }, SLOT = { w: 26, h: 26 }, OFF = 22, MOVE = 4;
+const GRIP = { w: 18, h: 18 }, PLUS = { w: 18, h: 18 }, SLOT = { w: 40, h: 24 }, OFF = 22, MOVE = 4;
 
 export function initHands(C){
   const { ui, sheet, canvas } = C;
@@ -27,10 +28,11 @@ export function initHands(C){
   const ix = () => C.ix();
   const phone = () => innerWidth < PHONE_MAX;
   const btn = (cls, icn, size = 12) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.hidden = true; b.innerHTML = icon(icn, { size }); return b; };
-  const grip = btn('obgrip', 'grip'), plus = btn('obplus', 'plus'), slot = btn('obslot', 'photo', 15), fgrip = btn('obgrip obfgrip', 'grip');
+  const grip = btn('obgrip', 'grip'), plus = btn('obplus', 'plus'), slot = btn('obslot', 'photo'), fgrip = btn('obgrip obfgrip', 'grip');
   const dropEl = document.createElement('div'), tip = document.createElement('div');
   dropEl.className = 'obdrop'; dropEl.hidden = true;
   tip.className = 'obtip'; tip.hidden = true; tip.setAttribute('role', 'status');
+  slot.innerHTML = pillHtml(false);      // the photo's show/hide is the pill, as on the chip
   lay?.append(grip, plus, slot, fgrip, dropEl, tip);
 
   let hover = null;                 // under the pointer: { k: 'line' | 'group' | 'header', fact, rect, job }
@@ -103,9 +105,9 @@ export function initHands(C){
       let sx, sy;
       if (hd.portrait){ const p = R(hd.portrait); sx = p.left + p.width - SLOT.w - 4; sy = p.top + 4; }
       else { const n = R(hd.name); sx = n.left + n.width + 12; sy = n.top + n.height / 2 - SLOT.h / 2; }
-      const lb = showing ? t('ux6c.photoOff') : t('ux6c.photoOn');
+      const lb = t(showing ? 'ux6c.hideX' : 'ux6c.showX', { name: t('design.photoWord') });
       put(slot, sx, sy, free(sx, sy, SLOT.w, SLOT.h) || !!hd.portrait);
-      slot.setAttribute('aria-label', lb); slot.title = lb; slot.setAttribute('aria-pressed', String(showing));
+      slot.setAttribute('aria-label', lb); slot.title = lb; slot.firstChild.classList.toggle('on', showing);
     } else slot.hidden = true;
     // the grip of the selected job, section or item: on its dashed frame, at the top edge's left end
     const ft = on() && !ui.writing ? frameTarget() : null;

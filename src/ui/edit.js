@@ -15,7 +15,7 @@ import { t, h, errText } from '../i18n/index.js';
 import { askIfLocked } from './ask.js';
 import { play } from './motion.js';
 import { icon } from './icons.js';
-import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
+import { esc, clip, depthHtml as depthMarkup, sw, showSw, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -347,7 +347,7 @@ function sectionView(s, sel = s){
       <input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" autocomplete="off"></label>
     ${L !== DEFAULT_LANG ? `<div class="ctlrow">${sw(`data-same="section:${esc(s.id)}"`, isSame(rec(), `section:${s.id}`), h('edit.sameHeading'))}</div>` : ''}
     <p class="muted small">${h('edit.sectionId', { id: s.id, kind: sec.kind })}${own ? ` · <a data-act="label-reset">${h('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) })}</a> · <a data-act="label-all">${h('edit.labelAll')}</a>` : ''}</p>`}
-    ${me && !me.fixed ? `<div class="ctlrow">${sw(`data-secon="${esc(s.id)}"`, me.on, h('edit.showHere'))}</div>
+    ${me && !me.fixed ? `<div class="ctlrow">${showSw(`data-secon="${esc(s.id)}"`, me.on, title, { text: true })}</div>
       <span class="lbl">${h('edit.position', { at: at + 1, n: movable.length })}</span>`
       : `<p class="muted small">${isHeader ? h('edit.headerFirst') : h('edit.summaryFollows')}</p>`}
     ${inner}`;
@@ -362,7 +362,7 @@ function jobView(s, { details = true } = {}){
   return `${depthHtml(s)}
     <h2 class="title">${esc(C.textOfFact(w.display?.position) || w.position)}</h2>
     <p class="meta">${esc(C.textOfFact(w.display?.meta))}</p>
-    <div class="ctlrow">${sw(`data-jobon="${esc(s.id)}"`, on, h('edit.showJob'))}</div>${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
+    <div class="ctlrow">${showSw(`data-jobon="${esc(s.id)}"`, on, t('ux6c.thisJob'), { text: true })}</div>${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
 }
 
 // A language's name, written on the page: its words here, and the record's to go back to
@@ -389,14 +389,14 @@ function bulletView(s){
   // a line that exists only on this resume has no versions: what it is, the tick, and the way to remove it
   if (T.isLocal(cur(), s.id)) return `${depthHtml(s)}
     <h2 class="title">${esc(clip(lineName(s.id), 80))}</h2>
-    <div class="ctlrow">${sw('id="b-on"', on, h('edit.onThis'))}</div>
+    <div class="ctlrow">${showSw('id="b-on"', on, t('ux6c.thisLine'), { text: true })}</div>
     <p class="note">${h('ux6c.localNote')}</p>
     ${document.body.dataset.phone === 'true' ? versionsHtml(versionsX(s.id)) : ''}
     <div class="ctlrow"><button class="sm" data-act="local-remove">${h('ux6c.removeLine')}</button></div>`;
 
   return `${depthHtml(s)}
     <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
-    ${claimHead({ hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
+    ${claimHead({ hasJob: !!w, name: t('ux6c.thisLine'), on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
     + versionsHtml(versionsX(s.id)) + entryLink(s.id);
 }
 const isClaim = id => ix().highlight.has(id) && !T.isLocal(cur(), id);
@@ -750,6 +750,7 @@ function bind(body){
     else if (t.dataset.jobon){ const id = t.dataset.jobon, on = t.checked; commit(d => T.setJobOn(d.record, d.cur, id, on), on ? tr('undo.showJob') : tr('undo.hideJob')); }
     else if (t.dataset.on){ const id = t.dataset.on, on = t.checked; setBullet(id, on); }
     else if (t.id === 'b-on') setBullet(C.ui.sel.id, t.checked);
+    else if (t.dataset.photo !== undefined) C.togglePhoto();
     else if (t.dataset.item){ const id = t.dataset.item, on = t.checked; commit(d => T.setItemOn(d.record, d.cur, id, on), on ? tr('undo.turnOn') : tr('undo.turnOff')); }
     else if (t.id === 'sk-set'){ if (t.value){ const name = t.value; commit(d => T.applySet(d.record, d.cur, name), tr('ux6c.undoStartFrom'), tr('ux6c.setApplied', { name: jobTypeLabel(rec(), name) })); } }
     else if (t.id === 'lens'){ E.focus = t.value || null; E.applyOpen = false; C.setFocus(); C.renderBody(); }

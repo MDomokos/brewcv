@@ -1213,7 +1213,7 @@ function toast(msg, tone = ''){
 
 const edit = initEdit({
   store, ui, sheet, toast, say, hint, record, cur, lang, work, chooseVariant, sectionTitle, textOfFact, resumeName, fillText,
-  ix: () => ui.ix ?? indexModel(work(), cur()),
+  ix: () => ui.ix ?? indexModel(work(), cur()), togglePhoto: () => design.togglePhoto(),
   redrawNow: () => { clearTimeout(timer); return redraw(); },
   onpage: { keepView: fn => onpage.keepView(fn), begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),

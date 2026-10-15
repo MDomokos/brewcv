@@ -6,6 +6,7 @@
 import * as K from '../model/tokens.js';
 import { toAuto, setPhoto as setResumePhoto, setRecordPhoto } from '../model/resume.js';
 import { t, h, errText, keyed } from '../i18n/index.js';
+import { showSw } from './parts.js';
 import { askPhotoLocked } from './ask.js';
 import { LANG_INFO } from '../model/lang.js';
 
@@ -94,7 +95,7 @@ function designView(){
     <div class="photo-row">${hasPhoto && rec.basics?.image ? `<img class="thumb" src="${esc(C.photoUrl())}" alt="">` : `<span class="thumb empty">${hasPhoto ? h('design.photoWord') : h('design.none')}</span>`}
       <div class="photo-ctl">
         <div class="btns"><button class="sm" data-act="d-photo">${hasPhoto ? h('design.replacePhoto') : h('design.addPhoto')}</button>${rec.basics?.image ? `<button class="sm ghost" data-act="d-photo-rm">${h('design.remove')}</button>` : ''}
-          <label class="swl"><input type="checkbox" class="sw" id="d-photo-on" ${r.photo?.show ? 'checked' : ''}><span>${h('design.showPhoto')}</span></label></div>
+          ${showSw('id="d-photo-on"', !!r.photo?.show, t('design.photoWord'), { text: true })}</div>
         <div class="seg" role="group" aria-label="${esc(t('design.shape'))}">${[['rect', t('design.passport')], ['soft', t('design.rounded')], ['round', t('design.circle')]].map(([s, l]) => `<button data-act="d-shape" data-s="${s}" aria-pressed="${(r.photo?.shape ?? 'rect') === s}">${esc(l)}</button>`).join('')}</div>
         <p class="note" data-tip="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" aria-description="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" tabindex="0">${h('ux6b.photoHint')}${r.photo?.show && !a4 ? ' ' + h('design.letterPhoto') : ''}</p></div></div>`;
 }

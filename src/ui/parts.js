@@ -17,6 +17,15 @@ export const crumb = (parts, { close = 'deselect' } = {}) => `<div class="crumb"
 export const sw = (attrs, on, label = '', disabled = false) =>
   `<label class="swl" ${disabled ? 'aria-disabled="true"' : ''}><input type="checkbox" class="sw" ${attrs} ${on ? 'checked' : ''} ${disabled ? 'disabled' : ''}>${label ? `<span>${label}</span>` : ''}</label>`;
 
+// Show or hide, one look and one wording everywhere: the pill switch, named for what it does ("Hide {name} from this resume" when it is
+// on, "Show {name} on this resume" when it is off). `text`: the words are drawn beside the pill (the sidebar's views); else they name it.
+export const showSw = (attrs, on, name, { text = false, disabled = false } = {}) => {
+  const l = t(on ? 'ux6c.hideX' : 'ux6c.showX', { name });
+  return sw(text ? attrs : `${attrs} aria-label="${esc(l)}"`, on, text ? esc(l) : '', disabled);
+};
+// the pill drawn by a button (the page chip's and the photo slot's), the same shape as the input's
+export const pillHtml = on => `<span class="pillsw${on ? ' on' : ''}" aria-hidden="true"></span>`;
+
 // where a version starts to differ from the one in use
 export function gist(text, curText){
   const a = text.split(' '), c = curText.split(' ');
@@ -155,10 +164,10 @@ function vrow(v, using, over, x){
 // Under the claim's heading: on/off for this resume and Keep. 🗑 deletes the claim and every version of it.
 // deletable: the claim is one of an entry's, not a title or a summary.
 // archived: null for a claim that can't be archived, else whether it is.
-export function claimHead({ hasJob = false, on = false, kept = false, deletable = false, archived = null }){
+export function claimHead({ hasJob = false, name = '', on = false, kept = false, deletable = false, archived = null }){
   const del = deletable ? `<button class="ghost sm" data-act="delete-claim" title="${esc(t('career.deleteClaim'))}" aria-label="${esc(t('career.deleteClaim'))}">${icon('trash')}</button>` : '';
   const arch = archived === null ? '' : `<button class="ghost sm" data-act="${archived ? 'unarchive-claim' : 'archive-claim'}" title="${esc(t(archived ? 'arch.unarchiveTitle' : 'arch.archiveTitle'))}">${h(archived ? 'arch.unarchive' : 'arch.archive')}</button>`;
-  return `<div class="ctlrow">${hasJob ? sw('id="b-on"', on, h('edit.onThis')) : ''}<span class="grow"></span>
+  return `<div class="ctlrow">${hasJob ? showSw('id="b-on"', on, name, { text: true }) : ''}<span class="grow"></span>
       <button class="keep sm" data-act="keep" aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}" aria-label="${esc(t('edit.keepTitle'))}">${icon('pin', { size: 14 })}</button>${arch}${del}</div>`;
 }
 
@@ -202,9 +211,10 @@ export const orderMarkHtml = (custom, kind, id, name) => (custom
 export function depthHtml(levels, { small = false, lock = null, show = null } = {}){
   const btn = (l, cls = '') => `<button type="button" class="dp-l${cls}" data-act="${l.act}" ${l.attrs ?? ''}${cls === ' cur' ? ' aria-current="location"' : ''}><span class="dp-w">${esc(l.word)}</span>${l.name ? `<span class="dp-n">${esc(l.name)}</span>` : ''}</button>`;
   const tool = (cls, ic, act, attrs, name, pressed, disabled = false) => `<button type="button" class="dp-t ${cls}" data-act="${act}" ${attrs} aria-pressed="${pressed}" aria-label="${esc(name)}" title="${esc(name)}"${disabled ? ' aria-disabled="true"' : ''}>${icon(ic, { size: 12 })}</button>`;
+  const showL = show && t(show.on ? 'ux6c.hideX' : 'ux6c.showX', { name: show.name });
   const tools = [
     lock && tool(`dp-lock${lock.on ? ' is-locked' : ''}${lock.byName ? ' inherited' : ''}`, lock.on ? 'lock' : 'unlock', 'lock-toggle', `data-id="${esc(lock.id)}"`, lock.byName ? t('ux6c.lockedUnder', { name: lock.byName }) : t(lock.on ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lock.name }), lock.on, !!lock.byName),
-    show && tool('dp-show', 'eye', 'chip-on', `data-kind="${esc(show.kind)}" data-id="${esc(show.id)}"`, t(show.on ? 'ux6c.hideX' : 'ux6c.showX', { name: show.name }), show.on, show.disabled),
+    show && `<button type="button" class="dp-t dp-show" data-act="chip-on" data-kind="${esc(show.kind)}" data-id="${esc(show.id)}" aria-label="${esc(showL)}" title="${esc(showL)}"${show.disabled ? ' aria-disabled="true"' : ''}>${pillHtml(show.on)}</button>`,
   ].filter(Boolean);
   return `<nav class="depth${small ? ' sm' : ''}" aria-label="${esc(t('ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '')).join('<span class="dp-s" aria-hidden="true">›</span>')}${tools.length ? `<span class="dp-tools">${tools.join('')}</span>` : ''}</nav>`;
 }

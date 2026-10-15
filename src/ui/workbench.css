@@ -247,27 +247,21 @@ body.is-ready .paper-skel { display: none; }
 .depth.sm .dp-l.cur { background: transparent; color: var(--ink); font-weight: 700; }
 .depth.sm:hover, .depth.sm:focus-within { background: var(--raised); border-color: var(--line-strong); }
 .depth.sm .dp-s { font-size: 10px; }
-/* The padlock and the switch at the right end of the depth row (UX-6c-iii-b): real buttons with a 24 px target. On the page they draw quietly
-   and come up on hover or focus; the switch is shown only then, the padlock stays when it is locked. */
+/* The padlock and the switch at the right end of the depth row (UX-6c-iii-b), the same on the page's chip and in the editor: real buttons with a
+   24 px target, always shown. At rest they draw quietly (55%); on hover, focus, locked they come up. The switch is the pill, the one the Outline's rows use. */
 .depth .dp-tools { flex: none; display: inline-flex; align-items: center; margin-left: 2px; padding-left: 2px; border-left: 1px solid var(--line); }
-.depth .dp-t { position: relative; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-soft); cursor: pointer; }
+.depth .dp-t { position: relative; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-soft); opacity: .55; cursor: pointer; }
+.depth .dp-t.dp-show { width: 38px; }
 .depth .dp-t:hover, .depth .dp-t:focus-visible { background: var(--fill); color: var(--ink); }
+.depth:hover .dp-t, .depth:focus-within .dp-t, .depth .dp-lock.is-locked { opacity: 1; }
 .depth .dp-t[aria-pressed=true].dp-lock { color: var(--ink); }
-.depth .dp-t[aria-disabled=true] { opacity: .4; cursor: default; }
+.depth .dp-t[aria-disabled=true], .depth:hover .dp-t[aria-disabled=true], .depth:focus-within .dp-t[aria-disabled=true] { opacity: .4; cursor: default; }
 .depth.sm .dp-tools { margin-left: 0; padding-left: 0; border-left: 0; }
-.depth.sm .dp-t { width: 16px; height: 18px; opacity: .55; }
-.depth.sm .dp-t::after { content: ''; position: absolute; inset: -3px -4px; }
-/* the switch takes no room until the chip is hovered or focused, so the chip stays as small as it was; it comes after the padlock, so nothing moves under the pointer */
-.depth.sm .dp-show { width: 0; overflow: hidden; opacity: 0; }
-.depth.sm:hover .dp-show, .depth.sm:focus-within .dp-show { width: 16px; overflow: visible; }
-.depth.sm:hover .dp-t, .depth.sm:focus-within .dp-t, .depth.sm .dp-lock.is-locked { opacity: 1; }
-.depth.sm:hover .dp-t[aria-disabled=true], .depth.sm:focus-within .dp-t[aria-disabled=true] { opacity: .4; }
 .oblockmark { position: absolute; width: 16px; height: 16px; box-sizing: border-box; display: grid; place-items: center; border-radius: 50%; background: var(--raised); color: var(--ink-soft); border: 1px solid var(--line); pointer-events: none; }
 /* the rows of the Outline: a padlock at the end of each; a locked row shows it, a row under a lock shows it inherited and greyed */
-.rowlock { position: relative; flex: none; display: inline-grid; place-items: center; width: 24px; height: 22px; margin-left: auto; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); opacity: .4; cursor: pointer; }
+.rowlock { position: relative; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; margin-left: auto; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); opacity: .55; cursor: pointer; }
 .clgh > .rowlock { margin-left: 0; }
 .clrow:hover > .rowlock, .srow:hover > .rowlock, .clgh:hover > .rowlock, .rowlock:focus-visible, .rowlock.is-locked { opacity: 1; }
-.rowlock::after { content: ''; position: absolute; inset: -1px 0; }      /* 24 px tall: it stays inside the row, so nothing spills */
 .rowlock:hover { background: var(--hover-strong); color: var(--ink); }
 .is-inherited > :not(.rowlock) { opacity: .6; }
 .vlist .vrow[aria-disabled=true] { opacity: .6; cursor: default; }
@@ -314,7 +308,9 @@ details.jr > summary { cursor: pointer; font-size: 12px; color: var(--ink-soft);
 details.jr[open] > summary { margin-bottom: 4px; }
 .grow { flex: 1; }
 .ctlrow { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 2px 0 6px; }
-.ctlrow .swl, .ctlrow button { white-space: nowrap; }
+.ctlrow button { white-space: nowrap; }
+.ctlrow .swl { min-width: 0; }      /* the words of a show/hide switch name the block, so they may be long: they wrap beside the pill */
+.ctlrow .swl > span { min-width: 0; overflow-wrap: anywhere; }
 .btns { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .field { display: grid; gap: 3px; margin: 4px 0 4px; }
 .lbl.inline { margin: 6px 0 0; }
@@ -322,11 +318,12 @@ details.jr[open] > summary { margin-bottom: 4px; }
 .field input:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: transparent; }
 .swl { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; cursor: pointer; }
 .swl[aria-disabled=true] { cursor: default; opacity: .5; }
-.sw { appearance: none; width: 30px; height: 17px; border-radius: var(--r-pill); background: var(--line-strong); position: relative; cursor: pointer; flex: none; margin: 0; padding: 0; border: 0; transition: background var(--dur-2); }
-.sw::after { content: ""; position: absolute; left: 2px; top: 2px; width: 13px; height: 13px; border-radius: var(--r-round); background: var(--surface); transition: left var(--dur-2) var(--ease); }
-.sw:checked { background: var(--accent); }
-.sw:checked::after { left: 15px; background: var(--on-accent); }
+.sw, .pillsw { appearance: none; width: 30px; height: 17px; border-radius: var(--r-pill); background: var(--line-strong); position: relative; cursor: pointer; flex: none; margin: 0; padding: 0; border: 0; transition: background var(--dur-2); }
+.sw::after, .pillsw::after { content: ""; position: absolute; left: 2px; top: 2px; width: 13px; height: 13px; border-radius: var(--r-round); background: var(--surface); transition: left var(--dur-2) var(--ease); }
+.sw:checked, .pillsw.on { background: var(--accent); }
+.sw:checked::after, .pillsw.on::after { left: 15px; background: var(--on-accent); }
 .sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pillsw { display: block; }
 .item.row, .item.srow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; background: var(--raised); border: 1px solid var(--line); padding: 6px 10px; }
 .item.srow { grid-template-columns: 12px minmax(0, 1fr) auto; }
 .item .t { color: var(--ink); text-decoration: none; min-width: 0; font-size: 13px; line-height: 1.35; }
@@ -1127,6 +1124,8 @@ body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: au
 .outline .clrow { display: flex; align-items: center; gap: 4px; }
 .outline .clrow > .clt { flex: 1 1 0; }
 .outline .clrow > :is(.cb, .cbnone) { flex: none; margin: 0 7.5px; }      /* a slot as wide as a switch, so the ticks line up with the sections' */
+.outline .clrow > .swl { flex: none; width: 30px; justify-content: center; margin: 0; }
+.outline .swl { min-height: 24px; }
 .outline .clrow > .rowlock, .outline .clgh > .rowlock { margin-left: 0; }
 .outline .clgh { gap: 2px; padding-right: 4px; }
 .outline .clgh > .clcount { min-width: 3.4em; text-align: right; }
@@ -1206,9 +1205,9 @@ html[data-titlebar] #tbdrag { position: fixed; z-index: 9; left: 0; right: 0; to
 .obgrip[hidden], .obplus[hidden], .obslot[hidden], .obdrop[hidden], .obtip[hidden] { display: none; }
 .obgrip { width: 18px; height: 18px; border-radius: var(--r-xs); cursor: grab; touch-action: none; }
 .obplus { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; }
-.obslot { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; }
+.obslot { width: 40px; height: 24px; border-radius: var(--r-pill); cursor: pointer; }
 .obgrip::after, .obplus::after, .obslot::after { content: ''; position: absolute; inset: -4px; }
-.obgrip:hover, .obplus:hover, .obslot:hover, .obslot[aria-pressed=true] { color: var(--ink); background: var(--hover-strong); }
+.obgrip:hover, .obplus:hover, .obslot:hover { color: var(--ink); background: var(--hover-strong); }
 .obdrop { background: var(--sel-mark); border-radius: 1px; pointer-events: none; }
 .obtip { max-width: 240px; padding: 5px 9px; border-radius: var(--r-s); background: var(--raised); color: var(--ink); border: 1px solid var(--warn); box-shadow: var(--shadow-chip); font-size: 12px; line-height: 1.3; pointer-events: none; }
 body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
