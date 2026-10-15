@@ -461,7 +461,9 @@ section('skills arranged on the page (UX-6c-ii)');
   const arranged = clone(rc);
   const back = S.loadResume(JSON.parse(JSON.stringify(S.saveResume(m, arranged).file)), m);
   ok('the arrangement comes back from the saved file, with no warnings', back.warnings.length === 0 && eq(back.recipe.skillArrangement, arranged.skillArrangement));
-  ok('the JSON Resume export says the arrangement is not in it', T.resolve(m, rc, { local: false }).problems.some(x => x.includes('arranges its skills')) && !T.resolve(m, clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe)).problems.some(x => x.includes('arranges')));
+  const ex = X.jsonResumeFile(m, arranged).file, txt = X.plainText(ex);
+  ok('the exports follow the arrangement: the JSON Resume file has the groups as arranged, and a skill taken off the page is not in the text', eq(ex.skills.map(x => x.name), arranged.skillArrangement.groups.map(g => g.label ?? T.groupLabel(m, arranged, g.id))) && !ex.skills.some(x => x.keywords.includes('SolidWorks (CSWP)')) && !txt.includes('SolidWorks (CSWP)') && txt.includes('Fabrication'), JSON.stringify(ex.skills));
+  ok('…a resume with no arrangement exports the record\'s groups, and the old note is gone', X.jsonResumeFile(m, clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe)).file.skills.some(x => x.keywords.includes('SolidWorks (CSWP)')) && !T.resolve(m, rc).problems.some(x => x.includes('arranges')));
   // a file anyone can edit
   const mal = v => { const f = S.saveResume(m, clone(arranged)).file; f.meta.resumeBuilder.resume.skillArrangement = v; return S.loadResume(JSON.parse(JSON.stringify(f)), m); };
   const bad = [mal('x'), mal({ groups: 'x' }), mal({ groups: [null, { id: 'a' }, { id: 'a', items: ['x'] }, { id: 'a', items: ['y'] }, { id: 'b', items: [1] }, { id: 'c', items: ['z'], label: 5 }] })];

@@ -118,7 +118,6 @@ export function resolve(model, recipe = null, { local = true } = {}){
       ? `recipe has a line that exists only on this resume ("${String(text).slice(0, 40)}…"): it has no source, so it is left out of an ATS export`
       : `recipe overrides ${factId} with one-off text ("${String(text).slice(0, 40)}…"): overrides have no source, so they cannot go to an ATS export`);
 
-  if (recipe?.skillArrangement) problems.push('this resume arranges its skills on the page: the skill groups in a plain JSON Resume file stay as the record has them');
   const workRefs = inOrder((recipe && recipe.sections?.find(s => s.id === 'experience')?.work) ?? (model.work ?? []).map(w => w.id), recipe?.sections?.find(s => s.id === 'experience')?.order)
     .map(r => (typeof r === 'string' ? { id: r } : r));
   const workById = new Map((model.work ?? []).map(w => [w.id, w]));
@@ -178,8 +177,10 @@ export function resolve(model, recipe = null, { local = true } = {}){
       summary: p.summary ?? [p.role, p.identifier].filter(Boolean).join(' · '),
     })),
     certificates: (model.certificates ?? []).map(c => ({ name: c.name, issuer: c.issuer, ...std(c, JR.certificates) })),
-    skills: (model.skills ?? []).filter(() => wantSection('skills'))
-      .map(s => ({ name: s.name, ...std(s, JR.skills), keywords: s.keywords })),
+    skills: recipe?.skillArrangement      // the groups this resume arranges on its page, as it prints them
+      ? (wantSection('skills') ? recipe.skillArrangement.groups.filter(a => a.items.length).map(a => ({ name: a.label ?? groupLabel(model, recipe, a.id), keywords: [...a.items] })) : [])
+      : (model.skills ?? []).filter(() => wantSection('skills'))
+        .map(s => ({ name: s.name, ...std(s, JR.skills), keywords: s.keywords })),
     languages: (model.languages ?? []).map(l => ({ language: l.language, fluency: l.fluency })),
     interests: (model.interests ?? []).map(i => ({ name: i.name, ...std(i, JR.interests) })),
   };
