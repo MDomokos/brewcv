@@ -121,11 +121,12 @@ export function onPage(cam, geo, x, y){
   const cx = (x - cam.x) / cam.k, cy = (y - cam.y) / cam.k;
   return cy >= 0 && cy <= geo.h && Array.from({ length: geo.n }, (_, i) => pageLeft(geo, i)).some(l => cx >= l && cx <= l + geo.w);
 }
-// The page that is more than half in view and more in view than the current one becomes the bright page.
+// The page that is more than half in view and more in view than the current one becomes the bright page. A tie (both pages cropped alike by a
+// writing zoom, which differ only by rounding) keeps the current one.
 export function brightPage(cam, geo, view, current){
   const fr = Array.from({ length: geo.n }, (_, i) => visible(cam, geo, view, i));
   let best = Math.max(0, Math.min(geo.n - 1, current));
-  for (let i = 0; i < geo.n; i++) if (i !== best && fr[i] > 0.5 && fr[i] > fr[best]) best = i;
+  for (let i = 0; i < geo.n; i++) if (i !== best && fr[i] > 0.5 && fr[i] > fr[best] + 1e-3) best = i;
   return best;
 }
 // Nothing is faded in the fit view of both pages, equal; otherwise only the bright page is.

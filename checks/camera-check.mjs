@@ -110,6 +110,10 @@ section('which page is bright');
   const past = { ...p0, x: p0.x - (794 + PAGE_GAP) * p0.k * 0.8 };
   ok('past the halfway point it takes over', visible(past, g, v, 1) > 0.5 && brightPage(past, g, v, 0) === 1);
   ok('…and it keeps it until page 1 is the one more in view', brightPage(past, g, v, 1) === 1);
+  // both pages cropped alike by a writing zoom, page 2 a hair more out at the edge (rounding): the current page keeps the light
+  const both = fitCam(g, v, { scene: 'all' }), cropped = { ...both, y: both.y - g.h * both.k * 0.2 };
+  const edge = { ...cropped, x: cropped.x + (v.left + v.width + 0.001) - (cropped.x + (pageLeft(g, 1) + g.w) * cropped.k) };
+  ok('a tie, or a difference of rounding, keeps the current page bright', visible(edge, g, v, 1) < visible(edge, g, v, 0) && brightPage(edge, g, v, 1) === 1 && brightPage(edge, g, v, 0) === 0);
   const back = { ...p0, x: p0.x - (794 + PAGE_GAP) * p0.k * 0.2 };
   ok('a little back and page 1 is the larger share again, but page 2 is still current until page 1 passes half', brightPage(back, g, v, 1) === 0);
   ok('one page of one is always bright', brightPage({ k: 1, x: 0, y: 0 }, geometry({ vw: 1280, vh: 800, format: 'a4', pages: 1 }), v, 0) === 0);
