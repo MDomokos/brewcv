@@ -615,7 +615,11 @@ export function moveSkill(model, recipe, from, i, to, j){
 
 // The resume's photo switch (recipe.photo) and the record's photo (basics.image).
 export function setPhoto(model, recipe, patch){ guard(model, recipe, 'photo'); recipe.photo = { show: false, shape: 'rect', ...(recipe.photo ?? {}), ...patch }; }
-export function setRecordPhoto(model, src){ model.basics.image = src; }
+// `src` null removes the picture. `recipe`: the open resume; a locked header that shows the picture is not changed under it.
+export function setRecordPhoto(model, src, recipe = null){
+  if (recipe?.photo?.show) guard(model, recipe, 'photo');
+  if (src) model.basics.image = src; else delete model.basics.image;
+}
 
 // Sections
 // Fixed header and summary first, then printed sections in order, then the record's others, off.

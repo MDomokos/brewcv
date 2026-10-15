@@ -4251,7 +4251,7 @@ if (want('the lock: the padlock, the chip’s switch, and grips for jobs, sectio
   // the keyboard and the sidebar's ↑↓
   await page.mouse.move(4, 4);
   await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(500);
-  ok('Alt+↓ on a locked line moves nothing and says why', JSON.stringify(await lines()) === JSON.stringify(before) && /Locked/.test(await page.textContent('#toast')), JSON.stringify(await lines()));
+  ok('Alt+↓ on a locked line moves nothing and says why', JSON.stringify(await lines()) === JSON.stringify(before) && (/Locked/.test(await page.textContent('#toast')) || /Locked/.test(await hint())), JSON.stringify(await lines()));      // said as the hint by the padlock, or as a toast when the chip is not on the page
   // a local line: remove and tick are off
   await esc2();
 
@@ -4509,6 +4509,78 @@ if (want('the lock: the grips for jobs, sections and items, at four sizes')) {
   ok('…and the locked section’s own sidebar view has the item’s switch and ↑ ↓ off', await page.evaluate(() => { const r = document.querySelector('#body .depth .dp-show'); return !r || r.getAttribute('aria-disabled') === 'true'; }));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
+}
+
+if (want('the lock: no way round it from the page')) {
+  const lockIds = (page, ids, on = true) => page.evaluate(async ([ids, on]) => { const LK = await import('/src/model/lock.js'); window.__wb.store.commit(d => { for (const id of ids) LK.setLocked(d.cur, id, on); }, 'lock'); }, [ids, on]);
+  const curOf = page => page.evaluate(() => structuredClone(window.__wb.store.state.cur));
+  const hint = page => page.evaluate(() => { const t = document.querySelector('#handlay .obtip'); return t && !t.hidden ? t.textContent : ''; });
+  const ctx = await browser.newContext({ viewport: { width: 1470, height: 832 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const fr = page.frameLocator('#sheet iframe');
+  const line = () => fr.locator('.entry:first-child .bullets li').nth(0);
+  // ArrowLeft and ArrowRight on a locked line
+  await lockIds(page, ['hydra-inhaler']);
+  await line().click(); await page.waitForTimeout(700);
+  const p0 = JSON.stringify((await curOf(page)).picks);
+  await page.keyboard.press('ArrowRight'); await page.waitForTimeout(300); await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(300);
+  ok('the arrow keys on a locked line change no version, throw nothing, and say why', JSON.stringify((await curOf(page)).picks) === p0 && bad.length === 0 && /Locked/.test(await hint(page)), JSON.stringify([bad, await hint(page)]));
+  // a hidden job cannot take a locked line with it; the chip’s switch is held
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await page.waitForTimeout(700);
+  const sw = await page.evaluate(() => document.querySelector('#editlay .dp-show')?.getAttribute('aria-disabled'));
+  await page.evaluate(() => document.querySelector('#editlay .dp-show').click()); await page.waitForTimeout(400);
+  ok('the chip’s switch of a job with a locked line in it is held, and a click hides nothing', sw === 'true' && (await page.evaluate(async () => { const T = await import('/src/model/resume.js'); const s = window.__wb.store.state; return T.jobRefs(s.record, s.cur).some(r => (r.id ?? r) === 'hydra'); })));
+  const gone = await page.evaluate(async () => { const T = await import('/src/model/resume.js'); try { window.__wb.store.commit(d => T.setJobOn(d.record, d.cur, 'hydra', false), 'x'); } catch (e) { return 'threw ' + e.name; } return 'ok'; });
+  ok('a refused change from any path is said, never thrown', gone === 'ok' && bad.length === 0, gone + JSON.stringify(bad));
+  // a locked job hidden before it was locked can be shown again
+  await lockIds(page, ['hydra-inhaler'], false);
+  await page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => T.setJobOn(d.record, d.cur, 'hydra', false), 'hide'); }); await lockIds(page, ['hydra']);
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(500);
+  const tick = await page.evaluate(() => { const c = document.querySelector('[data-jobon="hydra"]'); const r = c && { off: c.disabled, on: c.checked }; c?.click(); return r; }); await page.waitForTimeout(600);
+  ok('the tick of a hidden locked job is open: clicking it shows the job again', tick && tick.off === false && tick.on === false && (await page.evaluate(async () => { const T = await import('/src/model/resume.js'); const s = window.__wb.store.state; return T.jobRefs(s.record, s.cur).some(r => (r.id ?? r) === 'hydra'); })), JSON.stringify(tick));
+  // the padlock of a line under a locked job does not unlock the job
+  await line().click(); await page.waitForTimeout(700);
+  const pl = await page.evaluate(() => { const b = document.querySelector('#editlay .dp-lock'); return b && { pressed: b.getAttribute('aria-pressed'), dis: b.getAttribute('aria-disabled'), label: b.getAttribute('aria-label') }; });
+  await page.evaluate(() => document.querySelector('#editlay .dp-lock').click()); await page.waitForTimeout(400);
+  ok('under a locked job a line’s padlock is pressed, aria-disabled, says which lock holds it, and a click unlocks nothing', pl?.pressed === 'true' && pl.dis === 'true' && /^Locked with .*\. Unlock .* first\.$/.test(pl.label) && JSON.stringify((await curOf(page)).locked) === '["hydra"]' && /Unlock/.test(await hint(page)), JSON.stringify(pl));
+  // the job’s Details fold
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.renderBody?.(); }); await page.waitForTimeout(500);
+  const det = await page.evaluate(() => ['#c-pos', '#c-org', '#c-start', '#c-end', '#c-current'].map(s => { const e = document.querySelector('#body ' + s); return e ? e.getAttribute('aria-disabled') === 'true' && !!e.getAttribute('aria-describedby') : null; }));
+  ok('a locked job’s Details fold is held: title, employer and dates are aria-disabled with the reason attached', det.every(x => x === true), JSON.stringify(det));
+  // the Record view: a locked language’s fields are held and its delete does nothing
+  await lockIds(page, ['lang-portuguese']);
+  await inRecord(page, 'credentials'); await settle(page);
+  await page.click('#checklist .clg[data-g=credentials] .clrow:has-text("Portuguese") .clt'); await settle(page);
+  const rv = await page.evaluate(() => { const n = document.querySelector('#body #c-lname'), d = document.querySelector('#body button[data-lockoff][data-group]'); const r = { name: n?.getAttribute('aria-disabled') === 'true' && n.readOnly, del: !!d }; d?.click(); return r; }); await page.waitForTimeout(500);
+  ok('a locked language in the Record view: its name is read-only and aria-disabled, the other fields and Delete are held, and Delete deletes nothing', rv.name && rv.del && (await page.evaluate(() => window.__wb.store.state.record.languages.length)) === 3, JSON.stringify(rv));
+  // the record’s picture under a locked header
+  await page.evaluate(() => { const c = document.createElement('canvas'); c.width = c.height = 2; const tiny = c.toDataURL('image/png'); window.__wb.store.commit(d => { d.record.basics.image = tiny; d.cur.photo = { show: true, shape: 'rect' }; d.cur.locked = ['header']; }, 'photo'); });
+  page.on('dialog', d => d.accept());
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView('design'); }); await page.waitForTimeout(600);
+  await page.click('[data-act=d-photo-rm]'); await page.waitForTimeout(500);
+  ok('Remove photo on a locked header removes nothing and says why', await page.evaluate(() => { const s = window.__wb.store.state; return !!s.record.basics.image && s.cur.photo.show === true; }) && bad.length === 0);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+  // the lock mark at a job’s corner is clear of the printed title, at four sizes
+  for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080], [2560, 1100]]) {
+    const c2 = await browser.newContext({ viewport: { width: w, height: h } });
+    const p2 = await c2.newPage();
+    const bad2 = await open(p2);
+    await lockIds(p2, ['hydra', 'poly']);
+    const over = [];
+    for (const n of [0, 1]) {
+      await p2.frameLocator('#sheet iframe').locator('.entry').nth(n).locator(':scope > *').first().click(); await p2.waitForTimeout(800);
+      over.push(...await p2.evaluate(() => {
+        const m = document.querySelector('#editlay .oblockmark').getBoundingClientRect(), f = document.querySelector('#sheet iframe'), fb = f.getBoundingClientRect(), sc = fb.width / f.offsetWidth, d = f.contentDocument, out = [];
+        const wk = d.createTreeWalker(d.body, NodeFilter.SHOW_TEXT);
+        for (let nd; (nd = wk.nextNode());) { if (!nd.textContent.trim()) continue; const rg = d.createRange(); rg.selectNodeContents(nd); for (const r of rg.getClientRects()) { const a = { l: fb.left + r.left * sc, t: fb.top + r.top * sc, r: fb.left + r.right * sc, b: fb.top + r.bottom * sc }; if (a.l < m.right && a.r > m.left && a.t < m.bottom && a.b > m.top) out.push(nd.textContent.trim().slice(0, 20)); } }
+        return out;
+      }));
+    }
+    ok(`${w}×${h}: the lock mark overlaps no printed text`, over.length === 0 && bad2.length === 0, JSON.stringify(over));
+    await c2.close();
+  }
 }
 
 if (want('file://')) {

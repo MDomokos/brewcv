@@ -13,6 +13,7 @@ import { DEFAULT_LANG, defaultVariant } from '../model/resume.js';
 import { entryKey } from '../model/entries.js';
 import { t, h, tIn, errText } from '../i18n/index.js';
 import { crumb } from './parts.js';
+import { askIfLocked } from './ask.js';
 import { icon as drawn } from './icons.js';
 
 let C = null;
@@ -467,7 +468,7 @@ function saveKindNow(){
   if (!id || !d) return;
   if (!String(d.name.en ?? '').trim() && L() !== DEFAULT_LANG) d.name.en = d.name[L()];
   if (!String(d.name.en ?? '').trim()){ C.toast(t('error.kindName'), 'warn'); return; }
-  commit(x => { K.updateKind(x.record, id, d, recipes(x)); }, t('undo.editKind'));
+  commit(x => { K.updateKind(x.record, id, d, recipes(x), x.cur); }, t('undo.editKind'));
 }
 function saveForm(form){
   const f = form.dataset;
@@ -489,7 +490,7 @@ function saveKind(){
   if (!String(d.name.en ?? '').trim() && L() !== DEFAULT_LANG) d.name.en = d.name[L()];
   if (!String(d.name.en ?? '').trim()){ C.toast(t('error.kindName'), 'warn'); $('#kn-name')?.focus(); return true; }
   let made;
-  if (id) commit(x => { K.updateKind(x.record, id, d, recipes(x)); }, t('undo.editKind'), t('career.kindSaved'));
+  if (id) commit(x => { K.updateKind(x.record, id, d, recipes(x), x.cur); }, t('undo.editKind'), t('career.kindSaved'));
   else commit(x => { made = K.createKind(x.record, d); }, t('undo.newKind'), t('career.kindCreated', { name: d.name[L()] || d.name.en }));
   W.kind = null;
   if (made) C.select({ kind: 'add', what: made });
@@ -586,6 +587,7 @@ async function act(a, tg){
     case 'c-del-entry': {
       const id = tg.dataset.id;
       let res;
+      if (!await askIfLocked(C.store.state, (m, rs) => K.deleteEntry(m, id, rs))) return true;
       commit(d => { res = K.deleteEntry(d.record, id, recipes(d)); }, t('undo.deleteEntry'));
       if (res){ C.toast(t('career.deletedEntry')); C.select({ kind: 'none' }); }
       return true;
@@ -605,6 +607,7 @@ async function act(a, tg){
     case 'c-del-item': {
       const g = tg.dataset.group, id = tg.dataset.id;
       let res;
+      if (!await askIfLocked(C.store.state, (m, rs) => K.deleteItem(m, g, id, rs))) return true;
       commit(d => { res = K.deleteItem(d.record, g, id, recipes(d)); }, t('undo.deleteItem'));
       if (res){ C.toast(t('career.deletedItem')); C.select({ kind: 'none' }); }
       return true;
@@ -635,6 +638,7 @@ async function act(a, tg){
     case 'c-kind-del-move': case 'c-kind-del-all': {
       const id = W.kind.id, to = a === 'c-kind-del-move' ? val('kn-move') : null;
       let res;
+      if (!await askIfLocked(C.store.state, (m, rs) => K.deleteKind(m, id, { moveTo: to, recipes: rs }))) return true;
       commit(d => { res = K.deleteKind(d.record, id, { moveTo: to, recipes: recipes(d) }); }, t('undo.deleteKind'));
       if (res){ C.toast(to ? t('career.kindMoved', { n: res.moved }) : t('career.kindDeleted', { n: res.deleted })); W.kind = null; W.delKind = null; C.select({ kind: 'none' }); }
       return true;

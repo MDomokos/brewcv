@@ -210,7 +210,7 @@ export function depthHtml(levels, { small = false, lock = null, show = null } = 
   const btn = (l, cls = '') => `<button type="button" class="dp-l${cls}" data-act="${l.act}" ${l.attrs ?? ''}${cls === ' cur' ? ' aria-current="location"' : ''}><span class="dp-w">${esc(l.word)}</span>${l.name ? `<span class="dp-n">${esc(l.name)}</span>` : ''}</button>`;
   const tool = (cls, ic, act, attrs, name, pressed, disabled = false) => `<button type="button" class="dp-t ${cls}" data-act="${act}" ${attrs} aria-pressed="${pressed}" aria-label="${esc(name)}" title="${esc(name)}"${disabled ? ' aria-disabled="true"' : ''}>${icon(ic, { size: 12 })}</button>`;
   const tools = [
-    lock && tool(`dp-lock${lock.on ? ' is-locked' : ''}`, lock.on ? 'lock' : 'unlock', 'lock-toggle', `data-id="${esc(lock.id)}"`, t(lock.on ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lock.name }), lock.on),
+    lock && tool(`dp-lock${lock.on ? ' is-locked' : ''}${lock.byName ? ' inherited' : ''}`, lock.on ? 'lock' : 'unlock', 'lock-toggle', `data-id="${esc(lock.id)}"`, lock.byName ? t('ux6c.lockedUnder', { name: lock.byName }) : t(lock.on ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lock.name }), lock.on, !!lock.byName),
     show && tool('dp-show', 'eye', 'chip-on', `data-kind="${esc(show.kind)}" data-id="${esc(show.id)}"`, t(show.on ? 'ux6c.hideX' : 'ux6c.showX', { name: show.name }), show.on, show.disabled),
   ].filter(Boolean);
   return `<nav class="depth${small ? ' sm' : ''}" aria-label="${esc(t('ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '')).join('<span class="dp-s" aria-hidden="true">›</span>')}${tools.length ? `<span class="dp-tools">${tools.join('')}</span>` : ''}</nav>`;

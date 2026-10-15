@@ -172,7 +172,7 @@ export function initOnPage(C){
     frameNow = geom.job && (lvl === 'job' || lvl === 'line') ? R(pad(geom.job, PAD_JOB)) : R(pad(geom.sec ?? geom.job ?? geom.line, secPad()));
     placeChip(lay.querySelector('.obchip'), frameNow);
     const mark = lay.querySelector('.oblockmark');
-    if (mark && frameNow) Object.assign(mark.style, { left: `${Math.round(frameNow.left - 8)}px`, top: `${Math.round(frameNow.top - 8)}px` });
+    if (mark && frameNow) Object.assign(mark.style, { left: `${Math.round(frameNow.left - 14)}px`, top: `${Math.round(frameNow.top - 14)}px` });      // outside the corner: the job's title starts a few px inside the frame
   }
   // One rule: the chip lies on the dashed frame of the current block (the job's, or the section's), centred on its top edge in its
   // top-right corner. Kept inside the page, in the pages' room (never under the rail or the sidebar) and above the zoom bar; moved

@@ -12,6 +12,7 @@ import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { keyOf, isLabelKey } from './select.js';
 import { t, h, errText } from '../i18n/index.js';
+import { askIfLocked } from './ask.js';
 import { play } from './motion.js';
 import { icon } from './icons.js';
 import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, statsHtml, claimHead, moveButtonsHtml } from './parts.js';
@@ -210,7 +211,7 @@ function lockIdOf(sel = C.ui.sel){
     case 'job': return sel.id;
     case 'section': return sel.heading ? `~h:${sel.id}` : sel.id;
     case 'bullet': return sel.id;
-    case 'record': return sel.what === 'item' ? sel.id : null;
+    case 'record': return sel.what === 'item' ? factOfRecordSel(rec(), sel) ?? sel.id : null;      // the display claim the lock is held on, not the publication's id
   }
   return null;
 }
@@ -235,6 +236,9 @@ function showOf(sel){
   const sid = T.sectionOfItem(rec(), id);
   return sid ? { kind: 'item', id, on: !!T.itemList(rec(), cur(), sid)?.find(x => x.id === id)?.on && !!T.sectionList(rec(), cur()).find(x => x.id === sid)?.on } : null;
 }
+// A switch is held when turning it would change locked text: hiding a block that is locked or holds a locked line, or showing one under a
+// locked ancestor. Showing a locked block itself changes no text, so that stays open.
+const switchHeld = (kind, id, on) => { const by = lockBy(id); return kind === 'line' ? by !== null : on ? by !== null || LK.lockedInside(rec(), cur(), id) : by !== null && by !== id; };
 // the padlock and the switch at the right end of the depth row (not on a sent copy)
 function chipTools(sel, page){
   const id = !C.ui.snap && lockIdOf(sel);
@@ -242,14 +246,22 @@ function chipTools(sel, page){
   const lv = depth(sel, page).at(-1), by = lockBy(id), s = showOf(sel);
   // the page's chip stops at the job: a line in it is named for what it is
   const name = sel.kind === 'section' && sel.heading ? lockName(id) : sel.kind === 'bullet' && sel.job ? t('ux6c.lineIn', { name: lockName(sel.job) }) : lv.name ? `${lv.word} ${lv.name}` : lv.word;
-  return { lock: { id, on: by !== null, name }, show: s ? { ...s, name, disabled: by !== null } : null };
+  return { lock: { id, on: by !== null, name, byName: by !== null && by !== id ? lockName(by) : null }, show: s ? { ...s, name, disabled: switchHeld(s.kind, s.id, s.on) } : null };
 }
-// Lock or unlock: what is being written is kept first. A lock held by an ancestor is lifted there (the person asked for this block to be free).
+// What the padlock of a lock id selects: the block it holds.
+const selOfLock = id => (id === LK.PAGE ? { kind: 'none' } : id.startsWith('~h:') ? { kind: 'section', id: id.slice(3), heading: true } : ix().work.has(id) ? { kind: 'job', id } : ix().sections.has(id) ? { kind: 'section', id } : null);
+// Lock or unlock: what is being written is kept first. A lock an ancestor holds is not lifted from here: it says so and selects the ancestor.
 function lockToggle(id){
-  const by = lockBy(id), on = by === null;
+  const by = lockBy(id);
+  if (by !== null && by !== id){
+    C.hint(t('ux6c.lockedUnder', { name: lockName(by) }));
+    const s = selOfLock(by); if (s) C.select(s);
+    return;
+  }
+  const on = by === null;
   clearEdit();
-  commit(d => LK.setLocked(d.cur, by ?? id, on), on ? t('ux6c.undoLock') : t('ux6c.undoUnlock'));
-  const name = id === lockIdOf() ? chipTools(C.ui.sel, true).lock.name : lockName(by ?? id);      // as the chip names it
+  commit(d => LK.setLocked(d.cur, id, on), on ? t('ux6c.undoLock') : t('ux6c.undoUnlock'));
+  const name = id === lockIdOf() ? chipTools(C.ui.sel, true).lock.name : lockName(id);      // as the chip names it
   C.say(on ? t('ux6c.nowLocked', { name }) : t('ux6c.nowUnlocked', { name }));
 }
 // a click on locked text selects its block and says why nothing is written
@@ -259,8 +271,8 @@ function lockedHint(sel = C.ui.sel){
 }
 // the chip's switch (show or hide)
 function chipOn(kind, id){
-  if (isLockedId(id)) return;
   const on = kind === 'section' ? T.sectionList(rec(), cur()).find(x => x.id === id)?.on : kind === 'job' ? jobOn(id) : kind === 'line' ? isOn(id) : !!showOf({ kind: 'bullet', id })?.on;
+  if (switchHeld(kind, id, !!on)) return lockedHint({ kind: kind === 'line' ? 'bullet' : kind, id });
   if (kind === 'section') setSection(id, !on);
   else if (kind === 'job') commit(d => T.setJobOn(d.record, d.cur, id, !on), !on ? t('undo.showJob') : t('undo.hideJob'));
   else if (kind === 'line') setBullet(id, !on);
@@ -430,7 +442,7 @@ async function addLine(jobId, afterId = undefined){
 }
 
 function startEdit(mode = null, vid = null){
-  if (isLockedId(lockIdOf())) return lockedHint();      // a locked text is not written: its block is selected and the reason said
+  if (isLockedId(lockIdOf()) || isLockedId(fid())) return lockedHint();      // a locked text is not written: its block is selected and the reason said
   const key = keyOf(C.ui.sel), id = isLabelKey(key) ? null : fid();
   if (isLabelKey(key)) return startLabel(key);
   if (!id) return;
@@ -540,7 +552,10 @@ async function livePreview(){
   const text = ed.draft.trim(), r = structuredClone(cur());
   if (ed.label) T.setLabel(rec(), r, ed.fact, ed.lang, text);
   else if (ed.group){ if (!T.readGroup(ed.draft).items.length) return; T.writeGroup(rec(), r, ed.fact, ed.draft); }      // a group with no skills yet is left as it is until the line is left
-  else T.setOverride(rec(), r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid });
+  else {
+    try { T.setOverride(rec(), r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid }); }
+    catch (e){ if (!(e instanceof LK.LockedError)) throw e; clearEdit(false); C.onpage?.end(); lockedHint(); return; }      // locked while it was open
+  }
   await C.previewRecipe(r, ed.fact);
   if (E.edit !== ed) return;
   ed.lines = C.sheet.linesOf(ix(), ed.fact);
@@ -559,13 +574,13 @@ function saveEdit(kind){
   const resume = true;
   clearEdit(false);
   C.ui.previewing = false;
-  if (kind === 'over') commit(d => { R.saveOver(d.record, ed.vid, text); }, t('undo.saveV', { v: v.n }), t('toast.savedV', { v: v.n }));
+  if (kind === 'over') commit(d => { R.saveOver(d.record, ed.vid, text, d.cur); }, t('undo.saveV', { v: v.n }), t('toast.savedV', { v: v.n }));
   else if (kind === 'as' || kind === 'promote'){
     let n;
     commit(d => {
       const nv = R.addVersion(d.record, f, { text, from: ed.vid, as: 'minor', lang: lang() });
       n = nv.n; E.enter = nv.id;
-      if (resume) d.cur.picks = { ...(d.cur.picks ?? {}), [f]: nv.id };
+      if (resume){ LK.guard(d.record, d.cur, f); d.cur.picks = { ...(d.cur.picks ?? {}), [f]: nv.id }; }
       if (kind === 'promote') T.setOverride(d.record, d.cur, f, null);
       E.openMinor.add(`${f}:${lang()}:${R.major(nv.n)}`);
     }, t('undo.saveAsNew'), null);
@@ -575,7 +590,7 @@ function saveEdit(kind){
     commit(d => {
       const nv = R.addVersion(d.record, f, { text, from: ed.vid, as: 'major', lang: lang() });
       n = nv.n; E.enter = nv.id;
-      if (resume) d.cur.picks = { ...(d.cur.picks ?? {}), [f]: nv.id };
+      if (resume){ LK.guard(d.record, d.cur, f); d.cur.picks = { ...(d.cur.picks ?? {}), [f]: nv.id }; }
     }, t('undo.writeNew'), null);
     if (n) C.toast(t('toast.savedNewV', { v: n }));
   } else if (kind === 'only'){
@@ -606,7 +621,7 @@ async function act(a, tg){
       if (!v) return true;
       if (E.compare === v.id) E.compare = null;
       C.endHover();
-      commit(d => { R.deleteVersion(d.record, v.id, [d.cur, ...(d.resumes ?? [])]); }, t('edit.deleteV', { v: v.n }), t('toast.deletedV', { v: v.n }));
+      commit(d => { R.deleteVersion(d.record, v.id, [d.cur, ...(d.resumes ?? [])], d.cur); }, t('edit.deleteV', { v: v.n }), t('toast.deletedV', { v: v.n }));
       return true;
     }
     case 'keep': {
@@ -621,6 +636,7 @@ async function act(a, tg){
       let res;
       clearEdit(false); E.compare = null;
       C.endHover();
+      if (!await askIfLocked(C.store.state, (m, rs) => K.deleteClaim(m, id, rs))) return true;
       commit(d => { res = K.deleteClaim(d.record, id, [d.cur, ...(d.resumes ?? [])]); }, t('undo.deleteClaim'));
       if (res){
         C.toast(t('career.deletedClaim', { name, n: res.versions }));
@@ -723,6 +739,13 @@ function setSection(id, on){
 
 const tr = (k, p) => t(k, p);     // t(), inside handlers where `t` is the event target
 function bind(body){
+  // a held control (aria-disabled, read-only fields aside) does nothing, and says why
+  for (const ev of ['click', 'change', 'keydown']) body.addEventListener(ev, e => {
+    const el = e.target.closest?.('[data-lockoff]');
+    if (!el || (ev === 'keydown' && !['Enter', ' '].includes(e.key))) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (ev === 'click') lockedHint();
+  }, true);
   body.addEventListener('change', e => {
     const t = e.target;
     if (t.dataset.secon) setSection(t.dataset.secon, t.checked);
@@ -1018,32 +1041,52 @@ function resetOrder(kind, id){
   if (auto) C.toast(t('toast.autoPages'));
 }
 // ---- a locked block in the sidebar ----
+const SOFT = '#c-pos, #c-org, #c-start, #c-end, #c-current, #c-during, #c-loc, #c-wurl, #c-wdesc, #c-wsum, [data-act=c-arch-entry], #c-lname, #c-level, #c-slevel, #c-cname, #c-date, #c-expires, #c-gname, #c-issuer, #c-pname, #c-publisher, #c-url, #c-kw, #c-kw-in, [data-act=c-kw-rm], [data-act=c-del-item], [data-act=c-del-entry], [data-act=c-tag-add], [data-act=c-tag-del]';
 // Every row of the Outline gets its padlock (a locked ancestor shows its children locked, greyed, with the lock inherited); a locked row's
 // tick, move buttons and drag are off. A locked block's own view has its switches, its versions and its removal off, with the reason.
 function lockPass(){
   const body = $('#body');
-  if (!body || C.ui.snap || C.ui.view) return;
+  if (!body || C.ui.snap) return;
+  const rec_ = !C.ui.view;      // the Outline's rows are in the Edit view only; the Record view's own fields are held below
   const why = t('ux6c.lockedTip');
   const off = (el, tip = why) => {
     if (el.matches('input, select, textarea, button')) el.disabled = true;
     else { el.removeAttribute('data-act'); el.removeAttribute('data-v'); el.removeAttribute('tabindex'); el.setAttribute('aria-disabled', 'true'); }
     el.title = tip;
   };
-  for (const row of body.querySelectorAll('.clrow, .srow[data-sid], section.clg[data-g]')){
+  for (const row of rec_ ? body.querySelectorAll('.clrow, .srow[data-sid], section.clg[data-g]') : []){
     const id = row.dataset.fact || row.dataset.item || row.dataset.sid || (ix().work.has(row.dataset.g) ? row.dataset.g : '');
     if (!id) continue;
     const host = row.matches('section.clg') ? row.querySelector(':scope > .clgh') : row;
     if (!host) continue;
     const by = lockBy(id), name = t(by ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lockName(id) });
-    host.insertAdjacentHTML('beforeend', `<button type="button" class="rowlock${by ? ' is-locked' : ''}${by && by !== id ? ' inherited' : ''}" data-act="row-lock" data-id="${esc(id)}" aria-pressed="${by !== null}" aria-label="${esc(name)}" title="${esc(by && by !== id ? t('ux6c.lockedWith', { name: lockName(by) }) : name)}">${icon(by ? 'lock' : 'unlock', { size: 12 })}</button>`);
+    const inh = by && by !== id ? t('ux6c.lockedUnder', { name: lockName(by) }) : null;
+    host.insertAdjacentHTML('beforeend', `<button type="button" class="rowlock${by ? ' is-locked' : ''}${inh ? ' inherited' : ''}" data-act="row-lock" data-id="${esc(id)}" aria-pressed="${by !== null}"${inh ? ' aria-disabled="true"' : ''} aria-label="${esc(inh ?? name)}" title="${esc(inh ?? name)}">${icon(by ? 'lock' : 'unlock', { size: 12 })}</button>`);
     if (!by) continue;
     host.classList.add('is-locked'); if (by !== id) host.classList.add('is-inherited');
     host.draggable = false;
-    for (const el of host.querySelectorAll('input[type=checkbox], .clmv .ib')) el.matches('input') ? (el.disabled = true, el.title = why) : (el.setAttribute('aria-disabled', 'true'), el.title = why);
+    for (const el of host.querySelectorAll('input[type=checkbox], .clmv .ib')){
+      if (!el.matches('input')){ el.setAttribute('aria-disabled', 'true'); el.title = why; }
+      else if (el.checked || by !== id || el.dataset.on){ el.disabled = true; el.title = why; }      // a hidden locked block can be shown again
+    }
+  }
+  // an unlocked block that holds a locked line cannot be hidden either
+  for (const row of rec_ ? body.querySelectorAll('.clrow, .srow[data-sid], section.clg[data-g]') : []){
+    const id = row.dataset.fact || row.dataset.item || row.dataset.sid || (ix().work.has(row.dataset.g) ? row.dataset.g : '');
+    if (!id || lockBy(id) || !LK.lockedInside(rec(), cur(), id)) continue;
+    for (const el of row.querySelectorAll('input[type=checkbox]:checked')) if (el.closest('.clrow, .srow[data-sid], section.clg[data-g]') === row){ el.disabled = true; el.title = t('ux6c.lockedInside'); }
   }
   const sel = C.ui.sel, id = lockIdOf(sel);
   if (sel.kind === 'none' || !isLockedId(id)) return;
-  body.querySelector('.depth')?.insertAdjacentHTML('afterend', `<p class="note locknote">${esc(t('ux6c.lockedNote'))}</p>`);
+  const note = `<p class="note locknote" id="locknote">${esc(t('ux6c.lockedNote'))}</p>`;
+  if (body.querySelector('.depth')) body.querySelector('.depth').insertAdjacentHTML('afterend', note); else if (!rec_) body.querySelector('#c-lname, #c-pos, #c-slevel, #c-cname, #c-gname, #c-pname')?.closest('.field, label, div')?.insertAdjacentHTML('beforebegin', note);
+  // the Record's own fields of the block: kept in the tab order, read-only, with the reason attached (a disabled control can't be focused)
+  for (const el of body.querySelectorAll(SOFT)){
+    el.setAttribute('aria-disabled', 'true'); el.setAttribute('aria-describedby', 'locknote'); el.title = why;
+    if (el.matches('input:not([type=checkbox]):not([type=radio]), textarea')) el.readOnly = true;
+    else if (el.matches('button, [data-act]')){ el.removeAttribute('data-act'); el.dataset.lockoff = '1'; }
+    else el.dataset.lockoff = '1';      // a checkbox or a select: the capture listener in bind() holds it
+  }
   for (const el of body.querySelectorAll('#b-on, #sec-label, #term-in, #sk-set, #ed-new, [data-act="write-in"], .ctlrow > .swl > [data-jobon], .ctlrow > .swl > [data-secon], .skchip, .vlist .vrow, .vlist button, .vlist input, [data-act="local-remove"], [data-act="keep"], [data-act="delete-claim"], [data-act="archive-claim"], [data-act="label-reset"], [data-act="label-all"], [data-act^="sk-"]')) off(el);
 }
 function key(e){

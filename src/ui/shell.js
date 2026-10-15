@@ -7,6 +7,7 @@ import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFol
 import { load, loadResume, detect, resumeFileName, LANGS } from '../model/schema.js';
 import { chooseVariant, newResume, listedBullets, jobRefs, pickVersion } from '../model/resume.js';
 import { isArchived } from '../model/entries.js';
+import { LockedError } from '../model/lock.js';
 import { groupOf } from '../model/checklist.js';
 import { fit, FILL_BAND, key as measureKeyOf } from '../fit.js';
 import { createSheet } from './sheet.js';
@@ -51,6 +52,9 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const params = new URLSearchParams(location.search);
 const backend = params.has('memory') ? memoryBackend() : idbBackend();   // ?memory: a clean, throwaway session (checks)
 const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle });      // autosave of the open resume rides on every commit
+// A change the lock refuses, from any path, says why and changes nothing: it never surfaces as an uncaught error.
+const rawCommit = store.commit;
+store.commit = (fn, label) => { try { return rawCommit(fn, label); } catch (e){ if (!(e instanceof LockedError)) throw e; hint(e.message); return false; } };
 const persist = createPersist({ store, backend });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },

@@ -6,6 +6,7 @@
 import * as K from '../model/tokens.js';
 import { toAuto, setPhoto as setResumePhoto, setRecordPhoto } from '../model/resume.js';
 import { t, h, errText, keyed } from '../i18n/index.js';
+import { askPhotoLocked } from './ask.js';
 import { LANG_INFO } from '../model/lang.js';
 
 let C = null;
@@ -107,7 +108,8 @@ function commit(fn, label, done){
 export async function setPhoto(file, { show = true } = {}){
   try {
     const data = await cropPhoto(file);
-    commit(d => { setRecordPhoto(d.record, data); if (show) setResumePhoto(d.record, d.cur, { show: true }); }, t('design.photo'), show ? t('toast.photoAdded') : t('ux6c.photoKept'));
+    if (!await askPhotoLocked(C.store.state)) return;
+    commit(d => { setRecordPhoto(d.record, data, d.cur); if (show) setResumePhoto(d.record, d.cur, { show: true }); }, t('design.photo'), show ? t('toast.photoAdded') : t('ux6c.photoKept'));
   } catch (e){ C.toast(errText(e), 'bad'); }
 }
 // The photo slot by the name on the page: the photo is printed on this resume, or not
@@ -180,7 +182,11 @@ async function act(a, tg){
       return true;
     }
     case 'd-photo': C.pickFile('photo'); return true;
-    case 'd-photo-rm': commit(d => { delete d.record.basics.image; for (const x of [d.cur]) if (x.photo) x.photo.show = false; }, t('undo.removePhoto'), t('toast.photoRemoved')); return true;
+    case 'd-photo-rm': {
+      if (!await askPhotoLocked(C.store.state)) return true;
+      commit(d => { setRecordPhoto(d.record, null, d.cur); if (d.cur.photo) setResumePhoto(d.record, d.cur, { show: false }); }, t('undo.removePhoto'), t('toast.photoRemoved'));
+      return true;
+    }
     case 'd-shape': { const s = tg.dataset.s; commit(d => setResumePhoto(d.record, d.cur, { shape: s, ...(d.cur.photo ? {} : { show: true }) }), t('design.shape')); return true; }
   }
   return false;

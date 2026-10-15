@@ -1044,7 +1044,7 @@ export { addJob, addBullet };
 export function lockedOnDelete(model, recipes, remove){
   const ids = m => new Set([...(m.facts ?? []).map(f => f.id), ...(m.sections ?? []).map(s => s.id), ...entriesOf(m).map(e => e.id)]);
   const m = structuredClone(model), had = ids(model);
-  remove(m, structuredClone(recipes));
+  try { remove(m, structuredClone(recipes)); } catch { return []; }      // a delete that is refused says so itself, when it is run
   const now = ids(m), gone = [...had].filter(x => !now.has(x));
   return lockedHolders(model, recipes, gone.flatMap(x => [x, `~t:${x}`, `~h:${x}`]));
 }
