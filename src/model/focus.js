@@ -1,6 +1,7 @@
 // Job-type and tag focus. Pure: no DOM, no I/O.
 // Tagging never touches a Keep bullet and never empties a job: an untagged job keeps its first bullet.
 
+import { isLocked } from './lock.js';
 import { chooseVariant, keepOf, jobRefs, listedBullets, setBulletOn, itemsOf, setItemOn, sectionList } from './resume.js';
 import { offOf } from '../recipe.js';
 import { archivedIds, archivedEntryIds } from './entries.js';
@@ -82,7 +83,9 @@ export function lensChoices(model, lang = null){
 
 const sectionIsOn = (model, recipe, sid) => !!sectionList(model, recipe).find(x => x.id === sid)?.on;
 
-function walk(model, recipe, T, fn){
+function walk(model, recipe, T, visit){
+  // a locked line stays as typed and as placed: it is reported, never changed
+  const fn = x => (isLocked(model, recipe, x.fact) ? visit({ kind: 'locked', fact: x.fact }) : visit(x));
   const lang = recipe.lang ?? 'en';
   const ix = ixOf(model);
   const keep = new Set(keepOf(recipe));
@@ -127,15 +130,16 @@ function walk(model, recipe, T, fn){
 }
 
 export function planTag(model, recipe, T){
-  let on = 0, off = 0, sw = 0;
+  let on = 0, off = 0, sw = 0, locked = 0;
   const hits = new Set();
   walk(model, recipe, T, x => {
-    if (x.kind === 'tagged'){ hits.add(x.fact); if (!x.on) on++; if (x.switch) sw++; }
+    if (x.kind === 'locked') locked++;
+    else if (x.kind === 'tagged'){ hits.add(x.fact); if (!x.on) on++; if (x.switch) sw++; }
     else if (x.kind === 'off') off++;
     else if (x.kind === 'summary'){ sw++; hits.add(x.fact); }
     else if (x.kind === 'item'){ hits.add(x.fact); if (!x.on) on++; if (x.switch) sw++; }
   });
-  return { on, off, sw, hits };
+  return { on, off, sw, locked, hits };
 }
 
 // Facts with a version tagged T, whatever the resume does with them.

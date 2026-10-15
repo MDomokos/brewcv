@@ -1255,4 +1255,5 @@ export default {
   'ux6c.termHere': 'Name on this resume ({lang})',
   'ux6c.termNote': 'The name as this resume prints it. Leave the box empty to use the one in your record.',
   'ux6c.entryFields': 'Other fields of this entry',
+  'ux6c.locked': 'Locked. Unlock it to change it.',
 };

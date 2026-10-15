@@ -81,7 +81,7 @@ section('switching language');
 {
   const r = clone(en);
   const picks = clone(r.picks);
-  T.setOverride(r, Object.keys(picks)[0] ?? 'summary', 'Only here.');
+  T.setOverride(model, r, Object.keys(picks)[0] ?? 'summary', 'Only here.');
   const ov = clone(r.overrides);
   L.switchLang(r, 'hu');
   ok('English → Hungarian: lang and the Hungarian A4', r.lang === 'hu' && (r.format === 'a4-hu' || r.format === 'us-letter'));

@@ -6,6 +6,7 @@ import { t, docChrome, keyed } from '../i18n/index.js';
 import { LANGS } from './schema.js';
 import { entriesOf } from './entries.js';
 import { localEntry, isLocal } from '../recipe.js';
+import { isLocked } from './lock.js';
 import { listedBullets, jobRefs, sectionList, chooseVariant } from './resume.js';
 
 export const DEFAULT_LANG = 'en';
@@ -108,14 +109,15 @@ export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? 
 }
 
 // In place. Picks, one-off texts and holds are kept per language in `byLang`.
-export function switchLang(recipe, to){
+export function switchLang(recipe, to, model = null){
   const from = recipe.lang ?? DEFAULT_LANG;
   if (from === to) return false;
   recipe.byLang = { ...(recipe.byLang ?? {}) };
   const keep = {};
   for (const k of ['picks', 'overrides', 'held']) if (recipe[k] !== undefined && (Array.isArray(recipe[k]) ? recipe[k].length : Object.keys(recipe[k]).length)) keep[k] = recipe[k];
   // the lines only on this resume have no other language: their text stays where it is
-  const own = Object.fromEntries(Object.entries(recipe.overrides ?? {}).filter(([k]) => isLocal(recipe, k)));
+  // …and so is a locked line's: it stays as typed
+  const own = Object.fromEntries(Object.entries(recipe.overrides ?? {}).filter(([k]) => isLocal(recipe, k) || isLocked(model, recipe, k)));
   if (keep.overrides) keep.overrides = Object.fromEntries(Object.entries(keep.overrides).filter(([k]) => !(k in own)));
   if (keep.overrides && !Object.keys(keep.overrides).length) delete keep.overrides;
   const metaOf = (o, f) => Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => f(k)));

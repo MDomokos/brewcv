@@ -335,9 +335,9 @@ async function act(a, tg){
       C.setView(null);
       return true;
     }
-    case 'nw-accept': commit(d => RS.acceptNewer(d.cur, tg.dataset.id), t('undo.useNewer')); return true;
+    case 'nw-accept': commit(d => RS.acceptNewer(d.cur, tg.dataset.id, d.record), t('undo.useNewer')); return true;
     case 'nw-keep': commit(d => RS.keepOlder(d.cur, tg.dataset.id), t('undo.keepSaved')); return true;
-    case 'nw-all': commit(d => { for (const x of RS.newerOf(d.record, d.cur)) RS.acceptNewer(d.cur, x.fact); }, t('undo.useNewer'), t('toast.newerAll')); C.setView(null); return true;
+    case 'nw-all': commit(d => { for (const x of RS.newerOf(d.record, d.cur)) RS.acceptNewer(d.cur, x.fact, d.record); }, t('undo.useNewer'), t('toast.newerAll')); C.setView(null); return true;
     case 'mark-sent': markSent(); return true;
     case 'sent-back': V.send = null; C.setView('export'); return true;
   }

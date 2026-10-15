@@ -880,7 +880,7 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   await page.keyboard.insertText('Drew the fixtures.'); await page.waitForTimeout(500);
   await page.mouse.click(4, 4); await page.waitForTimeout(900);
   ok('…a click elsewhere keeps what was typed in it', (await page.evaluate(id => window.__wb.store.state.cur.overrides[id], eP)) === 'Drew the fixtures.' && dialogs === 0);
-  await page.evaluate(async ids => { const T = await import('./src/model/resume.js'); window.__wb.store.commit(d => { for (const id of ids) T.removeLocalLine(d.cur, id); }, 'clean'); }, [eT, eP]);
+  await page.evaluate(async ids => { const T = await import('./src/model/resume.js'); window.__wb.store.commit(d => { for (const id of ids) T.removeLocalLine(d.record, d.cur, id); }, 'clean'); }, [eT, eP]);
   await page.waitForTimeout(900);
   await esc3();
 

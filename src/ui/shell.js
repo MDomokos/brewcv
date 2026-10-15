@@ -629,7 +629,7 @@ async function useLanguage(to, { add = false } = {}){
   if (to === lang() && !add){ renderHead(); return; }
   ui.sel = NONE;
   await loadCatalogue(to);
-  store.commit(d => { if (add) addLangInUse(d.record, to); switchLang(d.cur, to); }, add ? t('undo.addLanguage', { lang: langName(to) }) : t('undo.language', { lang: langName(to) }));
+  store.commit(d => { if (add) addLangInUse(d.record, to); switchLang(d.cur, to, d.record); }, add ? t('undo.addLanguage', { lang: langName(to) }) : t('undo.language', { lang: langName(to) }));
   const n = missingList(work(), cur()).length;
   toast(t('toast.langNow', { lang: langName(to) }) + (n ? ' ' + t('toast.langMissing', { n, lang: langName(to) }) : ''));
 }
@@ -942,7 +942,7 @@ function useVersion(factId, vid){
   ui.previewing = false; ui.hoverV = null;
   if (edit.editing?.fact === factId && !edit.editing.panel){ edit.pickWhileWriting(vid); return; }
   const v = ui.ix.variants.get(vid);
-  store.commit(d => pickVersion(d.cur, factId, vid), t('undo.useVersion', { n: v?.n ?? '?' }));      // an edit on this resume is set aside, not lost
+  store.commit(d => pickVersion(d.record, d.cur, factId, vid), t('undo.useVersion', { n: v?.n ?? '?' }));      // an edit on this resume is set aside, not lost
 }
 
 

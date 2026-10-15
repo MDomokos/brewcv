@@ -47,7 +47,7 @@ function dropLine(fact){
   const job = ix().highlight.get(fact);
   if (C.ui.sel.kind === 'bullet' && C.ui.sel.id === fact && job) C.ui.sel = { kind: 'job', id: job };      // Esc goes up to the job, not to the page
   const had = !!cur().overrides?.[fact];      // a line you wrote and emptied is a delete: say so, and Ctrl+Z brings it back
-  commit(d => T.removeLocalLine(d.cur, fact), t('ux6c.undoRemoveLine'), had ? `${t('ux6c.lineRemoved')} ${t('toast.ctrlZUndoes')}` : undefined);
+  commit(d => T.removeLocalLine(d.record, d.cur, fact), t('ux6c.undoRemoveLine'), had ? `${t('ux6c.lineRemoved')} ${t('toast.ctrlZUndoes')}` : undefined);
 }
 // Leaving a line keeps what was typed on this resume, and nothing asks: one override with the highlights it keeps and the version it
 // was written from. The words of that version again drop the override.
@@ -58,9 +58,9 @@ function keepEdit(ed){
   const text = ed.draft.trim(), base = ix().variants.get(ed.vid);
   C.ui.previewing = false;
   commit(d => {
-    if (text !== base?.text.trim()) return T.setOverride(d.cur, ed.fact, text, { marks: marksFor(ed, text), base: base?.id ?? null });
-    T.dropOverride(d.cur, ed.fact);
-    if (base && usingOf(ed.fact)?.id !== base.id) T.pickVersion(d.cur, ed.fact, base.id);
+    if (text !== base?.text.trim()) return T.setOverride(d.record, d.cur, ed.fact, text, { marks: marksFor(ed, text), base: base?.id ?? null });
+    T.dropOverride(d.record, d.cur, ed.fact);
+    if (base && usingOf(ed.fact)?.id !== base.id) T.pickVersion(d.record, d.cur, ed.fact, base.id);
   }, t('edit.thisOnly'));
 }
 // A heading or a language's name written on the page: kept on this resume in its language, as one undo step. The record's own words reset it.
@@ -449,7 +449,7 @@ function pickWhileWriting(vid){
   if (!ed || !v) return false;
   clearTimeout(E.timer);
   keepEdit(ed);
-  commit(d => T.pickVersion(d.cur, ed.fact, vid), t('undo.useVersion', { n: v.n }));
+  commit(d => T.pickVersion(d.record, d.cur, ed.fact, vid), t('undo.useVersion', { n: v.n }));
   Object.assign(ed, { vid, mode: 'edit', base: v.text, draft: v.text, copyOf: v.text, marks: v.marks ?? [] });
   C.onpage?.setText(v.text);
   return true;
@@ -462,7 +462,7 @@ async function livePreview(){
   const text = ed.draft.trim(), r = structuredClone(cur());
   if (ed.label) T.setLabel(rec(), r, ed.fact, ed.lang, text);
   else if (ed.group){ if (!T.readGroup(ed.draft).items.length) return; T.writeGroup(rec(), r, ed.fact, ed.draft); }      // a group with no skills yet is left as it is until the line is left
-  else T.setOverride(r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid });
+  else T.setOverride(rec(), r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid });
   await C.previewRecipe(r, ed.fact);
   if (E.edit !== ed) return;
   ed.lines = C.sheet.linesOf(ix(), ed.fact);
@@ -488,7 +488,7 @@ function saveEdit(kind){
       const nv = R.addVersion(d.record, f, { text, from: ed.vid, as: 'minor', lang: lang() });
       n = nv.n; E.enter = nv.id;
       if (resume) d.cur.picks = { ...(d.cur.picks ?? {}), [f]: nv.id };
-      if (kind === 'promote') T.setOverride(d.cur, f, null);
+      if (kind === 'promote') T.setOverride(d.record, d.cur, f, null);
       E.openMinor.add(`${f}:${lang()}:${R.major(nv.n)}`);
     }, t('undo.saveAsNew'), null);
     if (n) C.toast(t('toast.savedAsV', { v: n }));
@@ -501,7 +501,7 @@ function saveEdit(kind){
     }, t('undo.writeNew'), null);
     if (n) C.toast(t('toast.savedNewV', { v: n }));
   } else if (kind === 'only'){
-    commit(d => { T.setOverride(d.cur, f, text); if (T.jobOfFact(d.record, f) && !T.listedBullets(d.record, d.cur, T.jobOfFact(d.record, f).id).includes(f)) T.setBulletOn(d.record, d.cur, f, true); },
+    commit(d => { T.setOverride(d.record, d.cur, f, text); if (T.jobOfFact(d.record, f) && !T.listedBullets(d.record, d.cur, T.jobOfFact(d.record, f).id).includes(f)) T.setBulletOn(d.record, d.cur, f, true); },
       t('edit.thisOnly'), t('toast.changedOnlyHere'));
   }
   if (!resume) C.renderBody();     // closes the editor even when nothing changed
@@ -512,14 +512,14 @@ async function act(a, tg){
   switch (a){
     case 'edit': startEdit(null, tg?.dataset?.v ?? null); return true;
     case 'ed-cancel': cancelEdit({ discard: true }); return true;
-    case 'use-edit': commit(d => T.unparkOverride(d.cur, s.id), t('edit.thisOnly')); return true;
+    case 'use-edit': commit(d => T.unparkOverride(d.record, d.cur, s.id), t('edit.thisOnly')); return true;
     case 'ed-save': saveEdit('over'); return true;
     case 'ed-saveas': saveEdit('as'); return true;
     case 'ed-only': saveEdit('only'); return true;
     case 'ed-new': saveEdit('new'); return true;
     case 'ed-promote': saveEdit('promote'); return true;
     case 'local-remove': clearEdit(false); dropLine(s.id); C.renderBody(); return true;
-    case 'only-remove': commit(d => T.setOverride(d.cur, s.id, null), t('edit.backToSaved'), t('toast.backToSaved')); return true;
+    case 'only-remove': commit(d => T.setOverride(d.record, d.cur, s.id, null), t('edit.backToSaved'), t('toast.backToSaved')); return true;
     case 'unfold': E.openMinor.add(`${s.id}:${lang()}:${tg.dataset.m}`); C.renderBody(); return true;
     case 'compare': E.compare = E.compare === tg.dataset.v ? null : tg.dataset.v; C.renderBody(); return true;
     case 'compare-close': E.compare = null; C.renderBody(); return true;

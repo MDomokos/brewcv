@@ -15,6 +15,7 @@ import { t, keyed } from '../i18n/index.js';
 import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal } from './resume.js';
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang } from './lang.js';
+import { guard, isLocked } from './lock.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
 
 const clone = x => structuredClone(x);
@@ -62,7 +63,7 @@ export function tagVersions(model, recipe, T){
 
 // Key order and bookkeeping don't change what a resume prints.
 const canon = x => (Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(k => [k, canon(x[k])])) : x);
-const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked'];
+const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'locked'];
 export const printedKey = (recipe, body) => {
   const r = clone(recipe);
   for (const k of NOT_PRINTED) delete r[k];
@@ -144,6 +145,7 @@ export function holdFrozen(model, recipe, frozen){
 export function newerOf(model, recipe){
   const out = [];
   for (const id of recipe.held ?? []){
+    if (isLocked(model, recipe, id)) continue;      // a locked line is not offered newer wording
     const text = recipe.overrides?.[id];
     const free = clone(recipe);
     delete free.overrides[id];
@@ -153,7 +155,8 @@ export function newerOf(model, recipe){
   return out;
 }
 // keepOlder leaves the saved text as this resume's own one-off.
-export function acceptNewer(recipe, factId){
+export function acceptNewer(recipe, factId, model = null){
+  guard(model, recipe, factId);
   if (recipe.overrides) delete recipe.overrides[factId];
   recipe.held = (recipe.held ?? []).filter(x => x !== factId);
   if (!recipe.held.length) delete recipe.held;
@@ -197,7 +200,7 @@ export function startRecipe(state, { start = 'all', fromId = null, jobType = '',
     if (!src) throw new Error(`no saved resume of type ${jobType}`);
     r = copyOf(src);
     holdFrozen(state.record, r, state.frozen?.[src.id] ?? null);
-    switchLang(r, L);
+    switchLang(r, L, state.record);
     if (format) r.format = format;
   } else {
     r = newResume(state.record, { format: f, lang: L, pageLimit: state.cur?.pageLimit ?? 1 });
@@ -227,7 +230,7 @@ export function duplicate(state, id, { lang = null, name = null } = {}){
   holdFrozen(state.record, r, state.frozen?.[id] ?? null);
   const base = resumeLabel(src);
   const to = lang && lang !== (r.lang ?? 'en') ? lang : null;
-  if (to) switchLang(r, to);
+  if (to) switchLang(r, to, state.record);
   state.cur = r;
   state.openId = null;
   return saveNew(state, { name: name ?? (to ? t('ux1.langCopy', { name: base, lang: to.toUpperCase() }) : t('ux1.copyOf', { name: base })), tagVersions: false });

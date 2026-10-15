@@ -30,6 +30,7 @@ const SHELL = [
   './src/model/resumes.js',
   './src/model/focus.js',
   './src/model/lang.js',
+  './src/model/lock.js',
   './src/model/build.js',
   './src/model/import.js',
   './src/model/diff.js',

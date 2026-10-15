@@ -19,6 +19,7 @@ export function refusal(fact, v){
 import { keyed, t } from '../i18n/index.js';
 import { entriesOf, entryKey, isEntry, archivedIds, archivedEntryIds } from './entries.js';
 import { offOf, keepOf, keepLinks, migratePins, inOrder, localOf, localJob, localIds, isLocal, withLocal, termOf } from '../recipe.js';
+import { guard, isLocked, skillsSection } from './lock.js';
 export { offOf, keepOf, migratePins, inOrder, isLocal, localOf, termOf };
 
 function index(model){
@@ -394,6 +395,7 @@ function reanchor(recipe, jobId, order){
 // A new empty line on this resume only, after `afterId` (a bullet or local line of the job; null: first).
 export function addLocalLine(model, recipe, jobId, afterId = null){
   if (!factIx(model).work.has(jobId)) throw new Error(`no such job: ${jobId}`);
+  guard(model, recipe, jobId);
   const used = localIds(recipe);
   let n = 1; while (used.has(`~new-${n}`)) n++;
   const id = `~new-${n}`, order = fullOrder(model, recipe, jobId), at = order.indexOf(afterId);
@@ -405,19 +407,21 @@ export function addLocalLine(model, recipe, jobId, afterId = null){
   recipe.overrideMeta = { ...recipe.overrideMeta, [id]: { marks: [], base: null } };
   return id;
 }
-export function removeLocalLine(recipe, id){
+export function removeLocalLine(model, recipe, id){
   const job = localJob(recipe, id);
   if (!job) return;
+  guard(model, recipe, id);
   const rest = localOf(recipe, job).filter(l => l.id !== id).map(l => (l.after === id ? { ...l, after: localOf(recipe, job).find(x => x.id === id).after } : l));
   recipe.localLines = Object.fromEntries(Object.entries({ ...recipe.localLines, [job]: rest }).filter(([, l]) => l.length));
   if (!Object.keys(recipe.localLines).length) delete recipe.localLines;
-  dropOverride(recipe, id);
+  dropOverride(model, recipe, id);
   setList(recipe, 'off', id, false);
 }
 
 export function setJobOn(model, recipe, jobId, on){
   const w = factIx(model).work.get(jobId);
   if (!w) throw new Error(`no such job: ${jobId}`);
+  guard(model, recipe, jobId);
   const sid = sectionOfEntry(model, jobId);
   const lists = workLists(model, recipe, true, sid);
   if (on && w.archived && !lists.some(l => l.some(r => refId(r) === jobId))) throw keyed('arch.jobNeedUnarchive');
@@ -438,6 +442,7 @@ export function setJobOn(model, recipe, jobId, on){
 export function setBulletOn(model, recipe, factId, on){
   const w = jobOfFact(model, factId, recipe);
   if (!w) throw new Error(`${factId} is not a bullet of any job`);
+  guard(model, recipe, factId);
   if (isLocal(recipe, factId)) return setList(recipe, 'off', factId, !on);
   const order = on || !localOf(recipe, w.id).length ? null : fullOrder(model, recipe, w.id);
   const sid = sectionOfEntry(model, w.id);
@@ -469,6 +474,7 @@ export function setBulletOn(model, recipe, factId, on){
 
 // Keeping a bullet that doesn't print also turns it off, so it stays off.
 export function setKeep(model, recipe, factId, on){
+  guard(model, recipe, factId);
   setList(recipe, 'keep', factId, on);
   if (on){
     const w = jobOfFact(model, factId);
@@ -478,8 +484,9 @@ export function setKeep(model, recipe, factId, on){
 
 // One-off text for this resume only. null removes it. `{ marks, base }` (the highlights it keeps and the version it was
 // written from) go in recipe.overrideMeta; without them the call leaves the recipe's other keys alone.
-export function setOverride(recipe, factId, text, meta = null){
-  if (text == null || text === '') return isLocal(recipe, factId) ? removeLocalLine(recipe, factId) : dropOverride(recipe, factId);   // a line only here, emptied, is gone
+export function setOverride(model, recipe, factId, text, meta = null){
+  guard(model, recipe, factId);
+  if (text == null || text === '') return isLocal(recipe, factId) ? removeLocalLine(model, recipe, factId) : dropOverride(model, recipe, factId);   // a line only here, emptied, is gone
   recipe.overrides = { ...(recipe.overrides ?? {}), [factId]: String(text) };
   const job = localJob(recipe, factId);      // a line only here is in the language it was last typed in
   if (job){
@@ -492,7 +499,8 @@ export function setOverride(recipe, factId, text, meta = null){
 }
 
 // An edit set aside (parked) when a version is picked over it; picking the edit again (unpark) puts it back.
-export function dropOverride(recipe, factId){
+export function dropOverride(model, recipe, factId){
+  guard(model, recipe, factId);
   if (recipe.overrides) recipe.overrides = Object.fromEntries(Object.entries(recipe.overrides).filter(([k]) => k !== factId));
   for (const k of ['overrideMeta', 'parked']){      // an emptied map goes too, so a recipe that is back where it was is byte-identical
     if (!recipe[k]) continue;
@@ -500,15 +508,16 @@ export function dropOverride(recipe, factId){
     if (Object.keys(rest).length) recipe[k] = rest; else delete recipe[k];
   }
 }
-export function parkOverride(recipe, factId){
+export function parkOverride(model, recipe, factId){
+  guard(model, recipe, factId);
   if (!(factId in (recipe.overrides ?? {}))) return;
   recipe.parked = { ...(recipe.parked ?? {}), [factId]: { text: recipe.overrides[factId], meta: recipe.overrideMeta?.[factId] } };
   const { [factId]: _o, ...overrides } = recipe.overrides; recipe.overrides = overrides;
   if (recipe.overrideMeta){ const { [factId]: _m, ...meta } = recipe.overrideMeta; recipe.overrideMeta = meta; }
 }
-export function unparkOverride(recipe, factId){
+export function unparkOverride(model, recipe, factId){
   const p = recipe.parked?.[factId];
-  if (p) setOverride(recipe, factId, p.text, p.meta ?? {});
+  if (p) setOverride(model, recipe, factId, p.text, p.meta ?? {});
 }
 export const overrideOf = (recipe, factId) => (factId in (recipe.overrides ?? {})
   ? { text: recipe.overrides[factId], ...(recipe.overrideMeta?.[factId] ?? {}), on: true }
@@ -519,9 +528,10 @@ export function keepHere(recipe, factId){
   recipe.overrideMeta = { ...(recipe.overrideMeta ?? {}), [factId]: { ...recipe.overrideMeta?.[factId], kept: true } };
 }
 // Picking a version sets any edit of that claim aside.
-export function pickVersion(recipe, factId, vid){
+export function pickVersion(model, recipe, factId, vid){
+  guard(model, recipe, factId);
   recipe.picks = { ...(recipe.picks ?? {}), [factId]: vid };
-  parkOverride(recipe, factId);
+  parkOverride(model, recipe, factId);
 }
 
 // ---- skill sets: model.skillSets[name] = { [lang]: [{ id, items }] }, one per job type or tag ----
@@ -540,6 +550,8 @@ export function setArrangement(recipe, arrangement){ recipe.skillArrangement = s
 export function applySet(model, recipe, name){
   const L = recipe.lang ?? DEFAULT_LANG, groups = groupsOf(model, name, L);
   if (!groups) throw new Error(`no skill set ${name}`);
+  guard(model, recipe, skillsSection(model));
+  for (const g of arrangementOf(model, recipe).groups) guard(model, recipe, g.id);      // a set replaces every group
   recipe.skillArrangement = { from: name, ...(skillSets(model)[name][L] ? {} : { lang: DEFAULT_LANG }), groups: structuredClone(groups) };
 }
 export function saveSetForTag(model, name, arrangement, lang = DEFAULT_LANG){
@@ -551,7 +563,7 @@ export const groupLabel = (model, recipe, gid) => model.i18n?.[recipe.lang ?? DE
 // Arranging the skills on this resume: the first change copies what prints now into `recipe.skillArrangement`, and each change after it
 // is to that copy. A group is { id, items, label? }: a group of the record keeps its id (and its name, unless `label` renames it here);
 // one made on the page is `~sg-n` and has a `label` of its own.
-const arrange = (model, recipe, fn) => { const a = structuredClone(arrangementOf(model, recipe)); const r = fn(a.groups, a); recipe.skillArrangement = a; return r; };
+const arrange = (model, recipe, fn, ...ids) => { for (const id of [skillsSection(model), ...ids.filter(Boolean)]) guard(model, recipe, id); const a = structuredClone(arrangementOf(model, recipe)); const r = fn(a.groups, a); recipe.skillArrangement = a; return r; };
 const groupAt = (groups, gid) => { const i = groups.findIndex(g => g.id === gid); if (i < 0) throw new Error(`no skill group ${gid}`); return i; };
 // the skills as typed: separated by commas or line breaks
 export const parseItems = text => String(text).split(/[,\n]/).map(x => x.trim()).filter(Boolean);
@@ -566,7 +578,7 @@ export function writeGroup(model, recipe, gid, text){
       const was = groups[i].label, label = name !== null && name !== (was ?? groupLabel(model, recipe, gid)) ? name : was;
       groups[i] = { ...groups[i], items, lang: recipe.lang ?? DEFAULT_LANG, ...(label !== undefined ? { label } : {}) };      // typed here: in this language
     }
-  });
+  }, gid);
 }
 // A group as the page writes it: its name, a line break, its skills
 export function groupText(model, recipe, gid){
@@ -586,7 +598,7 @@ export function moveSkillGroup(model, recipe, gid, beforeId = null){
   arrange(model, recipe, groups => {
     const [g] = groups.splice(groupAt(groups, gid), 1);
     groups.splice(beforeId == null ? groups.length : groupAt(groups, beforeId), 0, g);
-  });
+  }, gid);
 }
 // One skill from a group to a place in another (or the same): `j` is its index there once it has left; a group left with no skills goes
 export function moveSkill(model, recipe, from, i, to, j){
@@ -596,11 +608,11 @@ export function moveSkill(model, recipe, from, i, to, j){
     const [item] = src.items.splice(i, 1);
     dst.items.splice(Math.max(0, Math.min(j, dst.items.length)), 0, item);
     if (!src.items.length && src !== dst) groups.splice(groups.indexOf(src), 1);
-  });
+  }, from, to);
 }
 
 // The resume's photo switch (recipe.photo) and the record's photo (basics.image).
-export function setPhoto(recipe, patch){ recipe.photo = { show: false, shape: 'rect', ...(recipe.photo ?? {}), ...patch }; }
+export function setPhoto(model, recipe, patch){ guard(model, recipe, 'photo'); recipe.photo = { show: false, shape: 'rect', ...(recipe.photo ?? {}), ...patch }; }
 export function setRecordPhoto(model, src){ model.basics.image = src; }
 
 // Sections
@@ -654,6 +666,7 @@ export function toAuto(model, recipe){
 // Off is weight 0. Turning on a section a hand layout can't place switches to automatic pages.
 export function setSectionOn(model, recipe, id, on){
   if (!hasBudgetIn(model, id)) throw keyed('error.alwaysOn', { id });
+  guard(model, recipe, id);
   let auto = false;
   recipe.sections ??= [];
   let e = entryOf(recipe, id);
@@ -679,6 +692,7 @@ export function setSectionOn(model, recipe, id, on){
 // beforeId null means last. A hand layout switches to automatic pages.
 export function moveSection(model, recipe, id, beforeId = null){
   if (isFixed(model, id)) throw keyed('error.fixedTop');
+  guard(model, recipe, id);
   const auto = toAuto(model, recipe);
   recipe.sections ??= [];
   // everything the list shows becomes explicit, so the order is the list's
@@ -723,6 +737,7 @@ export const sectionOfItem = (model, id) => (model.sections ?? []).find(s => (it
 export function moveBullet(model, recipe, factId, beforeId = null){
   const w = jobOfFact(model, factId, recipe);
   if (!w) throw new Error(`${factId} is not a bullet of any job`);
+  guard(model, recipe, factId);
   const sid = sectionOfEntry(model, w.id);
   const rest = fullOrder(model, recipe, w.id).filter(h => h !== factId);
   const at = beforeId == null ? rest.length : rest.indexOf(beforeId);
@@ -759,6 +774,7 @@ export function stepBullet(model, recipe, factId, dir){
 // the job last. A job that is off or archived has no place. A hand layout switches to automatic pages, as moving a section does.
 export function moveEntry(model, recipe, id, beforeId = null){
   if (entryKey(model, id) !== 'work') throw new Error(`${id} is not a job`);
+  guard(model, recipe, id);
   const sid = sectionOfEntry(model, id);
   if (archivedEntryIds(model).has(id) || !jobRefs(model, recipe, sid).some(r => refId(r) === id)) throw new Error(`${id} is not on this resume`);
   const auto = toAuto(model, recipe);
@@ -783,6 +799,7 @@ export function stepEntry(model, recipe, id, dir){
 export function setItemOn(model, recipe, id, on){
   const sid = sectionOfItem(model, id);
   if (!sid) throw new Error(`${id} is not an item of any list section`);
+  guard(model, recipe, id);
   const secOn = sectionList(model, recipe).find(x => x.id === sid)?.on;
   // the rows of a section that is off show unticked, so ticking one brings back that one alone
   if (on && !secOn) for (const x of itemsOf(model, sid)) if (x !== id) setList(recipe, 'off', x, true);
@@ -797,6 +814,7 @@ export function setItemOn(model, recipe, id, on){
 export function moveItem(model, recipe, sid, id, beforeId = null){
   const list = itemList(model, recipe, sid);
   if (!list || !list.some(x => x.id === id)) throw new Error(`${id} is not an item of ${sid}`);
+  guard(model, recipe, id);
   const ids = list.map(x => x.id).filter(x => x !== id);
   const at = beforeId == null ? ids.length : ids.indexOf(beforeId);
   ids.splice(at < 0 ? ids.length : at, 0, id);
@@ -821,6 +839,7 @@ export function stepItem(model, recipe, sid, id, dir){
 // A heading on this resume, per language. null or '' resets it.
 export function setSectionLabel(model, recipe, id, lang, text){
   if (isFixed(model, id) && factIx(model).sections.get(id)?.kind === 'header') throw keyed('error.headerNoHeading');
+  guard(model, recipe, `~h:${id}`);
   recipe.sections ??= [];
   let e = entryOf(recipe, id);
   const t = String(text ?? '').trim();
@@ -834,7 +853,8 @@ export function labelOf(model, recipe, id, lang){
   return (typeof own === 'string' ? own : own?.[lang]) ?? null;
 }
 // The name of a language row on this resume, per language. '' resets it to the record's.
-export function setTerm(recipe, fid, lang, text){
+export function setTerm(model, recipe, fid, lang, text){
+  guard(model, recipe, `~t:${fid}`);
   const t = String(text ?? '').replace(/\s+/g, ' ').trim(), mine = { ...recipe.terms?.[fid] };
   if (t) mine[lang] = t; else delete mine[lang];
   const terms = { ...recipe.terms, [fid]: mine };
@@ -850,7 +870,7 @@ export const recordTerm = (model, fid, lang) =>
 export function setLabel(model, recipe, key, lang, text){
   const id = key.slice(3), heading = key.startsWith('~h:'), t = String(text ?? '').replace(/\s+/g, ' ').trim();
   const reset = !t || t === (heading ? recordTitle(model, id, lang) : recordTerm(model, id, lang));
-  if (heading) setSectionLabel(model, recipe, id, lang, reset ? null : t); else setTerm(recipe, id, lang, reset ? '' : t);
+  if (heading) setSectionLabel(model, recipe, id, lang, reset ? null : t); else setTerm(model, recipe, id, lang, reset ? '' : t);
 }
 export const labelNow = (model, recipe, key, lang) => {
   const id = key.slice(3);
@@ -864,7 +884,7 @@ export const recordTitle = (model, id, lang) =>
 // Moves this resume's label into the record (title or translation) and drops it here.
 export function useLabelEverywhere(model, recipe, id, lang){
   const t = labelOf(model, recipe, id, lang);
-  if (!t) return false;
+  if (!t || isLocked(model, recipe, `~h:${id}`)) return false;      // a locked heading stays as typed
   const s = (model.sections ?? []).find(x => x.id === id);
   if (!s) return false;
   if (lang === DEFAULT_LANG) s.title = t;

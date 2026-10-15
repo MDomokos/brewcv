@@ -107,13 +107,13 @@ function commit(fn, label, done){
 export async function setPhoto(file, { show = true } = {}){
   try {
     const data = await cropPhoto(file);
-    commit(d => { setRecordPhoto(d.record, data); if (show) setResumePhoto(d.cur, { show: true }); }, t('design.photo'), show ? t('toast.photoAdded') : t('ux6c.photoKept'));
+    commit(d => { setRecordPhoto(d.record, data); if (show) setResumePhoto(d.record, d.cur, { show: true }); }, t('design.photo'), show ? t('toast.photoAdded') : t('ux6c.photoKept'));
   } catch (e){ C.toast(errText(e), 'bad'); }
 }
 // The photo slot by the name on the page: the photo is printed on this resume, or not
 export function togglePhoto(){
   const on = !C.cur().photo?.show;
-  commit(d => setResumePhoto(d.cur, { show: on }), on ? t('undo.showPhoto') : t('undo.hidePhoto'));
+  commit(d => setResumePhoto(d.record, d.cur, { show: on }), on ? t('undo.showPhoto') : t('undo.hidePhoto'));
 }
 // A picture dropped on the page asks what it is for: this resume's photo, or only the record's
 export function askPhoto(file){

@@ -581,6 +581,7 @@ function dropFacts(model, ids, recipes = []){
       for (const id of drop){ if (o.picks) delete o.picks[id]; if (o.overrides) delete o.overrides[id]; }
       if (o.held) o.held = o.held.filter(x => !drop.has(x));
     }
+    if (r.locked){ r.locked = r.locked.filter(x => !drop.has(x)); if (!r.locked.length) delete r.locked; }      // a claim that is gone has nothing to hold
     if (r.terms){ for (const id of drop) delete r.terms[id]; if (!Object.keys(r.terms).length) delete r.terms; }
     for (const k of ['off', 'keep', 'held']) if (Array.isArray(r[k])){ r[k] = r[k].filter(x => !drop.has(x)); if (!r[k].length) delete r[k]; }
     // a line only on this resume that followed a dropped bullet follows the bullet before it, not the job's end

@@ -352,6 +352,7 @@ export function loadResume(file, model = null){
   cleanLocal(recipe, model, warnings);
   cleanArrangement(recipe, warnings);
   cleanTerms(recipe, warnings);
+  cleanLocked(recipe, warnings);
   const snaps = readSnapshots(rb.snapshots, warnings);
   if (snaps.length) recipe.snapshots = snaps;
   return { recipe, frozen, warnings };
@@ -385,6 +386,14 @@ function cleanArrangement(recipe, warnings){
     .map(({ label, ...g }) => (typeof label === 'string' ? { ...g, label } : g));
   if (groups.length !== a.groups.length) warnings.push('skillArrangement had a group without an id of its own or a list of skills; it was dropped');
   recipe.skillArrangement = { ...a, groups };
+}
+
+// recipe.locked is a list of ids; an id that matches nothing is harmless, anything that is not a string is dropped.
+function cleanLocked(recipe, warnings){
+  if (recipe.locked === undefined) return;
+  const ids = Array.isArray(recipe.locked) ? [...new Set(recipe.locked.filter(x => typeof x === 'string' && x))] : [];
+  if (!Array.isArray(recipe.locked) || ids.length !== recipe.locked.length) warnings.push('locked had something that is not an id; it was dropped');
+  if (ids.length) recipe.locked = ids; else delete recipe.locked;
 }
 
 // recipe.terms = { factId: { lang: name } } is read from a file anyone can edit: anything else is dropped, so setTerm never spreads a string into keys.

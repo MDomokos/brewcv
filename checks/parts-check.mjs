@@ -94,11 +94,11 @@ async function resumeSnapshot(){
     u.edit.startEdit('edit');   view(sel, 'many-editor-edit');   u.edit.cancelEdit();
     u.edit.startEdit('new');    view(sel, 'many-editor-new');    u.edit.cancelEdit();
     u.edit.startEdit('edit');
-    u.store.commit(d => T.setOverride(d.cur, many, 'Written for this resume only.'), 'seed');
+    u.store.commit(d => T.setOverride(d.record, d.cur, many, 'Written for this resume only.'), 'seed');
     u.edit.cancelEdit();
     view(sel, 'many-override');
     u.edit.startEdit();         view(sel, 'many-override-editor'); u.edit.cancelEdit();
-    u.store.commit(d => T.setOverride(d.cur, many, null), 'seed');
+    u.store.commit(d => T.setOverride(d.record, d.cur, many, null), 'seed');
     u.store.commit(d => T.setKeep(d.record, d.cur, many, true), 'seed');
     view(sel, 'many-kept');
     const using = u.ctx.chooseVariant(u.work(), many, u.cur()).v;
@@ -187,7 +187,7 @@ section('leaving a line keeps it on this resume (UX-6c): an edit with its base a
   ok('the base version’s own words again drop the edit: nothing is stored', !T.overrideOf(u.cur(), id) && !(id in (u.cur().overrides ?? {})) && !(id in (u.cur().overrideMeta ?? {})));
   u.edit.startEdit(); u.edit.draftChanged('Kept, then set aside.'); await u.edit.cancelEdit();
   const other = R.versionsIn(u.work(), id, 'en').find(v => v.id !== base.id);
-  u.store.commit(d => T.pickVersion(d.cur, id, other.id), 'pick');
+  u.store.commit(d => T.pickVersion(d.record, d.cur, id, other.id), 'pick');
   ok('a version picked over the edit sets it aside (parked), and the versions list offers it back', T.overrideOf(u.cur(), id)?.on === false && String(u.edit.bulletView(u.ui.sel)).includes('data-act="use-edit"'));
   await u.click('use-edit');
   ok('…picking the edit puts it back', T.overrideOf(u.cur(), id)?.on === true && T.overrideOf(u.cur(), id)?.text === 'Kept, then set aside.');

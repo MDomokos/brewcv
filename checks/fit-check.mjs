@@ -251,6 +251,21 @@ section('off and keep');
   ok('…naming the fact', c.report.shortfall.some(s => s.direction === 'pin' && /hydra-suppliers/.test(s.text)));
 }
 
+section('a locked line: Fit never drops it or changes its words');
+{
+  // the squeeze drops bullets from the first jobs; a lock is a kept line that cannot be switched off, derived from `locked`
+  const squeeze = { geometry: { usable: 500, lineH: 18.41 }, furniture: 6.7, add: true, quiet: true };
+  const listed = (r, job) => { const ref = r.recipe.pages.flat().filter(x => x.work).flatMap(x => x.work).find(x => (x.id ?? x) === job); return ref?.highlights ?? G.work.find(w => w.id === job).highlights; };
+  const control = await run('control: no lock, the squeeze drops bullets from the first job', G, full, squeeze);
+  const locked = await run('a locked job keeps every bullet through the same squeeze', G, { ...full, locked: ['hydra'] }, squeeze);
+  ok('without the lock the job loses a bullet, with it none', listed(control, 'hydra').length < G.work.find(w => w.id === 'hydra').highlights.length && listed(locked, 'hydra').length === G.work.find(w => w.id === 'hydra').highlights.length,
+     JSON.stringify([listed(control, 'hydra'), listed(locked, 'hydra')]));
+  const page = await run('a locked page keeps every job whole', G, { ...full, locked: ['~page'] }, squeeze);
+  ok('…and no phrasing changed', JSON.stringify(page.recipe.picks) === JSON.stringify(full.picks) && ['hydra', 'orbit', 'nova', 'poly', 'free'].every(j => listed(page, j).length === G.work.find(w => w.id === j).highlights.length));
+  const one = await run('one locked bullet is kept where the others are cut', G, { ...full, locked: ['hydra-testing'] }, squeeze);
+  ok('…and its words are the ones it had', listed(one, 'hydra').includes('hydra-testing') && chosen(G, one.recipe, 'hydra-testing').id === chosen(G, full, 'hydra-testing').id);
+}
+
 section('a decoy: the shortest phrasings are Hungarian');
 {
   const r = await run('Fit never takes a Hungarian phrasing in an English recipe', G, full,

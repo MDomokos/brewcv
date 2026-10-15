@@ -74,33 +74,33 @@ section('addVersion: marks and source');
 section('overrides: meta, parking');
 {
   const r = { picks: {}, overrides: {} };
-  T.setOverride(r, 'f', 'Plain');
+  T.setOverride(model, r, 'f', 'Plain');
   ok('the old call leaves no meta behind', eq(r, { picks: {}, overrides: { f: 'Plain' } }));
-  T.setOverride(r, 'f', 'Edited text', { marks: [{ start: 0, end: 6 }], base: 'f-v1' });
+  T.setOverride(model, r, 'f', 'Edited text', { marks: [{ start: 0, end: 6 }], base: 'f-v1' });
   ok('an override keeps its marks and base version', eq(r.overrideMeta.f, { marks: [{ start: 0, end: 6 }], base: 'f-v1' }) && r.overrides.f === 'Edited text');
-  T.setOverride(r, 'f', 'Text only');
+  T.setOverride(model, r, 'f', 'Text only');
   ok('a text-only call drops the old meta', !('f' in r.overrideMeta) && r.overrides.f === 'Text only');
-  T.setOverride(r, 'f', 'Edited text', { marks: [{ start: 0, end: 6 }], base: 'f-v1' });
-  T.setOverride(r, 'f', 'Edited again', { marks: [] });
+  T.setOverride(model, r, 'f', 'Edited text', { marks: [{ start: 0, end: 6 }], base: 'f-v1' });
+  T.setOverride(model, r, 'f', 'Edited again', { marks: [] });
   ok('the base survives a second edit', r.overrideMeta.f.base === 'f-v1');
   ok('overrideOf says it is on', T.overrideOf(r, 'f').on === true && T.overrideOf(r, 'f').base === 'f-v1' && T.overrideOf(r, 'g') === null);
-  T.parkOverride(r, 'f');
+  T.parkOverride(model, r, 'f');
   ok('parked: not an override any more, but kept', !('f' in r.overrides) && !r.overrideMeta.f && r.parked.f.text === 'Edited again' && T.overrideOf(r, 'f').on === false);
-  T.unparkOverride(r, 'f');
+  T.unparkOverride(model, r, 'f');
   ok('unparked: back, with its meta, and no longer parked', r.overrides.f === 'Edited again' && r.overrideMeta.f.base === 'f-v1' && !r.parked.f);
-  T.parkOverride(r, 'nothing');
+  T.parkOverride(model, r, 'nothing');
   ok('parking what is not an override does nothing', !('nothing' in (r.parked ?? {})));
-  T.pickVersion(r, 'f', 'f-v2');
+  T.pickVersion(model, r, 'f', 'f-v2');
   ok('picking a version parks the edit', r.picks.f === 'f-v2' && !('f' in r.overrides) && r.parked.f.text === 'Edited again');
-  T.dropOverride(r, 'f');
+  T.dropOverride(model, r, 'f');
   ok('drop forgets it wherever it is', !r.parked?.f && !('f' in (r.overrides ?? {})) && T.overrideOf(r, 'f') === null);
-  T.setOverride(r, 'f', 'Again', { marks: [] }); T.setOverride(r, 'g', 'Other', { marks: [] });
+  T.setOverride(model, r, 'f', 'Again', { marks: [] }); T.setOverride(model, r, 'g', 'Other', { marks: [] });
   ok('both are pending', eq(T.pendingEdits(r), ['f', 'g']));
   T.keepHere(r, 'f');
   ok('kept here leaves the pending list, and the edit stays', eq(T.pendingEdits(r), ['g']) && r.overrides.f === 'Again' && r.overrideMeta.f.kept === true);
   T.keepHere(r, 'h');
   ok('keeping an edit with no meta does not throw', r.overrideMeta.h.kept === true);
-  T.setOverride(r, 'g', '');
+  T.setOverride(model, r, 'g', '');
   ok('clearing the text clears the meta', !('g' in r.overrides) && !r.overrideMeta.g);
 }
 
@@ -163,9 +163,9 @@ section('skill sets: per language, falling back to English');
 section('photo');
 {
   const r = {};
-  T.setPhoto(r, { show: true });
+  T.setPhoto(model, r, { show: true });
   ok('setPhoto fills in the shape', eq(r.photo, { show: true, shape: 'rect' }));
-  T.setPhoto(r, { shape: 'round' });
+  T.setPhoto(model, r, { shape: 'round' });
   ok('and merges', eq(r.photo, { show: true, shape: 'round' }));
   const m = clone(model); T.setRecordPhoto(m, 'photo-one');
   ok('setRecordPhoto sets the record\'s photo', m.basics.image === 'photo-one');
@@ -210,14 +210,14 @@ section('the saved-resume file: new keys round trip, old files open, nothing pri
   const rc = clone(S.loadResume(read(`data/example-resumes/${names[0]}`), model).recipe);
   const plain = clone(rc);
   const f = model.facts.find(x => x.work);
-  T.setOverride(rc, f.id, 'An edit', { marks: [{ start: 0, end: 2 }], base: f.variants[0] });
-  T.parkOverride(rc, f.id);
+  T.setOverride(model, rc, f.id, 'An edit', { marks: [{ start: 0, end: 2 }], base: f.variants[0] });
+  T.parkOverride(model, rc, f.id);
   T.setArrangement(rc, { from: 'Prototyping', groups: [{ id: 'skills-cad', items: ['CAD'] }] });
   rc.parent = 'Some other.json';
   const { file } = S.saveResume(model, rc);
   const back = S.loadResume(JSON.parse(JSON.stringify(file)), model);
   ok('parent, parked, overrideMeta and skillArrangement come back as saved, with no warnings', back.warnings.length === 0 && eq(back.recipe.parked, rc.parked) && eq(back.recipe.skillArrangement, rc.skillArrangement) && back.recipe.parent === rc.parent);
-  const edited = clone(rc); T.unparkOverride(edited, f.id);
+  const edited = clone(rc); T.unparkOverride(model, edited, f.id);
   ok('overrideMeta is carried', eq(S.loadResume(JSON.parse(JSON.stringify(S.saveResume(model, edited).file)), model).recipe.overrideMeta, edited.overrideMeta));
   const old = S.saveResume(model, plain).file;
   ok('a file without the keys opens with no warnings', S.loadResume(JSON.parse(JSON.stringify(old)), model).warnings.length === 0 && !JSON.stringify(old).includes('overrideMeta') && !JSON.stringify(old).includes('"parent"'));
@@ -239,8 +239,8 @@ section('a line that exists only on this resume');
   ok('…empty, with a place for its text and highlights', rc.overrides[a] === '' && eq(rc.overrideMeta[a], { marks: [], base: null }));
   const b = T.addLocalLine(model, rc, job, null);
   ok('another is unique in the recipe, and null puts it first', b === '~new-2' && T.listedBullets(model, rc, job)[0] === b);
-  T.setOverride(rc, a, 'Piloted the bench trial', { marks: [{ start: 12, end: 17 }], base: null });
-  T.setOverride(rc, b, 'Ran the first build', { marks: [], base: null });
+  T.setOverride(model, rc, a, 'Piloted the bench trial', { marks: [{ start: 12, end: 17 }], base: null });
+  T.setOverride(model, rc, b, 'Ran the first build', { marks: [], base: null });
   const page = html(rc);
   ok('it prints as a bullet of its job, with its highlights', /<li[^>]*>Piloted the <span[^>]*>bench<\/span> trial<\/li>/.test(page));
   const at = txt => page.indexOf(txt.slice(0, 15));
@@ -277,15 +277,15 @@ section('a line that exists only on this resume');
   ok('the JSON Resume file leaves it out, and the pre-flight list says why', !JSON.stringify(jr.file).includes('bench trial') && jr.problems.some(p => /exists only on this resume/.test(p) && /left out of an ATS export/.test(p)));
   const txt = X.plainText(T.resolve(model, rc).body);
   ok('the text export prints it', txt.includes('- Piloted the bench trial'));
-  ok('resolve names a record override as before', (() => { const r2 = mk(); T.setOverride(r2, first[0], 'x'); return T.resolve(model, r2).problems.some(p => /overrides hydra-inhaler with one-off text/.test(p)); })());
+  ok('resolve names a record override as before', (() => { const r2 = mk(); T.setOverride(model, r2, first[0], 'x'); return T.resolve(model, r2).problems.some(p => /overrides hydra-inhaler with one-off text/.test(p)); })());
 
   // remove
   const gone = clone(rc);
-  T.removeLocalLine(gone, b);
+  T.removeLocalLine(model, gone, b);
   ok('removing takes the line, its text and its place', !T.isLocal(gone, b) && !(b in gone.overrides) && !(b in (gone.overrideMeta ?? {})) && !T.listedBullets(model, gone, job).includes(b) && T.isLocal(gone, a));
-  T.removeLocalLine(gone, a);
+  T.removeLocalLine(model, gone, a);
   ok('the last one takes the key too', gone.localLines === undefined && eq(T.listedBullets(model, gone, job), first));
-  const emptied = clone(rc); T.setOverride(emptied, a, '');
+  const emptied = clone(rc); T.setOverride(model, emptied, a, '');
   ok('emptying its text removes the line', !T.isLocal(emptied, a));
 
   // saved resume, the one file, copies
@@ -305,7 +305,7 @@ section('a line that exists only on this resume');
   const kept = RS.snapshotsOf(RS.savedOf(st, id0)).find(x => x.id === snap.id);
   ok('a snapshot keeps it', eq(kept.recipe.localLines, rc.localLines) && JSON.stringify(kept.body).includes('Piloted the bench trial'));
   const before = JSON.stringify(kept);
-  T.removeLocalLine(st.cur, a); RS.settle(st);
+  T.removeLocalLine(model, st.cur, a); RS.settle(st);
   ok('and removing it from the resume never changes the snapshot', JSON.stringify(RS.snapshotsOf(RS.savedOf(st, id0)).find(x => x.id === snap.id)) === before);
 
   // the language: the line stays as typed and is listed as untranslated
@@ -313,18 +313,18 @@ section('a line that exists only on this resume');
   L.switchLang(hu, 'hu');
   ok('switching language keeps the line, as typed', hu.overrides[a] === 'Piloted the bench trial' && T.listedBullets(model, hu, job).includes(a));
   ok('and lists it as a text with no version in that language', L.missingList(model, hu).some(m => m.id === a));
-  const there = clone(hu); T.setOverride(there, a, 'Vezette a padi próbát');
+  const there = clone(hu); T.setOverride(model, there, a, 'Vezette a padi próbát');
   L.switchLang(there, 'en');
   ok('the line is the same one back in English; a record edit of the other language is unaffected', there.overrides[a] === 'Vezette a padi próbát' && !L.missingList(model, there).some(m => m.id === a));
   const typedHu = clone(plain); typedHu.lang = 'hu'; const c = T.addLocalLine(model, typedHu, job, null);
-  T.setOverride(typedHu, c, 'Vezette a próbát');
+  T.setOverride(model, typedHu, c, 'Vezette a próbát');
   ok('a line typed in a language is not listed in that language, and is in another', !L.missingList(model, typedHu).some(m => m.id === c) && L.missingList(model, { ...typedHu, lang: 'de' }).some(m => m.id === c));
 
   // undo, through the store
   const store = createStore({ record: clone(model), cur: mk() });
   let id;
   store.commit(d => { id = T.addLocalLine(d.record, d.cur, job, T.listedBullets(d.record, d.cur, job).at(-1)); }, 'add a line');
-  store.commit(d => { T.setOverride(d.cur, id, 'Typed once', { marks: [], base: null }); }, 'edit');
+  store.commit(d => { T.setOverride(model, d.cur, id, 'Typed once', { marks: [], base: null }); }, 'edit');
   ok('the store has the line', T.isLocal(store.state.cur, id) && store.state.cur.overrides[id] === 'Typed once');
   store.undo(); store.undo();
   ok('undo takes it back out', !T.isLocal(store.state.cur, id) && store.state.cur.localLines === undefined);
@@ -365,23 +365,23 @@ section('a line only on this resume: empty, language, add and remove, anchors, s
   ok('an empty line prints nowhere: no extra bullet in the page or the PDF', lis(html(rc)) === lis(html(plain)) && html(rc) === html(plain));
   ok('…nor in the body, the printed facts or the frozen body', eq(T.resolve(model, rc).body.work, T.resolve(model, plain).body.work) && !T.printedFacts(model, rc).work.some(w => w.highlights.some(h => h.fact === a)) && (({ meta: _, ...b }) => !JSON.stringify(b).includes('~new-1'))(S.saveResume(model, rc).file));
   ok('…but the page being written and the lists keep it', lis(html(rc, { annotate: true })) === lis(html(plain)) + 1 && T.listedBullets(model, rc, job).includes(a));
-  const full = clone(rc); T.setOverride(full, a, 'x', { marks: [], base: null });
+  const full = clone(rc); T.setOverride(model, full, a, 'x', { marks: [], base: null });
   ok('with a word in it, it prints', lis(html(full)) === lis(html(plain)) + 1);
-  const lines = clone(rc), a2 = T.addLocalLine(model, lines, job, a); T.setOverride(lines, a2, 'second', { marks: [], base: null });
+  const lines = clone(rc), a2 = T.addLocalLine(model, lines, job, a); T.setOverride(model, lines, a2, 'second', { marks: [], base: null });
   ok('a line after an empty one keeps its place', T.resolve(model, lines).body.work[0].highlights.at(-1) === 'second');
 
   const x = clone(plain), id = T.addLocalLine(model, x, job, null);
-  T.setOverride(x, id, 'Typed', { marks: [], base: null });
+  T.setOverride(model, x, id, 'Typed', { marks: [], base: null });
   L.switchLang(x, 'hu'); const flagged = L.missingList(model, x).some(m => m.id === id);
-  T.setOverride(x, id, 'Gépelt', { marks: [], base: null }); const cleared = !L.missingList(model, x).some(m => m.id === id);
+  T.setOverride(model, x, id, 'Gépelt', { marks: [], base: null }); const cleared = !L.missingList(model, x).some(m => m.id === id);
   const xen = clone(x); L.switchLang(xen, 'en');      // the Review list is empty in English by design; the line keeps the language it was typed in
   ok('retyping a line in another language clears its flag, and it is flagged in a third', flagged && cleared && xen.localLines[job][0].lang === 'hu' && L.missingList(model, { ...x, lang: 'de' }).some(m => m.id === id));
 
   let same = 0;
   for (const n of names){
     const r = mk(n), was = JSON.stringify(r), j = model.work.find(w => T.listedBullets(model, r, w.id).length)?.id ?? job;
-    const i1 = T.addLocalLine(model, r, j, null); T.removeLocalLine(r, i1);
-    const i2 = T.addLocalLine(model, r, j, null); T.setOverride(r, i2, '');
+    const i1 = T.addLocalLine(model, r, j, null); T.removeLocalLine(model, r, i1);
+    const i2 = T.addLocalLine(model, r, j, null); T.setOverride(model, r, i2, '');
     if (JSON.stringify(r) === was) same++;
   }
   ok('add then remove leaves every example resume byte-identical', same === names.length && names.length > 10, `${same} of ${names.length}`);
@@ -402,7 +402,7 @@ section('a line only on this resume: empty, language, add and remove, anchors, s
 
   // a job over page slots
   const r5 = clone(plain), lb = T.listedBullets(model, r5, job), b5 = T.addLocalLine(model, r5, job, lb[1]);
-  T.setOverride(r5, b5, 'LOCALXYZ', { marks: [], base: null });
+  T.setOverride(model, r5, b5, 'LOCALXYZ', { marks: [], base: null });
   const slot = h => [{ id: 'experience', work: [{ id: job, highlights: h }] }];
   r5.pages = [slot([lb[0], lb[1]]), slot([lb[2], lb[3]])]; delete r5.pageLimit;
   const count = r => (html(r).match(/LOCALXYZ/g) ?? []).length;
@@ -424,10 +424,10 @@ section('a line only on this resume: empty, language, add and remove, anchors, s
   // compare
   const ca = clone(plain), cb = clone(plain), j2 = model.work[1].id;
   const t1 = T.addLocalLine(model, ca, job, null), t2 = T.addLocalLine(model, cb, job, null), t3 = T.addLocalLine(model, cb, j2, null);
-  for (const [r, i] of [[ca, t1], [cb, t2], [cb, t3]]) T.setOverride(r, i, 'Same words', { marks: [], base: null });
+  for (const [r, i] of [[ca, t1], [cb, t2], [cb, t3]]) T.setOverride(model, r, i, 'Same words', { marks: [], base: null });
   const rows = RS.compareRows(model, ca, cb).filter(r => r.kind === 'claim' && r.label === 'Same words');
   ok('compare treats the same words in the same job as one claim, and in another job as another', rows.length === 2 && rows.filter(r => !r.differs).length === 1, JSON.stringify(rows.map(r => r.differs)));
-  const cc = clone(plain); T.setOverride(cc, T.addLocalLine(model, cc, j2, null), 'Same words', { marks: [], base: null });
+  const cc = clone(plain); T.setOverride(model, cc, T.addLocalLine(model, cc, j2, null), 'Same words', { marks: [], base: null });
   const other = RS.compareRows(model, ca, cc).filter(r => r.kind === 'claim' && r.label === 'Same words');
   ok('the same id in two resumes, on different jobs, is two claims that differ', other.length === 2 && other.every(r => r.differs));
 }
@@ -514,7 +514,7 @@ section('an edited contact line keeps the links whose words it still has');
 {
   const m = clone(model), html = r => renderPages(m, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
   const rc = clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe);
-  T.setOverride(rc, 'contact', 'Lisbon  ·  dana@example.org  ·  +351 900 000 000', { marks: [], base: 'contact-v1' });
+  T.setOverride(model, rc, 'contact', 'Lisbon  ·  dana@example.org  ·  +351 900 000 000', { marks: [], base: 'contact-v1' });
   const page = html(rc);
   ok('the link whose words are still there stays, re-anchored; the one whose words went is dropped, with a warning', page.includes('<a href="mailto:dana@example.org">dana@example.org</a>') && !page.includes('https://danaokonkwo.example') && T.resolve(m, rc).problems.some(x => x.includes('dropped the link to https://danaokonkwo.example')) && !T.resolve(m, rc).problems.some(x => x.includes('dropped the link to mailto')));
 }
@@ -525,11 +525,11 @@ section('every printed text can be written on the resume: an edit with its base 
   const baseOf = id => m.facts.find(f => f.id === id).variants.map(v => m.variants.find(x => x.id === v)).find(v => (v.lang ?? 'en') === 'en').id;
   // the header, a job's title and dates, education's three fields, patent, a certificate, a language's level, an interest
   const ids = ['tagline', 'name', 'contact', 'hydra-position', 'hydra-meta', 'edu-degree', 'edu-school', 'edu-meta', 'patent-title', 'patent-meta', 'cert-gdt', 'lang-portuguese', 'interest-sailing'];
-  ids.forEach((id, n) => T.setOverride(rc, id, `Edited ${n}`, { marks: [], base: baseOf(id) }));
+  ids.forEach((id, n) => T.setOverride(model, rc, id, `Edited ${n}`, { marks: [], base: baseOf(id) }));
   const printed = page(rc);
   ok('each of them prints as an edit, on the page the app draws and in what is sent', ids.every((id, n) => printed.includes(`data-variant="${id}-override"`) && printed.includes(`Edited ${n}`)));
   ok('each is on the Review list (pendingEdits) with its base version and its marks, so UX-6d can offer it as a version', eq(T.pendingEdits(rc).sort(), [...ids].sort()) && ids.every(id => rc.overrideMeta[id].base === baseOf(id) && Array.isArray(rc.overrideMeta[id].marks)));
-  ok('an edit equal to its base drops, and the resume is as it was', (() => { const r2 = clone(rc); for (const id of ids) T.dropOverride(r2, id); return !r2.overrides || !Object.keys(r2.overrides).length; })());
+  ok('an edit equal to its base drops, and the resume is as it was', (() => { const r2 = clone(rc); for (const id of ids) T.dropOverride(model, r2, id); return !r2.overrides || !Object.keys(r2.overrides).length; })());
   // a heading: the existing per-language label
   const r3 = clone(S.loadResume(read('data/example-resumes/Medtech Lisboa - Mechanical Engineer.json'), m).recipe), before = JSON.stringify(r3);
   T.setLabel(m, r3, '~h:education', 'en', 'Study');
@@ -559,10 +559,178 @@ section('UX-6c-iii-a fixes: line breaks, hand-edited names, dropped facts, edits
   K.deleteItem(clone(model), 'languages', 'lang-portuguese', [r]);
   ok('dropping a fact leaves no name for it in terms', !('terms' in r), JSON.stringify(r.terms));
   const e = T.newResume(model, {});
-  T.setOverride(e, 'edu-degree', 'English words', { marks: [], base: 'edu-degree-v1' });
-  L.switchLang(e, 'hu'); T.setOverride(e, 'edu-degree', 'Magyar', { marks: [], base: 'other' });
+  T.setOverride(model, e, 'edu-degree', 'English words', { marks: [], base: 'edu-degree-v1' });
+  L.switchLang(e, 'hu'); T.setOverride(model, e, 'edu-degree', 'Magyar', { marks: [], base: 'other' });
   L.switchLang(e, 'en');
   ok('an edit keeps its base and marks per language', e.overrides['edu-degree'] === 'English words' && e.overrideMeta['edu-degree'].base === 'edu-degree-v1', JSON.stringify(e.overrideMeta));
+}
+section('UX-6c-iii-b: the lock');
+{
+  const LK = await import('../src/model/lock.js');
+  const F = await import('../src/model/focus.js');
+  const lockedErr = fn => { try { fn(); return false; } catch (e){ return e instanceof LK.LockedError; } };
+  const withLock = (r, ...ids) => { const c = clone(r); for (const id of ids) LK.setLocked(c, id, true); return c; };
+  const base = T.newResume(model, {});
+  const job = 'hydra', line = 'hydra-inhaler', other = 'poly', otherLine = model.work.find(w => w.id === other).highlights[0];
+  const nobody = clone(base); delete nobody.locked;
+
+  // isLocked walks up the ancestors, and only up
+  const lk = (r, id) => LK.isLocked(model, r, id);
+  const every = (r, ids) => ids.every(id => lk(r, id)), none = (r, ids) => ids.every(id => !lk(r, id));
+  const rl = clone(base); const added = T.addLocalLine(model, rl, job, line);
+  ok('nothing is locked by default', none(base, [line, job, 'experience', LK.PAGE, '~h:experience', 'name']) && !('locked' in base));
+  ok('a locked line locks that line only', every(withLock(rl, line), [line]) && none(withLock(rl, line), [job, 'hydra-testing', otherLine, 'experience']));
+  ok('a locked job locks its bullets, title, date line and local lines, not another job', every(withLock(rl, job), [job, line, 'hydra-position', 'hydra-meta', added]) && none(withLock(rl, job), [other, otherLine, 'experience', '~h:experience']));
+  ok('a locked section locks its heading, jobs and bullets', every(withLock(rl, 'experience'), ['experience', '~h:experience', job, line, 'hydra-position', added, other, otherLine]) && none(withLock(rl, 'experience'), ['skills', 'skills-cad', 'name']));
+  ok('a locked heading locks the heading only', every(withLock(rl, '~h:experience'), ['~h:experience']) && none(withLock(rl, '~h:experience'), ['experience', job, line]));
+  ok('a locked list section locks its items and their names; a locked name locks that name', every(withLock(rl, 'languages'), ['lang-portuguese', '~t:lang-portuguese', '~h:languages']) && lk(withLock(rl, '~t:lang-portuguese'), '~t:lang-portuguese') && !lk(withLock(rl, '~t:lang-portuguese'), 'lang-english'));
+  ok('a locked skills section locks its groups and the groups made on the page', every(withLock(rl, 'skills'), ['skills-cad', '~sg-1', '~h:skills']) && none(withLock(rl, 'skills'), ['experience']));
+  ok('a locked skill group locks that group', lk(withLock(rl, 'skills-cad'), 'skills-cad') && !lk(withLock(rl, 'skills-cad'), 'skills-software'));
+  ok('the header locks its parts and the photo', every(withLock(rl, 'header'), ['name', 'tagline', 'contact', 'photo']) && lk(withLock(rl, 'name'), 'name') && !lk(withLock(rl, 'name'), 'contact'));
+  ok('an item section (education) locks its fields', every(withLock(rl, 'education'), ['edu-degree', 'edu-school', 'edu-meta']) && !lk(withLock(rl, 'edu-degree'), 'edu-school'));
+  ok('the page lock locks everything, even an id it has never heard of', every(withLock(rl, LK.PAGE), [line, job, 'experience', '~h:skills', 'name', 'photo', added, 'no-such-id']));
+  ok('lockedBy names the lock that holds a child', LK.lockedBy(model, withLock(rl, job), line) === job && LK.lockedBy(model, withLock(rl, job), other) === null);
+  const un = withLock(rl, line); LK.setLocked(un, line, false);
+  ok('unlocking the last lock leaves no key at all', !('locked' in un) && JSON.stringify(un) === JSON.stringify(rl));
+
+  // every function that changes locked content or its place refuses and leaves the recipe as it was; the same call on an unlocked one works
+  const jobs = model.work.map(w => w.id), itemOf = 'cert-gdt', sec = 'certified';
+  const calls = {
+    setOverride: [line, r => T.setOverride(model, r, line, 'Typed', { marks: [], base: null })],
+    'setOverride (header)': ['name', r => T.setOverride(model, r, 'name', 'Typed', { marks: [], base: null })],
+    dropOverride: [line, r => T.dropOverride(model, r, line)],
+    parkOverride: [line, r => T.parkOverride(model, r, line)],
+    unparkOverride: [line, r => T.unparkOverride(model, r, line)],
+    pickVersion: [line, r => T.pickVersion(model, r, line, model.facts.find(f => f.id === line).variants[0])],
+    setBulletOn: [line, r => T.setBulletOn(model, r, line, false)],
+    setKeep: [line, r => T.setKeep(model, r, line, true)],
+    moveBullet: [line, r => T.moveBullet(model, r, line, null)],
+    stepBullet: [line, r => T.stepBullet(model, r, line, 1)],
+    setJobOn: [job, r => T.setJobOn(model, r, job, false)],
+    moveEntry: [job, r => T.moveEntry(model, r, job, null)],
+    stepEntry: [job, r => T.stepEntry(model, r, job, 1)],
+    moveSection: ['skills', r => T.moveSection(model, r, 'skills', null)],
+    stepSection: ['skills', r => T.stepSection(model, r, 'skills', 1)],
+    setSectionOn: ['skills', r => T.setSectionOn(model, r, 'skills', false)],
+    moveItem: [itemOf, r => T.moveItem(model, r, sec, itemOf, null)],
+    stepItem: [itemOf, r => T.stepItem(model, r, sec, itemOf, -1)],
+    setItemOn: [itemOf, r => T.setItemOn(model, r, itemOf, false)],
+    setLabel: ['~h:education', r => T.setLabel(model, r, '~h:education', 'en', 'Studies')],
+    'setLabel (a name)': ['~t:lang-portuguese', r => T.setLabel(model, r, '~t:lang-portuguese', 'en', 'Luso')],
+    setSectionLabel: ['~h:education', r => T.setSectionLabel(model, r, 'education', 'en', 'Studies')],
+    addLocalLine: [job, r => T.addLocalLine(model, r, job, null)],
+    removeLocalLine: ['~new-1', r => T.removeLocalLine(model, r, '~new-1')],
+    writeGroup: ['skills-cad', r => T.writeGroup(model, r, 'skills-cad', 'CAD, FEA')],
+    addSkillGroup: ['skills', r => T.addSkillGroup(model, r, null)],
+    moveSkillGroup: ['skills-cad', r => T.moveSkillGroup(model, r, 'skills-cad', null)],
+    moveSkill: ['skills-cad', r => T.moveSkill(model, r, 'skills-cad', 0, 'skills-software', 0)],
+    applySet: ['skills', r => T.applySet(model, r, Object.keys(model.skillSets ?? { x: 1 })[0] === 'x' ? 'x' : Object.keys(model.skillSets)[0])],
+    setPhoto: ['header', r => T.setPhoto(model, r, { show: true })],
+    acceptNewer: [line, r => RS.acceptNewer(r, line, model)],
+  };
+  const sets = { ...model, skillSets: { Demo: { en: [{ id: 'skills-cad', items: ['CAD'] }] } } };
+  for (const [name, [id, fn]] of Object.entries(calls)){
+    const m0 = name === 'applySet' ? sets : model;
+    const run = r => (name === 'applySet' ? T.applySet(sets, r, 'Demo') : fn(r));
+    // the target locked directly, then by the nearest ancestor that is not the page
+    const prep = r => { if (name === 'removeLocalLine'){ r.localLines = { [job]: [{ id: '~new-1', after: null }] }; r.overrides = { '~new-1': 'x' }; } if (name === 'parkOverride') r.overrides = { [line]: 'x' }; if (name === 'acceptNewer') r.held = [line]; if (name === 'unparkOverride') r.parked = { [line]: { text: 'p', meta: {} } }; return r; };
+    const direct = prep(withLock(base, id)), page = prep(withLock(base, LK.PAGE)), free = prep(clone(nobody));
+    const before = JSON.stringify(direct), beforeP = JSON.stringify(page);
+    const refused = lockedErr(() => run(direct)) && JSON.stringify(direct) === before;
+    const refusedP = lockedErr(() => run(page)) && JSON.stringify(page) === beforeP;
+    let worked = true; try { run(free); } catch (e){ worked = false; console.log('   ', name, String(e)); }
+    ok(`${name}: refused when locked (the id itself, then the page), unchanged, and works when not`, refused && refusedP && worked, JSON.stringify([refused, refusedP, worked]));
+  }
+  ok('an ancestor locks it too: a locked job refuses its bullet and a locked section its job', lockedErr(() => T.setBulletOn(model, withLock(base, job), line, false)) && lockedErr(() => T.moveEntry(model, withLock(base, 'experience'), job, null)) && lockedErr(() => T.moveItem(model, withLock(base, sec), sec, itemOf, null)));
+  ok('an unlocked neighbour of a locked line still works', !lockedErr(() => T.setBulletOn(model, withLock(base, line), 'hydra-testing', false)) && !lockedErr(() => T.setOverride(model, withLock(base, line), otherLine, 'ok', { marks: [], base: null })));
+  ok('the refusal reads as a reason', (() => { try { T.setOverride(model, withLock(base, line), line, 'x'); } catch (e){ return e.key === 'ux6c.locked' && /Locked/.test(e.message); } })());
+  const hl = withLock(base, '~h:experience');
+  ok('a locked heading refuses its rename and "use this heading everywhere" skips it', lockedErr(() => T.setLabel(model, hl, '~h:experience', 'en', 'Work')) && (() => { const r = clone(base); T.setSectionLabel(model, r, 'experience', 'en', 'Work'); r.locked = ['~h:experience']; const m = clone(model); return T.useLabelEverywhere(m, r, 'experience', 'en') === false && r.sections.find(x => x.id === 'experience').label.en === 'Work' && m.sections.find(x => x.id === 'experience').title !== 'Work'; })());
+
+  // bulk functions skip locked content and report it
+  {
+    const jt = F.jobTypesOf(model)[0]?.id;
+    const open = clone(mk0());
+    function mk0(){ return S.loadResume(read(`data/example-resumes/${names[1]}`), model).recipe; }
+    const plan = F.planTag(model, clone(open), jt), pageLocked = withLock(open, LK.PAGE), plan2 = F.planTag(model, pageLocked, jt);
+    const applied = clone(pageLocked); F.applyTag(model, applied, jt);
+    ok('tag focus changes an unlocked resume (the control)', plan.on + plan.off + plan.sw > 0, JSON.stringify([jt, plan.on, plan.off, plan.sw]));
+    ok('tag focus on a locked page changes nothing and reports what it skipped', plan2.on + plan2.off + plan2.sw === 0 && plan2.locked > 0 && JSON.stringify(applied) === JSON.stringify(pageLocked), JSON.stringify([plan2.on, plan2.off, plan2.sw, plan2.locked]));
+  }
+  {
+    const r = clone(base); r.held = [line]; r.overrides = { ...r.overrides, [line]: 'older words' };
+    const live = T.chooseVariant(model, line, { ...r, overrides: {} }).v.text;
+    ok('newer wording is not offered for a locked line, and accepting it is refused', RS.newerOf(model, r).some(x => x.fact === line) === (live !== 'older words') && RS.newerOf(model, withLock(r, line)).every(x => x.fact !== line) && lockedErr(() => RS.acceptNewer(withLock(r, job), line, model)));
+    const kept = withLock(r, line); RS.keepOlder(kept, line);
+    ok('keeping the older words is still allowed (it changes no text)', kept.overrides[line] === 'older words' && !kept.held);
+  }
+  {
+    const e = clone(base); T.setOverride(model, e, line, 'English words', { marks: [], base: null }); const eLocked = withLock(e, job), eFree = clone(e);
+    L.switchLang(eLocked, 'hu', model); L.switchLang(eFree, 'hu', model);
+    ok('switching language: a locked line stays as typed, an unlocked edit goes with its language', eLocked.overrides?.[line] === 'English words' && eFree.overrides?.[line] === undefined, JSON.stringify([eLocked.overrides, eFree.overrides]));
+    const back = clone(eLocked); L.switchLang(back, 'en', model);
+    ok('…and comes back unchanged', back.overrides[line] === 'English words' && JSON.stringify(back.locked) === JSON.stringify(eLocked.locked));
+  }
+
+  // undo, duplicate, copy, snapshot, save and load
+  {
+    const store = createStore({ record: clone(model), cur: clone(base) });
+    store.commit(d => LK.setLocked(d.cur, line, true), 'lock');
+    ok('lock is one undo step', eq(store.state.cur.locked, [line]));
+    store.undo();
+    ok('…and undo takes the key away', !('locked' in store.state.cur));
+    store.redo(); store.commit(d => LK.setLocked(d.cur, line, false), 'unlock');
+    ok('unlock is one step too', !('locked' in store.state.cur));
+    store.undo();
+    ok('…and undo brings the lock back', eq(store.state.cur.locked, [line]));
+
+    const st = exampleState(); st.cur.locked = [line]; RS.settle(st);
+    const id0 = st.openId;
+    ok('saving keeps the lock', eq(RS.savedOf(st, id0).locked, [line]));
+    const dup = RS.duplicate(st, id0);
+    ok('a duplicate keeps the lock', eq(st.cur.locked, [line]) && eq(RS.savedOf(st, dup.id ?? st.openId).locked, [line]));
+    ok('a new resume started from a copy keeps the lock', eq(RS.startRecipe(st, { start: 'latest', fromId: id0 }).locked, [line]));
+    const snap = RS.takeSnapshot(Object.assign(st, { openId: id0, cur: clone(RS.savedOf(st, id0)) }), { company: 'Acme', role: 'Engineer' });
+    const had = JSON.stringify(RS.snapshotsOf(RS.savedOf(st, id0)).find(x => x.id === snap.id));
+    st.cur.locked = [line, job]; RS.settle(st);
+    ok('a sent copy keeps what it had and never changes', JSON.stringify(RS.snapshotsOf(RS.savedOf(st, id0)).find(x => x.id === snap.id)) === had && !had.includes(`"${job}"]`));
+    ok('a lock alone is not a change since the last send', (() => { const s2 = exampleState(); s2.cur.locked = [line]; const a = RS.printedKey(s2.cur, {}), b = RS.printedKey(Object.assign(clone(s2.cur), { locked: [line, job] }), {}); return a === b; })());
+
+    const { file } = S.saveResume(model, withLock(base, line, job));
+    const back = S.loadResume(JSON.parse(JSON.stringify(file)), model);
+    ok('a saved resume writes and reads the lock back, with no warnings', eq(back.recipe.locked, [line, job]) && back.warnings.length === 0);
+    ok('a resume with no lock saves with no locked key anywhere', !JSON.stringify(S.saveResume(model, nobody).file).includes('"locked"'));
+    const bad = clone(file); bad.meta.resumeBuilder.resume.locked = [line, 5, null, line, '', { a: 1 }];
+    const cleaned = S.loadResume(bad, model);
+    ok('a malformed locked list keeps the strings and warns', eq(cleaned.recipe.locked, [line]) && cleaned.warnings.some(w => /locked/.test(w)), JSON.stringify([cleaned.recipe.locked, cleaned.warnings]));
+    const worse = clone(file); worse.meta.resumeBuilder.resume.locked = 'hydra';
+    const gone = S.loadResume(worse, model);
+    ok('a locked that is not a list is dropped with a warning', !('locked' in gone.recipe) && gone.warnings.some(w => /locked/.test(w)));
+    const stray = clone(file); stray.meta.resumeBuilder.resume.locked = ['no-such-id'];
+    ok('an id that matches nothing is harmless', eq(S.loadResume(stray, model).recipe.locked, ['no-such-id']) && renderPages(model, S.loadResume(stray, model).recipe, createDocument(), { fallback: true }).pages.length > 0);
+    ok('nothing printed differs for a lock', renderPages(model, withLock(base, LK.PAGE), createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('') === renderPages(model, base, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('')
+      && JSON.stringify(T.resolve(model, withLock(base, LK.PAGE)).body) === JSON.stringify(T.resolve(model, base).body));
+    ok('dropping a claim from the record drops its lock', (() => { const r = withLock(base, 'lang-portuguese', job); K.deleteItem(clone(model), 'languages', 'lang-portuguese', [r]); return !(r.locked ?? []).includes('lang-portuguese') && (r.locked ?? []).includes(job); })());
+
+    // an older app (the commit before this one) opens the file, ignores the key and prints it as before
+    let tree = null;
+    try {
+      execFileSync('git', ['cat-file', '-e', 'd4189b1^{commit}'], { cwd: REPO, stdio: 'ignore' });
+      tree = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-old-'));
+      execFileSync('sh', ['-c', `git archive d4189b1 src scripts/lib | tar -x -C "${tree}"`], { cwd: REPO });
+    } catch { console.log('SKIP  the previous commit is not in this clone: the older app is not tried'); }
+    if (tree){
+      const O = await Promise.all(['src/model/schema.js', 'src/model/resume.js', 'src/render.js'].map(f => import(pathToFileURL(path.join(tree, f)).href)));
+      let err = null, out = '';
+      try {
+        const m = O[0].load(read('data/example.json')).model, o = O[0].loadResume(JSON.parse(JSON.stringify(file)), m);
+        O[1].resolve(m, o.recipe);
+        out = O[2].renderPages(m, o.recipe, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
+      } catch (e){ err = e; }
+      ok('the previous commit opens a file with a lock, ignores it, and prints it as before', !err && out === renderPages(model, back.recipe, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join(''), String(err));
+      fs.rmSync(tree, { recursive: true, force: true });
+    }
+  }
 }
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {

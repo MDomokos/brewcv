@@ -5,6 +5,7 @@
 import { entriesOf } from './model/entries.js';
 import { refusal } from './model/resume.js';
 import { isOmitted, hasBudget, weightOf, pinsOf } from './recipe.js';
+import { isLocked } from './model/lock.js';
 
 const LINE_CHARS = { 'us-letter': 84, a4: 73.5 };   // chars per line, measured
 
@@ -212,9 +213,20 @@ export function finalise(data, R){
   return out;
 }
 
+// A locked line is a kept one that nobody can switch off: its words stay and Fit never drops it (and adds nothing to a locked job).
+// It is derived from the lock, not stored in `keep`.
+function lockedPins(data, R){
+  const pins = pinsOf(R);
+  if (!R.locked?.length) return pins;
+  for (const f of data.facts ?? []) if (isLocked(data, R, f.id)) pins.phrasing.add(f.id);
+  for (const slots of R.pages ?? []) for (const slot of slots) for (const ref of slot.work ?? [])
+    for (const h of ref.highlights ?? []) if (isLocked(data, R, h) && !pins.exclude.has(h)) pins.include.add(h);
+  return pins;
+}
+
 function makeCtx(data, R, opts){
   const ix = index(data);
-  return { data, ix, k: key(R), lang: R.lang ?? 'en', pins: pinsOf(R), add: !!opts.add,
+  return { data, ix, k: key(R), lang: R.lang ?? 'en', pins: lockedPins(data, R), locked: id => isLocked(data, R, id), add: !!opts.add,
            pool: new Map(), floorJobs: new Set(), reach: new Set(), others: new Map(), trace: opts.trace ?? null };
 }
 
@@ -290,7 +302,7 @@ function* adds(ctx, R, ev, pi, si){
   if (!isEntries(ctx, slot)) return;
   for (const [order, ref] of slot.work.entries()){
     const w = ctx.ix.work.get(ref.id);
-    if (!w) continue;
+    if (!w || ctx.locked(ref.id)) continue;
     const listed = new Set(ref.highlights);
     const pool = ctx.add ? null : ctx.pool.get(slotKey(pi, si, ref.id));
     const next = w.highlights.find(h => !listed.has(h) && !ctx.ix.facts.get(h)?.archived && !ctx.pins.exclude.has(h) && !ev.claims.has(h) && (!pool || pool.has(h)));

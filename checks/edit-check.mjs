@@ -220,11 +220,11 @@ section('bullets on and off, keep, this resume only');
   ok('keep off', !T.keepOf(r).includes(b));
   ok('no pins key is ever written', !('pins' in r));
 
-  T.setOverride(r, b, 'Only on this one.');
+  T.setOverride(example, r, b, 'Only on this one.');
   ok('this resume only is an override', r.overrides[b] === 'Only on this one.' && render(m, r).includes('Only on this one.'));
-  T.setOverride(r, b, 'Only on this one.', { marks: [{ start: 8, end: 12 }], base: null });
+  T.setOverride(example, r, b, 'Only on this one.', { marks: [{ start: 8, end: 12 }], base: null });
   ok('an edit on this resume prints its highlights (UX-6c): the marked words are a mark on the page', /<span class="mark[^"]*"[^>]*>this<\/span>/.test(render(m, r)) && r.overrideMeta[b].marks.length === 1);
-  T.setOverride(r, b, null);
+  T.setOverride(example, r, b, null);
   ok('and removing it prints the version again', !render(m, r).includes('Only on this one.') && !('overrideMeta' in r && b in r.overrideMeta));
   ok('the resume validates', !errorsOf(m, r).length, errorsOf(m, r).join(' | '));
 }
@@ -562,7 +562,7 @@ section('on the page: a line written in place holds the text the old text box he
     R.addVersion(a, f.id, { text: typed, from: using.id, as: 'minor', lang: 'en' });
     R.addVersion(b, f.id, { text: plainOf(shapes(typed).divs), from: using.id, as: 'minor', lang: 'en' });
     const r1 = clone(resumes[0]), r2 = clone(resumes[0]);
-    T.setOverride(r1, f.id, typed); T.setOverride(r2, f.id, plainOf(shapes(typed).br));
+    T.setOverride(example, r1, f.id, typed); T.setOverride(example, r2, f.id, plainOf(shapes(typed).br));
     n2++;
     if (eq(a, b)) asNew++;
     if (eq(r1, r2)) only++;
