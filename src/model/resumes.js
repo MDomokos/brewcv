@@ -12,7 +12,7 @@
 //  - A snapshot is the open resume as it printed when Save was pressed, plus the sends (where and when it went).
 
 import { t, keyed } from '../i18n/index.js';
-import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal } from './resume.js';
+import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel } from './resume.js';
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang } from './lang.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
@@ -440,9 +440,28 @@ export function byCompany(resumes){
   return list.sort((a, b) => (a.key === '') - (b.key === '') || a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 }
 
-export function compareRows(model, a, b){
-  const ix = new Map((model.variants ?? []).map(v => [v.id, v]));
-  const facts = new Map((model.facts ?? []).map(f => [f.id, f]));
+// ---- compare: any number of resumes side by side ----
+
+// what a resume prints for a claim: an edit on this resume, or the version it picks
+function cellOf(model, r, factId){
+  if (r.overrides?.[factId] !== undefined){ const held = (r.held ?? []).includes(factId); return { label: held ? t('cmp.savedText') : t('edit.onlyHere'), text: String(r.overrides[factId]), edit: !held }; }
+  const v = chooseVariant(model, factId, r).v;
+  return v ? { label: `v${v.n}`, text: v.text, variant: v.id } : { label: '—', text: '' };
+}
+// the claims a resume prints, header lines first: a line only on one resume has an id of its own on each, so it is keyed by its job and
+// words, and is one claim when those are the same
+function claimsOf(model, r){
+  const p = printedFacts(model, r), header = Object.values(model.basics?.display ?? {}).filter(f => (model.facts ?? []).some(x => x.id === f));
+  return new Map([...header.map(f => [f, f]), p.summary && [p.summary.fact, p.summary.fact], ...p.work.flatMap(w => w.highlights.map(h => [isLocal(r, h.fact) ? `local:${w.job}:${h.text}` : h.fact, h.fact]))].filter(Boolean));
+}
+export const printedIds = (model, r) => [...claimsOf(model, r).keys()];
+const jobIdsOf = (model, r) => jobRefs(model, r).map(x => (typeof x === 'string' ? x : x.id));
+const jobName = (model, id) => (model.work ?? []).find(w => w.id === id)?.name ?? id;
+const skillNames = (model, r) => arrangementOf(model, r).groups.map(g => g.label ?? groupLabel(model, r, g.id)).join(', ');
+const claimLabel = (model, key, f, cells) => (model.facts ?? []).find(x => x.id === f)?.summary ?? (key.startsWith('local:') ? (cells.find(c => c.text)?.text ?? '').slice(0, 60) : f);
+
+// Rows for a table with a column per resume: the settings, then every claim any of them prints. `cells` has one entry per resume.
+export function compareMany(model, list){
   const pages = r => (r.pageLimit === 0 ? t('cmp.anyPages') : r.pageLimit ? String(r.pageLimit) : Array.isArray(r.pages) ? t('cmp.byHand', { n: r.pages.length }) : '—');
   const nSections = r => (r.sections ?? []).filter(s => s && s.weight !== 0).length;
   const settings = [
@@ -452,21 +471,35 @@ export function compareRows(model, a, b){
     [t('design.pages'), pages],
     [t('design.photo'), r => (r.photo?.show ? r.photo.shape ?? t('cmp.on') : t('cmp.off'))],
     [t('cmp.sections'), r => String(nSections(r))],
-  ].map(([label, fn]) => { const x = fn(a), y = fn(b); return { kind: 'setting', label, a: x, b: y, differs: x !== y }; });
-  const cell = (r, factId) => {
-    if (r.overrides?.[factId] !== undefined) return { label: (r.held ?? []).includes(factId) ? t('cmp.savedText') : t('edit.onlyHere'), text: String(r.overrides[factId]) };
-    const v = chooseVariant(model, factId, r).v;
-    return v ? { label: `v${v.n}`, text: v.text, variant: v.id } : { label: '—', text: '' };
-  };
-  // a line only on one resume has an id of its own on each: it is one claim when the job and the words are the same
-  const printed = r => { const p = printedFacts(model, r); return new Map([p.summary && [p.summary.fact, p.summary.fact], ...p.work.flatMap(w => w.highlights.map(h => [isLocal(r, h.fact) ? `local:${w.job}:${h.text}` : h.fact, h.fact]))].filter(Boolean)); };
-  const pa = printed(a), pb = printed(b);
-  const claims = [...new Set([...pa.keys(), ...pb.keys()])].map(k => {
-    const f = pa.get(k) ?? pb.get(k), none = { label: '—', text: '' };
-    const x = pa.has(k) ? cell(a, pa.get(k)) : none;
-    const y = pb.has(k) ? cell(b, pb.get(k)) : none;
-    return { kind: 'claim', fact: f, label: facts.get(f)?.summary ?? (k.startsWith('local:') ? (x.text || y.text).slice(0, 60) : f), a: x, b: y, differs: x.label !== y.label || x.text !== y.text };
+    [t('ux6e.rowJobs'), r => jobIdsOf(model, r).map(id => jobName(model, id)).join(' › ') || '—'],
+    [t('ux6e.rowSkills'), r => skillNames(model, r) || '—'],
+  ].map(([label, fn]) => { const cells = list.map(fn); return { kind: 'setting', label, cells, differs: cells.some(c => c !== cells[0]) }; });
+  const maps = list.map(r => claimsOf(model, r)), none = { label: '—', text: '' };
+  const claims = [...new Set(maps.flatMap(m => [...m.keys()]))].map(k => {
+    const f = maps.find(m => m.has(k)).get(k);
+    const cells = list.map((r, i) => (maps[i].has(k) ? cellOf(model, r, maps[i].get(k)) : none));
+    return { kind: 'claim', fact: f, label: claimLabel(model, k, f, cells), cells, differs: cells.some(c => c.label !== cells[0].label || c.text !== cells[0].text) };
   });
   return [...settings, ...claims];
 }
+// Two resumes, as the first compare was: a and b on each row
+export const compareRows = (model, a, b) => compareMany(model, [a, b]).map(r => ({ ...r, a: r.cells[0], b: r.cells[1] }));
 
+// "What differs from <parent>": a short list in plain words of what the child has that the parent has not
+export function differences(model, p, c){
+  const out = [], A = claimsOf(model, p), B = claimsOf(model, c);
+  if (resumeLabel(p) !== resumeLabel(c)) out.push(t('ux6e.sum.name', { name: resumeLabel(c) }));
+  for (const k of new Set([...A.keys(), ...B.keys()])){
+    const x = A.has(k) ? cellOf(model, p, A.get(k)) : null, y = B.has(k) ? cellOf(model, c, B.get(k)) : null;
+    const what = claimLabel(model, k, (B.get(k) ?? A.get(k)), [y ?? x]);
+    if (!x) out.push(t(k.startsWith('local:') ? 'ux6e.sum.local' : 'ux6e.sum.added', { what }));
+    else if (!y) out.push(t('ux6e.sum.removed', { what }));
+    else if (x.label !== y.label || x.text !== y.text) out.push(t(y.edit ? 'ux6e.sum.edited' : 'ux6e.sum.version', { what, a: x.label, b: y.label }));
+  }
+  const ja = jobIdsOf(model, p), jb = jobIdsOf(model, c);
+  if (ja.join() !== jb.join() && ja.length === jb.length) out.push(t('ux6e.sum.jobs', { order: jb.map(id => jobName(model, id)).join(' › ') }));
+  if (!!p.photo?.show !== !!c.photo?.show) out.push(t('ux6e.sum.photo', { a: t(p.photo?.show ? 'cmp.on' : 'cmp.off'), b: t(c.photo?.show ? 'cmp.on' : 'cmp.off') }));
+  if (p.format !== c.format) out.push(t('ux6e.sum.paper', { a: t(p.format === 'us-letter' ? 'paper.letter' : 'paper.a4'), b: t(c.format === 'us-letter' ? 'paper.letter' : 'paper.a4') }));
+  if (skillNames(model, p) !== skillNames(model, c) || JSON.stringify(arrangementOf(model, p).groups) !== JSON.stringify(arrangementOf(model, c).groups)) out.push(t('ux6e.sum.skills', { order: skillNames(model, c) }));
+  return out;
+}

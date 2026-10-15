@@ -1,4 +1,4 @@
-// Saved resumes in the panel: Manage all (list, compare), + New resume, Mark as sent (the end of Export), a snapshot
+// Saved resumes in the panel: + New resume, Mark as sent (the end of Export), a snapshot
 // opened read-only, and the newer-wording review. The switcher in the header (switcher.js) is the way to jump
 // between resumes; the row menu here is shared by both. The model is src/model/resumes.js.
 
@@ -16,7 +16,7 @@ export function initResumes(ctx){ C = ctx; return api; }
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = s => document.querySelector(s);
-const V = { picked: [], hover: null, menu: null, more: false, row: null, renaming: null, nv: null, send: null };
+const V = { hover: null, menu: null, more: false, row: null, renaming: null, nv: null, send: null };
 
 const st = () => C.store.state;
 const metaOf = r => [(r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
@@ -47,20 +47,6 @@ export function rowMenuHtml(id, where = 'group'){
 export const moreButton = (id, where = 'group') => `<button class="smore" data-act="rm-menu" data-id="${esc(id)}" data-where="${where}" aria-haspopup="menu" aria-expanded="${V.row?.id === id && V.row.where === where}" title="${esc(t('ux1.rowMenuTitle'))}" aria-label="${esc(t('ux1.rowMenu', { name: RS.resumeLabel(RS.savedOf(st(), id)) }))}">${icon('more')}</button>`;
 export const renamingHere = (id, where = 'group') => V.renaming?.id === id && V.renaming.where === where;
 export const renameInput = r => `<input class="swren" data-rename="${esc(r.id)}" value="${esc(RS.resumeLabel(r))}" aria-label="${esc(t('ux1.rename'))}" autocomplete="off">`;
-
-// ---- Compare (the ticks are in the grown switcher) ----
-
-function compareView(){
-  const [a, b] = V.picked.map(id => RS.savedOf(st(), id));
-  if (!a || !b) return `<p class="muted">${h('ux2.tickTwo')}</p>`;
-  const rows = RS.compareRows(C.work(), a, b);
-  const cell = c => (typeof c === 'string' ? esc(c) : `<span title="${esc(c.text)}">${esc(c.label)}</span>`);
-  return `<a class="back" data-act="sw-manage">${h('resumes.back')}</a><h2 class="title">${h('resumes.compare')}</h2>
-    <table class="cmp"><thead><tr><th></th><th>${esc(RS.resumeLabel(a))}</th><th>${esc(RS.resumeLabel(b))}</th></tr></thead><tbody>
-    ${rows.map(r => `<tr class="${r.differs ? 'diff-row' : ''} ${r.kind}"><th title="${esc(r.label)}">${esc(r.label.length > 46 ? r.label.slice(0, 45) + '…' : r.label)}</th><td>${cell(r.a)}</td><td>${cell(r.b)}</td></tr>`).join('')}
-    </tbody></table>
-    <p class="note">${h('resumes.compareNote')}</p>`;
-}
 
 // ---- + New resume ----
 
@@ -202,7 +188,7 @@ function newerBanner(){
   return n ? `<div class="banner"><span>${h('newer.banner', { n })}</span><button class="sm" data-act="goto" data-v="newer">${h('newer.review')}</button></div>` : '';
 }
 
-const VIEWS = { compare: compareView, new: newView, sent: saveView, newer: reviewView, snapshot: snapshotView };
+const VIEWS = { new: newView, sent: saveView, newer: reviewView, snapshot: snapshotView };
 
 function commit(fn, label, done){
   try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done); return ok; }
@@ -284,8 +270,8 @@ async function act(a, tg){
       if (ok){
         C.noteOpen(res.id);
         C.setView(null);
-        C.closeSwitcher();
-        C.toast(lang ? t('ux1.dupLangDone', { name: RS.resumeLabel(st().cur), lang: langName(lang) }) : t('ux1.dupDone', { name: RS.resumeLabel(st().cur) }));
+        // the copy is open, under its parent, with its name selected to type over: that says it (a phone has no name field, and says it in a toast)
+        if (!C.nameReady()) C.toast(lang ? t('ux1.dupLangDone', { name: RS.resumeLabel(st().cur), lang: langName(lang) }) : t('ux1.dupDone', { name: RS.resumeLabel(st().cur) }));
       } else rerender();
       return true;
     }
@@ -361,12 +347,6 @@ function renameDone(input, keep){
 function bind(body){
   body.addEventListener('change', e => {
     const el = e.target;
-    if (el.dataset.cmp){
-      const id = el.dataset.cmp;
-      V.picked = el.checked ? [...V.picked.filter(x => x !== id), id].slice(-2) : V.picked.filter(x => x !== id);
-      C.renderBody();
-      return;
-    }
     if (el.name === 'nv-start'){ nv().start = el.value; if (el.value !== 'latest') nv().picking = false; C.renderBody(); return; }
     const n = V.nv;
     if (el.id === 'nv-type' && n){ n.jobType = el.value; if (n.start === 'tagged' && !nvPlan(n)) n.start = 'all'; const l = lastOf(n); n.fromId = l?.id ?? null; if (n.start === 'latest' && !l) n.start = 'all'; C.renderBody(); return; }
@@ -416,16 +396,21 @@ function bind(body){
   body.addEventListener('focusout', e => { if (e.target.classList?.contains('swren')) renameDone(e.target, true); });
 }
 
-export function previewSaved(id){
+// a saved resume as it prints: its sent wording held over the record's present one
+export function heldRecipe(id){
   const r = structuredClone(RS.savedOf(st(), id));
-  if (!r) return;
+  if (!r) return null;
   delete r.snapshots;
   RS.holdFrozen(C.work(), r, st().frozen?.[id] ?? null);
-  C.previewRecipe(r, null);
+  return r;
+}
+export function previewSaved(id){
+  const r = heldRecipe(id);
+  if (r) C.previewRecipe(r, null);
 }
 
 const api = {
-  views: VIEWS, act, bind, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, renameDone,
+  views: VIEWS, act, bind, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone,
   reset(){ V.hover = null; V.menu = null; V.row = null; V.renaming = null; V.nv = null; },
   closeMenus(){
     if (V.row){ V.row = null; rerender(); return true; }
@@ -433,6 +418,4 @@ const api = {
     V.menu = null; C.renderBody(); return true;
   },
   get rowOpen(){ return !!V.row; },
-  get picked(){ return V.picked; },
-  set picked(v){ V.picked = v; },
 };

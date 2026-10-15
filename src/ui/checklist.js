@@ -68,11 +68,11 @@ function groupHtml(g, open, ctx){
     const title = `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`;
     const arch = g.archivedRows.length;
     const archOpen = ctx.shown.has(g.id);
-    const head = `<h3 class="clgh">${caret(g, open, title, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}
+    // the job's name opens it; the caret beside it only folds
+    const head = `<h3 class="clgh"><button class="clcaret nameless" data-act="cl-toggle" data-g="${esc(g.id)}" aria-expanded="${open}" aria-controls="${id}" aria-label="${esc(t('ux6c.fold', { name: g.title }))}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span></button><button class="clname jobname" data-act="cl-open" data-sel="${selAttr(g.sel)}">${title}</button><span class="clcount">${nOfM(g.on, g.total)}</span>${orderMarkHtml(g.custom, 'job', g.id, g.title)}
         ${g.archived ? `<button class="ghost sm" data-act="c-unarch-entry" data-id="${esc(g.id)}">${h('arch.unarchiveJob')}</button>` : ''}</h3>`;
     return `<section class="clg ${open ? 'open' : ''} ${g.archived ? 'is-archived' : ''}" data-g="${esc(g.id)}">${head}
       ${body(`<ul class="clrows">${rowsHtml(g.rows, g)}</ul>
-        <div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr(g.sel)}">${h('ux2.openEntry')}</button></div>
         ${arch ? `<button class="sm ghost archmore" data-act="c-arch-show" data-id="${esc(g.id)}" aria-expanded="${archOpen}">${archOpen ? h('arch.hide') : h('arch.nArchived', { n: arch })}</button>${archOpen ? `<ul class="clrows">${g.archivedRows.map(r => rowHtml(r, g)).join('')}</ul>` : ''}` : ''}
         ${g.archived ? '' : addLineHtml(g)}`)}</section>`;
   }

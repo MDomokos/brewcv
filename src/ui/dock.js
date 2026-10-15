@@ -45,8 +45,9 @@ const TEA_ON = ['body', 'foot', 'rtabs'];      // the editor card (body and foot
 // a tab: Edit leaves the view that replaces it; the others open one. A line being written is left first (asking, if there is a draft).
 async function setMode(m){
   if (C.ui.writing && !(await C.leaveWriting())) return;
+  C.ui.focusKept = false;
   if (m !== 'edit') C.setView(m); else if (C.ui.view) C.setView(null);
-  $(`#tab-${m}`)?.focus({ preventScroll: true });
+  if (!C.ui.focusKept) $(`#tab-${m}`)?.focus({ preventScroll: true });
 }
 const modeOf = tabOf;
 
