@@ -2,7 +2,7 @@
 // Class names are the contract with themes/: nothing here sets a colour, size or position.
 
 import { render as renderInline, encode } from '../scripts/lib/html.mjs';
-import { isOmitted, offOf, inOrder, isLocal, withLocal } from './recipe.js';
+import { isOmitted, offOf, inOrder, isLocal, withLocal, keepLinks } from './recipe.js';
 import { entriesOf } from './model/entries.js';
 
 const GAP = '⬜';
@@ -274,7 +274,7 @@ function makeCtx(data, recipe, doc, opts){
     const want = probing ? undefined : recipe.picks?.[ref];
     if (over !== undefined){
       const sep = f?.variants.map(id => variants.get(id)?.separator).find(Boolean);      // the contact line keeps the look of its separators
-      v = { id: `${ref}-override`, text: over, marks: recipe.overrideMeta?.[ref]?.marks ?? [], links: [], override: true, ...(sep ? { separator: sep } : {}),      // an edit keeps its highlights
+      v = { id: `${ref}-override`, text: over, marks: recipe.overrideMeta?.[ref]?.marks ?? [], links: keepLinks(variants.get(recipe.overrideMeta?.[ref]?.base), over).kept, override: true, ...(sep ? { separator: sep } : {}),      // an edit keeps its highlights
             source: `recipe override — ${recipe.application ?? 'this application'}`,
             metrics: { chars: [...over].length, measured: {} } };
     } else if (want){

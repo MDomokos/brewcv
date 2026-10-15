@@ -486,6 +486,14 @@ section('skills arranged on the page (UX-6c-ii)');
   ok('saved as the set for a tag, and applied from it, the arrangement is the same', eq(again.skillArrangement.groups, arranged.skillArrangement.groups) && again.skillArrangement.from === 'Medical');
 }
 
+section('an edited contact line keeps the links whose words it still has');
+{
+  const m = clone(model), html = r => renderPages(m, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
+  const rc = clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe);
+  T.setOverride(rc, 'contact', 'Lisbon  ·  dana@example.org  ·  +351 900 000 000', { marks: [], base: 'contact-v1' });
+  const page = html(rc);
+  ok('the link whose words are still there stays, re-anchored; the one whose words went is dropped, with a warning', page.includes('<a href="mailto:dana@example.org">dana@example.org</a>') && !page.includes('https://danaokonkwo.example') && T.resolve(m, rc).problems.some(x => x.includes('dropped the link to https://danaokonkwo.example')) && !T.resolve(m, rc).problems.some(x => x.includes('dropped the link to mailto')));
+}
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {
   // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i. Change it only when the example or the renderer is meant to change.

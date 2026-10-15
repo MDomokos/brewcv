@@ -84,3 +84,15 @@ export function withLocal(recipe, jobId, ids, { keepOff = false, blank = false, 
   const gone = id => here.some(l => l.id === id) && ((!keepOff && off.has(id)) || (!blank && recipe.overrides?.[id] === ''));
   return here.length ? out.filter(id => !gone(id)) : out;
 }
+
+// The links of the version an edit came from, kept where their anchor text still stands verbatim in the edited text; the rest are dropped.
+export function keepLinks(base, text){
+  const kept = [], dropped = [];
+  for (const l of base?.links ?? []){
+    const a = [...base.text].slice(l.start, l.end).join(''), i = a ? text.indexOf(a) : -1;
+    if (i < 0){ dropped.push(l); continue; }
+    const start = [...text.slice(0, i)].length;
+    kept.push({ ...l, start, end: start + [...a].length });
+  }
+  return { kept, dropped };
+}

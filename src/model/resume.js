@@ -18,7 +18,7 @@ export function refusal(fact, v){
 
 import { keyed, t } from '../i18n/index.js';
 import { entriesOf, entryKey, isEntry, archivedIds, archivedEntryIds } from './entries.js';
-import { offOf, keepOf, migratePins, inOrder, localOf, localJob, localIds, isLocal, withLocal } from '../recipe.js';
+import { offOf, keepOf, keepLinks, migratePins, inOrder, localOf, localJob, localIds, isLocal, withLocal } from '../recipe.js';
 export { offOf, keepOf, migratePins, inOrder, isLocal, localOf };
 
 function index(model){
@@ -113,10 +113,13 @@ export function resolve(model, recipe = null, { local = true } = {}){
     return out;
   }
 
-  for (const [factId, text] of Object.entries(recipe?.overrides ?? {}))
+  for (const [factId, text] of Object.entries(recipe?.overrides ?? {})){
+    const base = ix.byId.get(recipe.overrideMeta?.[factId]?.base);
+    for (const l of keepLinks(base, String(text)).dropped) problems.push(`the edit of ${factId} dropped the link to ${l.href}: its words are not in the new text`);
     problems.push(isLocal(recipe, factId)
       ? `recipe has a line that exists only on this resume ("${String(text).slice(0, 40)}…"): it has no source, so it is left out of an ATS export`
       : `recipe overrides ${factId} with one-off text ("${String(text).slice(0, 40)}…"): overrides have no source, so they cannot go to an ATS export`);
+  }
 
   const workRefs = inOrder((recipe && recipe.sections?.find(s => s.id === 'experience')?.work) ?? (model.work ?? []).map(w => w.id), recipe?.sections?.find(s => s.id === 'experience')?.order)
     .map(r => (typeof r === 'string' ? { id: r } : r));
