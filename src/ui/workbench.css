@@ -1207,3 +1207,4 @@ body:not([data-phone=true]) .col.is-full > :is(#head, #foot) { align-self: flex-
 .diffsum { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--raised); }
 .diffsum ul { margin: 0; padding-left: 18px; } .diffsum p { margin: 0; }
 .cmp thead .rthumb { width: 150px; }
+.scrticks button:disabled { opacity: 1; background: transparent; color: var(--ink-soft); border: 1px dashed var(--line-strong); }

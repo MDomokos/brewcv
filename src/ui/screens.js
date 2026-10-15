@@ -46,7 +46,7 @@ function card(r, parentOfClosest){
   const pend = pendingEdits(r).length;
   return `<article class="rcard ${open ? 'open' : ''} ${V.ticked.has(r.id) ? 'ticked' : ''}" data-rid="${esc(r.id)}">
     ${tick(r.id, t('ux6e.tick', { name: label(r) }))}
-    <button class="thumbwrap" data-act="sw-open" data-id="${esc(r.id)}" aria-label="${esc(t('ux6e.open', { name: label(r) }))}" ${open ? 'aria-current="true"' : ''}>${thumb(r.id, r.format)}</button>
+    <button class="thumbwrap" tabindex="-1" data-act="sw-open" data-id="${esc(r.id)}" aria-label="${esc(t('ux6e.open', { name: label(r) }))}" ${open ? 'aria-current="true"' : ''}>${thumb(r.id, r.format)}</button>
     <h4 class="rname">${C.resumes.renamingHere(r.id, 'screen') ? C.resumes.renameInput(r) : nameHtml(label(r))}${open ? ` <small class="muted">· ${h('ux6e.isOpen')}</small>` : ''}</h4>
     <p class="rmeta">${esc(metaOf(r))}</p>
     ${under ? `<p class="rmeta rfrom">${esc(under)}</p>` : ''}
@@ -61,7 +61,7 @@ function sentCard(e){
   const r = e.resume, key = `${r.id}|${e.snap.id}`, to = RS.sendLabel(e.send);
   return `<article class="rcard ${V.ticked.has(key) ? 'ticked' : ''}" data-rid="${esc(r.id)}">
     ${tick(key, t('ux6e.tickSent', { date: e.date }))}
-    <button class="thumbwrap" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(e.snap.id)}" aria-label="${esc(t('ux6e.open', { name: to || label(r) }))}">${thumb(key, e.snap.recipe.format)}</button>
+    <button class="thumbwrap" tabindex="-1" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(e.snap.id)}" aria-label="${esc(t('ux6e.open', { name: to || label(r) }))}">${thumb(key, e.snap.recipe.format)}</button>
     <h4 class="rname">${esc(to || t('ux1.noRecipient'))}${e.send.kind === 'outreach' ? ` <span class="pill">${h('ux1.outreach')}</span>` : ''}</h4>
     <p class="rmeta">${esc(e.date)} · ${esc(label(r))}</p>
   </article>`;
@@ -112,7 +112,8 @@ function compareView(){
     ${sum ? `<div class="diffsum">${sum.list.length ? `<ul>${sum.list.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : `<p>${h('ux6e.nothing')}</p>`}</div>` : ''}
     <div class="cmpscroll"><table class="cmp"><caption class="sr">${h('ux6e.cmpTitle', { n: items.length })}</caption>
       <thead><tr><th scope="col">${h('ux6e.cmpRow')}</th>${items.map(x => `<th scope="col"><span class="cname">${esc(x.label)}</span>${thumb(x.key, x.recipe.format)}
-        <span class="racts"><button class="sm" data-act="sw-open" data-id="${esc(x.key.split('|')[0])}">${h('ux6e.openBtn')}</button><button class="sm" data-act="rm-dup" data-id="${esc(x.key.split('|')[0])}">${h('ux1.dup')}</button></span></th>`).join('')}</tr></thead>
+        <span class="racts">${x.key.includes('|') ? `<button class="sm" data-act="sw-snap" data-id="${esc(x.key.split('|')[0])}" data-sid="${esc(x.key.split('|')[1])}">${h('ux6e.openBtn')}</button>`
+          : `<button class="sm" data-act="sw-open" data-id="${esc(x.key)}">${h('ux6e.openBtn')}</button><button class="sm" data-act="rm-dup" data-id="${esc(x.key)}">${h('ux1.dup')}</button>`}</span></th>`).join('')}</tr></thead>
       <tbody>${rows.map(r => `<tr class="${r.differs ? 'diff-row' : ''} ${r.kind}"><th scope="row" title="${esc(r.label)}">${esc(r.label.length > 46 ? r.label.slice(0, 45) + '…' : r.label)}</th>${r.cells.map(c => `<td>${cell(c)}</td>`).join('')}</tr>`).join('')}
       <tr class="setting"><th scope="row">${h('ux6e.rowPrinted')}</th>${items.map(x => `<td data-pagesof="${esc(x.key)}">…</td>`).join('')}</tr></tbody></table></div></section>`;
 }
