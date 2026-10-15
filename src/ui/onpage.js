@@ -182,7 +182,7 @@ export function initOnPage(C){
     const v = canvas.view ?? { left: 0, top: 0, width: innerWidth, height: innerHeight };
     const w = chip.offsetWidth, h = chip.offsetHeight;
     const pg = geom.boxes.map(b => canvas.screenRect(b)).find(b => f.left >= b.left - 1 && f.left < b.left + b.width);
-    const lo = Math.max(v.left + 6, pg ? pg.left + 2 : -Infinity), hi = Math.min(v.left + v.width - w - 6, pg ? pg.left + pg.width - w - 2 : Infinity);
+    const lo = Math.max(v.left + 6, pg ? pg.left + 2 : -Infinity), hi = v.left + v.width - w - 6;      // the chip may stand past the page's right edge, on the desk, when the page's margin has no clear place for its tools
     const lowest = v.top + v.height - h - 56;
     const ys = [Math.max(v.top + 6, Math.min(f.top - h / 2, lowest)), Math.max(v.top + 6, Math.min(f.top - h, lowest))];      // on the edge, else just above it (a tight item frame has text under its edge)
     const texts = sheet.textRects().map(r => canvas.screenRect(r));

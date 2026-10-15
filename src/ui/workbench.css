@@ -242,7 +242,7 @@ body.is-ready .paper-skel { display: none; }
 /* the page's instance: a quiet marker, 20 px tall, outline only; the current level a little stronger; full contrast on hover or focus.
    The buttons draw small but keep a 24 px pointer target (the pseudo-element). */
 .depth.sm { gap: 0; height: 20px; padding: 0 2px; font-size: 11px; font-weight: 500; line-height: 1; background: color-mix(in srgb, var(--raised) 85%, transparent); border-color: var(--line); box-shadow: none; }
-.depth.sm .dp-l { position: relative; align-self: stretch; align-items: center; gap: 0; padding: 0 5px; }
+.depth.sm .dp-l { position: relative; align-self: stretch; align-items: center; gap: 0; padding: 0 4px; }
 .depth.sm .dp-l::after { content: ''; position: absolute; inset: -3px -1px; }
 .depth.sm .dp-l.cur { background: transparent; color: var(--ink); font-weight: 700; }
 .depth.sm:hover, .depth.sm:focus-within { background: var(--raised); border-color: var(--line-strong); }
@@ -252,6 +252,7 @@ body.is-ready .paper-skel { display: none; }
 .depth .dp-tools { flex: none; display: inline-flex; align-items: center; margin-left: 2px; padding-left: 2px; border-left: 1px solid var(--line); }
 .depth .dp-t { position: relative; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-soft); opacity: .55; cursor: pointer; }
 .depth .dp-t.dp-show { width: 38px; }
+.depth.sm .dp-t.dp-show { width: 34px; }
 .depth .dp-t:hover, .depth .dp-t:focus-visible { background: var(--fill); color: var(--ink); }
 .depth:hover .dp-t, .depth:focus-within .dp-t, .depth .dp-lock.is-locked { opacity: 1; }
 .depth .dp-t[aria-pressed=true].dp-lock { color: var(--ink); }

@@ -2342,7 +2342,7 @@ if (want('bullets: re-arrange within a job; tags: one closed list')) {
   const rows = page.locator('#outline .clg.open .clrow[data-bullet]');
   ok('the ticked bullets of a job are rows that carry their ids (Alt+arrows) and are not draggable', (await rows.count()) >= 3 && (await rows.first().getAttribute('draggable')) === null);
   const before = await lis();
-  await rows.nth(0).locator('.cb').focus();
+  await rows.nth(0).locator('.sw').focus();
   await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
   const moved = await lis();
   ok('Alt+↓ on a bullet row moves it down in print: the page follows', moved[0] === before[1] && moved[1] === before[0] && moved[2] === before[2]);
@@ -2378,7 +2378,7 @@ if (want('reordering is visible: Alt+arrows, the margin, custom and Reset')) {
   ok('the sidebar’s rows have no grip and no ↑ ↓ and cannot be dragged: the grips are on the page (the Alt+arrows stay)', n >= 3 && (await page.locator('#outline .clgrip, #outline .clmv, #outline [data-act=cl-up], #outline [data-act=cl-down], #outline [data-act=job-up], #outline [draggable=true]').count()) === 0);
   ok('a job that was not moved shows no "custom"', (await page.locator('#outline .pill.custom').count()) === 0);
   const before = await lis(), u0 = await undoN();
-  await rows.first().locator('.cb').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(900);
+  await rows.first().locator('.sw').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(900);
   const moved = await lis();
   ok('Alt+↓ on the first row moves it down on the page, in one undo step', moved[0] === before[1] && moved[1] === before[0] && (await undoN()) === u0 + 1);
   ok('…the job now shows "custom" with a Reset', (await page.locator('#outline .pill.custom').count()) === 1 && (await page.locator('#outline .clg.open [data-act=order-reset]').count()) === 1);
@@ -2391,7 +2391,7 @@ if (want('reordering is visible: Alt+arrows, the margin, custom and Reset')) {
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
   ok('…one Ctrl+Z brings the custom order back', JSON.stringify(await lis()) === JSON.stringify(moved) && (await page.locator('#outline .pill.custom').count()) === 1);
   await page.click('#outline .clg.open [data-act=order-reset]'); await page.waitForTimeout(900);
-  await rows.nth(1).locator('.cb').focus(); await page.keyboard.press('Alt+ArrowUp'); await page.waitForTimeout(900);
+  await rows.nth(1).locator('.sw').focus(); await page.keyboard.press('Alt+ArrowUp'); await page.waitForTimeout(900);
   ok('Alt+↑ on the second row moves it up', JSON.stringify(await lis()) === JSON.stringify([before[1], before[0], before[2]]));
   await page.keyboard.press('Control+z'); await page.waitForTimeout(800);
 
@@ -2422,7 +2422,7 @@ if (want('reordering is visible: Alt+arrows, the margin, custom and Reset')) {
   const items = page.locator('#checklist .clg[data-g=credentials] .clrow[data-sec=skills]');
   ok('list items have no grip and no ↑ ↓ either', (await items.count()) === 4 && (await page.locator('#checklist .clgrip, #checklist .clmv').count()) === 0);
   const sk0 = await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent)), u2 = await undoN();
-  await items.first().locator('.cb').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
+  await items.first().locator('.sw').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
   ok('Alt+↓ on an item moves it in print, in one undo step, and the list shows "custom"', (await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent)))[0] === sk0[1] && (await undoN()) === u2 + 1 && (await page.locator('#checklist .clsubh .pill.custom').count()) === 1);
   await page.click('#checklist .clsubh [data-act=order-reset]'); await page.waitForTimeout(900);
   ok('Reset puts the list back: no stored order, one undo step, no mark', JSON.stringify(await frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent))) === JSON.stringify(sk0) && (await page.locator('#checklist .clsubh .pill.custom').count()) === 0);
@@ -2472,7 +2472,7 @@ if (want('record: a moved bullet moves in the list too; "n v" on the contact lin
   const rows = page.locator('#checklist .clg[data-g=hydra] .clrow[data-bullet]');
   const listed = () => rows.evaluateAll(els => els.map(e => e.querySelector('.clt').textContent.trim().slice(0, 24)));
   const before = await lis();
-  await rows.nth(0).locator('.cb').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
+  await rows.nth(0).locator('.sw').focus(); await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
   const after = await lis();
   ok('Alt+↓ on a bullet in the Record changes the page', after[0] === before[1]);
   ok('…and the Record’s list shows the same order as the page', JSON.stringify((await listed()).slice(0, 3)) === JSON.stringify(after));
@@ -2493,16 +2493,16 @@ if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging s
   const sheetSkills = () => frameDoc(page, d => [...d.querySelectorAll('.skills__label')].map(x => x.textContent));
   await inRecord(page, 'credentials'); await settle(page);
   const rows = page.locator('#checklist .clg[data-g=credentials] .clrow[data-sec=skills]');
-  ok('every skill group is a row with its own tick, not draggable, with no grip or ↑ ↓', (await rows.count()) === 4 && (await rows.first().locator('.cb[data-item]').count()) === 1 && (await rows.first().getAttribute('draggable')) === null && (await rows.first().locator('.clgrip, .clmv').count()) === 0);
+  ok('every skill group is a row with its own tick, not draggable, with no grip or ↑ ↓', (await rows.count()) === 4 && (await rows.first().locator('.sw[data-item]').count()) === 1 && (await rows.first().getAttribute('draggable')) === null && (await rows.first().locator('.clgrip, .clmv').count()) === 0);
   const before = await sheetSkills();
-  await rows.nth(1).locator('.cb').uncheck(); await page.waitForTimeout(1000);
+  await rows.nth(1).locator('.sw').uncheck(); await page.waitForTimeout(1000);
   const after = await sheetSkills();
   ok('unticking one takes just that line off the page; the others stay', after.length === before.length - 1 && !after.includes(before[1]) && /3 of/.test(await page.textContent('#checklist .clg[data-g=credentials] .clsubh')) === false);
-  ok('…it is one undo step, kept in the resume’s off list, and the row stays, unticked', (await st()).cur.off.length >= 1 && (await rows.count()) === 4 && !(await rows.nth(1).locator('.cb').isChecked()));
-  await rows.nth(1).locator('.cb').check(); await page.waitForTimeout(1000);
+  ok('…it is one undo step, kept in the resume’s off list, and the row stays, unticked', (await st()).cur.off.length >= 1 && (await rows.count()) === 4 && !(await rows.nth(1).locator('.sw').isChecked()));
+  await rows.nth(1).locator('.sw').check(); await page.waitForTimeout(1000);
   ok('ticking brings it back in place', JSON.stringify(await sheetSkills()) === JSON.stringify(before));
   // keyboard: Alt+↓ on a row
-  await rows.nth(0).locator('.cb').focus();
+  await rows.nth(0).locator('.sw').focus();
   await page.keyboard.press('Alt+ArrowDown'); await page.waitForTimeout(1000);
   const moved = await sheetSkills();
   ok('Alt+↓ on a row moves the item down in print: the page follows', moved[0] === before[1] && moved[1] === before[0] && moved.length === before.length);
@@ -2988,7 +2988,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.keyboard.press('ArrowDown'); await settle(page);
     ok(`${tag}: …and after ↓`, (await page.evaluate(() => document.querySelector('#body').scrollTop)) === 0);
     await page.click('#body .depth [data-act=select-job]'); await settle(page);
-    ok(`${tag}: the job's own lines can still be ticked, in its sheet`, await page.evaluate(() => document.querySelectorAll('#outline .clg.open .cb[data-on]').length >= 3));
+    ok(`${tag}: the job's own lines can still be ticked, in its sheet`, await page.evaluate(() => document.querySelectorAll('#outline .clg.open .sw[data-on]').length >= 3));
     await page.click('#tab-edit'); await settle(page);
     await page.click('#body .allrec [data-act=open-record]'); await page.waitForTimeout(900);
     ok(`${tag}: "All of your record" opens Record at this job`, (await page.evaluate(() => window.__wb.ui.view)) === 'record');
@@ -3857,12 +3857,12 @@ if (want('on the page: the header written in place, the photo slot, a dropped pi
   const nm = await frameBox(page, '.name');
   await page.mouse.move(nm.x + 30, nm.y + 12, { steps: 3 }); await page.waitForTimeout(400);
   const hs = await hands(page);
-  ok('hovering the header shows a photo slot beside the name: a button with a name, not pressed', !!hs.slot && hs.slot.tag === 'BUTTON' && hs.slot.pressed === 'false' && /photo/i.test(hs.slot.name) && hs.slot.left > nm.x, JSON.stringify(hs.slot));
+  ok('hovering the header shows a photo slot beside the name: the pill, a button named for what it does', !!hs.slot && hs.slot.tag === 'BUTTON' && hs.slot.pressed === null && /^Show photo on this resume$/.test(hs.slot.name) && hs.slot.left > nm.x, JSON.stringify(hs.slot));
   await page.mouse.click(hs.slot.left + hs.slot.width / 2, hs.slot.top + hs.slot.height / 2); await page.waitForTimeout(900);
   ok('clicking it prints the photo on this resume (one undo step); it is then pressed', (await page.evaluate(() => window.__wb.store.state.cur.photo?.show)) === true && (await frameDoc(page, d => !!d.querySelector('.portrait'))));
   await page.mouse.move(nm.x + 30, nm.y + 12, { steps: 3 }); await page.waitForTimeout(400);
   const hs2 = await hands(page);
-  ok('…the slot is then on the photo, pressed, and says it leaves it off', !!hs2.slot && hs2.slot.pressed === 'true' && /off/.test(hs2.slot.name));
+  ok('…the slot is then on the photo and says it hides it', !!hs2.slot && /^Hide photo from this resume$/.test(hs2.slot.name));
   await page.mouse.click(hs2.slot.left + 9, hs2.slot.top + 9); await page.waitForTimeout(900);
   ok('…and clicking again takes it off', (await page.evaluate(() => window.__wb.store.state.cur.photo?.show)) === false);
   // a dropped picture asks what it is for
@@ -4141,7 +4141,7 @@ if (want('the lock: the padlock, the chip’s switch, and grips for jobs, sectio
   await hydraLine(0).click(); await page.waitForTimeout(800);
   const lk = await tool('.dp-lock'), sh = await tool('.dp-show');
   ok('the chip of a line has a padlock and a switch at its right end: real buttons in the focus order, each at least 24 px, named for what the chip names, the padlock aria-pressed false',
-    lk?.tag === 'BUTTON' && sh?.tag === 'BUTTON' && lk.tab === 0 && sh.tab === 0 && lk.h + 6 >= 24 && lk.w + 8 >= 24 && /^Lock the line in Hydra/.test(lk.name) && lk.pressed === 'false' && /^Hide the line in Hydra/.test(sh.name) && sh.pressed === 'true', JSON.stringify([lk, sh]));
+    lk?.tag === 'BUTTON' && sh?.tag === 'BUTTON' && lk.tab === 0 && sh.tab === 0 && lk.h >= 24 && lk.w >= 24 && /^Lock the line in Hydra/.test(lk.name) && lk.pressed === 'false' && /^Hide the line in Hydra Medical from this resume$/.test(sh.name) && sh.pressed === null, JSON.stringify([lk, sh]));
   const typed = 'Led the dose-counter redesign, written here and locked';
   await writeLine(page, typed);
   const u0 = await undoN(page);
@@ -4184,12 +4184,12 @@ if (want('the lock: the padlock, the chip’s switch, and grips for jobs, sectio
   await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(500);
   await page.click('#outline .clg[data-g=hydra] .ocaret'); await page.waitForTimeout(300);
   const row = '#outline .clrow[data-fact=hydra-inhaler]';
-  const rl = await page.evaluate(r => { const e = document.querySelector(r), b = e?.querySelector('.rowlock'); return b && { pressed: b.getAttribute('aria-pressed'), name: b.getAttribute('aria-label'), tag: b.tagName, tab: b.tabIndex, h: b.getBoundingClientRect().height, cb: e.querySelector('input.cb').disabled, drag: e.draggable, inh: e.classList.contains('is-inherited') }; }, row);
+  const rl = await page.evaluate(r => { const e = document.querySelector(r), b = e?.querySelector('.rowlock'); return b && { pressed: b.getAttribute('aria-pressed'), name: b.getAttribute('aria-label'), tag: b.tagName, tab: b.tabIndex, h: b.getBoundingClientRect().height, cb: e.querySelector('input.sw').disabled, drag: e.draggable, inh: e.classList.contains('is-inherited') }; }, row);
   ok('the Outline: a locked line’s row shows its padlock (pressed, named, a button, at least 24 px), its tick is off and it cannot be dragged', !!rl && rl.pressed === 'true' && /^Unlock/.test(rl.name) && rl.tag === 'BUTTON' && rl.tab === 0 && rl.h + 2 >= 24 && rl.cb && !rl.drag && !rl.inh, JSON.stringify(rl));
-  const other = await page.evaluate(() => { const e = document.querySelector('#outline .clrow[data-fact=hydra-testing]'), b = e?.querySelector('.rowlock'); return b && { pressed: b.getAttribute('aria-pressed'), cb: e.querySelector('input.cb').disabled }; });
+  const other = await page.evaluate(() => { const e = document.querySelector('#outline .clrow[data-fact=hydra-testing]'), b = e?.querySelector('.rowlock'); return b && { pressed: b.getAttribute('aria-pressed'), cb: e.querySelector('input.sw').disabled }; });
   ok('…and the other lines have a padlock of their own, unpressed, with their ticks on', other?.pressed === 'false' && other.cb === false, JSON.stringify(other));
   await page.click('#outline .clg[data-g=hydra] .clgh .rowlock'); await page.waitForTimeout(600);
-  ok('a padlock on a job’s row locks the job: its lines show as locked by it (greyed, the lock inherited), ticks off', JSON.stringify(await lockedOf()) === '["hydra-inhaler","hydra"]' && await page.evaluate(() => { const rs = [...document.querySelectorAll('#outline .clg[data-g=hydra] .clrow')]; return rs.length >= 3 && rs.every(r => r.querySelector('input.cb').disabled && r.querySelector('.rowlock')?.getAttribute('aria-pressed') === 'true') && rs.filter(r => r.classList.contains('is-inherited')).length === rs.length - 1; }));
+  ok('a padlock on a job’s row locks the job: its lines show as locked by it (greyed, the lock inherited), ticks off', JSON.stringify(await lockedOf()) === '["hydra-inhaler","hydra"]' && await page.evaluate(() => { const rs = [...document.querySelectorAll('#outline .clg[data-g=hydra] .clrow')]; return rs.length >= 3 && rs.every(r => r.querySelector('input.sw').disabled && r.querySelector('.rowlock')?.getAttribute('aria-pressed') === 'true') && rs.filter(r => r.classList.contains('is-inherited')).length === rs.length - 1; }));
   await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(500);
   ok('a section’s sidebar lists its jobs with the lock: the locked job’s tick is off', await page.evaluate(() => { const g = document.querySelector('#body .clg[data-g=hydra] .clgh'); return !!g && g.querySelector('input.sw')?.disabled === true && g.querySelector('.rowlock')?.getAttribute('aria-pressed') === 'true'; }));
   // a locked job: no grip, the page chip’s switch is off, a click on its lines selects only
@@ -4210,7 +4210,7 @@ if (want('the lock: the padlock, the chip’s switch, and grips for jobs, sectio
   ok('the padlock of the job (pressed) unlocks it: the line’s own lock stays, and the job’s lines are free again', JSON.stringify(await lockedOf()) === '["hydra-inhaler"]');
   await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(400);
   await page.click('#outline .clg[data-g=hydra] .clrow[data-fact=hydra-inhaler] .rowlock'); await page.waitForTimeout(500);
-  ok('unlocking the last lock leaves no locked key at all, and the ticks work again', (await lockedOf()) === null && await page.evaluate(() => !document.querySelector('#outline .clrow[data-fact=hydra-inhaler] input.cb').disabled));
+  ok('unlocking the last lock leaves no locked key at all, and the ticks work again', (await lockedOf()) === null && await page.evaluate(() => !document.querySelector('#outline .clrow[data-fact=hydra-inhaler] input.sw').disabled));
   await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(300);
   await hydraLine(0).click(); await page.waitForTimeout(800);
   ok('…and a click writes the line again, with the caret', (await fr.locator('[contenteditable]').count()) === 1 && (await lineText(page)) === typed);
@@ -4259,7 +4259,7 @@ if (want('the lock: the padlock, the chip’s switch, and grips for jobs, sectio
   const s0 = await page.evaluate(() => window.__wb.store.history.undo);
   await page.hover('#editlay .obchip'); await page.waitForTimeout(250);
   const shw = await tool('.dp-show');
-  ok('the switch comes up when the chip is hovered (it takes no room before): a button with a 24 px target, named for the section, pressed (shown)', shw?.tag === 'BUTTON' && shw.w + 8 >= 24 && shw.h + 6 >= 24 && /^Hide Skills/.test(shw.name) && shw.pressed === 'true', JSON.stringify(shw));
+  ok('the switch is always on the chip (and hovering it changes nothing): a button with a 24 px target, named for what it does to the section, no aria-pressed (the pill shows the state)', shw?.tag === 'BUTTON' && shw.w >= 24 && shw.h >= 24 && /^Hide Skills from this resume$/.test(shw.name) && shw.pressed === null, JSON.stringify(shw));
   await page.click('#editlay .dp-show'); await page.waitForTimeout(800);
   ok('the chip’s switch hides the section: it is off the page, one undo step', !(await bands()).includes('skills') && (await undoN(page)) === s0 + 1, JSON.stringify(await bands()));
   ok('…and the sidebar’s copy of the switch (same component) shows it again', await (async () => { await page.click('#body .depth .dp-show'); await page.waitForTimeout(800); return (await bands()).includes('skills'); })());
