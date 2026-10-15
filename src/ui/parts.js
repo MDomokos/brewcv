@@ -28,11 +28,6 @@ export function gist(text, curText){
 // a version in full, with the words that are not in the one in use marked
 export const marked = (text, curText) => R.wordDiff(curText, text).filter(y => y.op !== '-').map(y => (y.op === '+' ? `<mark class="dw">${esc(y.text)}</mark>` : esc(y.text))).join('');
 
-export function factRow({ act = 'select-fact', id, text, pill = '', pillMiss = false, miss = false, section = null, owner = null, attrs = '', cls = '', tcls = '' }){
-  return `<button class="item fact ${cls ? cls + ' ' : ''}${miss ? 'miss' : ''}" data-act="${act}" data-id="${esc(id)}" ${section ? `data-section="${esc(section)}"` : ''} ${owner ? `data-owner="${esc(owner)}"` : ''}${attrs ? ' ' + attrs : ''}>
-    <span${tcls ? ` class="${tcls}"` : ''}>${esc(text).replace(/\n/g, ' · ')}</span>${pill ? `<span class="pill${pillMiss ? ' miss' : ''}">${pill}</span>` : ''}</button>`;
-}
-
 // A row with its switch (Resume). Without `swAttrs`, the same row minus the switch (Career).
 // archived: dimmed, with a badge. unarchive: its button (Career, where archived claims are revealed).
 export function claimRow({ id, act = 'select-bullet', text, on = true, swAttrs = null, pill = '', pillMiss = false, kept = false, attrs = '', archived = false, unarchive = false }){
@@ -136,7 +131,6 @@ export function versionsHtml(x){
   if (ed?.mode === 'new') out += E();
   out += '</div>';
   if (x.writing) out += `<p class="note">${h('ux3.writingNote')}</p>`;
-  else if (!ed && vs.length) out += `<a class="newv" data-act="new-version">${h('edit.newVersion', { v: R.nextMajor(m, fact, L) })}</a>`;
   return out;
 }
 
@@ -207,11 +201,10 @@ export const moveButtonsHtml = (up, down, id, text, { first, last }) => `<span c
   return `<button class="ib" data-act="${act}" data-id="${esc(id)}" aria-label="${name}" title="${name}" aria-disabled="${!!off}">${icon(ic)}</button>`;
 }).join('')}</span>`;
 
-// One depth indicator (UX-6c), the same markup and styles on the page (the floating chip) and at the top of the editor card: Page ›
-// Job › Line, Page › Section › Item, Page › Header. levels: [{ word, name?, act, attrs? }] from the page down, the last is where you
-// are; a name gives way with an ellipsis, a level's word never does. next: the level below, offered; escKey: the Esc key, as a button.
-export function depthHtml(levels, { next = null, escKey = false } = {}){
+// One depth indicator (UX-6c), the same markup and styles on the page (the floating chip, `small`) and at the top of the editor card:
+// Page › Job › Line, Page › Section › Item, Page › Header. levels: [{ word, name?, act, attrs? }] from the page down, the last is where
+// you are; a name gives way with an ellipsis, a level's word never does.
+export function depthHtml(levels, { small = false } = {}){
   const btn = (l, cls = '') => `<button type="button" class="dp-l${cls}" data-act="${l.act}" ${l.attrs ?? ''}${cls === ' cur' ? ' aria-current="location"' : ''}><span class="dp-w">${esc(l.word)}</span>${l.name ? `<span class="dp-n">${esc(l.name)}</span>` : ''}</button>`;
-  const sep = '<span class="dp-s" aria-hidden="true">›</span>';
-  return `<nav class="depth" aria-label="${esc(t('ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '')).join(sep)}${next ? sep + btn(next, ' next') : ''}${escKey ? `<button type="button" class="dp-esc" data-act="depth-up" aria-label="${esc(t('ux6c.up'))}"><kbd>Esc</kbd></button>` : ''}</nav>`;
+  return `<nav class="depth${small ? ' sm' : ''}" aria-label="${esc(t('ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '')).join('<span class="dp-s" aria-hidden="true">›</span>')}</nav>`;
 }

@@ -200,11 +200,15 @@ section('one depth indicator: the sidebar’s row is parts.js depthHtml, the chi
   const u = await makeUi({ resume: 0 });
   const job = u.work().work[0], id = job.highlights[0];
   const row = String(u.edit.bulletView({ kind: 'bullet', id, job: job.id, section: 'experience' }));
-  const chip = u.edit.depthHtml({ kind: 'bullet', id, job: job.id, section: 'experience' }, { next: true, escKey: true });
-  ok('the editor card opens with the same <nav class="depth"> the chip draws, minus Esc', row.startsWith(chip.replace(/<button type="button" class="dp-esc"[^]*?<\/button>/, '')) && chip.includes('dp-esc') && !row.includes('class="crumb"'));
-  ok('Page › Job › Line: three level buttons, the line current, the job’s name and the line’s name inside their levels', (chip.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Line<\/span><span class="dp-n">/.test(chip) && chip.includes(`<span class="dp-n">${job.name}</span>`));
-  const j = u.edit.depthHtml({ kind: 'job', id: job.id }, { next: true });
-  ok('a job: Page › Job, and the line below offered', /dp-l cur[^>]*><span class="dp-w">Job/.test(j) && /class="dp-l next" data-act="select-bullet" data-id="[^"]+"/.test(j));
+  const sel = { kind: 'bullet', id, job: job.id, section: 'experience' };
+  const chip = u.edit.depthHtml(sel, { page: true });
+  const shape = h => (h.slice(0, h.indexOf('</nav>')).match(/class="[^"]*"/g) ?? []).filter(c => c !== 'class="dp-n"').map(c => c.replace(/ sm\b/, '')).join(',');
+  ok('the editor card opens with the same <nav class="depth"> the chip draws (the chip’s one is the small size), and no old crumb', shape(row.slice(0, row.indexOf('</nav>'))) === shape(chip.slice(0, chip.indexOf('</nav>'))) && chip.startsWith('<nav class="depth sm"') && row.startsWith('<nav class="depth"') && !row.includes('class="crumb"'));
+  ok('the chip has no Esc and no level below', !chip.includes('dp-esc') && !chip.includes('dp-l next'));
+  ok('Page › Experience › Hydra on the page: single words, the job current, no line level and no names', (chip.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Hydra<\/span><\/button>/.test(chip) && chip.includes('<span class="dp-w">Experience</span>') && !chip.includes('dp-n'));
+  ok('the sidebar’s row: Page › Job › Line, the line current, the job’s name and the line’s name inside their levels', (row.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Line<\/span><span class="dp-n">/.test(row) && row.includes(`<span class="dp-n">${job.name}</span>`));
+  const sk = u.edit.depthHtml({ kind: 'section', id: 'skills' }, { page: true });
+  ok('a section on the page: Page › Skills, a custom heading’s first word, long words cut with an ellipsis', /<span class="dp-w">Skills<\/span>/.test(sk) && !/dp-n/.test(sk));
   ok('a section: Page › Section; the header: Page › Header', /<span class="dp-w">Section<\/span>/.test(u.edit.depthHtml({ kind: 'section', id: 'experience' })) && /<span class="dp-w">Header<\/span>/.test(u.edit.depthHtml({ kind: 'header' })));
 }
 

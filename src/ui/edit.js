@@ -11,7 +11,7 @@ import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { t, h, errText } from '../i18n/index.js';
 import { play } from './motion.js';
-import { esc, clip, depthHtml as depthMarkup, sw, factRow as partFactRow, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
+import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -72,14 +72,6 @@ const jobOn = id => T.jobRefs(rec(), cur()).some(r => (typeof r === 'string' ? r
 const linesOf = v => v?.metrics?.measured?.[measureKeyOf(cur())]?.lines;
 
 const entryKeyOf = id => (['work', 'projects', 'volunteer'].find(k => (rec()[k] ?? []).some(x => x?.id === id)) ?? 'work');
-function factRow(id, { section = null, owner = null } = {}){
-  const L = lang();
-  const miss = L !== DEFAULT_LANG && !R.versionsIn(work(), id, L).length && !isSame(rec(), sameKey(id)) && overrideOf(id) === undefined;
-  const rs = recordSelOfFact(rec(), id);
-  return partFactRow({ id, section, owner, miss, text: clip(C.textOfFact(id) || ix().facts.get(id)?.summary || id, 120), pill: miss ? h('edit.noLang', { code: L.toUpperCase() }) : '', pillMiss: true,
-    ...(rs ? { act: 'select-record', attrs: `data-what="${esc(rs.what)}" ${rs.group ? `data-group="${esc(rs.group)}"` : ''} ${rs.key ? `data-key="${esc(rs.key)}"` : ''}` } : {}) });
-}
-
 const missingBar = () => missBar({ lang: lang(), list: lang() === DEFAULT_LANG ? [] : missingList(work(), cur()) });
 
 // ---- the Highlight lens: one list of tags, job types (bundles of tags) first ----
@@ -121,29 +113,31 @@ function noneView(){
 }
 
 // One depth indicator (UX-6c): the levels of what is selected, from the page down. The chip on the page and the row at the top of
-// the editor card both draw it, from parts.js depthHtml. `next`: the level below, offered on the page.
-function depth(sel = C.ui.sel){
+// the editor card both draw it, from parts.js depthHtml. The sidebar's row names the specific content (full job and line names); the
+// page's chip is general and in single words (Page › Experience › Hydra, Page › Skills › CAD, no line level).
+function depth(sel = C.ui.sel, page = false){
   const L = [{ word: t('ux3.crumbPage'), act: 'deselect' }];
-  let next = null;
   const at = id => `data-id="${esc(id)}"`;
   const jobId = sel.kind === 'job' ? sel.id : sel.kind === 'bullet' ? sel.job ?? sel.owner : null;
-  const sid = sel.kind === 'section' ? sel.id : sel.kind === 'bullet' ? sel.section ?? 'summary' : null;
-  if (jobId){
-    L.push({ word: t('ux3.crumbJob'), name: ix().work.get(jobId)?.name ?? jobId, act: 'select-job', attrs: at(jobId) });
-    const first = sel.kind === 'job' ? T.listedBullets(rec(), cur(), jobId)[0] : null;
-    if (first) next = { word: t('ux3.crumbLine'), act: 'select-bullet', attrs: at(first) };
-  } else if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
-  else if (sid){
-    L.push({ word: t('ux6c.section'), name: C.sectionTitle(sid), act: 'select-section', attrs: at(sid) });
-    const sec = sel.kind === 'section' ? ix().sections.get(sid) : null;
-    const first = sec?.kind === 'entries' ? (sec.content.work ?? []).find(jobOn) : sec?.kind === 'prose' ? (sid === 'summary' && cur().summary) || sec.content.fact : null;
-    if (first) next = sec.kind === 'entries' ? { word: t('ux3.crumbJob'), act: 'select-job', attrs: at(first) } : { word: t('ux6c.item'), act: 'select-bullet', attrs: at(first) };
+  const item = sel.kind === 'record' && sel.what === 'item';       // a skill group, a language: an item of a list section
+  const sid = sel.kind === 'section' ? sel.id : sel.kind === 'bullet' ? sel.section ?? 'summary' : jobId ? T.sectionOfEntry(rec(), jobId) : item ? T.sectionOfItem(rec(), sel.id) : null;
+  const word = s => clip(String(s ?? '').trim().split(/\s+/)[0], 12);
+  if (page){
+    if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
+    else if (sid) L.push({ word: word(C.sectionTitle(sid)), act: 'select-section', attrs: at(sid) });
+    if (jobId) L.push({ word: word(ix().work.get(jobId)?.name ?? jobId), act: 'select-job', attrs: at(jobId) });
+    else if (item) L.push({ word: word(ix().facts.get(sel.id)?.summary || C.textOfFact(sel.id) || sel.id), act: 'select-record', attrs: `${at(sel.id)} data-what="item" data-group="${esc(sel.group ?? '')}"` });
+    else if (sel.kind === 'bullet' && sid !== 'header' && sid !== 'summary') L.push({ word: word(ix().facts.get(sel.id)?.summary || C.textOfFact(sel.id)), act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
+    return L;
   }
+  if (jobId) L.push({ word: t('ux3.crumbJob'), name: ix().work.get(jobId)?.name ?? jobId, act: 'select-job', attrs: at(jobId) });
+  else if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
+  else if (sid) L.push({ word: t('ux6c.section'), name: C.sectionTitle(sid), act: 'select-section', attrs: at(sid) });
   if (sel.kind === 'bullet') L.push({ word: jobId ? t('ux3.crumbLine') : t('ux6c.item'), name: ix().facts.get(sel.id)?.summary ?? sel.id,
     act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
-  return { levels: L, next };
+  return L;
 }
-const depthHtml = (sel = C.ui.sel, o = {}) => { const d = depth(sel); return depthMarkup(d.levels, { ...o, next: o.next ? d.next : null }); };
+const depthHtml = (sel = C.ui.sel, { page = false } = {}) => depthMarkup(depth(sel, page), { small: page });
 
 function sectionView(s){
   const sec = ix().sections.get(s.id);
@@ -156,21 +150,8 @@ function sectionView(s){
   const movable = list.filter(x => !x.fixed);
   const at = movable.findIndex(x => x.id === s.id);
   const isHeader = sec.kind === 'header';
-  let inner = '';
-  if (sec.kind === 'entries'){
-    inner = `<span class="lbl">${h('edit.jobs')}</span><div class="list">${(sec.content.work ?? []).filter(id => !ix().work.get(id)?.archived || jobOn(id)).map(id => {
-      const w = ix().work.get(id);
-      const on = jobOn(id);
-      return `<div class="item row ${on ? '' : 'is-off'}">${sw(`data-jobon="${esc(id)}" aria-label="${esc(t('edit.showX', { name: w?.name }))}"`, on)}
-        <a class="t" data-act="select-job" data-id="${esc(id)}">${esc(w?.name)}<span class="muted small"> · ${esc(C.textOfFact(w?.display?.position) || w?.position)}</span></a></div>`;
-    }).join('')}</div>`;
-  } else if (sec.kind === 'prose'){
-    const f = (s.id === 'summary' && cur().summary) || sec.content.fact;
-    inner = `<span class="lbl">${h('edit.text')}</span><div class="list"><button class="item" data-act="select-bullet" data-id="${esc(f)}"><span>${esc(clip(C.textOfFact(f), 160))}</span></button></div>`;
-  } else if (!isHeader){
-    const ids = Object.values(sec.content ?? {}).flat().filter(x => typeof x === 'string' && ix().facts.has(x));
-    inner = `<span class="lbl">${h('edit.items')}</span><div class="list">${ids.map(id => factRow(id, { section: s.id })).join('')}</div>`;
-  }
+  // its own list: the jobs or the items, each with a tick, a grip and ↑ ↓ (the Outline's rows)
+  const inner = isHeader ? '' : C.outlineHtml(null, s.id);
   return `${depthHtml(s)}
     <h2 class="title">${esc(title)}</h2>
     ${isHeader ? '' : `<label class="field"><span class="lbl inline">${h('edit.headingHere', { lang: LANG_NAME[L] ?? L })}</span>
@@ -364,7 +345,6 @@ async function act(a, tg){
   const s = { id: fid() }, sel = C.ui.sel;     // s: the claim open; sel: what the Resume has selected (a section, for the cases below)
   switch (a){
     case 'edit': startEdit(null, tg?.dataset?.v ?? null); return true;
-    case 'new-version': startEdit('new'); return true;
     case 'ed-cancel': cancelEdit({ discard: true }); return true;
     case 'use-edit': commit(d => T.unparkOverride(d.cur, s.id), t('edit.thisOnly')); return true;
     case 'ed-save': saveEdit('over'); return true;

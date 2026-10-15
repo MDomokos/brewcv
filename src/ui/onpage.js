@@ -4,12 +4,13 @@
 //   - A line is written where it is printed: the element on the page becomes editable, holding the plain text of the version
 //     (src/ui/plain.js reads it back, so the text is exactly what the old text box held). Everything else is the editor's own
 //     (src/ui/edit.js): the draft, the live preview, keeping it on this resume when the line is left.
-//   - A small chip floats over the page: where you are (Page › Job › Line), each level a button, the level below and Esc. The same
-//     component heads the editor card (parts.js depthHtml).
+//   - A small quiet chip lies on the top-right corner of the dashed frame of the block being edited: where you are in single words (Page › Experience › Hydra), each
+//     level a button. The same component heads the editor card (parts.js depthHtml), at its normal size.
 //   - The tools sit beside a line being written, in the page's right margin: the version number, ↑ and ↓, the counts.
 // All of it is drawn in the app's layer (#editlay), over the page; the page's own markup and its measurements are never touched,
 // and nothing here is in an export. The camera (src/ui/canvas.js) eases to the writing zoom on the first line written, stays there
-// from line to line, and comes back out only at the page level (Esc to the page, a click on the bare canvas).
+// from line to line, and comes back out only at the page level (Esc to the page, a click on the bare canvas). Under reduced motion
+// there is no writing zoom: the camera only scrolls the line into view.
 
 import { plainOf, caretOf, setCaret } from './plain.js';
 import { toolsHtml, statsCompactHtml, esc } from './parts.js';
@@ -18,9 +19,10 @@ import { step } from './select.js';
 import * as T from '../model/resume.js';
 import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
+import { reduced } from './motion.js';
 
 const $ = (s, r = document) => r.querySelector(s);
-const PAD_JOB = 6, PAD_LINE = 4;
+const PAD_JOB = 6, PAD_LINE = 4, PAD_SEC = 12;       // a section's frame stands off enough for the chip's lower half to clear its first line
 const pad = (r, p) => (r ? { left: r.left - p, top: r.top - p, width: r.width + 2 * p, height: r.height + 2 * p } : null);
 
 export function initOnPage(C){
@@ -41,6 +43,7 @@ export function initOnPage(C){
     if (sel.kind === 'bullet') return { fact: sel.id, jobId: sel.job ?? C.ix().highlight.get(sel.id) ?? null };
     if (sel.kind === 'job') return { fact: null, jobId: sel.id };
     if (sel.kind === 'section' || sel.kind === 'header') return { band: sel.kind === 'header' ? 'header' : sel.id };
+    if (sel.kind === 'record' && sel.what === 'item'){ const sid = T.sectionOfItem(C.record(), sel.id); return sid ? { band: sid } : null; }       // a skill group, a language: its section is framed
     return null;
   }
   // 'page' (nothing is framed), 'job', 'line' (written), 'lineSel' (a line outside a job: only selected), 'band' (a section or the
@@ -66,6 +69,9 @@ export function initOnPage(C){
       band: use?.band ? sheet.rectOfBand(use.band) : null,
       jobId,
     };
+    // the section being edited: where the chip stands (the band on this page when the section runs over two)
+    const sel = ui.sel, sid = use?.band ?? (jobId ? T.sectionOfEntry(C.record(), jobId) : sel.kind === 'bullet' ? sel.section ?? 'summary' : null);
+    geom.sec = sid ? sheet.rectOfBand(sid, geom.line ?? geom.job ?? geom.band) : null;
   }
 
   // ---- drawing the layers ----
@@ -93,10 +99,11 @@ export function initOnPage(C){
     const dim = readDimJob();
     if (lvl === 'job') for (let i = 0; i < geom.boxes.length; i++) html.push(`<div class="obveil" data-p="${i}" style="opacity:${((100 - dim) / 100).toFixed(3)}"></div>`);
     if (geom.job && (lvl === 'job' || lvl === 'line')) html.push(`<div class="obframe job${lvl === 'line' ? ' dashed' : ''}"></div>`);
+    else if (geom.sec) html.push('<div class="obframe sec dashed"></div>');       // a section or a line outside a job: the frame the chip sits on
     if (lvl === 'line' && geom.line) html.push('<div class="obframe line"></div>');
     const tools = toolsFor(lvl);
     if (tools) html.push(`<div class="obtoolswrap" role="region" aria-label="${esc(t('ux3.tools'))}">${tools}</div>`);
-    html.push(`<div class="obchip">${edit().depthHtml(ui.sel, { next: true, escKey: true })}</div>`);
+    html.push(`<div class="obchip">${edit().depthHtml(ui.sel, { page: true })}</div>`);
     lay.innerHTML = html.join('');
     place();
     if (keep) lay.querySelector(`[data-act="${keep}"]`)?.focus({ preventScroll: true });
@@ -135,6 +142,7 @@ export function initOnPage(C){
     const box = (el, r) => { if (!el || !r) return; Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); };
     box(lay.querySelector('.obframe.job'), R(pad(geom.job, PAD_JOB)));
     box(lay.querySelector('.obframe.line'), R(pad(geom.line, PAD_LINE)));
+    box(lay.querySelector('.obframe.sec'), R(pad(geom.sec, PAD_SEC)));
     // the tools sit beside the line, in the page's right margin
     const tw = lay.querySelector('.obtoolswrap');
     const fact = lvl === 'line' ? S?.fact : null;
@@ -149,23 +157,26 @@ export function initOnPage(C){
       if (left + twW > room) left = Math.max(6, sr.left - twW - 6);       // no room right of the line (a narrow window): to its left, never under the tabs
       Object.assign(tw.style, { left: `${left}px`, top: `${Math.max(6, sr.top - 4)}px` });
     } else if (tw) tw.style.display = 'none';
-    const near = geom.line ?? geom.job ?? geom.band;
-    const pg = near && (geom.boxes.find(b => near.left >= b.left - 1 && near.left < b.left + b.width) ?? geom.boxes[0]);
-    placeChip(lay.querySelector('.obchip'), [geom.line, geom.job, geom.band].filter(Boolean).map(R), pg && R(pg));
+    placeChip(lay.querySelector('.obchip'), (geom.job && (lvl === 'job' || lvl === 'line') ? R(pad(geom.job, PAD_JOB)) : R(pad(geom.sec ?? geom.job ?? geom.line, PAD_SEC))));
   }
-  // The chip floats over the page near what is selected and opens no gap: above the line, else in the margin to its left, else the
-  // same around its job, else in the page's top or bottom margin, wherever no printed text is under it; inside the pages' room (never
-  // under the rail or the sidebar) and above the zoom bar. With no clear place, above the nearest.
-  function placeChip(chip, anchors, page){
-    if (!chip || !anchors.length) return;
+  // One rule: the chip lies on the dashed frame of the current block (the job's, or the section's), centred on its top edge in its
+  // top-right corner. Kept inside the page, in the pages' room (never under the rail or the sidebar) and above the zoom bar; moved
+  // along the edge until it is clear of printed text and of the tools beside the line. It follows the frame with the camera.
+  function placeChip(chip, f){
+    if (!chip || !f) return;
     const v = canvas.view ?? { left: 0, top: 0, width: innerWidth, height: innerHeight };
     const w = chip.offsetWidth, h = chip.offsetHeight;
-    const fit = (x, y) => [Math.max(v.left + 6, Math.min(x, v.left + v.width - w - 6)), Math.max(v.top + 6, Math.min(y, v.top + v.height - h - 56))];
+    const pg = geom.boxes.map(b => canvas.screenRect(b)).find(b => f.left >= b.left - 1 && f.left < b.left + b.width);
+    const lo = Math.max(v.left + 6, pg ? pg.left + 2 : -Infinity), hi = Math.min(v.left + v.width - w - 6, pg ? pg.left + pg.width - w - 2 : Infinity);
+    const y = Math.max(v.top + 6, Math.min(f.top - h / 2, v.top + v.height - h - 56));
     const texts = sheet.textRects().map(r => canvas.screenRect(r));
-    const clear = ([x, y]) => !texts.some(q => x < q.left + q.width && x + w > q.left && y < q.top + q.height && y + h > q.top);
-    const margins = page ? [fit(anchors[0].left, page.top + 4), fit(anchors[0].left, page.top + page.height - h - 4)] : [];
-    const at = [...anchors.flatMap(a => [fit(a.left, a.top - h - 6), fit(a.left - w - 10, a.top)]), ...margins].find(clear) ?? fit(anchors[0].left, anchors[0].top - h - 6);
-    Object.assign(chip.style, { left: `${at[0]}px`, top: `${at[1]}px` });
+    const tw = lay.querySelector('.obtoolswrap'), tr = tw && tw.style.display !== 'none' ? tw.getBoundingClientRect() : null;
+    const hit = (x, q) => x < q.left + q.width && x + w > q.left && y < q.top + q.height && y + h > q.top;
+    const x0 = Math.max(lo, Math.min(f.left + f.width - w - 12, hi));
+    // the corner first, then outwards along the edge into the page's margin, then inwards, to the first place clear of text and tools
+    const xs = [x0, ...Array.from({ length: Math.max(0, Math.floor((hi - x0) / 8)) }, (_, i) => x0 + 8 * (i + 1)), ...Array.from({ length: Math.max(0, Math.floor((x0 - lo) / 8)) }, (_, i) => x0 - 8 * (i + 1))];
+    const x = xs.find(x => !texts.some(q => hit(x, q)) && !(tr && hit(x, tr))) ?? x0;
+    Object.assign(chip.style, { left: `${x}px`, top: `${y}px` });
   }
 
   // ---- writing a line where it is printed ----
@@ -266,7 +277,9 @@ export function initOnPage(C){
     attach(el, null, ui.clickAt);
     ui.clickAt = null;
     // the first line written zooms in (unless the page is already that large); the next ones only pan
-    if (readZoomWriteOn()) zoomed = canvas.writeTo(sheet.rectOfEl(el), readZoomWrite(), { keepZoom: zoomed }) || zoomed;
+    // reduced motion: no writing zoom at all, the line is only kept in view
+    if (reduced()) canvas.ensureVisible(sheet.rectOfEl(el));
+    else if (readZoomWriteOn()) zoomed = canvas.writeTo(sheet.rectOfEl(el), readZoomWrite(), { keepZoom: zoomed }) || zoomed;
     C.writeStarted?.();
     say(t('ux3.announceOn'));
     render(true);

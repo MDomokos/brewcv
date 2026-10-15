@@ -233,15 +233,20 @@ body.is-ready .paper-skel { display: none; }
 .depth .dp-l { display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 7px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-soft); font: inherit; cursor: pointer; }
 .depth .dp-l:hover { background: var(--fill); color: var(--ink); }
 .depth .dp-l.cur { background: var(--accent); color: var(--on-accent); }
-.depth .dp-l.next { color: var(--faint); font-weight: 500; }
 .depth .dp-w { flex: none; }
 .depth .dp-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 .depth .dp-l:last-of-type:not(.next) .dp-n, .depth .dp-l.cur .dp-n { flex-shrink: 4; }
 .depth .dp-s { flex: none; color: var(--faint); }
-.depth .dp-esc { flex: none; margin-left: 2px; padding: 0 3px; border: 0; background: transparent; cursor: pointer; }
-.depth .dp-esc kbd { font-size: 10px; color: var(--ink-soft); }
 .col > #body .depth { margin-bottom: 2px; }
 .obchip { pointer-events: auto; max-width: min(440px, 60vw); }
+/* the page's instance: a quiet marker, 20 px tall, outline only; the current level a little stronger; full contrast on hover or focus.
+   The buttons draw small but keep a 24 px pointer target (the pseudo-element). */
+.depth.sm { gap: 0; height: 20px; padding: 0 2px; font-size: 11px; font-weight: 500; line-height: 1; background: color-mix(in srgb, var(--raised) 85%, transparent); border-color: var(--line); box-shadow: none; }
+.depth.sm .dp-l { position: relative; align-self: stretch; align-items: center; gap: 0; padding: 0 5px; }
+.depth.sm .dp-l::after { content: ''; position: absolute; inset: -3px -1px; }
+.depth.sm .dp-l.cur { background: transparent; color: var(--ink); font-weight: 700; }
+.depth.sm:hover, .depth.sm:focus-within { background: var(--raised); border-color: var(--line-strong); }
+.depth.sm .dp-s { font-size: 10px; }
 .title { font-size: 16.5px; font-weight: 750; line-height: 1.3; margin: 0 0 8px; }
 .meta { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 6px; }
 .row-ctl { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
@@ -1140,7 +1145,6 @@ mark.dw { background: var(--ins-bg); color: inherit; border-radius: 2px; padding
 .col > #body .lbl { margin: 12px 0 5px; }
 .col > #body .vrow { padding: 6px 10px; }
 .col > #body .title { margin: 0 0 6px; }
-.col > #body .newv { margin-top: 6px; }
 .col > #body .allrec { margin: 8px 0 0; }
 .col > #body details.details { margin-top: 6px; }
 .vlist.full .vrow { grid-template-columns: 16px 46px minmax(0, 1fr) auto; }

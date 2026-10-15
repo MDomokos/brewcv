@@ -836,7 +836,6 @@ async function onClick(e){
     case 'help': if (ui.menu){ ui.menu = false; renderHead(); } help.toggle(); break;
     case 'deselect': select(NONE); break;
     case 'select-header': select({ kind: 'header' }); break;
-    case 'depth-up': if (edit.editing && !edit.editing.panel) edit.cancelEdit(); else select(NONE); break;      // the chip's Esc
     case 'select-section': select({ kind: 'section', id }); sheet.flash(id); break;
     case 'select-job': select({ kind: 'job', id }); break;
     case 'select-fact': select({ kind: 'bullet', id, section: tg.dataset.section ?? 'summary', ...(tg.dataset.owner ? { owner: tg.dataset.owner } : {}) }); break;
@@ -1204,7 +1203,7 @@ const edit = initEdit({
   ix: () => ui.ix ?? indexModel(work()),
   onpage: { begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
-  outlineHtml: () => checklist.outlineHtml(),
+  outlineHtml: (...a) => checklist.outlineHtml(...a),
   setFocus: () => sheet.setFocus(edit.focusHits(), ui.ix),
   select: (sel, o) => select(sel, o),
   renderBody: () => renderBody(),

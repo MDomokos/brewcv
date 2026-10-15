@@ -425,8 +425,11 @@ export function createSheet(host, hooks = {}){
       const r = el.getBoundingClientRect(), page = el.closest('.page')?.getBoundingClientRect();
       return { left: r.left, top: r.top, width: r.width, height: r.height, page: page ? { left: page.left, top: page.top } : null };
     },
-    // a section's band (the first, when it runs over two pages), in the page's own pixels
-    rectOfBand(id){ const el = fr?.doc.querySelector(`.band[data-section="${CSS.escape(id)}"]`); return el ? this.rectOfEl(el) : null; },
+    // a section's band, in the page's own pixels: the one on the same page as `near` (a rectangle) when it runs over two pages, else the first
+    rectOfBand(id, near){
+      const rs = [...(fr?.doc.querySelectorAll(`.band[data-section="${CSS.escape(id)}"]`) ?? [])].map(e => this.rectOfEl(e));
+      return (near && rs.find(r => near.left >= r.left - 40 && near.left < r.left + r.width + 40)) || rs[0] || null;
+    },
     // a line being written is part of the page: the rest of the text fades a little (dim, 60 to 100); null when nothing is written
     setWriting(dim){ const d = fr?.doc?.documentElement; if (!d) return; d.classList.toggle('rb-writing', dim != null); if (dim != null) d.style.setProperty('--rb-wdim', String(dim / 100)); },
     // a job's box on the page, in the page's own pixels from the sheet's corner

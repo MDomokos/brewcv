@@ -104,7 +104,7 @@ const ocaret = (key, open, label, count = '') =>
   `<button class="clcaret ocaret" data-act="ol-toggle" data-g="${esc(key)}" aria-expanded="${open}" aria-controls="ol-${esc(key)}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span><span class="clname">${label}</span>${count ? `<span class="clcount">${count}</span>` : ''}</button>`;
 
 // `only`: a job's id, for the sidebar when that job is selected: just its lines (its own title and switch are above them)
-export function outlineHtml(only = null){
+export function outlineHtml(only = null, section = null){
   const m = C.work(), cur = C.cur();
   const cl = checklist(m, cur, C.lang());
   const list = T.sectionList(m, cur);
@@ -126,8 +126,10 @@ export function outlineHtml(only = null){
   const jobHtml = (g, isOn, move = null) => {
     if (!isOn) return `<div class="item row is-off ojob"><label class="swl"><input type="checkbox" class="sw" data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"></label><a class="t" data-act="select-job" data-id="${esc(g.id)}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</a></div>`;
     const open = !folded(g.id, focus === g.id);
+    // in a section's own view the job also has its tick, and a way to open it
+    const pickJob = section ? `${sw(`data-jobon="${esc(g.id)}" aria-label="${esc(t('edit.showX', { name: g.title }))}"`, true)}<button class="sm ghost" data-act="select-job" data-id="${esc(g.id)}">${h('ux2.openEntry')}</button>` : '';
     const grip = move ? `<span class="clgrip" aria-hidden="true">${icon('grip')}</span>${moveButtonsHtml('job-up', 'job-down', g.id, g.title, move)}` : '';
-    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${move ? `data-job="${esc(g.id)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>${ocaret(g.id, open, `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}${grip}</h3>
+    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${move ? `data-job="${esc(g.id)}" draggable="true" title="${esc(t('ux2.dragItem'))}"` : ''}>${ocaret(g.id, open, `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}${pickJob}${grip}</h3>
       <div class="clbody" id="ol-${esc(g.id)}" ${open ? '' : 'hidden'}>${jobBody(g)}</div></section>`;
   };
 
@@ -167,6 +169,8 @@ export function outlineHtml(only = null){
 
   const onlyG = only && cl.groups.find(g => g.id === only && g.kind === 'entry');
   if (onlyG) return `<section class="outline only" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><div class="clg open" data-g="${esc(only)}">${onlyG.custom ? `<div class="ordhead">${orderMarkHtml(true, 'job', only, onlyG.title)}</div>` : ''}<div class="clbody" id="ol-${esc(only)}">${jobBody(onlyG)}</div></div></section>`;
+  // `section`: a section's id, for the sidebar when that section is selected: its jobs or items, with tick, grip and ↑ ↓
+  if (section) return `<section class="outline only" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}">${bodyOf({ id: section })}</section>`;
   const manual = Array.isArray(cur.pages);
   return `<section class="outline" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><h2 class="sr">${h('ux5c.tabOutline')}</h2>
     ${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere')) ? `<div class="ordhead">${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere'))}</div>` : ''}

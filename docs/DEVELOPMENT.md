@@ -68,15 +68,18 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            them) and drinks.css (the shapes and surfaces that make each drink itself);
                            parts.js, the pure string parts (crumb, rows, version list, editor,
                            write-in, the on-page tools and version badge, and depthHtml: the one depth
-                           indicator, Page › Job › Line, drawn as the chip over the page and as the row
-                           at the top of the editor card) the panels share;
+                           indicator, drawn as the small quiet chip over the page, in single words
+                           (Page › Experience › Hydra), and as the row at the top of the editor card, at
+                           its normal size, with the full names: Page › Job › Line) the panels share;
                            camera (the pure maths of the page canvas: both pages or one, soft limits, the
                            magnet, which page is bright, the spring), canvas (moves the sheet with the camera
                            and reads the wheel, the hand and the pinch), onpage (the three levels drawn over
                            the page; one click writes a line where it is printed, and leaving it keeps
                            what was typed on this resume, as an override with its highlights and the
-                           version it came from, with nothing asked; the chip; the tools in the margin;
-                           the writing zoom: in on the first line, out at the page level), plain (the
+                           version it came from, with nothing asked; the chip, lying on the top-right corner
+                           of the dashed frame of the job or section being edited; the tools in the margin;
+                           the writing zoom: in on the first line, out at the page level, none under
+                           reduced motion, where the line is only kept in view), plain (the
                            text of a line being written, read back from the page), start (the start screen:
                            its header, inspector and footer areas, and the picture of how it works) with
                            start.css (every colour a token, like the other two stylesheets)

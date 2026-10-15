@@ -35,7 +35,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
     const { picked, html: h2 } = await fromList(b, fact);
     ok('the checklist row selects what a click on the page selects', eq(picked, sel(fact)), JSON.stringify(picked));
     ok('so the panel is the same markup', h1 === h2 && h1.length > 500);
-    ok('it has a version list with ◉ on the one in use, a "use" action, ✎ and 🗑 on a version, + Write a new version', h1.includes('class="rad"') && h1.includes('vrow cur') && h1.includes('data-act="use-version"') && h1.includes('data-act="delete-version"') && h1.includes('data-act="new-version"'));
+    ok('it has a version list with ◉ on the one in use, a "use" action, ✎ and 🗑 on a version, and no “+ Write a new version”', h1.includes('class="rad"') && h1.includes('vrow cur') && h1.includes('data-act="use-version"') && h1.includes('data-act="delete-version"') && !h1.includes('data-act="new-version"'));
     ok('…and nothing of a flat, Career-only list is left', !h1.includes('vlist flat') && !/vrow flat/.test(h1));
     const vs = R.versionsIn(a.work(), fact.id, 'en');
     ok('the radio is on the version in use only', (h1.match(/class="rad"/g) ?? []).length === vs.length && (h1.match(/vrow cur/g) ?? []).length === 1);
@@ -68,9 +68,9 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
     ok('…and a new version, numbered as a minor', R.versionsIn((await run('list', A)).work(), pick(base).id, 'en').some(v => /\./.test(v.n)));
     const S = async u => { await u.click('edit'); u.type('ed', 'Reworded in place.'); await u.click('ed-save'); };
     ok('✎ then Save vN writes the same record', record(await run('page', S)) === record(await run('list', S)));
-    const N = async u => { await u.click('new-version'); u.type('ed', 'A different take, for another kind of job.'); await u.click('ed-new'); };
+    const N = async u => { await u.edit.startEdit('new'); u.type('ed', 'A different take, for another kind of job.'); await u.click('ed-new'); };
     const nb = await run('list', N);
-    ok('+ Write a new version writes the same record, as the next whole number', record(await run('page', N)) === record(nb) && R.versionsIn(nb.work(), pick(nb).id, 'en').at(-1).n === String(baseMax + 1));
+    ok('a new wording writes the same record, as the next whole number', record(await run('page', N)) === record(nb) && R.versionsIn(nb.work(), pick(nb).id, 'en').at(-1).n === String(baseMax + 1));
     ok('…and the open resume picks the version it just wrote', Object.values(nb.cur().picks).includes(R.versionsIn(nb.work(), pick(nb).id, 'en').at(-1).id));
     const D = async (u, fact) => { await u.click('delete-version', { v: R.versionsIn(u.work(), fact.id, 'en').at(-1).id }); };
     ok('🗑 on a version writes the same record', record(await run('page', D)) === record(await run('list', D)));

@@ -651,11 +651,56 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
 const lay = page => page.evaluate(() => { const el = document.querySelector('#editlay'); const q = s => el.querySelector(s); return {
   veil: [...el.querySelectorAll('.obveil')].map(v => +getComputedStyle(v).opacity), job: !!q('.obframe.job'), dashed: !!q('.obframe.job.dashed'), line: !!q('.obframe.line'),
   tools: [...el.querySelectorAll('.obtools [data-act]')].map(b => b.dataset.act), badge: q('.obv')?.textContent.trim() ?? null,
-  chip: q('.obchip .depth') ? { words: [...el.querySelectorAll('.obchip .dp-l:not(.next) .dp-w')].map(w => w.textContent), cur: q('.obchip .dp-l.cur .dp-w')?.textContent, next: q('.obchip .dp-l.next .dp-w')?.textContent ?? null, esc: !!q('.obchip .dp-esc') } : null }; });
+  chip: q('.obchip .depth') ? { words: [...el.querySelectorAll('.obchip .dp-l .dp-w')].map(w => w.textContent), cur: q('.obchip .dp-l.cur .dp-w')?.textContent } : null }; });
 const overOf = (page, f) => page.evaluate(f => { const c = window.__wb.store.state.cur; return { text: c.overrides?.[f], meta: c.overrideMeta?.[f], parked: c.parked?.[f] }; }, f);
 const factOf = page => page.evaluate(() => window.__wb.edit.editing?.fact ?? null);
 const zoomOf = page => page.evaluate(() => window.__wb.ui.zoom);
 const selOf = page => page.evaluate(() => { const s = window.__wb.ui.sel; return `${s.kind}:${s.id ?? ''}`; });
+
+const chipGeomOf = page => page.evaluate(() => {
+  const w = window.__wb, q = s => document.querySelector(s)?.getBoundingClientRect();
+  const c = q('#editlay .obchip'), f = q('#editlay .obframe.job') ?? q('#editlay .obframe.sec'), col = q('#col'), rail = q('#rail'), zb = q('#zoombar'), tw = q('#editlay .obtoolswrap');
+  const hit = (a, b) => !!b && b.width > 0 && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  const texts = w.sheet.textRects().map(r => { const s = w.canvas.screenRect(r); return { left: s.left, right: s.left + s.width, top: s.top, bottom: s.top + s.height, width: s.width }; });
+  const view = w.canvas.view, vis = f.top > view.top + 8 && f.bottom < view.top + view.height - 60;
+  return { onEdge: !vis || Math.abs((c.top + c.bottom) / 2 - f.top) <= 3, nearRight: (c.left + c.right) / 2 > f.left + f.width / 2 && c.left < f.right, over: texts.filter(t => hit(c, t)).length,
+    room: c.left >= 0 && c.top >= 0 && c.right <= innerWidth && c.bottom <= innerHeight && !hit(c, col) && !hit(c, zb) && !hit(c, tw) && !hit(c, rail), small: c.height <= 24 };
+});
+
+// Where the chip stands, at four window sizes, for every section of a two-page resume (and a line of the second page): on the frame's top
+// edge near its right end, over no printed text, the tools, the rail, the sidebar or the zoom bar.
+if (want('on the page: the chip on the frame, at four sizes')) {
+  for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080], [2560, 1100]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+    const page = await ctx.newPage();
+    page.on('dialog', d => d.accept());
+    const bad = await open(page);
+    await openByName(page, 'Medtech');
+    const sheet = page.frameLocator('#sheet iframe');
+    const secs = await frameDoc(page, d => [...new Set([...d.querySelectorAll('.band[data-section]')].map(b => b.dataset.section))]);
+    const fails = [];
+    for (const sid of secs) {
+      await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+      await sheet.locator(`.band[data-section="${sid}"] h2.tab`).first().click().catch(() => sheet.locator(`.band[data-section="${sid}"]`).first().click());
+      await page.waitForTimeout(500);
+      const g = await page.evaluate(() => !!document.querySelector('#editlay .obchip')) ? await chipGeomOf(page) : null;
+      if (!g || !g.onEdge || !g.nearRight || g.over || !g.room) fails.push(`${sid} ${JSON.stringify(g)}`);
+    }
+    ok(`${w}x${h}: the chip of each of ${secs.length} sections stands on the frame, clear of text, tools, rail, sidebar and zoom bar`, fails.length === 0, fails.join(' ; '));
+    const last = sheet.locator('.entry').last();
+    await last.locator('.bullets li').first().click(); await page.waitForTimeout(900);
+    const gl = await chipGeomOf(page);
+    ok(`${w}x${h}: …and for a line written on the last job (the second page, when there are two)`, gl.onEdge && gl.nearRight && gl.over === 0 && gl.room, JSON.stringify(gl));
+    await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+    await page.click('#outline [data-act=select-section][data-id=skills]'); await page.waitForTimeout(500);
+    await page.click('#body .outline.only [data-act=cl-open]'); await page.waitForTimeout(700);
+    const gs = await chipGeomOf(page), ws = await page.$$eval('#editlay .obchip .dp-w', e => e.map(x => x.textContent));
+    ok(`${w}x${h}: …and for a skill group: Page › Skills › CAD, on the section's frame`, JSON.stringify(ws) === JSON.stringify(['Page', 'Skills', 'CAD']) && gs.onEdge && gs.nearRight && gs.over === 0 && gs.room, JSON.stringify([ws, gs]));
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+}
 
 if (want('on the page: three levels, writing a line where it is printed, the tools in the margin')) {
   // (a window wide enough for both pages of Medtech: the sidebar does not fold to make room)
@@ -685,23 +730,19 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   ok('…entering write mode is announced to a screen reader', /Writing this line/.test(await page.textContent('#announce')));
 
   // the chip (E13) and the sidebar's row: one component
-  ok('a small chip floats over the page: Page › Job › Line, the line current, and Esc', JSON.stringify(l2.chip?.words) === JSON.stringify(['Page', 'Job', 'Line']) && l2.chip.cur === 'Line' && l2.chip.esc, JSON.stringify(l2.chip));
-  const chipAt = await page.evaluate(() => {
-    const c = document.querySelector('#editlay .obchip').getBoundingClientRect(), col = document.querySelector('#col').getBoundingClientRect(), rail = document.querySelector('#rail')?.getBoundingClientRect();
-    const w = window.__wb, texts = w.sheet.textRects().map(r => w.canvas.screenRect(r));
-    const over = texts.filter(q => c.left < q.left + q.width && c.right > q.left && c.top < q.top + q.height && c.bottom > q.top).length;
-    return { inRoom: c.left >= 0 && c.top >= 0 && c.right <= Math.min(col.left, rail?.left ?? Infinity) && c.bottom <= innerHeight - 50, over, wide: c.width < innerWidth / 2 };
-  });
-  ok('…it sits in the pages’ room (not under the rail or the sidebar, above the zoom bar), small, and over no printed text', chipAt.inRoom && chipAt.wide && chipAt.over === 0, JSON.stringify(chipAt));
+  ok('a small quiet chip lies on the page: Page › Experience › Hydra, single words, no line level, the job current, no Esc and no level below', JSON.stringify(l2.chip?.words) === JSON.stringify(['Page', 'Experience', 'Hydra']) && l2.chip.cur === 'Hydra' && !(await page.$('#editlay .obchip .dp-esc, #editlay .obchip .dp-l.next')), JSON.stringify(l2.chip));
+  const chipGeom = () => chipGeomOf(page);
+  const cg = await chipGeom();
+  ok('…it lies on the dashed frame, its centre on the frame’s top edge in its right half, small, and never over printed text, the tools, the rail, the sidebar or the zoom bar', cg.onEdge && cg.nearRight && cg.over === 0 && cg.room && cg.small, JSON.stringify(cg));
   const same = await page.evaluate(() => {
     const a = document.querySelector('#editlay .obchip .depth'), b = document.querySelector('#body .depth');
     if (!a || !b) return null;
-    const shape = n => [...n.children].filter(x => !x.matches('.dp-esc, .dp-l.next, .dp-l.next + *, .dp-s:has(+ .dp-l.next)')).map(x => `${x.tagName}.${x.className}:${x.querySelector('.dp-w')?.textContent ?? x.textContent}`).join('|');
-    const look = n => { const s = getComputedStyle(n); return [s.fontFamily, s.fontSize, s.fontWeight, s.color, s.backgroundColor, s.borderRadius, s.paddingTop, s.paddingLeft].join(','); };
-    return { shape: shape(a) === shape(b), cur: look(a.querySelector('.dp-l.cur')) === look(b.querySelector('.dp-l.cur')), box: look(a) === look(b), sep: look(a.querySelector('.dp-s')) === look(b.querySelector('.dp-s')), crumb: !document.querySelector('#body .crumb') };
+    const shape = n => `${n.getAttribute('aria-label')}|` + [...n.children].map(x => `${x.tagName}.${x.className.replace(/\bsm\b/, '').trim()}:${x.matches('.dp-s') ? x.textContent : ''}`).join('|');
+    const look = n => getComputedStyle(n).fontFamily;
+    return { shape: shape(a) === shape(b), sm: a.classList.contains('sm') && !b.classList.contains('sm') && parseFloat(getComputedStyle(a).fontSize) < parseFloat(getComputedStyle(b).fontSize), face: look(a.querySelector('.dp-l.cur')) === look(b.querySelector('.dp-l.cur')), sep: look(a.querySelector('.dp-s')) === look(b.querySelector('.dp-s')), crumb: !document.querySelector('#body .crumb') };
   });
-  ok('…the sidebar opens with the same component: the same levels, separators, current level and look, and no old crumb', same && same.shape && same.cur && same.box && same.sep && same.crumb, JSON.stringify(same));
-  ok('…the chip’s levels are buttons, in the focus order', await page.evaluate(() => [...document.querySelectorAll('#editlay .obchip .dp-l, #editlay .obchip .dp-esc')].every(b => b.tagName === 'BUTTON' && b.tabIndex === 0)));
+  ok('…the sidebar opens with the same component (the page’s one smaller): the same markup, separators and face, and no old crumb', same && same.shape && same.sm && same.face && same.sep && same.crumb, JSON.stringify(same));
+  ok('…the chip’s levels are buttons, in the focus order, each with a pointer target of at least 24 x 24 px', await page.evaluate(() => [...document.querySelectorAll('#editlay .obchip .dp-l')].every(b => b.tagName === 'BUTTON' && b.tabIndex === 0 && b.getBoundingClientRect().height + 6 >= 24 && b.getBoundingClientRect().width + 2 >= 24)));
 
   // typing, and leaving: kept on this resume, nothing asks (E1)
   const fW = await factOf(page), vW = await page.evaluate(() => window.__wb.edit.editing.vid);
@@ -804,18 +845,26 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   ok('…a page already at the writing size or larger is not zoomed when a line is written, nor zoomed out after', zBig >= 1.3 && Math.abs(zAfter - zBig) < 0.02 && Math.abs((await zoomOf(page)) - zBig) < 0.02, `${zBig} ${zAfter} ${await zoomOf(page)}`);
   await page.keyboard.press('0'); await page.waitForTimeout(700);
 
-  // the chip's levels
+  // the chip's levels: each selects its level, and the sidebar shows that level's own view
+  const body = page.locator('#body');
+  const viewOf = () => page.evaluate(() => { const q = s => !!document.querySelector(s); return { sel: window.__wb.ui.sel.kind, outline: q('#body #seclist'), sec: q('#body #sec-label') && q('#body .outline.only [data-job]'), job: q('#body .outline.only [data-bullet]') && q('#body [data-act=ol-addline]') && !q('#body #sec-label'), line: q('#body .vrow') && !q('#body .outline'), header: q('#body [data-view=header], #body .about, #body .headerform') }; });
   await jobs.nth(0).locator('.bullets li').first().click(); await page.waitForTimeout(800);
   await page.click('#editlay .obchip [data-act=select-job]'); await page.waitForTimeout(700);
-  const cj = (await lay(page)).chip;
-  ok('the chip’s Job level goes up to the job (the line left, kept); it offers the level below', (await selOf(page)).startsWith('job:') && (await lineEl(page).count()) === 0 && cj?.cur === 'Job' && cj.next === 'Line', JSON.stringify(cj));
-  await page.click('#editlay .obchip .dp-l.next'); await page.waitForTimeout(700);
-  ok('…the level below selects the job’s first line (selected, not written)', (await selOf(page)).startsWith('bullet:') && (await lineEl(page).count()) === 0 && (await lay(page)).chip?.cur === 'Line');
-  await page.click('#editlay .obchip .dp-esc'); await page.waitForTimeout(700);
-  ok('…its Esc goes up a level, to the page', (await selOf(page)) === 'none:' && !(await lay(page)).chip);
+  const vj = await viewOf();
+  ok('the chip’s Hydra (job) level goes up to the job (the line left, kept): its lines with ticks, grips and “+ line”', (await selOf(page)).startsWith('job:') && (await lineEl(page).count()) === 0 && (await lay(page)).chip?.cur === 'Hydra' && vj.job, JSON.stringify(vj));
+  await page.click('#editlay .obchip [data-act=select-section]'); await page.waitForTimeout(700);
+  const vs = await viewOf();
+  ok('…its Experience (section) level selects the section: its own settings and its jobs with tick, grip and ↑ ↓', vs.sel === 'section' && vs.sec && (await lay(page)).chip?.words.join() === 'Page,Experience' && !!(await page.$('#editlay .obframe.sec.dashed')) && (await page.$$('#body .outline.only [data-job] .clmv')).length >= 1 && (await page.$$('#body .outline.only [data-jobon]')).length >= 3, JSON.stringify(vs));
+  await page.click('#editlay .obchip [data-act=deselect]'); await page.waitForTimeout(700);
+  const vp = await viewOf();
+  ok('…its Page level selects the page: the overview with a checkbox for each section and the way to re-arrange them', vp.sel === 'none' && vp.outline && (await page.$$('#body #seclist [data-secon]')).length >= 3 && (await page.$$('#body #seclist .srow .clmv')).length >= 2 && !(await lay(page)).chip, JSON.stringify(vp));
+  // from the sidebar's own row, the same levels
+  await jobs.nth(0).locator('.bullets li').first().click(); await page.waitForTimeout(800); await page.keyboard.press('Escape'); await page.waitForTimeout(700);
+  await page.click('#body .depth [data-act=select-job]'); await page.waitForTimeout(700);
+  ok('the sidebar’s row has the same levels: its Job level shows the job’s view, its Page level the overview', (await viewOf()).job && ((await page.click('#body .depth [data-act=deselect]')), await page.waitForTimeout(700), (await viewOf()).outline));
   await sheet.locator('.band[data-section="experience"] h2.tab').first().click(); await page.waitForTimeout(700);
   const cs = (await lay(page)).chip;
-  ok('a section: Page › Section, with the first job below', JSON.stringify(cs?.words) === JSON.stringify(['Page', 'Section']) && cs.next === 'Job' && (await page.textContent('#body .depth')).includes('Section'), JSON.stringify(cs));
+  ok('a section: Page › Experience, on a dashed frame of the section’s band; the editor card opens with the same component', JSON.stringify(cs?.words) === JSON.stringify(['Page', 'Experience']) && (await page.textContent('#body .depth')).includes('Section') && !!(await page.$('#editlay .obframe.sec.dashed')) && (await chipGeom()).onEdge && (await chipGeom()).over === 0);
   await sheet.locator('.band[data-section="header"] [data-variant]').first().click(); await page.waitForTimeout(700);
   const ch = (await lay(page)).chip;
   ok('the header: Page › Header, in the chip and atop the editor card', JSON.stringify(ch?.words) === JSON.stringify(['Page', 'Header']) && (await page.textContent('#body .depth')).includes('Header'), JSON.stringify(ch));
@@ -844,7 +893,7 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   const summary = sheet.locator('.summary[data-variant]').first();
   await summary.click(); await page.waitForTimeout(800);
   const ls = await lay(page);
-  ok('a line outside a job is written with one click: no job frame; the chip says Page › Section › Item', (await lineEl(page).count()) === 1 && ls.line && !ls.job && JSON.stringify(ls.chip?.words) === JSON.stringify(['Page', 'Section', 'Item']), JSON.stringify(ls));
+  ok('a line outside a job is written with one click: no job frame; the chip says Page › Summary (on a dashed frame of the section)', (await lineEl(page).count()) === 1 && ls.line && !ls.job && JSON.stringify(ls.chip?.words) === JSON.stringify(['Page', 'Summary']), JSON.stringify(ls));
   await esc3();
 
   // two pages: writing on one fades the other, which stays clickable
@@ -979,9 +1028,10 @@ if (want('on the page: a narrow window, zoom off, reduced motion, a line that is
     const sheet = page.frameLocator('#sheet iframe');
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await settle(page);
     await sheet.locator('.entry').first().locator('.bullets li').first().click(); await page.waitForTimeout(60);
-    ok('with reduced motion the view jumps to the writing zoom: no ease', Math.abs((await zoomOf(page)) - 1.3) < 0.02);
+    ok('with reduced motion there is no writing zoom: the scale stays as it was (motion on: it zooms, above)', (await zoomOf(page)) === 1 && (await lineEl(page).count()) === 1, `${await zoomOf(page)}`);
+    ok('…the written line is in view', await page.evaluate(() => { const r = window.__wb.canvas.screenRect(window.__wb.sheet.rectOfEl(window.__wb.onpage.el())), v = window.__wb.canvas.view; return r.top >= v.top && r.top + r.height <= v.top + v.height; }));
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.waitForTimeout(60);
-    ok('…and back out at once at the page level', (await zoomOf(page)) === 1);
+    ok('…and nothing moves at the page level', (await zoomOf(page)) === 1);
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -1462,8 +1512,9 @@ if (want('the Edit view')) {
   await page.click('[data-act=only-remove]'); await settle(page);
   ok('↺ goes back to the saved version', (await fb()) === text0);
 
-  await page.click('[data-act=new-version]'); await settle(page);
-  ok('+ Write a new version writes a copy on the page', (await lineEl(page).count()) === 1 && (await lineText(page)) === text0);
+  ok('there is no “+ Write a new version” link in the versions list', !(await page.$('[data-act=new-version]')));
+  await page.evaluate(() => window.__wb.edit.startEdit('new')); await settle(page);
+  ok('a new wording started from a copy is written on the page', (await lineEl(page).count()) === 1 && (await lineText(page)) === text0);
   await writeLine(page, 'A whole new take.');
   await page.keyboard.press('Escape'); await settle(page);
   ok('…kept on this resume when the line is left (no version until the Review list)', (await st()).cur.overrides[fact] === 'A whole new take.' && (await st()).record.variants.length === nBefore && (await fb()) === 'A whole new take.');
@@ -2410,7 +2461,7 @@ if (want('record: a dragged bullet moves in the list too; "n v" on the contact l
   await toEditHome(page);
   await page.click('#outline .osec[data-sid=header] .osecaret').catch(() => {}); await settle(page);
   await page.locator('#outline .osec[data-sid=header] .clrow').nth(1).locator('.clv').click(); await settle(page);
-  ok('"n v" on the contact line opens its versions, where a new one can be written', (await page.locator('#body [data-act=new-version]').count()) === 1 && (await page.locator('#body [data-act=use-version]').count()) >= 1);
+  ok('"n v" on the contact line opens its versions, with no link to write a new one', (await page.locator('#body [data-act=new-version]').count()) === 0 && (await page.locator('#body [data-act=use-version]').count()) >= 1);
   ok('nothing threw', bad.length === 0, bad.join('; '));
   await ctx.close();
 }
@@ -2490,9 +2541,9 @@ if (want('one panel for a claim: from the page and from the checklist')) {
   await appendLine(page, ' Reworded.'); await settle(page);
   await page.keyboard.press('Escape'); await page.waitForTimeout(900);
   ok('leaving it keeps the words on this resume: no version, the picks as they were', (await nOf()) === n0 && JSON.stringify((await st()).cur.picks) === picks0 && !!(await st()).cur.overrides[fact]?.endsWith('Reworded.'));
-  await page.click('#body [data-act=new-version]'); await settle(page);
+  await page.evaluate(() => window.__wb.edit.startEdit('new')); await settle(page);
   await writeLine(page, 'A different take, for another kind of job.'); await page.keyboard.press('Escape'); await page.waitForTimeout(900);
-  ok('+ Write a new version, left, is kept the same way', (await nOf()) === n0 && (await st()).cur.overrides[fact] === 'A different take, for another kind of job.');
+  ok('a new wording, left, is kept the same way', (await nOf()) === n0 && (await st()).cur.overrides[fact] === 'A different take, for another kind of job.');
   await page.click('#body .depth [data-act=select-job]'); await settle(page);
   await settle(page);
   ok('the job in the panel’s path goes to the job: its group stays open in the Outline', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job' && (await page.$$('#outline .clg.open')).length === 1);
@@ -3300,7 +3351,7 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
     await page.waitForTimeout(700); docs.hovered = await doc();
     await page.mouse.move(4, 4); await page.waitForTimeout(900); docs.unhovered = await doc();
     // a new version: its row slides into the list
-    await page.click('[data-act=new-version]'); await settle(page);
+    await page.evaluate(() => window.__wb.edit.startEdit('new')); await settle(page);
     await page.evaluate(() => window.__wb.edit.draftChanged('A new wording of this line, written for the check.')); await settle(page); await clear();
     await page.evaluate(async () => { await window.__wb.edit.act('ed-new', { dataset: {} }); }); await page.waitForTimeout(500);
     got.version = await names();
