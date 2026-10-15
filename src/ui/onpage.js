@@ -186,6 +186,7 @@ export function initOnPage(C){
     if (!ed) return;
     S.el = el;
     // the plain text in, with its line breaks and spaces as they are; marks come back when it is saved and drawn again
+    const onSkills = ed.group && point && !!el.ownerDocument.elementFromPoint(point.x, point.y)?.closest('.skills__items');      // a click on a group's skills puts the caret at their end (the group is written as name, line break, skills)
     el.textContent = ed.draft;
     el.style.whiteSpace = 'pre-wrap';
     el.contentEditable = supportsPlain ? 'plaintext-only' : 'true';
@@ -206,11 +207,12 @@ export function initOnPage(C){
     el.focus({ preventScroll: true });
     const doc = el.ownerDocument, hit = point && caretAt(doc, point);
     if (caret) setCaret(el, caret);
+    else if (onSkills){ const sel = doc.defaultView.getSelection(), r = doc.createRange(); r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
     else if (hit && el.contains(hit.startContainer)){ const sel = doc.defaultView.getSelection(); sel.removeAllRanges(); sel.addRange(hit); }      // one click: the caret where it was clicked
     else {
       const sel = el.ownerDocument.defaultView.getSelection(), r = el.ownerDocument.createRange();
       r.selectNodeContents(el);
-      if (ed.mode !== 'new') r.collapse(!!ed.group && !ed.base.trim());      // a new skill group starts at its name       // a new version starts with the copy selected, as the text box did
+      if (ed.mode !== 'new') r.collapse(!!ed.group && !ed.base.trim());      // a new skill group starts at its name; a new version starts with the copy selected, as the text box did
       sel.removeAllRanges(); sel.addRange(r);
     }
     rememberCaret();

@@ -3802,6 +3802,8 @@ if (want('on the page: skills arranged in place, two columns, sets, and the keyb
   // write a group in place: its name, a line break, its skills
   await page.mouse.click(g0.x + 40, g0.y + 24); await page.waitForTimeout(900);
   ok('one click writes a skill group: its name, then its skills', (await page.evaluate(() => window.__wb.edit.editing?.draft)) === 'CAD & 3D\nSolidWorks (CSWP), Creo, Fusion 360, KeyShot');
+  await page.keyboard.insertText('!'); await page.waitForTimeout(300);
+  ok('…a click on the skills puts the caret at the end of the skills, not at the end of the name', (await page.evaluate(() => window.__wb.edit.editing?.draft)) === 'CAD & 3D\nSolidWorks (CSWP), Creo, Fusion 360, KeyShot!', JSON.stringify(await page.evaluate(() => window.__wb.edit.editing?.draft)));
   await page.keyboard.press('ControlOrMeta+a'); await page.keyboard.insertText('Tools\nCreo, Onshape'); await page.waitForTimeout(500);
   await page.keyboard.press('Escape'); await page.waitForTimeout(900);
   ok('leaving it keeps what was typed on this resume: the arrangement has the group renamed, with its skills', JSON.stringify((await arr())?.[0]) === JSON.stringify(['skills-cad', ['Creo', 'Onshape'], 'Tools']) && (await skillsText())[0] === 'Tools / Creo, Onshape', JSON.stringify(await arr()));
