@@ -351,6 +351,7 @@ export function loadResume(file, model = null){
   const recipe = migratePins(clone(rb.resume));
   cleanLocal(recipe, model, warnings);
   cleanArrangement(recipe, warnings);
+  cleanTerms(recipe, warnings);
   const snaps = readSnapshots(rb.snapshots, warnings);
   if (snaps.length) recipe.snapshots = snaps;
   return { recipe, frozen, warnings };
@@ -384,6 +385,19 @@ function cleanArrangement(recipe, warnings){
     .map(({ label, ...g }) => (typeof label === 'string' ? { ...g, label } : g));
   if (groups.length !== a.groups.length) warnings.push('skillArrangement had a group without an id of its own or a list of skills; it was dropped');
   recipe.skillArrangement = { ...a, groups };
+}
+
+// recipe.terms = { factId: { lang: name } } is read from a file anyone can edit: anything else is dropped, so setTerm never spreads a string into keys.
+function cleanTerms(recipe, warnings){
+  const a = recipe.terms;
+  if (a === undefined) return;
+  const out = {};
+  if (isObj(a)) for (const [id, v] of Object.entries(a)){
+    const mine = isObj(v) ? Object.fromEntries(Object.entries(v).filter(([, x]) => typeof x === 'string' && x.trim())) : {};
+    if (Object.keys(mine).length) out[id] = mine;
+  }
+  if (!isObj(a) || JSON.stringify(out) !== JSON.stringify(a)) warnings.push('terms had a name that is not text, or is not a list of names by language; it was dropped');
+  if (Object.keys(out).length) recipe.terms = out; else delete recipe.terms;
 }
 
 // A snapshot is `{ id, at, label?, sends: [{ kind, company, role, date }], recipe, body }`: the resume as it printed.

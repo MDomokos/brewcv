@@ -547,6 +547,23 @@ section('every printed text can be written on the resume: an edit with its base 
   ok('the record\'s name takes it back: no `terms` key is left', JSON.stringify(r3) === before && !('terms' in r3));
   ok('a name or heading that was never written leaves no trace in what is sent', !renderPages(m, rc, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('').includes('data-label'));
 }
+section('UX-6c-iii-a fixes: line breaks, hand-edited names, dropped facts, edits per language');
+{
+  const r = T.newResume(model, {});
+  T.setLabel(model, r, '~h:education', 'en', 'Stud\n  ies');
+  T.setLabel(model, r, '~t:lang-portuguese', 'en', 'Luso\nphone ');
+  ok('a heading and a name written with line breaks are stored on one line', r.sections.find(x => x.id === 'education').label.en === 'Stud ies' && r.terms['lang-portuguese'].en === 'Luso phone', JSON.stringify([r.terms, r.sections.find(x => x.id === 'education').label]));
+  const bad = clone(r); bad.terms = { 'lang-portuguese': 'Luso', 'x': { en: 5, hu: 'ok' }, 'y': 7 };
+  const back = S.loadResume(S.saveResume(model, bad).file, model);
+  ok('terms read from a file keep only names by language', JSON.stringify(back.recipe.terms) === JSON.stringify({ x: { hu: 'ok' } }) && back.warnings.some(m => /terms/.test(m)), JSON.stringify(back.recipe.terms));
+  K.deleteItem(clone(model), 'languages', 'lang-portuguese', [r]);
+  ok('dropping a fact leaves no name for it in terms', !('terms' in r), JSON.stringify(r.terms));
+  const e = T.newResume(model, {});
+  T.setOverride(e, 'edu-degree', 'English words', { marks: [], base: 'edu-degree-v1' });
+  L.switchLang(e, 'hu'); T.setOverride(e, 'edu-degree', 'Magyar', { marks: [], base: 'other' });
+  L.switchLang(e, 'en');
+  ok('an edit keeps its base and marks per language', e.overrides['edu-degree'] === 'English words' && e.overrideMeta['edu-degree'].base === 'edu-degree-v1', JSON.stringify(e.overrideMeta));
+}
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {
   // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i. Change it only when the example or the renderer is meant to change.

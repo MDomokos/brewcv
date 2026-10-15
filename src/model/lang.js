@@ -118,10 +118,16 @@ export function switchLang(recipe, to){
   const own = Object.fromEntries(Object.entries(recipe.overrides ?? {}).filter(([k]) => isLocal(recipe, k)));
   if (keep.overrides) keep.overrides = Object.fromEntries(Object.entries(keep.overrides).filter(([k]) => !(k in own)));
   if (keep.overrides && !Object.keys(keep.overrides).length) delete keep.overrides;
+  const metaOf = (o, f) => Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => f(k)));
+  const ownMeta = metaOf(recipe.overrideMeta, k => k in own);
+  if (keep.overrides) keep.overrideMeta = metaOf(recipe.overrideMeta, k => k in keep.overrides);
+  if (keep.overrideMeta && !Object.keys(keep.overrideMeta).length) delete keep.overrideMeta;
   if (Object.keys(keep).length) recipe.byLang[from] = keep; else delete recipe.byLang[from];
   const back = recipe.byLang[to] ?? {};
   recipe.picks = back.picks ?? {};
   recipe.overrides = { ...(back.overrides ?? {}), ...own };
+  const meta = { ...back.overrideMeta, ...ownMeta };
+  if (Object.keys(meta).length) recipe.overrideMeta = meta; else delete recipe.overrideMeta;
   if (back.held) recipe.held = back.held; else delete recipe.held;
   delete recipe.byLang[to];
   if (!Object.keys(recipe.byLang).length) delete recipe.byLang;

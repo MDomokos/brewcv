@@ -101,6 +101,16 @@ export function plainText(body, { lang = 'en', sections = null, chrome = null } 
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }
 
+// Edits that print on the page and in the PDF but not in the text or JSON Resume file: overrides whose text is not in the body, name and heading overrides.
+export function unexported(model, recipe){
+  const strs = [];
+  (function walk(v){ if (typeof v === 'string') strs.push(v); else if (v && typeof v === 'object') Object.values(v).forEach(walk); })(resolve(model, recipe, { local: false }).body);
+  const all = strs.join('\n');
+  return Object.values(recipe.overrides ?? {}).filter(x => !all.includes(String(x))).length
+    + Object.keys(recipe.terms ?? {}).length + (recipe.sections ?? []).filter(s => s.label).length;
+}
+export const unexportedNote = n => (n ? t(n === 1 ? 'ux6c.notExported1' : 'ux6c.notExported', { n }) : '');
+
 export function preflight({ model, recipe, fills = [], missing = 0, newer = 0, vault = false }){
   const out = [];
   const add = (level, key, text) => out.push({ level, key, text });
@@ -117,6 +127,8 @@ export function preflight({ model, recipe, fills = [], missing = 0, newer = 0, v
   if (newer) add('warn', 'newer', t('preflight.newer', { n: newer }));
   if (recipe.photo?.show && !b.image && b.portrait?.state !== 'present') add('bad', 'photo-missing', t('preflight.photoMissing'));
   if (recipe.photo?.show && recipe.format === 'us-letter') add('warn', 'photo', t('preflight.photoLetter'));
+  const lost = unexported(model, recipe);
+  if (lost) add('warn', 'unexported', unexportedNote(lost));
   const { problems } = resolve(model, recipe);
   const placeholders = problems.filter(p => /⬜/.test(p));
   if (placeholders.length) add('bad', 'placeholder', t('preflight.placeholder', { n: placeholders.length }));

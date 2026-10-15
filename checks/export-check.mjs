@@ -96,6 +96,14 @@ section('pre-flight');
   const m2 = structuredClone(model); m2.basics.phone = '';
   ok('an empty contact field is named', X.preflight({ model: m2, recipe: r, fills: fit }).some(c => c.key === 'contact' && /phone/.test(c.text)));
   ok('texts printing in English on a Hungarian resume', X.preflight({ model, recipe: { ...r, lang: 'hu' }, fills: fit, missing: 3 }).some(c => c.key === 'language' && /3 texts print in English/.test(c.text)));
+  {
+    const e = T.newResume(model, {}), job = T.newResume(model, {});
+    T.setOverride(e, 'edu-degree', 'Edited degree words', { marks: [], base: null }); T.setLabel(model, e, '~h:education', 'en', 'Studies'); T.setLabel(model, e, '~t:lang-portuguese', 'en', 'Lusophone');
+    T.setOverride(job, 'hydra-position', 'Edited title words', { marks: [], base: null });
+    const row = rc => X.preflight({ model, recipe: rc, fills: fit }).find(c => c.key === 'unexported');
+    ok('edits the text and JSON Resume files leave out are counted in a warning row', row(e)?.level === 'warn' && /^3 edits print on the page and in the PDF but not in the text or JSON Resume file\.$/.test(row(e).text), JSON.stringify(row(e)));
+    ok('a job title edit reaches both files, so it is not counted', !row(job) && JSON.stringify(X.jsonResumeFile(model, job).file).includes('Edited title words'));
+  }
   ok('newer wording not reviewed', X.preflight({ model, recipe: r, fills: fit, newer: 2 }).some(c => c.key === 'newer'));
   ok('a photo on Letter', X.preflight({ model, recipe: { ...r, format: 'us-letter', photo: { show: true, shape: 'rect' } }, fills: fit }).some(c => c.key === 'photo'));
   ok('a photo switched on with no photo is a problem', X.preflight({ model, recipe: { ...r, photo: { show: true, shape: 'rect' } }, fills: fit }).some(c => c.key === 'photo-missing' && c.level === 'bad'));

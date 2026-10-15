@@ -835,7 +835,7 @@ export function labelOf(model, recipe, id, lang){
 }
 // The name of a language row on this resume, per language. '' resets it to the record's.
 export function setTerm(recipe, fid, lang, text){
-  const t = String(text ?? '').trim(), mine = { ...recipe.terms?.[fid] };
+  const t = String(text ?? '').replace(/\s+/g, ' ').trim(), mine = { ...recipe.terms?.[fid] };
   if (t) mine[lang] = t; else delete mine[lang];
   const terms = { ...recipe.terms, [fid]: mine };
   if (!Object.keys(mine).length) delete terms[fid];
@@ -848,7 +848,7 @@ export const recordTerm = (model, fid, lang) =>
 // A heading or a language's name, by the page's key (`~h:<section>`, `~t:<fact>`), written on this resume in `lang`; the record's own
 // words reset it. `labelNow` is what the resume prints.
 export function setLabel(model, recipe, key, lang, text){
-  const id = key.slice(3), heading = key.startsWith('~h:'), t = String(text ?? '').trim();
+  const id = key.slice(3), heading = key.startsWith('~h:'), t = String(text ?? '').replace(/\s+/g, ' ').trim();
   const reset = !t || t === (heading ? recordTitle(model, id, lang) : recordTerm(model, id, lang));
   if (heading) setSectionLabel(model, recipe, id, lang, reset ? null : t); else setTerm(recipe, id, lang, reset ? '' : t);
 }
