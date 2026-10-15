@@ -1490,7 +1490,10 @@ if (want('saved resumes')) {
   const st = () => page.evaluate(() => window.__wb.store.state);
   const saved = r => r.openId && r.resumes.find(x => x.id === r.openId);
   await page.waitForFunction(() => /Saved on this device/.test(document.querySelector('#savestate')?.textContent ?? ''), null, { timeout: 5000 });
-  ok('the header always says where the work is: “Saved on this device”', /Saved on this device/.test(await page.textContent('#savestate')) && (await page.$$('#savestate .si.ok')).length === 1 && (await page.getAttribute('#savestate', 'role')) === 'status');
+  ok('the header always says where the work is: “Saved on this device”', /Saved on this device/.test(await page.textContent('#savestate')) && (await page.$$('#savestate .si.ok')).length === 1);
+  await page.evaluate(() => window.__wb.store.commit(d => { d.cur.name = 'Saved announce'; }, 'name'));
+  await page.waitForFunction(() => /Saved on this device/.test(document.querySelector('#announce')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+  ok('Saved has no role of its own; a finished save is said through the #announce live region', (await page.getAttribute('#savestate', 'role')) === null && /Saved on this device/.test(await page.textContent('#announce')));
   await page.click('#tab-export'); await settle(page);
   ok('Save to file is always there (in Export), outline not filled, with where the file stands', !(await page.isDisabled('#filestate')) && !(await page.getAttribute('#filestate', 'class')).includes('primary') && /Not saved to a file yet/.test(await page.textContent('#fileline')));
   await page.click('#tab-edit'); await settle(page);
