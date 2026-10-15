@@ -50,6 +50,24 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await ctx.close();
 }
 
+// ---- the Fit chip stays ----
+{
+  const { ctx, page } = await open(1470, 832);
+  await page.evaluate(async () => {
+    const T = await import('/src/model/resume.js');
+    window.__wb.store.commit(d => { for (const w of d.record.work) for (const hl of (w.highlights ?? [])) { try { T.setBulletOn(d.record, d.cur, hl.id ?? hl, true); } catch { /* archived */ } } }, 'check: all lines');
+  });
+  await page.waitForTimeout(900);
+  await page.click('#head [data-act=fit]');
+  await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 30000 });
+  await page.waitForTimeout(7000);
+  ok('the Fit chip is still there 7 seconds after Fit (no timer)', !!(await page.$('.fitchip')));
+  await page.evaluate(() => window.__wb.store.commit(d => { d.cur.name = 'Another name'; }, 'check: rename'));
+  await page.waitForTimeout(700);
+  ok('…and it goes when the next change is made', !(await page.$('.fitchip')));
+  await ctx.close();
+}
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} symmetry check(s) FAILED` : '\nall symmetry checks passed');
 process.exit(failed ? 1 : 0);

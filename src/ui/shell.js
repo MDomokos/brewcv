@@ -986,10 +986,9 @@ function placeChip(el){
   const ft = $('#head .fit').getBoundingClientRect();
   Object.assign(el.style, { left: `${Math.round(Math.max(L.col.left + 8, ft.right - el.offsetWidth))}px`, top: `${Math.round(ft.bottom + 6)}px`, maxWidth: `${L.col.width - 16}px` });
 }
-// After Fit: what it did, in a chip that stays a few seconds, with Undo. Fit only chose among wordings that were already there.
-let chipEl = null, chipT = 0, chipAt = -1;
+// After Fit: what it did, in a chip that stays until the next change (dropChip runs when the history moves), with Undo. Fit only chose among wordings that were already there.
+let chipEl = null, chipAt = -1;
 function dropChip(now = false){
-  clearTimeout(chipT);
   const el = chipEl; chipEl = null; chipAt = -1;
   if (!el) return;
   const a = now ? null : play(el, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(8px)' }], { kind: 'leave', ms: 'fast', fill: 'forwards', name: 'chip:out' });
@@ -1009,7 +1008,6 @@ function fitChip(rep){
   placeChip(chipEl);
   chipAt = store.history.undo;
   play(chipEl, [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { kind: 'arrive', fill: 'backwards', name: 'chip:in' });
-  chipT = setTimeout(() => dropChip(), 6000);
 }
 
 // the first line of Fit's report (src/fit.js formatReport, which the CLI prints in English)
