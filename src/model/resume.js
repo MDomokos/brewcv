@@ -524,6 +524,8 @@ export const overrideOf = (recipe, factId) => (factId in (recipe.overrides ?? {}
   : recipe.parked?.[factId] ? { text: recipe.parked[factId].text, ...(recipe.parked[factId].meta ?? {}), on: false } : null);
 // The edits not yet decided on (UX-6d's Review list).
 export const pendingEdits = recipe => Object.keys(recipe.overrides ?? {}).filter(f => !recipe.overrideMeta?.[f]?.kept);
+// …and the ones UX-6d's Review list may offer: it skips a locked line (it would change its text), so it reads this, not pendingEdits.
+export const reviewableEdits = (model, recipe) => pendingEdits(recipe).filter(f => !isLocked(model, recipe, f));
 export function keepHere(recipe, factId){
   recipe.overrideMeta = { ...(recipe.overrideMeta ?? {}), [factId]: { ...recipe.overrideMeta?.[factId], kept: true } };
 }

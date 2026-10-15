@@ -672,6 +672,8 @@ section('UX-6c-iii-b: the lock');
     ok('…and comes back unchanged', back.overrides[line] === 'English words' && JSON.stringify(back.locked) === JSON.stringify(eLocked.locked));
   }
 
+  const edited = clone(base); T.setOverride(model, edited, line, 'Edited', { marks: [], base: null }); T.setOverride(model, edited, 'hydra-testing', 'Edited too', { marks: [], base: null });
+  ok('the Review list’s edits leave out a locked line (and what is under a lock)', eq(T.reviewableEdits(model, edited), [line, 'hydra-testing']) && eq(T.reviewableEdits(model, withLock(edited, line)), ['hydra-testing']) && T.reviewableEdits(model, withLock(edited, job)).length === 0 && T.reviewableEdits(model, withLock(edited, LK.PAGE)).length === 0);
   // undo, duplicate, copy, snapshot, save and load
   {
     const store = createStore({ record: clone(model), cur: clone(base) });
