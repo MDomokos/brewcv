@@ -9,6 +9,7 @@ import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf,
 import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
+import { keyOf, isLabelKey } from './select.js';
 import { t, h, errText } from '../i18n/index.js';
 import { play } from './motion.js';
 import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, statsHtml, claimHead, moveButtonsHtml } from './parts.js';
@@ -52,6 +53,7 @@ function dropLine(fact){
 // was written from. The words of that version again drop the override.
 function keepEdit(ed){
   if (ed.group) return keepGroup(ed);
+  if (ed.label) return keepLabel(ed);
   if (!isDirty(ed) || !ed.draft.trim()) return;      // an emptied line keeps what it had: the last kept edit, or the version's words
   const text = ed.draft.trim(), base = ix().variants.get(ed.vid);
   C.ui.previewing = false;
@@ -60,6 +62,12 @@ function keepEdit(ed){
     T.dropOverride(d.cur, ed.fact);
     if (base && usingOf(ed.fact)?.id !== base.id) T.pickVersion(d.cur, ed.fact, base.id);
   }, t('edit.thisOnly'));
+}
+// A heading or a language's name written on the page: kept on this resume in its language, as one undo step. The record's own words reset it.
+function keepLabel(ed){
+  if (!isDirty(ed) || !ed.draft.trim()) return;
+  C.ui.previewing = false;
+  commit(d => T.setLabel(d.record, d.cur, ed.fact, lang(), ed.draft), t('ux6c.undoLabel'));
 }
 // A skill group written on the page: its name and skills, kept on this resume's arrangement. No skills left (a new group, or all
 // of them deleted): the group goes, and Ctrl+Z brings it back.
@@ -130,7 +138,7 @@ function noneView(){
 }
 
 // what a line is called in the depth chip and the card: its summary, else its words; a new empty line only on this resume is "New line"
-const lineName = id => (ix().skillGroups.has(id) ? T.arrangementOf(rec(), cur()).groups.find(g => g.id === id)?.label ?? T.groupLabel(rec(), cur(), id) : '')
+const lineName = id => (id.startsWith('~t:') ? T.labelNow(rec(), cur(), id, lang()) : '') || (ix().skillGroups.has(id) ? T.arrangementOf(rec(), cur()).groups.find(g => g.id === id)?.label ?? T.groupLabel(rec(), cur(), id) : '')
   || ix().facts.get(id)?.summary || C.textOfFact(id) || (T.isLocal(cur(), id) ? t('ux6c.newLine') : id);
 
 // One depth indicator (UX-6c): the levels of what is selected, from the page down. The chip on the page and the row at the top of
@@ -142,9 +150,12 @@ function depth(sel = C.ui.sel, page = false){
   const jobId = sel.kind === 'job' ? sel.id : sel.kind === 'bullet' ? sel.job ?? sel.owner : null;
   const item = sel.kind === 'record' && sel.what === 'item';       // a skill group, a language: an item of a list section
   const sid = sel.kind === 'section' ? sel.id : sel.kind === 'bullet' ? sel.section ?? 'summary' : jobId ? T.sectionOfEntry(rec(), jobId) : item ? T.sectionOfItem(rec(), sel.id) : null;
-  const word = s => clip(String(s ?? '').trim().split(/\s+/)[0], 12);
+  const word = s => clip(String(s ?? '').trim().split(/\s+/)[0].replace(/[,.;:]+$/, ''), 12);
+  // the header's field the selection is on: Name, Headline, Contact or Photo
+  const field = sel.kind === 'header' ? (sel.id ? t(`ux6c.f.${sel.id}`) : null) : sel.kind === 'bullet' ? Object.entries(rec().basics?.display ?? {}).map(([k, f]) => (f === sel.id ? t(`ux6c.f.${k}`) : null)).find(Boolean) : null;
+  const fieldLevel = field && { word: field, ...(sel.kind === 'bullet' ? { act: 'select-fact', attrs: `${at(sel.id)} data-section="header"` } : { act: 'select-header' }) };
   if (page){
-    if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
+    if (sel.kind === 'header' || sid === 'header'){ L.push({ word: t('ux6c.header'), act: 'select-header' }); if (fieldLevel) L.push(fieldLevel); }
     else if (sid) L.push({ word: word(C.sectionTitle(sid)), act: 'select-section', attrs: at(sid) });
     if (jobId) L.push({ word: word(ix().work.get(jobId)?.name ?? jobId), act: 'select-job', attrs: at(jobId) });
     else if (item) L.push({ word: word(ix().facts.get(sel.id)?.summary || C.textOfFact(sel.id) || sel.id), act: 'select-record', attrs: `${at(sel.id)} data-what="item" data-group="${esc(sel.group ?? '')}"` });
@@ -154,7 +165,8 @@ function depth(sel = C.ui.sel, page = false){
   if (jobId) L.push({ word: t('ux3.crumbJob'), name: ix().work.get(jobId)?.name ?? jobId, act: 'select-job', attrs: at(jobId) });
   else if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
   else if (sid) L.push({ word: t('ux6c.section'), name: C.sectionTitle(sid), act: 'select-section', attrs: at(sid) });
-  if (sel.kind === 'bullet') L.push({ word: jobId ? t('ux3.crumbLine') : t('ux6c.item'), name: T.isLocal(cur(), sel.id) || ix().skillGroups.has(sel.id) ? lineName(sel.id) : ix().facts.get(sel.id)?.summary ?? sel.id,
+  if (fieldLevel) L.push(fieldLevel);
+  else if (sel.kind === 'bullet') L.push({ word: jobId ? t('ux3.crumbLine') : t('ux6c.item'), name: T.isLocal(cur(), sel.id) || ix().skillGroups.has(sel.id) ? lineName(sel.id) : ix().facts.get(sel.id)?.summary ?? sel.id,
     act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
   return L;
 }
@@ -246,7 +258,23 @@ function jobView(s, { details = true } = {}){
     <div class="ctlrow">${sw(`data-jobon="${esc(s.id)}"`, on, h('edit.showJob'))}</div>${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
 }
 
+// A language's name, written on the page: its words here, and the record's to go back to
+function termView(s){
+  const L = lang(), fid = s.id.slice(3), own = T.termOf(cur(), fid) ?? '';
+  return `${depthHtml(s)}
+    <h2 class="title">${esc(T.labelNow(rec(), cur(), s.id, L))}</h2>
+    <label class="field"><span class="lbl inline">${h('ux6c.termHere', { lang: LANG_NAME[L] ?? L })}</span>
+      <input id="term-in" data-key="${esc(s.id)}" value="${esc(own)}" placeholder="${esc(T.recordTerm(rec(), fid, L))}" autocomplete="off"></label>
+    <p class="muted small">${h('ux6c.termNote')}</p>`;
+}
+// the record's own form for the entry a printed text is part of (what only the record edits: dates, links, the grade)
+function entryLink(id){
+  const sel = recordSelOfFact(rec(), id);
+  return sel ? `<p class="allrec"><button class="sm ghost" data-act="cl-open" data-sel="${esc(JSON.stringify(sel))}">${h('ux6c.entryFields')}</button></p>` : '';
+}
+
 function bulletView(s){
+  if (s.id.startsWith('~t:')) return termView(s);
   const f = ix().facts.get(s.id);
   if (!f) return noneView();
   const w = s.job ? ix().work.get(s.job) : null;
@@ -262,7 +290,7 @@ function bulletView(s){
   return `${depthHtml(s)}
     <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
     ${claimHead({ hasJob: !!w, on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
-    + versionsHtml(versionsX(s.id));
+    + versionsHtml(versionsX(s.id)) + entryLink(s.id);
 }
 const isClaim = id => ix().highlight.has(id) && !T.isLocal(cur(), id);
 
@@ -306,7 +334,8 @@ async function addLine(jobId, afterId = undefined){
 }
 
 function startEdit(mode = null, vid = null){
-  const id = fid();
+  const key = keyOf(C.ui.sel), id = isLabelKey(key) ? null : fid();
+  if (isLabelKey(key)) return startLabel(key);
   if (!id) return;
   if (ix().skillGroups.has(id)) return startGroup(id);
   const L = lang();
@@ -332,6 +361,16 @@ function startEdit(mode = null, vid = null){
 function startGroup(id){
   const text = T.groupText(rec(), cur(), id);
   E.edit = { fact: id, group: true, mode: 'edit', vid: null, marks: [], base: text, draft: text };
+  E.compare = null;
+  C.endHover();
+  if (!C.onpage?.begin()){ E.edit = null; return; }
+  E.edit.panel = false;
+  C.renderBody();
+}
+// A heading or a language's name is written on the page only: the text printed now, kept in this resume's language
+function startLabel(key){
+  const text = T.labelNow(rec(), cur(), key, lang());
+  E.edit = { fact: key, label: true, mode: 'edit', vid: null, marks: [], base: text, draft: text };
   E.compare = null;
   C.endHover();
   if (!C.onpage?.begin()){ E.edit = null; return; }
@@ -402,7 +441,8 @@ async function livePreview(){
   const ed = E.edit;
   if (!ed || !ed.draft.trim()) return;
   const text = ed.draft.trim(), r = structuredClone(cur());
-  if (ed.group){ if (!T.readGroup(ed.draft).items.length) return; T.writeGroup(rec(), r, ed.fact, ed.draft); }      // a group with no skills yet is left as it is until the line is left
+  if (ed.label) T.setLabel(rec(), r, ed.fact, lang(), text);
+  else if (ed.group){ if (!T.readGroup(ed.draft).items.length) return; T.writeGroup(rec(), r, ed.fact, ed.draft); }      // a group with no skills yet is left as it is until the line is left
   else T.setOverride(r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid });
   await C.previewRecipe(r, ed.fact);
   if (E.edit !== ed) return;
@@ -621,8 +661,9 @@ function bind(body){
       if (to[0] && to[1] >= 0 && (to[0] !== g || to[1] < n(g, 0)) && moveSkillBy(g, k, to[0], to[1])) E.chip = { g: to[0], k: to[1] };
       return;
     }
-    if (t.id === 'sec-label' && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
+    if ((t.id === 'sec-label' || t.id === 'term-in') && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
     if (t.id === 'sec-label' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); t.value = T.labelOf(rec(), cur(), t.dataset.sid, lang()) ?? ''; t.blur(); }
+    if (t.id === 'term-in' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); t.value = T.termOf(cur(), t.dataset.key.slice(3)) ?? ''; t.blur(); }
     if (t.id === 'ed'){
       if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); cancelEdit(); }
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
@@ -637,8 +678,8 @@ function bind(body){
   body.addEventListener('focusout', e => {
     const t = e.target;
     if (t.classList?.contains('tag-in') && e.relatedTarget) E.tagFocus = null;     // moved on, not redrawn
-    if (t.id !== 'sec-label') return;
-    rename(t.dataset.sid, t.value);
+    if (t.id === 'term-in') renameTerm(t.dataset.key, t.value);
+    if (t.id === 'sec-label') rename(t.dataset.sid, t.value);
   });
 
   body.addEventListener('dragstart', e => {
@@ -784,13 +825,18 @@ function setBullet(id, on){
 }
 
 function rename(id, value){
-  const L = lang();
-  const txt = String(value ?? '').trim();
+  const L = lang(), key = `~h:${id}`, txt = String(value ?? '').trim();
   const now = T.labelOf(rec(), cur(), id, L) ?? '';
   const same = !txt || txt === T.recordTitle(rec(), id, L);
   if ((same && !now) || txt === now) return;
-  commit(d => T.setSectionLabel(d.record, d.cur, id, L, same ? null : txt), t('undo.renameSection'),
+  commit(d => T.setLabel(d.record, d.cur, key, L, txt), t('undo.renameSection'),
     same ? t('toast.headingReset') : t('toast.renamedHere', { lang: LANG_NAME[L] ?? L, id }));
+}
+// a language's name in the sidebar's box: the same, without the note
+function renameTerm(key, value){
+  const L = lang();
+  if (String(value ?? '').trim() === (T.termOf(cur(), key.slice(3)) ?? '')) return;
+  commit(d => T.setLabel(d.record, d.cur, key, L, value), t('ux6c.undoLabel'));
 }
 
 // The commands behind Alt+↑ / Alt+↓, the ↑ ↓ buttons and the margin's arrows: one step, one undo step. They return whether anything moved.
@@ -860,7 +906,7 @@ function key(e){
     && (C.ui.sel.kind === 'section' || document.activeElement?.closest?.('.clrow[data-item], .clrow[data-bullet], .clgh[data-job]') || (C.ui.sel.kind === 'bullet' && C.ui.sel.job) || (C.ui.sel.kind === 'record' && C.ui.sel.what === 'item'))){
     e.preventDefault(); return moveWhatIsHere(e.key === 'ArrowDown' ? 1 : -1);
   }
-  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && C.ui.sel.kind === 'bullet' && !E.edit && document.body.dataset.phone !== 'true'){ e.preventDefault(); startEdit(); return true; }
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && keyOf(C.ui.sel) && !E.edit && document.body.dataset.phone !== 'true'){ e.preventDefault(); startEdit(); return true; }
   return false;
 }
 
@@ -875,7 +921,7 @@ function leaving(next){
 
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
-  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, rename, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml,
+  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){

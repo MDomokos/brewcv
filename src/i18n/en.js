@@ -1039,7 +1039,6 @@ export default {
   'ux2.onResume': 'On this resume',
   'ux2.empty': '(empty)',
   'ux2.add': '+ Add',
-  'ux2.openEntry': 'Open it',
   'ux2.groupCredentials': 'Skills and credentials',
   'ux2.jobTypes': 'Job types…',
   'ux2.details': 'Details',
@@ -1238,4 +1237,13 @@ export default {
   'ux6c.undoSaveSet': 'Save the skill set',
   'ux6c.undoStartFrom': 'Start the skills from a set',
   'ux6c.groupRemoved': 'Skill group removed.',
+  // UX-6c-iii-a: every printed text is written where it is printed
+  'ux6c.f.name': 'Name',
+  'ux6c.f.label': 'Headline',
+  'ux6c.f.contact': 'Contact',
+  'ux6c.f.photo': 'Photo',
+  'ux6c.undoLabel': 'Rename a heading or a name',
+  'ux6c.termHere': 'Name on this resume ({lang})',
+  'ux6c.termNote': 'The name as this resume prints it. Leave the box empty to use the one in your record.',
+  'ux6c.entryFields': 'Other fields of this entry',
 };

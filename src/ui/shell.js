@@ -20,7 +20,7 @@ import { initChecklist } from './checklist.js';
 import { initRecord } from './record.js';
 import { initHelp } from './help.js';
 import { icon } from './icons.js';
-import { indexModel, targetOf, up, same, step, lineSel, versionsOf, NONE } from './select.js';
+import { indexModel, targetOf, up, same, step, lineSel, keyOf, versionsOf, NONE } from './select.js';
 import { openActualSize } from './actual.js';
 import { initEdit } from './edit.js';
 import { initResumes, snapBarText } from './resumes.js';
@@ -53,7 +53,7 @@ const backend = params.has('memory') ? memoryBackend() : idbBackend();   // ?mem
 const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle });      // autosave of the open resume rides on every commit
 const persist = createPersist({ store, backend });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
-const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); }, onRename: (id, text) => edit.rename(id, text),
+const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
   onDrawn: () => { onpage?.afterDraw(); hands?.refresh(); }, onPointer: e => hands?.pointer(e),
   extraCss: r => design.extraCss(store.state.record, r),
@@ -242,7 +242,7 @@ function onChange({ kind, label }){
 
 function stillThere(sel){
   const ix = indexModel(record(), cur());
-  if (sel.kind === 'bullet') return ix.facts.has(sel.id);
+  if (sel.kind === 'bullet') return ix.facts.has(sel.id) || (sel.id.startsWith('~t:') && ix.owned.has(sel.id.slice(3)));
   if (sel.kind === 'job') return ix.work.has(sel.id);
   if (sel.kind === 'section') return ix.sections.has(sel.id);
   if (sel.kind === 'record' && sel.what === 'entry') return (record().education ?? []).some((e, i) => (e.id ?? `edu-${i}`) === sel.id);
@@ -374,16 +374,16 @@ function reveal({ page, top, bottom }){
   scrollPagesTo(Math.max(0, Math.min(y0 - 48, pageTop(L, page) + (y1 - y0 > view ? 0 : Math.max(0, y1 - (L.sheet.top + page * L.pageStep) - view + 48)))));
 }
 
-function pick({ variant, section, page = -1, at = null }){
+function pick({ variant, label = null, section, page = -1, at = null }){
   if (ui.fitting || ui.snap || ui.view === 'welcome' || canvas.handed || hands.justDragged()) return;
-  const next = targetOf(ui.ix ?? indexModel(work(), cur()), { variant, section });
+  const next = targetOf(ui.ix ?? indexModel(work(), cur()), { variant, label, section });
   // a faded page stays clickable: its blank paper brings it forward, and a line on it is worked on there
   const other = !ui.layout?.phone && page >= 0 && page !== ui.page;
   if (other && next.kind === 'none'){ canvas.goToPage(page); return; }
   // From the page, one click on a line puts the caret in it, where it was clicked (no mode to enter first); while a line is written, a
   // click on another goes on writing there, in the same zoom, whichever job or page it is on. A phone only selects.
-  const writes = next.kind === 'bullet' && !ui.layout?.phone;
-  const go = () => { select(next, { stay: writes }); if (writes && ui.sel.kind === 'bullet' && ui.sel.id === next.id && !edit.editing){ ui.clickAt = at; edit.startEdit(); } };
+  const writes = (next.kind === 'bullet' || next.heading) && !ui.layout?.phone;
+  const go = () => { select(next, { stay: writes }); if (writes && keyOf(ui.sel) === keyOf(next) && !edit.editing){ ui.clickAt = at; edit.startEdit(); } };
   if (other && writes) ui.page = page;      // the page it is on is the bright one once the writing zoom has moved there
   if (ui.writing && writes) onpage.keepView(go); else go();
   if (other && !ui.writing) canvas.goToPage(page);      // a line written there is brought into view by the writing zoom

@@ -1,6 +1,8 @@
 // What a click on the sheet selects, read from the data-variant and data-section
-// attributes of an annotated render. Selection kinds: none, header, section {id},
-// job {id}, bullet {id, job?, section}. The summary counts as a bullet.
+// attributes of an annotated render. Selection kinds: none, header, section {id, heading?},
+// job {id}, bullet {id, job?, owner?, section}. Every printed text with a claim behind it counts as a bullet: the summary, a job's
+// title and dates (owner: the job), the items of education, patent, certificates, languages, interests. A language's name is
+// `~t:<fact>` and a section heading is the selection `{ kind: 'section', id, heading: true }` (its key is `~h:<id>`).
 
 import { entriesOf } from '../model/entries.js';
 
@@ -20,10 +22,17 @@ export function indexModel(model, recipe = null){
   // the skill groups: the record's, and the ones this resume's arrangement has (one made on the page is a claim with no versions)
   const skillGroups = new Set([...(model.sections ?? []).find(s => s.id === 'skills')?.content?.groups ?? [], ...(recipe?.skillArrangement?.groups ?? []).map(g => g.id)]);
   for (const id of skillGroups) if (!facts.has(id)) facts.set(id, { id, variants: [] });
+  // the facts a list section prints (an item's title, subtitle and dates, a language, a certificate): fact → section; a job → its section
+  const owned = new Map(), jobSection = new Map();
+  for (const sec of model.sections ?? []){
+    const c = sec.content ?? {};
+    for (const id of sec.kind === 'item' ? [c.title, c.subtitle, c.meta] : sec.kind === 'pairs' ? c.pairs ?? [] : sec.kind === 'runs' ? c.items ?? [] : []) if (id) owned.set(id, sec.id);
+    if (sec.kind === 'entries') for (const w of c.work ?? []) jobSection.set(w, sec.id);
+  }
   const header = new Set(Object.values(model.basics?.display ?? {}));
   const summaries = new Set([model.basics?.summary, ...(model.sections ?? []).filter(s => s.kind === 'prose').map(s => s.content?.fact)].filter(Boolean));
   return {
-    factOfVariant, display, highlight, header, summaries, skillGroups,
+    factOfVariant, display, highlight, header, summaries, skillGroups, owned, jobSection,
     facts,
     variants: new Map((model.variants ?? []).map(v => [v.id, v])),
     work: new Map(entriesOf(model).map(w => [w.id, w])),
@@ -31,17 +40,27 @@ export function indexModel(model, recipe = null){
   };
 }
 
-export function targetOf(ix, { variant = null, section = null } = {}){
+// The selection for a printed text by its key: a claim, or a key from the page's own labels (`~h:<section>`, `~t:<fact>`).
+// null for a fact the page has no text of.
+export function selOfFact(ix, fact, section = null){
+  if (fact.startsWith('~h:')) return { kind: 'section', id: fact.slice(3), heading: true };
+  if (fact.startsWith('~t:')) return { kind: 'bullet', id: fact, section: ix.owned.get(fact.slice(3)) ?? section ?? 'summary' };
+  if (ix.header.has(fact)) return { kind: 'bullet', id: fact, section: 'header' };      // the name, the headline and the contact line are written where they print
+  if (ix.skillGroups.has(fact)) return { kind: 'bullet', id: fact, section: 'skills' };
+  if (ix.display.has(fact)){ const job = ix.display.get(fact); return { kind: 'bullet', id: fact, section: ix.jobSection.get(job) ?? 'experience', owner: job }; }
+  if (ix.highlight.has(fact)) return { kind: 'bullet', id: fact, job: ix.highlight.get(fact), section: section ?? 'experience' };
+  if (ix.owned.has(fact)) return { kind: 'bullet', id: fact, section: ix.owned.get(fact) };
+  if (ix.summaries.has(fact) || section === 'summary') return { kind: 'bullet', id: fact, section: section ?? 'summary' };
+  return null;
+}
+
+export function targetOf(ix, { variant = null, label = null, section = null } = {}){
+  if (label) return selOfFact(ix, `~${label}`, section) ?? (section ? { kind: 'section', id: section } : NONE);
   // a "this resume only" text is drawn as <fact>-override
   const fact = !variant ? null : ix.factOfVariant.get(variant)
     ?? (variant.endsWith('-override') && ix.facts.has(variant.slice(0, -9)) ? variant.slice(0, -9) : null);
-  if (fact){
-    if (ix.header.has(fact)) return { kind: 'bullet', id: fact, section: 'header' };      // the name, the headline and the contact line are written where they print
-    if (ix.skillGroups.has(fact)) return { kind: 'bullet', id: fact, section: 'skills' };
-    if (ix.display.has(fact)) return { kind: 'job', id: ix.display.get(fact) };
-    if (ix.highlight.has(fact)) return { kind: 'bullet', id: fact, job: ix.highlight.get(fact), section: section ?? 'experience' };
-    if (ix.summaries.has(fact) || section === 'summary') return { kind: 'bullet', id: fact, section: section ?? 'summary' };
-  }
+  const sel = fact && selOfFact(ix, fact, section);
+  if (sel) return sel;
   if (section === 'header') return { kind: 'header' };
   if (section) return { kind: 'section', id: section };
   return NONE;
@@ -53,11 +72,12 @@ export function up(sel){
   return NONE;
 }
 
-// The selection for a line of the page by its claim: a bullet of a job, a skill group, or the summary
-export function lineSel(ix, id){
-  const job = ix.highlight.get(id);
-  return job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: ix.skillGroups.has(id) ? 'skills' : 'summary' };
-}
+// The keys of the page's labels (a heading, a language's name); a line only on one resume is `~new-n`, which is not one
+export const isLabelKey = k => /^~[ht]:/.test(k ?? '');
+// The selection for a text of the page by its key (a claim, or `~h:`/`~t:`): what the arrows and Tab walk through
+export const lineSel = (ix, id) => selOfFact(ix, id) ?? { kind: 'bullet', id, section: 'summary' };
+// the key of what a selection is on the page, or null
+export const keyOf = sel => (sel?.kind === 'bullet' ? sel.id : sel?.kind === 'section' && sel.heading ? `~h:${sel.id}` : null);
 
 export const same = (a, b) => (a?.kind ?? 'none') === (b?.kind ?? 'none') && (a?.id ?? null) === (b?.id ?? null);
 
@@ -73,7 +93,7 @@ export function factsOf(ix, sel){
 // `order` is the bullet facts in print order.
 export function step(order, sel, dir){
   if (!order.length) return NONE;
-  const i = sel?.kind === 'bullet' ? order.indexOf(sel.id) : -1;
+  const i = order.indexOf(keyOf(sel));
   const j = i < 0 ? (dir > 0 ? 0 : order.length - 1) : Math.max(0, Math.min(order.length - 1, i + dir));
   return order[j];
 }

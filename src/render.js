@@ -2,7 +2,7 @@
 // Class names are the contract with themes/: nothing here sets a colour, size or position.
 
 import { render as renderInline, encode } from '../scripts/lib/html.mjs';
-import { isOmitted, offOf, inOrder, isLocal, withLocal, keepLinks } from './recipe.js';
+import { isOmitted, offOf, inOrder, isLocal, withLocal, keepLinks, termOf } from './recipe.js';
 import { entriesOf } from './model/entries.js';
 
 const GAP = '⬜';
@@ -69,10 +69,10 @@ function band(ctx, { tag = 'section', mod, label, section, gutter = [], content 
   return b;
 }
 
-const tabs = (ctx, title, cont) => cont
+const tabs = (ctx, id, title, cont) => cont
   ? [h(ctx.doc, 'h2', 'tab tab--cont', { html: encode(title) }),
      h(ctx.doc, 'p', 'tab-note', { html: encode(ctx.data.i18n?.[ctx.lang]?.continued ?? ctx.chrome?.continued ?? 'CONTINUED') })]
-  : [h(ctx.doc, 'h2', 'tab', { html: encode(title) })];
+  : [h(ctx.doc, 'h2', 'tab', { html: encode(title), attrs: ctx.annotate ? { 'data-label': `h:${id}` } : {} })];      // the page's copy: the heading is written where it is printed
 
 // The optical nudge goes where the content beside a tab opens with small type
 // rather than a 15px role title. Experience does not get it.
@@ -81,7 +81,7 @@ function sectionBand(ctx, s, content, cont = false){
     mod: `band--section${s.kind === 'entries' ? '' : ' band--nudged'}`,
     section: s.id,
     label: cont ? (ctx.chrome?.continued ? `${s.title} · ${ctx.chrome.continued}` : `${s.title} continued`) : s.title,
-    gutter: tabs(ctx, s.title, cont),
+    gutter: tabs(ctx, s.id, s.title, cont),
     content,
   });
 }
@@ -217,7 +217,7 @@ export function pairs(ctx, s){
   const dl = h(doc, 'dl', 'pairs');
   for (const fid of s.content.pairs){
     const v = ctx.pick(fid);
-    dl.append(h(doc, 'dt', null, { html: encode(ctx.term(fid)) }),
+    dl.append(h(doc, 'dt', null, { html: encode(ctx.term(fid)), attrs: ctx.annotate ? { 'data-label': `t:${fid}` } : {} }),
               h(doc, 'dd', null, { html: inlineOf(v), attrs: mark(ctx, v) }));
   }
   return sectionBand(ctx, s, [dl]);
@@ -352,7 +352,7 @@ function makeCtx(data, recipe, doc, opts){
       return t ? { ...s, title: t } : s;
     },
     lang,
-    term: fid => data.i18n?.[lang]?.terms?.[fid] ?? facts.get(fid)?.term ?? fid,
+    term: fid => termOf(recipe, fid) ?? data.i18n?.[lang]?.terms?.[fid] ?? facts.get(fid)?.term ?? fid,
     label: fid => data.i18n?.[lang]?.labels?.[fid] ?? facts.get(fid)?.label ?? '',
     proseFact: s => (s.id === 'summary' && recipe.summary) || s.content.fact,
     workOrder: s => { const e = recipe.sections?.find(x => x.id === s.id); return inOrder(e?.work ?? s.content.work, e?.order); },

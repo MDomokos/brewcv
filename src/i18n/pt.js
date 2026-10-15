@@ -1039,7 +1039,6 @@ export default {
   'ux2.onResume': 'Neste CV',
   'ux2.empty': '(vazio)',
   'ux2.add': '+ Adicionar',
-  'ux2.openEntry': 'Abrir',
   'ux2.groupCredentials': 'Competências e certificações',
   'ux2.jobTypes': 'Tipos de função…',
   'ux2.details': 'Detalhes',

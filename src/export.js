@@ -35,7 +35,7 @@ export const escapeHtml = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '
 // Strip the app's own attributes and rb- classes.
 export function cleanMarkup(html){
   // the app's attributes, and what makes a line editable on the page (never in an export)
-  return String(html).replace(/\s(data-variant|data-section|data-missing|contenteditable|spellcheck|aria-multiline)="[^"]*"/g, '').replace(/\srole="textbox"/g, '')
+  return String(html).replace(/\s(data-variant|data-section|data-label|data-missing|contenteditable|spellcheck|aria-multiline)="[^"]*"/g, '').replace(/\srole="textbox"/g, '')
     .replace(/\sclass="([^"]*)"/g, (m, c) => { const k = c.split(/\s+/).filter(x => x && !x.startsWith('rb-')).join(' '); return k ? ` class="${k}"` : ''; });
 }
 

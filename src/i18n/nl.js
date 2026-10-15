@@ -1039,7 +1039,6 @@ export default {
   'ux2.onResume': 'Op dit cv',
   'ux2.empty': '(leeg)',
   'ux2.add': '+ Toevoegen',
-  'ux2.openEntry': 'Openen',
   'ux2.groupCredentials': 'Vaardigheden en bewijzen',
   'ux2.jobTypes': 'Functietypes…',
   'ux2.details': 'Details',

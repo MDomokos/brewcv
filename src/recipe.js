@@ -55,6 +55,9 @@ export function migratePins(recipe){
   return r;
 }
 
+// The name of a row of a pairs section (a language) written on this resume: recipe.terms = { [factId]: { [lang]: text } }.
+export const termOf = (recipe, fid) => { const t = recipe?.terms?.[fid]?.[recipe.lang ?? 'en']; return typeof t === 'string' && t ? t : undefined; };
+
 // A line that exists only on this resume: recipe.localLines = { [jobId]: [{ id, after, lang? }] }, its text in
 // `overrides` and its highlights in `overrideMeta`. `after` is the bullet or local line it follows (null: first).
 // A separate key, not the job's highlights, so an older app that does not know it just leaves the line out.

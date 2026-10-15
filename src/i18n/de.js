@@ -1039,7 +1039,6 @@ export default {
   'ux2.onResume': 'In diesem Lebenslauf',
   'ux2.empty': '(leer)',
   'ux2.add': '+ Hinzufügen',
-  'ux2.openEntry': 'Öffnen',
   'ux2.groupCredentials': 'Kenntnisse und Nachweise',
   'ux2.jobTypes': 'Stellenarten…',
   'ux2.details': 'Details',

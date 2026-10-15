@@ -1039,7 +1039,6 @@ export default {
   'ux2.onResume': 'Ezen az önéletrajzon',
   'ux2.empty': '(üres)',
   'ux2.add': '+ Hozzáadás',
-  'ux2.openEntry': 'Megnyitás',
   'ux2.groupCredentials': 'Készségek és igazolások',
   'ux2.jobTypes': 'Állástípusok…',
   'ux2.details': 'Részletek',

@@ -1039,7 +1039,6 @@ export default {
   'ux2.onResume': 'W tym CV',
   'ux2.empty': '(puste)',
   'ux2.add': '+ Dodaj',
-  'ux2.openEntry': 'Otwórz',
   'ux2.groupCredentials': 'Umiejętności i uprawnienia',
   'ux2.jobTypes': 'Typy stanowisk…',
   'ux2.details': 'Szczegóły',

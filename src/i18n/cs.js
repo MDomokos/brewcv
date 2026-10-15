@@ -1039,7 +1039,6 @@ export default {
   'ux2.onResume': 'V tomto životopisu',
   'ux2.empty': '(prázdné)',
   'ux2.add': '+ Přidat',
-  'ux2.openEntry': 'Otevřít',
   'ux2.groupCredentials': 'Dovednosti a osvědčení',
   'ux2.jobTypes': 'Typy pozic…',
   'ux2.details': 'Podrobnosti',

@@ -18,8 +18,8 @@ export function refusal(fact, v){
 
 import { keyed, t } from '../i18n/index.js';
 import { entriesOf, entryKey, isEntry, archivedIds, archivedEntryIds } from './entries.js';
-import { offOf, keepOf, keepLinks, migratePins, inOrder, localOf, localJob, localIds, isLocal, withLocal } from '../recipe.js';
-export { offOf, keepOf, migratePins, inOrder, isLocal, localOf };
+import { offOf, keepOf, keepLinks, migratePins, inOrder, localOf, localJob, localIds, isLocal, withLocal, termOf } from '../recipe.js';
+export { offOf, keepOf, migratePins, inOrder, isLocal, localOf, termOf };
 
 function index(model){
   return {
@@ -833,6 +833,30 @@ export function labelOf(model, recipe, id, lang){
   const own = entryOf(recipe, id)?.label;
   return (typeof own === 'string' ? own : own?.[lang]) ?? null;
 }
+// The name of a language row on this resume, per language. '' resets it to the record's.
+export function setTerm(recipe, fid, lang, text){
+  const t = String(text ?? '').trim(), mine = { ...recipe.terms?.[fid] };
+  if (t) mine[lang] = t; else delete mine[lang];
+  const terms = { ...recipe.terms, [fid]: mine };
+  if (!Object.keys(mine).length) delete terms[fid];
+  if (Object.keys(terms).length) recipe.terms = terms; else delete recipe.terms;
+}
+// …as the record has it (the resume's own is not looked at)
+export const recordTerm = (model, fid, lang) =>
+  model.i18n?.[lang]?.terms?.[fid] ?? (model.facts ?? []).find(f => f.id === fid)?.term ?? fid;
+
+// A heading or a language's name, by the page's key (`~h:<section>`, `~t:<fact>`), written on this resume in `lang`; the record's own
+// words reset it. `labelNow` is what the resume prints.
+export function setLabel(model, recipe, key, lang, text){
+  const id = key.slice(3), heading = key.startsWith('~h:'), t = String(text ?? '').trim();
+  const reset = !t || t === (heading ? recordTitle(model, id, lang) : recordTerm(model, id, lang));
+  if (heading) setSectionLabel(model, recipe, id, lang, reset ? null : t); else setTerm(recipe, id, lang, reset ? '' : t);
+}
+export const labelNow = (model, recipe, key, lang) => {
+  const id = key.slice(3);
+  return key.startsWith('~h:') ? labelOf(model, recipe, id, lang) ?? recordTitle(model, id, lang) : termOf(recipe, id) ?? recordTerm(model, id, lang);
+};
+
 // ignores this resume's own label
 export const recordTitle = (model, id, lang) =>
   (lang !== DEFAULT_LANG ? model.i18n?.[lang]?.sections?.[id] : undefined) ?? factIx(model).sections.get(id)?.title ?? id;

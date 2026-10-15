@@ -9,6 +9,7 @@ import { pageSize, PAGE_GAP } from './layout.js';
 import { t } from '../i18n/index.js';
 import { reduced, dur, ease, play } from './motion.js';
 import * as PM from './pagemotion.js';
+import { isLabelKey } from './select.js';
 
 const VIEW_CSS = `
 html, body { background: transparent !important; overflow: hidden !important; }
@@ -16,7 +17,7 @@ html, body { background: transparent !important; overflow: hidden !important; }
 .document > .page { margin: 0 !important; }
 html.rb-single .document > .page:not(.rb-shown) { display: none; }
 html.rb-stack .document { flex-direction: column; }
-html.rb-ui [data-variant], html.rb-ui .band[data-section] { cursor: pointer; }
+html.rb-ui [data-variant], html.rb-ui [data-label], html.rb-ui .band[data-section] { cursor: pointer; }
 .document > .page { transition: opacity var(--rb-m-base, 240ms) var(--rb-m-out, ease-out); }
 .document > .page { outline: 1px solid var(--rb-edge, transparent); outline-offset: 0; }
 .document > .page.rb-faded { opacity: var(--rb-fade, .35); }
@@ -24,15 +25,14 @@ html.rb-still *, html.rb-still *::before, html.rb-still *::after { transition: n
 html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
 html.rb-dragging, html.rb-dragging * { cursor: grabbing !important; user-select: none !important; }
 html.rb-space, html.rb-space * { cursor: grab !important; }
-html.rb-ui [data-variant]:hover { outline: 2px solid color-mix(in srgb, var(--rb-sel) 40%, transparent); outline-offset: 2px; border-radius: 2px; }
+html.rb-ui :is([data-variant], [data-label]):hover { outline: 2px solid color-mix(in srgb, var(--rb-sel) 40%, transparent); outline-offset: 2px; border-radius: 2px; }
 .rb-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-sel-soft); }
 .rb-band-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 5px; border-radius: 4px; }
 .rb-prev { outline: 2px solid var(--rb-prev) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-prev-soft); }
 .rb-hover { outline: 2px solid var(--rb-prev) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-prev-soft); }
 html.rb-previewing .document > .page { outline: 3px solid var(--rb-prev); outline-offset: 6px; }
-.rb-renaming { outline: 2px solid var(--rb-sel) !important; outline-offset: 3px; cursor: text !important; background: var(--rb-paper) !important; color: var(--rb-ink) !important; }
 html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit), html.rb-focus .skills__items[data-variant]:not(.rb-hit), html.rb-focus .pairs dd[data-variant]:not(.rb-hit), html.rb-focus .runs strong[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity var(--rb-m-base, 240ms) var(--rb-m-out, ease-out); }
-html.rb-writing [data-variant]:not([contenteditable]) { opacity: var(--rb-wdim, .94); }
+html.rb-writing :is([data-variant], [data-label]):not([contenteditable]) { opacity: var(--rb-wdim, .94); }
 html.rb-ui [contenteditable] { cursor: text; }
 html.rb-writing .rb-sel { outline: none !important; background-color: transparent; }
 .rb-miss { outline: 1.5px dashed var(--rb-miss) !important; outline-offset: 2px; }
@@ -46,7 +46,7 @@ html.rb-writing .rb-sel { outline: none !important; background-color: transparen
 // The app's own marks inside the frame (the rb-* classes) wear the drink's colours. The frame's document is a separate page, so
 // the colours are copied across from the app's tokens as custom properties: on the frame's root, which the resume's own
 // stylesheets never read, and which is not in an export.
-const MARK_TOKENS = { '--rb-sel': '--sel-mark', '--rb-sel-soft': '--sel-mark-soft', '--rb-prev': '--prev-mark', '--rb-prev-soft': '--prev-mark-soft', '--rb-miss': '--page-warn', '--rb-paper': '--paper', '--rb-ink': '--paper-ink', '--rb-edge': '--page-edge' };
+const MARK_TOKENS = { '--rb-sel': '--sel-mark', '--rb-sel-soft': '--sel-mark-soft', '--rb-prev': '--prev-mark', '--rb-prev-soft': '--prev-mark-soft', '--rb-miss': '--page-warn', '--rb-edge': '--page-edge' };
 function paintMarks(doc){
   const cs = getComputedStyle(document.documentElement);
   // the page's edge follows the contrast setting: the sharper look is the default, the softer one is the old look
@@ -59,6 +59,9 @@ function paintMarks(doc){
 }
 
 const factOfVariant = (ix, a) => ix.factOfVariant.get(a) ?? (a.endsWith('-override') && ix.facts.has(a.slice(0, -9)) ? a.slice(0, -9) : null);
+
+// A text that is a label, not a claim, is found by the key the renderer gave it: `~h:<section>` (a heading), `~t:<fact>` (a language's name)
+const labelEl = (doc, key) => [...doc.querySelectorAll('[data-label]')].find(e => `~${e.getAttribute('data-label')}` === key) ?? null;
 
 export function createSheet(host, hooks = {}){
   let fr = null;
@@ -113,10 +116,10 @@ export function createSheet(host, hooks = {}){
         doc.addEventListener('click', e => {
           if (e.target.closest?.('[contenteditable]:not([contenteditable=false])')) return;      // the line being written takes its own clicks
           const pg = [...doc.querySelectorAll('.document > .page')].indexOf(e.target.closest?.('.document > .page'));
-          const el = e.target.closest?.('[data-variant], .band[data-section]');
+          const el = e.target.closest?.('[data-variant], [data-label], .band[data-section]');
           if (!el) return hooks.onPick?.({ variant: null, section: null, page: pg });
           const band = el.closest('.band[data-section]');
-          hooks.onPick?.({ variant: el.getAttribute('data-variant'), section: band?.getAttribute('data-section') ?? null, page: pg, at: { x: e.clientX, y: e.clientY } });
+          hooks.onPick?.({ variant: el.getAttribute('data-variant'), label: el.getAttribute('data-label'), section: band?.getAttribute('data-section') ?? null, page: pg, at: { x: e.clientX, y: e.clientY } });
         });
         // the hand, the wheel and the pinch work over the page too: the canvas gets them, in the page's own pixels
         const fe = hooks.frameEvents;
@@ -133,34 +136,10 @@ export function createSheet(host, hooks = {}){
         // what is under the pointer, for the grip and the "+" over the page (src/ui/hands.js), and a skill dragged from where it is printed
         for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) doc.addEventListener(ev, e => hooks.onPointer?.(e), { passive: true });
         doc.documentElement.addEventListener('mouseleave', () => hooks.onPointer?.({ type: 'leave' }));
-        doc.addEventListener('keydown', e => { if (!e.target.closest?.('.rb-renaming')) hooks.onKey?.(e); });
+        doc.addEventListener('keydown', e => hooks.onKey?.(e));
         // a file dropped on the page goes to the same door as one dropped on the window (the page is a frame: its drops stay inside it)
         doc.addEventListener('dragover', e => { if ([...(e.dataTransfer?.types ?? [])].includes('Files')) e.preventDefault(); });
         doc.addEventListener('drop', e => hooks.onDrop?.(e));
-        doc.addEventListener('dblclick', e => {
-          const tab = e.target.closest?.('.band[data-section] h2.tab:not(.tab--cont)');
-          const id = tab?.closest('.band').getAttribute('data-section');
-          if (!tab || !id || id === 'header' || !hooks.onRename) return;
-          e.preventDefault();
-          const was = tab.textContent;
-          tab.contentEditable = 'true';
-          tab.classList.add('rb-renaming');
-          tab.focus();
-          doc.getSelection()?.selectAllChildren(tab);
-          let done = false;
-          const finish = keep => {
-            if (done) return; done = true;
-            const text = tab.textContent.replace(/\s+/g, ' ').trim();
-            tab.contentEditable = 'false'; tab.classList.remove('rb-renaming');
-            if (!keep || !text || text === was){ tab.textContent = was; return; }
-            hooks.onRename(id, text);
-          };
-          tab.addEventListener('keydown', k => {
-            if (k.key === 'Enter'){ k.preventDefault(); finish(true); }
-            if (k.key === 'Escape'){ k.preventDefault(); k.stopPropagation(); finish(false); }
-          });
-          tab.addEventListener('blur', () => finish(true), { once: true });
-        });
         fr = { sig, frame, root, doc, fonts: false };
         pending = null;
         resolve(fr);
@@ -281,7 +260,7 @@ export function createSheet(host, hooks = {}){
       return [...fr.doc.querySelectorAll('[data-variant]')].filter(el => vs.has(el.getAttribute('data-variant')));
     };
     let els = [];
-    if (sel.kind === 'bullet') els = byFacts([sel.id]).map(el => (el.tagName === 'LI' || el.classList.contains('summary') ? el : el));
+    if (sel.kind === 'bullet') els = isLabelKey(sel.id) ? [labelEl(fr.doc, sel.id)].filter(Boolean) : byFacts([sel.id]);
     else if (sel.kind === 'job'){
       const w = ix.work.get(sel.id);
       els = byFacts([w?.display?.position].filter(Boolean)).map(el => el.closest('.entry') ?? el);
@@ -388,7 +367,16 @@ export function createSheet(host, hooks = {}){
     elOf(factId, ix){
       if (!fr?.frame.isConnected) return null;
       const vs = new Set([...(ix.facts.get(factId)?.variants ?? []), `${factId}-override`]);
-      return [...fr.doc.querySelectorAll('[data-variant]')].find(e => vs.has(e.getAttribute('data-variant'))) ?? null;
+      const el = isLabelKey(factId) ? labelEl(fr.doc, factId) : [...fr.doc.querySelectorAll('[data-variant]')].find(e => vs.has(e.getAttribute('data-variant')));
+      return el?.querySelector(':scope > [data-write]') ?? el ?? null;      // an item's title is written without its subtitle (onpage.js wraps it while it is written)
+    },
+    // the item a text is part of, as a rectangle in the page's own pixels: an item of education or patent as a whole, a language's name and level together, else the text
+    rectOfItem(factId, ix){
+      const el = this.elOf(factId, ix);
+      if (!el) return null;
+      const rs = [el.closest('.item__title, .meta--flat') ? el.closest('.band__content') : el.closest('dd') ? el.closest('dd').previousElementSibling : el.closest('dt') ? el.closest('dt').nextElementSibling : null, el.closest('dd') ?? el].filter(Boolean).map(e => this.rectOfEl(e));
+      const l = Math.min(...rs.map(r => r.left)), tp = Math.min(...rs.map(r => r.top));
+      return { left: l, top: tp, width: Math.max(...rs.map(r => r.left + r.width)) - l, height: Math.max(...rs.map(r => r.top + r.height)) - tp };
     },
     // which page a claim is printed on (-1 when it is not on the page)
     pageOf(factId, ix){
@@ -463,12 +451,12 @@ export function createSheet(host, hooks = {}){
         el.classList.remove('rb-flash'); void el.offsetWidth; el.classList.add('rb-flash');
       }
     },
+    // every text that can be written, in print order: the keys the arrows and Tab walk through (a claim's id, `~h:<section>`, `~t:<fact>`)
     order(ix){
       if (!fr) return [];
       const out = [];
-      for (const el of fr.doc.querySelectorAll('.summary[data-variant], .bullets li[data-variant], .skills__items[data-variant], .skills__group[data-variant]')){
-        const a = el.getAttribute('data-variant');
-        const f = ix.factOfVariant.get(a) ?? (a.endsWith('-override') && ix.facts.has(a.slice(0, -9)) ? a.slice(0, -9) : null);
+      for (const el of fr.doc.querySelectorAll('[data-variant], [data-label]')){
+        const lb = el.getAttribute('data-label'), f = lb ? `~${lb}` : factOfVariant(ix, el.getAttribute('data-variant'));
         if (f && !out.includes(f)) out.push(f);
       }
       return out;

@@ -65,14 +65,12 @@ function groupHtml(g, open, ctx){
       ${body(`<ul class="clrows">${rowsHtml(g.rows, g)}</ul>`)}</section>`;
   }
   if (g.kind === 'entry'){
-    const title = `${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}`;
     const arch = g.archivedRows.length;
     const archOpen = ctx.shown.has(g.id);
-    const head = `<h3 class="clgh">${caret(g, open, title, nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}
+    const head = `<h3 class="clgh">${nameCaret(g, open, nOfM(g.on, g.total), { toggle: 'cl-toggle', body: 'clg-', open: `data-act="cl-open" data-sel="${selAttr(g.sel)}"` })}${orderMarkHtml(g.custom, 'job', g.id, g.title)}
         ${g.archived ? `<button class="ghost sm" data-act="c-unarch-entry" data-id="${esc(g.id)}">${h('arch.unarchiveJob')}</button>` : ''}</h3>`;
     return `<section class="clg ${open ? 'open' : ''} ${g.archived ? 'is-archived' : ''}" data-g="${esc(g.id)}">${head}
       ${body(`<ul class="clrows">${rowsHtml(g.rows, g)}</ul>
-        <div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr(g.sel)}">${h('ux2.openEntry')}</button></div>
         ${arch ? `<button class="sm ghost archmore" data-act="c-arch-show" data-id="${esc(g.id)}" aria-expanded="${archOpen}">${archOpen ? h('arch.hide') : h('arch.nArchived', { n: arch })}</button>${archOpen ? `<ul class="clrows">${g.archivedRows.map(r => rowHtml(r, g)).join('')}</ul>` : ''}` : ''}
         ${g.archived ? '' : addLineHtml(g)}`)}</section>`;
   }
@@ -102,10 +100,11 @@ const addLineHtml = g => (S.adding === g.id ? addClaimHtml({ id: g.id, key: g.ke
 const folded = (key, forced) => { const f = S.fold.get(key); return f === 'open' || (f !== 'shut' && forced) ? false : true; };
 const ocaret = (key, open, label, count = '') =>
   `<button class="clcaret ocaret" data-act="ol-toggle" data-g="${esc(key)}" aria-expanded="${open}" aria-controls="ol-${esc(key)}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span><span class="clname">${label}</span>${count ? `<span class="clcount">${count}</span>` : ''}</button>`;
-// In a section's own view the job's name is the button that opens the job; the caret beside it only folds
-const nameCaret = (g, open, count) =>
-  `<button class="clcaret ocaret nameless" data-act="ol-toggle" data-g="${esc(g.id)}" aria-expanded="${open}" aria-controls="ol-${esc(g.id)}" aria-label="${esc(t('ux6c.fold', { name: g.title }))}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span></button>
-   <button class="clname jobname" data-act="select-job" data-id="${esc(g.id)}" title="${esc(g.title + (g.org ? ' · ' + g.org : ''))}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</button><span class="clcount">${count}</span>`;
+// The job's name is the button that opens it (the sidebar's section view, and the Record's groups); the caret beside it only folds.
+// `o`: what the caret folds and what the name does (`select-job` in a section's view, `cl-open` with the group's selection in the Record)
+const nameCaret = (g, open, count, o = { toggle: 'ol-toggle', body: 'ol-', open: `data-act="select-job" data-id="${esc(g.id)}"` }) =>
+  `<button class="clcaret ocaret nameless" data-act="${o.toggle}" data-g="${esc(g.id)}" aria-expanded="${open}" aria-controls="${o.body}${esc(g.id)}" aria-label="${esc(t('ux6c.fold', { name: g.title }))}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span></button>
+   <button class="clname jobname" ${o.open} title="${esc(g.title + (g.org ? ' · ' + g.org : ''))}">${esc(g.title)}${g.org ? `<span class="muted"> · ${esc(g.org)}</span>` : ''}</button><span class="clcount">${count}</span>`;
 
 // `only`: a job's id, for the sidebar when that job is selected: just its lines (its own title and switch are above them)
 export function outlineHtml(only = null, section = null){

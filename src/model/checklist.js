@@ -81,7 +81,10 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
   const eduOn = sectionOn('education');
   const edu = (model.education ?? []).map((e, i) => ({ ...e, id: e.id ?? `edu-${i}` })).filter(e => e.institution || e.studyType).map(e => {
     const v = K.entryView(model, 'education', e, lang);
-    return { id: e.id, kind: 'item', text: [v.title, v.org].filter(Boolean).join(' · '), nv: nvOf(model, e.display?.studyType, lang), on: eduOn, sel: { kind: 'record', what: 'entry', key: 'education', id: e.id } };
+    // the row opens the entry's own view (its degree, as it is written on the page); an entry with no worded fields has only the record's form
+    const first = Object.values(e.display ?? {})[0];
+    return { id: e.id, kind: 'item', text: [v.title, v.org].filter(Boolean).join(' · '), nv: nvOf(model, e.display?.studyType, lang), on: eduOn,
+      sel: first ? { kind: 'bullet', id: first, section: 'education' } : { kind: 'record', what: 'entry', key: 'education', id: e.id } };
   });
   groups.push({ id: 'education', kind: 'education', section: 'education', sectionOn: eduOn, rows: edu, archived: [] });
 
@@ -156,7 +159,10 @@ export function groupOf(model, sel){
     if (w) return w.id;
     if (sel.job) return sel.job;
     if (sel.owner) return sel.owner;
-    return (sel.section ?? 'summary') === 'summary' ? 'about' : null;
+    // a text of a list section: the record's group for it
+    if (sel.section === 'education') return 'education';
+    if (CREDENTIALS.some(g => K.sectionFor(model, g) === sel.section)) return 'credentials';
+    return ['summary', 'header'].includes(sel.section ?? 'summary') ? 'about' : null;
   }
   if (sel.kind === 'record'){
     if (sel.what === 'entry') return sel.key === 'education' ? 'education' : sel.id;

@@ -15,14 +15,14 @@
 import { plainOf, caretOf, setCaret } from './plain.js';
 import { toolsHtml, statsCompactHtml, esc } from './parts.js';
 import { readZoomWrite, readZoomWriteOn, readDimJob, readDimLine } from './dock.js';
-import { step, lineSel } from './select.js';
+import { step, lineSel, keyOf } from './select.js';
 import * as T from '../model/resume.js';
 import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
 import { reduced } from './motion.js';
 
 const $ = (s, r = document) => r.querySelector(s);
-const PAD_JOB = 6, PAD_LINE = 4, PAD_SEC = 12;       // a section's frame stands off enough for the chip's lower half to clear its first line
+const PAD_JOB = 6, PAD_LINE = 4, PAD_ITEM = 14, PAD_SEC = 12;       // a section's frame stands off enough for the chip's lower half to clear its first line
 const pad = (r, p) => (r ? { left: r.left - p, top: r.top - p, width: r.width + 2 * p, height: r.height + 2 * p } : null);
 
 export function initOnPage(C){
@@ -36,11 +36,14 @@ export function initOnPage(C){
   // entering and leaving write mode is announced
   const say = text => { const el = $('#announce'); if (el){ el.textContent = ''; setTimeout(() => { el.textContent = text; }, 30); } };
 
+  // the job a printed text is part of: a line of it, or its title or dates
+  const jobOf = (fact, job = null) => job ?? C.ix().highlight.get(fact) ?? C.ix().display.get(fact) ?? null;
+
   // ---- what level are we at ----
   function target(){
     const sel = ui.sel;
     if (ui.view || ui.snap || ui.preview || phone() || ui.fitting) return null;       // another resume's paper is being previewed: nothing is framed
-    if (sel.kind === 'bullet') return { fact: sel.id, jobId: sel.job ?? C.ix().highlight.get(sel.id) ?? null };
+    if (sel.kind === 'bullet') return { fact: sel.id, jobId: jobOf(sel.id, sel.job) };
     if (sel.kind === 'job') return { fact: null, jobId: sel.id };
     if (sel.kind === 'section' || sel.kind === 'header') return { band: sel.kind === 'header' ? 'header' : sel.id };
     if (sel.kind === 'record' && sel.what === 'item'){ const sid = T.sectionOfItem(C.record(), sel.id); return sid ? { band: sid } : null; }       // a skill group, a language: its section is framed
@@ -59,7 +62,7 @@ export function initOnPage(C){
   function read(){
     const ix = C.ix();
     const tg = target();
-    const wr = ui.writing && S ? { fact: S.fact, jobId: C.ix().highlight.get(S.fact) ?? null } : null;
+    const wr = ui.writing && S ? { fact: S.fact, jobId: jobOf(S.fact) } : null;
     const use = wr ?? tg;
     const jobId = use?.jobId ?? null;
     geom = {
@@ -70,8 +73,12 @@ export function initOnPage(C){
       jobId,
     };
     // the section being edited: where the chip stands (the band on this page when the section runs over two)
-    const sel = ui.sel, sid = use?.band ?? (jobId ? T.sectionOfEntry(C.record(), jobId) : sel.kind === 'bullet' ? sel.section ?? 'summary' : null);
-    geom.sec = sid ? sheet.rectOfBand(sid, geom.line ?? geom.job ?? geom.band) : null;
+    const sel = ui.sel, sid = use?.band ?? (jobId ? T.sectionOfEntry(C.record(), jobId) : sel.kind === 'bullet' ? sel.section ?? 'summary' : sel.kind === 'section' ? sel.id : null);
+    // the frame the chip stands on: the section's band, or for an item of a list section (education, a language, a certificate) the item
+    const item = !jobId && sel.kind === 'bullet' && use?.fact === sel.id && !['summary', 'header', 'skills'].includes(sid);
+    const it = sid && item ? sheet.rectOfItem(sel.id, ix) : null;
+    geom.itemFrame = !!it;      // an item stands off less than a section: its neighbours are a line away
+    geom.sec = sid ? it || sheet.rectOfBand(sid, geom.line ?? geom.job ?? geom.band) : null;
   }
 
   // ---- drawing the layers ----
@@ -118,11 +125,12 @@ export function initOnPage(C){
     const fact = lvl === 'line' ? S?.fact : null;
     if (!fact) return '';
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
-    if (!ed || ed.group) return '';      // a skill group has no versions
+    if (!ed || ed.group || ed.label) return '';      // a skill group, a heading and a language's name have no versions
     const vn = C.work().variants.find(v => v.id === ed.vid)?.n ?? '·';       // the version the line was written from
     return toolsHtml({ vn, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
   }
 
+  const secPad = () => (geom.itemFrame ? PAD_ITEM : PAD_SEC);
   // where everything is on the screen: follows the camera
   function place(){
     if (!geom || !lay) return;
@@ -142,7 +150,7 @@ export function initOnPage(C){
     const box = (el, r) => { if (!el || !r) return; Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); };
     box(lay.querySelector('.obframe.job'), R(pad(geom.job, PAD_JOB)));
     box(lay.querySelector('.obframe.line'), R(pad(geom.line, PAD_LINE)));
-    box(lay.querySelector('.obframe.sec'), R(pad(geom.sec, PAD_SEC)));
+    box(lay.querySelector('.obframe.sec'), R(pad(geom.sec, secPad())));
     // the tools sit beside the line, in the page's right margin
     const tw = lay.querySelector('.obtoolswrap');
     const fact = lvl === 'line' ? S?.fact : null;
@@ -157,7 +165,7 @@ export function initOnPage(C){
       if (left + twW > room) left = Math.max(6, sr.left - twW - 6);       // no room right of the line (a narrow window): to its left, never under the tabs
       Object.assign(tw.style, { left: `${left}px`, top: `${Math.max(6, sr.top - 4)}px` });
     } else if (tw) tw.style.display = 'none';
-    placeChip(lay.querySelector('.obchip'), (geom.job && (lvl === 'job' || lvl === 'line') ? R(pad(geom.job, PAD_JOB)) : R(pad(geom.sec ?? geom.job ?? geom.line, PAD_SEC))));
+    placeChip(lay.querySelector('.obchip'), (geom.job && (lvl === 'job' || lvl === 'line') ? R(pad(geom.job, PAD_JOB)) : R(pad(geom.sec ?? geom.job ?? geom.line, secPad()))));
   }
   // One rule: the chip lies on the dashed frame of the current block (the job's, or the section's), centred on its top edge in its
   // top-right corner. Kept inside the page, in the pages' room (never under the rail or the sidebar) and above the zoom bar; moved
@@ -181,9 +189,21 @@ export function initOnPage(C){
 
   // ---- writing a line where it is printed ----
   const supportsPlain = (() => { try { const d = document.createElement('div'); d.contentEditable = 'plaintext-only'; return d.contentEditable === 'plaintext-only'; } catch { return false; } })();
+  // An item's title shares its element with the subtitle, a claim of its own: the title's words are wrapped, and only they are written
+  function writable(el){
+    const lead = [];
+    for (const n of el.childNodes){ if (n.nodeType === 1 && n.hasAttribute('data-variant')) break; lead.push(n); }
+    if (lead.length === el.childNodes.length) return el;
+    const w = el.ownerDocument.createElement('span');
+    w.setAttribute('data-write', '');
+    el.insertBefore(w, el.firstChild);
+    w.append(...lead);
+    return w;
+  }
   function attach(el, caret = null, point = null){
     const ed = edit().editing;
     if (!ed) return;
+    el = writable(el);
     S.el = el;
     // the plain text in, with its line breaks and spaces as they are; marks come back when it is saved and drawn again
     const onSkills = ed.group && point && !!el.ownerDocument.elementFromPoint(point.x, point.y)?.closest('.skills__items');      // a click on a group's skills puts the caret at their end (the group is written as name, line break, skills)
@@ -271,7 +291,7 @@ export function initOnPage(C){
     if (typeof id !== 'string' || id === ed.fact) return false;
     const sel = lineSel(ix, id);
     moving = true;
-    try { C.select(sel); if (ui.sel.kind === 'bullet' && ui.sel.id === id) edit().startEdit(); }
+    try { C.select(sel); if (keyOf(ui.sel) === id) edit().startEdit(); }
     finally { moving = false; }
     return true;
   }
