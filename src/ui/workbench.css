@@ -68,6 +68,9 @@
   --tea-export: #2c3a4f; --tea-export-raised: #394557; --tea-export-input: #243041; --tea-export-pop: #283549; --tea-export-line: #505966; --tea-export-edge: #87898a;
   --tea-record: #3b2723; --tea-record-raised: #47342e; --tea-record-input: #30201d; --tea-record-pop: #362420; --tea-record-line: #5c4942; --tea-record-edge: #8f7f72;
   --tab-bg: #efe4cb; --tab-ink: #22302a; --tab-line: #c9b481;
+  /* the constant chrome (name card, foot, undo and redo): paper in tea, espresso in coffee; the editor sheet keeps its own surface */
+  --chrome: var(--tab-bg); --chrome-raised: #fbf6e8; --chrome-input: #fbf6e8; --chrome-ink: #22302a; --chrome-soft: #3f4b3c; --chrome-line: #c9b481; --chrome-edge: #8a7a4e;
+  --chrome-hover: rgba(34, 48, 42, .08); --chrome-hover-strong: rgba(34, 48, 42, .14); --chrome-accent: #7a4f0e; --chrome-on-accent: #fff8e8; --chrome-ok: #2f6b2a; --chrome-warn: #7a4f0e; --chrome-bad: #a8321e;
 }
 html[data-drink="tea"][data-theme="dark"] {
   --canvas: #101813; --canvas-ink: #F2E6CF; --canvas-ink-soft: #d6cfb4; --canvas-line: rgba(242, 230, 207, .22); --canvas-label: #D9A65A;
@@ -114,6 +117,8 @@ html[data-drink="coffee"] {
   --liq: #BE7F4A; --cup-band: #1c1410;
   --menu-ink: #1c1410; --menu-ink-soft: #5a5048; --menu-line: rgba(28, 20, 16, .22); --menu-line-strong: rgba(28, 20, 16, .5); --menu-hover: rgba(28, 20, 16, .05);
   --tab-bg: var(--surface); --tab-ink: var(--ink); --tab-line: var(--line-strong);
+  --chrome: var(--band-bg); --chrome-raised: #3a2618; --chrome-input: #1c120b; --chrome-ink: #f3ece2; --chrome-soft: #d9c8b4; --chrome-line: rgba(243, 236, 226, .32); --chrome-edge: rgba(243, 236, 226, .55);
+  --chrome-hover: rgba(243, 236, 226, .1); --chrome-hover-strong: rgba(243, 236, 226, .16); --chrome-accent: #BE7F4A; --chrome-on-accent: #1c1410; --chrome-ok: #f3ece2; --chrome-warn: #e0b56a; --chrome-bad: #ef9a84;
 }
 /* ---- Coffee, dark: espresso, warm black, milk-foam ink ---- */
 html[data-drink="coffee"][data-theme="dark"] {
@@ -138,6 +143,8 @@ html[data-drink="coffee"][data-theme="dark"] {
   --cup-band: #f3ece2;
   --menu-ink: #f3ece2; --menu-ink-soft: #c9c0b3; --menu-line: rgba(243, 236, 226, .25); --menu-line-strong: rgba(243, 236, 226, .55); --menu-hover: rgba(243, 236, 226, .06);
   --tab-bg: var(--surface); --tab-ink: var(--ink); --tab-line: var(--line-strong);
+  --chrome: #3a2a1e; --chrome-raised: #453325; --chrome-input: #2c2018; --chrome-ink: #f3ece2; --chrome-soft: #d9c8b4; --chrome-line: rgba(243, 236, 226, .32); --chrome-edge: rgba(243, 236, 226, .55);
+  --chrome-hover: rgba(243, 236, 226, .1); --chrome-hover-strong: rgba(243, 236, 226, .16); --chrome-accent: #BE7F4A; --chrome-on-accent: #1c1410; --chrome-ok: #f3ece2; --chrome-warn: #e0b56a; --chrome-bad: #ef9a84;
 }
 
 * { box-sizing: border-box; }
@@ -971,13 +978,13 @@ body:not([data-phone=true]):not(.is-intro) .col { gap: 0; }
 body:where(:not([data-phone=true], .is-intro)) .col > :where(#head, #body, #foot) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 body:not([data-phone=true]):not(.is-intro) .col > #head { flex: none; min-height: 0; margin-bottom: 8px; padding: 5px 6px 5px 4px; position: relative; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head { display: block; }
-body:not([data-phone=true]):not(.is-intro) .col > #body { background: var(--surface); border-radius: var(--r-panel) var(--r-panel) 0 0; box-shadow: var(--shadow-panel); transition: background-color var(--m-base) var(--m-out); }
-body:not([data-phone=true]):not(.is-intro) .col > #foot { flex: none; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 var(--r-panel) var(--r-panel); box-shadow: var(--shadow-panel); transition: background-color var(--m-base) var(--m-out); }
+body:not([data-phone=true]):not(.is-intro) .col > #body { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel), inset -1px 0 0 var(--line-strong), inset 0 1px 0 var(--line-strong), inset 0 -1px 0 var(--line-strong); transition: background-color var(--m-base) var(--m-out); }
+body:not([data-phone=true]):not(.is-intro) .col > #foot { flex: none; margin-top: 1px; padding: 7px 12px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); box-shadow: var(--shadow-lift); transition: background-color var(--m-base) var(--m-out); }
 body.is-quiet .col > #body { border-radius: var(--r-panel); }
 /* the name window: the name card and the switcher are one card; the editor card is gone, the foot stays */
 body:not([data-phone=true]) .col.is-name > #body { display: none; }
 body:not([data-phone=true]):not(.is-intro) .col.is-name > #head { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: var(--line); }
-body:not([data-phone=true]):not(.is-intro) .col.is-name > #foot { border-top: 0; border-radius: var(--r-panel); }
+body:not([data-phone=true]):not(.is-intro) .col.is-name > #foot { margin-top: 0; }
 body:not([data-phone=true]) .switcher { position: static; flex: 1 1 0; min-height: 0; max-height: none; width: auto; margin: 0 0 8px; padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 4px; overflow: auto; z-index: auto;
   background: var(--surface); border: 1px solid var(--line-strong); border-top: 0; border-radius: 0 0 var(--r-l) var(--r-l); }
 body:not([data-phone=true]) .switcher[hidden] { display: none; }
@@ -1016,6 +1023,13 @@ body:not([data-phone=true]) .savestate { width: 28px; height: 28px; justify-cont
 .col > #head .menu { top: 46px; right: 8px; }
 body:not([data-phone=true]) .col > #head .menu { top: 40px; right: 6px; }
 .col > #head .ib { flex: none; }
+
+/* the constant chrome (name card, name window, foot, undo and redo) is one paper-or-espresso look, apart from the editor sheet's own surface */
+html body:not([data-phone=true]):not(.is-intro) :is(.col > #head, .col > .switcher, .col > #foot, .rhist) {
+  --surface: var(--chrome); --band-bg: var(--chrome); --raised: var(--chrome-raised); --input: var(--chrome-input); --pop: var(--chrome); --ink: var(--chrome-ink); --ink-soft: var(--chrome-soft); --label: var(--chrome-soft); --faint: var(--chrome-soft);
+  --line: var(--chrome-line); --line-strong: var(--chrome-edge); --hover: var(--chrome-hover); --hover-strong: var(--chrome-hover-strong); --fill: var(--chrome-hover); --fill-strong: var(--chrome-hover-strong); --wash: var(--chrome-hover); --seg-bg: transparent;
+  --accent: var(--chrome-accent); --on-accent: var(--chrome-on-accent); --accent-soft: transparent; --focus: var(--chrome-accent); --ok: var(--chrome-ok); --warn: var(--chrome-warn); --bad: var(--chrome-bad); --cup-empty: var(--chrome-hover-strong); --cup-stroke: var(--chrome-ink); --menu-ink: var(--chrome-ink); --menu-ink-soft: var(--chrome-soft); --menu-line: var(--chrome-line); --menu-line-strong: var(--chrome-edge); --menu-hover: var(--chrome-hover); color: var(--ink);
+}
 
 /* the rail: left of the sidebar, in the room the layout keeps for it. Three containers: the tabs (touching the editor card), the other
    screens (dashed, icon only) and undo and redo. Hung from the column, so it follows it. */

@@ -2570,7 +2570,7 @@ if (want('drinks: Fit, the meters, the moments')) {
   await setFills(used(0.91));
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
   const glass = await bar();
-  ok('coffee: the same thin bar, filled to the level, in the band: the drink’s own ink', Math.abs(glass.w - 0.91) < 0.02 && glass.h <= 10 && Math.abs(glass.bandL - 0.88) < 0.02 && /ok/.test(glass.cls) && glass.mask === 'none' && glass.bg === 'rgb(28, 20, 16)', JSON.stringify(glass));
+  ok('coffee: the same thin bar, filled to the level, in the band: the chrome’s own ink', Math.abs(glass.w - 0.91) < 0.02 && glass.h <= 10 && Math.abs(glass.bandL - 0.88) < 0.02 && /ok/.test(glass.cls) && glass.mask === 'none' && glass.bg === 'rgb(243, 236, 226)', JSON.stringify(glass));
   ok('coffee: the name card is an espresso band with a crema line', await page.evaluate(() => { const h = getComputedStyle(document.querySelector('#head')); return /rgb\(43, 29, 20\)/.test(h.backgroundColor) && /190, 127, 74/.test(h.borderBottomColor); }));
   ok('coffee: counts read 5v, boxes are square, the canvas is a cutting mat', await page.evaluate(() => { const cb = document.querySelector('.cb'); return !cb || parseFloat(getComputedStyle(cb).borderTopLeftRadius) <= 2; }) && await page.evaluate(() => /linear-gradient/.test(getComputedStyle(document.body).backgroundImage)));
   await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
