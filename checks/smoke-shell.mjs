@@ -3944,6 +3944,10 @@ if (want('on the page: a job opens by its name')) {
   await page.frameLocator('#sheet iframe').locator('.band[data-section="experience"] .tab').first().click(); await settle(page);
   const jn = await page.evaluate(() => [...document.querySelectorAll('#body .jobname')].map(b => ({ tag: b.tagName, name: b.textContent.trim(), h: b.getBoundingClientRect().height, act: b.dataset.act })));
   ok('in a section\'s view each job\'s name is a button that selects the job, at least 24 px tall', jn.length >= 3 && jn.every(j => j.tag === 'BUTTON' && j.act === 'select-job' && j.h >= 24), JSON.stringify(jn));
+  await page.setViewportSize({ width: 1280, height: 832 }); await settle(page);
+  const clip = await page.evaluate(() => [...document.querySelectorAll('#body .jobname')].map(b => ({ name: b.textContent.trim(), cut: b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1, title: b.title, h: b.getBoundingClientRect().height })));
+  ok('at 1280 wide a job\'s name wraps instead of being cut, has a title, and stays 24 px tall', clip.every(j => !j.cut && j.title.startsWith(j.name.split(' · ')[0]) && j.h >= 24), JSON.stringify(clip));
+  await page.setViewportSize({ width: 1470, height: 832 }); await settle(page);
   ok('…the separate "Open it" button is gone from the section\'s view', !(await page.$$eval('#body button', bs => bs.some(b => /^Open it$/.test(b.textContent.trim())))));
   const hov = await page.evaluate(() => { const b = document.querySelector('#body .jobname'); return getComputedStyle(b).textDecorationLine; });
   await page.hover('#body .jobname');
