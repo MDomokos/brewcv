@@ -190,6 +190,18 @@ export function item(ctx, s){
 export function grid(ctx, s){
   const { doc } = ctx;
   const g = h(doc, 'div', 'skills');
+  // This resume's own arrangement of the skills (recipe.skillArrangement): each group is its skills joined, under its own name or the
+  // claim's. The page's copy marks each group and skill so they can be written and moved there; one with no skills prints only there.
+  const own = s.id === 'skills' ? ctx.recipe.skillArrangement?.groups : null;
+  if (own){
+    for (const a of own){
+      if (!a.items.length && !ctx.annotate) continue;
+      const items = ctx.annotate ? a.items.map(x => `<span data-skill>${encode(x)}</span>`).join(', ') : encode(a.items.join(', '));
+      g.append(h(doc, 'p', 'skills__group', { attrs: ctx.annotate ? { 'data-variant': `${a.id}-override`, 'data-group': a.id } : {}, html:
+        `<span class="skills__label">${encode(a.label ?? ctx.label(a.id))}</span><br><span class="skills__items">${items}</span>` }));
+    }
+    return sectionBand(ctx, s, [g]);
+  }
   for (const fid of s.content.groups){
     const v = ctx.pick(fid);
     g.append(h(doc, 'p', 'skills__group', { html:
@@ -261,7 +273,8 @@ function makeCtx(data, recipe, doc, opts){
     const over = probing && f ? undefined : recipe.overrides?.[ref] ?? (f ? undefined : '');   // a line only on this resume has no versions
     const want = probing ? undefined : recipe.picks?.[ref];
     if (over !== undefined){
-      v = { id: `${ref}-override`, text: over, marks: recipe.overrideMeta?.[ref]?.marks ?? [], links: [], override: true,      // an edit keeps its highlights
+      const sep = f?.variants.map(id => variants.get(id)?.separator).find(Boolean);      // the contact line keeps the look of its separators
+      v = { id: `${ref}-override`, text: over, marks: recipe.overrideMeta?.[ref]?.marks ?? [], links: [], override: true, ...(sep ? { separator: sep } : {}),      // an edit keeps its highlights
             source: `recipe override — ${recipe.application ?? 'this application'}`,
             metrics: { chars: [...over].length, measured: {} } };
     } else if (want){

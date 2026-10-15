@@ -118,6 +118,7 @@ export function resolve(model, recipe = null, { local = true } = {}){
       ? `recipe has a line that exists only on this resume ("${String(text).slice(0, 40)}…"): it has no source, so it is left out of an ATS export`
       : `recipe overrides ${factId} with one-off text ("${String(text).slice(0, 40)}…"): overrides have no source, so they cannot go to an ATS export`);
 
+  if (recipe?.skillArrangement) problems.push('this resume arranges its skills on the page: the skill groups in a plain JSON Resume file stay as the record has them');
   const workRefs = inOrder((recipe && recipe.sections?.find(s => s.id === 'experience')?.work) ?? (model.work ?? []).map(w => w.id), recipe?.sections?.find(s => s.id === 'experience')?.order)
     .map(r => (typeof r === 'string' ? { id: r } : r));
   const workById = new Map((model.work ?? []).map(w => [w.id, w]));
@@ -531,15 +532,66 @@ export function arrangementOf(model, recipe){
   return { from: recipe.jobType && groupsOf(model, recipe.jobType, lang) ? recipe.jobType : null, groups };
 }
 export function setArrangement(recipe, arrangement){ recipe.skillArrangement = structuredClone(arrangement); }
+// A set with no groups in the resume's language starts it from the English ones: `lang: 'en'` says so (they are listed as untranslated)
 export function applySet(model, recipe, name){
-  const groups = groupsOf(model, name, recipe.lang ?? DEFAULT_LANG);
+  const L = recipe.lang ?? DEFAULT_LANG, groups = groupsOf(model, name, L);
   if (!groups) throw new Error(`no skill set ${name}`);
-  recipe.skillArrangement = { from: name, groups: structuredClone(groups) };
+  recipe.skillArrangement = { from: name, ...(skillSets(model)[name][L] ? {} : { lang: DEFAULT_LANG }), groups: structuredClone(groups) };
 }
 export function saveSetForTag(model, name, arrangement, lang = DEFAULT_LANG){
   model.skillSets = { ...skillSets(model), [name]: { ...skillSets(model)[name], [lang]: structuredClone(arrangement.groups) } };
 }
 export const groupLabel = (model, recipe, gid) => model.i18n?.[recipe.lang ?? DEFAULT_LANG]?.labels?.[gid] ?? (model.facts ?? []).find(f => f.id === gid)?.label ?? gid;
+
+// Arranging the skills on this resume: the first change copies what prints now into `recipe.skillArrangement`, and each change after it
+// is to that copy. A group is { id, items, label? }: a group of the record keeps its id (and its name, unless `label` renames it here);
+// one made on the page is `~sg-n` and has a `label` of its own.
+const arrange = (model, recipe, fn) => { const a = structuredClone(arrangementOf(model, recipe)); const r = fn(a.groups, a); recipe.skillArrangement = a; return r; };
+const groupAt = (groups, gid) => { const i = groups.findIndex(g => g.id === gid); if (i < 0) throw new Error(`no skill group ${gid}`); return i; };
+// the skills as typed: separated by commas or line breaks
+export const parseItems = text => String(text).split(/[,\n]/).map(x => x.trim()).filter(Boolean);
+// What was written in a group: the first line is its name, the rest its skills; one line only is its skills. No skills left: the group goes.
+export function writeGroup(model, recipe, gid, text){
+  const lines = String(text).split('\n'), named = lines.length > 1;
+  arrange(model, recipe, groups => {
+    const i = groupAt(groups, gid), items = parseItems(named ? lines.slice(1).join('\n') : text);
+    if (!items.length) groups.splice(i, 1);
+    else {
+      const was = groups[i].label, label = named && lines[0].trim() !== (was ?? groupLabel(model, recipe, gid)) ? lines[0].trim() : was;
+      groups[i] = { ...groups[i], items, lang: recipe.lang ?? DEFAULT_LANG, ...(label !== undefined ? { label } : {}) };      // typed here: in this language
+    }
+  });
+}
+// A group as the page writes it: its name, a line break, its skills
+export function groupText(model, recipe, gid){
+  const g = arrangementOf(model, recipe).groups.find(x => x.id === gid);
+  return g ? `${g.label ?? groupLabel(model, recipe, gid)}\n${g.items.join(', ')}` : '';
+}
+// A new empty group after `afterId` (null: first); the page writes in it at once, and it goes if it is left empty.
+export function addSkillGroup(model, recipe, afterId = null){
+  return arrange(model, recipe, groups => {
+    let n = 1; while (groups.some(g => g.id === `~sg-${n}`)) n++;
+    const id = `~sg-${n}`, at = afterId == null ? 0 : groupAt(groups, afterId) + 1;
+    groups.splice(at, 0, { id, items: [], label: '' });
+    return id;
+  });
+}
+export function moveSkillGroup(model, recipe, gid, beforeId = null){
+  arrange(model, recipe, groups => {
+    const [g] = groups.splice(groupAt(groups, gid), 1);
+    groups.splice(beforeId == null ? groups.length : groupAt(groups, beforeId), 0, g);
+  });
+}
+// One skill from a group to a place in another (or the same): `j` is its index there once it has left; a group left with no skills goes
+export function moveSkill(model, recipe, from, i, to, j){
+  arrange(model, recipe, groups => {
+    const src = groups[groupAt(groups, from)], dst = groups[groupAt(groups, to)];
+    if (i < 0 || i >= src.items.length) throw new Error(`no skill ${i} in ${from}`);
+    const [item] = src.items.splice(i, 1);
+    dst.items.splice(Math.max(0, Math.min(j, dst.items.length)), 0, item);
+    if (!src.items.length && src !== dst) groups.splice(groups.indexOf(src), 1);
+  });
+}
 
 // The resume's photo switch (recipe.photo) and the record's photo (basics.image).
 export function setPhoto(recipe, patch){ recipe.photo = { show: false, shape: 'rect', ...(recipe.photo ?? {}), ...patch }; }

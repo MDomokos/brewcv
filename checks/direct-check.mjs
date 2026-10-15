@@ -221,8 +221,8 @@ section('the saved-resume file: new keys round trip, old files open, nothing pri
   const old = S.saveResume(model, plain).file;
   ok('a file without the keys opens with no warnings', S.loadResume(JSON.parse(JSON.stringify(old)), model).warnings.length === 0 && !JSON.stringify(old).includes('overrideMeta') && !JSON.stringify(old).includes('"parent"'));
   const html = r => renderPages(model, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
-  const ignorant = clone(back.recipe); for (const k of ['parent', 'parked', 'overrideMeta', 'skillArrangement']) delete ignorant[k];
-  ok('code that ignores the keys prints the same as code that reads them', html(back.recipe) === html(ignorant));
+  const ignorant = clone(back.recipe); for (const k of ['parent', 'parked', 'overrideMeta']) delete ignorant[k];       // the skill arrangement prints (UX-6c-ii), so code that ignores it is not the same
+  ok('code that ignores the keys that do not print, prints the same as code that reads them', html(back.recipe) === html(ignorant));
   ok('and a copy\'s parent link is not part of what it prints', RS.printedKey(rc, {}) === RS.printedKey({ ...rc, parent: 'x', parked: {} }, {}));
 }
 
@@ -429,6 +429,53 @@ section('a line only on this resume: empty, language, add and remove, anchors, s
   const cc = clone(plain); T.setOverride(cc, T.addLocalLine(model, cc, j2, null), 'Same words', { marks: [], base: null });
   const other = RS.compareRows(model, ca, cc).filter(r => r.kind === 'claim' && r.label === 'Same words');
   ok('the same id in two resumes, on different jobs, is two claims that differ', other.length === 2 && other.every(r => r.differs));
+}
+
+section('skills arranged on the page (UX-6c-ii)');
+{
+  const m = clone(model), html = r => renderPages(m, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
+  const rc = clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe);
+  const before = html(rc), groups0 = T.arrangementOf(m, rc).groups.map(g => g.id);
+  ok('a resume with no arrangement prints as before', !rc.skillArrangement && html(clone(rc)) === before);
+  T.writeGroup(m, rc, 'skills-cad', 'Tools\nCreo, Fusion 360\nKeyShot');
+  const cad = rc.skillArrangement.groups.find(g => g.id === 'skills-cad');
+  ok('writing a group: the first line is its name, the rest its skills (commas or line breaks)', cad.label === 'Tools' && eq(cad.items, ['Creo', 'Fusion 360', 'KeyShot']) && eq(rc.skillArrangement.groups.map(g => g.id), groups0));
+  ok('…the first change copies the other groups as they print', rc.skillArrangement.groups.every(g => g.items.length) && T.groupText(m, rc, 'skills-cad') === 'Tools\nCreo, Fusion 360, KeyShot');
+  const page = html(rc);
+  ok('the renderer prints the arrangement: the name, the skills joined, in order', page.includes('>Tools</span><br><span class="skills__items">Creo, Fusion 360, KeyShot</span>') && !page.includes('SolidWorks (CSWP)') && page !== before);
+  ok('one line only is its skills, the name stays', (T.writeGroup(m, rc, 'skills-cad', 'A, B'), rc.skillArrangement.groups[0].label === 'Tools' && eq(rc.skillArrangement.groups[0].items, ['A', 'B'])));
+  const g = T.addSkillGroup(m, rc, 'skills-cad');
+  ok('a new group follows the one it was added after, empty, and prints nowhere until it has skills', g === '~sg-1' && rc.skillArrangement.groups[1].id === g && !html(rc).includes('~sg-1'));
+  T.writeGroup(m, rc, g, 'Process\nLean, 5S');
+  ok('written, it prints under its own name', html(rc).includes('>Process</span><br><span class="skills__items">Lean, 5S</span>'));
+  T.moveSkill(m, rc, 'skills-cad', 0, g, 1);
+  ok('a skill moves to a place in another group', eq(rc.skillArrangement.groups[0].items, ['B']) && eq(rc.skillArrangement.groups[1].items, ['Lean', 'A', '5S']));
+  T.moveSkill(m, rc, 'skills-cad', 0, g, 0);
+  ok('a group left with no skills goes', !rc.skillArrangement.groups.some(x => x.id === 'skills-cad') && rc.skillArrangement.groups[0].id === g);
+  T.moveSkillGroup(m, rc, g, null);
+  ok('a group moves before another, or last', rc.skillArrangement.groups.at(-1).id === g);
+  T.writeGroup(m, rc, g, '');
+  ok('emptied, a group is removed', !rc.skillArrangement.groups.some(x => x.id === g));
+  ok('an unknown group is refused', throws(() => T.writeGroup(m, rc, 'nope', 'x')) && throws(() => T.moveSkill(m, rc, 'nope', 0, g, 0)));
+  const arranged = clone(rc);
+  const back = S.loadResume(JSON.parse(JSON.stringify(S.saveResume(m, arranged).file)), m);
+  ok('the arrangement comes back from the saved file, with no warnings', back.warnings.length === 0 && eq(back.recipe.skillArrangement, arranged.skillArrangement));
+  ok('the JSON Resume export says the arrangement is not in it', T.resolve(m, rc, { local: false }).problems.some(x => x.includes('arranges its skills')) && !T.resolve(m, clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe)).problems.some(x => x.includes('arranges')));
+  // sets per language: hu falls back to en, and what falls back is listed as untranslated
+  const hr = T.newResume(m, { lang: 'hu' });
+  T.saveSetForTag(m, 'Hardware', { groups: [{ id: 'skills-fabrication', items: ['CAD', 'FEA'] }] });
+  T.applySet(m, hr, 'Hardware');
+  ok('a set with no hu groups starts a hu resume from the en ones, and says so', hr.skillArrangement.lang === 'en' && eq(hr.skillArrangement.groups, [{ id: 'skills-fabrication', items: ['CAD', 'FEA'] }]));
+  ok('…those groups are listed as untranslated', L.missingList(m, hr).some(x => x.id === 'skills-fabrication' && x.key === 'fact:skills-fabrication'));
+  T.writeGroup(m, hr, 'skills-fabrication', 'CAD\nCAD, VEM');
+  ok('…until written in hu', !L.missingList(m, hr).some(x => x.id === 'skills-fabrication'));
+  T.saveSetForTag(m, 'Hardware', { groups: [{ id: 'skills-fabrication', items: ['CAD', 'VEM'] }] }, 'hu');
+  T.applySet(m, hr, 'Hardware');
+  ok('a set that has hu groups does not fall back', hr.skillArrangement.lang === undefined && eq(Object.keys(m.skillSets.Hardware), ['en', 'hu']));
+  // the arrangement as a set for a tag
+  T.saveSetForTag(m, 'Medical', T.arrangementOf(m, arranged), 'en');
+  const again = clone(rc); T.applySet(m, again, 'Medical');
+  ok('saved as the set for a tag, and applied from it, the arrangement is the same', eq(again.skillArrangement.groups, arranged.skillArrangement.groups) && again.skillArrangement.from === 'Medical');
 }
 
 console.log(failed ? `\n${failed} direct check(s) FAILED` : '\nall direct checks passed');

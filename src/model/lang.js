@@ -90,8 +90,11 @@ export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? 
       out.push({ key: `section:${s.id}`, kind: 'heading', id: s.id, label: t('lang.heading', { title }), where: { kind: 'section', id: s.id } });
     }
   }
+  // a skill arrangement replaces the groups' texts: its groups are untranslated only when they came from another language's set
+  const arr = recipe.skillArrangement, arranged = new Set((arr?.groups ?? []).map(g => g.id));
+  for (const g of arr?.groups ?? []) if ((g.lang ?? arr.lang) && (g.lang ?? arr.lang) !== lang && facts.has(g.id) && !isSame(model, sameKey(g.id))){ seen.add(g.id); out.push({ key: sameKey(g.id), kind: 'fact', id: g.id, label: g.label ?? facts.get(g.id).label ?? g.id, where: { fact: g.id, kind: 'item', section: 'skills' } }); }
   for (const p of printedFactIds(model, recipe)){
-    if (seen.has(p.fact)) continue;
+    if (seen.has(p.fact) || (arranged.has(p.fact) && p.kind === 'item')) continue;
     seen.add(p.fact);
     // a line only on this resume has one language, the one it was typed in: in another it stays as typed and is listed
     const own = localEntry(recipe, p.fact), text = String(recipe.overrides?.[p.fact] ?? '').trim();
