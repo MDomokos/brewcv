@@ -45,6 +45,7 @@
   "browser": {
     "head-check": { "run": "node checks/head-check.mjs", "covers": "name card, name window, rail and foot in ten languages, both drinks, three window sizes: nothing covered, cut or overlapping" },
     "room-check": { "run": "node checks/room-check.mjs", "covers": "the sidebar and the layout around the page: hidden share of the body, nothing too wide, the page filling the height" },
+    "screens-check": { "run": "node checks/screens-check.mjs", "covers": "the Resumes, Compare and Record screens: Duplicate with the name ready, parent or closest, what differs, compare of three, thumbnails and their cache, back and Esc, no bar, ten languages at three sizes" },
     "label-fit": { "run": "node checks/label-fit.mjs", "covers": "every language's resume headings fit the gutter; the app's new labels fit the 340px sidebar" },
     "garden-check": { "run": "node checks/garden-check.mjs", "covers": "the tea garden in Chromium (about two minutes)" }
   },
@@ -66,7 +67,7 @@
     { "match": ["scripts/**"], "checks": ["*"], "smoke": [] },
 
     { "match": ["src/model/**"], "checks": ["*"], "smoke": ["selecting, preview", "saved resumes", "the record checklist", "import, merge", "export", "tags and focus", "the Edit view"] },
-    { "match": ["src/i18n/**"], "checks": ["*"], "browser": ["label-fit", "head-check"], "smoke": ["the welcome language", "the examples, in every language", "the record in German", "languages", "one screen: the sidebar"] },
+    { "match": ["src/i18n/**"], "checks": ["*"], "browser": ["label-fit", "head-check", "screens-check"], "smoke": ["the welcome language", "the examples, in every language", "the record in German", "languages", "one screen: the sidebar"] },
     { "match": ["src/render.js", "src/recipe.js", "src/fit.js", "src/paginate.js", "src/export.js", "src/data.js", "templates/**", "formats/**", "themes/**"], "checks": ["*"], "smoke": ["pages, Fit", "export", "saved resumes", "the Edit view", "design and theme", "the examples, in every language", "selecting, preview", "on the page:", "drinks: the page marks", "save to file", "deployed"] },
     { "match": ["src/store/**"], "checks": ["*"], "smoke": ["the session survives", "saved resumes", "save to file", "import, merge", "onboarding and the record", "History: naming", "the Record tab", "the start screen"] },
     { "match": ["src/ui/onpage.js", "src/ui/hands.js", "src/ui/plain.js"], "checks": ["*"], "browser": ["room-check"], "smoke": ["on the page:", "the Edit view", "reordering is visible", "one panel for a claim", "selecting, preview"] },
@@ -74,12 +75,12 @@
     { "match": ["src/ui/garden.js", "src/ui/garden.css"], "checks": ["*"], "browser": ["garden-check"], "smoke": ["drinks:", "motion:", "the gap between", "a page on the move"] },
     { "match": ["src/ui/drink*.js", "src/ui/drinks.css", "src/ui/matroll.js", "src/ui/exportfx.js", "src/ui/pagemotion.js", "src/ui/motion.js"], "checks": ["*"], "smoke": ["drinks:", "motion:", "the gap between", "a page on the move", "nothing over the text", "the start screen", "accessibility", "pages, Fit"] },
     { "match": ["src/ui/start.js", "src/ui/start.css", "src/ui/arrive.js", "src/ui/onboarding.js"], "checks": ["*"], "smoke": ["the start screen", "onboarding and the record", "the welcome language", "file://", "index.html is the Workbench", "the session survives"] },
-    { "match": ["src/ui/career.js", "src/ui/record.js", "src/ui/checklist.js"], "checks": ["*"], "browser": ["room-check"], "smoke": ["the record", "adding to the record", "record:", "items:", "one panel for a claim", "bullets:", "tags and focus", "the Record tab", "one screen: a narrow window", "reordering is visible"] },
+    { "match": ["src/ui/career.js", "src/ui/record.js", "src/ui/checklist.js"], "checks": ["*"], "browser": ["room-check", "screens-check"], "smoke": ["the record", "adding to the record", "record:", "items:", "one panel for a claim", "bullets:", "tags and focus", "the Record tab", "one screen: a narrow window", "reordering is visible"] },
     { "match": ["src/ui/settings.js", "src/ui/langmenu.js"], "checks": ["*"], "browser": ["label-fit", "head-check"], "smoke": ["the welcome language", "languages", "scrollbars", "accessibility", "motion:"] },
-    { "match": ["src/ui/files.js", "src/ui/export.js", "src/ui/resumes.js", "src/ui/switcher.js"], "checks": ["*"], "browser": ["head-check"], "smoke": ["import, merge", "save to file", "export", "saved resumes", "the Record tab", "pages, Fit", "tags and focus", "the examples, in every language"] },
-    { "match": ["src/**", "index.html", "manifest.webmanifest", "sw.js"], "checks": ["*"], "browser": ["head-check", "room-check", "label-fit"], "smoke": ["*"] },
+    { "match": ["src/ui/files.js", "src/ui/export.js", "src/ui/resumes.js", "src/ui/switcher.js", "src/ui/screens.js", "src/ui/thumbs.js"], "checks": ["*"], "browser": ["head-check", "screens-check"], "smoke": ["import, merge", "save to file", "export", "saved resumes", "the Record tab", "pages, Fit", "tags and focus", "the examples, in every language"] },
+    { "match": ["src/**", "index.html", "manifest.webmanifest", "sw.js"], "checks": ["*"], "browser": ["head-check", "room-check", "label-fit", "screens-check"], "smoke": ["*"] },
 
     { "match": ["data/example-resumes/**", "data/example-recipe.json"], "checks": ["*"], "smoke": ["the examples, in every language", "saved resumes", "languages", "pages, Fit"] },
-    { "match": ["**"], "checks": ["*"], "browser": ["head-check", "room-check", "label-fit", "garden-check"], "smoke": ["*"] }
+    { "match": ["**"], "checks": ["*"], "browser": ["head-check", "room-check", "label-fit", "garden-check", "screens-check"], "smoke": ["*"] }
   ]
 }

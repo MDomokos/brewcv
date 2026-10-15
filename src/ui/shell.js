@@ -1262,6 +1262,7 @@ VIEWS.record = () => recordTab.view();
 const thumbs = initThumbs({ work, extraCss: r => design.extraCss(store.state.record, r), chrome: r => docChrome(r.lang ?? 'en') });
 const screens = initScreens({ store, work, setView, resumes, renderBody: () => renderBody(), leave: () => leaveView() }, thumbs);
 Object.assign(VIEWS, screens.views);
+window.__wb.thumbs = thumbs; window.__wb.screens = screens;
 const files = initFiles({
   store, ui, persist, toast, NONE, setView, pickFile, download, saveToFile,
   onImage: f => design.setPhoto(f), onThemeText: (t, n) => design.importTheme(t, n), onTheme: (j, n) => design.importTheme(j, n),

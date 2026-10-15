@@ -11,14 +11,14 @@ import { t, h } from '../i18n/index.js';
 import { pageSize } from './layout.js';
 import { nameHtml } from './switcher.js';
 
-let C = null, fillThumbs = null;
+let C = null, T = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const VIEW_KEY = 'rb-manage-view', VIEWS = ['type', 'date', 'company'];
 const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : 'type'; } catch { return 'type'; } };
 // ticked: resumes ("id") and sent copies ("id|snapshot"); cmp: what the compare screen shows, and the parent when it is "What differs"
 const V = { q: '', view: savedView(), ticked: new Set(), cmp: [], parent: null };
 
-export function initScreens(ctx, thumbs){ C = ctx; fillThumbs = thumbs.fill; return api; }
+export function initScreens(ctx, thumbs){ C = ctx; T = thumbs; return api; }
 const st = () => C.store.state;
 const label = RS.resumeLabel;
 
@@ -94,7 +94,7 @@ function resumesView(){
       <button class="sm swnew" data-act="sw-new">${h('ux1.newResume')}</button><span class="grow"></span><span class="scrticks" id="scr-ticks">${ticksHtml()}</span></div>
     <div id="scr-list">${listHtml()}</div></section>`;
 }
-function afterResumes(){ fillThumbs(document.getElementById('scr-list'), recipeOf); }
+function afterResumes(){ T.fill(document.getElementById('scr-list'), recipeOf); }
 // a tick changes the header and the card, not the pictures
 function refreshTicks(){
   document.getElementById('scr-ticks').innerHTML = ticksHtml();
@@ -118,7 +118,7 @@ function compareView(){
 }
 function afterCompare(){
   const sc = document.getElementById('compare');
-  fillThumbs(sc, recipeOf, (key, e) => { const c = sc.querySelector(`[data-pagesof="${CSS.escape(key)}"]`); if (c) c.textContent = String(e.pages); });
+  T.fill(sc, recipeOf, (key, e) => { const c = sc.querySelector(`[data-pagesof="${CSS.escape(key)}"]`); if (c) c.textContent = String(e.pages); });
 }
 
 // ---- acts ----
@@ -156,4 +156,4 @@ function bind(body){
   });
 }
 
-const api = { act, bind, views: { resumes: resumesView, compare: compareView }, after: { resumes: afterResumes, compare: afterCompare } };
+const api = { act, bind, compare, views: { resumes: resumesView, compare: compareView }, after: { resumes: afterResumes, compare: afterCompare } };
