@@ -22,7 +22,7 @@ import { PHONE_MAX } from './layout.js';
 import { reduced } from './motion.js';
 
 const $ = (s, r = document) => r.querySelector(s);
-const PAD_JOB = 6, PAD_LINE = 4, PAD_ITEM = 14, PAD_SEC = 12;       // a section's frame stands off enough for the chip's lower half to clear its first line
+const PAD_JOB = 6, PAD_LINE = 4, PAD_ITEM = 2, PAD_SEC = 12;       // a section's frame stands off enough for the chip's lower half to clear its first line; an item's stands off less, so it stays off its neighbours (the chip finds a free place)
 const pad = (r, p) => (r ? { left: r.left - p, top: r.top - p, width: r.width + 2 * p, height: r.height + 2 * p } : null);
 
 export function initOnPage(C){
@@ -176,15 +176,17 @@ export function initOnPage(C){
     const w = chip.offsetWidth, h = chip.offsetHeight;
     const pg = geom.boxes.map(b => canvas.screenRect(b)).find(b => f.left >= b.left - 1 && f.left < b.left + b.width);
     const lo = Math.max(v.left + 6, pg ? pg.left + 2 : -Infinity), hi = Math.min(v.left + v.width - w - 6, pg ? pg.left + pg.width - w - 2 : Infinity);
-    const y = Math.max(v.top + 6, Math.min(f.top - h / 2, v.top + v.height - h - 56));
+    const lowest = v.top + v.height - h - 56;
+    const ys = [Math.max(v.top + 6, Math.min(f.top - h / 2, lowest)), Math.max(v.top + 6, Math.min(f.top - h, lowest))];      // on the edge, else just above it (a tight item frame has text under its edge)
     const texts = sheet.textRects().map(r => canvas.screenRect(r));
     const tw = lay.querySelector('.obtoolswrap'), tr = tw && tw.style.display !== 'none' ? tw.getBoundingClientRect() : null;
-    const hit = (x, q) => x < q.left + q.width && x + w > q.left && y < q.top + q.height && y + h > q.top;
+    const hit = (x, q, y) => x < q.left + q.width && x + w > q.left && y < q.top + q.height && y + h > q.top;
     const x0 = Math.max(lo, Math.min(f.left + f.width - w - 12, hi));
     // the corner first, then outwards along the edge into the page's margin, then inwards, to the first place clear of text and tools
     const xs = [x0, ...Array.from({ length: Math.max(0, Math.floor((hi - x0) / 8)) }, (_, i) => x0 + 8 * (i + 1)), ...Array.from({ length: Math.max(0, Math.floor((x0 - lo) / 8)) }, (_, i) => x0 - 8 * (i + 1))];
-    const x = xs.find(x => !texts.some(q => hit(x, q)) && !(tr && hit(x, tr))) ?? x0;
-    Object.assign(chip.style, { left: `${x}px`, top: `${y}px` });
+    let y = ys[0], x;
+    for (const yy of ys){ x = xs.find(x => !texts.some(q => hit(x, q, yy)) && !(tr && hit(x, tr, yy))); if (x !== undefined){ y = yy; break; } }
+    Object.assign(chip.style, { left: `${x ?? x0}px`, top: `${y}px` });
   }
 
   // ---- writing a line where it is printed ----
@@ -212,8 +214,8 @@ export function initOnPage(C){
     el.contentEditable = supportsPlain ? 'plaintext-only' : 'true';
     el.spellcheck = true;
     el.setAttribute('role', 'textbox');
-    el.setAttribute('aria-multiline', 'true');
-    el.setAttribute('aria-label', t('ux3.lineField'));
+    if (edit().multiline(ed)) el.setAttribute('aria-multiline', 'true'); else el.removeAttribute('aria-multiline');
+    el.setAttribute('aria-label', edit().fieldName(ed));
     const offs = [];
     const on = (ev, fn) => { el.addEventListener(ev, fn); offs.push(() => el.removeEventListener(ev, fn)); };
     on('input', onInput);

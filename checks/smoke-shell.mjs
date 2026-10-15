@@ -671,7 +671,7 @@ const chipGeomOf = page => page.evaluate(() => {
   const hit = (a, b) => !!b && b.width > 0 && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
   const texts = w.sheet.textRects().map(r => { const s = w.canvas.screenRect(r); return { left: s.left, right: s.left + s.width, top: s.top, bottom: s.top + s.height, width: s.width }; });
   const view = w.canvas.view, vis = f.top > view.top + 8 && f.bottom < view.top + view.height - 60;
-  return { onEdge: !vis || Math.abs((c.top + c.bottom) / 2 - f.top) <= 3, nearRight: (c.left + c.right) / 2 > f.left + f.width / 2 && c.left < f.right, over: texts.filter(t => hit(c, t)).length,
+  return { onEdge: !vis || Math.abs((c.top + c.bottom) / 2 - f.top) <= 3 || Math.abs(c.bottom - f.top) <= 3, nearRight: (c.left + c.right) / 2 > f.left + f.width / 2 && c.left < f.right, over: texts.filter(t => hit(c, t)).length,
     room: c.left >= 0 && c.top >= 0 && c.right <= innerWidth && c.bottom <= innerHeight && !hit(c, col) && !hit(c, zb) && !hit(c, tw) && !hit(c, rail), small: c.height <= 24 };
 });
 
@@ -4021,13 +4021,13 @@ if (want('on the page: every printed text is written where it is printed, and ea
     ['a job’s title', `${S('experience')} .role-title`, 'fact', 'hydra-position', null], ['a job’s date line', `${S('experience')} .entry .meta`, 'fact', 'hydra-meta', null], ['a bullet', `${S('experience')} .bullets li`, 'fact', 'hydra-inhaler', null],
     ['a skill group', `${S('skills')} .skills__items`, 'group', 'skills-cad', null],
     ['a certificate', `${S('certified')} .runs strong`, 'fact', 'cert-solidworks', ['Page', 'Certified', 'SolidWorks']],
-    ['the patent’s title', `${S('patent')} .item__title`, 'fact', 'patent-title', ['Page', 'Patent', 'Patent']], ['the patent’s line', `${S('patent')} .meta--flat`, 'fact', 'patent-meta', ['Page', 'Patent', 'Patent']],
-    ['education’s degree', `${S('education')} .item__title`, 'fact', 'edu-degree', ['Page', 'Education', 'Degree']], ['education’s school', `${S('education')} .item__title-secondary`, 'fact', 'edu-school', ['Page', 'Education', 'Institution']], ['education’s date line', `${S('education')} .meta--flat`, 'fact', 'edu-meta', ['Page', 'Education', 'Conferral']],
+    ['the patent’s title', `${S('patent')} .item__title`, 'fact', 'patent-title', ['Page', 'Patent', 'Dose-counti…']], ['the patent’s line', `${S('patent')} .meta--flat`, 'fact', 'patent-meta', ['Page', 'Patent', 'Dates']],
+    ['education’s degree', `${S('education')} .item__title`, 'fact', 'edu-degree', ['Page', 'Education', 'M.Eng']], ['education’s school', `${S('education')} .item__title-secondary`, 'fact', 'edu-school', ['Page', 'Education', 'Universidade']], ['education’s date line', `${S('education')} .meta--flat`, 'fact', 'edu-meta', ['Page', 'Education', 'Dates']],
     ['a language’s name', `${S('languages')} dt`, 'term', '~t:lang-portuguese', ['Page', 'Languages', 'Portuguese']], ['a language’s level', `${S('languages')} dd`, 'fact', 'lang-portuguese', ['Page', 'Languages', 'Portuguese']],
     ['an interest', `${S('interests')} .runs strong`, 'fact', 'interest-sailing', ['Page', 'Interests', 'Dinghy']],
     ['a custom section’s heading', `${S('awards')} h2.tab`, 'head', '~h:awards', null], ['an award (a custom run)', `${S('awards')} .runs strong`, 'fact', 'best-student-design', ['Page', 'Awards', 'Best']],
     ['volunteering’s title', `${S('volunteer')} .role-title`, 'fact', 'volunteer-repairer-position', null], ['volunteering’s line', `${S('volunteer')} .entry .meta`, 'fact', 'volunteer-repairer-meta', null], ['a volunteering bullet', `${S('volunteer')} .bullets li`, 'fact', 'volunteer-repairer-fixed', null],
-    ['a reference’s name', `${S('references')} dt`, 'term', '~t:ref-ana-costa', ['Page', 'References', 'Ana']], ['a reference’s words', `${S('references')} dd`, 'fact', 'ref-ana-costa', ['Page', 'References', 'Reference']],
+    ['a reference’s name', `${S('references')} dt`, 'term', '~t:ref-ana-costa', ['Page', 'References', 'Ana']], ['a reference’s words', `${S('references')} dd`, 'fact', 'ref-ana-costa', ['Page', 'References', 'Ana']],
     ['a project’s title', `${S('projects')} .role-title`, 'fact', 'caliper-stand-position', null], ['a project’s line', `${S('projects')} .entry .meta`, 'fact', 'caliper-stand-meta', null], ['a project’s bullet', `${S('projects')} .bullets li`, 'fact', 'caliper-stand-files', null],
   ];
   const bring = async sel => {
@@ -4044,6 +4044,8 @@ if (want('on the page: every printed text is written where it is printed, and ea
     await clickText(sel);
     const got = await page.evaluate(() => ({ key: window.__wb.edit.editing?.fact ?? null, ce: document.querySelector('#sheet iframe').contentDocument.querySelectorAll('[contenteditable]').length, role: window.__wb.onpage.el()?.getAttribute('role'), label: window.__wb.onpage.el()?.getAttribute('aria-label'), draft: window.__wb.edit.editing?.draft }));
     ok(`${name}: one click writes it where it is printed (an editable element with a role and a name)`, got.key === key && got.ce === 1 && got.role === 'textbox' && !!got.label && !!got.draft?.trim(), JSON.stringify(got));
+    const nm = await page.evaluate(() => { const e = window.__wb.onpage.el(); return { label: e?.getAttribute('aria-label'), multi: e?.getAttribute('aria-multiline') }; });
+    ok(`${name}: named by what it is (${nm.label}), multi-line only for a bullet or the summary`, !!nm.label && nm.label !== 'The line, to write' && nm.label.includes(', ') && (nm.multi === 'true') === (name === 'the summary' || /bullet/.test(name)), JSON.stringify(nm));
     await appendLine(page, mark);
     await page.keyboard.press('Escape'); await page.waitForTimeout(900);
     const c = await cur(), id = key.slice(3), L = 'en';
@@ -4064,6 +4066,23 @@ if (want('on the page: every printed text is written where it is printed, and ea
     }
   }
   await esc2();
+
+  // a volunteering entry is named by its organisation in the chip, never by its id
+  await esc2();
+  await clickText(`${S('volunteer')} .role-title`);
+  const vw = await page.$$eval('#editlay .obchip .dp-w', e => e.map(x => x.textContent));
+  ok('the chip of a volunteering entry: Page › Volunteering › Porto, not its id', JSON.stringify(vw) === JSON.stringify(['Page', 'Volunteering', 'Porto']), JSON.stringify(vw));
+  // a heading typed in one language and kept after the resume's language changed stays in the language it was typed in
+  await esc2();
+  await clickText(`${S('education')} h2.tab`);
+  await appendLine(page, ' +lang');
+  await page.evaluate(async () => { const L = await import('/src/model/lang.js'); window.__wb.store.commit(d => { L.switchLang(d.cur, 'pt'); }, 'switch'); });
+  await page.waitForTimeout(600);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(900);
+  const lab = (await cur()).sections.find(x => x.id === 'education')?.label;
+  ok('a heading typed before the resume’s language changed is kept in the language it was typed in', !!lab?.en?.endsWith(' +lang') && !lab?.pt, JSON.stringify(lab));
+  await page.evaluate(async () => { const L = await import('/src/model/lang.js'); window.__wb.store.commit(d => { L.switchLang(d.cur, 'en'); }, 'switch back'); });
+  await page.waitForTimeout(600);
 
   // each edit is on the Review list's data with its base (UX-6d offers it as a version)
   const pend = await page.evaluate(async () => { const T = await import('/src/model/resume.js'), c = window.__wb.store.state.cur; return T.pendingEdits(c).filter(id => c.overrideMeta?.[id]?.base).sort(); });
@@ -4151,6 +4170,34 @@ if (want('on the page: every printed text is written where it is printed, and ea
   ok('…and the photo: Page › Header › Photo', JSON.stringify(await page.$$eval('#editlay .obchip .dp-w', e => e.map(x => x.textContent))) === JSON.stringify(['Page', 'Header', 'Photo']));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
+}
+
+// An item's frame stands off less than a section's: it must not cut through the next row (a language, a certificate, an interest).
+if (want('on the page: an item frame stays off its neighbours, at four sizes')) {
+  for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080], [2560, 1100]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+    const page = await ctx.newPage();
+    page.on('dialog', d => d.accept());
+    const bad = await open(page);
+    await openByName(page, 'Medtech');
+    const fr = page.frameLocator('#sheet iframe');
+    const fails = [];
+    for (const [name, sel] of [['language names', '.band[data-section=languages] dt'], ['language levels', '.band[data-section=languages] dd'], ['certificates', '.band[data-section=certified] .runs strong'], ['interests', '.band[data-section=interests] .runs strong']]) {
+      const at = await frameDoc(page, (d, s) => [...d.querySelectorAll('.document > .page')].findIndex(p => p.querySelector(s)), sel);
+      if (at >= 0) { await page.evaluate(i => window.__wb.canvas.goToPage(i), at); await page.waitForTimeout(900); }
+      if ((await fr.locator(sel).count()) < 2) { fails.push(`${name}: fewer than two rows`); continue; }
+      await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+      await fr.locator(sel).nth(0).click({ position: { x: 4, y: 3 } }); await page.waitForTimeout(700);
+      await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+      const f = await page.$eval('#editlay .obframe.sec.dashed', e => e.getBoundingClientRect().toJSON()).catch(() => null);
+      const nx = await fr.locator(sel).nth(1).boundingBox();
+      if (!f || !nx) { fails.push(`${name}: no frame or no next row`); continue; }
+      if (f.left < nx.x + nx.width && f.right > nx.x && f.top < nx.y + nx.height && f.bottom > nx.y) fails.push(`${name}: frame ${JSON.stringify([f.left, f.top, f.right, f.bottom])} cuts the next row ${JSON.stringify(nx)}`);
+    }
+    ok(`${w}x${h}: the selected item's frame cuts through no neighbouring row (language names and levels, certificates, interests)`, fails.length === 0, fails.join('; '));
+    ok(`${w}x${h}: no console errors`, bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
 }
 
 if (want('file://')) {

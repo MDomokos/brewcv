@@ -67,7 +67,7 @@ function keepEdit(ed){
 function keepLabel(ed){
   if (!isDirty(ed) || !ed.draft.trim()) return;
   C.ui.previewing = false;
-  commit(d => T.setLabel(d.record, d.cur, ed.fact, lang(), ed.draft), t('ux6c.undoLabel'));
+  commit(d => T.setLabel(d.record, d.cur, ed.fact, ed.lang, ed.draft), t('ux6c.undoLabel'));
 }
 // A skill group written on the page: its name and skills, kept on this resume's arrangement. No skills left (a new group, or all
 // of them deleted): the group goes, and Ctrl+Z brings it back.
@@ -137,6 +137,22 @@ function noneView(){
     <p class="lead edithint">${h('ux5c.editNone')}</p>`;
 }
 
+// bullets and prose run over several lines; the other texts are one line
+const multiline = ed => !ed.label && !ed.group && (!!T.jobOfFact(rec(), ed.fact, cur()) || ix().summaries.has(ed.fact));
+// The accessible name of a text written on the page: the heading of its section and what it is there (Education, degree)
+function fieldName(ed){
+  const id = ed.fact, of = (sec, what) => `${sec}, ${what}`, secOf = sid => C.sectionTitle(sid);
+  if (ed.label) return id.startsWith('~h:') ? of(secOf(id.slice(3)), t('ux6c.n.heading')) : of(secOf(ix().owned.get(id.slice(3))), t('ux6c.n.name'));
+  if (ed.group) return of(secOf('skills'), t('ux6c.n.group'));
+  const f = Object.entries(rec().basics?.display ?? {}).find(([, x]) => x === id);
+  if (f) return of(t('ux6c.header'), t(`ux6c.f.${f[0]}`));
+  const w = [...ix().work.values()].find(x => Object.values(x.display ?? {}).includes(id));
+  if (w) return of(w.name ?? w.organization ?? w.entity ?? w.id, id === w.display?.meta ? t('ux6c.f.dates') : t('ux6c.n.title'));
+  const sid = ix().owned.get(id), c = ix().sections.get(sid)?.content;
+  if (sid) return of(secOf(sid), ix().sections.get(sid).kind === 'item' ? (id === c.title ? t('ux6c.n.title') : id === c.subtitle ? t('ux6c.n.subtitle') : t('ux6c.f.dates')) : t('ux6c.n.text'));
+  const j = T.jobOfFact(rec(), id, cur());
+  return j ? of(j.name ?? j.organization ?? j.entity ?? j.id, t('ux3.crumbLine')) : of(secOf('summary'), t('ux6c.n.text'));
+}
 // what a line is called in the depth chip and the card: its summary, else its words; a new empty line only on this resume is "New line"
 const lineName = id => (id.startsWith('~t:') ? T.labelNow(rec(), cur(), id, lang()) : '') || (ix().skillGroups.has(id) ? T.arrangementOf(rec(), cur()).groups.find(g => g.id === id)?.label ?? T.groupLabel(rec(), cur(), id) : '')
   || ix().facts.get(id)?.summary || C.textOfFact(id) || (T.isLocal(cur(), id) ? t('ux6c.newLine') : id);
@@ -151,18 +167,21 @@ function depth(sel = C.ui.sel, page = false){
   const item = sel.kind === 'record' && sel.what === 'item';       // a skill group, a language: an item of a list section
   const sid = sel.kind === 'section' ? sel.id : sel.kind === 'bullet' ? sel.section ?? 'summary' : jobId ? T.sectionOfEntry(rec(), jobId) : item ? T.sectionOfItem(rec(), sel.id) : null;
   const word = s => clip(String(s ?? '').trim().split(/\s+/)[0].replace(/[,.;:]+$/, ''), 12);
+  const jw = jobId && ix().work.get(jobId), jobName = jw?.name ?? jw?.organization ?? jw?.entity ?? jobId;
+  // an item's word ties to its real content; a date line is Dates; a language's or reference's text takes its pair's name
+  const itemWord = id => word(id.startsWith('~t:') || ix().skillGroups.has(id) ? lineName(id) : /-meta$/.test(id) ? t('ux6c.f.dates') : ix().sections.get(ix().owned.get(id))?.kind === 'pairs' ? lineName(`~t:${id}`) : C.textOfFact(id) || lineName(id));
   // the header's field the selection is on: Name, Headline, Contact or Photo
   const field = sel.kind === 'header' ? (sel.id ? t(`ux6c.f.${sel.id}`) : null) : sel.kind === 'bullet' ? Object.entries(rec().basics?.display ?? {}).map(([k, f]) => (f === sel.id ? t(`ux6c.f.${k}`) : null)).find(Boolean) : null;
   const fieldLevel = field && { word: field, ...(sel.kind === 'bullet' ? { act: 'select-fact', attrs: `${at(sel.id)} data-section="header"` } : { act: 'select-header' }) };
   if (page){
     if (sel.kind === 'header' || sid === 'header'){ L.push({ word: t('ux6c.header'), act: 'select-header' }); if (fieldLevel) L.push(fieldLevel); }
     else if (sid) L.push({ word: word(C.sectionTitle(sid)), act: 'select-section', attrs: at(sid) });
-    if (jobId) L.push({ word: word(ix().work.get(jobId)?.name ?? jobId), act: 'select-job', attrs: at(jobId) });
-    else if (item) L.push({ word: word(ix().facts.get(sel.id)?.summary || C.textOfFact(sel.id) || sel.id), act: 'select-record', attrs: `${at(sel.id)} data-what="item" data-group="${esc(sel.group ?? '')}"` });
-    else if (sel.kind === 'bullet' && sid !== 'header' && sid !== 'summary') L.push({ word: word(lineName(sel.id)), act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
+    if (jobId) L.push({ word: word(jobName), act: 'select-job', attrs: at(jobId) });
+    else if (item) L.push({ word: itemWord(sel.id), act: 'select-record', attrs: `${at(sel.id)} data-what="item" data-group="${esc(sel.group ?? '')}"` });
+    else if (sel.kind === 'bullet' && sid !== 'header' && sid !== 'summary') L.push({ word: itemWord(sel.id), act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
     return L;
   }
-  if (jobId) L.push({ word: t('ux3.crumbJob'), name: ix().work.get(jobId)?.name ?? jobId, act: 'select-job', attrs: at(jobId) });
+  if (jobId) L.push({ word: t('ux3.crumbJob'), name: jobName, act: 'select-job', attrs: at(jobId) });
   else if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
   else if (sid) L.push({ word: t('ux6c.section'), name: C.sectionTitle(sid), act: 'select-section', attrs: at(sid) });
   if (fieldLevel) L.push(fieldLevel);
@@ -370,7 +389,7 @@ function startGroup(id){
 // A heading or a language's name is written on the page only: the text printed now, kept in this resume's language
 function startLabel(key){
   const text = T.labelNow(rec(), cur(), key, lang());
-  E.edit = { fact: key, label: true, mode: 'edit', vid: null, marks: [], base: text, draft: text };
+  E.edit = { fact: key, label: true, lang: lang(), mode: 'edit', vid: null, marks: [], base: text, draft: text };
   E.compare = null;
   C.endHover();
   if (!C.onpage?.begin()){ E.edit = null; return; }
@@ -441,7 +460,7 @@ async function livePreview(){
   const ed = E.edit;
   if (!ed || !ed.draft.trim()) return;
   const text = ed.draft.trim(), r = structuredClone(cur());
-  if (ed.label) T.setLabel(rec(), r, ed.fact, lang(), text);
+  if (ed.label) T.setLabel(rec(), r, ed.fact, ed.lang, text);
   else if (ed.group){ if (!T.readGroup(ed.draft).items.length) return; T.writeGroup(rec(), r, ed.fact, ed.draft); }      // a group with no skills yet is left as it is until the line is left
   else T.setOverride(r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid });
   await C.previewRecipe(r, ed.fact);
@@ -921,7 +940,7 @@ function leaving(next){
 
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
-  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml,
+  outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepRow, stepJob: stepJobBy, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, fieldName, multiline,
   get editing(){ return E.edit; },
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){
