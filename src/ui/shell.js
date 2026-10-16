@@ -82,7 +82,7 @@ const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => r
   writeStarted: () => dock.renderFoot(), writeEnded: () => dock.renderFoot(), redrawSoon: () => schedule() });
 const hands = initHands({ ui, sheet, canvas, edit: () => edit, onpage: () => onpage, record: () => record(), cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k),
   jobName: id => (ui.ix ?? indexModel(work(), cur())).work.get(id)?.name ?? id, writingFact: () => onpage.fact(), togglePhoto: () => design.togglePhoto() });
-window.__wb = { store, persist, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile() };      // for checks and the console
+window.__wb = { store, persist, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile(), busy: () => timer !== null || drawing > 0 };      // for checks and the console
 
 // The tea garden runs in tea, with its setting on, with motion allowed, off a phone and off the start screen; otherwise it rests.
 // ?garden-check[=idle seconds] is for checks/garden-check.mjs: a short idle time and the garden's test hooks on __wb.garden.
@@ -229,8 +229,8 @@ function work(){
   return ui.work;
 }
 
-let seq = 0, timer = null;
-const schedule = () => { clearTimeout(timer); timer = setTimeout(redraw, 40); };
+let seq = 0, timer = null, drawing = 0;
+const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { timer = null; redraw(); }, 40); };
 
 let notedId = null;
 function onChange({ kind, label }){
@@ -257,7 +257,8 @@ function stillThere(sel){
   return true;
 }
 
-async function redraw(){
+async function redraw(){ drawing++; try { return await drawSheet(); } finally { drawing--; } }
+async function drawSheet(){
   const my = ++seq;
   if (!record() || !cur()){ renderAll(); return true; }
   try {
@@ -1251,7 +1252,7 @@ function toast(msg, tone = '', undo = false){
 const edit = initEdit({
   store, ui, sheet, toast, say, hint, record, cur, lang, work, chooseVariant, sectionTitle, textOfFact, resumeName, fillText,
   ix: () => ui.ix ?? indexModel(work(), cur()), togglePhoto: () => design.togglePhoto(),
-  redrawNow: () => { clearTimeout(timer); return redraw(); },
+  redrawNow: () => { clearTimeout(timer); timer = null; return redraw(); },
   onpage: { keepView: fn => onpage.keepView(fn), begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh() },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
   outlineHtml: (...a) => checklist.outlineHtml(...a),
