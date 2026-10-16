@@ -37,7 +37,7 @@ body:not([data-phone=true]):not(.is-intro) .col > #head.is-place { position: rel
    drawn by its background, so the thread above it is not clipped. */
 :root {
   --thread: #a88a5c; --hole: rgba(30, 40, 25, .45);
-  --sheet: #fff; --sheet-edge: rgba(0, 0, 0, .13);      /* a page's own white, and the hairline round a picture of one */
+  --sheet: #fff; --sheet-edge: rgba(0, 0, 0, .13); --hint-bg: rgba(30, 30, 30, .78); --hint-ink: #fff;      /* a page's own white, and the hairline round a picture of one */
 }
 html[data-drink="tea"] .ptabs { gap: 8px; padding: 12px 10px 0; margin-bottom: -12px; }
 html[data-drink="tea"] .col > #head { z-index: 1; }
@@ -153,3 +153,14 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 /* the page that grows out of the inspector: the real page, drawn at its final size and shrunk, so it stays sharp. A flat 2D move: no will-change */
 .growpage { position: fixed; left: 0; top: 0; z-index: 40; pointer-events: none; background: var(--sheet); transform-origin: 0 0; box-shadow: var(--shadow-panel); }
 .growpage .rthumb { display: block; width: 100%; }
+
+/* resting on a card's picture: its page beside the card, tall as the window, large enough to read; a longer resume's pages are stacked and
+   the wheel over the picture turns them */
+.hoverprev { position: fixed; left: 0; top: 0; z-index: 35; pointer-events: none; background: var(--sheet); border-radius: var(--r-xs); overflow: hidden; box-shadow: var(--shadow-toast); transform-origin: 50% 30%; }
+.hoverprev .rthumb { display: block; width: 100%; }
+.hoverprev .hpstrip { transition: transform .22s cubic-bezier(.3, .7, .2, 1); }
+html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
+@media (prefers-reduced-motion: reduce){ .hoverprev .hpstrip { transition: none; } }
+.hoverprev .hpslot { display: block; overflow: hidden; background: var(--sheet); }
+.hoverprev .hpslot + .hpslot { border-top: 1px solid var(--sheet-edge); }
+.hoverprev .hppage { position: absolute; right: 10px; bottom: 10px; padding: 3px 8px; border-radius: var(--r-pill); background: var(--hint-bg); color: var(--hint-ink); font: 600 11px/1.2 var(--font-ui); }

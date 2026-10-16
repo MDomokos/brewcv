@@ -9,7 +9,7 @@ import { jobTypeLabel } from '../model/focus.js';
 import { pendingEdits } from '../model/resume.js';
 import { t, h } from '../i18n/index.js';
 import { pageSize, computeLayout } from './layout.js';
-import { reduced } from './motion.js';
+import { play, reduced } from './motion.js';
 import { nameHtml } from './switcher.js';
 
 let C = null, T = null;
@@ -90,7 +90,7 @@ function ticksHtml(){
 }
 // the toolbar floats at the top of the content (flow.css): never a bar across the window
 function resumesView(){
-  endGrow();
+  hidePreview(); endGrow();
   return `<section class="scrn" id="resumes" aria-label="${esc(t('ux6h.allResumes'))}">
     <div class="scrhead tbar">${phone() ? `<button class="sm scrback" data-act="scr-back">${h('ux1.backToResume')}</button>` : ''}
       <input id="scr-q" type="search" class="sw-q" aria-label="${esc(t('ux6h.search'))}" placeholder="${esc(t('ux6h.search'))}" value="${esc(V.q)}" autocomplete="off">
@@ -227,6 +227,40 @@ function wheelGrow(e){
   X.idle = setTimeout(() => settleGrow(X.p > 0.55 ? 1 : 0), 220);
 }
 
+// ---- resting on a card's picture shows its first page large enough to read, beside the card; scrolling over the picture turns the pages ----
+const HV = { t: 0, el: null, card: null, at: 0, n: 1, acc: 0 };
+const railLeft = () => document.getElementById('rail')?.getBoundingClientRect().left ?? innerWidth;
+function hidePreview(){ clearTimeout(HV.t); HV.el?.remove(); HV.el = null; HV.card = null; }
+function showPreview(card){
+  const r = RS.savedOf(st(), card.dataset.rid); if (!r) return;
+  hidePreview(); HV.card = card;
+  const { w, h } = pageSize(r.format), H = Math.min(innerHeight - 32, 1120), W = H * w / h, c = card.getBoundingClientRect(), rl = railLeft();
+  let left = c.left + c.width / 2 < rl / 2 ? c.right + 12 : c.left - 12 - W;
+  left = Math.max(12, Math.min(rl - 12 - W, left));
+  const el = document.createElement('div'); el.className = 'hoverprev'; el.setAttribute('aria-hidden', 'true');
+  Object.assign(el.style, { left: `${left}px`, top: '16px', width: `${W}px`, height: `${H}px` });
+  el.innerHTML = `<div class="hpstrip">${thumb(r.id, r.format)}</div>`;
+  document.body.append(el); HV.el = el; HV.at = 0; HV.n = 1; HV.acc = 0; T.fill(el, recipeOf);
+  play(el, [{ transform: 'scale(.97)' }, { transform: 'none' }], { ms: 'fast', name: 'preview:in' });
+  // a resume of more than one page: every page, stacked; the wheel over the card's picture turns them
+  T.entry(recipeOf(r.id)).then(e => {
+    if (!e || HV.el !== el || !(e.srcs?.length > 1)) return;
+    HV.n = e.srcs.length;
+    el.querySelector('.hpstrip').innerHTML = e.srcs.map(() => `<span class="hpslot" style="height:${H}px"></span>`).join('');
+    el.querySelectorAll('.hpslot').forEach((slot, i) => { const f = document.createElement('iframe'); f.tabIndex = -1; f.setAttribute('scrolling', 'no'); f.srcdoc = e.srcs[i]; f.style.cssText = `width:${w}px;height:${h}px;transform:scale(${W / w});transform-origin:0 0;border:0;`; slot.append(f); });
+    el.insertAdjacentHTML('beforeend', `<span class="hppage">1 / ${HV.n}</span>`);
+  });
+}
+function turnPreview(e){
+  if (!HV.el || HV.n < 2 || !e.target.closest?.('.rcard .thumbwrap')) return;
+  e.preventDefault();
+  HV.acc += e.deltaY * (e.deltaMode === 1 ? 16 : 1);
+  if (Math.abs(HV.acc) < 40) return;
+  HV.at = Math.max(0, Math.min(HV.n - 1, HV.at + Math.sign(HV.acc))); HV.acc = 0;
+  HV.el.querySelector('.hpstrip').style.transform = `translateY(${-HV.at * HV.el.offsetHeight}px)`;
+  HV.el.querySelector('.hppage').textContent = `${HV.at + 1} / ${HV.n}`;
+}
+
 // ---- compare ----
 function compareView(){
   const items = V.cmp.map(itemOf).filter(Boolean);
@@ -293,6 +327,16 @@ function bind(body){
     document.getElementById('scr-list').innerHTML = listHtml(); afterResumes();
   });
   body.addEventListener('wheel', wheelGrow, { passive: false });
+  body.addEventListener('wheel', turnPreview, { passive: false });
+  body.addEventListener('pointerover', e => {
+    if (phone()) return;
+    const w = e.target.closest?.('.rcard .thumbwrap'); if (!w) return;
+    const card = w.closest('.rcard'); if (HV.card === card) return;
+    clearTimeout(HV.t); HV.t = setTimeout(() => showPreview(card), 350);
+  });
+  body.addEventListener('pointerout', e => { const w = e.target.closest?.('.rcard .thumbwrap'); if (w && !w.contains(e.relatedTarget)) hidePreview(); });
+  body.addEventListener('scroll', () => { if (HV.n < 2) hidePreview(); }, true);
+  body.addEventListener('pointerdown', hidePreview);
   body.addEventListener('dblclick', e => { const c = e.target.closest?.('.rcard'); if (c && !e.target.closest('input')) C.resumes.open(c.dataset.rid); });
   body.addEventListener('keydown', e => {
     if (e.target.closest?.('.njform') && e.key === 'Enter'){ e.preventDefault(); document.querySelector('[data-act=nj-create]')?.click(); return; }

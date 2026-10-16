@@ -1,6 +1,7 @@
 // Thumbnails for the Resumes screen: a small picture of a resume's first page, from the real renderer. One hidden sheet lays each resume
 // out and draws it, one after another; its first page is kept as the text of a small frame (the same stylesheets as the sheet's own), keyed
-// by the resume's content and the record it was drawn from, so showing it again costs a frame and no layout. Nothing waits on it: the
+// by the resume's content and the record it was drawn from, so showing it again costs a frame and no layout (`srcs` has every page, one
+// document each). Nothing waits on it: the
 // screen is drawn first and each picture arrives when it is ready.
 
 import { createSheet } from './sheet.js';
@@ -28,7 +29,9 @@ async function draw(work, recipe){
   const doc = s.doc, page = doc.querySelector('.document > .page');
   const head = [...doc.head.querySelectorAll('link[rel=stylesheet], style')].map(e => e.outerHTML).join('');
   stats.drawn++;
-  return { src: `<!doctype html><html lang="${recipe.lang ?? 'en'}"><head><base href="${new URL('templates/', document.baseURI).href}">${head}</head><body><div class="document">${page?.outerHTML ?? ''}</div></body></html>`,
+  const wrap = html => `<!doctype html><html lang="${recipe.lang ?? 'en'}"><head><base href="${new URL('templates/', document.baseURI).href}">${head}</head><body><div class="document">${html}</div></body></html>`;
+  // every page is kept too, one document each, for the readable preview that turns its pages
+  return { src: wrap(page?.outerHTML ?? ''), srcs: [...doc.querySelectorAll('.document > .page')].map(p => wrap(p.outerHTML)),
     pages: laid.pages?.length ?? 1, format: recipe.format };
 }
 
