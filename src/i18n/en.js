@@ -1275,4 +1275,7 @@ export default {
   'ux6c.newClaim': '+ new claim',
   'ux6c.refused.item': 'An item moves within its own section.',
   'ux6c.morePages': { one: '{n} more page', other: '{n} more pages' },
+  'ux6c.revertX': 'Put {name} back to the saved words',
+  'ux6c.removeX': 'Remove {name} from this resume',
+  'ux6c.theGroup': 'the skill group {name}',
 };

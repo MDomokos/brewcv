@@ -246,7 +246,18 @@ function chipTools(sel, page){
   const lv = depth(sel, page).at(-1), by = lockBy(id), s = showOf(sel);
   // the page's chip stops at the job: a line in it is named for what it is
   const name = sel.kind === 'section' && sel.heading ? lockName(id) : sel.kind === 'bullet' && sel.job ? t('ux6c.lineIn', { name: lockName(sel.job) }) : lv.name ? `${lv.word} ${lv.name}` : lv.word;
-  return { lock: { id, on: by !== null, name, byName: by !== null && by !== id ? lockName(by) : null }, show: s ? { ...s, name, disabled: switchHeld(s.kind, s.id, s.on) } : null };
+  return { lock: { id, on: by !== null, name, byName: by !== null && by !== id ? lockName(by) : null }, show: s ? { ...s, name, disabled: switchHeld(s.kind, s.id, s.on) } : null, fix: fixTool(sel, id, name, by !== null) };
+}
+// The tool beside the padlock that undoes what was done here: an edit put back to the record's words (a line or header field, a heading,
+// a language's name), a line only on this resume or a skill group removed. Held while the block is locked.
+function fixTool(sel, id, name, held){
+  const key = keyOf(sel), group = ix().skillGroups.has(id);
+  const revert = { act: 'chip-revert', icon: 'replay', name: t('ux6c.revertX', { name }), disabled: held };
+  if (isLabelKey(key)) return (key.startsWith('~h:') ? T.labelOf(rec(), cur(), key.slice(3), lang()) != null : T.termOf(cur(), key.slice(3)) != null) ? revert : null;
+  if (sel.kind !== 'bullet' && !(sel.kind === 'record' && group)) return null;
+  if (group) return { act: 'chip-remove', icon: 'trash', name: t('ux6c.removeX', { name: t('ux6c.theGroup', { name: clip(lineName(id), 30) }) }), disabled: held };
+  if (T.isLocal(cur(), id)) return { act: 'chip-remove', icon: 'trash', name: t('ux6c.removeX', { name }), disabled: held };
+  return overrideOf(id) !== undefined ? revert : null;
 }
 // What the padlock of a lock id selects: the block it holds.
 const selOfLock = id => (id === LK.PAGE ? { kind: 'none' } : id.startsWith('~h:') ? { kind: 'section', id: id.slice(3), heading: true } : ix().work.has(id) ? { kind: 'job', id } : ix().sections.has(id) ? { kind: 'section', id } : null);
@@ -612,6 +623,17 @@ async function act(a, tg){
     case 'ed-new': saveEdit('new'); return true;
     case 'ed-promote': saveEdit('promote'); return true;
     case 'local-remove': clearEdit(false); dropLine(s.id); C.renderBody(); return true;
+    // the chip's and the depth row's tool beside the padlock: put an edit back, or remove what is only here (held while locked)
+    case 'chip-revert': case 'chip-remove': {
+      if (tg.getAttribute('aria-disabled') === 'true'){ lockedHint(); return true; }
+      clearEdit();      // what is being written is kept first, as for the padlock
+      const key = keyOf(sel);
+      if (a === 'chip-remove') await act(ix().skillGroups.has(s.id) ? 'group-remove' : 'local-remove', tg);
+      else if (isLabelKey(key)) commit(d => T.setLabel(d.record, d.cur, key, lang(), ''), t('undo.resetHeading'), t('toast.backToSaved'));
+      else await act('only-remove', tg);
+      return true;
+    }
+    case 'group-remove': commit(d => T.writeGroup(d.record, d.cur, s.id, ''), t('ux6c.undoSkills'), `${t('ux6c.groupRemoved')} ${t('toast.ctrlZUndoes')}`, true); C.select({ kind: 'section', id: 'skills' }); return true;
     case 'only-remove': commit(d => T.setOverride(d.record, d.cur, s.id, null), t('edit.backToSaved'), t('toast.backToSaved')); return true;
     case 'unfold': E.openMinor.add(`${s.id}:${lang()}:${tg.dataset.m}`); C.renderBody(); return true;
     case 'compare': E.compare = E.compare === tg.dataset.v ? null : tg.dataset.v; C.renderBody(); return true;

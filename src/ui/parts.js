@@ -208,12 +208,14 @@ export const orderMarkHtml = (custom, kind, id, name) => (custom
 // you are; a name gives way with an ellipsis, a level's word never does.
 // `lock` ({ id, on, by, name }) and `show` ({ kind, id, on, name, disabled }) are the two small buttons at its right end (UX-6c-iii-b): the
 // padlock of the block the chip names, and its on/off switch. Both are real buttons with a name; the padlock is aria-pressed when locked.
-export function depthHtml(levels, { small = false, lock = null, show = null } = {}){
+export function depthHtml(levels, { small = false, lock = null, show = null, fix = null } = {}){
   const btn = (l, cls = '') => `<button type="button" class="dp-l${cls}" data-act="${l.act}" ${l.attrs ?? ''}${cls === ' cur' ? ' aria-current="location"' : ''}><span class="dp-w">${esc(l.word)}</span>${l.name ? `<span class="dp-n">${esc(l.name)}</span>` : ''}</button>`;
   const tool = (cls, ic, act, attrs, name, pressed, disabled = false) => `<button type="button" class="dp-t ${cls}" data-act="${act}" ${attrs} aria-pressed="${pressed}" aria-label="${esc(name)}" title="${esc(name)}"${disabled ? ' aria-disabled="true"' : ''}>${icon(ic, { size: 12 })}</button>`;
   const showL = show && t(show.on ? 'ux6c.hideX' : 'ux6c.showX', { name: show.name });
+  // `fix`: the tool beside the padlock that undoes what was done here (put an edit back, remove what is only on this resume): { act, icon, name, disabled }
   const tools = [
     lock && tool(`dp-lock${lock.on ? ' is-locked' : ''}${lock.byName ? ' inherited' : ''}`, lock.on ? 'lock' : 'unlock', 'lock-toggle', `data-id="${esc(lock.id)}"`, lock.byName ? t('ux6c.lockedUnder', { name: lock.byName }) : t(lock.on ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lock.name }), lock.on, !!lock.byName),
+    fix && `<button type="button" class="dp-t dp-fix" data-act="${fix.act}" aria-label="${esc(fix.name)}" title="${esc(fix.name)}"${fix.disabled ? ' aria-disabled="true"' : ''}>${icon(fix.icon, { size: 12 })}</button>`,
     show && `<button type="button" class="dp-t dp-show" data-act="chip-on" data-kind="${esc(show.kind)}" data-id="${esc(show.id)}" aria-label="${esc(showL)}" title="${esc(showL)}"${show.disabled ? ' aria-disabled="true"' : ''}>${pillHtml(show.on)}</button>`,
   ].filter(Boolean);
   return `<nav class="depth${small ? ' sm' : ''}" aria-label="${esc(t('ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '')).join('<span class="dp-s" aria-hidden="true">›</span>')}${tools.length ? `<span class="dp-tools">${tools.join('')}</span>` : ''}</nav>`;

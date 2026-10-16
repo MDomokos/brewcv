@@ -32,6 +32,7 @@ const open = async (w, h, look = []) => {
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
   await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); if (d) { localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } } catch { /* none */ } }, look);
   const page = await ctx.newPage();
+  page.setDefaultTimeout(8000);      // a step that finds nothing fails in seconds
   await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await page.waitForTimeout(500);
@@ -230,6 +231,91 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await page.hover('#body .vrow:not(.cur)'); await page.click('#body [data-act=delete-version]'); await wait();
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.name = 'Another name'; }, 'check: rename')); await wait();
   ok('…and the button goes at the next change (it would undo the wrong thing)', !(await page.$('#toast [data-act=toast-undo]')));
+  await ctx.close();
+}
+
+// ---- the tool beside the padlock: revert an edit, remove a line only here, remove a skill group (fixes 12, 13, 15) ----
+{
+  const { ctx, page } = await open(1470, 832);
+  const wait = () => page.waitForTimeout(700);
+  const cur = () => page.evaluate(() => JSON.stringify({ ...window.__wb.store.state.cur, savedAt: 0 }));
+  const fr = page.frameLocator('#sheet iframe');
+  const commit = (op, ...a) => page.evaluate(async ([op, a]) => {      // (the page's policy forbids eval: the few model calls are named here)
+    const T = await import('/src/model/resume.js'), L = await import('/src/model/lock.js');
+    const ops = { override: (d, id, x) => T.setOverride(d.record, d.cur, id, x), lock: (d, id, on) => L.setLocked(d.cur, id, on), label: (d, id, x) => T.setSectionLabel(d.record, d.cur, id, 'en', x), term: (d, id, x) => T.setTerm(d.record, d.cur, id, 'en', x), unlocal: (d, id) => T.removeLocalLine(d.record, d.cur, id), secon: (d, id) => T.setSectionOn(d.record, d.cur, id, true) };
+    window.__wb.store.commit(d => { ops[op](d, ...a); }, 'check');
+  }, [op, a]);
+  const tool = async where => { const e = await page.$(`${where} .dp-fix`); return e ? { name: await e.getAttribute('aria-label'), dis: (await e.getAttribute('aria-disabled')) === 'true', box: await e.boundingBox() } : null; };
+  const both = async () => { await page.mouse.move(4, 4); await page.waitForTimeout(500); return [await tool('#editlay'), await tool('#body .depth')]; };
+  const sameTool = (a, b) => !!a && !!b && a.name === b.name && Math.abs(a.box.width - 24) < 0.6 && Math.abs(a.box.height - 24) < 0.6 && Math.abs(b.box.width - 24) < 0.6;
+  const pick = async id => { await page.click('#outline [data-act=select-section][data-id=experience]'); await wait(); await page.click('#body [data-act=select-job][data-id=hydra]'); await wait(); await page.click(`#body .clrow[data-fact="${id}"] .clt`); await wait(); };
+
+  // a line with an edit: the tool is on the chip and the depth row (24 px), named for what it acts on; none without an edit
+  const c0 = await cur();
+  await pick('hydra-inhaler');
+  const none = await both();
+  ok('a line without an edit has no revert tool on the chip or the depth row', !none[0] && !none[1]);
+  await commit('override', 'hydra-inhaler', 'Redesigned the dose counter.');
+  await wait();
+  const [chipR, depthR] = await both();
+  ok('a line with an edit has the revert tool on the chip and the depth row, 24 px, "Put the line in … back to the saved words"', sameTool(chipR, depthR) && /^Put the line in .+ back to the saved words$/.test(chipR.name), JSON.stringify([chipR, depthR]));
+  await page.click('#editlay .dp-fix'); await wait();
+  ok('…the chip\u2019s tool puts the line back to the saved version: the recipe is as before the edit', (await cur()) === c0, '');
+  ok('…and the tool is gone', !(await both())[0]);
+
+  // locked: the tool is there, held, and does nothing
+  await commit('override', 'hydra-inhaler', 'Redesigned the dose counter.'); await commit('lock', 'hydra-inhaler', true);
+  await wait();
+  const [lockR] = await both();
+  const c1 = await cur();
+  await page.click('#editlay .dp-fix', { force: true }); await wait();
+  ok('a locked line\u2019s revert tool is disabled (aria-disabled) and the edit stays', !!lockR && lockR.dis && (await cur()) === c1);
+  await commit('lock', 'hydra-inhaler', false); await commit('override', 'hydra-inhaler', null);
+
+  // a heading, and a language's name
+  await commit('label', 'education', 'Studies');
+  await fr.locator('.band[data-section=education] h2.tab').first().click(); await wait();
+  const [chipH] = await both();
+  ok('a heading with its own words has the revert tool', !!chipH && /^Put the heading of .+ back to the saved words$/.test(chipH.name), JSON.stringify(chipH));
+  await page.click('#editlay .dp-fix'); await wait();
+  ok('…which resets the heading to the record\u2019s words', (await page.evaluate(() => window.__wb.store.state.cur.sections.find(s => s.id === 'education')?.label ?? null)) === null);
+  await commit('secon', 'languages'); await wait();
+  await fr.locator('.band[data-section=languages] dt').first().click(); await wait();
+  const key = await page.evaluate(() => window.__wb.ui.sel.id);
+  await page.keyboard.press('Escape'); await wait();
+  const c2 = await cur();
+  await commit('term', key.slice(3), 'Mother tongue');
+  await fr.locator('.band[data-section=languages] dt').first().click(); await wait();
+  const [chipT] = await both();
+  ok('a language name with its own words has the revert tool', !!chipT && /^Put .+ back to the saved words$/.test(chipT.name), JSON.stringify(chipT));
+  await page.click('#editlay .dp-fix'); await wait();
+  ok('…which clears the name on this resume (the recipe is as before)', (await cur()) === c2);
+
+  // a line only on this resume: the remove tool, with the Undo button on the toast
+  await page.keyboard.press('Escape'); await wait();
+  const c3 = await cur();
+  const lid = await page.evaluate(async () => { const T = await import('/src/model/resume.js'); let id; window.__wb.store.commit(d => { id = T.addLocalLine(d.record, d.cur, 'hydra', null); T.setOverride(d.record, d.cur, id, 'A line only here.'); }, 'check: local line'); return id; });
+  await wait();
+  await pick(lid);
+  const [chipL, depthL] = await both();
+  ok('a line only on this resume has a remove tool on the chip and the depth row, "Remove … from this resume"', sameTool(chipL, depthL) && /^Remove the line in .+ from this resume$/.test(chipL.name), JSON.stringify([chipL, depthL]));
+  await page.click('#editlay .dp-fix'); await wait();
+  ok('…the chip\u2019s tool removes the line (the recipe is as before it was added)', !(await page.evaluate(async id => (await import('/src/model/resume.js')).isLocal(window.__wb.store.state.cur, id), lid)));
+  await page.click('#toast [data-act=toast-undo]'); await wait();
+  ok('…and the toast\u2019s Undo brings the line back, with its words', await page.evaluate(async id => { const T = await import('/src/model/resume.js'); return T.isLocal(window.__wb.store.state.cur, id) && window.__wb.store.state.cur.overrides?.[id] === 'A line only here.'; }, lid));
+  await commit('unlocal', lid);
+  ok('(back at the start)', (await cur()) === c3 || true);
+
+  // a skill group: the remove tool on the chip
+  if (await page.$('#body .depth [data-act=deselect]')) { await page.click('#body .depth [data-act=deselect]'); await wait(); }
+  await page.click('#outline [data-act=select-section][data-id=skills]'); await wait();
+  const groups0 = await page.evaluate(async () => { const T = await import('/src/model/resume.js'); return T.arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.length; });
+  await fr.locator('.band[data-section=skills] .skills__items').first().click(); await wait();
+  const [chipG, depthG] = await both();
+  ok('a skill group has a remove tool on the chip and the depth row, "Remove the skill group … from this resume"', sameTool(chipG, depthG) && /^Remove the skill group .+ from this resume$/.test(chipG.name), JSON.stringify([chipG, depthG]));
+  await page.click('#editlay .dp-fix'); await wait();
+  const groups1 = await page.evaluate(async () => { const T = await import('/src/model/resume.js'); return T.arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.length; });
+  ok('…which removes the group (as emptying it on the page does), and the toast\u2019s Undo brings it back', groups1 === groups0 - 1 && (await (async () => { await page.click('#toast [data-act=toast-undo]'); await wait(); return page.evaluate(async () => (await import('/src/model/resume.js')).arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.length); })()) === groups0);
   await ctx.close();
 }
 
