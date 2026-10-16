@@ -1,11 +1,11 @@
-// The Record tab: the whole record in a wide panel. The timeline is open at the top, every group below it with all its lines
+// The Record screen: the whole record in a screen of its own. The timeline is open at the top, every group below it with all its lines
 // (checklist.js draws them), and ticking a line changes the open resume with the page in view beside it. This module is the way
 // in and the way round: the tab, the page's job chip and Edit's "n of m on" links all arrive here and name the group to show,
 // a click on the timeline scrolls the list to that job, and the group that was asked for is marked for a moment.
 // Pure view state; nothing here is undone or saved.
 
 import { reduced } from './motion.js';
-import { t } from '../i18n/index.js';
+import { t, h } from '../i18n/index.js';
 
 let C = null;
 const FLASH_MS = 1600;
@@ -16,7 +16,8 @@ const R = { goto: null, mark: [], timer: 0, left: null };
 export function initRecord(ctx){ C = ctx; return api; }
 
 // the strip's place is read just before the panel is drawn again; no strip yet means the tab is just being shown
-const view = () => { R.left = document.querySelector('#checklist .tl2')?.scrollLeft ?? null; return C.checklist.html(); };
+// the screen's back button comes first
+const view = () => { R.left = document.querySelector('#checklist .tl2')?.scrollLeft ?? null; return `<div class="scrbar"><button class="sm scrback" data-act="scr-back">${h('ux1.backToResume')}</button></div>${C.checklist.html()}`; };
 
 // Draw the panel again, and then bring the group asked for into view.
 function afterRender(){

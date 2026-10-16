@@ -10,7 +10,7 @@ import { isDeepStrictEqual as eq } from 'node:util';
 import * as S from '../src/model/schema.js';
 import * as RS from '../src/model/resumes.js';
 import * as R from '../src/model/record.js';
-import { resolve, chooseVariant } from '../src/model/resume.js';
+import { resolve, chooseVariant, setOverride, addLocalLine, writeGroup, arrangementOf, setPhoto } from '../src/model/resume.js';
 import { filesOf, createPersist, memoryBackend, memoryFolder, readFolder } from '../src/store/persist.js';
 import { createStore } from '../src/store/store.js';
 import { jobTypesOf } from '../src/model/focus.js';
@@ -482,6 +482,43 @@ section('accents in file names (composed and decomposed are one name)');
   const same2 = await readFolder(diff);
   ok('and the folder reads back as one resume with nothing to warn about', same2.state.resumes.length === 1 && same2.warnings.length === 0 && same2.leftovers.length === 0, JSON.stringify(same2.warnings));
   ok('a spelling that is the composed one is never dropped', (await p2.dropMerged([`${nfc}.json`])).length === 0 && diff._files.has(`recipes/${nfc}.json`));
+}
+
+section('compare any number, and what differs (UX-6e)');
+{
+  const st = exampleState(), m = st.record, [a, b, c] = st.resumes;
+  const rows = RS.compareMany(m, [a, b, c]);
+  ok('a cell for each of the three on every row, the settings first', rows.every(r => r.cells.length === 3) && rows.slice(0, 6).map(r => r.label).join() === 'Job type,Language,Paper,Pages,Photo,Sections');
+  ok('the job order and the skill order are rows of their own', ['Job order', 'Skills'].every(l => rows.some(r => r.kind === 'setting' && r.label === l)));
+  ok('the header lines are claims too, and a claim only some print says — for the others', rows.some(r => r.kind === 'claim' && r.fact === 'tagline') && rows.some(r => r.kind === 'claim' && r.cells.some(x => x.label === '—') && r.cells.some(x => x.label !== '—')));
+  ok('for two it is compareRows', RS.compareRows(m, a, b).every((r, i) => eq(r.a, RS.compareMany(m, [a, b])[i].cells[0]) && eq(r.b, RS.compareMany(m, [a, b])[i].cells[1])));
+  ok('an edit on one resume shows as "only here" in its column', (() => { const x = clone(a); setOverride(x, 'tagline', 'Written here', { marks: [], base: null }); const r = RS.compareMany(m, [a, x, b]).find(q => q.fact === 'tagline'); return r.cells[1].label === 'only here' && r.cells[0].label !== 'only here' && r.differs; })());
+  // a copy with an edit, a line only on it, its skills arranged, no photo → photo
+  RS.duplicate(st, a.id, { name: 'Child' });
+  const parent = RS.savedOf(st, a.id), kid = RS.savedOf(st, st.openId);
+  ok('a copy has no differences from its parent, but its name', eq(RS.differences(m, parent, kid), [`Named Child`]), JSON.stringify(RS.differences(m, parent, kid)));
+  const job = (kid.sections.find(x => x.id === 'experience')?.work ?? [])[0], jobId = typeof job === 'string' ? job : job.id ?? m.work[0].id;
+  const fact = m.work.find(w => w.id === jobId).highlights[0];
+  setOverride(kid, fact, 'Only on the copy.', { marks: [], base: null });
+  const local = addLocalLine(m, kid, jobId, null); setOverride(kid, local, 'A line only the copy has.', { marks: [], base: null });
+  writeGroup(m, kid, arrangementOf(m, kid).groups[0].id, 'Renamed\nOne, Two');
+  setPhoto(kid, { show: !kid.photo?.show });
+  const d = RS.differences(m, parent, kid);
+  ok('what differs: the name, the edit, the line only here, the photo and the skills, in plain words', d.length === 5 && /^Named Child/.test(d[0]) && d.some(x => /^Edited on this resume: /.test(x)) && d.some(x => /^Adds a line only on this resume: A line only the copy has\./.test(x)) && d.some(x => /^Photo: /.test(x)) && d.some(x => /^Skills arranged as: Renamed/.test(x)), JSON.stringify(d));
+  ok('…and the other way round: the line is left out, the edit is a version again', (() => { const e = RS.differences(m, kid, parent); return e.some(x => /^Leaves out: A line only the copy has/.test(x)) && e.some(x => /^[^:]+: only here to v\d/.test(x)); })(), JSON.stringify(RS.differences(m, kid, parent)));
+  ok('a version picked instead is "v1 to v2"', (() => { const x = clone(a), f = m.facts.find(q => q.id === 'tagline'); const other = f.variants.map(v => m.variants.find(q => q.id === v)).find(v => v.lang === 'en' && v.id !== chooseVariant(m, 'tagline', a).v.id); if (!other) return true; x.picks = { ...x.picks, tagline: other.id }; return RS.differences(m, a, x).some(q => /^Discipline line for the gutter: v\d+ to v\d+/.test(q)); })());
+  // UX-6e fix round: names, not ids, and only the jobs that print
+  const jobsRow = r => RS.compareMany(m, [r]).find(q => q.label === 'Job order').cells[0];
+  ok('the Job order row names projects as well as jobs, never an id', [...m.work, ...m.projects].every(w => !jobsRow(a).includes(w.id)) && jobsRow(a).includes(m.projects[0].name), jobsRow(a));
+  const withOff = ids => { const x = clone(a), e = x.sections.find(q => q.id === 'experience'); e.work = [...e.work.map(w => (typeof w === 'string' ? { id: w } : w)), ...ids.map(id => ({ id, highlights: [] }))]; return x; };
+  const off1 = withOff(['free', 'atelier']), off2 = withOff(['atelier', 'free']);
+  ok('jobs with no picked bullet are not in the Job order, so reordering them is no difference', !jobsRow(off1).includes('Self-employed') && !RS.differences(m, off1, off2).some(q => /^Job order/i.test(q) || q.includes('›')), JSON.stringify(RS.differences(m, off1, off2)));
+  const stc = { resumes: [{ id: 'p', savedAt: '2026-01-01' }, { id: 'q', savedAt: '2026-02-01' }, { id: 'r', savedAt: '2026-03-01' }, { id: 'z', savedAt: '2026-04-01' }] };
+  const lines = { p: ['x'], q: ['x'], r: ['x'], z: ['y'] };
+  ok('closest: no common line gives no guess', RS.closestTo(stc, stc.resumes[3], r => lines[r.id]) === null);
+  ok('closest: of resumes that print the same, the newest', RS.closestTo(stc, stc.resumes[0], r => lines[r.id])?.r.id === 'r');
+  ok('printedIds is kept by content: the same answer, not recomputed', RS.printedIds(m, a) === RS.printedIds(m, a) && RS.printedIds(m, a) !== RS.printedIds(m, b));
+  ok('printedIds names what a resume prints, for the closest-resume guess', RS.printedIds(m, a).includes('tagline') && RS.printedIds(m, a).length > 5);
 }
 
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');

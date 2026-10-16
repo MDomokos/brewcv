@@ -126,26 +126,23 @@ for (const lang of I.UI_LANGS){
     problems.push(...await probe('the line level', '#body .depth, #body .depth > *, #body .depth .dp-w'));
     problems.push(...await pg.evaluate(() => { const d = document.querySelector('#body .depth'), c = document.querySelector('#body').getBoundingClientRect(); if (!d) return ['the line level: no depth row']; const r = d.getBoundingClientRect(); return [...d.querySelectorAll('.dp-w')].filter(w => w.scrollWidth > w.clientWidth + 1 || w.getBoundingClientRect().right > r.right + 0.5).map(w => `the line level: the level word “${w.textContent}” is clipped`).concat(r.right > c.right + 0.5 ? ['the line level: the depth row runs out of the card'] : []); }));
     await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); });
-    // the grown switcher
+    // the Resumes screen: its heading, the views, the ticks and each card's buttons are whole
     await pg.click('#docname-btn'); await pg.waitForTimeout(250);
     await pg.click('#switcher [data-act=sw-manage]'); await pg.waitForTimeout(350);
-    problems.push(...await pg.evaluate(ELL => {
+    problems.push(...await pg.evaluate(() => {
       const out = [];
-      const sw = document.querySelector('#switcher');
-      for (const el of sw.querySelectorAll('[role=tab], .swhead2 button, .swfoot button, .swfoot span')){
-        if (el.scrollWidth > el.clientWidth + 1) out.push(`switcher: ${el.className || el.textContent} is cut`);
+      for (const el of document.querySelectorAll('#resumes .scrhead button, #resumes .scrhead h2, #resumes .scrhead span, #resumes .racts button')){
+        if (el.scrollWidth > el.clientWidth + 1) out.push(`resumes: ${el.className || el.textContent} is cut`);
       }
-      const tabs = [...sw.querySelectorAll('[role=tab]')].map(x => Math.round(x.getBoundingClientRect().top));
-      if (new Set(tabs).size !== 1) out.push('switcher: the three views wrap');
       return out;
-    }, ELLIPSIS));
+    }));
     await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
     // the zoom bar over the page, with Actual size, and the page and sidebar settings, which live in Settings
     await pg.mouse.move(300, 400); await pg.waitForTimeout(300);
     await pg.evaluate(() => window.__wb.setView('settings')); await pg.waitForTimeout(400);
     problems.push(...await pg.evaluate(() => { const z = document.querySelector('[data-mode=settings]'); const out = []; if (!z) return ['settings: not open']; for (const b of z.querySelectorAll('.seg button, .dial .dl, .swl span')) if (b.scrollWidth > b.clientWidth + 1) out.push(`settings: “${b.textContent.trim()}” is cut`); if (document.querySelector('#body').scrollWidth > document.querySelector('#body').clientWidth + 1) out.push('settings: wider than the panel'); return out; }));
     await pg.evaluate(() => window.__wb.setView(null));
-    ok(`${lang} at ${what}: the new labels fit (name card, foot, zoom bar, Outline, Record, Export, Design, the job level, switcher, the settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
+    ok(`${lang} at ${what}: the new labels fit (name card, foot, zoom bar, Outline, Record, Export, Design, the job level, Resumes, the settings)`, problems.length === 0, [...new Set(problems)].slice(0, 4).join(' ; '));
     await ctx.close();
   }
 }

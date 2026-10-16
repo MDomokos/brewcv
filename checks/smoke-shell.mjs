@@ -1784,7 +1784,8 @@ if (want('saved resumes')) {
   await page.click('.rowmenu [data-act=rm-lang]'); await settle(page);
   await page.click('.rowmenu [data-lang=hu]'); await page.waitForTimeout(2200);
   const dup = await st();
-  ok('Duplicate in another language: a copy in that language, open, named (HU)', dup.cur.lang === 'hu' && /\(HU\)/.test(dup.cur.name) && dup.openId === dup.cur.id && !(await page.isVisible('#switcher')));
+  ok('Duplicate in another language: a copy in that language, open, named (HU), with its name ready to type in the name window', dup.cur.lang === 'hu' && /\(HU\)/.test(dup.cur.name) && dup.openId === dup.cur.id && await page.isVisible('#switcher') && (await page.evaluate(() => document.activeElement?.id)) === 'sw-rn');
+  await page.keyboard.press('Escape'); await settle(page);
   const missing = await page.evaluate(async () => { const L = await import('./src/model/lang.js'); const s = window.__wb.store.state; return L.missingList(window.__wb.store.materialize(s.record), s.cur).length; });
   ok('…the lines with no version in that language are marked on the page, as the app already marks them', missing > 0 && (await frameDoc(page, d => d.querySelectorAll('.rb-miss, .rb-miss-tab').length)) > 0 && await page.isVisible('.missbar'), String(missing));
   await page.click('#docname-btn'); await settle(page);
@@ -1828,38 +1829,36 @@ if (want('saved resumes')) {
   ok('and no company is needed', (await st()).resumes.length === made.resumes.length + 1);
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher [data-act=sw-manage]'); await settle(page);
-  const grown = await rect(page, '#switcher');
-  ok('Manage all grows the same menu to the whole window (until its own redesign): the sidebar fills the window and the menu fills it, ending inside it, still the dialog', await page.isVisible('#switcher.is-grown') && grown.width > 1000 && Math.abs((await rect(page, '#col')).width - (await page.evaluate(() => innerWidth - 32))) < 1 && grown.bottom <= (await rect(page, '#col')).bottom + 1 && (await page.getAttribute('#switcher', 'role')) === 'dialog', JSON.stringify(grown));
-  ok('…with the search box, three views (Job type, Date, Company), a tick box and a row menu on each row, and no old Resumes page', (await page.$$('#switcher [role=tab]')).length === 3 && (await page.getAttribute('#switcher [role=tab][aria-selected=true]', 'data-v')) === 'type' && (await page.$$('#switcher .swrow .smore')).length > 10 && (await page.$$('#switcher .swrow .pick')).length > 10 && (await page.$$('#switcher [data-act=r-reuse], #switcher [data-act=r-delete]')).length === 0 && (await page.getAttribute('#body', 'data-view')) !== 'resumes');
-  ok('the Compare button is at the bottom, off until two are ticked', await page.isDisabled('#switcher [data-act=sw-compare]') && /0\/2/.test(await page.textContent('#switcher [data-act=sw-compare]')));
-  await page.click('#switcher .swrow[data-rid="Example Instruments - Design Engineer.json"] input.pick');
-  await page.click('#switcher .swrow:has-text("Helix") input.pick');
-  ok('two ticks turn Compare on', !(await page.isDisabled('#switcher [data-act=sw-compare]')) && /2\/2/.test(await page.textContent('#switcher [data-act=sw-compare]')));
-  await page.click('#switcher [data-act=sw-compare]'); await settle(page);
-  ok('Compare opens the two side by side in the panel', (await page.getAttribute('#body', 'data-view')) === 'compare' && (await page.$$('table.cmp tbody tr')).length > 8 && (await page.$$('table.cmp tr.diff-row')).length > 0 && !(await page.isVisible('#switcher')));
-  await page.click('#body a.back'); await settle(page);
-  ok('its way back reopens the list with the two still ticked', await page.isVisible('#switcher.is-grown') && (await page.$$('#switcher .pick:checked')).length === 2);
-  await page.click('#switcher [data-act=sw-view][data-v=date]'); await settle(page);
-  ok('the Date view: a timeline of sends, newest first, with the year bands', (await page.$$('#switcher .yr')).length >= 1 && (await page.$$('#switcher .tlsend')).length >= 3);
-  const dates = await page.$$eval('#switcher .tlsend .muted', es => es.map(e => e.textContent.slice(0, 10)));
+  ok('Manage all opens the Resumes screen, a screen of its own: the window is the screen, with its heading, the back button first, and the name card small', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && !(await page.isVisible('#switcher')) && (await rect(page, '#body')).width > 1000 && (await rect(page, '#head')).width < 400 && await page.isVisible('#resumes h2') && await page.evaluate(() => document.activeElement?.matches('#resumes [data-act=scr-back]')));
+  ok('…with the search box, three views (Job type, Date, Company), and on each card a tick box, Open, Duplicate and a row menu', (await page.$$('#resumes [data-act=scr-view]')).length === 3 && (await page.getAttribute('#resumes [data-act=scr-view][aria-pressed=true]', 'data-v')) === 'type' && (await page.$$('#resumes .rcard .smore')).length > 10 && (await page.$$('#resumes .rcard .rtick')).length > 10 && await page.isVisible('#scr-q'));
+  ok('Compare is off until two are ticked', await page.isDisabled('#scr-cmp'));
+  await page.check('#resumes .rcard[data-rid="Example Instruments - Design Engineer.json"] .rtick');
+  await page.check('#resumes .rcard:has-text("Helix") .rtick');
+  ok('two ticks turn Compare on', !(await page.isDisabled('#scr-cmp')) && /Compare 2/.test(await page.textContent('#scr-cmp')));
+  await page.click('#scr-cmp'); await settle(page);
+  ok('Compare opens the two side by side, a screen of its own', (await page.getAttribute('#body', 'data-view')) === 'compare' && (await page.$$('table.cmp tbody tr')).length > 8 && (await page.$$('table.cmp tr.diff-row')).length > 0);
+  await page.click('#compare [data-act=scr-back]'); await settle(page);
+  ok('its way back reopens the list with the two still ticked', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && (await page.$$('#resumes .rtick:checked')).length === 2);
+  await page.click('#resumes [data-act=scr-view][data-v=date]'); await settle(page);
+  ok('the Date view: sends newest first, with the year bands, each its own card', (await page.$$('#resumes h3.lbl')).length >= 1 && (await page.$$('#resumes .rcard [data-act=sw-snap]')).length >= 3);
+  const dates = await page.$$eval('#resumes .rcard:has([data-act=sw-snap]) .rmeta', es => es.map(e => e.textContent.slice(0, 10)));
   ok('…the sends of this session are on top, newest first', dates.length >= 3 && dates.every((d, i) => !i || dates[i - 1] >= d), dates.join());
-  await page.click('#switcher .tlsend >> nth=0'); await settle(page);
-  ok('a send opens that snapshot, read-only', await page.isVisible('.snapbar') && !(await page.isVisible('#switcher')));
+  await page.click('#resumes .rcard [data-act=sw-snap] >> nth=0'); await settle(page);
+  ok('a send opens that snapshot, read-only', await page.isVisible('.snapbar') && (await page.evaluate(() => window.__wb.ui.view)) === null);
   await page.click('[data-act=snap-close]'); await settle(page);
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher [data-act=sw-manage]'); await settle(page);
-  ok('the view you left it on is remembered (Date)', (await page.getAttribute('#switcher [role=tab][aria-selected=true]', 'data-v')) === 'date');
-  await page.click('#switcher [data-act=sw-view][data-v=company]'); await settle(page);
-  ok('the Company view: grouped by the company of the For line and of each send, outreach marked', (await page.$$('#switcher .swlist .lbl')).length >= 5 && /Smoke Test Co/.test(await page.textContent('#switcher .swlist')) && /Geospatial/.test(await page.textContent('#switcher .swlist')) && /Outreach/.test(await page.textContent('#switcher .swlist')));
-  await page.fill('#sw-q', 'smoke test'); await settle(page);
-  ok('search filters it: only the resume that went to Smoke Test Co', (await page.$$eval('#switcher .swrow', r => new Set(r.map(x => x.dataset.rid)).size)) === 1);
-  await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc closes the grown menu and the focus goes back to the name', !(await page.isVisible('#switcher')) && (await page.evaluate(() => document.activeElement?.id)) === 'docname-btn');
-  await page.click('#docname-btn'); await settle(page);
-  await page.click('#switcher [data-act=sw-manage]'); await settle(page);
-  await page.click('#switcher [data-act=sw-view][data-v=type]'); await settle(page);
-  await page.click('#switcher .swrow[data-rid="Helix Diagnostics - Product Development Engineer.json"] .sopt'); await page.waitForTimeout(1200);
-  ok('clicking a row opens it', /Helix Diagnostics/.test(await page.textContent('#docname')), await page.textContent('#docname'));
+  ok('the view you left it on is remembered (Date)', (await page.getAttribute('#resumes [data-act=scr-view][aria-pressed=true]', 'data-v')) === 'date');
+  await page.click('#resumes [data-act=scr-view][data-v=company]'); await settle(page);
+  ok('the Company view: grouped by the company of the For line and of each send, outreach marked', (await page.$$('#resumes h3.lbl')).length >= 5 && /Smoke Test Co/.test(await page.textContent('#resumes')) && /Geospatial/.test(await page.textContent('#resumes')));
+  await page.fill('#scr-q', 'smoke test'); await settle(page);
+  ok('search filters it: only the resume that went to Smoke Test Co', (await page.$$eval('#resumes .rcard', r => new Set(r.map(x => x.dataset.rid)).size)) === 1);
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc clears the search, and Esc again goes back to the editor, the focus on the rail button', (await page.evaluate(() => window.__wb.ui.view)) === null && (await page.evaluate(() => document.activeElement?.matches('#rail [data-act=sw-manage]'))));
+  await page.click('#rail [data-act=sw-manage]'); await settle(page);
+  await page.click('#resumes [data-act=scr-view][data-v=type]'); await settle(page);
+  await page.click('#resumes .rcard[data-rid="Helix Diagnostics - Product Development Engineer.json"] .thumbwrap'); await page.waitForTimeout(1200);
+  ok('clicking a card’s picture opens it', /Helix Diagnostics/.test(await page.textContent('#docname')) && (await page.evaluate(() => window.__wb.ui.view)) === null, await page.textContent('#docname'));
 
   // newer wording: save over a version another saved resume prints
   const shared = await page.evaluate(async () => {
@@ -3032,9 +3031,9 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     ok(`${tag}: the window’s rows (the recent ones) have no company column, and carry a small language/pages tag`, rows.length >= 1 && rows.length <= 3 && rows.every(r => r.tag && r.noCompany));
     ok(`${tag}: …a name that has to give way gives up the company, never the role alone`, rows.every(r => !(r.roleCut && !r.coCut)));
     await page.click('[data-act=sw-manage]'); await settle(page);
-    const man = await page.evaluate(() => { const s = document.querySelector('#switcher'), sr = s.getBoundingClientRect(), hd = document.querySelector('#head').getBoundingClientRect(), col = document.querySelector('#col').getBoundingClientRect(); const mid = [sr.left + 20, sr.top + 20, sr.left + sr.width / 2, sr.bottom - 20].map(v => v); const probe = [[sr.left + 10, sr.top + 60], [sr.left + sr.width / 2, sr.top + sr.height / 2], [sr.right - 10, sr.bottom - 10]].map(([x, y]) => document.elementFromPoint(x, y)?.closest('#switcher') !== null); const bg = getComputedStyle(s).backgroundColor; const alpha = /rgba/.test(bg) ? Number(bg.match(/[\d.]+\)$/)[0].slice(0, -1)) : 1; return { belowTabs: sr.top >= hd.bottom - 0.5, rightEdge: Math.abs(sr.right - col.right) < 12, opaque: alpha === 1, probe: probe.every(Boolean), aboveFoot: sr.bottom <= col.bottom + 0.5 }; });
-    ok(`${tag}: Manage all has its own surface: under the header, at the sidebar's right edge, opaque, over everything below it, inside the sidebar`, man.belowTabs && man.rightEdge && man.opaque && man.probe && man.aboveFoot, JSON.stringify(man));
-    ok(`${tag}: "Compare 0/2" is readable when disabled`, await page.evaluate(() => { const b = document.querySelector('#switcher [data-act=sw-compare]'); return b.disabled && getComputedStyle(b).opacity === '1'; }));
+    const man = await page.evaluate(() => { const b = document.querySelector('#body').getBoundingClientRect(), hd = document.querySelector('#head').getBoundingClientRect(), ft = document.querySelector('#foot').getBoundingClientRect(); return { view: window.__wb.ui.view, bodyWide: b.width > innerWidth * 0.8, small: hd.width <= innerWidth / 2 && ft.width <= innerWidth / 2 }; });
+    ok(`${tag}: Manage all is the Resumes screen: the window's own card, with the name card and the foot small, no bar across the window`, man.view === 'resumes' && man.bodyWide && man.small, JSON.stringify(man));
+    ok(`${tag}: "Compare" is readable when disabled`, await page.evaluate(() => { const b = document.querySelector('#scr-cmp'); return b.disabled && getComputedStyle(b).opacity === '1'; }));
     await page.keyboard.press('Escape'); await settle(page);
 
     // ---- toasts never cover the page ----
@@ -3169,8 +3168,8 @@ if (want('accessibility: axe-core on every view')) {
       await page.click('[data-act=sent-back]'); await settle(page);
       await page.click('#tab-edit'); await settle(page);
       await page.click('#docname-btn'); await settle(page); await runAxe(page, 'the switcher');
-      await page.click('#switcher [data-act=sw-manage]'); await settle(page); await runAxe(page, 'the grown switcher');
-      await page.click('#switcher [data-act=sw-view][data-v=date]'); await settle(page); await runAxe(page, 'the grown switcher by date');
+      await page.click('#switcher [data-act=sw-manage]'); await settle(page); await runAxe(page, 'the Resumes screen');
+      await page.click('#resumes [data-act=scr-view][data-v=date]'); await settle(page); await runAxe(page, 'the Resumes screen by date');
       await page.keyboard.press('Escape'); await settle(page);
       await page.click('[data-act=menu]'); await runAxe(page, 'the ⋯ menu'); await page.click('.menu [data-act=help]'); await settle(page); await runAxe(page, 'the shortcut sheet');
       await page.keyboard.press('Escape');
@@ -3268,7 +3267,7 @@ if (want('deployed: a subpath, offline, a phone, names')) {
     .filter(e => !(e.getAttribute('aria-label') || e.title || e.textContent.trim() || e.closest('label') || (e.id && document.querySelector(`label[for="${e.id}"]`)) || e.placeholder))
     .map(e => e.outerHTML.slice(0, 80)));
   const views = [];
-  for (const v of [null, 'new', 'sent', 'record', 'design', 'export', 'import', 'history', 'settings']){
+  for (const v of [null, 'new', 'sent', 'record', 'resumes', 'design', 'export', 'import', 'history', 'settings']){
     if (v) await p2.evaluate(x => window.__wb.setView(x), v);
     await p2.waitForTimeout(700);
     views.push(...(await unnamed()).map(x => `${v ?? 'home'}: ${x}`));
@@ -3277,7 +3276,7 @@ if (want('deployed: a subpath, offline, a phone, names')) {
   await p2.click('#docname-btn'); await settle(p2);
   views.push(...(await unnamed()).map(x => `switcher: ${x}`));
   await p2.click('#switcher [data-act=sw-manage]'); await settle(p2);
-  views.push(...(await unnamed()).map(x => `grown switcher: ${x}`));
+  views.push(...(await unnamed()).map(x => `Resumes screen: ${x}`));
   await p2.keyboard.press('Escape');
   await p2.mouse.move(300, 400); await p2.waitForTimeout(500);
   views.push(...(await unnamed()).map(x => `zoom bar: ${x}`));

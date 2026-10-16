@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// node checks/smoke-parallel.mjs [--workers N] [--only text]... [--list] [--log file] [--timeout minutes]
+// node checks/smoke-parallel.mjs [--workers N] [--only text]... [--list] [--log file] [--timeout minutes] [--port first-port]
 // checks/smoke-shell.mjs split into shards that run side by side, one process and one port pair each, and one merged result.
 // The section titles are read from smoke-shell.mjs itself; each worker gets them through the runner's own ONLY filter.
 // --only text (repeatable) keeps the sections whose title has that text. --log writes every worker's raw output to a file.
-// Default workers: the cores, at most 4. Ports start at 8201 (two each: PORT and PORT+1), and a taken pair is skipped.
+// Default workers: the cores, at most 4. Ports start at 8201, or at --port N (two each: PORT and PORT+1), and a taken pair is skipped.
 // Exit 1 when any check failed, a worker crashed or timed out, or a section never ran.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -61,9 +61,9 @@ export function merge(out, { code, signal, timedOut }, titles){
 }
 
 const free = port => new Promise(r => { const s = net.createServer().once('error', () => r(false)).listen(port, () => s.close(() => r(true))); });
-async function ports(n){
+async function ports(n, from = 8201){
   const got = [];
-  for (let p = 8201; got.length < n; p += 2) if (await free(p) && await free(p + 1)) got.push(p);
+  for (let p = from; got.length < n; p += 2) if (await free(p) && await free(p + 1)) got.push(p);
   return got;
 }
 
@@ -79,7 +79,7 @@ async function main(){
     shards.forEach((s, i) => console.log(`worker ${i + 1} (weight ${s.weight}):\n  ${s.titles.join('\n  ')}`));
     return;
   }
-  const timeout = Number(val('--timeout') ?? 30) * 60000, t0 = Date.now(), ps = await ports(shards.length);
+  const timeout = Number(val('--timeout') ?? 30) * 60000, t0 = Date.now(), ps = await ports(shards.length, Number(val('--port') ?? 8201));
   const runs = shards.map((s, i) => new Promise(resolve => {
     const env = { ...process.env, ONLY: s.tokens.join(','), PORT: String(ps[i]) };
     if (!env.CHROME_PATH) env.PW_BUNDLED = '1';

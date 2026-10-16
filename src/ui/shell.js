@@ -26,6 +26,8 @@ import { openActualSize } from './actual.js';
 import { initEdit } from './edit.js';
 import { initResumes, snapBarText } from './resumes.js';
 import { initSwitcher, nameHtml } from './switcher.js';
+import { initScreens } from './screens.js';
+import { initThumbs } from './thumbs.js';
 import { initFiles } from './files.js';
 import { initExport } from './export.js';
 import { initDesign } from './design.js';
@@ -296,22 +298,23 @@ async function redraw(){
   }
 }
 
-// Record and the grown resume list fill the window (until their own redesign); everything else is the sidebar
-const fullWindow = () => ui.view === 'record' || (switcher.isOpen && switcher.grown);
+// Record, Resumes and Compare are screens of their own: they fill the window; everything else is the sidebar
+const SCREENS = ['record', 'resumes', 'compare'];
+const fullWindow = () => SCREENS.includes(ui.view);
 // the layout changes only when the sidebar becomes the whole window or stops being it
 // (on a phone Record is the whole screen, as it was)
-const syncFull = () => { if ($('#col').classList.contains('is-full') !== (ui.layout?.phone ? ui.view === 'record' : fullWindow())) relayout(); };
+const syncFull = () => { if ($('#col').classList.contains('is-full') !== fullWindow()) relayout(); };
 function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: ui.view === 'record', slim: ui.view === 'welcome' });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: fullWindow(), slim: ui.view === 'welcome' });
   const full = !L.phone && fullWindow();
   if (full) L.col = { left: G, top: G, width: innerWidth - 2 * G, height: innerHeight - 2 * G };
   const host = $('#sheet'), box = $('#pages');
   const col = $('#col');
   Object.assign(col.style, { left: `${L.col.left}px`, top: `${L.col.top}px`, width: `${L.col.width}px`, height: `${L.col.height}px` });
-  col.classList.toggle('is-full', L.phone ? ui.view === 'record' : full);
+  col.classList.toggle('is-full', L.phone ? fullWindow() : full);
   ui.layout = L;
   document.body.dataset.phone = String(!!L.phone);
   syncGarden();
@@ -457,6 +460,9 @@ const isExample = () => /\(fictional\)/.test(record()?.meta?.owner ?? '');
 const VIEWS = {};
 function setView(v){
   if (v && !VIEWS[v]) return;
+  const was = ui.view;
+  ui.focusKept = false;
+  if (SCREENS.includes(v) && !SCREENS.includes(was)) screenFrom = v;
   if (v === 'record' && ui.view !== 'record') ui.recordFrom = ui.view ?? 'edit';      // Esc goes back to where it was opened from
   ui.view = v;
   syncIntro();                 // the start screen's areas are the editor's again before they are drawn
@@ -467,7 +473,15 @@ function setView(v){
   renderHead();
   renderBody(true);
   renderChip();
+  if (SCREENS.includes(v)) $('#body [data-act=scr-back]')?.focus({ preventScroll: true });      // a screen opens on its way back
+  else if (SCREENS.includes(was)) refocusOpener();
 }
+// leaving a screen, back to where it was entered: the rail's button for it
+const OPENER = { resumes: '#rail [data-act=sw-manage]', compare: '#rail [data-act=sw-manage]', record: '#rail [data-act=sw-record]' };
+let screenFrom = null;
+function refocusOpener(){ const n = screenFrom && $(OPENER[screenFrom]); screenFrom = null; if (n){ n.focus({ preventScroll: true }); ui.focusKept = true; } }      // dock.setMode leaves it there
+// Esc and the back button: Compare goes back to Resumes, Record to the sheet it was opened from, the others to the editor
+const leaveView = () => (ui.view === 'record' ? dock.setMode(recordTab.backTo() ?? 'edit') : ui.view === 'compare' ? setView('resumes') : setView(null));
 
 // the head is redrawn on every save: the control that had the focus keeps it
 const focusKey = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}` : null);
@@ -749,6 +763,7 @@ function renderBody(animate = false){
     el.dataset.mode = ui.view;
     finish();
     if (ui.view === 'record') recordTab.afterRender();
+    screens.after[ui.view]?.();
     return;
   }
   // Edit is whatever is selected: nothing selected is the Outline, a job is its lines, a line its versions (a phone has no Outline: its
@@ -845,6 +860,8 @@ async function onClick(e){
   if (await settings.act(act, tg)) return;
   if (await career.act(act, tg)) return;
   if (act === 'view-back'){ setView(null); return; }
+  if (act === 'scr-back'){ leaveView(); return; }
+  if (await screens.act(act, tg)) return;
   if (await resumes.act(act, tg)) return;
   if (await files.act(act, tg)) return;
   if (await exporter.act(act, tg)) return;
@@ -1054,7 +1071,7 @@ function key(e){
     if (ui.langMenu){ ui.langMenu = null; renderHead(); $('#langbtn')?.focus(); return; }
     if (closeBodyMenus()) return;
     if (edit.key(e)) return;
-    if (ui.view === 'record'){ dock.setMode(recordTab.backTo() ?? 'edit'); return; }
+    if (SCREENS.includes(ui.view)){ leaveView(); return; }
     if (ui.view){ setView(null); return; }
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
@@ -1257,7 +1274,7 @@ const resumes = initResumes({
   endPreview: () => endPreview(),
   previewRecipe,
   noteOpen: id => switcher.noteOpen(id), noteRename: (a, b) => switcher.noteRename(a, b),
-  closeSwitcher: () => switcher.close(), renderSwitcher: () => switcher.render(),
+  nameReady: () => { if (ui.layout?.phone){ switcher.close(); return false; } switcher.open({ name: true }); return true; }, renderSwitcher: () => switcher.render(),
   fit: () => runFit(),
 });
 const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, resumes,
@@ -1271,6 +1288,10 @@ const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, 
 switcher.bind();
 Object.assign(VIEWS, resumes.views);
 VIEWS.record = () => recordTab.view();
+const thumbs = initThumbs({ work, extraCss: r => design.extraCss(store.state.record, r), chrome: r => docChrome(r.lang ?? 'en') });
+const screens = initScreens({ store, work, setView, resumes, renderBody: () => renderBody(), leave: () => leaveView() }, thumbs);
+Object.assign(VIEWS, screens.views);
+window.__wb.thumbs = thumbs; window.__wb.screens = screens;
 const files = initFiles({
   store, ui, persist, toast, NONE, setView, pickFile, download, saveToFile,
   onImage: f => design.setPhoto(f), onThemeText: (t, n) => design.importTheme(t, n), onTheme: (j, n) => design.importTheme(j, n),
@@ -1306,6 +1327,7 @@ window.__wb.design = design;
 Object.assign(VIEWS, exporter.views);
 window.__wb.export = exporter;
 resumes.bind($('#body'));
+screens.bind($('#body'));
 window.__wb.resumes = resumes;
 window.__wb.switcher = switcher;
 

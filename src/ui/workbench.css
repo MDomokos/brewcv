@@ -662,9 +662,8 @@ body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
 .item.static .muted { white-space: nowrap; }
 .banner.snapnote { margin-top: 4px; }
 .snapacts { margin-top: 12px; }
-.switcher { position: absolute; left: 10px; right: 10px; top: 96px; z-index: 45; padding: 8px; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 6px; max-height: calc(100vh - 150px); width: auto; max-width: none; text-align: left; }
+.switcher { position: absolute; left: 10px; right: 10px; top: 96px; z-index: 45; padding: 8px; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: 6px; max-height: calc(100vh - 150px); width: auto; max-width: none; text-align: left; }
 .switcher[hidden] { display: none; }
-.switcher:not(.is-grown) { grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
 .swacts { display: flex; gap: 6px; }
 .sw-q { width: 100%; font: inherit; font-size: 14px; padding: 6px 9px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--raised); color: var(--ink); }
 .swnew { text-align: left; border-color: transparent; background: var(--mark-soft); }
@@ -817,20 +816,6 @@ body[data-phone=true] .checklist { display: none; }
 .clhead .sm .ico { display: inline-block; vertical-align: -2px; }
 .help { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); }
 
-/* the switcher, grown: search, three views, tick boxes for Compare */
-.switcher.is-grown { left: 10px; right: 10px; top: 84px; width: auto; max-width: none; max-height: 70vh; }
-.swhead { display: flex; align-items: center; gap: 6px; }
-.swhead .sw-q { flex: 1; min-width: 0; }
-.swhead2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.swrow.has-tick { grid-template-columns: 18px minmax(0, 1fr) auto; }
-.swrow .pick { width: 15px; height: 15px; margin: 0 0 0 6px; accent-color: var(--ink); }
-.swfoot .primary { padding: 2px 12px; }
-.switcher .yr { margin: 10px 4px 2px; }
-.switcher .yr::before { width: 18px; }
-.swrow.tlrow { grid-template-columns: minmax(0, 1fr); }
-.tlsend { display: grid; width: 100%; padding-left: 14px; border-left: 2px dotted var(--line); border-radius: 0 var(--r-s) var(--r-s) 0; }
-.tlsend .sn { font-weight: 650; font-size: 13px; color: var(--ink); }
-.tlsend .muted { font-size: 11.5px; }
 .pop.card { background: var(--pop); }
 body[data-phone=true] .lens, body[data-phone=true] .lead { display: none; }
 /* ---- editing on the page (UX-3, UX-6c): the layers, the chip, the tools beside the line. Drawn over the page, in the app's layer ---- */
@@ -885,7 +870,7 @@ button { border-color: var(--line-strong); }
 :is(.field input, .field select, .field textarea, .opt select, .lensrow select, .sw-q, .swren, .writein textarea, textarea.paste, .tags input, .tagin input, .editor textarea, .addrow textarea) { border-color: var(--line-strong); }
 :is(.ghost, .ib, .tool, .clcaret, .clt, .sopt, .smore, .meter, .oblang, .obstep, .obtab, .obc, .obrow, .keep, .kset, .snapline, .docname, .filestate, .pop button, .menu button, .inline-menu button, .seg button, .seg [role=tab]) { border-color: transparent; }
 :is(.field input, .field select, .field textarea, .opt select, .lensrow select, .sw-q, .swren, .writein textarea, textarea.paste, .tags input, .tagin input, .editor textarea, .addrow textarea, textarea, input:not([type])) { background: var(--input); color: var(--ink); }
-.cb, .swrow .pick, input[type=radio], input[type=checkbox], input[type=range], progress { accent-color: var(--mark); }
+.cb, input[type=radio], input[type=checkbox], input[type=range], progress { accent-color: var(--mark); }
 
 /* One filled button on screen: Fit, and only when it would change something (outside 88 to 96 percent, or overflowing); then Export's PDF while Fit is not.
    dock.js and export.js decide this from the pages' fill, and put .primary on the one that is filled. */
@@ -957,7 +942,6 @@ body[data-phone=true] .rectl .yrow { display: block; }
 .swrole { font-weight: 500; color: var(--ink-soft); }
 .swtag { font-size: 11px; font-weight: 500; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 0 6px; }
 .switcher { top: var(--sw-top, 96px); max-height: var(--sw-max, calc(100vh - var(--sw-top, 96px) - 32px)); }
-.switcher.is-grown { top: var(--sw-top, 84px); max-height: var(--sw-max, calc(100vh - var(--sw-top, 84px) - 32px)); background: var(--pop); }
 .swfoot button:disabled { opacity: 1; background: transparent; color: var(--ink-soft); border: 1px dashed var(--line-strong); }
 
 /* a toast never covers the page: under the sidebar's head */
@@ -1229,3 +1213,54 @@ body[data-phone=true] .skarr [data-act=sk-addgroup] { display: none; }      /* a
 .skchip.dragging { opacity: .5; }
 .skchip.drop-above { box-shadow: -3px 0 0 var(--sel-mark); } .skchip.drop-below { box-shadow: 3px 0 0 var(--sel-mark); }
 .skfoot { display: flex; align-items: flex-end; gap: 8px; margin: 12px 0 4px; } .skfoot .field { flex: 1; min-width: 0; margin: 0; }
+/* UX-6e: the Resumes and Compare screens, and the small head and foot cards on every screen */
+body:not([data-phone=true]) .col.is-full > :is(#head, #foot) { align-self: flex-start; width: 340px; max-width: 100%; }
+.thumbhost { position: fixed; left: -10000px; top: 0; width: 900px; height: 1200px; visibility: hidden; pointer-events: none; }
+.scrn .scrhead { position: sticky; top: -14px; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: -14px -16px 6px; padding: 10px 16px; background: var(--surface); }
+.scrn .scrhead h2 { margin: 0; font-size: 15px; font-weight: 750; overflow-wrap: anywhere; }
+.scrn .scrhead .sw-q { width: 220px; max-width: 100%; }
+.scrbar { margin: 0 0 8px; }
+.scrticks { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.scrn h3.lbl { margin: 14px 0 6px; }
+.rgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; align-items: start; }
+.rcard { position: relative; display: grid; gap: 4px; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--raised); min-width: 0; }
+.rcard.open { border-color: var(--mark); }
+.rcard.ticked { background: var(--mark-soft); }
+.rcard .rtick { position: absolute; top: 14px; left: 14px; z-index: 2; width: 16px; height: 16px; margin: 0; background: var(--raised); outline: 2px solid var(--raised); border-radius: 3px; }
+.rcard .rsent { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rcard .rsent .rtick { position: static; outline: 0; flex: none; width: 14px; height: 14px; }
+.rcard .rsent .snapline { padding: 2px 0; text-align: left; min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+.rcard .rname { margin: 2px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.rcard .rmeta { margin: 0; font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
+.rcard .rpend { color: var(--warn); }
+.racts { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 4px; }
+.rcard .rmore { position: relative; margin-left: auto; }
+.thumbwrap { display: block; width: 100%; padding: 0; border: 0; background: transparent; }
+.rthumb { display: block; position: relative; overflow: hidden; width: 100%; background: var(--paper); border: 1px solid var(--line-strong); border-radius: 2px; box-shadow: var(--shadow-chip); }
+.rthumb iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; background: var(--paper); }
+.cmpscroll { overflow-x: auto; margin-top: 8px; }
+.cmp thead th { vertical-align: top; min-width: 170px; }
+.cmp thead th:first-child { min-width: 120px; }
+.cmp thead .cname { display: block; margin-bottom: 4px; font-weight: 700; font-size: 12.5px; color: var(--ink); overflow-wrap: anywhere; }
+.cmp tbody th { position: sticky; left: 0; background: var(--surface); }
+.diffsum { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--raised); }
+.diffsum ul { margin: 0; padding-left: 18px; } .diffsum p { margin: 0; }
+.cmp thead .rthumb { width: 150px; }
+.scrticks button:disabled { opacity: 1; background: transparent; color: var(--ink-soft); border: 1px dashed var(--line-strong); }
+
+/* phone: Resumes cards two to a row; the thumbnail shows the top of the page and runs behind the text; the header in tidy rows */
+@media (max-width: 719px){
+  .rgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .rcard { padding: 6px; }
+  .rcard .rname { font-size: 12px; }
+  .rcard .rmeta { font-size: 10.5px; }
+  .rcard .thumbwrap { position: relative; aspect-ratio: 1 / .55; overflow: hidden; margin-bottom: -26px; -webkit-mask-image: linear-gradient(var(--ink) 45%, transparent); mask-image: linear-gradient(var(--ink) 45%, transparent); }
+  .rcard > :not(.thumbwrap):not(.rtick) { position: relative; }
+  .rcard button.sm, .scrn .scrhead button.sm { min-height: 24px; }
+  .scrn .scrhead .sw-q { flex: 1 1 100%; width: auto; }
+  .scrn .scrhead .seg { flex: 1 1 100%; }
+  .scrn .scrhead .seg button { flex: 1; }
+  .scrn .scrhead .grow { display: none; }
+  .scrn .scrhead #scr-tickinfo { display: none; }
+  .scrn .scrhead .scrticks { display: contents; }
+}
