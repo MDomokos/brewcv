@@ -46,8 +46,11 @@ function filter(cl, textOf){
 
 // Draw the place again: the toolbar and the cards, then the selected entry in the inspector
 function afterRender(){
-  C.checklist.afterRender();
-  if (phone()) return goTo();
+  if (phone()){ C.checklist.afterRender(); return goTo(); }
+  place();
+  C.checklist.afterRender();      // once the entry is in the inspector: a tick's pop and the line's travel find it there
+}
+function place(){
   const cl = document.getElementById('checklist'), bd = document.getElementById('body');
   if (!cl || !bd) return;
   const groups = [...cl.querySelectorAll('.clg')], rows = [...cl.querySelectorAll('.rectl [data-grp]')];
@@ -72,11 +75,13 @@ function afterRender(){
   const facts = C.ui.ix?.work.get(R.sel) ? C.career.detailsHtml(R.sel) : '';
   const opens = sel.querySelector('[data-act=cl-open]')?.dataset.sel;      // the entry's own heading opens it in the editor
   bd.innerHTML = `<section class="insp insp-rec"><span class="lbl">${h('ux6h.entry')}</span>
-    <h3 class="oi-name">${esc((sel.querySelector('.clname')?.textContent ?? '').trim().replace(/\s+/g, ' '))} <small class="muted">${esc((sel.querySelector('.clcount [aria-hidden]') ?? sel.querySelector('.clcount'))?.textContent ?? '')}</small></h3>
+    <h2 class="oi-name">${esc((sel.querySelector('.clname')?.textContent ?? '').trim().replace(/\s+/g, ' '))} <small class="muted">${esc((sel.querySelector('.clcount [aria-hidden]') ?? sel.querySelector('.clcount'))?.textContent ?? '')}</small></h2>
     ${opens ? `<button class="sm ghost insp-open" data-act="cl-open" data-sel="${esc(opens)}">${h('ux6h.openInEditor')}</button>` : ''}
     ${facts ? `<p class="scope">${h('ux6h.scopeAll')}</p><div class="recfacts">${facts}</div>` : ''}
     <p class="scope tickscope">${h('ux6h.scopeTick', { name: C.openName() })}</p></section>`;
   sel.classList.add('is-sel');
+  const gh = sel.querySelector(':scope > .clgh');      // its heading is the title above: gone, unless it still has an order mark or Unarchive
+  if (gh && !gh.querySelector(':scope > :not(.clcaret, .clname, .clcount)')) gh.remove();
   bd.querySelector('.insp').append(sel);
   sel.querySelector('.clbody')?.removeAttribute('hidden');      // its fold is not offered here: the lines are always shown
   const q = R.q.trim().toLowerCase();

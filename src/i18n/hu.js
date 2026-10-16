@@ -946,7 +946,6 @@ export default {
   'ux1.undoSaveDraft': 'Önéletrajz mentése',
   'ux1.undoSend': 'Küldés hozzáadása a pillanatképhez',
   'ux1.undoSnapshot': 'Pillanatkép mentése',
-  'ux1.manageTitle': 'Az összes önéletrajz ({n})',
   'ux1.newTitle': 'Új önéletrajz',
   'ux1.name': 'Név',
   'ux1.namePh': 'Cég vagy terület - Pozíció',

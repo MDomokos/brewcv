@@ -188,7 +188,7 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .scr .checklist .rectl :is(.row, .srow) { background: var(--paper); }
 .scr .checklist .rectl .is-sel { box-shadow: 0 0 0 3px var(--accent) !important; border-color: transparent !important; }
 .insp-rec .scope { margin: 0; padding: 6px 8px; border-radius: var(--r-s); font-size: 12px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
-.insp-rec .insp-open { justify-self: start; }
+.insp-rec .insp-open { justify-self: start; min-height: 24px; }
 /* the entry's own heading is the inspector's title, not drawn twice (its order mark and Unarchive stay) */
 .insp-rec .clg { display: block !important; border: 0; padding: 0; margin: 0; }
 .insp-rec .clg > .clgh :is(.clcaret, .clname, .clcount) { display: none; }

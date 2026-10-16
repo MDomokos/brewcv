@@ -946,7 +946,6 @@ export default {
   'ux1.undoSaveDraft': 'Uložit životopis',
   'ux1.undoSend': 'Přidat odeslání ke snímku',
   'ux1.undoSnapshot': 'Uložit snímek',
-  'ux1.manageTitle': 'Všechny životopisy ({n})',
   'ux1.newTitle': 'Nový životopis',
   'ux1.name': 'Název',
   'ux1.namePh': 'Firma nebo obor - Pozice',

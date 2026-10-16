@@ -946,7 +946,6 @@ export default {
   'ux1.undoSaveDraft': 'Lebenslauf speichern',
   'ux1.undoSend': 'Versand zur Momentaufnahme hinzufügen',
   'ux1.undoSnapshot': 'Momentaufnahme speichern',
-  'ux1.manageTitle': 'Alle Lebensläufe ({n})',
   'ux1.newTitle': 'Neuer Lebenslauf',
   'ux1.name': 'Name',
   'ux1.namePh': 'Firma oder Branche - Stelle',

@@ -946,7 +946,6 @@ export default {
   'ux1.undoSaveDraft': 'Guardar o CV',
   'ux1.undoSend': 'Adicionar um envio ao instantâneo',
   'ux1.undoSnapshot': 'Guardar um instantâneo',
-  'ux1.manageTitle': 'Todos os CV ({n})',
   'ux1.newTitle': 'Novo CV',
   'ux1.name': 'Nome',
   'ux1.namePh': 'Empresa ou setor - Função',

@@ -946,7 +946,6 @@ export default {
   'ux1.undoSaveDraft': 'Guardar el currículum',
   'ux1.undoSend': 'Añadir un envío a la instantánea',
   'ux1.undoSnapshot': 'Guardar una instantánea',
-  'ux1.manageTitle': 'Todos los currículums ({n})',
   'ux1.newTitle': 'Nuevo currículum',
   'ux1.name': 'Nombre',
   'ux1.namePh': 'Empresa o sector - Puesto',

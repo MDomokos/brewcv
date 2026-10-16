@@ -946,7 +946,6 @@ export default {
   'ux1.undoSaveDraft': 'Het cv opslaan',
   'ux1.undoSend': 'Een verzending aan de momentopname toevoegen',
   'ux1.undoSnapshot': 'Een momentopname opslaan',
-  'ux1.manageTitle': 'Alle cv’s ({n})',
   'ux1.newTitle': 'Nieuw cv',
   'ux1.name': 'Naam',
   'ux1.namePh': 'Bedrijf of sector - Functie',

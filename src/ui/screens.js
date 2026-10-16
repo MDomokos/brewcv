@@ -153,7 +153,7 @@ function resumeInspector(){
     <div class="ihero">
       <button class="ihpage" tabindex="-1" ${open ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(r.id)}"`} aria-label="${esc(t('ux6e.open', { name: label(r) }))}">${thumb(r.id, r.format)}</button>
     </div>
-    <div class="ihcap"><span class="lbl">${h(open ? 'ux6h.openNow' : 'ux6h.selected')}</span><h3 class="oi-name">${esc(label(r))}</h3><p class="small">${esc(metaOf(r))}${pend ? ` · ${h('ux6e.pending', { n: pend })}` : ''}</p></div>
+    <div class="ihcap"><span class="lbl">${h(open ? 'ux6h.openNow' : 'ux6h.selected')}</span><h2 class="oi-name">${esc(label(r))}</h2><p class="small">${esc(metaOf(r))}${pend ? ` · ${h('ux6e.pending', { n: pend })}` : ''}</p></div>
     ${nj || `<div class="btns iacts"><button class="primary" data-act="nj-open" data-id="${esc(r.id)}">${h('ux6h.newJob')}</button>${open ? `<button data-act="place" data-p="editor">${h('ux6h.keepEditing')}</button>` : `<button data-act="sw-open" data-id="${esc(r.id)}">${h('ux6e.openBtn')}</button>`}<span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span></div>`}
     <span class="lbl">${h('ux6h.glance')}</span>
     <dl class="glance">
@@ -297,7 +297,7 @@ function cmpInspector(){
   const nDiff = V.rows.filter(x => x.differs).length, at = V.rows.filter(x => x.differs).indexOf(row);
   const val = c => (typeof c === 'string' ? c : c.text ? `${c.text}` : t('ux6h.notOnIt'));
   const open = x => { const [id, sid] = x.key.split('|'); return `<button class="sm" ${sid ? `data-act="sw-snap" data-id="${esc(id)}" data-sid="${esc(sid)}"` : `data-act="sw-open" data-id="${esc(id)}"`}>${h('ux6h.openX', { name: x.label })}</button>`; };
-  return `<section class="insp"><span class="lbl">${row.differs ? h('ux6h.rowOf', { n: at + 1, of: nDiff }) : h('ux6h.rowSame')}</span><h3 class="oi-name">${esc(row.label)}</h3>
+  return `<section class="insp"><span class="lbl">${row.differs ? h('ux6h.rowOf', { n: at + 1, of: nDiff }) : h('ux6h.rowSame')}</span><h2 class="oi-name">${esc(row.label)}</h2>
     <dl class="cmpcells">${items.map((x, i) => `<dt>${esc(x.label)}</dt><dd>${esc(val(row.cells[i]))}${typeof row.cells[i] !== 'string' && row.cells[i].text ? ` <small class="muted">${esc(row.cells[i].label)}</small>` : ''}</dd>`).join('')}</dl>
     <div class="btns">${items.map(open).join('')}</div></section>`;
 }
@@ -373,6 +373,8 @@ function bind(body){
   body.addEventListener('pointerout', e => { const w = e.target.closest?.('.rcard .thumbwrap'); if (w && !w.contains(e.relatedTarget)) hidePreview(); });
   body.addEventListener('scroll', () => { if (HV.n < 2) hidePreview(); }, true);
   body.addEventListener('pointerdown', hidePreview);
+  // a click on a card's picture or its blank space is a click on the card (its name button takes the rest)
+  body.addEventListener('click', e => { const c = e.target.closest?.('.rcard'); if (c && !e.target.closest('input, button, select, a, .rowmenu')) act('scr-sel', { dataset: { id: c.dataset.rid } }); });
   body.addEventListener('dblclick', e => { const c = e.target.closest?.('.rcard'); if (c && !e.target.closest('input')) C.resumes.open(c.dataset.rid); });
   body.addEventListener('keydown', e => {
     if (e.target.closest?.('.njform') && e.key === 'Enter'){ e.preventDefault(); document.querySelector('[data-act=nj-create]')?.click(); return; }

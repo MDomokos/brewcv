@@ -946,7 +946,6 @@ export default {
   'ux1.undoSaveDraft': 'Zapisz CV',
   'ux1.undoSend': 'Dodaj wysyłkę do migawki',
   'ux1.undoSnapshot': 'Zapisz migawkę',
-  'ux1.manageTitle': 'Wszystkie CV ({n})',
   'ux1.newTitle': 'Nowe CV',
   'ux1.name': 'Nazwa',
   'ux1.namePh': 'Firma lub branża - Stanowisko',
