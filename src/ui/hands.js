@@ -20,7 +20,7 @@ import { PHONE_MAX } from './layout.js';
 import { dur, play } from './motion.js';
 
 const $ = s => document.querySelector(s);
-const GRIP = { w: 18, h: 18 }, PLUS = { w: 18, h: 18 }, SLOT = { w: 40, h: 24 }, OFF = 22, MOVE = 4;
+const GRIP = { w: 16, h: 16 }, PLUS = { w: 18, h: 18 }, SLOT = { w: 40, h: 24 }, OFF = 22, MOVE = 4;
 
 export function initHands(C){
   const { ui, sheet, canvas } = C;
@@ -33,11 +33,14 @@ export function initHands(C){
   dropEl.className = 'obdrop'; dropEl.hidden = true;
   tip.className = 'obtip'; tip.hidden = true; tip.setAttribute('role', 'status');
   slot.innerHTML = pillHtml(false);      // the photo's show/hide is the pill, as on the chip
-  lay?.append(grip, plus, slot, fgrip, dropEl, tip);
+  const shadeEl = document.createElement('div');      // what a grip moves, shaded
+  shadeEl.className = 'obshade'; shadeEl.hidden = true;
+  shadeEl.setAttribute('aria-hidden', 'true');
+  lay?.append(shadeEl, grip, plus, slot, fgrip, dropEl, tip);
 
   let hover = null;                 // under the pointer: { k: 'line' | 'group' | 'header', fact, rect, job }
   let drag = null, pend = null;     // a drag under way; a skill pressed on the page that may become one
-  let graceT = 0, onHands = false, dragEnded = 0, raf = 0, shown = '';
+  let graceT = 0, onHands = false, dragEnded = 0, spent = false, raf = 0, shown = '';
 
   const locked = id => !!id && C.edit().lockedId(id);
   const on = () => !!lay && !phone() && !ui.view && !ui.snap && !ui.preview && !ui.fitting && !document.body.classList.contains('is-quiet');
@@ -48,6 +51,7 @@ export function initHands(C){
   const reread = h => {
     if (!h) return null;
     if (h.k === 'header') { const r = sheet.headerRects(); return r ? { ...h, rect: r.band } : null; }
+    if (h.k === 'job' || h.k === 'section') { const r = blockRect(h.k, h.fact); return r ? { ...h, rect: r } : null; }      // a heading's hover stands for its whole block
     const el = sheet.elOf(h.fact, ix());
     return el ? { ...h, rect: sheet.rectOfEl(el), edge: sheet.edgeOf(el) } : null;
   };
@@ -110,8 +114,9 @@ export function initHands(C){
       slot.setAttribute('aria-label', lb); slot.title = lb; slot.firstChild.classList.toggle('on', showing);
     } else slot.hidden = true;
     // the grip of the selected job, section or item: on its dashed frame, at the top edge's left end
-    const ft = on() && !ui.writing ? frameTarget() : null;
-    placeFrameGrip(ft);
+    const ft = on() && !ui.writing ? frameTarget(h) : null;
+    placeFrameGrip(ft, h?.k === 'job' || h?.k === 'section' ? R(h.rect) : null);
+    if (grip.hidden && fgrip.hidden) unshade();
     // a hand that has just appeared fades in (off under reduced motion)
     const sig = `${!grip.hidden}${!plus.hidden}${!slot.hidden}${!fgrip.hidden}${h?.fact ?? h?.k ?? ''}${ft?.id ?? ''}`;
     if (sig !== shown){ shown = sig; for (const b of [grip, plus, slot, fgrip]) if (!b.hidden) play(b, [{ opacity: 0 }, { opacity: 1 }], { key: `hand:${b.className}`, ms: 'fast', name: 'hand:in' }); }
@@ -119,16 +124,17 @@ export function initHands(C){
   // ---- the grips of jobs, sections and items ----
   const rec = () => C.record();
   // what the selection is, if it can be moved by a grip on its frame: { k: 'job' | 'section' | 'item', id, sid }
-  function frameTarget(){
-    const s = ui.sel;
+  const blockRect = (k, id, sid) => (k === 'job' ? sheet.rectOfJob(id, ix()) : k === 'section' ? sheet.rectOfBand(id) : k === 'item' ? sheet.rectOfItem(id, ix()) : null);
+  function frameTarget(h){
+    const s = h?.k === 'job' || h?.k === 'section' ? { kind: h.k, id: h.fact } : ui.sel;      // the heading under the pointer, else the selection
     let ft = null;
     if (s.kind === 'job' && T.jobRefs(rec(), C.cur()).some(r => (typeof r === 'string' ? r : r.id) === s.id)) ft = { k: 'job', id: s.id, sid: T.sectionOfEntry(rec(), s.id) };
     else if (s.kind === 'section' && !s.heading && T.sectionList(rec(), C.cur()).some(x => x.id === s.id && x.on && !x.fixed)) ft = { k: 'section', id: s.id };
     else if (s.kind === 'bullet' && !s.job && s.section !== 'skills' && s.section !== 'header'){ const id = s.id.replace(/^~t:/, ''), sid = T.sectionOfItem(rec(), id); if (sid && sid !== 'skills') ft = { k: 'item', id, sid }; }
     return ft && !locked(ft.id) ? ft : null;
   }
-  function placeFrameGrip(ft){
-    const f = ft && C.onpage().frame();
+  function placeFrameGrip(ft, hovered){
+    const f = ft && (hovered ?? C.onpage().frame());
     if (!f){ fgrip.hidden = true; return; }
     const chip = document.querySelector('#editlay .obchip')?.getBoundingClientRect();
     const hitChip = (x, y) => !!chip && x < chip.right && x + GRIP.w > chip.left && y < chip.bottom && y + GRIP.h > chip.top;
@@ -185,6 +191,18 @@ export function initHands(C){
     b.addEventListener('pointerleave', () => { onHands = false; if (!drag) grace(); });
   }
 
+  // ---- what a grip moves, shaded ----
+  function shade(b){
+    const pr = b === fgrip ? blockRect(b.dataset.k, b.dataset.fact) : target()?.rect, r = pr && R(pr);
+    shadeEl.hidden = !r;
+    if (r) Object.assign(shadeEl.style, { left: `${r.left - 4}px`, top: `${r.top - 3}px`, width: `${r.width + 8}px`, height: `${r.height + 6}px` });
+  }
+  const unshade = () => { shadeEl.hidden = true; };
+  for (const b of [grip, fgrip]){
+    for (const ev of ['pointerenter', 'focus']) b.addEventListener(ev, () => { if (!drag) shade(b); });
+    for (const ev of ['pointerleave', 'blur']) b.addEventListener(ev, unshade);
+  }
+
   // ---- dragging ----
   function startDrag(kind, info){
     C.edit().leaveLine();
@@ -198,43 +216,51 @@ export function initHands(C){
     dropEl.hidden = !r;
     if (r){ const s = R(r); Object.assign(dropEl.style, vertical ? { left: `${s.left - 1}px`, top: `${s.top}px`, width: '2px', height: `${s.height}px` } : { left: `${s.left}px`, top: `${s.top - 1}px`, width: `${s.width}px`, height: '2px' }); }
   };
-  const refuse = (p, text) => { tip.hidden = !text; if (text){ tip.textContent = text; const c = canvas.cam; tip.style.left = `${Math.round(p.x * c.k + c.x + 14)}px`; tip.style.top = `${Math.round(p.y * c.k + c.y + 14)}px`; } };
-  // where a drag at `p` (the page's pixels) would drop: sets drag.to / drag.ok, draws the drop line or the reason
+  // `s`: where the reason stands, in window pixels; else beside a point in the page's pixels
+  const refuse = (p, text, s) => { tip.hidden = !text; if (text){ tip.textContent = text; const c = canvas.cam; tip.style.left = `${Math.round((s ? s.x : p.x * c.k + c.x) + 14)}px`; tip.style.top = `${Math.round((s ? s.y : p.y * c.k + c.y) + 14)}px`; } };
+  // the block's siblings and the room they live in, measured once when a drag starts: the preview moves them by a transform, which would move the measure
+  function sibsOf(d){
+    const x = ix(), pick = r => (typeof r === 'string' ? r : r.id);
+    let sibs, room, say = `ux6c.refused.${d.kind}`;
+    if (d.kind === 'line'){ sibs = sheet.jobLines(d.job, x).map(l => ({ id: l.fact, rect: l.rect })); room = [box(sibs.map(q => q.rect))]; say = 'ux6c.refusedLine'; }
+    else if (d.kind === 'group'){ sibs = sheet.skillGroups(x).map(g => ({ id: g.fact, rect: g.rect })); room = [box(sibs.map(q => q.rect))]; say = 'ux6c.refusedGroup'; }
+    else {      // a block among its siblings: the parent's room is the band (or the pages), a drop outside it is refused
+      const ids = d.kind === 'job' ? T.jobRefs(rec(), C.cur(), d.sid).map(pick).filter(id => rec().work.some(w => w.id === id && !w.archived))
+        : d.kind === 'section' ? T.sectionList(rec(), C.cur()).filter(q => q.on && !q.fixed).map(q => q.id) : (T.itemList(rec(), C.cur(), d.sid) ?? []).filter(i => i.on).map(i => i.id);
+      const rectOf = id => (d.kind === 'job' ? sheet.rectOfJob(id, x) : d.kind === 'section' ? sheet.rectOfBand(id) : sheet.rectOfItem(id, x));
+      sibs = ids.map(id => ({ id, rect: rectOf(id) })).filter(q => q.rect);
+      room = (d.kind === 'section' ? sheet.pageBoxes() : [sheet.rectOfBand(d.sid)].filter(Boolean)).map(b => box([b]));
+    }
+    if (!sibs.length) room = [];
+    const pages = sheet.pageBoxes(), pageOf = r => pages.findIndex(b => r.left >= b.left - 1 && r.left < b.left + b.width);
+    return { sibs, room, say, pg: sibs.map(q => pageOf(q.rect)),      // the page each is on: the gap opens, and closes, page by page
+      inline: d.kind === 'item' && sibs.length > 1 && sibs.every(q => Math.abs(q.rect.top - sibs[0].rect.top) < 3), els: new Map(sibs.map(q => [q.id, sheet.blockEls(d.kind, q.id, x)])) };
+  }
+  // where a drag at `p` (the page's pixels) would drop: sets drag.to / drag.at / drag.ok, draws the drop line or the reason
   function dragTo(p){
     const x = ix(), d = drag;
-    d.ok = false; d.to = null; showDrop(null); refuse(p, '');
-    if (d.kind === 'line'){
-      const ls = sheet.jobLines(d.job, x);
-      if (!ls.length) return;
-      if (!within(p, box(ls.map(l => l.rect)))){ refuse(p, t('ux6c.refusedLine')); return; }
-      let at = ls.findIndex(l => p.y < l.rect.top + l.rect.height / 2); if (at < 0) at = ls.length;
-      const from = ls.findIndex(l => l.fact === d.fact);
-      d.ok = at !== from && at !== from + 1; d.to = ls[at]?.fact ?? null;
-      if (d.ok){ const ref = ls[Math.min(at, ls.length - 1)].rect; showDrop({ left: ref.left, width: ref.width, top: at < ls.length ? ref.top - 2 : ref.top + ref.height + 2, height: 0 }); }
-    } else if (d.kind === 'group'){
-      const gs = sheet.skillGroups(x);
-      if (!gs.length) return;
-      if (!within(p, box(gs.map(g => g.rect)))){ refuse(p, t('ux6c.refusedGroup')); return; }
-      const near = gs.map((g, i) => ({ g, i, c: { x: g.rect.left + g.rect.width / 2, y: g.rect.top + g.rect.height / 2 } })).sort((a, b) => Math.hypot(p.x - a.c.x, p.y - a.c.y) - Math.hypot(p.x - b.c.x, p.y - b.c.y))[0];
-      const dx = p.x - near.c.x, dy = p.y - near.c.y, after = Math.abs(dy) < near.g.rect.height / 2 ? dx > 0 : dy > 0, at = near.i + (after ? 1 : 0);
-      const from = gs.findIndex(g => g.fact === d.fact);
-      d.ok = at !== from && at !== from + 1; d.to = gs[at]?.fact ?? null;
-      if (d.ok){ const r = near.g.rect; showDrop({ left: r.left, width: r.width, top: after ? r.top + r.height + 3 : r.top - 3, height: 0 }); }
-    } else if (d.kind === 'job' || d.kind === 'section' || d.kind === 'item'){
-      // a block among its siblings: the parent's room is the band (or the pages), a drop outside it is refused
-      const ids = d.kind === 'job' ? T.jobRefs(rec(), C.cur(), d.sid).map(r => (typeof r === 'string' ? r : r.id)).filter(id => rec().work.some(w => w.id === id && !w.archived))
-        : d.kind === 'section' ? T.sectionList(rec(), C.cur()).filter(s => s.on && !s.fixed).map(s => s.id) : (T.itemList(rec(), C.cur(), d.sid) ?? []).filter(i => i.on).map(i => i.id);
-      const rectOf = id => (d.kind === 'job' ? sheet.rectOfJob(id, x) : d.kind === 'section' ? sheet.rectOfBand(id) : sheet.rectOfItem(id, x));
-      const sibs = ids.map(id => ({ id, rect: rectOf(id) })).filter(s => s.rect);
-      const room = d.kind === 'section' ? sheet.pageBoxes() : [sheet.rectOfBand(d.kind === 'job' ? d.sid : d.sid)].filter(Boolean);
-      if (!sibs.length || !room.length) return;
-      if (!room.some(b => within(p, box([b]), 70, 14, 30))){ refuse(p, t(`ux6c.refused.${d.kind}`)); return; }
-      const near = sibs.map((s, i) => ({ s, i, c: { x: s.rect.left + s.rect.width / 2, y: s.rect.top + s.rect.height / 2 } })).sort((a, b) => Math.hypot(p.x - a.c.x, p.y - a.c.y) - Math.hypot(p.x - b.c.x, p.y - b.c.y))[0];
-      // items of a run (certificates, interests) share a line: along the line the side of the neighbour decides, else above or below it
-      const dy = p.y - near.c.y, inline = d.kind === 'item' && Math.abs(dy) < near.s.rect.height / 2 && sibs.some((o, k) => k !== near.i && Math.abs(o.rect.top - near.s.rect.top) < 3);
-      const after = inline ? p.x > near.c.x : dy > 0, at = near.i + (after ? 1 : 0), from = sibs.findIndex(s => s.id === d.fact);
-      d.ok = at !== from && at !== from + 1; d.to = sibs[at]?.id ?? null;
-      if (d.ok){ const r = near.s.rect; if (inline) showDrop({ left: after ? r.left + r.width + 2 : r.left - 2, top: r.top, width: 0, height: r.height }, true); else showDrop({ left: r.left, width: r.width, top: after ? r.top + r.height + 2 : r.top - 2, height: 0 }); }
+    d.ok = false; d.to = null; d.at = null; d.near = null; showDrop(null); refuse(p, '');
+    if (d.kind !== 'skill'){
+      const S = d.S ??= sibsOf(d), { sibs } = S;
+      if (!sibs.length || !S.room.length) return;
+      if (!S.room.some(b => within(p, b))){ refuse(p, t(S.say)); return; }
+      const from = sibs.findIndex(q => q.id === d.fact), n = sibs.length;
+      let at, drop, nearI = null;
+      if (d.kind === 'line'){
+        at = sibs.findIndex(q => p.y < q.rect.top + q.rect.height / 2); if (at < 0) at = n;
+        const ref = sibs[Math.min(at, n - 1)].rect;
+        drop = [{ left: ref.left, width: ref.width, top: at < n ? ref.top - 2 : ref.top + ref.height + 2, height: 0 }]; nearI = Math.min(at, n - 1);
+      } else {
+        const near = sibs.map((q, i) => ({ q, i, c: { x: q.rect.left + q.rect.width / 2, y: q.rect.top + q.rect.height / 2 } })).sort((a, b) => Math.hypot(p.x - a.c.x, p.y - a.c.y) - Math.hypot(p.x - b.c.x, p.y - b.c.y))[0];
+        const dx = p.x - near.c.x, dy = p.y - near.c.y, r = near.q.rect, level = Math.abs(dy) < r.height / 2;
+        // items of a run (certificates, interests) share a line, as do skill groups in columns: along the line the side of the neighbour decides, else above or below it
+        const inline = d.kind === 'item' && level && sibs.some((o, k) => k !== near.i && Math.abs(o.rect.top - r.top) < 3);
+        const after = inline || (d.kind === 'group' && level) ? dx > 0 : dy > 0;
+        at = near.i + (after ? 1 : 0); nearI = near.i;
+        drop = inline ? [{ left: after ? r.left + r.width + 2 : r.left - 2, top: r.top, width: 0, height: r.height }, true] : [{ left: r.left, width: r.width, top: after ? r.top + r.height + 2 : r.top - 2, height: 0 }];
+      }
+      d.at = at; d.near = nearI; d.ok = at !== from && at !== from + 1; d.to = sibs[at]?.id ?? null;
+      if (d.ok) showDrop(...drop);
     } else {
       const gs = sheet.skillGroups(x).filter(g => g.items.length || g.fact === d.fact);
       const g = gs.find(g => within(p, box([g.rect]), 8, 8, 6));
@@ -245,9 +271,34 @@ export function initHands(C){
       if (d.ok){ const ref = g.items[Math.min(j, g.items.length - 1)]; if (ref) showDrop({ left: j < g.items.length ? ref.left - 2 : ref.left + ref.width + 1, top: ref.top, width: 0, height: ref.height }, true); }
     }
   }
+  // The live preview of a block's move: the block is lifted and follows the pointer (`p`, from where it was pressed); with no pointer on the
+  // page (a row of the sidebar) it stands in its new place. The siblings slide to open the gap there and close the one it left.
+  function preview(d, p){
+    const S = d.S;
+    if (!S) return;
+    const { sibs, pg } = S, n = sibs.length, from = sibs.findIndex(q => q.id === d.fact), at = d.ok ? d.at : from, moves = [];
+    if (from >= 0){
+      const ax = S.inline ? 'left' : 'top', sz = S.inline ? 'width' : 'height', key = S.inline ? 'dx' : 'dy', slot = {};
+      const ref = sibs[d.ok ? Math.min(d.near ?? at, n - 1) : from], land = pg[sibs.indexOf(ref)];      // the sibling the block lands by, and its page
+      const gap = sibs.map((q, i) => (pg[i + 1] === pg[i] ? sibs[i + 1].rect[ax] - q.rect[ax] - q.rect[sz] : null)).find(g => g != null) ?? 0;
+      for (const g of new Set(pg)){
+        const orig = sibs.filter((_, i) => pg[i] === g), list = orig.filter(q => q.id !== d.fact);
+        if (g === land) list.splice(sibs.slice(0, at).filter((q, i) => pg[i] === g && q.id !== d.fact).length, 0, sibs[from]);
+        const gaps = orig.slice(1).map((q, k) => q.rect[ax] - orig[k].rect[ax] - orig[k].rect[sz]);
+        let pos = orig[0].rect[ax];
+        list.forEach((q, k) => { slot[q.id] = pos - q.rect[ax]; pos += q.rect[sz] + (gaps[k] ?? gaps.at(-1) ?? gap); });
+      }
+      for (const q of sibs) if (q.id !== d.fact) moves.push({ els: S.els.get(q.id), [key]: slot[q.id] });
+      if (!p) moves.push({ els: S.els.get(d.fact), dx: S.inline ? slot[d.fact] : ref.rect.left - sibs[from].rect.left, dy: S.inline ? 0 : slot[d.fact], lift: true });      // from a row: it stands in its new place
+    }
+    if (p && d.p0) moves.push({ els: S.els.get(d.fact), dx: p.x - d.p0.x, dy: p.y - d.p0.y, lift: true });
+    sheet.nudge(moves);
+  }
   function endDrag(p){
     const d = drag;
     drag = null; showDrop(null); refuse({ x: 0, y: 0 }, ''); document.body.classList.remove('is-dragging'); sheet.doc?.documentElement.classList.remove('rb-dragging');
+    sheet.doc?.removeEventListener('keydown', escDrag, true);
+    sheet.unnudge(!(p && d?.ok));      // dropped: the page is drawn again from the model; else everything slides back
     if (!d) return;
     if (p) dragEnded = performance.now();
     if (!p || !d.moved) { place(); return; }
@@ -262,29 +313,33 @@ export function initHands(C){
     }
     place();
   }
+  // Esc during a drag: nothing is dropped, everything goes back, no undo step; the click that follows the release is not a click
+  function escDrag(e){ if (e.key === 'Escape' && drag?.moved){ e.preventDefault(); e.stopPropagation(); spent = true; endDrag(null); } }
+  window.addEventListener('keydown', escDrag, true);
   // the reason a drop is refused is shown while dragging and said again, as a note, if it is let go there
-  const dragMove = p => { drag.moved = true; dragTo(p); drag.refused = tip.hidden ? '' : tip.textContent; };
+  const dragMove = p => { drag.moved = true; dragTo(p); drag.refused = tip.hidden ? '' : tip.textContent; preview(drag, p); };
 
   // a grip: a press that moves is a drag; a press that does not is a click. `mk` says what it holds, `click` what a click does, `stepBy` what ↑ ↓ do.
   function wire(el, mk, click, stepBy){
     el.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
+      spent = false;
       const what = mk();
       if (!what) return;
       e.preventDefault();
       el.setPointerCapture(e.pointerId);
       pend = null;
-      drag = { ...what, start: { x: e.clientX, y: e.clientY }, ok: false, to: null, moved: false, id: e.pointerId, press: true };
+      drag = { ...what, start: { x: e.clientX, y: e.clientY }, p0: pt(e), ok: false, to: null, moved: false, id: e.pointerId, press: true };
     });
     el.addEventListener('pointermove', e => {
       if (!drag?.press) return;
       if (!drag.moved && Math.hypot(e.clientX - drag.start.x, e.clientY - drag.start.y) < MOVE) return;
-      if (!drag.moved){ C.edit().leaveLine(); document.body.classList.add('is-dragging'); place(); }
+      if (!drag.moved){ C.edit().leaveLine(); document.body.classList.add('is-dragging'); sheet.doc?.addEventListener('keydown', escDrag, true); unshade(); place(); }
       dragMove(pt(e));
     });
     el.addEventListener('pointerup', e => { if (drag?.press){ const moved = drag.moved; if (moved) endDrag(pt(e)); else drag = null; if (moved) e.preventDefault(); else place(); } });
     el.addEventListener('pointercancel', () => { if (drag?.press) endDrag(null); });
-    el.addEventListener('click', e => { if (performance.now() - dragEnded < 250) return; e.preventDefault(); click(); });
+    el.addEventListener('click', e => { if (performance.now() - dragEnded < 250 || spent) return; e.preventDefault(); click(); });
     // the keyboard: ↑ ↓ on the grip move what it holds one place
     el.addEventListener('keydown', e => {
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -296,7 +351,7 @@ export function initHands(C){
   // a line or skill group writes on a click; a job, a section or an item only has its grip
   wire(grip, () => { const h = target(); return h && { kind: h.k, fact: h.fact, job: h.job, target: h }; }, () => openLine(grip.dataset.fact),
     dir => { if (grip.dataset.k === 'line') C.edit().stepBullet(grip.dataset.fact, dir); else C.edit().stepGroup(grip.dataset.fact, dir); });
-  wire(fgrip, () => { const ft = frameTarget(); return ft && { kind: ft.k, fact: ft.id, sid: ft.sid }; }, () => {},
+  wire(fgrip, () => { const ft = frameTarget(target()); return ft && { kind: ft.k, fact: ft.id, sid: ft.sid }; }, () => {},
     dir => { const { k, fact } = fgrip.dataset; if (k === 'job') C.edit().stepJob(fact, dir); else if (k === 'section') C.edit().stepSection(fact, dir); else C.edit().stepItem(fact, dir); });
   function openLine(fact){ C.select(lineSel(ix(), fact)); C.edit().startEdit(); }
   // "+": a new empty line at the job's end, or a new skill group after this one, written at once

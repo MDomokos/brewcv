@@ -26,6 +26,7 @@ html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
 html.rb-dragging, html.rb-dragging * { cursor: grabbing !important; user-select: none !important; }
 html.rb-space, html.rb-space * { cursor: grab !important; }
 html.rb-ui:not(.rb-writing, .rb-nohover) :is([data-variant], [data-label]):hover { outline: 1px solid color-mix(in srgb, var(--rb-sel) 60%, transparent); outline-offset: 4px; border-radius: 2px; }      /* the shape of the written line's outline (onpage.js obframe.line): 1px, 4px off */
+.rb-lift { position: relative; z-index: 5; box-shadow: 0 6px 18px color-mix(in srgb, var(--rb-sel) 40%, transparent); background-color: var(--rb-lift-bg); outline: 1px solid var(--rb-sel); outline-offset: 3px; border-radius: 2px; }
 .rb-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-sel-soft); }
 .rb-band-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 5px; border-radius: 4px; }
 .rb-prev { outline: 2px solid var(--rb-prev) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-prev-soft); }
@@ -69,6 +70,7 @@ export function createSheet(host, hooks = {}){
   let view = { mode: 'spread', page: 0 };
   let marked = { sel: null, ix: null, prev: null, focus: null, miss: null, hover: null };
   let fade = [];
+  const nudged = new Set();      // the elements a drag preview has moved
   let last = null, rest = null;       // the pointer over the page, and where it rested when writing ended (hover stays off until it moves)
   let pending = null;
   let revealed = null;            // the selection last scrolled into view (stack mode)
@@ -374,11 +376,14 @@ export function createSheet(host, hooks = {}){
     },
     // the item a text is part of, as a rectangle in the page's own pixels: an item of education or patent as a whole, a language's name and level together, else the text
     rectOfItem(factId, ix){
-      const el = this.elOf(factId, ix);
-      if (!el) return null;
-      const rs = [el.closest('.item__title, .meta--flat') ? el.closest('.band__content') : el.closest('dd') ? el.closest('dd').previousElementSibling : el.closest('dt') ? el.closest('dt').nextElementSibling : null, el.closest('dd') ?? el].filter(Boolean).map(e => this.rectOfEl(e));
+      const rs = this.itemEls(factId, ix).map(e => this.rectOfEl(e));
+      if (!rs.length) return null;
       const l = Math.min(...rs.map(r => r.left)), tp = Math.min(...rs.map(r => r.top));
       return { left: l, top: tp, width: Math.max(...rs.map(r => r.left + r.width)) - l, height: Math.max(...rs.map(r => r.top + r.height)) - tp };
+    },
+    itemEls(factId, ix){
+      const el = this.elOf(factId, ix);
+      return el ? [el.closest('.item__title, .meta--flat') ? el.closest('.band__content') : el.closest('dd') ? el.closest('dd').previousElementSibling : el.closest('dt') ? el.closest('dt').nextElementSibling : null, el.closest('dd') ?? el].filter(Boolean) : [];
     },
     // which page a claim is printed on (-1 when it is not on the page)
     pageOf(factId, ix){
@@ -433,14 +438,50 @@ export function createSheet(host, hooks = {}){
     setWriting(dim){ const d = fr?.doc?.documentElement; if (!d) return; if (dim == null && d.classList.contains('rb-writing')){ d.classList.add('rb-nohover'); rest = last ?? false; } d.classList.toggle('rb-writing', dim != null);      // no hover while writing, and none after until the pointer moves
      if (dim != null) d.style.setProperty('--rb-wdim', String(dim / 100)); },
     // a job's box on the page, in the page's own pixels from the sheet's corner
-    rectOfJob(jobId, ix){
-      if (!fr) return null;
+    jobEl(jobId, ix){
       const w = ix.work.get(jobId);
       const vs = new Set([...(ix.facts.get(w?.display?.position)?.variants ?? []), `${w?.display?.position}-override`]);
-      const el = [...fr.doc.querySelectorAll('[data-variant]')].find(e => vs.has(e.getAttribute('data-variant')))?.closest('.entry');
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return { left: r.left, top: r.top, width: r.width, height: r.height };
+      return fr ? [...fr.doc.querySelectorAll('[data-variant]')].find(e => vs.has(e.getAttribute('data-variant')))?.closest('.entry') ?? null : null;
+    },
+    rectOfJob(jobId, ix){
+      const el = this.jobEl(jobId, ix);
+      return el ? this.rectOfEl(el) : null;
+    },
+    // a job's heading (title and date line) as a rectangle: where the pointer finds the job's grip
+    jobHeadRect(el){
+      const rs = [...el.querySelectorAll(':scope > .role-title, :scope > .meta')].map(e => this.rectOfEl(e));
+      if (!rs.length) return null;
+      const l = Math.min(...rs.map(r => r.left)), tp = Math.min(...rs.map(r => r.top));
+      return { left: l, top: tp, width: Math.max(...rs.map(r => r.left + r.width)) - l, height: Math.max(...rs.map(r => r.top + r.height)) - tp };
+    },
+    // ---- the live reorder preview (hands.js): blocks moved by a transform alone, never in the document; unnudge puts every one back exactly ----
+    // the elements a block is printed in: a line, a skill group, a job, a section's band or an item
+    blockEls(kind, id, ix){
+      if (!fr?.frame.isConnected) return [];
+      if (kind === 'job') return [this.jobEl(id, ix)].filter(Boolean);
+      if (kind === 'section') return [...fr.doc.querySelectorAll(`.band[data-section="${CSS.escape(id)}"]`)];
+      if (kind === 'item') return this.itemEls(id, ix);
+      const el = this.elOf(id, ix);
+      return [el?.closest(kind === 'line' ? 'li' : '.skills__group')].filter(Boolean);
+    },
+    // moves: [{ els, dx, dy, lift }] in the page's pixels; a neighbour slides (fast, none under reduced motion), the lifted block follows at once
+    nudge(moves){
+      for (const m of moves) for (const el of m.els){
+        const to = m.dx || m.dy ? `translate(${m.dx ?? 0}px, ${m.dy ?? 0}px)` : '', was = el.style.transform;
+        nudged.add(el); el.classList.toggle('rb-lift', !!m.lift);
+        if (m.lift) el.style.setProperty('--rb-lift-bg', fr.doc.defaultView.getComputedStyle(el.closest('.page') ?? el).backgroundColor);      // paper: what is under it does not show through
+        if (to === was) continue;
+        el.style.transform = to;
+        if (!m.lift) play(el, [{ transform: was || 'none' }, { transform: to || 'none' }], { key: `nudge:${[...nudged].indexOf(el)}`, ms: 'fast', kind: 'move', name: 'nudge' });
+      }
+    },
+    unnudge(animate){
+      for (const el of nudged){
+        const was = el.style.transform;
+        el.style.transform = ''; el.style.removeProperty('--rb-lift-bg'); el.classList.remove('rb-lift');
+        if (animate && was) play(el, [{ transform: was }, { transform: 'none' }], { ms: 'fast', kind: 'move', name: 'nudge:back' });
+      }
+      nudged.clear();
     },
     setFocus(facts, ix){
       const was = focusKey;
@@ -470,14 +511,20 @@ export function createSheet(host, hooks = {}){
     handAt(ix, x, y){
       if (!fr?.frame.isConnected) return null;
       let best = null, bd = Infinity;
-      const take = (k, el, fact) => {
-        const r = this.rectOfEl(el);
+      const take = (k, el, fact, rect) => {
+        const r = rect ?? this.rectOfEl(el);
         if (x < r.left - 48 || x > r.left + r.width + 6 || y < r.top - 20 || y > r.top + r.height + 20) return;
         const d = (x < r.left ? r.left - x : x > r.left + r.width ? x - r.left - r.width : 0) + (y < r.top ? r.top - y : y > r.top + r.height ? y - r.top - r.height : 0);
-        if (d < bd){ bd = d; best = { k, fact, rect: r, edge: this.edgeOf(el), job: k === 'line' ? ix.highlight.get(fact) ?? null : null }; }
+        if (d < bd){ bd = d; best = { k, fact, rect: r, edge: el ? this.edgeOf(el) : r.left, job: k === 'line' ? ix.highlight.get(fact) ?? null : null }; }
       };
       for (const li of fr.doc.querySelectorAll('.entry .bullets li[data-variant]')){ const f = factOfVariant(ix, li.getAttribute('data-variant')); if (f) take('line', li, f); }
       for (const g of fr.doc.querySelectorAll('.skills__group')){ const f = factOfVariant(ix, (g.getAttribute('data-variant') ?? g.querySelector('[data-variant]')?.getAttribute('data-variant')) ?? ''); if (f) take('group', g, f); }
+      // a job's heading (its title and date line) and a section's heading give their block's grip
+      for (const e of fr.doc.querySelectorAll('.entry')){
+        const v = e.querySelector(':scope > .role-title')?.getAttribute('data-variant'), id = v && [...ix.work].find(([, w]) => w.display?.position === factOfVariant(ix, v))?.[0], r = id && this.jobHeadRect(e);
+        if (r) take('job', null, id, r);
+      }
+      for (const b of fr.doc.querySelectorAll('.band[data-section] .tab:not(.tab--cont)')) take('section', b, b.closest('.band').getAttribute('data-section'));
       const hd = fr.doc.querySelector('.band--header');
       if (!best && hd){ const r = this.rectOfEl(hd); if (x >= r.left && x <= r.left + r.width && y >= r.top && y <= r.top + r.height) best = { k: 'header', rect: r }; }
       return best;

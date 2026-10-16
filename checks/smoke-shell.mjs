@@ -5030,6 +5030,106 @@ if (want('ux6g: the photo switch and its settings are in About you')) {
   await ctx.close();
 }
 
+// ---- UX-6g stage b: moving and adding, shown before it is done ----
+// what the page's blocks look like now: the transform each carries and the order they are in
+const lifted = page => frameDoc(page, d => [...d.querySelectorAll('.rb-lift')].length);
+const moved = page => frameDoc(page, d => [...d.querySelectorAll('[style*="transform"]')].length);
+const tops = (page, sel) => frameDoc(page, (d, q) => [...d.querySelectorAll(q)].map(e => Math.round(e.getBoundingClientRect().top)), sel);
+const recordSig = page => page.evaluate(() => JSON.stringify(window.__wb.store.state.cur));
+
+if (want('ux6g b: grips say what they move')) {
+  const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await openByName(page, 'Medtech');
+  const fgrip = () => page.evaluate(() => { const g = document.querySelector('#handlay .obfgrip'); if (!g || g.hidden) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, k: g.dataset.k, name: g.getAttribute('aria-label'), tag: g.tagName, cursor: getComputedStyle(g).cursor, op: Number(getComputedStyle(g).opacity) }; });
+  const shade = () => page.evaluate(() => { const e = document.querySelector('#handlay .obshade'); if (!e || e.hidden) return null; const r = e.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; });
+  const head = await frameBox(page, '.entry .role-title', 1);
+  await page.mouse.move(head.x + 30, head.y + head.height / 2, { steps: 4 }); await settle(page);
+  let g = await fgrip();
+  ok('hovering a job’s heading (nothing selected) shows the job’s grip, a button named for what it moves', !!g && g.k === 'job' && g.tag === 'BUTTON' && /^Move this job within its section/.test(g.name) && g.cursor === 'grab', JSON.stringify(g));
+  ok('…the grip is light at rest: 16 px, faint', g.w <= 16 && g.op < 0.8, JSON.stringify(g));
+  const path = [];
+  for (let k = 1; k <= 14; k++){ await page.mouse.move(head.x + 30 + (g.x - head.x - 30) * k / 14, head.y + head.height / 2 + (g.y - head.y - head.height / 2) * k / 14); await page.waitForTimeout(25); path.push(!!(await fgrip())); }
+  ok('…the pointer moving from the heading to the grip never loses it (14 steps)', path.every(Boolean), path.join());
+  const sh = await shade(), entry = await frameBox(page, '.entry', 1);
+  ok('…and on the grip the whole job is shaded: its lines too', !!sh && sh.left <= entry.x + 1 && sh.top <= entry.y + 1 && sh.right >= entry.x + entry.width - 1 && sh.bottom >= entry.y + entry.height - 1, JSON.stringify([sh, entry]));
+  await page.mouse.move(4, 4); await page.waitForTimeout(500);
+  ok('…the shade goes with the pointer', !(await shade()));
+  const sec = await frameBox(page, '.band[data-section=education] .tab', 0);
+  await page.mouse.move(sec.x + 4, sec.y + 6, { steps: 4 }); await settle(page);
+  g = await fgrip();
+  ok('hovering a section’s heading shows the section’s grip', !!g && g.k === 'section' && /^Move this section/.test(g.name), JSON.stringify(g));
+  await page.mouse.move(g.x, g.y, { steps: 4 });
+  const sh2 = await shade(), band = await frameBox(page, '.band[data-section=education]', 0);
+  ok('…the section is shaded as a whole', !!sh2 && sh2.left <= band.x + 1 && sh2.bottom >= band.y + band.height - 1, JSON.stringify([sh2, band]));
+  // a line's grip: the same shade on the line
+  await page.mouse.move(4, 4); await page.waitForTimeout(500);
+  const l = await frameBox(page, '.entry:first-child .bullets li', 1);
+  await page.mouse.move(l.x + 60, l.y + 4, { steps: 3 }); await settle(page);
+  const lg = (await hands(page)).grip;
+  await page.mouse.move(lg.left + 8, lg.top + 8, { steps: 4 });
+  const sh3 = await shade();
+  ok('a line’s grip shades the line', !!sh3 && sh3.top <= l.y + 1 && sh3.bottom >= l.y + l.height - 1 && sh3.bottom < l.y + l.height + 40, JSON.stringify([sh3, l]));
+  ok('click-writes is unchanged: a click on a line’s text writes it', await (async () => { await page.mouse.click(l.x + 60, l.y + 4); await settle(page); return (await lineEl(page).count()) === 1; })());
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('ux6g b: a drag shows where the block will land')) for (const motion of [false, true]) {
+  const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await openByName(page, 'Medtech');
+  const w = motion ? 'with motion' : 'reduced motion';
+  const li = n => frameBox(page, '.entry:first-child .bullets li', n);
+  const a = await li(0), l2 = await li(2), t0 = await tops(page, '.entry:first-child .bullets li'), sig0 = await recordSig(page), u0 = await undoN(page);
+  await page.mouse.move(a.x + 60, a.y + 4, { steps: 3 }); await settle(page);
+  const gp = (await hands(page)).grip;
+  await page.mouse.move(gp.left + 8, gp.top + 8, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(gp.left + 40, l2.y + l2.height - 2, { steps: 8 }); await page.waitForTimeout(500);
+  const t1 = await tops(page, '.entry:first-child .bullets li');
+  ok(`${w}: while a line is dragged it is lifted and follows the pointer`, (await lifted(page)) === 1 && t1[0] > t0[0] + 20, JSON.stringify([t0, t1]));
+  ok(`${w}: …the lines it passes move up into its place, so the gap is where it will land`, t1[1] < t0[1] && t1[2] < t0[2] && Math.abs(t1[1] - t0[0]) < 3 && Math.abs(t1[3] - t0[3]) < 3, JSON.stringify([t0, t1]));
+  ok(`${w}: …the drop line is still there, and nothing was written: the same record, no undo step`, (await hands(page)).drop && (await recordSig(page)) === sig0 && (await undoN(page)) === u0);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  ok(`${w}: Esc cancels: every line is back exactly where it was, nothing lifted`, JSON.stringify(await tops(page, '.entry:first-child .bullets li')) === JSON.stringify(t0) && (await lifted(page)) === 0 && (await moved(page)) === 0);
+  await page.mouse.up(); await settle(page);
+  ok(`${w}: …and the release after it changes nothing: same record, no undo step, no line written`, (await recordSig(page)) === sig0 && (await undoN(page)) === u0 && (await lineEl(page).count()) === 0 && (await hands(page)).tip === '');
+  // dropped: the same result as ever, and nothing left over on the page
+  await page.mouse.move(a.x + 60, a.y + 4, { steps: 3 }); await settle(page);
+  const g2 = (await hands(page)).grip;
+  await page.mouse.move(g2.left + 8, g2.top + 8, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(g2.left + 40, l2.y + l2.height - 2, { steps: 8 }); await page.waitForTimeout(300);
+  await page.mouse.up(); await settle(page); await page.waitForTimeout(300);
+  ok(`${w}: dropped, the line moves (one undo step) and no transform or lift is left on the page`, (await undoN(page)) === u0 + 1 && (await moved(page)) === 0 && (await lifted(page)) === 0);
+  // refused: over another job the others stay, and on release the block snaps back with the reason
+  await page.keyboard.press('Control+z'); await settle(page);
+  const t2 = await tops(page, '.entry:first-child .bullets li'), other = await frameBox(page, '.entry:nth-child(3) .bullets li', 0);
+  await page.mouse.move(a.x + 60, a.y + 4, { steps: 3 }); await settle(page);
+  const g3 = (await hands(page)).grip;
+  await page.mouse.move(g3.left + 8, g3.top + 8, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(other.x + 40, other.y + 4, { steps: 8 }); await page.waitForTimeout(400);
+  ok(`${w}: over another job the others do not move and the reason shows`, /only within its job/.test((await hands(page)).tip) && (await lifted(page)) === 1 && JSON.stringify((await tops(page, '.entry:first-child .bullets li')).slice(1)) === JSON.stringify(t2.slice(1)));
+  await page.mouse.up(); await settle(page); await page.waitForTimeout(500);
+  ok(`${w}: …let go there it snaps back: nothing moved or lifted, the reason said again`, JSON.stringify(await tops(page, '.entry:first-child .bullets li')) === JSON.stringify(t2) && (await moved(page)) === 0 && /only within its job/.test(await page.textContent('#toast')));
+  // a job: lifted, the other jobs slide
+  await page.mouse.move(4, 4); await settle(page);
+  const jt0 = await tops(page, '.entry'), sigJ = await recordSig(page);
+  const hd = await frameBox(page, '.entry .role-title', 0);
+  await page.mouse.move(hd.x + 30, hd.y + 6, { steps: 4 }); await settle(page);
+  const fg = await page.evaluate(() => { const g = document.querySelector('#handlay .obfgrip'); const r = g.getBoundingClientRect(); return { x: r.left + 8, y: r.top + 8 }; });
+  await page.mouse.move(fg.x, fg.y, { steps: 4 }); await page.mouse.down();
+  const t3 = await frameBox(page, '.entry .role-title', 2);
+  await page.mouse.move(t3.x + 40, t3.y + t3.height + 30, { steps: 10 }); await page.waitForTimeout(500);
+  const jt1 = await tops(page, '.entry');
+  ok(`${w}: dragging a job lifts it and the jobs it passes slide up, the page below reflowing`, (await lifted(page)) === 1 && jt1[1] < jt0[1] && jt1[0] > jt0[0], JSON.stringify([jt0, jt1]));
+  await page.keyboard.press('Escape'); await page.mouse.up(); await settle(page); await page.waitForTimeout(500);
+  ok(`${w}: …Esc puts every job back and changes nothing`, JSON.stringify(await tops(page, '.entry')) === JSON.stringify(jt0) && (await recordSig(page)) === sigJ && (await moved(page)) === 0);
+  ok(`${w}: no console errors`, bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('file://')) {
   const ctx = await newContext();
   const page = await ctx.newPage();
