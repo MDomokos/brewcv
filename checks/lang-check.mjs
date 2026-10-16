@@ -139,6 +139,14 @@ section('ten languages');
   ok('unticking one hides it and deletes nothing', eq(L.langsInUse(m), ['en', 'de']) && m.variants.some(v => v.lang === 'hu'));
   let threw = false; try { L.setLangsInUse(m, []); } catch { threw = true; }
   ok('at least one stays', threw && eq(L.langsInUse(m), ['en', 'de']));
+  // removing a language (UX-6c-iv-b): refused while a resume, a sent copy or a version uses it, with the reason; allowed when nothing does
+  const r = clone(model); r.langs = ['en', 'hu', 'de'];
+  const state = { record: r, cur: { lang: 'en' }, openId: 'a', resumes: [{ id: 'a', lang: 'de' }, { id: 'b', lang: 'fr', snapshots: [{ recipe: { lang: 'de' } }] }] };
+  const why = x => { try { L.removeLang(clone(state), x); return null; } catch (e) { return e.key ?? e.message; } };
+  ok('removeLang refuses a language with a version, with the reason', why('hu') === 'ux6c.langStays' && L.langUse(state, 'hu') === 'ux6c.langUsedVersion');
+  ok('…and one a sent copy is in (the open resume\u2019s saved copy is read through `cur`, so its old language does not hold)', L.langUse(state, 'de') === 'ux6c.langUsedResume' && L.langUse({ ...state, resumes: [{ id: 'a', lang: 'de' }] }, 'de') === null);
+  ok('…and allows one nothing uses', (() => { const s2 = clone(state); s2.record.variants = s2.record.variants.filter(v => v.lang !== 'hu'); L.removeLang(s2, 'hu'); return eq(L.langsInUse(s2.record), ['en', 'de']); })());
+  ok('removableLangs lists every language but English, each with what holds it', eq(L.removableLangs(state).map(x => [x.lang, x.why]), [['hu', 'ux6c.langUsedVersion'], ['de', 'ux6c.langUsedResume']]));
   ok('the list is saved in the record and validates', S.save(m).meta.resumeBuilder.langs.join() === 'en,de' && validate(S.save(m), en).errors.length === 0);
 }
 

@@ -398,6 +398,39 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await ctx.close();
 }
 
+// ---- remove a language from the record when nothing uses it (fix 19) ----
+{
+  const { ctx, page } = await open(1470, 832);
+  const wait = () => page.waitForTimeout(700);
+  const langs = () => page.evaluate(async () => { const L = await import('/src/model/lang.js'); return L.langsInUse(window.__wb.store.state.record).join(); });
+  // the example has versions and a resume in every language: take Czech's away (and the list to English and German) so that it is a language nothing uses
+  await page.evaluate(() => window.__wb.store.commit(d => {
+    const keep = new Set(d.record.variants.filter(v => v.lang !== 'cs').map(v => v.id));
+    d.record.variants = d.record.variants.filter(v => keep.has(v.id));
+    for (const f of d.record.facts){ f.variants = f.variants.filter(id => keep.has(id)); if (f.default) delete f.default.cs; }
+    d.record.langs = ['en', 'de'];
+    d.resumes = d.resumes.filter(r => r.lang !== 'cs');
+  }, 'check: no Czech'));
+  const l0 = await langs();
+  const choose = async v => { await page.click('#docname-btn'); await wait(); await page.selectOption('#sw-lang', v); await wait(); };
+  await choose('+cs');
+  ok('(adding Czech puts it in the list and the resume in Czech)', (await langs()) === `${l0},cs` && (await page.evaluate(() => window.__wb.store.state.cur.lang)) === 'cs');
+  await page.click('#docname-btn'); await wait();
+  const used = await page.$$eval('#sw-lang optgroup[label="Remove a language"] option', os => os.map(o => ({ v: o.value, dis: o.disabled, t: o.textContent })));
+  ok('while the resume is in it, Czech is listed under "Remove a language" but held, with the reason', used.some(o => o.v === '-cs' && o.dis && /a resume is in it/.test(o.t)), JSON.stringify(used));
+  await page.selectOption('#sw-lang', 'en'); await wait();
+  await page.click('#docname-btn'); await wait();
+  const free = await page.$$eval('#sw-lang optgroup[label="Remove a language"] option', os => os.map(o => ({ v: o.value, dis: o.disabled })));
+  ok('once no resume uses it, Czech can be removed (a language with versions stays held)', free.some(o => o.v === '-cs' && !o.dis) && free.filter(o => o.v !== '-cs').every(o => o.dis), JSON.stringify(free));
+  await page.selectOption('#sw-lang', '-cs'); await wait();
+  ok('removing it takes it out of the list, with the Undo button on the toast', (await langs()) === l0 && !!(await page.$('#toast.on [data-act=toast-undo]')));
+  await page.click('#toast [data-act=toast-undo]'); await wait();
+  ok('…and Undo puts it back', (await langs()) === `${l0},cs`);
+  const refused = await page.evaluate(async () => { const L = await import('/src/model/lang.js'), s = structuredClone(window.__wb.store.state); try { L.removeLang(s, s.cur.lang ?? 'en'); return 'removed'; } catch (e) { return String(e.key ?? e.message); } });
+  ok('the model refuses a language that is in use (here the resume\u2019s own), with the reason', refused !== 'removed', refused);
+  await ctx.close();
+}
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} symmetry check(s) FAILED` : '\nall symmetry checks passed');
 process.exit(failed ? 1 : 0);

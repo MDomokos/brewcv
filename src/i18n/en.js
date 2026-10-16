@@ -1287,4 +1287,10 @@ export default {
   'ux6c.deleteSent': 'Delete this sent copy',
   'ux6c.undoDeleteSent': 'Delete a sent copy',
   'ux6c.sentDeleted': 'The sent copy is deleted. Ctrl+Z brings it back.',
+  'ux6c.removeLangHead': 'Remove a language',
+  'ux6c.langUsedResume': 'a resume is in it',
+  'ux6c.langUsedVersion': 'your record has texts in it',
+  'ux6c.langStays': '{lang} stays: {why}.',
+  'ux6c.undoRemoveLang': 'Remove {lang} from the languages',
+  'ux6c.langRemoved': '{lang} is no longer in your languages. Ctrl+Z brings it back.',
 };

@@ -8,7 +8,7 @@ import { icon } from './icons.js';
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // count(l): texts missing in l, or null to show nothing.
-export function langMenuHtml({ for: who, current, inUse, count = () => null, more = false, label = t('lang.menu') }){
+export function langMenuHtml({ for: who, current, inUse, count = () => null, more = false, label = t('lang.menu'), removable = [] }){
   const others = LANGS.filter(l => !inUse.includes(l));
   const row = l => {
     const n = count(l);
@@ -21,6 +21,7 @@ export function langMenuHtml({ for: who, current, inUse, count = () => null, mor
     ${others.length ? `<hr>${more
       ? `<div class="pop__sub">${h('lang.addHead')}</div>${others.map(l => `<button role="menuitem" data-act="lang-add" data-for="${who}" data-lang="${l}" lang="${l}"><span>+ ${esc(langName(l))}</span></button>`).join('')}`
       : `<button role="menuitem" data-act="lang-more" data-for="${who}"><span>${h('lang.add')}</span><small>${h('lang.more', { n: others.length })}</small></button>`}` : ''}
+    ${removable.length ? `<hr><div class="pop__sub">${h('ux6c.removeLangHead')}</div>${removable.map(({ lang: l, why }) => `<button role="menuitem" data-act="lang-remove" data-for="${who}" data-lang="${l}" lang="${l}" ${why ? 'aria-disabled="true"' : ''}><span>− ${esc(langName(l))}</span>${why ? `<small>${esc(t(why))}</small>` : ''}</button>`).join('')}` : ''}
   </div>`;
 }
 

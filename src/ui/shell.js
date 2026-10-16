@@ -32,7 +32,7 @@ import { initDesign } from './design.js';
 import { initOnboarding } from './onboarding.js';
 import { initCareer } from './career.js';
 import * as RS from '../model/resumes.js';
-import { switchLang, missingList, langName, langsInUse, addLangInUse } from '../model/lang.js';
+import { switchLang, missingList, langName, langsInUse, addLangInUse, removeLang, removableLangs } from '../model/lang.js';
 import { langMenuHtml, menuKey, focusMenu } from './langmenu.js';
 import { jobTypeLabel } from '../model/focus.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
@@ -618,7 +618,7 @@ function langButton(r){
   const open = ui.langMenu === 'resume';
   return `<span class="langs lang-menu"><button class="sm langbtn ${inUse.includes(L) ? '' : 'off'}" id="langbtn" data-act="lang-menu" aria-haspopup="menu" aria-expanded="${open}" aria-label="${esc(t('head.langGroup'))}: ${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}" ${ui.snap ? 'disabled' : ''} title="${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}">${esc(L.toUpperCase())} ${icon('caret', { size: 12 })}${n ? `<span class="badge">${n}</span>` : ''}</button>
     ${open ? langMenuHtml({ for: 'resume', current: L, inUse, more: ui.langMore, label: t('head.langGroup'),
-      count: l => (ui.langCounts?.[l] ?? null) }) : ''}</span>`;
+      count: l => (ui.langCounts?.[l] ?? null), removable: removableLangs(store.state) }) : ''}</span>`;
 }
 async function openLangMenu(){
   if (ui.langMenu === 'resume'){ ui.langMenu = null; renderHead(); return; }
@@ -641,12 +641,23 @@ async function useLanguage(to, { add = false } = {}){
   toast(t('toast.langNow', { lang: langName(to) }) + (n ? ' ' + t('toast.langMissing', { n, lang: langName(to) }) : ''));
 }
 
+// The inverse of adding a language: it leaves the list when no resume and no version uses it, and says why when one does
+function removeLanguage(l){
+  ui.langMenu = null;
+  switcher.close({ focusBack: true });
+  try {
+    store.commit(d => { removeLang(d, l); }, t('ux6c.undoRemoveLang', { lang: langName(l) }));
+    toast(t('ux6c.langRemoved', { lang: langName(l) }), '', true);
+  } catch (e){ toast(errText(e), 'warn'); }
+  renderHead();
+}
+
 // The name window's language: the languages in use (with how many texts each lacks), then the others to add. Chosen from a list, as a
 // phone's button opens a menu.
 const langNote = l => { const n = ui.langCounts?.[l]; return n == null ? '' : ` · ${n ? t('lang.toWrite', { n }) : t('lang.complete')}`; };
 function langSelect(){
-  const L = cur()?.lang ?? 'en', inUse = langsInUse(record()), used = inUse.includes(L) ? inUse : [...inUse, L], others = LANGS.filter(l => !used.includes(l));
-  return `<select id="sw-lang" class="sw-q" ${ui.snap ? 'disabled' : ''}>${used.map(l => `<option value="${l}" lang="${l}" ${l === L ? 'selected' : ''}>${esc(langName(l) + langNote(l))}</option>`).join('')}${others.length ? `<optgroup label="${esc(t('lang.add'))}">${others.map(l => `<option value="+${l}" lang="${l}">+ ${esc(langName(l))}</option>`).join('')}</optgroup>` : ''}</select>`;
+  const L = cur()?.lang ?? 'en', inUse = langsInUse(record()), used = inUse.includes(L) ? inUse : [...inUse, L], others = LANGS.filter(l => !used.includes(l)), gone = removableLangs(store.state);
+  return `<select id="sw-lang" class="sw-q" ${ui.snap ? 'disabled' : ''}>${used.map(l => `<option value="${l}" lang="${l}" ${l === L ? 'selected' : ''}>${esc(langName(l) + langNote(l))}</option>`).join('')}${others.length ? `<optgroup label="${esc(t('lang.add'))}">${others.map(l => `<option value="+${l}" lang="${l}">+ ${esc(langName(l))}</option>`).join('')}</optgroup>` : ''}${gone.length ? `<optgroup label="${esc(t('ux6c.removeLangHead'))}">${gone.map(({ lang: l, why }) => `<option value="-${l}" lang="${l}" ${why ? 'disabled' : ''}>− ${esc(langName(l))}${why ? ` · ${esc(t(why))}` : ''}</option>`).join('')}</optgroup>` : ''}</select>`;
 }
 async function loadLangCounts(){
   const inUse = langsInUse(record());
@@ -856,6 +867,7 @@ async function onClick(e){
     case 'lang-more': ui.langMore = true; renderHead(); focusMenu('.langpop [data-act=lang-add]'); break;
     case 'lang': if ((tg.dataset.for ?? 'resume') === 'resume') useLanguage(tg.dataset.lang); break;
     case 'lang-add': if ((tg.dataset.for ?? 'resume') === 'resume') useLanguage(tg.dataset.lang, { add: true }); break;
+    case 'lang-remove': if ((tg.dataset.for ?? 'resume') === 'resume') removeLanguage(tg.dataset.lang); break;
     case 'select-bullet': {
       const job = ui.ix.highlight.get(id);
       select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' });
@@ -1251,7 +1263,7 @@ const resumes = initResumes({
 const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, resumes,
   endPreview: () => endPreview(),
   langSelect, opened: loadLangCounts,
-  chooseLang: v => { const add = v.startsWith('+'); useLanguage(add ? v.slice(1) : v, { add }); },
+  chooseLang: v => { if (v.startsWith('-')) removeLanguage(v.slice(1)); else { const add = v.startsWith('+'); useLanguage(add ? v.slice(1) : v, { add }); } },
   choosePaper: v => design.act('d-paper', { dataset: { f: v === 'us-letter' ? 'us-letter' : 'a4' } }),
   relayout: () => syncFull(),
   closeMenus: () => { if (ui.menu || ui.langMenu){ ui.menu = false; ui.langMenu = null; renderHead(); } },

@@ -166,3 +166,19 @@ export function addLangInUse(model, lang){
 export function removeLangInUse(model, lang){
   return setLangsInUse(model, langsInUse(model).filter(l => l !== lang));
 }
+// What keeps a language in the record: a resume (or a sent copy of one) that prints in it, or a version written in it. The key of the
+// reason, or null when nothing does.
+export function langUse(state, lang){
+  // the open resume is `cur` (its saved copy may still be in the language it was before the last change)
+  const rs = [state.cur, ...(state.resumes ?? []).filter(r => r.id !== state.openId), ...(state.resumes ?? []).flatMap(r => (r.snapshots ?? []).map(x => x.recipe))];
+  if (rs.some(r => r && ((r.lang ?? DEFAULT_LANG) === lang || r.byLang?.[lang]))) return 'ux6c.langUsedResume';
+  return (state.record?.variants ?? []).some(v => (v.lang ?? DEFAULT_LANG) === lang) ? 'ux6c.langUsedVersion' : null;
+}
+// The inverse of adding a language: refused, with the reason, while a resume or a version uses it (`state`: record, cur, resumes)
+export function removeLang(state, lang){
+  const why = langUse(state, lang);
+  if (why) throw keyed('ux6c.langStays', { lang: langName(lang), why: t(why) });
+  return removeLangInUse(state.record, lang);
+}
+// the languages of the list besides English, each with what keeps it ([{ lang, why }]; why null: it can go)
+export const removableLangs = state => langsInUse(state.record).filter(l => l !== DEFAULT_LANG).map(lang => ({ lang, why: langUse(state, lang) }));
