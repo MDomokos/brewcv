@@ -807,13 +807,14 @@ function renderBody(animate = false){
   const there = SCREENS.includes(ui.view) && !ui.layout?.phone, scr = $('#scr');
   document.body.classList.toggle('has-scr', there);
   scr.hidden = !there;
-  if (there){ $('#body').innerHTML = ''; $('#body').dataset.view = $('#body').dataset.mode = 'inspector'; el = scr; layoutScreen(); }
+  if (there){ $('#body').dataset.view = $('#body').dataset.mode = 'inspector'; el = scr; layoutScreen(); }
   else if (scr.innerHTML) scr.innerHTML = '';
   const s = ui.sel;
-  const keep = el.scrollTop;
+  const keep = el.scrollTop, keepSide = there ? $('#body').scrollTop : 0;
   // a record form with something typed in it is not redrawn under the caret; one you have left or not changed is, and the focus stays where it was
-  const ae = document.activeElement;
-  const typing = !animate && el.contains(ae) && ae.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea') && !!ae.closest('[data-form]');
+  // (a place's inspector is in the sidebar's body: the focus may be there)
+  const ae = document.activeElement, fh = there && $('#body').contains(ae) ? $('#body') : el;
+  const typing = !animate && fh.contains(ae) && ae.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea') && !!ae.closest('[data-form]');
   if (typing && ae.value !== ae.defaultValue) return;
   const had = typing && ae.id ? { id: ae.id, start: ae.selectionStart, end: ae.selectionEnd } : null;
   // a tick or a switch redraws the panel; the control that had the focus keeps it: found by what it is, else by its place
@@ -826,15 +827,16 @@ function renderBody(animate = false){
     if (d.act) return `[data-act="${q(d.act)}"]${d.id ? `[data-id="${q(d.id)}"]` : ''}${d.g ? `[data-g="${q(d.g)}"]` : ''}${d.v ? `[data-v="${q(d.v)}"]` : ''}${d.sel ? `[data-sel="${q(d.sel)}"]` : ''}`;
     return null;
   };
-  const tabs0 = !animate && !had && ae && ae !== el && el.contains(ae) ? [...el.querySelectorAll(FOCUSABLE)] : null;
+  const tabs0 = !animate && !had && ae && ae !== fh && fh.contains(ae) ? [...fh.querySelectorAll(FOCUSABLE)] : null;
   const at0 = tabs0 ? tabs0.indexOf(ae) : -1, key0 = tabs0 ? keyOf(ae) : null;
   if (ui.snap && !ui.view && !snapNow()) ui.snap = null;
   const finish = () => {
     if (animate){ el.classList.remove('anim-in'); void el.offsetWidth; el.classList.add('anim-in'); el.scrollTop = 0; } else el.scrollTop = keep;
+    if (there) $('#body').scrollTop = animate ? 0 : keepSide;
     if (had){ const n = document.getElementById(had.id); if (n && n !== document.activeElement){ n.focus(); try { n.setSelectionRange(had.start, had.end); } catch { /* not a text box */ } } }
     else if (at0 >= 0){
-      const now = [...el.querySelectorAll(FOCUSABLE)];
-      const to = (key0 && el.querySelector(key0)) || (now.length === tabs0.length ? now[at0] : null);
+      const now = [...fh.querySelectorAll(FOCUSABLE)];
+      const to = (key0 && fh.querySelector(key0)) || (now.length === tabs0.length ? now[at0] : null);
       if (to && to !== document.activeElement) to.focus({ preventScroll: true });
     }
   };
@@ -850,9 +852,10 @@ function renderBody(animate = false){
     el.innerHTML = VIEWS[ui.view]();
     el.dataset.view = ui.view;
     el.dataset.mode = ui.view;
-    finish();
     if (ui.view === 'record') recordTab.afterRender();
     screens.after[ui.view]?.();
+    finish();
+    if (ui.view === 'record') recordTab.refocus();
     if (ui.view === 'export' && !ui.layout?.phone) el.insertAdjacentHTML('afterbegin', `<div class="exfit"><span class="fitslot">${dock.fitHtml()}</span>${dock.barsHtml()}</div>`);      // Fit and the page fill live in Export, once
     return;
   }
@@ -1416,7 +1419,7 @@ window.__wb.career = career;
 const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, sectionTitle, lineBox: id => { const r = ui.ix && sheet.rectOf(id, ui.ix); return r ? canvas.screenRect(r) : null; }, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
 checklist.bind($('#body'));
 window.__wb.checklist = checklist;
-const recordTab = initRecord({ ui, checklist, work, cur, lang, renderBody: () => renderBody(), setMode: m => dock.setMode(m) });
+const recordTab = initRecord({ ui, checklist, career, work, cur, lang, openName: () => resumeName(RS.savedOf(store.state, store.state.openId)), renderBody: () => renderBody(), setMode: m => dock.setMode(m) });
 window.__wb.record = recordTab;
 const help = initHelp({ ui });
 window.__wb.help = help;

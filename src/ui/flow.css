@@ -176,3 +176,20 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .cmpcells { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; margin: 0; font-size: 12.5px; }
 .cmpcells dt { color: var(--ink-soft); }
 .cmpcells dd { margin: 0 0 8px; font-weight: 600; overflow-wrap: anywhere; }
+
+/* ---- Career: profile cards on top, the timeline under them (newest first), the selected entry in the inspector with its lines to tick ---- */
+.scr .checklist { display: block; height: auto; margin: 0; padding: 0; border: 0; box-shadow: none; }
+.scr .checklist > :is(.clcols, .archmore, .clg) { display: none; }
+.scr .tbar .grow { display: none; }
+.scr .tbar .clall { font-size: 12px; color: var(--ink-soft); }
+.scr .checklist .rectl { max-width: 980px; margin: 0 auto; border: 0; padding: 0; overflow: visible; }
+.scr .checklist .recmore { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 0; border: 0; }
+.scr .checklist .recmore .srow { display: inline-flex; width: auto; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper); font-weight: 650; box-shadow: var(--shadow-chip); }
+.scr .checklist .rectl :is(.row, .srow) { background: var(--paper); }
+.scr .checklist .rectl .is-sel { box-shadow: 0 0 0 3px var(--accent) !important; border-color: transparent !important; }
+.insp-rec .scope { margin: 0; padding: 6px 8px; border-radius: var(--r-s); font-size: 12px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.insp-rec .insp-open { justify-self: start; }
+/* the entry's own heading is the inspector's title, not drawn twice (its order mark and Unarchive stay) */
+.insp-rec .clg { display: block !important; border: 0; padding: 0; margin: 0; }
+.insp-rec .clg > .clgh :is(.clcaret, .clname, .clcount) { display: none; }
+.insp-rec .clrow.qhit { background: var(--mark-soft); border-radius: var(--r-xs); }

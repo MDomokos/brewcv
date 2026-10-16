@@ -1417,4 +1417,11 @@ export default {
   'ux6h.openX': 'Open {name}',
   'ux6h.prev': 'Previous',
   'ux6h.next': 'Next difference',
+  'ux6h.searchCareer': 'Search entries and lines',
+  'ux6h.career': 'Your career',
+  'ux6h.entry': 'Entry',
+  'ux6h.openInEditor': 'Open in the editor',
+  'ux6h.scopeAll': 'A change to these facts or to a line\'s words reaches every resume that prints it.',
+  'ux6h.scopeTick': 'Ticks put lines on {name}, the open resume.',
+  'ux6h.recPick': 'Pick an entry on the timeline, or a card on top, to see and edit it. Ticks put its lines on {name}.',
 };

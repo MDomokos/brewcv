@@ -130,7 +130,7 @@ export function addMenuHtml(){
     ${canKind ? `<hr><button role="menuitem" data-act="c-kind-new"><span class="ai">+</span><span><b>${h('career.somethingElse')}</b><small>${h('career.somethingElseTl')}</small></span></button>` : ''}</div>`;
 }
 
-// ---- the timeline, at the top of the Record tab: a click scrolls the list below to that job ----
+// ---- the timeline, newest first: a click opens that entry in Career's inspector ----
 export function timelineHtml(){ return timelineCols(); }
 function timelineCols(){
   const all = K.timelineLayout(rec(), { lang: L() });
@@ -147,7 +147,7 @@ function timelineCols(){
       <span class="si">${icon(look(x.kind).icon)}</span><span class="t ${x.titleMissing ? 'missing' : ''}">${esc(x.title)}</span><span class="w">${esc(years(x))}</span>
       <span class="o"><span class="kw">${esc(kindLabel(x.kind))}</span>${x.org ? ` · ${esc(x.org)}` : ''}${x.during ? ` · ${h('career.during', { org: duringName(x.during) })}` : ''}${mark(x) ? ` · <span class="mkt">${h('career.toWrite', { n: mark(x) })}</span>` : ''}</span></button>`;
   let rows = `<div class="colhead"><span ${kc('work')}>${icon('work')} ${h('career.colMain')}</span><span>${h('career.colSide')}</span></div>`;
-  for (const b of document.body.dataset.phone === 'true' ? bands : [...bands].reverse()) rows += `<div class="yr">${esc(b.year ?? t('career.nowBand'))}</div><div class="yrow"><div class="main">${b.main.map(main).join('')}</div><div class="side">${b.side.map(side).join('')}</div></div>`;
+  for (const b of bands) rows += `<div class="yr">${esc(b.year ?? t('career.nowBand'))}</div><div class="yrow"><div class="main">${b.main.map(main).join('')}</div><div class="side">${b.side.map(side).join('')}</div></div>`;
   return `<div class="tl2">${rows}</div>${archBtn}`;
 }
 const duringName = id => { const m = rec(); return m.work?.find(w => w.id === id)?.name ?? m.education?.find(e => e.id === id)?.institution ?? id; };
