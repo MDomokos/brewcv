@@ -1262,6 +1262,7 @@ export default {
   'ux6c.grip.item': 'Move this item within its section',
   'ux6c.layoutLocked': 'This resume has a hand-made layout and a lock. Unlock first: this change would reset the layout.',
   'ux6c.restoreLocked': 'Unlock before restoring.',
+  'ux6c.fitAway': 'Fit works on the page: go back to the resume',
   'ux6c.lockedDeleteAsk': 'This resume has locked content. Delete it anyway?',
   'ux6c.lockedOnAsk': 'Delete this from your record?\n\nLocked on: {names}. A lock does not keep it in the record.',
   'ux6c.refused.job': 'A job moves within its own section.',

@@ -516,6 +516,32 @@ await run('remove a language from the record when nothing uses it (fix 19)', asy
   await ctx.close();
 });
 
+// ---- Fit waits while a screen is open (UX-6c-iv-b follow-up) ----
+for (const [name, w, h, phone] of [['the name card', 1470, 832, false], ['the phone’s foot', 390, 844, true]]) await run(`Fit is held while a screen is open: ${name}`, async () => {
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, ...(phone ? { hasTouch: true, isMobile: true } : {}) });
+  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  const page = await ctx.newPage();
+  page.setDefaultTimeout(8000);
+  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const wait = () => page.waitForTimeout(700);
+  const sel = phone ? '#foot .fit' : '#head .fit';
+  const fit = () => page.$eval(sel, b => ({ dis: b.getAttribute('aria-disabled'), desc: b.getAttribute('aria-description') ?? '' }));
+  const undo = () => page.evaluate(() => window.__wb.store.history.undo);
+  const f0 = await fit();
+  ok(`${name}: Fit is not held on the page`, f0.dis === null, JSON.stringify(f0));
+  await page.click('#docname-btn'); await wait();
+  await page.click('#switcher [data-act=sw-manage]'); await wait();
+  const f1 = await fit(), u1 = await undo();
+  ok(`${name}: with the Resumes screen open Fit is aria-disabled and says why`, f1.dis === 'true' && /go back to the resume/.test(f1.desc), JSON.stringify(f1));
+  await page.$eval(sel, b => b.click()); await wait();
+  ok(`${name}: …and pressing it changes nothing`, (await undo()) === u1 && !(await page.evaluate(() => window.__wb.ui.fitting)));
+  await page.click('#resumes [data-act=scr-back]'); await wait();
+  ok(`${name}: back on the resume Fit is held no more`, (await fit()).dis === null);
+  await ctx.close();
+});
+
 // ---- on a phone: the depth row carries the tools, the name window and the language menu the deletes ----
 await run('on a phone: the depth row carries the tools, the name window and the language menu the deletes', async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });

@@ -166,7 +166,11 @@ function tween(draw){
 }
 
 // ---- Fit (the name card's, and the phone's foot); the page bars (the rail's, beside undo and redo; a phone's foot has the cups); the zoom bar over the page ----
-const fitBtn = (u, limit, needed) => `<button class="fit sm${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''} title="${esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
+const fitBtn = (u, limit, needed) => {
+  const away = ['record', 'resumes', 'compare'].includes(u.view);      // a screen covers the page Fit would work on: held, with the reason
+  const why = esc(t('ux6c.fitAway'));
+  return `<button class="fit sm${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''}${away ? ` aria-disabled="true" aria-description="${why}"` : ''} title="${away ? why : esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
+};
 const STATE_WORD = { under: 'ux6b.fillUnder', ok: 'ux6b.fillIn', over: 'ux6b.fillOver', overflow: 'ux6b.fillOver' };
 // A desktop draws at most this many bars; more pages end in a "+n" that goes to the first page not drawn.
 const MAX_BARS = 3;

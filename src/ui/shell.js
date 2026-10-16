@@ -896,7 +896,7 @@ async function onClick(e){
     case 'toast-undo': if (store.history.undo === toastAt) store.undo(); else dropToastUndo(); break;
     case 'undo': stepHistory('undo'); break;
     case 'redo': stepHistory('redo'); break;
-    case 'fit': runFit(); break;
+    case 'fit': if (!fullWindow()) runFit(); break;
     case 'actual': openActual(); break;
     case 'fullscreen': toggleFullscreen(); break;
     case 'open': ui.menu = false; pickFile(); break;
