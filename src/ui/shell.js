@@ -56,7 +56,7 @@ const backend = params.has('memory') ? memoryBackend() : idbBackend();   // ?mem
 const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle });      // autosave of the open resume rides on every commit
 // A change the lock refuses, from any path, says why and changes nothing: it never surfaces as an uncaught error.
 const rawCommit = store.commit;
-store.commit = (fn, label) => { try { return rawCommit(fn, label); } catch (e){ if (!(e instanceof LockedError)) throw e; hint(e.message); return false; } };
+store.commit = (fn, label, merge) => { try { return rawCommit(fn, label, merge); } catch (e){ if (!(e instanceof LockedError)) throw e; hint(e.message); return false; } };
 const persist = createPersist({ store, backend });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },

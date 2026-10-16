@@ -2970,7 +2970,6 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.click('#checklist .clg[data-g=hydra] .clcaret'); await settle(page);
 
     // ---- ticking in Record changes the open resume, with the page in view ----
-    await page.waitForTimeout(900);       // the store merges two same-named steps less than 800 ms apart (typing): the ticks above must not merge with this one, whatever the motion
     const n0 = await onPageCount(page);
     const off = page.locator('#checklist .clg[data-g=hydra] .clrow.is-off .cb[data-on]').first();
     if (await off.count()){
@@ -2978,6 +2977,17 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
       ok(`${tag}: ticking a line in Record puts it on the page (${n0} → ${await onPageCount(page)}), and the panel is still Record`, (await onPageCount(page)) === n0 + 1 && (await page.evaluate(() => window.__wb.ui.view)) === 'record');
       await page.keyboard.press('Control+z'); await settle(page);
       ok(`${tag}: …as one undo step`, (await onPageCount(page)) === n0);
+      // three different lines ticked on about 100 ms apart are three undo steps: one Ctrl+Z takes back only the last
+      const u0 = await page.evaluate(() => window.__wb.store.history.undo);
+      for (let i = 0; i < 3; i++){ await page.locator('#checklist .clrow.is-off .cb[data-on]').first().check(); await page.waitForTimeout(100); }
+      await settle(page);
+      ok(`${tag}: three lines ticked within a second are three undo steps`, (await page.evaluate(() => window.__wb.store.history.undo)) === u0 + 3 && (await onPageCount(page)) === n0 + 3, `${await page.evaluate(() => window.__wb.store.history.undo)} vs ${u0}`);
+      await page.keyboard.press('Control+z'); await settle(page);
+      ok(`${tag}: one Ctrl+Z takes back only the last of them`, (await onPageCount(page)) === n0 + 2 && (await page.evaluate(() => window.__wb.store.history.undo)) === u0 + 2);
+      await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z'); await settle(page);
+      // typing in one text (one merge key) is still one step
+      const typed = await page.evaluate(() => { const st = window.__wb.store, u = st.history.undo; for (const ch of 'abc') st.commit(d => { d.record.basics.label = (d.record.basics.label ?? '') + ch; }, 'Type test', 'type-test'); const n = st.history.undo - u; st.undo(); return n; });
+      ok(`${tag}: typing a sentence in one text is still one undo step`, typed === 1, String(typed));
     } else ok(`${tag}: hydra has a line that is off, to tick`, false);
 
     // ---- Esc goes back, and the sidebar narrows ----

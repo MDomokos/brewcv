@@ -100,8 +100,8 @@ function designView(){
         <p class="note" data-tip="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" aria-description="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" tabindex="0">${h('ux6b.photoHint')}${r.photo?.show && !a4 ? ' ' + h('design.letterPhoto') : ''}</p></div></div>`;
 }
 
-function commit(fn, label, done, undo = false){
-  try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done, '', undo); return ok; }
+function commit(fn, label, done, undo = false, merge = null){
+  try { const ok = C.store.commit(d => { fn(d); }, label, merge); if (ok && done) C.toast(done, '', undo); return ok; }
   catch (e){ C.toast(errText(e), 'bad'); return false; }
 }
 
@@ -197,7 +197,7 @@ function bind(body){
   body.addEventListener('change', e => {
     const el = e.target;
     if (el.id === 'd-photo-on'){ const on = el.checked; commit(d => setResumePhoto(d.record, d.cur, { show: on }), on ? t('undo.showPhoto') : t('undo.hidePhoto')); }
-    if (el.id === 'd-color'){ const c = el.value; if (/^#[0-9a-f]{6}$/i.test(c)) commit(d => { d.cur.accent = c.toLowerCase(); }, t('design.accent')); }
+    if (el.id === 'd-color'){ const c = el.value; if (/^#[0-9a-f]{6}$/i.test(c)) commit(d => { d.cur.accent = c.toLowerCase(); }, t('design.accent'), null, false, 'accent'); }
   });
 }
 

@@ -78,13 +78,22 @@ section('store: 200 steps, coalescing, byte cap');
   ok('the stack stops at 200 steps', s.history.undo === 200, `${s.history.undo}`);
 
   const t = createStore(fresh(), { now: t0 => c.now() });
-  for (const ch of 'typing a sentence'){ t.commit(d => { d.record.basics.label += ch; }, 'Type label'); c.advance(100); }
+  for (const ch of 'typing a sentence'){ t.commit(d => { d.record.basics.label += ch; }, 'Type label', 'label'); c.advance(100); }
   ok('typing in bursts under 800 ms is one step', t.history.undo === 1, `${t.history.undo}`);
   c.advance(900);
-  t.commit(d => { d.record.basics.label += '!'; }, 'Type label');
+  t.commit(d => { d.record.basics.label += '!'; }, 'Type label', 'label');
   ok('a pause over 800 ms starts a new step', t.history.undo === 2);
   t.undo(); t.undo();
   ok('undoing the burst restores the text before it', t.state.record.basics.label === record.basics.label);
+
+  const m = createStore(fresh(), { now: c.now });
+  for (const k of ['a', 'b', 'c']){ m.commit(d => { d.record.basics[k] = 'on'; }, 'Turn on'); c.advance(100); }
+  ok('rapid commits with one label and no merge key are separate steps', m.history.undo === 3, `${m.history.undo}`);
+  m.undo();
+  ok('undo takes back only the last of them', m.state.record.basics.b === 'on' && m.state.record.basics.c === undefined);
+  const n = createStore(fresh(), { now: c.now });
+  for (const k of ['a', 'b']){ n.commit(d => { d.record.basics[k] = 'on'; }, 'Move', k); c.advance(100); }
+  ok('rapid commits on different merge keys are separate steps', n.history.undo === 2, `${n.history.undo}`);
 
   const u = createStore(fresh(), { now: c.now, maxBytes: 3 * JSON.stringify(fresh()).length * 2 });
   for (let i = 0; i < 10; i++){ u.commit(d => { d.record.basics.label = `B${i}`; }, `B${i}`); c.advance(10); }

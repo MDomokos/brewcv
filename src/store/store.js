@@ -1,6 +1,6 @@
 // One state object: every change goes through commit() and is undoable.
-// Undo keeps whole-state snapshots. Commits with the same label within 800 ms
-// coalesce, so typing a sentence is one step.
+// Undo keeps whole-state snapshots. Commits with the same label and the same merge
+// key (one continuous edit of one thing) within 800 ms coalesce, so typing a sentence is one step; any other commit is its own step.
 // data:image/ strings over 1 KB become "asset:<id>" refs kept outside the snapshots
 // (a ~60 KB photo over 200 steps would be 12 MB). materialize() puts them back.
 
@@ -74,16 +74,17 @@ export function createStore(initial = {}, opts = {}){
   const store = {
     get state(){ return state; },
 
-    // fn(draft) mutates a deep copy. Returns true if anything changed.
-    commit(fn, label = 'Edit'){
+    // fn(draft) mutates a deep copy. Returns true if anything changed. `merge`: a key for one continuous edit of one thing (typing in a text);
+    // only commits with the same label and key inside the window are one undo step. Without it every commit is its own step.
+    commit(fn, label = 'Edit', merge = null){
       const draft = JSON.parse(last.json);
       const ret = fn(draft);
       const out = ret !== undefined && ret !== draft && typeof ret === 'object' ? ret : draft;
       settle?.(out);
       const next = internalize(out, assets);
-      const s = snap(next, label);
+      const s = snap(next, label); s.merge = merge;
       if (s.json === last.json) return false;
-      const coalesce = label === last.label && s.at - last.at < coalesceMs && !redoS.length && undoS.length > 0 && last.label !== 'open';
+      const coalesce = merge != null && merge === last.merge && label === last.label && s.at - last.at < coalesceMs && !redoS.length && undoS.length > 0 && last.label !== 'open';
       if (!coalesce){ undoS.push(last); undoBytes += last.bytes; }
       redoS = [];
       setLast(s);
