@@ -259,8 +259,8 @@ await run('an Undo button on the toast of a delete (UX-6c-iv-b stage 2, fix 18)'
   const nEdu = () => page.evaluate(() => window.__wb.store.state.record.projects.length);
   const e0 = await nEdu();
   await page.click('#ptabs [data-p=career]'); await wait();
-  await page.click('#checklist .clg[data-g=chassis-jig] .jobname'); await wait();
-  await page.evaluate(() => document.querySelector('#body [data-act=c-del-entry]').click()); await wait();      // (it is inside the job's Details fold)
+  await page.click('#scr .rectl [data-grp=chassis-jig]'); await wait();      // the entry opens in Career's inspector
+  await page.evaluate(() => document.querySelector('#body [data-act=c-del-entry]').click()); await wait();      // (it is inside the entry's Details fold)
   ok('a deleted entry\u2019s toast has an Undo button, and it brings the entry back', (await nEdu()) === e0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nEdu()) === e0));
   await ctx.close();
 });
@@ -426,7 +426,7 @@ await run('delete a sent copy from its own view (fix 17)', async () => {
   ok('(a sent copy exists)', (await state()).snaps === 1);
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
-  await page.click('.rsent .snapline'); await wait();
+  await page.click('#body .oi-sent .snapline'); await wait();
   const btns = await page.$$eval('.snapacts button', bs => bs.map(b => b.dataset.act));
   ok('a sent copy\u2019s view has "Delete this sent copy" beside Restore and Duplicate (and still no way to edit it)', btns.join() === 'goto,snap-restore,snap-dup,snap-delete', btns.join());
   await page.click('[data-act=snap-delete]'); await wait();
@@ -437,7 +437,7 @@ await run('delete a sent copy from its own view (fix 17)', async () => {
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.pageLimit = 3; }, 'check: page limit')); await wait();
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
-  await page.click('.rsent .snapline'); await wait();
+  await page.click('#body .oi-sent .snapline'); await wait();
   await page.click('[data-act=snap-restore]'); await wait();
   const lim = () => page.evaluate(() => window.__wb.store.state.cur.pageLimit ?? 1);
   ok('Restore as current prints as the sent copy did, with the Undo button on the toast', (await lim()) !== 3 && !!(await page.$('#toast.on [data-act=toast-undo]')));
@@ -459,7 +459,7 @@ await run('deleting a locked resume or a sent copy asks first', async () => {
   // the sent copy
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
-  await page.click('.rsent .snapline'); await wait();
+  await page.click('#body .oi-sent .snapline'); await wait();
   await page.click('[data-act=snap-delete]'); await wait();
   ok('a locked resume’s sent copy asks before it is deleted, naming the locked content', asked.length === 1 && /locked content/.test(asked[0]), asked.join('|'));
   ok('…and No leaves the sent copy', (await state()).snaps === 1);

@@ -141,6 +141,7 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   await page.keyboard.press('w'); await settle(page);
   ok('the Library keeps its search, its ticks and its selection when you leave and come back', await page.inputValue('#scr-q') === 'Medtech' && (await page.$$('#scr .rtick:checked')).length === 1 && await page.evaluate(() => document.querySelector('#scr .rcard.sel')?.dataset.rid) === rid && ids.length > 2);
   await page.fill('#scr-q', ''); await page.dispatchEvent('#scr-q', 'input'); await page.evaluate(() => document.activeElement.blur());
+  await page.setViewportSize({ width: 1470, height: 520 });      // short enough for the timeline to scroll
   await page.keyboard.press('r'); await settle(page);
   await page.evaluate(() => { document.querySelector('#scr').scrollTop = 300; }); await settle(page);
   const top0 = await page.evaluate(() => document.querySelector('#scr').scrollTop);
@@ -148,6 +149,7 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   await page.keyboard.press('r'); await settle(page);
   const top1 = await page.evaluate(() => document.querySelector('#scr').scrollTop);
   ok('Career keeps its scroll', top0 > 100 && Math.abs(top1 - top0) < 2, `${top0} then ${top1}`);
+  await page.setViewportSize({ width: 1470, height: 832 });
   await ctx.close();
 }
 

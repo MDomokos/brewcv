@@ -68,16 +68,24 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            card grows down over the editor card with the rename field, where the resume was copied from,
                            Duplicate, Career, New resume, the language and paper, the search, the recent resumes and Manage all. The Outline's open sections are containers (a header row with an accent bar, their rows inside
                            under a rule); a row's count reads n/m, and its padlock and tick are at its right end, as on the page chip. Save to file is in the Export
-                           panel (and Ctrl+S). The Library, Compare and Career are drawn in `#scr`, left of the sidebar (the page is not drawn behind them and the sidebar's body is empty
-                           until the inspector arrives); a phone shows them as the whole screen, with a back button, as Record always was. Every radius and shadow of
+                           panel (and Ctrl+S). The Library, Compare and Career are drawn in `#scr`, left of the sidebar, on the drink's ground (the mat in Tea, the plain ground in Coffee)
+                           with a toolbar that floats at the top (the page is not drawn behind them); the sidebar's body is their inspector (the selected resume, the row in
+                           focus in Compare, the selected Career entry), the same card in the same place as the editor's panel; a phone shows them as the whole screen, with
+                           a back button, as Record always was, and its cards keep their actions and sent copies (it has no inspector). Every radius and shadow of
                            flow.css is a token, so Coffee draws it square and flat),
                            dock (the page bars and Fit, the phone's foot, the zoom bar over the page with Actual size, hover hints that show on keyboard focus too, the rail's keys), checklist (the record's groups, drawn by record.js and, at the job
-                           level, beside the job), record (Career: the way in and the way round; a job's name opens the job),
-                           screens (Resumes: a card for each resume and each sent copy with a picture of its first page, ticks to compare any
-                           number, "Under <parent>" or "Closest: <name> (a guess)", What differs; Compare: a table with a column for each; the
-                           model is compareMany and differences in model/resumes.js), thumbs (the pictures: one hidden sheet lays each resume
-                           out in turn and its first page is kept, by what the resume prints and the record it was drawn from, as the text of a
-                           small frame, so a redraw costs a frame; the screen is drawn first and the pictures arrive), and Duplicate opens the
+                           level, beside the job), record (Career: profile cards on top, the vertical timeline under them, newest first, the selected entry moved into the inspector with its Details folded and its lines to tick, both scopes named; search finds entries and lines; a click on the timeline, the page's job chip and Edit's "n of m on" links arrive here),
+                           screens (the Library: a card for each resume, the information beside the picture, Open now and Sent N times, a tick for Compare,
+                           as many to a row as hold 260px, newest first; a click selects and a second click opens; the inspector is the selected resume's
+                           first page across the panel with its name on a card over the foot, Use for a new job (the company is required, what was typed is kept
+                           per resume until the copy is made; `newJob` in resumes.js, `duplicate()` takes a company and a role), At a glance (`glance()`), where it
+                           came from, what differs, its sent copies; scrolling down over the page grows it out of the panel to where the editor shows it
+                           (`wheelGrow`, `settleGrow`, `openGrown`, the target is `computeLayout`'s own sheet; nothing grows under reduced motion); resting on a
+                           card's picture shows its page beside the card and the wheel turns its pages (`showPreview`, `turnPreview`; not on keyboard focus);
+                           Compare: a table with a column for each, Previous and Next difference and the keys N and P, the inspector shows the row in focus; the
+                           model is compareMany, differences and glance in model/resumes.js), thumbs (the pictures: one hidden sheet lays each resume
+                           out in turn and every page is kept, by what the resume prints and the record it was drawn from, as the text of a
+                           small frame, so a redraw costs a frame; the screen is drawn first and the pictures arrive), and Duplicate (in the row menu) opens the
                            copy at once in the name window with its name selected (Enter or Esc keeps what is there; typing then leaving keeps it), career (the
                            record's forms and the timeline), help (the shortcut sheet), icons, drink (Tea or
                            Coffee, light or dark: the two settings, the logo that switches them, Shift+F),
@@ -87,7 +95,7 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            (Fit, a version under the pointer, a lens, a tick and a resume switch, shown on the page with
                            clones in the frame that leave nothing behind), arrive (the start screen and the quiet
                            onboarding turning into the editor), matroll (the logo as the Tea and Coffee switch: the mat
-                           rolls up and unrolls), exportfx (an export's picture, one for each drink);
+                           rolls up and unrolls, and a copy of Tea's shadows rolls with it while the real ones wait: `html.mr-shadows-off`), exportfx (an export's picture, one for each drink);
                            workbench.css (the tokens: one block per drink and theme, and every rule that uses
                            them) and drinks.css (the shapes and surfaces that make each drink itself);
                            parts.js, the pure string parts (crumb, rows, version list, editor,
@@ -161,7 +169,7 @@ node checks/head-check.mjs            the place tabs, the name card (no Fit, no 
 node checks/review-model-check.mjs    the Review list's model: parents and picks, a duplicate's held lines, headings, marks, who an update reaches
 node checks/review-ui-check.mjs       the Review list's behaviour: markup in a name, Apply, all the newer wording, keys, a failed save
 node checks/review-check.mjs          the Review list in all ten languages at three window sizes and on a phone: nothing cut, overlapping or pushed out
-node checks/screens-check.mjs         the Library, Compare and Career: Duplicate, parent, what differs, compare of three, thumbnails, no bar, ten languages
+node checks/screens-check.mjs         what the three places hold: the Library's cards, per row at 1280, 1920 and 2560, select then open, the inspector, Use for a new job, the growing page, the hover preview, Compare (N and P), Career's docked entry and search, no bar, ten languages (PART=growing runs one part)
 node checks/places-check.mjs          the three places: the tabs, W E R, Esc, the address, Back and Forward, the landing, each place's state, the seam, the swing, Coffee square and flat
 node checks/room-check.mjs            the sidebar and the layout around the page, at three window sizes
 node checks/label-fit.mjs             every language's headings fit the gutter, and the app's labels fit the sidebar
