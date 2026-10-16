@@ -2932,7 +2932,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
   const clear = (a, rs) => rs.every(b => a.right <= b.left + 0.5 || a.left >= b.left + b.width - 0.5 || a.bottom <= b.top + 0.5 || a.top >= b.top + b.height - 0.5);
 
   for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
-    const ctx = await newContext({ motion: true, viewport: { width: 1440, height: 900 }, colorScheme: theme });
+    const ctx = await newContext({ viewport: { width: 1440, height: 900 }, colorScheme: theme });
     await ctx.addInitScript(() => Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' }));
     const page = await ctx.newPage();
     const bad = await open(page, undefined, { drink, theme });
@@ -2970,6 +2970,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.click('#checklist .clg[data-g=hydra] .clcaret'); await settle(page);
 
     // ---- ticking in Record changes the open resume, with the page in view ----
+    await page.waitForTimeout(900);       // the store merges two same-named steps less than 800 ms apart (typing): the ticks above must not merge with this one, whatever the motion
     const n0 = await onPageCount(page);
     const off = page.locator('#checklist .clg[data-g=hydra] .clrow.is-off .cb[data-on]').first();
     if (await off.count()){
