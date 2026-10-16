@@ -365,6 +365,26 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await ctx.close();
 }
 
+// ---- Delete beside Duplicate in the name window (fix 16) ----
+{
+  const { ctx, page } = await open(1470, 832);
+  const wait = () => page.waitForTimeout(700);
+  const state = () => page.evaluate(() => { const s = window.__wb.store.state; return { n: s.resumes.length, open: s.openId, snaps: (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).length }; });
+  const s0 = await state();
+  await page.click('#docname-btn'); await wait();
+  ok('the name window has Delete beside Duplicate', (await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act))).slice(0, 2).join() === 'rm-dup,rm-delete');
+  await page.click('#switcher [data-act=rm-dup]'); await wait();
+  const s1 = await state();
+  await page.click('#docname-btn'); await wait();
+  await page.click('#switcher [data-act=rm-delete]'); await wait();
+  const s2 = await state();
+  ok('Delete in the name window deletes the open resume (the copy) and opens another, with the Undo button on the toast', s1.n === s0.n + 1 && s2.n === s0.n && s2.open !== s1.open && !!(await page.$('#toast.on [data-act=toast-undo]')), JSON.stringify([s0, s1, s2]));
+  await page.click('#toast [data-act=toast-undo]'); await wait();
+  ok('…Undo brings the resume back, open as it was', JSON.stringify(await state()) === JSON.stringify(s1));
+
+  await ctx.close();
+}
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} symmetry check(s) FAILED` : '\nall symmetry checks passed');
 process.exit(failed ? 1 : 0);

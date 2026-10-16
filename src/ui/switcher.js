@@ -89,7 +89,7 @@ function html(){
     return `<label class="lbl" for="sw-rn">${h('ux1.rename')}</label>
     <input id="sw-rn" class="sw-q" value="${esc(RS.resumeLabel(r))}" autocomplete="off" ${open ? '' : 'disabled'}>
     ${parent ? `<p class="muted tiny swfrom">${h('ux6b.duplicatedFrom', { name: RS.resumeLabel(parent) })}</p>` : ''}
-    <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.dup')}</button><button class="sm" data-act="sw-record">${h('ux3b.modeRecord')}</button><button class="sm swnew" data-act="sw-new">${h('ux1.newResume')}</button></div>
+    <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.dup')}</button><button class="sm" data-act="rm-delete" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.delete')}</button><button class="sm" data-act="sw-record">${h('ux3b.modeRecord')}</button><button class="sm swnew" data-act="sw-new">${h('ux1.newResume')}</button></div>
     <label class="sr" for="sw-lang">${h('head.langGroup')}</label>
     <div class="swlang">${C.langSelect()}<select id="sw-paper" class="sw-q" aria-label="${esc(t('design.paper'))}"><option value="a4" ${r?.format === 'us-letter' ? '' : 'selected'}>${h('paper.a4')}</option><option value="us-letter" ${r?.format === 'us-letter' ? 'selected' : ''}>${h('paper.letter')}</option></select></div>
     ${type ? `<p class="muted tiny">${esc(type)}</p>` : ''}
@@ -104,7 +104,7 @@ function html(){
   if (!S.grown){
     const groups = RS.grouped(st().record, list);
     const recent = q ? [] : recentIds().map(id => all.find(r => r.id === id)).filter(Boolean).slice(0, RECENT_N);
-    return `<div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.dup')}</button><button class="sm" data-act="sw-record">${h('ux3b.modeRecord')}</button></div>
+    return `<div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.dup')}</button><button class="sm" data-act="rm-delete" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.delete')}</button><button class="sm" data-act="sw-record">${h('ux3b.modeRecord')}</button></div>
     ${search}
     <button class="swnew" data-act="sw-new">${h('ux1.newResume')}</button>
     <div id="sw-list" class="swlist" role="group" aria-label="${esc(t('ux1.switcherTitle'))}">
