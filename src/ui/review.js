@@ -11,6 +11,7 @@ import { acceptNewer, keepOlder, resumeLabel } from '../model/resumes.js';
 import { reviewList, reviewCount, editRow, applyEdit, printersOf, majorsOf, needsSource, cleanSource, SOURCE_MAX, keepLabel, useEverywhere, everywhereOf } from '../model/review.js';
 
 let C = null, el = null, box = null, live = null, S = null;
+const P = { mode: new Map(), source: new Map() };      // the choices of the rows in the versions list (UX-6g): the same rows, drawn there
 const st = () => C.store.state;
 const model = () => C.work();
 const jobName = id => (model().work ?? []).find(w => w.id === id)?.name ?? id;
@@ -31,6 +32,9 @@ export function initReview(ctx){
   el.addEventListener('input', onInput);
   el.addEventListener('keydown', onKey);
   el.addEventListener('close', onClose);
+  document.addEventListener('click', e => { const b = e.target.closest?.('.pend [data-rv]'); if (b) inlineClick(b); });
+  document.addEventListener('change', e => { const sel = e.target.closest?.('.pend [data-rv-pick]'); if (sel) inlineChange(sel); });
+  document.addEventListener('input', e => { if (e.target.closest?.('.pend [data-rv-src]')) withP(() => onInput(e)); });
   return api;
 }
 
@@ -45,15 +49,15 @@ const needs = (model, row, c) => needsSource(model) && (c.do === 'claim' || c.do
 const sourceOf = id => cleanSource(S.source.get(id));
 const numberOf = (row, c) => (c.do === 'minor' ? nextMinor(model(), row.id, vOf(row, c.from)?.n, row.lang) : c.do === 'major' ? nextMajor(model(), row.id, row.lang) : vOf(row, c.vid)?.n);
 const doText = (row, c) => (c.do === 'claim' ? t('ux6d.addClaim', { job: jobName(row.job) })
-  : c.do === 'keep' ? t('ux6d.optKeep') : c.do === 'over' ? t('ux6d.optReplace', { v: numberOf(row, c) }) : t('ux6d.approve', { v: numberOf(row, c) }));
+  : c.do === 'keep' ? t('ux6d.optKeep') : c.do === 'over' ? t('ux6d.optReplace', { v: numberOf(row, c) }) : t(S === P ? 'ux6g.saveAs' : 'ux6d.approve', { v: numberOf(row, c) }));      // in the versions list the primary says what it does to the list
 function primary(row, id, c = suggestion(row)){
   const blocked = needs(model(), row, c) && !sourceOf(id);
-  return { text: blocked ? t(row.local ? 'ux6d.addNeeds' : 'ux6d.approveNeeds') : doText(row, c), blocked, c };
+  return { text: blocked ? t(row.local ? 'ux6d.addNeeds' : S === P ? 'ux6g.saveNeeds' : 'ux6d.approveNeeds') : doText(row, c), blocked, c };
 }
 
 // ---- rendering ----
 const whereOf = (id, label = false) => C.fieldName(label ? { fact: id, label: true } : { fact: id });
-const li = (kind, id, inner, cls = '') => `<li class="rvrow ${cls}" data-kind="${kind}" data-id="${esc(id)}">${inner}</li>`;
+const li = (kind, id, inner, cls = '') => { const tag = S === P ? 'div' : 'li'; return `<${tag} class="rvrow ${cls}" data-kind="${kind}" data-id="${esc(id)}">${inner}</${tag}>`; };
 const btn = (rv, text, cls = '', extra = '') => `<button class="${cls}" data-rv="${rv}" ${extra}>${esc(text)}</button>`;
 
 function rowHtml(kind, id, L){
@@ -87,6 +91,7 @@ function editHtml(id){
       ${sourceHtml(row, id, sug)}
       <div class="rvbtns">${main}${btn('keep', t('ux6d.optKeep'))}</div>`);
   }
+  const inline = S === P;      // in the versions list the row itself says where and shows the words
   const pct = Math.round(row.shared * 100);
   const why = !row.near ? t('ux6d.whyFirst') : row.as === 'minor' ? t('ux6d.whyMinor', { pct, v: row.near.n, next: row.n }) : t('ux6d.whyMajor', { pct, v: row.near.n });
   const cMajor = sug.do === 'minor' ? major(vOf(row, sug.from)?.n) : null;
@@ -102,8 +107,8 @@ function editHtml(id){
   const users = target ? printersOf(st(), target.id) : [];
   const names = users.slice(0, 3).map(resumeLabel).join(', ') + (users.length > 3 ? '…' : '');
   const note = target ? `<p class="rvnote muted">${esc(users.length ? t('ux6d.updateNote', { n: users.length, v: target.n, names }) : t('ux6d.updateNone', { v: target.n }))}${row.tiny && !pend ? ` ${h('ux6d.smallNote')}` : ''}</p>` : '';
-  return li('e', id, `<p class="rvwhere">${esc(where)}</p>
-    <p class="rvtext" lang="${esc(row.lang)}">${row.near ? diffHtml(row.near.text, row.text) : esc(row.text)}</p>
+  return li('e', id, `${inline ? '' : `<p class="rvwhere">${esc(where)}</p>
+    <p class="rvtext" lang="${esc(row.lang)}">${row.near ? diffHtml(row.near.text, row.text) : esc(row.text)}</p>`}
     <p class="rvwhy">${esc(why)}</p>
     ${sourceHtml(row, id, sug, pend)}
     <div class="rvbtns">${main}${row.tiny ? btn('update', t('ux6d.update', { v: row.near.n })) : ''}
@@ -311,6 +316,37 @@ function onClose(){
   (s?.opener?.isConnected ? s.opener : document.querySelector('#filestate'))?.focus?.();
 }
 
+// ---- the same rows in the versions list (UX-6g) ----
+// An edit on this resume is a pending version there, with the choices the list offers (the primary button, Update, Another option + Apply,
+// Keep on this resume only), the same labels and the same required source. The dialog's state S is put aside while they are drawn or used.
+const withP = fn => { const was = S; S = P; try { return fn(); } finally { S = was; } };
+const pendingHtml = id => withP(() => editHtml(id));
+const canPend = id => !C.ui.snap && reviewList(model(), st().cur).edits.includes(id);
+function inlineDo(id, c){
+  const row = editRow(model(), st().cur, id);
+  let out = null;
+  try { if (!C.store.commit(d => { out = applyEdit(d.record, d.cur, id, { ...c, source: cleanSource(P.source.get(id)) }); }, t('ux6d.undoLabel', { what: whereOf(id) }))) return; }
+  catch (e){ C.toast(errText(e), 'bad'); return; }
+  P.mode.delete(id);
+  C.toast(resultOf(row, c, out), '', true);
+}
+function inlineClick(b){
+  const rv = b.dataset.rv, r = b.closest('.rvrow'), id = r?.dataset.id;
+  if (!id) return;
+  const row = editRow(model(), st().cur, id);
+  if (rv === 'update') return inlineDo(id, { do: 'over', vid: row.near.id });
+  if (rv === 'keep') return inlineDo(id, { do: 'keep' });
+  const p = withP(() => primary(row, id, rv === 'apply' ? P.mode.get(id) : undefined));      // approve: the suggestion; apply: the pending choice
+  if (p.blocked) return r.querySelector('[data-rv-src]')?.focus();
+  inlineDo(id, p.c);
+}
+function inlineChange(sel){
+  const id = sel.closest('.rvrow').dataset.id, [d, arg] = sel.value.split(':');
+  if (!sel.value) P.mode.delete(id); else P.mode.set(id, d === 'minor' ? { do: 'minor', from: arg } : d === 'over' ? { do: 'over', vid: arg } : { do: d });
+  C.renderBody();
+  document.querySelector(`.pend .rvrow[data-id="${CSS.escape(id)}"] [data-rv-pick]`)?.focus();
+}
+
 // ---- opening ----
 async function open(from = document.activeElement){
   if (el.open || C.ui.snap || !st().cur) return false;
@@ -334,4 +370,4 @@ async function saveFlow(from){
 
 // edits and headings still only here (what an export leaves out of the text and JSON Resume file); newer wording is not one
 const pending = () => { if (C.ui.snap || !st().cur) return 0; const L = reviewList(model(), st().cur); return L.edits.length + L.labels.length; };
-const api = { open, saveFlow, pending, count: () => (C.ui.snap || !st().cur ? 0 : reviewCount(model(), st().cur)), get isOpen(){ return !!el?.open; } };
+const api = { open, saveFlow, pending, pendingHtml, canPend, count: () => (C.ui.snap || !st().cur ? 0 : reviewCount(model(), st().cur)), get isOpen(){ return !!el?.open; } };

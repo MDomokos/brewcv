@@ -118,8 +118,9 @@ export function versionsHtml(x){
   const E = v => editorHtml(ed, v, x);
   out += `<span class="lbl">${h('edit.versions', { code: L.toUpperCase() })}</span><div class="vlist${x.full ? ' full' : ''}" data-fact="${esc(fact)}">`;
   if (over !== undefined){
-    out += ed?.mode === 'only' ? E() : `<div class="vrow cur only"><span class="rad"></span><span class="n" title="${esc(t('edit.onlyTitle'))}">${h('edit.only')}</span><span class="tx">${esc(over)}</span>
-      <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editEnter'))}" aria-label="${esc(t('edit.editEnter'))}">${icon('edit')}</button><button class="ghost sm" data-act="only-remove" title="${esc(t('edit.backToSaved'))}" aria-label="${esc(t('edit.backToSaved'))}">↺</button></span></div>`;
+    if (ed?.mode === 'only') out += E();
+    else if (!x.pend) out += `<div class="vrow cur only"><span class="rad"></span><span class="n" title="${esc(t('edit.onlyTitle'))}">${h('edit.only')}</span><span class="tx">${esc(over)}</span>
+      <span class="vbtn">${x.full ? '' : pencil}<button class="ghost sm" data-act="only-remove" title="${esc(t('edit.backToSaved'))}" aria-label="${esc(t('edit.backToSaved'))}">↺</button></span></div>`;
   } else if (x.parked !== undefined){
     // an edit set aside when a version was picked over it: picking it puts it back
     out += `<div class="vrow only" data-act="use-edit" tabindex="0" title="${esc(x.parked)}"><span class="rad"></span><span class="n" title="${esc(t('edit.onlyTitle'))}">${h('edit.only')}</span><span class="tx">${esc(x.parked)}</span></div>`;
@@ -127,22 +128,36 @@ export function versionsHtml(x){
   // grouped by major; minors fold unless one is in use
   const groups = new Map();
   for (const v of vs) (groups.get(R.major(v.n)) ?? groups.set(R.major(v.n), []).get(R.major(v.n))).push(v);
+  let pendDone = !x.pend || ed?.mode === 'only';
   for (const [M, g] of groups){
     const head = g.find(v => !String(v.n).includes('.')) ?? g[0];
     const minors = g.filter(v => v !== head);
-    const open = x.openMinor.has(`${fact}:${L}:${M}`) || minors.some(v => v.id === using?.id);
+    const here = !pendDone && String(x.pend.n).includes('.') && R.major(x.pend.n) === M;      // the pending sub-version stands among these
+    const open = x.openMinor.has(`${fact}:${L}:${M}`) || minors.some(v => v.id === using?.id) || here;
     out += ed?.mode === 'edit' && v_isCur(head, using, over) ? E(head) : vrow(head, using, over, x);
-    if (minors.length){
-      if (open) for (const v of minors) out += ed?.mode === 'edit' && v_isCur(v, using, over) ? E(v) : vrow(v, using, over, x);
-      else out += `<div class="vmore" data-act="unfold" data-m="${esc(M)}">${icon('right', { size: 12 })} ${h('edit.moreUnder', { n: minors.length, v: M })}</div>`;
+    if (minors.length || here){
+      if (open){
+        for (const v of minors){
+          if (here && !pendDone && R.compareN(v.n, x.pend.n) > 0){ out += pendRow(x, over); pendDone = true; }
+          out += ed?.mode === 'edit' && v_isCur(v, using, over) ? E(v) : vrow(v, using, over, x);
+        }
+        if (here && !pendDone){ out += pendRow(x, over); pendDone = true; }
+      } else out += `<div class="vmore" data-act="unfold" data-m="${esc(M)}">${icon('right', { size: 12 })} ${h('edit.moreUnder', { n: minors.length, v: M })}</div>`;
     }
   }
+  if (!pendDone) out += pendRow(x, over);      // a new version after the last one
   if (ed?.mode === 'new') out += E();
   out += '</div>';
   if (x.writing) out += `<p class="note">${h('ux3.writingNote')}</p>`;
   return out;
 }
 
+const pencil = `<button class="ghost sm" data-act="edit" title="${esc(t('edit.editThis'))}" aria-label="${esc(t('edit.editThis'))}">${icon('edit')}</button>`;
+// An edit on this resume, in the list where it would be numbered (UX-6g): the number, "on this resume only", the Review list's choices for it
+// (x.pend.html; none when locked) and the way back to the saved version.
+const pendRow = (x, over) => `<div class="vrow cur only pend" data-fact="${esc(x.fact)}"><span class="rad"></span>
+    <span class="pendhd"><span class="n" title="${esc(t('edit.onlyTitle'))}">v${esc(x.pend.n)}</span><span class="mine">${h('ux6g.onlyHere')}</span><span class="grow"></span><span class="vbtn">${x.full ? '' : pencil}<button class="ghost sm" data-act="only-remove" title="${esc(t('edit.backToSaved'))}" aria-label="${esc(t('edit.backToSaved'))}">↺</button></span></span>
+    <div class="pendbody">${x.pend.html || `<span class="tx">${esc(over)}</span>`}</div></div>`;
 const v_isCur = (v, using, over) => over === undefined && v.id === using?.id;
 
 // a Resume row: the version in use in full, the others as a gist
@@ -152,7 +167,7 @@ function vrow(v, using, over, x){
   const ln = x.lines(v);
   const star = (x.focusTags ?? []).some(tg => (v.tags ?? []).includes(tg)) ? `<span class="star" title="${esc(t('edit.tagged', { tag: x.focusLabel ?? x.focus }))}">★</span>` : '';
   if (isCur) return `<div class="vrow cur ${minor ? 'minor' : ''}" data-v="${esc(v.id)}"><span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${esc(v.text)}</span>
-    <span class="vbtn"><button class="ghost sm" data-act="edit" title="${esc(t('edit.editThis'))}" aria-label="${esc(t('edit.editThis'))}">${icon('edit')}</button></span>
+    ${x.full ? '' : `<span class="vbtn">${pencil}</span>`}
     ${tagBox(v, x)}</div>`;
   return `<div class="vrow ${minor ? 'minor' : ''}" data-act="use-version" data-v="${esc(v.id)}" tabindex="0" title="${esc(v.text)}">
     <span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${x.full ? marked(v.text, over ?? using?.text ?? '') : gist(v.text, over ?? using?.text ?? '')}</span>
@@ -185,7 +200,8 @@ const iconButton = (act, ic, name, tip, attrs = '') =>
 
 // The version number beside a line is a control (UX-6g): hovering, focusing or clicking it lists the line's versions as numbers (lower above the
 // one in use, higher below); moving over one previews it on the page, a click or Enter chooses it, Esc closes. `tag`: { fact, items, locked },
-// items [{ id, n, cur, mine }] in number order (`mine`: the edit on this resume, shown where it would be numbered); `locked`: the lock's words.
+// items [{ id, n, cur, mine }] in number order (`mine`: the edit on this resume, shown where it would be numbered); `mine` (of the tag): the text is on this resume only, a dot
+// on the tag with the words in its tooltip and its name; `locked`: the lock's words.
 // A line with no versions (one only on this resume) has the number alone.
 export function versionTagHtml(vn, tag = null){
   if (!tag?.items?.length) return `<span class="obv">v${esc(vn)}</span>`;
@@ -194,7 +210,7 @@ export function versionTagHtml(vn, tag = null){
     const name = o.mine ? t('ux6g.optMine', { v: o.n }) : `v${o.n}`;
     return `<div class="obvopt${o.cur ? ' cur' : ''}${o.mine ? ' mine' : ''}" role="option" id="ob-vo-${i}"${o.cur ? '' : ` data-act="${o.mine ? 'use-edit' : 'use-version'}"`} data-v="${esc(o.id ?? '')}" aria-selected="${!!o.cur}" aria-label="${esc(name)}">v${esc(o.n)}${o.mine ? '<span class="obdot" aria-hidden="true"></span>' : ''}</div>`;
   }).join('');
-  return `<span class="obvwrap"><button type="button" class="obv" data-act="ob-vers" aria-haspopup="listbox" aria-expanded="false" aria-controls="ob-vlist" aria-label="${esc(t('ux6g.tagName', { v: vn }))}">v${esc(vn)}</button>
+  return `<span class="obvwrap"><button type="button" class="obv${tag.mine ? ' mine' : ''}" data-act="ob-vers" aria-haspopup="listbox" aria-expanded="false" aria-controls="ob-vlist"${tag.mine ? ` title="${esc(t('ux6g.onlyHere'))}"` : ''} aria-label="${esc(t(tag.mine ? 'ux6g.tagNameMine' : 'ux6g.tagName', { v: vn }))}">v${esc(vn)}</button>
     <div class="obvlist" id="ob-vlist" data-fact="${esc(tag.fact)}" role="listbox" tabindex="-1" aria-label="${esc(t('ux6g.tagList'))}" hidden>${opts}</div></span>`;
 }
 

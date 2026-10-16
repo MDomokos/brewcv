@@ -1256,7 +1256,10 @@ function toast(msg, tone = '', undo = false, offer = false){
   clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), undo || offer ? 7000 : 3600);
 }
 
+const review = initReview({ store, ui, work, saveToFile, leaveLine: () => (edit.editing ? edit.cancelEdit() : null), fieldName: ed => edit.fieldName(ed), renderBody: () => renderBody(), toast });
+window.__wb.review = review;
 const edit = initEdit({
+  pendingHtml: id => review.pendingHtml(id), canPend: id => review.canPend(id),
   store, ui, sheet, toast, say, hint, record, cur, lang, work, chooseVariant, sectionTitle, textOfFact, resumeName, fillText,
   ix: () => ui.ix ?? indexModel(work(), cur()), togglePhoto: () => design.togglePhoto(),
   redrawNow: () => { clearTimeout(timer); timer = null; return redraw(); },
@@ -1328,8 +1331,6 @@ const recordTab = initRecord({ ui, checklist, renderBody: () => renderBody(), se
 window.__wb.record = recordTab;
 const help = initHelp({ ui });
 window.__wb.help = help;
-const review = initReview({ store, ui, work, saveToFile, leaveLine: () => (edit.editing ? edit.cancelEdit() : null), fieldName: ed => edit.fieldName(ed) });
-window.__wb.review = review;
 const dock = initDock({ store, ui, shown, setView, leaveWriting: () => edit.cancelEdit(), goToPage, canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
 window.__wb.dock = dock;
 design.bind($('#body'));

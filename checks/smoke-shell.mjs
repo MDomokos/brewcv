@@ -690,7 +690,7 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
 // this resume, a chip says where you are.
 const lay = page => page.evaluate(() => { const el = document.querySelector('#editlay'); const q = s => el.querySelector(s); return {
   veil: [...el.querySelectorAll('.obveil')].map(v => +getComputedStyle(v).opacity), job: !!q('.obframe.job'), dashed: !!q('.obframe.job.dashed'), line: !!q('.obframe.line'),
-  tools: [...el.querySelectorAll('.obtools [data-act]')].map(b => b.dataset.act), badge: q('.obv')?.textContent.trim() ?? null,
+  tools: [...el.querySelectorAll('.obtools > [data-act]')].map(b => b.dataset.act), badge: q('.obv')?.textContent.trim() ?? null,
   chip: q('.obchip .depth') ? { words: [...el.querySelectorAll('.obchip .dp-l .dp-w')].map(w => w.textContent), cur: q('.obchip .dp-l.cur .dp-w')?.textContent } : null }; });
 const overOf = (page, f) => page.evaluate(f => { const c = window.__wb.store.state.cur; return { text: c.overrides?.[f], meta: c.overrideMeta?.[f], parked: c.parked?.[f] }; }, f);
 const factOf = page => page.evaluate(() => window.__wb.edit.editing?.fact ?? null);
@@ -970,9 +970,9 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   await page.click('#body .vrow[data-act=use-version]'); await settle(page);
   const p1 = await overOf(page, fP);
   ok('picking a version over an edit sets the edit aside (parked), not lost', p1.text === undefined && !!p1.parked?.text?.endsWith('Parked words.') && await page.isVisible('#body .vrow[data-act=use-edit]'), JSON.stringify(p1).slice(0, 160));
-  await page.click('#body .vrow[data-act=use-edit]'); await settle(page);
+  await page.click('#body .vrow[data-act=use-edit]'); await page.mouse.move(4, 4); await settle(page);      // the edit's row now stands where it is numbered: the pointer rests on another version, which previews until it moves
   const p2 = await overOf(page, fP);
-  ok('…picking the edit again puts it back', !!p2.text?.endsWith('Parked words.') && p2.parked === undefined && (await frameDoc(page, d => d.body.textContent)).includes('Parked words.'), JSON.stringify(p2).slice(0, 160));
+  ok('…picking the edit again puts it back', !!p2.text?.endsWith('Parked words.') && p2.parked === undefined && (await frameDoc(page, d => d.body.textContent)).includes('Parked words.'), JSON.stringify(p2).slice(-200));
   // while writing, picking a version keeps what was typed (parked) and the line goes on from the version
   await jobs.nth(0).locator('.bullets li').first().click(); await settle(page);
   await appendLine(page, ' typed words');
@@ -1613,10 +1613,10 @@ if (want('the Edit view')) {
   await page.keyboard.press('Control+z'); await settle(page);
   ok('Ctrl+Z takes it back', (await fb()) === text0 && !((await st()).cur.overrides ?? {})[fact]);
 
-  // ✎ on the version in use writes the line on the page too; leaving keeps the words on this resume, and no version is made (turning
-  // an edit into a version is the Review list's)
-  await page.click('.vrow.cur [data-act=edit]'); await settle(page);
-  ok('✎ writes the line on the page, with nothing to save beside it', (await lineEl(page).count()) === 1 && !(await page.$('[data-act=ed-save], [data-act=ed-saveas], [data-act=ed-only]')));
+  // writing the line again; leaving keeps the words on this resume, and no version is made (turning an edit into a version is the
+  // pending row's, and the Review list's). There is no pencil beside the versions on a desktop.
+  await page.evaluate(() => window.__wb.edit.startEdit()); await settle(page);
+  ok('the line is written on the page, with nothing to save beside it and no pencil in the list', (await lineEl(page).count()) === 1 && !(await page.$('[data-act=ed-save], [data-act=ed-saveas], [data-act=ed-only], #body .vrow [data-act=edit]')));
   await writeLine(page, 'Only on this resume.');
   await page.keyboard.press('Escape'); await settle(page);
   ok('leaving it keeps a one-off text on this resume, and makes no version', (await st()).cur.overrides[fact] === 'Only on this resume.' && (await st()).record.variants.length === nBefore);
@@ -2571,7 +2571,7 @@ if (want('one panel for a claim: from the page and from the checklist')) {
   await page.click('#outline .clg.open .clrow >> nth=0 >> .clv'); await settle(page);          // “n v” opens Edit at that line
   const fact = await page.getAttribute('#body .vlist', 'data-fact');
   const fromList = await page.$$eval('#body .vrow .n', e => e.map(x => x.textContent.replace(/\D*$/, '')));
-  ok('the claim panel: ◉ on the one in use, ✎ on it, 🗑 in the header above the versions', (await page.$$('#body .vrow .rad')).length >= 1 && (await page.$$('#body .vrow.cur')).length === 1
+  ok('the claim panel: ◉ on the one in use, no pencil, 🗑 in the header above the versions', (await page.$$('#body .vrow .rad')).length >= 1 && (await page.$$('#body .vrow.cur')).length === 1
     && await page.evaluate(() => { const d = document.querySelector('#body [data-act=delete-claim]'), l = document.querySelector('#body .lbl'); return !!d && !!(d.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING); }));
   await page.mouse.move(4, 4); await settle(page);      // off the versions: a hovered one is a preview, and the first Esc ends that
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
@@ -2581,8 +2581,8 @@ if (want('one panel for a claim: from the page and from the checklist')) {
   ok('no sideways scroll', await page.evaluate(() => { const b = document.querySelector('#body'); return b.scrollWidth <= b.clientWidth + 1; }));
   ok('no keyboard hint paragraph under it: the keys are on the ? sheet', !(await page.$('#body .keys')) && !(await page.$('#body kbd')));
   const picks0 = JSON.stringify((await st()).cur.picks), n0 = await nOf();
-  await page.click('#body .vrow.cur [data-act=edit]'); await settle(page);
-  ok('✎ writes the line on the page, with its tools in the margin and nothing to save', (await lineEl(page).count()) === 1 && !(await page.$('#ed')) && !!(await page.$('#editlay .obtools')) && !(await page.$('#editlay [data-act^=ed-]')));
+  await page.evaluate(() => window.__wb.edit.startEdit()); await settle(page);
+  ok('the line is written on the page, with its tools in the margin and nothing to save', (await lineEl(page).count()) === 1 && !(await page.$('#ed')) && !!(await page.$('#editlay .obtools')) && !(await page.$('#editlay [data-act^=ed-]')));
   await appendLine(page, ' Reworded.'); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
   ok('leaving it keeps the words on this resume: no version, the picks as they were', (await nOf()) === n0 && JSON.stringify((await st()).cur.picks) === picks0 && !!(await st()).cur.overrides[fact]?.endsWith('Reworded.'));
@@ -4874,6 +4874,97 @@ if (want('ux6g: the version tag, by touch')) {
   await pick.tap(); await settle(page);
   ok('a tap on a number chooses it', !(await L.isVisible()) && (await lineNow(page, fact)) !== before);
   ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('ux6g: an edit on this resume is a pending version in the versions list')) {
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const sheet = page.frameLocator('#sheet iframe');
+  const st = () => page.evaluate(() => { const s = window.__wb.store.state; return { variants: s.record.variants.length, undo: window.__wb.store.history.undo, over: s.cur.overrides ?? {}, picks: s.cur.picks ?? {} }; });
+  const writeAndLeave = async text => { await sheet.locator('.bullets li').first().click(); await settle(page); await writeLine(page, text); await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page); };
+  await sheet.locator('.bullets li').first().click(); await settle(page);
+  const fact = await page.evaluate(() => window.__wb.ui.sel.id);
+  ok('a line that is the saved version has no dot on its tag', !(await page.locator('#editlay .obv.mine').count()));
+  ok('no edit pencil beside a version on a desktop', !(await page.locator('#body .vrow [data-act=edit]').count()));
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
+  ok('no edit, no pending row', (await page.locator('#body .vrow.pend').count()) === 0);
+  const text0 = await page.evaluate(f => window.__wb.sheet.elOf(f, window.__wb.ui.ix).textContent.trim(), fact);
+  await writeAndLeave(`${text0} Plus a few more words here.`);
+  const pend = page.locator('#body .vrow.pend');
+  ok('after an edit the versions list shows it as its own row, marked “on this resume only”', (await pend.count()) === 1 && /on this resume only/.test(await pend.textContent()));
+  const order = await page.$$eval('#body .vlist > .vrow', rows => rows.map(r => r.classList.contains('pend') ? 'P' : r.querySelector('.n')?.textContent.trim()));
+  const pn = await pend.locator('.pendhd .n').textContent();
+  const cmp = (a, b) => { const x = a.replace(/^v/, '').split('.').map(Number), y = b.replace(/^v/, '').split('.').map(Number); return (x[0] - y[0]) || ((x[1] ?? -1) - (y[1] ?? -1)); };
+  const at = order.indexOf('P'), nums = order.filter(x => x !== 'P');
+  ok('…positioned as the suggested sub-version: after the lower numbers, before the higher', at > 0 && cmp(nums[at - 1], pn) < 0 && (at >= nums.length || cmp(nums[at], pn) > 0), `${order.join(' ')} / ${pn}`);
+  ok('…with the Review list’s choices: the primary, Update (a few words only), Another option with Apply, and Keep', /^Save as v/.test(await pend.locator('[data-rv=approve]').textContent()) && (await pend.locator('[data-rv=update], [data-rv-pick]').count()) >= 1 && /Keep on this resume only/.test(await pend.locator('[data-rv-pick]').textContent()));
+  await sheet.locator('.bullets li').first().click(); await settle(page);
+  const tagBtn = page.locator('#editlay .obv[aria-haspopup]');
+  ok('the page marks it: a dot on the version tag, the words in its tooltip and its accessible name, no change to the text’s colour', (await tagBtn.evaluate(e => e.classList.contains('mine') && getComputedStyle(e, '::after').content !== 'none')) && (await tagBtn.getAttribute('title')) === 'on this resume only' && /on this resume only/.test(await tagBtn.getAttribute('aria-label')));
+  await appendLine(page, ' x');
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
+  // a pointer path to the primary button, then a click: one undo step, a toast with Undo
+  const s0 = await st();
+  const main = pend.locator('[data-rv=approve]'), label = (await main.textContent()).trim();
+  await slide(page, main); await main.click(); await settle(page);
+  const s1 = await st();
+  ok('“Save as vN” makes the version in one undo step: the edit is gone, the line uses the new version, with a toast that has Undo', s1.variants === s0.variants + 1 && s1.undo === s0.undo + 1 && s1.over[fact] === undefined && s1.picks[fact] !== s0.picks[fact] && /^Save as v/.test(label) && !!(await page.$('#toast.on [data-act=toast-undo]')), label);
+  ok('…and the pending row is gone from the list', (await page.locator('#body .vrow.pend').count()) === 0);
+  await page.click('#toast [data-act=toast-undo]'); await settle(page);
+  ok('Undo puts the edit back and removes the version', (await st()).variants === s0.variants && (await page.locator('#body .vrow.pend').count()) === 1);
+  // Another option: the select only chooses until Apply
+  const sel = pend.locator('[data-rv-pick]');
+  await sel.selectOption({ label: (await sel.locator('option').allTextContents()).find(x => /^New version/.test(x)) }); await settle(page);
+  const s2 = await st();
+  ok('choosing in the select changes nothing until Apply, and shows what Apply will do', s2.variants === s0.variants && (await pend.locator('[data-rv=apply]').count()) === 1 && /Apply|will/i.test(await pend.textContent()));
+  const needNeeds = await pend.locator('[data-rv-src]').count();
+  if (needNeeds) {
+    ok('a new version asks where it is confirmed: Apply is held until a source is typed', (await pend.locator('[data-rv=apply]').getAttribute('aria-disabled')) === 'true');
+    await pend.locator('[data-rv-src]').fill('Design file, 2024'); await settle(page);
+    ok('…typing the source frees Apply', (await pend.locator('[data-rv=apply]').getAttribute('aria-disabled')) === null);
+  }
+  await pend.locator('[data-rv=apply]').click(); await settle(page);
+  const s3 = await st();
+  ok('Apply makes the chosen version (a new whole number), one undo step', s3.variants === s0.variants + 1 && s3.undo === s2.undo + 1 && s3.over[fact] === undefined);
+  await page.keyboard.press('Control+z'); await settle(page);
+  // Keep on this resume only leaves the row marked
+  await pend.locator('[data-rv-pick]').selectOption({ label: 'Keep on this resume only' }); await pend.locator('[data-rv=apply]').click(); await settle(page);
+  ok('Keep on this resume only leaves the row marked, with the edit as it was', (await page.locator('#body .vrow.pend').count()) === 1 && (await st()).over[fact] !== undefined && (await st()).variants === s0.variants);
+  // Update: a typo-size edit
+  await page.click('#body .vrow.pend [data-act=only-remove]'); await settle(page);
+  ok('↺ puts the saved version back', (await st()).over[fact] === undefined && (await page.locator('#body .vrow.pend').count()) === 0);
+  await writeAndLeave(`${text0}!`);
+  const upd = page.locator('#body .vrow.pend [data-rv=update]');
+  ok('a typo-size edit offers Update vN, with the note of which other resumes are offered it', (await upd.count()) === 1 && /resume/.test(await page.locator('#body .vrow.pend .rvnote').textContent()));
+  const s4 = await st();
+  await upd.click(); await settle(page);
+  ok('Update changes the version in place: no new version, the edit gone', (await st()).variants === s4.variants && (await st()).over[fact] === undefined);
+  await page.keyboard.press('Control+z'); await settle(page);
+  // locked: the row without the buttons
+  await page.evaluate(f => { window.__wb.store.commit(d => { d.cur.locked = [f]; }, 'lock'); }, fact);
+  await settle(page);
+  ok('a locked line shows the row without the buttons', (await page.locator('#body .vrow.pend [data-rv], #body .vrow.pend select').count()) === 0 && (await page.locator('#body .vrow.pend').count()) === 1);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('ux6g: the pending version on a phone')) {
+  // a phone has no hands: the version tag is not there, the sidebar’s rows are the way; the pencil stays there, the only way to write a text
+  const ctx = await newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const ph = await ctx.newPage();
+  const bad = await open(ph);
+  await ph.frameLocator('#sheet iframe').locator('.entry .bullets li').first().tap(); await settle(ph);
+  const fact = await ph.evaluate(() => window.__wb.ui.sel.id);
+  await ph.evaluate(async f => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => { T.setOverride(d.record, d.cur, f, T.textOf(d.record, f, d.cur) + ' Again.', { marks: [], base: null }); }, 'smoke'); }, fact);
+  await settle(ph);
+  ok('phone: no version tag on the page (nothing is written there)', (await ph.locator('#editlay .obv').count()) === 0);
+  ok('phone: the versions list has the pending row and its choices, and the pencil that writes the text', (await ph.locator('#body .vrow.pend [data-rv=approve]').count()) === 1 && (await ph.locator('#body .vrow.pend [data-act=edit]').count()) === 1);
+  const v0 = await ph.evaluate(() => window.__wb.store.state.record.variants.length);
+  await ph.evaluate(() => document.querySelector('#body .vrow.pend [data-rv=approve]').click()); await settle(ph);
+  ok('phone: the primary button saves it as a version', (await ph.evaluate(() => window.__wb.store.state.record.variants.length)) === v0 + 1 && (await ph.locator('#body .vrow.pend').count()) === 0);
+  ok('phone: no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
 

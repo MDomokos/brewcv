@@ -1370,4 +1370,8 @@ export default {
   'ux6g.tagName': 'Versions of this line, now v{v}',
   'ux6g.tagList': 'Versions',
   'ux6g.optMine': 'v{v}, on this resume only',
+  'ux6g.saveAs': 'Save as v{v}',
+  'ux6g.saveNeeds': 'Add a source to save',
+  'ux6g.onlyHere': 'on this resume only',
+  'ux6g.tagNameMine': 'Versions of this line, now v{v}, on this resume only',
 };

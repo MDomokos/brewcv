@@ -422,6 +422,15 @@ function factPanel(id){
   return versionsHtml(versionsX(id));
 }
 
+// An edit on this resume, as the pending version it would become: its number where the Review list would put it, and the Review list's own
+// choices for it (none for a line that is locked, held or off the page)
+function pendOf(id, L, ed){
+  const over = overrideOf(id);
+  if (over === undefined || ed || T.isLocal(cur(), id) || !ix().facts.has(id)) return null;
+  const free = !isLockedId(id) && C.pendingHtml && C.canPend(id);
+  return { n: R.suggestNumber(work(), id, over, L).n, html: free ? C.pendingHtml(id) : '' };
+}
+
 function versionsX(id){
   const L = lang();
   const using = usingOf(id);
@@ -430,6 +439,7 @@ function versionsX(id){
   const en = R.versionsIn(work(), id, DEFAULT_LANG);
   const vs = R.versionsIn(work(), id, L);
   return {
+    pend: pendOf(id, L, ed),
     m: work(), fact: id, lang: L, full: document.body.dataset.phone !== 'true',     // every version in full, with what differs marked (the phone's sheet keeps the gist)
     vs, using, over: overrideOf(id), parked: cur().parked?.[id]?.text, ed, writing,
     compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,

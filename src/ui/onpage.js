@@ -87,7 +87,7 @@ export function initOnPage(C){
   // ---- drawing the layers ----
   function signature(lvl, chip){
     const ed = edit().editing, tg = geom?.tg;
-    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, ed && !ed.group && !ed.label ? versionItems(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
+    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, ed && !ed.group && !ed.label ? [versionItems(ed.fact), isMine(ed.fact)] : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
   }
   function render(force = false){
     lay ??= $('#editlay');
@@ -133,9 +133,11 @@ export function initOnPage(C){
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
     if (!ed || ed.group || ed.label) return '';      // a skill group, a heading and a language's name have no versions
     const vn = C.work().variants.find(v => v.id === ed.vid)?.n ?? '·';       // the version the line was written from
-    return toolsHtml({ vn, tag: { fact, items: versionItems(fact), locked: edit().lockedId(fact) ? t('ux6c.lockedHint') : '' }, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
+    return toolsHtml({ vn, tag: { fact, items: versionItems(fact), mine: isMine(fact), locked: edit().lockedId(fact) ? t('ux6c.lockedHint') : '' }, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
   }
 
+  // the text of the line is on this resume only: an edit kept, or one being typed
+  const isMine = fact => C.cur().overrides?.[fact] !== undefined || edit().isDirty();
   // the line's versions as the list beside it shows them: numbers in order, the one in use marked, an edit on this resume (or one set aside)
   // where it would be numbered
   function versionItems(fact){
@@ -434,6 +436,8 @@ export function initOnPage(C){
     const stats = $('#ob-stats');
     const ed = edit().editing;
     if (stats && ed) stats.innerHTML = statsCompactHtml(ed);
+    const b = tag();
+    if (b && ed){ const m = isMine(ed.fact); b.classList.toggle('mine', m); m ? b.setAttribute('title', t('ux6g.onlyHere')) : b.removeAttribute('title'); b.setAttribute('aria-label', t(m ? 'ux6g.tagNameMine' : 'ux6g.tagName', { v: b.textContent.trim().slice(1) })); }      // typing makes the line this resume's own
     place();
     if (geom?.line) canvas.ensureVisible(geom.line);
   }
