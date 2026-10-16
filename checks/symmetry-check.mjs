@@ -88,9 +88,9 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   const gap = await page.evaluate(() => [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch { return []; } }).some(r => /clgh > \.rowlock:last-child/.test(r.selectorText ?? '')));
   ok('…and the margin that stood in for a missing head switch is gone', !gap);
   const id = await page.evaluate(async () => {
-    const K = await import('/src/model/career.js');
+    const K = await import('/src/model/career.js'), T = await import('/src/model/resume.js');
     const w = window.__wb.store.state.record.work.find(w => w.id === 'hydra'), hl = (w.highlights ?? []).map(x => x.id ?? x).find(Boolean);
-    let a; window.__wb.store.commit(d => { a = K.archiveClaim(d.record, hl); }, 'check: archive'); return hl;
+    window.__wb.store.commit(d => { T.setBulletOn(d.record, d.cur, hl, false); K.archiveClaim(d.record, hl); }, 'check: switch off and archive'); return hl;      // an archived line that is still on stays in the list; one that is off is what the Outline did not show
   });
   await page.waitForTimeout(700);
   await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(500);
@@ -98,7 +98,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await page.click('#body [data-act=ol-more][data-id=hydra]'); await page.waitForTimeout(400);
   const row = await page.$(`#body .clrow[data-fact="${id}"].is-archived`);
   ok('an archived line is listed under "+ n more", with Unarchive', !!row && !!(await row.$('[data-act=unarchive-claim]')));
-  await (await row.$('[data-act=unarchive-claim]')).click(); await page.waitForTimeout(700);
+  await row?.$('[data-act=unarchive-claim]').then(b => b?.click()); await page.waitForTimeout(700);
   ok('…Unarchive brings it back into the list as an ordinary line that is off', !(await page.$(`#body .clrow[data-fact="${id}"].is-archived`)) && !!(await page.$(`#body .clrow[data-fact="${id}"]`)));
   await ctx.close();
 }
@@ -114,7 +114,8 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   const pillOn = sel => page.$eval(sel, e => (e.matches('input') ? e.checked : e.querySelector('.pillsw')?.classList.contains('on')));
   // a switch: its label says Hide while it is on, Show while it is off; flipping it twice leaves the recipe byte-identical
   // (a block that is hidden loses its frame and so its chip: then the sidebar's switch, the same component, shows it again)
-  const trip = async (name, sel, click, sel2 = sel, click2 = click) => {
+  const trip = async (name, ...a) => { try { await trip1(name, ...a); } catch (e) { ok(name, false, String(e.message).split('\n')[0]); } };
+  const trip1 = async (name, sel, click, sel2 = sel, click2 = click) => {
     const c0 = await cur(), l0 = await label(sel), on0 = await pillOn(sel);
     await click(); await wait();
     const l1 = await label(sel2), on1 = await pillOn(sel2), c1 = await cur();
