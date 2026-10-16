@@ -193,3 +193,10 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .insp-rec .clg { display: block !important; border: 0; padding: 0; margin: 0; }
 .insp-rec .clg > .clgh :is(.clcaret, .clname, .clcount) { display: none; }
 .insp-rec .clrow.qhit { background: var(--mark-soft); border-radius: var(--r-xs); }
+
+/* ---- the shadows roll with the mat (matroll.js): a copy of Tea's shadows on the roll's layer, in the layer's own frame, flipped back where the
+   layer is flipped (the mat unrolling into Tea), clipped to where Tea is: above the roller in both directions; the real shadows wait ---- */
+.matroll .mr-shadows { position: absolute; inset: 0; clip-path: inset(0 0 var(--mr-y) 0); }
+.matroll[data-kind="down"] .mr-shadows { transform: scaleY(-1); clip-path: inset(0 0 calc(100% - var(--mr-y)) 0); }      /* the two flips cancel: these are the screen's own coordinates, Tea is the top band the mat has covered */
+.matroll .mr-shadows i { position: absolute; }
+html.mr-shadows-off { --shadow-panel: none; --shadow-chip: none; --shadow-lift: none; --shadow-toast: none; --page-shadow: none; --page-shadow-soft: none; }

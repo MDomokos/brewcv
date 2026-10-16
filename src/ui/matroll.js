@@ -49,7 +49,37 @@ function face(side){
   el.dataset.side = side;
   bg.dataset.bg = side === 'below' ? S.to : S.from;
 }
-function end(){ if (el){ cancel('matroll'); el.remove(); } el = null; S = null; }
+function end(){ if (el){ cancel('matroll'); el.remove(); } el = null; S = null; root.classList.remove('mr-shadows-off'); }
+
+// The shadows go with the mat. Tea has shadows under its windows and its page, Coffee has none; while the mat rolls, a copy of Tea's shadows
+// is drawn on this layer (under the page and the panel, like the shadows themselves), clipped to where Tea still is, or already is: above
+// the line as the mat rolls up into Coffee, and above it again as it unrolls down into Tea. The real shadows are held off until the roll
+// ends, so nothing shows twice. The copies are box shadows of each window's own box; a page's drop shadows become box shadows of the same
+// offsets and colours.
+const SHADOWED = '.sheet-frame, #col > #head, #col > #body, #ptabs .ptab, #rail .rhist, .scr .tbar, .scr .rcard, .scr .recmore .srow, .scr .checklist .rectl :is(.row, .srow)';
+function teaShadows(){
+  const now = root.getAttribute('data-drink');
+  if (now !== 'tea') root.setAttribute('data-drink', 'tea');
+  const out = [];
+  for (const e of document.querySelectorAll(SHADOWED)){
+    const r = e.getBoundingClientRect(); if (!r.width || !r.height || r.bottom < 0 || r.top > innerHeight) continue;
+    const cs = getComputedStyle(e);
+    const drops = [...cs.filter.matchAll(/drop-shadow\(((?:rgba?\([^)]*\))|#[0-9a-f]+|[a-z]+)\s+([^)]*)\)/gi)].map(m => `${m[2]} ${m[1]}`);
+    const list = [cs.boxShadow !== 'none' ? cs.boxShadow : '', ...drops].filter(Boolean).join(', ');
+    if (list) out.push({ r, radius: cs.borderRadius, shadow: list });
+  }
+  if (now !== 'tea'){ root.setAttribute('data-drink', now); void document.body.offsetWidth; }
+  return out;
+}
+function shadowsWith(){
+  const list = teaShadows();
+  if (!list.length) return;
+  const box = document.createElement('div');
+  box.className = 'mr-shadows';
+  box.innerHTML = list.map(x => `<i style="left:${x.r.left}px;top:${x.r.top}px;width:${x.r.width}px;height:${x.r.height}px;border-radius:${x.radius};box-shadow:${x.shadow}"></i>`).join('');
+  el.querySelector('.roller').before(box);
+  if (S.to === 'tea') root.classList.add('mr-shadows-off');
+}
 
 // hovering the logo: the mat starts to roll (or unroll) a little
 export function peek(on){
@@ -81,6 +111,7 @@ function after(){
   const x0 = yOf();
   S.committed = true;
   face('above');
+  shadowsWith();
   el.style.setProperty('--mr-y', `${x0}px`);
   const a = play(el, [{ '--mr-y': `${x0}px` }, { '--mr-y': `${height() + 80}px` }], { key: 'matroll', ms: 'roll', kind: steps(1), fill: 'forwards', name: `mat:${el.dataset.kind}` });
   const mine = el;
