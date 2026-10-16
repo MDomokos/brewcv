@@ -311,7 +311,7 @@ function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: fullWindow(), slim: ui.view === 'welcome' });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: fullWindow(), slim: ui.view === 'welcome', oneUp: c.pageLimit === 1 });
   const full = !L.phone && fullWindow();
   if (full) L.col = { left: G, top: G, width: innerWidth - 2 * G, height: innerHeight - 2 * G };
   const host = $('#sheet'), box = $('#pages');

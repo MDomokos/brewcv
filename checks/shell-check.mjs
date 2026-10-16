@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
-import { computeLayout, SLIM_MIN, SLIM_MAX, G, sideWidth, RAIL_W, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
+import { SIDE_MAX, SIDE_ONE_EXTRA, computeLayout, SLIM_MIN, SLIM_MAX, G, sideWidth, RAIL_W, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
 import { indexModel, targetOf, up, step, versionsOf, factsOf, NONE } from '../src/ui/select.js';
 import { ZOOM_WRITE } from '../src/ui/dock.js';
 import { load, save, serialize, saveResume } from '../src/model/schema.js';
@@ -45,8 +45,8 @@ const lay = (vw, vh, o = {}) => computeLayout({ vw, vh, format: 'a4', ...o });
 for (const [vw, vh] of SIZES){
   const L = lay(vw, vh);
   const tag = `${vw}×${vh}`;
-  const SIDE_W = sideWidth(vw);
-  ok(`${tag}: the sidebar is one skinny column of ${SIDE_W}px (340, 316 under 1400px windows), ${G}px from the right, the top and the bottom`, SIDE_W === (vw < 1400 ? 316 : 340) && L.col.width === SIDE_W && L.col.left + L.col.width === vw - G && L.col.top === G && L.col.height === vh - 2 * G);
+  const SIDE_W = sideWidth(vw, vh);
+  ok(`${tag}: the sidebar is one skinny column of ${SIDE_W}px (at least 316, 340 from 1400 wide), ${G}px from the right, the top and the bottom`, SIDE_W >= (vw < 1400 ? 316 : 340) && L.col.width === SIDE_W && L.col.left + L.col.width === vw - G && L.col.top === G && L.col.height === vh - 2 * G);
   ok(`${tag}: the page is centred in the room left of the rail and the sidebar (the rail is ${RAIL_W}px more), and is not under them`, L.railW === RAIL_W && Math.abs(L.sheet.left + L.sheet.width / 2 - (L.col.left - RAIL_W - G) / 2) < 1e-6 && L.sheet.left + L.sheet.width <= L.col.left - RAIL_W - G + 1e-6 && L.sheet.left >= G / 2);
   ok(`${tag}: the page and the view are the same in every state: the layout takes no selection and no sheet`, JSON.stringify(L) === JSON.stringify(lay(vw, vh, { wide: false, slim: false })) && L.view.mid === (L.col.left - RAIL_W - G) / 2);
   ok(`${tag}: no tabs, no fold, no second sheet`, L.tabs === undefined && L.folded === undefined && L.two === undefined && L.twoSheets === undefined);
@@ -56,8 +56,13 @@ for (const [vw, vh] of SIZES){
   const a = lay(1470, 832);
   ok('1470×832, A4: the page runs the full height, 16px from top and bottom', a.fullHeight && Math.abs(a.sheet.top - G) < 1e-6 && Math.abs(a.sheet.height - (832 - 2 * G)) < 1e-6);
   const narrow = lay(1100, 1000);
-  ok('under about 1100px the page shrinks so the sidebar keeps its width', narrow.col.width === sideWidth(1100) && !narrow.fullHeight && narrow.sheet.width < lay(1400, 1000).sheet.width && narrow.col.left + narrow.col.width <= 1100 - G + 1e-6);
-  ok('very wide: the sidebar does not grow', lay(2560, 1440).col.width === 340);
+  ok('under about 1100px the page shrinks so the sidebar keeps its width', narrow.col.width === sideWidth(1100, 1000) && !narrow.fullHeight && narrow.sheet.width < lay(1400, 1000).sheet.width && narrow.col.left + narrow.col.width <= 1100 - G + 1e-6);
+  // what is left beside two pages of the widest paper, never under 316 or 340, never over 520; a one-page resume up to 100 more
+  const TABLE = [[1280, 720, 316, 416], [1470, 832, 340, 440], [1920, 1080, 340, 440], [2560, 1440, 340, 440], [2560, 1080, 520, 520], [3440, 1440, 520, 520], [3840, 2160, 385, 440]];
+  for (const [vw, vh, two, one] of TABLE){
+    ok(`${vw}×${vh}: the sidebar is ${two}px (${one}px for a resume limited to one page), the layout takes the same`, sideWidth(vw, vh) === two && sideWidth(vw, vh, true) === one && lay(vw, vh).col.width === two && lay(vw, vh, { oneUp: true }).col.width === one);
+  }
+  ok('the width never passes SIDE_MAX, and a one-page resume never leaves its page covered', SIDE_MAX === 520 && SIDE_ONE_EXTRA === 100 && TABLE.every(([vw, vh]) => sideWidth(vw, vh, true) <= SIDE_MAX));
 }
 section('layout: pages always side by side');
 {
