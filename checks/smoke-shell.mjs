@@ -1029,7 +1029,6 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   await jobs.nth(0).locator('.bullets li').first().click(); await settle(page);
   await appendLine(page, ' x'); await page.keyboard.press('Backspace'); await page.keyboard.press('Backspace'); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
-  await page.keyboard.press('Escape'); await settle(page);
   const html2 = await frameDoc(page, d => d.querySelector('.document').innerHTML.replace(/\s(?:contenteditable|role|aria-multiline|aria-label|spellcheck|style)="[^"]*"/g, '').replace(/\brb-[\w-]+/g, '').replace(/\sclass="\s*"/g, ''));
   const at = [...html1].findIndex((c, i) => c !== html2[i]);
   ok('writing, typing and taking it back out leaves the page’s own markup exactly as it was', html1 === html2, `at ${at}: ${html1.slice(at - 60, at + 80)} ≠ ${html2.slice(at - 60, at + 80)}`);
@@ -5151,6 +5150,12 @@ if (want('ux6g b: grabbing a row of the sidebar drags its block')) {
   ok('Esc cancels it: every line is back, nothing lifted', JSON.stringify(await tops(page, '.entry:first-child .bullets li')) === JSON.stringify(t0) && (await lifted(page)) === 0 && (await moved(page)) === 0);
   await page.mouse.up(); await settle(page);
   ok('…the release after it changes nothing: the same order, record, selection and no undo step', JSON.stringify((await printed(page))[0]) === JSON.stringify(order0) && (await recordSig(page)) === sig0 && (await undoN(page)) === u0 && (await sel0()) === s0);
+  await page.mouse.move(R[0].x, R[0].y, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(R[2].x, R[2].y + 14, { steps: 8 }); await page.keyboard.press('Escape');
+  await page.mouse.move(R[3].x, R[3].y + 10, { steps: 8 }); await page.mouse.move(R[1].x, R[1].y, { steps: 8 }); await page.waitForTimeout(300);
+  ok('Esc ends the whole gesture: moving on with the button held lifts nothing', (await lifted(page)) === 0 && (await moved(page)) === 0 && !(await hands(page)).drop);
+  await page.mouse.up(); await settle(page);
+  ok('…and the release changes nothing: the same order and no undo step', JSON.stringify((await printed(page))[0]) === JSON.stringify(order0) && (await recordSig(page)) === sig0 && (await undoN(page)) === u0);
   await page.mouse.move(R[0].x, R[0].y, { steps: 3 }); await page.mouse.down();
   await page.mouse.move(R[2].x, R[2].y + 14, { steps: 8 }); await page.waitForTimeout(200);
   await page.mouse.up(); await settle(page); await page.waitForTimeout(300);

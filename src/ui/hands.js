@@ -369,13 +369,15 @@ export function initHands(C){
     if (!el || e.target.closest(NOT_ROW) || el.classList.contains('is-locked') || locked(rowId(el))) return;
     const r = rowOf(el);
     if (!r || r.rows.length < 2) return;
+    let began = false;      // a drag that was ended (Esc) is not started again by the next move
     const x0 = e.clientX, y0 = e.clientY, ctl = new AbortController(), off = () => ctl.abort();
     const opt = { signal: ctl.signal, capture: true };
     document.addEventListener('pointermove', m => {
       if (!drag){
+        if (began) return off();
         if (Math.hypot(m.clientX - x0, m.clientY - y0) < MOVE) return;
         C.edit().leaveLine();
-        drag = { ...r.d, ok: false, to: null, moved: true, rowEl: el }; document.body.classList.add('is-dragging');
+        drag = { ...r.d, ok: false, to: null, moved: true, rowEl: el }; began = true; document.body.classList.add('is-dragging');
         sheet.doc?.addEventListener('keydown', escDrag, true);
         place();
       } else if (drag.rowEl !== el) return off();
