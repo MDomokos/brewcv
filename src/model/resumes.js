@@ -181,10 +181,10 @@ export function openSaved(state, id){
   return { held: newerOf(state.record, r), diffs };
 }
 
-// A copy of a saved resume's recipe to start something else from: no name, no snapshots, no For.
+// A copy of a saved resume's recipe to start something else from: no name, no snapshots, no For. Lines it holds at older wording stay held.
 function copyOf(src){
   const r = clone(src);
-  for (const k of ['id', 'savedAt', 'date', 'held', 'snapshots', 'forKind', 'parent']) delete r[k];
+  for (const k of ['id', 'savedAt', 'date', 'snapshots', 'forKind', 'parent']) delete r[k];
   r.company = ''; r.role = '';
   return r;
 }
