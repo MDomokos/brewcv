@@ -35,8 +35,8 @@ export const readBounce = () => num(BOUNCE_KEY, TRAVEL.bounce.min, TRAVEL.bounce
 export const readContrast = () => get(CONTRAST_KEY, v => v === 'sharp' || v === 'soft', 'sharp');
 
 // ---- the sheets ----
-// Edit, Design and Export are the rail's tabs, beside the editor card; Record is a screen button of the rail (and R). On a phone
-// the head has its own tabs, Record among them. Edit is whatever is selected, so it has no tab of its own for the Outline.
+// Edit, Design and Export are the rail's tabs, beside the editor card, in the editor place only; Career is a place of its own (the place
+// tabs, and R). On a phone the head has its own tabs, Career among them. Edit is whatever is selected, so it has no tab of its own for the Outline.
 const phone = () => innerWidth < PHONE_MAX;
 const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : 'edit'; };
 // the sidebar's tea: the open sheet's (the Outline is Edit with nothing selected)
@@ -165,9 +165,9 @@ function tween(draw){
   }
 }
 
-// ---- Fit (the name card's, and the phone's foot); the page bars (the rail's, beside undo and redo; a phone's foot has the cups); the zoom bar over the page ----
+// ---- Fit (at the top of Export, and the phone's foot); the page bars (Export's, beside Fit; a phone's foot has the cups); the zoom bar over the page ----
 const fitBtn = (u, limit, needed) => {
-  const away = ['record', 'resumes', 'compare'].includes(u.view);      // a screen covers the page Fit would work on: held, with the reason
+  const away = phone() && ['record', 'resumes', 'compare'].includes(u.view);      // a phone's screen covers the page Fit would work on: held, with the reason (a desktop's Fit is Export's)
   const why = esc(t('ux6c.fitAway'));
   return `<button class="fit sm${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''}${away ? ` aria-disabled="true" aria-description="${why}"` : ''} title="${away ? why : esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
 };
@@ -188,7 +188,7 @@ function meterHtml(){
   }).join('') + (more > 0 ? `<button class="rmore ${all.slice(MAX_BARS).some(m => m.status === 'overflow') ? 'overflow' : ''}" data-act="goto-page" data-page="${MAX_BARS}" aria-label="${esc(t('ux6c.morePages', { n: more }))}" data-tip="${esc(t('ux6c.morePages', { n: more }))}|" data-tip-pos="l">+${more}</button>` : '');
   return `<div class="meters${thin ? ' rbars' : ''}" id="meter" role="group" aria-label="${esc(t('ux2.meters'))}">${rows || '<span class="muted tiny">—</span>'}</div>`;
 }
-// Fit: the compact button under Saved and the menu in the name card
+// Fit: the compact button at the top of Export
 const fitHtml = () => { const u = C.ui, limit = C.shown()?.pageLimit; return fitBtn(u, limit, fitFilled(u.fills, limit)); };
 // the rail's page bars, drawn in the rail by the shell (the bars it already has stay, so their fill eases)
 const viewBar = (u, tipPos) => `<div class="vbar" role="toolbar" aria-label="${esc(t('ux2.viewBar'))}">
@@ -203,7 +203,7 @@ const viewBar = (u, tipPos) => `<div class="vbar" role="toolbar" aria-label="${e
 export const renderFoot = () => {
   const tea = teaOf();
   for (const id of TEA_ON){ const e = document.getElementById(id); if (e) e.dataset.tea = tea; }
-  keepFocus('#head', () => keepFocus('#rail', () => keepFocus('#foot', () => tween(drawFoot))));
+  keepFocus('#head', () => keepFocus('#rail', () => keepFocus('#body', () => keepFocus('#foot', () => tween(drawFoot)))));
   if (!phone() && !document.body.classList.contains('is-intro')) keepFocus('#zoombar', () => tween(drawZoombar));
 };
 function drawZoombar(){
@@ -220,7 +220,7 @@ function drawFoot(){
   const u = C.ui, hs = C.store.history;
   if (!phone()){
     el.textContent = '';
-    const fit = $('#head .fitslot'), bars = $('#meter');
+    const fit = $('.fitslot'), bars = $('#meter');
     if (fit) fit.innerHTML = fitHtml();
     if (bars) bars.outerHTML = meterHtml();
     return;
@@ -308,7 +308,6 @@ async function act(a, tg){
 
 function onKey(e){
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
-  if (e.key === 'r' || e.key === 'R'){ if (e.shiftKey || C.ui.snap) return false; e.preventDefault(); setMode('record'); return true; }
   if (e.key === '-' || e.key === '_'){ e.preventDefault(); zoomBy(-1); flashBar(); return true; }
   if (e.key === '=' || e.key === '+'){ e.preventDefault(); zoomBy(1); flashBar(); return true; }
   if (e.key === '0'){ e.preventDefault(); zoomTo(1); flashBar(); return true; }

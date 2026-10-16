@@ -42,26 +42,37 @@ src/i18n/                  index.js (t, plurals, fallback to English) · en.js �
                            catalogues, each marked NEEDS A NATIVE REVIEW
 src/ui/                    the Workbench: shell, sheet (the iframe), layout, select, edit,
                            resumes, switcher, files, export, design, onboarding, settings,
-                           langmenu, actual size; layout (one skinny sidebar at the right, 340px wide and 316px under 1400px windows, with a
-                           54px rail beside it; the page centred in the room left of both;
-                           pages always sit side by side at the window's height and the view scrolls sideways when the row is wider than the room (the sidebar floats over it);
-                           the sidebar is three parts: the name card (the resume's name, which wraps and is never cut, Saved as an icon with a
-                           tip, the menu, and under them Fit); the editor card, whose body is what is selected (nothing is the Outline, a job its lines, a line its
-                           versions) and which runs to the column's end (a desktop has no footer; a phone and the start screen still use `#foot`);
-                           and, when the name is clicked, the name window: the name
+                           langmenu, actual size; layout (one skinny sidebar at the right, with a 54px rail beside it; its width is `sideWidth(vw, vh, oneUp)`:
+                           what is left beside two pages of the widest paper (US Letter) side by side at the height a page is fitted to, never under 316px
+                           (340 from 1400 wide) and never over `SIDE_MAX` (520), and up to `SIDE_ONE_EXTRA` (100px) more for a resume limited to one page,
+                           whose page stays uncovered: 316 at 1280×720, 340 at 1470×832 to 2560×1440, 520 at 2560×1080 and 3440×1440, one page 416 and 440;
+                           the same in every place, so the tabs, the seam and the panel never jump; the page centred in the room left of both;
+                           pages always sit side by side at the window's height and the view scrolls sideways when the row is wider than the room (the sidebar floats over it).
+                           **Three places**, siblings, always visible: Library (with Compare as its mode), Editor and Career, keys W, E and R (not while a
+                           field has the focus, not with a modifier; Ctrl or Cmd+O is the quick switcher). `placeOf`, `goPlace`, `route` and `remember` in
+                           shell.js: `ui.view` is `resumes`/`compare` (Library), `record` (Career) or anything else (the editor and its tabs). The address follows the
+                           place, ids only: `#resumes`, `#compare`, `#resume`, `#record`, pushed when the place changes, so the browser's Back and Forward move between
+                           places. The landing: nothing saved is the start screen; one resume the editor; two or more the Library, the open resume selected with the
+                           focus on its card (Enter opens it); `#resume` always lands in the editor (every check that loads the example and expects the editor adds it,
+                           in its one open helper). Esc goes up one level inside a place and never changes place (the editor as before; the Library: Compare to the grid
+                           with the ticks kept, then the selection, then the ticks; Career: an open menu first). Each place keeps its state (the editor its page, zoom
+                           and selection; the Library its search, ticks and selection; Career its scroll). The right column is the place tabs (`<nav id="ptabs">`, drawn by
+                           `drawRail`/`drawPlaces`: Tea's tags on threads that swing when the pointer brushes past, `swingPlaces`, with `springStep` and `atRest` from camera.js;
+                           Coffee's pill with a sliding thumb; 27px instead of 34 on a window 850px high or less), then the card of the place: the name card (the resume's
+                           name, which wraps and is never cut, except on a short window, where it is one line, and the app menu) in the editor, or the place card (the counts
+                           and the action of the Library or Career; the tab names the place) in the others; then, in the editor, the card whose body is what is selected (nothing is the
+                           Outline, a job its lines, a line its versions), which runs to the column's end (a desktop has no footer; a phone and the start screen still use `#foot`).
+                           The seam (`#rail`, left of the column) is one card at its top with undo, redo and Saved, the same in every place, Edit · Design · Export as a
+                           vertical tab list touching the editor card (the editor only), and the logo (the drink switch) at its foot. Fit and the page fill (the page bars) are
+                           once, at the top of Export (`renderFoot` in dock.js finds `.fitslot` anywhere). When the name is clicked, the name window: the name
                            card grows down over the editor card with the rename field, where the resume was copied from,
-                           Duplicate, Record, New resume, the language and paper, the search, the recent resumes and Manage all. The rail is the
-                           logo (the drink switch); Edit · Design · Export as a vertical tab list touching the editor card; Resumes and Record
-                           as icon buttons in a dashed box (they open the full-window lists); and, at the foot, the page bars (one thin vertical bar for each page, at most
-                           three and then a "+n", beside undo and redo). The Outline's open sections are containers (a header row with an accent bar, their rows inside
+                           Duplicate, Career, New resume, the language and paper, the search, the recent resumes and Manage all. The Outline's open sections are containers (a header row with an accent bar, their rows inside
                            under a rule); a row's count reads n/m, and its padlock and tick are at its right end, as on the page chip. Save to file is in the Export
-                           panel (and Ctrl+S). Record, Resumes and Compare are screens of their own: the window is the screen (ui.view is `record`, `resumes` or
-                           `compare`, the column is `is-full`), the name card and the rail (with the page bars and undo) stay, shrunk to small cards so no bar crosses the window,
-                           the back button is the first stop and takes the focus, and Esc or the button goes back with the page and the selection
-                           as they were and the focus on the rail button that opened it; Compare goes back to Resumes. A phone shows them as
-                           the whole screen, as Record always was),
+                           panel (and Ctrl+S). The Library, Compare and Career are drawn in `#scr`, left of the sidebar (the page is not drawn behind them and the sidebar's body is empty
+                           until the inspector arrives); a phone shows them as the whole screen, with a back button, as Record always was. Every radius and shadow of
+                           flow.css is a token, so Coffee draws it square and flat),
                            dock (the page bars and Fit, the phone's foot, the zoom bar over the page with Actual size, hover hints that show on keyboard focus too, the rail's keys), checklist (the record's groups, drawn by record.js and, at the job
-                           level, beside the job), record (the Record screen: the way in and the way round; a job's name opens the job),
+                           level, beside the job), record (Career: the way in and the way round; a job's name opens the job),
                            screens (Resumes: a card for each resume and each sent copy with a picture of its first page, ticks to compare any
                            number, "Under <parent>" or "Closest: <name> (a guess)", What differs; Compare: a table with a column for each; the
                            model is compareMany and differences in model/resumes.js), thumbs (the pictures: one hidden sheet lays each resume
@@ -95,7 +106,8 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            reduced motion, where the line is only kept in view), plain (the
                            text of a line being written, read back from the page), start (the start screen:
                            its header, inspector and footer areas, and the picture of how it works) with
-                           start.css (every colour a token, like the other two stylesheets)
+                           start.css (every colour a token, like the other two stylesheets), flow.css (the place tabs, the place card, the seam and #scr, loaded last;
+                           every radius and shadow a token)
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,
                            claims and new-resume (what a coding agent uses; see AGENTS.md), onefile (a folder ↔ the one file)
 checks/                    the Node checks, the Chromium smoke test, the guards
@@ -145,11 +157,12 @@ The browser ones need `playwright` and a Chromium on the machine (dev only; the 
 
 ```
 node checks/smoke-shell.mjs           the app end to end, about 1,000 checks (use smoke-parallel.mjs for speed)
-node checks/head-check.mjs            the name card (with Fit), name window, rail and page bars in all ten languages (ONLY=de,hu for a few)
+node checks/head-check.mjs            the place tabs, the name card (no Fit, no Saved), name window and seam in all ten languages (ONLY=de,hu for a few); Export's page bars
 node checks/review-model-check.mjs    the Review list's model: parents and picks, a duplicate's held lines, headings, marks, who an update reaches
 node checks/review-ui-check.mjs       the Review list's behaviour: markup in a name, Apply, all the newer wording, keys, a failed save
 node checks/review-check.mjs          the Review list in all ten languages at three window sizes and on a phone: nothing cut, overlapping or pushed out
-node checks/screens-check.mjs         the Resumes, Compare and Record screens: Duplicate, parent, what differs, compare of three, thumbnails, back and Esc, no bar, ten languages
+node checks/screens-check.mjs         the Library, Compare and Career: Duplicate, parent, what differs, compare of three, thumbnails, no bar, ten languages
+node checks/places-check.mjs          the three places: the tabs, W E R, Esc, the address, Back and Forward, the landing, each place's state, the seam, the swing, Coffee square and flat
 node checks/room-check.mjs            the sidebar and the layout around the page, at three window sizes
 node checks/label-fit.mjs             every language's headings fit the gutter, and the app's labels fit the sidebar
 node checks/garden-check.mjs          the tea garden, about two minutes (ONLY=flow,rain runs some)

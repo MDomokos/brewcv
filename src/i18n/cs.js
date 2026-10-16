@@ -153,7 +153,6 @@ export default {
 
   'resumes.pShort': '{n} s.',
   'resumes.noType': 'Bez typu pozice',
-  'resumes.back': '← Životopisy',
   'resumes.newTitle': 'Nový životopis',
   'resumes.company': 'Firma',
   'resumes.role': 'Pozice',

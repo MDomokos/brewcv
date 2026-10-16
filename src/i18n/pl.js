@@ -153,7 +153,6 @@ export default {
 
   'resumes.pShort': '{n} str.',
   'resumes.noType': 'Bez typu stanowiska',
-  'resumes.back': '← Zapisane CV',
   'resumes.newTitle': 'Nowe CV',
   'resumes.company': 'Firma',
   'resumes.role': 'Stanowisko',

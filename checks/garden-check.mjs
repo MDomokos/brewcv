@@ -49,7 +49,7 @@ async function open(ok, { idle = 600, query = '', drink = null, rb = {}, ctx = {
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
   await page.addInitScript(([d, extra]) => { try { localStorage.setItem('rb-help-seen', '1'); if (d) localStorage.setItem('rb-drink', d); for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v); } catch { /* nothing to set */ } }, [drink, rb]);
-  await page.goto(`http://localhost:${PORT}/?memory&garden-check=${idle}${query}`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/?memory&garden-check=${idle}${query}#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   await page.waitForFunction(() => (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   return { page, context, bad, done: () => ok('no console errors', bad.length === 0, bad[0] ?? '') };
@@ -322,7 +322,7 @@ async function gates(){
     await s.context.close();
   }));
   // a normal page has no hooks
-  const n = await open(ok, { query: '' }); await n.page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  const n = await open(ok, { query: '' }); await n.page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await n.page.waitForFunction(() => document.body.classList.contains('is-ready')); await sleep(1500);
   ok('without the flag there are no hooks on any global', await n.page.evaluate(() => !window.__garden && !window.__wb.garden && !!document.getElementById('garden')));
   await n.context.close();

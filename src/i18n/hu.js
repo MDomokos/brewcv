@@ -153,7 +153,6 @@ export default {
 
   'resumes.pShort': '{n} o.',
   'resumes.noType': 'Nincs állástípus',
-  'resumes.back': '← Önéletrajzok',
   'resumes.newTitle': 'Új önéletrajz',
   'resumes.company': 'Cég',
   'resumes.role': 'Pozíció',

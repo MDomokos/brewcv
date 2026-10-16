@@ -2,8 +2,8 @@
 // node checks/menu-check.mjs
 // The editor menu's layout (UX-6c-iv-a), in Chromium on the example:
 //  - a desktop has no footer: nothing is drawn under the editor card, which runs to the column's end, at three window sizes;
-//  - Fit is in the name card under Saved and the menu; its chip (after a Fit that changed something) hangs right under it, and Ctrl+Z undoes;
-//  - the page bars in the rail: a click on a bar of a two-page resume brings that page forward, the "+n" goes to the first page not drawn;
+//  - Fit is in Export only, at the top beside the page bars (the name card has neither Fit nor Saved); its chip (after a Fit that changed something) hangs right under it with no error, and Ctrl+Z undoes;
+//  - the page bars at the top of Export: a click on a bar of a two-page resume brings that page forward, the "+n" goes to the first page not drawn;
 //  - the Outline's counts read n/m, with the words in the tip and for a screen reader;
 //  - an open section is a container (a real group, an accent bar, its own surface and border) that a closed one is not, in the four looks;
 //  - a job's or section's name in the Outline wraps without an ellipsis, in ten languages.
@@ -34,7 +34,7 @@ const open = async (w, h, look = []) => {
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
   await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); if (d) { localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } } catch { /* none */ } }, look);
   const page = await ctx.newPage();
-  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await page.waitForTimeout(500);
   return { ctx, page };
@@ -47,25 +47,28 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
   const col = await rect(page, '#col'), body = await rect(page, '#body');
   const foot = await page.evaluate(() => { const f = document.querySelector('#foot'); return !!f && (f.getClientRects().length > 0 || f.children.length > 0); });
   ok(`${w}×${h}: there is no footer, and the editor card reaches the column's bottom`, !foot && Math.abs(body.bottom - col.bottom) < 1.5, `${body.bottom} ${col.bottom}`);
-  const fit = await rect(page, '#head [data-act=fit]'), saved = await rect(page, '#head .savestate'), menu = await rect(page, '#head [data-act=menu]');
-  ok(`${w}×${h}: Fit is in the name card under Saved and the menu`, !!fit && fit.top >= Math.max(saved.bottom, menu.bottom) - 1 && fit.right <= menu.right + 1 && !(await page.$('#body [data-act=fit], #rail [data-act=fit]')));
+  ok(`${w}×${h}: the name card has neither Fit nor Saved: Fit is not on the page until Export is open`, !(await page.$('#head [data-act=fit], #head .savestate, [data-act=fit]')) && !!(await page.$('#rail .rhist .savestate')));
+  await page.evaluate(() => window.__wb.setView('export')); await page.waitForTimeout(300);
+  ok(`${w}×${h}: Fit is once, at the top of Export, beside the page bars`, (await page.$$('[data-act=fit]')).length === 1 && !!(await page.$('#body .exfit [data-act=fit]')) && !!(await page.$('#body .exfit .meter')) && !(await page.$('#head [data-act=fit], #rail [data-act=fit]')));
   await ctx.close();
 }
 
 // ---- the Fit chip ----
 {
   const { ctx, page } = await open(1470, 832);
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.evaluate(() => window.__wb.setView('export'));
   await page.evaluate(async () => {
     const T = await import('/src/model/resume.js');
     window.__wb.store.commit(d => { for (const w of d.record.work) for (const hl of (w.highlights ?? [])) { try { T.setBulletOn(d.record, d.cur, hl.id ?? hl, true); } catch { /* archived */ } } }, 'check: all lines');
   });
   await page.waitForTimeout(900);
   const before = await page.evaluate(() => window.__wb.store.history.undo);
-  await page.click('#head [data-act=fit]');
+  await page.click('#body [data-act=fit]');
   await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 30000 });
   await page.waitForTimeout(400);
-  const chip = await rect(page, '.fitchip'), fit = await rect(page, '#head [data-act=fit]');
-  ok('the Fit chip appears right under the Fit button, at its right edge, and is a status', !!chip && chip.top >= fit.bottom && chip.top - fit.bottom < 16 && Math.abs(chip.right - fit.right) < 2 && (await page.getAttribute('.fitchip', 'role')) === 'status', JSON.stringify([chip, fit]));
+  const chip = await rect(page, '.fitchip'), fit = await rect(page, '#body [data-act=fit]'), col = await rect(page, '#col');
+  ok('the Fit chip appears right under the Fit button in Export, inside the column, is a status, and shows without an error', !!chip && chip.top >= fit.bottom && chip.top - fit.bottom < 16 && chip.left >= col.left && chip.right <= col.right + 1 && (await page.getAttribute('.fitchip', 'role')) === 'status' && errors.length === 0, JSON.stringify([chip, fit, errors]));
   await page.keyboard.press('Control+z'); await page.waitForTimeout(500);
   ok('Ctrl+Z undoes the Fit, and the chip goes', (await page.evaluate(() => window.__wb.store.history.undo)) <= before + 1 && !(await page.$('.fitchip')) && (await page.evaluate(() => window.__wb.store.history.redo)) >= 1);
   await ctx.close();
@@ -75,13 +78,14 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
 {
   const { ctx, page } = await open(1280, 800);
   await page.click('#docname-btn'); await page.fill('#switcher #sw-q', 'Medtech'); await page.click('#switcher .sopt:has-text("Medtech")'); await page.waitForTimeout(1200);
-  const n = await page.$$eval('#rail .rhist .meter', ms => ms.length);
-  await page.click('#rail .meter[data-page="1"]'); await page.waitForTimeout(900);
-  ok('the rail shows one bar for each of the two pages, and a click on page 2’s bar brings page 2 forward', n === 2 && (await page.evaluate(() => window.__wb.ui.page)) === 1 && (await page.getAttribute('#rail .meter[data-page="1"]', 'aria-current')) === 'true');
-  await page.click('#rail .meter[data-page="0"]'); await page.waitForTimeout(900);
+  await page.evaluate(() => window.__wb.setView('export')); await page.waitForTimeout(300);
+  const n = await page.$$eval('#body .exfit .meter', ms => ms.length);
+  await page.click('#body .exfit .meter[data-page="1"]'); await page.waitForTimeout(900);
+  ok('Export shows one bar for each of the two pages, and a click on page 2’s bar brings page 2 forward', n === 2 && (await page.evaluate(() => window.__wb.ui.page)) === 1 && (await page.getAttribute('#body .exfit .meter[data-page="1"]', 'aria-current')) === 'true');
+  await page.click('#body .exfit .meter[data-page="0"]'); await page.waitForTimeout(900);
   ok('…and a click on page 1’s goes back', (await page.evaluate(() => window.__wb.ui.page)) === 0);
   await page.evaluate(() => { const u = window.__wb.ui; u.fills = Array.from({ length: 5 }, (_, i) => ({ page: i + 1, used: 90, usable: 100, overflow: 0 })); window.__wb.dock.renderFoot(); });
-  ok('five pages: three bars and a "+2" that goes to the fourth', (await page.$$eval('#rail .rhist .meter', ms => ms.length)) === 3 && (await page.textContent('#rail .rmore')) === '+2' && (await page.getAttribute('#rail .rmore', 'data-page')) === '3');
+  ok('five pages: three bars and a "+2" that goes to the fourth', (await page.$$eval('#body .exfit .meter', ms => ms.length)) === 3 && (await page.textContent('#body .exfit .rmore')) === '+2' && (await page.getAttribute('#body .exfit .rmore', 'data-page')) === '3');
   await ctx.close();
 }
 

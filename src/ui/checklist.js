@@ -202,13 +202,13 @@ function html(){
 function afterRender(){
   // the tick just made pops once, on its own line (the panel is redrawn on every tick, so the line is found again by what it is)
   if (S.pop && performance.now() < S.pop.until){
-    const cb = document.querySelector(`#body .cb[${S.pop.attr}="${CSS.escape(S.pop.val)}"]:checked`);
+    const cb = document.querySelector(`:is(#body, #scr) .cb[${S.pop.attr}="${CSS.escape(S.pop.val)}"]:checked`);
     if (cb){ cb.classList.add('pop'); cb.addEventListener('animationend', () => cb.classList.remove('pop'), { once: true }); }
   }
   S.pop = null;
   const tr = S.travel;
   if (tr && tr.on === false && performance.now() < tr.until) arriveRow(tr);
-  if (!hintDone() && document.querySelector('#body .clrow') && !C.ui.snap) sample();
+  if (!hintDone() && document.querySelector(':is(#body, #scr) .clrow') && !C.ui.snap) sample();
 }
 
 // ---- a line travels between its row and its place on the page ----
@@ -216,7 +216,7 @@ function afterRender(){
 // has been drawn again: shell.js calls landed()). Switched off: it leaves where it was printed and lands on its row. A line that
 // is not on the page, or no motion, travels nowhere.
 const pill = (text, box) => ghost(box, `<span>${esc(text)}</span>`, 'mo-ghost mo-pill');
-const rowBox = id => { const r = document.querySelector(`#body .clrow[data-fact="${CSS.escape(id)}"] .clt`)?.getBoundingClientRect(); return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null; };
+const rowBox = id => { const r = document.querySelector(`:is(#body, #scr) .clrow[data-fact="${CSS.escape(id)}"] .clt`)?.getBoundingClientRect(); return r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null; };
 function arriveRow(tr){
   S.travel = null;
   const to = rowBox(tr.id);
@@ -232,7 +232,7 @@ function landed(){
 // the first time the checklist is on screen: one line of the open resume makes the trip, so the person sees what a tick does
 function sample(){
   if (reduced()) return;
-  const row = [...document.querySelectorAll('#body .clrow:not(.is-off)[data-fact]')].find(r => r.dataset.fact && C.lineBox?.(r.dataset.fact));
+  const row = [...document.querySelectorAll(':is(#body, #scr) .clrow:not(.is-off)[data-fact]')].find(r => r.dataset.fact && C.lineBox?.(r.dataset.fact));
   if (!row) return;
   setHintDone();
   const id = row.dataset.fact, from = rowBox(id), to = C.lineBox(id), text = row.querySelector('.clt')?.textContent ?? '';
@@ -281,11 +281,11 @@ async function act(a, tg){
 function bind(body){
   body.addEventListener('change', e => {
     const cb = e.target;
-    if (cb.matches?.('#body .cb') && cb.checked){
+    if (cb.matches?.(':is(#body, #scr) .cb') && cb.checked){
       const attr = cb.dataset.on !== undefined ? 'data-on' : cb.dataset.item !== undefined ? 'data-item' : null;
       S.pop = attr ? { attr, val: cb.getAttribute(attr), until: performance.now() + 1500 } : null;
     }
-    if (cb.matches?.('#body :is(.cb, .sw)[data-on]')){
+    if (cb.matches?.(':is(#body, #scr) :is(.cb, .sw)[data-on]')){
       setHintDone();
       const row = cb.closest('.clrow'), id = cb.dataset.on, clt = row?.querySelector('.clt')?.getBoundingClientRect();
       const text = row?.querySelector('.clt')?.textContent ?? '';
@@ -294,10 +294,10 @@ function bind(body){
     }
   });
   const hover = id => C.hoverFact(id || null);
-  body.addEventListener('mouseover', e => { const r = e.target.closest?.('#body .clrow[data-fact]'); if (r) hover(r.dataset.fact); });
-  body.addEventListener('mouseout', e => { const r = e.target.closest?.('#body .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });
-  body.addEventListener('focusin', e => { const r = e.target.closest?.('#body .clrow[data-fact]'); if (r) hover(r.dataset.fact); });
-  body.addEventListener('focusout', e => { const r = e.target.closest?.('#body .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });
+  body.addEventListener('mouseover', e => { const r = e.target.closest?.(':is(#body, #scr) .clrow[data-fact]'); if (r) hover(r.dataset.fact); });
+  body.addEventListener('mouseout', e => { const r = e.target.closest?.(':is(#body, #scr) .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });
+  body.addEventListener('focusin', e => { const r = e.target.closest?.(':is(#body, #scr) .clrow[data-fact]'); if (r) hover(r.dataset.fact); });
+  body.addEventListener('focusout', e => { const r = e.target.closest?.(':is(#body, #scr) .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });
 }
 
 const api = { html, outlineHtml, act, bind, afterRender, landed };

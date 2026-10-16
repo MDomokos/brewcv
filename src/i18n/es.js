@@ -153,7 +153,6 @@ export default {
 
   'resumes.pShort': '{n} p.',
   'resumes.noType': 'Sin tipo de puesto',
-  'resumes.back': '← Currículums',
   'resumes.newTitle': 'Nuevo currículum',
   'resumes.company': 'Empresa',
   'resumes.role': 'Puesto',

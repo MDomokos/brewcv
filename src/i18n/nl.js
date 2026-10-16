@@ -153,7 +153,6 @@ export default {
 
   'resumes.pShort': '{n} p.',
   'resumes.noType': 'Geen functietype',
-  'resumes.back': '← Cv’s',
   'resumes.newTitle': 'Nieuw cv',
   'resumes.company': 'Bedrijf',
   'resumes.role': 'Functie',

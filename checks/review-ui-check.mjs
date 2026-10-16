@@ -35,7 +35,7 @@ async function fresh(){
   await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(String(e)));
-  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await page.waitForFunction(() => !window.__wb.busy(), null, { timeout: 10000 });
   return { ctx, page, errs };

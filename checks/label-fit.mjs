@@ -2,8 +2,8 @@
 // node checks/label-fit.mjs
 // Every default heading (doc.section.*) and its "continued" note fits the gutter of its language's A4
 // format and of Letter, measured in Chromium with the real theme, clearing it by at least 3px (the
-// margin a4-hu.css sets). Then the app's own labels in each of the ten languages, with the sidebar at its width (340px, 316px under 1400px
-// windows) in three windows: the name card, the foot, the zoom bar with Actual size, the Outline, the checklist, the lens, the
+// margin a4-hu.css sets). Then the app's own labels in each of the ten languages, with the sidebar at its narrowest width (316px under 1400px, 340px from there, more on a large screen)
+// in three windows: the place tabs, the name card, the foot, the zoom bar with Actual size, the Outline, the checklist, the lens, the
 // switcher and Settings all fit what they are in. A label that is too wide is reported with its language, its text and its
 // measured width (the check never shortens one). Writes only to out/. Needs playwright and a Chromium.
 
@@ -87,7 +87,7 @@ for (const lang of I.UI_LANGS){
     const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, bypassCSP: true });
     await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } }, lang);
     const pg = await ctx.newPage();
-    await pg.goto(`http://localhost:${PORT}/index.html?memory`, { waitUntil: 'networkidle' });
+    await pg.goto(`http://localhost:${PORT}/index.html?memory#resume`, { waitUntil: 'networkidle' });
     await pg.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
     await pg.waitForTimeout(600);
     await pg.waitForTimeout(300);
@@ -104,14 +104,14 @@ for (const lang of I.UI_LANGS){
       return bad;
     }, [name, sel, ELLIPSIS]);
     let problems = [];
-    problems.push(...await probe('head', '#head button, #head .hrow, #head .savestate'));
+    problems.push(...await probe('head', '#head button, #head .hrow, #ptabs .ptab, #ptabs .ptab span'));
     problems.push(...await probe('foot', '#foot button, #foot .hfill, #foot .meters'));
     problems.push(...await probe('zoom bar', '#zoombar button, #zoombar .vbar, #zoombar .meters'));
     problems.push(...await probe('outline', '#outline .srow *, #outline .clcaret, #outline .clcount, #outline .archmore, #outline .addline, .lens button, .lens select, .lensrow'));
     // Record, Export's Mark as sent, and the job level
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
     problems.push(...await probe('record', '#checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw, #checklist .addline'));
-    await pg.keyboard.press('Escape'); await pg.waitForTimeout(500);      // Record fills the window, rail and all: back to the editor
+    await pg.keyboard.press('e'); await pg.waitForTimeout(500);      // E: Career is a place of its own, and Esc stays in it: back to the editor
     await pg.click('#tab-export'); await pg.waitForTimeout(400);
     problems.push(...await probe('export', '.sentrow *, .filerow *, .sentrule, .dl button'));
     await pg.click('[data-act=mark-sent]'); await pg.waitForTimeout(400);
@@ -131,12 +131,12 @@ for (const lang of I.UI_LANGS){
     await pg.click('#switcher [data-act=sw-manage]'); await pg.waitForTimeout(350);
     problems.push(...await pg.evaluate(() => {
       const out = [];
-      for (const el of document.querySelectorAll('#resumes .scrhead button, #resumes .scrhead h2, #resumes .scrhead span, #resumes .racts button')){
+      for (const el of document.querySelectorAll('#resumes .scrhead button, #resumes .scrhead h2:not(.sr), #resumes .scrhead span, #resumes .racts button')){
         if (el.scrollWidth > el.clientWidth + 1) out.push(`resumes: ${el.className || el.textContent} is cut`);
       }
       return out;
     }));
-    await pg.keyboard.press('Escape'); await pg.waitForTimeout(150);
+    await pg.keyboard.press('e'); await pg.waitForTimeout(250);      // E: back to the editor (Esc stays in the Library)
     // the zoom bar over the page, with Actual size, and the page and sidebar settings, which live in Settings
     await pg.mouse.move(300, 400); await pg.waitForTimeout(300);
     await pg.evaluate(() => window.__wb.setView('settings')); await pg.waitForTimeout(400);

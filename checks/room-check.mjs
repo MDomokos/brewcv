@@ -3,13 +3,14 @@
 // The sidebar's room and the layout around the page, as a test: on the example,
 //  (d) at 1280×720, 1470×832 and 1200×750, how much of the open body's content is below its visible area (the scroll height beyond the
 //      client height, as a share of the scroll height)? A job and Export show whole at every size; the rest are held to what they hide
-//      in the 340px sidebar (LIMITS are the measured numbers).
+//      in the sidebar (LIMITS are the measured numbers).
 //  (a) at 1280×720, 1470×832 and 1920×1080 no element outside the page layer is wider than half the window (no bar across the top),
 //  (b) the page at fit fills the window's height less 32px, and
 //  (c) the page's x is the same for nothing selected, a line, a job, Design, Export and back; writing a line zooms in, and the page is back
 //      where it was at the page level.
-// And the shape: the name card (name, Saved and menu, with Fit under them), the rail (logo, Edit, Design and Export, Resumes and Record, the page bars with
-// undo and redo) and no footer: the editor card runs to the column's end. The sidebar is 340px (316 under 1400px), the rail 54px more.
+// And the shape: the place tabs, the name card (the name and the menu), the seam (undo, redo and Saved at the top; Edit, Design and Export joined to the
+// panel; the logo at the foot) and no footer: the editor card runs to the column's end. The sidebar is what sideWidth says (316 to 520px, and up to 100px more for a
+// resume limited to one page), the rail 54px more.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes only to out/.
 
 import { chromium } from 'playwright';
@@ -49,7 +50,7 @@ for (const [i, [w, h]] of SIZES.entries()){
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
   await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
   const page = await ctx.newPage();
-  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await page.waitForTimeout(500);
   const frame = page.frameLocator('#sheet iframe');
@@ -76,7 +77,7 @@ const open = async (w, h) => {
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
   await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
   const page = await ctx.newPage();
-  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await page.waitForTimeout(500);
   return { ctx, page };
@@ -117,39 +118,38 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
 {
   const { ctx, page } = await open(1470, 832);
   try {
-    const shape = await page.evaluate(() => {
+    const shape = await page.evaluate(async () => {
+      const { sideWidth } = await import('/src/ui/layout.js');
       const r = s => document.querySelector(s)?.getBoundingClientRect();
-      const col = r('#col'), rail = r('#rail'), body = r('#body'), head = r('#head'), tab = r('#tab-edit');
+      const col = r('#col'), rail = r('#rail'), body = r('#body'), head = r('#head'), tab = r('#tab-edit'), pt = r('#ptabs'), hist = r('#rail .rhist'), logo = r('#rail .logo');
+      const one = window.__wb.store.state.resumes.find(x => x.id === window.__wb.store.state.openId)?.pageLimit === 1;
       return {
         tabs: !!document.querySelector('#tabs'), folded: !!document.querySelector('.is-folded'),
         segs: [...document.querySelectorAll('#rail [role=tab]')].map(b => b.dataset.m),
-        tablist: document.querySelector('#rail [role=tablist]'),
         segRole: document.querySelector('#rail [role=tablist]')?.getAttribute('aria-label') ?? null,
         vertical: document.querySelector('#rail [role=tablist]')?.getAttribute('aria-orientation'),
         headTabs: document.querySelectorAll('#head [role=tab]').length,
         head: ['switcher', 'menu', 'fit', 'save-file', 'undo', 'redo', 'drink-switch'].filter(a => document.querySelector(`#head [data-act="${a}"]`)),
         railActs: [...document.querySelectorAll('#rail [data-act]')].map(b => b.dataset.act),
-        screens: [...document.querySelectorAll('#rail .scr')].map(b => ({ act: b.dataset.act, name: b.getAttribute('aria-label'), tip: !!b.dataset.tip, text: b.textContent.trim() })),
+        places: [...document.querySelectorAll('#ptabs .ptab')].map(b => b.getAttribute('aria-label') + (b.getAttribute('aria-current') ? '*' : '')),
         footShown: !!document.querySelector('#foot')?.getClientRects().length,
         bodyBottom: body.bottom, colBottom: col.bottom,
-        barsText: document.querySelector('#rail .meters').textContent.trim(), barsInHist: !!document.querySelector('#rail .rhist .meters'),
-        meterNames: [...document.querySelectorAll('#rail .meter')].map(b => b.getAttribute('aria-label') ?? ''),
-        fitRect: r('#head .fit'), savedRect: r('#head .savestate'), menuRect: r('#head [data-act=menu]'), nameRect: r('#docname'),
+        barsInRail: !!document.querySelector('#rail .meter'), screensInRail: !!document.querySelector('#rail .scr, #rail .rscreens'),
+        savedInSeam: !!document.querySelector('#rail .rhist .savestate'),
         zoombar: [...document.querySelectorAll('#zoombar [data-act]')].map(b => b.dataset.act),
-        widths: { col: col.width, rail: rail.width, gap: col.left - rail.right, tabTouches: Math.abs(tab.right - body.left) < 1.5, tabInside: tab.top >= body.top && tab.bottom <= body.bottom, nameAbove: head.bottom <= body.top },
-        saveInExport: null,
+        seam: { histTop: hist.top - col.top, logoBottom: col.bottom - logo.bottom, tabsBelowHist: r('#rail .rtabs').top >= hist.bottom },
+        want: sideWidth(innerWidth, innerHeight, one), one,
+        widths: { col: col.width, rail: rail.width, gap: col.left - rail.right, tabTouches: Math.abs(tab.right - body.left) < 1.5, tabInside: tab.top >= body.top && tab.bottom <= body.bottom, nameAbove: head.bottom <= body.top, placesAbove: pt.bottom <= head.top + 14 },
       };
     });
     ok('no old tabs and no fold', !shape.tabs && !shape.folded);
     ok('the rail has Edit, Design and Export as a vertical, labelled tab list; the head has no tabs', shape.segs.join() === 'edit,design,export' && !!shape.segRole && shape.vertical === 'vertical' && shape.headTabs === 0, shape.segs.join());
-    ok('the sidebar is 340px (316 under 1400px) with a 54px rail touching it; the first tab touches the editor card, inside its height; the name card is above it', shape.widths.col === 340 && shape.widths.rail === 54 && Math.abs(shape.widths.gap) < 1 && shape.widths.tabTouches && shape.widths.tabInside && shape.widths.nameAbove, JSON.stringify(shape.widths));
-    ok('the name card has the name, Saved, the menu and Fit; Save to file, undo, redo and the logo are not in it', shape.head.join() === 'switcher,menu,fit', shape.head.join());
-    const sr = shape.savedRect, mr = shape.menuRect, fr = shape.fitRect, nr = shape.nameRect, hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-    ok('Fit is in the name card under Saved and the menu, overlapping neither them nor the name', fr.top >= Math.max(sr.bottom, mr.bottom) - 1 && !hit(fr, sr) && !hit(fr, mr) && !hit(fr, nr) && fr.right <= mr.right + 1, JSON.stringify([fr, sr, mr, nr]));
-    ok('the rail has the logo (the drink switch), the tabs, Resumes and Record, undo and redo', ['drink-switch', 'mode', 'sw-manage', 'sw-record', 'undo', 'redo'].every(a => shape.railActs.includes(a)), shape.railActs.join());
-    ok('Resumes and Record are icon only buttons with a name and a tip', shape.screens.length === 2 && shape.screens.every(x => x.name && x.tip && x.text === ''), JSON.stringify(shape.screens));
+    ok(`the sidebar is what sideWidth says (${shape.want}px, ${shape.one ? 'a one-page resume' : 'two pages'}), with the rail touching it; the first tab touches the editor card, inside its height; the place tabs and the name card are above it`, shape.widths.col === shape.want && Math.abs(shape.widths.gap) < 1 && shape.widths.tabTouches && shape.widths.tabInside && shape.widths.nameAbove && shape.widths.placesAbove, JSON.stringify(shape.widths));
+    ok('the three places are tabs on top of the column, Editor the current one', shape.places.join() === 'Library,Editor*,Career', shape.places.join());
+    ok('the name card has the name and the menu: no Save to file, undo, redo, logo, Fit or Saved', shape.head.join() === 'switcher,menu' && shape.savedInSeam, shape.head.join());
+    ok('the seam: undo, redo and Saved in one card at the top, the logo at the foot, Edit, Design and Export under the card', ['drink-switch', 'mode', 'undo', 'redo'].every(a => shape.railActs.includes(a)) && shape.seam.histTop < 1 && shape.seam.logoBottom < 1 && shape.seam.tabsBelowHist, JSON.stringify(shape.seam));
+    ok('no screen buttons and no page bars in the rail (the places are the tabs; the bars are Export\'s)', !shape.barsInRail && !shape.screensInRail);
     ok('there is no footer: the editor card runs to the column\'s end', !shape.footShown && Math.abs(shape.bodyBottom - shape.colBottom) < 1.5, `${shape.bodyBottom} ${shape.colBottom}`);
-    ok('the page bars are in the rail beside undo and redo: one thin bar for each page, no text, each named with its page, fill and state', shape.barsInHist && shape.meterNames.length >= 1 && shape.barsText === '' && shape.meterNames.every(n => /\d/.test(n) && n.length > 10), shape.meterNames.join(' | '));
     ok('Actual size is on the zoom bar', shape.zoombar.includes('actual'), shape.zoombar.join());
     // the tab list: the arrow keys (up and down) move between the tabs and open them
     await page.focus('#tab-edit'); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(300);
@@ -163,6 +163,13 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
   await ctx.close();
 }
 
+// the panel under the tabs at 1280×720 (compact): the prototype measured 596 to 611px; a place tab or the name card taller than that would show here
+{
+  const { ctx, page } = await open(1280, 720);
+  const hgt = await page.evaluate(() => Math.round(document.querySelector('#body').getBoundingClientRect().height));
+  ok('1280×720: the panel under the compact tabs and the one-line name card is about 600px high', hgt >= 590 && hgt <= 625, `${hgt}px`);
+  await ctx.close();
+}
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} room check(s) FAILED` : '\nall room checks passed');
 process.exit(failed ? 1 : 0);

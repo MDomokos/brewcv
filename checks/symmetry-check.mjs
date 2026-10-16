@@ -35,7 +35,7 @@ const open = async (w, h, look = []) => {
   await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); if (d) { localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } } catch { /* none */ } }, look);
   const page = await ctx.newPage();
   page.setDefaultTimeout(8000);      // a step that finds nothing fails in seconds
-  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await page.waitForTimeout(500);
   return { ctx, page };
@@ -61,7 +61,8 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
     window.__wb.store.commit(d => { for (const w of d.record.work) for (const hl of (w.highlights ?? [])) { try { T.setBulletOn(d.record, d.cur, hl.id ?? hl, true); } catch { /* archived */ } } }, 'check: all lines');
   });
   await page.waitForTimeout(900);
-  await page.click('#head [data-act=fit]');
+  await page.evaluate(() => window.__wb.setView('export'));
+  await page.click('#body [data-act=fit]');
   await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 30000 });
   await page.waitForTimeout(7000);
   ok('the Fit chip is still there 7 seconds after Fit (no timer)', !!(await page.$('.fitchip')));
@@ -77,7 +78,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(500);
   const out = await page.$$eval('#body [data-act=ol-newline]', bs => bs.map(b => b.textContent.trim()));
   ok('the Outline\u2019s button (a line only on this resume) reads "+ line here"', out.length > 0 && out.every(x => x === '+ line here'), out.join('|'));
-  await page.click('#rail [data-act=sw-record]'); await page.waitForTimeout(700);
+  await page.click('#ptabs [data-p=career]'); await page.waitForTimeout(700);
   const rec = await page.$$eval('#checklist [data-act=ol-addline]', bs => bs.map(b => b.textContent.trim()));
   ok('the Record\u2019s button (a new claim in the record) reads "+ new claim"', rec.length > 0 && rec.every(x => x === '+ new claim'), rec.join('|'));
   await ctx.close();
@@ -257,7 +258,7 @@ await run('an Undo button on the toast of a delete (UX-6c-iv-b stage 2, fix 18)'
   ok('a deleted claim\u2019s toast has an Undo button, and it brings the claim back', (await nFacts()) === f0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nFacts()) === f0));
   const nEdu = () => page.evaluate(() => window.__wb.store.state.record.projects.length);
   const e0 = await nEdu();
-  await page.click('#rail [data-act=sw-record]'); await wait();
+  await page.click('#ptabs [data-p=career]'); await wait();
   await page.click('#checklist .clg[data-g=chassis-jig] .jobname'); await wait();
   await page.evaluate(() => document.querySelector('#body [data-act=c-del-entry]').click()); await wait();      // (it is inside the job's Details fold)
   ok('a deleted entry\u2019s toast has an Undo button, and it brings the entry back', (await nEdu()) === e0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nEdu()) === e0));
@@ -357,11 +358,11 @@ await run('skills: back to the record\'s groups, and delete a set (fix 14)', asy
   const cur = () => page.evaluate(() => JSON.stringify({ ...window.__wb.store.state.cur, savedAt: 0 }));
   await page.click('#outline [data-act=select-section][data-id=skills]'); await wait();
   const c0 = await cur(), s0 = await st();
-  ok('with the record\u2019s own groups there is nothing to go back to (no "The record\u2019s groups" option) and nothing to delete', !(await page.$('#sk-set option[value="~record"]')) && (await page.$eval('[data-act=sk-del]', b => b.disabled)));
+  ok('with the record\u2019s own groups there is nothing to go back to (no "Your career\u2019s groups" option) and nothing to delete', !(await page.$('#sk-set option[value="~record"]')) && (await page.$eval('[data-act=sk-del]', b => b.disabled)));
   await page.click('[data-act=sk-save]'); await wait();
   const saved = await st();
   const first = await page.$eval('#sk-set', s => s.options[0].textContent);
-  ok('Save as the set writes a set and the "Start from a set" menu now lists "The record\u2019s groups" first among its choices', saved !== s0 && (await page.$$eval('#sk-set option', os => os.map(o => o.textContent)))[1] === 'The record\u2019s groups', first);
+  ok('Save as the set writes a set and the "Start from a set" menu now lists "Your career\u2019s groups" first among its choices', saved !== s0 && (await page.$$eval('#sk-set option', os => os.map(o => o.textContent)))[1] === 'Your career\u2019s groups', first);
   ok('…and "Delete this set" is enabled', !(await page.$eval('[data-act=sk-del]', b => b.disabled)));
   await page.click('[data-act=sk-del]'); await wait();
   const gone = JSON.parse(await st());
@@ -369,7 +370,7 @@ await run('skills: back to the record\'s groups, and delete a set (fix 14)', asy
   await page.click('#toast [data-act=toast-undo]'); await wait();
   ok('…and Undo brings the set back', (await st()) === saved);
   await page.selectOption('#sk-set', '~record'); await wait();
-  ok('"The record\u2019s groups" takes the arrangement away: the resume is as before the set was applied', JSON.parse(await st()).arr === null && (await cur()) === c0);
+  ok('"Your career\u2019s groups" takes the arrangement away: the resume is as before the set was applied', JSON.parse(await st()).arr === null && (await cur()) === c0);
   ok('…and the sets of the record are untouched by it', JSON.stringify(JSON.parse(await st()).sets) === JSON.stringify(JSON.parse(saved).sets));
   // locked: the skills are held
   await page.evaluate(async () => { const L = await import('/src/model/lock.js'); window.__wb.store.commit(d => { L.setLocked(d.cur, 'skills', true); }, 'check: lock'); }); await wait();
@@ -518,29 +519,45 @@ await run('remove a language from the record when nothing uses it (fix 19)', asy
   await ctx.close();
 });
 
-// ---- Fit waits while a screen is open (UX-6c-iv-b follow-up) ----
-for (const [name, w, h, phone] of [['the name card', 1470, 832, false], ['the phone’s foot', 390, 844, true]]) await run(`Fit is held while a screen is open: ${name}`, async () => {
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, ...(phone ? { hasTouch: true, isMobile: true } : {}) });
+// ---- Fit waits while a screen is open (UX-6c-iv-b follow-up): on a phone; a desktop's Fit is Export's and not on the page elsewhere ----
+await run('Fit is Export\u2019s: not on the Library, there and not held in Export', async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1470, height: 832 } });
   await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
   const page = await ctx.newPage();
   page.setDefaultTimeout(8000);
-  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await page.waitForTimeout(600);
   const wait = () => page.waitForTimeout(700);
-  const sel = phone ? '#foot .fit' : '#head .fit';
+  ok('in the editor Fit is not on the page until Export is open', !(await page.$('[data-act=fit]')));
+  await page.click('#tab-export'); await wait();
+  ok('in Export Fit is once on the page and not held', (await page.$$('[data-act=fit]')).length === 1 && (await page.$eval('#body [data-act=fit]', b => b.getAttribute('aria-disabled'))) === null);
+  await page.click('#ptabs [data-p=library]'); await wait();
+  ok('with the Library open there is no Fit on the page to press', !(await page.$('[data-act=fit]')));
+  await ctx.close();
+});
+await run('Fit is held while a screen is open: the phone’s foot', async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  const page = await ctx.newPage();
+  page.setDefaultTimeout(8000);
+  await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const wait = () => page.waitForTimeout(700);
+  const sel = '#foot .fit';
   const fit = () => page.$eval(sel, b => ({ dis: b.getAttribute('aria-disabled'), desc: b.getAttribute('aria-description') ?? '' }));
   const undo = () => page.evaluate(() => window.__wb.store.history.undo);
   const f0 = await fit();
-  ok(`${name}: Fit is not held on the page`, f0.dis === null, JSON.stringify(f0));
+  ok('the phone’s foot: Fit is not held on the page', f0.dis === null, JSON.stringify(f0));
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
   const f1 = await fit(), u1 = await undo();
-  ok(`${name}: with the Resumes screen open Fit is aria-disabled and says why`, f1.dis === 'true' && /go back to the resume/.test(f1.desc), JSON.stringify(f1));
+  ok('the phone’s foot: with the Resumes screen open Fit is aria-disabled and says why', f1.dis === 'true' && /go back to the resume/.test(f1.desc), JSON.stringify(f1));
   await page.$eval(sel, b => b.click()); await wait();
-  ok(`${name}: …and pressing it changes nothing`, (await undo()) === u1 && !(await page.evaluate(() => window.__wb.ui.fitting)));
+  ok('the phone’s foot: …and pressing it changes nothing', (await undo()) === u1 && !(await page.evaluate(() => window.__wb.ui.fitting)));
   await page.click('#resumes [data-act=scr-back]'); await wait();
-  ok(`${name}: back on the resume Fit is held no more`, (await fit()).dis === null);
+  ok('the phone’s foot: back on the resume Fit is held no more', (await fit()).dis === null);
   await ctx.close();
 });
 
@@ -550,7 +567,7 @@ await run('on a phone: the depth row carries the tools, the name window and the 
   await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
   const page = await ctx.newPage();
   page.setDefaultTimeout(8000);
-  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await page.waitForTimeout(600);
   const wait = () => page.waitForTimeout(700);

@@ -1,0 +1,82 @@
+/* The three places (Library, Editor, Career): the place tabs on top of the right column, the place card under the active one, the seam,
+   and #scr, where the Library and Career are drawn left of the sidebar. Loaded after the other stylesheets. Every radius and shadow is a
+   token (--r-xs to --r-pill, --shadow-chip and the rest), so Coffee draws it square and flat. */
+
+/* ---- the place tabs: the card under the active one joins it ---- */
+.ptabs { flex: none; display: flex; gap: 4px; padding: 0 10px; margin-bottom: -1px; position: relative; z-index: 1; }
+.ptabs[hidden], body:is([data-phone=true], .is-intro, .is-quiet) .ptabs { display: none; }
+.ptabs .ptab { flex: 1; min-width: 0; height: 34px; margin-top: 4px; padding: 0 8px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--tab-line, var(--line-strong)); border-bottom: 0; border-radius: var(--r-m) var(--r-m) 0 0; background: color-mix(in srgb, var(--tab-bg) 55%, transparent); color: color-mix(in srgb, var(--tab-ink) 70%, transparent); font: 600 12px/1 var(--font-ui); white-space: nowrap; }
+.ptabs .ptab > span { overflow: hidden; text-overflow: ellipsis; }
+.ptabs .ptab:hover:not([aria-current]) { background: color-mix(in srgb, var(--tab-bg) 85%, transparent); color: var(--tab-ink); }
+.ptabs .ptab[aria-current=page] { height: 39px; margin-top: 0; background: var(--tab-bg); color: var(--tab-ink); font-weight: 750; }
+.ptabs .ptab:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* the card under the tabs: the name card, or the place card (counts and the place's action; the tab names the place) */
+body:not([data-phone=true]):not(.is-intro) .col > #head.is-place { position: relative; padding: 10px 76px 10px 14px; }
+#head.is-place .ptitle { display: flex; align-items: center; gap: 8px; }
+#head.is-place h2 { margin: 0; font-size: 16px; font-weight: 750; }
+#head.is-place .psub { margin: 2px 0 0; font-size: 12px; color: var(--ink-soft); }
+#head.is-place .pacts { margin-top: 8px; display: flex; gap: 6px; }
+#head.is-place .pcorner { position: absolute; right: 8px; top: 8px; display: flex; align-items: center; gap: 4px; }
+/* a short window: the tabs and the card take less height */
+@media (max-height: 850px){
+  .ptabs .ptab { height: 27px; margin-top: 3px; font-size: 11px; gap: 5px; }
+  .ptabs .ptab[aria-current=page] { height: 30px; margin-top: 0; }
+  .ptabs .ptab svg { width: 13px; height: 13px; }
+  body:not([data-phone=true]) .col > #head .hrow.top { align-items: center; }
+  .col > #head .docname .dn { display: flex; gap: .35em; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .col > #head .docname .dn .swco { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .col > #head .docname .dn .swrole { overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
+  .col > #head .docname .dn .swrole::before { content: "— "; }
+  body:not([data-phone=true]):not(.is-intro) .col > #head.is-place { padding-top: 6px; padding-bottom: 6px; }
+  #head.is-place .psub { display: inline; margin: 0; }
+  #head.is-place .pacts { display: inline-flex; margin: 0 0 0 8px; vertical-align: middle; }
+}
+
+/* Tea: the places are tea tags, each on its own thread through a punched hole, tucked behind the name card at their foot; the one you are on
+   is in the drink's accent. They swing when the pointer brushes past (shell.js swingPlaces), about the thread's top. The tag's cut corners are
+   drawn by its background, so the thread above it is not clipped. */
+:root {
+  --thread: #a88a5c; --hole: rgba(30, 40, 25, .45);
+}
+html[data-drink="tea"] .ptabs { gap: 8px; padding: 12px 10px 0; margin-bottom: -12px; }
+html[data-drink="tea"] .col > #head { z-index: 1; }
+html[data-drink="tea"] .ptabs .ptab, html[data-drink="tea"] .ptabs .ptab[aria-current=page] { --tg: color-mix(in srgb, var(--tab-bg) 94%, transparent);
+  position: relative; height: 44px; margin-top: 0; padding: 9px 8px 12px; border: 0; border-radius: 0; overflow: visible; transform-origin: 50% -12px;
+  background: linear-gradient(135deg, transparent 8px, var(--tg) 0) left top / 51% 100% no-repeat, linear-gradient(225deg, transparent 8px, var(--tg) 0) right top / 51% 100% no-repeat;
+  color: var(--tab-ink); font-weight: 650; filter: drop-shadow(0 0 .6px color-mix(in srgb, var(--tab-ink) 55%, transparent)); }
+html[data-drink="tea"] .ptabs .ptab[aria-current=page] { --tg: var(--accent); color: var(--on-accent, var(--tab-ink)); font-weight: 750; }
+html[data-drink="tea"] .ptabs .ptab:hover:not([aria-current]) { --tg: var(--tab-bg); color: var(--tab-ink);
+  background: linear-gradient(135deg, transparent 8px, var(--tg) 0) left top / 51% 100% no-repeat, linear-gradient(225deg, transparent 8px, var(--tg) 0) right top / 51% 100% no-repeat; }
+html[data-drink="tea"] .ptabs .ptab::before { content: ""; position: absolute; left: calc(50% - .8px); top: -12px; width: 1.6px; height: 20px; background: var(--thread); pointer-events: none; }
+html[data-drink="tea"] .ptabs .ptab::after { content: ""; position: absolute; left: calc(50% - 3.5px); top: 4px; width: 7px; height: 7px; border-radius: var(--r-round); pointer-events: none;
+  background: linear-gradient(var(--thread), var(--thread)) center / 1.6px 100% no-repeat, var(--hole); }
+@media (max-height: 850px){ html[data-drink="tea"] .ptabs .ptab, html[data-drink="tea"] .ptabs .ptab[aria-current=page] { height: 38px; } }
+
+/* Coffee: one segmented pill; a raised thumb slides to the place you are on */
+html[data-drink="coffee"] .ptabs { position: relative; gap: 0; padding: 3px; margin: 0 4px 8px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--tab-ink) 9%, var(--tab-bg)); border: 1px solid var(--tab-line, var(--line-strong)); }
+html[data-drink="coffee"] .ptabs::before { content: ""; position: absolute; top: 3px; bottom: 3px; left: calc(3px + var(--ti, 0) * (100% - 6px) / 3); width: calc((100% - 6px) / 3); border-radius: var(--r-pill); background: var(--paper); box-shadow: var(--shadow-chip); transition: left .22s cubic-bezier(.3, .7, .2, 1); }
+html[data-motion=reduce][data-drink="coffee"] .ptabs::before { transition: none; }
+@media (prefers-reduced-motion: reduce){ html[data-drink="coffee"] .ptabs::before { transition: none; } }
+html[data-drink="coffee"] .ptabs .ptab, html[data-drink="coffee"] .ptabs .ptab[aria-current=page] { position: relative; z-index: 1; height: 30px; margin-top: 0; border: 0; border-radius: var(--r-pill); background: transparent; color: color-mix(in srgb, var(--tab-ink) 70%, transparent); }
+html[data-drink="coffee"] .ptabs .ptab[aria-current=page] { color: var(--paper-ink); font-weight: 750; }
+html[data-drink="coffee"] .ptabs .ptab:hover:not([aria-current]) { background: transparent; color: var(--tab-ink); }
+@media (max-height: 850px){ html[data-drink="coffee"] .ptabs .ptab, html[data-drink="coffee"] .ptabs .ptab[aria-current=page] { height: 26px; } }
+
+/* ---- the seam: undo, redo and Saved in one card at the top, the same on every place; Edit, Design and Export under it (the editor only); the logo at the foot ---- */
+.rsaved { display: grid; place-items: center; min-height: 22px; }
+.rsaved .savestate { padding: 0; }
+
+/* ---- Fit and the page fill: once, at the top of Export ---- */
+.exfit { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 0 0 10px; border-bottom: 1px solid var(--line); }
+.exfit .meters { flex: none; }
+
+/* ---- #scr: the Library and Career, left of the sidebar. The open resume's page is not drawn behind it, and the sidebar's body is empty ---- */
+.scr { position: fixed; z-index: 6; overflow: auto; padding: 14px 16px; border-radius: var(--r-panel); background: var(--surface); box-shadow: var(--shadow-panel); }
+.scr[hidden] { display: none; }
+body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: hidden; }
+body.has-scr .col > #body { display: none; }
+
+/* ---- the Library: the selected card is ringed; its name is the button that selects it (again: opens it) ---- */
+.rcard .rsel { all: unset; cursor: pointer; font-weight: 700; color: inherit; overflow-wrap: anywhere; }
+.rcard .rsel:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.rcard.sel { box-shadow: 0 0 0 3px var(--accent); }

@@ -43,7 +43,7 @@ section('reduced motion: one rule');
   ok('the canvas takes its ease from --m-travel and the shared rule (write mode zoom in and out, UX-3)', /dur\('travel'\)/.test(src['canvas.js']) && /from '\.\/motion\.js'/.test(src['canvas.js']) && !/EASE_MS/.test(src['canvas.js']));
   ok('the page’s frame follows it too (sheet.js copies the tokens and the rule across)', /rb-still/.test(src['sheet.js']) && /--rb-m-base/.test(src['sheet.js']));
   ok('the Reduce motion setting is in Settings, per browser', /data-reduce-motion/.test(src['settings.js']) && /setReduce/.test(src['settings.js']));
-  const cssFiles = ['workbench.css', 'drinks.css', 'start.css'].map(f => read(`src/ui/${f}`)).join('\n');
+  const cssFiles = ['workbench.css', 'drinks.css', 'start.css', 'flow.css'].map(f => read(`src/ui/${f}`)).join('\n');
   ok('the CSS animations of UX-4 (the overflow edge, the roll, the logo) are inside the blanket rule, none opts out of it', !/data-motion="full"/.test(cssFiles) && /ovIn/.test(cssFiles));
 }
 

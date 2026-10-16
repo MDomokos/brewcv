@@ -11,11 +11,11 @@ import { LockedError } from '../model/lock.js';
 import { groupOf } from '../model/checklist.js';
 import { fit, FILL_BAND, key as measureKeyOf } from '../fit.js';
 import { createSheet } from './sheet.js';
-import { computeLayout, pageSize, pageInView, pageTop, G } from './layout.js';
+import { computeLayout, pageSize, pageInView, pageTop, G, PHONE_MAX, RAIL_W } from './layout.js';
 import { initCanvas, PAGES_MOVED } from './canvas.js';
 import { initOnPage } from './onpage.js';
 import { initHands } from './hands.js';
-import { pageLeft } from './camera.js';
+import { pageLeft, springStep, atRest } from './camera.js';
 import { initDock, storeZoomWrite, ib } from './dock.js';
 import { initChecklist } from './checklist.js';
 import { initRecord } from './record.js';
@@ -170,6 +170,12 @@ async function boot(){
     staticText();
     drew = await redraw();
   }
+  // the landing (N8, D4): the address names a place; else one resume opens in the editor, and two or more in the Library, the open resume selected
+  if (ui.view !== 'welcome'){
+    if (['#resumes', '#compare', '#record'].includes(location.hash)) route();
+    else if (location.hash !== '#resume' && (store.state.resumes?.length ?? 0) >= 2) setView('resumes');
+    history.replaceState(null, '', hashOf());
+  }
   document.body.classList.add('is-ready');
   ui.ready = true;
 }
@@ -301,24 +307,23 @@ async function drawSheet(){
   }
 }
 
-// Record, Resumes and Compare are screens of their own: they fill the window; everything else is the sidebar
+// The Library (with Compare) and Career are places of their own, drawn left of the sidebar in #scr; everything else is the editor's.
+// On a phone they are the whole screen, as they were.
 const SCREENS = ['record', 'resumes', 'compare'];
-const fullWindow = () => SCREENS.includes(ui.view);
-// the layout changes only when the sidebar becomes the whole window or stops being it
-// (on a phone Record is the whole screen, as it was)
+const fullWindow = () => innerWidth < PHONE_MAX && SCREENS.includes(ui.view);
+// the layout changes only when the sidebar becomes the whole screen or stops being it (a phone)
 const syncFull = () => { if ($('#col').classList.contains('is-full') !== fullWindow()) relayout(); };
 function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
   const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: fullWindow(), slim: ui.view === 'welcome', oneUp: c.pageLimit === 1 });
-  const full = !L.phone && fullWindow();
-  if (full) L.col = { left: G, top: G, width: innerWidth - 2 * G, height: innerHeight - 2 * G };
   const host = $('#sheet'), box = $('#pages');
   const col = $('#col');
   Object.assign(col.style, { left: `${L.col.left}px`, top: `${L.col.top}px`, width: `${L.col.width}px`, height: `${L.col.height}px` });
-  col.classList.toggle('is-full', L.phone ? fullWindow() : full);
+  col.classList.toggle('is-full', fullWindow());
   ui.layout = L;
+  layoutScreen();
   document.body.dataset.phone = String(!!L.phone);
   syncGarden();
   if (L.phone){
@@ -421,7 +426,7 @@ function select(sel, { keepScroll = false, stay = false } = {}){
   const was = ui.view;
   const at = ui.layout?.phone ? -1 : pageOfSel(sel);
   if (at >= 0 && at !== ui.page && !stay){ ui.page = at; canvas.goToPage(at); }       // a line on another page, chosen from the panel: that page comes forward
-  if (left) syncFull();         // Record fills the window; Edit does not
+  if (left){ syncFull(); remember(); }         // a selection made in Career is looked at in the editor: the address follows
   dock.renderFoot();
   renderHead();
   // The sidebar opens at its top (the line's versions are what you came for). Only a click on a row of the Outline or the Record,
@@ -465,38 +470,57 @@ function setView(v){
   if (v && !VIEWS[v]) return;
   const was = ui.view;
   ui.focusKept = false;
-  if (SCREENS.includes(v) && !SCREENS.includes(was)) screenFrom = v;
-  if (v === 'record' && ui.view !== 'record') ui.recordFrom = ui.view ?? 'edit';      // Esc goes back to where it was opened from
+  if (SCREENS.includes(was) && !ui.layout?.phone) (ui.scrolled ??= {})[was] = $('#scr').scrollTop;      // each place keeps its scroll (N6)
   ui.view = v;
   syncIntro();                 // the start screen's areas are the editor's again before they are drawn
   if (ui.previewing) endPreview();
   resumes.reset();
-  syncFull();                  // Record fills the window; the others are the sidebar
+  syncFull();                  // on a phone a place is the whole screen
   dock.renderFoot();
   renderHead();
   renderBody(true);
   renderChip();
-  if (SCREENS.includes(v)) $('#body [data-act=scr-back]')?.focus({ preventScroll: true });      // a screen opens on its way back
-  else if (SCREENS.includes(was)) refocusOpener();
+  if (SCREENS.includes(v) && !ui.layout?.phone) $('#scr').scrollTop = ui.scrolled?.[v] ?? 0;
+  // a place opens with the focus on its tab (the Library: on the selected card); leaving one for the editor puts it on the Editor tab
+  if (SCREENS.includes(v) && !SCREENS.includes(was)) (v === 'resumes' && screens.focusSel() || $(`#ptabs [data-p="${placeOf()}"]`) || $('#body [data-act=scr-back]'))?.focus({ preventScroll: true });
+  else if (SCREENS.includes(was) && !SCREENS.includes(v) && !ui.focusKept) $(`#ptabs [data-p="${placeOf()}"]`)?.focus({ preventScroll: true });
+  remember();
 }
-// leaving a screen, back to where it was entered: the rail's button for it
-const OPENER = { resumes: '#rail [data-act=sw-manage]', compare: '#rail [data-act=sw-manage]', record: '#rail [data-act=sw-record]' };
-let screenFrom = null;
-function refocusOpener(){ const n = screenFrom && $(OPENER[screenFrom]); screenFrom = null; if (n){ n.focus({ preventScroll: true }); ui.focusKept = true; } }      // dock.setMode leaves it there
-// Esc and the back button: Compare goes back to Resumes, Record to the sheet it was opened from, the others to the editor
-const leaveView = () => (ui.view === 'record' ? dock.setMode(recordTab.backTo() ?? 'edit') : ui.view === 'compare' ? setView('resumes') : setView(null));
+// The three places (N1): the Library (and Compare, its mode), the editor (the open resume and everything in its tabs), and Career.
+const placeOf = (v = ui.view) => (v === 'resumes' || v === 'compare' ? 'library' : v === 'record' ? 'career' : 'editor');
+async function goPlace(p){
+  if (p === placeOf() && p !== 'library') return;
+  if (ui.writing && !(await edit.cancelEdit())) return;      // a line being written is left first, asking if there is a draft
+  if (p === 'career') return dock.setMode('record');
+  if (p === 'library') return setView('resumes');
+  if (SCREENS.includes(ui.view)) setView(null);
+}
+// D4: the address follows the place, so the browser's Back and Forward move between places. Ids only, never names.
+const hashOf = (v = ui.view) => ({ resumes: '#resumes', compare: '#compare', record: '#record' }[v] ?? '#resume');
+let routing = false;
+function remember(){ if (!routing && ui.ready && ui.view !== 'welcome' && location.hash !== hashOf()) history.pushState(null, '', hashOf()); }
+function route(){
+  const v = { '#resumes': 'resumes', '#compare': screens.canCompare() ? 'compare' : 'resumes', '#record': 'record' }[location.hash] ?? null;
+  if (ui.view === 'welcome' || (v === null && !SCREENS.includes(ui.view)) || v === ui.view) return;
+  routing = true; try { setView(v); } finally { routing = false; }
+  if (location.hash !== hashOf()) history.replaceState(null, '', hashOf());
+}
+addEventListener('popstate', route);
+// Esc goes up one level inside a place and never to another: Compare to the grid (the ticks stay); then the selection is cleared
+// (a phone's screens are the whole screen: their back button and Esc return to the editor, Compare to the Library)
+const leaveView = () => (ui.view === 'compare' ? setView('resumes') : fullWindow() ? setView(null) : ui.view === 'resumes' ? screens.clearSel() : recordTab.clearSel());
 
 // the head is redrawn on every save: the control that had the focus keeps it
-const focusKey = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}` : null);
+const focusKey = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}${el.dataset.p ? `[data-p="${el.dataset.p}"]` : ''}` : null);
 function renderHead(){
-  const ae = document.activeElement, kept = ae && ae.closest?.('#head, #rail') ? focusKey(ae) : null;
+  const ae = document.activeElement, kept = ae && ae.closest?.('#head, #rail, #ptabs') ? focusKey(ae) : null;
   drawHead();
-  if (kept){ const n = $(`#head ${kept}`) ?? $(`#rail ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
+  if (kept){ const n = $(`#head ${kept}`) ?? $(`#rail ${kept}`) ?? $(`#ptabs ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
 }
 let saidSave = '';
 function drawHead(){
   // on the start screen the header area is the logo, the name and the tagline
-  if (document.body.classList.contains('is-intro')){ $('#head').innerHTML = onboarding.headHtml(); $('#rail').innerHTML = ''; return; }
+  if (document.body.classList.contains('is-intro')){ $('#head').innerHTML = onboarding.headHtml(); $('#rail').innerHTML = ''; $('#ptabs').hidden = true; return; }
   const r = shown();
   const st = persist.status;
   const saving = st.status === 'saving' || st.status === 'pending';
@@ -517,17 +541,26 @@ function drawHead(){
   const mode = dock.modeOf();
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
-    // the name card: the resume's name (never cut: it wraps); in the right column Saved and the menu, with Fit under them. The tabs, the screens, undo and the page bars are the rail's.
-    $('#head').innerHTML = `
+    const menuBtn = `<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>`;
+    if (SCREENS.includes(ui.view)){
+      // the place card under the tabs: the counts and the action of the place (the tab names it); the app menu stays in its corner
+      $('#head').innerHTML = `${screens.placeCard(ui.view, recordTab.summary())}<div class="pcorner">${menuBtn}</div>${notices}${ui.menu ? menuHtml() : ''}`;
+      $('#head').classList.add('is-place');
+    } else {
+      // the name card: the resume's name (never cut: it wraps) and the app menu. Saved, undo and redo are the seam's; Fit is Export's.
+      $('#head').classList.remove('is-place');
+      $('#head').innerHTML = `
     <div class="hrow top">
       <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { size: 12 })}</span></button>
-      <div class="hside"><div class="hsidetop">${savedState}<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button></div><span class="fitslot">${dock.fitHtml()}</span></div>
+      <div class="hside"><div class="hsidetop">${menuBtn}</div></div>
     </div>
     ${sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
     ${notices}
     ${ui.menu ? menuHtml() : ''}`;
-    drawRail(mode);
+    }
+    drawRail(mode, savedState);
   } else {
+  $('#ptabs').hidden = true;
   const meta = r ? [jobTypeLabel(store.state.record, r.jobType), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const savebtn = `<button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>`;
@@ -552,21 +585,28 @@ function drawHead(){
 
 // ---- the rail (a desktop): the logo, the editor's tabs, the other screens, undo and redo. Three containers: the tabs touch the editor card,
 // the screens are dashed and icon only, undo and redo sit at the foot. ----
-function drawRail(mode){
-  const hs = store.history, tea = drink() === 'tea', bars = $('#meter');      // the page bars stay through a redraw, so their fill can ease
+function drawRail(mode, saved = ''){
+  const hs = store.history, tea = drink() === 'tea', editor = placeOf() === 'editor';
   const tab = (m, key, ic) => `<button role="tab" class="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'design', 'export'].includes(mode)) ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? ic[1] : ic[0], { size: 22 })}</span><span class="tl">${h(key)}</span></button>`;
-  const screen = (act, name, ic) => `<button class="scr" data-act="${act}" data-tip="${esc(name)}|${esc(t('ux6b.fullWindow'))}" data-tip-pos="l" aria-label="${esc(name)}"><span class="ti">${icon(ic, { size: 22 })}</span><span class="cue">${icon('external', { size: 10 })}</span></button>`;
+  // the seam: undo, redo and Saved in one card at the top, the same on every place; Edit, Design and Export joined to the panel in the editor only; the logo at the foot
   $('#rail').innerHTML = `${logoBtn(30, { base: 'logo', pos: 'l' })}
-    <div class="rtabs" id="rtabs" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}" data-tea="${esc(dock.teaNow())}">${tab('edit', 'ux2.modeEdit', ['edit', 'steep'])}${tab('design', 'ux2.modeDesign', ['design', 'latte'])}${tab('export', 'ux2.modeExport', ['export', 'cupout'])}</div>
-    <div class="rscreens" role="group" aria-label="${esc(t('ux6b.screens'))}">${screen('sw-manage', t('ux1.manageAll', { n: store.state.resumes?.length ?? 0 }), 'list')}${screen('sw-record', t('ux3b.modeRecord'), 'recordbook')}</div>
+    ${editor ? `<div class="rtabs" id="rtabs" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}" data-tea="${esc(dock.teaNow())}">${tab('edit', 'ux2.modeEdit', ['edit', 'steep'])}${tab('design', 'ux2.modeDesign', ['design', 'latte'])}${tab('export', 'ux2.modeExport', ['export', 'cupout'])}</div>` : ''}
     <div class="rhist" role="group" aria-label="${esc(t('ux6b.history'))}">
-      <div class="rbarslot"></div>
+      <span class="rsaved">${saved}</span>
       ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
       ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 'l')}
     </div>`;
-  const slot = $('#rail .rbarslot');
-  if (bars) slot.replaceWith(bars); else slot.outerHTML = dock.barsHtml();
+  drawPlaces();
   placeRail();
+}
+// The place tabs on top of the right column: Library, Editor (the pencil) and Career, in this order, each a button with its key in the tip.
+function drawPlaces(){
+  const pt = $('#ptabs'), here = placeOf(), on = RS.savedOf(store.state, store.state.openId);
+  const P = [['library', 'list', t('ux6h.placeLibrary'), 'W'], ['editor', 'edit', t('ux6h.placeEditor'), 'E', on && t('ux6h.editorOpen', { name: resumeName(on) })], ['career', 'recordbook', t('ux6h.placeCareer'), 'R']];
+  pt.hidden = false;
+  pt.setAttribute('aria-label', t('ux6h.places'));
+  pt.style.setProperty('--ti', String(P.findIndex(x => x[0] === here)));      // Coffee's sliding thumb
+  pt.innerHTML = P.map(([k, ic, name, key, tip]) => `<button class="ptab" data-act="place" data-p="${k}" ${here === k ? 'aria-current="page"' : ''} data-tip="${esc(tip || name)}|${esc(t('ux6h.key', { key }))}" data-tip-pos="b" aria-label="${esc(name)}">${icon(ic, { size: 16 })}<span>${esc(name)}</span></button>`).join('');
 }
 // The tabs hang off the editor card: the first starts 30px below its top, whatever the name card's height. Not while the name window
 // has the card's place (the body is not there to measure).
@@ -575,6 +615,46 @@ function placeRail(){
   if (!body || !body.offsetParent || ui.layout?.phone) return;
   $('#rail').style.setProperty('--tt', `${body.offsetTop + 30}px`);
 }
+
+// #scr holds the Library and Career: from the left gutter to the seam, the sidebar's height
+function layoutScreen(){
+  const L = ui.layout, scr = $('#scr');
+  if (!L || L.phone || scr.hidden) return;
+  Object.assign(scr.style, { left: `${G}px`, top: `${G}px`, height: `${innerHeight - 2 * G}px`, width: `${Math.max(0, L.col.left - RAIL_W - 2 * G)}px` });
+}
+
+// Tea: the place tags hang on threads and swing when the pointer brushes past them, as the folded Tea tags did on main (dock.js swingTags):
+// the sideways movement near a tag pushes it, its neighbour gets a share, and a critically damped spring brings each back (no wiggle).
+// Nothing moves under reduced motion or in Coffee; the loop runs only while a tag moves. Decoration: a click never waits for it.
+const SWG = { s: [], raf: 0, last: 0, px: null, A: 0.9, omega: 6.64 / 0.75 };      // about a degree for one 60px brush (a sweep across all three adds up to about 3), settled in 0.75s
+function swingFrame(now){
+  SWG.raf = 0;
+  const tabs = document.querySelectorAll('#ptabs .ptab'), dt = Math.min(.05, (now - SWG.last) / 1000); SWG.last = now;
+  let live = false;
+  SWG.s.forEach((s, i) => {
+    if (!s) return;
+    const n = springStep(s, 0, dt, { omega: SWG.omega * (1 - .12 * i), bounce: 0 });
+    SWG.s[i] = atRest(n, 0, .03) ? { x: 0, v: 0 } : n;
+    if (SWG.s[i].x || SWG.s[i].v) live = true;
+    if (tabs[i]) tabs[i].style.rotate = SWG.s[i].x ? `${SWG.s[i].x.toFixed(3)}deg` : '';
+  });
+  if (live) SWG.raf = requestAnimationFrame(swingFrame);
+}
+function swingPlaces(e){
+  const px = SWG.px; SWG.px = e.clientX;
+  if (px === null || drink() !== 'tea' || reduced() || ui.layout?.phone) return;
+  const dx = Math.max(-45, Math.min(45, e.clientX - px)); if (!dx) return;
+  const tabs = [...document.querySelectorAll('#ptabs:not([hidden]) .ptab')];
+  const at = tabs.findIndex(x => { const r = x.getBoundingClientRect(); return e.clientX > r.left - 10 && e.clientX < r.right + 10 && e.clientY > r.top - 14 && e.clientY < r.bottom + 6; });
+  if (at < 0) return;
+  tabs.forEach((x, i) => {
+    if (Math.abs(i - at) > 1) return;
+    const s = SWG.s[i] ??= { x: 0, v: 0 }, k = -dx / 60 * (i === at ? 1 : .45) * Math.E, cap = 1.4 * SWG.A * SWG.omega * Math.E;
+    s.v = Math.max(-cap, Math.min(cap, s.v + k * SWG.A * SWG.omega));
+  });
+  if (!SWG.raf){ SWG.last = performance.now(); SWG.raf = requestAnimationFrame(swingFrame); }
+}
+document.addEventListener('pointermove', swingPlaces, { passive: true });
 
 // "Saved on this device", and under it where the file stands
 const savedTip = () => {
@@ -593,9 +673,9 @@ function sentLine(){
 // line appears under it. All of it after the fact: the head already says the new thing.
 let namedId;
 function headMoments(sent){
-  const id = store.state.openId;
-  if (namedId !== undefined && id !== namedId) play($('#docname'), [{ opacity: 0.2, transform: 'translateX(-14px)' }, { opacity: 1, transform: 'none' }], { key: 'name', name: 'switch:name' });
-  namedId = id;
+  const id = store.state.openId, dn = $('#docname');
+  if (dn && namedId !== undefined && id !== namedId) play(dn, [{ opacity: 0.2, transform: 'translateX(-14px)' }, { opacity: 1, transform: 'none' }], { key: 'name', name: 'switch:name' });
+  if (dn || namedId === undefined) namedId = id;      // in the Library or Career there is no name card: the new name slides in when the editor shows it
   if (ui.sentEnter && sent){
     ui.sentEnter = false;
     play($('#head .dsent'), [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { key: 'sent', name: 'snapshot:line', delay: 160, fill: 'backwards' });
@@ -721,8 +801,14 @@ function syncIntro(){
 }
 function renderBody(animate = false){
   syncIntro();
-  const el = $('#body');
+  let el = $('#body');
   if (!record() || !cur()){ el.innerHTML = `<p class="muted">${h('body.loading')}</p>`; return; }
+  // the Library and Career are drawn in #scr, left of the sidebar (the sidebar's body is the inspector's place); a phone draws them in the body
+  const there = SCREENS.includes(ui.view) && !ui.layout?.phone, scr = $('#scr');
+  document.body.classList.toggle('has-scr', there);
+  scr.hidden = !there;
+  if (there){ $('#body').innerHTML = ''; $('#body').dataset.view = $('#body').dataset.mode = 'place'; el = scr; layoutScreen(); }
+  else if (scr.innerHTML) scr.innerHTML = '';
   const s = ui.sel;
   const keep = el.scrollTop;
   // a record form with something typed in it is not redrawn under the caret; one you have left or not changed is, and the focus stays where it was
@@ -767,6 +853,7 @@ function renderBody(animate = false){
     finish();
     if (ui.view === 'record') recordTab.afterRender();
     screens.after[ui.view]?.();
+    if (ui.view === 'export' && !ui.layout?.phone) el.insertAdjacentHTML('afterbegin', `<div class="exfit"><span class="fitslot">${dock.fitHtml()}</span>${dock.barsHtml()}</div>`);      // Fit and the page fill live in Export, once
     return;
   }
   // Edit is whatever is selected: nothing selected is the Outline, a job is its lines, a line its versions (a phone has no Outline: its
@@ -863,6 +950,7 @@ async function onClick(e){
   if (await settings.act(act, tg)) return;
   if (await career.act(act, tg)) return;
   if (act === 'view-back'){ setView(null); return; }
+  if (act === 'place'){ goPlace(tg.dataset.p); return; }
   if (act === 'scr-back'){ leaveView(); return; }
   if (await screens.act(act, tg)) return;
   if (await resumes.act(act, tg)) return;
@@ -899,7 +987,7 @@ async function onClick(e){
     case 'toast-undo': if (store.history.undo === toastAt) store.undo(); else dropToastUndo(); break;
     case 'undo': stepHistory('undo'); break;
     case 'redo': stepHistory('redo'); break;
-    case 'fit': if (!fullWindow()) runFit(); break;
+    case 'fit': if (placeOf() === 'editor') runFit(); break;      // a phone's screen holds Fit
     case 'actual': openActual(); break;
     case 'fullscreen': toggleFullscreen(); break;
     case 'open': ui.menu = false; pickFile(); break;
@@ -1020,7 +1108,7 @@ function placeChip(el){
   const L = ui.layout;
   for (const k of ['left', 'right', 'top', 'maxWidth']) el.style[k] = '';
   if (!L || L.phone) return;
-  const ft = $('#head .fit').getBoundingClientRect();
+  const ft = ($('.fitslot .fit') ?? $('.fitslot') ?? $('#body')).getBoundingClientRect();      // Fit is in Export; the chip waits under it, else at the panel's top
   Object.assign(el.style, { left: `${Math.round(Math.max(L.col.left + 8, ft.right - el.offsetWidth))}px`, top: `${Math.round(ft.bottom + 6)}px`, maxWidth: `${L.col.width - 16}px` });
 }
 // After Fit: what it did, in a chip that stays until the next change (dropChip runs when the history moves), with Undo. Fit only chose among wordings that were already there.
@@ -1077,7 +1165,7 @@ function key(e){
     if (ui.langMenu){ ui.langMenu = null; renderHead(); $('#langbtn')?.focus(); return; }
     if (closeBodyMenus()) return;
     if (edit.key(e)) return;
-    if (SCREENS.includes(ui.view)){ leaveView(); return; }
+    if (SCREENS.includes(ui.view)){ leaveView(); return; }      // up one level inside the place, never to another
     if (ui.view){ setView(null); return; }
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
@@ -1089,6 +1177,7 @@ function key(e){
     dock.allTheWayOut();
     return;
   }
+  if (!mod && !e.altKey && !e.shiftKey && 'wer'.includes(e.key.toLowerCase()) && e.key.length === 1){ e.preventDefault(); goPlace({ w: 'library', e: 'editor', r: 'career' }[e.key.toLowerCase()]); return; }      // W E R: the three places, in a row
   if (edit.key(e)) return;
   if (e.key === '?' && !mod){ e.preventDefault(); help.toggle(); return; }
   if (e.key.toLowerCase() === 'f' && !e.shiftKey && !mod){ e.preventDefault(); toggleFullscreen(); return; }
@@ -1300,7 +1389,7 @@ switcher.bind();
 Object.assign(VIEWS, resumes.views);
 VIEWS.record = () => recordTab.view();
 const thumbs = initThumbs({ work, extraCss: r => design.extraCss(store.state.record, r), chrome: r => docChrome(r.lang ?? 'en') });
-const screens = initScreens({ store, work, setView, resumes, renderBody: () => renderBody(), leave: () => leaveView() }, thumbs);
+const screens = initScreens({ store, work, setView, resumes, view: () => ui.view, renderBody: () => renderBody(), leave: () => leaveView() }, thumbs);
 Object.assign(VIEWS, screens.views);
 window.__wb.thumbs = thumbs; window.__wb.screens = screens;
 const files = initFiles({
@@ -1327,7 +1416,7 @@ window.__wb.career = career;
 const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, sectionTitle, lineBox: id => { const r = ui.ix && sheet.rectOf(id, ui.ix); return r ? canvas.screenRect(r) : null; }, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
 checklist.bind($('#body'));
 window.__wb.checklist = checklist;
-const recordTab = initRecord({ ui, checklist, renderBody: () => renderBody(), setMode: m => dock.setMode(m) });
+const recordTab = initRecord({ ui, checklist, work, cur, lang, renderBody: () => renderBody(), setMode: m => dock.setMode(m) });
 window.__wb.record = recordTab;
 const help = initHelp({ ui });
 window.__wb.help = help;
@@ -1339,6 +1428,7 @@ Object.assign(VIEWS, exporter.views);
 window.__wb.export = exporter;
 resumes.bind($('#body'));
 screens.bind($('#body'));
+for (const m of [screens, resumes, checklist, career, edit]) m.bind($('#scr'));      // the Library and Career have their own host (the ticks are edit.js's)
 window.__wb.resumes = resumes;
 window.__wb.switcher = switcher;
 

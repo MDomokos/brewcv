@@ -14,10 +14,16 @@ const I = await import(pathToFileURL(path.join(ROOT, 'src/i18n/index.js')));
 const en = (await import(pathToFileURL(path.join(ROOT, 'src/i18n/en.js')))).default;
 const keys = Object.keys(en);
 // shortcut: removed in UX-6f, which translates them (the keys of UX-6b to UX-6e may be missing from the nine other catalogues until then)
-const LATER = k => /^ux6[b-eg]\./.test(k);
+const LATER = k => /^ux6[b-egh]\./.test(k);
 const holes = v => [...new Set((typeof v === 'string' ? [v] : Object.values(v)).flatMap(s => [...String(s).matchAll(/\{(\w+)\}/g)].map(m => m[1])))].sort().join(',');
 
-ok('only the keys of UX-6b to UX-6e may be missing from the other catalogues', LATER('ux6b.rail') && LATER('ux6e.x') && !LATER('ux6a.x') && !LATER('ux6f.x') && !LATER('ux5c.line') && !LATER('head.save'));
+ok('only the keys of UX-6b to UX-6e, UX-6g and UX-6h may be missing from the other catalogues', LATER('ux6b.rail') && LATER('ux6e.x') && LATER('ux6g.x') && LATER('ux6h.x') && !LATER('ux6a.x') && !LATER('ux6f.x') && !LATER('ux5c.line') && !LATER('head.save'));
+// The place is Career and its data is "your career" (UX-6h): no English value says "record" as a noun. The allow-list is for a word that is not the noun (none yet).
+{
+  const ALLOWED = new Set();
+  const say = Object.entries(en).filter(([k, v]) => !ALLOWED.has(k) && /\brecord('s|’s|s)?\b/i.test(typeof v === 'string' ? v : Object.values(v).join('|'))).map(([k]) => k);
+  ok('no English value says "record": the place is Career, its data is your career (or a career file)', say.length === 0, say.slice(0, 5).join(', '));
+}
 for (const lang of I.UI_LANGS){
   const file = path.join(ROOT, `src/i18n/${lang}.js`);
   if (!fs.existsSync(file)){ ok(`${lang}: a catalogue exists`, false); continue; }

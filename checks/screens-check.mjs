@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // node checks/screens-check.mjs
-// The Resumes screen, Compare and the Record screen (UX-6e), in Chromium on the fictional example:
+// The Library (with Compare) and Career as places (UX-6e, UX-6h): drawn left of the sidebar in #scr, reached by the place tabs and the keys W, E and R; Esc goes up a level inside
+// a place and never to another; no back button on a desktop (Compare's "← All resumes" is the one way back inside a place). In Chromium on the fictional example:
 //   - Duplicate opens the copy at once, under its parent, with the name field focused and its text selected (Enter confirms; Esc without
 //     typing keeps the default name; typed and left keeps what was typed),
 //   - each card says "under <parent>", or "closest: <name>" for a resume that has no parent, and "What differs" lists an edit on the
 //     resume, a line only on it and its skills arranged, in plain words,
 //   - three resumes compared in one table, with real headers; a sent copy can be ticked and compared too,
 //   - the thumbnails arrive as pictures of the real first page and a second visit draws none again,
-//   - the back button and Esc return to the editor with the page and the selection as left, and the focus to the rail's button,
+//   - the Editor tab (and E) returns to the editor with the page and the selection as left, and the focus to the tab; Esc stays in the Library,
 //   - no bar across the window on any screen (the name card and the foot are small cards), and, at three sizes in the ten languages with a
 //     long and a 60 character name, nothing clipped or overlapping on the three screens.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing. ONLY=de,hu limits the languages of the layout part.
@@ -39,7 +40,7 @@ async function open(w, h, look = ['tea', 'light']){
   await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); localStorage.setItem('rb-reduce-motion', '1'); } catch { /* none */ } }, look);
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message));
-  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await page.waitForTimeout(400);
   return { ctx, page, errors };
@@ -47,7 +48,7 @@ async function open(w, h, look = ['tea', 'light']){
 const settle = page => page.waitForTimeout(300);
 const st = page => page.evaluate(() => { const s = window.__wb.store.state; return { openId: s.openId, ids: s.resumes.map(r => r.id), parents: Object.fromEntries(s.resumes.map(r => [r.id, r.parent ?? null])), names: Object.fromEntries(s.resumes.map(r => [r.id, r.name ?? null])) }; });
 const view = page => page.evaluate(() => window.__wb.ui.view);
-const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelectorAll('#body [data-thumb] iframe').length >= n, n, { timeout: 60000 });
+const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelectorAll('#scr [data-thumb] iframe').length >= n, n, { timeout: 60000 });
 
 // ---------------------------------------------------------------- the behaviour
 {
@@ -59,9 +60,9 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
   await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
   const left = await page.evaluate(() => JSON.stringify({ sel: window.__wb.ui.sel, page: window.__wb.ui.page }));
 
-  await page.click('#rail [data-act=sw-manage]'); await settle(page);
-  ok('the rail button opens the Resumes screen, with a heading, and the back button has the focus', await view(page) === 'resumes' && /resumes/i.test(await page.textContent('#body h2')) && await page.evaluate(() => document.activeElement?.matches('#body [data-act=scr-back]')));
-  ok('…the back button is the first thing to tab to in the screen', await page.evaluate(() => document.querySelector('#body button, #body input')?.matches('[data-act=scr-back]')));
+  await page.click('#ptabs [data-p=library]'); await settle(page);
+  ok('the Library tab opens the Library, drawn in #scr with a heading, aria-current on its tab, the selected card (the open resume) has the focus, and the sidebar\u2019s body is empty', await view(page) === 'resumes' && /resumes/i.test(await page.textContent('#scr h2')) && await page.getAttribute('#ptabs [data-p=library]', 'aria-current') === 'page' && await page.evaluate(() => document.activeElement?.matches('#scr .rcard.sel .rsel') && document.querySelector('#body').childElementCount === 0));
+  ok('…and there is no back button on a desktop', !(await page.$('#scr [data-act=scr-back]')));
   const n = s0.ids.length;
   ok('every resume has a card with a named tick box, an Open and a Duplicate', await page.evaluate(n => { const c = [...document.querySelectorAll('#resumes .rcard')]; return c.length === n && c.every(x => x.querySelector('input.rtick')?.getAttribute('aria-label') && x.querySelector('.racts [data-act=sw-open]') && x.querySelector('.racts [data-act=rm-dup]')); }, n));
   // thumbnails
@@ -71,18 +72,18 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
   const drawn = await page.evaluate(() => window.__wb.thumbs.stats.drawn);
   ok('…each was drawn once', drawn === n, String(drawn));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc goes back to the editor, with the selection and the page as they were, and the focus on the rail button that opened the screen', await view(page) === null && await page.evaluate(() => JSON.stringify({ sel: window.__wb.ui.sel, page: window.__wb.ui.page })) === left && await page.evaluate(() => document.activeElement?.matches('#rail [data-act=sw-manage]')), left);
-  await page.click('#rail [data-act=sw-manage]'); await thumbsDone(page, n);
+  ok('Esc stays in the Library (it never changes place); E returns to the editor, with the selection and the page as they were, and the focus on the Editor tab', await view(page) === 'resumes' && (await page.keyboard.press('e'), await settle(page), await view(page) === null) && await page.evaluate(() => document.activeElement?.matches('#ptabs [data-p=editor]') && JSON.stringify({ sel: window.__wb.ui.sel, page: window.__wb.ui.page })) === left, left);
+  await page.click('#ptabs [data-p=library]'); await thumbsDone(page, n);
   ok('a second visit draws no picture again: the pictures are kept by what each resume prints', await page.evaluate(() => window.__wb.thumbs.stats.drawn) === drawn);
   { const fit = w => page.evaluate(w => { const slot = document.querySelector('#resumes [data-thumb]'); slot.style.width = `${w}px`; return new Promise(r => setTimeout(() => r(slot.querySelector('iframe').getBoundingClientRect().width / slot.clientWidth), 150)); }, w);
     const a = await fit(120), b = await fit(80);
     ok('a thumbnail follows its box at two widths (the picture fills the box, not the size it had when drawn)', Math.abs(a - 1) < 0.02 && Math.abs(b - 1) < 0.02, `${a} ${b}`);
     await page.evaluate(() => { document.querySelector('#resumes [data-thumb]').style.width = ''; }); }
-  await page.click('#resumes [data-act=scr-back]'); await settle(page);
-  ok('the back button does the same', await view(page) === null && await page.evaluate(() => JSON.stringify({ sel: window.__wb.ui.sel, page: window.__wb.ui.page })) === left);
+  await page.click('#ptabs [data-p=editor]'); await settle(page);
+  ok('the Editor tab does the same', await view(page) === null && await page.evaluate(() => JSON.stringify({ sel: window.__wb.ui.sel, page: window.__wb.ui.page })) === left);
 
   // where each came from
-  await page.click('#rail [data-act=sw-manage]'); await settle(page);
+  await page.click('#ptabs [data-p=library]'); await settle(page);
   const from = await page.evaluate(() => [...document.querySelectorAll('#resumes .rcard')].map(c => ({ id: c.dataset.rid, from: c.querySelector('.rfrom')?.textContent ?? '' })));
   ok('a resume with no parent says "Closest: …(a guess)"; none says "Under"', from.length > 5 && from.filter(f => /^Closest: .+\(a guess\)$/.test(f.from)).length >= 3 && !from.some(f => /^Under /.test(f.from)), JSON.stringify(from.slice(0, 2)));
 
@@ -96,7 +97,7 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
   await page.keyboard.type('Typed copy'); await page.keyboard.press('Enter'); await settle(page);
   const s2 = await st(page), named = s2.openId;       // a new name is a new file name: the id follows it
   ok('Enter confirms the new name and closes the window, and the copy is still under its parent', s2.names[named] === 'Typed copy' && s2.parents[named] === parent && !(await page.isVisible('#switcher')) && /Typed copy/.test(await page.textContent('#docname')));
-  await page.click('#rail [data-act=sw-manage]'); await settle(page);
+  await page.click('#ptabs [data-p=library]'); await settle(page);
   await page.click(`#resumes .rcard[data-rid="${named}"] [data-act=rm-dup]`); await settle(page);
   let copy2 = (await st(page)).openId;
   const dflt = await page.inputValue('#sw-rn');
@@ -120,23 +121,22 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
     }, 'edits');
   });
   await settle(page);
-  await page.click('#rail [data-act=sw-manage]'); await settle(page);
+  await page.click('#ptabs [data-p=library]'); await settle(page);
   ok('a card with a parent says "Under <parent>" and has "What differs"', /^Under /.test(await page.textContent(`#resumes .rcard[data-rid="${copy2}"] .rfrom`)) && await page.isVisible(`#resumes .rcard[data-rid="${copy2}"] [data-act=scr-differs]`));
   ok('…an edit on this resume is counted on the card', /edit/.test(await page.textContent(`#resumes .rcard[data-rid="${copy2}"] .rpend`)));
   await page.click(`#resumes .rcard[data-rid="${copy2}"] [data-act=scr-differs]`); await settle(page);
   const sum = await page.$$eval('#compare .diffsum li', l => l.map(x => x.textContent));
   ok('"What differs from <parent>" lists the new name, the edit, the local line and the skills', await view(page) === 'compare' && /What differs from /.test(await page.textContent('#compare h2')) && sum.some(x => /^Named Typed and left/.test(x)) && sum.some(x => /^Edited on this resume: /.test(x)) && sum.some(x => /^Adds a line only on this resume: A line that only this resume has/.test(x)) && sum.some(x => /^Skills arranged as: Renamed group/.test(x)) && sum.length === 4, JSON.stringify(sum));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc from Compare goes back to Resumes, and from there to the editor', await view(page) === 'resumes');
-  await page.keyboard.press('Escape'); await settle(page);
-  ok('…the editor', await view(page) === null);
+  ok('Esc from Compare goes back to the Library, and the next Esc stays in it', await view(page) === 'resumes' && (await page.keyboard.press('Escape'), await settle(page), await view(page) === 'resumes'));
+  await page.click('#ptabs [data-p=editor]'); await settle(page);
 
   // compare three, one of them a sent copy
   await page.evaluate(() => window.__wb.setView('export')); await settle(page);
   await page.click('[data-act=mark-sent]').catch(() => {}); await settle(page);
   await page.evaluate(() => window.__wb.setView(null));
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Smoke Co', role: 'Role' }); }, 'send'); });
-  await page.click('#rail [data-act=sw-manage]'); await settle(page);
+  await page.click('#ptabs [data-p=library]'); await settle(page);
   ok('a sent copy has its own tick box on its resume\'s card', await page.isVisible(`#resumes .rcard[data-rid="${copy2}"] .rsent .rtick`));
   ok('the sent-copy tick box names its resume, so the ticks can be told apart', await page.evaluate(id => { const c = document.querySelector(`#resumes .rcard[data-rid="${id}"]`); return c.querySelector('.rsent .rtick').getAttribute('aria-label').includes(c.querySelector('.rname').textContent.replace(/\s*·.*$/, '').trim()); }, copy2));
   ok('Compare is off until two are ticked, and says how many', await page.isDisabled('#scr-cmp'));
@@ -152,10 +152,10 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
   ok('its back button reopens Resumes with the three still ticked', await view(page) === 'resumes' && (await page.$$('#resumes .rtick:checked')).length === 3);
   await page.click('[data-act=scr-clear]');
   ok('Clear ticks clears them', (await page.$$('#resumes .rtick:checked')).length === 0 && await page.isDisabled('#scr-cmp'));
-  await page.keyboard.press('Escape'); await settle(page);
+  await page.click('#ptabs [data-p=editor]'); await settle(page);
 
   // the views, search and the row menu are still here
-  await page.click('#rail [data-act=sw-manage]'); await settle(page);
+  await page.click('#ptabs [data-p=library]'); await settle(page);
   await page.click('[data-act=scr-view][data-v=date]'); await settle(page);
   ok('the Date view lists the sends, with the year, each a card with its own tick', (await page.$$('#resumes h3.lbl')).length >= 1 && await page.isVisible('#resumes .rcard .rtick'));
   await page.click('[data-act=scr-view][data-v=company]'); await settle(page);
@@ -174,21 +174,21 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
     await page.click(`#resumes .rcard[data-rid="${rid}"] .smore`); await settle(page); await page.click('#resumes .rowmenu [data-act=rm-rename]'); await settle(page);
     await page.fill('#resumes .swren', 'Typed then Esc'); await page.keyboard.press('Escape'); await settle(page);
     ok('Esc in the card rename keeps what was typed, and stays on the screen', Object.values((await st(page)).names).includes('Typed then Esc') && await view(page) === 'resumes'); }
-  await page.keyboard.press('Escape'); await settle(page);
+  await page.click('#ptabs [data-p=editor]'); await settle(page);
   ok('no errors on the screens', errors.length === 0, errors[0] ?? '');
   await ctx.close();
 }
 
-// ---------------------------------------------------------------- Record
+// ---------------------------------------------------------------- Career
 {
   const { ctx, page } = await open(1470, 832);
-  await page.click('#rail [data-act=sw-record]'); await settle(page);
-  ok('the Record button opens the Record screen with the back button first, and the job names open the job', await view(page) === 'record' && await page.evaluate(() => document.activeElement?.matches('#body [data-act=scr-back]')) && await page.isVisible('#checklist .clg .jobname[data-act=cl-open]') && !(await page.$('#checklist .clopen [data-act=cl-open]:not([data-sel*=jobtypes])')));
+  await page.click('#ptabs [data-p=career]'); await settle(page);
+  ok('the Career tab opens Career in #scr, aria-current on it, no back button, and the job names open the job', await view(page) === 'record' && await page.getAttribute('#ptabs [data-p=career]', 'aria-current') === 'page' && !(await page.$('#scr [data-act=scr-back]')) && await page.isVisible('#scr #checklist .clg .jobname[data-act=cl-open]') && !(await page.$('#checklist .clopen [data-act=cl-open]:not([data-sel*=jobtypes])')));
   await page.click('#checklist .clg:has-text("Hydra") .jobname'); await settle(page);
-  ok('a job\'s name opens it in the editor', await view(page) === null && await page.evaluate(() => window.__wb.ui.sel.kind) === 'job');
-  await page.click('#rail [data-act=sw-record]'); await settle(page);
+  ok('a job\'s name opens it in the editor, and the address follows', await view(page) === null && await page.evaluate(() => window.__wb.ui.sel.kind) === 'job' && await page.evaluate(() => location.hash) === '#resume');
+  await page.click('#ptabs [data-p=career]'); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc goes back to the editor and the focus to the rail button', await view(page) === null && await page.evaluate(() => document.activeElement?.matches('#rail [data-act=sw-record]')));
+  ok('Esc stays in Career (it never changes place), and R is the key for it', await view(page) === 'record' && await page.evaluate(() => location.hash) === '#record');
   await ctx.close();
 }
 
@@ -202,18 +202,20 @@ const PROBE = `(() => {
   const textRects = el => { const out = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());){ if (!n.nodeValue.trim() || n.parentElement.closest('.sr')) continue; const g = document.createRange(); g.selectNodeContents(n); out.push(...g.getClientRects()); } return out; };
   const out = { clipped: [], overlap: [], bars: [], wide: 0, scroll: 0 };
   for (const id of ['#head', '#foot']){ const e = document.querySelector(id); if (e && vis(e) && e.getBoundingClientRect().width > innerWidth / 2) out.bars.push(id + ' ' + Math.round(e.getBoundingClientRect().width)); }
-  const body = document.querySelector('#body'); out.scroll = body.scrollWidth - body.clientWidth;
-  const controls = [...document.querySelectorAll('#body button, #body input:not([type=checkbox]), #body select, #body h2')].filter(vis).filter(e => !e.closest('.cmpscroll, .rowmenu, .rectl'));
+  const body = document.querySelector('#scr'); out.scroll = body.scrollWidth - body.clientWidth;
+  const controls = [...document.querySelectorAll('#scr button, #scr input:not([type=checkbox]), #scr select, #scr h2, #ptabs button, #head button, #head .psub')].filter(vis).filter(e => !e.closest('.cmpscroll, .rowmenu, .rectl, .sr'));
   for (const el of controls){
     const r = el.getBoundingClientRect();
     for (const t of textRects(el)) if (t.right > r.right + 1 || t.left < r.left - 1){ out.clipped.push(label(el)); break; }
     if (el.matches('h2, .rname') && el.scrollWidth > el.clientWidth + 1) out.clipped.push(label(el));
   }
-  for (const el of document.querySelectorAll('#body .rname')) if (vis(el) && el.scrollWidth > el.clientWidth + 1) out.clipped.push(label(el));
+  for (const el of document.querySelectorAll('#scr .rname')) if (vis(el) && el.scrollWidth > el.clientWidth + 1) out.clipped.push(label(el));
   for (let i = 0; i < controls.length; i++) for (let j = i + 1; j < controls.length; j++){
     const a = controls[i], b = controls[j];
     if (a.contains(b) || b.contains(a)) continue;
-    const p = a.getBoundingClientRect(), q = b.getBoundingClientRect();
+    let p = a.getBoundingClientRect(), q = b.getBoundingClientRect();
+    const tuck = (r, el) => (el.closest('#ptabs') ? { left: r.left, right: r.right, top: r.top, bottom: Math.min(r.bottom, document.querySelector('#head').getBoundingClientRect().top) } : r);      // Tea's tags are tucked behind the card
+    p = tuck(p, a); q = tuck(q, b);
     if (Math.min(p.right, q.right) - Math.max(p.left, q.left) > 1.5 && Math.min(p.bottom, q.bottom) - Math.max(p.top, q.top) > 1.5) out.overlap.push(label(a) + ' / ' + label(b));
   }
   return out;
@@ -243,7 +245,7 @@ for (const [w, h] of SIZES){
         await page.evaluate(() => window.__wb.setView(null));
       }
     }
-    ok(`${w}×${h} ${lang}: Resumes, Compare and Record: no bar across the window, nothing clipped or overlapping, no sideways scroll`, bad.length === 0, [...new Set(bad)].slice(0, 3).join(' ; '));
+    ok(`${w}×${h} ${lang}: Library, Compare and Career: tabs and place card above the column, no bar across the window, nothing clipped or overlapping, no sideways scroll`, bad.length === 0, [...new Set(bad)].slice(0, 3).join(' ; '));
   }
   await ctx.close();
 }
