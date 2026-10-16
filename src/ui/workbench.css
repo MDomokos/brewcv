@@ -1200,11 +1200,12 @@ html[data-titlebar] #tbdrag { position: fixed; z-index: 9; left: 0; right: 0; to
 /* The grip, the "+" and the photo slot lie in the left margin of the page (or by the name), in the app's layer. Each draws small and keeps a 24px target. */
 #handlay { z-index: 8; }
 .obgrip, .obplus, .obslot { display: grid; place-items: center; padding: 0; box-sizing: border-box; background: var(--raised); color: var(--ink-soft); border: 1px solid var(--line-strong); box-shadow: var(--shadow-chip); pointer-events: auto; }
-.obgrip[hidden], .obplus[hidden], .obslot[hidden], .obdrop[hidden], .obtip[hidden], .obshade[hidden] { display: none; }
+.obgrip[hidden], .obplus[hidden], .obslot[hidden], .obdrop[hidden], .obtip[hidden], .obshade[hidden], .obghost[hidden] { display: none; }
 /* The grip is light at rest (small, no frame, faint); hovered or focused it firms up, and the block it moves is shaded (.obshade) */
 .obgrip { width: 16px; height: 16px; border-radius: var(--r-xs); cursor: grab; touch-action: none; background: transparent; border-color: transparent; box-shadow: none; opacity: .55; }
 .obgrip:hover, .obgrip:focus-visible { opacity: 1; background: var(--raised); border-color: var(--line-strong); box-shadow: var(--shadow-chip); color: var(--ink); }
 .obshade { background: var(--hover); outline: 1.5px solid var(--sel-mark); outline-offset: 0; border-radius: 4px; pointer-events: none; }
+.obghost { border: 1.5px dashed var(--sel-mark); background: var(--sel-mark-soft); border-radius: 3px; pointer-events: none; box-sizing: border-box; overflow: hidden; }
 .obplus { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; }
 .obslot { width: 40px; height: 24px; border-radius: var(--r-pill); cursor: pointer; }
 .obgrip::after, .obplus::after, .obslot::after { content: ''; position: absolute; inset: -4px; }

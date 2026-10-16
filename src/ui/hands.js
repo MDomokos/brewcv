@@ -17,7 +17,7 @@ import { icon } from './icons.js';
 import { pillHtml } from './parts.js';
 import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
-import { dur, play } from './motion.js';
+import { dur, play, cancel } from './motion.js';
 
 const $ = s => document.querySelector(s);
 const GRIP = { w: 16, h: 16 }, PLUS = { w: 18, h: 18 }, SLOT = { w: 40, h: 24 }, OFF = 22, MOVE = 4;
@@ -33,10 +33,10 @@ export function initHands(C){
   dropEl.className = 'obdrop'; dropEl.hidden = true;
   tip.className = 'obtip'; tip.hidden = true; tip.setAttribute('role', 'status');
   slot.innerHTML = pillHtml(false);      // the photo's show/hide is the pill, as on the chip
-  const shadeEl = document.createElement('div');      // what a grip moves, shaded
-  shadeEl.className = 'obshade'; shadeEl.hidden = true;
-  shadeEl.setAttribute('aria-hidden', 'true');
-  lay?.append(shadeEl, grip, plus, slot, fgrip, dropEl, tip);
+  const shadeEl = document.createElement('div'), ghostEl = document.createElement('div');      // what a grip moves, shaded; the line a "+" would add, in its place
+  shadeEl.className = 'obshade'; shadeEl.hidden = true; ghostEl.className = 'obghost'; ghostEl.hidden = true;
+  shadeEl.setAttribute('aria-hidden', 'true'); ghostEl.setAttribute('aria-hidden', 'true');
+  lay?.append(shadeEl, ghostEl, grip, plus, slot, fgrip, dropEl, tip);
 
   let hover = null;                 // under the pointer: { k: 'line' | 'group' | 'header', fact, rect, job }
   let drag = null, pend = null;     // a drag under way; a skill pressed on the page that may become one
@@ -117,6 +117,7 @@ export function initHands(C){
     const ft = on() && !ui.writing ? frameTarget(h) : null;
     placeFrameGrip(ft, h?.k === 'job' || h?.k === 'section' ? R(h.rect) : null);
     if (grip.hidden && fgrip.hidden) unshade();
+    if (plus.hidden) hideGhost();
     // a hand that has just appeared fades in (off under reduced motion)
     const sig = `${!grip.hidden}${!plus.hidden}${!slot.hidden}${!fgrip.hidden}${h?.fact ?? h?.k ?? ''}${ft?.id ?? ''}`;
     if (sig !== shown){ shown = sig; for (const b of [grip, plus, slot, fgrip]) if (!b.hidden) play(b, [{ opacity: 0 }, { opacity: 1 }], { key: `hand:${b.className}`, ms: 'fast', name: 'hand:in' }); }
@@ -191,7 +192,7 @@ export function initHands(C){
     b.addEventListener('pointerleave', () => { onHands = false; if (!drag) grace(); });
   }
 
-  // ---- what a grip moves, shaded ----
+  // ---- what a grip moves, shaded; the line a "+" would add, in the place it will land ----
   function shade(b){
     const pr = b === fgrip ? blockRect(b.dataset.k, b.dataset.fact) : target()?.rect, r = pr && R(pr);
     shadeEl.hidden = !r;
@@ -202,6 +203,25 @@ export function initHands(C){
     for (const ev of ['pointerenter', 'focus']) b.addEventListener(ev, () => { if (!drag) shade(b); });
     for (const ev of ['pointerleave', 'blur']) b.addEventListener(ev, unshade);
   }
+  // a job's end ("line"), or the skill group it follows ("group"): one row, growing in (none under reduced motion, where it just shows)
+  function showGhost(kind, id){
+    if (!on() || drag) return;
+    const x = ix(), last = kind === 'line' ? sheet.jobLines(id, x).at(-1)?.rect : sheet.skillGroups(x).find(g => g.fact === id)?.rect;
+    if (!last) return;
+    const r = R({ left: last.left, top: last.top + last.height + 2, width: last.width, height: Math.min(last.height, 16) });
+    Object.assign(ghostEl.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    ghostEl.hidden = false;
+    play(ghostEl, [{ height: '0px', opacity: 0 }, { height: `${r.height}px`, opacity: 1 }], { key: 'ghost', ms: 'fast', name: 'ghost:in' });
+  }
+  function hideGhost(){ cancel('ghost'); ghostEl.hidden = true; }
+  const plusGhost = () => (plus.dataset.k === 'line' ? showGhost('line', plus.dataset.job) : showGhost('group', plus.dataset.fact));
+  for (const ev of ['pointerenter', 'focus']) plus.addEventListener(ev, plusGhost);
+  for (const ev of ['pointerleave', 'blur']) plus.addEventListener(ev, hideGhost);
+  // the sidebar's "+ line here" adds at the same place
+  const addBtn = e => e.target.closest?.('#body [data-act="ol-newline"]');
+  for (const ev of ['mouseover', 'focusin']) document.addEventListener(ev, e => { const b = addBtn(e); if (b) showGhost('line', b.dataset.id); });
+  for (const ev of ['mouseout', 'focusout']) document.addEventListener(ev, e => { const b = addBtn(e); if (b && !b.contains(e.relatedTarget)) hideGhost(); });
+  document.addEventListener('click', e => { if (addBtn(e)) hideGhost(); }, true);
 
   // ---- dragging ----
   function startDrag(kind, info){
@@ -402,7 +422,7 @@ export function initHands(C){
     dir => { const { k, fact } = fgrip.dataset; if (k === 'job') C.edit().stepJob(fact, dir); else if (k === 'section') C.edit().stepSection(fact, dir); else C.edit().stepItem(fact, dir); });
   function openLine(fact){ C.select(lineSel(ix(), fact)); C.edit().startEdit(); }
   // "+": a new empty line at the job's end, or a new skill group after this one, written at once
-  plus.addEventListener('click', () => { if (plus.dataset.k === 'line') C.edit().addLine(plus.dataset.job); else C.edit().addGroup(plus.dataset.fact); });
+  plus.addEventListener('click', () => { hideGhost(); if (plus.dataset.k === 'line') C.edit().addLine(plus.dataset.job); else C.edit().addGroup(plus.dataset.fact); });
   slot.addEventListener('click', () => C.togglePhoto());
 
   // the reason a locked block is not written: beside the page chip's padlock for a moment. False when the chip is not on the page.

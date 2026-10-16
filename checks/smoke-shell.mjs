@@ -5198,6 +5198,41 @@ if (want('ux6g b: grabbing a row of the sidebar drags its block')) {
   await ctx.close();
 }
 
+if (want('ux6g b: a "+" shows the line it will add')) for (const motion of [false, true]) {
+  const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await openByName(page, 'Medtech');
+  const w = motion ? 'with motion' : 'reduced motion';
+  const ghost = () => page.evaluate(() => { const e = document.querySelector('#handlay .obghost'); if (!e || e.hidden) return null; const r = e.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; });
+  const played = () => page.evaluate(async () => (await import('/src/ui/motion.js')).stats.names.includes('ghost:in'));
+  const last = await frameBox(page, '.entry:first-child .bullets li', 6), t0 = await tops(page, '.entry:first-child .bullets li'), sig0 = await recordSig(page);
+  await page.mouse.move(last.x + 60, last.y + 4, { steps: 3 }); await settle(page);
+  const pl = (await hands(page)).plus;
+  await page.mouse.move(pl.left + 9, pl.top + 9, { steps: 4 }); await page.waitForTimeout(500);
+  const gh = await ghost();
+  ok(`${w}: hovering the "+" shows a ghost of the line, in the place it will land (under the job’s last line, as wide as the lines)`, !!gh && gh.top >= last.y + last.height - 2 && gh.top <= last.y + last.height + 8 && Math.abs(gh.left - last.x) < 4 && gh.height > 8 && Math.abs(gh.width - last.width) < 4, JSON.stringify([gh, last]));
+  ok(`${w}: …it ${motion ? 'grew in through motion.js' : 'just shows, with no animation'}`, (await played()) === motion);
+  ok(`${w}: …the page does not move and nothing is added`, JSON.stringify(await tops(page, '.entry:first-child .bullets li')) === JSON.stringify(t0) && (await recordSig(page)) === sig0);
+  await page.mouse.move(4, 4); await page.waitForTimeout(600);
+  ok(`${w}: leaving removes the ghost`, !(await ghost()));
+  await page.mouse.move(last.x + 60, last.y + 4, { steps: 3 }); await settle(page);
+  await page.focus('#handlay .obplus'); await page.waitForTimeout(300);
+  ok(`${w}: focusing the "+" shows it too`, !!(await ghost()));
+  await page.keyboard.press('Enter'); await settle(page);
+  ok(`${w}: …the click adds the line as before (a local line, written at once) and the ghost is gone`, (await page.evaluate(() => /^~new-/.test(window.__wb.edit.editing?.fact ?? ''))) && !(await ghost()));
+  await page.keyboard.press('Escape'); await settle(page);
+  // the sidebar’s "+ line here": the same ghost, the same place
+  await toJobOutline(page);
+  await page.hover('#body [data-act=ol-newline]'); await page.waitForTimeout(500);
+  const g2 = await ghost();
+  ok(`${w}: hovering the sidebar’s “+ line here” shows the ghost at the job’s end`, !!g2 && Math.abs(g2.top - gh.top) < 3 && Math.abs(g2.left - gh.left) < 3, JSON.stringify([g2, gh]));
+  await page.mouse.move(4, 4); await page.waitForTimeout(600);
+  ok(`${w}: …and it goes when the pointer does`, !(await ghost()));
+  ok(`${w}: no console errors`, bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('file://')) {
   const ctx = await newContext();
   const page = await ctx.newPage();
