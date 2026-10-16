@@ -908,6 +908,23 @@ section('UX-6d: the Review list\'s model');
     const loose = fresh(false), r3 = clone(base2), id3 = T.addLocalLine(loose, r3, 'hydra', null); edit(r3, loose, id3, 'First line of all');
     const f3 = V.applyEdit(loose, r3, id3, { do: 'claim' }).fact;
     ok('with no source asked for, a local line needs none; a line with no job place goes where it was (first)', T.listedBullets(loose, r3, 'hydra')[0] === f3); }
+  // every kind of text with versions is a row: header facts, a job's title and dates, the items of patent, education, certificates and interests
+  { const ids = ['name', 'tagline', 'contact', 'hydra-position', 'hydra-meta', 'patent-title', 'edu-degree', 'edu-meta', 'cert-gdt', 'interest-sailing'];
+    const m = fresh(true), r = clone(base);
+    for (const id of ids) edit(r, m, id, `${T.textOf(m, id, r)} (edited)`, [mark]);
+    ok('every kind of text is on the list', eq(V.reviewList(m, r).edits.sort(), [...ids].sort()));
+    const done = ids.map(id => { const o = V.applyEdit(m, r, id, { do: 'major', source: 'Record check' }); return [id, m.variants.find(v => v.id === o.vid), T.textOf(m, id, r)]; });
+    ok('each becomes a version with its words, highlights and source, and the resume prints the same', done.every(([id, v, shown]) => /\(edited\)$/.test(v.text) && v.source === 'Record check' && eq(v.marks, [mark]) && shown === v.text) && !V.reviewList(m, r).edits.length); }
+  // the exports follow the versions: an edit that became a version (with a source) is in the files and no longer a problem or a row; one kept here is still both
+  { const sourcedAll = () => { const m = fresh(true); for (const v of m.variants) v.source ??= 'Record check'; return m; };
+    const json = (m, r) => JSON.stringify(X.jsonResumeFile(m, r).file), problems = (m, r) => T.resolve(m, r).problems.filter(p => /no source/.test(p));
+    const m = sourcedAll(), r = clone(base), kept = clone(base);
+    edit(r, m, lineId, farText); edit(kept, m, lineId, farText); edit(r, m, 'name', 'Dana Q. Okonkwo'); edit(kept, m, 'name', 'Dana Q. Okonkwo');
+    ok('before: the edits are problems for an ATS export and the name edit is counted by the pre-flight row', problems(m, r).length === 2 && X.unexported(m, r) === 1);
+    V.applyEdit(m, r, lineId, { do: 'major', source: 'Interview notes' }); V.applyEdit(m, r, 'name', { do: 'major', source: 'ID card' });
+    ok('after approving: the line is in the JSON Resume file, no override has no source, nothing is counted as left out', json(m, r).includes('Rebuilt the counter') && problems(m, r).length === 0 && X.unexported(m, r) === 0);
+    V.applyEdit(m, kept, lineId, { do: 'keep' }); V.applyEdit(m, kept, 'name', { do: 'keep' });
+    ok('kept on this resume: it still prints, is still a problem for an ATS export and is still named by the row', kept.overrides[lineId] === farText && JSON.stringify(T.resolve(m, kept).body).includes('Rebuilt the counter') && problems(m, kept).length === 2 && X.unexported(m, kept) === 1); }
   // each apply is one undo step
   { const m = sourced(fresh(true)), r = clone(base); edit(r, m, lineId, closeText, [mark]);
     const store = createStore({ record: m, cur: r }), was = JSON.stringify(store.state);

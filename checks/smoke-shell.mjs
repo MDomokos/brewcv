@@ -1915,8 +1915,9 @@ if (want('saved resumes')) {
     await page.click(`#switcher .swrow[data-rid="${shared.other}"] .sopt`); await settle(page);
     ok(`${shared.company} keeps the text it was saved with`, (await frameDoc(page, d => d.body.textContent)).includes(shared.text));
     ok('and the card offers the newer wording', await page.isVisible('.banner'));
-    await page.click('.banner [data-act=goto]'); await settle(page);
-    await page.click('[data-act=nw-accept] >> nth=0'); await settle(page);
+    await page.click('.banner [data-act=review-open]'); await settle(page);      // the newer wording is the second group of the Review list
+    await page.click('#review [data-rv=newer] >> nth=0'); await settle(page);
+    await page.click('#review [data-rv=cancel]'); await settle(page);
     ok('accepting prints the newer wording', (await frameDoc(page, d => d.body.textContent)).includes('Brand new record wording.'));
   } else ok('two saved resumes share a bullet version', false);
   ok('no console errors', bad.length === 0, bad[0] ?? '');
@@ -4549,6 +4550,219 @@ if (want('the lock: no way round it from the page')) {
     ok(`${w}×${h}: the lock mark overlaps no printed text`, over.length === 0 && bad2.length === 0, JSON.stringify(over));
     await c2.close();
   }
+}
+
+if (want('the Review list: edits become versions, with sources, undo and the newer wording')) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-review-'));
+  const ctx = await newContext({ viewport: { width: 1470, height: 832 }, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const R = '#review';
+  const ev = (fn, arg) => page.evaluate(fn, arg);
+  const pending = () => ev(() => window.__wb.review.pending());
+  const isOpen = () => ev(() => window.__wb.review.isOpen);
+  const undoSteps = () => ev(() => window.__wb.store.history.undo);
+  const rows = () => page.$$eval(`${R} .rvrow`, r => r.map(x => ({ id: x.dataset.id, kind: x.dataset.kind, done: x.classList.contains('done'), text: x.innerText })));
+  const saveBtn = async () => { if (!(await page.$('#body #filestate'))){ await page.click('#tab-export'); await settle(page); } };
+  const downloaded = async trigger => { const [d] = await Promise.all([page.waitForEvent('download'), trigger()]); const p = path.join(tmp, d.suggestedFilename()); await d.saveAs(p); return p; };
+  const ids = await ev(async () => { const T = await import('/src/model/resume.js'), s = window.__wb.store.state; return T.listedBullets(s.record, s.cur, 'hydra'); });
+
+  // nothing pending: Save to file works as it always did
+  await saveBtn();
+  ok('nothing is pending in the example resume', (await pending()) === 0);
+  const f0 = await downloaded(() => page.click('#filestate'));
+  ok('with nothing to review Save to file saves at once, and no dialog opened', fs.existsSync(f0) && !(await isOpen()));
+
+  // a close edit written on the page, a far one and a line only on this resume made through the model
+  const line = page.frameLocator('#sheet iframe').locator(`[data-variant]`).filter({ hasText: /./ }).first();
+  const first = await frameDoc(page, d => d.querySelector('.bullets li')?.textContent ?? '');
+  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+  await writeLine(page, first.replace(/\b(\d)(\d{2}),000/, '$1$2,500')); await page.keyboard.press('Escape'); await settle(page);
+  await ev(async ([a, b]) => {
+    const T = await import('/src/model/resume.js');
+    window.__wb.store.commit(d => {
+      T.setOverride(d.record, d.cur, b, 'Rebuilt the whole rig from scratch around a new fixture and a new plan for the supplier audits.', { marks: [], base: null });
+      const n = T.addLocalLine(d.record, d.cur, 'hydra', b);
+      T.setOverride(d.record, d.cur, n, 'Wrote the supplier audit checklist.', { marks: [], base: null });
+      d.record.requireSource = true;
+      for (const v of d.record.variants) if (v.id.startsWith(a + '-v')) v.source = 'Lab notebook p. 4';      // the close edit's parent has a source to copy
+    }, 'smoke: edits');
+  }, ids);
+  await settle(page);
+  ok('three edits are pending: one written on the page, one far from its versions, one line only here', (await pending()) === 3);
+
+  // Ctrl+S opens the list, with the focus inside
+  await page.click('#tab-export'); await settle(page);
+  await page.focus('#filestate'); await page.keyboard.press('Control+s'); await settle(page);
+  const dlg = await page.$eval(R, e => ({ role: e.tagName === 'DIALOG' && e.open, name: document.getElementById(e.getAttribute('aria-labelledby'))?.textContent, modal: e.matches(':modal') }));
+  ok('Ctrl+S opens the Review list first: a real modal dialog with a name', dlg.role && dlg.modal && dlg.name === 'Review your edits', JSON.stringify(dlg));
+  ok('the focus moved into it', await ev(() => document.querySelector('#review').contains(document.activeElement)));
+  ok('group one has the three rows; there is no second group', (await rows()).length === 3 && (await page.$$(`${R} section h3`)).length === 1);
+  let tabbed = true;
+  for (let i = 0; i < 25; i++){ await page.keyboard.press('Tab'); if (!(await ev(() => document.querySelector('#review').contains(document.activeElement)))) tabbed = false; }
+  ok('Tab stays inside the dialog', tabbed);
+  const shot = path.join(ROOT, 'out');
+  ok('the marked diff is in the row: the new words are inserted marks and the old ones deleted marks, both underlined or struck through, not by colour alone', await ev(() => { const e = document.querySelector('#review .rvrow ins'), d = document.querySelector('#review .rvrow del'); return !!e && !!d && getComputedStyle(e).textDecorationLine.includes('underline') && getComputedStyle(d).textDecorationLine.includes('line-through'); }));
+  const r0 = (await rows())[0].text;
+  ok('the close edit says why: share of words kept, so the next sub-version; Approve names the number', /% of v[\d.]+’s words kept, so v\d+\.\d+/.test(r0) && /Approve \(v\d+\.\d+\)/.test(r0), r0);
+  ok('only a tiny edit has Update, and it says which resumes it reaches and that sent copies never change', /Update v/.test(r0) && /Sent copies never change/.test(r0) && !/Update v/.test((await rows())[1].text));
+  const opts0 = await page.$$eval(`${R} .rvrow:nth-child(1) select option`, o => o.map(x => x.textContent));
+  ok('the select offers a sub-version of another major, a new version and Keep on this resume only', opts0.some(x => /^Sub-version of v/.test(x)) && opts0.some(x => /^New version/.test(x)) && opts0.includes('Keep on this resume only'), opts0.join(' | '));
+
+  // Esc and Cancel change nothing, and the focus goes back to where it came from
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc closes it, saves nothing, keeps every edit and gives the focus back to the button that was pressed', !(await isOpen()) && (await pending()) === 3 && (await ev(() => document.activeElement?.id)) === 'filestate');
+  await page.click('#filestate'); await settle(page);
+  await page.click(`${R} [data-rv=cancel]`); await settle(page);
+  ok('Cancel does the same', !(await isOpen()) && (await pending()) === 3 && !(await ev(() => window.__wb.store.state.record.facts.some(f => /^hydra-.*-v\d/.test(f.id)))));
+
+  // the source: a new version of a far edit needs one, a sub-version copies its parent's
+  await page.click('#filestate'); await settle(page);
+  const far = `${R} .rvrow[data-id="${ids[1]}"]`, loc = `${R} .rvrow[data-kind=e]:has-text("Only on this resume")`;
+  ok('a far edit is suggested as a new version, and a record that asks for a source shows the required input', /less than 70%/.test(await page.textContent(far)) && (await page.getAttribute(`${far} [data-rv-src]`, 'aria-required')) === 'true' && /Where is this confirmed\?/.test(await page.textContent(far)));
+  ok('the close edit shows no source input (a sub-version copies its parent’s)', !(await page.$(`${R} .rvrow[data-id="${ids[0]}"] [data-rv-src]`)));
+  ok('while the source is empty, Approve says why and does nothing', (await page.getAttribute(`${far} [data-rv=approve]`, 'aria-disabled')) === 'true' && /Add a source to approve/.test(await page.textContent(`${far} [data-rv=approve]`)) && await (async () => { await page.click(`${far} [data-rv=approve]`, { force: true }); return (await pending()) === 3 && (await ev(() => document.activeElement?.matches('[data-rv-src]'))); })());
+  await page.fill(`${far} [data-rv-src]`, '  Test plan 12,\n  rig file  ');
+  ok('once a source is typed Approve names the version and is no longer disabled', (await page.getAttribute(`${far} [data-rv=approve]`, 'aria-disabled')) === null && /Approve \(v\d+\)/.test(await page.textContent(`${far} [data-rv=approve]`)));
+  const before = await undoSteps();
+  await page.click(`${far} [data-rv=approve]`); await settle(page);
+  const res = (await rows()).find(r => r.id === ids[1]);
+  ok('approving shows the result with an Undo, and it is exactly one undo step', res.done && /Saved as v\d+/.test(res.text) && /Undo/.test(res.text) && (await undoSteps()) === before + 1, res.text);
+  const made = await ev(id => { const m = window.__wb.store.state.record; return m.variants.filter(v => v.id.startsWith(id + '-v')).map(v => ({ id: v.id, source: v.source, text: v.text })).pop(); }, ids[1]);
+  ok('the new version has the edit’s words and the source, trimmed to plain text', /Rebuilt the whole rig/.test(made.text) && made.source === 'Test plan 12, rig file', JSON.stringify(made));
+  ok('the resume prints the same words, and the edit is gone', (await frameDoc(page, d => d.body.textContent)).includes('Rebuilt the whole rig from scratch') && (await pending()) === 2);
+  await page.click(`${far} [data-rv=undo]`); await settle(page);
+  ok('Undo puts the edit back as a row to decide, and the version is gone', (await pending()) === 3 && !(await ev(id => window.__wb.store.state.record.variants.some(v => v.id.startsWith(id + '-v') && /Rebuilt/.test(v.text)), ids[1])) && !(await rows()).find(r => r.id === ids[1]).done);
+  ok('the typed source is still in the row', (await page.inputValue(`${far} [data-rv-src]`)).trim().startsWith('Test plan 12'));
+
+  // a line only on this resume: add it to the record in its job, in the same place
+  ok('a local line is a row that offers adding it to the record as a new line in its job, and needs a source', /Add a source to add it/.test(await page.textContent(loc)) && /Hydra Medical/.test(await page.textContent(loc)));
+  await page.fill(`${loc} [data-rv-src]`, 'Audit file 12');
+  ok('with a source the button names the job', /Add to the record as a new line in Hydra Medical/.test(await page.textContent(`${loc} [data-rv=approve]`)));
+  const order0 = await ev(() => { const s = window.__wb.store.state; return import('/src/model/resume.js').then(T => T.listedBullets(s.record, s.cur, 'hydra')); });
+  await page.click(`${loc} [data-rv=approve]`); await settle(page);
+  const order1 = await ev(() => { const s = window.__wb.store.state; return import('/src/model/resume.js').then(T => ({ list: T.listedBullets(s.record, s.cur, 'hydra'), local: Object.keys(s.cur.localLines ?? {}), hydra: s.record.work.find(w => w.id === 'hydra').highlights })); });
+  const newId = order1.list.find(x => !order0.includes(x) && !x.startsWith('~'));
+  ok('the claim is in the record under the job and replaced the local line in the same place', !!newId && order1.hydra.includes(newId) && order1.local.length === 0 && order1.list.indexOf(newId) === order0.findIndex(x => x.startsWith('~new')), JSON.stringify([order0, order1.list]));
+  ok('the claim has the source', await ev(id => window.__wb.store.state.record.facts.find(f => f.id === id).variants.every(v => window.__wb.store.state.record.variants.find(x => x.id === v).source === 'Audit file 12'), newId));
+
+  // keep on this resume only, from the select
+  await page.selectOption(`${R} .rvrow[data-id="${ids[0]}"] select`, 'keep'); await settle(page);
+  ok('Keep on this resume only leaves the list, the edit stays on the page, and the result has an Undo', (await rows()).find(r => r.id === ids[0]).done && (await ev(id => id in window.__wb.store.state.cur.overrides, ids[0])) && /Kept on this resume only/.test((await rows()).find(r => r.id === ids[0]).text));
+  await page.click(`${R} .rvrow[data-id="${ids[0]}"] [data-rv=undo]`); await settle(page);
+  ok('Undo of a keep puts the row back', !(await rows()).find(r => r.id === ids[0]).done);
+
+  // approve all: one step, the one that needs a source is left and said so
+  const before2 = await undoSteps();
+  await page.click(`${R} [data-rv=all]`); await settle(page);
+  const status = await page.textContent(`${R} #rv-status`);
+  ok('Approve all applies the rows that can be applied and says how many', /^Approved \d+ edits?\./.test(status), status);
+  ok('…one undo step', (await undoSteps()) === before2 + 1);
+  await page.click(`${R} #rv-status [data-rv=undo]`); await settle(page);
+  ok('its Undo takes all of them back at once', (await pending()) === 2 && (await undoSteps()) === before2);
+
+  // the locked line is left out, with a note
+  await ev(async id => { const L = await import('/src/model/lock.js'); window.__wb.store.commit(d => L.setLocked(d.cur, id, true), 'smoke: lock'); }, ids[0]);
+  await settle(page);
+  ok('a locked line is not offered and a note says how many are kept as they are', !(await rows()).some(r => r.id === ids[0] && !r.done) && /1 locked line is kept as it is/.test(await page.textContent(`${R} .rvbody`)));
+  await ev(async id => { const L = await import('/src/model/lock.js'); window.__wb.store.commit(d => L.setLocked(d.cur, id, false), 'smoke: unlock'); }, ids[0]);
+
+  // Save to file from the list saves what is left, and nothing is lost
+  const saved = await downloaded(() => page.click(`${R} [data-rv=save]`));
+  const file = JSON.parse(fs.readFileSync(saved, 'utf8'));
+  ok('Save to file in the list closes it and saves; the rows left alone are still edits in the file', !(await isOpen()) && file.resumeBuilderBackup === 1 && (await pending()) === 2);
+
+  // the export pre-flight has a Review button; exporting offers the list once, without waiting (a heading typed here is one of the edits the text and JSON file leave out)
+  await ev(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => T.setSectionLabel(d.record, d.cur, 'experience', 'en', 'Work history'), 'smoke: heading'); });
+  await page.click('#tab-export'); await settle(page);
+  ok('the pre-flight row about edits not in the text or JSON file has a Review button that opens the list', await (async () => { await page.click('#body .checks [data-act=review-open]'); await settle(page); const o = await isOpen(); await page.keyboard.press('Escape'); await settle(page); return o; })());
+  const dl = await Promise.all([page.waitForEvent('download'), page.click('[data-act=ex-json]')]);
+  await settle(page);
+  ok('an export is not held up, and afterwards a toast offers the Review with a button', !!dl[0] && await page.isVisible('#toast [data-act=review-open]'));
+  await page.click('#toast [data-act=review-open]'); await settle(page);
+  ok('that button opens the list', await isOpen());
+  await page.keyboard.press('Escape'); await settle(page);
+
+  // headings and names: only Keep and Use for every resume
+  await page.click('#filestate'); await settle(page);
+  const lab = `${R} .rvrow[data-kind=l]`;
+  ok('a heading typed on the page is a row with only Keep and Use for every resume', (await page.$$(`${lab} button`)).length === 2 && /Use for every resume/.test(await page.textContent(lab)));
+  await page.click(`${lab} [data-rv=every]`); await settle(page);
+  ok('Use for every resume puts it in the record, and Undo takes it back', (await ev(() => window.__wb.store.state.record.sections.find(s => s.id === 'experience').title)) === 'Work history' && await (async () => { await page.click(`${R} .rvrow[data-kind=l] [data-rv=undo]`); await settle(page); return (await ev(() => window.__wb.store.state.record.sections.find(s => s.id === 'experience').title)) !== 'Work history'; })());
+  await page.click(`${R} [data-rv=cancel]`); await settle(page);
+
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('the Review list: the newer wording is its second group')) {
+  const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  const R = '#review';
+  const shared = await page.evaluate(async () => {
+    const RS = await import('./src/model/resumes.js');
+    const s = window.__wb.store.state;
+    const mine = RS.usedVersions(s.record, s.cur).filter(u => s.record.work.some(w => w.highlights.includes(u.fact)));
+    for (const r of s.resumes) if (r.id !== s.openId && r.lang === s.cur.lang && r.snapshots === undefined && r.jobType !== undefined){
+      const theirs = new Set(RS.usedVersions(s.record, r).map(u => u.variant));
+      const hit = mine.find(u => theirs.has(u.variant));
+      if (hit) return { ...hit, other: r.id, text: s.record.variants.find(v => v.id === hit.variant).text };
+    }
+    return null;
+  });
+  ok('two saved resumes share a bullet version', !!shared);
+  if (shared){
+    const otherBefore = JSON.stringify((await st()).frozen[shared.other]);
+    // an Update from the list changes the shared version; the other resume keeps its words and is offered the new ones
+    await page.frameLocator('#sheet iframe').locator(`[data-variant="${shared.variant}"]`).first().click(); await settle(page);
+    await writeLine(page, shared.text.replace(/\w+(\W*)$/, 'brandnew$1')); await page.keyboard.press('Escape'); await settle(page);
+    await page.click('#tab-export'); await settle(page);
+    await page.click('#filestate'); await settle(page);
+    const row = `${R} .rvrow[data-id="${shared.fact}"]`;
+    ok('the tiny edit names the resume that prints the version and says it is offered the change', /Update v/.test(await page.textContent(row)) && /print it|prints it/.test(await page.textContent(row)));
+    await page.click(`${row} [data-rv=update]`); await settle(page);
+    ok('Update changes the version itself, and the row says Undo puts the old words back', (await st()).record.variants.find(v => v.id === shared.variant).text.includes('brandnew') && /now has these words/.test(await page.textContent(row)));
+    ok('the other resume’s own text and every sent copy are unchanged', JSON.stringify((await st()).frozen[shared.other]) === otherBefore);
+    await page.keyboard.press('Escape'); await settle(page);
+    await page.click('#docname-btn'); await settle(page);
+    await page.fill('#sw-q', shared.other.split(' - ')[0]); await settle(page);
+    await page.click(`#switcher .swrow[data-rid="${shared.other}"] .sopt`); await settle(page);
+    ok('the other resume still prints the old words', (await frameDoc(page, d => d.body.textContent)).includes(shared.text));
+    ok('its banner counts lines, not bullets, and opens the one dialog', /line has newer wording|lines have newer wording/.test(await page.textContent('.banner')) && !(await page.$('.banner [data-act=goto]')));
+    await page.click('.banner [data-act=review-open]'); await settle(page);
+    ok('the newer wording is the second group, headed so', (await page.textContent(`${R} h3`)).toLowerCase().includes('newer wording from your other resumes') && (await page.$$(`${R} .rvrow[data-kind=n]`)).length >= 1);
+    const nrow = await page.textContent(`${R} .rvrow[data-kind=n]`);
+    ok('the row shows the words with the newer ones marked, and Use the newer wording and Keep mine', /Use the newer wording/.test(nrow) && /Keep mine/.test(nrow) && !!(await page.$(`${R} .rvrow[data-kind=n] ins`)));
+    const n0 = await ev0();
+    async function ev0(){ return page.evaluate(() => window.__wb.store.history.undo); }
+    await page.click(`${R} .rvrow[data-kind=n] [data-rv=newer]`); await settle(page);
+    ok('Use the newer wording is one undo step with an Undo on its row', (await ev0()) === n0 + 1 && /Undo/.test(await page.textContent(`${R} .rvrow[data-kind=n]`)));
+    await page.click(`${R} [data-rv=cancel]`); await settle(page);
+    ok('this resume now prints the newer wording', (await frameDoc(page, d => d.body.textContent)).includes('brandnew'));
+    ok('the old separate review is gone: no newer view, no nw- controls', !(await page.$('[data-act=nw-accept], [data-act=nw-keep], [data-act=nw-all]')) && !(await page.evaluate(() => Object.keys(window.__wb.ui.VIEWS ?? {}).includes('newer'))));
+  }
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('the Review list: a phone, and focus')) {
+  const ctx = await newContext({ viewport: { width: 390, height: 780 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const ids = await page.evaluate(async () => { const T = await import('/src/model/resume.js'), s = window.__wb.store.state; return T.listedBullets(s.record, s.cur, 'hydra'); });
+  await page.evaluate(async ([a]) => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => { T.setOverride(d.record, d.cur, a, T.textOf(d.record, a, d.cur) + ' Again.', { marks: [], base: null }); }, 'smoke'); }, ids);
+  await page.evaluate(() => window.__wb.review.open());
+  await settle(page);
+  const box = await page.$eval('#review', e => { const r = e.getBoundingClientRect(); return { w: r.width, h: r.height, left: r.left, top: r.top, sw: document.documentElement.scrollWidth, over: e.scrollWidth > e.clientWidth + 1 }; });
+  ok('on a phone the dialog is a full-screen sheet with no sideways scroll', Math.abs(box.w - 390) <= 1 && Math.abs(box.h - 780) <= 1 && box.left === 0 && box.top === 0 && box.sw <= 390 && !box.over, JSON.stringify(box));
+  const small = await page.$$eval('#review button, #review select', b => b.filter(x => { const r = x.getBoundingClientRect(), d = document.querySelector('#review').getBoundingClientRect(); return !(r.left >= d.left - 1 && r.right <= d.right + 1 && r.height >= 24); }).map(x => `${x.textContent.trim().slice(0, 20)} ${Math.round(x.getBoundingClientRect().height)}px`));
+  ok('every control of the sheet is inside it and large enough to press', small.length === 0, small.join(', '));
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc closes it on a phone too', !(await page.evaluate(() => window.__wb.review.isOpen)));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
 }
 
 if (want('file://')) {

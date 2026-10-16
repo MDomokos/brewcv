@@ -10,7 +10,7 @@ import { recordTitle, recordTerm } from '../model/resume.js';
 import { acceptNewer, keepOlder, resumeLabel } from '../model/resumes.js';
 import { reviewList, reviewCount, editRow, applyEdit, printersOf, majorsOf, needsSource, cleanSource, SOURCE_MAX, keepLabel, useEverywhere } from '../model/review.js';
 
-let C = null, el = null, S = null;
+let C = null, el = null, box = null, live = null, S = null;
 const st = () => C.store.state;
 const model = () => C.work();
 const jobName = id => (model().work ?? []).find(w => w.id === id)?.name ?? id;
@@ -20,6 +20,11 @@ export function initReview(ctx){
   el = document.createElement('dialog');
   el.id = 'review'; el.className = 'card rvdlg';
   el.setAttribute('aria-labelledby', 'rv-h'); el.setAttribute('aria-describedby', 'rv-help');
+  // the rows are redrawn on every change; the live region stays, so a screen reader hears what a choice did
+  box = Object.assign(document.createElement('div'), { className: 'rvwrap' });
+  live = Object.assign(document.createElement('div'), { className: 'sr' });
+  live.setAttribute('role', 'status'); live.setAttribute('aria-live', 'polite');
+  el.append(box, live);
   document.body.append(el);
   el.addEventListener('click', onClick);
   el.addEventListener('change', onChange);
@@ -130,9 +135,9 @@ function render(){
   const body = group(['e', 'l'], 'g1') + group(['n'], 'g2', 'ux6d.g2help');
   const undo = S.last?.batch && S.last.at === C.store.history.undo ? ` ${btn('undo', t('foot.undo'), 'sm')}` : '';
   const keep = focusKey();
-  el.innerHTML = `<div class="rvhead"><h2 id="rv-h">${h('ux6d.title')}</h2><p id="rv-help" class="small muted">${h('ux6d.help')}</p></div>
+  box.innerHTML = `<div class="rvhead"><h2 id="rv-h">${h('ux6d.title')}</h2><p id="rv-help" class="small muted">${h('ux6d.help')}</p></div>
     <div class="rvbody">${body || `<p class="muted">${h('ux6d.none')}</p>`}${L.locked ? `<p class="note">${h('ux6d.locked', { n: L.locked })}</p>` : ''}</div>
-    <div class="rvfoot"><span id="rv-status" role="status" aria-live="polite">${esc(S.status)}${undo}</span>
+    <div class="rvfoot"><span id="rv-status">${esc(S.status)}${undo}</span>
       <span class="rvfoot-btns">${L.edits.length > 1 ? btn('all', t('ux6d.approveAll', { n: L.edits.length }), 'sm') : ''}${btn('cancel', t('btn.cancel'))}${btn('save', t('ux3b.saveFile'), 'primary')}</span></div>`;
   restoreFocus(keep);
 }
@@ -141,14 +146,14 @@ function render(){
 function focusKey(){
   if (S.focus){ const f = S.focus; S.focus = null; return f; }
   const a = document.activeElement;
-  if (!a || !el.contains(a)) return null;
+  if (!a || !box.contains(a)) return null;
   const row = a.closest('.rvrow');
   return { id: row?.dataset.id ?? null, kind: row?.dataset.kind ?? null, rv: a.dataset.rv ?? (a.matches('[data-rv-src]') ? 'src' : a.matches('[data-rv-pick]') ? 'pick' : null) };
 }
 function restoreFocus(f){
   const sel = !f?.rv ? '' : f.rv === 'src' ? '[data-rv-src]' : f.rv === 'pick' ? '[data-rv-pick]' : `[data-rv="${f.rv}"]`;
-  const row = f?.id != null ? [...el.querySelectorAll('.rvrow')].find(r => r.dataset.id === f.id && r.dataset.kind === f.kind) : null;
-  (sel && row?.querySelector(sel) || row?.querySelector('button, input, select') || el.querySelector('.rvbody button, .rvbody input, .rvbody select') || el.querySelector('[data-rv=save]'))?.focus();
+  const row = f?.id != null ? [...box.querySelectorAll('.rvrow')].find(r => r.dataset.id === f.id && r.dataset.kind === f.kind) : null;
+  (sel && row?.querySelector(sel) || row?.querySelector('button, input, select') || box.querySelector('.rvbody button, .rvbody input, .rvbody select') || box.querySelector('[data-rv=save]'))?.focus();
 }
 
 // ---- doing ----
@@ -156,10 +161,11 @@ function restoreFocus(f){
 function commit(label, fn){
   let out = null;
   try { if (!C.store.commit(d => { out = fn(d); }, label)) return null; }
-  catch (e){ S.status = errText(e); render(); return null; }
+  catch (e){ S.status = errText(e); say(S.status); render(); return null; }
   return out;
 }
-const finish = (keys, batch = false) => { S.last = { keys, batch, at: C.store.history.undo }; S.focus = keys.length === 1 && !batch ? { kind: keys[0][0], id: keys[0].slice(2), rv: 'undo' } : null; render(); };
+const say = text => { live.textContent = ''; setTimeout(() => { live.textContent = text; }, 30); };
+const finish = (keys, batch = false) => { say(S.status || keys.map(k => `${S.done.get(k).where}: ${S.done.get(k).text}`).join(' ')); S.last = { keys, batch, at: C.store.history.undo }; S.focus = keys.length === 1 && !batch ? { kind: keys[0][0], id: keys[0].slice(2), rv: 'undo' } : null; render(); };
 
 const resultOf = (row, c, out) => (c.do === 'keep' ? t('ux6d.r.keep') : c.do === 'over' ? t('ux6d.r.over', { v: out.n }) : c.do === 'claim' ? t('ux6d.r.claim', { job: jobName(row.job) }) : t('ux6d.r.sub', { v: out.n }));
 function approveRow(id, c){
@@ -253,7 +259,7 @@ function onInput(e){
 function onKey(e){
   e.stopPropagation();
   if (e.key === 'Tab'){      // Tab turns round at the ends instead of leaving for the browser's own controls
-    const all = [...el.querySelectorAll('button:not([disabled]), input, select')], at = all.indexOf(document.activeElement);
+    const all = [...box.querySelectorAll('button:not([disabled]), input, select')], at = all.indexOf(document.activeElement);
     if (all.length && (e.shiftKey ? at <= 0 : at === all.length - 1)){ e.preventDefault(); all[e.shiftKey ? all.length - 1 : 0].focus(); }
     return;
   }
