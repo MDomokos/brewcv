@@ -66,7 +66,6 @@ function designView(){
   const themes = rec.themes ?? [];
   const look = themes.find(t => t.id === r.look);
   const fontWarn = look ? Object.entries(look.tokens).filter(([k]) => k.startsWith('font-')).flatMap(([, v]) => K.unknownFonts(v)) : [];
-  const hasPhoto = !!(rec.basics?.image || rec.basics?.portrait?.state === 'present');
   const a4 = r.format !== 'us-letter';
   const manual = Array.isArray(r.pages);
   return `<h2 class="title">${h('head.design')}</h2>
@@ -92,12 +91,7 @@ function designView(){
         <div class="btns"><button class="sm" data-act="d-import">${h('design.import')}</button><button class="sm ghost" data-act="d-export">${h('design.export')}</button>${look ? `<button class="sm ghost" data-act="d-drop" data-id="${esc(look.id)}">${h('design.removeX', { name: look.name })}</button>` : ''}</div></div>
     </div>
     <span class="lbl">${h('design.photo')}</span>
-    <div class="photo-row">${hasPhoto && rec.basics?.image ? `<img class="thumb" src="${esc(C.photoUrl())}" alt="">` : `<span class="thumb empty">${hasPhoto ? h('design.photoWord') : h('design.none')}</span>`}
-      <div class="photo-ctl">
-        <div class="btns"><button class="sm" data-act="d-photo">${hasPhoto ? h('design.replacePhoto') : h('design.addPhoto')}</button>${rec.basics?.image ? `<button class="sm ghost" data-act="d-photo-rm">${h('design.remove')}</button>` : ''}
-          ${showSw('id="d-photo-on"', !!r.photo?.show, t('design.photoWord'), { text: true })}</div>
-        <div class="seg" role="group" aria-label="${esc(t('design.shape'))}">${[['rect', t('design.passport')], ['soft', t('design.rounded')], ['round', t('design.circle')]].map(([s, l]) => `<button data-act="d-shape" data-s="${s}" aria-pressed="${(r.photo?.shape ?? 'rect') === s}">${esc(l)}</button>`).join('')}</div>
-        <p class="note" data-tip="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" aria-description="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" tabindex="0">${h('ux6b.photoHint')}${r.photo?.show && !a4 ? ' ' + h('design.letterPhoto') : ''}</p></div></div>`;
+    <p class="note">${h('ux6g.photoMoved')} <a class="newv inline" data-act="select-header">${h('career.step1')}</a></p>`;
 }
 
 function commit(fn, label, done, undo = false, merge = null){

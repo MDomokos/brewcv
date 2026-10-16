@@ -12,7 +12,7 @@ import { langName, isSame, sameKey } from '../model/lang.js';
 import { DEFAULT_LANG, defaultVariant } from '../model/resume.js';
 import { entryKey } from '../model/entries.js';
 import { t, h, tIn, errText } from '../i18n/index.js';
-import { crumb } from './parts.js';
+import { crumb, photoHtml } from './parts.js';
 import { askIfLocked } from './ask.js';
 import { icon as drawn } from './icons.js';
 
@@ -254,9 +254,7 @@ function detailsForm(key, x, v){
 function aboutView(sel){
   const m = rec(), b = m.basics ?? {}, d = b.display ?? {}, Lg = L(), tr = trLabel();
   const where = `<div class="where" ${kc('about')}><span class="kb">${icon('about')}${h('career.step1')}</span></div>`;
-  const photo = `<div class="photo-row">${b.image ? `<img class="thumb" src="${esc(C.photoUrl())}" alt="">` : `<span class="thumb empty">${h('design.none')}</span>`}
-      <div class="btns"><button class="sm" data-act="d-photo">${b.image ? h('design.replacePhoto') : h('design.addPhoto')}</button>${b.image ? `<button class="sm ghost" data-act="d-photo-rm">${h('design.remove')}</button>` : ''}</div></div>
-    <p class="note">${h('design.photoNote')} ${h('design.photoCrop')}</p>`;
+  const photo = photoHtml({ rec: m, r: st().cur, a4: st().cur.format !== 'us-letter', url: b.image ? C.photoUrl() : '' });
   // in the page's order: the photo, the name, the headline, the contact
   return `${C.edit.depthHtml(sel)}${where}<span class="lbl">${h('career.about.photo')}</span>${photo}
     <h2 class="title">${h('career.about.name')}</h2>

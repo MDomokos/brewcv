@@ -1372,6 +1372,7 @@ export default {
   'ux6g.optMine': 'v{v}, on this resume only',
   'ux6g.saveAs': 'Save as v{v}',
   'ux6g.saveNeeds': 'Add a source to save',
+  'ux6g.photoMoved': 'The photo and its settings are in',
   'ux6g.onlyHere': 'on this resume only',
   'ux6g.tagNameMine': 'Versions of this line, now v{v}, on this resume only',
 };

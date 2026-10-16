@@ -117,6 +117,8 @@ async function pickLang(page, code){
   await page.waitForSelector('#sw-lang');
   await page.selectOption('#sw-lang', (await page.$(`#sw-lang option[value="${code}"]`)) ? code : `+${code}`);
 }
+// The sidebar's About you: the Header level, from the name on the page
+async function toAbout(page){ await page.evaluate(() => window.__wb.setView(null)); await settle(page); await page.frameLocator('#sheet iframe').locator('.name').click(); await settle(page); await page.click('#body .depth [data-act=select-header]'); await settle(page); }
 const rect = (page, s) => page.$eval(s, el => el.getBoundingClientRect().toJSON());
 // Mark as sent: the end of Export
 async function markSent(page){ await page.evaluate(() => window.__wb.dock.setMode('export')); await settle(page); await page.click('[data-act=mark-sent]'); }
@@ -2280,6 +2282,7 @@ if (want('design and theme tokens')) {
 
   // the photo: any image, cropped to the passport ratio
   const png = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 900; c.height = 700; const g = c.getContext('2d'); g.fillStyle = '#88a'; g.fillRect(0, 0, 900, 700); g.fillStyle = '#fc8'; g.beginPath(); g.arc(450, 280, 160, 0, 7); g.fill(); return c.toDataURL('image/png').split(',')[1]; });
+  await toAbout(page);
   await page.click('[data-act=d-photo]');
   await page.setInputFiles('#file', { name: 'me.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
   await settle(page);
@@ -4526,7 +4529,7 @@ if (want('the lock: no way round it from the page')) {
   // the record’s picture under a locked header
   await page.evaluate(() => { const c = document.createElement('canvas'); c.width = c.height = 2; const tiny = c.toDataURL('image/png'); window.__wb.store.commit(d => { d.record.basics.image = tiny; d.cur.photo = { show: true, shape: 'rect' }; d.cur.locked = ['header']; }, 'photo'); });
   page.on('dialog', d => d.accept());
-  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView('design'); }); await settle(page);
+  await toAbout(page);
   await page.click('[data-act=d-photo-rm]'); await settle(page);
   ok('Remove photo on a locked header removes nothing and says why', await page.evaluate(() => { const s = window.__wb.store.state; return !!s.record.basics.image && s.cur.photo.show === true; }) && bad.length === 0);
   ok('no console errors', bad.length === 0, bad[0] ?? '');
@@ -4997,6 +5000,33 @@ if (want('ux6g: one highlight while a line is written')) for (const motion of [f
   await page.mouse.move(b1.x + 45, b1.y + 5, { steps: 4 }); await settle(page);
   ok(`${tag}: …the hover outline returns when the pointer moves`, (await outline(2)).style === 'solid');
   ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('ux6g: the photo switch and its settings are in About you')) {
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await toAbout(page);
+  const sw = page.locator('#body #d-photo-on');
+  ok('About you has the photo switch, in the page’s order before the name', (await sw.count()) === 1 && await page.evaluate(() => document.querySelector('#d-photo-on').getBoundingClientRect().top < document.querySelector('#c-name').getBoundingClientRect().top));
+  const words = async () => (await page.textContent('#body label.swl:has(#d-photo-on)')).trim();
+  const was = await page.evaluate(() => !!window.__wb.store.state.cur.photo?.show);
+  ok('…worded like the page slot and the Outline row: Show photo on this resume / Hide photo from this resume', await words() === (was ? 'Hide photo from this resume' : 'Show photo on this resume'), await words());
+  ok('…with the photo’s shape and the add action beside it', (await page.locator('#body [data-act=d-shape]').count()) === 3 && (await page.locator('#body [data-act=d-photo]').count()) === 1);
+  const u0 = await page.evaluate(() => window.__wb.store.history.undo);
+  await page.mouse.move(600, 500, { steps: 4 }); await sw.click(); await settle(page);
+  ok('the switch prints the photo on this resume, in one undo step, and the words turn round', (await page.evaluate(() => !!window.__wb.store.state.cur.photo?.show)) === !was && (await page.evaluate(() => window.__wb.store.history.undo)) === u0 + 1 && await words() === (was ? 'Show photo on this resume' : 'Hide photo from this resume'));
+  await page.click('[data-act=d-shape][data-s=round]'); await settle(page);
+  ok('the shape is set there', (await page.evaluate(() => window.__wb.store.state.cur.photo?.shape)) === 'round');
+  await page.keyboard.press('Control+z'); await page.keyboard.press('Control+z'); await settle(page);
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
+  await page.evaluate(() => window.__wb.setView('design')); await settle(page);
+  ok('Design has no photo switch, shape or add button: one place for the control', (await page.locator('#body #d-photo-on, #body [data-act=d-shape], #body [data-act=d-photo], #body [data-act=d-photo-rm]').count()) === 0);
+  ok('…only a note that points to About you, and its link goes there', (await page.locator('#body a[data-act=select-header]').count()) === 1);
+  await page.click('#body a[data-act=select-header]'); await settle(page);
+  ok('…the link opens About you', (await page.getAttribute('#body', 'data-view')) === 'header' && (await page.locator('#body #d-photo-on').count()) === 1);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
 

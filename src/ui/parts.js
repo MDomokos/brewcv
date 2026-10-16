@@ -230,6 +230,18 @@ export function statsCompactHtml(ed){
   return `<span>${h('edit.chShort', { n: ch })}</span>${ln != null ? `<span>${h('edit.lnShort', { n: ln })}</span>` : ''}${d ? `<span class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '+' : ''}${d}</span>` : ''}`;
 }
 
+// The photo, in one place (UX-6g): the sidebar's About you. The picture (or its absence), add / replace / remove, the switch (the same pill
+// as the page's slot and the Outline row), the shape. `rec`: the record, `r`: the open resume, `url`: the picture's address.
+export function photoHtml({ rec, r, a4 = true, url = '' }){
+  const hasPhoto = !!(rec.basics?.image || rec.basics?.portrait?.state === 'present');
+  return `<div class="photo-row">${hasPhoto && rec.basics?.image ? `<img class="thumb" src="${esc(url)}" alt="">` : `<span class="thumb empty">${hasPhoto ? h('design.photoWord') : h('design.none')}</span>`}
+      <div class="photo-ctl">
+        <div class="btns"><button class="sm" data-act="d-photo">${hasPhoto ? h('design.replacePhoto') : h('design.addPhoto')}</button>${rec.basics?.image ? `<button class="sm ghost" data-act="d-photo-rm">${h('design.remove')}</button>` : ''}
+          ${showSw('id="d-photo-on"', !!r.photo?.show, t('design.photoWord'), { text: true })}</div>
+        <div class="seg" role="group" aria-label="${esc(t('design.shape'))}">${[['rect', t('design.passport')], ['soft', t('design.rounded')], ['round', t('design.circle')]].map(([s, l]) => `<button data-act="d-shape" data-s="${s}" aria-pressed="${(r.photo?.shape ?? 'rect') === s}">${esc(l)}</button>`).join('')}</div>
+        <p class="note" data-tip="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" aria-description="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" tabindex="0">${h('ux6b.photoHint')}${r.photo?.show && !a4 ? ' ' + h('design.letterPhoto') : ''}</p></div></div>`
+}
+
 // "custom" and Reset, at the header of a job, a list or the sections: this resume's order is not the record's. kind: job | items | sections
 export const orderMarkHtml = (custom, kind, id, name) => (custom
   ? `<span class="pill custom">${h('ux5b.custom')}</span><button class="ghost sm" data-act="order-reset" data-kind="${kind}" data-id="${esc(id)}" aria-label="${esc(t('ux5b.resetTitle', { name }))}">${h('ux5b.reset')}</button>` : '');

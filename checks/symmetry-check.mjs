@@ -186,9 +186,11 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   if (!(await page.isVisible('#outline input.sw[data-photo]'))) { await page.click('#outline [data-act=ol-toggle][data-g="sec:header"]'); await wait(); }
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.photo = { ...(d.cur.photo ?? {}), show: true }; }, 'check: photo on')); await wait();
   await trip('photo, on its row in the Outline', '#outline input.sw[data-photo]', () => page.click('#outline input.sw[data-photo] >> xpath=..'));
-  await page.click('#rail [data-act=mode][data-m=design]'); await wait();
-  await trip('photo, in Design', '#d-photo-on', () => page.click('#d-photo-on'));
-  await page.click('#rail [data-act=mode][data-m=edit]'); await wait();
+  // (the switch and the photo's settings are in the sidebar's About you; Design only points there)
+  await page.frameLocator('#sheet iframe').locator('.name').click(); await wait();
+  await page.click('#body .depth [data-act=select-header]'); await wait();
+  await trip('photo, in About you', '#d-photo-on', () => page.click('#d-photo-on'));
+  await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await wait();
   // the slot on the page, over the header
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.photo = { ...(d.cur.photo ?? {}), show: false }; }, 'check: photo off')); await wait();
   const fr = page.frameLocator('#sheet iframe'), nm = await fr.locator('.name').boundingBox();
