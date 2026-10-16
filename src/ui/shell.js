@@ -919,7 +919,7 @@ async function onClick(e){
 
 document.addEventListener('mouseover', e => {
   const row = e.target.closest?.('.vrow[data-v]');
-  if (!row || row.classList.contains('cur') || ui.fitting || edit.editing) return;
+  if (!row || ui.fitting || edit.editing?.panel || (row.classList.contains('cur') && !edit.editing)) return;      // while a line is written its own version is previewed too: the draft is what differs
   if (ui.hoverV === row.dataset.v) return;
   const fact = row.closest('.vlist')?.dataset.fact;
   if (!fact) return;
@@ -928,18 +928,19 @@ document.addEventListener('mouseover', e => {
 });
 document.addEventListener('mouseout', e => {
   const list = e.target.closest?.('.vlist');
-  if (!list || list.contains(e.relatedTarget) || edit.editing) return;
+  if (!list || list.contains(e.relatedTarget)) return;
   ui.hoverV = null;
   endPreview();
 });
 
 async function previewVersion(factId, vid){
   const r = structuredClone(cur());
-  r.picks = { ...r.picks, [factId]: vid };
   ui.previewing = true; ui.hoverFact = factId;
   let res;
-  try { res = await sheet.preview(work(), r, factId, { kind: 'hover', words: factId, ix: ui.ix }); }      // the words move from one version to the other
-  catch { ui.previewing = false; ui.hoverFact = null; return; }       // the version was deleted under the pointer: nothing to show
+  try {
+    pickVersion(store.state.record, r, factId, vid);      // on the copy: an edit on this resume is set aside there, and a locked line is not previewed
+    res = await sheet.preview(work(), r, factId, { kind: 'hover', words: factId, ix: ui.ix });      // the words move from one version to the other
+  } catch { ui.previewing = false; ui.hoverFact = null; return; }       // the version was deleted under the pointer: nothing to show
   if (!ui.previewing) return sheet.endPreview({ kind: 'hover', words: factId, ix: ui.ix });
   ui.fills = res.pages; renderFoot();
 }
@@ -951,6 +952,7 @@ async function endPreview(){
   if (ui.preview){ ui.preview = null; relayout(); }    // back to the open resume's size and view
   if (res){ ui.fills = res.pages; renderFoot(); }
   sheet.select(ui.sel, ui.ix);
+  if (back) edit.redraft();      // a line being written gets its draft on the page again
 }
 async function previewRecipe(r, fact = null, w = work()){
   ui.previewing = true;
@@ -979,7 +981,7 @@ async function previewRecipe(r, fact = null, w = work()){
 }
 
 function useVersion(factId, vid){
-  ui.previewing = false; ui.hoverV = null;
+  ui.previewing = false; ui.hoverV = null; ui.hoverFact = null;
   if (edit.editing?.fact === factId && !edit.editing.panel){ edit.pickWhileWriting(vid); return; }
   const v = ui.ix.variants.get(vid);
   store.commit(d => pickVersion(d.record, d.cur, factId, vid), t('undo.useVersion', { n: v?.n ?? '?' }));      // an edit on this resume is set aside, not lost

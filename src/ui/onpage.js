@@ -372,7 +372,7 @@ export function initOnPage(C){
     if (ui.writing && S){
       const ed = edit().editing;
       const el = ed ? sheet.elOf(S.fact, C.ix()) : null;
-      if (el && el !== S.el) attach(el, S.caret);
+      if (el && el !== S.el && !ui.hoverFact) attach(el, S.caret);      // a version under the pointer in the sidebar shows in place of the draft; the draft comes back with the page
     }
     render();
   }

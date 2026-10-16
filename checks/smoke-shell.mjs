@@ -4766,6 +4766,44 @@ if (want('the Review list: a phone, and focus')) {
   await ctx.close();
 }
 
+// ---- UX-6g ----
+// A pointer path, not a jump: the pointer enters the element from the left in a few moves
+const glide = async (page, loc) => { const b = await loc.boundingBox(); await page.mouse.move(b.x - 30, b.y + b.height / 2); await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 6 }); };
+const lineNow = (page, fact) => page.evaluate(f => { const w = window.__wb, el = w.sheet.elOf(f, w.ui.ix); return (el?.textContent ?? '').replace(/\s+/g, ' ').trim(); }, fact);
+const norm = s => String(s).replace(/\s+/g, ' ').trim();
+
+if (want('ux6g: a version hovered in the sidebar previews while a line is written')) for (const motion of [false, true]) {
+  const ctx = await newContext({ motion, viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const sheet = page.frameLocator('#sheet iframe');
+  const tag = motion ? 'with motion' : 'under reduced motion';
+  await sheet.locator('.bullets li').first().click(); await settle(page);
+  const fact = await page.evaluate(() => window.__wb.ui.sel.id);
+  ok(`${tag}: the line is being written`, (await lineEl(page).count()) === 1 && (await page.evaluate(() => window.__wb.ui.writing)));
+  await appendLine(page, ' DRAFT');
+  const draft = await lineText(page), undo0 = await page.evaluate(() => window.__wb.store.history.undo);
+  const caret0 = await page.evaluate(() => { const el = window.__wb.onpage.el(), s = el.ownerDocument.getSelection(); return s.anchorOffset; });
+  const rows = page.locator('.vrow[data-v]');
+  const n = await rows.count();
+  ok(`${tag}: the sidebar lists more than one version of the line`, n >= 2, `${n}`);
+  for (let i = 0; i < n; i++) {
+    const row = rows.nth(i), vid = await row.getAttribute('data-v');
+    const want_ = await page.evaluate(v => window.__wb.ui.ix.variants.get(v).text, vid);
+    await glide(page, row); await settle(page);
+    ok(`${tag}: hovering ${vid} shows its text on the page in place of what is being written`, (await lineNow(page, fact)) === norm(want_), `${await lineNow(page, fact)} || ${norm(want_)}`);
+    await page.mouse.move(4, 4, { steps: 6 }); await settle(page);
+    ok(`${tag}: leaving it puts the typed line back, the caret and the draft untouched`, (await lineNow(page, fact)) === norm(draft) && (await lineText(page)) === draft && (await lineEl(page).count()) === 1
+      && (await page.evaluate(() => { const el = window.__wb.onpage.el(), s = el.ownerDocument.getSelection(); return el.isConnected && el.contentEditable !== 'false' && s.anchorOffset; })) === caret0);
+  }
+  ok(`${tag}: hovering made no undo step`, (await page.evaluate(() => window.__wb.store.history.undo)) === undo0);
+  const other = page.locator('.vrow[data-v]:not(.cur)').first(), ovid = await other.getAttribute('data-v');
+  await other.click(); await settle(page); await page.mouse.move(4, 4, { steps: 6 }); await settle(page);
+  ok(`${tag}: a click chooses it, and the typed text is kept as an edit first`, (await lineNow(page, fact)) === norm(await page.evaluate(v => window.__wb.ui.ix.variants.get(v).text, ovid)) && (await page.evaluate(f => window.__wb.store.state.cur.parked?.[f]?.text ?? '', fact)).endsWith('DRAFT'));
+  ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('file://')) {
   const ctx = await newContext();
   const page = await ctx.newPage();
