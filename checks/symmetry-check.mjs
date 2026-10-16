@@ -319,6 +319,34 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await ctx.close();
 }
 
+// ---- skills: back to the record's groups, and delete a set (fix 14) ----
+{
+  const { ctx, page } = await open(1470, 832);
+  const wait = () => page.waitForTimeout(700);
+  const st = () => page.evaluate(() => JSON.stringify({ sets: window.__wb.store.state.record.skillSets ?? null, arr: window.__wb.store.state.cur.skillArrangement ?? null }));
+  const cur = () => page.evaluate(() => JSON.stringify({ ...window.__wb.store.state.cur, savedAt: 0 }));
+  await page.click('#outline [data-act=select-section][data-id=skills]'); await wait();
+  const c0 = await cur(), s0 = await st();
+  ok('with the record\u2019s own groups there is nothing to go back to (no "The record\u2019s groups" option) and nothing to delete', !(await page.$('#sk-set option[value="~record"]')) && (await page.$eval('[data-act=sk-del]', b => b.disabled)));
+  await page.click('[data-act=sk-save]'); await wait();
+  const saved = await st();
+  const first = await page.$eval('#sk-set', s => s.options[0].textContent);
+  ok('Save as the set writes a set and the "Start from a set" menu now lists "The record\u2019s groups" first among its choices', saved !== s0 && (await page.$$eval('#sk-set option', os => os.map(o => o.textContent)))[1] === 'The record\u2019s groups', first);
+  ok('…and "Delete this set" is enabled', !(await page.$eval('[data-act=sk-del]', b => b.disabled)));
+  await page.click('[data-act=sk-del]'); await wait();
+  const gone = JSON.parse(await st());
+  ok('"Delete this set" removes the set (the key goes with its last language), with an Undo button on the toast', gone.sets === null && !!(await page.$('#toast.on [data-act=toast-undo]')));
+  await page.click('#toast [data-act=toast-undo]'); await wait();
+  ok('…and Undo brings the set back', (await st()) === saved);
+  await page.selectOption('#sk-set', '~record'); await wait();
+  ok('"The record\u2019s groups" takes the arrangement away: the resume is as before the set was applied', JSON.parse(await st()).arr === null && (await cur()) === c0);
+  ok('…and the sets of the record are untouched by it', JSON.stringify(JSON.parse(await st()).sets) === JSON.stringify(JSON.parse(saved).sets));
+  // locked: the skills are held
+  await page.evaluate(async () => { const L = await import('/src/model/lock.js'); window.__wb.store.commit(d => { L.setLocked(d.cur, 'skills', true); }, 'check: lock'); }); await wait();
+  ok('locked, the menu and both set buttons are disabled with the reason', await page.$eval('#sk-set', s => s.disabled && !!s.title) && await page.$eval('[data-act=sk-save]', b => b.disabled && !!b.title) && await page.$eval('[data-act=sk-del]', b => b.disabled && !!b.title));
+  await ctx.close();
+}
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} symmetry check(s) FAILED` : '\nall symmetry checks passed');
 process.exit(failed ? 1 : 0);

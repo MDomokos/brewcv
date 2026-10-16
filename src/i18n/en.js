@@ -1278,4 +1278,9 @@ export default {
   'ux6c.revertX': 'Put {name} back to the saved words',
   'ux6c.removeX': 'Remove {name} from this resume',
   'ux6c.theGroup': 'the skill group {name}',
+  'ux6c.recordGroups': 'The record’s groups',
+  'ux6c.deleteSet': 'Delete this set',
+  'ux6c.undoDeleteSet': 'Delete a skill set',
+  'ux6c.setDeleted': 'Deleted the set for {name}. Ctrl+Z brings it back.',
+  'ux6c.setCleared': 'The skills are the record’s groups again.',
 };

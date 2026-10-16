@@ -556,6 +556,23 @@ export function applySet(model, recipe, name){
   for (const g of arrangementOf(model, recipe).groups) guard(model, recipe, g.id);      // a set replaces every group
   recipe.skillArrangement = { from: name, ...(skillSets(model)[name][L] ? {} : { lang: DEFAULT_LANG }), groups: structuredClone(groups) };
 }
+// Back to the record's own groups (the inverse of applySet): the resume's arrangement goes. Held like applySet.
+export function clearArrangement(model, recipe){
+  if (!recipe.skillArrangement) return;
+  guard(model, recipe, skillsSection(model));
+  for (const g of arrangementOf(model, recipe).groups) guard(model, recipe, g.id);
+  delete recipe.skillArrangement;
+}
+// The set saved for a tag in one language goes; the tag's last set takes its key with it (and the last key, `skillSets`).
+export function deleteSkillSet(model, name, lang = DEFAULT_LANG){
+  const mine = { ...skillSets(model)[name] };
+  if (!mine[lang]) return false;
+  delete mine[lang];
+  const sets = { ...skillSets(model) };
+  if (Object.keys(mine).length) sets[name] = mine; else delete sets[name];
+  if (Object.keys(sets).length) model.skillSets = sets; else delete model.skillSets;
+  return true;
+}
 export function saveSetForTag(model, name, arrangement, lang = DEFAULT_LANG){
   const L = arrangement.lang ?? lang;      // groups that are still the English fallback are the English set, not the resume's language's
   model.skillSets = { ...skillSets(model), [name]: { ...skillSets(model)[name], [L]: structuredClone(arrangement.groups) } };

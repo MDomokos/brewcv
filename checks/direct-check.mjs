@@ -132,6 +132,23 @@ section('saved resumes: parent, rename, closest, same company');
   ok('sameCompany ignores case and spaces, itself, and no company', eq(RS.sameCompany({ resumes: [a, b, c, d] }, a), [b]) && RS.sameCompany({ resumes: [a, d] }, d).length === 0);
 }
 
+section('skill sets: back to the record\'s groups, and delete a set (UX-6c-iv-b)');
+{
+  const m = clone(model), g = [{ id: 'skills-cad', items: ['CAD'] }];
+  T.saveSetForTag(m, 'Hardware design', { groups: g });
+  T.saveSetForTag(m, 'Hardware design', { groups: g }, 'hu');
+  const rc = T.newResume(m, { lang: 'en' }), before = clone(rc);
+  T.applySet(m, rc, 'Hardware design');
+  ok('applySet is undone by clearArrangement: the recipe is as it was', (T.clearArrangement(m, rc), eq(rc, before)));
+  ok('clearArrangement on a resume with none changes nothing', (T.clearArrangement(m, rc), eq(rc, before)));
+  const LK = await import('../src/model/lock.js');
+  const lk = clone(rc); T.applySet(m, lk, 'Hardware design'); LK.setLocked(lk, 'skills-cad', true);
+  ok('clearArrangement is held while a group is locked', throws(() => T.clearArrangement(m, lk)) && !!lk.skillArrangement);
+  ok('deleteSkillSet removes one language of a tag and keeps the other', T.deleteSkillSet(m, 'Hardware design', 'hu') && eq(Object.keys(m.skillSets['Hardware design']), ['en']));
+  ok('…the tag\'s last set takes the tag with it, and the last tag takes skillSets', T.deleteSkillSet(m, 'Hardware design', 'en') && !('skillSets' in m));
+  ok('…a set that is not there is not deleted', T.deleteSkillSet(m, 'Hardware design', 'en') === false);
+}
+
 section('skill sets: per language, falling back to English');
 {
   const m = clone(model);

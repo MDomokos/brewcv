@@ -294,15 +294,18 @@ function chipOn(kind, id){
 // Each skill is a button (Alt+← → moves it in its group, Alt+↑ ↓ to the group above or below) and can be dragged to another group.
 function skillsHtml(){
   const m = rec(), arr = T.arrangementOf(m, cur()), sets = Object.keys(T.skillSets(m)), { types, tags } = lensChoices(m, lang());
-  const tag = cur().jobType ?? arr.from ?? '', all = [...types, ...tags];
+  const tag = cur().jobType ?? arr.from ?? '', all = [...types, ...tags], arranged = !!cur().skillArrangement;
+  const saved = x => !!T.skillSets(m)[x]?.[arr.lang ?? cur().lang ?? DEFAULT_LANG];      // the set Save writes for this tag, in this language
   return `<div class="skarr">
-    <label class="field"><span class="lbl inline">${h('ux6c.startFrom')}</span><select id="sk-set" ${sets.length ? '' : 'disabled'}><option value="">${esc(arr.from ? t('ux6c.setNow', { name: jobTypeLabel(m, arr.from) }) : t('ux6c.setNone'))}</option>
+    <label class="field"><span class="lbl inline">${h('ux6c.startFrom')}</span><select id="sk-set" ${sets.length || arranged ? '' : 'disabled'}><option value="">${esc(arr.from ? t('ux6c.setNow', { name: jobTypeLabel(m, arr.from) }) : t('ux6c.setNone'))}</option>
+      ${arranged ? `<option value="~record">${esc(t('ux6c.recordGroups'))}</option>` : ''}
       ${sets.map(n => `<option value="${esc(n)}">${esc(jobTypeLabel(m, n))}</option>`).join('')}</select></label>
     ${sets.length ? '' : `<p class="muted small">${h('ux6c.noSets')}</p>`}
     ${arr.groups.map(g => { const name = g.label ?? T.groupLabel(m, cur(), g.id) ?? ''; return `<div class="skgroup" data-g="${esc(g.id)}"><div class="skghead"><b>${esc(name || t('ux6c.newGroup'))}</b></div>
       <div class="skchips">${g.items.map((x, k) => `<button class="skchip" draggable="true" data-g="${esc(g.id)}" data-k="${k}" title="${esc(t('ux6c.skillTip', { name: x }))}">${esc(x)}</button>`).join('')}</div></div>`; }).join('')}
-    <div class="skfoot"><label class="field"><span class="lbl inline">${h('ux6c.saveFor')}</span><select id="sk-tag">${all.map(x => `<option value="${esc(x.tag)}" ${x.tag === tag ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select></label>
-      <button class="sm" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button></div>
+    <div class="skfoot"><label class="field"><span class="lbl inline">${h('ux6c.saveFor')}</span><select id="sk-tag">${all.map(x => `<option value="${esc(x.tag)}" ${x.tag === tag ? 'selected' : ''} ${saved(x.tag) ? 'data-set="1"' : ''}>${esc(x.label)}</option>`).join('')}</select></label>
+      <button class="sm" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button>
+      <button class="sm" data-act="sk-del" ${saved(tag) ? '' : 'disabled'}>${h('ux6c.deleteSet')}</button></div>
   </div>`;
 }
 // a skill group one place up or down, or before another (the drag on the page); a line before another of its job
@@ -740,6 +743,11 @@ async function act(a, tg){
       commit(d => { const arr = T.arrangementOf(d.record, d.cur); T.saveSetForTag(d.record, name, arr, d.cur.lang ?? DEFAULT_LANG); T.setArrangement(d.cur, { ...arr, from: name }); }, t('ux6c.undoSaveSet'), t('ux6c.setSaved', { name: jobTypeLabel(rec(), name) }));
       return true;
     }
+    case 'sk-del': {
+      const name = $('#sk-tag')?.value, L = T.arrangementOf(rec(), cur()).lang ?? cur().lang ?? DEFAULT_LANG;
+      if (name) commit(d => { T.deleteSkillSet(d.record, name, L); }, t('ux6c.undoDeleteSet'), t('ux6c.setDeleted', { name: jobTypeLabel(rec(), name) }), true);
+      return true;
+    }
     case 'order-reset': resetOrder(tg.dataset.kind, tg.dataset.id); return true;
     case 'label-reset': commit(d => T.setSectionLabel(d.record, d.cur, sel.id, lang(), null), t('undo.resetHeading')); return true;
     case 'lock-toggle': case 'row-lock': lockToggle(tg.dataset.id); return true;
@@ -773,7 +781,11 @@ function bind(body){
     else if (t.id === 'b-on') setBullet(C.ui.sel.id, t.checked);
     else if (t.dataset.photo !== undefined) C.togglePhoto();
     else if (t.dataset.item){ const id = t.dataset.item, on = t.checked; commit(d => T.setItemOn(d.record, d.cur, id, on), on ? tr('undo.turnOn') : tr('undo.turnOff')); }
-    else if (t.id === 'sk-set'){ if (t.value){ const name = t.value; commit(d => T.applySet(d.record, d.cur, name), tr('ux6c.undoStartFrom'), tr('ux6c.setApplied', { name: jobTypeLabel(rec(), name) })); } }
+    else if (t.id === 'sk-set'){
+      if (t.value === '~record') commit(d => T.clearArrangement(d.record, d.cur), tr('ux6c.undoStartFrom'), tr('ux6c.setCleared'));
+      else if (t.value){ const name = t.value; commit(d => T.applySet(d.record, d.cur, name), tr('ux6c.undoStartFrom'), tr('ux6c.setApplied', { name: jobTypeLabel(rec(), name) })); }
+    }
+    else if (t.id === 'sk-tag'){ const b = $('[data-act=sk-del]'); if (b) b.disabled = !t.selectedOptions[0]?.dataset.set; }      // the button follows the tag chosen
     else if (t.id === 'lens'){ E.focus = t.value || null; E.applyOpen = false; C.setFocus(); C.renderBody(); }
     else if (t.dataset.same){ const k = t.dataset.same, on = t.checked; commit(d => setSame(d.record, k, on), on ? tr('edit.sameEvery') : tr('undo.notSame')); }
   });
