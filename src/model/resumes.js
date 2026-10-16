@@ -12,7 +12,7 @@
 //  - A snapshot is the open resume as it printed when Save was pressed, plus the sends (where and when it went).
 
 import { t, keyed } from '../i18n/index.js';
-import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel } from './resume.js';
+import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere } from './resume.js';
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang } from './lang.js';
 import { LockedError, guard, isLocked } from './lock.js';
@@ -154,7 +154,7 @@ export function newerOf(model, recipe){
   }
   return out;
 }
-// keepOlder leaves the saved text as this resume's own one-off.
+// keepOlder leaves the saved text as this resume's own one-off, kept here so the Review list does not offer it as an edit.
 export function acceptNewer(recipe, factId, model = null){
   guard(model, recipe, factId);
   if (recipe.overrides) delete recipe.overrides[factId];
@@ -164,6 +164,7 @@ export function acceptNewer(recipe, factId, model = null){
 export function keepOlder(recipe, factId){
   recipe.held = (recipe.held ?? []).filter(x => x !== factId);
   if (!recipe.held.length) delete recipe.held;
+  keepHere(recipe, factId);
 }
 
 // The saved copy takes the same holds, so opening doesn't count as a change.

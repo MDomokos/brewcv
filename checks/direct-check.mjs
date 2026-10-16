@@ -810,6 +810,113 @@ section('UX-6c-iii-b fix round: hiding, layout, stale locks, restore, record edi
   ok('saving over a version, deleting one, and renaming a kind refuse when the open resume has it locked', lockedErr(() => R.saveOver(clone(model), vid, 'New words', withLock(base, line))) && lockedErr(() => R.deleteVersion(clone(model), vid, [], withLock(base, job))) && lockedErr(() => K.updateKind(heads.m, heads.id, { name: { en: 'Societies' } }, [], withLock(base, `~h:${heads.sec}`)))
     && !lockedErr(() => R.saveOver(clone(model), vid, 'New words', clone(base))));
 }
+section('UX-6d: the Review list\'s model');
+{
+  const V = await import('../src/model/review.js');
+  const LK = await import('../src/model/lock.js');
+  const base = S.loadResume(read(`data/example-resumes/${names[0]}`), model).recipe;
+  const fresh = (strict = false) => { const m = clone(model); if (strict) m.requireSource = true; return m; };
+  const lineId = 'hydra-inhaler', v2 = model.variants.find(v => v.id === 'hydra-inhaler-v2'), mark = { start: 0, end: 3 };
+  const edit = (r, m, id, text, marks = []) => T.setOverride(m, r, id, text, { marks, base: null });
+  const closeText = v2.text.replace('400,000', '450,000');                  // one word changed: close to v2, and tiny
+  const farText = 'Rebuilt the counter from scratch with a different supplier and a new test plan for it';
+  const sourced = (m, src = 'Notebook p. 3') => { m.variants.find(v => v.id === 'hydra-inhaler-v2').source = src; return m; };
+  const asJson = (...x) => JSON.stringify(x);
+
+  // the list
+  { const r = clone(base), m = clone(model); edit(r, m, lineId, closeText); edit(r, m, 'hydra-suppliers', 'Qualified suppliers.');
+    ok('the list holds the edits, not the locked ones, and says how many it left out', eq(V.reviewList(m, r).edits, [lineId, 'hydra-suppliers']) && V.reviewList(m, withLockR(r, lineId)).locked === 1 && eq(V.reviewList(m, withLockR(r, lineId)).edits, ['hydra-suppliers'])); }
+  function withLockR(r, ...ids){ const c = clone(r); for (const id of ids) LK.setLocked(c, id, true); return c; }
+
+  // a sub-version copies the parent's source, and the page prints the same words and highlights
+  { const m = sourced(fresh(true)), r = clone(base); edit(r, m, lineId, closeText, [mark]);
+    const row = V.editRow(m, r, lineId);
+    ok('a close edit is suggested as a sub-version of the nearest, with the next free number', row.as === 'minor' && row.near.id === 'hydra-inhaler-v2' && row.n === '2.3' && row.tiny === true);
+    const made = V.applyEdit(m, r, lineId, { do: 'minor', from: row.near.id });
+    const v = m.variants.find(x => x.id === made.vid);
+    ok('approving makes v2.3 with the parent\'s source, the edit\'s words and highlights', v.n === '2.3' && v.source === 'Notebook p. 3' && v.text === closeText && eq(v.marks, [mark]));
+    ok('…drops the edit and picks the new version, so the resume prints the same words', !(lineId in (r.overrides ?? {})) && r.picks[lineId] === v.id && T.textOf(m, lineId, r) === closeText); }
+  // a new major needs a typed source when the record asks for one
+  { const m = fresh(true), r = clone(base); edit(r, m, lineId, farText);
+    const before = asJson(m, r);
+    const refused = throws(() => V.applyEdit(m, r, lineId, { do: 'major' })) && throws(() => V.applyEdit(m, r, lineId, { do: 'major', source: '   ' }));
+    ok('a new major without a source is refused when the record asks for one, and nothing changed', refused && asJson(m, r) === before);
+    const made = V.applyEdit(m, r, lineId, { do: 'major', source: '  Interview notes,\n 2024  ' });
+    ok('…and is accepted with one, trimmed to plain text', made.n === '4' && m.variants.find(x => x.id === made.vid).source === 'Interview notes, 2024');
+    ok('the source is cut at 300 characters', V.cleanSource('x'.repeat(400)).length === V.SOURCE_MAX);
+    const loose = fresh(false), r2 = clone(base); edit(r2, loose, lineId, farText);
+    ok('a record that does not ask for a source takes a new major without one', V.applyEdit(loose, r2, lineId, { do: 'major' }).n === '4' && !V.needsSource(loose)); }
+  { const m = fresh(true), r = clone(base); edit(r, m, lineId, closeText);
+    ok('a sub-version of a parent with no source needs one too', throws(() => V.applyEdit(m, r, lineId, { do: 'minor', from: 'hydra-inhaler-v2' })) && V.applyEdit(m, r, lineId, { do: 'minor', from: 'hydra-inhaler-v2', source: 'Memo' }).n === '2.3'); }
+  // keep it here
+  { const m = fresh(), r = clone(base); edit(r, m, lineId, closeText);
+    V.applyEdit(m, r, lineId, { do: 'keep' });
+    ok('keeping it on this resume leaves the edit, and it leaves the list', r.overrides[lineId] === closeText && !V.reviewList(m, r).edits.includes(lineId) && T.textOf(m, lineId, r) !== undefined);
+    edit(r, m, lineId, closeText + ' again');
+    ok('…and a later edit of the line is offered again', V.reviewList(m, r).edits.includes(lineId)); }
+  // a locked line is not offered and not changed
+  { const m = fresh(), r0 = clone(base); edit(r0, m, lineId, closeText, [mark]); const r = withLockR(r0, lineId);
+    const before = asJson(m, r);
+    ok('a locked line is refused and nothing changes', ['minor', 'major', 'over'].every(d => throws(() => V.applyEdit(m, r, lineId, { do: d, from: 'hydra-inhaler-v2', vid: 'hydra-inhaler-v2', source: 'x' }))) && asJson(m, r) === before); }
+  // update v2: the other resumes see it as newer wording, a sent copy does not change
+  { const st = exampleState();
+    const cur = st.cur, mineSet = new Set(RS.usedVersions(st.record, cur).filter(u => st.record.work.some(w => w.highlights.includes(u.fact))).map(u => u.variant));
+    const other = st.resumes.find(r => r.id !== st.openId && r.lang === cur.lang && RS.usedVersions(st.record, r).some(u => mineSet.has(u.variant)));
+    const vid = RS.usedVersions(st.record, other).find(u => mineSet.has(u.variant)).variant, fact = st.record.facts.find(f => f.variants.includes(vid)).id;
+    const text = st.record.variants.find(v => v.id === vid).text, curId = st.openId;
+    RS.openSaved(st, other.id); const snap = RS.takeSnapshot(st, { company: 'Acme', role: 'Engineer' }); RS.openSaved(st, curId);
+    const snapBefore = JSON.stringify(st.resumes.find(r => r.id === other.id).snapshots);
+    edit(st.cur, st.record, fact, text.replace(/\w+(\W*)$/, 'changed$1'));
+    const row = V.editRow(st.record, st.cur, fact);
+    ok('a one-word change of a version is a tiny edit of it', row.near.id === vid && row.tiny === true);
+    ok('the resumes that print that version are named', V.printersOf(st, vid).some(r => r.id === other.id) && !V.printersOf(st, vid).some(r => r.id === curId));
+    V.applyEdit(st.record, st.cur, fact, { do: 'over', vid });
+    ok('update: the nearest version has the edit\'s words, the edit is gone', st.record.variants.find(v => v.id === vid).text.includes('changed') && !(fact in (st.cur.overrides ?? {})));
+    RS.openSaved(st, other.id);
+    ok('the other resume keeps its words and is offered the new ones', RS.newerOf(st.record, st.cur).some(x => x.fact === fact && x.live.includes('changed') && x.frozen === text));
+    ok('a sent copy is unchanged', JSON.stringify(st.resumes.find(r => r.id === other.id).snapshots) === snapBefore && snap.id !== undefined);
+    // keep mine / use the newer, and the held line is not an edit
+    ok('a held line is not an edit to review', !V.reviewList(st.record, st.cur).edits.includes(fact) && V.reviewList(st.record, st.cur).newer.length >= 1);
+    RS.keepOlder(st.cur, fact);
+    ok('keeping mine takes it off both lists', V.reviewCount(st.record, st.cur) === V.reviewList(st.record, st.cur).newer.length + V.reviewList(st.record, st.cur).edits.length && !V.reviewList(st.record, st.cur).newer.some(x => x.fact === fact) && !V.reviewList(st.record, st.cur).edits.includes(fact)); }
+  // headings and language names
+  { const m = fresh(), r = clone(base);
+    T.setSectionLabel(m, r, 'experience', 'en', 'Work history'); T.setTerm(m, r, 'lang-portuguese', 'en', 'Portuguese (native)');
+    ok('a heading and a language name are on the list', eq(V.reviewList(m, r).labels.map(l => l.key), ['~h:experience', '~t:lang-portuguese']));
+    V.keepLabel(m, r, '~h:experience');
+    ok('keeping a heading leaves it as typed and off the list', T.labelOf(m, r, 'experience', 'en') === 'Work history' && eq(V.reviewList(m, r).labels.map(l => l.key), ['~t:lang-portuguese']));
+    T.setSectionLabel(m, r, 'experience', 'en', 'Work');
+    ok('…until its words change', V.reviewList(m, r).labels.some(l => l.key === '~h:experience'));
+    ok('use for every resume: the record has the heading and the resume no longer needs its own', V.useEverywhere(m, r, '~h:experience') && m.sections.find(s => s.id === 'experience').title === 'Work' && T.labelOf(m, r, 'experience', 'en') === null);
+    ok('…and the same for a language\'s name', V.useEverywhere(m, r, '~t:lang-portuguese') && T.recordTerm(m, 'lang-portuguese', 'en') === 'Portuguese (native)' && !r.terms);
+    T.setSectionLabel(m, r, 'education', 'en', 'Studies'); const lk = withLockR(r, '~h:education');
+    ok('a locked heading is not offered and not sent to the record', V.reviewList(m, lk).labels.every(l => l.key !== '~h:education') && V.reviewList(m, lk).locked >= 1 && throws(() => V.useEverywhere(m, lk, '~h:education')));
+  }
+  // a line only on this resume becomes a claim, in its place
+  { const base2 = S.loadResume(read(`data/example-resumes/${names[0]}`), model).recipe;
+    const m = fresh(true), r = clone(base2), id = T.addLocalLine(m, r, 'hydra', 'hydra-testing');
+    edit(r, m, id, 'Wrote the supplier audit checklist', [{ start: 0, end: 5 }]);
+    const row = V.editRow(m, r, id), order = T.listedBullets(m, r, 'hydra'), at = order.indexOf(id);
+    const before = asJson(m, r);
+    ok('a local line is a row of its own, in its job', row.local && row.job === 'hydra' && V.reviewList(m, r).edits.includes(id));
+    ok('adding it to the record without a source is refused when the record asks, and nothing changes', throws(() => V.applyEdit(m, r, id, { do: 'claim' })) && asJson(m, r) === before);
+    const { fact } = V.applyEdit(m, r, id, { do: 'claim', source: 'Audit file 12' });
+    const now = T.listedBullets(m, r, 'hydra');
+    ok('the claim is in the job, with the source and the highlights', m.work.find(w => w.id === 'hydra').highlights.includes(fact) && m.variants.filter(v => m.facts.find(f => f.id === fact).variants.includes(v.id)).every(v => v.source === 'Audit file 12' && eq(v.marks, [{ start: 0, end: 5 }])));
+    ok('…and it replaces the local line in the same place on this resume', !T.isLocal(r, id) && !(id in (r.overrides ?? {})) && now.indexOf(fact) === at && now.length === order.length && T.textOf(m, fact, r) === 'Wrote the supplier audit checklist');
+    // a local line in a record that does not ask for a source needs none
+    const loose = fresh(false), r3 = clone(base2), id3 = T.addLocalLine(loose, r3, 'hydra', null); edit(r3, loose, id3, 'First line of all');
+    const f3 = V.applyEdit(loose, r3, id3, { do: 'claim' }).fact;
+    ok('with no source asked for, a local line needs none; a line with no job place goes where it was (first)', T.listedBullets(loose, r3, 'hydra')[0] === f3); }
+  // each apply is one undo step
+  { const m = sourced(fresh(true)), r = clone(base); edit(r, m, lineId, closeText, [mark]);
+    const store = createStore({ record: m, cur: r }), was = JSON.stringify(store.state);
+    store.commit(d => { V.applyEdit(d.record, d.cur, lineId, { do: 'minor', from: 'hydra-inhaler-v2' }); }, 'review');
+    ok('an apply is one undo step', store.history.undo === 1 && JSON.stringify(store.state) !== was);
+    store.undo();
+    ok('…and undo puts the edit back and takes the version away', JSON.stringify(store.state) === was);
+    ok('a refused apply in a commit changes nothing and adds no step', throws(() => store.commit(d => { V.applyEdit(d.record, d.cur, lineId, { do: 'major' }); }, 'review')) && store.history.undo === 0 && JSON.stringify(store.state) === was); }
+}
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {
   // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i. Change it only when the example or the renderer is meant to change.
