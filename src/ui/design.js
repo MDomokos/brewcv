@@ -91,7 +91,7 @@ function designView(){
         <div class="btns"><button class="sm" data-act="d-import">${h('design.import')}</button><button class="sm ghost" data-act="d-export">${h('design.export')}</button>${look ? `<button class="sm ghost" data-act="d-drop" data-id="${esc(look.id)}">${h('design.removeX', { name: look.name })}</button>` : ''}</div></div>
     </div>
     <span class="lbl">${h('design.photo')}</span>
-    <p class="note">${h('ux6g.photoMoved')} <a class="newv inline" data-act="select-header">${h('career.step1')}</a></p>`;
+    <p class="note">${h('ux6g.photoMoved')} <button class="sm ghost" data-act="select-header">${h('career.step1')}</button></p>`;
 }
 
 function commit(fn, label, done, undo = false, merge = null){
