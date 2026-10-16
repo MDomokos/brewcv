@@ -16,14 +16,22 @@ let C = null, T = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const VIEW_KEY = 'rb-manage-view', VIEWS = ['type', 'date', 'company'];
 const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : 'type'; } catch { return 'type'; } };
-// ticked: resumes ("id") and sent copies ("id|snapshot"); cmp: what the compare screen shows, and the parent when it is "What differs";
+// ticked: resumes ("id") and sent copies ("id|snapshot"); cmp: what Compare shows, and focus the row in the inspector;
 // sel: the selected card (null: the open resume's); nj: the resume whose "Use for a new job" form is open; draft: what was typed in
 // that form, per resume, kept until the copy is made
-const V = { q: '', view: savedView(), ticked: new Set(), cmp: [], parent: null, sel: null, nj: null, draft: new Map(), sentOnly: false };
+const V = { q: '', view: savedView(), ticked: new Set(), cmp: [], sel: null, nj: null, draft: new Map(), sentOnly: false, rows: [], focus: -1 };
 const phone = () => document.body.dataset.phone === 'true';
 const selId = () => (V.sel && RS.savedOf(st(), V.sel) ? V.sel : st().openId);
 
-export function initScreens(ctx, thumbs){ C = ctx; T = thumbs; return api; }
+export function initScreens(ctx, thumbs){
+  C = ctx; T = thumbs;
+  // N and P step through the differences wherever the focus is, as long as it is not in a text box
+  document.addEventListener('keydown', e => {
+    if (C.view() !== 'compare' || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, select, textarea') || (e.key !== 'n' && e.key !== 'p')) return;
+    e.preventDefault(); stepDiff(e.key === 'n' ? 1 : -1);
+  });
+  return api;
+}
 const st = () => C.store.state;
 const label = RS.resumeLabel;
 
@@ -164,7 +172,7 @@ function paintInspector(){
   const bd = document.getElementById('body');
   if (phone() || !bd) return;
   const ae = document.activeElement, kept = bd.contains(ae) && ae.id ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
-  bd.innerHTML = resumeInspector(); T.fill(bd, recipeOf);
+  bd.innerHTML = C.view() === 'compare' ? cmpInspector() : resumeInspector(); T.fill(bd, recipeOf);
   const n = kept && document.getElementById(kept.id);
   if (n){ n.focus({ preventScroll: true }); try { n.setSelectionRange(kept.a, kept.b); } catch { /* not a text box */ } }
 }
@@ -262,28 +270,53 @@ function turnPreview(e){
 }
 
 // ---- compare ----
+// the rows Compare shows; the place card counts them before the table is drawn
+const rowsNow = () => RS.compareMany(C.work(), V.cmp.map(itemOf).filter(Boolean).map(x => x.recipe));
 function compareView(){
-  const items = V.cmp.map(itemOf).filter(Boolean);
-  const rows = RS.compareMany(C.work(), items.map(x => x.recipe));
-  const cell = c => (typeof c === 'string' ? esc(c) : `<span title="${esc(c.text)}">${esc(c.label)}</span>`);
-  const sum = V.parent ? (() => { const p = itemOf(V.parent.parent), c = itemOf(V.parent.child); return p && c ? { p, c, list: RS.differences(C.work(), p.recipe, c.recipe) } : null; })() : null;
-  return `<section class="scrn" id="compare" aria-labelledby="scr-h">
-    <div class="scrhead"><button class="sm scrback" data-act="scr-back">← ${h('ux6h.allResumes')}</button><h2 id="scr-h">${sum ? h('ux6e.differsTitle', { parent: label(RS.savedOf(st(), V.parent.parent)) }) : h('ux6e.cmpTitle', { n: items.length })}</h2></div>
-    ${sum ? `<div class="diffsum">${sum.list.length ? `<ul>${sum.list.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : `<p>${h('ux6e.nothing')}</p>`}</div>` : ''}
+  const items = V.cmp.map(itemOf).filter(Boolean), rows = V.rows = rowsNow();
+  // a cell shows what is printed (its words, or the setting), with the version's name small beside it; a line this resume lacks is hatched
+  const cell = c => (typeof c === 'string' ? esc(c) : c.text ? `${esc(c.text)} <small class="muted">${esc(c.label)}</small>` : '');
+  const gap = c => typeof c !== 'string' && !c.text && c.label === '—';
+  return `<section class="scrn" id="compare" aria-label="${esc(t('ux6e.cmpTitle', { n: items.length }))}">
+    <div class="scrhead tbar"><button class="sm" data-act="scr-back">← ${h('ux6h.allResumes')}</button>
+      <button class="sm" data-act="cmp-prev" title="P">◀ ${h('ux6h.prev')}</button><button class="sm" data-act="cmp-next" title="N">${h('ux6h.next')} ▶</button></div>
     <div class="cmpscroll"><table class="cmp"><caption class="sr">${h('ux6e.cmpTitle', { n: items.length })}</caption>
-      <thead><tr><th scope="col">${h('ux6e.cmpRow')}</th>${items.map(x => `<th scope="col"><span class="cname">${esc(x.label)}</span>${thumb(x.key, x.recipe.format)}
-        <span class="racts">${x.key.includes('|') ? `<button class="sm" data-act="sw-snap" data-id="${esc(x.key.split('|')[0])}" data-sid="${esc(x.key.split('|')[1])}">${h('ux6e.openBtn')}</button>`
-          : `<button class="sm" data-act="sw-open" data-id="${esc(x.key)}">${h('ux6e.openBtn')}</button><button class="sm" data-act="rm-dup" data-id="${esc(x.key)}">${h('ux1.dup')}</button>`}</span></th>`).join('')}</tr></thead>
-      <tbody>${rows.map(r => `<tr class="${r.differs ? 'diff-row' : ''} ${r.kind}"><th scope="row" title="${esc(r.label)}">${esc(r.label.length > 46 ? r.label.slice(0, 45) + '…' : r.label)}</th>${r.cells.map(c => `<td>${cell(c)}</td>`).join('')}</tr>`).join('')}
+      <thead><tr><th scope="col">${h('ux6e.cmpRow')}</th>${items.map(x => `<th scope="col"><span class="cname">${esc(x.label)}</span>${thumb(x.key, x.recipe.format)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((r, i) => `<tr class="${r.differs ? 'diff-row' : ''} ${r.kind} ${i === V.focus ? 'is-here' : ''}" data-act="cmp-row" data-i="${i}"><th scope="row" title="${esc(r.label)}">${esc(r.label.length > 46 ? r.label.slice(0, 45) + '…' : r.label)}</th>${r.cells.map(c => `<td class="${gap(c) ? 'gap' : ''}">${cell(c)}</td>`).join('')}</tr>`).join('')}
       <tr class="setting"><th scope="row">${h('ux6e.rowPrinted')}</th>${items.map(x => `<td data-pagesof="${esc(x.key)}">…</td>`).join('')}</tr></tbody></table></div></section>`;
 }
 function afterCompare(){
   const sc = document.getElementById('compare');
   T.fill(sc, recipeOf, (key, e) => { const c = sc.querySelector(`[data-pagesof="${CSS.escape(key)}"]`); if (c) c.textContent = String(e.pages); });
+  paintInspector();
+}
+// the inspector in Compare: the row in focus, and what each resume prints there
+function cmpInspector(){
+  const items = V.cmp.map(itemOf).filter(Boolean), row = V.rows[V.focus];
+  if (!row) return `<section class="insp"><span class="lbl">${h('ux6e.cmpTitle', { n: items.length })}</span><p class="small muted">${h('ux6h.cmpHint')}</p></section>`;
+  const nDiff = V.rows.filter(x => x.differs).length, at = V.rows.filter(x => x.differs).indexOf(row);
+  const val = c => (typeof c === 'string' ? c : c.text ? `${c.text}` : t('ux6h.notOnIt'));
+  const open = x => { const [id, sid] = x.key.split('|'); return `<button class="sm" ${sid ? `data-act="sw-snap" data-id="${esc(id)}" data-sid="${esc(sid)}"` : `data-act="sw-open" data-id="${esc(id)}"`}>${h('ux6h.openX', { name: x.label })}</button>`; };
+  return `<section class="insp"><span class="lbl">${row.differs ? h('ux6h.rowOf', { n: at + 1, of: nDiff }) : h('ux6h.rowSame')}</span><h3 class="oi-name">${esc(row.label)}</h3>
+    <dl class="cmpcells">${items.map((x, i) => `<dt>${esc(x.label)}</dt><dd>${esc(val(row.cells[i]))}${typeof row.cells[i] !== 'string' && row.cells[i].text ? ` <small class="muted">${esc(row.cells[i].label)}</small>` : ''}</dd>`).join('')}</dl>
+    <div class="btns">${items.map(open).join('')}</div></section>`;
+}
+// the next or previous row that differs: scrolled into view, marked, and shown in the inspector
+function focusRow(i){
+  V.focus = i;
+  const trs = [...document.querySelectorAll('#compare tbody tr')];
+  trs.forEach((r, j) => r.classList.toggle('is-here', j === i));
+  trs[i]?.scrollIntoView({ block: 'center', behavior: reduced() ? 'auto' : 'smooth' });
+  paintInspector();
+}
+function stepDiff(d){
+  const idx = V.rows.map((r, i) => (r.differs ? i : -1)).filter(i => i >= 0);
+  if (!idx.length) return;
+  focusRow(d > 0 ? idx.find(i => i > V.focus) ?? idx.at(-1) : idx.slice().reverse().find(i => i < V.focus) ?? idx[0]);
 }
 
 // ---- acts ----
-function compare(keys, parent = null){ V.cmp = keys; V.parent = parent; C.setView('compare'); }
+function compare(keys){ V.cmp = keys; V.focus = -1; C.setView('compare'); }
 async function act(a, tg){
   switch (a){
     case 'scr-view': V.view = tg.dataset.v; try { localStorage.setItem(VIEW_KEY, V.view); } catch { /* this session only */ } C.renderBody(); return true;
@@ -301,12 +334,15 @@ async function act(a, tg){
       if (C.resumes.newJob(tg.dataset.id, company, role)){ V.draft.delete(tg.dataset.id); V.nj = null; }
       return true;
     }
+    case 'cmp-row': focusRow(Number(tg.dataset.i)); return true;
+    case 'cmp-next': stepDiff(1); return true;
+    case 'cmp-prev': stepDiff(-1); return true;
     case 'scr-clear': V.ticked.clear(); document.querySelectorAll('.rtick').forEach(x => { x.checked = false; }); refreshTicks(); return true;
     case 'scr-compare': if (V.ticked.size >= 2) compare([...V.ticked]); return true;
     case 'scr-differs': {
       const r = RS.savedOf(st(), tg.dataset.id);
       const p = RS.parentOf(st(), r) ?? RS.closestTo(st(), r, x => RS.printedIds(C.work(), x))?.r;
-      if (p) compare([p.id, r.id], { parent: p.id, child: r.id });
+      if (p) compare([p.id, r.id]);
       return true;
     }
   }
@@ -351,8 +387,7 @@ function placeCard(v, recSummary){
   const rs = st().resumes ?? [], sends = rs.reduce((n, r) => n + RS.snapshotsOf(r).length, 0);
   if (v === 'record') return `<p class="psub">${esc(recSummary)}</p>`;
   if (v === 'compare'){
-    const d = RS.compareMany(C.work(), V.cmp.map(itemOf).filter(Boolean).map(x => x.recipe)).filter(r => r.differs).length;
-    return `<div class="ptitle"><h2 id="pl-h">${h('ux6h.compare')}</h2></div><p class="psub">${h('ux6h.cmpSub', { n: V.cmp.length, d })}</p>`;
+    return `<div class="ptitle"><h2 id="pl-h">${h('ux6h.compare')}</h2></div><p class="psub">${h('ux6h.cmpSub', { n: V.cmp.length, d: rowsNow().filter(r => r.differs).length })}</p>`;
   }
   return `<p class="psub">${h('ux6h.counts', { n: rs.length, s: sends })}</p><div class="pacts"><button class="sm" data-act="sw-new">${h('ux1.newResume')}</button></div>`;
 }

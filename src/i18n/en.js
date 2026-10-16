@@ -1410,4 +1410,11 @@ export default {
   'ux6h.compareParent': 'Compare with it',
   'ux6h.sent': 'Sent',
   'ux6h.notSent': 'Not sent yet. Export › Mark as sent keeps a copy here.',
+  'ux6h.cmpHint': 'Pick a row, or step with Next difference (N) and Previous (P).',
+  'ux6h.rowOf': 'Row {n} of {of} that differ',
+  'ux6h.rowSame': 'The same on all',
+  'ux6h.notOnIt': 'Not on it',
+  'ux6h.openX': 'Open {name}',
+  'ux6h.prev': 'Previous',
+  'ux6h.next': 'Next difference',
 };

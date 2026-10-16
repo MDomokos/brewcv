@@ -164,3 +164,15 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .hoverprev .hpslot { display: block; overflow: hidden; background: var(--sheet); }
 .hoverprev .hpslot + .hpslot { border-top: 1px solid var(--sheet-edge); }
 .hoverprev .hppage { position: absolute; right: 10px; bottom: 10px; padding: 3px 8px; border-radius: var(--r-pill); background: var(--hint-bg); color: var(--hint-ink); font: 600 11px/1.2 var(--font-ui); }
+
+/* ---- Compare: the words aligned by claim; a line a resume lacks is hatched; the row you stepped to is marked and shown in the inspector ---- */
+.scr .cmpscroll { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-m); }
+.cmp tbody tr { cursor: pointer; }
+.cmp td { vertical-align: top; font-size: 12.5px; line-height: 1.4; }
+.cmp td.gap { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--line) 6px 7px); }
+.cmp tr.diff-row td { background-color: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 600; }
+.cmp tr.diff-row td.gap { background-color: transparent; }
+.cmp tr.is-here { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cmpcells { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; margin: 0; font-size: 12.5px; }
+.cmpcells dt { color: var(--ink-soft); }
+.cmpcells dd { margin: 0 0 8px; font-weight: 600; overflow-wrap: anywhere; }
