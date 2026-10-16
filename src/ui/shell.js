@@ -80,7 +80,8 @@ const ui = {
 const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: on => dock?.sheetOver(on), moved: () => { placeOverflow(); onpage?.place(); hands?.place(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
 const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
   ix: () => ui.ix ?? indexModel(work(), cur()), fillText: () => fillText(), select: sel => select(sel),
-  writeStarted: () => dock.renderFoot(), writeEnded: () => dock.renderFoot(), redrawSoon: () => schedule() });
+  writeStarted: () => dock.renderFoot(), writeEnded: () => dock.renderFoot(), redrawSoon: () => schedule(),
+  endHover: () => { ui.hoverV = null; if (ui.previewing) endPreview(); }, previewVersion: (fact, vid) => { ui.hoverV = vid; return previewVersion(fact, vid); } });
 const hands = initHands({ ui, sheet, canvas, edit: () => edit, onpage: () => onpage, record: () => record(), cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k),
   jobName: id => (ui.ix ?? indexModel(work(), cur())).work.get(id)?.name ?? id, writingFact: () => onpage.fact(), togglePhoto: () => design.togglePhoto() });
 window.__wb = { store, persist, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile(), busy: () => timer !== null || drawing > 0 };      // for checks and the console
@@ -892,7 +893,7 @@ async function onClick(e){
       select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' });
       break;
     }
-    case 'use-version': useVersion(tg.closest('.vlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
+    case 'use-version': useVersion(tg.closest('.vlist, .obvlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
     case 'drink-switch': toggleDrink(); break;
     case 'chip-undo': store.undo(); dropChip(); break;
     case 'toast-undo': if (store.history.undo === toastAt) store.undo(); else dropToastUndo(); break;
@@ -918,16 +919,16 @@ async function onClick(e){
 }
 
 document.addEventListener('mouseover', e => {
-  const row = e.target.closest?.('.vrow[data-v]');
-  if (!row || ui.fitting || edit.editing?.panel || (row.classList.contains('cur') && !edit.editing)) return;      // while a line is written its own version is previewed too: the draft is what differs
+  const row = e.target.closest?.('.vrow[data-v], .obvopt[data-v]');
+  if (!row || !row.dataset.v || ui.fitting || edit.editing?.panel || (row.classList.contains('cur') && !edit.editing)) return;      // while a line is written its own version is previewed too: the draft is what differs
   if (ui.hoverV === row.dataset.v) return;
-  const fact = row.closest('.vlist')?.dataset.fact;
+  const fact = row.closest('.vlist, .obvlist')?.dataset.fact;
   if (!fact) return;
   ui.hoverV = row.dataset.v;
   previewVersion(fact, row.dataset.v);
 });
 document.addEventListener('mouseout', e => {
-  const list = e.target.closest?.('.vlist');
+  const list = e.target.closest?.('.vlist, .obvlist');
   if (!list || list.contains(e.relatedTarget)) return;
   ui.hoverV = null;
   endPreview();

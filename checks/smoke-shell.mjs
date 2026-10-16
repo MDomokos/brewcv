@@ -4769,6 +4769,8 @@ if (want('the Review list: a phone, and focus')) {
 // ---- UX-6g ----
 // A pointer path, not a jump: the pointer enters the element from the left in a few moves
 const glide = async (page, loc) => { const b = await loc.boundingBox(); await page.mouse.move(b.x - 30, b.y + b.height / 2); await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 6 }); };
+// …and from where the pointer is, in a few moves (inside a popup, the way in from outside would leave it)
+const slide = async (page, loc) => { const b = await loc.boundingBox(); await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 6 }); };
 const lineNow = (page, fact) => page.evaluate(f => { const w = window.__wb, el = w.sheet.elOf(f, w.ui.ix); return (el?.textContent ?? '').replace(/\s+/g, ' ').trim(); }, fact);
 const norm = s => String(s).replace(/\s+/g, ' ').trim();
 
@@ -4801,6 +4803,77 @@ if (want('ux6g: a version hovered in the sidebar previews while a line is writte
   await other.click(); await settle(page); await page.mouse.move(4, 4, { steps: 6 }); await settle(page);
   ok(`${tag}: a click chooses it, and the typed text is kept as an edit first`, (await lineNow(page, fact)) === norm(await page.evaluate(v => window.__wb.ui.ix.variants.get(v).text, ovid)) && (await page.evaluate(f => window.__wb.store.state.cur.parked?.[f]?.text ?? '', fact)).endsWith('DRAFT'));
   ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('ux6g: the version tag beside a line is a control')) for (const motion of [false, true]) {
+  const ctx = await newContext({ motion, viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const sheet = page.frameLocator('#sheet iframe');
+  const tag = motion ? 'with motion' : 'under reduced motion';
+  await sheet.locator('.bullets li').first().click(); await settle(page);
+  const fact = await page.evaluate(() => window.__wb.ui.sel.id);
+  await appendLine(page, ' DRAFT');
+  const draft = await lineText(page);
+  const T = page.locator('#editlay .obv[aria-haspopup=listbox]'), L = page.locator('#editlay .obvlist');
+  const vtext = v => page.evaluate(id => window.__wb.ui.ix.variants.get(id).text, v);
+  ok(`${tag}: the number beside the line is a button with a listbox popup, closed, named for what it does`, (await T.count()) === 1 && (await T.evaluate(e => e.tagName)) === 'BUTTON' && (await T.getAttribute('aria-expanded')) === 'false' && /^Versions of this line, now v\d/.test(await T.getAttribute('aria-label')) && (await L.getAttribute('role')) === 'listbox' && !(await L.isVisible()));
+  const geo0 = await page.evaluate(() => { const r = document.querySelector('#sheet iframe').getBoundingClientRect(); return [r.left, r.top, r.width, r.height, window.__wb.canvas.cam.k, window.__wb.canvas.cam.x, window.__wb.canvas.cam.y].join(); });
+  await glide(page, T); await settle(page);
+  ok(`${tag}: hovering the number opens the list`, (await L.isVisible()) && (await T.getAttribute('aria-expanded')) === 'true');
+  const opts = L.locator('[role=option]'), n = await opts.count();
+  const nums = await opts.evaluateAll(os => os.map(o => o.textContent.trim()));
+  const sorted = [...nums].sort((a, b) => { const x = a.slice(1).split('.').map(Number), y = b.slice(1).split('.').map(Number); return (x[0] - y[0]) || ((x[1] ?? -1) - (y[1] ?? -1)); });
+  ok(`${tag}: the versions are numbers only, lower above the one in use and higher below, the one in use marked`, n >= 2 && nums.every(x => /^v\d+(\.\d+)?$/.test(x)) && JSON.stringify(nums) === JSON.stringify(sorted) && (await opts.evaluateAll(os => os.filter(o => o.getAttribute('aria-selected') === 'true').length)) === 1, nums.join(' '));
+  const cover = await page.evaluate(() => {
+    const w = window.__wb, l = document.querySelector('#editlay .obvlist').getBoundingClientRect();
+    const hit = w.sheet.textRects().map(r => w.canvas.screenRect(r)).filter(r => l.left < r.left + r.width && l.left + l.width > r.left && l.top < r.top + r.height && l.top + l.height > r.top).length;
+    const f = document.querySelector('#sheet iframe').getBoundingClientRect();
+    return { hit, geo: [f.left, f.top, f.width, f.height, w.canvas.cam.k, w.canvas.cam.x, w.canvas.cam.y].join() };
+  });
+  ok(`${tag}: the list covers no printed text and the page does not move`, cover.hit === 0 && cover.geo === geo0, JSON.stringify(cover));
+  for (let i = 0; i < n; i++) {
+    const o = opts.nth(i), vid = await o.getAttribute('data-v');
+    if (!vid) continue;
+    await slide(page, o); await settle(page);
+    ok(`${tag}: moving over ${nums[i]} previews it on the page`, (await lineNow(page, fact)) === norm(await vtext(vid)), await lineNow(page, fact));
+    ok(`${tag}: …and the list stays open`, await L.isVisible());
+  }
+  await page.mouse.move(4, 4, { steps: 8 }); await settle(page);
+  ok(`${tag}: leaving closes the list and the typed line is back`, !(await L.isVisible()) && (await lineNow(page, fact)) === norm(draft) && (await lineText(page)) === draft);
+  const undo0 = await page.evaluate(() => window.__wb.store.history.undo);
+  await glide(page, T); await settle(page);
+  const pick = L.locator('[role=option]:not([aria-selected=true])[data-v]').last(), pv = await pick.getAttribute('data-v'), pn = (await pick.textContent()).trim();
+  await slide(page, pick); await pick.click(); await settle(page); await page.mouse.move(4, 4, { steps: 6 }); await settle(page);
+  ok(`${tag}: a click chooses it: the page shows it, the list is closed, the tag names it, undo steps (the typed text kept, then the pick)`, !(await L.isVisible()) && (await lineNow(page, fact)) === norm(await vtext(pv)) && (await T.textContent()).trim() === pn && [1, 2].includes((await page.evaluate(() => window.__wb.store.history.undo)) - undo0), `${await T.textContent()} ${pn}`);      // the typed text is kept as an edit first, then the pick
+  // the keyboard
+  const before = await lineNow(page, fact);
+  await T.focus(); await page.keyboard.press('Enter'); await settle(page);
+  ok(`${tag}: Enter on the number opens the list with the focus in it`, (await L.isVisible()) && (await L.evaluate(e => document.activeElement === e)));
+  await page.keyboard.press('Home'); await settle(page);
+  ok(`${tag}: an arrow key (Home) previews a number`, (await lineNow(page, fact)) !== before && !!(await L.getAttribute('aria-activedescendant')));
+  await page.keyboard.press('Escape'); await settle(page);
+  ok(`${tag}: Esc closes the list, the page goes back, and the line is still being written, with the focus in it`, !(await L.isVisible()) && (await lineNow(page, fact)) === before && (await page.evaluate(() => window.__wb.ui.writing)) && (await lineEl(page).count()) === 1);
+  await T.focus(); await page.keyboard.press('Enter'); await page.keyboard.press('Home'); await page.keyboard.press('Enter'); await settle(page);
+  ok(`${tag}: Enter on a number chooses it`, !(await L.isVisible()) && (await lineNow(page, fact)) !== before);
+  ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+if (want('ux6g: the version tag, by touch')) {
+  const ctx = await newContext({ hasTouch: true, viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const sheet = page.frameLocator('#sheet iframe');
+  await sheet.locator('.bullets li').first().click(); await settle(page);
+  const fact = await page.evaluate(() => window.__wb.ui.sel.id), before = await lineNow(page, fact);
+  const T = page.locator('#editlay .obv[aria-haspopup=listbox]'), L = page.locator('#editlay .obvlist');
+  await T.tap(); await settle(page);
+  ok('a tap on the number opens the list and it stays open', await L.isVisible());
+  const pick = L.locator('[role=option]:not([aria-selected=true])[data-v]').first();
+  await pick.tap(); await settle(page);
+  ok('a tap on a number chooses it', !(await L.isVisible()) && (await lineNow(page, fact)) !== before);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
 

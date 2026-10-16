@@ -12,7 +12,7 @@ import path from 'node:path';
 import { makeUi, dom, REPO, setPhone } from './lib/ui-harness.mjs';
 import * as R from '../src/model/record.js';
 import * as T from '../src/model/resume.js';
-import { toolsHtml, statsCompactHtml } from '../src/ui/parts.js';
+import { toolsHtml, statsCompactHtml, versionTagHtml } from '../src/ui/parts.js';
 
 // The snapshot is a phone's sheet: it keeps the short form of a version (where it starts to differ), as it always did. The desktop
 // panel shows every version in full (the section at the end).
@@ -228,6 +228,20 @@ section('the padlock and the switch on the depth row (UX-6c-iii-b): one componen
   const locked = u.edit.depthHtml(sel, { page: true });
   ok('a locked line: the padlock is pressed and says Unlock, and the switch is aria-disabled', /is-locked[^>]*aria-pressed="true" aria-label="Unlock the line in /.test(btn(locked, 'dp-lock')) && /aria-disabled="true"/.test(btn(locked, 'dp-show')));
   u.store.commit(d => { delete d.cur.locked; }, 'unlock');
+}
+
+section('the version tag beside a line (UX-6g): a button with a listbox of numbers; locked, disabled with the reason');
+{
+  const items = [{ id: 'a-v1', n: '1' }, { id: 'a-v2', n: '2', cur: true }, { id: null, n: '2.1', mine: true }, { id: 'a-v3', n: '3' }];
+  const html = versionTagHtml('2', { fact: 'a', items });
+  ok('the tag is a button with aria-haspopup=listbox, aria-expanded=false and a name that says what it does', /<button type="button" class="obv"[^>]*aria-haspopup="listbox" aria-expanded="false"[^>]*aria-label="Versions of this line, now v2"/.test(html));
+  ok('the list is a listbox of options in the order given, numbers only, the one in use selected', /role="listbox"[^>]*hidden/.test(html) && (html.match(/role="option"/g) ?? []).length === 4 && /aria-selected="true"[^>]*>v2</.test(html) && [...html.matchAll(/role="option"[^>]*>(v[\d.]+)</g)].map(m => m[1]).join() === 'v1,v2,v2.1,v3');
+  ok('the one in use has no action; the others choose a version, the edit on this resume puts it back; the list names its line', !/class="obvopt cur"[^>]*data-act/.test(html) && /data-act="use-version" data-v="a-v1"/.test(html) && /class="obvopt mine"[^>]*data-act="use-edit"/.test(html) && /data-fact="a"/.test(html));
+  ok('the edit on this resume is named for what it is', /aria-label="v2.1, on this resume only"/.test(html));
+  const locked = versionTagHtml('2', { fact: 'a', items, locked: 'Locked. Click the padlock to unlock.' });
+  ok('a locked line: the tag is disabled with the lock’s reason, and there is no list', /<button[^>]*class="obv"[^>]*disabled aria-disabled="true"[^>]*aria-label="Locked\./.test(locked) && !/listbox/.test(locked));
+  ok('a line with no versions (only on this resume) keeps the plain number', versionTagHtml('·', { fact: 'a', items: [] }) === '<span class="obv">v·</span>');
+  ok('the tools column holds the tag', /<div class="obtools writing"[^>]*>\s*<span class="obvwrap">/.test(toolsHtml({ vn: '2', tag: { fact: 'a', items }, counts: '' })));
 }
 
 // PARTS_STAGE=10.1 runs the snapshot alone

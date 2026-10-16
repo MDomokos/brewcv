@@ -183,10 +183,25 @@ export const addClaimHtml = ({ id, key, draft = '' }) =>
 const iconButton = (act, ic, name, tip, attrs = '') =>
   `<button class="ib" data-act="${act}" ${attrs} data-tip="${esc(name)}|${esc(tip)}" data-tip-pos="l" aria-label="${esc(name)}">${icon(ic)}</button>`;
 
-// The column beside the line being written: the number of the version it was written from, ↑ and ↓, the counts. Nothing to save:
-// leaving the line keeps it on this resume. (The sidebar lists the other versions.)
-export function toolsHtml({ vn, canMove = false, ends = {}, counts = '' }){
-  const badge = `<span class="obv">v${esc(vn)}</span>`;
+// The version number beside a line is a control (UX-6g): hovering, focusing or clicking it lists the line's versions as numbers (lower above the
+// one in use, higher below); moving over one previews it on the page, a click or Enter chooses it, Esc closes. `tag`: { fact, items, locked },
+// items [{ id, n, cur, mine }] in number order (`mine`: the edit on this resume, shown where it would be numbered); `locked`: the lock's words.
+// A line with no versions (one only on this resume) has the number alone.
+export function versionTagHtml(vn, tag = null){
+  if (!tag?.items?.length) return `<span class="obv">v${esc(vn)}</span>`;
+  if (tag.locked) return `<button type="button" class="obv" disabled aria-disabled="true" title="${esc(tag.locked)}" aria-label="${esc(tag.locked)}">v${esc(vn)}</button>`;
+  const opts = tag.items.map((o, i) => {
+    const name = o.mine ? t('ux6g.optMine', { v: o.n }) : `v${o.n}`;
+    return `<div class="obvopt${o.cur ? ' cur' : ''}${o.mine ? ' mine' : ''}" role="option" id="ob-vo-${i}"${o.cur ? '' : ` data-act="${o.mine ? 'use-edit' : 'use-version'}"`} data-v="${esc(o.id ?? '')}" aria-selected="${!!o.cur}" aria-label="${esc(name)}">v${esc(o.n)}${o.mine ? '<span class="obdot" aria-hidden="true"></span>' : ''}</div>`;
+  }).join('');
+  return `<span class="obvwrap"><button type="button" class="obv" data-act="ob-vers" aria-haspopup="listbox" aria-expanded="false" aria-controls="ob-vlist" aria-label="${esc(t('ux6g.tagName', { v: vn }))}">v${esc(vn)}</button>
+    <div class="obvlist" id="ob-vlist" data-fact="${esc(tag.fact)}" role="listbox" tabindex="-1" aria-label="${esc(t('ux6g.tagList'))}" hidden>${opts}</div></span>`;
+}
+
+// The column beside the line being written: the number of the version it was written from (a control), ↑ and ↓, the counts. Nothing to save:
+// leaving the line keeps it on this resume.
+export function toolsHtml({ vn, tag = null, canMove = false, ends = {}, counts = '' }){
+  const badge = versionTagHtml(vn, tag);
   const tip = (k, arrow) => t(k, { keys: keyText('Alt', arrow) });
   const mv = !canMove ? '' : iconButton('ob-up', 'up', t('ux5b.lineUp'), tip('ux5b.lineUpTip', '↑'), `aria-disabled="${!!ends.first}"`) + iconButton('ob-down', 'caret', t('ux5b.lineDown'), tip('ux5b.lineDownTip', '↓'), `aria-disabled="${!!ends.last}"`);
   return `<div class="obtools writing" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}${mv}<div class="obstats" id="ob-stats">${counts}</div></div>`;

@@ -829,6 +829,17 @@ body[data-phone=true] .lens, body[data-phone=true] .lead { display: none; }
 .obtools .ib { width: 30px; height: 30px; color: var(--ink); }
 .obtools .ib:disabled, .obtools .ib[aria-disabled=true] { opacity: .4; cursor: default; }
 .obv { display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 6px; border-radius: var(--r-s); background: var(--fill); color: var(--ink); font: 700 12px var(--font-mono); }
+.obvwrap { position: relative; display: flex; flex-direction: column; }
+button.obv { border: 0; cursor: pointer; min-width: 30px; }
+button.obv:hover:not(:disabled), button.obv[aria-expanded=true] { background: var(--hover-strong); }
+button.obv:disabled { opacity: .55; cursor: default; }
+.obvlist { position: absolute; left: 0; top: 100%; z-index: 2; display: flex; flex-direction: column; min-width: 100%; padding: 3px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--shadow-chip); outline: 0; }
+.obvlist[hidden] { display: none; }
+.obvopt { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 24px; padding: 0 6px; border-radius: var(--r-s); font: 12px var(--font-mono); color: var(--ink); cursor: pointer; white-space: nowrap; }
+.obvopt:hover, .obvopt.act { background: var(--hover-strong); }
+.obvopt.cur { font-weight: 700; background: var(--fill); cursor: default; }
+.obdot { width: 6px; height: 6px; border-radius: 50%; background: var(--sel-mark); }
+.obvlist:focus-visible .obvopt.act { outline: 2px solid var(--focus, var(--sel-mark)); outline-offset: -2px; }
 .obstats { display: flex; flex-direction: column; max-width: 76px; padding: 2px 2px 0; font: 11.5px/1.35 var(--font-mono); color: var(--ink-soft); }
 .obstats span { white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .obveil { transition: none; } }

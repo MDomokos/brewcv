@@ -14,6 +14,7 @@
 
 import { plainOf, caretOf, setCaret } from './plain.js';
 import { toolsHtml, statsCompactHtml, esc } from './parts.js';
+import * as R from '../model/record.js';
 import { readZoomWrite, readZoomWriteOn, readDimJob, readDimLine } from './dock.js';
 import { step, lineSel, keyOf } from './select.js';
 import * as T from '../model/resume.js';
@@ -86,11 +87,12 @@ export function initOnPage(C){
   // ---- drawing the layers ----
   function signature(lvl, chip){
     const ed = edit().editing, tg = geom?.tg;
-    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
+    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, ed && !ed.group && !ed.label ? versionItems(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
   }
   function render(force = false){
     lay ??= $('#editlay');
     if (!lay) return;
+    if (!lay.dataset.vers){ lay.dataset.vers = '1'; bindVers(); }
     const lvl = level();
     if (zoomed && !ui.writing && ui.sel.kind === 'none'){ zoomed = false; canvas.reset(); }      // the page level: the view comes back out
     sheet.setWriting(lvl === 'line' ? readDimLine() : null);
@@ -131,7 +133,75 @@ export function initOnPage(C){
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
     if (!ed || ed.group || ed.label) return '';      // a skill group, a heading and a language's name have no versions
     const vn = C.work().variants.find(v => v.id === ed.vid)?.n ?? '·';       // the version the line was written from
-    return toolsHtml({ vn, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
+    return toolsHtml({ vn, tag: { fact, items: versionItems(fact), locked: edit().lockedId(fact) ? t('ux6c.lockedHint') : '' }, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
+  }
+
+  // the line's versions as the list beside it shows them: numbers in order, the one in use marked, an edit on this resume (or one set aside)
+  // where it would be numbered
+  function versionItems(fact){
+    const L = C.lang(), m = C.work(), cur = C.cur(), vs = R.versionsIn(m, fact, L);
+    if (!vs.length) return [];
+    const over = cur.overrides?.[fact], mine = over ?? cur.parked?.[fact]?.text, using = C.chooseVariant(m, fact, cur).v?.id;
+    const items = vs.map(v => ({ id: v.id, n: v.n, cur: over === undefined && v.id === using }));
+    if (mine !== undefined && String(mine).trim()){
+      const n = R.suggestNumber(m, fact, mine, L).n, at = items.findIndex(o => R.compareN(o.n, n) > 0);
+      items.splice(at < 0 ? items.length : at, 0, { id: null, n, mine: true, cur: over !== undefined });
+    }
+    return items;
+  }
+
+  // ---- the version tag's list ----
+  // Opens on hover, focus or a click; moving over a number (or the arrows) previews it on the page; a click or Enter chooses it; Esc or
+  // leaving closes it and the page goes back. The list is part of the tools column, over no printed text.
+  let opened = null, quiet = false, touched = false;                                // how the list was opened: 'hover', 'focus', 'click' or 'key'
+  const tag = () => lay?.querySelector('.obv[aria-haspopup]'), list = () => lay?.querySelector('.obvlist');
+  const optAct = () => list()?.querySelector('.obvopt.act');
+  function openVers(how){
+    const l = list(), b = tag();
+    if (!l || !b || b.disabled) return;
+    if (l.hidden){ l.hidden = false; b.setAttribute('aria-expanded', 'true'); }
+    opened = how;
+    if (how === 'key' || how === 'click'){ l.focus({ preventScroll: true }); markOpt(l.querySelector('.obvopt.cur') ?? l.querySelector('.obvopt'), false); }
+  }
+  // end: the preview goes too (not when a version was just chosen: the choice takes the page over)
+  function closeVers({ end = true, back = false } = {}){
+    const l = list(), b = tag();
+    opened = null;
+    if (!l || l.hidden) return;
+    l.hidden = true; l.removeAttribute('aria-activedescendant');
+    l.querySelectorAll('.act').forEach(o => o.classList.remove('act'));
+    b?.setAttribute('aria-expanded', 'false');
+    if (end) C.endHover();
+    if (back){ quiet = true; b?.focus({ preventScroll: true }); quiet = false; }      // the focus returning to the number does not open the list again
+  }
+  function markOpt(o, preview = true){
+    const l = list();
+    if (!l || !o) return;
+    l.querySelectorAll('.act').forEach(x => x.classList.remove('act'));
+    o.classList.add('act'); l.setAttribute('aria-activedescendant', o.id);
+    if (!preview) return;
+    if (o.dataset.v && !o.classList.contains('cur')) C.previewVersion(l.dataset.fact, o.dataset.v); else C.endHover();
+  }
+  function versKey(e){
+    const l = list(), b = tag();
+    if (!l || !b) return;
+    if (e.target === b && ['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)){ e.preventDefault(); e.stopPropagation(); openVers('key'); return; }
+    if (e.target !== l) return;
+    const os = [...l.querySelectorAll('.obvopt')], at = Math.max(0, os.indexOf(optAct())), stop = () => { e.preventDefault(); e.stopPropagation(); };
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){ stop(); markOpt(os[Math.min(os.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)))]); }
+    else if (e.key === 'Home' || e.key === 'End'){ stop(); markOpt(os[e.key === 'Home' ? 0 : os.length - 1]); }
+    else if (e.key === 'Enter' || e.key === ' '){ stop(); const o = optAct(); closeVers({ end: false }); if (o && !o.classList.contains('cur')) o.click(); else C.endHover(); }
+    else if (e.key === 'Escape'){ stop(); closeVers({ back: true }); }
+    else if (e.key === 'Tab') closeVers();
+  }
+  function bindVers(){
+    lay.addEventListener('keydown', versKey);
+    lay.addEventListener('mouseover', e => { if (e.target.closest?.('.obv[aria-haspopup]') && list()?.hidden) openVers('hover'); });
+    lay.addEventListener('pointerdown', e => { touched = e.pointerType === 'touch'; });
+    lay.addEventListener('mouseout', e => { const w = e.target.closest?.('.obvwrap'); if (w && !w.contains(e.relatedTarget) && opened !== 'key' && !touched) closeVers(); });      // a finger leaves nothing to leave: the list stays until a number is chosen, Esc, or a tap elsewhere
+    lay.addEventListener('focusin', e => { if (!quiet && e.target.closest?.('.obv[aria-haspopup]') && list()?.hidden) openVers('focus'); });
+    lay.addEventListener('focusout', e => { const w = e.target.closest?.('.obvwrap'); if (w && !w.contains(e.relatedTarget)) closeVers(); });
+    lay.addEventListener('click', e => { if (e.target.closest?.('.obvopt:not(.cur)')) closeVers({ end: false }); });      // the choice (shell.js) takes the page over
   }
 
   const secPad = () => (geom.itemFrame ? PAD_ITEM : PAD_SEC);
@@ -380,6 +450,7 @@ export function initOnPage(C){
   // ---- the tools ----
   async function act(a){
     switch (a){
+      case 'ob-vers': if (opened === 'hover' || opened === 'focus') opened = 'click'; else if (list()?.hidden === false) closeVers({ back: true }); else openVers('click'); return true;
       case 'ob-up': case 'ob-down': { const e = lineEnds(edit().editing?.fact); if (!(a === 'ob-up' ? e.first : e.last)) edit().stepLine(a === 'ob-up' ? -1 : 1); return true; }
     }
     return false;

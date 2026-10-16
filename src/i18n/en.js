@@ -1367,4 +1367,7 @@ export default {
   'ux6d.allLeft': { one: '{n} needs a source and was left.', other: '{n} need a source and were left.' },
   'ux6d.offer': { one: '{n} edit is only on this resume.', other: '{n} edits are only on this resume.' },
   'ux6d.banner': { one: '{n} line has newer wording', other: '{n} lines have newer wording' },
+  'ux6g.tagName': 'Versions of this line, now v{v}',
+  'ux6g.tagList': 'Versions',
+  'ux6g.optMine': 'v{v}, on this resume only',
 };
