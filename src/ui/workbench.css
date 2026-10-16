@@ -790,7 +790,6 @@ body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: 
 .lensrow select { flex: 1; min-width: 120px; font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--raised); }
 .item.srow .stext { display: grid; min-width: 0; }
 .item.srow { grid-template-columns: 12px minmax(0, 1fr) auto; }
-.notonline { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 details.details > summary { cursor: pointer; font-size: 12.5px; font-weight: 650; }
 details.details .detacts { margin-top: 8px; }
 .detbox { margin: 6px 0; }
@@ -833,7 +832,7 @@ body[data-phone=true] .checklist { display: none; }
 .tlsend .sn { font-weight: 650; font-size: 13px; color: var(--ink); }
 .tlsend .muted { font-size: 11.5px; }
 .pop.card { background: var(--pop); }
-body[data-phone=true] .lens, body[data-phone=true] .notonline, body[data-phone=true] .lead { display: none; }
+body[data-phone=true] .lens, body[data-phone=true] .lead { display: none; }
 /* ---- editing on the page (UX-3, UX-6c): the layers, the chip, the tools beside the line. Drawn over the page, in the app's layer ---- */
 .editlay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 7; pointer-events: none; }
 .editlay > * { position: absolute; }
@@ -1111,6 +1110,8 @@ body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: au
 .outline .osec .item.srow .stext .t { flex: 1 1 0; font-weight: 650; min-width: 0; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.25; padding: 3px 0; }
 .outline .osec .item.srow .scount { flex: none; min-width: 3.4em; text-align: right; white-space: nowrap; }
 .outline .osec .item.srow > :is(.rowlock, .osecaret, .swl) { flex: none; }
+.outline .osec .item.srow.is-off { opacity: 1; }
+.outline .osec .item.srow.is-off .stext { opacity: .6; }      /* the name dims, the pill and the padlock keep their look */
 .outline .osec .item.srow > .swl, .outline .clgh > .swl { width: 30px; justify-content: center; }
 .osecaret { display: grid; place-items: center; width: 20px; height: 24px; padding: 0; border: 0; background: transparent; color: var(--ink-soft); border-radius: var(--r-xs); }
 .osecaret:hover { background: var(--hover); border: 0; }
@@ -1147,7 +1148,6 @@ body[data-phone=true] .fitchip { top: 56px; left: 0; right: 0; margin-inline: au
 .outline .osec.open .clg.open > .clgh { background: var(--hover); border-radius: var(--r-xs); }
 .outfoot { margin: 10px 0 0; }
 .outline .ordhead { justify-content: flex-end; margin: 0 0 4px; }
-.outline .notonline { margin-top: 6px; }
 button.clv { border: 0; background: transparent; padding: 1px 5px; border-radius: var(--r-pill); cursor: pointer; }
 button.clv:hover:not(:disabled) { background: var(--hover-strong); border: 0; color: var(--ink); }
 

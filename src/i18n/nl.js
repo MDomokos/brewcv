@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Zet eerst het onderdeel aan.',
   'ux2.lensNone': 'Nog geen functietypes.',
   'ux2.lensEdit': 'Functietypes toevoegen',
-  'ux2.notOn': 'Niet op dit cv:',
-  'ux2.turnOnTitle': 'Op het cv zetten (of in de lijst slepen)',
   'ux2.helpTitle': 'Sneltoetsen',
   'ux2.helpPage': 'Op de pagina',
   'ux2.helpPanel': 'Het paneel',

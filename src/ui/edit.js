@@ -698,7 +698,6 @@ async function act(a, tg){
     case 'focus-clear': E.focus = null; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
     case 'lens-apply': E.applyOpen = !E.applyOpen && !!E.focus; C.renderBody(); return true;
     case 'lens-edit': C.select({ kind: 'record', what: 'jobtypes' }); return true;
-    case 'section-on': setSection(tg.dataset.id, true); return true;
     case 'focus-apply': {
       const F = E.focus;
       let p;

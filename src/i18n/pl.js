@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Najpierw włącz sekcję.',
   'ux2.lensNone': 'Nie ma jeszcze typów stanowisk.',
   'ux2.lensEdit': 'Dodaj typy stanowisk',
-  'ux2.notOn': 'Nie ma w tym CV:',
-  'ux2.turnOnTitle': 'Umieść w CV (albo przeciągnij na listę)',
   'ux2.helpTitle': 'Skróty klawiszowe',
   'ux2.helpPage': 'Na stronie',
   'ux2.helpPanel': 'Panel',

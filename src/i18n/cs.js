@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Nejdřív zapněte sekci.',
   'ux2.lensNone': 'Zatím žádné typy pozic.',
   'ux2.lensEdit': 'Přidat typy pozic',
-  'ux2.notOn': 'Nejsou v tomto životopisu:',
-  'ux2.turnOnTitle': 'Dát do životopisu (nebo přetáhnout do seznamu)',
   'ux2.helpTitle': 'Klávesové zkratky',
   'ux2.helpPage': 'Na straně',
   'ux2.helpPanel': 'Panel',

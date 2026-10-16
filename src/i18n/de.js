@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Schalte zuerst den Abschnitt ein.',
   'ux2.lensNone': 'Noch keine Stellenarten.',
   'ux2.lensEdit': 'Stellenarten anlegen',
-  'ux2.notOn': 'Nicht in diesem Lebenslauf:',
-  'ux2.turnOnTitle': 'In den Lebenslauf nehmen (oder in die Liste ziehen)',
   'ux2.helpTitle': 'Tastenkürzel',
   'ux2.helpPage': 'Auf der Seite',
   'ux2.helpPanel': 'Das Feld',

@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Activa primero la sección.',
   'ux2.lensNone': 'Aún no hay tipos de puesto.',
   'ux2.lensEdit': 'Añadir tipos de puesto',
-  'ux2.notOn': 'No están en este currículum:',
-  'ux2.turnOnTitle': 'Ponerlo en el currículum (o arrastrarlo a la lista)',
   'ux2.helpTitle': 'Atajos de teclado',
   'ux2.helpPage': 'En la página',
   'ux2.helpPanel': 'El panel',

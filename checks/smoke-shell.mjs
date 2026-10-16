@@ -1449,8 +1449,8 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   await toEditHome(page);
   ok('nothing on the open resume changes: its Projects section is off', (await frameDoc(page, d => d.body.textContent)) === before);
-  ok('the section is in “Not on this resume”', await page.isVisible('.offchip[data-id=projects]'));
-  await page.click('.offchip[data-id=projects]'); await page.waitForTimeout(2500);
+  ok('the section is in the list, in its own row, with its pill off', !(await page.isChecked('#seclist .srow[data-sid=projects] input.sw')));
+  await page.click('#seclist .srow[data-sid=projects] .swl'); await page.waitForTimeout(2500);
   const out = await frameDoc(page, d => d.body.textContent);
   ok('put on the resume, the Projects section prints it, title and meta line and bullets', out.includes('Formula Student chassis jig') && out.includes('welding jig'));
   ok('and it paginates', (await page.evaluate(() => window.__wb.ui.fills.every(p => !(p.overflow > 0)))));
@@ -1472,7 +1472,7 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   await inRecord(page, 'awards');
   ok('it is listed in its own group in the record, which is open', /Best student design/.test(await page.textContent('#checklist .clg[data-g=awards]')) && (await page.$$('#checklist .clg[data-g=awards].open')).length === 1);
   await toEditHome(page);
-  await page.click('.offchip[data-id=awards]'); await page.waitForTimeout(2000);
+  await page.click('#seclist .srow[data-sid=awards] .swl'); await page.waitForTimeout(2000);
   ok('put on a resume, it prints as a run line', (await frameDoc(page, d => d.body.textContent)).includes('Best student design · Example Society · 2020'));
   // another list kind, then delete Awards moving its entry there
   await openAdd(page); await settle(page); await page.click('.addm [data-act=c-kind-new]'); await settle(page);
@@ -1504,7 +1504,7 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   ok('it shows under References in Skills and credentials', /Ana Exemplo/.test(await page.textContent('#checklist .clg[data-g=credentials]')));
   ok('the resume does not print it yet', !(await frameDoc(page, d => d.body.textContent)).includes('Ana Exemplo'));
   await toEditHome(page);
-  await page.click('.offchip[data-id=references]'); await page.waitForTimeout(2000);
+  await page.click('#seclist .srow[data-sid=references] .swl'); await page.waitForTimeout(2000);
   ok('put on the resume, it prints the name and the text', (await frameDoc(page, d => d.body.textContent)).includes('Ana Exemplo') && (await frameDoc(page, d => d.body.textContent)).includes('dose counter in a week'));
   await page.click('#seclist .srow[data-sid=references] input'); await page.waitForTimeout(2000);
   ok('and off again with its switch, it is gone', !(await frameDoc(page, d => d.body.textContent)).includes('Ana Exemplo'));
@@ -1659,11 +1659,11 @@ if (want('the Edit view')) {
   await page.click('[data-act=deselect]').catch(() => {}); await settle(page);
   await settle(page);
   ok('a section row has no grip, no ↑ ↓ and cannot be dragged (sections are arranged on the page)', (await page.$$('#seclist .srow[draggable], #seclist .srow .grip, #seclist .srow .clmv, #seclist [data-act=sec-up], #seclist [data-act=sec-down]')).length === 0);
-  ok('the sections that are off are one line, “Not on this resume”, each a button', await page.isVisible('#offline') && (await page.$$('#offline .offchip')).length >= 2 && !(await page.$('#seclist .srow.is-off')));
-  await page.click('.offchip[data-id=languages]'); await settle(page);
-  ok('pressing one turns it on', await frameDoc(page, d => !!d.querySelector('.band[data-section="languages"]')) && !(await page.isVisible('.offchip[data-id=languages]')));
-  await page.focus('.offchip[data-id=interests]'); await page.keyboard.press('Enter'); await settle(page);
-  ok('Enter on one does the same, for the keyboard', await frameDoc(page, d => !!d.querySelector('.band[data-section="interests"]')));
+  ok('the sections that are off stay in their own rows, dimmed, each with the pill', (await page.$$('#seclist .srow.is-off input.sw:not(:checked)')).length >= 2 && !(await page.$('#offline, .offchip')));
+  await page.click('#seclist .srow[data-sid=languages] .swl'); await settle(page);
+  ok('pressing one turns it on', await frameDoc(page, d => !!d.querySelector('.band[data-section="languages"]')) && await page.isChecked('#seclist .srow[data-sid=languages] input.sw'));
+  await page.focus('#seclist .srow[data-sid=interests] input.sw'); await page.keyboard.press('Space'); await settle(page);
+  ok('Space on one does the same, for the keyboard', await frameDoc(page, d => !!d.querySelector('.band[data-section="interests"]')));
   await undoTo(base);
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
@@ -1943,7 +1943,7 @@ if (want('languages')) {
   ok('Esc closes the window', !(await page.isVisible('#switcher')));
   await pickLang(page, 'hu'); await page.waitForTimeout(2500);
   ok('the Hungarian button switches the resume to Hungarian', (await st()).cur.lang === 'hu' && /Tapasztalat/i.test(await frameDoc(page, d => d.body.textContent)));
-  await page.click('.offchip[data-id=interests]'); await page.waitForTimeout(2000);
+  await page.click('#seclist .srow[data-sid=interests] .swl'); await page.waitForTimeout(2000);
   ok('a section with no Hungarian still prints, in English', /Dinghy sailing/.test(await frameDoc(page, d => d.body.textContent)));
   ok('outlined on the page', (await frameDoc(page, d => d.querySelectorAll('.rb-miss').length)) >= 3);
   ok('and listed in the card', (await page.$$('.missbar .miss-go')).length >= 3);

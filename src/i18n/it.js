@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Attiva prima la sezione.',
   'ux2.lensNone': 'Ancora nessun tipo di lavoro.',
   'ux2.lensEdit': 'Aggiungi tipi di lavoro',
-  'ux2.notOn': 'Non in questo CV:',
-  'ux2.turnOnTitle': 'Mettilo nel CV (o trascinalo nell’elenco)',
   'ux2.helpTitle': 'Scorciatoie da tastiera',
   'ux2.helpPage': 'Sulla pagina',
   'ux2.helpPanel': 'Il pannello',

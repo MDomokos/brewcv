@@ -115,7 +115,6 @@ export function outlineHtml(only = null, section = null){
   const m = C.work(), cur = C.cur();
   const cl = checklist(m, cur, C.lang());
   const list = T.sectionList(m, cur);
-  const on = list.filter(s => s.on), off = list.filter(s => !s.on);
   const sel = C.ui.sel, focus = groupOf(m, sel);
   const focusSec = !focus ? null : T.sectionOfEntry(m, focus) ?? (focus === 'education' ? 'education' : sel.kind === 'record' && sel.what === 'item' ? T.sectionOfItem(m, sel.id) : cl.groups.find(g => g.id === focus)?.section ?? null);
   const about = cl.groups.find(g => g.id === 'about')?.rows ?? [];
@@ -154,21 +153,22 @@ export function outlineHtml(only = null, section = null){
     return rows.length ? `<ul class="clrows">${rowsHtml(rows, gs[0], true)}</ul>` : '';
   };
 
+  // a section that is off stays in its own row, dimmed, with the same pill; it has nothing to fold
   const secHtml = s => {
-    const counts = sectionCounts(m, cl, s.id);
+    const counts = s.on && sectionCounts(m, cl, s.id);
     const isEntries = groupsOfSection(m, cl, s.id)[0]?.kind === 'entry';
-    const foldable = s.id !== 'summary' && !isEntries;
-    const open = !foldable || !folded(`sec:${s.id}`, focusSec === s.id);
+    const foldable = s.on && s.id !== 'summary' && !isEntries;
+    const open = s.on && (!foldable || !folded(`sec:${s.id}`, focusSec === s.id));
     const title = esc(C.sectionTitle(s.id));
     const info = s.fixed ? h('edit.alwaysFirst') : counts ? nOfM(counts.on, counts.total) : '';
     const chosen = sel.kind === 'section' && sel.id === s.id;
     return `<div class="osec ${open ? 'open' : ''}" data-sid="${esc(s.id)}" role="group" aria-label="${title}">
-      <div class="item srow ${s.fixed ? 'fixed' : ''} ${chosen ? 'is-sel' : ''}" data-sid="${esc(s.id)}">
+      <div class="item srow ${s.fixed ? 'fixed' : ''}${s.on ? '' : ' is-off'} ${chosen ? 'is-sel' : ''}" data-sid="${esc(s.id)}">
         ${foldable ? `<button class="osecaret" data-act="ol-toggle" data-g="sec:${esc(s.id)}" aria-expanded="${open}" aria-controls="ol-sec-${esc(s.id)}" aria-label="${title}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span></button>` : '<span class="osecaret"></span>'}
         <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${title}</a><span class="scount muted tiny">${info}</span></span>
-        ${s.fixed ? '' : showSw(`data-secon="${esc(s.id)}"`, true, C.sectionTitle(s.id))}
+        ${s.fixed ? '' : showSw(`data-secon="${esc(s.id)}"`, s.on, C.sectionTitle(s.id))}
       </div>
-      <div class="obody" id="ol-sec-${esc(s.id)}" ${open ? '' : 'hidden'}>${bodyOf(s)}</div></div>`;
+      <div class="obody" id="ol-sec-${esc(s.id)}" ${open ? '' : 'hidden'}>${s.on ? bodyOf(s) : ''}</div></div>`;
   };
 
   const onlyG = only && cl.groups.find(g => g.id === only && g.kind === 'entry');
@@ -178,8 +178,7 @@ export function outlineHtml(only = null, section = null){
   const manual = Array.isArray(cur.pages);
   return `<section class="outline" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><h2 class="sr">${h('ux5c.tabOutline')}</h2>
     ${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere')) ? `<div class="ordhead">${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere'))}</div>` : ''}
-    <div class="list" id="seclist">${on.map(secHtml).join('')}</div>
-    ${off.length ? `<p class="notonline" id="offline"><span class="muted small">${h('ux2.notOn')}</span> ${off.map(s => `<button class="tag offchip" data-act="section-on" data-id="${esc(s.id)}" title="${esc(t('ux2.turnOnTitle'))}">${esc(C.sectionTitle(s.id))}</button>`).join(' ')}</p>` : ''}
+    <div class="list" id="seclist">${list.map(secHtml).join('')}</div>
     ${manual ? `<p class="note">${h('edit.dragManual')}</p>` : ''}</section>`;
 }
 

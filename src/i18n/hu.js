@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Előbb kapcsold be a szakaszt.',
   'ux2.lensNone': 'Még nincs állástípus.',
   'ux2.lensEdit': 'Állástípusok hozzáadása',
-  'ux2.notOn': 'Nincs rajta ezen az önéletrajzon:',
-  'ux2.turnOnTitle': 'Rákerül az önéletrajzra (vagy húzd fel a listába)',
   'ux2.helpTitle': 'Billentyűparancsok',
   'ux2.helpPage': 'Az oldalon',
   'ux2.helpPanel': 'A panel',

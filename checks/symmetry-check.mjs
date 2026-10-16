@@ -46,7 +46,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
 {
   const { ctx, page } = await open(1470, 832);
   const en = await strings(page);
-  ok('the Outline\u2019s "turn it on" tip no longer says drag, and the hand-laid note does not tell the sidebar to drag', en['ux2.turnOnTitle'] === 'Put it on the resume' && !/^drag/i.test(en['edit.dragManual']));
+  ok('the hand-laid note does not tell the sidebar to drag, and the keys of the "Not on this resume" chips are gone', !/^drag/i.test(en['edit.dragManual']) && !('ux2.turnOnTitle' in en) && !('ux2.notOn' in en));
   await ctx.close();
 }
 
@@ -148,12 +148,16 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await trip('section, on the chip', '#editlay .dp-show', () => page.click('#editlay .dp-show'), '#body .depth .dp-show', () => page.click('#body .depth .dp-show'));
   await trip('section, in its own view', '#body .ctlrow input[data-secon=education]', () => page.click('#body .ctlrow .swl'));
   await page.click('#body .depth [data-act=deselect]'); await wait();
-  { // (an off section moves to the "not on this resume" chips until UX-6c-iv-b stage 2 keeps it in its row)
+  { // an off section stays in its own row, dimmed, with the same pill; the pill turns it on again in place
     const c0 = await cur(), l0 = await label('#outline .srow[data-sid=skills] input[data-secon=skills]');
+    const order = () => page.$$eval('#seclist > .osec', es => es.map(e => e.dataset.sid).join());
+    const o0 = await order();
     await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
-    const c1 = await cur();
-    await page.click('#outline [data-act=section-on][data-id=skills]'); await wait();
-    ok('section, on its row in the Outline: the pill says "Hide … from this resume", hides it, and turning it on again restores the recipe', HIDE.test(l0) && c1 !== c0 && (await cur()) === c0, l0);
+    const c1 = await cur(), l1 = await label('#outline .srow[data-sid=skills] input[data-secon=skills]');
+    const dim = await page.$eval('#outline .srow[data-sid=skills]', e => ({ off: e.classList.contains('is-off'), name: parseFloat(getComputedStyle(e.querySelector('.stext')).opacity) }));
+    ok('an off section keeps its row in its place, dimmed, with the same pill now saying "Show … on this resume", and there is no "Not on this resume" row', (await order()) === o0 && dim.off && dim.name < 1 && SHOW.test(l1) && !(await pillOn('#outline .srow[data-sid=skills] input[data-secon=skills]')) && !(await page.$('#offline, .offchip')), JSON.stringify([dim, l1]));
+    await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
+    ok('section, on its row in the Outline: the pill says "Hide … from this resume", hides it, and turning it on again in place restores the recipe', HIDE.test(l0) && c1 !== c0 && (await cur()) === c0 && (await order()) === o0, l0);
   }
 
   // an item of a list section in the Outline

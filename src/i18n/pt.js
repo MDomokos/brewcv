@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Ative primeiro a secção.',
   'ux2.lensNone': 'Ainda não há tipos de função.',
   'ux2.lensEdit': 'Adicionar tipos de função',
-  'ux2.notOn': 'Não estão neste CV:',
-  'ux2.turnOnTitle': 'Pô-lo no CV (ou arrastá-lo para a lista)',
   'ux2.helpTitle': 'Atalhos de teclado',
   'ux2.helpPage': 'Na página',
   'ux2.helpPanel': 'O painel',

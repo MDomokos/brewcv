@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Turn the section on first.',
   'ux2.lensNone': 'No job types yet.',
   'ux2.lensEdit': 'Add job types',
-  'ux2.notOn': 'Not on this resume:',
-  'ux2.turnOnTitle': 'Put it on the resume',
   'ux2.helpTitle': 'Keyboard shortcuts',
   'ux2.helpPage': 'On the page',
   'ux2.helpPanel': 'The panel',

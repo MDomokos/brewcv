@@ -1043,8 +1043,6 @@ export default {
   'ux2.errItemSectionOff': 'Activez d’abord la rubrique.',
   'ux2.lensNone': 'Pas encore de type de poste.',
   'ux2.lensEdit': 'Ajouter des types de poste',
-  'ux2.notOn': 'Pas sur ce CV :',
-  'ux2.turnOnTitle': 'Le mettre sur le CV (ou le glisser dans la liste)',
   'ux2.helpTitle': 'Raccourcis clavier',
   'ux2.helpPage': 'Sur la page',
   'ux2.helpPanel': 'Le panneau',
