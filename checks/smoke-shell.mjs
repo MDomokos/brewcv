@@ -1339,7 +1339,7 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   await freeRows.scrollIntoViewIfNeeded(); await settle(page);
   ok('a job that is not on this resume lists its claims, all unticked', (await freeRows.locator('.clrow').count()) === 2 && (await freeRows.locator('.cb:checked').count()) === 0);
   await freeRows.locator('.cb').first().check(); await settle(page);
-  ok('ticking one brings the job onto the page', (await frameDoc(page, d => /Freelance CAD Designer/.test(d.body.textContent))) && /1 of 2 on/.test(await freeRows.locator('.clcount').textContent()));
+  ok('ticking one brings the job onto the page', (await frameDoc(page, d => /Freelance CAD Designer/.test(d.body.textContent))) && /1\/2/.test((await page.textContent('#body .insp-rec .oi-name')).replace(/\s+/g, ' ')));
   await page.keyboard.press('Control+z'); await settle(page);
 
   // the timeline, under the cards
