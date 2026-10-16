@@ -108,7 +108,6 @@ export default {
   'edit.versions': 'Wersje · {code}',
   'edit.onlyTitle': 'Tekst tylko w tym CV',
   'edit.only': 'tylko tu',
-  'edit.editEnter': 'Edytuj (Enter)',
   'edit.editThis': 'Edytuj tę wersję (Enter)',
   'edit.backToSaved': 'Wróć do zapisanej wersji',
   'edit.moreUnder': { one: 'jeszcze {n} pod v{v}', few: 'jeszcze {n} pod v{v}', many: 'jeszcze {n} pod v{v}', other: 'jeszcze {n} pod v{v}' },

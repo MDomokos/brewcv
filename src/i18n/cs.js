@@ -108,7 +108,6 @@ export default {
   'edit.versions': 'Verze · {code}',
   'edit.onlyTitle': 'Text jen v tomto životopise',
   'edit.only': 'jen zde',
-  'edit.editEnter': 'Upravit (Enter)',
   'edit.editThis': 'Upravit tuto verzi (Enter)',
   'edit.backToSaved': 'Zpět na uloženou verzi',
   'edit.moreUnder': { one: '{n} další pod v{v}', few: '{n} další pod v{v}', many: '{n} další pod v{v}', other: '{n} dalších pod v{v}' },

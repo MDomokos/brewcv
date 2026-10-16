@@ -108,7 +108,6 @@ export default {
   'edit.versions': 'Versions · {code}',
   'edit.onlyTitle': 'Text on this resume only',
   'edit.only': 'only',
-  'edit.editEnter': 'Edit (Enter)',
   'edit.editThis': 'Edit this version (Enter)',
   'edit.backToSaved': 'Back to the saved version',
   'edit.moreUnder': { one: '{n} more under v{v}', other: '{n} more under v{v}' },

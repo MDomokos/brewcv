@@ -108,7 +108,6 @@ export default {
   'edit.versions': 'Versionen · {code}',
   'edit.onlyTitle': 'Text nur für diesen Lebenslauf',
   'edit.only': 'nur',
-  'edit.editEnter': 'Bearbeiten (Enter)',
   'edit.editThis': 'Diese Version bearbeiten (Enter)',
   'edit.backToSaved': 'Zurück zur gespeicherten Version',
   'edit.moreUnder': { one: '{n} weitere unter v{v}', other: '{n} weitere unter v{v}' },

@@ -108,7 +108,6 @@ export default {
   'edit.versions': 'Versiones · {code}',
   'edit.onlyTitle': 'Texto solo de este currículum',
   'edit.only': 'solo',
-  'edit.editEnter': 'Editar (Enter)',
   'edit.editThis': 'Editar esta versión (Enter)',
   'edit.backToSaved': 'Volver a la versión guardada',
   'edit.moreUnder': { one: '{n} más bajo v{v}', many: '{n} más bajo v{v}', other: '{n} más bajo v{v}' },

@@ -108,7 +108,6 @@ export default {
   'edit.versions': 'Változatok · {code}',
   'edit.onlyTitle': 'Csak ezen az önéletrajzon lévő szöveg',
   'edit.only': 'csak itt',
-  'edit.editEnter': 'Szerkesztés (Enter)',
   'edit.editThis': 'Ennek a változatnak a szerkesztése (Enter)',
   'edit.backToSaved': 'Vissza a mentett változatra',
   'edit.moreUnder': { one: 'még {n} a v{v} alatt', other: 'még {n} a v{v} alatt' },

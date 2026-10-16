@@ -108,7 +108,6 @@ export default {
   'edit.versions': 'Versies · {code}',
   'edit.onlyTitle': 'Tekst alleen op dit cv',
   'edit.only': 'alleen',
-  'edit.editEnter': 'Bewerken (Enter)',
   'edit.editThis': 'Deze versie bewerken (Enter)',
   'edit.backToSaved': 'Terug naar de opgeslagen versie',
   'edit.moreUnder': { one: 'nog {n} onder v{v}', other: 'nog {n} onder v{v}' },
