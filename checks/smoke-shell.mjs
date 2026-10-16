@@ -4968,6 +4968,38 @@ if (want('ux6g: the pending version on a phone')) {
   await ctx.close();
 }
 
+if (want('ux6g: one highlight while a line is written')) for (const motion of [false, true]) {
+  const ctx = await newContext({ motion, viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const sheet = page.frameLocator('#sheet iframe');
+  const tag = motion ? 'with motion' : 'under reduced motion';
+  const li = sheet.locator('.bullets li');
+  const outline = (i) => li.nth(i).evaluate(e => { const c = getComputedStyle(e); return { style: c.outlineStyle, width: c.outlineWidth, offset: c.outlineOffset, radius: c.borderTopLeftRadius, hover: e.matches(':hover') }; });
+  const b0 = await li.nth(0).boundingBox();
+  await page.mouse.move(b0.x - 40, b0.y + 4); await page.mouse.move(b0.x + 20, b0.y + 6, { steps: 6 }); await settle(page);
+  const h = await outline(0);
+  ok(`${tag}: the pointer on a line outlines it, 1px and 4px off`, h.hover && h.style === 'solid' && h.width === '1px' && h.offset === '4px', JSON.stringify(h));
+  await page.mouse.click(b0.x + 20, b0.y + 6); await settle(page);
+  ok(`${tag}: a click writes the line`, (await lineEl(page).count()) === 1);
+  const o1 = await outline(0);
+  ok(`${tag}: …and the line under the pointer is not outlined a second time`, o1.style === 'none', JSON.stringify(o1));
+  const shape = await page.evaluate(() => { const f = document.querySelector('#editlay .obframe.line'), c = getComputedStyle(f); return { w: c.borderTopWidth, r: parseFloat(c.borderTopLeftRadius) }; });
+  ok(`${tag}: the hover outline and the written line's outline are one shape: same width, same stand-off, same radius`, shape.w === h.width && h.offset === '4px' && Math.abs(parseFloat(h.radius) + 4 - shape.r) < 0.6, `${JSON.stringify(shape)} ${JSON.stringify(h)}`);
+  await page.keyboard.press('Enter'); await settle(page);
+  const o2 = await outline(0);      // (with the zoom the page may have moved from under the pointer: only the outline is asserted)
+  ok(`${tag}: Enter moves on to the next line; the previous one, still under the pointer, has no highlight`, (await page.evaluate(() => window.__wb.edit.editing?.fact)) !== undefined && o2.style === 'none', JSON.stringify(o2));
+  const b1 = await li.nth(2).boundingBox();
+  await page.mouse.move(b1.x + 30, b1.y + 5, { steps: 8 }); await settle(page);
+  ok(`${tag}: moving over another line while writing shows no hover outline`, (await outline(2)).style === 'none' || !(await outline(2)).hover);
+  await page.keyboard.press('Escape'); await settle(page);
+  ok(`${tag}: after Esc the pointer at rest shows nothing…`, (await outline(2)).style === 'none');
+  await page.mouse.move(b1.x + 45, b1.y + 5, { steps: 4 }); await settle(page);
+  ok(`${tag}: …the hover outline returns when the pointer moves`, (await outline(2)).style === 'solid');
+  ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('file://')) {
   const ctx = await newContext();
   const page = await ctx.newPage();

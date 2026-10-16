@@ -823,7 +823,7 @@ body[data-phone=true] .lens, body[data-phone=true] .lead { display: none; }
 .obveil { transition: opacity var(--dur-2) var(--ease); }
 .obframe { box-sizing: border-box; border: 2px solid var(--sel-mark); background: var(--sel-mark-soft); border-radius: var(--r-xs); pointer-events: none; }
 .obframe.dashed { border-style: dashed; background: transparent; }
-.obframe.line { border-width: 1px; border-style: solid; background: transparent; border-radius: 2px; box-shadow: 0 2px 8px color-mix(in srgb, var(--paper-ink) 12%, transparent); }      /* part of the page: a thin outline, a light shadow */
+.obframe.line { border-width: 1px; border-style: solid; background: transparent; border-radius: 6px; box-shadow: 0 2px 8px color-mix(in srgb, var(--paper-ink) 12%, transparent); }      /* part of the page: a thin outline, a light shadow */
 .obtoolswrap { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
 .obtools { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--shadow-chip); pointer-events: auto; }
 .obtools .ib { width: 30px; height: 30px; color: var(--ink); }

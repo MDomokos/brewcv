@@ -25,7 +25,7 @@ html.rb-still *, html.rb-still *::before, html.rb-still *::after { transition: n
 html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
 html.rb-dragging, html.rb-dragging * { cursor: grabbing !important; user-select: none !important; }
 html.rb-space, html.rb-space * { cursor: grab !important; }
-html.rb-ui :is([data-variant], [data-label]):hover { outline: 2px solid color-mix(in srgb, var(--rb-sel) 40%, transparent); outline-offset: 2px; border-radius: 2px; }
+html.rb-ui:not(.rb-writing, .rb-nohover) :is([data-variant], [data-label]):hover { outline: 1px solid color-mix(in srgb, var(--rb-sel) 60%, transparent); outline-offset: 4px; border-radius: 2px; }      /* the shape of the written line's outline (onpage.js obframe.line): 1px, 4px off */
 .rb-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-sel-soft); }
 .rb-band-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 5px; border-radius: 4px; }
 .rb-prev { outline: 2px solid var(--rb-prev) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-prev-soft); }
@@ -69,6 +69,7 @@ export function createSheet(host, hooks = {}){
   let view = { mode: 'spread', page: 0 };
   let marked = { sel: null, ix: null, prev: null, focus: null, miss: null, hover: null };
   let fade = [];
+  let last = null, rest = null;       // the pointer over the page, and where it rested when writing ended (hover stays off until it moves)
   let pending = null;
   let revealed = null;            // the selection last scrolled into view (stack mode)
   let focusKey = '';              // which lines the lens picks, as one string: a redraw that picks the same ones does not brighten them again
@@ -135,6 +136,7 @@ export function createSheet(host, hooks = {}){
         }
         // what is under the pointer, for the grip and the "+" over the page (src/ui/hands.js), and a skill dragged from where it is printed
         for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) doc.addEventListener(ev, e => hooks.onPointer?.(e), { passive: true });
+        doc.addEventListener('pointermove', e => { last = { x: e.clientX, y: e.clientY }; if (rest !== null && (!rest || Math.hypot(last.x - rest.x, last.y - rest.y) > 3)){ doc.documentElement.classList.remove('rb-nohover'); rest = null; } }, { passive: true });
         doc.documentElement.addEventListener('mouseleave', () => hooks.onPointer?.({ type: 'leave' }));
         doc.addEventListener('keydown', e => hooks.onKey?.(e));
         // a file dropped on the page goes to the same door as one dropped on the window (the page is a frame: its drops stay inside it)
@@ -428,7 +430,8 @@ export function createSheet(host, hooks = {}){
       return (near && rs.find(r => near.left >= r.left - 40 && near.left < r.left + r.width + 40)) || rs[0] || null;
     },
     // a line being written is part of the page: the rest of the text fades a little (dim, 60 to 100); null when nothing is written
-    setWriting(dim){ const d = fr?.doc?.documentElement; if (!d) return; d.classList.toggle('rb-writing', dim != null); if (dim != null) d.style.setProperty('--rb-wdim', String(dim / 100)); },
+    setWriting(dim){ const d = fr?.doc?.documentElement; if (!d) return; if (dim == null && d.classList.contains('rb-writing')){ d.classList.add('rb-nohover'); rest = last ?? false; } d.classList.toggle('rb-writing', dim != null);      // no hover while writing, and none after until the pointer moves
+     if (dim != null) d.style.setProperty('--rb-wdim', String(dim / 100)); },
     // a job's box on the page, in the page's own pixels from the sheet's corner
     rectOfJob(jobId, ix){
       if (!fr) return null;
