@@ -430,6 +430,46 @@ await run('delete a sent copy from its own view (fix 17)', async () => {
   await ctx.close();
 });
 
+// ---- deleting a locked resume, or its sent copy, asks first (UX-6c-iv-b follow-up) ----
+await run('deleting a locked resume or a sent copy asks first', async () => {
+  const { ctx, page } = await open(1470, 832);
+  const wait = () => page.waitForTimeout(700);
+  const asked = [];
+  let answer = false;
+  page.on('dialog', d => { asked.push(d.message()); (answer ? d.accept() : d.dismiss()); });
+  const state = () => page.evaluate(() => { const s = window.__wb.store.state; return { n: s.resumes.length, snaps: (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).length }; });
+  await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Acme', role: 'Engineer', date: '2026-01-02' }); d.cur.locked = ['hydra-inhaler']; }, 'check: sent and locked'); }); await wait();
+  const n0 = (await state()).n;
+  // the sent copy
+  await page.click('#docname-btn'); await wait();
+  await page.click('#switcher [data-act=sw-manage]'); await wait();
+  await page.click('.rsent .snapline'); await wait();
+  await page.click('[data-act=snap-delete]'); await wait();
+  ok('a locked resume’s sent copy asks before it is deleted, naming the locked content', asked.length === 1 && /locked content/.test(asked[0]), asked.join('|'));
+  ok('…and No leaves the sent copy', (await state()).snaps === 1);
+  answer = true;
+  await page.click('[data-act=snap-delete]'); await wait();
+  ok('…Yes deletes it', (await state()).snaps === 0 && asked.length === 2);
+  await page.click('#toast [data-act=toast-undo]'); await wait();
+  // the open resume, from the name window
+  answer = false;
+  await page.click('#docname-btn'); await wait();
+  await page.click('#switcher [data-act=rm-delete]'); await wait();
+  ok('a locked open resume asks before the name window’s Delete', asked.length === 3 && (await state()).n === n0, asked.join('|'));
+  answer = true;
+  await page.click('#docname-btn').catch(() => {}); await wait();
+  if (!(await page.$('#switcher:not([hidden]) [data-act=rm-delete]'))){ await page.click('#docname-btn'); await wait(); }
+  await page.click('#switcher [data-act=rm-delete]'); await wait();
+  ok('…Yes deletes it', (await state()).n === n0 - 1 && asked.length === 4);
+  // no lock, no question
+  await page.click('#toast [data-act=toast-undo]'); await wait();
+  await page.evaluate(() => window.__wb.store.commit(d => { d.cur.locked = []; }, 'check: unlock')); await wait();
+  await page.click('#docname-btn'); await wait();
+  await page.click('#switcher [data-act=rm-delete]'); await wait();
+  ok('with no lock the Delete asks nothing', (await state()).n === n0 - 1 && asked.length === 4);
+  await ctx.close();
+});
+
 // ---- remove a language from the record when nothing uses it (fix 19) ----
 await run('remove a language from the record when nothing uses it (fix 19)', async () => {
   const { ctx, page } = await open(1470, 832);

@@ -10,6 +10,7 @@ import { langName, langsInUse, addLangInUse, a4FormatOf } from '../model/lang.js
 import { newResume } from '../model/resume.js';
 import { langMenuHtml, focusMenu } from './langmenu.js';
 import { icon } from './icons.js';
+import { askOk } from './ask.js';
 
 let C = null;
 export function initResumes(ctx){ C = ctx; return api; }
@@ -280,6 +281,7 @@ async function act(a, tg){
     case 'rm-delete': {
       const r = RS.savedOf(st(), tg.dataset.id);
       V.row = null;
+      if ((st().openId === tg.dataset.id ? st().cur : r)?.locked?.length && !await askOk(t('ux6c.lockedDeleteAsk'))) return true;
       if (st().openId === tg.dataset.id){ if (!C.leaveOk()) return true; C.ui.sel = C.NONE; C.setSnap(null); }
       commit(d => RS.deleteSaved(d, tg.dataset.id), t('undo.delete', { name: RS.resumeLabel(r) }), t('toast.deletedX', { name: RS.resumeLabel(r) }), true);
       rerender();
@@ -317,6 +319,7 @@ async function act(a, tg){
     case 'snap-delete': {
       const sid = C.ui.snap?.id;
       if (!sid) return true;
+      if (st().cur?.locked?.length && !await askOk(t('ux6c.lockedDeleteAsk'))) return true;
       C.setSnap(null);
       commit(d => RS.deleteSnapshot(d, sid), t('ux6c.undoDeleteSent'), t('ux6c.sentDeleted'), true);
       C.setView(null);
