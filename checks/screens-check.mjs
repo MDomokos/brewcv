@@ -114,8 +114,8 @@ const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelector
     const model = b.store.materialize(b.store.state.record);
     b.store.commit(d => {
       const job = model.work[0], fact = job.highlights.find(h => d.cur.overrides?.[h] === undefined);
-      T.setOverride(d.cur, fact, 'A sentence written only on this resume.', { marks: [], base: null });
-      const id = T.addLocalLine(model, d.cur, job.id, null); T.setOverride(d.cur, id, 'A line that only this resume has.', { marks: [], base: null });
+      T.setOverride(model, d.cur, fact, 'A sentence written only on this resume.', { marks: [], base: null });
+      const id = T.addLocalLine(model, d.cur, job.id, null); T.setOverride(model, d.cur, id, 'A line that only this resume has.', { marks: [], base: null });
       const g = T.arrangementOf(model, d.cur).groups[0]; T.writeGroup(model, d.cur, g.id, `Renamed group\nOne skill, Another skill`);
     }, 'edits');
   });

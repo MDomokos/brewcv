@@ -1213,8 +1213,9 @@ body[data-phone=true] .skarr [data-act=sk-addgroup] { display: none; }      /* a
 .skchip.dragging { opacity: .5; }
 .skchip.drop-above { box-shadow: -3px 0 0 var(--sel-mark); } .skchip.drop-below { box-shadow: 3px 0 0 var(--sel-mark); }
 .skfoot { display: flex; align-items: flex-end; gap: 8px; margin: 12px 0 4px; } .skfoot .field { flex: 1; min-width: 0; margin: 0; }
-/* UX-6e: the Resumes and Compare screens, and the small head and foot cards on every screen */
-body:not([data-phone=true]) .col.is-full > :is(#head, #foot) { align-self: flex-start; width: 340px; max-width: 100%; }
+/* UX-6e: the Resumes and Compare screens, and the small name card on every screen (a desktop has no foot) */
+body:not([data-phone=true]) .col.is-full > #head { align-self: flex-start; width: 340px; max-width: 100%; }
+.col.is-full ~ .fitchip { display: none; }      /* Fit's chip waits under the Fit button until the screen is left */
 .thumbhost { position: fixed; left: -10000px; top: 0; width: 900px; height: 1200px; visibility: hidden; pointer-events: none; }
 .scrn .scrhead { position: sticky; top: -14px; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: -14px -16px 6px; padding: 10px 16px; background: var(--surface); }
 .scrn .scrhead h2 { margin: 0; font-size: 15px; font-weight: 750; overflow-wrap: anywhere; }
@@ -1234,7 +1235,7 @@ body:not([data-phone=true]) .col.is-full > :is(#head, #foot) { align-self: flex-
 .rcard .rmeta { margin: 0; font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
 .rcard .rpend { color: var(--warn); }
 .racts { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 4px; }
-.rcard .rmore { position: relative; margin-left: auto; }
+.rcard .rcmore { position: relative; margin-left: auto; }
 .thumbwrap { display: block; width: 100%; padding: 0; border: 0; background: transparent; }
 .rthumb { display: block; position: relative; overflow: hidden; width: 100%; background: var(--paper); border: 1px solid var(--line-strong); border-radius: 2px; box-shadow: var(--shadow-chip); }
 .rthumb iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; background: var(--paper); }

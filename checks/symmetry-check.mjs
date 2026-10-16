@@ -390,7 +390,7 @@ await run('Delete beside Duplicate in the name window (fix 16)', async () => {
   ok('the name window has Delete beside Duplicate', (await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act))).slice(0, 2).join() === 'rm-dup,rm-delete');
   await page.click('#switcher [data-act=rm-dup]'); await wait();
   const s1 = await state();
-  await page.click('#docname-btn'); await wait();
+  if (!(await page.$('#switcher:not([hidden]) [data-act=rm-delete]'))){ await page.click('#docname-btn'); await wait(); }      // Duplicate leaves the name window open, the name ready to type over
   await page.click('#switcher [data-act=rm-delete]'); await wait();
   const s2 = await state();
   ok('Delete in the name window deletes the open resume (the copy) and opens another, with the Undo button on the toast', s1.n === s0.n + 1 && s2.n === s0.n && s2.open !== s1.open && !!(await page.$('#toast.on [data-act=toast-undo]')), JSON.stringify([s0, s1, s2]));
@@ -410,8 +410,7 @@ await run('delete a sent copy from its own view (fix 17)', async () => {
   ok('(a sent copy exists)', (await state()).snaps === 1);
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
-  await page.click('#switcher [data-act=sw-view][data-v=date]'); await wait();
-  await page.click('#switcher .tlsend'); await wait();
+  await page.click('.rsent .snapline'); await wait();
   const btns = await page.$$eval('.snapacts button', bs => bs.map(b => b.dataset.act));
   ok('a sent copy\u2019s view has "Delete this sent copy" beside Restore and Duplicate (and still no way to edit it)', btns.join() === 'goto,snap-restore,snap-dup,snap-delete', btns.join());
   await page.click('[data-act=snap-delete]'); await wait();
@@ -422,8 +421,7 @@ await run('delete a sent copy from its own view (fix 17)', async () => {
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.pageLimit = 3; }, 'check: page limit')); await wait();
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
-  await page.click('#switcher [data-act=sw-view][data-v=date]'); await wait();
-  await page.click('#switcher .tlsend'); await wait();
+  await page.click('.rsent .snapline'); await wait();
   await page.click('[data-act=snap-restore]'); await wait();
   const lim = () => page.evaluate(() => window.__wb.store.state.cur.pageLimit ?? 1);
   ok('Restore as current prints as the sent copy did, with the Undo button on the toast', (await lim()) !== 3 && !!(await page.$('#toast.on [data-act=toast-undo]')));
@@ -494,7 +492,7 @@ await run('on a phone: the depth row carries the tools, the name window and the 
   ok('the phone\u2019s name window has Delete beside Duplicate', (await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act))).slice(0, 2).join() === 'rm-dup,rm-delete');
   await page.keyboard.press('Escape'); await wait();
   // the language menu: Remove a language, a language in use held
-  await page.evaluate(() => document.querySelector('#switcher [data-act=sw-close], #docname-btn')?.click()); await wait();
+  await page.evaluate(() => document.querySelector('#docname-btn')?.click()); await wait();
   await page.evaluate(() => document.querySelector('#langbtn').click()); await wait();
   const held = await page.$$eval('.langpop [data-act=lang-remove]', bs => bs.map(b => [b.dataset.lang, b.getAttribute('aria-disabled')]));
   ok('the phone\u2019s language menu lists the languages under "Remove a language", the ones in use held', held.length > 0 && held.every(h => h[1] === 'true') && !!(await page.$('.langpop .pop__sub:last-of-type')), JSON.stringify(held));
