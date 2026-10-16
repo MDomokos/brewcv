@@ -20,6 +20,7 @@ import { initDock, storeZoomWrite, ib } from './dock.js';
 import { initChecklist } from './checklist.js';
 import { initRecord } from './record.js';
 import { initHelp } from './help.js';
+import { initReview } from './review.js';
 import { icon } from './icons.js';
 import { indexModel, targetOf, up, same, step, lineSel, keyOf, versionsOf, NONE } from './select.js';
 import { openActualSize } from './actual.js';
@@ -904,7 +905,8 @@ async function onClick(e){
     case 'link': ui.menu = false; linkFolder(); break;
     case 'unlink': ui.menu = false; await persist.unlink(); renderHead(); toast(t('toast.unlinked')); break;
     case 'reconnect': reconnect(); break;
-    case 'save-file': ui.menu = false; saveToFile(); break;
+    case 'save-file': ui.menu = false; review.saveFlow(tg); break;
+    case 'review-open': review.open(tg); break;
     case 'save-note-ok': ui.saveNote = false; renderHead(); break;
     case 'folder-compare': files.compareFolder(); break;
     case 'folder-overwrite': await persist.overwriteFolder(); renderHead(); break;
@@ -1059,7 +1061,7 @@ function key(e){
   if (typing && mod && ['z', 'y'].includes(e.key.toLowerCase())) return;      // the text box's own undo
   if (mod && !e.altKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); stepHistory(e.shiftKey ? 'redo' : 'undo'); return; }
   if (mod && e.key.toLowerCase() === 'y'){ e.preventDefault(); stepHistory('redo'); return; }
-  if (mod && !e.altKey && e.key.toLowerCase() === 's'){ e.preventDefault(); if (!e.isComposing && e.keyCode !== 229) saveToFile(); return; }
+  if (mod && !e.altKey && e.key.toLowerCase() === 's'){ e.preventDefault(); if (!e.isComposing && e.keyCode !== 229) review.saveFlow(); return; }
   if (mod && e.key.toLowerCase() === 'o'){ e.preventDefault(); switcher.openOrFocus(); return; }
   if (typing) return;
   if (isDrinkKey(e)){ e.preventDefault(); toggleDrink(); return; }          // Shift+F: tea or coffee, in place
@@ -1239,14 +1241,16 @@ const hint = text => { say(text); if (!hands.hint(text)) toast(text); };
 // `undo`: the action is one Ctrl+Z away, and the toast carries the button for it (the same undo, for as long as nothing else has changed)
 let toastAt = -1;
 const dropToastUndo = () => { toastAt = -1; $('#toast [data-act=toast-undo]')?.remove(); };
-function toast(msg, tone = '', undo = false){
+function toast(msg, tone = '', undo = false, offer = false){
   const el = $('#toast');
   el.replaceChildren(msg);
   toastAt = -1;
+  // after an export: the Review list, offered once and never in the way
+  if ((offer = offer && review.pending() > 0)){ const b = Object.assign(document.createElement('button'), { className: 'sm', textContent: t('newer.review') }); b.dataset.act = 'review-open'; el.append(` ${t('ux6d.offer', { n: review.pending() })} `, b); }
   if (undo){ const b = Object.assign(document.createElement('button'), { className: 'sm', textContent: t('foot.undo') }); b.dataset.act = 'toast-undo'; el.append(b); toastAt = store.history.undo; }
   el.className = `toast on ${tone}`;
   placeToast(el);
-  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), undo ? 7000 : 3600);
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), undo || offer ? 7000 : 3600);
 }
 
 const edit = initEdit({
@@ -1301,7 +1305,7 @@ const files = initFiles({
 Object.assign(VIEWS, files.views);
 files.bind($('#body'));
 window.__wb.files = files;
-const exporter = initExport({ store, ui, toast, work, cur: () => shown(), download, fileLine, renderBody: () => renderBody(),
+const exporter = initExport({ store, ui, toast, work, cur: () => shown(), reviewCount: () => review.count(), offerReview: () => review.pending() && toast('', '', false, true), download, fileLine, renderBody: () => renderBody(),
   pageBox: () => { const b = ui.layout?.phone ? null : sheet.pageBoxes()[ui.page]; return b ? canvas.screenRect(b) : null; },
   extraCss: r => design.extraCss(store.state.record, r) });
 const design = initDesign({ store, ui, toast, cur, setView, pickFile, download, photoUrl: () => store.materialize(store.state.record?.basics?.image) });
@@ -1321,6 +1325,8 @@ const recordTab = initRecord({ ui, checklist, renderBody: () => renderBody(), se
 window.__wb.record = recordTab;
 const help = initHelp({ ui });
 window.__wb.help = help;
+const review = initReview({ store, ui, work, saveToFile, leaveLine: () => (edit.editing ? edit.cancelEdit() : null), fieldName: ed => edit.fieldName(ed) });
+window.__wb.review = review;
 const dock = initDock({ store, ui, shown, setView, leaveWriting: () => edit.cancelEdit(), goToPage, canvas, restyleMarks: () => sheet.restyle(), layers: () => onpage.render(true), startFoot: () => onboarding.footHtml() });
 window.__wb.dock = dock;
 design.bind($('#body'));

@@ -603,8 +603,8 @@ body[data-phone=true] .foot { padding: 6px 12px; border-top: 1px solid var(--lin
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
 .toast.bad { background: var(--bad); color: var(--on-ink); } .toast.warn { background: var(--warn); color: var(--on-ink); }
 /* the Undo button of a toast (the Fit chip's look): the toast lets clicks through, the button does not */
-.toast .sm[data-act=toast-undo] { pointer-events: auto; margin-left: 10px; background: transparent; color: inherit; border: 1.5px solid currentColor; border-radius: var(--r-pill); padding: 2px 10px; font-weight: 700; cursor: pointer; }
-.toast .sm[data-act=toast-undo]:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
+.toast .sm:is([data-act=toast-undo], [data-act=review-open]) { pointer-events: auto; margin-left: 10px; background: transparent; color: inherit; border: 1.5px solid currentColor; border-radius: var(--r-pill); padding: 2px 10px; font-weight: 700; cursor: pointer; }
+.toast .sm:is([data-act=toast-undo], [data-act=review-open]):hover { background: color-mix(in srgb, currentColor 14%, transparent); }
 
 .actual { position: fixed; inset: 0; z-index: 50; background: var(--canvas); display: grid; grid-template-rows: auto 1fr; }
 body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
@@ -1264,4 +1264,37 @@ body:not([data-phone=true]) .col.is-full > #head { align-self: flex-start; width
   .scrn .scrhead .grow { display: none; }
   .scrn .scrhead #scr-tickinfo { display: none; }
   .scrn .scrhead .scrticks { display: contents; }
+}
+
+/* UX-6d: the Review list. A modal dialog; on a phone a full-screen sheet. The marked words are underlined and struck through as well as coloured. */
+.rvdlg { padding: 0; width: min(900px, calc(100vw - 32px)); max-width: none; max-height: min(88vh, 940px); color: var(--ink); background: var(--pop); border-color: var(--line); overflow: hidden; }
+.rvdlg[open] { display: flex; flex-direction: column; }
+.rvdlg::backdrop { background: color-mix(in srgb, var(--paper-ink) 45%, transparent); }
+.rvhead { padding: 14px 18px 8px; flex: none; }
+.rvhead h2 { margin: 0 0 4px; font-size: 17px; }
+.rvhead p { margin: 0; }
+.rvbody { padding: 0 18px 8px; overflow: auto; flex: 1 1 auto; min-height: 0; }
+.rvbody h3 { margin: 10px 0 6px; }
+.rvrows { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 8px; }
+.rvrow { border: 1px solid var(--line); border-radius: var(--r-m); padding: 10px 12px; background: var(--raised); min-width: 0; }
+.rvrow.done { background: var(--wash); }
+.rvwhere { margin: 0 0 4px; font-size: 12px; font-weight: 700; color: var(--ink-soft); overflow-wrap: anywhere; }
+.rvtag { margin-left: 6px; padding: 1px 6px; border: 1px solid var(--line); border-radius: var(--r-round); font-weight: 400; }
+.rvtext { margin: 0 0 4px; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.rvtext ins { background: var(--ins-bg); text-decoration: underline; }
+.rvtext del { background: var(--del-bg); color: var(--del-ink); text-decoration: line-through; }
+.rvwhy, .rvnote, .rvres { margin: 0 0 6px; font-size: 12.5px; overflow-wrap: anywhere; }
+.rvsrc { display: grid; gap: 3px; margin: 4px 0 8px; font-size: 12.5px; }
+.rvsrc input { min-width: 0; width: 100%; box-sizing: border-box; }
+.rvbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rvbtns select { max-width: 100%; }
+.rvdlg :is(button, select, input) { min-height: 28px; }
+.rvbtns button[aria-disabled=true] { opacity: .75; }
+.rvfoot { flex: none; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--line); }
+.rvfoot-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+#rv-status { font-size: 12.5px; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 719px){
+  .rvdlg[open] { width: 100vw; height: 100dvh; max-height: none; margin: 0; border-radius: 0; border-width: 0; }
+  .rvhead, .rvbody, .rvfoot { padding-left: 12px; padding-right: 12px; }
+  .rvfoot-btns { width: 100%; justify-content: flex-end; }
 }
