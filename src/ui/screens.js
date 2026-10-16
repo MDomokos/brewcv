@@ -8,7 +8,8 @@ import * as RS from '../model/resumes.js';
 import { jobTypeLabel } from '../model/focus.js';
 import { pendingEdits } from '../model/resume.js';
 import { t, h } from '../i18n/index.js';
-import { pageSize } from './layout.js';
+import { pageSize, computeLayout } from './layout.js';
+import { reduced } from './motion.js';
 import { nameHtml } from './switcher.js';
 
 let C = null, T = null;
@@ -89,6 +90,7 @@ function ticksHtml(){
 }
 // the toolbar floats at the top of the content (flow.css): never a bar across the window
 function resumesView(){
+  endGrow();
   return `<section class="scrn" id="resumes" aria-label="${esc(t('ux6h.allResumes'))}">
     <div class="scrhead tbar">${phone() ? `<button class="sm scrback" data-act="scr-back">${h('ux1.backToResume')}</button>` : ''}
       <input id="scr-q" type="search" class="sw-q" aria-label="${esc(t('ux6h.search'))}" placeholder="${esc(t('ux6h.search'))}" value="${esc(V.q)}" autocomplete="off">
@@ -167,6 +169,64 @@ function paintInspector(){
   if (n){ n.focus({ preventScroll: true }); try { n.setSelectionRange(kept.a, kept.b); } catch { /* not a text box */ } }
 }
 
+// ---- the selected resume grows out of the inspector to where the editor shows its page, as you scroll over it; far enough, and it opens.
+// It is drawn at its final size from the start and shrunk, so it stays sharp all the way. Scrolling back (or letting go early) returns it.
+// Under reduced motion nothing grows: a click opens. ----
+const X = { p: 0, ghost: null, from: null, to: null, id: null, idle: 0, raf: 0 };
+const ease = p => p * p * (3 - 2 * p);
+// where the editor will draw this resume's first page: its own layout, for this window
+function pageRect(r, pages){
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: r.format, pages, oneUp: r.pageLimit === 1 }), { w, h } = pageSize(r.format);
+  return { left: L.sheet.left, top: L.sheet.top, width: w * L.fit, height: h * L.fit };
+}
+function drawGrow(){
+  const e = ease(X.p), f = X.from, to = X.to, s0 = f.width / to.width, s = s0 + (1 - s0) * e;
+  const x = f.left + (to.left - f.left) * e, y = f.top + (to.top - f.top) * e, cut = Math.max(0, to.height - f.visible / s0) * (1 - e);
+  X.ghost.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${s.toFixed(4)})`;
+  X.ghost.style.clipPath = `inset(0 0 ${cut.toFixed(1)}px 0)`;
+}
+function startGrow(){
+  const page = document.querySelector('#body .insp-res .ihpage'), r = RS.savedOf(st(), selId());
+  if (!page || !r) return false;
+  const b = page.getBoundingClientRect(), box = page.closest('.ihero').getBoundingClientRect();
+  X.id = r.id; X.to = pageRect(r, Number(page.querySelector('[data-pages]')?.dataset.pages) || 1); X.from = { left: b.left, top: b.top, width: b.width, visible: Math.min(b.height, box.bottom - b.top) };
+  X.ghost = document.createElement('div'); X.ghost.className = 'growpage'; X.ghost.setAttribute('aria-hidden', 'true');
+  X.ghost.style.width = `${X.to.width}px`; X.ghost.innerHTML = thumb(r.id, r.format);
+  document.body.append(X.ghost); T.fill(X.ghost, recipeOf);
+  page.style.visibility = 'hidden';
+  return true;
+}
+function endGrow(){
+  cancelAnimationFrame(X.raf); clearTimeout(X.idle);
+  X.ghost?.remove(); X.ghost = null; X.p = 0;
+  const page = document.querySelector('#body .insp-res .ihpage'); if (page) page.style.visibility = '';
+}
+function settleGrow(to){
+  cancelAnimationFrame(X.raf);
+  const from = X.p, t0 = performance.now(), ms = 240;
+  const step = now => { const k = Math.min(1, (now - t0) / ms); X.p = from + (to - from) * k; drawGrow(); if (k < 1) X.raf = requestAnimationFrame(step); else if (to) openGrown(); else endGrow(); };
+  X.raf = requestAnimationFrame(step);
+}
+function openGrown(){
+  const id = X.id, g = X.ghost;
+  X.ghost = null; X.p = 0; cancelAnimationFrame(X.raf); clearTimeout(X.idle);
+  if (id === st().openId) C.setView(null); else C.resumes.open(id);
+  setTimeout(() => g?.remove(), 450);                 // the editor's page is drawn under it by then, in the same place
+}
+function wheelGrow(e){
+  if (reduced() || C.view() !== 'resumes' || e.ctrlKey || !e.target.closest?.('.insp-res :is(.ihero, .ihcap)')) return;
+  const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
+  if (!X.ghost && dy <= 0) return;                 // scrolling up over a page at rest scrolls nothing
+  e.preventDefault();
+  if (!X.ghost && !startGrow()) return;
+  X.p = Math.max(0, Math.min(1, X.p + dy / 700));
+  drawGrow();
+  clearTimeout(X.idle);
+  if (X.p >= 1) return openGrown();
+  if (X.p <= 0) return endGrow();
+  X.idle = setTimeout(() => settleGrow(X.p > 0.55 ? 1 : 0), 220);
+}
+
 // ---- compare ----
 function compareView(){
   const items = V.cmp.map(itemOf).filter(Boolean);
@@ -232,6 +292,7 @@ function bind(body){
     V.q = e.target.value;
     document.getElementById('scr-list').innerHTML = listHtml(); afterResumes();
   });
+  body.addEventListener('wheel', wheelGrow, { passive: false });
   body.addEventListener('dblclick', e => { const c = e.target.closest?.('.rcard'); if (c && !e.target.closest('input')) C.resumes.open(c.dataset.rid); });
   body.addEventListener('keydown', e => {
     if (e.target.closest?.('.njform') && e.key === 'Enter'){ e.preventDefault(); document.querySelector('[data-act=nj-create]')?.click(); return; }

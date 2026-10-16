@@ -149,3 +149,7 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .insp-res .gjobs small { color: var(--ink-soft); white-space: nowrap; }
 .insp-res .imore summary { cursor: pointer; font-size: 12px; color: var(--ink-soft); }
 .insp-res .imore ul { margin-top: 4px; }
+
+/* the page that grows out of the inspector: the real page, drawn at its final size and shrunk, so it stays sharp. A flat 2D move: no will-change */
+.growpage { position: fixed; left: 0; top: 0; z-index: 40; pointer-events: none; background: var(--sheet); transform-origin: 0 0; box-shadow: var(--shadow-panel); }
+.growpage .rthumb { display: block; width: 100%; }
