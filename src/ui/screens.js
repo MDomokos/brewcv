@@ -1,9 +1,8 @@
-// The Library place and its Compare mode (UX-6e, UX-6h). The Library holds every resume and every sent copy as a card with a picture of its
-// first page (thumbs.js); one card is selected (the open resume at first: Enter on it opens it); tick any number and compare them in a table
-// with a column for each. A card says where the resume came from ("under <parent>", or the closest one as a guess, for resumes made before
-// parents were kept) and opens "What differs from <parent>". Both are drawn left of the sidebar (a phone: the whole screen); Esc goes up one
-// level (Compare to the grid, then the selection), never to another place. The model is src/model/resumes.js; the row menu, rename, Duplicate
-// and Delete are resumes.js's, and the resume list's search and views are here.
+// The Library place and its Compare mode (UX-6e, UX-6h). The Library holds every resume as a card with a picture of its first page
+// (thumbs.js) and the information beside it; one card is selected (the open resume at first: Enter on it opens it, as a second click on it
+// does); tick any number and compare them in a table with a column for each. Drawn left of the sidebar (a phone: the whole screen); Esc goes
+// up one level (Compare to the grid, then the selection), never to another place. The model is src/model/resumes.js; the row menu, rename,
+// Duplicate and Delete are resumes.js's, and the resume list's search and views are here.
 
 import * as RS from '../model/resumes.js';
 import { jobTypeLabel } from '../model/focus.js';
@@ -18,7 +17,7 @@ const VIEW_KEY = 'rb-manage-view', VIEWS = ['type', 'date', 'company'];
 const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : 'type'; } catch { return 'type'; } };
 // ticked: resumes ("id") and sent copies ("id|snapshot"); cmp: what the compare screen shows, and the parent when it is "What differs";
 // sel: the selected card (null: the open resume's)
-const V = { q: '', view: savedView(), ticked: new Set(), cmp: [], parent: null, sel: null };
+const V = { q: '', view: savedView(), ticked: new Set(), cmp: [], parent: null, sel: null, sentOnly: false };
 const phone = () => document.body.dataset.phone === 'true';
 const selId = () => (V.sel && RS.savedOf(st(), V.sel) ? V.sel : st().openId);
 
@@ -39,67 +38,66 @@ const recipeOf = key => itemOf(key)?.recipe ?? null;
 const ratio = format => { const { w, h: ph } = pageSize(format); return `${w} / ${ph}`; };
 const thumb = (key, format) => `<span class="rthumb" data-thumb="${esc(key)}" style="aspect-ratio:${ratio(format)}"></span>`;
 
-// ---- the Resumes screen ----
+// ---- the Library ----
 const metaOf = r => [r.jobType ? jobTypeLabel(st().record, r.jobType) : '', r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'), (r.lang ?? 'en').toUpperCase(),
   r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('resumes.pShort', { n: r.pageLimit }) : ''].filter(Boolean).join(' · ');
 const tick = (key, name) => `<input type="checkbox" class="rtick" data-cmp="${esc(key)}" ${V.ticked.has(key) ? 'checked' : ''} aria-label="${esc(name)}">`;
+// newest first; the open resume counts as the newest, since opening it is its latest use
+const recency = r => (r.id === st().openId ? '9999' : r.savedAt || '');
+const newest = (a, b) => recency(b).localeCompare(recency(a));
 
-function card(r, parentOfClosest){
-  const open = r.id === st().openId, p = RS.parentOf(st(), r), guess = !p && parentOfClosest.get(r.id);
-  const under = p ? t('ux6e.under', { name: label(p) }) : guess ? t('ux6e.closest', { name: label(guess.r) }) : '';
-  const pend = pendingEdits(r).length;
-  return `<article class="rcard ${open ? 'open' : ''} ${selId() === r.id ? 'sel' : ''} ${V.ticked.has(r.id) ? 'ticked' : ''}" data-rid="${esc(r.id)}">
-    ${tick(r.id, t('ux6e.tick', { name: label(r) }))}
-    <button class="thumbwrap" tabindex="-1" data-act="sw-open" data-id="${esc(r.id)}" aria-label="${esc(t('ux6e.open', { name: label(r) }))}" ${open ? 'aria-current="true"' : ''}>${thumb(r.id, r.format)}</button>
-    <h4 class="rname">${C.resumes.renamingHere(r.id, 'screen') ? C.resumes.renameInput(r) : `<button class="rsel" data-act="scr-sel" data-id="${esc(r.id)}" aria-pressed="${selId() === r.id}">${nameHtml(label(r))}</button>`}${open ? ` <small class="muted">· ${h('ux6e.isOpen')}</small>` : ''}</h4>
-    <p class="rmeta">${esc(metaOf(r))}</p>
-    ${under ? `<p class="rmeta rfrom">${esc(under)}</p>` : ''}
-    ${pend ? `<p class="rmeta rpend">${h('ux6e.pending', { n: pend })}</p>` : ''}
-    ${RS.snapshotsOf(r).slice().reverse().map(s => `<div class="rsent">${tick(`${r.id}|${s.id}`, t('ux6e.tickSent', { name: label(r), date: sentDate(s) }))}<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${esc(t('ux6e.sent', { to: RS.sendLabel(s.sends[0]) || t('ux1.noRecipient'), date: sentDate(s) }))}${s.sends.length > 1 ? ` +${s.sends.length - 1}` : ''}</button></div>`).join('')}
+// a phone has no inspector: its card keeps the sent copies and the actions
+function phoneExtras(r){
+  const p = RS.parentOf(st(), r), guess = !p && RS.closestTo(st(), r, x => RS.printedIds(C.work(), x));
+  return `${RS.snapshotsOf(r).slice().reverse().map(s => `<div class="rsent">${tick(`${r.id}|${s.id}`, t('ux6e.tickSent', { name: label(r), date: sentDate(s) }))}<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${esc(t('ux6e.sent', { to: RS.sendLabel(s.sends[0]) || t('ux1.noRecipient'), date: sentDate(s) }))}${s.sends.length > 1 ? ` +${s.sends.length - 1}` : ''}</button></div>`).join('')}
     <div class="racts"><button class="sm" data-act="sw-open" data-id="${esc(r.id)}">${h('ux6e.openBtn')}</button><button class="sm" data-act="rm-dup" data-id="${esc(r.id)}">${h('ux1.dup')}</button>${p || guess ? `<button class="sm" data-act="scr-differs" data-id="${esc(r.id)}">${h('ux6e.differs')}</button>` : ''}
-      <span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span></div>
-  </article>`;
+      <span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span></div>`;
 }
-// a sent copy as a card of its own (the Date view)
-function sentCard(e){
-  const r = e.resume, key = `${r.id}|${e.snap.id}`, to = RS.sendLabel(e.send);
-  return `<article class="rcard ${V.ticked.has(key) ? 'ticked' : ''}" data-rid="${esc(r.id)}">
-    ${tick(key, t('ux6e.tickSent', { name: label(r), date: e.date }))}
-    <button class="thumbwrap" tabindex="-1" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(e.snap.id)}" aria-label="${esc(t('ux6e.open', { name: to || label(r) }))}">${thumb(key, e.snap.recipe.format)}</button>
-    <h4 class="rname">${esc(to || t('ux1.noRecipient'))}${e.send.kind === 'outreach' ? ` <span class="pill">${h('ux1.outreach')}</span>` : ''}</h4>
-    <p class="rmeta">${esc(e.date)} · ${esc(label(r))}</p>
+function card(r){
+  const open = r.id === st().openId, n = RS.snapshotsOf(r).length, role = r.role || '', company = r.company || '';
+  return `<article class="rcard ${open ? 'open' : ''} ${r.id === selId() ? 'sel' : ''} ${V.ticked.has(r.id) ? 'ticked' : ''}" data-rid="${esc(r.id)}">
+    ${tick(r.id, t('ux6e.tick', { name: label(r) }))}
+    <span class="thumbwrap">${thumb(r.id, r.format)}</span>
+    <h4 class="rname">${C.resumes.renamingHere(r.id, 'screen') ? C.resumes.renameInput(r) : `<button class="rsel" data-act="scr-sel" data-id="${esc(r.id)}" aria-pressed="${r.id === selId()}" ${open ? 'aria-current="true"' : ''}>${nameHtml(company && role ? company : label(r))}</button>`}</h4>
+    ${company && role ? `<p class="rrole">${esc(role)}</p>` : ''}
+    <p class="rmeta">${esc(metaOf(r))}</p>
+    <p class="rbadges">${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}${n ? `<span class="pill">${h('ux6h.sentN', { n })}</span>` : ''}</p>
+    ${phone() ? phoneExtras(r) : ''}
   </article>`;
 }
 
 function listHtml(){
   const all = st().resumes ?? [], q = V.q.trim().toLowerCase();
-  const list = all.filter(r => RS.matches(st().record, r, V.q) || (V.view === 'company' && q && RS.snapshotsOf(r).some(s => s.sends.some(x => String(x.company).toLowerCase().includes(q)))));
+  const list = all.filter(r => (RS.matches(st().record, r, V.q) || (q && RS.snapshotsOf(r).some(s => s.sends.some(x => String(x.company).toLowerCase().includes(q))))) && (!V.sentOnly || RS.snapshotsOf(r).length));
   if (!list.length) return `<p class="muted small swnone">${h(all.length ? 'ux1.noMatch' : 'ux1.noneYet')}</p>`;
-  const model = C.work(), guess = new Map();
-  for (const r of list) if (!RS.parentOf(st(), r)){ const c = RS.closestTo(st(), r, x => RS.printedIds(model, x)); if (c) guess.set(r.id, c); }
-  const group = (name, cards) => `<h3 class="lbl">${esc(name)}</h3><div class="rgrid">${cards.join('')}</div>`;
-  if (V.view === 'date') return RS.sendBands(RS.sendEvents(list)).map(b => `<h3 class="lbl">${esc(b.year || t('ux2.noDate'))}</h3><div class="rgrid">${b.events.map(e => (e.kind === 'saved' ? card(e.resume, guess) : sentCard(e))).join('')}</div>`).join('');
-  if (V.view === 'company') return RS.byCompany(list).map(g => group(g.key ? g.label : t('ux2.noCompany'), g.rows.map(x => card(x.resume, guess)))).join('');
-  return RS.grouped(st().record, list).map(g => group(g.type ? g.label : t('resumes.noType'), g.resumes.map(r => card(r, guess)))).join('');
+  const group = (name, rs) => `<h3 class="lbl">${esc(name)} · ${rs.length}</h3><div class="rgrid">${rs.map(card).join('')}</div>`;
+  const byNewest = gs => gs.map(g => ({ ...g, rs: g.rs.slice().sort(newest) })).sort((a, b) => newest(a.rs[0], b.rs[0]));
+  if (V.view === 'date'){
+    const years = new Map();
+    for (const r of list.slice().sort(newest)){ const y = r.id === st().openId ? t('ux6h.now') : (r.savedAt || '').slice(0, 4) || t('ux2.noDate'); years.set(y, [...(years.get(y) ?? []), r]); }
+    return [...years].map(([y, rs]) => group(y, rs)).join('');
+  }
+  if (V.view === 'company') return byNewest(RS.byCompany(list).map(g => ({ name: g.key ? g.label : t('ux2.noCompany'), rs: g.rows.map(x => x.resume) }))).map(g => group(g.name, g.rs)).join('');
+  return byNewest(RS.grouped(st().record, list).map(g => ({ name: g.type ? g.label : t('resumes.noType'), rs: g.resumes }))).map(g => group(g.name, g.rs)).join('');
 }
 
 function ticksHtml(){
   const n = V.ticked.size;
-  return `<span class="muted small" id="scr-tickinfo" role="status">${h(n ? 'ux6e.ticked' : 'ux6e.tickHint', { n })}</span>
-    <button class="sm primary" id="scr-cmp" data-act="scr-compare" ${n < 2 ? 'disabled' : ''}>${h('ux6e.compareN', { n })}</button>
-    <button class="sm" data-act="scr-clear" ${n ? '' : 'disabled'}>${h('ux6e.clear')}</button>`;
+  return n ? `<button class="sm primary" id="scr-cmp" data-act="scr-compare" ${n < 2 ? 'disabled' : ''}>${h('ux6e.compareN', { n })}</button><button class="sm" data-act="scr-clear">${h('ux6e.clear')}</button>`
+    : `<span class="muted small" id="scr-tickinfo">${h('ux6h.tickHint')}</span>`;
 }
+// the toolbar floats at the top of the content (flow.css): never a bar across the window
 function resumesView(){
-  const n = (st().resumes ?? []).length;
-  return `<section class="scrn" id="resumes" aria-labelledby="scr-h">
-    <div class="scrhead">${phone() ? `<button class="sm scrback" data-act="scr-back">${h('ux1.backToResume')}</button>` : ''}<h2 id="scr-h" class="${phone() ? '' : 'sr'}">${h('ux1.manageTitle', { n })}</h2>
-      <input id="scr-q" type="search" class="sw-q" aria-label="${esc(t('ux1.search'))}" placeholder="${esc(t('ux1.search'))}" value="${esc(V.q)}" autocomplete="off">
+  return `<section class="scrn" id="resumes" aria-label="${esc(t('ux6h.allResumes'))}">
+    <div class="scrhead tbar">${phone() ? `<button class="sm scrback" data-act="scr-back">${h('ux1.backToResume')}</button>` : ''}
+      <input id="scr-q" type="search" class="sw-q" aria-label="${esc(t('ux6h.search'))}" placeholder="${esc(t('ux6h.search'))}" value="${esc(V.q)}" autocomplete="off">
       <div class="seg" role="group" aria-label="${esc(t('ux2.manageViews'))}">${VIEWS.map(v => `<button data-act="scr-view" data-v="${v}" aria-pressed="${V.view === v}">${h(`ux2.view.${v}`)}</button>`).join('')}</div>
-      <button class="sm swnew" data-act="sw-new">${h('ux1.newResume')}</button><span class="grow"></span><span class="scrticks" id="scr-ticks">${ticksHtml()}</span></div>
+      <button class="sm" data-act="scr-sent" aria-pressed="${V.sentOnly}">${h('ux6h.sentOnly')}</button>
+      <span class="scrticks" id="scr-ticks" role="status">${ticksHtml()}</span></div>
     <div id="scr-list">${listHtml()}</div></section>`;
 }
 function afterResumes(){ T.fill(document.getElementById('scr-list'), recipeOf); }
-// a tick changes the header and the card, not the pictures
+// a tick changes the toolbar and the card, not the pictures
 function refreshTicks(){
   document.getElementById('scr-ticks').innerHTML = ticksHtml();
   for (const c of document.querySelectorAll('#scr-list .rcard')) c.classList.toggle('ticked', V.ticked.has(c.querySelector('.rtick').dataset.cmp));
@@ -107,7 +105,7 @@ function refreshTicks(){
 // the selection moves without redrawing the pictures
 function paintSel(){
   for (const c of document.querySelectorAll('#scr-list .rcard')){
-    const b = c.querySelector('.rsel'), on = !!b && b.dataset.id === selId();
+    const b = c.querySelector('.rsel'), on = c.dataset.rid === selId();
     c.classList.toggle('sel', on); b?.setAttribute('aria-pressed', String(on));
   }
 }
@@ -143,12 +141,13 @@ function compare(keys, parent = null){ V.cmp = keys; V.parent = parent; C.setVie
 async function act(a, tg){
   switch (a){
     case 'scr-view': V.view = tg.dataset.v; try { localStorage.setItem(VIEW_KEY, V.view); } catch { /* this session only */ } C.renderBody(); return true;
+    case 'scr-sent': V.sentOnly = !V.sentOnly; C.renderBody(); return true;
     case 'scr-sel': {
       const id = tg.dataset.id;
       if (selId() === id){ C.resumes.open(id); return true; }      // a second click, or Enter, on the selected card opens it
       V.sel = id; paintSel(); return true;
     }
-    case 'scr-clear': V.ticked.clear(); document.querySelectorAll('#scr-list .rtick').forEach(x => { x.checked = false; }); refreshTicks(); return true;
+    case 'scr-clear': V.ticked.clear(); document.querySelectorAll('.rtick').forEach(x => { x.checked = false; }); refreshTicks(); return true;
     case 'scr-compare': if (V.ticked.size >= 2) compare([...V.ticked]); return true;
     case 'scr-differs': {
       const r = RS.savedOf(st(), tg.dataset.id);
@@ -172,6 +171,7 @@ function bind(body){
     V.q = e.target.value;
     document.getElementById('scr-list').innerHTML = listHtml(); afterResumes();
   });
+  body.addEventListener('dblclick', e => { const c = e.target.closest?.('.rcard'); if (c && !e.target.closest('input')) C.resumes.open(c.dataset.rid); });
   body.addEventListener('keydown', e => {
     if (e.target.id === 'scr-q' && e.key === 'Escape' && V.q){ e.preventDefault(); e.stopPropagation(); V.q = ''; e.target.value = ''; e.target.dispatchEvent(new Event('input', { bubbles: true })); }
     else if (e.target.id === 'scr-q' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); C.leave(); }

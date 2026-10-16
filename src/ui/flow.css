@@ -37,6 +37,7 @@ body:not([data-phone=true]):not(.is-intro) .col > #head.is-place { position: rel
    drawn by its background, so the thread above it is not clipped. */
 :root {
   --thread: #a88a5c; --hole: rgba(30, 40, 25, .45);
+  --sheet: #fff; --sheet-edge: rgba(0, 0, 0, .13);      /* a page's own white, and the hairline round a picture of one */
 }
 html[data-drink="tea"] .ptabs { gap: 8px; padding: 12px 10px 0; margin-bottom: -12px; }
 html[data-drink="tea"] .col > #head { z-index: 1; }
@@ -70,13 +71,45 @@ html[data-drink="coffee"] .ptabs .ptab:hover:not([aria-current]) { background: t
 .exfit { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 0 0 10px; border-bottom: 1px solid var(--line); }
 .exfit .meters { flex: none; }
 
-/* ---- #scr: the Library and Career, left of the sidebar. The open resume's page is not drawn behind it, and the sidebar's body is empty ---- */
-.scr { position: fixed; z-index: 6; overflow: auto; padding: 14px 16px; border-radius: var(--r-panel); background: var(--surface); box-shadow: var(--shadow-panel); }
+/* ---- #scr: the Library and Career, left of the sidebar, on the drink's ground (the mat in Tea, the plain ground in Coffee). The things on it are
+   paper; the toolbar floats at the top of the content, as the zoom bar does over the page: never a bar across the window. The open resume's
+   page is not drawn behind it. ---- */
+.scr { position: fixed; z-index: 6; overflow: auto; padding: 0 4px 16px; color: var(--paper-ink);
+  --surface: var(--paper); --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --line: var(--paper-line); --line-strong: color-mix(in srgb, var(--paper-line) 70%, var(--paper-ink)); }
 .scr[hidden] { display: none; }
 body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: hidden; }
 body.has-scr .col > #body { display: none; }
+.scr .tbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; width: fit-content; max-width: 100%; box-sizing: border-box; margin: 12px auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper); box-shadow: var(--shadow-chip); }
+.scr .tbar .sw-q { width: 240px; }
+.scr .tbar .seg { background: color-mix(in srgb, var(--paper-ink) 7%, transparent); }
+.scr :is(input[type=search], input[type=text], select) { background: var(--sheet); color: var(--paper-ink); border: 1px solid var(--line-strong); }
+.scr .lbl { color: var(--paper-soft); }
+/* labels that lie on the ground (group names, years, column heads) get a paper tab, so they read on a dark ground too */
+.scr :is(h3.lbl, .rectl .yr, .rectl .colhead > span) { width: fit-content; padding: 2px 8px; border-radius: var(--r-s); background: color-mix(in srgb, var(--paper) 88%, transparent); color: var(--paper-ink); }
 
-/* ---- the Library: the selected card is ringed; its name is the button that selects it (again: opens it) ---- */
+/* a card's name is the button that selects it (again: opens it); the selected card is ringed (a phone has no ground: the same card) */
 .rcard .rsel { all: unset; cursor: pointer; font-weight: 700; color: inherit; overflow-wrap: anywhere; }
 .rcard .rsel:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 .rcard.sel { box-shadow: 0 0 0 3px var(--accent); }
+
+/* ---- the Library: cards with the information beside the picture, as many to a row as hold 260 px; a click selects (the ring), a click on the
+   selected card opens it; a resume of more than one page fans its second sheet out from behind the first ---- */
+.scr .rgrid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.scr .rcard { grid-template-columns: 84px minmax(0, 1fr); column-gap: 10px; row-gap: 2px; padding: 8px 30px 8px 8px; background: var(--paper); box-shadow: var(--shadow-chip); align-content: start; }
+.scr .rcard .thumbwrap { grid-column: 1; grid-row: 1 / span 5; align-self: start; }
+.scr .rcard .thumbwrap .rthumb { width: 84px; background: var(--sheet); box-shadow: 0 0 0 1px var(--sheet-edge); }
+.scr .rcard > :not(.thumbwrap):not(.rtick) { grid-column: 2; margin: 0; }
+.scr .rcard .rsel { all: unset; cursor: pointer; font-weight: 700; color: var(--paper-ink); overflow-wrap: anywhere; }
+.scr .rcard .rsel::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-m); }
+.scr .rcard .rsel:focus-visible::after { outline: 2px solid var(--focus); outline-offset: 2px; }
+.scr .rcard .rrole { font-size: 12px; color: var(--paper-ink); }
+.scr .rcard .rmeta { color: var(--paper-soft); }
+.scr .rcard .rbadges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.scr .rcard .pill { font-size: 10.5px; padding: 1px 7px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); color: var(--paper-soft); background: transparent; }
+.scr .rcard .pill.is-open { background: var(--paper-ink); color: var(--paper); border-color: var(--paper-ink); }
+.scr .rcard .rtick { top: 8px; right: 8px; left: auto; }
+.scr .rcard.sel { box-shadow: 0 0 0 3px var(--accent); border-color: transparent; }
+.scr .rcard.ticked:not(.sel) { border-color: var(--paper-ink); }
+.thumbwrap { position: relative; }
+.thumbwrap .rthumb { z-index: 1; }
+.thumbwrap:has(.rthumb[data-pages]:not([data-pages="1"]))::before { content: ""; position: absolute; inset: 0; z-index: 0; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--paper); box-shadow: var(--shadow-chip); transform: rotate(4deg); transform-origin: 0 100%; }

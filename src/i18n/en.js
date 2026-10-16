@@ -1384,4 +1384,10 @@ export default {
   'ux6h.counts': { one: '{n} resume · {s} sent', other: '{n} resumes · {s} sent' },
   'ux6h.cmpSub': '{n} resumes · rows that differ: {d}',
   'ux6h.recSub': { one: '{n} entry · {on} of {of} lines on the open resume', other: '{n} entries · {on} of {of} lines on the open resume' },
+  'ux6h.openNow': 'Open now',
+  'ux6h.sentN': 'Sent {n}×',
+  'ux6h.now': 'Now',
+  'ux6h.tickHint': 'Tick two or more to compare',
+  'ux6h.search': 'Search resumes and sent copies',
+  'ux6h.sentOnly': 'Sent only',
 };
