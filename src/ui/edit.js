@@ -960,7 +960,11 @@ function resetOrder(kind, id){
       for (const b of [...(ix().work.get(id)?.highlights ?? []), ...T.listedBullets(d.record, d.cur, id).filter(x => T.isLocal(d.cur, x))]) if (on.has(b)) T.moveBullet(d.record, d.cur, b);       // the lines only here stay after the record's
     }
     else if (kind === 'items') for (const x of T.itemsOf(d.record, id) ?? []) T.moveItem(d.record, d.cur, id, x);
-    else { const on = new Set(T.sectionList(d.record, d.cur).filter(s => s.on && !s.fixed).map(s => s.id)); for (const s of d.record.sections) if (on.has(s.id)) auto ||= T.moveSection(d.record, d.cur, s.id).auto; }
+    else {      // the printed sections take the record's order; an off section keeps its place in the list
+      const list = T.sectionList(d.record, d.cur).filter(s => !s.fixed);
+      const rec = d.record.sections.map(s => s.id).filter(id => list.some(s => s.on && s.id === id));
+      for (const id of list.map(s => (s.on ? rec.shift() : s.id))) auto ||= T.moveSection(d.record, d.cur, id).auto;
+    }
   }, t('ux5b.undoReset'));
   if (auto) C.toast(t('toast.autoPages'));
 }

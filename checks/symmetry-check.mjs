@@ -163,6 +163,19 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
     ok('section, on its row in the Outline: the pill says "Hide … from this resume", hides it, and turning it on again in place restores the recipe', HIDE.test(l0) && c1 !== c0 && (await cur()) === c0 && (await order()) === o0, l0);
   });
 
+  await run('Reset order keeps an off section where it is', async () => {
+    const order = () => page.$$eval('#seclist > .osec', es => es.map(e => e.dataset.sid).join());
+    await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
+    const o1 = await order();
+    await page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => { T.stepSection(d.record, d.cur, 'patent', -1); T.stepSection(d.record, d.cur, 'patent', -1); }, 'check: move a section'); }); await wait();
+    ok('(a moved section shows "custom" and a Reset)', (await order()) !== o1 && !!(await page.$('.ordhead [data-act=order-reset]')), `${o1} / ${await order()} / ${await page.evaluate(() => JSON.stringify(window.__wb.store.state.cur.sections))}`);
+    const moved = (await order()).split(',');
+    await page.click('.ordhead [data-act=order-reset]'); await wait();
+    const after = (await order()).split(',');
+    ok('Reset puts the printed sections back in the record\u2019s order and the off section stays at its place in the list', after.indexOf('skills') === moved.indexOf('skills') && after.filter(x => x !== 'skills').join() === o1.split(',').filter(x => x !== 'skills').join(), `${o1} / ${moved} / ${after}`);
+    await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
+  });
+
   // an item of a list section in the Outline
   if (await page.$('#outline [data-act=ol-toggle][data-g="sec:skills"][aria-expanded=false]')) { await page.click('#outline [data-act=ol-toggle][data-g="sec:skills"]'); await wait(); }
   const item = '#outline .osec[data-sid=skills] input.sw[data-item]';

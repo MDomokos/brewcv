@@ -2428,7 +2428,7 @@ if (want('reordering is visible: Alt+arrows, the margin, custom and Reset')) {
 
   // the sections on this resume: Alt+↓ with one selected
   await toEditHome(page);
-  const secIds = () => page.evaluate(() => [...document.querySelectorAll('#seclist .srow:not(.is-off)')].map(r => r.dataset.sid));      // the sections that print: Reset puts the record's order back, and an off section sits where the record has it
+  const secIds = () => page.evaluate(() => [...document.querySelectorAll('#seclist .srow')].map(r => r.dataset.sid));      // every section, off ones too: Reset puts the record's order back and an off section stays where it is
   const order0 = await secIds(), u3 = await undoN();
   ok('an unmoved list of sections shows no "custom"', (await page.locator('.ordhead .pill.custom').count()) === 0);
   await page.locator('#seclist .srow:not(.fixed) [data-act=select-section]').first().click(); await settle(page);
