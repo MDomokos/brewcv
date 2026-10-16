@@ -41,8 +41,8 @@ const hidden = page => page.evaluate(() => {
 });
 // The sidebar is 340px (316px under 1400px windows), with no footer under it: at 1470×832 a line with its five versions, a job, Export, the Outline and a line
 // being written show whole; Design (a form) hides its photo shape row and hint; at 1280×720 and 1200×750 the line, Design and the Outline scroll. LIMITS are the
-// measured shares, in percent, for 1280×720, 1470×832 and 1200×750.  The line at 1470×832 hides 2.2% since the switch reads "Hide this line from this resume" (UX-6c-iv-b), which takes the row of its Keep and Archive buttons.
-const LIMITS = { line: [24.1, 2.2, 20.4], job: [0, 0, 0], design: [26.9, 6.6, 23.3], export: [0, 0, 0], outline: [37, 6.1, 33.9], writing: [0, 0, 0] };
+// measured shares, in percent, for 1280×720, 1470×832 and 1200×750.  The line at 1470×832 hides 2.2% since the switch reads "Hide this line from this resume" (UX-6c-iv-b), which takes the row of its Keep and Archive buttons. The Outline keeps the sections that are off in their rows (UX-6c-iv-b stage 2), so at rest it hides 22.5%, 5.7% and 18.7% (12.8, 0 and 8.5 before).
+const LIMITS = { line: [24.1, 2.2, 20.4], job: [0, 0, 0], design: [26.9, 6.6, 23.3], export: [0, 0, 0], outline: [22.6, 5.8, 18.8], writing: [0, 0, 0] };
 const SIZES = [[1280, 720], [1470, 832], [1200, 750]];
 
 for (const [i, [w, h]] of SIZES.entries()){

@@ -1221,6 +1221,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .pa-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 /* Skills on this resume: the groups with their skills as buttons */
 .skarr { margin: 6px 0 4px; }
+body[data-phone=true] .skarr [data-act=sk-addgroup] { display: none; }      /* a group is written on the page, which a phone does not write in */
 .skgroup { margin: 8px 0 0; }
 .skghead { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12.5px; }
 .skchips { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 0; }

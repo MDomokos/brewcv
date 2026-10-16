@@ -24,6 +24,8 @@ const server = http.createServer((req, res) => {
 });
 await new Promise(r => server.listen(PORT, r));
 let failed = 0;
+// a section that cannot find what it needs fails by name and the next one runs
+const run = async (name, fn) => { try { await fn(); } catch (e) { ok(`${name}: the section ran to its end`, false, String(e.message).split('\n').slice(0, 3).join(' ')); } };
 const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${!cond && extra ? `  — ${extra}` : ''}`); if (!cond) failed++; };
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
@@ -115,7 +117,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   const pillOn = sel => page.$eval(sel, e => (e.matches('input') ? e.checked : e.querySelector('.pillsw')?.classList.contains('on')));
   // a switch: its label says Hide while it is on, Show while it is off; flipping it twice leaves the recipe byte-identical
   // (a block that is hidden loses its frame and so its chip: then the sidebar's switch, the same component, shows it again)
-  const trip = async (name, ...a) => { try { await trip1(name, ...a); } catch (e) { ok(name, false, String(e.message).split('\n')[0]); } };
+  const trip = async (name, ...a) => { try { await trip1(name, ...a); } catch (e) { ok(name, false, String(e.message).split('\n').slice(0, 3).join(' ')); } };
   const trip1 = async (name, sel, click, sel2 = sel, click2 = click) => {
     const c0 = await cur(), l0 = await label(sel), on0 = await pillOn(sel);
     await click(); await wait();
@@ -149,7 +151,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await trip('section, on the chip', '#editlay .dp-show', () => page.click('#editlay .dp-show'), '#body .depth .dp-show', () => page.click('#body .depth .dp-show'));
   await trip('section, in its own view', '#body .ctlrow input[data-secon=education]', () => page.click('#body .ctlrow .swl'));
   await page.click('#body .depth [data-act=deselect]'); await wait();
-  { // an off section stays in its own row, dimmed, with the same pill; the pill turns it on again in place
+  await run('an off section stays in its own row, dimmed, with the same pill; the pill turns it on again in place', async () => {
     const c0 = await cur(), l0 = await label('#outline .srow[data-sid=skills] input[data-secon=skills]');
     const order = () => page.$$eval('#seclist > .osec', es => es.map(e => e.dataset.sid).join());
     const o0 = await order();
@@ -159,7 +161,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
     ok('an off section keeps its row in its place, dimmed, with the same pill now saying "Show … on this resume", and there is no "Not on this resume" row', (await order()) === o0 && dim.off && dim.name < 1 && SHOW.test(l1) && !(await pillOn('#outline .srow[data-sid=skills] input[data-secon=skills]')) && !(await page.$('#offline, .offchip')), JSON.stringify([dim, l1]));
     await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
     ok('section, on its row in the Outline: the pill says "Hide … from this resume", hides it, and turning it on again in place restores the recipe', HIDE.test(l0) && c1 !== c0 && (await cur()) === c0 && (await order()) === o0, l0);
-  }
+  });
 
   // an item of a list section in the Outline
   if (await page.$('#outline [data-act=ol-toggle][data-g="sec:skills"][aria-expanded=false]')) { await page.click('#outline [data-act=ol-toggle][data-g="sec:skills"]'); await wait(); }
@@ -213,7 +215,7 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
 }
 
 // ---- an Undo button on the toast of a delete (UX-6c-iv-b stage 2, fix 18) ----
-{
+await run('an Undo button on the toast of a delete (UX-6c-iv-b stage 2, fix 18)', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const nVersions = () => page.evaluate(() => window.__wb.store.state.record.variants.length);
@@ -231,11 +233,24 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await page.hover('#body .vrow:not(.cur)'); await page.click('#body [data-act=delete-version]'); await wait();
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.name = 'Another name'; }, 'check: rename')); await wait();
   ok('…and the button goes at the next change (it would undo the wrong thing)', !(await page.$('#toast [data-act=toast-undo]')));
+  // a claim, and an entry of the Record
+  const nFacts = () => page.evaluate(() => window.__wb.store.state.record.facts.length);
+  const f0 = await nFacts();
+  await page.click(`#body .depth [data-act=select-job]`); await wait();
+  await page.click(`#body .clrow[data-fact="${fact}"] .clt`); await wait();
+  await page.click('#body [data-act=delete-claim]'); await wait();
+  ok('a deleted claim\u2019s toast has an Undo button, and it brings the claim back', (await nFacts()) === f0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nFacts()) === f0));
+  const nEdu = () => page.evaluate(() => window.__wb.store.state.record.projects.length);
+  const e0 = await nEdu();
+  await page.click('#rail [data-act=sw-record]'); await wait();
+  await page.click('#checklist .clg[data-g=chassis-jig] .jobname'); await wait();
+  await page.evaluate(() => document.querySelector('#body [data-act=c-del-entry]').click()); await wait();      // (it is inside the job's Details fold)
+  ok('a deleted entry\u2019s toast has an Undo button, and it brings the entry back', (await nEdu()) === e0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nEdu()) === e0));
   await ctx.close();
-}
+});
 
 // ---- the tool beside the padlock: revert an edit, remove a line only here, remove a skill group (fixes 12, 13, 15) ----
-{
+await run('the tool beside the padlock: revert an edit, remove a line only here, remove a skill group (fixes 12, 13, 15)', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const cur = () => page.evaluate(() => JSON.stringify({ ...window.__wb.store.state.cur, savedAt: 0 }));
@@ -317,10 +332,10 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   const groups1 = await page.evaluate(async () => { const T = await import('/src/model/resume.js'); return T.arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.length; });
   ok('…which removes the group (as emptying it on the page does), and the toast\u2019s Undo brings it back', groups1 === groups0 - 1 && (await (async () => { await page.click('#toast [data-act=toast-undo]'); await wait(); return page.evaluate(async () => (await import('/src/model/resume.js')).arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.length); })()) === groups0);
   await ctx.close();
-}
+});
 
 // ---- skills: back to the record's groups, and delete a set (fix 14) ----
-{
+await run('skills: back to the record\'s groups, and delete a set (fix 14)', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const st = () => page.evaluate(() => JSON.stringify({ sets: window.__wb.store.state.record.skillSets ?? null, arr: window.__wb.store.state.cur.skillArrangement ?? null }));
@@ -345,10 +360,10 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await page.evaluate(async () => { const L = await import('/src/model/lock.js'); window.__wb.store.commit(d => { L.setLocked(d.cur, 'skills', true); }, 'check: lock'); }); await wait();
   ok('locked, the menu and both set buttons are disabled with the reason', await page.$eval('#sk-set', s => s.disabled && !!s.title) && await page.$eval('[data-act=sk-save]', b => b.disabled && !!b.title) && await page.$eval('[data-act=sk-del]', b => b.disabled && !!b.title));
   await ctx.close();
-}
+});
 
 // ---- skills: + group, and the chip\u2019s tool takes it away again (fix 15) ----
-{
+await run('skills: + group, and the chip\u2019s tool takes it away again (fix 15)', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const groups = () => page.evaluate(async () => { const T = await import('/src/model/resume.js'); return T.arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.map(g => g.id).join(); });
@@ -363,10 +378,10 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await page.click('#editlay .dp-fix'); await wait();
   ok('…which takes it away again', (await groups()) === g0);
   await ctx.close();
-}
+});
 
-// ---- Delete beside Duplicate in the name window; delete a sent copy (fixes 16, 17) ----
-{
+// ---- Delete beside Duplicate in the name window (fix 16) ----
+await run('Delete beside Duplicate in the name window (fix 16)', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const state = () => page.evaluate(() => { const s = window.__wb.store.state; return { n: s.resumes.length, open: s.openId, snaps: (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).length }; });
@@ -382,6 +397,14 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await page.click('#toast [data-act=toast-undo]'); await wait();
   ok('…Undo brings the resume back, open as it was', JSON.stringify(await state()) === JSON.stringify(s1));
 
+  await ctx.close();
+});
+
+// ---- delete a sent copy from its own view (fix 17) ----
+await run('delete a sent copy from its own view (fix 17)', async () => {
+  const { ctx, page } = await open(1470, 832);
+  const wait = () => page.waitForTimeout(700);
+  const state = () => page.evaluate(() => { const s = window.__wb.store.state; return { n: s.resumes.length, open: s.openId, snaps: (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).length }; });
   // a sent copy: Mark as sent, then delete it from its own view, and Undo
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Acme', role: 'Engineer', date: '2026-01-02' }); }, 'check: mark as sent'); }); await wait();
   ok('(a sent copy exists)', (await state()).snaps === 1);
@@ -395,11 +418,22 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   ok('deleting it takes the sent copy away, closes its view, and the toast has Undo', (await state()).snaps === 0 && !(await page.$('.snapbar')) && !!(await page.$('#toast.on [data-act=toast-undo]')));
   await page.click('#toast [data-act=toast-undo]'); await wait();
   ok('…Undo brings the sent copy back', (await state()).snaps === 1);
+  // Restore as current has the Undo button too
+  await page.evaluate(() => window.__wb.store.commit(d => { d.cur.pageLimit = 3; }, 'check: page limit')); await wait();
+  await page.click('#docname-btn'); await wait();
+  await page.click('#switcher [data-act=sw-manage]'); await wait();
+  await page.click('#switcher [data-act=sw-view][data-v=date]'); await wait();
+  await page.click('#switcher .tlsend'); await wait();
+  await page.click('[data-act=snap-restore]'); await wait();
+  const lim = () => page.evaluate(() => window.__wb.store.state.cur.pageLimit ?? 1);
+  ok('Restore as current prints as the sent copy did, with the Undo button on the toast', (await lim()) !== 3 && !!(await page.$('#toast.on [data-act=toast-undo]')));
+  await page.click('#toast [data-act=toast-undo]'); await wait();
+  ok('…and Undo puts the resume back as it was', (await lim()) === 3);
   await ctx.close();
-}
+});
 
 // ---- remove a language from the record when nothing uses it (fix 19) ----
-{
+await run('remove a language from the record when nothing uses it (fix 19)', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const langs = () => page.evaluate(async () => { const L = await import('/src/model/lang.js'); return L.langsInUse(window.__wb.store.state.record).join(); });
@@ -429,7 +463,45 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   const refused = await page.evaluate(async () => { const L = await import('/src/model/lang.js'), s = structuredClone(window.__wb.store.state); try { L.removeLang(s, s.cur.lang ?? 'en'); return 'removed'; } catch (e) { return String(e.key ?? e.message); } });
   ok('the model refuses a language that is in use (here the resume\u2019s own), with the reason', refused !== 'removed', refused);
   await ctx.close();
-}
+});
+
+// ---- on a phone: the depth row carries the tools, the name window and the language menu the deletes ----
+await run('on a phone: the depth row carries the tools, the name window and the language menu the deletes', async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  const page = await ctx.newPage();
+  page.setDefaultTimeout(8000);
+  await page.goto(`http://localhost:${PORT}/?memory`, { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  await page.waitForTimeout(600);
+  const wait = () => page.waitForTimeout(700);
+  ok('(this is a phone)', (await page.evaluate(() => document.body.dataset.phone)) === 'true');
+  // a line with an edit: the revert tool is on the depth row of the editor card
+  await page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => { T.setOverride(d.record, d.cur, 'hydra-inhaler', 'Redesigned the dose counter.'); }, 'check: edit'); });
+  const fr = page.frameLocator('#sheet iframe');
+  await fr.locator('.entry .bullets li').first().tap(); await wait();
+  ok('(the first line of the first job is selected)', (await page.evaluate(() => window.__wb.ui.sel.id)) === 'hydra-inhaler');
+  const fix = await page.$('#body .depth .dp-fix');
+  const box = await fix?.boundingBox();
+  ok('on a phone the depth row has the revert tool, a 24 px target', !!box && box.width >= 24 && box.height >= 24 && /back to the saved words/.test(await fix.getAttribute('aria-label')));
+  await fix?.click(); await wait();
+  ok('…and it puts the line back', !(await page.evaluate(() => window.__wb.store.state.cur.overrides?.['hydra-inhaler'])));
+  // Skills: no "+ group" on a phone (a group is written on the page)
+  await fr.locator('.band[data-section=skills] .skills__label').first().tap(); await wait();
+  ok('the Skills view has no "+ group" on a phone (groups are written on the page, which a phone does not write in)', await page.$eval('[data-act=sk-addgroup]', b => getComputedStyle(b).display === 'none'));
+  // the name window: Delete beside Duplicate
+  await page.click('#docname-btn'); await wait();
+  ok('the phone\u2019s name window has Delete beside Duplicate', (await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act))).slice(0, 2).join() === 'rm-dup,rm-delete');
+  await page.keyboard.press('Escape'); await wait();
+  // the language menu: Remove a language, a language in use held
+  await page.evaluate(() => document.querySelector('#switcher [data-act=sw-close], #docname-btn')?.click()); await wait();
+  await page.evaluate(() => document.querySelector('#langbtn').click()); await wait();
+  const held = await page.$$eval('.langpop [data-act=lang-remove]', bs => bs.map(b => [b.dataset.lang, b.getAttribute('aria-disabled')]));
+  ok('the phone\u2019s language menu lists the languages under "Remove a language", the ones in use held', held.length > 0 && held.every(h => h[1] === 'true') && !!(await page.$('.langpop .pop__sub:last-of-type')), JSON.stringify(held));
+  await page.evaluate(() => document.querySelector('.langpop [data-act=lang-remove]').click()); await wait();
+  ok('…pressing one that is held says why and changes nothing', /stays: /.test(await page.textContent('#toast')));
+  await ctx.close();
+});
 
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} symmetry check(s) FAILED` : '\nall symmetry checks passed');
