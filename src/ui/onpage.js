@@ -119,7 +119,7 @@ export function initOnPage(C){
     html.push(`<div class="obchip">${chipHtml}</div>`);
     lay.innerHTML = html.join('');
     place();
-    if (keep) lay.querySelector(`[data-act="${keep}"]`)?.focus({ preventScroll: true });
+    if (keep){ quiet = true; lay.querySelector(`[data-act="${keep}"]`)?.focus({ preventScroll: true }); quiet = false; }      // the focus put back after a redraw does not open the list
   }
 
   function lineEnds(fact){
@@ -305,7 +305,7 @@ export function initOnPage(C){
     on('compositionend', () => { S.composing = false; onInput(); });
     if (!supportsPlain) on('paste', e => { e.preventDefault(); el.ownerDocument.execCommand('insertText', false, e.clipboardData.getData('text/plain')); });
     S.off = () => offs.forEach(f => f());
-    el.focus({ preventScroll: true });
+    if (!document.activeElement?.closest?.('#editlay')) el.focus({ preventScroll: true });      // a redraw while the version tag has the focus does not take it back
     const doc = el.ownerDocument, hit = point && caretAt(doc, point);
     if (caret) setCaret(el, caret);
     else if (onSkills){ const sel = doc.defaultView.getSelection(), r = doc.createRange(); r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
@@ -347,6 +347,7 @@ export function initOnPage(C){
     if (e.isComposing || e.keyCode === 229) return;
     const mod = e.ctrlKey || e.metaKey;
     const done = () => { e.preventDefault(); e.stopPropagation(); };
+    if (e.altKey && e.key === 'ArrowDown' && tag() && !tag().disabled){ done(); openVers('key'); return; }      // the way from the line to its versions
     if (e.key === 'Escape'){ done(); edit().cancelEdit(); return; }
     if (e.key === 'Enter' && !e.shiftKey && !e.altKey){ done(); if (!addAfter() && !next(1)) edit().cancelEdit(); return; }
     if (e.key === 'Tab' && !mod && !e.altKey){ done(); next(e.shiftKey ? -1 : 1); return; }
@@ -454,7 +455,7 @@ export function initOnPage(C){
   // ---- the tools ----
   async function act(a){
     switch (a){
-      case 'ob-vers': if (opened === 'hover' || opened === 'focus') opened = 'click'; else if (list()?.hidden === false) closeVers({ back: true }); else openVers('click'); return true;
+      case 'ob-vers': if (list()?.hidden === false && opened !== 'hover' && opened !== 'focus') closeVers({ back: true }); else openVers('click'); return true;
       case 'ob-up': case 'ob-down': { const e = lineEnds(edit().editing?.fact); if (!(a === 'ob-up' ? e.first : e.last)) edit().stepLine(a === 'ob-up' ? -1 : 1); return true; }
     }
     return false;

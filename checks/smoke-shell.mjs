@@ -4862,6 +4862,37 @@ if (want('ux6g: the version tag beside a line is a control')) for (const motion 
   ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
+if (want('ux6g fix: the version tag keeps the focus on a line with typed text')) {
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+  const fact = await page.evaluate(() => window.__wb.ui.sel.id);
+  await appendLine(page, ' ZZ');
+  const T = page.locator('#editlay .obv[aria-haspopup=listbox]'), L = page.locator('#editlay .obvlist');
+  const onTag = () => page.evaluate(() => document.activeElement?.classList.contains('obv'));
+  const inList = () => L.evaluate(e => document.activeElement === e);
+  const sel0 = await page.evaluate(() => window.__wb.ui.sel.id);
+  await T.focus(); await page.waitForTimeout(400); await settle(page);      // the redraw that used to take the focus back comes a moment after
+  ok('a number focused on a line with typed text keeps the focus (a redraw does not take it back)', await onTag() && await L.isVisible());
+  await page.keyboard.press('Enter'); await settle(page);
+  ok('…Enter opens the list with the focus in it, and the caret did not go to another line', await inList() && (await page.evaluate(() => window.__wb.ui.sel.id)) === sel0);
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('…Esc closes it and the focus is back on the number, the line still written', !(await L.isVisible()) && await onTag() && (await page.evaluate(() => window.__wb.ui.writing)), JSON.stringify([await L.isVisible(), await onTag(), await page.evaluate(() => window.__wb.ui.writing)]));
+  await T.click(); await settle(page);
+  ok('a click on the number opens the list with the focus in it', await L.isVisible() && await inList());
+  await page.keyboard.press('ArrowDown'); await settle(page);
+  ok('…the arrow keys then move through the list', !!(await L.getAttribute('aria-activedescendant')));
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('…Esc leaves the line being written, the focus on the number (a pointer resting there shows the list again)', (await page.evaluate(() => window.__wb.ui.writing)) && await onTag());
+  await page.evaluate(() => window.__wb.onpage.el().focus());
+  await page.mouse.move(4, 4); await page.keyboard.press('Alt+ArrowDown'); await settle(page);
+  ok('Alt+Down in the line opens its versions with the focus in the list', await L.isVisible() && await inList());
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('…Esc closes the list and the page goes back, the line still being written', !(await L.isVisible()) && (await page.evaluate(() => window.__wb.ui.writing)));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
 if (want('ux6g: the version tag, by touch')) {
   const ctx = await newContext({ hasTouch: true, viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
