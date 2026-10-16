@@ -1283,4 +1283,5 @@ export default {
   'ux6c.undoDeleteSet': 'Delete a skill set',
   'ux6c.setDeleted': 'Deleted the set for {name}. Ctrl+Z brings it back.',
   'ux6c.setCleared': 'The skills are the record’s groups again.',
+  'ux6c.addGroup': '+ group',
 };

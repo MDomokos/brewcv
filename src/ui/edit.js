@@ -255,7 +255,7 @@ function fixTool(sel, id, name, held){
   const revert = { act: 'chip-revert', icon: 'replay', name: t('ux6c.revertX', { name }), disabled: held };
   if (isLabelKey(key)) return (key.startsWith('~h:') ? T.labelOf(rec(), cur(), key.slice(3), lang()) != null : T.termOf(cur(), key.slice(3)) != null) ? revert : null;
   if (sel.kind !== 'bullet' && !(sel.kind === 'record' && group)) return null;
-  if (group) return { act: 'chip-remove', icon: 'trash', name: t('ux6c.removeX', { name: t('ux6c.theGroup', { name: clip(lineName(id), 30) }) }), disabled: held };
+  if (group) return { act: 'chip-remove', icon: 'trash', name: t('ux6c.removeX', { name: t('ux6c.theGroup', { name: clip(lineName(id) === id ? t('ux6c.newGroup') : lineName(id), 30) }) }), disabled: held };
   if (T.isLocal(cur(), id)) return { act: 'chip-remove', icon: 'trash', name: t('ux6c.removeX', { name }), disabled: held };
   return overrideOf(id) !== undefined ? revert : null;
 }
@@ -303,6 +303,7 @@ function skillsHtml(){
     ${sets.length ? '' : `<p class="muted small">${h('ux6c.noSets')}</p>`}
     ${arr.groups.map(g => { const name = g.label ?? T.groupLabel(m, cur(), g.id) ?? ''; return `<div class="skgroup" data-g="${esc(g.id)}"><div class="skghead"><b>${esc(name || t('ux6c.newGroup'))}</b></div>
       <div class="skchips">${g.items.map((x, k) => `<button class="skchip" draggable="true" data-g="${esc(g.id)}" data-k="${k}" title="${esc(t('ux6c.skillTip', { name: x }))}">${esc(x)}</button>`).join('')}</div></div>`; }).join('')}
+    <button class="sm ghost addline" data-act="sk-addgroup">${h('ux6c.addGroup')}</button>
     <div class="skfoot"><label class="field"><span class="lbl inline">${h('ux6c.saveFor')}</span><select id="sk-tag">${all.map(x => `<option value="${esc(x.tag)}" ${x.tag === tag ? 'selected' : ''} ${saved(x.tag) ? 'data-set="1"' : ''}>${esc(x.label)}</option>`).join('')}</select></label>
       <button class="sm" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button>
       <button class="sm" data-act="sk-del" ${saved(tag) ? '' : 'disabled'}>${h('ux6c.deleteSet')}</button></div>
@@ -743,6 +744,7 @@ async function act(a, tg){
       commit(d => { const arr = T.arrangementOf(d.record, d.cur); T.saveSetForTag(d.record, name, arr, d.cur.lang ?? DEFAULT_LANG); T.setArrangement(d.cur, { ...arr, from: name }); }, t('ux6c.undoSaveSet'), t('ux6c.setSaved', { name: jobTypeLabel(rec(), name) }));
       return true;
     }
+    case 'sk-addgroup': addGroup(T.arrangementOf(rec(), cur()).groups.at(-1)?.id ?? null); return true;      // at the end, written at once on the page
     case 'sk-del': {
       const name = $('#sk-tag')?.value, L = T.arrangementOf(rec(), cur()).lang ?? cur().lang ?? DEFAULT_LANG;
       if (name) commit(d => { T.deleteSkillSet(d.record, name, L); }, t('ux6c.undoDeleteSet'), t('ux6c.setDeleted', { name: jobTypeLabel(rec(), name) }), true);

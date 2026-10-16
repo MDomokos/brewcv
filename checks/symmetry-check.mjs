@@ -347,6 +347,24 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await ctx.close();
 }
 
+// ---- skills: + group, and the chip\u2019s tool takes it away again (fix 15) ----
+{
+  const { ctx, page } = await open(1470, 832);
+  const wait = () => page.waitForTimeout(700);
+  const groups = () => page.evaluate(async () => { const T = await import('/src/model/resume.js'); return T.arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.map(g => g.id).join(); });
+  await page.click('#outline [data-act=select-section][data-id=skills]'); await wait();
+  const g0 = await groups();
+  ok('the Skills view has a "+ group" button under the groups', (await page.$$eval('#body .skarr [data-act=sk-addgroup]', bs => bs.map(b => b.textContent.trim()))).join() === '+ group');
+  await page.click('#body [data-act=sk-addgroup]'); await wait();
+  const g1 = await groups();
+  ok('"+ group" adds a group at the end, selected and written at once on the page', g1.split(',').length === g0.split(',').length + 1 && g1.endsWith('~sg-1') && (await page.evaluate(() => window.__wb.ui.sel.id)) === '~sg-1');
+  await page.mouse.move(4, 4); await page.waitForTimeout(500);
+  ok('…and the chip offers its inverse, "Remove the skill group … from this resume"', /^Remove the skill group .+ from this resume$/.test(await page.$eval('#editlay .dp-fix', b => b.getAttribute('aria-label')).catch(() => '')));
+  await page.click('#editlay .dp-fix'); await wait();
+  ok('…which takes it away again', (await groups()) === g0);
+  await ctx.close();
+}
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} symmetry check(s) FAILED` : '\nall symmetry checks passed');
 process.exit(failed ? 1 : 0);
