@@ -16,8 +16,9 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const VIEW_KEY = 'rb-manage-view', VIEWS = ['type', 'date', 'company'];
 const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : 'type'; } catch { return 'type'; } };
 // ticked: resumes ("id") and sent copies ("id|snapshot"); cmp: what the compare screen shows, and the parent when it is "What differs";
-// sel: the selected card (null: the open resume's)
-const V = { q: '', view: savedView(), ticked: new Set(), cmp: [], parent: null, sel: null, sentOnly: false };
+// sel: the selected card (null: the open resume's); nj: the resume whose "Use for a new job" form is open; draft: what was typed in
+// that form, per resume, kept until the copy is made
+const V = { q: '', view: savedView(), ticked: new Set(), cmp: [], parent: null, sel: null, nj: null, draft: new Map(), sentOnly: false };
 const phone = () => document.body.dataset.phone === 'true';
 const selId = () => (V.sel && RS.savedOf(st(), V.sel) ? V.sel : st().openId);
 
@@ -96,7 +97,12 @@ function resumesView(){
       <span class="scrticks" id="scr-ticks" role="status">${ticksHtml()}</span></div>
     <div id="scr-list">${listHtml()}</div></section>`;
 }
-function afterResumes(){ T.fill(document.getElementById('scr-list'), recipeOf); }
+function afterResumes(){
+  // coming back: the new-job form is closed (what was typed is kept), and a selection made before another resume was opened is dropped
+  if (V.seen !== st().openId){ V.sel = null; V.nj = null; V.seen = st().openId; }
+  T.fill(document.getElementById('scr-list'), recipeOf);
+  paintInspector();
+}
 // a tick changes the toolbar and the card, not the pictures
 function refreshTicks(){
   document.getElementById('scr-ticks').innerHTML = ticksHtml();
@@ -109,10 +115,56 @@ function paintSel(){
     c.classList.toggle('sel', on); b?.setAttribute('aria-pressed', String(on));
   }
 }
-// Esc in the Library: the selection goes back to the open resume; then the ticks are cleared
+// Esc in the Library: the new-job form closes (what was typed is kept); then the selection goes back to the open resume; then the ticks are cleared
 function clearSel(){
-  if (V.sel && V.sel !== st().openId){ V.sel = null; paintSel(); return; }
+  if (V.nj){ V.nj = null; paintInspector(); return; }
+  if (V.sel && V.sel !== st().openId){ V.sel = null; paintInspector(); return; }
   if (V.ticked.size){ V.ticked.clear(); document.querySelectorAll('#scr-list .rtick').forEach(x => { x.checked = false; }); refreshTicks(); }
+}
+
+// ---- the inspector: the selected resume, or the open one, in the editor panel's place ----
+function resumeInspector(){
+  const r = RS.savedOf(st(), selId()); if (!r) return `<p class="muted">${h('ux1.noneYet')}</p>`;
+  const open = r.id === st().openId, p = RS.parentOf(st(), r), snaps = RS.snapshotsOf(r);
+  const guess = !p && RS.closestTo(st(), r, x => RS.printedIds(C.work(), x))?.r;
+  const from = p || guess;
+  const diffs = from ? RS.differences(C.work(), itemOf(from.id).recipe, itemOf(r.id).recipe) : [];
+  const pend = pendingEdits(r).length;
+  const sent = snaps.slice().reverse().map(s => `<li>${tick(`${r.id}|${s.id}`, t('ux6e.tickSent', { name: label(r), date: sentDate(s) }))}<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${esc(t('ux6e.sent', { to: RS.sendLabel(s.sends[0]) || t('ux1.noRecipient'), date: sentDate(s) }))}${s.sends.length > 1 ? ` +${s.sends.length - 1}` : ''}</button></li>`).join('');
+  const d = V.draft.get(r.id) ?? {};
+  const nj = V.nj === r.id ? `<div class="njform" role="group" aria-label="${esc(t('ux6h.newJob'))}">
+      <label>${h('ux6h.company')}<input id="nj-company" autocomplete="off" value="${esc(d.company ?? '')}"></label>
+      <label>${h('ux6h.role')}<input id="nj-role" autocomplete="off" value="${esc(d.role ?? r.role ?? '')}"></label>
+      <p class="small muted">${h('ux6h.njNote', { name: label(r) })}</p>
+      <div class="btns"><button class="primary" data-act="nj-create" data-id="${esc(r.id)}">${h('ux6h.njCreate')}</button><button data-act="nj-cancel">${h('ux6h.cancel')}</button></div></div>` : '';
+  const g = RS.glance(C.work(), itemOf(r.id).recipe);
+  const more = (list, n) => (list.length > n ? `<details class="imore"><summary>${h('ux6h.more', { n: list.length - n })}</summary><ul>${list.slice(n).map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '');
+  return `<section class="insp insp-res" aria-label="${esc(label(r))}">
+    <div class="ihero">
+      <button class="ihpage" tabindex="-1" ${open ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(r.id)}"`} aria-label="${esc(t('ux6e.open', { name: label(r) }))}">${thumb(r.id, r.format)}</button>
+    </div>
+    <div class="ihcap"><span class="lbl">${h(open ? 'ux6h.openNow' : 'ux6h.selected')}</span><h3 class="oi-name">${esc(label(r))}</h3><p class="small">${esc(metaOf(r))}${pend ? ` · ${h('ux6e.pending', { n: pend })}` : ''}</p></div>
+    ${nj || `<div class="btns iacts"><button class="primary" data-act="nj-open" data-id="${esc(r.id)}">${h('ux6h.newJob')}</button>${open ? `<button data-act="place" data-p="editor">${h('ux6h.keepEditing')}</button>` : `<button data-act="sw-open" data-id="${esc(r.id)}">${h('ux6e.openBtn')}</button>`}<span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span></div>`}
+    <span class="lbl">${h('ux6h.glance')}</span>
+    <dl class="glance">
+      ${g.pitch ? `<dt>${h('ux6h.pitch')}</dt><dd class="gpitch">${esc(g.pitch)}</dd>` : ''}
+      ${g.jobs.length ? `<dt>${h('ux6h.jobs')}</dt><dd><ol class="gjobs">${g.jobs.map(j => `<li><span>${esc(j.name)}</span><small>${h('ux6h.lines', { n: j.n })}</small></li>`).join('')}</ol></dd>` : ''}
+      ${g.skills ? `<dt>${h('ux6h.skills')}</dt><dd>${esc(g.skills)}</dd>` : ''}
+    </dl>
+    ${from ? `<span class="lbl">${h('ux6h.comesFrom')}</span><p class="small">${esc(p ? t('ux6e.under', { name: label(p) }) : t('ux6e.closest', { name: label(guess) }))}</p>` : ''}
+    ${from ? `<span class="lbl">${h('ux6h.whatDiffers')}</span>${diffs.length ? `<ul class="oi-diff">${diffs.slice(0, 3).map(x => `<li>${esc(x)}</li>`).join('')}</ul>${more(diffs, 3)}` : `<p class="small muted">${h('ux6e.nothing')}</p>`}<button class="sm" data-act="scr-differs" data-id="${esc(r.id)}">${h('ux6h.compareParent')}</button>` : ''}
+    <span class="lbl">${h('ux6h.sent')}</span>${snaps.length ? `<ul class="oi-sent">${sent}</ul>` : `<p class="small muted">${h('ux6h.notSent')}</p>`}
+  </section>`;
+}
+// the inspector is drawn again when the selection or the form changes; the cards keep their pictures. A phone has none (its card has the actions).
+function paintInspector(){
+  paintSel();
+  const bd = document.getElementById('body');
+  if (phone() || !bd) return;
+  const ae = document.activeElement, kept = bd.contains(ae) && ae.id ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
+  bd.innerHTML = resumeInspector(); T.fill(bd, recipeOf);
+  const n = kept && document.getElementById(kept.id);
+  if (n){ n.focus({ preventScroll: true }); try { n.setSelectionRange(kept.a, kept.b); } catch { /* not a text box */ } }
 }
 
 // ---- compare ----
@@ -145,7 +197,15 @@ async function act(a, tg){
     case 'scr-sel': {
       const id = tg.dataset.id;
       if (selId() === id){ C.resumes.open(id); return true; }      // a second click, or Enter, on the selected card opens it
-      V.sel = id; paintSel(); return true;
+      V.sel = id; paintInspector(); return true;
+    }
+    case 'nj-open': V.nj = V.sel = tg.dataset.id; paintInspector(); document.getElementById('nj-company')?.focus(); return true;
+    case 'nj-cancel': V.nj = null; paintInspector(); return true;
+    case 'nj-create': {
+      const company = document.getElementById('nj-company')?.value.trim() ?? '', role = document.getElementById('nj-role')?.value.trim() ?? '';
+      if (!company){ document.getElementById('nj-company')?.focus(); return true; }
+      if (C.resumes.newJob(tg.dataset.id, company, role)){ V.draft.delete(tg.dataset.id); V.nj = null; }
+      return true;
     }
     case 'scr-clear': V.ticked.clear(); document.querySelectorAll('.rtick').forEach(x => { x.checked = false; }); refreshTicks(); return true;
     case 'scr-compare': if (V.ticked.size >= 2) compare([...V.ticked]); return true;
@@ -167,12 +227,15 @@ function bind(body){
     refreshTicks();
   });
   body.addEventListener('input', e => {
+    if (e.target.id === 'nj-company' || e.target.id === 'nj-role'){ V.draft.set(V.nj, { ...V.draft.get(V.nj), [e.target.id === 'nj-company' ? 'company' : 'role']: e.target.value }); return; }
     if (e.target.id !== 'scr-q') return;
     V.q = e.target.value;
     document.getElementById('scr-list').innerHTML = listHtml(); afterResumes();
   });
   body.addEventListener('dblclick', e => { const c = e.target.closest?.('.rcard'); if (c && !e.target.closest('input')) C.resumes.open(c.dataset.rid); });
   body.addEventListener('keydown', e => {
+    if (e.target.closest?.('.njform') && e.key === 'Enter'){ e.preventDefault(); document.querySelector('[data-act=nj-create]')?.click(); return; }
+    if (e.target.closest?.('.njform') && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); clearSel(); return; }
     if (e.target.id === 'scr-q' && e.key === 'Escape' && V.q){ e.preventDefault(); e.stopPropagation(); V.q = ''; e.target.value = ''; e.target.dispatchEvent(new Event('input', { bubbles: true })); }
     else if (e.target.id === 'scr-q' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); C.leave(); }
   });

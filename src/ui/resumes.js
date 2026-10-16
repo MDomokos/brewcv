@@ -223,6 +223,16 @@ async function sendNow(){
 
 function rerender(){ C.renderHead(); C.renderBody(); C.renderSwitcher(); }
 
+// "Use for a new job": a copy under its parent, named for the company and the role, open in the editor. False when it was not made.
+function newJob(id, company, role){
+  if (!C.leaveOk()) return false;
+  let res;
+  V.row = null; C.ui.sel = C.NONE; C.setSnap(null);
+  if (!commit(d => { res = RS.duplicate(d, id, { name: RS.nameFrom({ company, role }), company, role }); }, t('ux1.undoDup'))){ rerender(); return false; }
+  C.noteOpen(res.id); C.setView(null); C.toast(t('ux6h.created', { name: RS.resumeLabel(st().cur) }));
+  return true;
+}
+
 async function act(a, tg){
   const who = tg?.dataset?.for;
   if (who === 'new'){
@@ -404,7 +414,7 @@ export function previewSaved(id){
 }
 
 const api = {
-  views: VIEWS, act, bind, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone,
+  views: VIEWS, act, bind, newJob, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone,
   reset(){ V.hover = null; V.menu = null; V.row = null; V.renaming = null; V.nv = null; },
   closeMenus(){
     if (V.row){ V.row = null; rerender(); return true; }

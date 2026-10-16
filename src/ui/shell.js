@@ -803,11 +803,11 @@ function renderBody(animate = false){
   syncIntro();
   let el = $('#body');
   if (!record() || !cur()){ el.innerHTML = `<p class="muted">${h('body.loading')}</p>`; return; }
-  // the Library and Career are drawn in #scr, left of the sidebar (the sidebar's body is the inspector's place); a phone draws them in the body
+  // the Library and Career are drawn in #scr, left of the sidebar, and their inspector (the selected resume or entry) in the sidebar's body; a phone draws them in the body
   const there = SCREENS.includes(ui.view) && !ui.layout?.phone, scr = $('#scr');
   document.body.classList.toggle('has-scr', there);
   scr.hidden = !there;
-  if (there){ $('#body').innerHTML = ''; $('#body').dataset.view = $('#body').dataset.mode = 'place'; el = scr; layoutScreen(); }
+  if (there){ $('#body').innerHTML = ''; $('#body').dataset.view = $('#body').dataset.mode = 'inspector'; el = scr; layoutScreen(); }
   else if (scr.innerHTML) scr.innerHTML = '';
   const s = ui.sel;
   const keep = el.scrollTop;

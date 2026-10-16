@@ -521,5 +521,23 @@ section('compare any number, and what differs (UX-6e)');
   ok('printedIds names what a resume prints, for the closest-resume guess', RS.printedIds(m, a).includes('tagline') && RS.printedIds(m, a).length > 5);
 }
 
+section('Use for a new job, and a resume at a glance (UX-6h)');
+{
+  const st = exampleState(), src = st.resumes[0], before = Object.keys(src).sort();
+  const res = RS.duplicate(st, src.id, { name: RS.nameFrom({ company: 'Contoso Labs', role: 'Lead Engineer' }), company: 'Contoso Labs', role: 'Lead Engineer' });
+  const kid = RS.savedOf(st, res.id);
+  ok('a copy made for a job has the company and the role in the fields a resume already has, and opens under its parent', kid.company === 'Contoso Labs' && kid.role === 'Lead Engineer' && kid.parent === src.id && st.openId === kid.id && kid.name === 'Contoso Labs - Lead Engineer');
+  const st2 = exampleState(), plain = RS.savedOf(st2, RS.duplicate(st2, st2.resumes[0].id).id);
+  ok('a plain duplicate keeps the company and the role of its source, as before', plain.company === st2.resumes[0].company && plain.role === st2.resumes[0].role);
+  ok('…and the copy made for a job has the very keys a plain duplicate has: no new format', eq(Object.keys(kid).sort(), Object.keys(plain).sort()));
+  const m = model, a = RS.savedOf(exampleState(), names[0]);
+  const g = RS.glance(m, a);
+  ok('at a glance: the pitch is the summary\u2019s words', g.pitch === 'Mechanical engineer on single-use medical devices, from sketch to tooling release; EU patent holder.');
+  ok('…the jobs in the order they print, each with how many of its lines print', eq(g.jobs, [{ name: 'Hydra Medical', n: 4 }, { name: 'Polytechnic Prototyping Lab', n: 2 }, { name: 'Medisure Contract Manufacturing', n: 3 }]));
+  ok('…and the skill groups in order, as names', g.skills === 'CAD & 3D, Fabrication, Test & QA, Software');
+  const none = clone(a); none.sections = (none.sections ?? []).map(x => (x.id === 'experience' ? { ...x, work: [] } : x));
+  ok('a resume with no jobs lists none', RS.glance(m, none).jobs.length === 0);
+}
+
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');
 process.exit(failed ? 1 : 0);

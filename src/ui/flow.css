@@ -78,7 +78,6 @@ html[data-drink="coffee"] .ptabs .ptab:hover:not([aria-current]) { background: t
   --surface: var(--paper); --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --line: var(--paper-line); --line-strong: color-mix(in srgb, var(--paper-line) 70%, var(--paper-ink)); }
 .scr[hidden] { display: none; }
 body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: hidden; }
-body.has-scr .col > #body { display: none; }
 .scr .tbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; width: fit-content; max-width: 100%; box-sizing: border-box; margin: 12px auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper); box-shadow: var(--shadow-chip); }
 .scr .tbar .sw-q { width: 240px; }
 .scr .tbar .seg { background: color-mix(in srgb, var(--paper-ink) 7%, transparent); }
@@ -113,3 +112,40 @@ body.has-scr .col > #body { display: none; }
 .thumbwrap { position: relative; }
 .thumbwrap .rthumb { z-index: 1; }
 .thumbwrap:has(.rthumb[data-pages]:not([data-pages="1"]))::before { content: ""; position: absolute; inset: 0; z-index: 0; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--paper); box-shadow: var(--shadow-chip); transform: rotate(4deg); transform-origin: 0 100%; }
+
+/* ---- the inspector: in the editor panel's place, the same card on every place. The Library's is the selected resume: its first page across
+   the panel's full width, its name and details on a card of the panel's own surface over the page's foot (no fade) ---- */
+#body[data-view=inspector] { padding: 14px 16px; overflow-x: hidden; }
+.insp { display: grid; gap: 8px; align-content: start; }
+.insp .lbl { margin: 6px 0 0; }
+.insp .oi-name { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.insp .btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.insp ul { margin: 0; padding-left: 16px; font-size: 12.5px; }
+.insp .oi-sent { list-style: none; padding: 0; display: grid; gap: 4px; }
+.insp .oi-sent li { display: flex; gap: 6px; align-items: center; }
+.insp > button.sm { justify-self: start; }
+.njform { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--line-strong); border-radius: var(--r-m); }
+.njform label { display: grid; gap: 3px; font-size: 12px; }
+.njform input { width: 100%; box-sizing: border-box; }
+.njform p { margin: 0; }
+.insp-res .ihero { position: relative; margin: -14px -16px 0; overflow: hidden; max-height: min(60vh, 900px); border-radius: inherit; background: transparent; }
+.insp-res .ihpage { display: block; width: 100%; padding: 0; border: 0; background: var(--sheet); cursor: zoom-in; }
+.insp-res .ihpage .rthumb { display: block; width: 100%; }
+.insp-res .ihcap { position: relative; z-index: 1; display: grid; gap: 2px; margin: -52px -4px 0; padding: 10px 12px; border-radius: var(--r-m); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-chip); }
+.insp-res .ihcap .lbl { margin: 0; }
+.insp-res .ihcap .oi-name { font-size: 16px; line-height: 1.25; }
+.insp-res .ihcap p { margin: 0; color: var(--ink-soft); }
+.insp-res .iacts { flex-wrap: nowrap; margin-top: 2px; }
+.insp-res .iacts > button { flex: none; }
+.insp-res .iacts > button:first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insp-res .iacts .rcmore { margin-left: auto; flex: none; position: relative; }
+.insp-res .glance { display: block; margin: 0; font-size: 12.5px; }
+.insp-res .glance dt { margin: 8px 0 2px; font-size: 11px; color: var(--ink-soft); }
+.insp-res .glance dt:first-child { margin-top: 0; }
+.insp-res .glance dd { margin: 0; overflow-wrap: anywhere; }
+.insp-res .glance .gpitch { font-style: italic; }
+.insp-res .gjobs { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.insp-res .gjobs li { display: flex; justify-content: space-between; gap: 8px; }
+.insp-res .gjobs small { color: var(--ink-soft); white-space: nowrap; }
+.insp-res .imore summary { cursor: pointer; font-size: 12px; color: var(--ink-soft); }
+.insp-res .imore ul { margin-top: 4px; }
