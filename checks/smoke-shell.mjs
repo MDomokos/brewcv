@@ -4722,7 +4722,7 @@ if (want('the Review list: the newer wording is its second group')) {
     await page.click('#tab-export'); await settle(page);
     await page.click('#filestate'); await settle(page);
     const row = `${R} .rvrow[data-id="${shared.fact}"]`;
-    ok('the tiny edit names the resume that prints the version and says it is offered the change', /Update v/.test(await page.textContent(row)) && /print it|prints it/.test(await page.textContent(row)));
+    ok('the tiny edit names the resume that prints the version and says it is offered the change', /Update v/.test(await page.textContent(row)) && /other resumes? (is|are) offered the change as newer wording/.test(await page.textContent(row)));
     await page.click(`${row} [data-rv=update]`); await settle(page);
     ok('Update changes the version itself, and the row says Undo puts the old words back', (await st()).record.variants.find(v => v.id === shared.variant).text.includes('brandnew') && /now has these words/.test(await page.textContent(row)));
     ok('the other resume’s own text and every sent copy are unchanged', JSON.stringify((await st()).frozen[shared.other]) === otherBefore);
