@@ -204,8 +204,8 @@ function newerBanner(){
 
 const VIEWS = { compare: compareView, new: newView, sent: saveView, newer: reviewView, snapshot: snapshotView };
 
-function commit(fn, label, done){
-  try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done); return ok; }
+function commit(fn, label, done, undo = false){
+  try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done, '', undo); return ok; }
   catch (e){ C.toast(errText(e), 'bad'); return false; }
 }
 
@@ -294,7 +294,7 @@ async function act(a, tg){
       const r = RS.savedOf(st(), tg.dataset.id);
       V.row = null;
       if (st().openId === tg.dataset.id){ if (!C.leaveOk()) return true; C.ui.sel = C.NONE; C.setSnap(null); }
-      commit(d => RS.deleteSaved(d, tg.dataset.id), t('undo.delete', { name: RS.resumeLabel(r) }), t('toast.deletedX', { name: RS.resumeLabel(r) }));
+      commit(d => RS.deleteSaved(d, tg.dataset.id), t('undo.delete', { name: RS.resumeLabel(r) }), t('toast.deletedX', { name: RS.resumeLabel(r) }), true);
       rerender();
       return true;
     }

@@ -234,6 +234,7 @@ let notedId = null;
 function onChange({ kind, label }){
   shownKey = null;
   if (chipEl && store.history.undo !== chipAt) dropChip();      // the chip's Undo is for Fit's change only
+  if (toastAt !== -1 && store.history.undo !== toastAt) dropToastUndo();      // so is the toast's, for the change it speaks of
   if (store.state.openId && store.state.openId !== notedId){ notedId = store.state.openId; switcher.noteOpen(notedId); }     // the switcher's “recent”
   if (ui.snap && !snapNow()) setSnap(null);
   if (ui.sel.kind !== 'none' && !stillThere(ui.sel)){ ui.sel = NONE; dock.renderFoot(); }
@@ -863,6 +864,7 @@ async function onClick(e){
     case 'use-version': useVersion(tg.closest('.vlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
     case 'drink-switch': toggleDrink(); break;
     case 'chip-undo': store.undo(); dropChip(); break;
+    case 'toast-undo': if (store.history.undo === toastAt) store.undo(); else dropToastUndo(); break;
     case 'undo': stepHistory('undo'); break;
     case 'redo': stepHistory('redo'); break;
     case 'fit': runFit(); break;
@@ -1204,11 +1206,17 @@ function placeToast(el){
 // the live region, and a quiet reason beside the page chip's padlock (a toast when the chip is not on the page: a phone, a block off the page)
 const say = text => { const el = $('#announce'); if (el){ el.textContent = ''; setTimeout(() => { el.textContent = text; }, 30); } };
 const hint = text => { say(text); if (!hands.hint(text)) toast(text); };
-function toast(msg, tone = ''){
-  const t = $('#toast');
-  t.textContent = msg; t.className = `toast on ${tone}`;
-  placeToast(t);
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 3600);
+// `undo`: the action is one Ctrl+Z away, and the toast carries the button for it (the same undo, for as long as nothing else has changed)
+let toastAt = -1;
+const dropToastUndo = () => { toastAt = -1; $('#toast [data-act=toast-undo]')?.remove(); };
+function toast(msg, tone = '', undo = false){
+  const el = $('#toast');
+  el.replaceChildren(msg);
+  toastAt = -1;
+  if (undo){ const b = Object.assign(document.createElement('button'), { className: 'sm', textContent: t('foot.undo') }); b.dataset.act = 'toast-undo'; el.append(b); toastAt = store.history.undo; }
+  el.className = `toast on ${tone}`;
+  placeToast(el);
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), undo ? 7000 : 3600);
 }
 
 const edit = initEdit({

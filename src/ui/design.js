@@ -100,8 +100,8 @@ function designView(){
         <p class="note" data-tip="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" aria-description="${esc(t('design.photoNote') + ' ' + t('design.photoCrop'))}" tabindex="0">${h('ux6b.photoHint')}${r.photo?.show && !a4 ? ' ' + h('design.letterPhoto') : ''}</p></div></div>`;
 }
 
-function commit(fn, label, done){
-  try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done); return ok; }
+function commit(fn, label, done, undo = false){
+  try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done, '', undo); return ok; }
   catch (e){ C.toast(errText(e), 'bad'); return false; }
 }
 
@@ -170,7 +170,7 @@ async function act(a, tg){
     case 'd-tpl': { const tp = TEMPLATES.find(x => x.id === tg.dataset.t); commit(d => { d.cur.overlays = [...tp.overlays]; d.cur.theme = 'b2-marker'; }, t('undo.template', { name: tplName(tp) })); return true; }
     case 'd-accent': { const c = tg.dataset.c; commit(d => { if (c) d.cur.accent = c; else delete d.cur.accent; }, t('design.accent')); return true; }
     case 'd-look': { const id = tg.dataset.id; commit(d => { if (id) d.cur.look = id; else delete d.cur.look; }, t('design.theme')); return true; }
-    case 'd-drop': { const id = tg.dataset.id; commit(d => { d.record.themes = (d.record.themes ?? []).filter(x => x.id !== id); for (const x of [d.cur, ...(d.resumes ?? [])]) if (x.look === id) delete x.look; }, t('undo.removeTheme'), t('toast.themeRemoved')); return true; }
+    case 'd-drop': { const id = tg.dataset.id; commit(d => { d.record.themes = (d.record.themes ?? []).filter(x => x.id !== id); for (const x of [d.cur, ...(d.resumes ?? [])]) if (x.look === id) delete x.look; }, t('undo.removeTheme'), t('toast.themeRemoved'), true); return true; }
     case 'd-import': C.pickFile('theme'); return true;
     case 'd-export': {
       const file = { b2: 'b2-marker', tint: 'tint-tabs', aa: 'contrast-aa', mono: 'print-mono' }[templateOf(r)?.id ?? 'b2'];
@@ -185,7 +185,7 @@ async function act(a, tg){
     case 'd-photo': C.pickFile('photo'); return true;
     case 'd-photo-rm': {
       if (!await askPhotoLocked(C.store.state)) return true;
-      commit(d => { setRecordPhoto(d.record, null, d.cur); if (d.cur.photo) setResumePhoto(d.record, d.cur, { show: false }); }, t('undo.removePhoto'), t('toast.photoRemoved'));
+      commit(d => { setRecordPhoto(d.record, null, d.cur); if (d.cur.photo) setResumePhoto(d.record, d.cur, { show: false }); }, t('undo.removePhoto'), t('toast.photoRemoved'), true);
       return true;
     }
     case 'd-shape': { const s = tg.dataset.s; commit(d => setResumePhoto(d.record, d.cur, { shape: s, ...(d.cur.photo ? {} : { show: true }) }), t('design.shape')); return true; }

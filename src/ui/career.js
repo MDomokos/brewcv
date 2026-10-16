@@ -103,8 +103,8 @@ const goesIn = sid => {
   const title = s ? (L() !== DEFAULT_LANG ? rec().i18n?.[L()]?.sections?.[sid] : null) ?? s.title ?? sid : sid;
   return `<p class="goesin">${h('career.goesIn', { section: title })}</p>`;
 };
-function commit(fn, label, done){
-  try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done); return ok; }
+function commit(fn, label, done, undo = false){
+  try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done, '', undo); return ok; }
   catch (e){ C.toast(errText(e), 'bad'); return false; }
 }
 const recipes = d => [d.cur, ...(d.resumes ?? [])];
@@ -573,7 +573,7 @@ async function act(a, tg){
       return true;
     }
     case 'c-tag-del': { const tag = tg.dataset.tag; if (commit(d => K.deleteTag(d.record, tag, [d.cur, ...(d.resumes ?? [])]), t('ux2.undoTagDelete'), t('ux2.tagDeleted'))) C.renderBody(); return true; }
-    case 'c-jt-del': { const id = tg.dataset.id; if (commit(d => K.deleteJobType(d.record, id), t('jt.undoDelete'), t('jt.deleted'))) C.renderBody(); return true; }
+    case 'c-jt-del': { const id = tg.dataset.id; if (commit(d => K.deleteJobType(d.record, id), t('jt.undoDelete'), t('jt.deleted'), true)) C.renderBody(); return true; }
     case 'c-jt-tag-rm': { const id = tg.dataset.id, tag = tg.dataset.tag; if (commit(d => K.removeJobTypeTag(d.record, id, tag), t('jt.undoTags'))) C.renderBody(); return true; }
     case 'c-arch-jobs': W.jobs = !W.jobs; C.renderBody(); return true;
     case 'c-arch-entry': case 'c-unarch-entry': {
@@ -589,7 +589,7 @@ async function act(a, tg){
       let res;
       if (!await askIfLocked(C.store.state, (m, rs) => K.deleteEntry(m, id, rs))) return true;
       commit(d => { res = K.deleteEntry(d.record, id, recipes(d)); }, t('undo.deleteEntry'));
-      if (res){ C.toast(t('career.deletedEntry')); C.select({ kind: 'none' }); }
+      if (res){ C.toast(t('career.deletedEntry'), '', true); C.select({ kind: 'none' }); }
       return true;
     }
     case 'c-add-summary': {
@@ -609,7 +609,7 @@ async function act(a, tg){
       let res;
       if (!await askIfLocked(C.store.state, (m, rs) => K.deleteItem(m, g, id, rs))) return true;
       commit(d => { res = K.deleteItem(d.record, g, id, recipes(d)); }, t('undo.deleteItem'));
-      if (res){ C.toast(t('career.deletedItem')); C.select({ kind: 'none' }); }
+      if (res){ C.toast(t('career.deletedItem'), '', true); C.select({ kind: 'none' }); }
       return true;
     }
     case 'c-add': {
@@ -640,7 +640,7 @@ async function act(a, tg){
       let res;
       if (!await askIfLocked(C.store.state, (m, rs) => K.deleteKind(m, id, { moveTo: to, recipes: rs }))) return true;
       commit(d => { res = K.deleteKind(d.record, id, { moveTo: to, recipes: recipes(d) }); }, t('undo.deleteKind'));
-      if (res){ C.toast(to ? t('career.kindMoved', { n: res.moved }) : t('career.kindDeleted', { n: res.deleted })); W.kind = null; W.delKind = null; C.select({ kind: 'none' }); }
+      if (res){ C.toast(to ? t('career.kindMoved', { n: res.moved }) : t('career.kindDeleted', { n: res.deleted }), '', true); W.kind = null; W.delKind = null; C.select({ kind: 'none' }); }
       return true;
     }
   }

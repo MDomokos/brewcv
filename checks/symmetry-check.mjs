@@ -207,6 +207,28 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await ctx.close();
 }
 
+// ---- an Undo button on the toast of a delete (UX-6c-iv-b stage 2, fix 18) ----
+{
+  const { ctx, page } = await open(1470, 832);
+  const wait = () => page.waitForTimeout(700);
+  const nVersions = () => page.evaluate(() => window.__wb.store.state.record.variants.length);
+  const fact = await page.evaluate(() => { const m = window.__wb.store.state.record; return m.facts.find(f => f.variants.length > 1 && m.work.some(w => w.highlights.includes(f.id))).id; });
+  const job = await page.evaluate(f => window.__wb.store.state.record.work.find(w => w.highlights.includes(f)).id, fact);
+  await page.click('#outline [data-act=select-section][data-id=experience]'); await wait();
+  await page.click(`#body [data-act=select-job][data-id=${job}]`); await wait();
+  await page.click(`#body .clrow[data-fact="${fact}"] .clt`); await wait();
+  const n0 = await nVersions();
+  await page.hover('#body .vrow:not(.cur)'); await page.click('#body [data-act=delete-version]'); await wait();
+  const btn = await page.$('#toast.on [data-act=toast-undo]');
+  ok('a deleted version\u2019s toast has an Undo button', !!btn && (await nVersions()) === n0 - 1);
+  await btn?.click(); await wait();
+  ok('…which brings the version back, and the toast then says it was undone (no button)', (await nVersions()) === n0 && !(await page.$('#toast [data-act=toast-undo]')));
+  await page.hover('#body .vrow:not(.cur)'); await page.click('#body [data-act=delete-version]'); await wait();
+  await page.evaluate(() => window.__wb.store.commit(d => { d.cur.name = 'Another name'; }, 'check: rename')); await wait();
+  ok('…and the button goes at the next change (it would undo the wrong thing)', !(await page.$('#toast [data-act=toast-undo]')));
+  await ctx.close();
+}
+
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} symmetry check(s) FAILED` : '\nall symmetry checks passed');
 process.exit(failed ? 1 : 0);

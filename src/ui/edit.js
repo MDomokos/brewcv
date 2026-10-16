@@ -26,10 +26,10 @@ const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 // the editor and the panel's own view state; none of it is undone
 const E = { enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, focus: null, claimDrafts: new Map(), applyOpen: false };
 
-function commit(fn, label, done){
+function commit(fn, label, done, undo = false){
   try {
     const changed = C.store.commit(d => { fn(d); }, label);
-    if (changed && done) C.toast(done);
+    if (changed && done) C.toast(done, '', undo);
     return changed;
   } catch (e){
     C.toast(errText(e), 'bad');
@@ -50,7 +50,7 @@ function dropLine(fact){
   const job = ix().highlight.get(fact);
   if (C.ui.sel.kind === 'bullet' && C.ui.sel.id === fact && job) C.ui.sel = { kind: 'job', id: job };      // Esc goes up to the job, not to the page
   const had = !!cur().overrides?.[fact];      // a line you wrote and emptied is a delete: say so, and Ctrl+Z brings it back
-  commit(d => T.removeLocalLine(d.record, d.cur, fact), t('ux6c.undoRemoveLine'), had ? `${t('ux6c.lineRemoved')} ${t('toast.ctrlZUndoes')}` : undefined);
+  commit(d => T.removeLocalLine(d.record, d.cur, fact), t('ux6c.undoRemoveLine'), had ? `${t('ux6c.lineRemoved')} ${t('toast.ctrlZUndoes')}` : undefined, true);
 }
 // Leaving a line keeps what was typed on this resume, and nothing asks: one override with the highlights it keeps and the version it
 // was written from. The words of that version again drop the override.
@@ -78,7 +78,7 @@ function keepGroup(ed){
   const had = T.arrangementOf(rec(), cur()).groups.find(g => g.id === ed.fact)?.items.length;
   if (ed.draft === ed.base && had) return;
   C.ui.previewing = false;
-  commit(d => T.writeGroup(d.record, d.cur, ed.fact, ed.draft), t('ux6c.undoSkills'), had && !T.readGroup(ed.draft).items.length ? `${t('ux6c.groupRemoved')} ${t('toast.ctrlZUndoes')}` : undefined);
+  commit(d => T.writeGroup(d.record, d.cur, ed.fact, ed.draft), t('ux6c.undoSkills'), had && !T.readGroup(ed.draft).items.length ? `${t('ux6c.groupRemoved')} ${t('toast.ctrlZUndoes')}` : undefined, true);
 }
 // the highlights of the text the line started from, moved onto what was typed (a mark whose words are gone is dropped)
 const marksFor = (ed, text) => { const from = ed.mode === 'new' ? ed.copyOf : ed.base; return R.reanchor(ed.marks, from, text, m => m.expect ?? [...from].slice(m.start, m.end).join('')); };
@@ -621,7 +621,7 @@ async function act(a, tg){
       if (!v) return true;
       if (E.compare === v.id) E.compare = null;
       C.endHover();
-      commit(d => { R.deleteVersion(d.record, v.id, [d.cur, ...(d.resumes ?? [])], d.cur); }, t('edit.deleteV', { v: v.n }), t('toast.deletedV', { v: v.n }));
+      commit(d => { R.deleteVersion(d.record, v.id, [d.cur, ...(d.resumes ?? [])], d.cur); }, t('edit.deleteV', { v: v.n }), t('toast.deletedV', { v: v.n }), true);
       return true;
     }
     case 'keep': {
@@ -639,7 +639,7 @@ async function act(a, tg){
       if (!await askIfLocked(C.store.state, (m, rs) => K.deleteClaim(m, id, rs))) return true;
       commit(d => { res = K.deleteClaim(d.record, id, [d.cur, ...(d.resumes ?? [])]); }, t('undo.deleteClaim'));
       if (res){
-        C.toast(t('career.deletedClaim', { name, n: res.versions }));
+        C.toast(t('career.deletedClaim', { name, n: res.versions }), '', true);
         C.select(job ? { kind: 'job', id: job } : { kind: 'none' });
       }
       return true;
@@ -705,7 +705,7 @@ async function act(a, tg){
       C.ui.morph = { kind: 'apply' };       // joining lines slide in, leaving ones fold away
       commit(d => { p = applyTag(d.record, d.cur, F); }, t('undo.selectFor', { tag: jobTypeLabel(rec(), F) }));
       E.applyOpen = false;
-      if (p) C.toast(t('toast.selectedFor', { tag: jobTypeLabel(rec(), F), on: p.on, off: p.off, sw: p.sw }));
+      if (p) C.toast(t('toast.selectedFor', { tag: jobTypeLabel(rec(), F), on: p.on, off: p.off, sw: p.sw }), '', true);
       return true;
     }
     case 'tag-rm': {
