@@ -4,7 +4,6 @@
 
 import * as RS from '../model/resumes.js';
 import { jobTypesOf, jobTypeLabel, planTag } from '../model/focus.js';
-import { wordDiff } from '../model/record.js';
 import { t, h, errText, loadCatalogue } from '../i18n/index.js';
 import { langName, langsInUse, addLangInUse, a4FormatOf } from '../model/lang.js';
 import { newResume } from '../model/resume.js';
@@ -169,28 +168,13 @@ function snapshotView(){
     <p class="note">${h('ux1.snapNote')}</p>`;
 }
 
-// ---- newer wording ----
-
-function reviewView(){
-  const items = RS.newerOf(C.work(), st().cur);
-  if (!items.length) return `<h2 class="title">${h('newer.title')}</h2><p class="muted">${h('newer.none')}</p>`;
-  return `<h2 class="title">${h('newer.title')}</h2>
-    <p class="small">${h('newer.intro', { n: items.length })}</p>
-    ${items.map(x => `<div class="review" data-fact="${esc(x.fact)}">
-      <div class="small muted">${esc(C.work().facts.find(f => f.id === x.fact)?.summary ?? x.fact)}</div>
-      <div class="diff">${wordDiff(x.frozen, x.live).map(d => (d.op === '=' ? esc(d.text) : d.op === '-' ? `<del>${esc(d.text)}</del>` : `<ins>${esc(d.text)}</ins>`)).join('')}</div>
-      <div class="btns"><button class="sm primary" data-act="nw-accept" data-id="${esc(x.fact)}">${h('newer.accept')}</button><button class="sm" data-act="nw-keep" data-id="${esc(x.fact)}">${h('newer.keep')}</button></div>
-    </div>`).join('')}
-    <div class="btns"><button class="sm" data-act="nw-all">${h('newer.all')}</button></div>`;
-}
-
 // the banner on the home view
 function newerBanner(){
   const n = RS.newerOf(C.work(), st().cur).length;
-  return n ? `<div class="banner"><span>${h('newer.banner', { n })}</span><button class="sm" data-act="goto" data-v="newer">${h('newer.review')}</button></div>` : '';
+  return n ? `<div class="banner"><span>${h('ux6d.banner', { n })}</span><button class="sm" data-act="review-open">${h('newer.review')}</button></div>` : '';
 }
 
-const VIEWS = { new: newView, sent: saveView, newer: reviewView, snapshot: snapshotView };
+const VIEWS = { new: newView, sent: saveView, snapshot: snapshotView };
 
 function commit(fn, label, done, undo = false){
   try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done, '', undo); return ok; }
@@ -334,9 +318,6 @@ async function act(a, tg){
       C.setView(null);
       return true;
     }
-    case 'nw-accept': commit(d => RS.acceptNewer(d.cur, tg.dataset.id, d.record), t('undo.useNewer')); return true;
-    case 'nw-keep': commit(d => RS.keepOlder(d.cur, tg.dataset.id), t('undo.keepSaved')); return true;
-    case 'nw-all': commit(d => { for (const x of RS.newerOf(d.record, d.cur)) RS.acceptNewer(d.cur, x.fact, d.record); }, t('undo.useNewer'), t('toast.newerAll')); C.setView(null); return true;
     case 'mark-sent': markSent(); return true;
     case 'sent-back': V.send = null; C.setView('export'); return true;
   }

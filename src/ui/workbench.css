@@ -382,7 +382,6 @@ table.cmp thead th { font-size: 11.5px; color: var(--ink-soft); border-top: 0; }
 table.cmp tbody th { font-weight: 500; color: var(--ink-soft); max-width: 160px; }
 table.cmp tr.diff-row td { background: var(--warn-bg); font-weight: 700; }
 table.cmp tr.setting th { color: var(--ink); }
-.review { border: 1px solid var(--line); border-radius: var(--r-m); padding: 8px 10px; margin: 8px 0; background: var(--raised); }
 
 .tag.on { box-shadow: 0 0 0 2px var(--mark); color: var(--ink); }
 .tag .rm { border: 0; background: transparent; padding: 0 0 0 2px; font-size: 12px; line-height: 1; color: var(--ink-soft); cursor: pointer; }
