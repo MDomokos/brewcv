@@ -294,6 +294,18 @@ export function initHands(C){
     if (p && d.p0) moves.push({ els: S.els.get(d.fact), dx: p.x - d.p0.x, dy: p.y - d.p0.y, lift: true });
     sheet.nudge(moves);
   }
+  // …and the same where the pointer is over a row of the sidebar (`rows`: the block's siblings there, in order): the place is found among the rows
+  function rowTo(d, rows, e){
+    d.ok = false; d.to = null; d.at = null; showDrop(null); refuse(null, '');
+    const S = d.S ??= sibsOf(d), rs = rows.map(el => ({ id: rowId(el), r: el.getBoundingClientRect() })).filter(q => S.sibs.some(o => o.id === q.id));
+    if (!rs.length) return;
+    const b = box(rs.map(q => q.r));
+    if (e.clientX < b.left - 24 || e.clientX > b.right + 24 || e.clientY < b.top - 30 || e.clientY > b.bottom + 30){ refuse(null, t(S.say), { x: e.clientX, y: e.clientY }); return; }
+    const k = rs.filter(q => q.r.top + q.r.height / 2 < e.clientY).length, n = S.sibs.length, from = S.sibs.findIndex(q => q.id === d.fact);
+    const at = k < rs.length ? S.sibs.findIndex(q => q.id === rs[k].id) : n;
+    d.at = at; d.ok = at !== from && at !== from + 1; d.to = S.sibs[at]?.id ?? null;
+    if (d.ok){ const ref = S.sibs[Math.min(at, n - 1)].rect; showDrop({ left: ref.left, width: ref.width, top: at < n ? ref.top - 2 : ref.top + ref.height + 2, height: 0 }); }
+  }
   function endDrag(p){
     const d = drag;
     drag = null; showDrop(null); refuse({ x: 0, y: 0 }, ''); document.body.classList.remove('is-dragging'); sheet.doc?.documentElement.classList.remove('rb-dragging');
@@ -318,6 +330,41 @@ export function initHands(C){
   window.addEventListener('keydown', escDrag, true);
   // the reason a drop is refused is shown while dragging and said again, as a note, if it is let go there
   const dragMove = p => { drag.moved = true; dragTo(p); drag.refused = tip.hidden ? '' : tip.textContent; preview(drag, p); };
+
+  // ---- the sidebar's rows: grabbing a row drags its block (no handles), the page showing the same preview ----
+  const rowId = el => el.dataset.bullet ?? el.dataset.item ?? el.dataset.job ?? el.dataset.sid;
+  const ROW = '.clrow[data-bullet], .clrow[data-item], .clgh[data-job], .osec > .srow[data-sid]';
+  const NOT_ROW = 'input, label, select, textarea, .rowlock, .clv';      // its switch, padlock and version count act on their own
+  function rowOf(el){
+    const q = (sel, root = $('#body')) => [...root.querySelectorAll(sel)], ref = CSS.escape;
+    if (el.matches('.clrow[data-bullet]')) return { d: { kind: 'line', fact: el.dataset.bullet, job: el.dataset.bjob }, rows: q(`.clrow[data-bullet][data-bjob="${ref(el.dataset.bjob)}"]`) };
+    if (el.matches('.clrow[data-item]')) return { d: { kind: 'item', fact: el.dataset.item, sid: el.dataset.sec }, rows: q(`.clrow[data-item][data-sec="${ref(el.dataset.sec)}"]`) };
+    if (el.matches('.clgh[data-job]')) return { d: { kind: 'job', fact: el.dataset.job, sid: T.sectionOfEntry(rec(), el.dataset.job) }, rows: q('.clgh[data-job]', el.closest('.osec') ?? $('#body')) };
+    if (el.matches('.srow:not(.fixed):not(.is-off)')) return { d: { kind: 'section', fact: el.dataset.sid }, rows: q('.osec > .srow[data-sid]:not(.fixed):not(.is-off)') };
+    return null;
+  }
+  $('#body')?.addEventListener('pointerdown', e => {
+    spent = false;
+    const el = e.button === 0 && e.pointerType !== 'touch' && on() && !drag ? e.target.closest?.(ROW) : null;
+    if (!el || e.target.closest(NOT_ROW) || el.classList.contains('is-locked') || locked(rowId(el))) return;
+    const r = rowOf(el);
+    if (!r || r.rows.length < 2) return;
+    const x0 = e.clientX, y0 = e.clientY, ctl = new AbortController(), off = () => ctl.abort();
+    const opt = { signal: ctl.signal, capture: true };
+    document.addEventListener('pointermove', m => {
+      if (!drag){
+        if (Math.hypot(m.clientX - x0, m.clientY - y0) < MOVE) return;
+        C.edit().leaveLine();
+        drag = { ...r.d, ok: false, to: null, moved: true, rowEl: el }; document.body.classList.add('is-dragging');
+        sheet.doc?.addEventListener('keydown', escDrag, true);
+        place();
+      } else if (drag.rowEl !== el) return off();
+      rowTo(drag, r.rows, m); drag.refused = tip.hidden ? '' : tip.textContent; preview(drag, null);
+    }, opt);
+    document.addEventListener('pointerup', () => { off(); if (drag?.rowEl === el){ endDrag({}); spent = true; } }, opt);
+    document.addEventListener('pointercancel', () => { off(); if (drag?.rowEl === el) endDrag(null); }, opt);
+  });
+  $('#body')?.addEventListener('click', e => { if (spent){ spent = false; e.stopPropagation(); e.preventDefault(); } }, true);      // the click that ends a row's drag, or follows an Esc, is not a click
 
   // a grip: a press that moves is a drag; a press that does not is a click. `mk` says what it holds, `click` what a click does, `stepBy` what ↑ ↓ do.
   function wire(el, mk, click, stepBy){

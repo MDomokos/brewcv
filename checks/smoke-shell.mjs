@@ -5130,6 +5130,74 @@ if (want('ux6g b: a drag shows where the block will land')) for (const motion of
   await ctx.close();
 }
 
+if (want('ux6g b: grabbing a row of the sidebar drags its block')) {
+  const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await openByName(page, 'Medtech');
+  const rows = sel => page.$$eval(sel, es => es.map(e => { const r = (e.querySelector('.clt') ?? e.querySelector('.jobname') ?? e.querySelector('a.t') ?? e).getBoundingClientRect(); return { x: r.left + Math.min(40, r.width / 2), y: r.top + r.height / 2 }; }));
+  const sel0 = () => page.evaluate(() => JSON.stringify(window.__wb.ui.sel));
+  const toast = () => page.textContent('#toast');
+  await toJobOutline(page);
+  const R = await rows('#body .clrow[data-bullet]');
+  const t0 = await tops(page, '.entry:first-child .bullets li'), order0 = (await printed(page))[0], sig0 = await recordSig(page), u0 = await undoN(page), s0 = await sel0();
+  ok('the first job’s lines are rows that can be grabbed', R.length >= 4, String(R.length));
+  await page.mouse.move(R[0].x, R[0].y, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(R[2].x, R[2].y + 14, { steps: 8 }); await page.waitForTimeout(400);
+  const t1 = await tops(page, '.entry:first-child .bullets li');
+  ok('dragging a row lifts the block on the page and opens the gap: the lines it passes move up, it stands in its new place', (await lifted(page)) === 1 && t1[0] > t0[0] && t1[1] < t0[1] && t1[2] < t0[2] && Math.abs(t1[3] - t0[3]) < 3, JSON.stringify([t0, t1]));
+  ok('…the drop line shows, and nothing is written: the same record, no undo step', (await hands(page)).drop && (await recordSig(page)) === sig0 && (await undoN(page)) === u0);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+  ok('Esc cancels it: every line is back, nothing lifted', JSON.stringify(await tops(page, '.entry:first-child .bullets li')) === JSON.stringify(t0) && (await lifted(page)) === 0 && (await moved(page)) === 0);
+  await page.mouse.up(); await settle(page);
+  ok('…the release after it changes nothing: the same order, record, selection and no undo step', JSON.stringify((await printed(page))[0]) === JSON.stringify(order0) && (await recordSig(page)) === sig0 && (await undoN(page)) === u0 && (await sel0()) === s0);
+  await page.mouse.move(R[0].x, R[0].y, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(R[2].x, R[2].y + 14, { steps: 8 }); await page.waitForTimeout(200);
+  await page.mouse.up(); await settle(page); await page.waitForTimeout(300);
+  ok('dropped, the line moves as the page’s grip moves it: one undo step, the others keep their order, nothing left over, the row not opened', JSON.stringify((await printed(page))[0]) === JSON.stringify([order0[1], order0[2], order0[0], ...order0.slice(3)]) && (await undoN(page)) === u0 + 1 && (await moved(page)) === 0 && (await lifted(page)) === 0 && (await sel0()) === s0, JSON.stringify([order0, (await printed(page))[0], await undoN(page) - u0, await moved(page), await lifted(page), await sel0() === s0]));
+  ok('…and the rows show the new order', JSON.stringify(await page.$$eval('#body .clrow[data-bullet] .clt', e => e.map(x => x.textContent.slice(0, 18)))) === JSON.stringify((await printed(page))[0]));
+  await page.keyboard.press('Control+z'); await settle(page);
+  // outside the job's rows: refused with the reason, and nothing changes
+  const R2 = await rows('#body .clrow[data-bullet]'), u1 = await undoN(page);
+  await page.mouse.move(R2[0].x, R2[0].y, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(R2[0].x + 120, R2[0].y + 600 > 800 ? 790 : R2[0].y + 600, { steps: 8 }); await page.waitForTimeout(300);
+  const refused = await hands(page);
+  ok('a drag that leaves the job’s rows is refused, with the reason', /only within its job/.test(refused.tip) && !refused.drop, JSON.stringify(refused));
+  await page.mouse.up(); await settle(page);
+  ok('…let go there, nothing changes and the reason is said again', JSON.stringify((await printed(page))[0]) === JSON.stringify(order0) && (await undoN(page)) === u1 && /only within its job/.test(await toast()));
+  // a switch is a switch; a locked row does not drag
+  const sw0 = await page.$eval('#body .clrow[data-bullet] .sw, #body .clrow[data-bullet] .cb', e => { const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }).catch(() => null);
+  await page.click('#body .clrow[data-bullet][data-fact=hydra-inhaler] .rowlock'); await settle(page);
+  await page.mouse.move(R2[0].x, R2[0].y, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(R2[2].x, R2[2].y + 14, { steps: 8 }); await page.waitForTimeout(300);
+  ok('a locked row does not drag', (await lifted(page)) === 0 && !(await hands(page)).drop, String(await lifted(page)));
+  await page.mouse.up(); await settle(page);
+  ok('…and nothing changed', JSON.stringify((await printed(page))[0]) === JSON.stringify(order0));
+  await page.click('#body .clrow[data-bullet][data-fact=hydra-inhaler] .rowlock'); await settle(page);
+  if (sw0){ await page.mouse.move(sw0.x, sw0.y, { steps: 3 }); await page.mouse.down(); await page.mouse.move(sw0.x, sw0.y + 60, { steps: 6 }); await page.waitForTimeout(200); ok('a row’s own switch does not start a drag', (await lifted(page)) === 0); await page.mouse.up(); await settle(page); }
+  // jobs by their heading, in a section’s view; sections in the Outline
+  await toEditHome(page); await page.click('#outline [data-act=select-section][data-id=experience]'); await settle(page);
+  const J = await rows('#body .clgh[data-job]'), jo0 = await frameDoc(page, d => [...d.querySelectorAll('.entry .role-title')].map(e => e.textContent.slice(0, 14))), u2 = await undoN(page);
+  ok('a section’s view has its jobs as rows that can be grabbed', J.length >= 3, String(J.length));
+  await page.mouse.move(J[0].x, J[0].y, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(J[2].x, J[2].y + 8, { steps: 8 }); await page.waitForTimeout(400);
+  ok('dragging a job’s heading lifts the job on the page', (await lifted(page)) === 1 && (await hands(page)).drop);
+  await page.mouse.up(); await settle(page); await page.waitForTimeout(300);
+  const jo1 = await frameDoc(page, d => [...d.querySelectorAll('.entry .role-title')].map(e => e.textContent.slice(0, 14)));
+  ok('…dropped, the job moves: one undo step, the page shows the new order', jo1[0] !== jo0[0] && jo1.indexOf(jo0[0]) === 2 && (await undoN(page)) === u2 + 1, JSON.stringify([jo0, jo1]));
+  await page.keyboard.press('Control+z'); await settle(page);
+  await toEditHome(page); await page.evaluate(() => document.querySelector('.osec > .srow[data-sid=experience]').scrollIntoView({ block: 'center' })); await settle(page);
+  const S0 = [...await rows('#outline .osec > .srow[data-sid=experience]'), ...await rows('#outline .osec > .srow[data-sid=skills]')], so0 = await frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')).filter((s, i, a) => a.indexOf(s) === i));
+  await page.mouse.move(S0[0].x, S0[0].y, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(S0[1].x, S0[1].y + 14, { steps: 8 }); await page.waitForTimeout(400);
+  ok('dragging a section’s row lifts the section on the page', (await lifted(page)) >= 1 && (await hands(page)).drop);
+  await page.mouse.up(); await settle(page); await page.waitForTimeout(300);
+  const so1 = await frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')).filter((s, i, a) => a.indexOf(s) === i));
+  ok('…dropped, the section moves below the next one (Experience below Skills)', JSON.stringify(so1) !== JSON.stringify(so0) && so1.indexOf('experience') > so1.indexOf('skills'), JSON.stringify([so0, so1]));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('file://')) {
   const ctx = await newContext();
   const page = await ctx.newPage();
