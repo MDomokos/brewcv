@@ -26,6 +26,7 @@ html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
 html.rb-dragging, html.rb-dragging * { cursor: grabbing !important; user-select: none !important; }
 html.rb-space, html.rb-space * { cursor: grab !important; }
 html.rb-ui:not(.rb-writing, .rb-nohover) :is([data-variant], [data-label]):hover { outline: 1px solid color-mix(in srgb, var(--rb-sel) 60%, transparent); outline-offset: 4px; border-radius: 2px; }      /* the shape of the written line's outline (onpage.js obframe.line): 1px, 4px off */
+.rb-clip { overflow: clip; }      /* the page a block is lifted from: the block never floats over the next page */
 .rb-lift { position: relative; z-index: 5; box-shadow: 0 6px 18px color-mix(in srgb, var(--rb-sel) 40%, transparent); background-color: var(--rb-lift-bg); outline: 1px solid var(--rb-sel); outline-offset: 3px; border-radius: 2px; }
 .rb-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 2px; border-radius: 2px; background-color: var(--rb-sel-soft); }
 .rb-band-sel { outline: 2px solid var(--rb-sel) !important; outline-offset: 5px; border-radius: 4px; }
@@ -469,6 +470,7 @@ export function createSheet(host, hooks = {}){
       for (const m of moves) for (const el of m.els){
         const to = m.dx || m.dy ? `translate(${m.dx ?? 0}px, ${m.dy ?? 0}px)` : '', was = el.style.transform;
         nudged.add(el); el.classList.toggle('rb-lift', !!m.lift);
+        if (m.lift) el.closest('.page')?.classList.add('rb-clip');
         if (m.lift) el.style.setProperty('--rb-lift-bg', fr.doc.defaultView.getComputedStyle(el.closest('.page') ?? el).backgroundColor);      // paper: what is under it does not show through
         if (to === was) continue;
         el.style.transform = to;
@@ -481,6 +483,7 @@ export function createSheet(host, hooks = {}){
         el.style.transform = ''; el.style.removeProperty('--rb-lift-bg'); el.classList.remove('rb-lift');
         if (animate && was) play(el, [{ transform: was }, { transform: 'none' }], { ms: 'fast', kind: 'move', name: 'nudge:back' });
       }
+      fr?.doc.querySelectorAll('.rb-clip').forEach(p => p.classList.remove('rb-clip'));
       nudged.clear();
     },
     setFocus(facts, ix){

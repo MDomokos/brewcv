@@ -1029,6 +1029,7 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   await jobs.nth(0).locator('.bullets li').first().click(); await settle(page);
   await appendLine(page, ' x'); await page.keyboard.press('Backspace'); await page.keyboard.press('Backspace'); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
+  await page.keyboard.press('Escape'); await settle(page);
   const html2 = await frameDoc(page, d => d.querySelector('.document').innerHTML.replace(/\s(?:contenteditable|role|aria-multiline|aria-label|spellcheck|style)="[^"]*"/g, '').replace(/\brb-[\w-]+/g, '').replace(/\sclass="\s*"/g, ''));
   const at = [...html1].findIndex((c, i) => c !== html2[i]);
   ok('writing, typing and taking it back out leaves the page’s own markup exactly as it was', html1 === html2, `at ${at}: ${html1.slice(at - 60, at + 80)} ≠ ${html2.slice(at - 60, at + 80)}`);
@@ -5053,8 +5054,8 @@ if (want('ux6g: the photo switch and its settings are in About you')) {
   await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   await page.evaluate(() => window.__wb.setView('design')); await settle(page);
   ok('Design has no photo switch, shape or add button: one place for the control', (await page.locator('#body #d-photo-on, #body [data-act=d-shape], #body [data-act=d-photo], #body [data-act=d-photo-rm]').count()) === 0);
-  ok('…only a note that points to About you, and its link goes there', (await page.locator('#body a[data-act=select-header]').count()) === 1);
-  await page.click('#body a[data-act=select-header]'); await settle(page);
+  ok('…only a note that points to About you, and its link goes there', (await page.locator('#body button[data-act=select-header]').count()) === 1);
+  await page.click('#body button[data-act=select-header]'); await settle(page);
   ok('…the link opens About you', (await page.getAttribute('#body', 'data-view')) === 'header' && (await page.locator('#body #d-photo-on').count()) === 1);
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
@@ -5106,6 +5107,26 @@ if (want('ux6g b: grips say what they move')) {
   await ctx.close();
 }
 
+if (want('ux6g fix: a lifted block is clipped to its own page')) {
+  const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await openByName(page, 'Medtech');
+  const a = await frameBox(page, '.entry:first-child .bullets li', 0), clip = () => frameDoc(page, d => [...d.querySelectorAll('.page')].map(p => d.defaultView.getComputedStyle(p).overflow));
+  const u0 = await undoN(page);
+  await page.mouse.move(a.x + 60, a.y + 4, { steps: 3 }); await settle(page);
+  const gp = (await hands(page)).grip;
+  await page.mouse.move(gp.left + 8, gp.top + 8, { steps: 3 }); await page.mouse.down();
+  await page.mouse.move(gp.left + 40, 820, { steps: 10 }); await page.waitForTimeout(400);
+  const c1 = await clip();
+  ok('while a block is lifted, the page it came from clips it (it never paints over the next page)', (await lifted(page)) === 1 && c1.filter(o => o === 'clip').length === 1, JSON.stringify(c1));
+  await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+  ok('…and after Esc no page clips anything', (await clip()).every(o => o !== 'clip'));
+  await page.mouse.up(); await settle(page);
+  ok('…the release changes nothing', (await undoN(page)) === u0);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
 if (want('ux6g b: a drag shows where the block will land')) for (const motion of [false, true]) {
   const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
