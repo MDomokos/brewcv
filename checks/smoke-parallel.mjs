@@ -15,8 +15,25 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SMOKE = path.join(ROOT, 'checks', 'smoke-shell.mjs');
 
-// The sections, in file order, each with a weight in seconds: about 0.4 s a line, except a section measured alone (this one waits).
-const MEASURED = { 'on the page: the chip on the frame, at four sizes': 300 };
+// The sections, in file order, each with a weight in seconds: about 0.4 s a line, except the sections measured on four workers (the long ones).
+const MEASURED = {
+  'on the page: the chip on the frame, at four sizes': 99,
+  'on the page: three levels, writing a line where it is printed, the tools in the margin': 66,
+  'the welcome language step, the interface language, Settings': 38,
+  'on the page: the header written in place, the photo slot, a dropped picture': 34,
+  'the lock: the padlock, the chip’s switch, and grips for jobs, sections and items': 94,
+  'the canvas: both pages or one, the wheel, the hand, the pinch, the bright page': 80,
+  'the record forms: details, About you, languages, no Save button': 37,
+  'motion: the thirteen moments play, are off under reduced motion, and leave the same page': 68,
+  'on the page: every printed text is written where it is printed, and each item is selected': 112,
+  'on the page: an item frame stays off its neighbours, at four sizes': 58,
+  'one screen: the sidebar, the zoom bar, the shortcut sheet': 45,
+  'on the page: a narrow window, zoom off, reduced motion, a line that is not on the page': 39,
+  'drinks: tea and coffee, light and dark': 34,
+  'the Record tab, Mark as sent, and the panel fixes': 73,
+  'on the page: moving lines within their job, the hover areas, and + at a job’s end': 35,
+  'on the page: skills arranged in place, two columns, sets, and the keyboard': 31,
+};
 export function readSections(src){
   const found = [...src.matchAll(/\bwant\('((?:[^'\\\n]|\\.)*)'\)/g)].map(m => ({ title: m[1], at: m.index }));
   return found.map((s, i) => ({ title: s.title, weight: MEASURED[s.title] ?? 0.4 * src.slice(s.at, found[i + 1]?.at ?? src.length).split('\n').length }));
