@@ -1187,7 +1187,7 @@ if (want('the welcome language step, the interface language, Settings')) {
     ok('the interface follows the resume into English', u.lang === 'en' && u.design === 'Design');
     ok('and the toast is already in English', /This resume is now in English/.test(await page.textContent('#toast')));
     await page.click('#docname-btn'); await settle(page);
-    ok('the language list now has just the two in use', (await page.$$eval('#sw-lang option', o => o.filter(x => !x.value.startsWith('+')).length)) === 2);
+    ok('the language list now has just the two in use', (await page.$$eval('#sw-lang option', o => o.filter(x => !/^[+-]/.test(x.value)).length)) === 2);
     await pickLang(page, 'de'); await page.waitForTimeout(1200);
     ok('back to German, and so is the interface', (await ui(page)).lang === 'de');
     await page.click('[data-act=menu]'); await page.click('[data-act=goto][data-v=settings]'); await settle(page);
@@ -1937,7 +1937,7 @@ if (want('languages')) {
   const st = () => page.evaluate(() => window.__wb.store.state);
   ok('the name card has no language button; the name window has a language list, a labelled select', !(await page.$('#langbtn')) && !(await page.$('#head .dline')));
   await page.click('#docname-btn'); await settle(page);
-  ok('it lists the languages you use (the example lists all ten) and the current one is chosen, with a label', (await page.$$eval('#sw-lang option', o => o.filter(x => !x.value.startsWith('+')).length)) === 10 && /English/.test(await page.$eval('#sw-lang', e => e.selectedOptions[0].textContent)) && (await page.$$('label[for=sw-lang]')).length === 1);
+  ok('it lists the languages you use (the example lists all ten) and the current one is chosen, with a label', (await page.$$eval('#sw-lang option', o => o.filter(x => !/^[+-]/.test(x.value)).length)) === 10 && /English/.test(await page.$eval('#sw-lang', e => e.selectedOptions[0].textContent)) && (await page.$$('label[for=sw-lang]')).length === 1);
   ok('each with what is left to write', /to write|complete/.test(await page.$$eval('#sw-lang option', o => o.map(x => x.textContent).join())));
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc closes the window', !(await page.isVisible('#switcher')));
@@ -2429,7 +2429,7 @@ if (want('reordering is visible: Alt+arrows, the margin, custom and Reset')) {
 
   // the sections on this resume: Alt+↓ with one selected
   await toEditHome(page);
-  const secIds = () => page.evaluate(() => [...document.querySelectorAll('#seclist .srow')].map(r => r.dataset.sid));
+  const secIds = () => page.evaluate(() => [...document.querySelectorAll('#seclist .srow:not(.is-off)')].map(r => r.dataset.sid));      // the sections that print: Reset puts the record's order back, and an off section sits where the record has it
   const order0 = await secIds(), u3 = await undoN();
   ok('an unmoved list of sections shows no "custom"', (await page.locator('.ordhead .pill.custom').count()) === 0);
   await page.locator('#seclist .srow:not(.fixed) [data-act=select-section]').first().click(); await settle(page);
