@@ -149,7 +149,7 @@ export function createSheet(host, hooks = {}){
         pending = null;
         resolve(fr);
       }, { once: true });
-      host.querySelector('.sheet-frame')?.remove(); host.prepend(frame);          // the lift layers (canvas.js) stay
+      host.querySelector('.sheet-frame')?.remove(); host.prepend(frame);
     });
     pending = { sig, p };
     return p;
