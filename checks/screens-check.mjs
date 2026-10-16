@@ -308,7 +308,7 @@ await part('the Library\u2019s toolbar: search finds a send\u2019s company, the 
   await page.click('[data-act=scr-sent]'); await settle(page);
   await page.click('[data-act=scr-view][data-v=company]'); await settle(page);
   await page.fill('#scr-q', 'smoke co'); await settle(page);
-  ok('search finds a send\u2019s company: only the resume that went to Smoke Co', (await page.$$('#scr .rcard')).length === 1);
+  ok('search finds a send\u2019s company: only the resume that went to Smoke Co', (await distinct()) === 1);
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc clears the search first', await page.inputValue('#scr-q') === '' && (await distinct()) === all && await view(page) === 'resumes');
   await page.click('[data-act=scr-view][data-v=date]'); await settle(page);
@@ -354,6 +354,7 @@ await part('Career: profile cards and the timeline (newest first); the entry doc
 });
 
 // ---------------------------------------------------------------- no bar, ten languages, three sizes
+if (PART){ await browser.close(); server.close(); console.log(failed ? `\n${failed} screens check(s) FAILED` : '\nall screens checks passed'); process.exit(failed ? 1 : 0); }
 const LANGS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'cs', 'hu'].filter(l => !ONLY || ONLY.has(l));
 const SIZES = [[1280, 720], [1470, 832], [1920, 1080]];
 const NAMES = { long: 'Example Instruments — Mechanical Design Engineer', sixty: 'Example Instruments — Senior Mechanical Design Engineer, EMEA'.slice(0, 60) };
