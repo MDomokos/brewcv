@@ -164,7 +164,6 @@ export default {
   'resumes.savedHere': 'Er ist in diesem Browser gespeichert. Sein gedruckter Text bleibt so, wie er jetzt ist; spätere Änderungen an deinen Daten werden beim nächsten Öffnen als neuere Formulierung angeboten.',
   'resumes.savedLinked': 'Er ist in diesem Browser gespeichert und als <code>recipes/…json</code> in {name}. Sein gedruckter Text bleibt so, wie er jetzt ist; spätere Änderungen an deinen Daten werden beim nächsten Öffnen als neuere Formulierung angeboten.',
   'newer.accept': 'Neuere Formulierung nutzen',
-  'newer.keep': 'Gespeicherte behalten',
   'newer.review': 'Prüfen',
   'toast.openHeld': { one: '{name} ist offen. {n} Stichpunkt hat eine neuere Formulierung; prüf sie in der Karte.', other: '{name} ist offen. {n} Stichpunkte haben eine neuere Formulierung; prüf sie in der Karte.' },
   'toast.isOpen': '{name} ist offen.',

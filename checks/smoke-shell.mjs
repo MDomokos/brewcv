@@ -4648,6 +4648,7 @@ if (want('the Review list: edits become versions, with sources, undo and the new
 
   // keep on this resume only, from the select
   await page.selectOption(`${R} .rvrow[data-id="${ids[0]}"] select`, 'keep'); await settle(page);
+  await page.click(`${R} .rvrow[data-id="${ids[0]}"] [data-rv=apply]`); await settle(page);      // the select only chooses; Apply does it
   ok('Keep on this resume only leaves the list, the edit stays on the page, and the result has an Undo', (await rows()).find(r => r.id === ids[0]).done && (await ev(id => id in window.__wb.store.state.cur.overrides, ids[0])) && /Kept on this resume only/.test((await rows()).find(r => r.id === ids[0]).text));
   await page.click(`${R} .rvrow[data-id="${ids[0]}"] [data-rv=undo]`); await settle(page);
   ok('Undo of a keep puts the row back', !(await rows()).find(r => r.id === ids[0]).done);

@@ -164,7 +164,6 @@ export default {
   'resumes.savedHere': 'Je uložen v tomto prohlížeči. Text, který tiskne, zůstane takový, jaký je teď; pozdější úpravy záznamu se vám při dalším otevření nabídnou jako novější znění.',
   'resumes.savedLinked': 'Je uložen v tomto prohlížeči a jako <code>recipes/…json</code> ve složce {name}. Text, který tiskne, zůstane takový, jaký je teď; pozdější úpravy záznamu se vám při dalším otevření nabídnou jako novější znění.',
   'newer.accept': 'Použít novější znění',
-  'newer.keep': 'Ponechat uložené',
   'newer.review': 'Zkontrolovat',
   'toast.openHeld': { one: 'Otevřeno: {name}. {n} odrážka má novější znění; zkontrolujte ho v kartě.', few: 'Otevřeno: {name}. {n} odrážky mají novější znění; zkontrolujte ho v kartě.', many: 'Otevřeno: {name}. {n} odrážky má novější znění; zkontrolujte ho v kartě.', other: 'Otevřeno: {name}. {n} odrážek má novější znění; zkontrolujte ho v kartě.' },
   'toast.isOpen': 'Otevřeno: {name}.',

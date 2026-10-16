@@ -164,7 +164,6 @@ export default {
   'resumes.savedHere': 'Se guarda en este navegador. El texto que imprime se conserva tal como está ahora; los cambios posteriores en tu historial se te ofrecen como redacción más reciente cuando lo vuelvas a abrir.',
   'resumes.savedLinked': 'Se guarda en este navegador, y como <code>recipes/…json</code> en {name}. El texto que imprime se conserva tal como está ahora; los cambios posteriores en tu historial se te ofrecen como redacción más reciente cuando lo vuelvas a abrir.',
   'newer.accept': 'Usar la redacción más reciente',
-  'newer.keep': 'Conservar la guardada',
   'newer.review': 'Revisar',
   'toast.openHeld': { one: '{name} está abierto. {n} viñeta tiene redacción más reciente; revísala en la tarjeta.', many: '{name} está abierto. {n} viñetas tienen redacción más reciente; revísalas en la tarjeta.', other: '{name} está abierto. {n} viñetas tienen redacción más reciente; revísalas en la tarjeta.' },
   'toast.isOpen': '{name} está abierto.',

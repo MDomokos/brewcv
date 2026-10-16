@@ -164,7 +164,6 @@ export default {
   'resumes.savedHere': 'Il est enregistré dans ce navigateur. Le texte qu’il imprime est gardé tel quel ; les modifications ultérieures de votre dossier vous seront proposées comme formulation plus récente à sa réouverture.',
   'resumes.savedLinked': 'Il est enregistré dans ce navigateur, et sous <code>recipes/…json</code> dans {name}. Le texte qu’il imprime est gardé tel quel ; les modifications ultérieures de votre dossier vous seront proposées comme formulation plus récente à sa réouverture.',
   'newer.accept': 'Utiliser la plus récente',
-  'newer.keep': 'Garder l’enregistrée',
   'newer.review': 'Examiner',
   'toast.openHeld': { one: '{name} est ouvert. {n} puce a une formulation plus récente ; examinez-la dans le panneau.', many: '{name} est ouvert. {n} puces ont une formulation plus récente ; examinez-les dans le panneau.', other: '{name} est ouvert. {n} puces ont une formulation plus récente ; examinez-les dans le panneau.' },
   'toast.isOpen': '{name} est ouvert.',

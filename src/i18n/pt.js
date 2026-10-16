@@ -164,7 +164,6 @@ export default {
   'resumes.savedHere': 'Fica guardado neste navegador. O texto que imprime mantém-se como está; as edições posteriores ao registo são propostas como redação mais recente quando o voltar a abrir.',
   'resumes.savedLinked': 'Fica guardado neste navegador, e como <code>recipes/…json</code> em {name}. O texto que imprime mantém-se como está; as edições posteriores ao registo são propostas como redação mais recente quando o voltar a abrir.',
   'newer.accept': 'Usar a redação mais recente',
-  'newer.keep': 'Manter a guardada',
   'newer.review': 'Rever',
   'toast.openHeld': { one: '{name} está aberto. {n} ponto tem redação mais recente; reveja-o no cartão.', many: '{name} está aberto. {n} pontos têm redação mais recente; reveja-os no cartão.', other: '{name} está aberto. {n} pontos têm redação mais recente; reveja-os no cartão.' },
   'toast.isOpen': '{name} está aberto.',

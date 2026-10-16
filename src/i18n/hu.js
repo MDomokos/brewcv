@@ -164,7 +164,6 @@ export default {
   'resumes.savedHere': 'Ebben a böngészőben mentve. A nyomtatott szöveg a mostani állapotában marad; az adataid későbbi módosításait újabb megfogalmazásként ajánlja fel, amikor újra megnyitod.',
   'resumes.savedLinked': 'Ebben a böngészőben mentve, és <code>recipes/…json</code> fájlként ide: {name}. A nyomtatott szöveg a mostani állapotában marad; az adataid későbbi módosításait újabb megfogalmazásként ajánlja fel, amikor újra megnyitod.',
   'newer.accept': 'Az újabb megfogalmazás használata',
-  'newer.keep': 'A mentett marad',
   'newer.review': 'Átnézés',
   'toast.openHeld': { one: '{name} megnyitva. {n} pontnak újabb megfogalmazása van; nézd át a kártyán.', other: '{name} megnyitva. {n} pontnak újabb megfogalmazása van; nézd át a kártyán.' },
   'toast.isOpen': '{name} megnyitva.',

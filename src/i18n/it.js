@@ -164,7 +164,6 @@ export default {
   'resumes.savedHere': 'È salvato in questo browser. Il testo che stampa resta com’è ora; le modifiche successive al tuo archivio ti verranno proposte come formulazione più recente quando lo riapri.',
   'resumes.savedLinked': 'È salvato in questo browser, e come <code>recipes/…json</code> in {name}. Il testo che stampa resta com’è ora; le modifiche successive al tuo archivio ti verranno proposte come formulazione più recente quando lo riapri.',
   'newer.accept': 'Usa la formulazione più recente',
-  'newer.keep': 'Tieni quella salvata',
   'newer.review': 'Rivedi',
   'toast.openHeld': { one: '{name} è aperto. {n} punto ha una formulazione più recente; rivedilo nel pannello.', many: '{name} è aperto. {n} punti hanno una formulazione più recente; rivedili nel pannello.', other: '{name} è aperto. {n} punti hanno una formulazione più recente; rivedili nel pannello.' },
   'toast.isOpen': '{name} è aperto.',

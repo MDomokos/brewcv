@@ -164,7 +164,6 @@ export default {
   'resumes.savedHere': 'Jest zapisane w tej przeglądarce. Drukowany tekst zostaje taki jak teraz; późniejsze zmiany w bazie zobaczysz jako nowsze brzmienie przy ponownym otwarciu.',
   'resumes.savedLinked': 'Jest zapisane w tej przeglądarce oraz jako <code>recipes/…json</code> w {name}. Drukowany tekst zostaje taki jak teraz; późniejsze zmiany w bazie zobaczysz jako nowsze brzmienie przy ponownym otwarciu.',
   'newer.accept': 'Użyj nowszego brzmienia',
-  'newer.keep': 'Zachowaj zapisane',
   'newer.review': 'Przejrzyj',
   'toast.openHeld': { one: 'Otwarto {name}. {n} punkt ma nowsze brzmienie; przejrzyj je w karcie.', few: 'Otwarto {name}. {n} punkty mają nowsze brzmienie; przejrzyj je w karcie.', many: 'Otwarto {name}. {n} punktów ma nowsze brzmienie; przejrzyj je w karcie.', other: 'Otwarto {name}. {n} punktu ma nowsze brzmienie; przejrzyj je w karcie.' },
   'toast.isOpen': 'Otwarto {name}.',

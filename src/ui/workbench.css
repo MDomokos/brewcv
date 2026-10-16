@@ -1283,12 +1283,13 @@ body:not([data-phone=true]) .col.is-full > #head { align-self: flex-start; width
 .rvtext { margin: 0 0 4px; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
 .rvtext ins { background: var(--ins-bg); text-decoration: underline; }
 .rvtext del { background: var(--del-bg); color: var(--del-ink); text-decoration: line-through; }
-.rvwhy, .rvnote, .rvres { margin: 0 0 6px; font-size: 12.5px; overflow-wrap: anywhere; }
+.rvwhy, .rvnote, .rvres, .rvwill, .rvgall { margin: 0 0 6px; font-size: 12.5px; overflow-wrap: anywhere; }
 .rvsrc { display: grid; gap: 3px; margin: 4px 0 8px; font-size: 12.5px; }
 .rvsrc input { min-width: 0; width: 100%; box-sizing: border-box; }
 .rvbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .rvbtns select { max-width: 100%; }
-.rvbtns + .rvnote { margin-top: 6px; }
+.rvbtns + .rvnote, .rvbtns + .rvwill { margin-top: 6px; }
+.rvgall { margin: 0 0 6px; }
 .rvdlg :is(button, select, input) { min-height: 28px; }
 .rvbtns button[aria-disabled=true] { opacity: .75; }
 .rvfoot { flex: none; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--line); }

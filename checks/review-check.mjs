@@ -79,7 +79,7 @@ for (const [w, h] of SIZES){
       const n = T.addLocalLine(d.record, d.cur, 'hydra', ids[1]);
       T.setOverride(d.record, d.cur, n, 'Wrote the supplier audit checklist.', { marks: [], base: null });
       T.setSectionLabel(d.record, d.cur, 'experience', 'en', 'Work history');
-      d.cur.held = [ids[2]]; d.cur.overrides[ids[2]] = 'Older words for this line.';
+      d.cur.held = [ids[2], ids[3]]; d.cur.overrides[ids[2]] = 'Older words for this line.'; d.cur.overrides[ids[3]] = 'Older words for this other line.';      // two, so Use all the newer wording shows
     }, 'review-check: edits');
   });
   await settle(page);

@@ -164,7 +164,6 @@ export default {
   'resumes.savedHere': 'Het is opgeslagen in deze browser. De tekst die het afdrukt blijft zoals hij nu is; latere wijzigingen in je dossier worden als nieuwere formulering aangeboden als je het weer opent.',
   'resumes.savedLinked': 'Het is opgeslagen in deze browser, en als <code>recipes/…json</code> in {name}. De tekst die het afdrukt blijft zoals hij nu is; latere wijzigingen in je dossier worden als nieuwere formulering aangeboden als je het weer opent.',
   'newer.accept': 'Nieuwere formulering gebruiken',
-  'newer.keep': 'De opgeslagen houden',
   'newer.review': 'Bekijken',
   'toast.openHeld': { one: '{name} is open. {n} punt heeft een nieuwere formulering; bekijk het in de kaart.', other: '{name} is open. {n} punten hebben een nieuwere formulering; bekijk ze in de kaart.' },
   'toast.isOpen': '{name} is open.',
