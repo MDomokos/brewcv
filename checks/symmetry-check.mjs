@@ -365,7 +365,7 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await ctx.close();
 }
 
-// ---- Delete beside Duplicate in the name window (fix 16) ----
+// ---- Delete beside Duplicate in the name window; delete a sent copy (fixes 16, 17) ----
 {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
@@ -382,6 +382,19 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await page.click('#toast [data-act=toast-undo]'); await wait();
   ok('…Undo brings the resume back, open as it was', JSON.stringify(await state()) === JSON.stringify(s1));
 
+  // a sent copy: Mark as sent, then delete it from its own view, and Undo
+  await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Acme', role: 'Engineer', date: '2026-01-02' }); }, 'check: mark as sent'); }); await wait();
+  ok('(a sent copy exists)', (await state()).snaps === 1);
+  await page.click('#docname-btn'); await wait();
+  await page.click('#switcher [data-act=sw-manage]'); await wait();
+  await page.click('#switcher [data-act=sw-view][data-v=date]'); await wait();
+  await page.click('#switcher .tlsend'); await wait();
+  const btns = await page.$$eval('.snapacts button', bs => bs.map(b => b.dataset.act));
+  ok('a sent copy\u2019s view has "Delete this sent copy" beside Restore and Duplicate (and still no way to edit it)', btns.join() === 'goto,snap-restore,snap-dup,snap-delete', btns.join());
+  await page.click('[data-act=snap-delete]'); await wait();
+  ok('deleting it takes the sent copy away, closes its view, and the toast has Undo', (await state()).snaps === 0 && !(await page.$('.snapbar')) && !!(await page.$('#toast.on [data-act=toast-undo]')));
+  await page.click('#toast [data-act=toast-undo]'); await wait();
+  ok('…Undo brings the sent copy back', (await state()).snaps === 1);
   await ctx.close();
 }
 

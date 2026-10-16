@@ -177,7 +177,8 @@ function snapshotView(){
     <div class="list">${snap.sends.map(s => `<div class="item static"><span>${esc(RS.sendLabel(s) || t('ux1.noRecipient'))}${s.kind === 'outreach' ? ` <span class="pill">${h('ux1.outreach')}</span>` : ''}</span><span class="muted small">${esc(s.date)}</span></div>`).join('')}</div>
     <div class="btns snapacts"><button class="primary" data-act="goto" data-v="export">${h('head.export')}</button>
       <button data-act="snap-restore">${h('ux1.restore')}</button>
-      <button data-act="snap-dup">${h('ux1.dupSnap')}</button></div>
+      <button data-act="snap-dup">${h('ux1.dupSnap')}</button>
+      <button data-act="snap-delete">${h('ux6c.deleteSent')}</button></div>
     <p class="note">${h('ux1.snapNote')}</p>`;
 }
 
@@ -322,7 +323,16 @@ async function act(a, tg){
       const sid = C.ui.snap?.id;
       if (!sid) return true;
       C.setSnap(null);
-      commit(d => RS.restoreSnapshot(d, sid), t('ux1.undoRestore'), t('ux1.restored'));
+      commit(d => RS.restoreSnapshot(d, sid), t('ux1.undoRestore'), t('ux1.restored'), true);
+      C.setView(null);
+      return true;
+    }
+    // a sent copy is never edited, but a mistaken Mark as sent may be taken away (the toast's Undo brings it back)
+    case 'snap-delete': {
+      const sid = C.ui.snap?.id;
+      if (!sid) return true;
+      C.setSnap(null);
+      commit(d => RS.deleteSnapshot(d, sid), t('ux6c.undoDeleteSent'), t('ux6c.sentDeleted'), true);
       C.setView(null);
       return true;
     }

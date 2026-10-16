@@ -1284,4 +1284,7 @@ export default {
   'ux6c.setDeleted': 'Deleted the set for {name}. Ctrl+Z brings it back.',
   'ux6c.setCleared': 'The skills are the record’s groups again.',
   'ux6c.addGroup': '+ group',
+  'ux6c.deleteSent': 'Delete this sent copy',
+  'ux6c.undoDeleteSent': 'Delete a sent copy',
+  'ux6c.sentDeleted': 'The sent copy is deleted. Ctrl+Z brings it back.',
 };
