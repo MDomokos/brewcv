@@ -17,6 +17,8 @@ import { toolsHtml, statsCompactHtml, versionTagHtml } from '../src/ui/parts.js'
 // The snapshot is a phone's sheet: it keeps the short form of a version (where it starts to differ), as it always did. The desktop
 // panel shows every version in full (the section at the end).
 setPhone(true);
+// The snapshot was recorded on a Mac, where keyText gives ⌥↑; Node's navigator.platform is the host's (Linux on CI gives Alt+↑).
+Object.defineProperty(globalThis.navigator, 'platform', { value: 'MacIntel', configurable: true });
 const SNAP = path.join(REPO, 'checks/fixtures/edit-markup.snapshot.json');
 const WRITE = process.argv.includes('--write');
 let failed = 0;
