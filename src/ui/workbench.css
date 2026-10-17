@@ -1307,3 +1307,9 @@ body[data-phone=true] .skarr [data-act=sk-addgroup] { display: none; }      /* a
 .vrow.pend > .pendbody > .tx { white-space: normal; }
 .vrow.pend .rvrow { border: 0; padding: 0; background: transparent; }
 button.obv.mine::after { content: ''; width: 6px; height: 6px; margin-left: 5px; border-radius: 50%; background: var(--sel-mark); }
+
+/* Scrollbars: thin, in the ink of the surface they sit on (--ink changes per band and menu), and the browser's own parts (the
+   corner, the arrows, form controls) follow the theme through color-scheme. The resume is drawn in its own frame and keeps its own. */
+html[data-theme="light"] { color-scheme: light; }
+html[data-theme="dark"] { color-scheme: dark; }
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 38%, transparent) transparent; }
