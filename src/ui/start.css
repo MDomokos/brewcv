@@ -100,18 +100,22 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 /* the stage is laid on an 8px grid: a 40px margin, the career file and the step cards in the left column (x 40), the page at x 440 over the file's right edge,
    the slips to its right (x 920) */
 /* the career file: the panel's own surface */
+/* once everything has landed the career file goes quiet (no chips, no tags, no ticks) and comes back when it is pointed at */
+.vch, .ftag, .fcard, .fln { transition: opacity .3s ease, background-color .3s ease, box-shadow .25s ease; }
+.ss[data-rest="true"] .s-file:not(:hover) .fcard { opacity: .72; }
+.ss[data-rest="true"] .s-file:not(:hover) :is(.vch, .ftag) { opacity: 0; }
+.ss[data-rest="true"] .s-file:not(:hover) .fln.used { background: transparent; }
 /* pointing at the career file raises it over the pages */
 .sst .s-file { transition: opacity .35s ease, transform .55s var(--ease), translate .25s var(--ease); }
 .sst .s-file:hover { z-index: 11; translate: 0 -6px; }
 /* …and the pages make way, so the line it points at can be read on the resume (the sheets sliding in a swap move with them) */
 .sst .s-behind { transition: translate .25s var(--ease); }
 .sst .s-file:hover ~ .s-page, .sst .s-file:hover ~ .s-behind, .sst .s-file:hover ~ .fx .sg { translate: 96px 0; }
-.fcard { transition: box-shadow .25s ease; }
 .s-file:hover .fcard { box-shadow: var(--st-sh-lift); }
 .fcard { width: 600px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-lift); padding: 10px 0 12px; color: var(--ink); font: 12px/1.65 var(--font-mono); }
 .fh { display: flex; align-items: baseline; gap: 10px; padding: 10px 16px 8px; margin-top: -10px; margin-bottom: 6px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--fill); border-radius: var(--r-m) var(--r-m) 0 0; }
 .fh b { font: 400 15px/1.2 var(--font-mono); }
-.fln { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; white-space: nowrap; min-height: 19.8px; transition: opacity .4s; }
+.fln { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; white-space: nowrap; min-height: 19.8px; transition: opacity .4s, background-color .3s; }
 .fcard .cd { padding-left: calc(var(--i) * 2ch); overflow: hidden; text-overflow: ellipsis; }
 .fcard .k { color: var(--label); } .fcard .p { color: var(--faint); }
 .fln .fmk { position: absolute; left: 5px; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; }

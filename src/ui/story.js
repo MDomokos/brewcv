@@ -283,6 +283,7 @@ function stateAt(n, k){
 const last = n => STEPS[n - 1].seq.length - 1;
 function show(s){
   const P = prev; prev = s;
+  $('#ss').dataset.rest = !!s.exports;                // everything has landed: the career file goes quiet
   clearTimeout(stackTimer); moving = false; EL.page.style.visibility = '';
   const moves = P && !reduced() ? stackMoves(P, s) : null;
   STACKMOVE = !!moves;
