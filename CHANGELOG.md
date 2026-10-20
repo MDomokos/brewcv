@@ -7,6 +7,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
+- **The page tags in the start screen's story are paper in Tea.** Amber is kept for the primary button and the step line.
 - **The career file in the start screen's story goes quiet once everything has landed.** Its version chips, tags and ticks fade and the file dims, so the top resume is the one thing to look at; pointing at the file brings them back.
 - **The start screen's look toggles work.** In the last two steps the design, language and paper options under the page are buttons: a click draws the page on top with that setting, and its tab names it.
 - **The start screen's ways in take only the room they need.** The card around the three buttons is as wide and tall as its buttons (346 px), with tighter buttons and gaps, instead of filling the column.

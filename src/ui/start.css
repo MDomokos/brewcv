@@ -201,7 +201,8 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
   background: var(--tag-bg); color: var(--tag-ink); border: 1px solid var(--tag-line); border-left: 0; border-radius: 0 var(--r-s) var(--r-s) 0; font: 12.5px/1.2 var(--font-ui); }
 .itab b { font-size: 13px; } .itab span { opacity: .75; font-size: 11.5px; font-weight: 400; }
 .itab:hover:not(:disabled) { filter: brightness(1.05); transform: none; }
-html[data-drink="tea"] .itab { border: 0; padding: 6px 20px 6px 22px; clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%); }
+html[data-drink="tea"] .itab { border: 0; background: var(--paper); color: var(--paper-ink); padding: 6px 20px 6px 22px; clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%); }
+html[data-drink="tea"] .itab span { color: var(--paper-soft); opacity: 1; }
 html[data-drink="tea"] .itab::before { content: ""; position: absolute; right: 9px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: var(--r-round); background: var(--tag-hole); }
 
 /* the other wordings of a line, as slips under the page's edge, sliding out one after another */
