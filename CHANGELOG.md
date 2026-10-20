@@ -7,6 +7,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
+- **The career file on the start screen starts level with the ways-in card.** Its top follows the top of the card (and the window's language and size).
 - **The start screen's column starts at the top and ends at the bottom.** The logo, the title and the three ways in sit together at the top, level with the step line, and "Yours to keep" is pinned to the bottom, instead of everything floating in the middle with empty bands above and below.
 - **The start screen's story is zoomed, and its pages run off the bottom of the screen.** The step line and caption are at the top; the page is 1.8 times larger, with the stack fanned behind it and a tag on each sheet's top edge (so the stack no longer needs room at the side); the career file is alone and larger in step 1; and the slips of a line, the look and the ways to send sit in the left column under the file, so nothing covers the page.
 - **"Yours to keep" on the start screen is one line each.** The four points (same words) are a single column of title and sentence instead of a grid of tall tiles, about a quarter shorter.
@@ -21,6 +22,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 - **The story's words are in all ten languages.** The new step titles and labels are machine-written and marked for a native review; the career in the picture stays a made-up café manager in English and German.
 
 ### Fixed
+- **The stack of resumes on the start screen is no longer cut off by an invisible line.** The picture is no longer clipped at the page area's edge: the sheets run on under the sidebar card and off the bottom of the window.
 - **The start screen's stack of resumes no longer blinks.** When a third resume joins, or two swap places, only the sheets that move are redrawn: the others stay on screen. A sheet joining the stack slides and fades in, and the page tags are no longer cut off at the edge while a sheet slides out.
 - **The mat's roll no longer stutters.** Switching drink by the logo skips the all-elements colour fade while the mat rolls, and the roll's layer is isolated from the rest of the page.
 - **The folded Tea tags swing more smoothly.** Positions and tokens are read once per frame or swing instead of once per tag.

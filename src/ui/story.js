@@ -457,8 +457,12 @@ function fit(){
   const ss = $('#ss'); if (!ss || !STAGE) return;
   const host = ss.parentElement, flow = getComputedStyle(host).position === 'static';
   const cs = getComputedStyle(ss), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2;
-  SC = Math.max(.3, Math.min((host.clientWidth - padX) / 1280, 2.5));
-  WRAP.style.width = `${(1280 * SC).toFixed(1)}px`; WRAP.style.height = flow ? `${(1000 * SC).toFixed(1)}px` : '';   // on a phone the picture is as tall as it needs to be
+  const SW = 1280;
+  SC = Math.max(.3, Math.min((host.clientWidth - padX) / SW, 2.5));
+  WRAP.style.width = `${(SW * SC).toFixed(1)}px`; WRAP.style.height = flow ? `${(1000 * SC).toFixed(1)}px` : '';   // on a phone the picture is as tall as it needs to be
+  // the career file's top lines up with the top of the ways-in card (never above the job card's room)
+  const card = !flow && document.querySelector('#body');
+  ss.style.setProperty('--file-top', card ? `${Math.max(88, (card.getBoundingClientRect().top - WRAP.getBoundingClientRect().top) / SC).toFixed(1)}px` : '88px');
   STAGE.style.transform = `scale(${SC.toFixed(4)})`;
   ss.style.setProperty('--sc', SC.toFixed(4));
   bar();
@@ -495,6 +499,7 @@ export function retext(){
   const ss = $('#ss'); if (!ss || !inited) return;
   ss.setAttribute('aria-label', t('onb.hdHow'));
   const rp = $('.obreplay', ss); rp.title = t('onb.replay'); rp.setAttribute('aria-label', t('onb.replay'));
+  fit();
   buildBar();
   if (prev) render(prev, null, EL);
   bar();

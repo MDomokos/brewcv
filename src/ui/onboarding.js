@@ -65,7 +65,7 @@ function stage(on){
   if (!host.firstChild) host.innerHTML = start.stageHtml();
   const phone = document.body.dataset.phone === 'true', col = document.getElementById('col'), pages = document.getElementById('pages');
   if (phone && host.parentElement !== col) col.insertBefore(host, document.getElementById('foot'));
-  else if (!phone && host.parentElement !== pages) pages.append(host);
+  else if (!phone && host.parentElement !== document.body) document.body.append(host);
   start.mount();
 }
 

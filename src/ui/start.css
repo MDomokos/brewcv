@@ -9,7 +9,7 @@
 body.is-intro .pagebox { opacity: 0; visibility: hidden; pointer-events: none; }
 body.is-intro .pagelay, body.is-intro .ovlay, body.is-intro .editlay { display: none; }
 
-.startstage { position: absolute; z-index: 4; left: 0; top: 0; bottom: 0; width: var(--startw, calc(100vw - 440px)); display: flex; align-items: flex-start; justify-content: center; overflow: hidden; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s var(--ease), visibility 0s .3s; }
+.startstage { position: fixed; z-index: 6; left: 0; top: 0; bottom: 0; width: var(--startw, calc(100vw - 440px)); display: flex; align-items: flex-start; justify-content: center; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s var(--ease), visibility 0s .3s; }
 body.is-intro .startstage { opacity: 1; visibility: visible; pointer-events: none; transition: opacity .4s var(--ease) .1s, visibility 0s 0s; }
 body.is-intro .startstage .ss { pointer-events: auto; }
 
@@ -73,7 +73,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .sst .slot { position: absolute; transition: opacity .35s ease, transform .55s var(--ease); }
 .sst .slot.hide { opacity: 0; pointer-events: none; }
 .sst .fx { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
-.sst .s-file { left: 32px; top: 88px; transform-origin: 0 0; transform: scale(.86); }
+.sst .s-file { left: 32px; top: var(--file-top, 88px); transform-origin: 0 0; transform: scale(.86); }
 .sst .s-page, .sst .s-behind { --pz: 1.8; left: 420px; top: 200px; transform-origin: 0 0; transform: scale(var(--pz, 1)); }
 .sst .s-page.hide { transform: translateY(40px) scale(var(--pz, 1)); }
 .sst .s-tools, .sst .s-slips { left: 32px; top: 424px; width: 352px; }
