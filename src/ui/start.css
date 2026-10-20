@@ -102,6 +102,14 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 /* the stage is laid on an 8px grid: a 40px margin, the career file and the step cards in the left column (x 40), the page at x 440 over the file's right edge,
    the slips and the "why" card to its right (x 600 and 920) */
 /* the career file: the panel's own surface */
+/* pointing at the career file raises it over the pages */
+.sst .s-file { transition: opacity .35s ease, transform .55s var(--ease), translate .25s var(--ease); }
+.sst .s-file:hover { z-index: 11; translate: 0 -6px; }
+/* …and the pages make way, so the line it points at can be read on the resume (the sheets sliding in a swap move with them) */
+.sst .s-behind { transition: translate .25s var(--ease); }
+.sst .s-file:hover ~ .s-page, .sst .s-file:hover ~ .s-behind, .sst .s-file:hover ~ .fx .sg { translate: 96px 0; }
+.fcard { transition: box-shadow .25s ease; }
+.s-file:hover .fcard { box-shadow: var(--st-sh-lift); }
 .fcard { width: 600px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-lift); padding: 10px 0 12px; color: var(--ink); font: 12px/1.65 var(--font-mono); }
 .fh { display: flex; align-items: baseline; gap: 10px; padding: 10px 16px 8px; margin-top: -10px; margin-bottom: 6px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--fill); border-radius: var(--r-m) var(--r-m) 0 0; }
 .fh b { font: 400 15px/1.2 var(--font-mono); }
@@ -112,6 +120,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .fcard .k { color: var(--label); } .fcard .p { color: var(--faint); }
 .fln .fmk { position: absolute; left: 5px; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; }
 .fln.used { background: var(--accent-soft); }
+.fln.hl:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); opacity: 1; }
 .fln.used .fmk { background: var(--accent); }
 .fln.off { opacity: .42; }
 .fln.flash { animation: stglow .95s ease-out; }
@@ -148,6 +157,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .pg li { position: relative; margin: 2px 0; padding: 1px 0; }
 .pg li.lift { background: var(--paper); box-shadow: var(--shadow-chip); outline: 1px solid var(--st-edge); transform: translateX(14px); border-radius: 4px; }
 .pg li.lift::before { content: "⋮⋮"; position: absolute; left: -32px; top: 1px; color: var(--paper-soft); letter-spacing: -2px; }
+.pg li.hot { background: var(--accent-soft); box-shadow: -4px 0 0 var(--accent); border-radius: 2px; }
 .pg li.edit { outline: 1.5px dashed var(--paper-soft); outline-offset: 3px; border-radius: 3px; }
 .pg li.edit .typed { display: inline-block; vertical-align: bottom; white-space: nowrap; overflow: hidden; max-width: 60ch; border-right: 1.5px solid var(--paper-ink); animation: sttype 1s steps(46, end) both, stcaret .7s steps(1) 1s infinite; }
 @keyframes sttype { from { max-width: 0; } to { max-width: 46ch; } }

@@ -2905,6 +2905,15 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   const top2 = await page.textContent('#ss .s-page .tg');
   await page.$eval('#ss .s-behind .sheet .pg', e => e.click()); await page.waitForTimeout(1800);
   ok('a click anywhere on a page under the top one brings it up', (await page.textContent('#ss .s-page .tg')) !== top2 && (await storyDiff(page)) === '', await storyDiff(page));
+  const topId = () => page.evaluate(() => window.__wb.onboarding.start.current().id);
+  const before5 = await topId();
+  const only = await page.evaluate(() => { const st = window.__wb.onboarding.start.current(); return ['h1', 'h2', 'h3', 'h4', 'h5'].find(id => !st.picks.includes(id) && st.cards.some(c => c.picks.includes(id))); });
+  await page.hover(`#ss .s-file .fln[data-k="f-${only}"]`, { position: { x: 12, y: 6 } }); await page.waitForTimeout(2600);
+  ok('pointing at a line of the career file raises the file, lights the line on the resume, and swaps to the resume that has it when the top one does not', (await topId()) !== before5 && (await page.evaluate(() => document.querySelector('#ss .s-page li.hot') !== null && getComputedStyle(document.querySelector('#ss .s-file')).translate !== 'none')) && (await storyDiff(page)) === '', `${before5} → ${await topId()} ${await storyDiff(page)}`);
+  await page.hover(`#ss .s-file .fln[data-k="f-${only === 'h2' ? 'h5' : 'h2'}"]`, { position: { x: 12, y: 6 } }); await page.waitForTimeout(2600);
+  ok('…and a line the first resume has but this one lacks swaps back', (await topId()) === before5 && (await storyDiff(page)) === '', await storyDiff(page));
+  await page.mouse.move(700, 10); await page.waitForTimeout(400);
+  ok('…moving off the file puts the light out', await page.evaluate(() => !document.querySelector('#ss .pg li.hot')));
   await page.click('#ss .stops li[data-n="2"] button'); await page.waitForTimeout(800);
   ok('a step name goes to that step, and the autoplay stops', (await stepOf(page)) === 2 && /Tailor it to the job/.test(await page.textContent('#ss .stnote b')) && (await page.getAttribute('#ss', 'data-auto')) === 'false');
   await page.click('#ss [data-act=ob-replay]'); await page.waitForTimeout(900);

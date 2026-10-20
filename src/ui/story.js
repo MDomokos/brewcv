@@ -109,7 +109,7 @@ function pageHtml(s, P, o = {}){
       const prev = P && !o.mini && P.page === 'on' && P.lang === lang && P.picks.includes(id) && (P.ver[id] ?? 0) !== vi && !P.edit ? L[id][lang][P.ver[id] ?? 0] : null;
       const tag = o.vtag && vs.length > 1 && !s.edit ? `<i class="vtag">v${vi + 1}</i>` : '';
       if (s.edit === id && !o.mini) return `<li class="edit"${k('p-' + id)}><span class="typed">${esc(L[id][lang][3])}</span></li>`;
-      return `<li class="${s.lift === id ? 'lift' : ''}"${k('p-' + id, o.fly ? 'f-' + id : '')}>${wordsHtml(vs[vi], prev)}${tag}</li>`;
+      return `<li class="${s.lift === id ? 'lift' : ''}${o.hot === id ? ' hot' : ''}"${k('p-' + id, o.fly ? 'f-' + id : '')}>${wordsHtml(vs[vi], prev)}${tag}</li>`;
     }).join('');
     return `<div class="job"${k('j-' + j)}><div class="jt"><b>${JOB[j].name}</b><span>${JOB[j].d[lang]}</span></div><div class="jp">${JOB[j].pos[lang]}</div><ul>${lis}</ul></div>`;
   }).join('');
@@ -150,6 +150,7 @@ function slipsInto(box, s){
   });
 }
 
+let HOT = null;                                  // the line of the career file the pointer is on
 const SLOTS = ['file', 'why', 'slips', 'behind', 'page', 'look', 'job', 'exp', 'note'];
 let EL = {};
 function render(s, P, el){
@@ -160,7 +161,7 @@ function render(s, P, el){
   el.behind.classList.toggle('hide', !s.cards.length);
   el.behind.innerHTML = s.cards.map((c, i) => sheetHtml(c, POS[i + 1], i + 1)).reverse().join('');
   el.page.classList.toggle('hide', s.page === 'none');
-  if (s.page !== 'none') el.page.innerHTML = pageHtml(s, P, { fly: true, vtag: !!s.slips }) + (s.cards.length ? tabHtml(s.id) : '');
+  if (s.page !== 'none') el.page.innerHTML = pageHtml(s, P, { fly: true, vtag: !!s.slips, hot: HOT }) + (s.cards.length ? tabHtml(s.id) : '');
   el.look.classList.toggle('hide', !s.style);
   el.look.innerHTML = `<div class="float"><span class="stlbl">${h('story.look')}</span>${lookSegs(s, P)}</div>`;
   el.job.classList.toggle('hide', !s.job);
@@ -174,7 +175,7 @@ function render(s, P, el){
 const EASE_OUT = 'cubic-bezier(.2, .8, .2, 1)', EASE_GLIDE = 'cubic-bezier(.45, .05, .15, 1)';
 let SC = 1, BACK = false, STAGE = null, WRAP = null;
 const dur = d => Math.round(Math.min(760, Math.max(340, 260 + d * .55)) * (BACK ? .8 : 1));
-let STACKMOVE = false, stackTimer = 0;
+let STACKMOVE = false, stackTimer = 0, moving = false;
 const fx = () => $('.fx', STAGE);
 // a ghost needs a solid paper to fly on: skip see-through tints and take the card under them
 const opaque = c => { const m = c && c.match(/rgba?\(([^)]+)\)/); if (!m) return false; const a = m[1].split(',')[3]; return a === undefined || +a > .9; };
@@ -284,7 +285,7 @@ function stateAt(n, k){
 const last = n => STEPS[n - 1].seq.length - 1;
 function show(s){
   const P = prev; prev = s;
-  clearTimeout(stackTimer); EL.page.style.visibility = '';
+  clearTimeout(stackTimer); moving = false; EL.page.style.visibility = '';
   const moves = P && !reduced() ? stackMoves(P, s) : null;
   STACKMOVE = !!moves;
   flip(() => render(s, P, EL));
@@ -308,9 +309,10 @@ function choreograph(moves){
   const pull = moves.some(m => m.t === 0 && m.f > 0);
   // only the sheets that move are hidden under their ghosts; the others stay where they are, so nothing blinks out
   EL.page.style.visibility = moves.some(m => m.t === 0 || m.f === 0) ? 'hidden' : '';
-  const moving = new Set(moves.filter(m => m.t > 0).map(m => m.id));
-  EL.behind.querySelectorAll('.sheet').forEach(sh => { sh.style.visibility = moving.has(sh.dataset.id) ? 'hidden' : ''; });
+  const away = new Set(moves.filter(m => m.t > 0).map(m => m.id));
+  EL.behind.querySelectorAll('.sheet').forEach(sh => { sh.style.visibility = away.has(sh.dataset.id) ? 'hidden' : ''; });
   let longest = 0;
+  moving = true;
   const order = [...moves].sort((m, n) => (n.t ?? 9) - (m.t ?? 9));      // deepest first, the new top last
   order.forEach(m => {
     const H = pageH(m.snap), g = document.createElement('div');
@@ -341,7 +343,22 @@ function choreograph(moves){
     pg.animate(shadows, { duration: ms, easing: EASE_GLIDE, fill: 'forwards' });
     longest = Math.max(longest, ms);
   });
-  stackTimer = setTimeout(() => { fx().querySelectorAll('.sg').forEach(g => g.remove()); EL.page.style.visibility = ''; EL.behind.querySelectorAll('.sheet').forEach(sh => { sh.style.visibility = ''; }); }, longest);
+  stackTimer = setTimeout(() => { moving = false; fx().querySelectorAll('.sg').forEach(g => g.remove()); EL.page.style.visibility = ''; EL.behind.querySelectorAll('.sheet').forEach(sh => { sh.style.visibility = ''; }); }, longest);
+}
+// pointing at a line of the career file lights it on the top resume; a line only another resume has brings that resume up (after a short rest, never mid-move)
+const paintHot = () => STAGE.querySelectorAll('.s-page li').forEach(li => li.classList.toggle('hot', !!HOT && li.dataset.k === 'p-' + HOT));
+let hotTimer = 0;
+function hover(id){
+  clearTimeout(hotTimer);
+  if (id === HOT) return;
+  HOT = id; paintHot();
+  const wait = () => {
+    if (HOT !== id || !prev) return;
+    if (moving || !settled) { hotTimer = setTimeout(wait, 200); return; }
+    const card = !prev.picks.includes(id) && prev.cards.find(c => c.picks.includes(id));
+    if (card) bringUp(card.id);
+  };
+  if (id) hotTimer = setTimeout(wait, 160);
 }
 // a tab brings its resume to the top
 function pullUp(e){
@@ -413,6 +430,9 @@ function listen(){
     else if (e.key === 'Home' || e.key === 'End'){ e.preventDefault(); auto = false; go(e.key === 'Home' ? 1 : STEPS.length); }
   });
   STAGE.addEventListener('click', pullUp);
+  const row = e => e.target.closest?.('.s-file .fln[data-k^="f-"]');
+  STAGE.addEventListener('pointerover', e => { const r = row(e); if (r) hover(r.dataset.k.slice(2)); });
+  STAGE.addEventListener('pointerout', e => { if (row(e) && !row({ target: e.relatedTarget })) hover(null); });
 }
 
 // ---------- the host ----------
