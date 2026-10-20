@@ -2918,6 +2918,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
     await say(null, null);
     const quiet = await tops();
     ok('…and with nothing said they are the least again', quiet.ways - quiet.head === 18, JSON.stringify(quiet));
+    await page.evaluate(() => window.__wb.onboarding.start.retext());   // the board says where its rows are again
   }
 
   // how the ways in feel: they lean toward the pointer, and the Tea tag hangs on a string that follows it (src/ui/buttonfx.js)
@@ -2953,6 +2954,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
 
   // the story (mockup E2): a framed board with a big number and a step control, no timeline
   ok('the story is a framed board left of the column, with a rim, and has no timeline of any kind', await page.evaluate(() => { const ss = document.querySelector('#ss'), r = ss.getBoundingClientRect(), col = document.querySelector('#col').getBoundingClientRect(); return !!ss.querySelector('.frame') && !!ss.querySelector('.rimshade') && r.right <= col.left && r.width > 700 && !ss.querySelector('.stops, .track, .ss-steps, .knob'); }));
+  await page.evaluate(() => window.__wb.onboarding.start.replay()); await page.waitForTimeout(600);
   const navText = () => page.evaluate(() => document.querySelector('#ss .ncur').textContent.replace(/\s+/g, ' ').trim().toLowerCase());
   ok('the step control reads “1 of 4”, with a way back that is off on the first step, a way on, and a menu of the four step names', (await navText()) === '1 of 4' && await page.evaluate(() => document.querySelector('#ss .nprev').disabled && !document.querySelector('#ss .nnext').disabled && [...document.querySelectorAll('#ss .nmenu li')].map(l => l.textContent.trim()).join('|') === '1Your career file|2Tailor it to the job|3Same words, any look|4Every job, its own resume'));
   await page.evaluate(() => window.__wb.onboarding.start.replay());
@@ -3025,7 +3027,8 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   // language chips preview in place, on hover; a click keeps it
   const chipBefore = await page.evaluate(() => { const c = document.querySelector('.oblang[data-l=de]'); c.dataset.mark = 'same'; return document.querySelector('#head .obhero').textContent; });
   await page.hover('.oblang[data-l=de]'); await page.waitForTimeout(900);
-  ok('hovering a language chip shows the whole screen in that language, in place (the chip is not redrawn)', (await page.textContent('#head .obhero')) !== chipBefore && (await page.getAttribute('.oblang[data-l=de]', 'data-mark')) === 'same');
+  const chipAfter = await page.textContent('#head .obhero'), chipMark = await page.getAttribute('.oblang[data-l=de]', 'data-mark');
+  ok('hovering a language chip shows the whole screen in that language, in place (the chip is not redrawn)', chipAfter !== chipBefore && chipMark === 'same', JSON.stringify({ chipBefore, chipAfter, chipMark }));
   await page.mouse.move(700, 800); await page.waitForTimeout(700);
   ok('…and moving away puts it back', (await page.textContent('#head .obhero')) === chipBefore);
 
