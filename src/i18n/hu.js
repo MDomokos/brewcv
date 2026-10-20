@@ -442,6 +442,8 @@ export default {
   'intro.drinks': 'Tea vagy kávé',
   'intro.dark': 'Sötét téma',
   'intro.lang': 'Nyelv',
+  'intro.k1': 'Szabványos fájl',
+  'intro.k2': 'A böngésződben marad',
   'onb.scratch': 'Kezdés a nulláról',
   'onb.scratchNote': 'Néhány kérdés, kb. öt perc',
   'onb.import': 'Fájl megnyitása vagy importálása',

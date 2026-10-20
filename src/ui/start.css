@@ -17,24 +17,6 @@ body.is-intro .startstage .ss { pointer-events: auto; }
 body.is-intro[data-intro-side="left"] .col { left: var(--G) !important; right: auto !important; width: 392px !important; }
 body.is-intro[data-intro-side="left"] .startstage { left: calc(392px + 2 * var(--G)); width: calc(100vw - 392px - 3 * var(--G)); }
 
-/* the column on the start screen (src/ui/intro-side.css): the footer sits on the canvas */
-body.is-intro .col > #foot { background: transparent; border: 0; border-radius: 0; box-shadow: none; --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); color: var(--ink); flex: none; height: auto; padding: 0 6px; margin-top: auto; }
-
-/* ---------- Why JSON?, until it moves to the footer ---------- */
-.obwhy { font-size: 12.5px; }
-.obwhy summary { cursor: pointer; font-weight: 700; display: inline-block; padding: 2px 10px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink); }
-.obwhy summary:hover, .obwhy[open] summary { border-color: var(--ink); }
-.obwhy ul { margin: 8px 0 6px; padding-left: 18px; display: grid; gap: 5px; line-height: 1.4; color: var(--ink); }
-.obwhy a, .oblink { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-.obeye { margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
-
-/* ---------- the footer: yours to keep, light and not equal to the rest of the interface ---------- */
-.obkeep__grid { display: grid; grid-template-columns: 1fr; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
-.obtile { display: flex; gap: 7px; align-items: flex-start; }
-.obico { flex: none; width: 15px; height: 15px; margin-top: 1px; fill: none; stroke: var(--ink-soft); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.obtile b { font-size: 12px; color: var(--ink); }
-.obtile p { margin: 0; font-size: 12px; line-height: 1.35; color: var(--ink-soft); }
-
 /* ---------- the story (src/ui/story.js, Intro Lab v17) ---------- */
 /* the 1280-wide stage (scaled by story.js to the page area's width; its pages run on off the bottom of the screen) under the step line and the caption, drawn straight on the canvas: its ink and lines are
    the canvas's; the paper is light in every theme; the career file is the panel's own surface; the step card is the constant chrome. */

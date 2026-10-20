@@ -442,6 +442,8 @@ export default {
   'intro.drinks': 'Thé ou café',
   'intro.dark': 'Thème sombre',
   'intro.lang': 'Langue',
+  'intro.k1': 'Fichier standard',
+  'intro.k2': 'Reste dans votre navigateur',
   'onb.scratch': 'Partir de zéro',
   'onb.scratchNote': 'Quelques questions, environ cinq minutes',
   'onb.import': 'Ouvrir ou importer un fichier',

@@ -442,6 +442,8 @@ export default {
   'intro.drinks': 'Tee oder Kaffee',
   'intro.dark': 'Dunkles Design',
   'intro.lang': 'Sprache',
+  'intro.k1': 'Standarddatei',
+  'intro.k2': 'Bleibt in deinem Browser',
   'onb.scratch': 'Ganz neu anfangen',
   'onb.scratchNote': 'Ein paar Fragen, etwa fünf Minuten',
   'onb.import': 'Datei öffnen oder importieren',

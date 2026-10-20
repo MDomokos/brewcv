@@ -5,7 +5,7 @@
 /* the column's width on the start screen is the layout's (src/ui/layout.js, slim); what is drawn in it is --iw wide and sits in the middle of it */
 body.is-intro { --iw: 340px; --ipad: max(20px, calc((var(--colw, 392px) - var(--iw)) / 2)); }
 body.is-intro .col > #head { background: transparent; border: 0; border-radius: 0; box-shadow: none; flex: none; height: auto; padding: 0 var(--ipad);
-  --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); --focus: var(--canvas-ink); color: var(--ink); }
+  --s-ink: var(--canvas-ink); --s-soft: var(--canvas-ink-soft); --s-line: var(--canvas-line); --focus: var(--canvas-ink); color: var(--s-ink); }
 
 /* ---------- the header: the logo and the name, the two switches, the hero and the line under it ---------- */
 body.is-intro .obhead { display: block; }
@@ -13,16 +13,16 @@ body.is-intro .obrow { display: flex; align-items: center; gap: 12px; min-height
 body.is-intro .oblogo { display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
 body.is-intro .oblogo img { display: block; width: 42px; height: 42px; flex: none; filter: var(--drop-sm); }
 body.is-intro .obhero { margin: 20px 0 0; font-size: 34px; line-height: 1.06; font-weight: 800; letter-spacing: -.015em; text-wrap: balance; }
-body.is-intro .obsub { margin: 12px 0 0; max-width: 310px; font-size: 14.5px; line-height: 1.4; color: var(--ink-soft); }
+body.is-intro .obsub { margin: 12px 0 0; max-width: 310px; font-size: 14.5px; line-height: 1.4; color: var(--s-soft); }
 
 /* Tea or Coffee as two small cups in a pill (square in Coffee: the radii are tokens), and the light or dark switch beside it */
 body.is-intro .obswitch { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-body.is-intro .obcups { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--ink-soft); border-radius: var(--r-pill); background: var(--paper); box-shadow: var(--shadow-lift); }
+body.is-intro .obcups { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--s-soft); border-radius: var(--r-pill); background: var(--paper); box-shadow: var(--shadow-lift); }
 body.is-intro #head .obcup { display: grid; place-items: center; width: 38px; height: 30px; padding: 0; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--paper-ink); cursor: pointer; }
 body.is-intro #head .obcup[aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
 body.is-intro #head .obcup:hover:not([aria-pressed=true]) { background: var(--paper-hover); }
-body.is-intro #head .obsun { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--ink-soft); border-radius: var(--r-round); background: var(--paper); color: var(--paper-ink); cursor: pointer; box-shadow: var(--shadow-lift); }
-body.is-intro #head .obsun:hover:not(:disabled) { border-color: var(--ink); }
+body.is-intro #head .obsun { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--s-soft); border-radius: var(--r-round); background: var(--paper); color: var(--paper-ink); cursor: pointer; box-shadow: var(--shadow-lift); }
+body.is-intro #head .obsun:hover:not(:disabled) { border-color: var(--s-ink); }
 .obic { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .obcup .liq { fill: currentColor; fill-opacity: .35; stroke: none; }
 .obsun .obic { width: 18px; height: 18px; }
@@ -35,7 +35,7 @@ body.is-intro .col { background: none; border: 0; box-shadow: none; border-radiu
 /* the questions that follow a choice keep the card they have always had; the start page itself is bare on the canvas */
 body.is-intro .col > #body { flex: none; overflow: visible; width: 346px; max-width: calc(100% - 2 * var(--ipad)); margin-left: var(--ipad); padding: 12px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); box-shadow: var(--shadow-panel); }
 body.is-intro .col > #body:has(> .obstart) { width: auto; max-width: none; margin: 0; padding: 0 var(--ipad) 16px; border: 0; border-radius: 0; background: none; box-shadow: none;
-  --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); --focus: var(--canvas-ink); color: var(--ink); }
+  --s-ink: var(--canvas-ink); --s-soft: var(--canvas-ink-soft); --s-line: var(--canvas-line); --focus: var(--canvas-ink); color: var(--s-ink); }
 .obgap { flex: none; height: 18px; }
 #obgap2 { height: 28px; }
 
@@ -43,7 +43,7 @@ body.is-intro .col > #body:has(> .obstart) { width: auto; max-width: none; margi
 .obchoices { position: relative; display: grid; gap: 9px; margin: 0;
   --w-fill: var(--paper); --w-ink: var(--paper-ink); --w-edge: var(--page-edge); --w-sh: color-mix(in srgb, var(--canvas-ink) 24%, transparent); }
 html[data-drink="coffee"] .obchoices { --w-sh: var(--canvas-ink); }
-.obchoices::before, .oblangrow::before { content: ""; position: absolute; left: calc(-1 * var(--ipad)); right: 0; top: -14px; border-top: 1px solid var(--line); }
+.obchoices::before, .oblangrow::before { content: ""; position: absolute; left: calc(-1 * var(--ipad)); right: 0; top: -14px; border-top: 1px solid var(--s-line); }
 .obw { position: relative; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .obw.p { --w-fill: var(--accent); --w-ink: var(--on-accent); --w-edge: var(--tag-line); }
 .obw.t { --w-ink: var(--canvas-ink); width: max-content; max-width: 100%; }
@@ -91,17 +91,44 @@ html[data-drink="coffee"] .obw.t .obb::before { width: 9px; height: 9px; margin-
 
 /* ---------- the languages: a label and ten chips, five to a row ---------- */
 .oblangrow { position: relative; }
-body.is-intro .obeye { display: block; margin: 0 0 7px; font: 400 11px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+body.is-intro .obeye { display: block; margin: 0 0 7px; font: 400 11px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--s-soft); }
 .oblangs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-body.is-intro .oblangs .oblang { width: 100%; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-s); background: transparent; color: var(--ink-soft); font: 700 11.5px/1 var(--font-ui); letter-spacing: 0; cursor: pointer; }
-body.is-intro .oblangs .oblang:hover { border-color: var(--ink-soft); color: var(--ink); background: transparent; }
-body.is-intro .oblangs .oblang.pk { border-color: var(--ink-soft); color: var(--ink); background: var(--accent-soft); }
+body.is-intro .oblangs .oblang { width: 100%; height: 28px; padding: 0; border: 1px solid var(--s-line); border-radius: var(--r-s); background: transparent; color: var(--s-soft); font: 700 11.5px/1 var(--font-ui); letter-spacing: 0; cursor: pointer; }
+body.is-intro .oblangs .oblang:hover { border-color: var(--s-soft); color: var(--s-ink); background: transparent; }
+body.is-intro .oblangs .oblang.pk { border-color: var(--s-soft); color: var(--s-ink); background: var(--accent-soft); }
 body.is-intro .oblangs .oblang.on { border-color: var(--mark); background: var(--mark); color: var(--on-mark); }
-/* Why JSON? stays under the languages until it moves to the footer */
-body.is-intro .obwhy { margin-top: 14px; font-size: 12.5px; }
-body.is-intro .obwhy summary { background: var(--paper); color: var(--paper-ink); border-color: var(--ink-soft); box-shadow: var(--shadow-lift); }
-body.is-intro .obwhy ul { color: var(--ink); }
+
+/* ---------- Yours to keep: pinned to the foot of the column, a heading with the Why JSON? pill and four short lines whose sentences open in popovers ---------- */
+body.is-intro .col > #foot { background: transparent; border: 0; border-radius: 0; box-shadow: none; flex: none; height: auto; margin-top: auto; padding: 0 var(--ipad);
+  --s-ink: var(--canvas-ink); --s-soft: var(--canvas-ink-soft); --s-line: var(--canvas-line); color: var(--s-ink); }
+.obkeep { position: relative; padding-top: 12px; border-top: 1px solid var(--s-line); }
+.obkeep::before { content: ""; position: absolute; left: calc(-1 * var(--ipad)); width: var(--ipad); top: -1px; border-top: 1px solid var(--s-line); }
+body.is-intro .obkeep h3 { margin: 0; font-family: inherit; font-size: 11px; font-weight: 700; line-height: 1.3; letter-spacing: .08em; text-transform: uppercase; color: var(--s-soft); }
+.obkhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+body.is-intro .obkeep .obwhy { padding: 1px 10px; border: 1px solid var(--s-soft); border-radius: var(--r-pill); background: var(--paper); color: var(--paper-ink); box-shadow: var(--shadow-lift); font: 700 12.5px/1.5 var(--font-ui); cursor: pointer; }
+body.is-intro .obkeep .obwhy:hover:not(:disabled) { border-color: var(--s-ink); }
+body.is-intro .obkeep .obwhy:active:not(:disabled), body.is-intro .obkeep .obkb:active:not(:disabled) { transform: none; }
+.obkl { list-style: none; margin: 0; padding: 0; }
+.obkp { position: relative; }
+body.is-intro .obkeep .obkb { display: flex; align-items: center; gap: 10px; width: 100%; height: 30px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--s-ink); font-size: 14px; font-weight: 400; text-align: left; cursor: pointer; }
+.obico { flex: none; width: 15px; height: 15px; fill: none; stroke: var(--s-soft); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.obkb span { text-decoration: underline dashed var(--canvas-label); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+.obkb:hover span, .obkp.open .obkb span, .obkhead.open .obwhy { text-decoration-style: solid; color: var(--canvas-label); }
+.oblink { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+/* the popover is the pop-up surface of the app, above its line; a bridge over the gap keeps it open on the way from the line to its link */
+.obpop { display: none; position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 5; padding: 10px 12px; background: var(--pop); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--shadow-chip); font-size: 12.5px; line-height: 1.4; }
+.obpop::before { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 10px; }
+.obpop::after { content: ""; position: absolute; left: 5px; bottom: -7px; width: 11px; height: 11px; background: var(--pop); border-right: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); transform: rotate(45deg); }
+.obpop b { display: block; margin-bottom: 2px; font-size: 12.5px; }
+.obpop ul { margin: 0 0 6px; padding-left: 18px; display: grid; gap: 5px; }
+.obpop a { color: inherit; font-weight: 600; }
+#obwhypop::after { left: auto; right: 30px; }
+.obkp:hover .obpop, .obkp:has(:focus-visible) .obpop, .obkp.open .obpop, .obkhead.open + .obpop { display: block; }
+.obkp[data-quiet] .obpop { display: none; }
 
 /* a phone: the header has the whole width, and the cups sit at the end of the logo's row */
 body[data-phone=true].is-intro { --ipad: 0px; }
 body[data-phone=true] .obhead { padding-right: 0; }
+/* …and a popover opens in place, in the flow: there is no hover, and above the line there may be no room */
+body[data-phone=true] .obpop { position: static; margin: 4px 0 6px; }
+body[data-phone=true] .obpop::before, body[data-phone=true] .obpop::after { display: none; }

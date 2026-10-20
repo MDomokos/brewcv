@@ -442,6 +442,8 @@ export default {
   'intro.drinks': 'Čaj, nebo káva',
   'intro.dark': 'Tmavý motiv',
   'intro.lang': 'Jazyk',
+  'intro.k1': 'Standardní soubor',
+  'intro.k2': 'Zůstává ve vašem prohlížeči',
   'onb.scratch': 'Začít od nuly',
   'onb.scratchNote': 'Pár otázek, asi pět minut',
   'onb.import': 'Otevřít nebo importovat soubor',

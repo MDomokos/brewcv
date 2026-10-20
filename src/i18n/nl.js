@@ -442,6 +442,8 @@ export default {
   'intro.drinks': 'Thee of koffie',
   'intro.dark': 'Donker thema',
   'intro.lang': 'Taal',
+  'intro.k1': 'Standaardbestand',
+  'intro.k2': 'Blijft in je browser',
   'onb.scratch': 'Vanaf nul beginnen',
   'onb.scratchNote': 'Een paar vragen, ongeveer vijf minuten',
   'onb.import': 'Bestand openen of importeren',

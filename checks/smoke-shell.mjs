@@ -2881,11 +2881,27 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   ok('…the interface language row, one chip for each of the ten languages', (await page.$$('#body .oblangs .oblang')).length === 10 && (await page.getAttribute('#body .oblang.on', 'data-l')) === 'en');
   ok('…the notes that were a second line under each way in are its tooltip, so each is one line', await page.evaluate(() => [...document.querySelectorAll('#body .obchoices .obb')].every(b => b.title.length > 10 && !b.querySelector('small') && b.getBoundingClientRect().height <= 40)));
   ok('…the languages are a Language label over a grid of five columns', await page.evaluate(() => { const g = getComputedStyle(document.querySelector('#body .oblangs')); return g.gridTemplateColumns.split(' ').length === 5 && /Language/i.test(document.querySelector('#body .oblangrow .obeye').textContent); }));
-  const bodyH = (await r('#body')).height;
-  await page.click('#body .obwhy summary'); await page.waitForTimeout(500);
-  ok('“Why JSON?” opens in place: its four points and the link, inside the inspector', (await page.isVisible('#body .obwhy li')) && (await page.$$('#body .obwhy li')).length === 4 && /File over app|Steph Ango/.test(await page.textContent('#body .obwhy')) && (await r('#body')).height > bodyH);
-  await page.click('#body .obwhy summary'); await page.waitForTimeout(500);
-  ok('footer area: the four “Yours to keep” points, private first among them, JSON Resume linked', (await page.$$('#foot .obtile')).length === 4 && /Private/.test(await page.textContent('#foot')) && !!(await page.$('#foot a[href="https://jsonresume.org/schema"]')));
+  const popShown = () => page.evaluate(() => [...document.querySelectorAll('#foot .obpop')].map(e => getComputedStyle(e).display !== 'none').join());
+  ok('footer area: the heading Yours to keep, a Why JSON? pill beside it and four short lines (Standard file, Stays in your browser, Nothing to install, No lock-in), and every popover shut', await page.evaluate(() => /Yours to keep/i.test(document.querySelector('#foot .obkhead h3').textContent) && /Why JSON/.test(document.querySelector('#foot .obkhead .obwhy').textContent)
+    && [...document.querySelectorAll('#foot .obkb')].map(b => b.textContent.trim()).join('|') === 'Standard file|Stays in your browser|Nothing to install|No lock-in' && [...document.querySelectorAll('#foot .obpop')].every(e => getComputedStyle(e).display === 'none')));
+  ok('…the four points keep their words in the popovers (title and sentence), JSON Resume a link, Private among them', (await page.$$('#foot .obkp')).length === 4 && /Private/.test(await page.textContent('#foot')) && /Nothing uploaded, no account/.test(await page.textContent('#foot')) && !!(await page.$('#foot .obkp a[href="https://jsonresume.org/schema"]')));
+  await page.hover('#foot .obkp:nth-child(2) .obkb'); await page.waitForTimeout(200);
+  ok('pointing at a line opens its sentence in a popover above it', (await popShown()) === 'false,false,true,false,false' && await page.evaluate(() => { const p = document.querySelector('#obkp1').getBoundingClientRect(), b = document.querySelector('#foot .obkp:nth-child(2) .obkb').getBoundingClientRect(); return p.bottom <= b.top; }));
+  await page.mouse.move(4, 4); await page.waitForTimeout(200);
+  ok('…and moving off closes it', (await popShown()) === 'false,false,false,false,false');
+  await page.click('#foot .obkp:nth-child(1) .obkb'); await page.mouse.move(4, 4); await page.waitForTimeout(200);
+  ok('a click keeps one open (aria-expanded), with the link inside it reachable', (await popShown()) === 'false,true,false,false,false' && (await page.getAttribute('#foot .obkp:nth-child(1) .obkb', 'aria-expanded')) === 'true' && await page.isVisible('#obkp0 a'));
+  await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+  ok('…and Esc closes it', (await popShown()) === 'false,false,false,false,false' && (await page.getAttribute('#foot .obkp:nth-child(1) .obkb', 'aria-expanded')) === 'false');
+  await page.focus('#foot .obkp:nth-child(3) .obkb'); await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab'); await page.waitForTimeout(200);
+  const focused = await popShown();
+  await page.keyboard.press('Escape'); await page.waitForTimeout(100);
+  ok('the keyboard opens one too (focus), and Esc puts it away until the focus has left', focused === 'false,false,false,true,false' && (await popShown()) === 'false,false,false,false,false');
+  await page.click('#foot .obwhy'); await page.mouse.move(4, 4); await page.waitForTimeout(300);
+  ok('“Why JSON?” opens its four points and the link over the page, in a popover and not in place (the footer stays where it is), and a click elsewhere closes it', await page.evaluate(() => { const p = document.querySelector('#obwhypop'); return getComputedStyle(p).display !== 'none' && p.querySelectorAll('li').length === 4 && /File over app/.test(p.textContent) && !!p.querySelector('a[href*="stephango"]') && document.querySelector('#foot .obwhy').getAttribute('aria-expanded') === 'true'; })
+    && (await r('#foot')).bottom > 880);
+  await page.click('#head .obsub'); await page.waitForTimeout(200);
+  ok('…a click elsewhere closes it', (await popShown()) === 'false,false,false,false,false');
   ok('…light, and not equal to the inspector: no card around them', await page.evaluate(() => { const f = getComputedStyle(document.querySelector('#foot')); return f.backgroundColor === 'rgba(0, 0, 0, 0)' && f.boxShadow === 'none'; }));
   ok('nothing of the editor shows: no tabs, no zoom bar, no meter, no Fit, and the sheet waits', !(await page.isVisible('#tab-edit')) && !(await page.$('[data-act=fit]')) && (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'hidden');
 

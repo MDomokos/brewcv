@@ -1,7 +1,8 @@
 // The start screen (UX-3), built from the editor's own layout.
-//   - the header area: the logo, the name, the tagline; the inspector area: the three ways in, the interface language, "Why JSON?"
-//     opening in place; the footer area: the four "Yours to keep" points; and the page area, where the story of how it works plays
-//     (src/ui/story.js, from Intro Lab v17): one career file, a page pulled from it, any look, a resume for every job.
+//   - the header area: the logo, the name, the Tea and Coffee cups and the light and dark button, the title and the tagline; the inspector area:
+//     the three ways in and the interface language; the footer area: the four "Yours to keep" points, each opening its sentence in a popover, and
+//     "Why JSON?" opening its four points the same way (all drawn bare on the canvas: src/ui/intro-side.css); and the page area, where the story
+//     of how it works plays (src/ui/story.js, from Intro Lab v17): one career file, a page pulled from it, any look, a resume for every job.
 // Everything is drawn from tokens (src/ui/start.css). The three ways in change state rather than screens: the grey lines become the
 // real page (shell.js).
 
@@ -22,18 +23,13 @@ export const jr = html => html.replace(/JSON[- ]Resume/, m => `<a class="oblink"
 
 // ---- the words ----
 const ICON = d => `<svg class="obico" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+// each point: its icon, the short line that shows, then the title and the sentence that open in a popover
 const TILES = [
-  [ICON('<path d="M8 4C5 4 5 6 5 8v2c0 1-1 2-2 2 1 0 2 1 2 2v2c0 2 0 4 3 4M16 4c3 0 3 2 3 4v2c0 1 1 2 2 2-1 0-2 1-2 2v2c0 2 0 4-3 4"/>'), 'onb.t1h', 'onb.t1'],
-  [ICON('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'), 'onb.t2h', 'onb.t2'],
-  [ICON('<path d="M4 9a12 12 0 0 1 16 0M7 12.5a8 8 0 0 1 10 0M10 16a4 4 0 0 1 4 0"/><circle cx="12" cy="19" r="1"/><path d="M4 4l16 16"/>'), 'onb.t3h', 'onb.t3'],
-  [ICON('<path d="M12 4v10m0 0-4-4m4 4 4-4M5 19h14"/>'), 'onb.t4h', 'onb.t4'],
+  [ICON('<path d="M8 4C5 4 5 6 5 8v2c0 1-1 2-2 2 1 0 2 1 2 2v2c0 2 0 4 3 4M16 4c3 0 3 2 3 4v2c0 1 1 2 2 2-1 0-2 1-2 2v2c0 2 0 4-3 4"/>'), 'intro.k1', 'onb.t1h', 'onb.t1'],
+  [ICON('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'), 'intro.k2', 'onb.t2h', 'onb.t2'],
+  [ICON('<path d="M4 9a12 12 0 0 1 16 0M7 12.5a8 8 0 0 1 10 0M10 16a4 4 0 0 1 4 0"/><circle cx="12" cy="19" r="1"/><path d="M4 4l16 16"/>'), 'onb.t3h', 'onb.t3h', 'onb.t3'],
+  [ICON('<path d="M12 4v10m0 0-4-4m4 4 4-4M5 19h14"/>'), 'onb.t4h', 'onb.t4h', 'onb.t4'],
 ];
-
-export function whyJson(){
-  return `<details class="obwhy"><summary data-h="onb.whyJson">${h('onb.whyJson')}</summary>
-    <ul>${['onb.why1', 'onb.why2', 'onb.why3', 'onb.why4'].map(k => `<li data-h="${k}"${k === 'onb.why3' ? ' data-jr' : ''}>${k === 'onb.why3' ? jr(h(k)) : h(k)}</li>`).join('')}</ul>
-    <a href="https://stephango.com/file-over-app" target="_blank" rel="noopener noreferrer"><span data-h="onb.whyLink">${h('onb.whyLink')}</span> ${icon('external', { size: 12 })}</a></details>`;
-}
 
 // ---- the header area, the inspector area, the footer area ----
 // the two cups are the Tea and Coffee switch, the sun and moon the light and dark one; the logo keeps asking about the drink too
@@ -66,11 +62,17 @@ export function bodyHtml({ langs, current }){
     <div class="obgap" id="obgap2" aria-hidden="true"></div>
     <div class="oblangrow"><span class="obeye" data-h="intro.lang">${h('intro.lang')}</span>
       <ul class="oblangs" aria-label="${esc(t('ux3.startLangs'))}">${langs.map(([l, name]) => `<li><button lang="${l}" class="oblang${l === current ? ' on' : ''}" data-act="ob-intro-lang" data-l="${l}" aria-pressed="${l === current}" aria-label="${esc(name)}" title="${esc(name)}">${l.toUpperCase()}</button></li>`).join('')}</ul></div>
-    ${whyJson()}</div>`;
+  </div>`;
 }
 
-export const footHtml = () => `<section class="obkeep"><h3 class="obeye" data-h="onb.keepHead">${h('onb.keepHead')}</h3>
-  <div class="obkeep__grid">${TILES.map(([ic, hk, tk]) => `<div class="obtile">${ic}<p><b data-h="${hk}">${h(hk)}</b> <span data-h="${tk}"${hk === 'onb.t1h' ? ' data-jr' : ''}>${hk === 'onb.t1h' ? jr(h(tk)) : h(tk)}</span></p></div>`).join('')}</div></section>`;
+// Yours to keep: a heading with the Why JSON? pill, and four short lines that are links in all but name: pointing at one, focusing it or clicking it opens its
+// sentence in a popover (bindSide, below). The words of both popovers are the catalogue's, as they were when they showed in the open.
+export const footHtml = () => `<section class="obkeep"><div class="obkhead"><h3 data-h="onb.keepHead">${h('onb.keepHead')}</h3>
+    <button type="button" class="obwhy" aria-expanded="false" aria-controls="obwhypop" data-h="onb.whyJson">${h('onb.whyJson')}</button></div>
+  <div class="obpop" id="obwhypop"><ul>${['onb.why1', 'onb.why2', 'onb.why3', 'onb.why4'].map(k => `<li data-h="${k}"${k === 'onb.why3' ? ' data-jr' : ''}>${k === 'onb.why3' ? jr(h(k)) : h(k)}</li>`).join('')}</ul>
+    <a href="https://stephango.com/file-over-app" target="_blank" rel="noopener noreferrer"><span data-h="onb.whyLink">${h('onb.whyLink')}</span> ${icon('external', { size: 12 })}</a></div>
+  <ul class="obkl">${TILES.map(([ic, lk, hk, tk], i) => `<li class="obkp"><button type="button" class="obkb" aria-expanded="false" aria-controls="obkp${i}">${ic}<span data-h="${lk}">${h(lk)}</span></button>
+    <div class="obpop" id="obkp${i}"><b data-h="${hk}">${h(hk)}</b><span data-h="${tk}"${hk === 'onb.t1h' ? ' data-jr' : ''}>${hk === 'onb.t1h' ? jr(h(tk)) : h(tk)}</span></div></li>`).join('')}</ul></section>`;
 
 // ---- the picture: the story (src/ui/story.js) ----
 export const { stageHtml, mount, unmount, begin, setStep, replay, act, current } = story;
@@ -120,6 +122,31 @@ export function bindSide(){
   document.addEventListener('introlayout', again);
   addEventListener('resize', again);
   document.fonts?.ready.then(again);
+  popovers();
 }
 
-const api = { headHtml, bodyHtml, footHtml, stageHtml, mount, unmount, begin, retext, setStep, replay, act, whyJson, jr, fit, bindSide };
+// The popovers of Yours to keep: a click opens one and keeps it open (aria-expanded) until another click, another popover or Esc; pointing at an entry or focusing it
+// with the keyboard shows it without keeping it, and Esc puts that away too until the pointer or the focus has left (it can always be dismissed).
+const HOST = '.obkp, .obkhead';
+function popovers(){
+  const shut = except => document.querySelectorAll(`${HOST}.open`).forEach(x => { if (x !== except){ x.classList.remove('open'); x.querySelector('button').setAttribute('aria-expanded', 'false'); } });
+  document.addEventListener('click', e => {
+    if (e.target.closest('.obpop')) return;
+    const b = e.target.closest('.obkb, .obwhy'), host = b?.closest(HOST), was = host?.classList.contains('open');
+    shut();
+    if (host && !was){ host.classList.add('open'); b.setAttribute('aria-expanded', 'true'); }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const open = document.querySelector(`${HOST}.open`), shown = document.querySelector('.obkp:hover, .obkp:has(:focus-visible)');
+    if (!open && !shown) return;
+    shut();
+    shown?.setAttribute('data-quiet', '');
+    if (open?.contains(document.activeElement)) open.querySelector('button').focus();
+  });
+  const left = e => { const x = e.target.closest?.('.obkp'); if (x && !x.contains(e.relatedTarget)) x.removeAttribute('data-quiet'); };
+  document.addEventListener('pointerout', left);
+  document.addEventListener('focusout', left);
+}
+
+const api = { headHtml, bodyHtml, footHtml, stageHtml, mount, unmount, begin, retext, setStep, replay, act, jr, fit, bindSide };

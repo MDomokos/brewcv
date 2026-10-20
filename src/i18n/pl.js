@@ -442,6 +442,8 @@ export default {
   'intro.drinks': 'Herbata czy kawa',
   'intro.dark': 'Ciemny motyw',
   'intro.lang': 'Język',
+  'intro.k1': 'Standardowy plik',
+  'intro.k2': 'Zostaje w twojej przeglądarce',
   'onb.scratch': 'Zacznij od zera',
   'onb.scratchNote': 'Kilka pytań, około pięciu minut',
   'onb.import': 'Otwórz lub importuj plik',
