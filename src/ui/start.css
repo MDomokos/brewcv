@@ -51,11 +51,11 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .obeye { margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
 
 /* ---------- the footer: yours to keep, light and not equal to the rest of the interface ---------- */
-.obkeep__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; padding-top: 8px; border-top: 1px solid var(--line); }
+.obkeep__grid { display: grid; grid-template-columns: 1fr; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
 .obtile { display: flex; gap: 7px; align-items: flex-start; }
 .obico { flex: none; width: 15px; height: 15px; margin-top: 1px; fill: none; stroke: var(--ink-soft); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.obtile b { display: block; font-size: 12px; color: var(--ink); }
-.obtile p { margin: 1px 0 0; font-size: 12px; line-height: 1.35; color: var(--ink-soft); }
+.obtile b { font-size: 12px; color: var(--ink); }
+.obtile p { margin: 0; font-size: 12px; line-height: 1.35; color: var(--ink-soft); }
 
 /* ---------- the story (src/ui/story.js, Intro Lab v17) ---------- */
 /* the 1240 x 680 stage (scaled by story.js to fill the page area) with the step line under it, drawn straight on the canvas: its ink and lines are

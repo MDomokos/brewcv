@@ -49,7 +49,7 @@ export function bodyHtml({ langs, current }){
 }
 
 export const footHtml = () => `<section class="obkeep"><h3 class="obeye" data-h="onb.keepHead">${h('onb.keepHead')}</h3>
-  <div class="obkeep__grid">${TILES.map(([ic, hk, tk]) => `<div class="obtile">${ic}<div><b data-h="${hk}">${h(hk)}</b><p data-h="${tk}"${hk === 'onb.t1h' ? ' data-jr' : ''}>${hk === 'onb.t1h' ? jr(h(tk)) : h(tk)}</p></div></div>`).join('')}</div></section>`;
+  <div class="obkeep__grid">${TILES.map(([ic, hk, tk]) => `<div class="obtile">${ic}<p><b data-h="${hk}">${h(hk)}</b> <span data-h="${tk}"${hk === 'onb.t1h' ? ' data-jr' : ''}>${hk === 'onb.t1h' ? jr(h(tk)) : h(tk)}</span></p></div>`).join('')}</div></section>`;
 
 // ---- the picture: the story (src/ui/story.js) ----
 export const { stageHtml, mount, unmount, begin, setStep, replay, act, current } = story;
