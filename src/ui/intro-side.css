@@ -75,7 +75,7 @@ html[data-drink="tea"] .obw.t .obb::before { width: 11px; height: 11px; margin-t
 /* its string (src/ui/buttonfx.js draws it): the last stretch is drawn again over the tag, so it runs through the hole; the rest of it is under the picture's board */
 .obstr { display: none; position: absolute; left: -60px; top: -20px; width: 130px; height: 80px; overflow: visible; fill: none; stroke: var(--tag-line); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; z-index: 3; clip-path: inset(-30px 0 -30px 56px); }
 html[data-drink="tea"] .obw.p .obstr { display: block; }
-/* the whole rope: a layer over the straw and under the picture's board (which is above 5, the column above that); it is Tea's, and only where the board is left of the column */
+/* the whole rope: a layer over the straw and under the picture's board (which is above 5, the column above that); it is Tea's, and not on a phone */
 .obrope { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; overflow: visible; fill: none; stroke: var(--tag-line); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 body:not(.is-intro) .obrope { display: none; }
 html[data-drink="tea"] body[data-phone=true] .obw.p .obstr { display: none; }

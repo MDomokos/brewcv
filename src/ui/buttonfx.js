@@ -79,7 +79,7 @@ class Rope {
     this.w = w; this.mv = w.querySelector('.obmv'); this.front = w.querySelector('.obstr'); this.fpath = this.front.querySelector('path');
     this.pts = []; this.rest = null;
   }
-  // false when there is no string to draw: Coffee, a phone, the column on the left (the CSS shows no .obstr there), or no tag
+  // false when there is no string to draw: Coffee, a phone (the CSS shows no .obstr there), or no tag
   visible(){ return !!this.w?.isConnected && this.front.getClientRects().length > 0; }
   show(on){ this.path.style.display = on ? '' : 'none'; }
   geo(){

@@ -2905,6 +2905,21 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.click('#head .obsub'); await page.waitForTimeout(200);
   ok('…a click elsewhere closes it', (await popShown()) === 'false,false,false,false,false');
   ok('…light, and not equal to the inspector: no card around them', await page.evaluate(() => { const f = getComputedStyle(document.querySelector('#foot')); return f.backgroundColor === 'rgba(0, 0, 0, 0)' && f.boxShadow === 'none'; }));
+  // the rows follow the board's: --ways-top and --lang-top on the body (screen y of the career file's top edge and of its first lit line), announced by introlayout
+  {
+    const say = (ways, lang) => page.evaluate(([w, l]) => { for (const [k, v] of [['--ways-top', w], ['--lang-top', l]]) v == null ? document.body.style.removeProperty(k) : document.body.style.setProperty(k, `${v}px`); document.dispatchEvent(new CustomEvent('introlayout')); return new Promise(r => setTimeout(r, 150)); }, [ways, lang]);
+    const tops = () => page.evaluate(() => ({ ways: Math.round(document.querySelector('.obchoices').getBoundingClientRect().top), lang: Math.round(document.querySelector('.oblangrow').getBoundingClientRect().top), head: Math.round(document.querySelector('#head').getBoundingClientRect().bottom), tag: Math.round(document.querySelector('.obw.p .obb').getBoundingClientRect().top) }));
+    await say(320, 480);
+    const asked = await tops();
+    ok('the ways in start level with the board’s career file (--ways-top) and the language row level with its first line (--lang-top), when the board says so', Math.abs(asked.ways - 320) <= 1 && Math.abs(asked.lang - 480) <= 1, JSON.stringify(asked));
+    await say(asked.head + 4, 10);
+    const least = await tops();
+    ok('…and a row the board puts too high does not squeeze the column: the gaps are at least 18px and 28px', least.ways - least.head >= 18 && least.lang - (await page.$eval('.obchoices', el => Math.round(el.getBoundingClientRect().bottom))) >= 28, JSON.stringify(least));
+    await say(null, null);
+    const quiet = await tops();
+    ok('…and with nothing said they are the least again', quiet.ways - quiet.head === 18, JSON.stringify(quiet));
+  }
+
   // how the ways in feel: they lean toward the pointer, and the Tea tag hangs on a string that follows it (src/ui/buttonfx.js)
   {
     const lean = () => page.evaluate(() => { const w = document.querySelector('.obw.s'); return { t: w.querySelector('.obmv').style.transform, pressed: w.classList.contains('pressed') }; });
