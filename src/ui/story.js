@@ -137,7 +137,7 @@ function toolsHtml(s, P){
 
 // the stack: the page on top, the kept resumes fanned out behind it from their bottom-left corner, a tag on each sheet's top edge, and a dashed
 // place for the next one
-const TABS = { cafe: ['Café manager', 12], tea: ['Tea shop lead', 128], trainer: ['Trainer', 244] };
+const TABS = { cafe: ['Café manager', 12], tea: ['Tea shop lead', 108], trainer: ['Trainer', 204] };
 const lookLine = c => `${LOOKS[c.look]} · ${c.lang.toUpperCase()}${c.paper === 'a4' ? ' · A4' : ''}`;
 const POS = [{ x: 0, y: 0, r: 0 }, { x: 14, y: -30, r: 1.2 }, { x: 26, y: -56, r: 2.4 }, { x: 38, y: -80, r: 3.6 }];
 const PZ = 1.3, PAGE_AT = [388, 188];      // the page's place in step 4 (its top follows the stage's height, see fit)
