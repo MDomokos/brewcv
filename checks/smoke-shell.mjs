@@ -2941,6 +2941,10 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
     ok('pressing it flattens and sinks it', prs.pressed && num(prs.t, /rotateY\((-?[\d.]+)deg/) === 0 && num(prs.t, /translate3d\(-?[\d.]+px, (-?[\d.]+)px/) > 2, prs.t);
     await page.mouse.move(4, 4); await page.mouse.up(); await page.waitForTimeout(900);
     ok('…and moving off puts it back: no transform is left on it', (await lean()).t === '' && !(await lean()).pressed);
+    const link = await r('.obw.t .obb');
+    await page.mouse.move(link.right - 6, link.top + link.height / 2); await page.waitForTimeout(500);
+    ok('the text link “Try it with an example” does not move when pointed at (no transform, no lift), only its underline turns solid', await page.evaluate(() => { const b = document.querySelector('.obw.t .obb'); return document.querySelector('.obw.t .obmv').style.transform === '' && getComputedStyle(b).textDecorationStyle === 'solid'; }));
+    await page.mouse.move(4, 4); await page.waitForTimeout(300);
     // the string: its far end under the picture's board, its near end the tag's hole
     const rope = () => page.evaluate(() => { const bp = document.querySelector('#obrope path'), fp = document.querySelector('.obw.p .obstr path'), end = d => d.match(/L(-?[\d.]+) (-?[\d.]+)$/)?.slice(1).map(Number);
       return { back: bp.getAttribute('d'), front: fp.getAttribute('d'), show: getComputedStyle(bp).display !== 'none', z: getComputedStyle(document.querySelector('#obrope')).zIndex, end: end(bp.getAttribute('d')), start: bp.getAttribute('d').match(/^M(-?[\d.]+) (-?[\d.]+)/).slice(1).map(Number),

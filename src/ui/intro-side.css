@@ -58,6 +58,7 @@ html[data-drink="coffee"] .obchoices { --w-sh: var(--canvas-ink); }
 .obw.p { --w-fill: var(--accent); --w-ink: var(--on-accent); --w-edge: var(--tag-line); }
 .obw.t { --w-ink: var(--canvas-ink); width: max-content; max-width: 100%; }
 .obmv { display: block; transform-origin: 50% 50%; will-change: transform; }
+.obw.t .obmv { will-change: auto; }
 body.is-intro .obchoices .obb { position: relative; isolation: isolate; display: flex; align-items: center; width: 100%; height: 34px; min-height: 0; padding: 0 14px; border: 0; border-radius: 0; background: none; color: var(--w-ink);
   font: 700 13.5px/1 var(--font-ui); text-align: left; white-space: nowrap; cursor: pointer; outline: none; }
 body.is-intro .obchoices .obb > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

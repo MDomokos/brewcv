@@ -1,5 +1,5 @@
 // How the start screen's three ways in feel (Intro Lab v19, E2). Drawn by src/ui/start.js and src/ui/intro-side.css; this file only moves them.
-//   - the lean: each button leans up to FX.tilt degrees toward the pointer, lifts a little, slides toward it and moves its flat shadow away from it;
+//   - the lean: each of the first two buttons leans up to FX.tilt degrees toward the pointer, lifts a little, slides toward it and moves its flat shadow away from it;
 //     pressing flattens it and sinks it. A touch has no hover, so it leans while it is pressed and only then.
 //   - the string (Tea only): the primary is a tag, and its string is a simulated rope. Its far end is tied under the picture's board (36px inside the board's
 //     right edge, out of sight, and it never moves); its near end is the tag's hole, read from the tag's own transform on every frame, so a lift, a lean, a slide
@@ -145,7 +145,7 @@ let rope = null;
 const states = new WeakMap();
 const btn = el => {
   const w = el?.closest?.('.obw');
-  if (!w) return null;
+  if (!w || w.classList.contains('t')) return null;        // the third is a text link: its underline answers the pointer, and it does not move
   if (!states.has(w)) states.set(w, new Btn(w));
   return states.get(w);
 };
