@@ -2836,7 +2836,6 @@ const storyDiff = page => page.evaluate(() => {
   const sh = [...ss.querySelectorAll('.s-behind .sheet')];
   if (sh.map(x => x.dataset.id).sort().join() !== s.cards.map(c => c.id).sort().join()) out.push('sheets');
   if (sh.some(x => !shown(x)) || (s.page === 'on' && (!shown(q('page')) || !q('page').querySelector('.pg')))) out.push('a page is hidden');
-  if (!q('note').classList.contains('n' + ss.dataset.step)) out.push('note');
   return out.join(', ');
 });
 const stepOf = page => page.evaluate(() => +document.querySelector('#ss').dataset.step);
@@ -2872,10 +2871,10 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   // the story (Intro Lab v17): four steps, named in the step line under the picture
   const stops = await page.$$eval('#ss .stops button', bs => bs.map(b => `${b.querySelector('.num').textContent} ${b.lastElementChild.textContent}`));
   ok('four steps, named in the step line under the picture: the only numbers', JSON.stringify(stops) === JSON.stringify(['1 Your career file', '2 Tailor it to the job', '3 Same words, any look', '4 Every job, its own resume']), JSON.stringify(stops));
-  ok('…a replay button, and the step’s words in a card inside the picture', !!(await page.$('#ss [data-act=ob-replay]')) && (await page.textContent('#ss .stnote p')).length > 20);
+  ok('…a replay button at the end of the step line, and the step’s words in one line above it', !!(await page.$('#ss [data-act=ob-replay]')) && (await page.textContent('#ss .ss-say')).length > 20);
   await page.evaluate(() => window.__wb.onboarding.start.replay());
   await page.waitForTimeout(2200);
-  ok('it starts playing at step 1 by itself: the career file and its step card, and no page yet', (await stepOf(page)) === 1 && await page.evaluate(() => document.querySelectorAll('#ss .fcard .fln').length >= 12 && document.querySelector('#ss .s-page').classList.contains('hide') && /one file/.test(document.querySelector('#ss .stnote').textContent)));
+  ok('it starts playing at step 1 by itself: the career file and its step card, and no page yet', (await stepOf(page)) === 1 && await page.evaluate(() => document.querySelectorAll('#ss .fcard .fln').length >= 12 && document.querySelector('#ss .s-page').classList.contains('hide') && /one file/.test(document.querySelector('#ss .ss-say').textContent)));
 
   // it plays: step 2 pulls lines onto the page, tries other wordings, writes one; 3 changes the look; 4 keeps a stack of resumes
   await atStep(page, 2);
@@ -2921,7 +2920,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.mouse.move(700, 10); await page.waitForTimeout(400);
   ok('…moving off the file puts the light out', await page.evaluate(() => !document.querySelector('#ss .pg li.hot')));
   await page.click('#ss .stops li[data-n="2"] button'); await page.waitForTimeout(800);
-  ok('a step name goes to that step, and the autoplay stops', (await stepOf(page)) === 2 && /Pick the lines/.test(await page.textContent('#ss .stnote p')) && (await page.getAttribute('#ss', 'data-auto')) === 'false');
+  ok('a step name goes to that step, and the autoplay stops', (await stepOf(page)) === 2 && /Pick the lines/.test(await page.textContent('#ss .ss-say')) && (await page.getAttribute('#ss', 'data-auto')) === 'false');
   await page.click('#ss [data-act=ob-replay]'); await page.waitForTimeout(900);
   ok('Replay starts it again from the beginning', (await stepOf(page)) === 1);
 
@@ -2959,7 +2958,7 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     const at = await page.evaluate(() => ['#head', '#body', '#startstage', '#foot'].map(s => Math.round(document.querySelector(s).getBoundingClientRect().top + document.querySelector('#col').scrollTop)));
     ok('a phone: stacked, the buttons first, then the picture, then what you keep', at[0] < at[1] && at[1] < at[2] && at[2] < at[3], JSON.stringify(at));
     ok('…nothing runs off the side', (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390 && (await page.evaluate(() => { const s = document.querySelector('#ss').getBoundingClientRect(); return s.left >= 0 && s.right <= innerWidth + 1; })));
-    ok('…the step’s words stand under the picture, not in it', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .ss-say')).display === 'block' && getComputedStyle(document.querySelector('#ss .s-note')).display === 'none' && document.querySelector('#ss .ss-say').textContent.length > 20));
+    ok('…the step’s words stand under the picture', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .ss-say')).display === 'block' && document.querySelector('#ss .ss-say').textContent.length > 20));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }

@@ -150,7 +150,7 @@ function slipsInto(box, s){
 }
 
 let HOT = null;                                  // the line of the career file the pointer is on
-const SLOTS = ['file', 'slips', 'behind', 'page', 'job', 'tools', 'note'];
+const SLOTS = ['file', 'slips', 'behind', 'page', 'job', 'tools'];
 let EL = {};
 function render(s, P, el){
   el.file.innerHTML = fileHtml(s, P);
@@ -411,11 +411,7 @@ function bar(){
   el.setAttribute('aria-valuenow', cur); el.setAttribute('aria-valuetext', `${cur}. ${t(st.t)}. ${t(st.s)}`);
   el.querySelectorAll('.stops li').forEach((li, i) => { li.classList.toggle('on', i + 1 === cur); li.classList.toggle('done', i + 1 < cur); });
   el.querySelectorAll('.track b').forEach(b => b.classList.toggle('done', parseFloat(b.style.left) <= (cur - 1) / (n - 1) * 100 + .01));
-  if (cur) $('.ss-say').textContent = t(st.s);      // a phone shows the step's words under the picture, not in it
-  if (EL.note && cur){
-    EL.note.className = `slot s-note n${cur}`;
-    if (EL.note.dataset.n !== String(cur)){ EL.note.dataset.n = cur; EL.note.innerHTML = `<div class="stnote in"><span class="big">${cur}</span><p>${h(st.s)}</p></div>`; }
-  }
+  if (cur) $('.ss-say').textContent = t(st.s);      // the step's words, in one line above the step line
 }
 const colAt = x => { const r = stepsEl().getBoundingClientRect(); return Math.max(1, Math.min(STEPS.length, Math.floor((x - r.left) / r.width * STEPS.length) + 1)); };
 function listen(){
@@ -444,13 +440,15 @@ function listen(){
 // ---------- the host ----------
 export function stageHtml(){
   return `<div class="ss" id="ss" role="group" aria-label="${esc(t('onb.hdHow'))}">
-    <div class="ss-top"><button class="obreplay" data-act="ob-replay">${icon('replay', { size: 12 })} <span>${h('onb.replay')}</span></button></div>
     <div class="ss-wrap" aria-hidden="true"><div class="sst" id="sst">${SLOTS.map(s => `<div class="slot s-${s}"></div>`).join('')}<div class="fx"></div></div></div>
-    <div class="ss-steps" role="slider" tabindex="0" aria-label="${esc(t('onb.hdHow'))}" aria-valuemin="1">
-      <ol class="stops"></ol>
-      <div class="track"><i class="fill"></i><i class="knob"></i></div>
+    <div class="ss-bar">
+      <p class="ss-say" aria-hidden="true"></p>
+      <div class="ss-steps" role="slider" tabindex="0" aria-label="${esc(t('onb.hdHow'))}" aria-valuemin="1">
+        <ol class="stops"></ol>
+        <div class="track"><i class="fill"></i><i class="knob"></i></div>
+      </div>
+      <button class="obreplay" data-act="ob-replay" title="${esc(t('onb.replay'))}" aria-label="${esc(t('onb.replay'))}">${icon('replay', { size: 14 })}</button>
     </div>
-    <p class="ss-say" aria-hidden="true"></p>
   </div>`;
 }
 // the stage is scaled to fit the box the page area gives it; on a phone the box is as tall as it needs to be
@@ -496,8 +494,7 @@ export function setStep(n, { user = false } = {}){ if (!inited) return; if (user
 export function retext(){
   const ss = $('#ss'); if (!ss || !inited) return;
   ss.setAttribute('aria-label', t('onb.hdHow'));
-  $('.obreplay span', ss).textContent = t('onb.replay');
-  EL.note.dataset.n = '';
+  const rp = $('.obreplay', ss); rp.title = t('onb.replay'); rp.setAttribute('aria-label', t('onb.replay'));
   buildBar();
   if (prev) render(prev, null, EL);
   bar();
