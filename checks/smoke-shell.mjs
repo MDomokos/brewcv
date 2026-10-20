@@ -2819,7 +2819,11 @@ if (want('drinks: the page marks, exports, no corner at other sizes')) {
     const p = await c.newPage();
     await open(p, '?memory&welcome', { drink });
     ok(`${drink}: the start screen has no drink corner: its logo is the switch`, !(await p.$('#brewmode')) && await p.isVisible('.logoswitch'));
-    ok(`${drink}: the inspector is the drink’s own surface, and the start button is the one filled control`, await p.evaluate(d => { const c = getComputedStyle(document.querySelector('#body')); const prim = [...document.querySelectorAll('.obchoices button.primary')]; return c.backgroundColor === (d === 'tea' ? 'rgb(46, 70, 54)' : 'rgb(255, 255, 255)') && prim.length === 1; }, drink));
+    ok(`${drink}: the ways in are drawn on the canvas, one line each (40, 34 and 28px) and told apart by their shape, and the start button is the one filled control`, await p.evaluate(d => {
+      const b = k => document.querySelector(`.obchoices .obw.${k} .obb`), cs = k => getComputedStyle(b(k)), h = k => Math.round(b(k).getBoundingClientRect().height);
+      const shapes = d === 'tea' ? cs('p').clipPath !== 'none' && cs('s').borderTopLeftRadius === '16px' && cs('s').borderTopRightRadius === '3px' && cs('t').textDecorationLine === 'underline'
+        : cs('p').borderTopWidth === '2px' && cs('p').boxShadow !== 'none' && cs('s').maskImage !== 'none' && cs('t').textDecorationLine === 'underline';
+      return getComputedStyle(document.querySelector('#body')).backgroundColor === 'rgba(0, 0, 0, 0)' && h('p') === 40 && h('s') === 34 && h('t') === 28 && shapes && document.querySelectorAll('.obchoices .primary').length === 1; }, drink));
     await c.close();
   }
 }
@@ -2875,6 +2879,8 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   }
   ok('inspector area: the three ways in, with the start button the one filled control', (await page.$$('#body .obchoices button')).length === 3 && (await page.$$('#body .obchoices button.primary')).length === 1 && /Start from scratch/.test(await page.textContent('#body .obchoices .primary')));
   ok('…the interface language row, one chip for each of the ten languages', (await page.$$('#body .oblangs .oblang')).length === 10 && (await page.getAttribute('#body .oblang.on', 'data-l')) === 'en');
+  ok('…the notes that were a second line under each way in are its tooltip, so each is one line', await page.evaluate(() => [...document.querySelectorAll('#body .obchoices .obb')].every(b => b.title.length > 10 && !b.querySelector('small') && b.getBoundingClientRect().height <= 40)));
+  ok('…the languages are a Language label over a grid of five columns', await page.evaluate(() => { const g = getComputedStyle(document.querySelector('#body .oblangs')); return g.gridTemplateColumns.split(' ').length === 5 && /Language/i.test(document.querySelector('#body .oblangrow .obeye').textContent); }));
   const bodyH = (await r('#body')).height;
   await page.click('#body .obwhy summary'); await page.waitForTimeout(500);
   ok('“Why JSON?” opens in place: its four points and the link, inside the inspector', (await page.isVisible('#body .obwhy li')) && (await page.$$('#body .obwhy li')).length === 4 && /File over app|Steph Ango/.test(await page.textContent('#body .obwhy')) && (await r('#body')).height > bodyH);

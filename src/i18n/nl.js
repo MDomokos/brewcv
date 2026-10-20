@@ -441,6 +441,7 @@ export default {
   'onb.t4': 'Maak een back-up of koppel een map. Browseropslag kan worden gewist.',
   'intro.drinks': 'Thee of koffie',
   'intro.dark': 'Donker thema',
+  'intro.lang': 'Taal',
   'onb.scratch': 'Vanaf nul beginnen',
   'onb.scratchNote': 'Een paar vragen, ongeveer vijf minuten',
   'onb.import': 'Bestand openen of importeren',

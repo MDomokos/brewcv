@@ -230,6 +230,7 @@ async function act(a, tg){
 }
 
 function bind(body){
+  start.bindSide();
   let timer = null;
   const on = (ev, fn) => body.addEventListener(ev, e => { if (O.step === 'welcome') fn(e); });
   // hovering (or focusing) a language chip shows the page in that language; leaving goes back to the kept one

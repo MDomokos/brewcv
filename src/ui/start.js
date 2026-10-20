@@ -51,14 +51,21 @@ export const headHtml = () => `<div class="obhead"><div class="obrow"><span clas
     <button type="button" class="obsun" data-act="theme-toggle" data-ht="intro.dark" title="${esc(t('intro.dark'))}" aria-label="${esc(t('intro.dark'))}" aria-pressed="${resolveTheme(themePref()) === 'dark'}">${glyph(SUN, 'sun')}${glyph(MOON, 'moon')}</button></div></div>
   <h2 class="obhero" data-h="onb.hero">${h('onb.hero')}</h2><p class="obsub" data-h="onb.intro">${h('onb.intro')}</p></div>`;
 
+// the three ways in are one line each, told apart by their shape (src/ui/intro-side.css); what they do goes in their hint. A wrapper holds each
+// still, the layer inside it leans toward the pointer (src/ui/buttonfx.js), and the first has a string (Tea only) that hangs from its hole.
+const way = (cls, act, key, extra = '') => `<div class="obw ${cls}">${extra}<div class="obmv"><button class="obb${cls === 'p' ? ' primary' : ''}" data-act="${act}" data-ht="${key}Note" title="${esc(t(`${key}Note`))}"><span data-h="${key}">${h(key)}</span></button></div></div>`;
+
 export function bodyHtml({ langs, current }){
   return `<div class="obstart">
+    <div class="obgap" id="obgap" aria-hidden="true"></div>
     <div class="obchoices">
-      <button class="primary" data-act="ob-scratch"><b data-h="onb.scratch">${h('onb.scratch')}</b><small data-h="onb.scratchNote">${h('onb.scratchNote')}</small></button>
-      <button data-act="ob-import"><b data-h="onb.import">${h('onb.import')}</b><small data-h="onb.importNote">${h('onb.importNote')}</small></button>
-      <button data-act="ob-example"><b data-h="onb.example">${h('onb.example')}</b><small data-h="onb.exampleNote">${h('onb.exampleNote')}</small></button>
+      ${way('p', 'ob-scratch', 'onb.scratch', '<svg class="obstr" viewBox="0 0 130 80" aria-hidden="true"><path d=""/></svg>')}
+      ${way('s', 'ob-import', 'onb.import')}
+      ${way('t', 'ob-example', 'onb.example')}
     </div>
-    <ul class="oblangs" aria-label="${esc(t('ux3.startLangs'))}">${langs.map(([l, name]) => `<li><button lang="${l}" class="oblang${l === current ? ' on' : ''}" data-act="ob-intro-lang" data-l="${l}" aria-pressed="${l === current}" aria-label="${esc(name)}" title="${esc(name)}">${l.toUpperCase()}</button></li>`).join('')}</ul>
+    <div class="obgap" id="obgap2" aria-hidden="true"></div>
+    <div class="oblangrow"><span class="obeye" data-h="intro.lang">${h('intro.lang')}</span>
+      <ul class="oblangs" aria-label="${esc(t('ux3.startLangs'))}">${langs.map(([l, name]) => `<li><button lang="${l}" class="oblang${l === current ? ' on' : ''}" data-act="ob-intro-lang" data-l="${l}" aria-pressed="${l === current}" aria-label="${esc(name)}" title="${esc(name)}">${l.toUpperCase()}</button></li>`).join('')}</ul></div>
     ${whyJson()}</div>`;
 }
 
@@ -88,4 +95,31 @@ export function retext(){
   story.retext();
 }
 
-const api = { headHtml, bodyHtml, footHtml, stageHtml, mount, unmount, begin, retext, setStep, replay, act, whyJson, jr };
+// ---- the column's rows follow the picture's ----
+// The board (src/ui/story.js) says where its career file starts: --ways-top on the body, the screen y of the file's top edge (and --lang-top, where its
+// first line is, for the language row), and an introlayout event whenever they change. The gaps grow so the ways in and the language chips start there;
+// before the board has said, and on a phone, they are their least.
+const metric = name => parseFloat(getComputedStyle(document.body).getPropertyValue(name));
+export function fit(){
+  const g1 = document.getElementById('obgap'), g2 = document.getElementById('obgap2'), ways = document.querySelector('.obchoices');
+  if (!g1 || !g2 || !ways) return;
+  const phone = document.body.dataset.phone === 'true', top = metric('--ways-top'), lang = metric('--lang-top');
+  g1.style.height = !phone && top ? `${Math.max(18, top - g1.getBoundingClientRect().top)}px` : '';
+  g2.style.height = !phone && lang ? `${Math.max(28, lang - ways.getBoundingClientRect().bottom)}px` : '';
+}
+
+// once, at start-up: what the column does when something around it changes (a part is drawn again, the window, the board says where its rows are, the fonts)
+let bound = false;
+export function bindSide(){
+  if (bound) return;
+  bound = true;
+  let queued = 0;
+  const again = () => { if (!queued) queued = requestAnimationFrame(() => { queued = 0; fit(); }); };
+  const seen = new MutationObserver(again);
+  for (const id of ['head', 'body', 'foot']){ const e = document.getElementById(id); if (e) seen.observe(e, { childList: true, subtree: true }); }
+  document.addEventListener('introlayout', again);
+  addEventListener('resize', again);
+  document.fonts?.ready.then(again);
+}
+
+const api = { headHtml, bodyHtml, footHtml, stageHtml, mount, unmount, begin, retext, setStep, replay, act, whyJson, jr, fit, bindSide };

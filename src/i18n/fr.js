@@ -441,6 +441,7 @@ export default {
   'onb.t4': 'Sauvegardez, ou liez un dossier. Le stockage du navigateur peut être vidé.',
   'intro.drinks': 'Thé ou café',
   'intro.dark': 'Thème sombre',
+  'intro.lang': 'Langue',
   'onb.scratch': 'Partir de zéro',
   'onb.scratchNote': 'Quelques questions, environ cinq minutes',
   'onb.import': 'Ouvrir ou importer un fichier',

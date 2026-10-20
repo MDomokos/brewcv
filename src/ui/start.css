@@ -17,27 +17,10 @@ body.is-intro .startstage .ss { pointer-events: auto; }
 body.is-intro[data-intro-side="left"] .col { left: var(--G) !important; right: auto !important; width: 392px !important; }
 body.is-intro[data-intro-side="left"] .startstage { left: calc(392px + 2 * var(--G)); width: calc(100vw - 392px - 3 * var(--G)); }
 
-/* the column on the start screen: the header and the footer sit on the canvas; the inspector is the one card */
-body.is-intro .col { background: none; border: 0; box-shadow: none; border-radius: 0; gap: var(--G); justify-content: flex-start; overflow-y: auto; scrollbar-width: none; padding: 8px 2px; }
+/* the column on the start screen (src/ui/intro-side.css): the footer sits on the canvas */
 body.is-intro .col > #foot { background: transparent; border: 0; border-radius: 0; box-shadow: none; --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); color: var(--ink); flex: none; height: auto; padding: 0 6px; margin-top: auto; }
-body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); box-shadow: var(--shadow-panel); padding: 12px; width: 346px; max-width: 100%; }
 
-/* ---------- the inspector: the three ways in, the language, Why JSON? ---------- */
-.obstart { display: flex; flex-direction: column; gap: 8px; }
-.obchoices { display: grid; gap: 6px; justify-items: start; }
-.obchoices button { width: min(100%, 320px); }
-.obchoices button { display: grid; gap: 2px; align-content: center; text-align: left; min-height: 52px; padding: 7px 14px; border-radius: var(--r-m); background: var(--raised); border: 1px solid var(--line-strong); color: var(--ink); cursor: pointer; font: inherit; }
-.obchoices button b { font-size: 15px; }
-.obchoices button small { font-size: 12.5px; font-weight: 400; line-height: 1.3; color: var(--ink-soft); }
-.obchoices button:hover { background: var(--hover-strong); }
-.obchoices button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.obchoices button.primary small { color: var(--on-accent); opacity: .85; }
-.obchoices button.primary:hover { background: var(--accent); filter: brightness(1.06); }
-.oblangs { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 3px; }
-.oblang { font-size: 11px; font-weight: 700; letter-spacing: .03em; padding: 2px 6px; min-height: 0; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink-soft); cursor: pointer; }
-.oblang:hover { color: var(--ink); background: var(--fill); }
-.oblang.on { color: var(--on-mark); background: var(--mark); }
-.oblang.pk { color: var(--ink); background: var(--accent-soft); }
+/* ---------- Why JSON?, until it moves to the footer ---------- */
 .obwhy { font-size: 12.5px; }
 .obwhy summary { cursor: pointer; font-weight: 700; display: inline-block; padding: 2px 10px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink); }
 .obwhy summary:hover, .obwhy[open] summary { border-color: var(--ink); }

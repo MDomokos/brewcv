@@ -7,6 +7,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
+- **The start screen's three ways in are one small line each, told apart by their shape.** In Tea the first is a tag with a punched hole, the second a card with leaf corners and the third a link with a leaf; in Coffee a stamp, a ticket stub and a link with a square. The line that was under each is its tooltip. They sit straight on the canvas (no card), the ten languages are a grid of five columns under a Language label, and the column's gaps follow the picture's rows when the picture says where they are.
 - **The start screen's header has Tea, Coffee, light and dark switches.** The logo and the name sit on the left, and on the right two small cups (Tea and Coffee, the chosen one filled) and a sun and moon button switch the whole app at once, the same settings as the logo and Settings. The title is bigger, in two lines. The logo is still a switch.
 - **The start screen can put its column on the left.** Open the app with `?intro=left`: the logo, the ways in and "Yours to keep" take the left 392 px, and the story gets the rest, with its pages running off the right edge of the window as well as the bottom. The right-hand column (the default) is unchanged.
 - **The career file on the start screen starts level with the ways-in card.** Its top follows the top of the card (and the window's language and size).

@@ -470,9 +470,6 @@ table.kv td { padding: 4px 0; border-top: 1px solid var(--line); }
 .thumb { width: 52px; height: 67px; border-radius: var(--r-s); object-fit: cover; border: 1px solid var(--line); background: var(--wash); display: grid; place-items: center; font-size: 11px; color: var(--ink-soft); }
 
 .title.big { font-size: 21px; }
-.obchoices { display: grid; gap: 8px; margin: 10px 0; }
-.obchoices button { display: grid; text-align: left; gap: 2px; padding: 11px 13px; }
-.obchoices button small { font-weight: 400; color: var(--ink-soft); font-size: 12px; }
 .obdots { display: flex; gap: 5px; margin-bottom: 8px; } .obdots i { width: 22px; height: 4px; border-radius: var(--r-xs); background: var(--line); } .obdots i.on { background: var(--ink); }
 .obnav { margin-top: 14px; }
 .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
@@ -865,7 +862,7 @@ button, input, select, textarea { font-family: inherit; }
 :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl, .mgroup, .hk) { font: 500 12px/1.3 var(--font-label); letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
 :is(.pct, .mpct, .mlab, .clcount, .clall, .clv, .obstats, .stats, .dial output) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 :is(.note, .small, .intro, .obhint, .sumline, .goesin, .obsub, .obnote) { font-size: 13px; }
-:is(.tiny, .vrow .mt2, .pop small, .dl button small, .obchoices button small, .inline-menu small, .vrow .tx, .stats, .kept) { font-size: 12px; }
+:is(.tiny, .vrow .mt2, .pop small, .dl button small, .inline-menu small, .vrow .tx, .stats, .kept) { font-size: 12px; }
 :is(.item .t, .clt) { font-size: 13px; }
 
 body:not([data-phone=true]):is(.is-quiet, .is-intro) .col > #body { border-radius: var(--r-panel); border-top: 0; }

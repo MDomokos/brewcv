@@ -441,6 +441,7 @@ export default {
   'onb.t4': 'Haz copias o vincula una carpeta. El almacenamiento del navegador puede borrarse.',
   'intro.drinks': 'Té o café',
   'intro.dark': 'Tema oscuro',
+  'intro.lang': 'Idioma',
   'onb.scratch': 'Empezar de cero',
   'onb.scratchNote': 'Unas preguntas, unos cinco minutos',
   'onb.import': 'Abrir o importar un archivo',

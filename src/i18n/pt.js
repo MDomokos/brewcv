@@ -441,6 +441,7 @@ export default {
   'onb.t4': 'Faça cópias ou ligue uma pasta. O armazenamento do navegador pode ser limpo.',
   'intro.drinks': 'Chá ou café',
   'intro.dark': 'Tema escuro',
+  'intro.lang': 'Idioma',
   'onb.scratch': 'Começar do zero',
   'onb.scratchNote': 'Algumas perguntas, cerca de cinco minutos',
   'onb.import': 'Abrir ou importar um ficheiro',

@@ -441,6 +441,7 @@ export default {
   'onb.t4': 'Készíts mentést, vagy kapcsolj össze egy mappát. A böngésző tárhelye törölhető.',
   'intro.drinks': 'Tea vagy kávé',
   'intro.dark': 'Sötét téma',
+  'intro.lang': 'Nyelv',
   'onb.scratch': 'Kezdés a nulláról',
   'onb.scratchNote': 'Néhány kérdés, kb. öt perc',
   'onb.import': 'Fájl megnyitása vagy importálása',

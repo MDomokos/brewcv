@@ -441,6 +441,7 @@ export default {
   'onb.t4': 'Rób kopie lub połącz folder. Pamięć przeglądarki można wyczyścić.',
   'intro.drinks': 'Herbata czy kawa',
   'intro.dark': 'Ciemny motyw',
+  'intro.lang': 'Język',
   'onb.scratch': 'Zacznij od zera',
   'onb.scratchNote': 'Kilka pytań, około pięciu minut',
   'onb.import': 'Otwórz lub importuj plik',

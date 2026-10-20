@@ -441,6 +441,7 @@ export default {
   'onb.t4': 'Zálohujte nebo propojte složku. Úložiště prohlížeče lze smazat.',
   'intro.drinks': 'Čaj, nebo káva',
   'intro.dark': 'Tmavý motiv',
+  'intro.lang': 'Jazyk',
   'onb.scratch': 'Začít od nuly',
   'onb.scratchNote': 'Pár otázek, asi pět minut',
   'onb.import': 'Otevřít nebo importovat soubor',

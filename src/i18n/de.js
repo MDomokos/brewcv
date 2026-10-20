@@ -441,6 +441,7 @@ export default {
   'onb.t4': 'Sichern oder einen Ordner verknüpfen. Der Browser-Speicher lässt sich leeren.',
   'intro.drinks': 'Tee oder Kaffee',
   'intro.dark': 'Dunkles Design',
+  'intro.lang': 'Sprache',
   'onb.scratch': 'Ganz neu anfangen',
   'onb.scratchNote': 'Ein paar Fragen, etwa fünf Minuten',
   'onb.import': 'Datei öffnen oder importieren',
