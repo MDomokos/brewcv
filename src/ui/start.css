@@ -63,7 +63,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .ss { --bd-ink: var(--st-ink); --bd-soft: var(--st-soft); --bd-line: var(--st-line); --card-bg: var(--st-card);
   position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; padding: 0; color: var(--bd-ink); font: 14px/1.45 var(--font-ui); }
 .ss-top, .ss-steps { width: calc(1240px * var(--sc, 1)); padding-left: calc(40px * var(--sc, 1)); padding-right: calc(40px * var(--sc, 1)); }
-.ss-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; }
+.ss-top { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-height: 26px; }
 .stlbl { font: 12px/1 var(--font-mono); color: var(--bd-soft); text-transform: uppercase; letter-spacing: .06em; }
 .obreplay { flex: none; display: inline-flex; align-items: center; gap: 4px; font: 700 12px var(--font-ui); padding: 2px 11px; min-height: 0; border-radius: var(--r-pill); border: 1px solid var(--bd-line); background: transparent; color: var(--bd-ink); cursor: pointer; }
 .obreplay:hover { border-color: var(--bd-ink); }
@@ -78,9 +78,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .sst .s-look { left: 440px; top: 592px; width: 440px; display: flex; justify-content: center; z-index: 12; }
 .sst .s-exp { left: 40px; top: 608px; display: flex; justify-content: flex-start; z-index: 12; }
 .sst .s-note { left: 40px; top: 440px; width: 392px; z-index: 15; transition: opacity .35s ease, left .45s var(--ease), top .45s var(--ease); }
-.sst .s-note.n1 { left: 600px; top: 88px; width: 440px; }
 .sst .s-slips { left: 920px; top: 208px; }
-.sst .s-why { left: 600px; top: 208px; width: 560px; }
 .sst .s-job { left: 40px; top: 16px; }
 
 /* the step line */
@@ -100,7 +98,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .track .knob { position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: var(--r-round); background: var(--accent); border: 3px solid var(--st-board); box-shadow: 0 0 0 1.5px var(--accent); transition: left .45s ease; }
 
 /* the stage is laid on an 8px grid: a 40px margin, the career file and the step cards in the left column (x 40), the page at x 440 over the file's right edge,
-   the slips and the "why" card to its right (x 600 and 920) */
+   the slips to its right (x 920) */
 /* the career file: the panel's own surface */
 /* pointing at the career file raises it over the pages */
 .sst .s-file { transition: opacity .35s ease, transform .55s var(--ease), translate .25s var(--ease); }
@@ -113,8 +111,6 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .fcard { width: 600px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-lift); padding: 10px 0 12px; color: var(--ink); font: 12px/1.65 var(--font-mono); }
 .fh { display: flex; align-items: baseline; gap: 10px; padding: 10px 16px 8px; margin-top: -10px; margin-bottom: 6px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--fill); border-radius: var(--r-m) var(--r-m) 0 0; }
 .fh b { font: 400 15px/1.2 var(--font-mono); }
-.fwhere { position: relative; padding: 4px 12px; font: 700 12px/1.2 var(--font-ui); color: var(--tag-ink); background: var(--tag-bg); border: 1px solid var(--tag-line); border-radius: var(--r-xs); }
-.fh .stamp { order: -1; margin-left: 4px; font: 700 12px/1 var(--font-ui); padding: 4px 8px; border-radius: var(--r-pill); background: var(--ok-bg); color: var(--ok); }
 .fln { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; white-space: nowrap; min-height: 19.8px; transition: opacity .4s; }
 .fcard .cd { padding-left: calc(var(--i) * 2ch); overflow: hidden; text-overflow: ellipsis; }
 .fcard .k { color: var(--label); } .fcard .p { color: var(--faint); }
@@ -216,7 +212,7 @@ html[data-drink="tea"] .itab::before { content: ""; position: absolute; right: 9
 
 /* the step's own words, raised, next to the action */
 .stnote { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: center; padding: 16px 20px 18px; background: var(--chrome-raised); color: var(--chrome-ink); border: 1.5px solid var(--chrome-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); }
-.stnote .big { grid-row: span 2; align-self: start; display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--r-round); background: var(--accent); color: var(--on-accent); font: 800 22px/1 var(--font-ui); }
+.stnote .big { align-self: center; display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--r-round); background: var(--accent); color: var(--on-accent); font: 800 22px/1 var(--font-ui); }
 html[data-drink="tea"] .stnote .big { border-radius: 3px 70% 3px 70%; }
 .stnote b { font: 800 21px/1.15 var(--font-ui); }
 .stnote p { margin: 0; font-size: 14.5px; line-height: 1.45; color: var(--chrome-soft); }
@@ -232,18 +228,7 @@ html[data-drink="tea"] .stnote .big { border-radius: 3px 70% 3px 70%; }
 .xchip { font-style: normal; font-size: 13px; padding: 4px 10px; border: 1px solid var(--bd-line); border-radius: var(--r-s); background: var(--card-bg); }
 .jobcard { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; width: 392px; padding: 9px 14px; background: var(--card-bg); border: 1px solid var(--bd-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); font-size: 13px; color: var(--bd-soft); }
 .jobcard b { color: var(--bd-ink); font-size: 14px; }
-.jobcard .ftag { color: var(--paper-soft); border-color: var(--bd-line); }
-.jobcard .ftag.lit { color: var(--on-accent); border-color: var(--accent); }
 
-/* why one file: the "Why JSON?" points, laid out as a card */
-.why { padding: 18px 22px; background: var(--card-bg); border: 1px solid var(--bd-line); border-radius: var(--r-l); box-shadow: var(--shadow-lift); color: var(--bd-ink); }
-.why h3 { margin: 0 0 12px; font: 800 18px/1.2 var(--font-ui); }
-.whygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 22px; }
-.whygrid p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--bd-soft); transition: opacity .4s ease, transform .4s ease; }
-.whygrid b { display: block; color: var(--bd-ink); font-size: 14.5px; margin-bottom: 2px; }
-.s-why.hide .whygrid p { opacity: 0; transform: translateY(6px); }
-.whygrid p:nth-child(2) { transition-delay: .08s; } .whygrid p:nth-child(3) { transition-delay: .16s; } .whygrid p:nth-child(4) { transition-delay: .24s; }
-.why .creed { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--bd-line); font: 700 14.5px/1.4 var(--font-ui); color: var(--bd-ink); }
 @media (prefers-reduced-motion: reduce){ .ss, .ss * { transition: none !important; animation: none !important; } }
 
 /* ---------- a narrower window and a phone ---------- */

@@ -35,7 +35,7 @@ const PAPERS = { letter: 'Letter', a4: 'A4' };
 
 // ---------- the moments ----------
 const BASE = { ver: { h1: 0, h4: 0 }, page: 'blank', picks: [], jobOrder: ['lumen', 'leaf'], lang: 'en', look: 'marker', paper: 'letter', tl: 'cafe',
-  lift: null, style: false, stamp: false, added: false, edit: null, id: 'cafe', why: false, job: null, tags: null, cards: [], exports: false, slips: null };
+  lift: null, style: false, added: false, edit: null, id: 'cafe', job: null, tags: null, cards: [], exports: false, slips: null };
 // the first resume, as it is kept at the end of step 3: it uses the wording written on its page (v4)
 const CAFE_A = { id: 'cafe', page: 'on', tl: 'cafe', look: 'serif', lang: 'de', paper: 'a4', picks: ['h1', 'h3', 'h2', 'h4'], jobOrder: ['lumen', 'leaf'], ver: { h1: 3, h4: 0 }, added: true };
 const TEA_END = { id: 'tea', page: 'on', tl: 'tea', look: 'marker', lang: 'en', paper: 'letter', picks: ['h4', 'h5', 'h1'], jobOrder: ['leaf', 'lumen'], ver: { h1: 2, h4: 1 }, added: true };
@@ -48,13 +48,13 @@ const LOOK = [{ look: 'mono' }, { lang: 'de' }, { paper: 'a4' }, { look: 'serif'
 
 // each step: its words, the wait before its first moment (dt), the hold after its last (hold), and the moments (seq, each with its own _dt)
 const STEPS = [
-  { t: 'story.s1', s: 'story.s1d', dt: 700, hold: 4200, seq: [{ page: 'none' }, { why: true }] },
+  { t: 'story.s1', s: 'story.s1d', dt: 700, hold: 2400, seq: [{ page: 'none' }] },
   { t: 'story.s2', s: 'story.s2d', dt: 760,
-    seq: [{ why: false, page: 'on', job: 'cafe', tags: 'cafe' }, ...PICK1.slice(0, 4), { lift: 'h3', _dt: 760 }, { picks: ['h1', 'h3', 'h2', 'h4'], _dt: 700 }, { lift: null, _dt: 900 },
+    seq: [{ page: 'on', job: 'cafe', tags: 'cafe' }, ...PICK1.slice(0, 4), { lift: 'h3', _dt: 760 }, { picks: ['h1', 'h3', 'h2', 'h4'], _dt: 700 }, { lift: null, _dt: 900 },
       { slips: 'h1', _dt: 800 }, { ver: { h1: 1, h4: 0 }, _dt: 1100 }, { ver: { h1: 2, h4: 0 }, _dt: 1150 }, { edit: 'h1', _dt: 1150 }, { edit: null, added: true, ver: { h1: 3, h4: 0 }, _dt: 1300 }] },
-  { t: 'story.s3', s: 'story.s3d', dt: 1000, seq: [{ slips: null, job: null, tags: null, style: true, stamp: true }, ...LOOK] },
+  { t: 'story.s3', s: 'story.s3d', dt: 1000, seq: [{ slips: null, job: null, tags: null, style: true }, ...LOOK] },
   { t: 'story.s4', s: 'story.s4d', dt: 820,
-    seq: [{ stamp: false, cards: [CAFE_A], ...TEA0, job: 'tea', tags: 'tea' }, { ...PICK2[0], _dt: 1100 }, ...PICK2.slice(1), { cards: [CAFE_A, TRAINER], _dt: 1100 }, { exports: true, _dt: 1200 }, { ...CAFE_A, job: null, tags: null, cards: [TEA_END, TRAINER], _dt: 1100 }] },
+    seq: [{ cards: [CAFE_A], ...TEA0, job: 'tea', tags: 'tea' }, { ...PICK2[0], _dt: 1100 }, ...PICK2.slice(1), { cards: [CAFE_A, TRAINER], _dt: 1100 }, { exports: true, _dt: 1200 }, { ...CAFE_A, job: null, tags: null, cards: [TEA_END, TRAINER], _dt: 1100 }] },
 ];
 
 // ---------- drawing ----------
@@ -95,7 +95,7 @@ function fileHtml(s, P){
   R('<span class="p">],</span>', 1);
   R(kv('skills', `<span class="p">[</span>${str('Scheduling')}<span class="p">,</span> ${str('Stock')}<span class="p">,</span> ${str('Latte art')}<span class="p">]</span>`), 1);
   R('<span class="p">}</span>');
-  return `<div class="fcard"><div class="fh"><b>career.json</b><span class="fwhere">${h('story.where')}</span>${s.stamp ? `<span class="stamp" data-k="stamp">${h('story.stamp')}</span>` : ''}</div>${rows.join('')}</div>`;
+  return `<div class="fcard"><div class="fh"><b>career.json</b></div>${rows.join('')}</div>`;
 }
 
 function pageHtml(s, P, o = {}){
@@ -121,10 +121,7 @@ function pageHtml(s, P, o = {}){
 const seg = (opts, val, prev) => `<span class="sgm">${Object.entries(opts).map(([k, n]) => `<i class="${k === val ? 'on' : ''}${k === val && prev && prev !== val ? ' chg' : ''}">${n}</i>`).join('')}</span>`;
 const lookSegs = (s, P) => `${seg(LOOKS, s.look, P?.look)}${seg({ en: 'EN', de: 'DE' }, s.lang, P?.lang)}${seg(PAPERS, s.paper, P?.paper)}`;
 const exportsHtml = () => `<div class="float"><span class="stlbl">${h('story.sendAs')}</span>${['PDF', h('story.web'), h('story.text'), 'JSON Resume'].map(x => `<i class="xchip">${x}</i>`).join('')}</div>`;
-const jobCard = kind => `<div class="jobcard"><span class="stlbl">${h(kind === 'cafe' ? 'story.thisJob' : 'story.nextJob')}</span><b>${kind === 'cafe' ? 'Café manager' : 'Tea shop lead'}</b><span>${h(kind === 'cafe' ? 'story.jobCafe' : 'story.jobTea')}</span><i class="ftag lit">#${kind === 'cafe' ? 'café' : 'tea'}</i></div>`;
-// why one file: the four points of the "Why JSON?" card on the right, and the way to use them
-const whyHtml = () => `<div class="why"><h3>${h('onb.whyJson')}</h3><div class="whygrid">${['onb.why1', 'onb.why2', 'onb.why3', 'onb.why4'].map(k => `<p>${h(k)}</p>`).join('')}</div><p class="creed">${h('story.creed')}</p></div>`;
-
+const jobCard = kind => `<div class="jobcard"><span class="stlbl">${h(kind === 'cafe' ? 'story.thisJob' : 'story.nextJob')}</span><b>${kind === 'cafe' ? 'Café manager' : 'Tea shop lead'}</b><span>${h(kind === 'cafe' ? 'story.jobCafe' : 'story.jobTea')}</span></div>`;
 // the stack: the page on top, the kept resumes fanned out behind it from their bottom-left corner; each resume's tab sticks out of its own right edge
 const TABS = { cafe: ['Café manager', 'Serif · DE · A4', 100], tea: ['Tea shop lead', 'Marker · EN', 30], trainer: ['Trainer', 'Mono · EN', 170] };
 const POS = [{ x: 0, y: 0, r: 0 }, { x: 28, y: -30, r: 4 }, { x: 52, y: -40, r: 8 }];
@@ -151,11 +148,10 @@ function slipsInto(box, s){
 }
 
 let HOT = null;                                  // the line of the career file the pointer is on
-const SLOTS = ['file', 'why', 'slips', 'behind', 'page', 'look', 'job', 'exp', 'note'];
+const SLOTS = ['file', 'slips', 'behind', 'page', 'look', 'job', 'exp', 'note'];
 let EL = {};
 function render(s, P, el){
   el.file.innerHTML = fileHtml(s, P);
-  el.why.classList.toggle('hide', !s.why); if (!el.why.firstChild) el.why.innerHTML = whyHtml();
   el.slips.classList.toggle('hide', !s.slips);
   if (s.slips) slipsInto(el.slips, s);
   el.behind.classList.toggle('hide', !s.cards.length);
@@ -409,7 +405,7 @@ function bar(){
   if (cur) $('.ss-say').textContent = t(st.s);      // a phone shows the step's words under the picture, not in it
   if (EL.note && cur){
     EL.note.className = `slot s-note n${cur}`;
-    if (EL.note.dataset.n !== String(cur)){ EL.note.dataset.n = cur; EL.note.innerHTML = `<div class="stnote in"><span class="big">${cur}</span><b>${h(st.t)}</b><p>${h(st.s)}</p></div>`; }
+    if (EL.note.dataset.n !== String(cur)){ EL.note.dataset.n = cur; EL.note.innerHTML = `<div class="stnote in"><span class="big">${cur}</span><p>${h(st.s)}</p></div>`; }
   }
 }
 const colAt = x => { const r = stepsEl().getBoundingClientRect(); return Math.max(1, Math.min(STEPS.length, Math.floor((x - r.left) / r.width * STEPS.length) + 1)); };
@@ -438,7 +434,7 @@ function listen(){
 // ---------- the host ----------
 export function stageHtml(){
   return `<div class="ss" id="ss" role="group" aria-label="${esc(t('onb.hdHow'))}">
-    <div class="ss-top"><span class="stlbl">${h('onb.hdHow')}</span><button class="obreplay" data-act="ob-replay">${icon('replay', { size: 12 })} <span>${h('onb.replay')}</span></button></div>
+    <div class="ss-top"><button class="obreplay" data-act="ob-replay">${icon('replay', { size: 12 })} <span>${h('onb.replay')}</span></button></div>
     <div class="ss-wrap" aria-hidden="true"><div class="sst" id="sst">${SLOTS.map(s => `<div class="slot s-${s}"></div>`).join('')}<div class="fx"></div></div></div>
     <div class="ss-steps" role="slider" tabindex="0" aria-label="${esc(t('onb.hdHow'))}" aria-valuemin="1">
       <ol class="stops"></ol>
@@ -490,9 +486,8 @@ export function setStep(n, { user = false } = {}){ if (!inited) return; if (user
 export function retext(){
   const ss = $('#ss'); if (!ss || !inited) return;
   ss.setAttribute('aria-label', t('onb.hdHow'));
-  $('.ss-top .stlbl', ss).textContent = t('onb.hdHow');
   $('.obreplay span', ss).textContent = t('onb.replay');
-  EL.why.replaceChildren(); EL.note.dataset.n = ''; EL.look.replaceChildren();
+  EL.note.dataset.n = ''; EL.look.replaceChildren();
   buildBar();
   if (prev) render(prev, null, EL);
   bar();

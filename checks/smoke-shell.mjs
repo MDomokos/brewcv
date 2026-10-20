@@ -2831,7 +2831,7 @@ const storyDiff = page => page.evaluate(() => {
   const ss = document.querySelector('#ss'), s = window.__wb.onboarding.start.current(), out = [];
   const q = k => ss.querySelector('.s-' + k), hid = e => e.classList.contains('hide'), shown = e => getComputedStyle(e).visibility !== 'hidden';
   if (ss.querySelector('.fx .sg, .fx .stghost, .fx .sheetghost')) out.push('still moving');
-  for (const [k, on] of [['why', s.why], ['slips', s.slips], ['look', s.style], ['job', s.job], ['exp', s.exports], ['page', s.page !== 'none'], ['behind', s.cards.length]]) if (hid(q(k)) === !!on) out.push(k);
+  for (const [k, on] of [['slips', s.slips], ['look', s.style], ['job', s.job], ['exp', s.exports], ['page', s.page !== 'none'], ['behind', s.cards.length]]) if (hid(q(k)) === !!on) out.push(k);
   const sh = [...ss.querySelectorAll('.s-behind .sheet')];
   if (sh.map(x => x.dataset.id).sort().join() !== s.cards.map(c => c.id).sort().join()) out.push('sheets');
   if (sh.some(x => !shown(x)) || (s.page === 'on' && (!shown(q('page')) || !q('page').querySelector('.pg')))) out.push('a page is hidden');
@@ -2874,12 +2874,12 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   ok('…a replay button, and the step’s words in a card inside the picture', !!(await page.$('#ss [data-act=ob-replay]')) && (await page.textContent('#ss .stnote p')).length > 20);
   await page.evaluate(() => window.__wb.onboarding.start.replay());
   await page.waitForTimeout(2200);
-  ok('it starts playing at step 1 by itself: the career file, the app’s own “Why JSON?” points beside it, and no page yet', (await stepOf(page)) === 1 && await page.evaluate(() => document.querySelectorAll('#ss .fcard .fln').length >= 12 && document.querySelectorAll('#ss .s-why:not(.hide) .whygrid p').length === 4 && document.querySelector('#ss .s-page').classList.contains('hide') && /File over app/.test(document.querySelector('#ss .s-why').textContent)));
+  ok('it starts playing at step 1 by itself: the career file and its step card, and no page yet', (await stepOf(page)) === 1 && await page.evaluate(() => document.querySelectorAll('#ss .fcard .fln').length >= 12 && document.querySelector('#ss .s-page').classList.contains('hide') && /one file/.test(document.querySelector('#ss .stnote').textContent)));
 
   // it plays: step 2 pulls lines onto the page, tries other wordings, writes one; 3 changes the look; 4 keeps a stack of resumes
   await atStep(page, 2);
   await page.waitForFunction(() => document.querySelectorAll('#ss .s-page li').length === 4, null, { timeout: 15000 });
-  ok('step 2: the lines the job asks for are on the page, pulled from the file, and the job and its tag are shown', await page.evaluate(() => document.querySelectorAll('#ss .fln.used').length === 4 && !!document.querySelector('#ss .s-job:not(.hide) .jobcard .ftag.lit')));
+  ok('step 2: the lines the job asks for are on the page, pulled from the file, and the job is shown, with its tag lit in the file', await page.evaluate(() => document.querySelectorAll('#ss .fln.used').length === 4 && !!document.querySelector('#ss .s-job:not(.hide) .jobcard') && !!document.querySelector('#ss .fcard .ftag.lit')));
   await page.waitForFunction(() => document.querySelectorAll('#ss .s-slips:not(.hide) .slip').length >= 3, null, { timeout: 15000 });
   ok('…and the slots show what the moment says (the job, the file, the page, the slips)', (await storyDiff(page)) === '' || (await page.waitForTimeout(1500), (await storyDiff(page)) === ''), await storyDiff(page));
   ok('…the other wordings of a line slide out as slips, one for each', await page.evaluate(() => document.querySelectorAll('#ss .s-slips .slip').length >= 3));
@@ -2888,8 +2888,8 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.waitForTimeout(1500);
   ok('…step 2 ends showing exactly what its moment says', (await storyDiff(page)) === '', await storyDiff(page));
   await atStep(page, 3);
-  await page.waitForFunction(() => !!document.querySelector('#ss .stamp') && document.querySelector('#ss .s-page .pg.serif.a4'), null, { timeout: 15000 });
-  ok('step 3: design, language and paper change on the page and the file says “No change”', /No change to the file/.test(await page.textContent('#ss .stamp')) && /Berufserfahrung/.test(await page.textContent('#ss .s-page')));
+  await page.waitForFunction(() => document.querySelector('#ss .s-page .pg.serif.a4'), null, { timeout: 15000 });
+  ok('step 3: design, language and paper change on the page', /Berufserfahrung/.test(await page.textContent('#ss .s-page')));
   await atStep(page, 4);
   await page.waitForFunction(() => document.querySelectorAll('#ss .s-behind .sheet').length === 2 && !document.querySelector('#ss .s-exp').classList.contains('hide'), null, { timeout: 20000 });
   await page.waitForTimeout(2500);
@@ -2915,7 +2915,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.mouse.move(700, 10); await page.waitForTimeout(400);
   ok('…moving off the file puts the light out', await page.evaluate(() => !document.querySelector('#ss .pg li.hot')));
   await page.click('#ss .stops li[data-n="2"] button'); await page.waitForTimeout(800);
-  ok('a step name goes to that step, and the autoplay stops', (await stepOf(page)) === 2 && /Tailor it to the job/.test(await page.textContent('#ss .stnote b')) && (await page.getAttribute('#ss', 'data-auto')) === 'false');
+  ok('a step name goes to that step, and the autoplay stops', (await stepOf(page)) === 2 && /Pick the lines/.test(await page.textContent('#ss .stnote p')) && (await page.getAttribute('#ss', 'data-auto')) === 'false');
   await page.click('#ss [data-act=ob-replay]'); await page.waitForTimeout(900);
   ok('Replay starts it again from the beginning', (await stepOf(page)) === 1);
 
