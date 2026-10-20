@@ -61,7 +61,8 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 /* the 1240 x 680 stage (scaled by story.js to fill the page area) with the step line under it, drawn straight on the canvas: its ink and lines are
    the canvas's; the paper is light in every theme; the career file is the panel's own surface; the step card is the constant chrome. */
 .ss { --bd-ink: var(--st-ink); --bd-soft: var(--st-soft); --bd-line: var(--st-line); --card-bg: var(--st-card);
-  position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; padding: 0 8px; color: var(--bd-ink); font: 14px/1.45 var(--font-ui); }
+  position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; padding: 0; color: var(--bd-ink); font: 14px/1.45 var(--font-ui); }
+.ss-top, .ss-steps { width: calc(1240px * var(--sc, 1)); padding-left: calc(40px * var(--sc, 1)); padding-right: calc(40px * var(--sc, 1)); }
 .ss-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; }
 .stlbl { font: 12px/1 var(--font-mono); color: var(--bd-soft); text-transform: uppercase; letter-spacing: .06em; }
 .obreplay { flex: none; display: inline-flex; align-items: center; gap: 4px; font: 700 12px var(--font-ui); padding: 2px 11px; min-height: 0; border-radius: var(--r-pill); border: 1px solid var(--bd-line); background: transparent; color: var(--bd-ink); cursor: pointer; }
@@ -71,20 +72,20 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .sst .slot { position: absolute; transition: opacity .35s ease, transform .55s var(--ease); }
 .sst .slot.hide { opacity: 0; pointer-events: none; }
 .sst .fx { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
-.sst .s-file { left: 16px; top: 84px; transform-origin: 0 0; transform: scale(.86); }
-.sst .s-page, .sst .s-behind { --pz: 1.1; left: 474px; top: 40px; transform-origin: 0 0; transform: scale(var(--pz, 1)); }
+.sst .s-file { left: 40px; top: 88px; transform-origin: 0 0; transform: scale(.86); }
+.sst .s-page, .sst .s-behind { --pz: 1.1; left: 440px; top: 48px; transform-origin: 0 0; transform: scale(var(--pz, 1)); }
 .sst .s-page.hide { transform: translateY(40px) scale(var(--pz, 1)); }
-.sst .s-look { left: 444px; top: 594px; width: 500px; display: flex; justify-content: center; z-index: 12; }
-.sst .s-exp { left: 20px; top: 616px; display: flex; justify-content: flex-start; z-index: 12; }
-.sst .s-note { left: 20px; top: 470px; width: 410px; z-index: 15; transition: opacity .35s ease, left .45s var(--ease), top .45s var(--ease); }
-.sst .s-note.n1 { left: 570px; top: 70px; width: 420px; }
-.sst .s-slips { left: 882px; top: 196px; }
-.sst .s-why { left: 570px; top: 210px; width: 570px; }
-.sst .s-job { left: 16px; top: 12px; }
+.sst .s-look { left: 440px; top: 592px; width: 440px; display: flex; justify-content: center; z-index: 12; }
+.sst .s-exp { left: 40px; top: 608px; display: flex; justify-content: flex-start; z-index: 12; }
+.sst .s-note { left: 40px; top: 440px; width: 392px; z-index: 15; transition: opacity .35s ease, left .45s var(--ease), top .45s var(--ease); }
+.sst .s-note.n1 { left: 600px; top: 88px; width: 440px; }
+.sst .s-slips { left: 920px; top: 208px; }
+.sst .s-why { left: 600px; top: 208px; width: 560px; }
+.sst .s-job { left: 40px; top: 16px; }
 
 /* the step line */
 .ss-say { display: none; margin: 0 0 8px; font-size: 13.5px; line-height: 1.4; color: var(--bd-ink); }
-.ss-steps { position: relative; flex: none; padding: 8px 0 12px; user-select: none; cursor: pointer; outline-offset: 4px; }
+.ss-steps { position: relative; flex: none; padding-top: 8px; padding-bottom: 12px; user-select: none; cursor: pointer; outline-offset: 4px; }
 .stops { display: grid; grid-template-columns: repeat(var(--n), 1fr); list-style: none; margin: 0; padding: 0; }
 .stops li { display: flex; justify-content: center; }
 .stops button { display: flex; align-items: center; gap: 7px; border: 0; background: none; cursor: pointer; padding: 2px 6px 8px; font: 400 14.5px/1.3 var(--font-ui); color: var(--bd-soft); text-align: left; }
@@ -98,6 +99,8 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .track b.done { background: var(--accent); }
 .track .knob { position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: var(--r-round); background: var(--accent); border: 3px solid var(--st-board); box-shadow: 0 0 0 1.5px var(--accent); transition: left .45s ease; }
 
+/* the stage is laid on an 8px grid: a 40px margin, the career file and the step cards in the left column (x 40), the page at x 440 over the file's right edge,
+   the slips and the "why" card to its right (x 600 and 920) */
 /* the career file: the panel's own surface */
 .fcard { width: 600px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-lift); padding: 10px 0 12px; color: var(--ink); font: 12px/1.65 var(--font-mono); }
 .fh { display: flex; align-items: baseline; gap: 10px; padding: 10px 16px 8px; margin-top: -10px; margin-bottom: 6px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--fill); border-radius: var(--r-m) var(--r-m) 0 0; }
@@ -207,7 +210,7 @@ html[data-drink="tea"] .stnote .big { border-radius: 3px 70% 3px 70%; }
 .sgm i.on { background: var(--bd-ink); color: var(--card-bg); }
 .sgm i.chg { animation: stpop .5s ease-out; }
 .xchip { font-style: normal; font-size: 13px; padding: 4px 10px; border: 1px solid var(--bd-line); border-radius: var(--r-s); background: var(--card-bg); }
-.jobcard { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; width: 448px; padding: 9px 14px; background: var(--card-bg); border: 1px solid var(--bd-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); font-size: 13px; color: var(--bd-soft); }
+.jobcard { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; width: 392px; padding: 9px 14px; background: var(--card-bg); border: 1px solid var(--bd-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); font-size: 13px; color: var(--bd-soft); }
 .jobcard b { color: var(--bd-ink); font-size: 14px; }
 .jobcard .ftag { color: var(--paper-soft); border-color: var(--bd-line); }
 .jobcard .ftag.lit { color: var(--on-accent); border-color: var(--accent); }

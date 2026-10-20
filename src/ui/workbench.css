@@ -59,7 +59,7 @@
   --liq: #D9A65A; --liq-weak: #8f8257; --liq-strong: #cf7d2e; --cup-empty: #24382b; --cup-stroke: #F2E6CF; --cup-band: #ecc583; --steam-ink: #d6cfb4; --heart-ink: #f2a58f;
   --shadow-panel: 7px 8px 0 rgba(30, 40, 25, .2); --shadow-lift: 2px 3px 0 rgba(30, 40, 25, .2); --shadow-chip: 3px 4px 0 rgba(30, 40, 25, .2); --shadow-toast: 4px 5px 0 rgba(30, 40, 25, .22);
   /* the start screen's story: the shadows of the stack by height (top page, the sheets under it, a sheet being lifted) and the page's edge */
-  --st-sh-front: 7px 9px 0 rgba(60, 45, 15, .2); --st-sh-s1: 4px 6px 0 rgba(60, 45, 15, .15); --st-sh-s2: 2px 3px 0 rgba(60, 45, 15, .11); --st-sh-lift: 18px 24px 0 rgba(60, 45, 15, .15); --st-edge: rgba(70, 50, 20, .2);
+  --st-sh-front: 7px 9px 0 rgba(60, 45, 15, .2), -5px 6px 0 rgba(60, 45, 15, .12); --st-sh-s1: 4px 6px 0 rgba(60, 45, 15, .15); --st-sh-s2: 2px 3px 0 rgba(60, 45, 15, .11); --st-sh-lift: 18px 24px 0 rgba(60, 45, 15, .15); --st-edge: rgba(70, 50, 20, .2);
   --st-board: var(--canvas); --st-ink: var(--canvas-ink); --st-soft: var(--canvas-ink-soft); --st-line: var(--canvas-line); --st-card: var(--paper-wash);
   --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .3)) drop-shadow(12px 14px 0 rgba(60, 45, 15, .12)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
   --page-warn: #b35c00; --sel-mark: #b77a2c; --sel-mark-soft: rgba(217, 166, 90, .14); --prev-mark: #2E4636; --prev-mark-soft: rgba(46, 70, 54, .08);
@@ -82,7 +82,7 @@ html[data-drink="tea"][data-theme="dark"] {
   --surface: #26392d; --raised: #2f4637; --input: #1d2c22; --pop: #22342a;
   --stage: #e9e0c8; --cup-empty: #1d2c22;
   --shadow-panel: 7px 8px 0 rgba(0, 0, 0, .4), 0 0 0 1px rgba(217, 166, 90, .12); --shadow-lift: 2px 3px 0 rgba(0, 0, 0, .35); --shadow-chip: 3px 4px 0 rgba(0, 0, 0, .4); --shadow-toast: 4px 5px 0 rgba(0, 0, 0, .4);
-  --st-sh-front: 7px 9px 0 rgba(0, 0, 0, .4); --st-sh-s1: 4px 6px 0 rgba(0, 0, 0, .3); --st-sh-s2: 2px 3px 0 rgba(0, 0, 0, .22); --st-sh-lift: 18px 24px 0 rgba(0, 0, 0, .3); --st-edge: transparent;
+  --st-sh-front: 7px 9px 0 rgba(0, 0, 0, .4), -5px 6px 0 rgba(0, 0, 0, .25); --st-sh-s1: 4px 6px 0 rgba(0, 0, 0, .3); --st-sh-s2: 2px 3px 0 rgba(0, 0, 0, .22); --st-sh-lift: 18px 24px 0 rgba(0, 0, 0, .3); --st-edge: transparent;
   --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .55)) drop-shadow(12px 14px 0 rgba(0, 0, 0, .28)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
   --page-edge: transparent; --page-edge-soft: transparent;
   --tag-hole: #101813;
@@ -117,7 +117,7 @@ html[data-drink="coffee"] {
   --espresso: #3a2618; --crema: #BE7F4A; --foam: #f3ece2; --foam-soft: #d9c8b4; --foam-faint: #b8a894; --foam-line: rgba(243, 236, 226, .32); --foam-warn: #e0b56a;
   --band-bg: #2b1d14; --band-ink: #f3ece2; --band-ink-soft: #d9c8b4; --band-line: rgba(243, 236, 226, .32); --band-hover: rgba(243, 236, 226, .1); --band-hover-strong: rgba(243, 236, 226, .16);
   --shadow-panel: none; --shadow-lift: none; --shadow-chip: none; --shadow-toast: none;
-  --st-sh-front: 8px 8px 0 rgba(28, 20, 16, .15); --st-sh-s1: 5px 5px 0 rgba(28, 20, 16, .11); --st-sh-s2: 3px 3px 0 rgba(28, 20, 16, .08); --st-sh-lift: 16px 16px 0 rgba(28, 20, 16, .11); --st-edge: var(--page-edge);
+  --st-sh-front: 8px 8px 0 rgba(28, 20, 16, .15), -5px 5px 0 rgba(28, 20, 16, .1); --st-sh-s1: 5px 5px 0 rgba(28, 20, 16, .11); --st-sh-s2: 3px 3px 0 rgba(28, 20, 16, .08); --st-sh-lift: 16px 16px 0 rgba(28, 20, 16, .11); --st-edge: var(--page-edge);
   --page-shadow: none; --page-shadow-soft: none; --drop-sm: none;
   --page-warn: #8a5a12; --sel-mark: #1c1410; --sel-mark-soft: rgba(28, 20, 16, .05); --prev-mark: #a8693a; --prev-mark-soft: rgba(190, 127, 74, .14);
   --liq: #BE7F4A; --cup-band: #1c1410;

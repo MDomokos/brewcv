@@ -128,7 +128,7 @@ const whyHtml = () => `<div class="why"><h3>${h('onb.whyJson')}</h3><div class="
 // the stack: the page on top, the kept resumes fanned out behind it from their bottom-left corner; each resume's tab sticks out of its own right edge
 const TABS = { cafe: ['Café manager', 'Serif · DE · A4', 100], tea: ['Tea shop lead', 'Marker · EN', 30], trainer: ['Trainer', 'Mono · EN', 170] };
 const POS = [{ x: 0, y: 0, r: 0 }, { x: 28, y: -30, r: 4 }, { x: 52, y: -40, r: 8 }];
-const PZ = 1.1, PAGE_AT = [474, 40];
+const PZ = 1.1, PAGE_AT = [440, 48];
 const pageH = c => c.paper === 'a4' ? 566 : 518;
 const fanT = (p, H, k = 1) => `translate(${p.x}px, ${p.y}px) translate(0px, ${H}px) rotate(${p.r}deg) translate(0px, ${-H}px) scale(${k})`;
 const tabHtml = id => `<button class="itab" data-res="${id}" style="top:${TABS[id][2]}px" tabindex="-1"><b>${TABS[id][0]}</b><span>${TABS[id][1]}</span></button>`;
@@ -433,6 +433,7 @@ function fit(){
   SC = Math.max(.3, Math.min((host.clientWidth - padX) / 1240, flow ? Infinity : (host.clientHeight - furniture) / 680, 2.5));
   WRAP.style.width = `${(1240 * SC).toFixed(1)}px`; WRAP.style.height = `${(680 * SC).toFixed(1)}px`;
   STAGE.style.transform = `scale(${SC.toFixed(4)})`;
+  ss.style.setProperty('--sc', SC.toFixed(4));
   bar();
 }
 function init(){
