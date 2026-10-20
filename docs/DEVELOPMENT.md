@@ -113,9 +113,12 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            the writing zoom: in on the first line, out at the page level, none under
                            reduced motion, where the line is only kept in view), plain (the
                            text of a line being written, read back from the page), start (the start screen:
-                           its header, inspector and footer areas) and story (the picture of how it works: a made-up career file, a page pulled
+                           its header with the Tea, Coffee, light and dark switches, the three ways in, the languages and Yours to keep with its
+                           popovers, whose gaps follow the rows the board reports in `--ways-top` and `introlayout`), buttonfx (how the three ways in
+                           lean toward the pointer, and the Tea tag's simulated string tied under the board; the frame loop runs only while something
+                           moves, and not under reduced motion) and story (the picture of how it works: a made-up career file, a page pulled
                            from it line by line, any look, a stack of resumes; FLIP motion on a 1280-wide stage) with
-                           start.css (every colour a token, like the other two stylesheets), flow.css (the place tabs, the place card, the seam and #scr, loaded last;
+                           start.css and intro-side.css (the start screen's column; every colour a token, like the other two stylesheets), flow.css (the place tabs, the place card, the seam and #scr, loaded last;
                            every radius and shadow a token)
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,
                            claims and new-resume (what a coding agent uses; see AGENTS.md), onefile (a folder ↔ the one file)

@@ -2869,6 +2869,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
     await page.click('#head .obcup[data-m=coffee]'); await page.waitForTimeout(1300);
     const coffee = await now();
     ok('the Coffee cup switches the app to Coffee (the same setting as the logo and Settings: rb-drink), the cups and the logo follow', coffee.drink === 'coffee' && coffee.ls.startsWith('coffee,') && coffee.cups === 'false,true' && /icon-coffee/.test(coffee.logo), JSON.stringify(coffee));
+    ok('Coffee draws the first way in as a stamp and has no string: the rope and its last stretch are not drawn', await page.evaluate(() => getComputedStyle(document.querySelector('#obrope path')).display === 'none' && getComputedStyle(document.querySelector('.obw.p .obstr')).display === 'none' && document.querySelector('.obw.p .obb').getBoundingClientRect().height === 40 && getComputedStyle(document.querySelector('.obw.p .obb')).borderTopWidth === '2px'));
     await page.click('#head .obsun'); await page.waitForTimeout(600);
     const dark = await now();
     ok('the sun and moon button switches to dark (rb-theme), and back to light', dark.theme === 'dark' && dark.ls === 'coffee,dark' && dark.sun === 'true' && await page.evaluate(() => getComputedStyle(document.querySelector('#head .obsun .moon')).display !== 'none' && getComputedStyle(document.querySelector('#head .obsun .sun')).display === 'none'), JSON.stringify(dark));
@@ -2903,6 +2904,35 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.click('#head .obsub'); await page.waitForTimeout(200);
   ok('…a click elsewhere closes it', (await popShown()) === 'false,false,false,false,false');
   ok('…light, and not equal to the inspector: no card around them', await page.evaluate(() => { const f = getComputedStyle(document.querySelector('#foot')); return f.backgroundColor === 'rgba(0, 0, 0, 0)' && f.boxShadow === 'none'; }));
+  // how the ways in feel: they lean toward the pointer, and the Tea tag hangs on a string that follows it (src/ui/buttonfx.js)
+  {
+    const lean = () => page.evaluate(() => { const w = document.querySelector('.obw.s'); return { t: w.querySelector('.obmv').style.transform, pressed: w.classList.contains('pressed') }; });
+    const num = (t, re) => +(t.match(re)?.[1] ?? NaN);
+    const sec = await r('.obw.s .obb');
+    await page.mouse.move(sec.right - 6, sec.top + sec.height / 2); await page.waitForTimeout(600);
+    const hov = await lean();
+    ok('pointing at a way in leans it toward the pointer: the right side of the card turns it to the right, and it lifts a little', /perspective/.test(hov.t) && num(hov.t, /rotateY\((-?[\d.]+)deg/) > 2 && num(hov.t, /rotateY\((-?[\d.]+)deg/) <= 4.01 && num(hov.t, /translate3d\(-?[\d.]+px, (-?[\d.]+)px/) < 0, hov.t);
+    await page.mouse.down(); await page.waitForTimeout(500);
+    const prs = await lean();
+    ok('pressing it flattens and sinks it', prs.pressed && num(prs.t, /rotateY\((-?[\d.]+)deg/) === 0 && num(prs.t, /translate3d\(-?[\d.]+px, (-?[\d.]+)px/) > 2, prs.t);
+    await page.mouse.move(4, 4); await page.mouse.up(); await page.waitForTimeout(900);
+    ok('…and moving off puts it back: no transform is left on it', (await lean()).t === '' && !(await lean()).pressed);
+    // the string: its far end under the picture's board, its near end the tag's hole
+    const rope = () => page.evaluate(() => { const bp = document.querySelector('#obrope path'), fp = document.querySelector('.obw.p .obstr path'), end = d => d.match(/L(-?[\d.]+) (-?[\d.]+)$/)?.slice(1).map(Number);
+      return { back: bp.getAttribute('d'), front: fp.getAttribute('d'), show: getComputedStyle(bp).display !== 'none', z: getComputedStyle(document.querySelector('#obrope')).zIndex, end: end(bp.getAttribute('d')), start: bp.getAttribute('d').match(/^M(-?[\d.]+) (-?[\d.]+)/).slice(1).map(Number),
+        hole: (() => { const b = document.querySelector('.obw.p').getBoundingClientRect(); return [b.left + 23, b.top + 20]; })(), ssRight: document.querySelector('#ss').getBoundingClientRect().right, ss: +getComputedStyle(document.querySelector('#startstage')).zIndex, col: +getComputedStyle(document.querySelector('#col')).zIndex }; });
+    const at0 = await rope();
+    ok('the tag has a string: a rope in a layer of its own above the straw and below the picture (z 5; the picture’s stage is 6 and the column 10), tied 36px inside the picture’s right edge and ending at the tag’s hole', at0.show && at0.z === '5' && at0.ss > 5 && at0.col > at0.ss && /^M/.test(at0.back) && Math.abs(at0.start[0] - (at0.ssRight - 36)) < 2 && Math.abs(at0.end[0] - at0.hole[0]) < 2 && Math.abs(at0.end[1] - at0.hole[1]) < 2, JSON.stringify(at0));
+    ok('…its last stretch is drawn again over the tag, so it is threaded through the hole', /^M.*L/.test(at0.front) && at0.front !== at0.back);
+    const tag = await r('.obw.p .obb');
+    await page.mouse.move(tag.right - 8, tag.top + 6); await page.waitForTimeout(900);
+    const at1 = await rope();
+    ok('the string follows the tag: pointing at the tag’s far corner moves it, and the string’s end is still at the hole, which has moved with the tag', Math.hypot(at1.end[0] - at0.end[0], at1.end[1] - at0.end[1]) > 3 && at1.start.join() === at0.start.join(), JSON.stringify([at0.end, at1.end]));
+    await page.mouse.move(4, 4); await page.waitForTimeout(1500);
+    const at2 = await rope();
+    await page.waitForTimeout(400);
+    ok('…and when the pointer leaves it comes to rest: the string is where it was, and no longer changes (the frame loop has stopped)', Math.hypot(at2.end[0] - at0.end[0], at2.end[1] - at0.end[1]) < 2 && (await rope()).back === at2.back, JSON.stringify([at0.end, at2.end]));
+  }
   ok('nothing of the editor shows: no tabs, no zoom bar, no meter, no Fit, and the sheet waits', !(await page.isVisible('#tab-edit')) && !(await page.$('[data-act=fit]')) && (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'hidden');
 
   // the story (Intro Lab v17): four steps, named in the step line under the picture
@@ -3006,6 +3036,10 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     ok('a phone: stacked, the buttons first, then the picture, then what you keep', at[0] < at[1] && at[1] < at[2] && at[2] < at[3], JSON.stringify(at));
     ok('…nothing runs off the side', (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390 && (await page.evaluate(() => { const s = document.querySelector('#ss').getBoundingClientRect(); return s.left >= 0 && s.right <= innerWidth + 1; })));
     ok('…the step’s words stand under the picture', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .ss-say')).display === 'block' && document.querySelector('#ss .ss-say').textContent.length > 20));
+    ok('…the header (logo, cups, sun and moon) is on one line, the languages are five to a row, and the tag has no string', await page.evaluate(() => { const l = document.querySelector('#head .oblogo').getBoundingClientRect(), c = document.querySelector('#head .obcups').getBoundingClientRect(), s = document.querySelector('#head .obsun').getBoundingClientRect();
+      return Math.abs((l.top + l.bottom) / 2 - (c.top + c.bottom) / 2) < 6 && c.right <= s.left && s.right <= innerWidth && getComputedStyle(document.querySelector('#body .oblangs')).gridTemplateColumns.split(' ').length === 5
+        && getComputedStyle(document.querySelector('.obw.p .obstr')).display === 'none' && getComputedStyle(document.querySelector('#obrope path')).display === 'none'; }));
+    ok('…a popover opens in place, in the flow of the page, under its line', await page.evaluate(async () => { const b = document.querySelector('#foot .obkp .obkb'); b.click(); await new Promise(r => setTimeout(r, 100)); const p = document.querySelector('#obkp0'); return getComputedStyle(p).position === 'static' && getComputedStyle(p).display !== 'none' && p.getBoundingClientRect().top >= b.getBoundingClientRect().bottom - 1; }));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -3016,6 +3050,11 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     await page.waitForTimeout(300);
     const s = { step: await stepOf(page) };
     ok('with reduced motion the picture opens on its resting view: nothing plays, nothing moves', s.step === 4 && await page.evaluate(() => [...document.querySelectorAll('#ss *')].every(e => getComputedStyle(e).transitionDuration.split(',').every(d => parseFloat(d) === 0) || e.tagName === 'svg')));
+    const sec = await page.$eval('.obw.s .obb', el => el.getBoundingClientRect().toJSON());
+    await page.mouse.move(sec.right - 6, sec.top + sec.height / 2); await page.mouse.down(); await page.waitForTimeout(400);
+    ok('…the ways in do not lean, lift or slide (no transform), and a press still shows (the stamp’s inner rule thickens)', await page.evaluate(() => document.querySelector('.obw.s .obmv').style.transform === '' && document.querySelector('.obw.s').classList.contains('pressed')));
+    await page.mouse.move(4, 4); await page.mouse.up();
+    ok('…and the tag’s string is drawn at rest, and nothing moves it', await page.evaluate(() => { const d = document.querySelector('#obrope path').getAttribute('d'); return /^M.*Q.*L/.test(d) && getComputedStyle(document.querySelector('#obrope path')).display !== 'none'; }));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }

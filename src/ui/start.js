@@ -10,6 +10,7 @@ import { t, h, uiLang } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { logoBtn, drink, themePref, resolveTheme } from './drink.js';
 import * as story from './story.js';
+import * as fx from './buttonfx.js';
 
 // ?intro=left puts the column on the left, ?intro=right (the default) on the right
 document.body.dataset.introSide = new URLSearchParams(location.search).get('intro') === 'left' ? 'left' : 'right';
@@ -116,13 +117,14 @@ export function bindSide(){
   if (bound) return;
   bound = true;
   let queued = 0;
-  const again = () => { if (!queued) queued = requestAnimationFrame(() => { queued = 0; fit(); }); };
+  const again = () => { if (!queued) queued = requestAnimationFrame(() => { queued = 0; fit(); fx.refresh(); }); };
   const seen = new MutationObserver(again);
   for (const id of ['head', 'body', 'foot']){ const e = document.getElementById(id); if (e) seen.observe(e, { childList: true, subtree: true }); }
   document.addEventListener('introlayout', again);
   addEventListener('resize', again);
   document.fonts?.ready.then(again);
   popovers();
+  fx.initButtonFx();
 }
 
 // The popovers of Yours to keep: a click opens one and keeps it open (aria-expanded) until another click, another popover or Esc; pointing at an entry or focusing it
