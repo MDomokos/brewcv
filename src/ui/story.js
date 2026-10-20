@@ -121,7 +121,7 @@ function pageHtml(s, P, o = {}){
 // each option is a button: a click sets it on the page that is on top (data-set is the setting and its value)
 const seg = (key, opts, val, prev) => `<span class="sgm">${Object.entries(opts).map(([k, n]) => `<i role="button" tabindex="0" data-set="${key}:${k}" aria-pressed="${k === val}" class="${k === val ? 'on' : ''}${k === val && prev && prev !== val ? ' chg' : ''}">${n}</i>`).join('')}</span>`;
 const lookSegs = (s, P) => `${seg('look', LOOKS, s.look, P?.look)}${seg('lang', { en: 'EN', de: 'DE' }, s.lang, P?.lang)}${seg('paper', PAPERS, s.paper, P?.paper)}`;
-const exportsHtml = () => `<div class="float"><span class="stlbl">${h('story.sendAs')}</span>${['PDF', h('story.web'), h('story.text'), 'JSON Resume'].map(x => `<i class="xchip">${x}</i>`).join('')}</div>`;
+const exportsHtml = () => `<span class="stlbl">${h('story.sendAs')}</span>${['PDF', h('story.web'), h('story.text'), 'JSON Resume'].map(x => `<i class="xchip">${x}</i>`).join('')}`;
 const jobCard = kind => `<div class="jobcard"><span class="stlbl">${h(kind === 'cafe' ? 'story.thisJob' : 'story.nextJob')}</span><b>${kind === 'cafe' ? 'Café manager' : 'Tea shop lead'}</b><span>${h(kind === 'cafe' ? 'story.jobCafe' : 'story.jobTea')}</span></div>`;
 // the stack: the page on top, the kept resumes fanned out behind it from their bottom-left corner; each resume's tab sticks out of its own right edge
 const TABS = { cafe: ['Café manager', 100], tea: ['Tea shop lead', 30], trainer: ['Trainer', 170] };
@@ -150,7 +150,7 @@ function slipsInto(box, s){
 }
 
 let HOT = null;                                  // the line of the career file the pointer is on
-const SLOTS = ['file', 'slips', 'behind', 'page', 'look', 'job', 'exp', 'note'];
+const SLOTS = ['file', 'slips', 'behind', 'page', 'job', 'tools', 'note'];
 let EL = {};
 function render(s, P, el){
   el.file.innerHTML = fileHtml(s, P);
@@ -160,11 +160,11 @@ function render(s, P, el){
   el.behind.innerHTML = s.cards.map((c, i) => sheetHtml(c, POS[i + 1], i + 1)).reverse().join('');
   el.page.classList.toggle('hide', s.page === 'none');
   if (s.page !== 'none') el.page.innerHTML = pageHtml(s, P, { fly: true, vtag: !!s.slips, hot: HOT }) + (s.cards.length ? tabHtml(s) : '');
-  el.look.classList.toggle('hide', !s.style);
-  el.look.innerHTML = `<div class="float"><span class="stlbl">${h('story.look')}</span>${lookSegs(s, P)}</div>`;
   el.job.classList.toggle('hide', !s.job);
   if (s.job) el.job.innerHTML = jobCard(s.job);
-  el.exp.classList.toggle('hide', !s.exports); el.exp.innerHTML = exportsHtml();
+  // one toolbar under the page: the look while it is being tried, and the ways to send once the resumes are made
+  el.tools.classList.toggle('hide', !(s.style || s.exports));
+  el.tools.innerHTML = `<div class="float tools">${s.style ? `<div class="trow trow-look"><span class="stlbl">${h('story.look')}</span>${lookSegs(s, P)}</div>` : ''}${s.exports ? `<div class="trow trow-send">${exportsHtml()}</div>` : ''}</div>`;
 }
 
 // ---------- moving between moments (FLIP): measure, change, then animate the difference ----------
@@ -497,7 +497,7 @@ export function retext(){
   const ss = $('#ss'); if (!ss || !inited) return;
   ss.setAttribute('aria-label', t('onb.hdHow'));
   $('.obreplay span', ss).textContent = t('onb.replay');
-  EL.note.dataset.n = ''; EL.look.replaceChildren();
+  EL.note.dataset.n = '';
   buildBar();
   if (prev) render(prev, null, EL);
   bar();

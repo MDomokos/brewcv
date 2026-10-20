@@ -7,6 +7,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
+- **The start screen's story has one toolbar under the page.** The look (design, language, paper) and the ways to send share one card, which grows by a row when the resumes are made, instead of two floating bars.
 - **The page tags in the start screen's story are paper in Tea.** Amber is kept for the primary button and the step line.
 - **The career file in the start screen's story goes quiet once everything has landed.** Its version chips, tags and ticks fade and the file dims, so the top resume is the one thing to look at; pointing at the file brings them back.
 - **The start screen's look toggles work.** In the last two steps the design, language and paper options under the page are buttons: a click draws the page on top with that setting, and its tab names it.

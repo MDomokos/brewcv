@@ -2831,7 +2831,8 @@ const storyDiff = page => page.evaluate(() => {
   const ss = document.querySelector('#ss'), s = window.__wb.onboarding.start.current(), out = [];
   const q = k => ss.querySelector('.s-' + k), hid = e => e.classList.contains('hide'), shown = e => getComputedStyle(e).visibility !== 'hidden';
   if (ss.querySelector('.fx .sg, .fx .stghost, .fx .sheetghost')) out.push('still moving');
-  for (const [k, on] of [['slips', s.slips], ['look', s.style], ['job', s.job], ['exp', s.exports], ['page', s.page !== 'none'], ['behind', s.cards.length]]) if (hid(q(k)) === !!on) out.push(k);
+  for (const [k, on] of [['slips', s.slips], ['job', s.job], ['page', s.page !== 'none'], ['behind', s.cards.length]]) if (hid(q(k)) === !!on) out.push(k);
+  if (hid(q('tools')) === !!(s.style || s.exports) || !!ss.querySelector('.s-tools .trow-look') !== !!s.style || !!ss.querySelector('.s-tools .trow-send') !== !!s.exports) out.push('toolbar');
   const sh = [...ss.querySelectorAll('.s-behind .sheet')];
   if (sh.map(x => x.dataset.id).sort().join() !== s.cards.map(c => c.id).sort().join()) out.push('sheets');
   if (sh.some(x => !shown(x)) || (s.page === 'on' && (!shown(q('page')) || !q('page').querySelector('.pg')))) out.push('a page is hidden');
@@ -2891,9 +2892,9 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.waitForFunction(() => document.querySelector('#ss .s-page .pg.serif.a4'), null, { timeout: 15000 });
   ok('step 3: design, language and paper change on the page', /Berufserfahrung/.test(await page.textContent('#ss .s-page')));
   await atStep(page, 4);
-  await page.waitForFunction(() => document.querySelectorAll('#ss .s-behind .sheet').length === 2 && !document.querySelector('#ss .s-exp').classList.contains('hide'), null, { timeout: 20000 });
+  await page.waitForFunction(() => document.querySelectorAll('#ss .s-behind .sheet').length === 2 && !!document.querySelector('#ss .s-tools .trow-send'), null, { timeout: 20000 });
   await page.waitForTimeout(2500);
-  ok('step 4: every job its own resume: two kept in a fanned stack with a tab each, and the ways to send them', (await page.$$('#ss .s-behind .itab')).length === 2 && /PDF/.test(await page.textContent('#ss .s-exp')));
+  ok('step 4: every job its own resume: two kept in a fanned stack with a tab each, and the ways to send them', (await page.$$('#ss .s-behind .itab')).length === 2 && /PDF/.test(await page.textContent('#ss .s-tools .trow-send')));
   ok('…and step 4 ends showing exactly what its moment says: a page, two kept sheets, the ways to send', (await storyDiff(page)) === '', await storyDiff(page));
   const topBefore = await page.textContent('#ss .s-page .tg');
   await page.click('#ss .s-behind .itab >> nth=0'); await page.waitForTimeout(1800);
@@ -2905,9 +2906,9 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   const top2 = await page.textContent('#ss .s-page .tg');
   await page.$eval('#ss .s-behind .sheet .pg', e => e.click()); await page.waitForTimeout(1800);
   ok('a click anywhere on a page under the top one brings it up', (await page.textContent('#ss .s-page .tg')) !== top2 && (await storyDiff(page)) === '', await storyDiff(page));
-  await page.click('#ss .s-look [data-set="look:mono"]'); await page.waitForTimeout(900);
-  ok('the look toggles work: a click on Mono draws the page on top in Mono, and its tab says so', await page.evaluate(() => document.querySelector('#ss .s-page .pg').classList.contains('mono') && /Mono/.test(document.querySelector('#ss .s-page .itab').textContent) && document.querySelector('#ss .s-look [data-set="look:mono"]').getAttribute('aria-pressed') === 'true'));
-  await page.click('#ss .s-look [data-set="paper:a4"]'); await page.click('#ss .s-look [data-set="lang:de"]'); await page.waitForTimeout(900);
+  await page.click('#ss .s-tools [data-set="look:mono"]'); await page.waitForTimeout(900);
+  ok('the look toggles work: a click on Mono draws the page on top in Mono, and its tab says so', await page.evaluate(() => document.querySelector('#ss .s-page .pg').classList.contains('mono') && /Mono/.test(document.querySelector('#ss .s-page .itab').textContent) && document.querySelector('#ss .s-tools [data-set="look:mono"]').getAttribute('aria-pressed') === 'true'));
+  await page.click('#ss .s-tools [data-set="paper:a4"]'); await page.click('#ss .s-tools [data-set="lang:de"]'); await page.waitForTimeout(900);
   ok('…and so do the language and the paper, with the stack untouched', await page.evaluate(() => { const p = document.querySelector('#ss .s-page .pg'); return p.classList.contains('a4') && /Berufserfahrung|Experience/.test(p.textContent) && p.querySelector('.pf').textContent.includes('DE') && document.querySelectorAll('#ss .s-behind .sheet').length === 2; }) && (await storyDiff(page)) === '', await storyDiff(page));
   ok('everything landed: the career file goes quiet (no chips, no tags) and comes back when pointed at', await page.evaluate(async () => { const f = document.querySelector('#ss .s-file'), c = getComputedStyle(f.querySelector('.vch')), at = document.querySelector('#ss').dataset.rest; return at === 'true' && +c.opacity < .05; }));
   const topId = () => page.evaluate(() => window.__wb.onboarding.start.current().id);
