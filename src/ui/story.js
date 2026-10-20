@@ -457,8 +457,10 @@ function fit(){
   const ss = $('#ss'); if (!ss || !STAGE) return;
   const host = ss.parentElement, flow = getComputedStyle(host).position === 'static';
   const cs = getComputedStyle(ss), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2;
-  const SW = 1280;
+  // with the column on the left the stack may run off the screen's right edge, so the picture is scaled to a narrower stage (larger)
+  const SW = document.body.dataset.introSide === 'left' ? 1200 : 1280;
   SC = Math.max(.3, Math.min((host.clientWidth - padX) / SW, 2.5));
+  ss.style.setProperty('--sw', SW);
   WRAP.style.width = `${(SW * SC).toFixed(1)}px`; WRAP.style.height = flow ? `${(1000 * SC).toFixed(1)}px` : '';   // on a phone the picture is as tall as it needs to be
   // the career file's top lines up with the top of the ways-in card (never above the job card's room)
   const card = !flow && document.querySelector('#body');

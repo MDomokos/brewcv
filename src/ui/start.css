@@ -13,6 +13,10 @@ body.is-intro .pagelay, body.is-intro .ovlay, body.is-intro .editlay { display: 
 body.is-intro .startstage { opacity: 1; visibility: visible; pointer-events: none; transition: opacity .4s var(--ease) .1s, visibility 0s 0s; }
 body.is-intro .startstage .ss { pointer-events: auto; }
 
+/* option: the column on the left (?intro=left), the pages having the rest of the width and running off the right edge as well as the bottom */
+body.is-intro[data-intro-side="left"] .col { left: var(--G) !important; right: auto !important; width: 392px !important; }
+body.is-intro[data-intro-side="left"] .startstage { left: calc(392px + 2 * var(--G)); width: calc(100vw - 392px - 3 * var(--G)); }
+
 /* the column on the start screen: the header and the footer sit on the canvas; the inspector is the one card */
 body.is-intro .col { background: none; border: 0; box-shadow: none; border-radius: 0; gap: var(--G); justify-content: flex-start; overflow-y: auto; scrollbar-width: none; padding: 8px 2px; }
 body.is-intro .col > #head, body.is-intro .col > #foot { background: transparent; border: 0; border-radius: 0; box-shadow: none; --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); color: var(--ink); flex: none; height: auto; }
@@ -63,7 +67,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .ss { --bd-ink: var(--st-ink); --bd-soft: var(--st-soft); --bd-line: var(--st-line); --card-bg: var(--st-card);
   position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; height: 100%; padding: 0; color: var(--bd-ink); font: 14px/1.45 var(--font-ui); }
 .ss-bar { position: relative; flex: none; padding-top: 24px; }
-.ss-say, .ss-steps { width: calc(1280px * var(--sc, 1)); padding-left: calc(32px * var(--sc, 1)); padding-right: calc(32px * var(--sc, 1)); }
+.ss-say, .ss-steps { width: calc(var(--sw, 1280) * 1px * var(--sc, 1)); padding-left: calc(32px * var(--sc, 1)); padding-right: calc(32px * var(--sc, 1)); }
 .stlbl { font: 12px/1 var(--font-mono); color: var(--bd-soft); text-transform: uppercase; letter-spacing: .06em; }
 /* Replay: a small round button at the end of the step line, in the right margin */
 .obreplay { position: absolute; right: calc(3px * var(--sc, 1)); top: 56px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; min-height: 0; border-radius: var(--r-round); border: 1px solid var(--bd-line); background: transparent; color: var(--bd-ink); cursor: pointer; }
@@ -79,7 +83,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .sst .s-tools, .sst .s-slips { left: 32px; top: 424px; width: 352px; }
 .sst .s-tools { z-index: 12; }
 .sst .s-job { left: 32px; top: 24px; }
-.sst .s-file.hero { transform: translate(278px, 240px) scale(1.1); }
+.sst .s-file.hero { transform: translate(calc(var(--sw, 1280) * .5px - 362px), 240px) scale(1.1); }
 
 /* the step line */
 .ss-say { margin: 6px 0 0; min-height: 2.8em; font-size: 13.5px; line-height: 1.4; color: var(--bd-ink); }

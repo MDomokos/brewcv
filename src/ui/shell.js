@@ -359,6 +359,7 @@ function relayout(){
   }
   // the start screen's picture takes the page area left of the column
   document.body.style.setProperty('--startw', `${Math.max(240, L.col.left - 2 * G)}px`);
+  document.body.style.setProperty('--colw', `${L.col.width}px`);
   renderFoot();
   renderChip();
   placeRail();

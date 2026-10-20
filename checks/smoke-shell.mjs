@@ -2953,6 +2953,15 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     await ctx.close();
   }
   {
+    const ctx = await newContext({ motion: true, viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    const bad = await open(page, '?memory&welcome&intro=left');
+    const g = await page.evaluate(() => { const col = document.querySelector('#col').getBoundingClientRect(), ss = document.querySelector('#ss .ss-steps').getBoundingClientRect(), card = document.querySelector('#body').getBoundingClientRect(), file = document.querySelector('#ss .fcard').getBoundingClientRect(); return { colLeft: col.left, colRight: col.right, ssLeft: ss.left, cardTop: card.top, fileTop: file.top }; });
+    ok('?intro=left: the column is on the left and the story has the rest, clear of it, with the career file level with the ways-in card', g.colLeft < 40 && g.colRight <= g.ssLeft && Math.abs(g.cardTop - g.fileTop) < 14, JSON.stringify(g));
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+  {
     const ctx = await newContext({ motion: true, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const page = await ctx.newPage();
     const bad = await open(page, '?memory&welcome');
