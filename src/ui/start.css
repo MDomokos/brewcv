@@ -9,7 +9,7 @@
 body.is-intro .pagebox { opacity: 0; visibility: hidden; pointer-events: none; }
 body.is-intro .pagelay, body.is-intro .ovlay, body.is-intro .editlay { display: none; }
 
-.startstage { position: absolute; z-index: 4; left: var(--G); top: var(--G); bottom: var(--G); width: var(--startw, calc(100vw - 440px)); display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s var(--ease), visibility 0s .3s; }
+.startstage { position: absolute; z-index: 4; left: 0; top: 0; bottom: 0; width: var(--startw, calc(100vw - 440px)); display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s var(--ease), visibility 0s .3s; }
 body.is-intro .startstage { opacity: 1; visibility: visible; pointer-events: none; transition: opacity .4s var(--ease) .1s, visibility 0s 0s; }
 body.is-intro .startstage .ss { pointer-events: auto; }
 
@@ -29,7 +29,8 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 
 /* ---------- the inspector: the three ways in, the language, Why JSON? ---------- */
 .obstart { display: flex; flex-direction: column; gap: 12px; }
-.obchoices { display: grid; gap: 8px; }
+.obchoices { display: grid; gap: 8px; justify-items: start; }
+.obchoices button { width: min(100%, 340px); }
 .obchoices button { display: grid; gap: 2px; align-content: center; text-align: left; min-height: 64px; padding: 9px 14px; border-radius: var(--r-m); background: var(--raised); border: 1px solid var(--line-strong); color: var(--ink); cursor: pointer; font: inherit; }
 .obchoices button b { font-size: 15px; }
 .obchoices button small { font-size: 12.5px; font-weight: 400; line-height: 1.3; color: var(--ink-soft); }
@@ -57,11 +58,10 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .obtile p { margin: 1px 0 0; font-size: 12px; line-height: 1.35; color: var(--ink-soft); }
 
 /* ---------- the story (src/ui/story.js, Intro Lab v17) ---------- */
-/* a board holding the 1160 x 680 stage (scaled by story.js) with the step line under it. The board and the paper are light in every theme
-   (the page area's stage colour, the paper tokens); the career file is the panel's own surface; the step card is the constant chrome. */
+/* the 1160 x 680 stage (scaled by story.js to fill the page area) with the step line under it, drawn straight on the canvas: its ink and lines are
+   the canvas's; the paper is light in every theme; the career file is the panel's own surface; the step card is the constant chrome. */
 .ss { --bd-ink: var(--st-ink); --bd-soft: var(--st-soft); --bd-line: var(--st-line); --card-bg: var(--st-card);
-  position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; padding: 8px 22px 6px; background: var(--st-board); color: var(--bd-ink);
-  border: 1px solid var(--bd-line); border-radius: var(--r-panel); box-shadow: var(--shadow-panel); font: 14px/1.45 var(--font-ui); }
+  position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; padding: 0 8px; color: var(--bd-ink); font: 14px/1.45 var(--font-ui); }
 .ss-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; }
 .stlbl { font: 12px/1 var(--font-mono); color: var(--bd-soft); text-transform: uppercase; letter-spacing: .06em; }
 .obreplay { flex: none; display: inline-flex; align-items: center; gap: 4px; font: 700 12px var(--font-ui); padding: 2px 11px; min-height: 0; border-radius: var(--r-pill); border: 1px solid var(--bd-line); background: transparent; color: var(--bd-ink); cursor: pointer; }

@@ -427,7 +427,7 @@ function fit(){
   const host = ss.parentElement, flow = getComputedStyle(host).position === 'static';
   const cs = getComputedStyle(ss), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2;
   const furniture = ss.offsetHeight - WRAP.offsetHeight;
-  SC = Math.max(.3, Math.min((host.clientWidth - padX) / 1160, flow ? Infinity : (host.clientHeight - furniture) / 680, 1.1));
+  SC = Math.max(.3, Math.min((host.clientWidth - padX) / 1160, flow ? Infinity : (host.clientHeight - furniture) / 680, 2.5));
   WRAP.style.width = `${(1160 * SC).toFixed(1)}px`; WRAP.style.height = `${(680 * SC).toFixed(1)}px`;
   STAGE.style.transform = `scale(${SC.toFixed(4)})`;
   bar();
