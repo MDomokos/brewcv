@@ -12,6 +12,8 @@ body.is-intro .pagelay, body.is-intro .ovlay, body.is-intro .editlay { display: 
 .startstage { position: fixed; z-index: 6; left: 0; top: 0; bottom: 0; width: var(--startw, calc(100vw - 440px)); display: flex; align-items: flex-start; justify-content: center; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s var(--ease), visibility 0s .3s; }
 body.is-intro .startstage { opacity: 1; visibility: visible; pointer-events: none; transition: opacity .4s var(--ease) .1s, visibility 0s 0s; }
 body.is-intro .startstage .ss { pointer-events: auto; }
+/* the page drawn at first paint gives way as the board arrives (until the app is ready it is still in the document, and its edges would peek out around the board) */
+body.is-intro .paper-skel { opacity: 0; transition: opacity .4s var(--ease) .1s; }
 
 /* ---------- the story (src/ui/story.js; the board of mockup E2) ---------- */
 /* The board is the story's window on the table: a framed panel with a 12 px rim stitched on its inside, drawn in front of everything so a page

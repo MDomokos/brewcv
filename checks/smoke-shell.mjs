@@ -3051,6 +3051,41 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await ctx.close();
 }
 
+if (want('the start screen: the static first paint comes first, then the app')) {
+  // The page is drawn before any script runs (a blank page and the column's frame, in the drink the visitor chose), every module is asked for at once by the
+  // preload list and not one level after another, and only then does the app start and the story's board arrive. The app's first script is held back to see it.
+  const ctx = await newContext({ motion: true, viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  const bad = [];
+  page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
+  page.on('pageerror', e => bad.push(String(e)));
+  await page.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-drink', 'coffee'); } catch { /* nothing to set */ } });
+  let release; const held = new Promise(r => { release = r; });
+  await page.route('**/src/ui/shell.js', async route => { await held; await route.continue(); });
+  await page.goto(URL_('?memory&welcome'), { waitUntil: 'commit' });          // a held module script holds DOMContentLoaded too
+  await page.waitForSelector('.paper-skel', { state: 'attached' }); await page.waitForTimeout(1200);
+  const first = await page.evaluate(() => {
+    const r = s => document.querySelector(s)?.getBoundingClientRect(), skel = r('.paper-skel'), head = r('#head'), col = r('#col');
+    return { booted: window.__booted, ready: document.body.classList.contains('is-ready'), intro: document.body.classList.contains('is-intro'), board: !!document.querySelector('#ss'),
+      skel: !!skel && getComputedStyle(document.querySelector('.paper-skel')).display !== 'none' && skel.width > 400 && skel.height > 600, head: !!head && head.width > 300 && /BrewCV/.test(document.querySelector('#head').textContent),
+      lines: document.querySelectorAll('#body .skel-line').length, col: !!col && col.width > 300, drink: document.documentElement.dataset.drink };
+  });
+  ok('before the app has started the page is already drawn in its places: a blank page, and the column’s frame with the name and three grey lines, in the drink that was chosen', first.booted === false && !first.ready && !first.intro && first.skel && first.head && first.col && first.lines === 3 && first.drink === 'coffee', JSON.stringify(first));
+  ok('…and nothing of the story is there yet: no board, no column of ways in', !first.board && !(await page.$('.obchoices')));
+  const asked = await page.evaluate(() => performance.getEntriesByType('resource').map(e => new URL(e.name).pathname.replace(/^\//, '')));
+  const listed = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').match(/<link rel="modulepreload" href="[^"]+">/g).map(l => l.match(/href="([^"]+)"/)[1]);
+  const missing = listed.filter(f => f !== 'src/ui/shell.js' && !asked.includes(f));      // the held script has no entry until it answers
+  ok('…and every module of the app, the story and the buttons’ motion among them, has already been asked for while the first script is held (the preload list asks for them all at once)', !missing.length && ['src/ui/story.js', 'src/ui/story-old.js', 'src/ui/buttonfx.js', 'src/ui/start.js'].every(f => asked.includes(f)), missing.join());
+  release();
+  await page.waitForFunction(() => document.body.classList.contains('is-intro') && document.querySelector('#ss .s-lcol .num'), null, { timeout: 20000 });
+  const intro = await page.evaluate(() => ({ ready: document.body.classList.contains('is-ready'), ways: document.querySelectorAll('.obchoices .obw').length, skelOpacity: getComputedStyle(document.querySelector('.paper-skel')).opacity }));
+  ok('then the app starts and the start screen arrives whole: the board with its big number, the three ways in, and the grey page gives way to the board', intro.ways === 3 && intro.skelOpacity === '0', JSON.stringify(intro));
+  await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
+  ok('…and when the app is ready the first-paint page is gone', await page.evaluate(() => getComputedStyle(document.querySelector('.paper-skel')).display === 'none'));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('the start screen: other windows, a phone, reduced motion, a record that exists')) {
   {
     const ctx = await newContext({ motion: true, viewport: { width: 1100, height: 760 } });
@@ -3449,6 +3484,7 @@ if (want('deployed: a subpath, offline, a phone, names')) {
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 }).catch(() => {});
   await settle(page);
   ok('offline, it reloads and draws the resume', await page.evaluate(() => document.body.classList.contains('is-ready') && window.__wb.ui.fills.length > 0));
+  ok('offline, the start screen comes back whole from the cache: the story’s board with its big number, the three ways in with their motion, and the column’s own stylesheet', await page.evaluate(() => !!document.querySelector('#ss .s-lcol .num') && document.querySelectorAll('.obchoices .obw').length === 3 && getComputedStyle(document.querySelector('#head .obswitch')).display === 'flex'));
   const places = await page.evaluate(async () => { let cached = false; for (const k of await caches.keys()) if ((await (await caches.open(k)).keys()).some(r => /\/src\/ui\/flow\.css$/.test(r.url))) cached = true; window.__wb.setView('resumes'); const sc = document.querySelector('#scr'), t = document.querySelector('#ptabs .ptab'); return { cached, tab: !!t, flex: t && getComputedStyle(t).display, pos: getComputedStyle(sc).position, hidden: sc.hidden }; });
   ok('offline, the places’ stylesheet (flow.css) was cached and applies: the place tabs are drawn as tabs, and the Library opens in #scr', places.cached && places.tab && places.flex === 'flex' && places.pos === 'fixed' && !places.hidden, JSON.stringify(places));
   await ctx.close();
