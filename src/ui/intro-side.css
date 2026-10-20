@@ -4,6 +4,7 @@
 
 /* the column's width on the start screen is the layout's (src/ui/layout.js, slim); what is drawn in it is --iw wide and sits in the middle of it */
 body.is-intro { --iw: 340px; --ipad: max(20px, calc((var(--colw, 392px) - var(--iw)) / 2)); }
+body.is-intro[data-intro-side="left"] { --ipad: calc((392px - var(--iw)) / 2); }      /* the column on the left is 392px wide whatever the layout says (start.css) */
 body.is-intro .col > #head { background: transparent; border: 0; border-radius: 0; box-shadow: none; flex: none; height: auto; padding: 0 var(--ipad);
   --s-ink: var(--canvas-ink); --s-soft: var(--canvas-ink-soft); --s-line: var(--canvas-line); --focus: var(--canvas-ink); color: var(--s-ink); }
 
@@ -33,7 +34,7 @@ html[data-theme="dark"] .obsun .moon { display: block; }
 /* the column is a flat stack on the canvas: the header at the top, the ways in and the languages level with the picture's rows, Yours to keep pinned to the foot */
 body.is-intro .col { background: none; border: 0; box-shadow: none; border-radius: 0; gap: 0; justify-content: flex-start; overflow-y: auto; scrollbar-width: none; padding: 0; }
 /* the questions that follow a choice keep the card they have always had; the start page itself is bare on the canvas */
-body.is-intro .col > #body { flex: none; overflow: visible; width: 346px; max-width: calc(100% - 2 * var(--ipad)); margin-left: var(--ipad); padding: 12px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); box-shadow: var(--shadow-panel); }
+body.is-intro .col > #body { flex: none; overflow: visible; width: 346px; max-width: calc(100% - 2 * var(--ipad)); margin: var(--G) 0 var(--G) var(--ipad); padding: 12px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); box-shadow: var(--shadow-panel); }
 body.is-intro .col > #body:has(> .obstart) { width: auto; max-width: none; margin: 0; padding: 0 var(--ipad) 16px; border: 0; border-radius: 0; background: none; box-shadow: none;
   --s-ink: var(--canvas-ink); --s-soft: var(--canvas-ink-soft); --s-line: var(--canvas-line); --focus: var(--canvas-ink); color: var(--s-ink); }
 .obgap { flex: none; height: 18px; }
