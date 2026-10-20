@@ -85,6 +85,7 @@ const SHELL = [
   './src/ui/onpage.js',
   './src/ui/hands.js',
   './src/ui/start.js',
+  './src/ui/story.js',
   './src/ui/plain.js',
   './src/ui/camera.js',
   './src/ui/select.js',

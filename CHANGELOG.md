@@ -6,6 +6,10 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ## Unreleased
 
+### Changed
+- **The start screen's story is a career file and a page pulled from it.** In four steps: one career file with the reasons for a file, tailoring it to a job (lines fly from the file onto the page, one is moved up, other wordings slide out as slips, a new one is written on the page and arrives in the file as a version), the same words in any look, and a resume for every job in a fanned stack with a tab each. Click a tab, or scrub the step line, to move between them. The ways in, the language row, "Why JSON?" and "Yours to keep" on the right are unchanged.
+- **The story's words are in all ten languages.** The new step titles and labels are machine-written and marked for a native review; the career in the picture stays a made-up café manager in English and German.
+
 ### Fixed
 - **The mat's roll no longer stutters.** Switching drink by the logo skips the all-elements colour fade while the mat rolls, and the roll's layer is isolated from the rest of the page.
 - **The folded Tea tags swing more smoothly.** Positions and tokens are read once per frame or swing instead of once per tag.

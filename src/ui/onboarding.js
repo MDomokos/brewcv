@@ -149,7 +149,7 @@ function saveJob(){
 
 async function act(a, tg){
   switch (a){
-    case 'ob-story': case 'ob-replay': case 'ob-front': return start.act(a, tg);
+    case 'ob-replay': return start.act(a, tg);
     case 'ob-intro-lang': {
       const l = tg?.dataset.l; if (!l) return true;
       clearTimeout(langTimer);
@@ -231,7 +231,6 @@ async function act(a, tg){
 
 function bind(body){
   let timer = null;
-  start.bind();      // pointing at a label row on the picture
   const on = (ev, fn) => body.addEventListener(ev, e => { if (O.step === 'welcome') fn(e); });
   // hovering (or focusing) a language chip shows the page in that language; leaving goes back to the kept one
   const lc = e => e.target.closest?.('.oblang');

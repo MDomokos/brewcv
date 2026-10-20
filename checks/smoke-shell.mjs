@@ -2826,8 +2826,8 @@ if (want('drinks: the page marks, exports, no corner at other sizes')) {
 
 // The start screen (UX-3), built from the editor's own areas: the header, the inspector and the footer are the column; the page area
 // holds the picture of how it works. The three ways in change state rather than screens.
-const ssOf = page => page.evaluate(() => { const ss = document.querySelector('#ss'); return ss ? { step: ss.dataset.step, ly: ss.dataset.ly, front: ss.dataset.front, type: ss.dataset.type, cap: document.querySelector('#sscap')?.textContent ?? '', prog: document.querySelector('.ssprog i')?.style.width ?? '' } : null; });
-const nOfMs = page => page.evaluate(() => [...document.querySelectorAll('#ss .ssk[data-k]')].map(k => k.textContent));
+const stepOf = page => page.evaluate(() => +document.querySelector('#ss').dataset.step);
+const atStep = (page, n, timeout = 20000) => page.waitForFunction(k => +document.querySelector('#ss')?.dataset.step === k, n, { timeout });
 
 if (want('the start screen: the editor’s areas, the story, the three ways in')) {
   const ctx = await newContext({ motion: true, viewport: { width: 1440, height: 900 } });
@@ -2856,43 +2856,36 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   ok('…light, and not equal to the inspector: no card around them', await page.evaluate(() => { const f = getComputedStyle(document.querySelector('#foot')); return f.backgroundColor === 'rgba(0, 0, 0, 0)' && f.boxShadow === 'none'; }));
   ok('nothing of the editor shows: no tabs, no zoom bar, no meter, no Fit, and the sheet waits', !(await page.isVisible('#tab-edit')) && !(await page.$('[data-act=fit]')) && (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'hidden');
 
-  // the story: four steps, named above their zones
-  const heads = await page.$$eval('#ss .ssh button', bs => bs.map(b => `${b.querySelector('.n').textContent} ${b.querySelector('b').textContent}`));
-  ok('four step names are the only numbers, set as headers above the zones', JSON.stringify(heads) === JSON.stringify(['1 Bring in what you have', '2 Keep several wordings', '3 Tailor to each job', '4 Export']), JSON.stringify(heads));
-  ok('…under the picture sit a progress bar, one instruction line and a replay button, and no dots', !!(await page.$('#ss .ssprog')) && (await page.textContent('#sscap')).length > 20 && !!(await page.$('#ss [data-act=ob-replay]')) && !(await page.$('#ss .obdots')));
-  ok('the record is the editor panel’s own checklist: two jobs open, the rest folded, ticks and version counts', await page.evaluate(() => { const r = document.querySelector('#ss .ss-rec'); return r.querySelectorAll('.ssg.open').length === 2 && r.querySelectorAll('.ssg.shut').length >= 2 && r.querySelectorAll('.cb').length >= 6 && r.querySelectorAll('.ssv').length >= 6; }));
-  ok('the page area starts with the page drawn as grey lines', await page.evaluate(() => { const pg = document.querySelector('#ss .ss-page'); return pg.querySelectorAll('i').length > 15 && getComputedStyle(pg).backgroundColor !== 'rgba(0, 0, 0, 0)'; }));
-
-  // it plays: step 1, then 2 with the layers, then 3 and 4, by itself
+  // the story (Intro Lab v17): four steps, named in the step line under the picture
+  const stops = await page.$$eval('#ss .stops button', bs => bs.map(b => `${b.querySelector('.num').textContent} ${b.lastElementChild.textContent}`));
+  ok('four steps, named in the step line under the picture: the only numbers', JSON.stringify(stops) === JSON.stringify(['1 Your career file', '2 Tailor it to the job', '3 Same words, any look', '4 Every job, its own resume']), JSON.stringify(stops));
+  ok('…a replay button, and the step’s words in a card inside the picture', !!(await page.$('#ss [data-act=ob-replay]')) && (await page.textContent('#ss .stnote p')).length > 20);
   await page.evaluate(() => window.__wb.onboarding.start.replay());
-  await page.waitForTimeout(1200);
-  const s1 = await ssOf(page);
-  ok('it starts playing at step 1 by itself, and says what it is doing', s1.step === '1' && /old resume/.test(s1.cap));
-  const seq = [];
-  const t0 = Date.now();
-  while (Date.now() - t0 < 14000 && !(await ssOf(page)).step.startsWith('3')){ const x = await ssOf(page); const k = `${x.step}:${x.ly}`; if (seq.at(-1) !== k) seq.push(k); await page.waitForTimeout(100); }
-  const two = seq.filter(k => k.startsWith('2:')).map(k => k.slice(2)).join(' ');
-  ok('step 2 plays the layers, as the editor draws them: the page, then the job (a click), then the line (a second click), then back to the job and the page (Esc, Esc)', two === 'page job line job page', two);
-  const lyText = await page.evaluate(() => document.querySelector('#ss .sscrumb').innerText.replace(/\s+/g, ' ').trim());
-  ok('…the breadcrumb is the editor’s: Page › Job › Line, with Esc beside it', /^Page › Job › Line Esc$/.test(lyText), lyText);
-  await page.waitForFunction(() => document.querySelector('#ss')?.dataset.step === '3', null, { timeout: 12000 }).catch(() => {});
-  const ticks3 = await nOfMs(page);
-  await page.waitForTimeout(3500);
-  ok('step 3 tailors: other lines ticked for another kind of job', JSON.stringify(await nOfMs(page)) !== JSON.stringify(ticks3) || (await ssOf(page)).type !== 'start', `${JSON.stringify(ticks3)} → ${JSON.stringify(await nOfMs(page))}`);
-  await page.waitForFunction(() => document.querySelector('#ss')?.dataset.step === '4', null, { timeout: 15000 });
-  await page.waitForTimeout(2000);
-  const rest = await page.evaluate(() => { const pg = document.querySelector('#ss .ss-page').getBoundingClientRect(), ex = document.querySelector('#ss .ssx[data-i="0"]').getBoundingClientRect(); return { dx: Math.abs(pg.left - ex.left), dy: Math.abs(pg.top - ex.top), dw: Math.abs(pg.width - ex.width) }; });
-  ok('step 4: the page shrinks into the front resume of the stack, which is the resting view', rest.dx < 4 && rest.dy < 4 && rest.dw < 4, JSON.stringify(rest));
-  ok('…three resumes with a label row beside each: job type, language, paper, pages, file', await page.evaluate(() => [...document.querySelectorAll('#ss .sslab')].map(b => b.innerText.replace(/\s+/g, ' ').trim()).join('|')) === 'Startup EN · Letter · 1 page HTML|Big company DE · A4 · 2 pages TXT|Public sector HU · A4 · 1 page PDF', await page.evaluate(() => [...document.querySelectorAll('#ss .sslab')].map(b => b.innerText.replace(/\s+/g, ' ').trim()).join('|')));
-  const t4 = await nOfMs(page);
-  await page.hover('#ss .sslab[data-i="1"]'); await page.waitForTimeout(500);
-  const s4 = await ssOf(page);
-  ok('pointing at a label row brings that resume forward and shows its ticks in the record', s4.front === '1' && JSON.stringify(await nOfMs(page)) !== JSON.stringify(t4) && (await page.getAttribute('#ss .sslab[data-i="1"]', 'aria-pressed')) === 'true', JSON.stringify(s4));
-  await page.click('#ss .ssh button[data-s="2"]'); await page.waitForTimeout(400);
-  const j2 = await ssOf(page);
-  ok('a step name goes to that step, and the autoplay stops', j2.step === '2' && /Your own words/.test(j2.cap) && j2.prog === '50%');
+  await page.waitForTimeout(2200);
+  ok('it starts playing at step 1 by itself: the career file, the app’s own “Why JSON?” points beside it, and no page yet', (await stepOf(page)) === 1 && await page.evaluate(() => document.querySelectorAll('#ss .fcard .fln').length >= 12 && document.querySelectorAll('#ss .s-why:not(.hide) .whygrid p').length === 4 && document.querySelector('#ss .s-page').classList.contains('hide') && /File over app/.test(document.querySelector('#ss .s-why').textContent)));
+
+  // it plays: step 2 pulls lines onto the page, tries other wordings, writes one; 3 changes the look; 4 keeps a stack of resumes
+  await atStep(page, 2);
+  await page.waitForFunction(() => document.querySelectorAll('#ss .s-page li').length === 4, null, { timeout: 15000 });
+  ok('step 2: the lines the job asks for are on the page, pulled from the file, and the job and its tag are shown', await page.evaluate(() => document.querySelectorAll('#ss .fln.used').length === 4 && !!document.querySelector('#ss .s-job:not(.hide) .jobcard .ftag.lit')));
+  await page.waitForFunction(() => document.querySelectorAll('#ss .s-slips:not(.hide) .slip').length >= 3, null, { timeout: 15000 });
+  ok('…the other wordings of a line slide out as slips, one for each', await page.evaluate(() => document.querySelectorAll('#ss .s-slips .slip').length >= 3));
+  await page.waitForFunction(() => document.querySelectorAll('#ss .fcard .fln[data-k="f-h1"] .vch i').length === 4 && !document.querySelector('#ss .s-page li.edit'), null, { timeout: 15000 });
+  ok('…a wording written on the page arrives in the file as a new chip (v4), and the file’s own words never change', await page.evaluate(() => document.querySelector('#ss .fln[data-k="f-h1"] .cd').textContent.includes('Ran a team of six baristas.')));
+  await atStep(page, 3);
+  await page.waitForFunction(() => !!document.querySelector('#ss .stamp') && document.querySelector('#ss .s-page .pg.serif.a4'), null, { timeout: 15000 });
+  ok('step 3: design, language and paper change on the page and the file says “No change”', /No change to the file/.test(await page.textContent('#ss .stamp')) && /Berufserfahrung/.test(await page.textContent('#ss .s-page')));
+  await atStep(page, 4);
+  await page.waitForFunction(() => document.querySelectorAll('#ss .s-behind .sheet').length === 2 && !document.querySelector('#ss .s-exp').classList.contains('hide'), null, { timeout: 20000 });
+  await page.waitForTimeout(2500);
+  ok('step 4: every job its own resume: two kept in a fanned stack with a tab each, and the ways to send them', (await page.$$('#ss .s-behind .itab')).length === 2 && /PDF/.test(await page.textContent('#ss .s-exp')));
+  const topBefore = await page.textContent('#ss .s-page .tg');
+  await page.click('#ss .s-behind .itab >> nth=0'); await page.waitForTimeout(1800);
+  ok('a tab brings its resume to the top', (await page.textContent('#ss .s-page .tg')) !== topBefore, topBefore);
+  await page.click('#ss .stops li[data-n="2"] button'); await page.waitForTimeout(800);
+  ok('a step name goes to that step, and the autoplay stops', (await stepOf(page)) === 2 && /Tailor it to the job/.test(await page.textContent('#ss .stnote b')) && (await page.getAttribute('#ss', 'data-auto')) === 'false');
   await page.click('#ss [data-act=ob-replay]'); await page.waitForTimeout(900);
-  ok('Replay starts it again from the beginning', ['0', '1'].includes((await ssOf(page)).step));
+  ok('Replay starts it again from the beginning', (await stepOf(page)) === 1);
 
   // language chips preview in place, on hover; a click keeps it
   const chipBefore = await page.evaluate(() => { const c = document.querySelector('.oblang[data-l=de]'); c.dataset.mark = 'same'; return document.querySelector('#head .obhero').textContent; });
@@ -2904,7 +2897,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   // choosing: a state change, not another screen
   await page.click('[data-act=ob-example]'); await page.waitForTimeout(1500);
   ok('“Try it with an example” turns the intro parts into the editor’s controls: the same column, now the editor’s name card, rail and panel', !(await page.evaluate(() => document.body.classList.contains('is-intro'))) && await page.isVisible('#rail [role=tablist]') && await page.isVisible('#ptabs') && !(await page.$('#head [data-act=fit]')));
-  ok('…the grey lines give way to the real page, which fades in where they were', (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'visible' && (await page.evaluate(() => getComputedStyle(document.querySelector('#startstage')).visibility)) === 'hidden' && /Okonkwo|Dana/.test(await frameDoc(page, d => d.body.textContent)));
+  ok('…the picture gives way to the real page, which fades in', (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'visible' && (await page.evaluate(() => getComputedStyle(document.querySelector('#startstage')).visibility)) === 'hidden' && /Okonkwo|Dana/.test(await frameDoc(page, d => d.body.textContent)));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
@@ -2927,8 +2920,8 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     const bad = await open(page, '?memory&welcome');
     const at = await page.evaluate(() => ['#head', '#body', '#startstage', '#foot'].map(s => Math.round(document.querySelector(s).getBoundingClientRect().top + document.querySelector('#col').scrollTop)));
     ok('a phone: stacked, the buttons first, then the picture, then what you keep', at[0] < at[1] && at[1] < at[2] && at[2] < at[3], JSON.stringify(at));
-    ok('…nothing runs off the side', (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390 && (await page.evaluate(() => { const s = document.querySelector('#ss .ss-frame').getBoundingClientRect(); return s.left >= 0 && s.right <= innerWidth + 1; })));
-    ok('…the step names stand in a grid above the picture', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .ss-heads')).display === 'grid'));
+    ok('…nothing runs off the side', (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390 && (await page.evaluate(() => { const s = document.querySelector('#ss').getBoundingClientRect(); return s.left >= 0 && s.right <= innerWidth + 1; })));
+    ok('…the step’s words stand under the picture, not in it', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .ss-say')).display === 'block' && getComputedStyle(document.querySelector('#ss .s-note')).display === 'none' && document.querySelector('#ss .ss-say').textContent.length > 20));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -2937,8 +2930,8 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     const page = await ctx.newPage();
     const bad = await open(page, '?memory&welcome');
     await page.waitForTimeout(300);
-    const s = await ssOf(page);
-    ok('with reduced motion the picture opens on its resting view: nothing plays, nothing moves', s.step === '4' && await page.evaluate(() => [...document.querySelectorAll('#ss *')].every(e => getComputedStyle(e).transitionDuration.split(',').every(d => parseFloat(d) === 0) || e.tagName === 'svg')));
+    const s = { step: await stepOf(page) };
+    ok('with reduced motion the picture opens on its resting view: nothing plays, nothing moves', s.step === 4 && await page.evaluate(() => [...document.querySelectorAll('#ss *')].every(e => getComputedStyle(e).transitionDuration.split(',').every(d => parseFloat(d) === 0) || e.tagName === 'svg')));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
