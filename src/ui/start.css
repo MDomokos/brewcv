@@ -106,6 +106,9 @@ body.is-intro .startstage { width: var(--colleft, var(--startw, calc(100vw - 440
 .num { display: block; margin: 0; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; transition: translate .15s, filter .15s; font-size: 76px; line-height: .92; font-weight: 800; letter-spacing: -.04em; color: var(--accent); }
 .num:hover { translate: 4px 0; filter: brightness(1.12); }
 .num.chg { animation: stpop .4s ease-out; }
+.s-lcol .nlabel, .s-lcol .cap { animation: stfade .5s var(--ease) both; }
+.s-lcol .cap { animation-delay: .12s; }
+@keyframes stfade { from { opacity: 0; translate: 0 6px; } }
 .num small { font-size: 38px; font-weight: 700; letter-spacing: -.02em; color: var(--band-ink-soft); }
 .num small.plus { color: var(--accent); }
 .nlabel { display: block; margin-top: 6px; font-size: 17px; font-weight: 700; }

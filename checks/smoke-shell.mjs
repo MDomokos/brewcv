@@ -2928,8 +2928,9 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.click('#ss .nmenu [data-go="2"]'); await page.waitForTimeout(600);
   const gone = await stepOf(page), menuShut = !(await page.isVisible('#ss .nmenu'));
   ok('“3 of 4” opens the list of steps, and a click on a name goes there and closes it', menuOpen && gone === 2 && menuShut, JSON.stringify({ menuOpen, gone, menuShut }));
-  await page.click('#ss .s-lcol .num'); await page.waitForTimeout(600);
-  ok('the big number is the next button', (await stepOf(page)) === 3);
+  await page.click('#ss .s-lcol .num'); await page.waitForTimeout(150);
+  ok('the big number is the next button, and its label and sentence change with the control at once', (await stepOf(page)) === 3 && /Design, language and paper/.test(await page.textContent('#ss .cap')) && /look, same words/.test(await page.textContent('#ss .nlabel')));
+  await page.waitForTimeout(500);
   await page.mouse.move(700, 880); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(600);
   ok('the arrow keys move between steps (right goes on)', (await stepOf(page)) === 4);
   await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(600);

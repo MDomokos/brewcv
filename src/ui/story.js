@@ -138,7 +138,7 @@ function toolsHtml(s, P){
 
 // the stack: the page on top, the kept resumes fanned out behind it from their bottom-left corner, a tag on each sheet's top edge, and a dashed
 // place for the next one
-const TABS = { cafe: ['Café manager', 12], tea: ['Tea shop lead', 108], trainer: ['Trainer', 204] };
+const TABS = { cafe: ['Café manager', 12], tea: ['Tea shop lead', 128], trainer: ['Trainer', 244] };
 const lookLine = c => `${LOOKS[c.look]} · ${c.lang.toUpperCase()}${c.paper === 'a4' ? ' · A4' : ''}`;
 const POS = [{ x: 0, y: 0, r: 0 }, { x: 14, y: -30, r: 1.2 }, { x: 26, y: -56, r: 2.4 }, { x: 38, y: -80, r: 3.6 }];
 const PZ = 1.3, PAGE_AT = [388, 188];      // the page's place in step 4 (its top follows the stage's height, see fit)
@@ -191,8 +191,16 @@ function lcolInto(box, s){
   const n = cur || 1, b = bigOf(s), cap = t(STEPS[n - 1].c), v = `${b.key}|${b.label}|${cap}`;
   box.dataset.look = s.look;
   if (box.dataset.v === v) return;
-  const changed = box.dataset.k !== b.key; box.dataset.k = b.key; box.dataset.v = v;
-  box.innerHTML = `<button class="num${changed ? ' chg' : ''}" title="${esc(t(n === 4 ? 'story.backTo1' : 'story.nextStep'))}">${b.big}</button><span class="nlabel">${esc(b.label)}</span><p class="cap">${esc(cap)}</p>`;
+  box.dataset.v = v;
+  const num = $('.num', box);
+  if (num && box.dataset.n === String(n)){      // the same step: only the number moves on (it pops), its label follows
+    num.innerHTML = b.big; $('.nlabel', box).textContent = b.label;
+    num.classList.remove('chg'); void num.offsetWidth; num.classList.add('chg');
+    return;
+  }
+  // a new step: the number, its label and the sentence come in one after another
+  box.dataset.n = n;
+  box.innerHTML = `<button class="num chg" title="${esc(t(n === 4 ? 'story.backTo1' : 'story.nextStep'))}">${b.big}</button><span class="nlabel">${esc(b.label)}</span><p class="cap">${esc(cap)}</p>`;
 }
 
 let HOT = null;                                  // the line of the career file the pointer is on
@@ -431,6 +439,7 @@ function bringUp(id){
 function go(n, play = true){
   n = Math.max(1, Math.min(STEPS.length, n));
   clear(); const was = cur; cur = n; navUpdate();
+  EL.lcol && lcolInto(EL.lcol, prev ?? structuredClone(BASE));      // the number, its label and the sentence change with the control, not 800 ms later
   const st = STEPS[n - 1];
   BACK = n < was;
   // back: undo straight to that step's settled state; forward: settle the step before, then play this one
@@ -550,7 +559,7 @@ export function retext(){
   ss.setAttribute('aria-label', t('onb.hdHow'));
   const rp = $('.obreplay', ss); rp.title = t('onb.replay'); rp.setAttribute('aria-label', t('onb.replay'));
   $('.nav', ss).innerHTML = navHtml();
-  EL.manifest.replaceChildren(); EL.folder.replaceChildren(); EL.lcol.dataset.v = '';
+  EL.manifest.replaceChildren(); EL.folder.replaceChildren(); EL.lcol.dataset.v = ''; EL.lcol.dataset.n = '';
   navUpdate();
   if (prev) render(prev, null, EL);
   fit();
