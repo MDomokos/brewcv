@@ -60,6 +60,7 @@
   --shadow-panel: 7px 8px 0 rgba(30, 40, 25, .2); --shadow-lift: 2px 3px 0 rgba(30, 40, 25, .2); --shadow-chip: 3px 4px 0 rgba(30, 40, 25, .2); --shadow-toast: 4px 5px 0 rgba(30, 40, 25, .22);
   /* the start screen's story: the shadows of the stack by height (top page, the sheets under it, a sheet being lifted) and the page's edge */
   --st-sh-front: 7px 9px 0 rgba(60, 45, 15, .2); --st-sh-s1: 4px 6px 0 rgba(60, 45, 15, .15); --st-sh-s2: 2px 3px 0 rgba(60, 45, 15, .11); --st-sh-lift: 18px 24px 0 rgba(60, 45, 15, .15); --st-edge: rgba(70, 50, 20, .2);
+  --st-board: var(--stage); --st-ink: var(--paper-ink); --st-soft: var(--paper-soft); --st-line: var(--paper-edge); --st-card: var(--paper-wash);
   --page-shadow: drop-shadow(6px 7px 0 rgba(60, 45, 15, .3)) drop-shadow(12px 14px 0 rgba(60, 45, 15, .12)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(60, 45, 15, .12)); --drop-sm: drop-shadow(2px 2px 0 rgba(30, 40, 25, .22));
   --page-warn: #b35c00; --sel-mark: #b77a2c; --sel-mark-soft: rgba(217, 166, 90, .14); --prev-mark: #2E4636; --prev-mark-soft: rgba(46, 70, 54, .08);
   --band-bg: var(--surface); --band-ink: var(--ink); --band-ink-soft: var(--ink-soft); --band-line: var(--line); --band-hover: var(--hover); --band-hover-strong: var(--hover-strong);
@@ -126,6 +127,7 @@ html[data-drink="coffee"] {
 }
 /* ---- Coffee, dark: espresso, warm black, milk-foam ink ---- */
 html[data-drink="coffee"][data-theme="dark"] {
+  --st-board: var(--input); --st-ink: var(--ink); --st-soft: var(--ink-soft); --st-line: var(--line); --st-card: var(--surface);
   color-scheme: dark;
   --canvas: #0c0907; --canvas-ink: #f3ece2; --canvas-ink-soft: #c9c0b3; --canvas-line: rgba(243, 236, 226, .25); --canvas-label: #c9c0b3;
   --grid-minor: rgba(243, 236, 226, .04); --grid-major: rgba(243, 236, 226, .085);

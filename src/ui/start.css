@@ -59,8 +59,8 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 /* ---------- the story (src/ui/story.js, Intro Lab v17) ---------- */
 /* a board holding the 1160 x 680 stage (scaled by story.js) with the step line under it. The board and the paper are light in every theme
    (the page area's stage colour, the paper tokens); the career file is the panel's own surface; the step card is the constant chrome. */
-.ss { --bd-ink: var(--paper-ink); --bd-soft: var(--paper-soft); --bd-line: var(--paper-edge); --card-bg: var(--paper-wash);
-  position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; padding: 8px 22px 6px; background: var(--stage); color: var(--bd-ink);
+.ss { --bd-ink: var(--st-ink); --bd-soft: var(--st-soft); --bd-line: var(--st-line); --card-bg: var(--st-card);
+  position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; padding: 8px 22px 6px; background: var(--st-board); color: var(--bd-ink);
   border: 1px solid var(--bd-line); border-radius: var(--r-panel); box-shadow: var(--shadow-panel); font: 14px/1.45 var(--font-ui); }
 .ss-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; }
 .stlbl { font: 12px/1 var(--font-mono); color: var(--bd-soft); text-transform: uppercase; letter-spacing: .06em; }
@@ -91,12 +91,12 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .stops .num { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-round); border: 1.5px solid currentColor; font: 700 12px/1 var(--font-ui); }
 .stops li.done button { color: var(--bd-ink); }
 .stops li.on button { color: var(--bd-ink); font-weight: 700; }
-.stops li.on .num { background: var(--bd-ink); border-color: var(--bd-ink); color: var(--stage); }
+.stops li.on .num { background: var(--bd-ink); border-color: var(--bd-ink); color: var(--st-board); }
 .track { position: relative; height: 4px; margin: 0 calc(50% / var(--n)); background: var(--bd-line); border-radius: 2px; }
 .track .fill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p) * 100%); background: var(--accent); border-radius: 2px; transition: width .45s ease; }
 .track b { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: var(--r-round); background: var(--bd-line); }
 .track b.done { background: var(--accent); }
-.track .knob { position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: var(--r-round); background: var(--accent); border: 3px solid var(--stage); box-shadow: 0 0 0 1.5px var(--accent); transition: left .45s ease; }
+.track .knob { position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: var(--r-round); background: var(--accent); border: 3px solid var(--st-board); box-shadow: 0 0 0 1.5px var(--accent); transition: left .45s ease; }
 
 /* the career file: the panel's own surface */
 .fcard { width: 600px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-lift); padding: 10px 0 12px; color: var(--ink); font: 12px/1.65 var(--font-mono); }
@@ -170,8 +170,8 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .sheet { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .sheet .pg { box-shadow: var(--st-sh-s1); }
 .sheet.d2 .pg { box-shadow: var(--st-sh-s2); }
-.sheet .pg::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: color-mix(in srgb, var(--stage) 22%, transparent); }
-.sheet.d2 .pg::after { background: color-mix(in srgb, var(--stage) 38%, transparent); }
+.sheet .pg::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: color-mix(in srgb, var(--st-board) 22%, transparent); }
+.sheet.d2 .pg::after { background: color-mix(in srgb, var(--st-board) 38%, transparent); }
 .sheet.d0 .pg::after { display: none; }
 .sg { position: absolute; transform-origin: 0 0; will-change: transform; }
 .itab { position: absolute; left: 400px; display: grid; gap: 1px; padding: 6px 12px 6px 10px; text-align: left; cursor: pointer; white-space: nowrap; box-shadow: none;
