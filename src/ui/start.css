@@ -24,7 +24,7 @@ html[data-drink="coffee"] { --board: var(--band-bg); --fback: var(--foam-soft); 
 body.is-intro .startstage { width: var(--colleft, var(--startw, calc(100vw - 440px))); }
 .ss { --bd-ink: var(--band-ink); --bd-soft: var(--band-ink-soft); --bd-line: var(--band-line); --st-board: var(--board); --dog: var(--board);
   position: absolute; left: 16px; right: 10px; top: 16px; bottom: 16px; overflow: hidden;
-  background: var(--board); border: 1px solid var(--line); border-radius: var(--r-panel); box-shadow: var(--shadow-panel); color: var(--band-ink); font: 14px/1.45 var(--font-ui); }
+  background: var(--board); border: 1px solid var(--line); border-radius: var(--r-panel); box-shadow: var(--shadow-panel); color: var(--band-ink); }
 .ss::before { content: ""; position: absolute; inset: 12px; border: 1.5px dashed var(--line); border-radius: calc(var(--r-panel) - 12px); pointer-events: none; z-index: 26; }
 .ss .frame { position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 12px var(--board); pointer-events: none; z-index: 25; }
 .ss .rimshade { position: absolute; left: 12px; right: 12px; bottom: 12px; height: 8px; background: color-mix(in srgb, var(--board) 55%, transparent); pointer-events: none; z-index: 24; }
