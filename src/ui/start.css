@@ -9,7 +9,7 @@
 body.is-intro .pagebox { opacity: 0; visibility: hidden; pointer-events: none; }
 body.is-intro .pagelay, body.is-intro .ovlay, body.is-intro .editlay { display: none; }
 
-.startstage { position: absolute; z-index: 4; left: 0; top: 0; bottom: 0; width: var(--startw, calc(100vw - 440px)); display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s var(--ease), visibility 0s .3s; }
+.startstage { position: absolute; z-index: 4; left: 0; top: 0; bottom: 0; width: var(--startw, calc(100vw - 440px)); display: flex; align-items: flex-start; justify-content: center; overflow: hidden; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s var(--ease), visibility 0s .3s; }
 body.is-intro .startstage { opacity: 1; visibility: visible; pointer-events: none; transition: opacity .4s var(--ease) .1s, visibility 0s 0s; }
 body.is-intro .startstage .ss { pointer-events: auto; }
 
@@ -58,27 +58,28 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .obtile p { margin: 0; font-size: 12px; line-height: 1.35; color: var(--ink-soft); }
 
 /* ---------- the story (src/ui/story.js, Intro Lab v17) ---------- */
-/* the 1240 x 680 stage (scaled by story.js to fill the page area) with the step line under it, drawn straight on the canvas: its ink and lines are
+/* the 1280-wide stage (scaled by story.js to the page area's width; its pages run on off the bottom of the screen) under the step line and the caption, drawn straight on the canvas: its ink and lines are
    the canvas's; the paper is light in every theme; the career file is the panel's own surface; the step card is the constant chrome. */
 .ss { --bd-ink: var(--st-ink); --bd-soft: var(--st-soft); --bd-line: var(--st-line); --card-bg: var(--st-card);
-  position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; padding: 0; color: var(--bd-ink); font: 14px/1.45 var(--font-ui); }
-.ss-bar { position: relative; }
-.ss-say, .ss-steps { width: calc(1240px * var(--sc, 1)); padding-left: calc(40px * var(--sc, 1)); padding-right: calc(40px * var(--sc, 1)); }
+  position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; height: 100%; padding: 0; color: var(--bd-ink); font: 14px/1.45 var(--font-ui); }
+.ss-bar { position: relative; flex: none; padding-top: 24px; }
+.ss-say, .ss-steps { width: calc(1280px * var(--sc, 1)); padding-left: calc(32px * var(--sc, 1)); padding-right: calc(32px * var(--sc, 1)); }
 .stlbl { font: 12px/1 var(--font-mono); color: var(--bd-soft); text-transform: uppercase; letter-spacing: .06em; }
 /* Replay: a small round button at the end of the step line, in the right margin */
-.obreplay { position: absolute; right: calc(4px * var(--sc, 1)); bottom: 1px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; min-height: 0; border-radius: var(--r-round); border: 1px solid var(--bd-line); background: transparent; color: var(--bd-ink); cursor: pointer; }
+.obreplay { position: absolute; right: calc(3px * var(--sc, 1)); top: 56px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; min-height: 0; border-radius: var(--r-round); border: 1px solid var(--bd-line); background: transparent; color: var(--bd-ink); cursor: pointer; }
 .obreplay:hover { border-color: var(--bd-ink); }
-.ss-wrap { position: relative; overflow: hidden; }
-.sst { position: absolute; left: 0; top: 0; width: 1240px; height: 680px; transform-origin: 0 0; }
+.ss-wrap { position: relative; flex: 1; min-height: 0; }
+.sst { position: absolute; left: 0; top: 0; width: 1280px; height: 1300px; transform-origin: 0 0; }
 .sst .slot { position: absolute; transition: opacity .35s ease, transform .55s var(--ease); }
 .sst .slot.hide { opacity: 0; pointer-events: none; }
 .sst .fx { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
-.sst .s-file { left: 40px; top: 88px; transform-origin: 0 0; transform: scale(.86); }
-.sst .s-page, .sst .s-behind { --pz: 1.1; left: 440px; top: 48px; transform-origin: 0 0; transform: scale(var(--pz, 1)); }
+.sst .s-file { left: 32px; top: 88px; transform-origin: 0 0; transform: scale(.86); }
+.sst .s-page, .sst .s-behind { --pz: 1.8; left: 420px; top: 200px; transform-origin: 0 0; transform: scale(var(--pz, 1)); }
 .sst .s-page.hide { transform: translateY(40px) scale(var(--pz, 1)); }
-.sst .s-tools { left: 440px; bottom: 8px; width: 456px; z-index: 12; }
-.sst .s-slips { left: 920px; top: 208px; }
-.sst .s-job { left: 40px; top: 16px; }
+.sst .s-tools, .sst .s-slips { left: 32px; top: 424px; width: 352px; }
+.sst .s-tools { z-index: 12; }
+.sst .s-job { left: 32px; top: 24px; }
+.sst .s-file.hero { transform: translate(278px, 240px) scale(1.1); }
 
 /* the step line */
 .ss-say { margin: 6px 0 0; min-height: 2.8em; font-size: 13.5px; line-height: 1.4; color: var(--bd-ink); }
@@ -96,8 +97,9 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .track b.done { background: var(--accent); }
 .track .knob { position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: var(--r-round); background: var(--accent); border: 3px solid var(--st-board); box-shadow: 0 0 0 1.5px var(--accent); transition: left .45s ease; }
 
-/* the stage is laid on an 8px grid: a 40px margin, the career file and the step cards in the left column (x 40), the page at x 440 over the file's right edge,
-   the slips to its right (x 920) */
+/* the stage is laid on an 8px grid with a 32px margin: the left column (x 32, 352 wide) holds the job, the career file and, under it, whatever belongs to the step
+   (the slips of a line, the look and the ways to send); the page is at x 420 over the file's right edge, zoomed 1.8 times, with the stack fanned out behind it
+   and a tag on each sheet's top edge */
 /* the career file: the panel's own surface */
 /* once everything has landed the career file goes quiet (no chips, no tags, no ticks) and comes back when it is pointed at */
 .vch, .ftag, .fcard, .fln { transition: opacity .3s ease, background-color .3s ease, box-shadow .25s ease; }
@@ -109,7 +111,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .sst .s-file:hover { z-index: 11; translate: 0 -6px; }
 /* …and the pages make way, so the line it points at can be read on the resume (the sheets sliding in a swap move with them) */
 .sst .s-behind { transition: translate .25s var(--ease); }
-.sst .s-file:hover ~ .s-page, .sst .s-file:hover ~ .s-behind, .sst .s-file:hover ~ .fx .sg { translate: 96px 0; }
+.sst .s-file:hover ~ .s-page, .sst .s-file:hover ~ .s-behind, .sst .s-file:hover ~ .fx .sg { translate: 72px 0; }
 .s-file:hover .fcard { box-shadow: var(--st-sh-lift); }
 .fcard { width: 600px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-lift); padding: 10px 0 12px; color: var(--ink); font: 12px/1.65 var(--font-mono); }
 .fh { display: flex; align-items: baseline; gap: 10px; padding: 10px 16px 8px; margin-top: -10px; margin-bottom: 6px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--fill); border-radius: var(--r-m) var(--r-m) 0 0; }
@@ -196,22 +198,21 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .sheet.d2 .pg::after { background: color-mix(in srgb, var(--st-board) 38%, transparent); }
 .sheet.d0 .pg::after { display: none; }
 .sg { position: absolute; transform-origin: 0 0; will-change: transform; }
-.itab { position: absolute; left: 400px; display: grid; gap: 1px; padding: 6px 12px 6px 10px; text-align: left; cursor: pointer; white-space: nowrap; box-shadow: none;
-  background: var(--tag-bg); color: var(--tag-ink); border: 1px solid var(--tag-line); border-left: 0; border-radius: 0 var(--r-s) var(--r-s) 0; font: 12.5px/1.2 var(--font-ui); }
-.itab b { font-size: 13px; } .itab span { opacity: .75; font-size: 11.5px; font-weight: 400; }
+.itab { position: absolute; bottom: 100%; margin-bottom: -1px; display: grid; gap: 1px; padding: 5px 10px 4px; text-align: left; cursor: pointer; white-space: nowrap; box-shadow: none;
+  background: var(--tag-bg); color: var(--tag-ink); border: 1px solid var(--tag-line); border-bottom: 0; border-radius: var(--r-s) var(--r-s) 0 0; font: 12.5px/1.2 var(--font-ui); }
+.itab b { font-size: 12px; } .itab span { opacity: .75; font-size: 10.5px; font-weight: 400; }
 .itab:hover:not(:disabled) { filter: brightness(1.05); transform: none; }
-html[data-drink="tea"] .itab { border: 0; background: var(--paper); color: var(--paper-ink); padding: 6px 20px 6px 22px; clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%); }
+html[data-drink="tea"] .itab { background: var(--paper); color: var(--paper-ink); border-color: var(--st-edge); }
 html[data-drink="tea"] .itab span { color: var(--paper-soft); opacity: 1; }
-html[data-drink="tea"] .itab::before { content: ""; position: absolute; right: 9px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: var(--r-round); background: var(--tag-hole); }
 
 /* the other wordings of a line, as slips under the page's edge, sliding out one after another */
 .s-slips .sh { margin: 0 0 8px; padding-left: 44px; font-size: 12.5px; color: var(--bd-soft); }
-.slip { display: flex; gap: 6px; align-items: baseline; width: 262px; margin-bottom: 8px; padding: 7px 10px 7px 44px; background: var(--paper); color: var(--paper-ink); border: 1px solid var(--bd-line); border-radius: var(--r-s);
+.slip { display: flex; gap: 6px; align-items: baseline; width: 100%; margin-bottom: 8px; padding: 7px 10px 7px 44px; background: var(--paper); color: var(--paper-ink); border: 1px solid var(--bd-line); border-radius: var(--r-s);
   box-shadow: var(--shadow-lift); outline: 2px solid transparent; font-size: 13px; transition: transform .45s var(--ease), box-shadow .3s, outline-color .3s; }
 .slip .vt { border-color: var(--bd-line); color: var(--paper-soft); }
 .slip.on .vt { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper); }
-.s-slips.hide .slip { transform: translateX(-120px); }
-.slip.on { transform: translateX(10px); outline-color: var(--accent); box-shadow: var(--shadow-chip); }
+.s-slips.hide .slip { transform: translateY(-14px); }
+.slip.on { transform: translateX(8px); outline-color: var(--accent); box-shadow: var(--shadow-chip); }
 .slip.draft { border-style: dashed; color: var(--paper-soft); font-style: italic; }
 
 /* floating controls over the page: the look, what it is sent as, the job */
@@ -224,7 +225,7 @@ html[data-drink="tea"] .itab::before { content: ""; position: absolute; right: 9
 .sgm i.on { background: var(--bd-ink); color: var(--card-bg); }
 .sgm i.chg { animation: stpop .5s ease-out; }
 .xchip { font-style: normal; font-size: 13px; padding: 4px 8px; border: 1px solid var(--bd-line); border-radius: var(--r-s); background: var(--card-bg); }
-.jobcard { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; width: 392px; padding: 9px 14px; background: var(--card-bg); border: 1px solid var(--bd-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); font-size: 13px; color: var(--bd-soft); }
+.jobcard { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; width: 352px; padding: 9px 14px; background: var(--card-bg); border: 1px solid var(--bd-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); font-size: 13px; color: var(--bd-soft); }
 .jobcard b { color: var(--bd-ink); font-size: 14px; }
 
 @media (prefers-reduced-motion: reduce){ .ss, .ss * { transition: none !important; animation: none !important; } }
@@ -233,7 +234,11 @@ html[data-drink="tea"] .itab::before { content: ""; position: absolute; right: 9
 body[data-phone=true].is-intro .col { position: fixed; inset: 0 !important; width: auto !important; height: auto !important; overflow-y: auto; padding: 14px; gap: 14px; border-radius: 0; }
 body[data-phone=true].is-intro .col > #head, body[data-phone=true].is-intro .col > #foot { display: block; }
 body[data-phone=true].is-intro .col > #body { flex: none; width: auto; overflow: visible; border: 0; box-shadow: none; background: none; padding: 0; }
-body[data-phone=true].is-intro .startstage { position: static; width: auto; display: block; order: 3; }
+body[data-phone=true].is-intro .startstage { position: static; width: auto; display: block; order: 3; overflow: visible; }
+body[data-phone=true] .ss { height: auto; }
+body[data-phone=true] .obreplay { top: auto; bottom: 6px; right: 6px; }
+body[data-phone=true] .ss-say { padding-right: 44px; }
+body[data-phone=true] .ss-wrap { flex: none; overflow: hidden; }
 body[data-phone=true].is-intro .col > #head { order: 1; } body[data-phone=true].is-intro .col > #body { order: 2; } body[data-phone=true].is-intro .col > #foot { order: 4; }
 body[data-phone=true] .ss { width: 100%; }
 body[data-phone=true] .stops button { flex-direction: column; gap: 3px; text-align: center; font-size: 12px; }

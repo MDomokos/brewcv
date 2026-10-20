@@ -7,6 +7,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 ## Unreleased
 
 ### Changed
+- **The start screen's story is zoomed, and its pages run off the bottom of the screen.** The step line and caption are at the top; the page is 1.8 times larger, with the stack fanned behind it and a tag on each sheet's top edge (so the stack no longer needs room at the side); the career file is alone and larger in step 1; and the slips of a line, the look and the ways to send sit in the left column under the file, so nothing covers the page.
 - **"Yours to keep" on the start screen is one line each.** The four points (same words) are a single column of title and sentence instead of a grid of tall tiles, about a quarter shorter.
 - **The start screen's story says its step in one line.** The step card is gone: the step's sentence is a caption above the step line, and Replay is a small round button at the end of the step line instead of a corner button.
 - **The start screen's story has one toolbar under the page.** The look (design, language, paper) and the ways to send share one card, which grows by a row when the resumes are made, instead of two floating bars.

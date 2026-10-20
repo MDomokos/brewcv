@@ -114,7 +114,7 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            reduced motion, where the line is only kept in view), plain (the
                            text of a line being written, read back from the page), start (the start screen:
                            its header, inspector and footer areas) and story (the picture of how it works: a made-up career file, a page pulled
-                           from it line by line, any look, a stack of resumes; FLIP motion on a 1240 x 680 stage) with
+                           from it line by line, any look, a stack of resumes; FLIP motion on a 1280-wide stage) with
                            start.css (every colour a token, like the other two stylesheets), flow.css (the place tabs, the place card, the seam and #scr, loaded last;
                            every radius and shadow a token)
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,

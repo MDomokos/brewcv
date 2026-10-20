@@ -1,7 +1,7 @@
 // The story on the start screen (Intro Lab v17, concept A): one career file, a page pulled from it line by line, the same words in any
 // look, and a stack with a resume for every job. Four steps, played once and then scrubbed with the step line under the picture.
 //   - src/ui/start.js builds the right-hand column (the ways in, the languages, Why JSON?, Yours to keep) and hands the picture to this file.
-//   - the picture is a fixed 1240 x 680 stage scaled to fit. State is a plain object per moment (stateAt); show() draws it and flip()
+//   - the picture is a fixed 1280-wide stage scaled to the page area's width; its pages run on off the bottom of the screen. State is a plain object per moment (stateAt); show() draws it and flip()
 //     animates the difference (FLIP): a line flies from the file to the page, a sheet slides in and out of the stack.
 //   - the career in the picture is a made-up café manager (English and German); the labels around it are the app's words (story.*).
 // Every colour is a token (src/ui/start.css); with reduced motion the picture opens on the last step and nothing plays.
@@ -124,13 +124,13 @@ const lookSegs = (s, P) => `${seg('look', LOOKS, s.look, P?.look)}${seg('lang', 
 const exportsHtml = () => `<span class="stlbl">${h('story.sendAs')}</span>${['PDF', h('story.web'), h('story.text'), 'JSON Resume'].map(x => `<i class="xchip">${x}</i>`).join('')}`;
 const jobCard = kind => `<div class="jobcard"><span class="stlbl">${h(kind === 'cafe' ? 'story.thisJob' : 'story.nextJob')}</span><b>${kind === 'cafe' ? 'Café manager' : 'Tea shop lead'}</b><span>${h(kind === 'cafe' ? 'story.jobCafe' : 'story.jobTea')}</span></div>`;
 // the stack: the page on top, the kept resumes fanned out behind it from their bottom-left corner; each resume's tab sticks out of its own right edge
-const TABS = { cafe: ['Café manager', 100], tea: ['Tea shop lead', 30], trainer: ['Trainer', 170] };
+const TABS = { cafe: ['Café manager', 12], tea: ['Tea shop lead', 138], trainer: ['Trainer', 268] };
 const lookLine = c => `${LOOKS[c.look]} · ${c.lang.toUpperCase()}${c.paper === 'a4' ? ' · A4' : ''}`;
-const POS = [{ x: 0, y: 0, r: 0 }, { x: 28, y: -30, r: 4 }, { x: 52, y: -40, r: 8 }];
-const PZ = 1.1, PAGE_AT = [440, 48];
+const POS = [{ x: 0, y: 0, r: 0 }, { x: 28, y: -44, r: 4 }, { x: 56, y: -76, r: 8 }];
+const PZ = 1.8, PAGE_AT = [420, 200];
 const pageH = c => c.paper === 'a4' ? 566 : 518;
 const fanT = (p, H, k = 1) => `translate(${p.x}px, ${p.y}px) translate(0px, ${H}px) rotate(${p.r}deg) translate(0px, ${-H}px) scale(${k})`;
-const tabHtml = c => `<button class="itab" data-res="${c.id}" style="top:${TABS[c.id][1]}px" tabindex="-1"><b>${TABS[c.id][0]}</b><span>${lookLine(c)}</span></button>`;
+const tabHtml = c => `<button class="itab" data-res="${c.id}" style="left:${TABS[c.id][1]}px" tabindex="-1"><b>${TABS[c.id][0]}</b><span>${lookLine(c)}</span></button>`;
 const sheetHtml = (c, p, d) => `<div class="sheet d${d}" data-id="${c.id}" style="transform:${fanT(p, pageH(c))}"><div class="sin">${pageHtml(c, null, { mini: true })}${tabHtml(c)}</div></div>`;
 const snapOf = s => ({ id: s.id, page: 'on', tl: s.tl, look: s.look, lang: s.lang, paper: s.paper, picks: [...s.picks], jobOrder: [...s.jobOrder], ver: { ...s.ver }, added: s.added });
 const stackOf = s => { const m = new Map(); if (s.page === 'on') m.set(s.id, 0); s.cards.forEach((c, i) => m.set(c.id, i + 1)); return m; };
@@ -153,6 +153,7 @@ let HOT = null;                                  // the line of the career file 
 const SLOTS = ['file', 'slips', 'behind', 'page', 'job', 'tools'];
 let EL = {};
 function render(s, P, el){
+  el.file.classList.toggle('hero', s.page === 'none');      // alone on the stage the file is larger and centred
   el.file.innerHTML = fileHtml(s, P);
   el.slips.classList.toggle('hide', !s.slips);
   if (s.slips) slipsInto(el.slips, s);
@@ -322,7 +323,7 @@ function choreograph(moves){
     const T = (p, k) => `scale(${PZ}) ${fanT(p, H, k)}`, pg = g.querySelector('.pg');
     let frames, shadows, ms;
     if (m.t === 0 && m.f > 0){            // out of the stack, lifted, onto the top
-      const p = POS[m.f], out = { x: p.x + 170, y: p.y - 18, r: 1 };
+      const p = POS[m.f], out = { x: p.x + 24, y: p.y - 18, r: 1 };
       frames = [{ transform: T(p, 1), zIndex: 1 }, { transform: T(out, 1.025), zIndex: 1, offset: .42 }, { transform: T(out, 1.025), zIndex: 9, offset: .44 }, { transform: T(POS[0], 1), zIndex: 9 }];
       shadows = [{ boxShadow: SH[m.f] }, { boxShadow: LIFT, offset: .44 }, { boxShadow: SH[0] }]; ms = 1150;
     } else if (m.t === 0){                // a new resume laid down on top: it waits until the page it replaces has started into the stack
@@ -440,15 +441,15 @@ function listen(){
 // ---------- the host ----------
 export function stageHtml(){
   return `<div class="ss" id="ss" role="group" aria-label="${esc(t('onb.hdHow'))}">
-    <div class="ss-wrap" aria-hidden="true"><div class="sst" id="sst">${SLOTS.map(s => `<div class="slot s-${s}"></div>`).join('')}<div class="fx"></div></div></div>
     <div class="ss-bar">
-      <p class="ss-say" aria-hidden="true"></p>
       <div class="ss-steps" role="slider" tabindex="0" aria-label="${esc(t('onb.hdHow'))}" aria-valuemin="1">
         <ol class="stops"></ol>
         <div class="track"><i class="fill"></i><i class="knob"></i></div>
       </div>
+      <p class="ss-say" aria-hidden="true"></p>
       <button class="obreplay" data-act="ob-replay" title="${esc(t('onb.replay'))}" aria-label="${esc(t('onb.replay'))}">${icon('replay', { size: 14 })}</button>
     </div>
+    <div class="ss-wrap" aria-hidden="true"><div class="sst" id="sst">${SLOTS.map(s => `<div class="slot s-${s}"></div>`).join('')}<div class="fx"></div></div></div>
   </div>`;
 }
 // the stage is scaled to fit the box the page area gives it; on a phone the box is as tall as it needs to be
@@ -456,9 +457,8 @@ function fit(){
   const ss = $('#ss'); if (!ss || !STAGE) return;
   const host = ss.parentElement, flow = getComputedStyle(host).position === 'static';
   const cs = getComputedStyle(ss), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2;
-  const furniture = ss.offsetHeight - WRAP.offsetHeight;
-  SC = Math.max(.3, Math.min((host.clientWidth - padX) / 1240, flow ? Infinity : (host.clientHeight - furniture) / 680, 2.5));
-  WRAP.style.width = `${(1240 * SC).toFixed(1)}px`; WRAP.style.height = `${(680 * SC).toFixed(1)}px`;
+  SC = Math.max(.3, Math.min((host.clientWidth - padX) / 1280, 2.5));
+  WRAP.style.width = `${(1280 * SC).toFixed(1)}px`; WRAP.style.height = flow ? `${(1000 * SC).toFixed(1)}px` : '';   // on a phone the picture is as tall as it needs to be
   STAGE.style.transform = `scale(${SC.toFixed(4)})`;
   ss.style.setProperty('--sc', SC.toFixed(4));
   bar();

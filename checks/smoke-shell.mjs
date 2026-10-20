@@ -2895,6 +2895,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.waitForTimeout(2500);
   ok('step 4: every job its own resume: two kept in a fanned stack with a tab each, and the ways to send them', (await page.$$('#ss .s-behind .itab')).length === 2 && /PDF/.test(await page.textContent('#ss .s-tools .trow-send')));
   ok('…and step 4 ends showing exactly what its moment says: a page, two kept sheets, the ways to send', (await storyDiff(page)) === '', await storyDiff(page));
+  ok('the pages are zoomed and run on off the bottom of the screen, with a tag on the top edge of each sheet and the step line above them', await page.evaluate(() => { const pg = document.querySelector('#ss .s-page .pg').getBoundingClientRect(), tab = document.querySelector('#ss .s-page .itab').getBoundingClientRect(), bar = document.querySelector('#ss .ss-steps').getBoundingClientRect(); return pg.bottom > innerHeight && pg.width > 400 && tab.bottom <= pg.top + 4 && bar.bottom < pg.top; }));
   const topBefore = await page.textContent('#ss .s-page .tg');
   await page.click('#ss .s-behind .itab >> nth=0'); await page.waitForTimeout(1800);
   ok('a tab brings its resume to the top, and the stack still holds two sheets', (await page.textContent('#ss .s-page .tg')) !== topBefore && (await storyDiff(page)) === '', await storyDiff(page));
