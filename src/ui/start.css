@@ -169,6 +169,16 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .stghost span { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); white-space: nowrap; }
 .sheetghost { z-index: 9; }
 
+/* pointing at a page lifts it; a page under the top one fans out a little more, and a click brings it up */
+.sst .s-page { transition: opacity .35s ease, transform .55s var(--ease), translate .25s var(--ease); }
+.sst .s-page:hover { translate: 0 -10px; }
+.s-page .pg { transition: height .6s ease, box-shadow .25s ease; }
+.s-page:hover .pg { box-shadow: var(--st-sh-lift); }
+.sin { transform-origin: 0 100%; transition: rotate .3s var(--ease), translate .3s var(--ease); }
+.s-behind .sheet { cursor: pointer; }
+.s-behind .sheet:hover .sin { rotate: 2.5deg; translate: 6px -8px; }
+.itab { cursor: pointer; }
+
 /* the stack: shadows follow height (the top page casts the longest, each sheet under it a shorter one), the tabs stick out of each sheet's right edge */
 .sheet { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .sheet .pg { box-shadow: var(--st-sh-s1); }

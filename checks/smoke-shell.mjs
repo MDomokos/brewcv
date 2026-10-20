@@ -2898,6 +2898,13 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   const topBefore = await page.textContent('#ss .s-page .tg');
   await page.click('#ss .s-behind .itab >> nth=0'); await page.waitForTimeout(1800);
   ok('a tab brings its resume to the top, and the stack still holds two sheets', (await page.textContent('#ss .s-page .tg')) !== topBefore && (await storyDiff(page)) === '', await storyDiff(page));
+  await page.hover('#ss .s-behind .itab >> nth=0'); await page.waitForTimeout(500);
+  ok('pointing at a page under the top one fans it out a little more', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .s-behind .sheet:hover .sin')).rotate !== 'none'));
+  await page.hover('#ss .s-page .pg'); await page.waitForTimeout(500);
+  ok('pointing at the top page lifts it, with a longer shadow', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .s-page')).translate !== 'none' && getComputedStyle(document.querySelector('#ss .s-page .pg')).boxShadow !== getComputedStyle(document.querySelector('#ss .s-behind .sheet .pg')).boxShadow));
+  const top2 = await page.textContent('#ss .s-page .tg');
+  await page.$eval('#ss .s-behind .sheet .pg', e => e.click()); await page.waitForTimeout(1800);
+  ok('a click anywhere on a page under the top one brings it up', (await page.textContent('#ss .s-page .tg')) !== top2 && (await storyDiff(page)) === '', await storyDiff(page));
   await page.click('#ss .stops li[data-n="2"] button'); await page.waitForTimeout(800);
   ok('a step name goes to that step, and the autoplay stops', (await stepOf(page)) === 2 && /Tailor it to the job/.test(await page.textContent('#ss .stnote b')) && (await page.getAttribute('#ss', 'data-auto')) === 'false');
   await page.click('#ss [data-act=ob-replay]'); await page.waitForTimeout(900);

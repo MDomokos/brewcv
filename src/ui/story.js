@@ -132,7 +132,7 @@ const PZ = 1.1, PAGE_AT = [440, 48];
 const pageH = c => c.paper === 'a4' ? 566 : 518;
 const fanT = (p, H, k = 1) => `translate(${p.x}px, ${p.y}px) translate(0px, ${H}px) rotate(${p.r}deg) translate(0px, ${-H}px) scale(${k})`;
 const tabHtml = id => `<button class="itab" data-res="${id}" style="top:${TABS[id][2]}px" tabindex="-1"><b>${TABS[id][0]}</b><span>${TABS[id][1]}</span></button>`;
-const sheetHtml = (c, p, d) => `<div class="sheet d${d}" data-id="${c.id}" style="transform:${fanT(p, pageH(c))}">${pageHtml(c, null, { mini: true })}${tabHtml(c.id)}</div>`;
+const sheetHtml = (c, p, d) => `<div class="sheet d${d}" data-id="${c.id}" style="transform:${fanT(p, pageH(c))}"><div class="sin">${pageHtml(c, null, { mini: true })}${tabHtml(c.id)}</div></div>`;
 const snapOf = s => ({ id: s.id, page: 'on', tl: s.tl, look: s.look, lang: s.lang, paper: s.paper, picks: [...s.picks], jobOrder: [...s.jobOrder], ver: { ...s.ver }, added: s.added });
 const stackOf = s => { const m = new Map(); if (s.page === 'on') m.set(s.id, 0); s.cards.forEach((c, i) => m.set(c.id, i + 1)); return m; };
 
@@ -345,8 +345,11 @@ function choreograph(moves){
 }
 // a tab brings its resume to the top
 function pullUp(e){
-  const tab = e.target.closest('[data-res]'); if (!tab || !prev || tab.dataset.res === prev.id) return;
-  const card = prev.cards.find(c => c.id === tab.dataset.res); if (!card) return;
+  const el = e.target.closest('[data-res], .sheet[data-id]'); if (el) bringUp(el.dataset.res ?? el.dataset.id);
+}
+function bringUp(id){
+  if (!prev || id === prev.id) return;
+  const card = prev.cards.find(c => c.id === id); if (!card) return;
   auto = false; clear();
   const s = structuredClone(prev);
   Object.assign(s, structuredClone(card), { cards: [snapOf(prev), ...prev.cards.filter(c => c.id !== card.id)], job: null, tags: null, slips: null, edit: null, lift: null });
