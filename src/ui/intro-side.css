@@ -4,7 +4,6 @@
 
 /* the column's width on the start screen is the layout's (src/ui/layout.js, slim); what is drawn in it is --iw wide and sits in the middle of it */
 body.is-intro { --iw: 340px; --ipad: max(20px, calc((var(--colw, 392px) - var(--iw)) / 2)); }
-body.is-intro[data-intro-side="left"] { --ipad: calc((392px - var(--iw)) / 2); }      /* the column on the left is 392px wide whatever the layout says (start.css) */
 body.is-intro .col > #head { background: transparent; border: 0; border-radius: 0; box-shadow: none; flex: none; height: auto; padding: 0 var(--ipad);
   --s-ink: var(--canvas-ink); --s-soft: var(--canvas-ink-soft); --s-line: var(--canvas-line); --focus: var(--canvas-ink); color: var(--s-ink); }
 
@@ -76,10 +75,10 @@ html[data-drink="tea"] .obw.t .obb::before { width: 11px; height: 11px; margin-t
 /* its string (src/ui/buttonfx.js draws it): the last stretch is drawn again over the tag, so it runs through the hole; the rest of it is under the picture's board */
 .obstr { display: none; position: absolute; left: -60px; top: -20px; width: 130px; height: 80px; overflow: visible; fill: none; stroke: var(--tag-line); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; z-index: 3; clip-path: inset(-30px 0 -30px 56px); }
 html[data-drink="tea"] .obw.p .obstr { display: block; }
-/* the whole rope: a layer over the straw and under the picture's board (which is above 5, the column above that); it is Tea's, and only where the board is left of the column */
+/* the whole rope: a layer over the straw and under the picture's board (which is above 5, the column above that); it is Tea's, and not on a phone */
 .obrope { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; overflow: visible; fill: none; stroke: var(--tag-line); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 body:not(.is-intro) .obrope { display: none; }
-html[data-drink="tea"] body[data-phone=true] .obw.p .obstr, html[data-drink="tea"] body[data-intro-side="left"] .obw.p .obstr { display: none; }
+html[data-drink="tea"] body[data-phone=true] .obw.p .obstr { display: none; }
 
 /* Coffee: the primary is a stamp (a hard frame, a hard shadow, an inner rule that thickens when it is pressed), the second a ticket stub, the third a link with a square */
 html[data-drink="coffee"] .obw.p .obb { padding: 0 14px; border: 2px solid var(--canvas-ink); border-radius: var(--r-s); background: var(--w-fill); text-transform: uppercase; letter-spacing: .08em;

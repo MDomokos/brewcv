@@ -9,11 +9,9 @@
 import { t, h, uiLang } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { logoBtn, drink, themePref, resolveTheme } from './drink.js';
-import * as story from './story.js';
 import * as fx from './buttonfx.js';
+import * as story from './story.js';
 
-// ?intro=left puts the column on the left, ?intro=right (the default) on the right
-document.body.dataset.introSide = new URLSearchParams(location.search).get('intro') === 'left' ? 'left' : 'right';
 let C = null;
 export function initStart(ctx){ C = ctx; return api; }
 

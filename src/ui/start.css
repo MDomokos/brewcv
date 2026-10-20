@@ -13,10 +13,6 @@ body.is-intro .pagelay, body.is-intro .ovlay, body.is-intro .editlay { display: 
 body.is-intro .startstage { opacity: 1; visibility: visible; pointer-events: none; transition: opacity .4s var(--ease) .1s, visibility 0s 0s; }
 body.is-intro .startstage .ss { pointer-events: auto; }
 
-/* option: the column on the left (?intro=left), the pages having the rest of the width and running off the right edge as well as the bottom */
-body.is-intro[data-intro-side="left"] .col { left: var(--G) !important; right: auto !important; width: 392px !important; }
-body.is-intro[data-intro-side="left"] .startstage { left: calc(392px + 2 * var(--G)); width: calc(100vw - 392px - 3 * var(--G)); }
-
 /* ---------- the story (src/ui/story.js, Intro Lab v17) ---------- */
 /* the 1280-wide stage (scaled by story.js to the page area's width; its pages run on off the bottom of the screen) under the step line and the caption, drawn straight on the canvas: its ink and lines are
    the canvas's; the paper is light in every theme; the career file is the panel's own surface; the step card is the constant chrome. */
