@@ -1,14 +1,17 @@
-// The story on the start screen (Intro Lab v17, concept A): one career file, a page pulled from it line by line, the same words in any
-// look, and a stack with a resume for every job. Four steps, played once and then scrubbed with the step line under the picture.
-//   - src/ui/start.js builds the right-hand column (the ways in, the languages, Why JSON?, Yours to keep) and hands the picture to this file.
-//   - the picture is a fixed 1280-wide stage scaled to the page area's width; its pages run on off the bottom of the screen. State is a plain object per moment (stateAt); show() draws it and flip()
-//     animates the difference (FLIP): a line flies from the file to the page, a sheet slides in and out of the stack.
-//   - the career in the picture is a made-up café manager (English and German); the labels around it are the app's words (story.*).
+// The story on the start screen (Intro Lab, mockup E2): your whole career kept once in one file, a page pulled from it line by line, the same
+// words in any look, and a new resume for every application. Four steps, each with a big number that says what is happening in it.
+//   - src/ui/start.js builds the right-hand column; this file draws the board to its left: a framed window on the table, a 1022-wide stage
+//     scaled to the board's width, a control (‹ n of 4 ›) and the big number that carry the step. There is no timeline.
+//   - State is a plain object per moment (stateAt); show() draws it and flip() animates the difference (FLIP): a line flies from the file to
+//     the page, a sheet slides in and out of the stack. Between steps the layout itself moves (CSS custom properties on the stage's
+//     data-step), so the file, the page and the stack travel instead of cutting.
+//   - the career in the picture is a made-up café manager (English and German); the words around it are the app's (story.*).
 // Every colour is a token (src/ui/start.css); with reduced motion the picture opens on the last step and nothing plays.
 
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { reduced } from './motion.js';
+import { OLD } from './story-old.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -31,11 +34,14 @@ const TL = { cafe: { en: 'Café manager', de: 'Café-Leitung' }, tea: { en: 'Tea
 const SKILLS = { en: 'Scheduling, stock, latte art', de: 'Dienstpläne, Lager, Latte Art' };
 const SEC = { en: ['Experience', 'Skills'], de: ['Berufserfahrung', 'Kenntnisse'] };
 const LOOKS = { marker: 'Marker', mono: 'Mono', serif: 'Serif' };
+const LANGS = { en: 'EN', de: 'DE' };
 const PAPERS = { letter: 'Letter', a4: 'A4' };
+// step 1: what has landed in the file after each of the seven old documents (the file ends on 48 lines from 6 jobs)
+const LINES = [0, 9, 18, 27, 35, 41, 45, 48], JOBS = [0, 1, 2, 3, 4, 5, 6, 6], TOTAL = 48;
 
 // ---------- the moments ----------
 const BASE = { ver: { h1: 0, h4: 0 }, page: 'blank', picks: [], jobOrder: ['lumen', 'leaf'], lang: 'en', look: 'marker', paper: 'letter', tl: 'cafe',
-  lift: null, style: false, added: false, edit: null, id: 'cafe', job: null, tags: null, cards: [], exports: false, slips: null };
+  lift: null, style: false, added: false, edit: null, id: 'cafe', job: null, tags: null, cards: [], exports: false, ghost: false, slips: null, src: 0 };
 // the first resume, as it is kept at the end of step 3: it uses the wording written on its page (v4)
 const CAFE_A = { id: 'cafe', page: 'on', tl: 'cafe', look: 'serif', lang: 'de', paper: 'a4', picks: ['h1', 'h3', 'h2', 'h4'], jobOrder: ['lumen', 'leaf'], ver: { h1: 3, h4: 0 }, added: true };
 const TEA_END = { id: 'tea', page: 'on', tl: 'tea', look: 'marker', lang: 'en', paper: 'letter', picks: ['h4', 'h5', 'h1'], jobOrder: ['leaf', 'lumen'], ver: { h1: 2, h4: 1 }, added: true };
@@ -46,15 +52,17 @@ const PICK1 = [{ picks: ['h1'] }, { picks: ['h1', 'h2'] }, { picks: ['h1', 'h2',
 const PICK2 = [{ picks: ['h4'] }, { picks: ['h4', 'h5'] }, { picks: ['h4', 'h5', 'h1'] }];
 const LOOK = [{ look: 'mono' }, { lang: 'de' }, { paper: 'a4' }, { look: 'serif' }];
 
-// each step: its words, the wait before its first moment (dt), the hold after its last (hold), and the moments (seq, each with its own _dt)
+// each step: its name and caption (story.*), the wait before its first moment (t0: the layout moves first), the wait between moments (dt),
+// the hold after the last, and the moments (seq, each with its own _dt)
 const STEPS = [
-  { t: 'story.s1', s: 'story.s1d', dt: 700, hold: 2400, seq: [{ page: 'none' }] },
-  { t: 'story.s2', s: 'story.s2d', dt: 760,
+  { t: 'story.s1', c: 'story.c1', t0: 200, dt: 700, hold: 1800,
+    seq: [{ page: 'none', src: 0 }, ...Array.from({ length: 7 }, (_, i) => ({ src: i + 1, _dt: i ? 950 : 1200 }))] },
+  { t: 'story.s2', c: 'story.c2', t0: 200, dt: 900,
     seq: [{ page: 'on', job: 'cafe', tags: 'cafe' }, ...PICK1.slice(0, 4), { lift: 'h3', _dt: 760 }, { picks: ['h1', 'h3', 'h2', 'h4'], _dt: 700 }, { lift: null, _dt: 900 },
       { slips: 'h1', _dt: 800 }, { ver: { h1: 1, h4: 0 }, _dt: 1100 }, { ver: { h1: 2, h4: 0 }, _dt: 1150 }, { edit: 'h1', _dt: 1150 }, { edit: null, added: true, ver: { h1: 3, h4: 0 }, _dt: 1300 }] },
-  { t: 'story.s3', s: 'story.s3d', dt: 1000, seq: [{ slips: null, job: null, tags: null, style: true }, ...LOOK] },
-  { t: 'story.s4', s: 'story.s4d', dt: 820,
-    seq: [{ cards: [CAFE_A], ...TEA0, job: 'tea', tags: 'tea' }, { ...PICK2[0], _dt: 1100 }, ...PICK2.slice(1), { cards: [CAFE_A, TRAINER], _dt: 1100 }, { exports: true, _dt: 1200 }, { ...CAFE_A, job: null, tags: null, cards: [TEA_END, TRAINER], _dt: 1100 }] },
+  { t: 'story.s3', c: 'story.c3', t0: 200, dt: 1000, seq: [{ slips: null, job: null, tags: null, style: true }, ...LOOK] },
+  { t: 'story.s4', c: 'story.c4', t0: 850, dt: 820,
+    seq: [{ cards: [CAFE_A], ...TEA0, job: 'tea', tags: 'tea' }, { ...PICK2[0], _dt: 1100 }, ...PICK2.slice(1), { cards: [CAFE_A, TRAINER], _dt: 1100 }, { exports: true, ghost: true, _dt: 1200 }, { ...CAFE_A, job: null, tags: null, cards: [TEA_END, TRAINER], _dt: 1100 }] },
 ];
 
 // ---------- drawing ----------
@@ -67,34 +75,29 @@ const kv = (k, v) => `<span class="k">"${k}"</span><span class="p">:</span> ${v}
 const str = v => `"${esc(v)}"`;
 const vers = (s, id, lang = 'en') => id === 'h1' && !s.added ? L.h1[lang].slice(0, 3) : L[id][lang];
 
-// the career file: its words never change; a row glows when this resume picks or writes one of its wordings
+// the career file: its words never change; a row is lit when this resume picks it. In step 1 it is the whole file (every row); from step 2 the
+// extra rows (class ext) fold away and the closing brackets join the lines before them, so the file is shorter and lies behind the page
 function fileHtml(s, P){
   const rows = [];
-  const R = (code, i = 0) => rows.push(`<div class="fln"><span class="cd" style="--i:${i}">${code}</span></div>`);
-  const H = (id, last) => {
-    const vs = vers(s, id), vi = s.ver[id] ?? 0, used = s.picks.includes(id);
-    const off = s.page === 'on' && !used ? ' off' : '';
+  const R = (code, i = 0, cls = '') => rows.push(`<div class="fln${cls}"><span class="cd" style="--i:${i}">${code}</span></div>`);
+  const H = (id, tail = '', mt = '') => {
+    const vs = vers(s, id), vi = s.ver[id] ?? 0;
+    const lit = s.page === 'on' ? s.picks.includes(id) : s.src >= 3 && ['h1', 'h2', 'h3'].includes(id);
     const flash = P && ((P.ver[id] ?? 0) !== vi || (id === 'h1' && P.added !== s.added)) ? ' flash' : '';
-    const tg = L[id].job === 'leaf' ? 'tea' : 'cafe';
-    const tag = `<i class="ftag${s.tags === tg ? ' lit' : ''}">#${tg === 'tea' ? 'tea' : 'café'}</i>`;
-    // a wording written on the page arrives in the file as a new chip
-    const chips = vs.length > 1 ? `<span class="vch">${vs.map((_, n) => `<i class="${used && n === vi ? 'on' : ''}"${id === 'h1' && n === 3 ? ` data-k="fc-h1-3"${P && !P.added ? ' data-new' : ''}` : ''}>v${n + 1}</i>`).join('')}</span>` : '';
-    rows.push(`<div class="fln hl${used ? ' used' : ''}${off}${flash}${s.edit === id ? ' editing' : ''}" data-k="f-${id}"><span class="fmk"></span><span class="cd" style="--i:4">"${esc(vs[0])}"${last ? '' : '<span class="p">,</span>'}</span>${chips}${tag}</div>`);
+    rows.push(`<div class="fln hl${lit ? ' used' : ''}${flash}${s.edit === id ? ' editing' : ''}" data-k="f-${id}"><span class="fmk"></span><span class="cd" style="--i:4">"${esc(vs[0])}"${tail}${mt ? `<span class="p mt">${mt}</span>` : ''}</span></div>`);
   };
-  R('<span class="p">{</span>');
-  R(kv('basics', `<span class="p">{</span> ${kv('name', str('Sam Rivera'))}<span class="p">,</span> ${kv('city', str('Lisbon'))} <span class="p">},</span>`), 1);
-  R(kv('work', '<span class="p">[</span>'), 1);
-  R(`<span class="p">{</span> ${kv('name', str('Café Lumen'))}<span class="p">,</span>`, 2);
-  R(kv('highlights', '<span class="p">[</span>'), 3);
-  H('h1'); H('h2'); H('h3', true);
-  R('<span class="p">] },</span>', 3);
-  R(`<span class="p">{</span> ${kv('name', str('Green Leaf Tea House'))}<span class="p">,</span>`, 2);
-  R(kv('highlights', '<span class="p">[</span>'), 3);
-  H('h4'); H('h5', true);
-  R('<span class="p">] }</span>', 3);
-  R('<span class="p">],</span>', 1);
-  R(kv('skills', `<span class="p">[</span>${str('Scheduling')}<span class="p">,</span> ${str('Stock')}<span class="p">,</span> ${str('Latte art')}<span class="p">]</span>`), 1);
-  R('<span class="p">}</span>');
+  const p = c => `<span class="p">${c}</span>`;
+  R(`${p('{')} ${kv('basics', `${p('{')} ${kv('name', str('Sam Rivera'))}${p(',')} ${kv('city', str('Lisbon'))} ${p('},')}`)}`);
+  R(`${kv('work', p('['))}`, 1);
+  R(`${p('{')} ${kv('name', str('Café Lumen'))}${p(',')} ${kv('highlights', p('['))}`, 2);
+  H('h1', p(',')); H('h2', p(',')); H('h3', '', ' ] },');
+  R(p('] },'), 2, ' ext');
+  R(`${p('{')} ${kv('name', str('Green Leaf Tea House'))}${p(',')} ${kv('highlights', p('['))}`, 2);
+  H('h4', p(',')); H('h5', '', ' ] } ],');
+  R(p('] } ],'), 2, ' ext');
+  R(kv('education', p('[ … ],')), 1, ' ext');
+  R(kv('languages', p('[ … ],')), 1, ' ext');
+  R(`${kv('skills', `${p('[')}${str('Scheduling')}${p(',')} ${str('Stock')}${p(',')} ${str('Latte art')}${p(']')}`)}${p(' }')}`, 1);
   return `<div class="fcard"><div class="fh"><b>career.json</b></div>${rows.join('')}</div>`;
 }
 
@@ -120,22 +123,34 @@ function pageHtml(s, P, o = {}){
 }
 // each option is a button: a click sets it on the page that is on top (data-set is the setting and its value)
 const seg = (key, opts, val, prev) => `<span class="sgm">${Object.entries(opts).map(([k, n]) => `<i role="button" tabindex="0" data-set="${key}:${k}" aria-pressed="${k === val}" class="${k === val ? 'on' : ''}${k === val && prev && prev !== val ? ' chg' : ''}">${n}</i>`).join('')}</span>`;
-const lookSegs = (s, P) => `${seg('look', LOOKS, s.look, P?.look)}${seg('lang', { en: 'EN', de: 'DE' }, s.lang, P?.lang)}${seg('paper', PAPERS, s.paper, P?.paper)}`;
+const lookSegs = (s, P) => `${seg('look', LOOKS, s.look, P?.look)}${seg('lang', LANGS, s.lang, P?.lang)}${seg('paper', PAPERS, s.paper, P?.paper)}`;
 const exportsHtml = () => `<span class="stlbl">${h('story.sendAs')}</span>${['PDF', h('story.web'), h('story.text'), 'JSON Resume'].map(x => `<i class="xchip">${x}</i>`).join('')}`;
 const jobCard = kind => `<div class="jobcard"><span class="stlbl">${h(kind === 'cafe' ? 'story.thisJob' : 'story.nextJob')}</span><b>${kind === 'cafe' ? 'Café manager' : 'Tea shop lead'}</b><span>${h(kind === 'cafe' ? 'story.jobCafe' : 'story.jobTea')}</span></div>`;
-// the stack: the page on top, the kept resumes fanned out behind it from their bottom-left corner; each resume's tab sticks out of its own right edge
-const TABS = { cafe: ['Café manager', 12], tea: ['Tea shop lead', 138], trainer: ['Trainer', 268] };
+// one card under the file: the look while it is tried (step 3: a row each, large; step 4: one row), and the ways to send once the resumes are made
+function toolsHtml(s, P){
+  if (!(s.style || s.exports)) return '';
+  const three = cur === 3;
+  const look = !s.style ? '' : three
+    ? [['look', 'story.look', LOOKS], ['lang', 'story.language', LANGS], ['paper', 'story.paper', PAPERS]].map(([k, l, o]) => `<div class="trow"><span class="stlbl">${h(l)}</span>${seg(k, o, s[k], P?.[k])}</div>`).join('')
+    : `<div class="trow trow-look"><span class="stlbl">${h('story.look')}</span>${lookSegs(s, P)}</div>`;
+  return `<div class="float tools${three ? ' tools3' : ''}">${look}${s.exports ? `<div class="trow trow-send">${exportsHtml()}</div>` : ''}</div>`;
+}
+
+// the stack: the page on top, the kept resumes fanned out behind it from their bottom-left corner, a tag on each sheet's top edge, and a dashed
+// place for the next one
+const TABS = { cafe: ['Café manager', 12], tea: ['Tea shop lead', 108], trainer: ['Trainer', 204] };
 const lookLine = c => `${LOOKS[c.look]} · ${c.lang.toUpperCase()}${c.paper === 'a4' ? ' · A4' : ''}`;
-const POS = [{ x: 0, y: 0, r: 0 }, { x: 28, y: -44, r: 4 }, { x: 56, y: -76, r: 8 }];
-const PZ = 1.8, PAGE_AT = [420, 200];
+const POS = [{ x: 0, y: 0, r: 0 }, { x: 14, y: -30, r: 1.2 }, { x: 26, y: -56, r: 2.4 }, { x: 38, y: -80, r: 3.6 }];
+const PZ = 1.3, PAGE_AT = [388, 188];      // the page's place in step 4 (its top follows the stage's height, see fit)
 const pageH = c => c.paper === 'a4' ? 566 : 518;
 const fanT = (p, H, k = 1) => `translate(${p.x}px, ${p.y}px) translate(0px, ${H}px) rotate(${p.r}deg) translate(0px, ${-H}px) scale(${k})`;
 const tabHtml = c => `<button class="itab" data-res="${c.id}" style="left:${TABS[c.id][1]}px" tabindex="-1"><b>${TABS[c.id][0]}</b><span>${lookLine(c)}</span></button>`;
 const sheetHtml = (c, p, d) => `<div class="sheet d${d}" data-id="${c.id}" style="transform:${fanT(p, pageH(c))}"><div class="sin">${pageHtml(c, null, { mini: true })}${tabHtml(c)}</div></div>`;
+const ghostHtml = () => `<div class="sheet sghost" style="transform:${fanT(POS[3], 518)}"><div class="sin"><div class="gpg" data-k="ghost"></div><span class="itab gtab" style="left:262px"><b>${h('story.newNext')}</b></span></div></div>`;
 const snapOf = s => ({ id: s.id, page: 'on', tl: s.tl, look: s.look, lang: s.lang, paper: s.paper, picks: [...s.picks], jobOrder: [...s.jobOrder], ver: { ...s.ver }, added: s.added });
 const stackOf = s => { const m = new Map(); if (s.page === 'on') m.set(s.id, 0); s.cards.forEach((c, i) => m.set(c.id, i + 1)); return m; };
 
-// the other wordings of a line, as slips under the page's edge; updated in place so a pick slides rather than jumps
+// the other wordings of a line, as slips under the file; updated in place so a pick slides rather than jumps
 function slipsInto(box, s){
   const id = s.slips, vs = vers(s, id, s.lang), n = vs.length + (s.edit ? 1 : 0);
   if (box.dataset.n !== String(n) || box.dataset.lang !== s.lang){
@@ -149,30 +164,65 @@ function slipsInto(box, s){
   });
 }
 
+// step 1: the seven old documents. Each has a look of its own (the bars stand for the words); the year, or what it is, is printed on its corner
+const YR = i => ['2017', '2019', '2021', t('story.yNotes'), t('story.yLetter'), t('story.yProfile'), t('story.yNotes')][i];
+const SRC = i => i < 3 ? t('story.srcOld', { y: YR(i) }) : [t('story.srcNotes'), t('story.srcLetter'), t('story.srcProfile'), t('story.srcTraining')][i - 3];
+const figure = i => `<figure class="old ${OLD[i].look}">${OLD[i].html.replace('<em class="yr"></em>', `<em class="oyr">${esc(YR(i))}</em>`)}</figure>`;
+const manifestHtml = () => `<h3>${h('story.from')}</h3>${OLD.map((_, i) => `<div class="mrow wait" data-i="${i}">${figure(i)}<span class="t">${esc(SRC(i))}</span><span class="s"></span></div>`).join('')}<div class="mrow ghost"><span class="gh"></span><span class="t">${h('story.srcMore')}</span></div>`;
+const folderHtml = () => `<div class="fback"></div>${OLD.map((o, i) => `<div class="fp gone" data-i="${i}" style="${o.fly}">${figure(i)}</div>`).join('')}<span class="flabel">${h('story.fileTag')} <small>(career.json)</small></span>`;
+// the documents that are in the file, the one in the air, the next waiting above (the transitions are CSS on .fp), and the list beside them
+function paintSources(s, el){
+  const k = s.src;
+  el.folder.querySelectorAll('.fp').forEach((p, i) => { p.classList.toggle('air', i === k); p.classList.toggle('far', i === k + 1); p.classList.toggle('gone', i > k + 1); });
+  el.manifest.querySelectorAll('.mrow:not(.ghost)').forEach((r, i) => { r.className = `mrow ${i < k ? 'in' : i === k ? 'fly' : 'wait'}`; r.querySelector('.s').textContent = t(i < k ? 'story.stIn' : i === k ? 'story.stWay' : 'story.stWait'); });
+}
+
+// the big number of each step, and what it counts: lines landing in the file (1), lines picked of the whole (2), the look being tried (3),
+// resumes so far (4), with its label and the step's sentence
+function bigOf(s){
+  const n = cur || 1;
+  if (n === 1) return { key: `1:${s.src}`, big: `<span class="n">${LINES[s.src]}</span>`, label: s.src ? t('story.linesJobs', { n: JOBS[s.src] }) : t('story.lines0') };
+  if (n === 2) return { key: `2:${s.picks.length}`, big: `${s.picks.length}<small> ${esc(t('story.ofN', { n: TOTAL }))}</small>`, label: t('story.picked') };
+  if (n === 3) return { key: `3:${s.look}`, big: '<span class="aa">Aa</span>', label: t('story.lookSame', { look: LOOKS[s.look] }) };
+  const count = (s.page === 'on' ? 1 : 0) + s.cards.length;
+  return { key: `4:${count}`, big: `${count}<small class="plus">+</small>`, label: t('story.resumesSo') };
+}
+function lcolInto(box, s){
+  const n = cur || 1, b = bigOf(s), cap = t(STEPS[n - 1].c), v = `${b.key}|${b.label}|${cap}`;
+  box.dataset.look = s.look;
+  if (box.dataset.v === v) return;
+  const changed = box.dataset.k !== b.key; box.dataset.k = b.key; box.dataset.v = v;
+  box.innerHTML = `<button class="num${changed ? ' chg' : ''}" title="${esc(t(n === 4 ? 'story.backTo1' : 'story.nextStep'))}">${b.big}</button><span class="nlabel">${esc(b.label)}</span><p class="cap">${esc(cap)}</p>`;
+}
+
 let HOT = null;                                  // the line of the career file the pointer is on
-const SLOTS = ['file', 'slips', 'behind', 'page', 'job', 'tools'];
+const SLOTS = ['lcol', 'manifest', 'folder', 'file', 'slips', 'behind', 'page', 'job', 'tools'];
 let EL = {};
 function render(s, P, el){
-  el.file.classList.toggle('hero', s.page === 'none');      // alone on the stage the file is larger and centred
+  const one = cur === 1;
+  lcolInto(el.lcol, s);
+  el.manifest.classList.toggle('hide', !one); el.folder.classList.toggle('hide', !one);
+  if (!el.manifest.firstChild){ el.manifest.innerHTML = manifestHtml(); el.folder.innerHTML = folderHtml(); }
+  paintSources(s, el);
   el.file.innerHTML = fileHtml(s, P);
+  el.folder.style.height = `${el.file.firstElementChild.offsetHeight * 1.017}px`;
   el.slips.classList.toggle('hide', !s.slips);
   if (s.slips) slipsInto(el.slips, s);
   el.behind.classList.toggle('hide', !s.cards.length);
-  el.behind.innerHTML = s.cards.map((c, i) => sheetHtml(c, POS[i + 1], i + 1)).reverse().join('');
+  el.behind.innerHTML = (s.ghost ? ghostHtml() : '') + s.cards.map((c, i) => sheetHtml(c, POS[i + 1], i + 1)).reverse().join('');
   el.page.classList.toggle('hide', s.page === 'none');
   if (s.page !== 'none') el.page.innerHTML = pageHtml(s, P, { fly: true, vtag: !!s.slips, hot: HOT }) + (s.cards.length ? tabHtml(s) : '');
   el.job.classList.toggle('hide', !s.job);
   if (s.job) el.job.innerHTML = jobCard(s.job);
-  // one toolbar under the page: the look while it is being tried, and the ways to send once the resumes are made
   el.tools.classList.toggle('hide', !(s.style || s.exports));
-  el.tools.innerHTML = `<div class="float tools">${s.style ? `<div class="trow trow-look"><span class="stlbl">${h('story.look')}</span>${lookSegs(s, P)}</div>` : ''}${s.exports ? `<div class="trow trow-send">${exportsHtml()}</div>` : ''}</div>`;
+  el.tools.innerHTML = toolsHtml(s, P);
 }
 
 // ---------- moving between moments (FLIP): measure, change, then animate the difference ----------
 // Each move takes its time from its distance (short moves are quick, long ones glide), going back a little quicker.
 // Whatever is in flight when the moment changes hands its current place on, so a scrub never jumps.
 const EASE_OUT = 'cubic-bezier(.2, .8, .2, 1)', EASE_GLIDE = 'cubic-bezier(.45, .05, .15, 1)';
-let SC = 1, BACK = false, STAGE = null, WRAP = null;
+let SC = 1, BACK = false, STAGE = null;
 const dur = d => Math.round(Math.min(760, Math.max(340, 260 + d * .55)) * (BACK ? .8 : 1));
 let STACKMOVE = false, stackTimer = 0, moving = false;
 const fx = () => $('.fx', STAGE);
@@ -271,7 +321,8 @@ function flip(update){
   });
 }
 
-// ---------- the clock: steps, moments, autoplay, scrubbing ----------
+
+// ---------- the clock: steps, moments, autoplay, navigation ----------
 let cur = 0, prev = null, timers = [], auto = true, settled = true, started = false, inited = false, ro = null;
 const later = (ms, f) => timers.push(setTimeout(f, ms));
 const clear = () => { timers.forEach(clearTimeout); timers = []; };
@@ -284,7 +335,6 @@ function stateAt(n, k){
 const last = n => STEPS[n - 1].seq.length - 1;
 function show(s){
   const P = prev; prev = s;
-  $('#ss').dataset.rest = !!s.exports;                // everything has landed: the career file goes quiet
   clearTimeout(stackTimer); moving = false; EL.page.style.visibility = '';
   const moves = P && !reduced() ? stackMoves(P, s) : null;
   STACKMOVE = !!moves;
@@ -323,7 +373,7 @@ function choreograph(moves){
     const T = (p, k) => `scale(${PZ}) ${fanT(p, H, k)}`, pg = g.querySelector('.pg');
     let frames, shadows, ms;
     if (m.t === 0 && m.f > 0){            // out of the stack, lifted, onto the top
-      const p = POS[m.f], out = { x: p.x + 24, y: p.y - 18, r: 1 };
+      const p = POS[m.f], out = { x: p.x + 40, y: p.y - 14, r: 1 };
       frames = [{ transform: T(p, 1), zIndex: 1 }, { transform: T(out, 1.025), zIndex: 1, offset: .42 }, { transform: T(out, 1.025), zIndex: 9, offset: .44 }, { transform: T(POS[0], 1), zIndex: 9 }];
       shadows = [{ boxShadow: SH[m.f] }, { boxShadow: LIFT, offset: .44 }, { boxShadow: SH[0] }]; ms = 1150;
     } else if (m.t === 0){                // a new resume laid down on top: it waits until the page it replaces has started into the stack
@@ -366,7 +416,7 @@ function setLook(key, value){
   auto = false; clear();
   const s = structuredClone(prev); s[key] = value; BACK = false; show(s);
 }
-// a tab brings its resume to the top
+// a tag, or a click anywhere on a page under the top one, brings that resume to the top
 function pullUp(e){
   const el = e.target.closest('[data-res], .sheet[data-id]'); if (el) bringUp(el.dataset.res ?? el.dataset.id);
 }
@@ -380,7 +430,7 @@ function bringUp(id){
 }
 function go(n, play = true){
   n = Math.max(1, Math.min(STEPS.length, n));
-  clear(); const was = cur; cur = n; bar();
+  clear(); const was = cur; cur = n; navUpdate();
   const st = STEPS[n - 1];
   BACK = n < was;
   // back: undo straight to that step's settled state; forward: settle the step before, then play this one
@@ -388,91 +438,89 @@ function go(n, play = true){
   // a step left half-played is finished first, so what slides back is what that step ends on
   if (was !== n - 1 || !prev || !settled) show(n > 1 ? stateAt(n - 1, last(n - 1)) : structuredClone(BASE));
   settled = false;
-  let ms = 200;
+  let ms = st.t0 ?? 200;                    // the layout moves first (the file, the page and the stack travel to their places), then the moments play
   st.seq.forEach((item, k) => { if (k) ms += item._dt ?? st.dt; later(ms, () => { BACK = false; show(stateAt(n, k)); if (k === last(n)) settled = true; }); });
   if (auto && n < STEPS.length) later(ms + 900 + (st.hold ?? 1200), () => go(n + 1));
 }
 
-// ---------- the step line ----------
-const stepsEl = () => $('.ss-steps');
-function buildBar(){
-  const el = stepsEl(), n = STEPS.length;
-  el.style.setProperty('--n', n);
-  el.setAttribute('aria-valuemax', n);
-  $('.stops', el).innerHTML = STEPS.map((s, i) => `<li data-n="${i + 1}"><button tabindex="-1" data-n="${i + 1}"><span class="num">${i + 1}</span><span>${h(s.t)}</span></button></li>`).join('');
-  const track = $('.track', el);
-  track.querySelectorAll('b').forEach(b => b.remove());
-  STEPS.forEach((_, i) => { const b = document.createElement('b'); b.style.left = `${(i / (n - 1) * 100).toFixed(2)}%`; track.prepend(b); });
+// ---------- the step control: ‹ n of 4 › ----------
+const CHEV = d => `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+const navHtml = () => `<button class="chev nprev" title="${esc(t('story.prevStep'))} (←)" aria-label="${esc(t('story.prevStep'))}">${CHEV('M15 5l-7 7 7 7')}</button>
+  <div class="stepmenu"><button class="ncur" aria-haspopup="true" aria-expanded="false" title="${esc(t('story.gotoStep'))}"></button>
+    <ul class="nmenu" role="menu">${STEPS.map((s, i) => `<li><button role="menuitem" data-go="${i + 1}"><b>${i + 1}</b>${h(s.t)}</button></li>`).join('')}</ul></div>
+  <button class="chev nnext" title="${esc(t('story.nextStep'))} (→)" aria-label="${esc(t('story.nextStep'))}">${CHEV('M9 5l7 7-7 7')}</button>`;
+function navUpdate(){
+  const ss = $('#ss'); if (!ss || !STAGE || !cur) return;
+  ss.dataset.step = cur; ss.dataset.auto = auto; STAGE.dataset.step = cur;
+  $('.ncur', ss).innerHTML = esc(t('story.stepOf', { n: cur })).replace(String(cur), `<span class="cn">${cur}</span>`);
+  $('.nprev', ss).disabled = cur === 1;
+  ss.querySelectorAll('.nmenu li').forEach((li, i) => li.classList.toggle('on', i + 1 === cur));
 }
-function bar(){
-  const el = stepsEl(), n = STEPS.length, st = STEPS[Math.max(1, cur) - 1];
-  if (!el) return;
-  const ss = $('#ss'); ss.dataset.step = cur; ss.dataset.auto = auto;
-  el.style.setProperty('--p', ((Math.max(1, cur) - 1) / (n - 1)).toFixed(4));
-  el.setAttribute('aria-valuenow', cur); el.setAttribute('aria-valuetext', `${cur}. ${t(st.t)}. ${t(st.s)}`);
-  el.querySelectorAll('.stops li').forEach((li, i) => { li.classList.toggle('on', i + 1 === cur); li.classList.toggle('done', i + 1 < cur); });
-  el.querySelectorAll('.track b').forEach(b => b.classList.toggle('done', parseFloat(b.style.left) <= (cur - 1) / (n - 1) * 100 + .01));
-  if (cur) $('.ss-say').textContent = t(st.s);      // the step's words, in one line above the step line
-}
-const colAt = x => { const r = stepsEl().getBoundingClientRect(); return Math.max(1, Math.min(STEPS.length, Math.floor((x - r.left) / r.width * STEPS.length) + 1)); };
+const menu = open => { const m = $('.stepmenu'); if (!m) return; m.classList.toggle('open', open); $('.ncur', m).setAttribute('aria-expanded', String(open)); };
+// choosing from the menu closes it at once, even with the pointer still over it (it opens again after the pointer has left)
+const user = (n, fromMenu = false) => {
+  auto = false; menu(false);
+  if (fromMenu){ $('.stepmenu')?.classList.add('shut'); document.activeElement?.blur(); }
+  go(n);
+};
 function listen(){
-  const el = stepsEl();
-  let dwell = 0, dragging = false;
-  el.addEventListener('pointermove', e => {
-    const n = colAt(e.clientX); clearTimeout(dwell);
-    if (n === cur) return;
-    dwell = setTimeout(() => { auto = false; go(n); }, dragging ? 0 : 140);
+  STAGE.addEventListener('click', e => {
+    const T = e.target.closest?.('[data-set], .nprev, .nnext, .num, .ncur, [data-go]');
+    if (!T) return pullUp(e);
+    if (T.dataset.set) setLook(...T.dataset.set.split(':'));
+    else if (T.classList.contains('nprev')) user(Math.max(1, cur - 1));
+    else if (T.classList.contains('nnext') || T.classList.contains('num')) user(cur % STEPS.length + 1);
+    else if (T.classList.contains('ncur')){ e.stopPropagation(); menu(!$('.stepmenu').classList.contains('open')); }
+    else user(+T.dataset.go, true);
   });
-  el.addEventListener('pointerleave', () => clearTimeout(dwell));
-  el.addEventListener('pointerdown', e => { dragging = true; el.setPointerCapture(e.pointerId); auto = false; const n = colAt(e.clientX); if (n !== cur) go(n); });
-  el.addEventListener('pointerup', () => { dragging = false; });
-  el.addEventListener('keydown', e => {
-    const m = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-    if (m){ e.preventDefault(); auto = false; go(cur + m); }
-    else if (e.key === 'Home' || e.key === 'End'){ e.preventDefault(); auto = false; go(e.key === 'Home' ? 1 : STEPS.length); }
-  });
-  STAGE.addEventListener('click', e => { const o = e.target.closest('[data-set]'); if (o) setLook(...o.dataset.set.split(':')); else pullUp(e); });
   STAGE.addEventListener('keydown', e => { const o = e.target.closest?.('[data-set]'); if (o && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); setLook(...o.dataset.set.split(':')); } });
   const row = e => e.target.closest?.('.s-file .fln[data-k^="f-"]');
   STAGE.addEventListener('pointerover', e => { const r = row(e); if (r) hover(r.dataset.k.slice(2)); });
   STAGE.addEventListener('pointerout', e => { if (row(e) && !row({ target: e.relatedTarget })) hover(null); });
+  STAGE.addEventListener('pointerout', e => { if (e.target.closest?.('.stepmenu') && !e.relatedTarget?.closest?.('.stepmenu')) setTimeout(() => { const m = $('.stepmenu'); if (m && !m.matches(':hover')) m.classList.remove('shut'); }, 160); });
+  document.addEventListener('click', () => menu(false));
+  // the arrow keys and 1 to 4 move between steps while the start screen is up (not in a field, not with a modifier)
+  document.addEventListener('keydown', e => {
+    if (!document.body.classList.contains('is-intro') || !$('#ss') || e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.('input, textarea, select, [contenteditable]')) return;
+    if (e.key === 'ArrowRight') user(cur % STEPS.length + 1);
+    else if (e.key === 'ArrowLeft') user(Math.max(1, cur - 1));
+    else if (/^[1-4]$/.test(e.key) && !e.target.closest?.('.menu, .pop')) user(+e.key);
+    else if (e.key === 'Escape') menu(false);
+  });
 }
 
 // ---------- the host ----------
 export function stageHtml(){
-  return `<div class="ss" id="ss" role="group" aria-label="${esc(t('onb.hdHow'))}">
-    <div class="ss-bar">
-      <div class="ss-steps" role="slider" tabindex="0" aria-label="${esc(t('onb.hdHow'))}" aria-valuemin="1">
-        <ol class="stops"></ol>
-        <div class="track"><i class="fill"></i><i class="knob"></i></div>
-      </div>
-      <p class="ss-say" aria-hidden="true"></p>
-      <button class="obreplay" data-act="ob-replay" title="${esc(t('onb.replay'))}" aria-label="${esc(t('onb.replay'))}">${icon('replay', { size: 14 })}</button>
-    </div>
-    <div class="ss-wrap" aria-hidden="true"><div class="sst" id="sst">${SLOTS.map(s => `<div class="slot s-${s}"></div>`).join('')}<div class="fx"></div></div></div>
-  </div>`;
+  return `<div class="ss" id="ss" role="group" aria-label="${esc(t('onb.hdHow'))}"><div class="sst" id="sst" data-step="1"><i class="anchor"></i><i class="anchor2"></i>
+    <div class="nav">${navHtml()}</div>${SLOTS.map(s => `<div class="slot s-${s}"></div>`).join('')}<div class="fx"></div></div>
+    <i class="rimshade"></i><i class="frame"></i>
+    <button class="obreplay replay" data-act="ob-replay" title="${esc(t('onb.replay'))}" aria-label="${esc(t('onb.replay'))}">${icon('replay', { size: 14 })}</button></div>`;
 }
-// the stage is scaled to fit the box the page area gives it; on a phone the box is as tall as it needs to be
+// the stage is a 1022-wide picture scaled to the board; on a phone the board is as tall as it needs to be. The sidebar's first row and its
+// language row start level with the file's top edge and its first lit line (the page tells the column where they are)
 function fit(){
   const ss = $('#ss'); if (!ss || !STAGE) return;
-  const host = ss.parentElement, flow = getComputedStyle(host).position === 'static';
-  const cs = getComputedStyle(ss), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2;
-  // with the column on the left the stack may run off the screen's right edge, so the picture is scaled to a narrower stage (larger)
-  const SW = document.body.dataset.introSide === 'left' ? 1200 : 1280;
-  SC = Math.max(.3, Math.min((host.clientWidth - padX) / SW, 2.5));
-  ss.style.setProperty('--sw', SW);
-  WRAP.style.width = `${(SW * SC).toFixed(1)}px`; WRAP.style.height = flow ? `${(1000 * SC).toFixed(1)}px` : '';   // on a phone the picture is as tall as it needs to be
-  // the career file's top lines up with the top of the ways-in card (never above the job card's room)
-  const card = !flow && document.querySelector('#body');
-  ss.style.setProperty('--file-top', card ? `${Math.max(88, (card.getBoundingClientRect().top - WRAP.getBoundingClientRect().top) / SC).toFixed(1)}px` : '88px');
+  const flow = getComputedStyle(ss.parentElement).position === 'static';
+  SC = Math.max(.25, ss.clientWidth / 1022);
+  if (flow) ss.style.height = `${(760 * SC).toFixed(1)}px`; else ss.style.height = '';
   STAGE.style.transform = `scale(${SC.toFixed(4)})`;
+  const sh = ss.clientHeight / SC;
+  STAGE.style.height = `${sh.toFixed(1)}px`;
+  // the top page of step 4 runs about 40 px under the rim whatever the window's height (the stack follows it)
+  const pgy4 = Math.round(Math.max(60, Math.min(240, sh - 752)));
+  STAGE.style.setProperty('--pgy4', `${pgy4}px`); PAGE_AT[1] = 72 + pgy4;
   ss.style.setProperty('--sc', SC.toFixed(4));
-  bar();
+  if (!flow){
+    const b = document.body.style;
+    b.setProperty('--ways-top', `${$('.anchor', STAGE).getBoundingClientRect().top.toFixed(1)}px`);
+    b.setProperty('--lang-top', `${$('.anchor2', STAGE).getBoundingClientRect().top.toFixed(1)}px`);
+    document.dispatchEvent(new CustomEvent('introlayout'));
+  }
 }
 function init(){
-  STAGE = $('#sst'); WRAP = $('.ss-wrap');
+  STAGE = $('#sst');
   EL = {}; SLOTS.forEach(s => EL[s] = $(`.s-${s}`, STAGE));
-  buildBar(); listen(); inited = true;
+  listen(); inited = true;
 }
 export function mount(){
   if (!$('#ss')) return;
@@ -488,7 +536,7 @@ export function unmount(){ clear(); clearTimeout(stackTimer); ro?.disconnect(); 
 // a first start-up (or a return to the start screen) plays from the top again
 export function begin(){
   clear(); clearTimeout(stackTimer); cur = 0; prev = null; started = false; auto = true; settled = true;
-  if (inited){ show(structuredClone(BASE)); prev = null; bar(); }
+  if (inited){ cur = 1; show(structuredClone(BASE)); prev = null; cur = 0; }
 }
 export function replay(){
   if (!inited) return;
@@ -501,10 +549,11 @@ export function retext(){
   const ss = $('#ss'); if (!ss || !inited) return;
   ss.setAttribute('aria-label', t('onb.hdHow'));
   const rp = $('.obreplay', ss); rp.title = t('onb.replay'); rp.setAttribute('aria-label', t('onb.replay'));
-  fit();
-  buildBar();
+  $('.nav', ss).innerHTML = navHtml();
+  EL.manifest.replaceChildren(); EL.folder.replaceChildren(); EL.lcol.dataset.v = '';
+  navUpdate();
   if (prev) render(prev, null, EL);
-  bar();
+  fit();
 }
 // the moment on show, for the checks
 export const current = () => prev && structuredClone(prev);

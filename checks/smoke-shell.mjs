@@ -2831,10 +2831,11 @@ const storyDiff = page => page.evaluate(() => {
   const ss = document.querySelector('#ss'), s = window.__wb.onboarding.start.current(), out = [];
   const q = k => ss.querySelector('.s-' + k), hid = e => e.classList.contains('hide'), shown = e => getComputedStyle(e).visibility !== 'hidden';
   if (ss.querySelector('.fx .sg, .fx .stghost, .fx .sheetghost')) out.push('still moving');
-  for (const [k, on] of [['slips', s.slips], ['job', s.job], ['page', s.page !== 'none'], ['behind', s.cards.length]]) if (hid(q(k)) === !!on) out.push(k);
-  if (hid(q('tools')) === !!(s.style || s.exports) || !!ss.querySelector('.s-tools .trow-look') !== !!s.style || !!ss.querySelector('.s-tools .trow-send') !== !!s.exports) out.push('toolbar');
-  const sh = [...ss.querySelectorAll('.s-behind .sheet')];
+  for (const [k, on] of [['slips', s.slips], ['job', s.job], ['page', s.page !== 'none'], ['behind', s.cards.length], ['manifest', +ss.dataset.step === 1], ['folder', +ss.dataset.step === 1]]) if (hid(q(k)) === !!on) out.push(k);
+  if (hid(q('tools')) === !!(s.style || s.exports) || !!ss.querySelector('.s-tools .trow-look, .s-tools .tools3') !== !!s.style || !!ss.querySelector('.s-tools .trow-send') !== !!s.exports) out.push('toolbar');
+  const sh = [...ss.querySelectorAll('.s-behind .sheet[data-id]')];
   if (sh.map(x => x.dataset.id).sort().join() !== s.cards.map(c => c.id).sort().join()) out.push('sheets');
+  if (!!ss.querySelector('.s-behind .sghost') !== !!s.ghost) out.push('the place for the next resume');
   if (sh.some(x => !shown(x)) || (s.page === 'on' && (!shown(q('page')) || !q('page').querySelector('.pg')))) out.push('a page is hidden');
   return out.join(', ');
 });
@@ -2868,62 +2869,75 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   ok('…light, and not equal to the inspector: no card around them', await page.evaluate(() => { const f = getComputedStyle(document.querySelector('#foot')); return f.backgroundColor === 'rgba(0, 0, 0, 0)' && f.boxShadow === 'none'; }));
   ok('nothing of the editor shows: no tabs, no zoom bar, no meter, no Fit, and the sheet waits', !(await page.isVisible('#tab-edit')) && !(await page.$('[data-act=fit]')) && (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'hidden');
 
-  // the story (Intro Lab v17): four steps, named in the step line under the picture
-  const stops = await page.$$eval('#ss .stops button', bs => bs.map(b => `${b.querySelector('.num').textContent} ${b.lastElementChild.textContent}`));
-  ok('four steps, named in the step line under the picture: the only numbers', JSON.stringify(stops) === JSON.stringify(['1 Your career file', '2 Tailor it to the job', '3 Same words, any look', '4 Every job, its own resume']), JSON.stringify(stops));
-  ok('…a replay button at the end of the step line, and the step’s words in one line above it', !!(await page.$('#ss [data-act=ob-replay]')) && (await page.textContent('#ss .ss-say')).length > 20);
+  // the story (mockup E2): a framed board with a big number and a step control, no timeline
+  ok('the story is a framed board left of the column, with a rim, and has no timeline of any kind', await page.evaluate(() => { const ss = document.querySelector('#ss'), r = ss.getBoundingClientRect(), col = document.querySelector('#col').getBoundingClientRect(); return !!ss.querySelector('.frame') && !!ss.querySelector('.rimshade') && r.right <= col.left && r.width > 700 && !ss.querySelector('.stops, .track, .ss-steps, .knob'); }));
+  const navText = () => page.evaluate(() => document.querySelector('#ss .ncur').textContent.replace(/\s+/g, ' ').trim().toLowerCase());
+  ok('the step control reads “1 of 4”, with a way back that is off on the first step, a way on, and a menu of the four step names', (await navText()) === '1 of 4' && await page.evaluate(() => document.querySelector('#ss .nprev').disabled && !document.querySelector('#ss .nnext').disabled && [...document.querySelectorAll('#ss .nmenu li')].map(l => l.textContent.trim()).join('|') === '1Your career file|2Tailor it to the job|3Same words, any look|4Every job, its own resume'));
   await page.evaluate(() => window.__wb.onboarding.start.replay());
-  await page.waitForTimeout(2200);
-  ok('it starts playing at step 1 by itself: the career file and its step card, and no page yet', (await stepOf(page)) === 1 && await page.evaluate(() => document.querySelectorAll('#ss .fcard .fln').length >= 12 && document.querySelector('#ss .s-page').classList.contains('hide') && /one file/.test(document.querySelector('#ss .ss-say').textContent)));
+  await page.waitForTimeout(2600);
+  const lines = () => page.evaluate(() => +document.querySelector('#ss .s-lcol .num .n')?.textContent);
+  const l1 = await lines(); await page.waitForTimeout(2200); const l2 = await lines();
+  ok('step 1: your whole career goes into one file: the old documents drop in one by one, the list beside them counts them in, and the big number counts the lines that land', (await stepOf(page)) === 1 && l2 > l1 && l1 > 0 && await page.evaluate(() => document.querySelectorAll('#ss .mrow.in').length >= 2 && document.querySelectorAll('#ss .fp.gone').length < 7 && document.querySelector('#ss .s-page').classList.contains('hide') && /whole career/.test(document.querySelector('#ss .cap').textContent) && /lines from/.test(document.querySelector('#ss .nlabel').textContent)), `${l1} → ${l2}`);
 
   // it plays: step 2 pulls lines onto the page, tries other wordings, writes one; 3 changes the look; 4 keeps a stack of resumes
   await atStep(page, 2);
   await page.waitForFunction(() => document.querySelectorAll('#ss .s-page li').length === 4, null, { timeout: 15000 });
-  ok('step 2: the lines the job asks for are on the page, pulled from the file, and the job is shown, with its tag lit in the file', await page.evaluate(() => document.querySelectorAll('#ss .fln.used').length === 4 && !!document.querySelector('#ss .s-job:not(.hide) .jobcard') && !!document.querySelector('#ss .fcard .ftag.lit')));
+  ok('step 2: the lines the job asks for fly from the file onto the page, the job is shown, and the big number says how many of the 48 lines were picked', await page.evaluate(() => document.querySelectorAll('#ss .fln.used').length === 4 && !!document.querySelector('#ss .s-job:not(.hide) .jobcard') && document.querySelector('#ss .s-lcol .num').textContent.replace(/\s+/g, ' ').trim() === '4 of 48'));
   await page.waitForFunction(() => document.querySelectorAll('#ss .s-slips:not(.hide) .slip').length >= 3, null, { timeout: 15000 });
-  ok('…and the slots show what the moment says (the job, the file, the page, the slips)', (await storyDiff(page)) === '' || (await page.waitForTimeout(1500), (await storyDiff(page)) === ''), await storyDiff(page));
   ok('…the other wordings of a line slide out as slips, one for each', await page.evaluate(() => document.querySelectorAll('#ss .s-slips .slip').length >= 3));
-  await page.waitForFunction(() => document.querySelectorAll('#ss .fcard .fln[data-k="f-h1"] .vch i').length === 4 && !document.querySelector('#ss .s-page li.edit'), null, { timeout: 15000 });
-  ok('…a wording written on the page arrives in the file as a new chip (v4), and the file’s own words never change', await page.evaluate(() => document.querySelector('#ss .fln[data-k="f-h1"] .cd').textContent.includes('Ran a team of six baristas.')));
+  await page.waitForFunction(() => !!document.querySelector('#ss .slip.on') && !document.querySelector('#ss .s-page li.edit') && document.querySelectorAll('#ss .slip').length === 4, null, { timeout: 15000 });
   await page.waitForTimeout(1500);
-  ok('…step 2 ends showing exactly what its moment says', (await storyDiff(page)) === '', await storyDiff(page));
+  ok('…step 2 ends showing exactly what its moment says, the file shorter and behind the page', (await storyDiff(page)) === '' && await page.evaluate(() => document.querySelectorAll('#ss .fln.ext').length === 4 && getComputedStyle(document.querySelector('#ss .fln.ext')).opacity === '0'), await storyDiff(page));
   await atStep(page, 3);
   await page.waitForFunction(() => document.querySelector('#ss .s-page .pg.serif.a4'), null, { timeout: 15000 });
-  ok('step 3: design, language and paper change on the page', /Berufserfahrung/.test(await page.textContent('#ss .s-page')));
+  await page.waitForTimeout(1200);
+  ok('step 3: design, language and paper change on the page, the big glyph is the look being tried, and the toggles have a row each', /Berufserfahrung/.test(await page.textContent('#ss .s-page')) && await page.evaluate(() => document.querySelector('#ss .s-lcol .aa')?.textContent === 'Aa' && document.querySelector('#ss .s-lcol').dataset.look === 'serif' && document.querySelectorAll('#ss .tools3 .trow').length === 3) && (await storyDiff(page)) === '', await storyDiff(page));
   await atStep(page, 4);
-  await page.waitForFunction(() => document.querySelectorAll('#ss .s-behind .sheet').length === 2 && !!document.querySelector('#ss .s-tools .trow-send'), null, { timeout: 20000 });
+  await page.waitForFunction(() => document.querySelectorAll('#ss .s-behind .sheet[data-id]').length === 2 && !!document.querySelector('#ss .s-tools .trow-send') && !!document.querySelector('#ss .s-behind .sghost'), null, { timeout: 20000 });
   await page.waitForTimeout(2500);
-  ok('step 4: every job its own resume: two kept in a fanned stack with a tab each, and the ways to send them', (await page.$$('#ss .s-behind .itab')).length === 2 && /PDF/.test(await page.textContent('#ss .s-tools .trow-send')));
-  ok('…and step 4 ends showing exactly what its moment says: a page, two kept sheets, the ways to send', (await storyDiff(page)) === '', await storyDiff(page));
-  ok('the pages are zoomed and run on off the bottom of the screen, with a tag on the top edge of each sheet and the step line above them', await page.evaluate(() => { const pg = document.querySelector('#ss .s-page .pg').getBoundingClientRect(), tab = document.querySelector('#ss .s-page .itab').getBoundingClientRect(), bar = document.querySelector('#ss .ss-steps').getBoundingClientRect(); return pg.bottom > innerHeight && pg.width > 400 && tab.bottom <= pg.top + 4 && bar.bottom < pg.top; }));
+  ok('step 4: a new resume for every application: two kept in a fanned stack with a tag each, a dashed place for the next one, the ways to send, and the big number “3+”', (await page.$$('#ss .s-behind .itab:not(.gtab)')).length === 2 && /PDF/.test(await page.textContent('#ss .s-tools .trow-send')) && await page.evaluate(() => document.querySelector('#ss .s-lcol .num').textContent.replace(/\s+/g, '') === '3+') && (await storyDiff(page)) === '', await storyDiff(page));
+  ok('the top page of the last step runs on under the board’s rim, with a tag on the top edge of each sheet', await page.evaluate(() => { const pg = document.querySelector('#ss .s-page .pg').getBoundingClientRect(), tab = document.querySelector('#ss .s-page .itab').getBoundingClientRect(), ss = document.querySelector('#ss').getBoundingClientRect(); return pg.bottom >= ss.bottom - 20 && pg.width > 300 && tab.bottom <= pg.top + 4; }));
   const topBefore = await page.textContent('#ss .s-page .tg');
-  await page.click('#ss .s-behind .itab >> nth=0'); await page.waitForTimeout(1800);
+  await page.click('#ss .s-behind .itab:not(.gtab) >> nth=0'); await page.waitForTimeout(1800);
   ok('a tab brings its resume to the top, and the stack still holds two sheets', (await page.textContent('#ss .s-page .tg')) !== topBefore && (await storyDiff(page)) === '', await storyDiff(page));
-  await page.hover('#ss .s-behind .itab >> nth=0'); await page.waitForTimeout(500);
+  await page.hover('#ss .s-behind .itab:not(.gtab) >> nth=0'); await page.waitForTimeout(500);
   ok('pointing at a page under the top one fans it out a little more', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .s-behind .sheet:hover .sin')).rotate !== 'none'));
   await page.hover('#ss .s-page .pg'); await page.waitForTimeout(500);
-  ok('pointing at the top page lifts it, with a longer shadow', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .s-page')).translate !== 'none' && getComputedStyle(document.querySelector('#ss .s-page .pg')).boxShadow !== getComputedStyle(document.querySelector('#ss .s-behind .sheet .pg')).boxShadow));
+  ok('pointing at the top page lifts it, with a longer shadow', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .s-page')).marginTop === '-10px' && getComputedStyle(document.querySelector('#ss .s-page .pg')).boxShadow !== getComputedStyle(document.querySelector('#ss .s-behind .sheet .pg')).boxShadow));
   const top2 = await page.textContent('#ss .s-page .tg');
-  await page.$eval('#ss .s-behind .sheet .pg', e => e.click()); await page.waitForTimeout(1800);
+  await page.$eval('#ss .s-behind .sheet[data-id] .pg', e => e.click()); await page.waitForTimeout(1800);
   ok('a click anywhere on a page under the top one brings it up', (await page.textContent('#ss .s-page .tg')) !== top2 && (await storyDiff(page)) === '', await storyDiff(page));
   await page.click('#ss .s-tools [data-set="look:mono"]'); await page.waitForTimeout(900);
   ok('the look toggles work: a click on Mono draws the page on top in Mono, and its tab says so', await page.evaluate(() => document.querySelector('#ss .s-page .pg').classList.contains('mono') && /Mono/.test(document.querySelector('#ss .s-page .itab').textContent) && document.querySelector('#ss .s-tools [data-set="look:mono"]').getAttribute('aria-pressed') === 'true'));
   await page.click('#ss .s-tools [data-set="paper:a4"]'); await page.click('#ss .s-tools [data-set="lang:de"]'); await page.waitForTimeout(900);
-  ok('…and so do the language and the paper, with the stack untouched', await page.evaluate(() => { const p = document.querySelector('#ss .s-page .pg'); return p.classList.contains('a4') && /Berufserfahrung|Experience/.test(p.textContent) && p.querySelector('.pf').textContent.includes('DE') && document.querySelectorAll('#ss .s-behind .sheet').length === 2; }) && (await storyDiff(page)) === '', await storyDiff(page));
-  ok('everything landed: the career file goes quiet (no chips, no tags) and comes back when pointed at', await page.evaluate(async () => { const f = document.querySelector('#ss .s-file'), c = getComputedStyle(f.querySelector('.vch')), at = document.querySelector('#ss').dataset.rest; return at === 'true' && +c.opacity < .05; }));
+  ok('…and so do the language and the paper, with the stack untouched', await page.evaluate(() => { const p = document.querySelector('#ss .s-page .pg'); return p.classList.contains('a4') && /Berufserfahrung|Experience/.test(p.textContent) && p.querySelector('.pf').textContent.includes('DE') && document.querySelectorAll('#ss .s-behind .sheet[data-id]').length === 2; }) && (await storyDiff(page)) === '', await storyDiff(page));
   const topId = () => page.evaluate(() => window.__wb.onboarding.start.current().id);
   const before5 = await topId();
   const only = await page.evaluate(() => { const st = window.__wb.onboarding.start.current(); return ['h1', 'h2', 'h3', 'h4', 'h5'].find(id => !st.picks.includes(id) && st.cards.some(c => c.picks.includes(id))); });
   await page.hover(`#ss .s-file .fln[data-k="f-${only}"]`, { position: { x: 12, y: 6 } }); await page.waitForTimeout(2600);
-  ok('pointing at a line of the career file raises the file, lights the line on the resume, and swaps to the resume that has it when the top one does not', (await topId()) !== before5 && (await page.evaluate(() => document.querySelector('#ss .s-page li.hot') !== null && getComputedStyle(document.querySelector('#ss .s-file')).translate !== 'none')) && (await storyDiff(page)) === '', `${before5} → ${await topId()} ${await storyDiff(page)}`);
+  ok('pointing at a line of the career file raises the file, lights the line on the resume, and swaps to the resume that has it when the top one does not', (await topId()) !== before5 && (await page.evaluate(() => document.querySelector('#ss .s-page li.hot') !== null && getComputedStyle(document.querySelector('#ss .s-file')).marginTop === '-6px')) && (await storyDiff(page)) === '', `${before5} → ${await topId()} ${await storyDiff(page)}`);
   await page.hover(`#ss .s-file .fln[data-k="f-${only === 'h2' ? 'h5' : 'h2'}"]`, { position: { x: 12, y: 6 } }); await page.waitForTimeout(2600);
   ok('…and a line the first resume has but this one lacks swaps back', (await topId()) === before5 && (await storyDiff(page)) === '', await storyDiff(page));
   await page.mouse.move(700, 10); await page.waitForTimeout(400);
   ok('…moving off the file puts the light out', await page.evaluate(() => !document.querySelector('#ss .pg li.hot')));
-  await page.click('#ss .stops li[data-n="2"] button'); await page.waitForTimeout(800);
-  ok('a step name goes to that step, and the autoplay stops', (await stepOf(page)) === 2 && /Pick the lines/.test(await page.textContent('#ss .ss-say')) && (await page.getAttribute('#ss', 'data-auto')) === 'false');
+  // the control: the numeral and the chevrons move on, the menu goes to a step, the arrow keys too
+  await page.click('#ss .nprev'); await page.waitForTimeout(600);
+  ok('the way back goes one step back and the autoplay stops', (await stepOf(page)) === 3 && (await navText()) === '3 of 4' && (await page.getAttribute('#ss', 'data-auto')) === 'false');
+  await page.click('#ss .ncur'); await page.waitForTimeout(300);
+  const menuOpen = await page.isVisible('#ss .nmenu');
+  await page.click('#ss .nmenu [data-go="2"]'); await page.waitForTimeout(600);
+  const gone = await stepOf(page), menuShut = !(await page.isVisible('#ss .nmenu'));
+  ok('“3 of 4” opens the list of steps, and a click on a name goes there and closes it', menuOpen && gone === 2 && menuShut, JSON.stringify({ menuOpen, gone, menuShut }));
+  await page.click('#ss .s-lcol .num'); await page.waitForTimeout(600);
+  ok('the big number is the next button', (await stepOf(page)) === 3);
+  await page.mouse.move(700, 880); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(600);
+  ok('the arrow keys move between steps (right goes on)', (await stepOf(page)) === 4);
+  await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(600);
+  ok('…left goes back', (await stepOf(page)) === 2);
+  await page.keyboard.press('1'); await page.waitForTimeout(600);
+  ok('…and a digit goes to that step', (await stepOf(page)) === 1);
   await page.click('#ss [data-act=ob-replay]'); await page.waitForTimeout(900);
-  ok('Replay starts it again from the beginning', (await stepOf(page)) === 1);
+  ok('Replay starts it again from the beginning, and the autoplay runs again', (await stepOf(page)) === 1 && (await page.getAttribute('#ss', 'data-auto')) === 'true');
 
   // language chips preview in place, on hover; a click keeps it
   const chipBefore = await page.evaluate(() => { const c = document.querySelector('.oblang[data-l=de]'); c.dataset.mark = 'same'; return document.querySelector('#head .obhero').textContent; });
@@ -2953,22 +2967,13 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     await ctx.close();
   }
   {
-    const ctx = await newContext({ motion: true, viewport: { width: 1440, height: 900 } });
-    const page = await ctx.newPage();
-    const bad = await open(page, '?memory&welcome&intro=left');
-    const g = await page.evaluate(() => { const col = document.querySelector('#col').getBoundingClientRect(), ss = document.querySelector('#ss .ss-steps').getBoundingClientRect(), card = document.querySelector('#body').getBoundingClientRect(), file = document.querySelector('#ss .fcard').getBoundingClientRect(); return { colLeft: col.left, colRight: col.right, ssLeft: ss.left, cardTop: card.top, fileTop: file.top }; });
-    ok('?intro=left: the column is on the left and the story has the rest, clear of it, with the career file level with the ways-in card', g.colLeft < 40 && g.colRight <= g.ssLeft && Math.abs(g.cardTop - g.fileTop) < 14, JSON.stringify(g));
-    ok('no console errors', bad.length === 0, bad[0] ?? '');
-    await ctx.close();
-  }
-  {
     const ctx = await newContext({ motion: true, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const page = await ctx.newPage();
     const bad = await open(page, '?memory&welcome');
     const at = await page.evaluate(() => ['#head', '#body', '#startstage', '#foot'].map(s => Math.round(document.querySelector(s).getBoundingClientRect().top + document.querySelector('#col').scrollTop)));
     ok('a phone: stacked, the buttons first, then the picture, then what you keep', at[0] < at[1] && at[1] < at[2] && at[2] < at[3], JSON.stringify(at));
     ok('…nothing runs off the side', (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390 && (await page.evaluate(() => { const s = document.querySelector('#ss').getBoundingClientRect(); return s.left >= 0 && s.right <= innerWidth + 1; })));
-    ok('…the step’s words stand under the picture', await page.evaluate(() => getComputedStyle(document.querySelector('#ss .ss-say')).display === 'block' && document.querySelector('#ss .ss-say').textContent.length > 20));
+    ok('…the board is as wide as the column and keeps its proportions', await page.evaluate(() => { const r = document.querySelector('#ss').getBoundingClientRect(); return r.width > 300 && r.height > 200 && r.height < 800; }));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }

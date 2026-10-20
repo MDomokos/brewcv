@@ -158,7 +158,7 @@ for (const lang of I.UI_LANGS){
   const bad = await pg.evaluate(() => {
     const out = [];
     // UX-3: the start screen's own labels fit where they are drawn
-    for (const el of document.querySelectorAll('.obchoices b, .obchoices small, .oblang, .obhero, .obsub, .obtile b, .obtile p, .stops button, .ss-say, .obreplay')){
+    for (const el of document.querySelectorAll('.obchoices b, .obchoices small, .oblang, .obhero, .obsub, .obtile b, .obtile p, .ncur, .nmenu button, .num, .nlabel, .cap, .mrow .t, .obreplay')){
       if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).display !== 'inline') out.push(`“${el.textContent.trim().slice(0, 30)}” is cut`);
     }
     const col = document.querySelector('#col');

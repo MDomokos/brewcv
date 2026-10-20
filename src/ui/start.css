@@ -13,10 +13,6 @@ body.is-intro .pagelay, body.is-intro .ovlay, body.is-intro .editlay { display: 
 body.is-intro .startstage { opacity: 1; visibility: visible; pointer-events: none; transition: opacity .4s var(--ease) .1s, visibility 0s 0s; }
 body.is-intro .startstage .ss { pointer-events: auto; }
 
-/* option: the column on the left (?intro=left), the pages having the rest of the width and running off the right edge as well as the bottom */
-body.is-intro[data-intro-side="left"] .col { left: var(--G) !important; right: auto !important; width: 392px !important; }
-body.is-intro[data-intro-side="left"] .startstage { left: calc(392px + 2 * var(--G)); width: calc(100vw - 392px - 3 * var(--G)); }
-
 /* the column on the start screen: the header and the footer sit on the canvas; the inspector is the one card */
 body.is-intro .col { background: none; border: 0; box-shadow: none; border-radius: 0; gap: var(--G); justify-content: flex-start; overflow-y: auto; scrollbar-width: none; padding: 8px 2px; }
 body.is-intro .col > #head, body.is-intro .col > #foot { background: transparent; border: 0; border-radius: 0; box-shadow: none; --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); color: var(--ink); flex: none; height: auto; }
@@ -61,93 +57,145 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .obtile b { font-size: 12px; color: var(--ink); }
 .obtile p { margin: 0; font-size: 12px; line-height: 1.35; color: var(--ink-soft); }
 
-/* ---------- the story (src/ui/story.js, Intro Lab v17) ---------- */
-/* the 1280-wide stage (scaled by story.js to the page area's width; its pages run on off the bottom of the screen) under the step line and the caption, drawn straight on the canvas: its ink and lines are
-   the canvas's; the paper is light in every theme; the career file is the panel's own surface; the step card is the constant chrome. */
-.ss { --bd-ink: var(--st-ink); --bd-soft: var(--st-soft); --bd-line: var(--st-line); --card-bg: var(--st-card);
-  position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; height: 100%; padding: 0; color: var(--bd-ink); font: 14px/1.45 var(--font-ui); }
-.ss-bar { position: relative; flex: none; padding-top: 24px; }
-.ss-say, .ss-steps { width: calc(var(--sw, 1280) * 1px * var(--sc, 1)); padding-left: calc(32px * var(--sc, 1)); padding-right: calc(32px * var(--sc, 1)); }
-.stlbl { font: 12px/1 var(--font-mono); color: var(--bd-soft); text-transform: uppercase; letter-spacing: .06em; }
-/* Replay: a small round button at the end of the step line, in the right margin */
-.obreplay { position: absolute; right: calc(3px * var(--sc, 1)); top: 56px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; min-height: 0; border-radius: var(--r-round); border: 1px solid var(--bd-line); background: transparent; color: var(--bd-ink); cursor: pointer; }
-.obreplay:hover { border-color: var(--bd-ink); }
-.ss-wrap { position: relative; flex: 1; min-height: 0; }
-.sst { position: absolute; left: 0; top: 0; width: 1280px; height: 1300px; transform-origin: 0 0; }
-.sst .slot { position: absolute; transition: opacity .35s ease, transform .55s var(--ease); }
+/* ---------- the story (src/ui/story.js; the board of mockup E2) ---------- */
+/* The board is the story's window on the table: a framed panel with a 12 px rim stitched on its inside, drawn in front of everything so a page
+   that runs on runs under the rim. Inside it a 1022-wide stage (scaled to the board's width by story.js); positions below are in stage pixels.
+   Per step the file, the page and the stack travel by custom properties on .sst[data-step], so a step change is a move, not a cut. */
+:root { --board: var(--input); --fback: var(--raised); --fy: 272px; --lit: 405px; }
+html[data-drink="coffee"] { --board: var(--band-bg); --fback: var(--foam-soft); }
+
+/* the picture takes the whole page area left of the column, from edge to edge */
+body.is-intro .startstage { width: var(--colleft, var(--startw, calc(100vw - 440px))); }
+.ss { --bd-ink: var(--band-ink); --bd-soft: var(--band-ink-soft); --bd-line: var(--band-line); --st-board: var(--board); --dog: var(--board);
+  position: absolute; left: 16px; right: 10px; top: 16px; bottom: 16px; overflow: hidden;
+  background: var(--board); border: 1px solid var(--line); border-radius: var(--r-panel); box-shadow: var(--shadow-panel); color: var(--band-ink); font: 14px/1.45 var(--font-ui); }
+.ss::before { content: ""; position: absolute; inset: 12px; border: 1.5px dashed var(--line); border-radius: calc(var(--r-panel) - 12px); pointer-events: none; z-index: 26; }
+.ss .frame { position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 12px var(--board); pointer-events: none; z-index: 25; }
+.ss .rimshade { position: absolute; left: 12px; right: 12px; bottom: 12px; height: 8px; background: color-mix(in srgb, var(--board) 55%, transparent); pointer-events: none; z-index: 24; }
+.sst { position: absolute; left: 0; top: 0; width: 1022px; transform-origin: 0 0; --card-bg: var(--st-card); }
+.sst .slot { position: absolute; }
 .sst .slot.hide { opacity: 0; pointer-events: none; }
 .sst .fx { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
-.sst .s-file { left: 32px; top: var(--file-top, 88px); transform-origin: 0 0; transform: scale(.86); }
-.sst .s-page, .sst .s-behind { --pz: 1.8; left: 420px; top: 200px; transform-origin: 0 0; transform: scale(var(--pz, 1)); }
-.sst .s-page.hide { transform: translateY(40px) scale(var(--pz, 1)); }
-.sst .s-tools, .sst .s-slips { left: 32px; top: 424px; width: 352px; }
-.sst .s-tools { z-index: 12; }
-.sst .s-job { left: 32px; top: 24px; }
-.sst .s-file.hero { transform: translate(calc(var(--sw, 1280) * .5px - 362px), 240px) scale(1.1); }
+.anchor, .anchor2 { position: absolute; left: 0; top: var(--fy); width: 1px; height: 1px; } .anchor2 { top: var(--lit); }
+.stlbl { font: 12px/1 var(--font-mono); color: var(--bd-soft); text-transform: uppercase; letter-spacing: .06em; }
+/* Replay: a small round button in the board's top right */
+.ss .replay { position: absolute; right: 24px; top: 24px; z-index: 30; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; min-height: 0; border-radius: var(--r-round); border: 1px solid var(--band-line); background: var(--board); color: var(--band-ink-soft); cursor: pointer; opacity: .8; }
+.ss .replay:hover { opacity: 1; color: var(--band-ink); border-color: var(--band-ink); }
 
-/* the step line */
-.ss-say { margin: 6px 0 0; min-height: 2.8em; font-size: 13.5px; line-height: 1.4; color: var(--bd-ink); }
-.ss-steps { position: relative; flex: none; padding-top: 8px; padding-bottom: 12px; user-select: none; cursor: pointer; outline-offset: 4px; }
-.stops { display: grid; grid-template-columns: repeat(var(--n), 1fr); list-style: none; margin: 0; padding: 0; }
-.stops li { display: flex; justify-content: center; }
-.stops button { display: flex; align-items: center; gap: 7px; border: 0; background: none; cursor: pointer; padding: 2px 6px 8px; font: 400 14.5px/1.3 var(--font-ui); color: var(--bd-soft); text-align: left; }
-.stops .num { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-round); border: 1.5px solid currentColor; font: 700 12px/1 var(--font-ui); }
-.stops li.done button { color: var(--bd-ink); }
-.stops li.on button { color: var(--bd-ink); font-weight: 700; }
-.stops li.on .num { background: var(--bd-ink); border-color: var(--bd-ink); color: var(--st-board); }
-.track { position: relative; height: 4px; margin: 0 calc(50% / var(--n)); background: var(--bd-line); border-radius: 2px; }
-.track .fill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p) * 100%); background: var(--accent); border-radius: 2px; transition: width .45s ease; }
-.track b { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: var(--r-round); background: var(--bd-line); }
-.track b.done { background: var(--accent); }
-.track .knob { position: absolute; top: 50%; left: calc(var(--p) * 100%); width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: var(--r-round); background: var(--accent); border: 3px solid var(--st-board); box-shadow: 0 0 0 1.5px var(--accent); transition: left .45s ease; }
+/* the step control: quiet, top left, above the big number; its menu opens over the caption, never over a page */
+.nav { position: absolute; left: 40px; top: 34px; z-index: 8; display: flex; align-items: center; gap: 4px; }
+.chev { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px solid var(--band-line); border-radius: var(--r-round); background: none; color: var(--band-ink-soft); cursor: pointer; }
+.chev:hover:not(:disabled) { color: var(--band-ink); border-color: var(--band-ink); }
+.chev:disabled { opacity: .3; cursor: default; }
+.stepmenu { position: relative; }
+.ncur { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--r-pill); background: none; color: var(--band-ink-soft); font: 400 11px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .1em; cursor: pointer; }
+.ncur::after { content: ""; width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-1px) rotate(45deg); }
+.ncur .cn { color: var(--accent); font-weight: 700; }
+.ncur:hover, .stepmenu.open .ncur { color: var(--band-ink); border-color: var(--band-line); }
+.nmenu { display: none; position: absolute; left: 0; top: calc(100% + 6px); width: 272px; margin: 0; padding: 6px; list-style: none; background: var(--pop); border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--shadow-chip); }
+.stepmenu:hover .nmenu, .stepmenu.open .nmenu, .stepmenu:focus-within .nmenu { display: block; }
+.stepmenu.shut .nmenu { display: none; }
+.nmenu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
+.nmenu button { display: flex; align-items: center; gap: 12px; width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: var(--r-s); background: none; color: var(--ink); font: 400 14px/1 var(--font-ui); text-align: left; cursor: pointer; }
+.nmenu button b { font: 700 12px/1 var(--font-mono); color: var(--accent); width: 12px; }
+.nmenu button:hover { background: var(--hover-strong); }
+.nmenu li.on button { background: var(--accent-soft); font-weight: 700; }
 
-/* the stage is laid on an 8px grid with a 32px margin: the left column (x 32, 352 wide) holds the job, the career file and, under it, whatever belongs to the step
-   (the slips of a line, the look and the ways to send); the page is at x 420 over the file's right edge, zoomed 1.8 times, with the stack fanned out behind it
-   and a tag on each sheet's top edge */
-/* the career file: the panel's own surface */
-/* once everything has landed the career file goes quiet (no chips, no tags, no ticks) and comes back when it is pointed at */
-.vch, .ftag, .fcard, .fln { transition: opacity .3s ease, background-color .3s ease, box-shadow .25s ease; }
-.ss[data-rest="true"] .s-file:not(:hover) .fcard { opacity: .72; }
-.ss[data-rest="true"] .s-file:not(:hover) :is(.vch, .ftag) { opacity: 0; }
-.ss[data-rest="true"] .s-file:not(:hover) .fln.used { background: transparent; }
-/* pointing at the career file raises it over the pages */
-.sst .s-file { transition: opacity .35s ease, transform .55s var(--ease), translate .25s var(--ease); }
-.sst .s-file:hover { z-index: 11; translate: 0 -6px; }
-/* …and the pages make way, so the line it points at can be read on the resume (the sheets sliding in a swap move with them) */
-.sst .s-behind { transition: translate .25s var(--ease); }
-.sst .s-file:hover ~ .s-page, .sst .s-file:hover ~ .s-behind, .sst .s-file:hover ~ .fx .sg { translate: 72px 0; }
+/* the big number and its sentence: the only step indicator, top left in every step */
+.s-lcol { left: 44px; top: 64px; width: 300px; z-index: 5; }
+.num { display: block; margin: 0; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; transition: translate .15s, filter .15s; font-size: 76px; line-height: .92; font-weight: 800; letter-spacing: -.04em; color: var(--accent); }
+.num:hover { translate: 4px 0; filter: brightness(1.12); }
+.num.chg { animation: stpop .4s ease-out; }
+.num small { font-size: 38px; font-weight: 700; letter-spacing: -.02em; color: var(--band-ink-soft); }
+.num small.plus { color: var(--accent); }
+.nlabel { display: block; margin-top: 6px; font-size: 17px; font-weight: 700; }
+.cap { margin: 12px 0 0; font-size: 15px; line-height: 1.45; text-wrap: pretty; }
+.num .aa { display: block; }
+.s-lcol[data-look="serif"] .aa { font: 400 80px/.95 Georgia, "Times New Roman", serif; letter-spacing: -.02em; }
+.s-lcol[data-look="mono"] .aa { font: 400 70px/1 var(--font-mono); letter-spacing: -.05em; }
+.s-lcol[data-look="marker"] .aa { font: 800 76px/.95 var(--font-ui); letter-spacing: -.04em; box-shadow: inset 0 -.14em 0 var(--sample-1); }
+
+/* where things are in each step: the file, the page and the stack travel between these (stage px) */
+.sst[data-step="1"] { --pgx: 62px; --pgy: 100px; }
+.sst[data-step="2"] { --pgx: 62px; --pgy: 40px; }
+.sst[data-step="3"] { --pgx: 62px; --pgy: 0px; }
+.sst[data-step="4"] { --pgx: 0px; --pgy: var(--pgy4, 116px); }
+
+/* the career file: partly behind the page in steps 2 to 4, and it rises over the page when pointed at (the page makes way) */
+.s-file { left: 44px; top: var(--fy); width: 600px; z-index: 2; transform-origin: 0 0; scale: var(--fsc, 1); translate: var(--fxs, 0px) 0; margin-top: 0;
+  transition: translate .7s var(--ease), scale .7s var(--ease), margin .25s var(--ease), opacity .35s ease; }
+.sst[data-step="1"] .s-file { --fxs: 320px; --fsc: 1.017; z-index: 3; }
+.s-file:hover { z-index: 6; margin-top: -6px; }
+.fcard { width: 600px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-lift); padding: 10px 0 12px; color: var(--ink); font: 16px/1.65 var(--font-mono); transition: box-shadow .25s; }
 .s-file:hover .fcard { box-shadow: var(--st-sh-lift); }
-.fcard { width: 600px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-lift); padding: 10px 0 12px; color: var(--ink); font: 12px/1.65 var(--font-mono); }
-.fh { display: flex; align-items: baseline; gap: 10px; padding: 10px 16px 8px; margin-top: -10px; margin-bottom: 6px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--fill); border-radius: var(--r-m) var(--r-m) 0 0; }
-.fh b { font: 400 15px/1.2 var(--font-mono); }
-.fln { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; white-space: nowrap; min-height: 19.8px; transition: opacity .4s, background-color .3s; }
-.fcard .cd { padding-left: calc(var(--i) * 2ch); overflow: hidden; text-overflow: ellipsis; }
+.fh { display: flex; align-items: baseline; gap: 10px; padding: 12px 18px 10px; margin-top: -10px; margin-bottom: 6px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--fill); border-radius: var(--r-m) var(--r-m) 0 0; }
+.fh b { font: 400 17px/1.2 var(--font-mono); }
+.fln { position: relative; display: flex; align-items: center; gap: 8px; min-height: 26.4px; padding: 0 12px 0 18px; white-space: nowrap; transition: opacity .4s, background-color .3s; }
+.fcard .cd { padding-left: calc(var(--i) * 1.2ch); overflow: hidden; text-overflow: ellipsis; }
 .fcard .k { color: var(--label); } .fcard .p { color: var(--faint); }
-.fln .fmk { position: absolute; left: 5px; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; }
+.fln .fmk { position: absolute; left: 6px; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; }
+.fln.ext { max-height: 40px; overflow: hidden; transition: max-height .6s var(--ease), min-height .6s var(--ease), opacity .4s, background-color .3s; }
+.sst:not([data-step="1"]) .fln.ext { max-height: 0; min-height: 0; opacity: 0; }
+.mt { display: none; } .sst:not([data-step="1"]) .mt { display: inline; }
 .fln.used { background: var(--accent-soft); }
-.fln.hl:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); opacity: 1; }
 .fln.used .fmk { background: var(--accent); }
-.fln.off { opacity: .42; }
+.fln.hl:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 .fln.flash { animation: stglow .95s ease-out; }
 .fln.editing { outline: 1.5px dashed var(--accent); outline-offset: -2px; }
 @keyframes stglow { 0%, 30% { background: color-mix(in srgb, var(--accent) 45%, transparent); } }
-.vch { margin-left: auto; display: flex; gap: 3px; flex: none; }
-.vch i, .vt { font: 10.5px/1 var(--font-mono); font-style: normal; padding: 2px 5px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); color: var(--ink-soft); background: transparent; }
-.fln .vch { margin-left: 2px; }
-.fcard .vch i.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.vch i[data-new] { animation: stpop .5s ease-out, stchip 1.2s ease-out; }
-.vt { margin-right: 6px; }
-@keyframes stchip { 0%, 40% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 50%, transparent); } }
-.ftag { font: 10.5px/1 var(--font-mono); font-style: normal; padding: 2px 6px; border-radius: var(--r-pill); color: var(--label); border: 1px dashed var(--line-strong); margin-left: 4px; }
-.ftag.lit { background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); animation: stchip 1.4s ease-out; }
+@keyframes stpop { 0% { transform: scale(1.18); } 100% { transform: none; } }
 .nw { animation: stnw 1.8s ease-out; border-radius: 3px; }
 @keyframes stnw { 0%, 35% { background: var(--accent); color: var(--on-accent); } 100% { background: transparent; } }
-@keyframes stpop { 0% { transform: scale(1.18); } 100% { transform: none; } }
 
-/* the resume page: paper in every theme */
+/* step 1: the old documents drop into the file one by one; the list beside them counts them in */
+.s-manifest { left: 44px; top: 296px; width: 296px; }
+.s-manifest h3 { margin: 0 0 10px; font: 400 11px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .1em; color: var(--band-ink-soft); }
+.mrow { display: flex; align-items: center; gap: 14px; height: 54px; border-top: 1px solid var(--line); transition: opacity .4s; }
+.mrow .old { zoom: .48; flex: none; box-shadow: var(--st-sh-s1); } .mrow .old .oyr { display: none; }
+.mrow .t { font-size: 14.5px; font-weight: 700; white-space: nowrap; }
+html[data-drink="coffee"] .mrow .t { font-size: 12.5px; font-weight: 400; }
+.mrow .s { margin-left: auto; white-space: nowrap; font: 400 11px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--band-ink-soft); }
+.mrow.in .s { color: var(--accent); } .mrow.in .s::before { content: "\2713  "; }
+.mrow.wait { opacity: .5; } .mrow.fly .t { color: var(--accent); }
+.mrow.ghost { height: 44px; } .mrow.ghost .gh { width: 46px; height: 30px; border: 1.5px dashed var(--band-ink-soft); border-radius: 3px; flex: none; }
+.mrow.ghost .t { font-weight: 400; color: var(--band-ink-soft); font-size: 13px; line-height: 1.3; white-space: normal; }
+html[data-drink="coffee"] .mrow.ghost .t { font-size: 12px; }
+.s-folder { left: 364px; top: var(--fy); width: 610px; z-index: 1; }
+.fback { position: absolute; left: -8px; right: -8px; top: -44px; bottom: 8px; background: var(--fback); border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--shadow-panel); }
+.fp { position: absolute; z-index: 2; width: 138px; height: 180px; left: var(--l); top: var(--ti); rotate: var(--r); transition: top .8s cubic-bezier(.5, 0, .9, .6), left .8s, opacity .5s, rotate .8s; }
+.fp.air { top: var(--ta); left: var(--la); rotate: var(--ra); }
+.fp.far { top: var(--tf); left: var(--lf); opacity: .5; rotate: var(--ra); }
+.fp.gone { top: var(--tf); left: var(--lf); opacity: 0; }
+.fp .old { width: 92px; height: 120px; transform: scale(1.5); transform-origin: 0 0; }
+.flabel { position: absolute; left: 50%; top: calc(100% + 24px); transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 24px; background: var(--tag-bg); color: var(--tag-ink); border: 1px solid var(--tag-line); border-radius: var(--r-s); box-shadow: var(--shadow-lift); font: 700 13.5px/1.2 var(--font-ui); white-space: nowrap; }
+.flabel::before { content: ""; position: absolute; left: 8px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--tag-hole); border: 1px solid var(--tag-line); }
+.flabel small { font: 400 12px/1.2 var(--font-mono); opacity: .85; }
+/* an old document: a small page with a look of its own (the bars stand for the words) */
+.old { position: relative; width: 92px; height: 120px; margin: 0; background: var(--paper); outline: 1px solid var(--st-edge); box-shadow: var(--st-sh-s1); color: var(--paper-ink); }
+.old .in { position: absolute; inset: 0; padding: 10px 9px; overflow: hidden; }
+.old s { display: block; height: 3px; margin: 3.5px 0; background: var(--skel-strong); border-radius: 1px; opacity: .7; }
+.old s.h { height: 6px; background: var(--paper-ink); opacity: .85; } .old s.c { margin-left: auto; margin-right: auto; }
+.old s.g { height: 3px; background: none; }
+.old s.y { height: 7px; background: var(--sample-1); opacity: 1; }
+.old s.dbl { height: 4px; background: none; border-top: 1px solid var(--paper-ink); border-bottom: 1px solid var(--paper-ink); opacity: .7; }
+.old s.rule { height: 1px; background: var(--paper-ink); opacity: .6; }
+.old s.dot { margin-left: 7px; position: relative; } .old s.dot::before { content: ""; position: absolute; left: -7px; top: -.5px; width: 4px; height: 4px; border-radius: 50%; background: var(--paper-ink); opacity: .7; }
+.old s.dash { background: repeating-linear-gradient(90deg, var(--paper-soft) 0 3px, transparent 3px 5px); opacity: .7; }
+.old .band { display: block; margin: -10px -9px 0; padding: 9px; height: 30px; background: var(--surface); } .old .band s { background: var(--ink); opacity: .9; }
+.old .side { position: absolute; left: 0; top: 0; bottom: 0; width: 30%; background: var(--paper-fill-strong); } .old .rt { margin-left: 36%; }
+.old .photo { position: absolute; right: 9px; top: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--paper-fill-strong); border: 1px solid var(--skel-strong); }
+.old .dog { position: absolute; right: 0; top: 0; width: 14px; height: 14px; background: linear-gradient(225deg, var(--dog, var(--stage)) 50%, var(--paper-fill-strong) 50%); box-shadow: -1px 1px 0 var(--st-edge); }
+.old .oyr { position: absolute; right: 19px; top: 5px; font: 400 9px/1 var(--font-mono); font-style: normal; color: var(--paper-soft); }
+
+/* the resume page: paper in every theme; pointing at it lifts it, a click on one under it brings it up */
+.s-page, .s-behind { left: 388px; top: 72px; z-index: 3; transform-origin: 0 0; scale: 1.3; translate: calc(var(--pgx, 62px)) var(--pgy, 0px); margin: 0;
+  transition: translate .7s var(--ease), margin .25s var(--ease), opacity .35s ease; }
+.s-page:hover { margin-top: -10px; }
+.s-file:hover ~ .s-page, .s-file:hover ~ .s-behind, .s-file:hover ~ .fx .sg { margin-left: 30px; }
 .pg { position: relative; width: 400px; height: 518px; padding: 32px 36px; overflow: hidden; background: var(--paper); color: var(--paper-ink); font: 12.5px/1.5 "Hanken Grotesk", sans-serif;
-  box-shadow: var(--st-sh-front); outline: 1px solid var(--st-edge); outline-offset: -1px; transition: height .6s ease; }
+  box-shadow: var(--st-sh-front); outline: 1px solid var(--st-edge); outline-offset: -1px; transition: height .6s ease, box-shadow .25s ease; }
 .pg.a4 { height: 566px; }
+.s-page:hover .pg { box-shadow: var(--st-sh-lift); }
 .pg.blank { background: transparent; box-shadow: none; outline: 1.5px dashed var(--bd-line); display: grid; place-items: center; }
 .pg .ph { font: 13px/1 var(--font-ui); color: var(--bd-soft); }
 .pg header { margin-bottom: 4px; }
@@ -184,54 +232,50 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .stghost span { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); white-space: nowrap; }
 .sheetghost { z-index: 9; }
 
-/* pointing at a page lifts it; a page under the top one fans out a little more, and a click brings it up */
-.sst .s-page { transition: opacity .35s ease, transform .55s var(--ease), translate .25s var(--ease); }
-.sst .s-page:hover { translate: 0 -10px; }
-.s-page .pg { transition: height .6s ease, box-shadow .25s ease; }
-.s-page:hover .pg { box-shadow: var(--st-sh-lift); }
-.sin { transform-origin: 0 100%; transition: rotate .3s var(--ease), translate .3s var(--ease); }
-.s-behind .sheet { cursor: pointer; }
-.s-behind .sheet:hover .sin { rotate: 2.5deg; translate: 6px -8px; }
-.itab { cursor: pointer; }
-
-/* the stack: shadows follow height (the top page casts the longest, each sheet under it a shorter one), the tabs stick out of each sheet's right edge */
+/* the stack: shadows follow height (the top page casts the longest, each sheet under it a shorter one), a tag on each sheet's top edge, and a dashed place for the next resume */
 .sheet { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .sheet .pg { box-shadow: var(--st-sh-s1); }
 .sheet.d2 .pg { box-shadow: var(--st-sh-s2); }
-.sheet .pg::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: color-mix(in srgb, var(--st-board) 22%, transparent); }
-.sheet.d2 .pg::after { background: color-mix(in srgb, var(--st-board) 38%, transparent); }
+.sheet .pg::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: color-mix(in srgb, var(--board) 22%, transparent); }
+.sheet.d2 .pg::after { background: color-mix(in srgb, var(--board) 38%, transparent); }
 .sheet.d0 .pg::after { display: none; }
 .sg { position: absolute; transform-origin: 0 0; will-change: transform; }
-.itab { position: absolute; bottom: 100%; margin-bottom: -1px; display: grid; gap: 1px; padding: 5px 10px 4px; text-align: left; cursor: pointer; white-space: nowrap; box-shadow: none;
-  background: var(--tag-bg); color: var(--tag-ink); border: 1px solid var(--tag-line); border-bottom: 0; border-radius: var(--r-s) var(--r-s) 0 0; font: 12.5px/1.2 var(--font-ui); }
-.itab b { font-size: 12px; } .itab span { opacity: .75; font-size: 10.5px; font-weight: 400; }
-.itab:hover:not(:disabled) { filter: brightness(1.05); transform: none; }
-html[data-drink="tea"] .itab { background: var(--paper); color: var(--paper-ink); border-color: var(--st-edge); }
-html[data-drink="tea"] .itab span { color: var(--paper-soft); opacity: 1; }
+.s-behind .sheet { cursor: pointer; }
+.sin { transform-origin: 0 100%; transition: rotate .3s var(--ease), translate .3s var(--ease); }
+.s-behind .sheet:hover .sin { rotate: 2.5deg; translate: 6px -8px; }
+.sghost .gpg { width: 400px; height: 518px; border: 2px dashed var(--band-ink-soft); border-radius: 2px; background: color-mix(in srgb, var(--band-ink) 5%, transparent); }
+.itab { position: absolute; bottom: 100%; margin-bottom: -1px; display: grid; gap: 1px; padding: 5px 10px 4px; text-align: left; cursor: pointer; white-space: nowrap; background: var(--paper); color: var(--paper-ink);
+  border: 1px solid var(--st-edge); border-bottom: 0; border-radius: var(--r-s) var(--r-s) 0 0; font: 13px/1.2 var(--font-ui); }
+.itab b { font-size: 12.5px; } .itab span { color: var(--paper-soft); font-size: 10.5px; font-weight: 400; }
+.itab:hover { filter: brightness(1.05); }
+.itab.gtab { background: none; border: 1.5px dashed var(--band-ink-soft); border-bottom: 0; color: var(--band-ink-soft); cursor: default; } .gtab b { font-weight: 400; font-size: 11.5px; }
 
-/* the other wordings of a line, as slips under the page's edge, sliding out one after another */
-.s-slips .sh { margin: 0 0 8px; padding-left: 44px; font-size: 12.5px; color: var(--bd-soft); }
-.slip { display: flex; gap: 6px; align-items: baseline; width: 100%; margin-bottom: 8px; padding: 7px 10px 7px 44px; background: var(--paper); color: var(--paper-ink); border: 1px solid var(--bd-line); border-radius: var(--r-s);
-  box-shadow: var(--shadow-lift); outline: 2px solid transparent; font-size: 13px; transition: transform .45s var(--ease), box-shadow .3s, outline-color .3s; }
-.slip .vt { border-color: var(--bd-line); color: var(--paper-soft); }
-.slip.on .vt { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper); }
+/* the other wordings of a line, as slips under the file, sliding out one after another */
+.s-slips { left: 44px; top: 612px; width: 392px; z-index: 4; }
+.slips .sh, .s-slips .sh { margin: 0 0 9px; font-size: 13px; color: var(--band-ink-soft); }
+.slip { display: flex; gap: 8px; align-items: baseline; margin-bottom: 7px; padding: 8px 12px; background: var(--paper); color: var(--paper-ink); border-radius: var(--r-s); box-shadow: var(--shadow-lift); outline: 2px solid transparent; font-size: 13.5px; line-height: 1.3; white-space: nowrap; transition: transform .45s var(--ease), box-shadow .3s, outline-color .3s; }
+.slip .vt { font: 10.5px/1 var(--font-mono); font-style: normal; padding: 2px 5px; border: 1px solid var(--paper-line); border-radius: var(--r-pill); color: var(--paper-soft); }
 .s-slips.hide .slip { transform: translateY(-14px); }
-.slip.on { transform: translateX(8px); outline-color: var(--accent); box-shadow: var(--shadow-chip); }
+.slip.on { transform: translateX(8px); outline-color: var(--accent); box-shadow: var(--shadow-chip); width: calc(100% - 8px); }
+.slip.on .vt { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper); }
 .slip.draft { border-style: dashed; color: var(--paper-soft); font-style: italic; }
 
-/* floating controls over the page: the look, what it is sent as, the job */
-.float { display: inline-flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card-bg); border: 1px solid var(--bd-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); }
-.tools { display: grid; gap: 8px; width: 100%; }
+/* the job above the page (step 2) and the toolbar under the file (steps 3 and 4) */
+.s-job { left: 450px; top: 44px; width: 470px; z-index: 4; }
+.jobcard { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 9px 14px; background: var(--paper-wash); color: var(--paper-soft); border: 1px solid var(--paper-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); font-size: 13.5px; }
+.jobcard b { color: var(--paper-ink); font-size: 14.5px; } .jobcard .stlbl { color: var(--paper-soft); }
+.s-tools { left: 44px; top: 612px; width: 318px; z-index: 4; }
+.sst[data-step="3"] .s-tools { width: 392px; }
+.float { --bd-ink: var(--paper-ink); --bd-soft: var(--paper-soft); --bd-line: var(--paper-line); --card-bg: var(--paper-wash); color: var(--paper-ink);
+  display: grid; gap: 12px; width: 100%; padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--bd-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); }
+.float .stlbl { color: var(--paper-soft); min-width: 74px; }
 .trow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 6px; }
 .sgm { display: inline-flex; border: 1px solid var(--bd-line); border-radius: var(--r-pill); padding: 2px; gap: 2px; background: var(--card-bg); }
-.sgm i { font-style: normal; padding: 4px 10px; border-radius: var(--r-pill); font-size: 13px; color: var(--bd-soft); cursor: pointer; }
+.sgm i { font-style: normal; padding: 5px 12px; border-radius: var(--r-pill); font-size: 14px; color: var(--bd-soft); cursor: pointer; }
 .sgm i:hover:not(.on) { color: var(--bd-ink); background: var(--accent-soft); }
 .sgm i.on { background: var(--bd-ink); color: var(--card-bg); }
 .sgm i.chg { animation: stpop .5s ease-out; }
-.xchip { font-style: normal; font-size: 13px; padding: 4px 8px; border: 1px solid var(--bd-line); border-radius: var(--r-s); background: var(--card-bg); }
-.jobcard { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; width: 352px; padding: 9px 14px; background: var(--card-bg); border: 1px solid var(--bd-line); border-radius: var(--r-l); box-shadow: var(--shadow-chip); font-size: 13px; color: var(--bd-soft); }
-.jobcard b { color: var(--bd-ink); font-size: 14px; }
-
+.xchip { font-style: normal; font-size: 14px; padding: 6px 11px; border: 1px solid var(--bd-line); border-radius: var(--r-s); background: var(--card-bg); }
 @media (prefers-reduced-motion: reduce){ .ss, .ss * { transition: none !important; animation: none !important; } }
 
 /* ---------- a narrower window and a phone ---------- */
@@ -239,13 +283,8 @@ body[data-phone=true].is-intro .col { position: fixed; inset: 0 !important; widt
 body[data-phone=true].is-intro .col > #head, body[data-phone=true].is-intro .col > #foot { display: block; }
 body[data-phone=true].is-intro .col > #body { flex: none; width: auto; overflow: visible; border: 0; box-shadow: none; background: none; padding: 0; }
 body[data-phone=true].is-intro .startstage { position: static; width: auto; display: block; order: 3; overflow: visible; }
-body[data-phone=true] .ss { height: auto; }
-body[data-phone=true] .obreplay { top: auto; bottom: 6px; right: 6px; }
-body[data-phone=true] .ss-say { padding-right: 44px; }
-body[data-phone=true] .ss-wrap { flex: none; overflow: hidden; }
 body[data-phone=true].is-intro .col > #head { order: 1; } body[data-phone=true].is-intro .col > #body { order: 2; } body[data-phone=true].is-intro .col > #foot { order: 4; }
-body[data-phone=true] .ss { width: 100%; }
-body[data-phone=true] .stops button { flex-direction: column; gap: 3px; text-align: center; font-size: 12px; }
+body[data-phone=true] .ss { position: relative; inset: auto; width: 100%; }
 body[data-phone=true] .obkeep__grid { grid-template-columns: 1fr; }
 
 /* a short window: the three areas tighten, and the column scrolls if it still does not fit */
