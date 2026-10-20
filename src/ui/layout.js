@@ -35,8 +35,8 @@ export const clampZoom = z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number.isFin
 
 // `wide`: on a phone, the panel is the whole screen.
 // zoom: 1 is the whole page fitted to the window.
-// `slim`: the start screen and the first questions: the column is 32% of the window (380 to 480px) and has no rail.
-export const SLIM_MIN = 380, SLIM_MAX = 480;
+// `slim`: the start screen and the first questions: the column is 27% of the window (340 to 392px) and has no rail.
+export const SLIM_MIN = 340, SLIM_MAX = 392;
 export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = false, slim = false, oneUp = false }){
   const { w, h } = pageSize(format);
   const n = Math.max(1, pages);
@@ -56,7 +56,7 @@ export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = fals
   }
   const tall = (vh - 2 * G) / h;
   const rowW = k => k * w + (k - 1) * PAGE_GAP;
-  const colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.32))) : sideWidth(vw, vh, oneUp);
+  const colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.272))) : sideWidth(vw, vh, oneUp);
   const railW = slim ? 0 : RAIL_W;
   // the room the page may have: left of the rail and the column, a gutter at each side of them
   const room = vw - colW - railW - 4 * G;

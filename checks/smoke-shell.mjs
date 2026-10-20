@@ -2819,7 +2819,11 @@ if (want('drinks: the page marks, exports, no corner at other sizes')) {
     const p = await c.newPage();
     await open(p, '?memory&welcome', { drink });
     ok(`${drink}: the start screen has no drink corner: its logo is the switch`, !(await p.$('#brewmode')) && await p.isVisible('.logoswitch'));
-    ok(`${drink}: the inspector is the drink’s own surface, and the start button is the one filled control`, await p.evaluate(d => { const c = getComputedStyle(document.querySelector('#body')); const prim = [...document.querySelectorAll('.obchoices button.primary')]; return c.backgroundColor === (d === 'tea' ? 'rgb(46, 70, 54)' : 'rgb(255, 255, 255)') && prim.length === 1; }, drink));
+    ok(`${drink}: the ways in are drawn on the canvas, one line each (40, 34 and 28px) and told apart by their shape, and the start button is the one filled control`, await p.evaluate(d => {
+      const b = k => document.querySelector(`.obchoices .obw.${k} .obb`), cs = k => getComputedStyle(b(k)), h = k => Math.round(b(k).getBoundingClientRect().height);
+      const shapes = d === 'tea' ? cs('p').clipPath !== 'none' && cs('s').borderTopLeftRadius === '16px' && cs('s').borderTopRightRadius === '3px' && cs('t').textDecorationLine === 'underline'
+        : cs('p').borderTopWidth === '2px' && cs('p').boxShadow !== 'none' && cs('s').maskImage !== 'none' && cs('t').textDecorationLine === 'underline';
+      return getComputedStyle(document.querySelector('#body')).backgroundColor === 'rgba(0, 0, 0, 0)' && h('p') === 40 && h('s') === 34 && h('t') === 28 && shapes && document.querySelectorAll('.obchoices .primary').length === 1; }, drink));
     await c.close();
   }
 }
@@ -2856,17 +2860,80 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
 
   // the areas
   const head = await r('#head'), body = await r('#body'), foot = await r('#foot'), col = await r('#col'), stage = await r('#ss');
-  ok('the start screen is the editor’s own layout: the column on the right holds a header, the inspector and a footer, in that order', head.bottom <= body.top + 1 && body.bottom <= foot.top + 1 && Math.abs(col.right - 1440 + 16) < 2 && col.width >= 380 && col.width <= 480);
+  ok('the start screen is the editor’s own layout: the column on the right holds a header, the inspector and a footer, in that order', head.bottom <= body.top + 1 && body.bottom <= foot.top + 1 && Math.abs(col.right - 1440 + 16) < 2 && col.width >= 340 && col.width <= 392);
   ok('the page area holds the picture, left of the column and clear of it', stage.right <= col.left && stage.left >= 0 && stage.width > 500);
   ok('header area: the logo, the name and the tagline', /BrewCV/.test(await page.textContent('#head .oblogo')) && /One career\. Every resume\./.test(await page.textContent('#head .obhero')) && /tailored to each job/.test(await page.textContent('#head .obsub')));
+  ok('…and on its right two switches: Tea and Coffee as two cups (Tea pressed) and a sun and moon button, beside the logo that is still a switch', await page.evaluate(() => { const cups = [...document.querySelectorAll('#head .obcup')], l = document.querySelector('#head .oblogo').getBoundingClientRect(), c = cups[0].getBoundingClientRect();
+    return cups.map(b => b.dataset.m).join() === 'tea,coffee' && cups.map(b => b.getAttribute('aria-pressed')).join() === 'true,false' && c.left > l.right && !!document.querySelector('#head .obsun') && !!document.querySelector('#head .oblogo .logoswitch'); }));
+  {
+    const now = () => page.evaluate(() => ({ drink: document.documentElement.dataset.drink, theme: document.documentElement.dataset.theme, ls: [localStorage.getItem('rb-drink'), localStorage.getItem('rb-theme')].join(), cups: [...document.querySelectorAll('#head .obcup')].map(b => b.getAttribute('aria-pressed')).join(), sun: document.querySelector('#head .obsun').getAttribute('aria-pressed'), logo: document.querySelector('#head .oblogo img').getAttribute('src') }));
+    await page.click('#head .obcup[data-m=coffee]'); await page.waitForTimeout(1300);
+    const coffee = await now();
+    ok('the Coffee cup switches the app to Coffee (the same setting as the logo and Settings: rb-drink), the cups and the logo follow', coffee.drink === 'coffee' && coffee.ls.startsWith('coffee,') && coffee.cups === 'false,true' && /icon-coffee/.test(coffee.logo), JSON.stringify(coffee));
+    ok('Coffee draws the first way in as a stamp and has no string: the rope and its last stretch are not drawn', await page.evaluate(() => getComputedStyle(document.querySelector('#obrope path')).display === 'none' && getComputedStyle(document.querySelector('.obw.p .obstr')).display === 'none' && document.querySelector('.obw.p .obb').getBoundingClientRect().height === 40 && getComputedStyle(document.querySelector('.obw.p .obb')).borderTopWidth === '2px'));
+    await page.click('#head .obsun'); await page.waitForTimeout(600);
+    const dark = await now();
+    ok('the sun and moon button switches to dark (rb-theme), and back to light', dark.theme === 'dark' && dark.ls === 'coffee,dark' && dark.sun === 'true' && await page.evaluate(() => getComputedStyle(document.querySelector('#head .obsun .moon')).display !== 'none' && getComputedStyle(document.querySelector('#head .obsun .sun')).display === 'none'), JSON.stringify(dark));
+    await page.click('#head .obsun'); await page.waitForTimeout(400);
+    await page.click('#head .obcup[data-m=tea]'); await page.waitForTimeout(1300);
+    const tea = await now();
+    ok('…and the Tea cup brings Tea back', tea.theme === 'light' && tea.drink === 'tea' && tea.cups === 'true,false' && tea.sun === 'false', JSON.stringify(tea));
+  }
   ok('inspector area: the three ways in, with the start button the one filled control', (await page.$$('#body .obchoices button')).length === 3 && (await page.$$('#body .obchoices button.primary')).length === 1 && /Start from scratch/.test(await page.textContent('#body .obchoices .primary')));
   ok('…the interface language row, one chip for each of the ten languages', (await page.$$('#body .oblangs .oblang')).length === 10 && (await page.getAttribute('#body .oblang.on', 'data-l')) === 'en');
-  const bodyH = (await r('#body')).height;
-  await page.click('#body .obwhy summary'); await page.waitForTimeout(500);
-  ok('“Why JSON?” opens in place: its four points and the link, inside the inspector', (await page.isVisible('#body .obwhy li')) && (await page.$$('#body .obwhy li')).length === 4 && /File over app|Steph Ango/.test(await page.textContent('#body .obwhy')) && (await r('#body')).height > bodyH);
-  await page.click('#body .obwhy summary'); await page.waitForTimeout(500);
-  ok('footer area: the four “Yours to keep” points, private first among them, JSON Resume linked', (await page.$$('#foot .obtile')).length === 4 && /Private/.test(await page.textContent('#foot')) && !!(await page.$('#foot a[href="https://jsonresume.org/schema"]')));
+  ok('…the notes that were a second line under each way in are its tooltip, so each is one line', await page.evaluate(() => [...document.querySelectorAll('#body .obchoices .obb')].every(b => b.title.length > 10 && !b.querySelector('small') && b.getBoundingClientRect().height <= 40)));
+  ok('…the languages are a Language label over a grid of five columns', await page.evaluate(() => { const g = getComputedStyle(document.querySelector('#body .oblangs')); return g.gridTemplateColumns.split(' ').length === 5 && /Language/i.test(document.querySelector('#body .oblangrow .obeye').textContent); }));
+  const popShown = () => page.evaluate(() => [...document.querySelectorAll('#foot .obpop')].map(e => getComputedStyle(e).display !== 'none').join());
+  ok('footer area: the heading Yours to keep, a Why JSON? pill beside it and four short lines (Standard file, Stays in your browser, Nothing to install, No lock-in), and every popover shut', await page.evaluate(() => /Yours to keep/i.test(document.querySelector('#foot .obkhead h3').textContent) && /Why JSON/.test(document.querySelector('#foot .obkhead .obwhy').textContent)
+    && [...document.querySelectorAll('#foot .obkb')].map(b => b.textContent.trim()).join('|') === 'Standard file|Stays in your browser|Nothing to install|No lock-in' && [...document.querySelectorAll('#foot .obpop')].every(e => getComputedStyle(e).display === 'none')));
+  ok('…the four points keep their words in the popovers (title and sentence), JSON Resume a link, Private among them', (await page.$$('#foot .obkp')).length === 4 && /Private/.test(await page.textContent('#foot')) && /Nothing uploaded, no account/.test(await page.textContent('#foot')) && !!(await page.$('#foot .obkp a[href="https://jsonresume.org/schema"]')));
+  await page.hover('#foot .obkp:nth-child(2) .obkb'); await page.waitForTimeout(200);
+  ok('pointing at a line opens its sentence in a popover above it', (await popShown()) === 'false,false,true,false,false' && await page.evaluate(() => { const p = document.querySelector('#obkp1').getBoundingClientRect(), b = document.querySelector('#foot .obkp:nth-child(2) .obkb').getBoundingClientRect(); return p.bottom <= b.top; }));
+  await page.mouse.move(4, 4); await page.waitForTimeout(200);
+  ok('…and moving off closes it', (await popShown()) === 'false,false,false,false,false');
+  await page.click('#foot .obkp:nth-child(1) .obkb'); await page.mouse.move(4, 4); await page.waitForTimeout(200);
+  ok('a click keeps one open (aria-expanded), with the link inside it reachable', (await popShown()) === 'false,true,false,false,false' && (await page.getAttribute('#foot .obkp:nth-child(1) .obkb', 'aria-expanded')) === 'true' && await page.isVisible('#obkp0 a'));
+  await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+  ok('…and Esc closes it', (await popShown()) === 'false,false,false,false,false' && (await page.getAttribute('#foot .obkp:nth-child(1) .obkb', 'aria-expanded')) === 'false');
+  await page.focus('#foot .obkp:nth-child(3) .obkb'); await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab'); await page.waitForTimeout(200);
+  const focused = await popShown();
+  await page.keyboard.press('Escape'); await page.waitForTimeout(100);
+  ok('the keyboard opens one too (focus), and Esc puts it away until the focus has left', focused === 'false,false,false,true,false' && (await popShown()) === 'false,false,false,false,false');
+  await page.click('#foot .obwhy'); await page.mouse.move(4, 4); await page.waitForTimeout(300);
+  ok('“Why JSON?” opens its four points and the link over the page, in a popover and not in place (the footer stays where it is), and a click elsewhere closes it', await page.evaluate(() => { const p = document.querySelector('#obwhypop'); return getComputedStyle(p).display !== 'none' && p.querySelectorAll('li').length === 4 && /File over app/.test(p.textContent) && !!p.querySelector('a[href*="stephango"]') && document.querySelector('#foot .obwhy').getAttribute('aria-expanded') === 'true'; })
+    && (await r('#foot')).bottom > 880);
+  await page.click('#head .obsub'); await page.waitForTimeout(200);
+  ok('…a click elsewhere closes it', (await popShown()) === 'false,false,false,false,false');
   ok('…light, and not equal to the inspector: no card around them', await page.evaluate(() => { const f = getComputedStyle(document.querySelector('#foot')); return f.backgroundColor === 'rgba(0, 0, 0, 0)' && f.boxShadow === 'none'; }));
+  // how the ways in feel: they lean toward the pointer, and the Tea tag hangs on a string that follows it (src/ui/buttonfx.js)
+  {
+    const lean = () => page.evaluate(() => { const w = document.querySelector('.obw.s'); return { t: w.querySelector('.obmv').style.transform, pressed: w.classList.contains('pressed') }; });
+    const num = (t, re) => +(t.match(re)?.[1] ?? NaN);
+    const sec = await r('.obw.s .obb');
+    await page.mouse.move(sec.right - 6, sec.top + sec.height / 2); await page.waitForTimeout(600);
+    const hov = await lean();
+    ok('pointing at a way in leans it toward the pointer: the right side of the card turns it to the right, and it lifts a little', /perspective/.test(hov.t) && num(hov.t, /rotateY\((-?[\d.]+)deg/) > 2 && num(hov.t, /rotateY\((-?[\d.]+)deg/) <= 4.01 && num(hov.t, /translate3d\(-?[\d.]+px, (-?[\d.]+)px/) < 0, hov.t);
+    await page.mouse.down(); await page.waitForTimeout(500);
+    const prs = await lean();
+    ok('pressing it flattens and sinks it', prs.pressed && num(prs.t, /rotateY\((-?[\d.]+)deg/) === 0 && num(prs.t, /translate3d\(-?[\d.]+px, (-?[\d.]+)px/) > 2, prs.t);
+    await page.mouse.move(4, 4); await page.mouse.up(); await page.waitForTimeout(900);
+    ok('…and moving off puts it back: no transform is left on it', (await lean()).t === '' && !(await lean()).pressed);
+    // the string: its far end under the picture's board, its near end the tag's hole
+    const rope = () => page.evaluate(() => { const bp = document.querySelector('#obrope path'), fp = document.querySelector('.obw.p .obstr path'), end = d => d.match(/L(-?[\d.]+) (-?[\d.]+)$/)?.slice(1).map(Number);
+      return { back: bp.getAttribute('d'), front: fp.getAttribute('d'), show: getComputedStyle(bp).display !== 'none', z: getComputedStyle(document.querySelector('#obrope')).zIndex, end: end(bp.getAttribute('d')), start: bp.getAttribute('d').match(/^M(-?[\d.]+) (-?[\d.]+)/).slice(1).map(Number),
+        hole: (() => { const b = document.querySelector('.obw.p').getBoundingClientRect(); return [b.left + 23, b.top + 20]; })(), ssRight: document.querySelector('#ss').getBoundingClientRect().right, ss: +getComputedStyle(document.querySelector('#startstage')).zIndex, col: +getComputedStyle(document.querySelector('#col')).zIndex }; });
+    const at0 = await rope();
+    ok('the tag has a string: a rope in a layer of its own above the straw and below the picture (z 5; the picture’s stage is 6 and the column 10), tied 36px inside the picture’s right edge and ending at the tag’s hole', at0.show && at0.z === '5' && at0.ss > 5 && at0.col > at0.ss && /^M/.test(at0.back) && Math.abs(at0.start[0] - (at0.ssRight - 36)) < 2 && Math.abs(at0.end[0] - at0.hole[0]) < 2 && Math.abs(at0.end[1] - at0.hole[1]) < 2, JSON.stringify(at0));
+    ok('…its last stretch is drawn again over the tag, so it is threaded through the hole', /^M.*L/.test(at0.front) && at0.front !== at0.back);
+    const tag = await r('.obw.p .obb');
+    await page.mouse.move(tag.right - 8, tag.top + 6); await page.waitForTimeout(900);
+    const at1 = await rope();
+    ok('the string follows the tag: pointing at the tag’s far corner moves it, and the string’s end is still at the hole, which has moved with the tag', Math.hypot(at1.end[0] - at0.end[0], at1.end[1] - at0.end[1]) > 3 && at1.start.join() === at0.start.join(), JSON.stringify([at0.end, at1.end]));
+    await page.mouse.move(4, 4); await page.waitForTimeout(1500);
+    const at2 = await rope();
+    await page.waitForTimeout(400);
+    ok('…and when the pointer leaves it comes to rest: the string is where it was, and no longer changes (the frame loop has stopped)', Math.hypot(at2.end[0] - at0.end[0], at2.end[1] - at0.end[1]) < 2 && (await rope()).back === at2.back, JSON.stringify([at0.end, at2.end]));
+  }
   ok('nothing of the editor shows: no tabs, no zoom bar, no meter, no Fit, and the sheet waits', !(await page.isVisible('#tab-edit')) && !(await page.$('[data-act=fit]')) && (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'hidden');
 
   // the story (mockup E2): a framed board with a big number and a step control, no timeline
@@ -2975,6 +3042,10 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     ok('a phone: stacked, the buttons first, then the picture, then what you keep', at[0] < at[1] && at[1] < at[2] && at[2] < at[3], JSON.stringify(at));
     ok('…nothing runs off the side', (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390 && (await page.evaluate(() => { const s = document.querySelector('#ss').getBoundingClientRect(); return s.left >= 0 && s.right <= innerWidth + 1; })));
     ok('…the board is as wide as the column and keeps its proportions', await page.evaluate(() => { const r = document.querySelector('#ss').getBoundingClientRect(); return r.width > 300 && r.height > 200 && r.height < 800; }));
+    ok('…the header (logo, cups, sun and moon) is on one line, the languages are five to a row, and the tag has no string', await page.evaluate(() => { const l = document.querySelector('#head .oblogo').getBoundingClientRect(), c = document.querySelector('#head .obcups').getBoundingClientRect(), s = document.querySelector('#head .obsun').getBoundingClientRect();
+      return Math.abs((l.top + l.bottom) / 2 - (c.top + c.bottom) / 2) < 6 && c.right <= s.left && s.right <= innerWidth && getComputedStyle(document.querySelector('#body .oblangs')).gridTemplateColumns.split(' ').length === 5
+        && getComputedStyle(document.querySelector('.obw.p .obstr')).display === 'none' && getComputedStyle(document.querySelector('#obrope path')).display === 'none'; }));
+    ok('…a popover opens in place, in the flow of the page, under its line', await page.evaluate(async () => { const b = document.querySelector('#foot .obkp .obkb'); b.click(); await new Promise(r => setTimeout(r, 100)); const p = document.querySelector('#obkp0'); return getComputedStyle(p).position === 'static' && getComputedStyle(p).display !== 'none' && p.getBoundingClientRect().top >= b.getBoundingClientRect().bottom - 1; }));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -2985,6 +3056,11 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     await page.waitForTimeout(300);
     const s = { step: await stepOf(page) };
     ok('with reduced motion the picture opens on its resting view: nothing plays, nothing moves', s.step === 4 && await page.evaluate(() => [...document.querySelectorAll('#ss *')].every(e => getComputedStyle(e).transitionDuration.split(',').every(d => parseFloat(d) === 0) || e.tagName === 'svg')));
+    const sec = await page.$eval('.obw.s .obb', el => el.getBoundingClientRect().toJSON());
+    await page.mouse.move(sec.right - 6, sec.top + sec.height / 2); await page.mouse.down(); await page.waitForTimeout(400);
+    ok('…the ways in do not lean, lift or slide (no transform), and a press still shows (the stamp’s inner rule thickens)', await page.evaluate(() => document.querySelector('.obw.s .obmv').style.transform === '' && document.querySelector('.obw.s').classList.contains('pressed')));
+    await page.mouse.move(4, 4); await page.mouse.up();
+    ok('…and the tag’s string is drawn at rest, and nothing moves it', await page.evaluate(() => { const d = document.querySelector('#obrope path').getAttribute('d'); return /^M.*Q.*L/.test(d) && getComputedStyle(document.querySelector('#obrope path')).display !== 'none'; }));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }

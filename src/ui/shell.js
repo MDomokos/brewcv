@@ -43,7 +43,7 @@ import { initSettings, readPref, browserLang, readGarden } from './settings.js';
 import * as motion from './motion.js';
 import { reduced, onMotionChange, play, ghost, fly } from './motion.js';
 import * as arrive from './arrive.js';
-import { initDrink, onDrinkChange, isDrinkKey, toggleDrink, drink, logoBtn } from './drink.js';
+import { initDrink, onDrinkChange, isDrinkKey, toggleDrink, setDrink, setThemePref, themePref, resolveTheme, drink, logoBtn } from './drink.js';
 import { initMatRoll } from './matroll.js';
 
 // Where the source is published; the menu links to it (AGPL-3.0, section 13). Change it here when the repo moves.
@@ -360,6 +360,7 @@ function relayout(){
   // the start screen's picture takes the page area left of the column
   document.body.style.setProperty('--startw', `${Math.max(240, L.col.left - 2 * G)}px`);
   document.body.style.setProperty('--colleft', `${L.col.left}px`);
+  document.body.style.setProperty('--colw', `${L.col.width}px`);
   renderFoot();
   renderChip();
   placeRail();
@@ -987,6 +988,8 @@ async function onClick(e){
     }
     case 'use-version': useVersion(tg.closest('.vlist, .obvlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
     case 'drink-switch': toggleDrink(); break;
+    case 'drink-set': setDrink(tg.dataset.m); break;          // the start screen's two cups
+    case 'theme-toggle': setThemePref(resolveTheme(themePref()) === 'dark' ? 'light' : 'dark'); break;
     case 'chip-undo': store.undo(); dropChip(); break;
     case 'toast-undo': if (store.history.undo === toastAt) store.undo(); else dropToastUndo(); break;
     case 'undo': stepHistory('undo'); break;

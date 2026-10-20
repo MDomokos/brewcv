@@ -91,7 +91,7 @@ section('layout: pages always side by side');
 section('layout: the start screen keeps its slim column');
 for (const [vw, vh] of [[1536, 864], [1440, 900], [1100, 760]]){
   const L = lay(vw, vh, { slim: true });
-  ok(`${vw}×${vh}: one column of ${L.col.width}px (380 to 480) and no rail, ${G}px from the right and the top; the page centred in the room left of it`, L.railW === 0 && L.col.width >= SLIM_MIN && L.col.width <= SLIM_MAX && Math.abs(vw - L.col.left - L.col.width - G) < 1e-6 && Math.abs(L.sheet.left - (L.col.left - G - L.sheet.left - L.sheet.width)) < 1e-6);
+  ok(`${vw}×${vh}: one column of ${L.col.width}px (340 to 392) and no rail, ${G}px from the right and the top; the page centred in the room left of it`, L.railW === 0 && L.col.width >= SLIM_MIN && L.col.width <= SLIM_MAX && Math.abs(vw - L.col.left - L.col.width - G) < 1e-6 && Math.abs(L.sheet.left - (L.col.left - G - L.sheet.left - L.sheet.width)) < 1e-6);
 }
 section('layout: a phone');
 {

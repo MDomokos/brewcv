@@ -38,7 +38,6 @@ html[data-drink="tea"] .ico { stroke-width: 1.8; }
 html[data-drink="coffee"] :is(.title, .lead, .clhead h2, .obhero, .oblogo, .clcaret, .item .t, .sopt .sn, .docname .dn) { font-weight: 700; letter-spacing: -.01em; }
 html[data-drink="coffee"] .title { font-size: 15px; }
 html[data-drink="coffee"] .lead { font-size: 14px; }
-html[data-drink="coffee"] .obhero { font-size: 24px; }
 html[data-drink="coffee"] :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl) { letter-spacing: .08em; }
 
 /* ---------- Coffee: hairlines, no elevation ---------- */
@@ -174,30 +173,27 @@ html[data-drink="tea"] .hrow.modes .seg [role=tab][aria-selected=true]::after { 
 
 /* Fit is a luggage tag: a pointed end and a hole. Filled only when it would change something; otherwise plain, still with an edge.
    The shape is drawn behind the button (its ::before is the edge, its ::after the fill), so the button keeps a focus ring that is not clipped. */
-html[data-drink="tea"] [data-act=fit], html[data-drink="tea"] .obstart .obchoices button.primary {
+html[data-drink="tea"] [data-act=fit] {
   position: relative; isolation: isolate; border: 0; border-radius: 0; background: transparent; color: var(--ink); padding: 4px 14px 4px 20px;
   --tag-notch: 11px; --tag-hole-x: 9px; --tag-hole-r: 2.3px;
 }
-html[data-drink="tea"] [data-act=fit]::before, html[data-drink="tea"] .obstart .obchoices button.primary::before {
+html[data-drink="tea"] [data-act=fit]::before {
   content: ""; position: absolute; z-index: -2; inset: 0; border-radius: 0 7px 7px 0; background: var(--line-strong);
   clip-path: polygon(var(--tag-notch) 0, 100% 0, 100% 100%, var(--tag-notch) 100%, 0 50%);
 }
-html[data-drink="tea"] [data-act=fit]::after, html[data-drink="tea"] .obstart .obchoices button.primary::after {
+html[data-drink="tea"] [data-act=fit]::after {
   content: ""; position: absolute; z-index: -1; inset: 1.5px; border-radius: 0 6px 6px 0;
   background: var(--surface) radial-gradient(circle at calc(var(--tag-hole-x) - 1.5px) 50%, var(--line-strong) var(--tag-hole-r), transparent calc(var(--tag-hole-r) + .4px));
   clip-path: polygon(calc(var(--tag-notch) - 1px) 0, 100% 0, 100% 100%, calc(var(--tag-notch) - 1px) 100%, 0 50%);
 }
-html[data-drink="tea"] [data-act=fit].primary, html[data-drink="tea"] .obstart .obchoices button.primary { color: var(--on-accent); }
-html[data-drink="tea"] [data-act=fit].primary::before, html[data-drink="tea"] .obstart .obchoices button.primary::before { background: var(--accent); }
-html[data-drink="tea"] [data-act=fit].primary::after, html[data-drink="tea"] .obstart .obchoices button.primary::after {
+html[data-drink="tea"] [data-act=fit].primary { color: var(--on-accent); }
+html[data-drink="tea"] [data-act=fit].primary::before { background: var(--accent); }
+html[data-drink="tea"] [data-act=fit].primary::after {
   inset: 0; border-radius: 0 7px 7px 0; clip-path: polygon(var(--tag-notch) 0, 100% 0, 100% 100%, var(--tag-notch) 100%, 0 50%);
   background: var(--accent) radial-gradient(circle at var(--tag-hole-x) 50%, var(--surface) var(--tag-hole-r), transparent calc(var(--tag-hole-r) + .4px));
 }
 html[data-drink="tea"] [data-act=fit]:disabled { opacity: .4; }
 html[data-drink="tea"] [data-act=fit]:active:not(:disabled) { translate: 0 1px; }
-/* the start screen's one filled button is a tag too, a bigger one */
-html[data-drink="tea"] .obstart .obchoices button.primary { padding: 11px 15px 11px 30px; --tag-notch: 16px; --tag-hole-x: 13px; --tag-hole-r: 3.5px; text-align: left; }
-html[data-drink="tea"] .obstart .obchoices button.primary::before, html[data-drink="tea"] .obstart .obchoices button.primary::after { border-radius: 0 var(--r-m) var(--r-m) 0; }
 
 /* the toast drops in on its string */
 html[data-drink="tea"] .toast { border-radius: 3px 3px 12px 12px; padding: 12px 18px 9px; font-weight: 650; overflow: visible; box-shadow: var(--shadow-toast); transform-origin: 50% -20px; }
@@ -218,9 +214,6 @@ html[data-drink="tea"] .vrow.cur .rad { border-color: var(--accent); }
 html[data-drink="tea"] .vrow.cur .n { color: var(--ink); }      /* the ring and the row's tint say which; the number stays readable on it (the amber on its tint was 3:1) */
 
 /* ---------- the start screen ---------- */
-html[data-drink="tea"] .oblogo img { width: 76px; height: 76px; }
-html[data-drink="tea"] .obhero { font-weight: 800; font-size: 30px; }
-html[data-drink="tea"] .obstart .obchoices button { border-radius: var(--r-m); }
 html[data-drink="tea"] .obstep { border-radius: 4px 12px 12px 4px; }
 html[data-drink="tea"] .obstep.on { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 html[data-drink="tea"] .obstep.on .obst > span { color: var(--on-accent); }
