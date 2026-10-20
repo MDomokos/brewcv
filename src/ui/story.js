@@ -473,6 +473,8 @@ export function retext(){
   if (prev) render(prev, null, EL);
   bar();
 }
+// the moment on show, for the checks
+export const current = () => prev && structuredClone(prev);
 export function act(a){
   if (a === 'ob-replay'){ replay(); return true; }
   return false;

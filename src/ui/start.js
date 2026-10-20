@@ -52,7 +52,7 @@ export const footHtml = () => `<section class="obkeep"><h3 class="obeye" data-h=
   <div class="obkeep__grid">${TILES.map(([ic, hk, tk]) => `<div class="obtile">${ic}<div><b data-h="${hk}">${h(hk)}</b><p data-h="${tk}"${hk === 'onb.t1h' ? ' data-jr' : ''}>${hk === 'onb.t1h' ? jr(h(tk)) : h(tk)}</p></div></div>`).join('')}</div></section>`;
 
 // ---- the picture: the story (src/ui/story.js) ----
-export const { stageHtml, mount, unmount, begin, setStep, replay, act } = story;
+export const { stageHtml, mount, unmount, begin, setStep, replay, act, current } = story;
 
 // the words change language in place (nothing is drawn again, so the chips stay under the pointer)
 export function retext(){

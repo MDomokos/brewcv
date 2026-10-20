@@ -2826,6 +2826,18 @@ if (want('drinks: the page marks, exports, no corner at other sizes')) {
 
 // The start screen (UX-3), built from the editor's own areas: the header, the inspector and the footer are the column; the page area
 // holds the picture of how it works. The three ways in change state rather than screens.
+// what the story shows is what its moment says: each slot, the sheets of the stack, nothing hidden that should show (call it once nothing is moving)
+const storyDiff = page => page.evaluate(() => {
+  const ss = document.querySelector('#ss'), s = window.__wb.onboarding.start.current(), out = [];
+  const q = k => ss.querySelector('.s-' + k), hid = e => e.classList.contains('hide'), shown = e => getComputedStyle(e).visibility !== 'hidden';
+  if (ss.querySelector('.fx .sg, .fx .stghost, .fx .sheetghost')) out.push('still moving');
+  for (const [k, on] of [['why', s.why], ['slips', s.slips], ['look', s.style], ['job', s.job], ['exp', s.exports], ['page', s.page !== 'none'], ['behind', s.cards.length]]) if (hid(q(k)) === !!on) out.push(k);
+  const sh = [...ss.querySelectorAll('.s-behind .sheet')];
+  if (sh.map(x => x.dataset.id).sort().join() !== s.cards.map(c => c.id).sort().join()) out.push('sheets');
+  if (sh.some(x => !shown(x)) || (s.page === 'on' && (!shown(q('page')) || !q('page').querySelector('.pg')))) out.push('a page is hidden');
+  if (!q('note').classList.contains('n' + ss.dataset.step)) out.push('note');
+  return out.join(', ');
+});
 const stepOf = page => page.evaluate(() => +document.querySelector('#ss').dataset.step);
 const atStep = (page, n, timeout = 20000) => page.waitForFunction(k => +document.querySelector('#ss')?.dataset.step === k, n, { timeout });
 
@@ -2869,9 +2881,12 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.waitForFunction(() => document.querySelectorAll('#ss .s-page li').length === 4, null, { timeout: 15000 });
   ok('step 2: the lines the job asks for are on the page, pulled from the file, and the job and its tag are shown', await page.evaluate(() => document.querySelectorAll('#ss .fln.used').length === 4 && !!document.querySelector('#ss .s-job:not(.hide) .jobcard .ftag.lit')));
   await page.waitForFunction(() => document.querySelectorAll('#ss .s-slips:not(.hide) .slip').length >= 3, null, { timeout: 15000 });
+  ok('…and the slots show what the moment says (the job, the file, the page, the slips)', (await storyDiff(page)) === '' || (await page.waitForTimeout(1500), (await storyDiff(page)) === ''), await storyDiff(page));
   ok('…the other wordings of a line slide out as slips, one for each', await page.evaluate(() => document.querySelectorAll('#ss .s-slips .slip').length >= 3));
   await page.waitForFunction(() => document.querySelectorAll('#ss .fcard .fln[data-k="f-h1"] .vch i').length === 4 && !document.querySelector('#ss .s-page li.edit'), null, { timeout: 15000 });
   ok('…a wording written on the page arrives in the file as a new chip (v4), and the file’s own words never change', await page.evaluate(() => document.querySelector('#ss .fln[data-k="f-h1"] .cd').textContent.includes('Ran a team of six baristas.')));
+  await page.waitForTimeout(1500);
+  ok('…step 2 ends showing exactly what its moment says', (await storyDiff(page)) === '', await storyDiff(page));
   await atStep(page, 3);
   await page.waitForFunction(() => !!document.querySelector('#ss .stamp') && document.querySelector('#ss .s-page .pg.serif.a4'), null, { timeout: 15000 });
   ok('step 3: design, language and paper change on the page and the file says “No change”', /No change to the file/.test(await page.textContent('#ss .stamp')) && /Berufserfahrung/.test(await page.textContent('#ss .s-page')));
@@ -2879,9 +2894,10 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.waitForFunction(() => document.querySelectorAll('#ss .s-behind .sheet').length === 2 && !document.querySelector('#ss .s-exp').classList.contains('hide'), null, { timeout: 20000 });
   await page.waitForTimeout(2500);
   ok('step 4: every job its own resume: two kept in a fanned stack with a tab each, and the ways to send them', (await page.$$('#ss .s-behind .itab')).length === 2 && /PDF/.test(await page.textContent('#ss .s-exp')));
+  ok('…and step 4 ends showing exactly what its moment says: a page, two kept sheets, the ways to send', (await storyDiff(page)) === '', await storyDiff(page));
   const topBefore = await page.textContent('#ss .s-page .tg');
   await page.click('#ss .s-behind .itab >> nth=0'); await page.waitForTimeout(1800);
-  ok('a tab brings its resume to the top', (await page.textContent('#ss .s-page .tg')) !== topBefore, topBefore);
+  ok('a tab brings its resume to the top, and the stack still holds two sheets', (await page.textContent('#ss .s-page .tg')) !== topBefore && (await storyDiff(page)) === '', await storyDiff(page));
   await page.click('#ss .stops li[data-n="2"] button'); await page.waitForTimeout(800);
   ok('a step name goes to that step, and the autoplay stops', (await stepOf(page)) === 2 && /Tailor it to the job/.test(await page.textContent('#ss .stnote b')) && (await page.getAttribute('#ss', 'data-auto')) === 'false');
   await page.click('#ss [data-act=ob-replay]'); await page.waitForTimeout(900);
