@@ -33,6 +33,9 @@
 <link rel="stylesheet" href="src/ui/start.css">
 <link rel="stylesheet" href="src/ui/intro-side.css">
 <link rel="stylesheet" href="src/ui/flow.css">
+<!-- the drink and the theme, on the page before it is first painted (tea or coffee, light or dark). Asked for before the module list below, so on a host that
+     serves a few files at a time (HTTP/1.1) the page's first paint is not queued behind seventy modules. -->
+<script src="src/ui/drink-boot.js"></script>
 <!-- The app's whole static import graph, fetched in parallel instead of one level at a time.
      checks/preload-check.mjs keeps this list equal to what shell.js imports. -->
 <link rel="modulepreload" href="src/ui/shell.js">
@@ -101,8 +104,6 @@
 <link rel="modulepreload" href="src/ui/arrive.js">
 <link rel="modulepreload" href="src/ui/matroll.js">
 <link rel="modulepreload" href="src/ui/exportfx.js">
-<!-- the drink and the theme, on the page before it is first painted (tea or coffee, light or dark) -->
-<script src="src/ui/drink-boot.js"></script>
 <script src="src/ui/boot.js" defer></script>
 </head>
 <body>

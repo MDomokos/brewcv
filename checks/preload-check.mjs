@@ -29,4 +29,10 @@ const missing = [...graph].filter(f => !listed.has(f)), extra = [...listed].filt
 ok('every module shell.js imports is preloaded', !missing.length, missing.join(', '));
 ok('nothing else is preloaded', !extra.length, extra.join(', '));
 ok('the service worker caches each of them', [...graph].every(f => fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8').includes(`'./${f}'`)));
+// The first paint is a page of its own (a blank page and the column's frame, drawn from the markup and the stylesheets before any script runs). The one script that
+// blocks it, the drink and theme setter, is asked for before the module list: behind seventy modules it arrived last, and the first paint waited for all of them.
+const at = s => html.indexOf(s);
+ok('the head’s only blocking script, drink-boot.js, comes after the stylesheets and before the module list', at('src/ui/drink-boot.js') > at('src/ui/flow.css') && at('src/ui/drink-boot.js') < at('rel="modulepreload"'));
+ok('the first-paint page is in the markup: a blank page, the column’s frame with the name and three grey lines', /class="paper-skel"/.test(html) && /<header id="head"[^>]*>.*BrewCV/.test(html) && (html.match(/class="skel-line"/g) ?? []).length === 3);
+ok('the app starts after the markup (a module script, last in the body) and the start screen’s own stage is not in the markup', html.lastIndexOf('<script type="module" src="src/ui/shell.js">') > at('</main>') && !/id="ss"/.test(html));
 process.exit(failed ? 1 : 0);

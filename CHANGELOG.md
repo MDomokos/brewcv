@@ -16,6 +16,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 - **The career file on the start screen starts level with the ways-in card.** Its top follows the top of the card (and the window's language and size).
 
 ### Fixed
+- **The page appears before the app's scripts arrive, as it was meant to.** The script that sets Tea or Coffee and light or dark came after the list of seventy modules in the page's head, so on a slow link it was fetched last and the first paint (a blank page and the column's frame) waited for every module: about 3.3 s instead of 0.9 s over a throttled HTTP/2 link, 8 s instead of 1.7 s over HTTP/1.1. It is now asked for first, and the modules, the start screen's story and the buttons' motion still arrive together. The page drawn at first paint also fades out as the story's board arrives, so its edge no longer shows around the board.
 - **The language question on the start screen has a gap above and below its card.**
 - **The stack of resumes on the start screen is no longer cut off by an invisible line.** The picture is no longer clipped at the page area's edge: the sheets run on under the sidebar card and off the bottom of the window.
 - **The start screen's stack of resumes no longer blinks.** When a third resume joins, or two swap places, only the sheets that move are redrawn: the others stay on screen. A sheet joining the stack slides and fades in, and the page tags are no longer cut off at the edge while a sheet slides out.
