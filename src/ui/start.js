@@ -117,7 +117,7 @@ export function bindSide(){
   if (bound) return;
   bound = true;
   let queued = 0;
-  const again = () => { if (!queued) queued = requestAnimationFrame(() => { queued = 0; fit(); fx.refresh(); }); };
+  const again = () => { if (!queued && document.body.classList.contains('is-intro')) queued = requestAnimationFrame(() => { queued = 0; fit(); fx.refresh(); }); };
   const seen = new MutationObserver(again);
   for (const id of ['head', 'body', 'foot']){ const e = document.getElementById(id); if (e) seen.observe(e, { childList: true, subtree: true }); }
   document.addEventListener('introlayout', again);

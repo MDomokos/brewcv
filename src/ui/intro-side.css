@@ -59,26 +59,27 @@ html[data-drink="coffee"] .obchoices .obb { font-family: var(--font-mono); font-
 html[data-drink="coffee"] .obw.p .obb { font-size: 13px; }
 /* a button's ring is drawn on its still wrapper: the shapes below are clipped, and so would the ring be */
 .obw:has(.obb:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+body.is-intro .obchoices .obw.t .obb { height: 28px; padding: 0 2px 0 22px; font-weight: 400; text-decoration: underline dotted var(--canvas-label); text-decoration-thickness: 1.5px; text-underline-offset: 5px; }
+body.is-intro .obchoices .obw.t .obb:hover { text-decoration-style: solid; }
+.obw.t .obb::before { content: ""; position: absolute; left: 2px; top: 50%; }
 
-/* Tea: the primary is the app's tag, with a punched hole and a string (src/ui/buttonfx.js draws it) */
+/* Tea: the primary is the app's tag, with a punched hole; the second a card with leaf corners, the third a link with a leaf */
 html[data-drink="tea"] .obw.p { --d: 19px; }
 html[data-drink="tea"] .obw.p .obmv { filter: drop-shadow(calc(3px + var(--dx, 0px)) calc(4px + var(--dy, 0px)) 0 var(--w-sh)) brightness(var(--br, 1)); }
 html[data-drink="tea"] .obw.p .obb { background: var(--w-edge); padding-left: calc(var(--d) + 20px); clip-path: polygon(var(--d) 0, 100% 0, 100% 100%, var(--d) 100%, 0 50%); }
 html[data-drink="tea"] .obw.p .obb::before { content: ""; position: absolute; inset: 1.5px; z-index: -1; background: var(--w-fill); clip-path: polygon(calc(var(--d) - 1px) 0, 100% 0, 100% 100%, calc(var(--d) - 1px) 100%, 1px 50%); }
 html[data-drink="tea"] .obw.p .obb::after { content: ""; position: absolute; left: var(--d); top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--tag-hole); box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--w-ink) 40%, transparent); }
-/* the string's last stretch is drawn again over the tag, so it runs through the hole; the rest of it is under the picture's board */
+html[data-drink="tea"] .obw.s .obb { gap: 9px; padding: 0 16px 0 14px; border: 1.5px solid var(--w-edge); border-radius: 16px 3px 16px 3px; background: var(--w-fill); box-shadow: calc(2px + var(--dx, 0px)) calc(3px + var(--dy, 0px)) 0 var(--w-sh); filter: brightness(var(--br, 1)); }
+html[data-drink="tea"] .obw.s .obb::before { content: ""; flex: none; width: 11px; height: 11px; border-radius: 11px 0 11px 0; background: currentColor; opacity: .55; }
+html[data-drink="tea"] .obw.t .obb::before { width: 11px; height: 11px; margin-top: -5.5px; border-radius: 11px 0 11px 0; background: var(--canvas-label); }
+
+/* its string (src/ui/buttonfx.js draws it): the last stretch is drawn again over the tag, so it runs through the hole; the rest of it is under the picture's board */
 .obstr { display: none; position: absolute; left: -60px; top: -20px; width: 130px; height: 80px; overflow: visible; fill: none; stroke: var(--tag-line); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; z-index: 3; clip-path: inset(-30px 0 -30px 56px); }
 html[data-drink="tea"] .obw.p .obstr { display: block; }
 /* the whole rope: a layer over the straw and under the picture's board (which is above 5, the column above that); it is Tea's, and only where the board is left of the column */
 .obrope { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; overflow: visible; fill: none; stroke: var(--tag-line); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 body:not(.is-intro) .obrope { display: none; }
 html[data-drink="tea"] body[data-phone=true] .obw.p .obstr, html[data-drink="tea"] body[data-intro-side="left"] .obw.p .obstr { display: none; }
-html[data-drink="tea"] .obw.s .obb { gap: 9px; padding: 0 16px 0 14px; border: 1.5px solid var(--w-edge); border-radius: 16px 3px 16px 3px; background: var(--w-fill); box-shadow: calc(2px + var(--dx, 0px)) calc(3px + var(--dy, 0px)) 0 var(--w-sh); filter: brightness(var(--br, 1)); }
-html[data-drink="tea"] .obw.s .obb::before { content: ""; flex: none; width: 11px; height: 11px; border-radius: 11px 0 11px 0; background: currentColor; opacity: .55; }
-body.is-intro .obchoices .obw.t .obb { height: 28px; padding: 0 2px 0 22px; font-weight: 400; text-decoration: underline dotted var(--canvas-label); text-decoration-thickness: 1.5px; text-underline-offset: 5px; }
-body.is-intro .obchoices .obw.t .obb:hover { text-decoration-style: solid; }
-.obw.t .obb::before { content: ""; position: absolute; left: 2px; top: 50%; }
-html[data-drink="tea"] .obw.t .obb::before { width: 11px; height: 11px; margin-top: -5.5px; border-radius: 11px 0 11px 0; background: var(--canvas-label); }
 
 /* Coffee: the primary is a stamp (a hard frame, a hard shadow, an inner rule that thickens when it is pressed), the second a ticket stub, the third a link with a square */
 html[data-drink="coffee"] .obw.p .obb { padding: 0 14px; border: 2px solid var(--canvas-ink); border-radius: var(--r-s); background: var(--w-fill); text-transform: uppercase; letter-spacing: .08em;
@@ -118,7 +119,7 @@ body.is-intro .obkeep .obwhy:active:not(:disabled), body.is-intro .obkeep .obkb:
 body.is-intro .obkeep .obkb { display: flex; align-items: center; gap: 10px; width: 100%; height: 30px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--s-ink); font-size: 14px; font-weight: 400; text-align: left; cursor: pointer; }
 .obico { flex: none; width: 15px; height: 15px; fill: none; stroke: var(--s-soft); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .obkb span { text-decoration: underline dashed var(--canvas-label); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
-.obkb:hover span, .obkp.open .obkb span, .obkhead.open .obwhy { text-decoration-style: solid; color: var(--canvas-label); }
+.obkb:hover span, .obkp.open .obkb span { text-decoration-style: solid; color: var(--canvas-label); }
 .oblink { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 /* the popover is the pop-up surface of the app, above its line; a bridge over the gap keeps it open on the way from the line to its link */
 .obpop { display: none; position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 5; padding: 10px 12px; background: var(--pop); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--shadow-chip); font-size: 12.5px; line-height: 1.4; }
