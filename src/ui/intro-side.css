@@ -25,6 +25,16 @@ body.is-intro #head .obsun { display: grid; place-items: center; width: 32px; he
 body.is-intro #head .obsun:hover:not(:disabled) { border-color: var(--s-ink); }
 .obic { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .obcup .liq { fill: currentColor; fill-opacity: .35; stroke: none; }
+/* pointing at a cup lifts it and tips it toward the lip, and its steam drifts up and thins out; pressing sets it back down. Only where there is a pointer to hover with. */
+body.is-intro #head .obcup { transition: background-color var(--m-fast) var(--m-out); }
+.obcup .obic { transition: transform var(--m-base) var(--m-out); transform-origin: 50% 90%; }
+.obcup .stm { transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes obsteam { 0% { transform: translateY(2px) skewX(0); opacity: .2; } 45% { opacity: 1; } 100% { transform: translateY(-2.5px) skewX(-8deg); opacity: 0; } }
+@media (hover: hover) {
+  body.is-intro #head .obcup:hover .obic { transform: translateY(-1.5px) rotate(-7deg) scale(1.1); }
+  body.is-intro #head .obcup:hover .stm { animation: obsteam 1.2s var(--m-out) infinite; }
+  body.is-intro #head .obcup:active .obic { transform: translateY(.5px) scale(.94); }
+}
 .obsun .obic { width: 18px; height: 18px; }
 .obsun .moon, html[data-theme="dark"] .obsun .sun { display: none; }
 html[data-theme="dark"] .obsun .moon { display: block; }

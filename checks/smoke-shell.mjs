@@ -2867,6 +2867,13 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
     return cups.map(b => b.dataset.m).join() === 'tea,coffee' && cups.map(b => b.getAttribute('aria-pressed')).join() === 'true,false' && c.left > l.right && !!document.querySelector('#head .obsun') && !!document.querySelector('#head .oblogo .logoswitch'); }));
   {
     const now = () => page.evaluate(() => ({ drink: document.documentElement.dataset.drink, theme: document.documentElement.dataset.theme, ls: [localStorage.getItem('rb-drink'), localStorage.getItem('rb-theme')].join(), cups: [...document.querySelectorAll('#head .obcup')].map(b => b.getAttribute('aria-pressed')).join(), sun: document.querySelector('#head .obsun').getAttribute('aria-pressed'), logo: document.querySelector('#head .oblogo img').getAttribute('src') }));
+    const cupFx = () => page.evaluate(() => { const c = document.querySelector('#head .obcup[data-m=coffee]'); return { icon: getComputedStyle(c.querySelector('.obic')).transform, steam: getComputedStyle(c.querySelector('.stm')).animationName }; });
+    const cupRest = await cupFx();
+    await page.hover('#head .obcup[data-m=coffee]'); await page.waitForTimeout(500);
+    const cupHover = await cupFx();
+    await page.mouse.move(700, 800); await page.waitForTimeout(500);
+    const cupAfter = await cupFx();
+    ok('pointing at a cup lifts and tips it and sets its steam drifting; moving away puts both back', cupRest.icon === 'none' && cupRest.steam === 'none' && cupHover.icon !== 'none' && cupHover.steam === 'obsteam' && cupAfter.icon === 'none' && cupAfter.steam === 'none', JSON.stringify({ cupRest, cupHover, cupAfter }));
     await page.click('#head .obcup[data-m=coffee]'); await page.waitForTimeout(1300);
     const coffee = await now();
     ok('the Coffee cup switches the app to Coffee (the same setting as the logo and Settings: rb-drink), the cups and the logo follow', coffee.drink === 'coffee' && coffee.ls.startsWith('coffee,') && coffee.cups === 'false,true' && /icon-coffee/.test(coffee.logo), JSON.stringify(coffee));
@@ -3079,6 +3086,8 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
     ok('…the ways in do not lean, lift or slide (no transform), and a press still shows (the stamp’s inner rule thickens)', await page.evaluate(() => document.querySelector('.obw.s .obmv').style.transform === '' && document.querySelector('.obw.s').classList.contains('pressed')));
     await page.mouse.move(4, 4); await page.mouse.up();
     ok('…and the tag’s string is drawn at rest, and nothing moves it', await page.evaluate(() => { const d = document.querySelector('#obrope path').getAttribute('d'); return /^M.*Q.*L/.test(d) && getComputedStyle(document.querySelector('#obrope path')).display !== 'none'; }));
+    await page.hover('#head .obcup[data-m=coffee]'); await page.waitForTimeout(300);
+    ok('…and pointing at a cup sets no steam drifting', await page.evaluate(() => getComputedStyle(document.querySelector('#head .obcup[data-m=coffee] .stm')).animationName === 'none'));
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
