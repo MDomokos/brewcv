@@ -439,6 +439,8 @@ export default {
   'onb.t3': 'Semplici file statici. Funziona offline dopo il primo caricamento.',
   'onb.t4h': 'Nessun vincolo',
   'onb.t4': 'Fai un backup o collega una cartella. La memoria del browser può essere svuotata.',
+  'intro.drinks': 'Tè o caffè',
+  'intro.dark': 'Tema scuro',
   'onb.scratch': 'Parti da zero',
   'onb.scratchNote': 'Qualche domanda, circa cinque minuti',
   'onb.import': 'Apri o importa un file',

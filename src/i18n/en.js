@@ -439,6 +439,8 @@ export default {
   'onb.t3': 'Plain static files. Works offline after the first load.',
   'onb.t4h': 'No lock-in',
   'onb.t4': 'Back up, or link a folder. Browser storage can be cleared.',
+  'intro.drinks': 'Tea or coffee',
+  'intro.dark': 'Dark theme',
   'onb.scratch': 'Start from scratch',
   'onb.scratchNote': 'A few questions, about five minutes',
   'onb.import': 'Open or import a file',

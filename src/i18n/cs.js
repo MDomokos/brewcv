@@ -439,6 +439,8 @@ export default {
   'onb.t3': 'Obyčejné statické soubory. Po prvním načtení funguje offline.',
   'onb.t4h': 'Bez závislosti',
   'onb.t4': 'Zálohujte nebo propojte složku. Úložiště prohlížeče lze smazat.',
+  'intro.drinks': 'Čaj, nebo káva',
+  'intro.dark': 'Tmavý motiv',
   'onb.scratch': 'Začít od nuly',
   'onb.scratchNote': 'Pár otázek, asi pět minut',
   'onb.import': 'Otevřít nebo importovat soubor',

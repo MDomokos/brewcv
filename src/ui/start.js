@@ -7,7 +7,7 @@
 
 import { t, h, uiLang } from '../i18n/index.js';
 import { icon } from './icons.js';
-import { logoBtn } from './drink.js';
+import { logoBtn, drink, themePref, resolveTheme } from './drink.js';
 import * as story from './story.js';
 
 // ?intro=left puts the column on the left, ?intro=right (the default) on the right
@@ -36,7 +36,19 @@ export function whyJson(){
 }
 
 // ---- the header area, the inspector area, the footer area ----
-export const headHtml = () => `<div class="obhead"><span class="oblogo">${logoBtn(40, { base: 'oblogobtn' })}<span>BrewCV</span></span>
+// the two cups are the Tea and Coffee switch, the sun and moon the light and dark one; the logo keeps asking about the drink too
+const CUPS = {
+  tea: '<path d="M3.5 10.5h13v1.5a6.5 6.5 0 0 1-13 0z"/><path d="M16.5 12h1.4a2.4 2.4 0 0 1 0 4.8h-2"/><path d="M2.5 21h15"/><path d="M7 3.2c-.9 1 .9 2 0 3.2M11 3.2c-.9 1 .9 2 0 3.2"/><path class="liq" d="M3.5 10.5h13v1.5H3.5z"/>',
+  coffee: '<path d="M4.5 8h11v8.5a3.5 3.5 0 0 1-3.5 3.5H8a3.5 3.5 0 0 1-3.5-3.5z"/><path d="M15.5 10.2h1.2a2.8 2.8 0 0 1 0 5.6h-1.2"/><path d="M7.5 2.5c-.9 1 .9 2 0 3.2M11.5 2.5c-.9 1 .9 2 0 3.2"/><path class="liq" d="M4.5 8h11v3h-11z"/>',
+};
+const SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>';
+const MOON = '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>';
+const glyph = (d, cls = '') => `<svg class="obic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const cup = (d, key) => `<button type="button" class="obcup" data-act="drink-set" data-m="${d}" data-ht="${key}" title="${esc(t(key))}" aria-label="${esc(t(key))}" aria-pressed="${drink() === d}">${glyph(CUPS[d])}</button>`;
+
+export const headHtml = () => `<div class="obhead"><div class="obrow"><span class="oblogo">${logoBtn(42, { base: 'oblogobtn' })}<span>BrewCV</span></span>
+  <div class="obswitch"><div class="obcups" role="group" data-hl="intro.drinks" aria-label="${esc(t('intro.drinks'))}">${cup('tea', 'm11.tea')}${cup('coffee', 'm11.coffee')}</div>
+    <button type="button" class="obsun" data-act="theme-toggle" data-ht="intro.dark" title="${esc(t('intro.dark'))}" aria-label="${esc(t('intro.dark'))}" aria-pressed="${resolveTheme(themePref()) === 'dark'}">${glyph(SUN, 'sun')}${glyph(MOON, 'moon')}</button></div></div>
   <h2 class="obhero" data-h="onb.hero">${h('onb.hero')}</h2><p class="obsub" data-h="onb.intro">${h('onb.intro')}</p></div>`;
 
 export function bodyHtml({ langs, current }){
@@ -64,6 +76,14 @@ export function retext(){
     e.dataset.lg = lg;
     const v = h(e.dataset.h);
     e.innerHTML = 'jr' in e.dataset ? jr(v) : v;
+  });
+  // a hint or a name for the screen reader, on a control that has no words of its own
+  document.querySelectorAll('#head [data-ht], #body [data-ht], #foot [data-ht], #head [data-hl]').forEach(e => {
+    if (e.dataset.lg === lg) return;
+    e.dataset.lg = lg;
+    const v = t(e.dataset.ht ?? e.dataset.hl);
+    if (e.dataset.ht) e.title = v;
+    if (e.hasAttribute('aria-label')) e.setAttribute('aria-label', v);
   });
   story.retext();
 }

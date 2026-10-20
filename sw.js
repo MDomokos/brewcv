@@ -94,6 +94,7 @@ const SHELL = [
   './src/ui/drinks.css',
   './src/ui/garden.css',
   './src/ui/start.css',
+  './src/ui/intro-side.css',
   './src/ui/flow.css',
   './data/example-resumes/index.json',
   './data/example-resumes/Atelier Mécanique Lumen - Ingénieure conception.json',

@@ -439,6 +439,8 @@ export default {
   'onb.t3': 'Einfache statische Dateien. Nach dem ersten Laden auch offline.',
   'onb.t4h': 'Kein Lock-in',
   'onb.t4': 'Sichern oder einen Ordner verknüpfen. Der Browser-Speicher lässt sich leeren.',
+  'intro.drinks': 'Tee oder Kaffee',
+  'intro.dark': 'Dunkles Design',
   'onb.scratch': 'Ganz neu anfangen',
   'onb.scratchNote': 'Ein paar Fragen, etwa fünf Minuten',
   'onb.import': 'Datei öffnen oder importieren',

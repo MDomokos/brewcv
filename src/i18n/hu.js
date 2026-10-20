@@ -439,6 +439,8 @@ export default {
   'onb.t3': 'Egyszerű statikus fájlok. Az első betöltés után offline is működik.',
   'onb.t4h': 'Nem zár be',
   'onb.t4': 'Készíts mentést, vagy kapcsolj össze egy mappát. A böngésző tárhelye törölhető.',
+  'intro.drinks': 'Tea vagy kávé',
+  'intro.dark': 'Sötét téma',
   'onb.scratch': 'Kezdés a nulláról',
   'onb.scratchNote': 'Néhány kérdés, kb. öt perc',
   'onb.import': 'Fájl megnyitása vagy importálása',

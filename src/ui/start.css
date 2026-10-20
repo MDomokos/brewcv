@@ -19,17 +19,8 @@ body.is-intro[data-intro-side="left"] .startstage { left: calc(392px + 2 * var(-
 
 /* the column on the start screen: the header and the footer sit on the canvas; the inspector is the one card */
 body.is-intro .col { background: none; border: 0; box-shadow: none; border-radius: 0; gap: var(--G); justify-content: flex-start; overflow-y: auto; scrollbar-width: none; padding: 8px 2px; }
-body.is-intro .col > #head, body.is-intro .col > #foot { background: transparent; border: 0; border-radius: 0; box-shadow: none; --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); color: var(--ink); flex: none; height: auto; }
-body.is-intro .col > #head { padding: 4px 6px 0; }
-body.is-intro .col > #foot { padding: 0 6px; margin-top: auto; }
+body.is-intro .col > #foot { background: transparent; border: 0; border-radius: 0; box-shadow: none; --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); color: var(--ink); flex: none; height: auto; padding: 0 6px; margin-top: auto; }
 body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); box-shadow: var(--shadow-panel); padding: 12px; width: 346px; max-width: 100%; }
-
-/* ---------- the header ---------- */
-.obhead { display: grid; gap: 6px; }
-.oblogo { display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
-.oblogo img { display: block; width: 40px; height: 40px; flex: none; filter: var(--drop-sm); }
-.obhero { margin: 6px 0 0; font-size: 24px; line-height: 1.12; letter-spacing: -.01em; text-wrap: balance; }
-.obsub { margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--ink-soft); }
 
 /* ---------- the inspector: the three ways in, the language, Why JSON? ---------- */
 .obstart { display: flex; flex-direction: column; gap: 8px; }

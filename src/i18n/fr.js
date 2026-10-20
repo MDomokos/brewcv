@@ -439,6 +439,8 @@ export default {
   'onb.t3': 'De simples fichiers statiques. Fonctionne hors ligne après le premier chargement.',
   'onb.t4h': 'Sans verrou',
   'onb.t4': 'Sauvegardez, ou liez un dossier. Le stockage du navigateur peut être vidé.',
+  'intro.drinks': 'Thé ou café',
+  'intro.dark': 'Thème sombre',
   'onb.scratch': 'Partir de zéro',
   'onb.scratchNote': 'Quelques questions, environ cinq minutes',
   'onb.import': 'Ouvrir ou importer un fichier',

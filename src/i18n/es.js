@@ -439,6 +439,8 @@ export default {
   'onb.t3': 'Archivos estáticos sencillos. Funciona sin conexión tras la primera carga.',
   'onb.t4h': 'Sin ataduras',
   'onb.t4': 'Haz copias o vincula una carpeta. El almacenamiento del navegador puede borrarse.',
+  'intro.drinks': 'Té o café',
+  'intro.dark': 'Tema oscuro',
   'onb.scratch': 'Empezar de cero',
   'onb.scratchNote': 'Unas preguntas, unos cinco minutos',
   'onb.import': 'Abrir o importar un archivo',

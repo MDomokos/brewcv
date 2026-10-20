@@ -2858,6 +2858,21 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   ok('the start screen is the editor’s own layout: the column on the right holds a header, the inspector and a footer, in that order', head.bottom <= body.top + 1 && body.bottom <= foot.top + 1 && Math.abs(col.right - 1440 + 16) < 2 && col.width >= 380 && col.width <= 480);
   ok('the page area holds the picture, left of the column and clear of it', stage.right <= col.left && stage.left >= 0 && stage.width > 500);
   ok('header area: the logo, the name and the tagline', /BrewCV/.test(await page.textContent('#head .oblogo')) && /One career\. Every resume\./.test(await page.textContent('#head .obhero')) && /tailored to each job/.test(await page.textContent('#head .obsub')));
+  ok('…and on its right two switches: Tea and Coffee as two cups (Tea pressed) and a sun and moon button, beside the logo that is still a switch', await page.evaluate(() => { const cups = [...document.querySelectorAll('#head .obcup')], l = document.querySelector('#head .oblogo').getBoundingClientRect(), c = cups[0].getBoundingClientRect();
+    return cups.map(b => b.dataset.m).join() === 'tea,coffee' && cups.map(b => b.getAttribute('aria-pressed')).join() === 'true,false' && c.left > l.right && !!document.querySelector('#head .obsun') && !!document.querySelector('#head .oblogo .logoswitch'); }));
+  {
+    const now = () => page.evaluate(() => ({ drink: document.documentElement.dataset.drink, theme: document.documentElement.dataset.theme, ls: [localStorage.getItem('rb-drink'), localStorage.getItem('rb-theme')].join(), cups: [...document.querySelectorAll('#head .obcup')].map(b => b.getAttribute('aria-pressed')).join(), sun: document.querySelector('#head .obsun').getAttribute('aria-pressed'), logo: document.querySelector('#head .oblogo img').getAttribute('src') }));
+    await page.click('#head .obcup[data-m=coffee]'); await page.waitForTimeout(1300);
+    const coffee = await now();
+    ok('the Coffee cup switches the app to Coffee (the same setting as the logo and Settings: rb-drink), the cups and the logo follow', coffee.drink === 'coffee' && coffee.ls.startsWith('coffee,') && coffee.cups === 'false,true' && /icon-coffee/.test(coffee.logo), JSON.stringify(coffee));
+    await page.click('#head .obsun'); await page.waitForTimeout(600);
+    const dark = await now();
+    ok('the sun and moon button switches to dark (rb-theme), and back to light', dark.theme === 'dark' && dark.ls === 'coffee,dark' && dark.sun === 'true' && await page.evaluate(() => getComputedStyle(document.querySelector('#head .obsun .moon')).display !== 'none' && getComputedStyle(document.querySelector('#head .obsun .sun')).display === 'none'), JSON.stringify(dark));
+    await page.click('#head .obsun'); await page.waitForTimeout(400);
+    await page.click('#head .obcup[data-m=tea]'); await page.waitForTimeout(1300);
+    const tea = await now();
+    ok('…and the Tea cup brings Tea back', tea.theme === 'light' && tea.drink === 'tea' && tea.cups === 'true,false' && tea.sun === 'false', JSON.stringify(tea));
+  }
   ok('inspector area: the three ways in, with the start button the one filled control', (await page.$$('#body .obchoices button')).length === 3 && (await page.$$('#body .obchoices button.primary')).length === 1 && /Start from scratch/.test(await page.textContent('#body .obchoices .primary')));
   ok('…the interface language row, one chip for each of the ten languages', (await page.$$('#body .oblangs .oblang')).length === 10 && (await page.getAttribute('#body .oblang.on', 'data-l')) === 'en');
   const bodyH = (await r('#body')).height;

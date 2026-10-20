@@ -1,0 +1,34 @@
+/* The start screen's column (src/ui/start.js): the header, the three ways in, the language, Yours to keep. One column drawn straight on the
+   canvas, in rows that line up with the picture beside it (Intro Lab v19, E2). Every colour is a token from workbench.css, like
+   start.css, which this file follows in index.html; nothing here writes a colour of its own. */
+
+/* the column's width on the start screen is the layout's (src/ui/layout.js, slim); what is drawn in it is --iw wide and sits in the middle of it */
+body.is-intro { --iw: 340px; --ipad: max(20px, calc((var(--colw, 392px) - var(--iw)) / 2)); }
+body.is-intro .col > #head { background: transparent; border: 0; border-radius: 0; box-shadow: none; flex: none; height: auto; padding: 0 var(--ipad);
+  --ink: var(--canvas-ink); --ink-soft: var(--canvas-ink-soft); --line: var(--canvas-line); --label: var(--canvas-label); --focus: var(--canvas-ink); color: var(--ink); }
+
+/* ---------- the header: the logo and the name, the two switches, the hero and the line under it ---------- */
+body.is-intro .obhead { display: block; }
+body.is-intro .obrow { display: flex; align-items: center; gap: 12px; min-height: 42px; }
+body.is-intro .oblogo { display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+body.is-intro .oblogo img { display: block; width: 42px; height: 42px; flex: none; filter: var(--drop-sm); }
+body.is-intro .obhero { margin: 20px 0 0; font-size: 34px; line-height: 1.06; font-weight: 800; letter-spacing: -.015em; text-wrap: balance; }
+body.is-intro .obsub { margin: 12px 0 0; max-width: 310px; font-size: 14.5px; line-height: 1.4; color: var(--ink-soft); }
+
+/* Tea or Coffee as two small cups in a pill (square in Coffee: the radii are tokens), and the light or dark switch beside it */
+body.is-intro .obswitch { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+body.is-intro .obcups { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--ink-soft); border-radius: var(--r-pill); background: var(--paper); box-shadow: var(--shadow-lift); }
+body.is-intro #head .obcup { display: grid; place-items: center; width: 38px; height: 30px; padding: 0; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--paper-ink); cursor: pointer; }
+body.is-intro #head .obcup[aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
+body.is-intro #head .obcup:hover:not([aria-pressed=true]) { background: var(--paper-hover); }
+body.is-intro #head .obsun { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--ink-soft); border-radius: var(--r-round); background: var(--paper); color: var(--paper-ink); cursor: pointer; box-shadow: var(--shadow-lift); }
+body.is-intro #head .obsun:hover:not(:disabled) { border-color: var(--ink); }
+.obic { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.obcup .liq { fill: currentColor; fill-opacity: .35; stroke: none; }
+.obsun .obic { width: 18px; height: 18px; }
+.obsun .moon, html[data-theme="dark"] .obsun .sun { display: none; }
+html[data-theme="dark"] .obsun .moon { display: block; }
+
+/* a phone: the header has the whole width, and the cups sit at the end of the logo's row */
+body[data-phone=true].is-intro { --ipad: 0px; }
+body[data-phone=true] .obhead { padding-right: 0; }

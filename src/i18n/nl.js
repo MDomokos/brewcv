@@ -439,6 +439,8 @@ export default {
   'onb.t3': 'Gewone statische bestanden. Werkt offline na de eerste keer laden.',
   'onb.t4h': 'Geen lock-in',
   'onb.t4': 'Maak een back-up of koppel een map. Browseropslag kan worden gewist.',
+  'intro.drinks': 'Thee of koffie',
+  'intro.dark': 'Donker thema',
   'onb.scratch': 'Vanaf nul beginnen',
   'onb.scratchNote': 'Een paar vragen, ongeveer vijf minuten',
   'onb.import': 'Bestand openen of importeren',

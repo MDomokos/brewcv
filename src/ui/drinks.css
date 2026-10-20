@@ -38,7 +38,6 @@ html[data-drink="tea"] .ico { stroke-width: 1.8; }
 html[data-drink="coffee"] :is(.title, .lead, .clhead h2, .obhero, .oblogo, .clcaret, .item .t, .sopt .sn, .docname .dn) { font-weight: 700; letter-spacing: -.01em; }
 html[data-drink="coffee"] .title { font-size: 15px; }
 html[data-drink="coffee"] .lead { font-size: 14px; }
-html[data-drink="coffee"] .obhero { font-size: 24px; }
 html[data-drink="coffee"] :is(.lbl, .menu__lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl) { letter-spacing: .08em; }
 
 /* ---------- Coffee: hairlines, no elevation ---------- */
@@ -218,8 +217,6 @@ html[data-drink="tea"] .vrow.cur .rad { border-color: var(--accent); }
 html[data-drink="tea"] .vrow.cur .n { color: var(--ink); }      /* the ring and the row's tint say which; the number stays readable on it (the amber on its tint was 3:1) */
 
 /* ---------- the start screen ---------- */
-html[data-drink="tea"] .oblogo img { width: 76px; height: 76px; }
-html[data-drink="tea"] .obhero { font-weight: 800; font-size: 30px; }
 html[data-drink="tea"] .obstart .obchoices button { border-radius: var(--r-m); }
 html[data-drink="tea"] .obstep { border-radius: 4px 12px 12px 4px; }
 html[data-drink="tea"] .obstep.on { background: var(--accent); color: var(--on-accent); border-color: transparent; }
