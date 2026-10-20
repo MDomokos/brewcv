@@ -58,7 +58,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .obtile p { margin: 1px 0 0; font-size: 12px; line-height: 1.35; color: var(--ink-soft); }
 
 /* ---------- the story (src/ui/story.js, Intro Lab v17) ---------- */
-/* the 1160 x 680 stage (scaled by story.js to fill the page area) with the step line under it, drawn straight on the canvas: its ink and lines are
+/* the 1240 x 680 stage (scaled by story.js to fill the page area) with the step line under it, drawn straight on the canvas: its ink and lines are
    the canvas's; the paper is light in every theme; the career file is the panel's own surface; the step card is the constant chrome. */
 .ss { --bd-ink: var(--st-ink); --bd-soft: var(--st-soft); --bd-line: var(--st-line); --card-bg: var(--st-card);
   position: relative; display: flex; flex-direction: column; width: max-content; max-width: 100%; padding: 0 8px; color: var(--bd-ink); font: 14px/1.45 var(--font-ui); }
@@ -67,7 +67,7 @@ body.is-intro .col > #body { flex: none; overflow: visible; border: 1px solid va
 .obreplay { flex: none; display: inline-flex; align-items: center; gap: 4px; font: 700 12px var(--font-ui); padding: 2px 11px; min-height: 0; border-radius: var(--r-pill); border: 1px solid var(--bd-line); background: transparent; color: var(--bd-ink); cursor: pointer; }
 .obreplay:hover { border-color: var(--bd-ink); }
 .ss-wrap { position: relative; overflow: hidden; }
-.sst { position: absolute; left: 0; top: 0; width: 1160px; height: 680px; transform-origin: 0 0; }
+.sst { position: absolute; left: 0; top: 0; width: 1240px; height: 680px; transform-origin: 0 0; }
 .sst .slot { position: absolute; transition: opacity .35s ease, transform .55s var(--ease); }
 .sst .slot.hide { opacity: 0; pointer-events: none; }
 .sst .fx { position: absolute; inset: 0; pointer-events: none; z-index: 20; }

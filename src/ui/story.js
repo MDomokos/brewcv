@@ -1,7 +1,7 @@
 // The story on the start screen (Intro Lab v17, concept A): one career file, a page pulled from it line by line, the same words in any
 // look, and a stack with a resume for every job. Four steps, played once and then scrubbed with the step line under the picture.
 //   - src/ui/start.js builds the right-hand column (the ways in, the languages, Why JSON?, Yours to keep) and hands the picture to this file.
-//   - the picture is a fixed 1160 x 680 stage scaled to fit. State is a plain object per moment (stateAt); show() draws it and flip()
+//   - the picture is a fixed 1240 x 680 stage scaled to fit. State is a plain object per moment (stateAt); show() draws it and flip()
 //     animates the difference (FLIP): a line flies from the file to the page, a sheet slides in and out of the stack.
 //   - the career in the picture is a made-up café manager (English and German); the labels around it are the app's words (story.*).
 // Every colour is a token (src/ui/start.css); with reduced motion the picture opens on the last step and nothing plays.
@@ -54,7 +54,7 @@ const STEPS = [
       { slips: 'h1', _dt: 800 }, { ver: { h1: 1, h4: 0 }, _dt: 1100 }, { ver: { h1: 2, h4: 0 }, _dt: 1150 }, { edit: 'h1', _dt: 1150 }, { edit: null, added: true, ver: { h1: 3, h4: 0 }, _dt: 1300 }] },
   { t: 'story.s3', s: 'story.s3d', dt: 1000, seq: [{ slips: null, job: null, tags: null, style: true, stamp: true }, ...LOOK] },
   { t: 'story.s4', s: 'story.s4d', dt: 820,
-    seq: [{ stamp: false, cards: [CAFE_A], ...TEA0, job: 'tea', tags: 'tea' }, ...PICK2, { cards: [CAFE_A, TRAINER], _dt: 1100 }, { exports: true, _dt: 1200 }, { ...CAFE_A, job: null, tags: null, cards: [TEA_END, TRAINER], _dt: 1100 }] },
+    seq: [{ stamp: false, cards: [CAFE_A], ...TEA0, job: 'tea', tags: 'tea' }, { ...PICK2[0], _dt: 1100 }, ...PICK2.slice(1), { cards: [CAFE_A, TRAINER], _dt: 1100 }, { exports: true, _dt: 1200 }, { ...CAFE_A, job: null, tags: null, cards: [TEA_END, TRAINER], _dt: 1100 }] },
 ];
 
 // ---------- drawing ----------
@@ -132,7 +132,7 @@ const PZ = 1.1, PAGE_AT = [474, 40];
 const pageH = c => c.paper === 'a4' ? 566 : 518;
 const fanT = (p, H, k = 1) => `translate(${p.x}px, ${p.y}px) translate(0px, ${H}px) rotate(${p.r}deg) translate(0px, ${-H}px) scale(${k})`;
 const tabHtml = id => `<button class="itab" data-res="${id}" style="top:${TABS[id][2]}px" tabindex="-1"><b>${TABS[id][0]}</b><span>${TABS[id][1]}</span></button>`;
-const sheetHtml = (c, p, d) => `<div class="sheet d${d}" style="transform:${fanT(p, pageH(c))}">${pageHtml(c, null, { mini: true })}${tabHtml(c.id)}</div>`;
+const sheetHtml = (c, p, d) => `<div class="sheet d${d}" data-id="${c.id}" style="transform:${fanT(p, pageH(c))}">${pageHtml(c, null, { mini: true })}${tabHtml(c.id)}</div>`;
 const snapOf = s => ({ id: s.id, page: 'on', tl: s.tl, look: s.look, lang: s.lang, paper: s.paper, picks: [...s.picks], jobOrder: [...s.jobOrder], ver: { ...s.ver }, added: s.added });
 const stackOf = s => { const m = new Map(); if (s.page === 'on') m.set(s.id, 0); s.cards.forEach((c, i) => m.set(c.id, i + 1)); return m; };
 
@@ -284,7 +284,7 @@ function stateAt(n, k){
 const last = n => STEPS[n - 1].seq.length - 1;
 function show(s){
   const P = prev; prev = s;
-  clearTimeout(stackTimer); EL.page.style.visibility = ''; EL.behind.style.visibility = '';
+  clearTimeout(stackTimer); EL.page.style.visibility = '';
   const moves = P && !reduced() ? stackMoves(P, s) : null;
   STACKMOVE = !!moves;
   flip(() => render(s, P, EL));
@@ -306,7 +306,10 @@ function choreograph(moves){
   const sh = n => getComputedStyle(document.documentElement).getPropertyValue(`--st-sh-${n}`).trim();
   const SH = ['front', 's1', 's2'].map(sh), LIFT = sh('lift');
   const pull = moves.some(m => m.t === 0 && m.f > 0);
-  EL.page.style.visibility = 'hidden'; EL.behind.style.visibility = 'hidden';
+  // only the sheets that move are hidden under their ghosts; the others stay where they are, so nothing blinks out
+  EL.page.style.visibility = moves.some(m => m.t === 0 || m.f === 0) ? 'hidden' : '';
+  const moving = new Set(moves.filter(m => m.t > 0).map(m => m.id));
+  EL.behind.querySelectorAll('.sheet').forEach(sh => { sh.style.visibility = moving.has(sh.dataset.id) ? 'hidden' : ''; });
   let longest = 0;
   const order = [...moves].sort((m, n) => (n.t ?? 9) - (m.t ?? 9));      // deepest first, the new top last
   order.forEach(m => {
@@ -338,7 +341,7 @@ function choreograph(moves){
     pg.animate(shadows, { duration: ms, easing: EASE_GLIDE, fill: 'forwards' });
     longest = Math.max(longest, ms);
   });
-  stackTimer = setTimeout(() => { fx().querySelectorAll('.sg').forEach(g => g.remove()); EL.page.style.visibility = ''; EL.behind.style.visibility = ''; }, longest);
+  stackTimer = setTimeout(() => { fx().querySelectorAll('.sg').forEach(g => g.remove()); EL.page.style.visibility = ''; EL.behind.querySelectorAll('.sheet').forEach(sh => { sh.style.visibility = ''; }); }, longest);
 }
 // a tab brings its resume to the top
 function pullUp(e){
@@ -427,8 +430,8 @@ function fit(){
   const host = ss.parentElement, flow = getComputedStyle(host).position === 'static';
   const cs = getComputedStyle(ss), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 2;
   const furniture = ss.offsetHeight - WRAP.offsetHeight;
-  SC = Math.max(.3, Math.min((host.clientWidth - padX) / 1160, flow ? Infinity : (host.clientHeight - furniture) / 680, 2.5));
-  WRAP.style.width = `${(1160 * SC).toFixed(1)}px`; WRAP.style.height = `${(680 * SC).toFixed(1)}px`;
+  SC = Math.max(.3, Math.min((host.clientWidth - padX) / 1240, flow ? Infinity : (host.clientHeight - furniture) / 680, 2.5));
+  WRAP.style.width = `${(1240 * SC).toFixed(1)}px`; WRAP.style.height = `${(680 * SC).toFixed(1)}px`;
   STAGE.style.transform = `scale(${SC.toFixed(4)})`;
   bar();
 }

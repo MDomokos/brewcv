@@ -11,6 +11,7 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 - **The story's words are in all ten languages.** The new step titles and labels are machine-written and marked for a native review; the career in the picture stays a made-up café manager in English and German.
 
 ### Fixed
+- **The start screen's stack of resumes no longer blinks.** When a third resume joins, or two swap places, only the sheets that move are redrawn: the others stay on screen. A sheet joining the stack slides and fades in, and the page tags are no longer cut off at the edge while a sheet slides out.
 - **The mat's roll no longer stutters.** Switching drink by the logo skips the all-elements colour fade while the mat rolls, and the roll's layer is isolated from the rest of the page.
 - **The folded Tea tags swing more smoothly.** Positions and tokens are read once per frame or swing instead of once per tag.
 - **Panning in Tea restyles the sheet less.** The lift's custom properties are written only when their rounded value changes.
