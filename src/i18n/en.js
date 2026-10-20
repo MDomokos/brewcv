@@ -458,7 +458,6 @@ export default {
   'story.sendAs': 'Send it as',
   'story.web': 'Web page',
   'story.text': 'Plain text',
-  'story.blank': 'This job’s resume',
   'onb.t1h': 'Standard files',
   'onb.t1': 'Your career is one JSON Resume file. Export HTML, text or PDF.',
   'onb.t2h': 'Private',

@@ -458,7 +458,6 @@ export default {
   'story.sendAs': 'Versturen als',
   'story.web': 'Webpagina',
   'story.text': 'Platte tekst',
-  'story.blank': 'Cv voor deze baan',
   'onb.t1h': 'Standaardbestanden',
   'onb.t1': 'Je record is één JSON Resume-bestand. Exporteer HTML, tekst of pdf.',
   'onb.t2h': 'Privé',

@@ -458,7 +458,6 @@ export default {
   'story.sendAs': 'Wyślij jako',
   'story.web': 'Strona WWW',
   'story.text': 'Zwykły tekst',
-  'story.blank': 'CV na tę ofertę',
   'onb.t1h': 'Standardowe pliki',
   'onb.t1': 'Twój zapis to jeden plik JSON Resume. Eksport do HTML, tekstu lub PDF.',
   'onb.t2h': 'Prywatne',

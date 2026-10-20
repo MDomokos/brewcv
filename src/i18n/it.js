@@ -458,7 +458,6 @@ export default {
   'story.sendAs': 'Invia come',
   'story.web': 'Pagina web',
   'story.text': 'Testo semplice',
-  'story.blank': 'CV per questo lavoro',
   'onb.t1h': 'File standard',
   'onb.t1': 'Il tuo percorso è un file JSON Resume. Esporta HTML, testo o PDF.',
   'onb.t2h': 'Privato',

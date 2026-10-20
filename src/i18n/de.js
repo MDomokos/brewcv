@@ -458,7 +458,6 @@ export default {
   'story.sendAs': 'Senden als',
   'story.web': 'Webseite',
   'story.text': 'Klartext',
-  'story.blank': 'Lebenslauf für diese Stelle',
   'onb.t1h': 'Offene Dateien',
   'onb.t1': 'Deine Daten sind eine JSON-Resume-Datei. Export als HTML, Text oder PDF.',
   'onb.t2h': 'Privat',

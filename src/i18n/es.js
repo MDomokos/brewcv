@@ -458,7 +458,6 @@ export default {
   'story.sendAs': 'Enviar como',
   'story.web': 'Página web',
   'story.text': 'Texto plano',
-  'story.blank': 'Currículo para este empleo',
   'onb.t1h': 'Archivos estándar',
   'onb.t1': 'Tu historial es un archivo JSON Resume. Exporta HTML, texto o PDF.',
   'onb.t2h': 'Privado',

@@ -199,8 +199,6 @@ html[data-drink="coffee"] .mrow.ghost .t { font-size: 12px; }
   box-shadow: var(--st-sh-front); outline: 1px solid var(--st-edge); outline-offset: -1px; transition: height .6s ease, box-shadow .25s ease; }
 .pg.a4 { height: 566px; }
 .s-page:hover .pg { box-shadow: var(--st-sh-lift); }
-.pg.blank { background: transparent; box-shadow: none; outline: 1.5px dashed var(--bd-line); display: grid; place-items: center; }
-.pg .ph { font: 13px/1 var(--font-ui); color: var(--bd-soft); }
 .pg header { margin-bottom: 4px; }
 .pg .nm { display: block; font: 800 25px/1.1 "Hanken Grotesk", sans-serif; letter-spacing: -.01em; }
 .pg .tg { display: block; font-weight: 700; margin-top: 4px; }

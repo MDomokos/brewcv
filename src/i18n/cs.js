@@ -458,7 +458,6 @@ export default {
   'story.sendAs': 'Odeslat jako',
   'story.web': 'Webová stránka',
   'story.text': 'Prostý text',
-  'story.blank': 'Životopis pro tuto nabídku',
   'onb.t1h': 'Standardní soubory',
   'onb.t1': 'Váš záznam je jeden soubor JSON Resume. Export do HTML, textu nebo PDF.',
   'onb.t2h': 'Soukromé',

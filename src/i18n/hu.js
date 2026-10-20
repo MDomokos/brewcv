@@ -458,7 +458,6 @@ export default {
   'story.sendAs': 'Küldés mint',
   'story.web': 'Weboldal',
   'story.text': 'Egyszerű szöveg',
-  'story.blank': 'Önéletrajz ehhez az álláshoz',
   'onb.t1h': 'Szabványos fájlok',
   'onb.t1': 'A rekordod egyetlen JSON Resume fájl. Exportálás HTML-be, szövegbe vagy PDF-be.',
   'onb.t2h': 'Privát',

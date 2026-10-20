@@ -40,7 +40,7 @@ const PAPERS = { letter: 'Letter', a4: 'A4' };
 const LINES = [0, 9, 18, 27, 35, 41, 45, 48], JOBS = [0, 1, 2, 3, 4, 5, 6, 6], TOTAL = 48;
 
 // ---------- the moments ----------
-const BASE = { ver: { h1: 0, h4: 0 }, page: 'blank', picks: [], jobOrder: ['lumen', 'leaf'], lang: 'en', look: 'marker', paper: 'letter', tl: 'cafe',
+const BASE = { ver: { h1: 0, h4: 0 }, page: 'none', picks: [], jobOrder: ['lumen', 'leaf'], lang: 'en', look: 'marker', paper: 'letter', tl: 'cafe',
   lift: null, style: false, added: false, edit: null, id: 'cafe', job: null, tags: null, cards: [], exports: false, ghost: false, slips: null, src: 0 };
 // the first resume, as it is kept at the end of step 3: it uses the wording written on its page (v4)
 const CAFE_A = { id: 'cafe', page: 'on', tl: 'cafe', look: 'serif', lang: 'de', paper: 'a4', picks: ['h1', 'h3', 'h2', 'h4'], jobOrder: ['lumen', 'leaf'], ver: { h1: 3, h4: 0 }, added: true };
@@ -56,7 +56,7 @@ const LOOK = [{ look: 'mono' }, { lang: 'de' }, { paper: 'a4' }, { look: 'serif'
 // the hold after the last, and the moments (seq, each with its own _dt)
 const STEPS = [
   { t: 'story.s1', c: 'story.c1', t0: 200, dt: 700, hold: 1800,
-    seq: [{ page: 'none', src: 0 }, ...Array.from({ length: 7 }, (_, i) => ({ src: i + 1, _dt: i ? 950 : 1200 }))] },
+    seq: [{ src: 0 }, ...Array.from({ length: 7 }, (_, i) => ({ src: i + 1, _dt: i ? 950 : 1200 }))] },
   { t: 'story.s2', c: 'story.c2', t0: 200, dt: 900,
     seq: [{ page: 'on', job: 'cafe', tags: 'cafe' }, ...PICK1.slice(0, 4), { lift: 'h3', _dt: 760 }, { picks: ['h1', 'h3', 'h2', 'h4'], _dt: 700 }, { lift: null, _dt: 900 },
       { slips: 'h1', _dt: 800 }, { ver: { h1: 1, h4: 0 }, _dt: 1100 }, { ver: { h1: 2, h4: 0 }, _dt: 1150 }, { edit: 'h1', _dt: 1150 }, { edit: null, added: true, ver: { h1: 3, h4: 0 }, _dt: 1300 }] },
@@ -104,7 +104,6 @@ function fileHtml(s, P){
 function pageHtml(s, P, o = {}){
   const k = (key, from) => o.mini ? '' : ` data-k="${key}"${from ? ` data-from="${from}"` : ''}`;
   const cls = `pg ${s.look} ${s.paper}`;
-  if (s.page === 'blank') return `<div class="${cls} blank"${k('pg')}><span class="ph">${h('story.blank')}</span></div>`;
   const lang = s.lang;
   const jobs = s.jobOrder.filter(j => s.picks.some(id => L[id].job === j)).map(j => {
     const lis = s.picks.filter(id => L[id].job === j).map(id => {

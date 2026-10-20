@@ -458,7 +458,6 @@ export default {
   'story.sendAs': 'Enviar como',
   'story.web': 'Página web',
   'story.text': 'Texto simples',
-  'story.blank': 'CV para este emprego',
   'onb.t1h': 'Ficheiros padrão',
   'onb.t1': 'O seu registo é um ficheiro JSON Resume. Exporte HTML, texto ou PDF.',
   'onb.t2h': 'Privado',
