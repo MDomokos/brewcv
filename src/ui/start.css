@@ -67,8 +67,9 @@ body.is-intro .startstage { width: var(--colleft, var(--startw, calc(100vw - 440
 .s-lcol .nlabel, .s-lcol .cap { animation: stfade .5s var(--ease) both; }
 .s-lcol .cap { animation-delay: .12s; }
 @keyframes stfade { from { opacity: 0; translate: 0 6px; } }
-.num small { font-size: 38px; font-weight: 700; letter-spacing: -.02em; color: var(--band-ink-soft); }
-.num small.plus { color: var(--accent); }
+.num .glyph { display: block; width: 76px; height: 76px; margin: -3px 0; fill: none; stroke: currentColor; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+.num.chg .glyph path { animation: stdraw .7s var(--ease) backwards; }
+@keyframes stdraw { from { stroke-dasharray: 1; stroke-dashoffset: 1.02; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
 .nlabel { display: block; margin-top: 6px; font-size: 17px; font-weight: 700; }
 .cap { margin: 12px 0 0; font-size: 15px; line-height: 1.45; text-wrap: pretty; }
 .num .aa { display: block; }

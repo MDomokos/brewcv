@@ -37,7 +37,6 @@ const LOOKS = { marker: 'Marker', mono: 'Mono', serif: 'Serif' };
 const LANGS = { en: 'EN', de: 'DE' };
 const PAPERS = { letter: 'Letter', a4: 'A4' };
 // step 1: what has landed in the file after each of the seven old documents (the file ends on 48 lines from 6 jobs)
-const LINES = [0, 9, 18, 27, 35, 41, 45, 48], JOBS = [0, 1, 2, 3, 4, 5, 6, 6], TOTAL = 48;
 
 // ---------- the moments ----------
 const BASE = { ver: { h1: 0, h4: 0 }, page: 'none', picks: [], jobOrder: ['lumen', 'leaf'], lang: 'en', look: 'marker', paper: 'letter', tl: 'cafe',
@@ -176,15 +175,20 @@ function paintSources(s, el){
   el.manifest.querySelectorAll('.mrow:not(.ghost)').forEach((r, i) => { r.className = `mrow ${i < k ? 'in' : i === k ? 'fly' : 'wait'}`; r.querySelector('.s').textContent = t(i < k ? 'story.stIn' : i === k ? 'story.stWay' : 'story.stWait'); });
 }
 
-// the big number of each step, and what it counts: lines landing in the file (1), lines picked of the whole (2), the look being tried (3),
-// resumes so far (4), with its label and the step's sentence
+// the big character of each step: a picture of what the step does, not a count (what is imported, picked or sent is the person's own): an arrow into the
+// file (1), a tick for choosing (2), the look being tried, drawn in its own type (3), an infinity sign (4); then its label and the step's sentence
+const glyph = d => `<svg class="glyph" viewBox="0 0 76 76" aria-hidden="true"><path pathLength="1" d="${d}"/></svg>`;
+const GLYPH = {
+  in: glyph('M64 12 L12 64 M12 26 V64 H50'),
+  pick: glyph('M8 40 L29 62 L68 14'),
+  many: glyph('M38 38 C27 18 4 18 4 38 C4 58 27 58 38 38 C49 18 72 18 72 38 C72 58 49 58 38 38 Z'),
+};
 function bigOf(s){
   const n = cur || 1;
-  if (n === 1) return { key: `1:${s.src}`, big: `<span class="n">${LINES[s.src]}</span>`, label: s.src ? t('story.linesJobs', { n: JOBS[s.src] }) : t('story.lines0') };
-  if (n === 2) return { key: `2:${s.picks.length}`, big: `${s.picks.length}<small> ${esc(t('story.ofN', { n: TOTAL }))}</small>`, label: t('story.picked') };
+  if (n === 1) return { key: '1', big: GLYPH.in, label: t('story.l1') };
+  if (n === 2) return { key: '2', big: GLYPH.pick, label: t('story.l2') };
   if (n === 3) return { key: `3:${s.look}`, big: '<span class="aa">Aa</span>', label: t('story.lookSame', { look: LOOKS[s.look] }) };
-  const count = (s.page === 'on' ? 1 : 0) + s.cards.length;
-  return { key: `4:${count}`, big: `${count}<small class="plus">+</small>`, label: t('story.resumesSo') };
+  return { key: '4', big: GLYPH.many, label: t('story.l4') };
 }
 function lcolInto(box, s){
   const n = cur || 1, b = bigOf(s), cap = t(STEPS[n - 1].c), v = `${b.key}|${b.label}|${cap}`;
@@ -199,7 +203,8 @@ function lcolInto(box, s){
   }
   // a new step: the number, its label and the sentence come in one after another
   box.dataset.n = n;
-  box.innerHTML = `<button class="num chg" title="${esc(t(n === 4 ? 'story.backTo1' : 'story.nextStep'))}">${b.big}</button><span class="nlabel">${esc(b.label)}</span><p class="cap">${esc(cap)}</p>`;
+  const go = esc(t(n === 4 ? 'story.backTo1' : 'story.nextStep'));
+  box.innerHTML = `<button class="num chg" title="${go}" aria-label="${go}">${b.big}</button><span class="nlabel">${esc(b.label)}</span><p class="cap">${esc(cap)}</p>`;
 }
 
 let HOT = null;                                  // the line of the career file the pointer is on
