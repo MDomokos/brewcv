@@ -118,18 +118,20 @@ function pageHtml(s, P, o = {}){
     ${jobs ? `<h4 class="sec"${k('sx')}>${SEC[lang][0]}</h4>${jobs}<h4 class="sec"${k('ss')}>${SEC[lang][1]}</h4><p${k('sk')}>${SKILLS[lang]}</p>` : ''}
     <span class="pf">${PAPERS[s.paper]} · ${lang.toUpperCase()}</span></div>`;
 }
-const seg = (opts, val, prev) => `<span class="sgm">${Object.entries(opts).map(([k, n]) => `<i class="${k === val ? 'on' : ''}${k === val && prev && prev !== val ? ' chg' : ''}">${n}</i>`).join('')}</span>`;
-const lookSegs = (s, P) => `${seg(LOOKS, s.look, P?.look)}${seg({ en: 'EN', de: 'DE' }, s.lang, P?.lang)}${seg(PAPERS, s.paper, P?.paper)}`;
+// each option is a button: a click sets it on the page that is on top (data-set is the setting and its value)
+const seg = (key, opts, val, prev) => `<span class="sgm">${Object.entries(opts).map(([k, n]) => `<i role="button" tabindex="0" data-set="${key}:${k}" aria-pressed="${k === val}" class="${k === val ? 'on' : ''}${k === val && prev && prev !== val ? ' chg' : ''}">${n}</i>`).join('')}</span>`;
+const lookSegs = (s, P) => `${seg('look', LOOKS, s.look, P?.look)}${seg('lang', { en: 'EN', de: 'DE' }, s.lang, P?.lang)}${seg('paper', PAPERS, s.paper, P?.paper)}`;
 const exportsHtml = () => `<div class="float"><span class="stlbl">${h('story.sendAs')}</span>${['PDF', h('story.web'), h('story.text'), 'JSON Resume'].map(x => `<i class="xchip">${x}</i>`).join('')}</div>`;
 const jobCard = kind => `<div class="jobcard"><span class="stlbl">${h(kind === 'cafe' ? 'story.thisJob' : 'story.nextJob')}</span><b>${kind === 'cafe' ? 'Café manager' : 'Tea shop lead'}</b><span>${h(kind === 'cafe' ? 'story.jobCafe' : 'story.jobTea')}</span></div>`;
 // the stack: the page on top, the kept resumes fanned out behind it from their bottom-left corner; each resume's tab sticks out of its own right edge
-const TABS = { cafe: ['Café manager', 'Serif · DE · A4', 100], tea: ['Tea shop lead', 'Marker · EN', 30], trainer: ['Trainer', 'Mono · EN', 170] };
+const TABS = { cafe: ['Café manager', 100], tea: ['Tea shop lead', 30], trainer: ['Trainer', 170] };
+const lookLine = c => `${LOOKS[c.look]} · ${c.lang.toUpperCase()}${c.paper === 'a4' ? ' · A4' : ''}`;
 const POS = [{ x: 0, y: 0, r: 0 }, { x: 28, y: -30, r: 4 }, { x: 52, y: -40, r: 8 }];
 const PZ = 1.1, PAGE_AT = [440, 48];
 const pageH = c => c.paper === 'a4' ? 566 : 518;
 const fanT = (p, H, k = 1) => `translate(${p.x}px, ${p.y}px) translate(0px, ${H}px) rotate(${p.r}deg) translate(0px, ${-H}px) scale(${k})`;
-const tabHtml = id => `<button class="itab" data-res="${id}" style="top:${TABS[id][2]}px" tabindex="-1"><b>${TABS[id][0]}</b><span>${TABS[id][1]}</span></button>`;
-const sheetHtml = (c, p, d) => `<div class="sheet d${d}" data-id="${c.id}" style="transform:${fanT(p, pageH(c))}"><div class="sin">${pageHtml(c, null, { mini: true })}${tabHtml(c.id)}</div></div>`;
+const tabHtml = c => `<button class="itab" data-res="${c.id}" style="top:${TABS[c.id][1]}px" tabindex="-1"><b>${TABS[c.id][0]}</b><span>${lookLine(c)}</span></button>`;
+const sheetHtml = (c, p, d) => `<div class="sheet d${d}" data-id="${c.id}" style="transform:${fanT(p, pageH(c))}"><div class="sin">${pageHtml(c, null, { mini: true })}${tabHtml(c)}</div></div>`;
 const snapOf = s => ({ id: s.id, page: 'on', tl: s.tl, look: s.look, lang: s.lang, paper: s.paper, picks: [...s.picks], jobOrder: [...s.jobOrder], ver: { ...s.ver }, added: s.added });
 const stackOf = s => { const m = new Map(); if (s.page === 'on') m.set(s.id, 0); s.cards.forEach((c, i) => m.set(c.id, i + 1)); return m; };
 
@@ -157,7 +159,7 @@ function render(s, P, el){
   el.behind.classList.toggle('hide', !s.cards.length);
   el.behind.innerHTML = s.cards.map((c, i) => sheetHtml(c, POS[i + 1], i + 1)).reverse().join('');
   el.page.classList.toggle('hide', s.page === 'none');
-  if (s.page !== 'none') el.page.innerHTML = pageHtml(s, P, { fly: true, vtag: !!s.slips, hot: HOT }) + (s.cards.length ? tabHtml(s.id) : '');
+  if (s.page !== 'none') el.page.innerHTML = pageHtml(s, P, { fly: true, vtag: !!s.slips, hot: HOT }) + (s.cards.length ? tabHtml(s) : '');
   el.look.classList.toggle('hide', !s.style);
   el.look.innerHTML = `<div class="float"><span class="stlbl">${h('story.look')}</span>${lookSegs(s, P)}</div>`;
   el.job.classList.toggle('hide', !s.job);
@@ -314,7 +316,7 @@ function choreograph(moves){
     const H = pageH(m.snap), g = document.createElement('div');
     g.className = `sheet sg d${m.t ?? m.f}`;
     g.style.cssText = `left:${PAGE_AT[0]}px;top:${PAGE_AT[1]}px`;
-    g.innerHTML = pageHtml(m.snap, null, { mini: true }) + tabHtml(m.snap.id);
+    g.innerHTML = pageHtml(m.snap, null, { mini: true }) + tabHtml(m.snap);
     fx().append(g);
     const T = (p, k) => `scale(${PZ}) ${fanT(p, H, k)}`, pg = g.querySelector('.pg');
     let frames, shadows, ms;
@@ -355,6 +357,12 @@ function hover(id){
     if (card) bringUp(card.id);
   };
   if (id) hotTimer = setTimeout(wait, 160);
+}
+// the look, the language and the paper of the page on top are settings to try: the page is drawn again with the new one
+function setLook(key, value){
+  if (!prev || moving || cur < 3 || prev[key] === value) return;
+  auto = false; clear();
+  const s = structuredClone(prev); s[key] = value; BACK = false; show(s);
 }
 // a tab brings its resume to the top
 function pullUp(e){
@@ -425,7 +433,8 @@ function listen(){
     if (m){ e.preventDefault(); auto = false; go(cur + m); }
     else if (e.key === 'Home' || e.key === 'End'){ e.preventDefault(); auto = false; go(e.key === 'Home' ? 1 : STEPS.length); }
   });
-  STAGE.addEventListener('click', pullUp);
+  STAGE.addEventListener('click', e => { const o = e.target.closest('[data-set]'); if (o) setLook(...o.dataset.set.split(':')); else pullUp(e); });
+  STAGE.addEventListener('keydown', e => { const o = e.target.closest?.('[data-set]'); if (o && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); setLook(...o.dataset.set.split(':')); } });
   const row = e => e.target.closest?.('.s-file .fln[data-k^="f-"]');
   STAGE.addEventListener('pointerover', e => { const r = row(e); if (r) hover(r.dataset.k.slice(2)); });
   STAGE.addEventListener('pointerout', e => { if (row(e) && !row({ target: e.relatedTarget })) hover(null); });
