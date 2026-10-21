@@ -64,14 +64,26 @@ Details: [docs/TAGS-AND-JOB-TYPES.md](docs/TAGS-AND-JOB-TYPES.md).
 - **Edit on the page.** Click a bullet, click again, and write it where it prints.
 - **Design.** Letter or A4, one page or several, five looks, an accent colour with a live contrast check, importable themes. Photos are cropped to 35 × 45 mm for countries that expect one.
 - **Ten languages** in the app and in every line: English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Czech, Hungarian.
-- **Tea or coffee.** Two light-and-dark looks for the app itself (the printed resume is the same either way).
 - **A coding agent can tailor for you.** [AGENTS.md](AGENTS.md) walks an agent from a job ad to a PDF using only your existing wordings. It picks, and never writes, unless you ask.
 - **Desktop app (experimental).** A macOS build that saves PDFs directly and links a folder, and a Windows build you can make on GitHub. The web version is the main one.
+
+## Tea to unwind, coffee to focus
+
+The app asks what you're drinking and keeps your answer (Shift+F switches in place). Each drink has a light and a dark look. The printed resume is the same in both.
+
+<table>
+<tr>
+<td align="center" width="50%"><img src="docs/intro/tea-garden.webp" alt="The tea workspace with leaves, petals and rain spots drifting over the bamboo mat and the page"><br><b>Tea: a garden while you rest</b></td>
+<td align="center" width="50%"><img src="docs/intro/coffee-focus.webp" alt="The coffee workspace in monospace type with square corners and no shadows"><br><b>Coffee: just the work</b></td>
+</tr>
+</table>
+
+Writing a CV is slow, and it's easy to stare at it for an hour. **Tea** is there to take the edge off. When you stop typing, leaves and petals drift onto the bamboo mat, rain leaves wet spots, and a ladybug or a snail wanders through. Nothing moves while you work, nothing is saved into your resume, and a click or key press sweeps it away. **Coffee** is for getting it done: monospace type, square corners, no shadows and no garden. The garden is off with reduced motion, on a phone, and with *Garden while you rest* in Settings.
 
 ## Getting started
 
 1. Open **[the app](https://MDomokos.github.io/brewcv/)**.
-2. Start from scratch (about five minutes of questions), open a JSON Resume or backup, or try the fictional example with fourteen resumes in ten languages.
+2. Start from scratch (about five minutes of questions), open a JSON Resume or backup, or try the fictional example with fourteen resumes in ten languages. The example people are made up, and any resemblance to a real person is purely coincidental.
 3. Optional: use your browser's *Install app* to keep it offline.
 
 Press **?** for keyboard shortcuts. On a phone you can view resumes and pick versions; editing needs a larger screen.
