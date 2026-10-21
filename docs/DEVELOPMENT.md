@@ -122,7 +122,8 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            start.css and intro-side.css (the start screen's column; every colour a token, like the other two stylesheets), flow.css (the place tabs, the place card, the seam and #scr, loaded last;
                            every radius and shadow a token)
 scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-review, build-example, to-jsonresume,
-                           claims and new-resume (what a coding agent uses; see AGENTS.md), onefile (a folder ↔ the one file)
+                           claims and new-resume (what a coding agent uses; see AGENTS.md), onefile (a folder ↔ the one file),
+                           intro-media/ (re-makes the README's pictures in docs/intro/; its README has the gotchas)
 checks/                    the Node checks, the Chromium smoke test, the guards
 data/example.json          the fictional sample record, and data/example-resumes/ its fourteen
                            resumes (one or more per language; all but English and Hungarian need
@@ -208,6 +209,7 @@ node scripts/theme-check.mjs <theme.tokens.json|.css>              what the app 
 node scripts/new-theme.mjs <id> "<Name>" "<note>"                  register a new built-in look everywhere: stylesheet, registry, strings, sw.js, tokens
 node scripts/i18n-review.mjs <lang|all> [--out <dir>]              a review sheet (CSV) per language
 node scripts/i18n-review.mjs --apply <sheet.csv>                   write a sheet's corrections into src/i18n/
+node scripts/intro-media/capture-story.mjs <dir>                   the README's animations and stills (see scripts/intro-media/README.md)
 ```
 
 Every script that takes `<data.json>` except `checks/validate-data.mjs` reads either a record file or the one file (the app's backup, `resumeBuilderBackup: 1`; its record is used). Every script reads a record through `src/model/schema.js`, so `resume-data/3` and `/4` both work everywhere; anything that writes one writes v4, and keeps a v3 original once as `<name>.v3.json`. Fit never rewrites prose: it chooses among the versions that exist, drops whole bullets, and reports what it couldn't do.
