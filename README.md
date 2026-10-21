@@ -73,8 +73,8 @@ The app asks what you're drinking and keeps your answer (Shift+F switches in pla
 
 <table>
 <tr>
-<td align="center" width="50%"><img src="docs/intro/tea-garden.webp" alt="The tea workspace with leaves, petals and rain spots drifting over the bamboo mat and the page"><br><b>Tea: a garden while you rest</b></td>
-<td align="center" width="50%"><img src="docs/intro/coffee-focus.webp" alt="The coffee workspace in monospace type with square corners and no shadows"><br><b>Coffee: just the work</b></td>
+<td align="center" width="50%"><img src="docs/intro/tea-garden.webp" alt="A few leaves and a ladybug resting on the bamboo mat beside the corner of a resume"><br><b>Tea: a garden while you rest</b></td>
+<td align="center" width="50%"><img src="docs/intro/coffee-focus.webp" alt="The coffee workspace: a plain graph-paper mat beside the same resume, with nothing moving"><br><b>Coffee: just the work</b></td>
 </tr>
 </table>
 
