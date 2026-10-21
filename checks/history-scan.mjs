@@ -51,8 +51,8 @@ const everSeen = new Set(
   git('log', ...SELECT, '--pretty=format:', '--name-only', '--diff-filter=AM')
     .split('\n').map(s => s.trim()).filter(Boolean));
 for (const f of everSeen){
-  // docs/moments/*.gif are recordings of the app on the example data (a fictional person), looked at frame by frame before they were added
-  if (/^(src-tauri\/)?icons\//.test(f) || /^docs\/[^/]+\.(png|gif)$/i.test(f) || /^docs\/moments\/[^/]+\.gif$/i.test(f)) continue;
+  // docs/intro/*.webp are cut-outs of the start screen's story, and docs/moments/*.gif (older) were recordings of the app on the example data (a fictional person), looked at frame by frame before they were added
+  if (/^(src-tauri\/)?icons\//.test(f) || /^docs\/[^/]+\.(png|gif)$/i.test(f) || /^docs\/moments\/[^/]+\.gif$/i.test(f) || /^docs\/intro\/[^/]+\.webp$/i.test(f)) continue;
   for (const [re, what] of NEVER)
     if (re.test(f)){ findings.push({ kind: 'file', detail: `${f}: ${what}` }); break; }
 }
