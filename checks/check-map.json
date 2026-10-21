@@ -66,7 +66,7 @@
     { "match": ["checks/keyword-gap.mjs", "checks/measure*.mjs", "checks/pagefit.mjs", "checks/render-diff.mjs"], "checks": ["agent", "measurement"], "smoke": [] },
     { "match": ["checks/name-check.mjs", "checks/preflight-deploy.mjs", "checks/history-scan.mjs"], "checks": ["preflight", "history-scan", "prepush", "private-files"], "smoke": [] },
     { "match": [".github/workflows/flatpak.yml", "flatpak/**"], "checks": ["flatpak"], "smoke": [] },
-    { "match": [".github/workflows/macos.yml", "src-tauri/**", "desktop/**", "scripts/desktop-stage.mjs"], "checks": ["desktop", "tauri-folder", "flatpak"], "smoke": [] },
+    { "match": [".github/workflows/macos.yml", ".github/workflows/windows.yml", "src-tauri/**", "desktop/**", "scripts/desktop-stage.mjs"], "checks": ["desktop", "tauri-folder", "flatpak"], "smoke": [] },
     { "match": ["scripts/install-hooks.mjs", "scripts/pre-push.mjs", "scripts/lib/private-files.mjs"], "checks": ["prepush", "private-files", "history-scan", "preflight"], "smoke": [] },
     { "match": ["scripts/i18n-review.mjs", "scripts/lib/example-i18n/**"], "checks": ["i18n-review", "i18n"], "smoke": [] },
     { "match": [".github/workflows/pages.yml"], "checks": ["*"], "smoke": [] },

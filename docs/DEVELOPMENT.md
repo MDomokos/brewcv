@@ -258,6 +258,10 @@ Not in the desktop build yet: the updater, a Windows or Linux PDF save (they fal
 
 The app is **not signed or notarized** (no certificate or Apple account is involved). An app you build on your own Mac opens normally. A copy downloaded from the artifact carries the quarantine flag, and macOS refuses it until you approve it: right-click the app and choose Open, or clear the flag once with `xattr -dr com.apple.quarantine BrewCV.app`. Signing and notarization (an Apple Developer account, about $99 a year) are what would remove that step; they are not set up. The build is arm64 only; an Intel or universal build would need another runner or `--target universal-apple-darwin`, and is not built.
 
+## Desktop build (Windows, GitHub Actions)
+
+`.github/workflows/windows.yml` builds the Windows app on a hosted x64 runner (`npx @tauri-apps/cli@2.12.2 build --bundles nsis`, so the same staging and privacy gate as the macOS build) and keeps `BrewCV-windows-x64`: the NSIS installer (`BrewCV_<version>_x64-setup.exe`) and the bare `brewcv.exe`. It runs by hand or on a `v*` tag, has read-only permissions and deploys nothing. The installer is **not code-signed**, so SmartScreen says "Windows protected your PC": More info > Run anyway. The installer fetches the WebView2 runtime if the PC lacks it (Windows 11 has it). Not tested on Windows: `titleBarStyle: "Overlay"` and `trafficLightPosition` are macOS options and should be ignored there, so the window likely has the normal title bar; Export > PDF falls back to the print dialog.
+
 ## Desktop build (Linux, Flatpak)
 
 Experimental, and **never built or run by the author**: the files were written and checked as text on a Mac (`node checks/flatpak-check.mjs`). Expect the first real build to need fixes.
