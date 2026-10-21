@@ -16,7 +16,7 @@ What makes a theme good, and which of it a check holds you to, is in [THEME-DESI
 
 ## Route 1: a tokens file
 
-A theme is a [DTCG](https://www.designtokens.org/) tokens file: JSON with colours, fonts and sizes in named groups. The four built-in themes are in `themes/*.tokens.json`, so you can start from one.
+A theme is a [DTCG](https://www.designtokens.org/) tokens file: JSON with colours, fonts and sizes in named groups. The five built-in themes are in `themes/*.tokens.json`, so you can start from one.
 
 1. Copy one.
 
@@ -46,7 +46,7 @@ A theme is a [DTCG](https://www.designtokens.org/) tokens file: JSON with colour
 
 **What tokens can't change:** layout. You can't move the photo, add a column, reorder what's in the header or change the page size. They also can't add a font the app doesn't have. A font that isn't installed on the reader's machine falls back to Hanken Grotesk, and the import says so. The app ships Hanken Grotesk and Fira Code; Georgia, Helvetica, Arial and the other common system fonts work where the machine has them.
 
-`node scripts/tokens.mjs` goes the other way: it writes the four built-in themes' tokens files *from* their stylesheets in `themes/`. You only need it if you edit one of those stylesheets. `node scripts/tokens.mjs --check` tells you if the files are out of date.
+`node scripts/tokens.mjs` goes the other way: it writes the five built-in themes' tokens files *from* their stylesheets in `themes/`. You only need it if you edit one of those stylesheets. `node scripts/tokens.mjs --check` tells you if the files are out of date.
 
 ## Route 2: Figma
 

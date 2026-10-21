@@ -6,6 +6,9 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ## Unreleased
 
+### Added
+- **Quiet tabs, a look with plain section labels.** In the Design view's templates: the section labels are plain bold text with a hairline above each section, and the yellow stays on the name's swipe and the highlighted metrics (the accent swatches colour those, not the labels). Nothing moves: the hairline is drawn in the gap above a section, so every band, job and title is where it is in B2 Marker, in A4, Letter and Hungarian A4. There is none above a section grouped under the one above it, or above the first section on a page, and it is a border, so it prints without "background graphics". With *Group under the section above*, the two-page example's page 2 carries two hairlines instead of seven tabs. It is the fifth look, made with `node scripts/new-theme.mjs`, and the two-page check draws it on one and two pages in A4 and Letter like the others.
+
 ## 1.4.3 - 2026-10-21
 
 Quiet labels for small sections, and one place to register a look.

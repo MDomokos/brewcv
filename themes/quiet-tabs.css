@@ -1,0 +1,26 @@
+/* quiet-tabs.css: section labels are plain bold text with a hairline above each section, and the yellow stays on the name's
+   swipe and the highlighted metrics. Load after b2-marker.css.
+   The hairline is drawn in the gap above a section, not added to it, so no band moves: a page holds what it held, in every format.
+   A grouped section (Group under the section above) has no hairline of its own, and neither has the first section on a page. */
+:root {
+  --tab-fill:      transparent;
+  --tab-fill-cont: transparent;
+  --tab-pad-l:     0px;
+  --tab-pad-r:     0px;      /* the label ends where the gutter does, and so does a grouped label */
+  --rule-quiet:    #bdbdbd;  /* dark enough to survive a laser printer */
+  --rule-above:    9px;      /* from the hairline to the band, inside every gap (the smallest is 22px) */
+}
+
+.tab { font-weight: var(--fw-bold); }
+
+.band--section { position: relative; }
+.band--section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--rule-above) * -1);
+  border-top: 1px solid var(--rule-quiet);     /* a border prints without "background graphics" */
+}
+.page > .band--section:first-child::before,
+.page .band--sub::before { display: none; }

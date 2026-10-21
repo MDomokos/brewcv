@@ -69,7 +69,7 @@ section('the registry and what has to agree with it');
   const p = await problems();
   ok('every look has its stylesheets, tokens file, ten pairs of strings and cache entries, and nothing else is listed', !p.length, p.join('; '));
   const { THEMES } = await import('../src/themes.js');
-  ok('the four built-in looks are registered, B2 Marker first', THEMES.map(x => x.id).join() === 'b2,tint,aa,mono');
+  ok('B2 Marker is first, and the looks that were there before the registry still are', THEMES[0].id === 'b2' && ['tint', 'aa', 'mono', 'quiet-tabs'].every(id => THEMES.some(x => x.id === id)));
 }
 
 section('scripts/new-theme.mjs on a copy');

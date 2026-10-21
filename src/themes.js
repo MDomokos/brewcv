@@ -10,5 +10,6 @@ export const THEMES = [
   { id: 'tint', file: 'tint-tabs', layers: ['b2-marker', 'tint-tabs'], name: 'Tinted tabs', note: 'Quieter tabs; the highlights stay strong.', tokenName: 'B2 Marker, tinted tabs' },
   { id: 'aa', file: 'contrast-aa', layers: ['b2-marker', 'contrast-aa'], name: 'High-contrast metadata', note: 'Dates and places darker, for WCAG AA.', tokenName: 'B2 Marker, AA metadata' },
   { id: 'mono', file: 'print-mono', layers: ['b2-marker', 'print-mono'], name: 'Mono print', note: 'For a black-and-white printer: outlined tabs, no colour.', tokenName: 'B2 Marker, mono print', extra: { 'tab-style': 'outline', 'highlight-style': 'none' } },
+  { id: 'quiet-tabs', file: 'quiet-tabs', layers: ['b2-marker', 'quiet-tabs'], name: 'Quiet tabs', note: 'Plain section labels with a hairline above each section; yellow stays on the name and the highlights.', tokenName: 'B2 Marker, quiet tabs', extra: { 'tab-style': 'none' } },
   // new looks above this line (scripts/new-theme.mjs)
 ];

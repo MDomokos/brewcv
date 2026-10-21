@@ -54,7 +54,7 @@ The Figma Variable names must match the DTCG paths exactly (a group per dot). Th
 - **Switches** are strings:
   - `style.tab`: `solid`, `underline`, `outline` or `none`
   - `style.highlight`: `marker`, `bold` or `none`
-- **The four built-in themes** are in `themes/*.tokens.json`, written by `node scripts/tokens.mjs` from their stylesheets. They are working examples of the format.
+- **The five built-in themes** are in `themes/*.tokens.json`, written by `node scripts/tokens.mjs` from their stylesheets. They are working examples of the format.
 
 ## Also accepted
 

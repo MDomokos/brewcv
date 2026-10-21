@@ -2286,6 +2286,8 @@ if (want('design and theme tokens')) {
   ok('and says the tab text still reads', /readable/.test(await page.textContent('#body')));
   await page.click('[data-act=d-tpl][data-t=tint]'); await settle(page);
   ok('a template switches the overlay', JSON.stringify((await st()).cur.overlays) === '["tint-tabs"]' && await frameDoc(page, d => [...d.querySelectorAll('link')].some(l => /tint-tabs/.test(l.href))));
+  await page.click('[data-act=d-tpl][data-t=quiet-tabs]'); await settle(page);
+  ok('Quiet tabs: the label is plain text, whatever the accent', JSON.stringify((await st()).cur.overlays) === '["quiet-tabs"]' && (await tabBg()) === 'rgba(0, 0, 0, 0)', await tabBg());
   await page.click('[data-act=d-tpl][data-t=b2]'); await settle(page);
   await page.click('[data-act=d-pages][data-n="0"]'); await settle(page);
   await page.click('#tab-export'); await settle(page);
