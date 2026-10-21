@@ -24,20 +24,20 @@
   --weight-name:  400;
 
   /* Four steps of B2's scale, body at B2's: Georgia's large x-height reads big, so small text and labels share one size. */
-  --fs-name:      33px;
-  --fs-role:      14.4px;
-  --fs-bullet:    12.7px;
-  --fs-tab:       10.4px;   /* the widest heading in ten languages ("Volunteering") is 100.2px in Source Serif: it clears the column by 17px */
-  --fs-meta:      11px;
-  --fs-tab-sub:    9.7px;    /* a grouped heading: a step under the main ones (10.4px), not the dates' 11px */
+  --fs-name:      calc(33px * var(--type-scale));
+  --fs-role:      calc(14.4px * var(--type-scale));
+  --fs-bullet:    calc(12.7px * var(--type-scale));
+  --fs-tab:       calc(10.4px * var(--type-scale));   /* the widest heading in ten languages ("Volunteering") is 100.2px in Source Serif: it clears the column by 17px */
+  --fs-meta:      calc(11px * var(--type-scale));
+  --fs-tab-sub:    calc(9.7px * var(--type-scale));    /* a grouped heading: a step under the main ones (10.4px), not the dates' 11px */
 
   --ls-name:      0.01em;
   --ls-tab:       0.14em;
   --lh-bullet:    1.42;
 
-  --band-gap:     22px;
-  --band-gap-summary: 24px;
-  --role-gap:     12px;
+  --band-gap:     calc(22px * var(--space-scale));
+  --band-gap-summary: calc(24px * var(--space-scale));
+  --role-gap:     calc(12px * var(--space-scale));
   --title-to-meta: 2px;
   --rule-quiet:   var(--ink);   /* B2 Marker's hairline above a section, here in ink */
 }

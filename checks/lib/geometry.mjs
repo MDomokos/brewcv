@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const grab = (css, name) => {
-  const m = [...css.matchAll(new RegExp(`${name}\\s*:\\s*([\\d.]+)(px)?\\s*[;}]`, 'g'))].pop();
+  // a size may be written calc(<n>px * var(--type-scale)): the scale is 1 in the stylesheets
+  const m = [...css.matchAll(new RegExp(`${name}\\s*:\\s*(?:calc\\(\\s*)?([\\d.]+)(?:px)?\\s*(?:\\*\\s*var\\(--[\\w-]+\\)\\s*\\))?\\s*[;}]`, 'g'))].pop();
   return m ? Number(m[1]) : null;
 };
 

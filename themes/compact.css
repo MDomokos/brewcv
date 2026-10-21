@@ -3,23 +3,23 @@
    margins and the gutter gap, which live on .page so the tokens file carries only type and spacing. The label size and the
    gutter stay, so every language's label still fits. The column is whatever the paper leaves. */
 :root {
-  --fs-name:      31px;
-  --fs-role:      14px;
-  --fs-bullet:    12.1px;
+  --fs-name:      calc(31px * var(--type-scale));
+  --fs-role:      calc(14px * var(--type-scale));
+  --fs-bullet:    calc(12.1px * var(--type-scale));
 
   --lh-summary:   1.4;
   --lh-bullet:    1.38;
   --lh-skill:     1.35;
 
-  --band-gap:     16px;
-  --band-gap-summary: 18px;
-  --role-gap:     10px;
-  --meta-to-bullets: 4px;
-  --bullet-gap:   2px;
+  --band-gap:     calc(16px * var(--space-scale));
+  --band-gap-summary: calc(18px * var(--space-scale));
+  --role-gap:     calc(10px * var(--space-scale));
+  --meta-to-bullets: calc(4px * var(--space-scale));
+  --bullet-gap:   calc(2px * var(--space-scale));
   --name-to-contact: 9px;
-  --skill-gap-row: 6px;
+  --skill-gap-row: calc(6px * var(--space-scale));
   --summary-in-header-gap: 14px;
-  --band-gap-group: 24px;
+  --band-gap-group: calc(24px * var(--space-scale));
 }
 
 .page {

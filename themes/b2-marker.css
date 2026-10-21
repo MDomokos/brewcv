@@ -61,13 +61,18 @@
   --font-sans: "Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Fira Code", ui-monospace, Menlo, monospace;
 
+  /* The Design view's Text size and Density set these two (src/model/design.js): every size below is written
+     calc(<px> * var(--type-scale)), every gap calc(<px> * var(--space-scale)), so 1 is the look as designed. */
+  --type-scale:   1;
+  --space-scale:  1;
+
   /* The type scale: five steps, and every size on the page is one of them (Resume Design Principles, 3). Sizes within 5% of
      each other were merged. A look that changes a step's size changes every role on it. */
-  --fs-name:      35px;     /* the name */
-  --fs-role:      15px;     /* job titles */
-  --fs-bullet:    12.7px;   /* body: bullets, summary, item titles (bold), skills */
-  --fs-tab:       10.4px;   /* labels: section tabs, the tagline */
-  --fs-meta:      9.7px;    /* small: dates and places, contact, grouped labels */
+  --fs-name:      calc(35px * var(--type-scale));     /* the name */
+  --fs-role:      calc(15px * var(--type-scale));     /* job titles */
+  --fs-bullet:    calc(12.7px * var(--type-scale));   /* body: bullets, summary, item titles (bold), skills */
+  --fs-tab:       calc(10.4px * var(--type-scale));   /* labels: section tabs, the tagline */
+  --fs-meta:      calc(9.7px * var(--type-scale));    /* small: dates and places, contact, grouped labels */
 
   --fs-item:      var(--fs-bullet);
   --fs-summary:   var(--fs-bullet);
@@ -94,14 +99,14 @@
   --ls-meta:      0.05em;
   --ls-meta-flat: 0.04em;   /* metadata already uppercase in the source */
 
-  --band-gap:         22px;
-  --band-gap-summary: 24px;
-  --role-gap:         13px;
+  --band-gap:         calc(22px * var(--space-scale));
+  --band-gap-summary: calc(24px * var(--space-scale));
+  --role-gap:         calc(13px * var(--space-scale));
   --title-to-meta:    3px;
-  --meta-to-bullets:  6px;
-  --bullet-gap:       3px;
+  --meta-to-bullets:  calc(6px * var(--space-scale));
+  --bullet-gap:       calc(3px * var(--space-scale));
   --name-to-contact:  11px;
-  --skill-gap-row:    8px;
+  --skill-gap-row:    calc(8px * var(--space-scale));
   --skill-gap-col:    28px;
   --summary-in-header-gap: 20px;
   --portrait-gap:     14px;
@@ -136,8 +141,8 @@
   --rule-above:     9px;      /* from the hairline to the band, inside every gap (the smallest is 22px) */
 
   /* A grouped section: a grey label under the tab above it, not a second tab. */
-  --band-gap-sub:   12px;     /* above a grouped section */
-  --band-gap-group: 30px;     /* below the group, before the next tab */
+  --band-gap-sub:   calc(12px * var(--space-scale));     /* above a grouped section */
+  --band-gap-group: calc(30px * var(--space-scale));     /* below the group, before the next tab */
   --fs-tab-sub:     var(--fs-meta);
   --ls-tab-sub:     0.12em;
 }

@@ -40,7 +40,7 @@ const ALIASES = { font: 'font-body', 'name-size': 'size-name', 'font-family': 'f
 const SWITCHES = { 'tab-style': ['solid', 'underline', 'outline', 'none'], 'highlight-style': ['marker', 'bold', 'none'] };
 
 // Families this app has files for, or that every machine has.
-export const KNOWN_FONTS = ['Hanken Grotesk', 'Fira Code', 'Source Serif 4', 'Source Sans 3', 'Helvetica Neue', 'Helvetica', 'Arial', 'Georgia', 'Times New Roman', 'Times',
+export const KNOWN_FONTS = ['Hanken Grotesk', 'Fira Code', 'Source Serif 4', 'Source Sans 3', 'IBM Plex Sans', 'IBM Plex Mono', 'Helvetica Neue', 'Helvetica', 'Arial', 'Georgia', 'Times New Roman', 'Times',
   'Verdana', 'Courier New', 'Menlo', 'Monaco', 'Consolas', 'Segoe UI', 'Calibri', 'Cambria', 'Garamond',
   'serif', 'sans-serif', 'monospace', 'system-ui', 'ui-monospace', 'ui-sans-serif', 'ui-serif', '-apple-system', 'BlinkMacSystemFont'];
 
@@ -245,11 +245,14 @@ export function unknownFonts(familyCss){
     .filter((f, i, a) => i === 0 && !KNOWN_FONTS.some(k => k.toLowerCase() === f.toLowerCase()));
 }
 
+// A size the Design view scales, calc(12.7px * var(--type-scale)) or --space-scale, is its plain px here: the scales are 1 in a
+// stylesheet, so the tokens files do not change.
+const SCALED = /calc\(\s*(-?[\d.]+)px\s*\*\s*var\(--(?:type|space)-scale\)\s*\)/g;
 // scripts/tokens.mjs writes these as DTCG.
 export function tokensFromCss(cssText, base = {}){
   const vars = { ...base };
   for (const [, body] of String(cssText).matchAll(/:root\s*\{([^}]*)\}/g))
-    for (const m of body.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) vars[m[1]] = m[2].trim();
+    for (const m of body.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) vars[m[1]] = m[2].trim().replace(SCALED, '$1px');
   const resolve = (v, depth = 0) => (depth > 5 ? v : String(v).replace(/var\((--[\w-]+)(?:,\s*([^)]+))?\)/g, (_, k, fb) => resolve(vars[k] ?? fb ?? '', depth + 1)));
   const out = {};
   const byCss = new Map(TOKENS.filter(t => t.css.length).map(t => [t.css[0], t]));

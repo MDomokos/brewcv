@@ -6,15 +6,15 @@
    which keeps a line near 90 characters in Source Serif (Resume Design Principles, 2). The header, the rules and the serif are
    Classic's. Layout lives on .page, not :root, so the tokens file carries only colour and type. */
 :root {
-  --fs-bullet:    13px;     /* about 10pt: Source Serif sets wide, and a full A4 or Letter page still holds what B2's does */
+  --fs-bullet:    calc(13px * var(--type-scale));     /* about 10pt: Source Serif sets wide, and a full A4 or Letter page still holds what B2's does */
   --lh-bullet:    1.38;
   --lh-summary:   1.38;
-  --fs-role:      15px;
-  --fs-tab:       12px;     /* 0.8 of a job title (15px): the largest a heading may be (Resume Design Principles, 1) */
+  --fs-role:      calc(15px * var(--type-scale));
+  --fs-tab:       calc(12px * var(--type-scale));     /* 0.8 of a job title (15px): the largest a heading may be (Resume Design Principles, 1) */
   --ls-tab:       0.1em;
-  --fs-tab-sub:   10.4px;   /* a grouped heading: grey, a step under */
-  --band-gap:     16px;     /* above a heading: more than twice the 6px below its rule */
-  --band-gap-summary: 16px;
+  --fs-tab-sub:   calc(10.4px * var(--type-scale));   /* a grouped heading: grey, a step under */
+  --band-gap:     calc(16px * var(--space-scale));     /* above a heading: more than twice the 6px below its rule */
+  --band-gap-summary: calc(16px * var(--space-scale));
 }
 
 .page {

@@ -1,9 +1,10 @@
 // The Design view: pages, paper, template, accent, theme import and export, and the photo.
 // All per resume, except the photo and imported themes, which live once in the record.
-// An imported theme (`recipe.look`) and the accent become one CSS block that the sheet
-// and the exports add after the base theme. Neither touches the renderer.
+// The look settings (`recipe.design`), an imported theme (`recipe.look`) and the accent become one CSS block that the sheet
+// and the exports add after the base theme. None touches the renderer.
 
 import * as K from '../model/tokens.js';
+import { designOf, designCss } from '../model/design.js';
 import { THEMES, RETIRED } from '../themes.js';
 import { toAuto, setPhoto as setResumePhoto, setRecordPhoto } from '../model/resume.js';
 import { t, h, errText, keyed } from '../i18n/index.js';
@@ -30,7 +31,11 @@ export function tokensOf(record, recipe){
   if (recipe.accent){ t.accent = recipe.accent; t.highlight = recipe.accent; }
   return t;
 }
-export const extraCss = (record, recipe) => K.toCss(tokensOf(record, recipe));
+// The look settings first, then the accent and an imported theme's tokens, so an imported theme still wins.
+export const extraCss = (record, recipe) => {
+  const look = THEMES.find(x => x.id === templateOf(recipe)?.id);
+  return designCss(look, designOf(recipe, look), { accent: recipe.accent }) + K.toCss(tokensOf(record, recipe));
+};
 
 // An image file → a 35 × 45 mm passport crop, a 472 × 600 JPEG data URL of at most 300 KB.
 export async function cropPhoto(file){

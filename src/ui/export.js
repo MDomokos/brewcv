@@ -35,19 +35,21 @@ export async function buildHtml(recipe = C.cur(), laid = C.ui.laid){
   for (const o of r.overlays ?? []) hrefs.push(`../themes/${o}.css`);
   const css = [];
   const fonts = new Map();
-  for (const href of hrefs){
-    const path = X.normalisePath(`templates/${href}`);
-    let t = await text(path);
+  const embed = async (t, path) => {
     const map = new Map();
     for (const u of X.cssUrls(t, path)){
       if (!fonts.has(u.url)) fonts.set(u.url, await dataUrl(u.url).catch(() => null));
       if (fonts.get(u.url)) map.set(u.match, fonts.get(u.url));
     }
-    t = X.replaceUrls(t, map);
-    css.push({ href, text: t });
+    return X.replaceUrls(t, map);
+  };
+  for (const href of hrefs){
+    const path = X.normalisePath(`templates/${href}`);
+    css.push({ href, text: await embed(await text(path), path) });
   }
+  // the look settings' fonts (src/model/design.js) are named relative to the page template, like the stylesheets' own
   const extra = C.extraCss?.(r) ?? '';
-  if (extra) css.push({ href: 'tokens', text: extra });
+  if (extra) css.push({ href: 'tokens', text: await embed(extra, `templates/${r.format}.html`) });
   await loadCatalogue(r.lang ?? 'en');
   const pages = renderPages(C.work(), r, document, { fallback: true, chrome: docChrome(r.lang ?? 'en') }).pages;
   const documentHtml = X.cleanMarkup(pages.map(p => p.outerHTML).join('\n'));
