@@ -7,19 +7,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tokensFromCss, serialize } from '../src/model/tokens.js';
+import { THEMES } from '../src/themes.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
-const css = n => fs.readFileSync(path.join(REPO, 'themes', `${n}.css`), 'utf8');
-export const BUILT_INS = [
-  { id: 'b2-marker', name: 'B2 Marker', layers: ['b2-marker'] },
-  { id: 'tint-tabs', name: 'B2 Marker, tinted tabs', layers: ['b2-marker', 'tint-tabs'] },
-  { id: 'contrast-aa', name: 'B2 Marker, AA metadata', layers: ['b2-marker', 'contrast-aa'] },
-  { id: 'print-mono', name: 'B2 Marker, mono print', layers: ['b2-marker', 'print-mono'], extra: { 'tab-style': 'outline', 'highlight-style': 'none' } },
-];
+const css = (n, root) => fs.readFileSync(path.join(root, 'themes', `${n}.css`), 'utf8');
+export const BUILT_INS = THEMES.map(x => ({ id: x.file, name: x.tokenName, layers: x.layers, ...(x.extra ? { extra: x.extra } : {}) }));
 
-export function builtInTokens(t){
+export function builtInTokens(t, root = REPO){
   let vars = {};
-  for (const l of t.layers) vars = tokensFromCss(css(l), vars).vars;
+  for (const l of t.layers) vars = tokensFromCss(css(l, root), vars).vars;
   const { tokens } = tokensFromCss('', vars);
   return { ...tokens, ...(t.extra ?? {}) };
 }

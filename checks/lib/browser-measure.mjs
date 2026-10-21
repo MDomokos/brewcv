@@ -58,6 +58,8 @@ export async function openMeasurer({ repo, data, port = 8096 }){
     },
     // one flowed page measured as blocks, and the layout it cuts into
     measureFlow,
+    // the recipe drawn as it prints, then `fn(arg)` run in the page (it is sent to Chromium, so it closes over nothing)
+    async inspect(recipe, fn, arg){ await load(recipe); return page.evaluate(fn, arg); },
     layout: recipe => autoLayout(model, recipe, measureFlow),
     async close(){
       await browser.close();

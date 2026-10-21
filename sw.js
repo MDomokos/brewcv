@@ -13,6 +13,7 @@ const SHELL = [
   './src/render.js',
   './src/fit.js',
   './src/recipe.js',
+  './src/themes.js',
   './src/model/schema.js',
   './src/model/resume.js',
   './src/model/review.js',

@@ -17,19 +17,6 @@
 .page .band--header + .band--summary { margin-top: 14px; }
 .page .band--summary + .band { margin-top: 30px; }
 
-/* Grouped sections (recipe slot "style": "sub"): a grey label under the
-   yellow tab above, instead of a second yellow tab. */
-.page .band.band--sub { margin-top: 12px; }
-.page .band--sub .tab {
-  background: none;
-  padding: var(--tab-pad-t) var(--tab-pad-r) var(--tab-pad-b) 0;
-  color: var(--muted-label);
-  font-weight: var(--fw-bold);
-  font-size: 9.4px;
-  letter-spacing: 0.12em;
-}
-.page .band.band--sub + .band:not(.band--sub) { margin-top: 30px; }
-
 /* Portfolio QR (recipe slot "qr"), sized to the link list's height (74.3px).
    The 24px gap is wider than the code's 4-module quiet zone. */
 .page .band__content:has(> .qr) {

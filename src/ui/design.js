@@ -4,6 +4,7 @@
 // and the exports add after the base theme. Neither touches the renderer.
 
 import * as K from '../model/tokens.js';
+import { THEMES } from '../themes.js';
 import { toAuto, setPhoto as setResumePhoto, setRecordPhoto } from '../model/resume.js';
 import { t, h, errText, keyed } from '../i18n/index.js';
 import { showSw } from './parts.js';
@@ -16,12 +17,7 @@ export function initDesign(ctx){ C = ctx; return api; }
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const st = () => C.store.state;
 export const SWATCHES = ['#ffd900', '#7fd1ae', '#9cc3ff', '#ffb08a', '#d6b4ff', '#f4a6c0'];
-export const TEMPLATES = [
-  { id: 'b2', name: 'B2 Marker', overlays: [], note: 'The signature look: marker tabs and highlights.' },
-  { id: 'tint', name: 'Tinted tabs', overlays: ['tint-tabs'], note: 'Quieter tabs; the highlights stay strong.' },
-  { id: 'aa', name: 'High-contrast metadata', overlays: ['contrast-aa'], note: 'Dates and places darker, for WCAG AA.' },
-  { id: 'mono', name: 'Mono print', overlays: ['print-mono'], note: 'For a black-and-white printer: outlined tabs, no colour.' },
-];
+export const TEMPLATES = THEMES.map(x => ({ id: x.id, name: x.name, overlays: x.layers.slice(1), note: x.note }));
 const BASE_TOKENS = { tab: '{color.accent}', 'tab-ink': '#1a1a1a', ink: '#1a1a1a' };
 const templateOf = r => TEMPLATES.find(x => JSON.stringify(x.overlays) === JSON.stringify(r.overlays ?? [])) ?? null;
 const tplName = x => t(`design.tpl.${x.id}`);
@@ -167,7 +163,7 @@ async function act(a, tg){
     case 'd-drop': { const id = tg.dataset.id; commit(d => { d.record.themes = (d.record.themes ?? []).filter(x => x.id !== id); for (const x of [d.cur, ...(d.resumes ?? [])]) if (x.look === id) delete x.look; }, t('undo.removeTheme'), t('toast.themeRemoved'), true); return true; }
     case 'd-import': C.pickFile('theme'); return true;
     case 'd-export': {
-      const file = { b2: 'b2-marker', tint: 'tint-tabs', aa: 'contrast-aa', mono: 'print-mono' }[templateOf(r)?.id ?? 'b2'];
+      const file = THEMES.find(x => x.id === (templateOf(r)?.id ?? 'b2')).file;
       const built = await fetch(`themes/${file}.tokens.json`).then(x => x.json()).then(j => K.parseTheme(j).tokens).catch(() => ({}));
       const base = { ...BASE_TOKENS, ...built };
       const tokens = { ...base, ...tokensOf(st().record, r) };

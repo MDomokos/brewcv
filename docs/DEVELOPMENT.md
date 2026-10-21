@@ -23,6 +23,7 @@ figma/README.md            the theme round trip through Figma Variables
 src/render.js              library + recipe → pages (the same module in the app and in Node)
 src/fit.js, paginate.js    Fit, and block pagination
 src/recipe.js, data.js     what a recipe's keys mean; file helpers for the CLI
+src/themes.js              the built-in looks: the one place one is registered (scripts/new-theme.mjs adds one)
 src/export.js              the HTML page, plain text, JSON Resume, pre-flight
 src/model/                 pure, tested in Node:
   schema.js                  resume-data/4: detect, load, save, migrate, saved-resume files
@@ -126,7 +127,7 @@ checks/                    the Node checks, the Chromium smoke test, the guards
 data/example.json          the fictional sample record, and data/example-resumes/ its fourteen
                            resumes (one or more per language; all but English and Hungarian need
                            a native review)
-docs/                      this guide, THEMES.md (making a theme), PRIVACY.md (checking what the app sends)
+docs/                      this guide, THEMES.md (making a theme), THEME-DESIGN-RULES.md (what makes one good), PRIVACY.md (checking what the app sends)
 ```
 
 ## Translations
@@ -158,7 +159,7 @@ What the Node checks cover (the map has the full sentence for each):
 |---|---|
 | model, store, resumes, savefile, import, diff | schema v4 and migration, autosave and checkpoints, saved resumes, Save to file, every kind of import, the merge engine |
 | edit, direct, focus, lang, career, recipe | the tailoring edits, editing on the page (and lines only on one resume), tags and focus, the ten languages, the record's model, weight and off/keep |
-| paginate, fit, measurement, export, tokens | block pagination and Fit, the page-fill arithmetic, the exports, theme tokens |
+| paginate, fit, measurement, export, tokens, themes | block pagination and Fit, the page-fill arithmetic, the exports, theme tokens, the registry of built-in looks and everything that has to agree with it |
 | shell, camera, parts, motion, drink, preload, csp | the layout maths, the canvas camera, the shared panel markup, the motion rules, the app's tokens, the preloaded modules, the Content-Security-Policy |
 | i18n, i18n-review | the catalogues, the review sheets |
 | version, name, validate-data, to-jsonresume, tokens-built-in | one version, the product name, the example record, the JSON Resume export, the built-in token files |
@@ -177,6 +178,7 @@ node checks/screens-check.mjs         what the three places hold: the Library's 
 node checks/places-check.mjs          the three places: the tabs, W E R, Esc, the address, Back and Forward, the landing, each place's state, the seam, the swing, Coffee square and flat
 node checks/room-check.mjs            the sidebar and the layout around the page, at three window sizes
 node checks/label-fit.mjs             every language's headings fit the gutter, and the app's labels fit the sidebar
+node checks/themes-pages-check.mjs    every built-in look on one and two pages, A4 and Letter: the page unchanged, nothing overflows, grouped labels quiet, at most four marked labels a page
 node checks/garden-check.mjs          the tea garden, about two minutes (ONLY=flow,rain runs some)
 node checks/tokens-check.mjs --browser, paginate-check.mjs --browser, fit-check.mjs --browser     the same checks measured in Chromium
 node checks/measure.mjs <rendered> <reference>       geometry diff, 0.00px expected
@@ -203,6 +205,7 @@ node checks/keyword-gap.mjs <data.json> <ad.txt>                   ad words the 
 node scripts/build-example.mjs data/example.json                   regenerate the fictional sample
 node scripts/tokens.mjs                                            the built-in themes as DTCG
 node scripts/theme-check.mjs <theme.tokens.json|.css>              what the app makes of a theme file
+node scripts/new-theme.mjs <id> "<Name>" "<note>"                  register a new built-in look everywhere: stylesheet, registry, strings, sw.js, tokens
 node scripts/i18n-review.mjs <lang|all> [--out <dir>]              a review sheet (CSV) per language
 node scripts/i18n-review.mjs --apply <sheet.csv>                   write a sheet's corrections into src/i18n/
 ```

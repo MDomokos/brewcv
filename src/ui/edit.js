@@ -362,7 +362,9 @@ function sectionView(s, sel = s){
       <input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" autocomplete="off"></label>
     ${L !== DEFAULT_LANG ? `<div class="ctlrow">${sw(`data-same="section:${esc(s.id)}"`, isSame(rec(), `section:${s.id}`), h('edit.sameHeading'))}</div>` : ''}
     <p class="muted small">${h('edit.sectionId', { id: s.id, kind: sec.kind })}${own ? ` · <a data-act="label-reset">${h('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) })}</a> · <a data-act="label-all">${h('edit.labelAll')}</a>` : ''}</p>`}
-    ${me && !me.fixed ? `<div class="ctlrow">${showSw(`data-secon="${esc(s.id)}"`, me.on, title, { text: true })}</div>
+    ${me && !me.fixed ? `<div class="ctlrow">${showSw(`data-secon="${esc(s.id)}"`, me.on, title, { text: true })}</div>${me.on ? `
+      <div class="ctlrow">${sw(`data-secgroup="${esc(s.id)}"`, T.groupedOf(cur(), s.id), h('edit.groupUnder'), movable.find(x => x.on)?.id === s.id)}</div>
+      <p class="muted small">${h('edit.groupUnderNote')}</p>` : ''}
       <span class="lbl">${h('edit.position', { at: at + 1, n: movable.length })}</span>`
       : `<p class="muted small">${isHeader ? h('edit.headerFirst') : h('edit.summaryFollows')}</p>`}
     ${inner}`;
@@ -788,6 +790,7 @@ function bind(body){
   body.addEventListener('change', e => {
     const t = e.target;
     if (t.dataset.secon) setSection(t.dataset.secon, t.checked);
+    else if (t.dataset.secgroup){ const id = t.dataset.secgroup, on = t.checked; commit(d => T.setSectionGrouped(d.record, d.cur, id, on), tr('undo.groupSection')); }
     else if (t.dataset.jobon){ const id = t.dataset.jobon, on = t.checked; commit(d => T.setJobOn(d.record, d.cur, id, on), on ? tr('undo.showJob') : tr('undo.hideJob')); }
     else if (t.dataset.on){ const id = t.dataset.on, on = t.checked; setBullet(id, on); }
     else if (t.id === 'b-on') setBullet(C.ui.sel.id, t.checked);
@@ -1023,7 +1026,7 @@ function lockPass(){
     else if (el.matches('button, [data-act]')){ el.removeAttribute('data-act'); el.dataset.lockoff = '1'; }
     else el.dataset.lockoff = '1';      // a checkbox or a select: the capture listener in bind() holds it
   }
-  for (const el of body.querySelectorAll('#b-on, #sec-label, #term-in, #sk-set, #ed-new, [data-act="write-in"], .ctlrow > .swl > [data-jobon], .ctlrow > .swl > [data-secon], .skchip, .vlist .vrow, .vlist button, .vlist input, [data-act="local-remove"], [data-act="keep"], [data-act="delete-claim"], [data-act="archive-claim"], [data-act="label-reset"], [data-act="label-all"], [data-act^="sk-"]')) off(el);
+  for (const el of body.querySelectorAll('#b-on, #sec-label, #term-in, #sk-set, #ed-new, [data-act="write-in"], .ctlrow > .swl > [data-jobon], .ctlrow > .swl > [data-secon], .ctlrow > .swl > [data-secgroup], .skchip, .vlist .vrow, .vlist button, .vlist input, [data-act="local-remove"], [data-act="keep"], [data-act="delete-claim"], [data-act="archive-claim"], [data-act="label-reset"], [data-act="label-all"], [data-act^="sk-"]')) off(el);
 }
 function key(e){
   // writing a line on the page: Esc leaves it for the job, keeping what was typed, wherever the focus is

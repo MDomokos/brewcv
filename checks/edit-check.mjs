@@ -579,5 +579,51 @@ section('on the page: a line written in place holds the text the old text box he
   ok('a highlight mark keeps its words when a line is edited on the page', eq(m1, m2) && [...m2.variants.find(x => x.id === `${fact.id}-zz`).text].slice(...(() => { const k = m2.variants.find(x => x.id === `${fact.id}-zz`).marks[0]; return k ? [k.start, k.end] : [0, 0]; })()).join('') === '40%');
 }
 
+section('Group under the section above');
+{
+  const bandsOf = (model, recipe) => renderPages(model, recipe, createDocument(), { annotate: true }).pages
+    .map(p => [...p.children].map(el => ({ id: el.getAttribute('data-section'), sub: /band--sub/.test(el.className) })));
+  const subs = (model, recipe) => bandsOf(model, recipe).map(p => p.filter(b => b.sub).map(b => b.id));
+  const base = clone(resumes.find(r => r.format === 'a4' && ['patent', 'education', 'languages'].every(id => r.sections.some(s => s.id === id))));
+  const text = rc => renderPages(example, rc, createDocument(), {}).pages.map(p => p.textContent).join('\n');
+
+  const r = clone(base);
+  T.setSectionGrouped(example, r, 'patent', true);
+  T.setSectionGrouped(example, r, 'languages', true);
+  ok('the switch is the section entry\'s style, and groupedOf reads it', r.sections.find(s => s.id === 'patent').style === 'sub' && T.groupedOf(r, 'patent') && !T.groupedOf(r, 'education'));
+  ok('a grouped section prints as a sub band, the others as before', eq(subs(example, r), [['patent', 'languages']]));
+  ok('grouping changes no word on the page', text(r) === text(base));
+  T.setSectionGrouped(example, r, 'patent', false);
+  ok('turning it off leaves no style key and no sub band', !('style' in r.sections.find(s => s.id === 'patent')) && eq(subs(example, r), [['languages']]));
+
+  const first = clone(base);
+  T.setSectionGrouped(example, first, first.sections[0].id, true);
+  ok('the first section has no tab above it, so it keeps its own', subs(example, first).flat().length === 0);
+  const second = clone(first); T.setSectionGrouped(example, second, second.sections[1].id, true);
+  ok('and the next section groups under it', eq(subs(example, second), [[second.sections[1].id]]));
+
+  const hand = { ...clone(base), pages: [['header', 'summary', 'experience'], ['skills', 'education']] };
+  T.setSectionGrouped(example, hand, 'skills', true);
+  T.setSectionGrouped(example, hand, 'education', true);
+  ok('with a page break between them, a section that starts a page keeps its tab', eq(subs(example, hand), [[], ['education']]));
+
+  const slotted = { ...clone(base), pages: [['header', 'summary', 'experience', { id: 'skills', style: 'sub' }, 'education']] };
+  ok('a hand layout\'s slot style is read as the switch', T.groupedOf(slotted, 'skills') && eq(subs(example, slotted), [['skills']]));
+  const auto = clone(slotted); T.toAuto(example, auto);
+  ok('Automatic pages keep it as the section\'s style', auto.sections.find(s => s.id === 'skills')?.style === 'sub' && T.groupedOf(auto, 'skills'));
+  T.setSectionGrouped(example, slotted, 'skills', false);
+  ok('the switch has the last word over a slot style', !T.groupedOf(slotted, 'skills') && eq(subs(example, slotted), [[]]));
+
+  const off = clone(base); off.sections = off.sections.filter(s => s.id !== 'languages');
+  T.setSectionGrouped(example, off, 'languages', true);
+  ok('a section that is not on the resume is not turned on by grouping it', !off.sections.some(s => s.id === 'languages'));
+  ok('the header and the summary cannot be grouped', throws(() => T.setSectionGrouped(example, clone(base), 'header', true)) && throws(() => T.setSectionGrouped(example, clone(base), 'summary', true)));
+  const held = { ...clone(base), locked: ['patent'] };
+  ok('a locked section is held', throws(() => T.setSectionGrouped(example, held, 'patent', true)) && !('style' in held.sections.find(s => s.id === 'patent')));
+  const page = { ...clone(base), locked: ['~page'] };
+  ok('so is every section of a locked page', throws(() => T.setSectionGrouped(example, page, 'education', true)));
+  ok('no example resume changes: none is grouped', resumes.every(rc => !subs(example, rc).flat().length));
+}
+
 console.log(failed ? `\n${failed} edit check(s) FAILED` : '\nall edit checks passed');
 process.exit(failed ? 1 : 0);

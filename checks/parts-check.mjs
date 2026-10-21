@@ -37,6 +37,7 @@ const M10_ADDS = html => String(html)
   .replace(', <kbd>Esc</kbd> goes back', '')
   .replace(/<span class="dp-tools">.*?<\/span><\/nav>/gs, '</nav>')      // the padlock and the switch on the depth row (UX-6c-iii-b)
   .replace(/\s*<p class="lockbar">[\s\S]*?<\/p>/g, '')       // the page's padlock
+  .replace(/\s*<div class="ctlrow"><label class="swl"[^>]*><input[^>]*data-secgroup[^>]*>.*?<\/label><\/div>\s*<p class="muted small">[^<]*<\/p>/gs, '')      // a section's Group under the section above, and its note
   .replace(/<button type="button" class="sm ghost pagelock[^"]*"[^>]*>.*?<\/button>/gs, '')
   .replace(/\n\s*<label class="field addclaim">[\s\S]*?<\/label>/g, '')
   .replace(/\s*<p class="note">[^<]*(?:<kbd>[^<]*<\/kbd>[^<]*)*<\/p>/g, '')

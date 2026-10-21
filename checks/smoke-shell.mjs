@@ -1699,6 +1699,21 @@ if (want('the Edit view')) {
   await page.keyboard.press('Alt+ArrowDown'); await settle(page);
   const bands = await frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')));
   ok('Alt+↓ moves it on the page', bands.indexOf('skills') > bands.indexOf('patent'), bands.join());
+  // Group under the section above: the section panel's switch, the quiet label on the page, one undo step
+  const grouped = () => frameDoc(page, d => { const b = d.querySelector('.band[data-section="skills"]'), t = b.querySelector('.tab'); return { sub: b.classList.contains('band--sub'), fill: getComputedStyle(t).backgroundColor }; });
+  ok('the section panel has Group under the section above, off', await page.isVisible('#body input[data-secgroup]') && !(await page.isChecked('#body input[data-secgroup]')) && !(await grouped()).sub);
+  const before = await page.evaluate(() => window.__wb.store.history.undo);
+  await page.click('#body label.swl:has(input[data-secgroup])'); await settle(page);
+  const on = await grouped();
+  ok('on: the section prints a quiet label, not a second tab, and the resume says so', on.sub && on.fill === 'rgba(0, 0, 0, 0)' && (await st()).cur.sections.find(s => s.id === 'skills').style === 'sub', JSON.stringify(on));
+  ok('…as one undo step', (await page.evaluate(() => window.__wb.store.history.undo)) === before + 1);
+  await page.click('#body label.swl:has(input[data-secgroup])'); await settle(page);
+  ok('off: the tab is back and no style is left on the section', !(await grouped()).sub && !('style' in (await st()).cur.sections.find(s => s.id === 'skills')));
+  await sheet.locator('.band[data-section="experience"] .tab').first().click(); await settle(page);
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('the first section has nothing above it, so its switch is held', await page.isDisabled('#body input[data-secgroup]'));
+  await sheet.locator('.band[data-section="skills"] .tab').first().click(); await settle(page);
+  await page.keyboard.press('Escape'); await settle(page);
   await page.click('#body .ctlrow input[data-secon]'); await settle(page);
   ok('Show on this resume off takes the section off the page', !(await frameDoc(page, d => !!d.querySelector('.band[data-section="skills"]'))));
   await undoTo(base);

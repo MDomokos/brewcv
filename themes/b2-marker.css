@@ -127,6 +127,12 @@
   --tab-pad-r:      9px;
   --tab-pad-b:      4px;
   --tab-pad-l:     11px;
+
+  /* A grouped section: a grey label under the tab above it, not a second tab. */
+  --band-gap-sub:   12px;     /* above a grouped section */
+  --band-gap-group: 30px;     /* below the group, before the next tab */
+  --fs-tab-sub:     9.4px;
+  --ls-tab-sub:     0.12em;
 }
 
 /* page. Geometry (--page-*, --gutter-*, --column-w) comes from a formats/
@@ -388,6 +394,20 @@ html, body {
 
 /* Continued tab: quieter, so it is not read as a second section. */
 .tab--cont { background: var(--tab-fill-cont); }
+
+/* Grouped sections (recipe style "sub", the Design view's "Group under the section above"): the label is quiet text,
+   whatever the tab style is, so a page of small sections carries one tab per group. `.page` outranks a format file. */
+.page .band.band--sub { margin-top: var(--band-gap-sub); }
+.page .band--sub .tab {
+  background: none;
+  box-shadow: none;
+  padding: var(--tab-pad-t) var(--tab-pad-r) var(--tab-pad-b) 0;
+  color: var(--muted-label);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-tab-sub);
+  letter-spacing: var(--ls-tab-sub);
+}
+.page .band.band--sub + .band:not(.band--sub) { margin-top: var(--band-gap-group); }
 
 .tab-note {
   margin: var(--title-to-meta) 0 0;

@@ -658,7 +658,7 @@ export function sectionList(model, recipe){
   ];
 }
 
-// Hand layout to automatic pages. Slot styles and QR codes are lost.
+// Hand layout to automatic pages. A slot's style becomes its section's; QR codes are lost.
 export function toAuto(model, recipe){
   if (!Array.isArray(recipe.pages)) return false;
   if (recipe.locked?.length) throw new LockedError(null, 'ux6c.layoutLocked');      // the hand-made layout is part of what the lock holds
@@ -677,6 +677,8 @@ export function toAuto(model, recipe){
   }
   const sections = order.map(id => {
     const e = structuredClone(old.get(id) ?? { id });
+    const style = recipe.pages.flat().find(s => s?.id === id && s.style)?.style;
+    if (style && !e.style) e.style = style;
     if (merged.has(id)) e.work = [...merged.get(id)].map(([id2, hs]) => tidyRef(ix.work.get(id2), { id: id2, highlights: hs }));
     return e;
   });
@@ -711,6 +713,20 @@ export function setSectionOn(model, recipe, id, on){
     if (factIx(model).sections.get(id)?.kind === 'entries') e.weight = 5; else delete e.weight;
   }
   return { auto };
+}
+
+// "Group under the section above": the section prints a quiet label under that tab, not a tab of its own, where a section
+// with a tab sits above it on the same page (src/render.js). The section entry's `style: 'sub'`; a hand layout's slot style is read
+// too, and cleared when the switch is set, so the switch has the last word. A locked section is held.
+export const groupedOf = (recipe, id) => entryOf(recipe, id)?.style === 'sub' || (recipe.pages ?? []).flat().some(s => s?.id === id && s.style === 'sub');
+export function setSectionGrouped(model, recipe, id, on){
+  if (!hasBudgetIn(model, id)) throw keyed('error.alwaysOn', { id });
+  guard(model, recipe, id);
+  for (const s of (recipe.pages ?? []).flat()) if (s?.id === id) delete s.style;
+  let e = entryOf(recipe, id);
+  // in automatic pages a section with no entry is off: this must not turn it on
+  if (!e){ if (!on || !Array.isArray(recipe.pages)) return; e = { id }; (recipe.sections ??= []).push(e); }
+  if (on) e.style = 'sub'; else delete e.style;
 }
 
 // beforeId null means last. A hand layout switches to automatic pages.

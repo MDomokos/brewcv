@@ -4,6 +4,8 @@ You can change how a BrewCV resume looks without touching the app's code. There 
 
 A theme changes colour, type, sizes, spacing and two switches (the tab style and the highlight style). It never changes the layout: which section sits where, the page size, the gutter. That's on purpose. Fit and the page breaks measure the real page, so a theme can't break them.
 
+What makes a theme good, and which of it a check holds you to, is in [THEME-DESIGN-RULES.md](THEME-DESIGN-RULES.md).
+
 | You use | Start with |
 |---|---|
 | A text editor | [Route 1](#route-1-a-tokens-file) |
@@ -61,12 +63,12 @@ Two kinds of CSS file shape the page, and they have different jobs.
 - **`formats/*.css`** is the page: its size (`@page`), margins, and the widths of the gutter and the column. `a4.css`, `a4-hu.css` and `us-letter.css`.
 - **`themes/*.css`** is the look. `b2-marker.css` is the base: every colour, font, size and gap is a custom property at the top of it (`--accent`, `--ink`, `--font-sans`, `--fs-bullet`, `--band-gap` and so on). The other three files are **overlays** a few lines long. They load after the base and change a few of those properties or add a rule.
 
-The page is a plain set of classes, and a theme styles those and nothing else: `.document`, `.page`, `.band` (a section) with `.band__gutter` and `.band__content`, `.tab` (the section label), `.entry`, `.role-title`, `.item__title`, `.meta`, `.bullets`, `.skills` with `.skills__label` and `.skills__items`, `.name`, `.namemark`, `.tagline`, `.contact`, `.summary` and `.mark` (the highlighted run in a sentence). Look at `themes/print-mono.css` for a complete overlay in 18 lines.
+The page is a plain set of classes, and a theme styles those and nothing else: `.document`, `.page`, `.band` (a section) with `.band__gutter` and `.band__content`, `.tab` (the section label; in a `.band--sub`, a section grouped under the one above, it is the quiet grey label), `.entry`, `.role-title`, `.item__title`, `.meta`, `.bullets`, `.skills` with `.skills__label` and `.skills__items`, `.name`, `.namemark`, `.tagline`, `.contact`, `.summary` and `.mark` (the highlighted run in a sentence). Look at `themes/print-mono.css` for a complete overlay in 18 lines.
 
 **Two ways to use CSS:**
 
 - **In the app, today.** Import a CSS file whose `:root` sets `--doc-<token>` properties, such as `--doc-accent: #7fd1ae;` (the token names are in the third column of the table in `figma/README.md`). Add `/* theme: My Theme */` at the top to name it. Everything else in the file is ignored and named. `node scripts/theme-check.mjs my-theme.css` shows what gets through. This is Route 1 in another spelling.
-- **As a new overlay in the picker.** A full stylesheet isn't something the importer accepts, because it could change anything. To add one, make a pull request: the file goes in `themes/`, and an entry in `TEMPLATES` in `src/ui/design.js`, the matching `design.tpl.*` and `design.tplNote.*` lines in all ten `src/i18n/` catalogues, an entry in `BUILT_INS` in `scripts/tokens.mjs`, and the file in the list at the top of `sw.js`. Then run the checks below.
+- **As a new overlay in the picker.** A full stylesheet isn't something the importer accepts, because it could change anything. To add one, make a pull request, and let `node scripts/new-theme.mjs <id> "<Name>" "<note>"` do the registering: it makes `themes/<id>.css`, adds the look to `src/themes.js` (the one list of built-in looks), its two picker strings to all ten `src/i18n/` catalogues (in English: translate the nine), the file to `sw.js`'s cache list and its tokens file. Then write the stylesheet and run the checks below.
 
 **What must not change:**
 
@@ -97,5 +99,5 @@ Models make confident mistakes with colour. Read the contrast ratio yourself, an
 ## Before you send a theme
 
 - `node scripts/theme-check.mjs <file>` names nothing as ignored, and the accent reads against the tab text.
-- It looks right on a one-page resume and on a two-page one, and in a language with long section headings (German, Hungarian).
+- It looks right on a one-page resume and on a two-page one, and in a language with long section headings (German, Hungarian). For a built-in overlay, `node checks/themes-pages-check.mjs` draws it on both, in A4 and Letter, and holds it to the rules in [THEME-DESIGN-RULES.md](THEME-DESIGN-RULES.md); `node checks/themes-check.mjs` says if anything it needs is missing.
 - Print it. A pale colour that looks good on screen can disappear on paper.

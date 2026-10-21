@@ -405,6 +405,7 @@ export function renderPages(data, recipe, doc = globalThis.document, opts = {}){
 
   plan.forEach((slots, n) => {
     const page = h(doc, 'article', 'page');
+    let tabAbove = false;                // a band above on this page that has a tab to group under
     for (const slot of slots){
       const s = ctx.section(slot.id);
       const fn = KINDS[s.kind];
@@ -413,9 +414,12 @@ export function renderPages(data, recipe, doc = globalThis.document, opts = {}){
       seen.set(s.id, (seen.get(s.id) ?? 0) + 1);
       const el = s.kind === 'entries' ? fn(ctx, s, { work: slot.work, cont }) : fn(ctx, s);
       if (!el) continue;
-      // Opt-in slot keys. `style` adds a band modifier (a4-hu.css "sub": a section
-      // grouped under the one above, with a quiet label). `qr` names a basics.codes image.
-      if (slot.style) el.className += ` band--${slot.style}`;
+      // Opt-in keys. `style` (the slot's, else the resume's section entry) adds a band modifier (themes/b2-marker.css "sub":
+      // a section grouped under the one above, with a quiet label), which only holds with a tab above it on this page.
+      // `qr` names a basics.codes image.
+      const style = slot.style ?? (recipe.sections ?? []).find(x => x?.id === slot.id)?.style;
+      if (style && (style !== 'sub' || tabAbove)) el.className += ` band--${style}`;
+      tabAbove = !/band--(header|summary)/.test(el.className);
       if (slot.qr){
         const code = (data.basics?.codes ?? []).find(c => c.id === slot.qr);
         if (!code) throw new RenderError(`the recipe asks for code ${slot.qr}, which basics.codes does not have`);
