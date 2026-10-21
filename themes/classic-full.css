@@ -1,0 +1,46 @@
+/* classic-full.css: Classic with the headings above the text, across the full width. Load after classic.css.
+   No margin column: each section is its heading on an ink rule, then its content, all on one width. The heading follows the
+   single-column résumés that read well (Jake's Resume and its kind): bold capitals a step larger than before, at the left edge
+   the text shares, on a rule that ties them to the section below, with more space above than below. A full-width line is long,
+   so the proportions are a classic document's: an inch of margin each side (96px) and text a step larger (13px, about 10pt),
+   which keeps a line near 90 characters in Source Serif (Resume Design Principles, 2). The header, the rules and the serif are
+   Classic's. Layout lives on .page, not :root, so the tokens file carries only colour and type. */
+:root {
+  --fs-bullet:    13px;     /* about 10pt: Source Serif sets wide, and a full A4 or Letter page still holds what B2's does */
+  --lh-bullet:    1.38;
+  --lh-summary:   1.38;
+  --fs-role:      15px;
+  --fs-tab:       12px;     /* 0.8 of a job title (15px): the largest a heading may be (Resume Design Principles, 1) */
+  --ls-tab:       0.1em;
+  --fs-tab-sub:   10.4px;   /* a grouped heading: grey, a step under */
+  --band-gap:     16px;     /* above a heading: more than twice the 6px below its rule */
+  --band-gap-summary: 16px;
+}
+
+.page {
+  --page-pad-t:  48px;
+  --page-pad-l:  max(96px, calc((var(--page-w) - 602px) / 2));   /* an inch, or more on Letter so its line is A4's */
+  --page-pad-r:  var(--page-pad-l);
+  --gutter-w:     0px;
+  --gutter-gap:   0px;
+  --column-w: calc(var(--page-w) - var(--page-pad-l) - var(--page-pad-r));
+}
+
+/* Every section is a column: the heading row, then the content. */
+.page .band { flex-direction: column; gap: 6px; }
+.page .band__gutter { width: auto; flex-direction: row; align-items: baseline; }
+.page .band__gutter:empty { display: none; }
+/* The heading row: at the left, on its rule (a grouped section's has none). The rule is a separator, like B2's hairline, not a
+   mark on the label, so it counts against no limit of marked labels. B2's hairline above a section is off. */
+.page .tab { padding: 0; line-height: 1.15; }
+.page .band--section:not(.band--sub) > .band__gutter { border-bottom: 1px solid var(--ink); padding-bottom: 3px; }
+.page .band--section::before { border-top: 0; }
+.page .tab-note { margin: 0 0 0 10px; }
+
+/* Running text justified, as a classic page sets it: a full-width ragged edge leaves the right half light. Hyphenated in the
+   page's language, so the word gaps stay even. */
+.page .summary, .page .bullets li { text-align: justify; hyphens: auto; }
+
+/* With a photo, the header keeps Classic's letterhead: the photo at the left of the name block. */
+.page .band--header.band--photo { flex-direction: row; gap: 22px; }
+.page .band--header.band--photo > .band__gutter { width: auto; flex-direction: column; }

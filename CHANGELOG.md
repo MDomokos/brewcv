@@ -6,8 +6,18 @@ Every notable change to BrewCV, newest first. The format follows [Keep a Changel
 
 ## Unreleased
 
+More looks, and B2 Marker's quieter labels by default.
+
 ### Added
-- **Quiet tabs, a look with plain section labels.** In the Design view's templates: the section labels are plain bold text with a hairline above each section, and the yellow stays on the name's swipe and the highlighted metrics (the accent swatches colour those, not the labels). Nothing moves: the hairline is drawn in the gap above a section, so every band, job and title is where it is in B2 Marker, in A4, Letter and Hungarian A4. There is none above a section grouped under the one above it, or above the first section on a page, and it is a border, so it prints without "background graphics". With *Group under the section above*, the two-page example's page 2 carries two hairlines instead of seven tabs. It is the fifth look, made with `node scripts/new-theme.mjs`, and the two-page check draws it on one and two pages in A4 and Letter like the others.
+- **Five new looks in the Design view's templates.** *Classic*: a centred serif header, the section headings in a margin column at the left, an ink rule above each section and equal margins. *Classic full width*: the headings above the text, left-aligned in bold capitals on an ink rule, an inch of margin each side and justified 10 pt text. *Timeline*: labels in the margin, a line through the jobs and a dot for each; the line runs only through a chronology and breaks between sections. *Banner*: your name on a band of colour that runs to the paper's edges on a screen and stops ¼ in short of them in print. *Compact*: B2 Marker with smaller type and tighter spacing. Each keeps its lines under 95 characters and fits the example resumes on the pages B2 Marker needs. Their names are in English in the nine other catalogues until translated.
+- **Marker tabs, a look with B2 Marker's filled tabs.** The main sections keep a tab in the accent; a section grouped under the one above gets a smaller pale tab, so the colour stays on the main sections.
+- **Source Serif 4 and Source Sans 3 ship with the app**, for the Classic looks: regular, italic and bold, in their latin and latin-ext subsets (so all ten languages have their letters), with their OFL licences in `fonts/`. They work offline, and an imported theme that names them is no longer told the font is missing.
+
+### Changed
+- **B2 Marker's section labels are plain bold text with a hairline above each section, on every resume, saved ones too.** Nothing moves: the hairline sits in the gap above a section. The yellow filled tabs are the new Marker tabs look; Tinted tabs and Mono print look as they did. A resume saved with the Quiet tabs look opens as B2 Marker, which is now the same thing (its stylesheet stays, empty, so the file still opens offline).
+- **B2 Marker has five type sizes:** 35, 15, 12.7, 10.4 and 9.7 px. Sizes within 5% of each other were merged: skills grow from 12.2 to 12.7 px, the summary and item titles go to 12.7 px, the discipline line to 10.4 px. Saved resumes reflow, and Fit measures them again when they open.
+- **The left margin is 40 px on A4 and Letter instead of 64.** The label column already reads as margin; the text column takes the room (490 px on A4, 552 px on Letter), so saved resumes reflow.
+- **The design rules for a look.** A look may set its own margins, but text keeps 36 px from every edge and nothing is printed within 24 px (¼ in) of the paper's edge, checked in print. A grouped label is quieter than its section's: plain grey text, or a pale tab under filled ones. `checks/themes-pages-check.mjs` holds both.
 
 ## 1.4.3 - 2026-10-21
 

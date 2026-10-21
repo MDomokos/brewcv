@@ -450,8 +450,8 @@ export function mount(root, data, recipe, opts = {}){
 
 // measuring
 
-// Cached per {format}@{theme} (one line in the 528px Letter column can be two in
-// the 466px A4 one), with the column width so a stale entry is detectable.
+// Cached per {format}@{theme} (one line in the 552px Letter column can be two in
+// the 490px A4 one), with the column width so a stale entry is detectable.
 export function countLines(el){
   const range = (el.ownerDocument ?? globalThis.document).createRange();
   range.selectNodeContents(el);

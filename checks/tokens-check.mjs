@@ -65,8 +65,8 @@ section('values');
   ok('unsafe colours are refused', bad.every(v => K.cssValue('color', v) === null));
   ok('unsafe font families are refused', ['Arial; } body { display:none', 'url(x)', '<b>'].every(v => K.cssValue('fontFamily', v) === null));
   ok('a font name with a space is quoted', K.cssValue('fontFamily', 'Source Serif 4, serif') === '"Source Serif 4", serif');
-  ok('a font this app has no files for is flagged', K.unknownFonts('"Source Serif 4", serif').length === 1 && K.unknownFonts('Georgia, serif').length === 0);
-  ok('…and falls back to the default family, visibly', /"Source Serif 4", serif, "Hanken Grotesk"/.test(K.toCss({ 'font-body': '"Source Serif 4", serif' })));
+  ok('a font this app has no files for is flagged', K.unknownFonts('Merriweather, serif').length === 1 && K.unknownFonts('Georgia, serif').length === 0 && K.unknownFonts('"Source Serif 4", serif').length === 0);
+  ok('…and falls back to the default family, visibly', /Merriweather, serif, "Hanken Grotesk"/.test(K.toCss({ 'font-body': 'Merriweather, serif' })));
   const css = K.toCss({ accent: '#7fd1ae', tab: '{color.accent}', margin: '40px', 'tab-style': 'none', 'highlight-style': 'bold' });
   ok('toCss: one :root block, aliases as var()', /^:root \{ --accent: #7fd1ae; --tab-fill: var\(--accent\); --page-pad-t: 40px;/.test(css));
   ok('toCss: the switches add their rules', /\.tab \{ background: none/.test(css) && /\.mark \{ background: none !important; font-weight/.test(css));
@@ -159,7 +159,9 @@ if (process.argv.includes('--browser')){
       const asTokens = await measure(html, base + b2now + layers + K.toCss(builtInTokens(b)));
       runs++;
       const diff = (a, c) => a.length !== c.length ? Infinity : Math.max(0, ...a.map((x, i) => Math.max(...x.split(',').map((v, j) => Math.abs(v - c[i].split(',')[j])))));
-      const d = Math.max(diff(before, now), diff(now, asTokens));
+      // a look that sets a hook itself (Classic's --weight-name) has no before to match; its tokens still have to
+      const hooked = /--(?:font-name|font-heading|weight-name|weight-heading|tab-ink|tab-radius)\s*:/.test(layers);
+      const d = Math.max(hooked ? 0 : diff(before, now), diff(now, asTokens));
       worst = Math.max(worst, d);
       if (d > 0) ok(`${n} · ${b.id}`, false, `${d.toFixed(2)}px`);
     }

@@ -181,5 +181,11 @@
         "unit": "px"
       }
     }
+  },
+  "style": {
+    "tab": {
+      "$type": "string",
+      "$value": "none"
+    }
   }
 }

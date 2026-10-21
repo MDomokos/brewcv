@@ -23,7 +23,7 @@ const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDi
 // What is wrong with the looks under `root`, as sentences. Empty when every place agrees.
 export async function problems(root = REPO){
   const at = (...p) => path.join(root, ...p), out = [];
-  const { THEMES } = await import(`${pathToFileURL(at('src/themes.js')).href}?${++stamp}`);
+  const { THEMES, RETIRED = [] } = await import(`${pathToFileURL(at('src/themes.js')).href}?${++stamp}`);
   const ids = THEMES.map(x => x.id), files = THEMES.map(x => x.file);
   const layers = [...new Set(THEMES.flatMap(x => x.layers))];
   const sw = fs.readFileSync(at('sw.js'), 'utf8');
@@ -52,7 +52,8 @@ export async function problems(root = REPO){
   }
   for (const f of fs.readdirSync(at('themes'))){
     const css = /^(.+)\.css$/.exec(f)?.[1], tok = /^(.+)\.tokens\.json$/.exec(f)?.[1];
-    if (css && !layers.includes(css)) out.push(`themes/${f} is in no look: register it in src/themes.js (node scripts/new-theme.mjs)`);
+    if (css && RETIRED.includes(css) && !sw.includes(`'./themes/${f}'`)) out.push(`themes/${f} is retired: sw.js still has to cache it, so a resume saved with it opens offline`);
+    if (css && !layers.includes(css) && !RETIRED.includes(css)) out.push(`themes/${f} is in no look: register it in src/themes.js (node scripts/new-theme.mjs)`);
     if (tok && !files.includes(tok)) out.push(`themes/${f} belongs to no look`);
   }
   // nothing else lists a look: that is how it was once spread over five places
@@ -69,7 +70,7 @@ section('the registry and what has to agree with it');
   const p = await problems();
   ok('every look has its stylesheets, tokens file, ten pairs of strings and cache entries, and nothing else is listed', !p.length, p.join('; '));
   const { THEMES } = await import('../src/themes.js');
-  ok('B2 Marker is first, and the looks that were there before the registry still are', THEMES[0].id === 'b2' && ['tint', 'aa', 'mono', 'quiet-tabs'].every(id => THEMES.some(x => x.id === id)));
+  ok('B2 Marker is first, and the looks that were there before the registry still are', THEMES[0].id === 'b2' && ['marker', 'tint', 'aa', 'mono'].every(id => THEMES.some(x => x.id === id)));
 }
 
 section('scripts/new-theme.mjs on a copy');

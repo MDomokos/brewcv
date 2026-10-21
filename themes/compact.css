@@ -1,0 +1,31 @@
+/* compact.css: Smaller type and tighter spacing, for a full page. Load after b2-marker.css.
+   B2 Marker's layout with less of everything around the words: a layout look (docs/THEME-DESIGN-RULES.md, rule 1) for the
+   margins and the gutter gap, which live on .page so the tokens file carries only type and spacing. The label size and the
+   gutter stay, so every language's label still fits. The column is whatever the paper leaves. */
+:root {
+  --fs-name:      31px;
+  --fs-role:      14px;
+  --fs-bullet:    12.1px;
+
+  --lh-summary:   1.4;
+  --lh-bullet:    1.38;
+  --lh-skill:     1.35;
+
+  --band-gap:     16px;
+  --band-gap-summary: 18px;
+  --role-gap:     10px;
+  --meta-to-bullets: 4px;
+  --bullet-gap:   2px;
+  --name-to-contact: 9px;
+  --skill-gap-row: 6px;
+  --summary-in-header-gap: 14px;
+  --band-gap-group: 24px;
+}
+
+.page {
+  --page-pad-t:  44px;
+  --page-pad-b:  36px;
+  --page-pad-l:  36px;   /* the printer floor (rule 1) */
+  --gutter-gap:  22px;
+  --column-w: calc(var(--page-w) - var(--page-pad-l) - var(--page-pad-r) - var(--gutter-w) - var(--gutter-gap));
+}

@@ -36,11 +36,11 @@
 
 :root {
   /* Same value today, kept separate so they can be split with one edit. */
-  --accent:          #ffd900;   /* tabs, marker swipe */
+  --accent:          #ffd900;   /* marker swipe; the tabs in Marker tabs and an underline tab style */
   --highlight:       #ffd900;   /* marker behind metrics in body text */
 
   /* Per-surface indirection, so an overlay can re-point one surface. */
-  --tab-fill:        var(--accent);
+  --tab-fill:        var(--accent);   /* what a filled or underlined label is drawn in (marker-tabs.css, the tab-style token) */
   --swipe-fill:      var(--accent);
   --mark-fill:       var(--highlight);
 
@@ -61,16 +61,19 @@
   --font-sans: "Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Fira Code", ui-monospace, Menlo, monospace;
 
-  --fs-name:      35px;
-  --fs-role:      15px;
-  --fs-item:      13.4px;
-  --fs-summary:   13.2px;
-  --fs-bullet:    12.7px;
-  --fs-skill:     12.2px;
-  --fs-tagline:   11.6px;
-  --fs-tab:       10.4px;
-  --fs-contact:   9.8px;
-  --fs-meta:      9.7px;
+  /* The type scale: five steps, and every size on the page is one of them (Resume Design Principles, 3). Sizes within 5% of
+     each other were merged. A look that changes a step's size changes every role on it. */
+  --fs-name:      35px;     /* the name */
+  --fs-role:      15px;     /* job titles */
+  --fs-bullet:    12.7px;   /* body: bullets, summary, item titles (bold), skills */
+  --fs-tab:       10.4px;   /* labels: section tabs, the tagline */
+  --fs-meta:      9.7px;    /* small: dates and places, contact, grouped labels */
+
+  --fs-item:      var(--fs-bullet);
+  --fs-summary:   var(--fs-bullet);
+  --fs-skill:     var(--fs-bullet);
+  --fs-tagline:   var(--fs-tab);
+  --fs-contact:   var(--fs-meta);
 
   --fw-regular:   400;
   --fw-bold:      700;
@@ -122,16 +125,20 @@
   /* Left unset: src/model/tokens.js may set --font-name, --font-heading,
      --weight-name, --weight-heading, --tab-ink, --tab-radius. */
 
-  --tab-fill-cont:  #ffec80;  /* continued tab on page 2 */
+  --tab-fill-cont:  #ffec80;  /* continued tab on page 2, when the labels are filled */
   --tab-pad-t:      4px;
-  --tab-pad-r:      9px;
+  --tab-pad-r:      6px;      /* a little short of the gutter's edge, so the editing grip beside a line has room at any zoom */
   --tab-pad-b:      4px;
-  --tab-pad-l:     11px;
+  --tab-pad-l:      0px;
+
+  /* A hairline above each section instead of a filled tab. */
+  --rule-quiet:     #bdbdbd;  /* dark enough to survive a laser printer */
+  --rule-above:     9px;      /* from the hairline to the band, inside every gap (the smallest is 22px) */
 
   /* A grouped section: a grey label under the tab above it, not a second tab. */
   --band-gap-sub:   12px;     /* above a grouped section */
   --band-gap-group: 30px;     /* below the group, before the next tab */
-  --fs-tab-sub:     9.4px;
+  --fs-tab-sub:     var(--fs-meta);
   --ls-tab-sub:     0.12em;
 }
 
@@ -259,17 +266,18 @@ html, body {
 
 /* section tabs */
 
-/* No horizontal rules anywhere: the tabs do all the separating. */
+/* The labels are plain bold text; a hairline above each section does the separating (Quiet tabs, the default since it
+   replaced the filled marker tab, which marker-tabs.css brings back). */
 .tab {
   margin: 0;
   align-self: flex-end;
-  background: var(--tab-fill);
+  background: none;
   color: var(--tab-ink, var(--ink));
   border-radius: var(--tab-radius, 0);
   font-family: var(--font-heading, var(--font-sans));
   padding: var(--tab-pad-t) var(--tab-pad-r) var(--tab-pad-b) var(--tab-pad-l);
   font-size: var(--fs-tab);
-  font-weight: var(--fw-black);
+  font-weight: var(--fw-bold);
   letter-spacing: var(--ls-tab);
   text-transform: uppercase;
 }
@@ -393,7 +401,21 @@ html, body {
 }
 
 /* Continued tab: quieter, so it is not read as a second section. */
-.tab--cont { background: var(--tab-fill-cont); }
+.tab--cont { color: var(--muted-label); }
+
+/* The hairline is drawn in the gap above a section, not added to it, so no band moves: a page holds what it held, in every
+   format. A grouped section has no hairline of its own, and neither has the first section on a page. */
+.band--section { position: relative; }
+.band--section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--rule-above) * -1);
+  border-top: 1px solid var(--rule-quiet);     /* a border prints without "background graphics" */
+}
+.page > .band--section:first-child::before,
+.page .band--sub::before { display: none; }
 
 /* Grouped sections (recipe style "sub", the Design view's "Group under the section above"): the label is quiet text,
    whatever the tab style is, so a page of small sections carries one tab per group. `.page` outranks a format file. */

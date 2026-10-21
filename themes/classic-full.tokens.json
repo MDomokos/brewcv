@@ -1,8 +1,8 @@
 {
-  "$description": "B2 Marker, quiet tabs",
+  "$description": "B2 Marker, Classic full width",
   "$extensions": {
     "resume-builder": {
-      "name": "B2 Marker, quiet tabs",
+      "name": "B2 Marker, Classic full width",
       "version": 1
     }
   },
@@ -21,16 +21,7 @@
     },
     "tab": {
       "$type": "color",
-      "$value": {
-        "colorSpace": "srgb",
-        "components": [
-          0,
-          0,
-          0
-        ],
-        "alpha": 0,
-        "hex": "#000000"
-      }
+      "$value": "{color.accent}"
     },
     "highlight": {
       "$type": "color",
@@ -110,11 +101,9 @@
       "family": {
         "$type": "fontFamily",
         "$value": [
-          "Hanken Grotesk",
-          "Helvetica Neue",
-          "Helvetica",
-          "Arial",
-          "sans-serif"
+          "Source Serif 4",
+          "Georgia",
+          "serif"
         ]
       }
     },
@@ -122,11 +111,16 @@
       "family": {
         "$type": "fontFamily",
         "$value": [
-          "Fira Code",
-          "ui-monospace",
-          "Menlo",
-          "monospace"
+          "Source Sans 3",
+          "Hanken Grotesk",
+          "sans-serif"
         ]
+      }
+    },
+    "name": {
+      "weight": {
+        "$type": "fontWeight",
+        "$value": 400
       }
     }
   },
@@ -134,7 +128,7 @@
     "name": {
       "$type": "dimension",
       "$value": {
-        "value": 35,
+        "value": 33,
         "unit": "px"
       }
     },
@@ -148,14 +142,14 @@
     "body": {
       "$type": "dimension",
       "$value": {
-        "value": 12.7,
+        "value": 13,
         "unit": "px"
       }
     },
     "meta": {
       "$type": "dimension",
       "$value": {
-        "value": 9.7,
+        "value": 11,
         "unit": "px"
       }
     }
@@ -163,14 +157,14 @@
   "line-height": {
     "body": {
       "$type": "number",
-      "$value": 1.45
+      "$value": 1.38
     }
   },
   "tracking": {
     "label": {
       "$type": "dimension",
       "$value": {
-        "value": 0.13,
+        "value": 0.1,
         "unit": "em"
       }
     }
@@ -179,7 +173,7 @@
     "section": {
       "$type": "dimension",
       "$value": {
-        "value": 22,
+        "value": 16,
         "unit": "px"
       }
     },
@@ -189,12 +183,6 @@
         "value": 3,
         "unit": "px"
       }
-    }
-  },
-  "style": {
-    "tab": {
-      "$type": "string",
-      "$value": "none"
     }
   }
 }

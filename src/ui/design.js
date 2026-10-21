@@ -4,7 +4,7 @@
 // and the exports add after the base theme. Neither touches the renderer.
 
 import * as K from '../model/tokens.js';
-import { THEMES } from '../themes.js';
+import { THEMES, RETIRED } from '../themes.js';
 import { toAuto, setPhoto as setResumePhoto, setRecordPhoto } from '../model/resume.js';
 import { t, h, errText, keyed } from '../i18n/index.js';
 import { showSw } from './parts.js';
@@ -19,7 +19,8 @@ const st = () => C.store.state;
 export const SWATCHES = ['#ffd900', '#7fd1ae', '#9cc3ff', '#ffb08a', '#d6b4ff', '#f4a6c0'];
 export const TEMPLATES = THEMES.map(x => ({ id: x.id, name: x.name, overlays: x.layers.slice(1), note: x.note }));
 const BASE_TOKENS = { tab: '{color.accent}', 'tab-ink': '#1a1a1a', ink: '#1a1a1a' };
-const templateOf = r => TEMPLATES.find(x => JSON.stringify(x.overlays) === JSON.stringify(r.overlays ?? [])) ?? null;
+// a retired overlay (an empty stylesheet now) is left out, so a resume saved with Quiet tabs shows as B2 Marker
+const templateOf = r => TEMPLATES.find(x => JSON.stringify(x.overlays) === JSON.stringify((r.overlays ?? []).filter(o => !RETIRED.includes(o)))) ?? null;
 const tplName = x => t(`design.tpl.${x.id}`);
 const tplNote = x => t(`design.tplNote.${x.id}`);
 

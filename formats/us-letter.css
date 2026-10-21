@@ -5,11 +5,11 @@
   --page-w:     816px;   /* 215.9 x 279.4 mm at 96 dpi */
   --page-h:    1056px;
   --page-pad-t:  56px;
-  --page-pad-l:  64px;
+  --page-pad-l:  40px;   /* the gutter reads as margin, as on A4 */
   --page-pad-r:  64px;
   --page-pad-b:  44px;
 
   --gutter-w:   132px;
   --gutter-gap:  28px;
-  --column-w:   528px;   /* 64 + 132 + 28 + 528 + 64 = 816 */
+  --column-w:   552px;   /* 40 + 132 + 28 + 552 + 64 = 816 */
 }

@@ -2281,14 +2281,14 @@ if (want('design and theme tokens')) {
   const tabBg = () => frameDoc(page, d => getComputedStyle(d.querySelector('.band[data-section] .tab')).backgroundColor);
   await page.click('#tab-design'); await settle(page);
   ok('Design opens from the header', (await page.getAttribute('#body', 'data-view')) === 'design');
+  await page.click('[data-act=d-tpl][data-t=marker]'); await settle(page);
   await page.click('[data-act=d-accent][data-c="#9cc3ff"]'); await settle(page);
-  ok('an accent swatch recolours the tabs', (await tabBg()) === 'rgb(156, 195, 255)' && (await st()).cur.accent === '#9cc3ff');
+  ok('an accent swatch recolours Marker tabs', (await tabBg()) === 'rgb(156, 195, 255)' && (await st()).cur.accent === '#9cc3ff' && JSON.stringify((await st()).cur.overlays) === '["marker-tabs"]');
   ok('and says the tab text still reads', /readable/.test(await page.textContent('#body')));
   await page.click('[data-act=d-tpl][data-t=tint]'); await settle(page);
   ok('a template switches the overlay', JSON.stringify((await st()).cur.overlays) === '["tint-tabs"]' && await frameDoc(page, d => [...d.querySelectorAll('link')].some(l => /tint-tabs/.test(l.href))));
-  await page.click('[data-act=d-tpl][data-t=quiet-tabs]'); await settle(page);
-  ok('Quiet tabs: the label is plain text, whatever the accent', JSON.stringify((await st()).cur.overlays) === '["quiet-tabs"]' && (await tabBg()) === 'rgba(0, 0, 0, 0)', await tabBg());
   await page.click('[data-act=d-tpl][data-t=b2]'); await settle(page);
+  ok('B2 Marker: the label is plain text, whatever the accent', JSON.stringify((await st()).cur.overlays) === '[]' && (await tabBg()) === 'rgba(0, 0, 0, 0)', await tabBg());
   await page.click('[data-act=d-pages][data-n="0"]'); await settle(page);
   await page.click('#tab-export'); await settle(page);
   ok('pages: as many as needed turns Fit off (Fit is in Export)', (await st()).cur.pageLimit === 0 && await page.isDisabled('[data-act=fit]'));

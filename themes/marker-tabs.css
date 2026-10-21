@@ -1,0 +1,17 @@
+/* marker-tabs.css: B2 Marker as it was until Quiet tabs became its default: every section label a filled marker tab in the
+   accent, no hairlines. Load after b2-marker.css. The bands are where B2 Marker puts them; only the labels change. */
+:root {
+  --tab-pad-r: 9px;
+  --tab-pad-l: 11px;
+}
+.tab { background: var(--tab-fill); font-weight: var(--fw-black); }
+.tab--cont { background: var(--tab-fill-cont); color: var(--tab-ink, var(--ink)); }
+.band--section::before { display: none; }
+
+/* Colour on the main sections only: a section grouped under the one above (the Design view's switch) keeps a smaller tab in a
+   pale tint, so a page of small sections carries one strong tab per group (docs/THEME-DESIGN-RULES.md, rules 3 and 4). */
+.page .band--sub .tab {
+  background: color-mix(in srgb, var(--tab-fill) 35%, var(--paper));
+  color: var(--tab-ink, var(--ink));
+  padding: 3px 7px 3px 8px;
+}

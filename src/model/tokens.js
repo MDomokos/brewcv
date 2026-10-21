@@ -40,7 +40,7 @@ const ALIASES = { font: 'font-body', 'name-size': 'size-name', 'font-family': 'f
 const SWITCHES = { 'tab-style': ['solid', 'underline', 'outline', 'none'], 'highlight-style': ['marker', 'bold', 'none'] };
 
 // Families this app has files for, or that every machine has.
-export const KNOWN_FONTS = ['Hanken Grotesk', 'Fira Code', 'Helvetica Neue', 'Helvetica', 'Arial', 'Georgia', 'Times New Roman', 'Times',
+export const KNOWN_FONTS = ['Hanken Grotesk', 'Fira Code', 'Source Serif 4', 'Source Sans 3', 'Helvetica Neue', 'Helvetica', 'Arial', 'Georgia', 'Times New Roman', 'Times',
   'Verdana', 'Courier New', 'Menlo', 'Monaco', 'Consolas', 'Segoe UI', 'Calibri', 'Cambria', 'Garamond',
   'serif', 'sans-serif', 'monospace', 'system-ui', 'ui-monospace', 'ui-sans-serif', 'ui-serif', '-apple-system', 'BlinkMacSystemFont'];
 

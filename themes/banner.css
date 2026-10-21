@@ -1,0 +1,51 @@
+/* banner.css: Your name on a band of colour, underlined labels. Load after b2-marker.css.
+   The header is a band in the accent (the swipe's job, rule 6), and the section tabs become an accent underline. Text on the
+   band is the tab ink, which the Design view's contrast note already checks against the accent. A thin strip tops every later
+   page, so the pages read as one document.
+   On a screen the band runs to the paper's edges. Printed (`.medium-print` on the root, set for a print export), it stops at the
+   printer-safe edge, since no office printer reaches the paper's edge (docs/THEME-DESIGN-RULES.md, rule 1). The name and every
+   band sit in the same place either way, so the pages break the same. */
+.page {
+  --print-edge:   24px;     /* ¼ in: no ink nearer the paper's edge, in print */
+  --edge:         0px;      /* where the band stops: the paper's edge on a screen */
+  --band-radius:  0;
+  --banner-pad-t: 24px;     /* from the printed band's top edge to the name */
+  --banner-pad-b: 22px;
+}
+:root.medium-print .page { --edge: var(--print-edge); --band-radius: 4px; }
+
+.namemark::before { display: none; }
+
+.page .band--header {
+  margin: calc(var(--edge) - var(--page-pad-t)) calc(var(--edge) - var(--page-pad-r)) 0 calc(var(--edge) - var(--page-pad-l));
+  padding: calc(var(--banner-pad-t) + var(--print-edge) - var(--edge)) calc(var(--page-pad-r) - var(--edge)) var(--banner-pad-b) calc(var(--page-pad-l) - var(--edge));
+  border-radius: var(--band-radius);
+  background: var(--swipe-fill);
+}
+/* a4.css takes the header's gutter out of flow; it is placed inside the band's padding. */
+.page .band--header > .band__gutter { left: calc(var(--page-pad-l) - var(--edge)); top: calc(var(--banner-pad-t) + var(--print-edge) - var(--edge) + var(--gutter-nudge)); }
+.page .band--header .tagline,
+.page .band--header .contact,
+.page .band--header .summary { color: var(--tab-ink, var(--ink)); }
+/* A highlight on the band would be accent on accent and vanish (the summary moves in with a photo): it prints in bold there. */
+.page .band--header .mark { background: none; font-weight: var(--fw-bold); }
+
+.page::before {
+  content: "";
+  position: absolute;
+  inset: var(--edge) var(--edge) auto;
+  height: 8px;
+  border-radius: var(--band-radius);
+  background: var(--swipe-fill);
+}
+
+.page .tab {
+  background: none;
+  padding-left: 0;
+  padding-right: 0;
+  box-shadow: inset 0 -2.5px 0 var(--tab-fill);
+}
+.page .tab--cont { box-shadow: inset 0 -2.5px 0 color-mix(in srgb, var(--tab-fill) 45%, var(--paper)); }
+
+/* B2 Marker's hairline above each section: this look separates its sections its own way. */
+.page .band--section::before { border-top: 0; }
