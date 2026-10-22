@@ -400,6 +400,7 @@ From 1.0.0 on, breaking changes take the major number instead, and features the 
 
 **Day to day.**
 - Every user-visible change gets a line under `## Unreleased` in `CHANGELOG.md`, in the same change, under *Added*, *Changed*, *Deprecated*, *Removed*, *Fixed* or *Security*, in that order. Describe the result, not the steps: if an unreleased entry is revised before the release, edit it rather than adding another. Internal refactors and check-only changes need no entry.
+- The changelog is for the app's users, to skim. Each entry is one line: a bold phrase saying what changed for them, then at most one short sentence (what happens to saved resumes, say). No file names, pixel values, check names or how a bug came about: those go in the commit message.
 - No milestone or stage numbers in code, check names, comments or commit messages. Name the feature, or the version when history matters (`before 0.5.1`, `the 0.4.0 pins`).
 - `package.json` keeps the last released version until the next release; `sw.js` needs nothing, because the deploy stamps the commit into its cache name.
 
