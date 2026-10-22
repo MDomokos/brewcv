@@ -141,7 +141,7 @@ export function initHands(C){
     const hitChip = (x, y) => !!chip && x < chip.right && x + GRIP.w > chip.left && y < chip.bottom && y + GRIP.h > chip.top;
     // centred on the top edge's left end; else just outside the frame's left edge; else just above the edge, or above the chip; else along the
     // edge, to the first place clear of text, the chip and the zoom bar
-    const ys = [f.top - GRIP.h / 2, f.top - GRIP.h - 1, f.top - GRIP.h - 12], xs = [f.left - GRIP.w / 2, f.left - GRIP.w - 3];      // the last row clears the chip, which may stand over the left end of a frame half under the sidebar
+    const ys = [f.top - GRIP.h / 2, f.top - GRIP.h - 1, f.top - GRIP.h - 12, ...(chip ? [chip.top - GRIP.h - 2] : [])], xs = [f.left - GRIP.w / 2, f.left - GRIP.w - 3];      // the last rows clear the chip, which may stand over the left end of a frame half under the sidebar or sit above the edge (a block on the second page)
     const along = Array.from({ length: Math.max(0, Math.floor((f.width - GRIP.w - 40) / 8)) }, (_, k) => xs[0] + 8 * (k + 1));
     const spots = [...ys.flatMap(y => xs.map(x => ({ x, y }))), ...ys.flatMap(y => along.map(x => ({ x, y })))];
     const at = spots.find(q => free(q.x, q.y, GRIP.w, GRIP.h) && !hitChip(q.x, q.y)) ?? null;

@@ -4605,6 +4605,11 @@ if (want('the lock: the grips for jobs, sections and items, at four sizes')) {
   const jobsOrder = () => frameDoc(page, d => [...d.querySelectorAll('.entry .role-title')].map(e => e.textContent.slice(0, 14)));
   const secOrder = () => frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')).filter((s, i, a) => a.indexOf(s) === i));
   const dragTo = async (g, x, y) => { await page.mouse.move(g.x, g.y); await page.mouse.down(); await page.mouse.move(x, y, { steps: 10 }); await page.waitForTimeout(150); };
+  // a spot of the canvas on none of the pages (left of the first, between two, or right of the last), whichever the camera shows
+  const offPages = () => page.evaluate(() => {
+    const { canvas, sheet } = window.__wb, v = canvas.view, bs = sheet.pageBoxes().map(b => canvas.screenRect(b));
+    return [v.left + 8, ...bs.flatMap(b => [b.left - 8, b.left + b.width + 8])].find(x => x >= v.left + 2 && x <= v.left + v.width - 2 && !bs.some(b => x >= b.left && x <= b.left + b.width));
+  });
   const tip = () => page.evaluate(() => { const t = document.querySelector('#handlay .obtip'); return t && !t.hidden ? t.textContent : ''; });
 
   // a job moves within its section
@@ -4637,6 +4642,16 @@ if (want('the lock: the grips for jobs, sections and items, at four sizes')) {
   ok('with the focus on a job’s grip, ↓ moves the job down one place', hi >= 0 && o3[hi + 1] === o2[hi] && o3[hi] === o2[hi + 1], JSON.stringify([o2, o3]));
   await page.focus('#handlay .obfgrip'); await page.keyboard.press('ArrowUp'); await settle(page);
   ok('…and ↑ moves it back', JSON.stringify(await jobsOrder()) === JSON.stringify(o2));
+  // across a page break: the grip stays focused on the same job wherever it lands, and ↑ undoes ↓ the same number of times
+  const jobPage = () => frameDoc(page, d => [...d.querySelectorAll('.document > .page')].findIndex(p => [...p.querySelectorAll('.entry .role-title')].some(e => e.textContent.startsWith('Design Engin'))));
+  const gripKept = () => page.evaluate(() => { const a = document.activeElement, g = document.querySelector('#handlay .obfgrip'); return a === g && !g.hidden && g.dataset.fact === 'hydra'; });
+  const p0 = await jobPage();
+  await page.focus('#handlay .obfgrip');
+  let downs = 0, kept = true;
+  while (downs < o2.length && (await jobPage()) === p0){ await page.keyboard.press('ArrowDown'); await settle(page); downs++; kept = kept && await gripKept(); }
+  ok('↓ carries a job over a page break, the grip still focused on it', downs > 0 && (await jobPage()) !== p0 && kept, JSON.stringify([downs, p0, await jobPage(), kept]));
+  for (let k = 0; k < downs; k++){ await page.keyboard.press('ArrowUp'); await settle(page); kept = kept && await gripKept(); }
+  ok('…and ↑ carries it back the same way, to the same page and order', kept && (await jobPage()) === p0 && JSON.stringify(await jobsOrder()) === JSON.stringify(o2), JSON.stringify([kept, await jobPage(), await jobsOrder()]));
 
   // a section moves within the page
   await toHome(); await page.click('#outline [data-act=select-section][data-id=education]'); await settle(page);
@@ -4650,7 +4665,7 @@ if (want('the lock: the grips for jobs, sections and items, at four sizes')) {
   await page.evaluate(() => window.__wb.store.undo()); await settle(page);
   await toHome(); await page.click('#outline [data-act=select-section][data-id=education]'); await settle(page);
   g = await grab();
-  await dragTo(g, 40, g.y);
+  await dragTo(g, await offPages(), g.y);
   ok('dragging a section off the page is refused, with the reason', /A section moves within the page/.test(await tip()), await tip());
   await page.mouse.up(); await settle(page);
   ok('…and nothing changes', JSON.stringify(await secOrder()) === JSON.stringify(s0));

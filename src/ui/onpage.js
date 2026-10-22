@@ -256,15 +256,21 @@ export function initOnPage(C){
     const pg = geom.boxes.map(b => canvas.screenRect(b)).find(b => f.left >= b.left - 1 && f.left < b.left + b.width);
     const lo = Math.max(v.left + 6, pg ? pg.left + 2 : -Infinity), hi = v.left + v.width - w - 6;      // the chip may stand past the page's right edge, on the desk, when the page's margin has no clear place for its tools
     const lowest = v.top + v.height - h - 56;
-    const ys = [Math.max(v.top + 6, Math.min(f.top - h / 2, lowest)), Math.max(v.top + 6, Math.min(f.top - h, lowest))];      // on the edge, else just above it (a tight item frame has text under its edge)
+    // on the edge, else just above it (a tight item frame has text under its edge); then each of those 3px up or down, still on the edge: with denser lines (a larger text size) the gap between two lines can be a pixel short of the chip
+    const ys = [0, -3, 3].flatMap(d => [f.top - h / 2, f.top - h].map(y => Math.max(v.top + 6, Math.min(y, lowest)) + d));
     const texts = sheet.textRects().map(r => canvas.screenRect(r));
     const tw = lay.querySelector('.obtoolswrap'), tr = tw && tw.style.display !== 'none' ? tw.getBoundingClientRect() : null;
     const hit = (x, q, y) => x < q.left + q.width && x + w > q.left && y < q.top + q.height && y + h > q.top;
     const x0 = Math.max(lo, Math.min(f.left + f.width - w - 12, hi));
     // the corner first, then outwards along the edge into the page's margin, then inwards, to the first place clear of text and tools
     const xs = [x0, ...Array.from({ length: Math.max(0, Math.floor((hi - x0) / 8)) }, (_, i) => x0 + 8 * (i + 1)), ...Array.from({ length: Math.max(0, Math.floor((x0 - lo) / 8)) }, (_, i) => x0 - 8 * (i + 1))];
+    // a place in the frame's right half is looked for first, in every row: the desk beyond its right end only when there is none
+    const right = x => x + w / 2 > f.left + f.width / 2 && x < f.left + f.width;
     let y = ys[0], x;
-    for (const yy of ys){ x = xs.find(x => !texts.some(q => hit(x, q, yy)) && !(tr && hit(x, tr, yy))); if (x !== undefined){ y = yy; break; } }
+    for (const ok of [right, () => true]){
+      for (const yy of ys){ x = xs.find(x => ok(x) && !texts.some(q => hit(x, q, yy)) && !(tr && hit(x, tr, yy))); if (x !== undefined){ y = yy; break; } }
+      if (x !== undefined) break;
+    }
     Object.assign(chip.style, { left: `${x ?? x0}px`, top: `${y}px` });
   }
 
