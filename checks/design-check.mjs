@@ -147,20 +147,22 @@ section('the renderer');
   const plain = tagIn(html(rec()));
   ok('without a photo, in Balanced density, the title stays in the label column with its line break', plain.gut && !plain.content && !plain.beside && plain.br);
   const photo = tagIn(html(rec({ photo: { show: true } })));
-  ok('with a photo the title goes beside the name, its line break a space', photo.content && !photo.gut && photo.beside && !photo.br && /Mechanical (&amp;|&) Design Engineer/.test(photo.head), photo.head.slice(0, 400));
+  ok('with a photo, in Balanced density, the title stays under it in the label column, with its line break', photo.gut && !photo.content && !photo.beside && photo.br, photo.head.slice(0, 400));
   const compact = tagIn(html(rec({ design: { density: 'compact' } })));
-  ok('in Compact density it does the same', compact.content && compact.beside && !compact.br);
+  ok('in Compact density the title goes beside the name, its line break a space', compact.content && !compact.gut && compact.beside && !compact.br && /Mechanical (&amp;|&) Design Engineer/.test(compact.head));
+  const compactPhoto = tagIn(html(rec({ photo: { show: true }, design: { density: 'compact' } })));
+  ok('with a photo in Compact density it is beside the name too', compactPhoto.content && compactPhoto.beside && !compactPhoto.br);
   const cc = tagIn(html(rec({ overlays: ['classic'], design: { density: 'compact' } })));
   ok('a centred look keeps the title where it is in Compact density, on one line', cc.gut && !cc.beside && !cc.br && /Mechanical (&amp;|&) Design Engineer/.test(cc.head));
   const cb = tagIn(html(rec({ overlays: ['classic'] })));
   ok('a centred header without a photo has the title on one line in any density', cb.gut && !cb.beside && !cb.br);
   const cp = tagIn(html(rec({ overlays: ['classic'], photo: { show: true } })));
-  ok('Classic with a photo is a letterhead: the title beside the name', cp.content && cp.beside && !cp.br);
+  ok('Classic with a photo keeps the title on one line in the label column', cp.gut && !cp.content && !cp.beside && !cp.br);
 
   const m = structuredClone(model);
   const tv = m.variants.find(v => v.id === 'tagline-v1');
   tv.marks = [{ start: 13, end: 19 }];       // "Design", after the line break
-  ok('the highlight stays on its word when the line break becomes a space', [{ photo: { show: true } }, { overlays: ['classic'] }, {}].every((o, i) => {
+  ok('the highlight stays on its word when the line break becomes a space', [{ design: { density: 'compact' } }, { overlays: ['classic'] }, {}].every((o, i) => {
     const h = html(rec(o), m).match(/class="tagline"[^>]*>([\s\S]*?)<\/p>/)[1];
     return i === 2 ? /<span class="mark">Design<\/span>/.test(h) && /<br>/.test(h) : /(&amp;|&) <span class="mark">Design<\/span> Engineer/.test(h);
   }));

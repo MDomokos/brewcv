@@ -112,12 +112,12 @@ export function header(ctx){
     if (p.state === 'present') gutter.push(h(doc, 'img', 'portrait', { attrs: { src: p.src, alt: '' } }));
     else gutter.push(h(doc, 'div', 'portrait portrait--missing', { html: encode(p.label ?? 'PHOTO') }));
   }
-  // The job title goes beside the name when a photo hangs in the label column (it would leave a hole under it) and in Compact density,
-  // except in a centred header. Its line break becomes a space there and in a centred header (the Classic audit measured 16px lost
-  // to it): the same length, so the highlights stay on their words.
+  // The job title goes beside the name in Compact density only, except in a centred header (a photo leaves it under the portrait).
+  // Its line break becomes a space there and in a centred header (the Classic audit measured 16px lost to it): the same length,
+  // so the highlights stay on their words.
   const look = lookOf(recipe), design = designOf(recipe, look);
   const centred = !!look.design?.centred;
-  const beside = gutter.length > 0 || (!!DENSITIES[design?.density]?.header && !centred);
+  const beside = !!DENSITIES[design?.density]?.header && !centred;
   const label = ctx.pick(b.display.label);
   const tagline = beside || centred ? { ...label, text: label.text.replace(/\r?\n/g, ' ') } : label;
   const tag = h(doc, 'p', 'tagline', { html: inlineOf(tagline), attrs: mark(ctx, label) });

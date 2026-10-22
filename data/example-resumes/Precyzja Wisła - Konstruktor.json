@@ -21,8 +21,7 @@
       "startDate": "2023-03",
       "highlights": [
         "Kierowałem przeprojektowaniem licznika dawek w inhalatorze produkowanym w liczbie 400 000 sztuk rocznie; liczba części spadła z dziewięciu do pięciu.",
-        "Zbudowałem stanowisko do testów upadkowych i cyklicznych, z którego zespół korzysta do weryfikacji konstrukcji, oraz napisałem towarzyszące mu protokoły badań.",
-        "Prowadziłem cotygodniowe przeglądy DFM z narzędziowcem przez trzy rundy próbek T1, zamykając 41 z 44 uwag przed zwolnieniem oprzyrządowania."
+        "Zbudowałem stanowisko do testów upadkowych i cyklicznych, z którego zespół korzysta do weryfikacji konstrukcji, oraz napisałem towarzyszące mu protokoły badań."
       ]
     },
     {
@@ -178,8 +177,7 @@
                 "id": "hydra",
                 "highlights": [
                   "hydra-inhaler",
-                  "hydra-testing",
-                  "hydra-dfm"
+                  "hydra-testing"
                 ]
               },
               {
@@ -225,6 +223,7 @@
         "overrides": {},
         "off": [
           "hydra-suppliers",
+          "hydra-dfm",
           "hydra-tolerance",
           "hydra-dhf",
           "hydra-human",
