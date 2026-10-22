@@ -29,3 +29,7 @@ export const THEMES = [
 
 // Stylesheets of looks folded into another, kept (empty) so a resume saved with one still opens and exports.
 export const RETIRED = ['quiet-tabs'];
+
+// The look a resume has: the entry whose overlays are the resume's, a retired one (an empty stylesheet now) left out so a resume saved
+// with Quiet tabs shows as B2 Marker. B2 Marker when none match.
+export const lookOf = r => THEMES.find(x => JSON.stringify(x.layers.slice(1)) === JSON.stringify((r?.overlays ?? []).filter(o => !RETIRED.includes(o)))) ?? THEMES[0];

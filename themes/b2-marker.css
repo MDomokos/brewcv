@@ -452,6 +452,14 @@ html, body {
 
 .summary--in-header { margin-top: var(--summary-in-header-gap); }
 
+/* The job title beside the name (src/render.js `header`: with a photo, and in Compact density): the name and the title in a row
+   that wraps the title under the name when there is no room, the contact and the summary below. Its gutter is empty. */
+.page .band--title-beside > .band__content { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 16px; }
+.page .band--title-beside .namemark { flex: none; }
+.page .band--title-beside > .band__content > .tagline { margin: 0; text-align: left; line-height: 1.3; }
+.page .band--title-beside .contact, .page .band--title-beside .summary { flex: 1 1 100%; }
+.page .band--header.band--title-beside:not(.band--photo) { min-height: 0; }      /* no photo, so no height to reserve for one */
+
 /* Name on every page, in case the sheets get separated. */
 .page-mark {
   margin: 0;

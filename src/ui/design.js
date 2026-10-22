@@ -5,7 +5,7 @@
 
 import * as K from '../model/tokens.js';
 import { designOf, designCss } from '../model/design.js';
-import { THEMES, RETIRED } from '../themes.js';
+import { THEMES, lookOf } from '../themes.js';
 import { toAuto, setPhoto as setResumePhoto, setRecordPhoto } from '../model/resume.js';
 import { t, h, errText, keyed } from '../i18n/index.js';
 import { showSw } from './parts.js';
@@ -20,8 +20,6 @@ const st = () => C.store.state;
 export const SWATCHES = ['#ffd900', '#7fd1ae', '#9cc3ff', '#ffb08a', '#d6b4ff', '#f4a6c0'];
 export const TEMPLATES = THEMES.map(x => ({ id: x.id, name: x.name, overlays: x.layers.slice(1), note: x.note }));
 const BASE_TOKENS = { tab: '{color.accent}', 'tab-ink': '#1a1a1a', ink: '#1a1a1a' };
-// a retired overlay (an empty stylesheet now) is left out, so a resume saved with Quiet tabs shows as B2 Marker
-const templateOf = r => TEMPLATES.find(x => JSON.stringify(x.overlays) === JSON.stringify((r.overlays ?? []).filter(o => !RETIRED.includes(o)))) ?? null;
 const tplName = x => t(`design.tpl.${x.id}`);
 const tplNote = x => t(`design.tplNote.${x.id}`);
 
@@ -33,7 +31,7 @@ export function tokensOf(record, recipe){
 }
 // The look settings first, then the accent and an imported theme's tokens, so an imported theme still wins.
 export const extraCss = (record, recipe) => {
-  const look = THEMES.find(x => x.id === templateOf(recipe)?.id);
+  const look = lookOf(recipe);
   return designCss(look, designOf(recipe, look), { accent: recipe.accent }) + K.toCss(tokensOf(record, recipe));
 };
 
@@ -62,7 +60,7 @@ export async function cropPhoto(file){
 
 function designView(){
   const r = C.cur(), rec = st().record;
-  const tpl = templateOf(r);
+  const tpl = lookOf(r);
   const accent = r.accent ?? '#ffd900';
   const chk = K.accentCheck(accent, '#1a1a1a');
   const themes = rec.themes ?? [];
@@ -169,11 +167,11 @@ async function act(a, tg){
     case 'd-drop': { const id = tg.dataset.id; commit(d => { d.record.themes = (d.record.themes ?? []).filter(x => x.id !== id); for (const x of [d.cur, ...(d.resumes ?? [])]) if (x.look === id) delete x.look; }, t('undo.removeTheme'), t('toast.themeRemoved'), true); return true; }
     case 'd-import': C.pickFile('theme'); return true;
     case 'd-export': {
-      const file = THEMES.find(x => x.id === (templateOf(r)?.id ?? 'b2')).file;
+      const file = lookOf(r).file;
       const built = await fetch(`themes/${file}.tokens.json`).then(x => x.json()).then(j => K.parseTheme(j).tokens).catch(() => ({}));
       const base = { ...BASE_TOKENS, ...built };
       const tokens = { ...base, ...tokensOf(st().record, r) };
-      const name = (st().record.themes ?? []).find(x => x.id === r.look)?.name ?? `${templateOf(r)?.name ?? 'B2 Marker'}${r.accent ? ` ${r.accent}` : ''}`;   // English name on purpose: it becomes a file name
+      const name = (st().record.themes ?? []).find(x => x.id === r.look)?.name ?? `${lookOf(r).name}${r.accent ? ` ${r.accent}` : ''}`;   // English name on purpose: it becomes a file name
       C.download(JSON.stringify(K.serialize(name, tokens), null, 2) + '\n', `${name.replace(/[^\p{L}\p{N} _.-]+/gu, ' ').trim()}.tokens.json`);
       C.toast(t('toast.themeExported'));
       return true;

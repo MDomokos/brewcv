@@ -18,6 +18,9 @@ export const PRESETS = {
   markerTint: { rank: 'two', main: 'highlight', minor: 'light', lines: 'none' },
 };
 
+// The related topics a two-level style groups under the main section above (the renderer does it; labelCss draws the minor label).
+export const RELATED = ['certified', 'patent', 'languages', 'interests'];
+
 // head: the name and the headings; body: the text; mono: the dates line and the contact. `faces`: [family, file, weight, style].
 export const FONTS = {
   hanken: { head: '"Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif', body: '"Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif', mono: '"Fira Code", ui-monospace, Menlo, monospace', faces: [] },   // b2-marker.css carries its files

@@ -22,7 +22,7 @@
     "i18n": { "run": "node checks/i18n-check.mjs", "covers": "every catalogue: keys, placeholders, plurals, markup, the review marker" },
     "tokens-built-in": { "run": "node scripts/tokens.mjs --check", "covers": "the built-in themes' token files are up to date" },
     "themes": { "run": "node checks/themes-check.mjs", "covers": "the registry of built-in looks (src/themes.js) agrees with the stylesheets, tokens files, ten catalogues and sw.js; scripts/new-theme.mjs on a copy, and each thing missing noticed" },
-    "design": { "run": "node checks/design-check.mjs", "covers": "the look settings: every combination a look offers gives CSS, nothing a look does not offer survives designOf, an empty design is the look's defaults and adds nothing, Small refused on Letter, screen, print and pen differ, the font files exist" },
+    "design": { "run": "node checks/design-check.mjs", "covers": "the look settings: every combination a look offers gives CSS, nothing a look does not offer survives designOf, an empty design is the look's defaults and adds nothing, Small refused on Letter, screen, print and pen differ, the font files exist; the renderer: two-level ranking, the job title beside the name and on one line, Fit's key" },
     "recipe": { "run": "node checks/recipe-check.mjs", "covers": "weight, off / keep, weight-0 omit" },
     "parts": { "run": "node checks/parts-check.mjs", "covers": "the panels' markup unchanged by the shared parts; a claim opened from the page or the checklist is one panel" },
     "measurement": { "run": "node checks/measurement-check.mjs", "covers": "page-fill arithmetic, the data-section marker, the probe's coverage" },

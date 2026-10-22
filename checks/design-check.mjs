@@ -2,12 +2,17 @@
 // node checks/design-check.mjs
 // The Design view's look settings (src/model/design.js, each look's `design` in src/themes.js): every combination a look offers
 // gives CSS, nothing a look does not offer survives designOf, an empty design is the look's defaults and adds nothing to the page,
-// Small is refused on Letter, and pen and print differ from screen. Node only: how the pages draw is checks/themes-pages-check.mjs.
+// Small is refused on Letter, and pen and print differ from screen; then what the renderer does with them (two-level ranking, the job
+// title beside the name, Fit's key). Node only: how the pages draw is checks/themes-pages-check.mjs.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { THEMES } from '../src/themes.js';
+import { THEMES, lookOf } from '../src/themes.js';
+import { load } from '../src/model/schema.js';
+import { createDocument } from '../scripts/lib/dom.mjs';
+import { renderPages, defaultRecipe, measureKey } from '../src/render.js';
+import { key as fitKey } from '../src/fit.js';
 import { PRESETS, FONTS, SIZES, DENSITIES, COLOURS, WORDS, MEDIA, designOf, designCss } from '../src/model/design.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -94,6 +99,58 @@ section('designCss');
   ok('a pen draws dotted guides on the marks, the name and the filled labels, even on the look\'s defaults', /dotted/.test(css(b2, {}, { medium: 'pen' })) && /dotted/.test(css(b2, { preset: 'marker' }, { medium: 'pen' })) && /outline:1\.2px dotted/.test(css(b2, { preset: 'marker' }, { medium: 'pen' })) && /border-bottom:1\.4px dotted/.test(css(L('banner'), {}, { medium: 'pen' })) && !/color-mix\(in srgb,var\(--accent\)/.test(css(b2, { preset: 'soft' }, { medium: 'pen' })));
   ok('screen, print and pen differ', new Set(['screen', 'print', 'pen'].map(medium => css(b2, { preset: 'marker' }, { medium }))).size === 3);
   ok('a legacy look gets its labels from the section style only when one is chosen', css(L('mono'), {}) === '' && /background:var\(--accent\)/.test(css(L('mono'), { preset: 'marker' })));
+}
+
+section('the renderer');
+{
+  const { model } = load(JSON.parse(fs.readFileSync(path.join(REPO, 'data/example.json'), 'utf8')));
+  const rec = (o = {}) => ({ ...defaultRecipe(model, 'a4'), photo: { show: false }, ...o });
+  const html = (r, m = model) => renderPages(m, r, createDocument(), { annotate: true }).pages.map(p => p.outerHTML).join('');
+  const cls = (h, id) => h.match(new RegExp(`class="([^"]*)"[^>]*data-section="${id}"`))?.[1] ?? '';
+  const RELATED = ['certified', 'patent', 'languages', 'interests'];
+  const subs = h => RELATED.filter(id => /band--sub/.test(cls(h, id)));
+  ok('a two-level section style groups the four related topics', ['marker', 'markerLines', 'soft', 'underlined', 'markerTint'].every(preset => subs(html(rec({ design: { preset } }))).length === 4));
+  ok('a one-level style, and a look\'s own one-level default, group none', subs(html(rec({ design: { preset: 'bare' } }))).length === 0 && subs(html(rec())).length === 0 && subs(html(rec({ design: { preset: 'quiet' } }))).length === 0);
+  ok('a look whose default is two-level groups them with no design', subs(html(rec({ overlays: ['banner'] }))).length === 4);
+  const own = html(rec({ design: { preset: 'marker' }, sections: [{ id: 'patent', style: '' }, { id: 'languages', style: 'sub' }] }));
+  ok('a section\'s own style wins: one set to none stays ungrouped, the rest are grouped', !/band--sub/.test(cls(own, 'patent')) && subs(own).join() === 'certified,languages,interests', subs(own).join());
+  ok('a hand layout\'s slot style wins too', !/band--sub/.test(cls(html(rec({ design: { preset: 'marker' }, pages: [['header', 'summary', 'skills', 'certified', { id: 'patent', style: '' }]] })), 'patent')));
+  ok('a related topic with no tab above it on its page is not grouped', !/band--sub/.test(cls(html(rec({ design: { preset: 'marker' }, pages: [['header', 'summary', 'patent', 'skills']] })), 'patent')));
+
+  const tagIn = h => { const head = h.match(/<header[\s\S]*?<\/header>/)[0]; const [gut, content] = head.split('band__content'); return { gut: /class="tagline"/.test(gut), content: /class="tagline"/.test(content), beside: /band--title-beside/.test(head), br: /class="tagline"[^>]*>[^<]*<br>/.test(head), head }; };
+  const plain = tagIn(html(rec()));
+  ok('without a photo, in Balanced density, the title stays in the label column with its line break', plain.gut && !plain.content && !plain.beside && plain.br);
+  const photo = tagIn(html(rec({ photo: { show: true } })));
+  ok('with a photo the title goes beside the name, its line break a space', photo.content && !photo.gut && photo.beside && !photo.br && /Mechanical (&amp;|&) Design Engineer/.test(photo.head), photo.head.slice(0, 400));
+  const compact = tagIn(html(rec({ design: { density: 'compact' } })));
+  ok('in Compact density it does the same', compact.content && compact.beside && !compact.br);
+  const cc = tagIn(html(rec({ overlays: ['classic'], design: { density: 'compact' } })));
+  ok('a centred look keeps the title where it is in Compact density, on one line', cc.gut && !cc.beside && !cc.br && /Mechanical (&amp;|&) Design Engineer/.test(cc.head));
+  const cb = tagIn(html(rec({ overlays: ['classic'] })));
+  ok('a centred header without a photo has the title on one line in any density', cb.gut && !cb.beside && !cb.br);
+  const cp = tagIn(html(rec({ overlays: ['classic'], photo: { show: true } })));
+  ok('Classic with a photo is a letterhead: the title beside the name', cp.content && cp.beside && !cp.br);
+  ok('a look with no settings still puts the title beside a photo, and not otherwise', tagIn(html(rec({ overlays: ['compact'], photo: { show: true } }))).beside && !tagIn(html(rec({ overlays: ['compact'] }))).beside);
+
+  const m = structuredClone(model);
+  const tv = m.variants.find(v => v.id === 'tagline-v1');
+  tv.marks = [{ start: 13, end: 19 }];       // "Design", after the line break
+  ok('the highlight stays on its word when the line break becomes a space', [{ photo: { show: true } }, { overlays: ['classic'] }, {}].every((o, i) => {
+    const h = html(rec(o), m).match(/class="tagline"[^>]*>([\s\S]*?)<\/p>/)[1];
+    return i === 2 ? /<span class="mark">Design<\/span>/.test(h) && /<br>/.test(h) : /(&amp;|&) <span class="mark">Design<\/span> Engineer/.test(h);
+  }));
+
+  const r0 = rec();
+  const base = measureKey(r0);
+  ok('the key of a resume with no overlays, design or imported look is as it was', base === `${r0.format}@${r0.theme}` && fitKey(r0) === base && measureKey({ ...r0, design: {} }) === base && measureKey({ ...r0, design: { size: 'medium', fonts: 'hanken' } }) === base);
+  const k = o => measureKey({ ...r0, ...o });
+  const changed = [{ size: 'large' }, { density: 'compact' }, { fonts: 'plex' }, { preset: 'marker' }, { words: 'bold' }].map(design => k({ design }));
+  ok('size, density, fonts, section style and key words change the key', new Set([base, ...changed]).size === 6, changed.join(' '));
+  ok('colour does not', k({ design: { colour: 'green' } }) === base && k({ design: { size: 'large', colour: 'pink' } }) === k({ design: { size: 'large' } }) && k({ accent: '#336699' }) === base);
+  ok('the overlays and an imported look change it', k({ overlays: ['classic'] }) !== base && k({ overlays: ['classic'] }) !== k({ overlays: ['dots'] }) && k({ look: 'theme-x' }) !== base && k({ look: 'theme-x' }) !== k({ look: 'theme-y' }));
+  ok('the paper still leads, so Fit can read it', k({ design: { size: 'large' }, format: 'us-letter' }).startsWith('us-letter@') && k({ design: { size: 'large' } }).split('@')[0] === 'a4');
+  ok('Small on Letter is not a setting, so it is not in the key', k({ design: { size: 'small' }, format: 'us-letter' }) === measureKey({ ...r0, format: 'us-letter' }));
+  ok('a retired overlay is the plain look, as the Design view shows it', lookOf({ overlays: ['quiet-tabs'] }).id === 'b2' && lookOf({ overlays: ['no-such'] }).id === 'b2' && lookOf({ overlays: ['b2-marker'] }).id === 'b2');
 }
 
 console.log(failed ? `\n${failed} design check(s) FAILED` : '\nall design checks passed');

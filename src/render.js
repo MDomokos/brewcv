@@ -4,6 +4,8 @@
 import { render as renderInline, encode } from '../scripts/lib/html.mjs';
 import { isOmitted, offOf, inOrder, isLocal, withLocal, keepLinks, termOf } from './recipe.js';
 import { entriesOf } from './model/entries.js';
+import { designOf, PRESETS, DENSITIES, RELATED } from './model/design.js';
+import { lookOf } from './themes.js';
 
 const GAP = '⬜';
 const RUN_SEP = ' · ';
@@ -110,8 +112,16 @@ export function header(ctx){
     if (p.state === 'present') gutter.push(h(doc, 'img', 'portrait', { attrs: { src: p.src, alt: '' } }));
     else gutter.push(h(doc, 'div', 'portrait portrait--missing', { html: encode(p.label ?? 'PHOTO') }));
   }
-  const tagline = ctx.pick(b.display.label);
-  gutter.push(h(doc, 'p', 'tagline', { html: inlineOf(tagline), attrs: mark(ctx, tagline) }));
+  // The job title goes beside the name when a photo hangs in the label column (it would leave a hole under it) and in Compact density,
+  // except in a centred header. Its line break becomes a space there and in a centred header (the Classic audit measured 16px lost
+  // to it): the same length, so the highlights stay on their words.
+  const look = lookOf(recipe), design = designOf(recipe, look);
+  const centred = !!look.design?.centred;
+  const beside = gutter.length > 0 || (!!DENSITIES[design?.density]?.header && !centred);
+  const label = ctx.pick(b.display.label);
+  const tagline = beside || centred ? { ...label, text: label.text.replace(/\r?\n/g, ' ') } : label;
+  const tag = h(doc, 'p', 'tagline', { html: inlineOf(tagline), attrs: mark(ctx, label) });
+  if (!beside) gutter.push(tag);
 
   // The name sits in the content column, not at the page margin, so it shares a
   // left edge with everything below it.
@@ -120,6 +130,7 @@ export function header(ctx){
   const content = [
     h(doc, 'div', 'namemark', {
       kids: [h(doc, 'h1', 'name', { html: inlineOf(name), attrs: mark(ctx, name) })] }),
+    ...(beside ? [tag] : []),
     h(doc, 'p', 'contact', { attrs: mark(ctx, contact),
       html: inlineOf(contact, separatorSpans(contact.text, contact.separator)) }),
   ];
@@ -135,7 +146,7 @@ export function header(ctx){
     content.push(h(doc, 'p', 'summary summary--in-header', { html: inlineOf(v), attrs: mark(ctx, v) }));
     ctx.summaryInHeader = true;
   }
-  return band(ctx, { tag: 'header', mod: `band--header${photoMod}`, section: 'header', gutter, content });
+  return band(ctx, { tag: 'header', mod: `band--header${photoMod}${beside ? ' band--title-beside' : ''}`, section: 'header', gutter, content });
 }
 
 export function prose(ctx, s){
@@ -402,6 +413,8 @@ export function renderPages(data, recipe, doc = globalThis.document, opts = {}){
   }
   const seen = new Map();
   const pages = [];
+  // A two-level section style groups the related topics under the band above; a style of the section's own, even '', wins.
+  const grouping = PRESETS[designOf(recipe, lookOf(recipe))?.preset]?.rank === 'two' ? 'sub' : undefined;
 
   plan.forEach((slots, n) => {
     const page = h(doc, 'article', 'page');
@@ -417,7 +430,7 @@ export function renderPages(data, recipe, doc = globalThis.document, opts = {}){
       // Opt-in keys. `style` (the slot's, else the resume's section entry) adds a band modifier (themes/b2-marker.css "sub":
       // a section grouped under the one above, with a quiet label), which only holds with a tab above it on this page.
       // `qr` names a basics.codes image.
-      const style = slot.style ?? (recipe.sections ?? []).find(x => x?.id === slot.id)?.style;
+      const style = slot.style ?? (recipe.sections ?? []).find(x => x?.id === slot.id)?.style ?? (RELATED.includes(s.id) ? grouping : undefined);
       if (style && (style !== 'sub' || tabAbove)) el.className += ` band--${style}`;
       tabAbove = !/band--(header|summary)/.test(el.className);
       if (slot.qr){
@@ -487,7 +500,17 @@ export function applyMeasured(data, key, measurement, at = new Date().toISOStrin
   return written;
 }
 
-export const measureKey = recipe => `${recipe.format}@${recipe.theme}`;
+// The key of a stored measurement (src/fit.js `key` is this one): the paper and the theme alone for a resume with no overlays, no
+// imported look and settings that are its look's own, so what is stored stays valid. Otherwise it adds what moves a line: the overlays,
+// the imported look's id, and the settings that differ (preset: the ranking and the label padding; fonts, size, density, words).
+// Colour moves none.
+// shortcut: re-importing a theme under the same id keeps the old key; remove the theme or give it another name to re-measure.
+export function measureKey(recipe){
+  const look = lookOf(recipe), d = designOf(recipe, look), own = d && designOf({}, look);
+  const moves = x => [x.preset, x.fonts, x.size, x.density, x.words].join();
+  const more = [(recipe.overlays ?? []).join('+'), recipe.look ?? '', d && moves(d) !== moves(own) ? moves(d) : ''];
+  return `${recipe.format}@${recipe.theme}${more.some(Boolean) ? `|${more.join('|')}` : ''}`;
+}
 
 // A page is full by pixels, not line counts, as checks/pagefit.mjs measures it,
 // leaving out absolutely positioned furniture (.page-mark). The fitter checks its plan here.
@@ -568,6 +591,7 @@ export function probeRecipe(data, recipe){
     format: recipe.format, theme: recipe.theme, overlays: recipe.overlays ?? [],
     ...(recipe.lang ? { lang: recipe.lang } : {}),
     ...(recipe.summary ? { summary: recipe.summary } : {}),
+    ...(recipe.design ? { design: recipe.design } : {}),
     sections: (data.sections ?? []).filter(s => s.kind === 'entries').map(s => ({ id: s.id, work: s.content.work })),
     picks: {}, overrides: {},
     pages: [(data.sections ?? []).map(s => s.id)],

@@ -6,13 +6,14 @@ import { entriesOf } from './model/entries.js';
 import { refusal } from './model/resume.js';
 import { isOmitted, hasBudget, weightOf, pinsOf } from './recipe.js';
 import { isLocked } from './model/lock.js';
+import { measureKey } from './render.js';
 
 const LINE_CHARS = { 'us-letter': 84, a4: 73.5 };   // chars per line, measured
 
 export const FILL_BAND = [88, 96];     // % of usable height
 export const FILL_TARGET = 92;
 
-export const key = recipe => `${recipe.format}@${recipe.theme}`;
+export const key = measureKey;      // one key, so a measurement is reused only for the same settings (src/render.js)
 
 // Holds the variant objects themselves, so a later measurement is seen without a rebuild.
 const memo = new WeakMap();
