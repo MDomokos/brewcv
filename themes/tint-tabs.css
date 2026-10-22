@@ -1,5 +1,5 @@
-/* tint-tabs.css: Marker tabs with the tabs at a 50% tint of the accent; the swipe and highlights stay at full strength.
-   Load after b2-marker.css. It repeats marker-tabs.css's lines, so a resume saved with it looks as it did. */
+/* tint-tabs.css: every label a tab at a 50% tint of the accent; the swipe and highlights stay at full strength.
+   Load after b2-marker.css. An earlier look, no longer in the picker: a resume saved with it looks as it did. */
 :root { --tab-fill: #ffec80; --tab-pad-r: 9px; --tab-pad-l: 11px; }
 .tab { background: var(--tab-fill); font-weight: var(--fw-black); }
 .tab--cont { background: var(--tab-fill-cont); color: var(--tab-ink, var(--ink)); }

@@ -19,6 +19,8 @@ export function refusal(fact, v){
 import { keyed, t } from '../i18n/index.js';
 import { entriesOf, entryKey, isEntry, archivedIds, archivedEntryIds } from './entries.js';
 import { offOf, keepOf, keepLinks, migratePins, inOrder, localOf, localJob, localIds, isLocal, withLocal, termOf } from '../recipe.js';
+import { designOf, PRESETS, RELATED } from './design.js';
+import { lookOf } from '../themes.js';
 import { LockedError, guard, guardOff, guardUp, isLocked, skillsSection } from './lock.js';
 export { offOf, keepOf, migratePins, inOrder, isLocal, localOf, termOf };
 
@@ -677,8 +679,8 @@ export function toAuto(model, recipe){
   }
   const sections = order.map(id => {
     const e = structuredClone(old.get(id) ?? { id });
-    const style = recipe.pages.flat().find(s => s?.id === id && s.style)?.style;
-    if (style && !e.style) e.style = style;
+    const style = recipe.pages.flat().find(s => s?.id === id && s.style !== undefined)?.style;
+    if (style !== undefined && e.style === undefined) e.style = style;      // '' too: a slot that was ungrouped stays so under a two-level style
     if (merged.has(id)) e.work = [...merged.get(id)].map(([id2, hs]) => tidyRef(ix.work.get(id2), { id: id2, highlights: hs }));
     return e;
   });
@@ -718,15 +720,21 @@ export function setSectionOn(model, recipe, id, on){
 // "Group under the section above": the section prints a quiet label under that tab, not a tab of its own, where a section
 // with a tab sits above it on the same page (src/render.js). The section entry's `style: 'sub'`; a hand layout's slot style is read
 // too, and cleared when the switch is set, so the switch has the last word. A locked section is held.
-export const groupedOf = (recipe, id) => entryOf(recipe, id)?.style === 'sub' || (recipe.pages ?? []).flat().some(s => s?.id === id && s.style === 'sub');
+// A two-level section style groups the related topics by itself unless the section has a style of its own, '' being "not grouped".
+const byStyle = (recipe, id) => RELATED.includes(id) && PRESETS[designOf(recipe, lookOf(recipe))?.preset]?.rank === 'two';
+export function groupedOf(recipe, id){
+  const own = [entryOf(recipe, id)?.style, ...(recipe.pages ?? []).flat().filter(s => s?.id === id).map(s => s.style)].filter(s => s !== undefined);
+  return own.length ? own.includes('sub') : byStyle(recipe, id);
+}
 export function setSectionGrouped(model, recipe, id, on){
   if (!hasBudgetIn(model, id)) throw keyed('error.alwaysOn', { id });
   guard(model, recipe, id);
   for (const s of (recipe.pages ?? []).flat()) if (s?.id === id) delete s.style;
   let e = entryOf(recipe, id);
   // in automatic pages a section with no entry is off: this must not turn it on
-  if (!e){ if (!on || !Array.isArray(recipe.pages)) return; e = { id }; (recipe.sections ??= []).push(e); }
-  if (on) e.style = 'sub'; else delete e.style;
+  const ungroup = byStyle(recipe, id) ? '' : undefined;      // the style would group it again: the entry has to say "not grouped"
+  if (!e){ if ((!on && ungroup === undefined) || !Array.isArray(recipe.pages)) return; e = { id }; (recipe.sections ??= []).push(e); }
+  if (on) e.style = 'sub'; else if (ungroup === undefined) delete e.style; else e.style = ungroup;
 }
 
 // beforeId null means last. A hand layout switches to automatic pages.

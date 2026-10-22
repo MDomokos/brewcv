@@ -21,13 +21,14 @@ export const PRESETS = {
 // The related topics a two-level style groups under the main section above (the renderer does it; labelCss draws the minor label).
 export const RELATED = ['certified', 'patent', 'languages', 'interests'];
 
-// head: the name and the headings; body: the text; mono: the dates line and the contact. `faces`: [family, file, weight, style].
+// name and short: what the Design view calls the pairing, in full and on its button (font names, so not translated); head: the name and the headings; body: the text;
+// mono: the dates line and the contact. `faces`: [family, file, weight, style].
 export const FONTS = {
-  hanken: { head: '"Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif', body: '"Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif', mono: '"Fira Code", ui-monospace, Menlo, monospace', faces: [] },   // b2-marker.css carries its files
-  source: { head: '"Source Serif 4", Georgia, serif', body: '"Source Serif 4", Georgia, serif', mono: '"Source Sans 3", "Hanken Grotesk", sans-serif',
+  hanken: { name: 'Hanken Grotesk + Fira Code', short: 'Hanken', head: '"Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif', body: '"Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif', mono: '"Fira Code", ui-monospace, Menlo, monospace', faces: [] },   // b2-marker.css carries its files
+  source: { name: 'Source Serif 4 + Source Sans 3', short: 'Source Serif', head: '"Source Serif 4", Georgia, serif', body: '"Source Serif 4", Georgia, serif', mono: '"Source Sans 3", "Hanken Grotesk", sans-serif',
     faces: [['Source Serif 4', 'SourceSerif4-Regular', 400, 'normal'], ['Source Serif 4', 'SourceSerif4-Italic', 400, 'italic'], ['Source Serif 4', 'SourceSerif4-Bold', 700, 'normal'],
       ['Source Sans 3', 'SourceSans3-Regular', 400, 'normal'], ['Source Sans 3', 'SourceSans3-Bold', 700, 'normal']] },
-  plex: { head: '"IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif', body: '"IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif', mono: '"IBM Plex Mono", ui-monospace, Menlo, monospace',
+  plex: { name: 'IBM Plex Sans + Plex Mono', short: 'IBM Plex', head: '"IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif', body: '"IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif', mono: '"IBM Plex Mono", ui-monospace, Menlo, monospace',
     faces: [['IBM Plex Sans', 'IBMPlexSans-Regular', 400, 'normal'], ['IBM Plex Sans', 'IBMPlexSans-Italic', 400, 'italic'], ['IBM Plex Sans', 'IBMPlexSans-Bold', 700, 'normal'],
       ['IBM Plex Mono', 'IBMPlexMono-Regular', 400, 'normal']] },
 };
@@ -71,6 +72,13 @@ export function designOf(recipe, look){
     colour: pick(want.colour, Object.keys(COLOURS), DEFAULT_COLOUR),
     words: pick(want.words, WORDS, 'colour'),
   };
+}
+
+// Chooses one setting on a resume: the look's own default is no key at all, and a resume at its defaults has no `design`.
+export function setDesign(recipe, look, key, value){
+  const d = { ...(recipe.design ?? {}) };
+  if (value === designOf({}, look)?.[key]) delete d[key]; else d[key] = value;
+  if (Object.keys(d).length) recipe.design = d; else delete recipe.design;
 }
 
 // The label rules of a section style. pen: a fill or an underline would vanish under a highlighter, so it is a dotted guide.

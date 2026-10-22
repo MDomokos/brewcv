@@ -1709,6 +1709,20 @@ if (want('the Edit view')) {
   ok('…as one undo step', (await page.evaluate(() => window.__wb.store.history.undo)) === before + 1);
   await page.click('#body label.swl:has(input[data-secgroup])'); await settle(page);
   ok('off: the tab is back and no style is left on the section', !(await grouped()).sub && !('style' in (await st()).cur.sections.find(s => s.id === 'skills')));
+  // under a two-level section style (Marker) the style groups the related topics itself: the switch shows that, and off gives the topic its own tab
+  const undoMark = await page.evaluate(() => window.__wb.store.history.undo);
+  await page.click('#tab-design'); await settle(page);
+  await page.click('[data-act=d-set][data-k=preset][data-v=marker]'); await settle(page);
+  await page.click('#tab-edit'); await settle(page);
+  await sheet.locator('.band[data-section="patent"] .tab').first().click(); await settle(page);
+  await page.keyboard.press('Escape'); await settle(page);
+  const pat = () => frameDoc(page, d => { const b = d.querySelector('.band[data-section="patent"]'); return { sub: b.classList.contains('band--sub'), fill: getComputedStyle(b.querySelector('.tab')).backgroundColor }; });
+  ok('Marker style: Patents is grouped by the style, and its switch says so', (await pat()).sub && await page.isChecked('#body input[data-secgroup]'), JSON.stringify(await pat()));
+  await page.click('#body label.swl:has(input[data-secgroup])'); await settle(page);
+  ok('switched off, Patents gets its own tab ("not grouped" is written on the section)', !(await pat()).sub && (await pat()).fill !== 'rgba(0, 0, 0, 0)' && (await st()).cur.sections.find(s => s.id === 'patent').style === '' && !(await page.isChecked('#body input[data-secgroup]')), JSON.stringify(await pat()));
+  await page.click('#body label.swl:has(input[data-secgroup])'); await settle(page);
+  ok('switched on again, it is grouped', (await pat()).sub && await page.isChecked('#body input[data-secgroup]'));
+  await undoTo(undoMark); await page.keyboard.press('Escape'); await settle(page);
   await sheet.locator('.band[data-section="experience"] .tab').first().click(); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
   ok('the first section has nothing above it, so its switch is held', await page.isDisabled('#body input[data-secgroup]'));
@@ -2281,14 +2295,15 @@ if (want('design and theme tokens')) {
   const tabBg = () => frameDoc(page, d => getComputedStyle(d.querySelector('.band[data-section] .tab')).backgroundColor);
   await page.click('#tab-design'); await settle(page);
   ok('Design opens from the header', (await page.getAttribute('#body', 'data-view')) === 'design');
-  await page.click('[data-act=d-tpl][data-t=marker]'); await settle(page);
-  await page.click('[data-act=d-accent][data-c="#9cc3ff"]'); await settle(page);
-  ok('an accent swatch recolours Marker tabs', (await tabBg()) === 'rgb(156, 195, 255)' && (await st()).cur.accent === '#9cc3ff' && JSON.stringify((await st()).cur.overlays) === '["marker-tabs"]');
+  await page.click('[data-act=d-set][data-k=preset][data-v=marker]'); await settle(page);
+  await page.fill('#d-color', '#9cc3ff'); await settle(page);
+  ok('any colour recolours the Marker section style', (await tabBg()) === 'rgb(156, 195, 255)' && (await st()).cur.accent === '#9cc3ff' && JSON.stringify((await st()).cur.overlays) === '[]' && (await st()).cur.design.preset === 'marker');
   ok('and says the tab text still reads', /readable/.test(await page.textContent('#body')));
-  await page.click('[data-act=d-tpl][data-t=tint]'); await settle(page);
-  ok('a template switches the overlay', JSON.stringify((await st()).cur.overlays) === '["tint-tabs"]' && await frameDoc(page, d => [...d.querySelectorAll('link')].some(l => /tint-tabs/.test(l.href))));
+  await page.click('[data-act=d-tpl][data-t=dots]'); await settle(page);
+  ok('a look switches the overlay and keeps the settings', JSON.stringify((await st()).cur.overlays) === '["dots"]' && (await st()).cur.design.preset === 'marker' && await frameDoc(page, d => [...d.querySelectorAll('link')].some(l => /dots/.test(l.href))));
   await page.click('[data-act=d-tpl][data-t=b2]'); await settle(page);
-  ok('B2 Marker: the label is plain text, whatever the accent', JSON.stringify((await st()).cur.overlays) === '[]' && (await tabBg()) === 'rgba(0, 0, 0, 0)', await tabBg());
+  await page.click('[data-act=d-set][data-k=preset][data-v=quiet]'); await settle(page);
+  ok('B2 Marker with its own section style: the label is plain text, whatever the accent, and the style left no key', JSON.stringify((await st()).cur.overlays) === '[]' && (await tabBg()) === 'rgba(0, 0, 0, 0)' && !(await st()).cur.design, await tabBg());
   await page.click('[data-act=d-pages][data-n="0"]'); await settle(page);
   await page.click('#tab-export'); await settle(page);
   ok('pages: as many as needed turns Fit off (Fit is in Export)', (await st()).cur.pageLimit === 0 && await page.isDisabled('[data-act=fit]'));
@@ -2330,6 +2345,73 @@ if (want('design and theme tokens')) {
   await ctx.close();
 }
 
+
+if (want('design and theme settings')) {
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  const openResume = async company => { await page.evaluate(c => window.__wb.resumes.open(window.__wb.store.state.resumes.find(r => r.company === c).id), company); await settle(page); await page.click('#tab-design'); await settle(page); };
+  const design = async () => (await st()).cur.design;
+  const undo = async () => { await page.keyboard.press('Control+z'); await settle(page); };
+  const trail = [];      // the design after each choice, to check undo against
+  const set = async (k, v) => { await page.click(`[data-act=d-set][data-k=${k}][data-v=${v}]`); await settle(page); trail.push(JSON.stringify((await design()) ?? null)); };
+  const one = sel => frameDoc(page, (d, q) => { const e = d.querySelector(q); return e ? { font: getComputedStyle(e).fontFamily, size: parseFloat(getComputedStyle(e).fontSize), weight: getComputedStyle(e).fontWeight, bg: getComputedStyle(e).backgroundColor, bgi: getComputedStyle(e).backgroundImage } : null; }, sel);
+  await openResume('Medtech Lisboa');
+  const tpls = await page.$$eval('[data-act=d-tpl]', bs => bs.map(b => b.dataset.t));
+  ok('the picker lists B2 Marker, Timeline, Classic, Classic full width, Banner and High-contrast metadata, and no earlier look', tpls.join() === 'b2,dots,classic,classic-full,banner,aa', tpls.join());
+  const opts = k => page.$$eval(`[data-act=d-set][data-k=${k}]`, bs => bs.map(b => b.dataset.v));
+  ok('B2 Marker offers seven section styles, three fonts, three sizes and densities, six colours and two key-word choices', (await opts('preset')).length === 7 && (await opts('fonts')).length === 3 && (await opts('size')).length === 3 && (await opts('density')).length === 3 && (await opts('colour')).length === 6 && (await opts('words')).length === 2);
+  ok('its default section style is marked, and the pressed one is the default', /default/.test(await page.getAttribute('[data-act=d-set][data-k=preset][data-v=quiet]', 'aria-label')) && (await page.getAttribute('[data-act=d-set][data-k=preset][data-v=quiet]', 'aria-pressed')) === 'true');
+  ok('each font is one short name in its own face, and the full pairing is its title and the note below', await page.$$eval('[data-act=d-set][data-k=fonts] .sample', es => es.length === 3 && es.every(e => e.textContent.trim()) && /Plex/.test(es[2].style.fontFamily) && /Georgia/.test(es[1].style.fontFamily)) && /IBM Plex Sans \+ Plex Mono/.test(await page.getAttribute('[data-act=d-set][data-k=fonts][data-v=plex]', 'title')) && /Hanken Grotesk \+ Fira Code/.test(await page.textContent('#body')));
+  ok('the section style shows only the chosen one\'s note', (await page.$$('#body .note')).length > 0 && /hairline above each section/.test(await page.textContent('#body')) && !/grey subheadings/.test(await page.textContent('#body')));
+  ok('the colour swatches say both shades', /#ffd900 on screen, #fff04d in print/.test(await page.getAttribute('[data-act=d-set][data-k=colour][data-v=yellow]', 'title')));
+  ok('a resume at its defaults has no design', !(await design()));
+  trail.push('null');
+
+  await set('fonts', 'plex');
+  ok('Fonts: IBM Plex Sans is the body font', (await design()).fonts === 'plex' && /IBM Plex Sans/.test((await one('.bullets li')).font));
+  await set('size', 'large');
+  ok('Text size: Large is 13.3px', (await design()).size === 'large' && Math.abs((await one('.bullets li')).size - 13.3) < 0.06, JSON.stringify(await one('.bullets li')));
+  await set('density', 'compact');
+  ok('Density: Compact puts the languages in a row and the job title beside the name', (await design()).density === 'compact' && await frameDoc(page, d => getComputedStyle(d.querySelector('.band[data-section="languages"] .pairs')).gridTemplateColumns.split(' ').length === 6 && !!d.querySelector('.band--title-beside')));
+  await set('preset', 'marker');
+  ok('Section style: Marker fills the main labels, and two levels group the related topics', (await design()).preset === 'marker' && await frameDoc(page, d => getComputedStyle(d.querySelector('.band:not(.band--sub)[data-section="skills"] .tab')).backgroundColor !== 'rgba(0, 0, 0, 0)' && d.querySelectorAll('.band--sub').length > 0));
+  await set('colour', 'green');
+  ok('Colour: green on screen', (await design()).colour === 'green' && (await one('.band:not(.band--sub)[data-section="skills"] .tab')).bg === 'rgb(127, 209, 174)', JSON.stringify(await one('.band:not(.band--sub)[data-section="skills"] .tab')));
+  await set('words', 'bold');
+  ok('Key words: in bold', (await design()).words === 'bold' && await frameDoc(page, d => { const m = d.querySelector('.mark'); return !!m && getComputedStyle(m).fontWeight === '700' && getComputedStyle(m).backgroundImage === 'none' && getComputedStyle(m).backgroundColor === 'rgba(0, 0, 0, 0)'; }));
+  ok('every choice wrote only recipe.design', JSON.stringify(await design()) === '{"fonts":"plex","size":"large","density":"compact","preset":"marker","colour":"green","words":"bold"}' && !(await st()).cur.accent);
+  let back = true;
+  for (let i = trail.length - 2; i >= 0; i--){ await undo(); back = back && JSON.stringify((await design()) ?? null) === trail[i]; }
+  ok('undo takes each choice back, one at a time, to a resume with no design', back && !(await design()), trail.join(' | '));
+  ok('the page is back to B2 Marker\'s own look', (await one('.bullets li')).font.includes('Hanken') && Math.abs((await one('.bullets li')).size - 12.7) < 0.06 && (await one('.band[data-section="skills"] .tab')).bg === 'rgba(0, 0, 0, 0)');
+
+  await page.click('[data-act=d-paper][data-f=us-letter]'); await settle(page);
+  ok('Small is disabled on Letter, with its reason', await page.isDisabled('[data-act=d-set][data-k=size][data-v=small]') && /Letter/.test(await page.textContent('#body')));
+  await undo();
+  ok('and offered again on A4', !(await page.isDisabled('[data-act=d-set][data-k=size][data-v=small]')));
+  await set('colour', 'green');
+  await page.fill('#d-color', '#336699'); await settle(page);
+  ok('any colour sets recipe.accent, and a named colour replaces it', (await st()).cur.accent === '#336699' && (await design()).colour === 'green');
+  await set('colour', 'pink');
+  ok('…a named colour removes the resume\'s own', !(await st()).cur.accent && (await design()).colour === 'pink');
+
+  await page.click('[data-act=d-tpl][data-t=classic]'); await settle(page);
+  ok('Classic offers two section styles and one font', (await opts('preset')).join() === 'quiet,markerLines' && (await opts('fonts')).join() === 'source');
+  await page.click('[data-act=d-tpl][data-t=classic-full]'); await settle(page);
+  ok('Classic full width starts its sizes at 13px: no Small, and says why', await page.isDisabled('[data-act=d-set][data-k=size][data-v=small]') && /13px/.test(await page.textContent('#body')));
+
+  await openResume('Helix Diagnostics');
+  ok('an earlier look says so, offers its switch, and shows no look as chosen', /earlier look: Tinted tabs/.test(await page.textContent('#body')) && !!(await page.$('[data-act=d-earlier]')) && (await page.$$('.tpl[aria-pressed=true]')).length === 0 && !(await page.$('[data-act=d-set][data-k=preset]')));
+  const was = await frameDoc(page, d => [...d.querySelectorAll('link')].map(l => l.href).join());
+  await page.click('[data-act=d-earlier]'); await settle(page);
+  ok('the switch moves it to B2 Marker with the Soft section style (Tinted tabs)', JSON.stringify((await st()).cur.overlays) === '[]' && (await design()).preset === 'soft' && !(await page.$('[data-act=d-earlier]')) && (await page.getAttribute('.tpl[data-t=b2]', 'aria-pressed')) === 'true' && !/tint-tabs/.test(await frameDoc(page, d => [...d.querySelectorAll('link')].map(l => l.href).join())));
+  await undo();
+  ok('and undoing it brings the earlier look back', JSON.stringify((await st()).cur.overlays) === '["tint-tabs"]' && !(await design()) && !!(await page.$('[data-act=d-earlier]')) && /tint-tabs/.test(await frameDoc(page, d => [...d.querySelectorAll('link')].map(l => l.href).join())));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
 
 if (want('onboarding and the record')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });

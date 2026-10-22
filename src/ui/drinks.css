@@ -47,7 +47,7 @@ html[data-drink="coffee"] :is(.pop.card, .menu.card, .switcher, .help, .obcard) 
 html[data-drink="coffee"] .seg { padding: 0; gap: 4px; }
 html[data-drink="coffee"] .seg [role=tab], html[data-drink="coffee"] .seg button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 4px 6px; color: var(--faint); }
 html[data-drink="coffee"] .seg [role=tab][aria-selected=true], html[data-drink="coffee"] .seg button[aria-pressed=true] { background: transparent; color: var(--ink); border-bottom-color: var(--ink); box-shadow: none; }
-html[data-drink="coffee"] .tpl[aria-pressed=true] { outline: 1px solid var(--ink); }
+html[data-drink="coffee"] :is(.tpl, .opts button)[aria-pressed=true] { outline: 1px solid var(--ink); }
 html[data-drink="coffee"] .swatch[aria-pressed=true] { outline: 2px solid var(--ink); outline-offset: 2px; box-shadow: none; }
 html[data-drink="coffee"] .tag.jt { background: transparent; border: 1px solid var(--line-strong); }
 

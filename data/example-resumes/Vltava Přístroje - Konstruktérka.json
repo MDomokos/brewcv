@@ -21,7 +21,8 @@
       "startDate": "2023-03",
       "highlights": [
         "Vedení redesignu počítadla dávek u inhalátoru s produkcí 400 000 kusů ročně; počet dílů snížen z devíti na pět.",
-        "Sestavení zkušebního zařízení pro pádové a cyklické zkoušky, které tým dnes používá k ověřování konstrukce, včetně příslušných zkušebních protokolů."
+        "Sestavení zkušebního zařízení pro pádové a cyklické zkoušky, které tým dnes používá k ověřování konstrukce, včetně příslušných zkušebních protokolů.",
+        "Vedení týdenních DFM revizí s nástrojárnou během tří kol vzorků T1; před uvolněním nástrojů uzavřeno 41 ze 44 nálezů."
       ]
     },
     {
@@ -177,7 +178,8 @@
                 "id": "hydra",
                 "highlights": [
                   "hydra-inhaler",
-                  "hydra-testing"
+                  "hydra-testing",
+                  "hydra-dfm"
                 ]
               },
               {
@@ -223,7 +225,6 @@
         "overrides": {},
         "off": [
           "hydra-suppliers",
-          "hydra-dfm",
           "hydra-tolerance",
           "hydra-dhf",
           "hydra-human",

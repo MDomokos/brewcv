@@ -70,7 +70,8 @@ section('the registry and what has to agree with it');
   const p = await problems();
   ok('every look has its stylesheets, tokens file, ten pairs of strings and cache entries, and nothing else is listed', !p.length, p.join('; '));
   const { THEMES } = await import('../src/themes.js');
-  ok('B2 Marker is first, and the looks that were there before the registry still are', THEMES[0].id === 'b2' && ['marker', 'tint', 'aa', 'mono'].every(id => THEMES.some(x => x.id === id)));
+  ok('B2 Marker is first, and the looks that were there before the registry still are', THEMES[0].id === 'b2' && ['tint', 'aa', 'mono'].every(id => THEMES.some(x => x.id === id)));
+  ok('Marker tabs and Compact (never released) are gone; the earlier looks follow the listed ones', !THEMES.some(x => ['marker', 'compact'].includes(x.id)) && THEMES.map(x => !!x.earlier).join() === 'false,false,false,false,false,false,true,true');
 }
 
 section('scripts/new-theme.mjs on a copy');

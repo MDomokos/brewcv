@@ -30,4 +30,4 @@ node checks/themes-check.mjs             everything that has to agree with the r
 node checks/themes-pages-check.mjs       the rules above, on one and two pages
 ```
 
-The picker swatch for a new look is the B2 one until you add `.tpl-harbour` rules to `src/ui/workbench.css`; that is optional.
+The picker swatch for a new look is a plain page with a label bar until you add `.tpl-harbour` rules to `src/ui/workbench.css`; that is optional.

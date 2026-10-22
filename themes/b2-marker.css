@@ -40,7 +40,7 @@
   --highlight:       #ffd900;   /* marker behind metrics in body text */
 
   /* Per-surface indirection, so an overlay can re-point one surface. */
-  --tab-fill:        var(--accent);   /* what a filled or underlined label is drawn in (marker-tabs.css, the tab-style token) */
+  --tab-fill:        var(--accent);   /* what a filled or underlined label is drawn in (the Marker section style, the tab-style token) */
   --swipe-fill:      var(--accent);
   --mark-fill:       var(--highlight);
 
@@ -272,7 +272,7 @@ html, body {
 /* section tabs */
 
 /* The labels are plain bold text; a hairline above each section does the separating (Quiet tabs, the default since it
-   replaced the filled marker tab, which marker-tabs.css brings back). */
+   replaced the filled marker tab, which the Marker section style brings back). */
 .tab {
   margin: 0;
   align-self: flex-end;

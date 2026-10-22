@@ -12,7 +12,7 @@
 }
 .namemark::before { display: none; }
 
-/* The labels as Marker tabs draws them (marker-tabs.css), so a resume saved with this looks as it did. */
+/* The labels as every-label-a-tab looks drew them, so a resume saved with this looks as it did. */
 :root { --tab-pad-r: 9px; --tab-pad-l: 11px; }
 .tab { font-weight: var(--fw-black); }
 .tab--cont { color: var(--tab-ink, var(--ink)); }

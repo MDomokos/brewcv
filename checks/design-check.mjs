@@ -13,7 +13,9 @@ import { load } from '../src/model/schema.js';
 import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages, defaultRecipe, measureKey } from '../src/render.js';
 import { key as fitKey } from '../src/fit.js';
-import { PRESETS, FONTS, SIZES, DENSITIES, COLOURS, WORDS, MEDIA, designOf, designCss } from '../src/model/design.js';
+import { PRESETS, FONTS, SIZES, DENSITIES, COLOURS, WORDS, MEDIA, designOf, designCss, setDesign } from '../src/model/design.js';
+import en from '../src/i18n/en.js';
+import { groupedOf, setSectionGrouped } from '../src/model/resume.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 let failed = 0;
@@ -21,12 +23,13 @@ const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'} 
 const section = t => console.log(`\n— ${t}`);
 const css = (look, design, o) => designCss(look, designOf({ design }, look), o);
 const looks = THEMES.filter(x => x.design), L = id => THEMES.find(x => x.id === id);
+const NONE = { id: 'none', layers: ['b2-marker'] };      // a look with no `design`: every built-in one has one now
 const offered = (look, key, all) => look.design[key] ?? Object.keys(all);
 
 section('what a look offers');
 {
   ok('the looks that offer settings are the five new ones, the three kept ones and B2 Marker', ['b2', 'dots', 'classic', 'classic-full', 'banner', 'aa', 'tint', 'mono'].every(id => L(id).design));
-  ok('a look with no `design` offers nothing', designOf({ design: { preset: 'soft' } }, L('compact')) === null && css(L('compact'), { preset: 'soft' }) === '');
+  ok('a look with no `design` offers nothing', designOf({ design: { preset: 'soft' } }, NONE) === null && css(NONE, { preset: 'soft' }) === '');
   for (const x of looks){
     const d = x.design;
     ok(`${x.id}: its defaults are among what it offers`, (d.preset === null || offered(x, 'presets', PRESETS).includes(d.preset)) && offered(x, 'fonts', FONTS).includes(d.font), JSON.stringify(d));
@@ -130,7 +133,6 @@ section('the renderer');
   ok('a centred header without a photo has the title on one line in any density', cb.gut && !cb.beside && !cb.br);
   const cp = tagIn(html(rec({ overlays: ['classic'], photo: { show: true } })));
   ok('Classic with a photo is a letterhead: the title beside the name', cp.content && cp.beside && !cp.br);
-  ok('a look with no settings still puts the title beside a photo, and not otherwise', tagIn(html(rec({ overlays: ['compact'], photo: { show: true } }))).beside && !tagIn(html(rec({ overlays: ['compact'] }))).beside);
 
   const m = structuredClone(model);
   const tv = m.variants.find(v => v.id === 'tagline-v1');
@@ -151,6 +153,34 @@ section('the renderer');
   ok('the paper still leads, so Fit can read it', k({ design: { size: 'large' }, format: 'us-letter' }).startsWith('us-letter@') && k({ design: { size: 'large' } }).split('@')[0] === 'a4');
   ok('Small on Letter is not a setting, so it is not in the key', k({ design: { size: 'small' }, format: 'us-letter' }) === measureKey({ ...r0, format: 'us-letter' }));
   ok('a retired overlay is the plain look, as the Design view shows it', lookOf({ overlays: ['quiet-tabs'] }).id === 'b2' && lookOf({ overlays: ['no-such'] }).id === 'b2' && lookOf({ overlays: ['b2-marker'] }).id === 'b2');
+}
+
+section('what the Design view needs');
+{
+  const b2 = L('b2'), r = {};
+  setDesign(r, b2, 'size', 'large'); setDesign(r, b2, 'preset', 'marker');
+  ok('a setting that is not the look\'s default is written', r.design?.size === 'large' && r.design.preset === 'marker', JSON.stringify(r.design));
+  setDesign(r, b2, 'size', 'medium'); setDesign(r, b2, 'preset', 'quiet');
+  ok('choosing the default removes the key, and a resume at its defaults has no design', !('design' in r), JSON.stringify(r.design));
+  const r2 = { design: { preset: 'bare' } };
+  setDesign(r2, L('dots'), 'preset', 'bare');
+  ok('the default is the look\'s own: Bare is Timeline\'s', !('design' in r2));
+  ok('every section style, font, size, density, colour and key-word choice has its words', Object.keys(PRESETS).every(k => en[`look.preset.${k}`] && en[`look.presetNote.${k}`])
+    && Object.keys(SIZES).every(k => en[`look.size.${k}`]) && Object.keys(DENSITIES).every(k => en[`look.density.${k}`] && en[`look.densityNote.${k}`])
+    && Object.keys(COLOURS).every(k => en[`look.colour.${k}`]) && WORDS.every(k => en[`look.words.${k}`]) && Object.values(FONTS).every(f => f.name));
+  ok('an earlier look says what it becomes on B2 Marker, and the picker has the others', THEMES.filter(x => x.earlier).map(x => x.id).join() === 'tint,mono' && L('tint').earlier.preset === 'soft' && !('preset' in L('mono').earlier));
+
+  const { model } = load(JSON.parse(fs.readFileSync(path.join(REPO, 'data/example.json'), 'utf8')));
+  const rec = (o = {}) => ({ ...defaultRecipe(model, 'a4'), ...o });
+  const marker = rec({ design: { preset: 'marker' } });
+  ok('under a two-level style the switch shows what is drawn: on for a related topic, off for another', groupedOf(marker, 'languages') && !groupedOf(marker, 'skills') && !groupedOf(rec(), 'languages'));
+  setSectionGrouped(model, marker, 'languages', false);
+  ok('turned off under a two-level style it writes "" (not grouped), and is off', marker.sections.find(x => x.id === 'languages').style === '' && !groupedOf(marker, 'languages'));
+  setSectionGrouped(model, marker, 'languages', true);
+  ok('turned on again it is grouped', groupedOf(marker, 'languages') && marker.sections.find(x => x.id === 'languages').style === 'sub');
+  const one = rec();
+  setSectionGrouped(model, one, 'languages', true); setSectionGrouped(model, one, 'languages', false);
+  ok('under a one-level style, off still removes the key', one.sections.find(x => x.id === 'languages')?.style === undefined && !groupedOf(one, 'languages'));
 }
 
 console.log(failed ? `\n${failed} design check(s) FAILED` : '\nall design checks passed');

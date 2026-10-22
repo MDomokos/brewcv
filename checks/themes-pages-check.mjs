@@ -103,8 +103,7 @@ try {
           subs.map(t => `${t.bg} ${t.shadow} ${contrast(hex(t.color), behind(t))?.toFixed(2)}`).join(', '));
         const per = pages.map(p => p.tabs.filter(marked).length);
         ok(`  at most ${MAX_MARKED} marked labels on a page [${per.join(' · ')}]`, per.every(n => n <= MAX_MARKED));
-      } else if (look.id === 'marker' && c.name === 'two pages, A4')
-        console.log(`      ungrouped, the same pages carry ${pages.map(p => p.tabs.filter(marked).length).join(' · ')} marked labels: what Group under the section above is for`);
+      }
     }
   }
 } finally { await m.close(); }

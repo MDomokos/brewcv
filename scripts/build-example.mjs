@@ -421,7 +421,7 @@ const OLD = ['free-site', 'atl-range', 'med-wi', 'poly-grant'];
 const ALL_BULLETS = Object.values(BULLETS).flat().map(([id]) => id);
 const KEEP_ON = { de: [], fr: [], es: [], it: [], pt: [], nl: [], pl: [], cs: [] };
 const DROP = { de: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'], fr: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'], es: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'], it: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'],
-  pt: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'], nl: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'], pl: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-dfm', 'hydra-suppliers'], cs: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-dfm', 'hydra-suppliers'] };
+  pt: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'], nl: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'], pl: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'], cs: ['hydra-tolerance', 'poly-jigs', 'poly-teaching', 'hydra-suppliers'] };
 const SECTIONS_OFF = {};
 const OFF_IN = L => ALL_BULLETS.filter(id => !BULLETS_IN.includes(id) || DROP[L].includes(id));
 const SAVED = [

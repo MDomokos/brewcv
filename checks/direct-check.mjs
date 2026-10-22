@@ -936,11 +936,11 @@ section('UX-6d: the Review list\'s model');
 }
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {
-  // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i (re-set by Look settings L-2: a photo puts the job title beside the name, four of them). Change it only when the example or the renderer is meant to change.
+  // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i (re-set by Look settings L-2: a photo puts the job title beside the name, four of them; and by L-3: the Polish and Czech one-pagers keep a bullet again, to fill 88-96%). Change it only when the example or the renderer is meant to change.
   const h = crypto.createHash('sha256');
   for (const n of fs.readdirSync(path.join(REPO, 'data/example-resumes')).filter(f => f.endsWith('.json') && f !== 'index.json').sort())
     h.update(renderPages(model, S.loadResume(read(`data/example-resumes/${n}`), model).recipe, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join(''));
-  ok('the 14 example resumes hash to what they always did', h.digest('hex') === '89bb864dcc5143d6c90c80a4fd169d438e188aeac9686869943de1d6b64ee07a');
+  ok('the 14 example resumes hash to what they always did', h.digest('hex') === '80092102e450eba6833f002d20920f76ad9550fe4dde3a2a43ca37bf2d662f14');
 }
 
 console.log(failed ? `\n${failed} direct check(s) FAILED` : '\nall direct checks passed');
