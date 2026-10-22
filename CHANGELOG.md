@@ -4,6 +4,11 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+## 1.5.2 - 2026-10-22
+
+### Fixed
+- **The start screen's story fits short, tall and ultrawide windows,** instead of being cut off or blown up.
+
 ## 1.5.1 - 2026-10-22
 
 ### Fixed

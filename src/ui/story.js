@@ -514,7 +514,10 @@ export function stageHtml(){
 function fit(){
   const ss = $('#ss'); if (!ss || !STAGE) return;
   const flow = getComputedStyle(ss.parentElement).position === 'static';
-  SC = Math.max(.25, ss.clientWidth / 1022);
+  // beside the column the picture also has to fit the board's height (the stage is 700 tall at the least), so a short or ultrawide window
+  // shrinks it and centres it instead of cutting it off
+  SC = Math.max(.25, flow ? ss.clientWidth / 1022 : Math.min(ss.clientWidth / 1022, ss.clientHeight / 700));
+  STAGE.style.left = flow ? '' : `${Math.max(0, (ss.clientWidth - 1022 * SC) / 2).toFixed(1)}px`;
   if (flow) ss.style.height = `${(760 * SC).toFixed(1)}px`; else ss.style.height = '';
   STAGE.style.transform = `scale(${SC.toFixed(4)})`;
   const sh = ss.clientHeight / SC;
