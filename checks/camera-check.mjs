@@ -6,7 +6,7 @@
 import { isDeepStrictEqual as eq } from 'node:util';
 import {
   geometry, viewRect, fitCam, screenOf, contentOf, zoomAbout, snapZoom, limits, rubber, softCam, hardCam, stops, magnetize, unmagnetize,
-  settleIndex, visible, brightPage, faded, damping, springStep, atRest, centreOn, writingScale, rowWidth, pageLeft, midX, keepPageEdge,
+  settleIndex, visible, brightPage, allShown, faded, damping, springStep, atRest, centreOn, writingScale, rowWidth, pageLeft, midX, keepPageEdge,
   OVERSHOOT, SNAP_FIT, MAGNET, BOUNCE,
 } from '../src/ui/camera.js';
 import { G, PAGE_GAP, pageSize } from '../src/ui/layout.js';
@@ -115,7 +115,9 @@ section('which page is bright');
   const edge = { ...cropped, x: cropped.x + (v.left + v.width + 0.001) - (cropped.x + (pageLeft(g, 1) + g.w) * cropped.k) };
   ok('a tie, or a difference of rounding, keeps the current page bright', visible(edge, g, v, 1) < visible(edge, g, v, 0) && brightPage(edge, g, v, 1) === 1 && brightPage(edge, g, v, 0) === 0);
   const back = { ...p0, x: p0.x - (794 + PAGE_GAP) * p0.k * 0.2 };
-  ok('a little back and page 1 is the larger share again, but page 2 is still current until page 1 passes half', brightPage(back, g, v, 1) === 0);
+  ok('a little back and page 1 is the larger share again: it takes the light at once', brightPage(back, g, v, 1) === 0);
+  ok('page 2 is the larger share: it takes the light before it passes three quarters', brightPage({ ...p0, x: p0.x - (794 + PAGE_GAP) * p0.k * 0.6 }, g, v, 0) === 1);
+  ok('both pages wholly in view count as shown in full; one page fitted does not', allShown(both, g, v) && !allShown(p0, g, v));
   ok('one page of one is always bright', brightPage({ k: 1, x: 0, y: 0 }, geometry({ vw: 1280, vh: 800, format: 'a4', pages: 1 }), v, 0) === 0);
   ok('nothing is faded when both are shown equal', eq(faded(g, 0, true), [false, false]));
   ok('otherwise only the bright page is not', eq(faded(g, 0, false), [false, true]) && eq(faded(g, 1, false), [true, false]));

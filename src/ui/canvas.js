@@ -6,10 +6,11 @@
 
 import {
   geometry, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, keepPageEdge, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
-  brightPage, onPage, faded, springStep, atRest, centreOn, writingScale, midX,
+  brightPage, allShown, onPage, faded, springStep, atRest, centreOn, writingScale, midX,
 } from './camera.js';
 import { clampZoom, PHONE_MAX } from './layout.js';
 import { readMagnet, readBounce } from './dock.js';
+import { onLinux } from './ask.js';
 import { reduced, dur } from './motion.js';
 
 // the ease between views is --m-travel
@@ -26,6 +27,9 @@ export function initCanvas(C){
   let motion = null, raf = 0, idleT = 0, movedT = 0, firedSig = '';
   let moving = false, rawFree = null, drag = null, space = false, raw = null, vel = 0, lastWheel = 0, handedAt = 0;
   const pointers = new Map();
+  const linux = onLinux();
+  document.documentElement.classList.toggle('is-linux', linux);
+  const shed = on => { document.body.classList.toggle('is-moving', on); if (linux) C.sheet.setMoving(on); };
   const dials = { magnet: readMagnet(), bounce: readBounce() };
 
   const phone = () => innerWidth < PHONE_MAX;
@@ -33,7 +37,7 @@ export function initCanvas(C){
 
   // ---- placing the sheet ----
   function put(next){
-    if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); document.body.classList.add('is-moving'); }
+    if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); shed(true); }
     cam = next; ui.cam = cam;
     host.style.left = '0px'; host.style.top = '0px';
     host.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.k.toFixed(5)})`;
@@ -41,10 +45,10 @@ export function initCanvas(C){
     follow();
     C.moved?.();
   }
-  // which page is bright follows what is on screen; nothing is faded while both are shown equal and in place
+  // which page is bright follows what is on screen; nothing is faded while all the pages are shown in full
   function follow(){
     if (!geo) return;
-    const equal = scene === 'all' && !free && geo.n > 1;
+    const equal = geo.n > 1 && (scene === 'all' && !free || allShown(cam, geo, view));
     const bright = geo.n > 1 ? brightPage(cam, geo, view, ui.page) : 0;
     const changed = bright !== ui.page;
     ui.page = bright;
@@ -88,7 +92,7 @@ export function initCanvas(C){
     clearTimeout(movedT);
     movedT = setTimeout(() => {
       if (motion || drag || raw !== null) return;
-      moving = false; document.body.classList.remove('is-moving');
+      moving = false; shed(false);
       const sig = `${cam.k.toFixed(3)}|${cam.x.toFixed(1)}|${cam.y.toFixed(1)}|${innerWidth}|${innerHeight}`;
       if (sig === firedSig) return;
       firedSig = sig;

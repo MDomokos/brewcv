@@ -22,6 +22,7 @@ html.rb-ui [data-variant], html.rb-ui [data-label], html.rb-ui .band[data-sectio
 .document > .page { outline: 1px solid var(--rb-edge, transparent); outline-offset: 0; }
 .document > .page.rb-faded { opacity: var(--rb-fade, .35); }
 html.rb-still *, html.rb-still *::before, html.rb-still *::after { transition: none !important; animation: none !important; }
+html.rb-moving .document > .page { box-shadow: none !important; }
 html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
 html.rb-dragging, html.rb-dragging * { cursor: grabbing !important; user-select: none !important; }
 html.rb-space, html.rb-space * { cursor: grab !important; }
@@ -410,6 +411,8 @@ export function createSheet(host, hooks = {}){
     // pages the camera has set aside are faded, and stay clickable
     setFade(list){ fade = list ?? []; if (!fr) return; [...fr.root.querySelectorAll(':scope > .page')].forEach((p, i) => p.classList.toggle('rb-faded', !!fade[i])); },
     // the cursor over the page while the hand is on the canvas
+    // Linux only (canvas.js): no blurred shadow on the pages while they move, which software painting redraws every frame
+    setMoving(on){ fr?.doc.documentElement.classList.toggle('rb-moving', on); },
     setHand(handing, space){ if (!fr) return; fr.doc.documentElement.classList.toggle('rb-handing', !!handing); fr.doc.documentElement.classList.toggle('rb-space', !!space); },
     setView(next){ const before = view.mode; view = { ...view, ...next }; if (view.mode !== before) revealed = null; applyView(); mark(); },
     get view(){ return { ...view }; },

@@ -6,6 +6,7 @@ import { resumeLabel } from '../model/resumes.js';
 // A yes/no question. In the desktop app (Tauri) confirm() cannot be relied on: its web view does not show a blocking dialog, so a
 // question that guards your data would be answered for you. There the native dialog is used, which is asynchronous.
 
+export const onLinux = () => /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);   // WebKitGTK paints in software on many machines: canvas.js sheds the page's shadows while it moves
 export const inDesktop = () => !!globalThis.__TAURI__;   // prompt() is not available there either: a name is typed into a field on the page
 export const desktopAsk = () => !!globalThis.__TAURI__?.dialog?.ask;
 

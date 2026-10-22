@@ -4,6 +4,12 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+## 1.5.1 - 2026-10-22
+
+### Fixed
+- **Linux: dragging and zooming the page is smoother,** with no shadow trails left behind.
+- **The bright page is the one you are looking at,** as soon as more of it is in view, and no page is faded when you zoom out to see them all.
+
 ## 1.5.0 - 2026-10-22
 
 New looks and settings in the Design view. The new looks are a work in progress: their details may still change, and a resume that uses one may reflow when they do.

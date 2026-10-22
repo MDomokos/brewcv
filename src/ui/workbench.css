@@ -721,6 +721,8 @@ body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
 /* ===== UX-2: one screen. The page, and on the right the editor panel (its head has Edit, Design and Export). ===== */
 .sheet-frame { filter: var(--page-shadow); }
 body.soft .sheet-frame { filter: var(--page-shadow-soft); }
+/* Linux: a filter on the moving frame is repainted every frame and left trails of the shadow behind. canvas.js sets is-linux. */
+html.is-linux body.is-moving .sheet-frame { filter: none; }
 .pages { overflow: auto; }
 /* on a desktop the pages are a canvas the camera moves (src/ui/canvas.js), not a scroller */
 body:not([data-phone=true]) .pages { overflow: hidden; touch-action: none; }

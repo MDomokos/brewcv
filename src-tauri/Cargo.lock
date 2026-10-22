@@ -159,7 +159,7 @@ dependencies = [
 
 [[package]]
 name = "brewcv"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "objc2",
  "objc2-app-kit",
