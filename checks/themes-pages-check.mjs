@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // node checks/themes-pages-check.mjs
 // Every built-in look (src/themes.js) on a one-page and a two-page resume, in A4 and Letter, paginated from Chromium's own
-// measurements, and held to the rules in docs/THEME-DESIGN-RULES.md that a machine can read:
+// measurements, and held to the rules in docs/THEME-DESIGN-RULES.md that a machine can read. Then every look in the picker again
+// with each setting it offers (src/model/design.js offersOf): each section style and each density at the look's own font and size,
+// each font and each size at its own section style, and the export for printing and for a highlighter pen, all on the two-page A4
+// resume with the small sections grouped as the setting draws them. The same rules, against B2 Marker at the same settings:
 //   1 a look never changes the paper: B2 Marker's page size, margins of at least MIN_MARGIN, nothing painted within PRINT_EDGE
 //     of the paper's edge, no page overflows, no more pages than B2 needs
 //   2 a grouped section's label is quieter than its section's: plain text, or a tint lighter than the main tabs, never an outline
@@ -18,6 +21,7 @@ import { load, loadResume } from '../src/model/schema.js';
 import { setSectionGrouped } from '../src/model/resume.js';
 import { contrast, luminance } from '../src/model/tokens.js';
 import { THEMES } from '../src/themes.js';
+import { designOf, offersOf, PRESETS } from '../src/model/design.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -76,36 +80,79 @@ const cases = [
 ok('the example has the resumes this needs', cases.every(c => c.recipe) && cases[1].recipe.pageLimit === 2);
 
 const m = await open({ repo: REPO, data: path.join(REPO, 'data/example.json'), port: 8097 });
+// What B2 Marker draws for a case at the same settings (design: a full set, or null for its own defaults), drawn once.
+const baselines = new Map();
+const baseOf = async (c, design, medium) => {
+  const key = JSON.stringify([c.name, design, medium]);
+  if (!baselines.has(key)){
+    const recipe = { ...clone(c.recipe), overlays: [] };
+    if (design) recipe.design = design;
+    baselines.set(key, await draw(recipe, medium));
+  }
+  return baselines.get(key);
+};
+const draw = async (recipe, medium) => {
+  const laid = await m.layout(recipe);
+  const pages = await m.inspect(laid, probe, undefined, medium);
+  return { count: pages.length, pages };
+};
+// The rules over one drawing. `grouped`: the small sections are grouped (a two-level section style does it by itself, or the case
+// did), so the labels under another are held quiet and the marked ones are counted.
+async function hold(c, recipe, { design = null, medium, grouped = c.grouped, label = c.name } = {}){
+  const { count, pages } = await draw(recipe, medium), base = await baseOf(c, design, medium);
+  const tag = `${label}: ${pages.length} page${pages.length === 1 ? '' : 's'}`;
+  ok(`${tag}, nothing overflows`, pages.every(p => p.over <= 0.5), pages.map(p => p.over).join(' · '));
+  ok(`  no more pages than B2 Marker's ${base.count}`, count <= base.count);
+  ok(`  nothing printed within ${PRINT_EDGE}px of the paper's edge`, pages.every(p => p.ink >= PRINT_EDGE - 0.5), pages.map(p => p.ink).join(' · '));
+  ok(`  B2 Marker's page size, margins of ${MIN_MARGIN}px or more`, pages.every((p, i) => (!base.pages[i] || eq(p.box.slice(0, 2), base.pages[i].box.slice(0, 2))) && p.box.slice(2).every(m => m >= MIN_MARGIN)), JSON.stringify(pages.map(p => p.box)));
+  const tabs = pages.flatMap(p => p.tabs.map(t => ({ ...t, paper: p.paper, title: p.title })));
+  const louder = tabs.filter(t => t.title && t.size > t.title);
+  ok('  no label is louder than a job title', !louder.length, louder.map(t => `${t.size}px > ${t.title}px`).join(', '));
+  const subs = tabs.filter(t => t.sub);
+  if (grouped){
+    // the palest main tab on the pages: a grouped label may be a tint only where the main ones are filled, and paler still
+    const main = Math.max(...tabs.filter(t => !t.sub && !clear(t.bg)).map(t => luminance(hex(t.bg))));
+    const behind = t => hex(clear(t.bg) ? t.paper : t.bg);
+    const quiet = t => t.shadow === 'none' && (clear(t.bg) || luminance(hex(t.bg)) > main + 0.03) && contrast(hex(t.color), behind(t)) >= 4.5;
+    ok(`  ${subs.length} grouped labels are quieter than the main ones and read on what is behind them`, subs.length > 0 && subs.every(quiet),
+      subs.map(t => `${t.bg} ${t.shadow} ${contrast(hex(t.color), behind(t))?.toFixed(2)}`).join(', '));
+    const per = pages.map(p => p.tabs.filter(marked).length);
+    ok(`  at most ${MAX_MARKED} marked labels on a page [${per.join(' · ')}]`, per.every(n => n <= MAX_MARKED));
+  }
+}
+
+let drawn = 0;
 try {
-  const seen = new Map();            // case name → what the first look (B2 Marker) drew
   for (const look of THEMES){
     section(`${look.name} (${look.id})`);
     for (const c of cases){
-      const recipe = { ...clone(c.recipe), overlays: look.layers.slice(1) };
-      const laid = await m.layout(recipe);
-      const pages = await m.inspect(laid, probe);
-      const base = seen.get(c.name) ?? (seen.set(c.name, { count: pages.length, pages }), seen.get(c.name));
-      const tag = `${c.name}: ${pages.length} page${pages.length === 1 ? '' : 's'}`;
-      ok(`${tag}, nothing overflows`, pages.every(p => p.over <= 0.5), pages.map(p => p.over).join(' · '));
-      ok(`  no more pages than B2 Marker's ${base.count}`, pages.length <= base.count);
-      ok(`  nothing printed within ${PRINT_EDGE}px of the paper's edge`, pages.every(p => p.ink >= PRINT_EDGE - 0.5), pages.map(p => p.ink).join(' · '));
-      ok(`  B2 Marker's page size, margins of ${MIN_MARGIN}px or more`, pages.every((p, i) => (!base.pages[i] || eq(p.box.slice(0, 2), base.pages[i].box.slice(0, 2))) && p.box.slice(2).every(m => m >= MIN_MARGIN)), JSON.stringify(pages.map(p => p.box)));
-      const tabs = pages.flatMap(p => p.tabs.map(t => ({ ...t, paper: p.paper, title: p.title })));
-      const louder = tabs.filter(t => t.title && t.size > t.title);
-      ok('  no label is louder than a job title', !louder.length, louder.map(t => `${t.size}px > ${t.title}px`).join(', '));
-      const subs = tabs.filter(t => t.sub);
-      if (c.grouped){
-        // the palest main tab on the pages: a grouped label may be a tint only where the main ones are filled, and paler still
-        const main = Math.max(...tabs.filter(t => !t.sub && !clear(t.bg)).map(t => luminance(hex(t.bg))));
-        const behind = t => hex(clear(t.bg) ? t.paper : t.bg);
-        const quiet = t => t.shadow === 'none' && (clear(t.bg) || luminance(hex(t.bg)) > main + 0.03) && contrast(hex(t.color), behind(t)) >= 4.5;
-        ok(`  ${subs.length} grouped labels are quieter than the main ones and read on what is behind them`, subs.length > 0 && subs.every(quiet),
-          subs.map(t => `${t.bg} ${t.shadow} ${contrast(hex(t.color), behind(t))?.toFixed(2)}`).join(', '));
-        const per = pages.map(p => p.tabs.filter(marked).length);
-        ok(`  at most ${MAX_MARKED} marked labels on a page [${per.join(' · ')}]`, per.every(n => n <= MAX_MARKED));
-      }
+      await hold(c, { ...clone(c.recipe), overlays: look.layers.slice(1) }); drawn++;
     }
   }
+
+  // Every setting a look in the picker offers, one at a time.
+  const c = cases[1], total = { combos: 0 };
+  for (const look of THEMES.filter(x => !x.earlier)){
+    section(`${look.name} (${look.id}): every setting it offers`);
+    const O = offersOf(look, c.recipe.format), D = designOf({ format: c.recipe.format }, look), seen = new Set();
+    const tries = [
+      ...O.preset.map(v => ['preset', v]), ...O.density.map(v => ['density', v]),
+      ...O.fonts.map(v => ['fonts', v]), ...O.size.map(v => ['size', v]),
+      ['medium', 'print'], ['medium', 'pen'],
+    ];
+    for (const [key, value] of tries){
+      const medium = key === 'medium' ? value : undefined, design = key === 'medium' ? D : { ...D, [key]: value };
+      const id = JSON.stringify([design, medium]);
+      if (seen.has(id) || (key !== 'medium' && D[key] === value)) continue;      // the look's own defaults are the cases above
+      seen.add(id); total.combos++;
+      const recipe = { ...clone(c.recipe), overlays: look.layers.slice(1), design: Object.fromEntries(Object.entries(design).filter(([k, v]) => v !== D[k])) };
+      if (!Object.keys(recipe.design).length) delete recipe.design;
+      // the settings in force, which B2 Marker is drawn at too; a two-level section style groups the small sections itself
+      const eff = designOf(recipe, look), two = PRESETS[eff.preset]?.rank === 'two';
+      await hold(c, recipe, { design: eff, medium, grouped: two, label: `${key} ${value}` }); drawn++;
+    }
+  }
+  console.log(`\n${drawn} drawings (${cases.length * THEMES.length} of the looks at their defaults, ${total.combos} with one setting changed)`);
 } finally { await m.close(); }
 
 console.log(failed ? `\n${failed} themes-pages check(s) FAILED` : '\nall themes-pages checks passed');

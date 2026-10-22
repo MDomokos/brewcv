@@ -4,6 +4,8 @@ You can change how a BrewCV resume looks without touching the app's code. There 
 
 A theme changes colour, type, sizes, spacing and two switches (the tab style and the highlight style). It never changes the layout: which section sits where, the page size, the gutter. That's on purpose. Fit and the page breaks measure the real page, so a theme can't break them.
 
+Before any of that, the Design view has settings of its own, which need no file. They are on [the page below](#the-design-views-settings); an imported theme still has the last word over them.
+
 What makes a theme good, and which of it a check holds you to, is in [THEME-DESIGN-RULES.md](THEME-DESIGN-RULES.md).
 
 | You use | Start with |
@@ -13,6 +15,29 @@ What makes a theme good, and which of it a check holds you to, is in [THEME-DESI
 | CSS | [Route 3](#route-3-css) |
 | An AI model | [Route 4](#route-4-an-ai-model) |
 | Illustrator | Illustrator has no direct route. Make the colours and type in Figma, or write them into a tokens file. |
+
+## The Design view's settings
+
+**Design** has six settings for the open resume, and one choice at export. None of them needs a theme file, and each look offers only what its page holds up with: a combination the look doesn't offer can't be picked or saved.
+
+| Setting | Choices | Default |
+|---|---|---|
+| Look | B2 Marker, Timeline, Classic, Classic full width, Banner, High-contrast metadata | B2 Marker |
+| Section style | Quiet (bold labels, a hairline above each section), Bare (bold labels, no lines), Marker (filled labels), Marker with lines, Soft (pale tabs), Underlined, Marker and tint | the look's own: Quiet, but Bare on Timeline and Underlined on Banner |
+| Fonts | Hanken Grotesk + Fira Code, Source Serif 4 + Source Sans 3, IBM Plex Sans + Plex Mono | the look's own: Hanken, Source Serif on the Classic looks |
+| Text size | Small 12.3, Medium 12.7, Large 13.3 px | Medium |
+| Density | Roomy, Balanced, Compact | Balanced |
+| Colour | Yellow, Green, Blue, Orange, Violet, Pink, or any colour | Yellow |
+| Key words | In colour, in bold | In colour |
+
+- **What a look offers.** The Classic looks offer the Quiet and Marker with lines section styles and the Source Serif pairing only. Classic full width has its own sizes (Medium 13, Large 13.6 px, no Small). Small isn't offered on Letter, where the wider column would run past 95 characters a line. Every other look offers everything above.
+- **A two-level section style** (Marker, Marker with lines, Soft, Underlined, Marker and tint) puts the small sections (certifications, a patent, languages, interests) under the section above as quiet labels, so the colour stays on the main sections. A section's own *Group under the section above* switch still wins. Quiet and Bare are one level: every section keeps its own label.
+- **Density.** Compact also sets the languages in a row and a smaller name, and puts the job title beside the name (as does a photo, in every density), except in the centred Classic header.
+- **Colour** is two shades: the one on a screen and the highlighter shade the export prints in. *Any colour* is one shade for both, and gets the contrast note.
+- **Made for** (Export): for a screen, for printing (the highlighter shade, and nothing within ¼ in of the paper's edge, which is where a band of colour stops short in Banner) or for a highlighter pen (black and white, with dotted guides to go over with a pen). It applies to the PDF and the HTML page, not to the editor.
+- **An older look** (Tinted tabs, Mono print) on a saved resume renders as before, shows its name, and the Design view offers one button that moves the resume to B2 Marker with the section style that draws the same labels.
+- **An imported theme** (a tokens file, below) still overrides the settings: its colours, fonts and sizes are added after them, so where the two disagree the file wins. The resume's own *any colour* does too.
+- **Agents** set the same things in `picks.json` (`look`, `design`, `exportMedium`); see [AGENTS.md](../AGENTS.md).
 
 ## Route 1: a tokens file
 
@@ -44,7 +69,7 @@ A theme is a [DTCG](https://www.designtokens.org/) tokens file: JSON with colour
 
 5. To share a theme, send the file. Whoever receives it imports it the same way. **Design › Export this theme** writes your current look back out as a tokens file.
 
-**What tokens can't change:** layout. You can't move the photo, add a column, reorder what's in the header or change the page size. They also can't add a font the app doesn't have. A font that isn't installed on the reader's machine falls back to Hanken Grotesk, and the import says so. The app ships Hanken Grotesk and Fira Code, and for the Classic looks Source Serif 4 and Source Sans 3; Georgia, Helvetica, Arial and the other common system fonts work where the machine has them.
+**What tokens can't change:** layout. You can't move the photo, add a column, reorder what's in the header or change the page size. They also can't add a font the app doesn't have. A font that isn't installed on the reader's machine falls back to Hanken Grotesk, and the import says so. The app ships Hanken Grotesk and Fira Code, Source Serif 4 and Source Sans 3 (the Classic looks) and IBM Plex Sans and Plex Mono; Georgia, Helvetica, Arial and the other common system fonts work where the machine has them.
 
 `node scripts/tokens.mjs` goes the other way: it writes the built-in themes' tokens files *from* their stylesheets in `themes/`. You only need it if you edit one of those stylesheets. `node scripts/tokens.mjs --check` tells you if the files are out of date.
 
@@ -99,5 +124,5 @@ Models make confident mistakes with colour. Read the contrast ratio yourself, an
 ## Before you send a theme
 
 - `node scripts/theme-check.mjs <file>` names nothing as ignored, and the accent reads against the tab text.
-- It looks right on a one-page resume and on a two-page one, and in a language with long section headings (German, Hungarian). For a built-in overlay, `node checks/themes-pages-check.mjs` draws it on both, in A4 and Letter, and holds it to the rules in [THEME-DESIGN-RULES.md](THEME-DESIGN-RULES.md); `node checks/themes-check.mjs` says if anything it needs is missing.
+- It looks right on a one-page resume and on a two-page one, and in a language with long section headings (German, Hungarian). For a built-in overlay, `node checks/themes-pages-check.mjs` draws it on both, in A4 and Letter, and again with every setting the Design view offers on it, and holds it to the rules in [THEME-DESIGN-RULES.md](THEME-DESIGN-RULES.md); `node checks/themes-check.mjs` says if anything it needs is missing.
 - Print it. A pale colour that looks good on screen can disappear on paper.
