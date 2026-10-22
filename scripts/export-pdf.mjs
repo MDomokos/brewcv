@@ -1,4 +1,6 @@
-/* node scripts/export-pdf.mjs [input.html] [output.pdf] [--css <file>]
+/* node scripts/export-pdf.mjs [input.html] [output.pdf] [--css <file>] [--data <data.json> --recipe <recipe.json> [--medium screen|print|pen]]
+   --data and --recipe put the resume's look settings (src/model/design.js lookCss) on the page for the medium (the recipe's
+   exportMedium by default), as the app's export does, in place of what render.mjs wrote.
    Deterministic PDF, independent of print-dialog settings. Needs Node 22+ and a Chrome, Chromium,
    Brave or Edge on the machine (CHROME_PATH names one). No packages: it speaks the Chrome DevTools
    Protocol over Node's built-in WebSocket. Optional: the app's own export (print, in the browser)
@@ -8,6 +10,8 @@ import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import { readLibrary, readRecipe } from './lib/library.mjs';
+import { mediumOf, lookFor } from './lib/look.mjs';
 
 const MAC = ['Google Chrome', 'Chromium', 'Microsoft Edge', 'Brave Browser']
   .map(n => `/Applications/${n}.app/Contents/MacOS/${n}`);
@@ -23,7 +27,7 @@ function onPath(name) {
   return r.status === 0 ? r.stdout.split('\n')[0].trim() : null;
 }
 
-export async function exportPdf(input, output, extraCss) {
+export async function exportPdf(input, output, extraCss, look = null) {
   const exe = findBrowser();
   if (!exe) throw new Error('no Chrome, Chromium, Brave or Edge found; set CHROME_PATH to the browser executable (the app\'s own PDF export, in the browser, needs none of this)');
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-pdf-'));
@@ -62,6 +66,11 @@ export async function exportPdf(input, output, extraCss) {
     const loaded = event('Page.loadEventFired');
     await send('Page.navigate', { url: pathToFileURL(input).href });
     await loaded;
+    // the look: replaces the block render.mjs wrote, and the class that says the page is for paper
+    if (look) await send('Runtime.evaluate', { expression: `document.getElementById('look-css')?.remove();
+      document.documentElement.classList.toggle('medium-print', ${look.paper});
+      ${look.css ? `document.head.append(Object.assign(document.createElement('style'), { id: 'look-css', textContent: ${JSON.stringify(look.css)} }))` : ''}
+      void document.body.offsetHeight;` });     // lay out now, so a font the look names starts loading before fonts.ready is awaited
     // --css layers a token override on top of the theme, before the fonts are awaited.
     if (extraCss) await send('Runtime.evaluate', { expression:
       `document.head.append(Object.assign(document.createElement('style'), { textContent: ${JSON.stringify(fs.readFileSync(extraCss, 'utf8'))} }))` });
@@ -87,13 +96,20 @@ export async function exportPdf(input, output, extraCss) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const argv = process.argv.slice(2);
-  const cssIdx = argv.indexOf('--css');
-  const extraCss = cssIdx !== -1 ? path.resolve(argv[cssIdx + 1]) : null;
-  const positional = argv.filter((a, i) => cssIdx === -1 || (i !== cssIdx && i !== cssIdx + 1));
+  const VALUED = ['--css', '--data', '--recipe', '--medium'];
+  const arg = f => { const i = argv.indexOf(f); return i === -1 ? undefined : argv[i + 1]; };
+  const extraCss = arg('--css') ? path.resolve(arg('--css')) : null;
+  const positional = argv.filter((a, i) => !VALUED.includes(a) && !VALUED.includes(argv[i - 1]));
   const input = path.resolve(positional[0] ?? 'templates/us-letter.html');
   const output = path.resolve(positional[1] ?? 'out/resume.pdf');
   try {
-    await exportPdf(input, output, extraCss);
+    let look = null;
+    if (arg('--data') || arg('--recipe') || arg('--medium')){
+      if (!arg('--data') || !arg('--recipe')) throw new Error('--data and --recipe go together (and --medium needs them)');
+      const model = readLibrary(arg('--data')).model, recipe = readRecipe(arg('--recipe')).recipe;
+      look = lookFor(model, recipe, mediumOf(arg('--medium'), recipe), path.dirname(input));
+    }
+    await exportPdf(input, output, extraCss, look);
     // the page count of the PDF itself, which is what counts: a plan can say one page and print two
     const pages = (fs.readFileSync(output).toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g) ?? []).length;
     console.log('wrote', output + (pages ? ` (${pages} page${pages === 1 ? '' : 's'})` : ''));

@@ -190,10 +190,12 @@ A library path makes a check read that library's recipes and print counts only, 
 ## The command line
 
 ```
-node scripts/render.mjs <data.json> <recipe.json> <out.html>        a record + a resume → a document
+node scripts/render.mjs <data.json> <recipe.json> <out.html> [--medium screen|print|pen]
+                                                                   a record + a resume → a document, with its look settings
 node scripts/fit.mjs    <data.json> <recipe.json> --fit [--add]     Fit, measured in Chromium
 node scripts/fit.mjs    <data.json> <recipe.json> --fit --model 6.7 a labelled dry plan, no browser
 node scripts/export-pdf.mjs out/resume.html out/resume.pdf          optional; a Chrome, Chromium, Brave or Edge, no packages
+                          [--data <data.json> --recipe <recipe.json> [--medium screen|print|pen]]   another medium than the one rendered
 node scripts/to-jsonresume.mjs <data.json> [recipe.json]           flat JSON Resume, the ATS path
 node scripts/claims.mjs <data.json> [--lang en] [--tag t] [--job id] [--json]
                                                                    every claim and its versions; writes nothing

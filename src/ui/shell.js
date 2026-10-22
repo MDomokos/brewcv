@@ -1409,7 +1409,7 @@ files.bind($('#body'));
 window.__wb.files = files;
 const exporter = initExport({ store, ui, toast, work, cur: () => shown(), reviewCount: () => review.count(), offerReview: () => review.pending() && toast('', '', false, true), download, fileLine, renderBody: () => renderBody(),
   pageBox: () => { const b = ui.layout?.phone ? null : sheet.pageBoxes()[ui.page]; return b ? canvas.screenRect(b) : null; },
-  extraCss: r => design.extraCss(store.state.record, r) });
+  extraCss: (r, medium) => design.extraCss(store.state.record, r, medium) });
 const design = initDesign({ store, ui, toast, cur, setView, pickFile, download, photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 Object.assign(VIEWS, design.views);
 const onboarding = initOnboarding({ store, ui, persist, toast, setView, renderBody: (a) => renderBody(a), restyle: () => restyle() });

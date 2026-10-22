@@ -4,6 +4,7 @@
 import { pageSize } from './layout.js';
 import * as X from '../export.js';
 import { renderPages } from '../render.js';
+import { MEDIA, onPaper } from '../model/design.js';
 import { missingList } from '../model/lang.js';
 import * as RS from '../model/resumes.js';
 import { t, h, errText, docChrome, loadCatalogue } from '../i18n/index.js';
@@ -17,6 +18,7 @@ let C = null;
 export function initExport(ctx){ C = ctx; return api; }
 
 const esc = X.escapeHtml;
+const mediumOf = r => (MEDIA.includes(r?.exportMedium) ? r.exportMedium : 'screen');
 const st = () => C.store.state;
 
 async function text(url){ const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.text(); }
@@ -48,14 +50,15 @@ export async function buildHtml(recipe = C.cur(), laid = C.ui.laid){
     css.push({ href, text: await embed(await text(path), path) });
   }
   // the look settings' fonts (src/model/design.js) are named relative to the page template, like the stylesheets' own
-  const extra = C.extraCss?.(r) ?? '';
+  const medium = mediumOf(r);
+  const extra = C.extraCss?.(r, medium) ?? '';
   if (extra) css.push({ href: 'tokens', text: await embed(extra, `templates/${r.format}.html`) });
   await loadCatalogue(r.lang ?? 'en');
   const pages = renderPages(C.work(), r, document, { fallback: true, chrome: docChrome(r.lang ?? 'en') }).pages;
   const documentHtml = X.cleanMarkup(pages.map(p => p.outerHTML).join('\n'));
   const name = st().record.basics?.name ?? 'Resume';
   return X.assembleHtml({ templateHtml: tpl, css, documentHtml, title: `${name}${recipe.company ? ` — ${recipe.company}` : ''}`,
-    lang: recipe.lang ?? 'en' });
+    lang: recipe.lang ?? 'en', htmlClass: onPaper(medium) ? 'medium-print' : '' });
 }
 
 // The desktop app (Tauri): one Save dialog, then a hidden window prints the page straight to that file (desktop/print.js).
@@ -108,8 +111,12 @@ function exportView(){
   // one filled button on the screen: Fit when it would change something, else PDF
   const fitFirst = fitFilled(C.ui.fills, C.cur()?.pageLimit);
   const file = C.fileLine();
+  const medium = mediumOf(C.cur());
   return `<h2 class="title">${h('head.export')}</h2>
     <ul class="checks">${list.map(c => `<li class="${c.level}"><span class="ci">${icon[c.level]}</span>${esc(c.text)}${['unexported', 'newer'].includes(c.key) && C.reviewCount?.() ? ` <button class="sm" data-act="review-open">${h('newer.review')}</button>` : ''}</li>`).join('')}</ul>
+    <div class="kv"><span class="lbl" title="${esc(t('export.mediumTitle'))}">${h('export.medium')}</span>
+      <div class="seg fill" role="group" aria-label="${esc(t('export.medium'))}">${MEDIA.map(m => `<button data-act="ex-medium" data-v="${m}" aria-pressed="${medium === m}"${C.ui.snap ? ' disabled' : ''}>${h(`export.medium.${m}`)}</button>`).join('')}</div>
+      <p class="note">${h(`export.mediumNote.${medium}`)}</p></div>
     <span class="lbl">${h('export.download')}</span>
     <div class="dl">
       <button class="${fitFirst ? '' : 'primary'}" data-act="ex-pdf"><b>PDF</b><small>${h('export.pdfNote')}</small></button>
@@ -131,6 +138,8 @@ async function act(a, tg){
   const fx = fmt => exportFx({ drink: drink(), from: C.pageBox?.() ?? null, to: tg?.getBoundingClientRect?.() ?? null, fmt, pages: C.ui.fills?.length ?? 1 });
   try {
     switch (a){
+      // per resume, with undo; the default (a screen) is no key at all
+      case 'ex-medium': { const v = tg.dataset.v; if (MEDIA.includes(v)) C.store.commit(d => { if (v === 'screen') delete d.cur.exportMedium; else d.cur.exportMedium = v; }, t('export.medium')); return true; }
       case 'ex-pdf': if (!window.__TAURI__) C.toast(t('toast.printDialog')); fx('PDF'); await printPdf(); C.offerReview?.(); return true;
       case 'ex-html': C.download(await buildHtml(), X.exportName(C.cur(), s.record, 'html'), 'text/html'); C.toast(t('toast.htmlDone'), '', false, true); fx('HTML'); return true;
       case 'ex-txt': { const r = C.cur(), lang = r.lang ?? 'en'; await loadCatalogue(lang); C.download(X.plainText(X.jsonResumeFile(C.work(), r).file, { lang, chrome: docChrome(lang) }), X.exportName(r, s.record, 'txt'), 'text/plain'); const lost = X.unexportedNote(X.unexported(C.work(), r)); C.toast(lost ? `${t('toast.txtDone')} ${lost}` : t('toast.txtDone'), lost ? 'warn' : '', false, true); fx('TXT'); return true; }

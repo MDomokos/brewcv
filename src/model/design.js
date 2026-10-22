@@ -5,6 +5,11 @@
 // Only what differs from the look's own defaults is written, so a resume with no `design` renders as it always did.
 //
 // recipe.design = { preset, fonts, size, density, colour, words }, every key optional.
+// `lookCss` is the one function for a resume's whole extra CSS (these settings, then the accent and an imported theme's tokens): the
+// app's sheet, thumbnails and exports and the Node scripts all call it.
+
+import { lookOf } from '../themes.js';
+import { toCss } from './tokens.js';
 
 // rank: one level, or two (the related topics go under the main section above: the renderer's job, not CSS's).
 // main and minor: how a label is drawn; lines: a hairline above the main sections.
@@ -56,22 +61,47 @@ export const WORDS = ['colour', 'bold'];
 export const MEDIA = ['screen', 'print', 'pen'];
 const DEFAULT_COLOUR = 'yellow';
 
-// The settings a resume gets on `look` (a src/themes.js entry): what it asked for in recipe.design if the look offers it, else the
-// look's default. Small is not offered on Letter: its wider column runs over 95 characters a line. null for a look with no `design`.
-export function designOf(recipe, look){
+// What `look` offers for each setting on `format`, as lists (the first of presets and fonts is not the default: `design.preset` and `font` are).
+// Small is not offered on Letter: its wider column runs over 95 characters a line. null for a look with no `design`.
+export function offersOf(look, format){
   const L = look?.design;
   if (!L) return null;
+  return {
+    preset: L.presets ?? Object.keys(PRESETS),
+    fonts: L.fonts ?? Object.keys(FONTS),
+    size: Object.keys(L.sizes ?? SIZES).filter(s => !(s === 'small' && format === 'us-letter')),
+    density: Object.keys(DENSITIES),
+    colour: Object.keys(COLOURS),
+    words: WORDS,
+  };
+}
+
+// The settings a resume gets on `look` (a src/themes.js entry): what it asked for in recipe.design if the look offers it, else the
+// look's default. null for a look with no `design`.
+export function designOf(recipe, look){
+  const O = offersOf(look, recipe?.format);
+  if (!O) return null;
+  const L = look.design;
   const want = recipe?.design && typeof recipe.design === 'object' ? recipe.design : {};
   const pick = (v, offered, dflt) => (offered.includes(v) ? v : dflt);
-  const sizes = Object.keys(L.sizes ?? SIZES).filter(s => !(s === 'small' && recipe?.format === 'us-letter'));
   return {
-    preset: pick(want.preset, L.presets ?? Object.keys(PRESETS), L.preset ?? null),
-    fonts: pick(want.fonts, L.fonts ?? Object.keys(FONTS), L.font),
-    size: pick(want.size, sizes, 'medium'),
-    density: pick(want.density, Object.keys(DENSITIES), 'balanced'),
-    colour: pick(want.colour, Object.keys(COLOURS), DEFAULT_COLOUR),
-    words: pick(want.words, WORDS, 'colour'),
+    preset: pick(want.preset, O.preset, L.preset ?? null),
+    fonts: pick(want.fonts, O.fonts, L.font),
+    size: pick(want.size, O.size, 'medium'),
+    density: pick(want.density, O.density, 'balanced'),
+    colour: pick(want.colour, O.colour, DEFAULT_COLOUR),
+    words: pick(want.words, O.words, 'colour'),
   };
+}
+
+// Why a `design` (as an agent writes it in picks.json) is not one `look` offers on `format`: one line per key, [] when it all is.
+// designOf quietly falls back to the default; a file someone wrote should be told.
+export function designProblems(design, look, format){
+  const O = offersOf(look, format);
+  if (!O) return [`${look?.id ?? 'this look'} offers no settings`];
+  if (!design || typeof design !== 'object' || Array.isArray(design)) return ['design: must be an object'];
+  return Object.entries(design).map(([k, v]) => !(k in O) ? `design.${k}: not a setting (${Object.keys(O).join(', ')})`
+    : O[k].includes(v) ? '' : `design.${k}: ${JSON.stringify(v)} is not offered on ${look.id}${k === 'size' && format === 'us-letter' ? ' for Letter' : ''} (it offers ${O[k].join(', ')})`).filter(Boolean);
 }
 
 // Chooses one setting on a resume: the look's own default is no key at all, and a resume at its defaults has no `design`.
@@ -103,22 +133,23 @@ function labelCss(p, pen, ink){
   return out.filter(Boolean).join('\n');
 }
 
-// The CSS of a resume's settings on `look`. `design` is what designOf returned. medium: 'screen', 'print' (the highlighter shade of
-// the colour) or 'pen' (black and white with dotted guides to go over with a highlighter). accent: the resume's own "any colour",
-// which is the colour on a screen and in print. Added after the look's stylesheets and before an imported theme's tokens.
-// shortcut: the guides of 'pen' are overridden by an accent token written after them; the export (L-4) puts this last.
-export function designCss(look, design, { medium = 'screen', accent = null } = {}){
+// The CSS of a resume's settings on `look`, as [the rest, the pen's rules]; `design` is what designOf returned. medium: 'screen',
+// 'print' (the highlighter shade of the colour) or 'pen' (black and white with dotted guides to go over with a highlighter). accent:
+// the resume's own "any colour", which is the colour on a screen and in print. The pen's rules are a second part because they
+// must come last: an accent token written after them would give the highlights their colour back (see lookCss).
+function designParts(look, design, { medium = 'screen', accent = null } = {}){
   const L = look?.design;
-  if (!L || !design) return '';
-  const d = design, D = DENSITIES[d.density], pen = medium === 'pen', out = [], root = [];
+  if (!L || !design) return ['', ''];
+  if (!MEDIA.includes(medium)) medium = 'screen';
+  const d = design, D = DENSITIES[d.density], pen = medium === 'pen', out = [], root = [], penOut = [];
   if (d.fonts !== L.font){      // the look's own pair is in its stylesheet already
     const f = FONTS[d.fonts];
     out.push(...f.faces.map(faceCss));
     root.push(`--font-sans:${f.body}`, `--font-name:${f.head}`, `--font-heading:${f.head}`, `--font-mono:${f.mono}`);
   }
   if (pen){
-    root.push('--accent:transparent', '--highlight:transparent', '--tab-fill-cont:transparent', '--line:#bdbdbd');
-    out.push('.namemark::before{display:none}', '.mark,.name{text-decoration:underline dotted #8a8a8a;text-decoration-thickness:1.4px;text-underline-offset:3px}.name{text-underline-offset:6px}');
+    penOut.push(':root{--accent:transparent;--highlight:transparent;--tab-fill-cont:transparent;--line:#bdbdbd}',
+      '.namemark::before{display:none}', '.mark,.name{text-decoration:underline dotted #8a8a8a;text-decoration-thickness:1.4px;text-underline-offset:3px}.name{text-underline-offset:6px}');
   } else if (medium !== 'screen' || d.colour !== DEFAULT_COLOUR){
     const c = /^#[0-9a-f]{6}$/i.test(accent ?? '') ? accent : COLOURS[d.colour][medium === 'print' ? 1 : 0];
     root.push(`--accent:${c}`, `--highlight:${c}`, `--tab-fill-cont:color-mix(in srgb, ${c} 50%, #fff)`);
@@ -131,9 +162,28 @@ export function designCss(look, design, { medium = 'screen', accent = null } = {
   if (d.words === 'bold') out.push('.mark{background:none!important;font-weight:700}');
   if (pen || d.preset !== L.preset){
     const p = PRESETS[d.preset ?? 'quiet'];
-    out.push(labelCss(L.ownRule ? { ...p, lines: 'none' } : p, pen, !!L.inkRule));
+    (pen ? penOut : out).push(labelCss(L.ownRule ? { ...p, lines: 'none' } : p, pen, !!L.inkRule));
   }
   if (D.langs) out.push('.page .band[data-section="languages"] .pairs{grid-template-columns:repeat(3,max-content minmax(0,1fr));column-gap:10px}');
   if (D.header) out.push('.page .band--header .name{font-size:calc(var(--fs-name) * .85)}');
-  return out.join('\n');
+  return [out.join('\n'), penOut.join('\n')];
+}
+export const designCss = (look, design, o) => designParts(look, design, o).filter(Boolean).join('\n');
+
+// The tokens a resume adds on top of its base theme: an imported theme's, then its own accent.
+export function tokensOf(record, recipe){
+  const t = { ...((record?.themes ?? []).find(x => x.id === recipe.look)?.tokens ?? {}) };
+  if (recipe.accent){ t.accent = recipe.accent; t.highlight = recipe.accent; }
+  return t;
+}
+
+// 'print' and 'pen' are for paper: the page also gets the class `medium-print` on its root element (a look may bleed to the edges
+// on a screen and keep a margin on paper, as Banner does; the page checks measure with it).
+export const onPaper = medium => medium === 'print' || medium === 'pen';
+
+// A resume's whole extra CSS: the look settings, then the accent and an imported theme's tokens (so an imported theme still wins),
+// then, for a pen, its rules last, or the resume's own accent would cover the transparent highlights. '' when it adds nothing.
+export function lookCss(record, recipe, { medium = 'screen' } = {}){
+  const look = lookOf(recipe), [rest, pen] = designParts(look, designOf(recipe, look), { medium, accent: recipe.accent });
+  return [rest, toCss(tokensOf(record, recipe)), pen].filter(Boolean).join('\n');
 }

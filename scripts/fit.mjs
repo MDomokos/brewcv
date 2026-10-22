@@ -7,6 +7,8 @@
 // With --fit: runs src/fit.js, measuring in Chromium (needs playwright), or with
 // --model, a dry line-model plan where furniture is given in body lines.
 // Writes only to --out, never over the input, never over a file without --force.
+// The resume's look settings count: the browser pass renders through render.mjs, which adds them as the app does (on a screen,
+// as the app measures), and the dry model takes the text size and line spacing from the same lookCss.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -50,7 +52,7 @@ if (argv.includes('--fit')){
   if (model !== undefined){
     const furniture = model.split(',').map(Number);
     if (furniture.some(x => !Number.isFinite(x))){ console.error('--model takes furniture lines, e.g. --model 6.7 or --model 7.6,2.8'); process.exit(2); }
-    const g = geometryFor(REPO, recipe);
+    const g = geometryFor(REPO, recipe, data);
     measure = modelMeasure(data, { ...g, furniture });
     layout = r => autoLayout(data, r, modelFlow(data, { ...g, furniture: furniture[0] ?? furniture }));
     how = `MODEL ONLY, not a measurement (page ${g.usable}px, body line ${g.lineH.toFixed(2)}px, furniture ${furniture.join(', ')} lines)`;

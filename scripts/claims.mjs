@@ -45,7 +45,7 @@ const positionOf = j => {
 };
 
 const out = {
-  file: FILE, ...(saved ? { saved } : {}), lang: LANG, options: { ...optionsOf(model), langs: LANGS },
+  file: FILE, ...(saved ? { saved } : {}), lang: LANG, options: { ...optionsOf(), langs: LANGS },
   jobs: jobs.filter(j => !JOB || j.id === JOB).map(j => ({
     id: j.id, position: positionOf(j),
     employer: j.name ?? j.entity ?? '', archived: !!j.archived, claims: (j.highlights ?? []).filter(id => ix.fact.has(id)).map(id => claim(id, j)).filter(keep),
@@ -72,7 +72,15 @@ else {
     if (!c.versions.length) console.log(`${pad}  (no ${LANG} version)`);
   };
   console.log(`${FILE}${saved ? ` (saved ${saved})` : ''} · language ${LANG}${TAG ? ` · tag ${TAG}` : ''}`);
-  console.log(`picks.json may use: format ${out.options.formats.join(', ')} · theme ${out.options.themes.join(', ')}`);
+  const O = out.options;
+  console.log(`picks.json may use: format ${O.formats.join(', ')} · look ${O.looks.map(l => l.id).join(', ')} (b2 when left out) · exportMedium ${O.exportMedia.join(', ')} (screen when left out)`);
+  console.log('  "design" takes what the look offers (its own default is marked *; left out, a setting is the look\'s default):');
+  for (const l of O.looks){
+    const mark = (k, d) => l.design[k].map(v => (v === d ? `${v}*` : v)).join(' ');
+    console.log(`    ${l.id}  ${l.name}: preset ${mark('preset', l.defaults.preset)} · fonts ${mark('fonts', l.defaults.fonts)} · size ${mark('size', 'medium')}`);
+  }
+  const l0 = O.looks[0].design;
+  console.log(`    every look: density ${l0.density.join(' ')} · colour ${l0.colour.join(' ')} · words ${l0.words.join(' ')} (size small is not offered on us-letter)`);
   for (const j of out.jobs){
     console.log(`\n${j.id}: ${j.position}, ${j.employer}${j.archived ? '  [archived job]' : ''}`);
     for (const c of j.claims) printClaim(c, '  ');

@@ -2275,6 +2275,36 @@ if (want('export')) {
   }
   await page.click('#tab-export'); await settle(page);
   ok('Export lists pre-flight checks', (await page.$$('.checks li')).length >= 1);
+  // the export choice: for a screen, for printing, for a highlighter pen; per resume, in the PDF's and the HTML file's CSS, with undo
+  {
+    const st = () => page.evaluate(() => window.__wb.store.state);
+    const medium = async () => (await st()).cur.exportMedium;
+    const pressed = () => page.$$eval('[data-act=ex-medium]', bs => bs.filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.dataset.v).join());
+    const built = () => page.evaluate(() => window.__wb.export.buildHtml());
+    const note = async () => (await page.textContent('#body .kv .note')).trim();      // one line for the chosen medium, in the interface's language
+    ok('Export offers three choices, a screen first and pressed, and a resume at its default has no exportMedium', (await page.$$eval('[data-act=ex-medium]', bs => bs.map(b => b.dataset.v).join())) === 'screen,print,pen' && await pressed() === 'screen' && !(await medium()));
+    const scr = await built();
+    ok('for a screen the file has no paper class and no pen', !/medium-print/.test(scr) && !/--accent:transparent/.test(scr));
+    await page.click('[data-act=ex-medium][data-v=print]'); await settle(page);
+    const prt = await built();
+    ok('for printing: recorded on the resume, the highlighter shade, the paper class, and its line says so', (await medium()) === 'print' && await pressed() === 'print' && /<html lang="[a-z-]+" class="medium-print">/.test(prt) && /--accent:#fff04d/.test(prt) && !/dotted/.test(prt) && (await note()).length > 20);
+    const printNote = await note();
+    await page.click('[data-act=ex-medium][data-v=pen]'); await settle(page);
+    const pen = await built();
+    ok('for a highlighter pen: black and white, dotted guides, the paper class', (await medium()) === 'pen' && /class="medium-print"/.test(pen) && /--accent:transparent/.test(pen) && /dotted/.test(pen) && (await note()).length > 20 && (await note()) !== printNote);
+    const [penDl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act=ex-html]')]);
+    const penText = fs.readFileSync(await penDl.path(), 'utf8');
+    ok('the HTML file Export makes is the pen one, with no script', /class="medium-print"/.test(penText) && /--accent:transparent/.test(penText) && !/<script/.test(penText));
+    await page.keyboard.press('Control+z'); await settle(page);
+    ok('undo goes back one choice, then to a screen with no key', (await medium()) === 'print' && /--accent:#fff04d/.test(await built()));
+    await page.keyboard.press('Control+z'); await settle(page);
+    ok('and the resume is as it was: no exportMedium, a screen, the file without the paper class', !(await medium()) && await pressed() === 'screen' && !/medium-print/.test(await built()));
+    await page.click('[data-act=ex-medium][data-v=print]'); await settle(page);
+    await page.click('[data-act=ex-medium][data-v=screen]'); await settle(page);
+    ok('choosing a screen again writes no key', !(await medium()) && !('exportMedium' in (await st()).cur));
+    const other = await page.evaluate(() => window.__wb.store.state.resumes.filter(r => r.exportMedium).length);
+    ok('the choice is the resume\'s own: no other saved resume has one', other === 0);
+  }
   for (const [act, ext] of [['ex-html', 'html'], ['ex-txt', 'txt'], ['ex-json', 'json']]){
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click(`[data-act=${act}]`)]);
     const p = path.join(tmp, dl.suggestedFilename());

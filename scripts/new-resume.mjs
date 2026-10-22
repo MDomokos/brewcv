@@ -3,8 +3,10 @@
 // Writes a saved resume from a list of picks: which version of which claim to print. It chooses among the
 // versions that exist and never takes text, so an agent can tailor a resume without writing a bullet.
 //
-// picks.json: { company, role, lang, format, pageLimit, theme, jobType?, summary?: versionId, bullets: [versionId, ...],
-//   jobOrder?: [jobId, ...] }  (print order of the jobs that have picked bullets: some or all; the rest follow in the record's order)
+// picks.json: { company, role, lang, format, pageLimit, look?, design?, exportMedium?, jobType?, summary?: versionId,
+//   bullets: [versionId, ...], jobOrder?: [jobId, ...] }  (print order of the jobs that have picked bullets: some or all; the rest follow
+//   in the record's order). look: a look's id (b2 when left out); design: { preset, fonts, size, density, colour, words }, the settings
+//   that look offers; exportMedium: screen, print or pen. `theme` (a stylesheet name) still works in an old picks.json.
 // The order of bullets is the print order within each job; an order equal to the record's is not stored.
 // Writes nothing, and says why, if anything in it is wrong. Never overwrites a file without --force.
 
@@ -16,7 +18,9 @@ import { entriesOf, entryKey } from '../src/model/entries.js';
 import { LANGS, resumeFileName, migrateRecipe, saveResume } from '../src/model/schema.js';
 import { today } from '../src/model/resumes.js';
 import { readLibrary, readJson, writeResume } from './lib/library.mjs';
-import { indexOf, langOf, versionsOf, factIdsOfSection, optionsOf } from './lib/claims.mjs';
+import { indexOf, langOf, versionsOf, factIdsOfSection, optionsOf, stylesheetsOf } from './lib/claims.mjs';
+import { THEMES } from '../src/themes.js';
+import { MEDIA, designProblems, setDesign } from '../src/model/design.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const argv = process.argv.slice(2);
@@ -39,7 +43,7 @@ const ix = indexOf(model);
 const errors = [];
 const bad = m => errors.push(m);
 
-const ALLOWED = ['company', 'role', 'lang', 'format', 'pageLimit', 'theme', 'jobType', 'summary', 'bullets', 'jobOrder'];
+const ALLOWED = ['company', 'role', 'lang', 'format', 'pageLimit', 'theme', 'look', 'design', 'exportMedium', 'jobType', 'summary', 'bullets', 'jobOrder'];
 if (!picks || typeof picks !== 'object' || Array.isArray(picks)){ console.error(`${PICKS}: not an object`); process.exit(1); }
 for (const k of Object.keys(picks))
   if (!ALLOWED.includes(k)) bad(`${k}: not allowed in picks.json. The only text it takes is company and role; wording comes from the record's versions, by id.`);
@@ -57,13 +61,20 @@ const plain = k => {
   return v;
 };
 const company = plain('company'), role = plain('role');
-const lang = str('lang', true), format = str('format', true), theme = str('theme', true);
+const lang = str('lang', true), format = str('format', true), theme = str('theme', false) ?? 'b2-marker', lookId = str('look', false);
 const jobType = picks.jobType === undefined ? '' : plain('jobType');
 if (!Number.isInteger(picks.pageLimit) || picks.pageLimit < 0) bad('pageLimit: must be a whole number, 0 for as many pages as needed');
 if (lang && !LANGS.includes(lang)) bad(`lang: ${lang} is not one of ${LANGS.join(', ')}`);
-const { formats, themes } = optionsOf(model);
+const { formats, looks, exportMedia } = optionsOf();
 if (format && !formats.includes(format)) bad(`format: ${format} is not one of ${formats.join(', ')}`);
-if (theme && !themes.includes(theme)) bad(`theme: ${theme} is not one of ${themes.join(', ')}`);
+const stylesheets = stylesheetsOf(model);
+if (picks.theme !== undefined && !stylesheets.includes(theme)) bad(`theme: ${theme} is not a stylesheet; name the look with "look" (${looks.map(l => l.id).join(', ')})`);
+if (picks.theme !== undefined && lookId) bad('theme and look both name the look; use look');
+// a look, and the settings it offers; the earlier looks only render, so they cannot be given
+const look = lookId ? THEMES.find(x => x.id === lookId && !x.earlier) : THEMES[0];
+if (lookId && !look) bad(`look: ${lookId} is not one of ${looks.map(l => l.id).join(', ')}`);
+if (picks.design !== undefined && look) for (const why of designProblems(picks.design, look, format)) bad(why);
+if (picks.exportMedium !== undefined && !exportMedia.includes(picks.exportMedium)) bad(`exportMedium: ${JSON.stringify(picks.exportMedium)} is not one of ${exportMedia.join(', ')}`);
 if (!Array.isArray(picks.bullets) || picks.bullets.some(b => typeof b !== 'string')) bad('bullets: must be a list of version ids');
 else if (!picks.bullets.length) bad('bullets: empty. A resume with no bullets is not a tailored resume');
 
@@ -120,6 +131,10 @@ if (errors.length){
 }
 
 const recipe = newResume(model, { format, lang, pageLimit: picks.pageLimit, theme });
+// the look is its overlays; each setting is written as the Design view writes it (the look's own default is no key)
+if (lookId) recipe.overlays = look.layers.slice(1);
+for (const [k, v] of Object.entries(picks.design ?? {})) setDesign(recipe, look, k, v);
+if (picks.exportMedium && picks.exportMedium !== MEDIA[0]) recipe.exportMedium = picks.exportMedium;
 // exactly the listed bullets
 for (const f of model.facts) if (jobOf.has(f.id)) setBulletOn(model, recipe, f.id, bullets.has(f.id));
 // a job with no picked bullet would print as a bare heading
@@ -176,7 +191,7 @@ const problems = writeResume(file, model, recipe);
 
 const empty = entriesOf(model).filter(j => !(j.highlights ?? []).some(h => bullets.has(h)));
 console.log(`wrote ${file}`);
-console.log(`  ${bullets.size} bullet${bullets.size === 1 ? '' : 's'}${picks.summary !== undefined ? ' and a summary' : ''} picked, ${lang}, ${format}@${theme}, ${picks.pageLimit === 0 ? 'any number of pages' : `${picks.pageLimit} page${picks.pageLimit === 1 ? '' : 's'}`}`);
+console.log(`  ${bullets.size} bullet${bullets.size === 1 ? '' : 's'}${picks.summary !== undefined ? ' and a summary' : ''} picked, ${lang}, ${format}@${lookId ?? theme}${recipe.design ? ` ${JSON.stringify(recipe.design)}` : ''}${recipe.exportMedium ? `, for ${recipe.exportMedium}` : ''}, ${picks.pageLimit === 0 ? 'any number of pages' : `${picks.pageLimit} page${picks.pageLimit === 1 ? '' : 's'}`}`);
 if (empty.length) console.log(`  jobs left off, no bullet picked: ${empty.map(j => j.id).join(', ')}`);
 for (const a of auto) console.log(`  chose, because the default would print a refused version: ${a}`);
 for (const p of problems) console.log(`  ⚠  will not export: ${p}`);

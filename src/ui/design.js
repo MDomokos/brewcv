@@ -1,10 +1,10 @@
 // The Design view: pages, paper, template, accent, theme import and export, and the photo.
 // All per resume, except the photo and imported themes, which live once in the record.
-// The look settings (`recipe.design`), an imported theme (`recipe.look`) and the accent become one CSS block that the sheet
-// and the exports add after the base theme. None touches the renderer.
+// The look settings (`recipe.design`), an imported theme (`recipe.look`) and the accent become one CSS block (lookCss) that the
+// sheet and the exports add after the base theme. None touches the renderer.
 
 import * as K from '../model/tokens.js';
-import { designOf, designCss, setDesign, PRESETS, FONTS, SIZES, DENSITIES, COLOURS, WORDS } from '../model/design.js';
+import { designOf, lookCss, tokensOf, setDesign, PRESETS, FONTS, SIZES, DENSITIES, COLOURS, WORDS } from '../model/design.js';
 import { THEMES, lookOf } from '../themes.js';
 import { toAuto, setPhoto as setResumePhoto, setRecordPhoto } from '../model/resume.js';
 import { t, h, errText, keyed } from '../i18n/index.js';
@@ -23,17 +23,8 @@ const BASE_TOKENS = { tab: '{color.accent}', 'tab-ink': '#1a1a1a', ink: '#1a1a1a
 const tplName = x => t(`design.tpl.${x.id}`);
 const tplNote = x => t(`design.tplNote.${x.id}`);
 
-// The tokens a resume adds on top of its base theme.
-export function tokensOf(record, recipe){
-  const t = { ...((record.themes ?? []).find(x => x.id === recipe.look)?.tokens ?? {}) };
-  if (recipe.accent){ t.accent = recipe.accent; t.highlight = recipe.accent; }
-  return t;
-}
-// The look settings first, then the accent and an imported theme's tokens, so an imported theme still wins.
-export const extraCss = (record, recipe) => {
-  const look = lookOf(recipe);
-  return designCss(look, designOf(recipe, look), { accent: recipe.accent }) + K.toCss(tokensOf(record, recipe));
-};
+// The resume's whole extra CSS (src/model/design.js lookCss), for a screen or for an export's medium.
+export const extraCss = (record, recipe, medium = 'screen') => lookCss(record, recipe, { medium });
 
 // An image file → a 35 × 45 mm passport crop, a 472 × 600 JPEG data URL of at most 300 KB.
 export async function cropPhoto(file){
@@ -234,4 +225,4 @@ function bind(body){
   });
 }
 
-const api = { views: { design: designView }, act, bind, setPhoto, togglePhoto, askPhoto, importTheme, extraCss: (rec, r) => extraCss(rec, r), tokensOf };
+const api = { views: { design: designView }, act, bind, setPhoto, togglePhoto, askPhoto, importTheme, extraCss, tokensOf };

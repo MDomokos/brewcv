@@ -3,6 +3,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { lookCss } from '../../src/model/design.js';
 
 const grab = (css, name) => {
   // a size may be written calc(<n>px * var(--type-scale)): the scale is 1 in the stylesheets
@@ -10,7 +11,8 @@ const grab = (css, name) => {
   return m ? Number(m[1]) : null;
 };
 
-export function geometryFor(repo, recipe){
+// `model`: the record, to read the resume's own text size and line spacing (its look settings) as the app measures them.
+export function geometryFor(repo, recipe, model = null){
   const formats = [...new Set([recipe.format.replace(/-[a-z]+$/, ''), recipe.format])];
   let css = '';
   for (const f of formats){
@@ -22,5 +24,7 @@ export function geometryFor(repo, recipe){
   const fs_ = grab(theme, '--fs-bullet'), lh = grab(theme, '--lh-bullet');
   if ([h, t, b, fs_, lh].some(x => x === null))
     throw new Error(`cannot read the page or the body line for ${recipe.format}@${recipe.theme} from formats/ and themes/`);
-  return { usable: h - t - b, lineH: fs_ * lh };
+  const look = model ? lookCss(model, recipe) : '';
+  const scale = Number(/--type-scale:([\d.]+)/.exec(look)?.[1] ?? 1), own = Number(/--lh-bullet:([\d.]+)/.exec(look)?.[1] ?? lh);
+  return { usable: h - t - b, lineH: fs_ * scale * own };
 }

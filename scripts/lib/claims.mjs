@@ -6,14 +6,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { entriesOf } from '../../src/model/entries.js';
+import { THEMES } from '../../src/themes.js';
+import { offersOf, MEDIA } from '../../src/model/design.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const namesIn = (dir, ext) => fs.readdirSync(path.join(REPO, dir)).filter(f => f.endsWith(ext)).map(f => f.slice(0, -ext.length)).sort();
-// What picks.json may name for format and theme
-export const optionsOf = model => ({
+// What picks.json may name: the formats, the looks a resume can be given (not the earlier ones, which only render) with what each
+// offers for `design` (A4: Small is not offered on Letter), and the export media. `defaults` are the look's own, written as the Design view shows.
+export const optionsOf = () => ({
   formats: namesIn('templates', '.html'),
-  themes: [...new Set([...namesIn('themes', '.css'), ...(model.themes ?? []).map(t => t?.id ?? t?.name).filter(Boolean)])],
+  looks: THEMES.filter(x => !x.earlier).map(x => ({ id: x.id, name: x.name, note: x.note, design: offersOf(x, 'a4'),
+    defaults: { preset: x.design.preset, fonts: x.design.font } })),
+  exportMedia: MEDIA,
 });
+// The stylesheet names the old `theme` field takes (it can set a base theme that is really an overlay: use `look`)
+export const stylesheetsOf = model => [...new Set([...namesIn('themes', '.css'), ...(model.themes ?? []).map(t => t?.id ?? t?.name).filter(Boolean)])];
 
 export const langOf = v => v?.lang ?? DEFAULT_LANG;
 export function indexOf(model){

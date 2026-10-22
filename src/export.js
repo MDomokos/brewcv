@@ -7,7 +7,7 @@ import { langName } from './model/lang.js';
 import { t } from './i18n/index.js';
 
 // css: [{ href, text }] in template order, with url()s already inlined.
-export function assembleHtml({ templateHtml, css = [], documentHtml, title = 'Resume', lang = 'en', rootVars = {} }){
+export function assembleHtml({ templateHtml, css = [], documentHtml, title = 'Resume', lang = 'en', rootVars = {}, htmlClass = '' }){
   let h = String(templateHtml);
   h = h.replace(/<!--[\s\S]*?-->/g, '');
   h = h.replace(/<script\b[\s\S]*?<\/script>/gi, '');
@@ -25,7 +25,7 @@ export function assembleHtml({ templateHtml, css = [], documentHtml, title = 'Re
   const tail = [...extra.map(c => `<style>\n${c.text}\n</style>`), vars.length ? `<style>:root { ${vars.map(([k, v]) => `${k}: ${v};`).join(' ')} }</style>` : ''].join('\n');
   h = h.replace(/<\/head>/i, `${tail}\n</head>`);
   h = h.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
-  h = h.replace(/<html\b[^>]*>/i, `<html lang="${escapeHtml(lang)}">`);
+  h = h.replace(/<html\b[^>]*>/i, `<html lang="${escapeHtml(lang)}"${htmlClass ? ` class="${escapeHtml(htmlClass)}"` : ''}>`);
   h = h.replace(/(<div class="document">)[\s\S]*?(<\/div>\s*<\/body>)/i, (_, a, b) => `${a}\n${documentHtml}\n${b}`);
   return h.replace(/\n{3,}/g, '\n\n');
 }

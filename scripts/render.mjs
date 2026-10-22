@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// node scripts/render.mjs <data.json> <recipe.json> <out.html> [--annotate] [--probe <k>] [--repo <dir>]
-// Renders a library plus recipe into a template via src/render.js and scripts/lib/dom.mjs.
+// node scripts/render.mjs <data.json> <recipe.json> <out.html> [--medium screen|print|pen] [--annotate] [--probe <k>] [--repo <dir>]
+// Renders a library plus recipe into a template via src/render.js and scripts/lib/dom.mjs, with the resume's look settings
+// (src/model/design.js lookCss). --medium: for a screen, for printing or for a highlighter pen; the recipe's exportMedium by default.
 // --annotate and --probe <k> are measuring passes for checks/measure-variants.mjs, never for sending.
 
 import fs from 'node:fs';
@@ -11,13 +12,14 @@ import { renderPages, probeRecipe } from '../src/render.js';
 import { validate } from '../checks/lib/validate.mjs';
 import { exportBlockers } from '../src/data.js';
 import { readLibrary, readRecipe } from './lib/library.mjs';
+import { mediumOf, lookFor } from './lib/look.mjs';
 
 const HOLE = '<!-- {{document}} -->';
 
 const argv = process.argv.slice(2);
 const annotate = argv.includes('--annotate');
 const flagged = new Set();
-for (const f of ['--repo', '--probe']){ const i = argv.indexOf(f); if (i >= 0){ flagged.add(i); flagged.add(i + 1); } }
+for (const f of ['--repo', '--probe', '--medium']){ const i = argv.indexOf(f); if (i >= 0){ flagged.add(i); flagged.add(i + 1); } }
 const arg = f => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
 const REPO = arg('--repo') ? path.resolve(arg('--repo'))
   : path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -26,13 +28,15 @@ const rest = argv.filter((a, n) => a !== '--annotate' && !flagged.has(n));
 const [DATA, RECIPE, OUT] = rest;
 
 if (!DATA || !RECIPE || !OUT){
-  console.error('usage: node scripts/render.mjs <data.json> <recipe.json> <out.html> [--annotate] [--probe <k>] [--repo <dir>]');
+  console.error('usage: node scripts/render.mjs <data.json> <recipe.json> <out.html> [--medium screen|print|pen] [--annotate] [--probe <k>] [--repo <dir>]');
   process.exit(2);
 }
 
 const data = readLibrary(DATA).model;
 if (probe !== undefined && !Number.isInteger(probe)){ console.error('--probe takes a whole number'); process.exit(2); }
 const opened = readRecipe(RECIPE).recipe;
+// a measuring pass is the app's own measurement, which is made on a screen: unless a medium is asked for, it measures that
+const medium = mediumOf(arg('--medium') ?? (annotate || probe !== undefined ? 'screen' : undefined), opened);
 const recipe = probe === undefined ? opened : probeRecipe(data, opened);
 
 const { errors } = validate(data);
@@ -79,6 +83,11 @@ if (toRepo !== '..')
   html = html.replace(/\b(href|src)="\.\.\/([^"]*)"/g, (m, a, rest) => `${a}="${toRepo}/${rest}"`);
 const outside = toRepo.startsWith('..') && toRepo !== '..';
 
+// the look settings, the accent and an imported theme's tokens: after every stylesheet, as the app adds them
+const look = lookFor(data, recipe, medium, outDir, REPO);
+if (look.css) html = html.replace('</head>', () => `<style id="look-css">\n${look.css}\n</style>\n</head>`);
+if (look.paper) html = html.replace(/<html\b([^>]*)>/, (m, a) => `<html${a} class="medium-print">`);
+
 fs.mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true });
 fs.writeFileSync(OUT, html);
 
@@ -89,7 +98,7 @@ const overrides = [...ctx.chosen.values()].filter(v => v.override);
 
 console.log(`${recipe.application ?? OUT}`);
 console.log(`  ${recipe.format}@${recipe.theme} · ${pages.length} page${pages.length === 1 ? '' : 's'}`
-  + ` · ${ctx.chosen.size} phrasings${annotate ? ' · annotated' : ''}`);
+  + ` · ${ctx.chosen.size} phrasings${medium === 'screen' ? '' : ` · for ${medium === 'pen' ? 'a highlighter pen' : 'printing'}`}${annotate ? ' · annotated' : ''}`);
 for (const [fact, v] of ctx.chosen)
   if (v.id !== `${fact}-base`) console.log(`    ${fact} → ${v.id}`);
 if (overrides.length) console.log(`  ${overrides.length} recipe override(s): ${overrides.map(v => v.id).join(', ')}`);

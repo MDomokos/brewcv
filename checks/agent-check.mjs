@@ -101,7 +101,7 @@ const oneFile = w('one.json', { resumeBuilderBackup: 1, saved: '2026-01-02T03:04
   ok('the summary is not listed twice, and other sections say they are not picked', !none.sections.some(s => s.id === 'summary') && JSON.parse(run('scripts/claims.mjs', EX, '--json').out).sections.every(s => s.pickable === false));
   const hu = JSON.parse(run('scripts/claims.mjs', EX, '--lang', 'hu', '--json').out);
   ok('a job title with no version in the language falls back, never "undefined"', hu.jobs.every(x => x.position && !/undefined/.test(x.position)));
-  ok('the formats and themes picks.json may name are listed', cl.out.includes('"formats"') && claims.options.formats.includes('a4') && claims.options.themes.includes('b2-marker'));
+  ok('the formats, the looks with what each offers, and the export media picks.json may name are listed', cl.out.includes('"formats"') && claims.options.formats.includes('a4') && claims.options.looks.some(l => l.id === 'classic' && l.design.fonts.join() === 'source' && l.design.size.includes('small')) && !('themes' in claims.options) && claims.options.exportMedia.join() === 'screen,print,pen');
   ok('a missing file is one line, not a stack trace', (r => r.code === 1 && !/\n\s+at /.test(r.err))(run('scripts/claims.mjs', path.join(tmp, 'nope.json'))));
 }
 
@@ -199,6 +199,51 @@ ok('it takes the one file too', run('scripts/new-resume.mjs', oneFile, mkPicks('
   ok('two jobs interleaved keep each job\'s own order, and jobOrder decides the jobs', mix.r.code === 0
     && mix.refs.map(r => r.id).join() === 'hydra,poly' && mix.refs[0].highlights.join() === 'hydra-dfm,hydra-inhaler'
     && mix.refs[1].highlights.join() === 'poly-jigs,poly-shop', JSON.stringify(ord) + mix.r.err);
+}
+
+// look settings: `look`, `design` and `exportMedium`, written as the Design and Export views write them, and the scripts that apply them
+{
+  const lk = (name, extra) => { const d = path.join(tmp, name); const r = run('scripts/new-resume.mjs', EX, mkPicks(name + '.json', picks({ theme: undefined, ...extra })), d); const f = path.join(d, fs.existsSync(d) ? (fs.readdirSync(d)[0] ?? 'none') : 'none'); return { r, f, saved: r.code === 0 ? S.loadResume(JSON.parse(fs.readFileSync(f, 'utf8')), model) : null }; };
+  const a = lk('look-a', { look: 'classic', design: { size: 'large', density: 'compact', colour: 'green', preset: 'quiet' }, exportMedium: 'print' });
+  ok('a look, its settings and an export medium are written as the app writes them (a default is no key)', a.r.code === 0 && a.saved.warnings.length === 0 && a.saved.recipe.overlays.join() === 'classic'
+    && JSON.stringify(a.saved.recipe.design) === '{"size":"large","density":"compact","colour":"green"}' && a.saved.recipe.exportMedium === 'print' && a.saved.recipe.theme === 'b2-marker', a.r.err);
+  const d = lk('look-d', { look: 'b2', design: { preset: 'quiet', size: 'medium' }, exportMedium: 'screen' });
+  ok('the look\'s own defaults and a screen write no overlays, no design and no exportMedium', d.r.code === 0 && d.saved.recipe.overlays.length === 0 && !('design' in d.saved.recipe) && !('exportMedium' in d.saved.recipe), d.r.err);
+  ok('an old picks.json with a theme and no look still works', good.code === 0 && loaded.recipe.overlays.length === 0 && loaded.recipe.theme === 'b2-marker');
+  const bad = (what, extra, re, p) => refuse(what, mkPicks('a.json', { ...picks({ theme: undefined, ...extra }), ...(p ?? {}) }), EX, re);
+  bad('a look that does not exist', { look: 'nope' }, /look: nope is not one of/);
+  bad('an earlier look, which only renders', { look: 'mono' }, /look: mono is not one of/);
+  bad('a theme and a look together', { look: 'dots', theme: 'dots' }, /theme and look both name the look/);
+  bad('a setting the look does not offer', { look: 'classic', design: { fonts: 'plex' } }, /design\.fonts: "plex" is not offered on classic \(it offers source\)/);
+  bad('Small on Letter', { format: 'us-letter', design: { size: 'small' } }, /design\.size: "small" is not offered on b2 for Letter/);
+  bad('a size Classic full width does not have', { look: 'classic-full', design: { size: 'small' } }, /design\.size: "small" is not offered on classic-full/);
+  bad('a setting that is not one', { design: { shade: 'red' } }, /design\.shade: not a setting/);
+  bad('a design that is not an object', { design: 'soft' }, /design: must be an object/);
+  bad('an export medium that does not exist', { exportMedium: 'sepia' }, /exportMedium: "sepia" is not one of screen, print, pen/);
+
+  // render.mjs applies them, for the recipe's medium or the one asked for
+  const html = (m, name = 'look-' + (m ?? 'own')) => { const f = path.join(tmp, name + '.html'); const r = run('scripts/render.mjs', EX, a.f, f, ...(m ? ['--medium', m] : [])); return { r, text: r.code === 0 ? fs.readFileSync(f, 'utf8') : '' }; };
+  const own = html(), scr = html('screen'), pen = html('pen');
+  ok('render.mjs adds the resume\'s look settings after the stylesheets, for its own medium: the highlighter shade, the paper class', own.r.code === 0 && /<style id="look-css">[^]*--accent:#a3f07a[^]*--type-scale:[\d.]+[^]*<\/style>\s*<\/head>/.test(own.text) && /<html lang="en" class="medium-print">/.test(own.text), own.r.err);
+  ok('--medium screen: the screen shade and no paper class', scr.r.code === 0 && /--accent:#7fd1ae/.test(scr.text) && !/--accent:#a3f07a/.test(scr.text) && /<html lang="en">/.test(scr.text));
+  ok('--medium pen: transparent highlights and dotted guides, last, and the paper class', pen.r.code === 0 && /--accent:transparent/.test(pen.text) && /dotted/.test(pen.text) && /class="medium-print"/.test(pen.text) && !/--accent:#a3f07a|--accent:#7fd1ae/.test(pen.text));
+  const fnt = lk('look-f', { design: { fonts: 'plex' } }), fh = path.join(tmp, 'look-f.html');
+  run('scripts/render.mjs', EX, fnt.f, fh);
+  ok('the font urls of a pairing the look brings point at the repo from where the page is', /url\("[^"]*\/IBMPlexSans-Bold-latin\.woff2"\)/.test(fs.readFileSync(fh, 'utf8')) && !/url\("\.\.\/fonts/.test(fs.readFileSync(fh, 'utf8').split('look-css')[1] ?? ''));
+  ok('a medium that does not exist is refused', run('scripts/render.mjs', EX, a.f, path.join(tmp, 'x.html'), '--medium', 'sepia').code === 2);
+  const plain = path.join(tmp, 'plain.html');
+  run('scripts/render.mjs', EX, file, plain);
+  ok('a resume with no look settings renders with no look block and no class', !/look-css|medium-print/.test(fs.readFileSync(plain, 'utf8')));
+  // the measuring passes are on a screen, as the app measures, unless asked
+  const ann = path.join(tmp, 'ann.html');
+  run('scripts/render.mjs', EX, a.f, ann, '--annotate');
+  ok('--annotate measures on a screen, whatever the resume\'s medium', /--accent:#7fd1ae/.test(fs.readFileSync(ann, 'utf8')) && !/medium-print/.test(fs.readFileSync(ann, 'utf8')));
+  // export-pdf needs a resume to add the look to; the browser part is checks/export-check.mjs's
+  const e = run('scripts/export-pdf.mjs', path.join(tmp, 'x.html'), path.join(tmp, 'x.pdf'), '--medium', 'print');
+  ok('export-pdf --medium without --data and --recipe says so', e.code === 1 && /--data and --recipe go together/.test(e.err), e.err);
+  // Fit's dry model reads the resume's text size and line spacing
+  const line = f => /body line ([\d.]+)px/.exec(run('scripts/fit.mjs', EX, f, '--fit', '--model', '6.7').out)?.[1];
+  ok('Fit\'s dry model measures the body line the settings give (Large and Compact), not the look\'s own', line(a.f) && line(file) && line(a.f) !== line(file), `${line(a.f)} vs ${line(file)}`);
 }
 
 refuse('an id that does not exist', mkPicks('a.json', picks({ bullets: ['hydra-inhaler-v99'] })), EX, /not a version in the record/);

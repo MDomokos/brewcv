@@ -13,7 +13,7 @@ import { load } from '../src/model/schema.js';
 import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages, defaultRecipe, measureKey } from '../src/render.js';
 import { key as fitKey } from '../src/fit.js';
-import { PRESETS, FONTS, SIZES, DENSITIES, COLOURS, WORDS, MEDIA, designOf, designCss, setDesign } from '../src/model/design.js';
+import { PRESETS, FONTS, SIZES, DENSITIES, COLOURS, WORDS, MEDIA, designOf, designCss, setDesign, lookCss, tokensOf, onPaper, offersOf, designProblems } from '../src/model/design.js';
 import en from '../src/i18n/en.js';
 import { groupedOf, setSectionGrouped } from '../src/model/resume.js';
 
@@ -102,6 +102,29 @@ section('designCss');
   ok('a pen draws dotted guides on the marks, the name and the filled labels, even on the look\'s defaults', /dotted/.test(css(b2, {}, { medium: 'pen' })) && /dotted/.test(css(b2, { preset: 'marker' }, { medium: 'pen' })) && /outline:1\.2px dotted/.test(css(b2, { preset: 'marker' }, { medium: 'pen' })) && /border-bottom:1\.4px dotted/.test(css(L('banner'), {}, { medium: 'pen' })) && !/color-mix\(in srgb,var\(--accent\)/.test(css(b2, { preset: 'soft' }, { medium: 'pen' })));
   ok('screen, print and pen differ', new Set(['screen', 'print', 'pen'].map(medium => css(b2, { preset: 'marker' }, { medium }))).size === 3);
   ok('a legacy look gets its labels from the section style only when one is chosen', css(L('mono'), {}) === '' && /background:var\(--accent\)/.test(css(L('mono'), { preset: 'marker' })));
+}
+
+section('lookCss');
+{
+  const rec = { themes: [{ id: 'theme-x', name: 'X', tokens: { accent: '#d6b4ff', ink: '#202040' } }] };
+  const own = { design: { preset: 'marker', size: 'large' }, accent: '#336699', look: 'theme-x', format: 'a4' };
+  const screen = lookCss(rec, own), print = lookCss(rec, own, { medium: 'print' }), pen = lookCss(rec, own, { medium: 'pen' });
+  ok('a resume at its defaults adds nothing, on a screen and on paper', lookCss({}, {}) === '' && lookCss({}, { format: 'a4' }, { medium: 'screen' }) === '');
+  ok('the design settings come first, then the accent and an imported theme\'s tokens (the resume\'s own accent wins over the theme\'s)', screen.indexOf('--type-scale') < screen.indexOf('--accent: #336699') && /--accent: #336699/.test(screen) && !/#d6b4ff/.test(screen) && /--ink: #202040/.test(screen));
+  ok('on a screen and in print the accent token is the colour, and the settings\' own colour does not cover it', /--accent: #336699/.test(print) && print.lastIndexOf('--accent') > print.indexOf('--type-scale'));
+  ok('a pen\'s rules come last, after the accent and the theme\'s tokens, so the highlights stay transparent', pen.lastIndexOf('--accent: #336699') < pen.lastIndexOf('--accent:transparent') && pen.lastIndexOf('--ink: #202040') < pen.indexOf('--accent:transparent') && pen.lastIndexOf('dotted') > pen.lastIndexOf('--accent: #336699'));
+  ok('the pen\'s guides are in it, and print is not the pen', /dotted/.test(pen) && !/dotted/.test(print) && !/dotted/.test(screen));
+  ok('the colour in print is the highlighter shade, and an accent of the resume\'s own is its colour either way', /--accent:#fff04d/.test(lookCss({}, { design: { preset: 'marker' } }, { medium: 'print' })) && !/--accent:#fff04d/.test(print));
+  ok('designCss is the same without the tokens', designCss(THEMES[0], designOf({ design: { size: 'large' } }, THEMES[0]), { medium: 'pen' }).includes('--accent:transparent'));
+  ok('tokensOf: an imported theme\'s tokens, then the resume\'s accent for the accent and the highlight', JSON.stringify(tokensOf(rec, own)) === JSON.stringify({ accent: '#336699', ink: '#202040', highlight: '#336699' }));
+  ok('print and pen are for paper (the page gets medium-print), a screen is not, an unknown one is not', onPaper('print') && onPaper('pen') && !onPaper('screen') && !onPaper('x') && !onPaper());
+  ok('an unknown medium is a screen', lookCss(rec, own, { medium: 'x' }) === screen);
+  const b2 = L('b2');
+  ok('offersOf: what the look offers, Small not on Letter, nothing for a look with no design', offersOf(b2, 'a4').size.join() === 'small,medium,large' && offersOf(b2, 'us-letter').size.join() === 'medium,large' && offersOf(NONE, 'a4') === null && offersOf(L('classic'), 'a4').fonts.join() === 'source');
+  ok('designProblems: an offered setting is none, one the look does not offer is named with what it offers', designProblems({ size: 'large', fonts: 'plex' }, b2, 'a4').length === 0
+    && /design\.fonts: "plex" is not offered on classic \(it offers source\)/.test(designProblems({ fonts: 'plex' }, L('classic'), 'a4')[0])
+    && /design\.size: "small" is not offered on b2 for Letter/.test(designProblems({ size: 'small' }, b2, 'us-letter')[0])
+    && /design\.shade: not a setting/.test(designProblems({ shade: 'x' }, b2, 'a4')[0]) && designProblems('soft', b2, 'a4').length === 1 && designProblems({}, b2, 'a4').length === 0 && designProblems({ preset: null }, b2, 'a4').length === 1);
 }
 
 section('the renderer');
