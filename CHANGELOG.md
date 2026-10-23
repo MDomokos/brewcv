@@ -4,6 +4,9 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+### Fixed
+- **Linux: Save as PDF writes the file you chose at the resume's paper size,** with no second print dialog, no footer and no extra blank pages.
+
 ## 1.5.2 - 2026-10-22
 
 ### Changed

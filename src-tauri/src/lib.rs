@@ -58,8 +58,36 @@ fn start_print(window: &tauri::WebviewWindow, path: &str, width: f64, height: f6
         .map_err(|e| e.to_string())
 }
 
+// WebKitGTK prints straight to a file, no dialog: the paper is the format's and the margins are none, so nothing is drawn round the page (the
+// footer with a name and a page number came from the print dialog's own settings).
+#[cfg(target_os = "linux")]
+fn start_print(window: &tauri::WebviewWindow, path: &str, width: f64, height: f64) -> Result<(), String> {
+    use gtk::{glib, PageSetup, PaperSize, PrintSettings, Unit};
+    use webkit2gtk::{PrintOperation, PrintOperationExt};
+
+    let uri = glib::filename_to_uri(path, None).map_err(|e| e.to_string())?;
+    window
+        .with_webview(move |wv| {
+            let setup = PageSetup::new();
+            setup.set_paper_size(&PaperSize::new_custom("brewcv", "BrewCV", width, height, Unit::Points));
+            setup.set_top_margin(0.0, Unit::Points);
+            setup.set_bottom_margin(0.0, Unit::Points);
+            setup.set_left_margin(0.0, Unit::Points);
+            setup.set_right_margin(0.0, Unit::Points);
+            let settings = PrintSettings::new();
+            settings.set_printer("Print to File");
+            settings.set(&gtk::PRINT_SETTINGS_OUTPUT_FILE_FORMAT, Some("pdf"));
+            settings.set(&gtk::PRINT_SETTINGS_OUTPUT_URI, Some(uri.as_str()));
+            let op = PrintOperation::new(&wv.inner());
+            op.set_page_setup(&setup);
+            op.set_print_settings(&settings);
+            op.print();
+        })
+        .map_err(|e| e.to_string())
+}
+
 // The page falls back to the browser's print dialog on this error.
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 fn start_print(_window: &tauri::WebviewWindow, _path: &str, _width: f64, _height: f64) -> Result<(), String> {
     Err("unsupported".into())
 }

@@ -62,7 +62,7 @@ export async function buildHtml(recipe = C.cur(), laid = C.ui.laid){
 }
 
 // The desktop app (Tauri): one Save dialog, then a hidden window prints the page straight to that file (desktop/print.js).
-// Returns true when it handled the export; false means "use the print dialog instead" (not macOS, or the export failed to start).
+// Returns true when it handled the export; false means "use the print dialog instead" (not macOS or Linux, or the export failed to start).
 async function savePdfFile(html){
   const T = window.__TAURI__;
   const path = await T.dialog.save({ defaultPath: X.exportName(C.cur(), st().record, 'pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
