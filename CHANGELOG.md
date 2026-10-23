@@ -4,6 +4,29 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+## 1.6.0 - 2026-10-24
+
+The new interface: the sidebar, editing straight on the page, and a new Export screen. This is a pre-release: some bugs are still being fixed.
+
+### Added
+- **A finish screen in Export:** the status, the PDF first, the other formats, "Sent it?" and the backup.
+- **A Tailor row in the sidebar,** and a "?" corner for help.
+- **The sidebar's width can be dragged or folded away** with Ctrl+\.
+
+### Changed
+- **A new sidebar:** folder tabs, a visible fold, banded sections and one column of ticks in the Outline, and a clearer lock.
+- **Ticks replace the on and off pills,** and switched-off sections, jobs and lines keep their place.
+- **Editing on the page is direct:** hover and selection are soft washes, the grip is part of the highlight, and it stays with the page as you move.
+- **A dragged block snaps into place with a little lag.**
+- **One position chip with a back control,** and the version pill shows the other versions above and below.
+- **A job title needs a second click to edit,** and header rows edit in place.
+- **Hovering a chip's tick or padlock previews the action on the page.**
+- **A sidebar row under the pointer lights its block on the page.**
+- **Outline section titles are easier to read in every look.**
+- **One set of icons:** one icon for each idea, and delete is an X.
+- **One kind of button:** an edge or a fill, never a shadow alone, and one look for delete.
+- **The old pills and free drag can be brought back** with `?switches` or `?drag=free` in the address.
+
 ## 1.5.2 - 2026-10-22
 
 ### Changed
@@ -42,11 +65,6 @@ New looks and settings in the Design view. The new looks are a work in progress:
 ### Fixed
 - **A job moved with the keyboard onto the next page keeps its focus.**
 - **The editing chip no longer covers text.**
-
-### Changed
-- **The chip's tick and padlock preview an action, not a new shape.** Hovering either draws the block's own hover plate, deeper, with one cue: the tick fades the block, the padlock tints the plate with the lock wash and closes a hairline frame in on its edge (opening outward when unlocking). Still motion shows the end state at once.
-- **A row of the sidebar under the pointer lights its block with the page's own hover plate.** A section row, a job row or a line row drives the same plate as the pointer on the page, 1.4 times stronger, fading in and out and gliding from row to row, with no outline of its own.
-- **The Outline's section titles read at 7:1 or more in all four looks.** Measured by pixels on the bands: every title takes the full ink (the fixed rows had the soft one), Tea's bands are a little less tinted with its ink a step toward white, and Coffee's titles are 15 px with open tracking instead of tight (Fira Code has one real weight, so its bold is the browser's).
 
 ## 1.4.3 - 2026-10-21
 
