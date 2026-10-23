@@ -17,8 +17,8 @@ function run(commits){
   sh('git', ['init', '-q', '-b', 'main']);
   fs.mkdirSync(path.join(dir, 'checks'));
   fs.writeFileSync(path.join(dir, 'checks/deny.local.json'), JSON.stringify({ deny: ['forbidden-word'], commitEmails: [OWN] }));
-  commits.forEach(({ message, email = OWN, name = 'Someone' }, i) => {
-    fs.writeFileSync(path.join(dir, 'f.txt'), String(i));
+  commits.forEach(({ message, email = OWN, name = 'Someone', content }, i) => {
+    fs.writeFileSync(path.join(dir, 'f.txt'), content ?? String(i));
     sh('git', ['add', 'f.txt']);
     sh('git', ['commit', '-q', '-m', message], { GIT_AUTHOR_NAME: name, GIT_AUTHOR_EMAIL: email, GIT_COMMITTER_NAME: name, GIT_COMMITTER_EMAIL: email });
   });
@@ -37,5 +37,7 @@ expect('a denied word in a message fails', run([{ message: 'Add a forbidden-word
 expect('a denied word in a later commit body fails', run([{ message: 'One' }, { message: 'Two\n\nforbidden-word here' }]).status === 1);
 expect('an author email outside commitEmails fails', run([{ message: 'Add', email: 'other@example.org' }]).status === 1);
 expect('a denied value in an author name alone passes', run([{ message: 'Add', name: 'forbidden-word' }]).status === 0);
+expect('a font unicode-range is not a phone number', run([{ message: 'Add', content: 'unicode-range: U+0000-00FF, U+0131, U+0152-0153;' }]).status === 0);
+expect('a phone number in a file still fails', run([{ message: 'Add', content: 'Call +44' + ' 7700 900123' }]).status === 1);
 
 process.exit(bad ? 1 : 0);

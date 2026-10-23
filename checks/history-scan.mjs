@@ -60,7 +60,7 @@ for (const f of everSeen){
 // content, in every revision
 const PATTERNS = [
   ['email address', '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}'],
-  ['phone number',  '\\+[0-9][0-9 ().-]{7,}[0-9]'],
+  ['phone number',  '(^|[^A-Za-z0-9])\\+[0-9][0-9 ().-]{7,}[0-9]'],   // not after a letter or digit: a font's unicode-range (U+0152-0153) has the shape of a number
   ['embedded image', 'data:image/(png|jpeg|webp);base64,'],
 ];
 const ALLOW = /@[0-9]x\.(png|jpe?g|webp)|example\.(org|com|net)|@example|noreply@|dana@|\+351 900|\+1 555|\+00 000/;
