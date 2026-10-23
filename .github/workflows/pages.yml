@@ -48,6 +48,7 @@ jobs:
             --exclude 'docs/*.png' \
             --exclude 'docs/*.gif' \
             --exclude 'docs/moments' \
+            --exclude 'docs/intro' \
             --exclude '*.local.json' \
             --exclude 'data/resume-data.json' \
             --exclude 'data/recipes'

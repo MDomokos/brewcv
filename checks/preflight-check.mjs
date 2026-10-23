@@ -46,4 +46,11 @@ expect('a clean SVG is accepted', !run('svg', d => fs.writeFileSync(path.join(d,
 expect('an SVG with a c2pa manifest is refused', run('svg2', d => fs.writeFileSync(path.join(d, 'icons/icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"><metadata>c2pa.manifest</metadata></svg>')).includes(META));
 expect('a prototypes/ folder is refused', run('proto', d => { fs.mkdirSync(path.join(d, 'prototypes')); fs.writeFileSync(path.join(d, 'prototypes/a.html'), '<p>x</p>'); }).includes('prototypes live outside the repo'));
 
+const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.from([4, 0, 0, 0]), Buffer.from('WEBP')]);
+const SHIPS = 'the only images that ship';
+expect('a README picture in docs/intro is accepted', !run('webp', d => { fs.mkdirSync(path.join(d, 'docs/intro'), { recursive: true }); fs.writeFileSync(path.join(d, 'docs/intro/a.webp'), webp); }).includes(SHIPS));
+expect('a picture anywhere else is refused', run('webp2', d => { fs.mkdirSync(path.join(d, 'docs'), { recursive: true }); fs.writeFileSync(path.join(d, 'docs/a.webp'), webp); }).includes(SHIPS));
+expect('a font unicode-range is not a phone number', !run('range', d => fs.writeFileSync(path.join(d, 'a.css'), '@font-face { unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC; }')).includes('phone number'));
+expect('a phone number still is', run('phone', d => fs.writeFileSync(path.join(d, 'a.md'), 'Call +44' + ' 7700 900123 today')).includes('phone number'));
+
 process.exit(bad ? 1 : 0);

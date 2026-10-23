@@ -156,9 +156,9 @@ for (const f of files){
   if (/^out\//.test(rel))              flag(f, 0, 'rendered output', rel);
   if (/\.pdf$/i.test(rel))             flag(f, 0, 'PDF', `${rel}: rendered documents stay outside the repo`);
   if (/^data\/recipes\//.test(rel))    flag(f, 0, 'recipe', `${rel}: recipes name real applications`);
-  // The only images that ship are the app's own icons.
-  if (RASTER.test(rel) && !/^(src-tauri\/)?icons\//.test(rel))
-    flag(f, 0, 'image', `${rel}: the only images that ship are icons/`);
+  // The only images that ship are the app's own icons, and the README's pictures (made from the fictional example, kept out of the site).
+  if (RASTER.test(rel) && !/^(src-tauri\/)?icons\//.test(rel) && !/^docs\/intro\/[^/]+\.webp$/.test(rel))
+    flag(f, 0, 'image', `${rel}: the only images that ship are icons/ and docs/intro/*.webp`);
   if (rel.split('/').includes('prototypes'))
     flag(f, 0, 'prototype', `${rel}: prototypes live outside the repo`);
   if (IMAGE.test(rel)){
@@ -202,7 +202,8 @@ for (const f of files){
       if (EXAMPLE_DOMAIN.test(domain)) continue;
       flag(f, n + 1, 'email address', addr);
     }
-    for (const m of line.matchAll(PHONE)){
+    // a font's unicode-range (U+0152-0153) has the shape of a number
+    for (const m of line.replace(/U\+[0-9A-Fa-f?]+(?:-[0-9A-Fa-f]+)?/g, '').matchAll(PHONE)){
       const num = m[0].replace(/[  ().-]+/g, ' ').trim();
       if (ALLOWED_PHONES.some(a => a.replace(/\s+/g, '') === num.replace(/\s+/g, ''))) continue;
       flag(f, n + 1, 'phone number', num);
