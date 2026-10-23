@@ -4,15 +4,13 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
-### Fixed
-- **Linux: Save as PDF writes the file you chose at the resume's paper size,** with no second print dialog, no footer and no extra blank pages.
-
 ## 1.5.2 - 2026-10-22
 
 ### Changed
 - **On a short window the start screen's column is smaller and no longer scrolls:** Yours to keep shrinks to four icons that open the same notes.
 
 ### Fixed
+- **Linux: Save as PDF writes the file you chose at the resume's paper size,** with no second print dialog, no footer and no extra blank pages.
 - **The start screen's story fits short, tall and ultrawide windows,** instead of being cut off or blown up.
 - **The Tea and Coffee switch, the light and dark switch and Why JSON? are flat,** with no shadow that clipped oddly in a small window.
 
