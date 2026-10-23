@@ -12,8 +12,6 @@ import { logoBtn, drink, themePref, resolveTheme } from './drink.js';
 import * as fx from './buttonfx.js';
 import * as story from './story.js';
 
-let C = null;
-export function initStart(ctx){ C = ctx; return api; }
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -69,7 +67,7 @@ export function bodyHtml({ langs, current }){
 export const footHtml = () => `<section class="obkeep"><div class="obkhead"><h3 data-h="onb.keepHead">${h('onb.keepHead')}</h3>
     <button type="button" class="obwhy" aria-expanded="false" aria-controls="obwhypop" data-h="onb.whyJson">${h('onb.whyJson')}</button></div>
   <div class="obpop" id="obwhypop"><ul>${['onb.why1', 'onb.why2', 'onb.why3', 'onb.why4'].map(k => `<li data-h="${k}"${k === 'onb.why3' ? ' data-jr' : ''}>${k === 'onb.why3' ? jr(h(k)) : h(k)}</li>`).join('')}</ul>
-    <a href="https://stephango.com/file-over-app" target="_blank" rel="noopener noreferrer"><span data-h="onb.whyLink">${h('onb.whyLink')}</span> ${icon('external', { size: 12 })}</a></div>
+    <a href="https://stephango.com/file-over-app" target="_blank" rel="noopener noreferrer"><span data-h="onb.whyLink">${h('onb.whyLink')}</span> ${icon('external', { role: 'inline' })}</a></div>
   <ul class="obkl">${TILES.map(([ic, lk, hk, tk], i) => `<li class="obkp"><button type="button" class="obkb" aria-expanded="false" aria-controls="obkp${i}">${ic}<span data-h="${lk}">${h(lk)}</span></button>
     <div class="obpop" id="obkp${i}"><b data-h="${hk}">${h(hk)}</b><span data-h="${tk}"${hk === 'onb.t1h' ? ' data-jr' : ''}>${hk === 'onb.t1h' ? jr(h(tk)) : h(tk)}</span></div></li>`).join('')}</ul></section>`;
 
@@ -148,5 +146,3 @@ function popovers(){
   document.addEventListener('pointerout', left);
   document.addEventListener('focusout', left);
 }
-
-const api = { headHtml, bodyHtml, footHtml, stageHtml, mount, unmount, begin, retext, setStep, replay, act, jr, fit, bindSide };

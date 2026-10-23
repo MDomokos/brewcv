@@ -15,6 +15,10 @@ export function sideWidth(vw, vh = 900, oneUp = false){
   const two = Math.max(min, free(2)), w = oneUp ? Math.max(two, Math.min(free(1), min + SIDE_ONE_EXTRA)) : two;
   return Math.round(Math.min(SIDE_MAX, w));
 }
+// The width the person set with the sidebar's handle (sidewidth.js): never under the narrowest the views are checked at, never over SIDE_CAP or half the window.
+export const SIDE_MIN = 316, SIDE_CAP = 640;
+export const sideMax = vw => Math.max(SIDE_MIN, Math.min(SIDE_CAP, Math.floor(vw / 2)));
+export const clampSide = (w, vw) => Math.max(SIDE_MIN, Math.min(sideMax(vw), Math.round(w)));
 export const RAIL_W = 54;                               // the tabs, the screens and the history, left of the sidebar
 export const ZOOM_MIN = 0.4, ZOOM_MAX = 4;
 export const PAGE_GAP = 24;           // between pages, in page px
@@ -36,8 +40,9 @@ export const clampZoom = z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number.isFin
 // `wide`: on a phone, the panel is the whole screen.
 // zoom: 1 is the whole page fitted to the window.
 // `slim`: the start screen and the first questions: the column is 27% of the window (340 to 392px) and has no rail.
+// `side`: the person's choice ({ w, off }): a width of their own, or folded to the rail (the column takes no room; the page has it).
 export const SLIM_MIN = 340, SLIM_MAX = 392;
-export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = false, slim = false, oneUp = false }){
+export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = false, slim = false, oneUp = false, side = null }){
   const { w, h } = pageSize(format);
   const n = Math.max(1, pages);
   const z = clampZoom(zoom);
@@ -56,7 +61,7 @@ export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = fals
   }
   const tall = (vh - 2 * G) / h;
   const rowW = k => k * w + (k - 1) * PAGE_GAP;
-  const colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.272))) : sideWidth(vw, vh, oneUp);
+  const colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.272))) : side?.off ? 0 : side?.w ? clampSide(side.w, vw) : sideWidth(vw, vh, oneUp);
   const railW = slim ? 0 : RAIL_W;
   // the room the page may have: left of the rail and the column, a gutter at each side of them
   const room = vw - colW - railW - 4 * G;

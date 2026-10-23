@@ -5,7 +5,7 @@
 // `from` is the page's box on the screen, `to` the button that was pressed; both screen rectangles. Colours are the drink's tokens
 // (src/ui/drinks.css, .fx-*). Under reduced motion nothing is drawn.
 
-import { played, play, ghost, reduced, layer, dur } from './motion.js';
+import { played, reduced, layer, dur } from './motion.js';
 import { t } from '../i18n/index.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

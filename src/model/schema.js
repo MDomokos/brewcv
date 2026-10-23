@@ -244,6 +244,8 @@ export function load(file){
 
 // JSON Resume v1.0.0 types, checked by hand to avoid a dependency. [] means valid.
 const ISO = /^([1-2][0-9]{3}-[0-1][0-9]-[0-3][0-9]|[1-2][0-9]{3}-[0-1][0-9]|[1-2][0-9]{3})$/;
+// A JSON Resume date: YYYY, YYYY-MM or YYYY-MM-DD (the month picker writes YYYY-MM and checks it here).
+export const isIsoDate = s => typeof s === 'string' && ISO.test(s);
 const SHAPE = {
   basics: { str: ['name', 'label', 'image', 'email', 'phone', 'url', 'summary'], obj: { location: ['address', 'postalCode', 'city', 'countryCode', 'region'] }, arr: { profiles: ['network', 'username', 'url'] } },
   work: { str: ['name', 'location', 'description', 'position', 'url', 'summary'], date: ['startDate', 'endDate'], strs: ['highlights'] },

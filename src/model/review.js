@@ -5,7 +5,7 @@ import { DEFAULT_LANG, RecordError, factOf, addVersion, saveOver, suggestNumber,
 import { addEntryClaim, updateLanguage } from './career.js';
 import { guard, isLocked, lockedHolders } from './lock.js';
 import { localJob } from '../recipe.js';
-import { isDraft, isArchive, chooseVariant, recordTitle, recordTerm, pendingEdits, reviewableEdits, overrideOf, dropOverride, pickVersion, keepHere, removeLocalLine, setBulletOn, moveBullet, listedBullets, isLocal, localOf, termOf, labelOf, setSectionLabel, setTerm, labelNow } from './resume.js';
+import { isDraft, isArchive, chooseVariant, recordTitle, recordTerm, pendingEdits, reviewableEdits, overrideOf, dropOverride, dropEarlier, earlierOf, pickVersion, keepHere, removeLocalLine, setBulletOn, moveBullet, listedBullets, isLocal, localOf, termOf, labelOf, setSectionLabel, setTerm, labelNow } from './resume.js';
 import { newerOf, usedVersions } from './resumes.js';
 
 export const SOURCE_MAX = 300;
@@ -36,9 +36,10 @@ export function reviewList(model, recipe){
 }
 export const reviewCount = (model, recipe) => { const r = reviewList(model, recipe); return r.edits.length + r.labels.length + r.newer.length; };
 
-// The edit of `id` and what to suggest for it.
-export function editRow(model, recipe, id){
-  const o = overrideOf(recipe, id), local = isLocal(recipe, id);
+// The edit of `id` and what to suggest for it. `at`: an earlier edit of the line (UX-6f), not the one on the page.
+const editAt = (recipe, id, at) => (at == null ? overrideOf(recipe, id) : earlierOf(recipe, id)[at] && { ...earlierOf(recipe, id)[at], on: true });
+export function editRow(model, recipe, id, at = null){
+  const o = editAt(recipe, id, at), local = isLocal(recipe, id);
   const lang = local ? localOf(recipe, localJob(recipe, id)).find(l => l.id === id)?.lang ?? DEFAULT_LANG : langOf(recipe);
   const row = { id, local, text: o.text, marks: o.marks ?? [], lang };
   if (local) return { ...row, job: localJob(recipe, id) };
@@ -54,13 +55,14 @@ export const printersOf = (state, vid) => {
     && (usedVersions(state.record, r).some(u => u.variant === vid) || ((r.held ?? []).includes(fact) && chooseVariant(state.record, fact, r).v?.id === vid)));
 };
 
-const edit = (recipe, id) => { const o = overrideOf(recipe, id); if (!o?.on) throw new RecordError('there is no edit to review'); return o; };
+const edit = (recipe, id, at = null) => { const o = editAt(recipe, id, at); if (!o?.on) throw new RecordError('there is no edit to review'); return o; };
 
 // choice: { do: 'minor', from } | { do: 'major', from?, source } | { do: 'over', vid } | { do: 'keep' } | { do: 'claim', source }
 // Returns what was made: { vid, n } for a version, { fact } for a claim.
-export function applyEdit(model, recipe, id, choice){
-  const o = edit(recipe, id);
-  if (choice.do === 'keep'){ keepHere(recipe, id); return {}; }
+// `at`: an earlier edit of the line; it is made a version and goes from the list, the text on the page stays as it is.
+export function applyEdit(model, recipe, id, choice, at = null){
+  const o = edit(recipe, id, at);
+  if (choice.do === 'keep'){ if (at != null) throw new RecordError('an earlier edit is kept or thrown away'); keepHere(recipe, id); return {}; }
   guard(model, recipe, id);
   const source = cleanSource(choice.source) || null;
   const lead = [...String(o.text)].length - [...String(o.text).trimStart()].length;      // addVersion and saveOver trim the text: the highlights move with it
@@ -92,6 +94,7 @@ export function applyEdit(model, recipe, id, choice){
     if (needsSource(model) && !source && !(choice.do === 'minor' && from?.source)) throw new RecordError('a new version needs a source');
     v = addVersion(model, id, { text: o.text, lang, from: from?.id ?? null, as: choice.do === 'minor' ? 'minor' : 'major', marks: structuredClone(marks), source: choice.do === 'minor' && from?.source ? null : source });
   }
+  if (at != null){ dropEarlier(model, recipe, id, at); return { vid: v.id, n: v.n }; }
   dropOverride(model, recipe, id);
   pickVersion(model, recipe, id, v.id);
   return { vid: v.id, n: v.n };

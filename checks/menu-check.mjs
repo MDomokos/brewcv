@@ -5,7 +5,7 @@
 //  - Fit is in Export only, at the top beside the page bars (the name card has neither Fit nor Saved); its chip (after a Fit that changed something) hangs right under it with no error, and Ctrl+Z undoes;
 //  - the page bars at the top of Export: a click on a bar of a two-page resume brings that page forward, the "+n" goes to the first page not drawn;
 //  - the Outline's counts read n/m, with the words in the tip and for a screen reader;
-//  - an open section is a container (a real group, an accent bar, its own surface and border) that a closed one is not, in the four looks;
+//  - an open section is a container (a real group, its own surface and border, no accent bar) that a closed one is not, in the four looks;
 //  - a job's or section's name in the Outline wraps without an ellipsis, in ten languages.
 // PW_BUNDLED=1, or CHROME_PATH. Writes nothing.
 
@@ -100,10 +100,14 @@ for (const [drink, theme] of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'lig
     const cs = e => getComputedStyle(e), open = document.querySelector('#outline .osec.open[data-sid=skills]'), shut = document.querySelector('#outline .osec:not(.open)'), head = open?.querySelector(':scope > .srow');
     if (!open || !shut) return null;
     return { role: open.getAttribute('role'), name: open.getAttribute('aria-label'), expanded: open.querySelector('[data-act=ol-toggle]')?.getAttribute('aria-expanded'),
-      openBg: cs(open).backgroundColor, openBorder: cs(open).borderLeftWidth, openBorderColor: cs(open).borderLeftColor, headBg: cs(head).backgroundColor, shutBg: cs(shut).backgroundColor, shutBorder: cs(shut).borderLeftWidth, shutExpanded: shut.querySelector('[data-act=ol-toggle]')?.getAttribute('aria-expanded'),
+      openBg: cs(open).backgroundColor, openBorder: cs(open).borderLeftWidth, openBorderColor: cs(open).borderLeftColor, headBg: cs(head).backgroundColor, shutBg: cs(shut).backgroundColor, shutBorder: cs(shut).borderLeftColor === 'rgba(0, 0, 0, 0)' ? '0' : cs(shut).borderLeftWidth, shutExpanded: shut.querySelector('[data-act=ol-toggle]')?.getAttribute('aria-expanded'),
       gap: parseFloat(cs(open).marginTop) };
   });
-  ok(`${tag}: an open section is a container: a group with a name, aria-expanded on its header, an accent bar, a surface and a header that a closed one does not have`, !!look && look.role === 'group' && !!look.name && look.expanded === 'true' && look.shutExpanded === 'false' && parseFloat(look.openBorder) >= 3 && parseFloat(look.shutBorder) === 0 && look.openBg !== look.shutBg && look.headBg !== look.openBg && look.gap >= 4, JSON.stringify(look));
+  // (UX-6 sidebar, audit (c)): one sign of containment, the flat card: its edge and surface; the accent bar and the tinted header said it twice more.
+  // Round 2 (item 16): the open section's head had a quiet band in its kind's colour (at most 12%); round 3's design pass: every section's head is a band of its kind's hue (one of six), opaque; a closed
+  // section's 1 px edge is transparent (it keeps the tick column).
+  const quiet = c => c === 'rgba(0, 0, 0, 0)' || (+(/\/ ([\d.]+)\)$/.exec(c)?.[1] ?? /rgba\([^)]*, ([\d.]+)\)$/.exec(c)?.[1] ?? 1)) <= 0.12;
+  ok(`${tag}: an open section is a container: a group with a name, aria-expanded on its header, an edge and a surface that a closed one does not have, no accent bar, its head a band of its kind's hue (round 3's design pass: it was a quiet 12% band on the open one only)`, !!look && look.role === 'group' && !!look.name && look.expanded === 'true' && look.shutExpanded === 'false' && parseFloat(look.openBorder) === 1 && parseFloat(look.shutBorder) === 0 && look.openBg !== look.shutBg && look.headBg !== 'rgba(0, 0, 0, 0)' && look.gap >= 4, JSON.stringify(look));
   await ctx.close();
 }
 {

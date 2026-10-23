@@ -2,9 +2,10 @@
 // node checks/symmetry-check.mjs
 // Every action has its inverse, and the same control looks and sits the same (UX-6c-iv-b), in Chromium on the example:
 //  - the stale strings are gone; the Fit chip stays until the next change; "+ line" has two labels;
-//  - the Outline: a pill on every job's head, archived lines under "+ n more" with Unarchive;
-//  - one pill and one wording for show/hide on the chip, the depth row, sections, jobs, lines, items and the photo, each a round trip;
-//  - the lock and the pill look alike at rest (one size, one opacity), and the chip's tools show without a hover.
+//  - the Outline: a tick on every job's head, archived lines under "+ n more" with Unarchive;
+//  - one tick and one wording for show/hide on the chip, the depth row, sections, jobs, lines, items and the photo, each a round trip
+//    (a tick says "Show … on this resume", ticked or not; a button that shows or hides, the chip's, is named for what it will do);
+//  - the lock and the tick look alike at rest (one size, one opacity), and the chip's tools show without a hover.
 // PW_BUNDLED=1, or CHROME_PATH. Writes nothing.
 
 import { chromium } from 'playwright';
@@ -12,6 +13,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pickOption } from './lib/dropdown.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8171);
@@ -37,6 +39,7 @@ const open = async (w, h, look = []) => {
   page.setDefaultTimeout(8000);      // a step that finds nothing fails in seconds
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  await page.evaluate(() => window.__wb.edit.setAutoFold?.(false));      // a short window would fold the versions this check clicks
   await page.waitForTimeout(500);
   return { ctx, page };
 };
@@ -84,11 +87,11 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await ctx.close();
 }
 
-// ---- the Outline: a pill on every job's head, archived lines under "+ n more" ----
+// ---- the Outline: a tick on every job's head, archived lines under "+ n more" ----
 {
   const { ctx, page } = await open(1470, 832);
-  const heads = await page.$$eval('#outline section.clg > .clgh', hs => hs.map(h => ({ pill: !!h.querySelector('.swl > input.sw[data-jobon]'), name: h.querySelector('.jobname, .clname')?.textContent.trim().slice(0, 20) })));
-  ok('every job head in the Outline carries the pill switch', heads.length >= 2 && heads.every(h => h.pill), JSON.stringify(heads));
+  const heads = await page.$$eval('#outline section.clg > .clgh', hs => hs.map(h => ({ tick: !!h.querySelector('.swl > input.sw[data-jobon]'), name: h.querySelector('.jobname, .clname')?.textContent.trim().slice(0, 20) })));
+  ok('every job head in the Outline carries the tick', heads.length >= 2 && heads.every(h => h.tick), JSON.stringify(heads));
   const gap = await page.evaluate(() => [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch { return []; } }).some(r => /clgh > \.rowlock:last-child/.test(r.selectorText ?? '')));
   ok('…and the margin that stood in for a missing head switch is gone', !gap);
   const id = await page.evaluate(async () => {
@@ -107,7 +110,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await ctx.close();
 }
 
-// ---- show/hide: one pill, one wording, a round trip each ----
+// ---- show/hide: one tick, one wording, a round trip each ----
 {
   const { ctx, page } = await open(1470, 832);
   const cur = () => page.evaluate(() => JSON.stringify({ ...window.__wb.store.state.cur, savedAt: 0 }));      // savedAt is only the day of the last change
@@ -115,53 +118,55 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   const away = () => page.mouse.move(4, 4);
   const HIDE = /^Hide .+ from this resume$/, SHOW = /^Show .+ on this resume$/;
   const label = sel => page.$eval(sel, e => e.getAttribute('aria-label') ?? e.closest('label')?.textContent.trim() ?? e.textContent.trim());
-  const pillOn = sel => page.$eval(sel, e => (e.matches('input') ? e.checked : e.querySelector('.pillsw')?.classList.contains('on')));
-  // a switch: its label says Hide while it is on, Show while it is off; flipping it twice leaves the recipe byte-identical
-  // (a block that is hidden loses its frame and so its chip: then the sidebar's switch, the same component, shows it again)
+  const tickOn = sel => page.$eval(sel, e => (e.matches('input') ? e.checked : e.querySelector('.pillsw')?.classList.contains('on')));
+  const isBox = sel => page.$eval(sel, e => e.matches('input[type=checkbox]'));
+  // a checkbox says "Show … on this resume" ticked or not (a tick is a state); a button (the chip's, the depth row's) says Hide while it is on,
+  // Show while it is off (what it will do); flipping it twice leaves the recipe byte-identical
+  // (a block that is hidden loses its frame and so its chip: then the sidebar's button, the same component, shows it again)
   const trip = async (name, ...a) => { try { await trip1(name, ...a); } catch (e) { ok(name, false, String(e.message).split('\n').slice(0, 3).join(' ')); } };
   const trip1 = async (name, sel, click, sel2 = sel, click2 = click) => {
-    const c0 = await cur(), l0 = await label(sel), on0 = await pillOn(sel);
+    const c0 = await cur(), l0 = await label(sel), on0 = await tickOn(sel), box = await isBox(sel);
     await click(); await wait();
-    const l1 = await label(sel2), on1 = await pillOn(sel2), c1 = await cur();
+    const l1 = await label(sel2), on1 = await tickOn(sel2), c1 = await cur();
     await click2(); await wait();
     const l2 = await label(sel), c2 = await cur();
-    ok(`${name}: the pill says "Hide … from this resume" when on and "Show … on this resume" when off, and a round trip leaves the recipe as it was`,
-      on0 === true && on1 === false && HIDE.test(l0) && SHOW.test(l1) && l2 === l0 && c1 !== c0 && c2 === c0, JSON.stringify([on0, on1, l0, l1, c1 === c0, c2 === c0]));
+    ok(`${name}: ${box ? 'the tick says "Show … on this resume", ticked or not' : 'the button says "Hide … from this resume" when on and "Show … on this resume" when off'}, and a round trip leaves the recipe as it was`,
+      on0 === true && on1 === false && (box ? SHOW.test(l0) : HIDE.test(l0)) && SHOW.test(l1) && l2 === l0 && c1 !== c0 && c2 === c0, JSON.stringify([on0, on1, l0, l1, c1 === c0, c2 === c0]));
   };
 
   // a line: the chip on the page, the depth row, its row in the Outline, its own view
   await page.click('#outline [data-act=select-section][data-id=experience]'); await wait();
   await page.click('#body [data-act=select-job][data-id=hydra]'); await wait();
-  if (await page.$('#body [data-act=ol-more][aria-expanded=false]')) await page.click('#body [data-act=ol-more]');      // a line switched off moves to "+ n more"
+  if (await page.$('#body [data-act=ol-more][aria-expanded=false]')) await page.click('#body [data-act=ol-more]');      // (a line switched off stays in place since the sidebar session; the fold holds archived lines)
   await trip('line, on its row in the Outline', '#body .clrow[data-fact=hydra-inhaler] input.sw[data-on]', () => page.click('#body .clrow[data-fact=hydra-inhaler] .swl'));
   await page.click('#body .clrow[data-fact=hydra-inhaler] .clt'); await wait(); await away();
-  ok('the chip and the depth row have the pill switch (no eye), and no aria-pressed on it', !!(await page.$('#editlay .dp-show .pillsw')) && !!(await page.$('#body .depth .dp-show .pillsw')) && !(await page.$('#editlay .dp-show[aria-pressed], #body .dp-show[aria-pressed]')));
+  ok('the chip and the depth row have the tick (no eye), and no aria-pressed on it', !!(await page.$('#editlay .dp-show .pillsw')) && !!(await page.$('#body .depth .dp-show .pillsw')) && !(await page.$('#editlay .dp-show[aria-pressed], #body .dp-show[aria-pressed]')));
   await trip('line, on the chip', '#editlay .dp-show', () => page.click('#editlay .dp-show'));
   await trip('line, on the depth row', '#body .depth .dp-show', () => page.click('#body .depth .dp-show'));
-  await trip('line, in its own view', '#body #b-on', () => page.click('#body #b-on'));
+  ok('line, in its own view (J, rewritten: the view has no tick of its own, the depth row\'s is the one, tripped above)', !(await page.$('#body #b-on')) && (await page.$$('#body .hdr .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')));
 
   // a job: the chip, its own view, its head in the Outline
   await page.click('#body .depth [data-act=select-job]'); await wait(); await away();
   await trip('job, on the chip', '#editlay .dp-show', () => page.click('#editlay .dp-show'), '#body .depth .dp-show', () => page.click('#body .depth .dp-show'));
-  await trip('job, in its own view', '#body .ctlrow input[data-jobon=hydra]', () => page.click('#body .ctlrow .swl'));
+  ok('job, in its own view (J, rewritten: no tick of its own, the depth row\'s is the one, tripped above)', !(await page.$('#body .ctlrow input[data-jobon=hydra]')) && (await page.$$('#body .hdr .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')));
   await page.click('#body .depth [data-act=deselect]'); await wait();
   await trip('job, on its head in the Outline', '#outline .clg[data-g=hydra] > .clgh input[data-jobon=hydra]', () => page.click('#outline .clg[data-g=hydra] > .clgh .swl'), '#outline input[data-jobon=hydra]', () => page.click('#outline input[data-jobon=hydra] >> xpath=..'));
 
   // a section: the chip, its own view, its row in the Outline
   await page.click('#outline [data-act=select-section][data-id=education]'); await wait(); await away();
   await trip('section, on the chip', '#editlay .dp-show', () => page.click('#editlay .dp-show'), '#body .depth .dp-show', () => page.click('#body .depth .dp-show'));
-  await trip('section, in its own view', '#body .ctlrow input[data-secon=education]', () => page.click('#body .ctlrow .swl'));
+  ok('section, in its own view (J, rewritten: no tick of its own, the depth row\'s is the one, tripped above)', !(await page.$('#body .ctlrow input[data-secon=education]')) && (await page.$$('#body .hdr .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')));
   await page.click('#body .depth [data-act=deselect]'); await wait();
-  await run('an off section stays in its own row, dimmed, with the same pill; the pill turns it on again in place', async () => {
+  await run('an off section stays in its own row, dimmed, with the same tick; the tick turns it on again in place', async () => {
     const c0 = await cur(), l0 = await label('#outline .srow[data-sid=skills] input[data-secon=skills]');
     const order = () => page.$$eval('#seclist > .osec', es => es.map(e => e.dataset.sid).join());
     const o0 = await order();
     await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
     const c1 = await cur(), l1 = await label('#outline .srow[data-sid=skills] input[data-secon=skills]');
     const dim = await page.$eval('#outline .srow[data-sid=skills]', e => ({ off: e.classList.contains('is-off'), name: parseFloat(getComputedStyle(e.querySelector('.stext')).opacity) }));
-    ok('an off section keeps its row in its place, dimmed, with the same pill now saying "Show … on this resume", and there is no "Not on this resume" row', (await order()) === o0 && dim.off && dim.name < 1 && SHOW.test(l1) && !(await pillOn('#outline .srow[data-sid=skills] input[data-secon=skills]')) && !(await page.$('#offline, .offchip')), JSON.stringify([dim, l1]));
+    ok('an off section keeps its row in its place, dimmed, with the same tick, unticked, still saying "Show … on this resume", and there is no "Not on this resume" row', (await order()) === o0 && dim.off && dim.name < 1 && SHOW.test(l1) && !(await tickOn('#outline .srow[data-sid=skills] input[data-secon=skills]')) && !(await page.$('#offline, .offchip')), JSON.stringify([dim, l1]));
     await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
-    ok('section, on its row in the Outline: the pill says "Hide … from this resume", hides it, and turning it on again in place restores the recipe', HIDE.test(l0) && c1 !== c0 && (await cur()) === c0 && (await order()) === o0, l0);
+    ok('section, on its row in the Outline: the tick says "Show … on this resume", unticking hides it, and ticking it again in place restores the recipe', SHOW.test(l0) && c1 !== c0 && (await cur()) === c0 && (await order()) === o0, l0);
   });
 
   await run('Reset order keeps an off section where it is', async () => {
@@ -169,9 +174,11 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
     await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
     const o1 = await order();
     await page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => { T.stepSection(d.record, d.cur, 'patent', -1); T.stepSection(d.record, d.cur, 'patent', -1); }, 'check: move a section'); }); await wait();
-    ok('(a moved section shows "custom" and a Reset)', (await order()) !== o1 && !!(await page.$('.ordhead [data-act=order-reset]')), `${o1} / ${await order()} / ${await page.evaluate(() => JSON.stringify(window.__wb.store.state.cur.sections))}`);
+    ok('(a moved section list shows no "custom" and no Reset: section order is not time)', (await order()) !== o1 && !(await page.$('.ordhead [data-act=order-reset]')) && !(await page.$('.ordhead .pill.custom')), `${o1} / ${await order()} / ${await page.evaluate(() => JSON.stringify(window.__wb.store.state.cur.sections))}`);
     const moved = (await order()).split(',');
-    await page.click('.ordhead [data-act=order-reset]'); await wait();
+    // the act itself stays (the model resets; only its button is gone): a stand-in button reaches it
+    await page.evaluate(() => { const b = document.createElement('button'); b.dataset.act = 'order-reset'; b.dataset.kind = 'sections'; b.dataset.id = 'sections'; b.id = 'reset-stand-in'; document.querySelector('#body').append(b); });
+    await page.click('#reset-stand-in'); await wait();
     const after = (await order()).split(',');
     ok('Reset puts the printed sections back in the record\u2019s order and the off section stays at its place in the list', after.indexOf('skills') === moved.indexOf('skills') && after.filter(x => x !== 'skills').join() === o1.split(',').filter(x => x !== 'skills').join(), `${o1} / ${moved} / ${after}`);
     await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
@@ -181,7 +188,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   if (await page.$('#outline [data-act=ol-toggle][data-g="sec:skills"][aria-expanded=false]')) { await page.click('#outline [data-act=ol-toggle][data-g="sec:skills"]'); await wait(); }
   const item = '#outline .osec[data-sid=skills] input.sw[data-item]';
   await trip('item, on its row in the Outline', item, () => page.click(`${item} >> xpath=..`));
-  ok('the Outline has no compact tick left: every show/hide in it is the pill', (await page.$$('#outline input.cb')).length === 0);
+  ok('the Outline has one tick for show/hide: every one in it is the same component (.sw in its label), none a bare .cb', (await page.$$('#outline input.cb')).length === 0 && (await page.$$('#outline input.sw')).length > 5);
 
   // the photo: the Outline's row, Design
   if (!(await page.isVisible('#outline input.sw[data-photo]'))) { await page.click('#outline [data-act=ol-toggle][data-g="sec:header"]'); await wait(); }
@@ -197,34 +204,34 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   const fr = page.frameLocator('#sheet iframe'), nm = await fr.locator('.name').boundingBox();
   await page.mouse.move(nm.x + 30, nm.y + 12, { steps: 3 }); await page.waitForTimeout(500);
   const slotOk = await page.evaluate(() => { const b = document.querySelector('#handlay .obslot'); return b && !b.hidden ? { label: b.getAttribute('aria-label'), pill: !!b.querySelector('.pillsw'), on: b.querySelector('.pillsw').classList.contains('on'), pressed: b.hasAttribute('aria-pressed') } : null; });
-  ok('the photo slot on the page is the same pill, named "Show … on this resume" while the photo is off', !!slotOk && slotOk.pill && !slotOk.on && !slotOk.pressed && /^Show .+ on this resume$/.test(slotOk.label), JSON.stringify(slotOk));
+  ok('the photo slot on the page is the same tick, a button named "Show … on this resume" while the photo is off', !!slotOk && slotOk.pill && !slotOk.on && !slotOk.pressed && /^Show .+ on this resume$/.test(slotOk.label), JSON.stringify(slotOk));
   const c0 = await cur();
   await page.click('#handlay .obslot'); await wait(); await page.mouse.move(nm.x + 30, nm.y + 12, { steps: 3 }); await page.waitForTimeout(500);
   const on1 = await page.evaluate(() => { const b = document.querySelector('#handlay .obslot'); return { label: b.getAttribute('aria-label'), on: b.querySelector('.pillsw').classList.contains('on') }; });
   await page.click('#handlay .obslot'); await wait();
-  ok('…clicking it prints the photo (the pill is on and says "Hide … from this resume") and clicking again restores the recipe', on1.on && /^Hide .+ from this resume$/.test(on1.label) && (await cur()) === c0, JSON.stringify(on1));
+  ok('…clicking it prints the photo (the tick is on and the button says "Hide … from this resume") and clicking again restores the recipe', on1.on && /^Hide .+ from this resume$/.test(on1.label) && (await cur()) === c0, JSON.stringify(on1));
   await ctx.close();
 }
 
-// ---- the lock and the pill look alike everywhere; the chip's tools show without a hover ----
+// ---- the lock and the tick look alike everywhere; the chip's tools show without a hover ----
 for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   const { ctx, page } = await open(1470, 832, [drink, theme]);
   const tag = `${drink} ${theme}`;
   const box = sel => page.evaluate(s => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(), c = getComputedStyle(e); return { w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, op: parseFloat(c.opacity), vis: c.visibility !== 'hidden' && r.width > 0 }; }, sel);
   await page.mouse.move(4, 4); await page.waitForTimeout(500);
-  const row = await box('#outline .srow[data-sid=skills] .rowlock'), rowPill = await box('#outline .srow[data-sid=skills] input.sw');
+  const row = await box('#outline .srow[data-sid=skills] .rowlock'), rowTick = await box('#outline .srow[data-sid=skills] input.sw');
   await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(500);
   await page.click('#body [data-act=select-job][data-id=hydra]'); await page.waitForTimeout(500);
   await page.click('#body .clrow[data-fact=hydra-inhaler] .clt'); await page.waitForTimeout(700);
   await page.mouse.move(4, 4); await page.waitForTimeout(600);
   const chipLock = await box('#editlay .dp-lock'), depthLock = await box('#body .depth .dp-lock');
   const chipShow = await box('#editlay .dp-show'), depthShow = await box('#body .depth .dp-show');
-  const chipPill = await box('#editlay .dp-show .pillsw'), depthPill = await box('#body .depth .dp-show .pillsw');
+  const chipTick = await box('#editlay .dp-show .pillsw'), depthTick = await box('#body .depth .dp-show .pillsw');
   const same = (a, b) => !!a && !!b && Math.abs(a.w - b.w) < 0.6 && Math.abs(a.h - b.h) < 0.6;
   ok(`${tag}: the padlock is one size (a 24 px target) on the chip, in the depth row and on the Outline's rows`, same(chipLock, depthLock) && same(chipLock, row) && chipLock.w >= 24 && chipLock.h >= 24, JSON.stringify([chipLock, depthLock, row]));
-  ok(`${tag}: the pill is one size (30 by 17) on the chip, in the depth row and on the Outline's rows`, same(chipPill, depthPill) && same(chipPill, rowPill) && chipPill.w === 30 && chipPill.h === 17, JSON.stringify([chipPill, depthPill, rowPill]));
-  ok(`${tag}: at rest the padlock and the chip's and depth row's pill draw at the same 55%`, [chipLock, depthLock, row, chipShow, depthShow].every(b => b && Math.abs(b.op - 0.55) < 0.02), JSON.stringify([chipLock, depthLock, row, chipShow, depthShow].map(b => b?.op)));
-  ok(`${tag}: the chip's padlock and switch are visible with no hover, each a target of at least 24 px`, !!chipShow && chipShow.vis && chipShow.w >= 24 && chipShow.h >= 24 && chipLock.vis, JSON.stringify([chipShow, chipLock]));
+  ok(`${tag}: a content tick is one size (17 by 17, a square) on the chip and in the depth row; a section's tick in the Outline is 20 by 20 (sidebar round 2)`, same(chipTick, depthTick) && chipTick.w === 17 && chipTick.h === 17 && !!rowTick && rowTick.w === 20 && rowTick.h === 20, JSON.stringify([chipTick, depthTick, rowTick]));
+  ok(`${tag}: at rest the padlock and the chip's and depth row's tick draw at the same 55%`, [chipLock, depthLock, row, chipShow, depthShow].every(b => b && Math.abs(b.op - 0.55) < 0.02), JSON.stringify([chipLock, depthLock, row, chipShow, depthShow].map(b => b?.op)));
+  ok(`${tag}: the chip's padlock and tick are visible with no hover, each a target of at least 24 px`, !!chipShow && chipShow.vis && chipShow.w >= 24 && chipShow.h >= 24 && chipLock.vis, JSON.stringify([chipShow, chipLock]));
   await page.hover('#editlay .dp-show'); await page.waitForTimeout(400);
   ok(`${tag}: on hover the chip's tools come up to full contrast`, (await box('#editlay .dp-lock')).op === 1 && (await box('#editlay .dp-show')).op === 1);
   await ctx.close();
@@ -255,7 +262,8 @@ await run('an Undo button on the toast of a delete (UX-6c-iv-b stage 2, fix 18)'
   await page.click(`#body .depth [data-act=select-job]`); await wait();
   await page.click(`#body .clrow[data-fact="${fact}"] .clt`); await wait();
   await page.click('#body [data-act=delete-claim]'); await wait();
-  ok('a deleted claim\u2019s toast has an Undo button, and it brings the claim back', (await nFacts()) === f0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nFacts()) === f0));
+  if (await page.$('#body .delask')){ await page.click('#body .delask [data-act=delete-claim]'); await wait(); }      // a claim of several versions asks first (UX-6 round 2)
+  ok('a deleted claim\u2019s toast (after its question, for a claim of several versions) has an Undo button, and it brings the claim back', (await nFacts()) === f0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nFacts()) === f0));
   const nEdu = () => page.evaluate(() => window.__wb.store.state.record.projects.length);
   const e0 = await nEdu();
   await page.click('#ptabs [data-p=career]'); await wait();
@@ -369,7 +377,7 @@ await run('skills: back to the record\'s groups, and delete a set (fix 14)', asy
   ok('"Delete this set" removes the set (the key goes with its last language), with an Undo button on the toast', gone.sets === null && !!(await page.$('#toast.on [data-act=toast-undo]')));
   await page.click('#toast [data-act=toast-undo]'); await wait();
   ok('…and Undo brings the set back', (await st()) === saved);
-  await page.selectOption('#sk-set', '~record'); await wait();
+  await pickOption(page, '#sk-set', '~record'); await wait();
   ok('"Your career\u2019s groups" takes the arrangement away: the resume is as before the set was applied', JSON.parse(await st()).arr === null && (await cur()) === c0);
   ok('…and the sets of the record are untouched by it', JSON.stringify(JSON.parse(await st()).sets) === JSON.stringify(JSON.parse(saved).sets));
   // locked: the skills are held
@@ -403,7 +411,8 @@ await run('Delete beside Duplicate in the name window (fix 16)', async () => {
   const state = () => page.evaluate(() => { const s = window.__wb.store.state; return { n: s.resumes.length, open: s.openId, snaps: (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).length }; });
   const s0 = await state();
   await page.click('#docname-btn'); await wait();
-  ok('the name window has Delete beside Duplicate', (await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act))).slice(0, 2).join() === 'rm-dup,rm-delete');
+  const acts = await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act));
+  ok('the name window has Duplicate first and Delete last in its row (the delete at the far end, UX-6 round 2)', acts[0] === 'rm-dup' && acts.at(-1) === 'rm-delete', acts.join());
   await page.click('#switcher [data-act=rm-dup]'); await wait();
   const s1 = await state();
   if (!(await page.$('#switcher:not([hidden]) [data-act=rm-delete]'))){ await page.click('#docname-btn'); await wait(); }      // Duplicate leaves the name window open, the name ready to type over
@@ -456,6 +465,8 @@ await run('deleting a locked resume or a sent copy asks first', async () => {
   const state = () => page.evaluate(() => { const s = window.__wb.store.state; return { n: s.resumes.length, snaps: (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).length }; });
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Acme', role: 'Engineer', date: '2026-01-02' }); d.cur.locked = ['hydra-inhaler']; }, 'check: sent and locked'); }); await wait();
   const n0 = (await state()).n;
+  // the open resume has a sent copy, so its Delete asks in place first (UX-6 round 2); then the lock's question
+  const delOpen = async () => { await page.click('#switcher [data-act=rm-delete]'); await wait(); if (await page.$('#switcher .delask')){ await page.click('#switcher .delask [data-act=rm-delete]'); await wait(); } };
   // the sent copy
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
@@ -470,19 +481,19 @@ await run('deleting a locked resume or a sent copy asks first', async () => {
   // the open resume, from the name window
   answer = false;
   await page.click('#docname-btn'); await wait();
-  await page.click('#switcher [data-act=rm-delete]'); await wait();
+  await delOpen();
   ok('a locked open resume asks before the name window’s Delete', asked.length === 3 && (await state()).n === n0, asked.join('|'));
   answer = true;
   await page.click('#docname-btn').catch(() => {}); await wait();
   if (!(await page.$('#switcher:not([hidden]) [data-act=rm-delete]'))){ await page.click('#docname-btn'); await wait(); }
-  await page.click('#switcher [data-act=rm-delete]'); await wait();
+  await delOpen();
   ok('…Yes deletes it', (await state()).n === n0 - 1 && asked.length === 4);
   // no lock, no question
   await page.click('#toast [data-act=toast-undo]'); await wait();
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.locked = []; }, 'check: unlock')); await wait();
   await page.click('#docname-btn'); await wait();
-  await page.click('#switcher [data-act=rm-delete]'); await wait();
-  ok('with no lock the Delete asks nothing', (await state()).n === n0 - 1 && asked.length === 4);
+  await delOpen();
+  ok('with no lock the Delete asks nothing (the sent copy\u2019s question is in place, not a dialog)', (await state()).n === n0 - 1 && asked.length === 4);
   await ctx.close();
 });
 
@@ -500,17 +511,17 @@ await run('remove a language from the record when nothing uses it (fix 19)', asy
     d.resumes = d.resumes.filter(r => r.lang !== 'cs');
   }, 'check: no Czech'));
   const l0 = await langs();
-  const choose = async v => { await page.click('#docname-btn'); await wait(); await page.selectOption('#sw-lang', v); await wait(); };
+  const choose = async v => { await page.click('#docname-btn'); await wait(); await pickOption(page, '#sw-lang', v); await wait(); };
   await choose('+cs');
   ok('(adding Czech puts it in the list and the resume in Czech)', (await langs()) === `${l0},cs` && (await page.evaluate(() => window.__wb.store.state.cur.lang)) === 'cs');
   await page.click('#docname-btn'); await wait();
   const used = await page.$$eval('#sw-lang optgroup[label="Remove a language"] option', os => os.map(o => ({ v: o.value, dis: o.disabled, t: o.textContent })));
   ok('while the resume is in it, Czech is listed under "Remove a language" but held, with the reason', used.some(o => o.v === '-cs' && o.dis && /a resume is in it/.test(o.t)), JSON.stringify(used));
-  await page.selectOption('#sw-lang', 'en'); await wait();
+  await pickOption(page, '#sw-lang', 'en'); await wait();
   await page.click('#docname-btn'); await wait();
   const free = await page.$$eval('#sw-lang optgroup[label="Remove a language"] option', os => os.map(o => ({ v: o.value, dis: o.disabled })));
   ok('once no resume uses it, Czech can be removed (a language with versions stays held)', free.some(o => o.v === '-cs' && !o.dis) && free.filter(o => o.v !== '-cs').every(o => o.dis), JSON.stringify(free));
-  await page.selectOption('#sw-lang', '-cs'); await wait();
+  await pickOption(page, '#sw-lang', '-cs'); await wait();
   ok('removing it takes it out of the list, with the Undo button on the toast', (await langs()) === l0 && !!(await page.$('#toast.on [data-act=toast-undo]')));
   await page.click('#toast [data-act=toast-undo]'); await wait();
   ok('…and Undo puts it back', (await langs()) === `${l0},cs`);
@@ -527,6 +538,7 @@ await run('Fit is Export\u2019s: not on the Library, there and not held in Expor
   page.setDefaultTimeout(8000);
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  await page.evaluate(() => window.__wb.edit.setAutoFold?.(false));      // a short window would fold the versions this check clicks
   await page.waitForTimeout(600);
   const wait = () => page.waitForTimeout(700);
   ok('in the editor Fit is not on the page until Export is open', !(await page.$('[data-act=fit]')));
@@ -543,6 +555,7 @@ await run('Fit is held while a screen is open: the phone’s foot', async () => 
   page.setDefaultTimeout(8000);
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  await page.evaluate(() => window.__wb.edit.setAutoFold?.(false));      // a short window would fold the versions this check clicks
   await page.waitForTimeout(600);
   const wait = () => page.waitForTimeout(700);
   const sel = '#foot .fit';
@@ -569,6 +582,7 @@ await run('on a phone: the depth row carries the tools, the name window and the 
   page.setDefaultTimeout(8000);
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  await page.evaluate(() => window.__wb.edit.setAutoFold?.(false));      // a short window would fold the versions this check clicks
   await page.waitForTimeout(600);
   const wait = () => page.waitForTimeout(700);
   ok('(this is a phone)', (await page.evaluate(() => document.body.dataset.phone)) === 'true');
@@ -582,12 +596,13 @@ await run('on a phone: the depth row carries the tools, the name window and the 
   ok('on a phone the depth row has the revert tool, a 24 px target', !!box && box.width >= 24 && box.height >= 24 && /back to the saved words/.test(await fix.getAttribute('aria-label')));
   await fix?.click(); await wait();
   ok('…and it puts the line back', !(await page.evaluate(() => window.__wb.store.state.cur.overrides?.['hydra-inhaler'])));
-  // Skills: no "+ group" on a phone (a group is written on the page)
+  // Skills: "+ group" on a phone too (UX-6f 4c, rewritten: a phone writes a new group in the panel's two fields)
   await fr.locator('.band[data-section=skills] .skills__label').first().tap(); await wait();
-  ok('the Skills view has no "+ group" on a phone (groups are written on the page, which a phone does not write in)', await page.$eval('[data-act=sk-addgroup]', b => getComputedStyle(b).display === 'none'));
+  ok('the Skills view has "+ group" on a phone too (a new group is written in the panel)', await page.$eval('[data-act=sk-addgroup]', b => getComputedStyle(b).display !== 'none'));
   // the name window: Delete beside Duplicate
   await page.click('#docname-btn'); await wait();
-  ok('the phone\u2019s name window has Delete beside Duplicate', (await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act))).slice(0, 2).join() === 'rm-dup,rm-delete');
+  const pacts = await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act));
+  ok('the phone\u2019s name window has Duplicate first and Delete last in its row', pacts[0] === 'rm-dup' && pacts.at(-1) === 'rm-delete', pacts.join());
   await page.keyboard.press('Escape'); await wait();
   // the language menu: Remove a language, a language in use held
   await page.evaluate(() => document.querySelector('#docname-btn')?.click()); await wait();

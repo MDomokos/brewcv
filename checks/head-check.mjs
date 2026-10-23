@@ -175,8 +175,11 @@ for (const [drink, theme] of LOOKS){
   await page.waitForTimeout(500);
   const shown = () => page.evaluate(() => { const e = document.querySelector('#switcher'); return !!e && !e.hidden; });
   await page.click('#docname-btn'); await settle(page);
-  await page.focus('#sw-lang'); await page.keyboard.press('ArrowDown'); await settle(page);
-  ok('ArrowDown on the language select changes the select and leaves the focus in it', await page.evaluate(() => document.activeElement?.id) === 'sw-lang');
+  // the language select is a button that opens the app's own list (dropdown.js): ↓ opens it (the name window's own arrow-key walk must not take the key), Esc closes it and the focus is on the button
+  await page.focus('.ddbtn[data-ddf=sw-lang]'); await page.keyboard.press('ArrowDown'); await settle(page);
+  ok('ArrowDown on the language button opens its list and the focus goes into it', await page.evaluate(() => !!document.querySelector('.ddpop') && document.activeElement?.classList.contains('ddopt')));
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc closes the list, the focus is back on the language button, and the name window is still open', await page.evaluate(() => !document.querySelector('.ddpop') && document.activeElement?.dataset?.ddf === 'sw-lang') && await shown());
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
   ok('a click on a line of the page closes the name window', !(await shown()));
   await ctx.close();

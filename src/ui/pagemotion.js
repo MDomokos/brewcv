@@ -17,6 +17,10 @@ import { wordMoves } from '../model/record.js';
 const MIN_SHARED = 1 / 3;               // versions sharing fewer words than this fall back to a fade
 const FIT_BUDGET = 600;                 // Fit's staggered crossfades finish within this many ms
 const px = n => `${n.toFixed(2)}px`;
+// (Both fade with a linear ease so that they meet at the same moment.)
+// Two texts never show over each other (UX-6f): in one change of words the old fade out in the first half and the new fade in in the second.
+const OUT = [{ opacity: 1 }, { opacity: 0, offset: 0.5 }, { opacity: 0 }];
+const inFrom = (...first) => [{ opacity: 0, ...first[0] }, { opacity: 0, offset: 0.5 }, { opacity: 1, ...first[1] }];
 
 const topLevel = el => !el.parentElement?.closest('[data-variant]');
 // the lines that change and move (every printed claim), and the section tabs, which only move with them
@@ -145,8 +149,8 @@ export function morph(f, snap, ix, { kind = 'apply', words = null, offset = 0, f
     if (swapped && !(words && a.fact === words)){              // its version changed: the old words fade out, the new fade in
       const delay = nth++ * gap;
       const g = ghostOf(f, b);
-      run(g, [{ opacity: 1 }, { opacity: 0 }], { kind: 'leave', delay, fill: 'both', name: `${kind}:out`, drop: true });
-      run(a.el, [{ opacity: 0, transform: moved ? `translate(${px(dx)}, ${px(dy)})` : 'none' }, { opacity: 1, transform: 'none' }], { delay, fill: 'backwards', name: `${kind}:in` });
+      run(g, OUT, { kind: 'linear', delay, fill: 'both', name: `${kind}:out`, drop: true });
+      run(a.el, inFrom({ transform: moved ? `translate(${px(dx)}, ${px(dy)})` : 'none' }, { transform: 'none' }), { kind: 'linear', delay, fill: 'backwards', name: `${kind}:in` });
     } else if (swapped){
       // this one is the line whose words move (below); the others slide
     } else if (moved){                                           // the lines below slide to their new place
@@ -188,8 +192,8 @@ function wordMove(f, old, el, { offset = 0, foreign = false } = {}){
   const go = (node, kf, o) => { const an = play(node, kf, { ms: base, fill: 'both', ...o }); if (an){ track(f, an); anims.push(an); if (offset) an.currentTime = Math.min(offset, base + (o.delay ?? 0)); } return an; };
   const now = s => () => { const r = s.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; };
   if (fade){
-    old.list.forEach(w => go(mk(w), [{ opacity: 1 }, { opacity: 0 }], { kind: 'leave', name: 'hover:out' }));
-    nw.forEach((w, j) => { const s = mk(w); spans.push({ el: s, text: w.text, style: w.style, now: now(s) }); go(s, [{ opacity: 0 }, { opacity: 1 }], { name: 'hover:in' }); });
+    old.list.forEach(w => go(mk(w), OUT, { kind: 'linear', name: 'hover:out' }));
+    nw.forEach((w, j) => { const s = mk(w); spans.push({ el: s, text: w.text, style: w.style, now: now(s) }); go(s, inFrom({}, {}), { kind: 'linear', name: 'hover:in' }); });
   } else {
     const from = new Map(m.pairs.map(([i, j]) => [j, i]));
     nw.forEach((w, j) => {
@@ -198,9 +202,9 @@ function wordMove(f, old, el, { offset = 0, foreign = false } = {}){
       if (from.has(j)){
         const o = old.list[from.get(j)];
         go(s, [{ transform: `translate(${px(o.left - w.left)}, ${px(o.top - w.top)})` }, { transform: 'none' }], { kind: 'move', name: 'hover:move' });
-      } else go(s, [{ opacity: 0 }, { opacity: 1 }], { name: 'hover:in', delay: base * 0.35 });
+      } else go(s, inFrom({}, {}), { kind: 'linear', name: 'hover:in' });
     });
-    for (const i of m.removed) go(mk(old.list[i]), [{ opacity: 1 }, { opacity: 0 }], { kind: 'leave', name: 'hover:out' });
+    for (const i of m.removed) go(mk(old.list[i]), OUT, { kind: 'linear', name: 'hover:out' });
   }
   // while it moves the line is the overlay; when it ends the real line is back (a draw that comes first does the same)
   f.wordMove = { fact: old.fact, spans, line: lineStyle };

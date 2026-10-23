@@ -63,7 +63,7 @@ export function tagVersions(model, recipe, T){
 
 // Key order and bookkeeping don't change what a resume prints.
 const canon = x => (Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(k => [k, canon(x[k])])) : x);
-const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'locked'];
+const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'earlier', 'locked'];
 export const printedKey = (recipe, body) => {
   const r = clone(recipe);
   for (const k of NOT_PRINTED) delete r[k];
@@ -386,6 +386,21 @@ export function matches(model, r, q){
   const needle = String(q ?? '').trim().toLowerCase();
   if (!needle) return true;
   return [resumeLabel(r), r.company, r.role, r.jobType ? jobTypeLabel(model, r.jobType) : '', r.lang].some(x => String(x ?? '').toLowerCase().includes(needle));
+}
+
+// The lines a resume prints (its summary, a job's title and its bullets) whose words hold the search: [{ fact, text }]. The Library finds a resume by them.
+export function hits(model, r, q){
+  const needle = String(q ?? '').trim().toLowerCase();
+  if (!needle) return [];
+  const p = printedFacts(model, r);
+  return [p.summary, ...p.work.flatMap(w => [w.position, ...w.highlights])].filter(x => x?.text && x.text.toLowerCase().includes(needle));
+}
+
+// Does the resume print one of these claims (when `vid` is given, in that very version)? A line on the page, a job's title, the header and a claim a merged
+// version covers all count; a text edited on this resume only is not a version of the claim.
+export function prints(model, r, facts, vid = null){
+  const p = printedFacts(model, r), on = new Set([...printedIds(model, r), ...p.work.map(w => w.position?.fact), ...p.work.flatMap(w => w.highlights).flatMap(h => chooseVariant(model, h.fact, r).v?.covers ?? [])]);
+  return facts.some(id => on.has(id) && (!vid || (r.overrides?.[id] === undefined && chooseVariant(model, id, r).v?.id === vid)));
 }
 
 export const byNewest = list => [...list].sort((a, b) => String(b.savedAt ?? '').localeCompare(String(a.savedAt ?? '')) || resumeLabel(a).localeCompare(resumeLabel(b)));

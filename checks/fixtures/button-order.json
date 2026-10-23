@@ -1,0 +1,18 @@
+{
+ "about": "The order of related buttons (UX-6 sidebar round 2): affirm first, then the alternatives, then dismiss, then the destructive at the far end; a flow keeps its Back and Next. Each pair lists its members in order (a member is a selector) and the views of checks/button-check.mjs (section order) where it must be found; it is checked in every view it appears in. 'cancel' lists every Cancel: tertiary words, a link.",
+ "pairs": [
+  { "name": "Save, Save as, This only, Cancel", "order": ["[data-act=ed-save]", "[data-act=ed-saveas]", "[data-act=ed-only]", "[data-act=ed-cancel]"], "in": [] },
+  { "name": "Fix, Dismiss", "order": ["[data-exb=fix]", "[data-exb=dismiss]"], "in": ["export dialog"] },
+  { "name": "Use (new wording), Keep mine", "order": ["[data-rv=newer]", "[data-rv=mine]"], "in": [] },
+  { "name": "Duplicate, Delete", "order": ["[data-act=rm-dup]", "[data-act=rm-delete]"], "in": ["name window", "row menu"] },
+  { "name": "Archive, Delete", "order": ["[data-act=archive-claim], [data-act=unarchive-claim]", "[data-act=delete-claim]"], "in": ["line"] },
+  { "name": "Export, Restore, Duplicate, Delete", "order": [".snapacts [data-act=goto]", "[data-act=snap-restore]", "[data-act=snap-dup]", "[data-act=snap-delete]"], "in": ["sent copy"] },
+  { "name": "Save first, Merge, Replace", "order": ["[data-act=imp-do-merge], [data-act=imp-save-first]", "[data-act=imp-merge]", ".del[data-act=imp-replace]"], "in": ["merge"] },
+  { "name": "Save to file, Approve all, Cancel", "order": ["[data-rv=save]", "[data-rv=all]", "[data-rv=cancel]"], "in": ["review list"] },
+  { "name": "Create, Cancel", "order": ["[data-act=nv-create]", "[data-act=view-back]"], "in": ["new resume"] },
+  { "name": "Mark as sent, Cancel", "order": ["[data-act=sv-do]", "[data-act=sent-back]"], "in": ["mark as sent"] },
+  { "name": "Add, Cancel (Career)", "order": ["[data-act=c-create]", "[data-act=c-add-cancel]"], "in": ["career add"] },
+  { "name": "Cancel, Delete (a question)", "order": [".delask .ghost", ".delask .del"], "in": ["a question"] }
+ ],
+ "cancel": ["[data-act=ed-cancel]", "[data-act=sk-gcancel]", "[data-act=view-back]", "[data-act=sent-back]", "[data-act=nj-cancel]", "[data-rv=cancel]", "[data-act=c-add-cancel]", "[data-pa=cancel]", "[data-act=delete-claim-no]", "[data-act=rm-ask-no]", "[data-act=c-kind-del-no]"]
+}

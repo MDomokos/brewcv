@@ -191,3 +191,26 @@ export function factOfRecordSel(model, sel){
   if (sel.group === 'publications') return (model.publications ?? []).find(p => p.id === sel.id)?.display?.name ?? null;
   return null;
 }
+
+// What the search finds in Career: [{ fact, group, label, versions }]. A claim any of whose versions holds the word, with every version listed (number,
+// language, text, and `hit` on the ones that hold it), and an entry whose own name does (no fact, no versions). `group` is the Career entry that holds it.
+export function careerHits(model, q){
+  const n = String(q ?? '').trim().toLowerCase();
+  if (!n) return [];
+  const has = x => String(x ?? '').toLowerCase().includes(n), byId = new Map((model.variants ?? []).map(v => [v.id, v]));
+  const out = entriesOf(model).filter(w => !w.archived && has(w.name)).map(w => ({ fact: null, group: w.id, label: w.name, versions: [] }));
+  for (const f of model.facts ?? []){
+    if (f.archived) continue;
+    const versions = (f.variants ?? []).map(id => byId.get(id)).filter(Boolean).map(v => ({ id: v.id, n: v.n, lang: v.lang ?? DEFAULT_LANG, text: v.text, hit: has(v.text) }));
+    if (versions.some(v => v.hit)) out.push({ fact: f.id, group: entriesOf(model).find(w => (w.highlights ?? []).includes(f.id) || Object.values(w.display ?? {}).includes(f.id))?.id ?? groupOf(model, recordSelOfFact(model, f.id) ?? { kind: 'bullet', id: f.id }), label: f.summary ?? f.id, versions });
+  }
+  return out;
+}
+
+// One claim's versions by language, for the results: the current language's (all of them, always shown) and a group for each other language that has a match
+// (all that language's versions, `hits` of them holding the word). A language with no match is not listed.
+export function langGroups(versions, current){
+  const by = new Map();
+  for (const v of versions) (by.get(v.lang) ?? by.set(v.lang, []).get(v.lang)).push(v);
+  return { open: by.get(current) ?? [], folds: [...by].filter(([l, vs]) => l !== current && vs.some(v => v.hit)).map(([lang, vs]) => ({ lang, hits: vs.filter(v => v.hit).length, versions: vs })) };
+}

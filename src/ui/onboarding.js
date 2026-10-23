@@ -10,10 +10,10 @@ import { LANG_INFO, a4FormatOf, langName } from '../model/lang.js';
 import { t, h, setUiLang, setUiLangNow, loadCatalogue, uiLang } from '../i18n/index.js';
 import { langChecks, uiChoice, browserLang, writePref } from './settings.js';
 import * as start from './start.js';
-import { icon } from './icons.js';
+import { monthFieldHtml, initMonthPick, monthDisable } from './monthpick.js';
 
 let C = null;
-export function initOnboarding(ctx){ C = ctx; return api; }
+export function initOnboarding(ctx){ C = ctx; initMonthPick({ name: 'ob', lang: () => uiLang() }); return api; }
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = s => document.querySelector(s);
@@ -96,7 +96,7 @@ function view(){
     <p class="note">${h('onb.marketNote')}</p>${nav()}`;
   if (s === 'job') return `${dots()}<h2 class="title">${O.jobs ? h('onb.anotherJob') : h('onb.recentJob')}</h2>
     ${field('ob-pos', h('onb.jobTitle'), O.job.position)}${field('ob-emp', h('onb.employer'), O.job.name)}
-    <div class="grid2">${field('ob-start', h('onb.started'), O.job.startDate, 'type="month"')}${field('ob-end', h('onb.ended'), O.job.endDate, `type="month" ${O.job.current ? 'disabled' : ''}`)}</div>
+    <div class="grid2">${monthFieldHtml('ob-start', h('onb.started'), O.job.startDate, { lang: uiLang(), host: 'ob' })}${monthFieldHtml('ob-end', h('onb.ended'), O.job.endDate, { lang: uiLang(), host: 'ob', disabled: !!O.job.current })}</div>
     <label class="check"><input type="checkbox" id="ob-current" ${O.job.current ? 'checked' : ''}> ${h('onb.current')}</label>
     ${field('ob-loc', h('onb.where'), O.job.location)}
     <label class="field"><span class="lbl inline">${h('onb.claims')}</span><textarea id="ob-claims" rows="5" placeholder="${esc(t('onb.claimsPh'))}">${esc(O.job.claims ?? '')}</textarea></label>
@@ -105,7 +105,7 @@ function view(){
   if (s === 'education') return `${dots()}<h2 class="title">${h('onb.education')}</h2>
     ${field('ob-inst', h('onb.school'), O.education.institution)}
     <div class="grid2">${field('ob-type', h('onb.degree'), O.education.studyType, `placeholder="${esc(t('onb.degreePh'))}"`)}${field('ob-area', h('onb.subject'), O.education.area)}</div>
-    <div class="grid2">${field('ob-eend', h('onb.finished'), O.education.endDate, 'type="month"')}${field('ob-hon', h('onb.honours'), O.education.score)}</div>
+    <div class="grid2">${monthFieldHtml('ob-eend', h('onb.finished'), O.education.endDate, { lang: uiLang(), host: 'ob' })}${field('ob-hon', h('onb.honours'), O.education.score)}</div>
     <p class="note">${h('onb.educationNote')}</p>${nav()}`;
   if (s === 'skills') return `${dots()}<h2 class="title">${h('onb.skills')}</h2>
     <label class="field"><span class="lbl inline">${h('onb.skillsHow')}</span><textarea id="ob-skills" rows="5" placeholder="${esc(t('onb.skillsPh'))}">${esc(O.skills)}</textarea></label>${nav()}`;
@@ -245,7 +245,7 @@ function bind(body){
   });
   body.addEventListener('change', e => {
     const el = e.target;
-    if (el.id === 'ob-current'){ const end = $('#ob-end'); if (end) end.disabled = el.checked; }
+    if (el.id === 'ob-current') monthDisable('ob-end', el.checked);
     if (O.step !== 'lang' || !el.closest?.('[data-mode=welcome]')) return;
     if (el.dataset.langtick){
       const l = el.dataset.langtick;

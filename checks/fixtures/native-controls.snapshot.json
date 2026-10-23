@@ -1,0 +1,19 @@
+{
+  "range": {
+    "src/ui/actual.js": 1,
+    "src/ui/dock.js": 1
+  },
+  "select": {
+    "src/ui/career.js": 6,
+    "src/ui/edit.js": 3,
+    "src/ui/onboarding.js": 1,
+    "src/ui/resumes.js": 5,
+    "src/ui/review.js": 1,
+    "src/ui/settings.js": 1,
+    "src/ui/shell.js": 1,
+    "src/ui/switcher.js": 1
+  },
+  "file": {
+    "index.html": 1
+  }
+}

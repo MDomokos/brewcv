@@ -1,6 +1,7 @@
 // The resume switcher. On a desktop it is the name window: the name card grows down over the editor card and holds the full name with a
-// rename field, where the resume was copied from, Duplicate, Record, + New resume, the language and paper, the search and the last few
-// opened (a search lists every match by job type, with the snapshots folded under the row they belong to), and Manage all, which opens the
+// rename field, where the resume was copied from, "This resume" (Duplicate, then Delete at the far end), the language and paper, the search and a
+// list that starts with + New resume, then the last few opened (a search lists every match by job type, with the snapshots folded under the
+// row they belong to), and Manage all (a full-width secondary with an arrow), which opens the
 // Resumes screen (screens.js). On a phone it is the menu under the head, as it was. It lives outside #head, which is redrawn on every
 // save, so the search box keeps its caret.
 
@@ -28,7 +29,7 @@ function snapLines(r){
     const first = s.sends.find(x => RS.sendLabel(x)) ?? s.sends[0];
     const more = s.sends.length > 1 ? ` +${s.sends.length - 1}` : '';
     const label = first && RS.sendLabel(first) ? t('ux1.sentTo2', { to: RS.sendLabel(first) }) : t('ux1.snapshotWord');
-    return `<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${icon('right', { size: 12 })} ${esc(label)} · ${esc(first?.date || s.at.slice(0, 10))}${more}</button>`;
+    return `<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${icon('right', { role: 'inline' })} ${esc(label)} · ${esc(first?.date || s.at.slice(0, 10))}${more}</button>`;
   }).join('');
 }
 // A resume's name reads "Company - Role": when it does, the company is set above the role. Nothing is cut: a long name wraps.
@@ -64,29 +65,32 @@ function html(){
     return `<label class="lbl" for="sw-rn">${h('ux1.rename')}</label>
     <input id="sw-rn" class="sw-q" data-rid="${esc(st().openId ?? '')}" value="${esc(RS.resumeLabel(r))}" autocomplete="off" ${open ? '' : 'disabled'}>
     ${parent ? `<p class="muted tiny swfrom">${h('ux6b.duplicatedFrom', { name: RS.resumeLabel(parent) })}</p>` : ''}
-    <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.dup')}</button><button class="sm" data-act="rm-delete" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.delete')}</button><button class="sm" data-act="sw-record">${h('ux3b.modeRecord')}</button><button class="sm swnew" data-act="sw-new">${h('ux1.newResume')}</button></div>
+    <span class="lbl">${h('edit.thisResume')}</span>
+    <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.dup')}</button>${C.resumes.delHtml(st().openId, !open)}</div>${C.resumes.askHtml(st().openId)}
     <label class="sr" for="sw-lang">${h('head.langGroup')}</label>
     <div class="swlang">${C.langSelect()}<select id="sw-paper" class="sw-q" aria-label="${esc(t('design.paper'))}"><option value="a4" ${r?.format === 'us-letter' ? '' : 'selected'}>${h('paper.a4')}</option><option value="us-letter" ${r?.format === 'us-letter' ? 'selected' : ''}>${h('paper.letter')}</option></select></div>
     ${type ? `<p class="muted tiny">${esc(type)}</p>` : ''}
     ${search}
     <div id="sw-list" class="swlist" role="group" aria-label="${esc(t('ux1.switcherTitle'))}">
+      <button class="swnew" data-act="sw-new">${h('ux1.newResume')}</button>
       ${recent.length ? `<span class="lbl">${h('ux1.recent')}</span>${recent.map(x => rowHtml(x, 'recent')).join('')}` : ''}
       ${groups.map(g => `<span class="lbl">${esc(g.type ? g.label : t('resumes.noType'))}</span>${g.resumes.map(x => rowHtml(x, 'group')).join('')}`).join('')}
       ${q && !list.length ? `<p class="muted small swnone">${h('ux1.noMatch')}</p>` : ''}
     </div>
-    <div class="swfoot"><button class="sm" data-act="sw-manage">${h('ux1.manageAll', { n: all.length })}</button></div>`;
+    <div class="swfoot"><button class="sm swmanage" data-act="sw-manage"><span>${h('ux1.manageAll', { n: all.length })}</span>${icon('right', { role: 'control' })}</button></div>`;
   }
   const groups = RS.grouped(st().record, list);
   const recent = q ? [] : recentIds().map(id => all.find(r => r.id === id)).filter(Boolean).slice(0, RECENT_N);
-  return `<div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.dup')}</button><button class="sm" data-act="rm-delete" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.delete')}</button><button class="sm" data-act="sw-record">${h('ux3b.modeRecord')}</button></div>
+  return `<span class="lbl">${h('edit.thisResume')}</span>
+  <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.dup')}</button>${C.resumes.delHtml(st().openId, !st().openId)}</div>${C.resumes.askHtml(st().openId)}
   ${search}
-  <button class="swnew" data-act="sw-new">${h('ux1.newResume')}</button>
   <div id="sw-list" class="swlist" role="group" aria-label="${esc(t('ux1.switcherTitle'))}">
+    <button class="swnew" data-act="sw-new">${h('ux1.newResume')}</button>
     ${recent.length ? `<span class="lbl">${h('ux1.recent')}</span>${recent.map(r => rowHtml(r, 'recent')).join('')}` : ''}
     ${groups.map(g => `<span class="lbl">${esc(g.type ? g.label : t('resumes.noType'))}</span>${g.resumes.map(r => rowHtml(r, 'group')).join('')}`).join('')}
     ${list.length ? '' : `<p class="muted small swnone">${h(all.length ? 'ux1.noMatch' : 'ux1.noneYet')}</p>`}
   </div>
-  <div class="swfoot"><button class="sm" data-act="sw-manage">${h('ux1.manageAll', { n: all.length })}</button></div>`;
+  <div class="swfoot"><button class="sm swmanage" data-act="sw-manage"><span>${h('ux1.manageAll', { n: all.length })}</span>${icon('right', { role: 'control' })}</button></div>`;
 }
 
 function render({ keepFocus = true } = {}){
@@ -145,7 +149,7 @@ const toggle = () => (S.open ? close({ focusBack: true }) : open());
 // Ctrl+O: open it, or if it is open already, back to the search box
 const openOrFocus = () => { if (!S.open) open(); el.querySelector('#sw-q')?.focus(); };
 
-function navItems(){ return [...el.querySelectorAll('#sw-rn, .swacts button:not(:disabled), #sw-lang, #sw-paper, #sw-q, .swnew, .sopt, .smore, .snapline, .swfoot button:not(:disabled)')].filter(x => !x.closest('.rowmenu')); }
+function navItems(){ return [...el.querySelectorAll('#sw-rn, .swacts button:not(:disabled), .delask button, #sw-q, .ddbtn, .swnew, .sopt, .smore, .snapline, .swfoot button:not(:disabled)')].filter(x => !x.closest('.rowmenu')); }
 
 async function act(a, tg){
   switch (a){
@@ -153,7 +157,6 @@ async function act(a, tg){
     case 'sw-open': if (C.resumes.open(tg.dataset.id)) close(); return true;
     case 'sw-snap': C.resumes.openSnapshot(tg.dataset.id, tg.dataset.sid); close(); return true;
     case 'sw-new': close(); C.setView('new'); return true;
-    case 'sw-record': close(); C.setView('record'); return true;
     case 'sw-manage': close(); C.setView('resumes'); return true;
   }
   return false;
@@ -222,7 +225,7 @@ function bind(){
       return;
     }
     // typing anywhere goes to the search box
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest('input, select, textarea')) el.querySelector('#sw-q')?.focus();
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest('input, select, textarea, .ddbtn')) el.querySelector('#sw-q')?.focus();
   });
   document.addEventListener('mousedown', e => {
     if (S.open && !e.target.closest('#switcher, #docname-btn, #foot')) close();

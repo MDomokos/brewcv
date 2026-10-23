@@ -13,11 +13,8 @@ const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'} 
 const I = await import(pathToFileURL(path.join(ROOT, 'src/i18n/index.js')));
 const en = (await import(pathToFileURL(path.join(ROOT, 'src/i18n/en.js')))).default;
 const keys = Object.keys(en);
-// shortcut: removed in UX-6f, which translates them (the keys of UX-6b to UX-6e may be missing from the nine other catalogues until then)
-const LATER = k => /^ux6[b-egh]\./.test(k);
 const holes = v => [...new Set((typeof v === 'string' ? [v] : Object.values(v)).flatMap(s => [...String(s).matchAll(/\{(\w+)\}/g)].map(m => m[1])))].sort().join(',');
 
-ok('only the keys of UX-6b to UX-6e, UX-6g and UX-6h may be missing from the other catalogues', LATER('ux6b.rail') && LATER('ux6e.x') && LATER('ux6g.x') && LATER('ux6h.x') && !LATER('ux6a.x') && !LATER('ux6f.x') && !LATER('ux5c.line') && !LATER('head.save'));
 // The place is Career and its data is "your career" (UX-6h): no English value says "record" as a noun. The allow-list is for a word that is not the noun (none yet).
 {
   const ALLOWED = new Set();
@@ -29,12 +26,15 @@ for (const lang of I.UI_LANGS){
   if (!fs.existsSync(file)){ ok(`${lang}: a catalogue exists`, false); continue; }
   const mod = await import(pathToFileURL(file));
   const cat = mod.default;
-  const missing = keys.filter(k => !(k in cat) && !LATER(k));
+  const missing = keys.filter(k => !(k in cat));
   const extra = Object.keys(cat).filter(k => !(k in en));
   ok(`${lang}: every English key is there`, missing.length === 0, missing.slice(0, 5).join(', '));
   ok(`${lang}: no key English lacks`, extra.length === 0, extra.slice(0, 5).join(', '));
   const badHoles = keys.filter(k => k in cat && holes(cat[k]) !== holes(en[k]));
   ok(`${lang}: placeholders match per key`, badHoles.length === 0, badHoles.slice(0, 5).map(k => `${k}: ${holes(cat[k])} vs ${holes(en[k])}`).join('; '));
+  // Full screen is F11 (a plain F is a letter, Shift+F is the drink): no string about full screen names F with a modifier
+  const fullBad = keys.filter(k => k in cat && (/full/i.test(k) || /full ?screen/i.test(JSON.stringify(en[k]))) && /\+F(?!\d)/.test(JSON.stringify(cat[k])));
+  ok(`${lang}: no full-screen string names a modified F (full screen is F11)`, fullBad.length === 0, fullBad.join(', '));
   const cats = new Intl.PluralRules(lang).resolvedOptions().pluralCategories;
   const badPl = keys.filter(k => k in cat && typeof en[k] === 'object').filter(k => {
     const e = cat[k];
@@ -70,6 +70,20 @@ const unknown = [...used].filter(([k]) => !(k in en));
 ok(`every key used in src/ is in en.js (${used.size} used)`, unknown.length === 0, unknown.slice(0, 8).map(([k, f]) => `${k} (${f})`).join(', '));
 const unused = keys.filter(k => !used.has(k) && !/^(doc\.|lang\.|kind\.|level\.)/.test(k));
 console.log(`      ${unused.length} keys not found by the static scan (built at run time): ${unused.slice(0, 12).join(', ')}${unused.length > 12 ? '…' : ''}`);
+
+// A key is dead when its name is written nowhere outside the catalogues (src, desktop, scripts, checks, index.html) and no key of its family is built at run time
+// (a `family.${x}` template or a 'family.' + x). A tip is read as `${key}Tip` by drink.js, so a key beside a used one is not dead.
+{
+  const text = [];
+  const read = dir => { for (const f of fs.readdirSync(dir, { withFileTypes: true })){ const p = path.join(dir, f.name); if (f.isDirectory()){ if (!['i18n', 'node_modules', 'out', 'fixtures'].includes(f.name)) read(p); } else if (/\.(m?js|html)$/.test(f.name)) text.push(fs.readFileSync(p, 'utf8')); } };
+  for (const d of ['src', 'desktop', 'scripts', 'checks']) read(path.join(ROOT, d));
+  text.push(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'));
+  const all = text.join('\n');
+  const named = k => all.includes(`'${k}'`) || all.includes(`"${k}"`) || all.includes('`' + k + '`');
+  const built = k => { const pre = k.slice(0, k.lastIndexOf('.') + 1); return all.includes(pre + '${') || all.includes(`'${pre}' +`); };
+  const dead = keys.filter(k => !/^(doc\.|lang\.|kind\.|level\.)/.test(k) && !named(k) && !built(k) && !(k.endsWith('Tip') && named(k.slice(0, -3))));
+  ok('no key in en.js is dead: each is named in the code or belongs to a family built at run time', dead.length === 0, dead.slice(0, 10).join(', '));
+}
 
 ok('t() fills placeholders', I.t('toast.linked', { name: 'Docs' }) === 'Linked to Docs.');
 ok('t() picks the English plural', I.t('head.pages', { n: 1 }) === '1 page' && I.t('head.pages', { n: 2 }) === '2 pages' && I.t('head.pages', { n: 0 }) === '0 pages');

@@ -33,6 +33,8 @@
 <link rel="stylesheet" href="src/ui/start.css">
 <link rel="stylesheet" href="src/ui/intro-side.css">
 <link rel="stylesheet" href="src/ui/flow.css">
+<link rel="stylesheet" href="src/ui/sidebar.css">
+<link rel="stylesheet" href="src/ui/buttons.css">
 <!-- the drink and the theme, on the page before it is first painted (tea or coffee, light or dark). Asked for before the module list below, so on a host that
      serves a few files at a time (HTTP/1.1) the page's first paint is not queued behind seventy modules. -->
 <script src="src/ui/drink-boot.js"></script>
@@ -58,6 +60,7 @@
 <link rel="modulepreload" href="src/ui/canvas.js">
 <link rel="modulepreload" href="src/ui/onpage.js">
 <link rel="modulepreload" href="src/ui/hands.js">
+<link rel="modulepreload" href="src/ui/depthmenu.js">
 <link rel="modulepreload" href="src/ui/start.js">
 <link rel="modulepreload" href="src/ui/story.js">
 <link rel="modulepreload" href="src/ui/story-old.js">
@@ -97,12 +100,19 @@
 <link rel="modulepreload" href="src/ui/screens.js">
 <link rel="modulepreload" href="src/ui/thumbs.js">
 <link rel="modulepreload" href="src/ui/help.js">
+<link rel="modulepreload" href="src/ui/press.js">
+<link rel="modulepreload" href="src/ui/sidewidth.js">
+<link rel="modulepreload" href="src/ui/monthpick.js">
+<link rel="modulepreload" href="src/ui/dropdown.js">
+<link rel="modulepreload" href="src/ui/suggest.js">
+<link rel="modulepreload" href="src/ui/find.js">
 <link rel="modulepreload" href="src/ui/review.js">
 <link rel="modulepreload" href="src/ui/drink.js">
 <link rel="modulepreload" href="src/ui/garden.js">
 <link rel="modulepreload" href="src/ui/motion.js">
 <link rel="modulepreload" href="src/ui/buttonfx.js">
 <link rel="modulepreload" href="src/ui/pagemotion.js">
+<link rel="modulepreload" href="src/ui/plate.js">
 <link rel="modulepreload" href="src/ui/arrive.js">
 <link rel="modulepreload" href="src/ui/matroll.js">
 <link rel="modulepreload" href="src/ui/exportfx.js">
@@ -121,6 +131,7 @@
   <header id="head" class="card head"><div class="hrow"><span class="logo"><img src="icons/icon.svg" alt="" width="28" height="28">BrewCV</span></div></header>
   <section id="body" class="card body" role="tabpanel"><p class="skel-line" style="width:70%"></p><p class="skel-line"></p><p class="skel-line" style="width:85%"></p></section>
   <footer id="foot" class="card foot"></footer>
+  <div id="corner"></div>
 </main>
 
 <!-- the Library and Career, drawn left of the sidebar; after it in the document, so the focus order is the place tabs, the card, the panel, then this -->

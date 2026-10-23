@@ -7,7 +7,7 @@
 /* the sheet waits (it is still measured, so it stays in the page) and the stage takes its place */
 .pagebox { transition: opacity .35s var(--ease); }
 body.is-intro .pagebox { opacity: 0; visibility: hidden; pointer-events: none; }
-body.is-intro .pagelay, body.is-intro .ovlay, body.is-intro .editlay { display: none; }
+body.is-intro .ovlay, body.is-intro .editlay { display: none; }
 
 .startstage { position: fixed; z-index: 6; left: 0; top: 0; bottom: 0; width: var(--startw, calc(100vw - 440px)); display: flex; align-items: flex-start; justify-content: center; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .3s var(--ease), visibility 0s .3s; }
 body.is-intro .startstage { opacity: 1; visibility: visible; pointer-events: none; transition: opacity .4s var(--ease) .1s, visibility 0s 0s; }

@@ -7,8 +7,11 @@
 // Pure view state; nothing here is undone or saved.
 
 import { reduced } from './motion.js';
+import { withArrows } from './icons.js';
 import { checklist as model } from '../model/checklist.js';
 import { t, h } from '../i18n/index.js';
+import { F, careerHtml, resumesHtml, printsButton } from './find.js';
+import { careerHits } from '../model/checklist.js';
 
 let C = null;
 const FLASH_MS = 1600;
@@ -17,28 +20,28 @@ const phone = () => document.body.dataset.phone === 'true';
 
 // sel: the entry in the inspector (undefined: the newest, null: none); q: the search; typing: the search keeps the caret over a redraw;
 // goto and mark: the phone's entry to scroll to, and the ones to mark
-const R = { q: '', sel: undefined, typing: false, goto: null, mark: [], timer: 0 };
+const R = { sel: undefined, typing: false, goto: null, mark: [], timer: 0 };
 
 export function initRecord(ctx){
   C = ctx;
-  document.addEventListener('input', e => { if (e.target.id === 'rec-q'){ R.q = e.target.value; R.typing = true; C.renderBody(); } });
+  document.addEventListener('input', e => { if (e.target.id === 'rec-q'){ F.q = e.target.value; R.typing = true; C.renderBody(); } });
   document.addEventListener('keydown', e => {
     if (e.target.id !== 'rec-q' || e.key !== 'Escape') return;
     e.preventDefault(); e.stopPropagation();
-    if (R.q){ R.q = ''; R.typing = true; C.renderBody(); } else e.target.blur();
+    if (F.q){ F.q = ''; R.typing = true; C.renderBody(); } else e.target.blur();
   });
   return api;
 }
 
-const search = () => `<input id="rec-q" type="search" class="sw-q" autocomplete="off" aria-label="${esc(t('ux6h.searchCareer'))}" placeholder="${esc(t('ux6h.searchCareer'))}" value="${esc(R.q)}">`;
+const search = () => `<input id="rec-q" type="search" class="sw-q" autocomplete="off" aria-label="${esc(t('ux6h.searchCareer'))}" placeholder="${esc(t('ux6h.searchCareer'))}" value="${esc(F.q)}">`;
 // the screen's back button is a phone's: on a desktop the place tabs are the way out
-const view = () => `${phone() ? `<div class="scrbar"><button class="sm scrback" data-act="scr-back">${h('ux1.backToResume')}</button></div>` : ''}${C.checklist.html()}`;
+const view = () => `${phone() ? `<div class="scrbar"><button class="sm scrback" data-act="scr-back">${withArrows(h('ux1.backToResume'))}</button></div>` : ''}${C.checklist.html()}`;
 
 // an entry matches by its own words or by any of its lines
-function filter(cl, textOf){
-  const q = R.q.trim().toLowerCase();
+function filter(cl, textOf, hit){
+  const q = F.q.trim().toLowerCase();
   const btns = [...cl.querySelectorAll('.rectl [data-grp]')];
-  for (const b of btns) b.style.display = !q || b.textContent.toLowerCase().includes(q) || textOf.get(b.dataset.grp)?.includes(q) ? '' : 'none';
+  for (const b of btns) b.style.display = !q || b.textContent.toLowerCase().includes(q) || textOf.get(b.dataset.grp)?.includes(q) || hit.has(b.dataset.grp) ? '' : 'none';
   for (const y of cl.querySelectorAll('.rectl .yr')){ const row = y.nextElementSibling; y.style.display = !q || (row && [...row.querySelectorAll('[data-grp]')].some(b => b.style.display !== 'none')) ? '' : 'none'; }
   const sel = btns.find(b => b.dataset.grp === R.sel);
   if (q && (!sel || sel.style.display === 'none')){ const first = btns.find(b => b.style.display !== 'none'); if (first) R.sel = first.dataset.grp; }
@@ -66,26 +69,28 @@ function place(){
   const listed = new Set(rows.map(r => r.dataset.grp));
   const more = groups.filter(g => !listed.has(g.dataset.g));
   const tl = cl.querySelector('.rectl');
-  tl?.insertAdjacentHTML('afterbegin', `<div class="recmore">${more.map(g => `<button class="srow" data-act="rec-job" data-grp="${esc(g.dataset.g)}"><span class="t">${esc((g.querySelector('.clname')?.textContent ?? g.dataset.g).trim().replace(/\s+/g, ' '))}</span></button>`).join('')}</div>`);
-  filter(cl, textOf);
+  tl?.insertAdjacentHTML('afterbegin', `${careerHtml()}${resumesHtml()}<div class="recmore">${more.map(g => `<button class="srow" data-act="rec-job" data-grp="${esc(g.dataset.g)}"><span class="t">${esc((g.querySelector('.clname')?.textContent ?? g.dataset.g).trim().replace(/\s+/g, ' '))}</span></button>`).join('')}</div>`);
+  const found = F.q.trim() ? careerHits(C.work(), F.q) : [];      // a word in a version the entry does not print now still finds the entry
+  filter(cl, textOf, new Set(found.map(x => x.group)));
   for (const r of cl.querySelectorAll('.rectl [data-grp]')) r.classList.toggle('is-sel', r.dataset.grp === R.sel);
   // the inspector: the selected entry's facts and lines, with the two scopes named
   const sel = groups.find(g => g.dataset.g === R.sel);
   if (!sel){ bd.innerHTML = `<section class="insp"><span class="lbl">${h('ux6h.career')}</span><p class="small muted">${h('ux6h.recPick', { name: C.openName() })}</p></section>`; return; }
-  const facts = C.ui.ix?.work.get(R.sel) ? C.career.detailsHtml(R.sel) : '';
+  const entry = C.ui.ix?.work.get(R.sel), facts = entry ? C.career.detailsHtml(R.sel) : '';
   const opens = sel.querySelector('[data-act=cl-open]')?.dataset.sel;      // the entry's own heading opens it in the editor
   bd.innerHTML = `<section class="insp insp-rec"><span class="lbl">${h('ux6h.entry')}</span>
     <h2 class="oi-name">${esc((sel.querySelector('.clname')?.textContent ?? '').trim().replace(/\s+/g, ' '))} <small class="muted">${esc((sel.querySelector('.clcount [aria-hidden]') ?? sel.querySelector('.clcount'))?.textContent ?? '')}</small></h2>
     ${opens ? `<button class="sm ghost insp-open" data-act="cl-open" data-sel="${esc(opens)}">${h('ux6h.openInEditor')}</button>` : ''}
+    ${entry ? printsButton([...(entry.highlights ?? []), ...Object.values(entry.display ?? {})], (sel.querySelector('.clname')?.textContent ?? '').trim().replace(/\s+/g, ' '), { cls: 'insp-prints' }) : ''}
     ${facts ? `<p class="scope">${h('ux6h.scopeAll')}</p><div class="recfacts">${facts}</div>` : ''}
     <p class="scope tickscope">${h('ux6h.scopeTick', { name: C.openName() })}</p></section>`;
   sel.classList.add('is-sel');
   const gh = sel.querySelector(':scope > .clgh');      // its heading is the title above: gone, unless it still has an order mark or Unarchive
-  if (gh && !gh.querySelector(':scope > :not(.clcaret, .clname, .clcount)')) gh.remove();
+  if (gh && !gh.querySelector(':scope > :not(.clcaret, .clname, .clcount, .clmid), :scope > .clmid > :not(.clcaret, .clname, .clcount)')) gh.remove();
   bd.querySelector('.insp').append(sel);
   sel.querySelector('.clbody')?.removeAttribute('hidden');      // its fold is not offered here: the lines are always shown
-  const q = R.q.trim().toLowerCase();
-  if (q) for (const row of sel.querySelectorAll('.clrow')) row.classList.toggle('qhit', row.textContent.toLowerCase().includes(q));
+  const q = F.q.trim().toLowerCase();
+  if (q) for (const row of sel.querySelectorAll('.clrow')) row.classList.toggle('qhit', row.textContent.toLowerCase().includes(q) || found.some(x => x.fact === row.dataset.fact));
 }
 // the search keeps the caret over a redraw (the shell calls this after it has put the focus back)
 function refocus(){
@@ -120,7 +125,7 @@ function open(groups = []){
   C.setMode('record');
 }
 // Esc in Career: the search, then the selection (an open form closes first: its own Esc handler, before this one)
-function clearSel(){ if (R.q){ R.q = ''; C.renderBody(); return; } if (R.sel !== null){ R.sel = null; C.renderBody(); } }
+function clearSel(){ if (F.q){ F.q = ''; C.renderBody(); return; } if (R.sel !== null){ R.sel = null; C.renderBody(); } }
 
 // the place card's second line: how many entries, and how many of the lines are on the open resume
 function summary(){

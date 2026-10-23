@@ -9,6 +9,7 @@ import { t, h, errText, MACHINE, UI_LANGS } from '../i18n/index.js';
 import { DRINKS, THEMES, drink, themePref, setDrink, setThemePref } from './drink.js';
 import { readReduce, setReduce } from './motion.js';
 import { viewSettingsHtml, viewSettingChanged } from './dock.js';
+import { groupHtml, sw } from './parts.js';
 
 let C = null;
 export function initSettings(ctx){ C = ctx; return api; }
@@ -43,7 +44,7 @@ const writeGarden = on => { try { localStorage.setItem(GARDEN_KEY, on ? 'on' : '
 export function langChecks(ticked, { id = 'langs' } = {}){
   return `<div class="langs-pick" role="group" aria-label="${esc(t('set.langsUse'))}" id="${id}">${LANGS.map(l => {
     const on = ticked.includes(l), last = on && ticked.length === 1;
-    return `<label class="${on ? 'on' : ''}" lang="${l}"><input type="checkbox" data-langtick="${l}" ${on ? 'checked' : ''} ${last ? 'disabled' : ''}>${esc(langName(l))}</label>`;
+    return `<label class="${on ? 'on' : ''}" lang="${l}"><input type="checkbox" class="cb press" data-tier="tertiary" data-langtick="${l}" ${on ? 'checked' : ''} ${last ? 'disabled' : ''}>${esc(langName(l))}</label>`;
   }).join('')}</div>`;
 }
 export function uiChoice(pref, offer, { name = 'ui' } = {}){
@@ -61,36 +62,35 @@ function settingsView(){
   const inUse = langsInUse(rec);
   const pref = C.ui.pref;
   loadVersion();
-  const langs = `<span class="lbl">${h('set.langsUse')}</span>
-    <p class="small muted">${h('set.langsUseNote')}</p>
-    ${langChecks(inUse)}
-    <p class="note">${h('set.untickNote')}</p>`;
+  const browser = t('uxs.thisBrowser');
+  // grouped by what each acts on, this browser first, then your career (UX-6 sidebar audit (e))
   return `<h2 class="title">${h('set.title')}</h2>
-    ${langs}
-    <span class="lbl">${h('set.uiHead')}</span>${uiChoice(pref, inUse)}
-    <p class="note">${h('set.machineNote')}</p>
-    <span class="lbl">${h('m11.setDrinkHead')}</span>
+    ${groupHtml(t('uxs.look'), `<span class="lbl">${h('m11.setDrinkHead')}</span>
     <div class="uichoice" role="radiogroup" aria-label="${esc(t('m11.setDrinkHead'))}">
       ${DRINKS.map(d => `<label class="opt"><input type="radio" name="drink" data-drink="${d}" ${drink() === d ? 'checked' : ''}><span class="opt-t">${h(`m11.${d}`)} <span class="muted">· ${h(`m11.${d}Hint`)}</span></span></label>`).join('')}
     </div>
     <p class="note">${h('m11.setDrinkNote')}</p>
-    <label class="opt"><input type="checkbox" data-garden ${readGarden() ? 'checked' : ''}><span class="opt-t">${h('m11b.garden')}</span></label>
-    <p class="note">${h('m11b.gardenNote')}</p>
-    <label class="opt"><input type="checkbox" data-reduce-motion ${readReduce() ? 'checked' : ''}><span class="opt-t">${h('ux4.reduceMotion')}</span></label>
-    <p class="note">${h('ux4.reduceMotionNote')}</p>
     <span class="lbl">${h('m11.setThemeHead')}</span>
     <div class="uichoice" role="radiogroup" aria-label="${esc(t('m11.setThemeHead'))}">
       ${THEMES.map(m => `<label class="opt"><input type="radio" name="theme" data-theme="${m}" ${themePref() === m ? 'checked' : ''}><span class="opt-t">${h(`m11.theme${m[0].toUpperCase()}${m.slice(1)}`)}</span></label>`).join('')}
     </div>
     <p class="note">${h('m11.themeNote')}</p>
-    <span class="lbl">${h('ux5a.viewHead')}</span>
-    ${viewSettingsHtml()}
-    <span class="lbl">${h('set.startHead')}</span>
+    ${sw('data-reduce-motion', readReduce(), h('ux4.reduceMotion'))}
+    <p class="note">${h('ux4.reduceMotionNote')}</p>
+    ${sw('data-garden', readGarden(), h('m11b.garden'))}
+    <p class="note">${h('m11b.gardenNote')}</p>`, browser)}
+    ${groupHtml(t('set.uiHead'), `${uiChoice(pref, inUse)}
+    <p class="note">${h('set.machineNote')}</p>`, browser)}
+    ${groupHtml(t('ux5a.viewHead'), viewSettingsHtml(), browser)}
+    ${groupHtml(t('set.langsUse'), `<p class="small muted">${h('set.langsUseNote')}</p>
+    ${langChecks(inUse)}
+    <p class="note">${h('set.untickNote')}</p>`, t('uxs.everyResume'))}
+    ${groupHtml(t('uxs.about'), `<span class="lbl">${h('set.startHead')}</span>
     <div class="btns"><button class="sm" data-act="set-ask-again">${h('set.askAgain')}</button></div>
     <p class="note">${h('set.thisBrowser')}</p>
     <span class="lbl">${h('set.versionHead')}</span>
     <p class="small" data-appversion>${esc(appVersion ?? '…')}</p>
-    <p class="note">${h('set.versionNote')}</p>`;
+    <p class="note">${h('set.versionNote')}</p>`)}`;
 }
 
 // The app's version is the service worker's VERSION: one place, stamped with the commit on deploy.
@@ -146,4 +146,6 @@ function bind(body){
 const api = {
   views: { settings: () => settingsView() },
   act, bind,
+  // the version for the "?" corner (shell.js), the same line as About this copy's
+  versionHtml: () => { loadVersion(); return `<span data-appversion>${esc(appVersion ?? '…')}</span>`; },
 };

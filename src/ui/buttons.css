@@ -1,0 +1,78 @@
+/* The button system (UX-6 sidebar round 2): every button differs from what it stands on by an edge, a fill or the weight of its words;
+   depth only adds to that. src/ui/press.js gives each button its role:
+   primary      the accent fill and the heavy shadow, one a view (the popovers are the only other thing that stands that high)
+   secondary    a 1.5 px edge at 3:1 against its ground, a small shadow
+   tertiary     words: a link (weight 600, underlined on hover and focus), no edge, no fill, no shadow
+                an icon (data-icon, no words): flat, a quiet frame at rest, a fill on hover, no shadow
+   destructive  every delete and remove, one look (.del, parts.js delBtn)
+   Loaded last; checks/button-check.mjs measures it in Tea and Coffee, light and dark. Every colour is a token. */
+
+/* the edge and the shadow are drawn in the ink of the surface the button is on (a tea's panel, the espresso chrome, the name window, the paper),
+   not in the page's: each element works them out from its own tokens. Coffee's edge is ink-strength, its shadow an offset of the local ink. */
+:where(*) { --press-edge: var(--line-strong); }
+html[data-drink="coffee"] :where(*) { --press-edge: color-mix(in srgb, var(--ink) 72%, transparent); --press-sh: color-mix(in srgb, var(--ink) 60%, transparent); }
+html[data-drink="coffee"][data-theme="dark"] :where(*) { --press-sh: color-mix(in srgb, var(--ink) 45%, transparent); }
+/* paper (the Library, Career, the search bar): an edge of 3:1 on the paper, where the paper's own hairline is not */
+.scr, .find { --line-strong: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); }
+html .scr :is(.found, .tbar, .cmpbar) :where(*), html .find :where(*) { --press-edge: var(--line-strong); --press-sh: var(--press-paper-sh); }      /* a paper face wears a paper shadow in every look */
+
+/* secondary: the edge carries it */
+.press[data-tier=secondary] { border-width: 1.5px; border-style: solid; }
+
+/* tertiary: never a shadow (a tick keeps its raised face: it is an input, not a button) */
+button.press[data-tier=tertiary], button.press[data-tier=tertiary]:hover:not(:disabled) { box-shadow: none; }
+/* …words: a link */
+button.ghost.press[data-tier=tertiary]:not([data-icon]) { background-color: transparent; border-color: transparent; font-weight: 600; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+button.ghost.press[data-tier=tertiary]:not([data-icon]):is(:hover:not(:disabled), :focus-visible) { background-color: transparent; text-decoration-line: underline; }
+/* …an icon: a quiet frame at rest, a fill on hover (the tools on the page keep their own: no face on the paper) */
+.press[data-tier=tertiary][data-icon]:is(.ib, .smore, .x, .keep, .kset, .tool, .ghost):not(.obtools .ib, [data-act=side-fold]) { border: 1px solid color-mix(in srgb, var(--line-strong) 45%, transparent); }
+.press[data-tier=tertiary][data-icon]:is(.ib, .smore, .x, .keep, .kset, .tool, .ghost):not(.obtools .ib, [data-act=side-fold]):is(:hover:not(:disabled), :focus-visible) { border-color: var(--press-edge); background-color: var(--hover-strong); }
+
+/* a button that stays pressed (Sent only, Keep): on is filled with the ink, off is the plain button */
+button.press:is([data-act=scr-sent], .keep)[aria-pressed=true] { background-color: var(--ink); color: var(--surface); border-color: var(--ink); opacity: 1; }
+button.press:is([data-act=scr-sent], .keep)[aria-pressed=true]:hover:not(:disabled) { background-color: color-mix(in srgb, var(--ink) 88%, var(--surface)); }
+
+/* the date field's button: an edge you can see on a washed card */
+.mpf .mpbtn { border-color: color-mix(in srgb, var(--line-strong) 80%, var(--ink)); }
+
+/* destructive (every delete and remove, parts.js delBtn): the X (the registry's delete, 16 px), the warning colour, an outline in it that fills on hover; it stands last in its
+   row, after a gap. Labelled where there is room, the X alone (named) where not; a menu's row is the same colour and X, flat (over the
+   head's own menu colours). The paper takes a warning colour drawn for the paper. */
+.scr, .find { --bad: var(--paper-bad); }
+.del { display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: var(--bad); font-weight: 650; white-space: nowrap; }
+.del svg { flex: none; }
+.del:not([role^=menuitem], :first-child, .dp-t) { margin-inline-start: 8px; }
+.grow + .del:not([role^=menuitem]) { margin-inline-start: 0; }
+button.del.press { background-color: transparent; border: 1.5px solid var(--bad); color: var(--bad); }
+button.del.press:is(:hover:not(:disabled), :focus-visible, .is-down) { background-color: var(--bad); border-color: var(--bad); color: var(--surface); }
+button.del.press:has(> svg:only-child) { width: 28px; height: 28px; padding: 0; }      /* the X alone: a 28 box round the 16 px icon */
+.tag button.del.press:has(> svg:only-child) { width: 24px; height: 24px; margin: -2px -8px -2px 3px; border-width: 1px; border-radius: var(--r-pill); }      /* in a tag: the same X, a 24 target with a slimmer ring */
+:is(#col, #scr) :is(.menu, .pop, [role=menu]) button.del[role^=menuitem] { color: var(--bad); justify-content: flex-start; gap: 8px; }
+.del[role^=menuitem] > span { flex: 1; }
+.dp-t.del { color: var(--bad); opacity: 1; }
+.dp-t.del:is(:hover, :focus-visible):not([aria-disabled=true]) { background: var(--bad); color: var(--surface); }
+
+/* the name card (item 11): the name is one large button, the card's whole top, its fill reaching the card's edge; ⋯ is a flat icon in a
+   corner of its own, 8 px inside the card; neither has a shadow (the name stays filled, not sunk, while its window is open) */
+body:not([data-phone=true]):not(.is-intro) .col > #head:not(.is-place) { padding: 0; }
+body:not([data-phone=true]):not(.is-intro) .col > #head:not(.is-place) > .hrow.top { align-items: stretch; gap: 0; }
+body:not([data-phone=true]):not(.is-intro) #head .docname { padding: 10px 8px 10px 12px; border: 0; border-radius: calc(var(--r-l) - 1px) 0 0 calc(var(--r-l) - 1px); }
+body:not([data-phone=true]):not(.is-intro) #head:has(> .sentrow) .docname, body:not([data-phone=true]):not(.is-intro) .col.is-name > #head .docname { border-bottom-left-radius: 0; }
+body:not([data-phone=true]):not(.is-intro) #head:not(.is-place) .hside { padding: 8px 8px 8px 0; }
+body:not([data-phone=true]):not(.is-intro) .col > #head > .sentrow { padding: 0 12px 8px; }
+#head :is(.docname, [data-act=menu]), #head :is(.docname, [data-act=menu]):is(:hover, :active, .is-down, [aria-expanded=true]) { box-shadow: none; }
+html #head .docname:hover { background-color: var(--hover); }      /* over Coffee's transparent head buttons */
+html #head .docname[aria-expanded=true] { background-color: var(--chrome-hover); }
+
+/* the name window: "This resume" holds Duplicate and, at the far end, Delete; the list starts with + New resume, a row of its own (a dashed
+   edge: a row to come); Manage all is a full-width secondary with an arrow */
+.switcher .swacts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.switcher .swacts > .del { margin-inline-start: auto; }
+.switcher .swnew { display: flex; align-items: center; width: 100%; padding: 6px 8px; text-align: left; font-weight: 650; color: var(--ink); background: transparent; border: 1px dashed var(--line-strong); border-radius: var(--r-s); }
+.switcher .swnew:hover, .switcher .swnew:focus-visible { background: var(--hover-strong); border-style: solid; }
+.switcher .swfoot { display: block; }
+.switcher .swmanage { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; text-align: left; }
+
+/* menus: flat rows, the hover fill 8 px inside the card's edge */
+:is(.menu, .pop[role=menu]) { padding: 8px; }
+:is(.menu, .pop[role=menu]) > :is(button, a) { border-radius: var(--r-s); background-color: transparent; }

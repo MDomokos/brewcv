@@ -19,7 +19,7 @@ const TABLE = process.argv.includes('--table');
 let failed = 0;
 const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${!cond && extra ? `  — ${extra}` : ''}`); if (!cond) failed++; };
 
-const wb = read('src/ui/workbench.css'), dk = read('src/ui/drinks.css'), st = read('src/ui/start.css'), side = read('src/ui/intro-side.css'), fl = read('src/ui/flow.css');
+const wb = read('src/ui/workbench.css'), dk = read('src/ui/drinks.css'), st = read('src/ui/start.css'), side = read('src/ui/intro-side.css'), fl = read('src/ui/flow.css'), sb = read('src/ui/sidebar.css'), bt = read('src/ui/buttons.css');
 const strip = css => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 // ---- the token blocks ----
@@ -54,6 +54,9 @@ for (const [name, blk] of [['tea', B.teaLight], ['coffee', B.coffeeLight]]){
 const shared = ['--r-xs', '--r-s', '--r-m', '--r-l', '--r-pill', '--r-round', '--r-panel'];
 ok('tea: the panel is 24px', B.root['--r-panel'] === '24px');
 ok('coffee: 2px corners on everything', shared.every(k => B.coffeeLight[k] === '2px'));
+// the press (UX-6f): one class in three tiers; each drink and theme has its own edge and shadow colour, the geometry is shared, the tertiary tier does not lift
+ok('the press: an edge and a shadow colour in all four drink blocks, the three tiers\' travel in :root, the tertiary tier lifts nothing, one class', [B.teaLight, B.teaDark, B.coffeeLight, B.coffeeDark].every(b => b['--press-edge'] && b['--press-sh'])
+  && ['p', 's', 't'].every(k => ['x', 'y', 'lift', 'travel'].every(n => B.root[`--press-${k}-${n}`])) && B.root['--press-t-lift'] === '0px' && /\n\.press \{/.test(strip(wb)) && /\.press\[data-tier=primary\]/.test(strip(wb)) && fs.existsSync(path.join(ROOT, 'src/ui/press.js')));
 ok('coffee: no shadows', ['--shadow-panel', '--shadow-lift', '--shadow-chip', '--shadow-toast', '--page-shadow', '--drop-sm'].every(k => B.coffeeLight[k] === 'none'));
 ok('tea: shadows are flat and offset (no blur)', ['--shadow-panel', '--shadow-lift', '--shadow-chip', '--shadow-toast', '--page-shadow', '--drop-sm'].every(k => /\b\d+px \d+px 0 rgba|drop-shadow\(\d+px \d+px 0 rgba/.test(B.teaLight[k] + B.teaDark[k] ?? '')));
 ok('coffee: one accent, crema #BE7F4A', B.coffeeLight['--accent'].toLowerCase() === '#be7f4a' && B.coffeeLight['--crema'].toLowerCase() === '#be7f4a');
@@ -187,7 +190,7 @@ function outside(css, label){
   const found = [...s.matchAll(COLOUR)].map(m => s.slice(Math.max(0, m.index - 40), m.index + 20).replace(/\s+/g, ' '));
   ok(`${label}: no colour outside the token blocks`, !found.length, found.slice(0, 3).join(' | '));
 }
-outside(wb, 'workbench.css'); outside(dk, 'drinks.css'); outside(st, 'start.css'); outside(side, 'intro-side.css'); outside(fl, 'flow.css');
+outside(wb, 'workbench.css'); outside(dk, 'drinks.css'); outside(st, 'start.css'); outside(side, 'intro-side.css'); outside(fl, 'flow.css'); outside(sb, 'sidebar.css'); outside(bt, 'buttons.css');
 const sheet = read('src/ui/sheet.js');
 ok('sheet.js: the page\'s marks take their colours from tokens (no colour written in the marks)', !COLOUR.test(sheet.slice(sheet.indexOf('const VIEW_CSS'), sheet.indexOf('`;', sheet.indexOf('const VIEW_CSS')))));
 ok('no yellow resume accent #ffd900 in the app\'s own styles', !/#ffd900/i.test(strip(wb).replace(/--sample-1:[^;]*;/, '')) && !/#ffd900/i.test(dk));

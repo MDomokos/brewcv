@@ -7,10 +7,14 @@
 import * as RS from '../model/resumes.js';
 import { jobTypeLabel } from '../model/focus.js';
 import { pendingEdits } from '../model/resume.js';
+import { langName } from '../model/lang.js';
 import { t, h } from '../i18n/index.js';
 import { pageSize, computeLayout } from './layout.js';
+import { side } from './sidewidth.js';
 import { play, reduced } from './motion.js';
 import { nameHtml } from './switcher.js';
+import { icon, withArrows } from './icons.js';
+import { F, snippet, careerHtml } from './find.js';
 
 let C = null, T = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -19,7 +23,7 @@ const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return
 // ticked: resumes ("id") and sent copies ("id|snapshot"); cmp: what Compare shows, and focus the row in the inspector;
 // sel: the selected card (null: the open resume's); nj: the resume whose "Use for a new job" form is open; draft: what was typed in
 // that form, per resume, kept until the copy is made
-const V = { q: '', view: savedView(), ticked: new Set(), cmp: [], sel: null, nj: null, draft: new Map(), sentOnly: false, rows: [], focus: -1 };
+const V = { hits: new Map(), view: savedView(), ticked: new Set(), cmp: [], sel: null, nj: null, draft: new Map(), sentOnly: false, rows: [], focus: -1 };
 const phone = () => document.body.dataset.phone === 'true';
 const selId = () => (V.sel && RS.savedOf(st(), V.sel) ? V.sel : st().openId);
 
@@ -71,41 +75,53 @@ function card(r){
     <h4 class="rname">${C.resumes.renamingHere(r.id, 'screen') ? C.resumes.renameInput(r) : `<button class="rsel" data-act="scr-sel" data-id="${esc(r.id)}" aria-pressed="${r.id === selId()}" ${open ? 'aria-current="true"' : ''}>${nameHtml(company && role ? company : label(r))}</button>`}</h4>
     ${company && role ? `<p class="rrole">${esc(role)}</p>` : ''}
     <p class="rmeta">${esc(metaOf(r))}</p>
+    ${RS.parentOf(st(), r) ? `<p class="rfrom">${esc(t('ux6f.from', { name: label(RS.parentOf(st(), r)) }))}</p>` : ''}
+    ${V.hits.has(r.id) ? `<p class="rhit">${snippet(V.hits.get(r.id)[0].text, F.q)}${V.hits.get(r.id).length > 1 ? ` <small class="muted">+${V.hits.get(r.id).length - 1}</small>` : ''}</p>` : ''}
     <p class="rbadges">${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}${n ? `<span class="pill">${h('ux6h.sentN', { n })}</span>` : ''}</p>
     ${phone() ? phoneExtras(r) : ''}
   </article>`;
 }
 
 function listHtml(){
-  const all = st().resumes ?? [], q = V.q.trim().toLowerCase();
-  const list = all.filter(r => (RS.matches(st().record, r, V.q) || (q && RS.snapshotsOf(r).some(s => s.sends.some(x => String(x.company).toLowerCase().includes(q))))) && (!V.sentOnly || RS.snapshotsOf(r).length));
-  if (!list.length) return `<p class="muted small swnone">${h(all.length ? 'ux1.noMatch' : 'ux1.noneYet')}</p>`;
+  const all = st().resumes ?? [], q = F.q.trim().toLowerCase();
+  // a resume is found by its name, its sent-to or the words of the lines it prints; the one selected and the ones ticked for Compare stay in the results
+  V.hits = new Map(all.map(r => [r.id, RS.hits(C.work(), recipeOf(r.id), q)]).filter(([, h]) => h.length));
+  const claim = r => !F.claim || RS.prints(C.work(), recipeOf(r.id), F.claim.facts, F.claim.vid);
+  const list = all.filter(r => claim(r) && (RS.matches(st().record, r, F.q) || V.hits.has(r.id) || r.id === V.sel || V.ticked.has(r.id) || (q && RS.snapshotsOf(r).some(s => s.sends.some(x => String(x.company).toLowerCase().includes(q))))) && (!V.sentOnly || RS.snapshotsOf(r).length));
+  const found = careerHtml();      // …and the Career entries that hold the word, under the cards
+  if (!list.length) return `<p class="muted small swnone">${h(F.claim ? 'ux6f.noPrint' : all.length ? 'ux1.noMatch' : 'ux1.noneYet')}</p>${found}`;
   const group = (name, rs) => `<h3 class="lbl">${esc(name)} · ${rs.length}</h3><div class="rgrid">${rs.map(card).join('')}</div>`;
   const byNewest = gs => gs.map(g => ({ ...g, rs: g.rs.slice().sort(newest) })).sort((a, b) => newest(a.rs[0], b.rs[0]));
   if (V.view === 'date'){
     const years = new Map();
     for (const r of list.slice().sort(newest)){ const y = r.id === st().openId ? t('ux6h.now') : (r.savedAt || '').slice(0, 4) || t('ux2.noDate'); years.set(y, [...(years.get(y) ?? []), r]); }
-    return [...years].map(([y, rs]) => group(y, rs)).join('');
+    return [...years].map(([y, rs]) => group(y, rs)).join('') + found;
   }
-  if (V.view === 'company') return byNewest(RS.byCompany(list).map(g => ({ name: g.key ? g.label : t('ux2.noCompany'), rs: g.rows.map(x => x.resume) }))).map(g => group(g.name, g.rs)).join('');
-  return byNewest(RS.grouped(st().record, list).map(g => ({ name: g.type ? g.label : t('resumes.noType'), rs: g.resumes }))).map(g => group(g.name, g.rs)).join('');
+  if (V.view === 'company') return byNewest(RS.byCompany(list).map(g => ({ name: g.key ? g.label : t('ux2.noCompany'), rs: g.rows.map(x => x.resume) }))).map(g => group(g.name, g.rs)).join('') + found;
+  return byNewest(RS.grouped(st().record, list).map(g => ({ name: g.type ? g.label : t('resumes.noType'), rs: g.resumes }))).map(g => group(g.name, g.rs)).join('') + found;
 }
 
+// the one primary of the Library is Compare once two are ticked (the bar under the cards), so "Use for a new job" is a secondary until then
+const prim = () => (V.ticked.size >= 2 ? { c: '', t: 'secondary' } : { c: 'primary', t: 'primary' });
+const pressOf = () => `class="press ${prim().c}" data-tier="${prim().t}"`;
 function ticksHtml(){
   const n = V.ticked.size;
-  return n ? `<button class="sm primary" id="scr-cmp" data-act="scr-compare" ${n < 2 ? 'disabled' : ''}>${h('ux6e.compareN', { n })}</button><button class="sm" data-act="scr-clear">${h('ux6e.clear')}</button>`
+  return n ? `<button class="sm press" data-tier="secondary" id="scr-cmp" data-act="scr-compare" ${n < 2 ? 'disabled' : ''}>${h('ux6e.compareN', { n })}</button><button class="sm press" data-tier="secondary" data-act="scr-clear">${h('ux6e.clear')}</button>`
     : `<span class="muted small" id="scr-tickinfo">${h('ux6h.tickHint')}</span>`;
 }
+// two or more ticked: Compare and Clear follow the cards (a bar at the foot of the list), not only the toolbar
+const barHtml = () => (V.ticked.size >= 2 ? `<button class="sm press primary" data-tier="primary" id="scr-bar-cmp" data-act="scr-compare">${h('ux6e.compareN', { n: V.ticked.size })}</button><button class="sm press" data-tier="secondary" data-act="scr-clear">${h('ux6e.clear')}</button>` : '');
 // the toolbar floats at the top of the content (flow.css): never a bar across the window
 function resumesView(){
   hidePreview(); endGrow();
   return `<section class="scrn" id="resumes" aria-label="${esc(t('ux6h.allResumes'))}">
-    <div class="scrhead tbar">${phone() ? `<button class="sm scrback" data-act="scr-back">${h('ux1.backToResume')}</button>` : ''}
-      <input id="scr-q" type="search" class="sw-q" aria-label="${esc(t('ux6h.search'))}" placeholder="${esc(t('ux6h.search'))}" value="${esc(V.q)}" autocomplete="off">
+    <div class="scrhead tbar">${phone() ? `<button class="sm scrback" data-act="scr-back">${withArrows(h('ux1.backToResume'))}</button>` : ''}
+      <input id="scr-q" type="search" class="sw-q" aria-label="${esc(t('ux6h.search'))}" placeholder="${esc(t('ux6h.search'))}" value="${esc(F.q)}" autocomplete="off">
+      ${F.claim ? `<button class="sm press" data-tier="secondary" data-act="find-claim-clear" aria-label="${esc(t('ux6f.clearClaim'))}">${esc(t('ux6f.printsChip', { name: F.claim.label }))} \u00d7</button>` : ''}
       <div class="seg" role="group" aria-label="${esc(t('ux2.manageViews'))}">${VIEWS.map(v => `<button data-act="scr-view" data-v="${v}" aria-pressed="${V.view === v}">${h(`ux2.view.${v}`)}</button>`).join('')}</div>
       <button class="sm" data-act="scr-sent" aria-pressed="${V.sentOnly}">${h('ux6h.sentOnly')}</button>
       <span class="scrticks" id="scr-ticks" role="status">${ticksHtml()}</span></div>
-    <div id="scr-list">${listHtml()}</div></section>`;
+    <div id="scr-list">${listHtml()}</div><div class="cmpbar" id="scr-bar" role="group" aria-label="${esc(t('ux6h.compare'))}">${barHtml()}</div></section>`;
 }
 function afterResumes(){
   // coming back: the new-job form is closed (what was typed is kept), and a selection made before another resume was opened is dropped
@@ -116,6 +132,8 @@ function afterResumes(){
 // a tick changes the toolbar and the card, not the pictures
 function refreshTicks(){
   document.getElementById('scr-ticks').innerHTML = ticksHtml();
+  document.getElementById('scr-bar').innerHTML = barHtml();
+  for (const b of document.querySelectorAll('#body [data-act=nj-open], #body [data-act=nj-create]')){ b.dataset.tier = prim().t; b.classList.toggle('primary', !!prim().c); }
   for (const c of document.querySelectorAll('#scr-list .rcard')) c.classList.toggle('ticked', V.ticked.has(c.querySelector('.rtick').dataset.cmp));
 }
 // the selection moves without redrawing the pictures
@@ -137,7 +155,7 @@ function resumeInspector(){
   const r = RS.savedOf(st(), selId()); if (!r) return `<p class="muted">${h('ux1.noneYet')}</p>`;
   const open = r.id === st().openId, p = RS.parentOf(st(), r), snaps = RS.snapshotsOf(r);
   const guess = !p && RS.closestTo(st(), r, x => RS.printedIds(C.work(), x))?.r;
-  const from = p || guess;
+  const from = p || guess, last = snaps.at(-1);
   const diffs = from ? RS.differences(C.work(), itemOf(from.id).recipe, itemOf(r.id).recipe) : [];
   const pend = pendingEdits(r).length;
   const sent = snaps.slice().reverse().map(s => `<li>${tick(`${r.id}|${s.id}`, t('ux6e.tickSent', { name: label(r), date: sentDate(s) }))}<button class="snapline" data-act="sw-snap" data-id="${esc(r.id)}" data-sid="${esc(s.id)}">${esc(t('ux6e.sent', { to: RS.sendLabel(s.sends[0]) || t('ux1.noRecipient'), date: sentDate(s) }))}${s.sends.length > 1 ? ` +${s.sends.length - 1}` : ''}</button></li>`).join('');
@@ -146,7 +164,7 @@ function resumeInspector(){
       <label>${h('ux6h.company')}<input id="nj-company" autocomplete="off" value="${esc(d.company ?? '')}"></label>
       <label>${h('ux6h.role')}<input id="nj-role" autocomplete="off" value="${esc(d.role ?? r.role ?? '')}"></label>
       <p class="small muted">${h('ux6h.njNote', { name: label(r) })}</p>
-      <div class="btns"><button class="primary" data-act="nj-create" data-id="${esc(r.id)}">${h('ux6h.njCreate')}</button><button data-act="nj-cancel">${h('ux6h.cancel')}</button></div></div>` : '';
+      <div class="btns"><button ${pressOf()} data-act="nj-create" data-id="${esc(r.id)}">${h('ux6h.njCreate')}</button><button class="ghost" data-act="nj-cancel">${h('ux6h.cancel')}</button></div></div>` : '';
   const g = RS.glance(C.work(), itemOf(r.id).recipe);
   const more = (list, n) => (list.length > n ? `<details class="imore"><summary>${h('ux6h.more', { n: list.length - n })}</summary><ul>${list.slice(n).map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '');
   return `<section class="insp insp-res" aria-label="${esc(label(r))}">
@@ -154,16 +172,23 @@ function resumeInspector(){
       <button class="ihpage" tabindex="-1" ${open ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(r.id)}"`} aria-label="${esc(t('ux6e.open', { name: label(r) }))}">${thumb(r.id, r.format)}</button>
     </div>
     <div class="ihcap"><span class="lbl">${h(open ? 'ux6h.openNow' : 'ux6h.selected')}</span><h2 class="oi-name">${esc(label(r))}</h2><p class="small">${esc(metaOf(r))}${pend ? ` · ${h('ux6e.pending', { n: pend })}` : ''}</p></div>
-    ${nj || `<div class="btns iacts"><button class="primary" data-act="nj-open" data-id="${esc(r.id)}">${h('ux6h.newJob')}</button>${open ? `<button data-act="place" data-p="editor">${h('ux6h.keepEditing')}</button>` : `<button data-act="sw-open" data-id="${esc(r.id)}">${h('ux6e.openBtn')}</button>`}<span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span></div>`}
+    ${nj || `<div class="btns iacts"><button ${pressOf()} data-act="nj-open" data-id="${esc(r.id)}">${h('ux6h.newJob')}</button>${open ? `<button data-act="place" data-p="editor">${h('ux6h.keepEditing')}</button>` : `<button data-act="sw-open" data-id="${esc(r.id)}">${h('ux6e.openBtn')}</button>`}<span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span></div>`}
+    <dl class="ovw" aria-label="${esc(t('ux6f.overview'))}">
+      <dt>${h('ux6f.ovSent')}</dt><dd>${last ? `<span class="pill">${h('ux6h.sentN', { n: snaps.length })}</span> ${esc([RS.sendLabel(last.sends.at(-1)) || t('ux1.noRecipient'), sentDate(last)].join(' \u00b7 '))}` : esc(t('ux6f.notSent'))}
+        <button class="sm press" data-tier="secondary" data-act="rm-sent" data-id="${esc(r.id)}">${h('ux3b.markSent')}</button></dd>
+      <dt>${h('ux6f.ovFrom')}</dt><dd>${esc(p ? label(p) : guess ? t('ux6e.closest', { name: label(guess) }) : t('ux6f.noParent'))}</dd>
+      <dt>${h('ux6f.ovLang')}</dt><dd>${esc(langName(r.lang ?? 'en'))}</dd>
+      <dt>${h('ux6f.ovPages')}</dt><dd>${esc(r.pageLimit ? t('head.pages', { n: r.pageLimit }) : t('head.anyLength'))}</dd>
+      <dt>${h('ux6f.ovChanged')}</dt><dd>${esc(r.savedAt || '\u2014')}</dd>
+    </dl>
     <span class="lbl">${h('ux6h.glance')}</span>
     <dl class="glance">
       ${g.pitch ? `<dt>${h('ux6h.pitch')}</dt><dd class="gpitch">${esc(g.pitch)}</dd>` : ''}
       ${g.jobs.length ? `<dt>${h('ux6h.jobs')}</dt><dd><ol class="gjobs">${g.jobs.map(j => `<li><span>${esc(j.name)}</span><small>${h('ux6h.lines', { n: j.n })}</small></li>`).join('')}</ol></dd>` : ''}
       ${g.skills ? `<dt>${h('ux6h.skills')}</dt><dd>${esc(g.skills)}</dd>` : ''}
     </dl>
-    ${from ? `<span class="lbl">${h('ux6h.comesFrom')}</span><p class="small">${esc(p ? t('ux6e.under', { name: label(p) }) : t('ux6e.closest', { name: label(guess) }))}</p>` : ''}
     ${from ? `<span class="lbl">${h('ux6h.whatDiffers')}</span>${diffs.length ? `<ul class="oi-diff">${diffs.slice(0, 3).map(x => `<li>${esc(x)}</li>`).join('')}</ul>${more(diffs, 3)}` : `<p class="small muted">${h('ux6e.nothing')}</p>`}<button class="sm" data-act="scr-differs" data-id="${esc(r.id)}">${h('ux6h.compareParent')}</button>` : ''}
-    <span class="lbl">${h('ux6h.sent')}</span>${snaps.length ? `<ul class="oi-sent">${sent}</ul>` : `<p class="small muted">${h('ux6h.notSent')}</p>`}
+    ${snaps.length ? `<span class="lbl">${h('ux6h.sent')}</span><ul class="oi-sent">${sent}</ul>` : ''}
   </section>`;
 }
 // the inspector is drawn again when the selection or the form changes; the cards keep their pictures. A phone has none (its card has the actions).
@@ -184,7 +209,7 @@ const X = { p: 0, ghost: null, from: null, to: null, id: null, idle: 0, raf: 0 }
 const ease = p => p * p * (3 - 2 * p);
 // where the editor will draw this resume's first page: its own layout, for this window
 function pageRect(r, pages){
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: r.format, pages, oneUp: r.pageLimit === 1 }), { w, h } = pageSize(r.format);
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: r.format, pages, oneUp: r.pageLimit === 1, side: side() }), { w, h } = pageSize(r.format);
   return { left: L.sheet.left, top: L.sheet.top, width: w * L.fit, height: h * L.fit };
 }
 function drawGrow(){
@@ -278,14 +303,30 @@ function compareView(){
   const cell = c => (typeof c === 'string' ? esc(c) : c.text ? `${esc(c.text)} <small class="muted">${esc(c.label)}</small>` : '');
   const gap = c => typeof c !== 'string' && !c.text && c.label === '—';
   return `<section class="scrn" id="compare" aria-label="${esc(t('ux6e.cmpTitle', { n: items.length }))}">
-    <div class="scrhead tbar"><button class="sm" data-act="scr-back">← ${h('ux6h.allResumes')}</button>
+    <div class="scrhead tbar"><input id="cmp-q" type="search" class="sw-q" aria-label="${esc(t('ux6f.searchRows'))}" placeholder="${esc(t('ux6f.searchRows'))}" value="${esc(F.q)}" autocomplete="off"><span class="fcount" id="cmp-n" role="status"></span>
+      <button class="sm" data-act="scr-back">${icon('left', { role: 'inline' })} ${h('ux6h.allResumes')}</button>
       <button class="sm" data-act="cmp-prev" title="P">◀ ${h('ux6h.prev')}</button><button class="sm" data-act="cmp-next" title="N">${h('ux6h.next')} ▶</button></div>
     <div class="cmpscroll"><table class="cmp"><caption class="sr">${h('ux6e.cmpTitle', { n: items.length })}</caption>
       <thead><tr><th scope="col">${h('ux6e.cmpRow')}</th>${items.map(x => `<th scope="col"><span class="cname">${esc(x.label)}</span>${thumb(x.key, x.recipe.format)}</th>`).join('')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr class="${r.differs ? 'diff-row' : ''} ${r.kind} ${i === V.focus ? 'is-here' : ''}" data-act="cmp-row" data-i="${i}"><th scope="row" title="${esc(r.label)}">${esc(r.label.length > 46 ? r.label.slice(0, 45) + '…' : r.label)}</th>${r.cells.map(c => `<td class="${gap(c) ? 'gap' : ''}">${cell(c)}</td>`).join('')}</tr>`).join('')}
       <tr class="setting"><th scope="row">${h('ux6e.rowPrinted')}</th>${items.map(x => `<td data-pagesof="${esc(x.key)}">…</td>`).join('')}</tr></tbody></table></div></section>`;
 }
+// the search in Compare marks the rows that hold the word (their name or any cell) and counts them; Enter and Shift+Enter step through them
+const rowHas = r => { const q = F.q.trim().toLowerCase(); return !!q && [r.label, ...r.cells.map(c => (typeof c === 'string' ? c : `${c.text ?? ''} ${c.label ?? ''}`))].some(x => String(x).toLowerCase().includes(q)); };
+function markRows(){
+  const found = V.rows.map((r, i) => (rowHas(r) ? i : -1)).filter(i => i >= 0);
+  document.querySelectorAll('#compare tbody tr[data-i]').forEach(tr => tr.classList.toggle('is-found', found.includes(Number(tr.dataset.i))));
+  const n = document.getElementById('cmp-n'); if (n) n.textContent = F.q.trim() ? t('ux6f.rowsFound', { n: found.length }) : '';
+  return found;
+}
+function stepFound(d){
+  const found = markRows();
+  if (!found.length) return;
+  focusRow(d > 0 ? found.find(i => i > V.focus) ?? found[0] : [...found].reverse().find(i => i < V.focus) ?? found.at(-1));
+  document.getElementById('cmp-q')?.focus({ preventScroll: true });
+}
 function afterCompare(){
+  markRows();
   const sc = document.getElementById('compare');
   T.fill(sc, recipeOf, (key, e) => { const c = sc.querySelector(`[data-pagesof="${CSS.escape(key)}"]`); if (c) c.textContent = String(e.pages); });
   paintInspector();
@@ -331,7 +372,7 @@ async function act(a, tg){
     case 'nj-create': {
       const company = document.getElementById('nj-company')?.value.trim() ?? '', role = document.getElementById('nj-role')?.value.trim() ?? '';
       if (!company){ document.getElementById('nj-company')?.focus(); return true; }
-      if (C.resumes.newJob(tg.dataset.id, company, role)){ V.draft.delete(tg.dataset.id); V.nj = null; }
+      if (C.resumes.newJob(tg.dataset.id, company, role)){ V.draft.delete(tg.dataset.id); V.nj = V.sel = null; }      // the copy is the open resume: it is the selected card when the Library is next shown
       return true;
     }
     case 'cmp-row': focusRow(Number(tg.dataset.i)); return true;
@@ -358,8 +399,9 @@ function bind(body){
   });
   body.addEventListener('input', e => {
     if (e.target.id === 'nj-company' || e.target.id === 'nj-role'){ V.draft.set(V.nj, { ...V.draft.get(V.nj), [e.target.id === 'nj-company' ? 'company' : 'role']: e.target.value }); return; }
+    if (e.target.id === 'cmp-q'){ F.q = e.target.value; markRows(); return; }
     if (e.target.id !== 'scr-q') return;
-    V.q = e.target.value;
+    F.q = e.target.value;
     document.getElementById('scr-list').innerHTML = listHtml(); afterResumes();
   });
   body.addEventListener('wheel', wheelGrow, { passive: false });
@@ -379,7 +421,13 @@ function bind(body){
   body.addEventListener('keydown', e => {
     if (e.target.closest?.('.njform') && e.key === 'Enter'){ e.preventDefault(); document.querySelector('[data-act=nj-create]')?.click(); return; }
     if (e.target.closest?.('.njform') && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); clearSel(); return; }
-    if (e.target.id === 'scr-q' && e.key === 'Escape' && V.q){ e.preventDefault(); e.stopPropagation(); V.q = ''; e.target.value = ''; e.target.dispatchEvent(new Event('input', { bubbles: true })); }
+    if (e.target.id === 'cmp-q'){
+      if (e.key === 'Enter' && !e.isComposing){ e.preventDefault(); stepFound(e.shiftKey ? -1 : 1); }
+      else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); if (F.q){ F.q = ''; e.target.value = ''; markRows(); } else C.leave(); }
+      return;
+    }
+    if (e.target.id === 'scr-q' && e.key === 'Escape' && !F.q && F.claim){ e.preventDefault(); e.stopPropagation(); F.claim = null; C.renderBody(); }
+    else if (e.target.id === 'scr-q' && e.key === 'Escape' && F.q){ e.preventDefault(); e.stopPropagation(); F.q = ''; e.target.value = ''; e.target.dispatchEvent(new Event('input', { bubbles: true })); }
     else if (e.target.id === 'scr-q' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); C.leave(); }
   });
 }
@@ -394,5 +442,5 @@ function placeCard(v, recSummary){
   return `<p class="psub">${h('ux6h.counts', { n: rs.length, s: sends })}</p><div class="pacts"><button class="sm" data-act="sw-new">${h('ux1.newResume')}</button></div>`;
 }
 
-const api = { act, bind, compare, placeCard, clearSel, canCompare: () => V.cmp.length >= 2, focusSel: () => document.querySelector('#scr-list .rcard.sel .rsel'),
+const api = { act, bind, compare, pick: id => { V.sel = id; }, placeCard, clearSel, canCompare: () => V.cmp.length >= 2, focusSel: () => document.querySelector('#scr-list .rcard.sel .rsel'),
   views: { resumes: resumesView, compare: compareView }, after: { resumes: afterResumes, compare: afterCompare } };

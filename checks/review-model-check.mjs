@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load, loadResume } from '../src/model/schema.js';
-import { setOverride, setSectionLabel, addLocalLine, textOf } from '../src/model/resume.js';
+import { setOverride, stackOverride, earlierOf, swapEarlier, dropEarlier, setSectionLabel, addLocalLine, textOf } from '../src/model/resume.js';
 import { applyEdit, reviewList, printersOf, majorsOf, everywhereOf } from '../src/model/review.js';
 import * as RS from '../src/model/resumes.js';
 
@@ -75,6 +75,32 @@ const edit = (st, text, marks = []) => setOverride(st.record, st.cur, fact, text
   const out = applyEdit(st.record, st.cur, fact, { do: 'major', source: 'Lab notebook' });
   const v = st.record.variants.find(x => x.id === out.vid);
   ok('marks shift by the trimmed leading characters', v.text === 'Rebuilt the rig again' && JSON.stringify(v.marks.map(m => [m.start, m.end])) === '[[0,7]]', JSON.stringify(v.marks));
+}
+{ // UX-6f: a second edit of a line is a pending edit of its own
+  const st = state(), set = (text, stack = true) => { if (stack) stackOverride(st.record, st.cur, fact); setOverride(st.record, st.cur, fact, text, { marks: [], base: null }); };
+  st.record.requireSource = false;
+  const key0 = RS.printedKey(st.cur, null);
+  set('First change to the tolerance line');
+  ok('the first edit has nothing to stack: no earlier edit', earlierOf(st.cur, fact).length === 0 && st.cur.earlier === undefined);
+  set('Second change to the tolerance line');
+  ok('a second edit keeps the first as an earlier edit, the second is on the page', earlierOf(st.cur, fact).map(e => e.text).join() === 'First change to the tolerance line' && st.cur.overrides[fact] === 'Second change to the tolerance line');
+  const withEarlier = RS.printedKey(st.cur, null), copy = clone(st.cur); delete copy.earlier;
+  ok('earlier edits are not printed: the printed key is the same without them', withEarlier === RS.printedKey(copy, null) && key0 !== withEarlier);
+  const v0 = st.record.variants.length, shown = st.cur.overrides[fact];
+  const out = applyEdit(st.record, st.cur, fact, { do: 'major', source: 'Lab notebook' }, 0);
+  ok('an earlier edit becomes a version of its own; the text on the page and its pending state stay, the earlier row is gone', st.record.variants.length === v0 + 1 && st.record.variants.find(v => v.id === out.vid).text === 'First change to the tolerance line' && st.cur.overrides[fact] === shown && earlierOf(st.cur, fact).length === 0 && st.cur.earlier === undefined && !st.cur.picks?.[fact]);
+  ok('…and the one on the page is still a pending edit of the Review list', reviewList(st.record, st.cur).edits.includes(fact));
+  set('Third change to the tolerance line'); set('Fourth change to the tolerance line');
+  ok('each later edit is one more earlier edit, oldest first', earlierOf(st.cur, fact).map(e => e.text).join('|') === 'Second change to the tolerance line|Third change to the tolerance line');
+  swapEarlier(st.record, st.cur, fact, 0);
+  ok('showing an earlier edit swaps it with the one on the page', st.cur.overrides[fact] === 'Second change to the tolerance line' && earlierOf(st.cur, fact).map(e => e.text).join('|') === 'Fourth change to the tolerance line|Third change to the tolerance line');
+  dropEarlier(st.record, st.cur, fact, 0); dropEarlier(st.record, st.cur, fact, 0);
+  ok('throwing earlier edits away leaves none, and no empty map', st.cur.earlier === undefined && st.cur.overrides[fact] === 'Second change to the tolerance line');
+  ok('an earlier edit that is not there is refused', throws(() => applyEdit(st.record, st.cur, fact, { do: 'major', source: 'x' }, 3)));
+  set('Second change to the tolerance line'); set('Fifth');
+  ok('the same words are not stacked twice', earlierOf(st.cur, fact).length === 1);
+  st.cur.locked = [fact];
+  ok('a locked line refuses to stack, show or throw away', throws(() => stackOverride(st.record, st.cur, fact)) && throws(() => swapEarlier(st.record, st.cur, fact, 0)) && throws(() => dropEarlier(st.record, st.cur, fact, 0)));
 }
 console.log(failed ? `\n${failed} review model check(s) FAILED` : '\nall review model checks passed');
 process.exit(failed ? 1 : 0);

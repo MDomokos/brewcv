@@ -539,5 +539,26 @@ section('Use for a new job, and a resume at a glance (UX-6h)');
   ok('a resume with no jobs lists none', RS.glance(m, none).jobs.length === 0);
 }
 
+section('RS.hits: the lines a resume prints that hold a word');
+{
+  const r = S.loadResume(read('data/example-resumes/Ferro Tools - Manufacturing Engineer.json'), model).recipe;
+  const dfm = RS.hits(model, r, 'dfm'), inh = RS.hits(model, r, ' Inhaler ');
+  ok('a word finds the printed lines that hold it, whatever its case', dfm.length >= 1 && dfm.every(x => /dfm/i.test(x.text) && x.fact) && inh.length >= 1);
+  ok('no word finds nothing; a word no printed line holds finds nothing', RS.hits(model, r, '').length === 0 && RS.hits(model, r, 'zzz-nothing').length === 0);
+  ok('a line the resume does not print is not found (a bullet taken off)', (() => { const c = clone(r); const f = dfm[0].fact; c.overrides = { ...(c.overrides ?? {}), [f]: 'no such word here' }; return !RS.hits(model, c, 'dfm').some(x => x.fact === f); })());
+}
+
+section('RS.prints: which resumes print a claim, and in which version');
+{
+  const rs = fs.readdirSync(path.join(REPO, 'data/example-resumes')).filter(f => f.endsWith('.json') && f !== 'index.json').map(f => S.loadResume(read(`data/example-resumes/${f}`), model).recipe);
+  const n = (facts, vid) => rs.filter(r => RS.prints(model, r, facts, vid)).length;
+  ok('a claim is printed by the resumes that pick one of its versions (the other languages print their own wording of it)', n(['hydra-dfm']) === 8 && n(['hydra-inhaler', 'hydra-testing']) === 14);
+  ok('a version is printed by the resumes that pick that very one', n(['hydra-dfm'], 'hydra-dfm-v1') === 2 && n(['hydra-dfm'], 'hydra-dfm-v1-hu') === 0);
+  ok('a claim no resume prints is found by none, and a job\u2019s title counts as printed with the job', n(['caliper-stand-files']) === 0 && n(['hydra-position']) === 14);
+  const r = clone(rs.find(x => RS.prints(model, x, ['hydra-dfm'], 'hydra-dfm-v1')));
+  r.overrides = { ...(r.overrides ?? {}), 'hydra-dfm': 'Only here' };
+  ok('a text edited on this resume only is the claim, not a version of it', RS.prints(model, r, ['hydra-dfm']) && !RS.prints(model, r, ['hydra-dfm'], 'hydra-dfm-v1'));
+}
+
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');
 process.exit(failed ? 1 : 0);

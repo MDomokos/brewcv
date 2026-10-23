@@ -115,7 +115,7 @@ function pageHtml(s, P, o = {}){
     return `<div class="job"${k('j-' + j)}><div class="jt"><b>${JOB[j].name}</b><span>${JOB[j].d[lang]}</span></div><div class="jp">${JOB[j].pos[lang]}</div><ul>${lis}</ul></div>`;
   }).join('');
   return `<div class="${cls}"${k('pg')}${o.mini ? '' : ' data-clone'}>
-    <header${k('ph')}><b class="nm">Sam Rivera</b><span class="tg">${TL[s.tl][lang]}</span><span class="ct">sam@example.com · ${lang === 'de' ? 'Lissabon' : 'Lisbon'}</span></header>
+    <header role="presentation"${k('ph')}><b class="nm">Sam Rivera</b><span class="tg">${TL[s.tl][lang]}</span><span class="ct">sam@example.com · ${lang === 'de' ? 'Lissabon' : 'Lisbon'}</span></header>
     ${jobs ? `<h4 class="sec"${k('sx')}>${SEC[lang][0]}</h4>${jobs}<h4 class="sec"${k('ss')}>${SEC[lang][1]}</h4><p${k('sk')}>${SKILLS[lang]}</p>` : ''}
     <span class="pf">${PAPERS[s.paper]} · ${lang.toUpperCase()}</span></div>`;
 }
@@ -507,7 +507,7 @@ export function stageHtml(){
   return `<div class="ss" id="ss" role="group" aria-label="${esc(t('onb.hdHow'))}"><div class="sst" id="sst" data-step="1"><i class="anchor"></i><i class="anchor2"></i>
     <div class="nav">${navHtml()}</div>${SLOTS.map(s => `<div class="slot s-${s}"></div>`).join('')}<div class="fx"></div></div>
     <i class="rimshade"></i><i class="frame"></i>
-    <button class="obreplay replay" data-act="ob-replay" title="${esc(t('onb.replay'))}" aria-label="${esc(t('onb.replay'))}">${icon('replay', { size: 14 })}</button></div>`;
+    <button class="obreplay replay" data-act="ob-replay" title="${esc(t('onb.replay'))}" aria-label="${esc(t('onb.replay'))}">${icon('replay', { role: 'control' })}</button></div>`;
 }
 // the stage is a 1022-wide picture scaled to the board; on a phone the board is as tall as it needs to be. The sidebar's first row and its
 // language row start level with the file's top edge and its first lit line (the page tells the column where they are)

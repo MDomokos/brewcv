@@ -8,9 +8,9 @@ import { designOf, lookCss, tokensOf, setDesign, PRESETS, FONTS, SIZES, DENSITIE
 import { THEMES, lookOf } from '../themes.js';
 import { toAuto, setPhoto as setResumePhoto, setRecordPhoto } from '../model/resume.js';
 import { t, h, errText, keyed } from '../i18n/index.js';
-import { showSw } from './parts.js';
 import { askPhotoLocked } from './ask.js';
 import { LANG_INFO } from '../model/lang.js';
+import { groupHtml, delBtn } from './parts.js';
 
 let C = null;
 export function initDesign(ctx){ C = ctx; return api; }
@@ -20,6 +20,7 @@ const st = () => C.store.state;
 // The picker lists the looks a resume can be given; an earlier one (src/themes.js `earlier`) only renders.
 export const TEMPLATES = THEMES.filter(x => !x.earlier).map(x => ({ id: x.id, name: x.name, overlays: x.layers.slice(1), note: x.note }));
 const BASE_TOKENS = { tab: '{color.accent}', 'tab-ink': '#1a1a1a', ink: '#1a1a1a' };
+let customOpen = false;      // the field for any colour (a hex code) is shown under the swatches: the browser's own colour picker cannot take the app's theme
 const tplName = x => t(`design.tpl.${x.id}`);
 const tplNote = x => t(`design.tplNote.${x.id}`);
 
@@ -77,8 +78,9 @@ function settingsHtml(r, look){
     + row('density', seg('density', Object.keys(DENSITIES).map(id => [id, t(`look.density.${id}`)]), D.density), h(`look.densityNote.${D.density}`))
     + row('colour', `<div class="sws">${Object.entries(COLOURS).map(([id, [screen, print]]) => { const title = t('look.colourTitle', { name: t(`look.colour.${id}`), screen, print });
         return `<button class="swatch split" style="background:linear-gradient(90deg,${screen} 50%,${print} 50%)" ${set('colour', id)} aria-pressed="${colourOn === id}" aria-label="${esc(title)}" title="${esc(title)}"></button>`; }).join('')}
-        <label class="swatch custom" title="${esc(t('design.anyColour'))}"><input type="color" id="d-color" value="${esc(shade)}" aria-label="${esc(t('design.pickColour'))}"></label>
-        ${r.accent ? `<button class="sm ghost" data-act="d-accent" data-c="">${h('design.themesOwn')}</button>` : ''}</div>`,
+        <button type="button" class="swatch custom press" data-tier="tertiary" data-act="d-custom" aria-expanded="${customOpen}" aria-controls="d-hexrow" title="${esc(t('design.anyColour'))}" aria-label="${esc(t('design.pickColour'))}"></button>
+        ${r.accent ? `<button class="sm ghost" data-act="d-accent" data-c="">${h('design.themesOwn')}</button>` : ''}</div>
+        ${customOpen ? `<div class="hexrow" id="d-hexrow"><label class="field"><span class="lbl inline">${h('ux6f.hexColour')}</span><input type="text" id="d-color" value="${esc(shade)}" maxlength="7" spellcheck="false" autocomplete="off"></label></div>` : ''}`,
       `<span class="${chk.ok ? '' : 'bad'}">${chk.ok ? h('design.contrastOk', { r: chk.ratio.toFixed(1) }) : h('design.contrastBad', { r: chk.ratio?.toFixed(1) })}</span>`, t('look.colourNote'))
     + row('words', seg('words', WORDS.map(id => [id, t(`look.words.${id}`)]), D.words))
     + '</div>';
@@ -94,13 +96,14 @@ function designView(){
   const manual = Array.isArray(r.pages);
   // the usual case (Fit keeps it to the limit) is the tooltip; a note shows only when something is out of the ordinary
   const fitNote = t(manual ? 'design.manualNote' : r.pageLimit === 0 ? 'design.flowNote' : r.pageLimit === 2 ? 'design.fitTwo' : 'design.fitOne', { n: r.pages?.length });
+  // paper first (the pages fit on it), then the look and its settings, then the photo's pointer (UX-6 sidebar audit (e))
   return `<h2 class="title">${h('head.design')}</h2>
-    <div class="kv">
-      <span class="lbl">${h('design.pages')}</span><div class="seg fill" role="group" aria-label="${esc(t('design.pages'))}" title="${esc(fitNote)}">${[[1, t('design.onePage')], [2, t('design.twoPages')], [0, t('design.anyPages')]].map(([n, l]) => `<button data-act="d-pages" data-n="${n}" aria-pressed="${!manual && (r.pageLimit ?? 1) === n}">${esc(l)}</button>`).join('')}</div>
+    ${groupHtml(t('uxs.paperPages'), `<div class="kv">
       <span class="lbl">${h('design.paper')}</span><div class="seg fill" role="group" aria-label="${esc(t('design.paper'))}"><button data-act="d-paper" data-f="us-letter" aria-pressed="${!a4}">${h('paper.letter')}</button><button data-act="d-paper" data-f="a4" aria-pressed="${a4}">${h('paper.a4')}</button></div>
+      <span class="lbl">${h('design.pages')}</span><div class="seg fill" role="group" aria-label="${esc(t('design.pages'))}" title="${esc(fitNote)}">${[[1, t('design.onePage')], [2, t('design.twoPages')], [0, t('design.anyPages')]].map(([n, l]) => `<button data-act="d-pages" data-n="${n}" aria-pressed="${!manual && (r.pageLimit ?? 1) === n}">${esc(l)}</button>`).join('')}</div>
     </div>
-    ${manual || r.pageLimit === 0 ? `<p class="note">${manual ? h('design.manualNote', { n: r.pages.length }) : h('design.flowNote')}</p>` : ''}
-    <span class="lbl">${h('design.template')}</span>
+    ${manual || r.pageLimit === 0 ? `<p class="note">${manual ? h('design.manualNote', { n: r.pages.length }) : h('design.flowNote')}</p>` : ''}`)}
+    ${groupHtml(t('uxs.look'), `<span class="lbl">${h('design.template')}</span>
     <div class="tpls">${TEMPLATES.map(x => `<button class="tpl" data-act="d-tpl" data-t="${x.id}" aria-pressed="${tpl?.id === x.id}" title="${esc(tplNote(x))}"><i class="tpl-${x.id}"></i>${esc(tplName(x))}</button>`).join('')}</div>
     ${tpl.earlier ? `<p class="note">${h('look.earlier', { name: tplName(tpl) })}</p><div class="btns"><button class="sm" data-act="d-earlier">${h('look.earlierBtn', { name: tplName(THEMES[0]) })}</button></div>`
       : `<p class="note">${esc(tplNote(tpl))}</p>`}
@@ -109,8 +112,8 @@ function designView(){
     <div class="list">${['', ...themes.map(x => x.id)].map(id => { const th = themes.find(x => x.id === id);
       return `<button class="item ${(r.look ?? '') === id ? 'is-cur' : ''}" data-act="d-look" data-id="${esc(id)}"><span>${esc(th ? th.name : t('design.templatesOwn'))}</span><span class="muted small">${th ? h('design.tokensImported', { n: Object.keys(th.tokens).length }) : h('design.builtIn')}</span></button>`; }).join('')}</div>
     ${fontWarn.length ? `<p class="note bad">${h('design.fontWarn', { fonts: fontWarn.join(', '), n: fontWarn.length })}</p>` : ''}
-    <div class="btns"><button class="sm" data-act="d-import">${h('design.import')}</button><button class="sm ghost" data-act="d-export">${h('design.export')}</button>${look ? `<button class="sm ghost" data-act="d-drop" data-id="${esc(look.id)}">${h('design.removeX', { name: look.name })}</button>` : ''}</div>
-    <div class="kv"><span class="lbl">${h('design.photo')}</span><span class="note">${h('ux6g.photoMoved')} <button class="sm ghost" data-act="select-header">${h('career.step1')}</button></span></div>`;
+    <div class="btns"><button class="sm" data-act="d-import">${h('design.import')}</button><button class="sm ghost" data-act="d-export">${h('design.export')}</button>${look ? delBtn(`data-act="d-drop" data-id="${esc(look.id)}"`, t('design.removeX', { name: look.name })) : ''}</div>`)}
+    ${groupHtml(t('design.photo'), `<p class="note">${h('ux6g.photoMoved')} <button class="sm ghost" data-act="select-header">${h('career.step1')}</button></p>`)}`;
 }
 
 function commit(fn, label, done, undo = false, merge = null){
@@ -192,6 +195,7 @@ async function act(a, tg){
       commit(d => { d.cur.overlays = []; d.cur.theme = 'b2-marker'; for (const [k, v] of Object.entries(was.earlier)) setDesign(d.cur, to, k, v); }, t('undo.template', { name: tplName(to) }));
       return true;
     }
+    case 'd-custom': customOpen = !customOpen; C.renderBody(); if (customOpen) document.getElementById('d-color')?.focus(); return true;
     case 'd-accent': { const c = tg.dataset.c; commit(d => { if (c) d.cur.accent = c; else delete d.cur.accent; }, t('design.accent')); return true; }
     case 'd-look': { const id = tg.dataset.id; commit(d => { if (id) d.cur.look = id; else delete d.cur.look; }, t('design.theme')); return true; }
     case 'd-drop': { const id = tg.dataset.id; commit(d => { d.record.themes = (d.record.themes ?? []).filter(x => x.id !== id); for (const x of [d.cur, ...(d.resumes ?? [])]) if (x.look === id) delete x.look; }, t('undo.removeTheme'), t('toast.themeRemoved'), true); return true; }
@@ -221,7 +225,7 @@ function bind(body){
   body.addEventListener('change', e => {
     const el = e.target;
     if (el.id === 'd-photo-on'){ const on = el.checked; commit(d => setResumePhoto(d.record, d.cur, { show: on }), on ? t('undo.showPhoto') : t('undo.hidePhoto')); }
-    if (el.id === 'd-color'){ const c = el.value; if (/^#[0-9a-f]{6}$/i.test(c)) commit(d => { d.cur.accent = c.toLowerCase(); }, t('design.accent'), null, false, 'accent'); }
+    if (el.id === 'd-color'){ const c = el.value.trim(), good = /^#[0-9a-f]{6}$/i.test(c); el.setAttribute('aria-invalid', String(!good)); if (good) commit(d => { d.cur.accent = c.toLowerCase(); }, t('design.accent'), null, false, 'accent'); }
   });
 }
 

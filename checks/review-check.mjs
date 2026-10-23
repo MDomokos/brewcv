@@ -46,7 +46,7 @@ const PROBE = `(() => {
   for (const row of d.querySelectorAll('.rvrow')){
     const r = row.getBoundingClientRect();
     if (row.scrollWidth > row.clientWidth + 1) out.push('a row runs out of its box');
-    for (const c of row.querySelectorAll('button, select, input')){ const q = c.getBoundingClientRect(); if (q.right > r.right + 1 || q.left < r.left - 1) out.push(lab(c) + ' runs out of its row'); }
+    for (const c of row.querySelectorAll('button, select, input')){ const q = c.getBoundingClientRect(); if (!q.width && !q.height) continue; /* a select is hidden: its button is the control (dropdown.js) */ if (q.right > r.right + 1 || q.left < r.left - 1) out.push(lab(c) + ' runs out of its row'); }
   }
   // a control scrolled partly out of the body is only what shows: its box is cut to the body's
   const B = body.getBoundingClientRect();

@@ -43,13 +43,27 @@ function setField(model, lang, path, value){
   if (v) f[path] = v; else delete f[path];
 }
 // A printed text follows a fact edit unless reworded by hand. No version in the language yet: v1.
-function follow(model, factId, lang, oldText, newText){
+function follow(model, factId, lang, oldText, newText, dates = null){
   if (!factId || newText === oldText || !String(newText ?? '').trim()) return null;
   if (!(model.facts ?? []).some(f => f.id === factId)) return null;
   const v = defaultVariant(model, factId, lang);
   if (!v || (v.lang ?? DEFAULT_LANG) !== lang){ addVersion(model, factId, { text: newText, lang, as: 'major' }); return 'created'; }
   if (v.text === oldText){ saveOver(model, v.id, newText); return 'followed'; }
+  const swapped = dates && swapDates(v.text, dates[0], dates[1], lang);
+  if (swapped){ saveOver(model, v.id, swapped); return 'followed'; }      // the dates in it follow, the rest of its wording stays
   return 'kept';
+}
+// A printed date line in somebody's own wording keeps its words and only its dates follow: "Mar 2023 – Present" becomes the new dates, in the
+// language the line is written in (an open end that stays open keeps the line's own word for it). null when the old dates are not in it.
+const escapeRe = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function swapDates(text, before, after, l){
+  const from = fmtMonth(before.startDate, l);
+  if (!from || !after.startDate) return null;
+  const re = new RegExp(`${escapeRe(from)} – ([^·]+?)(?=\\s+·\\s+|$)`), m = String(text).match(re);
+  if (!m) return null;
+  const end = after.endDate ? fmtMonth(after.endDate, l) : before.endDate ? presentIn(l) : m[1].trim();
+  const out = String(text).replace(re, () => `${fmtMonth(after.startDate, l)} – ${end}`);
+  return out === text ? null : out;
 }
 
 // The timeline is only what you'd write bullets under.
@@ -198,7 +212,6 @@ export function stepsReady(model){
 }
 
 // Editing
-export const metaLine = (fields, lang = DEFAULT_LANG) => metaLineOf(fields, lang);
 
 // Returns what happened to the printed title and meta line: 'followed', 'kept', 'created' or null.
 export function updateJob(model, id, fields, lang = DEFAULT_LANG){
@@ -243,8 +256,10 @@ export function updateJob(model, id, fields, lang = DEFAULT_LANG){
       let r = null;
       if (!has.has(l)){ if (l === L && L !== DEFAULT_LANG){ addVersion(model, metaFact, { text: newText, lang: l, as: 'major' }); r = 'created'; } }
       else if (oldText !== newText){
-        const v = defaultVariant(model, metaFact, l);
-        if (v && v.text === oldText){ saveOver(model, v.id, newText); r = 'followed'; } else r = 'kept';
+        const v = defaultVariant(model, metaFact, l), swapped = v && v.text !== oldText ? swapDates(v.text, b, a, l) : null;
+        if (v && v.text === oldText){ saveOver(model, v.id, newText); r = 'followed'; }
+        else if (swapped){ saveOver(model, v.id, swapped); r = 'followed'; }      // its dates follow, its own words stay
+        else r = 'kept';
       }
       if (l === L) res.meta = r;
     }
@@ -372,7 +387,7 @@ export function updateProject(model, id, fields, lang = DEFAULT_LANG){
     location: l === DEFAULT_LANG ? x.location : fieldIn(model, l, fieldPath(key, id, 'location')) });
   if (p.display?.meta){
     const o = projectMeta(view(before, lang), lang), n = projectMeta(view(p, lang), lang);
-    if (o !== n || !hasIn(model, p.display.meta, lang)) res.meta = follow(model, p.display.meta, lang, hasIn(model, p.display.meta, lang) ? o : '', n);
+    if (o !== n || !hasIn(model, p.display.meta, lang)) res.meta = follow(model, p.display.meta, lang, hasIn(model, p.display.meta, lang) ? o : '', n, [view(before, lang), view(p, lang)]);
   }
   if (p.display?.run){
     const run = (x, l) => [l === DEFAULT_LANG ? x[nameKey] : (fieldIn(model, l, fieldPath(key, id, nameKey)) || x[nameKey]), x[orgKey], String(x.startDate ?? x.date ?? '').slice(0, 4)].filter(Boolean).join(' · ');

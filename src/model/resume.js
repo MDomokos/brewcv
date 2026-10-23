@@ -379,6 +379,20 @@ export function jobRefs(model, recipe, sid = null){
     : [inOrder(entryOf(recipe, id)?.work ?? (entryOf(recipe, id) ? factIx(model).sections.get(id)?.content?.work ?? [] : []), entryOf(recipe, id)?.order)]).flat();
   return (sid ? [sid] : entriesIds(model)).flatMap(one);
 }
+// The jobs of an entries section in this resume's order, with the ones that are off kept in their places (the sidebar lists them so, and
+// turning one on puts it back there): an off job stands after the job before it in the section's `order`, else where the record puts it
+// (before the first job that is on and comes later in the record). Archived jobs are not listed.
+export function jobOrder(model, recipe, sid){
+  const all = (factIx(model).sections.get(sid)?.content?.work ?? []).filter(id => !archivedEntryIds(model).has(id)), rank = id => all.indexOf(id);
+  const out = jobRefs(model, recipe, sid).map(refId), order = Array.isArray(recipe.pages) ? [] : entryOf(recipe, sid)?.order ?? [];
+  for (const id of new Set([...order.filter(x => all.includes(x)), ...all])){
+    if (out.includes(id)) continue;
+    const k = order.indexOf(id), prev = k < 0 ? undefined : order.slice(0, k).reverse().find(x => out.includes(x));
+    const at = k >= 0 ? (prev == null ? 0 : out.indexOf(prev) + 1) : out.findIndex(x => rank(x) > rank(id));
+    out.splice(at < 0 ? out.length : at, 0, id);
+  }
+  return out;
+}
 const listedFacts = (model, recipe, jobId) => {
   const w = factIx(model).work.get(jobId);
   return w ? jobRefs(model, recipe).filter(r => refId(r) === jobId).flatMap(r => highlightsOfRef(w, r)) : [];
@@ -387,6 +401,32 @@ const listedFacts = (model, recipe, jobId) => {
 export const listedBullets = (model, recipe, jobId) => withLocal(recipe, jobId, listedFacts(model, recipe, jobId), { blank: true, full: factIx(model).work.get(jobId)?.highlights });
 // …with the local lines that are switched off kept in their places
 const fullOrder = (model, recipe, jobId) => withLocal(recipe, jobId, listedFacts(model, recipe, jobId), { keepOff: true, blank: true, full: factIx(model).work.get(jobId)?.highlights });
+// A job's lines in this resume's order with the ones that are off kept in their places (the sidebar lists them so, and turning one on puts it
+// back there): an off line stands after the line before it in the `order` its job's ref keeps while a line is off, else where the record
+// puts it. Archived lines are not listed. The ref's `order` never prints (render reads `highlights`).
+export function lineOrder(model, recipe, jobId){
+  const w = factIx(model).work.get(jobId);
+  if (!w) return [];
+  const arch = archivedIds(model), all = w.highlights.filter(h => !arch.has(h)), rank = id => all.indexOf(id);
+  const out = fullOrder(model, recipe, jobId), ref = jobRefs(model, recipe).find(r => refId(r) === jobId);
+  const order = (typeof ref === 'object' && Array.isArray(ref?.order)) ? ref.order : [];
+  for (const id of new Set([...order.filter(x => all.includes(x)), ...all])){
+    if (out.includes(id)) continue;
+    const k = order.indexOf(id), prev = k < 0 ? undefined : order.slice(0, k).reverse().find(x => out.includes(x));
+    const at = k >= 0 ? (prev == null ? 0 : out.indexOf(prev) + 1) : out.findIndex(x => rank(x) > rank(id));
+    out.splice(at < 0 ? out.length : at, 0, id);
+  }
+  return out;
+}
+// …kept on the job's refs (`order`, the record's lines only) only while it places an off line where the record's order would not
+function keepLineOrder(model, recipe, jobId, shown){
+  const w = factIx(model).work.get(jobId), lists = workLists(model, recipe, true, sectionOfEntry(model, jobId));
+  const order = shown.filter(x => w.highlights.includes(x)), mine = (l, i) => refId(l[i]) === jobId && typeof l[i] === 'object';
+  for (const l of lists) l.forEach((r, i) => { if (mine(l, i)){ const { order: _, ...rest } = r; l[i] = tidyRef(w, rest); } });
+  const plain = lineOrder(model, recipe, jobId).filter(x => w.highlights.includes(x));
+  if (plain.length === order.length && plain.every((x, i) => x === order[i])) return;
+  for (const l of lists) l.forEach((r, i) => { if (mine(l, i)) l[i] = { ...r, order }; });
+}
 // A local line follows the one before it in `order`; the list is kept in print order so each anchor comes first.
 function reanchor(recipe, jobId, order){
   const mine = localOf(recipe, jobId);
@@ -431,10 +471,11 @@ export function setJobOn(model, recipe, jobId, on){
   if (!on){
     for (const l of lists) for (let i = l.length - 1; i >= 0; i--) if (refId(l[i]) === jobId) l.splice(i, 1);
   } else if (!has && lists.length){
-    const order = factIx(model).sections.get(sid)?.content?.work ?? (model.work ?? []).map(x => x.id);
-    const l = lists.at(-1);
-    const rank = id => order.indexOf(id);
-    const at = l.findIndex(r => rank(refId(r)) > rank(jobId));
+    // back where the sidebar showed it while it was off (jobOrder): before the next job that is on
+    const shown = jobOrder(model, recipe, sid), on = new Set(lists.flat().map(refId));
+    const next = shown.slice(shown.indexOf(jobId) + 1).find(x => on.has(x));
+    const l = lists.find(l => l.some(r => refId(r) === next)) ?? lists.at(-1);
+    const at = next == null ? -1 : l.findIndex(r => refId(r) === next);
     const off = new Set(offOf(recipe)), arch = archivedIds(model);
     l.splice(at < 0 ? l.length : at, 0, tidyRef(w, { id: jobId, highlights: w.highlights.filter(h => !off.has(h) && !arch.has(h)) }));
   }
@@ -453,6 +494,7 @@ export function setBulletOn(model, recipe, factId, on){
     setList(recipe, 'off', factId, false);
     setJobOn(model, recipe, w.id, true);
   }
+  const shown = lineOrder(model, recipe, w.id);      // where the sidebar shows it: an off line keeps that place, and comes back to it
   const lists = workLists(model, recipe, true, sid);
   let placed = false;
   for (const l of lists) l.forEach((r, i) => {
@@ -460,17 +502,16 @@ export function setBulletOn(model, recipe, factId, on){
     let hs = highlightsOfRef(w, r);
     if (!on) hs = hs.filter(h => h !== factId);
     else if (!placed && !hs.includes(factId)){
-      // after the nearest earlier bullet that is already listed, so an order the person set stays as it is
-      const lib = w.highlights, at = lib.indexOf(factId);
-      let after = -1;
-      hs.forEach((h, i) => { const k = lib.indexOf(h); if (k >= 0 && k < at) after = i; });
-      hs.splice(after + 1, 0, factId);
+      // before the next line that prints after its place, so an order the person set stays as it is
+      const next = shown.slice(shown.indexOf(factId) + 1).find(h => hs.includes(h)), at = next == null ? -1 : hs.indexOf(next);
+      hs.splice(at < 0 ? hs.length : at, 0, factId);
     }
     if (on && hs.includes(factId)) placed = true;
     l[i] = tidyRef(w, { ...(typeof r === 'object' ? r : {}), id: w.id, highlights: hs });
   });
   setList(recipe, 'off', factId, !on);
   if (order) reanchor(recipe, w.id, order.filter(x => x !== factId));   // its local lines stay where they were
+  keepLineOrder(model, recipe, w.id, shown);
   syncSections(model, recipe);
 }
 
@@ -524,6 +565,41 @@ export function unparkOverride(model, recipe, factId){
 export const overrideOf = (recipe, factId) => (factId in (recipe.overrides ?? {})
   ? { text: recipe.overrides[factId], ...(recipe.overrideMeta?.[factId] ?? {}), on: true }
   : recipe.parked?.[factId] ? { text: recipe.parked[factId].text, ...(recipe.parked[factId].meta ?? {}), on: false } : null);
+// A second edit of a line does not replace the first (UX-6f): the one on the page, if it is still to be decided on, is kept among the line's earlier
+// edits (recipe.earlier[fact], oldest first) before the new text is set, so each stays its own row of the versions list. Not printed.
+export function stackOverride(model, recipe, factId){
+  guard(model, recipe, factId);
+  const o = overrideOf(recipe, factId);
+  if (!o?.on || o.kept) return;
+  const rest = (recipe.earlier?.[factId] ?? []).filter(e => e.text !== o.text);
+  recipe.earlier = { ...(recipe.earlier ?? {}), [factId]: [...rest, { text: o.text, marks: o.marks ?? [], base: o.base ?? null }] };
+}
+// The saved resumes that print a line in their own words (an edit of it on that resume, not locked), and the switch back to the record's wording
+// for all of them (UX-6f: a date line follows its dates again). A locked resume is left as it is.
+export const ownWording = (model, recipes, factId) => recipes.filter(r => r.overrides?.[factId] !== undefined && !isLocked(model, r, factId));
+export function useRecordWording(model, recipes, factId){
+  const rs = ownWording(model, recipes, factId);
+  for (const r of rs) dropOverride(model, r, factId);
+  return rs.length;
+}
+export const earlierOf = (recipe, factId) => recipe.earlier?.[factId] ?? [];
+// An earlier edit goes: used up (made a version) or thrown away.
+export function dropEarlier(model, recipe, factId, at){
+  guard(model, recipe, factId);
+  const rest = earlierOf(recipe, factId).filter((_, i) => i !== at);
+  if (rest.length) recipe.earlier = { ...recipe.earlier, [factId]: rest };
+  else if (recipe.earlier){ const { [factId]: _e, ...others } = recipe.earlier; if (Object.keys(others).length) recipe.earlier = others; else delete recipe.earlier; }
+}
+// Show an earlier edit on the page: it and the one on the page change places.
+export function swapEarlier(model, recipe, factId, at){
+  const e = earlierOf(recipe, factId)[at];
+  if (!e) return;
+  guard(model, recipe, factId);
+  const now = overrideOf(recipe, factId);
+  if (now?.on) recipe.earlier = { ...recipe.earlier, [factId]: earlierOf(recipe, factId).map((x, i) => (i === at ? { text: now.text, marks: now.marks ?? [], base: now.base ?? null } : x)) };
+  else dropEarlier(model, recipe, factId, at);
+  setOverride(model, recipe, factId, e.text, { marks: e.marks, base: e.base });
+}
 // The edits not yet decided on (UX-6d's Review list).
 export const pendingEdits = recipe => Object.keys(recipe.overrides ?? {}).filter(f => !recipe.overrideMeta?.[f]?.kept);
 // …and the ones UX-6d's Review list may offer: it skips a locked line (it would change its text), so it reads this, not pendingEdits.
@@ -808,6 +884,7 @@ export function moveBullet(model, recipe, factId, beforeId = null){
   }
   if (!done) throw keyed('ux2.errBulletOff');
   if (localOf(recipe, w.id).length) reanchor(recipe, w.id, order);
+  keepLineOrder(model, recipe, w.id, lineOrder(model, recipe, w.id));      // an off line stays after the line it followed
 }
 export function stepBullet(model, recipe, factId, dir){
   const w = jobOfFact(model, factId, recipe);
@@ -828,11 +905,13 @@ export function moveEntry(model, recipe, id, beforeId = null){
   const auto = toAuto(model, recipe);
   const e = entryOf(recipe, sid);
   const hidden = archivedEntryIds(model);
-  const ids = jobRefs(model, recipe, sid).map(refId).filter(x => x !== id && !hidden.has(x));
-  const at = beforeId == null ? ids.length : ids.indexOf(beforeId);
+  const ids = jobOrder(model, recipe, sid).filter(x => x !== id && !hidden.has(x));      // the off jobs keep their places in the order
+  const on = new Set(jobRefs(model, recipe, sid).map(refId)), lastOn = ids.findLastIndex(x => on.has(x));
+  const at = beforeId == null ? lastOn + 1 : ids.indexOf(beforeId);      // last: after the last job that prints, the off ones after it stay
   ids.splice(at < 0 ? ids.length : at, 0, id);
-  const natural = (factIx(model).sections.get(sid)?.content?.work ?? []).filter(x => ids.includes(x));
-  if (ids.length === natural.length && ids.every((x, i) => x === natural[i])) delete e.order; else e.order = ids;
+  // the jobs that print back in the record's order drop the key (the off ones then stand in the record's places again)
+  const printing = ids.filter(x => x === id || on.has(x)), natural = (factIx(model).sections.get(sid)?.content?.work ?? []).filter(x => printing.includes(x));
+  if (printing.length === natural.length && printing.every((x, i) => x === natural[i])) delete e.order; else e.order = ids;
   return { auto };
 }
 export function stepEntry(model, recipe, id, dir){

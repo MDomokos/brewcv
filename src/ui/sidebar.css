@@ -1,0 +1,343 @@
+/* The sidebar (UX-6 sidebar session): its own rules, loaded last. The tokens stay in workbench.css and drinks.css; nothing here names a colour. */
+
+/* ---- 1. Nothing squeezed (checks/sidebar-check.mjs, fit) ----
+   A title breaks only between words, so its smallest width is its longest word and a row can never press it into one letter a line;
+   what stands beside it (a count, "custom", Reset) wraps under it instead, and never breaks inside its own words. */
+:is(.jtl, .jobname, .outline .osec .clname, .outline .clgh .clname, .outline .osec .item.srow .stext .t, .outline .ojob .t, .ctlrow .swl > span, .swco, .swrole, body:not([data-phone=true]) .docname .dn) { overflow-wrap: break-word; }
+.outline .osec .item.srow .stext .t, .outline .ojob .t { min-width: auto; }
+/* a job's head: the fold, then the name and what follows it (.clmid, wrapping), then the padlock and the tick, which stay in their column */
+.clmid { flex: 1 1 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0 4px; }
+.clmid > :is(.jobname, .clcaret) { flex: 1 1 9em; min-width: auto; }      /* 9em: the count fits beside a title that wraps, "custom" and Reset go under */
+.clmid > :not(.jobname, .clcaret) { flex: none; white-space: nowrap; }
+.clgh .clmid > .pill.custom { margin-left: 0; }
+.outline .clmid > .clcount { min-width: 3.4em; text-align: right; }
+/* the job's title and its employer are one text that wraps by words; the employer is never cut */
+:is(.jobname, .clname):has(> .jtl) { display: block; }
+:is(.jobname, .clname) > .org { white-space: normal; overflow: visible; text-overflow: clip; }
+.clmid > .clcaret .clname { min-width: auto; }
+/* the depth row in the editor card: the levels wrap, a level's name is shown whole, the current one's name is the panel's title under it */
+.col > #body .depth { flex-wrap: wrap; row-gap: 2px; border-radius: var(--r-m); }
+.col > #body .depth .dp-n { min-width: auto; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: break-word; }
+.col > #body .depth .dp-l.cur .dp-n { display: none; }
+.col > #body .depth .dp-tools { margin-left: auto; }
+/* the name card in a short window stays one line (head-check): the company is whole, only the role may end in an ellipsis */
+@media (max-height: 850px){
+  .col > #head .docname .dn .swco { flex: 0 0 auto; max-width: 100%; overflow: visible; text-overflow: clip; }
+}
+/* the place tabs are as wide as their words, not three equal thirds */
+.ptabs .ptab { flex: 1 1 auto; }
+.ptabs .ptab > span { overflow: visible; text-overflow: clip; white-space: nowrap; }
+/* the name window's language and paper lists, and the Library inspector's buttons, go under each other when they do not fit */
+.swlang { flex-wrap: wrap; }
+.swlang > .ddbtn { flex: 1 0 auto; width: auto; }
+.swlang > .ddbtn .ddt { overflow: visible; }
+.insp-res .iacts { flex-wrap: wrap; row-gap: 6px; }
+.insp-res .iacts > button:first-child { min-width: auto; overflow: visible; text-overflow: clip; }
+
+/* ---- 2. Ticks, not switches (checks/sidebar-check.mjs, ticks) ----
+   The tick (drinks.css) is 17px where the pill was 30px: the end column of the Outline's rows is the 24px target, and the ticks line up with Career's. */
+:is(.cb, .sw):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.outline .osec .item.srow > .swl, .outline .clgh > .swl, .outline .clrow > .swl { width: 24px; }
+.outline .ojob { grid-template-columns: minmax(0, 1fr) 24px; }
+.outline .clrow > :is(.cb, .cbnone) { margin: 0 3.5px; }
+.depth .dp-t.dp-show, .depth.sm .dp-t.dp-show { width: 24px; }
+
+/* ---- 3. Titled groups (Settings, Design, Export): one step under the panel's title, one over the uppercase labels; space, no rules, between them ---- */
+.sgroup { margin-top: 14px; }
+.title + .sgroup { margin-top: 0; }
+.sgh { margin: 0 0 2px; font: 750 13.5px/1.3 var(--font-ui); color: var(--ink); overflow-wrap: break-word; }
+.sgh .sgs { font-weight: 500; color: var(--ink-soft); }
+.col > #body .sgh + .lbl { margin-top: 6px; }
+.sgh + :is(.note, .small, ul) { margin-top: 4px; }
+.sgroup.sentrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.sgroup.sentrow .sgh { margin: 0; }
+
+/* ---- 4. Depth (audit (f)): the sidebar's layers on five shared tokens. Ground (the mat) › panel (the editor and name cards) › card (a group,
+   an open section: flat, an edge) › row › field (sunk) › popover (highest). Only what can be pressed is raised: --elev-raised is the secondary
+   press's own shadow, --elev-low the tertiary's, so a raised button and a raised tab read at one height. The colours come from each drink's
+   --press-sh and --shadow-panel, so the four looks each have their own; Coffee keeps its hairlines and a short hard offset. ---- */
+:root {
+  --elev-flat: none;
+  --elev-low: var(--press-t-x) var(--press-t-y) 0 color-mix(in srgb, var(--press-sh) 55%, transparent);
+  --elev-raised: var(--press-s-x) var(--press-s-y) 0 var(--press-sh);
+  --elev-inset: inset 0 1.5px 0 color-mix(in srgb, var(--press-sh) 35%, transparent);
+  --elev-panel: var(--shadow-panel);
+  --elev-pop: 9px 11px 0 color-mix(in srgb, var(--press-sh) 45%, transparent);
+}
+html[data-drink="coffee"] { --elev-pop: 4px 4px 0 color-mix(in srgb, var(--ink) 22%, transparent); }
+/* fields sink into what holds them; popovers stand over everything */
+.col :is(input:not([type]), input:is([type=text], [type=search], [type=email], [type=tel], [type=url], [type=number]), textarea) { box-shadow: var(--elev-inset); }
+:is(.switcher, .menu.card, .ddpop) { box-shadow: var(--elev-pop); }
+/* cards on the panel are flat: the open section in the Outline is one card with an edge (no accent bar, no tinted head, no inner rule), its
+   body indented by nothing but the card's own edge (26 px back on every nested row); the open job keeps no tint of its own */
+.outline .osec.open { border-left: 1px solid var(--line-strong); box-shadow: var(--elev-flat); }
+.outline .osec.open > .item.srow { background: transparent; }
+.outline .osec.open > .item.srow.is-sel { background: var(--mark-soft); }
+.outline .osec.open > .obody { margin: 2px 4px 3px 4px; padding: 0; border-left: 0; }
+.outline .osec.open .clg.open > .clgh { background: transparent; }
+/* (the depth row keeps its frame: it becomes the page chip's one component, the; audit (c) is left to that) */
+
+/* ---- 5. The switchers (): the place tabs are one level over the modes, the modes one over the panel's content. The active item is part of
+   the surface it opens and stands up; the others sit lower and quieter, behind it. Tertiary/secondary, never primary; a 1 px travel on press
+   (they are buttons); nothing moves at rest, and under reduced motion there is no transition to play. ---- */
+/* Tea: the tags. The one you are on hangs 4 px higher with the raised shadow; the others drop behind the name card, their words softer */
+html[data-drink="tea"] .ptabs .ptab:not([aria-current]) { top: 4px; color: color-mix(in srgb, var(--tab-ink) 78%, transparent); }
+html[data-drink="tea"] .ptabs .ptab[aria-current=page] { filter: drop-shadow(0 0 .6px color-mix(in srgb, var(--tab-ink) 55%, transparent)) drop-shadow(var(--press-s-x) var(--press-s-y) 0 var(--press-sh)); }
+/* Coffee: the track is sunk, the thumb on the place you are on is raised (its hard offset, Coffee's press) */
+html[data-drink="coffee"] .ptabs { box-shadow: var(--elev-inset); }
+html[data-drink="coffee"] .ptabs::before { box-shadow: var(--elev-raised); }
+.ptabs .ptab:active:not([aria-current]) { translate: 0 1px; }
+/* the modes are the panel's folder tabs (round 2): the panel's own material. The open one is its surface and covers its edge; the others are
+   that surface a step darker, flush with the panel and 1 px under its edge (the panel's edge, or its surface, runs on over them), a shadow
+   inside where they go under it and a soft one cast outwards. Coffee: the same by edge and tone (sidebar-check, depth). */
+.rtabs { --tab-back: color-mix(in srgb, var(--surface) 80%, var(--shade)); --tab-front: var(--surface); }
+html[data-drink="tea"][data-theme="dark"] .rtabs { --tab-back: color-mix(in srgb, var(--surface) 72%, var(--shade)); }
+html[data-drink="coffee"] .rtabs { --tab-back: color-mix(in srgb, var(--surface) 93%, var(--ink)); --tab-front: var(--line-strong); }
+html[data-drink="coffee"][data-theme="dark"] .rtabs { --tab-back: color-mix(in srgb, var(--surface) 90%, var(--ink)); }
+.col .rtabs .tab:not([aria-selected=true]), .col.is-name .rtabs .tab { width: 55px; background: var(--tab-back); color: var(--ink-soft);
+  box-shadow: inset -1px 0 0 var(--tab-front), inset -8px 0 7px -6px var(--press-sh), inset 1px 0 0 var(--line), inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), -3px 3px 6px -2px color-mix(in srgb, var(--press-sh) 55%, transparent); }
+html[data-drink="coffee"] .col .rtabs .tab:not([aria-selected=true]), html[data-drink="coffee"] .col.is-name .rtabs .tab { box-shadow: inset -1px 0 0 var(--tab-front); }
+.col .rtabs .tab:not([aria-selected=true]) .ti, .col.is-name .rtabs .tab .ti { color: var(--ink-soft); }
+.rtabs .tab:hover:not(:disabled, [aria-selected=true]) { background: color-mix(in srgb, var(--tab-back) 50%, var(--surface)); color: var(--ink); }
+.rtabs .tab:active:not([aria-selected=true]) { translate: 1px 0; }
+/* folded to the rail (round 3): no panel is there to hang from, so each mode is a whole rounded card on the mat, its own edge and soft shadow, in a
+   gap from the window's edge; the current one has the surface, the accent edge and icon (not a join). The open sidebar's tabs are above, unchanged. */
+html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x) { width: 46px; margin: 0 0 0 4px; border-radius: var(--r-l); background: var(--tab-back); color: var(--ink-soft);
+  border: 1px solid var(--line-strong); box-shadow: 0 2px 6px -1px color-mix(in srgb, var(--press-sh) 60%, transparent); translate: none; }
+html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x)::before, html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x)::after { display: none; }
+html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-selected=true]:not(.x) { background: var(--surface); color: var(--ink); width: 46px; margin: 0 0 0 4px; border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 3px 8px -1px color-mix(in srgb, var(--press-sh) 70%, transparent); }
+html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-selected=true]:not(.x) .ti { color: var(--accent); }
+/* the name card's button: the tertiary press; while its window is open it reads as pressed in (sunk), the window over it a popover */
+#head .docname[aria-expanded=true] { background: var(--chrome-hover); box-shadow: var(--elev-inset); transform: none; }      /* over the tertiary press's hover */
+
+/* ---- 2b. The review flag ?switches (parts.js PILL): the old pill, as it was at feddab8, to set beside the tick.
+   shortcut: review flag for the tick-or-switch decision, remove when decided ---- */
+.sw.pill { width: 30px; height: 17px; border: 0; border-radius: var(--r-pill); background: var(--line-strong); place-content: normal; transition: background var(--dur-2); }
+.sw.pill::before { display: none; }
+.sw.pill::after { content: ""; position: absolute; left: 2px; top: 2px; width: 13px; height: 13px; border-radius: var(--r-round); background: var(--surface); transition: left var(--dur-2) var(--ease); }
+.sw.pill:checked { background: var(--accent); }
+.sw.pill:checked::after { left: 15px; background: var(--on-accent); }
+.outline .osec .item.srow > .swl:has(.pill), .outline .clgh > .swl:has(.pill), .outline .clrow > .swl:has(.pill) { width: 30px; }
+.outline .ojob:has(.pill) { grid-template-columns: minmax(0, 1fr) 30px; }
+
+/* ---- 6. Off stays in place: a section, a job or a line that is off keeps its row where it was, one grey for all three (the name at .6, no
+   strike), the tick and the padlock at full strength so it can be ticked again where it stands ---- */
+.outline .item.row.is-off .t { text-decoration: none; opacity: .6; color: var(--ink); }
+.outline .clrow.is-off .clt { opacity: .6; color: var(--ink); }
+
+/* ---- 7. The width control (sidewidth.js): a handle on the sidebar's inner edge (tertiary: no lift, its line shows on hover, focus and drag),
+   under the rail's tabs where they touch; folded, the column takes no room and only the rail stays. A short ease when it folds or opens. ---- */
+.rail { pointer-events: none; } .rail > * { pointer-events: auto; }      /* the rail's empty height lets the handle under it take the pointer */
+.sidegrip { position: absolute; left: -6px; top: 0; bottom: 0; width: 8px; z-index: 1; cursor: col-resize; touch-action: none; }
+.sidegrip::after { content: ""; position: absolute; left: 3px; top: 25%; bottom: 25%; width: 2px; border-radius: 1px; background: transparent; transition: background-color var(--dur-1); }
+.sidegrip:is(:hover, .is-drag)::after { background: var(--line-strong); }
+.sidegrip:focus-visible { outline: none; }
+.sidegrip:focus-visible::after { top: 0; bottom: 0; background: var(--focus); }
+body.side-off:not([data-phone=true]):not(.is-intro) .col > :is(#ptabs, #head, #body, #foot, #switcher) { display: none; }
+/* the chevron over the logo, at the foot of the rail: a small chrome card like undo and redo's, so it reads on the mat in every look */
+#rail > [data-act=side-fold] { --ink: var(--chrome-ink); --hover: var(--chrome-hover-strong); --focus: var(--chrome-accent); --fold-edge: color-mix(in srgb, var(--chrome-edge) 75%, var(--chrome-ink));
+  left: 13px; bottom: 48px; width: 28px; height: 28px; background: var(--chrome); color: var(--chrome-ink); border: 1px solid var(--fold-edge); border-radius: var(--r-m); }
+#rail > [data-act=side-fold]:hover:not(:disabled) { background: linear-gradient(var(--hover), var(--hover)) var(--chrome); color: var(--ink); border: 1px solid var(--fold-edge); }
+body.side-moving .col { transition: left var(--dur-2) var(--ease), width var(--dur-2) var(--ease); }
+
+/* ---- 8. The "?" corner (round 2, shell.js cornerHtml): help and info at the panel's bottom right, out of the Outline's way: it stands on the
+   panel's foot, a band the rows scroll under, so it never covers a tick or a padlock; its card opens upwards, right-aligned inside the panel.
+   A tertiary icon with an edge, in the open sheet's tea. A phone has it at the end of its foot. ---- */
+#corner { display: none; }
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet):not(.side-off) .col:not(.is-name) > #corner { display: block; position: absolute; right: 12px; bottom: 8px; z-index: 3; }
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #body { padding-bottom: 0; }
+/* the panel's foot: a band of its own surface, sticky at the bottom, that rows scroll under (so the "?" never stands on a row's tick) */
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #body::after { content: ""; display: block; position: sticky; bottom: 0; height: 42px; margin: 0 -15px 0 -16px;
+  background: linear-gradient(transparent, var(--surface) 12px); box-shadow: inset 0 -1px 0 var(--line-strong); }      /* the panel's own bottom edge, drawn on over it */
+.corner { position: relative; display: inline-grid; }
+.corner > [data-act=corner], .corner > [data-act=corner]:hover:not(:disabled) { background-color: var(--surface); border: 1px solid var(--line-strong); }
+.corner > [data-act=corner]:hover:not(:disabled), .corner > [data-act=corner][aria-expanded=true] { background-image: linear-gradient(var(--hover-strong), var(--hover-strong)); color: var(--ink); }
+.corner > .cornermenu { top: auto; right: 0; bottom: calc(100% + 6px); min-width: 220px; max-width: min(300px, calc(100vw - 32px)); }
+.cornermenu button { background: transparent; }      /* rows, as the links beside them */
+.cornermenu [data-appversion] { font: 500 11.5px/1 var(--font-mono); }
+
+/* ---- 9. The Outline's hierarchy and columns (round 2, item 16). A section is a heading (14.5 px, 750, its kind's chip from Career,
+   a taller row, a quiet band behind the open one's head); a job is 13 px / 650, the employer muted; a line 12.5 px / 450 and starts under
+   its job's title, as a section's own items start under its title (a child's caret stands under its parent's chip). One tick column and one
+   padlock column for every level: the nesting is on the left only, every row keeps 4 px on its right, no container between them takes any
+   room on the right (an open section's 1 px edge is a transparent 1 px on the closed ones), a fixed section keeps the tick's slot empty.
+   Section ticks are 20 px and take the kind's colour when on; content ticks stay the drink's 17 px (sidebar-check, columns). ---- */
+.outline .osec:not(.open) { border-inline: 1px solid transparent; }
+.outline .osec.open > .obody { margin-right: 0; }
+.outline .clbody { padding-right: 0; }
+.outline :is(.osec .item.srow, .clgh, .clrow, .ojob) { padding-right: 4px; }
+.outline .osec .item.srow, .outline .osec.open > .item.srow { gap: 6px; padding-top: 4px; padding-bottom: 4px; }
+/* the left: a job's caret where the sections' carets are, its title in the column of the sections' chips; its lines, a section's own items and an
+   off job start in that column too */
+.outline .clg > .clbody { padding-left: 20px; }
+.outline .obody > .clrows { padding-left: 20px; }
+.outline .ojob { padding-left: 24px; }
+.outline .osec .item.srow > :is(.osecaret, .si) { flex: none; }
+.outline .osec .item.srow .stext .t { font-size: 14.5px; font-weight: 750; line-height: 1.2; }
+/* a section's heading is a band of its kind's hue (--hk, one of the six: sidebar.css 9) with a 24 px monochrome icon in the hue's deeper tone; an off section
+   keeps its place and its one grey (no band, the icon quiet) */
+.outline .osec > .item.srow:not(.is-off, .is-sel), .outline .osec.open > .item.srow:not(.is-off, .is-sel) { background: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-tint-ol, var(--hue-tint)), var(--surface)); border-radius: var(--r-m); }
+.outline .osec.open > .item.srow:not(.is-off, .is-sel) { border-radius: var(--r-m) var(--r-m) 0 0; }
+.outline .osec .item.srow:not(.is-off) .stext .t { color: var(--ink); }      /* the full ink on a band (7:1 in the four looks, pixel-sampled by sidebar-check 'headers'), never the soft one a fixed row had */
+html[data-drink="coffee"] .outline .osec .item.srow .stext .t { font-size: 15px; font-weight: 700; letter-spacing: .01em; }      /* Fira Code has one real weight: 700 is its faux bold, so the tracking opens up instead of closing (-.01em) */
+html[data-drink="tea"] .outline .osec .item.srow:not(.is-off) .stext .t { color: color-mix(in srgb, var(--ink) 40%, #fff); }      /* Tea's cream ink a step toward white: the bands keep their hue */
+html[data-drink="tea"] { --hue-tint-ol: 24%; }      /* the Outline's bands a little deeper-toned: the ink stays 7:1 on every hue */
+html[data-drink="tea"][data-theme="dark"] { --hue-tint-ol: 27%; }
+.outline .osec .item.srow > .si { display: grid; place-items: center; width: 24px; height: 24px; background: none; border-radius: 0; color: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-deep), var(--ink)); }
+.outline .osec .item.srow > .si .ci { width: 24px; height: 24px; }
+.outline .osec .item.srow > .si { margin-right: -3px; }      /* the 24 px icon has its own room: the title keeps its 8 characters in the narrowest sidebar */
+.outline .osec .item.srow.is-off > .si { color: var(--ink-soft); opacity: .6; }
+.outline .item.srow.fixed > .rowlock { margin-right: 30px; }      /* no tick: its slot stays empty, the padlock in its column */
+.outline .clgh :is(.jobname, .clname), .outline .ojob .t { font-size: 13px; font-weight: 650; }
+.outline .clgh .org, .outline .ojob .t .muted { font-weight: 500; color: var(--ink-soft); }
+.outline .clrow .clt { font-size: 12.5px; font-weight: 450; }
+.outline .clrow > .rowlock { margin-right: 2px; } .outline .clgh > .rowlock { margin-right: 4px; }      /* the rows' gaps are 4 and 2 px, a section's 6: one padlock column */
+/* the ticks: a section's is the top level, 20 px and its kind's colour when on; what is in it keeps the drink's 17 px tick, in a neutral ink */
+.outline .item.srow input[data-secon]:not(.pill) { width: 20px; height: 20px; }
+.outline .item.srow input[data-secon]:not(.pill)::before { width: 13px; height: 13px; background: var(--on-accent); }
+.outline .item.srow input[data-secon]:not(.pill):checked, .outline .item.srow input[data-secon]:not(.pill).press:checked:hover:not(:disabled) { background-color: var(--accent); border-color: var(--accent); }
+html[data-drink="tea"] .outline .obody { --cb-on: var(--ink-soft); --cb-check: var(--surface); }
+
+/* ---- 10. The lock (round 2, item 17): locked and unlocked differ by more than the icon. Locked: the padlock filled, at full strength,
+   on a small warm chip, and its row in the Outline has a thin marker in the accent; unlocked: the outline padlock, quieter. The same on the
+   Outline's rows, the depth row and the page chip (.dp-lock), and the page's lock. The motion (edit.js lockMotion) says the rest. ---- */
+:is(.rowlock, .dp-lock, .pagelock) svg { overflow: visible; }
+:is(.dp-lock, .pagelock):not(.is-locked) svg { opacity: .6; }
+:is(.rowlock, .dp-lock, .pagelock).is-locked, :is(.rowlock, .dp-lock, .pagelock).is-locked:hover:not(:disabled) { opacity: 1; color: var(--ink); background-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+:is(.rowlock, .dp-lock, .pagelock).is-locked svg rect { fill: currentColor; }
+.rowlock.is-locked.inherited { background-color: color-mix(in srgb, var(--accent) 16%, transparent); }
+.outline :is(.srow, .clgh, .clrow).is-locked { box-shadow: inset 0 0 0 100vmax var(--lock-wash); }      /* a locked row is darker (a shadow, so no row's own background rule undoes it); no left line (J) */
+/* the lock wash: a locked block's card and rows are darker (about 34%; half in Coffee light; Coffee's dark surface is nearly black, so there the wash cools instead) */
+:root { --lock-wash: color-mix(in srgb, #07131f 34%, transparent); }
+html[data-theme="dark"] { --lock-wash: color-mix(in srgb, #030a14 34%, transparent); }
+html[data-drink="coffee"] { --lock-wash: color-mix(in srgb, #1d2a45 17%, transparent); }
+html[data-drink="coffee"][data-theme="dark"] { --lock-wash: color-mix(in srgb, #0a1a38 40%, transparent); }
+
+/* ---- 11. The section header (J): the real depth chip is the folder tab of the card under it (its tick and padlock are the block's only ones), on the section, job and line
+   views. The tab keeps the page chip's look (the page's paper and ink, 26 px, a thin edge in the plate's ink), attached: its bottom edge is the card's top edge, the card's top-left
+   corner is square under it, and a 2 px rim in the card's hue marks the join. The card is the hue's tint, raised; the list under it is plain. ---- */
+.hdr { --hf: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-tint), var(--surface)); margin: 0 0 4px; }
+.col > #body .hdr > .depth.sm { --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --faint: var(--paper-soft); --fill: color-mix(in srgb, var(--paper-ink) 10%, transparent);
+  position: relative; z-index: 1; margin: 0 0 -1px; padding: 0 2px 1px 4px; max-width: calc(100% - 8px);
+  background: var(--paper); color: var(--paper-ink); border: 1px solid color-mix(in srgb, var(--sel-mark) 55%, var(--paper)); border-bottom: 0; border-radius: 13px 13px 0 0;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--hk, var(--hue-6)) 65%, transparent); }
+html[data-drink="coffee"] .col > #body .hdr > .depth.sm { border-radius: 2px 2px 0 0; }
+.col > #body .hdr > .depth.sm:hover, .col > #body .hdr > .depth.sm:focus-within { background: var(--paper); border-color: var(--sel-mark); }
+.col > #body .hdr > .depth .dp-tools { margin-left: 2px; }
+.hcard { display: grid; gap: 2px; padding: 4px 6px; background-color: var(--hf); border: 1px solid color-mix(in srgb, var(--hk, var(--hue-6)) 55%, transparent); border-radius: 0 var(--r-l) var(--r-l) var(--r-l); box-shadow: var(--elev-low); }
+.hcard .title { margin: 2px 2px 0; font-size: 14px; }
+.hcard .meta, .hcard .hnote { margin: 0 2px 2px; font-size: 12px; }
+.hcard .ctlrow { margin: 0; }
+.hcard .note, .hcard .why { margin: 0 2px; }
+.hoff .hcard { opacity: .55; }      /* hidden on this resume: the card dims, the chip stays bright */
+.hdr.hlk .hcard { background-image: linear-gradient(var(--lock-wash), var(--lock-wash)); }
+/* row 1: the heading as it prints, on a band; written in place (the band is the box, no field look) */
+.hhead { display: flex; align-items: center; gap: 6px; min-height: 30px; margin: 0; padding: 0 6px 0 8px; border-radius: var(--r-s); background: color-mix(in srgb, var(--hk, var(--hue-6)) 28%, var(--surface)); color: var(--ink); cursor: text; }
+.hhead:hover { background: color-mix(in srgb, var(--hk, var(--hue-6)) 36%, var(--surface)); }
+.hhead:focus-within { background: color-mix(in srgb, var(--hk, var(--hue-6)) 44%, var(--surface)); }      /* focus: the hover wash a step stronger, no coloured ring */
+.hcard .hhead input { field-sizing: content; flex: 0 1 auto; min-width: 3ch; max-width: 100%; padding: 4px 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; outline: 0; font: 800 13.5px/1.25 var(--font-ui); color: inherit; text-overflow: ellipsis; }
+.hcard .hhead input::placeholder { color: inherit; opacity: .9; }
+.hhead .rs { flex: none; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--r-round); background: transparent; color: var(--ink); cursor: pointer; }
+.hhead .rs:hover { background: color-mix(in srgb, var(--ink) 15%, transparent); }
+.hcue { flex: none; font: 500 10.5px var(--font-label); color: var(--ink-soft); white-space: nowrap; }
+.hlang { flex: none; padding: 0 3px; border: 1px solid color-mix(in srgb, var(--ink) 45%, transparent); border-radius: 3px; font: 700 9px/13px var(--font-label); color: var(--ink-soft); }
+/* row 2: Group under the section above, one compact row */
+.hgrp .swl { display: flex; align-items: center; gap: 8px; flex: 1 1 12em; min-height: 28px; font: 600 12.5px var(--font-ui); }
+.hgrp .swl > span { display: inline-flex; align-items: center; gap: 8px; }
+.hgrp .gl { display: inline-grid; align-content: center; gap: 1px; width: 22px; height: 16px; flex: none; }
+.hgrp .gl i { display: block; height: 5px; border-radius: 1.5px; background: color-mix(in srgb, var(--hk, var(--hue-6)) 70%, var(--ink)); }
+.hgrp .gl i + i { height: 3px; margin-top: -1px; background: transparent; border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 55%, transparent); width: 60%; border-radius: 0; }
+.hdr .why { font-size: 11px; color: var(--ink-soft); }
+/* the Position list stays plain, apart from the card: space and a divider */
+.hdr + .hpos { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+
+
+/* ---- 9. One set of hues for the sidebar's header bands (round 3: "random icons, sizes and colours"). Six muted hues per drink, none a
+   primary: --hue-1 matcha/crema, 2 amber/mocha, 3 clay, 4 slate, 5 plum, 6 sage/olive. A band is its hue at --hue-tint over the panel's surface;
+   its icon is the hue taken --hue-deep of the way back from the ink (3:1 on the band); the words on a band stay the ink (4.5:1). Set --hk on a
+   band (or on what holds it) and .hband / .hic do the rest. Export's bands, the finish header and the Outline's section headings all use them
+   (checks/sidebar-check.mjs, finish and hues). Icons are monochrome strokes in that colour, in two sizes: the cup 44 (display) and
+   every header 24 (an Export band, the status glyph, an Outline heading). ---- */
+/* the hexes are in token blocks (checks/drink-check.mjs); how deep a look tints and takes the icon is below them */
+:root, html[data-drink="tea"] {
+  --hue-1: #55a07a; --hue-2: #e3a342; --hue-3: #d4704e; --hue-4: #5f8fbd; --hue-5: #a479ad; --hue-6: #6b7e65;
+}
+html[data-drink="coffee"] {
+  --hue-1: #c98a52; --hue-2: #8a6a52; --hue-3: #b5573a; --hue-4: #6e8195; --hue-5: #8d6f7a; --hue-6: #8f8b5a;
+}
+html[data-drink="tea"] { --hue-tint: 40%; --hue-deep: 35%; }
+html[data-drink="coffee"] { --hue-tint: 30%; --hue-deep: 45%; }
+html[data-drink="coffee"][data-theme="dark"] { --hue-tint: 46%; --hue-deep: 70%; }
+.hband { background: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-tint), var(--surface)); }
+.hic { color: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-deep), var(--ink)); }
+/* Export, top to bottom: the finish header (the cup 44, a hue-1 band), the status row (one glyph 24, the page result, Fit and the page bars at its end),
+   "Get the file" (a hue-2 band: PDF the hero, the three other formats three equal rows), "Sent it?" (hue 3, the same row), the backup a quiet row. A band
+   is a 24 px icon and a 14 px / 700 title on its hue; a note is 11.5 px muted; every row under a band is one pattern: the title, the note under it. */
+.exhero { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; column-gap: 12px; padding: 6px 12px; border-radius: var(--r-l); }
+.exhero .excup { grid-row: 1 / span 2; display: grid; }
+.exhero .title { margin: 0; font-size: 18px; line-height: 1.2; overflow-wrap: anywhere; }
+.exhero p { margin: 0; max-width: 100%; overflow-wrap: anywhere; }
+.exhero .exwho { font: 650 12.5px/1.3 var(--font-ui); color: var(--ink); }
+/* the weight of every icon is its role's token (drinks.css --ic-sw-*): the cup 44, a band or the status glyph 24 */
+.excup .ico, .exic .ico, .exst .ico { vertical-align: top; }
+.exstat { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 0; padding: 0 2px; }
+.exstat .checks { flex: 1 1 11em; margin: 0; gap: 6px; }
+.exstat .checks li { grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 13px; line-height: 1.3; }
+.exstat .checks li.warn, .exstat .checks li.bad { font-weight: 600; }
+.exst { display: grid; width: 24px; height: 24px; }
+.exfit { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+.exfit .meters { flex: none; }
+.exg { margin-top: 10px; }
+.exg .note { margin: 5px 2px 0; font-size: 11.5px; line-height: 1.3; }
+.exg > .sgh { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 36px; margin: 0 0 5px; padding: 4px 12px; border-radius: var(--r-m); font: 700 14px/1.25 var(--font-ui); }
+.exg > .sgh .exic { display: grid; }
+/* the formats: PDF is the hero, the filled one, the whole width and taller; the others are three equal rows, the title and its note under it */
+.exg .dl { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+.exg .dl button { min-height: 42px; padding: 3px 12px; line-height: 1.25; align-content: center; }
+.exg .dl button b { font-size: 14px; font-weight: 700; }
+.exg .dl button small { font-size: 11.5px; line-height: 1.3; }
+.exg .dl button[data-act=ex-pdf] { min-height: 56px; }
+.exg .dl button[data-act=ex-pdf] b { font-size: 17px; }
+/* the backup is housekeeping: no band, no icon */
+.exkeep { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin-top: 10px; padding: 8px 2px 0; border-top: 1px solid var(--line); }
+.exkt { display: grid; flex: 1 1 10em; min-width: 0; font-size: 12.5px; line-height: 1.3; overflow-wrap: anywhere; }
+.exkt b { font-weight: 650; } .exkt .small { font-size: 11.5px; }
+@media (prefers-reduced-motion: no-preference){
+  html:not([data-motion="reduce"]) .excup .steam { animation: exsteam 2.6s var(--ease, ease-in-out) 1 both; }
+  html:not([data-motion="reduce"]) .excup .steam:nth-of-type(2) { animation-delay: .25s; }
+  html:not([data-motion="reduce"]) .excup .steam:nth-of-type(3) { animation-delay: .5s; }
+}
+@keyframes exsteam { 0% { opacity: 0; translate: 0 2px; } 35% { opacity: 1; } 70% { opacity: .55; translate: 0 -1.5px; } 100% { opacity: 1; translate: 0 0; } }
+
+/* the job view's header: the title and the date line are plain rows written in place. At rest no pencil; the hover wash, a text cursor and a 12 px pencil come on hover or focus
+   (the section heading's band shows its pencil the same way); a touch screen has no hover, so the pencil stays, faint */
+.pen { flex: none; display: grid; place-items: center; width: 12px; height: 12px; color: var(--ink-soft); opacity: 0; pointer-events: none; }
+.hhead:hover .pen, .hhead:focus-within .pen, .hedit:hover .pen, .hedit:focus-visible .pen { opacity: 1; }
+html:not([data-motion="reduce"]) .pen { transition: opacity 120ms ease-out; }
+@media (hover: none) { .pen { opacity: .55; } }
+.jhead { padding: 0; cursor: default; }
+.jhead:hover { background: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-tint), var(--surface)); }
+.hedit { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; min-height: 24px; margin: 0; padding: 0 6px 0 8px; border: 0; border-radius: var(--r-s); background: transparent; color: inherit; font: inherit; text-align: left; cursor: text; }
+.hedit:hover { background: var(--plate-tint-hover); }
+.hedit:focus-visible { outline: 0; background: var(--plate-tint-sel); }
+.hedit > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.hcard:has(.jhead) { gap: 0; padding-block: 2px; }
+.jhead { min-height: 24px; }
+.hcard .jhead .title { flex: 1; min-width: 0; margin: 0 !important; font: 800 13.5px/1.25 var(--font-ui); }
+.hcard .jhead .hedit { padding-block: 2px; min-height: 24px; }
+.jmeta { display: flex; }
+.jmeta .hedit { padding-block: 0; min-height: 24px; }
+.jmeta .meta { margin: 0 !important; line-height: 1.25; }
+.jlink { display: flex; padding: 0 2px 0 4px; }
+.jlink .sm { min-height: 20px; padding: 0 4px; border: 0; background: transparent; box-shadow: none; font-size: 11.5px; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
+.jlink .sm:hover { color: var(--ink); background: transparent; }
+
+/* a hairline between every two closed section rows, on or off, whatever the band under or over it (the row's own border sat inside the band and went unseen) */
+.outline .osec { position: relative; }
+.outline .osec:not(.open) > .item.srow { border-bottom: 0; }
+.outline .osec:not(.open) + .osec:not(.open)::before { content: ""; position: absolute; inset: 0 8px auto; height: 1px; background: color-mix(in srgb, var(--ink) 26%, transparent); pointer-events: none; z-index: 1; }
+
+/* the panel's scrollbar: a slim rounded thumb in the panel's own ink at low contrast that steps up while the panel is hovered, no arrows (Chromium ignores ::-webkit-scrollbar once scrollbar-color is set, so these two are the whole style) */
+#body { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 30%, transparent) transparent; }
+#body:hover { scrollbar-color: color-mix(in srgb, var(--ink-soft) 60%, transparent) transparent; }

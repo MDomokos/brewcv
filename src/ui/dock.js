@@ -9,29 +9,23 @@ import { FILL_BAND } from '../fit.js';
 import { ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
 import { onDrinkChange } from './drink.js';
 import { play } from './motion.js';
+import { sw } from './parts.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = (s, r = document) => r.querySelector(s);
 
 const ZOOMW_KEY = 'rb-zoomwrite', CONTRAST_KEY = 'rb-contrast';
-const ZOOMON_KEY = 'rb-zoomwrite-on', DIMJOB_KEY = 'rb-dim-job', DIMLINE_KEY = 'rb-dim-line', MAGNET_KEY = 'rb-magnet', BOUNCE_KEY = 'rb-bounce';
+const ZOOMON_KEY = 'rb-zoomwrite-on';
 export const ZOOM_WRITE = { min: 80, max: 180, step: 5, def: 130 };
 const get = (k, ok, def) => { try { const v = localStorage.getItem(k); return ok(v) ? v : def; } catch { return def; } };
 const set = (k, v) => { try { localStorage.setItem(k, String(v)); } catch { /* this session only */ } };
 export const readZoomWrite = () => { const n = Number(get(ZOOMW_KEY, v => v !== null && Number.isFinite(Number(v)), ZOOM_WRITE.def)); return Math.max(ZOOM_WRITE.min, Math.min(ZOOM_WRITE.max, n)); };
-// how the page looks while you write (UX-3): the zoom can be turned off, and how far everything around the line is dimmed
-export const DIM = { job: { min: 40, max: 100, def: 80 }, line: { min: 60, max: 100, def: 94 } };
-const num = (key, lo, hi, def) => { const n = Number(get(key, v => v !== null && Number.isFinite(Number(v)), def)); return Math.max(lo, Math.min(hi, n)); };
+// how the page looks while you write: how far everything around the line (the other lines) and around the job (the rest of the page) is dimmed, in percent
+export const DIM = { job: 80, line: 94 };
 // the writing zoom, remembered (a pinch while writing sets it)
 export function storeZoomWrite(pct){ set(ZOOMW_KEY, Math.max(ZOOM_WRITE.min, Math.min(ZOOM_WRITE.max, Math.round(pct)))); }
 export const readZoomWriteOn = () => get(ZOOMON_KEY, v => v === '0' || v === '1', '1') === '1';
-export const readDimJob = () => num(DIMJOB_KEY, DIM.job.min, DIM.job.max, DIM.job.def);
-export const readDimLine = () => num(DIMLINE_KEY, DIM.line.min, DIM.line.max, DIM.line.def);
-// the travel between pages: how much the pages hold on (magnet) and how much they overshoot (bounce); to retune on a real trackpad
-export const TRAVEL = { magnet: { min: 0, max: 80, def: 35 }, bounce: { min: 0, max: 40, def: 8 } };
-export const readMagnet = () => num(MAGNET_KEY, TRAVEL.magnet.min, TRAVEL.magnet.max, TRAVEL.magnet.def);
-export const readBounce = () => num(BOUNCE_KEY, TRAVEL.bounce.min, TRAVEL.bounce.max, TRAVEL.bounce.def);
 export const readContrast = () => get(CONTRAST_KEY, v => v === 'sharp' || v === 'soft', 'sharp');
 
 // ---- the sheets ----
@@ -41,7 +35,7 @@ const phone = () => innerWidth < PHONE_MAX;
 const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : 'edit'; };
 // the sidebar's tea: the open sheet's (the Outline is Edit with nothing selected)
 const teaOf = () => (phone() ? '' : tabOf() === 'edit' ? (C.ui.sel.kind === 'none' ? 'outline' : 'edit') : tabOf() ?? 'edit');
-const TEA_ON = ['body', 'rtabs'];      // the editor card and the tabs that touch it wear the open sheet's tea
+const TEA_ON = ['body', 'rtabs', 'corner'];      // the editor card, the tabs that touch it and its "?" corner wear the open sheet's tea
 // a tab: Edit leaves the view that replaces it; the others open one. A line being written is left first (asking, if there is a draft).
 async function setMode(m){
   if (C.ui.writing && !(await C.leaveWriting())) return;
@@ -192,10 +186,10 @@ function meterHtml(){
 const fitHtml = () => { const u = C.ui, limit = C.shown()?.pageLimit; return fitBtn(u, limit, fitFilled(u.fills, limit)); };
 // the rail's page bars, drawn in the rail by the shell (the bars it already has stay, so their fill eases)
 const viewBar = (u, tipPos) => `<div class="vbar" role="toolbar" aria-label="${esc(t('ux2.viewBar'))}">
-      ${ib('fullscreen', 'full', t('head.fullscreen'), t('ux2.fullTip'), '', tipPos)}
-      ${ib('zoom-out', 'minus', t('ux2.zoomOut'), t('ux2.zoomOutTip'), u.zoom <= ZOOM_MIN + 1e-9 ? 'disabled' : '', tipPos)}
+      ${ib('fullscreen', 'full', t('ux6f.fullscreen'), t('ux6f.fullTip'), '', tipPos)}
+      ${ib('zoom-out', 'zoomOut', t('ux2.zoomOut'), t('ux2.zoomOutTip'), u.zoom <= ZOOM_MIN + 1e-9 ? 'disabled' : '', tipPos)}
       <span class="pct" id="zoompct">${Math.round((u.zoom ?? 1) * 100)}%</span>
-      ${ib('zoom-in', 'plus', t('ux2.zoomIn'), t('ux2.zoomInTip'), u.zoom >= ZOOM_MAX - 1e-9 ? 'disabled' : '', tipPos)}
+      ${ib('zoom-in', 'zoomIn', t('ux2.zoomIn'), t('ux2.zoomInTip'), u.zoom >= ZOOM_MAX - 1e-9 ? 'disabled' : '', tipPos)}
       ${ib('zoom-fit', 'fitpage', t('ux2.zoomFit'), t('ux2.zoomFitTip'), '', tipPos)}
       <button class="sm" data-act="actual">${h('ux2.actualSize')}</button>
     </div>`;
@@ -232,6 +226,7 @@ function drawFoot(){
       <span class="grow"></span>
       ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 't')}
       ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 't')}
+      ${C.cornerHtml?.() ?? ''}
     </div>`;
   el.innerHTML = `<div class="frow">${viewBar(u, 't')}${meterHtml()}</div>${act}`;
 }
@@ -239,14 +234,23 @@ function drawFoot(){
 // ---- the zoom bar shows while the pointer is over a sheet (the white page, not the mat) or the bar ----
 // It fades out 0.4 s after the pointer leaves, and flashes for 1.2 s when the keys zoom. The bar is in the page area, at its foot.
 const BAR_OUT_MS = 400, BAR_FLASH_MS = 1200;
-let barOver = 0, sheetOn = false, barT = 0, flashT = 0;
+let barOver = 0, sheetOn = false, barT = 0, flashT = 0, lastY = Infinity;
 function bar(){ return $('#zoombar'); }
+// Where printed text runs under the bar (a page zoomed in), it stands aside until the pointer comes within 48 px of it, or a key zooms (UX-6f 4c: it covers no text it is
+// not about). Called as the pointer moves and as the camera moves (shell.js).
+export function barAside(){
+  const b = C && bar();
+  if (!b) return;
+  const r = b.getBoundingClientRect(), under = q => { const s = C.canvas.screenRect(q); return s.left < r.right && s.left + s.width > r.left && s.top < r.bottom && s.top + s.height > r.top; };
+  b.classList.toggle('is-aside', !barOver && !flashT && lastY < r.top - 48 && !!C.sheet?.textRects().some(under));
+}
 function showBar(on){
   clearTimeout(barT);
   if (on){ bar()?.classList.add('on'); return; }
   barT = setTimeout(() => { if (!barOver && !sheetOn && !bar()?.matches(':focus-within') && !flashT) bar()?.classList.remove('on'); }, BAR_OUT_MS);
 }
-function sheetOver(on){
+function sheetOver(on, y = lastY){
+  lastY = y; barAside();
   if (on === sheetOn) return;
   sheetOn = on;
   showBar(on || !!barOver);
@@ -254,20 +258,17 @@ function sheetOver(on){
 function flashBar(){
   bar()?.classList.add('on');
   clearTimeout(flashT);
-  flashT = setTimeout(() => { flashT = 0; if (!barOver && !sheetOn) showBar(false); }, BAR_FLASH_MS);
+  flashT = setTimeout(() => { flashT = 0; barAside(); if (!barOver && !sheetOn) showBar(false); }, BAR_FLASH_MS);
+  barAside();
 }
 
 // ---- the page and panel settings, shown in Settings (settings.js) ----
 // Their keys and read functions are above; this draws them and applies a change at once.
 export function viewSettingsHtml(){
   const zw = readZoomWrite(), soft = readContrast() === 'soft';
-  const dial = (id, key, v, lo, hi, step = 1) => `<label class="dial"><span class="dl">${h(key)}</span><output id="${id}-out">${v}%</output><input type="range" id="${id}" min="${lo}" max="${hi}" step="${step}" value="${v}" aria-label="${esc(t(key))}"></label>`;
-  const multi = (C.ui.fills?.length ?? 1) > 1;
-  return `<label class="swl"><input type="checkbox" class="sw" id="zwon" ${readZoomWriteOn() ? 'checked' : ''}><span>${h('ux3.zoomWriteOn')}</span></label>
+  return `${sw('id="zwon"', readZoomWriteOn(), h('ux3.zoomWriteOn'))}
     <label class="dial"><span class="dl">${h('ux2.zoomWrite')}</span><output id="zw-out">${zw}%</output><input type="range" id="zw" min="${ZOOM_WRITE.min}" max="${ZOOM_WRITE.max}" step="${ZOOM_WRITE.step}" value="${zw}" aria-label="${esc(t('ux2.zoomWrite'))}"></label>
-    ${dial('dimline', 'ux3.dimLine', readDimLine(), DIM.line.min, DIM.line.max)}${dial('dimjob', 'ux3.dimJob', readDimJob(), DIM.job.min, DIM.job.max)}
-    ${multi ? dial('magnet', 'ux3.magnet', readMagnet(), TRAVEL.magnet.min, TRAVEL.magnet.max) + dial('bounce', 'ux3.bounce', readBounce(), TRAVEL.bounce.min, TRAVEL.bounce.max) : ''}
-    <label class="swl"><input type="checkbox" class="sw" id="contrast" ${soft ? '' : 'checked'}><span>${h('ux2.sharper')}</span></label>
+    ${sw('id="contrast"', !soft, h('ux2.sharper'))}
     <p class="note">${h('ux2.zoomNote')}</p>`;
 }
 // a slider moved (input) or a switch flipped (change) in Settings
@@ -275,10 +276,6 @@ export function viewSettingChanged(e){
   const el = e.target, v = Number(el.value), out = document.getElementById(`${el.id}-out`);
   if (e.type === 'input'){
     if (el.id === 'zw'){ set(ZOOMW_KEY, v); C.ui.zoomWrite = v; }
-    else if (el.id === 'dimline'){ set(DIMLINE_KEY, v); C.layers?.(); }
-    else if (el.id === 'dimjob'){ set(DIMJOB_KEY, v); C.layers?.(); }
-    else if (el.id === 'magnet'){ set(MAGNET_KEY, v); C.canvas.set({ magnet: v }); }
-    else if (el.id === 'bounce'){ set(BOUNCE_KEY, v); C.canvas.set({ bounce: v }); }
     if (out) out.textContent = `${v}%`;
   } else {
     if (el.id === 'contrast'){ set(CONTRAST_KEY, el.checked ? 'sharp' : 'soft'); applyContrast(); }
@@ -337,7 +334,7 @@ function bind(){
   bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', t('ux2.viewBar'));
   document.body.append(bar);
   // over a sheet (canvas.js tells us), or the bar itself, or a key inside it, the bar shows
-  bar.addEventListener('pointerenter', () => { barOver = 1; showBar(true); });
+  bar.addEventListener('pointerenter', () => { barOver = 1; barAside(); showBar(true); });
   bar.addEventListener('pointerleave', () => { barOver = 0; showBar(sheetOn); });
   bar.addEventListener('focusin', () => showBar(true));
   bar.addEventListener('focusout', () => showBar(false));

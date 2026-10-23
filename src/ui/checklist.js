@@ -4,12 +4,14 @@
 // takes it off (edit.js setBullet, one undo step each). Nothing about the claims that are off is drawn on the page. The list is a
 // plain run of checkboxes in tab order.
 
-import { checklist, groupOf, groupsOfSection, sectionCounts, sectionsCustom, jobsCustom } from '../model/checklist.js';
+import { checklist, groupOf, groupsOfSection, sectionCounts, jobsCustom } from '../model/checklist.js';
 import * as T from '../model/resume.js';
 import { addClaimHtml, orderMarkHtml, showSw, sw } from './parts.js';
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
-import { ghost, fly, reduced, play } from './motion.js';
+import { ghost, fly, reduced } from './motion.js';
+import * as K from '../model/career.js';
+import { kindHue, kindChip } from './career.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -33,7 +35,7 @@ const jobLabel = g => `<span class="jtl">${esc(g.title)}</span>${g.org ? `<span 
 const nOfM = (n, m) => { const full = esc(t('ux2.nOfM', { n, m })); return `<span title="${full}"><span aria-hidden="true">${n}/${m}</span><span class="sr">${full}</span></span>`; };
 
 function caret(g, open, label, count){
-  return `<button class="clcaret" data-act="cl-toggle" data-g="${esc(g.id)}" aria-expanded="${open}" aria-controls="clg-${esc(g.id)}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span><span class="clname">${label}</span><span class="clcount">${count}</span></button>`;
+  return `<button class="clcaret" data-act="cl-toggle" data-g="${esc(g.id)}" aria-expanded="${open}" aria-controls="clg-${esc(g.id)}"><span class="clc" aria-hidden="true">${icon('caret', { role: 'inline' })}</span><span class="clname">${label}</span><span class="clcount">${count}</span></button>`;
 }
 // A ticked bullet of a job, or an item of a list section, can be moved (Alt+arrows on the row; the grips are on the page): it carries its ids.
 const bulletMovable = (r, g) => r.kind === 'claim' && r.on && !r.archived && !r.fixed && g?.kind === 'entry';
@@ -42,7 +44,7 @@ const rowsHtml = (rows, g, end = false) => rows.map(r => rowHtml(r, g, end)).joi
 const isSel = r => { const s = C.ui.sel; return s.kind === r.sel.kind && s.id === r.sel.id && s.what === r.sel.what; };
 function rowHtml(r, g, end){
   const photo = r.id === 'about:photo', name = photo ? t('design.photoWord') : r.text.slice(0, 80);
-  const act = t(r.on ? 'ux6c.hideX' : 'ux6c.showX', { name });
+  const act = t('ux6c.showX', { name });
   const key = photo ? 'data-photo="1"' : r.item ? `data-item="${esc(r.item)}"` : r.kind === 'claim' && !r.fixed ? `data-on="${esc(r.id)}"` : '';
   const why = r.fixed ? t('ux2.alwaysOn', { text: r.text.slice(0, 60) }) : t('ux2.printsWithSection', { text: r.text.slice(0, 60) });
   // the Outline's switch is the pill, as everywhere; the Record's is the tick (it waits for the Record screens, UX-6e)
@@ -50,7 +52,7 @@ function rowHtml(r, g, end){
   const box = r.noTick && !photo ? '<span class="cbnone" aria-hidden="true"></span>'
     : end ? (key ? showSw(key, r.on, name) : sw(`aria-label="${esc(why)}"`, on, '', true))
     : r.noTick ? '<span class="cbnone" aria-hidden="true"></span>'
-    : key ? `<input type="checkbox" class="cb" ${key} ${r.on ? 'checked' : ''} aria-label="${esc(act)}">`
+    : key ? `<input type="checkbox" class="cb press" data-tier="tertiary" ${key} ${r.on ? 'checked' : ''} aria-label="${esc(act)}">`
     : `<input type="checkbox" class="cb" ${on ? 'checked' : ''} disabled aria-label="${esc(why)}">`;
   const text = r.id === 'about:photo' ? t('career.about.photo') : r.text || t('ux2.empty');
   const drag = r.item ? `data-item="${esc(r.item)}" data-sec="${esc(r.section)}"` : bulletMovable(r, g) ? `data-bullet="${esc(r.id)}" data-bjob="${esc(g.id)}"` : '';
@@ -70,7 +72,7 @@ function groupHtml(g, open, ctx){
   if (g.kind === 'entry'){
     const arch = g.archivedRows.length;
     const archOpen = ctx.shown.has(g.id);
-    const head = `<h3 class="clgh">${nameCaret(g, open, nOfM(g.on, g.total), { toggle: 'cl-toggle', body: 'clg-', open: `data-act="cl-open" data-sel="${selAttr(g.sel)}"` })}${orderMarkHtml(g.custom, 'job', g.id, g.title)}
+    const head = `<h3 class="clgh">${nameCaret(g, open, nOfM(g.on, g.total), { toggle: 'cl-toggle', body: 'clg-', open: `data-act="cl-open" data-sel="${selAttr(g.sel)}"` })}
         ${g.archived ? `<button class="ghost sm" data-act="c-unarch-entry" data-id="${esc(g.id)}">${h('arch.unarchiveJob')}</button>` : ''}</h3>`;
     return `<section class="clg ${open ? 'open' : ''} ${g.archived ? 'is-archived' : ''}" data-g="${esc(g.id)}">${head}
       ${body(`<ul class="clrows">${rowsHtml(g.rows, g)}</ul>
@@ -80,12 +82,12 @@ function groupHtml(g, open, ctx){
   const sectionSwitch = (sid, on, name) => (sid ? `<span class="clsec">${showSw(`data-secon="${esc(sid)}"`, on, name, { text: true })}</span>` : '');
   if (g.kind === 'education' || g.kind === 'list'){
     const name = g.kind === 'education' ? t('career.kind.education') : g.title;
-    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${caret(g, open, esc(name), nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'items', g.section, name)}</h3>
+    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${mid(caret(g, open, esc(name), nOfM(g.on, g.total)), g.kind === 'education' ? orderMarkHtml(g.custom, 'items', g.section, name) : '')}</h3>
       ${body(`${sectionSwitch(g.section, g.sectionOn, name)}<ul class="clrows">${rowsHtml(g.rows, g)}</ul>`)}</section>`;
   }
   // skills and credentials: each list under the section that prints it
   return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${caret(g, open, h('ux2.groupCredentials'), nOfM(g.on, g.total))}</h3>
-    ${body(g.subs.filter(s => s.rows.length).map(s => `<div class="clsub"><div class="clsubh"><b>${esc(t(`career.group.${s.id}`))}</b>${orderMarkHtml(s.custom, 'items', s.section, t(`career.group.${s.id}`))}${sectionSwitch(s.section, s.sectionOn, t(`career.group.${s.id}`))}</div>
+    ${body(g.subs.filter(s => s.rows.length).map(s => `<div class="clsub"><div class="clsubh"><b>${esc(t(`career.group.${s.id}`))}</b>${sectionSwitch(s.section, s.sectionOn, t(`career.group.${s.id}`))}</div>
         <ul class="clrows">${rowsHtml(s.rows, g)}</ul></div>`).join('')
       + `<div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr({ kind: 'record', what: 'jobtypes' })}">${h('ux2.jobTypes')}</button></div>`)}</section>`;
 }
@@ -103,12 +105,15 @@ const addLineHtml = g => (S.adding === g.id ? addClaimHtml({ id: g.id, key: g.ke
 // Edit at the line.
 const folded = (key, forced) => { const f = S.fold.get(key); return f === 'open' || (f !== 'shut' && forced) ? false : true; };
 const ocaret = (key, open, label, count = '') =>
-  `<button class="clcaret ocaret" data-act="ol-toggle" data-g="${esc(key)}" aria-expanded="${open}" aria-controls="ol-${esc(key)}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span><span class="clname">${label}</span>${count ? `<span class="clcount">${count}</span>` : ''}</button>`;
+  `<button class="clcaret ocaret" data-act="ol-toggle" data-g="${esc(key)}" aria-expanded="${open}" aria-controls="ol-${esc(key)}"><span class="clc" aria-hidden="true">${icon('caret', { role: 'inline' })}</span><span class="clname">${label}</span>${count ? `<span class="clcount">${count}</span>` : ''}</button>`;
 // The job's name is the button that opens it (the sidebar's section view, and the Record's groups); the caret beside it only folds.
 // `o`: what the caret folds and what the name does (`select-job` in a section's view, `cl-open` with the group's selection in the Record)
-const nameCaret = (g, open, count, o = { toggle: 'ol-toggle', body: 'ol-', open: `data-act="select-job" data-id="${esc(g.id)}"` }) =>
-  `<button class="clcaret ocaret nameless" data-act="${o.toggle}" data-g="${esc(g.id)}" aria-expanded="${open}" aria-controls="${o.body}${esc(g.id)}" aria-label="${esc(t('ux6c.fold', { name: g.title }))}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span></button>
-   <button class="clname jobname" ${o.open} title="${esc(g.title + (g.org ? ' · ' + g.org : ''))}">${jobLabel(g)}</button><span class="clcount">${count}</span>`;
+// `mark`: the order mark (orderMarkHtml). The name and what follows it share .clmid, which wraps: the count, "custom" and Reset go under
+// the name when they do not fit beside it, and the name is never narrower than its longest word.
+const nameCaret = (g, open, count, o = { toggle: 'ol-toggle', body: 'ol-', open: `data-act="select-job" data-id="${esc(g.id)}"` }, mark = '') =>
+  `<button class="clcaret ocaret nameless" data-act="${o.toggle}" data-g="${esc(g.id)}" aria-expanded="${open}" aria-controls="${o.body}${esc(g.id)}" aria-label="${esc(t('ux6c.fold', { name: g.title }))}"><span class="clc" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>
+   <span class="clmid"><button class="clname jobname" ${o.open} title="${esc(g.title + (g.org ? ' · ' + g.org : ''))}">${jobLabel(g)}</button><span class="clcount">${count}</span>${mark}</span>`;
+const mid = (head, mark) => `<span class="clmid">${head}${mark}</span>`;
 
 // `only`: a job's id, for the sidebar when that job is selected: just its lines (its own title and switch are above them)
 export function outlineHtml(only = null, section = null){
@@ -119,14 +124,15 @@ export function outlineHtml(only = null, section = null){
   const focusSec = !focus ? null : T.sectionOfEntry(m, focus) ?? (focus === 'education' ? 'education' : sel.kind === 'record' && sel.what === 'item' ? T.sectionOfItem(m, sel.id) : cl.groups.find(g => g.id === focus)?.section ?? null);
   const about = cl.groups.find(g => g.id === 'about')?.rows ?? [];
 
-  // a job's lines that print, "+ n more" for the ones that are off, and "+ line"
+  // a job's lines in place, the ones that are off greyed with their tick (T.lineOrder: off stays in place); "+ n more" only for the archived
+  // ones, which are not a choice of this resume; and "+ line"
   const jobBody = g => {
     const byId = new Map(g.rows.map(r => [r.id, r]));
-    const printed = g.printed.map(id => byId.get(id)).filter(Boolean), more = g.rows.filter(r => !r.on);
-    const arch = g.archivedRows.map(r => ({ ...r, noTick: true })), n = more.length + arch.length;      // an archived line can only be unarchived: no tick
+    const shown = T.lineOrder(m, cur, g.id).map(id => byId.get(id)).filter(Boolean), rows = [...shown, ...g.rows.filter(r => !shown.includes(r))];
+    const arch = g.archivedRows.map(r => ({ ...r, noTick: true })), n = arch.length;      // an archived line can only be unarchived: no tick
     const showMore = S.more.has(g.id);
-    return `<ul class="clrows">${rowsHtml(printed, g, true)}</ul>
-        ${n ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('ux5c.more', { n })}</button>${showMore ? `<ul class="clrows">${rowsHtml(more.concat(arch), g, true)}</ul>` : ''}` : ''}
+    return `<ul class="clrows">${rowsHtml(rows, g, true)}</ul>
+        ${n ? `<button class="sm ghost archmore" data-act="ol-more" data-id="${esc(g.id)}" aria-expanded="${showMore}">${h('arch.nArchived', { n })}</button>${showMore ? `<ul class="clrows">${rowsHtml(arch, g, true)}</ul>` : ''}` : ''}
         <button class="sm ghost addline" data-act="ol-newline" data-id="${esc(g.id)}">${h('ux5c.line')}</button>`;
   };
   const jobHtml = (g, isOn, movable = false) => {
@@ -134,7 +140,7 @@ export function outlineHtml(only = null, section = null){
     const open = !folded(g.id, focus === g.id);
     // the job's switch is on its head, in a section's own view too; its name (nameCaret) opens it
     const pickJob = showSw(`data-jobon="${esc(g.id)}"`, true, g.title);
-    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${movable ? `data-job="${esc(g.id)}"` : ''}>${section ? nameCaret(g, open, nOfM(g.on, g.total)) : ocaret(g.id, open, jobLabel(g), nOfM(g.on, g.total))}${orderMarkHtml(g.custom, 'job', g.id, g.title)}${pickJob}</h3>
+    return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh" ${movable ? `data-job="${esc(g.id)}"` : ''}>${section ? nameCaret(g, open, nOfM(g.on, g.total)) : mid(ocaret(g.id, open, jobLabel(g), nOfM(g.on, g.total)), '')}${pickJob}</h3>
       <div class="clbody" id="ol-${esc(g.id)}" ${open ? '' : 'hidden'}>${jobBody(g)}</div></section>`;
   };
 
@@ -147,12 +153,16 @@ export function outlineHtml(only = null, section = null){
       // the jobs of the record that print can be re-arranged; a project or an archived job that still prints keeps its place
       const on = refs.map(id => gs.find(g => g.id === id)).filter(Boolean), free = on.filter(g => m.work.some(w => w.id === g.id && !w.archived)).map(g => g.id);
       const head = jobsCustom(m, cur, s.id) ? `<div class="ordhead">${orderMarkHtml(true, 'jobs', s.id, C.sectionTitle(s.id))}</div>` : '';
-      return head + on.map(g => jobHtml(g, true, free.includes(g.id))).join('') + gs.filter(g => !refs.includes(g.id)).map(g => jobHtml(g, false)).join('');
+      // a job that is off keeps its place among them, greyed, with its tick (T.jobOrder); anything the order does not name follows
+      const shown = T.jobOrder(m, cur, s.id).map(id => gs.find(g => g.id === id)).filter(Boolean);
+      return head + [...shown, ...gs.filter(g => !shown.includes(g))].map(g => (refs.includes(g.id) ? jobHtml(g, true, free.includes(g.id)) : jobHtml(g, false))).join('');
     }
     const rows = gs.flatMap(g => (g.kind === 'credentials' ? g.subs.filter(x => x.section === s.id).flatMap(x => x.rows) : g.rows));
     return rows.length ? `<ul class="clrows">${rowsHtml(rows, gs[0], true)}</ul>` : '';
   };
 
+  // a section's Career kind (its chip and colour): the header and the summary are About; the rest is the kind whose section it is
+  const kindOfSec = sid => sectionKind(m, sid);
   // a section that is off stays in its own row, dimmed, with the same pill; it has nothing to fold
   const secHtml = s => {
     const counts = s.on && sectionCounts(m, cl, s.id);
@@ -162,9 +172,10 @@ export function outlineHtml(only = null, section = null){
     const title = esc(C.sectionTitle(s.id));
     const info = s.fixed ? h('edit.alwaysFirst') : counts ? nOfM(counts.on, counts.total) : '';
     const chosen = sel.kind === 'section' && sel.id === s.id;
-    return `<div class="osec ${open ? 'open' : ''}" data-sid="${esc(s.id)}" role="group" aria-label="${title}">
+    const kind = kindOfSec(s.id);
+    return `<div class="osec ${open ? 'open' : ''}" data-sid="${esc(s.id)}" role="group" aria-label="${title}" style="--hk:${kindHue(kind)}">
       <div class="item srow ${s.fixed ? 'fixed' : ''}${s.on ? '' : ' is-off'} ${chosen ? 'is-sel' : ''}" data-sid="${esc(s.id)}">
-        ${foldable ? `<button class="osecaret" data-act="ol-toggle" data-g="sec:${esc(s.id)}" aria-expanded="${open}" aria-controls="ol-sec-${esc(s.id)}" aria-label="${title}"><span class="clc" aria-hidden="true">${icon('caret', { size: 14 })}</span></button>` : '<span class="osecaret"></span>'}
+        ${foldable ? `<button class="osecaret" data-act="ol-toggle" data-g="sec:${esc(s.id)}" aria-expanded="${open}" aria-controls="ol-sec-${esc(s.id)}" aria-label="${title}"><span class="clc" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>` : '<span class="osecaret"></span>'}${kindChip(kind)}
         <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${title}</a><span class="scount muted tiny">${info}</span></span>
         ${s.fixed ? '' : showSw(`data-secon="${esc(s.id)}"`, s.on, C.sectionTitle(s.id))}
       </div>
@@ -172,14 +183,34 @@ export function outlineHtml(only = null, section = null){
   };
 
   const onlyG = only && cl.groups.find(g => g.id === only && g.kind === 'entry');
-  if (onlyG) return `<section class="outline only" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><div class="clg open" data-g="${esc(only)}">${onlyG.custom ? `<div class="ordhead">${orderMarkHtml(true, 'job', only, onlyG.title)}</div>` : ''}<div class="clbody" id="ol-${esc(only)}">${jobBody(onlyG)}</div></div></section>`;
+  if (onlyG) return `<section class="outline only" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><div class="clg open" data-g="${esc(only)}"><div class="clbody" id="ol-${esc(only)}">${jobBody(onlyG)}</div></div></section>`;
   // `section`: a section's id, for the sidebar when that section is selected: its jobs or items
   if (section) return `<section class="outline only" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}">${bodyOf({ id: section })}</section>`;
   const manual = Array.isArray(cur.pages);
   return `<section class="outline" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><h2 class="sr">${h('ux5c.tabOutline')}</h2>
-    ${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere')) ? `<div class="ordhead">${orderMarkHtml(sectionsCustom(m, cur), 'sections', 'sections', t('edit.sectionsHere'))}</div>` : ''}
     <div class="list" id="seclist">${list.map(secHtml).join('')}</div>
     ${manual ? `<p class="note">${h('edit.dragManual')}</p>` : ''}</section>`;
+}
+
+// The children of a level of the depth chip (UX-6f 4c), as the Outline lists them, in print order: the page's sections, a section's jobs
+// or items (the header's fields), a job's lines that print. [{ text, sel }]: `sel` is what the Outline's row selects.
+export function kidsOf(kind, id){
+  const m = C.work(), cur = C.cur();
+  if (kind === 'page') return T.sectionList(m, cur).filter(s => s.on).map(s => ({ text: C.sectionTitle(s.id), sel: { kind: 'section', id: s.id } }));
+  const cl = checklist(m, cur, C.lang()), gs = kind === 'job' ? cl.groups.filter(g => g.id === id && g.kind === 'entry') : groupsOfSection(m, cl, id);
+  const rows = rs => rs.filter(r => r.on || r.fixed).map(r => ({ text: (r.id === 'about:photo' ? t('design.photoWord') : r.text).replace(/\n/g, ' · '), sel: r.sel }));
+  if (kind === 'job'){ const g = gs[0], by = new Map((g?.rows ?? []).map(r => [r.id, r])); return rows((g?.printed ?? []).map(x => by.get(x)).filter(Boolean)); }
+  if (id === 'header' || id === 'summary') return rows((gs[0]?.rows ?? []).filter(r => (r.kind === 'claim') === (id === 'summary')));
+  if (gs[0]?.kind === 'entry') return T.jobRefs(m, cur, id).map(r => gs.find(g => g.id === (typeof r === 'string' ? r : r.id))).filter(Boolean).map(g => ({ text: g.title, sel: { kind: 'job', id: g.id } }));
+  return rows(gs.flatMap(g => (g.kind === 'credentials' ? g.subs.filter(x => x.section === id).flatMap(x => x.rows) : g.rows)));
+}
+
+// a section's Career kind (its chip and colour): the header and the summary are About; the rest is the kind whose section it is
+const sectionKind = (m, sid) => (sid === 'header' ? 'about' : sid === 'summary' ? 'summary' : [...K.TIMELINE_KINDS, ...K.LIST_GROUPS, ...K.kindsOf(m).map(k => k.id)].find(k => K.sectionFor(m, k) === sid) ?? '');
+// what a section's card in the editor needs: its hue (the Outline heading's) and its lines on / in all
+export function sectionInfo(sid){
+  const m = C.work();
+  return { hue: kindHue(sectionKind(m, sid)), counts: sectionCounts(m, checklist(m, C.cur(), C.lang()), sid) };
 }
 
 // Record's body: "Your record", the count for the open resume, + Add; then every group, all open. `timeline` is career's, drawn above.
@@ -250,7 +281,7 @@ async function act(a, tg){
       return true;
     }
     // a click on a row: in the Outline it selects the line and the Outline stays; in the Record it opens Edit at the line
-    case 'cl-open': {
+    case 'cl-open': case 'dp-open': {      // (dp-open: an option of the depth chip's list, which selects as the row does)
       C.select(JSON.parse(tg.dataset.sel));
       // the panel's heading takes the focus, so the keyboard carries on in the inspector and Esc goes back out
       const title = document.querySelector('#body .title');
@@ -293,11 +324,11 @@ function bind(body){
       S.travel = { id, on: cb.checked, text, until: performance.now() + 1500, from: cb.checked ? (clt ? { left: clt.left, top: clt.top, width: clt.width, height: clt.height } : null) : C.lineBox?.(id) };
     }
   });
-  const hover = id => C.hoverFact(id || null);
-  body.addEventListener('mouseover', e => { const r = e.target.closest?.(':is(#body, #scr) .clrow[data-fact]'); if (r) hover(r.dataset.fact); });
-  body.addEventListener('mouseout', e => { const r = e.target.closest?.(':is(#body, #scr) .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });
-  body.addEventListener('focusin', e => { const r = e.target.closest?.(':is(#body, #scr) .clrow[data-fact]'); if (r) hover(r.dataset.fact); });
-  body.addEventListener('focusout', e => { const r = e.target.closest?.(':is(#body, #scr) .clrow[data-fact]'); if (r && !r.contains(e.relatedTarget)) hover(null); });
+  // a row under the pointer or the focus: its block takes the page's hover plate (the Outline's section and job rows, a line's row)
+  const ROW = ':is(#body, #scr) :is(.clrow[data-fact], .srow[data-sid], .clgh)';
+  const blockOf = r => r.matches('.clrow') ? (r.dataset.fact ? { kind: 'bullet', id: r.dataset.fact } : null) : r.matches('.srow') ? { kind: 'section', id: r.dataset.sid } : { kind: 'job', id: r.closest('.clg')?.dataset.g };
+  const hover = r => C.hoverFact(r ? blockOf(r) : null);
+  for (const [ev, on] of [['mouseover', true], ['focusin', true], ['mouseout', false], ['focusout', false]]) body.addEventListener(ev, e => { const r = e.target.closest?.(ROW); if (r && (on || !r.contains(e.relatedTarget)) && (ev !== 'focusin' || e.target.matches(':focus-visible'))) hover(on ? r : null); });      // (a click's focus is not a hover: only the keyboard's)
 }
 
-const api = { html, outlineHtml, act, bind, afterRender, landed };
+const api = { html, outlineHtml, kidsOf, sectionInfo, act, bind, afterRender, landed };

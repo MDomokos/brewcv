@@ -6,6 +6,7 @@ import * as X from '../export.js';
 import { renderPages } from '../render.js';
 import { MEDIA, onPaper } from '../model/design.js';
 import { missingList } from '../model/lang.js';
+import { factOf } from '../model/record.js';
 import * as RS from '../model/resumes.js';
 import { t, h, errText, docChrome, loadCatalogue } from '../i18n/index.js';
 import { fitFilled } from './dock.js';
@@ -107,39 +108,77 @@ function checks(){
 
 function exportView(){
   const list = checks();
-  const icon = { ok: drawn('check', { size: 12 }), warn: drawn('warn', { size: 12 }), bad: drawn('close', { size: 12 }) };
   // one filled button on the screen: Fit when it would change something, else PDF
   const fitFirst = fitFilled(C.ui.fills, C.cur()?.pageLimit);
   const file = C.fileLine();
+  // the finish (round 3): 1 know it is ready (the cup, the status row with Fit and the page bars at its end), 2 get the file, 3 record that it was sent;
+  // the backup is housekeeping, a quiet row under the bands. Icons: the cup (44), one status glyph (24), a band's (28): document, paper plane.
   const medium = mediumOf(C.cur());
-  return `<h2 class="title">${h('head.export')}</h2>
-    <ul class="checks">${list.map(c => `<li class="${c.level}"><span class="ci">${icon[c.level]}</span>${esc(c.text)}${['unexported', 'newer'].includes(c.key) && C.reviewCount?.() ? ` <button class="sm" data-act="review-open">${h('newer.review')}</button>` : ''}</li>`).join('')}</ul>
-    <div class="kv"><span class="lbl" title="${esc(t('export.mediumTitle'))}">${h('export.medium')}</span>
+  const r = C.cur(), look = list.some(c => c.level !== 'ok'), bad = list.some(c => c.level === 'bad');
+  const who = [r.company, r.role].filter(Boolean).join(' · ') || st().record.basics?.name || '';
+  const band = (ic, title) => `<h3 class="sgh hband"><span class="exic hic" aria-hidden="true">${drawn(ic, { role: 'header' })}</span><span class="exht">${esc(title)}</span></h3>`;
+  const grp = (k, hue, ic, title, inner) => `<section class="sgroup exg" data-k="${k}" style="--hk:var(--hue-${hue})">${band(ic, title)}${inner}</section>`;
+  // the status row is the first item of the pre-flight list (the page result); a problem is a row under it, with Review or Fix at its end
+  const row = (c, i) => `<li class="${c.level}"><span class="exst hic" aria-hidden="true">${i ? '' : drawn(look ? 'warn' : 'check', { role: 'header' })}</span><span class="ct">${esc(c.text)}${['unexported', 'newer'].includes(c.key) && C.reviewCount?.() ? ` <button class="sm press" data-tier="secondary" data-act="review-open">${h('newer.review')}</button>` : c.fix ? ` <button class="sm press" data-tier="secondary" data-act="ex-fix" data-i="${i}">${h('ux6f.exFix')}</button>` : ''}</span></li>`;
+  const stat = list.map((c, i) => row(c, i)).filter((_, i) => !i || list[i].level !== 'ok');
+  return `<header class="exhero hband" style="--hk:var(--hue-1)"><span class="excup hic" aria-hidden="true">${drawn('brewed', { role: 'display' })}</span>
+      <h2 class="title">${h(bad ? 'head.export' : 'ux6g.exReady')}</h2>
+      ${who ? `<p class="exwho">${esc(who)}</p>` : ''}</header>
+    <div class="exstat${look ? ' is-warn' : ''}" style="--hk:var(--hue-1)"><ul class="checks">${stat.join('')}</ul></div>
+    ${grp('file', 2, 'document', t('export.download'), `<div class="kv"><span class="lbl" title="${esc(t('export.mediumTitle'))}">${h('export.medium')}</span>
       <div class="seg fill" role="group" aria-label="${esc(t('export.medium'))}">${MEDIA.map(m => `<button data-act="ex-medium" data-v="${m}" aria-pressed="${medium === m}"${C.ui.snap ? ' disabled' : ''}>${h(`export.medium.${m}`)}</button>`).join('')}</div>
       <p class="note">${h(`export.mediumNote.${medium}`)}</p></div>
-    <span class="lbl">${h('export.download')}</span>
     <div class="dl">
       <button class="${fitFirst ? '' : 'primary'}" data-act="ex-pdf"><b>PDF</b><small>${h('export.pdfNote')}</small></button>
       <button data-act="ex-html"><b>${h('export.html')}</b><small>${h('export.htmlNote')}</small></button>
       <button data-act="ex-txt"><b>${h('export.txt')}</b><small>${h('export.txtNote')}</small></button>
       <button data-act="ex-json"><b>JSON Resume</b><small>${h('export.jsonNote')}</small></button>
     </div>
-    <p class="note">${h('export.note')}</p>
-    <hr class="sentrule">
-    <div class="sentrow"><span class="lbl inline">${h('ux3b.sentRow')}</span><button data-act="mark-sent" ${C.ui.snap ? 'disabled' : ''}>${h('ux3b.markSent')}</button></div>
-    ${C.ui.layout?.phone ? '' : `<hr class="sentrule">
-    <span class="lbl">${h('ux6b.backup')}</span>
-    <div class="filerow"><button class="filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${h('ux3b.saveFile')}</button><span class="small muted" id="fileline">${esc(file.text)}</span></div>`}`;
+    <p class="note">${h('export.note')}</p>`)}
+    ${grp('sent', 3, 'plane', t('ux3b.sentRow'), `<div class="dl"><button data-act="mark-sent" ${C.ui.snap ? 'disabled' : ''}><b>${h('ux3b.markSent')}</b></button></div>`)}
+    ${C.ui.layout?.phone ? '' : `<footer class="exkeep"><span class="exkt"><span><b>${h('ux6b.backup')}</b> · ${esc(t('uxs.everyResume'))}</span><span class="small muted" id="fileline">${esc(file.text)}</span></span><button class="filebtn sm ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${h('ux3b.saveFile')}</button></footer>`}`;
 }
 
-async function act(a, tg){
+// A major warning (level 'bad' in the pre-flight list) holds an export back: the dialog names it and offers Fix (go to it) or Dismiss (export as it is).
+let dlg = null;
+function blocked(a, tg){
+  const major = checks().filter(c => c.level === 'bad');
+  if (!major.length) return false;
+  dlg?.remove();
+  dlg = Object.assign(document.createElement('dialog'), { id: 'exblock', className: 'card rvdlg exdlg' });
+  dlg.setAttribute('aria-labelledby', 'exb-h');
+  const many = major.length > 1;      // one: Fix and Dismiss in the foot; several: each row has its own Fix, the foot has "Export anyway" and no primary press button
+  const row = (c, i) => `<li class="bad"><span class="cmk">${drawn('warn', { role: 'inline' })}</span><span class="ct">${esc(c.text)}</span>${many ? `<button class="sm press" data-tier="secondary" data-exb="fix" data-i="${i}"${i ? '' : ' autofocus'}>${h('ux6f.exFix')}</button>` : ''}</li>`;
+  dlg.innerHTML = `<div class="rvwrap"><div class="rvhead"><h2 id="exb-h">${h(many ? 'ux6f.exTitleMany' : 'ux6f.exTitle')}</h2></div>
+    <div class="rvbody"><ul class="checks">${major.map(row).join('')}</ul><p class="note">${h(many ? 'ux6f.exNoteMany' : 'ux6f.exNote')}</p></div>
+    <div class="rvfoot"><span></span><div class="rvfoot-btns">${many ? '' : `<button class="primary press" data-tier="primary" data-exb="fix" data-i="0" autofocus>${h('ux6f.exFix')}</button>`}<button class="press" data-tier="secondary" data-exb="dismiss">${h(many ? 'ux6f.exAnyway' : 'ux6f.exDismiss')}</button></div></div></div>`;
+  document.body.append(dlg);
+  const d = dlg, opener = tg;
+  d.addEventListener('keydown', e => e.stopPropagation());      // the page's shortcuts must not act behind it
+  d.addEventListener('click', e => {
+    const b = e.target.closest('[data-exb]');
+    if (b) d.close(b.dataset.exb === 'fix' ? `fix:${b.dataset.i}` : b.dataset.exb);
+  });
+  d.addEventListener('close', () => {
+    d.remove(); dlg = null;
+    if (d.returnValue.startsWith('fix:')){ const f = major[+d.returnValue.slice(4)].fix ?? {}; C.goFix?.(f.vid ? { fact: factOf(C.work(), f.vid)?.id } : f); }
+    else if (d.returnValue === 'dismiss') act(a, tg, true);
+    else if (opener?.isConnected) opener.focus?.();
+  });
+  d.showModal();
+  return true;
+}
+
+async function act(a, tg, force = false){
   const s = st();
+  if (!force && ['ex-pdf', 'ex-html', 'ex-txt', 'ex-json'].includes(a) && blocked(a, tg)) return true;
   // after the download has started: the drink's own picture of it, from the page to the button that was pressed
   const fx = fmt => exportFx({ drink: drink(), from: C.pageBox?.() ?? null, to: tg?.getBoundingClientRect?.() ?? null, fmt, pages: C.ui.fills?.length ?? 1 });
   try {
     switch (a){
       // per resume, with undo; the default (a screen) is no key at all
       case 'ex-medium': { const v = tg.dataset.v; if (MEDIA.includes(v)) C.store.commit(d => { if (v === 'screen') delete d.cur.exportMedium; else d.cur.exportMedium = v; }, t('export.medium')); return true; }
+      case 'ex-fix': { const f = checks()[+tg.dataset.i]?.fix ?? {}; C.goFix?.(f.vid ? { fact: factOf(C.work(), f.vid)?.id } : f); return true; }
       case 'ex-pdf': if (!window.__TAURI__) C.toast(t('toast.printDialog')); fx('PDF'); await printPdf(); C.offerReview?.(); return true;
       case 'ex-html': C.download(await buildHtml(), X.exportName(C.cur(), s.record, 'html'), 'text/html'); C.toast(t('toast.htmlDone'), '', false, true); fx('HTML'); return true;
       case 'ex-txt': { const r = C.cur(), lang = r.lang ?? 'en'; await loadCatalogue(lang); C.download(X.plainText(X.jsonResumeFile(C.work(), r).file, { lang, chrome: docChrome(lang) }), X.exportName(r, s.record, 'txt'), 'text/plain'); const lost = X.unexportedNote(X.unexported(C.work(), r)); C.toast(lost ? `${t('toast.txtDone')} ${lost}` : t('toast.txtDone'), lost ? 'warn' : '', false, true); fx('TXT'); return true; }

@@ -4,25 +4,24 @@
 
 import * as RS from '../model/resumes.js';
 import { jobTypesOf, jobTypeLabel, planTag } from '../model/focus.js';
-import { t, h, errText, loadCatalogue } from '../i18n/index.js';
+import { t, h, errText, loadCatalogue, uiLang } from '../i18n/index.js';
+import { dayFieldHtml, initMonthPick } from './monthpick.js';
 import { langName, langsInUse, addLangInUse, a4FormatOf } from '../model/lang.js';
 import { newResume } from '../model/resume.js';
 import { langMenuHtml, focusMenu } from './langmenu.js';
-import { icon } from './icons.js';
+import { icon, withArrows } from './icons.js';
 import { askOk } from './ask.js';
+import { delBtn, delAskHtml } from './parts.js';
 
 let C = null;
-export function initResumes(ctx){ C = ctx; return api; }
+export function initResumes(ctx){ C = ctx; initMonthPick({ name: 'resumes', lang: () => uiLang(), change: input => { if (V.send && input.id === 'sv-date') V.send.date = input.value; } }); return api; }
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = s => document.querySelector(s);
-const V = { hover: null, menu: null, more: false, row: null, renaming: null, nv: null, send: null };
+const V = { hover: null, menu: null, more: false, row: null, renaming: null, nv: null, send: null, ask: null };
 
 const st = () => C.store.state;
-const metaOf = r => [(r.lang ?? 'en').toUpperCase(), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
-  r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('resumes.pShort', { n: r.pageLimit }) : null, r.savedAt].filter(Boolean).join(' · ');
 const typeLabel = id => jobTypeLabel(st().record, id);
-const forLine = r => [r.forKind === 'outreach' ? t('ux1.outreach') : null, r.company].filter(Boolean).join(' · ');
 
 // ---- the row menu: Duplicate, Duplicate in another language…, Rename, Delete ----
 
@@ -31,6 +30,13 @@ export function rowMenuHtml(id, where = 'group'){
   if (V.row?.id !== id || V.row.where !== where) return '';
   const r = RS.savedOf(st(), id);
   if (!r) return '';
+  if (V.row.sub === 'del'){      // a resume with sent copies asks first, in the menu: Cancel, Delete
+    return `<div class="pop card rowmenu delask" role="menu" aria-label="${esc(t('ux1.delete'))}" data-menu="row">
+      <p class="small">${esc(askText(r))}</p>
+      <button role="menuitem" data-act="rm-menu" data-id="${esc(id)}" data-where="${esc(where)}">${h('btn.cancel')}</button>
+      ${delBtn(`data-act="rm-delete" data-id="${esc(id)}" data-sure="1"`, t('ux1.delete'), { row: true })}
+    </div>`;
+  }
   if (V.row.sub === 'lang'){
     const here = r.lang ?? 'en';
     return `<div class="pop card rowmenu" role="menu" aria-label="${esc(t('ux1.dupLang'))}" data-menu="row">
@@ -41,9 +47,14 @@ export function rowMenuHtml(id, where = 'group'){
     <button role="menuitem" data-act="rm-dup" data-id="${esc(id)}">${h('ux1.dup')}</button>
     <button role="menuitem" data-act="rm-lang" data-id="${esc(id)}">${h('ux1.dupLang')}</button>
     <button role="menuitem" data-act="rm-rename" data-id="${esc(id)}">${h('ux1.rename')}</button>
-    <button role="menuitem" data-act="rm-delete" data-id="${esc(id)}">${h('ux1.delete')}</button>
+    ${where === 'screen' ? `<button role="menuitem" data-act="rm-sent" data-id="${esc(id)}">${h('ux3b.markSent')}</button>` : ''}
+    <hr>${delBtn(`data-act="rm-delete" data-id="${esc(id)}"`, t('ux1.delete'), { row: true })}
   </div>`;
 }
+const askText = r => t('ux6r.delResumeAsk', { name: RS.resumeLabel(r), n: RS.snapshotsOf(r).length });
+// The open resume's Delete, in the name window ("This resume"); with sent copies, its question under the buttons once pressed
+export const delHtml = (id, disabled = false) => delBtn(`data-act="rm-delete" data-id="${esc(id ?? '')}" ${disabled ? 'disabled' : ''}`, t('ux1.delete'));
+export const askHtml = id => (V.ask === id && RS.savedOf(st(), id) ? delAskHtml(askText(RS.savedOf(st(), id)), `data-act="rm-delete" data-id="${esc(id)}" data-sure="1"`, t('ux1.delete'), 'data-act="rm-ask-no"') : '');
 export const moreButton = (id, where = 'group') => `<button class="smore" data-act="rm-menu" data-id="${esc(id)}" data-where="${where}" aria-haspopup="menu" aria-expanded="${V.row?.id === id && V.row.where === where}" title="${esc(t('ux1.rowMenuTitle'))}" aria-label="${esc(t('ux1.rowMenu', { name: RS.resumeLabel(RS.savedOf(st(), id)) }))}">${icon('more')}</button>`;
 export const renamingHere = (id, where = 'group') => V.renaming?.id === id && V.renaming.where === where;
 export const renameInput = r => `<input class="swren" data-rename="${esc(r.id)}" value="${esc(RS.resumeLabel(r))}" aria-label="${esc(t('ux1.rename'))}" autocomplete="off">`;
@@ -99,7 +110,7 @@ function newView(){
     <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="nv-co" value="${esc(n.company)}" autocomplete="off"></label>
     <label class="field"><span class="lbl inline">${h('resumes.role')}</span><input id="nv-role" value="${esc(n.role)}" autocomplete="off"></label>
     <span class="lbl">${h('resumes.language')}</span>
-    <span class="lang-menu inbody"><button class="sm langbtn" data-act="lang-menu-body" data-for="new" aria-haspopup="menu" aria-expanded="${V.menu === 'new'}">${esc(langName(L))} ${icon('caret', { size: 12 })}</button>
+    <span class="lang-menu inbody"><button class="sm langbtn" data-act="lang-menu-body" data-for="new" aria-haspopup="menu" aria-expanded="${V.menu === 'new'}">${esc(langName(L))} ${icon('caret', { role: 'inline' })}</button>
     ${V.menu === 'new' ? langMenuHtml({ for: 'new', current: L, inUse, more: V.more, label: t('resumes.language') }) : ''}</span>
     <label class="field"><span class="lbl inline">${h('design.paper')}</span><select id="nv-paper"><option value="a4" ${n.paper !== 'us-letter' ? 'selected' : ''}>${h('paper.a4')}</option><option value="us-letter" ${n.paper === 'us-letter' ? 'selected' : ''}>${h('paper.letter')}</option></select></label>
     <div class="btns"><button class="primary" data-act="nv-create">${h('ux1.create')}</button><button class="ghost" data-act="view-back">${h('btn.cancel')}</button></div>
@@ -136,8 +147,8 @@ function saveView(){
     <label class="field"><span class="lbl inline">${h('ux1.kind')}</span><select id="sv-kind"><option value="company" ${s.kind === 'company' ? 'selected' : ''}>${h('ux1.kindCompany')}</option><option value="outreach" ${s.kind === 'outreach' ? 'selected' : ''}>${h('ux1.kindOutreach')}</option></select></label>
     <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="sv-co" value="${esc(s.company)}" autocomplete="off"></label>
     <label class="field"><span class="lbl inline">${h('resumes.role')}</span><input id="sv-role" value="${esc(s.role)}" autocomplete="off"></label>
-    <label class="field"><span class="lbl inline">${h('ux1.date')}</span><input id="sv-date" type="date" value="${esc(s.date)}"></label>
-    <div class="btns"><button class="primary" data-act="sv-do">${h('ux3b.markSentDo')}</button><button class="ghost" data-act="sent-back">${h('btn.cancel')}</button></div>
+    ${dayFieldHtml('sv-date', h('ux1.date'), s.date, { lang: uiLang(), host: 'resumes' })}
+    <div class="btns"><button class="press primary" data-tier="primary" data-act="sv-do">${h('ux3b.markSentDo')}</button><button class="ghost" data-act="sent-back">${h('btn.cancel')}</button></div>
     <p class="note">${h(merge ? 'ux1.sendMerge' : 'ux3b.sentNote')}</p>
     <p class="note">${C.persist.status.linked ? h('resumes.savedLinked', { name: C.persist.status.linked }) : h('resumes.savedHere')}</p>`;
 }
@@ -147,7 +158,6 @@ function readSend(){
 
 // ---- a snapshot, read-only ----
 
-export const sendsText = snap => snap.sends.map(s => [RS.sendLabel(s), s.date].filter(Boolean).join(' · ')).join(' · ');
 export function snapBarText(snap){
   const sends = snap.sends.filter(s => RS.sendLabel(s));
   return sends.length ? t('ux1.snapBarSent', { to: sends.map(s => RS.sendLabel(s)).join(', '), date: sends.at(-1).date })
@@ -156,7 +166,7 @@ export function snapBarText(snap){
 function snapshotView(){
   const snap = RS.findSnapshot(st(), C.ui.snap?.id);
   if (!snap) return `<p class="muted">${h('ux1.noneYet')}</p>`;
-  return `<a class="back" data-act="snap-close">${h('ux1.backToResume')}</a>
+  return `<a class="back" data-act="snap-close">${withArrows(h('ux1.backToResume'))}</a>
     <h2 class="title">${esc(RS.resumeLabel(st().cur))}</h2>
     <div class="banner snapnote"><span>${esc(snapBarText(snap))}</span></div>
     <span class="lbl">${h('ux1.sends', { n: snap.sends.length })}</span>
@@ -164,7 +174,7 @@ function snapshotView(){
     <div class="btns snapacts"><button class="primary" data-act="goto" data-v="export">${h('head.export')}</button>
       <button data-act="snap-restore">${h('ux1.restore')}</button>
       <button data-act="snap-dup">${h('ux1.dupSnap')}</button>
-      <button data-act="snap-delete">${h('ux6c.deleteSent')}</button></div>
+      ${delBtn('data-act="snap-delete"', t('ux6c.deleteSent'))}</div>
     <p class="note">${h('ux1.snapNote')}</p>`;
 }
 
@@ -202,9 +212,10 @@ function openSnapshot(rid, sid){
   C.setView(null);
 }
 
-function markSent(){
+// from: the view to come back to when the dialog is done (the Library's Mark as sent opens that resume first; Export's goes back to Export)
+function markSent(from = null){
   if (C.ui.snap) return;
-  V.send = null;
+  V.send = null; V.sentFrom = from;
   C.setView('sent');
 }
 
@@ -215,7 +226,7 @@ async function sendNow(){
   const ok = commit(d => { res = RS.takeSnapshot(d, send); }, t(merge ? 'ux1.undoSend' : 'ux1.undoSnapshot'));
   if (ok) C.snapshotTaken?.();
   V.send = null;
-  C.setView('export');
+  C.setView(V.sentFrom ?? 'export');
   if (!ok && res?.repeated){ C.toast(t('ux1.alreadySent')); return; }
   const to = RS.sendLabel(send);
   C.toast(res?.added ? (to ? t('ux1.snapSavedTo', { to }) : t('ux1.snapSaved')) : (to ? t('ux1.sendAddedTo', { to }) : t('ux1.sendAdded')));
@@ -250,6 +261,7 @@ async function act(a, tg){
     case 'rm-menu': {
       const id = tg.dataset.id, where = tg.dataset.where ?? 'group';
       V.row = V.row?.id === id && V.row.where === where ? null : { id, where, sub: null };
+      V.ask = null;
       rerender();
       if (V.row) setTimeout(() => document.querySelector('.rowmenu [role=menuitem]')?.focus(), 0);
       return true;
@@ -272,9 +284,16 @@ async function act(a, tg){
       return true;
     }
     case 'rm-rename': V.renaming = { id: tg.dataset.id, where: V.row?.where ?? 'group' }; V.row = null; rerender(); setTimeout(() => { const i = document.querySelector('.swren'); i?.focus(); i?.select(); }, 0); return true;
+    case 'rm-ask-no': V.ask = null; rerender(); return true;
     case 'rm-delete': {
       const r = RS.savedOf(st(), tg.dataset.id);
-      V.row = null;
+      // a resume with sent copies takes them with it: two steps (in the row menu, or under the name window's buttons)
+      if (r && RS.snapshotsOf(r).length && !tg.dataset.sure){
+        if (tg.closest('.rowmenu')){ V.row = { ...V.row, sub: 'del' }; rerender(); setTimeout(() => document.querySelector('.rowmenu [data-act=rm-delete]')?.focus(), 0); }
+        else { V.ask = r.id; rerender(); setTimeout(() => document.querySelector('.delask [data-act=rm-delete]')?.focus(), 0); }
+        return true;
+      }
+      V.row = null; V.ask = null;
       if ((st().openId === tg.dataset.id ? st().cur : r)?.locked?.length && !await askOk(t('ux6c.lockedDeleteAsk'))) return true;
       if (st().openId === tg.dataset.id){ if (!C.leaveOk()) return true; C.ui.sel = C.NONE; C.setSnap(null); }
       commit(d => RS.deleteSaved(d, tg.dataset.id), t('undo.delete', { name: RS.resumeLabel(r) }), t('toast.deletedX', { name: RS.resumeLabel(r) }), true);
@@ -329,7 +348,8 @@ async function act(a, tg){
       return true;
     }
     case 'mark-sent': markSent(); return true;
-    case 'sent-back': V.send = null; C.setView('export'); return true;
+    case 'rm-sent': V.row = null; if (open(tg.dataset.id, { quiet: true })) markSent('resumes'); return true;
+    case 'sent-back': V.send = null; C.setView(V.sentFrom ?? 'export'); return true;
   }
   return false;
 }
@@ -414,8 +434,8 @@ export function previewSaved(id){
 }
 
 const api = {
-  views: VIEWS, act, bind, newJob, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone,
-  reset(){ V.hover = null; V.menu = null; V.row = null; V.renaming = null; V.nv = null; },
+  views: VIEWS, act, bind, newJob, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone, delHtml, askHtml,
+  reset(){ V.hover = null; V.menu = null; V.row = null; V.renaming = null; V.nv = null; V.ask = null; },
   closeMenus(){
     if (V.row){ V.row = null; rerender(); return true; }
     if (!V.menu) return false;

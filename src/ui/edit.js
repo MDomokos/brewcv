@@ -7,15 +7,15 @@ import * as T from '../model/resume.js';
 import * as LK from '../model/lock.js';
 import { key as measureKeyOf } from '../fit.js';
 import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
-import { missingList, isSame, setSame, sameKey, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
+import { missingList, isSame, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { keyOf, isLabelKey } from './select.js';
 import { t, h, errText } from '../i18n/index.js';
 import { askIfLocked } from './ask.js';
-import { play } from './motion.js';
+import { play, played } from './motion.js';
 import { icon } from './icons.js';
-import { esc, clip, depthHtml as depthMarkup, sw, showSw, missBar, versionsHtml, statsHtml, claimHead } from './parts.js';
+import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, claimHead, delBtn } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -24,7 +24,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { enter: null, edit: null, compare: null, openMinor: new Set(), timer: null, focus: null, claimDrafts: new Map(), applyOpen: false };
+const E = { enter: null, edit: null, compare: null, openMinor: new Set(), fold: new Map(), foldAuto: null, softShown: null, softOpen: null, guardOn: true, autoFold: true, timer: null, focus: null, tailor: false, claimDrafts: new Map(), applyOpen: false, delAsk: null };
 
 function commit(fn, label, done, undo = false){
   try {
@@ -58,13 +58,14 @@ function keepEdit(ed){
   if (ed.group) return keepGroup(ed);
   if (ed.label) return keepLabel(ed);
   if (!isDirty(ed) || !ed.draft.trim()) return;      // an emptied line keeps what it had: the last kept edit, or the version's words
-  const text = ed.draft.trim(), base = ix().variants.get(ed.vid);
+  const text = ed.draft.trim(), base = ix().variants.get(ed.vid), here = text !== base?.text.trim();
   C.ui.previewing = false;
   commit(d => {
-    if (text !== base?.text.trim()) return T.setOverride(d.record, d.cur, ed.fact, text, { marks: marksFor(ed, text), base: base?.id ?? null });
+    if (here && !T.isLocal(d.cur, ed.fact)) T.stackOverride(d.record, d.cur, ed.fact);      // the edit it follows stays a row of its own
+    if (here) return T.setOverride(d.record, d.cur, ed.fact, text, { marks: marksFor(ed, text), base: base?.id ?? null });
     T.dropOverride(d.record, d.cur, ed.fact);
     if (base && usingOf(ed.fact)?.id !== base.id) T.pickVersion(d.record, d.cur, ed.fact, base.id);
-  }, t('edit.thisOnly'));
+  }, t('edit.thisOnly'), here ? t('ux6f.savedHere', { where: t('ux6g.onlyHere') }) : undefined, true);      // one wording with the pending row: the toast says where it was saved, with Undo
 }
 // A heading or a language's name written on the page: kept on this resume in its language, as one undo step. The record's own words reset it.
 function keepLabel(ed){
@@ -99,13 +100,12 @@ const isArch = id => !!ix().facts.get(id)?.archived;
 const jobOn = id => T.jobRefs(rec(), cur()).some(r => (typeof r === 'string' ? r : r.id) === id);
 const linesOf = v => v?.metrics?.measured?.[measureKeyOf(cur())]?.lines;
 
-const entryKeyOf = id => (['work', 'projects', 'volunteer'].find(k => (rec()[k] ?? []).some(x => x?.id === id)) ?? 'work');
 const missingBar = () => missBar({ lang: lang(), list: lang() === DEFAULT_LANG ? [] : missingList(work(), cur()) });
 
 // ---- the Highlight lens: one list of tags, job types (bundles of tags) first ----
-function lensBox(extra = ''){
+function lensBox(){
   const { types, tags } = lensChoices(rec(), lang());
-  if (!types.length && !tags.length) return `<div class="lens"><span class="muted small">${h('ux2.lensNone')}</span> <button class="sm ghost" data-act="lens-edit">${h('ux2.lensEdit')}</button>${extra}</div>`;
+  if (!types.length && !tags.length) return `<div class="lens"><span class="muted small">${h('ux2.lensNone')}</span> <button class="sm ghost" data-act="lens-edit">${h('ux2.lensEdit')}</button></div>`;
   const chosen = E.focus;
   const known = types.some(x => x.tag === chosen) || tags.some(x => x.tag === chosen);
   const opt = x => `<option value="${esc(x.tag)}" ${chosen === x.tag ? 'selected' : ''}>${esc(x.label)} (${x.n})</option>`;
@@ -114,7 +114,7 @@ function lensBox(extra = ''){
         ${types.length ? `<optgroup label="${esc(t('ux2.lensTypes'))}">${types.map(opt).join('')}</optgroup>` : ''}
         ${tags.length ? `<optgroup label="${esc(t('ux2.lensTagsGroup'))}">${tags.map(opt).join('')}</optgroup>` : ''}
         ${chosen && !known ? `<option value="${esc(chosen)}" selected>${esc(chosen)}</option>` : ''}</select>
-      <button class="sm" data-act="lens-apply" aria-expanded="${E.applyOpen}" ${chosen ? '' : 'disabled'}>${h('ux3b.lensApply')}</button>${extra}</div>`;
+      <button class="sm" data-act="lens-apply" aria-expanded="${E.applyOpen}" ${chosen ? '' : 'disabled'}>${h('ux3b.lensApply')}</button></div>`;
   if (chosen && E.applyOpen){
     const p = planTag(work(), cur(), chosen);
     out += `<div class="focusbox">${h('edit.focusPlan', { on: p.on, off: p.off, sw: p.sw })}
@@ -123,20 +123,28 @@ function lensBox(extra = ''){
   return out + '</div>';
 }
 
-// The Outline: this resume in print order. The Highlight lens at its head, then the sections (checklist.js outlineHtml), and the way
+// The Tailor row: the Highlight lens, one quiet row at the foot of the Outline. Shut, a chosen job type or tag shows in it as a chip (its x clears it);
+// open, it is the lens as it was (the select, "Select these…", the plan).
+function tailorBox(){
+  const open = E.tailor, chosen = E.focus, name = chosen ? jobTypeLabel(rec(), chosen) : '';
+  const chip = chosen && !open ? `<span class="tailorchip" title="${esc(`${t('ux3b.lens')} ${name}`)}"><span class="tc">${esc(t('ux6g.tailorOn', { name }))}</span><button type="button" class="rs" data-act="focus-clear" aria-label="${esc(`${t('design.remove')}: ${name}`)}">${icon('close', { role: 'inline' })}</button></span>` : '';
+  return `<div class="tailor${open ? ' open' : ''}"><div class="tailorrow"><button type="button" class="sm ghost tailor-t" data-act="tailor-toggle" aria-expanded="${open}" aria-controls="tailor-box">${icon('focus', { role: 'inline' })}<span>${h('ux6g.tailor')}</span></button>${chip}${pageLockHtml('lensrow-end')}</div>${open ? `<div id="tailor-box">${lensBox()}</div>` : ''}</div>`;
+}
+
+// The Outline: this resume in print order. A slim row with the page lock, the sections (checklist.js outlineHtml), the Tailor row, and the way
 // Fit works at the foot.
 function outlineView(){
   return `${C.newerBanner()}${missingBar()}
-    ${lensBox(pageLockHtml('lensrow-end'))}
     ${C.outlineHtml()}
+    ${tailorBox()}
     <p class="muted tiny outfoot">${h('ux5c.outlineFoot')}</p>`;
 }
 // the whole page's padlock: Edit with nothing selected has it
 function pageLockHtml(cls = ''){
   if (C.ui.snap) return '';
   const on = lockBy(LK.PAGE) !== null, name = t(on ? 'ux6c.unlockX' : 'ux6c.lockX', { name: t('ux6c.thePage') });
-  const btn = `<button type="button" class="sm ghost pagelock${on ? ' is-locked' : ''}${cls ? ' ' + cls : ''}" data-act="lock-toggle" data-id="${LK.PAGE}" aria-pressed="${on}" aria-label="${esc(name)}" title="${esc(name)}">${icon(on ? 'lock' : 'unlock', { size: 12 })}${cls ? '' : `<span>${esc(t(on ? 'ux6c.pageLocked' : 'ux6c.lockPage'))}</span>`}</button>`;
-  return cls ? btn : `<p class="lockbar">${btn}</p>`;      // in the Outline it is an icon on the lens's last line (no extra height); alone it has a line of its own
+  const btn = `<button type="button" class="sm ghost pagelock${on ? ' is-locked' : ''}${cls ? ' ' + cls : ''}" data-act="lock-toggle" data-id="${LK.PAGE}" aria-pressed="${on}" aria-label="${esc(name)}" title="${esc(t(on ? 'uxr.locked' : 'uxr.unlocked'))}">${icon(on ? 'lock' : 'unlock', { role: 'inline' })}${cls ? '' : `<span>${esc(t(on ? 'ux6c.pageLocked' : 'ux6c.lockPage'))}</span>`}</button>`;
+  return cls ? btn : `<p class="lockbar">${btn}</p>`;      // in the Outline it is an icon at the right of a slim row of its own; alone it has a line of its own
 }
 // Edit with nothing selected: what this resume is for, and one line on how to pick a line
 function noneView(){
@@ -169,10 +177,11 @@ const lineName = id => (id.startsWith('~t:') ? T.labelNow(rec(), cur(), id, lang
   || ix().facts.get(id)?.summary || C.textOfFact(id) || (T.isLocal(cur(), id) ? t('ux6c.newLine') : id);
 
 // One depth indicator (UX-6c): the levels of what is selected, from the page down. The chip on the page and the row at the top of
-// the editor card both draw it, from parts.js depthHtml. The sidebar's row names the specific content (full job and line names); the
-// page's chip is general and in single words (Page › Experience › Hydra, Page › Skills › CAD, no line level).
-function depth(sel = C.ui.sel, page = false){
-  const L = [{ word: t('ux3.crumbPage'), act: 'deselect' }];
+// the editor card are one component (parts.js depthHtml, UX-6f 4c): general, in single words (Page › Experience › Hydra, Page › Skills › CAD, no
+// line level); the card's title under it names the content in full. A level with deeper ones carries them (`kids`, the Outline's rows) and the one
+// the selection came through (`came`): its list goes deeper or sideways, its word goes up.
+function depth(sel = C.ui.sel){
+  const kids = (kind, id, came) => ({ kids: C.depthKids?.(kind, id) ?? [], came });
   const at = id => `data-id="${esc(id)}"`;
   const jobId = sel.kind === 'job' ? sel.id : sel.kind === 'bullet' ? sel.job ?? sel.owner : null;
   const item = sel.kind === 'record' && sel.what === 'item';       // a skill group, a language: an item of a list section
@@ -184,23 +193,19 @@ function depth(sel = C.ui.sel, page = false){
   // the header's field the selection is on: Name, Headline, Contact or Photo
   const field = sel.kind === 'header' ? (sel.id ? t(`ux6c.f.${sel.id}`) : null) : sel.kind === 'bullet' ? Object.entries(rec().basics?.display ?? {}).map(([k, f]) => (f === sel.id ? t(`ux6c.f.${k}`) : null)).find(Boolean) : null;
   const fieldLevel = field && { word: field, ...(sel.kind === 'bullet' ? { act: 'select-fact', attrs: `${at(sel.id)} data-section="header"` } : { act: 'select-header' }) };
-  if (page){
-    if (sel.kind === 'header' || sid === 'header'){ L.push({ word: t('ux6c.header'), act: 'select-header' }); if (fieldLevel) L.push(fieldLevel); }
-    else if (sid) L.push({ word: word(C.sectionTitle(sid)), act: 'select-section', attrs: at(sid) });
-    if (jobId) L.push({ word: word(jobName), act: 'select-job', attrs: at(jobId) });
-    else if (item) L.push({ word: itemWord(sel.id), act: 'select-record', attrs: `${at(sel.id)} data-what="item" data-group="${esc(sel.group ?? '')}"` });
-    else if (sel.kind === 'bullet' && sid !== 'header' && sid !== 'summary') L.push({ word: itemWord(sel.id), act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
-    return L;
-  }
-  if (jobId) L.push({ word: t('ux3.crumbJob'), name: jobName, act: 'select-job', attrs: at(jobId) });
-  else if (sel.kind === 'header' || sid === 'header') L.push({ word: t('ux6c.header'), act: 'select-header' });
-  else if (sid) L.push({ word: t('ux6c.section'), name: C.sectionTitle(sid), act: 'select-section', attrs: at(sid) });
-  if (fieldLevel) L.push(fieldLevel);
-  else if (sel.kind === 'bullet') L.push({ word: jobId ? t('ux3.crumbLine') : t('ux6c.item'), name: T.isLocal(cur(), sel.id) || ix().skillGroups.has(sel.id) ? lineName(sel.id) : ix().facts.get(sel.id)?.summary ?? sel.id,
-    act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
+  const L = [{ word: t('ux3.crumbPage'), act: 'deselect', ...kids('page', null, sel.kind === 'header' ? 'header' : sid) }];
+  if (sel.kind === 'header' || sid === 'header'){ L.push({ word: t('ux6c.header'), act: 'select-header', ...kids('section', 'header', sel.kind === 'bullet' ? sel.id : null) }); if (fieldLevel) L.push(fieldLevel); }
+  else if (sid) L.push({ word: word(C.sectionTitle(sid)), act: 'select-section', attrs: at(sid), ...kids('section', sid, jobId ?? (sel.kind === 'section' ? null : sel.id)) });
+  if (jobId) L.push({ word: word(jobName), act: 'select-job', attrs: at(jobId), ...kids('job', jobId, sel.kind === 'bullet' ? sel.id : null) });
+  else if (item) L.push({ word: itemWord(sel.id), act: 'select-record', attrs: `${at(sel.id)} data-what="item" data-group="${esc(sel.group ?? '')}"` });
+  else if (sel.kind === 'bullet' && sid !== 'header' && sid !== 'summary') L.push({ word: itemWord(sel.id), act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
   return L;
 }
-const depthHtml = (sel = C.ui.sel, { page = false } = {}) => depthMarkup(depth(sel, page), { small: page, ...chipTools(sel, page) });
+// `page`: the chip on the page (its own ids and name), else the card's
+const depthHtml = (sel = C.ui.sel, { page = false } = {}) => depthMarkup(depth(sel), { where: page ? 'page' : 'card', back: page ? backOf() : null, ...chipTools(sel) });
+// a selection above another on the same branch (Page, the section, the job of a line); the chip's "back" is set only then, never for a move sideways
+const isAbove = (to, from) => { try { const a = depth(to), b = depth(from), k = l => `${l.act}|${l.attrs ?? ''}`; return (a.length < b.length || (to.kind === 'job' && from.kind === 'bullet')) && a.every((l, i) => k(l) === k(b[i])); } catch { return false; } };
+const backOf = () => { const b = C.ui.back; if (!b) return null; try { return { word: depth(b.sel).at(-1).word }; } catch { return null; } };
 
 // ---- the lock (UX-6c-iii-b) ----
 // the id the padlock holds for a selection: the block the chip names (a heading is its own block)
@@ -240,10 +245,10 @@ function showOf(sel){
 // locked ancestor. Showing a locked block itself changes no text, so that stays open.
 const switchHeld = (kind, id, on) => { const by = lockBy(id); return kind === 'line' ? by !== null : on ? by !== null || LK.lockedInside(rec(), cur(), id) : by !== null && by !== id; };
 // the padlock and the switch at the right end of the depth row (not on a sent copy)
-function chipTools(sel, page){
+function chipTools(sel){
   const id = !C.ui.snap && lockIdOf(sel);
   if (!id) return {};
-  const lv = depth(sel, page).at(-1), by = lockBy(id), s = showOf(sel);
+  const lv = depth(sel).at(-1), by = lockBy(id), s = showOf(sel);
   // the page's chip stops at the job: a line in it is named for what it is
   const name = sel.kind === 'section' && sel.heading ? lockName(id) : sel.kind === 'bullet' && sel.job ? t('ux6c.lineIn', { name: lockName(sel.job) }) : lv.name ? `${lv.word} ${lv.name}` : lv.word;
   return { lock: { id, on: by !== null, name, byName: by !== null && by !== id ? lockName(by) : null }, show: s ? { ...s, name, disabled: switchHeld(s.kind, s.id, s.on) } : null, fix: fixTool(sel, id, name, by !== null) };
@@ -255,8 +260,8 @@ function fixTool(sel, id, name, held){
   const revert = { act: 'chip-revert', icon: 'replay', name: t('ux6c.revertX', { name }), disabled: held };
   if (isLabelKey(key)) return (key.startsWith('~h:') ? T.labelOf(rec(), cur(), key.slice(3), lang()) != null : T.termOf(cur(), key.slice(3)) != null) ? revert : null;
   if (sel.kind !== 'bullet' && !(sel.kind === 'record' && group)) return null;
-  if (group) return { act: 'chip-remove', icon: 'trash', name: t('ux6c.removeX', { name: t('ux6c.theGroup', { name: clip(lineName(id) === id ? t('ux6c.newGroup') : lineName(id), 30) }) }), disabled: held };
-  if (T.isLocal(cur(), id)) return { act: 'chip-remove', icon: 'trash', name: t('ux6c.removeX', { name }), disabled: held };
+  if (group) return { act: 'chip-remove', icon: 'delete', del: true, name: t('ux6c.removeX', { name: t('ux6c.theGroup', { name: clip(lineName(id) === id ? t('ux6c.newGroup') : lineName(id), 30) }) }), disabled: held };
+  if (T.isLocal(cur(), id)) return { act: 'chip-remove', icon: 'delete', del: true, name: t('ux6c.removeX', { name }), disabled: held };
   return overrideOf(id) !== undefined ? revert : null;
 }
 // What the padlock of a lock id selects: the block it holds.
@@ -265,20 +270,50 @@ const selOfLock = id => (id === LK.PAGE ? { kind: 'none' } : id.startsWith('~h:'
 function lockToggle(id){
   const by = lockBy(id);
   if (by !== null && by !== id){
-    C.hint(t('ux6c.lockedUnder', { name: lockName(by) }));
     const s = selOfLock(by); if (s) C.select(s);
+    lockSaid([id, by], t('ux6c.lockedUnder', { name: lockName(by) }));
     return;
   }
   const on = by === null;
   clearEdit();
   commit(d => LK.setLocked(d.cur, id, on), on ? t('ux6c.undoLock') : t('ux6c.undoUnlock'));
-  const name = id === lockIdOf() ? chipTools(C.ui.sel, true).lock.name : lockName(id);      // as the chip names it
+  const name = id === lockIdOf() ? chipTools(C.ui.sel).lock.name : lockName(id);      // as the chip names it
   C.say(on ? t('ux6c.nowLocked', { name }) : t('ux6c.nowUnlocked', { name }));
+  lockMotion(id, on ? 'lock' : 'unlock');
 }
+// Round 2 (item 17), and after round 3: no sentence explains a lock, the lock itself answers. Every padlock of a block on screen (the Outline's row, the
+// page chip, the depth row, the page lock), once the redraw is in: locking drops the shackle in and sends a ring out, unlocking lifts it; a click on locked or guarded
+// text wobbles the lock, sends a ring out of it and flashes the block's plate once in the lock's accent (the live region keeps the sentence). A short "Locked" toast
+// only where no lock is on screen to move. Nothing moves under reduced motion.
+const padlocks = id => [...document.querySelectorAll('[data-act=row-lock], [data-act=lock-toggle]')].filter(b => b.dataset.id === id && b.getClientRects().length);
+const accentOf = b => (b && getComputedStyle(b).getPropertyValue('--accent').trim()) || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || 'currentColor';
+const ring = b => play(b, [{ boxShadow: `0 0 0 0 ${accentOf(b)}` }, { boxShadow: '0 0 0 7px transparent' }], { ms: 'slow', kind: 'arrive', name: 'lock:ring' });
+function lockMotion(id, how){
+  requestAnimationFrame(() => requestAnimationFrame(() => { for (const b of padlocks(id)){
+    if (how === 'shake'){ wobble(b); continue; }
+    const shackle = b.querySelector('svg path');
+    if (shackle) play(shackle, how === 'lock' ? [{ transform: 'translateY(-3px)' }, { transform: 'none' }] : [{ transform: 'translateY(1px)' }, { transform: 'translateY(-2px)' }, { transform: 'none' }], { ms: 'base', kind: 'arrive', name: `lock:${how}` });
+    ring(b);
+  } }));
+}
+const wobble = b => { play(b, [{ transform: 'rotate(0)' }, { transform: 'rotate(-16deg)' }, { transform: 'rotate(12deg)' }, { transform: 'rotate(-6deg)' }, { transform: 'rotate(0)' }], { ms: 'base', kind: 'move', name: 'lock:shake' }); ring(b); };
+// the block's plate flashes once in the lock's accent (about 300 ms; the plate is the selected one: a click on the block selected it)
+const flashPlate = lock => { const p = C.sheet.plates().find(q => q.role === 'sel' || q.role === 'write'); if (p) play(p.div, [{ backgroundColor: `color-mix(in srgb, ${accentOf(lock)} 32%, transparent)` }, {}], { ms: 300, kind: 'arrive', name: 'lock:flash' }); };
+// `soft`: the guard's small lock (.obsoft) on the page is one of the locks; `ids`: the block's own and its locked ancestor's
+function lockShow(ids, { soft = false } = {}){
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const locks = [...new Set(ids.filter(Boolean))].flatMap(padlocks);
+    if (soft) locks.push(...document.querySelectorAll('#editlay .obsoft'));
+    for (const b of locks) wobble(b);
+    flashPlate(locks[0]);
+    if (!locks.length) C.toast(t('uxr.locked'), 'warn');
+  }));
+}
+const lockSaid = (ids, text) => { C.say(text); lockShow(ids); };
 // a click on locked text selects its block and says why nothing is written
 function lockedHint(sel = C.ui.sel){
   const id = lockIdOf(sel), by = lockBy(id);
-  C.hint(by && by !== id ? t('ux6c.lockedWith', { name: lockName(by) }) : t('ux6c.lockedHint'));
+  lockSaid([id, by], by && by !== id ? t('ux6c.lockedWith', { name: lockName(by) }) : t('ux6c.lockedHint'));
 }
 // the chip's switch (show or hide)
 function chipOn(kind, id){
@@ -296,17 +331,24 @@ function skillsHtml(){
   const m = rec(), arr = T.arrangementOf(m, cur()), sets = Object.keys(T.skillSets(m)), { types, tags } = lensChoices(m, lang());
   const tag = cur().jobType ?? arr.from ?? '', all = [...types, ...tags], arranged = !!cur().skillArrangement;
   const saved = x => !!T.skillSets(m)[x]?.[arr.lang ?? cur().lang ?? DEFAULT_LANG];      // the set Save writes for this tag, in this language
-  return `<div class="skarr">
+  const ge = E.edit?.group && E.edit.panel ? E.edit : null, gt = ge && T.readGroup(ge.draft);      // a group written here (a phone, or not on the page): its name and its skills, one undo step
+  return `<div class="skarr">${ge ? `<div class="editor skedit" data-fact="${esc(ge.fact)}">
+      <label class="field"><span class="lbl">${h('career.f.group')}</span><input id="sk-gname" value="${esc(gt.name ?? '')}" autocomplete="off"></label>
+      <label class="field"><span class="lbl">${h('career.group.skills')}</span><textarea id="sk-gitems" rows="3" spellcheck="true">${esc(gt.items.join(', '))}</textarea></label>
+      <div class="btns"><button class="primary sm" data-act="sk-gsave">${h('head.save')}</button><span class="grow"></span><button class="sm ghost" data-act="sk-gcancel">${h('btn.cancel')}</button></div></div>`
+    : E.edit?.group ? `<p class="note skwrite">${h('ux6f.groupHint')}</p>` : ''}
     <label class="field"><span class="lbl inline">${h('ux6c.startFrom')}</span><select id="sk-set" ${sets.length || arranged ? '' : 'disabled'}><option value="">${esc(arr.from ? t('ux6c.setNow', { name: jobTypeLabel(m, arr.from) }) : t('ux6c.setNone'))}</option>
       ${arranged ? `<option value="~record">${esc(t('ux6c.recordGroups'))}</option>` : ''}
       ${sets.map(n => `<option value="${esc(n)}">${esc(jobTypeLabel(m, n))}</option>`).join('')}</select></label>
     ${sets.length ? '' : `<p class="muted small">${h('ux6c.noSets')}</p>`}
-    ${arr.groups.map(g => { const name = g.label ?? T.groupLabel(m, cur(), g.id) ?? ''; return `<div class="skgroup" data-g="${esc(g.id)}"><div class="skghead"><b>${esc(name || t('ux6c.newGroup'))}</b></div>
-      <div class="skchips">${g.items.map((x, k) => `<button class="skchip" draggable="true" data-g="${esc(g.id)}" data-k="${k}" title="${esc(t('ux6c.skillTip', { name: x }))}">${esc(x)}</button>`).join('')}</div></div>`; }).join('')}
+    ${arranged ? `<div class="vlist skpend"><div class="vrow cur only pend"><span class="rad"></span><span class="pendhd"><span class="n">${esc(arr.from ? jobTypeLabel(m, arr.from) : '•')}</span><span class="mine">${h('ux6g.onlyHere')}</span><span class="grow"></span><span class="vbtn"><button class="ghost sm" data-act="sk-record" title="${esc(t('ux6c.recordGroups'))}" aria-label="${esc(t('ux6c.recordGroups'))}">↺</button></span></span>
+      <div class="pendbody"><div class="rvbtns"><button class="primary" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button></div></div></div></div>` : ''}
+    <div class="vlist skgroups">${arr.groups.map(g => { const name = g.label ?? T.groupLabel(m, cur(), g.id) ?? '', n = arranged ? null : C.chooseVariant(work(), g.id, cur()).v?.n; return `<div class="skgroup" data-g="${esc(g.id)}"><div class="skghead"><span class="rad"></span>${n ? `<span class="n">v${esc(n)}</span>` : ''}<b>${esc(name || t('ux6c.newGroup'))}</b>${C.ui.sel.id === g.id && !E.edit ? `<span class="grow"></span><button class="ghost sm" data-act="edit" title="${esc(t('edit.editThis'))}" aria-label="${esc(t('edit.editThis'))}">${icon('edit')}</button>` : ''}</div>
+      <div class="skchips">${g.items.map((x, k) => `<button class="skchip" draggable="true" data-g="${esc(g.id)}" data-k="${k}" title="${esc(t('ux6c.skillTip', { name: x }))}">${esc(x)}</button>`).join('')}</div></div>`; }).join('')}</div>
     <button class="sm ghost addline" data-act="sk-addgroup">${h('ux6c.addGroup')}</button>
     <div class="skfoot"><label class="field"><span class="lbl inline">${h('ux6c.saveFor')}</span><select id="sk-tag">${all.map(x => `<option value="${esc(x.tag)}" ${x.tag === tag ? 'selected' : ''} ${saved(x.tag) ? 'data-set="1"' : ''}>${esc(x.label)}</option>`).join('')}</select></label>
-      <button class="sm" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button>
-      <button class="sm" data-act="sk-del" ${saved(tag) ? '' : 'disabled'}>${h('ux6c.deleteSet')}</button></div>
+      ${arranged ? '' : `<button class="sm" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button>`}
+      ${delBtn(`data-act="sk-del" ${saved(tag) ? '' : 'disabled'}`, t('ux6c.deleteSet'))}</div>
   </div>`;
 }
 // a skill group one place up or down, or before another (the drag on the page); a line before another of its job
@@ -332,7 +374,7 @@ async function addGroup(afterId = null){
   C.work();
   await C.redrawNow?.();
   C.select({ kind: 'bullet', id, section: 'skills' });
-  if (C.ui.sel.id === id && document.body.dataset.phone !== 'true') startEdit();
+  if (C.ui.sel.id === id) startEdit();      // on the page, or on a phone in the panel's fields
   return true;
 }
 // one skill of a group to a place in another group (the keyboard route, the drag in the sidebar and the drag on the page share it);
@@ -343,11 +385,14 @@ function moveSkillBy(g, k, to, j){
   return ok;
 }
 
+// The header of the section, job and line views: the real depth chip (its tick and padlock are the block's only ones) is the folder tab of the card under it.
+// `hue` colours the card; a locked block's wash is put on by lockPass; `off`: hidden on this resume.
+const headHtml = (sel, hue, card, { off = false } = {}) => `<div class="hdr${off ? ' hoff' : ''}" style="--hk:${hue}">${depthHtml(sel)}<div class="hcard">${card}</div></div>`;
+
 function sectionView(s, sel = s){
   const sec = ix().sections.get(s.id);
   if (!sec) return noneView();
   const L = lang();
-  const title = C.sectionTitle(s.id);
   const own = T.labelOf(rec(), cur(), s.id, L);
   const list = T.sectionList(rec(), cur());
   const me = list.find(x => x.id === s.id);
@@ -356,17 +401,13 @@ function sectionView(s, sel = s){
   const isHeader = sec.kind === 'header';
   // its own list: the jobs or the items, each with a tick, a grip and ↑ ↓ (the Outline's rows)
   const inner = isHeader ? '' : s.id === 'skills' ? skillsHtml() + (cur().skillArrangement ? '' : C.outlineHtml(null, s.id)) : C.outlineHtml(null, s.id);
-  return `${depthHtml(sel)}
-    <h2 class="title">${esc(title)}</h2>
-    ${isHeader ? '' : `<label class="field"><span class="lbl inline">${h('edit.headingHere', { lang: LANG_NAME[L] ?? L })}</span>
-      <input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" autocomplete="off"></label>
-    ${L !== DEFAULT_LANG ? `<div class="ctlrow">${sw(`data-same="section:${esc(s.id)}"`, isSame(rec(), `section:${s.id}`), h('edit.sameHeading'))}</div>` : ''}
-    <p class="muted small">${h('edit.sectionId', { id: s.id, kind: sec.kind })}${own ? ` · <a data-act="label-reset">${h('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) })}</a> · <a data-act="label-all">${h('edit.labelAll')}</a>` : ''}</p>`}
-    ${me && !me.fixed ? `<div class="ctlrow">${showSw(`data-secon="${esc(s.id)}"`, me.on, title, { text: true })}</div>${me.on ? `
-      <div class="ctlrow">${sw(`data-secgroup="${esc(s.id)}"`, T.groupedOf(cur(), s.id), h('edit.groupUnder'), movable.find(x => x.on)?.id === s.id)}</div>
-      <p class="muted small">${h('edit.groupUnderNote')}</p>` : ''}
-      <span class="lbl">${h('edit.position', { at: at + 1, n: movable.length })}</span>`
-      : `<p class="muted small">${isHeader ? h('edit.headerFirst') : h('edit.summaryFollows')}</p>`}
+  const grouped = me && !me.fixed && me.on, info = C.sectionInfo(s.id), c = me?.on && !isHeader ? info.counts : null;
+  // row 1: the heading as the section's heading text on a hue band (written in place: the band is the box), a reset arrow once it is changed, the cue, the language; row 2: Group
+  const head = isHeader ? `<p class="muted small hnote">${h('edit.headerFirst')}</p>` : `<label class="hband hhead"><input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" aria-label="${esc(t('edit.headingHere', { lang: LANG_NAME[L] ?? L }))}" autocomplete="off"><span class="pen" aria-hidden="true">${icon('edit', { role: 'inline' })}</span>${own ? `<button type="button" class="rs" data-act="label-reset" aria-label="${esc(t('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) }))}" title="${esc(t('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) }))}">${icon('replay', { role: 'inline' })}</button>` : ''}<span class="grow"></span>${c ? `<span class="hcue">↓ ${esc(t('ux2.nOfM', { n: c.on, m: c.total }))}</span>` : ''}<span class="hlang" title="${esc(LANG_NAME[L] ?? L)}">${esc(L.toUpperCase())}</span></label>`;
+  const first = grouped && movable.find(x => x.on)?.id === s.id;
+  const rows = `${!isHeader && L !== DEFAULT_LANG ? `<div class="ctlrow">${sw(`data-same="section:${esc(s.id)}"`, isSame(rec(), `section:${s.id}`), h('edit.sameHeading'))}</div>` : ''}${grouped ? `<div class="ctlrow hgrp">${sw(`data-secgroup="${esc(s.id)}"`, T.groupedOf(cur(), s.id), `<span class="gl" aria-hidden="true"><i></i><i></i></span>${h('edit.groupUnder')}`, first)}${own ? `<button type="button" class="ghost sm" data-act="label-all">${h('edit.labelAll')}</button>` : ''}</div>${first ? `<p class="why muted small">${h('edit.groupFirst')}</p>` : ''}` : me && me.fixed && !isHeader ? `<p class="muted small hnote">${h('edit.summaryFollows')}</p>` : ''}`;
+  return `${headHtml(sel, info.hue, head + rows, { off: !!me && !me.fixed && !me.on })}
+    ${me && !me.fixed ? `<span class="lbl hpos">${h('edit.position', { at: at + 1, n: movable.length })}</span>` : ''}
     ${inner}`;
 }
 
@@ -376,10 +417,11 @@ function jobView(s, { details = true } = {}){
   if (!w) return noneView();
   const on = jobOn(s.id);
   const sid = T.sectionOfEntry(rec(), s.id);
-  return `${depthHtml(s)}
-    <h2 class="title">${esc(C.textOfFact(w.display?.position) || w.position)}</h2>
-    <p class="meta">${esc(C.textOfFact(w.display?.meta))}</p>
-    <div class="ctlrow">${showSw(`data-jobon="${esc(s.id)}"`, on, t('ux6c.thisJob'), { text: true })}</div>${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
+  // the title and the date line are plain rows written in place: a click or Enter opens the page's own editor, past the page's guard (a pencil shows on hover, focus or a touch screen)
+  const row = (id, what, text, cls) => id ? `<button type="button" class="hedit" data-act="job-fact" data-id="${esc(id)}" data-job="${esc(s.id)}" aria-label="${esc(`${what}: ${t('edit.editThis')}`)}"><span class="${cls}">${esc(text)}</span><span class="pen" aria-hidden="true">${icon('edit', { role: 'inline' })}</span></button>` : `<span class="${cls}">${esc(text)}</span>`;
+  const pos = w.display?.position, meta = w.display?.meta, link = `<button type="button" class="sm ghost" data-act="job-details" data-job="${esc(s.id)}">${h('ux6c.entryFields')}</button>`;
+  return `${headHtml(s, C.sectionInfo(sid).hue, `<div class="hband hhead jhead"><h2 class="title">${row(pos, t('ux6c.n.title'), C.textOfFact(pos) || w.position, 'hrt')}</h2></div>
+      <div class="jmeta">${row(meta, t('ux6c.f.dates'), C.textOfFact(meta), 'meta')}</div><div class="jlink">${link}</div>`, { off: !on })}${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
 }
 
 // A language's name, written on the page: its words here, and the record's to go back to
@@ -403,20 +445,19 @@ function bulletView(s){
   if (!f) return noneView();
   const w = s.job ? ix().work.get(s.job) : null;
   const on = isOn(s.id) && (!w || jobOn(w.id));
-  // a line that exists only on this resume has no versions: what it is, the tick, and the way to remove it
-  if (T.isLocal(cur(), s.id)) return `${depthHtml(s)}
-    <h2 class="title">${esc(clip(lineName(s.id), 80))}</h2>
-    <div class="ctlrow">${showSw('id="b-on"', on, t('ux6c.thisLine'), { text: true })}</div>
+  const hue = C.sectionInfo(s.section ?? (s.job ? T.sectionOfEntry(rec(), s.job) : 'summary')).hue, off = !!w && !on;
+  // a line that exists only on this resume has no versions: what it is, and the way to remove it (its tick is the chip's)
+  if (T.isLocal(cur(), s.id)) return `${headHtml(s, hue, `<h2 class="title">${esc(clip(lineName(s.id), 80))}</h2>
+    <div class="ctlrow">${delBtn('data-act="local-remove"', t('ux6c.removeLine'))}</div>`, { off })}
     <p class="note">${h('ux6c.localNote')}</p>
-    ${document.body.dataset.phone === 'true' ? versionsHtml(versionsX(s.id)) : ''}
-    <div class="ctlrow"><button class="sm" data-act="local-remove">${h('ux6c.removeLine')}</button></div>`;
+    ${document.body.dataset.phone === 'true' ? versionsHtml(versionsX(s.id)) : ''}`;
 
-  return `${depthHtml(s)}
-    <h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
-    ${claimHead({ hasJob: !!w, name: t('ux6c.thisLine'), on, kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null })}`
+  return headHtml(s, hue, `<h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
+    ${claimHead({ kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null, ask: E.delAsk === s.id ? { name: f.summary ?? s.id, n: versionCount(s.id) } : null })}`, { off })
     + versionsHtml(versionsX(s.id)) + entryLink(s.id);
 }
 const isClaim = id => ix().highlight.has(id) && !T.isLocal(cur(), id);
+const versionCount = id => ix().facts.get(id)?.variants?.length ?? 0;      // every language's
 
 // the versions of a fact, under an item's form
 function factPanel(id){
@@ -432,7 +473,16 @@ function pendOf(id, L, ed){
   const free = !isLockedId(id) && C.pendingHtml && C.canPend(id);
   return { n: R.suggestNumber(work(), id, over, L).n, html: free ? C.pendingHtml(id) : '' };
 }
+// …and the line's earlier edits (UX-6f), each its own pending row, oldest first
+function earlierRows(id, L, ed){
+  if (ed || T.isLocal(cur(), id) || !ix().facts.has(id)) return [];
+  const free = !isLockedId(id) && C.pendingHtml;
+  return T.earlierOf(cur(), id).map((e, at) => ({ at, text: e.text, n: R.suggestNumber(work(), id, e.text, L).n, html: free && C.canPend(id, at) ? C.pendingHtml(id, at) : '' }));
+}
 
+// The versions list is folded by the person's last toggle of that claim (this session), else by a measure made once when the line is selected:
+// folded when the whole list would not fit the height the panel has below its top (afterRender measures it). Not redecided on a resize or a language.
+const folded = id => E.fold.get(id) ?? (E.foldAuto?.fact === id ? E.foldAuto.folded : (E.foldAuto = { fact: id, folded: undefined }).folded) ?? false;
 function versionsX(id){
   const L = lang();
   const using = usingOf(id);
@@ -441,12 +491,12 @@ function versionsX(id){
   const en = R.versionsIn(work(), id, DEFAULT_LANG);
   const vs = R.versionsIn(work(), id, L);
   return {
-    pend: pendOf(id, L, ed),
+    pend: pendOf(id, L, ed), earlier: earlierRows(id, L, ed),
     m: work(), fact: id, lang: L, full: document.body.dataset.phone !== 'true',     // every version in full, with what differs marked (the phone's sheet keeps the gist)
-    vs, using, over: overrideOf(id), parked: cur().parked?.[id]?.text, ed, writing,
+    vs, using, folded: folded(id), over: overrideOf(id), parked: cur().parked?.[id]?.text, ed, writing,
     compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,
     lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: tagVocab(rec()),
-    dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id, cur()) || id === cur().summary), fill: C.fillText(),
+    dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id, cur()) || id === cur().summary),
     ref: C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
   };
 }
@@ -468,12 +518,35 @@ async function addLine(jobId, afterId = undefined){
   return true;
 }
 
+// UX-6f: the name, the date lines and the contact line are guarded against a stray click (a per-session guard, not recipe.locked: it is not saved,
+// asks for no migration of the saved resumes and does not hold the line against the Career forms). The first click or Enter selects the line and
+// shows a small lock (it turns in); a second click, Enter, or the lock itself opens it for writing, until the selection moves to another line.
+const guarded = id => E.guardOn && (id === 'name' || id === 'contact' || /-(meta|position)$/.test(id));
+// a job's title and date line are guarded by the JOB: the first click on its heading row selects the job (shell.js pick), the second writes
+const headOf = sel => (E.guardOn && sel?.kind === 'bullet' && sel.owner && /-(meta|position)$/.test(sel.id) ? sel.owner : null);
+async function softUnlock(id){
+  const b = $('#editlay .obsoft');
+  if (b){ b.innerHTML = icon('unlock', { role: 'inline' }); await played(b, [{ transform: 'rotate(0)' }, { transform: 'rotate(-24deg)' }, { transform: 'rotate(0)' }], { ms: 'fast', kind: 'move', name: 'lock:turn' }); }
+  E.softShown = null; E.softOpen = id;
+  C.onpage?.render(true);
+  startEdit();
+}
+function softLock(id){
+  if (E.softShown === id) return softUnlock(id);
+  E.softShown = id;
+  C.onpage?.render(true);
+  const b = $('#editlay .obsoft');
+  if (b) play(b, [{ transform: 'rotate(-40deg) scale(.6)', opacity: 0 }, { transform: 'rotate(8deg) scale(1.05)', opacity: 1, offset: .7 }, { transform: 'none', opacity: 1 }], { ms: 'base', kind: 'arrive', name: 'lock:in' });
+  C.say(t('ux6f.softLocked'));      // the live region only: the lock turning in and the plate flashing are the answer
+  if (b) requestAnimationFrame(() => { ring(b); flashPlate(b); }); else lockShow([], { soft: true });
+}
 function startEdit(mode = null, vid = null){
   if (isLockedId(lockIdOf()) || isLockedId(fid())) return lockedHint();      // a locked text is not written: its block is selected and the reason said
   const key = keyOf(C.ui.sel), id = isLabelKey(key) ? null : fid();
   if (isLabelKey(key)) return startLabel(key);
   if (!id) return;
   if (ix().skillGroups.has(id)) return startGroup(id);
+  if (guarded(id) && E.softOpen !== id) return softLock(id);
   const L = lang();
   const over = overrideOf(id);
   const using = usingOf(id);
@@ -493,15 +566,15 @@ function startEdit(mode = null, vid = null){
   C.renderBody();
   if (E.edit.panel) focusEditor(m === 'new');
 }
-// A skill group is written on the page only: its name, a line break, its skills (nothing to pick from, no versions)
+// A skill group is written on the page: its name, a line break, its skills (nothing to pick from, no versions); where it cannot be, in the panel
 function startGroup(id){
   const text = T.groupText(rec(), cur(), id);
   E.edit = { fact: id, group: true, mode: 'edit', vid: null, marks: [], base: text, draft: text };
   E.compare = null;
   C.endHover();
-  if (!C.onpage?.begin()){ E.edit = null; return; }
-  E.edit.panel = false;
+  E.edit.panel = !C.onpage?.begin();      // a phone, or a group not on the page: the panel's two fields (skillsHtml)
   C.renderBody();
+  if (E.edit?.panel) focusEditor();
 }
 // A heading or a language's name is written on the page only: the text printed now, kept in this resume's language
 function startLabel(key){
@@ -514,6 +587,7 @@ function startLabel(key){
   C.renderBody();
 }
 function focusEditor(selectAll = false){
+  if (E.edit?.group) return $('#sk-gname')?.focus();
   const ta = $('#ed');
   if (!ta) return;
   autosize(ta);
@@ -586,8 +660,6 @@ async function livePreview(){
   await C.previewRecipe(r, ed.fact);
   if (E.edit !== ed) return;
   ed.lines = C.sheet.linesOf(ix(), ed.fact);
-  const st = $('#ed-stats');
-  if (st) st.innerHTML = statsHtml(ed, C.fillText());
   C.onpage?.refresh();
 }
 
@@ -631,6 +703,20 @@ async function act(a, tg){
   const s = { id: fid() }, sel = C.ui.sel;     // s: the claim open; sel: what the Resume has selected (a section, for the cases below)
   switch (a){
     case 'edit': startEdit(null, tg?.dataset?.v ?? null); return true;
+    case 'job-details': {      // the card's link: the job's own fields (dates, links) are in the Details fold below its lines
+      const d = $(`#body details[data-det="${CSS.escape(tg.dataset.job)}"]`);
+      if (d){ d.open = true; d.scrollIntoView({ block: 'nearest' }); d.querySelector('summary')?.focus(); }
+      return true;
+    }
+    case 'job-fact': {      // the job view's pencils: the title or the date line, written as a page edit is (the deliberate click is the second one)
+      const { id, job } = tg.dataset;
+      if (isLockedId(job) || isLockedId(id)) return lockedHint({ kind: 'job', id: job }), true;
+      E.softOpen = id;
+      C.select({ kind: 'bullet', id, section: T.sectionOfEntry(rec(), job), owner: job }, { stay: document.body.dataset.phone !== 'true' });
+      if (C.ui.sel.id === id) startEdit();
+      return true;
+    }
+    case 'new-version': clearEdit(); startEdit('new'); return true;      // the version tag's "+ New version" on a line with one version: written as a new version, from this one
     case 'ed-cancel': cancelEdit({ discard: true }); return true;
     case 'use-edit': commit(d => T.unparkOverride(d.record, d.cur, s.id), t('edit.thisOnly')); return true;
     case 'ed-save': saveEdit('over'); return true;
@@ -652,6 +738,10 @@ async function act(a, tg){
     case 'group-remove': commit(d => T.writeGroup(d.record, d.cur, s.id, ''), t('ux6c.undoSkills'), `${t('ux6c.groupRemoved')} ${t('toast.ctrlZUndoes')}`, true); C.select({ kind: 'section', id: 'skills' }); return true;
     case 'only-remove': commit(d => T.setOverride(d.record, d.cur, s.id, null), t('edit.backToSaved'), t('toast.backToSaved')); return true;
     case 'unfold': E.openMinor.add(`${s.id}:${lang()}:${tg.dataset.m}`); C.renderBody(); return true;
+    case 'fold': { const id = tg.dataset.fact ?? s.id; E.fold.set(id, !folded(id)); C.renderBody(); return true; }
+    case 'soft-unlock': if (E.softShown) softUnlock(E.softShown); return true;
+    case 'use-earlier': clearEdit(); commit(d => T.swapEarlier(d.record, d.cur, s.id, Number(tg.closest('[data-at]').dataset.at)), t('edit.thisOnly')); return true;
+    case 'earlier-remove': commit(d => T.dropEarlier(d.record, d.cur, s.id, Number(tg.closest('[data-at]').dataset.at)), t('ux6f.undoDiscard'), t('ux6f.discarded'), true); return true;
     case 'compare': E.compare = E.compare === tg.dataset.v ? null : tg.dataset.v; C.renderBody(); return true;
     case 'compare-close': E.compare = null; C.renderBody(); return true;
     case 'delete-version': {
@@ -667,9 +757,13 @@ async function act(a, tg){
       commit(d => T.setKeep(d.record, d.cur, s.id, on), on ? t('edit.keep') : t('undo.release'), on ? t('toast.kept') : t('toast.released'));
       return true;
     }
+    case 'delete-claim-no': E.delAsk = null; C.renderBody(); return true;
     case 'delete-claim': {
       const id = s.id, name = ix().facts.get(id)?.summary ?? id;
       if (!id || !isClaim(id)) return true;
+      // a claim with more than one version asks first, in place (UX-6 round 2: two steps for a delete that takes more than one thing)
+      if (versionCount(id) > 1 && !tg.dataset.sure){ E.delAsk = id; C.renderBody(); setTimeout(() => document.querySelector('#body .delask [data-act=delete-claim]')?.focus(), 0); return true; }
+      E.delAsk = null;
       const job = ix().highlight.get(id);
       let res;
       clearEdit(false); E.compare = null;
@@ -734,6 +828,7 @@ async function act(a, tg){
     }
     case 'focus': E.focus = E.focus === tg.dataset.tag ? null : tg.dataset.tag; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
     case 'focus-clear': E.focus = null; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
+    case 'tailor-toggle': E.tailor = !E.tailor; if (!E.tailor) E.applyOpen = false; C.renderBody(); $('#body [data-act=tailor-toggle]')?.focus(); return true;
     case 'lens-apply': E.applyOpen = !E.applyOpen && !!E.focus; C.renderBody(); return true;
     case 'lens-edit': C.select({ kind: 'record', what: 'jobtypes' }); return true;
     case 'focus-apply': {
@@ -756,6 +851,9 @@ async function act(a, tg){
       commit(d => { const arr = T.arrangementOf(d.record, d.cur); T.saveSetForTag(d.record, name, arr, d.cur.lang ?? DEFAULT_LANG); T.setArrangement(d.cur, { ...arr, from: name }); }, t('ux6c.undoSaveSet'), t('ux6c.setSaved', { name: jobTypeLabel(rec(), name) }));
       return true;
     }
+    case 'sk-record': commit(d => T.clearArrangement(d.record, d.cur), t('ux6c.undoStartFrom'), t('ux6c.setCleared')); return true;
+    case 'sk-gsave': { const ed = E.edit; clearEdit(false); if (ed?.group) keepGroup(ed); C.renderBody(); return true; }      // the panel's group: name and skills as one undo step
+    case 'sk-gcancel': { const ed = E.edit; clearEdit(false); if (ed?.group && !T.readGroup(ed.base).items.length) commit(d => T.writeGroup(d.record, d.cur, ed.fact, ''), t('ux6c.undoSkills')); C.renderBody(); return true; }      // a new group left empty goes
     case 'sk-addgroup': addGroup(T.arrangementOf(rec(), cur()).groups.at(-1)?.id ?? null); return true;      // at the end, written at once on the page
     case 'sk-del': {
       const name = $('#sk-tag')?.value, L = T.arrangementOf(rec(), cur()).lang ?? cur().lang ?? DEFAULT_LANG;
@@ -807,6 +905,7 @@ function bind(body){
   body.addEventListener('input', e => {
     const t = e.target;
     if (t.id === 'ed') onEditorInput(t);
+    if ((t.id === 'sk-gname' || t.id === 'sk-gitems') && E.edit?.group) E.edit.draft = `${$('#sk-gname').value}\n${$('#sk-gitems').value}`;      // kept as typed: leaving keeps it (keepGroup)
     if (t.classList?.contains('new-claim')) E.claimDrafts.set(t.dataset.entry, t.value);
   });
   // the heading box commits on blur (Enter blurs it), as one undo step
@@ -842,6 +941,9 @@ function bind(body){
       }
     }
   });
+  // the chip's tick or padlock under the pointer or the focus: the block it governs, drawn on the page
+  const scope = on => e => { const b = e.target.closest?.('.hdr > .depth .dp-show, .hdr > .depth .dp-lock'); if (b && !(on === false && b.contains(e.relatedTarget))) C.sheet.setScope(on, b.classList.contains('dp-lock') ? (b.classList.contains('is-locked') ? 'unlock' : 'lock') : b.querySelector('.pillsw.on') ? 'hide' : 'show'); };
+  for (const [ev, on] of [['mouseover', true], ['focusin', true], ['mouseout', false], ['focusout', false]]) body.addEventListener(ev, scope(on));
   body.addEventListener('focusin', e => { if (e.target.classList?.contains('tag-in')) E.tagFocus = e.target.dataset.vid; });
   document.addEventListener('mousedown', e => { if (!e.target.closest?.('.tag-in')) E.tagFocus = null; }, true);
   body.addEventListener('focusout', e => {
@@ -982,14 +1084,14 @@ function resetOrder(kind, id){
   if (auto) C.toast(t('toast.autoPages'));
 }
 // ---- a locked block in the sidebar ----
-const SOFT = '#c-pos, #c-org, #c-start, #c-end, #c-current, #c-during, #c-loc, #c-wurl, #c-wdesc, #c-wsum, [data-act=c-arch-entry], #c-lname, #c-level, #c-slevel, #c-cname, #c-date, #c-expires, #c-gname, #c-issuer, #c-pname, #c-publisher, #c-url, #c-kw, #c-kw-in, [data-act=c-kw-rm], [data-act=c-del-item], [data-act=c-del-entry], [data-act=c-tag-add], [data-act=c-tag-del]';
+const SOFT = '#c-pos, #c-org, #c-start, #c-end, #c-start-b, #c-end-b, #c-date-b, #c-expires-b, #c-current, #c-during, #c-loc, #c-wurl, #c-wdesc, #c-wsum, [data-act=c-arch-entry], #c-lname, #c-level, #c-slevel, #c-cname, #c-date, #c-expires, #c-gname, #c-issuer, #c-pname, #c-publisher, #c-url, #c-kw, #c-kw-in, [data-act=c-kw-rm], [data-act=c-del-item], [data-act=c-del-entry], [data-act=c-tag-add], [data-act=c-tag-del]';
 // Every row of the Outline gets its padlock (a locked ancestor shows its children locked, greyed, with the lock inherited); a locked row's
 // tick, move buttons and drag are off. A locked block's own view has its switches, its versions and its removal off, with the reason.
 function lockPass(){
   const body = $('#body');
   if (!body || C.ui.snap) return;
   const rec_ = !C.ui.view;      // the Outline's rows are in the Edit view only; the Record view's own fields are held below
-  const why = t('ux6c.lockedTip');
+  const why = t('uxr.locked');      // a short word, not a sentence (round 2)
   const off = (el, tip = why) => {
     if (el.matches('input, select, textarea, button')) el.disabled = true;
     else { el.removeAttribute('data-act'); el.removeAttribute('data-v'); el.removeAttribute('tabindex'); el.setAttribute('aria-disabled', 'true'); }
@@ -1003,7 +1105,7 @@ function lockPass(){
     const by = lockBy(id), name = t(by ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lockName(id) });
     const inh = by && by !== id ? t('ux6c.lockedUnder', { name: lockName(by) }) : null;
     const tick = host.querySelector(':scope > .cb, :scope > .cbnone, :scope > .swl');      // the padlock comes before the tick, as on the page chip
-    (tick ?? host).insertAdjacentHTML(tick ? 'beforebegin' : 'beforeend', `<button type="button" class="rowlock${by ? ' is-locked' : ''}${inh ? ' inherited' : ''}" data-act="row-lock" data-id="${esc(id)}" aria-pressed="${by !== null}"${inh ? ' aria-disabled="true"' : ''} aria-label="${esc(inh ?? name)}" title="${esc(inh ?? name)}">${icon(by ? 'lock' : 'unlock', { size: 12 })}</button>`);
+    (tick ?? host).insertAdjacentHTML(tick ? 'beforebegin' : 'beforeend', `<button type="button" class="rowlock${by ? ' is-locked' : ''}${inh ? ' inherited' : ''}" data-act="row-lock" data-id="${esc(id)}" aria-pressed="${by !== null}"${inh ? ' aria-disabled="true"' : ''} aria-label="${esc(inh ?? name)}" title="${esc(t(by ? 'uxr.locked' : 'uxr.unlocked'))}">${icon(by ? 'lock' : 'unlock', { role: 'inline' })}</button>`);
     if (!by) continue;
     host.classList.add('is-locked'); if (by !== id) host.classList.add('is-inherited');
     host.draggable = false;
@@ -1013,15 +1115,14 @@ function lockPass(){
   for (const row of rec_ ? body.querySelectorAll('.clrow, .srow[data-sid], section.clg[data-g]') : []){
     const id = row.dataset.fact || row.dataset.item || row.dataset.sid || (ix().work.has(row.dataset.g) ? row.dataset.g : '');
     if (!id || lockBy(id) || !LK.lockedInside(rec(), cur(), id)) continue;
-    for (const el of row.querySelectorAll('input[type=checkbox]:checked')) if (el.closest('.clrow, .srow[data-sid], section.clg[data-g]') === row){ el.disabled = true; el.title = t('ux6c.lockedInside'); }
+    for (const el of row.querySelectorAll('input[type=checkbox]:checked')) if (el.closest('.clrow, .srow[data-sid], section.clg[data-g]') === row){ el.disabled = true; el.title = why; }
   }
   const sel = C.ui.sel, id = lockIdOf(sel);
+  body.querySelector('.hdr')?.classList.toggle('hlk', isLockedId(id));      // the card's wash (sidebar.css): its own lock or an ancestor's
   if (sel.kind === 'none' || !isLockedId(id)) return;
-  const note = `<p class="note locknote" id="locknote">${esc(t('ux6c.lockedNote'))}</p>`;
-  if (body.querySelector('.depth')) body.querySelector('.depth').insertAdjacentHTML('afterend', note); else if (!rec_) body.querySelector('#c-lname, #c-pos, #c-slevel, #c-cname, #c-gname, #c-pname')?.closest('.field, label, div')?.insertAdjacentHTML('beforebegin', note);
-  // the Record's own fields of the block: kept in the tab order, read-only, with the reason attached (a disabled control can't be focused)
+  // the Record's own fields of the block: kept in the tab order, read-only, "Locked" in their title (a disabled control can't be focused)
   for (const el of body.querySelectorAll(SOFT)){
-    el.setAttribute('aria-disabled', 'true'); el.setAttribute('aria-describedby', 'locknote'); el.title = why;
+    el.setAttribute('aria-disabled', 'true'); el.title = why;
     if (el.matches('input:not([type=checkbox]):not([type=radio]), textarea')) el.readOnly = true;
     else if (el.matches('button, [data-act]')){ el.removeAttribute('data-act'); el.dataset.lockoff = '1'; }
     else el.dataset.lockoff = '1';      // a checkbox or a select: the capture listener in bind() holds it
@@ -1041,7 +1142,8 @@ function key(e){
 
 // Leaving a line keeps what was typed (E1), so leaving is always allowed. The shell's select() ends any preview itself.
 function leaving(next){
-  const s = C.ui.sel;      // no editor open (the phone, a click on the sidebar): an empty line is still dropped when the selection leaves it
+  const s = C.ui.sel;
+  if ((E.softShown || E.softOpen) && !(next?.kind === 'bullet' && next.id === (E.softShown ?? E.softOpen))){ const was = E.softShown; E.softShown = E.softOpen = null; if (was) C.onpage?.render(true); }      // the guard is back on when the selection moves      // no editor open (the phone, a click on the sidebar): an empty line is still dropped when the selection leaves it
   if (!E.edit){ if (s.kind === 'bullet' && T.isLocal(cur(), s.id) && cur().overrides?.[s.id] === '' && !(next?.kind === 'bullet' && next.id === s.id)) dropLine(s.id); return true; }
   if (next?.kind === 'bullet' && next.id === E.edit.fact) return true;
   clearEdit(); E.compare = null;
@@ -1050,12 +1152,24 @@ function leaving(next){
 
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, redraft: () => { if (E.edit && !E.edit.panel && isDirty()) livePreview(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
-  fieldName, outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, multiline,
+  fieldName, isAbove, outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockSaid, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, multiline,
   get editing(){ return E.edit; },
+  get softShown(){ return E.softShown; },
+  setAutoFold(on){ E.autoFold = !!on; E.foldAuto = null; },      // for a check that is not about the fold: a short window would hide the versions it clicks
+  headOf, openGuard(id){ E.softOpen = id; },      // pick(): a click on a heading row of the job that is already selected opens it
+  setGuard(on){ E.guardOn = !!on; E.softShown = E.softOpen = null; },      // for a check that is not about the guard
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){
     lockPass();
+    const vl = $('#body .vlist[data-fact], #scr .vlist[data-fact]');
+    if (!vl) E.foldAuto = null;
+    else if (E.autoFold && E.foldAuto?.fact === vl.dataset.fact && E.foldAuto.folded === undefined && vl.offsetHeight){
+      const room = vl.closest('#body, #scr').getBoundingClientRect().bottom - vl.getBoundingClientRect().top;
+      E.foldAuto.folded = document.body.dataset.phone !== 'true' && vl.getBoundingClientRect().height > room && vl.children.length > 1;      // a phone's sheet shows the versions and nothing else, and scrolls
+      if (E.foldAuto.folded && !E.fold.has(vl.dataset.fact)) return C.renderBody();
+    }
     if (E.edit && $('#ed') && document.activeElement?.id !== 'ed') focusEditor(); else if ($('#ed')) autosize($('#ed'));
+    else if (E.edit?.group && $('#sk-gname') && !document.activeElement?.closest?.('.skedit')) focusEditor();      // the panel's group fields keep the focus across a redraw
     // a skill moved with the keyboard keeps the focus, where it landed (it may have left its group empty: that group is gone)
     if (E.chip){ const c = document.querySelector(`#body .skchip[data-g="${CSS.escape(E.chip.g)}"][data-k="${E.chip.k}"]`); E.chip = null; c?.focus(); }
     // the tag box keeps focus across the redraw a new tag causes

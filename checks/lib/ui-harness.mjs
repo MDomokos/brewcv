@@ -73,7 +73,7 @@ export async function makeUi({ resume = 0, lang = null } = {}){
   work();
   let career = null;
   let checklist = null;
-  const edit = initEdit({ ...ctx, detailsHtml: id => career.detailsHtml(id), outlineHtml: () => checklist.outlineHtml() });
+  const edit = initEdit({ ...ctx, detailsHtml: id => career.detailsHtml(id), outlineHtml: () => checklist.outlineHtml(), sectionInfo: (...a) => checklist.sectionInfo(...a) });
   career = initCareer({ ...ctx, edit });
   checklist = initChecklist({ ...ctx, edit, career, timelineHtml: () => career.timelineHtml() });
   // the handlers edit.bind() puts on #body, to be fired by hand

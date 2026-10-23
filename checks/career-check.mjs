@@ -17,6 +17,7 @@ import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages } from '../src/render.js';
 import { makeUi, dom } from './lib/ui-harness.mjs';
 import * as T from '../src/model/resume.js';
+import { careerHits, langGroups } from '../src/model/checklist.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -130,7 +131,7 @@ section('editing in another language');
   ok('reworded by hand in German: kept', K.updateJob(ex, 'hydra', { position: 'Entwicklerin' }, 'de').title === 'kept' && defaultVariant(ex, 'hydra-position', 'de').text === 'Konstrukteurin (Medizintechnik)');
   const enMeta = defaultVariant(ex, 'hydra-meta', 'en').text;
   const r4 = K.updateJob(ex, 'hydra', { startDate: '2023-04' }, 'de');
-  ok('dates are the same everywhere: the German meta line follows; the English one, reworded by hand, is kept', r4.meta === 'followed' && /Apr/.test(defaultVariant(ex, 'hydra-meta', 'de').text) && defaultVariant(ex, 'hydra-meta', 'en').text === enMeta, defaultVariant(ex, 'hydra-meta', 'de').text);
+  ok('dates are the same everywhere: the German meta line follows, and the English one, reworded by hand, follows its dates only (its own words stay)', r4.meta === 'followed' && /Apr/.test(defaultVariant(ex, 'hydra-meta', 'de').text) && defaultVariant(ex, 'hydra-meta', 'en').text === enMeta.replace('Mar 2023', 'Apr 2023'), defaultVariant(ex, 'hydra-meta', 'de').text);
   const r = { ...newResume(ex, { format: 'a4', lang: 'de' }) };
   ok('a German resume prints the German title', renderPages(ex, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('').includes('Konstrukteurin (Medizintechnik)'));
   ok('still valid', validate(S.save(ex), r).errors.length === 0, validate(S.save(ex), r).errors[0]);
@@ -499,6 +500,8 @@ section('the Highlight lens: job types first, and Apply');
 {
   const u = await makeUi({ resume: 0 });
   const home = () => String(u.edit.outlineView());
+  ok('the lens is the Tailor row at the foot of the Outline, shut at first (no select until it is opened)', /class="tailor"/.test(home()) && !/<select id="lens"/.test(home()));
+  await u.click('tailor-toggle');
   ok('the lens is one row: Nothing first, then the job types', /<select id="lens"><option value="">Nothing<\/option>\s*<optgroup label="Job types"><option value="[^"]+"[^>]*>[^<]+ \(\d+\)<\/option>/.test(home()));
   ok('one list: job types in their own group, then every tag (nothing hidden), no “+ tags” switch', /<optgroup label="Job types">/.test(home()) && /<optgroup label="Tags">/.test(home()) && !/data-act="lens-tags"/.test(home()) && !/data-act="focus" data-tag="/.test(home()));
   u.fire('change', { id: 'lens', value: 'Prototyping', dataset: {}, classList: { contains: () => false } });
@@ -617,7 +620,8 @@ section('the Record tab: the timeline and every kind of addition are there, and 
     const a = sels(String(u.checklist.html())), b = sels(String(u.checklist.outlineHtml()));
     return b.size >= 3 && [...b].every(x => a.has(x));
   })());
-  ok('the Outline has no timeline: the open job is its lines, “+ n more” and a “+ line”', (() => { u.select({ kind: 'job', id: 'hydra' }); const g = String(u.checklist.outlineHtml()); return !/rectl|tl2/.test(g) && /data-act="ol-newline"/.test(g) && /data-act="ol-more"/.test(g); })());
+  // (UX-6 sidebar: a line that is off keeps its row in place, greyed; "+ n more" was the fold for them and now holds only archived lines)
+  ok('the Outline has no timeline: the open job is its lines, the ones that are off in place among them, and a “+ line”', (() => { u.select({ kind: 'job', id: 'hydra' }); const g = String(u.checklist.outlineHtml()); const job = g.slice(g.indexOf('data-g="hydra"')); return !/rectl|tl2/.test(g) && /data-act="ol-newline"/.test(g) && /class="clrow[^"]*is-off/.test(job.slice(0, job.indexOf('ol-newline'))); })());
 }
 
 section('what Career did, and where each part went (the ledger of data-act)');
@@ -649,6 +653,49 @@ section('what Career did, and where each part went (the ledger of data-act)');
     let r; try { r = await run(); } catch (e){ r = false; console.log(e); }
     ok(`${act}  →  ${home}`, r !== false);
   }
+}
+
+section('careerHits: what the search finds in Career');
+{
+  const m = S.load(read('data/example.json')).model;
+  const dfm = careerHits(m, ' DFM '), inEntry = careerHits(m, 'hydra');
+  const claim = dfm.find(x => x.fact === 'hydra-dfm');
+  ok('a word finds the claim, under its entry, with every version listed and the ones that hold it marked', claim?.group === 'hydra' && claim.versions.length === m.facts.find(f => f.id === 'hydra-dfm').variants.length && claim.versions.some(v => v.hit && v.n && v.lang === 'en') && claim.versions.every(v => v.hit === /dfm/i.test(v.text)));
+  ok('a version the resume does not print finds the claim too (a word only in a version that is not the default)', careerHits(m, 'dose-counter redesign on a 400,000-unit').some(x => x.fact === 'hydra-inhaler'));
+  ok('an entry is found by its name, and the job title and date line (claims of the job) are under that job', inEntry.some(x => x.fact === null && x.group === 'hydra') && inEntry.some(x => x.fact === 'hydra-meta' && x.group === 'hydra'));
+  ok('no word finds nothing; an archived claim is not offered', careerHits(m, '').length === 0 && careerHits(m, 'zzz-nothing').length === 0 && (() => { const c = structuredClone(m); c.facts.find(f => f.id === 'hydra-dfm').archived = true; return !careerHits(c, 'dfm').some(x => x.fact === 'hydra-dfm'); })());
+}
+
+{
+  const m = S.load(read('data/example.json')).model, claim = careerHits(m, 'dfm').find(x => x.fact === 'hydra-dfm');
+  const en = langGroups(claim.versions, 'en'), hu = langGroups(claim.versions, 'hu'), none = langGroups(claim.versions, 'it');
+  ok('langGroups: the current language is open with all its versions, every other language with a match is a group with its count, in the record\u2019s order', en.open.length === 2 && en.folds.length === 9 && en.folds.every(f => f.hits === 1 && f.versions.length === 1) && hu.open.length === 1 && hu.folds.find(f => f.lang === 'en')?.hits === 2 && hu.folds.find(f => f.lang === 'en').versions.length === 2);
+  ok('langGroups: a language with no match has no group, and the current language shows its versions even when none of them holds the word', langGroups(careerHits(m, 'toolmaker').find(x => x.fact === 'hydra-dfm').versions, 'en').folds.length === 0 && langGroups(careerHits(m, 'toolmaker').find(x => x.fact === 'hydra-dfm').versions, 'it').open.length === 1 && none.open.length === 1);
+}
+
+section('dates are real dates (UX-6f)');
+{
+  const model = S.load(read('data/example.json')).model, names = read('data/example-resumes/index.json');
+  const recipes = names.map(n => ({ ...S.loadResume(read(`data/example-resumes/${n}`), model).recipe, id: n }));
+  const page = (m, r) => html(m, r).replace(/\s+/g, ' ');
+  ok('the picker’s value is checked against the JSON Resume pattern (isIsoDate): months and years yes, anything else no', ['2023', '2023-03', '2023-03-15'].every(S.isIsoDate) && ['', '23-03', '2023-3', 'March 2023', '2023/03', 20230, null].every(x => !S.isIsoDate(x)));
+  ok('every month the picker can write is a date the record takes', Array.from({ length: 12 }, (_, i) => `2024-${String(i + 1).padStart(2, '0')}`).every(S.isIsoDate) && S.isIsoDate(`${1950}-01`) && S.isIsoDate(`${2100}-12`));
+  const m = clone(model), own = recipes.find(r => (r.lang ?? 'en') === 'en' && r.id !== recipes[0].id);
+  // one English resume prints the line in its own words (an edit of it on that resume)
+  const mine = clone(own); mine.overrides = { ...(mine.overrides ?? {}), 'hydra-meta': 'Hydra Medical · since spring 2023 · remote' };
+  const all = [...recipes.filter(r => r.id !== own.id), mine];
+  const before = all.map(r => page(m, r));
+  const res = K.updateJob(m, 'hydra', { startDate: '2022-01' }, 'en');
+  ok('a changed date follows in the record’s date line in every language, in that language’s months', res.meta === 'followed' && m.variants.filter(v => m.facts.find(f => f.id === 'hydra-meta').variants.includes(v.id)).every(v => v.text.includes(B.fmtMonth('2022-01', v.lang ?? 'en'))));
+  const after = all.map(r => page(m, r));
+  const printers = all.filter(r => r !== mine && before[all.indexOf(r)].includes(B.fmtMonth('2023-03', r.lang ?? 'en') + ' – '));
+  ok('…and it reaches every saved resume that prints the record’s line (' + printers.length + ' of them), each in its own language', printers.length >= 10 && printers.every(r => after[all.indexOf(r)].includes(B.fmtMonth('2022-01', r.lang ?? 'en') + ' – ')), printers.map(r => r.id).join('|'));
+  ok('…the resume that prints its own wording keeps it', after[all.indexOf(mine)].includes('since spring 2023 · remote') && !after[all.indexOf(mine)].includes('Jan 2022'));
+  ok('…its own words are listed, and a locked one is left out', T.ownWording(m, all, 'hydra-meta').length === 1 && T.ownWording(m, all.map(r => (r === mine ? { ...r, locked: ['hydra-meta'] } : r)), 'hydra-meta').length === 0);
+  ok('Use the dates gives it the record’s line: the date now follows', T.useRecordWording(m, all, 'hydra-meta') === 1 && page(m, mine).includes('Jan 2022 – ') && !mine.overrides?.['hydra-meta']);
+  const open = clone(m); K.updateJob(open, 'hydra', { endDate: '2023-12' }, 'en');
+  ok('an open end becomes a month, and back to Present', defaultVariant(open, 'hydra-meta', 'en').text.includes('Jan 2022 – Dec 2023') && (K.updateJob(open, 'hydra', { endDate: '' }, 'en'), defaultVariant(open, 'hydra-meta', 'en').text.includes('Jan 2022 – Present')), defaultVariant(open, 'hydra-meta', 'en').text);
+  ok('the dates survive the JSON Resume round trip (startDate and endDate as given)', (() => { const f = S.save(m), w = f.work.find(x => x.id === 'hydra' || x.name === 'Hydra Medical'); return w.startDate === '2022-01' && !w.endDate; })());
 }
 
 console.log(failed ? `\n${failed} career check(s) FAILED` : '\nall career checks passed');

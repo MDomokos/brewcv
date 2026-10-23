@@ -113,11 +113,12 @@ export const unexportedNote = n => (n ? t(n === 1 ? 'ux6c.notExported1' : 'ux6c.
 
 export function preflight({ model, recipe, fills = [], missing = 0, newer = 0, vault = false }){
   const out = [];
-  const add = (level, key, text) => out.push({ level, key, text });
+  // level 'bad' is the major one (the list's own scale: ok, warn, bad); `fix` is where the Fix button goes (ui/export.js)
+  const add = (level, key, text, fix = null) => out.push({ level, key, text, ...(fix ? { fix } : {}) });
   const over = fills.find(p => p.overflow > 0);
   const last = fills.at(-1);
   const pct = last ? 100 * last.used / last.usable : 0;
-  if (over) add('bad', 'overflow', t('preflight.overflow', { page: over.page }));
+  if (over) add('bad', 'overflow', t('preflight.overflow', { page: over.page }), { page: fills.indexOf(over) });
   else if (last && recipe.pageLimit !== 0 && pct > 96) add('warn', 'tight', t('preflight.tight', { pct: pct.toFixed(0) }));
   else add('ok', 'fits', t('preflight.fits', { n: fills.length || 1 }));
   const b = model.basics ?? {};
@@ -125,17 +126,17 @@ export function preflight({ model, recipe, fills = [], missing = 0, newer = 0, v
   if (emptyContact.length) add('warn', 'contact', t(emptyContact.length === 2 ? 'preflight.noEmailPhone' : emptyContact[0] === 'email' ? 'preflight.noEmail' : 'preflight.noPhone'));
   if (missing) add('warn', 'language', t('preflight.language', { n: missing, lang: langName(recipe.lang ?? 'en') }));
   if (newer) add('warn', 'newer', t('preflight.newer', { n: newer }));
-  if (recipe.photo?.show && !b.image && b.portrait?.state !== 'present') add('bad', 'photo-missing', t('preflight.photoMissing'));
+  if (recipe.photo?.show && !b.image && b.portrait?.state !== 'present') add('bad', 'photo-missing', t('preflight.photoMissing'), { header: true });
   if (recipe.photo?.show && recipe.format === 'us-letter') add('warn', 'photo', t('preflight.photoLetter'));
   const lost = unexported(model, recipe);
   if (lost) add('warn', 'unexported', unexportedNote(lost));
   const { problems } = resolve(model, recipe);
   const placeholders = problems.filter(p => /⬜/.test(p));
-  if (placeholders.length) add('bad', 'placeholder', t('preflight.placeholder', { n: placeholders.length }));
+  if (placeholders.length) add('bad', 'placeholder', t('preflight.placeholder', { n: placeholders.length }), { vid: placeholders[0].split(' ')[0] });
   if (vault){
     const drafts = problems.filter(p => /unreviewed draft/.test(p)).length;
     const nosrc = problems.filter(p => /no source/.test(p)).length;
-    if (drafts) add('bad', 'draft', t('preflight.drafts', { n: drafts }));
+    if (drafts) add('bad', 'draft', t('preflight.drafts', { n: drafts }), { vid: problems.find(p => /unreviewed draft/.test(p)).split(' ')[0] });
     if (nosrc) add('warn', 'source', t('preflight.noSource', { n: nosrc }));
   }
   return out;

@@ -14,6 +14,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pickOption } from './lib/dropdown.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8176);
@@ -83,7 +84,7 @@ await block(async () => { // 5, 6: the select only chooses; a Replace says who e
   const opts = await page.$$eval(`${R} .rvrow [data-rv-pick] option`, o => o.map(x => x.value));
   const over = opts.find(v => v.startsWith('over:'));
   ok('a far edit offers Replace in the select', !!over, opts.join());
-  await page.selectOption(`${R} [data-rv-pick]`, over);
+  await pickOption(page, `${R} [data-rv-pick]`, over);
   ok('choosing in the select writes nothing and offers Apply', (await undoN(page)) === u0 && !!(await page.$(`${R} [data-rv=apply]`)));
   const note = await page.$eval(`${R} .rvnote`, e => e.textContent).catch(() => '');
   ok('a Replace says how many other resumes are offered it', /other resume/.test(note), note);

@@ -7,6 +7,9 @@
 import { entriesOf } from '../model/entries.js';
 
 export const NONE = Object.freeze({ kind: 'none' });
+// Is the keyboard in something that is written in (a text box, a select, a line on the page)? The one guard for the plain-letter shortcuts:
+// shell.js key() runs it for a key pressed in the app and for one forwarded from the resume's frame.
+export const isTyping = el => !!el?.closest?.('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]), textarea, select, .ddbtn, [contenteditable]:not([contenteditable=false]), [role=textbox], [role=searchbox], [role=combobox]');
 
 // `recipe`: its lines that exist only on this resume count as claims of their job (they have no versions).
 export function indexModel(model, recipe = null){

@@ -6,10 +6,9 @@
 
 import {
   geometry, fitCam, contentOf, zoomAbout, snapZoom, hardCam, softCam, keepPageEdge, rubber, limits, stops, magnetize, unmagnetize, settleIndex,
-  brightPage, allShown, onPage, faded, springStep, atRest, centreOn, writingScale, midX,
+  brightPage, allShown, onPage, faded, springStep, atRest, centreOn, writingScale, midX, MAGNET, BOUNCE,
 } from './camera.js';
 import { clampZoom, PHONE_MAX } from './layout.js';
-import { readMagnet, readBounce } from './dock.js';
 import { onLinux } from './ask.js';
 import { reduced, dur } from './motion.js';
 
@@ -29,15 +28,18 @@ export function initCanvas(C){
   const pointers = new Map();
   const linux = onLinux();
   document.documentElement.classList.toggle('is-linux', linux);
-  const shed = on => { document.body.classList.toggle('is-moving', on); if (linux) C.sheet.setMoving(on); };
-  const dials = { magnet: readMagnet(), bounce: readBounce() };
+  // the pages move or rest: nothing on them glides against the camera (sheet.camMoving), and on Linux their shadows are shed
+  const shed = on => { document.body.classList.toggle('is-moving', on); C.sheet.camMoving?.(on); if (linux) C.sheet.setMoving(on); };
+  const dials = { magnet: MAGNET, bounce: BOUNCE };
 
   const phone = () => innerWidth < PHONE_MAX;
   const pagesN = () => Math.max(1, ui.laid?.pages?.length ?? ui.fills?.length ?? 1);
 
   // ---- placing the sheet ----
+  // the pages start to move: said once, as the ease starts (go) or the first step is put, so nothing on them glides against the camera (the plate, sheet.camMoving)
+  function startMoving(){ if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); shed(true); } }
   function put(next){
-    if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); shed(true); }
+    startMoving();
     cam = next; ui.cam = cam;
     host.style.left = '0px'; host.style.top = '0px';
     host.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.k.toFixed(5)})`;
@@ -62,6 +64,7 @@ export function initCanvas(C){
   function go(to, { spring = false, ms = dur('travel') } = {}){
     clearTimeout(movedT);
     if (reduced() || !ui.ready){ stop(); put(to); settled(); return; }
+    startMoving();
     motion = { from: { ...cam }, to, t0: performance.now(), ms, spring, sx: { x: cam.x, v: 0 }, sy: { x: cam.y, v: 0 }, last: performance.now() };
     if (!raf) raf = requestAnimationFrame(frame);
   }
@@ -245,7 +248,7 @@ export function initCanvas(C){
     put(softCam({ ...drag.cam, x: drag.cam.x + e.clientX - drag.x, y: drag.cam.y + e.clientY - drag.y }, geo, view));
   }
   // the pointer is over a sheet (not the mat, the gap or the panel): `inPages` is false when something else (the panel) is on top
-  const sheetOver = (x, y, inPages = true) => { if (geo) C.sheetOver?.(inPages && onPage(cam, geo, x, y)); };
+  const sheetOver = (x, y, inPages = true) => { if (geo) C.sheetOver?.(inPages && onPage(cam, geo, x, y), y); };
   function up(e){
     pointers.delete(e.pointerId);
     if (pinch && pointers.size < 2){ pinch = null; go(hardCam(cam, geo, view), { spring: true }); }
@@ -275,7 +278,7 @@ export function initCanvas(C){
   }
 
   // Space pans (outside a line, where it is a space)
-  const typingIn = t => !!t?.closest?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select, [contenteditable=true], [contenteditable=plaintext-only]');
+  const typingIn = t => !!t?.closest?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select, .ddbtn, [contenteditable=true], [contenteditable=plaintext-only]');
   function keydown(e){
     if (e.code === 'Space' && !typingIn(e.target) && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest?.('input, select, textarea, button, a, summary, [contenteditable], [role=button], [role=checkbox], [tabindex]')){
       space = true; document.body.classList.add('is-space'); C.sheet.setHand(false, true); e.preventDefault();
@@ -316,8 +319,6 @@ export function initCanvas(C){
     // a drag that moved the pages must not also be a click on a line
     get handed(){ return performance.now() - handedAt < 250; },
     get geo(){ return geo; }, get view(){ return view; }, get fit(){ return fit; }, get scene(){ return scene; },
-    // dials from the console
-    set(d){ Object.assign(dials, d); },
     // where a rectangle of the page (its own pixels, from the sheet's corner) is on the screen
     screenRect(r){ return { left: cam.x + r.left * cam.k, top: cam.y + r.top * cam.k, width: r.width * cam.k, height: r.height * cam.k }; },
     put(next){ stop(); put(next); settled(); },

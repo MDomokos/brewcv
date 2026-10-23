@@ -11,7 +11,7 @@
 //   - every place keeps its state: the editor its selection, the Library its search, ticks and selection, Career its scroll,
 //   - the seam (undo, redo and Saved) is in the same spot on all three places, within 1px,
 //   - Tea's tags swing when the pointer brushes past, in steps, and rest within 0.75 s; nothing moves in Coffee or under reduced motion,
-//   - in Coffee every new part has a square corner and no shadow.
+//   - in Coffee every new part has a square corner and no soft shadow (the place track sunk and its thumb raised by a hard edge).
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
 
 import { chromium } from 'playwright';
@@ -224,11 +224,13 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
       const e = document.querySelector(sel); if (!e){ bad.push(`${sel}: missing`); continue; }
       const s = getComputedStyle(e, pseudo), radii = ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].map(c => parseFloat(s[`border${c}Radius`]));
       if (radii.some(r => r > 2.01)) bad.push(`${sel}${pseudo ?? ''} radius ${radii}`);
-      if (s.boxShadow !== 'none') bad.push(`${sel}${pseudo ?? ''} shadow ${s.boxShadow}`);
+      // the track is sunk and the thumb raised (UX-6 sidebar, the switchers' depth): Coffee's own hard edge, never a blurred shadow
+      const hard = (sel === '#ptabs') && s.boxShadow !== 'none' && [...s.boxShadow.matchAll(/(-?[\d.]+)px (-?[\d.]+)px ([\d.]+)px/g)].every(m => m[3] === '0');
+      if (s.boxShadow !== 'none' && !hard) bad.push(`${sel}${pseudo ?? ''} shadow ${s.boxShadow}`);
     }
     return bad;
   });
-  ok('Coffee: the place tabs (and the pill’s thumb), the place card, #scr and the seam have square corners and no shadow', flatSquare.length === 0, flatSquare.join(' ; '));
+  ok('Coffee: the place tabs (and the pill’s thumb), the place card, #scr and the seam have square corners and no soft shadow (the track is sunk and the thumb raised by a hard edge, nothing else has one)', flatSquare.length === 0, flatSquare.join(' ; '));
   await coffee.ctx.close();
 }
 

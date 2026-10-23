@@ -109,15 +109,19 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
     const before = u.work().work[0].highlights.length;
     const h = fromPage(u, fact);
     ok('🗑 is in the header, above the versions', h.includes('data-act="delete-claim"') && h.indexOf('data-act="delete-claim"') < h.indexOf('<span class="lbl">'));
+    // UX-6 round 2: a claim with more than one version asks first, in place; the second press deletes
     await u.click('delete-claim');
+    const asked = u.edit.bulletView(u.ui.sel);
+    ok('a claim with more than one version asks first, in place: the question, Cancel, then the delete last; nothing is deleted yet', u.work().facts.some(f => f.id === fact.id) && /class="missbar delask"/.test(asked) && asked.indexOf('data-act="delete-claim-no"') > -1 && asked.indexOf('data-act="delete-claim-no"') < asked.lastIndexOf('data-act="delete-claim"'));
+    await u.click('delete-claim', { sure: '1' });
     ok('it deletes the claim and every version', u.work().work[0].highlights.length === before - 1 && !u.work().facts.some(f => f.id === fact.id));
-    ok('it asks nothing (Ctrl+Z brings it back), and the panel goes back to the job', u.store.history.undo > 0 && u.ui.sel.kind === 'job' && u.store.undo() === 'Delete claim' && u.work().facts.some(f => f.id === fact.id));
+    ok('it asks nothing more (Ctrl+Z brings it back), and the panel goes back to the job', u.store.history.undo > 0 && u.ui.sel.kind === 'job' && u.store.undo() === 'Delete claim' && u.work().facts.some(f => f.id === fact.id));
     const v = await makeUi({ resume: 0 });
     const job = v.work().work[0];
-    for (const id of [...job.highlights.slice(1)]){ fromPage(v, { job: job.id, id }); await v.click('delete-claim'); }
+    for (const id of [...job.highlights.slice(1)]){ fromPage(v, { job: job.id, id }); await v.click('delete-claim', { sure: '1' }); }
     fromPage(v, { job: job.id, id: v.work().work[0].highlights[0] });
     const left = v.work().work[0].highlights.length;
-    await v.click('delete-claim');
+    await v.click('delete-claim', { sure: '1' });
     ok('a job keeps its last claim (the same message as before)', left === 1 && v.work().work[0].highlights.length === 1 && v.toasts.at(-1)?.tone === 'bad');
   }
 
@@ -135,8 +139,9 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
       && (list.match(/<section class="clg open[ "]/g) ?? []).length === (list.match(/<section class="clg[ "]/g) ?? []).length && !list.includes('class="new-claim"'));
     const outline = String(u.checklist.outlineHtml());
     const og = (outline.match(new RegExp(`<section class="clg open[^"]*" data-g="${job.id}">[\\s\\S]*?</section>`)) ?? [''])[0];
-    ok('in the Outline the job in focus is open, with its lines that are on, “+ n more” and “+ line”; Edit’s job panel no longer lists its lines or the box',
-      og.includes('class="clrow') && og.includes('data-act="ol-newline"') && !og.includes('data-act="ol-addline"') && /data-act="ol-more"/.test(og) && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('data-act="add-claim"') && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('class="clrow'));
+    // (UX-6 sidebar: the lines that are off stay in place, greyed, where "+ n more" folded them; the fold holds only archived lines)
+    ok('in the Outline the job in focus is open, with its lines, those that are off in place, and “+ line”; Edit’s job panel no longer lists its lines or the box',
+      og.includes('class="clrow') && og.includes('data-act="ol-newline"') && !og.includes('data-act="ol-addline"') && (og.match(/class="clrow/g) ?? []).length >= w.work.find(x => x.id === job.id).highlights.filter(h => !w.facts.find(f => f.id === h)?.archived).length && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('data-act="add-claim"') && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('class="clrow'));
     ok('…and a line that is not in a job has no open job in the Outline', (u.select({ kind: 'bullet', id: w.basics.summary, section: 'summary' }), !/<section class="clg open/.test(String(u.checklist.outlineHtml()))));
     u.select({ kind: 'job', id: job.id });
     await u.click('ol-addline', { id: job.id });
@@ -152,9 +157,9 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
     const u = await makeUi({ resume: 0 });
     const job = u.work().work[0];
     const h = String(u.edit.jobView({ kind: 'job', id: job.id }));
-    ok('a job’s panel: its position, its meta line, the switch, and a Details fold that starts shut', /<h2 class="title">/.test(h) && /class="meta"/.test(h) && h.includes(`data-jobon="${job.id}"`) && /<details class="jr details" data-det="[^"]+" >/.test(h));
+    ok('a job’s panel (J, rewritten; the title row and the meta line with a pencil each): a header card with its position and its meta line (no switch of its own: the chip\'s tick is the job\'s), and a Details fold that starts shut', /<div class="hdr"[^>]*><nav[\s\S]*<div class="hcard"><div class="hband hhead jhead"><h2 class="title">/.test(h) && /class="meta"/.test(h) && /data-act="job-fact" data-id="[^"]*-position"/.test(h) && /data-act="job-fact" data-id="[^"]*-meta"/.test(h) && !h.includes(`data-jobon="${job.id}"`) && /<details class="jr details" data-det="[^"]+" >/.test(h));
     ok('the old “Title and meta line” rows and the bullets list are not in it (the checklist lists the lines)', !/Title and meta line/.test(h) && !h.includes('data-act="select-fact"') && !h.includes('data-on='));
-    ok('it holds title, employer, dates, “works here now”, place and More fields (JSON Resume)', ['c-pos', 'c-org', 'c-start', 'c-end', 'c-current', 'c-loc'].every(id => h.includes(`id="${id}"`)) && /More fields \(JSON Resume\)/.test(h));
+    ok('it holds title, employer, dates (month pickers), place and More fields (JSON Resume)', ['c-pos', 'c-org', 'c-start', 'c-end', 'c-loc'].every(id => h.includes(`id="${id}"`)) && /More fields \(JSON Resume\)/.test(h));
     ok('its fields are one form, committed as you leave them', h.includes(`data-form="entry" data-key="work" data-id="${job.id}"`) && !/data-act="c-save"/.test(h));
     ok('the “From Career” line and the “Edit in Career →” link are gone', !/Edit in Career/.test(h) && !/to-career/.test(h));
     // the fold remembers it was opened

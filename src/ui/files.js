@@ -2,6 +2,7 @@
 // with checkpoints, and Compare with a file. Models: src/model/import.js and src/model/diff.js.
 
 import { inDesktop } from './ask.js';
+import { withArrows } from './icons.js';
 import * as I from '../model/import.js';
 import * as D from '../model/diff.js';
 import * as RS from '../model/resumes.js';
@@ -40,7 +41,7 @@ function importView(){
 function reviewView(){
   const g = F.got;
   if (!g) return importView();
-  if (g.kind === 'error') return `<a class="back" data-act="goto" data-v="import">${h('files.backImport')}</a><h2 class="title">${esc(g.file)}</h2><div class="missbar">${esc(g.message)}</div>`;
+  if (g.kind === 'error') return `<a class="back" data-act="goto" data-v="import">${withArrows(h('files.backImport'))}</a><h2 class="title">${esc(g.file)}</h2><div class="missbar">${esc(g.message)}</div>`;
   const rows = g.review?.rows ?? [];
   let actions = '', warn = '';
   const v = g.kind === 'backup' ? g.verdict : null;
@@ -52,12 +53,12 @@ function reviewView(){
     if (v.kind === 'different') lines.push(t('save.different'));
     warn = `<div class="missbar ${v.kind === 'same' ? 'ok' : ''}" role="status">${lines.map(esc).join('<br>')}</div>`;
     if (v.kind === 'same') actions = '';
-    else if (v.kind === 'different') actions = `<button class="primary" data-act="imp-merge">${h('save.merge')}</button><button data-act="imp-replace">${h('files.replaceMine')}</button>`;
-    else actions = `<button class="primary" data-act="imp-save-first">${h('save.saveFirst')}</button><button data-act="imp-merge">${h('save.merge')}</button><button data-act="imp-replace">${h('save.replaceAnyway')}</button>`;
+    else if (v.kind === 'different') actions = `<button class="primary" data-act="imp-merge">${h('save.merge')}</button><button class="del" data-act="imp-replace">${h('files.replaceMine')}</button>`;
+    else actions = `<button class="primary" data-act="imp-save-first">${h('save.saveFirst')}</button><button data-act="imp-merge">${h('save.merge')}</button><button class="del" data-act="imp-replace">${h('save.replaceAnyway')}</button>`;
   } else if (g.kind === 'library' || g.kind === 'jsonresume' || g.kind === 'backup'){
     actions = isExample()
       ? `<button class="primary" data-act="imp-replace">${h('files.openIt')}</button><button data-act="imp-merge">${h('files.addToExample')}</button>`
-      : `<button class="primary" data-act="imp-merge">${h('files.addToMine')}</button><button data-act="imp-replace">${h('files.replaceMine')}</button>`;
+      : `<button class="primary" data-act="imp-merge">${h('files.addToMine')}</button><button class="del" data-act="imp-replace">${h('files.replaceMine')}</button>`;      // replacing your record is the far end: the delete look, no bin
   } else if (g.kind === 'resume'){
     const pm = I.picksMatched(st().record, g.recipe);
     actions = `<button class="primary" data-act="imp-resume">${h('files.openIt')}</button>`;
@@ -66,7 +67,7 @@ function reviewView(){
     actions = `<button class="primary" data-act="imp-theme">${h('files.addTheme')}</button>`;
   }
   const out = g.outside ?? [];
-  return `<a class="back" data-act="goto" data-v="import">${h('files.backImport')}</a><h2 class="title">${esc(KIND(g.kind) ?? g.kind)}</h2>
+  return `<a class="back" data-act="goto" data-v="import">${withArrows(h('files.backImport'))}</a><h2 class="title">${esc(KIND(g.kind) ?? g.kind)}</h2>
     <p class="muted small">${esc(g.file)}</p>
     ${warn}
     <table class="kv">${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
@@ -95,10 +96,10 @@ function itemsHtml(items, checkable){
 function mergeView(){
   const items = F.items ?? [];
   const n = items.filter(x => x.on && x.kind !== 'keep').length;
-  return `<a class="back" data-act="goto" data-v="review">${h('merge.cancel')}</a><h2 class="title">${h('merge.title', { file: F.got?.file ?? '' })}</h2>
+  return `<a class="back" data-act="goto" data-v="review">${withArrows(h('merge.cancel'))}</a><h2 class="title">${h('merge.title', { file: F.got?.file ?? '' })}</h2>
     <p class="small">${h('merge.intro')}</p>
     ${itemsHtml(items, true)}
-    <div class="btns"><button class="ghost" data-act="imp-replace">${h('merge.replaceInstead')}</button><span class="grow"></span><button class="primary" data-act="imp-do-merge" ${n ? '' : 'disabled'}>${h('merge.doN', { n })}</button></div>`;
+    <div class="btns"><button class="primary" data-act="imp-do-merge" ${n ? '' : 'disabled'}>${h('merge.doN', { n })}</button><button class="del" data-act="imp-replace">${h('merge.replaceInstead')}</button></div>`;
 }
 
 function historyView(){
@@ -285,5 +286,4 @@ const api = {
   views: { import: importView, review: reviewView, merge: mergeView, history: historyView },
   act, bind, openFile, take,
   compareFolder: () => act('cp-folder'),
-  resetHistory(){ F.history.list = null; },
 };

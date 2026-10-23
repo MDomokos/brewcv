@@ -19,7 +19,7 @@ A tag is a way to sort, not a list of everything you can do. Name tags after the
 The list is closed, so it cannot grow by accident:
 
 - A wording takes only a tag that is on the list. Typing a new name on a wording is refused with a message; you do not get a new tag by a typo.
-- Tags are made, renamed, merged and deleted in one place: the **Tags** part of the Job types panel (**Job types…**, under Skills and credentials in the Record tab).
+- Tags are made, renamed, merged and deleted in one place: the **Tags** part of the Job types panel (**Job types…**, under Skills and credentials in Career).
 - The list holds at most 12 tags. When it is full the new-tag box is shut, and the way out is to merge two tags that mean the same, or delete one you don't use. A record that already has more keeps them; it only cannot add more.
 - **Rename** changes the tag on every wording and in every job type at once. **Merge into…** puts one tag in place of another everywhere, once. The bin removes a tag from every wording and job type. Each is one undo step.
 
@@ -27,7 +27,7 @@ A good test: if a tag would never appear in a job type, you probably don't need 
 
 ## Set up job types
 
-1. In the Edit panel with nothing selected, choose **Add job types** beside the Highlight row (or open **Skills and credentials** in the Record tab and choose **Job types…**). The panel lists them.
+1. In the Edit panel with nothing selected, choose **Add job types** beside the Highlight row (or open **Skills and credentials** in Career and choose **Job types…**). The panel lists them.
 2. Type a name, for example `CAD designer`, and choose **Add job type**.
 3. In the new row, type a tag and press Enter. The box takes only a tag from the list (it suggests them); to make a new one, add it under **Tags** first. Add as many as the kind of job needs. Remove one with its ×.
 4. Rename a job type by editing its name. Delete one with the bin; resumes you saved with that job type keep its name as written.
@@ -59,7 +59,7 @@ Old material that saved resumes still print can't be deleted without changing th
 - **A whole job.** Open the job, open its **Details** and choose **Archive job**. The checklist and the timeline hide it behind an "n archived" button.
 - **What archiving changes.** New resumes, Focus and Fit never switch on an archived claim or job. Tag counts leave them out.
 - **What it does not change.** Saved resumes keep printing an archived claim or job exactly as before, including the text they saved. In the checklist an archived claim that a resume prints stays in its job's list with an "archived" badge, and you can untick it. To switch an archived claim on, unarchive it first.
-- **Order.** A resume prints a job's ticked bullets in the order that resume sets. Drag a ticked row in the Record tab or in a job's own lines, or focus it (or select it on the page) and press Alt+↑ or Alt+↓. Ticking a line off and on again leaves the order of the rest alone.
+- **Order.** A resume prints a job's ticked bullets in the order that resume sets. Drag a ticked row in Career or in a job's own lines (grab it anywhere, or by its grip), or focus it (or select it on the page) and press Alt+↑ or Alt+↓. Ticking a line off and on again leaves the order of the rest alone.
 - Archiving can be undone with Ctrl+Z, and merging two records shows archiving and unarchiving as changes you can tick.
 
 ## In your file

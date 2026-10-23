@@ -4,7 +4,7 @@
 //   - A line is written where it is printed: the element on the page becomes editable, holding the plain text of the version
 //     (src/ui/plain.js reads it back, so the text is exactly what the old text box held). Everything else is the editor's own
 //     (src/ui/edit.js): the draft, the live preview, keeping it on this resume when the line is left.
-//   - A small quiet chip lies on the top-right corner of the dashed frame of the block being edited: where you are in single words (Page › Experience › Hydra), each
+//   - A small quiet chip lies on the top-right corner of the plate of the block being edited: where you are in single words (Page › Experience › Hydra), each
 //     level a button. The same component heads the editor card (parts.js depthHtml), at its normal size.
 //   - The tools sit beside a line being written, in the page's right margin: the version number, ↑ and ↓, the counts.
 // All of it is drawn in the app's layer (#editlay), over the page; the page's own markup and its measurements are never touched,
@@ -13,18 +13,19 @@
 // there is no writing zoom: the camera only scrolls the line into view.
 
 import { plainOf, caretOf, setCaret } from './plain.js';
-import { toolsHtml, statsCompactHtml, esc } from './parts.js';
+import { toolsHtml, esc } from './parts.js';
 import * as R from '../model/record.js';
-import { readZoomWrite, readZoomWriteOn, readDimJob, readDimLine } from './dock.js';
+import { readZoomWrite, readZoomWriteOn, DIM } from './dock.js';
 import { step, lineSel, keyOf } from './select.js';
 import * as T from '../model/resume.js';
 import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
 import { reduced } from './motion.js';
 import { icon } from './icons.js';
+import { off } from './plate.js';
 
 const $ = (s, r = document) => r.querySelector(s);
-const PAD_JOB = 6, PAD_LINE = 4, PAD_ITEM = 2, PAD_SEC = 12;       // a section's frame stands off enough for the chip's lower half to clear its first line; an item's stands off less, so it stays off its neighbours (the chip finds a free place)
+// how far each level's plate stands off its block (the tokens, workbench.css): the chip and the grips stand on the plate's edge, and a job's veil is cut round it
 const pad = (r, p) => (r ? { left: r.left - p, top: r.top - p, width: r.width + 2 * p, height: r.height + 2 * p } : null);
 
 export function initOnPage(C){
@@ -95,7 +96,7 @@ export function initOnPage(C){
     if (!lay.dataset.vers){ lay.dataset.vers = '1'; bindVers(); }
     const lvl = level();
     if (zoomed && !ui.writing && ui.sel.kind === 'none'){ zoomed = false; canvas.reset(); }      // the page level: the view comes back out
-    sheet.setWriting(lvl === 'line' ? readDimLine() : null);
+    sheet.setWriting(lvl === 'line' ? DIM.line : null);
     if (lvl === 'page'){ if (lay.firstChild) lay.replaceChildren(); geom = null; sig = ''; return; }
     read();
     // a job or a line that is not on this resume has nothing on the page to frame
@@ -108,14 +109,9 @@ export function initOnPage(C){
     sig = sg;
     const keep = document.activeElement?.closest?.('#editlay') ? document.activeElement.dataset?.act : null;
     const html = [];
-    const dim = readDimJob();
-    if (lvl === 'job') for (let i = 0; i < geom.boxes.length; i++) html.push(`<div class="obveil" data-p="${i}" style="opacity:${((100 - dim) / 100).toFixed(3)}"></div>`);
-    if (geom.job && (lvl === 'job' || lvl === 'line')) html.push(`<div class="obframe job${lvl === 'line' ? ' dashed' : ''}"></div>`);
-    else if (geom.sec) html.push('<div class="obframe sec dashed"></div>');       // a section or a line outside a job: the frame the chip sits on
-    if (lvl === 'line' && geom.line) html.push('<div class="obframe line"></div>');
     const tools = toolsFor(lvl);
     if (tools) html.push(`<div class="obtoolswrap" role="region" aria-label="${esc(t('ux3.tools'))}">${tools}</div>`);
-    if (edit().lockedId(edit().lockIdOf())) html.push(`<div class="oblockmark" aria-hidden="true">${icon('lock', { size: 11 })}</div>`);      // a locked block shows no grip: the padlock stands at its corner
+    if (edit().softShown && edit().softShown === ui.sel.id && geom.line) html.push(`<button type="button" class="obsoft press" data-tier="tertiary" data-act="soft-unlock" aria-label="${esc(t('ux6f.softUnlock'))}">${icon('lock', { role: 'inline' })}</button>`);      // a guarded line (the name, a date, the contact): the lock that opens it for writing
     html.push(`<div class="obchip">${chipHtml}</div>`);
     lay.innerHTML = html.join('');
     place();
@@ -133,7 +129,7 @@ export function initOnPage(C){
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
     if (!ed || ed.group || ed.label) return '';      // a skill group, a heading and a language's name have no versions
     const vn = C.work().variants.find(v => v.id === ed.vid)?.n ?? '·';       // the version the line was written from
-    return toolsHtml({ vn, tag: { fact, items: versionItems(fact), mine: isMine(fact), locked: edit().lockedId(fact) ? t('ux6c.lockedHint') : '' }, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact), counts: statsCompactHtml(ed) });
+    return toolsHtml({ vn, tag: { fact, items: versionItems(fact), mine: isMine(fact), locked: edit().lockedId(fact) ? t('ux6c.lockedHint') : '' }, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact) });
   }
 
   // the text of the line is on this resume only: an edit kept, or one being typed
@@ -161,9 +157,16 @@ export function initOnPage(C){
   function openVers(how){
     const l = list(), b = tag();
     if (!l || !b || b.disabled) return;
-    if (l.hidden){ l.hidden = false; b.setAttribute('aria-expanded', 'true'); }
+    if (l.hidden){ l.hidden = false; b.setAttribute('aria-expanded', 'true'); capStacks(l, b); }
     opened = how;
-    if (how === 'key' || how === 'click'){ l.focus({ preventScroll: true }); markOpt(l.querySelector('.obvopt.cur') ?? l.querySelector('.obvopt'), false); }
+    if (how === 'key' || how === 'click') l.focus({ preventScroll: true });      // no number is marked: the arrows start from the pill
+  }
+  // a stack that would run out of the visible canvas (the window's top, the zoom bar at the bottom) is capped and scrolls, anchored at the pill: the pill never moves
+  function capStacks(l, b){
+    const v = canvas.view ?? { top: 0, height: innerHeight }, r = b.getBoundingClientRect();
+    const up = l.querySelector('.obvstack.up'), dn = l.querySelector('.obvstack.dn');
+    if (up){ up.style.maxHeight = `${Math.max(28, r.top - (v.top + 6))}px`; up.scrollTop = up.scrollHeight; }      // the nearest lower version stays by the pill
+    if (dn){ dn.style.maxHeight = `${Math.max(28, v.top + v.height - 56 - r.bottom)}px`; dn.scrollTop = 0; }
   }
   // end: the preview goes too (not when a version was just chosen: the choice takes the page over)
   function closeVers({ end = true, back = false } = {}){
@@ -180,19 +183,20 @@ export function initOnPage(C){
     const l = list();
     if (!l || !o) return;
     l.querySelectorAll('.act').forEach(x => x.classList.remove('act'));
-    o.classList.add('act'); l.setAttribute('aria-activedescendant', o.id);
+    o.classList.add('act'); l.setAttribute('aria-activedescendant', o.id); o.scrollIntoView({ block: 'nearest' });
     if (!preview) return;
-    if (o.dataset.v && !o.classList.contains('cur')) C.previewVersion(l.dataset.fact, o.dataset.v); else C.endHover();
+    if (o.dataset.v) C.previewVersion(l.dataset.fact, o.dataset.v); else C.endHover();
   }
   function versKey(e){
     const l = list(), b = tag();
     if (!l || !b) return;
     if (e.target === b && ['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)){ e.preventDefault(); e.stopPropagation(); openVers('key'); return; }
     if (e.target !== l) return;
-    const os = [...l.querySelectorAll('.obvopt')], at = Math.max(0, os.indexOf(optAct())), stop = () => { e.preventDefault(); e.stopPropagation(); };
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){ stop(); markOpt(os[Math.min(os.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)))]); }
+    // screen order is number order (lower stack, then higher stack); the pill is the gap between them: with none marked the arrows start there, Up to the next lower number, Down to the next higher
+    const os = [...l.querySelectorAll('.obvopt')], gap = l.querySelectorAll('.obvstack.up .obvopt').length - .5, i = os.indexOf(optAct()), at = i < 0 ? gap : i, stop = () => { e.preventDefault(); e.stopPropagation(); };
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){ stop(); markOpt(os[Math.min(os.length - 1, Math.max(0, e.key === 'ArrowDown' ? Math.floor(at + 1) : Math.ceil(at - 1)))]); }
     else if (e.key === 'Home' || e.key === 'End'){ stop(); markOpt(os[e.key === 'Home' ? 0 : os.length - 1]); }
-    else if (e.key === 'Enter' || e.key === ' '){ stop(); const o = optAct(); closeVers({ end: false }); if (o && !o.classList.contains('cur')) o.click(); else C.endHover(); }
+    else if (e.key === 'Enter' || e.key === ' '){ stop(); const o = optAct(); closeVers({ end: false }); if (o) o.click(); else C.endHover(); }
     else if (e.key === 'Escape'){ stop(); closeVers({ back: true }); }
     else if (e.key === 'Tab') closeVers();
   }
@@ -203,30 +207,16 @@ export function initOnPage(C){
     lay.addEventListener('mouseout', e => { const w = e.target.closest?.('.obvwrap'); if (w && !w.contains(e.relatedTarget) && opened !== 'key' && !touched) closeVers(); });      // a finger leaves nothing to leave: the list stays until a number is chosen, Esc, or a tap elsewhere
     lay.addEventListener('focusin', e => { if (!quiet && e.target.closest?.('.obv[aria-haspopup]') && list()?.hidden) openVers('focus'); });
     lay.addEventListener('focusout', e => { const w = e.target.closest?.('.obvwrap'); if (w && !w.contains(e.relatedTarget)) closeVers(); });
-    lay.addEventListener('click', e => { if (e.target.closest?.('.obvopt:not(.cur)')) closeVers({ end: false }); });      // the choice (shell.js) takes the page over
+    lay.addEventListener('click', e => { if (e.target.closest?.('.obvopt')) closeVers({ end: false }); });      // the choice (shell.js) takes the page over
   }
 
-  const secPad = () => (geom.itemFrame ? PAD_ITEM : PAD_SEC);
+  const secPad = () => (geom.itemFrame ? off('group') : off('section'));
   // where everything is on the screen: follows the camera
   function place(){
     if (!geom || !lay) return;
     const lvl = level();
     const R = r => (r ? canvas.screenRect(r) : null);
-    const hole = lvl === 'job' ? R(pad(geom.job, PAD_JOB)) : null;
-    lay.querySelectorAll('.obveil').forEach(v => {
-      const b = geom.boxes[Number(v.dataset.p)];
-      if (!b) return;
-      const s = R(b);
-      Object.assign(v.style, { left: `${s.left}px`, top: `${s.top}px`, width: `${s.width}px`, height: `${s.height}px`, background: b.bg });
-      if (hole){
-        const x = hole.left - s.left, y = hole.top - s.top;
-        v.style.clipPath = `polygon(evenodd, 0 0, ${s.width}px 0, ${s.width}px ${s.height}px, 0 ${s.height}px, 0 0, ${x}px ${y}px, ${x + hole.width}px ${y}px, ${x + hole.width}px ${y + hole.height}px, ${x}px ${y + hole.height}px, ${x}px ${y}px)`;
-      } else v.style.clipPath = '';
-    });
-    const box = (el, r) => { if (!el || !r) return; Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); };
-    box(lay.querySelector('.obframe.job'), R(pad(geom.job, PAD_JOB)));
-    box(lay.querySelector('.obframe.line'), R(pad(geom.line, PAD_LINE)));
-    box(lay.querySelector('.obframe.sec'), R(pad(geom.sec, secPad())));
+    const fit = (r, p) => { const o = r && sheet.fitOff(r, p); return o ? { left: r.left - o.x, top: r.top - o.y, width: r.width + 2 * o.x, height: r.height + 2 * o.y } : null; };      // the selected block's plate, fitted as it is drawn (sheet.fitOff)
     // the tools sit beside the line, in the page's right margin
     const tw = lay.querySelector('.obtoolswrap');
     const fact = lvl === 'line' ? S?.fact : null;
@@ -236,19 +226,25 @@ export function initOnPage(C){
       const edgeR = R({ left: pg.left + pg.width - pg.padRight, top: lr.top, width: 0, height: 0 });
       const sr = R(lr);
       const view = canvas.view, room = view ? view.left + view.width : innerWidth, twW = tw.offsetWidth;
-      const x = Math.min(edgeR.left + 8, room - Math.max(44, twW + 6));
+      const ring = geom.sec && !geom.itemFrame ? R(pad(geom.sec, off('section') + 1)) : null;      // outside the section's ring (UX-6f 4c: the tools cross no line of the plate's)
+      // The row stays right of the line. Its ↑ ↓ may run past `room` and slide under the sidebar (the layer is below it); only when the
+      // pill itself would be partly covered does the whole row go left of the line, all together, never split.
+      const pw = tw.querySelector('.obvwrap, .obv')?.offsetWidth ?? twW, x = Math.max(edgeR.left + 8, ring ? ring.left + ring.width + 4 : 0);
       let left = Math.max(sr.left + sr.width + 6 > x ? sr.left + sr.width + 6 : x, 6);
-      if (left + twW > room) left = Math.max(6, sr.left - twW - 6);       // no room right of the line (a narrow window): to its left, never under the tabs
+      if (left + pw + 3 > room) left = Math.max(6, sr.left - twW - 6);
+      // what runs past the sidebar's rail is hidden: the arrows go behind the editor (the layer is under the sidebar, but the rail's empty height shows through)
+      const rl = document.querySelector('#rail')?.getBoundingClientRect(), cut = rl && rl.width ? Math.max(room, rl.left) : room, over = left + twW - cut;
+      tw.style.clipPath = over > 0 ? `inset(-6px ${Math.ceil(over)}px -6px -6px)` : '';
       Object.assign(tw.style, { left: `${left}px`, top: `${Math.max(6, sr.top - 4)}px` });
     } else if (tw) tw.style.display = 'none';
-    frameNow = geom.job && (lvl === 'job' || lvl === 'line') ? R(pad(geom.job, PAD_JOB)) : R(pad(geom.sec ?? geom.job ?? geom.line, secPad()));
+    frameNow = geom.job && (lvl === 'job' || lvl === 'line') ? R(lvl === 'job' ? fit(geom.job, off('job')) : pad(geom.job, off('job'))) : R(fit(geom.sec ?? geom.job ?? geom.line, secPad()));      // a line's frame is its job's ring, at its full stand-off
     placeChip(lay.querySelector('.obchip'), frameNow);
-    const mark = lay.querySelector('.oblockmark');
-    if (mark && frameNow) Object.assign(mark.style, { left: `${Math.round(frameNow.left - 14)}px`, top: `${Math.round(frameNow.top - 14)}px` });      // outside the corner: the job's title starts a few px inside the frame
+    const soft = lay.querySelector('.obsoft'), sl = soft && geom.line ? R(pad(geom.line, off('line'))) : null;
+    if (sl) Object.assign(soft.style, { left: `${Math.round(sl.left - 14)}px`, top: `${Math.round(sl.top - 14)}px` });      // on the line's top-left corner: its right side has the photo slot, its left the grip
   }
-  // One rule: the chip lies on the dashed frame of the current block (the job's, or the section's), centred on its top edge in its
-  // top-right corner. Kept inside the page, in the pages' room (never under the rail or the sidebar) and above the zoom bar; moved
-  // along the edge until it is clear of printed text and of the tools beside the line. It follows the frame with the camera.
+  // One rule: the chip lies on the plate of the current block (the job's, or the section's), centred on its top edge in its
+  // top-right corner (where the top edge has no clear place, the bottom edge). Kept inside the page, in the pages' room (never under the rail or the sidebar) and above the zoom bar; moved
+  // along the edge until it is clear of printed text, of the tools beside the line and of the photo slot. It follows the frame with the camera.
   function placeChip(chip, f){
     if (!chip || !f) return;
     const v = canvas.view ?? { left: 0, top: 0, width: innerWidth, height: innerHeight };
@@ -256,21 +252,22 @@ export function initOnPage(C){
     const pg = geom.boxes.map(b => canvas.screenRect(b)).find(b => f.left >= b.left - 1 && f.left < b.left + b.width);
     const lo = Math.max(v.left + 6, pg ? pg.left + 2 : -Infinity), hi = v.left + v.width - w - 6;      // the chip may stand past the page's right edge, on the desk, when the page's margin has no clear place for its tools
     const lowest = v.top + v.height - h - 56;
-    // on the edge, else just above it (a tight item frame has text under its edge); then each of those 3px up or down, still on the edge: with denser lines (a larger text size) the gap between two lines can be a pixel short of the chip
-    const ys = [0, -3, 3].flatMap(d => [f.top - h / 2, f.top - h].map(y => Math.max(v.top + 6, Math.min(y, lowest)) + d));
+    // on the top edge, else just above it (a tight item frame has text under its edge), each also 3px up or down (with denser lines the gap between two lines can be a pixel short of the chip);
+    // else on the bottom edge or just under it (UX-6f 4c: never over text)
+    const clampY = y => Math.max(v.top + 6, Math.min(y, lowest));
+    const top = [0, -3, 3].flatMap(d => [f.top - h / 2, f.top - h].map(y => clampY(y) + d)), ys = [...top, ...[f.top + f.height - h / 2, f.top + f.height].map(clampY)];
     const texts = sheet.textRects().map(r => canvas.screenRect(r));
-    const tw = lay.querySelector('.obtoolswrap'), tr = tw && tw.style.display !== 'none' ? tw.getBoundingClientRect() : null;
+    const tw = lay.querySelector('.obtoolswrap'), tr = tw && tw.style.display !== 'none' ? tw.getBoundingClientRect() : null, sr = document.querySelector('#handlay .obslot:not([hidden])')?.getBoundingClientRect(), pl = document.querySelector('#handlay .obplus:not([hidden])')?.getBoundingClientRect();      // and the photo slot and the "+" (hands.js)
     const hit = (x, q, y) => x < q.left + q.width && x + w > q.left && y < q.top + q.height && y + h > q.top;
+    const gt = { left: f.left - 14 * canvas.cam.k - 12, top: f.top - 2, width: 28 * canvas.cam.k + 14, height: f.height + 4 };      // the grip's tab at the frame's left side, widened out of it or inside it (sheet.tabBox, with its wider target): the chip keeps clear of it
+    const pz = geom.job ? { left: f.left + f.width / 2 - 44, top: f.top + f.height - 2, width: 88, height: 20 } : null;      // a selected job's "+" hangs at its bottom centre (hands.js), shown on a hover after the chip is placed
     const x0 = Math.max(lo, Math.min(f.left + f.width - w - 12, hi));
     // the corner first, then outwards along the edge into the page's margin, then inwards, to the first place clear of text and tools
     const xs = [x0, ...Array.from({ length: Math.max(0, Math.floor((hi - x0) / 8)) }, (_, i) => x0 + 8 * (i + 1)), ...Array.from({ length: Math.max(0, Math.floor((x0 - lo) / 8)) }, (_, i) => x0 - 8 * (i + 1))];
-    // a place in the frame's right half is looked for first, in every row: the desk beyond its right end only when there is none
-    const right = x => x + w / 2 > f.left + f.width / 2 && x < f.left + f.width;
     let y = ys[0], x;
-    for (const ok of [right, () => true]){
-      for (const yy of ys){ x = xs.find(x => ok(x) && !texts.some(q => hit(x, q, yy)) && !(tr && hit(x, tr, yy))); if (x !== undefined){ y = yy; break; } }
-      if (x !== undefined) break;
-    }
+    const right = xs.filter(x => x + w / 2 > f.left + f.width / 2 && x < f.left + f.width - 8);      // on the right half of the top edge first, at either height, then anywhere along an edge
+    for (const [yy, set] of [...top.map(yy => [yy, right]), ...ys.map(yy => [yy, xs])]){ x = set.find(x => !texts.some(q => hit(x, q, yy)) && !(tr && hit(x, tr, yy)) && !(sr && hit(x, sr, yy)) && !(pl && hit(x, pl, yy)) && !(pz && hit(x, pz, yy)) && !hit(x, gt, yy)); if (x !== undefined){ y = yy; break; } }
+    if (x === undefined) for (const yy of [...ys, Math.max(v.top + 6, f.top - h - 3)]){ x = xs.find(q => !hit(q, gt, yy)); if (x !== undefined){ y = yy; break; } }      // no place clear of everything: at least off the grip's tab
     Object.assign(chip.style, { left: `${x ?? x0}px`, top: `${y}px` });
   }
 
@@ -287,10 +284,16 @@ export function initOnPage(C){
     w.append(...lead);
     return w;
   }
+  // A skill group is written where it is printed, whole: its own paragraph, the name on the first line where its label stands and the skills below (UX-6f 4c: no second
+  // name under the real one). The label's and the skills' own looks are kept for the two lines (the frame's .skills__group[contenteditable] rules).
+  const fieldOf = el => (edit().editing?.group ? el?.closest('.skills__group') ?? el : el);
   function attach(el, caret = null, point = null){
     const ed = edit().editing;
     if (!ed) return;
-    el = writable(el);
+    if (ed.group){
+      const g = el.closest('.skills__group'), cs = q => g.ownerDocument.defaultView.getComputedStyle(g.querySelector(q) ?? g);
+      if (g){ el = g; const l = cs('.skills__label'), i = cs('.skills__items'); g.style.setProperty('--rb-gl', l.color); g.style.setProperty('--rb-gw', l.fontWeight); g.style.setProperty('--rb-gi', i.color); }
+    } else el = writable(el);
     S.el = el;
     // the plain text in, with its line breaks and spaces as they are; marks come back when it is saved and drawn again
     const onSkills = ed.group && point && !!el.ownerDocument.elementFromPoint(point.x, point.y)?.closest('.skills__items');      // a click on a group's skills puts the caret at their end (the group is written as name, line break, skills)
@@ -323,6 +326,7 @@ export function initOnPage(C){
       sel.removeAllRanges(); sel.addRange(r);
     }
     rememberCaret();
+    sheet.setWriting(DIM.line);      // the field is there now: its stand-off is measured and the plate takes it (UX-6f 4c)
   }
   // the caret under a point of the frame (Chromium and Safari, then Firefox)
   function caretAt(doc, p){
@@ -353,11 +357,25 @@ export function initOnPage(C){
     if (e.isComposing || e.keyCode === 229) return;
     const mod = e.ctrlKey || e.metaKey;
     const done = () => { e.preventDefault(); e.stopPropagation(); };
-    if (e.altKey && e.key === 'ArrowDown' && tag() && !tag().disabled){ done(); openVers('key'); return; }      // the way from the line to its versions
+    // Alt+↑ ↓ move the line, as the arrows beside it say (and as they do for a selected line); Alt+Shift+↓ is the way from the line to its versions
+    if (e.altKey && !mod && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){
+      if (e.shiftKey && e.key === 'ArrowDown' && tag() && !tag().disabled){ done(); openVers('key'); return; }
+      if (!e.shiftKey && lay?.querySelector('[data-act=ob-up]')){ done(); act(e.key === 'ArrowUp' ? 'ob-up' : 'ob-down'); return; }
+    }
     if (e.key === 'Escape'){ done(); edit().cancelEdit(); return; }
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey && edit().editing?.group && toSkills()){ done(); return; }
     if (e.key === 'Enter' && !e.shiftKey && !e.altKey){ done(); if (!addAfter() && !next(1)) edit().cancelEdit(); return; }
     if (e.key === 'Tab' && !mod && !e.altKey){ done(); next(e.shiftKey ? -1 : 1); return; }
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !mod && !e.altKey && !e.shiftKey && atEdge(e.target.closest('[contenteditable]') ?? S.el, e.key === 'ArrowDown' ? 1 : -1)){ done(); next(e.key === 'ArrowDown' ? 1 : -1); }
+  }
+  // Enter on a skill group's name goes down to its skills (their end), never a second name; on the skills it goes on as on a line. False when the caret is on the skills.
+  function toSkills(){
+    const tx = plainOf(S.el), nl = tx.indexOf('\n'), at = caretOf(S.el)?.start ?? tx.length;
+    if (nl >= 0 && at > nl) return false;
+    if (nl < 0){ S.el.textContent = `${tx}\n`; onInput(); }      // a group with no skills yet: their line is made
+    const end = plainOf(S.el).length;
+    setCaret(S.el, { start: end, end }); rememberCaret();
+    return true;
   }
   // Enter at a job's last line (with words in it): a new empty line after it, only on this resume until the Review list (UX-6d) makes
   // it a claim with a source. Written at once, in the same zoom. False when this is not that, or the job's last line is empty.
@@ -395,7 +413,7 @@ export function initOnPage(C){
   function begin(){
     const ed = edit().editing;
     if (!ed || phone() || ui.view || ui.snap) return false;
-    const el = sheet.elOf(ed.fact, C.ix());
+    const el = fieldOf(sheet.elOf(ed.fact, C.ix()));
     if (!el) return false;
     ui.writing = true;
     S = { fact: ed.fact, el: null, caret: null, composing: false };
@@ -417,7 +435,7 @@ export function initOnPage(C){
     S?.off?.();
     if (el?.isConnected){
       el.removeAttribute('contenteditable'); el.removeAttribute('role'); el.removeAttribute('aria-multiline'); el.removeAttribute('aria-label');
-      el.style.whiteSpace = '';
+      el.style.whiteSpace = ''; for (const v of ['--rb-gl', '--rb-gw', '--rb-gi']) el.style.removeProperty(v);
       C.redrawSoon?.();
     }
   }
@@ -440,9 +458,7 @@ export function initOnPage(C){
   function refresh(){
     if (!ui.writing) return;
     read();
-    const stats = $('#ob-stats');
     const ed = edit().editing;
-    if (stats && ed) stats.innerHTML = statsCompactHtml(ed);
     const b = tag();
     if (b && ed){ const m = isMine(ed.fact); b.classList.toggle('mine', m); m ? b.setAttribute('title', t('ux6g.onlyHere')) : b.removeAttribute('title'); b.setAttribute('aria-label', t(m ? 'ux6g.tagNameMine' : 'ux6g.tagName', { v: b.textContent.trim().slice(1) })); }      // typing makes the line this resume's own
     place();
@@ -452,7 +468,7 @@ export function initOnPage(C){
   function afterDraw(){
     if (ui.writing && S){
       const ed = edit().editing;
-      const el = ed ? sheet.elOf(S.fact, C.ix()) : null;
+      const el = ed ? fieldOf(sheet.elOf(S.fact, C.ix())) : null;
       if (el && el !== S.el && !ui.hoverFact) attach(el, S.caret);      // a version under the pointer in the sidebar shows in place of the draft; the draft comes back with the page
     }
     render();

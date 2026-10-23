@@ -21,7 +21,6 @@ body:not([data-phone=true]):not(.is-intro) .col > #head.is-place { position: rel
 @media (max-height: 850px){
   .ptabs .ptab { height: 27px; margin-top: 3px; font-size: 11px; gap: 5px; }
   .ptabs .ptab[aria-current=page] { height: 30px; margin-top: 0; }
-  .ptabs .ptab svg { width: 13px; height: 13px; }
   body:not([data-phone=true]) .col > #head .hrow.top { align-items: center; }
   .col > #head .docname .dn { display: flex; gap: .35em; min-width: 0; white-space: nowrap; overflow: hidden; }
   .col > #head .docname .dn .swco { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -68,8 +67,6 @@ html[data-drink="coffee"] .ptabs .ptab:hover:not([aria-current]) { background: t
 .rsaved .savestate { padding: 0; }
 
 /* ---- Fit and the page fill: once, at the top of Export ---- */
-.exfit { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 0 0 10px; border-bottom: 1px solid var(--line); }
-.exfit .meters { flex: none; }
 
 /* ---- #scr: the Library and Career, left of the sidebar, on the drink's ground (the mat in Tea, the plain ground in Coffee). The things on it are
    paper; the toolbar floats at the top of the content, as the zoom bar does over the page: never a bar across the window. The open resume's
@@ -78,7 +75,7 @@ html[data-drink="coffee"] .ptabs .ptab:hover:not([aria-current]) { background: t
   --surface: var(--paper); --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --line: var(--paper-line); --line-strong: color-mix(in srgb, var(--paper-line) 70%, var(--paper-ink)); }
 .scr[hidden] { display: none; }
 body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: hidden; }
-.scr .tbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; width: fit-content; max-width: 100%; box-sizing: border-box; margin: 12px auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper); box-shadow: var(--shadow-chip); }
+.scr .tbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; width: fit-content; max-width: 100%; box-sizing: border-box; margin: 12px 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper); box-shadow: var(--shadow-chip); }
 .scr .tbar .sw-q { width: 240px; }
 .scr .tbar .seg { background: color-mix(in srgb, var(--paper-ink) 7%, transparent); }
 .scr :is(input[type=search], input[type=text], select) { background: var(--sheet); color: var(--paper-ink); border: 1px solid var(--line-strong); }
@@ -102,7 +99,7 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .scr .rcard .rsel::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-m); }
 .scr .rcard .rsel:focus-visible::after { outline: 2px solid var(--focus); outline-offset: 2px; }
 .scr .rcard .rrole { font-size: 12px; color: var(--paper-ink); }
-.scr .rcard .rmeta { color: var(--paper-soft); }
+.scr .rcard :is(.rmeta, .rfrom) { color: var(--paper-soft); }
 .scr .rcard .rbadges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .scr .rcard .pill { font-size: 10.5px; padding: 1px 7px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); color: var(--paper-soft); background: transparent; }
 .scr .rcard .pill.is-open { background: var(--paper-ink); color: var(--paper); border-color: var(--paper-ink); }
@@ -139,6 +136,11 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .insp-res .iacts > button { flex: none; }
 .insp-res .iacts > button:first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .insp-res .iacts .rcmore { margin-left: auto; flex: none; position: relative; }
+.insp-res .ovw { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; margin: 10px 0 12px; font-size: 12.5px; }
+.insp-res .ovw dt { font-size: 11px; color: var(--ink-soft); padding-top: 2px; }
+.insp-res .ovw dd { margin: 0; overflow-wrap: anywhere; }
+.insp-res .ovw dd .sm { display: block; margin-top: 4px; }
+.insp-res .ovw .pill { font-size: 10.5px; padding: 1px 7px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); color: var(--ink-soft); }
 .insp-res .glance { display: block; margin: 0; font-size: 12.5px; }
 .insp-res .glance dt { margin: 8px 0 2px; font-size: 11px; color: var(--ink-soft); }
 .insp-res .glance dt:first-child { margin-top: 0; }
@@ -172,6 +174,7 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .cmp td.gap { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--line) 6px 7px); }
 .cmp tr.diff-row td { background-color: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 600; }
 .cmp tr.diff-row td.gap { background-color: transparent; }
+.cmp tr.is-found > :is(th, td) { background: var(--mark-soft); }
 .cmp tr.is-here { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cmpcells { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; margin: 0; font-size: 12.5px; }
 .cmpcells dt { color: var(--ink-soft); }
@@ -188,7 +191,7 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .scr .checklist .rectl :is(.row, .srow) { background: var(--paper); }
 .scr .checklist .rectl .is-sel { box-shadow: 0 0 0 3px var(--accent) !important; border-color: transparent !important; }
 .insp-rec .scope { margin: 0; padding: 6px 8px; border-radius: var(--r-s); font-size: 12px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
-.insp-rec .insp-open { justify-self: start; min-height: 24px; }
+.insp-rec :is(.insp-open, .insp-prints) { justify-self: start; min-height: 24px; }
 /* the entry's own heading is the inspector's title, not drawn twice (its order mark and Unarchive stay) */
 .insp-rec .clg { display: block !important; border: 0; padding: 0; margin: 0; }
 .insp-rec .clg > .clgh :is(.clcaret, .clname, .clcount) { display: none; }
@@ -200,3 +203,55 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .matroll[data-kind="down"] .mr-shadows { transform: scaleY(-1); clip-path: inset(0 0 calc(100% - var(--mr-y)) 0); }      /* the two flips cancel: these are the screen's own coordinates, Tea is the top band the mat has covered */
 .matroll .mr-shadows i { position: absolute; }
 html.mr-shadows-off { --shadow-panel: none; --shadow-chip: none; --shadow-lift: none; --shadow-toast: none; --page-shadow: none; --page-shadow-soft: none; }
+
+/* ---- search (find.js): the Editor's bar over the page; the Library and Career have theirs in the toolbar ---- */
+.find { position: fixed; z-index: 20; top: 28px; left: 20px; display: flex; align-items: center; gap: 6px; padding: 6px 10px; box-sizing: border-box; max-width: calc(100vw - 40px);
+  --surface: var(--paper); --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --line: var(--paper-line); --line-strong: color-mix(in srgb, var(--paper-line) 70%, var(--paper-ink));
+  color: var(--paper-ink); background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-chip); }      /* the same chrome as a place's toolbar, in the same spot */
+.find :is(input[type=search]) { background: var(--sheet); color: var(--paper-ink); border: 1px solid var(--line-strong); }
+.find[hidden] { display: none; }
+.find .sw-q, .scr .tbar #cmp-q { width: 240px; }
+body[data-phone=true] .find { top: 8px; left: 8px; right: 8px; }
+body[data-phone=true] .find .sw-q { width: auto; flex: 1; }
+
+/* a word found by the search, in the drink's highlight token (a version in Career, a line on a card) */
+mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; padding: 0 1px; box-shadow: inset 0 -2px 0 var(--mark); }
+.scr .rcard .rhit { margin: 4px 0 0; font-size: 12px; line-height: 1.4; color: var(--paper-soft); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* the results under the cards (Library) and over the timeline (Career): a row says where it is and shows the line with the word marked */
+.scr .found { max-width: 980px; margin: 0 auto 14px; }
+.scr :is(.found, .tbar, .cmpbar), .find { --press-edge: var(--paper-edge); --press-sh: var(--press-paper-sh); }      /* a paper face wears a paper shadow */
+.scr .found ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.scr .found .frow { display: grid; gap: 2px; justify-items: start; width: 100%; padding: 8px 12px; text-align: left; font-weight: 500; background: var(--paper); color: var(--paper-ink); border-radius: var(--r-m); }
+.scr .found .frow .fwhere { font-weight: 650; }
+.scr .found .frow .ftext { font-size: 13px; color: var(--paper-soft); overflow-wrap: anywhere; }
+.scr .found .pill { font-size: 11px; }
+.scr .found .fvers { list-style: none; display: grid; gap: 1px; margin: 4px 0 0; padding: 6px 12px; background: var(--paper); color: var(--paper-soft); border-radius: var(--r-m); font-size: 13px; }
+.scr .found .fvers li { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px; align-items: start; }
+.scr .found .fhead { display: flex; gap: 6px; align-items: stretch; }
+.scr .found .fhead .frow { flex: 1; width: auto; }
+.scr .found .fhead .sm { background: var(--paper); color: var(--paper-ink); }
+.scr .found .fvp { background: transparent; color: var(--paper-soft); border-color: transparent; font-size: 11px; font-weight: 500; opacity: 0; }
+.scr .found .fvers li:is(:hover, :focus-within) .fvp { opacity: 1; }
+.scr .found .press[data-tier=tertiary]:hover:not(:disabled) { background-color: var(--paper-hover); }
+.scr .found .fvers .fv { white-space: nowrap; font: 11.5px/1.6 var(--font-mono); color: var(--paper-soft); }
+.scr .found .fvers .ftext { color: inherit; }
+.scr .found .fvers .hit { color: var(--paper-ink); }
+.scr .found .fvers li:not(.hit) .ftext { opacity: .7; }
+.scr :is(.rcard, .found) mark.fnd {      /* a card and a result row are paper in every theme */
+  background: var(--sample-1-soft); box-shadow: inset 0 -2px 0 var(--sample-1); color: var(--paper-ink); }
+.fcount { min-width: 5.5em; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.find .fnav { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; }
+.find .fdn svg { transform: rotate(180deg); }
+/* the search fields' own clear button, drawn in the field's text colour instead of the browser's blue (it follows the drink and the theme) */
+:is(#find-q, #scr-q, #rec-q)::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; margin: 0 2px; cursor: pointer; opacity: .65;
+  background: linear-gradient(45deg, transparent 44%, currentColor 44% 56%, transparent 56%), linear-gradient(-45deg, transparent 44%, currentColor 44% 56%, transparent 56%); }
+:is(#find-q, #scr-q, #rec-q)::-webkit-search-cancel-button:hover { opacity: 1; }
+/* a fold in the results: the button, then the list it opens in place */
+.scr .found .ffoldw { margin-top: 6px; display: grid; gap: 6px; justify-items: start; }
+.scr .found .ffold { width: 100%; }
+.scr .found .ffold[hidden] { display: none; }
+.scr .found .ffolds { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.scr .found .ffolds .ffoldw { display: contents; }      /* the language folds sit in a row; an open one takes a line of its own under its button */
+.scr .found .ffolds .ffold { flex: 0 0 100%; }
+.scr .found .fmore { background: var(--paper); color: var(--paper-ink); }

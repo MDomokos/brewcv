@@ -43,6 +43,11 @@ New looks and settings in the Design view. The new looks are a work in progress:
 - **A job moved with the keyboard onto the next page keeps its focus.**
 - **The editing chip no longer covers text.**
 
+### Changed
+- **The chip's tick and padlock preview an action, not a new shape.** Hovering either draws the block's own hover plate, deeper, with one cue: the tick fades the block, the padlock tints the plate with the lock wash and closes a hairline frame in on its edge (opening outward when unlocking). Still motion shows the end state at once.
+- **A row of the sidebar under the pointer lights its block with the page's own hover plate.** A section row, a job row or a line row drives the same plate as the pointer on the page, 1.4 times stronger, fading in and out and gliding from row to row, with no outline of its own.
+- **The Outline's section titles read at 7:1 or more in all four looks.** Measured by pixels on the bands: every title takes the full ink (the fixed rows had the soft one), Tea's bands are a little less tinted with its ink a step toward white, and Coffee's titles are 15 px with open tracking instead of tight (Fira Code has one real weight, so its bold is the browser's).
+
 ## 1.4.3 - 2026-10-21
 
 Quiet labels for small sections.

@@ -12,7 +12,7 @@ import path from 'node:path';
 import { makeUi, dom, REPO, setPhone } from './lib/ui-harness.mjs';
 import * as R from '../src/model/record.js';
 import * as T from '../src/model/resume.js';
-import { toolsHtml, statsCompactHtml, versionTagHtml } from '../src/ui/parts.js';
+import { toolsHtml, versionTagHtml } from '../src/ui/parts.js';
 
 // The snapshot is a phone's sheet: it keeps the short form of a version (where it starts to differ), as it always did. The desktop
 // panel shows every version in full (the section at the end).
@@ -27,11 +27,11 @@ const section = t => console.log(`\n— ${t}`);
 const vals = x => x;
 
 // Added to, or taken out of, the Resume on purpose since the snapshot, so left out before comparing: 🗑 in a
-// claim's header, "+ Add something you did" under a job's claims, "Esc goes back" in the keys line, Archive
-// beside 🗑, the Keep button; and, in the one-screen rework (UX-2), the hint paragraphs (keys, drag, versions), the "From
+// claim's header (the X, 16 px), "+ Add something you did" under a job's claims, "Esc goes back" in the keys line, Archive
+// beside the delete X, the Keep button; and, in the one-screen rework (UX-2), the hint paragraphs (keys, drag, versions), the "From
 // Career …" lines and the sort-of-duplicate "Title and meta line" rows.
 const M10_ADDS = html => String(html)
-  .replace(/<button class="ghost sm" data-act="delete-claim"[^>]*>(?:🗑|<svg class="ico"[^>]*>.*?<\/svg>)<\/button>/g, '')
+  .replace(/<button class="(?:ghost sm|del sm)" data-act="delete-claim"[^>]*><svg class="ico" viewBox="0 0 16 16" width="16" height="16"[^>]*><path d="M4 4l8 8M12 4l-8 8"\/><\/svg><\/button>/g, '')      // the one delete look since icon round 3: the registry's X at the control size (no bin, no glyph)
   .replace(/<button class="ghost sm" data-act="(?:un)?archive-claim"[^>]*>[^<]*<\/button>/g, '')
   .replace(/<button class="keep sm"[^>]*>.*?<\/button>/g, '')      // Keep is an icon since UX-6b: its name is in aria-label
   .replace(', <kbd>Esc</kbd> goes back', '')
@@ -121,7 +121,7 @@ async function resumeSnapshot(){
     {
       const now = u.ctx.chooseVariant(u.work(), many, u.cur()).v;
       const e = { fact: many, mode: 'edit', vid: now.id, base: now.text, draft: `${now.text} and more`, lines0: 2, lines: 3 };
-      put('en/onpage-tools', toolsHtml({ vn: now.n, canMove: true, ends: { first: true }, counts: statsCompactHtml(e) }));
+      put('en/onpage-tools', toolsHtml({ vn: now.n, canMove: true, ends: { first: true } }));
       u.ctx.onpage = { begin: () => true, end(){}, setText(){}, refresh(){} };
       u.edit.startEdit('edit');   view(sel, 'many-written-on-page');   u.edit.cancelEdit();
       delete u.ctx.onpage;
@@ -209,13 +209,16 @@ section('one depth indicator: the sidebar’s row is parts.js depthHtml, the chi
   const sel = { kind: 'bullet', id, job: job.id, section: 'experience' };
   const chip = u.edit.depthHtml(sel, { page: true });
   const shape = h => (h.slice(0, h.indexOf('</nav>')).match(/class="[^"]*"/g) ?? []).filter(c => c !== 'class="dp-n"').map(c => c.replace(/ sm\b/, '')).join(',');
-  ok('the editor card opens with the same <nav class="depth"> the chip draws (the chip’s one is the small size), and no old crumb', shape(row.slice(0, row.indexOf('</nav>'))) === shape(chip.slice(0, chip.indexOf('</nav>'))) && chip.startsWith('<nav class="depth sm"') && row.startsWith('<nav class="depth"') && !row.includes('class="crumb"'));
+  // (UX-6f 4c, rewritten: one component, the same size, the same words; only its name and its lists' ids say where it is)
+  const same = h => h.slice(0, h.indexOf('</nav>')).replace(/ aria-label="[^"]*"/, '').replace(/dp-(page|card)-/g, 'dp-');
+  // (J, rewritten: the same nav is now the folder tab of the header card, so the view opens with .hdr and its nav is the chip's)
+  ok('the editor card opens with a header (.hdr) whose tab is the same <nav class="depth sm"> the chip draws, word for word, and no old crumb', row.startsWith('<div class="hdr"') && row.includes('<div class="hcard">') && same(row.slice(row.indexOf('<nav'))) === same(chip) && chip.startsWith('<nav class="depth sm"') && !row.includes('class="crumb"'));
   ok('the chip has no Esc and no level below', !chip.includes('dp-esc') && !chip.includes('dp-l next'));
   ok('Page › Experience › Hydra on the page: single words, the job current, no line level and no names', (chip.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Hydra<\/span><\/button>/.test(chip) && chip.includes('<span class="dp-w">Experience</span>') && !chip.includes('dp-n'));
-  ok('the sidebar’s row: Page › Job › Line, the line current, the job’s name and the line’s name inside their levels', (row.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Line<\/span><span class="dp-n">/.test(row) && row.includes(`<span class="dp-n">${job.name}</span>`));
+  ok('the sidebar’s row: the chip’s Page › Experience › Hydra, and the card’s title under it names the line in full', (row.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Hydra<\/span>/.test(row) && !row.includes('dp-n') && /<h2 class="title"[^>]*>[^<]+<\/h2>/.test(row));
   const sk = u.edit.depthHtml({ kind: 'section', id: 'skills' }, { page: true });
   ok('a section on the page: Page › Skills, a custom heading’s first word, long words cut with an ellipsis', /<span class="dp-w">Skills<\/span>/.test(sk) && !/dp-n/.test(sk));
-  ok('a section: Page › Section; the header: Page › Header', /<span class="dp-w">Section<\/span>/.test(u.edit.depthHtml({ kind: 'section', id: 'experience' })) && /<span class="dp-w">Header<\/span>/.test(u.edit.depthHtml({ kind: 'header' })));
+  ok('a section: Page › Experience; the header: Page › Header (the card as the chip)', /<span class="dp-w">Experience<\/span>/.test(u.edit.depthHtml({ kind: 'section', id: 'experience' })) && /<span class="dp-w">Header<\/span>/.test(u.edit.depthHtml({ kind: 'header' })));
 }
 
 section('the padlock and the switch on the depth row (UX-6c-iii-b): one component, a name each, aria-pressed');
@@ -225,7 +228,7 @@ section('the padlock and the switch on the depth row (UX-6c-iii-b): one componen
   const chip = u.edit.depthHtml(sel, { page: true }), row = String(u.edit.bulletView(sel));
   const btn = (h, cls) => (h.match(new RegExp(`<button[^>]*class="dp-t ${cls}[^"]*"[^>]*>`)) ?? [])[0] ?? '';
   ok('the chip and the sidebar’s row both end with a padlock and a switch, in that order, inside the nav', [chip, row].every(h => /<span class="dp-tools"><button[^>]*dp-lock[^>]*>.*<\/button><button[^>]*dp-show[^>]*>.*<\/button><\/span><\/nav>/s.test(h)));
-  ok('the padlock is a button named for what the chip names, not pressed, and says Lock; the switch is the pill, says Hide and has no aria-pressed (its label says what it will do)', /aria-pressed="false" aria-label="Lock the line in /.test(btn(chip, 'dp-lock')) && /aria-label="Hide the line in [^"]* from this resume"/.test(btn(chip, 'dp-show')) && !/aria-pressed/.test(btn(chip, 'dp-show')) && /class="pillsw on"/.test(chip) && /data-act="lock-toggle" data-id="/.test(btn(chip, 'dp-lock')));
+  ok('the padlock is a button named for what the chip names, not pressed, and says Lock; the show/hide button holds the tick (.pillsw, drawn as a tick since the sidebar session), says Hide and has no aria-pressed (a button is named for what it will do)', /aria-pressed="false" aria-label="Lock the line in /.test(btn(chip, 'dp-lock')) && /aria-label="Hide the line in [^"]* from this resume"/.test(btn(chip, 'dp-show')) && !/aria-pressed/.test(btn(chip, 'dp-show')) && /class="pillsw on"/.test(chip) && /data-act="lock-toggle" data-id="/.test(btn(chip, 'dp-lock')));
   ok('the header, a heading and the page have a padlock and no switch', [{ kind: 'header', id: 'name' }, { kind: 'section', id: 'experience', heading: true }].every(x => { const h = u.edit.depthHtml(x, { page: true }); return /dp-lock/.test(h) && !/dp-show/.test(h); }));
   u.store.commit(d => { d.cur.locked = [id]; }, 'lock');
   const locked = u.edit.depthHtml(sel, { page: true });
@@ -238,13 +241,14 @@ section('the version tag beside a line (UX-6g): a button with a listbox of numbe
   const items = [{ id: 'a-v1', n: '1' }, { id: 'a-v2', n: '2', cur: true }, { id: null, n: '2.1', mine: true }, { id: 'a-v3', n: '3' }];
   const html = versionTagHtml('2', { fact: 'a', items });
   ok('the tag is a button with aria-haspopup=listbox, aria-expanded=false and a name that says what it does', /<button type="button" class="obv"[^>]*aria-haspopup="listbox" aria-expanded="false"[^>]*aria-label="Versions of this line, now v2"/.test(html));
-  ok('the list is a listbox of options in the order given, numbers only, the one in use selected', /role="listbox"[^>]*hidden/.test(html) && (html.match(/role="option"/g) ?? []).length === 4 && /aria-selected="true"[^>]*>v2</.test(html) && [...html.matchAll(/role="option"[^>]*>(v[\d.]+)</g)].map(m => m[1]).join() === 'v1,v2,v2.1,v3');
-  ok('the one in use has no action; the others choose a version, the edit on this resume puts it back; the list names its line', !/class="obvopt cur"[^>]*data-act/.test(html) && /data-act="use-version" data-v="a-v1"/.test(html) && /class="obvopt mine"[^>]*data-act="use-edit"/.test(html) && /data-fact="a"/.test(html));
+  ok('the list is a listbox of the OTHER versions, numbers only: the lower ones in a stack "up", the higher ones in a stack "dn", the one in use (the pill) not repeated', /role="listbox"[^>]*hidden/.test(html) && (html.match(/role="option"/g) ?? []).length === 3 && !/aria-selected="true"/.test(html) && /obvstack up"[^>]*>(?:(?!obvstack)[\s\S])*v1</.test(html) && /obvstack dn"[^>]*>(?:(?!obvstack)[\s\S])*v2\.1<[\s\S]*v3</.test(html) && [...html.matchAll(/role="option"[^>]*>(v[\d.]+)</g)].map(m => m[1]).join() === 'v1,v2.1,v3');
+  ok('the first version has no upper stack and the last no lower one', !/obvstack up/.test(versionTagHtml('1', { fact: 'a', items: [{ id: 'a-v1', n: '1', cur: true }, { id: 'a-v2', n: '2' }] })) && !/obvstack dn/.test(versionTagHtml('2', { fact: 'a', items: [{ id: 'a-v1', n: '1' }, { id: 'a-v2', n: '2', cur: true }] })));
+  ok('every option in the list acts: the others choose a version, the edit on this resume puts it back; the list names its line', /data-act="use-version" data-v="a-v1"/.test(html) && /class="obvopt mine"[^>]*data-act="use-edit"/.test(html) && /data-fact="a"/.test(html));
   ok('the edit on this resume is named for what it is', /aria-label="v2.1, on this resume only"/.test(html));
   const locked = versionTagHtml('2', { fact: 'a', items, locked: 'Locked. Click the padlock to unlock.' });
   ok('a locked line: the tag is disabled with the lock’s reason, and there is no list', /<button[^>]*class="obv"[^>]*disabled aria-disabled="true"[^>]*aria-label="Locked\./.test(locked) && !/listbox/.test(locked));
   ok('a line with no versions (only on this resume) keeps the plain number', versionTagHtml('·', { fact: 'a', items: [] }) === '<span class="obv">v·</span>');
-  ok('the tools column holds the tag', /<div class="obtools writing"[^>]*>\s*<span class="obvwrap">/.test(toolsHtml({ vn: '2', tag: { fact: 'a', items }, counts: '' })));
+  ok('the tools row holds the tag', /<div class="obtools writing"[^>]*>\s*<span class="obvwrap">/.test(toolsHtml({ vn: '2', tag: { fact: 'a', items } })));
 }
 
 // PARTS_STAGE=10.1 runs the snapshot alone

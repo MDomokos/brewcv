@@ -98,7 +98,7 @@ for (const lang of I.UI_LANGS){
         if (!el.offsetParent && getComputedStyle(el).position !== 'fixed') continue;
         const r = el.getBoundingClientRect();
         if (r.width === 0) continue;
-        if (r.right > col.right + 1.5 && !el.closest('#switcher, #zpop, #help')) bad.push(`${el.tagName}.${el.className || el.id} runs ${(r.right - col.right).toFixed(0)}px out of the panel: “${(el.textContent || '').trim().slice(0, 30)}”`);
+        if (r.right > col.right + 1.5 && !el.closest('#switcher, #help')) bad.push(`${el.tagName}.${el.className || el.id} runs ${(r.right - col.right).toFixed(0)}px out of the panel: “${(el.textContent || '').trim().slice(0, 30)}”`);
         if (!el.matches(ELL) && !el.matches('.sr') && !el.closest(ELL) && el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX !== 'visible') bad.push(`${el.tagName}.${el.className || el.id} is cut: “${(el.textContent || '').trim().slice(0, 30)}” ${el.scrollWidth}>${el.clientWidth}`);
       }
       return bad;
@@ -107,7 +107,7 @@ for (const lang of I.UI_LANGS){
     problems.push(...await probe('head', '#head button, #head .hrow, #ptabs .ptab, #ptabs .ptab span'));
     problems.push(...await probe('foot', '#foot button, #foot .hfill, #foot .meters'));
     problems.push(...await probe('zoom bar', '#zoombar button, #zoombar .vbar, #zoombar .meters'));
-    problems.push(...await probe('outline', '#outline .srow *, #outline .clcaret, #outline .clcount, #outline .archmore, #outline .addline, .lens button, .lens select, .lensrow'));
+    problems.push(...await probe('outline', '#outline .srow *, #outline .clcaret, #outline .clcount, #outline .archmore, #outline .addline, .lens button, .lens select, .lensrow, .tailor button, .tailorchip'));
     // Record, Export's Mark as sent, and the job level
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
     problems.push(...await probe('record', '#checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw, #checklist .addline'));
