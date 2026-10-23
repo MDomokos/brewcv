@@ -156,3 +156,25 @@ body[data-phone=true] .obkeep .obkb { height: 40px; }
 /* …and a popover opens in place, in the flow: there is no hover, and above the line there may be no room */
 body[data-phone=true] .obpop { position: static; margin: 4px 0 6px; }
 body[data-phone=true] .obpop::before, body[data-phone=true] .obpop::after { display: none; }
+
+/* Hierarchy (one filled button: the way in; everything else flat and outlined): the switchers, Why JSON? and the popovers draw no shadow of their own */
+body.is-intro #head .obcups, body.is-intro #head .obsun, body.is-intro .obkeep .obwhy, body.is-intro .obpop { box-shadow: none; }
+
+/* A short window (a 720p screen with its browser's bars): the column is made smaller until it fits without scrolling. Yours to keep keeps its
+   heading and Why JSON?, and its four lines become icons, each with the popover that says the rest (which then opens over the whole section);
+   below 560 the subtitle goes too. */
+@media (max-height: 700px) {
+  body[data-phone=false].is-intro .obhero { margin-top: 12px; font-size: 28px; }
+  body[data-phone=false].is-intro .obsub { margin-top: 8px; }
+  body[data-phone=false] .obkeep { padding-top: 8px; }
+  body[data-phone=false] .obkhead { margin-bottom: 2px; }
+  body[data-phone=false] .obkl { display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; }
+  body[data-phone=false] .obkp { position: static; }
+  body[data-phone=false] .obpop::after { display: none; }
+  body[data-phone=false] .obkb span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  body[data-phone=false].is-intro .obkeep .obkb { width: auto; height: 28px; padding: 0 12px; }
+  body[data-phone=false] .obico { width: 18px; height: 18px; }
+}
+@media (max-height: 560px) {
+  body[data-phone=false].is-intro .obsub { display: none; }
+}

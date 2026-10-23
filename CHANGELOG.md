@@ -4,6 +4,12 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+### Changed
+- **On a short window the start screen's column is smaller and no longer scrolls:** Yours to keep shrinks to four icons that open the same notes.
+
+### Fixed
+- **The Tea and Coffee switch, the light and dark switch and Why JSON? are flat,** with no shadow that clipped oddly in a small window.
+
 ## 1.5.2 - 2026-10-22
 
 ### Fixed
