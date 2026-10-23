@@ -53,4 +53,8 @@ expect('a picture anywhere else is refused', run('webp2', d => { fs.mkdirSync(pa
 expect('a font unicode-range is not a phone number', !run('range', d => fs.writeFileSync(path.join(d, 'a.css'), '@font-face { unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC; }')).includes('phone number'));
 expect('a phone number still is', run('phone', d => fs.writeFileSync(path.join(d, 'a.md'), 'Call +44' + ' 7700 900123 today')).includes('phone number'));
 
+// Windows builds failed on icons\icon-192.png: every rule tests a path with forward slashes
+const src = fs.readFileSync(script, 'utf8');
+expect('paths are made only by relOf, so they have forward slashes on Windows too', (src.match(/path\.relative\(ROOT/g) ?? []).length === 1 && src.includes('.split(path.sep).join'));
+
 process.exit(bad ? 1 : 0);

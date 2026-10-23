@@ -14,6 +14,8 @@ import { execFileSync } from 'node:child_process';
 import { findPrivate, REPO } from '../scripts/lib/private-files.mjs';
 
 const ROOT = path.resolve(process.argv[2] ?? '.');
+// paths are tested and shown with forward slashes, whatever the platform (on Windows path.relative gives backslashes)
+const relOf = f => path.relative(ROOT, f).split(path.sep).join('/');
 // --app: a desktop build's staged copy (scripts/desktop-stage.mjs). Nothing private may be in it either, but a service worker and
 // .nojekyll belong to the website, so they are not required.
 const APP = process.argv.includes('--app');
@@ -86,7 +88,7 @@ const EXAMPLE_DOMAIN = /(^|\.)(example\.(com|org|net)|example|test|invalid|local
 
 const findings = [];
 const flag = (file, line, what, detail) =>
-  findings.push({ file: path.relative(ROOT, file) || '.', line, what, detail });
+  findings.push({ file: relOf(file) || '.', line, what, detail });
 
 function walk(dir, out = []){
   for (const e of fs.readdirSync(dir, { withFileTypes: true })){
@@ -138,19 +140,19 @@ function fileIgnored(rel){
 }
 
 {
-  const rel = files.map(f => path.relative(ROOT, f));
+  const rel = files.map(f => relOf(f));
   const hasGit = fs.existsSync(path.join(ROOT, '.git'));
   const hasRules = fs.existsSync(path.join(ROOT, '.gitignore'));
   const ignored = hasGit ? gitIgnored(rel) : hasRules ? fileIgnored(rel) : new Set();
   if (ignored.size){
-    files = files.filter(f => !ignored.has(path.relative(ROOT, f)));
+    files = files.filter(f => !ignored.has(relOf(f)));
     console.log(`preflight: ${ignored.size} ignored file${ignored.size === 1 ? '' : 's'} skipped`
       + ` (${hasGit ? 'git check-ignore' : '.gitignore, read directly: no repository yet'})`);
   }
 }
 
 for (const f of files){
-  const rel = path.relative(ROOT, f);
+  const rel = relOf(f);
   if (rel === 'data/resume-data.json') flag(f, 0, 'real library', 'data/resume-data.json is present. It is gitignored, but it must not be in a deploy tree either');
   if (/\.local\.json$/.test(rel))      flag(f, 0, 'local file', `${rel} is a private overlay and must not be published`);
   if (/^out\//.test(rel))              flag(f, 0, 'rendered output', rel);
@@ -191,7 +193,7 @@ console.log(deny.length ? `preflight: ${deny.length} private value${deny.length 
 
 for (const f of files){
   if (!TEXT.test(f)) continue;
-  const rel = path.relative(ROOT, f);
+  const rel = relOf(f);
   const lines = fs.readFileSync(f, 'utf8').split('\n');
 
   lines.forEach((line, n) => {
