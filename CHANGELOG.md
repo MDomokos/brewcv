@@ -13,22 +13,17 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 - **Highlight words on this resume while you write a line.** Hold Alt (or Ctrl+Alt) and drag over words, or press Ctrl/Cmd+Shift+H on a selection; a click on a highlight clears it.
 
 ### Changed
-- **The full-screen bar, the zoom bar and the hover hints no longer flash.** They ease out more slowly and come straight back if the pointer returns.
-- **The zoom bar comes up when the pointer nears the bottom centre,** on the page or off it.
+- **The zoom bar no longer flashes, and comes up when the pointer nears the bottom centre.** The full-screen bar and the hover hints also ease out more slowly and come back if the pointer returns.
 - **Editing a line faintly tints the job or section above it,** so you can see where you are.
 - **The middle mouse button drags the page, and a click of it is Fit.**
 - **Esc at the page level folds the sidebar and centres the pages.**
 - **The page you are not working on stays at full brightness.** The current page has a stronger edge, and the sidebar shades a page that runs under it.
-- **Zoomed in, a page can rest as far from the side as from the top.**
-- **A page that fits the window stays in the middle and does not scroll up and down.**
-- **The mat zooms with the page and stays put when you pan.** Zoomed out it shows an edge, a table and things on it, to scale with an A4 sheet (a cutting mat with a ruler in Coffee).
-- **Switching Tea and Coffee first zooms back to the whole page,** so the things on the table change one by one as you zoom out.
+- **Zoomed in, a page can rest as far from the side as from the top,** and a page that fits the window stays in the middle without scrolling.
+- **The mat zooms with the page and stays put when you pan.** Zoomed out it shows an edge, a table and things on it, to scale with an A4 sheet; switching Tea and Coffee first zooms back to the whole page.
 - **Full screen on the desktop is the window's own, so Esc no longer leaves it.** The top edge brings back a bar with Minimise, Exit full screen and Close.
 
 ### Fixed
-- **Dragging with Space or the middle button is steadier on Linux.**
-- **Moving from one text box to the next is quicker.**
-- **Linux: a touchpad pinch zooms the resume, not the whole app.**
+- **Linux: a touchpad pinch zooms the resume, not the whole app.** Dragging with Space or the middle button is steadier, and moving from one text box to the next is quicker.
 - **Trying versions no longer flashes the other page.**
 
 ## 1.6.1 - 2026-10-24
