@@ -76,6 +76,12 @@ section('a language copy is in its original\'s group');
     const file = S.saveResume(store.state.record, saved(store, hu)).file;
     return S.loadResume(file, store.state.record).recipe.inStep === true;
   });
+  ok('a file with inStep that is not true loads without the flag, with a warning', () => {
+    const file = S.saveResume(store.state.record, saved(store, hu)).file;
+    file.meta.resumeBuilder.resume.inStep = 'yes';
+    const got = S.loadResume(file, store.state.record);
+    return !('inStep' in got.recipe) && got.warnings.some(w => /inStep/.test(w));
+  });
   ok('turning it off leaves the group', () => { const st = clone(store.state); RS.setInStep(st, hu, false); return RS.groupOf(st, RS.savedOf(st, EN)).length === 1; });
 }
 

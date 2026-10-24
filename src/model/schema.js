@@ -355,6 +355,7 @@ export function loadResume(file, model = null){
   cleanArrangement(recipe, warnings);
   cleanTerms(recipe, warnings);
   cleanLocked(recipe, warnings);
+  cleanInStep(recipe, warnings);
   const snaps = readSnapshots(rb.snapshots, warnings);
   if (snaps.length) recipe.snapshots = snaps;
   return { recipe, frozen, warnings };
@@ -396,6 +397,13 @@ function cleanLocked(recipe, warnings){
   const ids = Array.isArray(recipe.locked) ? [...new Set(recipe.locked.filter(x => typeof x === 'string' && x))] : [];
   if (!Array.isArray(recipe.locked) || ids.length !== recipe.locked.length) warnings.push('locked had something that is not an id; it was dropped');
   if (ids.length) recipe.locked = ids; else delete recipe.locked;
+}
+
+// recipe.inStep puts a language copy in its original's group: only `true` counts.
+function cleanInStep(recipe, warnings){
+  if (recipe.inStep === undefined || recipe.inStep === true) return;
+  warnings.push('inStep is not true; it was dropped');
+  delete recipe.inStep;
 }
 
 // recipe.terms = { factId: { lang: name } } is read from a file anyone can edit: anything else is dropped, so setTerm never spreads a string into keys.
