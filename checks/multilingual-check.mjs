@@ -13,6 +13,7 @@ import * as R from '../src/model/record.js';
 import * as L from '../src/model/lang.js';
 import * as T from '../src/model/resume.js';
 import { createStore } from '../src/store/store.js';
+import { validate } from './lib/validate.mjs';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -249,6 +250,42 @@ section('resumes outside a group are untouched');
   ok('every other resume is byte for byte what it was, frozen text included', () => JSON.stringify([after, after.map(r => store.state.frozen[r.id])]) === snap);
   ok('…and prints the same', () => eq(after.map(r => keyOf(store, r)), keys));
   ok('there are other resumes to compare', () => others.length === names.length - 1);
+}
+
+section('a line with no pick prints the same number too');
+{
+  const { store, hu } = fresh();
+  open(store, EN);
+  // English prints v2 of the testing line by default (its format is listed on it); Hungarian would print its v1
+  store.commit(d => { delete d.cur.picks['hydra-testing']; d.record.variants.find(v => v.id === 'hydra-testing-v2').seenIn = ['us-letter']; }, 'English default v2');
+  ok('English prints v2 and Hungarian has none: it keeps the English v2 and lists the line missing at v2', () => {
+    const m = want(missing(store, hu), 'hydra-testing');
+    return !('hydra-testing' in (saved(store, EN).picks)) && picked(store, hu, 'hydra-testing') === 'hydra-testing-v2' && m?.kind === 'fact' && m.want === '2';
+  });
+  store.commit(d => { R.addVersion(d.record, 'hydra-testing', { text: 'A magyar második változat.', lang: 'hu', n: '2' }); }, 'write HU v2');
+  ok('once Hungarian has v2, the next change picks it, with English still unpicked', () => picked(store, hu, 'hydra-testing') === 'hydra-testing-v2-hu' && !want(missing(store, hu), 'hydra-testing') && !('hydra-testing' in saved(store, EN).picks));
+  ok('a line where both print the same number is left unpicked', () => !('hydra-suppliers' in (saved(store, hu).picks ?? {})) && !('hydra-suppliers' in saved(store, EN).picks));
+  ok('Hungarian printing another default is brought to the English number the other way round too', () => {
+    open(store, hu);
+    store.commit(d => { delete d.cur.picks['hydra-testing']; }, 'Hungarian unpicks');
+    return picked(store, EN, 'hydra-testing') === 'hydra-testing-v1';
+  });
+}
+
+section('the validator accepts a group\u2019s missing state only');
+{
+  const { store, hu } = fresh();
+  open(store, EN);
+  store.commit(d => { T.pickVersion(d.record, d.cur, 'hydra-inhaler', 'hydra-inhaler-v3'); }, 'EN v3');
+  const inStep = saved(store, hu), plain = clone(inStep);
+  delete plain.inStep;
+  const errs = r => validate(S.save(store.state.record), r).errors;
+  ok('an inStep copy with a line missing at its number has no errors', () => inStep.picks['hydra-inhaler'] === 'hydra-inhaler-v3' && errs(inStep).length === 0);
+  ok('the same pick in a resume without inStep is still an error', () => errs(plain).some(e => /language is chosen once/.test(e)));
+  ok('an inStep copy picking the English version where Hungarian has that number is an error', () => {
+    const r = clone(inStep); r.picks['hydra-testing'] = 'hydra-testing-v1';
+    return errs(r).some(e => /hydra-testing/.test(e) && /language is chosen once/.test(e));
+  });
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nALL PASSED');

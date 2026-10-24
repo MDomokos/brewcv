@@ -14,7 +14,7 @@
 import { t, keyed } from '../i18n/index.js';
 import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere } from './resume.js';
 import { resumeFileName, nameKey } from './schema.js';
-import { switchLang, stashOwn } from './lang.js';
+import { switchLang, stashOwn, printedFactIds } from './lang.js';
 import { LockedError, guard, isLocked } from './lock.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
 
@@ -369,7 +369,6 @@ export function duplicateSnapshot(state, sid, { name = null } = {}){
 // A copy made in another language (`parent`) with `inStep` is in its original's group. Whatever one of them prints, the rest print too (mirror),
 // except what each keeps for its own language: lang, paper format, text size and density, one-off texts, headings, and NOT_PRINTED
 // (locks excepted: they are shared). Copies made before `inStep` existed are left alone until setInStep turns it on.
-// shortcut: a line with no pick follows each language's own default, so its numbers can differ; mirror matches picks only.
 
 const langOfR = r => r?.lang ?? 'en';
 const OWN = new Set([...NOT_PRINTED.filter(k => k !== 'locked'), 'lang', 'format', 'overrides', 'overrideMeta', 'design', 'sections', 'skillArrangement', 'terms']);
@@ -407,6 +406,12 @@ function mirrored(state, src, o){
   for (const [k, v] of Object.entries(o)) if (OWN.has(k)) next[k] = v;
   for (const [k, v] of Object.entries(src)) if (!OWN.has(k)) next[k] = clone(v);
   if (src.picks !== undefined) next.picks = Object.fromEntries(Object.entries(src.picks).map(([f, vid]) => [f, sameNumber(model, f, vid, lang)]));
+  // a line with no pick prints its language's default, which may be another number: pick the one that matches (or the original's, if missing)
+  for (const p of printedFactIds(model, src)){
+    if (src.overrides?.[p.fact] !== undefined) continue;
+    const a = chooseVariant(model, p.fact, src).v, b = a && chooseVariant(model, p.fact, next).v;
+    if (a && String(b?.n) !== String(a.n)) next.picks = { ...(next.picks ?? {}), [p.fact]: sameNumber(model, p.fact, a.id, lang) };
+  }
   const { size, density, ...look } = src.design ?? {}, mine = o.design ?? {};
   const design = { ...clone(look), ...(mine.size !== undefined ? { size: mine.size } : {}), ...(mine.density !== undefined ? { density: mine.density } : {}) };
   if (Object.keys(design).length) next.design = design; else delete next.design;

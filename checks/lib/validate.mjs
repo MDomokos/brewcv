@@ -520,7 +520,9 @@ export function validate(input, recipe = null){
       const v = byId.get(vid)?.v;
       if (!v){ err(where, `picks ${vid}, which does not exist`); continue; }
       const vlang = langOf(v);
-      if (vlang !== rlang)
+      // a language copy kept in step (inStep) keeps the original's version where its language has none at that number: the line is missing there
+      const missingHere = recipe.inStep === true && !(byFact.get(factId)?.variants ?? []).some(x => { const w = byId.get(x)?.v; return langOf(w) === rlang && String(w.n) === String(v.n); });
+      if (vlang !== rlang && !missingHere)
         err(where, `picks ${vid}, which is lang "${vlang}", in a lang "${rlang}" recipe: language is chosen once per application, not once per bullet`);
     }
 
