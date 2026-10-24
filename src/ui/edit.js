@@ -7,7 +7,8 @@ import * as T from '../model/resume.js';
 import * as LK from '../model/lock.js';
 import { key as measureKeyOf } from '../fit.js';
 import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
-import { missingList, isSame, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
+import { missingList, writeInPlan, isSame, sameKey, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
+import { groupOf, inGroup, parentOf, setInStep } from '../model/resumes.js';
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { keyOf, isLabelKey } from './select.js';
@@ -24,7 +25,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { enter: null, edit: null, compare: null, openMinor: new Set(), fold: new Map(), foldAuto: null, softShown: null, softOpen: null, guardOn: true, autoFold: true, timer: null, focus: null, tailor: false, claimDrafts: new Map(), applyOpen: false, delAsk: null };
+const E = { writeIn: null, enter: null, edit: null, compare: null, openMinor: new Set(), fold: new Map(), foldAuto: null, softShown: null, softOpen: null, guardOn: true, autoFold: true, timer: null, focus: null, tailor: false, claimDrafts: new Map(), applyOpen: false, delAsk: null };
 
 function commit(fn, label, done, undo = false){
   try {
@@ -100,7 +101,16 @@ const isArch = id => !!ix().facts.get(id)?.archived;
 const jobOn = id => T.jobRefs(rec(), cur()).some(r => (typeof r === 'string' ? r : r.id) === id);
 const linesOf = v => v?.metrics?.measured?.[measureKeyOf(cur())]?.lines;
 
-const missingBar = () => missBar({ lang: lang(), list: lang() === DEFAULT_LANG ? [] : missingList(work(), cur()) });
+// In a group of language copies every language is checked, English too (src/model/resumes.js groupOf)
+const grouped = () => inGroup(C.store.state, cur());
+const missingNow = () => (lang() === DEFAULT_LANG && !grouped() ? [] : missingList(work(), cur(), { inGroup: grouped() }));
+// An old copy of a resume in another language (made before copies were kept in step): the switch that puts it in step
+const stepOffer = () => {
+  const r = cur(), p = r?.inStep ? null : parentOf(C.store.state, r);
+  return p && (p.lang ?? DEFAULT_LANG) !== (r.lang ?? DEFAULT_LANG) ? { name: C.resumeName(p) } : null;
+};
+const missingBar = () => missBar({ lang: lang(), list: missingNow(), group: grouped(), offer: stepOffer() });
+// Step 1b: a heading changed in the other language, and a text edited there but not yet a version, join the list here.
 
 // ---- the Highlight lens: one list of tags, job types (bundles of tags) first ----
 function lensBox(){
@@ -483,6 +493,15 @@ function earlierRows(id, L, ed){
 // The versions list is folded by the person's last toggle of that claim (this session), else by a measure made once when the line is selected:
 // folded when the whole list would not fit the height the panel has below its top (afterRender measures it). Not redecided on a resize or a language.
 const folded = id => E.fold.get(id) ?? (E.foldAuto?.fact === id ? E.foldAuto.folded : (E.foldAuto = { fact: id, folded: undefined }).folded) ?? false;
+// The write-in box of a group's line that prints the other language's version: its plan (src/model/lang.js writeInPlan), the way chosen and
+// the text the box starts with. `open`: its number was clicked (with no version of this language it is always open).
+function writeInX(id){
+  if (!grouped() || !(missingNow().some(m => m.id === id) || isSame(work(), sameKey(id)))) return null;
+  const plan = writeInPlan(work(), cur(), id), on = E.writeIn?.fact === id ? E.writeIn : null;
+  if (!plan) return null;
+  const others = [...new Set(groupOf(C.store.state, cur()).map(r => r.lang ?? DEFAULT_LANG))].filter(l => l !== lang()).map(langName).join(', ');
+  return { plan, mode: on?.mode ?? 'translate', seed: on?.seed ?? null, open: !!on, others };
+}
 function versionsX(id){
   const L = lang();
   const using = usingOf(id);
@@ -498,6 +517,7 @@ function versionsX(id){
     lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: tagVocab(rec()),
     dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id, cur()) || id === cur().summary),
     ref: C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
+    wi: writeInX(id),
   };
 }
 
@@ -551,7 +571,11 @@ function startEdit(mode = null, vid = null){
   const over = overrideOf(id);
   const using = usingOf(id);
   if (!using && over === undefined) return;
-  if (over === undefined && (using.lang ?? DEFAULT_LANG) !== L){ $('#ed-new')?.focus(); return; }     // no version in this language: write one
+  if (over === undefined && (using.lang ?? DEFAULT_LANG) !== L){      // no version in this language: write one (in a group, in the box the number opens)
+    if (grouped() && E.writeIn?.fact !== id){ E.writeIn = { fact: id, mode: 'translate' }; C.renderBody(); }
+    $('#ed-new')?.focus();
+    return;
+  }
   const m = mode ?? (over !== undefined ? 'only' : 'edit');
   const text = m === 'only' ? over : using.text;
   const lines0 = C.sheet.linesOf(ix(), id);
@@ -815,12 +839,27 @@ async function act(a, tg){
       if (!text){ C.toast(t('toast.writeItFirst'), 'warn'); ta?.focus(); return true; }
       const L = lang(), id = s.id;
       let n;
-      commit(d => { LK.guard(d.record, d.cur, id); const v = writeIn(d.record, id, L, text, ta.dataset.from || null); n = v.n; T.pickVersion(d.record, d.cur, id, v.id); }, t('undo.writeIn', { lang: LANG_NAME[L] }));
+      commit(d => { LK.guard(d.record, d.cur, id); const v = writeIn(d.record, id, L, text, ta.dataset.from || null, ta.dataset.n || null); n = v.n; T.pickVersion(d.record, d.cur, id, v.id); }, t('undo.writeIn', { lang: LANG_NAME[L] }));
+      E.writeIn = null;
       if (n) C.toast(t('toast.langVSaved', { lang: LANG_NAME[L], v: n }));
+      return true;
+    }
+    case 'ob-miss': {      // the greyed number beside a line: its write-in box, in the sidebar
+      E.writeIn = { fact: tg.dataset.fact, mode: 'translate' };
+      C.renderBody();
+      $('#ed-new')?.focus();
+      return true;
+    }
+    case 'wi-mode': case 'wi-seed': {
+      const ta = $('#ed-new'), now = E.writeIn?.fact === s.id ? E.writeIn : { fact: s.id };
+      E.writeIn = a === 'wi-mode' ? { ...now, mode: tg.dataset.mode, seed: ta ? ta.value : now.seed } : { fact: s.id, mode: 'translate', seed: R.versionsIn(work(), s.id, lang()).find(v => v.id === tg.dataset.vid)?.text ?? '' };
+      C.renderBody();
+      $('#ed-new')?.focus();
       return true;
     }
     case 'go-missing': {
       const k = tg.dataset.kind, id = tg.dataset.id;
+      if (k !== 'heading' && grouped()) E.writeIn = { fact: id, mode: 'translate' };      // a group's line opens with its box
       // the missing text is written in Edit, wherever the list was
       if (k === 'heading') C.select({ kind: 'section', id }, { pane: 'edit' });
       else { const job = T.jobOfFact(rec(), id, cur()); C.select(job ? { kind: 'bullet', id, job: job.id, section: 'experience' } : { kind: 'bullet', id, section: tg.dataset.section ?? 'summary', owner: tg.dataset.owner ?? undefined }, { pane: 'edit' }); }
@@ -900,6 +939,7 @@ function bind(body){
     }
     else if (t.id === 'sk-tag'){ const b = $('[data-act=sk-del]'); if (b) b.disabled = !t.selectedOptions[0]?.dataset.set; }      // the button follows the tag chosen
     else if (t.id === 'lens'){ E.focus = t.value || null; E.applyOpen = false; C.setFocus(); C.renderBody(); }
+    else if (t.dataset.instep !== undefined){ const id = cur().id, name = stepOffer()?.name; if (name) commit(d => setInStep(d, id, true), tr('ml2.keepInStep', { name })); }
     else if (t.dataset.same){ const k = t.dataset.same, on = t.checked; commit(d => setSame(d.record, k, on), on ? tr('edit.sameEvery') : tr('undo.notSame')); }
   });
   body.addEventListener('input', e => {
@@ -1143,6 +1183,7 @@ function key(e){
 // Leaving a line keeps what was typed (E1), so leaving is always allowed. The shell's select() ends any preview itself.
 function leaving(next){
   const s = C.ui.sel;
+  if (E.writeIn && !(next?.kind === 'bullet' && next.id === E.writeIn.fact)) E.writeIn = null;      // a group's write-in box belongs to its line
   if ((E.softShown || E.softOpen) && !(next?.kind === 'bullet' && next.id === (E.softShown ?? E.softOpen))){ const was = E.softShown; E.softShown = E.softOpen = null; if (was) C.onpage?.render(true); }      // the guard is back on when the selection moves      // no editor open (the phone, a click on the sidebar): an empty line is still dropped when the selection leaves it
   if (!E.edit){ if (s.kind === 'bullet' && T.isLocal(cur(), s.id) && cur().overrides?.[s.id] === '' && !(next?.kind === 'bullet' && next.id === s.id)) dropLine(s.id); return true; }
   if (next?.kind === 'bullet' && next.id === E.edit.fact) return true;
@@ -1153,6 +1194,7 @@ function leaving(next){
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, redraft: () => { if (E.edit && !E.edit.panel && isDirty()) livePreview(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
   fieldName, isAbove, outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockSaid, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, multiline,
+  missingOf: id => (grouped() ? missingNow().find(m => m.id === id && m.kind !== 'heading') ?? null : null),      // a group's line that prints the other language's version
   get editing(){ return E.edit; },
   get softShown(){ return E.softShown; },
   setAutoFold(on){ E.autoFold = !!on; E.foldAuto = null; },      // for a check that is not about the fold: a short window would hide the versions it clicks

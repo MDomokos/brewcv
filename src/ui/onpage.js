@@ -88,7 +88,7 @@ export function initOnPage(C){
   // ---- drawing the layers ----
   function signature(lvl, chip){
     const ed = edit().editing, tg = geom?.tg;
-    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, ed && !ed.group && !ed.label ? [versionItems(ed.fact), isMine(ed.fact)] : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
+    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, ed && !ed.group && !ed.label ? [versionItems(ed.fact), isMine(ed.fact)] : null, selMiss(lvl), ed ? missTag(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
   }
   function render(force = false){
     lay ??= $('#editlay');
@@ -125,12 +125,23 @@ export function initOnPage(C){
   // the tools are for the line being written; the sidebar shows the versions
   function toolsFor(lvl){
     const fact = lvl === 'line' ? S?.fact : null;
+    const sm = !fact && selMiss(lvl);
+    if (sm) return toolsHtml({ vn: sm.n, tag: { fact: ui.sel.id, items: [], miss: sm }, canMove: false });      // a line that prints the other language is not written here: its greyed number is all it has
     if (!fact) return '';
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
     if (!ed || ed.group || ed.label) return '';      // a skill group, a heading and a language's name have no versions
     const vn = C.work().variants.find(v => v.id === ed.vid)?.n ?? '·';       // the version the line was written from
-    return toolsHtml({ vn, tag: { fact, items: versionItems(fact), mine: isMine(fact), locked: edit().lockedId(fact) ? t('ux6c.lockedHint') : '' }, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact) });
+    return toolsHtml({ vn, tag: { fact, items: versionItems(fact), mine: isMine(fact), miss: missTag(fact), locked: edit().lockedId(fact) ? t('ux6c.lockedHint') : '' }, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact) });
   }
+
+  // a line of a group of language copies that prints the other language's version (the number is greyed and says whose it is)
+  function missTag(fact){
+    const m = edit().missingOf(fact);
+    return m?.want && !isMine(fact) ? { n: m.want, from: m.from } : null;
+  }
+
+  // the line selected, not written, when it prints the other language's version in a group
+  const selMiss = lvl => (['job', 'lineSel'].includes(lvl) && ui.sel.kind === 'bullet' ? missTag(ui.sel.id) : null);
 
   // the text of the line is on this resume only: an edit kept, or one being typed
   const isMine = fact => C.cur().overrides?.[fact] !== undefined || edit().isDirty();
@@ -219,7 +230,7 @@ export function initOnPage(C){
     const fit = (r, p) => { const o = r && sheet.fitOff(r, p); return o ? { left: r.left - o.x, top: r.top - o.y, width: r.width + 2 * o.x, height: r.height + 2 * o.y } : null; };      // the selected block's plate, fitted as it is drawn (sheet.fitOff)
     // the tools sit beside the line, in the page's right margin
     const tw = lay.querySelector('.obtoolswrap');
-    const fact = lvl === 'line' ? S?.fact : null;
+    const fact = lvl === 'line' ? S?.fact : selMiss(lvl) ? ui.sel.id : null;
     const lr = fact ? (fact === geom.tg?.fact || (S && fact === S.fact) ? geom.line : rectOfFact(fact, C.ix())) : null;
     if (tw && lr){
       const pg = geom.boxes.find(b => lr.left >= b.left - 1 && lr.left < b.left + b.width) ?? geom.boxes[0];

@@ -1,7 +1,7 @@
 // Resume languages. Pure: no DOM, no I/O. `recipe.lang` absent means English.
 // A text with no version in the language prints in English unless `record.same` lists it.
 
-import { addVersion, versionsIn, major, compareN } from './record.js';
+import { addVersion, versionsIn, major, compareN, wordDiff } from './record.js';
 import { t, docChrome, keyed } from '../i18n/index.js';
 import { LANGS } from './schema.js';
 import { entriesOf } from './entries.js';
@@ -74,6 +74,9 @@ export function printedFactIds(model, recipe){
   return out;
 }
 
+// The version of `lang` that is older than `want` under the same major (HU v3 while the line prints v3.1), if any.
+const behindOf = (model, factId, want, lang) => want && versionsIn(model, factId, lang).filter(x => major(x.n) === major(want.n) && compareN(x.n, want.n) < 0).at(-1);
+
 // Texts and headings with no version in the resume's language. Empty in English.
 // A section the app has a default heading for in `chrome` is not missing.
 // `inGroup` (the resume is in a group of language copies, see groupOf in resumes.js): a text is missing when the language has no version at
@@ -108,8 +111,8 @@ export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? 
     if (inGroup){
       const want = chooseVariant(model, p.fact, recipe).v;
       if (want && langOf(want) === lang) continue;
-      const have = want && versionsIn(model, p.fact, lang).filter(x => major(x.n) === major(want.n) && compareN(x.n, want.n) < 0).at(-1);
-      out.push({ key: sameKey(p.fact), kind: have ? 'behind' : 'fact', id: p.fact, label, where: p, want: want?.n, ...(have ? { have: have.n } : {}) });
+      const have = behindOf(model, p.fact, want, lang);
+      out.push({ key: sameKey(p.fact), kind: have ? 'behind' : 'fact', id: p.fact, label, where: p, want: want?.n, ...(want ? { from: langOf(want) } : {}), ...(have ? { have: have.n } : {}) });
       continue;
     }
     if (hasVersionIn(model, p.fact, lang)) continue;
@@ -161,9 +164,51 @@ export function switchLang(recipe, to, model = null){
   return true;
 }
 
-// Carries the tags of the version it translates.
-export function writeIn(model, factId, lang, text, from = null){
-  return addVersion(model, factId, { text, lang, from: null, as: 'major', tagsFrom: from });
+// Carries the tags of the version it translates. `n`: the number to save it at (a group's line prints one number in every language).
+export function writeIn(model, factId, lang, text, from = null, n = null){
+  return addVersion(model, factId, { text, lang, from: null, as: 'major', tagsFrom: from, n });
+}
+
+// What the write-in box shows for a line that prints another language's version in a group: that version (`ref`) and its number, what changed
+// in it since this language's older one (`diff`, a line that is behind) and the text the box starts with (`seed`: that older one with the
+// numbers of the new one carried in). Null when the line prints this language's own version.
+export function writeInPlan(model, recipe, factId){
+  const lang = recipe?.lang ?? DEFAULT_LANG, want = chooseVariant(model, factId, recipe).v;
+  if (!want || langOf(want) === lang) return null;
+  const have = behindOf(model, factId, want, lang);
+  const old = have && versionsIn(model, factId, langOf(want)).find(x => String(x.n) === String(have.n));
+  return { ref: want, n: want.n, from: langOf(want), have: have ?? null, diff: old ? wordDiff(old.text, want.text) : null, seed: have ? carryNumbers(old?.text ?? '', want.text, have.text, lang) : '' };
+}
+
+// Numbers in a text: 1,200  1 200  12.5  1.2  30  (the % and the currency stay outside, as written)
+const NUM = /\d{1,3}(?:[,. \u00a0\u202f]\d{3})+(?!\d)(?:[.,]\d+)?|\d+(?:[.,]\d+)?/g;
+function readNumber(tok){
+  const spaced = /[\u00a0\u202f ]/.test(tok), s = tok.replace(/[\u00a0\u202f ]/g, ''), seps = s.match(/[.,]/g) ?? [];
+  let at = -1;       // where the decimals start
+  if (seps.length){
+    const last = Math.max(s.lastIndexOf('.'), s.lastIndexOf(',')), mixed = s.includes('.') && s.includes(',');
+    // one separator with three digits after it is a thousands mark (1,200) unless it follows 0 or four digits (0,125; 1234,567)
+    const lone = seps.length === 1 && !spaced && s.length - last - 1 === 3 && last <= 3 && s[0] !== '0';
+    if (mixed || (seps.length === 1 && !lone)) at = last;
+  }
+  const dec = at < 0 ? 0 : s.length - at - 1, whole = (at < 0 ? s : s.slice(0, at)).replace(/[.,]/g, '');
+  return { value: Number(at < 0 ? whole : `${whole}.${s.slice(at + 1)}`), dec, group: spaced || (at < 0 ? seps.length > 0 : /[.,]/.test(s.slice(0, at))) };
+}
+// `mine` is `oldOther` translated. `newOther` is `oldOther` after a change. When the two others and `mine` have the same count of numbers,
+// the numbers that changed are replaced in `mine` by position, written the way `lang` writes them (1.4 → 1,4; 1,200 → 1 200). Currency
+// signs and units stay where `mine` has them and nothing is converted. Otherwise `mine` is returned as it is.
+export function carryNumbers(oldOther, newOther, mine, lang){
+  const a = String(oldOther ?? '').match(NUM) ?? [], b = String(newOther ?? '').match(NUM) ?? [], m = [...String(mine ?? '').matchAll(NUM)];
+  if (!a.length || a.length !== b.length || a.length !== m.length) return mine;
+  try {
+    let i = 0;
+    return String(mine).replace(NUM, tok => {
+      const at = i++;
+      if (a[at] === b[at]) return tok;
+      const n = readNumber(b[at]);
+      return new Intl.NumberFormat(lang, { minimumFractionDigits: n.dec, maximumFractionDigits: n.dec, useGrouping: n.group }).format(n.value);
+    });
+  } catch { return mine; }
 }
 
 // Languages the menus show. Stored in the record so it travels with backups and is undoable.

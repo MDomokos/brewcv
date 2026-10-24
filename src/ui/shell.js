@@ -63,7 +63,27 @@ const backend = params.has('memory') ? memoryBackend() : idbBackend();   // ?mem
 const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle });      // autosave of the open resume rides on every commit
 // A change the lock refuses, from any path, says why and changes nothing: it never surfaces as an uncaught error.
 const rawCommit = store.commit;
-store.commit = (fn, label, merge) => { try { return rawCommit(fn, label, merge); } catch (e){ if (!(e instanceof LockedError)) throw e; edit.lockSaid([e.id ?? edit.lockIdOf()], e.message); return false; } };
+store.commit = (fn, label, merge) => {
+  const peers = alsoSaid ? null : peersOf();
+  try {
+    const changed = rawCommit(fn, label, merge);
+    if (changed && peers) alsoChanged(peers);
+    return changed;
+  } catch (e){ if (!(e instanceof LockedError)) throw e; edit.lockSaid([e.id ?? edit.lockIdOf()], e.message); return false; }
+};
+// The first change that reaches another language of a group says so, once per sitting. The saved copies of the open resume's group, as they are.
+let alsoSaid = false;
+const peersOf = () => {
+  const st = store.state, me = st.cur && RS.savedOf(st, st.openId);
+  return me ? RS.groupOf(st, me).filter(r => r.id !== me.id).map(r => [r.id, JSON.stringify(r)]) : [];
+};
+function alsoChanged(peers){
+  const st = store.state, hit = peers.filter(([id, json]) => { const r = RS.savedOf(st, id); return r && JSON.stringify(r) !== json; });
+  if (!hit.length) return;
+  const names = [...new Set(hit.map(([id]) => langName(RS.savedOf(st, id).lang ?? 'en')))].join(', ');
+  // after the change's own message, which stays if there is one: the next change says it then
+  setTimeout(() => { if ($('#toast').classList.contains('on')) return; alsoSaid = true; toast(t('ml2.alsoChanged', { lang: names }), '', true); }, 0);
+}
 const persist = createPersist({ store, backend });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },
@@ -290,7 +310,7 @@ async function drawSheet(){
     relayout();
     sheet.select(ui.sel, ui.ix);
     sheet.setFocus(edit.focusHits(), ui.ix);
-    sheet.setMissing(missingList(w, r), ui.ix);
+    sheet.setMissing(missingList(w, r, { inGroup: RS.inGroup(store.state, r) }), ui.ix);
     renderAll();
     renderChip();
     checklist.landed();
@@ -749,12 +769,17 @@ setInterval(refreshFileLine, 30000);
 
 function langButton(r){
   const L = r.lang ?? 'en';
-  const n = missingList(work(), r).length;
+  const n = missingList(work(), r, { inGroup: RS.inGroup(store.state, r) }).length;
   const inUse = langsInUse(record());
   const open = ui.langMenu === 'resume';
   return `<span class="langs lang-menu"><button class="sm langbtn ${inUse.includes(L) ? '' : 'off'}" id="langbtn" data-act="lang-menu" aria-haspopup="menu" aria-expanded="${open}" aria-label="${esc(t('head.langGroup'))}: ${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}" ${ui.snap ? 'disabled' : ''} title="${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}">${esc(L.toUpperCase())} ${icon('caret', { role: 'inline' })}${n ? `<span class="badge">${n}</span>` : ''}</button>
     ${open ? langMenuHtml({ for: 'resume', current: L, inUse, more: ui.langMore, label: t('head.langGroup'),
       count: l => (ui.langCounts?.[l] ?? null), removable: removableLangs(store.state) }) : ''}</span>`;
+}
+// how many texts each language lacks, were the open resume in it (English has none, unless the resume is in a group)
+function langCounts(inUse){
+  const g = RS.inGroup(store.state, cur());
+  return Object.fromEntries(inUse.map(l => [l, l === 'en' && !g ? 0 : missingList(work(), { ...cur(), lang: l }, { inGroup: g }).length]));
 }
 async function openLangMenu(){
   if (ui.langMenu === 'resume'){ ui.langMenu = null; renderHead(); return; }
@@ -762,7 +787,7 @@ async function openLangMenu(){
   ui.menu = false; ui.langMenu = 'resume'; ui.langMore = false;
   const inUse = langsInUse(record());
   await Promise.all(inUse.map(l => loadCatalogue(l)));
-  ui.langCounts = Object.fromEntries(inUse.map(l => [l, l === 'en' ? 0 : missingList(work(), { ...cur(), lang: l }).length]));
+  ui.langCounts = langCounts(inUse);
   renderHead();
   focusMenu('.langpop');
 }
@@ -773,7 +798,7 @@ async function useLanguage(to, { add = false } = {}){
   ui.sel = NONE;
   await loadCatalogue(to);
   store.commit(d => { if (add) addLangInUse(d.record, to); switchLang(d.cur, to, d.record); }, add ? t('undo.addLanguage', { lang: langName(to) }) : t('undo.language', { lang: langName(to) }));
-  const n = missingList(work(), cur()).length;
+  const n = missingList(work(), cur(), { inGroup: RS.inGroup(store.state, cur()) }).length;
   toast(t('toast.langNow', { lang: langName(to) }) + (n ? ' ' + t('toast.langMissing', { n, lang: langName(to) }) : ''));
 }
 
@@ -798,7 +823,7 @@ function langSelect(){
 async function loadLangCounts(){
   const inUse = langsInUse(record());
   await Promise.all(inUse.map(l => loadCatalogue(l)));
-  ui.langCounts = Object.fromEntries(inUse.map(l => [l, l === 'en' ? 0 : missingList(work(), { ...cur(), lang: l }).length]));
+  ui.langCounts = langCounts(inUse);
   const sel = $('#sw-lang');
   if (sel && document.activeElement !== (sel._dd ?? sel)) sel.outerHTML = langSelect();
 }

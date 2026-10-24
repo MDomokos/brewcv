@@ -293,8 +293,9 @@ function makeCtx(data, recipe, doc, opts){
       if (!variants.has(want)) throw new RenderError(`the recipe picks ${want} for ${ref}, which does not exist`);
       if (!f.variants.includes(want)) throw new RenderError(`the recipe picks ${want} for ${ref}, which is not one of its phrasings`);
       v = variants.get(want);
-      // A mixed-language document looks fine until a recruiter reads it.
-      if (!inLang(v))
+      // A mixed-language document looks fine until a recruiter reads it. A language copy kept in step (inStep) keeps the original's version where
+      // its language has none at that number: the line is missing there and prints as the original has it (the validator's rule too).
+      if (!inLang(v) && !(recipe.inStep === true && !f.variants.some(id => { const w = variants.get(id); return w && inLang(w) && String(w.n) === String(v.n); })))
         throw new RenderError(`the recipe picks ${want} for ${ref}, which is lang "${v.lang ?? 'en'}", in a lang "${lang}" document`);
     } else {
       const vs = f.variants.map(id => variants.get(id)).filter(Boolean).filter(inLang);

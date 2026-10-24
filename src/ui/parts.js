@@ -61,10 +61,15 @@ export function claimRow({ id, act = 'select-bullet', text, on = true, swAttrs =
         ${archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span>` : ''}${pill ? `<span class="pill ${pillMiss ? 'miss' : ''}">${esc(pill)}</span>` : ''}${kept ? `<span class="kept" title="${esc(t('edit.keepTitle'))}">${icon('pin', { role: 'inline' })}</span>` : ''}${unarchive ? `<button class="ghost sm" data-act="unarchive-claim" data-id="${esc(id)}">${h('arch.unarchive')}</button>` : ''}</div>`;
 }
 
-export function missBar({ lang, list, act = 'go-missing' }){
-  if (lang === DEFAULT_LANG) return '';
-  if (!list.length) return `<div class="okbar">${h('edit.allInLang', { lang: LANG_NAME[lang] })}</div>`;
-  return `<div class="missbar">${h('edit.missingBar', { n: list.length, lang: LANG_NAME[lang] })}
+// In a group of language copies (`group`) it names every language, English too, and sums the list up: what to translate, what changed in the
+// other language. `offer` ({ name }): an old copy of `name`'s resume in another language, with the switch that puts it in step.
+export function missBar({ lang, list, act = 'go-missing', group = false, offer = null }){
+  const keep = offer ? `<span class="keepstep" title="${esc(t('ml2.keepInStepTip'))}">${sw('data-instep="1"', false, h('ml2.keepInStep', { name: offer.name }))}</span>` : '';
+  if (lang === DEFAULT_LANG && !group) return keep ? `<div class="okbar">${keep}</div>` : '';
+  if (!list.length) return `<div class="okbar">${h('edit.allInLang', { lang: LANG_NAME[lang] })}${keep}</div>`;
+  const changed = list.filter(m => m.kind === 'behind'), todo = list.length - changed.length;
+  const sum = group ? `<b>${esc(lang.toUpperCase())}</b> · ${[todo && t('ml2.toTranslate', { n: todo }), ...[...new Set(changed.map(m => m.from))].map(f => t('ml2.changedIn', { n: changed.filter(m => m.from === f).length, lang: LANG_NAME[f] }))].filter(Boolean).map(esc).join(', ')}` : h('edit.missingBar', { n: list.length, lang: LANG_NAME[lang] });
+  return `<div class="missbar">${sum}${keep}
     <div class="list">${list.slice(0, 8).map(m => `<button class="item miss-go" data-act="${act}" data-kind="${m.kind}" data-id="${esc(m.id)}" ${m.where?.owner ? `data-owner="${esc(m.where.owner)}"` : ''} ${m.where?.section ? `data-section="${esc(m.where.section)}"` : ''}><span>◌ ${esc(clip(m.label, 60))}</span><span class="muted">›</span></button>`).join('')}</div>
     ${list.length > 8 ? `<div class="tiny muted">${h('edit.andMore', { n: list.length - 8 })}</div>` : ''}</div>`;
 }
@@ -97,6 +102,7 @@ export function editorHtml(ed, v, x){
     <div class="btns">${btns}<span class="grow"></span><button class="sm ghost" data-act="ed-cancel">${h('btn.cancel')}</button></div>
   </div>`;
 }
+const diffMarkup = d => d.map(y => (y.op === '=' ? esc(y.text) : y.op === '-' ? `<del>${esc(y.text)}</del>` : `<ins>${esc(y.text)}</ins>`)).join('');
 export function writeInHtml({ m, fact, lang, ref }){
   const same = isSame(m, sameKey(fact));
   return `<div class="writein">
@@ -104,6 +110,26 @@ export function writeInHtml({ m, fact, lang, ref }){
     <span class="lbl inline">${esc(LANG_NAME.en)}</span><div class="ref">${esc(ref?.text ?? '')}</div>
     <label class="field"><span class="lbl inline">${esc(LANG_NAME[lang])}</span><textarea id="ed-new" rows="3" placeholder="${esc(t('edit.writeItIn', { lang: LANG_NAME[lang] }))}" data-from="${esc(ref?.id ?? '')}"></textarea></label>
     <div class="btns"><button class="sm primary" data-act="write-in">${h('edit.saveAsVLang', { v: R.nextMajor(m, fact, lang), code: lang.toUpperCase() })}</button><span class="grow"></span>${sw(`data-same="${esc(sameKey(fact))}"`, same, h('edit.sameEvery'))}</div>
+  </div>`;
+}
+
+// The write-in box for a line that prints another language's version in a group (src/model/lang.js writeInPlan): the other language's text above
+// (with what changed in it, for a line that is behind), the box below starting from `seed`, and saving at the number the line prints.
+// `vs`: this language's versions. With some, a line the other language wrote (no older version of its own) offers three ways: write it, start
+// from one of `vs`, or go back to a version both print (`mode` 'translate' | 'from' | 'both'; the version list under the box is the pick).
+// `others`: the names of the other languages of the group.
+export function groupWriteInHtml({ m, fact, lang, plan, mode = 'translate', seed = null, vs = [], others = '' }){
+  const same = isSame(m, sameKey(fact)), L = LANG_NAME[lang], F = LANG_NAME[plan.from], ways = !plan.have && vs.length > 0, both = ways && mode === 'both';
+  const head = same ? h('edit.markedSame') : plan.have ? h('ml2.behindBox', { from: F, old: plan.have.n, n: plan.n, lang: L }) : h('ml2.noVersionAt', { lang: L, n: plan.n, from: F });
+  const seg = ways ? `<div class="seg fill" role="group" aria-label="${esc(t('ml2.modeLabel', { n: plan.n }))}">${[['translate', t('ml2.modeTranslate', { n: plan.n })], ['from', t('ml2.modeFrom', { lang: L })], ['both', t('ml2.modeBoth')]].map(([k, l]) => `<button type="button" data-act="wi-mode" data-mode="${k}" aria-pressed="${mode === k}">${esc(l)}</button>`).join('')}</div>` : '';
+  const rows = ways && mode === 'from' ? `<div class="wifrom"><p class="note">${h('ml2.fromHead', { n: plan.n })}</p>${vs.map(v => `<button type="button" class="wirow" data-act="wi-seed" data-vid="${esc(v.id)}"><span class="n">v${esc(v.n)}</span><span class="tx">${esc(v.text)}</span></button>`).join('')}</div>` : '';
+  const ref = `<span class="lbl inline">${esc(`${F} v${plan.n}`)}</span><div class="ref">${plan.diff ? diffMarkup(plan.diff) : esc(plan.ref.text)}</div>`;
+  const form = both ? `<p class="note">${h('ml2.bothNote', { langs: others })}</p>`
+    : `<label class="field"><span class="lbl inline">${esc(`${L} v${plan.n}`)}</span><textarea id="ed-new" rows="3" placeholder="${esc(t('edit.writeItIn', { lang: L }))}" data-from="${esc(plan.ref.id)}" data-n="${esc(plan.n)}">${esc(seed ?? plan.seed)}</textarea></label>
+    <div class="btns"><button class="sm primary" data-act="write-in">${h('edit.saveAsVLang', { v: plan.n, code: lang.toUpperCase() })}</button><span class="grow"></span>${sw(`data-same="${esc(sameKey(fact))}"`, same, h('edit.sameEvery'))}</div>`;
+  return `<div class="writein group">
+    <div class="${same ? 'okbar' : 'missbar'}">${head}</div>
+    ${ref}${seg}${rows}${form}
   </div>`;
 }
 
@@ -118,10 +144,13 @@ export function versionsHtml(x){
     const other = vs.find(v => v.id === x.compare);
     const tag = `<del>v${esc(other.n)}</del> → <ins>${over !== undefined ? h('edit.thisResume') : `v${esc(using.n)}`}</ins>`;
     out += `<div class="diff"><div class="dh"><span>${tag}</span><a data-act="compare-close">${h('body.close')}</a></div>
-      ${R.wordDiff(other.text, over ?? using.text).map(y => (y.op === '=' ? esc(y.text) : y.op === '-' ? `<del>${esc(y.text)}</del>` : `<ins>${esc(y.text)}</ins>`)).join('')}</div>`;
+      ${diffMarkup(R.wordDiff(other.text, over ?? using.text))}</div>`;
   }
 
-  if (!vs.length && over === undefined) return out + `<span class="lbl">${esc(LANG_NAME[L])}</span>` + writeInHtml({ m, fact, lang: L, ref: x.ref });
+  // a group's line that prints the other language's version: the box stands open when there is no version here, else once its number was clicked
+  const wi = x.wi ? groupWriteInHtml({ m, fact, lang: L, plan: x.wi.plan, mode: x.wi.mode, seed: x.wi.seed, vs, others: x.wi.others }) : '';
+  if (!vs.length && over === undefined) return out + `<span class="lbl">${esc(LANG_NAME[L])}</span>` + (wi || writeInHtml({ m, fact, lang: L, ref: x.ref }));
+  out += x.wi?.open ? wi : '';
 
   const E = v => editorHtml(ed, v, x);
   // folded: only the version in use, an edit on this resume and the editor stay; the toggle counts the ones put away
@@ -222,7 +251,10 @@ const iconButton = (act, ic, name, tip, attrs = '') =>
 // items [{ id, n, cur, mine }] in number order (`mine`: the edit on this resume, shown where it would be numbered); `mine` (of the tag): the text is on this resume only, a dot
 // on the tag with the words in its tooltip and its name; `locked`: the lock's words.
 // A line with no versions (one only on this resume) has the number alone.
+// `tag.miss` ({ n, from }, a group's line that prints the other language's v{n}): the number is greyed and says which language has it; it opens the
+// write-in box (the sidebar's) and has no list of its own.
 export function versionTagHtml(vn, tag = null){
+  if (tag?.miss && !tag.locked) return `<span class="obvwrap"><button type="button" class="obv miss" data-act="ob-miss" data-fact="${esc(tag.fact)}" title="${esc(t('ml2.tagMissTip', { lang: LANG_NAME[tag.miss.from] }))}" aria-label="${esc(t('ml2.tagMiss', { v: tag.miss.n, lang: LANG_NAME[tag.miss.from] }))}">v${esc(tag.miss.n)} · ${esc(tag.miss.from.toUpperCase())}</button></span>`;
   if (!tag?.items?.length) return `<span class="obv">v${esc(vn)}</span>`;
   if (tag.locked) return `<button type="button" class="obv" disabled aria-disabled="true" aria-label="${esc(tag.locked)}">v${esc(vn)}</button>`;
   // the pill IS the one in use and stays where it is: the lower versions stack above it (the nearest lower one next to it), the higher ones below it, the one in use is not repeated

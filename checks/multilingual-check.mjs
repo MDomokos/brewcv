@@ -272,6 +272,47 @@ section('a line with no pick prints the same number too');
   });
 }
 
+section('numbers carried into an earlier translation');
+{
+  const norm = x => x.replace(/[\u00a0\u202f]/g, ' ');
+  ok('$1.2M → $1.4M arrives in a Hungarian text as 1,4, the currency staying where it was', () => L.carryNumbers('Cut tooling cost to $1.2M', 'Cut tooling cost to $1.4M', 'A szerszámköltség 1,2 M $-ra csökkent', 'hu') === 'A szerszámköltség 1,4 M $-ra csökkent');
+  ok('1,200 → 1,500 is written 1 500 for French', () => norm(L.carryNumbers('Sold 1,200 units', 'Sold 1,500 units', '1 200 unités vendues', 'fr')) === '1 500 unités vendues');
+  ok('a number that did not change is left as the translation has it', () => L.carryNumbers('Cut 30% in 2 weeks', 'Cut 40% in 2 weeks', '30%-kal rövidebb, 2 hét alatt', 'hu') === '40%-kal rövidebb, 2 hét alatt');
+  ok('a count that differs returns the translation unchanged', () => L.carryNumbers('Cut 30%', 'Cut 30% in 2 weeks', '30%-kal csökkent', 'hu') === '30%-kal csökkent' && L.carryNumbers('Cut 30% in 2 weeks', 'Cut 40% in 2 weeks', '40%-kal csökkent', 'hu') === '40%-kal csökkent');
+  ok('a text with no numbers is returned as it is', () => L.carryNumbers('Led the team', 'Led the whole team', 'Vezette a csapatot', 'hu') === 'Vezette a csapatot');
+  ok('decimals keep their digits: 0.125 → 0.5 is 0,5 in German', () => L.carryNumbers('Gap of 0.125 mm', 'Gap of 0.5 mm', 'Spalt von 0,125 mm', 'de') === 'Spalt von 0,5 mm');
+}
+
+section('writing a text at the number the line prints');
+{
+  const { store, hu } = fresh();
+  open(store, EN);
+  store.commit(d => { R.addVersion(d.record, 'hydra-testing', { text: 'Ran 1,200 tests.', lang: 'en', n: '3' }); T.pickVersion(d.record, d.cur, 'hydra-testing', d.record.variants.find(v => v.id === 'hydra-testing-v3').id); }, 'EN v3');
+  open(store, hu);
+  const m = want(missing(store, hu), 'hydra-testing');
+  ok('the line is missing in Hungarian at v3, from English', () => m?.kind === 'fact' && m.want === '3' && m.from === 'en');
+  const plan = L.writeInPlan(store.state.record, saved(store, hu), 'hydra-testing');
+  ok('the plan has the English text and nothing to start from', () => plan.ref.id === 'hydra-testing-v3' && plan.n === '3' && plan.seed === '' && plan.diff === null && plan.have === null);
+  let v;
+  store.commit(d => { v = L.writeIn(d.record, 'hydra-testing', 'hu', '1200 tesztet futtatott.', plan.ref.id, plan.n); T.pickVersion(d.record, d.cur, 'hydra-testing', v.id); }, 'write HU v3');
+  ok('writeIn with a number saves the Hungarian at that number', () => v.n === '3' && v.lang === 'hu');
+  ok('…the line is no longer missing, and English still prints its v3', () => !want(missing(store, hu), 'hydra-testing') && picked(store, EN, 'hydra-testing') === 'hydra-testing-v3' && !want(missing(store, EN), 'hydra-testing'));
+  ok('without a number it is still the next major, as before', () => { const m2 = clone(store.state.record); return L.writeIn(m2, 'hydra-testing', 'hu', 'Másik.').n === '4'; });
+  ok('a number that is taken is refused', () => { const m2 = clone(store.state.record); try { L.writeIn(m2, 'hydra-testing', 'hu', 'Ismét.', null, '3'); return false; } catch { return true; } });
+
+  // behind: English moves on to v3.1, Hungarian has v3
+  open(store, EN);
+  store.commit(d => { const x = R.addVersion(d.record, 'hydra-testing', { text: 'Ran 1,500 tests.', lang: 'en', from: 'hydra-testing-v3', as: 'minor' }); T.pickVersion(d.record, d.cur, 'hydra-testing', x.id); }, 'EN v3.1');
+  open(store, hu);
+  const b = want(missing(store, hu), 'hydra-testing'), bp = L.writeInPlan(store.state.record, saved(store, hu), 'hydra-testing');
+  ok('a line behind lists the older number and the language it changed in', () => b?.kind === 'behind' && b.have === '3' && b.want === '3.1' && b.from === 'en');
+  ok('its plan has the changes since v3 and the old text with the new number carried in', () => bp.diff.some(x => x.op === '+') && bp.diff.some(x => x.op === '-') && bp.seed.replace(/[\u00a0\u202f]/g, ' ') === '1 500 tesztet futtatott.' && bp.n === '3.1');
+  let x31;
+  store.commit(d => { x31 = L.writeIn(d.record, 'hydra-testing', 'hu', bp.seed, bp.ref.id, bp.n); T.pickVersion(d.record, d.cur, 'hydra-testing', x31.id); }, 'write HU v3.1');
+  ok('saving it makes Hungarian v3.1 and the line is whole again', () => x31.n === '3.1' && !want(missing(store, hu), 'hydra-testing') && picked(store, hu, 'hydra-testing') === x31.id);
+  ok('a line that prints its own language has no plan', () => L.writeInPlan(store.state.record, saved(store, hu), 'hydra-testing') === null);
+}
+
 section('the validator accepts a group\u2019s missing state only');
 {
   const { store, hu } = fresh();

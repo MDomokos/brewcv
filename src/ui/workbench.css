@@ -469,6 +469,15 @@ table.cmp tr.setting th { color: var(--ink); }
 .item.fact.miss { border-style: dashed; border-color: var(--warn); }
 .ref { background: var(--wash); border: 1px solid var(--line); border-radius: var(--r-s); padding: 7px 9px; font-size: 13px; margin: 3px 0 8px; }
 .writein textarea { width: 100%; font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--r-s); resize: vertical; }
+.writein .ref ins { background: var(--ins-bg); text-decoration: none; }
+.writein .ref del { background: var(--del-bg); color: var(--del-ink); }
+.writein .seg { margin: 4px 0 8px; }
+.wifrom { margin: 0 0 8px; border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
+.wifrom .note { margin: 0; padding: 6px 10px; }
+.wirow { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; text-align: left; font-size: 12.5px; line-height: 1.4; cursor: pointer; }
+.wirow:hover { background: var(--hover); }
+.wirow .n { font-weight: 750; font-variant-numeric: tabular-nums; }
+.keepstep { display: block; margin-top: 6px; }
 
 textarea.paste { width: 100%; font: 12px var(--font-mono); border: 1px solid var(--line); border-radius: var(--r-s); padding: 7px; resize: vertical; }
 table.kv { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0; }
@@ -910,6 +919,8 @@ button.obv[data-act=ob-vers]:not(.one)::after { content: ''; margin-left: 5px; b
 button.obv { border: 0; cursor: pointer; min-width: 30px; background: transparent; }
 button.obv:hover:not(:disabled) { background: color-mix(in srgb, var(--plate-ink) 22%, var(--paper)); }      /* a small step up, per part */
 button.obv:disabled { opacity: .55; cursor: default; }
+button.obv.miss { opacity: .5; white-space: nowrap; }      /* a group's line that prints the other language's version: greyed, it opens the write-in box */
+button.obv.miss:hover { opacity: .8; }
 .obvlist { position: absolute; left: 0; top: 0; z-index: 2; width: 100%; height: 100%; outline: 0; pointer-events: none; }      /* the pill's own box: the stacks hang off it, so opening it moves nothing */
 .obvlist[hidden] { display: none; }
 /* the OPEN control is one continuous column as wide as the version pill (): the lower numbers above the pill, the higher below, the same edges, one face, one outer corner at the top
