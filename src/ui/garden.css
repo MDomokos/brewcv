@@ -4,6 +4,7 @@
    the tea canvas in drinks.css; this only adds things on top. */
 
 #garden { position: fixed; inset: 0; z-index: 6; pointer-events: none; overflow: hidden; }
+#gworld { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }      /* what is fixed inside it is placed by it: the mat's pixels */
 /* a page on the move goes over everything on the mat: the garden drops under it once what lay on the page has left (garden.js sets g-clearing until then), and stays there until it has settled (canvas.js) */
 body.is-moving:not(.g-clearing) #garden { z-index: 4; }
 @media print { #garden, .g-dapple { display: none; } }

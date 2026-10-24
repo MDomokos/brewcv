@@ -49,7 +49,8 @@ export function zoomAbout(cam, k2, px, py){
 export const snapZoom = z => (Math.abs(z - 1) < SNAP_FIT ? 1 : z);
 
 // Where x and y may go. Sideways: pages that fit the view (with the margin G each side) stay centred on its middle and cannot be panned;
-// zoomed in, they may go until an edge is as far in from the view's edge as the page may sit from the top, never further. Up and down: never so far that less than
+// zoomed in, they may go until an edge is as far in from the view's edge as the page may sit from the top, never further. Up and down: a page
+// that fits the view stays in the middle; otherwise never so far that less than
 // nine tenths of the view (or the whole page, if that is less) keeps part of the pages.
 export function limits(cam, geo, view){
   const W = rowWidth(geo.w, geo.n) * cam.k, H = geo.h * cam.k;
@@ -57,7 +58,9 @@ export function limits(cam, geo, view){
   const c = midX(view) - W / 2, M = Math.max(G, view.height - view.height * KEEP_Y);      // as much canvas beside the pages as above them
   const lo = view.left + view.width - M - W, hi = view.left + M;
   const fits = view.left + view.width - G - W >= view.left + G;
-  return { minX: fits ? c : Math.min(lo, c), maxX: fits ? c : Math.max(hi, c), minY: view.top + ky - H, maxY: view.top + view.height - ky };
+  // a page that fits the view stands in the middle of it and does not scroll, as sideways: there is nothing to reach
+  const fitsY = H + 2 * G <= view.height + 0.5, mid = view.top + (view.height - H) / 2;
+  return { minX: fits ? c : Math.min(lo, c), maxX: fits ? c : Math.max(hi, c), minY: fitsY ? mid : view.top + ky - H, maxY: fitsY ? mid : view.top + view.height - ky };
 }
 // A value pulled past its limit: it follows at first, then gets heavier, and stops about `max` px past.
 export function rubber(v, lo, hi, max = OVERSHOOT){

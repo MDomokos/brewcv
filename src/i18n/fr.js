@@ -1216,6 +1216,8 @@ export default {
   'ux6b.photoHint': 'Courante en Europe centrale, pas aux États-Unis ni au Royaume-Uni.',
   'ux6c.k.nextLine': 'Garder la ligne en cours et écrire la suivante',
   'ux6c.k.lineBreak': 'Un retour à la ligne dans la ligne',
+  'hl.k.drag': 'Maintenir et glisser sur des mots : surligner ou effacer (Ctrl+Alt aussi)',
+  'hl.k.key': 'Les mots sélectionnés : surligner ou effacer',
   'ux6c.depth': 'Où vous êtes',
   'ux6c.header': 'En-tête',
   'ux6c.newLine': 'Nouvelle ligne',

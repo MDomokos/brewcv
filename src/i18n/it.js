@@ -1216,6 +1216,8 @@ export default {
   'ux6b.photoHint': 'Comune nell’Europa centrale, non negli USA o nel Regno Unito.',
   'ux6c.k.nextLine': 'Tieni la riga che stai scrivendo e scrivi la successiva',
   'ux6c.k.lineBreak': 'Un a capo dentro la riga',
+  'hl.k.drag': 'Tieni premuto e trascina sulle parole: evidenzia o rimuovi (anche Ctrl+Alt)',
+  'hl.k.key': 'Le parole selezionate: evidenzia o rimuovi',
   'ux6c.depth': 'Dove sei',
   'ux6c.header': 'Intestazione',
   'ux6c.newLine': 'Nuova riga',

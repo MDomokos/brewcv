@@ -1216,6 +1216,8 @@ export default {
   'ux6b.photoHint': 'Habitual en Europa central, no en EE. UU. ni en Reino Unido.',
   'ux6c.k.nextLine': 'Conservar la línea que escribes y escribir la siguiente',
   'ux6c.k.lineBreak': 'Un salto de línea dentro de la línea',
+  'hl.k.drag': 'Mantén y arrastra sobre palabras: resaltar o quitar (también Ctrl+Alt)',
+  'hl.k.key': 'Las palabras seleccionadas: resaltar o quitar',
   'ux6c.depth': 'Dónde estás',
   'ux6c.header': 'Encabezado',
   'ux6c.newLine': 'Línea nueva',

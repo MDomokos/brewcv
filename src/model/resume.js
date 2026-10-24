@@ -25,11 +25,19 @@ import { LockedError, guard, guardOff, guardUp, isLocked, skillsSection } from '
 import { setI18n, englishOf } from './labels.js';
 export { offOf, keepOf, migratePins, inOrder, isLocal, localOf, termOf };
 
+// Built once for a model while its lists are as they were. A model is changed in place by adding or deleting a version or a fact: that is a new list, a new
+// length, or a new first, middle or last id, which is what is compared.
+const indexes = new WeakMap();
+const sigOf = l => `${l?.length ?? 0}|${l?.[0]?.id}|${l?.[l.length >> 1]?.id}|${l?.[l.length - 1]?.id}`;
 function index(model){
-  return {
-    byId: new Map((model.variants ?? []).map(v => [v.id, v])),
-    factById: new Map((model.facts ?? []).map(f => [f.id, f])),
+  const c = indexes.get(model), v = model.variants, f = model.facts, sig = `${sigOf(v)}#${sigOf(f)}`;
+  if (c && c.v === v && c.f === f && c.sig === sig) return c.ix;
+  const ix = {
+    byId: new Map((v ?? []).map(x => [x.id, x])),
+    factById: new Map((f ?? []).map(x => [x.id, x])),
   };
+  indexes.set(model, { v, f, sig, ix });
+  return ix;
 }
 
 export function chooseVariant(model, factId, recipe = null, ix = index(model)){

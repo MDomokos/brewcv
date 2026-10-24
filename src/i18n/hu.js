@@ -1216,6 +1216,8 @@ export default {
   'ux6b.photoHint': 'Közép-Európában szokásos, az USA-ban és az Egyesült Királyságban nem.',
   'ux6c.k.nextLine': 'A most írt sor megtartása, és a következő megírása',
   'ux6c.k.lineBreak': 'Sortörés a soron belül',
+  'hl.k.drag': 'Tartsd nyomva, és húzd végig a szavakon: kiemelés vagy törlés (Ctrl+Alt is jó)',
+  'hl.k.key': 'A kijelölt szavak: kiemelés vagy törlés',
   'ux6c.depth': 'Hol vagy',
   'ux6c.header': 'Fejléc',
   'ux6c.newLine': 'Új sor',

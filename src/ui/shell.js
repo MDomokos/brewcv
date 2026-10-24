@@ -103,7 +103,7 @@ const ui = {
   sel: NONE, previewing: false, page: 0, menu: false, laid: null, fills: [], zoom: 1,
   back: null, fitting: false, lastFit: null, work: null, workKey: null, ix: null, probed: new Set(), snap: null,
 };
-const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: (on, y) => dock?.sheetOver(on, y), moved: () => { placeOverflow(); onpage?.place(); hands?.place(); barAside(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
+const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: (on, y, x) => { dock?.sheetOver(on, y, x); fullBarAt(y); }, moved: () => { placeOverflow(); onpage?.place(); hands?.place(); barAside(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
 const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
   ix: () => ui.ix ?? indexModel(work(), cur()), fillText: () => fillText(), select: sel => select(sel),
   writeStarted: () => { dock.renderFoot(); hands?.refresh(); }, writeEnded: () => { dock.renderFoot(); hands?.refresh(); }, redrawSoon: () => schedule(),
@@ -254,8 +254,11 @@ const lang = () => shown()?.lang ?? 'en';
 
 // The renderer's mutable copy of the record, rebuilt when the record changes. The probe
 // caches line counts in it, never in the store.
+let recJson = { rec: null, json: '' };      // the record as text, made once for each state (the state is frozen and a commit makes a new one): this runs on every call below
 function work(){
-  const k = JSON.stringify(record()) + JSON.stringify(cur()?.localLines ?? null) + JSON.stringify(cur()?.skillArrangement?.groups?.map(g => g.id) ?? null);       // the index lists a resume's own lines and skill groups
+  const rec = record();
+  if (recJson.rec !== rec) recJson = { rec, json: JSON.stringify(rec) };
+  const k = recJson.json + JSON.stringify(cur()?.localLines ?? null) + JSON.stringify(cur()?.skillArrangement?.groups?.map(g => g.id) ?? null);       // the index lists a resume's own lines and skill groups
   if (k !== ui.workKey){
     ui.work = store.materialize(record());
     ui.workKey = k;
@@ -1069,7 +1072,7 @@ async function onClick(e){
       break;
     }
     case 'use-version': useVersion(tg.closest('.vlist, .obvlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
-    case 'drink-switch': toggleDrink(); break;
+    case 'drink-switch': switchDrink(); break;
     case 'drink-set': setDrink(tg.dataset.m); break;          // the start screen's two cups
     case 'theme-toggle': setThemePref(resolveTheme(themePref()) === 'dark' ? 'light' : 'dark'); break;
     case 'chip-undo': store.undo(); dropChip(); break;
@@ -1250,7 +1253,7 @@ function key(e){
   // the app's search: the first press is ours, the next one (the field has the focus) is the browser's own find; a dialog keeps its keys
   if (isFindKey(e) && ui.view !== 'welcome' && !inFind() && !e.target.closest?.('dialog, [aria-modal=true]')){ e.preventDefault(); find.open(); return; }
   if (typing) return;
-  if (isDrinkKey(e)){ e.preventDefault(); toggleDrink(); return; }          // Shift+F: tea or coffee, in place
+  if (isDrinkKey(e)){ e.preventDefault(); switchDrink(); return; }          // Shift+F: tea or coffee, in place
   if (ui.view === 'welcome') return;                    // the introduction and the questions have their own keys
   if (ui.snap && e.key !== 'Escape') return;           // a snapshot is read-only
   if (e.key === 'Escape'){
@@ -1298,6 +1301,14 @@ function key(e){
   }
 }
 
+// The canvas roll of a drink switch (matroll.js) is the whole mat, so a zoomed view comes back to the fit first and the switch plays after it
+async function switchDrink(){
+  if (!ui.layout?.phone && (ui.zoom ?? 1) !== 1){
+    canvas.reset();
+    await new Promise(r => { const t = setTimeout(r, 1200); document.addEventListener(PAGES_MOVED, () => { clearTimeout(t); r(); }, { once: true }); });
+  }
+  toggleDrink();
+}
 // rb-esc-fold = off keeps the sidebar open at the page level (for the checks, which press Esc to rest)
 const escFolds = () => { try { return localStorage.getItem('rb-esc-fold') !== 'off'; } catch { return true; } };
 async function toggleFullscreen(){
@@ -1321,11 +1332,23 @@ async function syncWinFull(){
   document.body.classList.toggle('is-fs', on);
   if (on) for (const [act, key] of [['min', 'fs.minimise'], ['exit', 'fs.exit'], ['close', 'fs.close']]){ const b = document.querySelector(`.fsbar [data-fs=${act}]`); if (b) b.title = b.ariaLabel = t(key); }
 }
+let fullBarAt = () => {};
 function mountFullBar(){
   const w = fsWin(); if (!w || document.querySelector('.fsbar')) return;
-  document.body.insertAdjacentHTML('beforeend', `<div class="fsbar-zone" aria-hidden="true"></div><div class="fsbar" role="toolbar" aria-label="BrewCV"><b>BrewCV</b>
+  document.body.insertAdjacentHTML('beforeend', `<div class="fsbar" role="toolbar" aria-label="BrewCV"><b>BrewCV</b>
     <button type="button" data-fs="min">${icon('minus')}</button><button type="button" data-fs="exit">${icon('full')}</button><button type="button" data-fs="close">${icon('close')}</button></div>`);
-  document.querySelector('.fsbar').addEventListener('click', async e => {
+  // The bar comes down when the pointer is within 24 px of the top edge and stays while it is on the bar or within 28 px of it; it goes 0.7 s after the pointer
+  // has left, and comes straight back if the pointer returns while it eases out (a hover rule flickered as the bar moved under a still pointer)
+  const fsbar = document.querySelector('.fsbar');
+  let away = 0;
+  // y: the pointer's, from the page's own stream of moves (canvas.js sheetOver: the frame's moves are in it too, which a listener on this document does not get); undefined: it left
+  fullBarAt = y => {
+    if (!document.body.classList.contains('is-fs')) return;
+    const shown = fsbar.classList.contains('show');
+    if (y !== undefined && (y <= 24 || (shown && y <= fsbar.offsetHeight + 28))){ clearTimeout(away); away = 0; fsbar.classList.add('show'); }
+    else if (shown && !away) away = setTimeout(() => { away = 0; if (!fsbar.matches(':focus-within')) fsbar.classList.remove('show'); }, 700);
+  };
+  fsbar.addEventListener('click', async e => {
     const b = e.target.closest('[data-fs]'); if (!b) return;
     if (b.dataset.fs === 'min') w.minimize();
     else if (b.dataset.fs === 'close') w.close();

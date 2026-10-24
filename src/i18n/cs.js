@@ -1216,6 +1216,8 @@ export default {
   'ux6b.photoHint': 'Obvyklé ve střední Evropě, ne v USA nebo ve Spojeném království.',
   'ux6c.k.nextLine': 'Ponechat řádek, který píšete, a napsat další',
   'ux6c.k.lineBreak': 'Zalomení uvnitř řádku',
+  'hl.k.drag': 'Podržte a táhněte přes slova: zvýraznit nebo zrušit (i Ctrl+Alt)',
+  'hl.k.key': 'Vybraná slova: zvýraznit nebo zrušit',
   'ux6c.depth': 'Kde jste',
   'ux6c.header': 'Hlavička',
   'ux6c.newLine': 'Nový řádek',

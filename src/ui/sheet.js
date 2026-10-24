@@ -24,6 +24,7 @@ html.rb-ui [data-variant], html.rb-ui [data-label], html.rb-ui .band[data-sectio
 html.rb-still *, html.rb-still *::before, html.rb-still *::after { transition: none !important; animation: none !important; }
 html[data-rb-moving] .document > .page { box-shadow: none !important; }      /* Linux only (canvas.js): an attribute, not a class, since the frame's classes are the plate's (plate-check) */
 html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
+html.rb-handing *, html.rb-space * { user-select: none !important; -webkit-user-drag: none !important; }
 html.rb-dragging, html.rb-dragging * { cursor: grabbing !important; user-select: none !important; }
 html.rb-space, html.rb-space * { cursor: grab !important; }
 .rb-clip { overflow: clip; }      /* the page a block is lifted from: the block never floats over the next page */
@@ -72,6 +73,7 @@ html.rb-cam .rb-plate { transition: opacity var(--plate-out) var(--rb-m-out); }
 .rb-find { outline: var(--plate-hair) solid var(--plate-accent); --tint: color-mix(in srgb, var(--plate-accent-tint) calc(var(--pk) * 100%), transparent); }      /* the search's lines: a second highlight, not the writing one */
 .rb-miss { outline: var(--plate-hair) dashed var(--plate-miss); }      /* a text this resume's language does not have: dashed, the one other dashed thing */
 /* lifted: no outline (shading, not edges), the hover wash over the paper (in the block and its stand-off) and a small lift shadow */
+::highlight(rb-mark) { background-color: var(--mark-fill); color: inherit; }      /* the highlights of a line while it is written (onpage.js) */
 .rb-lift { position: relative; }
 .rb-lift, .rb-card { z-index: 5; outline: none; background-color: var(--plate-paper);
   box-shadow: inset 0 0 0 100vmax var(--plate-tint-hover), 0 0 0 var(--po) var(--plate-tint-hover), 0 0 0 var(--po) var(--plate-paper), var(--plate-lift) var(--po) var(--plate-lift-sh); }
@@ -196,6 +198,11 @@ export function createSheet(host, hooks = {}){
         if (fe){
           doc.addEventListener('wheel', e => { fe.wheel(frame, e); }, { passive: false });
           doc.addEventListener('pointerdown', e => { fe.down(frame, e); }, { capture: true });
+          const hand = () => doc.documentElement.classList.contains('rb-handing') || doc.documentElement.classList.contains('rb-space');
+          doc.addEventListener('mousedown', e => { if (e.button === 1 || hand()) e.preventDefault(); }, true);      // (canvas.js: no native drag, selection, paste or autoscroll under the hand)
+          doc.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); }, true);
+          doc.addEventListener('dragstart', e => { if (hand()) e.preventDefault(); }, true);
+          doc.addEventListener('selectstart', e => { if (hand()) e.preventDefault(); }, true);
           doc.addEventListener('pointermove', e => fe.move(frame, e), { passive: true });
           doc.addEventListener('pointerup', e => fe.up(frame, e));
           doc.addEventListener('pointercancel', e => fe.up(frame, e));
@@ -322,7 +329,12 @@ export function createSheet(host, hooks = {}){
   function wantedPlates(){
     if (!fr?.frame.isConnected || nudged.size) return [];
     const d = fr.doc;
-    if (d.documentElement.classList.contains('rb-writing')){ const ed = d.querySelector('[contenteditable]:not([contenteditable=false])'); return ed ? [{ el: ed, role: 'write' }] : []; }
+    if (d.documentElement.classList.contains('rb-writing')){
+      const ed = d.querySelector('[contenteditable]:not([contenteditable=false])');
+      // the block above the written line (its job, else its section) keeps the faint tint of its level: where the line is
+      const up = ed && (ed.closest('.entry') ?? ed.closest('.band[data-section]'));
+      return ed ? [{ el: ed, role: 'write' }, ...(up && up !== ed ? [{ el: up, role: 'sel' }] : [])] : [];
+    }
     const sel = [...d.querySelectorAll('.rb-sel')], out = sel.map(el => ({ el, role: 'sel' }));
     const lead = pv?.isConnected ? pv : hot;      // (the sidebar's hover is the one hover plate; the pointer is not on the page then)
     if (lead?.isConnected && !sel.includes(lead)) out.push({ el: lead, role: 'hot', boost: lead === pv });

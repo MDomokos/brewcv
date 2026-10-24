@@ -1216,6 +1216,8 @@ export default {
   'ux6b.photoHint': 'Gebruikelijk in Midden-Europa, niet in de VS of het VK.',
   'ux6c.k.nextLine': 'De regel die je schrijft houden en de volgende schrijven',
   'ux6c.k.lineBreak': 'Een regeleinde binnen de regel',
+  'hl.k.drag': 'Ingedrukt houden en over woorden slepen: markeren of wissen (ook Ctrl+Alt)',
+  'hl.k.key': 'De geselecteerde woorden: markeren of wissen',
   'ux6c.depth': 'Waar je bent',
   'ux6c.header': 'Naam en contact',
   'ux6c.newLine': 'Nieuwe regel',

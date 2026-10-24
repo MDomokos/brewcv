@@ -17,6 +17,7 @@ import { renderPages } from '../src/render.js';
 import { cost } from '../src/fit.js';
 import * as CL from '../src/model/checklist.js';
 import { plainOf } from '../src/ui/plain.js';
+import * as MK from '../src/model/marks.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -629,6 +630,32 @@ section('Group under the section above');
   const page = { ...clone(base), locked: ['~page'] };
   ok('so is every section of a locked page', throws(() => T.setSectionGrouped(example, page, 'education', true)));
   ok('no example resume changes: none is grouped', resumes.every(rc => !subs(example, rc).flat().length));
+}
+
+section('highlights written by hand: whole words, added, joined and cleared');
+{
+  const t = 'Built custom CAD tools, with Creo and Fusion 360.';
+  const at = w => t.indexOf(w), span = (w, n = 0) => [at(w) + n, at(w) + w.length - n];
+  const text = m => m.map(x => x.expect);
+  ok('a drag takes whole words: it starts and ends inside words, and blanks and punctuation at its ends are left out', (() => { const [s0, e0] = MK.wordsOf(t, at('CAD') + 1, at('tools') + 2); const [s1, e1] = MK.wordsOf(t, at('custom') - 1, at('tools') + 6); return t.slice(s0, e0) === 'CAD tools' && t.slice(s1, e1) === 'custom CAD tools'; })());
+  ok('a drag over blanks and punctuation only highlights nothing', MK.wordsOf(t, at(',') , at(',') + 2) === null && eq(MK.toggleMarks([], t, at(',') , at(',') + 1), []));
+  const one = MK.toggleMarks([], t, ...span('custom CAD tools', 2));
+  ok('a drag adds a highlight on the whole words, with the words it covers', eq(text(one), ['custom CAD tools']) && one[0].start === at('custom') && one[0].slot === 'primary');
+  ok('a drag over words already highlighted clears them', eq(MK.toggleMarks(one, t, ...span('custom CAD tools')), []));
+  const cut = MK.toggleMarks(one, t, at('CAD'), at('CAD') + 3);
+  ok('clearing words in the middle cuts the highlight in two, and no piece starts or ends on a blank', eq(text(cut), ['custom', 'tools']));
+  const join = MK.toggleMarks(one, t, at('with'), at('with') + 4);
+  ok('a drag next to a highlight but not touching it is its own', eq(text(join), ['custom CAD tools', 'with']));
+  const near = MK.toggleMarks(one, t, at('tools') + 2, at('with') + 4);
+  ok('a drag that overlaps a highlight joins it', eq(text(near), ['custom CAD tools, with']) && near.length === 1);
+  const twice = MK.toggleMarks(MK.toggleMarks(one, t, at('Creo'), at('Creo') + 4), t, at('Creo'), at('Creo') + 4);
+  ok('a second drag over the same words undoes the first', eq(twice, one));
+  ok('the slot of a highlight is kept when it grows', MK.toggleMarks([{ ...one[0], slot: 'secondary' }], t, at('tools') + 2, at('with') + 4)[0].slot === 'secondary');
+  const hy = 'LiDAR-felmérésért and don’t';
+  ok('a hyphen or an apostrophe inside a word does not end it', MK.wordsOf(hy, 2, 4).join() === `0,${'LiDAR-felmérésért'.length}` && hy.slice(...MK.wordsOf(hy, hy.length - 3, hy.length)) === 'don’t');
+  ok('the highlight a point is in, or the end of', MK.markAt(one, one[0].start + 3) === one[0] && MK.markAt(one, one[0].end) === one[0] && MK.markAt(one, one[0].end + 2) === null);
+  const em = 'a 😀 word';
+  ok('browser offsets and code points are told apart (an emoji is two of one and one of the other)', MK.cpOf(em, 4) === 3 && MK.u16Of(em, 3) === 4);
 }
 
 console.log(failed ? `\n${failed} edit check(s) FAILED` : '\nall edit checks passed');
