@@ -72,6 +72,7 @@ html.rb-cam .rb-plate { transition: opacity var(--plate-out) var(--rb-m-out); }
 .rb-find { outline: var(--plate-hair) solid var(--plate-accent); --tint: color-mix(in srgb, var(--plate-accent-tint) calc(var(--pk) * 100%), transparent); }      /* the search's lines: a second highlight, not the writing one */
 .rb-miss { outline: var(--plate-hair) dashed var(--plate-miss); }      /* a text this resume's language does not have: dashed, the one other dashed thing */
 /* lifted: no outline (shading, not edges), the hover wash over the paper (in the block and its stand-off) and a small lift shadow */
+::highlight(rb-mark) { background-color: var(--mark-fill); color: inherit; }      /* the highlights of a line while it is written (onpage.js) */
 .rb-lift { position: relative; }
 .rb-lift, .rb-card { z-index: 5; outline: none; background-color: var(--plate-paper);
   box-shadow: inset 0 0 0 100vmax var(--plate-tint-hover), 0 0 0 var(--po) var(--plate-tint-hover), 0 0 0 var(--po) var(--plate-paper), var(--plate-lift) var(--po) var(--plate-lift-sh); }

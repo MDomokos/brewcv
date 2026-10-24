@@ -3,6 +3,7 @@
 // the timeline. Every change is one store commit, so one undo step. Typing is not a change until it is saved.
 
 import * as R from '../model/record.js';
+import * as MK from '../model/marks.js';
 import * as T from '../model/resume.js';
 import * as LK from '../model/lock.js';
 import { key as measureKeyOf } from '../fit.js';
@@ -58,7 +59,7 @@ function keepEdit(ed){
   if (ed.group) return keepGroup(ed);
   if (ed.label) return keepLabel(ed);
   if (!isDirty(ed) || !ed.draft.trim()) return;      // an emptied line keeps what it had: the last kept edit, or the version's words
-  const text = ed.draft.trim(), base = ix().variants.get(ed.vid), here = text !== base?.text.trim();
+  const text = ed.draft.trim(), base = ix().variants.get(ed.vid), here = text !== base?.text.trim() || marksChanged(ed);
   C.ui.previewing = false;
   commit(d => {
     if (here && !T.isLocal(d.cur, ed.fact)) T.stackOverride(d.record, d.cur, ed.fact);      // the edit it follows stays a row of its own
@@ -82,7 +83,14 @@ function keepGroup(ed){
   commit(d => T.writeGroup(d.record, d.cur, ed.fact, ed.draft), t('ux6c.undoSkills'), had && !T.readGroup(ed.draft).items.length ? `${t('ux6c.groupRemoved')} ${t('toast.ctrlZUndoes')}` : undefined, true);
 }
 // the highlights of the text the line started from, moved onto what was typed (a mark whose words are gone is dropped)
-const marksFor = (ed, text) => { const from = ed.mode === 'new' ? ed.copyOf : ed.base; return R.reanchor(ed.marks, from, text, m => m.expect ?? [...from].slice(m.start, m.end).join('')); };
+// (highlights set by hand, ed.mk, are anchored to the text they were set on, so what is typed after moves them too)
+const marksFor = (ed, text) => { const from = ed.mk ? ed.mk.text : ed.mode === 'new' ? ed.copyOf : ed.base; return R.reanchor(ed.mk ? ed.mk.marks : ed.marks, from, text, m => m.expect ?? [...from].slice(m.start, m.end).join('')); };
+// the highlights were changed by hand (not only moved by typing): they differ from those the line started with, on the same words
+const marksChanged = ed => {
+  if (!ed.mk) return false;
+  const was = R.reanchor(ed.marks, ed.mode === 'new' ? ed.copyOf : ed.base, ed.draft, m => m.expect ?? [...(ed.mode === 'new' ? ed.copyOf : ed.base)].slice(m.start, m.end).join(''));
+  return JSON.stringify(was.map(m => [m.start, m.end])) !== JSON.stringify(marksFor(ed, ed.draft).map(m => [m.start, m.end]));
+};
 const autoNote = r => (r?.auto ? ' ' + t('toast.autoPages') : '');
 
 const rec = () => C.record();
@@ -598,7 +606,7 @@ const autosize = ta => { ta.style.height = 'auto'; ta.style.height = `${ta.scrol
 
 export function isDirty(ed = E.edit){
   if (!ed) return false;
-  return ed.mode === 'new' ? ed.draft.trim() !== (ed.copyOf ?? '').trim() : ed.draft.trim() !== ed.base.trim();
+  return (ed.mode === 'new' ? ed.draft.trim() !== (ed.copyOf ?? '').trim() : ed.draft.trim() !== ed.base.trim()) || marksChanged(ed);
 }
 
 // Esc and the like: what was typed is kept on this resume. `discard`: only the panel's own Cancel button drops it
@@ -625,6 +633,34 @@ function onEditorInput(ta){
 }
 
 // the line on the page was typed in: the same bookkeeping as the text box, from the plain text of the line
+// Highlights written on the page (the pointer with Alt or Ctrl+Alt held, or Ctrl/Cmd+Shift+H): the highlights of `text` as they are now, and a drag from a to b
+// (UTF-16 offsets of the plain text, as the browser has them) toggles the whole words it touches. Nothing is kept until the line is left, as for the words.
+const writtenMarks = ed => !!ed && !ed.group && !ed.label && !ed.panel;
+function marksNow(text){ const ed = E.edit; return writtenMarks(ed) ? marksFor(ed, text ?? ed.draft) : []; }
+function setMarks(text, next){
+  const ed = E.edit;
+  ed.draft = text; ed.mk = { text, marks: next };
+  clearTimeout(E.timer);
+  E.timer = setTimeout(livePreview, 140);
+  C.onpage?.refresh();
+}
+function toggleMark(text, a, b){
+  const ed = E.edit;
+  if (!writtenMarks(ed)) return false;
+  const now = marksNow(text), next = MK.toggleMarks(now, text, MK.cpOf(text, a), MK.cpOf(text, b));
+  if (JSON.stringify(now) === JSON.stringify(next)) return false;
+  setMarks(text, next);
+  return true;
+}
+// a click on a highlight clears it
+function unmarkAt(text, at){
+  const ed = E.edit;
+  if (!writtenMarks(ed)) return false;
+  const m = MK.markAt(marksNow(text), MK.cpOf(text, at));
+  if (!m) return false;
+  setMarks(text, MK.toggleMarks(marksNow(text), text, m.start, m.end));
+  return true;
+}
 function draftChanged(text){
   const ed = E.edit;
   if (!ed) return;
@@ -641,7 +677,7 @@ function pickWhileWriting(vid){
   clearTimeout(E.timer);
   keepEdit(ed);
   commit(d => T.pickVersion(d.record, d.cur, ed.fact, vid), t('undo.useVersion', { n: v.n }));
-  Object.assign(ed, { vid, mode: 'edit', base: v.text, draft: v.text, copyOf: v.text, marks: v.marks ?? [] });
+  Object.assign(ed, { vid, mode: 'edit', base: v.text, draft: v.text, copyOf: v.text, marks: v.marks ?? [], mk: null });
   C.onpage?.setText(v.text);
   return true;
 }
@@ -1152,7 +1188,7 @@ function leaving(next){
 
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, redraft: () => { if (E.edit && !E.edit.panel && isDirty()) livePreview(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
-  fieldName, isAbove, outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockSaid, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, multiline,
+  fieldName, isAbove, outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, toggleMark, unmarkAt, marksNow, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockSaid, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, multiline,
   get editing(){ return E.edit; },
   get softShown(){ return E.softShown; },
   setAutoFold(on){ E.autoFold = !!on; E.foldAuto = null; },      // for a check that is not about the fold: a short window would hide the versions it clicks

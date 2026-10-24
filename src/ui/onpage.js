@@ -12,7 +12,8 @@
 // from line to line, and comes back out only at the page level (Esc to the page, a click on the bare canvas). Under reduced motion
 // there is no writing zoom: the camera only scrolls the line into view.
 
-import { plainOf, caretOf, setCaret } from './plain.js';
+import { plainOf, caretOf, setCaret, rangeOf } from './plain.js';
+import { u16Of } from '../model/marks.js';
 import { toolsHtml, esc } from './parts.js';
 import * as R from '../model/record.js';
 import { readZoomWrite, readZoomWriteOn, DIM } from './dock.js';
@@ -309,7 +310,9 @@ export function initOnPage(C){
     on('input', onInput);
     on('keydown', onKey);
     on('keyup', rememberCaret);
-    on('mouseup', rememberCaret);
+    on('mousedown', e => { S.markDrag = e.altKey && !e.metaKey; });      // Alt, or Ctrl+Alt, held as the pointer goes down: what it selects is highlighted
+    const doc0 = el.ownerDocument, up = () => { rememberCaret(); if (S?.markDrag){ S.markDrag = false; markSelection(); } };      // (the pointer may be let go outside the line)
+    doc0.addEventListener('mouseup', up); offs.push(() => doc0.removeEventListener('mouseup', up));
     on('compositionstart', () => { S.composing = true; });
     on('compositionend', () => { S.composing = false; onInput(); });
     if (!supportsPlain) on('paste', e => { e.preventDefault(); el.ownerDocument.execCommand('insertText', false, e.clipboardData.getData('text/plain')); });
@@ -326,6 +329,7 @@ export function initOnPage(C){
       sel.removeAllRanges(); sel.addRange(r);
     }
     rememberCaret();
+    paintMarks();
     sheet.setWriting(DIM.line);      // the field is there now: its stand-off is measured and the plate takes it (UX-6f 4c)
   }
   // the caret under a point of the frame (Chromium and Safari, then Firefox)
@@ -340,6 +344,25 @@ export function initOnPage(C){
     if (!S || S.composing) return;
     rememberCaret();
     edit().draftChanged(plainOf(S.el));
+    paintMarks();
+  }
+  // The highlights, painted over the words while the line is written (the CSS Custom Highlight API: nothing is added to the text; where a
+  // webview lacks it they show again once the line is left)
+  function paintMarks(){
+    const el = S?.el, win = el?.ownerDocument.defaultView;
+    if (!el?.isConnected || !win?.CSS?.highlights || !win.Highlight) return;
+    const text = plainOf(el);
+    win.CSS.highlights.set('rb-mark', new win.Highlight(...edit().marksNow(text).map(m => rangeOf(el, u16Of(text, m.start), u16Of(text, m.end)))));
+  }
+  // What is selected is highlighted, or cleared if it all is; a click (nothing selected) on a highlight clears it. The caret goes to the end.
+  function markSelection(){
+    const el = S?.el;
+    if (!el?.isConnected) return false;
+    const c = caretOf(el);
+    if (!c) return false;
+    const text = plainOf(el), did = c.start === c.end ? edit().unmarkAt(text, c.start) : edit().toggleMark(text, c.start, c.end);
+    if (did){ setCaret(el, { start: c.end, end: c.end }); rememberCaret(); paintMarks(); }
+    return did;
   }
 
   // keys inside the line: Esc leaves it, Enter and Tab and the arrows at its edges go to the next line (each keeps what was typed),
@@ -357,6 +380,7 @@ export function initOnPage(C){
     if (e.isComposing || e.keyCode === 229) return;
     const mod = e.ctrlKey || e.metaKey;
     const done = () => { e.preventDefault(); e.stopPropagation(); };
+    if (mod && e.shiftKey && !e.altKey && e.code === 'KeyH'){ done(); markSelection(); return; }      // Ctrl/Cmd+Shift+H: the selection, highlighted or cleared
     // Alt+↑ ↓ move the line, as the arrows beside it say (and as they do for a selected line); Alt+Shift+↓ is the way from the line to its versions
     if (e.altKey && !mod && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){
       if (e.shiftKey && e.key === 'ArrowDown' && tag() && !tag().disabled){ done(); openVers('key'); return; }
@@ -433,6 +457,7 @@ export function initOnPage(C){
   function release(){
     const el = S?.el;
     S?.off?.();
+    el?.ownerDocument.defaultView?.CSS?.highlights?.delete('rb-mark');
     if (el?.isConnected){
       el.removeAttribute('contenteditable'); el.removeAttribute('role'); el.removeAttribute('aria-multiline'); el.removeAttribute('aria-label');
       el.style.whiteSpace = ''; for (const v of ['--rb-gl', '--rb-gw', '--rb-gi']) el.style.removeProperty(v);

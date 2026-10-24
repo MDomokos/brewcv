@@ -1216,6 +1216,8 @@ export default {
   'ux6b.photoHint': 'In Mitteleuropa üblich, in den USA und Großbritannien nicht.',
   'ux6c.k.nextLine': 'Die Zeile behalten und die nächste schreiben',
   'ux6c.k.lineBreak': 'Ein Zeilenumbruch in der Zeile',
+  'hl.k.drag': 'Halten und über Wörter ziehen: hervorheben oder aufheben (auch Strg+Alt)',
+  'hl.k.key': 'Die markierten Wörter: hervorheben oder aufheben',
   'ux6c.depth': 'Wo du bist',
   'ux6c.header': 'Kopfbereich',
   'ux6c.newLine': 'Neue Zeile',

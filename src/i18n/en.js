@@ -1218,6 +1218,8 @@ export default {
   // UX-6c: writing on the page, and where you are
   'ux6c.k.nextLine': 'Keep the line you are writing and write the next',
   'ux6c.k.lineBreak': 'A line break inside the line',
+  'hl.k.drag': 'Hold and drag over words: highlight or clear them (Ctrl+Alt works too)',
+  'hl.k.key': 'The selected words: highlight or clear',
   'ux6c.depth': 'Where you are',
   'ux6c.header': 'Header',
   'ux6c.newLine': 'New line',

@@ -6978,6 +6978,44 @@ if (want('file://')) {
   await ctx.close();
 }
 
+if (want('highlights written on the page')) {
+  // a line being written shows its highlights; Alt (or Ctrl+Alt) held while selecting, Alt+click and Ctrl+Shift+H toggle whole words; leaving keeps them on this resume
+  const ctx = await newContext({ viewport: { width: 1500, height: 900 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const li = await page.evaluate(() => { const f = document.querySelector('#sheet iframe'), fr = f.getBoundingClientRect(), s = fr.width / f.offsetWidth, e = f.contentDocument.querySelectorAll('.entry .bullets li')[1], r = e.getBoundingClientRect(); return { x: fr.left + (r.left + 60) * s, y: fr.top + (r.top + r.height / 2) * s }; });
+  await page.mouse.click(li.x, li.y); await settle(page);
+  const word = w => page.evaluate(w => { const f = document.querySelector('#sheet iframe'), fr = f.getBoundingClientRect(), s = fr.width / f.offsetWidth, d = f.contentDocument, t = d.querySelector('[contenteditable]').firstChild, i = t.data.indexOf(w), r = d.createRange(); r.setStart(t, i); r.setEnd(t, i + w.length); const b = r.getBoundingClientRect(); return { x0: fr.left + (b.left + 1) * s, x1: fr.left + (b.right - 1) * s, y: fr.top + (b.top + b.height / 2) * s }; }, w);
+  const live = () => page.evaluate(() => { const h = document.querySelector('#sheet iframe').contentWindow.CSS.highlights?.get('rb-mark'); return h ? [...h].map(r => r.toString()) : null; });
+  const dragOver = async (w, mod = 'Alt') => { const A = await word(w); await page.keyboard.down(mod); await page.mouse.move(A.x0, A.y); await page.mouse.down(); await page.mouse.move(A.x1, A.y, { steps: 5 }); await page.mouse.up(); await page.keyboard.up(mod); await page.waitForTimeout(250); };
+  ok('a line being written shows the highlights it has, none here', (await live()).length === 0 );
+  await dragOver('verification');
+  ok('Alt held while selecting highlights the whole word, at once, so you can see where you aimed', (await live()).join() === 'verification');
+  await dragOver('verification');
+  ok('the same drag again clears it', (await live()).length === 0);
+  const B = await word('protocols'); await page.mouse.dblclick((B.x0 + B.x1) / 2, B.y); await page.keyboard.press('Control+Shift+H'); await page.waitForTimeout(250);
+  ok('Ctrl+Shift+H highlights the selected word', (await live()).join() === 'protocols');
+  const C = await word('protocols'); await page.keyboard.down('Alt'); await page.mouse.click((C.x0 + C.x1) / 2, C.y); await page.keyboard.up('Alt'); await page.waitForTimeout(250);
+  ok('Alt+click on a highlighted word clears it', (await live()).length === 0);
+  const ctrlAlt = async () => { const A = await word('verification'); await page.keyboard.down('Control'); await page.keyboard.down('Alt'); await page.mouse.move(A.x0, A.y); await page.mouse.down(); await page.mouse.move(A.x1, A.y, { steps: 4 }); await page.mouse.up(); await page.keyboard.up('Alt'); await page.keyboard.up('Control'); await page.waitForTimeout(250); };
+  await ctrlAlt();
+  ok('Ctrl+Alt held while selecting does the same', (await live()).join() === 'verification');
+  await page.keyboard.press('Home'); await page.keyboard.type('XX ');
+  ok('words typed before a highlight do not move it off its words', (await live()).join() === 'verification');
+  await page.keyboard.press('Escape'); await settle(page);
+  const kept = await page.evaluate(() => { const c = window.__wb.store.state.cur, f = Object.keys(c.overrides ?? {}); return f.map(id => (c.overrideMeta?.[id]?.marks ?? []).map(m => m.expect)); });
+  ok('leaving the line keeps the highlight on this resume only (the record’s version is untouched)', JSON.stringify(kept) === '[["verification"]]' && (await page.evaluate(() => window.__wb.store.state.record.variants.every(v => !(v.marks ?? []).some(m => m.expect === 'verification')))));
+  // a highlight with no words changed: it is still kept
+  const li2 = await page.evaluate(() => { const f = document.querySelector('#sheet iframe'), fr = f.getBoundingClientRect(), s = fr.width / f.offsetWidth, e = f.contentDocument.querySelectorAll('.entry .bullets li')[0], r = e.getBoundingClientRect(); return { x: fr.left + (r.left + 60) * s, y: fr.top + (r.top + r.height / 2) * s }; });
+  await page.mouse.click(li2.x, li2.y); await settle(page);
+  const w1 = await page.evaluate(() => document.querySelector('#sheet iframe').contentDocument.querySelector('[contenteditable]').textContent.split(' ')[1]);
+  await dragOver(w1);
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('a highlight set with no words changed is kept (the line is then this resume’s own, with the same words)', await page.evaluate(w => Object.values(window.__wb.store.state.cur.overrideMeta ?? {}).some(m => m.marks.some(k => k.expect === w)), w1));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('full screen in the desktop app')) {
   // the desktop app's full screen is the window's (Tauri), which Esc does not leave; the top edge brings back a bar with the window's controls
   const ctx = await newContext({ viewport: { width: 1280, height: 800 } });

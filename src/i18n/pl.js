@@ -1216,6 +1216,8 @@ export default {
   'ux6b.photoHint': 'Zwykle w Europie Środkowej, nie w USA ani Wielkiej Brytanii.',
   'ux6c.k.nextLine': 'Zachowaj ten wiersz i pisz następny',
   'ux6c.k.lineBreak': 'Podział w obrębie wiersza',
+  'hl.k.drag': 'Przytrzymaj i przeciągnij po słowach: zakreśl lub usuń (także Ctrl+Alt)',
+  'hl.k.key': 'Zaznaczone słowa: zakreśl lub usuń',
   'ux6c.depth': 'Gdzie jesteś',
   'ux6c.header': 'Imię i kontakt',
   'ux6c.newLine': 'Nowy wiersz',

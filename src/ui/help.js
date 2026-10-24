@@ -14,7 +14,7 @@ export const keyText = (...keys) => keys.map(k => (isMac() ? (MAC[k] ?? k) : k))
 const K = (...keys) => keys.map(k => `<kbd>${isMac() ? (MAC[k] ?? k) : k}</kbd>`).join(' ');
 // [keys, i18n key]
 const groups = () => [
-  ['ux2.helpPage', [[K('↑', '↓'), 'ux2.k.walk'], [K('←', '→'), 'ux2.k.versions'], [K('Enter'), 'ux2.k.edit'], [K('Enter'), 'ux6c.k.nextLine'], [K('Shift', 'Enter'), 'ux6c.k.lineBreak'], [K('↑', '↓'), 'ux6f.k.grip'], [K('Esc'), 'ux2.k.esc']]],
+  ['ux2.helpPage', [[K('↑', '↓'), 'ux2.k.walk'], [K('←', '→'), 'ux2.k.versions'], [K('Enter'), 'ux2.k.edit'], [K('Enter'), 'ux6c.k.nextLine'], [K('Shift', 'Enter'), 'ux6c.k.lineBreak'], [K('Alt'), 'hl.k.drag'], [K('Ctrl', 'Shift', 'H'), 'hl.k.key'], [K('↑', '↓'), 'ux6f.k.grip'], [K('Esc'), 'ux2.k.esc']]],
   ['ux2.helpPanel', [[K('W'), 'ux6h.k.library'], [K('E'), 'ux6h.k.editor'], [K('R'), 'ux3b.k.record'], [K('Alt', '↑') + ' ' + K('Alt', '↓'), 'ux2.k.moveSection'], [K('Ctrl', 'O'), 'ux2.k.switcher'], [K('Ctrl', 'F') + ' ' + K('/'), 'ux6f.k.find'], [K('?'), 'ux2.k.help']]],
   ['ux2.helpView', [[K('-') + ' ' + K('='), 'ux2.k.zoom'], [K('0'), 'ux2.k.fit'], [K('F11'), 'ux2.k.full'], [K('Shift', 'F'), 'm11.k.drink'], [K('Ctrl', '\\'), 'uxs.k.side']]],
   ['ux2.helpFile', [[K('Ctrl', 'Z') + ' ' + K('Ctrl', 'Shift', 'Z'), 'ux2.k.undo'], [K('Ctrl', 'S'), 'ux2.k.save']]],

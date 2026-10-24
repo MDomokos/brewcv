@@ -45,22 +45,28 @@ export function caretOf(el){
   const at = (node, off) => { const p = doc.createRange(); p.selectNodeContents(el); p.setEnd(node, off); const box = doc.createElement('div'); box.append(p.cloneContents()); return plainOf(box).length; };
   return { start: at(r.startContainer, r.startOffset), end: at(r.endContainer, r.endOffset) };
 }
+// The node and offset where the text offset `off` is, counting a <br> as one character
+function locate(el, off){
+  const doc = el.ownerDocument;
+  let left = off;
+  const w = doc.createTreeWalker(el, 4 /* text */ | 1 /* element, for <br> */);
+  let n;
+  while ((n = w.nextNode())){
+    if (n.nodeType === 3){ if (left <= n.data.length) return [n, left]; left -= n.data.length; }
+    else if (String(n.nodeName).toUpperCase() === 'BR'){ if (left === 0) return [n.parentNode, [...n.parentNode.childNodes].indexOf(n)]; left -= 1; }
+  }
+  return [el, el.childNodes.length];
+}
+// A range over the plain text from `start` to `end` (what the highlights are painted on while a line is written)
+export function rangeOf(el, start, end){
+  const r = el.ownerDocument.createRange();
+  r.setStart(...locate(el, start)); r.setEnd(...locate(el, end));
+  return r;
+}
 // Put the caret back (after the text was set as one text node, or as lines).
 export function setCaret(el, { start, end }){
   const doc = el.ownerDocument, sel = doc.defaultView?.getSelection?.();
   if (!sel) return;
-  const find = off => {
-    let left = off;
-    const w = doc.createTreeWalker(el, 4 /* text */ | 1 /* element, for <br> */);
-    let n;
-    while ((n = w.nextNode())){
-      if (n.nodeType === 3){ if (left <= n.data.length) return [n, left]; left -= n.data.length; }
-      else if (String(n.nodeName).toUpperCase() === 'BR'){ if (left === 0) return [n.parentNode, [...n.parentNode.childNodes].indexOf(n)]; left -= 1; }
-    }
-    return [el, el.childNodes.length];
-  };
-  const [sn, so] = find(start), [en, eo] = find(end);
-  const r = doc.createRange();
-  r.setStart(sn, so); r.setEnd(en, eo);
+  const r = rangeOf(el, start, end);
   sel.removeAllRanges(); sel.addRange(r);
 }

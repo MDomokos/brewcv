@@ -6,6 +6,9 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## 1.6.1 - 2026-10-24
 
+### Added
+- **Highlight words while you write a line.** Hold Alt (or Ctrl+Alt) and drag over words, or select them and press Ctrl/Cmd+Shift+H. A click on a highlighted word clears it. The highlights show as you edit, and stay on that resume only.
+
 ### Changed
 - **Esc at the page level folds the sidebar and centres the pages.**
 - **The page you are not working on stays at full brightness.** The current page has a stronger edge, and the sidebar casts a shadow over a page that runs under it.
