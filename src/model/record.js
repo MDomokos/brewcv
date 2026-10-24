@@ -1,5 +1,7 @@
 // Versions of the career record. Pure: changes the model in place, as a store draft wants.
 // Numbers are per fact and language, at most one dot, and never reused: deleted ones stay in `fact.retired[lang]`.
+// A new number counts across every language of the fact, so EN v1–v4 means a new Hungarian major is v5; `addVersion`'s `n` matches one on purpose.
+// shortcut: a language with no version of the fact yet starts at v1, as its first text always has (a first translation is not "v5"); change it if a first text should count too.
 
 import { isDraft, isArchive } from './resume.js';
 import { guard } from './lock.js';
@@ -21,16 +23,19 @@ function index(model){
 }
 export const factOf = (model, vid) => (model.facts ?? []).find(f => (f.variants ?? []).includes(vid)) ?? null;
 
-function usedNumbers(model, f, lang){
+// `lang` null: every language
+function usedNumbers(model, f, lang = null){
   const ix = index(model);
-  const live = (f.variants ?? []).map(ix.variant).filter(v => v && langOf(v) === lang).map(v => v.n).filter(Boolean);
-  return [...live, ...(f.retired?.[lang] ?? [])].filter(n => VERSION_N.test(String(n)));
+  const live = (f.variants ?? []).map(ix.variant).filter(v => v && (lang === null || langOf(v) === lang)).map(v => v.n).filter(Boolean);
+  const retired = lang === null ? Object.values(f.retired ?? {}).flat() : f.retired?.[lang] ?? [];
+  return [...live, ...retired].filter(n => VERSION_N.test(String(n)));
 }
 
 export function nextMajor(model, factId, lang = DEFAULT_LANG){
   const f = index(model).fact(factId);
   if (!f) throw new Error(`no such fact: ${factId}`);
-  const ms = usedNumbers(model, f, lang).map(n => Number(major(n)));
+  if (!usedNumbers(model, f, lang).length) return '1';
+  const ms = usedNumbers(model, f).map(n => Number(major(n)));
   return String((ms.length ? Math.max(...ms) : 0) + 1);
 }
 
@@ -38,7 +43,7 @@ export function nextMinor(model, factId, from, lang = DEFAULT_LANG){
   const f = index(model).fact(factId);
   if (!f) throw new Error(`no such fact: ${factId}`);
   const M = major(from);
-  const ms = usedNumbers(model, f, lang).filter(n => major(n) === M && String(n).includes('.')).map(n => Number(String(n).split('.')[1]));
+  const ms = usedNumbers(model, f).filter(n => major(n) === M && String(n).includes('.')).map(n => Number(String(n).split('.')[1]));
   return `${M}.${(ms.length ? Math.max(...ms) : 0) + 1}`;
 }
 
@@ -102,7 +107,8 @@ function freeId(model, base){
 
 // Tags, language and source come from `from`. `as`: 'minor' (vN.x under from's major) or 'major'.
 // `marks` are the highlights the text already has; without them `from`'s are moved onto the new text. `source` wins over from's.
-export function addVersion(model, factId, { text, lang, from = null, as = 'major', tagsFrom = null, marks = null, source = null } = {}){
+// `n`: the number to give it (to match another language's), refused when the language has it or had it.
+export function addVersion(model, factId, { text, lang, from = null, as = 'major', tagsFrom = null, marks = null, source = null, n: want = null } = {}){
   const ix = index(model);
   const f = ix.fact(factId);
   if (!f) throw new RecordError(`no such fact: ${factId}`);
@@ -111,7 +117,9 @@ export function addVersion(model, factId, { text, lang, from = null, as = 'major
   const L = lang ?? langOf(src) ?? DEFAULT_LANG;
   const t = clean(text);
   if (!t) throw new RecordError('a version needs some text');
-  const n = as === 'minor' && src ? nextMinor(model, factId, src.n, L) : nextMajor(model, factId, L);
+  if (want !== null && !VERSION_N.test(String(want))) throw new RecordError(`${want} is not a version number`);
+  if (want !== null && usedNumbers(model, f, L).includes(String(want))) throw new RecordError(`v${want} is taken in ${L}`);
+  const n = want !== null ? String(want) : as === 'minor' && src ? nextMinor(model, factId, src.n, L) : nextMajor(model, factId, L);
   const id = freeId(model, `${factId}-v${n.replace('.', '-')}${L === DEFAULT_LANG ? '' : `-${L}`}`);
   const v = {
     id, n, lang: L, text: t, marks: [], links: [],

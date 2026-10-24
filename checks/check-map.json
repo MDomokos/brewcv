@@ -13,6 +13,7 @@
     "resumes": { "run": "node checks/resumes-check.mjs", "covers": "autosave, snapshots and sends, frozen text, new, duplicate (a company and a role for a new job), compare, glance, folder" },
     "focus": { "run": "node checks/focus-check.mjs", "covers": "tags, plan = apply, Keep untouched, no job emptied" },
     "lang": { "run": "node checks/lang-check.mjs", "covers": "the ten languages, missing texts, switching, A4 formats" },
+    "multilingual": { "run": "node checks/multilingual-check.mjs", "covers": "language copies kept in step both ways (order, hiding, picks, sections, locks, the look), what each keeps its own, picks matched by number, behind and missing at a number, new numbers over every language, addVersion's n, one undo, old copies and other resumes untouched" },
     "diff": { "run": "node checks/diff-check.mjs", "covers": "the merge engine on an edited copy of the example" },
     "import": { "run": "node checks/import-check.mjs", "covers": "every kind of file, JSON Resume round trip, outside edits" },
     "savefile": { "run": "node checks/savefile-check.mjs", "covers": "Save to file: format, record id, the ways a file meets this browser, conflict copies" },

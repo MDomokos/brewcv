@@ -4,6 +4,9 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+### Changed
+- **A copy in another language now follows its original, and the original follows it:** line order, hidden lines, version picks, sections, jobs, locks and the look change in both, and each language prints the same version number. Each keeps its own name, language, paper, text size and its one-off texts.
+
 ## 1.6.1 - 2026-10-24
 
 ### Changed

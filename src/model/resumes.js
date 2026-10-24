@@ -14,7 +14,7 @@
 import { t, keyed } from '../i18n/index.js';
 import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere } from './resume.js';
 import { resumeFileName, nameKey } from './schema.js';
-import { switchLang } from './lang.js';
+import { switchLang, stashOwn } from './lang.js';
 import { LockedError, guard, isLocked } from './lock.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
 
@@ -63,7 +63,7 @@ export function tagVersions(model, recipe, T){
 
 // Key order and bookkeeping don't change what a resume prints.
 const canon = x => (Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(k => [k, canon(x[k])])) : x);
-const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'earlier', 'locked'];
+const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'earlier', 'locked', 'inStep'];
 export const printedKey = (recipe, body) => {
   const r = clone(recipe);
   for (const k of NOT_PRINTED) delete r[k];
@@ -111,7 +111,8 @@ export function saveNew(state, { name, company, role, forKind, jobType, tags, ta
 }
 
 // Runs inside every commit (src/store/store.js): the open resume is written into `resumes` and its frozen text
-// refreshed, so what is on the page is always what is saved. A resume that was never saved is saved now.
+// refreshed, so what is on the page is always what is saved. A resume that was never saved is saved now. Its language copies
+// take the same change (mirror), so a change to any of them is still one undo step.
 export function settle(state){
   if (!state?.record || !state.cur) return;
   const i = state.openId ? (state.resumes ?? []).findIndex(r => r.id === state.openId) : -1;
@@ -125,6 +126,7 @@ export function settle(state){
   state.resumes[i] = prev.snapshots?.length ? { ...next, snapshots: prev.snapshots } : next;
   const body = bodyOf(state, next, state.frozen?.[next.id] ?? null);
   if (body) state.frozen = { ...(state.frozen ?? {}), [next.id]: body };
+  mirror(state, next.id);
 }
 
 // A held bullet is a one-off override listed in `held`.
@@ -184,7 +186,7 @@ export function openSaved(state, id){
 // A copy of a saved resume's recipe to start something else from: no name, no snapshots, no For. Lines it holds at older wording stay held.
 function copyOf(src){
   const r = clone(src);
-  for (const k of ['id', 'savedAt', 'date', 'snapshots', 'forKind', 'parent']) delete r[k];
+  for (const k of ['id', 'savedAt', 'date', 'snapshots', 'forKind', 'parent', 'inStep']) delete r[k];
   r.company = ''; r.role = '';
   return r;
 }
@@ -231,10 +233,12 @@ export function duplicate(state, id, { lang = null, name = null, company, role }
   holdFrozen(state.record, r, state.frozen?.[id] ?? null);
   const base = resumeLabel(src);
   const to = lang && lang !== (r.lang ?? 'en') ? lang : null;
-  if (to) switchLang(r, to, state.record);
+  if (to){ switchLang(r, to, state.record); r.inStep = true; }
   state.cur = r;
   state.openId = null;
-  return saveNew(state, { name: name ?? (to ? t('ux1.langCopy', { name: base, lang: to.toUpperCase() }) : t('ux1.copyOf', { name: base })), company, role, tagVersions: false });
+  const out = saveNew(state, { name: name ?? (to ? t('ux1.langCopy', { name: base, lang: to.toUpperCase() }) : t('ux1.copyOf', { name: base })), company, role, tagVersions: false });
+  if (to){ mirror(state, src.id); syncCur(state); }      // the new copy starts as the group prints, not with the empty picks switchLang leaves
+  return out;
 }
 
 export function renameSaved(state, id, name){
@@ -336,7 +340,7 @@ export function deleteSnapshot(state, sid){
   if (saved && !saved.snapshots.length) delete saved.snapshots;
 }
 
-const KEEP_ON_RESTORE = ['id', 'name', 'application', 'title', 'company', 'role', 'forKind', 'jobType', 'tags', 'savedAt', 'date'];
+const KEEP_ON_RESTORE = ['id', 'name', 'application', 'title', 'company', 'role', 'forKind', 'jobType', 'tags', 'savedAt', 'date', 'inStep'];
 // Restore as current: the open resume prints as the snapshot did; its name and For stay.
 export function restoreSnapshot(state, sid){
   const snap = findSnapshot(state, sid);
@@ -359,6 +363,102 @@ export function duplicateSnapshot(state, sid, { name = null } = {}){
   state.cur = r;
   state.openId = null;
   return saveNew(state, { name: name ?? t('ux1.copyOfSnap', { name: resumeLabel(src), date: when }), company: src.company, role: src.role, forKind: src.forKind, tagVersions: false });
+}
+
+// ---- language copies kept in step ----
+// A copy made in another language (`parent`) with `inStep` is in its original's group. Whatever one of them prints, the rest print too (mirror),
+// except what each keeps for its own language: lang, paper format, text size and density, one-off texts, headings, and NOT_PRINTED
+// (locks excepted: they are shared). Copies made before `inStep` existed are left alone until setInStep turns it on.
+// shortcut: a line with no pick follows each language's own default, so its numbers can differ; mirror matches picks only.
+
+const langOfR = r => r?.lang ?? 'en';
+const OWN = new Set([...NOT_PRINTED.filter(k => k !== 'locked'), 'lang', 'format', 'overrides', 'overrideMeta', 'design', 'sections', 'skillArrangement', 'terms']);
+
+// The resume with its language copies, as saved (the resume itself first if it has no original). One resume alone is no group.
+export function groupOf(state, r){
+  const all = state.resumes ?? [], byId = new Map(all.map(x => [x.id, x]));
+  const up = x => { const p = x.inStep && x.parent ? byId.get(x.parent) : null; return p && langOfR(p) !== langOfR(x) ? p : null; };
+  let root = byId.get(r?.id) ?? r;
+  for (let n = 0; root && up(root) && n < 50; n++) root = up(root);
+  const out = root ? [root] : [];
+  for (let i = 0; i < out.length; i++) for (const x of all) if (!out.includes(x) && up(x) === out[i]) out.push(x);
+  return out;
+}
+export const inGroup = (state, r) => groupOf(state, r).length > 1;
+
+// The version of `fact` in `lang` with the number of `vid`; `vid` itself when it has no such twin (the line is then missing there).
+function sameNumber(model, fact, vid, lang){
+  const v = model.variants.find(x => x.id === vid);
+  if (!v || (v.lang ?? 'en') === lang) return vid;
+  const ids = model.facts.find(f => f.id === fact)?.variants ?? [];
+  return model.variants.find(x => ids.includes(x.id) && (x.lang ?? 'en') === lang && String(x.n) === String(v.n))?.id ?? vid;
+}
+// the other side's own words, kept by id
+const withOwn = (list, mine, keys) => (list ?? []).map(x => {
+  if (!x || typeof x !== 'object') return x;
+  const m = (mine ?? []).find(y => y && typeof y === 'object' && y.id === x.id), out = Object.fromEntries(Object.entries(x).filter(([k]) => !keys.includes(k)));
+  for (const k of keys) if (m?.[k] !== undefined) out[k] = m[k];
+  return out;
+});
+
+// `o` as it prints when it follows `src`
+function mirrored(state, src, o){
+  const model = state.record, lang = langOfR(o), next = {};
+  for (const [k, v] of Object.entries(o)) if (OWN.has(k)) next[k] = v;
+  for (const [k, v] of Object.entries(src)) if (!OWN.has(k)) next[k] = clone(v);
+  if (src.picks !== undefined) next.picks = Object.fromEntries(Object.entries(src.picks).map(([f, vid]) => [f, sameNumber(model, f, vid, lang)]));
+  const { size, density, ...look } = src.design ?? {}, mine = o.design ?? {};
+  const design = { ...clone(look), ...(mine.size !== undefined ? { size: mine.size } : {}), ...(mine.density !== undefined ? { density: mine.density } : {}) };
+  if (Object.keys(design).length) next.design = design; else delete next.design;
+  if (src.sections) next.sections = withOwn(clone(src.sections), o.sections, ['label']);
+  if (src.skillArrangement){
+    const a = clone(src.skillArrangement), b = o.skillArrangement;
+    next.skillArrangement = { ...a, ...(b?.lang !== undefined ? { lang: b.lang } : {}), groups: withOwn(a.groups, b?.groups, ['label', 'lang']) };
+  } else delete next.skillArrangement;
+  // a line only on the original has its text there; here it starts as typed, and goes with the line
+  const over = { ...(o.overrides ?? {}) }, meta = { ...(o.overrideMeta ?? {}) };
+  for (const id of Object.keys(o.overrides ?? {})) if (isLocal(o, id) && !isLocal(next, id)){ delete over[id]; delete meta[id]; }
+  for (const [id, text] of Object.entries(src.overrides ?? {})) if ((isLocal(src, id) || isLocked(model, src, id)) && !(id in over)){ over[id] = text; if (src.overrideMeta?.[id]) meta[id] = clone(src.overrideMeta[id]); }
+  if (o.overrides !== undefined || Object.keys(over).length) next.overrides = over;
+  if (Object.keys(meta).length) next.overrideMeta = meta; else delete next.overrideMeta;
+  return next;
+}
+
+// Makes the other resumes in `fromId`'s group print what it prints (see above), and refreshes their frozen text so opening one does not offer
+// the change as newer wording. Only a resume that changes is written. Returns the ids written.
+export function mirror(state, fromId){
+  const src = savedOf(state, fromId), done = [];
+  if (!src || !state.record) return done;
+  const bare = ({ savedAt, ...r }) => JSON.stringify(canon(r));
+  for (const o of groupOf(state, src)){
+    if (o.id === fromId) continue;
+    const next = mirrored(state, src, o);
+    if (bare(o) === bare(next)) continue;
+    next.savedAt = today();
+    state.resumes[state.resumes.indexOf(o)] = next;
+    const body = bodyOf(state, next, state.frozen?.[next.id] ?? null);
+    if (body) state.frozen = { ...(state.frozen ?? {}), [next.id]: body };
+    done.push(next.id);
+  }
+  return done;
+}
+// the open resume's working copy from its saved one, after something wrote the saved copy
+function syncCur(state){
+  const saved = savedOf(state);
+  if (saved) state.cur = (({ snapshots, ...r }) => r)(clone(saved));
+}
+
+// A copy made before inStep: turning it on keeps its own picks, texts and holds in `byLang`, then it takes its original's.
+export function setInStep(state, id, on = true){
+  const r = savedOf(state, id);
+  if (!r) throw new Error(`no saved resume ${id}`);
+  if (!on){ delete r.inStep; syncCur(state); return; }
+  const parent = parentOf(state, r);
+  if (!parent || langOfR(parent) === langOfR(r)) throw new Error(`${id} is not a copy of another resume in another language`);
+  stashOwn(r, state.record);
+  r.inStep = true;
+  mirror(state, parent.id);
+  syncCur(state);
 }
 
 // The resume this one was copied from, if it is still saved.

@@ -1,7 +1,7 @@
 // Resume languages. Pure: no DOM, no I/O. `recipe.lang` absent means English.
 // A text with no version in the language prints in English unless `record.same` lists it.
 
-import { addVersion } from './record.js';
+import { addVersion, versionsIn, major, compareN } from './record.js';
 import { t, docChrome, keyed } from '../i18n/index.js';
 import { LANGS } from './schema.js';
 import { entriesOf } from './entries.js';
@@ -76,14 +76,16 @@ export function printedFactIds(model, recipe){
 
 // Texts and headings with no version in the resume's language. Empty in English.
 // A section the app has a default heading for in `chrome` is not missing.
-export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? DEFAULT_LANG) } = {}){
+// `inGroup` (the resume is in a group of language copies, see groupOf in resumes.js): a text is missing when the language has no version at
+// the number the line prints (`want`), and English is checked too. Behind (kind 'behind'): it has an older one under the same major (`have`).
+export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? DEFAULT_LANG), inGroup = false } = {}){
   const lang = recipe?.lang ?? DEFAULT_LANG;
-  if (lang === DEFAULT_LANG) return [];
+  if (lang === DEFAULT_LANG && !inGroup) return [];
   const out = [];
   const facts = new Map((model.facts ?? []).map(f => [f.id, f]));
   const seen = new Set();
   const app = chrome?.lang === lang ? { ...(chrome.sections ?? {}), ...(chrome.kinds ?? {}) } : {};
-  for (const s of sectionList(model, recipe).filter(x => x.on && !x.fixed)){
+  for (const s of lang === DEFAULT_LANG ? [] : sectionList(model, recipe).filter(x => x.on && !x.fixed)){      // the record's section titles are English
     const own = (recipe.sections ?? []).find(x => x?.id === s.id)?.label;
     const has = (typeof own === 'string') || own?.[lang] || model.i18n?.[lang]?.sections?.[s.id] || app[s.id];
     if (!has && !isSame(model, `section:${s.id}`)){
@@ -101,18 +103,23 @@ export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? 
     const own = localEntry(recipe, p.fact), text = String(recipe.overrides?.[p.fact] ?? '').trim();
     if (own){ if ((own.lang ?? DEFAULT_LANG) !== lang && text) out.push({ key: `local:${p.fact}`, kind: 'fact', id: p.fact, label: text.slice(0, 80), where: p }); continue; }
     if (recipe.overrides?.[p.fact] !== undefined) continue;
-    if (hasVersionIn(model, p.fact, lang) || isSame(model, sameKey(p.fact))) continue;
-    const f = facts.get(p.fact);
-    out.push({ key: sameKey(p.fact), kind: 'fact', id: p.fact, label: f?.summary ?? f?.label ?? p.fact, where: p });
+    if (isSame(model, sameKey(p.fact))) continue;
+    const f = facts.get(p.fact), label = f?.summary ?? f?.label ?? p.fact;
+    if (inGroup){
+      const want = chooseVariant(model, p.fact, recipe).v;
+      if (want && langOf(want) === lang) continue;
+      const have = want && versionsIn(model, p.fact, lang).filter(x => major(x.n) === major(want.n) && compareN(x.n, want.n) < 0).at(-1);
+      out.push({ key: sameKey(p.fact), kind: have ? 'behind' : 'fact', id: p.fact, label, where: p, want: want?.n, ...(have ? { have: have.n } : {}) });
+      continue;
+    }
+    if (hasVersionIn(model, p.fact, lang)) continue;
+    out.push({ key: sameKey(p.fact), kind: 'fact', id: p.fact, label, where: p });
   }
   return out;
 }
 
-// In place. Picks, one-off texts and holds are kept per language in `byLang`.
-export function switchLang(recipe, to, model = null){
-  const from = recipe.lang ?? DEFAULT_LANG;
-  if (from === to) return false;
-  recipe.byLang = { ...(recipe.byLang ?? {}) };
+// What a resume keeps for its language while it shows another: picks, one-off texts and holds. `own` is the part that stays in every language.
+function keepOf(recipe, model){
   const keep = {};
   for (const k of ['picks', 'overrides', 'held']) if (recipe[k] !== undefined && (Array.isArray(recipe[k]) ? recipe[k].length : Object.keys(recipe[k]).length)) keep[k] = recipe[k];
   // the lines only on this resume have no other language: their text stays where it is
@@ -124,6 +131,22 @@ export function switchLang(recipe, to, model = null){
   const ownMeta = metaOf(recipe.overrideMeta, k => k in own);
   if (keep.overrides) keep.overrideMeta = metaOf(recipe.overrideMeta, k => k in keep.overrides);
   if (keep.overrideMeta && !Object.keys(keep.overrideMeta).length) delete keep.overrideMeta;
+  return { keep, own, ownMeta };
+}
+
+// The copy's own picks, texts and holds go into `byLang` under its language, as switching away would, before it takes the group's.
+export function stashOwn(recipe, model = null){
+  const { keep } = keepOf(recipe, model);
+  if (!Object.keys(keep).length) return;
+  recipe.byLang = { ...(recipe.byLang ?? {}), [recipe.lang ?? DEFAULT_LANG]: structuredClone(keep) };
+}
+
+// In place. Picks, one-off texts and holds are kept per language in `byLang`.
+export function switchLang(recipe, to, model = null){
+  const from = recipe.lang ?? DEFAULT_LANG;
+  if (from === to) return false;
+  recipe.byLang = { ...(recipe.byLang ?? {}) };
+  const { keep, own, ownMeta } = keepOf(recipe, model);
   if (Object.keys(keep).length) recipe.byLang[from] = keep; else delete recipe.byLang[from];
   const back = recipe.byLang[to] ?? {};
   recipe.picks = back.picks ?? {};
