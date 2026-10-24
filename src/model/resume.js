@@ -22,6 +22,7 @@ import { offOf, keepOf, keepLinks, migratePins, inOrder, localOf, localJob, loca
 import { designOf, PRESETS, RELATED } from './design.js';
 import { lookOf } from '../themes.js';
 import { LockedError, guard, guardOff, guardUp, isLocked, skillsSection } from './lock.js';
+import { setI18n, englishOf } from './labels.js';
 export { offOf, keepOf, migratePins, inOrder, isLocal, localOf, termOf };
 
 function index(model){
@@ -1006,6 +1007,27 @@ export const labelNow = (model, recipe, key, lang) => {
   return key.startsWith('~h:') ? labelOf(model, recipe, id, lang) ?? recordTitle(model, id, lang) : termOf(recipe, id) ?? recordTerm(model, id, lang);
 };
 
+// What a resume prints for a label key in its own language: `~h:<section>` a heading, `~t:<fact>` a language's name, `~g:<skill group>` a group's name.
+export function printedLabel(model, recipe, key){
+  const id = key.slice(3);
+  if (key.startsWith('~g:')) return (recipe.skillArrangement?.groups ?? []).find(g => g.id === id)?.label ?? groupLabel(model, recipe, id);
+  return labelNow(model, recipe, key, recipe.lang ?? DEFAULT_LANG);
+}
+// The labels this resume writes itself, by label key (`~f:` is a field of the record, which no resume writes).
+export function ownLabels(recipe){
+  const lang = recipe.lang ?? DEFAULT_LANG, out = {};
+  for (const e of recipe.sections ?? []) if (e && typeof e === 'object' && e.id){ const t = labelOf(null, recipe, e.id, lang); if (t) out[`~h:${e.id}`] = t; }
+  for (const id of Object.keys(recipe.terms ?? {})){ const t = termOf(recipe, id); if (t) out[`~t:${id}`] = t; }
+  for (const g of recipe.skillArrangement?.groups ?? []) if (g?.label) out[`~g:${g.id}`] = g.label;
+  return out;
+}
+// The text a label has in `lang` right now: what that language's resume of the group prints, else (English) the record's own. undefined: not known.
+export function labelIn(model, others, key, lang){
+  const id = key.slice(3), o = key.startsWith('~f:') ? null : others.find(r => (r.lang ?? DEFAULT_LANG) === lang);
+  if (o) return printedLabel(model, o, key);
+  return lang === DEFAULT_LANG ? englishOf(model, { h: 'sections', g: 'labels', t: 'terms', f: 'fields' }[key[1]], id) : undefined;
+}
+
 // ignores this resume's own label
 export const recordTitle = (model, id, lang) =>
   (lang !== DEFAULT_LANG ? model.i18n?.[lang]?.sections?.[id] : undefined) ?? factIx(model).sections.get(id)?.title ?? id;
@@ -1017,7 +1039,7 @@ export function useLabelEverywhere(model, recipe, id, lang){
   const s = (model.sections ?? []).find(x => x.id === id);
   if (!s) return false;
   if (lang === DEFAULT_LANG) s.title = t;
-  else { model.i18n ??= {}; model.i18n[lang] ??= {}; model.i18n[lang].sections ??= {}; model.i18n[lang].sections[id] = t; }
+  else setI18n(model, lang, 'sections', id, t);
   setSectionLabel(model, recipe, id, lang, null);
   return true;
 }

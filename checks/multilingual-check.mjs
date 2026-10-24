@@ -12,6 +12,7 @@ import * as RS from '../src/model/resumes.js';
 import * as R from '../src/model/record.js';
 import * as L from '../src/model/lang.js';
 import * as T from '../src/model/resume.js';
+import * as K from '../src/model/career.js';
 import { createStore } from '../src/store/store.js';
 import { validate } from './lib/validate.mjs';
 
@@ -27,6 +28,8 @@ const ok = (name, cond) => {
   if (!pass) failed++;
 };
 const section = t => console.log(`\n— ${t}`);
+// a setup step that throws is a FAIL with its message too, and the run goes on
+const attempt = (name, fn) => { try { fn(); } catch (e) { console.log(`FAIL  ${name}  — ${e.message}`); failed++; } };
 
 const model = S.load(read('data/example.json')).model;
 const names = read('data/example-resumes/index.json');
@@ -46,7 +49,7 @@ const open = (store, id) => store.commit(d => { RS.openSaved(d, id); }, 'open');
 const saved = (store, id) => RS.savedOf(store.state, id);
 const order = (store, id, job = 'hydra') => T.listedBullets(store.state.record, saved(store, id), job);
 const picked = (store, id, fact) => saved(store, id).picks?.[fact];
-const missing = (store, id) => L.missingList(store.state.record, saved(store, id), { inGroup: RS.inGroup(store.state, saved(store, id)) });
+const missing = (store, id) => L.missingList(store.state.record, saved(store, id), RS.groupOpts(store.state, saved(store, id)));
 const want = (list, fact) => list.find(m => m.id === fact);
 
 // the English example resume with a Hungarian copy of it in step; the Hungarian one is open
@@ -332,6 +335,324 @@ section('the validator accepts a group\u2019s missing state only');
     const r = clone(inStep); r.picks['hydra-testing'] = 'hydra-testing-v1';
     return errs(r).some(e => /hydra-testing/.test(e) && /language is chosen once/.test(e));
   });
+}
+
+// ---- Step 1b: headings and other labels, one-off texts, the old versions ----
+const labelOf = (store, id, key) => T.printedLabel(store.state.record, saved(store, id), key);
+const kind = (list, k, id) => list.find(m => m.kind === k && m.id === id);
+const writeLabel = (store, id, fn) => { open(store, id); store.commit(d => { fn(d); }, `write a label in ${id}`); };
+
+section('a heading written in one language is listed in the other when the first changes');
+{
+  const { store, hu } = fresh();
+  const was = T.recordTitle(store.state.record, 'experience', 'en');
+  ok('a heading in a group keeps the other language\'s text it was written against', () => {
+    writeLabel(store, hu, d => T.setSectionLabel(d.record, d.cur, 'experience', 'hu', 'Munkatapasztalat'));
+    return eq(saved(store, hu).labelFrom, { '~h:experience': { en: was } });
+  });
+  ok('labelFrom is not printed (the key ignores it) and stays each resume\'s own', () => {
+    const a = saved(store, hu), b = clone(a); delete b.labelFrom;
+    return RS.printedKey(a, {}) === RS.printedKey(b, {}) && !saved(store, EN).labelFrom;
+  });
+  ok('nothing is listed while English still says what it said', () => !kind(missing(store, hu), 'heading-changed', 'experience') && !kind(missing(store, EN), 'heading-changed', 'experience'));
+  writeLabel(store, EN, d => T.setSectionLabel(d.record, d.cur, 'experience', 'en', 'Work history'));
+  ok('English writes its own: it keeps the Hungarian text', () => eq(saved(store, EN).labelFrom, { '~h:experience': { hu: 'Munkatapasztalat' } }));
+  ok('a renamed English heading lists the Hungarian one as heading-changed, from English, with both texts', () => {
+    const m = kind(missing(store, hu), 'heading-changed', 'experience');
+    return m?.from === 'en' && m.was === was && m.now === 'Work history' && m.labelKey === '~h:experience' && m.where.kind === 'section' && m.label === 'Munkatapasztalat';
+  });
+  ok('…and not the English one: nothing changed in Hungarian since', () => !kind(missing(store, EN), 'heading-changed', 'experience'));
+  ok('outside a group the list does not have it', () => { const old = clone(saved(store, hu)); delete old.inStep; return !L.missingList(store.state.record, old).some(m => m.kind === 'heading-changed'); });
+  writeLabel(store, hu, d => T.setSectionLabel(d.record, d.cur, 'experience', 'hu', 'Munkatörténet'));
+  ok('saving the Hungarian heading stops it', () => !kind(missing(store, hu), 'heading-changed', 'experience') && saved(store, hu).labelFrom['~h:experience'].en === 'Work history');
+  ok('…and now English is the one that has changed since it was written', () => { const m = kind(missing(store, EN), 'heading-changed', 'experience'); return m?.from === 'hu' && m.now === 'Munkatörténet'; });
+  ok('keeping it as it is (confirming) stops it too, with no new words', () => {
+    open(store, EN);
+    store.commit(d => { RS.keepLabelAs(d, '~h:experience'); }, 'keep');
+    return !kind(missing(store, EN), 'heading-changed', 'experience') && saved(store, EN).labelFrom['~h:experience'].hu === 'Munkatörténet';
+  });
+  ok('clearing the heading drops its labelFrom', () => { writeLabel(store, hu, d => T.setSectionLabel(d.record, d.cur, 'experience', 'hu', null)); return !saved(store, hu).labelFrom; });
+  ok('one undo takes back the label and its labelFrom together', () => { store.undo(); return saved(store, hu).labelFrom?.['~h:experience'] && T.labelOf(store.state.record, saved(store, hu), 'experience', 'hu') === 'Munkatörténet'; });
+  ok('a heading the other language wrote against is only listed when the section prints', () => {
+    writeLabel(store, hu, d => { T.setSectionLabel(d.record, d.cur, 'experience', 'hu', 'Tapasztalat 3'); T.setSectionLabel(d.record, d.cur, 'education', 'hu', 'Tanulmányok'); });
+    writeLabel(store, EN, d => { T.setSectionLabel(d.record, d.cur, 'education', 'en', 'Studies'); T.setSectionLabel(d.record, d.cur, 'experience', 'en', 'Work history 2'); });
+    const ids = missing(store, hu).filter(m => m.kind === 'heading-changed').map(m => m.id).sort();
+    const both = eq(ids, ['education', 'experience']);
+    store.commit(d => { T.setSectionOn(d.record, d.cur, 'education', false); }, 'hide');
+    return both && eq(missing(store, hu).filter(m => m.kind === 'heading-changed').map(m => m.id), ['experience']);
+  });
+}
+
+section('a skill group name and a language\'s name behave the same');
+{
+  const { store, hu } = fresh();
+  ok('a skill group name written in Hungarian keeps English\'s', () => {
+    writeLabel(store, hu, d => T.writeGroup(d.record, d.cur, 'skills-cad', 'CAD és 3D tervezés\nSolidWorks, Fusion'));
+    return eq(saved(store, hu).labelFrom, { '~g:skills-cad': { en: 'CAD & 3D' } });
+  });
+  writeLabel(store, EN, d => T.writeGroup(d.record, d.cur, 'skills-cad', 'Computer-aided design\nSolidWorks, Fusion'));
+  ok('a renamed English group lists the Hungarian one, with the group\'s id, label and the skills section', () => {
+    const m = kind(missing(store, hu), 'heading-changed', 'skills-cad');
+    return m?.from === 'en' && m.was === 'CAD & 3D' && m.now === 'Computer-aided design' && m.labelKey === '~g:skills-cad' && m.where.section === 'skills' && m.label === 'CAD és 3D tervezés';
+  });
+  writeLabel(store, hu, d => T.writeGroup(d.record, d.cur, 'skills-cad', 'CAD és 3D rajz\nSolidWorks, Fusion'));
+  ok('saving the Hungarian one stops it', () => !kind(missing(store, hu), 'heading-changed', 'skills-cad'));
+  ok('a language\'s name written in Hungarian keeps English\'s, and a change in English lists it', () => {
+    writeLabel(store, EN, d => T.setSectionOn(d.record, d.cur, 'languages', true));
+    writeLabel(store, hu, d => T.setTerm(d.record, d.cur, 'lang-english', 'hu', 'Angol nyelv'));
+    const kept = eq(saved(store, hu).labelFrom['~t:lang-english'], { en: 'English' });
+    writeLabel(store, EN, d => T.setTerm(d.record, d.cur, 'lang-english', 'en', 'English (C1)'));
+    const m = kind(missing(store, hu), 'heading-changed', 'lang-english');
+    return kept && m?.labelKey === '~t:lang-english' && m.now === 'English (C1)';
+  });
+}
+
+section('a label of the record (i18n) behaves the same');
+{
+  const { store, hu } = fresh();
+  const rec = () => store.state.record;
+  ok('a field written in Hungarian keeps the English it was written against', () => {
+    store.commit(d => { K.updateJob(d.record, 'hydra', { location: 'Lisszabon, PT' }, 'hu'); }, 'Hungarian location');
+    return rec().i18n.hu.from['fields/work/hydra/location'] === 'Lisbon, Portugal';
+  });
+  ok('a section heading and a skill group name written in the record keep it too', () => {
+    store.commit(d => { K.updateSkill(d.record, 'skills-cad', { name: 'CAD és 3D' }, 'hu'); }, 'Hungarian skill name');
+    return rec().i18n.hu.from['labels/skills-cad'] === 'CAD & 3D';
+  });
+  ok('nothing is listed while English is what it was', () => !missing(store, hu).some(m => m.kind === 'heading-changed'));
+  ok('a changed English field lists the Hungarian resume that prints the job', () => {
+    store.commit(d => { K.updateJob(d.record, 'hydra', { location: 'Lisbon, PT' }, 'en'); }, 'English location');
+    const m = kind(missing(store, hu), 'heading-changed', 'work/hydra/location');
+    return m?.from === 'en' && m.was === 'Lisbon, Portugal' && m.now === 'Lisbon, PT' && m.labelKey === '~f:work/hydra/location' && eq(m.where, { kind: 'job', id: 'hydra' });
+  });
+  ok('…and a changed English group name lists the group, as the record\'s', () => {
+    store.commit(d => { K.updateSkill(d.record, 'skills-cad', { name: 'CAD and 3D' }, 'en'); }, 'English skill name');
+    const m = kind(missing(store, hu), 'heading-changed', 'skills-cad');
+    return m?.was === 'CAD & 3D' && m.now === 'CAD and 3D' && m.labelKey === '~g:skills-cad';
+  });
+  ok('saving the Hungarian ones stops them', () => {
+    store.commit(d => { K.updateJob(d.record, 'hydra', { location: 'Lisszabon' }, 'hu'); K.updateSkill(d.record, 'skills-cad', { name: 'CAD és 3D rajz' }, 'hu'); }, 'Hungarian again');
+    return !missing(store, hu).some(m => m.kind === 'heading-changed');
+  });
+  ok('a Hungarian label with no from yet is not stale', () => {
+    const m = clone(store.state.record); delete m.i18n.hu.from;
+    return L.missingList(m, saved(store, hu), RS.groupOpts({ ...store.state, record: m }, saved(store, hu))).every(x => x.kind !== 'heading-changed');
+  });
+  ok('confirming a record label for this resume stops it without writing the record', () => {
+    store.commit(d => { K.updateJob(d.record, 'hydra', { location: 'Lisbon' }, 'en'); }, 'English moves again');
+    const before = !!kind(missing(store, hu), 'heading-changed', 'work/hydra/location');
+    open(store, hu);
+    store.commit(d => { RS.keepLabelAs(d, '~f:work/hydra/location'); }, 'keep');
+    return before && !kind(missing(store, hu), 'heading-changed', 'work/hydra/location') && eq(saved(store, hu).labelFrom['~f:work/hydra/location'], { en: 'Lisbon' });
+  });
+  ok('deleting a language row or skill group takes its from with it', () => {
+    const m = clone(store.state.record); K.deleteItem(m, 'skills', 'skills-cad');
+    return !m.skills.some(x => x.id === 'skills-cad') && !m.i18n.hu.labels['skills-cad'] && !m.i18n.hu.from?.['labels/skills-cad'];
+  });
+  ok('i18n.<lang>.from survives a save and a load', () => eq(S.load(S.save(rec())).model.i18n.hu.from, rec().i18n.hu.from));
+  ok('the validator accepts it, and a malformed one is an error', () => {
+    const bad = clone(rec()); bad.i18n.hu.from = { 'fields/x': 5 };
+    return validate(S.save(rec())).errors.length === 0 && validate(S.save(bad)).errors.some(e => /i18n\.hu\.from/.test(e));
+  });
+}
+
+section('labelFrom in a saved resume');
+{
+  const { store, hu } = fresh();
+  writeLabel(store, hu, d => T.setSectionLabel(d.record, d.cur, 'experience', 'hu', 'Munkatapasztalat'));
+  const file = () => S.saveResume(store.state.record, saved(store, hu)).file;
+  ok('it survives saving and loading, untouched', () => { const got = S.loadResume(file(), store.state.record); return eq(got.recipe.labelFrom, saved(store, hu).labelFrom) && got.warnings.length === 0; });
+  ok('a malformed one is cleaned with a warning, keeping the text leaves', () => {
+    const f = file(); f.meta.resumeBuilder.resume.labelFrom = { '~h:experience': { en: 'Experience', hu: 4 }, '~h:skills': 'x', '~h:education': { en: 5 } };
+    const got = S.loadResume(f, store.state.record);
+    return eq(got.recipe.labelFrom, { '~h:experience': { en: 'Experience' } }) && got.warnings.some(w => /labelFrom/.test(w));
+  });
+  ok('one that is not an object is dropped with a warning', () => {
+    const f = file(); f.meta.resumeBuilder.resume.labelFrom = 'yes';
+    const got = S.loadResume(f, store.state.record);
+    return !('labelFrom' in got.recipe) && got.warnings.some(w => /labelFrom/.test(w));
+  });
+  ok('it is not kept inside terms or the labels, which keep only { lang: name }', () => !JSON.stringify(saved(store, hu).sections).includes('Experience') && !('terms' in saved(store, hu)));
+  ok('the validator accepts a resume with it, and a raw malformed one is an error', () => {
+    const r = clone(saved(store, hu)), bad = clone(r); bad.labelFrom = { '~h:experience': { en: 5 } };
+    const errs = x => validate(S.save(store.state.record), x).errors;
+    return errs(r).length === 0 && errs(bad).some(e => /labelFrom/.test(e));
+  });
+  ok('a language copy starts with none of its original\'s', () => {
+    writeLabel(store, EN, d => T.setSectionLabel(d.record, d.cur, 'skills', 'en', 'Know-how'));
+    store.commit(d => { RS.duplicate(d, EN, { lang: 'de' }); }, 'German copy');
+    return !saved(store, store.state.openId).labelFrom;
+  });
+}
+
+section('a one-off text in one language is listed in the others');
+{
+  const { store, hu } = fresh();
+  open(store, EN);
+  ok('nothing is listed before an edit', () => !missing(store, hu).some(m => m.kind === 'edited-elsewhere'));
+  store.commit(d => { T.setOverride(d.record, d.cur, 'hydra-suppliers', 'Qualified the moulding suppliers, changed here only.'); }, 'English one-off');
+  ok('an English override lists the Hungarian line as edited-elsewhere, from English', () => { const m = kind(missing(store, hu), 'edited-elsewhere', 'hydra-suppliers'); return m?.from === 'en' && /changed here only/.test(m.text) && m.where.owner === 'hydra'; });
+  ok('…and not the English one, which has the text', () => !kind(missing(store, EN), 'edited-elsewhere', 'hydra-suppliers'));
+  ok('the other direction too', () => {
+    writeLabel(store, hu, d => T.setOverride(d.record, d.cur, 'hydra-testing', 'Csak itt módosított szöveg.'));
+    return kind(missing(store, EN), 'edited-elsewhere', 'hydra-testing')?.from === 'hu';
+  });
+  ok('a line with its own one-off text in both is not listed', () => {
+    writeLabel(store, EN, d => T.setOverride(d.record, d.cur, 'hydra-testing', 'Only here, in English too.'));
+    return !kind(missing(store, hu), 'edited-elsewhere', 'hydra-testing') && !kind(missing(store, EN), 'edited-elsewhere', 'hydra-testing');
+  });
+  ok('a line only on one resume is not listed', () => {
+    writeLabel(store, EN, d => { const id = T.addLocalLine(d.record, d.cur, 'hydra', 'hydra-inhaler'); T.setOverride(d.record, d.cur, id, 'A line only on English.'); });
+    return !missing(store, hu).some(m => m.kind === 'edited-elsewhere' && m.id !== 'hydra-suppliers' && m.id !== 'hydra-testing');
+  });
+  ok('a line the other resume holds at older wording (held) is not an edit', () => {
+    const st = clone(store.state), r = RS.savedOf(st, EN);
+    r.held = ['hydra-suppliers'];
+    return !L.missingList(st.record, RS.savedOf(st, hu), RS.groupOpts(st, RS.savedOf(st, hu))).some(m => m.kind === 'edited-elsewhere' && m.id === 'hydra-suppliers');
+  });
+  ok('it ends when the override is gone', () => {
+    writeLabel(store, EN, d => T.dropOverride(d.record, d.cur, 'hydra-suppliers'));
+    return !kind(missing(store, hu), 'edited-elsewhere', 'hydra-suppliers');
+  });
+  ok('once it is a version, the number rule takes over: the line is missing at that number', () => {
+    writeLabel(store, EN, d => { T.setOverride(d.record, d.cur, 'hydra-suppliers', 'Qualified the moulding suppliers.'); });
+    const v = (() => { let x; store.commit(d => { x = R.addVersion(d.record, 'hydra-suppliers', { text: 'Qualified the moulding suppliers.', lang: 'en', as: 'major' }); T.dropOverride(d.record, d.cur, 'hydra-suppliers'); T.pickVersion(d.record, d.cur, 'hydra-suppliers', x.id); }, 'make it a version'); return x; })();
+    const m = kind(missing(store, hu), 'fact', 'hydra-suppliers');
+    return !kind(missing(store, hu), 'edited-elsewhere', 'hydra-suppliers') && m?.want === v.n && m.from === 'en';
+  });
+  ok('the missing list outside a group is what it was', () => { const old = clone(saved(store, hu)); delete old.inStep; return L.missingList(store.state.record, old).every(m => m.kind === 'fact' || m.kind === 'heading'); });
+}
+
+section('matching an old version to the number of the text it translates');
+{
+  const { store, hu } = fresh();
+  const rec = () => store.state.record, ver = id => rec().variants.find(v => v.id === id);
+  ok('matchNumber moves the number and keeps the id, the default and the version\'s text', () => {
+    const m = clone(model), text = m.variants.find(v => v.id === 'summary-v2-hu').text, def = clone(m.facts.find(f => f.id === 'summary').default);
+    const v = R.matchNumber(m, 'summary-v2-hu', '3');
+    return v.id === 'summary-v2-hu' && v.n === '3' && v.text === text && eq(m.facts.find(f => f.id === 'summary').default, def) && R.versionsIn(m, 'summary', 'hu').map(x => x.n).join() === '1,3';
+  });
+  ok('a number the language has is refused', () => { try { R.matchNumber(clone(model), 'summary-v2-hu', '1'); return false; } catch (e) { return e instanceof R.RecordError && /taken/.test(e.message); } });
+  ok('a number the language had (retired) is refused', () => {
+    const m = clone(model); R.deleteVersion(m, 'summary-v1-hu', []);
+    try { R.matchNumber(m, 'summary-v2-hu', '1'); return false; } catch (e) { return e instanceof R.RecordError; }
+  });
+  ok('something that is not a number, or not a version, is refused', () => {
+    const bad = (id, n) => { try { R.matchNumber(clone(model), id, n); return false; } catch (e) { return e instanceof R.RecordError; } };
+    return bad('summary-v2-hu', 'three') && bad('summary-v2-hu', '3.') && bad('nope', '3');
+  });
+  ok('the same number again changes nothing', () => R.matchNumber(clone(model), 'summary-v2-hu', '2').n === '2');
+  ok('takenNumber says what matchNumber would refuse', () => R.takenNumber(model, 'summary', 'hu', '2') && !R.takenNumber(model, 'summary', 'hu', '3') && R.takenNumber(model, 'summary', 'en', '4'));
+
+  // English prints v3 of the summary; Hungarian has v1 and v2 (its v2 is the translation of English v3)
+  open(store, EN);
+  store.commit(d => { T.pickVersion(d.record, d.cur, 'summary', 'summary-v3'); }, 'EN v3');
+  store.commit(d => { const r = RS.savedOf(d, names.find(n => /Dunamenti/.test(n))); r.picks = { ...r.picks, summary: 'summary-v2-hu' }; }, 'another resume picks the Hungarian version');
+  const picksBefore = JSON.stringify(bystanders(store, [EN, hu]).map(r => r.picks)), keys = bystanders(store, [EN, hu]).map(r => keyOf(store, r));
+  open(store, hu);
+  ok('the Hungarian copy prints the English v3 and lists the line missing at v3', () => picked(store, hu, 'summary') === 'summary-v3' && want(missing(store, hu), 'summary')?.want === '3');
+  let beforeMatch;
+  attempt('matching a version commits', () => store.commit(d => { beforeMatch = JSON.stringify(RS.savedOf(d, EN)); RS.matchVersion(d, 'summary-v2-hu', '3'); }, 'match'));
+  ok('after matching, the id is the same and its number is 3', () => ver('summary-v2-hu').n === '3' && ver('summary-v2-hu').id === 'summary-v2-hu');
+  ok('the open copy\'s pick that held the English version is remapped to it', () => picked(store, hu, 'summary') === 'summary-v2-hu' && store.state.cur.picks.summary === 'summary-v2-hu');
+  ok('…so the line is no longer missing', () => !want(missing(store, hu), 'summary') && !want(missing(store, EN), 'summary'));
+  ok('English still prints its v3, unchanged', () => JSON.stringify(saved(store, EN)).includes('"summary":"summary-v3"') && picked(store, EN, 'summary') === 'summary-v3');
+  ok('every other saved resume renders byte for byte what it did', () => eq(bystanders(store, [EN, hu]).map(r => keyOf(store, r)), keys));
+  ok('no other saved resume\'s picks changed', () => JSON.stringify(bystanders(store, [EN, hu]).map(r => r.picks)) === picksBefore && picksBefore.includes('summary-v2-hu'));
+  ok('the copy prints the Hungarian text now', () => T.resolve(rec(), saved(store, hu)).body.basics.summary === ver('summary-v2-hu').text);
+  ok('one undo takes the match back, the number and the pick together', () => {
+    store.undo();
+    return ver('summary-v2-hu').n === '2' && picked(store, hu, 'summary') === 'summary-v3' && JSON.stringify(saved(store, EN)) === beforeMatch;
+  });
+  ok('matching from the English side remaps the Hungarian copy too (every member, not the open one)', () => {
+    open(store, EN);
+    store.commit(d => { RS.matchVersion(d, 'summary-v2-hu', '3'); }, 'match from English');
+    return picked(store, hu, 'summary') === 'summary-v2-hu' && picked(store, EN, 'summary') === 'summary-v3';
+  });
+  ok('a refused number changes nothing and throws', () => {
+    const st = clone(store.state);
+    try { RS.matchVersion(st, 'summary-v1-hu', '3'); return false; } catch (e) { return e instanceof R.RecordError && JSON.stringify(st.record) === JSON.stringify(store.state.record); }
+  });
+  ok('a third language\'s copy is left as it was where it has no version at that number, and the Hungarian one is remapped', () => {
+    const s3 = createStore(exampleState(), { settle: RS.settle });
+    s3.commit(d => { T.pickVersion(d.record, d.cur, 'summary', 'summary-v3'); }, 'EN v3');
+    s3.commit(d => { RS.duplicate(d, EN, { lang: 'hu' }); }, 'HU');
+    const huId = s3.state.openId;
+    s3.commit(d => { RS.openSaved(d, EN); RS.duplicate(d, EN, { lang: 'de' }); }, 'DE');
+    const de = s3.state.openId, st = clone(s3.state);
+    RS.openSaved(st, huId);
+    RS.matchVersion(st, 'summary-v2-hu', '3');
+    return RS.groupOf(st, RS.savedOf(st, EN)).length === 3 && RS.savedOf(st, huId).picks.summary === 'summary-v2-hu' && RS.savedOf(st, de).picks.summary === 'summary-v3' && RS.savedOf(st, EN).picks.summary === 'summary-v3' && st.cur.picks.summary === 'summary-v2-hu';
+  });
+}
+
+section('guessing which version a line matches');
+{
+  const state = () => createStore(exampleState(), { settle: RS.settle });
+  // an old copy, as one made before copies were kept in step: it picked its own Hungarian version, then was put in step
+  const oldCopy = () => {
+    const store = state();
+    store.commit(d => { T.pickVersion(d.record, d.cur, 'summary', 'summary-v3'); }, 'EN v3');
+    store.commit(d => { RS.duplicate(d, EN, { lang: 'hu' }); }, 'HU');
+    const hu = store.state.openId;
+    store.commit(d => { delete RS.savedOf(d, hu).inStep; RS.openSaved(d, hu); T.pickVersion(d.record, d.cur, 'summary', 'summary-v2-hu'); }, 'its own pick');
+    store.commit(d => { RS.setInStep(d, hu, true); }, 'keep in step');
+    return { store, hu };
+  };
+  ok('the pair is found in the copy\'s memory: the original\'s pick at copy time and its own', () => {
+    const { store, hu } = oldCopy(), g = L.guessMatch(store.state, saved(store, hu), 'summary');
+    return eq(saved(store, hu).byLang.en.picks.summary, 'summary-v3') && eq(saved(store, hu).byLang.hu.picks.summary, 'summary-v2-hu') && g?.vid === 'summary-v2-hu' && g.n === '3' && g.why === 'pick' && g.sure === true;
+  });
+  ok('with no memory it falls back to the tags: English v3 and Hungarian v2 are both manufacturing', () => {
+    const store = state();
+    store.commit(d => { T.pickVersion(d.record, d.cur, 'summary', 'summary-v3'); }, 'EN v3');
+    store.commit(d => { RS.duplicate(d, EN, { lang: 'hu' }); }, 'HU');
+    const g = L.guessMatch(store.state, saved(store, store.state.openId), 'summary');
+    return !saved(store, store.state.openId).byLang?.hu && g?.vid === 'summary-v2-hu' && g.n === '3' && g.why === 'tags' && g.sure === false;
+  });
+  ok('tags that fit more than one version are no clue', () => {
+    const store = state();
+    store.commit(d => { T.pickVersion(d.record, d.cur, 'summary', 'summary-v3'); R.addVersion(d.record, 'summary', { text: 'Más szöveg.', lang: 'hu', n: '4' }); d.record.variants.find(v => v.id === 'summary-v4-hu').tags = ['manufacturing']; }, 'EN v3, a second manufacturing text in Hungarian');
+    store.commit(d => { RS.duplicate(d, EN, { lang: 'hu' }); }, 'HU');
+    return L.guessMatch(store.state, saved(store, store.state.openId), 'summary') === null;
+  });
+  ok('then the same numbers in the text', () => {
+    const store = state();
+    store.commit(d => {
+      const en = R.addVersion(d.record, 'hydra-dfm', { text: 'Cut tooling cost by 12% over 3 years.', lang: 'en', n: '5' });
+      R.addVersion(d.record, 'hydra-dfm', { text: 'A szerszámköltség 12%-kal csökkent 3 év alatt.', lang: 'hu', n: '7' });
+      R.addVersion(d.record, 'hydra-dfm', { text: 'Egészen más szöveg számok nélkül.', lang: 'hu', n: '8' });
+      d.record.variants.find(v => v.id === 'hydra-dfm-v7-hu').tags = ['other'];
+      T.pickVersion(d.record, d.cur, 'hydra-dfm', en.id);
+    }, 'texts');
+    store.commit(d => { RS.duplicate(d, EN, { lang: 'hu' }); }, 'HU');
+    const g = L.guessMatch(store.state, saved(store, store.state.openId), 'hydra-dfm');
+    return g?.vid === 'hydra-dfm-v7-hu' && g.n === '5' && g.why === 'numbers' && g.sure === false;
+  });
+  ok('with no clue it is null', () => {
+    const store = state();
+    store.commit(d => { T.pickVersion(d.record, d.cur, 'hydra-inhaler', 'hydra-inhaler-v3'); }, 'EN v3 (Medical devices)');
+    store.commit(d => { RS.duplicate(d, EN, { lang: 'hu' }); }, 'HU');
+    return L.guessMatch(store.state, saved(store, store.state.openId), 'hydra-inhaler') === null;
+  });
+  ok('a line that prints its own language has nothing to guess', () => {
+    const { store } = oldCopy();
+    return L.guessMatch(store.state, saved(store, EN), 'summary') === null;
+  });
+  ok('matchPlan lists this language\'s versions, the guess first and marked, each with the number it would get', () => {
+    const { store, hu } = oldCopy();
+    // after setInStep the copy printed English v3: the line is missing at 3 (its Hungarian v2 is the translation)
+    const p = L.matchPlan(store.state, saved(store, hu), 'summary');
+    return p?.n === '3' && p.from === 'en' && p.rows[0].v.id === 'summary-v2-hu' && p.rows[0].probably && p.rows[0].n === '3' && p.rows[0].free && p.rows.every(r => r.n === '3') && p.rows.length === 2;
+  });
+  ok('a number the language had is listed as not free', () => {
+    const { store, hu } = oldCopy();
+    store.commit(d => { R.deleteVersion(d.record, 'summary-v1-hu', []); }, 'delete');
+    const st = clone(store.state);
+    st.record.facts.find(f => f.id === 'summary').retired = { hu: ['3'] };
+    return L.matchPlan(st, RS.savedOf(st, hu), 'summary').rows.every(r => !r.free);
+  });
+  ok('no plan when the line prints this language\'s own version', () => { const { store, hu } = oldCopy(); return L.matchPlan(store.state, saved(store, EN), 'summary') === null; });
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nALL PASSED');

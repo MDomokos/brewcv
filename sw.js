@@ -71,6 +71,7 @@ const SHELL = [
   './src/ui/parts.js',
   './src/model/career.js',
   './src/model/entries.js',
+  './src/model/labels.js',
   './src/ui/langmenu.js',
   './src/ui/settings.js',
   './src/i18n/index.js',

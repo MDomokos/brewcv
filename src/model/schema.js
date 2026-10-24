@@ -356,6 +356,7 @@ export function loadResume(file, model = null){
   cleanTerms(recipe, warnings);
   cleanLocked(recipe, warnings);
   cleanInStep(recipe, warnings);
+  cleanLabelFrom(recipe, warnings);
   const snaps = readSnapshots(rb.snapshots, warnings);
   if (snaps.length) recipe.snapshots = snaps;
   return { recipe, frozen, warnings };
@@ -404,6 +405,20 @@ function cleanInStep(recipe, warnings){
   if (recipe.inStep === undefined || recipe.inStep === true) return;
   warnings.push('inStep is not true; it was dropped');
   delete recipe.inStep;
+}
+
+// recipe.labelFrom = { labelKey: { lang: text } } is the text of the other languages a label was written against. It is its own key, since
+// `terms` and the labels keep only { lang: name } strings. Anything that is not a string is dropped.
+function cleanLabelFrom(recipe, warnings){
+  const a = recipe.labelFrom;
+  if (a === undefined) return;
+  const out = {};
+  if (isObj(a)) for (const [key, v] of Object.entries(a)){
+    const mine = isObj(v) ? Object.fromEntries(Object.entries(v).filter(([, x]) => typeof x === 'string')) : {};
+    if (Object.keys(mine).length) out[key] = mine;
+  }
+  if (!isObj(a) || JSON.stringify(out) !== JSON.stringify(a)) warnings.push('labelFrom had something that is not text, or is not a list of texts by language; it was dropped');
+  if (Object.keys(out).length) recipe.labelFrom = out; else delete recipe.labelFrom;
 }
 
 // recipe.terms = { factId: { lang: name } } is read from a file anyone can edit: anything else is dropped, so setTerm never spreads a string into keys.

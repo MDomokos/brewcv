@@ -102,7 +102,7 @@ async function printPdf(){
 
 function checks(){
   const s = st(), r = C.cur();
-  return X.preflight({ model: C.work(), recipe: r, fills: C.ui.fills ?? [], missing: missingList(C.work(), r, { inGroup: RS.inGroup(st(), r) }).length,
+  return X.preflight({ model: C.work(), recipe: r, fills: C.ui.fills ?? [], missing: missingList(C.work(), r, RS.groupOpts(st(), r)).length,
     newer: C.ui.snap ? 0 : RS.newerOf(C.work(), r).length, vault: s.record.requireSource !== false });
 }
 

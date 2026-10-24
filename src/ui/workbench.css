@@ -469,15 +469,20 @@ table.cmp tr.setting th { color: var(--ink); }
 .item.fact.miss { border-style: dashed; border-color: var(--warn); }
 .ref { background: var(--wash); border: 1px solid var(--line); border-radius: var(--r-s); padding: 7px 9px; font-size: 13px; margin: 3px 0 8px; }
 .writein textarea { width: 100%; font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--r-s); resize: vertical; }
-.writein .ref ins { background: var(--ins-bg); text-decoration: none; }
-.writein .ref del { background: var(--del-bg); color: var(--del-ink); }
-.writein .ref del + ins, .diff del + ins { margin-inline-start: .3em; }      /* a word swapped for another: the two never run together */
+.writein .ref ins, .labelchg .ref ins { background: var(--ins-bg); text-decoration: none; }
+.writein .ref del, .labelchg .ref del { background: var(--del-bg); color: var(--del-ink); }
+.writein .ref del + ins, .labelchg .ref del + ins, .diff del + ins { margin-inline-start: .3em; }      /* a word swapped for another: the two never run together */
 .writein .seg { margin: 4px 0 8px; }
 .wifrom { margin: 0 0 8px; border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
 .wifrom .note { margin: 0; padding: 6px 10px; }
 .wirow { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; text-align: left; font-size: 12.5px; line-height: 1.4; cursor: pointer; }
 .wirow:hover { background: var(--hover); }
 .wirow .n { font-weight: 750; font-variant-numeric: tabular-nums; }
+.wirow.on { background: var(--hover); box-shadow: inset 3px 0 0 var(--accent); }
+.wirow:disabled { opacity: .55; cursor: default; }
+.wirow .probably { font-weight: 650; font-size: 11.5px; background: var(--accent-soft); border-radius: var(--r-s); padding: 0 6px; }
+.wimatch + .btns { margin-top: 8px; }
+.labelchg { margin: 8px 0 12px; }
 .keepstep { display: block; margin-top: 6px; }
 
 textarea.paste { width: 100%; font: 12px var(--font-mono); border: 1px solid var(--line); border-radius: var(--r-s); padding: 7px; resize: vertical; }

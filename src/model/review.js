@@ -7,6 +7,7 @@ import { guard, isLocked, lockedHolders } from './lock.js';
 import { localJob } from '../recipe.js';
 import { isDraft, isArchive, chooseVariant, recordTitle, recordTerm, pendingEdits, reviewableEdits, overrideOf, dropOverride, dropEarlier, earlierOf, pickVersion, keepHere, removeLocalLine, setBulletOn, moveBullet, listedBullets, isLocal, localOf, termOf, labelOf, setSectionLabel, setTerm, labelNow } from './resume.js';
 import { newerOf, usedVersions } from './resumes.js';
+import { setI18n } from './labels.js';
 
 export const SOURCE_MAX = 300;
 export const cleanSource = s => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, SOURCE_MAX);
@@ -127,7 +128,7 @@ export function useEverywhere(model, recipe, key){
     const s = (model.sections ?? []).find(x => x.id === id);
     if (!s) return false;
     if (lang === DEFAULT_LANG) s.title = text;
-    else { model.i18n ??= {}; model.i18n[lang] ??= {}; model.i18n[lang].sections ??= {}; model.i18n[lang].sections[id] = text; }
+    else setI18n(model, lang, 'sections', id, text);
     setSectionLabel(model, recipe, id, lang, null);
   } else {
     if (!(model.languages ?? []).some(x => x.id === id)) return false;

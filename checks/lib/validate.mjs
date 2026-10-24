@@ -366,6 +366,8 @@ export function validate(input, recipe = null){
     if (!LANGS.has(lang)) err(`i18n.${lang}`, `lang is not one of ${[...LANGS].join(', ')}`);
     else if (block?.fields !== undefined && (typeof block.fields !== 'object' || Object.values(block.fields).some(x => typeof x !== 'string')))
       err(`i18n.${lang}.fields`, 'expected { "path": "text" }');
+    else if (block?.from !== undefined && (!block.from || typeof block.from !== 'object' || Array.isArray(block.from) || Object.values(block.from).some(x => typeof x !== 'string')))
+      err(`i18n.${lang}.from`, 'expected { "kind/id": "the English text it was written against" }');
   if (b.image !== undefined){
     if (!isStr(b.image)) err('basics.image', 'must be a string');
     else if (/^data:/.test(b.image) && dataUrlBytes(b.image) > PHOTO_MAX)
@@ -504,6 +506,13 @@ export function validate(input, recipe = null){
     }
     for (const k of ['name', 'company', 'role', 'jobType'])
       if (recipe[k] !== undefined && typeof recipe[k] !== 'string') err(`recipe.${k}`, 'must be a string');
+    // the other languages' texts a label was written against: { "~h:experience": { en: "Experience" } }
+    if (recipe.labelFrom !== undefined){
+      const lf = recipe.labelFrom;
+      if (!lf || typeof lf !== 'object' || Array.isArray(lf)) err('recipe.labelFrom', 'expected { labelKey: { lang: text } }');
+      else for (const [k, v] of Object.entries(lf))
+        if (!v || typeof v !== 'object' || Array.isArray(v) || Object.values(v).some(x => typeof x !== 'string')) err(`recipe.labelFrom[${JSON.stringify(k)}]`, 'expected { lang: text }');
+    }
     if (recipe.forKind !== undefined && !['company', 'outreach'].includes(recipe.forKind)) err('recipe.forKind', 'must be "company" or "outreach"');
     if (recipe.tags !== undefined && (!Array.isArray(recipe.tags) || recipe.tags.some(t => !isStr(t)))) err('recipe.tags', 'expected an array of strings');
     if (recipe.accent !== undefined && !HEX.test(recipe.accent ?? '')) err('recipe.accent', `${JSON.stringify(recipe.accent)} is not a #rrggbb colour`);

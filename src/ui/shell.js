@@ -310,7 +310,7 @@ async function drawSheet(){
     relayout();
     sheet.select(ui.sel, ui.ix);
     sheet.setFocus(edit.focusHits(), ui.ix);
-    sheet.setMissing(missingList(w, r, { inGroup: RS.inGroup(store.state, r) }), ui.ix);
+    sheet.setMissing(missingList(w, r, RS.groupOpts(store.state, r)), ui.ix);
     renderAll();
     renderChip();
     checklist.landed();
@@ -769,7 +769,7 @@ setInterval(refreshFileLine, 30000);
 
 function langButton(r){
   const L = r.lang ?? 'en';
-  const n = missingList(work(), r, { inGroup: RS.inGroup(store.state, r) }).length;
+  const n = missingList(work(), r, RS.groupOpts(store.state, r)).length;
   const inUse = langsInUse(record());
   const open = ui.langMenu === 'resume';
   return `<span class="langs lang-menu"><button class="sm langbtn ${inUse.includes(L) ? '' : 'off'}" id="langbtn" data-act="lang-menu" aria-haspopup="menu" aria-expanded="${open}" aria-label="${esc(t('head.langGroup'))}: ${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}" ${ui.snap ? 'disabled' : ''} title="${esc(langName(L))}${n ? esc(t('head.langMissing', { n })) : ''}">${esc(L.toUpperCase())} ${icon('caret', { role: 'inline' })}${n ? `<span class="badge">${n}</span>` : ''}</button>
@@ -778,8 +778,8 @@ function langButton(r){
 }
 // how many texts each language lacks, were the open resume in it (English has none, unless the resume is in a group)
 function langCounts(inUse){
-  const g = RS.inGroup(store.state, cur());
-  return Object.fromEntries(inUse.map(l => [l, l === 'en' && !g ? 0 : missingList(work(), { ...cur(), lang: l }, { inGroup: g }).length]));
+  const g = RS.groupOpts(store.state, cur());
+  return Object.fromEntries(inUse.map(l => [l, l === 'en' && !g.inGroup ? 0 : missingList(work(), { ...cur(), lang: l }, g).length]));
 }
 async function openLangMenu(){
   if (ui.langMenu === 'resume'){ ui.langMenu = null; renderHead(); return; }
@@ -798,7 +798,7 @@ async function useLanguage(to, { add = false } = {}){
   ui.sel = NONE;
   await loadCatalogue(to);
   store.commit(d => { if (add) addLangInUse(d.record, to); switchLang(d.cur, to, d.record); }, add ? t('undo.addLanguage', { lang: langName(to) }) : t('undo.language', { lang: langName(to) }));
-  const n = missingList(work(), cur(), { inGroup: RS.inGroup(store.state, cur()) }).length;
+  const n = missingList(work(), cur(), RS.groupOpts(store.state, cur())).length;
   toast(t('toast.langNow', { lang: langName(to) }) + (n ? ' ' + t('toast.langMissing', { n, lang: langName(to) }) : ''));
 }
 

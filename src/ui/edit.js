@@ -7,8 +7,8 @@ import * as T from '../model/resume.js';
 import * as LK from '../model/lock.js';
 import { key as measureKeyOf } from '../fit.js';
 import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
-import { missingList, writeInPlan, isSame, sameKey, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
-import { groupOf, inGroup, parentOf, setInStep } from '../model/resumes.js';
+import { missingList, writeInPlan, matchPlan, isSame, sameKey, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
+import { groupOf, inGroup, groupOpts, parentOf, setInStep, matchVersion, keepLabelAs } from '../model/resumes.js';
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { keyOf, isLabelKey } from './select.js';
@@ -16,7 +16,7 @@ import { t, h, errText } from '../i18n/index.js';
 import { askIfLocked } from './ask.js';
 import { play, played } from './motion.js';
 import { icon } from './icons.js';
-import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, claimHead, delBtn } from './parts.js';
+import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, claimHead, delBtn, labelChangedHtml } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -103,14 +103,20 @@ const linesOf = v => v?.metrics?.measured?.[measureKeyOf(cur())]?.lines;
 
 // In a group of language copies every language is checked, English too (src/model/resumes.js groupOf)
 const grouped = () => inGroup(C.store.state, cur());
-const missingNow = () => (lang() === DEFAULT_LANG && !grouped() ? [] : missingList(work(), cur(), { inGroup: grouped() }));
+const missingNow = () => (lang() === DEFAULT_LANG && !grouped() ? [] : missingList(work(), cur(), groupOpts(C.store.state, cur())));
 // An old copy of a resume in another language (made before copies were kept in step): the switch that puts it in step
 const stepOffer = () => {
   const r = cur(), p = r?.inStep ? null : parentOf(C.store.state, r);
   return p && (p.lang ?? DEFAULT_LANG) !== (r.lang ?? DEFAULT_LANG) ? { name: C.resumeName(p) } : null;
 };
 const missingBar = () => missBar({ lang: lang(), list: missingNow(), group: grouped(), offer: stepOffer() });
-// Step 1b: a heading changed in the other language, and a text edited there but not yet a version, join the list here.
+// A heading, a language's name or a skill group's name written against text that has changed since (the list's kind 'heading-changed'): its note
+// shows the other language's old words struck through and the new ones marked, with the way to keep this one as it is. Writing the label
+// again saves it against the new words (src/model/resumes.js noteLabels).
+const changedLabels = pred => (grouped() ? missingNow().filter(m => m.kind === 'heading-changed' && pred(m.labelKey)) : []);
+const labelNotes = pred => changedLabels(pred).map(labelChangedHtml).join('');
+// the lines a write-in box is for: a text the language has no version of at the number the line prints, or an older one
+const isLineMiss = m => m.kind === 'fact' || m.kind === 'behind';
 
 // ---- the Highlight lens: one list of tags, job types (bundles of tags) first ----
 function lensBox(){
@@ -416,7 +422,7 @@ function sectionView(s, sel = s){
   const head = isHeader ? `<p class="muted small hnote">${h('edit.headerFirst')}</p>` : `<label class="hband hhead"><input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" aria-label="${esc(t('edit.headingHere', { lang: LANG_NAME[L] ?? L }))}" autocomplete="off"><span class="pen" aria-hidden="true">${icon('edit', { role: 'inline' })}</span>${own ? `<button type="button" class="rs" data-act="label-reset" aria-label="${esc(t('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) }))}" title="${esc(t('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) }))}">${icon('replay', { role: 'inline' })}</button>` : ''}<span class="grow"></span>${c ? `<span class="hcue">↓ ${esc(t('ux2.nOfM', { n: c.on, m: c.total }))}</span>` : ''}<span class="hlang" title="${esc(LANG_NAME[L] ?? L)}">${esc(L.toUpperCase())}</span></label>`;
   const first = grouped && movable.find(x => x.on)?.id === s.id;
   const rows = `${!isHeader && L !== DEFAULT_LANG ? `<div class="ctlrow">${sw(`data-same="section:${esc(s.id)}"`, isSame(rec(), `section:${s.id}`), h('edit.sameHeading'))}</div>` : ''}${grouped ? `<div class="ctlrow hgrp">${sw(`data-secgroup="${esc(s.id)}"`, T.groupedOf(cur(), s.id), `<span class="gl" aria-hidden="true"><i></i><i></i></span>${h('edit.groupUnder')}`, first)}${own ? `<button type="button" class="ghost sm" data-act="label-all">${h('edit.labelAll')}</button>` : ''}</div>${first ? `<p class="why muted small">${h('edit.groupFirst')}</p>` : ''}` : me && me.fixed && !isHeader ? `<p class="muted small hnote">${h('edit.summaryFollows')}</p>` : ''}`;
-  return `${headHtml(sel, info.hue, head + rows, { off: !!me && !me.fixed && !me.on })}
+  return `${headHtml(sel, info.hue, head + rows, { off: !!me && !me.fixed && !me.on })}${labelNotes(k => k === `~h:${s.id}`)}
     ${me && !me.fixed ? `<span class="lbl hpos">${h('edit.position', { at: at + 1, n: movable.length })}</span>` : ''}
     ${inner}`;
 }
@@ -431,7 +437,7 @@ function jobView(s, { details = true } = {}){
   const row = (id, what, text, cls) => id ? `<button type="button" class="hedit" data-act="job-fact" data-id="${esc(id)}" data-job="${esc(s.id)}" aria-label="${esc(`${what}: ${t('edit.editThis')}`)}"><span class="${cls}">${esc(text)}</span><span class="pen" aria-hidden="true">${icon('edit', { role: 'inline' })}</span></button>` : `<span class="${cls}">${esc(text)}</span>`;
   const pos = w.display?.position, meta = w.display?.meta, link = `<button type="button" class="sm ghost" data-act="job-details" data-job="${esc(s.id)}">${h('ux6c.entryFields')}</button>`;
   return `${headHtml(s, C.sectionInfo(sid).hue, `<div class="hband hhead jhead"><h2 class="title">${row(pos, t('ux6c.n.title'), C.textOfFact(pos) || w.position, 'hrt')}</h2></div>
-      <div class="jmeta">${row(meta, t('ux6c.f.dates'), C.textOfFact(meta), 'meta')}</div><div class="jlink">${link}</div>`, { off: !on })}${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
+      <div class="jmeta">${row(meta, t('ux6c.f.dates'), C.textOfFact(meta), 'meta')}</div><div class="jlink">${link}</div>`, { off: !on })}${labelNotes(k => k.startsWith(`~f:work/${s.id}/`))}${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
 }
 
 // A language's name, written on the page: its words here, and the record's to go back to
@@ -441,7 +447,7 @@ function termView(s){
     <h2 class="title">${esc(T.labelNow(rec(), cur(), s.id, L))}</h2>
     <label class="field"><span class="lbl inline">${h('ux6c.termHere', { lang: LANG_NAME[L] ?? L })}</span>
       <input id="term-in" data-key="${esc(s.id)}" value="${esc(own)}" placeholder="${esc(T.recordTerm(rec(), fid, L))}" autocomplete="off"></label>
-    <p class="muted small">${h('ux6c.termNote')}</p>`;
+    <p class="muted small">${h('ux6c.termNote')}</p>${labelNotes(k => k === s.id)}`;
 }
 // the record's own form for the entry a printed text is part of (what only the record edits: dates, links, the grade)
 function entryLink(id){
@@ -464,7 +470,7 @@ function bulletView(s){
 
   return headHtml(s, hue, `<h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
     ${claimHead({ kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null, ask: E.delAsk === s.id ? { name: f.summary ?? s.id, n: versionCount(s.id) } : null })}`, { off })
-    + versionsHtml(versionsX(s.id)) + entryLink(s.id);
+    + labelNotes(k => k === `~g:${s.id}`) + versionsHtml(versionsX(s.id)) + entryLink(s.id);
 }
 const isClaim = id => ix().highlight.has(id) && !T.isLocal(cur(), id);
 const versionCount = id => ix().facts.get(id)?.variants?.length ?? 0;      // every language's
@@ -496,11 +502,12 @@ const folded = id => E.fold.get(id) ?? (E.foldAuto?.fact === id ? E.foldAuto.fol
 // The write-in box of a group's line that prints the other language's version: its plan (src/model/lang.js writeInPlan), the way chosen and
 // the text the box starts with. `open`: its number was clicked (with no version of this language it is always open).
 function writeInX(id){
-  if (!grouped() || !(missingNow().some(m => m.id === id) || isSame(work(), sameKey(id)))) return null;
+  if (!grouped() || !(missingNow().some(m => m.id === id && isLineMiss(m)) || isSame(work(), sameKey(id)))) return null;
   const plan = writeInPlan(work(), cur(), id), on = E.writeIn?.fact === id ? E.writeIn : null;
   if (!plan) return null;
   const others = [...new Set(groupOf(C.store.state, cur()).map(r => r.lang ?? DEFAULT_LANG))].filter(l => l !== lang()).map(langName).join(', ');
-  return { plan, mode: on?.mode ?? 'translate', seed: on?.seed ?? null, open: !!on, others };
+  const mp = plan.have ? null : matchPlan(C.store.state, cur(), id);      // this language may already have it, under another number
+  return { plan, mode: on?.mode === 'match' && !mp ? 'translate' : on?.mode ?? 'translate', seed: on?.seed ?? null, open: !!on, others, match: mp && { ...mp, pick: on?.pick ?? null } };
 }
 function versionsX(id){
   const L = lang();
@@ -609,6 +616,16 @@ function startLabel(key){
   if (!C.onpage?.begin()){ E.edit = null; return; }
   E.edit.panel = false;
   C.renderBody();
+}
+// The list's changed label: its own editor, with the note above it. A heading is its section's, a language's name and a group's name are lines of
+// their own, a field is the job's.
+function goLabel(key, id){
+  const sel = key.startsWith('~h:') ? { kind: 'section', id }
+    : key.startsWith('~t:') ? { kind: 'bullet', id: key, section: ix().owned.get(id) ?? 'languages' }
+    : key.startsWith('~g:') ? { kind: 'bullet', id, section: 'skills' }
+    : { kind: 'job', id: id.split('/')[1] };
+  C.select(sel, { pane: 'edit' });
+  return true;
 }
 function focusEditor(selectAll = false){
   if (E.edit?.group) return $('#sk-gname')?.focus();
@@ -850,6 +867,21 @@ async function act(a, tg){
       $('#ed-new')?.focus();
       return true;
     }
+    case 'wi-pick': {      // a version of this language chosen to be matched to the number the line prints
+      E.writeIn = { fact: s.id, mode: 'match', pick: tg.dataset.vid };
+      C.renderBody();
+      return true;
+    }
+    case 'wi-match': {      // …and confirmed: it takes that number, one undo step
+      const vid = tg.dataset.vid, n = tg.dataset.n, id = s.id;
+      if (!vid || !n) return true;
+      const was = ix().variants.get(vid)?.n, L = lang();
+      const done = commit(d => { LK.guard(d.record, d.cur, id); matchVersion(d, vid, n); }, t('ml3.undoMatch', { lang: LANG_NAME[L] }));
+      E.writeIn = null;
+      if (done) C.toast(t('ml3.matched', { lang: LANG_NAME[L], from: was, n }));
+      C.renderBody();
+      return true;
+    }
     case 'wi-mode': case 'wi-seed': {
       const ta = $('#ed-new'), now = E.writeIn?.fact === s.id ? E.writeIn : { fact: s.id };
       E.writeIn = a === 'wi-mode' ? { ...now, mode: tg.dataset.mode, seed: ta ? ta.value : now.seed } : { fact: s.id, mode: 'translate', seed: R.versionsIn(work(), s.id, lang()).find(v => v.id === tg.dataset.vid)?.text ?? '' };
@@ -857,9 +889,11 @@ async function act(a, tg){
       $('#ed-new')?.focus();
       return true;
     }
+    case 'label-keep': commit(d => keepLabelAs(d, tg.dataset.key), t('ml3.undoKeep')); return true;      // the label is still right: it is taken as written against the new words
     case 'go-missing': {
       const k = tg.dataset.kind, id = tg.dataset.id;
-      if (k !== 'heading' && grouped()) E.writeIn = { fact: id, mode: 'translate' };      // a group's line opens with its box
+      if (k === 'heading-changed') return goLabel(tg.dataset.lkey, id);
+      if (k !== 'heading' && k !== 'edited-elsewhere' && grouped()) E.writeIn = { fact: id, mode: 'translate' };      // a group's line opens with its box
       // the missing text is written in Edit, wherever the list was
       if (k === 'heading') C.select({ kind: 'section', id }, { pane: 'edit' });
       else { const job = T.jobOfFact(rec(), id, cur()); C.select(job ? { kind: 'bullet', id, job: job.id, section: 'experience' } : { kind: 'bullet', id, section: tg.dataset.section ?? 'summary', owner: tg.dataset.owner ?? undefined }, { pane: 'edit' }); }
@@ -1194,7 +1228,7 @@ function leaving(next){
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, redraft: () => { if (E.edit && !E.edit.panel && isDirty()) livePreview(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
   fieldName, isAbove, outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockSaid, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, multiline,
-  missingOf: id => (grouped() ? missingNow().find(m => m.id === id && m.kind !== 'heading') ?? null : null),      // a group's line that prints the other language's version
+  missingOf: id => (grouped() ? missingNow().find(m => m.id === id && isLineMiss(m)) ?? null : null),      // a group's line that prints the other language's version
   get editing(){ return E.edit; },
   get softShown(){ return E.softShown; },
   setAutoFold(on){ E.autoFold = !!on; E.foldAuto = null; },      // for a check that is not about the fold: a short window would hide the versions it clicks

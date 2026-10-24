@@ -3,6 +3,7 @@
 
 import { emptyModel } from './schema.js';
 import { t, tIn } from '../i18n/index.js';
+import { setI18n } from './labels.js';
 
 export const SEP = '  ·  ';
 const RUN_SEP = ' · ', TITLE_SEP = '  ';
@@ -186,7 +187,7 @@ export function setSkills(model, groups, { lang = 'en' } = {}){
   const taken = ids(model);
   model.skills = list.map(g => ({ id: slug(`skills-${g.name}`, taken, 'skills'), name: g.name, keywords: [...g.keywords] }));
   for (const s of model.skills) addFact(model, s.id, { text: s.keywords.join(', '), label: s.name, summary: `${s.name} skills`, tags: [], also: alsoIn(lang, s.keywords.join(', ')) });
-  if (lang && lang !== 'en') for (const s of model.skills){ model.i18n ??= {}; model.i18n[lang] ??= {}; (model.i18n[lang].labels ??= {})[s.id] = s.name; }
+  if (lang && lang !== 'en') for (const s of model.skills) setI18n(model, lang, 'labels', s.id, s.name);
   const sec = ensureSection(model, { id: 'skills', title: 'Skills', kind: 'grid', content: { groups: [] } });
   sec.content.groups = model.skills.map(s => s.id);
   return model.skills.map(s => s.id);

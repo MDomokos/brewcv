@@ -8,6 +8,7 @@ import { fmtMonth, ym, addJob, addBullet, addFact, slug, metaLineOf, presentIn, 
 import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
 import { lockedHolders, guard } from './lock.js';
 import { jobTypesOf, normaliseJobType, tagVocab, TAG_CAP } from './focus.js';
+import { setI18n, dropI18n } from './labels.js';
 
 const now = () => new Date().toISOString().slice(0, 7);
 const months = (a, b) => {
@@ -36,12 +37,7 @@ export function fieldIn(model, lang, path, fallback = ''){
   if (lang === DEFAULT_LANG) return fallback;
   return model.i18n?.[lang]?.fields?.[path] ?? '';
 }
-function setField(model, lang, path, value){
-  model.i18n ??= {}; model.i18n[lang] ??= {};
-  const f = (model.i18n[lang].fields ??= {});
-  const v = String(value ?? '').trim();
-  if (v) f[path] = v; else delete f[path];
-}
+const setField = (model, lang, path, value) => setI18n(model, lang, 'fields', path, value);
 // A printed text follows a fact edit unless reworded by hand. No version in the language yet: v1.
 function follow(model, factId, lang, oldText, newText, dates = null){
   if (!factId || newText === oldText || !String(newText ?? '').trim()) return null;
@@ -647,7 +643,7 @@ export function updateSkill(model, id, { name, keywords, level } = {}, lang = DE
   if (name !== undefined){
     const v = String(name).trim();
     if (lang === DEFAULT_LANG){ if (v){ s.name = v; if (f){ f.label = v; f.summary = `${v} skills`; } } }
-    else { model.i18n ??= {}; model.i18n[lang] ??= {}; const l = (model.i18n[lang].labels ??= {}); if (v) l[id] = v; else delete l[id]; }
+    else setI18n(model, lang, 'labels', id, v);
   }
   if (keywords !== undefined){
     s.keywords = (Array.isArray(keywords) ? keywords : String(keywords).split(',')).map(x => String(x).trim()).filter(Boolean);
@@ -671,7 +667,7 @@ export function addSkill(model, { name = '', keywords = [] } = {}, lang = DEFAUL
   const id = slug(`skills-${n}`, factIds(model), 'skills');
   (model.skills ??= []).push({ id, name: n, keywords: kw });
   addFact(model, id, { text: kw.join(', ') || ' ', label: n, summary: `${n} skills`, tags: [], also: kw.length ? alsoIn(lang, kw.join(', ')) : null });
-  if (lang !== DEFAULT_LANG){ model.i18n ??= {}; model.i18n[lang] ??= {}; (model.i18n[lang].labels ??= {})[id] = n; }
+  if (lang !== DEFAULT_LANG) setI18n(model, lang, 'labels', id, n);
   const s = ensureListSection(model, 'grid', 'skills', 'Skills', 'groups', ['certified', 'patent', 'education', 'languages', 'interests']);
   s.content.groups = [...(s.content.groups ?? []), id];
   return id;
@@ -685,7 +681,7 @@ export function updateLanguage(model, id, { language, fluency } = {}, lang = DEF
   if (language !== undefined){
     const v = String(language).trim();
     if (lang === DEFAULT_LANG){ if (v){ l.language = v; if (f){ f.term = v; f.summary = `${v}${l.fluency ? `, ${l.fluency}` : ''}`; } } }
-    else { model.i18n ??= {}; model.i18n[lang] ??= {}; const terms = (model.i18n[lang].terms ??= {}); if (v) terms[id] = v; else delete terms[id]; }
+    else setI18n(model, lang, 'terms', id, v);
   }
   if (fluency !== undefined){
     const before = l.fluency ?? '';
@@ -698,7 +694,7 @@ export function addLanguage(model, { language = '', fluency = '' } = {}, lang = 
   const id = slug(`lang-${language || 'language'}`, factIds(model), 'lang');
   (model.languages ??= []).push({ id, language: String(language).trim(), fluency: String(fluency).trim() });
   addFact(model, id, { text: fluency || ' ', term: language, summary: `${language}${fluency ? `, ${fluency}` : ''}`, tags: [] });
-  if (lang !== DEFAULT_LANG){ model.i18n ??= {}; model.i18n[lang] ??= {}; (model.i18n[lang].terms ??= {})[id] = String(language).trim(); }
+  if (lang !== DEFAULT_LANG) setI18n(model, lang, 'terms', id, language);
   const s = ensureListSection(model, 'pairs', 'languages', 'Languages', 'pairs', ['interests']);
   s.content.pairs = [...(s.content.pairs ?? []), id];
   return id;
@@ -797,7 +793,7 @@ export function deleteItem(model, group, id, recipes = []){
   model[key] = model[key].filter(e => e !== x);
   if (!model[key].length && key === 'references') delete model[key];
   for (const s of model.sections ?? []) for (const k of ['groups', 'pairs', 'items']) if (s.content?.[k]) s.content[k] = s.content[k].filter(f => !facts.includes(f));
-  for (const l of Object.values(model.i18n ?? {})) for (const k of ['labels', 'terms']) if (l?.[k]) delete l[k][id];
+  for (const k of ['labels', 'terms']) dropI18n(model, k, id);
   return { facts: facts.length };
 }
 
@@ -924,13 +920,13 @@ export function updateKind(model, id, patch, recipes = [], recipe = null){
   if (!k) throw new Error(`no such kind: ${id}`);
   if (recipe?.locked?.length) guard(model, recipe, `~h:${k.section}`);      // the open resume keeps its locked heading as it is
   const s = (model.sections ?? []).find(x => x.id === k.section);
-  for (const [lang, v] of Object.entries(patch.name ?? {})){
+  for (const [lang, v] of Object.entries(patch.name ?? {}).sort(([a], [b]) => (b === DEFAULT_LANG) - (a === DEFAULT_LANG))){      // English first: the other languages are then written against its new words
     const old = k.name[lang] ?? '';
     const nv = String(v ?? '').trim();
     if (!nv || nv === old) continue;
     k.name[lang] = nv;
     if (s && lang === DEFAULT_LANG && s.title === old) s.title = nv;
-    if (s && lang !== DEFAULT_LANG && model.i18n?.[lang]?.sections?.[s.id] === old) model.i18n[lang].sections[s.id] = nv;
+    if (s && lang !== DEFAULT_LANG && model.i18n?.[lang]?.sections?.[s.id] === old) setI18n(model, lang, 'sections', s.id, nv);
     for (const r of recipes) for (const e of r?.sections ?? []) if (e && typeof e === 'object' && e.id === k.section && e.label){
       if (typeof e.label === 'string' && lang === DEFAULT_LANG && e.label === old) e.label = nv;
       else if (typeof e.label === 'object' && e.label[lang] === old) e.label[lang] = nv;

@@ -12,11 +12,12 @@
 //  - A snapshot is the open resume as it printed when Save was pressed, plus the sends (where and when it went).
 
 import { t, keyed } from '../i18n/index.js';
-import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere } from './resume.js';
+import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere, printedLabel, ownLabels, labelIn } from './resume.js';
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang, stashOwn, printedFactIds } from './lang.js';
 import { LockedError, guard, isLocked } from './lock.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
+import { matchNumber } from './record.js';
 
 const clone = x => structuredClone(x);
 export const today = () => new Date().toISOString().slice(0, 10);
@@ -63,7 +64,7 @@ export function tagVersions(model, recipe, T){
 
 // Key order and bookkeeping don't change what a resume prints.
 const canon = x => (Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(k => [k, canon(x[k])])) : x);
-const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'earlier', 'locked', 'inStep'];
+const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'earlier', 'locked', 'inStep', 'labelFrom'];
 export const printedKey = (recipe, body) => {
   const r = clone(recipe);
   for (const k of NOT_PRINTED) delete r[k];
@@ -121,12 +122,38 @@ export function settle(state){
   const next = { ...clone(state.cur), id: state.openId };
   delete next.snapshots;
   const bare = ({ savedAt, snapshots, ...r }) => JSON.stringify(canon(r));
+  noteLabels(state, prev, next);
   next.savedAt = bare(prev) === bare(next) ? prev.savedAt : today();
   state.cur = clone(next);
   state.resumes[i] = prev.snapshots?.length ? { ...next, snapshots: prev.snapshots } : next;
   const body = bodyOf(state, next, state.frozen?.[next.id] ?? null);
   if (body) state.frozen = { ...(state.frozen ?? {}), [next.id]: body };
   mirror(state, next.id);
+}
+
+// A label this resume wrote (or cleared) while it is in a group keeps the text of the other languages it was written against (`labelFrom`), so a
+// later change there is seen. It runs in every commit, so a heading, a language's name and a skill group's name all follow.
+function noteLabels(state, prev, next){
+  if (langOfR(prev) !== langOfR(next)) return;
+  const was = ownLabels(prev), now = ownLabels(next), keys = [...new Set([...Object.keys(was), ...Object.keys(now)])].filter(k => was[k] !== now[k]);
+  if (!keys.length) return;
+  const others = groupOf(state, prev).filter(o => o.id !== next.id), lf = { ...(next.labelFrom ?? {}) };
+  if (!others.length) return;
+  for (const k of keys){
+    if (now[k] === undefined) delete lf[k];
+    else lf[k] = Object.fromEntries(others.map(o => [langOfR(o), printedLabel(state.record, o, k)]));
+  }
+  if (Object.keys(lf).length) next.labelFrom = lf; else delete next.labelFrom;
+}
+// "The label is still right": the open resume's label, written or not, is taken as written against the other languages' text as it is now
+// (English too: the record's own words when no English resume is in the group).
+export function keepLabelAs(state, key){
+  const r = state.cur, others = groupOf(state, savedOf(state)).filter(o => o.id !== state.openId);
+  const langs = key.startsWith('~f:') ? ['en'] : [...new Set(['en', ...others.map(langOfR)])].filter(l => l !== langOfR(r));
+  const from = Object.fromEntries(langs.map(l => [l, labelIn(state.record, others, key, l)]).filter(([, x]) => typeof x === 'string'));
+  const lf = { ...(r.labelFrom ?? {}), [key]: from };
+  if (!Object.keys(from).length) delete lf[key];
+  if (Object.keys(lf).length) r.labelFrom = lf; else delete r.labelFrom;
 }
 
 // A held bullet is a one-off override listed in `held`.
@@ -233,7 +260,7 @@ export function duplicate(state, id, { lang = null, name = null, company, role }
   holdFrozen(state.record, r, state.frozen?.[id] ?? null);
   const base = resumeLabel(src);
   const to = lang && lang !== (r.lang ?? 'en') ? lang : null;
-  if (to){ switchLang(r, to, state.record); r.inStep = true; }
+  if (to){ switchLang(r, to, state.record); r.inStep = true; delete r.labelFrom; }      // what the original's labels were written against is no word of this language's
   state.cur = r;
   state.openId = null;
   const out = saveNew(state, { name: name ?? (to ? t('ux1.langCopy', { name: base, lang: to.toUpperCase() }) : t('ux1.copyOf', { name: base })), company, role, tagVersions: false });
@@ -384,6 +411,11 @@ export function groupOf(state, r){
   return out;
 }
 export const inGroup = (state, r) => groupOf(state, r).length > 1;
+// What missingList (lang.js) needs of a resume's group: whether it is in one, and the other resumes of it
+export function groupOpts(state, r){
+  const g = groupOf(state, r);
+  return { inGroup: g.length > 1, others: g.filter(o => o.id !== r?.id) };
+}
 
 // The version of `fact` in `lang` with the number of `vid`; `vid` itself when it has no such twin (the line is then missing there).
 function sameNumber(model, fact, vid, lang){
@@ -471,6 +503,23 @@ export function setInStep(state, id, on = true){
   r.inStep = true;
   mirror(state, parent.id);
   syncCur(state);
+}
+
+// Gives a version the number of the other language's text it translates (record.js matchNumber). Then every resume of the open one's group takes
+// its picks by number again, the open one too: a copy whose pick still holds the other language's version now prints this one.
+export function matchVersion(state, vid, n){
+  const v = matchNumber(state.record, vid, n);
+  for (const r of groupOf(state, savedOf(state))){
+    if (!r.picks) continue;
+    const picks = Object.fromEntries(Object.entries(r.picks).map(([f, p]) => [f, sameNumber(state.record, f, p, langOfR(r))]));
+    if (JSON.stringify(picks) === JSON.stringify(r.picks)) continue;
+    r.picks = picks;
+    r.savedAt = today();
+    const body = bodyOf(state, r, state.frozen?.[r.id] ?? null);
+    if (body) state.frozen = { ...(state.frozen ?? {}), [r.id]: body };
+  }
+  syncCur(state);
+  return v;
 }
 
 // The resume this one was copied from, if it is still saved.

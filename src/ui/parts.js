@@ -67,10 +67,13 @@ export function missBar({ lang, list, act = 'go-missing', group = false, offer =
   const keep = offer ? `<span class="keepstep" title="${esc(t('ml2.keepInStepTip'))}">${sw('data-instep="1"', false, h('ml2.keepInStep', { name: offer.name }))}</span>` : '';
   if (lang === DEFAULT_LANG && !group) return keep ? `<div class="okbar">${keep}</div>` : '';
   if (!list.length) return `<div class="okbar">${h('edit.allInLang', { lang: LANG_NAME[lang] })}${keep}</div>`;
-  const changed = list.filter(m => m.kind === 'behind'), todo = list.length - changed.length;
-  const sum = group ? `<b>${esc(lang.toUpperCase())}</b> · ${[todo && t('ml2.toTranslate', { n: todo }), ...[...new Set(changed.map(m => m.from))].map(f => t('ml2.changedIn', { n: changed.filter(m => m.from === f).length, lang: LANG_NAME[f] }))].filter(Boolean).map(esc).join(', ')}` : h('edit.missingBar', { n: list.length, lang: LANG_NAME[lang] });
+  const changed = list.filter(m => m.kind === 'behind' || m.kind === 'heading-changed'), edited = list.filter(m => m.kind === 'edited-elsewhere'), todo = list.length - changed.length - edited.length;
+  const langs = (some, key) => [...new Set(some.map(m => m.from))].map(f => t(key, { n: some.filter(m => m.from === f).length, lang: LANG_NAME[f] }));
+  const sum = group ? `<b>${esc(lang.toUpperCase())}</b> · ${[todo && t('ml2.toTranslate', { n: todo }), ...langs(changed, 'ml2.changedIn'), ...langs(edited, 'ml3.editedIn')].filter(Boolean).map(esc).join(', ')}` : h('edit.missingBar', { n: list.length, lang: LANG_NAME[lang] });
+  // what a row says beside its words: a heading or a one-off text that the other language moved on from
+  const note = m => (m.kind === 'edited-elsewhere' ? t('ml3.editedRow', { lang: LANG_NAME[m.from] }) : m.kind === 'heading-changed' ? t(m.labelKey.startsWith('~f:') ? 'ml3.changedRow' : 'ml3.headingRow', { lang: LANG_NAME[m.from] }) : '');
   return `<div class="missbar">${sum}${keep}
-    <div class="list">${list.slice(0, 8).map(m => `<button class="item miss-go" data-act="${act}" data-kind="${m.kind}" data-id="${esc(m.id)}" ${m.where?.owner ? `data-owner="${esc(m.where.owner)}"` : ''} ${m.where?.section ? `data-section="${esc(m.where.section)}"` : ''}><span>◌ ${esc(clip(m.label, 60))}</span><span class="muted">›</span></button>`).join('')}</div>
+    <div class="list">${list.slice(0, 8).map(m => `<button class="item miss-go" data-act="${act}" data-kind="${m.kind}" data-id="${esc(m.id)}"${m.labelKey ? ` data-lkey="${esc(m.labelKey)}"` : ''} ${m.where?.owner ? `data-owner="${esc(m.where.owner)}"` : ''} ${m.where?.section ? `data-section="${esc(m.where.section)}"` : ''}><span>◌ ${esc(clip(m.label, 60))}</span><span class="muted">${note(m) ? esc(note(m)) + ' ' : ''}›</span></button>`).join('')}</div>
     ${list.length > 8 ? `<div class="tiny muted">${h('edit.andMore', { n: list.length - 8 })}</div>` : ''}</div>`;
 }
 
@@ -118,19 +121,30 @@ export function writeInHtml({ m, fact, lang, ref }){
 // `vs`: this language's versions. With some, a line the other language wrote (no older version of its own) offers three ways: write it, start
 // from one of `vs`, or go back to a version both print (`mode` 'translate' | 'from' | 'both'; the version list under the box is the pick).
 // `others`: the names of the other languages of the group.
-export function groupWriteInHtml({ m, fact, lang, plan, mode = 'translate', seed = null, vs = [], others = '' }){
-  const same = isSame(m, sameKey(fact)), L = LANG_NAME[lang], F = LANG_NAME[plan.from], ways = !plan.have && vs.length > 0, both = ways && mode === 'both';
+export function groupWriteInHtml({ m, fact, lang, plan, mode = 'translate', seed = null, vs = [], others = '', match = null }){
+  const same = isSame(m, sameKey(fact)), L = LANG_NAME[lang], F = LANG_NAME[plan.from], ways = !plan.have && vs.length > 0, both = ways && mode === 'both', matching = ways && !!match && mode === 'match';
   const head = same ? h('edit.markedSame') : plan.have ? h('ml2.behindBox', { from: F, old: plan.have.n, n: plan.n, lang: L }) : h('ml2.noVersionAt', { lang: L, n: plan.n, from: F });
-  const seg = ways ? `<div class="seg fill" role="group" aria-label="${esc(t('ml2.modeLabel', { n: plan.n }))}">${[['translate', t('ml2.modeTranslate', { n: plan.n })], ['from', t('ml2.modeFrom', { lang: L })], ['both', t('ml2.modeBoth')]].map(([k, l]) => `<button type="button" data-act="wi-mode" data-mode="${k}" aria-pressed="${mode === k}">${esc(l)}</button>`).join('')}</div>` : '';
+  const seg = ways ? `<div class="seg fill" role="group" aria-label="${esc(t('ml2.modeLabel', { n: plan.n }))}">${[['translate', t('ml2.modeTranslate', { n: plan.n })], ['from', t('ml2.modeFrom', { lang: L })], ['both', t('ml2.modeBoth')], ...(match ? [['match', t('ml3.modeMatch')]] : [])].map(([k, l]) => `<button type="button" data-act="wi-mode" data-mode="${k}" aria-pressed="${mode === k}">${esc(l)}</button>`).join('')}</div>` : '';
   const rows = ways && mode === 'from' ? `<div class="wifrom"><p class="note">${h('ml2.fromHead', { n: plan.n })}</p>${vs.map(v => `<button type="button" class="wirow" data-act="wi-seed" data-vid="${esc(v.id)}"><span class="n">v${esc(v.n)}</span><span class="tx">${esc(v.text)}</span></button>`).join('')}</div>` : '';
+  const picked = matching ? match.rows.find(r => r.v.id === match.pick && r.free) : null;
+  const matchRows = !matching ? '' : `<div class="wifrom wimatch"><p class="note">${h('ml3.matchHead', { lang: F, n: plan.n })}</p>${match.rows.map(r => `<button type="button" class="wirow${r.v.id === match.pick ? ' on' : ''}" data-act="wi-pick" data-vid="${esc(r.v.id)}" aria-pressed="${r.v.id === match.pick}" ${r.free ? '' : 'disabled'}><span class="n">v${esc(r.v.n)}</span><span class="tx">${esc(r.v.text)}${r.probably ? ` <b class="probably">${h('ml3.probably')}</b>` : ''}${!r.free ? ` <span class="muted">${h('ml3.taken', { n: r.n, lang: L })}</span>` : r.twin ? ` <span class="muted">${h('ml3.twin', { n: r.v.n, lang: F })}</span>` : ''}</span></button>`).join('')}</div>
+    <div class="btns"><button class="sm primary" data-act="wi-match" data-vid="${esc(picked?.v.id ?? '')}" data-n="${esc(picked?.n ?? '')}" ${picked ? '' : 'disabled'}>${picked ? h('ml3.matchGo', { from: picked.v.n, n: picked.n }) : h('ml3.matchPick')}</button></div>`;
   const ref = `<span class="lbl inline">${esc(`${F} v${plan.n}`)}</span><div class="ref">${plan.diff ? diffMarkup(plan.diff) : esc(plan.ref.text)}</div>`;
-  const form = both ? `<p class="note">${h('ml2.bothNote', { langs: others })}</p>`
+  const form = both ? `<p class="note">${h('ml2.bothNote', { langs: others })}</p>` : matching ? matchRows
     : `<label class="field"><span class="lbl inline">${esc(`${L} v${plan.n}`)}</span><textarea id="ed-new" rows="3" placeholder="${esc(t('edit.writeItIn', { lang: L }))}" data-from="${esc(plan.ref.id)}" data-n="${esc(plan.n)}">${esc(seed ?? plan.seed)}</textarea></label>
     <div class="btns"><button class="sm primary" data-act="write-in">${h('edit.saveAsVLang', { v: plan.n, code: lang.toUpperCase() })}</button><span class="grow"></span>${sw(`data-same="${esc(sameKey(fact))}"`, same, h('edit.sameEvery'))}</div>`;
   return `<div class="writein group">
     <div class="${same ? 'okbar' : 'missbar'}">${head}</div>
     ${ref}${seg}${rows}${form}
   </div>`;
+}
+
+// A heading, a language's name or a skill group's name written against text that has moved on in `from`'s language: that language's old words struck
+// through and the new ones marked, and the way to keep this one as it is. Writing it again in its box keeps the new words it was written against.
+export function labelChangedHtml(m){
+  return `<div class="labelchg"><div class="missbar">${h(m.labelKey.startsWith('~f:') ? 'ml3.changedBox' : 'ml3.headingBox', { lang: LANG_NAME[m.from] })}</div>
+    <div class="ref">${diffMarkup(R.wordDiff(m.was, m.now))}</div>
+    <div class="btns"><button class="sm" data-act="label-keep" data-key="${esc(m.labelKey)}">${h('ml3.keepAsIs')}</button></div></div>`;
 }
 
 // Everything under the claim's heading: the comparison, the version list (the editor in place
@@ -148,7 +162,7 @@ export function versionsHtml(x){
   }
 
   // a group's line that prints the other language's version: the box stands open when there is no version here, else once its number was clicked
-  const wi = x.wi ? groupWriteInHtml({ m, fact, lang: L, plan: x.wi.plan, mode: x.wi.mode, seed: x.wi.seed, vs, others: x.wi.others }) : '';
+  const wi = x.wi ? groupWriteInHtml({ m, fact, lang: L, plan: x.wi.plan, mode: x.wi.mode, seed: x.wi.seed, vs, others: x.wi.others, match: x.wi.match }) : '';
   if (!vs.length && over === undefined) return out + `<span class="lbl">${esc(LANG_NAME[L])}</span>` + (wi || writeInHtml({ m, fact, lang: L, ref: x.ref }));
   out += x.wi?.open ? wi : '';
 

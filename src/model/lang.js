@@ -1,13 +1,14 @@
 // Resume languages. Pure: no DOM, no I/O. `recipe.lang` absent means English.
 // A text with no version in the language prints in English unless `record.same` lists it.
 
-import { addVersion, versionsIn, major, compareN, wordDiff } from './record.js';
+import { addVersion, versionsIn, major, compareN, wordDiff, takenNumber } from './record.js';
 import { t, docChrome, keyed } from '../i18n/index.js';
 import { LANGS } from './schema.js';
 import { entriesOf } from './entries.js';
 import { localEntry, isLocal } from '../recipe.js';
 import { isLocked } from './lock.js';
-import { listedBullets, jobRefs, sectionList, chooseVariant } from './resume.js';
+import { listedBullets, jobRefs, sectionList, chooseVariant, printedLabel, ownLabels, labelIn, isDraft, isArchive } from './resume.js';
+import { staleI18n } from './labels.js';
 
 export const DEFAULT_LANG = 'en';
 export const LANG_NAMES = { en: 'English', de: 'Deutsch', fr: 'Français', es: 'Español', it: 'Italiano', pt: 'Português', nl: 'Nederlands', pl: 'Polski', cs: 'Čeština', hu: 'Magyar' };
@@ -81,7 +82,10 @@ const behindOf = (model, factId, want, lang) => want && versionsIn(model, factId
 // A section the app has a default heading for in `chrome` is not missing.
 // `inGroup` (the resume is in a group of language copies, see groupOf in resumes.js): a text is missing when the language has no version at
 // the number the line prints (`want`), and English is checked too. Behind (kind 'behind'): it has an older one under the same major (`have`).
-export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? DEFAULT_LANG), inGroup = false } = {}){
+// `others`: the other resumes of the group. Also listed in a group: a heading, a language's name or a skill group's name written against text that
+// has changed since (kind 'heading-changed', `from` the language it changed in, `was` and `now` its words), and a line another resume edited as a
+// one-off text that is not a version yet (kind 'edited-elsewhere', `from` its language).
+export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? DEFAULT_LANG), inGroup = false, others = [] } = {}){
   const lang = recipe?.lang ?? DEFAULT_LANG;
   if (lang === DEFAULT_LANG && !inGroup) return [];
   const out = [];
@@ -99,7 +103,8 @@ export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? 
   // a skill arrangement replaces the groups' texts: its groups are untranslated only when they came from another language's set
   const arr = recipe.skillArrangement, arranged = new Set((arr?.groups ?? []).map(g => g.id));
   for (const g of arr?.groups ?? []) if ((g.lang ?? arr.lang) && (g.lang ?? arr.lang) !== lang && facts.has(g.id) && !isSame(model, sameKey(g.id))){ seen.add(g.id); out.push({ key: sameKey(g.id), kind: 'fact', id: g.id, label: g.label ?? facts.get(g.id).label ?? g.id, where: { fact: g.id, kind: 'item', section: 'skills' } }); }
-  for (const p of printedFactIds(model, recipe)){
+  const printed = printedFactIds(model, recipe);
+  for (const p of printed){
     if (seen.has(p.fact) || (arranged.has(p.fact) && p.kind === 'item')) continue;
     seen.add(p.fact);
     // a line only on this resume has one language, the one it was typed in: in another it stays as typed and is listed
@@ -117,6 +122,52 @@ export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? 
     }
     if (hasVersionIn(model, p.fact, lang)) continue;
     out.push({ key: sameKey(p.fact), kind: 'fact', id: p.fact, label, where: p });
+  }
+  if (inGroup) out.push(...changedLabels(model, recipe, others, printed), ...editedElsewhere(model, recipe, others, printed, new Set(out.map(m => m.id))));
+  return out;
+}
+
+// Labels written against another language's words that have changed since. A resume's own `labelFrom` is checked against that language's resume
+// in the group; a label it takes from the record is checked against `i18n.<lang>.from` (the English it was written against).
+function changedLabels(model, recipe, others, printed){
+  const lang = recipe.lang ?? DEFAULT_LANG, out = [], own = ownLabels(recipe);
+  const heads = new Set(sectionList(model, recipe).filter(s => s.on && !s.fixed).map(s => s.id));
+  const facts = new Set(printed.map(p => p.fact)), owners = new Set(printed.map(p => p.owner).filter(Boolean));
+  const groups = new Set((recipe.skillArrangement?.groups ?? []).map(g => g.id));
+  const whereOf = key => {
+    const id = key.slice(3);
+    if (key.startsWith('~h:')) return heads.has(id) ? { kind: 'section', id } : null;
+    if (key.startsWith('~g:')) return groups.has(id) || facts.has(id) ? { fact: id, kind: 'item', section: 'skills' } : null;
+    if (key.startsWith('~t:')) return printed.find(p => p.fact === id) ?? null;
+    const [k, eid] = id.split('/');      // a field of an entry: the job it is printed in, or the section of that kind
+    return owners.has(eid) ? { kind: 'job', id: eid } : heads.has(k) ? { kind: 'section', id: k } : null;
+  };
+  const add = (key, from, was, now) => {
+    const where = whereOf(key);
+    if (!where) return;
+    out.push({ key: `changed:${key}`, kind: 'heading-changed', id: key.slice(3), labelKey: key, label: key.startsWith('~f:') ? model.i18n?.[lang]?.fields?.[key.slice(3)] ?? now : printedLabel(model, recipe, key), where, from, was, now });
+  };
+  for (const [key, byLang] of Object.entries(recipe.labelFrom ?? {})) for (const [from, was] of Object.entries(byLang)){
+    const now = from === lang ? undefined : labelIn(model, others, key, from);
+    if (typeof now === 'string' && now !== was){ add(key, from, was, now); break; }
+  }
+  for (const x of staleI18n(model, lang)){
+    const key = `~${{ sections: 'h', labels: 'g', terms: 't', fields: 'f' }[x.kind]}:${x.id}`;
+    if (!recipe.labelFrom?.[key] && !own[key]) add(key, DEFAULT_LANG, x.was, x.now);
+  }
+  return out;
+}
+
+// A line another resume of the group has a one-off text for, while this one has none: the text is not a version, so the number rule does not reach it.
+function editedElsewhere(model, recipe, others, printed, skip){
+  const out = [], facts = new Map((model.facts ?? []).map(f => [f.id, f]));
+  const prints = new Map(others.map(o => [o, new Set(printedFactIds(model, o).map(p => p.fact))]));
+  for (const p of printed){
+    if (skip.has(p.fact) || recipe.overrides?.[p.fact] !== undefined) continue;
+    const o = others.find(r => r.overrides?.[p.fact] !== undefined && !isLocal(r, p.fact) && !(r.held ?? []).includes(p.fact) && prints.get(r).has(p.fact));
+    if (!o) continue;
+    const f = facts.get(p.fact);
+    out.push({ key: `edited:${p.fact}`, kind: 'edited-elsewhere', id: p.fact, label: f?.summary ?? f?.label ?? p.fact, where: p, from: langOf(o), text: String(o.overrides[p.fact]) });
   }
   return out;
 }
@@ -178,6 +229,46 @@ export function writeInPlan(model, recipe, factId){
   const have = behindOf(model, factId, want, lang);
   const old = have && versionsIn(model, factId, langOf(want)).find(x => String(x.n) === String(have.n));
   return { ref: want, n: want.n, from: langOf(want), have: have ?? null, diff: old ? wordDiff(old.text, want.text) : null, seed: have ? carryNumbers(old?.text ?? '', want.text, have.text, lang) : '' };
+}
+
+// Which version of the resume's language translates what the line prints in another language? The clues, best first:
+//  1. the copy's memory: `duplicate` left the original's picks in byLang.<its language>, and setInStep the copy's own in byLang.<the copy's>; the two picks
+//     of one claim are a pair (sure)
+//  2. the tags: writeIn gives a translation the tags of the text it translates
+//  3. the same numbers in the text
+// Versions carry no dates, so none is used. { vid, n, why: 'pick' | 'tags' | 'numbers', sure } or null. `n` is the number the version would get.
+const tagKey = v => [...new Set((v?.tags ?? []).filter(x => x !== 'needs-review'))].sort().join('\n');
+const numKey = text => (String(text ?? '').match(NUM) ?? []).map(x => readNumber(x).value).sort((a, b) => a - b).join(' ');
+export function guessMatch(state, resume, factId){
+  const model = state.record, lang = resume?.lang ?? DEFAULT_LANG, by = new Map((model.variants ?? []).map(v => [v.id, v]));
+  const mine = versionsIn(model, factId, lang).filter(v => !isDraft(v) && !isArchive(v));
+  const own = by.get(resume?.byLang?.[lang]?.picks?.[factId]);
+  for (const [other, kept] of Object.entries(resume?.byLang ?? {})){
+    const o = other === lang ? null : by.get(kept?.picks?.[factId]);
+    if (o && own && langOf(o) === other && mine.includes(own) && String(o.n) !== String(own.n)) return { vid: own.id, n: String(o.n), why: 'pick', sure: true };
+  }
+  const want = chooseVariant(model, factId, resume).v;
+  if (!want || langOf(want) === lang) return null;
+  for (const [why, key] of [['tags', tagKey], ['numbers', v => numKey(v.text)]]){
+    const k = key(want), hits = k ? mine.filter(v => key(v) === k) : [];
+    if (hits.length === 1) return { vid: hits[0].id, n: String(want.n), why, sure: false };
+  }
+  return null;
+}
+
+// What the write-in box offers for "This language already has it" on a line that is missing at the other language's v{n}: the versions of this
+// language (not drafts or archives) that could be it, each with the number it would get (`n`), whether that number is free (`free`), and whether
+// the other language has a version at the version's own number now (`twin`). The guess first (`probably`). Null when nothing needs matching:
+// no version of this language, or every one already matches the other language's and no clue says otherwise.
+export function matchPlan(state, resume, factId){
+  const model = state.record, lang = resume?.lang ?? DEFAULT_LANG, want = chooseVariant(model, factId, resume).v;
+  if (!want || langOf(want) === lang) return null;
+  const guess = guessMatch(state, resume, factId), from = langOf(want), theirs = new Set(versionsIn(model, factId, from).map(v => String(v.n)));
+  const rows = versionsIn(model, factId, lang).filter(v => !isDraft(v) && !isArchive(v)).map(v => {
+    const probably = guess?.vid === v.id, n = probably ? guess.n : String(want.n);
+    return { v, n, probably, twin: theirs.has(String(v.n)), free: !takenNumber(model, factId, lang, n) };
+  }).filter(r => String(r.v.n) !== r.n).sort((a, b) => b.probably - a.probably || a.twin - b.twin || compareN(a.v.n, b.v.n));
+  return rows.length && (guess || rows.some(r => !r.twin)) ? { rows, n: String(want.n), from } : null;
 }
 
 // Numbers in a text: 1,200  1 200  12.5  1.2  30  (the % and the currency stay outside, as written)

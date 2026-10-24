@@ -139,6 +139,25 @@ export function addVersion(model, factId, { text, lang, from = null, as = 'major
   return v;
 }
 
+// Is `n` used in `lang` for the claim, by a live version or a deleted one?
+export function takenNumber(model, factId, lang, n){
+  const f = index(model).fact(factId);
+  return !!f && usedNumbers(model, f, lang).includes(String(n));
+}
+
+// Gives an existing version the number of the other language's text it translates. Its id never changes, so no saved resume's picks do.
+// Refused for a number the language has or had, or one that is not a number.
+export function matchNumber(model, vid, n){
+  const v = index(model).variant(vid), f = v && factOf(model, vid);
+  if (!f) throw new RecordError(`no such version: ${vid}`);
+  const want = String(n);
+  if (!VERSION_N.test(want)) throw new RecordError(`${n} is not a version number`);
+  if (want === String(v.n)) return v;
+  if (takenNumber(model, f.id, langOf(v), want)) throw new RecordError(`v${want} is taken in ${langOf(v)}`);
+  v.n = want;
+  return v;
+}
+
 // The last default-language version can't go: a claim needs one to print. Picks of it fall back to the default.
 export function deleteVersion(model, vid, recipes = [], recipe = null){
   const ix = index(model);

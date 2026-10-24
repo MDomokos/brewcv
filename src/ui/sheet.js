@@ -589,7 +589,7 @@ export function createSheet(host, hooks = {}){
     setFind(q, ix){ marked.find = q || null; if (ix) marked.ix = ix; mark(); },
     finds(ix){ return findEls().map(el => factOfVariant(ix, el.getAttribute('data-variant'))).filter(Boolean); },
     setMissing(list, ix){
-      marked.miss = list?.length ? { facts: new Set(list.filter(x => x.kind === 'fact').map(x => x.id)), headings: list.filter(x => x.kind === 'heading').map(x => x.id) } : null;
+      marked.miss = list?.length ? { facts: new Set(list.filter(x => x.kind === 'fact').map(x => x.id)), headings: list.filter(x => x.kind === 'heading' || (x.kind === 'heading-changed' && x.where?.kind === 'section')).map(x => x.id) } : null;
       if (ix) marked.ix = ix; mark();
     },
     // a row of the record checklist is under the pointer: its line on the page lights up, if it is on the page
