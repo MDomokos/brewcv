@@ -7,26 +7,26 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 ## 1.6.2 - 2026-10-24
 
 ### Added
-- **A resume's language copies stay in step, both ways.** Line order, hidden lines, version picks, sections, jobs and the look change in every language, and each line prints the same version number. Each copy keeps its own name, paper, text size and one-off texts. An older copy can be put in step from the missing bar.
-- **A line still to translate shows its number greyed (v5 · EN).** Click it to see the other language's text and what changed, and write yours with the numbers already carried over.
-- **A heading, a skill group's name or a line edited in the other language is flagged until you answer it,** and an older translation can be matched to its version number.
-- **Highlight words while you write a line.** Hold Alt (or Ctrl+Alt) and drag over words, or select them and press Ctrl/Cmd+Shift+H. A click on a highlighted word clears it. The highlights show as you edit, and stay on that resume only.
+- **A resume's language copies stay in step, both ways.** Order, hidden lines, version picks, sections, jobs and the look change in every language, while each copy keeps its own name, paper, text size and one-off texts.
+- **A line still to translate shows its number greyed (v5 · EN).** Click it to see the other language's text and what changed, then write yours.
+- **A heading, skill group name or line edited in the other language is flagged until you answer it,** and an older translation can be matched to its version.
+- **Highlight words on this resume while you write a line.** Hold Alt (or Ctrl+Alt) and drag over words, or press Ctrl/Cmd+Shift+H on a selection; a click on a highlight clears it.
 
 ### Changed
-- **The full-screen bar, the zoom bar and the hover hints no longer flash.** They ease out more slowly, stay a moment after the pointer leaves, and come straight back if it returns.
+- **The full-screen bar, the zoom bar and the hover hints no longer flash.** They ease out more slowly and come straight back if the pointer returns.
 - **The zoom bar comes up when the pointer nears the bottom centre,** on the page or off it.
 - **Editing a line faintly tints the job or section above it,** so you can see where you are.
 - **The middle mouse button drags the page, and a click of it is Fit.**
 - **Esc at the page level folds the sidebar and centres the pages.**
-- **The page you are not working on stays at full brightness.** The current page has a stronger edge, and the sidebar casts a shadow over a page that runs under it.
+- **The page you are not working on stays at full brightness.** The current page has a stronger edge, and the sidebar shades a page that runs under it.
 - **Zoomed in, a page can rest as far from the side as from the top.**
 - **A page that fits the window stays in the middle and does not scroll up and down.**
-- **The mat zooms with the page, from the same point, and does not move when you pan.** Zoomed out to 40% it has an edge, a table and things on it, to scale with an A4 sheet; Coffee's is a cutting mat with a ruler. The garden's leaves zoom with it.
-- **Switching Tea and Coffee first zooms back to the whole page.** The things on the table change one by one the next time you zoom out to see it.
+- **The mat zooms with the page and stays put when you pan.** Zoomed out it shows an edge, a table and things on it, to scale with an A4 sheet (a cutting mat with a ruler in Coffee).
+- **Switching Tea and Coffee first zooms back to the whole page,** so the things on the table change one by one as you zoom out.
 - **Full screen on the desktop is the window's own, so Esc no longer leaves it.** The top edge brings back a bar with Minimise, Exit full screen and Close.
 
 ### Fixed
-- **Dragging with Space or the middle button is steadier on Linux:** the browser no longer starts a drag of its own under the page.
+- **Dragging with Space or the middle button is steadier on Linux.**
 - **Moving from one text box to the next is quicker.**
 - **Linux: a touchpad pinch zooms the resume, not the whole app.**
 - **Trying versions no longer flashes the other page.**
