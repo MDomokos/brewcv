@@ -96,6 +96,7 @@ const SHELL = [
   './src/ui/sheet.js',
   './src/ui/layout.js',
   './src/ui/canvas.js',
+  './src/ui/table.js',
   './src/ui/onpage.js',
   './src/ui/hands.js',
   './src/ui/depthmenu.js',

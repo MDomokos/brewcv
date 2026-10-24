@@ -617,8 +617,8 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     // a drag on the bare canvas pans, within the limits
     await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(60, 470, { steps: 4 }); await page.mouse.up(); await settle(page);
     const c1 = await camOf(page);
-    ok('a drag on the bare canvas pans the pages up and down and leaves them there; sideways they stay centred, as they fit the room', c1.free && Math.abs(c1.x - c0.x) < 1 && Math.abs(c1.y - (c0.y + 20)) < 3, `${c1.x - c0.x}, ${c1.y - c0.y}`);
-    ok('…and the wheel now pans too (the pages are not in their place)', await (async () => { await wheel(page, 60, 0, [700, 450]); await settle(page); return Math.abs((await camOf(page)).y - (c1.y - 60)) < 3; })());
+    ok('a drag on the bare canvas does not move pages that fit the room: they stay in the middle, sideways and up and down', Math.abs(c1.x - c0.x) < 1 && Math.abs(c1.y - c0.y) < 1, `${c1.x - c0.x}, ${c1.y - c0.y}`);
+    ok('…and the wheel does not scroll them either: there is nothing to reach', await (async () => { await wheel(page, 60, 0, [700, 450]); await settle(page); return Math.abs((await camOf(page)).y - c1.y) < 1; })());
     await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(1000, 450, { steps: 6 }); await page.mouse.up(); await settle(page);
     ok('pulled far sideways with the pages fitting: they are still centred where they were', Math.abs((await camOf(page)).x - c0.x) < 0.5, `${(await camOf(page)).x} vs ${c0.x}`);
     // zoomed in so they do not fit: they pan until the page edge is as far inside the view's edge as the top margin allows, and no further
@@ -636,10 +636,10 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     await page.evaluate(() => document.activeElement?.blur());          // (Space would press a button that has the focus)
     await page.mouse.move(700, 450); await page.keyboard.down('Space'); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up(); await page.keyboard.up('Space'); await settle(page);
     const c2 = await camOf(page);
-    ok('Space and drag pans, even over a page, and does not select what is under it', c2.free && Math.abs(c2.x - c0.x) < 1 && Math.abs(c2.y - (c0.y - 50)) < 3 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none', `${c2.x - c0.x}`);
+    ok('Space and drag, even over a page, does not select what is under it, and pages that fit stay in the middle', Math.abs(c2.x - c0.x) < 1 && Math.abs(c2.y - c0.y) < 1 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none', `${c2.x - c0.x}`);
     await page.keyboard.press('0'); await settle(page);
     await page.mouse.move(700, 450); await page.mouse.down({ button: 'middle' }); await page.mouse.move(720, 470, { steps: 3 }); await page.mouse.up({ button: 'middle' }); await settle(page);
-    ok('the middle button pans too (up and down: the pages fit sideways)', Math.abs((await camOf(page)).y - (c0.y + 20)) < 3 && Math.abs((await camOf(page)).x - c0.x) < 1);
+    ok('the middle button does not move pages that fit either', Math.abs((await camOf(page)).y - c0.y) < 1 && Math.abs((await camOf(page)).x - c0.x) < 1);
     await page.keyboard.press('0'); await settle(page);
     // a pinch: Chrome and Edge send Ctrl and the wheel; it zooms about the pointer
     const pt = [800, 300];

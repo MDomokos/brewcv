@@ -59,6 +59,8 @@
 
 /* ---- Tea, light: the icon's green tile on a straw mat ---- */
 :root, html[data-drink="tea"] {
+  /* the table the mat lies on (src/ui/table.js) */
+  --tbl-top: #b98c55; --tbl-grain: rgba(80, 50, 20, .22);
   --plate-wash: 9%;      /* the hover wash, a share of --sel-mark (selected: x1.5) */
   --press-edge: var(--line-strong); --press-sh: rgba(0, 0, 0, .45);
   color-scheme: dark;
@@ -98,6 +100,7 @@
   --chrome-hover: rgba(34, 48, 42, .08); --chrome-hover-strong: rgba(34, 48, 42, .14); --chrome-accent: #7a4f0e; --chrome-on-accent: #fff8e8; --chrome-ok: #2f6b2a; --chrome-warn: #7a4f0e; --chrome-bad: #a8321e;
 }
 html[data-drink="tea"][data-theme="dark"] {
+  --tbl-top: #4d3a25; --tbl-grain: rgba(0, 0, 0, .28);
   --plate-wash: 10%;      /* the hover wash, a share of --sel-mark (selected: x1.5) */
   --press-edge: var(--line-strong); --press-sh: rgba(0, 0, 0, .5);
   --st-card: var(--surface);
@@ -121,6 +124,7 @@ html[data-drink="tea"][data-theme="dark"] {
 
 /* ---- Coffee, light: a flat white on a cutting mat, an espresso band for a head, one crema accent ---- */
 html[data-drink="coffee"] {
+  --tbl-top: #efeae1; --ruler-ink: #1c1410; --ruler-band: rgba(243, 236, 226, .88);
   --plate-wash: 5%;      /* the hover wash, a share of --sel-mark (selected: x1.5) */
   --press-edge: var(--line-strong); --press-sh: color-mix(in srgb, var(--ink) 60%, transparent);
   color-scheme: light;
@@ -155,6 +159,7 @@ html[data-drink="coffee"] {
 }
 /* ---- Coffee, dark: espresso, warm black, milk-foam ink ---- */
 html[data-drink="coffee"][data-theme="dark"] {
+  --tbl-top: #2a231e; --ruler-ink: #f3ece2; --ruler-band: rgba(28, 20, 16, .88);
   --plate-wash: 6%;      /* the hover wash, a share of --sel-mark (selected: x1.5) */
   --press-edge: var(--line-strong); --press-sh: color-mix(in srgb, var(--ink) 45%, transparent);
   --st-card: var(--surface);
@@ -1532,3 +1537,20 @@ body.is-fs .fsbar-zone:hover + .fsbar, body.is-fs .fsbar:hover, body.is-fs .fsba
 .fsbar button { display: grid; place-items: center; width: 34px; height: 28px; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: transparent; color: var(--ink); cursor: pointer; }
 .fsbar button:hover { background: var(--hover); }
 .fsbar .obic, .fsbar svg { width: 16px; height: 16px; }
+
+/* The table: the mat scales with the zoom, and zoomed out it has an edge and a table (src/ui/canvas.js, table.js). Tiles are in percent so they can scale. */
+#mat, #tbl, #mruler { display: none; position: fixed; pointer-events: none; z-index: 0; }      /* in this order: the table, the mat, its rulers; the canvas roll (z-index 1) goes over all three */
+#mruler { overflow: hidden; }
+#mruler svg { display: block; width: 100%; height: 100%; }
+.tfloor { fill: var(--tbl-top); transition: fill .9s ease; }
+.tgrain { transition: opacity .9s ease; }
+html[data-drink="coffee"] .tgrain { opacity: 0; }
+#tbl svg { display: block; width: 100%; height: 100%; }
+html[data-drink="tea"] #mat { background-color: var(--mat-a); background-image:
+    linear-gradient(var(--mat-wash), var(--mat-wash)),
+    linear-gradient(90deg, transparent 0 calc(50% - 3px), var(--mat-thread) calc(50% - 3px) calc(50% - 1.5px), transparent calc(50% - 1.5px) calc(50% + 1.5px), var(--mat-thread) calc(50% + 1.5px) calc(50% + 3px), transparent calc(50% + 3px)),
+    linear-gradient(0deg, transparent 0 89.655%, var(--mat-gap) 89.655% 100%),
+    linear-gradient(0deg, var(--mat-a) 0 30%, var(--mat-b) 30% 50%, var(--mat-c) 50% 70%, var(--mat-a) 70% 90%, var(--mat-b) 90% 100%); }
+html[data-drink="coffee"] #mat { background-color: var(--canvas); background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px), linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px), linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px), linear-gradient(var(--canvas), var(--canvas)); } 

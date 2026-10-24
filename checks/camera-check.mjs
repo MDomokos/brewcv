@@ -59,7 +59,9 @@ section('soft limits and the rubber band');
   const cam = fitCam(g, v, { scene: 'all' });
   const L = limits(cam, g, v);
   ok('pages that fit the view stay centred and cannot be panned sideways, however far they are pulled', L.minX === L.maxX && near(L.minX, cam.x) && eq(softCam({ ...cam, x: cam.x + 500 }, g, v).x, cam.x) && eq(hardCam({ ...cam, x: -9e3 }, g, v).x, cam.x));
-  ok('up and down they can still be pushed some way', L.maxY > cam.y && L.minY < cam.y);
+  ok('pages that fit the view stay in the middle up and down too: there is nothing to scroll to', near(L.minY, cam.y) && near(L.maxY, cam.y));
+  const zin = zoomAbout(cam, cam.k * 1.6, 500, 400), Zy = limits(zin, g, v);
+  ok('zoomed in so they do not fit, they can be pushed up and down some way', Zy.maxY > Zy.minY);
   const z = zoomAbout(cam, cam.k * 2, 500, 400), Z = limits(z, g, v), Wz = rowWidth(794, 2) * z.k;
   const M = v.height * (1 - KEEP_Y);      // the margin the pages may rest at above them
   ok('zoomed in so they do not fit: they pan until an edge is as far inside the view edge as the top margin allows, and no further', Z.minX < Z.maxX && near(Z.maxX, v.left + M) && near(Z.minX, v.left + v.width - M - Wz) && M > G);

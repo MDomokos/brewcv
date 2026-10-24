@@ -1044,7 +1044,7 @@ async function onClick(e){
       break;
     }
     case 'use-version': useVersion(tg.closest('.vlist, .obvlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
-    case 'drink-switch': toggleDrink(); break;
+    case 'drink-switch': switchDrink(); break;
     case 'drink-set': setDrink(tg.dataset.m); break;          // the start screen's two cups
     case 'theme-toggle': setThemePref(resolveTheme(themePref()) === 'dark' ? 'light' : 'dark'); break;
     case 'chip-undo': store.undo(); dropChip(); break;
@@ -1225,7 +1225,7 @@ function key(e){
   // the app's search: the first press is ours, the next one (the field has the focus) is the browser's own find; a dialog keeps its keys
   if (isFindKey(e) && ui.view !== 'welcome' && !inFind() && !e.target.closest?.('dialog, [aria-modal=true]')){ e.preventDefault(); find.open(); return; }
   if (typing) return;
-  if (isDrinkKey(e)){ e.preventDefault(); toggleDrink(); return; }          // Shift+F: tea or coffee, in place
+  if (isDrinkKey(e)){ e.preventDefault(); switchDrink(); return; }          // Shift+F: tea or coffee, in place
   if (ui.view === 'welcome') return;                    // the introduction and the questions have their own keys
   if (ui.snap && e.key !== 'Escape') return;           // a snapshot is read-only
   if (e.key === 'Escape'){
@@ -1273,6 +1273,14 @@ function key(e){
   }
 }
 
+// The canvas roll of a drink switch (matroll.js) is the whole mat, so a zoomed view comes back to the fit first and the switch plays after it
+async function switchDrink(){
+  if (!ui.layout?.phone && (ui.zoom ?? 1) !== 1){
+    canvas.reset();
+    await new Promise(r => { const t = setTimeout(r, 1200); document.addEventListener(PAGES_MOVED, () => { clearTimeout(t); r(); }, { once: true }); });
+  }
+  toggleDrink();
+}
 // rb-esc-fold = off keeps the sidebar open at the page level (for the checks, which press Esc to rest)
 const escFolds = () => { try { return localStorage.getItem('rb-esc-fold') !== 'off'; } catch { return true; } };
 async function toggleFullscreen(){

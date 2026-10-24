@@ -11,6 +11,7 @@ import {
 import { clampZoom, PHONE_MAX } from './layout.js';
 import { onLinux } from './ask.js';
 import { reduced, dur } from './motion.js';
+import { tableSvg, tableObjects, rulerSvg } from './table.js';
 
 // the ease between views is --m-travel
 const easeOut = p => 1 - Math.pow(1 - p, 3);
@@ -35,6 +36,90 @@ export function initCanvas(C){
   const phone = () => innerWidth < PHONE_MAX;
   const pagesN = () => Math.max(1, ui.laid?.pages?.length ?? ui.fills?.length ?? 1);
 
+  // ---- the table ----
+  // The mat the pages lie on scales with the page's zoom, from the same point, and does not follow its pan. Zoomed out it has an edge, then
+  // a table with things on it (src/ui/table.js), drawn in millimetres beside the A4 sheet; the garden's leaves scale with it (#gworld).
+  // Coffee's mat is a cutting mat: a grid of centimetres and a ruler printed on two edges. The three layers (#tbl, #mat, #mruler) are made
+  // here and shown while the pages are (the start screen and the places keep the mat of the body).
+  let matT = null, tblKey = '', rulKey = '', ms = null, tblDrink = null, swapping = false, zoomAnchor = null;      // zoomAnchor: the point the last zoom was about
+  const drinkNow = () => (document.documentElement.dataset.drink === 'coffee' ? 'coffee' : 'tea');
+  const MM = 96 / 25.4;      // the page's own pixels in a millimetre
+  // each layer's tile (0: the whole width or height) in the order of the layers in workbench.css; Coffee's are a centimetre and five
+  const tiles = (coffee, ppm) => (coffee ? [[50 * ppm, 50 * ppm], [50 * ppm, 50 * ppm], [10 * ppm, 10 * ppm], [10 * ppm, 10 * ppm], [0, 0]] : [[0, 0], [260, 0], [0, 14.5], [0, 145]]);
+  function matMove(){
+    const el = document.getElementById('mat'), tbl = document.getElementById('tbl'), rul = document.getElementById('mruler'), gw = document.getElementById('gworld');
+    if (!el || !geo || !view){
+      matT = null; ms = null; if (gw) gw.style.transform = ''; for (const e of [el, tbl, rul]) if (e) e.style.display = 'none';
+      return;
+    }
+    el.style.display = 'block';
+    const ref = fitCam(geo, view, { scene: 'all' }), cx = midX(view), cy = view.top + view.height / 2;
+    if (!ms || Math.abs(ms.refK - ref.k) > 1e-6){ const s0 = cam.k / ref.k; ms = { refK: ref.k, s: s0, ox: cx * (1 - s0), oy: cy * (1 - s0), pk: cam.k, px: cam.x, py: cam.y }; }
+    // the table follows a zoom from the point it was about (zoomTo and reset say which; the cameras alone cannot, a scroll to the bottom
+    // that comes with a zoom out would drag it along), and a pan not at all
+    const f = cam.k / ms.pk, a = zoomAnchor ?? { x: cx, y: cy };
+    if (Math.abs(f - 1) > 1e-4){
+      ms.ox = a.x - (a.x - ms.ox) * f; ms.oy = a.y - (a.y - ms.oy) * f; ms.s *= f;
+      // zooming out also draws the table toward the middle (what a zoom about a corner and a scroll to the bottom left it away from), the more the further
+      if (f < 1){ const r = Math.min(1, -Math.log(f) * 3); ms.ox += (cx * (1 - ms.s) - ms.ox) * r; ms.oy += (cy * (1 - ms.s) - ms.oy) * r; }
+    }
+    ms.pk = cam.k; ms.px = cam.x; ms.py = cam.y;
+    const s = ms.s, w = s <= 1 ? 1 : Math.pow(Math.max(0, 1 - Math.log(s) / .12), 2);      // out from the fit view the page is in the middle, and so is the table; just in from it, it comes home
+    const ox = ms.ox + (cx * (1 - s) - ms.ox) * w, oy = ms.oy + (cy * (1 - s) - ms.oy) * w;
+    matT = { ox, oy, s };
+    if (gw) gw.style.transform = `translate(${ox.toFixed(2)}px, ${oy.toFixed(2)}px) scale(${s.toFixed(4)})`;
+    const coffee = drinkNow() === 'coffee', V = { w: innerWidth, h: innerHeight }, ppm = MM * ref.k;      // ppm: mat px in a millimetre
+    const box = (a, b) => ({ l: ox + s * a * V.w, t: oy + s * a * V.h, r: ox + s * b * V.w, b: oy + s * b * V.h });
+    const m = box(-.4, 1.4), edge = m.l > .5 || m.t > .5 || m.r < V.w - .5 || m.b < V.h - .5;      // the mat's edge is on screen
+    const l = Math.max(0, m.l), t = Math.max(0, m.t), r = Math.min(V.w, m.r), b = Math.min(V.h, m.b);
+    const L = tiles(coffee, ppm), gx = coffee ? m.l - l : ox - l, gy = coffee ? m.t - t : oy - t;      // Coffee's grid starts at the mat's corner
+    Object.assign(el.style, {
+      left: `${l.toFixed(1)}px`, top: `${t.toFixed(1)}px`, width: `${Math.max(0, r - l).toFixed(1)}px`, height: `${Math.max(0, b - t).toFixed(1)}px`,
+      borderRadius: edge ? `${(26 * s).toFixed(1)}px` : '0',
+      boxShadow: !edge ? 'none' : coffee ? `0 0 0 ${(2 * s).toFixed(1)}px var(--line-strong), 0 ${(8 * s).toFixed(1)}px ${(18 * s).toFixed(1)}px rgba(0,0,0,.2)`
+        : `0 0 0 ${(5 * s).toFixed(1)}px var(--mat-gap), 0 ${(10 * s).toFixed(1)}px ${(24 * s).toFixed(1)}px rgba(0,0,0,.3)`,
+      backgroundPosition: L.map(([tw, th]) => `${(tw ? gx : 0).toFixed(1)}px ${(th ? gy : 0).toFixed(1)}px`).join(', '),
+      backgroundSize: L.map(([tw, th]) => `${tw ? (tw * s).toFixed(2) + 'px' : '100%'} ${th ? (th * s).toFixed(2) + 'px' : '100%'}`).join(', '),
+    });
+    // Coffee's rulers, on the mat's own top and left edges
+    if (rul){
+      const on = edge && coffee;
+      rul.style.display = on ? 'block' : 'none';
+      if (on){
+        const wmm = 1.8 * V.w / ppm, hmm = 1.8 * V.h / ppm, key = `${V.w}x${V.h}@${ppm.toFixed(3)}:${Math.round(ppm * s * 10)}`;
+        if (key !== rulKey){ rulKey = key; rul.innerHTML = rulerSvg(+wmm.toFixed(1), +hmm.toFixed(1), ppm * s); }
+        Object.assign(rul.style, { left: `${m.l.toFixed(1)}px`, top: `${m.t.toFixed(1)}px`, width: `${(m.r - m.l).toFixed(1)}px`, height: `${(m.b - m.t).toFixed(1)}px`, borderRadius: `${(26 * s).toFixed(1)}px` });
+      }
+    }
+    if (!tbl) return;
+    tbl.style.display = edge ? 'block' : 'none';
+    if (!edge) return;
+    const T = box(-1.1, 2.1), key = `${V.w}x${V.h}@${ppm.toFixed(3)}`, wmm = V.w / ppm, hmm = V.h / ppm;
+    if (key !== tblKey || !tblDrink){
+      tblKey = key; tblDrink ??= drinkNow();
+      tbl.innerHTML = tableSvg(wmm, hmm);
+      tbl.querySelector('#tobjs').innerHTML = tableObjects(tblDrink, wmm, hmm).join('');
+    }
+    Object.assign(tbl.style, { left: `${T.l.toFixed(1)}px`, top: `${T.t.toFixed(1)}px`, width: `${(T.r - T.l).toFixed(1)}px`, height: `${(T.b - T.t).toFixed(1)}px` });
+    if (tblDrink !== drinkNow() && !swapping) swapTable();      // the other drink's things come when the table is next seen, one by one
+  }
+  // The things on the table change one by one: the old ones leave outward, a little apart, then the new ones come in from outside. Only
+  // while the table is on screen; the colour of its top and its grain change with the drink by their own fade (workbench.css).
+  function swapTable(){
+    const tbl = document.getElementById('tbl'), g = tbl?.querySelector('#tobjs'), to = drinkNow();
+    if (!g || tblDrink === to) return;
+    tblDrink = to;
+    if (reduced()){ tblKey = ''; matMove(); return; }
+    swapping = true;
+    const V = { w: innerWidth, h: innerHeight }, ppm = MM * fitCam(geo, view, { scene: 'all' }).k, old = [...g.querySelectorAll('.tobj')];
+    g.insertAdjacentHTML('beforeend', tableObjects(to, V.w / ppm, V.h / ppm).join(''));
+    const fresh = [...g.querySelectorAll('.tobj')].filter(e => !old.includes(e)), ease = 'cubic-bezier(.3,.7,.3,1)';
+    const away = e => `translate(${e.dataset.dx}px, ${e.dataset.dy}px)`;
+    const gone = old.map((e, i) => e.animate([{ transform: 'none', opacity: 1 }, { transform: away(e), opacity: 0 }], { duration: 380, delay: i * 90, easing: ease, fill: 'forwards' }).finished);
+    const t0 = old.length * 90 * .6;
+    fresh.forEach((e, i) => e.animate([{ transform: away(e), opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 480, delay: t0 + 250 + i * 130, easing: ease, fill: 'backwards' }));
+    Promise.all(gone).then(() => { old.forEach(e => e.parentNode.remove()); swapping = false; }).catch(() => { swapping = false; });
+  }
   // ---- placing the sheet ----
   // the pages start to move: said once, as the ease starts (go) or the first step is put, so nothing on them glides against the camera (the plate, sheet.camMoving)
   function startMoving(){ if (!moving){ moving = true; document.dispatchEvent(new CustomEvent(PAGES_MOVING)); shed(true); } }
@@ -45,6 +130,7 @@ export function initCanvas(C){
     host.style.transform = `translate(${cam.x.toFixed(2)}px, ${cam.y.toFixed(2)}px) scale(${cam.k.toFixed(5)})`;
     ui.zoom = fit ? Math.round((cam.k / fit.k) * 1000) / 1000 : 1;
     follow();
+    matMove();
     C.moved?.();
   }
   // which page is bright follows what is on screen; nothing is faded while all the pages are shown in full
@@ -129,6 +215,7 @@ export function initCanvas(C){
   function zoomTo(z, at = centre(), { animate = true } = {}){
     if (!geo) return;
     z = snapZoom(clampZoom(z));
+    zoomAnchor = at;
     want = animate ? z : null;
     if (z === 1 && !ui.writing){ reset(); return; }
     free = true;
@@ -140,7 +227,7 @@ export function initCanvas(C){
   // 0, Fit, Esc: back to the whole thing
   function reset({ page = ui.page } = {}){
     if (!geo) return;
-    free = false; raw = null;
+    free = false; raw = null; zoomAnchor = centre();
     fit = fitOf({ scene, page });
     rememberView();
     go(fit);
@@ -297,6 +384,7 @@ export function initCanvas(C){
     document.addEventListener('keyup', keyup, true);
     addEventListener('blur', () => { space = false; document.body.classList.remove('is-space'); });
     for (const g of ['gesturestart', 'gesturechange', 'gestureend']) box.addEventListener(g, gesture);
+    document.body.insertAdjacentHTML('beforeend', '<div id="tbl"></div><div id="mat"></div><div id="mruler"></div>');
     // the Linux desktop app turns a touchpad pinch into this call (phase 0 begin, 1 update, 2 end) instead of letting WebKit zoom the whole window
     window.__pinch = (phase, scale, x, y) => gesture({ type: ['gesturestart', 'gesturechange', 'gestureend'][Math.min(2, phase)], scale, clientX: x, clientY: y, preventDefault(){} });
   }
@@ -322,6 +410,7 @@ export function initCanvas(C){
     get handed(){ return performance.now() - handedAt < 250; },
     get geo(){ return geo; }, get view(){ return view; }, get fit(){ return fit; }, get scene(){ return scene; },
     // where a rectangle of the page (its own pixels, from the sheet's corner) is on the screen
+    matTransform(){ return matT; },
     screenRect(r){ return { left: cam.x + r.left * cam.k, top: cam.y + r.top * cam.k, width: r.width * cam.k, height: r.height * cam.k }; },
     put(next){ stop(); put(next); settled(); },
     // the sheet drawn somewhere for a moment (the preview of another resume's paper), nothing else told

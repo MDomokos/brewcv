@@ -46,16 +46,22 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
   dappleEl.className = 'g-dapple'; dappleEl.hidden = true; dappleEl.setAttribute('aria-hidden', 'true');
   const rainSky = document.createElement('div');
   rainSky.className = 'g-rainsky';
-  box.append(rainSky);
+  // everything that lies on the mat is in #gworld, in the mat's own pixels, and scales with the table when the view zooms (prototype, canvas.js matMove)
+  const world = document.createElement('div');
+  world.id = 'gworld';
+  box.append(rainSky, world);
   document.body.append(dappleEl, box);
+  const T = () => canvas.matTransform?.() ?? { ox: 0, oy: 0, s: 1 };
+  const toMat = (x, y) => { const m = T(); return { x: (x - m.ox) / m.s, y: (y - m.oy) / m.s }; };
 
   // ---- the pages, the margins: read when the canvas says the pages moved ----
   let pg = [], span = null, panel = innerWidth;
   const refreshGeo = () => {
     const g = ui.geo, L = ui.layout;
-    panel = L && !L.phone ? L.col.left - L.railW : innerWidth;       // the garden keeps to the mat left of the rail and the sidebar
+    const m = T();
+    panel = L && !L.phone ? (L.col.left - L.railW - m.ox) / m.s : innerWidth;       // the garden keeps to the mat left of the rail and the sidebar
     pg = !g || !ui.cam ? [] : Array.from({ length: g.n }, (_, i) => canvas.screenRect({ left: pageLeft(g, i), top: 0, width: g.w, height: g.h }))
-      .map(r => ({ left: r.left, right: r.left + r.width, top: r.top, bottom: r.top + r.height })).filter(r => r.right > 0 && r.left < panel && r.right - r.left > 50);
+      .map(r => ({ left: (r.left - m.ox) / m.s, right: (r.left + r.width - m.ox) / m.s, top: (r.top - m.oy) / m.s, bottom: (r.top + r.height - m.oy) / m.s })).filter(r => r.right > 0 && r.left < panel && r.right - r.left > 50);
     // pages side by side clear as one block: a leaf blown off one must not land on the next
     span = pg.length ? { left: Math.min(...pg.map(r => r.left)), right: Math.max(...pg.map(r => r.right)), top: Math.min(...pg.map(r => r.top)), bottom: Math.max(...pg.map(r => r.bottom)) } : null;
   };
@@ -71,7 +77,7 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
 
   // ---- things, each with its own shadow ----
   const things = [];
-  const div = cls => { const el = document.createElement('div'); el.className = cls; el.setAttribute('aria-hidden', 'true'); box.append(el); return el; };
+  const div = cls => { const el = document.createElement('div'); el.className = cls; el.setAttribute('aria-hidden', 'true'); world.append(el); return el; };
   const make = (kind, extra = '', color) => {
     const el = div(`g-thing ${SHAPE[kind] ?? `g-${kind}`} ${extra}`.trim());
     if (color) el.style.setProperty('--c', color);
@@ -202,7 +208,8 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
 
   // ---- sweeping: the pointer pushes what it passes through, over the mat and over the page ----
   let px = null, py = null;
-  const sweepAt = (x, y) => {
+  const sweepAt = (sx, sy) => {
+    const { x, y } = toMat(sx, sy);      // the pointer is on the screen, the leaves on the mat
     if (px === null || !active || still()){ px = x; py = y; return; }
     const dx = x - px, dy = y - py; px = x; py = y;
     if (!dx && !dy) return;
@@ -510,7 +517,7 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
     setOn,
     // from the frame (shell.js hands over what sheet.js forwards)
     move(fr, e){ const p = toWindow(fr, e); poke(); sweepAt(p.x, p.y); },
-    down(fr, e){ const p = toWindow(fr, e); poke(); px = p.x; py = p.y; clearFrom(p.x, p.y); },
+    down(fr, e){ const w = toWindow(fr, e), p = toMat(w.x, w.y); poke(); px = p.x; py = p.y; clearFrom(p.x, p.y); },
     key(e){ if (typed(e)) keyed(); else poke(); },
     wheel: poke,
   };

@@ -13,6 +13,9 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 - **Esc at the page level folds the sidebar and centres the pages.**
 - **The page you are not working on stays at full brightness.** The current page has a stronger edge, and the sidebar casts a shadow over a page that runs under it.
 - **Zoomed in, a page can rest as far from the side as from the top.**
+- **A page that fits the window stays in the middle and does not scroll up and down.**
+- **The mat zooms with the page, from the same point, and does not move when you pan.** Zoomed out to 40% it has an edge, a table and things on it, to scale with an A4 sheet; Coffee's is a cutting mat with a ruler. The garden's leaves zoom with it.
+- **Switching Tea and Coffee first zooms back to the whole page.** The things on the table change one by one the next time you zoom out to see it.
 - **Full screen on the desktop is the window's own, so Esc no longer leaves it.** The top edge brings back a bar with Minimise, Exit full screen and Close.
 
 ### Fixed
