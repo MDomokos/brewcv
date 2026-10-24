@@ -37,7 +37,7 @@ const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executa
 
 async function open(w, h, { look = ['tea', 'light'], url = '?memory#resume', motion = false } = {}){
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
-  await ctx.addInitScript(([d, t, m]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); if (!m) localStorage.setItem('rb-reduce-motion', '1'); } catch { /* none */ } }, [...look, motion]);
+  await ctx.addInitScript(([d, t, m]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); if (!m) localStorage.setItem('rb-reduce-motion', '1'); } catch { /* none */ } }, [...look, motion]);
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`http://localhost:${PORT}/${url}`, { waitUntil: 'networkidle' });

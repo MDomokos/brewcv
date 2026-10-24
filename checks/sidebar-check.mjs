@@ -54,7 +54,7 @@ const LANGS = ['en', 'fr', 'de', 'hu', 'pl', 'es', 'it', 'pt', 'nl', 'cs'];
 
 async function open({ w = 1280, h = 800, lang = 'en', drink = 'tea', theme = 'light', two = false, store = {}, query = '', motion = false, touch = false } = {}){
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, ...(touch ? { hasTouch: true, isMobile: true } : {}), reducedMotion: motion ? 'no-preference' : 'reduce' });
-  await ctx.addInitScript(([l, d, t, s]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v); } catch { /* none */ } }, [lang, drink, theme, store]);
+  await ctx.addInitScript(([l, d, t, s]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v); } catch { /* none */ } }, [lang, drink, theme, store]);
   const page = await ctx.newPage();
   const bad = []; page.on('pageerror', e => bad.push(String(e)));
   await page.goto(`http://localhost:${PORT}/?memory${query}#resume`, { waitUntil: 'networkidle' });

@@ -44,7 +44,7 @@ const LOOKS = [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee'
 
 async function open({ w = 1470, h = 832, lang = 'en', drink = 'tea', theme = 'light', phone = false } = {}){
   const ctx = await browser.newContext({ viewport: phone ? { width: 390, height: 800 } : { width: w, height: h }, reducedMotion: 'reduce', ...(phone ? { isMobile: true, hasTouch: true } : {}) });
-  await ctx.addInitScript(([l, d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); } catch { /* none */ } }, [lang, drink, theme]);
+  await ctx.addInitScript(([l, d, t]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); } catch { /* none */ } }, [lang, drink, theme]);
   const page = await ctx.newPage();
   const bad = []; page.on('pageerror', e => bad.push(String(e)));
   page.on('dialog', d => d.accept());

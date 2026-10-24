@@ -6,8 +6,16 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## 1.6.1 - 2026-10-24
 
+### Changed
+- **Esc at the page level folds the sidebar and centres the pages.**
+- **The page you are not working on stays at full brightness.** The current page has a stronger edge, and the sidebar casts a shadow over a page that runs under it.
+- **Zoomed in, a page can rest as far from the side as from the top.**
+- **Full screen on the desktop is the window's own, so Esc no longer leaves it.** The top edge brings back a bar with Minimise, Exit full screen and Close.
+
 ### Fixed
 - **A job can be moved to the top again, and Reset works,** on a resume whose jobs were listed out of your career's order. The move now stays, and "custom" goes when you Reset.
+- **Linux: a touchpad pinch zooms the resume, not the whole app.**
+- **Trying versions no longer flashes the other page.**
 
 ## 1.6.0 - 2026-10-24
 

@@ -38,7 +38,7 @@ const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Content
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 const open = async (w, h, look = []) => {
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
-  await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); if (d) { localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } } catch { /* none */ } }, look);
+  await ctx.addInitScript(([d, t]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); if (d) { localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } } catch { /* none */ } }, look);
   const page = await ctx.newPage();
   page.setDefaultTimeout(8000);
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });

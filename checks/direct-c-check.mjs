@@ -42,7 +42,7 @@ const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executa
 const LOOKS = [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']];
 const open = async (look = [], motion = false, w = 1470, h = 832, q = '') => {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: motion ? 'no-preference' : 'reduce' });
-  await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); if (d) { localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } } catch { /* none */ } }, look);
+  await ctx.addInitScript(([d, t]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); if (d) { localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } } catch { /* none */ } }, look);
   const page = await ctx.newPage();
   page.setDefaultTimeout(8000);
   await page.goto(`http://localhost:${PORT}/?memory${q}#resume`, { waitUntil: 'networkidle' });
@@ -180,7 +180,7 @@ await run('grip', async () => {
   await ctx.close();
   // touch: no hover; a tap on a job's heading selects the job (the header guard) and its plate shows the dots
   const tctx = await browser.newContext({ viewport: { width: 1470, height: 832 }, hasTouch: true, reducedMotion: 'reduce' });
-  await tctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  await tctx.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } });
   const tp = await tctx.newPage();
   await tp.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await tp.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });

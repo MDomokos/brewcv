@@ -33,7 +33,7 @@ const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executa
 
 async function open({ drink = 'tea', theme = 'light', motion = false, w = 1470, h = 832, lang = 'en' } = {}){
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: motion ? 'no-preference' : 'reduce' });
-  await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } catch { /* none */ } }, [drink, theme]);
+  await ctx.addInitScript(([d, t]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } catch { /* none */ } }, [drink, theme]);
   const page = await ctx.newPage(), bad = [];
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));

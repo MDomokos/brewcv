@@ -92,9 +92,38 @@ fn start_print(_window: &tauri::WebviewWindow, _path: &str, _width: f64, _height
     Err("unsupported".into())
 }
 
+// A touchpad pinch zooms the whole WebKitGTK window, menus and all. It is handed to the page instead (window.__pinch in src/ui/canvas.js),
+// which zooms the resume, as it does for Safari's gesture events.
+#[cfg(target_os = "linux")]
+fn pinch_to_page(window: tauri::WebviewWindow) {
+    use gtk::{gdk, glib::Propagation, prelude::*};
+
+    let page = window.clone();
+    let _ = window.with_webview(move |wv| {
+        wv.inner().connect_event(move |_, ev| {
+            let Some(pinch) = ev.downcast_ref::<gdk::EventTouchpadPinch>() else { return Propagation::Proceed };
+            let raw: &gdk::ffi::GdkEventTouchpadPinch = pinch.as_ref();
+            let (x, y) = pinch.position();
+            let _ = page.eval(&format!("window.__pinch?.({}, {}, {}, {})", raw.phase, pinch.scale(), x, y));
+            Propagation::Stop
+        });
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            #[cfg(target_os = "linux")]
+            {
+                use tauri::Manager;
+                if let Some(window) = app.get_webview_window("main") {
+                    pinch_to_page(window);
+                }
+            }
+            let _ = app;
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())   // after fs: it restores the folders the person picked

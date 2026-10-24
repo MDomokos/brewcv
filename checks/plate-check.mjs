@@ -35,7 +35,7 @@ const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executa
 
 async function open(drink, theme, motion = false){
   const ctx = await browser.newContext({ viewport: { width: 1470, height: 832 }, reducedMotion: motion ? 'no-preference' : 'reduce' });
-  await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } catch { /* none */ } }, [drink, theme]);
+  await ctx.addInitScript(([d, t]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } catch { /* none */ } }, [drink, theme]);
   const page = await ctx.newPage(), bad = [];
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
@@ -66,7 +66,7 @@ const LEVELS = {
 };
 
 // ---- (a) the frame's stylesheet ----
-const FURNITURE = ['rb-ui', 'rb-single', 'rb-stack', 'rb-shown', 'rb-faded', 'rb-still', 'rb-cam', 'rb-handing', 'rb-dragging', 'rb-space', 'rb-clip', 'rb-fold', 'rb-writing', 'rb-focus', 'rb-hit', 'rb-previewing', 'rb-sel', 'rb-fade', 'rb-flash', 'rb-miss-tab'];
+const FURNITURE = ['rb-ui', 'rb-single', 'rb-stack', 'rb-shown', 'rb-faded', 'rb-current', 'rb-still', 'rb-cam', 'rb-handing', 'rb-dragging', 'rb-space', 'rb-clip', 'rb-fold', 'rb-writing', 'rb-focus', 'rb-hit', 'rb-previewing', 'rb-sel', 'rb-fade', 'rb-flash', 'rb-miss-tab'];
 // (UX-6f 4c: hover and selection are drawn by .rb-plate, the shape that moves; rb-hot and rb-sel only mark their blocks, and rb-cool and rb-tab are gone)
 const PLATE_CLASSES = ['rb-plate', 'rb-prev', 'rb-find', 'rb-miss', 'rb-lift', 'rb-card', 'rb-socket', 'rb-drop'];      // (rb-rail, rb-drop: a drag's rail and drop line, in the frame under the lifted block since 4c-6)
 const LOOKS = [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']];

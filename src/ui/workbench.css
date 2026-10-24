@@ -79,7 +79,7 @@
   --stage: #efe4cb; --stage-mark: #D9A65A; --stage-on-mark: #1b2a20; --page-edge: rgba(70, 50, 20, .65); --page-edge-soft: transparent;
   /* the pieces of the drink: the cup's tea and its outline, the steam, the shadows (flat and offset in tea) */
   --liq: #D9A65A; --liq-weak: #8f8257; --liq-strong: #cf7d2e; --cup-empty: #24382b; --cup-stroke: #F2E6CF; --cup-band: #ecc583; --steam-ink: #d6cfb4; --heart-ink: #f2a58f;
-  --shadow-panel: 7px 8px 0 rgba(30, 40, 25, .2); --shadow-lift: 2px 3px 0 rgba(30, 40, 25, .2); --shadow-chip: 3px 4px 0 rgba(30, 40, 25, .2); --shadow-toast: 4px 5px 0 rgba(30, 40, 25, .22);
+  --shadow-panel: 7px 8px 0 rgba(30, 40, 25, .2); --shadow-cast: -6px 7px 0 rgba(30, 40, 25, .2); --shadow-lift: 2px 3px 0 rgba(30, 40, 25, .2); --shadow-chip: 3px 4px 0 rgba(30, 40, 25, .2); --shadow-toast: 4px 5px 0 rgba(30, 40, 25, .22);
   /* the start screen's story: the shadows of the stack by height (top page, the sheets under it, a sheet being lifted) and the page's edge */
   --st-sh-front: 7px 9px 0 rgba(60, 45, 15, .2), -5px 6px 0 rgba(60, 45, 15, .12); --st-sh-s1: 4px 6px 0 rgba(60, 45, 15, .15); --st-sh-s2: 2px 3px 0 rgba(60, 45, 15, .11); --st-sh-lift: 18px 24px 0 rgba(60, 45, 15, .15); --st-edge: rgba(70, 50, 20, .2);
   --st-board: var(--canvas); --st-ink: var(--canvas-ink); --st-soft: var(--canvas-ink-soft); --st-line: var(--canvas-line); --st-card: var(--paper-wash);
@@ -105,7 +105,7 @@ html[data-drink="tea"][data-theme="dark"] {
   --mat-a: #1d281e; --mat-b: #192319; --mat-c: #212d22; --mat-gap: #0d140e; --mat-thread: rgba(217, 166, 90, .22); --mat-wash: rgba(16, 24, 18, .55);
   --surface: #26392d; --raised: #2f4637; --input: #1d2c22; --pop: #22342a;
   --stage: #e9e0c8; --cup-empty: #1d2c22;
-  --shadow-panel: 7px 8px 0 rgba(0, 0, 0, .4), 0 0 0 1px rgba(217, 166, 90, .12); --shadow-lift: 2px 3px 0 rgba(0, 0, 0, .35); --shadow-chip: 3px 4px 0 rgba(0, 0, 0, .4); --shadow-toast: 4px 5px 0 rgba(0, 0, 0, .4);
+  --shadow-panel: 7px 8px 0 rgba(0, 0, 0, .4), 0 0 0 1px rgba(217, 166, 90, .12); --shadow-cast: -6px 7px 0 rgba(0, 0, 0, .4); --shadow-lift: 2px 3px 0 rgba(0, 0, 0, .35); --shadow-chip: 3px 4px 0 rgba(0, 0, 0, .4); --shadow-toast: 4px 5px 0 rgba(0, 0, 0, .4);
   --st-sh-front: 7px 9px 0 rgba(0, 0, 0, .4), -5px 6px 0 rgba(0, 0, 0, .25); --st-sh-s1: 4px 6px 0 rgba(0, 0, 0, .3); --st-sh-s2: 2px 3px 0 rgba(0, 0, 0, .22); --st-sh-lift: 18px 24px 0 rgba(0, 0, 0, .3); --st-edge: transparent;
   --page-shadow: drop-shadow(6px 7px 0 rgba(0, 0, 0, .55)) drop-shadow(12px 14px 0 rgba(0, 0, 0, .28)); --page-shadow-soft: drop-shadow(5px 6px 0 rgba(0, 0, 0, .3)); --drop-sm: drop-shadow(2px 2px 0 rgba(0, 0, 0, .4));
   --page-edge: transparent; --page-edge-soft: transparent;
@@ -143,7 +143,7 @@ html[data-drink="coffee"] {
   --stage: #efe9df; --stage-mark: #1c1410; --stage-on-mark: #fbf8f4; --page-edge: rgba(28, 20, 16, .65); --page-edge-soft: rgba(28, 20, 16, .22);
   --espresso: #3a2618; --crema: #BE7F4A; --foam: #f3ece2; --foam-soft: #d9c8b4; --foam-faint: #b8a894; --foam-line: rgba(243, 236, 226, .32); --foam-warn: #e0b56a;
   --band-bg: #2b1d14; --band-ink: #f3ece2; --band-ink-soft: #d9c8b4; --band-line: rgba(243, 236, 226, .32); --band-hover: rgba(243, 236, 226, .1); --band-hover-strong: rgba(243, 236, 226, .16);
-  --shadow-panel: none; --shadow-lift: none; --shadow-chip: none; --shadow-toast: none;
+  --shadow-panel: none; --shadow-cast: 0 0 0 0 transparent; --shadow-lift: none; --shadow-chip: none; --shadow-toast: none;
   --st-sh-front: 8px 8px 0 rgba(28, 20, 16, .15), -5px 5px 0 rgba(28, 20, 16, .1); --st-sh-s1: 5px 5px 0 rgba(28, 20, 16, .11); --st-sh-s2: 3px 3px 0 rgba(28, 20, 16, .08); --st-sh-lift: 16px 16px 0 rgba(28, 20, 16, .11); --st-edge: var(--page-edge);
   --page-shadow: none; --page-shadow-soft: none; --drop-sm: none;
   --page-warn: #8a5a12; --sel-mark: #1c1410; --sel-mark-soft: rgba(28, 20, 16, .05); --prev-mark: #a8693a; --prev-mark-soft: rgba(190, 127, 74, .14);
@@ -1080,7 +1080,7 @@ body:not([data-phone=true]):not(.is-intro) .col { gap: 0; }
 body:where(:not([data-phone=true], .is-intro)) .col > :where(#head, #body) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 body:not([data-phone=true]):not(.is-intro) .col > #head { flex: none; min-height: 0; margin-bottom: 8px; padding: 5px 6px 5px 4px; position: relative; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head { display: block; }
-body:not([data-phone=true]):not(.is-intro) .col > #body { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel), inset -1px 0 0 var(--line-strong), inset 0 1px 0 var(--line-strong), inset 0 -1px 0 var(--line-strong); transition: background-color var(--m-base) var(--m-out); }
+body:not([data-phone=true]):not(.is-intro) .col > #body { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel), var(--shadow-cast), inset -1px 0 0 var(--line-strong), inset 0 1px 0 var(--line-strong), inset 0 -1px 0 var(--line-strong); transition: background-color var(--m-base) var(--m-out); }      /* the cast falls on a page that runs under the sidebar */
 body.is-quiet .col > #body { border-radius: var(--r-panel); }
 /* the name window: the name card and the switcher are one card; the editor card is gone. A desktop's editor has no footer: the editor card takes the column down to its end. */
 body:not([data-phone=true]):not(.is-intro) .col > #foot { display: none; }
@@ -1521,3 +1521,14 @@ select[data-dd] { display: none !important; }
 .ddpop .ddopt:disabled { opacity: .45; }
 .ddpop [role=group] { display: grid; gap: 1px; }
 .ddpop [role=group] + [role=group], .ddpop .ddopt + [role=group] { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+
+/* The desktop app in full screen: the title bar is gone, so the top edge brings back a bar with the window's controls (shell.js, mountFullBar) */
+.fsbar-zone, .fsbar { display: none; }
+body.is-fs .fsbar-zone { display: block; position: fixed; top: 0; left: 0; right: 0; height: 8px; z-index: 90; }
+body.is-fs .fsbar { display: flex; align-items: center; gap: 6px; position: fixed; top: 0; left: 0; right: 0; height: 40px; padding: 0 12px; z-index: 91; background: var(--surface); color: var(--ink);
+  border-bottom: 1px solid var(--line-strong); transform: translateY(-101%); transition: transform var(--m-base) var(--m-out); }
+body.is-fs .fsbar b { margin-right: auto; font-size: 13px; }
+body.is-fs .fsbar-zone:hover + .fsbar, body.is-fs .fsbar:hover, body.is-fs .fsbar:focus-within { transform: none; }
+.fsbar button { display: grid; place-items: center; width: 34px; height: 28px; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: transparent; color: var(--ink); cursor: pointer; }
+.fsbar button:hover { background: var(--hover); }
+.fsbar .obic, .fsbar svg { width: 16px; height: 16px; }

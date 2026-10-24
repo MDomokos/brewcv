@@ -48,7 +48,7 @@ const SIZES = [[1280, 720], [1470, 832], [1200, 750]];
 
 for (const [i, [w, h]] of SIZES.entries()){
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
-  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  await ctx.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } });
   const page = await ctx.newPage();
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
@@ -75,7 +75,7 @@ for (const [i, [w, h]] of SIZES.entries()){
 // ---- (a) (b) (c) and the shape ----
 const open = async (w, h) => {
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
-  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  await ctx.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } });
   const page = await ctx.newPage();
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });

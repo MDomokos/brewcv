@@ -85,7 +85,7 @@ const widths = [[1200, 750, '1200×750'], [1470, 832, '1470×832'], [1920, 1080,
 for (const lang of I.UI_LANGS){
   for (const [vw, vh, what] of widths){
     const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, bypassCSP: true });
-    await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } }, lang);
+    await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } }, lang);
     const pg = await ctx.newPage();
     await pg.goto(`http://localhost:${PORT}/index.html?memory#resume`, { waitUntil: 'networkidle' });
     await pg.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
@@ -150,7 +150,7 @@ for (const lang of I.UI_LANGS){
 // the start screen's labels, in every language
 for (const lang of I.UI_LANGS){
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, bypassCSP: true });
-  await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } }, lang);
+  await ctx.addInitScript(l => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: l })); (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } }, lang);
   const pg = await ctx.newPage();
   await pg.goto(`http://localhost:${PORT}/index.html?memory&welcome`, { waitUntil: 'networkidle' });
   await pg.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });

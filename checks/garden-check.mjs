@@ -48,7 +48,7 @@ async function open(ok, { idle = 600, query = '', drink = null, rb = {}, ctx = {
   const bad = [];
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
-  await page.addInitScript(([d, extra]) => { try { localStorage.setItem('rb-help-seen', '1'); if (d) localStorage.setItem('rb-drink', d); for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v); } catch { /* nothing to set */ } }, [drink, rb]);
+  await page.addInitScript(([d, extra]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); if (d) localStorage.setItem('rb-drink', d); for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v); } catch { /* nothing to set */ } }, [drink, rb]);
   await page.goto(`http://localhost:${PORT}/?memory&garden-check=${idle}${query}#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   await page.waitForFunction(() => (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });

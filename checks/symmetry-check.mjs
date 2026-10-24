@@ -34,7 +34,7 @@ const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executa
 
 const open = async (w, h, look = []) => {
   const ctx = await browser.newContext({ viewport: { width: w, height: h } });
-  await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); if (d) { localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } } catch { /* none */ } }, look);
+  await ctx.addInitScript(([d, t]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); if (d) { localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } } catch { /* none */ } }, look);
   const page = await ctx.newPage();
   page.setDefaultTimeout(8000);      // a step that finds nothing fails in seconds
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
@@ -533,7 +533,7 @@ await run('remove a language from the record when nothing uses it (fix 19)', asy
 // ---- Fit waits while a screen is open (UX-6c-iv-b follow-up): on a phone; a desktop's Fit is Export's and not on the page elsewhere ----
 await run('Fit is Export\u2019s: not on the Library, there and not held in Export', async () => {
   const ctx = await browser.newContext({ viewport: { width: 1470, height: 832 } });
-  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  await ctx.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } });
   const page = await ctx.newPage();
   page.setDefaultTimeout(8000);
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
@@ -550,7 +550,7 @@ await run('Fit is Export\u2019s: not on the Library, there and not held in Expor
 });
 await run('Fit is held while a screen is open: the phone’s foot', async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  await ctx.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } });
   const page = await ctx.newPage();
   page.setDefaultTimeout(8000);
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
@@ -577,7 +577,7 @@ await run('Fit is held while a screen is open: the phone’s foot', async () => 
 // ---- on a phone: the depth row carries the tools, the name window and the language menu the deletes ----
 await run('on a phone: the depth row carries the tools, the name window and the language menu the deletes', async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-  await ctx.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch { /* none */ } });
+  await ctx.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } });
   const page = await ctx.newPage();
   page.setDefaultTimeout(8000);
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });

@@ -46,7 +46,7 @@ const LOCKS = ['lock', 'unlock'];
 
 async function open({ w = 1280, h = 800, drink = 'tea', theme = 'light' } = {}){
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: 'reduce' });
-  await ctx.addInitScript(([d, t]) => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } catch {} }, [drink, theme]);
+  await ctx.addInitScript(([d, t]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); } catch {} }, [drink, theme]);
   const page = await ctx.newPage();
   const bad = []; page.on('pageerror', e => bad.push(String(e)));
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });

@@ -19,9 +19,8 @@ html, body { background: transparent !important; overflow: hidden !important; }
 html.rb-single .document > .page:not(.rb-shown) { display: none; }
 html.rb-stack .document { flex-direction: column; }
 html.rb-ui [data-variant], html.rb-ui [data-label], html.rb-ui .band[data-section] { cursor: pointer; }
-.document > .page { transition: opacity var(--rb-m-base, 240ms) var(--rb-m-out, ease-out); }
 .document > .page { outline: 1px solid var(--rb-edge, transparent); outline-offset: 0; }
-.document > .page.rb-faded { opacity: var(--rb-fade, .35); }
+.document > .page.rb-current { outline: 2px solid var(--rb-edge-cur, var(--rb-edge)); }      /* the page being worked on while the other waits: a stronger edge, and nothing is dimmed */
 html.rb-still *, html.rb-still *::before, html.rb-still *::after { transition: none !important; animation: none !important; }
 html[data-rb-moving] .document > .page { box-shadow: none !important; }      /* Linux only (canvas.js): an attribute, not a class, since the frame's classes are the plate's (plate-check) */
 html.rb-handing, html.rb-handing * { cursor: grabbing !important; }
@@ -113,6 +112,7 @@ function paintMarks(doc){
   doc.documentElement.classList.toggle('rb-still', reduced());
   for (const n of PLATE_TOKENS) doc.documentElement.style.setProperty(n, cs.getPropertyValue(n).trim());
   doc.documentElement.style.setProperty('--rb-edge', cs.getPropertyValue(soft ? '--page-edge-soft' : '--page-edge').trim());
+  doc.documentElement.style.setProperty('--rb-edge-cur', cs.getPropertyValue('--page-edge').trim());
   doc.documentElement.style.setProperty('--plate-in', `${HOVER_IN}ms`);
   doc.documentElement.style.setProperty('--plate-out', `${HOVER_OUT}ms`);
 }
@@ -128,6 +128,8 @@ export function createSheet(host, hooks = {}){
   let view = { mode: 'spread', page: 0 };
   let marked = { sel: null, ix: null, prev: null, focus: null, miss: null, hover: null, find: null, scope: false };
   let fade = [];
+  // the page that does not wait (rb-faded: kept as the name of the state) is the current one, marked only when another waits
+  const markFade = pages => { const any = fade.some(Boolean); pages.forEach((p, i) => { p.classList.toggle('rb-faded', !!fade[i]); p.classList.toggle('rb-current', any && !fade[i]); }); };
   let card = null, folded = [], foldHome = null;   // a large lifted block: the card carried at the pointer, the elements folded in place and where they stood
   let sockets = [];              // the lifted block's home, one socket for each element it is printed in (a section runs over two pages)
   let tabEls = [], tabHot = false;      // the blocks whose plates show the grip's dots (the line's or group's, the job's or section's), and whether the pointer is on one
@@ -250,7 +252,8 @@ export function createSheet(host, hooks = {}){
     const html = fr.doc.documentElement;
     html.classList.toggle('rb-single', view.mode === 'single' && pages.length > 1);
     html.classList.toggle('rb-stack', view.mode === 'stack' && pages.length > 1);
-    pages.forEach((p, i) => { p.classList.toggle('rb-shown', i === view.page); p.classList.toggle('rb-faded', !!fade[i]); });
+    pages.forEach((p, i) => p.classList.toggle('rb-shown', i === view.page));
+    markFade(pages);
     size(fr, pages.length, shown.laid.format);
   }
 
@@ -572,7 +575,7 @@ export function createSheet(host, hooks = {}){
     rectOfEl(el){ const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; },
     get doc(){ return fr?.doc ?? null; },
     // pages the camera has set aside are faded, and stay clickable
-    setFade(list){ fade = list ?? []; if (!fr) return; [...fr.root.querySelectorAll(':scope > .page')].forEach((p, i) => p.classList.toggle('rb-faded', !!fade[i])); },
+    setFade(list){ fade = list ?? []; if (fr) markFade([...fr.root.querySelectorAll(':scope > .page')]); },
     // the cursor over the page while the hand is on the canvas
     // Linux only (canvas.js): no blurred shadow on the pages while they move, which software painting redraws every frame
     setMoving(on){ fr?.doc.documentElement.toggleAttribute('data-rb-moving', on); },

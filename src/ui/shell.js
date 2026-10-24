@@ -152,7 +152,8 @@ async function boot(){
   staticText();
   bindChrome();
   dock.bind();
-  addEventListener('resize', () => { relayout(); dock.renderFoot(); });
+  mountFullBar();
+  addEventListener('resize', () => { relayout(); dock.renderFoot(); syncWinFull(); });
   canvas.bind();
   bindDepthMenu();
   document.addEventListener(PAGES_MOVED, () => { renderFoot(); renderChip(); });
@@ -1240,10 +1241,11 @@ function key(e){
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
     // up one level (writing a line is left by edit.js before this); a job, or a line in one, is the job level, and one Esc
-    // goes to the page. At the page level, the view zooms out (the panel no longer folds)
+    // goes to the page. At the page level, the sidebar folds and the view zooms out
     const next = up(ui.sel);
     if (next.kind !== 'none'){ select(next); return; }
     if (ui.sel.kind !== 'none'){ select(NONE); backToTab(); return; }
+    if (!ui.layout?.phone && !side().off && escFolds()) toggleSide();      // the sidebar folds away, and the pages centre in the whole window
     dock.allTheWayOut();
     return;
   }
@@ -1271,7 +1273,14 @@ function key(e){
   }
 }
 
-function toggleFullscreen(){
+// rb-esc-fold = off keeps the sidebar open at the page level (for the checks, which press Esc to rest)
+const escFolds = () => { try { return localStorage.getItem('rb-esc-fold') !== 'off'; } catch { return true; } };
+async function toggleFullscreen(){
+  const win = globalThis.__TAURI__?.window?.getCurrentWindow?.();      // the desktop app: the window itself, which Esc does not leave (the page's full screen is left by Esc)
+  if (win){
+    try { await win.setFullscreen(!(await win.isFullscreen())); await syncWinFull(); relayout(); } catch { toast(t('toast.noFullscreen'), 'warn'); }
+    return;
+  }
   if (document.fullscreenElement) document.exitFullscreen?.();
   else document.documentElement.requestFullscreen?.()
     // ask the browser to hand Esc to the page: one press steps up a level, and holding it leaves full screen (Chrome and Edge)
@@ -1279,6 +1288,25 @@ function toggleFullscreen(){
     .catch(() => toast(t('toast.noFullscreen'), 'warn'));
 }
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) navigator.keyboard?.unlock?.(); });
+// The desktop app's full screen has no title bar, so the top edge brings one back: a bar with the window's controls (src/ui/workbench.css, .fsbar)
+const fsWin = () => globalThis.__TAURI__?.window?.getCurrentWindow?.();
+async function syncWinFull(){
+  const w = fsWin(); if (!w) return;
+  const on = await w.isFullscreen().catch(() => false);
+  document.body.classList.toggle('is-fs', on);
+  if (on) for (const [act, key] of [['min', 'fs.minimise'], ['exit', 'fs.exit'], ['close', 'fs.close']]){ const b = document.querySelector(`.fsbar [data-fs=${act}]`); if (b) b.title = b.ariaLabel = t(key); }
+}
+function mountFullBar(){
+  const w = fsWin(); if (!w || document.querySelector('.fsbar')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div class="fsbar-zone" aria-hidden="true"></div><div class="fsbar" role="toolbar" aria-label="BrewCV"><b>BrewCV</b>
+    <button type="button" data-fs="min">${icon('minus')}</button><button type="button" data-fs="exit">${icon('full')}</button><button type="button" data-fs="close">${icon('close')}</button></div>`);
+  document.querySelector('.fsbar').addEventListener('click', async e => {
+    const b = e.target.closest('[data-fs]'); if (!b) return;
+    if (b.dataset.fs === 'min') w.minimize();
+    else if (b.dataset.fs === 'close') w.close();
+    else { await w.setFullscreen(false); await syncWinFull(); relayout(); }
+  });
+}
 function openActual(){
   if (!cur()) return;
   document.body.classList.add('is-actual');

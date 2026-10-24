@@ -7,7 +7,7 @@ import { isDeepStrictEqual as eq } from 'node:util';
 import {
   geometry, viewRect, fitCam, screenOf, contentOf, zoomAbout, snapZoom, limits, rubber, softCam, hardCam, stops, magnetize, unmagnetize,
   settleIndex, visible, brightPage, allShown, faded, damping, springStep, atRest, centreOn, writingScale, rowWidth, pageLeft, midX, keepPageEdge,
-  OVERSHOOT, SNAP_FIT, MAGNET, BOUNCE,
+  OVERSHOOT, SNAP_FIT, MAGNET, BOUNCE, KEEP_Y,
 } from '../src/ui/camera.js';
 import { G, PAGE_GAP, pageSize } from '../src/ui/layout.js';
 
@@ -61,7 +61,8 @@ section('soft limits and the rubber band');
   ok('pages that fit the view stay centred and cannot be panned sideways, however far they are pulled', L.minX === L.maxX && near(L.minX, cam.x) && eq(softCam({ ...cam, x: cam.x + 500 }, g, v).x, cam.x) && eq(hardCam({ ...cam, x: -9e3 }, g, v).x, cam.x));
   ok('up and down they can still be pushed some way', L.maxY > cam.y && L.minY < cam.y);
   const z = zoomAbout(cam, cam.k * 2, 500, 400), Z = limits(z, g, v), Wz = rowWidth(794, 2) * z.k;
-  ok('zoomed in so they do not fit: they pan until an edge is G inside the view edge, and no further', Z.minX < Z.maxX && near(Z.maxX, v.left + G) && near(Z.minX, v.left + v.width - G - Wz));
+  const M = v.height * (1 - KEEP_Y);      // the margin the pages may rest at above them
+  ok('zoomed in so they do not fit: they pan until an edge is as far inside the view edge as the top margin allows, and no further', Z.minX < Z.maxX && near(Z.maxX, v.left + M) && near(Z.minX, v.left + v.width - M - Wz) && M > G);
   ok('…and the fit view is always within the range', limits(cam, g, v).minX <= cam.x && limits(cam, g, v).maxX >= cam.x);
   ok('zoomed in, a pull past the edge is rubbered and the spring back lands on the edge', softCam({ ...z, x: Z.maxX + 100 }, g, v).x < Z.maxX + OVERSHOOT && near(hardCam({ ...z, x: 1e6 }, g, v).x, Z.maxX));
   ok('inside the limits nothing is pulled', eq(softCam(cam, g, v), cam));
@@ -160,7 +161,7 @@ section('writing keeps the page edge in view');
   const edge = c => screenOf(c, 0, 0).x, right = c => screenOf(c, line.left + line.width, 0).x;
   ok('at 130% and 150% the page fits the room: it stays centred, inside the view', [130, 150].every(p => { const c = at(p), L = limits(c, g, v); return L.minX === L.maxX && edge(c) >= v.left && screenOf(c, 816, 0).x <= v.left + v.width; }));
   ok('at 170% it is wider than the room: it starts left of the view, as far as the line needs', edge(at(170)) < v.left && right(at(170)) <= v.left + v.width);
-  ok('a line near the page edge at 200%: the page edge stops G inside the view, not further', near(edge(hardCam(centreOn(g, v, writingScale(g, v, 200), 100, 410), g, v)), v.left + G));
+  ok('a line near the page edge at 200%: the page edge stops as far inside the view as the top margin allows, not further', near(edge(hardCam(centreOn(g, v, writingScale(g, v, 200), 100, 410), g, v)), v.left + v.height * (1 - KEEP_Y)));
   ok('at 250% the line wins: the camera stays where it is', eq(keepPageEdge(at(250), g, v, { ...line, width: 600 }), at(250)));
 }
 

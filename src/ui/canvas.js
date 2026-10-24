@@ -297,6 +297,8 @@ export function initCanvas(C){
     document.addEventListener('keyup', keyup, true);
     addEventListener('blur', () => { space = false; document.body.classList.remove('is-space'); });
     for (const g of ['gesturestart', 'gesturechange', 'gestureend']) box.addEventListener(g, gesture);
+    // the Linux desktop app turns a touchpad pinch into this call (phase 0 begin, 1 update, 2 end) instead of letting WebKit zoom the whole window
+    window.__pinch = (phase, scale, x, y) => gesture({ type: ['gesturestart', 'gesturechange', 'gestureend'][Math.min(2, phase)], scale, clientX: x, clientY: y, preventDefault(){} });
   }
 
   // what sheet.js forwards from inside the frame: coordinates are the page's own pixels, so they are scaled to the window

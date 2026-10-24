@@ -70,7 +70,7 @@ async function open(page, q, { help = false, drink = null, theme = null, guard =
   const bad = [];
   // the shortcut sheet is seen once it has been opened (and the panel hint goes with it): a check that is not about it starts with the
   // sheet seen.
-  await page.addInitScript(([h, d, t]) => { try { if (!h) localStorage.setItem('rb-help-seen', '1'); if (d) localStorage.setItem('rb-drink', d); if (t) localStorage.setItem('rb-theme', t); } catch { /* nothing to set */ } }, [help, drink, theme]);
+  await page.addInitScript(([h, d, t]) => { try { if (!h) (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); if (d) localStorage.setItem('rb-drink', d); if (t) localStorage.setItem('rb-theme', t); } catch { /* nothing to set */ } }, [help, drink, theme]);
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
   await page.goto(URL_(q), { waitUntil: 'networkidle' });
@@ -621,13 +621,13 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     ok('…and the wheel now pans too (the pages are not in their place)', await (async () => { await wheel(page, 60, 0, [700, 450]); await settle(page); return Math.abs((await camOf(page)).y - (c1.y - 60)) < 3; })());
     await page.mouse.move(14, 450); await page.mouse.down(); await page.mouse.move(1000, 450, { steps: 6 }); await page.mouse.up(); await settle(page);
     ok('pulled far sideways with the pages fitting: they are still centred where they were', Math.abs((await camOf(page)).x - c0.x) < 0.5, `${(await camOf(page)).x} vs ${c0.x}`);
-    // zoomed in so they do not fit: they pan until the page edge is G inside the view's edge, and no further
+    // zoomed in so they do not fit: they pan until the page edge is as far inside the view's edge as the top margin allows, and no further
     await page.evaluate(() => window.__wb.canvas.zoomTo(2, undefined, { animate: false })); await page.evaluate(() => document.activeElement?.blur()); await settle(page);
     for (const [to, edge] of [[1, 'maxX'], [-1, 'minX']]){
       await page.mouse.move(to > 0 ? 100 : 1300, 450); await page.keyboard.down('Space'); await page.mouse.down(); await page.mouse.move(to > 0 ? 1250 : 50, 450, { steps: 8 }); await page.mouse.up(); await page.keyboard.up('Space'); await settle(page);
       const far = await camOf(page), lim = await page.evaluate(() => window.__wb.canvas.limits()), v = await page.evaluate(() => window.__wb.canvas.view);
-      const G = 16, shown = await page.evaluate(() => { const c = window.__wb.canvas, g = c.geo; return import('/src/ui/layout.js').then(L => ({ left: c.cam.x, right: c.cam.x + (g.n * g.w + (g.n - 1) * L.PAGE_GAP) * c.cam.k })); });
-      ok(`zoomed in and pulled far ${to > 0 ? 'right' : 'left'}: it springs back to ${to > 0 ? 'the left' : 'the right'} edge of the pages, G inside the view`, Math.abs(far.x - lim[edge]) < 0.6 && (to > 0 ? Math.abs(shown.left - (v.left + G)) < 0.6 : Math.abs(shown.right - (v.left + v.width - G)) < 0.6), `${far.x.toFixed(1)} vs ${lim[edge].toFixed(1)}`);
+      const G = v.height * (1 - 0.9), shown = await page.evaluate(() => { const c = window.__wb.canvas, g = c.geo; return import('/src/ui/layout.js').then(L => ({ left: c.cam.x, right: c.cam.x + (g.n * g.w + (g.n - 1) * L.PAGE_GAP) * c.cam.k })); });
+      ok(`zoomed in and pulled far ${to > 0 ? 'right' : 'left'}: it springs back to ${to > 0 ? 'the left' : 'the right'} edge of the pages, as far inside the view as the top margin allows`, Math.abs(far.x - lim[edge]) < 0.6 && (to > 0 ? Math.abs(shown.left - (v.left + G)) < 0.6 : Math.abs(shown.right - (v.left + v.width - G)) < 0.6), `${far.x.toFixed(1)} vs ${lim[edge].toFixed(1)}`);
     }
     await page.keyboard.press('0'); await settle(page);
     const home = await camOf(page);
@@ -663,9 +663,15 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     })());
     // Esc at the page level puts everything away, from any zoom
     await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
+    await page.evaluate(() => localStorage.removeItem('rb-esc-fold'));      // this check is about the fold
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
     const out = await camOf(page);
     ok('Esc out of the line, Esc to the page, Esc from a zoomed view: selection cleared, the whole resume with both pages equal', out.zoom === 1 && !out.free && out.scene === 'all' && out.equal && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none');
+    const iw = await page.evaluate(() => innerWidth);
+    ok('…and the sidebar is folded, the pages centred in the whole window', await page.evaluate(() => document.body.classList.contains('side-off')) && Math.abs(out.x + (out.geo.w * out.geo.n + 24 * (out.geo.n - 1)) * out.k / 2 - iw / 2) < 80, JSON.stringify({ x: out.x, k: out.k, geo: out.geo }));
+    await page.keyboard.press('Escape'); await settle(page);
+    ok('a further Esc at the page level leaves the sidebar folded', await page.evaluate(() => document.body.classList.contains('side-off')));
+    await page.keyboard.press('Control+Backslash'); await settle(page);
     ok('a window resize is told to the page layer once it settles', await (async () => { const n0 = await movedCount(page); await page.setViewportSize({ width: 1300, height: 820 }); await settle(page); const n1 = await movedCount(page); return n1 > n0 && n1 - n0 <= 2; })());
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
@@ -3032,7 +3038,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   const bad = [];
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
-  await page.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); } catch {} });
+  await page.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch {} });
   await page.goto(URL_('?memory&welcome'), { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready'));
   await page.waitForTimeout(800);
@@ -3239,7 +3245,7 @@ if (want('the start screen: the static first paint comes first, then the app')) 
   const bad = [];
   page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
   page.on('pageerror', e => bad.push(String(e)));
-  await page.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-drink', 'coffee'); } catch { /* nothing to set */ } });
+  await page.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', 'coffee'); } catch { /* nothing to set */ } });
   let release; const held = new Promise(r => { release = r; });
   await page.route('**/src/ui/shell.js', async route => { await held; await route.continue(); });
   await page.goto(URL_('?memory&welcome'), { waitUntil: 'commit' });          // a held module script holds DOMContentLoaded too
@@ -6969,6 +6975,28 @@ if (want('file://')) {
   await page.goto(pathToFileURL(path.join(ROOT, 'index.html')).href);
   await page.waitForSelector('#no-origin', { timeout: 10000 }).catch(() => {});
   ok('opened from disk it says it needs an origin', await page.isVisible('#no-origin'));
+  await ctx.close();
+}
+
+if (want('full screen in the desktop app')) {
+  // the desktop app's full screen is the window's (Tauri), which Esc does not leave; the top edge brings back a bar with the window's controls
+  const ctx = await newContext({ viewport: { width: 1280, height: 800 } });
+  await ctx.addInitScript(() => { let fs = false; window.__fs = () => fs; window.__TAURI__ = { window: { getCurrentWindow: () => ({ isFullscreen: async () => fs, setFullscreen: async v => { fs = !!v; }, minimize(){ window.__min = true; }, close(){ window.__closed = true; } }) } }; });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const bar = () => page.evaluate(() => { const e = document.querySelector('.fsbar'); return { bottom: Math.round(e.getBoundingClientRect().bottom), on: document.body.classList.contains('is-fs'), shown: getComputedStyle(e).display !== 'none' }; });
+  ok('the bar is not there outside full screen', !(await bar()).shown);
+  await page.keyboard.press('F11'); await settle(page);
+  ok('F11 puts the window in full screen, with the bar out of sight', await page.evaluate(() => window.__fs()) && (await bar()).on && (await bar()).bottom <= 0);
+  await page.mouse.move(600, 3); await page.waitForTimeout(500);
+  ok('the pointer at the top edge brings the bar down', (await bar()).bottom >= 30);
+  await page.mouse.move(600, 400); await page.waitForTimeout(500);
+  ok('away from the edge it goes again', (await bar()).bottom <= 0);
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc does not leave full screen: it is a control of the app', await page.evaluate(() => window.__fs()));
+  await page.mouse.move(600, 3); await page.waitForTimeout(400); await page.click('.fsbar [data-fs=exit]'); await settle(page);
+  ok('the bar\'s exit button leaves full screen', !(await page.evaluate(() => window.__fs())) && !(await bar()).shown);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
 
