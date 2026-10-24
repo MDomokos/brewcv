@@ -4,8 +4,10 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+## 1.6.1 - 2026-10-24
+
 ### Fixed
-- **A job can be moved to the top again, and Reset works,** on a resume whose jobs were listed out of your career's order.
+- **A job can be moved to the top again, and Reset works,** on a resume whose jobs were listed out of your career's order. The move now stays, and "custom" goes when you Reset.
 
 ## 1.6.0 - 2026-10-24
 

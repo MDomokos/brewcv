@@ -1,6 +1,6 @@
 [package]
 name = "brewcv"
-version = "1.6.0"
+version = "1.6.1"
 description = "BrewCV desktop app (experimental)"
 license = "AGPL-3.0-or-later"
 edition = "2021"
