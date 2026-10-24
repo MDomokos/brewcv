@@ -194,15 +194,15 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   ok('the zoom bar is hidden while the pointer is away from the page', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))) && (await page.evaluate(() => +getComputedStyle(document.querySelector('#zoombar')).opacity)) < 0.05);
   // only over the white sheet: the mat beside it (and above and below it), and the gap, leave it hidden
   const sr = await rect(page, '#sheet');
-  for (const [what, x, y] of [['the mat beside the page', sr.left - 30, 400], ['the mat under the page', sr.left + sr.width / 2, sr.bottom + 8]]){
+  for (const [what, x, y] of [['the mat beside the page', sr.left - 30, 400]]){
     if (x < 5 || y > 860) continue;
-    await page.mouse.move(x, y, { steps: 4 }); await page.waitForTimeout(900);
+    await page.mouse.move(x, y, { steps: 4 }); await page.waitForTimeout(1400);
     ok(`the zoom bar stays hidden over ${what}`, !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))), `${x.toFixed(0)},${y.toFixed(0)}`);
   }
   await page.mouse.move(sr.left + sr.width / 2, sr.top + 200, { steps: 4 }); await page.waitForTimeout(500);
   ok('over the white sheet it shows, in the frame too (the page is an iframe)', await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on')));
-  await page.mouse.move(sr.left - 30, 400, { steps: 4 }); await page.waitForTimeout(900);
-  ok('…and leaving the sheet for the mat hides it again', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))));
+  await page.mouse.move(sr.left - 30, 400, { steps: 4 }); await page.waitForTimeout(1500);
+  ok('…and leaving the sheet for the mat hides it again, after a moment (it does not flicker as the pointer crosses the page edge)', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))));
   await page.mouse.move(300, 400); await page.waitForTimeout(500);
   ok('over the page it shows: full screen, −, the percentage, +, fit, Actual size — at the foot of the page area, under the page', await page.evaluate(() => { const z = document.querySelector('#zoombar'), r = z.getBoundingClientRect(); return z.classList.contains('on') && +getComputedStyle(z).opacity > 0.9 && ['fullscreen', 'zoom-out', 'zoom-in', 'zoom-fit', 'actual'].every(a => z.querySelector(`[data-act=${a}]`)) && !!z.querySelector('#zoompct') && r.bottom > innerHeight - 40 && r.right < document.querySelector('#col').getBoundingClientRect().left; }));
   ok('the full-screen button says F11 in its name and its tip, and neither mentions Shift+F or a bare F', await page.evaluate(() => { const b = document.querySelector('#zoombar [data-act=fullscreen]'), words = `${b.getAttribute('aria-label')}|${b.dataset.tip}`; return /F11/.test(b.getAttribute('aria-label')) && /F11/.test(b.dataset.tip) && !/Shift\+F|\(F\)|Press F\b|\bF\./.test(words); }));
@@ -216,13 +216,21 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
     if (r.ago < 300) stayed = r.on; else continue;
     break;
   }
-  ok('it stays 0.4s after the pointer leaves…', stayed);
-  await page.waitForTimeout(900);
+  ok('it stays 0.9s after the pointer leaves…', stayed);
+  await page.waitForTimeout(1500);
   ok('…and then fades out', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))));
   await key('='); await page.waitForTimeout(450);
   ok('zooming with a key flashes it for 1.2s even with the pointer elsewhere', await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on')) && (await S()).zoom > 1);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2300);
   ok('…then it goes', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))));
+  // the bottom centre, where it is hidden: the pointer coming near brings it up, off the page too, and it comes back at once if the pointer returns while it fades
+  const bb = await page.evaluate(() => { const r = document.querySelector('#zoombar').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.bottom - 4, top: r.top }; });
+  await page.mouse.move(bb.x, bb.top - 40, { steps: 4 }); await page.waitForTimeout(500);
+  ok('the pointer coming near the bottom centre brings the zoom bar up', await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on')));
+  await page.mouse.move(300, 120, { steps: 3 }); await page.waitForTimeout(950);
+  await page.mouse.move(bb.x, bb.top - 40, { steps: 3 }); await page.waitForTimeout(400);
+  ok('…and back at once if it returns while the bar is fading out', await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on')));
+  await page.mouse.move(300, 120, { steps: 3 }); await page.waitForTimeout(1500);
   await key('0'); await settle(page);
   // Edit, Design and Export: the arrows move between the tabs and open each
   await page.click('#tab-edit'); await settle(page);
@@ -7016,6 +7024,31 @@ if (want('highlights written on the page')) {
   await ctx.close();
 }
 
+if (want('the hand: the middle button and Space')) {
+  // the browser must not start its own drag under the hand (the cursor froze on Linux); the middle button pans, and a click of it is Fit
+  const ctx = await newContext({ viewport: { width: 1500, height: 900 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await page.evaluate(() => window.__wb.canvas.zoomTo(2, undefined, { animate: false })); await page.evaluate(() => document.activeElement?.blur()); await settle(page);
+  const x0 = (await camOf(page)).x;
+  await page.mouse.move(600, 450); await page.mouse.down({ button: 'middle' }); await page.mouse.move(520, 450, { steps: 6 });
+  const mid = await page.evaluate(() => ({ sel: window.getSelection().toString(), handing: document.body.classList.contains('is-handing') }));
+  await page.mouse.up({ button: 'middle' }); await settle(page);
+  const x1 = (await camOf(page)).x;
+  ok('the middle button drags the page, and nothing is selected on the way', x1 < x0 - 20 && mid.handing && mid.sel === '', JSON.stringify({ x0, x1, mid }));
+  await page.mouse.move(600, 450); await page.mouse.down({ button: 'middle' }); await page.mouse.up({ button: 'middle' }); await settle(page);
+  ok('a click of the middle button (no drag) is Fit: the whole resume', (await camOf(page)).zoom === 1 && !(await camOf(page)).free);
+  await page.evaluate(() => window.__wb.canvas.zoomTo(2, undefined, { animate: false })); await page.evaluate(() => document.activeElement?.blur()); await settle(page);
+  await page.keyboard.down('Space'); await page.waitForTimeout(150);
+  const refused = await page.evaluate(() => { const d = document.querySelector('#sheet iframe').contentDocument, ev = new Event('dragstart', { bubbles: true, cancelable: true }), sv = new Event('selectstart', { bubbles: true, cancelable: true }); d.querySelector('.bullets li').dispatchEvent(ev); d.querySelector('.bullets li').dispatchEvent(sv); return ev.defaultPrevented && sv.defaultPrevented; });
+  await page.keyboard.up('Space');
+  ok('with Space down the page refuses a native drag and a selection start', refused);
+  const free = await page.evaluate(() => { const d = document.querySelector('#sheet iframe').contentDocument, ev = new Event('dragstart', { bubbles: true, cancelable: true }); d.querySelector('.bullets li').dispatchEvent(ev); return ev.defaultPrevented; });
+  ok('…and leaves them alone otherwise', !free);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('full screen in the desktop app')) {
   // the desktop app's full screen is the window's (Tauri), which Esc does not leave; the top edge brings back a bar with the window's controls
   const ctx = await newContext({ viewport: { width: 1280, height: 800 } });
@@ -7028,8 +7061,13 @@ if (want('full screen in the desktop app')) {
   ok('F11 puts the window in full screen, with the bar out of sight', await page.evaluate(() => window.__fs()) && (await bar()).on && (await bar()).bottom <= 0);
   await page.mouse.move(600, 3); await page.waitForTimeout(500);
   ok('the pointer at the top edge brings the bar down', (await bar()).bottom >= 30);
-  await page.mouse.move(600, 400); await page.waitForTimeout(500);
-  ok('away from the edge it goes again', (await bar()).bottom <= 0);
+  await page.mouse.move(600, 400); await page.waitForTimeout(250);
+  ok('away from the edge it waits a moment (a pointer that strays does not make it flicker)', (await bar()).bottom > 0);
+  await page.waitForTimeout(1400);
+  ok('…and then it goes', (await bar()).bottom <= 0);
+  await page.mouse.move(600, 3); await page.waitForTimeout(150); await page.mouse.move(600, 400); await page.waitForTimeout(300); await page.mouse.move(600, 20); await page.waitForTimeout(1200);
+  ok('coming back to the edge while it eases out keeps it', (await bar()).bottom >= 30);
+  await page.mouse.move(600, 400); await page.waitForTimeout(1400);
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc does not leave full screen: it is a control of the app', await page.evaluate(() => window.__fs()));
   await page.mouse.move(600, 3); await page.waitForTimeout(400); await page.click('.fsbar [data-fs=exit]'); await settle(page);

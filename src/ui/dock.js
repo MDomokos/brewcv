@@ -48,10 +48,16 @@ const modeOf = tabOf;
 // ---- hover hints: data-tip="Title|One line" ----
 function installTips(){
   let tip = $('#tip'); if (!tip){ tip = document.createElement('div'); tip.id = 'tip'; tip.setAttribute('aria-hidden', 'true'); document.body.append(tip); }
-  let timer = null, cur = null, at = null;      // at: where the pointer last was
-  const hide = () => { clearTimeout(timer); tip.classList.remove('on'); cur = null; };
+  let timer = null, hideT = null, cur = null, at = null, lastText = '', lastAt = 0;      // at: where the pointer last was
+  const hide = () => { clearTimeout(timer); clearTimeout(hideT); tip.classList.remove('on'); cur = null; };
+  // a control redrawn under the pointer is out and over again in one go: the hint waits a moment before it goes, and the same hint comes straight back
+  const softHide = () => { clearTimeout(timer); clearTimeout(hideT); hideT = setTimeout(hide, 180); };
   const arm = el => {
-    hide(); if (!el) return; cur = el;
+    clearTimeout(timer); clearTimeout(hideT);
+    if (!el){ cur = null; softHide(); return; }
+    const same = el.dataset.tip === lastText && performance.now() - lastAt < 900;
+    cur = el;
+    if (!(tip.classList.contains('on') && same)) tip.classList.remove('on');
     timer = setTimeout(() => {
       const [head, ...rest] = (el.dataset.tip || '').split('|');
       tip.innerHTML = `<b>${esc(head)}</b>${esc(rest.join('|'))}`;
@@ -65,7 +71,8 @@ function installTips(){
       if (x < 6) x = pos === 'l' ? r.right + 8 : 6;
       if (y + th > innerHeight - 6) y = r.top - th - 8;
       tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(Math.max(6, y))}px)`; tip.classList.add('on');
-    }, 380);
+      lastText = el.dataset.tip; lastAt = performance.now();
+    }, tip.classList.contains('on') || same ? 0 : 380);
   };
   // A tip is for a pointer that moved onto the element. A click that redraws the element under a still pointer makes the browser
   // send a pointerover from the same spot: that is not a move, so it waits for the next one.
@@ -81,7 +88,7 @@ function installTips(){
   });
   document.addEventListener('pointerdown', e => { at = { x: e.clientX, y: e.clientY }; hide(); });
   document.addEventListener('wheel', hide, { passive: true });
-  document.addEventListener('pointerout', e => { if (!e.relatedTarget || !e.relatedTarget.closest?.('[data-tip]')) hide(); });
+  document.addEventListener('pointerout', e => { if (!e.relatedTarget || !e.relatedTarget.closest?.('[data-tip]')) softHide(); });
   // a keyboard gets the same hints: on focus, and Esc takes one away
   document.addEventListener('focusin', e => { const el = e.target.closest?.('[data-tip]'); if (el && e.target.matches?.(':focus-visible')) arm(el); });
   document.addEventListener('focusout', hide);
@@ -233,8 +240,8 @@ function drawFoot(){
 
 // ---- the zoom bar shows while the pointer is over a sheet (the white page, not the mat) or the bar ----
 // It fades out 0.4 s after the pointer leaves, and flashes for 1.2 s when the keys zoom. The bar is in the page area, at its foot.
-const BAR_OUT_MS = 400, BAR_FLASH_MS = 1200;
-let barOver = 0, sheetOn = false, barT = 0, flashT = 0, lastY = Infinity;
+const BAR_OUT_MS = 900, BAR_FLASH_MS = 1200, BAR_NEAR = { x: 140, y: 100 };      // it goes 0.9 s after the pointer leaves (and comes back at once if it returns while it fades)
+let barOver = 0, sheetOn = false, barT = 0, flashT = 0, lastY = Infinity, lastX = Infinity;
 function bar(){ return $('#zoombar'); }
 // Where printed text runs under the bar (a page zoomed in), it stands aside until the pointer comes within 48 px of it, or a key zooms (UX-6f 4c: it covers no text it is
 // not about). Called as the pointer moves and as the camera moves (shell.js).
@@ -242,15 +249,22 @@ export function barAside(){
   const b = C && bar();
   if (!b) return;
   const r = b.getBoundingClientRect(), under = q => { const s = C.canvas.screenRect(q); return s.left < r.right && s.left + s.width > r.left && s.top < r.bottom && s.top + s.height > r.top; };
-  b.classList.toggle('is-aside', !barOver && !flashT && lastY < r.top - 48 && !!C.sheet?.textRects().some(under));
+  // two distances, so it does not flicker at the edge: it stands aside beyond 120 px and is back within 48 px
+  const far = lastY < r.top - (b.classList.contains('is-aside') ? 48 : 120);
+  b.classList.toggle('is-aside', !barOver && !flashT && !nearBar(r) && far && !!C.sheet?.textRects().some(under));
 }
+// the pointer is at the bottom centre, where the bar is hidden: it comes up (the bar's own place, and BAR_NEAR around it)
+const nearBar = r => lastX > r.left - BAR_NEAR.x && lastX < r.right + BAR_NEAR.x && lastY > r.top - BAR_NEAR.y;
 function showBar(on){
   clearTimeout(barT);
   if (on){ bar()?.classList.add('on'); return; }
   barT = setTimeout(() => { if (!barOver && !sheetOn && !bar()?.matches(':focus-within') && !flashT) bar()?.classList.remove('on'); }, BAR_OUT_MS);
 }
-function sheetOver(on, y = lastY){
-  lastY = y; barAside();
+function sheetOver(on, y = lastY, x = lastX){
+  lastY = y; lastX = x;
+  const r = bar()?.getBoundingClientRect();
+  if (r && !on) on = nearBar(r);
+  barAside();
   if (on === sheetOn) return;
   sheetOn = on;
   showBar(on || !!barOver);

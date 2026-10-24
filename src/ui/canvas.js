@@ -243,6 +243,7 @@ export function initCanvas(C){
     const k = keepZoom ? cam.k : ws;
     const next = keepPageEdge(hardCam(centreOn(geo, view, k, r.left + r.width / 2, r.top + r.height / 2), geo, view), geo, view, r);
     free = true; want = null; rememberView();
+    if (keepZoom && onLinux()){ stop(); put(next); settled(); return false; }      // the next line, already zoomed: software painting redraws the page for every step of a glide, so it is there at once
     go(next);
     return !keepZoom;
   }
@@ -321,7 +322,8 @@ export function initCanvas(C){
     if (!hand) return false;
     e.preventDefault();
     stop(); clearTimeout(idleT);
-    drag = { x: e.clientX, y: e.clientY, cam: { ...cam }, id: e.pointerId, bare: bare && e.button === 0, moved: false };
+    drag = { x: e.clientX, y: e.clientY, cam: { ...cam }, id: e.pointerId, bare: bare && e.button === 0, btn: e.button, moved: false };
+    try { e.target?.setPointerCapture?.(e.pointerId); } catch { /* a forwarded event has no target to hold */ }      // the drag keeps its pointer where the page moves under it
     document.body.classList.add('is-handing'); C.sheet.setHand(true, space);
     return true;
   }
@@ -335,7 +337,7 @@ export function initCanvas(C){
     put(softCam({ ...drag.cam, x: drag.cam.x + e.clientX - drag.x, y: drag.cam.y + e.clientY - drag.y }, geo, view));
   }
   // the pointer is over a sheet (not the mat, the gap or the panel): `inPages` is false when something else (the panel) is on top
-  const sheetOver = (x, y, inPages = true) => { if (geo) C.sheetOver?.(inPages && onPage(cam, geo, x, y), y); };
+  const sheetOver = (x, y, inPages = true) => { if (geo) C.sheetOver?.(inPages && onPage(cam, geo, x, y), y, x); };
   function up(e){
     pointers.delete(e.pointerId);
     if (pinch && pointers.size < 2){ pinch = null; go(hardCam(cam, geo, view), { spring: true }); }
@@ -343,6 +345,7 @@ export function initCanvas(C){
     const was = drag; drag = null; document.body.classList.remove('is-handing'); C.sheet.setHand(false, space);
     if (was.moved) handedAt = performance.now();
     else if (was.bare) C.bareClick?.();
+    else if (was.btn === 1) reset();      // the middle button, clicked: the whole resume (the same as 0)
     if (was.moved) go(hardCam(cam, geo, view), { spring: true });
   }
   let pinch = null;
@@ -376,6 +379,13 @@ export function initCanvas(C){
   function bind(){
     box.addEventListener('wheel', e => wheel(e), { passive: false });
     box.addEventListener('pointerdown', e => down(e));
+    // while the hand is on the page the browser must not start its own drag: a selection, a dragged link or image, or the middle button's paste and scroll
+    // (a native drag holds the pointer: the cursor freezes and the page does not follow)
+    const handOn = e => e.button === 1 || space || !!drag;
+    box.addEventListener('mousedown', e => { if (handOn(e)) e.preventDefault(); });
+    box.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+    document.addEventListener('dragstart', e => { if (space || drag) e.preventDefault(); }, true);
+    document.addEventListener('selectstart', e => { if (space || drag) e.preventDefault(); }, true);
     addEventListener('pointermove', e => { move(e); sheetOver(e.clientX, e.clientY, !!e.target.closest?.('#pages')); });
     document.documentElement.addEventListener('pointerleave', () => C.sheetOver?.(false));
     addEventListener('pointerup', up);
