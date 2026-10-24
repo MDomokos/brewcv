@@ -497,6 +497,11 @@ section('the jobs of a resume print in the order it sets');
   ok('the jobs list is custom; the record’s order again ends it and the key goes', CL.jobsCustom(m, q, 'experience') && !CL.jobsCustom(m, r, 'experience') && (() => { const z = clone(q); for (const id of example.sections.find(x => x.id === 'experience').content.work) if (refs(z).includes(id)) T.moveEntry(m, z, id); return !CL.jobsCustom(m, z, 'experience') && e(z).order === undefined; })());
   const stale = clone(q); e(stale).order = ['gone', ...e(q).order, 'gone-too', c];
   ok('ids that are no longer in the record, and a repeat, are ignored', eq(refs(stale), refs(q)) && printed(stale).join() === printed(q).join());
+  // a resume whose own jobs list is not in the record's order (made by hand or by a script), with no order key: the record's first job printed last
+  const scrambled = clone(r); e(scrambled).work = [...e(scrambled).work].reverse();
+  const rec = example.sections.find(x => x.id === 'experience').content.work.filter(id => refs(scrambled).includes(id));
+  ok('a jobs list kept out of the record’s order is custom, and moving the record’s first job to the top takes (the key stays, since the list would put it last)', refs(scrambled)[0] !== rec[0] && CL.jobsCustom(m, scrambled, 'experience') && (() => { const z = clone(scrambled); T.moveEntry(m, z, rec[0], refs(scrambled)[0]); return refs(z)[0] === rec[0] && Array.isArray(e(z).order); })());
+  ok('…and Reset (every job to the end, in the record’s order) puts the record’s order on the page and ends “custom”', (() => { const z = clone(scrambled); for (const id of rec) T.moveEntry(m, z, id); return eq(refs(z), rec) && !CL.jobsCustom(m, z, 'experience'); })());
   const part = clone(r); e(part).order = [c];
   ok('a job missing from the order follows, in the listed order', eq(refs(part), [c, a, b, ...refs(r).slice(3)]));
   const off = clone(r); T.setJobOn(m, off, a, false);

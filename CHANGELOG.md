@@ -4,6 +4,9 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+### Fixed
+- **A job can be moved to the top again, and Reset works,** on a resume whose jobs were listed out of your career's order.
+
 ## 1.6.0 - 2026-10-24
 
 The new interface: the sidebar, editing straight on the page, and a new Export screen. This is a pre-release: some bugs are still being fixed.

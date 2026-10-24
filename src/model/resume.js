@@ -909,8 +909,9 @@ export function moveEntry(model, recipe, id, beforeId = null){
   const on = new Set(jobRefs(model, recipe, sid).map(refId)), lastOn = ids.findLastIndex(x => on.has(x));
   const at = beforeId == null ? lastOn + 1 : ids.indexOf(beforeId);      // last: after the last job that prints, the off ones after it stay
   ids.splice(at < 0 ? ids.length : at, 0, id);
-  // the jobs that print back in the record's order drop the key (the off ones then stand in the record's places again)
-  const printing = ids.filter(x => x === id || on.has(x)), natural = (factIx(model).sections.get(sid)?.content?.work ?? []).filter(x => printing.includes(x));
+  // the jobs that print in the order the key would leave them in anyway drop it (the off ones then stand in the record's places again). That is the record's
+  // order when the section's own list is in it; a list kept in another order (a resume made by hand or by a script) needs the key to get back to the record's
+  const printing = ids.filter(x => x === id || on.has(x)), listed = e.work?.map(refId) ?? factIx(model).sections.get(sid)?.content?.work ?? [], natural = listed.filter(x => printing.includes(x));
   if (printing.length === natural.length && printing.every((x, i) => x === natural[i])) delete e.order; else e.order = ids;
   return { auto };
 }
