@@ -457,7 +457,14 @@ function syncCur(state){
 export function setInStep(state, id, on = true){
   const r = savedOf(state, id);
   if (!r) throw new Error(`no saved resume ${id}`);
-  if (!on){ delete r.inStep; syncCur(state); return; }
+  if (!on){
+    // out of step, a pick in another language would stop the page: it takes back its own picks, else drops those
+    const L = langOfR(r), vs = new Map((state.record?.variants ?? []).map(v => [v.id, v])), own = r.byLang?.[L]?.picks;
+    const picks = Object.fromEntries(Object.entries(own ?? r.picks ?? {}).filter(([, vid]) => langOfR(vs.get(vid)) === L));
+    if (Object.keys(picks).length) r.picks = picks; else delete r.picks;
+    if (own){ r.byLang = { ...r.byLang }; delete r.byLang[L]; if (!Object.keys(r.byLang).length) delete r.byLang; }
+    delete r.inStep; syncCur(state); return;
+  }
   const parent = parentOf(state, r);
   if (!parent || langOfR(parent) === langOfR(r)) throw new Error(`${id} is not a copy of another resume in another language`);
   stashOwn(r, state.record);

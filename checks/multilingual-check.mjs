@@ -84,6 +84,11 @@ section('a language copy is in its original\'s group');
     return !('inStep' in got.recipe) && got.warnings.some(w => /inStep/.test(w));
   });
   ok('turning it off leaves the group', () => { const st = clone(store.state); RS.setInStep(st, hu, false); return RS.groupOf(st, RS.savedOf(st, EN)).length === 1; });
+  ok('…and keeps no pick in another language, so its page still draws', () => {
+    const st = clone(store.state); RS.setInStep(st, hu, false);
+    const r = RS.savedOf(st, hu), vs = new Map(st.record.variants.map(v => [v.id, v]));
+    return Object.values(r.picks ?? {}).every(vid => (vs.get(vid)?.lang ?? 'en') === (r.lang ?? 'en'));
+  });
 }
 
 section('order and other structure goes both ways');

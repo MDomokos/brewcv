@@ -471,6 +471,7 @@ table.cmp tr.setting th { color: var(--ink); }
 .writein textarea { width: 100%; font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--r-s); resize: vertical; }
 .writein .ref ins { background: var(--ins-bg); text-decoration: none; }
 .writein .ref del { background: var(--del-bg); color: var(--del-ink); }
+.writein .ref del + ins, .diff del + ins { margin-inline-start: .3em; }      /* a word swapped for another: the two never run together */
 .writein .seg { margin: 4px 0 8px; }
 .wifrom { margin: 0 0 8px; border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
 .wifrom .note { margin: 0; padding: 6px 10px; }
