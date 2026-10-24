@@ -4,16 +4,12 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
-### Added
-- **A line the other language wrote shows its number greyed (v5 · EN):** click it to see that text and what changed, and to write yours with the numbers carried over.
-- **A heading, a skill group's name or a line edited in the other language is flagged until you answer it, and an old version can be matched to a number:** the missing bar lists them; "This language already has it" in the write-in box offers the old versions, with a guess marked.
-
-### Changed
-- **A copy in another language now follows its original, and the original follows it:** line order, hidden lines, version picks, sections, jobs, locks and the look change in both, and each language prints the same version number. Each keeps its own name, language, paper, text size and its one-off texts.
-
-## 1.6.1 - 2026-10-24
+## 1.6.2 - 2026-10-24
 
 ### Added
+- **A resume's language copies stay in step, both ways.** Line order, hidden lines, version picks, sections, jobs and the look change in every language, and each line prints the same version number. Each copy keeps its own name, paper, text size and one-off texts. An older copy can be put in step from the missing bar.
+- **A line still to translate shows its number greyed (v5 · EN).** Click it to see the other language's text and what changed, and write yours with the numbers already carried over.
+- **A heading, a skill group's name or a line edited in the other language is flagged until you answer it,** and an older translation can be matched to its version number.
 - **Highlight words while you write a line.** Hold Alt (or Ctrl+Alt) and drag over words, or select them and press Ctrl/Cmd+Shift+H. A click on a highlighted word clears it. The highlights show as you edit, and stay on that resume only.
 
 ### Changed
@@ -32,9 +28,13 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 ### Fixed
 - **Dragging with Space or the middle button is steadier on Linux:** the browser no longer starts a drag of its own under the page.
 - **Moving from one text box to the next is quicker.**
-- **A job can be moved to the top again, and Reset works,** on a resume whose jobs were listed out of your career's order. The move now stays, and "custom" goes when you Reset.
 - **Linux: a touchpad pinch zooms the resume, not the whole app.**
 - **Trying versions no longer flashes the other page.**
+
+## 1.6.1 - 2026-10-24
+
+### Fixed
+- **A job can be moved to the top again, and Reset works,** on a resume whose jobs were listed out of your career's order. The move now stays, and "custom" goes when you Reset.
 
 ## 1.6.0 - 2026-10-24
 
