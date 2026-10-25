@@ -25,6 +25,7 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 ### Fixed
 - **Linux: a touchpad pinch zooms the resume, not the whole app.** Dragging with Space or the middle button is steadier, and moving from one text box to the next is quicker.
 - **Trying versions no longer flashes the other page.**
+- **A dragged sidebar row follows the pointer and no longer flashes back to where it started when dropped.** The zoom bar's buttons also stay put when you zoom.
 
 ## 1.6.1 - 2026-10-24
 

@@ -487,7 +487,7 @@ export function initHands(C){
     d.ok = false; d.to = null; d.at = null; showDrop(null);
     const S = d.S ??= sibsOf(d);
     if (!S.opened){ S.opened = true; openFold(d); }
-    const rs = rows.map(el => ({ id: rowId(el), r: el.getBoundingClientRect() })).filter(q => S.sibs.some(o => o.id === q.id));
+    const rs = rows.map(el => ({ id: rowId(el), r: el === d.rowEl && d.r0 ? d.r0 : el.getBoundingClientRect() })).filter(q => S.sibs.some(o => o.id === q.id));      // (the lifted row counts where it stood)
     if (!rs.length) return;
     const b = box(rs.map(q => q.r)), col = $('#body')?.getBoundingClientRect();
     if (col && (e.clientX < col.left || e.clientX > col.right)) return;      // out of the panel: nothing drops (the block stays where it was)
@@ -510,6 +510,7 @@ export function initHands(C){
     sheet.doc?.removeEventListener('keydown', escDrag, true);
     if (!d){ sheet.unnudge(false); return; }
     if (p) dragEnded = performance.now();
+    const lifted = d.rowEl;      // a drop that changes nothing sets it down again
     if (p && d.moved && d.ok){
       if (d.kind === 'skill') C.edit().moveSkill(d.fact, d.k, d.to.g, d.to.j);
       else {
@@ -524,6 +525,7 @@ export function initHands(C){
         C.ui.morph = null;
       }
     }
+    if (lifted?.isConnected){ lifted.style.transition = 'transform var(--m-base) var(--m-out)'; lifted.style.transform = ''; setTimeout(() => { lifted.style.transition = ''; lifted.classList.remove('is-lifted'); }, 260); }
     sheet.land(null, false);
     place();
   }
@@ -568,16 +570,20 @@ export function initHands(C){
     let began = false;      // a drag that was ended (Esc) is not started again by the next move
     const x0 = e.clientX, y0 = e.clientY, ctl = new AbortController(), off = () => ctl.abort();
     const opt = { signal: ctl.signal, capture: true };
+    // the dragged row is lifted and follows the pointer inside its rows (the drop line says where it lands), so that when it is let go and the rows are drawn in the new order
+    // it slides from where the pointer left it, not from where it started
+    const box = r.rows.map(q => q.getBoundingClientRect()), me = el.getBoundingClientRect();
+    const lift = m => { el.classList.add('is-lifted'); el.style.transform = `translateY(${Math.max(box[0].top - me.top, Math.min(box.at(-1).bottom - me.bottom, m.clientY - y0))}px)`; };
     document.addEventListener('pointermove', m => {
       if (!drag){
         if (began) return off();
         if (Math.hypot(m.clientX - x0, m.clientY - y0) < MOVE) return;
         sheet.endLand(); C.edit().leaveLine();
-        drag = { ...r.d, ok: false, to: null, moved: true, rowEl: el, rows: r.rows, others: r.others }; began = true; document.body.classList.add('is-dragging');
+        drag = { ...r.d, ok: false, to: null, moved: true, rowEl: el, rows: r.rows, others: r.others, r0: me }; began = true; document.body.classList.add('is-dragging');
         sheet.doc?.addEventListener('keydown', escDrag, true);
         place();
       } else if (drag.rowEl !== el) return off();
-      rowTo(drag, r.rows, m); preview(drag, null);
+      rowTo(drag, r.rows, m); preview(drag, null); lift(m);
     }, opt);
     document.addEventListener('pointerup', () => { off(); if (drag?.rowEl === el){ endDrag({}); spent = true; } }, opt);
     document.addEventListener('pointercancel', () => { off(); if (drag?.rowEl === el) endDrag(null); }, opt);

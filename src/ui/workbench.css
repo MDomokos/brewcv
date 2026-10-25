@@ -1544,6 +1544,9 @@ select[data-dd] { display: none !important; }
 .ddpop [role=group] { display: grid; gap: 1px; }
 .ddpop [role=group] + [role=group], .ddpop .ddopt + [role=group] { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
 
+/* a sidebar row being dragged is lifted off its place (hands.js) */
+#body .is-lifted { position: relative; z-index: 6; background: var(--surface); outline: 1px solid var(--line-strong); border-radius: var(--r-s); pointer-events: none; }
+
 /* The desktop app in full screen: the title bar is gone, so the top edge brings back a bar with the window's controls (shell.js, mountFullBar) */
 .fsbar { display: none; }
 body.is-fs .fsbar { display: flex; align-items: center; gap: 6px; position: fixed; top: 0; left: 0; right: 0; height: 40px; padding: 0 12px; z-index: 91; background: var(--surface); color: var(--ink);

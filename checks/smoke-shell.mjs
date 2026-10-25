@@ -7024,6 +7024,34 @@ if (want('highlights written on the page')) {
   await ctx.close();
 }
 
+if (want('no flash back: a lifted row and the zoom bar')) {
+  // a sidebar row dragged to a new place follows the pointer and, let go, slides from where the pointer left it (not from where it started); the zoom bar's buttons are not replaced by a zoom
+  const ctx = await newContext({ viewport: { width: 1500, height: 900 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await page.click('#outline [data-act=select-section][data-id=experience]'); await settle(page);
+  await page.locator('#body [data-act=select-job]').first().click(); await settle(page);
+  const rows = () => page.evaluate(() => [...document.querySelectorAll('#body .clrow[data-bullet]')].slice(0, 3).map(e => { const r = e.getBoundingClientRect(); return { id: e.dataset.bullet, x: r.left + 120, y: r.top + r.height / 2, top: r.top }; }));
+  const R0 = await rows();
+  await page.mouse.move(R0[1].x, R0[1].y); await page.mouse.down(); await page.mouse.move(R0[1].x + 4, R0[0].y - 10, { steps: 10 }); await page.waitForTimeout(300);
+  const mid = await page.evaluate(id => { const e = document.querySelector(`#body .clrow[data-bullet="${id}"]`); return { lifted: e.classList.contains('is-lifted'), top: e.getBoundingClientRect().top }; }, R0[1].id);
+  ok('a sidebar row being dragged is lifted and follows the pointer', mid.lifted && mid.top < R0[1].top - 20, JSON.stringify({ mid, was: R0[1].top }));
+  await page.evaluate(id => { window.__seen = []; const tick = () => { const rs = [...document.querySelectorAll('#body .clrow[data-bullet]')]; const first = rs[0]; if (first) window.__seen.push([first.dataset.bullet, Math.round(rs.find(x => x.dataset.bullet === id)?.getBoundingClientRect().top ?? -1)]); window.__raf2 = requestAnimationFrame(tick); }; tick(); }, R0[1].id);
+  await page.mouse.up(); await page.waitForTimeout(900);
+  const seen = await page.evaluate(() => { cancelAnimationFrame(window.__raf2); return window.__seen; });
+  const after = seen.filter(([first]) => first === R0[1].id);      // the frames drawn after the rows were redrawn with the moved line first
+  ok('let go, the row is drawn at once where the pointer left it and goes to its place from there: it never shows at the place it started from', after.length > 0 && after.every(([, top]) => top < R0[1].top - 15), JSON.stringify({ was: R0[1].top, after: after.slice(0, 4) }));
+  await page.evaluate(() => window.__wb.canvas.zoomTo(1.5, undefined, { animate: false })); await settle(page);
+  const sr2 = await page.evaluate(() => { const r = document.querySelector('#sheet').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 200 }; });
+  await page.mouse.move(sr2.x, sr2.y, { steps: 3 }); await page.waitForTimeout(400);
+  const zi = await page.evaluate(() => { window.__zb = document.querySelector('#zoombar [data-act=zoom-in]'); const r = window.__zb.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(zi.x, zi.y - 60, { steps: 6 }); await page.waitForTimeout(500); await page.mouse.move(zi.x, zi.y, { steps: 4 }); await page.waitForTimeout(300);
+  await page.mouse.click(zi.x, zi.y); await settle(page); await page.waitForTimeout(400);
+  ok('a zoom changes the zoom bar in place: its buttons are the same elements, with the new percentage', await page.evaluate(() => document.querySelector('#zoombar [data-act=zoom-in]') === window.__zb && document.querySelector('#zoompct').textContent !== '150%'));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('the hand: the middle button and Space')) {
   // the browser must not start its own drag under the hand (the cursor froze on Linux); the middle button pans, and a click of it is Fit
   const ctx = await newContext({ viewport: { width: 1500, height: 900 } });

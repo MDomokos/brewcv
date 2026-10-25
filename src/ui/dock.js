@@ -207,9 +207,32 @@ export const renderFoot = () => {
   keepFocus('#head', () => keepFocus('#rail', () => keepFocus('#body', () => keepFocus('#foot', () => tween(drawFoot)))));
   if (!phone() && !document.body.classList.contains('is-intro')) keepFocus('#zoombar', () => tween(drawZoombar));
 };
+// The bar is changed where it differs (the percentage, a button's disabled state) and not drawn again: a button replaced under the pointer loses its hover and its hint,
+// which showed as a flash at the end of every zoom.
+function patchHtml(el, html){
+  const box = document.createElement('div'); box.innerHTML = html;
+  const same = (a, b) => a.nodeType === b.nodeType && a.nodeName === b.nodeName;
+  const kids = (a, b) => {
+    const x = [...a.childNodes], y = [...b.childNodes];
+    for (let i = 0; i < y.length; i++){
+      if (i < x.length && same(x[i], y[i])) walk(x[i], y[i]);
+      else if (i < x.length) x[i].replaceWith(y[i]);
+      else a.append(y[i]);
+    }
+    for (let i = x.length - 1; i >= y.length; i--) x[i].remove();
+  };
+  const walk = (a, b) => {
+    if (a.nodeType === 3){ if (a.data !== b.data) a.data = b.data; return; }
+    if (a.nodeType !== 1) return;
+    for (const { name } of [...a.attributes]) if (!b.hasAttribute(name)) a.removeAttribute(name);
+    for (const { name, value } of [...b.attributes]) if (a.getAttribute(name) !== value) a.setAttribute(name, value);
+    kids(a, b);
+  };
+  kids(el, box);
+}
 function drawZoombar(){
   const el = $('#zoombar');
-  if (el) el.innerHTML = viewBar(C.ui, 't');
+  if (el) patchHtml(el, viewBar(C.ui, 't'));
 }
 
 // ---- the foot: a desktop has none (Fit is in the name card, the page bars in the rail); on a phone the zoom bar and the cups on one line, Fit
