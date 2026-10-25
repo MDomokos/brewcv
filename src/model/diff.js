@@ -8,8 +8,12 @@ import { slug } from './build.js';
 import { jobTypesOf } from './focus.js';
 
 const clone = x => structuredClone(x);
-export const norm = s => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-const wset = s => new Set(norm(s).split(/[^\p{L}\p{N}]+/u).filter(w => w.length > 2));
+// Text as a person reads it: ligatures, soft hyphens, curly quotes, dashes, non-breaking spaces, a word split at a line end, the space before
+// punctuation and a final full stop don't count. A port of norm() in the vault's match_phrasings.py. For matching only, never for storing.
+export const normText = s => String(s ?? '').normalize('NFKC').replace(/\u00ad/g, '')
+  .replace(/[‘’‚′]/g, "'").replace(/[“”„″]/g, '"').replace(/[\u2010-\u2015\u2212]/g, '-').replace(/×/g, 'x')
+  .replace(/(\p{L})- (\p{L})/gu, '$1-$2').replace(/\s+([;,.:])/g, '$1').replace(/\s+/g, ' ').trim().toLowerCase().replace(/\.$/, '');
+const wset = s => new Set(normText(s).split(/[^\p{L}\p{N}]+/u).filter(w => w.length > 2));
 export function sim(a, b){
   const A = wset(a), B = wset(b);
   let i = 0;
@@ -29,8 +33,8 @@ const versionsOf = (ix, factId) => (ix.facts.get(factId)?.variants ?? []).map(id
 const claimText = (ix, factId) => ix.facts.get(factId)?.summary ?? versionsOf(ix, factId)[0]?.text ?? factId;
 
 export const matchJob = (j, list) => list.find(x => x.id === j.id)
-  ?? list.find(x => norm(x.name) === norm(j.name) && x.startDate === j.startDate)
-  ?? list.find(x => norm(x.name) === norm(j.name));
+  ?? list.find(x => normText(x.name) === normText(j.name) && x.startDate === j.startDate)
+  ?? list.find(x => normText(x.name) === normText(j.name));
 
 // By id, then 60% of claim words shared, then any identical version text.
 export function matchClaim(toIx, factId, fromIx, candidates){
@@ -38,8 +42,8 @@ export function matchClaim(toIx, factId, fromIx, candidates){
   const c = claimText(toIx, factId);
   const bySim = candidates.find(id => sim(claimText(fromIx, id), c) >= 0.6);
   if (bySim) return bySim;
-  const texts = new Set(versionsOf(toIx, factId).map(v => norm(v.text)));
-  return candidates.find(id => versionsOf(fromIx, id).some(v => texts.has(norm(v.text)))) ?? null;
+  const texts = new Set(versionsOf(toIx, factId).map(v => normText(v.text)));
+  return candidates.find(id => versionsOf(fromIx, id).some(v => texts.has(normText(v.text)))) ?? null;
 }
 
 // Copies under a free id and returns that id.
@@ -67,8 +71,8 @@ export function copyFact(dst, src, factId, prefer = factId){
 }
 
 function copyVersion(dst, factId, v){
-  if (versionsOf(ixOf(dst), factId).some(w => norm(w.text) === norm(v.text) && (w.lang ?? 'en') === (v.lang ?? 'en'))) return null;
-  const nv = addVersion(dst, factId, { text: v.text, lang: v.lang ?? 'en', as: 'major' });
+  if (versionsOf(ixOf(dst), factId).some(w => normText(w.text) === normText(v.text) && (w.lang ?? 'en') === (v.lang ?? 'en'))) return null;
+  const nv = addVersion(dst, factId, { text: v.text, lang: v.lang ?? 'en', as: 'major', source: v.source });
   nv.tags = [...new Set([...(nv.tags ?? []), ...(v.tags ?? [])])];
   if (nv.text === v.text){ nv.marks = clone(v.marks ?? []); nv.links = clone(v.links ?? []); }
   if (v.separator) nv.separator = v.separator;
@@ -80,7 +84,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
   const F = ixOf(from), T = ixOf(to);
 
   const value = (what, a, b, apply) => {
-    if (norm(a) === norm(b) || b === undefined || b === null || b === '') return;
+    if (normText(a) === normText(b) || b === undefined || b === null || b === '') return;
     items.push({ kind: a ? 'change' : 'add', what, a: a ?? '', b, on: !a, apply });
   };
   const fb = from.basics ?? {}, tb = to.basics ?? {};
@@ -97,7 +101,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
     if (was !== now) items.push({ kind: 'change', what: `${where} · ${clip(claimText(F, fromId))}`, a: was ? t('arch.diffArchived') : t('arch.diffNot'), b: now ? t('arch.diffArchived') : t('arch.diffNot'), on: false,
       apply: d => { const f = d.record.facts.find(x => x.id === fromId); if (f){ if (now) f.archived = true; else delete f.archived; } } });
     for (const v of versionsOf(T, toId)){
-      const same = fvs.find(w => norm(w.text) === norm(v.text) && (w.lang ?? 'en') === (v.lang ?? 'en'));
+      const same = fvs.find(w => normText(w.text) === normText(v.text) && (w.lang ?? 'en') === (v.lang ?? 'en'));
       if (!same){
         const near = fvs.filter(w => (w.lang ?? 'en') === (v.lang ?? 'en')).sort((a, b) => sim(b.text, v.text) - sim(a.text, v.text))[0];
         const what = [...new Set([t('diff.newVersion'), where, clip(claimText(F, fromId))])].join(' · ') + ((v.lang ?? 'en') !== 'en' ? ` · ${v.lang}` : '');
@@ -142,7 +146,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
       apply: d => { const w = at()(d); if (w){ if (tj.archived) w.archived = true; else delete w.archived; } } });
     for (const [k, label] of [['position', t('diff.title')], ['startDate', t('diff.start')], ['endDate', t('diff.end')], ['location', t('diff.place')]]){
       const a = fj[k] ?? (k === 'endDate' ? 'present' : ''), b = tj[k] ?? (k === 'endDate' ? 'present' : '');
-      if (norm(a) !== norm(b)) items.push({ kind: 'change', what: `${fj.name} · ${label}`, a, b, on: false,
+      if (normText(a) !== normText(b)) items.push({ kind: 'change', what: `${fj.name} · ${label}`, a, b, on: false,
         apply: d => { const w = at()(d); if (w) w[k] = tj[k] ?? null; } });
     }
     for (const k of ['position', 'meta']) if (fj.display?.[k] && tj.display?.[k]) claimItems(fj.display[k], tj.display[k], `${fj.name} · ${k === 'position' ? 'title' : 'meta line'}`);
