@@ -40,7 +40,7 @@ src/model/                 pure, tested in Node:
   tokens.js                  theme tokens: CSS, simple JSON and DTCG in, DTCG out
   career.js                  the record: the timeline, the lists, every add / edit / delete, custom kinds
   checklist.js               the record as a checklist: the groups, the rows, what is on this resume, the group a selection is in, the groups a section prints
-src/parse/                 the resume parser (text items to JSON Resume; a port of OpenResume's, imports nothing from the rest of src/; its README says how to call it)
+src/parse/                 the resume parser (text items to JSON Resume; a port of OpenResume's, imports nothing from the rest of src/; its README says how to call it) and the readers that make the items: identify, unzip, DOCX, ODT, HTML, Markdown, text, Pages, and a LinkedIn export (the app does not load it yet)
 src/store/                 store.js (state + undo) · persist.js (autosave, folder, backup, checkpoints)
 src/i18n/                  index.js (t, plurals, fallback to English) · en.js · nine machine-written
                            catalogues, each marked NEEDS A NATIVE REVIEW
@@ -187,7 +187,7 @@ What the Node checks cover (the map has the full sentence for each):
 |---|---|
 | model, store, resumes, savefile, import, diff, merge | schema v4 and migration, autosave and checkpoints, saved resumes, Save to file, every kind of import, the merge engine, merging an older copy (deletions kept, no double adds, any order), and merging copies with object clocks (any order, both versions of a wording kept, the later edit wins, a delete against an edit, two new objects under one id kept as two) |
 | documents | documents in the state: one file is one document on every device, a backup and a clocked merge keep documents, rounds and the import log, another format of one resume, whether a saved file holds an original, the embedded original out of the undo steps and the checkpoints, the receipt's three ticks and the verdict, older files opening as before |
-| parse | the resume parser in `src/parse/` (a port of OpenResume's): text items to JSON Resume with a trace and leftovers, one and two columns, Hungarian and German headings and dates from a lexicon built from the catalogue, and that nothing in it imports from the rest of `src/` |
+| parse | the resume parser in `src/parse/` (a port of OpenResume's): text items to JSON Resume with a trace and leftovers, one and two columns, Hungarian and German headings and dates from a lexicon built from the catalogue, and that nothing in it imports from the rest of `src/`; the readers: what a file is by its bytes, unzip, DOCX as Word and as Google Docs write it, ODT, HTML, Markdown and text giving one resume's lines, a LinkedIn export, real-world and hostile inputs (a ZIP read within one 64 MB budget, broken markup in linear time) (files are built in the check from strings by `checks/lib/zip.mjs`, no binary is committed) |
 | edit, direct, focus, lang, career, recipe | the tailoring edits, editing on the page (and lines only on one resume), tags and focus, the ten languages, the record's model, weight and off/keep |
 | paginate, fit, measurement, export, tokens, themes | block pagination and Fit, the page-fill arithmetic, the exports, theme tokens, the registry of built-in looks and everything that has to agree with it |
 | design | the look settings: every combination a look offers gives CSS and nothing it doesn't offer survives, the renderer's two-level ranking and title placement, Fit's key |
