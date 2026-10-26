@@ -2255,7 +2255,7 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   await page2.evaluate(() => window.__wb.store.commit(d => { d.record.basics.label = 'From the second browser'; }, 'smoke edit'));
   const back = await Promise.all([page2.waitForEvent('download'), page2.keyboard.press('Control+s')]).then(async ([d]) => { const p = path.join(tmp, 'again.json'); await d.saveAs(p); return JSON.parse(fs.readFileSync(p, 'utf8')); });
   ok('saved again from there, it is the same record', back.recordId === mac.json.recordId && back.resumes.length === mac.json.resumes.length);
-  ok('and its clock carries on from the file it was opened from', Object.keys(back.clock ?? {}).length > 100 && back.clock['basics.label'][1] === mac.json.clock['basics.label'][0]);
+  ok('and its clock carries on from the file it was opened from', Object.keys(back.clock?.keys ?? {}).length > 100 && Object.entries(mac.json.clock.keys['basics.label'].v).every(([a, n]) => back.clock.keys['basics.label'].v[a] >= n) && Object.keys(back.clock.keys['basics.label'].v).length > Object.keys(mac.json.clock.keys['basics.label'].v).length);
   // the first browser opens what the second saved: both have clocks and one record, so it merges by itself
   await open1(path.join(tmp, 'again.json'));
   ok('a file with clocks from another copy of the record merges by itself, and says how many changes', Number(await page.getAttribute('#body .title', 'data-changes')) >= 1 && (await st()).record.basics.label === 'From the second browser');
