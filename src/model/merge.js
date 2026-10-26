@@ -72,10 +72,13 @@ export function opened(file, prev, state, actor, now = Date.now()){
 export const floored = (clock, actor) => ({ keys: clock.keys, seen: { ...clock.seen, [actor]: Math.max(clock.seen?.[actor] ?? 0, ...Object.values(clock.keys).map(e => e.v[actor] ?? 0)) } });
 // Does the other clock hold saves of this device's own actor that this copy never made (two browsers on one actor, a rolled-back storage)? Then this copy needs another
 // actor id before they meet, so the two lines of edits are told apart.
-export const foreign = (mine, theirs, actor) => !!theirs && ((theirs.seen[actor] ?? 0) > (mine.seen[actor] ?? 0) || Object.entries(theirs.keys).some(([k, e]) => {
-  const n = e.v[actor] ?? 0, m = mine.keys[k];
-  return n > (m?.v[actor] ?? 0) || (n > 0 && J(e.v) === J(m?.v) && e.hash !== m.hash);
-}));
+// Only keys this copy already has count: an object a split renamed carries the original's vector, and is no sign of another browser.
+export const foreign = (mine, theirs, actor) => !!theirs && ((theirs.seen[actor] ?? 0) > (mine.seen[actor] ?? 0) || Object.entries(theirs.keys).some(([k, e]) => mine.keys[k] && (e.v[actor] ?? 0) > (mine.keys[k].v[actor] ?? 0)));
+// A clock with one actor called another everywhere: this copy's earlier edits, made under the old name, are then not ones the other copy's saves of it have seen.
+export const renameActor = (clock, from, to) => {
+  const re = v => Object.fromEntries(Object.entries(v).map(([a, n]) => [a === from ? to : a, n]));
+  return { keys: Object.fromEntries(Object.entries(clock.keys).map(([k, e]) => [k, { ...e, v: re(e.v) }])), seen: re(clock.seen) };
+};
 
 // A clock read from a file or storage: only entries that are what tick() makes (devices, whole counters, a real date). A garbled one would stop every later tick.
 const MAXN = 2 ** 40;      // no device saves that often; a count near the top of what a number holds would stop every later save

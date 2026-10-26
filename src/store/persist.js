@@ -5,7 +5,7 @@
 import { t, keyed } from '../i18n/index.js';
 import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId } from '../model/schema.js';
 import { assetRefs } from './store.js';
-import { tick, baseline, opened, floored, foreign, cleanClock } from '../model/merge.js';
+import { tick, baseline, opened, floored, foreign, renameActor, cleanClock } from '../model/merge.js';
 
 // The one file you save and open yourself. Never translated.
 export const SAVE_FILE_NAME = 'brewcv.json';
@@ -181,7 +181,7 @@ export function makeBackup(state, { saved = new Date().toISOString(), checkpoint
     ...(state.record?.recordId ? { recordId: state.record.recordId } : {}),
     record: save(state.record),
     resumes: (state.resumes ?? []).map(r => saveResume(state.record, stripId(r), state.frozen?.[r.id] ?? null).file),
-    resumeIds: (state.resumes ?? []).map(r => r.id ?? ''),      // the ids the clock is keyed by (a resume renamed after it was made has an id its name no longer says)
+    resumeIds: (state.resumes ?? []).map(r => r.id ?? resumeFileName(r)),      // the ids the clock is keyed by (a resume renamed after it was made has an id its name no longer says)
     ...(clock ? { clock, device } : {}),
     ...(checkpoints ? { checkpoints } : {}),
   };
@@ -376,7 +376,8 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     // this copy as a merge takes it: the state with its clock stamped now, and the clock it is merged into
     // `theirs`: the other copy's clock; if it holds saves of this device's actor that this copy never made, this copy takes another actor first
     async forMerge(theirs = null){
-      if (foreign(clock, theirs, await actor())) await newActor();
+      const me = await actor();
+      if (foreign(clock, theirs, me)){ const was = me; await newActor(); clock = renameActor(clock, was, device); }
       const state = store.materialize();
       return { state: { record: state.record, resumes: state.resumes ?? [], frozen: state.frozen ?? {} }, clock: await stamp(state) };
     },

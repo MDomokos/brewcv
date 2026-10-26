@@ -727,6 +727,11 @@ section('two new objects with one id are two objects');
   ok('and one line says two were made', ab.summary.filter(l => l.kind === 'both').length === 1);
   const un = bare(clone(ab.state)); ab.summary.find(l => l.kind === 'both').undo(un);
   ok('its Undo removes the renamed one with its claim, and the record stays valid', !un.record.certificates.some(c => c.id === other.id) && !un.record.facts.some(f => f.id === other.id) && invalid(un.record).length === 0, invalid(un.record)[0]);
+  // the copy that lost the id meets the merged result: the renamed objects carry its own count, which is no sign of another browser
+  await takeInto(B, ba); later();
+  const fb = await B.persist.prepareFile(), gb = readBackup(JSON.parse(fb.text)), actorA = await A.backend.get('meta/device');
+  await A.persist.forMerge(gb.info.clock);
+  ok('a device that meets the result of a split keeps its actor', (await A.backend.get('meta/device')) === actorA);
   const again = M.merge({ state: ab.state, clock: ab.clock }, sa);
   ok('meeting the first copy again changes nothing', again.changed === 0 && again.summary.length === 0 && sameState(again, ab));
   // a version of the same id on both sides is split the same way
@@ -841,7 +846,8 @@ async function fuzz(seeds, first = 1){
       if (rnd() < .6){
         const [x, y] = [pick(D), pick(D)];
         if (x === y) continue;
-        later(); const sx = await x.persist.forMerge(); later(); const sy = await y.persist.forMerge();
+        later(); const sy = await y.persist.forMerge(); later(); const before = await x.backend.get('meta/device'); const sx = await x.persist.forMerge(sy.clock);
+        if (before && (await x.backend.get('meta/device')) !== before) out.bad ||= `seed ${seed}: an ordinary device took another actor id`;
         const m = M.merge(sx, sy), r = M.merge(sy, sx); out.pairs++;
         if (!sameState(m, r)) out.bad ||= `seed ${seed}: a pair differs by order at ${where(m.state, r.state)}`;
         check('pair', m);
@@ -912,6 +918,14 @@ section('this device’s count, and a copy opened in place of this one');
   ok('a file with its own actor and saves this copy never made: this copy takes another actor before they meet', (await one.persist.forMerge(got2.info.clock)) && (await one.backend.get('meta/device')) !== was);
   const joined = M.merge(await one.persist.forMerge(got2.info.clock), { state: bare(got2.state), clock: got2.info.clock });
   ok('and both lines of edits survive', joined.state.record.basics.url === 'https://dana.example/one' && joined.state.record.basics.name === 'Dana Okonkwo-Two' && joined.state.record.basics.label === 'Label one' && joined.summary.length === 0);
+  // the same key saved three times by one browser and once by the other, which had already autosaved it: the second browser's edit is listed, not dropped
+  const p1 = device(); p1.edit(m => { m.basics.label = 'Start'; }); later(); await p1.persist.flush();
+  const p2 = device(0, memoryBackend([...p1.backend._map])); await p2.persist.restore();
+  for (const x of ['One', 'Two', 'Three']){ p1.edit(m => { m.basics.label = `Label ${x}`; }); later(); await p1.persist.flush(); }
+  p2.edit(m => { m.basics.label = 'Label other'; }); later(); await p2.persist.flush();
+  const pf = await p1.persist.prepareFile(), pg = readBackup(JSON.parse(pf.text));
+  const lost = M.merge(await p2.persist.forMerge(pg.info.clock), { state: bare(pg.state), clock: pg.info.clock });
+  ok('an edit this browser autosaved under the shared actor is told apart from the other browser’s saves of that key, and listed', lost.summary.some(l => l.key === 'basics.label') && J(lost.clock.seen) !== J(pg.info.clock.seen));
   // and not for a file this device made itself, or one others have merged since
   const solo = device(); solo.edit(m => { m.basics.label = 'Solo'; }); later(); const own = await solo.persist.prepareFile(); const ownGot = readBackup(JSON.parse(own.text));
   const soloId = await solo.backend.get('meta/device');
