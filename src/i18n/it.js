@@ -1582,4 +1582,5 @@ export default {
   'i1.newer': 'Le due copie hanno cambiato «{what}»: resta la modifica più recente',
   'i1.revived': '«{what}» è stato eliminato in una copia e modificato dopo nell’altra: è tornato',
   'i1.deleted': '«{what}» è stato modificato in una copia ed eliminato dopo nell’altra: è eliminato',
+  'i1.group': '«{what}» e le sue copie di lingua sono state cambiate in entrambe le copie: resta il gruppo della copia più recente',
 };

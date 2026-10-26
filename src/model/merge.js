@@ -7,7 +7,7 @@
 import { fnv } from '../store/store.js';
 import { t } from '../i18n/index.js';
 import { BODY_KEYS } from './schema.js';
-import { canon, resumeLabel, openSaved } from './resumes.js';
+import { canon, resumeLabel, openSaved, groupOf, mirror } from './resumes.js';
 import { tombstone, nextMajor, normText } from './record.js';
 import { newResume } from './resume.js';
 
@@ -181,7 +181,6 @@ export function merge(mine, theirs){
     const o = joined(w, l, live);
     if (JSON.stringify(o) !== JSON.stringify(w)){ out.set(k, o); clock[k] = [`${ew[0]}~`, ew[0], hashOf(k, o)]; }
   }
-  // shortcut: language groups are merged resume by resume, not as one unit (the newest copy, then mirror(), the other side's change listed with Undo); waits for the Multilingual work's mirror().
 
   // the state: the newer copy's, with what the other side decided put in, in the woven order
   const st = structuredClone({ record: N.state.record, resumes: N.state.resumes ?? [], frozen: N.state.frozen ?? {} });
@@ -198,6 +197,27 @@ export function merge(mine, theirs){
   for (const c of copies.filter(c => c.fix)){
     const v = st.record.variants.find(x => x.id === c.id), f = st.record.facts.find(x => x.variants.includes(c.id));
     if (v && f) v.n = nextMajor(st.record, f.id, v.lang ?? 'en');
+  }
+  // a language group is one unit: when each copy changed a different member, the copy with the newer stamp gives all of it, mirror() brings the
+  // members in step, and what the other copy changed is one line with its Undo
+  const seen = new Set();
+  for (const r of st.resumes){
+    if (seen.has(r.id)) continue;
+    const g = groupOf(st, r).map(x => `resume:${x.id}`);
+    g.forEach(k => seen.add(idOf(k)));
+    const differ = g.filter(k => A.c.has(k) && B.c.has(k) && A.c.get(k)[2] !== B.c.get(k)[2]);
+    const by = s => differ.filter(k => clock[k] === s.c.get(k));
+    const top = s => by(s).reduce((m, k) => (s.c.get(k)[0] > m ? s.c.get(k)[0] : m), '');
+    if (g.length < 2 || !by(A).length || !by(B).length) continue;
+    const [S, L] = top(A) > top(B) ? [A, B] : top(A) < top(B) ? [B, A] : [N, O];
+    const lost = g.filter(k => L.m.has(k)).map(k => [k, L.m.get(k)]);
+    for (let i = summary.length; i--;) if (differ.includes(summary[i].key)) summary.splice(i, 1);      // the group's one line says it
+    for (const k of differ) if (S.m.has(k)){ put(st, k, S.m.get(k)); clock[k] = S.c.get(k); }
+    const src = by(S).sort((x, y) => (S.c.get(y)[0] > S.c.get(x)[0] ? 1 : -1))[0];
+    mirror(st, idOf(src));
+    const fin0 = keysOf(st);
+    for (const k of g) if (fin0.has(k) && hashOf(k, fin0.get(k)) !== clock[k]?.[2]) clock[k] = [`${clock[k]?.[0] ?? ''}~`, clock[k]?.[0] ?? '', hashOf(k, fin0.get(k))];
+    line(src, 'i1.group', S.m.get(src), S.m.get(src), L.m.get(src) ?? lost[0]?.[1], d => { for (const [k, o] of lost) put(d, k, o); });
   }
   const gone = [...out].filter(([, o]) => o instanceof Gone);
   if (gone.length) st.record.removed = Object.fromEntries(gone.map(([k, o]) => [k, o.removed])); else delete st.record.removed;

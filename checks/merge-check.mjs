@@ -504,6 +504,34 @@ section('files with and without clocks');
   ok('an old backup with no clock still goes through diffRecords, deletions listed', got.info.clock === null && items.some(x => x.kind === 'keep' && /You deleted this/.test(x.what)) && ticked(items).length === 0, JSON.stringify(items.map(x => `${x.kind}: ${x.what}`)));
 }
 
+section('a language group is merged as one unit');
+{
+  const gs = startState(); RS.duplicate(gs, names[0], { lang: 'hu' }); RS.openSaved(gs, names[0]);
+  const EN = names[0], HU = gs.resumes.find(r => r.parent === EN).id, was = gs.resumes.find(r => r.id === EN).pageLimit;
+  const mk = () => device(0, memoryBackend(), clone(gs));
+  const get = (m, id) => m.state.resumes.find(r => r.id === id);
+  const run = async (firstA) => {
+    const A = mk(), B = mk();
+    A.store.commit(d => { RS.openSaved(d, EN); d.cur.pageLimit = 2; }, 'edit');      // a line of the original: mirror() takes it to the copy
+    B.store.commit(d => { RS.openSaved(d, HU); d.cur.design = { ...(d.cur.design ?? {}), size: 'large' }; }, 'edit');      // the copy's own text size
+    let sa, sb;
+    if (firstA){ sa = await A.persist.forMerge(); later(); sb = await B.persist.forMerge(); } else { sb = await B.persist.forMerge(); later(); sa = await A.persist.forMerge(); }
+    return { sa, sb, ab: M.merge(sa, sb), ba: M.merge(sb, sa) };
+  };
+  const inStep = m => RS.mirror(clone(bare(m.state)), EN).length === 0 && RS.groupOf(m.state, get(m, EN)).length === 2;
+  const b = await run(true);   // B stamped last: its group wins
+  ok('each copy changed another member of one group: both merge orders end byte-identical', sameState(b.ab, b.ba) && J(M.share(b.ab.clock)) === J(M.share(b.ba.clock)));
+  ok('the newer copy’s group is kept whole, and in step', get(b.ab, EN).pageLimit === was && get(b.ab, HU).pageLimit === was && get(b.ab, HU).design?.size === 'large' && inStep(b.ab));
+  ok('and the other copy’s change is one line, with an Undo that puts its group back', b.ab.summary.length === 1 && /language copies/.test(b.ab.summary[0].what) && b.ba.summary.length === 1);
+  const back = bare(clone(b.ab.state)); b.ab.summary[0].undo(back);
+  ok('Undo gives the other copy’s group: the line it changed, in step, without the newer copy’s size', back.resumes.find(r => r.id === EN).pageLimit === 2 && back.resumes.find(r => r.id === HU).pageLimit === 2 && back.resumes.find(r => r.id === HU).design?.size !== 'large');
+  const again = M.merge({ state: b.ab.state, clock: b.ab.clock }, b.sa);
+  ok('merging again changes nothing', sameState(again, b.ab) && again.changed === 0);
+  const a = await run(false);   // A stamped last
+  ok('the other way round, the other copy’s group wins, in step, byte-identical', sameState(a.ab, a.ba) && get(a.ab, EN).pageLimit === 2 && get(a.ab, HU).pageLimit === 2 && get(a.ab, HU).design?.size !== 'large' && inStep(a.ab) && a.ab.summary.length === 1);
+  ok('every resume outside the group is untouched', eq(b.ab.state.resumes.filter(r => ![EN, HU].includes(r.id)), clone(gs.resumes.filter(r => ![EN, HU].includes(r.id)))));
+}
+
 section('what a merge leaves alone');
 {
   const A = device(), B = device();
