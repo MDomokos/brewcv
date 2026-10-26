@@ -1,5 +1,6 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-lines-into-sections.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; title words from the lexicon; Unicode capitals
-// Types stripped. Changed: the title keywords come from the lexicon, and a capital letter is any Unicode capital.
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-lines-into-sections.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; title words from the lexicon; Unicode capitals; an item a reader marked as a title
+// Types stripped. Changed: the title keywords come from the lexicon, a capital letter is any Unicode capital, and an item with `title: true`
+// (a heading a reader found: a Heading style, #, h1 to h3) is a title whatever its words, unless it is in the first two lines (the name).
 import { hasLetterAndIsAllUpperCase, hasOnlyLettersSpacesAmpersands, isBold } from './extract-resume-from-sections/lib/common-features.js';
 
 export const PROFILE_SECTION = 'profile';
@@ -42,6 +43,7 @@ const isSectionTitle = (line, lineNumber, titleWords) => {
   }
 
   const textItem = line[0];
+  if (textItem.title) return true;
 
   // The main heuristic to determine a section title is to check if the text is double emphasized
   // to be both bold and all uppercase, which is generally true for a well formatted resume
