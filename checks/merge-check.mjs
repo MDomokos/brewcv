@@ -13,6 +13,7 @@ import * as D from '../src/model/diff.js';
 import * as R from '../src/model/record.js';
 import * as K from '../src/model/career.js';
 import * as RS from '../src/model/resumes.js';
+import { fnv } from '../src/store/store.js';
 import { validate } from './lib/validate.mjs';
 import { createDocument } from '../scripts/lib/dom.mjs';
 import { renderPages } from '../src/render.js';
@@ -104,6 +105,33 @@ section('a deleted version, saved resume and sent copy');
   const back = S.load(JSON.parse(JSON.stringify(file))).model;
   ok('the tombstones survive a save and a load', eq(back.removed, now.removed) && Object.keys(now.removed).some(k => k.startsWith('fact:')) && Object.keys(now.removed).some(k => k.startsWith('variant:')));
   ok('and a record with them validates', validate(file).errors.length === 0, validate(file).errors[0]);
+}
+
+section('what was deleted stays out, whatever changed in the older copy since');
+{
+  // a claim that gained a version after the old copy, then was deleted
+  const m = clone(base);
+  const old = clone(base);
+  R.addVersion(m, hydra[2], { text: 'Wrote the supplier audit checklist the team still uses.', as: 'major' });
+  K.deleteClaim(m, hydra[2], []);
+  const it = diff(m, old);
+  ok('a claim that gained a version after the old copy is listed, unticked, not added', ticked(it).length === 0 && it.some(x => x.kind === 'keep' && /^You deleted this on .* · New claim/.test(x.what)), JSON.stringify(it.map(x => `${x.kind}${x.on ? '*' : ''}: ${x.what}`)));
+  // a saved resume retitled and given another page limit after the old copy, then deleted
+  const a = { record: clone(base), resumes: clone(resumes), frozen: {}, cur: null, openId: null };
+  RS.openSaved(a, names[0]);
+  const older = clone(a.resumes);
+  const target = a.resumes.find(r => r.id === names[1]);
+  target.title = 'Retitled after the old copy'; target.pageLimit = (target.pageLimit ?? 1) + 1;
+  RS.deleteSaved(a, names[1]);
+  const itR = diff(a.record, a.record, a.resumes, older);
+  ok('a saved resume retitled and given another page limit, then deleted, is listed, unticked, not added', ticked(itR).length === 0 && itR.some(x => x.kind === 'keep' && /^You deleted this on .* · Saved resume/.test(x.what)), JSON.stringify(itR.map(x => `${x.kind}${x.on ? '*' : ''}: ${x.what}`)));
+  // a version the old copy has in other words under an id I deleted
+  const v = base.facts.find(f => f.id === hydra[0]).variants[1];
+  const n = clone(base), o = clone(base);
+  R.deleteVersion(n, v, []);
+  R.saveOver(o, v, 'Led the dose counter redesign, reworded since.');
+  ok('a version deleted here and reworded there is listed, unticked, not added', ticked(diff(n, o)).length === 0 && diff(n, o).some(x => x.kind === 'keep' && /You deleted this/.test(x.what)));
+  ok('a version’s mark hashes its normalised text', n.removed[`variant:${v}`].hash === fnv(D.normText(base.variants.find(x => x.id === v).text)));
 }
 
 section('a file from outside never crashes the merge');

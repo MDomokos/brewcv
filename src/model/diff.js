@@ -3,17 +3,12 @@
 // except in another copy of the same career, where it is a change.
 
 import { t } from '../i18n/index.js';
-import { wordDiff, addVersion, versionsIn, tombstoned } from './record.js';
+import { wordDiff, addVersion, versionsIn, tombstoned, normText } from './record.js';
 import { resumeLabel, uniqueId, snapshotsOf, printedKey, sameSend, sendLabel } from './resumes.js';
 import { slug } from './build.js';
 import { jobTypesOf } from './focus.js';
 
 const clone = x => structuredClone(x);
-// Text as a person reads it: ligatures, soft hyphens, curly quotes, dashes, non-breaking spaces, a word split at a line end, the space before
-// punctuation and a final full stop don't count. A port of norm() in the vault's match_phrasings.py. For matching only, never for storing.
-export const normText = s => String(s ?? '').normalize('NFKC').replace(/\u00ad/g, '')
-  .replace(/[‘’‚′]/g, "'").replace(/[“”„″]/g, '"').replace(/[\u2010-\u2015\u2212]/g, '-').replace(/×/g, 'x')
-  .replace(/([\p{L}\p{N}_])- ([\p{L}\p{N}_])/gu, '$1-$2').replace(/\s+([;,.:])/g, '$1').replace(/\s+/g, ' ').trim().toLowerCase().replace(/\.$/, '');
 const wset = s => new Set(normText(s).split(/[^\p{L}\p{N}]+/u).filter(w => w.length > 2));
 export function sim(a, b){
   const A = wset(a), B = wset(b);
@@ -85,9 +80,9 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
   const F = ixOf(from), T = ixOf(to);
   // Two copies of one career: a version the other has under an id mine has, in other words, is another text of it, not a new version.
   const sameRecord = !!from.recordId && from.recordId === to.recordId;
-  // Something I deleted that the other copy still has is not added: it is listed, unticked, and ticking it brings it back.
-  const goneOr = (item, kind, id, obj) => {
-    const x = tombstoned(from, kind, id, obj);
+  // Something I deleted that the other copy still has is not added, whatever else changed in it: it is listed, unticked, and ticking it brings it back.
+  const goneOr = (item, kind, id) => {
+    const x = tombstoned(from, kind, id);
     return x ? { ...item, kind: 'keep', on: false, what: `${t('i0.deletedOn', { date: String(x.at ?? '').slice(0, 10) })} · ${item.what}` } : item;
   };
 
@@ -117,7 +112,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
         const item = { kind: twin ? 'change' : 'add', what,
           diff: near ? wordDiff(near.text, v.text) : [{ op: '+', text: v.text }], on: !twin,
           apply: d => { if (d.record.facts.some(f => f.id === fromId)) copyVersion(d.record, fromId, v); } };
-        items.push(twin ? item : goneOr(item, 'variant', v.id, v));
+        items.push(twin ? item : goneOr(item, 'variant', v.id));
       } else {
         const nt = (v.tags ?? []).filter(x => !(same.tags ?? []).includes(x));
         if (nt.length) items.push({ kind: 'add', what: t('diff.tags', { claim: clip(claimText(F, fromId)), v: same.n }), b: nt.join(', '), on: true,
@@ -166,7 +161,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
       const fh = matchClaim(T, th, F, fcands);
       if (!fh){
         items.push(goneOr({ kind: 'add', what: t('diff.newClaim', { job: fj.name }), b: `${claimText(T, th)} · ${t('diff.versions', { n: versionsOf(T, th).length })}`, on: true,
-          apply: d => { const w = at()(d); if (!w) return; const id = copyFact(d.record, to, th); if (id) w.highlights.push(id); } }, 'fact', th, T.facts.get(th)));
+          apply: d => { const w = at()(d); if (!w) return; const id = copyFact(d.record, to, th); if (id) w.highlights.push(id); } }, 'fact', th));
         continue;
       }
       matched.add(fh);
@@ -211,7 +206,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
               snaps.push({ ...clone(s), id: `s${n}` });
             }
             m.snapshots = snaps;
-          } }, 'snapshot', `${r.id}/${s.id}`, s));
+          } }, 'snapshot', `${r.id}/${s.id}`));
       }
       continue;
     }
@@ -221,7 +216,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
         const c = clone(r); c.id = uniqueId(d.resumes, c);
         d.resumes = [...(d.resumes ?? []), c];
         if (frozen?.[r.id]) d.frozen = { ...(d.frozen ?? {}), [c.id]: clone(frozen[r.id]) };
-      } }, 'resume', r.id, r));
+      } }, 'resume', r.id));
   }
   for (const r of fromResumes) if (!toResumes.some(x => resumeLabel(x) === resumeLabel(r)) && toResumes.length)
     items.push({ kind: 'keep', what: t('diff.savedOnlyYours'), b: resumeLabel(r) });
@@ -235,4 +230,4 @@ export function applyItems(d, items, frozen = null){
 }
 
 export const counts = items => ({ add: items.filter(x => x.kind === 'add').length, change: items.filter(x => x.kind === 'change').length, keep: items.filter(x => x.kind === 'keep').length });
-export { versionsIn };
+export { versionsIn, normText };
