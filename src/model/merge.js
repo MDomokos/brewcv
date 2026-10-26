@@ -60,16 +60,31 @@ export function tick(clock, state, actor, now = Date.now()){
 }
 // A state taken from something with no clock: everything in it is the common start, which no device's edit is older than.
 export const baseline = state => ({ keys: Object.fromEntries([...keysOf(state)].map(([k, o]) => [k, { v: { base: 1 }, at: EPOCH, hash: hashOf(k, o) }])), seen: {} });
-// A copy opened in place of this one keeps this device's own count, so no save of it is counted twice.
-export const adopt = (clock, own, actor) => ({ keys: clock.keys, seen: { ...clock.seen, [actor]: Math.max(own?.seen?.[actor] ?? 0, clock.seen?.[actor] ?? 0) } });
+// A copy opened in place of this one: its clock is this copy's now, with this device's own count kept so no save is counted twice, and what it changed
+// here counts as an edit that has seen both (the later, over a copy that still has the text it replaced).
+// shortcut: an object this copy had and the opened one lacks is not counted as deleted (a copy that still has it brings it back); upgrade by marking it.
+export function opened(file, prev, state, actor, now = Date.now()){
+  const c = { keys: { ...file.keys }, seen: { ...file.seen, [actor]: Math.max(prev?.seen?.[actor] ?? 0, file.seen?.[actor] ?? 0) } };
+  for (const [k, e] of Object.entries(c.keys)){ const p = prev?.keys?.[k]; if (p && p.hash !== e.hash) c.keys[k] = { v: join(p.v, e.v), at: e.at, hash: p.hash }; }
+  return tick(c, state, actor, now);
+}
+// This device's own count is at least every count of it in its clock (a clock that lost its `seen` must not start over).
+export const floored = (clock, actor) => ({ keys: clock.keys, seen: { ...clock.seen, [actor]: Math.max(clock.seen?.[actor] ?? 0, ...Object.values(clock.keys).map(e => e.v[actor] ?? 0)) } });
+// Does the other clock hold saves of this device's own actor that this copy never made (two browsers on one actor, a rolled-back storage)? Then this copy needs another
+// actor id before they meet, so the two lines of edits are told apart.
+export const foreign = (mine, theirs, actor) => !!theirs && ((theirs.seen[actor] ?? 0) > (mine.seen[actor] ?? 0) || Object.entries(theirs.keys).some(([k, e]) => {
+  const n = e.v[actor] ?? 0, m = mine.keys[k];
+  return n > (m?.v[actor] ?? 0) || (n > 0 && J(e.v) === J(m?.v) && e.hash !== m.hash);
+}));
 
 // A clock read from a file or storage: only entries that are what tick() makes (devices, whole counters, a real date). A garbled one would stop every later tick.
+const MAXN = 2 ** 40;      // no device saves that often; a count near the top of what a number holds would stop every later save
 const okActor = a => /^[\w-]{1,16}$/.test(a);
 const okAt = s => typeof s === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(s) && Number.isFinite(Date.parse(s));
 const isMap = x => !!x && typeof x === 'object' && !Array.isArray(x);
-const okEntry = e => isMap(e) && isMap(e.v) && Object.entries(e.v).every(([a, n]) => okActor(a) && Number.isSafeInteger(n) && n >= 1) && okAt(e.at) && typeof e.hash === 'string';
+const okEntry = e => isMap(e) && isMap(e.v) && Object.entries(e.v).every(([a, n]) => okActor(a) && Number.isSafeInteger(n) && n >= 1 && n <= MAXN) && okAt(e.at) && typeof e.hash === 'string';
 export const cleanClock = c => (isMap(c) && isMap(c.keys)
-  ? { keys: Object.fromEntries(Object.entries(c.keys).filter(([, e]) => okEntry(e))), seen: Object.fromEntries(Object.entries(isMap(c.seen) ? c.seen : {}).filter(([a, n]) => okActor(a) && Number.isSafeInteger(n) && n >= 0)) }
+  ? { keys: Object.fromEntries(Object.entries(c.keys).filter(([, e]) => okEntry(e))), seen: Object.fromEntries(Object.entries(isMap(c.seen) ? c.seen : {}).filter(([a, n]) => okActor(a) && Number.isSafeInteger(n) && n >= 0 && n <= MAXN)) }
   : null);
 // Does the clock say what is in the state? A file with a changed object under its old clock was edited outside, and is not merged by clock.
 export const clockFits = (state, clock) => !!clock?.keys && [...keysOf(state)].every(([k, o]) => clock.keys[k]?.hash === hashOf(k, o));
@@ -213,8 +228,12 @@ export function merge(mine, theirs){
   if (splits.size){
     const A0 = A, B0 = B, maps = new Map([[A0, new Map()], [B0, new Map()]]);
     const newId = (id, h6) => (id.endsWith('.json') ? id.replace(/\.json$/, `-${h6}.json`) : `${id}-${h6}`);
-    for (const [id, { lose, h6 }] of splits) maps.get(lose).set(id, newId(id, h6));
-    for (const [id, { lose, h6 }] of splits) for (const vid of lose.state.record?.facts?.find(f => f.id === id)?.variants ?? []) if (!maps.get(lose).has(vid)) maps.get(lose).set(vid, `${vid}-${h6}`);
+    for (const [id, { lose, h6 }] of splits){ maps.get(lose).set(id, newId(id, h6)) }
+    for (const [id, { lose, h6 }] of splits){      // a job or project takes its title and meta claims with it, and a claim its versions
+      const ren = maps.get(lose);
+      for (const d of Object.values(STORES.flatMap(s => lose.state.record?.[s] ?? []).find(x => x.id === id)?.display ?? {})) if (typeof d === 'string' && !ren.has(d)) ren.set(d, `${d}-${h6}`);
+      for (const from of [...ren.keys()]) for (const vid of lose.state.record?.facts?.find(f => f.id === from)?.variants ?? []) if (!ren.has(vid)) ren.set(vid, `${vid}-${h6}`);
+    }
     for (const [s, ren] of maps) if (ren.size){ if (s === A0) A = renamed(s, ren); else B = renamed(s, ren); }
     for (const [id, { lose, h6, key }] of splits){
       const nk = `${kindOf(key)}:${newId(id, h6)}`, loser = lose === A0 ? A : B, win = lose === A0 ? B : A;

@@ -278,7 +278,7 @@ section('object clocks: keys and ticks');
   ok('a version’s measured line counts are a cache and don’t count as an edit', J(M.tick(c1, m1, 'd1', wall)) === J(c1));
   const hour = M.tick(c1, e2, 'd2', wall - 3600_000);
   ok('a device whose own clock is behind still counts its own saves from its own count, and its time only says when', hour.seen.d2 === 1 && hour.seen.d1 === 1 && hour.keys[added[0]].at < c1.keys[`variant:${v0}`].at);
-  ok('opening a copy keeps this device’s own count', M.adopt(M.baseline(st), c2, 'd1').seen.d1 === 3);
+  ok('opening a copy keeps this device’s own count, and counts nothing that is as it was', M.opened(c2, c2, e2, 'd1', wall).seen.d1 === 3 && M.opened(M.baseline(st), c2, e2, 'd1', wall).seen.d1 === 4);
 }
 
 section('two copies that edited different things');
@@ -465,7 +465,8 @@ section('the clock on a device: edits between two saves, files, a reload');
   ok('merging a file gives what merging the device gives', J(viaFile.state.record) === J(viaDevice.state.record) && J(viaFile.clock) === J(viaDevice.clock) && viaFile.summary.length === 0 && viaFile.changed > 0);
   const C = device();
   C.store.replace(got.state, 'open'); await C.persist.markFileOpened({ at: got.info.saved, recordId: got.info.recordId, hash: f.hash, clock: got.info.clock });
-  ok('a copy that opened the file starts from its clock', J((await C.persist.forMerge()).clock.keys) === J(file.clock.keys));
+  const cc = (await C.persist.forMerge()).clock;
+  ok('a copy that opened the file starts from its clock: it fits what it holds and every vector covers the file’s', M.clockFits(C.state(), cc) && Object.entries(file.clock.keys).every(([k, e]) => Object.entries(e.v).every(([a, n]) => (cc.keys[k]?.v[a] ?? 0) >= n)));
   C.edit(m => { m.basics.url = 'https://dana.example/c'; }); later();
   const back = M.merge(await A.persist.forMerge(), await C.persist.forMerge());
   ok('and what it edits next goes back to the first as a later edit', back.summary.length === 0 && back.state.record.basics.url === 'https://dana.example/c' && textOf(back.state.record, v0).endsWith('sketch to tooling.'));
@@ -864,6 +865,82 @@ section('random edits and deletes on 2 to 4 copies');
   const seeds = Number(process.env.FUZZ_SEEDS ?? 12), r = await fuzz(seeds, Number(process.env.FUZZ_FIRST ?? 1));
   if (process.env.FUZZ_ALL) console.log('FUZZ fails', r.fails.length, '/', seeds, r.fails.map(f => f.slice(0, 120)).join('\n  '));
   ok(`every merge valid, the same both ways, its clock whole, and every order of meeting ends in one state (${seeds} seeds, ${r.pairs} pairs; FUZZ_SEEDS=n for more)`, r.bad === '', r.bad);
+}
+
+section('a saved resume renamed after it was made');
+{
+  const A = device();
+  A.store.commit(d => { d.resumes.find(r => r.id === names[1]).company = 'Renamed Company'; }, 'rename');      // the id stays; the name the file derives is another
+  later(); const f = await A.persist.prepareFile();
+  const got = readBackup(JSON.parse(f.text));
+  ok('a file keeps the ids the clock is keyed by, so it fits its clock', got.state.resumes.some(r => r.id === names[1]) && M.clockFits(got.state, got.info.clock));
+  const old = JSON.parse(f.text); delete old.resumeIds;
+  const oldGot = readBackup(old);
+  ok('a file with no ids still opens, with the names its resumes derive', oldGot.warnings.length === 0 && oldGot.state.resumes.length === got.state.resumes.length && !oldGot.state.resumes.some(r => r.id === names[1]));
+}
+
+section('a job split in two takes its title and meta claims with it');
+{
+  const X = device(), Y = device();
+  X.edit(m => addJob(m, { position: 'Intern', name: 'Rig Works', startDate: '2018-06', endDate: '2018-09', bullets: ['Built a test rig.'] }));
+  Y.edit(m => addJob(m, { position: 'Intern', name: 'Rig Works', startDate: '2019-01', endDate: '2019-04', bullets: ['Built a test rig.'] }));
+  const sx = await X.persist.forMerge(); later(); const sy = await Y.persist.forMerge();
+  const [xy, yx] = both(sx, sy);
+  const r = xy.state.record, jobs = r.work.filter(w => w.id.startsWith('rig-works'));
+  const metaOf = w => r.variants.find(v => v.id === r.facts.find(f => f.id === w.display.meta).default.en).text;
+  ok('two jobs, each with a meta claim of its own that prints its own dates', jobs.length === 2 && jobs[0].display.meta !== jobs[1].display.meta && jobs.find(w => w.id === 'rig-works' && /2019/.test(metaOf(w))) && jobs.find(w => w.id !== 'rig-works' && /2018/.test(metaOf(w))) && jobs[0].display.position !== jobs[1].display.position, J(jobs.map(w => [w.id, w.display])));
+  ok('valid, and byte-identical both ways', invalid(r).length === 0 && sameState(xy, yx) && J(xy.clock) === J(yx.clock), invalid(r)[0]);
+}
+
+section('this device’s count, and a copy opened in place of this one');
+{
+  // storage that kept the device but lost its count: the keys still say how far it got
+  const backend = memoryBackend(); await backend.put('state/current', { savedAt: 'x', state: startState() }); await backend.put('meta/device', 'abc123');
+  const keys = Object.fromEntries(Object.entries(M.baseline(bare(startState())).keys).map(([k, e], i) => [k, i === 0 ? { ...e, v: { ...e.v, abc123: 7 } } : e]));
+  await backend.put('meta/clock', { keys, seen: {} });
+  const P = device(0, backend); await P.persist.restore();
+  P.edit(m => { m.basics.label = 'After the loss'; });
+  ok('a clock that lost its count starts from the highest count of this device in it', (await P.persist.forMerge()).clock.seen.abc123 === 8);
+  // two browsers on one actor (copied storage)
+  const one = device(); one.edit(m => { m.basics.label = 'Label one'; }); later(); await one.persist.flush();
+  const copy = memoryBackend([...one.backend._map]);
+  const two = device(0, copy); await two.persist.restore();
+  one.edit(m => { m.basics.url = 'https://dana.example/one'; }); later(); await one.persist.flush();
+  two.edit(m => { m.basics.name = 'Dana Okonkwo-Two'; }); later(); await two.persist.flush();
+  const file2 = await two.persist.prepareFile(), got2 = readBackup(JSON.parse(file2.text));
+  const was = await one.backend.get('meta/device');
+  ok('a file with its own actor and saves this copy never made: this copy takes another actor before they meet', (await one.persist.forMerge(got2.info.clock)) && (await one.backend.get('meta/device')) !== was);
+  const joined = M.merge(await one.persist.forMerge(got2.info.clock), { state: bare(got2.state), clock: got2.info.clock });
+  ok('and both lines of edits survive', joined.state.record.basics.url === 'https://dana.example/one' && joined.state.record.basics.name === 'Dana Okonkwo-Two' && joined.state.record.basics.label === 'Label one' && joined.summary.length === 0);
+  // and not for a file this device made itself, or one others have merged since
+  const solo = device(); solo.edit(m => { m.basics.label = 'Solo'; }); later(); const own = await solo.persist.prepareFile(); const ownGot = readBackup(JSON.parse(own.text));
+  const soloId = await solo.backend.get('meta/device');
+  solo.edit(m => { m.basics.url = 'https://dana.example/solo'; }); later();
+  await solo.persist.forMerge(ownGot.info.clock);
+  ok('a file this device saved itself leaves the actor as it is', (await solo.backend.get('meta/device')) === soloId);
+}
+
+section('Replace mine counts as an edit');
+{
+  const A = device(), B = device();
+  A.edit(m => { m.basics.label = 'Label L1'; }); later();
+  const f1 = await A.persist.prepareFile(), got1 = readBackup(JSON.parse(f1.text));
+  later(); A.edit(m => { m.basics.label = 'Label L2'; });
+  await takeInto(B, M.merge(await B.persist.forMerge(), await A.persist.forMerge())); later();
+  // A opens the older file in place of its own copy
+  A.store.replace(got1.state, 'open'); await A.persist.markFileOpened({ at: got1.info.saved, recordId: got1.info.recordId, hash: f1.hash, clock: got1.info.clock });
+  later(); const m = M.merge(await A.persist.forMerge(), await B.persist.forMerge());
+  ok('a copy that has the text it replaced does not bring it back: the file opened is the later edit, and no line is made', m.state.record.basics.label === 'Label L1' && m.summary.length === 0);
+  const m2 = M.merge(await B.persist.forMerge(), await A.persist.forMerge());
+  ok('whichever way round', m2.state.record.basics.label === 'Label L1' && J(m2.clock) === J(m.clock));
+}
+
+section('counts that are too big');
+{
+  const c = M.baseline(bare(startState()));
+  const big = (n, extra = {}) => M.cleanClock({ keys: { ...c.keys, 'basics.name': { ...c.keys['basics.name'], v: { x: n } } }, seen: { x: n, ...extra } });
+  ok('a count of 2^40 is a count', 'basics.name' in big(2 ** 40).keys && big(2 ** 40).seen.x === 2 ** 40);
+  ok('one near the top of what a number holds is a bad entry, and a bad seen count is dropped', !('basics.name' in big(Number.MAX_SAFE_INTEGER - 1).keys) && !('y' in big(1, { y: 2 ** 41 }).seen) && big(1, { y: 2 ** 41 }).seen.x === 1);
 }
 
 section('what a merge leaves alone');

@@ -163,7 +163,7 @@ async function take(text, name, mode = null){
 }
 
 async function autoMerge(g){
-  const mine = await C.persist.forMerge();
+  const mine = await C.persist.forMerge(g.info.clock);
   const m = M.merge(mine, { state: readBackup(g.json).state, clock: g.info.clock });
   if (m.changed){
     await C.persist.checkpoint(t('checkpoint.beforeMerging', { file: g.file }), 'merge');
