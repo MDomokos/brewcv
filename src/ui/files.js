@@ -6,6 +6,7 @@ import { withArrows } from './icons.js';
 import * as I from '../model/import.js';
 import * as D from '../model/diff.js';
 import * as RS from '../model/resumes.js';
+import * as M from '../model/merge.js';
 import { readBackup, makeBackup, openVerdict, sha256 } from '../store/persist.js';
 import { ensureRecordId } from '../model/schema.js';
 import { newResume } from '../model/resume.js';
@@ -17,7 +18,7 @@ export function initFiles(ctx){ C = ctx; return api; }
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = s => document.querySelector(s);
 const st = () => C.store.state;
-const F = { got: null, items: null, outside: true, history: { list: null, sel: null, items: null, compare: null } };
+const F = { got: null, items: null, merged: null, outside: true, history: { list: null, sel: null, items: null, compare: null } };
 const KIND = k => ({ library: t('files.kindLibrary'), jsonresume: t('files.kindJsonResume'), backup: t('files.kindBackup'), resume: t('files.kindResume'), theme: t('files.kindTheme'), error: t('files.kindError') }[k]);
 const stamp = iso => (iso ? String(iso).slice(0, 16).replace('T', ' ') : '—');
 const isExample = () => /\(fictional\)/.test(st().record?.meta?.owner ?? '');
@@ -102,6 +103,17 @@ function mergeView(){
     <div class="btns"><button class="primary" data-act="imp-do-merge" ${n ? '' : 'disabled'}>${h('merge.doN', { n })}</button><button class="del" data-act="imp-replace">${h('merge.replaceInstead')}</button></div>`;
 }
 
+// A file with clocks that is one record with this browser merged by itself: what both changed is told here, line by line, each with its Undo.
+function mergedView(){
+  const m = F.merged;
+  if (!m) return importView();
+  return `<h2 class="title">${h('i1.title', { n: m.changed })}</h2>
+    <p class="small">${m.changed || m.summary.length ? h('i1.intro', { file: m.file }) : h('i1.nothing', { file: m.file })}</p>
+    <div class="mlist">${m.summary.map((x, i) => `<div class="mi ro"><span class="sym change">~</span><span><span class="mw">${esc(x.what)}</span><span class="mx"><ins>${esc(x.kept)}</ins>${x.other !== x.kept ? ` · <del>${esc(x.other)}</del>` : ''}</span>
+      ${x.undone ? '' : `<button class="sm" data-act="imp-undo" data-i="${i}">${h('foot.undo')}</button>`}</span></div>`).join('')}</div>
+    <div class="btns"><button class="primary" data-act="imp-merged-close">${h('body.close')}</button></div>`;
+}
+
 function historyView(){
   const H = F.history;
   if (!H.list){ loadHistory(); return `<h2 class="title">${h('history.title')}</h2><p class="muted">${h('body.loading')}</p>`; }
@@ -139,12 +151,27 @@ async function take(text, name, mode = null){
       got.info = readBackup(got.json).info;
       got.hash = await sha256(text);
       const { last, changes } = C.persist.fileState;
-      got.verdict = isExample() ? { kind: 'ok' } : openVerdict({ file: { ...got.info, hash: got.hash }, last, localRecordId: st().record?.recordId ?? null, changes });
+      got.verdict = isExample() ? { kind: 'ok' } : openVerdict({ file: { ...got.info, hash: got.hash }, last, localRecordId: st().record?.recordId ?? null, changes, localClock: C.persist.fileState.hasClock && !got.outside?.length });      // a file edited outside has no say in its clocks: it goes the old way
     } catch { got.verdict = { kind: 'ok' }; }
+    if (got.verdict.kind === 'merge'){ await autoMerge(got); return; }
   }
   F.got = got;
   F.outside = true;
   C.setView('review');
+}
+
+async function autoMerge(g){
+  const mine = await C.persist.forMerge();
+  const got = readBackup(g.json);
+  const m = M.merge(mine, { state: got.state, clock: got.info.clock });
+  if (m.changed){
+    await C.persist.checkpoint(t('checkpoint.beforeMerging', { file: g.file }), 'merge');
+    commit(d => M.keepOpen(d, e => Object.assign(e, structuredClone(m.state))), t('undo.merge', { file: g.file }));
+    await C.persist.adoptClock(m.clock);
+  }
+  F.merged = { file: g.file, changed: m.changed, summary: m.summary };
+  F.got = null;
+  C.setView('merged');
 }
 
 export async function openFile(file, mode = null){
@@ -175,7 +202,7 @@ async function replace(){
   C.ui.sel = C.NONE;
   C.store.replace(next, t('undo.open', { name: g.file }));
   // the file just opened is now the last one saved here, so the next save carries on from it
-  if (g.kind === 'backup') await C.persist.markFileOpened({ at: g.info?.saved ?? new Date().toISOString(), recordId: next.record.recordId ?? null, hash: g.hash ?? null });
+  if (g.kind === 'backup') await C.persist.markFileOpened({ at: g.info?.saved ?? new Date().toISOString(), recordId: next.record.recordId ?? null, hash: g.hash ?? null, clock: g.info?.clock ?? null });
   F.got = null; F.items = null;
   C.setView(null);
   C.toast(t('toast.fileOpen', { file: g.file }));
@@ -206,6 +233,14 @@ async function act(a, tg){
       C.setView(null);
       return true;
     }
+    case 'imp-undo': {
+      const x = F.merged?.summary[Number(tg.dataset.i)];
+      if (!x || x.undone) return true;
+      if (commit(d => M.keepOpen(d, x.undo), t('undo.merge', { file: F.merged.file }))) x.undone = true;
+      C.renderBody();
+      return true;
+    }
+    case 'imp-merged-close': F.merged = null; C.setView(null); return true;
     case 'imp-resume': {
       const g = F.got;
       commit(d => {
@@ -283,7 +318,7 @@ function bind(body){
 }
 
 const api = {
-  views: { import: importView, review: reviewView, merge: mergeView, history: historyView },
+  views: { import: importView, review: reviewView, merge: mergeView, merged: mergedView, history: historyView },
   act, bind, openFile, take,
   compareFolder: () => act('cp-folder'),
 };

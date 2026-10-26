@@ -2204,14 +2204,23 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   const last = (await fstate()).last;
   await open1(mac.path);
   ok('the file just saved, nothing changed since: “Already up to date”', /Already up to date/.test(await page.textContent('#body')) && !(await page.$('[data-act=imp-replace]')) && (await st()).record.basics.label === 'Smoke label two');
-  const old = copy(mac.path, j => { j.saved = '2020-01-01T00:00:00.000Z'; }, 'older.json');
+  // a file with clocks and the same record merges by itself; the warnings below are for a file without clocks (an older backup)
+  const oldClocked = copy(mac.path, j => { j.saved = '2020-01-01T00:00:00.000Z'; }, 'older-clocked.json');
+  await open1(oldClocked);
+  ok('an older file with clocks merges by itself: nothing to ask, nothing new', /Merged automatically: 0 changes/.test(await page.textContent('#body .title')) && !(await page.$('[data-act=imp-replace]')) && (await st()).record.basics.label === 'Smoke label two');
+  await page.click('[data-act=imp-merged-close]'); await settle(page);
+  const old = copy(mac.path, j => { j.saved = '2020-01-01T00:00:00.000Z'; delete j.clock; delete j.device; }, 'older.json');
   await open1(old);
   ok('an older file of this record warns, with Save them first, Merge and Replace anyway', /older than the one you last saved here/.test(await page.textContent('#body'))
     && await page.isVisible('[data-act=imp-save-first]') && await page.isVisible('[data-act=imp-merge]') && await page.isVisible('[data-act=imp-replace]'));
   ok('and nothing has changed', (await st()).record.basics.label === 'Smoke label two' && (await fstate()).last.at === last.at);
   await edit('Not in any file'); await settle(page);
   await open1(mac.path);
-  ok('with changes not in a file: “This browser has 1 change that isn’t in any file”', /This browser has 1 change that isn.t in any file/.test(await page.textContent('#body')) && await page.isVisible('[data-act=imp-save-first]'));
+  ok('with changes not in a file and a file with clocks: merged by itself, and the change is kept', /Merged automatically/.test(await page.textContent('#body .title')) && (await st()).record.basics.label === 'Not in any file');
+  await page.click('[data-act=imp-merged-close]'); await settle(page);
+  const mac0 = copy(mac.path, j => { delete j.clock; delete j.device; }, 'no-clock.json');
+  await open1(mac0);
+  ok('with changes not in a file and a file without clocks: “This browser has 1 change that isn’t in any file”', /This browser has 1 change that isn.t in any file/.test(await page.textContent('#body')) && await page.isVisible('[data-act=imp-save-first]'));
   const f3 = await downloaded(() => page.click('[data-act=imp-save-first]'));
   await settle(page);
   ok('Save them first saves those changes to the file…', f3.json.record.basics.label === 'Not in any file');
@@ -2239,8 +2248,17 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   const r2 = await page2.evaluate(() => { const s = window.__wb.store.state; return { id: s.record.recordId, label: s.record.basics.label, resumes: s.resumes.map(r => r.id).sort(), last: window.__wb.persist.fileState.last }; });
   ok('it restores the record and every saved resume', r2.id === mac.json.recordId && r2.label === 'Smoke label two' && r2.resumes.length === mac.json.resumes.length, JSON.stringify(r2).slice(0, 200));
   ok('and the next save carries on from that file', r2.last?.at === mac.json.saved && r2.last?.recordId === mac.json.recordId);
+  await page2.evaluate(() => window.__wb.store.commit(d => { d.record.basics.label = 'From the second browser'; }, 'smoke edit'));
   const back = await Promise.all([page2.waitForEvent('download'), page2.keyboard.press('Control+s')]).then(async ([d]) => { const p = path.join(tmp, 'again.json'); await d.saveAs(p); return JSON.parse(fs.readFileSync(p, 'utf8')); });
   ok('saved again from there, it is the same record', back.recordId === mac.json.recordId && back.resumes.length === mac.json.resumes.length);
+  ok('and its clock carries on from the file it was opened from', Object.keys(back.clock ?? {}).length > 100 && back.clock['basics.label'][1] === mac.json.clock['basics.label'][0]);
+  // the first browser opens what the second saved: both have clocks and one record, so it merges by itself
+  await open1(path.join(tmp, 'again.json'));
+  ok('a file with clocks from another copy of the record merges by itself, and says how many changes', /Merged automatically: \d+ change/.test(await page.textContent('#body .title')) && (await st()).record.basics.label === 'From the second browser');
+  ok('a checkpoint was taken first', await page.evaluate(async () => (await window.__wb.persist.listCheckpoints()).some(c => /Before merging/.test(c.label))));
+  await page.click('[data-act=imp-merged-close]'); await settle(page);
+  await page.keyboard.press('Control+z'); await settle(page);
+  ok('and Ctrl+Z takes the whole merge back in one step', (await st()).record.basics.label !== 'From the second browser');
   ok('no console errors in the fresh browser', bad2.length === 0, bad2[0] ?? '');
   await ctx2.close();
 
