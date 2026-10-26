@@ -36,7 +36,7 @@ src/model/                 pure, tested in Node:
   entries.js                 work, projects and custom kinds as one list of printable entries
   build.js, import.js        a record from fields; the one import door; JSON Resume in
   diff.js                    the merge engine for a file with no clocks (also History and Compare with a file)
-  merge.js                   object clocks (tick, share), and the merge of two copies of one record that both have them: no question in the usual cases, the same state whichever way round
+  merge.js                   object clocks (a version vector for each object: tick, baseline, cleanClock, clockFits), and the merge of two copies of one record that both have them: no question in the usual cases, the same state whichever way round
   tokens.js                  theme tokens: CSS, simple JSON and DTCG in, DTCG out
   career.js                  the record: the timeline, the lists, every add / edit / delete, custom kinds
   checklist.js               the record as a checklist: the groups, the rows, what is on this resume, the group a selection is in, the groups a section prints
@@ -184,7 +184,7 @@ What the Node checks cover (the map has the full sentence for each):
 
 | check | covers |
 |---|---|
-| model, store, resumes, savefile, import, diff, merge | schema v4 and migration, autosave and checkpoints, saved resumes, Save to file, every kind of import, the merge engine, merging an older copy (deletions kept, no double adds, any order), and merging copies with object clocks (any order, both versions of a wording kept, the later edit wins, a delete against an edit) |
+| model, store, resumes, savefile, import, diff, merge | schema v4 and migration, autosave and checkpoints, saved resumes, Save to file, every kind of import, the merge engine, merging an older copy (deletions kept, no double adds, any order), and merging copies with object clocks (any order, both versions of a wording kept, the later edit wins, a delete against an edit, two new objects under one id kept as two) |
 | edit, direct, focus, lang, career, recipe | the tailoring edits, editing on the page (and lines only on one resume), tags and focus, the ten languages, the record's model, weight and off/keep |
 | paginate, fit, measurement, export, tokens, themes | block pagination and Fit, the page-fill arithmetic, the exports, theme tokens, the registry of built-in looks and everything that has to agree with it |
 | design | the look settings: every combination a look offers gives CSS and nothing it doesn't offer survives, the renderer's two-level ranking and title placement, Fit's key |

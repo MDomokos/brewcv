@@ -1582,6 +1582,5 @@ export default {
   'i1.both': 'Obě kopie vytvořily „{what}“ pod stejným názvem: zůstávají obě',
   'i1.newer': 'Obě kopie změnily „{what}“: zůstává novější změna',
   'i1.revived': '„{what}“ bylo v jedné kopii smazáno a v druhé později upraveno: je zpět',
-  'i1.deleted': '„{what}“ bylo v jedné kopii upraveno a v druhé později smazáno: je smazáno',
   'i1.group': '„{what}“ a jeho jazykové kopie byly změněny v obou kopiích: zůstává skupina z novější kopie',
 };

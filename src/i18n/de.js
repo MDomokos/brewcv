@@ -1582,6 +1582,5 @@ export default {
   'i1.both': 'Beide Kopien haben „{what}“ unter demselben Namen angelegt: beides bleibt erhalten',
   'i1.newer': 'Beide Kopien haben „{what}“ geändert: die neuere Änderung bleibt',
   'i1.revived': '„{what}“ wurde in einer Kopie gelöscht und in der anderen später bearbeitet: es ist wieder da',
-  'i1.deleted': '„{what}“ wurde in einer Kopie bearbeitet und in der anderen später gelöscht: es ist gelöscht',
   'i1.group': '„{what}“ und seine Sprachkopien wurden in beiden Kopien geändert: die Gruppe der neueren Kopie bleibt',
 };

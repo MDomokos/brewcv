@@ -1582,6 +1582,5 @@ export default {
   'i1.both': 'Beide kopieën hebben “{what}” onder dezelfde naam gemaakt: beide blijven bewaard',
   'i1.newer': 'Beide kopieën hebben “{what}” gewijzigd: de nieuwere wijziging blijft',
   'i1.revived': '“{what}” is in de ene kopie verwijderd en later in de andere bewerkt: het is terug',
-  'i1.deleted': '“{what}” is in de ene kopie bewerkt en later in de andere verwijderd: het is verwijderd',
   'i1.group': '“{what}” en zijn taalkopieën zijn in beide kopieën gewijzigd: de groep van de nieuwere kopie blijft',
 };

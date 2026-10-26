@@ -1582,6 +1582,5 @@ export default {
   'i1.both': 'Obie kopie utworzyły „{what}” pod tą samą nazwą: zostają obie',
   'i1.newer': 'Obie kopie zmieniły „{what}”: zostaje nowsza zmiana',
   'i1.revived': '„{what}” usunięto w jednej kopii, a później edytowano w drugiej: wraca',
-  'i1.deleted': '„{what}” edytowano w jednej kopii, a później usunięto w drugiej: jest usunięte',
   'i1.group': '„{what}” i jego kopie językowe zmieniono w obu kopiach: zostaje grupa z nowszej kopii',
 };

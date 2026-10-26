@@ -1582,6 +1582,5 @@ export default {
   'i1.both': 'Mindkét másolat létrehozta ezt: „{what}”, ugyanazon a néven. Mindkettő megmarad',
   'i1.newer': 'Mindkét másolat megváltoztatta ezt: „{what}”. Az újabb változtatás marad',
   'i1.revived': 'Ezt: „{what}” az egyik másolatban törölték, a másikban később szerkesztették. Visszatért',
-  'i1.deleted': 'Ezt: „{what}” az egyik másolatban szerkesztették, a másikban később törölték. Törölve van',
   'i1.group': 'A(z) „{what}” és nyelvi másolatai mindkét másolatban megváltoztak. Az újabb másolat csoportja marad',
 };

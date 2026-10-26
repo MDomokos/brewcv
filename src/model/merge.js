@@ -1,15 +1,16 @@
 // Object clocks, and the merge of two copies of one record that both have them. Pure: no DOM, no I/O.
 // The state is a set of objects, each under a key: fact:<id>, variant:<id>, section:<id>, <store>:<id> for a job, a school, a skill group and the other
-// entries, resume:<id> (with its frozen text), basics.<field> and settings (the rest of the record). A clock is { key: [stamp, prev, hash] }: the hash
-// of the object when it was last stamped, the stamp it got then, and the stamp it had before. A deleted object stays a key (its tombstone in
+// entries, resume:<id> (with its frozen text), basics.<field> and settings (the rest of the record). A deleted object stays a key (its tombstone in
 // record.removed), so a delete is an edit like any other.
+// A clock is { keys: { <key>: { v: { <actor>: <counter> }, at, hash } }, seen: { <actor>: <counter> } }: a version vector for each object (for each device,
+// the last of its saves this object has seen), the time of its last edit, and its hash; `seen` is the highest save of each device this copy has merged.
 
 import { fnv } from '../store/store.js';
 import { t } from '../i18n/index.js';
 import { BODY_KEYS } from './schema.js';
 import { canon, resumeLabel, openSaved, groupOf, mirror } from './resumes.js';
 import { tombstone, nextMajor, normText, compareN, versionsIn } from './record.js';
-import { deleteClaim } from './career.js';
+import { deleteClaim, deleteItem } from './career.js';
 import { newResume } from './resume.js';
 
 const STORES = BODY_KEYS.filter(k => k !== 'basics');
@@ -41,48 +42,45 @@ export function keysOf({ record: r, resumes = [], frozen = {} } = {}){
 // claim's list of versions is merged as a list: none of them is an edit.
 const SKIP = { variant: 'metrics', fact: 'variants', resume: 'frozen' };
 const hashOf = (k, o) => { const s = SKIP[kindOf(k)]; return fnv(JSON.stringify(canon(s ? { ...o, [s]: undefined } : o))); };
-const topOf = clock => Object.values(clock ?? {}).reduce((m, e) => (e?.[0] > m ? e[0] : m), '');
+const J = x => JSON.stringify(x);
+const EPOCH = '1970-01-01T00:00:00.000Z';
 
-// A stamp after every one this clock has seen, then the device: stamps order as strings, and two devices never make the same one.
-function hlc(clock, dev, now){
-  const top = topOf(clock);
-  return `${new Date(Math.max(now, top ? Date.parse(top.split('~')[0]) + 1 : 0)).toISOString()}~${dev}`;
-}
-
-// An entry is [stamp, prev, hash, older, mark]: older is the stamps before prev, newest first, so a copy that skipped a file still finds its stamp in the chain.
-// shortcut: older keeps the last 8, so a copy that skipped more than 8 stamps of one key (each a save of a file or a merge) is read as having changed it too; upgrade with a version vector per key.
-const CAP = 8;
-const chainOf = e => [e?.[1], ...(e?.[3] ?? [])].filter(x => x != null);
-const ancestor = (x, y) => x[0] !== y[0] && chainOf(x).includes(y[0]);      // y's stamp is one x came from
-// The clock for `state` now: an object whose hash changed gets a new stamp (prev: its old one), a new object gets one with no prev. One stamp per call.
-// An entry marked 1 is an edit no file has carried yet. Edited again it stays one event, so its chain is still what the others know (a prev nobody
-// has would make the next copy to meet it think the key was changed on both sides). markShared() takes the mark off once the file is written.
-export function tick(clock, state, dev, now = Date.now()){
-  const out = {};
-  let stamp = null;
+// The clock for `state` now. A save that changed something is the next save of this device: each object whose hash changed (a new one too) gets that
+// counter for this device in its vector and the time of the edit. Edits between two saves are one edit.
+export function tick(clock, state, actor, now = Date.now()){
+  const keys = {};
+  let n = null;
   for (const [k, o] of keysOf(state)){
-    const h = hashOf(k, o), e = clock?.[k];
-    if (e?.[2] === h){ out[k] = e; continue; }
-    const chain = e ? [...new Set(e[4] ? chainOf(e) : [e[0], ...chainOf(e)])] : [];
-    out[k] = [stamp ??= hlc(clock, dev, now), chain[0] ?? null, h, chain.slice(1, CAP + 1), 1];
+    const h = hashOf(k, o), e = clock?.keys?.[k];
+    if (e?.hash === h){ keys[k] = e; continue; }
+    n ??= (clock?.seen?.[actor] ?? 0) + 1;
+    keys[k] = { v: { ...e?.v, [actor]: n }, at: new Date(now).toISOString(), hash: h };
   }
-  return out;
+  return { keys, seen: n === null ? { ...clock?.seen } : { ...clock?.seen, [actor]: n } };
 }
-// A stamp just after `s` (or after the start of time), for what a merge writes itself: the same whichever copy merges, and a date like any other.
-const bump = s => `${new Date((s ? Date.parse(s.split('~')[0]) : 0) + 1).toISOString()}~m`;
-const unmark = e => (e[3]?.length ? e.slice(0, 4) : e.slice(0, 3));
-export const share = clock => Object.fromEntries(Object.entries(clock).map(([k, e]) => [k, unmark(e)]));
-// Marks off the entries that went into a file (`sent`, as share() made it) and are still what they were
-export const markShared = (clock, sent) => Object.fromEntries(Object.entries(clock).map(([k, e]) => [k, e[4] && sent?.[k]?.[0] === e[0] && sent[k][2] === e[2] ? unmark(e) : e]));
-// A state taken from something with no clock: everything in it is the common start, older than any stamp, so the first edit on either side is the later one.
-export const baseline = state => Object.fromEntries([...keysOf(state)].map(([k, o]) => [k, ['', '', hashOf(k, o)]]));
+// A state taken from something with no clock: everything in it is the common start, which no device's edit is older than.
+export const baseline = state => ({ keys: Object.fromEntries([...keysOf(state)].map(([k, o]) => [k, { v: { base: 1 }, at: EPOCH, hash: hashOf(k, o) }])), seen: {} });
+// A copy opened in place of this one keeps this device's own count, so no save of it is counted twice.
+export const adopt = (clock, own, actor) => ({ keys: clock.keys, seen: { ...clock.seen, [actor]: Math.max(own?.seen?.[actor] ?? 0, clock.seen?.[actor] ?? 0) } });
 
-// A clock read from a file or storage: only entries that are what tick() makes (a real date and a device on each stamp). A garbled stamp would stop every later tick.
-const okStamp = s => s === '' || (typeof s === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z~[\w-]{1,16}~?$/.test(s) && Number.isFinite(Date.parse(s.split('~')[0])));
-const okEntry = e => Array.isArray(e) && typeof e[2] === 'string' && okStamp(e[0]) && (e[1] === null || okStamp(e[1])) && (e[3] === undefined || (Array.isArray(e[3]) && e[3].length <= CAP && e[3].every(okStamp)));
-export const cleanClock = c => (c && typeof c === 'object' && !Array.isArray(c) ? Object.fromEntries(Object.entries(c).filter(([, e]) => okEntry(e))) : null);
+// A clock read from a file or storage: only entries that are what tick() makes (devices, whole counters, a real date). A garbled one would stop every later tick.
+const okActor = a => /^[\w-]{1,16}$/.test(a);
+const okAt = s => typeof s === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(s) && Number.isFinite(Date.parse(s));
+const isMap = x => !!x && typeof x === 'object' && !Array.isArray(x);
+const okEntry = e => isMap(e) && isMap(e.v) && Object.entries(e.v).every(([a, n]) => okActor(a) && Number.isSafeInteger(n) && n >= 1) && okAt(e.at) && typeof e.hash === 'string';
+export const cleanClock = c => (isMap(c) && isMap(c.keys)
+  ? { keys: Object.fromEntries(Object.entries(c.keys).filter(([, e]) => okEntry(e))), seen: Object.fromEntries(Object.entries(isMap(c.seen) ? c.seen : {}).filter(([a, n]) => okActor(a) && Number.isSafeInteger(n) && n >= 0)) }
+  : null);
 // Does the clock say what is in the state? A file with a changed object under its old clock was edited outside, and is not merged by clock.
-export const clockFits = (state, clock) => !!clock && [...keysOf(state)].every(([k, o]) => clock[k]?.[2] === hashOf(k, o));
+export const clockFits = (state, clock) => !!clock?.keys && [...keysOf(state)].every(([k, o]) => clock.keys[k]?.hash === hashOf(k, o));
+
+// One vector covers another when it is at least as high for every device: that copy has seen every edit the other made.
+const covers = (x, y) => Object.entries(y.v).every(([a, n]) => (x.v[a] ?? 0) >= n);
+const join = (x, y) => Object.fromEntries([...new Set([...Object.keys(x), ...Object.keys(y)])].sort().map(a => [a, Math.max(x[a] ?? 0, y[a] ?? 0)]));
+// Newer, for a conflict only: the later edit, then the higher hash (what was written, not who has met whom), so every device picks the same one
+const newer = (x, y) => (x.at !== y.at ? x.at > y.at : x.hash !== y.hash ? x.hash > y.hash : J(x.v) >= J(y.v));
+// two objects made on two devices that never met: no device is in both vectors
+const fresh = (x, y) => Object.keys(x.v).length > 0 && Object.keys(y.v).length > 0 && !Object.keys(x.v).some(a => a in y.v);
 
 const clip = (s, n = 48) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 function label(k, o){
@@ -129,10 +127,9 @@ function weave(a, b, preferA = true){
     seen.add(pick); out.push(pick);
   }
 }
-const J = x => JSON.stringify(x);
 const union = (a, b) => { const seen = new Set(a.map(J)); return [...a, ...b.filter(x => !seen.has(J(x)))]; };
 // The two versions of one entry, section or the settings as one where that loses nothing: the lists of ids (a bullet only one side added to a job, a
-// job to the experience section) and the lists of tags, job types and languages. The first one's order and other fields.
+// job or a certificate to a section) and the lists of tags, job types and languages. The first one's order and other fields.
 function joined(k, w, l, live){
   const o = structuredClone(w);
   if (k === 'settings'){
@@ -140,7 +137,7 @@ function joined(k, w, l, live){
       if (Array.isArray(at?.[key]) && Array.isArray(other?.[key])) at[key] = union(at[key], other[key]);
     return o;
   }
-  for (const [at, other, key] of [[o, l, 'highlights'], [o.content, l.content, 'work']])
+  for (const [at, other, key] of [[o, l, 'highlights'], ...['work', 'items', 'groups', 'pairs'].map(f => [o.content, l.content, f])])
     if (Array.isArray(at?.[key]) && Array.isArray(other?.[key])) at[key] = weave(at[key], other[key]).filter(id => live.has(id));
   return o;
 }
@@ -154,71 +151,116 @@ const idLists = ({ record: r, resumes }) => {
 const relist = (s, kind, id, fn) => {
   for (const [name, ids] of s.l) if ((name === kind || (kind === 'variant' && name[0] === '@')) && ids.includes(id)) s.l.set(name, fn(ids));
 };
-const factOfVersion = (sides, vid) => sides.flatMap(s => [...s.l]).find(([n, ids]) => n[0] === '@' && ids.includes(vid))?.[0].slice(1);
 
-// An entry of the clock that agrees with the object, else the start: "I don't know when this changed".
+// A copy of the state with its entries: an entry that agrees with the object, else "no device's edit is known" (an empty vector).
+const mkSide = (state, m, c, seen) => ({ state, m, c, seen, l: idLists(state), top: [...c.values()].reduce((x, e) => (e.at > x ? e.at : x), '') });
 const side = ({ state, clock }) => {
-  const m = keysOf(state), c = cleanClock(clock) ?? {};
-  return { state, m, c: new Map([...m].map(([k, o]) => { const h = hashOf(k, o), e = c[k]; return [k, e?.[2] === h ? e : ['', '', h]]; })), l: idLists(state), top: topOf(c) };
+  const m = keysOf(state), k = cleanClock(clock);
+  return mkSide(state, m, new Map([...m].map(([key, o]) => { const h = hashOf(key, o), e = k?.keys[key]; return [key, e?.hash === h ? e : { v: {}, at: EPOCH, hash: h }]; })), k?.seen ?? {});
 };
-const aNewer = (x, y) => (x[0] !== y[0] ? x[0] > y[0] : x[2] >= y[2]);
 // a copy of a version made by a merge: the id ends in a hash
 const COPY = /-v[\d-]+(?:-[a-z]{2})?(?:-alt)?-[0-9a-f]{6}$/;
-const KEYS = { alt: 'i1.alt', both: 'i1.both', newer: 'i1.newer', revived: 'i1.revived', deleted: 'i1.deleted', group: 'i1.group' };
+const KEYS = { alt: 'i1.alt', both: 'i1.both', newer: 'i1.newer', revived: 'i1.revived', group: 'i1.group' };
+
+// Every id (and key of an object) in a copy that the map names, renamed: the references to an object that was given another id
+function renamed(S, ren){
+  const rn = (x, top = false) => (Array.isArray(x) ? x.map(y => rn(y)) : isMap(x) ? Object.fromEntries(Object.entries(x).map(([k, v]) => [top ? k : ren.get(k) ?? k, rn(v)])) : typeof x === 'string' ? ren.get(x) ?? x : x);
+  const state = { record: rn(S.state.record, true), resumes: rn(S.state.resumes ?? []), frozen: rn(S.state.frozen ?? {}) };
+  const m = keysOf(state), back = new Map([...ren].map(([a, b]) => [b, a]));
+  const c = new Map([...m].map(([k, o]) => {
+    const old = k.includes(':') ? `${kindOf(k)}:${back.get(idOf(k)) ?? idOf(k)}` : k;
+    return [k, { ...S.c.get(old), hash: hashOf(k, o) }];
+  }));
+  return mkSide(state, m, c, S.seen);
+}
+// The raw delete of what a split made, when the model's own delete does not know the kind
+function forget(d, ids){
+  for (const id of ids){
+    const store = STORES.find(s => (d.record[s] ?? []).some(x => x.id === id));
+    try {
+      if (store && store !== 'work') deleteItem(d.record, store, id, d.resumes ?? []);
+      else if (!store && d.record.facts?.some(f => f.id === id)) deleteClaim(d.record, id, d.resumes ?? []);
+      else throw new Error('raw');
+    } catch {
+      for (const kind of KINDS){
+        const list = kind === 'resume' ? d.resumes : d.record[listName(kind)], x = (list ?? []).find(y => y.id === id);
+        if (!x) continue;
+        if (kind === 'fact') for (const v of x.variants ?? []) forget(d, [v]);
+        drop(d, `${kind}:${id}`);
+        if (kind !== 'resume') tombstone(d.record, kind, id, x);
+      }
+    }
+  }
+}
 
 // mine, theirs: { state: { record, resumes, frozen }, clock }. Whichever way round, the same state comes out. summary: one line for each thing both
 // copies changed, { key, kind, what, kept, other, undo }, where undo(d) puts the other back in a state d the way a diffRecords item's apply does.
 export function merge(mine, theirs){
-  const A = side(mine), B = side(theirs);
-  const [N, O] = (A.top !== B.top ? A.top > B.top : J(A.state) >= J(B.state)) ? [A, B] : [B, A];      // the copy with the later stamp (else the later text) sets the order and what is not a key
-  const out = new Map(), clock = {}, summary = [], joins = [], met = new Map();      // met: the stamp of the other copy's entry, for each key a line was made about
-  const set = (k, o, e) => { out.set(k, o); clock[k] = e; };
+  let A = side(mine), B = side(theirs);
+  const summary = [], pending = [];      // pending: the splits, whose lines come once the copies are renamed
+
+  // two new objects with one id but different content: the newer keeps the id, the other copy's gets <id>-<6 of its hash> and everything of that copy that
+  // points at it follows. A claim, and the versions it lists, go together.
+  // shortcut: three or more copies that each made a job (and its claims) under one id can end in different states by the order they meet, because the new id comes from the hash of what the object is by then, and a job's changes with the ids of its claims; two copies, and any number that made a certificate or a version, converge. Upgrade by naming a split from the object's first vector entry.
+  const splits = new Map();
+  for (const k of [...A.m.keys()].filter(k => B.m.has(k)).sort()){
+    const kind = kindOf(k), a = A.m.get(k), b = B.m.get(k), ea = A.c.get(k), eb = B.c.get(k), id = idOf(k);
+    if (!k.includes(':') || kind === 'section' || a instanceof Gone || b instanceof Gone || ea.hash === eb.hash || !fresh(ea, eb) || splits.has(id) || (kind === 'variant' && normText(a.text) === normText(b.text))) continue;
+    const lose = newer(ea, eb) ? B : A, h6 = (lose === A ? ea : eb).hash.slice(0, 6);
+    splits.set(id, { lose, h6, key: k });
+  }
+  // shortcut: a section made on both sides (the certified list, each device's first certificate) is one section, its lists joined, not two; upgrade if sections ever need to be kept apart.
+  if (splits.size){
+    const A0 = A, B0 = B, maps = new Map([[A0, new Map()], [B0, new Map()]]);
+    const newId = (id, h6) => (id.endsWith('.json') ? id.replace(/\.json$/, `-${h6}.json`) : `${id}-${h6}`);
+    for (const [id, { lose, h6 }] of splits) maps.get(lose).set(id, newId(id, h6));
+    for (const [id, { lose, h6 }] of splits) for (const vid of lose.state.record?.facts?.find(f => f.id === id)?.variants ?? []) if (!maps.get(lose).has(vid)) maps.get(lose).set(vid, `${vid}-${h6}`);
+    for (const [s, ren] of maps) if (ren.size){ if (s === A0) A = renamed(s, ren); else B = renamed(s, ren); }
+    for (const [id, { lose, h6, key }] of splits){
+      const nk = `${kindOf(key)}:${newId(id, h6)}`, loser = lose === A0 ? A : B, win = lose === A0 ? B : A;
+      if (!win.m.has(nk)) pending.push({ id, key, nk, ren: maps.get(lose), win, lose: loser });      // else it was split before
+    }
+  }
+  const [N, O] = (A.top !== B.top ? A.top > B.top : J(A.state) >= J(B.state)) ? [A, B] : [B, A];      // the copy with the later edit (else the later text) sets the order and what is not a key
+  const out = new Map(), clock = {}, joins = [], from = new Map();      // from: which copy an object came from
+  const set = (k, o, e, s = null) => { out.set(k, o); clock[k] = e; from.set(k, s); };
   const line = (k, kind, lab, kept, other, undo, texts = null) => summary.push({ key: k, kind, what: t(KEYS[kind], { what: label(k, lab) }), kept: texts?.[0] ?? show(k, kept), other: texts?.[1] ?? show(k, other), undo });
   const unDelete = (k, o) => d => (kindOf(k) === 'fact' ? deleteClaim(d.record, idOf(k), d.resumes ?? []) : (drop(d, k), tombstone(d.record, kindOf(k), idOf(k), o)));
+  for (const { key, nk, ren, win, lose } of pending){
+    const o = lose.m.get(nk), ids = [...ren.values()];
+    line(nk, 'both', o, win.m.get(key), o, d => forget(d, ids));
+  }
 
   for (const k of [...new Set([...A.m.keys(), ...B.m.keys()])].sort()){
     const a = A.m.get(k), b = B.m.get(k), ea = A.c.get(k), eb = B.c.get(k);
-    if (!ea || !eb) set(k, ea ? a : b, ea ?? eb);
-    else if (ea[2] === eb[2]) aNewer(ea, eb) ? set(k, a, ea) : set(k, b, eb);
-    else if (ancestor(eb, ea)) set(k, b, eb);      // theirs is a later edit of mine
-    else if (ancestor(ea, eb)) set(k, a, ea);
-    else {
-      // both changed it: the newer stamp keeps the key
-      const aw = aNewer(ea, eb), [w, l, ew, el] = aw ? [a, b, ea, eb] : [b, a, eb, ea], loser = aw ? B : A, kind = kindOf(k), id = idOf(k);
-      set(k, w, ew);
-      met.set(k, [el[0]]);
-      const gw = w instanceof Gone, gl = l instanceof Gone;
-      // shortcut: three copies where one rewords a version, one deletes it and one rewords it differently can end in two states, by the order they meet (a delete against an edit is settled before the second wording is seen); upgrade by merging all of them at once.
-
-      if (gw && gl) continue;
-      if (gw || gl){      // a delete against an edit: whichever is newer wins
-        const claim = kind === 'variant' ? factOfVersion([A, B], id) : null;      // the claim a version belongs to
-        line(k, gw ? 'deleted' : 'revived', gw ? l : w, w, l, gw
-          ? d => { put(d, k, l); const f = d.record.facts?.find(x => x.id === claim); if (f && !f.variants.includes(id)) f.variants.push(id); if (d.record.removed) { delete d.record.removed[k]; if (!Object.keys(d.record.removed).length) delete d.record.removed; } }
-          : unDelete(k, w));
-        // shortcut: undoing a delete puts a version back in its claim and a saved resume back, but a job or other entry only as the object, not its place in a section; upgrade by keeping the place.
-        continue;
-      }
-      const fresh = ea[1] === null && eb[1] === null;      // made on both sides, not edited on both
-      const wording = kind === 'variant' && normText(a.text) !== normText(b.text);
-      if (wording || (fresh && !['variant', 'fact'].includes(kind) && k.includes(':'))){
-        // keep both: the other becomes a copy under an id every device makes the same
-        const h6 = el[2].slice(0, 6), nid = kind === 'resume' ? id.replace(/(\.json)?$/, `-${h6}$1`) : `${id}${wording && !fresh ? '-alt' : ''}-${h6}`, nk = `${kind}:${nid}`;
-        if (A.m.has(nk) || B.m.has(nk)) continue;      // merged before
-        const copy = { ...l, id: nid };
-        set(nk, copy, [el[0], null, '']);      // its hash once it is in the state
-        if (wording && !fresh) for (const s of [A, B]) relist(s, kind, id, ids => ids.flatMap(x => (x === id ? [x, nid] : [x])));      // beside the one it is another text of
-        else relist(loser, kind, id, ids => ids.map(x => (x === id ? nid : x)));      // it keeps its place in the copy it came from
-        line(nk, wording && !fresh ? 'alt' : 'both', l, w, l, d => { drop(d, nk); tombstone(d.record, kind, nid, copy); });      // the mark keeps the next merge from bringing it back
-        continue;
-      }
-      // a plain value (or two claims made under one name: one claim, its versions told apart by their ids)
-      // shortcut: any other field changed on both sides of a job, claim or section keeps the newer one whole, and the line lists the other; upgrade by merging field by field.
-      // shortcut: a tag, job type or language deleted on one side comes back when the settings were changed on both; upgrade with marks for those.
-      if (STORES.includes(kind) || kind === 'section' || k === 'settings') joins.push({ k, l });
-      const keys = k === 'settings' ? [...new Set([...Object.keys(w), ...Object.keys(l)])].filter(f => J(w[f]) !== J(l[f])) : null;
-      line(k, 'newer', w, w, l, d => put(d, k, l), keys && [keys.map(f => `${f}: ${clip(J(w[f]), 40)}`).join('; '), keys.map(f => `${f}: ${clip(J(l[f]), 40)}`).join('; ')]);
+    if (!ea || !eb){ set(k, ea ? a : b, ea ?? eb, ea ? A : B); continue; }
+    const v = join(ea.v, eb.v), x = covers(ea, eb), y = covers(eb, ea);
+    if (ea.hash === eb.hash){ set(k, newer(ea, eb) ? a : b, { v, at: ea.at > eb.at ? ea.at : eb.at, hash: ea.hash }, newer(ea, eb) ? A : B); continue; }
+    if (x !== y){ const w = x ? [a, ea, A] : [b, eb, B]; set(k, w[0], { v, at: w[1].at, hash: w[1].hash }, w[2]); continue; }      // one has seen every edit of the other: it is the later
+    // both changed it
+    const kind = kindOf(k), id = idOf(k), gone = [a instanceof Gone, b instanceof Gone];
+    // a delete against an edit that has not seen it: the edit wins, and it brings the object back
+    const aw = gone[0] !== gone[1] ? gone[1] : newer(ea, eb), [w, l, ew, S] = aw ? [a, b, ea, A] : [b, a, eb, B];
+    set(k, w, { v, at: ew.at, hash: ew.hash }, S);
+    if (gone[0] && gone[1]) continue;
+    if (gone[0] !== gone[1]){ line(k, 'revived', w, w, l, unDelete(k, w)); continue; }
+    const wording = kind === 'variant' && normText(a.text) !== normText(b.text);
+    if (wording){
+      // keep both: the other text becomes a version under an id every device makes the same
+      const nid = `${id}-alt-${(aw ? eb : ea).hash.slice(0, 6)}`, nk = `variant:${nid}`;
+      if (A.m.has(nk) || B.m.has(nk)) continue;      // merged before
+      const copy = { ...l, id: nid };
+      set(nk, copy, { v: { base: 1 }, at: (aw ? eb : ea).at, hash: '' }, aw ? B : A);      // the common start (the same whichever order the copies met in); its hash once it is in the state
+      for (const s of [A, B]) relist(s, kind, id, ids => ids.flatMap(y => (y === id ? [y, nid] : [y])));      // beside the one it is another text of
+      line(nk, 'alt', l, w, l, d => { drop(d, nk); tombstone(d.record, kind, nid, copy); });      // the mark keeps the next merge from bringing it back
+      continue;
     }
+    // a plain value
+    // shortcut: any other field changed on both sides of a job, claim or section keeps the newer one whole, and the line lists the other; upgrade by merging field by field.
+    // shortcut: a tag, job type or language deleted on one side comes back when the settings were changed on both; upgrade with marks for those.
+    if (STORES.includes(kind) || kind === 'section' || k === 'settings') joins.push({ k, l });
+    const keys = k === 'settings' ? [...new Set([...Object.keys(w), ...Object.keys(l)])].filter(f => J(w[f]) !== J(l[f])) : null;
+    line(k, 'newer', w, w, l, d => put(d, k, l), keys && [keys.map(f => `${f}: ${clip(J(w[f]), 40)}`).join('; '), keys.map(f => `${f}: ${clip(J(l[f]), 40)}`).join('; ')]);
   }
 
   // a deleted claim or version the other copy built on later comes back: the later edit wins, and a claim needs its versions
@@ -226,8 +268,8 @@ export function merge(mine, theirs){
   const revive = k => {
     const s = [A, B].find(s => s.m.has(k) && !(s.m.get(k) instanceof Gone)), o = s?.m.get(k);
     if (!o) return false;
-    set(k, o, s.c.get(k));
-    met.set(k, [[A, B].find(x => x.m.get(k) instanceof Gone)?.c.get(k)[0] ?? '']);
+    const e = s.c.get(k), z = (s === A ? B : A).c.get(k);
+    set(k, o, { v: join(e.v, z?.v ?? {}), at: e.at, hash: e.hash }, s);
     line(k, 'revived', o, o, new Gone(null), unDelete(k, o));
     if (kindOf(k) === 'fact') backInJob(k);
     return true;
@@ -235,8 +277,8 @@ export function merge(mine, theirs){
   const backInJob = k => {      // a claim that is back is back in the job that had it
     for (const [k2, cur] of [...out]){
       if (cur instanceof Gone || !Array.isArray(cur.highlights) || cur.highlights.includes(idOf(k))) continue;
-      const from = [A, B].map(x => x.m.get(k2)).find(x => x && !(x instanceof Gone) && x.highlights?.includes(idOf(k)));
-      if (from) out.set(k2, { ...cur, highlights: weave(cur.highlights, from.highlights).filter(x => x === idOf(k) || cur.highlights.includes(x)) });
+      const src = [A, B].map(x => x.m.get(k2)).find(x => x && !(x instanceof Gone) && x.highlights?.includes(idOf(k)));
+      if (src) out.set(k2, { ...cur, highlights: weave(cur.highlights, src.highlights).filter(x => x === idOf(k) || cur.highlights.includes(x)) });
     }
   };
   for (const k of out.keys()) if (kindOf(k) === 'fact' && aliveOut(k) && [A, B].some(x => x.m.get(k) instanceof Gone)) backInJob(k);      // also where the later edit won the claim outright
@@ -247,10 +289,26 @@ export function merge(mine, theirs){
     const fid = home.get(idOf(k));
     if (fid && out.get(`fact:${fid}`) instanceof Gone) revive(`fact:${fid}`);
   }
+  const listed = fid => weave(N.l.get(`@${fid}`) ?? [], O.l.get(`@${fid}`) ?? []), lang = id => [A, B].map(x => x.m.get(`variant:${id}`)).find(x => x && !(x instanceof Gone))?.lang ?? 'en';
+  const hasEn = fid => listed(fid).some(id => aliveOut(`variant:${id}`) && lang(id) === 'en');
+  // shortcut: the repairs that keep a claim whole (a claim with no version left is deleted, or one of its deleted versions is brought back) decide from the copies met so far, so four or more copies deleting versions and claims at once can end in different states by order (2 in 600 random runs); upgrade by deciding them from the vectors of all the copies at once.
+  // a claim one copy deleted that the other only touched (a version deleted, say) and that has no version left is deleted: there is nothing to bring back
+  for (const k of [...out.keys()].filter(k => kindOf(k) === 'fact' && aliveOut(k) && [A, B].some(x => x.m.get(k) instanceof Gone) && !hasEn(idOf(k)))){
+    const gs = [A, B].find(x => x.m.get(k) instanceof Gone), ge = gs.c.get(k), other = (gs === A ? B : A).c.get(k);
+    set(k, gs.m.get(k), { v: join(ge.v, other?.v ?? {}), at: ge.at, hash: ge.hash }, gs);
+    for (let i = summary.length; i--;) if (summary[i].key === k) summary.splice(i, 1);
+    for (const id of listed(idOf(k))){      // and so are the versions it has left, in other languages
+      const vk = `variant:${id}`, o = out.get(vk);
+      if (!aliveOut(vk)) continue;
+      const mark = new Gone({ at: String(ge.at).slice(0, 10), hash: fnv(normText(o.text)) });
+      set(vk, mark, { v: join(clock[vk].v, ge.v), at: ge.at, hash: hashOf(vk, mark) }, gs);
+      for (let i = summary.length; i--;) if (summary[i].key === vk) summary.splice(i, 1);
+    }
+  }
   for (const k of [...out.keys()].filter(k => kindOf(k) === 'fact' && aliveOut(k))){
-    const ids = weave(N.l.get(`@${idOf(k)}`) ?? [], O.l.get(`@${idOf(k)}`) ?? []), lang = id => [A, B].map(x => x.m.get(`variant:${id}`)).find(x => x && !(x instanceof Gone))?.lang ?? 'en';
-    if (ids.length && !ids.some(id => aliveOut(`variant:${id}`) && lang(id) === 'en')){      // two copies each deleted a different version: one of them stays
-      const back = ids.filter(id => out.get(`variant:${id}`) instanceof Gone && lang(id) === 'en').sort((x, y) => (clock[`variant:${y}`]?.[0] ?? '').localeCompare(clock[`variant:${x}`]?.[0] ?? '') || x.localeCompare(y))[0];
+    const ids = listed(idOf(k));
+    if (ids.length && !hasEn(idOf(k))){      // two copies each deleted a different version: one of them stays
+      const back = ids.filter(id => out.get(`variant:${id}`) instanceof Gone && lang(id) === 'en').sort((x, y) => (clock[`variant:${y}`]?.at ?? '').localeCompare(clock[`variant:${x}`]?.at ?? '') || x.localeCompare(y))[0];
       if (back) revive(`variant:${back}`);
     }
   }
@@ -264,13 +322,13 @@ export function merge(mine, theirs){
 
   // the state: the newer copy's, with what the other side decided put in, in the woven order
   const st = structuredClone({ record: N.state.record, resumes: N.state.resumes ?? [], frozen: N.state.frozen ?? {} });
-  for (const [k, o] of out) if (!N.c.has(k) || (o !== N.m.get(k) && hashOf(k, o) !== N.c.get(k)[2])) (o instanceof Gone ? drop : put)(st, k, o);      // the newer copy's own object stays, even when the other's has the same hash
-  // a resume's frozen text is no edit, so when both copies hold the same resume it comes from the one that stamped it last (else the longer text), not from whichever copy sets the order
+  for (const [k, o] of out) if (!N.c.has(k) || (o !== N.m.get(k) && hashOf(k, o) !== N.c.get(k).hash)) (o instanceof Gone ? drop : put)(st, k, o);      // the newer copy's own object stays, even when the other's has the same hash
+  // a resume's frozen text is no edit, so when both copies hold the same resume it comes from the later edit (else the longer text), not from whichever copy sets the order
   for (const k of out.keys()){
     const a = A.m.get(k), b = B.m.get(k), ea = A.c.get(k), eb = B.c.get(k);
-    if (kindOf(k) !== 'resume' || !ea || !eb || ea[2] !== eb[2] || a instanceof Gone || b instanceof Gone) continue;
-    const from = ea[0] !== eb[0] ? (ea[0] > eb[0] ? a : b) : (J(a.frozen ?? null) >= J(b.frozen ?? null) ? a : b);
-    if (from.frozen) (st.frozen ??= {})[idOf(k)] = structuredClone(from.frozen); else delete st.frozen?.[idOf(k)];
+    if (kindOf(k) !== 'resume' || !ea || !eb || ea.hash !== eb.hash || a instanceof Gone || b instanceof Gone) continue;
+    const src = ea.at !== eb.at ? (ea.at > eb.at ? a : b) : (J(a.frozen ?? null) >= J(b.frozen ?? null) ? a : b);
+    if (src.frozen) (st.frozen ??= {})[idOf(k)] = structuredClone(src.frozen); else delete st.frozen?.[idOf(k)];
   }
   // a bullet whose claim was deleted is not in a job, whichever copy's job won
   for (const store of ['work', 'projects', 'volunteer']) for (const w of st.record[store] ?? [])
@@ -283,23 +341,25 @@ export function merge(mine, theirs){
     arr?.sort((x, y) => (rank.get(x.id) ?? 1e9) - (rank.get(y.id) ?? 1e9));
   }
   for (const f of st.record.facts ?? []) f.variants = order(`@${f.id}`, 'variant');
+  // jobs go by their dates, as addJob puts them, and by id where the dates are the same
+  st.record.work?.sort((x, y) => String(y.endDate ?? '9999').localeCompare(String(x.endDate ?? '9999')) || String(y.startDate).localeCompare(String(x.startDate)) || (x.id < y.id ? -1 : 1));
 
-  // a language group is one unit: when each copy changed a different member, the copy with the newer stamp gives all of it, mirror() brings the
+  // a language group is one unit: when each copy changed a different member, the copy with the later edit gives all of it, mirror() brings the
   // members in step, and what the other copy changed is one line with its Undo
   const seen = new Set();
   for (const r of st.resumes){
     if (seen.has(r.id)) continue;
     const g = groupOf(st, r).map(x => `resume:${x.id}`);
     g.forEach(k => seen.add(idOf(k)));
-    const differ = g.filter(k => A.c.has(k) && B.c.has(k) && A.c.get(k)[2] !== B.c.get(k)[2]);
-    const by = s => differ.filter(k => clock[k] === s.c.get(k));
-    const top = s => by(s).reduce((m, k) => (s.c.get(k)[0] > m ? s.c.get(k)[0] : m), '');
+    const differ = g.filter(k => A.c.has(k) && B.c.has(k) && A.c.get(k).hash !== B.c.get(k).hash);
+    const by = s => differ.filter(k => from.get(k) === s);
+    const top = s => by(s).reduce((m, k) => (s.c.get(k).at > m ? s.c.get(k).at : m), '');
     if (g.length < 2 || !by(A).length || !by(B).length) continue;
     const [S, L] = top(A) > top(B) ? [A, B] : top(A) < top(B) ? [B, A] : [N, O];
     const lost = g.filter(k => L.m.has(k)).map(k => [k, L.m.get(k)]);
     for (let i = summary.length; i--;) if (differ.includes(summary[i].key)) summary.splice(i, 1);      // the group's one line says it
-    for (const k of differ) if (S.m.has(k)){ put(st, k, S.m.get(k)); clock[k] = S.c.get(k); met.set(k, [L.c.get(k)[0]]); }
-    const src = by(S).sort((x, y) => (S.c.get(y)[0] > S.c.get(x)[0] ? 1 : -1))[0];
+    for (const k of differ) if (S.m.has(k)){ put(st, k, S.m.get(k)); const e = S.c.get(k); clock[k] = { v: join(e.v, L.c.get(k)?.v ?? {}), at: e.at, hash: e.hash }; }
+    const src = by(S).sort((x, y) => (S.c.get(y).at > S.c.get(x).at ? 1 : -1))[0];
     mirror(st, idOf(src));
     line(src, 'group', S.m.get(src), S.m.get(src), L.m.get(src) ?? lost[0]?.[1], d => { for (const [k, o] of lost) put(d, k, o); });
   }
@@ -321,34 +381,32 @@ export function merge(mine, theirs){
       const left = versionsIn(st.record, f.id, lang);
       if (left.length) f.default[lang] = left[0].id; else delete f.default[lang];
     }
+    // a language that had a default in either copy and has a version again has one (a version that comes back later must not stay without)
+    for (const lang of new Set([...Object.keys(f.default ?? {}), ...[A, B].flatMap(x => Object.keys(x.m.get(`fact:${f.id}`)?.default ?? {}))])){
+      const left = !f.default?.[lang] && versionsIn(st.record, f.id, lang);
+      if (left?.length) (f.default ??= {})[lang] = left[0].id;
+    }
     const byN = new Map();
     for (const v of vs) if (v.n !== undefined) (byN.get(`${v.lang ?? 'en'} ${v.n}`) ?? byN.set(`${v.lang ?? 'en'} ${v.n}`, []).get(`${v.lang ?? 'en'} ${v.n}`)).push(v);
-    for (const dup of byN.values()) if (dup.length > 1){      // the oldest keeps it, a copy of a merge last
-      const at = v => clock[`variant:${v.id}`]?.[0] ?? '';
+    for (const dup of byN.values()) if (dup.length > 1){      // the oldest edit keeps it, a copy of a merge last
+      const at = v => clock[`variant:${v.id}`]?.at ?? '';
       dup.sort((x, y) => COPY.test(x.id) - COPY.test(y.id) || (at(x) < at(y) ? -1 : at(x) > at(y) ? 1 : 0) || (x.id < y.id ? -1 : 1));
       for (const v of dup.slice(1)) v.n = nextMajor(st.record, f.id, v.lang ?? 'en');
     }
+    // a claim's versions in one order whichever copies met first (the number, then the language and id): the page sorts them by number anyway
+    const lg = id => byId.get(id)?.lang ?? 'en';
+    f.variants.sort((x, y) => compareN(byId.get(x)?.n, byId.get(y)?.n) || (lg(x) < lg(y) ? -1 : lg(x) > lg(y) ? 1 : 0) || (x < y ? -1 : 1));
   }
 
-  const gone = [...out].filter(([, o]) => o instanceof Gone);
+  const gone = [...out].filter(([, o]) => o instanceof Gone).sort(([x], [y]) => (x < y ? -1 : 1));
   if (gone.length) st.record.removed = Object.fromEntries(gone.map(([k, o]) => [k, o.removed])); else delete st.record.removed;
-  // what the merge itself wrote (a copy, a joined list, a mirrored resume, a renumbered version) is an edit after the entry it came from
+  // what the merge itself wrote (a copy, a joined list, a mirrored resume, a renumbered version) counts as no edit: the vector stays, the hash is what is there
   for (const [k, o] of keysOf(st)){
     const h = hashOf(k, o), e = clock[k];
-    if (!e || e[2] === h) continue;
-    const top = [A.c.get(k)?.[0], B.c.get(k)?.[0], e[0]].reduce((m, x) => (x > m ? x : m), '');
-    clock[k] = e[2] === '' ? [e[0], null, h] : [bump(top), e[0], h, chainOf(e).slice(0, CAP)];
+    if (e && e.hash !== h) clock[k] = { ...e, hash: h };
   }
-  // an edit only this copy has seen stays marked; one that came from, or is also in, the other copy is known to both
-  for (const k of Object.keys(clock)) if (clock[k][4] && !(clock[k] === A.c.get(k) && B.c.get(k)?.[0] !== clock[k][0])) clock[k] = unmark(clock[k]);
-  // the other copy's stamp is now one this entry has seen, so meeting the same file again is a later edit of it and lists nothing
-  for (const [k, stamps] of met){
-    const e = clock[k];
-    if (!e) continue;
-    const older = [...(e[3] ?? []), ...stamps.filter(x => x !== e[0] && x !== e[1] && !(e[3] ?? []).includes(x))].slice(0, CAP);
-    clock[k] = [e[0], e[1], e[2], older, ...(e[4] ? [e[4]] : [])];
-  }
-  return { state: st, clock, summary, changed: [...out.keys()].filter(k => clock[k]?.[2] !== A.c.get(k)?.[2]).length };
+  const seenAll = join(A.seen, B.seen);
+  return { state: st, clock: { keys: clock, seen: seenAll }, summary, changed: [...out.keys()].filter(k => clock[k]?.hash !== A.c.get(k)?.hash).length };
 }
 
 // Runs `change(d)` on the app's state, then opens the open resume again if the change altered it: the next commit would write the old one back.

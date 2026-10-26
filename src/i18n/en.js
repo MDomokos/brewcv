@@ -1586,6 +1586,5 @@ export default {
   'i1.both': 'Both copies made “{what}” under one name: both are kept',
   'i1.newer': 'Both copies changed “{what}”: the newer change is kept',
   'i1.revived': '“{what}” was deleted in one copy and edited later in the other: it is back',
-  'i1.deleted': '“{what}” was edited in one copy and deleted later in the other: it is deleted',
   'i1.group': '“{what}” and its language copies were changed in both copies: the newer copy’s group is kept',
 };

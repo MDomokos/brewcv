@@ -5,7 +5,7 @@
 import { t, keyed } from '../i18n/index.js';
 import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId } from '../model/schema.js';
 import { assetRefs } from './store.js';
-import { tick, share, markShared, baseline, cleanClock } from '../model/merge.js';
+import { tick, baseline, adopt, cleanClock } from '../model/merge.js';
 
 // The one file you save and open yourself. Never translated.
 export const SAVE_FILE_NAME = 'brewcv.json';
@@ -274,11 +274,11 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
   const file = { last: null, n: 0 }; // the last save to the one file, and the changes since (kept in the browser's storage)
   let pendingCommits = 0;
   // The object clocks (src/model/merge.js), ticked at every save. A state that is here from the start is the common start of every copy made from it.
-  let clock = store.state?.record ? baseline(store.materialize()) : {};
-  let device = null;
+  let clock = store.state?.record ? baseline(store.materialize()) : { keys: {}, seen: {} };
+  let device = null;      // this device's actor id: random, made once
+  const actor = async () => (device ??= (await backend.get('meta/device')) ?? await (async () => { const d = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(16).slice(2)).slice(0, 6); await backend.put('meta/device', d); return d; })());
   const stamp = async state => {
-    device ??= (await backend.get('meta/device')) ?? await (async () => { const d = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(16).slice(2)).slice(0, 6); await backend.put('meta/device', d); return d; })();
-    clock = tick(clock, state, device, now().getTime());
+    clock = tick(clock, state, await actor(), now().getTime());
     await backend.put('meta/clock', clock);
     return clock;
   };
@@ -369,7 +369,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
 
   return {
     get status(){ return { status, error: lastError, code: errorCode, linked: linked?.name ?? null }; },
-    get fileState(){ return { last: file.last, changes: file.n + pendingCommits, recordId: store.state?.record?.recordId ?? null, hasClock: Object.keys(clock).length > 0 }; },
+    get fileState(){ return { last: file.last, changes: file.n + pendingCommits, recordId: store.state?.record?.recordId ?? null, hasClock: Object.keys(clock.keys).length > 0 }; },
     // this copy as a merge takes it: the state with its clock stamped now, and the clock it is merged into
     async forMerge(){ const state = store.materialize(); return { state: { record: state.record, resumes: state.resumes ?? [], frozen: state.frozen ?? {} }, clock: await stamp(state) }; },
     async adoptClock(c){ clock = c; await backend.put('meta/clock', clock); },
@@ -377,19 +377,14 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     async prepareFile(){
       if (store.state?.record && !store.state.record.recordId) store.commit(d => { ensureRecordId(d.record); }, t('save.recordId'));
       const at = now().toISOString(), state = store.materialize();
-      const sent = share(await stamp(state));
-      const text = JSON.stringify(makeBackup(state, { saved: at, clock: sent, device }), null, 2) + '\n';
-      return { text, name: SAVE_FILE_NAME, at, recordId: store.state.record?.recordId ?? null, hash: await sha256(text), clock: sent };
+      const text = JSON.stringify(makeBackup(state, { saved: at, clock: await stamp(state), device }), null, 2) + '\n';
+      return { text, name: SAVE_FILE_NAME, at, recordId: store.state.record?.recordId ?? null, hash: await sha256(text) };
     },
-    // the file was written: the stamps in it are known to whoever opens it. A save that was cancelled leaves them marked.
-    async markFileSaved(m){
-      await markFile(m);
-      if (m.clock){ clock = markShared(clock, m.clock); await backend.put('meta/clock', clock); }
-    },
+    markFileSaved: markFile,
     // a file opened in place of this copy: its clock is this copy's now, and a file without one starts a history
     async markFileOpened(m){
       await markFile(m);
-      clock = m.clock ?? baseline(store.materialize());
+      clock = adopt(m.clock ?? baseline(store.materialize()), clock, await actor());
       await backend.put('meta/clock', clock);
     },
     onStatus(fn){ statusSubs.add(fn); return () => statusSubs.delete(fn); },
@@ -470,13 +465,12 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       catch (e){ return { same: false, disk: null, error: e.message }; }
     },
 
-    // shortcut: its stamps are not marked as carried (nothing in the app calls it; a caller that delivers the file should call markFileSaved with { clock })
     async backup({ checkpoints = false } = {}){
       const cps = checkpoints ? await Promise.all(((await backend.get('checkpoints/index')) ?? [])
         .map(c => backend.get(`checkpoint/${c.id}`))) : undefined;
       await backend.put('meta/lastBackup', now().toISOString());
       const state = store.materialize();
-      return makeBackup(state, { saved: now().toISOString(), checkpoints: cps, clock: share(await stamp(state)), device });
+      return makeBackup(state, { saved: now().toISOString(), checkpoints: cps, clock: await stamp(state), device });
     },
     async restoreBackup(obj){
       const { state, warnings } = readBackup(obj);
