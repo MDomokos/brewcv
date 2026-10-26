@@ -36,6 +36,7 @@ const SHELL = [
   './src/model/build.js',
   './src/model/import.js',
   './src/model/diff.js',
+  './src/model/merge.js',
   './src/ui/files.js',
   './src/ui/export.js',
   './src/export.js',

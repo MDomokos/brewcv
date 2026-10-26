@@ -1573,4 +1573,13 @@ export default {
   'ml3.matched': 'v{from} w języku: {lang} to teraz v{n}.',
   'i0.deletedOn': 'Usunięto to {date}',
   'i0.otherText': 'Inny tekst wersji v{n}',
+  'i1.title': { one: 'Scalono automatycznie: {n} zmianę', few: 'Scalono automatycznie: {n} zmiany', many: 'Scalono automatycznie: {n} zmian', other: 'Scalono automatycznie: {n} zmiany' },
+  'i1.intro': '{file} to inna kopia Twojego pliku kariery, więc obie scalono bez pytań. Najpierw zapisano punkt kontrolny. Tam, gdzie obie kopie zmieniły to samo, wiersz mówi, co zachowano, a Cofnij przywraca drugie.',
+  'i1.nothing': 'Nic w {file} nie jest nowe dla tej kopii.',
+  'i1.gone': 'usunięto',
+  'i1.alt': 'Obie kopie przeredagowały „{what}”: oba sformułowania zostają jako wersje',
+  'i1.both': 'Obie kopie utworzyły „{what}” pod tą samą nazwą: zostają obie',
+  'i1.newer': 'Obie kopie zmieniły „{what}”: zostaje nowsza zmiana',
+  'i1.revived': '„{what}” usunięto w jednej kopii, a później edytowano w drugiej: wraca',
+  'i1.deleted': '„{what}” edytowano w jednej kopii, a później usunięto w drugiej: jest usunięte',
 };

@@ -21,7 +21,7 @@ export const normText = s => String(s ?? '').normalize('NFKC').replace(/\u00ad/g
 // store (projects, awards, ...), resume or snapshot. `at` is the day, so two runs of one edit write the same record. Saved resumes live outside
 // the record, but theirs are kept here too, so they travel with it. A merge goes by the key alone: whatever an older copy still has under a
 // deleted key is listed, never added, even if it has changed since. `hash` is for per-object clocks: of a version's normalised text, else of the object's JSON.
-// shortcut: a merge does not copy the other record's marks into this one; upgrade with stamped tombstones. A restored item keeps its mark, which does no harm until it is deleted again.
+// shortcut: diffRecords (a file with no clocks) does not copy the other record's marks into this one; the merge of two clocked copies (src/model/merge.js) does, with stamps. A restored item keeps its mark, which does no harm until it is deleted again.
 export function tombstone(model, kind, id, obj){
   if (model) (model.removed ??= {})[`${kind}:${id}`] = { at: new Date().toISOString().slice(0, 10), hash: fnv(kind === 'variant' ? normText(obj.text) : JSON.stringify(obj)) };
 }

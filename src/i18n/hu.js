@@ -1573,4 +1573,13 @@ export default {
   'ml3.matched': 'A(z) {lang} v{from} mostantól v{n}.',
   'i0.deletedOn': 'Ezt törölted ekkor: {date}',
   'i0.otherText': 'A v{n} másik szövege',
+  'i1.title': { one: 'Automatikusan egyesítve: {n} változás', other: 'Automatikusan egyesítve: {n} változás' },
+  'i1.intro': 'A(z) {file} a karrierfájlod egy másik másolata, ezért a kettőt kérdés nélkül egyesítettük. Előbb mentési pont készült. Ahol mindkét másolat ugyanazt változtatta meg, a sor megmondja, mi maradt, a Visszavonás pedig visszahozza a másikat.',
+  'i1.nothing': 'A(z) {file} fájlban semmi sem új ennek a másolatnak.',
+  'i1.gone': 'törölve',
+  'i1.alt': 'Mindkét másolat átfogalmazta ezt: „{what}”. Mindkét szöveg megmarad változatként',
+  'i1.both': 'Mindkét másolat létrehozta ezt: „{what}”, ugyanazon a néven. Mindkettő megmarad',
+  'i1.newer': 'Mindkét másolat megváltoztatta ezt: „{what}”. Az újabb változtatás marad',
+  'i1.revived': 'Ezt: „{what}” az egyik másolatban törölték, a másikban később szerkesztették. Visszatért',
+  'i1.deleted': 'Ezt: „{what}” az egyik másolatban szerkesztették, a másikban később törölték. Törölve van',
 };

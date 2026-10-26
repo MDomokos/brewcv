@@ -1573,4 +1573,13 @@ export default {
   'ml3.matched': '{lang} v{from} ist jetzt v{n}.',
   'i0.deletedOn': 'Das hast du am {date} gelöscht',
   'i0.otherText': 'Anderer Text von v{n}',
+  'i1.title': { one: 'Automatisch zusammengeführt: {n} Änderung', other: 'Automatisch zusammengeführt: {n} Änderungen' },
+  'i1.intro': '{file} ist eine andere Kopie deiner Karrieredatei, deshalb wurden beide ohne Rückfragen zusammengeführt. Zuerst wurde ein Sicherungspunkt gespeichert. Wo beide Kopien dasselbe geändert haben, steht in der Zeile, was behalten wurde; mit Rückgängig kommt das andere zurück.',
+  'i1.nothing': 'In {file} steht nichts, was diese Kopie nicht schon hat.',
+  'i1.gone': 'gelöscht',
+  'i1.alt': 'Beide Kopien haben „{what}“ umformuliert: beide Fassungen bleiben als Versionen erhalten',
+  'i1.both': 'Beide Kopien haben „{what}“ unter demselben Namen angelegt: beides bleibt erhalten',
+  'i1.newer': 'Beide Kopien haben „{what}“ geändert: die neuere Änderung bleibt',
+  'i1.revived': '„{what}“ wurde in einer Kopie gelöscht und in der anderen später bearbeitet: es ist wieder da',
+  'i1.deleted': '„{what}“ wurde in einer Kopie bearbeitet und in der anderen später gelöscht: es ist gelöscht',
 };

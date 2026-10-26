@@ -1573,4 +1573,13 @@ export default {
   'ml3.matched': 'La v{from} in {lang} è ora la v{n}.',
   'i0.deletedOn': 'L’hai eliminato il {date}',
   'i0.otherText': 'Altro testo di v{n}',
+  'i1.title': { one: 'Unito automaticamente: {n} modifica', many: 'Unito automaticamente: {n} modifiche', other: 'Unito automaticamente: {n} modifiche' },
+  'i1.intro': '{file} è un’altra copia del tuo file di carriera, quindi le due sono state unite senza domande. Prima è stato salvato un checkpoint. Dove le due copie hanno cambiato la stessa cosa, la riga dice cosa è stato tenuto, e Annulla riporta l’altra.',
+  'i1.nothing': 'Niente in {file} è nuovo per questa copia.',
+  'i1.gone': 'eliminato',
+  'i1.alt': 'Le due copie hanno riformulato «{what}»: tutte e due le formulazioni restano come versioni',
+  'i1.both': 'Le due copie hanno creato «{what}» con lo stesso nome: restano entrambe',
+  'i1.newer': 'Le due copie hanno cambiato «{what}»: resta la modifica più recente',
+  'i1.revived': '«{what}» è stato eliminato in una copia e modificato dopo nell’altra: è tornato',
+  'i1.deleted': '«{what}» è stato modificato in una copia ed eliminato dopo nell’altra: è eliminato',
 };

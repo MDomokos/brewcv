@@ -1573,4 +1573,13 @@ export default {
   'ml3.matched': 'La v{from} en {lang} es ahora la v{n}.',
   'i0.deletedOn': 'Lo eliminaste el {date}',
   'i0.otherText': 'Otro texto de v{n}',
+  'i1.title': { one: 'Combinado automáticamente: {n} cambio', many: 'Combinado automáticamente: {n} cambios', other: 'Combinado automáticamente: {n} cambios' },
+  'i1.intro': '{file} es otra copia de tu archivo de trayectoria, así que las dos se combinaron sin preguntar. Antes se guardó un punto de control. Donde las dos copias cambiaron lo mismo, la línea dice qué se conservó, y Deshacer recupera lo otro.',
+  'i1.nothing': 'Nada de {file} es nuevo para esta copia.',
+  'i1.gone': 'eliminado',
+  'i1.alt': 'Las dos copias reformularon «{what}»: se conservan las dos redacciones como versiones',
+  'i1.both': 'Las dos copias crearon «{what}» con el mismo nombre: se conservan las dos',
+  'i1.newer': 'Las dos copias cambiaron «{what}»: se conserva el cambio más reciente',
+  'i1.revived': '«{what}» se eliminó en una copia y se editó después en la otra: ha vuelto',
+  'i1.deleted': '«{what}» se editó en una copia y se eliminó después en la otra: queda eliminado',
 };

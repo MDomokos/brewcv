@@ -1577,4 +1577,13 @@ export default {
   'ml3.matched': '{lang} v{from} is now v{n}.',
   'i0.deletedOn': 'You deleted this on {date}',
   'i0.otherText': 'Another text of v{n}',
+  'i1.title': { one: 'Merged automatically: {n} change', other: 'Merged automatically: {n} changes' },
+  'i1.intro': '{file} is another copy of your career file, so the two were merged without questions. A checkpoint was saved first. Where both copies changed the same thing, the line says what was kept, and Undo brings the other back.',
+  'i1.nothing': 'Nothing in {file} is new to this copy.',
+  'i1.gone': 'deleted',
+  'i1.alt': 'Both copies reworded “{what}”: both wordings are kept as versions',
+  'i1.both': 'Both copies made “{what}” under one name: both are kept',
+  'i1.newer': 'Both copies changed “{what}”: the newer change is kept',
+  'i1.revived': '“{what}” was deleted in one copy and edited later in the other: it is back',
+  'i1.deleted': '“{what}” was edited in one copy and deleted later in the other: it is deleted',
 };

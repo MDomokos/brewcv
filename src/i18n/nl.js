@@ -1573,4 +1573,13 @@ export default {
   'ml3.matched': 'v{from} in {lang} is nu v{n}.',
   'i0.deletedOn': 'Je hebt dit verwijderd op {date}',
   'i0.otherText': 'Andere tekst van v{n}',
+  'i1.title': { one: 'Automatisch samengevoegd: {n} wijziging', other: 'Automatisch samengevoegd: {n} wijzigingen' },
+  'i1.intro': '{file} is een andere kopie van je carrièrebestand, dus de twee zijn zonder vragen samengevoegd. Eerst is een herstelpunt opgeslagen. Waar beide kopieën hetzelfde veranderden, zegt de regel wat is bewaard, en Ongedaan maken haalt de andere terug.',
+  'i1.nothing': 'Niets in {file} is nieuw voor deze kopie.',
+  'i1.gone': 'verwijderd',
+  'i1.alt': 'Beide kopieën hebben “{what}” herschreven: beide formuleringen blijven als versies bewaard',
+  'i1.both': 'Beide kopieën hebben “{what}” onder dezelfde naam gemaakt: beide blijven bewaard',
+  'i1.newer': 'Beide kopieën hebben “{what}” gewijzigd: de nieuwere wijziging blijft',
+  'i1.revived': '“{what}” is in de ene kopie verwijderd en later in de andere bewerkt: het is terug',
+  'i1.deleted': '“{what}” is in de ene kopie bewerkt en later in de andere verwijderd: het is verwijderd',
 };

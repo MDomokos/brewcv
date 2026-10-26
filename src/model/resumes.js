@@ -63,7 +63,7 @@ export function tagVersions(model, recipe, T){
 }
 
 // Key order and bookkeeping don't change what a resume prints.
-const canon = x => (Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(k => [k, canon(x[k])])) : x);
+export const canon = x => (Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(k => [k, canon(x[k])])) : x);
 const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'earlier', 'locked', 'inStep', 'labelFrom'];
 export const printedKey = (recipe, body) => {
   const r = clone(recipe);

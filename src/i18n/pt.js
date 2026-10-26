@@ -1573,4 +1573,13 @@ export default {
   'ml3.matched': 'A v{from} em {lang} é agora a v{n}.',
   'i0.deletedOn': 'Eliminou isto em {date}',
   'i0.otherText': 'Outro texto de v{n}',
+  'i1.title': { one: 'Fundido automaticamente: {n} alteração', many: 'Fundido automaticamente: {n} alterações', other: 'Fundido automaticamente: {n} alterações' },
+  'i1.intro': '{file} é outra cópia do teu ficheiro de carreira, por isso as duas foram fundidas sem perguntas. Antes foi guardado um ponto de restauro. Onde as duas cópias mudaram a mesma coisa, a linha diz o que foi mantido, e Anular traz a outra de volta.',
+  'i1.nothing': 'Nada em {file} é novo para esta cópia.',
+  'i1.gone': 'eliminado',
+  'i1.alt': 'As duas cópias reformularam «{what}»: as duas redações ficam como versões',
+  'i1.both': 'As duas cópias criaram «{what}» com o mesmo nome: ficam as duas',
+  'i1.newer': 'As duas cópias mudaram «{what}»: fica a alteração mais recente',
+  'i1.revived': '«{what}» foi eliminado numa cópia e editado depois na outra: voltou',
+  'i1.deleted': '«{what}» foi editado numa cópia e eliminado depois na outra: está eliminado',
 };

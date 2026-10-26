@@ -1573,4 +1573,13 @@ export default {
   'ml3.matched': 'v{from} v jazyce {lang} je nyní v{n}.',
   'i0.deletedOn': 'Smazáno {date}',
   'i0.otherText': 'Jiný text verze v{n}',
+  'i1.title': { one: 'Automaticky sloučeno: {n} změna', few: 'Automaticky sloučeno: {n} změny', many: 'Automaticky sloučeno: {n} změny', other: 'Automaticky sloučeno: {n} změn' },
+  'i1.intro': '{file} je jiná kopie vašeho souboru kariéry, proto byly obě sloučeny bez ptaní. Nejdřív se uložil kontrolní bod. Kde obě kopie změnily totéž, řádek říká, co zůstalo, a Zpět vrátí to druhé.',
+  'i1.nothing': 'Nic v {file} není pro tuto kopii nové.',
+  'i1.gone': 'smazáno',
+  'i1.alt': 'Obě kopie přeformulovaly „{what}“: obě znění zůstávají jako verze',
+  'i1.both': 'Obě kopie vytvořily „{what}“ pod stejným názvem: zůstávají obě',
+  'i1.newer': 'Obě kopie změnily „{what}“: zůstává novější změna',
+  'i1.revived': '„{what}“ bylo v jedné kopii smazáno a v druhé později upraveno: je zpět',
+  'i1.deleted': '„{what}“ bylo v jedné kopii upraveno a v druhé později smazáno: je smazáno',
 };

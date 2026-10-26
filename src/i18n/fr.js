@@ -1573,4 +1573,13 @@ export default {
   'ml3.matched': 'La v{from} en {lang} est maintenant la v{n}.',
   'i0.deletedOn': 'Vous avez supprimé ceci le {date}',
   'i0.otherText': 'Autre texte de v{n}',
+  'i1.title': { one: 'Fusionné automatiquement : {n} modification', many: 'Fusionné automatiquement : {n} modifications', other: 'Fusionné automatiquement : {n} modifications' },
+  'i1.intro': '{file} est une autre copie de votre fichier de parcours : les deux ont été fusionnées sans question. Un point de sauvegarde a été créé d’abord. Quand les deux copies ont modifié la même chose, la ligne dit ce qui a été gardé ; Annuler ramène l’autre.',
+  'i1.nothing': 'Rien dans {file} n’est nouveau pour cette copie.',
+  'i1.gone': 'supprimé',
+  'i1.alt': 'Les deux copies ont reformulé « {what} » : les deux formulations sont gardées comme versions',
+  'i1.both': 'Les deux copies ont créé « {what} » sous le même nom : les deux sont gardées',
+  'i1.newer': 'Les deux copies ont modifié « {what} » : la modification la plus récente est gardée',
+  'i1.revived': '« {what} » a été supprimé dans une copie et modifié plus tard dans l’autre : il est de retour',
+  'i1.deleted': '« {what} » a été modifié dans une copie et supprimé plus tard dans l’autre : il est supprimé',
 };
