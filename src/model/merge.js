@@ -1,6 +1,6 @@
 // Object clocks, and the merge of two copies of one record that both have them. Pure: no DOM, no I/O.
 // The state is a set of objects, each under a key: fact:<id>, variant:<id>, section:<id>, <store>:<id> for a job, a school, a skill group and the other
-// entries, resume:<id> (with its frozen text), basics.<field> and settings (the rest of the record). A deleted object stays a key (its tombstone in
+// entries, resume:<id> (with its frozen text), document:<id>, round:<id>, basics.<field> and settings (the rest of the record). The import log is no object: two logs are joined as a union. A deleted object stays a key (its tombstone in
 // record.removed), so a delete is an edit like any other.
 // A clock is { keys: { <key>: { v: { <actor>: <counter> }, at, hash } }, seen: { <actor>: <counter> } }: a version vector for each object (for each device,
 // the last of its saves this object has seen), the time of its last edit, and its hash; `seen` is the highest save of each device this copy has merged.
@@ -15,8 +15,10 @@ import { newResume } from './resume.js';
 
 const STORES = BODY_KEYS.filter(k => k !== 'basics');
 const NAMES = { fact: 'facts', variant: 'variants', section: 'sections' };      // the record's list of each kind; a store is its own name
-const KINDS = [...Object.keys(NAMES), ...STORES, 'resume'];
+const OWN = { resume: 'resumes', document: 'documents', round: 'rounds' };      // the lists that sit in the state beside the record
+const KINDS = [...Object.keys(NAMES), ...STORES, ...Object.keys(OWN)];
 const listName = kind => NAMES[kind] ?? kind;
+const listOf = (s, kind) => (OWN[kind] ? s[OWN[kind]] : s.record?.[listName(kind)]);
 const NOT_SETTINGS = new Set([...Object.values(NAMES), ...STORES, 'basics', 'removed', 'recordId', 'schema', 'meta']);
 const kindOf = k => k.split(':')[0];
 const idOf = k => k.slice(k.indexOf(':') + 1);
@@ -27,9 +29,9 @@ const idOf = k => k.slice(k.indexOf(':') + 1);
 // What a deleted key holds in the map of a state.
 class Gone { constructor(mark){ this.removed = mark; } }
 
-export function keysOf({ record: r, resumes = [], frozen = {} } = {}){
-  const m = new Map();
-  for (const kind of KINDS) for (const x of (kind === 'resume' ? resumes : r?.[listName(kind)]) ?? []) if (typeof x?.id === 'string')
+export function keysOf(state = {}){
+  const { record: r, frozen } = state, m = new Map();
+  for (const kind of KINDS) for (const x of listOf(state, kind) ?? []) if (typeof x?.id === 'string')
     m.set(`${kind}:${x.id}`, kind === 'resume' && frozen?.[x.id] ? { ...x, frozen: frozen[x.id] } : x);
   if (!r) return m;
   for (const [f, v] of Object.entries(r.basics ?? {})) m.set(`basics.${f}`, v);
@@ -39,9 +41,9 @@ export function keysOf({ record: r, resumes = [], frozen = {} } = {}){
 }
 
 // A version's metrics are a cache each device measures for itself, a resume's frozen text is what it printed when it was last saved here, and a
-// claim's list of versions is merged as a list: none of them is an edit.
-const SKIP = { variant: 'metrics', fact: 'variants', resume: 'frozen' };
-const hashOf = (k, o) => { const s = SKIP[kindOf(k)]; return fnv(JSON.stringify(canon(s ? { ...o, [s]: undefined } : o))); };
+// claim's list of versions is merged as a list: none of them is an edit. A document's original (its bytes) is not hashed, only whether it has one.
+const SKIP = { variant: 'metrics', fact: 'variants', resume: 'frozen', document: 'embedded' };
+const hashOf = (k, o) => { const s = SKIP[kindOf(k)]; return fnv(JSON.stringify(canon(s ? { ...o, [s]: s === 'embedded' && o[s] ? 1 : undefined } : o))); };
 const J = x => JSON.stringify(x);
 const EPOCH = '1970-01-01T00:00:00.000Z';
 
@@ -105,11 +107,12 @@ function label(k, o){
   if (k === 'settings') return t('set.title');
   if (k.startsWith('basics.')) return k.slice(7);
   if (kindOf(k) === 'resume') return resumeLabel(o);
+  if (kindOf(k) === 'document') return clip(String(o?.name ?? idOf(k)));      // its `text` is the whole file's
   return clip(String(o?.text ?? o?.summary ?? o?.name ?? o?.position ?? o?.title ?? o?.institution ?? o?.language ?? idOf(k)));
 }
-const show = (k, o) => (o instanceof Gone ? t('i1.gone') : o && typeof o === 'object' ? clip(String(o.text ?? label(k, o)), 90) : String(o ?? ''));
+const show = (k, o) => (o instanceof Gone ? t('i1.gone') : o && typeof o === 'object' ? clip(String((kindOf(k) === 'document' ? null : o.text) ?? label(k, o)), 90) : String(o ?? ''));
 
-// ---- putting and taking an object in a state { record, resumes, frozen }; the undo of a summary line is one of these ----
+// ---- putting and taking an object in a state { record, resumes, frozen, documents, rounds }; the undo of a summary line is one of these ----
 const into = (list, x) => { const i = list.findIndex(y => y?.id === x.id); if (i < 0) list.push(x); else { if (x.variants && list[i].variants) x.variants = list[i].variants; list[i] = x; } };
 function put(d, k, o){
   const x = structuredClone(o);
@@ -119,12 +122,13 @@ function put(d, k, o){
     const { frozen, ...r } = x;
     into(d.resumes ??= [], r);
     if (frozen) (d.frozen ??= {})[idOf(k)] = frozen; else delete d.frozen?.[idOf(k)];
-  } else into(d.record[listName(kindOf(k))] ??= [], x);
+  } else if (OWN[kindOf(k)]) into(d[OWN[kindOf(k)]] ??= [], x);
+  else into(d.record[listName(kindOf(k))] ??= [], x);
 }
 function drop(d, k){
   const kind = kindOf(k), id = idOf(k);
   if (!KINDS.includes(kind)) return;      // a mark for something that is not an object here (a sent copy)
-  if (kind === 'resume'){ d.resumes = (d.resumes ?? []).filter(r => r.id !== id); delete d.frozen?.[id]; return; }
+  if (OWN[kind]){ d[OWN[kind]] = (d[OWN[kind]] ?? []).filter(r => r.id !== id); if (kind === 'resume') delete d.frozen?.[id]; return; }
   const name = listName(kind);
   d.record[name] = (d.record[name] ?? []).filter(x => x.id !== id);
   if (!d.record[name].length && STORES.includes(name)) delete d.record[name];
@@ -159,10 +163,10 @@ function joined(k, w, l, live){
     if (Array.isArray(at?.[key]) && Array.isArray(other?.[key])) at[key] = weave(at[key], other[key]).filter(id => live.has(id));
   return o;
 }
-const idLists = ({ record: r, resumes }) => {
+const idLists = state => {
   const m = new Map();
-  for (const kind of KINDS) m.set(kind, ((kind === 'resume' ? resumes : r?.[listName(kind)]) ?? []).map(x => x?.id).filter(i => typeof i === 'string'));
-  for (const f of r?.facts ?? []) m.set(`@${f.id}`, [...(f.variants ?? [])]);      // a claim's versions
+  for (const kind of KINDS) m.set(kind, (listOf(state, kind) ?? []).map(x => x?.id).filter(i => typeof i === 'string'));
+  for (const f of state.record?.facts ?? []) m.set(`@${f.id}`, [...(f.variants ?? [])]);      // a claim's versions
   return m;
 };
 // The ids a list holds, edited by `fn`, wherever `id` is a version or an item of that kind
@@ -183,7 +187,7 @@ const KEYS = { alt: 'i1.alt', both: 'i1.both', newer: 'i1.newer', revived: 'i1.r
 // Every id (and key of an object) in a copy that the map names, renamed: the references to an object that was given another id
 function renamed(S, ren){
   const rn = (x, top = false) => (Array.isArray(x) ? x.map(y => rn(y)) : isMap(x) ? Object.fromEntries(Object.entries(x).map(([k, v]) => [top ? k : ren.get(k) ?? k, rn(v)])) : typeof x === 'string' ? ren.get(x) ?? x : x);
-  const state = { record: rn(S.state.record, true), resumes: rn(S.state.resumes ?? []), frozen: rn(S.state.frozen ?? {}) };
+  const state = { ...S.state, record: rn(S.state.record, true), resumes: rn(S.state.resumes ?? []), frozen: rn(S.state.frozen ?? {}), ...(S.state.documents && { documents: rn(S.state.documents) }) };      // a document points at its resume
   const m = keysOf(state), back = new Map([...ren].map(([a, b]) => [b, a]));
   const c = new Map([...m].map(([k, o]) => {
     const old = k.includes(':') ? `${kindOf(k)}:${back.get(idOf(k)) ?? idOf(k)}` : k;
@@ -201,17 +205,17 @@ function forget(d, ids){
       else throw new Error('raw');
     } catch {
       for (const kind of KINDS){
-        const list = kind === 'resume' ? d.resumes : d.record[listName(kind)], x = (list ?? []).find(y => y.id === id);
+        const list = listOf(d, kind), x = (list ?? []).find(y => y.id === id);
         if (!x) continue;
         if (kind === 'fact') for (const v of x.variants ?? []) forget(d, [v]);
         drop(d, `${kind}:${id}`);
-        if (kind !== 'resume') tombstone(d.record, kind, id, x);
+        if (!OWN[kind]) tombstone(d.record, kind, id, x);
       }
     }
   }
 }
 
-// mine, theirs: { state: { record, resumes, frozen }, clock }. Whichever way round, the same state comes out. summary: one line for each thing both
+// mine, theirs: { state: { record, resumes, frozen, documents?, rounds?, imports? }, clock }. Whichever way round, the same state comes out. summary: one line for each thing both
 // copies changed, { key, kind, what, kept, other, undo }, where undo(d) puts the other back in a state d the way a diffRecords item's apply does.
 export function merge(mine, theirs){
   let A = side(mine), B = side(theirs);
@@ -223,10 +227,12 @@ export function merge(mine, theirs){
   const splits = new Map();
   for (const k of [...A.m.keys()].filter(k => B.m.has(k)).sort()){
     const kind = kindOf(k), a = A.m.get(k), b = B.m.get(k), ea = A.c.get(k), eb = B.c.get(k), id = idOf(k);
-    if (!k.includes(':') || kind === 'section' || a instanceof Gone || b instanceof Gone || ea.hash === eb.hash || !fresh(ea, eb) || splits.has(id) || (kind === 'variant' && normText(a.text) === normText(b.text))) continue;
+    if (!k.includes(':') || kind === 'section' || kind === 'document' || kind === 'round' || a instanceof Gone || b instanceof Gone || ea.hash === eb.hash || !fresh(ea, eb) || splits.has(id) || (kind === 'variant' && normText(a.text) === normText(b.text))) continue;
     const lose = newer(ea, eb) ? B : A, h6 = (lose === A ? ea : eb).hash.slice(0, 6);
     splits.set(id, { lose, h6, key: k });
   }
+  // a document or a round with one id on both sides is the same one (one file is one document everywhere): a plain value, not a split.
+  // shortcut: nothing deletes a document or a round yet, so neither has a mark; upgrade with the Library's remove (I-7).
   // shortcut: a section made on both sides (the certified list, each device's first certificate) is one section, its lists joined, not two; upgrade if sections ever need to be kept apart.
   if (splits.size){
     const A0 = A, B0 = B, maps = new Map([[A0, new Map()], [B0, new Map()]]);
@@ -343,7 +349,7 @@ export function merge(mine, theirs){
   }
 
   // the state: the newer copy's, with what the other side decided put in, in the woven order
-  const st = structuredClone({ record: N.state.record, resumes: N.state.resumes ?? [], frozen: N.state.frozen ?? {} });
+  const st = structuredClone({ record: N.state.record, resumes: N.state.resumes ?? [], frozen: N.state.frozen ?? {}, ...(N.state.documents?.length && { documents: N.state.documents }), ...(N.state.rounds?.length && { rounds: N.state.rounds }) });
   for (const [k, o] of out) if (!N.c.has(k) || (o !== N.m.get(k) && hashOf(k, o) !== N.c.get(k).hash)) (o instanceof Gone ? drop : put)(st, k, o);      // the newer copy's own object stays, even when the other's has the same hash
   // a resume's frozen text is no edit, so when both copies hold the same resume it comes from the later edit (else the longer text), not from whichever copy sets the order
   for (const k of out.keys()){
@@ -358,7 +364,7 @@ export function merge(mine, theirs){
   const alive = (kind, id) => aliveOut(`${kind}:${id}`);
   const order = (name, kind) => weave(N.l.get(name) ?? [], O.l.get(name) ?? []).filter(id => alive(kind, id));
   for (const kind of KINDS){
-    const arr = kind === 'resume' ? st.resumes : st.record[listName(kind)];
+    const arr = listOf(st, kind);
     const rank = new Map(order(kind, kind).map((id, i) => [id, i]));
     arr?.sort((x, y) => (rank.get(x.id) ?? 1e9) - (rank.get(y.id) ?? 1e9));
   }
@@ -428,7 +434,11 @@ export function merge(mine, theirs){
     if (e && e.hash !== h) clock[k] = { ...e, hash: h };
   }
   const seenAll = join(A.seen, B.seen);
-  return { state: st, clock: { keys: clock, seen: seenAll }, summary, changed: [...out.keys()].filter(k => clock[k]?.hash !== A.c.get(k)?.hash).length };
+  // the import log only grows: both logs, each entry once, in one order (a log that is new to this copy counts as a change, so it is committed)
+  const log = [...new Map([...(A.state.imports ?? []), ...(B.state.imports ?? [])].map(e => [J(e), e])).values()].sort((x, y) => String(x.at).localeCompare(String(y.at)) || (J(x) < J(y) ? -1 : 1));
+  if (log.length) st.imports = log;
+  const changed = [...out.keys()].filter(k => clock[k]?.hash !== A.c.get(k)?.hash).length + (J(log) !== J(A.state.imports ?? []) ? 1 : 0);
+  return { state: st, clock: { keys: clock, seen: seenAll }, summary, changed };
 }
 
 // Runs `change(d)` on the app's state, then opens the open resume again if the change altered it: the next commit would write the old one back.

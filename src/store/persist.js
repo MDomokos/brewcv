@@ -158,9 +158,12 @@ export const folderOf = (h, T) => (typeof h === 'string' ? tauriFolder(h, T) : f
 
 // a saved resume's `id` is its file name, not part of what the file says
 const stripId = r => { const c = { ...r }; delete c.id; return c; };
+// The Library's documents, without their bytes, are the merged view `library.json`; it is there only when there are documents.
+// shortcut: the folder is not read back for documents, and an embedded original is not written out yet; upgrade with the folder layout (I-8: Library/<year>/ and BrewCV/library.json).
 export function filesOf(state){
   const out = new Map();
   if (state?.record) out.set('resume-data.json', serialize(save(state.record)));
+  if (state?.documents?.length) out.set('library.json', serialize({ documents: state.documents.map(({ embedded, ...d }) => d) }));
   const used = new Set();
   for (const r of state?.resumes ?? []){
     let name = resumeFileName(r), n = 2;
@@ -170,6 +173,12 @@ export function filesOf(state){
   }
   return out;
 }
+
+// The Library's lists, written only when they hold something, so a file without documents is the file it always was.
+const LISTS = ['documents', 'rounds', 'imports'];
+const listsOf = s => Object.fromEntries(LISTS.filter(k => s?.[k]?.length).map(k => [k, s[k]]));
+// From a file anyone can edit: only entries that have an id (the import log: a sha256).
+const cleanList = (x, key) => (Array.isArray(x) ? x.filter(e => e && typeof e === 'object' && typeof e[key] === 'string') : []);
 
 // `clock`, `device`: the object clocks (src/model/merge.js) and the device that stamped them. A file without them is read as before.
 export function makeBackup(state, { saved = new Date().toISOString(), checkpoints, app = APP_VERSION, clock, device } = {}){
@@ -182,6 +191,7 @@ export function makeBackup(state, { saved = new Date().toISOString(), checkpoint
     record: save(state.record),
     resumes: (state.resumes ?? []).map(r => saveResume(state.record, stripId(r), state.frozen?.[r.id] ?? null).file),
     resumeIds: (state.resumes ?? []).map(r => r.id ?? resumeFileName(r)),      // the ids the clock is keyed by (a resume renamed after it was made has an id its name no longer says)
+    ...listsOf(state),
     ...(clock ? { clock, device } : {}),
     ...(checkpoints ? { checkpoints } : {}),
   };
@@ -239,7 +249,8 @@ export function readBackup(obj){
     if (got.frozen) frozen[id] = got.frozen;
   }
   const info = { recordId: obj.recordId ?? model.recordId ?? null, saved: obj.saved ?? null, app: obj.app ?? null, clock: cleanClock(obj.clock), device: obj.device ?? null };
-  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, info };
+  const lists = { documents: cleanList(obj.documents, 'id'), rounds: cleanList(obj.rounds, 'id'), imports: cleanList(obj.imports, 'sha256') };
+  return { state: { record: model, resumes, frozen, ...lists, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, info };
 }
 
 // What to do with a file the person opens, given what this browser last saved to a file.
@@ -293,10 +304,12 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     setStatus('saving');
     try {
       const state = store.state;
-      // assets first, then the state that points at them
-      for (const ref of assetRefs(state))
+      // assets first, then the state that points at them, then the assets nothing points at any more (an undo puts one back at the next save)
+      const refs = assetRefs(state);
+      for (const ref of refs)
         if ((await backend.get(`asset/${ref}`)) === undefined) await backend.put(`asset/${ref}`, store.asset(ref));
       await backend.put('state/current', { savedAt: now().toISOString(), state });
+      for (const k of await backend.list('asset/')) if (!refs.has(k.slice(6))) await backend.delete(k);
       if (state.record) try { await stamp(store.materialize()); } catch { /* the clock is made again at the next copy that leaves; the state is saved */ }
       if (pendingCommits){ file.n += pendingCommits; pendingCommits = 0; await backend.put('meta/fileDirty', file.n); }
       const mirrored = linked ? await writeFolder() : [];
@@ -341,6 +354,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     timer = setTimer(saveNow, debounceMs);
   });
 
+  // shortcut: a checkpoint holds the embedded originals of documents inline, so 50 of them can weigh hundreds of MB; upgrade by keeping asset refs in a checkpoint, as state/current does (before I-6 applies imports).
   async function addCheckpoint(label, kind = 'manual'){
     const at = now().toISOString();
     const id = `c-${at}-${Math.random().toString(36).slice(2, 7)}`;
@@ -379,7 +393,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       const me = await actor();
       if (foreign(clock, theirs, me)){ const was = me; await newActor(); clock = renameActor(clock, was, device); }
       const state = store.materialize();
-      return { state: { record: state.record, resumes: state.resumes ?? [], frozen: state.frozen ?? {} }, clock: await stamp(state) };
+      return { state: { record: state.record, resumes: state.resumes ?? [], frozen: state.frozen ?? {}, ...listsOf(state) }, clock: await stamp(state) };
     },
     async adoptClock(c){ clock = c; await backend.put('meta/clock', clock); },
     // the backup text for the one file, without checkpoints; markFileSaved once it was delivered

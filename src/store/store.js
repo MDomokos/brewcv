@@ -1,11 +1,11 @@
 // One state object: every change goes through commit() and is undoable.
 // Undo keeps whole-state snapshots. Commits with the same label and the same merge
 // key (one continuous edit of one thing) within 800 ms coalesce, so typing a sentence is one step; any other commit is its own step.
-// data:image/ strings over 1 KB become "asset:<id>" refs kept outside the snapshots
+// data: URLs over 1 KB (a photo, an embedded original) become "asset:<id>" refs kept outside the snapshots
 // (a ~60 KB photo over 200 steps would be 12 MB). materialize() puts them back.
 
 const ASSET_MIN = 1024;
-const ASSET_RE = /^data:image\//;
+const ASSET_RE = /^data:/;
 export const isAssetRef = s => typeof s === 'string' && s.startsWith('asset:');
 
 export function fnv(s){
