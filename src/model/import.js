@@ -1,7 +1,7 @@
 // Opens any file the app knows, identified by its contents, never its name. Pure: no DOM, no I/O.
 // outsideEdits() finds JSON Resume body text edited in another tool; schema.js load() ignores those.
 
-import { t } from '../i18n/index.js';
+import { t, catalogue } from '../i18n/index.js';
 import { detect, load, loadResume, BODY_KEYS } from './schema.js';
 import { defaultVariant, DEFAULT_LANG } from './resume.js';
 import { addVersion, setDefault } from './record.js';
@@ -75,6 +75,26 @@ export function fromJsonResume(json){
         ...((json.education ?? []).length > 1 ? [t('imp.moreEducation', { n: json.education.length - 1 })] : []),
         ...((json.work ?? []).filter(w => !(w.highlights ?? []).length && !w.summary).map(w => t('imp.noHighlights', { name: w.name ?? t('imp.aJob') })))],
     },
+  };
+}
+
+// The word lists src/parse/ reads a resume in `lang` by: the catalogue's section headings and its word for "present",
+// and the platform's month names. The catalogue must be loaded (loadCatalogue); the parser adds its English lists.
+// shortcut: the catalogues hold no job titles, schools or degrees, so those stay English; add them to a catalogue when a language needs them.
+export function lexiconFor(lang){
+  const cat = catalogue(lang) ?? {};
+  const words = (...keys) => [...new Set(keys.map(k => cat[k]).filter(Boolean).map(s => s.toLowerCase()))];
+  const sections = {
+    work: words('doc.section.experience', 'doc.plain.work'), education: words('doc.section.education', 'doc.plain.education'),
+    project: words('doc.section.projects', 'doc.plain.projects'), skills: words('doc.section.skills', 'doc.plain.skills'),
+    summary: words('doc.section.summary', 'doc.plain.summary'),
+  };
+  const month = new Intl.DateTimeFormat(lang, { month: 'long', timeZone: 'UTC' });
+  return {
+    sections,
+    titleWords: [...new Set([...Object.values(sections).flat(), ...words('doc.section.awards', 'doc.plain.awards')])],
+    months: Array.from({ length: 12 }, (_, m) => month.format(Date.UTC(2000, m, 15))),
+    present: words('doc.present'),
   };
 }
 

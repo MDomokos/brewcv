@@ -40,6 +40,7 @@ src/model/                 pure, tested in Node:
   tokens.js                  theme tokens: CSS, simple JSON and DTCG in, DTCG out
   career.js                  the record: the timeline, the lists, every add / edit / delete, custom kinds
   checklist.js               the record as a checklist: the groups, the rows, what is on this resume, the group a selection is in, the groups a section prints
+src/parse/                 the resume parser (text items to JSON Resume; a port of OpenResume's, imports nothing from the rest of src/; its README says how to call it)
 src/store/                 store.js (state + undo) · persist.js (autosave, folder, backup, checkpoints)
 src/i18n/                  index.js (t, plurals, fallback to English) · en.js · nine machine-written
                            catalogues, each marked NEEDS A NATIVE REVIEW
@@ -186,6 +187,7 @@ What the Node checks cover (the map has the full sentence for each):
 |---|---|
 | model, store, resumes, savefile, import, diff, merge | schema v4 and migration, autosave and checkpoints, saved resumes, Save to file, every kind of import, the merge engine, merging an older copy (deletions kept, no double adds, any order), and merging copies with object clocks (any order, both versions of a wording kept, the later edit wins, a delete against an edit, two new objects under one id kept as two) |
 | documents | documents in the state: one file is one document on every device, a backup and a clocked merge keep documents, rounds and the import log, another format of one resume, whether a saved file holds an original, the embedded original out of the undo steps and the checkpoints, the receipt's three ticks and the verdict, older files opening as before |
+| parse | the resume parser in `src/parse/` (a port of OpenResume's): text items to JSON Resume with a trace and leftovers, one and two columns, Hungarian and German headings and dates from a lexicon built from the catalogue, and that nothing in it imports from the rest of `src/` |
 | edit, direct, focus, lang, career, recipe | the tailoring edits, editing on the page (and lines only on one resume), tags and focus, the ten languages, the record's model, weight and off/keep |
 | paginate, fit, measurement, export, tokens, themes | block pagination and Fit, the page-fill arithmetic, the exports, theme tokens, the registry of built-in looks and everything that has to agree with it |
 | design | the look settings: every combination a look offers gives CSS and nothing it doesn't offer survives, the renderer's two-level ranking and title placement, Fit's key |
@@ -481,7 +483,7 @@ The README lists the features; this is the full tour as it stood at 0.7.4, kept 
 
 The render half of this problem is solved several times over in the open. The library half (tagged variants of one fact, a recipe per application, a fitter that picks phrasing lengths to hit a page-fill target) has no working open-source implementation, which is why this repo exists.
 
-**No code from any project below is vendored, copied or derived here.** Two things were taken: a published schema vocabulary, and one idea. Everything else is listed because it was read and deliberately not used, which is worth recording.
+**No code from any project below is vendored, copied or derived here, except OpenResume's parser in `src/parse/`, ported on purpose (below).** Three things were taken: a published schema vocabulary, one idea, and a parser. Everything else is listed because it was read and deliberately not used, which is worth recording.
 
 ### Taken
 
@@ -489,6 +491,7 @@ The render half of this problem is solved several times over in the open. The li
 |---|---|---|
 | [JSON Resume](https://jsonresume.org) | MIT (schema) | **The field vocabulary.** `basics · work · education · publications · skills · certificates · languages · interests`, with JSON Resume's own key names: `name`, `label`, `position`, `startDate`, `institution`, `studyType`, `keywords`, `fluency` — and its `YYYY-MM` dates. The variant layer sits above it; `scripts/to-jsonresume.mjs` collapses a recipe down to flat JSON Resume, which makes every MIT-licensed JSON Resume theme an extra output and the ATS-plain path an export rather than a stylesheet. No JSON Resume code is used, and the local schema adds `facts`, `variants`, `sections` and `display` refs that JSON Resume does not have. |
 | [Resume Matcher](https://github.com/srbhr/Resume-Matcher) | Apache-2.0 | **One idea, reimplemented from scratch: report the ad keywords that match nothing.** `checks/keyword-gap.mjs` is ~140 original lines with no network call and no LLM. Resume Matcher's own approach (having a model rewrite bullets to close the gap) is deliberately *not* taken: rewriting prose is exactly what this tool avoids, so this only ever reports, and a human decides whether a gap is a real one or a phrasing one. |
+| [OpenResume](https://github.com/xitanggg/open-resume) (Xitang Zhao) | AGPL-3.0 | **Its resume parser, ported to plain JavaScript** (`src/parse/`, from commit `4f8255a`): line grouping, section titles, subsections, bullet points, feature scoring and the profile, work, education, project and skills extractors. Each ported file names its original and the commit. Changed: a column split before the lines are grouped, the word lists passed in as a lexicon (the ten catalogues), and JSON Resume as the output. The 0.2.1 extraction used an original parser over the project's own HTML instead (`scripts/lib/html.mjs`). |
 
 ### Read, and deliberately not used
 
@@ -497,7 +500,6 @@ The render half of this problem is solved several times over in the open. The li
 | [RenderCV](https://github.com/rendercv/rendercv) | MIT | YAML → Typst → PDF, and good at it. Confirms structured-data-to-typeset-document is a solved problem, which is this repo's 0.1.0 + 0.3.0. Has no notion of a variant, so it cannot do the part that matters here. |
 | [YAMLResume](https://github.com/yamlresume/yamlresume) | MIT | Same conclusion as RenderCV, via LaTeX/HTML. One fact, one phrasing, one file per application. |
 | [Reactive Resume](https://github.com/AmruthPillai/Reactive-Resume) | MIT | Its editor is better than an evening of vanilla JS will produce, but its architecture is the opposite of every constraint here: Next.js, Postgres, Drizzle, Docker against *no build step, opens from disk in 2029*. Read its theme CSS for reference for the 0.4.0 picker. Took nothing. |
-| [OpenResume](https://github.com/xitanggg/open-resume) | **AGPL-3.0** | Its PDF→structured-data parser is the interesting part and would have been useful for importing old PDF resumes. Not vendored: AGPL-3.0 in a public repo needs a deliberate choice. The 0.2.1 extraction used an original parser over the project's own HTML instead (`scripts/lib/html.mjs`; the script itself is kept outside the repo). |
 | [ResumeForge](https://github.com/ZenzerJs/ResumeForge) | private | Independently arrived at an "Evidence Bank" where every bullet traces to a verified item, the same idea as this repo's `source:` field. Useful as validation that the idea is right. Unusable: licence is listed as private. |
 | [Typst](https://typst.app) | Apache-2.0 | An option for a PDF backend if headless Chrome proves fragile. RenderCV and ResumeForge both compile it in-browser via WASM. Not a reason to change the documents: the design is CSS and stays CSS. |
 
