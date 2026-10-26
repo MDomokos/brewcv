@@ -1571,4 +1571,6 @@ export default {
   'ml3.matchPick': 'Kies een versie',
   'ml3.undoMatch': 'Koppel een versie in {lang} aan zijn nummer',
   'ml3.matched': 'v{from} in {lang} is nu v{n}.',
+  'i0.deletedOn': 'Je hebt dit verwijderd op {date}',
+  'i0.otherText': 'Andere tekst van v{n}',
 };

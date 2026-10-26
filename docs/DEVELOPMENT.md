@@ -183,7 +183,7 @@ What the Node checks cover (the map has the full sentence for each):
 
 | check | covers |
 |---|---|
-| model, store, resumes, savefile, import, diff | schema v4 and migration, autosave and checkpoints, saved resumes, Save to file, every kind of import, the merge engine |
+| model, store, resumes, savefile, import, diff, merge | schema v4 and migration, autosave and checkpoints, saved resumes, Save to file, every kind of import, the merge engine, and merging an older copy (deletions kept, no double adds, any order) |
 | edit, direct, focus, lang, career, recipe | the tailoring edits, editing on the page (and lines only on one resume), tags and focus, the ten languages, the record's model, weight and off/keep |
 | paginate, fit, measurement, export, tokens, themes | block pagination and Fit, the page-fill arithmetic, the exports, theme tokens, the registry of built-in looks and everything that has to agree with it |
 | design | the look settings: every combination a look offers gives CSS and nothing it doesn't offer survives, the renderer's two-level ranking and title placement, Fit's key |

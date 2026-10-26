@@ -17,7 +17,7 @@ import { resumeFileName, nameKey } from './schema.js';
 import { switchLang, stashOwn, printedFactIds } from './lang.js';
 import { LockedError, guard, isLocked } from './lock.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
-import { matchNumber } from './record.js';
+import { matchNumber, tombstone } from './record.js';
 
 const clone = x => structuredClone(x);
 export const today = () => new Date().toISOString().slice(0, 10);
@@ -291,6 +291,8 @@ export function renameSaved(state, id, name){
 export function deleteSaved(state, id){
   const was = state.openId === id;
   const gone = state.cur;
+  const r = (state.resumes ?? []).find(x => x.id === id);
+  if (r) tombstone(state.record, 'resume', id, r);
   state.resumes = (state.resumes ?? []).filter(r => r.id !== id);
   if (state.frozen) delete state.frozen[id];
   if (!was) return;
@@ -363,6 +365,8 @@ export function snapshotRecipe(model, snap){
 
 export function deleteSnapshot(state, sid){
   const saved = savedOf(state);
+  const s = saved && snapshotsOf(saved).find(x => x.id === sid);
+  if (s) tombstone(state.record, 'snapshot', `${saved.id}/${sid}`, s);
   if (saved) saved.snapshots = snapshotsOf(saved).filter(x => x.id !== sid);
   if (saved && !saved.snapshots.length) delete saved.snapshots;
 }

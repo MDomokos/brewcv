@@ -1571,4 +1571,6 @@ export default {
   'ml3.matchPick': 'Válassz egy változatot',
   'ml3.undoMatch': 'Egy {lang} nyelvű változat párosítása a számához',
   'ml3.matched': 'A(z) {lang} v{from} mostantól v{n}.',
+  'i0.deletedOn': 'Ezt törölted ekkor: {date}',
+  'i0.otherText': 'A v{n} másik szövege',
 };

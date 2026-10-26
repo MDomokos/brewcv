@@ -1571,4 +1571,6 @@ export default {
   'ml3.matchPick': 'Vybrat verzi',
   'ml3.undoMatch': 'Přiřadit verzi v jazyce {lang} k jejímu číslu',
   'ml3.matched': 'v{from} v jazyce {lang} je nyní v{n}.',
+  'i0.deletedOn': 'Smazáno {date}',
+  'i0.otherText': 'Jiný text verze v{n}',
 };

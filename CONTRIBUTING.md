@@ -35,7 +35,7 @@ These need only Node. Run them before you open a pull request:
 ```
 node checks/model-check.mjs && node checks/store-check.mjs && node checks/paginate-check.mjs \
 && node checks/shell-check.mjs && node checks/edit-check.mjs && node checks/resumes-check.mjs \
-&& node checks/focus-check.mjs && node checks/lang-check.mjs && node checks/diff-check.mjs \
+&& node checks/focus-check.mjs && node checks/lang-check.mjs && node checks/diff-check.mjs && node checks/merge-check.mjs \
 && node checks/import-check.mjs && node checks/export-check.mjs && node checks/tokens-check.mjs \
 && node checks/career-check.mjs && node checks/i18n-check.mjs && node scripts/tokens.mjs --check \
 && node checks/recipe-check.mjs && node checks/parts-check.mjs && node checks/measurement-check.mjs \

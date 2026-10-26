@@ -3,7 +3,7 @@
 
 import { keyed } from '../i18n/index.js';
 import { defaultVariant, DEFAULT_LANG, sectionOfEntry } from './resume.js';
-import { saveOver, addVersion, RecordError } from './record.js';
+import { saveOver, addVersion, RecordError, tombstone } from './record.js';
 import { fmtMonth, ym, addJob, addBullet, addFact, slug, metaLineOf, presentIn, contactText, SEP } from './build.js';
 import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
 import { lockedHolders, guard } from './lock.js';
@@ -579,6 +579,8 @@ function dropFacts(model, ids, recipes = []){
     if (!f) continue;
     const vs = new Set(f.variants);
     versions += vs.size;
+    for (const v of model.variants) if (vs.has(v.id)) tombstone(model, 'variant', v.id, v);
+    tombstone(model, 'fact', id, f);
     model.variants = model.variants.filter(v => !vs.has(v.id));
     model.facts = model.facts.filter(x => x !== f);
   }
@@ -612,6 +614,7 @@ export function deleteEntry(model, id, recipes = []){
   const x = model[key].find(e => e?.id === id);
   const facts = [...Object.values(x.display ?? {}), ...(x.highlights ?? []).filter(h => (model.facts ?? []).some(f => f.id === h))];
   dropFacts(model, [...facts, id], recipes);      // the entry's own id too: nothing stays locked under a name that is gone
+  tombstone(model, key, id, x);
   model[key] = model[key].filter(e => e !== x);
   if (!model[key].length) delete model[key];
   for (const s of model.sections ?? []){
@@ -790,6 +793,7 @@ export function deleteItem(model, group, id, recipes = []){
   if (!x) throw new Error(`no such item: ${id}`);
   const facts = key === 'publications' ? Object.values(x.display ?? {}) : [id];
   dropFacts(model, facts, recipes);
+  tombstone(model, key, id, x);
   model[key] = model[key].filter(e => e !== x);
   if (!model[key].length && key === 'references') delete model[key];
   for (const s of model.sections ?? []) for (const k of ['groups', 'pairs', 'items']) if (s.content?.[k]) s.content[k] = s.content[k].filter(f => !facts.includes(f));

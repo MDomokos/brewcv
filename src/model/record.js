@@ -5,10 +5,24 @@
 
 import { isDraft, isArchive } from './resume.js';
 import { guard } from './lock.js';
+import { fnv } from '../store/store.js';
 
 export const DEFAULT_LANG = 'en';
 export const VERSION_N = /^\d+(\.\d+)?$/;
 const langOf = v => v?.lang ?? DEFAULT_LANG;
+
+// What a delete leaves in `model.removed`, so a merge can tell "you deleted this" from "you never had this". `kind`: fact, variant, an entry
+// store (projects, awards, ...), resume or snapshot. `at` is the day, so two runs of one edit write the same record. Saved resumes live outside the record, but theirs are kept here too, so they travel with it.
+// shortcut: the hash is of the object's whole JSON, so an old copy that differs from what was deleted by even a byte is not recognised, and the item
+// comes back ticked. That includes a saved resume edited after the old copy was made (its title, its page limit), a version added to a claim
+// after it, a tag, or a measurement. Upgrade when merges carry per-object clocks. A restored item keeps its mark, which does no harm until it is deleted again.
+export function tombstone(model, kind, id, obj){
+  if (model) (model.removed ??= {})[`${kind}:${id}`] = { at: new Date().toISOString().slice(0, 10), hash: fnv(JSON.stringify(obj)) };
+}
+export function tombstoned(model, kind, id, obj){
+  const x = model?.removed?.[`${kind}:${id}`];
+  return x && x.hash === fnv(JSON.stringify(obj)) ? x : null;
+}
 const cps = s => [...s];
 
 export const major = n => String(n ?? '0').split('.')[0];
@@ -168,6 +182,7 @@ export function deleteVersion(model, vid, recipes = [], recipe = null){
   const L = langOf(v);
   const same = versionsIn(model, f.id, L);
   if (L === DEFAULT_LANG && same.length < 2) throw new RecordError('the last version of a claim can’t be deleted');
+  tombstone(model, 'variant', vid, v);
   model.variants = model.variants.filter(x => x.id !== vid);
   f.variants = f.variants.filter(x => x !== vid);
   if (VERSION_N.test(String(v.n))){

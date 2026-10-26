@@ -1571,4 +1571,6 @@ export default {
   'ml3.matchPick': 'Elegir una versión',
   'ml3.undoMatch': 'Hacer corresponder una versión en {lang} con su número',
   'ml3.matched': 'La v{from} en {lang} es ahora la v{n}.',
+  'i0.deletedOn': 'Lo eliminaste el {date}',
+  'i0.otherText': 'Otro texto de v{n}',
 };
