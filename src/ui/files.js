@@ -169,8 +169,8 @@ async function autoMerge(g){
     await C.persist.checkpoint(t('checkpoint.beforeMerging', { file: g.file }), 'merge');
     C.ui.sel = C.NONE;
     if (!commit(d => M.keepOpen(d, e => Object.assign(e, structuredClone(m.state))), t('undo.merge', { file: g.file }))) return;      // the toast says why; the clock stays as it was
-    await C.persist.adoptClock(m.clock);
   }
+  await C.persist.adoptClock(m.clock);      // also when nothing changed: the file's stamps are now ones this copy has seen
   F.merged = { file: g.file, changed: m.changed, summary: m.summary };
   F.got = null;
   C.setView('merged');

@@ -470,6 +470,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       catch (e){ return { same: false, disk: null, error: e.message }; }
     },
 
+    // shortcut: its stamps are not marked as carried (nothing in the app calls it; a caller that delivers the file should call markFileSaved with { clock })
     async backup({ checkpoints = false } = {}){
       const cps = checkpoints ? await Promise.all(((await backend.get('checkpoints/index')) ?? [])
         .map(c => backend.get(`checkpoint/${c.id}`))) : undefined;

@@ -23,7 +23,9 @@ export const normText = s => String(s ?? '').normalize('NFKC').replace(/\u00ad/g
 // deleted key is listed, never added, even if it has changed since. `hash` is for per-object clocks: of a version's normalised text, else of the object's JSON.
 // shortcut: diffRecords (a file with no clocks) does not copy the other record's marks into this one; the merge of two clocked copies (src/model/merge.js) does, with stamps. A restored item keeps its mark, which does no harm until it is deleted again.
 export function tombstone(model, kind, id, obj){
-  if (model) (model.removed ??= {})[`${kind}:${id}`] = { at: new Date().toISOString().slice(0, 10), hash: fnv(kind === 'variant' ? normText(obj.text) : JSON.stringify(obj)) };
+  if (!model) return;
+  const marks = { ...model.removed, [`${kind}:${id}`]: { at: new Date().toISOString().slice(0, 10), hash: fnv(kind === 'variant' ? normText(obj.text) : JSON.stringify(obj)) } };
+  model.removed = Object.fromEntries(Object.keys(marks).sort().map(k => [k, marks[k]]));      // one order, so two copies with the same marks are the same bytes
 }
 export const tombstoned = (model, kind, id) => model?.removed?.[`${kind}:${id}`] ?? null;
 const cps = s => [...s];

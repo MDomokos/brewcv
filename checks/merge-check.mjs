@@ -243,6 +243,8 @@ function device(offset = 0, backend = memoryBackend(), state = startState()){
 }
 const both = (x, y) => [M.merge(x, y), M.merge(y, x)];
 const sameState = (m, n) => J(m.state) === J(n.state);
+// where two states first differ (a path), for a failure's message
+const where = (a, b, p = '') => { if (J(a) === J(b)) return null; if (a && b && typeof a === 'object' && typeof b === 'object' && Array.isArray(a) === Array.isArray(b)){ const ks = [...new Set([...Object.keys(a), ...Object.keys(b)])]; if (J(Object.keys(a)) !== J(Object.keys(b)) && ks.every(k => J(a[k]) === J(b[k]))) return `${p} (key order)`; for (const k of ks){ const w = where(a[k], b[k], `${p}/${k}`); if (w) return w; } } return `${p}: ${J(a)?.slice(0, 70)} | ${J(b)?.slice(0, 70)}`; };
 const topOf = c => Object.values(c).reduce((m, e) => (e[0] > m ? e[0] : m), '');
 const takeInto = async (dev, m) => { dev.store.commit(d => M.keepOpen(d, e => Object.assign(e, structuredClone(m.state))), 'merge'); await dev.persist.adoptClock(m.clock); };
 const deepFreeze = o => { if (o && typeof o === 'object' && !Object.isFrozen(o)){ Object.freeze(o); Object.values(o).forEach(deepFreeze); } return o; };
@@ -704,44 +706,112 @@ section('three copies add to one job, in any order');
   ok('the three bullets are in the job, in the same order and byte for byte the same state, whichever order', rs.every(r => J(r.state) === J(rs[0].state)) && rs[0].state.record.work.find(w => w.id === 'hydra').highlights.length === hydra.length + 3 && invalid(rs[0].state.record).length === 0);
 }
 
-section('three copies, edits and deletes at random');
+section('a merge writes stamps like any other, and meeting a file again lists nothing');
 {
-  let seed = 7;
-  const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const pick = list => list[Math.floor(rnd() * list.length)];
-  const ops = [
-    m => { const f = pick(hydra); const v = pick(m.facts.find(x => x.id === f)?.variants ?? [v0]); R.saveOver(m, v, `Reworded ${Math.floor(rnd() * 1e6)}`); },
-    m => R.addVersion(m, pick(hydra), { text: `Another wording ${Math.floor(rnd() * 1e6)}`, as: rnd() < .5 ? 'major' : 'minor', from: undefined }),
-    m => { const f = m.facts.find(x => x.id === pick(hydra)); R.deleteVersion(m, pick(f.variants), []); },
-    m => K.deleteClaim(m, pick(hydra), []),
-    m => addBullet(m, 'hydra', `New bullet ${Math.floor(rnd() * 1e6)}`),
-    m => { m.basics.label = `Label ${Math.floor(rnd() * 1e6)}`; },
-    m => { const v = m.variants[Math.floor(rnd() * m.variants.length)]; v.tags = [...(v.tags ?? []), 'safety']; },
-  ];
-  let bad = '', pairsOk = true, runs = 0;
-  for (let round = 0; round < 14; round++){
-    const D = [device(), device(), device()];
-    for (let step = 0; step < 5; step++){
+  const okClock = (c, st) => Object.keys(M.cleanClock(c)).length === Object.keys(c).length && M.clockFits(st, c);
+  // a baseline key the merge itself changes: a claim deleted on one side, a version of it edited later on the other
+  const A = device(), B = device();
+  A.edit(m => K.deleteClaim(m, hydra[5], []));
+  B.edit(m => R.saveOver(m, firstVersion(hydra[5]), 'Wrote the supplier audit checklist the team still uses.'));
+  const sa = await A.persist.forMerge(); later(); const sb = await B.persist.forMerge();
+  const ab = M.merge(sa, sb);
+  ok('what the merge wrote has stamps that are dates, and the clock fits its state', ab.summary.some(l => l.kind === 'revived') && okClock(ab.clock, ab.state));
+  await takeInto(A, ab);
+  let threw = null; try { later(); await A.persist.forMerge(); const f = await A.persist.prepareFile(); await A.persist.markFileSaved(f); } catch (e){ threw = e; }
+  ok('and the device still stamps, saves and opens files after it', threw === null, String(threw?.message));
+  ok('the saved file’s clock fits what it holds', (() => { const got = readBackup(JSON.parse(JSON.stringify(makeBackup(A.store.materialize(), { clock: M.share(ab.clock), device: 'x' })))); return M.clockFits(got.state, got.info.clock); })());
+  // three copies each add a bullet to one job; one meets the others one after the other, the same key twice
+  const [X, Y, Z] = [device(), device(), device()];
+  X.edit(m => addBullet(m, 'hydra', 'Cut the part count of the dose counter by a third.'));
+  Y.edit(m => addBullet(m, 'hydra', 'Ran the supplier audits for the counter.'));
+  Z.edit(m => addBullet(m, 'hydra', 'Wrote the test protocols for the dose rig.'));
+  const sx = await X.persist.forMerge(); later(); const sy = await Y.persist.forMerge(); later(); const sz = await Z.persist.forMerge();
+  const m1 = M.merge(sx, sy), m2 = M.merge({ state: m1.state, clock: m1.clock }, sz);
+  ok('a key merged twice keeps a clock of real stamps that fits its state', okClock(m1.clock, m1.state) && okClock(m2.clock, m2.state));
+  ok('and every bullet is in the job, which the older copy’s value did not win back', m2.state.record.work.find(w => w.id === 'hydra').highlights.length === hydra.length + 3 && invalid(m2.state.record).length === 0);
+  ok('and the stamp is the same whichever copy merges', J(M.share(M.merge(sy, sx).clock)) === J(M.share(m1.clock)));
+  // a conflict whose line is listed once: the same file again is a later edit of what was merged
+  const P = device(), Q = device();
+  P.edit(m => { m.basics.label = 'Edited first'; }); later();
+  const sp = await P.persist.forMerge(); later(); Q.edit(m => { m.basics.label = 'Edited last'; }); const sq = await Q.persist.forMerge();
+  for (const [mine, theirs] of [[sp, sq], [sq, sp]]){
+    const first = M.merge(mine, theirs), again = M.merge({ state: first.state, clock: first.clock }, theirs);
+    ok('a value kept (or taken) is listed once: meeting the same file again lists nothing and changes nothing', first.summary.length === 1 && again.summary.length === 0 && again.changed === 0 && sameState(first, again));
+  }
+  // two copies at the same stamps that differ only in what is no edit (a resume's frozen text, a version's measured lines): the same state whichever way round
+  const F1 = startState(), F2 = startState();
+  F1.frozen[names[1]] = { ...F1.frozen[names[1]], basics: { name: 'Printed one way' } }; F2.frozen[names[1]] = { ...F2.frozen[names[1]], basics: { name: 'Printed another' } };
+  F1.record.variants[0].metrics = { chars: 1, measured: { a4: { lines: 3 } } }; F2.record.variants[0].metrics = { chars: 1, measured: { a4: { lines: 4 } } };
+  const c0 = M.baseline(bare(F1));
+  ok('copies at one stamp that differ only in a frozen text or a measured line count end in the same state both ways', sameState(M.merge({ state: bare(F1), clock: c0 }, { state: bare(F2), clock: c0 }), M.merge({ state: bare(F2), clock: c0 }, { state: bare(F1), clock: c0 })));
+  // one order for the deletion marks
+  const D = device(), E = device();
+  D.edit(m => { K.deleteClaim(m, hydra[4], []); K.deleteClaim(m, hydra[3], []); });
+  later(); const sd = await D.persist.forMerge(), se = await E.persist.forMerge();
+  const de = M.merge(se, sd), ed = M.merge(sd, se);
+  ok('deletion marks are written in one order, so a copy that took them and the copy they came from are the same bytes', J(Object.keys(D.store.materialize().record.removed)) === J(Object.keys(D.store.materialize().record.removed).sort()) && J(de.state.record.removed) === J(D.store.materialize().record.removed) && J(ed.state.record.removed) === J(de.state.record.removed));
+}
+
+// A random run: 2 to 4 devices edit (versions, claims, bullets, saved resumes, a language group) and meet in random pairs; every merge must validate and be
+// the same both ways, every clock must read back whole and fit its state, and every order of meeting all of them must end in one state.
+async function fuzz(seeds, first = 1){
+  const out = { bad: '', pairs: 0 };
+  const gs = startState(); RS.duplicate(gs, names[0], { lang: 'hu' }); RS.openSaved(gs, names[0]);
+  const EN = names[0], HU = gs.resumes.find(r => r.parent === EN).id, loose = names.filter(n => ![EN, HU].includes(n));
+  for (let seed = first; seed < first + seeds && !out.bad; seed++){
+    let st = seed * 2654435761 >>> 0;
+    const rnd = () => { st = (st + 0x6D2B79F5) | 0; let t = Math.imul(st ^ (st >>> 15), 1 | st); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const pick = list => list[Math.floor(rnd() * list.length)], num = () => Math.floor(rnd() * 1e6);
+    const ops = [
+      m => { const f = m.facts.find(x => x.id === pick(hydra)); R.saveOver(m, pick(f.variants), `Reworded ${num()}`); },
+      m => R.addVersion(m, pick(hydra), { text: `Another wording ${num()}`, as: 'major' }),
+      m => { const f = m.facts.find(x => x.id === pick(hydra)); R.deleteVersion(m, pick(f.variants), []); },
+      m => K.deleteClaim(m, pick(hydra), []),
+      m => addBullet(m, 'hydra', `New bullet ${num()}`),
+      m => { m.basics.label = `Label ${num()}`; },
+      m => { const v = pick(m.variants); v.tags = [...(v.tags ?? []), 'safety']; },
+    ];
+    const dops = [      // on the store's whole state
+      d => RS.deleteSaved(d, pick(loose)),
+      d => { const r = d.resumes.find(x => x.id === pick(loose)); if (r) r.pageLimit = 1 + Math.floor(rnd() * 3); },
+      d => { RS.openSaved(d, EN); d.cur.pageLimit = 1 + Math.floor(rnd() * 3); },
+      d => { RS.openSaved(d, HU); d.cur.design = { ...(d.cur.design ?? {}), size: pick(['large', 'small']) }; },
+    ];
+    const D = Array.from({ length: 2 + Math.floor(rnd() * 3) }, () => device(0, memoryBackend(), clone(gs)));
+    const check = (what, m) => {
+      const errs = invalid(m.state.record); if (errs.length) out.bad ||= `seed ${seed} ${what}: ${errs[0]}`;
+      if (Object.keys(M.cleanClock(m.clock)).length !== Object.keys(m.clock).length) out.bad ||= `seed ${seed} ${what}: the clock has a stamp that does not read back`;
+      if (!M.clockFits(m.state, m.clock)) out.bad ||= `seed ${seed} ${what}: the clock does not fit its state`;
+    };
+    for (let step = 0; step < 7 && !out.bad; step++){
       const d = pick(D);
-      for (let n = 0; n < 1 + Math.floor(rnd() * 2); n++) { try { d.edit(m => pick(ops)(m)); } catch { /* the model refused it */ } }
+      for (let n = 0, k = 1 + Math.floor(rnd() * 2); n < k; n++){
+        try { if (rnd() < .75) d.edit(m => pick(ops)(m)); else d.store.commit(x => pick(dops)(x), 'edit'); } catch { /* the model refused it */ }
+      }
       later(); await d.persist.flush();
       if (rnd() < .6){
         const [x, y] = [pick(D), pick(D)];
-        if (x !== y){ later(); const sx = await x.persist.forMerge(); later(); const sy = await y.persist.forMerge(); const m = M.merge(sx, sy), r = M.merge(sy, sx); runs++;
-          if (!sameState(m, r)) pairsOk = false;
-          const errs = invalid(m.state.record); if (errs.length) bad ||= `round ${round}: ${errs[0]}`;
-          await takeInto(x, m); }
+        if (x === y) continue;
+        later(); const sx = await x.persist.forMerge(); later(); const sy = await y.persist.forMerge();
+        const m = M.merge(sx, sy), r = M.merge(sy, sx); out.pairs++;
+        if (!sameState(m, r)) out.bad ||= `seed ${seed}: a pair differs by order at ${where(m.state, r.state)}`;
+        check('pair', m);
+        await takeInto(x, m);
+        try { later(); await x.persist.forMerge(); } catch (e){ out.bad ||= `seed ${seed}: stamping after a merge threw ${e.message}`; }
       }
     }
-    later(); const s = []; for (const d of D){ later(); s.push(await d.persist.forMerge()); }
+    const s = []; for (const d of D){ later(); s.push(await d.persist.forMerge()); }
     const fold = order => order.map(i => s[i]).reduce((acc, x) => { const m = M.merge(acc, x); return { state: m.state, clock: m.clock }; });
-    const rs = [[0, 1, 2], [2, 1, 0], [1, 2, 0]].map(fold);
-    const errs = rs.flatMap(r => invalid(r.state.record));
-    if (errs.length) bad ||= `round ${round} fold: ${errs[0]}`;
-    if (!rs.every(r => J(r.state) === J(rs[0].state))) bad ||= `round ${round}: the three orders differ`;
+    const ids = D.map((_, i) => i), rs = [ids, [...ids].reverse(), [...ids.slice(1), ids[0]]].map(fold);
+    rs.forEach(r => check('fold', r));
+    if (!rs.every(r => J(r.state) === J(rs[0].state))) out.bad ||= `seed ${seed}: ${D.length} copies end in different states by order at ${where(rs[0].state, rs.find(r => J(r.state) !== J(rs[0].state)).state)}`;
   }
-  ok(`pairs merged both ways end byte-identical (${runs} pairs)`, pairsOk);
-  ok('every merged record validates and three copies end in one state in any order', bad === '', bad);
+  return out;
+}
+section('random edits and deletes on 2 to 4 copies');
+{
+  const seeds = Number(process.env.FUZZ_SEEDS ?? 12), r = await fuzz(seeds, Number(process.env.FUZZ_FIRST ?? 1));
+  ok(`every merge valid, the same both ways, its clock whole, and every order of meeting ends in one state (${seeds} seeds, ${r.pairs} pairs; FUZZ_SEEDS=n for more)`, r.bad === '', r.bad);
 }
 
 section('what a merge leaves alone');
