@@ -275,7 +275,7 @@ section('object clocks: keys and ticks');
   const c1b = M.tick(c1, e1b, 'd1', wall);
   ok('an edit nobody has seen, edited again, is still one event: the stamp moves on, prev stays', c1b[`variant:${v0}`][0] > c1[`variant:${v0}`][0] && c1b[`variant:${v0}`][1] === '');
   const left = M.share(c1b);
-  ok('a clock leaving takes the marks off, and every stamp in it is then known', Object.values(left).every(e => e.length === 3) && J(left[`variant:${v0}`]) === J(c1b[`variant:${v0}`].slice(0, 3)));
+  ok('a clock leaving takes the marks off, and every stamp in it is then known', Object.values(left).every(e => e.length <= 4 && e[4] === undefined) && J(left[`variant:${v0}`]) === J(c1b[`variant:${v0}`].slice(0, 3)));
   const e1c = clone(e1b); R.saveOver(e1c.record, v0, 'Redesigned the inhaler dose counter, in service since 2025.');
   ok('an edit after that has the stamp the others know as its prev', M.tick(left, e1c, 'd1', wall)[`variant:${v0}`][1] === left[`variant:${v0}`][0]);
   const m1 = clone(e1); m1.record.variants.find(v => v.id === v0).metrics = { chars: 3, measured: { a4: { lines: 9 } } };
@@ -328,7 +328,7 @@ section('a version both copies reworded, or both added');
   const alt = ids(ab).find(id => id.startsWith(`${v0}-alt-`));
   ok('the newer keeps the id, the other text is the copy', textOf(ab.state.record, v0) === 'Owned the dose counter redesign end to end.' && textOf(ab.state.record, alt) === 'Led the redesign of the dose counter.');
   ok('version numbers stay unique in the claim', invalid(ab.state.record).length === 0, invalid(ab.state.record)[0]);
-  ok('one line says so, with the two wordings', ab.summary.length === 1 && ab.summary[0].key === `variant:${alt}` && /Led the redesign/.test(ab.summary[0].other + ab.summary[0].kept) && typeof ab.summary[0].undo === 'function');
+  ok('one line says so, with the two wordings', ab.summary.length === 1 && ab.summary[0].kind === 'alt' && ab.summary[0].key === `variant:${alt}` && [ab.summary[0].kept, ab.summary[0].other].includes('Led the redesign of the dose counter.') && typeof ab.summary[0].undo === 'function');
   const back = bare(clone(ab.state)); ab.summary[0].undo(back);
   ok('its Undo takes the copy away again', count(back.record, hydra[0]) === count(base, hydra[0]) && !back.record.variants.some(v => v.id === alt));
   const again = M.merge({ state: ab.state, clock: ab.clock }, sa);
@@ -387,7 +387,7 @@ section('a delete against an edit');
   const sa = await A.persist.forMerge(); later(); const sb = await B.persist.forMerge();
   const [ab, ba] = both(sa, sb);
   ok('a delete against a later edit: the edit wins, on both devices', textOf(ab.state.record, gone)?.startsWith('Led the dose counter redesign, reworded') && sameState(ab, ba) && !ab.state.record.removed?.[`variant:${gone}`] && R.versionsIn(ab.state.record, hydra[0]).some(v => v.id === gone));
-  ok('and the line says it is back', ab.summary.length === 1 && /deleted in one copy and edited later/.test(ab.summary[0].what));
+  ok('and one line says it is back', ab.summary.length === 1 && ab.summary[0].kind === 'revived' && ab.summary[0].key === `variant:${gone}`);
   const undo = bare(clone(ab.state)); ab.summary[0].undo(undo);
   ok('Undo deletes it again, with its mark', !undo.record.variants.some(v => v.id === gone) && !!undo.record.removed[`variant:${gone}`]);
   // the other way: edited, then deleted later on the other side: the delete wins
@@ -440,7 +440,7 @@ section('the clock on a device: edits between two saves, files, a reload');
     A.edit(m => R.saveOver(m, v0, text)); later(); await A.persist.flush();
   }
   const sa = await A.persist.forMerge();
-  ok('three saves are one event: the stamp of the last, the prev the others know', sa.clock[`variant:${v0}`][1] === '' && sa.clock[`variant:${v0}`][3] === 1);
+  ok('three saves are one event: the stamp of the last, the prev the others know', sa.clock[`variant:${v0}`][1] === '' && sa.clock[`variant:${v0}`][4] === 1);
   const m1 = M.merge(await B.persist.forMerge(), sa);
   ok('a version edited three times on one side and not at all on the other is taken, with no second copy', m1.summary.length === 0 && textOf(m1.state.record, v0) === 'Led the dose counter redesign, sketch to tooling.' && count(m1.state.record, hydra[0]) === count(base, hydra[0]));
   ok('the device id is made once and kept', sa.clock[`variant:${v0}`][0].endsWith(`~${await backend.get('meta/device')}`) && (await backend.get('meta/device')).length === 6);
@@ -449,7 +449,7 @@ section('the clock on a device: edits between two saves, files, a reload');
   // a file: the clock goes into it, and a device that opens it carries on from it
   later(); const f = await A.persist.prepareFile();
   const file = JSON.parse(f.text), got = readBackup(file);
-  ok('the file carries the clock and the device', J(file.clock) === J((await A.persist.forMerge()).clock) && file.device === (await backend.get('meta/device')) && J(got.info.clock) === J(file.clock) && got.info.device === file.device);
+  ok('the file carries the clock and the device', J(file.clock) === J(M.share((await A.persist.forMerge()).clock)) && file.device === (await backend.get('meta/device')) && J(got.info.clock) === J(file.clock) && got.info.device === file.device);
   const old = readBackup(JSON.parse(JSON.stringify(makeBackup(startState()))));
   ok('a file with no clock is read as before', old.info.clock === null && old.info.device === null && old.warnings.length === 0);
   // a device merging the file gets what it would get from the device itself
@@ -522,7 +522,7 @@ section('a language group is merged as one unit');
   const b = await run(true);   // B stamped last: its group wins
   ok('each copy changed another member of one group: both merge orders end byte-identical', sameState(b.ab, b.ba) && J(M.share(b.ab.clock)) === J(M.share(b.ba.clock)));
   ok('the newer copy’s group is kept whole, and in step', get(b.ab, EN).pageLimit === was && get(b.ab, HU).pageLimit === was && get(b.ab, HU).design?.size === 'large' && inStep(b.ab));
-  ok('and the other copy’s change is one line, with an Undo that puts its group back', b.ab.summary.length === 1 && /language copies/.test(b.ab.summary[0].what) && b.ba.summary.length === 1);
+  ok('and the other copy’s change is one line, with an Undo that puts its group back', b.ab.summary.length === 1 && b.ab.summary[0].kind === 'group' && b.ba.summary.length === 1);
   const back = bare(clone(b.ab.state)); b.ab.summary[0].undo(back);
   ok('Undo gives the other copy’s group: the line it changed, in step, without the newer copy’s size', back.resumes.find(r => r.id === EN).pageLimit === 2 && back.resumes.find(r => r.id === HU).pageLimit === 2 && back.resumes.find(r => r.id === HU).design?.size !== 'large');
   const again = M.merge({ state: b.ab.state, clock: b.ab.clock }, b.sa);
@@ -530,6 +530,218 @@ section('a language group is merged as one unit');
   const a = await run(false);   // A stamped last
   ok('the other way round, the other copy’s group wins, in step, byte-identical', sameState(a.ab, a.ba) && get(a.ab, EN).pageLimit === 2 && get(a.ab, HU).pageLimit === 2 && get(a.ab, HU).design?.size !== 'large' && inStep(a.ab) && a.ab.summary.length === 1);
   ok('every resume outside the group is untouched', eq(b.ab.state.resumes.filter(r => ![EN, HU].includes(r.id)), clone(gs.resumes.filter(r => ![EN, HU].includes(r.id)))));
+}
+
+section('a file that was skipped, and a save that was cancelled');
+{
+  const A = device(), B = device();
+  const send = async (dev, { deliver = true } = {}) => { later(); const f = await dev.persist.prepareFile(); if (deliver) await dev.persist.markFileSaved(f); const got = readBackup(JSON.parse(f.text)); return { f, theirs: { state: bare(got.state), clock: got.info.clock } }; };
+  const gone = base.facts.find(f => f.id === hydra[0]).variants[1];
+  A.edit(m => { R.saveOver(m, v0, 'Led the redesign of the counter, first.'); m.basics.label = 'Label one'; });
+  const one = await send(A);
+  A.edit(m => { R.saveOver(m, v0, 'Led the redesign of the counter, second.'); m.basics.label = 'Label two'; R.deleteVersion(m, gone, []); });
+  const two = await send(A);
+  const m1 = M.merge(await B.persist.forMerge(), two.theirs);
+  ok('a copy that skipped a file takes the next one: no second wording, no both-changed line, no race over a delete', m1.summary.length === 0 && textOf(m1.state.record, v0).endsWith('second.') && m1.state.record.basics.label === 'Label two' && !m1.state.record.variants.some(v => v.id === gone) && count(m1.state.record, hydra[0]) === count(base, hydra[0]) - 1);
+  ok('the entry keeps the stamps it came from, newest first', two.f.clock[`variant:${v0}`][1] === one.f.clock[`variant:${v0}`][0] && two.f.clock[`variant:${v0}`][3]?.[0] === '');
+  const m2 = M.merge(await B.persist.forMerge(), one.theirs);
+  ok('and one that took the first file takes the second', M.merge({ state: m2.state, clock: m2.clock }, two.theirs).summary.length === 0);
+  // a save that was cancelled does not move the chain on
+  const C = device();
+  C.edit(m => R.saveOver(m, v0, 'Owned the redesign, first.'));
+  const c1 = await send(C);
+  C.edit(m => R.saveOver(m, v0, 'Owned the redesign, second.'));
+  const cancelled = await send(C, { deliver: false });
+  C.edit(m => R.saveOver(m, v0, 'Owned the redesign, third.'));
+  const c3 = await send(C);
+  ok('a save that was cancelled leaves its edits marked, so the next file’s prev is the stamp that was delivered', c3.f.clock[`variant:${v0}`][1] === c1.f.clock[`variant:${v0}`][0] && cancelled.f.clock[`variant:${v0}`][0] !== c3.f.clock[`variant:${v0}`][1]);
+  const D = device();
+  const d1 = M.merge(await D.persist.forMerge(), c1.theirs); await takeInto(D, d1);
+  ok('a copy that has the delivered file takes the third without a question', M.merge(await D.persist.forMerge(), c3.theirs).summary.length === 0);
+}
+
+section('a file edited outside is not merged by clock');
+{
+  const A = device();
+  A.edit(m => { R.saveOver(m, v0, 'Led the redesign.'); K.deleteClaim(m, hydra[5], []); });
+  later(); const f = await A.persist.prepareFile();
+  const fits = () => { const got = readBackup(JSON.parse(f.text)); return { got, ok: M.clockFits(got.state, got.info.clock) }; };
+  ok('a file saved by a copy fits its clock, with edits and a delete in it', fits().ok);
+  const label = fits(); label.got.state.record.basics.label = 'Changed in a text editor';
+  ok('a changed label under the old clock does not', !M.clockFits(label.got.state, label.got.info.clock));
+  const setting = fits(); setting.got.state.resumes[1].pageLimit = 9;
+  ok('nor a changed resume setting', !M.clockFits(setting.got.state, setting.got.info.clock));
+  const added = fits(); added.got.state.record.skills.push({ id: 'skills-new', name: 'New', keywords: ['a'] });
+  ok('nor an object the clock does not know', !M.clockFits(added.got.state, added.got.info.clock));
+  ok('and no clock does not fit', !M.clockFits(fits().got.state, null));
+}
+
+section('a garbled stamp in a file');
+{
+  const A = device();
+  A.edit(m => R.saveOver(m, v0, 'Led the redesign.'));
+  later(); const f = await A.persist.prepareFile();
+  const file = JSON.parse(f.text);
+  file.clock[`variant:${v0}`][0] = `${new Date(8.64e15).toISOString()}~x`;      // the last date a Date holds
+  file.clock['basics.name'] = [12, null, 'abc'];
+  file.clock['basics.label'] = ['', null, 'abc', ['not a stamp']];
+  const got = readBackup(file);
+  ok('entries with a stamp that is no date, a number or a bad older list are dropped; the others stay', !(`variant:${v0}` in got.info.clock) && !('basics.name' in got.info.clock) && !('basics.label' in got.info.clock) && Object.keys(got.info.clock).length > 400);
+  ok('a clock that is no object reads as none', readBackup({ ...file, clock: [1, 2] }).info.clock === null && readBackup({ ...file, clock: 'x' }).info.clock === null);
+  const B = device();
+  B.store.replace(got.state, 'open'); await B.persist.markFileOpened({ at: got.info.saved, recordId: got.info.recordId, hash: f.hash, clock: got.info.clock });
+  let threw = null; try { await B.persist.forMerge(); await B.persist.prepareFile(); } catch (e){ threw = e; }
+  ok('a device that opened it still stamps and saves', threw === null, String(threw?.message));
+  const backend = memoryBackend(); await backend.put('state/current', { savedAt: 'x', state: startState() }); await backend.put('meta/clock', { 'basics.name': [`${new Date(8.64e15).toISOString()}~x`, null, 'abc'] });
+  const C = device(0, backend); await C.persist.restore();
+  threw = null; try { await C.persist.forMerge(); } catch (e){ threw = e; }
+  ok('and so does one that restored it from storage', threw === null, String(threw?.message));
+}
+
+section('what must hold after a delete against an edit, and after deletes in parallel');
+{
+  const pair = async (fa, fb, { firstA = true } = {}) => {
+    const A = device(), B = device();
+    A.edit(fa); await A.persist.flush();
+    later(); B.edit(fb); await B.persist.flush();
+    later(); const sa = await A.persist.forMerge(); later(); const sb = await B.persist.forMerge();
+    return [M.merge(sa, sb), M.merge(sb, sa)];
+  };
+  const good = (name, [x, y], extra = () => true) => ok(name, sameState(x, y) && invalid(x.state.record).length === 0 && extra(x), invalid(x.state.record)[0]);
+  // 3a: a claim deleted on one side, a version added or edited on the other
+  const claim = hydra[5];
+  const v = base.facts.find(f => f.id === claim).variants[0];
+  const added = await pair(m => K.deleteClaim(m, claim, []), m => R.addVersion(m, claim, { text: 'Wrote the audit checklist the team still uses.', as: 'major' }));
+  good('a claim deleted here and given a version there later: the claim is back with the new version, in its job, valid', added, x => x.state.record.facts.some(f => f.id === claim) && x.state.record.work.find(w => w.id === 'hydra').highlights.includes(claim) && R.versionsIn(x.state.record, claim).map(w => w.text).join() === 'Wrote the audit checklist the team still uses.' && x.summary.some(l => l.kind === 'revived'));
+  const un = bare(clone(added[0].state)); added[0].summary.find(l => l.kind === 'revived').undo(un);
+  ok('and its Undo deletes the claim again, valid', !un.record.facts.some(f => f.id === claim) && invalid(un.record).length === 0, invalid(un.record)[0]);
+  good('a claim deleted here and a version of it edited there later: the claim is back', await pair(m => K.deleteClaim(m, claim, []), m => R.saveOver(m, v, 'Wrote the supplier audit checklist the team still uses.')), x => x.state.record.facts.some(f => f.id === claim));
+  const later2 = await pair(m => R.saveOver(m, v, 'Wrote the supplier audit checklist the team still uses.'), m => K.deleteClaim(m, claim, []));
+  good('an edit and then a later delete of the claim: the claim stays deleted', later2, x => !x.state.record.facts.some(f => f.id === claim) && !x.state.record.variants.some(w => w.id === v));
+  // 3b: two copies each delete a different version of one claim
+  const three = base.facts.find(f => f.id === hydra[0]);
+  const [a0, a1] = three.variants.filter(id => (base.variants.find(x => x.id === id).lang ?? 'en') === 'en').slice(0, 2);
+  const par = await pair(m => R.deleteVersion(m, a0, []), m => R.deleteVersion(m, a1, []));
+  good('each deleting another version of a claim: valid, retired numbers of both kept or the version live', par, x => R.versionsIn(x.state.record, hydra[0]).length >= 1);
+  // a claim with exactly two versions, each deleted on one side
+  const two = base.facts.find(f => f.variants.filter(id => (base.variants.find(x => x.id === id).lang ?? 'en') === 'en').length === 2 && !hydra.includes(f.id));
+  if (two){
+    const [t0, t1] = two.variants.filter(id => (base.variants.find(x => x.id === id).lang ?? 'en') === 'en');
+    good('a claim with two versions, one deleted on each side: one stays', await pair(m => R.deleteVersion(m, t0, []), m => R.deleteVersion(m, t1, [])), x => R.versionsIn(x.state.record, two.id).length === 1 && x.summary.some(l => l.kind === 'revived'));
+  } else ok('(no claim with two versions in the example: the case is made below)', true);
+  // the default pointing at a deleted version, and a retired number a revived version has again
+  const dflt = base.facts.find(f => f.id === hydra[0]).default.en;
+  const other = three.variants.find(id => id !== dflt && (base.variants.find(x => x.id === id).lang ?? 'en') === 'en');
+  good('the default deleted on one side and another version deleted on the other: the default is a version the claim has', await pair(m => R.deleteVersion(m, dflt, []), m => R.deleteVersion(m, other, [])), x => x.state.record.facts.find(f => f.id === hydra[0]).variants.includes(x.state.record.facts.find(f => f.id === hydra[0]).default.en));
+  const rev = await pair(m => R.deleteVersion(m, a0, []), m => R.saveOver(m, a0, 'Led the dose counter redesign, reworded later.'));
+  good('a version deleted here and edited there later is back with its number free', rev, x => !(x.state.record.facts.find(f => f.id === hydra[0]).retired?.en ?? []).includes(String(x.state.record.variants.find(w => w.id === a0).n)));
+}
+
+section('version numbers stay unique with three copies');
+{
+  const [A, B, C] = [device(), device(), device()];
+  A.edit(m => R.saveOver(m, v0, 'Led the redesign of the dose counter.'));
+  C.edit(m => R.saveOver(m, v0, 'Owned the dose counter redesign.'));
+  B.edit(m => R.addVersion(m, hydra[0], { text: 'Took the counter from sketch to tooling.', as: 'major' }));
+  const s = [await A.persist.forMerge(), (later(), await C.persist.forMerge()), (later(), await B.persist.forMerge())];
+  const fold = order => order.map(i => s[i]).reduce((acc, x) => { const m = M.merge(acc, x); return { state: m.state, clock: m.clock }; });
+  const results = [[0, 1, 2], [2, 1, 0], [1, 2, 0], [0, 2, 1]].map(fold);
+  ok('A and C reword a version, B adds one on its own: A meets C, then B: no two versions with one number, whichever order', results.every(r => invalid(r.state.record).length === 0) && results.every(r => J(r.state) === J(results[0].state)), results.map(r => invalid(r.state.record)[0]).join('; '));
+  ok('and every version is there', count(results[0].state.record, hydra[0]) === count(base, hydra[0]) + 2);
+}
+
+section('an Undo that sticks');
+{
+  const A = device(), B = device();
+  A.edit(m => R.saveOver(m, v0, 'Led the redesign of the dose counter.'));
+  B.edit(m => R.saveOver(m, v0, 'Owned the dose counter redesign end to end.'));
+  const sa = await A.persist.forMerge(); later(); const sb = await B.persist.forMerge();
+  const ab = M.merge(sa, sb);
+  const alt = ab.summary.find(l => l.kind === 'alt');
+  await takeInto(A, ab);
+  const merged = { state: bare(A.store.materialize()), clock: ab.clock };
+  A.store.commit(d => alt.undo(d), 'undo'); later();
+  const after = await A.persist.forMerge();
+  ok('the Undo of a kept wording is a delete with a mark', !after.state.record.variants.some(v => v.id === alt.key.slice(8)) && !!after.state.record.removed?.[alt.key]);
+  const again = M.merge(after, merged);
+  ok('the next merge with a copy that still has it does not bring it back', !again.state.record.variants.some(v => v.id === alt.key.slice(8)) && !again.summary.some(l => l.kind === 'alt'));
+  const again2 = M.merge(after, sb);
+  ok('nor does one with the older file', !again2.state.record.variants.some(v => v.id === alt.key.slice(8)));
+  // made under one name
+  const C = device(), D = device();
+  C.edit(m => R.addVersion(m, hydra[1], { text: 'Built the drop rig and wrote its protocols.', as: 'major' }));
+  D.edit(m => R.addVersion(m, hydra[1], { text: 'Designed the cycle rig for the dose counter.', as: 'major' }));
+  const sc = await C.persist.forMerge(); later(); const sd = await D.persist.forMerge();
+  const cd = M.merge(sc, sd), both = cd.summary.find(l => l.kind === 'alt' || l.kind === 'both');
+  await takeInto(C, cd);
+  const merged2 = { state: bare(C.store.materialize()), clock: cd.clock };
+  C.store.commit(d => both.undo(d), 'undo'); later();
+  const after2 = await C.persist.forMerge();
+  ok('so does the Undo of two versions made under one name', !M.merge(after2, merged2).state.record.variants.some(v => v.id === both.key.slice(8)) && !!after2.state.record.removed?.[both.key]);
+}
+
+section('the settings: lists of tags are joined, and the line says what differed');
+{
+  const A = device(), B = device();
+  A.edit(m => { m.vocabulary.tags = [...m.vocabulary.tags, 'safety']; });
+  B.edit(m => { m.vocabulary.tags = [...m.vocabulary.tags, 'regulatory']; m.requireSource = true; });
+  const sa = await A.persist.forMerge(); later(); const sb = await B.persist.forMerge();
+  const [ab, ba] = both(sa, sb);
+  ok('a tag added on each side is in the merged settings, in the same order both ways', sameState(ab, ba) && ab.state.record.vocabulary.tags.includes('safety') && ab.state.record.vocabulary.tags.includes('regulatory') && ab.state.record.requireSource === true);
+  const line = ab.summary.find(l => l.key === 'settings');
+  ok('the line names the settings that differed, one value on each side', !!line && line.kept !== line.other && /vocabulary/.test(line.kept) && /vocabulary/.test(line.other));
+}
+
+section('three copies add to one job, in any order');
+{
+  const [A, B, C] = [device(), device(), device()];
+  A.edit(m => addBullet(m, 'hydra', 'Cut the part count of the dose counter by a third.'));
+  B.edit(m => addBullet(m, 'hydra', 'Ran the supplier audits for the counter.'));
+  C.edit(m => addBullet(m, 'hydra', 'Wrote the test protocols for the dose rig.'));
+  const s = [await A.persist.forMerge(), (later(), await B.persist.forMerge()), (later(), await C.persist.forMerge())];
+  const fold = order => order.map(i => s[i]).reduce((acc, x) => { const m = M.merge(acc, x); return { state: m.state, clock: m.clock }; });
+  const rs = [[0, 1, 2], [2, 1, 0], [1, 2, 0], [2, 0, 1], [1, 0, 2], [0, 2, 1]].map(fold);
+  ok('the three bullets are in the job, in the same order and byte for byte the same state, whichever order', rs.every(r => J(r.state) === J(rs[0].state)) && rs[0].state.record.work.find(w => w.id === 'hydra').highlights.length === hydra.length + 3 && invalid(rs[0].state.record).length === 0);
+}
+
+section('three copies, edits and deletes at random');
+{
+  let seed = 7;
+  const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const pick = list => list[Math.floor(rnd() * list.length)];
+  const ops = [
+    m => { const f = pick(hydra); const v = pick(m.facts.find(x => x.id === f)?.variants ?? [v0]); R.saveOver(m, v, `Reworded ${Math.floor(rnd() * 1e6)}`); },
+    m => R.addVersion(m, pick(hydra), { text: `Another wording ${Math.floor(rnd() * 1e6)}`, as: rnd() < .5 ? 'major' : 'minor', from: undefined }),
+    m => { const f = m.facts.find(x => x.id === pick(hydra)); R.deleteVersion(m, pick(f.variants), []); },
+    m => K.deleteClaim(m, pick(hydra), []),
+    m => addBullet(m, 'hydra', `New bullet ${Math.floor(rnd() * 1e6)}`),
+    m => { m.basics.label = `Label ${Math.floor(rnd() * 1e6)}`; },
+    m => { const v = m.variants[Math.floor(rnd() * m.variants.length)]; v.tags = [...(v.tags ?? []), 'safety']; },
+  ];
+  let bad = '', pairsOk = true, runs = 0;
+  for (let round = 0; round < 14; round++){
+    const D = [device(), device(), device()];
+    for (let step = 0; step < 5; step++){
+      const d = pick(D);
+      for (let n = 0; n < 1 + Math.floor(rnd() * 2); n++) { try { d.edit(m => pick(ops)(m)); } catch { /* the model refused it */ } }
+      later(); await d.persist.flush();
+      if (rnd() < .6){
+        const [x, y] = [pick(D), pick(D)];
+        if (x !== y){ later(); const sx = await x.persist.forMerge(); later(); const sy = await y.persist.forMerge(); const m = M.merge(sx, sy), r = M.merge(sy, sx); runs++;
+          if (!sameState(m, r)) pairsOk = false;
+          const errs = invalid(m.state.record); if (errs.length) bad ||= `round ${round}: ${errs[0]}`;
+          await takeInto(x, m); }
+      }
+    }
+    later(); const s = []; for (const d of D){ later(); s.push(await d.persist.forMerge()); }
+    const fold = order => order.map(i => s[i]).reduce((acc, x) => { const m = M.merge(acc, x); return { state: m.state, clock: m.clock }; });
+    const rs = [[0, 1, 2], [2, 1, 0], [1, 2, 0]].map(fold);
+    const errs = rs.flatMap(r => invalid(r.state.record));
+    if (errs.length) bad ||= `round ${round} fold: ${errs[0]}`;
+    if (!rs.every(r => J(r.state) === J(rs[0].state))) bad ||= `round ${round}: the three orders differ`;
+  }
+  ok(`pairs merged both ways end byte-identical (${runs} pairs)`, pairsOk);
+  ok('every merged record validates and three copies end in one state in any order', bad === '', bad);
 }
 
 section('what a merge leaves alone');

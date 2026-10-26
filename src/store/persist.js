@@ -5,7 +5,7 @@
 import { t, keyed } from '../i18n/index.js';
 import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId } from '../model/schema.js';
 import { assetRefs } from './store.js';
-import { tick, share, baseline } from '../model/merge.js';
+import { tick, share, markShared, baseline, cleanClock } from '../model/merge.js';
 
 // The one file you save and open yourself. Never translated.
 export const SAVE_FILE_NAME = 'brewcv.json';
@@ -236,7 +236,7 @@ export function readBackup(obj){
     resumes.push({ ...got.recipe, id });
     if (got.frozen) frozen[id] = got.frozen;
   }
-  const info = { recordId: obj.recordId ?? model.recordId ?? null, saved: obj.saved ?? null, app: obj.app ?? null, clock: obj.clock ?? null, device: obj.device ?? null };
+  const info = { recordId: obj.recordId ?? model.recordId ?? null, saved: obj.saved ?? null, app: obj.app ?? null, clock: cleanClock(obj.clock), device: obj.device ?? null };
   return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, info };
 }
 
@@ -276,11 +276,9 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
   // The object clocks (src/model/merge.js), ticked at every save. A state that is here from the start is the common start of every copy made from it.
   let clock = store.state?.record ? baseline(store.materialize()) : {};
   let device = null;
-  // `leaving`: the clock goes into a file, so every stamp in it is known to whoever opens it
-  const stamp = async (state, leaving = false) => {
+  const stamp = async state => {
     device ??= (await backend.get('meta/device')) ?? await (async () => { const d = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(16).slice(2)).slice(0, 6); await backend.put('meta/device', d); return d; })();
     clock = tick(clock, state, device, now().getTime());
-    if (leaving) clock = share(clock);
     await backend.put('meta/clock', clock);
     return clock;
   };
@@ -379,10 +377,15 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     async prepareFile(){
       if (store.state?.record && !store.state.record.recordId) store.commit(d => { ensureRecordId(d.record); }, t('save.recordId'));
       const at = now().toISOString(), state = store.materialize();
-      const text = JSON.stringify(makeBackup(state, { saved: at, clock: await stamp(state, true), device }), null, 2) + '\n';
-      return { text, name: SAVE_FILE_NAME, at, recordId: store.state.record?.recordId ?? null, hash: await sha256(text) };
+      const sent = share(await stamp(state));
+      const text = JSON.stringify(makeBackup(state, { saved: at, clock: sent, device }), null, 2) + '\n';
+      return { text, name: SAVE_FILE_NAME, at, recordId: store.state.record?.recordId ?? null, hash: await sha256(text), clock: sent };
     },
-    markFileSaved: markFile,
+    // the file was written: the stamps in it are known to whoever opens it. A save that was cancelled leaves them marked.
+    async markFileSaved(m){
+      await markFile(m);
+      if (m.clock){ clock = markShared(clock, m.clock); await backend.put('meta/clock', clock); }
+    },
     // a file opened in place of this copy: its clock is this copy's now, and a file without one starts a history
     async markFileOpened(m){
       await markFile(m);
@@ -408,7 +411,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       file.last = (await backend.get('meta/lastFileSave')) ?? null;
       file.n = (await backend.get('meta/fileDirty')) ?? 0;
       store.reset(saved.state, 'restore session');
-      clock = (await backend.get('meta/clock')) ?? baseline(store.materialize());
+      clock = cleanClock(await backend.get('meta/clock')) ?? baseline(store.materialize());
       return true;
     },
 
@@ -472,7 +475,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
         .map(c => backend.get(`checkpoint/${c.id}`))) : undefined;
       await backend.put('meta/lastBackup', now().toISOString());
       const state = store.materialize();
-      return makeBackup(state, { saved: now().toISOString(), checkpoints: cps, clock: await stamp(state, true), device });
+      return makeBackup(state, { saved: now().toISOString(), checkpoints: cps, clock: share(await stamp(state)), device });
     },
     async restoreBackup(obj){
       const { state, warnings } = readBackup(obj);

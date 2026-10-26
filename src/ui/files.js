@@ -107,9 +107,9 @@ function mergeView(){
 function mergedView(){
   const m = F.merged;
   if (!m) return importView();
-  return `<h2 class="title">${h('i1.title', { n: m.changed })}</h2>
-    <p class="small">${m.changed || m.summary.length ? h('i1.intro', { file: m.file }) : h('i1.nothing', { file: m.file })}</p>
-    <div class="mlist">${m.summary.map((x, i) => `<div class="mi ro"><span class="sym change">~</span><span><span class="mw">${esc(x.what)}</span><span class="mx"><ins>${esc(x.kept)}</ins>${x.other !== x.kept ? ` · <del>${esc(x.other)}</del>` : ''}</span>
+  return `<h2 class="title" data-changes="${m.changed}">${h('i1.title', { n: m.changed })}</h2>
+    <p class="small">${m.changed || m.summary.length ? h('i1.intro', { file: m.file }) : h('i1.nothing', { file: m.file })}${m.changed ? ` ${h('i1.cp')}` : ''}</p>
+    <div class="mlist">${m.summary.map((x, i) => `<div class="mi ro" data-kind="${x.kind}"><span class="sym change">~</span><span><span class="mw">${esc(x.what)}</span><span class="mx"><ins>${esc(x.kept)}</ins>${x.other !== x.kept ? ` · <del>${esc(x.other)}</del>` : ''}</span>
       ${x.undone ? '' : `<button class="sm" data-act="imp-undo" data-i="${i}">${h('foot.undo')}</button>`}</span></div>`).join('')}</div>
     <div class="btns"><button class="primary" data-act="imp-merged-close">${h('body.close')}</button></div>`;
 }
@@ -148,7 +148,9 @@ async function take(text, name, mode = null){
   }
   if (got.kind === 'backup'){
     try {
-      got.info = readBackup(got.json).info;
+      const rb = readBackup(got.json);
+      got.info = rb.info;
+      if (!M.clockFits(rb.state, got.info.clock)) got.info.clock = null;      // an object changed under its old clock: the file was edited outside, and goes the old way
       got.hash = await sha256(text);
       const { last, changes } = C.persist.fileState;
       got.verdict = isExample() ? { kind: 'ok' } : openVerdict({ file: { ...got.info, hash: got.hash }, last, localRecordId: st().record?.recordId ?? null, changes, localClock: C.persist.fileState.hasClock && !got.outside?.length });      // a file edited outside has no say in its clocks: it goes the old way
@@ -162,11 +164,11 @@ async function take(text, name, mode = null){
 
 async function autoMerge(g){
   const mine = await C.persist.forMerge();
-  const got = readBackup(g.json);
-  const m = M.merge(mine, { state: got.state, clock: got.info.clock });
+  const m = M.merge(mine, { state: readBackup(g.json).state, clock: g.info.clock });
   if (m.changed){
     await C.persist.checkpoint(t('checkpoint.beforeMerging', { file: g.file }), 'merge');
-    commit(d => M.keepOpen(d, e => Object.assign(e, structuredClone(m.state))), t('undo.merge', { file: g.file }));
+    C.ui.sel = C.NONE;
+    if (!commit(d => M.keepOpen(d, e => Object.assign(e, structuredClone(m.state))), t('undo.merge', { file: g.file }))) return;      // the toast says why; the clock stays as it was
     await C.persist.adoptClock(m.clock);
   }
   F.merged = { file: g.file, changed: m.changed, summary: m.summary };

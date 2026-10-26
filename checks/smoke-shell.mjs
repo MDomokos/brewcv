@@ -2207,7 +2207,7 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   // a file with clocks and the same record merges by itself; the warnings below are for a file without clocks (an older backup)
   const oldClocked = copy(mac.path, j => { j.saved = '2020-01-01T00:00:00.000Z'; }, 'older-clocked.json');
   await open1(oldClocked);
-  ok('an older file with clocks merges by itself: nothing to ask, nothing new', /Merged automatically: 0 changes/.test(await page.textContent('#body .title')) && !(await page.$('[data-act=imp-replace]')) && (await st()).record.basics.label === 'Smoke label two');
+  ok('an older file with clocks merges by itself: nothing to ask, nothing new', (await page.getAttribute('#body .title', 'data-changes')) === '0' && await page.isVisible('[data-act=imp-merged-close]') && !(await page.$('[data-act=imp-replace]')) && (await st()).record.basics.label === 'Smoke label two');
   await page.click('[data-act=imp-merged-close]'); await settle(page);
   const old = copy(mac.path, j => { j.saved = '2020-01-01T00:00:00.000Z'; delete j.clock; delete j.device; }, 'older.json');
   await open1(old);
@@ -2216,8 +2216,12 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   ok('and nothing has changed', (await st()).record.basics.label === 'Smoke label two' && (await fstate()).last.at === last.at);
   await edit('Not in any file'); await settle(page);
   await open1(mac.path);
-  ok('with changes not in a file and a file with clocks: merged by itself, and the change is kept', /Merged automatically/.test(await page.textContent('#body .title')) && (await st()).record.basics.label === 'Not in any file');
+  ok('with changes not in a file and a file with clocks: merged by itself, and the change is kept', await page.isVisible('[data-act=imp-merged-close]') && (await st()).record.basics.label === 'Not in any file');
   await page.click('[data-act=imp-merged-close]'); await settle(page);
+  // an object changed under its old clock: the file was edited outside, so it is not merged by clock, and Replace is there
+  const outside = copy(mac.path, j => { j.record.basics.label = 'Changed in a text editor'; }, 'outside.json');
+  await open1(outside);
+  ok('a file with clocks that was edited outside is not merged by itself, and offers Replace', !(await page.$('[data-act=imp-merged-close]')) && await page.isVisible('[data-act=imp-replace]') && (await st()).record.basics.label === 'Not in any file');
   const mac0 = copy(mac.path, j => { delete j.clock; delete j.device; }, 'no-clock.json');
   await open1(mac0);
   ok('with changes not in a file and a file without clocks: “This browser has 1 change that isn’t in any file”', /This browser has 1 change that isn.t in any file/.test(await page.textContent('#body')) && await page.isVisible('[data-act=imp-save-first]'));
@@ -2254,8 +2258,8 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   ok('and its clock carries on from the file it was opened from', Object.keys(back.clock ?? {}).length > 100 && back.clock['basics.label'][1] === mac.json.clock['basics.label'][0]);
   // the first browser opens what the second saved: both have clocks and one record, so it merges by itself
   await open1(path.join(tmp, 'again.json'));
-  ok('a file with clocks from another copy of the record merges by itself, and says how many changes', /Merged automatically: \d+ change/.test(await page.textContent('#body .title')) && (await st()).record.basics.label === 'From the second browser');
-  ok('a checkpoint was taken first', await page.evaluate(async () => (await window.__wb.persist.listCheckpoints()).some(c => /Before merging/.test(c.label))));
+  ok('a file with clocks from another copy of the record merges by itself, and says how many changes', Number(await page.getAttribute('#body .title', 'data-changes')) >= 1 && (await st()).record.basics.label === 'From the second browser');
+  ok('a checkpoint was taken first', await page.evaluate(async () => (await window.__wb.persist.listCheckpoints()).some(c => c.kind === 'merge')));
   await page.click('[data-act=imp-merged-close]'); await settle(page);
   await page.keyboard.press('Control+z'); await settle(page);
   ok('and Ctrl+Z takes the whole merge back in one step', (await st()).record.basics.label !== 'From the second browser');
