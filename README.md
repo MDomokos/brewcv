@@ -165,7 +165,8 @@ Pull requests and translation fixes are welcome. See [CONTRIBUTING.md](CONTRIBUT
 
 - [JSON Resume](https://jsonresume.org) (MIT): the schema's field vocabulary and date format.
 - [Resume Matcher](https://github.com/srbhr/Resume-Matcher) (Apache-2.0): the idea of reporting job-ad keywords your resume doesn't cover, reimplemented from scratch with no network calls and no LLM.
+- [OpenResume](https://github.com/xitanggg/open-resume) by Xitang Zhao (AGPL-3.0): `src/parse/` is a port of its resume parser, which finds the lines, sections and fields in the text of a resume file. Each ported file says which of its files it came from.
 
-No code from other projects is copied. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#prior-art-and-what-was-taken-from-it).
+No other code from other projects is copied. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#prior-art-and-what-was-taken-from-it).
 
 Copyright (C) 2026 the BrewCV contributors. BrewCV is free software under the [GNU Affero General Public License](LICENSE), version 3 or later. If you run a modified copy as a network service, you must offer its users your source. The fonts in `fonts/` (Hanken Grotesk, Fira Code) are under the SIL Open Font License.
