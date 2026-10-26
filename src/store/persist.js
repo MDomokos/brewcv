@@ -158,12 +158,14 @@ export const folderOf = (h, T) => (typeof h === 'string' ? tauriFolder(h, T) : f
 
 // a saved resume's `id` is its file name, not part of what the file says
 const stripId = r => { const c = { ...r }; delete c.id; return c; };
-// The Library's documents, without their bytes, are the merged view `library.json`; it is there only when there are documents.
-// shortcut: the folder is not read back for documents, and an embedded original is not written out yet; upgrade with the folder layout (I-8: Library/<year>/ and BrewCV/library.json).
+// The Library's lists (documents without their bytes, rounds, the import log) are the merged view `library.json`; it is there only when one holds something.
+// shortcut: a folder (and a checkpoint file in it) carries documents text-only, since an embedded original is not written out yet; upgrade with the folder layout (I-8: originals as files in Library/<year>/).
 export function filesOf(state){
   const out = new Map();
   if (state?.record) out.set('resume-data.json', serialize(save(state.record)));
-  if (state?.documents?.length) out.set('library.json', serialize({ documents: state.documents.map(({ embedded, ...d }) => d) }));
+  const lib = listsOf(state);
+  if (lib.documents) lib.documents = textOnly(lib.documents);
+  if (Object.keys(lib).length) out.set('library.json', serialize(lib));
   const used = new Set();
   for (const r of state?.resumes ?? []){
     let name = resumeFileName(r), n = 2;
@@ -179,6 +181,8 @@ const LISTS = ['documents', 'rounds', 'imports'];
 const listsOf = s => Object.fromEntries(LISTS.filter(k => s?.[k]?.length).map(k => [k, s[k]]));
 // From a file anyone can edit: only entries that have an id (the import log: a sha256).
 const cleanList = (x, key) => (Array.isArray(x) ? x.filter(e => e && typeof e === 'object' && typeof e[key] === 'string') : []);
+const cleanLists = o => ({ documents: cleanList(o?.documents, 'id'), rounds: cleanList(o?.rounds, 'id'), imports: cleanList(o?.imports, 'sha256') });
+const textOnly = docs => docs.map(({ embedded, ...d }) => d);
 
 // `clock`, `device`: the object clocks (src/model/merge.js) and the device that stamped them. A file without them is read as before.
 export function makeBackup(state, { saved = new Date().toISOString(), checkpoints, app = APP_VERSION, clock, device } = {}){
@@ -199,6 +203,15 @@ export function makeBackup(state, { saved = new Date().toISOString(), checkpoint
 
 // The open resume's working copy: the saved one without its snapshots, which only the saved one keeps.
 const workingCopy = r => { if (!r) return null; const c = structuredClone(r); delete c.snapshots; return c; };
+
+// A state read from a folder holds its documents text-only; each one the current state also holds (the same sha256) keeps that state's original.
+export function keepOriginals(next, current){
+  for (const d of next.documents ?? []){
+    const mine = (current?.documents ?? []).find(x => x.sha256 === d.sha256);
+    if (mine?.embedded && !d.embedded) d.embedded = mine.embedded;
+  }
+  return next;
+}
 
 // recipes/ may hold v4 resume files and v3 recipes alike.
 export async function readFolder(folder){
@@ -234,7 +247,10 @@ export async function readFolder(folder){
     resumes.push({ ...keep.got.recipe, id });
     if (keep.got.frozen) frozen[id] = keep.got.frozen;
   }
-  return { state: { record: model, resumes, frozen, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped, leftovers };
+  let lists = cleanLists();
+  const lib = await folder.read('library.json');
+  if (lib !== null) try { lists = cleanLists(JSON.parse(lib)); } catch (e){ warnings.push(`library.json: ${e.message}`); }
+  return { state: { record: model, resumes, frozen, ...lists, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped, leftovers };
 }
 
 export function readBackup(obj){
@@ -249,8 +265,7 @@ export function readBackup(obj){
     if (got.frozen) frozen[id] = got.frozen;
   }
   const info = { recordId: obj.recordId ?? model.recordId ?? null, saved: obj.saved ?? null, app: obj.app ?? null, clock: cleanClock(obj.clock), device: obj.device ?? null };
-  const lists = { documents: cleanList(obj.documents, 'id'), rounds: cleanList(obj.rounds, 'id'), imports: cleanList(obj.imports, 'sha256') };
-  return { state: { record: model, resumes, frozen, ...lists, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, info };
+  return { state: { record: model, resumes, frozen, ...cleanLists(obj), cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, info };
 }
 
 // What to do with a file the person opens, given what this browser last saved to a file.
@@ -299,17 +314,30 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
   const statusSubs = new Set();
   const setStatus = (s, err = null, code = null) => { status = s; lastError = err; errorCode = code; for (const fn of statusSubs) fn({ status, error: err, code }); };
 
+  // The assets in storage are told apart by one listing, never by reading them back (an original can be 10 MB).
+  async function putAssets(refs){
+    const had = new Set((await backend.list('asset/')).map(k => k.slice(6)));
+    for (const ref of refs) if (!had.has(ref)){ await backend.put(`asset/${ref}`, store.asset(ref)); had.add(ref); }
+    return had;
+  }
+  // Of those listed, drop what the state, undo, redo and every checkpoint no longer hold.
+  // shortcut: a second tab on this storage can save between the check and the delete; the state it saved is read again just before, which narrows it, and I-8's single-writer lock closes it.
+  async function dropAssets(had){
+    const keep = store.liveRefs();
+    for (const c of (await backend.get('checkpoints/index')) ?? []) for (const r of c.refs ?? []) keep.add(r);
+    assetRefs((await backend.get('state/current'))?.state, keep);
+    for (const r of had) if (!keep.has(r)) await backend.delete(`asset/${r}`);
+  }
+
   async function saveNow(){
     clearTimer(timer); timer = null;
     setStatus('saving');
     try {
       const state = store.state;
-      // assets first, then the state that points at them, then the assets nothing points at any more (an undo puts one back at the next save)
-      const refs = assetRefs(state);
-      for (const ref of refs)
-        if ((await backend.get(`asset/${ref}`)) === undefined) await backend.put(`asset/${ref}`, store.asset(ref));
+      // assets first, then the state that points at them, then the assets nothing points at any more
+      const had = await putAssets(assetRefs(state));
       await backend.put('state/current', { savedAt: now().toISOString(), state });
-      for (const k of await backend.list('asset/')) if (!refs.has(k.slice(6))) await backend.delete(k);
+      try { await dropAssets(had); } catch { /* the assets are dropped at a later save; this one is done */ }
       if (state.record) try { await stamp(store.materialize()); } catch { /* the clock is made again at the next copy that leaves; the state is saved */ }
       if (pendingCommits){ file.n += pendingCommits; pendingCommits = 0; await backend.put('meta/fileDirty', file.n); }
       const mirrored = linked ? await writeFolder() : [];
@@ -354,14 +382,23 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     timer = setTimer(saveNow, debounceMs);
   });
 
-  // shortcut: a checkpoint holds the embedded originals of documents inline, so 50 of them can weigh hundreds of MB; upgrade by keeping asset refs in a checkpoint, as state/current does (before I-6 applies imports).
+  // A checkpoint keeps asset refs, like state/current: the bytes (a photo, an original) are stored once under asset/, and the index says which refs a checkpoint holds.
+  // A checkpoint made before that has the data inline; hydrate() reads both.
+  const hydrate = async c => {
+    if (!c) return c;
+    const entries = [];
+    for (const ref of assetRefs(c.state)){ const v = await backend.get(`asset/${ref}`); if (v !== undefined) entries.push([ref, v]); }
+    store.loadAssets(entries);
+    return { ...c, state: store.materialize(c.state) };
+  };
   async function addCheckpoint(label, kind = 'manual'){
     const at = now().toISOString();
     const id = `c-${at}-${Math.random().toString(36).slice(2, 7)}`;
-    const state = store.materialize();
-    await backend.put(`checkpoint/${id}`, { id, label, kind, at, state });
+    const refs = assetRefs(store.state);
+    await putAssets(refs);
+    await backend.put(`checkpoint/${id}`, { id, label, kind, at, state: store.state });
     const index = (await backend.get('checkpoints/index')) ?? [];
-    index.unshift({ id, label, kind, at });
+    index.unshift({ id, label, kind, at, ...(refs.size ? { refs: [...refs] } : {}) });
     // automatic checkpoints are capped; manual ones are never pruned
     const autos = index.filter(c => AUTO_KINDS.has(c.kind));
     for (const c of autos.slice(AUTO_KEEP)){
@@ -370,7 +407,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     }
     await backend.put('checkpoints/index', index);
     if (linked && (await linked.permission()) === 'granted')
-      await linked.write(`checkpoints/${fileStamp(at)} ${safe(label)}.json`, serialize(makeBackup(state, { saved: at })));
+      await linked.write(`checkpoints/${fileStamp(at)} ${safe(label)}.json`, serialize(makeBackup({ ...store.materialize(), documents: textOnly(store.state.documents ?? []) }, { saved: at })));
     return id;
   }
 
@@ -491,7 +528,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
 
     async backup({ checkpoints = false } = {}){
       const cps = checkpoints ? await Promise.all(((await backend.get('checkpoints/index')) ?? [])
-        .map(c => backend.get(`checkpoint/${c.id}`))) : undefined;
+        .map(async c => hydrate(await backend.get(`checkpoint/${c.id}`)))) : undefined;
       await backend.put('meta/lastBackup', now().toISOString());
       const state = store.materialize();
       return makeBackup(state, { saved: now().toISOString(), checkpoints: cps, clock: await stamp(state), device });
@@ -510,9 +547,9 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
 
     checkpoint: addCheckpoint,
     async listCheckpoints(){ return (await backend.get('checkpoints/index')) ?? []; },
-    async loadCheckpoint(id){ return backend.get(`checkpoint/${id}`); },
+    async loadCheckpoint(id){ return hydrate(await backend.get(`checkpoint/${id}`)); },
     async restoreCheckpoint(id){
-      const c = await backend.get(`checkpoint/${id}`);
+      const c = await hydrate(await backend.get(`checkpoint/${id}`));
       if (!c) throw new Error(`no checkpoint ${id}`);
       await addCheckpoint(t('checkpoint.beforeRestoreX', { label: c.label }), 'restore');
       store.replace(c.state, t('undo.restoreX', { label: c.label }));   // undoable: Ctrl+Z brings the present back

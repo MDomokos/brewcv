@@ -19,7 +19,9 @@ export function addDocument(state, { name, type, bytesDataUrl, path, sha256, siz
   if (!/^[0-9a-f]{64}$/.test(sha256 ?? '')) throw new Error('a document needs the sha256 of its file');
   const had = findBySha(state, sha256);
   if (had) return had;
-  if (!path && bytesDataUrl && size > MAX_EMBED) throw keyed('i2.tooBig', { mb: Math.ceil(size / 1e6), max: MAX_EMBED / 1024 / 1024 });
+  if (bytesDataUrl && !/^data:/.test(bytesDataUrl)) throw new Error('an original is embedded as a data: URL');
+  const bytes = bytesDataUrl ? Math.floor((bytesDataUrl.length - bytesDataUrl.indexOf(',') - 1) * 3 / 4) : 0;      // measured here, not taken from the caller (base64 is 4 characters for 3 bytes)
+  if (!path && bytes > MAX_EMBED) throw keyed('i2.tooBig', { mb: Math.ceil(bytes / 1e6), max: MAX_EMBED / 1024 / 1024 });
   const doc = { id: docId(sha256), name, type, size, sha256, addedAt, ...(path ? { path } : bytesDataUrl ? { embedded: bytesDataUrl } : {}), meta, from,
     taken: taken ?? { claims: [], versions: [], skipped: [], unplaced: 0 }, text, ...(of ? { of } : {}), ...(round ? { round } : {}) };
   (state.documents ??= []).push(doc);
@@ -54,7 +56,7 @@ export function sameDocument(state, text){
 // The ids of this state's documents that a saved backup (the parsed brewcv.json) holds, original included, with the same sha256.
 // shortcut: the file's bytes are not hashed again, its sha256 is taken as it says; upgrade with a check at the Check-a-saved-file step.
 export function inFile(state, backup){
-  const held = new Set((backup?.documents ?? []).filter(d => d?.embedded).map(d => d.sha256));
+  const held = new Set((backup?.documents ?? []).filter(d => typeof d?.embedded === 'string' && d.embedded.startsWith('data:')).map(d => d.sha256));      // a dangling asset: ref holds nothing
   return (state.documents ?? []).filter(d => held.has(d.sha256)).map(d => d.id);
 }
 

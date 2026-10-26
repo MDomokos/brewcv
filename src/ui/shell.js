@@ -3,7 +3,7 @@
 
 import { createStore } from '../store/store.js';
 import { askOk } from './ask.js';
-import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, readFolder, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
+import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, readFolder, keepOriginals, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
 import { load, loadResume, LANGS } from '../model/schema.js';
 import { chooseVariant, newResume, pickVersion } from '../model/resume.js';
 import { LockedError } from '../model/lock.js';
@@ -1431,7 +1431,7 @@ async function adoptFolder(f, fresh){
       if (useDisk){
         await persist.checkpoint(t('checkpoint.beforeFolder', { name: f.name }), 'replace');
         ui.sel = NONE;
-        const st = disk.state;
+        const st = keepOriginals(disk.state, store.state);      // the folder holds documents text-only: the originals this browser has stay
         if (st.openId) RS.openSaved(st, st.openId);
         if (!st.cur){ st.cur = newResume(st.record); st.openId = null; }
         store.replace(st, t('undo.useFolder', { name: f.name }));

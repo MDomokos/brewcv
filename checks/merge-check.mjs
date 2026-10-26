@@ -17,6 +17,7 @@ import * as RS from '../src/model/resumes.js';
 import { fnv, createStore } from '../src/store/store.js';
 import { createPersist, memoryBackend, makeBackup, readBackup, openVerdict } from '../src/store/persist.js';
 import * as M from '../src/model/merge.js';
+import * as DOC from '../src/model/documents.js';
 import { addJob, addBullet } from '../src/model/build.js';
 import { validate } from './lib/validate.mjs';
 import { createDocument } from '../scripts/lib/dom.mjs';
@@ -970,6 +971,111 @@ section('what a merge leaves alone');
   const other = device(); other.edit(m => { m.variants[0].metrics = { chars: 1, measured: { a4: { lines: 8 } } }; });
   const mm = M.merge(await withMetrics.persist.forMerge(), await other.persist.forMerge());
   ok('versions measured differently on two devices are not a conflict', mm.summary.length === 0 && mm.changed === 0);
+}
+
+section('documents, rounds and the import log (I-2)');
+{
+  const sha = c => c.repeat(64).slice(0, 64);
+  const pdfUrl = `data:application/pdf;base64,${Buffer.from('%PDF-1.4 ' + 'x'.repeat(3000)).toString('base64')}`, pdfUrl2 = `data:application/pdf;base64,${Buffer.from('%PDF-1.4 ' + 'y'.repeat(3000)).toString('base64')}`;
+  const doc = (d, c, extra = {}) => DOC.addDocument(d, { name: `${c}.pdf`, type: 'application/pdf', bytesDataUrl: pdfUrl, sha256: sha(c), size: 3000, meta: { kind: 'resume' }, text: `line of ${c}`, addedAt: '2026-10-26T09:00:00.000Z', ...extra });
+  const entry = (c, at) => ({ sha256: sha(c), name: `${c}.pdf`, kind: 'pdf', at, result: 'added', recordId: 'r', saved: null });
+  const A = device(), B = device(), C = device();
+  A.store.commit(d => { doc(d, 'a'); doc(d, 'd', { name: 'shared.pdf' }); d.rounds = [{ id: 'r-1', name: 'Spring 2027', from: '2027-03-01' }]; DOC.logImport(d, entry('a', '2026-10-26T09:01:00.000Z')); }, 'A');
+  later();
+  B.store.commit(d => { doc(d, 'b'); doc(d, 'd', { name: 'Shared copy.pdf' }); d.rounds = [{ id: 'r-2', name: 'Autumn 2027', from: '2027-09-01' }]; DOC.logImport(d, entry('b', '2026-10-26T09:02:00.000Z')); }, 'B');
+  later();
+  C.store.commit(d => { doc(d, 'c'); }, 'C');
+  const sa = await A.persist.forMerge(); later(); const sb = await B.persist.forMerge(); later(); const sc = await C.persist.forMerge();
+  const [ab, ba] = both(sa, sb);
+  ok('two devices that each added documents, rounds and imports end byte-identical, clocks too', sameState(ab, ba) && J(ab.clock) === J(ba.clock), where(ab.state, ba.state));
+  ok('nothing is dropped: every document, once each, every round, the whole log', J(ab.state.documents.map(x => x.id).sort()) === J(['a', 'b', 'd'].map(c => `doc-${sha(c).slice(0, 12)}`).sort())
+    && ab.state.documents.every(x => x.embedded === pdfUrl) && ab.state.rounds.map(r => r.id).sort().join() === 'r-1,r-2' && ab.state.imports.length === 2);
+  ok('the file both added is one document: the newer details, the earliest addedAt, and no line', ab.state.documents.find(x => x.sha256 === sha('d')).name === 'Shared copy.pdf' && ab.summary.filter(l => l.key.startsWith('document:')).length === 0);
+  ok('the state still validates and the saved resumes print as before', invalid(ab.state.record).length === 0 && eq(printed(ab.state.record, ab.state.resumes), printedBefore));
+  // three copies, every order of meeting
+  const orders = [[sa, sb, sc], [sc, sa, sb], [sb, sc, sa], [sa, sc, sb]].map(([x, y, z]) => { const m = M.merge(M.merge(x, y), z); return m; });
+  ok('three copies end in one state whichever order they meet in', orders.every(m => sameState(m, orders[0])) && J(orders[0].state.documents.map(x => x.id)) === J(ab.state.documents.map(x => x.id).concat([`doc-${sha('c').slice(0, 12)}`]).sort((x, y) => orders[0].state.documents.findIndex(d => d.id === x) - orders[0].state.documents.findIndex(d => d.id === y))), where(orders[0].state, orders[1].state));
+  // the original's bytes are not part of the hash: a clock does not move when they do, and does when the original is dropped
+  const st = startState(); doc(st, 'e');
+  const c0 = M.tick(M.baseline(st), st, 'd1', wall);
+  const swapped = clone(st); swapped.documents[0].embedded = pdfUrl2;
+  ok('the two originals really are different bytes', pdfUrl2 !== pdfUrl && pdfUrl2.length === pdfUrl.length);
+  ok('the clock does not move when only the original’s bytes differ', J(M.tick(c0, swapped, 'd1', wall + 1)) === J(c0));
+  const textOnly = clone(st); DOC.keepTextOnly(textOnly, st.documents[0].id);
+  ok('and does when the original is dropped (keep text only is an edit)', J(M.tick(c0, textOnly, 'd1', wall + 1)) !== J(c0));
+  // keep text only on one device reaches the other
+  await takeInto(A, ab); await takeInto(B, ba);
+  later(); A.store.commit(d => { d.rounds.find(r => r.id === 'r-1').archived = true; }, 'archive round');
+  later(); const [xa, xb] = [await A.persist.forMerge(), await B.persist.forMerge()];
+  const xm = M.merge(xb, xa), xn = M.merge(xa, xb);
+  ok('a round archived on one side only is taken with no question, in both orders', sameState(xm, xn) && xm.state.rounds.find(r => r.id === 'r-1').archived === true && xm.summary.length === 0);
+  await takeInto(B, xm);
+  later(); A.store.commit(d => { DOC.keepTextOnly(d, `doc-${sha('a').slice(0, 12)}`); }, 'keep text only');
+  later(); const ka = await A.persist.forMerge(); later(); const kb = await B.persist.forMerge();
+  const [kab, kba] = both(kb, ka);
+  ok('keep text only on one device reaches the other, in both orders, with no question', sameState(kab, kba) && !('embedded' in kab.state.documents.find(x => x.sha256 === sha('a'))) && kab.state.documents.filter(x => x.embedded).length === 2 && kab.summary.length === 0);
+  // a document and a round changed on both sides are a plain value: the newer wins, Undo brings the other back
+  later(); A.store.commit(d => { d.rounds.find(r => r.id === 'r-1').name = 'Spring (A)'; }, 'rename round'); later(); B.store.commit(d => { d.rounds.find(r => r.id === 'r-1').name = 'Spring (B)'; }, 'rename round');
+  const ra = await A.persist.forMerge(); later(); const rb = await B.persist.forMerge();
+  const rr = M.merge(ra, rb), rs = M.merge(rb, ra);
+  ok('a round renamed on both sides: the newer name wins in both orders, and the line lists the other', sameState(rr, rs) && rr.state.rounds.find(r => r.id === 'r-1').name === 'Spring (B)' && rr.summary.length === 1 && rr.summary[0].other === 'Spring (A)');
+  const undone = clone(rr.state); rr.summary[0].undo(undone);
+  ok('and its Undo puts the other back', undone.rounds.find(r => r.id === 'r-1').name === 'Spring (A)');
+  ok('a round is never split into two under one name', rr.state.rounds.filter(r => r.id.startsWith('r-1')).length === 1);
+  // a saved resume moved to a round on one device
+  const X = device(), Y = device();
+  X.store.commit(d => { d.resumes[2].round = 'r-1'; d.resumes[1].archived = true; }, 'move'); later();
+  const xy = M.merge(await Y.persist.forMerge(), await X.persist.forMerge());
+  ok('a saved resume moved to a round, or archived, on one side is taken with no question, and prints as before', xy.state.resumes[2].round === 'r-1' && xy.state.resumes[1].archived === true && xy.summary.length === 0 && eq(printed(xy.state.record, xy.state.resumes), printedBefore));
+  // a state with no documents merges to a state with none of the keys
+  const [p, q] = [device(), device()]; p.edit(m => { m.basics.label = 'P'; });
+  const pq = M.merge(await p.persist.forMerge(), await q.persist.forMerge()), qp = M.merge(await q.persist.forMerge(), await p.persist.forMerge());
+  ok('copies with no documents merge to a state with no lists added, in both orders', !('documents' in pq.state) && !('rounds' in pq.state) && !('imports' in pq.state) && sameState(pq, qp));
+  // a copy read from a file has empty lists where one made here has none
+  const [sp, sq] = [await p.persist.forMerge(), await q.persist.forMerge()];
+  const empty = { ...sq, state: { ...sq.state, documents: [], rounds: [], imports: [] } };
+  const pe = M.merge(sp, empty), ep = M.merge(empty, sp);
+  ok('empty lists against none merge to the same state in both orders, and add no lists', sameState(pe, ep) && !('documents' in pe.state) && !('imports' in pe.state), where(pe.state, ep.state));
+  // a document both copies changed beyond what the file itself says is listed, with its Undo
+  const dB = `doc-${sha('b').slice(0, 12)}`;
+  later(); A.store.commit(d => { DOC.keepTextOnly(d, dB); }, 'A keeps text only');
+  const ta = await A.persist.forMerge(); later(); B.store.commit(d => { d.documents.find(x => x.id === dB).archived = true; }, 'B archives'); const tb = await B.persist.forMerge();
+  const ct = M.merge(ta, tb), tc = M.merge(tb, ta);
+  const lineD = ct.summary.filter(l => l.key === `document:${dB}`);
+  ok('keep text only on one side against an edit on the other is listed, in both orders', sameState(ct, tc) && lineD.length === 1 && ct.state.documents.find(x => x.id === dB).archived === true, ct.summary.length);
+  const undoD = clone(ct.state); lineD[0]?.undo(undoD);
+  ok('and its Undo puts the other side’s document back', !('embedded' in undoD.documents.find(x => x.id === dB)) && !undoD.documents.find(x => x.id === dB).archived);
+  // a deleted document: marks and edits follow the general delete rules
+  const gone = (hash, extra = {}) => { const c = device(); c.store.commit(d => { Object.assign(d.record, { removed: { [`document:${dB}`]: { at: '2026-10-26', hash } } }); d.documents = []; Object.assign(d, extra); }, 'delete'); return c; };
+  const [g1, g2] = [gone('aaaaaaaa'), gone('bbbbbbbb')];
+  const gs1 = await g1.persist.forMerge(); later(); const gs2 = await g2.persist.forMerge();
+  const tt = M.merge(gs1, gs2), tt2 = M.merge(gs2, gs1);
+  ok('two different marks for one document keep a mark and write no junk document', sameState(tt, tt2) && !(tt.state.documents ?? []).some(x => !x.sha256) && tt.state.record.removed?.[`document:${dB}`] !== undefined, J(tt.state.documents));
+  const D = device(); D.store.commit(d => { doc(d, 'b'); }, 'D adds'); const ds = await D.persist.forMerge(); later();
+  const E = device(); E.store.commit(d => { d.record.removed = { [`document:${dB}`]: { at: '2026-10-26', hash: 'cccccccc' } }; }, 'E marks'); const es = await E.persist.forMerge();
+  const de = M.merge(ds, es), ed = M.merge(es, ds);
+  ok('a delete against an edit of a document is listed, not silent', sameState(de, ed) && de.summary.some(l => l.key === `document:${dB}`) && de.state.documents.some(x => x.id === dB && x.sha256), J(de.summary.map(l => l.key)));
+  // three copies each adding documents, some at the same moment: the list is in one order whichever copies meet first
+  let order = 0, content = 0, lost = 0, rnd = 7;
+  const next = () => (rnd = (rnd * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (let t = 0; t < 60; t++){
+    const ts = [0, 1, 2].map(i => {
+      const st = { record: clone(base), resumes: [], frozen: {} };
+      for (const k of [0, 1, 2, 3, 4, 5].sort(() => next() - 0.5)) if (next() < 0.55){
+        const d = DOC.addDocument(st, { name: `x${i}`, type: 't', sha256: k.toString(16).padEnd(64, '0'), size: 1, text: 'l', addedAt: `2026-01-0${i + 1}T00:00:00.000Z` });      // one file added on several copies, at different times
+        if (next() < 0.4) d.archived = true;
+      }
+      return { state: st, clock: M.tick(M.baseline({ record: base, resumes: [], frozen: {} }), st, `d${i}`, Date.parse('2026-01-01') + (t % 2 ? 0 : 60_000 * i)) };
+    });
+    const perms = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]].map(([x, y, z]) => M.merge(M.merge(ts[x], ts[y]), ts[z]));
+    const want = new Set(ts.flatMap(c => (c.state.documents ?? []).map(d => d.id)));
+    if (new Set(perms.map(m => J((m.state.documents ?? []).map(d => d.id)))).size > 1) order++;
+    if (new Set(perms.map(m => J(m.state.documents ?? []))).size > 1) content++;
+    if (perms.some(m => (m.state.documents ?? []).length !== want.size)) lost++;
+  }
+  ok('three copies adding documents end with the list in one order, whichever meet first (60 runs)', order === 0, `${order} of 60 differ`);
+  ok('and the same document is the same in every order: the newest edit’s details, the earliest addedAt', content === 0, `${content} of 60 differ`);
+  ok('and none is lost', lost === 0, `${lost} of 60`);
 }
 
 console.log(failed ? `\n${failed} merge check(s) FAILED` : '\nall merge checks passed');

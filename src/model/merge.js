@@ -43,8 +43,12 @@ export function keysOf(state = {}){
 // A version's metrics are a cache each device measures for itself, a resume's frozen text is what it printed when it was last saved here, and a
 // claim's list of versions is merged as a list: none of them is an edit. A document's original (its bytes) is not hashed, only whether it has one.
 const SKIP = { variant: 'metrics', fact: 'variants', resume: 'frozen', document: 'embedded' };
-const hashOf = (k, o) => { const s = SKIP[kindOf(k)]; return fnv(JSON.stringify(canon(s ? { ...o, [s]: s === 'embedded' && o[s] ? 1 : undefined } : o))); };
+// A document's addedAt is not hashed either: a merge gives the earliest, and that must not change which copy is the newer.
+const hashOf = (k, o) => { const s = SKIP[kindOf(k)]; return fnv(JSON.stringify(canon(s ? { ...o, [s]: s === 'embedded' && o[s] ? 1 : undefined, ...(s === 'embedded' && { addedAt: undefined }) } : o))); };
+// the document that a merge keeps has the earliest addedAt of the copies
+const earliest = (o, a, b) => (o instanceof Gone || !('addedAt' in o) ? o : { ...o, addedAt: [a.addedAt, b.addedAt].sort()[0] });
 const J = x => JSON.stringify(x);
+const FROM_FILE = o => J(canon({ ...o, addedAt: 0, name: 0, path: 0, size: 0, type: 0, embedded: o.embedded ? 1 : 0 }));      // a document without what the file itself says
 const EPOCH = '1970-01-01T00:00:00.000Z';
 
 // The clock for `state` now. A save that changed something is the next save of this device: each object whose hash changed (a new one too) gets that
@@ -231,7 +235,7 @@ export function merge(mine, theirs){
     const lose = newer(ea, eb) ? B : A, h6 = (lose === A ? ea : eb).hash.slice(0, 6);
     splits.set(id, { lose, h6, key: k });
   }
-  // a document or a round with one id on both sides is the same one (one file is one document everywhere): a plain value, not a split.
+  // a document or a round with one id on both sides is the same one (one file is one document everywhere): not a split. A document's details join silently, a round's are a plain value.
   // shortcut: nothing deletes a document or a round yet, so neither has a mark; upgrade with the Library's remove (I-7).
   // shortcut: a section made on both sides (the certified list, each device's first certificate) is one section, its lists joined, not two; upgrade if sections ever need to be kept apart.
   if (splits.size){
@@ -263,7 +267,7 @@ export function merge(mine, theirs){
     const a = A.m.get(k), b = B.m.get(k), ea = A.c.get(k), eb = B.c.get(k);
     if (!ea || !eb){ set(k, ea ? a : b, ea ?? eb, ea ? A : B); continue; }
     const v = join(ea.v, eb.v), x = covers(ea, eb), y = covers(eb, ea);
-    if (ea.hash === eb.hash){ set(k, newer(ea, eb) ? a : b, { v, at: ea.at > eb.at ? ea.at : eb.at, hash: ea.hash }, newer(ea, eb) ? A : B); continue; }
+    if (ea.hash === eb.hash){ set(k, kindOf(k) === 'document' ? earliest(newer(ea, eb) ? a : b, a, b) : newer(ea, eb) ? a : b, { v, at: ea.at > eb.at ? ea.at : eb.at, hash: ea.hash }, newer(ea, eb) ? A : B); continue; }
     if (x !== y){ const w = x ? [a, ea, A] : [b, eb, B]; set(k, w[0], { v, at: w[1].at, hash: w[1].hash }, w[2]); continue; }      // one has seen every edit of the other: it is the later
     // both changed it
     const kind = kindOf(k), id = idOf(k), gone = [a instanceof Gone, b instanceof Gone];
@@ -272,6 +276,11 @@ export function merge(mine, theirs){
     set(k, w, { v, at: ew.at, hash: ew.hash }, S);
     if (gone[0] && gone[1]) continue;
     if (gone[0] !== gone[1]){ line(k, 'revived', w, w, l, unDelete(k, w)); continue; }
+    // one file is one document: the winner has the earliest addedAt, and when only what the file itself says differs (its name, where it is) there is no line
+    if (kind === 'document'){
+      set(k, earliest(w, a, b), { v, at: ew.at, hash: ew.hash }, S);
+      if (FROM_FILE(a) === FROM_FILE(b)) continue;
+    }
     const wording = kind === 'variant' && normText(a.text) !== normText(b.text);
     if (wording){
       // keep both: the other text becomes a version under an id every device makes the same
@@ -350,7 +359,7 @@ export function merge(mine, theirs){
 
   // the state: the newer copy's, with what the other side decided put in, in the woven order
   const st = structuredClone({ record: N.state.record, resumes: N.state.resumes ?? [], frozen: N.state.frozen ?? {}, ...(N.state.documents?.length && { documents: N.state.documents }), ...(N.state.rounds?.length && { rounds: N.state.rounds }) });
-  for (const [k, o] of out) if (!N.c.has(k) || (o !== N.m.get(k) && hashOf(k, o) !== N.c.get(k).hash)) (o instanceof Gone ? drop : put)(st, k, o);      // the newer copy's own object stays, even when the other's has the same hash
+  for (const [k, o] of out) if (!N.c.has(k) || (o !== N.m.get(k) && (hashOf(k, o) !== N.c.get(k).hash || o.addedAt !== N.m.get(k).addedAt))) (o instanceof Gone ? drop : put)(st, k, o);      // the newer copy's own object stays, even when the other's has the same hash
   // a resume's frozen text is no edit, so when both copies hold the same resume it comes from the later edit (else the longer text), not from whichever copy sets the order
   for (const k of out.keys()){
     const a = A.m.get(k), b = B.m.get(k), ea = A.c.get(k), eb = B.c.get(k);
@@ -369,6 +378,7 @@ export function merge(mine, theirs){
     arr?.sort((x, y) => (rank.get(x.id) ?? 1e9) - (rank.get(y.id) ?? 1e9));
   }
   for (const f of st.record.facts ?? []) f.variants = order(`@${f.id}`, 'variant');
+  st.documents?.sort((x, y) => (x.id < y.id ? -1 : 1));      // one order whichever copies met first
   // jobs go by their dates, as addJob puts them, and by id where the dates are the same
   st.record.work?.sort((x, y) => String(y.endDate ?? '9999').localeCompare(String(x.endDate ?? '9999')) || String(y.startDate).localeCompare(String(x.startDate)) || (x.id < y.id ? -1 : 1));
 
@@ -435,10 +445,11 @@ export function merge(mine, theirs){
   }
   const seenAll = join(A.seen, B.seen);
   // the import log only grows: both logs, each entry once, in one order (a log that is new to this copy counts as a change, so it is committed)
-  const log = [...new Map([...(A.state.imports ?? []), ...(B.state.imports ?? [])].map(e => [J(e), e])).values()].sort((x, y) => String(x.at).localeCompare(String(y.at)) || (J(x) < J(y) ? -1 : 1));
+  const log = [...new Map([...(A.state.imports ?? []), ...(B.state.imports ?? [])].map(e => [J(e), e])).values()].sort((x, y) => (String(x.at) < String(y.at) ? -1 : String(x.at) > String(y.at) ? 1 : 0) || (J(x) < J(y) ? -1 : 1));
   if (log.length) st.imports = log;
-  const changed = [...out.keys()].filter(k => clock[k]?.hash !== A.c.get(k)?.hash).length + (J(log) !== J(A.state.imports ?? []) ? 1 : 0);
-  return { state: st, clock: { keys: clock, seen: seenAll }, summary, changed };
+  const logged = J(log) !== J(A.state.imports ?? []);      // `changed` counts it, so it is committed; `logged` lets a screen leave it out of what it tells
+  const changed = [...out.keys()].filter(k => clock[k]?.hash !== A.c.get(k)?.hash).length + (logged ? 1 : 0);
+  return { state: st, clock: { keys: clock, seen: seenAll }, summary, changed, logged };
 }
 
 // Runs `change(d)` on the app's state, then opens the open resume again if the change altered it: the next commit would write the old one back.

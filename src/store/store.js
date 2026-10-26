@@ -151,10 +151,15 @@ export function createStore(initial = {}, opts = {}){
       return out;
     },
 
-    // Drop assets nothing references, counting undo and redo too.
-    gcAssets(){
+    // Every asset the state, undo and redo still point to.
+    liveRefs(){
       const live = assetRefs(state);
       for (const s of [...undoS, ...redoS]) for (const m of s.json.matchAll(/"(asset:[0-9a-f]{8}-[0-9a-z]+)"/g)) live.add(m[1]);
+      return live;
+    },
+    // Drop assets nothing references, counting undo and redo too.
+    gcAssets(){
+      const live = store.liveRefs();
       for (const k of [...assets.keys()]) if (!live.has(k)) assets.delete(k);
     },
   };

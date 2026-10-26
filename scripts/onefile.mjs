@@ -37,6 +37,9 @@ export function nodeFolder(dir){
   };
 }
 
+// A folder carries documents text-only (src/store/persist.js filesOf): say whose original is not in what was written.
+const noOriginal = d => console.error(`warning: the original of ${d.name} is not carried; only its text is`);
+
 export async function pack(dataDir, out, { force = false, saved = new Date().toISOString() } = {}){
   if (fs.existsSync(out) && !force) throw new Error(`${out} exists; pass --force to replace it`);
   const got = await readFolder(nodeFolder(dataDir));
@@ -44,6 +47,7 @@ export async function pack(dataDir, out, { force = false, saved = new Date().toI
   for (const w of got.warnings) console.error(`warning: ${w}`);
   for (const n of got.skipped) console.error(`skipped recipes/${n}: it is a copy a sync tool made after a conflict`);
   ensureRecordId(got.state.record);
+  got.state.documents.forEach(noOriginal);      // a folder never holds the bytes
   fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
   fs.writeFileSync(out, JSON.stringify(makeBackup(got.state, { saved }), null, 2) + '\n');
   return { resumes: got.state.resumes.length, skipped: got.skipped };
@@ -53,6 +57,7 @@ export async function unpack(file, dataDir, { force = false } = {}){
   const { state, warnings } = readBackup(JSON.parse(fs.readFileSync(file, 'utf8')));
   for (const w of warnings) console.error(`warning: ${w}`);
   if (fs.existsSync(dataDir) && fs.readdirSync(dataDir).length && !force) throw new Error(`${dataDir} is not empty; pass --force to write into it`);
+  state.documents.filter(d => d.embedded).forEach(noOriginal);      // the file's bytes stay in the file
   const files = filesOf(state);
   const folder = nodeFolder(dataDir);
   for (const [p, text] of files){

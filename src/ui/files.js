@@ -171,7 +171,7 @@ async function autoMerge(g){
     if (!commit(d => M.keepOpen(d, e => Object.assign(e, structuredClone(m.state))), t('undo.merge', { file: g.file }))) return;      // the toast says why; the clock stays as it was
   }
   await C.persist.adoptClock(m.clock);      // also when nothing changed: the file's stamps are now ones this copy has seen
-  F.merged = { file: g.file, changed: m.changed, summary: m.summary };
+  F.merged = { file: g.file, changed: m.changed - (m.logged ? 1 : 0), summary: m.summary };      // a new import log is committed but is nothing to tell
   F.got = null;
   C.setView('merged');
 }
