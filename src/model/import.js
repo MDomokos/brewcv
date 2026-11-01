@@ -87,12 +87,12 @@ export function lexiconFor(lang){
   const sections = {
     work: words('doc.section.experience', 'doc.plain.work'), education: words('doc.section.education', 'doc.plain.education'),
     project: words('doc.section.projects', 'doc.plain.projects'), skills: words('doc.section.skills', 'doc.plain.skills'),
-    summary: words('doc.section.summary', 'doc.plain.summary'),
+    summary: words('doc.section.summary', 'doc.plain.summary'), contact: words('ux6c.f.contact'),
   };
   const month = new Intl.DateTimeFormat(lang, { month: 'long', timeZone: 'UTC' });
   return {
     sections,
-    titleWords: [...new Set([...Object.values(sections).flat(), ...words('doc.section.awards', 'doc.plain.awards')])],
+    titleWords: [...new Set([...Object.values(sections).flat(), ...words('doc.section.awards', 'doc.plain.awards', 'doc.section.patent', 'doc.section.publication', 'doc.section.publications', 'doc.section.languages', 'doc.section.interests', 'doc.section.certificates', 'doc.section.volunteer', 'doc.section.references')])],
     months: Array.from({ length: 12 }, (_, m) => month.format(Date.UTC(2000, m, 15))),
     present: words('doc.present'),
   };

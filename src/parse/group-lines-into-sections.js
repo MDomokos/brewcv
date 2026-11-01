@@ -1,8 +1,8 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-lines-into-sections.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; title words from the lexicon; Unicode capitals; an item a reader marked as a title; 2026-11-01: a short line set apart by its look is a title
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-lines-into-sections.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; title words from the lexicon; Unicode capitals; an item a reader marked as a title; 2026-11-01: a short line set apart by its look is a title, and bold capitals with a digit ("CAD & 3D") are not
 // Types stripped. Changed: the title keywords come from the lexicon, a capital letter is any Unicode capital, and an item with `title: true`
 // (a heading a reader found: a Heading style, #, h1 to h3) is a title whatever its words, unless it is in the first two lines (the name).
 // Also new: a short line alone on its row that is set apart from the body text by its look is a title (see `byLook`).
-import { hasLetterAndIsAllUpperCase, hasOnlyLettersSpacesAmpersands, isBold } from './extract-resume-from-sections/lib/common-features.js';
+import { hasLetterAndIsAllUpperCase, hasNumber, hasOnlyLettersSpacesAmpersands, isBold } from './extract-resume-from-sections/lib/common-features.js';
 
 export const PROFILE_SECTION = 'profile';
 
@@ -85,7 +85,7 @@ const isSectionTitle = (line, lineNumber, titleWords) => {
 
   // The main heuristic to determine a section title is to check if the text is double emphasized
   // to be both bold and all uppercase, which is generally true for a well formatted resume
-  if (isBold(textItem) && hasLetterAndIsAllUpperCase(textItem)) {
+  if (isBold(textItem) && hasLetterAndIsAllUpperCase(textItem) && !hasNumber(textItem)) {      // not "CAD & 3D", a skill group
     return true;
   }
 

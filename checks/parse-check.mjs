@@ -776,9 +776,13 @@ function score(jr){
   const got = (jr.work ?? []).flatMap(w => w.highlights ?? []).map(normText);
   const bullets = wantBullets.filter(b => got.includes(normText(b)));
   const dates = want.work.filter(w => (jr.work ?? []).some(g => g.startDate === w.startDate && g.endDate === w.endDate));
-  const name = jr.basics?.name === want.basics.name, email = jr.basics?.email === want.basics.email;
-  const short = [...wantBullets.filter(b => !bullets.includes(b)).map(b => `bullet "${b.slice(0, 40)}…"`), ...want.work.filter(w => !dates.includes(w)).map(w => `dates of "${w.position}"`), ...(name ? [] : ['the name']), ...(email ? [] : ['the email'])];
-  return { bullets: bullets.length, dates: dates.length, name, email, short, pass: bullets.length >= 0.95 * wantBullets.length && dates.length === want.work.length && name && email };
+  // the company and the position of each job, with its dates: the right entry, not a title read as a company
+  const jobs = want.work.filter(w => (jr.work ?? []).some(g => g.startDate === w.startDate && normText(g.name) === normText(w.name) && normText(g.position) === normText(w.position)));
+  const bs = jr.basics ?? {}, name = bs.name === want.basics.name, email = bs.email === want.basics.email;
+  const contact = bs.phone === want.basics.phone && String(bs.url ?? '').replace(/^https?:\/\//, '') === want.basics.url.replace(/^https?:\/\//, '') && bs.location?.city === want.basics.location.city;
+  const short = [...wantBullets.filter(b => !bullets.includes(b)).map(b => `bullet "${b.slice(0, 40)}…"`), ...want.work.filter(w => !dates.includes(w)).map(w => `dates of "${w.position}"`), ...want.work.filter(w => !jobs.includes(w)).map(w => `company or position of "${w.position}"`),
+    ...(name ? [] : ['the name']), ...(email ? [] : ['the email']), ...(contact ? [] : ['the phone, url or city'])];
+  return { bullets: bullets.length, dates: dates.length, jobs: jobs.length, name, email, contact, short, pass: bullets.length >= 0.95 * wantBullets.length && dates.length === want.work.length && jobs.length === want.work.length && name && email && contact };
 }
 const board = [];      // the score of every file, for the table at the end
 
@@ -789,7 +793,7 @@ section('PDF: every producer reads, in Node, with the vendored PDF.js');
   for (const f of pdfs){
     const items = await readPdf(fixture(f), recordWords), got = parseResume(items), s = score(got.jsonResume);
     board.push([f.replace(/^helix-|\.pdf$/g, ''), s]);
-    ok(`${f}: ${s.bullets} of ${wantBullets.length} bullets word for word, ${s.dates} of ${want.work.length} jobs with their dates, the name and the email`, s.pass, `falls short: ${s.short.join('; ')}`);
+    ok(`${f}: ${s.bullets} of ${wantBullets.length} bullets word for word, ${s.dates} of ${want.work.length} jobs with their dates, ${s.jobs} with company and position, the name, email, phone, url and city`, s.pass, `falls short: ${s.short.join('; ')}`);
     if (!s.pass) console.log(`      falls short: ${s.short.join('; ')}`);
   }
   const paged = await readPdf(fixture('helix-1col-word.pdf'));
@@ -810,10 +814,8 @@ section('PDF: DOCX and ODT files as Word, Google Docs and LibreOffice write them
   for (const f of files){
     const items = await (f.endsWith('.docx') ? readDocx : readOdt)(fixture(f)), got = parseResume(items), s = score(got.jsonResume);
     board.push([f.replace(/^helix-/, ''), s]);
-    // in two columns the sidebar's "Contact" is a heading, so its lines are a section of their own and not the profile's: the email is left over (a limit of the parser, not of the reader)
-    const needed = f.startsWith('helix-1col') ? s.pass : s.bullets === wantBullets.length && s.dates === want.work.length && s.name;
-    ok(`${f}: ${s.bullets} of ${wantBullets.length} bullets, ${s.dates} of ${want.work.length} jobs dated, the name${f.startsWith('helix-1col') ? ' and the email' : ''}; ${(got.jsonResume.work ?? []).length} jobs, ${got.leftovers.length} leftovers`, needed, `falls short: ${s.short.join('; ')}`);
-    if (s.short.length) console.log(`      falls short: ${s.short.join('; ')}${f.startsWith('helix-2col') ? ' (the sidebar\'s Contact heading makes its lines a section)' : ''}`);
+    ok(`${f}: ${s.bullets} of ${wantBullets.length} bullets, ${s.dates} of ${want.work.length} jobs dated, ${s.jobs} with company and position, the name, email, phone, url and city; ${(got.jsonResume.work ?? []).length} jobs, ${got.leftovers.length} leftovers`, s.pass, `falls short: ${s.short.join('; ')}`);
+    if (s.short.length) console.log(`      falls short: ${s.short.join('; ')}`);
   }
 }
 
@@ -891,6 +893,22 @@ section('PDF: the parser on what a PDF gives it (page breaks, headings with wide
   const wrapped = parseResume([...head, I('Northgate Dosing Systems and Partners Limited', 716, { bottom: 703 }), I('Design Engineer', 690), I('Mar 2021 – Present', 677), I('• Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year', 664),
     I('• Built the test rig the team now uses for verification of every new part that comes in', 651), I('• Wrote the protocols for the rig and trained the team to run them on every shift that is planned', 638)]).jsonResume.work;
   ok('a line the reader joined from two is measured from its last line: a long company name over two lines is not cut off from the title under it (the title is not bold, which the parser would otherwise go by)', wrapped?.length === 1 && wrapped[0].highlights?.length === 3 && wrapped[0].startDate === '2021-03', J(wrapped));
+  // the lines of a job: a title and then a line of company, dates and place, or the reverse; a sidebar's contact lines; a skill group in bold capitals; a patent
+  const work = items => parseResume([...head, ...items]).jsonResume.work;
+  const bul = [I('• Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year', 664), I('• Built the test rig the team now uses for verification of every new part that comes in', 651)];
+  const above = work([I('Design Engineer', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present · Lisbon', 690), ...bul]);
+  ok('a title above a line of company, dates and place gives the company from that line and the title from the first', above?.length === 1 && above[0].name === 'Northgate Dosing Systems' && above[0].position === 'Design Engineer' && above[0].startDate === '2021-03', J(above));
+  const reverse = work([I('Northgate Dosing Systems', 716, { bold: true }), I('Design Engineer · Mar 2021 – Present', 690), ...bul]);
+  ok('and a company above a line of title and dates gives the title from the line with the date', reverse?.length === 1 && reverse[0].name === 'Northgate Dosing Systems' && reverse[0].position === 'Design Engineer' && reverse[0].startDate === '2021-03', J(reverse));
+  const sidebar = (heading, lex) => parseResume([I('Jane Q. Sample', 780, { bold: true }), I('Mechanical engineer', 760), I(heading, 740, { bold: true, title: true }), I('Lisbon, Portugal', 720), I('jane.sample@example.com', 700), I('+351 900 000 000', 680), I('janesample.example', 660), I('EXPERIENCE', 620, { bold: true }), I('Design Engineer', 596, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 570), ...bul.map(b => ({ ...b, y: b.y - 94 }))], lex).jsonResume.basics;
+  const side = sidebar('Contact');
+  ok('the lines under a Contact heading are the profile\'s: the email, the phone (with a plus), the url (a bare domain) and the place (city, country)', side.email === 'jane.sample@example.com' && side.phone === '+351 900 000 000' && side.url === 'janesample.example' && side.location?.city === 'Lisbon', J(side));
+  const kontakt = sidebar('Kontakt', lexiconFor('de'));
+  ok('and under the word for it in another language, from the catalogue (German Kontakt, a heading the reader marked)', kontakt.email === 'jane.sample@example.com' && kontakt.phone === '+351 900 000 000', J(kontakt));
+  const group = parseResume([...head.slice(0, 2), I('SKILLS', 740, { bold: true }), I('CAD & 3D', 716, { bold: true }), I('SolidWorks, Creo, Fusion 360', 703), I('Test & QA', 680, { bold: true }), I('ISO 13485, IEC 62366', 667)]);
+  ok('a skill group in bold capitals with a digit ("CAD & 3D") is not a section: the skills are read', group.jsonResume.skills?.some(g => g.keywords.includes('Fusion 360') || /Fusion 360/.test(g.name ?? '')) && group.leftovers.every(l => l.section !== 'CAD & 3D'), J(group.jsonResume.skills) + J(group.leftovers));
+  const patent = work([I('Design Engineer', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 690), ...bul, I('Patent', 612, { bold: true }), I('Dose-counting mechanism for a metered inhaler', 588, { bold: true }), I('Co-inventor · EP 3 000 000 B1 · 2025', 574)]);
+  ok('a Patent heading opens its own section: the patent is not a job', patent?.length === 1 && patent[0].highlights?.length === 2, J(patent));
 }
 
 section('vendor/pdfjs and its reader');
@@ -906,7 +924,7 @@ section('vendor/pdfjs and its reader');
 }
 
 section('the table: the score of every file (what a PDF, a DOCX and an ODT give of the example)');
-for (const [name, s] of board) console.log(`      ${name.padEnd(24)} bullets ${s.bullets}/${wantBullets.length}  dates ${s.dates}/${want.work.length}  name ${s.name ? 'yes' : 'NO'}  email ${s.email ? 'yes' : 'no'}`);
+for (const [name, s] of board) console.log(`      ${name.padEnd(24)} bullets ${s.bullets}/${wantBullets.length}  dates ${s.dates}/${want.work.length}  company+position ${s.jobs}/${want.work.length}  name ${s.name ? 'yes' : 'NO'}  email ${s.email ? 'yes' : 'no'}  contact ${s.contact ? 'yes' : 'no'}`);
 section('src/parse/ stands alone');
 {
   const files = [];
