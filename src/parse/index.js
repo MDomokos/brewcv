@@ -1,4 +1,4 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/index.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: no PDF reading, a column split first (a layout in, the layout and doubts out), a lexicon, JSON Resume out
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/index.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: no PDF reading, a column split first (a layout in, the layout and doubts out), a lexicon, JSON Resume out; 2026-11-01: a doubt when no job is found
 // Resume text items in, JSON Resume out. Imports nothing from the rest of src/ (checks/parse-check.mjs greps for it).
 // Not ported: read-pdf.ts (the readers make the items), types.ts (types only).
 import { withEnglish } from './lexicon.js';
@@ -13,7 +13,7 @@ import { toJsonResume } from './to-json-resume.js';
  * items: [{ text, x, y, width, height, fontName, hasEOL, page?, side? }]; an item with `side` ('header' or 'footer') is not read: its line comes back in `leftovers`. lexicon: see lexicon.js; leave it out for English.
  * layout: [{ page, headerBottom?, split? }], what to do with a page (see split-columns.js); a page it does not name is guessed.
  * Returns { jsonResume, trace, leftovers, layout, doubts }: the layout used for every page, and what to check by eye
- * ([{ kind: 'columns', page } | { kind: 'leftovers', n } | { kind: 'dates', n } | { kind: 'name' }]).
+ * ([{ kind: 'columns', page } | { kind: 'leftovers', n } | { kind: 'dates', n } | { kind: 'name' } | { kind: 'jobs' }]); 'jobs' is no job found in a file of more than ten lines.
  */
 export const parseResume = (all, lexicon, given) => {
   const lex = withEnglish(lexicon);
@@ -44,6 +44,7 @@ export const parseResume = (all, lexicon, given) => {
       ...(leftovers.length >= 4 && leftovers.length * 4 > lines.length ? [{ kind: 'leftovers', n: leftovers.length }] : []),
       ...(undated ? [{ kind: 'dates', n: undated }] : []),
       ...(jsonResume.basics.name ? [] : [{ kind: 'name' }]),
+      ...(!jsonResume.work?.length && lines.length > 10 ? [{ kind: 'jobs' }] : []),
     ],
   };
 };

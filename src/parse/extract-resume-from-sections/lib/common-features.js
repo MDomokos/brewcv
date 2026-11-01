@@ -1,7 +1,8 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/common-features.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; word lists from the lexicon; Unicode letters; months, seasons and "present" matched by a boundary rule
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/common-features.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; word lists from the lexicon; Unicode letters; months, seasons and "present" matched by a boundary rule; 2026-11-01: an item set in capitals by its style counts as upper case
 // Types stripped. Changed: the word lists come from the lexicon (see lexicon.js); a letter is any Unicode
 // letter, so Hungarian or German headings and names count; a month, season or "present" is found in any case,
-// from a letter boundary on, and as a whole word where it is short (see `found`).
+// from a letter boundary on, and as a whole word where it is short (see `found`). An item a reader marked `caps` (all capitals by its style, typed in
+// lower case) is upper case.
 
 const isTextItemBold = fontName => fontName.toLowerCase().includes('bold');
 export const isBold = item => isTextItemBold(item.fontName);
@@ -10,7 +11,7 @@ export const hasNumber = item => /[0-9]/.test(item.text);
 export const hasComma = item => item.text.includes(',');
 export const getHasText = text => item => item.text.includes(text);
 export const hasOnlyLettersSpacesAmpersands = item => /^[\p{L}\s&]+$/u.test(item.text);
-export const hasLetterAndIsAllUpperCase = item => hasLetter(item) && item.text.toUpperCase() === item.text;
+export const hasLetterAndIsAllUpperCase = item => hasLetter(item) && (!!item.caps || item.text.toUpperCase() === item.text);
 
 // Date Features
 const hasYear = item => /(?:19|20)\d{2}/.test(item.text);
