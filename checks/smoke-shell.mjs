@@ -4185,6 +4185,84 @@ if (want('on the page: moving lines within their job, the hover areas, and + at 
   await ctx.close();
 }
 
+if (want('the skill wordbank on the page: a word’s own hover plate, the groups as soft drop zones, a group moved across the two columns')) {
+  const ctx = await newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const fr = page.frameLocator('#sheet iframe');
+  const groupsNow = () => frameDoc(page, d => [...d.querySelectorAll('.skills__group')].map(g => g.dataset.group));
+  const wordAt = async text => { const b = await fr.locator('.skills__group [data-word]', { hasText: new RegExp(`^${text}$`) }).first().boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+  // the hover plate: which element wears it (a word by its text, a group by its id), and its width against that element's
+  const hot = () => page.evaluate(() => window.__wb.sheet.plates().filter(p => p.role === 'hot').map(p => ({ word: p.el.matches('[data-word]') ? p.el.textContent : null, group: p.el.matches('.skills__group') ? p.el.dataset.group : null, w: p.div.getBoundingClientRect().width - p.el.getBoundingClientRect().width })));
+  const creo = await wordAt('Creo');
+  await page.mouse.move(creo.x - 6, creo.y, { steps: 3 }); await page.mouse.move(creo.x, creo.y, { steps: 3 }); await settle(page);
+  const hw = await hot();
+  ok('over a skill word, that word alone wears the hover plate, the size of the word (a press there carries the word); its group\'s plate is off', hw.length === 1 && hw[0].word === 'Creo' && Math.abs(hw[0].w) <= 4, JSON.stringify(hw));
+  const lb = await fr.locator('.skills__group[data-group="skills-cad"] .skills__label').boundingBox();
+  await page.mouse.move(lb.x + 12, lb.y + lb.height / 2, { steps: 4 }); await settle(page);
+  const hg = await hot();
+  ok('…over the group\'s heading, the whole group wears it, as before (a press there moves the group)', hg.length === 1 && hg[0].group === 'skills-cad', JSON.stringify(hg));
+  // a word carried: no outlines, every group a soft wash with no line, the one under the pointer a little stronger, no plate over the page
+  await fr.locator('.band[data-section="skills"] .tab').first().click(); await settle(page); await page.keyboard.press('Escape'); await settle(page);
+  await page.click('.sknames [data-g="skills-cad"]'); await settle(page);
+  const git = await wordAt('Git'), c2 = await wordAt('Creo');
+  await page.mouse.move(c2.x, c2.y); await page.mouse.down(); await page.mouse.move(c2.x + 8, c2.y + 3, { steps: 3 }); await page.mouse.move(git.x + 2, git.y, { steps: 12 }); await page.waitForTimeout(600); await page.mouse.move(git.x + 3, git.y);
+  const look = await frameDoc(page, d => { const cs = e => d.defaultView.getComputedStyle(e), a = c => +(c.match(/[\d.]+(?=\)$)/)?.[0] ?? 1);
+    return { words: [...d.querySelectorAll('.skills__group [data-word]:not(.rb-wsocket)')].filter(w => cs(w).boxShadow !== 'none' || cs(w).outlineStyle !== 'none').length,
+      groups: [...d.querySelectorAll('.skills__group')].map(g => ({ id: g.dataset.group, line: cs(g).outlineStyle, wash: a(cs(g).backgroundColor) })), slot: !!d.querySelector('.rb-wsocket') }; });
+  const zone = look.groups.find(g => g.id === 'skills-software'), rest = look.groups.filter(g => g.id !== 'skills-software');
+  ok('a word carried over the page: no word is outlined, every group is a soft wash with no line, and the group under the pointer is a little stronger, its slot shown',
+    look.words === 0 && look.groups.every(g => g.line === 'none' && g.wash > 0) && rest.every(g => g.wash < zone.wash) && look.slot, JSON.stringify(look));
+  ok('…and no plate is drawn over the page while it is carried', (await page.evaluate(() => window.__wb.sheet.plates().length)) === 0);
+  await page.keyboard.press('Escape'); await page.mouse.up(); await settle(page);
+  // a group moved in the two-column look: the preview is the real result in both columns, the last place of the right column too, and crossing takes as little as a row
+  await page.mouse.move(4, 4); await settle(page);      // (the group stays picked: the sidebar card lists the groups by name)
+  const at = () => frameDoc(page, d => Object.fromEntries([...d.querySelectorAll('.skills__group')].map(g => { const r = g.getBoundingClientRect(); return [g.dataset.group, { x: Math.round(r.left), y: Math.round(r.top) }]; })));
+  const home = await at(), pitch = home['skills-fabrication'].x - home['skills-cad'].x, k = await page.evaluate(() => window.__wb.canvas.cam.k);
+  const l2 = await fr.locator('.skills__group[data-group="skills-cad"] .skills__label').boundingBox(), s = { x: l2.x + 12, y: l2.y + l2.height / 2 };
+  await page.mouse.move(s.x, s.y); await page.mouse.down(); await page.mouse.move(s.x + 6, s.y + 1, { steps: 3 });
+  await page.mouse.move(s.x + pitch * k * 0.4, s.y, { steps: 6 }); await page.waitForTimeout(150);
+  const cross = await at();
+  ok('two columns: a group carried four tenths of the way across already takes the other column, and the group there slides into its place', home['skills-cad'].y === home['skills-fabrication'].y && pitch > 100
+    && Math.abs(cross['skills-fabrication'].x - home['skills-cad'].x) <= 1 && Math.abs(cross['skills-fabrication'].y - home['skills-cad'].y) <= 1, JSON.stringify({ home, cross }));
+  // the preview's reading order (row by row; the carried group may lag 10 px off its row) and the sidebar card's names while it is held
+  const readOrder = pos => Object.entries(pos).sort(([, a], [, b]) => (Math.abs(a.y - b.y) > 12 ? a.y - b.y : a.x - b.x)).map(([id]) => id);
+  const namesNow = () => page.evaluate(() => [...document.querySelectorAll('.sknames [data-g]')].map(e => e.dataset.g));
+  const near = (a, b, d = 2) => Math.abs(a.x - b.x) <= d && Math.abs(a.y - b.y) <= d;
+  // carry the first group onto the last place (the label of the last group), and compare the held preview with the page after the drop
+  const toLast = async () => {
+    const ids = await groupsNow(), lb0 = await fr.locator(`.skills__group[data-group="${ids[0]}"] .skills__label`).boundingBox(), end = await fr.locator(`.skills__group[data-group="${ids.at(-1)}"]`).boundingBox();
+    const s0 = { x: lb0.x + 12, y: lb0.y + lb0.height / 2 };
+    await page.mouse.move(s0.x, s0.y); await page.mouse.down(); await page.mouse.move(s0.x + 6, s0.y + 1, { steps: 3 });
+    await page.mouse.move(end.x + 12, end.y + end.height * 0.6, { steps: 12 }); await page.waitForTimeout(150);
+    const held = await at(), names = await namesNow();
+    await page.mouse.up(); await settle(page);
+    return { ids, held, names, landed: await at(), order: await groupsNow() };
+  };
+  await page.keyboard.press('Escape'); await page.mouse.up(); await settle(page);
+  ok('…let go with Esc, nothing moves, the sidebar card\'s names too', JSON.stringify(await groupsNow()) === JSON.stringify(['skills-cad', 'skills-fabrication', 'skills-testing', 'skills-software']) && JSON.stringify(await namesNow()) === JSON.stringify(await groupsNow()), JSON.stringify(await namesNow()));
+  for (const [name, more] of [['2 x 2', false], ['2 x 3', true]]){
+    if (more){      // a fifth group, from the section's "+": three rows
+      await page.evaluate(() => document.querySelector('#toast').classList.remove('on'));
+      const g1 = await frameBox(page, '.skills__group', 1);
+      await page.mouse.move(g1.x + 12, g1.y + g1.height - 6); await page.mouse.move(g1.x + 14, g1.y + g1.height - 5); await page.waitForTimeout(300);
+      await page.click('#handlay .wbsplus'); await settle(page); await page.keyboard.insertText('Tools'); await page.keyboard.press('Enter'); await settle(page);
+      await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
+      await fr.locator('.band[data-section="skills"] .tab').first().click(); await settle(page); await page.keyboard.press('Escape'); await settle(page);
+      await page.click('.sknames [data-g="skills-cad"]'); await settle(page);
+    }
+    const r = await toLast(), want = [...r.ids.slice(1), r.ids[0]], rows = new Set(Object.values(r.landed).map(q => q.y)).size;
+    ok(`${name}: the first group carried to the last place: every other group is held where it lands, each a place back in reading order (wrapping from a row's start to the end of the one before), and the order held is the order dropped`,
+      rows === (more ? 3 : 2) && JSON.stringify(r.order) === JSON.stringify(want) && JSON.stringify(readOrder(r.held)) === JSON.stringify(want)
+      && r.ids.slice(1).every(id => near(r.held[id], r.landed[id])) && near(r.held[r.ids[0]], r.landed[r.ids[0]], 11), JSON.stringify(r));
+    ok(`${name}: …the sidebar card's names read the same order while it is held`, JSON.stringify(r.names) === JSON.stringify(want), JSON.stringify(r.names));
+    await page.keyboard.press('ControlOrMeta+z'); await settle(page);
+    ok(`${name}: …and Undo puts the groups back`, JSON.stringify(await groupsNow()) === JSON.stringify(r.ids));
+  }
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 if (want('the skill wordbank: the groups by name, the bank’s window, moving words, Find or add, the page’s "+", a group onto the bank, languages')) {
   const ctx = await newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();

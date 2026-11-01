@@ -60,7 +60,7 @@ const glide = async (page, x, y) => { await page.mouse.move(x - 40, y); for (let
 // ---- the levels: the element that is the block, where to put the pointer for its hover, how the sidebar selects it ----
 const LEVELS = {
   line: { sel: '.entry:first-child .bullets li', n: 1, at: b => ({ x: b.x + 60, y: b.y + 6 }), token: 'line' },
-  group: { sel: '.skills__group', n: 0, at: b => ({ x: b.x + 90, y: b.y + 20 }), token: 'group' },
+  group: { sel: '.skills__group', n: 0, at: b => ({ x: b.x + 20, y: b.y + 6 }), token: 'group' },      // (on its heading: a word under the pointer wears a plate of its own)
   job: { sel: '.entry', n: 0, head: '.entry .role-title', token: 'job' },
   section: { sel: '.band[data-section=experience]', n: 0, head: '.band[data-section=experience] .tab', token: 'section' },
 };

@@ -334,7 +334,7 @@ export function initWordbank(C){
     g.className = 'skchip wbghost'; g.textContent = wtext(D.wid).text; g.hidden = true;
     document.body.append(g);
     document.documentElement.classList.add('wb-carry');
-    fdoc()?.documentElement.classList.add('rb-skcarry');
+    C.sheet.skcarry(true);
     if (D.from === 'page') try { fdoc()?.documentElement.setPointerCapture(D.pid); } catch { /* followed over the page */ }
     // the page's words as they are, by group: the preview moves these elements and slides the others
     D.page = new Map([...(fdoc()?.querySelectorAll('.skills__group[data-group]') ?? [])].map(gel => [gel.dataset.group, [...gel.querySelectorAll('[data-word]')]]));
@@ -450,7 +450,8 @@ export function initWordbank(C){
     const r = g.getBoundingClientRect();
     g.style.transform = `translate(${p.x - D.fx * r.width}px, ${p.y - D.fy * r.height}px)`;
     fdoc()?.querySelectorAll('.rb-sknear').forEach(x => x.classList.remove('rb-sknear'));
-    if (D.strain) fdoc()?.querySelector(`.skills__group[data-group="${CSS.escape(D.strain)}"]`)?.classList.add('rb-sknear');
+    const near = D.strain ?? D.t?.gid;      // the group under the pointer: the one holding it back, else the one it would land in
+    if (near) fdoc()?.querySelector(`.skills__group[data-group="${CSS.escape(near)}"]`)?.classList.add('rb-sknear');
     card?.classList.toggle('drop-bank', !!D.t?.off);
     document.querySelectorAll('.wbsec.drop-on').forEach(x => x.classList.remove('drop-on'));
     if (D.t?.shelf !== undefined) card?.querySelector(`.wbsec[data-sec="${CSS.escape(D.t.shelf)}"]`)?.classList.add('drop-on');
@@ -466,7 +467,7 @@ export function initWordbank(C){
     justDragged = performance.now();
     d.ghost?.remove(); d.el?.classList.remove('socket');
     document.documentElement.classList.remove('wb-carry');
-    fdoc()?.documentElement.classList.remove('rb-skcarry');
+    C.sheet.skcarry(false);
     fdoc()?.querySelectorAll('.rb-sknear, .rb-wsocket').forEach(x => x.classList.remove('rb-sknear', 'rb-wsocket'));
     fdoc()?.removeEventListener('keydown', escape, true);
     card?.classList.remove('drop-bank'); document.querySelectorAll('.wbsec.drop-on').forEach(x => x.classList.remove('drop-on'));
