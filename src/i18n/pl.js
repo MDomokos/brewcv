@@ -1690,8 +1690,8 @@ export default {
   'i6.newSchool': 'Nowa szkoła',
   'i6b.checkWith': 'Sprawdź słowa z',
   'i6b.noOriginal': 'Bez oryginału',
-  'i6b.notChecked': 'Nie porównano z oryginałem: nowe wiersze są domyślnie niezaznaczone.',
+  'i6b.notChecked': 'Nie porównano z oryginałem: nic nie jest domyślnie zaznaczone.',
   'i6b.allFound': 'Każdy tekst jest w {doc}.',
-  'i6b.someMissing': 'Niektórych tekstów nie ma w {doc}: są domyślnie niezaznaczone.',
+  'i6b.someMissing': { one: '{n} tekst nie jest w {doc}. Dodawanie zostawia go niezaznaczonego; zastąpienie lub otwarcie go bierze.', few: '{n} teksty nie są w {doc}. Dodawanie zostawia je niezaznaczone; zastąpienie lub otwarcie bierze wszystkie.', many: '{n} tekstów nie ma w {doc}. Dodawanie zostawia je niezaznaczone; zastąpienie lub otwarcie bierze wszystkie.', other: '{n} tekstu nie ma w {doc}. Dodawanie zostawia je niezaznaczone; zastąpienie lub otwarcie bierze wszystkie.' },
   'i6b.notIn': 'Brak w {doc}',
 };

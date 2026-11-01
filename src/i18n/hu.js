@@ -1690,8 +1690,8 @@ export default {
   'i6.newSchool': 'Új iskola',
   'i6b.checkWith': 'A szavak ellenőrzése ehhez képest:',
   'i6b.noOriginal': 'Nincs eredeti',
-  'i6b.notChecked': 'Nincs eredetihez hasonlítva: az új sorok eleinte nincsenek kipipálva.',
+  'i6b.notChecked': 'Nincs eredetihez hasonlítva: eleinte semmi sincs kipipálva.',
   'i6b.allFound': 'Minden szöveg szerepel itt: {doc}.',
-  'i6b.someMissing': 'Néhány szöveg nem szerepel itt: {doc}. Eleinte nincsenek kipipálva.',
+  'i6b.someMissing': { one: '{n} szöveg nincs benne: {doc}. Hozzáadáskor kipipálatlanul indul; a csere vagy a megnyitás átveszi.', other: '{n} szöveg nincs benne: {doc}. Hozzáadáskor kipipálatlanul indulnak; a csere vagy a megnyitás mindet átveszi.' },
   'i6b.notIn': 'Nincs benne: {doc}',
 };

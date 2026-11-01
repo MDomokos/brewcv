@@ -97,8 +97,8 @@ const checkPicker = g => (g.kind === 'jsonresume' && docsWithText().length
   ? `<label class="field"><span class="lbl">${h('i6b.checkWith')}</span><select id="imp-doc" aria-label="${esc(t('i6b.checkWith'))}"><option value="">${h('i6b.noOriginal')}</option>${docsWithText().map(d => `<option value="${esc(d.id)}" ${checkDoc(g)?.id === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : '');
 function checkLine(g){
   if (g?.kind !== 'jsonresume') return '';
-  const doc = checkDoc(g), some = doc && DOC.checkWords(g.json, doc.text).some(r => !r.found);
-  return `<p class="small" role="status" data-check="${doc ? (some ? 'missing' : 'ok') : 'none'}">${esc(doc ? t(some ? 'i6b.someMissing' : 'i6b.allFound', { doc: doc.name }) : t('i6b.notChecked'))}</p>`;
+  const doc = checkDoc(g), n = doc ? DOC.checkWords(g.json, doc.text).filter(r => !r.found).length : 0;
+  return `<p class="small" role="status" data-check="${doc ? (n ? 'missing' : 'ok') : 'none'}">${esc(doc ? t(n ? 'i6b.someMissing' : 'i6b.allFound', { doc: doc.name, n }) : t('i6b.notChecked'))}</p>`;
 }
 
 function itemsHtml(items, checkable){

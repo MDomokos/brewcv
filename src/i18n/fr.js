@@ -1690,8 +1690,8 @@ export default {
   'i6.newSchool': 'Nouvelle école',
   'i6b.checkWith': 'Vérifier les mots d’après',
   'i6b.noOriginal': 'Aucun original',
-  'i6b.notChecked': 'Non comparé à un original : ses nouvelles lignes ne sont pas cochées.',
+  'i6b.notChecked': 'Non comparé à un original : rien n’est coché au départ.',
   'i6b.allFound': 'Chaque texte figure dans {doc}.',
-  'i6b.someMissing': 'Certains textes ne figurent pas dans {doc} : ils ne sont pas cochés.',
+  'i6b.someMissing': { one: '{n} texte ne figure pas dans {doc}. L’ajout le laisse décoché ; remplacer ou ouvrir le reprend.', many: '{n} textes ne figurent pas dans {doc}. L’ajout les laisse décochés ; remplacer ou ouvrir les reprend tous.', other: '{n} textes ne figurent pas dans {doc}. L’ajout les laisse décochés ; remplacer ou ouvrir les reprend tous.' },
   'i6b.notIn': 'Absent de {doc}',
 };

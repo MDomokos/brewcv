@@ -1690,8 +1690,8 @@ export default {
   'i6.newSchool': 'Neue Schule',
   'i6b.checkWith': 'Wörter prüfen gegen',
   'i6b.noOriginal': 'Kein Original',
-  'i6b.notChecked': 'Nicht mit einem Original verglichen: die neuen Zeilen sind zunächst nicht angehakt.',
+  'i6b.notChecked': 'Nicht mit einem Original verglichen: nichts ist zunächst angehakt.',
   'i6b.allFound': 'Jeder Text steht in {doc}.',
-  'i6b.someMissing': 'Einige Texte stehen nicht in {doc}: sie sind zunächst nicht angehakt.',
+  'i6b.someMissing': { one: '{n} Text steht nicht in {doc}. Beim Hinzufügen ist er zunächst nicht angehakt; Ersetzen oder Öffnen übernimmt ihn.', other: '{n} Texte stehen nicht in {doc}. Beim Hinzufügen sind sie zunächst nicht angehakt; Ersetzen oder Öffnen übernimmt alle.' },
   'i6b.notIn': 'Nicht in {doc}',
 };

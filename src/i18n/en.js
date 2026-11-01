@@ -1694,8 +1694,8 @@ export default {
   'i6.newSchool': 'New school',
   'i6b.checkWith': 'Check the words against',
   'i6b.noOriginal': 'No original',
-  'i6b.notChecked': 'Not checked against an original: its new lines start unticked.',
+  'i6b.notChecked': 'Not checked against an original: nothing starts ticked.',
   'i6b.allFound': 'Every text is in {doc}.',
-  'i6b.someMissing': 'Some texts are not in {doc}: they start unticked.',
+  'i6b.someMissing': { one: '{n} text is not in {doc}. Adding starts it unticked; replacing or opening takes it.', other: '{n} texts are not in {doc}. Adding starts them unticked; replacing or opening takes them all.' },
   'i6b.notIn': 'Not in {doc}',
 };

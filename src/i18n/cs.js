@@ -1690,8 +1690,8 @@ export default {
   'i6.newSchool': 'Nová škola',
   'i6b.checkWith': 'Zkontrolovat slova podle',
   'i6b.noOriginal': 'Žádný originál',
-  'i6b.notChecked': 'Nesrovnáno s originálem: nové řádky jsou zpočátku nezaškrtnuté.',
+  'i6b.notChecked': 'Nesrovnáno s originálem: nic není zpočátku zaškrtnuté.',
   'i6b.allFound': 'Každý text je v {doc}.',
-  'i6b.someMissing': 'Některé texty nejsou v {doc}: jsou zpočátku nezaškrtnuté.',
+  'i6b.someMissing': { one: '{n} text není v {doc}. Přidání ho nechá nezaškrtnutý; nahrazení nebo otevření ho převezme.', few: '{n} texty nejsou v {doc}. Přidání je nechá nezaškrtnuté; nahrazení nebo otevření převezme všechny.', many: '{n} textu není v {doc}. Přidání je nechá nezaškrtnuté; nahrazení nebo otevření převezme všechny.', other: '{n} textů není v {doc}. Přidání je nechá nezaškrtnuté; nahrazení nebo otevření převezme všechny.' },
   'i6b.notIn': 'Není v {doc}',
 };

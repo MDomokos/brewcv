@@ -1690,8 +1690,8 @@ export default {
   'i6.newSchool': 'Nuova scuola',
   'i6b.checkWith': 'Controlla le parole con',
   'i6b.noOriginal': 'Nessun originale',
-  'i6b.notChecked': 'Non confrontato con un originale: le sue righe nuove partono senza spunta.',
+  'i6b.notChecked': 'Non confrontato con un originale: niente parte con la spunta.',
   'i6b.allFound': 'Ogni testo è in {doc}.',
-  'i6b.someMissing': 'Alcuni testi non sono in {doc}: partono senza spunta.',
+  'i6b.someMissing': { one: '{n} testo non è in {doc}. Aggiungendo parte senza spunta; sostituire o aprire lo prende.', many: '{n} testi non sono in {doc}. Aggiungendo partono senza spunta; sostituire o aprire li prende tutti.', other: '{n} testi non sono in {doc}. Aggiungendo partono senza spunta; sostituire o aprire li prende tutti.' },
   'i6b.notIn': 'Non in {doc}',
 };

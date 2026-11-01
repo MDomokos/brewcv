@@ -1690,8 +1690,8 @@ export default {
   'i6.newSchool': 'Centro de estudios nuevo',
   'i6b.checkWith': 'Comprobar las palabras con',
   'i6b.noOriginal': 'Sin original',
-  'i6b.notChecked': 'No comparado con un original: sus líneas nuevas empiezan sin marcar.',
+  'i6b.notChecked': 'No comparado con un original: nada empieza marcado.',
   'i6b.allFound': 'Todos los textos están en {doc}.',
-  'i6b.someMissing': 'Algunos textos no están en {doc}: empiezan sin marcar.',
+  'i6b.someMissing': { one: '{n} texto no está en {doc}. Al añadir, empieza sin marcar; reemplazar o abrir lo toma.', many: '{n} textos no están en {doc}. Al añadir, empiezan sin marcar; reemplazar o abrir los toma todos.', other: '{n} textos no están en {doc}. Al añadir, empiezan sin marcar; reemplazar o abrir los toma todos.' },
   'i6b.notIn': 'No está en {doc}',
 };

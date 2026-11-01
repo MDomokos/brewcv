@@ -1690,8 +1690,8 @@ export default {
   'i6.newSchool': 'Escola nova',
   'i6b.checkWith': 'Verificar as palavras com',
   'i6b.noOriginal': 'Sem original',
-  'i6b.notChecked': 'Não comparado com um original: as linhas novas começam sem marca.',
+  'i6b.notChecked': 'Não comparado com um original: nada começa marcado.',
   'i6b.allFound': 'Todos os textos estão em {doc}.',
-  'i6b.someMissing': 'Alguns textos não estão em {doc}: começam sem marca.',
+  'i6b.someMissing': { one: '{n} texto não está em {doc}. Ao adicionar, começa sem marca; substituir ou abrir leva-o.', many: '{n} textos não estão em {doc}. Ao adicionar, começam sem marca; substituir ou abrir leva todos.', other: '{n} textos não estão em {doc}. Ao adicionar, começam sem marca; substituir ou abrir leva todos.' },
   'i6b.notIn': 'Não está em {doc}',
 };

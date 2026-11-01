@@ -1690,8 +1690,8 @@ export default {
   'i6.newSchool': 'Nieuwe school',
   'i6b.checkWith': 'Controleer de woorden met',
   'i6b.noOriginal': 'Geen origineel',
-  'i6b.notChecked': 'Niet vergeleken met een origineel: de nieuwe regels staan eerst uit.',
+  'i6b.notChecked': 'Niet vergeleken met een origineel: er staat niets aan.',
   'i6b.allFound': 'Elke tekst staat in {doc}.',
-  'i6b.someMissing': 'Sommige teksten staan niet in {doc}: ze staan eerst uit.',
+  'i6b.someMissing': { one: '{n} tekst staat niet in {doc}. Toevoegen laat hem uit staan; vervangen of openen neemt hem mee.', other: '{n} teksten staan niet in {doc}. Toevoegen laat ze uit staan; vervangen of openen neemt ze allemaal mee.' },
   'i6b.notIn': 'Niet in {doc}',
 };
