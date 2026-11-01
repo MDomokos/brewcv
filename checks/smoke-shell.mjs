@@ -1335,7 +1335,7 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   await page.keyboard.press('r'); await settle(page);
   ok('Career starts with “Your career”, with the whole career counted', /Your career/.test(await page.textContent('#checklist')) && /^\d+\/\d+\d+ of \d+ on$/.test((await all()).trim()));
   const names = await page.$$eval('#scr .rectl .tl2 [data-grp]', rs => rs.map(r => r.dataset.grp));
-  ok('the entries on the timeline: the jobs newest first, projects and education beside them; About you and the lists are the cards on top', names[0] === 'hydra' && names.indexOf('hydra') < names.indexOf('poly') && names.indexOf('poly') < names.indexOf('atelier') && names.includes('chassis-jig') && names.includes('education') && (await page.$$eval('#scr .recmore .srow', rs => rs.map(r => r.dataset.grp))).join() === 'about,credentials', names.join());
+  ok('the entries on the timeline: the jobs newest first, projects and education beside them; About you, the lists and the skill words are the cards on top', names[0] === 'hydra' && names.indexOf('hydra') < names.indexOf('poly') && names.indexOf('poly') < names.indexOf('atelier') && names.includes('chassis-jig') && names.includes('education') && (await page.$$eval('#scr .recmore .srow', rs => rs.map(r => r.dataset.grp))).join() === 'about,credentials,~bank', names.join());
   await showGroup(page, 'hydra');
   ok('the selected entry is open in the inspector, its rows shown (the entry\u2019s fold is not offered)', (await page.$$('#body .clg.open')).length === 1 && (await page.$$('#body .clg[data-g=hydra] .clrow')).length === 7 && !(await page.$('#body .clg[data-g=hydra] .clcaret:visible')));
   ok('no hint above the list: what a tick does is shown once, by a line travelling to the page (UX-4)', !(await page.$('#checklist .clhint')) && await page.evaluate(() => localStorage.getItem('rb-cl-hint') === '1'));
@@ -1438,7 +1438,7 @@ if (want('the record forms: details, About you, languages, no Save button')) {
   ok('a skill group opens in the inspector: its name and keywords, then its versions, no Save', (await page.getAttribute('#body', 'data-view')) === 'record' && await page.isVisible('#c-gname') && await page.isVisible('#c-kw-in') && (await page.locator('.vrow').count()) >= 1 && !(await page.$('[data-act=c-save-item]')));
   await page.fill('#c-kw-in', 'Onshape'); await page.keyboard.press('Enter'); await settle(page);
   ok('a keyword added with Enter is in the record at once', (await st()).record.skills[0].keywords.includes('Onshape'));
-  await page.click('#c-kw .tag:has-text("Onshape") .del'); await settle(page);
+  await page.click('#body .cwbkws .cwbkw:has-text("Onshape") .del'); await settle(page);
   ok('× removes it at once', !(await st()).record.skills[0].keywords.includes('Onshape'));
   await inRecord(page, 'credentials');
   await showGroup(page, 'credentials'); await page.click('#body .clg[data-g=credentials] .clrow:has-text("Portuguese") .clt'); await settle(page);
@@ -1592,6 +1592,96 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   ok('put on the resume, it prints the name and the text', (await frameDoc(page, d => d.body.textContent)).includes('Ana Exemplo') && (await frameDoc(page, d => d.body.textContent)).includes('dose counter in a week'));
   await page.click('#seclist .srow[data-sid=references] input'); await settle(page);
   ok('and off again with its switch, it is gone', !(await frameDoc(page, d => d.body.textContent)).includes('Ana Exemplo'));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+if (want('Career: the skill words, Find or add with its warning, moving words and shelves, the Editor\'s bank in Career\'s order, a record group\'s words as chips')) {
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const bank = () => page.evaluate(() => window.__wb.store.state.record.skillBank);
+  const tray = () => page.$$eval('#body .cwbtray .wbsec', rs => rs.map(r => [r.dataset.sec, [...r.querySelectorAll('[data-drag=w]')].map(c => c.dataset.id)]));
+  const mid = async sel => { const b = await page.locator(sel).first().boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2, b }; };
+  const chipAt = id => mid(`#body .cwbtray [data-drag=w][data-id="${id}"]`);
+  const carry = async (from, to) => { await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(from.x + 8, from.y + 3, { steps: 3 }); await page.mouse.move(to.x, to.y, { steps: 10 }); await page.mouse.up(); await settle(page); };
+  await inRecord(page);
+  const card = await page.$('#scr .recmore [data-grp="~bank"]');
+  ok('Career has a card for the skill words, after About you and Skills and credentials', !!card && (await page.$$eval('#scr .recmore .srow', rs => rs.map(r => r.dataset.grp))).join() === 'about,credentials,~bank');
+  if (card){
+    await card.click(); await settle(page);
+    ok('…which docks the bank in the inspector: Find or add, then every word as a chip in the bank\'s order (none on a shelf yet)', await page.isVisible('#body .cwbbank #cb-q') && JSON.stringify((await tray())[0][1]) === JSON.stringify((await bank()).words.map(w => w.id)));
+    for (const name of ['Software', 'Quality']){ await page.click('#body [data-act=c-bk-newshelf]'); await settle(page); await page.keyboard.insertText(name); await page.keyboard.press('Enter'); await settle(page); }
+    const S = (await bank()).shelves.map(s => s.id);
+    ok('New shelf adds one at the end, its name written at once; every shelf is shown, an empty one says so', (await bank()).shelves.map(s => s.name).join() === 'Software,Quality' && (await page.locator('#body .cwbtray .wbsec:not(.wbloose) .wbshelfnote').count()) === 2);
+    const n0 = (await bank()).words.length;
+    await page.fill('#cb-q', 'Pythn'); await settle(page);
+    ok('Find or add: a word like one in the bank shows "≈" and that word', await page.isVisible('#body .cwbbank .wbaddrow.near') && (await page.textContent('#body .cwbbank .wbaddrow.near')).includes('Python'));
+    await page.keyboard.press('Enter'); await settle(page);
+    ok('…the first Enter only rings the "+ Add" in the warning colour; nothing is added', await page.evaluate(() => document.querySelector('#body .cwbbank .wbqplus')?.classList.contains('warned')) && (await bank()).words.length === n0);
+    await page.keyboard.press('Enter'); await settle(page);
+    ok('…the second adds it to the bank, on no shelf, and empties the box', (await bank()).words.at(-1).name === 'Pythn' && !(await bank()).words.at(-1).shelf && (await page.inputValue('#cb-q')) === '');
+    await page.fill('#cb-q', 'python'); await settle(page);
+    ok('a word the bank has shows "=", how many saved resumes print it, and Delete; the "+ Add" steps aside', await page.isVisible('#body .cwbbank .wbaddrow.dup [data-act=c-bk-delw]') && !(await page.isVisible('#body .cwbbank .wbqplus')));
+    await page.keyboard.press('Enter'); await settle(page);
+    ok('…Enter adds nothing and says it is in the bank already', (await bank()).words.length === n0 + 1 && /in the bank already/.test(await page.textContent('#toast')));
+    await page.fill('#cb-q', 'Onshape, Lathe'); await page.keyboard.press('Enter'); await settle(page);
+    ok('words typed with commas go in one by one', (await bank()).words.slice(-2).map(w => w.name).join() === 'Onshape,Lathe');
+    // moving words: onto a shelf (its end), beside a word, and from the keyboard
+    await carry(await chipAt('sw-git'), await mid(`#body .cwbtray .wbsec[data-sec="${S[0]}"] .wbtiles`));
+    const git = await chipAt('sw-git');
+    await carry(await chipAt('sw-python'), { x: git.b.x + 3, y: git.y });
+    ok('a word dragged onto a shelf goes to its end; let go on the left of a word, before it', JSON.stringify((await tray()).find(x => x[0] === S[0])[1]) === JSON.stringify(['sw-python', 'sw-git']) && (await bank()).words.find(w => w.id === 'sw-git').shelf === S[0]);
+    await page.focus('#body [data-drag=w][data-id="sw-lathe"]'); await page.keyboard.press('Alt+ArrowDown'); await settle(page); await page.keyboard.press('Alt+ArrowDown'); await settle(page);
+    ok('Alt+↓ moves a word to the shelf below, and the focus stays on it', (await bank()).words.find(w => w.id === 'sw-lathe').shelf === S[1] && await page.evaluate(() => document.activeElement?.dataset.id) === 'sw-lathe');
+    const lathe = await chipAt('sw-lathe');
+    await carry(await chipAt('sw-onshape'), { x: lathe.b.x + lathe.b.width - 3, y: lathe.y });
+    ok('…and a word let go on the right of a word goes after it', JSON.stringify((await tray()).find(x => x[0] === S[1])[1]) === JSON.stringify(['sw-lathe', 'sw-onshape']));
+    // moving shelves: by the name, and from the keyboard
+    const soft = await mid(`#body .cwbtray .wbsec[data-sec="${S[0]}"]`);
+    await carry(await mid(`#body .cwbshelf[data-id="${S[1]}"]`), { x: soft.x, y: soft.b.y + 3 });
+    ok('a shelf dragged by its name over the top of another goes before it, its words with it', (await bank()).shelves.map(s => s.name).join() === 'Quality,Software' && (await tray()).filter(x => x[0]).map(x => x[0]).join() === [S[1], S[0]].join());
+    await page.focus(`#body .cwbshelf[data-id="${S[1]}"]`); await page.keyboard.press('Alt+ArrowDown'); await settle(page);
+    ok('…and Alt+↓ on its name moves it down again', (await bank()).shelves.map(s => s.name).join() === 'Software,Quality');
+    await page.click(`#body .cwbshelf[data-id="${S[0]}"]`); await settle(page);
+    await page.keyboard.insertText('Code'); await page.keyboard.press('Enter'); await settle(page);
+    ok('a click on a shelf\'s name writes it', (await bank()).shelves[0].name === 'Code');
+    // the Editor's bank follows: the same shelves in the same order, and each shelf's words not on this resume in Career's order
+    const career = await tray();
+    await toEditHome(page); await page.click('#outline [data-act=select-section][data-id=skills]'); await settle(page);
+    const ed = await page.$$eval('#bankcard .wbtray .wbsec', rs => rs.map(r => [r.dataset.sec, [...r.querySelectorAll('.wbchip')].map(c => c.dataset.id)]));
+    const follows = ed.filter(x => x[0]).map(x => x[0]).join() === career.filter(x => x[0]).map(x => x[0]).join()
+      && ed.every(([sec, ids]) => JSON.stringify((career.find(x => x[0] === sec)?.[1] ?? []).filter(id => ids.includes(id))) === JSON.stringify(ids)) && JSON.stringify(ed.find(x => x[0] === S[1])?.[1]) === JSON.stringify(['sw-lathe', 'sw-onshape']);
+    ok('the Editor\'s bank shows Career\'s order: the shelves in the same order, each shelf\'s words not on this resume in the order Career gives them', follows, JSON.stringify([career, ed]));
+    // a record skill group's form: its words as the bank's chips, the same Find or add, its words and the groups moved
+    await inRecord(page, 'credentials'); await page.click('#body .clg[data-g=credentials] .clrow[data-item=skills-cad] .clt'); await settle(page);
+    const kws = async () => (await page.evaluate(() => window.__wb.store.state.record.skills.find(s => s.id === 'skills-cad').keywords));
+    ok('a record skill group\'s form shows its words as the bank\'s chips, and the record\'s groups by name', JSON.stringify(await page.locator('#body .cwbkws .cwbkw').allTextContents()) === JSON.stringify(await kws()) && (await page.locator('#body .cwbgroups .skname').allTextContents()).join('|') === 'CAD & 3D|Fabrication|Test & QA|Software');
+    await page.fill('#c-kw-in', 'onshape'); await settle(page);
+    ok('…its Find or add shows "=" for a word of the bank', await page.isVisible('#body .cwbgroup .wbaddrow.dup'));
+    await page.keyboard.press('Enter'); await settle(page);
+    ok('…and Enter puts the bank\'s word in the group at once, as the bank writes it', (await kws()).at(-1) === 'Onshape' && (await page.locator('#body .cwbkws .cwbkw').count()) === (await kws()).length);
+    await page.fill('#c-kw-in', 'Fusion'); await page.keyboard.press('Enter'); await settle(page);
+    ok('…a word like one in the bank only warns on the first Enter', !(await kws()).includes('Fusion') && await page.isVisible('#body .cwbgroup .wbaddrow.near') && await page.evaluate(() => document.querySelector('#body .cwbgroup .wbqplus')?.classList.contains('warned')));
+    await page.keyboard.press('Escape'); await settle(page);
+    const first = await mid('#body .cwbkws .cwbkw');
+    await carry(await mid('#body .cwbkws .cwbkw:has-text("KeyShot")'), { x: first.b.x + 3, y: first.y });
+    ok('a word of the group dragged before the first goes there', (await kws())[0] === 'KeyShot');
+    const cad = await mid('#body .cwbgroups .skname');
+    await carry(await mid('#body .cwbgroups .skname:has-text("Software")'), { x: cad.b.x + 3, y: cad.y });
+    ok('a group dragged by its name before another moves in the record, so the skills section lists it first', await page.evaluate(async () => { const T = await import('/src/model/resume.js'), m = window.__wb.store.state.record; return m.skills[0].id === 'skills-software' && T.itemsOf(m, 'skills')[0] === 'skills-software'; }));
+    // deleting a word from Career: the saved resumes that print it first, then Undo
+    await inRecord(page); await page.click('#scr .recmore [data-grp="~bank"]'); await settle(page);
+    const uses = await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'), s = window.__wb.store.state; return RS.wordUses(s, 'sw-excel').map(r => RS.resumeLabel(r)); });
+    await page.click('#body .cwbtray [data-drag=w][data-id="sw-excel"]'); await settle(page);
+    await page.click('#body .cwbbank [data-act=c-bk-delw]'); await settle(page);
+    const ask = await page.textContent('#body .cwbbank .delask');
+    ok('a word clicked is found; its Delete names every saved resume that prints it first', uses.length > 0 && uses.every(n => ask.includes(n)), JSON.stringify([uses, ask]));
+    await page.click('#body [data-act=c-bk-delw-yes]'); await settle(page);
+    ok('…confirmed, it leaves the bank and the record\'s groups, with Undo', !(await bank()).words.some(w => w.id === 'sw-excel') && !(await page.evaluate(() => JSON.stringify(window.__wb.store.state.record.skills))).includes('"Excel"') && await page.isVisible('#toast [data-act=toast-undo]'));
+    await page.click('#toast [data-act=toast-undo]'); await settle(page);
+    ok('…and Undo puts it back', (await bank()).words.some(w => w.id === 'sw-excel'));
+  }
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
@@ -3360,7 +3450,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     // ---- what Record shows ----
     ok(`${tag}: a toolbar: the search, n/m (n of m on to a screen reader), + Add; the place card says how many entries`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && !!h.querySelector('#rec-q') && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]') && /\d+ entries/.test(document.querySelector('#head').textContent); }));
     ok(`${tag}: the timeline is as wide as Career, under the cards on top, and runs down: the newest year first`, await page.evaluate(() => { const t = document.querySelector('#checklist .rectl .tl2'); const b = document.querySelector('#scr'); const y = [...t.querySelectorAll('.yr')].map(e => e.getBoundingClientRect().top); return !!t && t.getBoundingClientRect().width > b.getBoundingClientRect().width * 0.5 && y.length >= 4 && y.every((v, i) => !i || y[i - 1] < v) && !document.querySelector('#timeline') && document.querySelector('#scr .recmore').getBoundingClientRect().bottom <= t.getBoundingClientRect().top + 30; }));
-    ok(`${tag}: the cards are About you and Skills and credentials, and the entry in the inspector is the newest job, its lines shown`, await page.evaluate(() => [...document.querySelectorAll('#scr .recmore .srow')].map(r => r.dataset.grp).join() === 'about,credentials' && document.querySelector('#body .insp-rec .clg[data-g=hydra] .clrow') !== null));
+    ok(`${tag}: the cards are About you, Skills and credentials, and Skill words, and the entry in the inspector is the newest job, its lines shown`, await page.evaluate(() => [...document.querySelectorAll('#scr .recmore .srow')].map(r => r.dataset.grp).join() === 'about,credentials,~bank' && document.querySelector('#body .insp-rec .clg[data-g=hydra] .clrow') !== null));
     await page.locator('#body .cb[data-on]').first().click(); await settle(page);
     ok(`${tag}: a re-render of Career keeps the entry in the inspector`, await page.evaluate(() => !!document.querySelector('#body .insp-rec .clg[data-g=hydra]')));
     await page.locator('#body .cb[data-on]').first().click(); await settle(page);

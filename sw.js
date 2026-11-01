@@ -45,6 +45,7 @@ const SHELL = [
   './src/ui/design.js',
   './src/ui/onboarding.js',
   './src/ui/career.js',
+  './src/ui/careerbank.js',
   './src/model/checklist.js',
   './src/ui/dock.js',
   './src/ui/icons.js',

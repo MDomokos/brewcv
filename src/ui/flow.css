@@ -196,6 +196,34 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .insp-rec .clg { display: block !important; border: 0; padding: 0; margin: 0; }
 .insp-rec .clg > .clgh :is(.clcaret, .clname, .clcount) { display: none; }
 .insp-rec .clrow.qhit { background: var(--mark-soft); border-radius: var(--r-xs); }
+/* the skill words (careerbank.js): the Editor bank's chips, its round "+" and its rows (sidebar.css 12), the words in a darker well; a shelf's name is
+   its handle (a click writes it); where a carried word, shelf or group would land is a bar in the selection's colour */
+.cwb { display: grid; gap: 6px; }
+.cwb .wbtray { padding: 8px 10px; border-radius: var(--r-m); background: color-mix(in srgb, var(--ink) 7%, transparent); box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 14%, transparent); }
+.cwb .wbtray .wbsec { grid-template-columns: minmax(0, 84px) 1fr; }
+.cwb .wbtray .wbloose { grid-template-columns: 1fr; }
+.cwb .wbloose[hidden] { display: none; }
+.cwb.is-carry .wbloose[hidden] { display: grid; }
+.cwb button.wbclu { padding: 4px 4px 0 0; border: 0; background: none; box-shadow: none; font: 600 11px/1.3 var(--font-ui); color: var(--ink-soft); text-align: right; cursor: grab; touch-action: none; }
+.cwb button.wbclu:hover { color: var(--ink); text-decoration: underline dotted; text-underline-offset: 2px; }
+.cwb .cwbshelfed { display: flex; align-items: center; gap: 2px; padding: 0; }
+.cwb .cwbshelfed .wbin { min-width: 0; font-size: 11px; padding: 2px 4px; }
+.cwb .cwbshelfed .del.sm { flex: none; width: 20px; height: 20px; padding: 0; justify-content: center; }
+.cwb .socket { opacity: .35; }
+.cwb [data-at=before] { box-shadow: -3px 0 0 var(--sel-mark); }
+.cwb [data-at=after] { box-shadow: 3px 0 0 var(--sel-mark); }
+.cwb .wbsec[data-at=before] { box-shadow: inset 0 2px 0 var(--sel-mark); }
+.cwb .wbsec[data-at=after] { box-shadow: inset 0 -2px 0 var(--sel-mark); }
+.cwbgroups { margin: 0 0 8px; }
+.cwbgroups .skname { cursor: grab; touch-action: none; }
+.cwbgroups .skname[data-at=before] { box-shadow: -3px 0 0 var(--sel-mark); }
+.cwbgroups .skname[data-at=after] { box-shadow: 3px 0 0 var(--sel-mark); }
+.cwbgroups .socket { opacity: .35; }
+.cwbkw { display: inline-flex; align-items: center; }
+.cwbkw button.del.press:has(> svg:only-child) { width: 20px; height: 20px; margin: -2px -6px -2px 2px; border-width: 0; border-radius: var(--r-pill); opacity: .6; }      /* a tag's X, quieter: it is on every word */
+.cwbkw button.del.press:has(> svg:only-child):is(:hover, :focus-visible) { opacity: 1; }
+.cwbkw .del svg { width: 12px; height: 12px; }
+.cwbgroup .wbqwrap { margin: 0; }
 
 /* ---- the shadows roll with the mat (matroll.js): a copy of Tea's shadows on the roll's layer, in the layer's own frame, flipped back where the
    layer is flipped (the mat unrolling into Tea), clipped to where Tea is: above the roller in both directions; the real shadows wait ---- */

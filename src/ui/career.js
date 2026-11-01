@@ -15,9 +15,10 @@ import { crumb, photoHtml, delBtn, delAskHtml } from './parts.js';
 import { icon, withArrows } from './icons.js';
 import { askIfLocked } from './ask.js';
 import { monthFieldHtml, initMonthPick } from './monthpick.js';
+import { initCareerBank } from './careerbank.js';
 
-let C = null;
-export function initCareer(ctx){ C = ctx; initMonthPick({ lang: () => L(), change: input => { const form = input.closest('[data-form]'); if (form) saveForm(form); } }); return api; }
+let C = null, CB = null;
+export function initCareer(ctx){ C = ctx; CB = initCareerBank(ctx, { lang: () => L(), keywordsOf: id => keywordsNow(id), setKeywords: (id, kw) => { W.kwDraft = kw; saveItem('skills', id); W.kwDraft = null; } }); initMonthPick({ lang: () => L(), change: input => { const form = input.closest('[data-form]'); if (form) saveForm(form); } }); return api; }
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = s => document.querySelector(s);
@@ -283,8 +284,8 @@ function itemView(group, id){
     const s = (m.skills ?? []).find(x => x.id === id); if (!s) return '';
     const name = sameLang() ? s.name : m.i18n?.[Lg]?.labels?.[id] ?? '';
     const i = (m.skills ?? []).indexOf(s);
-    return shell(`${field('c-gname', h('career.f.group'), name, { right: tr, miss: !name, ph: s.name })}
-      <span class="lbl inline">${h('career.f.skills')}</span><div class="tags" id="c-kw">${(s.keywords ?? []).map((w, n) => `<span class="tag">${esc(w)}${delBtn(`data-act="c-kw-rm" data-n="${n}"`, t('edit.removeTag', { tag: w }), { text: false })}</span>`).join('')}<input id="c-kw-in" placeholder="${esc(t('career.f.skillPh'))}" aria-label="${esc(t('career.f.skillPh'))}"></div>
+    return shell(`${CB.groupsHtml(id)}${field('c-gname', h('career.f.group'), name, { right: tr, miss: !name, ph: s.name })}
+      <span class="lbl inline">${h('career.f.skills')}</span>${CB.wordsHtml(id, name || s.name)}
       ${jsonOnly(field('c-slevel', h('career.f.skillLevel'), s.level ?? '', { right: shared(), ph: t('career.f.skillLevelPh') }))}
       <p class="note small cbank">${h('career.bankNote')} <button type="button" class="sm ghost" data-act="c-bank">${h('career.bankOpen')}</button></p>`,
     { title: name || s.name, name: name || s.name, missing: !name, n: t('career.iOfN', { i: i + 1, n: m.skills.length }), versions: id, sid });
@@ -540,6 +541,7 @@ function create(what){
 
 async function act(a, tg){
   if (!a.startsWith('c-')) return false;
+  if (CB.act(a, tg)) return true;
   const m = rec();
   switch (a){
     case 'c-pop': W.pop = W.pop === 'add' ? null : 'add'; C.renderBody(); if (W.pop) setTimeout(() => document.querySelector('.addm button')?.focus(), 0); return true;
@@ -669,22 +671,16 @@ function bind(body){
       if (v && commit(d => K.addJobTypeTag(d.record, id, v), t('jt.undoTags'))){ C.renderBody(); setTimeout(() => document.querySelector(`.jt-tag-in[data-id="${CSS.escape(id)}"]`)?.focus(), 30); }
     }
     if (el.id === 'tag-new' && e.key === 'Enter'){ e.preventDefault(); $('[data-act=c-tag-add]')?.click(); return; }
-    if (el.id === 'c-kw-in' && (e.key === 'Enter' || e.key === ',')){
-      e.preventDefault();
-      const v = el.value.trim(); if (!v) return;
-      const s = C.ui.sel; if (s.what !== 'item') return;
-      W.kwDraft = [...keywordsNow(s.id), v]; saveItem('skills', s.id); W.kwDraft = null;
-      el.value = ''; C.renderBody();
-    }
   });
   body.addEventListener('toggle', e => {
     const d = e.target;
     if (d.dataset?.det) W.det.set(d.dataset.det, d.open);
   }, true);
+  CB.bind(body);      // the skill words: Find or add, and moving words, shelves and groups (careerbank.js)
 }
 
 const api = {
-  panel, act, bind, timelineHtml, addMenuHtml, detailsHtml,
+  panel, act, bind, timelineHtml, addMenuHtml, detailsHtml, bankHtml: () => CB.panelHtml(),
   get lang(){ return L(); },
   get popOpen(){ return W.pop === 'add'; },
   get shownArchived(){ return W.shown; },

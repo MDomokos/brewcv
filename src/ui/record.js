@@ -21,6 +21,7 @@ const phone = () => document.body.dataset.phone === 'true';
 // sel: the entry in the inspector (undefined: the newest, null: none); q: the search; typing: the search keeps the caret over a redraw;
 // goto and mark: the phone's entry to scroll to, and the ones to mark
 const R = { sel: undefined, typing: false, goto: null, mark: [], timer: 0 };
+const BANK = '~bank';      // the card of the skill words: the bank, not a group of the checklist (careerbank.js)
 
 export function initRecord(ctx){
   C = ctx;
@@ -59,20 +60,21 @@ function place(){
   const groups = [...cl.querySelectorAll('.clg')], rows = [...cl.querySelectorAll('.rectl [data-grp]')];
   const textOf = new Map(groups.map(g => [g.dataset.g, g.textContent.toLowerCase()]));
   const has = id => groups.some(x => x.dataset.g === id);
-  if (R.sel !== null && !has(R.sel)) R.sel = rows.map(r => r.dataset.grp).find(has) ?? groups[0]?.dataset.g;
+  if (R.sel !== null && R.sel !== BANK && !has(R.sel)) R.sel = rows.map(r => r.dataset.grp).find(has) ?? groups[0]?.dataset.g;
   // the toolbar: the search, the count and + Add; the place card has the name
   const head = cl.querySelector('.clhead');
   head?.classList.add('tbar');
   head?.querySelector('h2')?.classList.add('sr');
   head?.insertAdjacentHTML('afterbegin', search());
-  // the parts the timeline does not list (About you, skills, languages ...) are cards on top, never under the timeline
+  // the parts the timeline does not list (About you, skills, languages ...) are cards on top, never under the timeline; the last is the skill words
   const listed = new Set(rows.map(r => r.dataset.grp));
   const more = groups.filter(g => !listed.has(g.dataset.g));
   const tl = cl.querySelector('.rectl');
-  tl?.insertAdjacentHTML('afterbegin', `${careerHtml()}${resumesHtml()}<div class="recmore">${more.map(g => `<button class="srow" data-act="rec-job" data-grp="${esc(g.dataset.g)}"><span class="t">${esc((g.querySelector('.clname')?.textContent ?? g.dataset.g).trim().replace(/\s+/g, ' '))}</span></button>`).join('')}</div>`);
+  tl?.insertAdjacentHTML('afterbegin', `${careerHtml()}${resumesHtml()}<div class="recmore">${more.map(g => `<button class="srow" data-act="rec-job" data-grp="${esc(g.dataset.g)}"><span class="t">${esc((g.querySelector('.clname')?.textContent ?? g.dataset.g).trim().replace(/\s+/g, ' '))}</span></button>`).join('')}<button class="srow" data-act="rec-job" data-grp="${BANK}"><span class="t">${h('career.bankCard')}</span></button></div>`);
   const found = F.q.trim() ? careerHits(C.work(), F.q) : [];      // a word in a version the entry does not print now still finds the entry
   filter(cl, textOf, new Set(found.map(x => x.group)));
   for (const r of cl.querySelectorAll('.rectl [data-grp]')) r.classList.toggle('is-sel', r.dataset.grp === R.sel);
+  if (R.sel === BANK){ bd.innerHTML = C.career.bankHtml(); return; }
   // the inspector: the selected entry's facts and lines, with the two scopes named
   const sel = groups.find(g => g.dataset.g === R.sel);
   if (!sel){ bd.innerHTML = `<section class="insp"><span class="lbl">${h('ux6h.career')}</span><p class="small muted">${h('ux6h.recPick', { name: C.openName() })}</p></section>`; return; }
