@@ -359,8 +359,7 @@ html:not([data-motion="reduce"]) .pen { transition: opacity 120ms ease-out; }
 .bankcard[hidden] { display: none; }
 body:not([data-phone=true]):not(.is-intro) .col.has-bank > #body { flex: 0 1 auto; max-height: 55%; }
 /* the rail's tabs (workbench.css .rtabs: 30px under the card's top, three of 58 and two gaps of 8) always end on the card: tall enough for the last one, its corner and the card's own */
-body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { min-height: calc(232px + var(--r-panel)); }
-body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { padding-bottom: 12px; }
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { min-height: calc(232px + var(--r-panel)); padding-bottom: 12px; }
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body::after { display: none; }
 .col > .bankcard:not([hidden]) { display: flex; flex-direction: column; }      /* (the empty well fills what is left of it) */
 .col > .bankcard { flex: 1 1 0; min-height: 160px; overflow: auto; margin-top: 8px; padding: 10px 12px 46px; background: var(--surface); border-radius: var(--r-panel);
