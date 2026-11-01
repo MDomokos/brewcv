@@ -196,10 +196,9 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .insp-rec .clg { display: block !important; border: 0; padding: 0; margin: 0; }
 .insp-rec .clg > .clgh :is(.clcaret, .clname, .clcount) { display: none; }
 .insp-rec .clrow.qhit { background: var(--mark-soft); border-radius: var(--r-xs); }
-/* the skill words (careerbank.js): the Editor bank's chips, its round "+" and its rows (sidebar.css 12), the words in a darker well; a shelf's name is
-   its handle (a click writes it); where a carried word, shelf or group would land is a bar in the selection's colour */
+/* the skill words (careerbank.js): the Editor bank's chips, its round "+", its rows and its well (.wbtray, sidebar.css 12: the bank's words, and a
+   record group's words); a shelf's name is its handle (a click writes it); where a carried word, shelf or group would land is a bar in the selection's colour */
 .cwb { display: grid; gap: 6px; }
-.cwb .wbtray { padding: 8px 10px; border-radius: var(--r-m); background: color-mix(in srgb, var(--ink) 7%, transparent); box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 14%, transparent); }
 .cwb .wbtray .wbsec { grid-template-columns: minmax(0, 84px) 1fr; }
 .cwb .wbtray .wbloose { grid-template-columns: 1fr; }
 .cwb .wbloose[hidden] { display: none; }

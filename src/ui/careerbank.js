@@ -138,7 +138,7 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
   function wordsHtml(gid, gname){
     const chips = keywordsOf(gid).map((k, n) =>      // each word as the group's line prints it
       `<span class="skchip wbchip cwbkw" data-drag="k" data-n="${n}" data-act="c-kw-chip" data-id="${esc(k)}" id="${uid('k', k)}" tabindex="0" title="${esc(t('career.bankWordTip'))}">${esc(k)}${delBtn(`data-act="c-kw-rm" data-n="${n}"`, t('edit.removeTag', { tag: k }), { text: false })}</span>`).join('');
-    return `<div class="cwb cwbgroup" data-g="${esc(gid)}" data-name="${esc(gname)}">${chips ? `<div class="wbtiles cwbkws">${chips}</div>` : ''}
+    return `<div class="cwb cwbgroup" data-g="${esc(gid)}" data-name="${esc(gname)}">${chips ? `<div class="wbtray cwbkwell"><div class="wbtiles cwbkws">${chips}</div></div>` : ''}
       <span class="wbqwrap"><input type="search" id="c-kw-in" class="wbq" placeholder="${esc(t('wb.find'))}" aria-label="${esc(t('wb.find'))}" autocomplete="off" spellcheck="false"><span class="cwbplus">${plusHtml('', null, 'c-kw-add', gname)}</span></span>
       <div class="cwbrow"></div></div>`;
   }

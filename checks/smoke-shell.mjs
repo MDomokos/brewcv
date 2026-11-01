@@ -1686,6 +1686,22 @@ if (want('Career: the skill words, Find or add with its warning, moving words an
     ok('…confirmed, it leaves the bank and the record\'s groups, with Undo', !(await bank()).words.some(w => w.id === 'sw-excel') && !(await page.evaluate(() => JSON.stringify(window.__wb.store.state.record.skills))).includes('"Excel"') && await page.isVisible('#toast [data-act=toast-undo]'));
     await page.click('#toast [data-act=toast-undo]'); await settle(page);
     ok('…and Undo puts it back', (await bank()).words.some(w => w.id === 'sw-excel'));
+    // the Editor bank's own well, in every drink: Career's words (the bank's, and a record group's) sit in the same well, a step darker than the card
+    // round it with the same inset; where the cards are one colour (Coffee, and the Editor's form) it is the same colour, and Tea's Career card is its own
+    const wells = [];
+    for (const [drink, theme] of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']]){
+      const p = await ctx.newPage(), bad2 = await open(p, undefined, { drink, theme });
+      const look = sel => p.evaluate(s => { const e = document.querySelector(s); if (!e) return null; const c = getComputedStyle(e); return { bg: c.backgroundColor, inset: c.boxShadow.replace(/rgba?\([^)]*\)|color\([^)]*\)/g, 'c'), card: c.getPropertyValue('--surface').trim() }; }, sel);
+      await toEditHome(p); await p.click('#outline [data-act=select-section][data-id=skills]'); await settle(p);
+      const editor = await look('#bankcard .wbtray');
+      await inRecord(p); await p.click('#scr .recmore [data-grp="~bank"]'); await settle(p);
+      const words = await look('#body .cwbtray');
+      await inRecord(p, 'credentials'); await p.click('#body .clg[data-g=credentials] .clrow[data-item=skills-cad] .clt'); await settle(p);
+      wells.push({ drink, theme, editor, words, group: await look('#body .cwbkwell'), bad: bad2.length });
+      await p.close();
+    }
+    const same = (a, b) => !!a && !!b && a.inset === b.inset && a.bg !== a.card && (a.card !== b.card || a.bg === b.bg);
+    ok('Career\'s words sit in the Editor bank\'s well, in all four drinks: the same colour where the card is (Coffee, the Editor\'s form), the same step darker than its card and the same inset everywhere', wells.every(w => same(w.words, w.editor) && same(w.group, w.editor) && w.group.bg === w.editor.bg && !w.bad) && wells.filter(w => w.drink === 'coffee').every(w => w.words.bg === w.editor.bg) && new Set(wells.map(w => w.editor.bg)).size === 4, JSON.stringify(wells));
   }
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
