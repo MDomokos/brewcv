@@ -1566,7 +1566,7 @@ export default {
   'wb.add': "Toevoegen",
   'wb.addAgain': "Druk nog eens om het als nieuw woord toe te voegen",
   'wb.addBank': "“{word}” aan de woordenbank toevoegen",
-  'wb.addEmpty': "Een woord toevoegen: typ het in het vak",
+  'wb.addEmpty': "Een nieuw woord toevoegen",
   'wb.addNear': "Lijkt op een woord in de bank: toch toevoegen?",
   'wb.addTo': "“{word}” aan {group} toevoegen",
   'wb.added': "“{word}” staat nu in de bank.",
@@ -1638,4 +1638,6 @@ export default {
   'wb.wordsTip': "De bank bewerken: woorden, vertalingen, planken",
   'wb.writeIn': "Schrijf het in het {lang}",
   'wb.writeLang': "De taal waarin je schrijft",
+  'wb.newWord': "Nieuw vaardigheidswoord",
+  'wb.showTip': "Staat op de pagina: een klik toont het",
 };

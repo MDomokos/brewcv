@@ -1566,7 +1566,7 @@ export default {
   'wb.add': "Ajouter",
   'wb.addAgain': "Appuyer encore pour l’ajouter comme nouveau mot",
   'wb.addBank': "Ajouter « {word} » à la banque de mots",
-  'wb.addEmpty': "Ajouter un mot : le taper dans le champ",
+  'wb.addEmpty': "Ajouter un nouveau mot",
   'wb.addNear': "Proche d’un mot de la banque : l’ajouter quand même ?",
   'wb.addTo': "Ajouter « {word} » à {group}",
   'wb.added': "« {word} » est maintenant dans la banque.",
@@ -1638,4 +1638,6 @@ export default {
   'wb.wordsTip': "Modifier la banque : mots, traductions, étagères",
   'wb.writeIn': "L’écrire en {lang}",
   'wb.writeLang': "La langue dans laquelle vous écrivez",
+  'wb.newWord': "Nouveau mot de compétence",
+  'wb.showTip': "Il est sur la page : un clic le montre",
 };

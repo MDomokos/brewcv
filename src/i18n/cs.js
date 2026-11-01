@@ -1566,7 +1566,7 @@ export default {
   'wb.add': "Přidat",
   'wb.addAgain': "Stiskněte znovu a přidá se jako nové slovo",
   'wb.addBank': "Přidat „{word}“ do banky slov",
-  'wb.addEmpty': "Přidat slovo: napište ho do pole",
+  'wb.addEmpty': "Přidat nové slovo",
   'wb.addNear': "Podobné slovu z banky: přesto přidat?",
   'wb.addTo': "Přidat „{word}“ do skupiny {group}",
   'wb.added': "„{word}“ je teď v bance.",
@@ -1638,4 +1638,6 @@ export default {
   'wb.wordsTip': "Upravit banku: slova, překlady, police",
   'wb.writeIn': "Napsat v jazyce {lang}",
   'wb.writeLang': "Jazyk, ve kterém píšete",
+  'wb.newWord': "Nové slovo dovednosti",
+  'wb.showTip': "Je na stránce: kliknutí ho ukáže",
 };

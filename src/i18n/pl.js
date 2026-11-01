@@ -1566,7 +1566,7 @@ export default {
   'wb.add': "Dodaj",
   'wb.addAgain': "Naciśnij jeszcze raz, aby dodać je jako nowe słowo",
   'wb.addBank': "Dodaj „{word}” do banku słów",
-  'wb.addEmpty': "Dodaj słowo: wpisz je w pole",
+  'wb.addEmpty': "Dodaj nowe słowo",
   'wb.addNear': "Podobne do słowa z banku: dodać mimo to?",
   'wb.addTo': "Dodaj „{word}” do: {group}",
   'wb.added': "„{word}” jest teraz w banku.",
@@ -1638,4 +1638,6 @@ export default {
   'wb.wordsTip': "Edytuj bank: słowa, tłumaczenia, półki",
   'wb.writeIn': "Napisz je w języku: {lang}",
   'wb.writeLang': "Język, w którym piszesz",
+  'wb.newWord': "Nowe słowo umiejętności",
+  'wb.showTip': "Jest na stronie: kliknięcie je pokazuje",
 };

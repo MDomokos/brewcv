@@ -1566,7 +1566,7 @@ export default {
   'wb.add': "Hinzufügen",
   'wb.addAgain': "Noch einmal drücken, um es als neues Wort hinzuzufügen",
   'wb.addBank': "„{word}“ zur Wortbank hinzufügen",
-  'wb.addEmpty': "Ein Wort hinzufügen: ins Feld tippen",
+  'wb.addEmpty': "Ein neues Wort hinzufügen",
   'wb.addNear': "Ähnlich wie ein Wort der Wortbank: trotzdem hinzufügen?",
   'wb.addTo': "„{word}“ zu {group} hinzufügen",
   'wb.added': "„{word}“ ist jetzt in der Wortbank.",
@@ -1638,4 +1638,6 @@ export default {
   'wb.wordsTip': "Die Wortbank bearbeiten: Wörter, Übersetzungen, Regale",
   'wb.writeIn': "Auf {lang} schreiben",
   'wb.writeLang': "Die Sprache, in der du schreibst",
+  'wb.newWord': "Neues Kenntniswort",
+  'wb.showTip': "Steht auf der Seite: ein Klick zeigt es",
 };

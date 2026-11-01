@@ -1566,7 +1566,7 @@ export default {
   'wb.add': "Adicionar",
   'wb.addAgain': "Prima outra vez para a adicionar como palavra nova",
   'wb.addBank': "Adicionar «{word}» ao banco de palavras",
-  'wb.addEmpty': "Adicionar uma palavra: escreva-a na caixa",
+  'wb.addEmpty': "Adicionar uma palavra nova",
   'wb.addNear': "Parecida com uma palavra do banco: adicionar mesmo assim?",
   'wb.addTo': "Adicionar «{word}» a {group}",
   'wb.added': "«{word}» está agora no banco.",
@@ -1638,4 +1638,6 @@ export default {
   'wb.wordsTip': "Editar o banco: palavras, traduções, prateleiras",
   'wb.writeIn': "Escrevê-la em {lang}",
   'wb.writeLang': "A língua em que escreve",
+  'wb.newWord': "Nova palavra de competência",
+  'wb.showTip': "Está na página: um clique mostra-a",
 };
