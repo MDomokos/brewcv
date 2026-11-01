@@ -2566,9 +2566,10 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   ok('Remove from Library asks for a tick first: the button is off until it is ticked', await page.$eval('#body [data-act=doc-remove-do]', b => b.disabled));
   await page.check('#body [data-lok]');
   ok('ticked, the button is on', !(await page.$eval('#body [data-act=doc-remove-do]', b => b.disabled)));
+  const cps2 = (await page.evaluate(() => window.__wb.persist.listCheckpoints())).length;
   await page.click('#body [data-act=doc-remove-do]'); await settle(page);
   const s8 = await st();
-  ok('the document is gone from the Library, with a mark and a checkpoint; the lines it brought stay in the career', !s8.documents.some(d => d.id === Cb.id) && s8.record.removed[`document:${Cb.id}`] && JSON.stringify(s8.record.variants) === JSON.stringify(s7.record.variants) && (await page.$$(card(Cb))).length === 0);
+  ok('the document is gone from the Library, with a mark and a checkpoint; the lines it brought stay in the career', !s8.documents.some(d => d.id === Cb.id) && s8.record.removed[`document:${Cb.id}`] && JSON.stringify(s8.record.variants) === JSON.stringify(s7.record.variants) && (await page.$$(card(Cb))).length === 0 && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).length === cps2 + 1);
   await page.evaluate(() => window.__wb.store.undo()); await settle(page);
   ok('Undo brings the document back with its original', (await st()).documents.some(d => d.id === Cb.id && /^(?:asset:|data:)/.test(d.embedded)));
 
