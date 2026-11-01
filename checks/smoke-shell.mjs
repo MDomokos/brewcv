@@ -2106,6 +2106,8 @@ if (want('import, merge, history')) {
   ok('a linked photo is not fetched', /linked, not embedded/.test(await page.textContent('table.kv')));
   await page.click('[data-act=imp-merge]'); await settle(page);
   ok('add to the example: the merge preview groups what it found', (await page.$$('.mgroup')).length >= 2 && (await page.$$('.mi input[type=checkbox]')).length > 3);
+  ok('a JSON Resume with no original to check it against says so, and nothing starts ticked', (await page.getAttribute('[data-check]', 'data-check')) === 'none' && (await page.$$('.mi input[type=checkbox]:checked')).length === 0);
+  for (const b of await page.$$('.mi input[type=checkbox]')) await b.check();
   const nItems = (await page.$$('.mi input[type=checkbox]:checked')).length;
   await page.click('.mi input[type=checkbox] >> nth=0'); await settle(page);
   ok('unticking one updates the count', new RegExp(`Merge ${nItems - 1} change`).test(await page.textContent('[data-act=imp-do-merge]')));
