@@ -950,6 +950,11 @@ section('the skill wordbank and the record\'s groups: one list of words, every r
   const arranged = st.resumes[0]; T.takeWord(m, arranged, id('KeyShot'));
   const uses = RS.wordUses(st, id('Python')).length, n = RS.dropWordEverywhere(st, id('Python'));
   ok('deleting a word takes it off every saved resume that prints it, its own groups and the record\'s alike, and out of the bank', n === uses && n > 1 && !SB.findWord(m, 'Python') && !st.resumes.some(r => JSON.stringify(T.resolve(m, r).body.skills ?? []).includes('"Python"')) && !m.skills.some(g => g.keywords.includes('Python')));
+  const sh = ['Tools', 'Quality', 'Design'].map(x => SB.addShelf(m, x).id);
+  SB.moveShelf(m, sh[2], sh[0]); SB.moveShelf(m, sh[0], null);
+  ok('a shelf moves before another, or to the end, the others keeping their order', eq(SB.shelvesOf(m).map(s => s.id), [sh[2], sh[1], sh[0]]));
+  K.moveSkill(m, 'skills-software', 'skills-cad'); K.moveSkill(m, 'skills-cad', null);
+  ok('a record skill group moves before another, or to the end, and the skills section lists them so', eq(m.skills.map(s => s.id), ['skills-software', 'skills-fabrication', 'skills-testing', 'skills-cad']) && eq(T.itemsOf(m, 'skills'), m.skills.map(s => s.id)));
 }
 section('a language copy and the headings of a resume\'s own skill groups');
 {

@@ -653,6 +653,13 @@ export function updateSkill(model, id, { name, keywords, level } = {}, lang = DE
   }
   return res;
 }
+// A skill group moved in the record: before `beforeId` (null: the end). A resume that prints the record's groups in their own order follows it.
+export function moveSkill(model, id, beforeId = null){
+  if (!(model.skills ?? []).some(s => s.id === id)) throw new Error(`no such skill group: ${id}`);
+  const move = (list, key) => { const i = list.findIndex(x => key(x) === id); if (i < 0) return; const [x] = list.splice(i, 1); const at = beforeId ? list.findIndex(y => key(y) === beforeId) : -1; list.splice(at < 0 ? list.length : at, 0, x); };
+  move(model.skills, s => s.id);
+  for (const s of model.sections ?? []) if (s.kind === 'grid' && Array.isArray(s.content?.groups)) move(s.content.groups, x => x);
+}
 // A skill written into one of the record's groups is a word of the bank too (once: the bank's word for it in any language counts).
 function toBank(model, words, lang = DEFAULT_LANG){
   seedBank(model);

@@ -132,6 +132,14 @@ export function moveWord(m, id, { shelf = null, beforeId = null } = {}){
   if (at < 0){ const last = words.findLastIndex(x => (x.shelf ?? null) === (shelf ?? null)); at = last < 0 ? (shelf ? words.length : 0) : last + 1; }
   words.splice(at, 0, w);
 }
+// A shelf moved in the bank: before `beforeId` (null: the end). Its words go with it (the bank shows words by shelf, in the shelves' order).
+export function moveShelf(m, id, beforeId = null){
+  const shelves = bankOf(m).shelves ?? [], i = shelves.findIndex(s => s.id === id);
+  if (i < 0) throw new Error(`no shelf ${id}`);
+  const [s] = shelves.splice(i, 1);
+  const at = beforeId ? shelves.findIndex(x => x.id === beforeId) : -1;
+  shelves.splice(at < 0 ? shelves.length : at, 0, s);
+}
 // The word leaves the bank, with its wordings. Resumes that print it are the caller's (src/model/resume.js dropWordEverywhere).
 export function dropWord(m, id){
   const b = bankOf(m), i = b.words.findIndex(w => w.id === id);
