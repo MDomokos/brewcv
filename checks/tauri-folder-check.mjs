@@ -173,9 +173,9 @@ section('writes are atomic, and bytes, sizes and folders come through the plugin
   const ren = T5._log.filter(l => l[0] === 'rename');
   ok('a text write goes to a temporary name and is renamed into place: a sync tool never reads half of it', ren.length === 1 && /\.tmp$/.test(ren[0][1]) && ren[0][2] === '/F/BrewCV/devices/Mac abcd.json' && [...T5._disk.keys()].every(k => !k.endsWith('.tmp')));
   const bytes = new Uint8Array([0, 1, 2, 255, 254]);
-  await f5.write('Library/2024/x.pdf', bytes);
-  ok('bytes are written and read back as bytes, and sized', JSON.stringify([...(await f5.readBytes('Library/2024/x.pdf'))]) === JSON.stringify([...bytes]) && (await f5.stat('Library/2024/x.pdf')).size === 5 && (await f5.stat('nothing')) === null && (await f5.readBytes('nothing')) === null);
-  ok('folders are listed apart from files, at any level, the top included', JSON.stringify(await f5.dirs('')) === '["BrewCV","Library"]' && JSON.stringify(await f5.dirs('BrewCV')) === '["devices"]' && JSON.stringify(await f5.list('BrewCV/devices')) === '["Mac abcd.json"]' && (await f5.list('')).length === 0);
+  await f5.write('Documents/2024/x.pdf', bytes);
+  ok('bytes are written and read back as bytes, and sized', JSON.stringify([...(await f5.readBytes('Documents/2024/x.pdf'))]) === JSON.stringify([...bytes]) && (await f5.stat('Documents/2024/x.pdf')).size === 5 && (await f5.stat('nothing')) === null && (await f5.readBytes('nothing')) === null);
+  ok('folders are listed apart from files, at any level, the top included', JSON.stringify(await f5.dirs('')) === '["BrewCV","Documents"]' && JSON.stringify(await f5.dirs('BrewCV')) === '["devices"]' && JSON.stringify(await f5.list('BrewCV/devices')) === '["Mac abcd.json"]' && (await f5.list('')).length === 0);
   const orig = T5.fs.rename;
   T5.fs.rename = async () => { throw new Error('rename refused'); };
   let threw = false; try { await f5.write('BrewCV/x.json', '1'); } catch { threw = true; }

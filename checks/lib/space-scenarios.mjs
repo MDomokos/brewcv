@@ -11,7 +11,7 @@ import * as DOC from '../../src/model/documents.js';
 import * as X from '../../src/model/intake.js';
 import { createStore } from '../../src/store/store.js';
 import { createPersist, memoryBackend, dataFolder, readFolder, readBackup, filesOf, sha256, toDeleted, sweepDeleted, conflictCopy } from '../../src/store/persist.js';
-import { createSpace, moveIntoBrewCV, planOrganise, organise, undoOrganise, reconcile } from '../../src/store/space.js';
+import { createSpace, moveIntoBrewCV, planOrganise, organise, undoOrganise, reconcile, ensureDirs } from '../../src/store/space.js';
 import { clockFits } from '../../src/model/merge.js';
 import { readLibrary } from '../../scripts/lib/library.mjs';
 import { spawnSync } from 'node:child_process';
@@ -62,7 +62,7 @@ const B = await device(M, 'Linux', { state: structuredClone(startState) });
   ok('the folder is linked into BrewCV/ and nothing is written by the link itself', (await A.persist.link(A.data)) !== null && shared.size === 0);
   await A.space.sync();
   ok('the first sync writes the merged view and this device’s own file in BrewCV/', has(shared, 'resume-data.json') && listed(shared, 'recipes').length === 2 && deviceFiles(shared).length === 1 && /^BrewCV\/devices\/Mac [0-9a-f]{4}\.json$/.test(deviceFiles(shared)[0]));
-  ok('nothing is written beside BrewCV/ but BrewCV.md', [...shared.keys()].every(k => k.startsWith('BrewCV/') || k === 'BrewCV.md'));
+  ok('the app writes nothing at the top of the folder except Documents/ and BrewCV/', [...shared.keys()].every(k => k.startsWith('BrewCV/') || k.startsWith('Documents/')) && has(shared, 'BrewCV.md'));
   await B.persist.link(B.data);
   const r = await B.space.sync();
   ok('a second device of the same career finds the first’s file and merges it with nothing to change', r.merged.length === 1 && r.changed === 0 && deviceFiles(shared).length === 2, J(r.merged));
@@ -178,14 +178,14 @@ section('a document moved, renamed or deleted outside');
 {
   const bytes = new TextEncoder().encode('A resume as a text file. Led the dosing system redesign.\n');
   const sha = await sha256(bytes);
-  const p1 = 'Library/2024/2024-03-12 Acme - Designer.txt';
+  const p1 = 'Documents/2024/Acme/2024-03-12 Acme - Designer.txt';
   shared.set(p1, bytes);
   await edit(A, d => { DOC.addDocument(d, { name: '2024-03-12 Acme - Designer.txt', type: 'text/plain', path: p1, sha256: sha, size: bytes.length, text: 'Led the dosing system redesign.', meta: { company: 'Acme', role: 'Designer', date: '2024-03-12', lang: 'en', jobType: '', kind: 'resume' } }); }, 'document');
   const id = DOC.docId(sha), docOf = d => d.store.state.documents.find(x => x.id === id);
   const recBefore = J(A.store.state.record), printBefore = printed(A);
   await A.space.sync();
   ok('a document at its path is in the folder: nothing changes, and the receipt can tell it was read back', A.space.last.moved === 0 && A.space.last.missing === 0 && A.space.docStatus(id) === null && A.space.verified(docOf(A)));
-  const p2 = 'Library/2025/2024-03-12 Acme - Designer renamed.txt';
+  const p2 = 'Documents/2025/Acme/2024-03-12 Acme - Designer renamed.txt';
   shared.set(p2, shared.get(p1)); shared.delete(p1);
   await A.space.sync();
   ok('a file renamed outside keeps its document: found by its hash, the path is updated quietly', docOf(A).path === p2 && A.space.last.moved === 1 && A.store.state.documents.length === 1 && J(A.store.state.record) === recBefore);
@@ -195,10 +195,10 @@ section('a document moved, renamed or deleted outside');
   shared.delete(p2);
   await A.space.sync();
   ok('a file deleted outside is reported, and what was taken from it stays in the career', A.space.last.missing === 1 && A.space.docStatus(id) === 'missing' && !!docOf(A) && J(A.store.state.record) === recBefore);
-  shared.set('Library/2025/.2024-03-12 Acme - Designer renamed.txt.icloud', new Uint8Array(0));
+  shared.set('Documents/2025/Acme/.2024-03-12 Acme - Designer renamed.txt.icloud', new Uint8Array(0));
   await A.space.sync();
   ok('a file left in the cloud is told so, not “missing”', A.space.docStatus(id) === 'cloud' && A.space.last.cloud === 1);
-  shared.delete('Library/2025/.2024-03-12 Acme - Designer renamed.txt.icloud');
+  shared.delete('Documents/2025/Acme/.2024-03-12 Acme - Designer renamed.txt.icloud');
   shared.set(p2, bytes);
   await A.space.sync();
   ok('the file back: the document is whole again', A.space.docStatus(id) === null && docOf(A).path === p2);
@@ -211,12 +211,12 @@ section('a document moved, renamed or deleted outside');
   await A.space.sync();
   ok('other bytes at a known path are a new version of the document, listed for the person', A.space.docStatus(id) === 'changed' && A.space.last.edited[0].id === id);
   shared.set(p2, bytes);
-  shared.set('Library/2025/my own copy.txt', bytes);
-  shared.set('Inbox/the same file again.txt', bytes);
+  shared.set('Documents/2025/Acme/my own copy.txt', bytes);
+  shared.set('BrewCV/Inbox/the same file again.txt', bytes);
   await A.space.sync();
-  ok('a copy of a document’s bytes in the person’s own folder is told and never moved', shared.has('Library/2025/my own copy.txt') && A.space.last.dups.includes('Library/2025/my own copy.txt') && listed(shared, 'Deleted').every(n => !/my own copy/.test(n)));
-  ok('the same file in Inbox/ and in Library/: the one in Inbox/ goes to Deleted/, the Library’s stays', shared.has(p2) && !shared.has('Inbox/the same file again.txt') && listed(shared, 'Deleted').some(n => /the same file again.*\.txt$/.test(n)));
-  shared.delete('Library/2025/my own copy.txt');
+  ok('a copy of a document’s bytes in the person’s own folder is told and never moved', shared.has('Documents/2025/Acme/my own copy.txt') && A.space.last.dups.includes('Documents/2025/Acme/my own copy.txt') && listed(shared, 'Deleted').every(n => !/my own copy/.test(n)));
+  ok('the same file in the Inbox and in Documents/: the one in the Inbox goes to Deleted/, the one in Documents/ stays', shared.has(p2) && !shared.has('BrewCV/Inbox/the same file again.txt') && listed(shared, 'Deleted').some(n => /the same file again.*\.txt$/.test(n)));
+  shared.delete('Documents/2025/Acme/my own copy.txt');
   ok('none of it changes a page: every saved resume prints byte for byte as before', printed(A) === printBefore);
   shared.delete(p2); await A.space.sync();
 }
@@ -248,7 +248,7 @@ section('an older folder, with the data at the top, opens and moves into BrewCV/
   for (const k of [...old.keys()].filter(k => k.startsWith('BrewCV/'))) old.delete(k);
   const n = await moveIntoBrewCV(root), now = await dataFolder(root);
   ok('on OK everything moves into BrewCV/, copied, read back and checked: the record, the saved resumes, the device files and the checkpoints, a folder inside them too', n >= 6 && now.legacy === false && [...old.keys()].some(k => /^BrewCV\/devices\/Mac /.test(k)) && [...old.keys()].some(k => /^BrewCV\/checkpoints\/Mac\/.* Before moving\.json$/.test(k)), [...old.keys()].join());
-  ok('…and the top keeps only what is the person’s: its own folders and its own Deleted/, and what is in the app’s folders that is not the app’s json (and BrewCV.md, which is meant to be there)', [...old.keys()].filter(k => !k.startsWith('BrewCV/')).sort().join() === 'BrewCV.md,Deleted/2020-01-01 mine.pdf,My Notes/keep this.md,checkpoints/backup.bak,devices/read me.md,recipes/my notes.txt', [...old.keys()].filter(k => !k.startsWith('BrewCV/')).join());
+  ok('…and the top keeps only what is the person’s: its own folders and its own Deleted/, and what is in the app’s folders that is not the app’s json', [...old.keys()].filter(k => !k.startsWith('BrewCV/')).sort().join() === 'Deleted/2020-01-01 mine.pdf,My Notes/keep this.md,checkpoints/backup.bak,devices/read me.md,recipes/my notes.txt', [...old.keys()].filter(k => !k.startsWith('BrewCV/')).join());
   const after = await readFolder(now);
   ok('…and BrewCV/ reads back the same career and resumes', after.state.resumes.length === 2 && J(after.state.record) === J(got.state.record) && after.warnings.length === 0);
   ok('a folder with nothing yet is the new kind', (await dataFolder(make().root())).legacy === false);
@@ -269,21 +269,21 @@ section('the command-line tools read either layout');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 
-section('Organise: moves into Library/<year>/, run one at a time, stopping cleanly');
+section('Organise: moves into Documents/<search>/<company>/, run one at a time, stopping cleanly');
 {
   const Mf = make(), files = Mf.fx, root = Mf.root();
   const bytes = n => new TextEncoder().encode(`file ${n}`);
   for (const n of ['a', 'b', 'c']) files.set(`Notes/2024-0${n === 'a' ? 1 : n === 'b' ? 2 : 3}-10 ${n}.pdf`, bytes(n));
-  files.set('Library/2024/2024-01-10 a.pdf', bytes('other'));
+  files.set('Documents/2024/2024-01-10 a.pdf', bytes('other'));
   const found = (await reconcile({}, root, {})).fresh;
-  const plan = await planOrganise(root, found);
-  ok('the plan lists a move for each file outside Library/, to Library/<year>/ under a name no other bytes use', plan.length === 3 && plan.every(m => /^Library\/2024\/2024-0\d-10 \w( \d)?\.pdf$/.test(m.to)) && plan.find(m => m.from.endsWith('a.pdf')).to === 'Library/2024/2024-01-10 a 2.pdf', J(plan));
+  const plan = await planOrganise(root, found, { rounds: [], base: 'Documents' });
+  ok('the plan lists a move for each file outside Documents/, to Documents/<year>/ under a name no other bytes use, and none for the file already under Documents/', plan.length === 3 && plan.every(m => /^Documents\/2024\/2024-0\d-10 \w( \d)?\.pdf$/.test(m.to)) && plan.find(m => m.from.endsWith('a.pdf')).to === 'Documents/2024/2024-01-10 a 2.pdf', J(plan));
   const w = root.write;
-  root.write = async (p, d) => { if (/b\.pdf$/.test(p) && p.startsWith('Library/')) throw new Error('copy failed'); return w(p, d); };
+  root.write = async (p, d) => { if (/b\.pdf$/.test(p) && p.startsWith('Documents/')) throw new Error('copy failed'); return w(p, d); };
   const res = await organise(root, plan);
   root.write = w;
   ok('it stops at the first copy that fails: the ones before are moved, that one and the rest are where they were', res.done.length === 1 && res.failed.from.endsWith('b.pdf') && res.left.length === 1 && files.has('Notes/2024-02-10 b.pdf') && files.has('Notes/2024-03-10 c.pdf') && !files.has('Notes/2024-01-10 a.pdf') && files.has(res.done[0].to), J(res));
-  ok('…and no half copy is left in Library/', !files.has(plan[1].to) && !files.has(plan[2].to));
+  ok('…and no half copy is left in Documents/', !files.has(plan[1].to) && !files.has(plan[2].to));
   root.write = async (p, d) => w(p, p === plan[1].to ? new TextEncoder().encode('wrong') : d);
   const res2 = await organise(root, plan.slice(1));
   root.write = w;
@@ -299,7 +299,7 @@ section('Organise: moves into Library/<year>/, run one at a time, stopping clean
   await d.persist.link(d.data);
   await edit(d, x => { DOC.addDocument(x, { name: '2024-05-01 Old cv.pdf', type: 'application/pdf', path: 'Docs/2024-05-01 Old cv.pdf', sha256: sha, size: 3, text: 't', meta: { date: '2024-05-01' } }); }, 'doc');
   await d.space.sync();
-  ok('the scan lists the resume-like files outside Library/ as found, and a pdf is one whatever it holds', d.space.last.fresh.length === 0, J(d.space.last.fresh));
+  ok('the scan lists the resume-like files outside Documents/ as found, and a pdf is one whatever it holds', d.space.last.fresh.length === 0, J(d.space.last.fresh));
   sf.set('Elsewhere/2023-06-01 Some resume.docx', bytes('x'));
   sf.set('Elsewhere/notes.md', new TextEncoder().encode('# Shopping\n- milk\n'));
   sf.set('Elsewhere/cv.md', new TextEncoder().encode('# Jane Roe\njane@example.com\n\n## Experience\nAcme 2019 - 2021\n\n## Skills\nCAD\n'));
@@ -307,36 +307,36 @@ section('Organise: moves into Library/<year>/, run one at a time, stopping clean
   await d.space.sync();
   ok('the scan skips dot-folders, BrewCV/, fonts and code, and tells a note from a resume by its score', J(d.space.last.fresh.map(f => f.path)) === J(['Elsewhere/2023-06-01 Some resume.docx', 'Elsewhere/cv.md']), J(d.space.last.fresh));
   const o = await d.space.organise();
-  ok('Organise through the app moves them into Library/ and a document’s path follows its file', o.done.length === 2 && sf.has('Library/2023/2023-06-01 Some resume.docx') && !sf.has('Elsewhere/2023-06-01 Some resume.docx') && sf.has('Elsewhere/notes.md'), J(o));
+  ok('Organise through the app moves them into Documents/ and a document’s path follows its file', o.done.length === 2 && sf.has('Documents/2023/2023-06-01 Some resume.docx') && !sf.has('Elsewhere/2023-06-01 Some resume.docx') && sf.has('Elsewhere/notes.md'), J(o));
   await d.space.undoOrganise();
-  ok('…and the log undoes it', sf.has('Elsewhere/2023-06-01 Some resume.docx') && !sf.has('Library/2023/2023-06-01 Some resume.docx'));
+  ok('…and the log undoes it', sf.has('Elsewhere/2023-06-01 Some resume.docx') && !sf.has('Documents/2023/2023-06-01 Some resume.docx'));
 }
 
-section('an Inbox copy of an original is a duplicate only while the Library still holds that file');
+section('an Inbox copy of an original is a duplicate only while Documents/ still holds that file');
 {
-  const Ms = make(), sf = Ms.fx, d = await device(Ms, 'Mac'), orig = new TextEncoder().encode('The original wording of the file.\n'), sha = await sha256(orig), path = 'Library/2024/2024-03-12 o.txt';
+  const Ms = make(), sf = Ms.fx, d = await device(Ms, 'Mac'), orig = new TextEncoder().encode('The original wording of the file.\n'), sha = await sha256(orig), path = 'Documents/2024/2024-03-12 o.txt';
   sf.set(path, orig);
   await d.persist.link(d.data);
   await edit(d, x => { DOC.addDocument(x, { name: '2024-03-12 o.txt', type: 'text/plain', path, sha256: sha, size: orig.length, text: 'x', meta: { date: '2024-03-12' } }); }, 'document');
-  sf.set('Inbox/o copy.txt', orig);
+  sf.set('BrewCV/Inbox/o copy.txt', orig);
   await d.space.sync();
-  ok('while the Library file is the document’s own, the copy in Inbox/ is a duplicate and goes to Deleted/', !sf.has('Inbox/o copy.txt') && listed(sf, 'Deleted').some(n => /o copy/.test(n)));
+  ok('while the file in Documents/ is the document’s own, the copy in the Inbox is a duplicate and goes to Deleted/', !sf.has('BrewCV/Inbox/o copy.txt') && listed(sf, 'Deleted').some(n => /o copy/.test(n)));
   sf.set(path, new TextEncoder().encode('The file, edited since, so longer.\n'));
-  sf.set('Inbox/o copy.txt', orig);
-  const e = { name: 'o copy.txt', path: 'Inbox/o copy.txt', status: 'seen', modified: 0, sha256: sha };
+  sf.set('BrewCV/Inbox/o copy.txt', orig);
+  const e = { name: 'o copy.txt', path: 'BrewCV/Inbox/o copy.txt', status: 'seen', modified: 0, sha256: sha };
   await d.space.sync(); await d.space.file([e]);
-  ok('once that file was edited, the copy is the original and is kept: the scan leaves it and filing does not call it a duplicate', sf.has('Inbox/o copy.txt') && e.path === 'Inbox/o copy.txt' && listed(sf, 'Deleted').filter(n => /o copy/.test(n)).length === 1);
+  ok('once that file was edited, the copy is the original and is kept: the scan leaves it and filing does not call it a duplicate', sf.has('BrewCV/Inbox/o copy.txt') && e.path === 'BrewCV/Inbox/o copy.txt' && listed(sf, 'Deleted').filter(n => /o copy/.test(n)).length === 1);
 }
 
-section('the Inbox: read, filed into Library/<year>/, with its receipt');
+section('the Inbox (BrewCV/Inbox/): read, filed into Documents/<search>/<company>/, with its receipt');
 {
   const Ms = make(), sf = Ms.fx, d = await device(Ms, 'Mac');
   const FIX = path.join(REPO, 'checks/fixtures/import'), name = 'helix-1col-word.docx', bytes = new Uint8Array(fs.readFileSync(path.join(FIX, name)));
-  sf.set(`Inbox/${name}`, bytes);
-  sf.set('Inbox/.DS_Store', new Uint8Array(1)); sf.set('Inbox/~$helix.docx', new Uint8Array(1));
+  sf.set(`BrewCV/Inbox/${name}`, bytes);
+  sf.set('BrewCV/Inbox/.DS_Store', new Uint8Array(1)); sf.set('BrewCV/Inbox/~$helix.docx', new Uint8Array(1));
   await d.persist.link(d.data);
   const r = await d.space.sync();
-  ok('the Inbox lists its files, and not what an office program or a Mac leaves in it', J(r.inbox) === J([`Inbox/${name}`]) && sf.has('BrewCV.md'));
+  ok('the Inbox lists its files, and not what an office program or a Mac leaves in it', J(r.inbox) === J([`BrewCV/Inbox/${name}`]) && sf.has('BrewCV/BrewCV.md'));
   const [f] = await d.space.load(r.inbox);
   const e = { name: f.name, size: f.size, type: f.type, modified: f.lastModified, path: f.path, bytes: new Uint8Array(await f.arrayBuffer()) };
   e.sha256 = await sha256(e.bytes);
@@ -344,7 +344,7 @@ section('the Inbox: read, filed into Library/<year>/, with its receipt');
   const entries = [e];
   X.classify(d.store.state, entries);
   await d.space.file(entries);
-  ok('before the import is applied the file is filed into Library/<year>/ under a name with the date, and gone from the Inbox', /^Library\/\d{4}\/\d{4}-\d\d-\d\d helix-1col-word\.docx$/.test(e.path) && !sf.has(`Inbox/${name}`) && sf.has(e.path), e.path);
+  ok('before the import is applied the file is filed into Documents/<year>/ (no company is known) under a name with the date, and gone from the Inbox', /^Documents\/\d{4}\/\d{4}-\d\d-\d\d helix-1col-word\.docx$/.test(e.path) && !sf.has(`BrewCV/Inbox/${name}`) && sf.has(e.path), e.path);
   const plan = X.plan(d.store.state, entries, { fresh: true });
   let made = [];
   d.store.commit(x => { made = X.applyPlan(x, plan, { at: '2026-11-01T10:00:00.000Z' }); }, 'import');
@@ -356,24 +356,110 @@ section('the Inbox: read, filed into Library/<year>/, with its receipt');
   const r2 = await d.space.sync();
   ok('the next scan finds the filed document where it should be', r2.inbox.length === 0 && r2.missing === 0 && r2.moved === 0 && d.space.docStatus(doc2.id) === null);
   // a copy that fails leaves the file in the Inbox
-  sf.set('Inbox/again.txt', new TextEncoder().encode('Another file\n'));
-  const x = { name: 'again.txt', path: 'Inbox/again.txt', status: 'resume', modified: 0, sha256: await sha256(new TextEncoder().encode('Another file\n')) };
+  sf.set('BrewCV/Inbox/again.txt', new TextEncoder().encode('Another file\n'));
+  const x = { name: 'again.txt', path: 'BrewCV/Inbox/again.txt', status: 'resume', modified: 0, sha256: await sha256(new TextEncoder().encode('Another file\n')) };
   const w = d.folder.write;
   d.folder.write = async () => { throw new Error('disk full'); };
   await d.space.file([x]);
   d.folder.write = w;
-  ok('a file that cannot be filed stays in the Inbox, and the document is made referencing it there', x.path === 'Inbox/again.txt' && sf.has('Inbox/again.txt'));
-  // the same file in the Inbox again: the Library already has it
-  sf.set('Inbox/helix again.docx', bytes);
-  const y = { name: 'helix again.docx', path: 'Inbox/helix again.docx', status: 'seen', modified: 0, sha256: e.sha256 };
+  ok('a file that cannot be filed stays in the Inbox, and the document is made referencing it there', x.path === 'BrewCV/Inbox/again.txt' && sf.has('BrewCV/Inbox/again.txt'));
+  // the same file in the Inbox again: Documents/ already has it
+  sf.set('BrewCV/Inbox/helix again.docx', bytes);
+  const y = { name: 'helix again.docx', path: 'BrewCV/Inbox/helix again.docx', status: 'seen', modified: 0, sha256: e.sha256 };
   await d.space.file([y]);
-  ok('a copy of a file the Library already holds goes to Deleted/, and its entry points at the one in Library/', y.path === e.path && !sf.has('Inbox/helix again.docx') && listed(sf, 'Deleted').some(n => /helix again.*\.docx$/.test(n)));
+  ok('a copy of a file the Library already holds goes to Deleted/, and its entry points at the one in Documents/', y.path === e.path && !sf.has('BrewCV/Inbox/helix again.docx') && listed(sf, 'Deleted').some(n => /helix again.*\.docx$/.test(n)));
   // an original embedded before a folder was linked becomes a file there
   const emb = new TextEncoder().encode('Embedded original, before the folder.\n'), esha = await sha256(emb);
   d.store.commit(s => { DOC.addDocument(s, { name: 'before.txt', type: 'text/plain', bytesDataUrl: `data:text/plain;base64,${Buffer.from(emb).toString('base64')}`, sha256: esha, size: emb.length, text: 'Embedded original', meta: { date: '2024-02-02' } }); }, 'embedded');
   await d.space.sync();
   const ref = d.store.state.documents.find(y => y.sha256 === esha);
-  ok('linking a folder later writes the embedded originals into Library/ and turns them into references', ref.path === 'Library/2024/2024-02-02 before.txt' && !ref.embedded && J([...sf.get(ref.path)]) === J([...emb]), J(ref.path));
+  ok('linking a folder later writes the embedded originals into Documents/ and turns them into references', ref.path === 'Documents/2024/2024-02-02 before.txt' && !ref.embedded && J([...sf.get(ref.path)]) === J([...emb]), J(ref.path));
+}
+
+section('Documents by search and company (the setting, the Inbox, Organise, the Save dialog’s folder)');
+{
+  const Ms = make(), sf = Ms.fx, d = await device(Ms, 'Mac'), dir = (date, company) => d.space.dirFor(date, company);
+  await d.persist.link(d.data); await d.space.sync();
+  ok('with no round running a document sits in its year’s folder, under its company when one is known', await dir('2024-03-12', 'Northgate') === 'Documents/2024/Northgate' && await dir('2024-03-12') === 'Documents/2024' && await dir('2024-03-12', '') === 'Documents/2024');
+  ok('…and every name goes through safe()', await dir('2024-03-12', 'A#B/C:[1]') === 'Documents/2024/A B C 1');
+  await edit(d, x => { DOC.startRound(x, 'Lisbon', '2026-03-01'); }, 'round');
+  ok('during a round an export lands in Documents/<round>/<company>/, a round called Lisbon started in 2026 being 2026 Lisbon', await dir('2026-11-01', 'Acme') === 'Documents/2026 Lisbon/Acme' && await dir('2026-11-01') === 'Documents/2026 Lisbon');
+  ok('…a date before the round is still its year', await dir('2025-12-31', 'Acme') === 'Documents/2025/Acme');
+  // an Inbox file in BrewCV/Inbox/ ends in its search’s folder, with its receipt
+  const bring = async (name, text, modified) => {
+    const b = new TextEncoder().encode(text), sha = await sha256(b), e = { name, path: `BrewCV/Inbox/${name}`, status: 'resume', modified, sha256: sha };
+    sf.set(e.path, b);
+    await d.space.file([e]);
+    return { e, b, sha };
+  };
+  const meta = e => ({ ...X.metaOf(e.name, e.modified), kind: 'resume' });
+  const may = Date.parse('2026-05-05T10:00:00Z');
+  const one = await bring('2026-05-05 Northgate - Design Engineer.txt', 'Led the dosing system redesign at Northgate.\n', may);
+  ok('an Inbox file ends in its round’s folder, under the company its name carries, with the date in its name', one.e.path === 'Documents/2026 Lisbon/Northgate/2026-05-05 Northgate - Design Engineer.txt' && !sf.has(`BrewCV/Inbox/${one.e.name}`) && J([...sf.get(one.e.path)]) === J([...one.b]), one.e.path);
+  ok('…its receipt’s third tick is “in your folder”: read back and checked', d.space.verified({ path: one.e.path, sha256: one.sha }));
+  const two = await bring('notes from a call.txt', 'Another file with no company in its name.\n', may);
+  ok('a document with no company known sits in the search’s own folder', /^Documents\/2026 Lisbon\/\d{4}-\d\d-\d\d notes from a call\.txt$/.test(two.e.path) && sf.has(two.e.path), two.e.path);
+  const gen = await bring('2026-05-07 General.txt', 'A file named for a date and a word, no role.\n', may);
+  ok('a company folder comes only from a name of the form <date> <company> - <role>: “<date> General” sits in the search’s folder', gen.e.path === 'Documents/2026 Lisbon/2026-05-07 General.txt' && sf.has(gen.e.path), gen.e.path);
+  ok('the app writes nothing at the top of the folder except Documents/ and BrewCV/', [...sf.keys()].every(k => /^(?:BrewCV|Documents)\//.test(k)), [...sf.keys()].filter(k => !/^(?:BrewCV|Documents)\//.test(k)).join());
+  await edit(d, x => { for (const o of [one, two]) DOC.addDocument(x, { name: o.e.name, type: 'text/plain', path: o.e.path, sha256: o.sha, size: o.b.length, text: o.e.name, meta: meta(o.e) }); }, 'documents');
+  await edit(d, x => { DOC.startRound(x, '2027 Berlin', '2027-02-01'); }, 'round 2');
+  ok('a round that has ended covers only its own dates, and a name that starts with a year is left as it is', await dir('2027-01-31', 'Acme') === 'Documents/2026 Lisbon/Acme' && await dir('2027-02-01', 'Acme') === 'Documents/2027 Berlin/Acme' && await dir('2026-02-28') === 'Documents/2026');
+  await edit(d, x => { DOC.mark(x, 'rounds', x.rounds.find(r => r.name === '2027 Berlin').id, { archived: true }, '2027-03-01'); }, 'archive');
+  ok('a round archived with no end date ends on the day it was archived: its own dates stay in its folder, a later date is its year', await dir('2027-02-15', 'Acme') === 'Documents/2027 Berlin/Acme' && await dir('2027-03-01', 'Acme') === 'Documents/2027/Acme' && await dir('2027-06-01', 'Acme') === 'Documents/2027/Acme');
+  // Organise leaves everything under Documents/ alone
+  const keep = { 'Documents/2026 Lisbon/Acme/2026-05-01 Acme - Old.pdf': 'a', 'Documents/loose/2025-01-01 mine.docx': 'b', 'Documents/2026-05-09 here.pdf': 'c' };
+  for (const [k, v] of Object.entries(keep)) sf.set(k, v);
+  sf.set('Notes/2025-02-02 Beta - Role.pdf', 'd'); sf.set('Notes/2023-06-01 Resume.pdf', 'e');
+  await d.space.sync();
+  ok('the scan leaves what is under Documents/ out of the files found elsewhere (a job ad is not a resume to read in or move), and lists the rest', Object.keys(keep).every(k => !d.space.last.fresh.some(f => f.path === k)) && ['Notes/2025-02-02 Beta - Role.pdf', 'Notes/2023-06-01 Resume.pdf'].every(k => d.space.last.fresh.some(f => f.path === k)), J(d.space.last.fresh.map(f => f.path)));
+  const plan = await d.space.plan();
+  ok('Organise lists only the files outside Documents/ and BrewCV/, into its search and company folder (a name with no role has no company)', J(plan) === J([{ from: 'Notes/2023-06-01 Resume.pdf', to: 'Documents/2023/2023-06-01 Resume.pdf' }, { from: 'Notes/2025-02-02 Beta - Role.pdf', to: 'Documents/2025/Beta/2025-02-02 Beta - Role.pdf' }]), J(plan));
+  await d.space.organise(plan);
+  ok('…and every file under Documents/ is where it was, with its bytes', Object.entries(keep).every(([k, v]) => sf.get(k) === v) && plan.every(m => sf.has(m.to) && !sf.has(m.from)));
+  // the setting moves nothing
+  const before = new Map([...sf.entries()].filter(([k]) => !k.startsWith('BrewCV/')));
+  const ids = [one, two].map(o => DOC.docId(o.sha));
+  await d.space.setDocs('Applications/2026');
+  const r = await d.space.sync();
+  ok('changing the setting moves nothing: every file is where it was, and the old documents open (found, read back)', r.docs === 'Applications/2026' && [...before].every(([k, v]) => sf.get(k) === v) && [one, two].every(o => d.space.verified({ path: o.e.path, sha256: o.sha })) && ids.every(id => d.space.docStatus(id) === null && d.store.state.documents.find(x => x.id === id).path.startsWith('Documents/')) && r.moved === 0 && r.missing === 0);
+  const plan2 = await d.space.plan();
+  ok('…Organise still leaves the old Documents/ alone, whatever the setting is now', plan2.every(m => !m.from.startsWith('Documents/')));
+  ok('…and the next document goes to the new place, by the same rule', await dir('2026-11-01', 'Acme') === 'Applications/2026/2026 Lisbon/Acme');
+  const three = await bring('2026-06-06 Acme - Product Designer.txt', 'A third file, for the new place.\n', Date.parse('2026-06-06T10:00:00Z'));
+  ok('…an Inbox file is filed there', three.e.path === 'Applications/2026/2026 Lisbon/Acme/2026-06-06 Acme - Product Designer.txt' && sf.has(three.e.path));
+  const set = async v => { const ok = await d.space.setDocs(v); await d.space.sync(); return [ok, d.space.last.docs]; };
+  ok('a setting with nothing safe in it is the default; one that climbs out of the folder cannot', J(await set('../..\\:')) === J([true, 'Documents']) && J(await set('../Outside/a:b')) === J([true, 'Outside/a b']));
+  ok('…and empty is the default again', J(await set('')) === J([true, 'Documents']));
+  // a folder the scan skips, BrewCV's own, or one nested deeper than the scan reads cannot hold documents: the setting is refused, and the one before stays
+  await set('Applications');
+  const refused = ['BrewCV', 'brewcv/x', 'BrewCV/Inbox', '.hidden', 'a/.git', 'node_modules', 'a/Fonts', 'Deleted', 'checkpoints', 'a/b/c/d/e/f/g'];
+  const answers = []; for (const v of refused) answers.push(J(await set(v)));
+  ok('the setting refuses BrewCV and what is under it, dot-folders, names the scan skips, and a folder too deep for the scan, and keeps the one before', answers.every(a => a === J([false, 'Applications'])), answers.join());
+  ok('…a folder the scan reads is fine, even one that is only skipped at the top, or as deep as it goes', J(await set('x/Deleted')) === J([true, 'x/Deleted']) && J(await set('a/b/c/d/e/f')) === J([true, 'a/b/c/d/e/f']));
+  // Organise protects, whatever case a disk keeps, the setting now and the top folder of every document the state holds
+  await set('Applications/2026');
+  sf.set('Applications/2026/2026-07-07 Zed - Dev.pdf', 'z'); sf.set('Notes2/2026-08-01 Lee - Dev.pdf', 'l');
+  await d.space.sync();
+  ok('the folder the setting names is protected: a file there is neither found elsewhere nor listed by Organise', !d.space.last.fresh.some(f => f.path.startsWith('Applications/')) && J((await d.space.plan()).map(m => m.from)) === J(['Notes2/2026-08-01 Lee - Dev.pdf']), J(d.space.last.fresh.map(f => f.path)));
+  await edit(d, x => { DOC.addDocument(x, { name: three.e.name, type: 'text/plain', path: three.e.path, sha256: three.sha, size: three.b.length, text: 'x', meta: meta(three.e) }); DOC.addDocument(x, { name: 'q.txt', type: 'text/plain', path: 'Theirs/2026 Lisbon/Acme/q.txt', sha256: 'f'.repeat(64), size: 1, text: 'q', meta: {} }); DOC.addDocument(x, { name: 'r.txt', type: 'text/plain', path: 'Notes3/r.txt', sha256: 'e'.repeat(64), size: 1, text: 'r', meta: {} }); }, 'more documents');
+  await set('');
+  sf.set('Applications/2026/other/2026-07-08 Yan - Dev.pdf', 'y'); sf.set('Notes3/2026-09-02 Kim - Dev.pdf', 'k'); sf.set('Theirs/2026-07-11 Pal - Eng.pdf', 'p'); sf.set('documents/2026-07-09 Low - Dev.pdf', 'w'); sf.set('DOCUMENTS/x/2026-07-10 Up - Dev.pdf', 'u');
+  await d.space.sync();
+  const mine = (await d.space.plan()).map(m => m.from);
+  ok('…and so is the base of every document the app filed (the setting changed back, a folder another device filed into), whatever the case', J(mine) === J(['Notes2/2026-08-01 Lee - Dev.pdf', 'Notes3/2026-09-02 Kim - Dev.pdf']) && !d.space.last.fresh.some(f => /^(?:Applications|Theirs|documents|DOCUMENTS)\//.test(f.path)), J(mine) + J(d.space.last.fresh.map(f => f.path)));
+  ok('…but only the base a document was filed under (before its search folder): a file read in place in Notes3/ leaves the other resumes there to Organise and the found list', mine.includes('Notes3/2026-09-02 Kim - Dev.pdf') && d.space.last.fresh.some(f => f.path === 'Notes3/2026-09-02 Kim - Dev.pdf'));
+  // the Save dialog's folder is made before the dialog opens, and taken away again, when the app made it and it is still empty
+  const tree = new Set(['/F']), fs = { exists: async p => tree.has(p), mkdir: async p => { for (let i = p.indexOf('/', 1); i > 0; i = p.indexOf('/', i + 1)) tree.add(p.slice(0, i)); tree.add(p); }, remove: async p => { if ([...tree].some(k => k.startsWith(`${p}/`))) throw new Error('not empty'); tree.delete(p); } };
+  const undo = await ensureDirs(fs, '/F', 'Documents/2026 Lisbon/Acme');
+  ok('the folders the Save dialog opens in are made', tree.has('/F/Documents/2026 Lisbon/Acme'));
+  await undo();
+  ok('…and taken away again when nothing was saved, the ones the app made', !tree.has('/F/Documents') && !tree.has('/F/Documents/2026 Lisbon') && tree.has('/F'));
+  tree.add('/F/Documents'); tree.add('/F/Documents/2026 Lisbon'); tree.add('/F/Documents/2026 Lisbon/Beta'); tree.add('/F/Documents/2026 Lisbon/Beta/x.pdf');
+  const undo2 = await ensureDirs(fs, '/F', 'Documents/2026 Lisbon/Acme'); await undo2();
+  ok('…but a folder that was there already, and a folder that is not empty, are left alone', tree.has('/F/Documents/2026 Lisbon/Beta/x.pdf') && tree.has('/F/Documents/2026 Lisbon') && !tree.has('/F/Documents/2026 Lisbon/Acme'));
+  const undo3 = await ensureDirs(fs, '/F', 'Documents/2026 Lisbon/Acme'); tree.add('/F/Documents/2026 Lisbon/Acme/y.pdf'); await undo3();
+  ok('…and one the app made that has a file in it by then stays', tree.has('/F/Documents/2026 Lisbon/Acme/y.pdf') && tree.has('/F/Documents/2026 Lisbon/Acme'));
 }
 
 section('Deleted/ is swept after 30 days, only what the app put there, and is the only place the app unlinks');
@@ -412,7 +498,7 @@ section('Deleted/ is swept after 30 days, only what the app put there, and is th
     ok(`a damaged index (${bad.slice(0, 12)}) is an empty one: the file is still copied, checked and moved, and the scan goes on`, !threw && to && sf.has(to) && !sf.has('BrewCV/z.json'), String(threw));
   }
   ok('a name Deleted/ already holds gets a number', await (async () => { sf.set('BrewCV/x.json', 'a'); const a = await toDeleted(d.data, 'x.json', { day: '2026-11-01' }); sf.set('BrewCV/x.json', 'b'); const b = await toDeleted(d.data, 'x.json', { day: '2026-11-01' }); return a === 'BrewCV/Deleted/2026-11-01 x (app).json' && b === 'BrewCV/Deleted/2026-11-01 x (app) 2.json' && !sf.has('BrewCV/x.json'); })());
-  ok('BrewCV.md is written once, and not again when the person has changed it or deleted it', sf.has('BrewCV.md') && (sf.set('BrewCV.md', 'mine'), await d.space.sync(), sf.get('BrewCV.md') === 'mine') && (sf.delete('BrewCV.md'), await d.space.sync(), !sf.has('BrewCV.md')));
+  ok('BrewCV.md is written once, and not again when the person has changed it or deleted it', has(sf, 'BrewCV.md') && (sf.set('BrewCV/BrewCV.md', 'mine'), await d.space.sync(), at(sf, 'BrewCV.md') === 'mine') && (sf.delete('BrewCV/BrewCV.md'), await d.space.sync(), !has(sf, 'BrewCV.md')));
   // an older folder: its own Deleted/ is the person’s, nothing is swept or moved there
   const Ml = make(), lf = Ml.fx, st = exampleState();
   for (const [p, text] of filesOf(st)) lf.set(p, text);
@@ -467,8 +553,8 @@ section('library.json is derived: what is there goes to Deleted/ and the new one
 {
   const Ms = make(), sf = Ms.fx, d = await device(Ms, 'Mac');
   await d.persist.link(d.data);
-  await edit(d, x => { DOC.addDocument(x, { name: 'a.txt', type: 'text/plain', path: 'Library/2024/a.txt', sha256: 'a'.repeat(64), size: 1, text: 'a', meta: {} }); }, 'document');
-  sf.set('Library/2024/a.txt', 'a');
+  await edit(d, x => { DOC.addDocument(x, { name: 'a.txt', type: 'text/plain', path: 'Documents/2024/a.txt', sha256: 'a'.repeat(64), size: 1, text: 'a', meta: {} }); }, 'document');
+  sf.set('Documents/2024/a.txt', 'a');
   await d.space.sync();
   const mine = at(sf, 'library.json');
   ok('with a document the merged view holds a library.json', !!mine && JSON.parse(mine).documents.length === 1);
@@ -513,11 +599,11 @@ section('a saved resume’s conflict copy, a path from another device, and what 
   await o.persist.link(o.data); await o.space.sync();
   const file = JSON.parse([...o.files.fx.entries()].find(([k]) => /devices\/Linux/.test(k))[1]);
   const doc = (id, p) => ({ id: `doc-${id.repeat(12)}`, name: 'x.pdf', type: 'application/pdf', size: 1, sha256: id.repeat(64), addedAt: '2026-11-01T00:00:00.000Z', path: p, meta: {}, from: 'imported', taken: { claims: [], versions: [], skipped: [], unplaced: 0 }, text: 'x' });
-  file.documents = [doc('1', '/etc/passwd'), doc('2', '../../outside.pdf'), doc('3', 'C:\\Windows\\x.pdf'), doc('4', 'Library/2024/fine.pdf'), doc('5', 'a/../../b.pdf')];
+  file.documents = [doc('1', '/etc/passwd'), doc('2', '../../outside.pdf'), doc('3', 'C:\\Windows\\x.pdf'), doc('4', 'Documents/2024/fine.pdf'), doc('5', 'a/../../b.pdf')];
   sf.set('BrewCV/devices/Paths 0003.json', J(file));
   await d.space.sync();
   const got = Object.fromEntries((d.store.state.documents ?? []).map(x => [x.id.slice(4, 5), x.path]));
-  ok('a path in another device’s file that is absolute, climbs out with .. or names a drive is dropped, a path inside the folder stays', got['1'] === undefined && got['2'] === undefined && got['3'] === undefined && got['5'] === undefined && got['4'] === 'Library/2024/fine.pdf' && Object.keys(got).length === 5, J(got));
+  ok('a path in another device’s file that is absolute, climbs out with .. or names a drive is dropped, a path inside the folder stays', got['1'] === undefined && got['2'] === undefined && got['3'] === undefined && got['5'] === undefined && got['4'] === 'Documents/2024/fine.pdf' && Object.keys(got).length === 5, J(got));
   sf.set('Deleted/old.pdf', 'x'); sf.set('checkpoints/a.pdf', 'x'); sf.set('Notes/real.pdf', 'x');
   await d.space.sync();
   ok('the scan skips Deleted/ and checkpoints/ as it does BrewCV/', J(d.space.last.fresh.map(x => x.path)) === J(['Notes/real.pdf']), J(d.space.last.fresh.map(x => x.path)));

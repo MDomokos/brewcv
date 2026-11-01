@@ -65,8 +65,8 @@ section('a document, and the same file again');
   ok('the same file added twice is one document, the first', st.documents.length === 1 && again === d && again.name === 'cv.pdf');
   ok('findBySha finds it, and not another file', DOC.findBySha(st, pdf.sha256) === d && DOC.findBySha(st, docx.sha256) === null);
   ok('an original without a linked folder is kept in the document', st.documents[0].embedded === pdf.url && !('path' in d));
-  const ref = addFile(st, pdf2, { path: 'Library/2026/cv.pdf' });
-  ok('with a path the original is a reference, nothing is embedded', ref.path === 'Library/2026/cv.pdf' && !('embedded' in ref));
+  const ref = addFile(st, pdf2, { path: 'Documents/2026/cv.pdf' });
+  ok('with a path the original is a reference, nothing is embedded', ref.path === 'Documents/2026/cv.pdf' && !('embedded' in ref));
   const huge = `data:application/pdf;base64,${'A'.repeat(14_100_000)}`;      // about 10.6 MB of bytes
   let err = null; try { addFile(st, pdf3, { bytesDataUrl: huge, size: 5 }); } catch (e){ err = e; }
   ok('an original over 10 MB is refused with a message a person can read, whatever size the caller gives', err?.key === 'i2.tooBig' && /11 MB/.test(errText(err)) && st.documents.length === 2, errText(err));
@@ -74,7 +74,7 @@ section('a document, and the same file again');
   ok('and with no size at all', err2?.key === 'i2.tooBig');
   let err3 = null; try { addFile(st, pdf3, { bytesDataUrl: 'asset:abc' }); } catch (e){ err3 = e; }
   ok('an original that is not a data: URL is refused', !!err3 && st.documents.length === 2);
-  ok('the same bytes are fine when the original is a reference', !!addFile(st, pdf3, { bytesDataUrl: huge, path: 'Library/2026/big.pdf' }));
+  ok('the same bytes are fine when the original is a reference', !!addFile(st, pdf3, { bytesDataUrl: huge, path: 'Documents/2026/big.pdf' }));
   let bad = null; try { addFile(st, { ...pdf3, sha256: 'nope' }); } catch (e){ bad = e; }
   ok('a document needs a real sha256', !!bad);
 }
@@ -332,9 +332,9 @@ section('safety: is my old file safe to delete');
   ok('a checked file that misses the document is not a check', wrong.kept.state === 'saved' && !wrong.safe);
   const inFile = s(mk(), { lastFileSave: { at: after }, checked: { at: after, ids: [id] } });
   ok('in the file after a check: all three are green and it is safe', inFile.read.ok && inFile.record.ok && inFile.kept.ok && inFile.kept.state === 'file' && inFile.safe);
-  const folder = s(mk({ path: 'Library/2026/cv.pdf', bytesDataUrl: undefined }), { folderVerified: true });
-  ok('in the folder, read back and checked: safe, and the line names the path', folder.kept.state === 'folder' && folder.kept.text.includes('Library/2026/cv.pdf') && folder.safe);
-  const unverified = s(mk({ path: 'Library/2026/cv.pdf', bytesDataUrl: undefined }), {});
+  const folder = s(mk({ path: 'Documents/2026/cv.pdf', bytesDataUrl: undefined }), { folderVerified: true });
+  ok('in the folder, read back and checked: safe, and the line names the path', folder.kept.state === 'folder' && folder.kept.text.includes('Documents/2026/cv.pdf') && folder.safe);
+  const unverified = s(mk({ path: 'Documents/2026/cv.pdf', bytesDataUrl: undefined }), {});
   ok('a path nobody has read back is not kept', !unverified.kept.ok && !unverified.safe);
   const t = fresh(); const td = addFile(t, pdf); DOC.keepTextOnly(t, td.id);
   const textOnly = s(td, { lastFileSave: { at: after }, checked: { at: after, ids: [td.id] } });
@@ -403,6 +403,16 @@ section('the Library: rounds, the archive, groups, removing and rebuilding');
   ok('a resume in an archived round is hidden, one that is archived itself is hidden, the rest are not', DOC.hidden(st, st.resumes.find(r => r.id === made2.id)) && !DOC.hidden(st, st.resumes.find(r => r.id === made1.id)) && (DOC.mark(st, 'resumes', made1.id, { archived: true }), DOC.hidden(st, st.resumes.find(r => r.id === made1.id))));
   DOC.mark(st, 'resumes', made1.id, { archived: false });
   ok('and the archive flag goes away when it is switched off', !('archived' in st.resumes.find(r => r.id === made1.id)) && DOC.currentRound(st).id === autumn.id);
+  {
+    const sw = fresh(), w = DOC.startRound(sw, 'Winter', '2028-01-01'), at = () => sw.rounds.find(r => r.id === w.id);
+    DOC.mark(sw, 'rounds', w.id, { archived: true }, '2028-02-15');
+    ok('archiving a round with no end date ends it on that day', at().to === '2028-02-15' && at().archived === true);
+    DOC.mark(sw, 'rounds', w.id, { archived: false });
+    ok('…and un-archiving it takes that end back, so it is open again', !('to' in at()) && !('archived' in at()));
+    DOC.startRound(sw, 'Next', '2028-06-01');
+    DOC.mark(sw, 'rounds', w.id, { archived: true }, '2028-09-09'); DOC.mark(sw, 'rounds', w.id, { archived: false });
+    ok('a round that ended when the next began keeps that end, archived or not', at().to === '2028-06-01');
+  }
   ok('rounds and the archive are not printed: every saved resume renders byte for byte the same', eq(printed(st.record, resumes.map(r => st.resumes.find(x => x.id === r.id)).filter(Boolean)), printed(base, resumes)));
 
   // groups: formats of one resume, the same company and role in another language, a letter, the resume a file was exported from
