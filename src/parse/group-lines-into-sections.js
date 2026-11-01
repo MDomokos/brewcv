@@ -1,4 +1,4 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-lines-into-sections.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; title words from the lexicon; Unicode capitals; an item a reader marked as a title; 2026-11-01: a short line set apart by its look is a title, and bold capitals with a digit ("CAD & 3D") are not
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-lines-into-sections.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; title words from the lexicon; Unicode capitals; an item a reader marked as a title; 2026-11-01: the fallback needs a title word at the end of the line and no job-title word, and a short line set apart by its look is a title, and bold capitals with a digit ("CAD & 3D") are not
 // Types stripped. Changed: the title keywords come from the lexicon, a capital letter is any Unicode capital, and an item with `title: true`
 // (a heading a reader found: a Heading style, #, h1 to h3) is a title whatever its words, unless it is in the first two lines (the name).
 // Also new: a short line alone on its row that is set apart from the body text by its look is a title (see `byLook`).
@@ -52,7 +52,7 @@ const byLook = (lines, known, lex) => {
 
 export const groupLinesIntoSections = (lines, lex) => {
   const sections = {};
-  const known = lines.map((line, i) => isSectionTitle(line, i, lex.titleWords)), look = byLook(lines, known, lex);
+  const known = lines.map((line, i) => isSectionTitle(line, i, lex)), look = byLook(lines, known, lex);
   let sectionName = PROFILE_SECTION;
   let sectionLines = [];
   for (let i = 0; i < lines.length; i++) {
@@ -72,7 +72,13 @@ export const groupLinesIntoSections = (lines, lex) => {
   return sections;
 };
 
-const isSectionTitle = (line, lineNumber, titleWords) => {
+// a title word is the whole line or its end, with at most three letters after it (a plural: "Skills", "Tapasztalatok"): "Work Experience" is a title, "Patent Attorney", "Language Teacher" and "Project Manager" are not
+const endsWithTitleWord = (text, words) => {
+  const t = text.toLowerCase().replace(/:$/, '');
+  return words.some(k => { const i = t.lastIndexOf(k); return i >= 0 && /^\p{L}{0,3}$/u.test(t.slice(i + k.length)); });
+};
+
+const isSectionTitle = (line, lineNumber, lex) => {
   const isFirstTwoLines = lineNumber < 2;
   const hasMoreThanOneItemInLine = line.length > 1;
   const hasNoItemInLine = line.length === 0;
@@ -99,7 +105,8 @@ const isSectionTitle = (line, lineNumber, titleWords) => {
     textHasAtMost2Words &&
     hasOnlyLettersSpacesAmpersands(textItem) &&
     startsWithCapitalLetter &&
-    titleWords.some(keyword => text.toLowerCase().includes(keyword))
+    endsWithTitleWord(text, lex.titleWords) &&
+    !text.toLowerCase().split(/\s+/).some(w => lex.jobTitles.some(j => j.toLowerCase() === w))
   ) {
     return true;
   }

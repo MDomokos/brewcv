@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readPdf } from '../src/parse/pdf.js';
+import { pdf } from './lib/pdf.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8651);
@@ -57,6 +58,21 @@ const diff = here.findIndex((x, k) => JSON.stringify(x) !== JSON.stringify(got.i
 ok('the browser reads the Word PDF to the same items as Node: text, page, end of line and font', diff < 0 && got.items.length === here.length, `${got.items.length} items in the browser, ${here.length} in Node; first difference ${diff}: ${JSON.stringify(got.items[diff])} / ${JSON.stringify(here[diff])}`);
 ok('pdfThumb gives a PNG data URL 240 px wide and as tall as an A4 page', got.head.replace(/^data:/, '') === 'image/png;base64,' && got.w === 240 && Math.abs(got.h - 240 * 842 / 595) <= 2, `${got.head} ${got.w}x${got.h}`);
 ok('and the page is drawn: dark text on it, and not mostly dark', got.ink > 1000 && got.ink < 0.3 * got.w * got.h, `${got.ink} dark pixels`);
+// each read ends its worker; a page far taller than wide is the code big, not "data:,"
+const tall = [...pdf([[{ x: 10, y: 10, text: 'x' }]], { size: [200, 60000] })];
+const ended = await page.evaluate(async ([file, tall]) => {
+  const { readPdf, pdfThumb } = await import('/src/parse/pdf.js');
+  let made = 0, ended = 0;
+  const Real = window.Worker;
+  window.Worker = class extends Real { constructor(...a){ super(...a); made++; } terminate(){ ended++; return super.terminate(); } };
+  const bytes = new Uint8Array(await (await fetch(`/${file}`)).arrayBuffer());
+  await readPdf(bytes); await pdfThumb(bytes);
+  const code = await pdfThumb(Uint8Array.from(tall)).then(() => 'drawn', e => e.code);
+  window.Worker = Real;
+  return { made, ended, code };
+}, [FILE, tall]);
+ok('every read and every thumbnail ends its worker (three reads, three workers made, three ended)', ended.made === 3 && ended.ended === 3, JSON.stringify(ended));
+ok('a first page far taller than wide gives the code big from pdfThumb, not an empty data URL', ended.code === 'big', JSON.stringify(ended));
 const csp = await page.evaluate(() => window.__csp);
 ok('no Content-Security-Policy violation (the worker and the library load from the app\'s own address), no request to another address and no page error', csp.length === 0 && outside.length === 0 && errors.length === 0, JSON.stringify({ csp, outside, errors }));
 

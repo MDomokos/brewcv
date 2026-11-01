@@ -7,12 +7,12 @@
 // line again, so a PDF and the DOCX of the same resume give the same lines (`sameDocument`).
 // shortcut: no cmaps, standard-font data or wasm are vendored, so text in a font the PDF does not embed (a CJK one) may be missing and a JPEG 2000 picture does not draw; add the folders and cMapUrl,
 // standardFontDataUrl and wasmUrl when a real file needs them. A scan has no text and comes back as no items; the caller says so.
-// shortcut: at most 30 pages (a resume is not longer); more is refused with the code 'big', as unzip does. Other codes: 'encrypted' (a password), 'pdf' (not a PDF that can be read).
+// shortcut: at most 30 pages, 10,000 text items a page and 30,000 in all (a resume is far below all three); more is refused with the code 'big', as unzip does. The worker is ended after each read. Other codes: 'encrypted' (a password), 'pdf' (not a PDF that can be read, or PDF.js failed on a page), 'big'.
 import { BULLET_POINTS } from './extract-resume-from-sections/lib/bullet-points.js';
 import { shouldAddSpaceBetweenText } from './group-text-items-into-lines.js';
 
 const DIR = new URL('../../vendor/pdfjs/', import.meta.url).href;
-const MAX_PAGES = 30;
+const MAX_PAGES = 30, MAX_PAGE_ITEMS = 10000, MAX_ITEMS = 30000;      // a resume page holds hundreds of text items
 let lib;
 async function load(){
   if (!lib){
@@ -22,11 +22,15 @@ async function load(){
   }
   return lib;
 }
-const open = async bytes => {
+// Runs fn on the opened document, then destroys the loading task (which ends its worker). Whatever PDF.js throws is the code 'pdf' ('encrypted' for a password), unless it already has a code.
+const code = (e, c, message) => Object.assign(new Error(message), { code: c });
+async function withDoc(bytes, fn){
   const pdfjs = await load();
-  try { return await pdfjs.getDocument({ data: new Uint8Array(bytes), verbosity: 0, disableFontFace: true, isEvalSupported: false, fontExtraProperties: true }).promise; }
-  catch (e){ throw Object.assign(new Error(e.name === 'PasswordException' ? 'This file is password protected' : 'This is not a PDF that can be read'), { code: e.name === 'PasswordException' ? 'encrypted' : 'pdf' }); }
-};
+  const task = pdfjs.getDocument({ data: new Uint8Array(bytes), verbosity: 0, disableFontFace: true, isEvalSupported: false, fontExtraProperties: true });
+  try { return await fn(await task.promise); }
+  catch (e){ throw typeof e.code === 'string' ? e : e.name === 'PasswordException' ? code(e, 'encrypted', 'This file is password protected') : code(e, 'pdf', 'This is not a PDF that can be read'); }
+  finally { await task.destroy().catch(() => {}); }
+}
 
 const PUA_BULLET = /^[\uf0b7\uf0a7\uf0d8\uf0fc\uf076]/;      // the symbol-font bullets Word and LibreOffice leave, as in lines.js
 // a bullet of any shape is "•", as the DOCX reader writes it, so one resume in PDF and in DOCX has the same lines
@@ -86,7 +90,7 @@ const topDown = rows => {
 // shortcut: a margin item must end 8 pt or more before the text starts; a column that is the leftmost with a fifth of the text (a sidebar) is the text's start, not a margin
 function margins(rows){
   const weight = new Map();
-  for (const { r, x } of rows) weight.set(Math.round(x / 4), (weight.get(Math.round(x / 4)) ?? 0) + r.reduce((n, i) => n + i.text.length, 0));
+  for (const { r } of rows) for (const i of r) weight.set(Math.round(i.x / 4), (weight.get(Math.round(i.x / 4)) ?? 0) + i.text.length);      // by item: a label and the text beside it are not one start
   const total = [...weight.values()].reduce((a, b) => a + b, 0), edge = Math.min(...[...weight].filter(([, n]) => n * 5 >= total).map(([k]) => k * 4));
   if (!Number.isFinite(edge)) return rows;
   const gutter = i => i.x + i.width < edge - 8;
@@ -109,6 +113,7 @@ function margins(rows){
 
 // The lines of a paragraph or bullet that the page wrapped, one line again. B goes on A when it starts where A's text starts, with no bullet, one line gap lower (a tenth more than the
 // tightest gap in the document at that size), in the same size, and A runs to the right edge of its column but for the word B starts with.
+// The two rows are set in the same font (a bold heading after a sentence is not its next line) and A is not short for its column when B starts with a capital.
 // A word split at the line end is one word again when its hyphen is a soft hyphen or a hyphen PDF.js read as an item of its own (a browser's), or when the whole word is one of `known`
 // (the file's own words, and the caller's); any other hyphen is a compound ("self-managed") and stays.
 // shortcut: the gap is a tenth over the tightest, so a document that sets its bullets as close as its wrapped lines joins a bullet to the one above it (and a column narrower than nine ems is not a text: its
@@ -121,12 +126,15 @@ function joinWrapped(rows, known){
     edge.set(key, Math.max(edge.get(key) ?? 0, r.x1));
     if (up && up.page === r.page && Math.abs(up.h - r.h) < 0.3 && up.y > r.y) tight.set(Math.round(r.h), Math.min(tight.get(Math.round(r.h)) ?? Infinity, up.y - r.y));
   });
+  const font = r => { const n = new Map(); for (const i of r.r) n.set(i.fontName, (n.get(i.fontName) ?? 0) + i.text.length); return [...n].sort((x, y) => y[1] - x[1])[0][0]; };      // the font most of a row is set in
+  rows.forEach(r => { r.font = font(r); });
   const out = [];
   for (const b of rows){
     const a = out.at(-1), first = b.r[0], word = first.text.trim().split(/\s+/)[0], wordWidth = first.width * word.length / Math.max(first.text.length, 1);
     const right = a && edge.get(`${a.page}:${Math.round(text(a) / 4)}`);      // the longest line of its column: where lines wrap, when it is wide enough to be a text and not a list of short lines
-    if (!(a && a.page === b.page && !isBullet(first.text.trim()) && Math.abs(text(a) - b.x) <= 3 && Math.abs(a.h - b.h) < 0.3 && a.y > b.y
-      && a.y - b.y <= 1.12 * tight.get(Math.round(b.h)) && right - text(a) >= 9 * b.h && a.x1 + wordWidth + 12 >= right)){ out.push(b); continue; }
+    if (!(a && a.page === b.page && !isBullet(first.text.trim()) && Math.abs(text(a) - b.x) <= 3 && Math.abs(a.h - b.h) < 0.3 && a.y > b.y && a.font === b.font
+      && a.y - b.y <= 1.12 * tight.get(Math.round(b.h)) && right - text(a) >= 9 * b.h && a.x1 + wordWidth + 12 >= right
+      && !(a.x1 - text(a) < 0.6 * (right - text(a)) && /^\p{Lu}/u.test(first.text.trim())))){ out.push(b); continue; }
     const lone = a.r.length > 1 && a.r.at(-1).text === '-';
     if (lone) a.r.pop();
     const last = a.r.at(-1), tail = last.text.replace(/\s+$/, ''), head = b.r.map(i => i.text).join('');
@@ -153,12 +161,13 @@ const glue = items => items.reduce((out, i) => {
 }, []).map(i => ({ ...i, text: i.text.trim() }));
 
 // words: the lowercase words the caller knows (the record's), for the hyphens at line ends; optional
-export async function readPdf(bytes, words = []){
-  const doc = await open(bytes);
-  if (doc.numPages > MAX_PAGES) throw Object.assign(new Error('This file is too large to read'), { code: 'big' });
+export const readPdf = (bytes, words = []) => withDoc(bytes, async doc => {
+  if (doc.numPages > MAX_PAGES) throw code(null, 'big', 'This file is too large to read');
   const pages = [];
+  let total = 0;
   for (let n = 1; n <= doc.numPages; n++){
     const page = await doc.getPage(n), content = await page.getTextContent();
+    if (content.items.length > MAX_PAGE_ITEMS || (total += content.items.length) > MAX_ITEMS) throw code(null, 'big', 'This file is too large to read');
     await page.getOperatorList();      // loads the fonts into commonObjs
     pages.push(pageItems(content, page.commonObjs, n));
   }
@@ -169,16 +178,19 @@ export async function readPdf(bytes, words = []){
     rows = joinWrapped(margins(rows), known);
     return rows.flatMap(row => glue(row.r.map((i, k) => ({ ...i, hasEOL: k === row.r.length - 1 }))));
   });
-}
+});
 
 // Page 1 as a PNG data URL, `width` pixels wide, for the Library. Browser only: it draws on a canvas.
 // shortcut: it needs a canvas, so Node cannot run it; checks/pdf-thumb-check.mjs draws one in a browser
-export async function pdfThumb(bytes, width = 240){
-  const page = await (await open(bytes)).getPage(1);
+export const pdfThumb = (bytes, width = 240) => withDoc(bytes, async doc => {
+  const page = await doc.getPage(1);
   const viewport = page.getViewport({ scale: width / page.getViewport({ scale: 1 }).width });
+  if (!(viewport.height <= 4096)) throw code(null, 'big', 'The first page is too large to draw');      // a page a hundred times taller than wide would be a canvas the browser refuses
   const canvas = document.createElement('canvas');
   canvas.width = Math.ceil(viewport.width);
   canvas.height = Math.ceil(viewport.height);
   await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-  return canvas.toDataURL('image/png');
-}
+  const url = canvas.toDataURL('image/png');
+  if (!url.startsWith('data:image/png')) throw code(null, 'big', 'The first page is too large to draw');
+  return url;
+});

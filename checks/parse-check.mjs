@@ -863,12 +863,22 @@ section('PDF: what the reader repairs, on small PDFs written here (checks/lib/pd
   ok('a page written in a jumbled order is put top to bottom', J(jumbled) === J(['First line', 'Second line', 'Third line', 'Fourth line', 'Fifth line', 'Sixth line']), J(jumbled));
   const cols = await rows([T(57, 700, 'Left one'), T(57, 686, 'Left two'), T(57, 672, 'Left three'), T(300, 700, 'Right one'), T(300, 686, 'Right two'), T(300, 672, 'Right three')]);
   ok('two columns written one after the other are not re-sorted', J(cols) === J(['Left one', 'Left two', 'Left three', 'Right one', 'Right two', 'Right three']), J(cols));
+  // lines that are not wrapped ones: a heading in another font under a full line, and a short line of a list before a long capitalised word
+  const head1 = await rows([T(57, 700, l1), T(57, 687, 'Skills', { bold: true }), T(57, 674, 'Python and MATLAB')]);
+  ok('a bold heading of the same size under a full line is not joined to it, nor the line under it to the heading', J(head1) === J([l1, 'Skills', 'Python and MATLAB']), J(head1));
+  const col = await rows([T(57, 720, 'Portuguese citizen with a work permit'), T(57, 660, 'Mechanical design'), T(57, 647, 'Internationalisation of products')]);
+  ok('a short line of a column (under 60 percent of it) followed by a capitalised word too long for what is left is not joined to it', col.length === 3, J(col));
   // pages
   const two = await readPdf(pdf([[T(57, 700, 'Page one text')], [T(57, 700, 'Page two text')]]));
   ok('pages follow each other, each item with its page, and y starts again on each', J(two.map(i => [i.page, i.y, i.text])) === J([[1, 700, 'Page one text'], [2, 700, 'Page two text']]), J(two));
   // codes
   const code = async b => { try { await readPdf(b); return 'read'; } catch (e){ return e.code; } };
   ok('a file that is not a PDF is refused with the code pdf, and more than 30 pages with big', await code(new TextEncoder().encode('not a pdf at all')) === 'pdf' && await code(pdf(Array.from({ length: 31 }, () => []))) === 'big');
+  ok('a password-protected PDF is refused with the code encrypted', await code(pdf([[T(57, 700, 'x')]], { encrypt: true })) === 'encrypted');
+  ok('a page PDF.js cannot get (a page tree that points at nothing) is the code pdf, not a bare error', await code(Uint8Array.from(Buffer.from(Buffer.from(pdf([[T(57, 700, 'x')]])).toString('latin1').replace(/\/Kids \[\d+ 0 R\]/, '/Kids [99 0 R]'), 'latin1'))) === 'pdf');
+  const t0 = Date.now(), flood = await code(pdf([Array.from({ length: 100000 }, (_, k) => T(57 + (k % 400), 10 + (k % 800), 'a')), [T(57, 700, 'two')]]));
+  ok('a PDF with 100,000 text items on a page is refused with the code big, quickly (the cap is 10,000 a page and 30,000 in all)', flood === 'big' && Date.now() - t0 < 15000, `${flood} in ${Date.now() - t0} ms`);
+  ok('a PDF with 31 pages of 1,000 items is refused too (pages first), and 12 pages of 2,900 items by the total', await code(pdf(Array.from({ length: 31 }, () => []))) === 'big' && await code(pdf(Array.from({ length: 12 }, () => Array.from({ length: 2900 }, (_, k) => T(57 + (k % 400), 10 + (k % 800), 'a'))))) === 'big');
 }
 
 section('PDF: the parser on what a PDF gives it (page breaks, headings with wide gaps, no bullet marks)');
@@ -900,6 +910,18 @@ section('PDF: the parser on what a PDF gives it (page breaks, headings with wide
   ok('a title above a line of company, dates and place gives the company from that line and the title from the first', above?.length === 1 && above[0].name === 'Northgate Dosing Systems' && above[0].position === 'Design Engineer' && above[0].startDate === '2021-03', J(above));
   const reverse = work([I('Northgate Dosing Systems', 716, { bold: true }), I('Design Engineer · Mar 2021 – Present', 690), ...bul]);
   ok('and a company above a line of title and dates gives the title from the line with the date', reverse?.length === 1 && reverse[0].name === 'Northgate Dosing Systems' && reverse[0].position === 'Design Engineer' && reverse[0].startDate === '2021-03', J(reverse));
+  // the company, the title and the place on the dated line: a legal form marks the company, a place is no company, nothing is dropped
+  const jobOf = (first, dated, bold = true) => { const r = parseResume([...head, I(first, 716, { bold }), I(dated, 690), ...bul]); return { job: r.jsonResume.work?.[0], r }; };
+  const ltd = jobOf('Engineering Director Ltd', 'Mar 2020 – Present · Senior Engineer · Lisbon').job;
+  ok('a company with a title word and a legal form ("Engineering Director Ltd") above "dates · Senior Engineer · Lisbon" is the company, Senior Engineer the title, Lisbon the place', ltd?.name === 'Engineering Director Ltd' && ltd.position === 'Senior Engineer' && ltd.location === 'Lisbon', J(ltd));
+  const none = jobOf('Senior Engineer', 'Mar 2020 – Present · Lisbon'), nameless = none.job;
+  ok('a job with no company line has no company: the city is its place, not its company, and a doubt says so', nameless?.position === 'Senior Engineer' && !nameless.name && nameless.location === 'Lisbon' && none.r.doubts.some(d => d.kind === 'company' && d.n === 1), J([nameless, none.r.doubts]));
+  const country = jobOf('Senior Engineer', 'Mar 2020 – Present · Lisbon, Portugal').job;
+  ok('"City, Country" is a place too', !country?.name && country.location === 'Lisbon, Portugal', J(country));
+  const forms = ['Feinmess Instrumente GmbH', 'Dunamenti Műszer Kft.', 'Lumen SA', 'Oficina Aberta Lda', 'Acme Inc.', 'Riva S.p.A.'].map(c => jobOf('Design Engineer', `${c} · Mar 2020 – Present · Munich`).job?.name);
+  ok('a legal form (GmbH, Kft., SA, Lda, Inc., S.p.A.) marks the company on the dated line', J(forms) === J(['Feinmess Instrumente GmbH', 'Dunamenti Műszer Kft.', 'Lumen SA', 'Oficina Aberta Lda', 'Acme Inc.', 'Riva S.p.A.']), J(forms));
+  const odd = jobOf('Acme Holdings Ltd', 'Staff Wrangler · Mar 2020 – Present · Night Shift · Porto');
+  ok('a title with no job-title word is the title, and a part nothing claims ("Night Shift") is a leftover, not dropped', odd.job?.name === 'Acme Holdings Ltd' && odd.job.position === 'Staff Wrangler' && odd.job.location === 'Porto' && odd.r.leftovers.some(l => l.text === 'Night Shift'), J([odd.job, odd.r.leftovers]));
   const sidebar = (heading, lex) => parseResume([I('Jane Q. Sample', 780, { bold: true }), I('Mechanical engineer', 760), I(heading, 740, { bold: true, title: true }), I('Lisbon, Portugal', 720), I('jane.sample@example.com', 700), I('+351 900 000 000', 680), I('janesample.example', 660), I('EXPERIENCE', 620, { bold: true }), I('Design Engineer', 596, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 570), ...bul.map(b => ({ ...b, y: b.y - 94 }))], lex).jsonResume.basics;
   const side = sidebar('Contact');
   ok('the lines under a Contact heading are the profile\'s: the email, the phone (with a plus), the url (a bare domain) and the place (city, country)', side.email === 'jane.sample@example.com' && side.phone === '+351 900 000 000' && side.url === 'janesample.example' && side.location?.city === 'Lisbon', J(side));
@@ -907,6 +929,15 @@ section('PDF: the parser on what a PDF gives it (page breaks, headings with wide
   ok('and under the word for it in another language, from the catalogue (German Kontakt, a heading the reader marked)', kontakt.email === 'jane.sample@example.com' && kontakt.phone === '+351 900 000 000', J(kontakt));
   const group = parseResume([...head.slice(0, 2), I('SKILLS', 740, { bold: true }), I('CAD & 3D', 716, { bold: true }), I('SolidWorks, Creo, Fusion 360', 703), I('Test & QA', 680, { bold: true }), I('ISO 13485, IEC 62366', 667)]);
   ok('a skill group in bold capitals with a digit ("CAD & 3D") is not a section: the skills are read', group.jsonResume.skills?.some(g => g.keywords.includes('Fusion 360') || /Fusion 360/.test(g.name ?? '')) && group.leftovers.every(l => l.section !== 'CAD & 3D'), J(group.jsonResume.skills) + J(group.leftovers));
+  // a job title or company that has a title word in it is not a section: "Patent Attorney", "Language Teacher", "Volunteer Coordinator", "Reference Librarian", "Contact Centre", "Certification Officer", "Interest Analyst", "Project Manager"
+  for (const t of ['Patent Attorney', 'Language Teacher', 'Volunteer Coordinator', 'Reference Librarian', 'Contact Centre', 'Certification Officer', 'Interest Analyst', 'Project Manager']){
+    const jobs = work([I(t, 716), I('Northgate Dosing Systems · Mar 2021 – Present', 690), ...bul]);
+    ok(`"${t}" as a job line keeps the work section: the job is read with its bullets`, jobs?.length === 1 && jobs[0].highlights?.length === 2 && jobs[0].startDate === '2021-03', J(jobs));
+  }
+  const plural = parseResume([...head, I('Design Engineer', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 690), ...bul, I('Languages', 612), I('English: C2', 598), I('Skills', 560), I('Python, MATLAB', 546)]);
+  ok('while a title word that ends a line (Languages, Skills, Work Experience) is still a section title, and its lines are not a bullet\'s', plural.jsonResume.work?.[0].highlights?.length === 2 && plural.jsonResume.work[0].highlights[1].endsWith('every new part that comes in') && plural.jsonResume.skills?.length > 0, J(plural.jsonResume));
+  const de = parseResume([...head, I('Konstrukteur', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 690), ...bul, I('Sprachen', 612), I('Deutsch: C2', 598)], lexiconFor('de')).jsonResume.work;
+  ok('the catalogue\'s title words are used: the German "Sprachen" under the last job is a section, not a job or text of its last bullet', de?.length === 1 && de[0].highlights?.length === 2 && de[0].highlights[1].endsWith('every new part that comes in'), J(de));
   const patent = work([I('Design Engineer', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 690), ...bul, I('Patent', 612, { bold: true }), I('Dose-counting mechanism for a metered inhaler', 588, { bold: true }), I('Co-inventor · EP 3 000 000 B1 · 2025', 574)]);
   ok('a Patent heading opens its own section: the patent is not a job', patent?.length === 1 && patent[0].highlights?.length === 2, J(patent));
 }

@@ -13,7 +13,7 @@ import { toJsonResume } from './to-json-resume.js';
  * items: [{ text, x, y, width, height, fontName, hasEOL, page?, side? }]; an item with `side` ('header' or 'footer') is not read: its line comes back in `leftovers`. lexicon: see lexicon.js; leave it out for English.
  * layout: [{ page, headerBottom?, split? }], what to do with a page (see split-columns.js); a page it does not name is guessed.
  * Returns { jsonResume, trace, leftovers, layout, doubts }: the layout used for every page, and what to check by eye
- * ([{ kind: 'columns', page } | { kind: 'leftovers', n } | { kind: 'dates', n } | { kind: 'name' } | { kind: 'jobs' } | { kind: 'letter' }]); 'jobs' is no job found in a file of more than ten lines, unless it reads like a letter; 'letter' is mostly prose paragraphs,
+ * ([{ kind: 'columns', page } | { kind: 'leftovers', n } | { kind: 'dates', n } | { kind: 'company', n } | { kind: 'name' } | { kind: 'jobs' } | { kind: 'letter' }]); 'jobs' is no job found in a file of more than ten lines, unless it reads like a letter; 'letter' is mostly prose paragraphs,
  * no section title and no dated line (a cover letter: the caller keeps it beside a resume, not in the career).
  */
 export const parseResume = (all, lexicon, given) => {
@@ -43,7 +43,7 @@ export const parseResume = (all, lexicon, given) => {
   const text = l => l.map(i => i.text).join(' '), year = /\b(?:19|20)\d{2}\b/;
   const dated = lines.some(l => /(?:19|20)\d{2}\D{0,12}\s[-–—]\s|\s[-–—]\s\D{0,12}(?:19|20)\d{2}|\b(?:19|20)\d{2}[-–—](?:19|20)\d{2}\b/.test(text(l))) || lines.filter(l => year.test(text(l))).length >= 2;
   const letter = Object.keys(sections).filter(k => k !== PROFILE_SECTION).length <= 1 && proseLines.length >= 3 && size(proseLines) * 10 >= size(lines) * 6 && !dated;
-  const undated = (jsonResume.work ?? []).filter(w => !w.startDate).length;
+  const undated = (jsonResume.work ?? []).filter(w => !w.startDate).length, unnamed = (jsonResume.work ?? []).filter(w => !w.name).length;
   const sides = [];      // the lines of the header and the footer, each as a leftover of its own section
   let cur = [];
   for (const i of all) if (i.side){ cur.push(i.text); if (i.hasEOL){ sides.push({ text: cur.join(' '), section: i.side }); cur = []; } }
@@ -53,6 +53,7 @@ export const parseResume = (all, lexicon, given) => {
       ...doubts.map(page => ({ kind: 'columns', page })),
       ...(leftovers.length >= 4 && leftovers.length * 4 > lines.length ? [{ kind: 'leftovers', n: leftovers.length }] : []),
       ...(undated ? [{ kind: 'dates', n: undated }] : []),
+      ...(unnamed ? [{ kind: 'company', n: unnamed }] : []),
       ...(jsonResume.basics.name ? [] : [{ kind: 'name' }]),
       ...(letter ? [{ kind: 'letter' }] : !jsonResume.work?.length && lines.length > 10 ? [{ kind: 'jobs' }] : []),
     ],

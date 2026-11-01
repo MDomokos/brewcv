@@ -81,7 +81,7 @@ export function toJsonResume(resume, lines, sections, lex){
   const dated = (entry, path, cursor, raw) => Object.entries(dates(raw, lex)).map(([k, v]) => put(entry, k, v, path, raw, cursor));
 
   list('work', resume.workExperiences, (w, path, c, e) => [
-    put(w, 'name', e.company, path, e.company, c), put(w, 'position', e.jobTitle, path, e.jobTitle, c),
+    put(w, 'name', e.company, path, e.company, c), put(w, 'position', e.jobTitle, path, e.jobTitle, c), put(w, 'location', e.location, path, e.location, c),
     ...dated(w, path, c, e.date), ...many(w, 'highlights', path, c, e.descriptions)]);
   list('education', resume.educations, (w, path, c, e) => [
     put(w, 'institution', e.school, path, e.school, c), put(w, 'studyType', e.degree, path, e.degree, c),
@@ -121,6 +121,11 @@ export function toJsonResume(resume, lines, sections, lex){
     const at = { text, section, ...(pageOf(n) != null ? { page: pageOf(n) } : {}), line: n + 1 };
     leftovers.push(at);
     last = { at, n, section, words: text.split(/\s+/).length };
+  }
+  // a part of a job's dated line that nothing claimed (not the company, the title or the place) is a leftover, not dropped
+  for (const e of resume.workExperiences) for (const t of e.left ?? []){
+    const n = locate(t);
+    if (n >= 0) leftovers.push({ text: t, section: Object.keys(sections).find(k => sections[k].includes(lines[n])) ?? '', ...(pageOf(n) != null ? { page: pageOf(n) } : {}), line: n + 1 });
   }
   return { jsonResume: out, trace, leftovers };
 }
