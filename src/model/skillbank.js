@@ -218,6 +218,31 @@ export function seedBank(m){
   return true;
 }
 
+// The bank sorted by the record's skill groups, when the person asks: one shelf per group, in the record's group order, named as the group (its
+// name in each language that has one is the shelf's name there). A shelf that has the name already (case and accents ignored) is used, not made
+// again. Each word on no shelf goes onto the shelf of the first group that lists it; a word on a shelf, or in no group, stays. `dry` only counts.
+// Returns { shelves: made, words: moved }; asked again it changes nothing.
+export function shelvesFromGroups(m, { dry = false } = {}){
+  const res = { shelves: 0, words: 0 };
+  if (!isObj(m?.skillBank)) return res;      // no bank yet: seedBank makes it, with the words
+  const facts = new Map((m.facts ?? []).map(f => [f.id, f])), placed = new Set(wordsOf(m).filter(w => w.shelf).map(w => w.id)), plan = new Map();
+  for (const gid of recordGroupIds(m)){
+    const f = facts.get(gid), g = (m.skills ?? []).find(s => s?.id === gid), name = cleanWord(g?.name ?? f.label), key = norm(name);
+    if (!key) continue;
+    const e = plan.get(key) ?? plan.set(key, { name, gids: [], ids: [], shelf: shelvesOf(m).find(s => norm(s.name) === key) ?? null }).get(key);
+    e.gids.push(gid);
+    e.ids.push(...idsOf(m, g?.keywords ?? split(inLang(m, f, EN)?.text)).filter(id => !placed.has(id) && placed.add(id)));
+  }
+  for (const e of plan.values()){
+    res.shelves += e.shelf ? 0 : 1; res.words += e.ids.length;
+    if (dry) continue;
+    const fresh = !e.shelf, s = e.shelf ?? addShelf(m, e.name);
+    if (fresh) for (const l of Object.keys(m.i18n ?? {})) if (l !== EN){ const x = e.gids.map(gid => m.i18n[l]?.labels?.[gid]).find(Boolean); if (x) setI18n(m, l, 'labels', s.id, x); }
+    for (const id of e.ids) moveWord(m, id, { shelf: s.id });
+  }
+  return res;
+}
+
 // The bank read from a file anyone can edit: a word or shelf without an id and a name of its own is dropped, a shelf a word names that is not
 // there is forgotten, and the whole key goes when it is not a bank at all. Returns the warnings.
 export function cleanBank(m){

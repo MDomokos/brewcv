@@ -1,7 +1,9 @@
 // The skill wordbank in Career (src/model/skillbank.js), in the look of the Editor's bank (src/ui/wordbank.js). Career's card "Skill words" docks the
 // bank in the inspector: Find or add with the Editor's duplicate check ("=" the word itself, "≈" words like it, the first Enter warns), then every
 // word by shelf in the bank's order, the words on no shelf first and every shelf shown. That order is the one the Editor's tray shows on every
-// resume. Words and shelves move by a pointer drag, or Alt+arrows; a click on a shelf's name writes it. A record skill group's form (career.js) shows
+// resume. Words and shelves move by a pointer drag, or Alt+arrows; a click on a shelf's name writes it. Under the box, "New shelf" and (while it
+// would change something) "Sort by skill groups": a shelf from each record skill group, the words on no shelf onto their group's. The well under
+// them takes the rest of the panel's height and scrolls inside (flow.css). A record skill group's form (career.js) shows
 // its words as the bank's chips, with the same Find or add, and the record's groups by name: both move the same way. Translations stay in the
 // Editor's words view (the pencil). Pure view state; every change is one undo step.
 
@@ -86,10 +88,13 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
     if (!words.length && !shelves.length) rows.push(`<p class="muted small wbempty">${h('wb.bankEmpty')}</p>`);
     return `<div class="wbtray cwbtray">${rows.join('')}</div>`;
   }
+  const sortHtml = () => { const r = SB.shelvesFromGroups(rec(), { dry: true });      // "Sort by skill groups" is shown while it would change something
+    return r.shelves || r.words ? `<button type="button" class="sm ghost" data-act="c-bk-sort" title="${esc(t('career.bankSortTip'))}">${h('career.bankSort')}</button>` : ''; };
   const cardHtml = () => `<div class="cwb cwbbank"><div class="wbbar"><span class="wbqwrap"><input type="search" id="cb-q" class="wbq" data-key="cb-q" placeholder="${esc(t('wb.find'))}" aria-label="${esc(t('wb.find'))}" value="${esc(B.q)}" autocomplete="off" spellcheck="false">${plusHtml(B.q, B.warned, 'c-bk-add')}</span>
       <button type="button" class="ib press wbpen" data-tier="tertiary" data-act="c-bank" title="${esc(t('wb.wordsTip'))}" aria-label="${esc(t('wb.wordsTip'))}">${icon('edit')}</button></div>
-    ${delwHtml()}${rowHtml(B.q, 'c-bk-chip', true)}${trayHtml()}
-    <div class="btns"><button type="button" class="sm" data-act="c-bk-newshelf">${h('wb.newShelf')}</button></div></div>`;
+    ${delwHtml()}${rowHtml(B.q, 'c-bk-chip', true)}
+    <div class="btns"><button type="button" class="sm ghost" data-act="c-bk-newshelf">${h('wb.newShelf')}</button>${sortHtml()}</div>
+    ${trayHtml()}</div>`;
   // the inspector, for Career's card
   const panelHtml = () => `<section class="insp insp-rec insp-bank"><h2 class="oi-name">${h('career.bankCard')} <small class="muted">${SB.wordsOf(rec()).length}</small></h2>
     <p class="scope">${h('career.bankScope')}</p>${cardHtml()}</section>`;
@@ -267,6 +272,7 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
       case 'c-bk-delw-yes': deleteWord(B.delw); return true;
       case 'c-bk-shelf': B.shelf = id; redraw(); editShelf(); return true;
       case 'c-bk-newshelf': { let sid; if (commit(d => { sid = SB.addShelf(d.record, t('wb.newShelf'), DEFAULT_LANG).id; }, t('wb.undoShelf'))){ B.shelf = sid; C.renderBody(); editShelf(); setTimeout(() => { if (document.activeElement?.id !== 'cb-shelf') editShelf(); }, 30); } return true; }      // (again after the render the change asks for)
+      case 'c-bk-sort': { let r; if (commit(d => { r = SB.shelvesFromGroups(d.record); }, t('career.undoSort'))) C.toast(t('career.bankSorted', { words: r.words, shelves: r.shelves }), '', true); return true; }
       case 'c-bk-delshelf': B.shelf = null; commit(d => SB.dropShelf(d.record, id), t('wb.undoShelf'), t('wb.shelfDeleted'), true); return true;
       case 'c-kw-add': kwAdd(groupNow()); return true;
       case 'c-kw-take': { if (SB.wordOf(rec(), id)) kwAdd(groupNow(), [text(id).text]); return true; }
