@@ -188,6 +188,23 @@ export const readPdf = (bytes, words = []) => withDoc(bytes, async doc => {
   });
 });
 
+// The first `max` pages as PNG data URLs, `width` pixels wide, for the layout view: { url, width, height, pw, ph }, the size in pixels and in the page's own points.
+// Browser only: it draws on a canvas.
+// shortcut: only the first 8 pages are drawn (a resume is two or three); raise `max` when the view must show more
+export const pdfPages = (bytes, width = 560, max = 8) => withDoc(bytes, async doc => {
+  const out = [];
+  for (let n = 1; n <= Math.min(doc.numPages, max); n++){
+    const page = await doc.getPage(n), pts = page.getViewport({ scale: 1 }), viewport = page.getViewport({ scale: width / pts.width });
+    if (!(viewport.height <= 4096)) throw code('big', 'A page is too large to draw');
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    out.push({ url: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height, pw: pts.width, ph: pts.height });
+  }
+  return out;
+});
+
 // Page 1 as a PNG data URL, `width` pixels wide, for the Library. Browser only: it draws on a canvas.
 // shortcut: it needs a canvas, so Node cannot run it; checks/pdf-thumb-check.mjs draws one in a browser
 export const pdfThumb = (bytes, width = 240) => withDoc(bytes, async doc => {

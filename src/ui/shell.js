@@ -489,7 +489,7 @@ function select(sel, { keepScroll = false, stay = false } = {}){
 }
 
 // a picture dropped on the editor or on the page asks what it is for; any other file goes through the one door
-function dropFile(e){ e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (!f) return; if (/^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view)) design.askPhoto(f); else openFile(f); }
+function dropFile(e){ e.preventDefault(); const list = [...(e.dataTransfer?.files ?? [])], f = list[0]; if (!f) return; if (list.length === 1 && /^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view)) design.askPhoto(f); else openFiles(list); }
 
 function closeBodyMenus(){ return [resumes, career].some(m => m.closeMenus?.()); }
 const hoverFact = id => sheet.setHover(id, ui.ix);
@@ -497,7 +497,7 @@ const hoverFact = id => sheet.setHover(id, ui.ix);
 function bindChrome(){
   document.body.addEventListener('click', onClick);
   document.addEventListener('keydown', key);
-  $('#file').addEventListener('change', e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); });
+  $('#file').addEventListener('change', e => { const list = [...(e.target.files ?? [])]; e.target.value = ''; if (list.length) openFiles(list); });
   addEventListener('dragover', e => { e.preventDefault(); });
   addEventListener('drop', dropFile);
   new ResizeObserver(placeRail).observe($('#head'));        // the name wraps to more or fewer lines: the tabs follow the editor card
@@ -1364,12 +1364,12 @@ function openActual(){
 }
 
 // Every file goes through one door (src/ui/files.js); `ui.pickMode` says who asked.
-async function openFile(file){
-  const mode = ui.pickMode ?? null; ui.pickMode = null;
+async function openFiles(list){
+  const mode = ui.pickMode ?? null, file = list[0]; ui.pickMode = null;
   try {
-    if (mode === 'photo' || /^image\//.test(file.type)) return await design.setPhoto(file);
+    if (mode === 'photo' || (list.length === 1 && /^image\//.test(file.type))) return await design.setPhoto(file);
     if (mode === 'theme') return design.importTheme(await file.text(), file.name);
-    return await files.openFile(file, mode);
+    return await files.openFiles(mode ? [file] : list, mode);      // a mode (Compare, Check a saved file) is about one file
   } catch (e){ toast(`${file.name}: ${errText(e)}`, 'bad'); }
 }
 function pickFile(mode = null){ ui.pickMode = mode; $('#file').click(); }

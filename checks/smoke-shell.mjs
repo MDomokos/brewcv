@@ -2146,6 +2146,188 @@ if (want('import, merge, history')) {
 }
 
 
+// The import of documents (src/ui/files.js, src/model/intake.js): files dropped on the one door are read, shown, joined and receipted. The screens are told apart by
+// data attributes and counts, never by their words. The files are the committed fixtures and files made here from nothing.
+if (want('import: documents on the one door — reading, the layout view, what’s new, the receipt, Undo, the same files again, text as text')) {
+  const FIX = path.join(ROOT, 'checks/fixtures/import');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-import-'));
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 }, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await page.evaluate(() => window.__wb.store.commit(d => { d.record.meta.owner = 'Sam Example'; }, 'smoke: make it mine'));      // the example on its own is replaced, not merged into
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  const view = () => page.getAttribute('#body', 'data-view');
+  const door = async () => { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page); };
+  const drop = async files => { await door(); await page.setInputFiles('#file', files); await page.waitForSelector('#body[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page); };      // reading a PDF is not the page's own work: wait for its screen
+  const rows = () => page.$$eval('#body [data-file]', es => es.map(e => ({ status: e.dataset.status, kind: e.dataset.kind, lines: Number(e.dataset.lines), read: e.dataset.read, doubts: e.dataset.doubts })));
+  const receipt = () => page.$$eval('#body [data-doc]', es => es.map(e => ({ kind: e.dataset.kind, safe: e.dataset.safe, read: e.dataset.read, record: e.dataset.record, kept: e.dataset.kept })));
+  const defaults = state => JSON.stringify(state.record.facts.map(f => [f.id, f.default]));
+  const WORD = path.join(FIX, 'helix-1col-word.docx'), PDF = path.join(FIX, 'helix-1col-word.pdf');
+  const s0 = await st();
+
+  // ---- one door: a DOCX and a PDF of the same resume, dropped together ----
+  await drop([WORD, PDF]);
+  ok('several files at once open the Reading screen, one row each', (await view()) === 'reading' && (await rows()).length === 2);
+  let r = await rows();
+  ok('the Word file is read as a resume; the PDF of the same resume is another format of it, so it adds nothing', r[0].status === 'resume' && r[0].kind === 'docx' && r[0].lines > 10 && r[1].status === 'format' && r[1].kind === 'pdf');
+  ok('a file with no doubt shows no layout view (a Word file has none; the PDF is another format and adds nothing)', (await page.$$('[data-layout]')).length === 0 && r[0].doubts === '' && r[1].doubts === '');
+  await page.click('[data-act=imp-continue]'); await settle(page);
+  ok('Continue shows What’s new', (await view()) === 'whatsnew');
+  const sections = await page.$$eval('#body [data-needs], #body [data-unplaced]', es => es.map(e => (e.hasAttribute('data-needs') ? 'needs' : 'unplaced')));
+  ok('Needs you comes first, then the lines we couldn’t place', sections.length === 2 && sections[0] === 'needs' && sections[1] === 'unplaced', sections.join());
+  const need = '[data-need="0.0"]';
+  ok('a plain value that differs is a choice with two buttons, and the first choice is to keep yours', (await page.getAttribute(need, 'data-chosen')) === 'keep' && (await page.$$(`${need} [data-act=imp-need]`)).length === 2);
+  await page.click(`${need} [data-pick=use]`); await settle(page);
+  ok('choosing the file’s value is remembered on the row', (await page.getAttribute(need, 'data-chosen')) === 'use');
+  const places = await page.$$eval('[data-place]', es => es.map(e => e.dataset.place));
+  const jobs = await page.$$eval('[data-place="0.0"] option', os => os.map(o => o.value).filter(v => v.startsWith('job:')));
+  ok('every line left with no home has one menu, which offers the jobs, and none is chosen for you', places.length >= 3 && jobs.length >= 3 && (await page.$$eval('[data-place]', es => es.every(e => e.value === ''))));
+  await pickOption(page, '[data-place="0.0"]', jobs[0]);
+  for (const k of places.slice(1)) await pickOption(page, `[data-place="${k}"]`, 'skip');
+  const nApply = await page.textContent('[data-act=imp-apply]');
+  ok('one line put under a job by hand, the rest skipped: the button counts the change(s) it will make', /2/.test(nApply), nApply);
+  const undoN0 = (await page.evaluate(() => window.__wb.store.history)).undo;
+  await page.click('[data-act=imp-apply]'); await settle(page);
+  const s1 = await st();
+  ok('Add makes one step of the undo history, one checkpoint first, and shows the receipt', (await view()) === 'receipt' && (await page.evaluate(() => window.__wb.store.history)).undo === undoN0 + 1 && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).some(c => c.kind === 'import'));
+  const stamped = s1.record.variants.filter(v => !s0.record.variants.some(x => x.id === v.id));
+  ok('what the file added is stamped: a source naming the file, the tag imported (listed in the career’s tags) and its document; no claim’s default moved; the saved resumes are the same', stamped.length >= 1 && stamped.every(v => /^Imported from helix-1col-word\.docx/.test(v.source) && v.tags.includes('imported') && /^[0-9a-f]{12}$/.test(v.origin?.doc ?? '')) && s1.record.vocabulary.tags.includes('imported')
+    && JSON.stringify(s1.record.facts.filter(f => s0.record.facts.some(x => x.id === f.id)).map(f => [f.id, f.default])) === defaults(s0) && JSON.stringify(s1.resumes) === JSON.stringify(s0.resumes), stamped.map(v => v.id).join());
+  ok('the value the person chose was used, and a line they did not tick stays out', s1.record.work[0].location === 'Lisbon' && s1.documents.length === 2 && s1.imports.length === 2);
+  ok('the originals are kept inside the browser: a document for each file, the PDF linked as another format of the Word file', s1.documents.every(d => /^doc-[0-9a-f]{12}$/.test(d.id) && /^(?:asset:|data:)/.test(d.embedded)) && s1.documents.find(d => d.name.endsWith('.pdf')).of === s1.documents.find(d => d.name.endsWith('.docx')).id);
+
+  // ---- the receipt: Only in this browser, then Saved, then checked, then safe ----
+  let rc = await receipt();
+  ok('the receipt has a row for each file, read and in the career, but only in this browser: not safe to delete', rc.length === 2 && rc.every(x => x.read === 'read' && x.record === 'in' && x.kept === 'browser' && x.safe === 'false'), JSON.stringify(rc));
+  // ---- Undo takes the whole import back ----
+  ok('the receipt offers Undo this import while the import is the last step', (await page.$$('[data-act=imp-undo-import]')).length === 1);
+  await page.click('[data-act=imp-undo-import]'); await settle(page);
+  const s4 = await st();
+  ok('Undo takes back the whole import in one step: the career, the documents and the log are as before', JSON.stringify(s4.record) === JSON.stringify(s0.record) && (s4.documents ?? []).length === 0 && (s4.imports ?? []).length === 0 && !['reading', 'whatsnew', 'receipt'].includes(await view()));
+  await drop([WORD, PDF]);
+  await page.click('[data-act=imp-continue]'); await settle(page);
+  for (const k of await page.$$eval('[data-place]', es => es.map(e => e.dataset.place))) await pickOption(page, `[data-place="${k}"]`, 'skip');
+  await page.click('[data-act=imp-apply]'); await settle(page);
+  ok('and the import can be made again, since the log was taken back with it', (await view()) === 'receipt' && (await st()).documents.length === 2);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act=imp-save]')]);
+  const saved = path.join(tmp, 'saved-brewcv.json'); await dl.saveAs(saved); await settle(page);
+  rc = await receipt();
+  ok('after Save to file it says saved, and is still not safe: a download alone proves nothing', rc.every(x => x.kept === 'saved' && x.safe === 'false'), JSON.stringify(rc));
+  await page.click('[data-act=imp-check]'); await page.setInputFiles('#file', saved); await page.waitForFunction(() => document.querySelector('#body [data-doc][data-kept=file]'), null, { timeout: 30000 }); await settle(page);
+  rc = await receipt();
+  ok('after Check a saved file finds the originals in it, each row is kept in brewcv.json and safe to delete', (await view()) === 'receipt' && rc.every(x => x.kept === 'file' && x.safe === 'true'), JSON.stringify(rc));
+  await page.click('[data-act=imp-check]'); await page.setInputFiles('#file', WORD); await page.waitForTimeout(500); await settle(page);
+  ok('a file that is not a saved BrewCV file proves nothing and changes nothing', (await receipt()).every(x => x.kept === 'file'));
+  await page.click('[data-act=imp-done]'); await settle(page);
+  const sAfter = await st();
+
+  // ---- the same files again ----
+  await drop([WORD, PDF]);
+  r = await rows();
+  ok('the same files dropped again are merged before: nothing new, nothing to continue with', r.length === 2 && r.every(x => x.status === 'seen') && (await page.$$('[data-act=imp-continue]')).length === 0, JSON.stringify(r));
+  await page.click('[data-act=imp-done]'); await settle(page);
+  const s2 = await st();
+  ok('and nothing in the career or the log changed', JSON.stringify(s2.record) === JSON.stringify(sAfter.record) && s2.imports.length === 2 && s2.documents.length === 2);
+
+  // ---- a PDF the parser doubts: the layout view opens by itself ----
+  const DOUBT = path.join(FIX, 'example-b2-en-letter-2pages.pdf'), CLEAN = path.join(FIX, 'example-twocol-mono-letter.pdf');
+  await drop([DOUBT, CLEAN]);
+  r = await rows();
+  ok('a PDF with a column the parser does not trust opens the layout view by itself, a clean one in the same drop shows only the link', r[0].doubts === 'columns' && (await page.$$('[data-layout="0"]')).length === 1 && r[1].status === 'resume' && r[1].doubts === '' && (await page.$$('[data-layout="1"]')).length === 0 && (await page.$$('.lvlink[data-act=lv-open][data-f="1"]')).length === 1, JSON.stringify(r));
+  await page.waitForFunction(() => document.querySelectorAll('[data-layout="0"] .lvpage img').length === 2 && [...document.querySelectorAll('[data-layout="0"] .lvpage img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 20000 });
+  ok('each page is drawn with two lines over it, a header line and a split line, and the sections found as boxes', (await page.$$('[data-layout="0"] .lvpage')).length === 2 && (await page.$$('[data-layout="0"] [data-lv=h]')).length === 2 && (await page.$$('[data-layout="0"] [data-lv=v]')).length === 2 && (await page.$$('[data-layout="0"] .lvbox')).length > 2);
+  const readBefore = r[0].read;
+  const pg = page.locator('[data-layout="0"] .lvpage[data-page="2"]');
+  await pg.scrollIntoViewIfNeeded();
+  const box = await pg.boundingBox(), hd = await page.locator('#lvv-0-2').boundingBox();
+  await page.mouse.move(hd.x + hd.width / 2, box.y + box.height / 2); await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.45, box.y + box.height / 2, { steps: 6 }); await page.mouse.up();
+  await page.waitForFunction(b => document.querySelector('[data-file="0"]').dataset.read !== b, readBefore, { timeout: 10000 });
+  await settle(page);
+  r = await rows();
+  ok('dragging the split line reads the page again at once: what is read changes, and the doubt about the columns is gone', r[0].read !== readBefore && r[0].doubts === '', JSON.stringify(r[0]));
+  const split = Number(await page.getAttribute('[data-layout="0"] .lvpage[data-page="2"]', 'data-split'));
+  ok('the layout stands on the page it was moved on', split > 100 && split < 400 && (await page.$$('[data-layout="0"] .lvpage[data-page="2"] [data-lv=v].ghost')).length === 0);
+  await page.click('[data-layout="0"] [data-act=lv-one][data-page="2"]'); await settle(page);
+  ok('One column takes the split away and reads the page as one column again', (await page.getAttribute('[data-layout="0"] .lvpage[data-page="2"]', 'data-split')) === '' && (await rows())[0].read !== r[0].read);
+  const pg2 = page.locator('[data-layout="0"] .lvpage[data-page="2"]');
+  const b2 = await pg2.boundingBox(), h2 = await page.locator('#lvv-0-2').boundingBox();
+  await page.mouse.move(h2.x + h2.width / 2, b2.y + b2.height / 2); await page.mouse.down();
+  await page.mouse.move(b2.x + b2.width * 0.45, b2.y + b2.height / 2, { steps: 4 }); await page.mouse.up();
+  await page.waitForFunction(b => document.querySelector('[data-file="0"]').dataset.read === b, r[0].read, { timeout: 10000 });
+  await page.click('[data-act=imp-continue]'); await settle(page);
+  await page.click('[data-act=imp-apply]'); await settle(page);
+  const lay = (await st()).documents.find(d => d.name === 'example-b2-en-letter-2pages.pdf')?.layout;
+  ok('the layout used is kept with the document, so reading it again gives the same result', Array.isArray(lay) && lay.length === 2 && lay.find(l => l.page === 2).split > 100, JSON.stringify(lay));
+  await page.click('[data-act=imp-undo-import]'); await settle(page);
+
+  // ---- a cover letter: the Library, never the career ----
+  const letter = path.join(tmp, '2026-03-12 Northgate - Product Designer (letter).txt');
+  fs.writeFileSync(letter, ['Dear hiring team at Northgate,', '', 'I am writing to apply for the Product Designer role because I enjoy turning rough ideas into tested products that people use.', 'In my last role I led a small team that rebuilt a dose counter and shipped it on schedule to a new manufacturing partner.', 'I would welcome a conversation about how my experience with medical devices could help your design group this year.', '', 'Kind regards,', 'Sam Example'].join('\n'));
+  const careerBefore = JSON.stringify((await st()).record), docsBefore = (await st()).documents.length;
+  await drop([CLEAN, letter]);
+  r = await rows();
+  ok('a letter dropped with a resume is told apart', r[0].status === 'resume' && r[1].status === 'letter');
+  await page.click('[data-act=imp-continue]'); await settle(page);
+  ok('What’s new says it goes to the Library, not the career, and lists its sentences as lines to place, none chosen', (await page.$$('[data-letter]')).length === 1 && (await page.$$('[data-place]')).length >= 3);
+  for (const k of await page.$$eval('[data-place]', es => es.map(e => e.dataset.place))) await pickOption(page, `[data-place="${k}"]`, 'skip');
+  await page.click('[data-act=imp-apply]'); await settle(page);
+  const s5 = await st(), doc = s5.documents.find(d => d.meta.kind === 'cover-letter');
+  ok('the letter is a document of kind cover-letter linked to the resume it came with, and none of its words is in the career', !!doc && doc.with === s5.documents.find(d => d.name === 'example-twocol-mono-letter.pdf').id && JSON.stringify(s5.record).indexOf('rough ideas into tested products') < 0);
+  await page.click('[data-act=imp-undo-import]'); await settle(page);
+  ok('Undo takes the letter back too', JSON.stringify((await st()).record) === careerBefore && ((await st()).documents ?? []).length === docsBefore);
+
+  // ---- a text pasted, and files that cannot be read ----
+  await door();
+  await page.fill('#imp-paste', 'Hello\nthis is no resume at all');
+  await page.click('[data-act=imp-paste]'); await page.waitForSelector('#body[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page);
+  ok('pasted text that is not JSON is read like a text file', (await view()) === 'reading' && (await rows()).length === 1);
+  const old = path.join(tmp, 'old.doc'); fs.writeFileSync(old, Buffer.concat([Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), Buffer.from('W\0o\0r\0d\0D\0o\0c\0u\0m\0e\0n\0t', 'latin1')]));
+  const blob = path.join(tmp, 'thing.afpub'); fs.writeFileSync(blob, Buffer.from([0, 1, 2, 3, 4, 5, 6, 7, 8]));
+  await drop([old, blob, path.join(FIX, 'example-twocol-medium-letter.pdf')]);
+  r = await rows();
+  ok('an old Word file says what to do (an error row with no way on), another type is kept as a file, and the good one beside them is still read', r[0].status === 'error' && r[1].status === 'unread' && r[2].status === 'resume');
+  await page.click('[data-act=goto][data-v=import]'); await settle(page);
+
+  // ---- hardening: imported text is text, never HTML ----
+  const X_ = '<img src=x data-xss onerror="window.__xss=1">';
+  const hostile = { basics: { name: `Ann ${X_}`, label: `Label ${X_}`, email: 'ann@example.org', summary: `Summary ${X_}`, url: 'javascript:window.__xss=1', profiles: [{ network: `N ${X_}`, url: 'javascript:window.__xss=1' }] },
+    work: [{ name: `Corp ${X_}`, position: `Pos ${X_}`, location: `Loc ${X_}`, startDate: '2020-01', highlights: [`Line ${X_}`, 'Second <script>window.__xss=1</script> line'] }], education: [{ institution: `Uni ${X_}`, studyType: 'BSc', area: `Area ${X_}` }],
+    skills: [{ name: `Skills ${X_}`, keywords: [`K ${X_}`] }], languages: [{ language: `Lang ${X_}`, fluency: `F ${X_}` }], projects: [{ name: `Proj ${X_}`, description: `D ${X_}` }], awards: [{ title: `Award ${X_}` }], certificates: [{ name: `Cert ${X_}` }] };
+  await door();
+  await page.fill('#imp-paste', JSON.stringify(hostile)); await page.click('[data-act=imp-paste]'); await settle(page);
+  const probe = () => page.evaluate(() => ({ nodes: document.querySelectorAll('[data-xss]').length + [...document.querySelectorAll('iframe')].reduce((n, f) => { try { return n + f.contentDocument.querySelectorAll('[data-xss]').length; } catch { return n; } }, 0), ran: window.__xss ?? null }));
+  let pr = await probe();
+  ok('a file’s HTML shows as text on the review screen: no element made, nothing run', /<img src=x/.test(await page.textContent('#body')) && pr.nodes === 0 && pr.ran === null, JSON.stringify(pr));
+  await page.click('[data-act=imp-replace]'); await settle(page);
+  const seen = [];
+  for (const v of [null, 'resumes', 'record', 'career']) { await page.evaluate(x => window.__wb.setView(x), v); await settle(page); pr = await probe(); seen.push(pr); }
+  ok('and in the page, the Library, Career and the editor: the text is the file’s own characters, no element made, nothing run', seen.every(x => x.nodes === 0 && x.ran === null) && (await st()).record.work.some(w => w.name.includes('<img')) && (await frameDoc(page, d => d.body.textContent)).includes('<img src=x'), JSON.stringify(seen));
+  ok('a javascript: address in a file is never a link on the page', (await frameDoc(page, d => [...d.querySelectorAll('a')].map(a => a.getAttribute('href')).filter(h => /^javascript:/i.test(h)).length)) === 0);
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+// The first import into an example career: the newest file becomes the career, as "Open it" does for a JSON file.
+if (want('import: an example career starts from the newest file')) {
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page);
+  await page.setInputFiles('#file', [path.join(ROOT, 'checks/fixtures/import/example-twocol-no-name-letter.pdf'), path.join(ROOT, 'checks/fixtures/import/helix-1col-word.docx')]); await page.waitForSelector('#body[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page);
+  await page.click('[data-act=imp-continue]'); await settle(page);
+  ok('the example is not merged into: the page says the career starts from the newest file', (await page.$$('[data-start]')).length === 1);
+  await page.click('[data-act=imp-apply]'); await settle(page);
+  const s = await st();
+  ok('the career is the file’s own (no longer the example), every version of it stamped as imported, and the files are kept', !/\(fictional\)/.test(s.record.meta.owner) && s.record.variants.every(v => v.source && v.tags.includes('imported')) && s.documents.length === 2);
+  await page.click('[data-act=imp-undo-import]'); await settle(page);
+  ok('Undo brings the example back', /\(fictional\)/.test((await st()).record.meta.owner));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
+
 if (want('save to file: one file, Ctrl+S, opening it safely')) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-save-'));
   const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;

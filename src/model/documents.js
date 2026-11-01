@@ -1,7 +1,7 @@
 // The files a person imported or exported, kept in the state with their text and details, and (with no linked folder) their bytes.
 // Pure: each function changes the state it is given (a draft inside commit()) and returns what it made. No DOM, no I/O.
-// A document is { id, name, type, size, sha256, addedAt, path?, embedded?, meta, from, taken, text, layout?, of?, round?, archived? }. `embedded` is the original
-// as a data: URL, which the store keeps outside its undo steps; `taken` is { claims, versions, skipped, unplaced }, what the record took from it; `layout` is a PDF's [{ page, headerBottom, split }] as the person left it.
+// A document is { id, name, type, size, sha256, addedAt, path?, embedded?, meta, from, taken, text, layout?, of?, with?, resume?, round?, archived? }. `embedded` is the original
+// as a data: URL, which the store keeps outside its undo steps; `taken` is { claims, versions, skipped, unplaced }, what the record took from it; `layout` is a PDF's [{ page, headerBottom, split }] as the person left it; a cover letter has `with` (the document of the resume it was dropped with) and `resume` (the saved resume it went out with, by company and role) beside its `round`.
 
 import { t, keyed } from '../i18n/index.js';
 import { normText } from './record.js';
