@@ -1,5 +1,6 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-text-items-into-lines.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; empty lines not kept
-// Types stripped. Changed: a line with no item in it is not kept (the next step reads the first item of every line).
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-text-items-into-lines.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; empty lines not kept; 2026-11-01: shouldAddSpaceBetweenText is exported
+// Types stripped. Changed: a line with no item in it is not kept (the next step reads the first item of every line); shouldAddSpaceBetweenText is exported, for the PDF reader, which merges the
+// items that touch (it knows which spaces PDF.js made from gaps) before the lines come here.
 import { BULLET_POINTS } from './extract-resume-from-sections/lib/bullet-points.js';
 
 /**
@@ -59,7 +60,7 @@ export const groupTextItemsIntoLines = textItems => {
 };
 
 // Sometimes a space is lost while merging adjacent text items. This accounts for some of those cases
-const shouldAddSpaceBetweenText = (leftText, rightText) => {
+export const shouldAddSpaceBetweenText = (leftText, rightText) => {
   const leftTextEnd = leftText[leftText.length - 1];
   const rightTextStart = rightText[0];
   const conditions = [

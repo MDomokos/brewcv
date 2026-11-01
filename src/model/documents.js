@@ -41,7 +41,7 @@ export const alreadyImported = (state, sha) => (state.imports ?? []).find(e => e
 export function logImport(state, entry){ (state.imports ??= []).push(entry); return entry; }
 
 // The document whose lines are at least 90% the same lines as `text`'s, both ways, after normText: another format of it. Null if none.
-// shortcut: lines are compared as stored. DOCX, ODT, HTML, Markdown and text give whole lines (src/parse/), so those link to each other; a PDF breaks a line where its page does, so it is not linked to them until the PDF reader joins wrapped lines (I-5).
+// shortcut: lines are compared as stored. DOCX, ODT, HTML, Markdown and text give whole lines (src/parse/), and the PDF reader joins the lines its page wrapped, so a PDF links to them; a PDF whose wrapped lines it cannot tell from separate ones (a tight list with no bullet mark) or whose columns it reads in another order is not linked.
 export function sameDocument(state, text){
   const mine = linesOf(text);
   if (!mine.size) return null;

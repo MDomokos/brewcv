@@ -1,5 +1,5 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/bullet-points.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped
-// Types stripped, logic unchanged.
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/bullet-points.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; 2026-11-01: a separator ("·", "–") is not a word
+// Types stripped. Changed: a word has a letter in it (a "·" or a "–" between a company, a date and a city is not one), so a line of dates and places is not a description.
 
 /**
  * List of bullet points
@@ -86,7 +86,7 @@ const getFirstBulletPointLineIdx = lines => {
 };
 
 // Only consider words that don't contain numbers
-const isWord = str => /^[^0-9]+$/.test(str);
+const isWord = str => /^[^0-9]+$/.test(str) && /\p{L}/u.test(str);
 const hasAtLeast8Words = item => item.text.split(/\s/).filter(isWord).length >= 8;
 
 export const getDescriptionsLineIdx = lines => {
