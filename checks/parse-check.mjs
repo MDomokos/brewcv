@@ -22,6 +22,8 @@ import { readPages } from '../src/parse/pages.js';
 import { readLinkedin } from '../src/parse/linkedin.js';
 import { parseCsv } from '../src/parse/csv.js';
 import { clean, itemsOf } from '../src/parse/lines.js';
+import { groupLinesIntoSections } from '../src/parse/group-lines-into-sections.js';
+import { withEnglish } from '../src/parse/lexicon.js';
 import { lexiconFor, fromJsonResume } from '../src/model/import.js';
 import { normText } from '../src/model/record.js';
 import { sameDocument } from '../src/model/documents.js';
@@ -193,7 +195,7 @@ section('what a file is: by its bytes, whatever its name');
     ['JSON named .txt', enc('{"basics":{"name":"Jane"}}'), 'a.txt', 'json'], ['text that opens with a bracket but is not JSON', enc('[Jane] is an engineer'), 'a.json', 'txt'],
     ['UTF-16 text', Uint8Array.of(0xff, 0xfe, 74, 0, 97, 0, 110, 0, 101, 0), 'a.pdf', 'txt'],
     ['a PNG named .pdf', png, 'a.pdf', 'image'], ['a JPEG', jpg, 'a.txt', 'image'], ['a GIF', gif, 'a.txt', 'image'], ['a WebP', webp, 'a.txt', 'image'],
-    ['an old .doc (not read here)', ole, 'a.docx', 'other'], ['a ZIP with nothing we read', R.zip({ 'a.bin': 'x' }), 'a.docx', 'other'], ['bytes that are not text', Uint8Array.of(1, 2, 0, 3, 0, 0), 'a.txt', 'other'],
+    ['an old .doc, by its OLE header', ole, 'a.docx', 'doc'], ['a modern Pages file: its preview is a picture, but it is a Pages file', R.zip({ 'QuickLook/Preview.jpg': 'x', 'Index/Document.iwa': 'x' }), 'a.pages', 'pages'], ['a ZIP with nothing we read', R.zip({ 'a.bin': 'x' }), 'a.docx', 'other'], ['bytes that are not text', Uint8Array.of(1, 2, 0, 3, 0, 0), 'a.txt', 'other'],
   ];
   for (const [what, bytes, name, want] of cases){ const got = identify(bytes, name); ok(`${what}: ${want}`, got === want, got); }
 }
@@ -338,7 +340,7 @@ section('LinkedIn: the CSV files straight to JSON Resume');
   ok('a date may be "Jan 2020", "03/2019", "2017-05-01", "Sept 2016" or empty', J(dates) === J([['2020-01', undefined], ['2019-03', '2020'], ['2017-05', undefined], ['2016-09', undefined], [undefined, undefined]]), J(dates));
   const back = fromJsonResume(got);
   ok('it goes through fromJsonResume: the two bullets, the name, a skills group', back.model.work.flatMap(w => w.highlights).length === 2 && back.model.basics.name === 'Jane Sample' && back.model.skills.length === 1, J(back.review.rows));
-  ok('a Pages file gives the PDF it holds, and one with none says it cannot be read', new TextDecoder().decode(await readPages(R.pages())).startsWith('%PDF-') && (await readPages(R.zip({ 'Index/Document.iwa': 'x' })).catch(e => e.code)) === 'unreadable');
+  ok('a Pages file gives the PDF it holds, and one with none (a modern one, a picture of its first page) gives the code pages-preview', new TextDecoder().decode(await readPages(R.pages())).startsWith('%PDF-') && (await readPages(R.zip({ 'Index/Document.iwa': 'x' })).catch(e => e.code)) === 'pages-preview');
 }
 
 section('parseCsv, moved to src/parse/csv.js');
@@ -578,6 +580,96 @@ section('named entities of Hungarian, Czech and Polish pages, and a PDF header t
   ok('ő Ő ű Ű š Š č Č ž Ž ř ě ł Ł ń ś ź ą ę → ← … • · are read', got === 'őŐűŰšŠčČžŽřěłŁńśźąę→←…•·', got);
   const kind = s => identify(enc(s), 'a.txt');
   ok('%PDF- at the start of a line in the first 1024 bytes is a PDF (after some lines, or a carriage return), text that mentions it mid-line is text', kind(`${'x'.repeat(500)}\n%PDF-1.4\n`) === 'pdf' && kind('junk\r%PDF-1.7') === 'pdf' && kind('See %PDF- here\nand more') === 'txt' && kind(`${'x'.repeat(2000)}\n%PDF-1.4`) === 'txt');
+}
+
+section('documents formatted by hand: no heading styles, the look set on each run');
+{
+  const enc = s => new TextEncoder().encode(s);
+  const big = { sz: 14, b: true };
+  // each look is read from Word, ODT and an HTML page (inline styles) as the same resume; the headings ("Professional Work Experience") are in no known words, so only their look finds them
+  const looks = {
+    'headings 14 pt bold over 11 pt text, the name larger, bullets typed "•" and a tab': {},
+    'headings 14 pt, not bold': { head: { sz: 14 } },
+    'headings in a colour, bullets typed "-" and a space': { head: { color: '2F5496' }, bullet: 'hyphen' },
+    'headings underlined, bullets typed "–"': { head: { u: true }, bullet: 'dash' },
+    'headings bold with Word\'s caps setting (typed in mixed case), bullets typed "o" and a tab': { head: { b: true, caps: true }, bullet: 'o' },
+    'a job line, its dates and its title in one paragraph (Shift+Enter), bullets "▪"': { br: true, bullet: 'square' },
+    'bullets from Word\'s symbol font (w:sym F0B7)': { bullet: 'sym' },
+    'bullets typed as U+F0B7 in a Symbol run': { bullet: 'pua' },
+    'headings typed with spaced letters ("E X P E R I E N C E"), bullets "*"': { spaced: true, head: { b: true }, bullet: 'star' },
+    'no empty paragraph between the jobs': { blanks: false },
+    'the sections in a two-row layout table (education and skills left, the jobs right)': { table: true, bullet: 'star' },
+  };
+  for (const [what, look] of Object.entries(looks)){
+    const parts = R.handParts(look);
+    const readers = { Word: () => readDocx(R.handWord(parts)), ODT: () => readOdt(R.handOdt(parts)), ...(look.table ? {} : { HTML: () => readHtml(enc(R.handHtml(parts))) }) };
+    for (const [name, read] of Object.entries(readers)){
+      const got = parseResume(await read());
+      ok(`${name}, ${what}: the same JSON Resume as the one-column resume, no leftovers, no doubt`, eq(got.jsonResume, F.oneColumnExpected) && got.leftovers.length === 0 && got.doubts.length === 0, J(got.doubts) + J(got.leftovers) + J(got.jsonResume.work?.map(w => w.name)));
+    }
+  }
+
+  // the look of the text, item by item
+  const body = x => `<w:document xmlns:w="w"><w:body>${x}</w:body></w:document>`;
+  const doc = (x, styles = '') => R.zip({ 'word/document.xml': body(x), ...(styles ? { 'word/styles.xml': `<w:styles xmlns:w="w">${styles}</w:styles>` } : {}) });
+  const run = (t, pr = '') => `<w:r>${pr ? `<w:rPr>${pr}</w:rPr>` : ''}<w:t>${t}</w:t></w:r>`, para = (t, ppr = '') => `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${t}</w:p>`;
+  const sty = '<w:docDefaults><w:rPrDefault><w:rPr><w:sz w:val="24"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:sz w:val="26"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Bare"><w:name w:val="Bare"/></w:style>'
+    + '<w:style w:type="paragraph" w:styleId="Base"><w:name w:val="Base"/><w:rPr><w:sz w:val="28"/><w:color w:val="2F5496"/><w:u w:val="single"/></w:rPr></w:style>'
+    + '<w:style w:type="paragraph" w:styleId="Kid"><w:name w:val="Kid"/><w:basedOn w:val="Base"/><w:rPr><w:caps/><w:color w:val="auto"/></w:rPr></w:style>'
+    + '<w:style w:type="character" w:styleId="Link"><w:name w:val="Link"/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>';
+  const looked = (await readDocx(doc(
+    para(run('default')) + para(run('base'), '<w:pStyle w:val="Base"/>') + para(run('kid'), '<w:pStyle w:val="Kid"/>') + para(run('own', '<w:sz w:val="40"/><w:color w:val="FF0000"/><w:u w:val="none"/>'), '<w:pStyle w:val="Base"/>')
+    + para(run('link', '<w:rStyle w:val="Link"/>')) + para(run('caps', '<w:caps/>')) + para(run('nocaps', '<w:caps w:val="0"/>'), '<w:pStyle w:val="Kid"/>') + para(run('bare'), '<w:pStyle w:val="Bare"/>'), sty))).map(i => [i.text, i.height, i.color, !!i.underline, !!i.caps]);
+  ok('Word: the size of a run is its own, its character style\'s, its paragraph style\'s (and the style that is based on), the default style\'s, then the document\'s default; colour, underline and caps the same ("auto" is no colour)',
+    J(looked) === J([['default', 13, undefined, false, false], ['base', 14, '2f5496', true, false], ['kid', 14, undefined, true, true], ['own', 20, 'ff0000', false, false], ['link', 13, '0563c1', true, false], ['caps', 13, undefined, false, true], ['nocaps', 14, undefined, true, false], ['bare', 12, undefined, false, false]]), J(looked));
+  ok('Word: with no styles.xml a run is 10 pt, and a size with no value is no size', J((await readDocx(doc(para(run('a')) + para(run('b', '<w:sz/>'))))).map(i => i.height)) === J([10, 10]));
+  const odtLook = (await readOdt(R.zip({ mimetype: 'application/vnd.oasis.opendocument.text', 'content.xml': '<o xmlns:text="t" xmlns:style="s" xmlns:fo="f"><style:style style:name="H"><style:text-properties fo:font-size="16pt" fo:color="#2F5496" style:text-underline-style="solid" fo:text-transform="uppercase" fo:font-weight="bold"/></style:style><style:style style:name="N"><style:text-properties style:text-underline-style="none" fo:color="#000000" fo:font-size="120%" fo:font-weight="normal"/></style:style><text:p text:style-name="H">Head<text:tab/><text:span text:style-name="N">inner</text:span></text:p><text:p>plain</text:p></o>' }))).map(i => [i.text, i.height, i.color, !!i.underline, !!i.caps, i.fontName]);
+  ok('ODT: size (pt), colour, underline and upper case come from the paragraph\'s style with the span\'s over it (black is no colour, a percentage is no size, "none" and "normal" turn off)',
+    J(odtLook) === J([['Head', 16, '2f5496', true, true, 'Sans-Bold'], ['inner', 16, undefined, false, true, 'Sans'], ['plain', 10, undefined, false, false, 'Sans']]), J(odtLook));
+  const sp = '&nbsp;&nbsp;&nbsp;';
+  const htmlLook = readHtml(enc(`<body style="font-size:12pt"><p style="font-size:24px;color:#2F5496;text-decoration: underline">A${sp}<span style="font-size:20pt;text-transform:uppercase;color:black">B</span></p><p><u>C</u>${sp}c</p><div style="font-weight:700"><p style="font-weight:normal">D</p><p>E</p></div><p style="background-color:red">F</p></body>`)).map(i => [i.text, i.height, i.color, !!i.underline, !!i.caps, i.fontName]);
+  ok('HTML: an inline style sets size (pt or px), weight, colour, underline and upper case, an element takes its parent\'s, <u> underlines, and background-color is no colour',
+    J(htmlLook) === J([['A', 18, '2f5496', true, false, 'Sans'], ['B', 20, undefined, true, true, 'Sans'], ['C', 12, undefined, true, false, 'Sans'], ['c', 12, undefined, false, false, 'Sans'], ['D', 12, undefined, false, false, 'Sans'], ['E', 12, undefined, false, false, 'Sans-Bold'], ['F', 12, undefined, false, false, 'Sans']]), J(htmlLook));
+
+  // typed bullets and symbols, and a line break inside a paragraph
+  const tab = '<w:r><w:tab/></w:r>', lines = async xml => textOf(await readDocx(doc(xml)));
+  ok('typed bullets ("•" and a tab, "- ", "– ", "▪", "*", "o" and a tab) are list items and the glyph is not text; w:sym F0B7 and U+F0B7 are bullets too; a private-use glyph inside a line is dropped',
+    await lines(para(run('•') + tab + run('One')) + para(run('- Two')) + para(run('– Three')) + para(run('▪ Four')) + para(run('* Five')) + para(run('o') + tab + run('Six'))
+      + para('<w:r><w:sym w:font="Symbol" w:char="F0B7"/></w:r>' + tab + run('Seven')) + para(run('') + tab + run('Eight')) + para(run('Call  555')))
+    === '• One\n• Two\n• Three\n• Four\n• Five\n• Six\n• Seven\n• Eight\nCall 555');
+  ok('text that only starts like a bullet stays text: "o Python" (one space), "-5 degrees", "*Note", "2019 – 2021"', await lines(para(run('o Python')) + para(run('-5 degrees')) + para(run('*Note')) + para(run('2019 – 2021'))) === 'o Python\n-5 degrees\n*Note\n2019 – 2021');
+  ok('a line break (Shift+Enter) starts a new line, and a typed bullet after it is a bullet', await lines('<w:p><w:r><w:t>Title</w:t><w:br/><w:t>- Nine</w:t></w:r></w:p>') === 'Title\n• Nine');
+  const spaced = textOf(readTxt(enc('E X P E R I E N C E\nW O R K   E X P E R I E N C E\nA B\nJ R R Tolkien\nE X P E R I E N C E 2019\n')));
+  ok('spaced letters are read as their word, spaced words as words; two letters, initials before a name and a line with more are text', spaced === 'EXPERIENCE\nWORK EXPERIENCE\nA B\nJ R R Tolkien\nE X P E R I E N C E 2019', spaced);
+
+  // a table: a layout (two rows or fewer, a cell of four lines or more) is read column by column, a data table row by row
+  const cells = r => `<w:tr>${r.map(c => `<w:tc>${c.map(t => para(run(t))).join('')}</w:tc>`).join('')}</w:tr>`, tbl = rows => `<w:tbl>${rows.map(cells).join('')}</w:tbl>`;
+  const cols = { layout: [[['L1', 'L2'], ['R1', 'R2', 'R3', 'R4']], [['L3'], ['R5']]], rows3: [[['A1'], ['B1']], [['A2'], ['B2']], [['A3'], ['B3']]], short: [[['Skill'], ['Level']], [['Python'], ['Expert']]], long3: [[['A1'], ['B1', 'B2', 'B3', 'B4']], [['A2'], ['B5']], [['A3'], ['B6']]] };
+  ok('Word: a layout table is read column by column (L1 L2 L3, then R1 to R5), the paragraphs around it stay where they are', await lines(para(run('Before')) + tbl(cols.layout) + para(run('After'))) === 'Before\nL1\nL2\nL3\nR1\nR2\nR3\nR4\nR5\nAfter');
+  ok('Word: a table of three rows, or of two rows with short cells, is data and stays row by row', await lines(tbl(cols.rows3)) === 'A1\nB1\nA2\nB2\nA3\nB3' && await lines(tbl(cols.short)) === 'Skill\nLevel\nPython\nExpert' && await lines(tbl(cols.long3)) === 'A1\nB1\nB2\nB3\nB4\nA2\nB5\nA3\nB6');
+  ok('Word: a table inside a cell is part of that cell, and two tables are two', await lines(tbl([[['L1', 'L2'], ['R1', 'R2', 'R3', 'R4']], [['L3'], ['R5']]]).replace('<w:tc><w:p><w:r><w:t>L1', `<w:tc>${tbl([[['in']]])}<w:p><w:r><w:t>L1`) + tbl(cols.short)) === 'in\nL1\nL2\nL3\nR1\nR2\nR3\nR4\nR5\nSkill\nLevel\nPython\nExpert');
+  const odtTable = rows => `<table:table>${rows.map(r => `<table:table-row>${r.map(c => (c ? `<table:table-cell>${c.map(t => `<text:p>${t}</text:p>`).join('')}</table:table-cell>` : '<table:covered-table-cell/>')).join('')}</table:table-row>`).join('')}</table:table>`;
+  const odtLines = async x => textOf(await readOdt(R.zip({ mimetype: 'application/vnd.oasis.opendocument.text', 'content.xml': `<o xmlns:text="t" xmlns:table="b">${x}</o>` })));
+  ok('ODT: a layout table is read column by column (a covered cell is a cell), a data table row by row', await odtLines(odtTable(cols.layout)) === 'L1\nL2\nL3\nR1\nR2\nR3\nR4\nR5' && await odtLines(odtTable(cols.rows3)) === 'A1\nB1\nA2\nB2\nA3\nB3'
+    && await odtLines(odtTable([[['A1', 'A2', 'A3', 'A4'], ['B1']], [null, ['B2']]])) === 'A1\nA2\nA3\nA4\nB1\nB2');
+
+  // the parser: a short line alone that is set apart from the body is a section title, with care
+  const L = (text, o = {}) => [{ text, x: 0, y: 0, width: 50, height: 10, fontName: 'Sans', hasEOL: true, ...o }];
+  const B = o => ({ height: 14, fontName: 'Sans-Bold', ...o });
+  const keys = rows => Object.keys(groupLinesIntoSections(rows, withEnglish()));
+  const text = [L('Built a bench.'), L('Wrote the plan.'), L('Ran the tests.')];
+  const head = [L('Jane', B({ height: 20 })), L('jane.sample@example.com')];
+  ok('a short line alone, 14 pt bold over 10 pt text, is a title whatever its words; the name, larger, on the first line is not', J(keys([...head, L('Career Highlights', B()), ...text, L('Open Source', B()), ...text])) === J(['profile', 'Career Highlights', 'Open Source']));
+  ok('so is one that is only underlined, or only coloured, unlike the body', J(keys([...head, L('Career Highlights', { underline: true }), ...text, L('Open Source', { underline: true }), ...text])) === J(['profile', 'Career Highlights', 'Open Source']) && J(keys([...head, L('Career Highlights', { color: '2f5496' }), ...text, L('Open Source', { color: '2f5496' }), ...text])) === J(['profile', 'Career Highlights', 'Open Source']));
+  ok('only the most emphasised look counts, and a line with a dot, a digit or more than four words is no title (an underlined address does not outrank the headings)', J(keys([...head, L('www.example.com/jane', { underline: true, color: '2f5496' }), L('Career Highlights', { underline: true }), ...text, L('A heading that runs to five words', { underline: true }), L('Page 2', { underline: true }), ...text])) === J(['profile', 'Career Highlights']));
+  ok('where the rules already find a title ("Experience"), another line with its look is a title only if it has a title word: "Professional Work Experience" is, "Career Highlights" is not', J(keys([...head, L('Experience', B()), ...text, L('Professional Work Experience', B()), ...text, L('Career Highlights', B()), ...text])) === J(['profile', 'Experience', 'Professional Work Experience']));
+  ok('a heading a reader marked (title) is trusted alone: no line is a title by its look then', J(keys([...head, L('Education', B({ title: true })), ...text, L('Professional Work Experience', B()), ...text])) === J(['profile', 'Education']));
+  ok('the look of the titles the rules already find is the look to match: a plain "Experience" means an underlined line is no title', J(keys([...head, L('Experience'), ...text, L('Professional Work Experience', { underline: true }), ...text])) === J(['profile', 'Experience']));
+  ok('a bold line set in capitals by its style (typed in mixed case) is a title by the old rule, caps or not, and so is a typed one', J(keys([...head, L('Experience', B({ title: true, height: 10 })), ...text, L('Career Highlights', { fontName: 'Sans-Bold', caps: true }), ...text, L('SOFTWARE', { fontName: 'Sans-Bold' }), ...text, L('Software', { fontName: 'Sans-Bold' }), ...text])) === J(['profile', 'Experience', 'Career Highlights', 'SOFTWARE']));
+  ok('more than ten lines with the same look are not section titles', keys([...head, ...Array.from({ length: 11 }, (_, k) => [L(`Company ${'ABCDEFGHIJK'[k]}`, B()), ...text]).flat()]).length === 1);
+  ok('a line with two items (a company and its date) is no title, and neither is one in the body\'s own look', J(keys([...head, [...L('Acme', B({ hasEOL: false })), ...L('2020', { x: 300 })], ...text, L('Open Source'), ...text])) === J(['profile']));
+  const flat = n => readTxt(enc(Array.from({ length: n }, (_, k) => `Line ${'abcdefghijklmnop'[k]}`).join('\n'))), noJobs = n => parseResume(flat(n)).doubts.map(d => d.kind);
+  ok('a file of more than ten lines with no job found raises the doubt "jobs"; a short one, or one with jobs, does not', noJobs(12).includes('jobs') && !noJobs(10).includes('jobs') && !parseResume(F.oneColumn).doubts.some(d => d.kind === 'jobs'), J(noJobs(12)));
 }
 
 section('src/parse/ stands alone');

@@ -127,6 +127,70 @@ export function md(paras = RESUME, gap = '   '){
 }
 export const txt = (paras = RESUME, gap = '   ') => paras.map(p => (p.kind === 'blank' ? '' : p.kind === 'li' ? `- ${p.segs[0][0]}` : p.kind === 'h' ? p.segs[0][0].toUpperCase() : p.segs.map(s => s[0]).join(gap))).join('\n') + '\n';
 
+// ---- Documents formatted by hand: no heading style, the look set on each run ----
+// The one-column resume as a person lays it out by hand. A look is { head, bullet, br, spaced, blanks, table, nameSz }:
+//   head    the headings' look, { sz (pt), b, color, u, caps }; the headings have three or four words ("Professional Work Experience"), so no known word finds them
+//   bullet  dot | hyphen | dash | o | square | star (typed), sym (a Word symbol), pua (U+F0B7 in a Symbol run)
+//   br      a job line, its dates and its title in one paragraph, joined by Shift+Enter
+//   spaced  headings typed with spaced letters
+//   blanks  an empty paragraph between jobs (false: the jobs run on)
+//   table   (Word and ODT) the sections in a two-row, two-cell layout table: education and skills in the left cells, the jobs in the right ones
+// A paragraph is { tokens } (a token: { text, b, sz, color, u, caps, font }, 'tab', 'br', { sym }) and a part is a paragraph or { table: [[left, right], [left, right]] } of paragraph lists.
+const HEADS = { 'Work Experience': 'Professional Work Experience', Education: 'Education and Training', Skills: 'Technical Skills and Tools' };
+const GLYPH = { dot: ['•', 'tab'], hyphen: ['-', ' '], dash: ['–', ' '], o: ['o', 'tab'], square: ['▪', 'tab'], star: ['*', ' '] };
+export function handParts({ head = { sz: 14, b: true }, bullet = 'dot', br = false, spaced = false, blanks = true, table = false, nameSz = 20 } = {}){
+  const tokens = p => p.segs.flatMap(([text, b], i) => [...(i ? ['tab'] : []), { text, b }]);
+  const paras = [];
+  for (let k = 0; k < RESUME.length; k++){
+    const p = RESUME[k], next = RESUME[k + 1];
+    if (p.kind === 'blank') paras.push({ tokens: blanks ? [] : null });
+    else if (k === 0) paras.push({ tokens: [{ text: p.segs[0][0], b: true, sz: nameSz }] });
+    else if (p.kind === 'h') paras.push({ tokens: [{ text: spaced ? [...p.segs[0][0].split(' ').at(-1).toUpperCase()].join(' ') : HEADS[p.segs[0][0]], ...head }], head: true });
+    else if (p.kind === 'li'){
+      const [g, sep] = GLYPH[bullet] ?? [], text = p.segs[0][0];
+      paras.push({ tokens: bullet === 'sym' ? [{ sym: 'F0B7' }, 'tab', { text }] : bullet === 'pua' ? [{ text: '', font: 'Symbol' }, 'tab', { text }] : sep === 'tab' ? [{ text: g }, 'tab', { text }] : [{ text: `${g} ${text}` }] });
+    } else if (br && p.segs.length === 2 && p.segs[0][1] && next?.kind === 'p'){ paras.push({ tokens: [...tokens(p), 'br', ...tokens(next)] }); k++; }
+    else paras.push({ tokens: tokens(p) });
+  }
+  const all = paras.filter(p => p.tokens);
+  if (!table) return all;
+  // the paragraphs of RESUME by position: the header (0 to 4), work (5 to 19, jobs from 11), education (20 to 24), skills (25 to 27); 'br' joins two paragraphs, so count by headings
+  const at = t => all.findIndex(p => p.head && p.tokens[0].text === HEADS[t]);
+  const [w, e, sk] = [at('Work Experience'), at('Education'), at('Skills')], helix = all.findIndex(p => p.tokens[0]?.text === 'Helix Diagnostics');
+  return [...all.slice(0, w), { table: [[all.slice(e, sk), all.slice(w, helix)], [all.slice(sk), all.slice(helix, e)]] }];
+}
+const runOf = (t, f) => (t === 'tab' ? f.tab : t === 'br' ? f.br : t.sym ? f.sym(t.sym) : f.run(t));
+
+// Word: the look on each run, the sizes of the document in its defaults (11 pt)
+export function handWord(parts){
+  const run = t => `<w:r><w:rPr>${t.font ? `<w:rFonts w:ascii="${t.font}" w:hAnsi="${t.font}"/>` : ''}${t.b ? '<w:b/>' : ''}${t.caps ? '<w:caps/>' : ''}${t.color ? `<w:color w:val="${t.color}"/>` : ''}${t.sz ? `<w:sz w:val="${t.sz * 2}"/><w:szCs w:val="${t.sz * 2}"/>` : ''}${t.u ? '<w:u w:val="single"/>' : ''}</w:rPr><w:t xml:space="preserve">${esc(t.text)}</w:t></w:r>`;
+  const f = { run, tab: '<w:r><w:tab/></w:r>', br: '<w:r><w:br/></w:r>', sym: c => `<w:r><w:rPr><w:rFonts w:ascii="Symbol"/></w:rPr><w:sym w:font="Symbol" w:char="${c}"/></w:r>` };
+  const para = p => (p.tokens.length ? `<w:p>${p.tokens.map(t => runOf(t, f)).join('')}</w:p>` : '<w:p/>');
+  const body = parts.map(p => (p.table ? `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/></w:tblPr>${[0, 1].map(r => `<w:tr>${[0, 1].map(c => `<w:tc>${p.table[r][c].map(para).join('')}</w:tc>`).join('')}</w:tr>`).join('')}</w:tbl><w:p/>` : para(p))).join('');
+  const styles = `<w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>`;
+  return zip({ '[Content_Types].xml': '<Types/>', 'word/document.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${body}<w:sectPr/></w:body></w:document>`, 'word/styles.xml': styles });
+}
+
+// LibreOffice: a text style for each look, set on spans
+export function handOdt(parts){
+  const styles = new Map();
+  const look = t => { const k = JSON.stringify([t.b, t.sz, t.color, t.u, t.caps]); if (!styles.has(k)) styles.set(k, `T${styles.size + 1}`); return styles.get(k); };
+  const plain = t => !(t.b || t.sz || t.color || t.u || t.caps);
+  const f = { run: t => (plain(t) ? esc(t.text) : `<text:span text:style-name="${look(t)}">${esc(t.text)}</text:span>`), tab: '<text:tab/>', br: '<text:line-break/>', sym: c => String.fromCharCode(parseInt(c, 16)) };
+  const para = p => (p.tokens.length ? `<text:p text:style-name="Standard">${p.tokens.map(t => runOf(t, f)).join('')}</text:p>` : '<text:p text:style-name="Standard"/>');
+  const body = parts.map(p => (p.table ? `<table:table table:name="Layout">${[0, 1].map(r => `<table:table-row>${[0, 1].map(c => `<table:table-cell>${p.table[r][c].map(para).join('')}</table:table-cell>`).join('')}</table:table-row>`).join('')}</table:table>` : para(p))).join('');
+  const auto = [...styles].map(([k, name]) => { const [b, sz, color, u, caps] = JSON.parse(k); return `<style:style style:name="${name}" style:family="text"><style:text-properties${b ? ' fo:font-weight="bold"' : ''}${sz ? ` fo:font-size="${sz}pt"` : ''}${color ? ` fo:color="#${color}"` : ''}${u ? ' style:text-underline-style="solid"' : ''}${caps ? ' fo:text-transform="uppercase"' : ''}/></style:style>`; }).join('');
+  return zip({ mimetype: 'application/vnd.oasis.opendocument.text', 'content.xml': `<?xml version="1.0" encoding="UTF-8"?><office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"><office:automatic-styles>${auto}</office:automatic-styles><office:body><office:text>${body}</office:text></office:body></office:document-content>` });
+}
+
+// an HTML page: inline font-size, weight, colour and underline on spans, the page's size on the body
+export function handHtml(parts){
+  const css = t => [t.sz && `font-size:${t.sz}pt`, t.b && 'font-weight:bold', t.color && `color:#${t.color}`, t.u && 'text-decoration:underline', t.caps && 'text-transform:uppercase'].filter(Boolean).join(';');
+  const f = { run: t => (css(t) ? `<span style="${css(t)}">${esc(t.text)}</span>` : esc(t.text)), tab: '&nbsp;&nbsp;&nbsp;', br: '<br>', sym: c => String.fromCharCode(parseInt(c, 16)) };
+  const body = parts.map(p => (p.tokens.length ? `<p>${p.tokens.map(t => runOf(t, f)).join('')}</p>` : '')).join('\n');
+  return `<!DOCTYPE html>\n<html><head><meta charset="utf-8"><title>Resume</title></head>\n<body style="font-size:11pt">\n${body}\n</body></html>\n`;
+}
+
 // ---- other zips ----
 export const pages = () => zip({ 'QuickLook/Preview.pdf': '%PDF-1.4\n% a stored picture of the pages\n', 'Index/Document.iwa': 'x' });      // the PDF is the first entry, inside the first 1024 bytes
 export const linkedin = (renamed = false) => {
