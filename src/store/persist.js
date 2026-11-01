@@ -5,6 +5,7 @@
 import { t, keyed } from '../i18n/index.js';
 import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId } from '../model/schema.js';
 import { assetRefs } from './store.js';
+import { seedBank } from '../model/skillbank.js';
 
 // The one file you save and open yourself. Never translated.
 export const SAVE_FILE_NAME = 'brewcv.json';
@@ -380,7 +381,8 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       // an old session gets its record id now and keeps it: a new one on every reload would make the file saved before look like another record's
       const had = !!saved.state.record?.recordId;
       ensureRecordId(saved.state.record);
-      if (!had && saved.state.record?.recordId) await backend.put('state/current', saved);
+      const seeded = seedBank(saved.state.record);      // a session from before the wordbank: its skill groups become it
+      if ((!had && saved.state.record?.recordId) || seeded) await backend.put('state/current', saved);
       file.last = (await backend.get('meta/lastFileSave')) ?? null;
       file.n = (await backend.get('meta/fileDirty')) ?? 0;
       store.reset(saved.state, 'restore session');

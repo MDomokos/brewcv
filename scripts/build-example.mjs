@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { author, cps } from './lib/authoring.mjs';
 import { migrate, save, serialize, saveResume, resumeFileName } from '../src/model/schema.js';
+import { seedBank } from '../src/model/skillbank.js';
 import { validate } from '../checks/lib/validate.mjs';
 import { fmtMonth } from '../src/model/build.js';
 import { LANGS } from '../src/model/schema.js';
@@ -473,6 +474,7 @@ for (const r of SAVED){
 }
 if (bad){ console.error(`\nnot written: ${bad} error(s)`); process.exit(1); }
 
+seedBank(record);      // the skill words, as the app makes them on first open
 fs.writeFileSync(OUT, serialize(save(record)));
 fs.mkdirSync(RESUMES, { recursive: true });
 // remove only stale files; compare names in NFC since macOS may decompose "ő"

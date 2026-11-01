@@ -2,6 +2,7 @@
 // meta.resumeBuilder is the source of truth; body text edited elsewhere is reported on load, not imported.
 
 import { resolve, defaultVariant, DEFAULT_LANG, migratePins } from './resume.js';
+import { seedBank, cleanBank, wordOf } from './skillbank.js';
 
 export const SCHEMA = 'resume-data/4';
 export const RESUME_SCHEMA = 'resume-recipe/4';
@@ -190,6 +191,7 @@ export function load(file){
   if (kind === 'library-v3'){
     const model = migrate(file);
     mergeArchiveTag(model);
+    seedBank(model);
     return { model, warnings: [`${file.schema} was read and migrated in memory; saving writes ${SCHEMA}`] };
   }
   if (kind !== 'library')
@@ -208,6 +210,7 @@ export function load(file){
   if (Object.keys(extraMeta).length) model.jsonMeta = clone(extraMeta);
   toJsonResumeNames(model);
   mergeArchiveTag(model);
+  warnings.push(...cleanBank(model));
 
   const b = model.basics;
   if (b && rb.image === 'portrait' && b.portrait){
@@ -239,6 +242,7 @@ export function load(file){
     const ids = x && rb[hk]?.[x.id];
     if (Array.isArray(ids)) x.highlights = clone(ids);
   }
+  seedBank(model);      // first open since the wordbank: the record's skill groups become it
   return { model, warnings };
 }
 
@@ -352,7 +356,7 @@ export function loadResume(file, model = null){
   for (const k of BODY_KEYS) if (file[k] !== undefined) frozen[k] = clone(file[k]);
   const recipe = migratePins(clone(rb.resume));
   cleanLocal(recipe, model, warnings);
-  cleanArrangement(recipe, warnings);
+  cleanArrangement(recipe, warnings, model);
   cleanTerms(recipe, warnings);
   cleanLocked(recipe, warnings);
   cleanInStep(recipe, warnings);
@@ -379,16 +383,26 @@ function cleanLocal(recipe, model, warnings){
   if (Object.keys(out).length) recipe.localLines = out; else delete recipe.localLines;
 }
 
-// recipe.skillArrangement = { from, groups: [{ id, items, label? }] } is read from a file anyone can edit: a group that is not that, or
-// whose id repeats, is dropped, and the whole key goes when it is not an arrangement at all.
-function cleanArrangement(recipe, warnings){
+// recipe.skillArrangement = { groups: [{ id, items, label?, lang?, shelf? }] } is read from a file anyone can edit: a group that is not that, or
+// whose id repeats, is dropped, and the whole key goes when it is not an arrangement at all. With the record, a word id the bank does not have, or
+// a word printed twice, is dropped (text typed into an older arrangement prints as typed).
+function cleanArrangement(recipe, warnings, model = null){
   const a = recipe.skillArrangement;
   if (a === undefined) return;
   if (!isObj(a) || !Array.isArray(a.groups)){ warnings.push('skillArrangement is not { from, groups }; it is ignored'); delete recipe.skillArrangement; return; }
   const seen = new Set();
-  const groups = a.groups.filter(g => isObj(g) && typeof g.id === 'string' && g.id && Array.isArray(g.items) && g.items.every(x => typeof x === 'string') && !seen.has(g.id) && seen.add(g.id))
-    .map(({ label, ...g }) => (typeof label === 'string' ? { ...g, label } : g));
+  let groups = a.groups.filter(g => isObj(g) && typeof g.id === 'string' && g.id && Array.isArray(g.items) && g.items.every(x => typeof x === 'string') && !seen.has(g.id) && seen.add(g.id))
+    .map(({ label, shelf, ...g }) => ({ ...g, ...(typeof label === 'string' ? { label } : {}), ...(typeof shelf === 'string' && shelf ? { shelf } : {}) }));
   if (groups.length !== a.groups.length) warnings.push('skillArrangement had a group without an id of its own or a list of skills; it was dropped');
+  if (model?.skillBank){
+    const words = new Set();
+    let gone = 0;
+    groups = groups.map(g => {
+      const items = g.items.filter(x => { const known = !!wordOf(model, x); if ((!known && /^sw-/.test(x)) || (known && words.has(x))){ gone++; return false; } if (known) words.add(x); return true; });
+      return items.length === g.items.length ? g : { ...g, items };
+    });
+    if (gone) warnings.push('skillArrangement had a word the bank does not have, or a word twice; it was dropped');
+  }
   recipe.skillArrangement = { ...a, groups };
 }
 

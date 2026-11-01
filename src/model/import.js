@@ -7,6 +7,7 @@ import { defaultVariant, DEFAULT_LANG } from './resume.js';
 import { addVersion, setDefault } from './record.js';
 import * as B from './build.js';
 import { adoptImported } from './career.js';
+import { seedBank } from './skillbank.js';
 
 const clone = x => structuredClone(x);
 
@@ -51,8 +52,10 @@ export function fromJsonResume(json){
       startDate: edu.startDate, endDate: edu.endDate, score: edu.score ?? '' });
     carry(m.education?.[0], edu, ['id', 'display']);
   }
-  B.setSkills(m, (json.skills ?? []).map(s => ({ name: s.name ?? 'Skills', keywords: s.keywords ?? [] })));
-  (m.skills ?? []).forEach((s, i) => carry(s, (json.skills ?? []).filter(x => (x?.keywords ?? []).length)[i], ['id']));
+  // a skill with a name and no keywords is a word: those make one group of their own, last
+  const kw = (json.skills ?? []).filter(x => (x?.keywords ?? []).length), bare = (json.skills ?? []).filter(x => !(x?.keywords ?? []).length && typeof x?.name === 'string' && x.name.trim());
+  B.setSkills(m, [...kw.map(s => ({ name: s.name ?? 'Skills', keywords: s.keywords })), ...(bare.length ? [{ name: 'Skills', keywords: bare.map(x => x.name) }] : [])]);
+  (m.skills ?? []).forEach((s, i) => carry(s, kw[i], ['id']));
   B.setLanguages(m, (json.languages ?? []).map(l => ({ language: l.language, fluency: l.fluency })));
   (m.languages ?? []).forEach((l, i) => carry(l, (json.languages ?? []).filter(x => x?.language)[i], ['id']));
   B.setInterests(m, json.interests ?? []);
@@ -62,6 +65,7 @@ export function fromJsonResume(json){
   // sections the app doesn't draw ride along so the round trip to JSON Resume loses nothing
   for (const k of KEEP) if (Array.isArray(json[k]) && json[k].length) m[k] = clone(json[k]);
   adoptImported(m);
+  seedBank(m);
   if ((json.education ?? []).length > 1) m.education.push(...clone(json.education.slice(1)));
   if ((json.publications ?? []).length > 1) m.publications.push(...clone(json.publications.slice(1)));
   const versions = m.variants.length;

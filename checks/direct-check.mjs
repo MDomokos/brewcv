@@ -20,6 +20,7 @@ import { createDocument } from '../scripts/lib/dom.mjs';
 import { createStore } from '../src/store/store.js';
 import * as X from '../src/export.js';
 import * as L from '../src/model/lang.js';
+import * as SB from '../src/model/skillbank.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -933,6 +934,47 @@ section('UX-6d: the Review list\'s model');
     store.undo();
     ok('…and undo puts the edit back and takes the version away', JSON.stringify(store.state) === was);
     ok('a refused apply in a commit changes nothing and adds no step', throws(() => store.commit(d => { V.applyEdit(d.record, d.cur, lineId, { do: 'major' }); }, 'review')) && store.history.undo === 0 && JSON.stringify(store.state) === was); }
+}
+section('the skill wordbank: seeded from the record on first open');
+{
+  const file = read('data/example.json');
+  const bare = clone(file); delete bare.meta.resumeBuilder.skillBank;
+  for (const l of Object.values(bare.meta.resumeBuilder.i18n)) for (const k of Object.keys(l.labels ?? {})) if (k.startsWith('sw-')) delete l.labels[k];
+  const m = S.load(bare).model, words = SB.wordsOf(m);
+  ok('a record with no bank gets one from its skill groups: each word once, in order', words.map(w => w.name).join('|') === 'SolidWorks (CSWP)|Creo|Fusion 360|KeyShot|3D printing FDM/SLA|CNC milling|laser cutting|silicone tooling|injection-moulding DFM|ISO 13485|IEC 62366|design verification|first-article inspection|PPAP|Python|MATLAB|Git|Excel');
+  ok('…the same bank the shipped example carries', eq(m.skillBank, model.skillBank));
+  const w = n => words.find(x => x.name === n);
+  ok('a translation matches its English by place, and needs-review is kept per language', SB.wordText(m, w('CNC milling').id, 'hu').text === 'CNC-marás' && SB.wordText(m, w('CNC milling').id, 'de').text === 'CNC-Fräsen' && w('CNC milling').needsReview.includes('de') && !w('CNC milling').needsReview.includes('hu'));
+  ok('a word of a group marked same, written the same everywhere, is same in every language', w('Creo').same === true && SB.wordText(m, w('Creo').id, 'hu').text === 'Creo');
+  ok('a word of a same group that another language writes differently is not, and is missing where it has no wording', !w('design verification').same && SB.wordText(m, w('design verification').id, 'hu').miss === true && SB.wordText(m, w('design verification').id, 'de').text === 'Designverifizierung');
+  ok('the claims are untouched', eq(m.facts, S.load(file).model.facts) && eq(m.variants, S.load(file).model.variants));
+  ok('seeding again changes nothing', SB.seedBank(m) === false && eq(SB.wordsOf(m), words));
+  ok('a record with no skills gets no bank', SB.seedBank(S.emptyModel('x')) === false);
+  // counts that differ: only the words written the same are matched
+  const odd = clone(bare);
+  const rb = odd.meta.resumeBuilder, hu = rb.variants.find(v => v.id === 'skills-fabrication-v1-hu');
+  hu.text = 'CNC milling, lézervágás és szilikonszerszám';
+  const mo = S.load(odd).model, cnc = SB.wordsOf(mo).find(x => x.name === 'CNC milling'), lz = SB.wordsOf(mo).find(x => x.name === 'laser cutting');
+  ok('a translation with another number of words is matched only where a word is written the same', !SB.labelIn(mo, cnc.id, 'hu') && SB.wordText(mo, lz.id, 'hu').miss === true);
+  // finding a word: any language, case, accents and punctuation ignored; C, C++ and C# apart
+  ok('a word is found in any language, whatever its case and accents', SB.findWord(m, 'cnc-marás')?.name === 'CNC milling' && SB.findWord(m, 'creo ')?.name === 'Creo');
+  ok('words like it: one inside the other, or two letters apart', SB.similar(m, 'Solidwork').near.some(x => x.name === 'SolidWorks (CSWP)') && SB.similar(m, 'Pythn').near.some(x => x.name === 'Python'));
+  { const c = clone(m); SB.addWord(c, { name: 'C' }); SB.addWord(c, { name: 'C++' }); ok('C, C++ and C# are three words', SB.findWord(c, 'c#') === null && SB.findWord(c, 'C++').name === 'C++'); }
+  // typed text of an older arrangement becomes the bank's words
+  { const c = clone(m);
+    const g = SB.toWordIds(c, [{ id: 'skills-cad', items: ['Creo', 'creo'] }, { id: '~sg-1', label: 'Werkzeuge', lang: 'de', items: ['CNC-Fräsen', 'Bohren'] }], 'en');
+    const made = SB.wordsOf(c).at(-1);
+    ok('typed text becomes the word the bank has for it (in the group\'s language), never twice', eq(g[0].items, [w('Creo').id]) && g[1].items[0] === w('CNC milling').id);
+    ok('…and a text the bank lacks becomes a new word, its English a stand-in marked for review', made.name === 'Bohren' && eq(made.needsReview, ['en']) && SB.labelIn(c, made.id, 'de') === 'Bohren' && g[1].items[1] === made.id && g[1].lang === 'de');
+    ok('an item that is a word prints in the resume\'s language; typed text prints as typed', SB.wordText(c, w('CNC milling').id, 'de').text === 'CNC-Fräsen' && SB.wordText(c, 'Something typed', 'de').text === 'Something typed'); }
+  // read from a file anyone can edit
+  { const f = clone(file), r = read('data/example-resumes/index.json')[0], res = read(`data/example-resumes/${r}`);
+    f.meta.resumeBuilder.skillBank.words.push({ id: 'sw-creo', name: 'dup' }, { name: 'no id' }, { id: 'sw-x', name: 'X', shelf: 'sh-gone', same: 'yes' });
+    const got = S.load(f);
+    ok('a bank word without an id of its own is dropped, a shelf that is not there forgotten, and it says so', SB.wordsOf(got.model).length === words.length + 1 && !('shelf' in SB.wordOf(got.model, 'sw-x')) && !('same' in SB.wordOf(got.model, 'sw-x')) && got.warnings.some(x => /skillBank/.test(x)));
+    res.meta.resumeBuilder.resume.skillArrangement = { groups: [{ id: 'skills-cad', items: ['sw-creo', 'sw-gone', 'Typed'] }, { id: 'skills-software', items: ['sw-creo', 'sw-python'] }] };
+    const back = S.loadResume(res, model);
+    ok('a resume\'s word the bank does not have, or a word twice, is dropped with a warning; typed text stays', eq(back.recipe.skillArrangement.groups.map(g => g.items), [['sw-creo', 'Typed'], ['sw-python']]) && back.warnings.some(x => /a word twice/.test(x))); }
 }
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {

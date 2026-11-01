@@ -8545,7 +8545,12 @@
             "skills-cad": "CAD és 3D",
             "skills-fabrication": "Gyártás",
             "skills-testing": "Vizsgálat és QA",
-            "skills-software": "Szoftver"
+            "skills-software": "Szoftver",
+            "sw-3d-printing-fdm-sla": "3D-nyomtatás FDM/SLA",
+            "sw-cnc-milling": "CNC-marás",
+            "sw-laser-cutting": "lézervágás",
+            "sw-silicone-tooling": "szilikonszerszám",
+            "sw-injection-moulding-dfm": "fröccsöntési DFM"
           },
           "terms": {
             "lang-portuguese": "Portugál",
@@ -8576,7 +8581,14 @@
             "skills-cad": "CAD & 3D",
             "skills-fabrication": "Fertigung",
             "skills-testing": "Prüfung & QS",
-            "skills-software": "Software"
+            "skills-software": "Software",
+            "sw-3d-printing-fdm-sla": "3D-Druck FDM/SLA",
+            "sw-cnc-milling": "CNC-Fräsen",
+            "sw-laser-cutting": "Laserschneiden",
+            "sw-silicone-tooling": "Silikonformen",
+            "sw-injection-moulding-dfm": "DFM für Spritzguss",
+            "sw-design-verification": "Designverifizierung",
+            "sw-first-article-inspection": "Erstmusterprüfung"
           },
           "terms": {
             "lang-portuguese": "Portugiesisch",
@@ -8612,7 +8624,14 @@
             "skills-cad": "CAO et 3D",
             "skills-fabrication": "Fabrication",
             "skills-testing": "Essais et qualité",
-            "skills-software": "Logiciels"
+            "skills-software": "Logiciels",
+            "sw-3d-printing-fdm-sla": "Impression 3D FDM/SLA",
+            "sw-cnc-milling": "fraisage CNC",
+            "sw-laser-cutting": "découpe laser",
+            "sw-silicone-tooling": "outillage silicone",
+            "sw-injection-moulding-dfm": "DFM pour moulage par injection",
+            "sw-design-verification": "vérification de conception",
+            "sw-first-article-inspection": "inspection du premier article"
           },
           "terms": {
             "lang-portuguese": "Portugais",
@@ -8648,7 +8667,14 @@
             "skills-cad": "CAD y 3D",
             "skills-fabrication": "Fabricación",
             "skills-testing": "Ensayos y calidad",
-            "skills-software": "Software"
+            "skills-software": "Software",
+            "sw-3d-printing-fdm-sla": "Impresión 3D FDM/SLA",
+            "sw-cnc-milling": "fresado CNC",
+            "sw-laser-cutting": "corte láser",
+            "sw-silicone-tooling": "utillaje de silicona",
+            "sw-injection-moulding-dfm": "DFM para moldeo por inyección",
+            "sw-design-verification": "verificación del diseño",
+            "sw-first-article-inspection": "inspección de primer artículo"
           },
           "terms": {
             "lang-portuguese": "Portugués",
@@ -8684,7 +8710,14 @@
             "skills-cad": "CAD e 3D",
             "skills-fabrication": "Fabbricazione",
             "skills-testing": "Test e qualità",
-            "skills-software": "Software"
+            "skills-software": "Software",
+            "sw-3d-printing-fdm-sla": "Stampa 3D FDM/SLA",
+            "sw-cnc-milling": "fresatura CNC",
+            "sw-laser-cutting": "taglio laser",
+            "sw-silicone-tooling": "stampi in silicone",
+            "sw-injection-moulding-dfm": "DFM per stampaggio a iniezione",
+            "sw-design-verification": "verifica del progetto",
+            "sw-first-article-inspection": "ispezione del primo campione"
           },
           "terms": {
             "lang-portuguese": "Portoghese",
@@ -8720,7 +8753,14 @@
             "skills-cad": "CAD e 3D",
             "skills-fabrication": "Fabrico",
             "skills-testing": "Ensaios e qualidade",
-            "skills-software": "Software"
+            "skills-software": "Software",
+            "sw-3d-printing-fdm-sla": "Impressão 3D FDM/SLA",
+            "sw-cnc-milling": "fresagem CNC",
+            "sw-laser-cutting": "corte a laser",
+            "sw-silicone-tooling": "ferramentas em silicone",
+            "sw-injection-moulding-dfm": "DFM de moldação por injeção",
+            "sw-design-verification": "verificação de design",
+            "sw-first-article-inspection": "inspeção do primeiro artigo"
           },
           "terms": {
             "lang-portuguese": "Português",
@@ -8756,7 +8796,14 @@
             "skills-cad": "CAD & 3D",
             "skills-fabrication": "Fabricage",
             "skills-testing": "Testen & QA",
-            "skills-software": "Software"
+            "skills-software": "Software",
+            "sw-3d-printing-fdm-sla": "3D-printen FDM/SLA",
+            "sw-cnc-milling": "CNC-frezen",
+            "sw-laser-cutting": "lasersnijden",
+            "sw-silicone-tooling": "siliconen gereedschap",
+            "sw-injection-moulding-dfm": "DFM voor spuitgieten",
+            "sw-design-verification": "ontwerpverificatie",
+            "sw-first-article-inspection": "eerste-artikelinspectie"
           },
           "terms": {
             "lang-portuguese": "Portugees",
@@ -8792,7 +8839,14 @@
             "skills-cad": "CAD i 3D",
             "skills-fabrication": "Wytwarzanie",
             "skills-testing": "Testy i QA",
-            "skills-software": "Oprogramowanie"
+            "skills-software": "Oprogramowanie",
+            "sw-3d-printing-fdm-sla": "druk 3D FDM/SLA",
+            "sw-cnc-milling": "frezowanie CNC",
+            "sw-laser-cutting": "cięcie laserowe",
+            "sw-silicone-tooling": "oprzyrządowanie silikonowe",
+            "sw-injection-moulding-dfm": "DFM wtrysku",
+            "sw-design-verification": "weryfikacja konstrukcji",
+            "sw-first-article-inspection": "kontrola pierwszych sztuk"
           },
           "terms": {
             "lang-portuguese": "Portugalski",
@@ -8828,7 +8882,14 @@
             "skills-cad": "CAD a 3D",
             "skills-fabrication": "Výroba",
             "skills-testing": "Zkoušky a QA",
-            "skills-software": "Software"
+            "skills-software": "Software",
+            "sw-3d-printing-fdm-sla": "3D tisk FDM/SLA",
+            "sw-cnc-milling": "CNC frézování",
+            "sw-laser-cutting": "řezání laserem",
+            "sw-silicone-tooling": "silikonové formy",
+            "sw-injection-moulding-dfm": "DFM pro vstřikování plastů",
+            "sw-design-verification": "ověřování konstrukce",
+            "sw-first-article-inspection": "kontrola prvních kusů"
           },
           "terms": {
             "lang-portuguese": "Portugalština",
@@ -8897,6 +8958,163 @@
         "cs",
         "hu"
       ],
+      "skillBank": {
+        "words": [
+          {
+            "id": "sw-solidworks-cswp",
+            "name": "SolidWorks (CSWP)",
+            "same": true
+          },
+          {
+            "id": "sw-creo",
+            "name": "Creo",
+            "same": true
+          },
+          {
+            "id": "sw-fusion-360",
+            "name": "Fusion 360",
+            "same": true
+          },
+          {
+            "id": "sw-keyshot",
+            "name": "KeyShot",
+            "same": true
+          },
+          {
+            "id": "sw-3d-printing-fdm-sla",
+            "name": "3D printing FDM/SLA",
+            "needsReview": [
+              "de",
+              "fr",
+              "es",
+              "it",
+              "pt",
+              "nl",
+              "pl",
+              "cs"
+            ]
+          },
+          {
+            "id": "sw-cnc-milling",
+            "name": "CNC milling",
+            "needsReview": [
+              "de",
+              "fr",
+              "es",
+              "it",
+              "pt",
+              "nl",
+              "pl",
+              "cs"
+            ]
+          },
+          {
+            "id": "sw-laser-cutting",
+            "name": "laser cutting",
+            "needsReview": [
+              "de",
+              "fr",
+              "es",
+              "it",
+              "pt",
+              "nl",
+              "pl",
+              "cs"
+            ]
+          },
+          {
+            "id": "sw-silicone-tooling",
+            "name": "silicone tooling",
+            "needsReview": [
+              "de",
+              "fr",
+              "es",
+              "it",
+              "pt",
+              "nl",
+              "pl",
+              "cs"
+            ]
+          },
+          {
+            "id": "sw-injection-moulding-dfm",
+            "name": "injection-moulding DFM",
+            "needsReview": [
+              "de",
+              "fr",
+              "es",
+              "it",
+              "pt",
+              "nl",
+              "pl",
+              "cs"
+            ]
+          },
+          {
+            "id": "sw-iso-13485",
+            "name": "ISO 13485",
+            "same": true
+          },
+          {
+            "id": "sw-iec-62366",
+            "name": "IEC 62366",
+            "same": true
+          },
+          {
+            "id": "sw-design-verification",
+            "name": "design verification",
+            "needsReview": [
+              "de",
+              "fr",
+              "es",
+              "it",
+              "pt",
+              "nl",
+              "pl",
+              "cs"
+            ]
+          },
+          {
+            "id": "sw-first-article-inspection",
+            "name": "first-article inspection",
+            "needsReview": [
+              "de",
+              "fr",
+              "es",
+              "it",
+              "pt",
+              "nl",
+              "pl",
+              "cs"
+            ]
+          },
+          {
+            "id": "sw-ppap",
+            "name": "PPAP",
+            "same": true
+          },
+          {
+            "id": "sw-python",
+            "name": "Python",
+            "same": true
+          },
+          {
+            "id": "sw-matlab",
+            "name": "MATLAB",
+            "same": true
+          },
+          {
+            "id": "sw-git",
+            "name": "Git",
+            "same": true
+          },
+          {
+            "id": "sw-excel",
+            "name": "Excel",
+            "same": true
+          }
+        ]
+      },
       "summary": "summary",
       "highlights": {
         "hydra": [
