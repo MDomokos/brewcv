@@ -1,5 +1,6 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/extract-work-experience.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; section, job-title and date words from the lexicon
-// Types stripped. Changed: the section keywords, the job-title words and the date words come from the lexicon.
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/extract-work-experience.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; section, job-title and date words from the lexicon; 2026-11-02: a block with no job line above its text is no job
+// Types stripped. Changed: the section keywords, the job-title words and the date words come from the lexicon, and a block of text that starts with its descriptions (a
+// paragraph or a bullet, no company, title or date line above it) is not a job: its lines are left for the person to place, not made into a job with no name.
 import { getSectionLinesByKeywords } from './lib/get-section-lines.js';
 import { dateFeatureSets, hasNumber, getHasText, isBold } from './lib/common-features.js';
 import { divideSectionIntoSubsections } from './lib/subsections.js';
@@ -23,6 +24,7 @@ export const extractWorkExperience = (sections, lex) => {
 
   for (const subsectionLines of subsections) {
     const descriptionsLineIdx = getDescriptionsLineIdx(subsectionLines) ?? 2;
+    if (descriptionsLineIdx === 0) continue;
 
     const subsectionInfoTextItems = subsectionLines.slice(0, descriptionsLineIdx).flat();
     const [date, dateScores] = getTextWithHighestFeatureScore(subsectionInfoTextItems, dateFeatureSets(lex));

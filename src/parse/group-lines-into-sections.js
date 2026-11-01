@@ -22,7 +22,7 @@ export const PROFILE_SECTION = 'profile';
 // line in the first eight that has an @, an address or a phone number) never set the look.
 // shortcut: used only when no reader marked a heading, and only when that look is on ten lines or fewer. A resume that sets its company names like its section titles (bold on a
 // line of their own) and has no title the rules below know gets titles that are companies; a heading in the body's own look is not seen; a document with one heading in its look
-// is not found; a title word ends a line up to two letters longer than the lexicon's (Skills, Courses). Tune the numbers on real files.
+// is not found; a title word ends a line as the lexicon has it, or as its plural with s or es (Skills, Courses; not "Works"), so an inflected heading in another language (Hungarian "Tapasztalatok") is not seen. Tune the numbers on real files.
 const SHORT = /^[\p{L}\s&'/-]{2,40}:?$/u;
 const SITE = /\b(?:linkedin|github|gitlab|twitter|facebook|instagram|behance|dribbble|xing|orcid|skype|telegram|whatsapp|website|portfolio)\b/i;
 const CONTACT = /@|https?:|www\.|\.(?:com|org|net|io|dev|edu)\b|\d{3}\D{0,2}\d{3}/i;
@@ -45,7 +45,7 @@ const byLook = (lines, known, lex) => {
   const count = new Map();
   for (const r of ranks.filter((r, i) => r && short[i])) count.set(r, (count.get(r) ?? 0) + 1);
   const top = known.some(Boolean) ? high(ranks.filter((r, i) => known[i])) : high([...count].filter(([, n]) => n >= 2).map(([r]) => r));
-  const word = l => words.some(k => list(l).at(-1).startsWith(k) && list(l).at(-1).length <= k.length + 2);
+  const word = l => words.some(k => list(l).at(-1) === k || (k !== 'work' && [`${k}s`, `${k}es`].includes(list(l).at(-1))));      // "Hudson Works" is a company, "Skills" a title
   const set = ranks.map((r, i) => !!top && r === top && short[i] && (!known.some(Boolean) || word(lines[i])));
   return set.filter(Boolean).length <= 10 ? set : [];
 };

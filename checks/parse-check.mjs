@@ -38,7 +38,7 @@ const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'} 
 const section = t => console.log(`\n— ${t}`);
 // a document's text as the Library will keep it: the lines of the items, an item's text joined by a space, one line per row
 const textOf = items => { const out = []; let line = []; for (const i of items){ line.push(i.text); if (i.hasEOL){ out.push(line.join(' ')); line = []; } } return out.join('\n'); };
-await Promise.all(['hu', 'de'].map(loadCatalogue));
+await Promise.all(['hu', 'de', 'it'].map(loadCatalogue));
 
 section('one column');
 {
@@ -688,6 +688,11 @@ section('documents formatted by hand: no heading styles, the look set on each ru
     ok(`bold companies "${a}" and "${b}" next to bold capital headings are companies, not sections`, jobsOf(cap(a), cap(b)) === `${a} | ${b}`, jobsOf(cap(a), cap(b)));
   const pm = parseResume(rows('Jane Q. Sample', 'jane.sample@example.com', cap('WORK EXPERIENCE'), cap('Head of Projects'), 'Acme Corp', 'Mar 2021 – Present', '• Led the redesign.', null, cap('Team Lead Projects'), 'Beta Works', '2018 – 2021', '• Ran the shop.')).jsonResume.work;
   ok('and so are a bold "Head of Projects" and "Team Lead Projects" (they hold a job-title word): both jobs are found', pm?.length === 2, J(pm));
+  const exp = [...head, L('EXPERIENCE', B())];
+  ok('"Hudson Works" and "Iron Works" (bold companies, "Works" is no title word) next to a bold capital heading are companies: both jobs are found', jobsOf(cap('Hudson Works'), cap('Iron Works')) === 'Hudson Works | Iron Works', jobsOf(cap('Hudson Works'), cap('Iron Works')));
+  ok('"Technical Skills", "Short Courses", "Key Projects" and "Honors and Awards" are still titles beside a known one, by their plural', J(keys([...exp, ...text, L('Technical Skills', B()), ...text, L('Short Courses', B()), ...text, L('Key Projects', B()), ...text, L('Honors and Awards', B()), ...text])) === J(['profile', 'EXPERIENCE', 'Technical Skills', 'Short Courses', 'Key Projects', 'Honors and Awards']));
+  const itKeys = keys => Object.keys(groupLinesIntoSections(keys, withEnglish(lexiconFor('it'))));
+  ok('Italian: a bold company of three words that ends in "Premier" is no title though the catalogue has "premi" (awards); "Premi" is one', lexiconFor('it').titleWords.includes('premi') && J(itKeys([...head, L('ESPERIENZA', B()), ...text, L('Rossi Foods Premier', B()), ...text, L('Premi', B()), ...text])) === J(['profile', 'ESPERIENZA', 'Premi']), J(itKeys([...head, L('ESPERIENZA', B()), ...text, L('Rossi Foods Premier', B()), ...text, L('Premi', B()), ...text])));
   const sized = [...head, L('Career Highlights', B({ height: 16 })), L('Acme Corp', B({ height: 12 })), ...text, L('Open Source', B({ height: 16 })), L('Beta Corp', B({ height: 12 })), ...text];
   ok('the size ranks by how much larger it is: 16 pt headings over 12 pt bold companies over 10 pt text, the companies are no titles', J(keys(sized)) === J(['profile', 'Career Highlights', 'Open Source']), J(keys(sized)));
   ok('headings that are only bold at the body\'s size (words unknown) are titles', J(keys([...head, L('Career Highlights', B({ height: 10 })), ...text, L('Open Source', B({ height: 10 })), ...text])) === J(['profile', 'Career Highlights', 'Open Source']));
@@ -710,6 +715,40 @@ section('documents formatted by hand: no heading styles, the look set on each ru
   // styles that point at each other, or at nothing
   const loop = (await readDocx(doc(para(run('a'), '<w:pStyle w:val="A"/>') + para(run('b'), '<w:pStyle w:val="Nope"/>'), '<w:style w:type="paragraph" w:styleId="A"><w:name w:val="A"/><w:basedOn w:val="B"/></w:style><w:style w:type="paragraph" w:styleId="B"><w:name w:val="B"/><w:basedOn w:val="A"/><w:rPr><w:sz w:val="30"/></w:rPr></w:style>'))).map(i => i.height);
   ok('a style based on itself through another, and a style that is not there, end: the first takes the size of the one it is based on, the second the default', J(loop) === J([15, 10]), J(loop));
+  // prose: a cover letter is a letter, and paragraphs in a resume are left over whole
+  const letterEn = `Jane Q. Sample\n12 Elm Street, Springfield, IL\n\n1 November 2026\n\nHiring Manager\nNorthgate Dosing Systems\n\nDear Hiring Manager,\n\nI am writing to apply for the post of mechanical design engineer that you advertised last week. My work so far has been the design of dosing devices, from the first sketch to the production line.\n\nAt my last employer I led the redesign of an inhaler dose counter. The project taught me to work closely with clinical teams and with suppliers who have to make the parts at a fair price.\n\nI would bring the same care to your team, and I would enjoy learning from your engineers. I am used to writing clear work instructions and to teaching others how to use them.\n\nThank you for your time and for considering my application. I would be glad to talk about it at an interview.\n\nSincerely,\nJane Q. Sample\n`;
+  const letterDe = `Anna Beispiel\nMusterweg 4, 80331 München\n\n1. November 2026\n\nFeinmess Instrumente GmbH\nPersonalabteilung\n\nSehr geehrte Damen und Herren,\n\nmit großem Interesse habe ich Ihre Stellenanzeige für einen Konstrukteur gelesen und bewerbe mich hiermit um die ausgeschriebene Position in Ihrem Haus.\n\nIn meiner bisherigen Tätigkeit habe ich Dosiergeräte entwickelt, von der ersten Skizze bis zur Serienfertigung. Dabei habe ich eng mit Kliniken und mit Zulieferern zusammengearbeitet.\n\nGerne bringe ich diese Erfahrung auch bei Ihnen ein. Ich bin es gewohnt, klare Arbeitsanweisungen zu schreiben und Kollegen in neue Verfahren einzuarbeiten.\n\nÜber eine Einladung zu einem persönlichen Gespräch freue ich mich sehr und stehe Ihnen jederzeit gern für Rückfragen zur Verfügung.\n\nMit freundlichen Grüßen\nAnna Beispiel\n`;
+  const kinds = r => r.doubts.map(d => d.kind);
+  for (const [what, letter] of [['English', letterEn], ['German', letterDe]]){
+    const got = kinds(parseResume(readTxt(enc(letter)), lexiconFor(what === 'German' ? 'de' : 'en')));
+    ok(`an invented ${what} cover letter (salutation, four paragraphs, sign-off) gives the letter doubt and no jobs doubt`, got.includes('letter') && !got.includes('jobs'), J(got));
+  }
+  const noLetter = r => !kinds(r).includes('letter');
+  const longSummary = F.oneColumn.map(i => (i.text.startsWith('Mechanical engineer who') ? { ...i, text: 'Mechanical engineer who builds dosing devices for clinical teams, from the first sketch to the production line, and who enjoys teaching others how to read a drawing.', width: 600 } : i));
+  ok('a resume with a long summary paragraph is no letter, and a file of one prose paragraph and no headings is none either', noLetter(parseResume(longSummary)) && noLetter(parseResume(readTxt(enc(`Jane Q. Sample\njane.sample@example.com\n(555) 010-0100\nSpringfield, IL\n${letterEn.split("\n\n")[4]}\nAcme\nTechnician\nRepairs\nBench\nTools\nParts\n`)))));
+  const paras = letterEn.split("\n\n").slice(4, 8);
+  ok('fewer than three prose paragraphs (one, or two) is no letter, and neither is a file of three whose text is mostly short lines', noLetter(parseResume(readTxt(enc(`Jane Q. Sample\n\n${paras[0]}\n`)))) && noLetter(parseResume(readTxt(enc(`Jane Q. Sample\n\n${paras.slice(0, 2).join('\n\n')}\n`))))
+    && noLetter(parseResume(readTxt(enc(`Jane Q. Sample\n${paras.slice(0, 3).join('\n')}\n${Array.from({ length: 150 }, (_, k) => `Item ${k}`).join('\n')}\n`)))));
+  ok('a file with prose paragraphs and no headings but a dated job line (a date range) is no letter: it gets the jobs doubt', (r => noLetter(r) && kinds(r).includes('jobs'))(parseResume(readTxt(enc(letterEn.replace('Sincerely,', 'Acme Corp   2018 – 2021\nSincerely,'))))));
+  ok('a letter with two section titles in it ("EXPERIENCE" and "EDUCATION") is a resume, not a letter', noLetter(parseResume(readTxt(enc(letterEn.replace('Dear Hiring Manager,', 'EXPERIENCE\nDear Hiring Manager,').replace('Sincerely,', 'EDUCATION\nSincerely,'))), lexiconFor('en'))));
+  const dateds = { 'numeric months (03/2019 – 05/2021)': ['03/2019 – 05/2021'], 'Hungarian months (2019. március – 2021. június)': ['2019. március – 2021. június'], 'years joined by a dash (2018-2021)': ['2018-2021'] };
+  for (const [what, [d1]] of Object.entries(dateds)){
+    const cv = `Jane Q. Sample\njane.sample@example.com\n${d1}\nLed the redesign of the inhaler dose counter from the first sketch to the production line at a maker of dosing devices.\nRan the tolerance study for a disposable cartridge across three suppliers and cut the rejects on the line by a third.\nBerlin\nBuilt the fixtures for the flow tests and wrote the work instructions for the bench, teaching the technicians to read a drawing.\nWorked with clinical teams and two suppliers on every release and kept the records for each audit.\nSpringfield\nIllinois\nOne\nTwo\n`;
+    const got = kinds(parseResume(readTxt(enc(cv))));
+    ok(`a headingless resume of long unbulleted lines with dates in ${what} is no letter, and gets the jobs doubt`, !got.includes('letter') && got.includes('jobs'), J(got));
+  }
+  ok('two lines with a year are dated (a letter\'s own date line is one, a year in a paragraph makes two)', noLetter(parseResume(readTxt(enc(letterEn.replace('I am writing', 'In 2019 I joined a team of engineers and I am writing'))))));
+  const subject = parseResume(readMd(enc(letterEn.replace('Dear Hiring Manager,', '**APPLICATION**\n\nDear Hiring Manager,')))), subjectKinds = kinds(subject);
+  ok('a letter with one bold subject line in capitals ("APPLICATION") is still a letter, with no jobs doubt', subjectKinds.includes('letter') && !subjectKinds.includes('jobs'), J(subjectKinds));
+  ok('the letter with its date in the first lines ("Lakeside, 9 May 2025") is still a letter', kinds(parseResume(readTxt(enc(letterEn.replace('1 November 2026', 'Lakeside, 9 May 2025'))))).includes('letter') && kinds(parseResume(readTxt(enc(letterEn)))).includes('letter'));
+  const pc = parseResume(F.proseColumns);
+  const words = t => t.toLowerCase().match(/\p{L}+/gu) ?? [];
+  const wanted = F.proseColumns.filter(i => i.x >= 200 && i.y < 700).map(i => i.text).join(' ');
+  ok('a two-column CV whose experience is three wrapped paragraphs with one year in them: no job is made of them, each paragraph is one leftover with its section and first line, the jobs doubt is raised (not the letter doubt)',
+    !pc.jsonResume.work && pc.leftovers.length === 3 && pc.leftovers.every(l => l.section === 'WORK EXPERIENCE') && J(pc.leftovers.map(l => l.line)) === J([11, 14, 17]) && kinds(pc).includes('jobs') && noLetter(pc) && !kinds(pc).includes('dates'), J(pc.leftovers.map(l => l.line)) + J(kinds(pc)));
+  ok('and nothing is lost: every word of the three paragraphs is in the leftovers', J(words(pc.leftovers.map(l => l.text).join(' '))) === J(words(wanted)));
+  const pj = parseResume(F.proseUnderJob);
+  ok('a paragraph under a dated job line is that job\'s text: the job is found, with the paragraph in its highlights and no leftover for it, and no jobs doubt', pj.jsonResume.work?.length === 1 && pj.jsonResume.work[0].name === 'Northgate Dosing Systems' && pj.jsonResume.work[0].startDate === '2021-03' && words(pj.jsonResume.work[0].highlights.join(' ')).includes('suppliers') && pj.leftovers.length === 0 && !kinds(pj).includes('jobs'), J(pj.jsonResume.work) + J(pj.leftovers));
   const flat = n => readTxt(enc(Array.from({ length: n }, (_, k) => `Line ${'abcdefghijklmnop'[k]}`).join('\n'))), noJobs = n => parseResume(flat(n)).doubts.map(d => d.kind);
   ok('a file of more than ten lines with no job found raises the doubt "jobs"; a short one, or one with jobs, does not', noJobs(12).includes('jobs') && !noJobs(10).includes('jobs') && !parseResume(F.oneColumn).doubts.some(d => d.kind === 'jobs'), J(noJobs(12)));
 }

@@ -372,3 +372,39 @@ export const manyLeftovers = flow(72, 760, [
   [[0, 'Jane Q. Sample', true]], one('jane.sample@example.com'), [[0, 'HOBBIES', true]],
   one('Chess'), one('Cycling'), one('Choir'), one('Gardening'), one('Sailing'), one('Pottery'),
 ]).flat();
+
+// two columns again, but the experience is written as paragraphs of wrapped lines under the work heading: three with no job line and one year in one of them, or (with a job line) one under a dated job line
+const proseCv = withJob => row([
+  ...flow(36, 760, [
+    [[0, 'Jane Q. Sample', true]],
+    [[0, 'jane.sample@example.com'], [154, '(555) 010-0100'], [284, 'Springfield, IL']],
+    [[0, 'www.example.com/janesample']],
+  ]),
+  ...flow(36, 700, [
+    [[0, 'SKILLS', true]],
+    one('CAD: SolidWorks, Fusion 360'),
+    one('Fabrication: 3D printing'),
+    null,
+    [[0, 'EDUCATION', true]],
+    one('Lakeside State University'),
+    one('Bachelor of Science'),
+  ]),
+  ...flow(200, 700, [
+    [[0, 'WORK EXPERIENCE', true]],
+    ...(withJob ? [[[0, 'Northgate Dosing Systems', true], [190, 'Mar 2021 – Present']], one('Mechanical Design Engineer')] : []),
+    one('I led the redesign of the inhaler dose counter at a maker of dosing'),
+    one('devices, taking it from the first sketch to production. The work meant'),
+    one('close contact with clinical teams and two suppliers.'),
+    ...(withJob ? [] : [
+      null,
+      one('Before that I ran the tolerance study for a disposable cartridge across'),
+      one('three suppliers in 2018. It cut the rejects on the line by a third and'),
+      one('gave the buyers a firm basis for their quotes.'),
+      null,
+      one('Earlier still I built the fixtures for the flow tests and wrote the work'),
+      one('instructions for the bench. I enjoyed teaching the technicians how to'),
+      one('read a drawing and to trust a gauge.'),
+    ]),
+  ]),
+]).flat();
+export const proseColumns = proseCv(false), proseUnderJob = proseCv(true);

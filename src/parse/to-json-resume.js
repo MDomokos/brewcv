@@ -108,10 +108,19 @@ export function toJsonResume(resume, lines, sections, lex){
   };
   const where = new Map(lines.map((l, i) => [l, i]));      // a line's number, found at once (indexOf made a long file quadratic)
   const leftovers = [];
+  // a paragraph that wraps over lines is one leftover: a line joins the one before it when that was a leftover too, of six words or more, in the same section, one line gap above
+  // shortcut: "one line gap" is the commonest gap between lines, times 1.4; a paragraph cut by a column or a page is two leftovers
+  const gaps = new Map();
+  for (let i = 1; i < lines.length; i++){ const g = Math.round(lines[i - 1][0].y - lines[i][0].y); if (g > 0) gaps.set(g, (gaps.get(g) ?? 0) + 1); }
+  const gap = [...gaps].sort((x, y) => y[1] - x[1])[0]?.[0] ?? 0;
+  let last = null;
   for (const [section, ls] of Object.entries(sections)) for (const l of ls){
     if (l.some(used) || !plain(l.map(i => i.text).join(' '))) continue;
-    const n = where.get(l);
-    leftovers.push({ text: l.map(i => i.text).join(' ').trim(), section, ...(pageOf(n) != null ? { page: pageOf(n) } : {}), line: n + 1 });
+    const n = where.get(l), text = l.map(i => i.text).join(' ').trim(), above = n > 0 ? lines[n - 1][0].y - l[0].y : 0;
+    if (last && last.n === n - 1 && last.section === section && last.words >= 6 && above > 0 && above <= gap * 1.4){ last.at.text += ' ' + text; last.n = n; last.words = text.split(/\s+/).length; continue; }
+    const at = { text, section, ...(pageOf(n) != null ? { page: pageOf(n) } : {}), line: n + 1 };
+    leftovers.push(at);
+    last = { at, n, section, words: text.split(/\s+/).length };
   }
   return { jsonResume: out, trace, leftovers };
 }
