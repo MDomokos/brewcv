@@ -3,8 +3,8 @@
 // A document is { id, name, type, size, sha256, addedAt, path?, embedded?, meta, from, taken, text, layout?, of?, with?, resume?, round?, archived? }. `embedded` is the original
 // as a data: URL, which the store keeps outside its undo steps; `taken` is { claims, versions, skipped, unplaced }, what the record took from it; `layout` is a PDF's [{ page, headerBottom, split }] as the person left it; a cover letter has `with` (the document of the resume it was dropped with) and `resume` (the saved resume it went out with, by company and role) beside its `round`.
 
-import { t, keyed } from '../i18n/index.js';
-import { normText } from './record.js';
+import { t, keyed, UI_LANGS } from '../i18n/index.js';
+import { normText, wordMoves } from './record.js';
 
 export const MAX_EMBED = 10 * 1024 * 1024;      // an original is embedded up to this many bytes
 export const docId = sha => `doc-${sha.slice(0, 12)}`;      // one file is one document, on every device
@@ -51,6 +51,41 @@ export function sameDocument(state, text){
     for (const l of mine) if (theirs.has(l)) n++;
     return theirs.size > 0 && n / mine.size >= 0.9 && n / theirs.size >= 0.9;
   }) ?? null;
+}
+
+// The document a JSON Resume says it was read from (`meta.source`, a file name), if the Library holds it with a text.
+export const sourceOf = (state, json) => {
+  const name = normText(String(json?.meta?.source ?? '').split(/[\\/]/).pop());
+  return name ? (state.documents ?? []).find(d => d.text && normText(d.name) === name) ?? null : null;
+};
+
+// The word check (spec, "With an AI assistant, optional"): every text of a JSON Resume an assistant made from a document, looked for in that document's text.
+// Returns [{ path, text, found, near }]; `near` is the document's closest line to a text that is not in it, else null. Pure.
+// A text is in the document when it is inside one of its lines, whatever the case, quotes, dashes, spaces, punctuation and line-end hyphens (a word split at a line end is
+// joined first), so a corrected typo, a reworded line, or two lines run into one are not. A date is in it when its year is, and its month, if it has one, as a number or a month name.
+// shortcut: a line the document wrapped is not one line here (the readers give whole lines, a hard-wrapped text file does not); a month name is looked for anywhere in the
+// document, in the ten interface languages; a link, a country code, a network name and `meta` are not compared; upgrade when a real file shows one of these wrongly listed.
+const KEY = s => normText(s).replace(/[^\p{L}\p{N}]+/gu, '');
+const SKIP = /^(?:meta|\$schema)$|(?:^|\.)(?:url|image|countryCode|network)$/;
+const DATE = /^(\d{4})(?:-(\d\d))?(?:-\d\d)?$/;
+const monthRe = n => new RegExp(`(?<!\\p{L})(?:${[...new Set(UI_LANGS.flatMap(l => ['long', 'short'].map(w => normText(new Intl.DateTimeFormat(l, { month: w, timeZone: 'UTC' }).format(Date.UTC(2000, n - 1, 15))))))].join('|')})(?!\\p{L})`, 'u');
+function textsOf(o, path = '', out = []){
+  if (typeof o === 'string'){ if (o.trim()) out.push({ path, text: o }); }
+  else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)){ const p = path ? `${path}.${k}` : k; if (!SKIP.test(p)) textsOf(v, p, out); }
+  return out;
+}
+export function checkWords(json, docText){
+  const doc = String(docText ?? ''), flat = normText(doc);
+  const lines = doc.replace(/(\p{L})[-\u00ad\u2010]\n(?=\p{L})/gu, '$1').split('\n').map(s => s.trim()).filter(Boolean), keys = lines.map(KEY);
+  const inDate = (y, m) => new RegExp(`(?<!\\d)${y}(?!\\d)`).test(flat)
+    && (!m || new RegExp(`(?<!\\d)0?${+m}\\s*[./-]\\s*${y}|${y}\\s*[./-]\\s*0?${+m}(?!\\d)`).test(flat) || monthRe(+m).test(flat));
+  return textsOf(json).map(({ path, text }) => {
+    const d = DATE.exec(text.trim());
+    const found = d ? inDate(d[1], d[2]) : keys.some(k => k.includes(KEY(text)));
+    let near = null, best = 0;
+    if (!found) for (const l of lines){ const s = wordMoves(normText(l), normText(text)).shared; if (s > best){ best = s; near = l; } }
+    return { path, text, found, near };
+  });
 }
 
 // The ids of this state's documents that a saved backup (the parsed brewcv.json) holds, original included, with the same sha256.

@@ -304,6 +304,26 @@ export function plan(state, entries, { fresh = false } = {}){
 }
 const versionsOfAll = record => record.facts.filter(f => !/-(position|meta)$/.test(f.id)).flatMap(f => versionsOf(record, f.id).map(v => v.text));
 
+// ---- a JSON Resume from an AI assistant ----
+
+// Runs the word check (DOC.checkWords) over the merge items of a JSON Resume (diffRecords(record, ...)): an item that would put a text its original does not have into the career
+// starts unticked, marked `notIn` with the original's name, and a line or wording is shown against the original's nearest line. With no original, nothing starts ticked.
+// shortcut: an item is tied to a missing text by applying it to a copy of the career and seeing the text arrive, so a text the career already has is never tied to an item, and a text of the
+// file that no item carries (a school, a skill) is counted on the screen but not listed; upgrade when the plain merge reads those.
+export function checkItems(items, json, doc, record){
+  if (!doc){ for (const x of items) x.on = false; return; }
+  const missing = DOC.checkWords(json, doc.text).filter(r => !r.found), had = corpusOf(record);
+  for (const x of items){
+    if (x.kind === 'keep' || !x.apply) continue;
+    const d = { record: clone(record), resumes: [], frozen: {} };
+    try { x.apply(d); } catch { continue; }
+    const after = corpusOf(d.record), m = missing.find(r => !inCorpus(had, r.text) && inCorpus(after, r.text));
+    if (!m) continue;
+    x.on = false; x.notIn = doc.name;
+    if (m.near && ['line', 'wording'].includes(x.as)) x.diff = wordDiff(m.near, m.text);
+  }
+}
+
 // The menu for a line with no home: the jobs and other entries (the one printed above it first), the claims it is closest to, the skills groups, and another section.
 const LISTS = ['languages', 'certificates', 'interests', 'publications', 'education'];
 export function placeOptions(p, u){
