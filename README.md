@@ -166,6 +166,7 @@ Pull requests and translation fixes are welcome. See [CONTRIBUTING.md](CONTRIBUT
 - [JSON Resume](https://jsonresume.org) (MIT): the schema's field vocabulary and date format.
 - [Resume Matcher](https://github.com/srbhr/Resume-Matcher) (Apache-2.0): the idea of reporting job-ad keywords your resume doesn't cover, reimplemented from scratch with no network calls and no LLM.
 - [OpenResume](https://github.com/xitanggg/open-resume) by Xitang Zhao (AGPL-3.0): `src/parse/` is a port of its resume parser, which finds the lines, sections and fields in the text of a resume file. Each ported file says which of its files it came from.
+- [PDF.js](https://github.com/mozilla/pdf.js) by Mozilla (Apache-2.0): `vendor/pdfjs/` holds a pinned release, which reads the text, positions and fonts of a PDF when you open one. It is the only code the app takes in as it is.
 
 No other code from other projects is copied. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#prior-art-and-what-was-taken-from-it).
 

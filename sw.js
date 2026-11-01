@@ -173,6 +173,8 @@ const SHELL = [
   './fonts/IBMPlexSans-Bold-latin-ext.woff2',
   './fonts/IBMPlexMono-Regular-latin.woff2',
   './fonts/IBMPlexMono-Regular-latin-ext.woff2',
+  './vendor/pdfjs/pdf.min.mjs',
+  './vendor/pdfjs/pdf.worker.min.mjs',
   './icons/icon.svg',
   './icons/icon-coffee.svg',
   './icons/icon-180.png',
