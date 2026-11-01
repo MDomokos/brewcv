@@ -1,6 +1,6 @@
 // The linked folder as the person's resume space (spec: "The folder is the resume space", "Two devices, one synced folder"). persist.js writes this device's own file and the merged
 // view; this reads what the folder holds besides: the other devices' files (merged by their clocks), files changed outside (a person, an agent, a sync tool), the documents (found
-// by content, not by path), the Inbox, and BrewCV.md. Nothing here is deleted: a file the app takes away goes to BrewCV/Deleted/ (persist.js toDeleted), where a scan removes what the app put there after 30 days.
+// by content, not by path), the Inbox (BrewCV/Inbox/), and BrewCV.md. Nothing here is deleted: a file the app takes away goes to BrewCV/Deleted/ (persist.js toDeleted), where a scan removes what the app put there after 30 days.
 // A folder is the object persist.js describes (read, write, list, dirs, stat, readBytes, remove); the checks play two devices with two stores and one shared memoryFolder map.
 
 import { t } from '../i18n/index.js';
@@ -18,7 +18,7 @@ import { sha256, safe, conflictCopy, ignored, readBackup, filesOf, uniqueName, k
 const KINDS = /\.(?:pdf|docx|odt|pages|md|txt|html?)$/i;      // what a scan lists; a font, code or a picture is not a resume
 const TEXT = /\.(?:md|txt|html?)$/i;                          // notes: only the ones that look like a resume
 const MAX = 20000, DEEP = 8;
-const skipDir = (d, depth) => d.startsWith('.') || /^(?:node_modules|fonts?)$/i.test(d) || (depth === 0 && /^(?:BrewCV|Inbox|Deleted|checkpoints)$/i.test(d));
+const skipDir = (d, depth) => d.startsWith('.') || /^(?:node_modules|fonts?)$/i.test(d) || (depth === 0 && /^(?:BrewCV|Deleted|checkpoints)$/i.test(d));
 
 // Resume-like text: at least two of three signs (section titles on lines of their own, years, an address or a number to call).
 // shortcut: English section words only; a note in another language needs two of the other signs. Upgrade by reading the lexicon of the interface language.
@@ -46,7 +46,7 @@ export async function walk(root, dir = '', depth = 0, out = { files: [], stubs: 
 //   cloud   iCloud or another tool keeps it in the cloud                    { id }
 //   changed other bytes at a known path: a new version of the document      { id, path, sha256 }
 //   dups    a second copy of a document's bytes elsewhere in the tree: told, never moved   [path]
-//   inboxDups  a copy in Inbox/ of a file the Library already holds                       [path]
+//   inboxDups  a copy in BrewCV/Inbox/ of a file the Library already holds                [path]
 //   fresh   resume-like files that are no document yet                      [{ path, size, mtime }]
 export async function reconcile(state, root, cache = {}){
   const docs = (state.documents ?? []).filter(d => d.path), isDoc = new Set(docs.map(d => d.path)), sizes = new Set(docs.map(d => d.size));
@@ -80,10 +80,10 @@ export async function reconcile(state, root, cache = {}){
     else if (h !== d.sha256) out.changed.push({ id: d.id, path: d.path, sha256: h });
     else if (byHash.has(d.sha256)){ out.dups.push(byHash.get(d.sha256)); byHash.delete(d.sha256); }
   }
-  // A copy in Inbox/ of a file the Library holds is a duplicate only when it is the very file the Library holds now: if that was edited since, the copy is the original and a file of its own.
-  for (const n of await root.list('Inbox')){
-    const p = `Inbox/${n}`, s = n.startsWith('.') || ignored(n) ? null : await root.stat(p), h = s ? await hash(p, s) : null;
-    if (h && docs.some(d => d.path.startsWith('Library/') && current.get(d.path) === h)) out.inboxDups.push(p);
+  // A copy in the Inbox of a file the Library holds is a duplicate only when it is the very file the Library holds now: if that was edited since, the copy is the original and a file of its own.
+  for (const n of await root.list(INBOX)){
+    const p = `${INBOX}/${n}`, s = n.startsWith('.') || ignored(n) ? null : await root.stat(p), h = s ? await hash(p, s) : null;
+    if (h && docs.some(d => !d.path.startsWith(`${INBOX}/`) && current.get(d.path) === h)) out.inboxDups.push(p);
   }
   const claimed = new Set([...out.moved.map(m => m.to), ...out.dups]);
   for (const f of fresh.filter(f => !claimed.has(f.path))){
@@ -108,8 +108,20 @@ export function libraryName({ date, company, role, lang, stem, ext = '' }){
   return safe(`${date} ${[company, role].filter(Boolean).join(' - ') || stem || 'resume'}${lang && lang !== 'en' ? ` (${lang})` : ''}`, 'resume') + ext;
 }
 const today = () => new Date().toISOString().slice(0, 10);
-export const libraryDir = date => `Library/${/^\d{4}/.test(date ?? '') ? date.slice(0, 4) : today().slice(0, 4)}`;
-// a name in Library/ that no other bytes use: " 2" when it is taken
+const DOCS = 'Documents', INBOX = 'BrewCV/Inbox';
+// The company a file's name gives a folder: only the form `<date> <company> - <role>` names one (`<date> General` does not), so a name with no role has none.
+const nameCompany = m => (m?.role ? m.company : '');
+// The folder of a document: `<base>/<search>/<company>/`, or `<base>/<search>/` when no company is known. The search is the round whose dates cover the date (a round runs from its start to its end,
+// the start of the next or the day it was archived), else the date's year; a round's name with no year in front gets its start year. `where`: { rounds, base }, base being the setting (DOCS).
+// shortcut: a round archived before archiving gave it an end date still has none and covers nothing, so a document dated inside it goes to its year; upgrade by giving such a round the end the person says.
+export function docDir({ rounds = [], base = DOCS }, date, company){
+  const day = /^\d{4}-\d\d-\d\d/.test(date ?? '') ? date.slice(0, 10) : today();
+  const round = rounds.filter(r => String(r.from) <= day && (r.to ? day < String(r.to) : !r.archived)).reduce((a, r) => (!a || String(r.from) >= String(a.from) ? r : a), null);
+  const name = round ? String(round.name) : '';
+  const search = round ? (/^\d{4}\b/.test(name) ? name : `${String(round.from).slice(0, 4)} ${name}`) : day.slice(0, 4);
+  return [base, safe(search, ''), safe(company ?? '', '')].filter(Boolean).join('/');
+}
+// a name in Documents/ that no other bytes use: " 2" when it is taken
 async function free(root, path){
   const [, stem, ext = ''] = /^(.*?)(\.[^.]*)?$/.exec(path);
   let p = path, n = 2;
@@ -117,10 +129,20 @@ async function free(root, path){
   return p;
 }
 const split = name => { const ext = /\.[A-Za-z0-9]{1,5}$/.exec(name)?.[0] ?? ''; return { stem: name.slice(0, name.length - ext.length), ext }; };
-export const pathFor = async (root, doc) => {
+export const pathFor = async (root, doc, where) => {
   const date = doc.meta?.date || String(doc.addedAt ?? '').slice(0, 10) || today(), { stem, ext } = split(doc.name);
-  return free(root, `${libraryDir(date)}/${libraryName({ date, stem, ext })}`);
+  return free(root, `${docDir(where, date, nameCompany(doc.meta))}/${libraryName({ date, stem, ext })}`);
 };
+
+// The folders of `rel` under `base` (a path on the disk) that are not there yet are made, for a dialog to open in. Returns what takes away the ones this call made: it is called when nothing was saved there,
+// and a folder that has a file in it by then stays (a removal that is not recursive refuses it). `fs`: the desktop app's fs plugin.
+export async function ensureDirs(fs, base, rel){
+  const made = [];
+  let at = base;
+  for (const seg of rel.split('/')){ at += `/${seg}`; if (!(await fs.exists(at))) made.push(at); }
+  await fs.mkdir(`${base}/${rel}`, { recursive: true });
+  return async () => { for (const d of made.reverse()) await fs.remove(d).catch(() => {}); };
+}
 
 // A file moved by copying it, reading the copy back, checking its hash, and only then taking the old one. A copy that fails is removed and the old file stays.
 export async function moveFile(root, from, to){
@@ -137,13 +159,19 @@ export async function moveFile(root, from, to){
   return want;
 }
 
-// Organise: the resume-like files outside Library/ and Inbox/ as a list of moves into Library/<year>/, carried out one at a time only on OK. It stops at the first that cannot be copied; what was moved stays
-// moved (and is in `done`, to undo), the rest is untouched.
-export async function planOrganise(root, found){
+// Where the app filed a document: its path before the search folder (a segment of four digits, alone or with a name: `2026`, `2026 Lisbon`), so `Applications/2026/2026 Lisbon/Acme/x.pdf` is `Applications/2026`. A file
+// read in place (`Resumes/x.pdf`) has no search folder and no base, and its folder stays open to Organise.
+// shortcut: the last such segment is the search folder, so a company called `2024 Foods` makes the base too long (it then protects less, never more); upgrade by keeping where a document was filed.
+const baseOf = p => { const dirs = String(p ?? '').split('/').slice(0, -1), i = dirs.findLastIndex(x => /^\d{4}(?: |$)/.test(x)); return i > 0 ? dirs.slice(0, i).join('/') : ''; };
+// The folders that hold documents: Documents/, the setting now, and the base of every document the app filed (the setting was changed and changed back, another device filed into one). A path under
+// one of them, whatever the case a disk keeps, is the person's own: never listed as found, never moved.
+const under = ({ base, held = [] }, p) => [DOCS, base, ...held].some(b => String(p).toLowerCase().startsWith(`${String(b).toLowerCase()}/`));
+// Organise: the resume-like files outside those folders (and BrewCV/, which a scan skips) as a list of moves into Documents/<search>/<company>/, carried out one at a time only on OK. It stops at the first that cannot be copied; what was moved stays moved (and is in `done`, to undo), the rest is untouched.
+export async function planOrganise(root, found, where){
   const out = [], taken = new Set();
-  for (const f of found.filter(f => !f.path.startsWith('Library/'))){
-    const name = f.path.split('/').at(-1), { stem, ext } = split(name), date = /^\d{4}-\d\d-\d\d /.test(stem) ? stem.slice(0, 10) : new Date(f.mtime > 1e11 ? f.mtime : Date.now()).toISOString().slice(0, 10);
-    let to = await free(root, `${libraryDir(date)}/${libraryName({ date, stem, ext })}`), n = 2;
+  for (const f of found.filter(f => !under(where, f.path))){
+    const name = f.path.split('/').at(-1), { stem, ext } = split(name), meta = metaOf(name, f.mtime > 1e11 ? f.mtime : Date.now()), date = meta.date, company = nameCompany(meta);
+    let to = await free(root, `${docDir(where, date, company)}/${libraryName({ date, stem, ext })}`), n = 2;
     while (taken.has(to)) to = to.replace(/(?: \d+)?(\.[^.]*)?$/, ` ${n++}$1`);
     taken.add(to);
     out.push({ from: f.path, to });
@@ -197,6 +225,10 @@ export function createSpace({ persist, store, now = () => new Date() }){
   const seen = new Map(), later = new Map(), verified = new Map(), status = new Map();
   let last = null, busy = null;
   const folder = () => (persist.folder?.space && persist.writer ? persist.folder : null);
+  // Where documents go: a folder inside the linked one, kept on this device (a path is not a thing to share between machines). Changing it moves nothing: files are found by content.
+  // shortcut: the desktop app takes a folder inside the linked one too, not any folder on the disk (a document's path is relative to the linked folder); upgrade when the owner decides how an outside folder is recorded.
+  const where = async () => ({ rounds: store.state.rounds ?? [], base: (await persist.local('docs')) || DOCS,
+    held: [...new Set((store.state.documents ?? []).map(x => baseOf(x.path)).filter(Boolean))] });
 
   // the device files of this career that are not this device's, newest first
   // shortcut: every device file is read in full at each scan (they hold text only, so a few hundred KB); upgrade by comparing size and time first, as documents() does.
@@ -315,13 +347,13 @@ export function createSpace({ persist, store, now = () => new Date() }){
     }
   }
 
-  // A document is a reference to a file in the folder: the original is written to Library/ and the embedded copy dropped, once the file there is read back and its hash checked.
+  // A document is a reference to a file in the folder: the original is written to Documents/ and the embedded copy dropped, once the file there is read back and its hash checked.
   async function reference(root, r){
     const embedded = (store.materialize().documents ?? []).filter(x => x.embedded && !x.path && String(x.embedded).startsWith('data:'));
     const done = [];
     for (const x of embedded){
       try {
-        const to = await pathFor(root, x), bytes = dataUrlBytes(x.embedded);
+        const to = await pathFor(root, x, await where()), bytes = dataUrlBytes(x.embedded);
         if ((await sha256(bytes)) !== x.sha256) continue;      // the stored original is not the file the document says; it stays where it is
         await root.write(to, bytes);
         const back = await root.readBytes(to);
@@ -344,13 +376,14 @@ export function createSpace({ persist, store, now = () => new Date() }){
     for (const [k, list] of [['cloud', got.cloud], ['missing', got.missing], ['changed', got.changed]]) for (const x of list) status.set(x.id, k);
     for (const x of store.state.documents ?? []) if (x.path && !status.has(x.id) && !got.moved.some(m => m.id === x.id)) verified.set(x.path, x.sha256);
     if (got.moved.length) store.commit(x => { for (const m of got.moved){ const y = x.documents.find(z => z.id === m.id); if (y) y.path = m.to; } }, t('i8.undoMoved'));
-    for (const p of got.inboxDups) await persist.trash(p, { from: root });      // the same file in Inbox/ and in Library/: the one in Library/ stays
-    Object.assign(r, { moved: got.moved.length, missing: got.missing.length, cloud: got.cloud.length, edited: got.changed, fresh: got.fresh, dups: got.dups });
+    for (const p of got.inboxDups) await persist.trash(p, { from: root });      // the same file in the Inbox and in Documents/: the one in Documents/ stays
+    const w = await where();
+    Object.assign(r, { moved: got.moved.length, missing: got.missing.length, cloud: got.cloud.length, edited: got.changed, fresh: got.fresh.filter(f => !under(w, f.path)), dups: got.dups });
   }
 
   async function brewcvMd(root){
-    if ((await root.stat('BrewCV.md')) || (await persist.local('brewcvMd'))) return;      // written once; the person's to edit, or to delete, from then on
-    await root.write('BrewCV.md', t('i8.brewcvMd'));
+    if ((await root.stat('BrewCV/BrewCV.md')) || (await persist.local('brewcvMd'))) return;      // written once; the person's to edit, or to delete, from then on
+    await root.write('BrewCV/BrewCV.md', t('i8.brewcvMd'));
     await persist.setLocal('brewcvMd', true);
   }
 
@@ -365,7 +398,8 @@ export function createSpace({ persist, store, now = () => new Date() }){
     await persist.writeFolder();
     await persist.sweep();
     await brewcvMd(d.root);
-    r.inbox = (await d.root.list('Inbox')).filter(n => !n.startsWith('.') && !ignored(n)).map(n => `Inbox/${n}`);
+    r.inbox = (await d.root.list(INBOX)).filter(n => !n.startsWith('.') && !ignored(n)).map(n => `${INBOX}/${n}`);
+    r.docs = (await where()).base;
     const me = await persist.devicePath();
     r.devices.unshift({ path: me, name: nameOfDevice(me), saved: now().toISOString(), state: 'mine', mine: true });
     return (last = r);
@@ -380,20 +414,20 @@ export function createSpace({ persist, store, now = () => new Date() }){
     }
     return out;
   }
-  // Before an import is applied: each Inbox file that becomes a document is filed into Library/<year>/ (copied, read back, its hash checked, then the old file goes) and its entry points
-  // there, so the document is made with its final path in the one commit. A copy of a file the Library already holds goes to Deleted/. One that cannot be moved stays in Inbox/, referenced there.
+  // Before an import is applied: each Inbox file that becomes a document is filed into Documents/<search>/<company>/ (copied, read back, its hash checked, then the old file goes) and its entry points
+  // there, so the document is made with its final path in the one commit. A copy of a file the Library already holds goes to Deleted/. One that cannot be moved stays in the Inbox, referenced there.
   async function file(entries){
     const d = folder();
     if (!d) return entries;
-    for (const e of entries.filter(x => x.path?.startsWith('Inbox/') && x.sha256)){
+    for (const e of entries.filter(x => x.path?.startsWith(`${INBOX}/`) && x.sha256)){
       try {
         const had = (store.state.documents ?? []).find(x => x.sha256 === e.sha256);
         if (had?.path && had.path !== e.path && (await sha256((await d.root.readBytes(had.path)) ?? new Uint8Array())) === e.sha256){ await persist.trash(e.path, { from: d.root }); e.path = had.path; continue; }      // the Library's file is still this one
         if (!['resume', 'letter', 'format', 'unread'].includes(e.status)) continue;
-        const to = await pathFor(d.root, { name: e.name, meta: metaOf(e.name, e.modified), addedAt: now().toISOString() });
+        const to = await pathFor(d.root, { name: e.name, meta: metaOf(e.name, e.modified), addedAt: now().toISOString() }, await where());
         verified.set(to, await moveFile(d.root, e.path, to));
         e.path = to;
-      } catch { /* stays in Inbox/ */ }
+      } catch { /* stays in the Inbox */ }
     }
     return entries;
   }
@@ -402,6 +436,15 @@ export function createSpace({ persist, store, now = () => new Date() }){
     // one scan at a time; a second call while one runs gets that one's answer
     sync: () => (busy ??= run().finally(() => { busy = null; })),
     probe, adopt, load, file,
+    // false (nothing changed) for a folder the scan would not read: BrewCV's own, a dot-folder, one it skips, or one nested deeper than it goes (a document is two folders below the setting)
+    setDocs: async v => {
+      const segs = String(v ?? '').split(/[\\/]/).map(x => safe(x, '')).filter(Boolean), base = segs.join('/');
+      if (segs.length + 2 > DEEP || segs.some((x, i) => skipDir(x, i))) return false;
+      await persist.setLocal('docs', base === DOCS ? null : base);
+      return true;
+    },
+    // the folder for a document of this date and company, now (the desktop app's Save dialog opens there)
+    dirFor: async (date, company) => docDir(await where(), date, company),
     get last(){ return last; },
     devices: () => last?.devices ?? [],
     docStatus: id => status.get(id) ?? null,
@@ -416,9 +459,9 @@ export function createSpace({ persist, store, now = () => new Date() }){
       return true;
     },
     // shortcut: the moves Organise made are logged in this browser's storage, so Undo is for this device and does not outlast clearing it; upgrade by a log file per device in BrewCV/.
-    plan: () => planOrganise(folder().root, last?.fresh ?? []),
+    plan: async () => planOrganise(folder().root, last?.fresh ?? [], await where()),
     async organise(plan){
-      const d = folder(), res = await organise(d.root, plan ?? await planOrganise(d.root, last?.fresh ?? []));
+      const d = folder(), res = await organise(d.root, plan ?? await planOrganise(d.root, last?.fresh ?? [], await where()));
       await persist.setLocal('moves', [...((await persist.local('moves')) ?? []), ...res.done]);
       const to = new Map(res.done.map(m => [m.from, m.to]));
       if (to.size) store.commit(x => { for (const y of x.documents ?? []) if (to.has(y.path)) y.path = to.get(y.path); }, t('i8.undoOrganise'));

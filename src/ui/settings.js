@@ -102,6 +102,8 @@ function folderHtml(){
   const last = C.space.last, found = last?.fresh ?? [], devs = C.space.devices();
   const row = d => `<li class="mrow"><span>${esc(d.name)}</span> <span class="muted small">${esc(d.mine ? t('i8.deviceThis') : d.state === 'waiting' ? t('i8.deviceWaiting') : d.state === 'other' ? t('i8.deviceOther') : t('i8.deviceSeen', { time: time(d.saved) }))}</span>${d.state === 'merged' ? ` <button class="sm ghost" data-act="folder-forget" data-p="${esc(d.path)}">${h('i8.forget')}</button>` : ''}</li>`;
   return `<p class="small">${h('i8.folderNote', { name: C.persist.status.linked })}</p>
+    <label class="field"><span class="lbl">${h('i8b.docs')}</span><input data-docs autocomplete="off" maxlength="120" value="${esc(last?.docs ?? 'Documents')}"></label>
+    <p class="note">${h('i8b.docsNote')}</p>
     <div class="btns"><button class="sm" data-act="folder-rescan">${h('i8.rescan')}</button></div>
     ${found.length ? `<p class="small">${h('i8.found', { n: found.length })}</p>
       <div class="btns"><button class="sm" data-act="folder-read">${h('i8.readFound')}</button><button class="sm" data-act="folder-organise">${h('i8.organise')}</button></div>` : ''}
@@ -171,6 +173,7 @@ function bind(body){
     }
     if (el.dataset.uimode){ const sel = body.querySelector('[data-uilang]'); setUiPref(el.dataset.uimode === 'fixed' ? { mode: 'fixed', lang: sel?.value ?? 'en' } : { mode: 'follow' }); C.renderBody(); return; }
     if (el.dataset.uilang !== undefined){ setUiPref({ mode: 'fixed', lang: el.value }); C.renderBody(); return; }
+    if (el.dataset.docs !== undefined){ C.space.setDocs(el.value).then(ok => { if (!ok) C.toast(t('i8b.docsBad'), 'warn'); return C.space.sync(); }).then(() => C.renderBody()); return; }
     if (el.dataset.reduceMotion !== undefined){ setReduce(el.checked); C.syncGarden(); return; }
     if (el.dataset.garden !== undefined){ writeGarden(el.checked); C.syncGarden(); return; }
     if (el.dataset.drink){ setDrink(el.dataset.drink); return; }

@@ -141,9 +141,14 @@ export function startRound(state, name, from = new Date().toISOString().slice(0,
   return r;
 }
 // `round` and `archived` are plain values on a resume, a document or a round; a falsy one takes the key away. A resume that is open has a working copy that settle() writes back, so it takes the change too.
-export function mark(state, where, id, patch){
+// A round archived with no end date ends on the day it is archived (`day`), so the documents of its dates keep its folder; un-archiving takes back an end that no later round gave (startRound's end is
+// the start of a round that exists).
+export function mark(state, where, id, patch, day = new Date().toISOString().slice(0, 10)){
   for (const x of [(state[where] ?? []).find(y => y.id === id), where === 'resumes' && state.openId === id ? state.cur : null])
     if (x) for (const [k, v] of Object.entries(patch)) if (v) x[k] = v; else delete x[k];
+  const r = where === 'rounds' && 'archived' in patch ? state.rounds.find(y => y.id === id) : null;
+  if (r && patch.archived && !r.to) r.to = day;
+  else if (r && !patch.archived && r.to && !state.rounds.some(o => o !== r && String(o.from) === String(r.to))) delete r.to;
 }
 // Hidden from the default views: archived itself, or in an archived round.
 export const hidden = (state, x) => !!x.archived || !!(x.round && (state.rounds ?? []).find(r => r.id === x.round)?.archived);

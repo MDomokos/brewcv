@@ -1435,7 +1435,7 @@ async function linkFolder(startAt){
   await adoptFolder(f);
 }
 
-// `root` is the folder the person picked. Its data is in BrewCV/ (or, in an older folder, at the top); the Library and the Inbox are beside it.
+// `root` is the folder the person picked. Its data is in BrewCV/ (or, in an older folder, at the top); the documents (Documents/) and BrewCV/ are the only folders it makes.
 async function adoptFolder(root){
   if (!(await persist.becomeWriter())){ ui.readOnly = true; ui.reconnect = null; renderHead(); return; }      // another window writes this folder; this one only reads
   const f = await dataFolder(root);
@@ -1586,7 +1586,7 @@ const files = initFiles({
 Object.assign(VIEWS, files.views);
 files.bind($('#body'));
 window.__wb.files = files;
-const exporter = initExport({ store, ui, persist, toast, work, cur: () => shown(),
+const exporter = initExport({ store, ui, persist, space, toast, work, cur: () => shown(),
   // the Fix of a major warning: to the page, the header or the line it is about, in the Editor, with the thing in view and the keyboard on it (the photo's switch, the line's version in use)
   goFix: async f => {
     await dock.setMode('edit');

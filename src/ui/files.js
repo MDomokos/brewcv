@@ -564,7 +564,7 @@ async function importAct(a, tg){
         try { await C.persist.checkpoint(t('i6.checkpoint'), 'import'); }
         catch (e){ C.toast(isFull(e) ? t('i6.storageFull') : errText(e), 'bad'); return true; }      // nothing was applied
         C.ui.sel = C.NONE;
-        await C.space?.file(D.entries);      // an Inbox file is filed into Library/ before its document is made, so the document has its final path
+        await C.space?.file(D.entries);      // an Inbox file is filed into Documents/ before its document is made, so the document has its final path
         await Promise.all(D.entries.map(async e => { if (e.thumbP) e.thumb = await e.thumbP; }));
         let made = [];
         if (!commit(d => { made = X.applyPlan(d, D.plan, { at }); }, label)) return true;

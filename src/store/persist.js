@@ -188,7 +188,7 @@ export const folderOf = (h, T) => (typeof h === 'string' ? tauriFolder(h, T) : f
 
 // ---- the resume space (src/store/space.js): BrewCV's own data sits in BrewCV/ of the folder the person linked, or at the top of an older folder ----
 
-// The same folder object, every path under `pre`. It marks a resume space (`space`), and `root` is the folder the person linked (the Library and Inbox are beside BrewCV/).
+// The same folder object, every path under `pre`. It marks a resume space (`space`), and `root` is the folder the person linked (Documents/ is beside BrewCV/; the Inbox is inside it).
 export function prefixed(root, pre){
   const w = { name: root.name, handle: root.handle, root, space: true, permission: ask => root.permission(ask) };
   for (const m of ['read', 'readBytes', 'write', 'stat', 'list', 'dirs', 'remove']) w[m] = (p, ...a) => root[m](pre + p, ...a);
@@ -259,7 +259,7 @@ const stripId = r => { const c = { ...r }; delete c.id; return c; };
 // The body of a saved resume's file in one order of keys (BODY_KEYS, as a file read back gives them): a text frozen just now and the same text read from a file would otherwise be two files, and two devices would write both.
 const ordered = f => { const o = { $schema: f.$schema }; for (const k of BODY_KEYS) if (f[k] !== undefined) o[k] = f[k]; for (const k of Object.keys(f)) if (!(k in o)) o[k] = f[k]; return o; };
 // The Library's lists (documents without their bytes, rounds, the import log) are the merged view `library.json`; it is there only when one holds something.
-// shortcut: a folder (and a checkpoint file in it) carries documents text-only, since an embedded original is not written out yet; upgrade with the folder layout (I-8: originals as files in Library/<year>/).
+// shortcut: a folder (and a checkpoint file in it) carries documents text-only, since an embedded original is not written out yet; upgrade with the folder layout (originals as files in Documents/<search>/<company>/).
 export function filesOf(state){
   const out = new Map();
   if (state?.record) out.set('resume-data.json', serialize(save(state.record)));
