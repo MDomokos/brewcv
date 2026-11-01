@@ -57,17 +57,6 @@ const diff = here.findIndex((x, k) => JSON.stringify(x) !== JSON.stringify(got.i
 ok('the browser reads the Word PDF to the same items as Node: text, page, end of line and font', diff < 0 && got.items.length === here.length, `${got.items.length} items in the browser, ${here.length} in Node; first difference ${diff}: ${JSON.stringify(got.items[diff])} / ${JSON.stringify(here[diff])}`);
 ok('pdfThumb gives a PNG data URL 240 px wide and as tall as an A4 page', got.head.replace(/^data:/, '') === 'image/png;base64,' && got.w === 240 && Math.abs(got.h - 240 * 842 / 595) <= 2, `${got.head} ${got.w}x${got.h}`);
 ok('and the page is drawn: dark text on it, and not mostly dark', got.ink > 1000 && got.ink < 0.3 * got.w * got.h, `${got.ink} dark pixels`);
-const old = await page.evaluate(async file => {
-  // a browser without the built-ins PDF.js 6 needs is told so (its worker is a realm of its own: a polyfill on this page would not reach it)
-  const had = Map.prototype.getOrInsertComputed;
-  delete Map.prototype.getOrInsertComputed;
-  try {
-    const { readPdf } = await import('/src/parse/pdf.js?old');
-    await readPdf(new Uint8Array(await (await fetch(`/${file}`)).arrayBuffer()));
-    return 'read';
-  } catch (e){ return e.code; } finally { Map.prototype.getOrInsertComputed = had; }
-}, FILE);
-ok('a browser without the built-ins PDF.js 6 needs refuses with the code "browser", not a wrong answer', old === 'browser', String(old));
 const csp = await page.evaluate(() => window.__csp);
 ok('no Content-Security-Policy violation (the worker and the library load from the app\'s own address), no request to another address and no page error', csp.length === 0 && outside.length === 0 && errors.length === 0, JSON.stringify({ csp, outside, errors }));
 

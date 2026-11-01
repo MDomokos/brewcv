@@ -229,8 +229,8 @@ for (const f of files){
   const rel = relOf(f);
   const lines = fs.readFileSync(f, 'utf8').split('\n');
 
-  // vendor/ holds other projects' minified code (PDF.js): its tables of numbers and letters have the shape of a phone number and an address, so only private values and images are looked for there
-  const own = !rel.startsWith('vendor/');
+  // vendor/pdfjs/ holds another project's minified code: its tables of numbers and letters have the shape of a phone number and an address, so only private values and images are looked for there
+  const own = !rel.startsWith('vendor/pdfjs/');
   lines.forEach((line, n) => {
     if (own) for (const m of line.matchAll(EMAIL)){
       const addr = m[0];

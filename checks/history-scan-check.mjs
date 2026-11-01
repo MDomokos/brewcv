@@ -43,6 +43,6 @@ expect('a phone number in a file still fails', run([{ message: 'Add', content: '
 
 // the import fixtures and the vendored PDF.js are the two places the rules relax
 expect('a PDF anywhere else fails, and one in checks/fixtures/import/ passes', run([{ message: 'Add', file: 'docs/a.pdf' }]).status === 1 && run([{ message: 'Add', file: 'checks/fixtures/import/helix-1col-word.pdf' }]).status === 0);
-expect('a number and an address in vendor/ pass, in src/ they fail', run([{ message: 'Add', file: 'vendor/lib/a.min.mjs', content: 'x=+386' + '4292196,y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 0 && run([{ message: 'Add', file: 'src/a.js', content: 'y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 1);
+expect('a number and an address in vendor/pdfjs/ pass, elsewhere they fail', run([{ message: 'Add', file: 'vendor/pdfjs/a.min.mjs', content: 'x=+386' + '4292196,y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 0 && run([{ message: 'Add', file: 'vendor/other/a.js', content: 'y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 1);
 
 process.exit(bad ? 1 : 0);

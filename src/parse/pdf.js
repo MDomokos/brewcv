@@ -1,4 +1,4 @@
-// Not from OpenResume's parser; the adapter is after its read-pdf.ts (commit 4f8255a2c763479837f69f1dccf2a3338730cd79): a PDF as text items, read with the vendored PDF.js (vendor/pdfjs/, the one runtime dependency).
+// Not from OpenResume's parser; the adapter is after its read-pdf.ts (commit 4f8255a2c763479837f69f1dccf2a3338730cd79): a PDF as text items, read with the vendored PDF.js (vendor/pdfjs/, the legacy build of PDF.js 6, the one runtime dependency: it carries its own polyfills for an older web view and for Node).
 // PDF.js is loaded by a dynamic import() the first time a PDF is read. Each item is { text, x, y, width, height, fontName, hasEOL, page } with x and y from the item's transform (y grows upward, in the page's
 // own points: `page` tells the pages apart and y starts again on each), height the font size, and fontName the font's real name from commonObjs (`fontExtraProperties` keeps it: in a browser the font object has only a made-up name
 // without it; "-Bold" is added when the font is bold and its name does not say so, since the parser tells bold by the name). Pages follow each other; what the producer wrote is kept in the order it wrote it, with these repairs of what a PDF
@@ -7,7 +7,7 @@
 // line again, so a PDF and the DOCX of the same resume give the same lines (`sameDocument`).
 // shortcut: no cmaps, standard-font data or wasm are vendored, so text in a font the PDF does not embed (a CJK one) may be missing and a JPEG 2000 picture does not draw; add the folders and cMapUrl,
 // standardFontDataUrl and wasmUrl when a real file needs them. A scan has no text and comes back as no items; the caller says so.
-// shortcut: at most 30 pages (a resume is not longer); more is refused with the code 'big', as unzip does. Other codes: 'encrypted' (a password), 'pdf' (not a PDF that can be read), 'browser' (too old for PDF.js 6).
+// shortcut: at most 30 pages (a resume is not longer); more is refused with the code 'big', as unzip does. Other codes: 'encrypted' (a password), 'pdf' (not a PDF that can be read).
 import { BULLET_POINTS } from './extract-resume-from-sections/lib/bullet-points.js';
 import { shouldAddSpaceBetweenText } from './group-text-items-into-lines.js';
 
@@ -16,16 +16,6 @@ const MAX_PAGES = 30;
 let lib;
 async function load(){
   if (!lib){
-    // PDF.js 6 uses built-ins that only a recent browser has (Map.prototype.getOrInsertComputed, Uint8Array.prototype.toHex). Node runs its worker on this thread, so Node gets plain versions; a browser runs the worker
-    // in a realm of its own, which no polyfill here reaches: an older browser is told so, and every other format still reads.
-    // shortcut: the non-legacy build is vendored (the smaller one, 6.x); vendor the legacy build, which brings its own, when an older browser has to read PDFs.
-    if (typeof Worker === 'undefined'){
-      Uint8Array.prototype.toHex ??= function(){ return Array.from(this, b => b.toString(16).padStart(2, '0')).join(''); };
-      for (const M of [Map, WeakMap]){
-        M.prototype.getOrInsert ??= function(k, v){ if (!this.has(k)) this.set(k, v); return this.get(k); };
-        M.prototype.getOrInsertComputed ??= function(k, f){ if (!this.has(k)) this.set(k, f(k)); return this.get(k); };
-      }
-    } else if (!Map.prototype.getOrInsertComputed || !Uint8Array.prototype.toHex) throw Object.assign(new Error('This browser is too old to read a PDF'), { code: 'browser' });
     const mod = await import(DIR + 'pdf.min.mjs');
     mod.GlobalWorkerOptions.workerSrc = DIR + 'pdf.worker.min.mjs';
     lib = mod;

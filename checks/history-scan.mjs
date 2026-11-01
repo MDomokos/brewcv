@@ -79,7 +79,7 @@ for (const [what, pattern] of PATTERNS){
     const m = line.match(/^([0-9a-f]{7,40}):([^:]+):(\d+):(.*)$/);
     if (!m) continue;
     const [, rev, file, , text] = m;
-    if (file.startsWith('vendor/') && what !== 'embedded image') continue;      // other projects' minified code (PDF.js): its tables have the shape of an address and a number
+    if (file.startsWith('vendor/pdfjs/') && what !== 'embedded image') continue;      // another project's minified code (PDF.js): its tables have the shape of an address and a number
     const key = `${file}`;
     if (!hits.has(key)) hits.set(key, { file, rev, sample: text.trim().slice(0, 90), n: 0 });
     hits.get(key).n++;

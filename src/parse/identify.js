@@ -3,10 +3,11 @@
 // other XML, empty or binary bytes) is 'other'; the caller keeps it as a file. A file that starts like a ZIP but cannot be listed (cut short,
 // ZIP64) is not 'other': identify throws unzip's error, with its `code`, so the person can be told what is wrong.
 // An old binary Word file is `doc`: an OLE file that holds the stream name "WordDocument" (an old .xls or .ppt is `other`), so the caller can ask for a .docx or a PDF.
-// A Pages file is told by its preview PDF or its Index/Document.iwa, and a Numbers or Keynote file (it holds Index/CalculationEngine.iwa, Index/Tables/ or Index/Slide*.iwa) is `other`;
+// A Pages file is told by its preview PDF or its Index/Document.iwa, and a Keynote file (it holds Index/Slide*.iwa) is `other`; a Pages file holds Index/CalculationEngine.iwa and, with a table, Index/Tables/ too, so those
+// tell nothing, and a Numbers file reads as Pages (it gets the advice to save a PDF, which is harmless);
 // a modern Pages file holds a picture, not a PDF, and readPages says so.
 // shortcut: the stream name is looked for anywhere in the file, and the iWork kind is told by the names of the parts (identify is not async, so it cannot read the metadata plists);
-// a Numbers or Keynote file from 2009 (index.xml, no .iwa parts) is told from a Pages one only by its preview. Images are PNG,
+// a Keynote or Numbers file from 2009 (index.xml, no .iwa parts) is told from a Pages one only by its preview. Images are PNG,
 // JPEG, GIF, WebP, BMP, HEIC, AVIF and SVG; a PDF's header must start a line in its first 1024 bytes; a ZIP is told by the names it holds
 // (a PDF inside a Pages file is read by pages.js).
 import { unzip } from './unzip.js';
@@ -27,7 +28,7 @@ export function identify(bytes, name = ''){
       const mime = z.stored('mimetype');
       return !mime || new TextDecoder().decode(mime).startsWith('application/vnd.oasis.opendocument.text') ? 'odt' : 'other';
     }
-    return (names.includes('QuickLook/Preview.pdf') || names.includes('Index/Document.iwa')) && !names.some(n => /^Index\/(?:CalculationEngine\.iwa|Tables\/|Slide)/.test(n)) ? 'pages' : names.some(n => /(^|\/)positions\.csv$/i.test(n)) ? 'linkedin' : 'other';      // after the ZIP: a Pages file may start with its stored PDF
+    return (names.includes('QuickLook/Preview.pdf') || names.includes('Index/Document.iwa')) && !names.some(n => /^Index\/Slide/.test(n)) ? 'pages' : names.some(n => /(^|\/)positions\.csv$/i.test(n)) ? 'linkedin' : 'other';      // after the ZIP: a Pages file may start with its stored PDF
   }
   if (/(^|[\r\n])%PDF-/.test(new TextDecoder('latin1').decode(bytes.subarray(0, 1024)))) return 'pdf';      // as a PDF reader finds it: at the start of a line near the top
   if (bytes.subarray(0, 8192).includes(0) && !(bytes[0] === 0xff && bytes[1] === 0xfe) && !(bytes[0] === 0xfe && bytes[1] === 0xff)) return 'other';      // binary (UTF-16 has zero bytes too)

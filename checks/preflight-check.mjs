@@ -52,8 +52,8 @@ const SHIPS = 'the only images that ship';
 expect('a README picture in docs/intro is accepted', !run('webp', d => { fs.mkdirSync(path.join(d, 'docs/intro'), { recursive: true }); fs.writeFileSync(path.join(d, 'docs/intro/a.webp'), webp); }).includes(SHIPS));
 expect('a picture anywhere else is refused', run('webp2', d => { fs.mkdirSync(path.join(d, 'docs'), { recursive: true }); fs.writeFileSync(path.join(d, 'docs/a.webp'), webp); }).includes(SHIPS));
 expect('a font unicode-range is not a phone number', !run('range', d => fs.writeFileSync(path.join(d, 'a.css'), '@font-face { unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC; }')).includes('phone number'));
-expect('a minified vendor file is not read for phone numbers and addresses, only for private values and images', !run('vendor', d => { fs.mkdirSync(path.join(d, 'vendor/lib'), { recursive: true }); fs.writeFileSync(path.join(d, 'vendor/lib/a.min.mjs'), 'x=+386' + '4292196,y="jm@kbswfq' + '.pkbgltMlwbaof"'); }).match(/phone number|email address/)
-  && run('vendor2', d => { fs.mkdirSync(path.join(d, 'src'), { recursive: true }); fs.writeFileSync(path.join(d, 'src/a.js'), 'y="jm@kbswfq' + '.pkbgltMlwbaof"'); }).includes('email address'));
+expect('the minified PDF.js in vendor/pdfjs/ is not read for phone numbers and addresses (only for private values and images), any other file is', !run('vendor', d => { fs.mkdirSync(path.join(d, 'vendor/pdfjs'), { recursive: true }); fs.writeFileSync(path.join(d, 'vendor/pdfjs/a.min.mjs'), 'x=+386' + '4292196,y="jm@kbswfq' + '.pkbgltMlwbaof"'); }).match(/phone number|email address/)
+  && run('vendor2', d => { fs.mkdirSync(path.join(d, 'vendor/other'), { recursive: true }); fs.writeFileSync(path.join(d, 'vendor/other/a.js'), 'y="jm@kbswfq' + '.pkbgltMlwbaof"'); }).includes('email address'));
 expect('a phone number still is', run('phone', d => fs.writeFileSync(path.join(d, 'a.md'), 'Call +44' + ' 7700 900123 today')).includes('phone number'));
 
 // The import fixtures (checks/fixtures/import/) are the one place PDF, DOCX and ODT files may be, and only with their metadata stripped
@@ -63,6 +63,7 @@ const STAY = 'rendered documents stay outside the repo', LEFT = 'fixture metadat
 expect('a PDF anywhere else is refused', run('pdf', d => { fs.mkdirSync(path.join(d, 'docs'), { recursive: true }); fs.writeFileSync(path.join(d, 'docs/a.pdf'), pdfWith('/Title ( )')); }).includes(STAY));
 const okPdf = run('fx', fixture('helix-1col-word.pdf', pdfWith('/Title ( ) /Producer ( ) /CreationDate (   )')));
 expect('a fixture PDF with its Info strings blanked is accepted (a bookmark\'s title is text, not metadata)', !okPdf.includes(STAY) && !okPdf.includes(LEFT));
+expect('a fixture PDF with a non-empty Author is refused', run('fx0', fixture('helix-1col-word.pdf', pdfWith('/Author (Someone) /Title ( )'))).includes(LEFT));
 expect('a fixture PDF whose Info names a producer is refused', run('fx2', fixture('helix-1col-word.pdf', pdfWith('/Producer (Some Writer 1.0)'))).includes(LEFT));
 expect('a fixture PDF whose Info names an author, in hex, is refused', run('fx3', fixture('helix-1col-word.pdf', pdfWith('/Author <FEFF0041>'))).includes(LEFT));
 expect('a fixture PDF with an XMP packet that holds anything is refused, an empty one is accepted',
