@@ -1,10 +1,12 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/common-features.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; word lists from the lexicon; Unicode letters; months, seasons and "present" matched by a boundary rule; 2026-11-01: an item set in capitals by its style counts as upper case; a month is also its three-letter form
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/common-features.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; word lists from the lexicon; Unicode letters; months, seasons and "present" matched by a boundary rule; 2026-11-01: an item set in capitals by its style counts as upper case; a month is also its three-letter form; a font named Black, Heavy or Demi is bold
 // Types stripped. Changed: the word lists come from the lexicon (see lexicon.js); a letter is any Unicode
 // letter, so Hungarian or German headings and names count; a month, season or "present" is found in any case,
 // from a letter boundary on, and as a whole word where it is short (see `found`). An item a reader marked `caps` (all capitals by its style, typed in
 // lower case) is upper case.
 
-const isTextItemBold = fontName => fontName.toLowerCase().includes('bold');
+// a weight a font's name says: Bold, SemiBold, ExtraBold, Black, Heavy, Demi ("HankenGrotesk-Black" is bold, with no "Bold" in it)
+export const HEAVY = /bold|black|heavy|demi/i;
+const isTextItemBold = fontName => HEAVY.test(fontName);
 export const isBold = item => isTextItemBold(item.fontName);
 export const hasLetter = item => /\p{L}/u.test(item.text);
 export const hasNumber = item => /[0-9]/.test(item.text);

@@ -45,7 +45,7 @@ const NEVER = [
   [/^\.env/,                        'an env file'],
   [/(^|\/)(identity|deny)[^/]*\.json$/, 'an identity or deny file (these live outside the repo)'],
   [/(^|\/)\.filled-/,               'a temporary file with filled-in identity values'],
-  [/\.(zip|tgz|tar\.gz|7z|bak)$/i,  'an archive or backup (it can hold a whole working tree)'],
+  [/\.(zip|tgz|tar|gz|7z|rar|bz2|xz|bak)$/i, 'an archive or backup (it can hold a whole working tree)'],
   [/\.(png|jpe?g|webp|gif|avif|heic)$/i, 'an image outside icons/ and docs/'],
 ];
 const manifest = manifestIn(process.cwd());
@@ -62,7 +62,7 @@ const kinds = new Map(), hashes = new Map();
     const chunk = all.slice(i, i + 300), out = execFileSync('git', ['cat-file', '--batch'], { input: chunk.join('\n') + '\n', maxBuffer: 1 << 30 });
     for (let at = 0; at < out.length;){
       const nl = out.indexOf(10, at), [sha, , size] = out.toString('latin1', at, nl).split(' '), body = out.subarray(nl + 1, nl + 1 + +size);
-      kinds.set(sha, sniff(body)); hashes.set(sha, sha256(body));
+      kinds.set(sha, await sniff(body)); hashes.set(sha, sha256(body));
       at = nl + 1 + +size + 1;
     }
   }
@@ -77,7 +77,7 @@ for (const f of everSeen){
   // an import fixture: listed by name and sha256 in MANIFEST.json, and every version of it in the history has those bytes (preflight-deploy reads the text)
   if (isDocument(f)){
     if (fixtureOk(f)) continue;
-    if (!DOCUMENT.test(f)){ findings.push({ kind: 'file', detail: `${f}: a PDF, Word or OpenDocument file under another name (told by its bytes)` }); continue; }
+    if (!DOCUMENT.test(f)){ findings.push({ kind: 'file', detail: `${f}: a PDF, Word or OpenDocument file, or an archive, under another name (told by its bytes)` }); continue; }
   }
   if (/^(src-tauri\/)?icons\//.test(f) || /^docs\/[^/]+\.(png|gif)$/i.test(f) || /^docs\/moments\/[^/]+\.gif$/i.test(f) || /^docs\/intro\/[^/]+\.webp$/i.test(f)) continue;
   for (const [re, what] of NEVER)

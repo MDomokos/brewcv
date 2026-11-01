@@ -4,15 +4,7 @@
 import { PROFILE_SECTION } from '../../group-lines-into-sections.js';
 
 /**
- * Return section lines that contain any of the keywords.
+ * Return the lines of every section whose title contains any of the keywords, in order (an "Experience" and an "Earlier work" are both the work).
  */
-export const getSectionLinesByKeywords = (sections, keywords) => {
-  for (const sectionName in sections) {
-    if (sectionName === PROFILE_SECTION) continue;
-    const hasKeyWord = keywords.some(keyword => sectionName.toLowerCase().includes(keyword));
-    if (hasKeyWord) {
-      return sections[sectionName];
-    }
-  }
-  return [];
-};
+export const getSectionLinesByKeywords = (sections, keywords) =>
+  Object.entries(sections).flatMap(([name, lines]) => (name !== PROFILE_SECTION && keywords.some(keyword => name.toLowerCase().includes(keyword)) ? lines : []));

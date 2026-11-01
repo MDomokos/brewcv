@@ -75,17 +75,18 @@ export function migrate(v3){
 // idempotent; returns how many wordings it changed.
 export function mergeArchiveTag(m){
   const isTag = t => String(t).toLowerCase() === 'archive';
-  const byId = new Map((m?.variants ?? []).map(v => [v.id, v]));
+  const objects = list => (Array.isArray(list) ? list : []).filter(x => x && typeof x === 'object');      // a damaged file may hold anything in a list
+  const byId = new Map(objects(m?.variants).map(v => [v.id, v]));
   let n = 0;
-  for (const v of m?.variants ?? []){
+  for (const v of objects(m?.variants)){
     if (!Array.isArray(v.tags) || !v.tags.some(isTag)) continue;
     const keep = v.tags.filter(t => !isTag(t));
     if (keep.length) v.tags = keep; else delete v.tags;
     v.archived = true;
     n++;
   }
-  for (const f of m?.facts ?? []){
-    const vs = (f.variants ?? []).map(id => byId.get(id)).filter(Boolean);
+  for (const f of objects(m?.facts)){
+    const vs = (Array.isArray(f.variants) ? f.variants : []).map(id => byId.get(id)).filter(Boolean);
     if (f.archived || !vs.length || !vs.every(v => v.archived === true)) continue;
     const job = (m.work ?? []).find(w => (w.highlights ?? []).includes(f.id));
     const live = job && (job.highlights ?? []).some(h => h !== f.id && !(m.facts ?? []).find(x => x.id === h)?.archived);
@@ -222,7 +223,7 @@ export function load(file){
   }
   (model.work ?? []).forEach((w, i) => {
     const ids = rb.highlights?.[workKey(w, i)];
-    if (!ids){
+    if (!ids || !Array.isArray(ids)){
       if (Array.isArray(w.highlights) && w.highlights.length){
         warnings.push(`work ${workKey(w, i)} has ${w.highlights.length} highlight(s) with no claims behind them; they are ignored here; Open or import turns them into claims`);
         w.highlights = [];

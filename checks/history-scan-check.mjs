@@ -7,7 +7,9 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { spawnSync } from 'node:child_process';
+import { zip } from './lib/zip.mjs';
 
 const scan = path.join(path.dirname(new URL(import.meta.url).pathname), 'history-scan.mjs');
 const OWN = 'me@example.org';
@@ -51,6 +53,9 @@ expect('a listed fixture whose bytes changed, in any commit of the history, fail
   && run([{ message: 'Add', file: FX + 'a.odt', content: 'x' }]).status === 1 && run([{ message: 'Add', file: 'a/b.odt', content: 'x' }]).status === 1);
 expect('a PDF or a ZIP of Word files under another name (docs/real.bin, no extension, in the fixtures folder, a .zip) fails, listed or not, and a ZIP of text does not', ['docs/real.bin', 'docs/resume', FX + 'real.bin', 'docs/a.zip'].every(f => run([{ message: 'Add', file: f, content: '%PDF-1.4 x' }]).status === 1)
   && run([listed('real.bin', '%PDF-1.4 x'), { message: 'Add', file: FX + 'real.bin', content: '%PDF-1.4 x' }]).status === 1 && run([{ message: 'Add', file: 'docs/b.bin', content: 'just text' }]).status === 0);
+const docxIn = Buffer.from(zip({ 'a/nested.bin': Buffer.from(zip({ 'word/document.xml': '<w:p/>' })) }));
+expect('a Word file stored as nested.bin inside a ZIP of another name fails, and so do gzip, tar, 7z and rar by their names and gzip by its bytes', run([{ message: 'Add', file: 'docs/a.dat', content: docxIn }]).status === 1
+  && ['a.gz', 'a.tgz', 'a.tar', 'a.7z', 'a.rar', 'a.bz2', 'a.xz'].every(f => run([{ message: 'Add', file: 'docs/' + f, content: 'x' }]).status === 1) && run([{ message: 'Add', file: 'docs/blob.dat', content: zlib.gzipSync(Buffer.from('x')) }]).status === 1);
 expect('a number and an address in the two vendored PDF.js files pass, elsewhere in vendor/ they fail', run([{ message: 'Add', file: 'vendor/pdfjs/pdf.min.mjs', content: 'x=+386' + '4292196,y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 0 && run([{ message: 'Add', file: 'vendor/pdfjs/other.mjs', content: 'y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 1);
 
 process.exit(bad ? 1 : 0);

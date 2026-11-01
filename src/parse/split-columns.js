@@ -7,7 +7,7 @@
 //
 // Sure means all of: after the header (the leading lines that no other line starts beside) the line starts fall into two
 // groups more than 30 pt apart; each side holds at least three lines; both sides have two lines in a row that sit on the
-// same row as a line of the other side (side by side, not one flow); and few lines run across the cut. A page with a
+// same row as a line of the other side (they overlap by half a line: side by side, not one flow); at least half of the right side's lines start at the cut; and few lines run across the cut. A page with a
 // gap like that which fails a test is read as one column, and reported as a doubt.
 const GAP = 30;
 const MIN_LINES = 3;
@@ -23,7 +23,7 @@ function rowsOf(items){
   for (const it of items){ line.push(it); if (it.hasEOL){ lines.push(line); line = []; } }
   if (line.length) lines.push(line);
   return lines.filter(l => l.some(i => i.text.trim()))
-    .map(l => ({ l, x0: Math.round(l[0].x), x1: Math.max(...l.map(i => i.x + i.width)), y: l[0].y, h: l[0].height || 10, page: l[0].page ?? 1 }));
+    .map(l => ({ l, x0: Math.round(l[0].x), x1: Math.max(...l.map(i => i.right ?? i.x + i.width)), y: l[0].y, h: l[0].height || 10, page: l[0].page ?? 1 }));
 }
 
 // one page's guess: { headerBottom, split?, doubt? } (with a split, the header ends where the right column starts); doubt is true when a column was seen but not trusted, or trusted with a question
@@ -40,7 +40,8 @@ function guess(rows){
   for (const s of cuts){
     const left = body.filter(r => r.x0 < s), right = body.filter(r => r.x0 >= s);
     if (left.length < MIN_LINES || right.length < MIN_LINES) continue;
-    const paired = (a, b) => a.map(r => b.some(o => Math.abs(o.y - r.y) < 0.7 * Math.min(r.h, o.h)));
+    if (right.filter(r => r.x0 - s <= NEAR).length * 2 < right.length) continue;      // a column's rows start together: a few lines set right within another column (dates) do not make one
+    const paired = (a, b) => a.map(r => b.some(o => Math.min(r.y + r.h, o.y + o.h) - Math.max(r.y, o.y) >= 0.5 * Math.min(r.h, o.h)));      // side by side: the rows overlap by half a line (a design need not share a baseline)
     const run = p => p.some((v, i) => v && p[i + 1]);
     const crossing = left.filter(r => r.y < right[0].y && r.x1 > s + 1);
     // a right column that starts above the left one may be a header that starts where the columns do: split, but say so

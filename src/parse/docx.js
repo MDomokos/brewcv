@@ -10,6 +10,7 @@
 // caps follow the chain; a theme colour is not a colour; the prefix must be w:; the headers of other sections and of even pages are not read; "Page 1 of 2" is told by its shape,
 // in a few languages. Read the based-on chain and the table's rows when a real file needs it.
 import { unzip } from './unzip.js';
+import { HEAVY } from './extract-resume-from-sections/lib/common-features.js';
 import { attr, inColumns, itemsOf, paragraphs, scan, skipping, tabled, unescape } from './lines.js';
 
 // <w:b/> or <w:vanish/> is on unless w:val says off
@@ -55,7 +56,7 @@ export async function readDocx(bytes){
     let sect = null, inSect = false;
     const endRun = p => {
       const r = p.run, of = k => r[k] ?? chain(r.style, k) ?? chain(p.style ?? plain, k) ?? defaults[k];
-      if (r && !r.vanish) p.runs.push({ text: r.text, bold: r.bold ?? (r.strong || !!p.style?.bold), size: of('size') ?? 10, color: of('color'), underline: of('underline'), caps: of('caps'), link: p.link > 0 });
+      if (r && !r.vanish) p.runs.push({ text: r.text, bold: r.bold ?? (r.strong || !!r.heavy || !!p.style?.bold), size: of('size') ?? 10, color: of('color'), underline: of('underline'), caps: of('caps'), link: p.link > 0 });
       p.run = null;
     };
     const endPara = () => { const p = out.cur; endRun(p); p.level = p.style?.level; p.bullet = p.numId !== undefined ? p.numId !== '0' : !!p.style?.list; out.close(); };
@@ -83,6 +84,7 @@ export async function readDocx(bytes){
       } else if (run){
         if (e.name === 'w:t') p.inT = !e.self;
         else if (e.name === 'w:b') run.bold = on(e.tag);
+        else if (e.name === 'w:rfonts'){ if (HEAVY.test(attr(e.tag, 'w:ascii') ?? attr(e.tag, 'w:hansi') ?? '')) run.heavy = true; }      // a font named Arial Black is bold
         else if (e.name === 'w:vanish') run.vanish = on(e.tag);
         else if (e.name === 'w:rstyle'){ run.strong = attr(e.tag, 'w:val') === 'Strong'; run.style = styles.get(attr(e.tag, 'w:val')); }
         else if (e.name === 'w:tab' || e.name === 'w:ptab') run.text += '\t';

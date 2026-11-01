@@ -9,6 +9,7 @@
 // standardFontDataUrl and wasmUrl when a real file needs them. A scan has no text and comes back as no items; the caller says so.
 // shortcut: at most 30 pages, 10,000 text items a page and 30,000 in all (a resume is far below all three); more is refused with the code 'big', as unzip does. The worker is ended after each read. Other codes: 'encrypted' (a password), 'pdf' (not a PDF that can be read, or PDF.js failed on a page), 'big'.
 import { BULLET_POINTS } from './extract-resume-from-sections/lib/bullet-points.js';
+import { HEAVY } from './extract-resume-from-sections/lib/common-features.js';
 import { shouldAddSpaceBetweenText } from './group-text-items-into-lines.js';
 
 const DIR = new URL('../../vendor/pdfjs/', import.meta.url).href;
@@ -55,7 +56,7 @@ function pageItems(content, commonObjs, page){
       return;
     }
     const f = commonObjs.has(it.fontName) ? commonObjs.get(it.fontName) : {}, name = f.name ?? f.loadedName ?? it.fontName;
-    out.push({ text: despace(bullet(it.str)), x: it.transform[4], y: it.transform[5], width: it.width, height: it.height, fontName: f.bold && !/bold/i.test(name) ? `${name}-Bold` : name, hasEOL: it.hasEOL, page });
+    out.push({ text: despace(bullet(it.str)), x: it.transform[4], y: it.transform[5], width: it.width, height: it.height, fontName: (f.bold || f.black || HEAVY.test(name)) && !/bold/i.test(name) ? `${name}-Bold` : name, hasEOL: it.hasEOL, page });
   });
   return out;
 }
@@ -113,7 +114,7 @@ function margins(rows){
 
 // The lines of a paragraph or bullet that the page wrapped, one line again. B goes on A when it starts where A's text starts, with no bullet, one line gap lower (a tenth more than the
 // tightest gap in the document at that size), in the same size, and A runs to the right edge of its column but for the word B starts with.
-// A is not joined when it ends a sentence (. ! ?) or ends with a year; B opening with a capital joins only a line that runs to the edge (a list of short items does not).
+// A is not joined when it ends a sentence (. ! ?) or ends with a year; B opening with a capital joins, in a narrow column, only a line that runs to the edge (a list of short items does not).
 // The two rows are both all bold or neither (a bold heading after a sentence is not its next line; a bold key word in a line is not a heading) and A is not short for its column when B starts with a capital.
 // A word split at the line end is one word again when its hyphen is a soft hyphen or a hyphen PDF.js read as an item of its own (a browser's), or when the whole word is one of `known`
 // (the file's own words, and the caller's); any other hyphen is a compound ("self-managed") and stays.
@@ -121,9 +122,12 @@ function margins(rows){
 // short lines are never joined); a typesetter's hyphen in a word nobody knows stays
 function joinWrapped(rows, known){
   const text = r => r.r.find(i => !isBullet(i.text.trim()))?.x ?? r.x;      // where the words of a row start: after its bullet
+  // the row above in the same column: a page sorted top to bottom has the rows of two columns one after the other
+  // shortcut: looks back 30 rows, so a page of more than a dozen columns, or 30 rows of another column in between, joins nothing
+  const column = (list, k, x, page) => { for (let j = k - 1; j >= 0 && j >= k - 30; j--) if (list[j].page === page && Math.abs(text(list[j]) - x) <= 3) return list[j]; };
   const edge = new Map(), tight = new Map();
   rows.forEach((r, k) => {
-    const key = `${r.page}:${Math.round(text(r) / 4)}`, up = rows[k - 1];
+    const key = `${r.page}:${Math.round(text(r) / 4)}`, up = column(rows, k, text(r), r.page);
     edge.set(key, Math.max(edge.get(key) ?? 0, r.x1));
     if (up && up.page === r.page && Math.abs(up.h - r.h) < 0.3 && up.y > r.y) tight.set(Math.round(r.h), Math.min(tight.get(Math.round(r.h)) ?? Infinity, up.y - r.y));
   });
@@ -131,19 +135,20 @@ function joinWrapped(rows, known){
   rows.forEach(r => { r.bold = bold(r); });
   const out = [];
   for (const b of rows){
-    const a = out.at(-1), first = b.r[0], word = first.text.trim().split(/\s+/)[0], wordWidth = first.width * word.length / Math.max(first.text.length, 1);
+    const a = column(out, out.length, b.x, b.page), first = b.r[0], word = first.text.trim().split(/\s+/)[0], wordWidth = first.width * word.length / Math.max(first.text.length, 1);
     const right = a && edge.get(`${a.page}:${Math.round(text(a) / 4)}`);      // the longest line of its column: where lines wrap, when it is wide enough to be a text and not a list of short lines
     if (!(a && a.page === b.page && !isBullet(first.text.trim()) && Math.abs(text(a) - b.x) <= 3 && Math.abs(a.h - b.h) < 0.3 && a.y > b.y && a.bold === b.bold
       && a.y - b.y <= 1.12 * tight.get(Math.round(b.h)) && right - text(a) >= 9 * b.h && a.x1 + wordWidth + 12 >= right
       && !(a.x1 - text(a) < 0.6 * (right - text(a)) && /^\p{Lu}/u.test(first.text.trim()))
       && !/(?:[.!?]|\b(?:19|20)\d{2})$/.test(a.r.at(-1).text.trim())      // a line that ends a sentence or with a year is the end of its item
-      && (!/^\p{Lu}/u.test(first.text.trim()) || right - a.x1 <= 6 || /[,-]$/.test(a.r.at(-1).text.trim())))){ out.push(b); continue; }      // a capital opens a new item, unless the line above runs to the very edge or goes on after a comma
+      && (!/^\p{Lu}/u.test(first.text.trim()) || right - text(a) >= 22 * b.h || right - a.x1 <= 6 || /[,-]$/.test(a.r.at(-1).text.trim())))){ out.push(b); continue; }      // in a narrow column (under 22 ems) a capital opens a new item, unless the line above runs to the very edge or goes on after a comma; in a wide one German nouns start lines
     const lone = a.r.length > 1 && a.r.at(-1).text === '-';
     if (lone) a.r.pop();
     const last = a.r.at(-1), tail = last.text.replace(/\s+$/, ''), head = b.r.map(i => i.text).join('');
     const frag = /(\p{L}+)[-\u00ad]$/u.exec(tail)?.[1], rest = /^\p{L}+/u.exec(head)?.[0];
     const split = lone || tail.endsWith('\u00ad') || (frag && /^\p{Ll}/u.test(head) && known.has(`${frag}${rest}`.toLowerCase()));
     last.text = split ? tail.replace(/[-\u00ad]$/, '') + head : /\p{L}-$/u.test(tail) && /^\p{Ll}/u.test(head) ? tail + head : `${tail} ${head}`;
+    last.right = Math.max(last.right ?? last.x + last.width, b.x1);      // where the joined line really ends: its width is the sum of the lines'
     last.width += b.r.reduce((n, i) => n + i.width, 0);
     a.x1 = b.x1;      // the right end of the last line is what the next one is measured against
     (a.r[0].wrap ??= []).push(a.y - b.y);      // the parser counts it as a line gap, as it would have

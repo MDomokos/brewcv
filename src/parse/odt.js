@@ -4,6 +4,7 @@
 // A file with no paragraph in it is refused with the code 'empty'.
 // The look of text (bold, size in points, colour, underline, upper case) is the paragraph's style with the innermost span's over it.
 // shortcut: the look is read from the styles in content.xml (what an editor writes for text set by hand), not from named styles in styles.xml, and not through a parent style.
+import { HEAVY } from './extract-resume-from-sections/lib/common-features.js';
 import { unzip } from './unzip.js';
 import { attr, inColumns, itemsOf, paragraphs, scan, skipping, tabled, unescape } from './lines.js';
 
@@ -12,9 +13,9 @@ const SKIP = new Set(['text:tracked-changes', 'text:note', 'office:annotation'])
 // what a style's text properties set: bold, size (pt), colour (hex, '' for the text colour), underline and upper case; a property it names as off is off
 function look(tag){
   const a = n => attr(tag, n), size = /^([\d.]+)pt$/.exec(a('fo:font-size') ?? ''), color = /^#?([0-9a-f]{6})$/i.exec(a('fo:color') ?? '');
-  const weight = a('fo:font-weight'), under = a('style:text-underline-style'), upper = a('fo:text-transform');
+  const weight = a('fo:font-weight'), family = `${a('fo:font-family') ?? ''} ${a('style:font-name') ?? ''}`, under = a('style:text-underline-style'), upper = a('fo:text-transform');
   return {
-    ...(weight ? { bold: /^(bold|[789]00)$/.test(weight) } : {}), ...(size ? { size: +size[1] } : {}), ...(color ? { color: /^0+$/.test(color[1]) ? '' : color[1].toLowerCase() } : {}),
+    ...(weight ? { bold: /^(bold|[6-9]00)$/.test(weight) } : HEAVY.test(family) ? { bold: true } : {}), ...(size ? { size: +size[1] } : {}), ...(color ? { color: /^0+$/.test(color[1]) ? '' : color[1].toLowerCase() } : {}),
     ...(under ? { underline: under !== 'none' } : {}), ...(upper ? { caps: upper === 'uppercase' } : {}),
   };
 }

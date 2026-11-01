@@ -113,6 +113,7 @@ const SUMMARY_FEATURE_SETS = [
   [hasAt, -4], // Email
   [hasParenthesis, -3], // Phone
   [matchCityAndState, -4, false], // Location
+  [matchPhone, -4], // Phone (a number of four groups has four words)
 ];
 
 export const extractProfile = (sections, lex) => {

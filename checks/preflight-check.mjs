@@ -86,13 +86,19 @@ const G = 'checks/fixtures/import/helix-1col-word.odt', DX = 'checks/fixtures/im
 expect('a listed ODT or DOCX is accepted, one with an address in any part (comments, a tracked change\'s author, customXml, meta) is refused, and an ODT or DOCX not listed is refused',
   !refused('fx9', { [G]: odt('<text:p>Dana</text:p>') }) && refused('fx9b', { [G]: odt('<text:p>Dana</text:p>') }, []) && refused('fx9c', { [DX]: Buffer.from(zip({ 'word/document.xml': '<w:p/>' })) }, [])
   && run('fx9d', tree({ [DX]: Buffer.from(zip({ 'word/document.xml': '<w:p/>', 'word/comments.xml': '<w:comment w:author="x@someone.' + 'org"/>' })) })).includes(FIXMETA)
-  && run('fx9e', tree({ [DX]: Buffer.from(zip({ 'word/document.xml': '<w:p/>', 'customXml/item1.xml': '<a>+44' + ' 7700 900123</a>' })) })).includes(CONTENT));
+  && run('fx9e', tree({ [DX]: Buffer.from(zip({ 'word/document.xml': '<w:p/>', 'customXml/item1.xml': '<a>+44' + ' 7700 900123</a>' })) })).includes(FIXMETA));
 // renamed files are told by their bytes
 const PDFB = clean(), real = 'docs/real.bin', docxZip = Buffer.from(zip({ 'word/document.xml': '<w:p/>' })), odtZip = Buffer.from(zip({ 'content.xml': '<a/>', 'mimetype': 'application/vnd.oasis.opendocument.text' })), nested = Buffer.from(zip({ 'cv.pdf': PDFB }));
 expect('a PDF renamed docs/real.bin, docs/resume (no extension), or checks/fixtures/import/real.bin is refused, listed or not', ['docs/real.bin', 'docs/resume', 'checks/fixtures/import/real.bin', '.cache/x'].every(f => refused('rn' + f, { [f]: PDFB }, []) && refused('rn2' + f, { [f]: PDFB })));
 expect('a Word or ODT file renamed, and a ZIP holding a PDF, or Word files, is refused too (a .zip, a gitignored one)', [docxZip, odtZip, nested].every((b, k) => refused('rz' + k, { 'docs/a.zip': b }, []) && refused('rz2' + k, { 'docs/archive': b }, []))
   && run('rz3', d => { tree({ 'docs/a.zip': nested }, [])(d); fs.writeFileSync(path.join(d, '.gitignore'), '*.zip\n'); }).includes(STAY));
 expect('a ZIP with nothing of the kind, and a text that mentions %PDF- far into it, are not documents', !refused('rz4', { 'docs/a.zip': Buffer.from(zip({ 'a.txt': 'hello' })), 'docs/note.txt': Buffer.from('x'.repeat(2000) + '%PDF-1.4') }, []));
+const deep = Buffer.from(zip({ 'a/b/nested.bin': docxZip })), deeper = Buffer.from(zip({ 'x.dat': deep })), gz = zlib.gzipSync(Buffer.from('anything'));
+expect('a ZIP is read entry by entry, by the bytes: a Word file stored as nested.bin, or a ZIP inside a ZIP inside a ZIP of one, is refused under any name', [deep, deeper, Buffer.from(zip({ 'n.bin': PDFB }))].every((b, k) => refused('rd' + k, { 'docs/a.dat': b }, [])));
+expect('a ZIP with an encrypted entry cannot be read to the end, and is refused as what it might hold', refused('rd3', { 'docs/a.dat': Buffer.from(zip({ 'n.bin': 'x' }, { flags: 1 })) }, []));
+expect('gzip, tar, 7z, rar, bzip2 and xz are refused by their names whatever is in them, and gzip, 7z, rar, bzip2, xz and tar by their bytes under a name that says nothing', ['a.gz', 'a.tgz', 'a.tar', 'a.7z', 'a.rar', 'a.bz2', 'a.xz'].every(f => refused('ra' + f, { ['docs/' + f]: Buffer.from('plain text') }, []))
+  && [gz, Buffer.from([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c, 0, 4]), Buffer.from('Rar!\x1a\x07\0'), Buffer.from('BZh9' + 'x'.repeat(20)), Buffer.from([0xfd, 0x37, 0x7a, 0x58, 0x5a, 0, 0]), Buffer.concat([Buffer.alloc(257), Buffer.from('ustar')])].every((b, k) => refused('rb' + k, { 'docs/blob.dat': b }, []))
+  && !refused('rb9', { 'docs/note.txt': Buffer.from('BZh is a word') }, []));
 expect('the refusal for a file in out/ says that out/ is read, and node_modules is not', run('rz5', tree({ 'out/x.pdf': PDFB }, [])).includes('out/ are looked at too') && !refused('rz6', { 'node_modules/p/x.pdf': PDFB }, []));
 // a listed fixture still may not carry metadata: the bytes are the manifest's, the content is not allowed
 const upd = extra => Buffer.concat([PDFB, Buffer.from(extra, 'latin1')]);
@@ -115,10 +121,23 @@ expect('a listed DOCX or ODT with text in core, app, custom or meta, or an autho
   [{ 'docProps/core.xml': core('<dc:creator>Someone</dc:creator>') }, { 'docProps/app.xml': '<Properties><Company>Acme</Company></Properties>' }, { 'docProps/custom.xml': '<Properties><property name="a"><vt:lpwstr>text</vt:lpwstr></property></Properties>' },
     { 'word/document.xml': '<w:p><w:ins w:id="1" w:author="Someone"><w:r/></w:ins></w:p>' }, { 'word/comments.xml': '<w:comments><w:comment w:author="Someone"/></w:comments>' }, { 'meta.xml': '<office:meta><meta:initial-creator>Someone</meta:initial-creator></office:meta>' }].every((p, k) => run('mz' + k, tree({ [DX]: withParts(p) })).includes(FIXMETA))
   && !run('mz9', tree({ [DX]: withParts({ 'docProps/core.xml': core(''), 'docProps/app.xml': '<Properties/>', 'docProps/custom.xml': '<Properties/>' }) })).includes(FIXMETA));
+expect('a listed PDF with an Info value written as a name (/Author /JaneReal, any key) is refused; /Trapped /False, the one name Info may hold, is accepted',
+  ['<< /Author /JaneReal >>', '<< /Title/Resume /Producer /Acme >>'].every((o, k) => run('mn' + k, tree({ [F]: infoUpdate(o) })).includes(FIXMETA)) && !run('mn9', tree({ [F]: infoUpdate('<< /Trapped /False /Author () >>') })).includes(FIXMETA));
+const utf16 = t => Buffer.from('\ufeff' + t, 'utf16le').toString('latin1');
+expect('a listed PDF with an XMP packet written in UTF-16 (a zero byte beside every letter), plain or compressed, is refused', [false, true].every(d => run('mu' + d, tree({ [F]: xmp(utf16('<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF><rdf:Description dc:creator="x"/></rdf:RDF></x:xmpmeta>'), d) })).includes(FIXMETA)));
+expect('a listed PDF with an annotation or a form field that has a /T (its author), as a string or a hex string, is refused; an empty one is accepted',
+  ['<< /Type /Annot /Subtype /Text /T (Jane Real) /Contents (hi) >>', '<< /Type /Annot /Subtype /Text /T <4A616E65> >>'].every((o, k) => run('ma' + k, tree({ [F]: upd(`\n13 0 obj\n${o}\nendobj\n`) })).includes(FIXMETA))
+  && !run('ma9', tree({ [F]: upd('\n13 0 obj\n<< /Type /Annot /Subtype /Text /T () >>\nendobj\n') })).includes(FIXMETA));
+expect('a listed DOCX with word/people.xml that names someone, a customXml part with a text or an attribute, docVars in the settings, or a relationship that points at file://, C:\\ or /Users/ is refused; the empty forms are accepted',
+  [{ 'word/people.xml': '<w15:people xmlns:w15="x"><w15:person w15:author="Jane Real"><w15:presenceInfo w15:userId="jane" w15:providerId="None"/></w15:person></w15:people>' }, { 'customXml/item1.xml': '<root>Jane Real</root>' }, { 'customXml/item2.xml': '<root name="Jane Real"/>' },
+    { 'word/settings.xml': '<w:settings><w:docVars><w:docVar w:name="who" w:val="Jane"/></w:docVars></w:settings>' }, { 'word/_rels/document.xml.rels': '<Relationships><Relationship Id="r1" Type="t" Target="file:///Users/jane/Desktop/cv.docx" TargetMode="External"/></Relationships>' },
+    { 'word/_rels/document.xml.rels': '<Relationships><Relationship Id="r1" Type="t" Target="C:\\Users\\jane\\cv.dotx" TargetMode="External"/></Relationships>' }, { '_rels/.rels': '<Relationships><Relationship Id="r1" Type="t" Target="/Users/jane/cv.docx"/></Relationships>' }]
+    .every((parts, k) => run('mp' + k, tree({ [DX]: withParts(parts) })).includes(FIXMETA))
+  && !run('mp9', tree({ [DX]: withParts({ 'word/people.xml': '<w15:people xmlns:w15="x"/>', 'customXml/item1.xml': '<root xmlns="urn:x"/>', 'word/settings.xml': '<w:settings/>', 'word/_rels/document.xml.rels': '<Relationships><Relationship Id="r1" Type="t" Target="styles.xml"/><Relationship Id="r2" Type="h" Target="https://example.org/" TargetMode="External"/></Relationships>' }) })).includes(FIXMETA));
 expect('the real fixtures, as listed, pass: names, hashes and text', (() => {
   const real = path.join(path.dirname(script), 'fixtures/import');
   const out = run('fxr', d => { fs.mkdirSync(path.join(d, 'checks/fixtures'), { recursive: true }); fs.cpSync(real, path.join(d, 'checks/fixtures/import'), { recursive: true }); });
-  return !out.includes(STAY) && !out.includes(CONTENT) && fs.readdirSync(real).filter(f => /\.(pdf|docx|odt)$/.test(f)).length === 22;
+  return !out.includes(STAY) && !out.includes(CONTENT) && fs.readdirSync(real).filter(f => /\.(pdf|docx|odt)$/.test(f)).length === 25;
 })());
 
 // Windows builds failed on icons\icon-192.png: every rule tests a path with forward slashes

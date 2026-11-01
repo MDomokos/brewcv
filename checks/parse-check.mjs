@@ -638,6 +638,12 @@ section('documents formatted by hand: no heading styles, the look set on each ru
   ok('HTML: an inline style sets size (pt or px), weight, colour, underline and upper case, an element takes its parent\'s, <u> underlines, and background-color is no colour',
     J(htmlLook) === J([['A', 18, '2f5496', true, false, 'Sans'], ['B', 20, undefined, true, true, 'Sans'], ['C', 12, undefined, true, false, 'Sans'], ['c', 12, undefined, false, false, 'Sans'], ['D', 12, undefined, false, false, 'Sans'], ['E', 12, undefined, false, false, 'Sans-Bold'], ['F', 12, undefined, false, false, 'Sans']]), J(htmlLook));
 
+  // a weight a font's name says: Black, Heavy, SemiBold and Demi are bold, as the weights 600 and up are
+  const heavy = (await readDocx(doc(`<w:p><w:r><w:rPr><w:rFonts w:ascii="Hanken Grotesk Black" w:hAnsi="Hanken Grotesk Black"/></w:rPr><w:t>Black</w:t></w:r></w:p>` + para('Plain') + `<w:p><w:r><w:rPr><w:rFonts w:ascii="Hanken Grotesk Black"/><w:b w:val="0"/></w:rPr><w:t>Off</w:t></w:r></w:p>`))).map(i => i.fontName);   // "Plain" and "Off" are one item: both plain
+  const heavyOdt = (await readOdt(R.zip({ mimetype: 'application/vnd.oasis.opendocument.text', 'content.xml': '<o xmlns:text="t" xmlns:style="s" xmlns:fo="f"><style:style style:name="A"><style:text-properties fo:font-weight="600"/></style:style><style:style style:name="B"><style:text-properties style:font-name="Inter Black"/></style:style><style:style style:name="C"><style:text-properties fo:font-weight="500"/></style:style><text:p text:style-name="A">Six</text:p><text:p text:style-name="B">Black</text:p><text:p text:style-name="C">Five</text:p></o>' }))).map(i => i.fontName);
+  const heavyHtml = readHtml(enc('<p style="font-weight:600">Six</p><p style="font-family: \'Inter Black\', sans-serif">Black</p><p style="font-weight:500">Five</p><p>Plain</p>')).map(i => i.fontName);
+  ok('a font named Black, Heavy, SemiBold or Demi is bold, and so is weight 600 or more: Word (w:rFonts, unless w:b is off), ODT and HTML', J(heavy) === J(['Sans-Bold', 'Sans']) && J(heavyOdt) === J(['Sans-Bold', 'Sans-Bold', 'Sans']) && J(heavyHtml) === J(['Sans-Bold', 'Sans-Bold', 'Sans', 'Sans']), J([heavy, heavyOdt, heavyHtml]));
+
   // typed bullets and symbols, and a line break inside a paragraph
   const tab = '<w:r><w:tab/></w:r>', lines = async xml => textOf(await readDocx(doc(xml)));
   const sym = c => `<w:r><w:sym w:font="Symbol" w:char="${c}"/></w:r>`;
@@ -821,6 +827,80 @@ section('PDF: BrewCV\'s own B2 exports read back (other resumes and languages, b
   }
 }
 
+section('PDF: a two-column design with a mono date line set right, headings in mixed case, text lines with no bullet marks, and baselines that never meet');
+{
+  // made with Chrome (scripts/export-pdf.mjs) from an invented page with absolute positions: a main column at x=39 and a sidebar at x=401 on US Letter; 16 pt headings; each job a date line in a mono font set right within the main
+  // column on a baseline of its own, then a company and title line in the mono font, then four to six text lines in the regular sans, one sentence or a wrapped part each; the sidebar has contact lines, headings, short skills and years set right
+  const items = await readPdf(fixture('example-twocol-mono-letter.pdf'), recordWords);
+  const want = [['Hydra Medical', 'Design Engineer', '2023-03', undefined, ['Led the dose-counter redesign on an inhaler running 400,000 units a year.', 'Cut the part count from nine to five and took two weeks out of the tooling schedule.', 'Built the drop and cycle test rig used for design verification.', 'Wrote the test protocols and qualified the moulding suppliers behind them.']],
+    ['Polytechnic Prototyping Lab', 'Prototyping Technician', '2021-09', '2023-02', ['Ran a seven-machine prototyping shop.', 'Four FDM printers, a resin printer, a benchtop mill and a laser cutter.', 'Trained eleven students on the machines in two terms.', 'Kept the shop under budget for both years.']],
+    ['Medisure Contract Manufacturing', 'Clean-room Technician', '2018-06', '2020-12', ['Ran ISO 7 clean-room assembly for three catheter products.', 'About 9,000 units a week across two shifts.', 'Cut scrap on the balloon-bonding line from 6% to 2.5%', 'by redesigning the bonding fixture.', 'Wrote the work instructions for the new fixture.', 'Trained four operators on it.']]];
+  for (const [what, layout] of [['guessed', undefined], ['with the columns cut by hand at 380', [{ page: 1, split: 380 }]]]){
+    const got = parseResume(items, undefined, layout), work = got.jsonResume.work ?? [];
+    const right = work.length === 3 && want.every(([name, position, from, to, lines], k) => work[k].name === name && work[k].position === position && work[k].startDate === from && work[k].endDate === to && J(work[k].highlights) === J(lines));
+    ok(`${what}: every job with its dates, company, title and text lines, and no doubt (${work.length} jobs)`, right && got.doubts.length === 0, J(work.map(w => [w.name, w.position, w.startDate, w.endDate, w.highlights?.length])) + J(got.doubts));
+    const b = got.jsonResume.basics;
+    ok(`${what}: the email, the phone and the place from the sidebar's contact lines, and the education with its years at the right`, b.email === 'dana@example.org' && b.phone === '+351 900 000 000' && b.location?.city === 'Lisbon' && J(got.jsonResume.education?.map(e => e.startDate)) === J(['2021', '2019']), J(b) + J(got.jsonResume.education));
+  }
+  ok('the columns are guessed (the sidebar at 401, not the dates set right at 286), though no two rows share a baseline', layoutOf(items).layout[0].split === 401 && layoutOf(items).doubts.length === 0, J(layoutOf(items)));
+}
+
+section('PDF: the owner\'s shape, invented: no name in the main column, which starts with its heading; the name and address at the top of the sidebar');
+{
+  // made like the one above, on the shape of a real file: a main column of flowing text that starts with a 16 pt "Experience" heading (no name in it), then two sections ("Experience", "Earlier work") with four jobs, each a 12 pt
+  // title in a Black face, a mono date line set right (job 2: a point or two above its title's baseline), one or two mono lines (the company, and a place), and plain sentences that wrap, some with short tails and some one line
+  // long, with a gap between them; the sidebar starts with the name (20 pt) and the contact lines
+  const read = async name => readPdf(fixture(name), recordWords);
+  const want = [['Hydra Medical Systems Lda.', 'Mechanical Design Engineer II', '2023-03', undefined, ['Led the dose-counter redesign on an inhaler that runs 400,000 units a year and cut its part count from nine to five, which took two weeks off the tooling.', 'Built the drop and cycle test rig used for design verification of every new part that came in from the moulders and the suppliers.', 'Wrote the test protocols and qualified the moulding suppliers behind them across two sites.'], undefined],
+    ['Polytechnic Prototyping Lab', 'Prototype Tester', '2021-09', '2023-02', ['Ran a seven-machine prototyping shop for the engineering faculty and the student teams that built their cars there.', 'Four FDM printers, a resin printer, a benchtop mill and a laser cutter, all booked weeks ahead.', 'Trained eleven students on the machines.', 'Kept the shop under budget for both years while the number of jobs went up by half over the same time.', 'Wrote the safety rules for each machine.'], 'Porto, Portugal'],
+    ['Medisure Devices Ltd', 'Clean-room Technician', '2018-06', '2020-12', ['Ran ISO 7 clean-room assembly for three catheter products across two shifts a day, five days a week, with a crew of nine.', 'Cut scrap on the bonding line.', 'Wrote the work instructions for the new fixture.', 'Trained four operators on it and signed off their first assemblies in the first month of the new line.'], 'Maia, Portugal'],
+    ['Northgate Dosing Systems Ltd.', 'Graduate Manufacturing Engineer', '2017-09', '2018-05', ['Supported the line moving to a new moulding press and kept the yield above target through the whole of the change.', 'Measured every part for the first article report in the lab on site and signed it off with the customer.', 'Drew the fixtures for the new line.'], undefined]];
+  for (const [file, set] of [['example-twocol-no-name-letter.pdf', 'Black headings'], ['example-twocol-medium-letter.pdf', 'Medium 16 pt headings, Bold titles']]){
+    const items = await read(file);
+    for (const [what, layout] of [['guessed', undefined], ['with the columns cut by hand at 380', [{ page: 1, split: 380 }]]]){
+      const got = parseResume(items, undefined, layout), work = got.jsonResume.work ?? [], b = got.jsonResume.basics;
+      ok(`${set}, ${what}: exactly four jobs, in both sections, with dates, company, title, place and every sentence (${work.length} jobs)`, work.length === 4 && want.every(([name, position, from, to, lines, place], k) => work[k].name === name && work[k].position === position && work[k].startDate === from && work[k].endDate === to && J(work[k].highlights) === J(lines) && work[k].location === place), J(work.map(w => [w.name, w.position, w.startDate, w.endDate, w.location, w.highlights?.length])));
+      ok(`${set}, ${what}: the name, address, phone and place from the top of the sidebar, not "Experience", and no doubt`, b.name === 'Dana Okonkwo' && b.email === 'dana@example.org' && b.phone === '+351 900 000 000' && b.location?.city === 'Lisbon' && got.doubts.length === 0, J([b, got.doubts]));
+    }
+  }
+  // the same on hand-made items: a heading as the first line, the sidebar's name read after the main column, a title with no job-title word between a date line and a company
+  const X = (text, y, x, o = {}) => ({ text, x, y, width: text.length * 5, height: 10, fontName: o.bold ? 'Arial-Bold' : 'Arial', hasEOL: true, page: 1, ...o });
+  const hand = [X('Experience', 700, 39, { bold: true, height: 16 }), X('Head Flavour Wrangler', 670, 39, { bold: true, height: 12 }), X('Mar 2020 – Present', 656, 241, { fontName: 'FiraCode' }), X('Northgate Dosing Systems', 642, 39, { fontName: 'FiraCode' }),
+    X('Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year', 622, 39), X('Built the test rig the team now uses for verification of every new part that comes in', 609, 39),
+    X('Dana Okonkwo', 700, 401, { bold: true, height: 20 }), X('dana@example.org', 680, 401), X('Skills', 640, 401, { bold: true, height: 16 }), X('SolidWorks, Creo', 620, 401)];
+  const h = parseResume(hand, undefined, [{ page: 1, split: 380 }]).jsonResume;
+  ok('a bold line that is a section word is a title as the first line of the page: the jobs are found, the name is the sidebar\'s, and a title with no title word between its date and its company is read', h.work?.length === 1 && h.work[0].position === 'Head Flavour Wrangler' && h.work[0].name === 'Northgate Dosing Systems' && h.work[0].highlights?.length === 2 && h.basics.name === 'Dana Okonkwo' && h.basics.email === 'dana@example.org', J(h));
+  const black = hand.map(i => i.bold ? { ...i, fontName: 'HankenGrotesk-Black' } : i), hb = parseResume(black, undefined, [{ page: 1, split: 380 }]).jsonResume;
+  ok('a heading set in a face named Black (no "Bold" in the name) is bold: the same jobs and the same name', hb.work?.length === 1 && hb.work[0].position === 'Head Flavour Wrangler' && hb.work[0].highlights?.length === 2 && hb.basics.name === 'Dana Okonkwo', J(hb));
+  // one column: a 16 pt heading, a 12 pt bold title, a mono date line (job 2: its own line, 3 pt above the title's baseline), one or two mono lines, plain sentences (some one short line) with a gap of 20 between them
+  const T = (text, y, o = {}) => X(text, y, 39, o), M = (text, y, x = 39) => X(text, y, x, { fontName: 'FiraCode' });
+  const long = 'Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year';
+  const col = (head, headO) => [X('Dana Okonkwo', 760, 39, { bold: true, height: 20 }), X('dana@example.org', 744, 39), T(head, 716, headO),
+    T('Mechanical Design Engineer II', 690, { bold: true, height: 12 }), M('Mar 2023 – Present', 674, 241), M('Hydra Medical Systems Lda.', 660), T(long, 640), T('Cut scrap on the bonding line.', 620), T(long, 600), T('Trained four operators.', 580),
+    M('Sep 2021 – Feb 2023', 553, 241), T('Prototype Tester', 550, { bold: true, height: 12 }), M('Polytechnic Prototyping Lab', 535), M('Porto, Portugal', 520), T(long, 500), T('Wrote the safety rules.', 480)];
+  const hj = parseResume(col('Experience', { bold: true, height: 16 })).jsonResume.work ?? [], hm = parseResume(col('Experience', { height: 16 })).jsonResume.work ?? [];
+  const right = w => w.length === 2 && w[0].name === 'Hydra Medical Systems Lda.' && w[0].position === 'Mechanical Design Engineer II' && w[0].startDate === '2023-03' && w[0].highlights?.length === 4 && w[1].name === 'Polytechnic Prototyping Lab' && w[1].position === 'Prototype Tester' && w[1].startDate === '2021-09' && w[1].endDate === '2023-02' && w[1].location === 'Porto, Portugal' && w[1].highlights?.length === 2;
+  ok('sentences set one to a line, short ones too, with a gap between them, are not jobs: a job starts at its title, and a date line above the next title (3 pt) is that title\'s, with the company and the place under it', right(hj), J(hj));
+  ok('a heading 1.5 pt or more above the text is a title as the first lines of the column, bold or not (a 16 pt Medium "Experience" over 10 pt text)', right(hm), J(hm));
+  const main = col('x').filter(i => !['x', 'Dana Okonkwo', 'dana@example.org'].includes(i.text)), side = [X('Dana Okonkwo', 740, 401, { bold: true, height: 20 }), X('dana@example.org', 724, 401)];
+  const first = parseResume([T('Experience', 716, { height: 16 }), ...main, ...side], undefined, [{ page: 1, split: 380 }]).jsonResume;
+  ok('and as the very first line, with the name and the address of the sidebar read after it', right(first.work ?? []) && first.basics.name === 'Dana Okonkwo' && first.basics.email === 'dana@example.org', J(first));
+  // plain print, even spacing: the same gap between lines inside a job and between jobs, no bold, nothing to tell a job from a description but its dated line
+  const plain = (bullet, titleFirst) => {
+    let y = 760;
+    const line = (t, o) => X(t, (y -= 13), 39, o), out = [line('Dana Okonkwo'), line('dana@example.org'), line('Experience', { bold: true })];
+    for (const [a, b, texts] of [['Northgate Dosing Systems · Mar 2021 – Present', 'Senior Engineer', ['Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year', 'Built the test rig the team now uses for verification of every new part that comes in']],
+      ['Hydra Medical · Sep 2018 – Feb 2021', 'Design Engineer', ['Ran the tolerance study for the new housing across three moulding suppliers and two sites', 'Wrote the work instructions for the new fixture and trained four operators on it']],
+      ['Medisure Manufacturing · Jun 2016 – Aug 2018', 'Process Technician', ['Ran ISO 7 clean-room assembly for three catheter products across two shifts a day']]])
+      out.push(...(titleFirst ? [line(b), line(a)] : [line(a), line(b)]), ...texts.map(t => line(bullet + t)));
+    return parseResume([...out, line('Education', { bold: true }), line('M.Eng. Mechanical Engineering 2016')]);
+  };
+  for (const [bullet, titleFirst, what] of [['• ', false, 'bullets, company and dates first'], ['', false, 'sentences with no bullets'], ['• ', true, 'the title above the company and dates']]){
+    const r = plain(bullet, titleFirst), w = r.jsonResume.work ?? [];
+    ok(`plain print with even spacing (${what}): a dated line under the descriptions starts the next job, so all three jobs are read and none is lost`, w.length === 3 && J(w.map(x => [x.name, x.position, x.startDate, x.highlights?.length])) === J([['Northgate Dosing Systems', 'Senior Engineer', '2021-03', 2], ['Hydra Medical', 'Design Engineer', '2018-09', 2], ['Medisure Manufacturing', 'Process Technician', '2016-06', 1]]), J(w.map(x => [x.name, x.position, x.startDate, x.highlights?.length])));
+  }
+}
+
 section('PDF: DOCX and ODT files as Word, Google Docs and LibreOffice write them');
 {
   const files = fs.readdirSync(FIX).filter(f => /\.(docx|odt)$/.test(f)).sort();
@@ -890,6 +970,8 @@ section('PDF: what the reader repairs, on small PDFs written here (checks/lib/pd
   const edu = await rows([T(57, 700, 'M.Eng. Mechanical Engineering, Porto, 2019'), T(57, 687, 'B.Sc. Porto, 2017'), T(57, 674, 'Technical certificate, Lisbon, 2015')]);
   ok('"M.Eng. Mechanical Engineering, Porto, 2019" over "B.Sc. Porto, 2017": a line that ends with a year is the end of its item', edu.length === 3, J(edu));
   const sen = ['Led the redesign of the dose counter on an inhaler that runs four hundred thousand units.', 'Built the drop and cycle test rig that the team uses for design verification of parts.', 'Planned and ran three rounds of usability studies with fourteen patients at the clinic.', 'Wrote the protocols for the rig and trained the technicians to run every shift of the week.'];
+  const de = await rows([T(57, 720, 'Leitung der Neukonstruktion des Dosiszählers eines Inhalators mit vierhundert Stück'), T(57, 680, 'Aufbau des Fall- und Zyklustestprüfstands, den das Team heute für die'), T(57, 667, 'Designverifizierung nutzt, samt zugehörigen Prüfprotokollen.')]);
+  ok('in a wide column a line that starts with a capital (a German noun) is the next line of a wrapped one when the line above stops a word short of the edge', de.length === 2 && de[1].includes('für die Designverifizierung'), J(de));
   const sens = await rows(sen.map((t, k) => T(57, 700 - 13 * k, t)));
   ok('four sentences set one under the other at the leading, each ending with a full stop, are four lines', sens.length === 4, J(sens));
   const rev = await rows(sen.map((t, k) => T(57, 700 - 13 * k, t)).reverse());
@@ -944,6 +1026,12 @@ section('PDF: the parser on what a PDF gives it (page breaks, headings with wide
   ok('a job with no company line has no company: the city is its place, not its company, and a doubt says so', nameless?.position === 'Senior Engineer' && !nameless.name && nameless.location === 'Lisbon' && none.r.doubts.some(d => d.kind === 'company' && d.n === 1), J([nameless, none.r.doubts]));
   const country = jobOf('Senior Engineer', 'Mar 2020 – Present · Lisbon, Portugal').job;
   ok('"City, Country" is a place too', !country?.name && country.location === 'Lisbon, Portugal', J(country));
+  for (const [bold, how] of [[true, 'bold'], [false, 'plain']]){
+    const profs = [['Professor', 'Northgate University · Mar 2020 – Present · Lisbon'], ['Professor', 'Mar 2020 – Present · Instituto Superior Técnico · Lisbon'], ['Lecturer', 'Technische Hochschule Köln · Mar 2020 – Present · Köln'], ['Nurse', 'Mar 2020 – Present · Lisbon Hospital']].map(([a, b]) => jobOf(a, b, bold));
+    ok(`a part with an organisation word (University, Instituto, Hochschule, Hospital) is the company, whichever line it is on, and the other is the position (${how}), with no doubt`, J(profs.map(x => [x.job?.name, x.job?.position])) === J([['Northgate University', 'Professor'], ['Instituto Superior Técnico', 'Professor'], ['Technische Hochschule Köln', 'Lecturer'], ['Lisbon Hospital', 'Nurse']]) && profs.every(x => !x.r.doubts.some(d => d.kind === 'company')), J(profs.map(x => [x.job?.name, x.job?.position, x.r.doubts])));
+  }
+  const teacher = jobOf('School Teacher', 'Northgate Primary · Mar 2020 – Present · Lisbon', false);
+  ok('a position with a job-title word and an organisation word ("School Teacher") stays the position', teacher.job?.position === 'School Teacher' && teacher.job.name === 'Northgate Primary', J(teacher.job));
   const forms = ['Feinmess Instrumente GmbH', 'Dunamenti Műszer Kft.', 'Lumen SA', 'Oficina Aberta Lda', 'Acme Inc.', 'Riva S.p.A.'].map(c => jobOf('Design Engineer', `${c} · Mar 2020 – Present · Munich`).job?.name);
   ok('a legal form (GmbH, Kft., SA, Lda, Inc., S.p.A.) marks the company on the dated line', J(forms) === J(['Feinmess Instrumente GmbH', 'Dunamenti Műszer Kft.', 'Lumen SA', 'Oficina Aberta Lda', 'Acme Inc.', 'Riva S.p.A.']), J(forms));
   for (const [pos, label] of [['Partner', 'a title the lexicon does not know'], ['Chief Flavour Wrangler', 'a title with no title word']]){
@@ -951,9 +1039,9 @@ section('PDF: the parser on what a PDF gives it (page breaks, headings with wide
     ok(`a bold company over "${pos} · dates · place" (${label}) is the company and ${pos} the position, with no doubt: the first line is set apart and the dated line holds one other part`, j?.name === 'Northgate Law' && j.position === pos && j.location === 'Lisbon' && !r.r.doubts.some(d => d.kind === 'company'), J([j, r.r.doubts]));
   }
   const law = jobOf('Patent Attorney', 'Hydra Law, Mar 2020 – Present'), lawJob = law.job;
-  ok('a bold first line over "Hydra Law, dates" (the company before the dates in the same part, after a comma): both are kept, none is lost', lawJob?.name === 'Patent Attorney' && lawJob.position === 'Hydra Law' && lawJob.startDate === '2020-03', J(lawJob));
-  const undecided = jobOf('Northgate Law', 'Partner · Mar 2020 – Present', false);
-  ok('a first line that is not set apart (not bold, not larger) with one other part on the dated line keeps both and raises the company doubt', undecided.job?.name === 'Northgate Law' && undecided.job.position === 'Partner' && undecided.r.doubts.some(d => d.kind === 'company'), J([undecided.job, undecided.r.doubts]));
+  ok('a bold first line over "Hydra Law, dates" (the company before the dates in the same part, after a comma): both are kept, none is lost, and the organisation word (Law) tells the company', lawJob?.name === 'Hydra Law' && lawJob.position === 'Patent Attorney' && lawJob.startDate === '2020-03', J(lawJob));
+  const undecided = jobOf('Northgate Flavours', 'Partner · Mar 2020 – Present', false);
+  ok('a first line that is not set apart (not bold, not larger) with one other part on the dated line keeps both and raises the company doubt', undecided.job?.name === 'Northgate Flavours' && undecided.job.position === 'Partner' && undecided.r.doubts.some(d => d.kind === 'company'), J([undecided.job, undecided.r.doubts]));
   const roles = work([I('Northgate Law', 716, { bold: true }), I('Senior Manager', 704, { bold: true }), I('Mar 2018 – Feb 2020', 692), I('Director', 678, { bold: true }), I('Mar 2020 – Present', 666), ...bul.map(b => ({ ...b, y: b.y - 20 }))]);
   ok('two dated lines in one job are two roles at the same company (the second starts at its title, takes the descriptions): none is glued into the other\'s position', roles?.length === 2 && roles[0].name === 'Northgate Law' && roles[0].position === 'Senior Manager' && roles[0].endDate === '2020-02' && !roles[0].highlights && roles[1].name === 'Northgate Law' && roles[1].position === 'Director' && roles[1].startDate === '2020-03' && roles[1].highlights?.length === 2, J(roles));
   const odd = jobOf('Acme Holdings Ltd', 'Staff Wrangler · Mar 2020 – Present · Night Shift · Porto');
@@ -1016,6 +1104,11 @@ section('src/parse/ stands alone');
   const bad = js.filter(f => !/^\/\/ (Ported from OpenResume by Xitang Zhao \(AGPL-3\.0\), src\/app\/lib\/parse-resume-from-pdf\/\S+, commit [0-9a-f]{40}; modified for BrewCV \d{4}-\d{2}-\d{2}: \S.*$|Not from OpenResume)/.test(head(f)));
   ok('each file names its OpenResume author, source and commit, and what BrewCV changed, or says it is not from OpenResume', bad.length === 0, bad.map(f => path.relative(REPO, f)).join(', '));
   ok('the files that are not from OpenResume are the column split, the JSON Resume mapping, the CSV reader, the ZIP reader, the text cleaning and the readers', J(names.filter(n => head(path.join(REPO, 'src/parse', n)).startsWith('// Not from'))) === J(['csv.js', 'docx.js', 'html.js', 'identify.js', 'lines.js', 'linkedin.js', 'md.js', 'odt.js', 'pages.js', 'pdf.js', 'split-columns.js', 'to-json-resume.js', 'txt.js', 'unzip.js']), names.join(', '));
+  const readme = fs.readFileSync(path.join(REPO, 'README.md'), 'utf8'), dev = fs.readFileSync(path.join(REPO, 'docs/DEVELOPMENT.md'), 'utf8');
+  const families = [...new Set(fs.readdirSync(path.join(REPO, 'fonts')).filter(f => f.endsWith('.woff2')).map(f => f.replace(/-.*/, '')))];
+  ok('everything vendored, ported or bundled is credited in the README\'s Acknowledgements and in DEVELOPMENT.md: OpenResume, PDF.js, each font family (with the OFL and a licence file of its own), and the approach of Syncthing and Automerge, with no code taken',
+    ['OpenResume', 'PDF.js', 'Hanken Grotesk', 'Fira Code', 'Source Serif 4', 'Source Sans 3', 'IBM Plex', 'SIL Open Font License', 'Syncthing', 'Automerge'].every(n => readme.includes(n)) && ['OpenResume', 'PDF.js', 'Syncthing', 'Automerge', 'OFL-1.1'].every(n => dev.includes(n))
+    && families.every(f => fs.existsSync(path.join(REPO, `fonts/OFL-${f}.txt`))) && fs.existsSync(path.join(REPO, 'vendor/pdfjs/LICENSE')), families.join(', '));
   ok('the README credits OpenResume and names where the port is', /OpenResume[^\n]*src\/parse/.test(fs.readFileSync(path.join(REPO, 'README.md'), 'utf8')) && fs.existsSync(path.join(REPO, 'src/parse/README.md')));
 }
 

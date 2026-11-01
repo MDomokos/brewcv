@@ -4,6 +4,7 @@
 // An inline style="" on an element sets the look of its text: font-size (pt or px), font-weight, color, text-decoration (underline) and text-transform (uppercase); u underlines.
 // shortcut: styling in a stylesheet or a class (a bold class, a flex row of spans), a size in em or %, and a layout table are not seen; only the tags and inline styles say what is bold,
 // how big the text is and where an item ends (a table is read row by row). Add a rule when a real page needs one.
+import { HEAVY } from './extract-resume-from-sections/lib/common-features.js';
 import { attr, decode, itemsOf, scan, skipping, unescape } from './lines.js';
 
 const BLOCK = new Set('p div li ul ol h1 h2 h3 h4 h5 h6 tr table section article header footer main nav aside blockquote pre dl dt dd'.split(' '));
@@ -12,9 +13,9 @@ const SKIP = new Set(['title', 'svg', 'noscript', 'iframe']);
 // the look an element's style="" sets: size (pt), bold, colour (hex or as written, '' for black), underline, caps
 function look(tag){
   const s = attr(tag, 'style') ?? '', get = k => new RegExp(`(?:^|;)\\s*${k}\\s*:\\s*([^;]+)`, 'i').exec(s)?.[1].trim().toLowerCase();
-  const size = /^([\d.]+)(pt|px)$/.exec(get('font-size') ?? ''), weight = get('font-weight'), color = get('color')?.replace(/^#/, ''), under = get('text-decoration(?:-line)?');
+  const size = /^([\d.]+)(pt|px)$/.exec(get('font-size') ?? ''), weight = get('font-weight'), family = get('font-family') ?? '', color = get('color')?.replace(/^#/, ''), under = get('text-decoration(?:-line)?');
   return {
-    ...(size ? { size: +size[1] * (size[2] === 'px' ? 0.75 : 1) } : {}), ...(weight ? { bold: /^(bold|[6-9]00)$/.test(weight) } : {}),
+    ...(size ? { size: +size[1] * (size[2] === 'px' ? 0.75 : 1) } : {}), ...(weight ? { bold: /^(bold|[6-9]00)$/.test(weight) } : HEAVY.test(family) ? { bold: true } : {}),
     ...(color ? { color: /^(0+|black|rgb\(0,\s*0,\s*0\))$/.test(color) ? '' : color } : {}), ...(under ? { underline: under.includes('underline') } : {}), ...(get('text-transform') ? { caps: get('text-transform') === 'uppercase' } : {}),
   };
 }

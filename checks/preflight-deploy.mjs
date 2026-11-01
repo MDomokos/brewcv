@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { findPrivate, REPO } from '../scripts/lib/private-files.mjs';
 import zlib from 'node:zlib';
 import { unzip } from '../src/parse/unzip.js';
-import { DOCUMENT, FIXTURES, allowed, manifestIn, sniff } from './lib/manifest.mjs';
+import { ARCHIVE_NAME, DOCUMENT, FIXTURES, allowed, manifestIn, sniff } from './lib/manifest.mjs';
 import { pdfMetadata, zipMetadata } from './lib/metadata.mjs';
 
 const ROOT = path.resolve(process.argv[2] ?? '.');
@@ -237,9 +237,9 @@ console.log(deny.length ? `preflight: ${deny.length} private value${deny.length 
   : 'preflight: no private identity or deny file found (CI, or not set up): checking shapes only. See docs/DEVELOPMENT.md, "Real data is not in this repo"');
 
 for (const f of walkAll(ROOT)){
-  const rel = relOf(f), buf = fs.readFileSync(f), kind = DOCUMENT.test(rel) ? 'by name' : sniff(buf);      // by its bytes too: a PDF named real.bin, a ZIP of Word files
+  const rel = relOf(f), buf = fs.readFileSync(f), kind = DOCUMENT.test(rel) ? 'by name' : ARCHIVE_NAME.test(rel) ? 'archive' : await sniff(buf);      // by its bytes too: a PDF named real.bin, a ZIP of Word files
   if (!kind) continue;
-  if (!allowed(manifest, rel, buf)){ flag(f, 0, 'document', `${rel}: a ${kind === 'by name' ? 'PDF, Word or OpenDocument file' : `${kind} (told by its bytes, not its name)`}: rendered documents and resume files stay outside the repo (the import fixtures are the exception: listed by name and sha256 in ${FIXTURES}MANIFEST.json; dot folders and out/ are looked at too)`); continue; }
+  if (!allowed(manifest, rel, buf)){ flag(f, 0, 'document', `${rel}: a ${kind === 'by name' ? 'PDF, Word or OpenDocument file' : kind === 'archive' ? 'archive (gzip, tar, 7z, rar, bzip2 or xz: it can hold anything)' : `${kind} (told by its bytes, not its name)`}: rendered documents and resume files stay outside the repo (the import fixtures are the exception: listed by name and sha256 in ${FIXTURES}MANIFEST.json; dot folders and out/ are looked at too)`); continue; }
   let texts;
   const meta = /\.pdf$/i.test(rel) ? pdfMetadata(buf) : await zipMetadata(buf).catch(() => 'a part cannot be read');
   if (meta){ flag(f, 0, 'fixture metadata', `${rel}: ${meta}`); continue; }

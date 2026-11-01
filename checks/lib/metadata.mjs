@@ -1,6 +1,7 @@
 // What a listed fixture may not hold even though its bytes are listed (checks/lib/manifest.mjs): a PDF's Info dictionary with any text (any key, a hex or UTF-16 string, an indirect value, an incremental update,
 // an object stream), an XMP packet with anything in it (compressed or not, with the x: prefix or without), a DOCX or ODT part of document properties (core, app, custom, meta) with a text, and an author on a comment
-// or a tracked change. Returns a reason, or null.
+// or a tracked change; also an Info value written as a name (/Author /JaneReal), an XMP packet in UTF-16, an annotation's author (/T), word/people.xml, a customXml part with a text, docVars in the settings, and a
+// relationship that points at a file on a disk (file://, C:\, /Users/). Returns a reason, or null.
 // shortcut: an Info dictionary is found by its /Info reference in the file or its decoded streams and read as text (PDF strings, hex strings and the objects they point at); every version of the object is read,
 // the old ones too, so an update that blanks it again does not hide the first.
 import zlib from 'node:zlib';
@@ -28,7 +29,10 @@ export function pdfMetadata(buf){
   }
   const strings = n => (objects.get(n) ?? []).flatMap(b => [...b.matchAll(STRING)].map(x => x[0]).concat([...b.matchAll(/(\d+)\s+0\s+R/g)].flatMap(r => (objects.get(+r[1]) ?? []).flatMap(c => c.match(STRING) ?? []))));
   for (const t of texts) for (const m of t.matchAll(/\/Info\s+(\d+)\s+0\s+R/g)) if (strings(+m[1]).some(v => !blank(v))) return 'its Info dictionary holds a text (the title, who made it, with what, or when)';
-  for (const t of texts){
+  const names = n => (objects.get(n) ?? []).flatMap(b => [...b.replace(/\/Trapped\s*\/\w+/g, '').matchAll(/\/[A-Za-z]+\s*\/[^\s/<>[\]()]+/g)]);      // /Author /JaneReal: a value that is a name is a text too
+  for (const t of texts) for (const m of t.matchAll(/\/Info\s+(\d+)\s+0\s+R/g)) if (names(+m[1]).length) return 'its Info dictionary holds a text written as a name (/Author /Name)';
+  for (const t of texts) for (const m of t.matchAll(/\/T\s*(\((?:\\[\s\S]|[^\\()])*\)|<[0-9A-Fa-f\s]*>)/g)) if (!blank(m[1])) return 'an annotation or a form field has a /T (its author or name)';
+  for (const t of texts.flatMap(x => (x.includes('\0') ? [x, x.replace(/\0/g, '')] : [x]))){      // UTF-16 text has a zero byte beside every letter
     if (/<(?:\w+:)?xmpmeta\b(?![^>]*\/>)|<rdf:|<\w+:Description\b/.test(t)) return 'an XMP packet holds metadata';
     if (/<\?xpacket begin/.test(t) && !/<(?:\w+:)?xmpmeta\b[^>]*\/>/.test(t)) return 'an XMP packet holds metadata';
   }
@@ -41,6 +45,10 @@ export async function zipMetadata(buf){
     if (!/\.(xml|rels|rdf)$/i.test(n)) continue;
     const text = Buffer.from(await z.read(n)).toString('utf8');
     if (/(?:^|\/)(?:docProps\/(?:core|app|custom)|meta)\.xml$/.test(n) && text.replace(/<[^>]*>/g, '').trim()) return `${n} holds a text (who made it, with what, when, or its title)`;
+    if (/(?:^|\/)people\.xml$/.test(n) && /<(?:\w+:)?person\b|(?:author|userId|providerId)\s*=\s*"[^"]*\S/.test(text)) return `${n} names the people who edited it`;
+    if (/(?:^|\/)customXml\/[^/]*\.xml$/.test(n) && (text.replace(/<[^>]*>/g, '').trim() || text.replace(/xmlns(?::\w+)?\s*=\s*"[^"]*"/g, '').match(/\s[\w:]+\s*=\s*"[^"]*\S/))) return `${n} holds custom data (a text or an attribute)`;
+    if (/(?:^|\/)settings\.xml$/.test(n) && /<w:docVar\b/.test(text)) return `${n} holds document variables (w:docVar)`;
+    if (/\.rels$/.test(n) && /\bTarget\s*=\s*"(?:file:|[A-Za-z]:[\\/]|\\\\|\/(?:Users|home)\/)/i.test(text)) return `${n} points at a file on a disk (file://, C:\\, /Users/)`;
     if (/\bw:(?:author|initials)\s*=\s*"[^"]*\S/.test(text) || /<(?:dc:creator|meta:initial-creator|cp:lastModifiedBy|dc:contributor)\b[^>]*>\s*[^<\s]/.test(text)) return `${n} names an author (of a comment, a tracked change or the document)`;
   }
   return null;

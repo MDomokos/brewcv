@@ -253,7 +253,12 @@ export async function readFolder(folder){
   return { state: { record: model, resumes, frozen, ...lists, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped, leftovers };
 }
 
+// A backup that is JSON but damaged inside (a list holding null, a number where a list goes) is "not a backup", with the model's own message, not a TypeError.
 export function readBackup(obj){
+  try { return readBackupOf(obj); }
+  catch (e){ throw e?.key ? e : keyed('error.notBackup'); }
+}
+function readBackupOf(obj){
   if (detect(obj) !== 'backup') throw keyed('error.notBackup');
   const { model, warnings } = load(obj.record);
   const resumes = [], frozen = {};

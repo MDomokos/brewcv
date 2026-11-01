@@ -1,4 +1,4 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-lines-into-sections.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; title words from the lexicon; Unicode capitals; an item a reader marked as a title; 2026-11-01: the fallback needs a title word at the end of the line and no job-title word, and a short line set apart by its look is a title, and bold capitals with a digit ("CAD & 3D") are not
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/group-lines-into-sections.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; title words from the lexicon; Unicode capitals; an item a reader marked as a title; 2026-11-03: a bold heading, or one set 1.5 pt above the body text, with a section word is a title in the first two lines too, and the contact block of a sidebar read after the main column is the profile's; 2026-11-01: the fallback needs a title word at the end of the line and no job-title word, and a short line set apart by its look is a title, and bold capitals with a digit ("CAD & 3D") are not
 // Types stripped. Changed: the title keywords come from the lexicon, a capital letter is any Unicode capital, and an item with `title: true`
 // (a heading a reader found: a Heading style, #, h1 to h3) is a title whatever its words, unless it is in the first two lines (the name).
 // Also new: a short line alone on its row that is set apart from the body text by its look is a title (see `byLook`).
@@ -50,14 +50,36 @@ const byLook = (lines, known, lex) => {
   return set.filter(Boolean).length <= 10 ? set : [];
 };
 
+// the size of most of the text
+const bodyHeight = lines => {
+  const n = new Map();
+  for (const i of lines.flat()) n.set(i.height, (n.get(i.height) ?? 0) + i.text.length);
+  return [...n].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+};
+
 export const groupLinesIntoSections = (lines, lex) => {
   const sections = {};
-  const known = lines.map((line, i) => isSectionTitle(line, i, lex)), look = byLook(lines, known, lex);
+  const body = bodyHeight(lines), known = lines.map((line, i) => isSectionTitle(line, i, lex, body)), look = byLook(lines, known, lex);
   let sectionName = PROFILE_SECTION;
   let sectionLines = [];
+  // The profile is what comes before the first title. A column cut in two reads the main column first, so the contact block (a name, an address) at the top of a sidebar comes after its sections: the lines
+  // around an address, in the column it is in, up to the titles on both sides, are the profile's.
+  // shortcut: only when the profile holds no address already, and for a line of four words or fewer holding an @; a phone with no address is not looked for
+  const moved = new Set(), cut = lines.map((l, i) => !!(known[i] || look[i]));
+  const at = lines.findIndex((l, i) => i > 0 && !cut[i] && /@/.test(l[0]?.text ?? '') && l[0].text.trim().split(/\s+/).length <= 4);
+  const profileEnd = cut.indexOf(true) < 0 ? lines.length : cut.indexOf(true);
+  if (at >= profileEnd && !lines.slice(0, profileEnd).some(l => l.some(x => /@/.test(x.text)))){
+    const same = j => !cut[j] && Math.abs(lines[j][0].x - lines[at][0].x) <= 12;
+    let from = at, to = at;
+    while (from > 0 && same(from - 1)) from--;
+    while (to + 1 < lines.length && same(to + 1)) to++;
+    for (let j = from; j <= to; j++) moved.add(j);
+  }
+  const extra = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const text = line[0]?.text.trim();
+    if (moved.has(i)) { extra.push(line); continue; }
     if (known[i] || look[i]) {
       sections[sectionName] = [...sectionLines];
       sectionName = text;
@@ -69,6 +91,7 @@ export const groupLinesIntoSections = (lines, lex) => {
   if (sectionLines.length > 0) {
     sections[sectionName] = [...sectionLines];
   }
+  if (extra.length) sections[PROFILE_SECTION] = [...(sections[PROFILE_SECTION] ?? []), ...extra];
   return sections;
 };
 
@@ -78,12 +101,18 @@ export const groupLinesIntoSections = (lines, lex) => {
 const AND = /\s&\s/;
 const endsWithTitleWord = (text, words) => text.toLowerCase().replace(/:$/, '').split(AND).some(t => words.some(k => { const i = t.lastIndexOf(k); return i >= 0 && /^\p{L}{0,3}$/u.test(t.slice(i + k.length)); }));
 
-const isSectionTitle = (line, lineNumber, lex) => {
+const isSectionTitle = (line, lineNumber, lex, body) => {
   const isFirstTwoLines = lineNumber < 2;
   const hasMoreThanOneItemInLine = line.length > 1;
   const hasNoItemInLine = line.length === 0;
-  if (isFirstTwoLines || hasMoreThanOneItemInLine || hasNoItemInLine) {
+  if (hasMoreThanOneItemInLine || hasNoItemInLine) {
     return false;
+  }
+  // The first two lines are the name, unless one is a heading: a short bold line, or one set 1.5 pt above the body text (a 16 pt "Experience" in a 10 pt text), that ends in a known section word ("Experience") is a title wherever it is (a column that starts with its heading,
+  // the name being elsewhere).
+  if (isFirstTwoLines) {
+    const first = line[0], t = first.text.trim();
+    return !!first.title || ((isBold(first) || first.height - body >= 1.5) && t.split(/\s+/).length <= 2 && endsWithTitleWord(t, lex.titleWords) && !t.toLowerCase().split(/\s+/).some(w => lex.jobTitles.some(j => j.toLowerCase() === w)));
   }
 
   const textItem = line[0];

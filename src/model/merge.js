@@ -6,7 +6,7 @@
 // the last of its saves this object has seen), the time of its last edit, and its hash; `seen` is the highest save of each device this copy has merged.
 
 import { fnv } from '../store/store.js';
-import { t } from '../i18n/index.js';
+import { t, keyed } from '../i18n/index.js';
 import { BODY_KEYS } from './schema.js';
 import { canon, resumeLabel, openSaved, groupOf, mirror } from './resumes.js';
 import { tombstone, nextMajor, normText, compareN, versionsIn } from './record.js';
@@ -221,7 +221,12 @@ function forget(d, ids){
 
 // mine, theirs: { state: { record, resumes, frozen, documents?, rounds?, imports? }, clock }. Whichever way round, the same state comes out. summary: one line for each thing both
 // copies changed, { key, kind, what, kept, other, undo }, where undo(d) puts the other back in a state d the way a diffRecords item's apply does.
+// A copy that loaded but is damaged inside (a field that holds a string where an object goes) is the model's "not a backup", not a TypeError.
 export function merge(mine, theirs){
+  try { return mergeOf(mine, theirs); }
+  catch (e){ throw e?.key ? e : keyed('error.notBackup'); }
+}
+function mergeOf(mine, theirs){
   let A = side(mine), B = side(theirs);
   const summary = [], pending = [];      // pending: the splits, whose lines come once the copies are renamed
 

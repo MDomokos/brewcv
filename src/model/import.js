@@ -141,7 +141,12 @@ export function applyOutsideEdits(model, edits){
   return n;
 }
 
+// The one door. A file that is JSON but not shaped as a record expects (a damaged one: a list holding null, a number where a list goes) is an error result like any other, not an exception.
 export function readImport(text, name = 'file'){
+  try { return read(text, name); }
+  catch (e){ return { kind: 'error', file: name, message: e?.key ? e.message : t('imp.unknown') }; }
+}
+function read(text, name){
   let json;
   try { json = JSON.parse(text); }
   catch (e){ return { kind: 'error', file: name, message: t('imp.notJson', { msg: e.message }) }; }
