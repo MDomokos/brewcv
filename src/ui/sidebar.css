@@ -134,7 +134,7 @@ html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-sele
 .sidegrip:is(:hover, .is-drag)::after { background: var(--line-strong); }
 .sidegrip:focus-visible { outline: none; }
 .sidegrip:focus-visible::after { top: 0; bottom: 0; background: var(--focus); }
-body.side-off:not([data-phone=true]):not(.is-intro) .col > :is(#ptabs, #head, #body, #foot, #switcher) { display: none; }
+body.side-off:not([data-phone=true]):not(.is-intro) .col > :is(#ptabs, #head, #body, #foot, #switcher, #bankcard) { display: none; }
 /* the chevron over the logo, at the foot of the rail: a small chrome card like undo and redo's, so it reads on the mat in every look */
 #rail > [data-act=side-fold] { --ink: var(--chrome-ink); --hover: var(--chrome-hover-strong); --focus: var(--chrome-accent); --fold-edge: color-mix(in srgb, var(--chrome-edge) 75%, var(--chrome-ink));
   left: 13px; bottom: 48px; width: 28px; height: 28px; background: var(--chrome); color: var(--chrome-ink); border: 1px solid var(--fold-edge); border-radius: var(--r-m); }
@@ -358,8 +358,10 @@ html:not([data-motion="reduce"]) .pen { transition: opacity 120ms ease-out; }
 @keyframes wbnudge { 0%, 45% { border-color: var(--gh); background: color-mix(in srgb, var(--gh) 30%, transparent); color: var(--ink); } }
 .bankcard[hidden] { display: none; }
 body:not([data-phone=true]):not(.is-intro) .col.has-bank > #body { flex: 0 1 auto; max-height: 55%; }
-body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { padding-bottom: 12px; }
+/* the rail's tabs (workbench.css .rtabs: 30px under the card's top, three of 58 and two gaps of 8) always end on the card: tall enough for the last one, its corner and the card's own */
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { min-height: calc(232px + var(--r-panel)); padding-bottom: 12px; }
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body::after { display: none; }
+.col > .bankcard:not([hidden]) { display: flex; flex-direction: column; }      /* (the empty well fills what is left of it) */
 .col > .bankcard { flex: 1 1 0; min-height: 160px; overflow: auto; margin-top: 8px; padding: 10px 12px 46px; background: var(--surface); border-radius: var(--r-panel);
   box-shadow: var(--shadow-panel), inset 0 0 0 1px var(--line-strong); scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 30%, transparent) transparent; }
 .bankcard.drop-bank { outline: 2px solid var(--sel-mark); outline-offset: -2px; }
@@ -368,9 +370,13 @@ body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body:
 .ib.wbtr { width: auto; min-width: 28px; padding: 0 5px; gap: 3px; grid-auto-flow: column; }
 .ib.wbtr.miss > span { font: 650 11px/1 var(--font-mono, monospace); color: var(--page-warn); }
 .wbqwrap { position: relative; flex: 1 1 auto; min-width: 0; display: flex; margin-right: 2px; }
-.wbqwrap > .wbq { width: 100%; padding-right: 64px; }
+.wbqwrap > .wbq { width: 100%; padding: 6px 64px 6px 28px; }      /* the app's .sw-q search box; room inside for the leading magnifier (a "+" in add mode) and the "+" */
+.wbqico { position: absolute; left: 9px; top: 50%; translate: 0 -50%; display: grid; color: var(--ink-soft); pointer-events: none; }
+.wbqwrap.is-add .wbqico { color: var(--ink); }
 .wbq::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }      /* Esc empties the box: an X means delete */
 .obplus.press.is-free.wbqplus { position: absolute; right: 4px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; }
+.obplus.press.is-free.wbqplus:not(.has-text) { background: transparent; color: var(--ink-soft); box-shadow: inset 0 0 0 1px var(--line-strong); }      /* the empty box's "+": quiet, a ring, no fill */
+.obplus.press.is-free.wbqplus:not(.has-text):hover:not(:disabled) { background: var(--hover); color: var(--ink); }
 .obplus.press.is-free.wbqplus.has-text { width: auto; padding: 0 8px 0 5px; display: inline-flex; gap: 2px; font-size: 11.5px; font-weight: 650; --face: color-mix(in srgb, var(--gh, var(--plate-tint-hover)) 40%, transparent); }
 .obplus.press.is-free.wbqplus.near { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--page-warn) 70%, transparent); }
 .obplus.press.is-free.wbqplus.warned { box-shadow: 0 0 0 2px var(--page-warn); }
@@ -381,7 +387,13 @@ body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body:
 .wbmark { font: 700 14px/1 var(--font-mono, monospace); color: var(--ink-soft); min-width: 12px; text-align: center; }
 .wbaddrow.near .wbmark { color: var(--page-warn); }
 .wbuses { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-soft); font-size: 11px; }
-.wbtray { display: grid; gap: 6px; padding-bottom: 6px; }
+/* the tray: a well, a step darker than the window (as the folder tabs are under the panel) and sunk, the words raised in it; with nothing to show it takes the window's height */
+.wbtray { --well: color-mix(in srgb, var(--surface) 82%, var(--shade)); display: grid; gap: 6px; padding: 8px; border-radius: var(--r-m); background: var(--well); box-shadow: var(--elev-inset), inset 0 0 0 1px var(--line); }
+html[data-drink="tea"][data-theme="dark"] .wbtray { --well: color-mix(in srgb, var(--surface) 72%, var(--shade)); }
+html[data-drink="coffee"] .wbtray { --well: color-mix(in srgb, var(--surface) 93%, var(--ink)); }
+html[data-drink="coffee"][data-theme="dark"] .wbtray { --well: color-mix(in srgb, var(--surface) 88%, var(--ink)); }
+.wbtray.is-empty { flex: 1 0 auto; place-content: center; justify-items: center; text-align: center; }
+.wbtray.is-empty > .wbempty { margin: 0; }
 .wbsec { display: grid; grid-template-columns: minmax(0, 72px) 1fr; gap: 0 8px; align-items: start; border-radius: var(--r-m); padding: 2px 0; }
 .wbsec.wbloose { grid-template-columns: 1fr; }
 .wbsec.wbloose > .wbclu { display: none; }
@@ -402,7 +414,7 @@ html.wb-carry #handlay .obplus, html.wb-carry #handlay .obgrip { visibility: hid
 .wbwadd > .wbaddrow { margin: 0; background: var(--surface); box-shadow: var(--shadow-panel), inset 0 0 0 1px var(--line-strong); }
 .wbwadd > .wbaddrow.near { box-shadow: var(--shadow-panel), inset 0 0 0 1px color-mix(in srgb, var(--page-warn) 70%, transparent); }
 .obplus.press.is-free.wbwplus { position: absolute; width: 18px; height: 18px; }
-.wbdelw ul { margin: 4px 0 6px; padding-left: 18px; font-size: 12px; }
+.wbdelw ul { margin: 4px 0 6px; padding-left: 18px; font-size: 12px; max-height: 8.6em; overflow: auto; }      /* a long list scrolls inside, so the word above and the buttons below stay in view */
 .wbfixcard, .wbfrom, .wbedit { display: grid; gap: 6px; margin: 0 0 8px; }
 .wbfixh { display: flex; align-items: center; gap: 6px; }
 .wbnote { margin: 0; }

@@ -1566,7 +1566,7 @@ export default {
   'wb.add': "Aggiungi",
   'wb.addAgain': "Premi di nuovo per aggiungerla come parola nuova",
   'wb.addBank': "Aggiungi «{word}» alla banca delle parole",
-  'wb.addEmpty': "Aggiungi una parola: scrivila nel campo",
+  'wb.addEmpty': "Aggiungi una parola nuova",
   'wb.addNear': "Simile a una parola della banca: aggiungerla comunque?",
   'wb.addTo': "Aggiungi «{word}» a {group}",
   'wb.added': "«{word}» ora è nella banca.",
@@ -1594,7 +1594,6 @@ export default {
   'wb.groupDeleted': "«{name}» eliminato da questo CV; le sue parole sono di nuovo nella banca.",
   'wb.groupsLabel': "I gruppi di competenze della pagina",
   'wb.hereTip': "Già in questo gruppo",
-  'wb.inBank': "«{word}» è già nella banca.",
   'wb.inLang': "{word} in {lang}",
   'wb.missTip': "Non ancora in {lang}: si stampa in inglese",
   'wb.missing': "mancanti: {n}",
@@ -1638,4 +1637,6 @@ export default {
   'wb.wordsTip': "Modifica la banca: parole, traduzioni, scaffali",
   'wb.writeIn': "Scrivila in {lang}",
   'wb.writeLang': "La lingua in cui scrivi",
+  'wb.newWord': "Nuova parola di competenza",
+  'wb.showTip': "È sulla pagina: un clic la mostra",
 };

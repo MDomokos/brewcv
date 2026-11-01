@@ -1570,7 +1570,7 @@ export default {
   'wb.add': "Add",
   'wb.addAgain': "Press again to add it as a new word",
   'wb.addBank': "Add “{word}” to the bank",
-  'wb.addEmpty': "Add a word: type it in the box",
+  'wb.addEmpty': "Add a new word",
   'wb.addNear': "Like a word in the bank: add it anyway?",
   'wb.addTo': "Add “{word}” to {group}",
   'wb.added': "“{word}” is in the bank now.",
@@ -1598,7 +1598,6 @@ export default {
   'wb.groupDeleted': "“{name}” deleted from this resume; its words are back in the bank.",
   'wb.groupsLabel': "The skill groups on the page",
   'wb.hereTip': "In this group already",
-  'wb.inBank': "“{word}” is in the bank already.",
   'wb.inLang': "{word} in {lang}",
   'wb.missTip': "Not in {lang} yet: it prints in English",
   'wb.missing': "missing: {n}",
@@ -1642,4 +1641,6 @@ export default {
   'wb.wordsTip': "Edit the bank: words, translations, shelves",
   'wb.writeIn': "Write it in {lang}",
   'wb.writeLang': "The language you write in",
+  'wb.newWord': "New skill word",
+  'wb.showTip': "On the page: a click shows it",
 };
