@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // node checks/preflight-check.mjs
 // preflight-deploy has to refuse an image that carries embedded provenance metadata and a prototypes/ folder,
-// and has to accept the same tree without them. Images are built here from bytes, since *.png is gitignored.
+// and has to accept the same tree without them. Images are built here from bytes, since *.png is gitignored. The import fixtures (PDF, DOCX, ODT) may be in the tree only with their metadata stripped.
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { spawnSync } from 'node:child_process';
+import { zip } from './lib/zip.mjs';
 
 const here = path.dirname(new URL(import.meta.url).pathname);
 const script = path.join(here, 'preflight-deploy.mjs');
@@ -51,7 +52,28 @@ const SHIPS = 'the only images that ship';
 expect('a README picture in docs/intro is accepted', !run('webp', d => { fs.mkdirSync(path.join(d, 'docs/intro'), { recursive: true }); fs.writeFileSync(path.join(d, 'docs/intro/a.webp'), webp); }).includes(SHIPS));
 expect('a picture anywhere else is refused', run('webp2', d => { fs.mkdirSync(path.join(d, 'docs'), { recursive: true }); fs.writeFileSync(path.join(d, 'docs/a.webp'), webp); }).includes(SHIPS));
 expect('a font unicode-range is not a phone number', !run('range', d => fs.writeFileSync(path.join(d, 'a.css'), '@font-face { unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC; }')).includes('phone number'));
+expect('a minified vendor file is not read for phone numbers and addresses, only for private values and images', !run('vendor', d => { fs.mkdirSync(path.join(d, 'vendor/lib'), { recursive: true }); fs.writeFileSync(path.join(d, 'vendor/lib/a.min.mjs'), 'x=+386' + '4292196,y="jm@kbswfq' + '.pkbgltMlwbaof"'); }).match(/phone number|email address/)
+  && run('vendor2', d => { fs.mkdirSync(path.join(d, 'src'), { recursive: true }); fs.writeFileSync(path.join(d, 'src/a.js'), 'y="jm@kbswfq' + '.pkbgltMlwbaof"'); }).includes('email address'));
 expect('a phone number still is', run('phone', d => fs.writeFileSync(path.join(d, 'a.md'), 'Call +44' + ' 7700 900123 today')).includes('phone number'));
+
+// The import fixtures (checks/fixtures/import/) are the one place PDF, DOCX and ODT files may be, and only with their metadata stripped
+const pdfWith = info => Buffer.from(`%PDF-1.4\n1 0 obj\n<< /Type /Outlines /Title (Dana Okonkwo) >>\nendobj\n2 0 obj\n<< ${info} >>\nendobj\ntrailer\n<< /Root 1 0 R /Info 2 0 R >>\n%%EOF\n`, 'latin1');
+const fixture = (name, bytes) => d => { fs.mkdirSync(path.join(d, 'checks/fixtures/import'), { recursive: true }); fs.writeFileSync(path.join(d, 'checks/fixtures/import', name), bytes); };
+const STAY = 'rendered documents stay outside the repo', LEFT = 'fixture metadata';
+expect('a PDF anywhere else is refused', run('pdf', d => { fs.mkdirSync(path.join(d, 'docs'), { recursive: true }); fs.writeFileSync(path.join(d, 'docs/a.pdf'), pdfWith('/Title ( )')); }).includes(STAY));
+const okPdf = run('fx', fixture('helix-1col-word.pdf', pdfWith('/Title ( ) /Producer ( ) /CreationDate (   )')));
+expect('a fixture PDF with its Info strings blanked is accepted (a bookmark\'s title is text, not metadata)', !okPdf.includes(STAY) && !okPdf.includes(LEFT));
+expect('a fixture PDF whose Info names a producer is refused', run('fx2', fixture('helix-1col-word.pdf', pdfWith('/Producer (Some Writer 1.0)'))).includes(LEFT));
+expect('a fixture PDF whose Info names an author, in hex, is refused', run('fx3', fixture('helix-1col-word.pdf', pdfWith('/Author <FEFF0041>'))).includes(LEFT));
+expect('a fixture PDF with an XMP packet that holds anything is refused, an empty one is accepted',
+  run('fx4', fixture('helix-1col-word.pdf', Buffer.concat([pdfWith('/Title ( )'), Buffer.from('<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF/></x:xmpmeta>')]))).includes(LEFT)
+  && !run('fx5', fixture('helix-1col-word.pdf', Buffer.concat([pdfWith('/Title ( )'), Buffer.from('<x:xmpmeta xmlns:x="adobe:ns:meta/"/>')]))).includes(LEFT));
+const zipOf = parts => Buffer.from(zip(parts));
+const core = text => `<?xml version="1.0"?><cp:coreProperties xmlns:cp="c" xmlns:dc="d">${text}</cp:coreProperties>`;
+expect('a fixture DOCX whose docProps hold a creator is refused, one with them empty is accepted',
+  run('fx6', fixture('helix-1col-word.docx', zipOf({ 'word/document.xml': '<w:document/>', 'docProps/core.xml': core('<dc:creator>Someone</dc:creator>') }))).includes(LEFT)
+  && !run('fx7', fixture('helix-1col-word.docx', zipOf({ 'word/document.xml': '<w:document/>', 'docProps/core.xml': core('') }))).includes(LEFT));
+expect('a fixture ODT whose meta.xml names a creator is refused', run('fx8', fixture('helix-1col-word.odt', zipOf({ 'content.xml': '<office:document-content/>', 'meta.xml': '<office:document-meta><office:meta><dc:creator>Someone</dc:creator></office:meta></office:document-meta>' }))).includes(LEFT));
 
 // Windows builds failed on icons\icon-192.png: every rule tests a path with forward slashes
 const src = fs.readFileSync(script, 'utf8');

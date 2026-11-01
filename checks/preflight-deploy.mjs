@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { findPrivate, REPO } from '../scripts/lib/private-files.mjs';
+import { unzip } from '../src/parse/unzip.js';
 
 const ROOT = path.resolve(process.argv[2] ?? '.');
 // paths are tested and shown with forward slashes, whatever the platform (on Windows path.relative gives backslashes)
@@ -151,12 +152,39 @@ function fileIgnored(rel){
   }
 }
 
+// The one place PDFs, Word and ODT files may be: the import fixtures (checks/fixtures/import/), one fictional resume set by each producer. A file there has its metadata stripped, and this says what is left:
+// an Info dictionary that holds a text (who made it, with what, when, its title), an XMP packet with anything in it, a docProps or meta.xml part with a text, or a private value anywhere in it.
+// shortcut: an Info dictionary that is not a plain object (inside an object stream) cannot be read here and is refused; the fixtures are made with a plain one. Read it with PDF.js when one needs it.
+const FIXTURE = /^checks\/fixtures\/import\/[^/]+\.(pdf|docx|odt)$/i;
+const INFO_KEYS = /\/(?:Title|Author|Subject|Keywords|Creator|Producer|CreationDate|ModDate)\s*(\([^)]*\)|<[^>]*>)/g;
+const blank = v => (v[0] === '(' ? !v.slice(1, -1).trim() : /^(?:FEFF)?(?:0020|20|00)*$/i.test(v.slice(1, -1).replace(/\s/g, '')));      // spaces only, in text or in hex
+async function leftover(rel, buf, deny){
+  const raw = buf.toString('latin1');
+  if (/\.pdf$/i.test(rel)){
+    for (const m of raw.matchAll(/\/Info\s+(\d+)\s+0\s+R/g)){
+      const o = new RegExp(`(?:^|\\s)${m[1]}\\s+0\\s+obj([\\s\\S]*?)endobj`).exec(raw);
+      if (!o) return 'its Info dictionary is not a plain object, so it cannot be checked';
+      if ([...o[1].matchAll(INFO_KEYS)].some(k => !blank(k[1]))) return 'its Info dictionary holds a text (the title, who made it, with what, or when)';
+    }
+    if (/<x:xmpmeta(?![^>]*\/>)/.test(raw)) return 'an XMP packet holds metadata';
+    return deny.some(d => raw.includes(d)) ? 'a private value is in it' : null;
+  }
+  const z = unzip(new Uint8Array(buf));
+  for (const n of z.names){
+    if (n.endsWith('/')) continue;
+    const text = new TextDecoder().decode(await z.read(n));
+    if (['docProps/core.xml', 'docProps/app.xml', 'meta.xml'].includes(n) && text.replace(/<[^>]*>/g, '').trim()) return `${n} holds a text (who made it, with what, when, or its title)`;
+    if (deny.some(d => text.includes(d))) return `a private value is in ${n}`;
+  }
+  return null;
+}
+
 for (const f of files){
   const rel = relOf(f);
   if (rel === 'data/resume-data.json') flag(f, 0, 'real library', 'data/resume-data.json is present. It is gitignored, but it must not be in a deploy tree either');
   if (/\.local\.json$/.test(rel))      flag(f, 0, 'local file', `${rel} is a private overlay and must not be published`);
   if (/^out\//.test(rel))              flag(f, 0, 'rendered output', rel);
-  if (/\.pdf$/i.test(rel))             flag(f, 0, 'PDF', `${rel}: rendered documents stay outside the repo`);
+  if (/\.pdf$/i.test(rel) && !FIXTURE.test(rel)) flag(f, 0, 'PDF', `${rel}: rendered documents stay outside the repo`);
   if (/^data\/recipes\//.test(rel))    flag(f, 0, 'recipe', `${rel}: recipes name real applications`);
   // The only images that ship are the app's own icons, and the README's pictures (made from the fictional example, kept out of the site).
   if (RASTER.test(rel) && !/^(src-tauri\/)?icons\//.test(rel) && !/^docs\/intro\/[^/]+\.webp$/.test(rel))
@@ -192,12 +220,19 @@ console.log(deny.length ? `preflight: ${deny.length} private value${deny.length 
   : 'preflight: no private identity or deny file found (CI, or not set up): checking shapes only. See docs/DEVELOPMENT.md, "Real data is not in this repo"');
 
 for (const f of files){
+  const rel = relOf(f), why = FIXTURE.test(rel) ? await leftover(rel, fs.readFileSync(f), deny) : null;
+  if (why) flag(f, 0, 'fixture metadata', `${rel}: ${why}. Strip it, leaving the text as it is`);
+}
+
+for (const f of files){
   if (!TEXT.test(f)) continue;
   const rel = relOf(f);
   const lines = fs.readFileSync(f, 'utf8').split('\n');
 
+  // vendor/ holds other projects' minified code (PDF.js): its tables of numbers and letters have the shape of a phone number and an address, so only private values and images are looked for there
+  const own = !rel.startsWith('vendor/');
   lines.forEach((line, n) => {
-    for (const m of line.matchAll(EMAIL)){
+    if (own) for (const m of line.matchAll(EMAIL)){
       const addr = m[0];
       if (ALLOWED_EMAILS.includes(addr)) continue;
       const domain = addr.split('@')[1];
@@ -205,7 +240,7 @@ for (const f of files){
       flag(f, n + 1, 'email address', addr);
     }
     // a font's unicode-range (U+0152-0153) has the shape of a number
-    for (const m of line.replace(/U\+[0-9A-Fa-f?]+(?:-[0-9A-Fa-f]+)?/g, '').matchAll(PHONE)){
+    if (own) for (const m of line.replace(/U\+[0-9A-Fa-f?]+(?:-[0-9A-Fa-f]+)?/g, '').matchAll(PHONE)){
       const num = m[0].replace(/[  ().-]+/g, ' ').trim();
       if (ALLOWED_PHONES.some(a => a.replace(/\s+/g, '') === num.replace(/\s+/g, ''))) continue;
       flag(f, n + 1, 'phone number', num);
