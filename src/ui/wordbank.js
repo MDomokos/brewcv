@@ -9,6 +9,7 @@
 import * as T from '../model/resume.js';
 import * as SB from '../model/skillbank.js';
 import * as RS from '../model/resumes.js';
+import * as K from '../model/career.js';
 import { langName, DEFAULT_LANG } from '../model/lang.js';
 import { t, h, errText } from '../i18n/index.js';
 import { esc, delBtn } from './parts.js';
@@ -121,26 +122,44 @@ export function initWordbank(C){
   }
   // the languages this resume has copies in (English, the words themselves, first)
   const stripLangs = () => [...new Set([DEFAULT_LANG, ...RS.groupOf(st(), cur()).map(r => r.lang ?? DEFAULT_LANG), L()])];
-  // what is missing in a language: shelf names, then words, the words on this resume first (they print outlined)
-  const todoOf = l => (l === DEFAULT_LANG ? { shelves: [], words: [] } : { shelves: SB.shelvesOf(rec()).filter(x => !SB.labelIn(rec(), x.id, l)),
+  // the headings: this resume's in print order (its own, `own`; else a shelf's name or the record group's), then every other shelf. A shelf
+  // and a record group with the same English name are one heading (Sort by skill groups names a shelf after each group): one line writes both.
+  function headRows(){
+    const rows = [], byName = new Map();
+    const add = (k, id, en, on) => { const n = SB.norm(en), r = byName.get(n);
+      if (r){ if (!r.to.some(x => x.k === k && x.id === id)) r.to.push({ k, id }); r.on ||= on; return; }
+      const x = { to: [{ k, id }], en, on }; byName.set(n, x); rows.push(x); };
+    for (const g of groups()){
+      if (g.shelf){ const s = SB.shelfOf(rec(), g.shelf); if (s) add('sl', s.id, s.name, true); }
+      else if (g.label !== undefined){ if (g.label) rows.push({ own: g.id, en: g.label, on: true }); }
+      else if (!g.id.startsWith('~sg-')) add('gn', g.id, groupName(g.id), true);
+    }
+    for (const s of SB.shelvesOf(rec())) add('sl', s.id, s.name, false);
+    return rows;
+  }
+  const groupName = id => (rec().skills ?? []).find(s => s.id === id)?.name ?? id;
+  const headIn = (x, l) => (x.k === 'sl' ? SB.labelIn(rec(), x.id, l) : rec().i18n?.[l]?.labels?.[x.id]);
+  const headMiss = (r, l) => l !== DEFAULT_LANG && !r.own && r.to.some(x => !headIn(x, l));
+  // what is missing in a language: headings, then words, the words on this resume first (they print outlined)
+  const todoOf = l => (l === DEFAULT_LANG ? { heads: [], words: [] } : { heads: headRows().filter(r => headMiss(r, l)),
     words: SB.wordsOf(rec()).filter(w => SB.wordText(rec(), w.id, l).miss).sort((a, b) => onRes().has(b.id) - onRes().has(a.id)) });
-  const missIn = l => { const x = todoOf(l); return x.shelves.length + x.words.length; };
-  // the language the globe offers: the resume's own when it lacks something, else the first copy language that does
-  const trLang = () => { const ls = stripLangs().filter(l => l !== DEFAULT_LANG); return [L(), ...ls].find(l => l !== DEFAULT_LANG && missIn(l)) ?? (L() !== DEFAULT_LANG ? L() : ls[0]); };
-  function trBtnHtml(){
-    const ls = stripLangs().filter(l => l !== DEFAULT_LANG);
-    if (!ls.length) return '';
-    const l = trLang(), n = missIn(l), all = ls.map(x => [x, missIn(x)]).filter(([, k]) => k);
-    return `<button type="button" class="ib press wbtr${n ? ' miss' : ''}" data-tier="tertiary" data-act="wb-tr" data-key="wb-tr" aria-pressed="${B.view === 'words' && B.wlang !== DEFAULT_LANG}" title="${esc(all.length ? t('wb.trTodo', { list: all.map(([x, k]) => `${langName(x)} ${k}`).join(', ') }) : t('wb.trDone'))}" aria-label="${esc(t('wb.tr'))}">${icon('globe')}${n ? `<span>${esc(l.toUpperCase())} ${n}</span>` : ''}</button>`;
+  const missIn = l => { const x = todoOf(l); return x.heads.length + x.words.length; };
+  // the language Edit opens on: the resume's own when it lacks something, else the first copy language that does, else the resume's own
+  const editLang = () => [L(), ...stripLangs()].find(l => l !== DEFAULT_LANG && missIn(l)) ?? L();
+  // Edit the bank (words, translations, shelves): what is missing beside the pencil, as "HU 2"
+  function editBtnHtml(){
+    const l = editLang(), n = missIn(l), all = stripLangs().filter(x => x !== DEFAULT_LANG).map(x => [x, missIn(x)]).filter(([, k]) => k);
+    const say = all.length ? `${t('wb.wordsTip')} · ${t('wb.trTodo', { list: all.map(([x, k]) => `${langName(x)} ${k}`).join(', ') })}` : t('wb.wordsTip');
+    return `<button type="button" class="ib press wbpen${n ? ' miss' : ''}" data-tier="tertiary" data-act="wb-words" data-key="wb-pen"${n ? ` data-miss="${esc(`${l.toUpperCase()} ${n}`)}"` : ''} aria-pressed="${B.view === 'words'}" title="${esc(say)}" aria-label="${esc(say)}">${icon('edit')}</button>`;
   }
   // the words view on a language, scrolled to its top; `wid`: that word's line in focus, with a short ring
   function openWords(l, wid = null){
     Object.assign(B, { view: 'words', wlang: l, delw: null });
     render();
     if (card) card.scrollTop = 0;
-    const key = wid ? `in:${wid}:${l}` : l === DEFAULT_LANG ? null : (() => { const x = todoOf(l); return x.shelves[0] ? `sl:${x.shelves[0].id}:${l}` : x.words[0] ? `in:${x.words[0].id}:${l}` : null; })();
+    const key = wid ? `in:${wid}:${l}` : l === DEFAULT_LANG ? null : (() => { const x = todoOf(l); return x.heads[0] ? `h:${x.heads[0].to[0].k}:${x.heads[0].to[0].id}:${l}` : x.words[0] ? `in:${x.words[0].id}:${l}` : null; })();
     const n = key && card?.querySelector(`[data-key="${CSS.escape(key)}"]`);
-    if (n){ n.focus({ preventScroll: true }); n.scrollIntoView({ block: 'center' }); if (wid) flashEl(n); }
+    if (n){ n.focus({ preventScroll: true }); n.scrollIntoView({ block: 'nearest' }); if (wid) flashEl(n); }      // (nearest: the Headings above stay in view when they can)
   }
   const flashEl = n => { n.classList.remove('wb-ring'); void n.offsetWidth; n.classList.add('wb-ring'); };
   function lineHtml(w, l, del = true){
@@ -152,19 +171,33 @@ export function initWordbank(C){
     return `<div class="wbrow"><span class="wben" title="${esc(w.name)}">${esc(w.name)}</span>${w.same ? `<span class="wbsame" title="${esc(t('wb.sameEvery'))}">${esc(w.name)}</span>`
       : `<span class="wbcell"><input class="wbin${v ? '' : ' empty'}${rev ? ' rev' : ''}" data-wl="${esc(w.id)}" data-l="${l}" data-key="in:${esc(w.id)}:${l}" value="${esc(v)}" placeholder="${esc(w.name)}" aria-label="${esc(t('wb.inLang', { word: w.name, lang: langName(l) }))}" autocomplete="off">${revTag}</span>`}${eq}${x}</div>`;
   }
-  const shelfLine = (s, l) => `<div class="wbrow wbrowg"><span class="wbcell"><input class="wbin" data-sl="${esc(s.id)}" data-l="${l}" data-key="sl:${esc(s.id)}:${l}" value="${esc(l === DEFAULT_LANG ? s.name : SB.labelIn(rec(), s.id, l) ?? '')}" placeholder="${esc(s.name)}" aria-label="${esc(t('wb.shelfIn', { lang: langName(l) }))}" autocomplete="off"></span><span></span>${delBtn(`data-act="wb-delshelf" data-id="${esc(s.id)}"`, t('wb.deleteShelf'), { text: false, name: t('wb.deleteShelf') })}</div>`;
+  // a heading's line: its English (none on the English view), its wording in `l`, a mark when this resume prints it, Delete for a shelf.
+  // A heading this resume wrote itself is written on each copy's page, so another language shows that copy's, to read.
+  function headLine(r, l){
+    const en = l === DEFAULT_LANG, mine = r.own && l === L(), src = r.own && mine ? '' : r.en, shelf = r.to?.find(x => x.k === 'sl');
+    const v = r.own ? r.en : en ? r.en : r.to.map(x => headIn(x, l)).find(Boolean) ?? '';
+    const copy = r.own && !mine && RS.groupOf(st(), cur()).find(o => o.id !== cur().id && (o.lang ?? DEFAULT_LANG) === l);
+    const to = r.own ? `data-own="${esc(r.own)}" data-key="own:${esc(r.own)}:${l}"` : `data-h="${esc(r.to.map(x => `${x.k}:${x.id}`).join(' '))}" data-key="h:${esc(`${r.to[0].k}:${r.to[0].id}`)}:${l}"`;
+    const cell = r.own && !mine ? `<span class="wbsame" title="${esc(t('wb.ownTip', { lang: langName(l) }))}">${esc(copy ? T.printedLabel(rec(), copy, `~g:${r.own}`) : '')}</span>`
+      : `<span class="wbcell"><input class="wbin${v && !headMiss(r, l) ? '' : ' empty'}" ${to} data-l="${l}" value="${esc(v)}" placeholder="${esc(src)}" aria-label="${esc(t('wb.inLang', { word: src || v, lang: langName(l) }))}" autocomplete="off"></span>`;
+    const mark = r.on ? `<span class="wbon" title="${esc(t('wb.onPageTip'))}">${PAGE_ICON}</span>` : '<span></span>';
+    const del = shelf ? delBtn(`data-act="wb-delshelf" data-id="${esc(shelf.id)}"`, t('wb.deleteShelf'), { text: false, name: t('wb.deleteShelf') }) : '<span></span>';
+    return `<div class="wbrow wbrowh">${en ? '' : `<span class="wben" title="${esc(src)}">${esc(src)}</span>`}${cell}${mark}${del}</div>`;
+  }
   const stripHtml = l => `<div class="seg fill wbstrip" role="group" aria-label="${esc(t('wb.writeLang'))}">${stripLangs().map(x => { const n = missIn(x);
     return `<button type="button" data-act="wb-wlang" data-l="${x}" data-key="wl:${x}" aria-pressed="${x === l}" title="${esc(langName(x))}${x === DEFAULT_LANG ? '' : esc(n ? ` · ${t('wb.missing', { n })}` : '')}">${x.toUpperCase()}${x === DEFAULT_LANG ? '' : `<small class="${n ? '' : 'ok'}">${n ? n : '✓'}</small>`}</button>`; }).join('')}</div>`;
   const wlangNow = () => (stripLangs().includes(B.wlang) ? B.wlang : DEFAULT_LANG);
   function wordsHtml(){
-    const l = wlangNow(), todo = todoOf(l), n = todo.shelves.length + todo.words.length;
-    const skipW = new Set(todo.words.map(w => w.id)), skipS = new Set(todo.shelves.map(x => x.id));
-    const words = SB.wordsOf(rec()), known = new Set(SB.shelvesOf(rec()).map(x => x.id));
-    const head = x => (skipS.has(x.id) ? `<div class="wbrow wbrowg"><span class="wben">${esc(x.name)}</span></div>` : shelfLine(x, l));
-    const first = n ? `<p class="wbtodo">${h('wb.missing', { n })}</p>${todo.shelves.map(x => shelfLine(x, l)).join('')}${todo.words.map(w => lineHtml(w, l)).join('')}<hr class="wbsep">` : '';
+    const l = wlangNow(), grid = `wbgrid${l === DEFAULT_LANG ? ' en' : ''}`, todo = todoOf(l), hs = headRows(), mh = hs.filter(r => headMiss(r, l));
+    const skipW = new Set(todo.words.map(w => w.id)), words = SB.wordsOf(rec()), shelves = SB.shelvesOf(rec()), known = new Set(shelves.map(x => x.id));
+    const label = (key, n) => `<p class="lbl wbhd">${h(key)}${n ? `<span class="wbtodo">${h('wb.missing', { n })}</span>` : ''}</p>`;
+    // in the word list a shelf is a quiet label that stays in view (its name is written under Headings), with how many words it holds
+    const shelfH = x => `<div class="wbshelfh" title="${esc(t('wb.shelfTip'))}">${esc(SB.shelfName(rec(), x.id, l))}<small>${words.filter(w => w.shelf === x.id).length}</small></div>`;
+    const first = todo.words.length ? `${todo.words.map(w => lineHtml(w, l)).join('')}<hr class="wbsep">` : '';
     const rows = [...words.filter(w => (!w.shelf || !known.has(w.shelf)) && !skipW.has(w.id)).map(w => lineHtml(w, l)),
-      ...SB.shelvesOf(rec()).flatMap(x => [head(x), ...words.filter(w => w.shelf === x.id && !skipW.has(w.id)).map(w => lineHtml(w, l))])];
-    return `<div class="wbedit"><div class="wbgrid${l === DEFAULT_LANG ? ' en' : ''}">${first}${rows.join('') || (n ? '' : `<p class="muted small">${h('wb.bankEmpty')}</p>`)}</div>
+      ...shelves.flatMap(x => [shelfH(x), ...words.filter(w => w.shelf === x.id && !skipW.has(w.id)).map(w => lineHtml(w, l))])];
+    return `<div class="wbedit">${hs.length ? `${label('wb.headings', mh.length)}<div class="${grid} wbheads">${[...mh, ...hs.filter(r => !mh.includes(r))].map(r => headLine(r, l)).join('')}</div>` : ''}
+      ${label('wb.words', todo.words.length)}<div class="${grid}">${first}${rows.join('') || (todo.words.length ? '' : `<p class="muted small">${h('wb.bankEmpty')}</p>`)}</div>
       <div class="btns"><button type="button" class="sm" data-act="wb-newshelf" data-key="wb-newshelf">${h('wb.newShelf')}</button><span class="grow"></span><button type="button" class="primary sm" data-act="wb-words-done" data-key="wb-done">${h('wb.done')}</button></div></div>`;
   }
   // Start from a resume: the other saved resumes by role, each with its groups as they print
@@ -183,8 +216,7 @@ export function initWordbank(C){
   function bankHtml(){
     const strip = B.view === 'words' && stripLangs().length > 1 ? `<div class="wbbar2">${stripHtml(wlangNow())}</div>` : '';
     const top = `<div class="wbtop"><div class="wbbar">${boxHtml()}
-      ${trBtnHtml()}<button type="button" class="ib press wbfromb" data-tier="tertiary" data-act="wb-from" data-key="wb-from" aria-pressed="${B.view === 'from'}" title="${esc(t('wb.from'))}" aria-label="${esc(t('wb.from'))}">${icon('list')}</button>
-      <button type="button" class="ib press wbpen" data-tier="tertiary" data-act="wb-words" data-key="wb-pen" aria-pressed="${B.view === 'words' && B.wlang === DEFAULT_LANG}" title="${esc(t('wb.wordsTip'))}" aria-label="${esc(t('wb.wordsTip'))}">${icon('edit')}</button></div>${strip}</div>`;
+      ${editBtnHtml()}<button type="button" class="ib press wbfromb" data-tier="tertiary" data-act="wb-from" data-key="wb-from" aria-pressed="${B.view === 'from'}" title="${esc(t('wb.from'))}" aria-label="${esc(t('wb.from'))}">${icon('list')}</button></div>${strip}</div>`;
     const body = B.view === 'words' ? wordsHtml() : B.view === 'from' ? fromHtml() : trayHtml();
     return `${top}${B.view === 'words' ? '' : findHtml()}${delwHtml()}${body}`;
   }
@@ -197,6 +229,7 @@ export function initWordbank(C){
     const a = document.activeElement, key = card.contains(a) ? a?.dataset?.key : null, ss = a?.selectionStart, se = a?.selectionEnd, top = card.scrollTop;
     if (a?.matches?.('.wbin') && card.contains(a)) return;      // a word being written is not redrawn under the caret (its change redraws when it is left)
     drawing = true; card.innerHTML = bankHtml(); drawing = false;
+    card.style.setProperty('--wbtop', `${card.querySelector('.wbtop')?.offsetHeight ?? 0}px`);      // the shelf labels stay in view just under the top bar
     tierAll(card);
     card.scrollTop = top;
     if (key){ const n = card.querySelector(`[data-key="${CSS.escape(key)}"]`); if (n){ n.focus({ preventScroll: true }); if (ss != null && n.setSelectionRange) try { n.setSelectionRange(ss, se); } catch { /* not a text box */ } } }
@@ -256,16 +289,15 @@ export function initWordbank(C){
       else if (a === 'wb-add') addFromFind();
       else if (a === 'wb-addmode'){ B.add = true; render(); focusKey('wb-q'); }
       else if (a === 'wb-from'){ B.view = B.view === 'from' ? null : 'from'; render(); }
-      else if (a === 'wb-words'){ if (B.view === 'words' && B.wlang === DEFAULT_LANG){ B.view = null; render(); } else openWords(DEFAULT_LANG); }
+      else if (a === 'wb-words'){ if (B.view === 'words'){ B.view = null; render(); } else openWords(editLang()); }
       else if (a === 'wb-words-done'){ B.view = null; render(); }
-      else if (a === 'wb-tr'){ if (B.view === 'words' && B.wlang !== DEFAULT_LANG){ B.view = null; render(); } else openWords(trLang()); }
       else if (a === 'wb-wlang') openWords(b.dataset.l);
       else if (a === 'wb-same'){ const w = SB.wordOf(rec(), id); commit(d => SB.setWordSame(d.record, id, !w.same), t('wb.undoSame')); }
       else if (a === 'wb-delw'){ B.delw = id; render(); focusKey('wb-delw-no'); }
       else if (a === 'wb-delw-no'){ B.delw = null; render(); }
       else if (a === 'wb-delw-yes') deleteWord(B.delw);
       else if (a === 'wb-fix') openWords(L(), id);
-      else if (a === 'wb-newshelf'){ let sid; commit(d => { sid = SB.addShelf(d.record, t('wb.newShelf'), DEFAULT_LANG).id; }, t('wb.undoShelf')); B.wlang = DEFAULT_LANG; render(); const n = card.querySelector(`[data-key="sl:${CSS.escape(sid ?? '')}:en"]`); n?.focus(); n?.select(); }
+      else if (a === 'wb-newshelf'){ let sid; commit(d => { sid = SB.addShelf(d.record, t('wb.newShelf'), DEFAULT_LANG).id; }, t('wb.undoShelf')); B.wlang = DEFAULT_LANG; render(); const n = card.querySelector(`[data-h~="sl:${CSS.escape(sid ?? '')}"][data-l="en"]`); n?.focus(); n?.select(); }
       else if (a === 'wb-delshelf') commit(d => SB.dropShelf(d.record, id), t('wb.undoShelf'), t('wb.shelfDeleted'), true);
       else if (a === 'wb-use'){ const src = (st().resumes ?? []).find(r => r.id === id); if (src && commit(d => T.useGroupsOf(d.record, d.cur, src), t('wb.undoFrom'), t('wb.startedFrom', { name: C.resumeName(src) }), true)){ B.view = null; pickGroup(null); } }
     });
@@ -289,8 +321,10 @@ export function initWordbank(C){
     card.addEventListener('change', e => {
       const x = e.target;
       if (x.dataset.wl) commit(d => RS.renameWord(d.record, x.dataset.wl, x.dataset.l, x.value), t('wb.undoWord'));
-      else if (x.dataset.sl) commit(d => SB.setShelfName(d.record, x.dataset.sl, x.dataset.l, x.value), t('wb.undoShelf'));
-      if (x.dataset.wl || x.dataset.sl) setTimeout(render);
+      else if (x.dataset.h) commit(d => { for (const p of x.dataset.h.split(' ')){ const id = p.slice(3);      // a shelf's name (sl:) and a record group's (gn:)
+        if (p.startsWith('sl:')) SB.setShelfName(d.record, id, x.dataset.l, x.value); else K.updateSkill(d.record, id, { name: x.value }, x.dataset.l); } }, t('ux6c.undoLabel'));
+      else if (x.dataset.own) commit(d => T.setLabel(d.record, d.cur, `~g:${x.dataset.own}`, x.dataset.l, x.value), t('ux6c.undoLabel'));
+      if (x.dataset.wl || x.dataset.h || x.dataset.own) setTimeout(render);
     });
     // an empty box that is left is back to Find (only the box is redrawn: a click that began on something else must still land)
     card.addEventListener('focusout', e => {

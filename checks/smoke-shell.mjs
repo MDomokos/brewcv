@@ -4447,7 +4447,7 @@ if (want('the skill wordbank: the groups by name, the bank’s window, moving wo
   await carry(await wordAt('Python'), await bankMid());
   const hu = await groupsNow();
   ok('Hungarian: once arranged, translated words print in Hungarian, product names unchanged, a word with no Hungarian outlined', hu[1].includes('CNC-marás') && hu[0].includes('SolidWorks (CSWP)') && (await frameDoc(page, d => [...d.querySelectorAll('[data-word].rb-miss')].map(x => x.textContent))).includes('design verification'), JSON.stringify(hu));
-  ok('…the globe says how many are missing in the resume\'s language (two of the record\'s, and the two words added above)', /HU\s*4/.test(await page.textContent('#bankcard .wbtr')), await page.textContent('#bankcard .wbtr'));
+  ok('…Edit says beside its pencil how many are missing in the resume\'s language (two of the record\'s, and the two words added above)', /HU\s*4/.test(await page.getAttribute('#bankcard .wbpen', 'data-miss')), await page.getAttribute('#bankcard .wbpen', 'data-miss'));
   await fr.locator('[data-word].rb-miss', { hasText: 'design verification' }).click(); await page.waitForTimeout(300); await settle(page);
   ok('…a click on the outlined word opens the words view on that word\'s line, in Hungarian', await page.evaluate(() => document.activeElement?.dataset?.key) === 'in:sw-design-verification:hu');
   await page.keyboard.insertText('tervezésellenőrzés'); await page.keyboard.press('Enter'); await settle(page);

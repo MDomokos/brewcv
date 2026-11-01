@@ -10,8 +10,9 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 - **A word bank for skills: every skill word is kept once, and each resume takes the ones it prints.** The bank has its own window; drag a word onto a skill group on the page, and back onto the bank to take it off.
 - **Each resume makes its own skill groups on the page,** with a + to add a group or a skill, and Start from a resume copies another resume's groups.
 - **Find or add a word shows the words the bank already has, and similar ones, before it adds a new one.**
-- **A skill word is translated once, or marked the same in every language like a product name.** Translations lists what this resume's languages still miss, and a missing word prints in English, outlined in the app, until it is written.
-- **Shelves sort the bank and never print, and Career has a Skill words card with the whole bank.** Move words and shelves there, or let Sort by skill groups make a shelf from each of your skill groups.
+- **A skill word is translated once, or marked the same in every language like a product name.** The bank's Edit button shows how many words and headings this resume's languages still miss, and a missing word prints in English, outlined in the app, until it is written.
+- **Skill group headings are translated in a block of their own, above the words,** each beside its English and marked when this resume prints it.
+- **Shelves sort the bank, and Career has a Skill words card with the whole bank.** Move words and shelves there, or let Sort by skill groups make a shelf from each of your skill groups.
 - **Deleting a word from the bank first lists the saved resumes that print it,** and Undo brings it back.
 - **A coding agent can pick skill words too:** picks.json takes them by id, and claims.mjs lists the bank in the resume's language.
 

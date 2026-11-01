@@ -90,7 +90,7 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
   }
   const sortHtml = () => { const r = SB.shelvesFromGroups(rec(), { dry: true });      // "Sort by skill groups" is shown while it would change something
     return r.shelves || r.words ? `<button type="button" class="sm ghost" data-act="c-bk-sort" title="${esc(t('career.bankSortTip'))}">${h('career.bankSort')}</button>` : ''; };
-  const cardHtml = () => `<div class="cwb cwbbank"><div class="wbbar"><span class="wbqwrap"><input type="search" id="cb-q" class="wbq" data-key="cb-q" placeholder="${esc(t('wb.find'))}" aria-label="${esc(t('wb.find'))}" value="${esc(B.q)}" autocomplete="off" spellcheck="false">${plusHtml(B.q, B.warned, 'c-bk-add')}</span>
+  const cardHtml = () => `<div class="cwb cwbbank"><div class="wbbar"><span class="wbqwrap"><i class="wbqico" aria-hidden="true">${icon('search', { role: 'inline' })}</i><input type="search" id="cb-q" class="sw-q wbq" data-key="cb-q" placeholder="${esc(t('wb.find'))}" aria-label="${esc(t('wb.find'))}" value="${esc(B.q)}" autocomplete="off" spellcheck="false">${plusHtml(B.q, B.warned, 'c-bk-add')}</span>
       <button type="button" class="ib press wbpen" data-tier="tertiary" data-act="c-bank" title="${esc(t('wb.wordsTip'))}" aria-label="${esc(t('wb.wordsTip'))}">${icon('edit')}</button></div>
     ${delwHtml()}${rowHtml(B.q, 'c-bk-chip', true)}
     <div class="btns"><button type="button" class="sm ghost" data-act="c-bk-newshelf">${h('wb.newShelf')}</button>${sortHtml()}</div>
@@ -144,7 +144,7 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
     const chips = keywordsOf(gid).map((k, n) =>      // each word as the group's line prints it
       `<span class="skchip wbchip cwbkw" data-drag="k" data-n="${n}" data-act="c-kw-chip" data-id="${esc(k)}" id="${uid('k', k)}" tabindex="0" title="${esc(t('career.bankWordTip'))}">${esc(k)}${delBtn(`data-act="c-kw-rm" data-n="${n}"`, t('edit.removeTag', { tag: k }), { text: false })}</span>`).join('');
     return `<div class="cwb cwbgroup" data-g="${esc(gid)}" data-name="${esc(gname)}">${chips ? `<div class="wbtray cwbkwell"><div class="wbtiles cwbkws">${chips}</div></div>` : ''}
-      <span class="wbqwrap"><input type="search" id="c-kw-in" class="wbq" placeholder="${esc(t('wb.find'))}" aria-label="${esc(t('wb.find'))}" autocomplete="off" spellcheck="false"><span class="cwbplus">${plusHtml('', null, 'c-kw-add', gname)}</span></span>
+      <span class="wbqwrap"><i class="wbqico" aria-hidden="true">${icon('search', { role: 'inline' })}</i><input type="search" id="c-kw-in" class="sw-q wbq" placeholder="${esc(t('wb.find'))}" aria-label="${esc(t('wb.find'))}" autocomplete="off" spellcheck="false"><span class="cwbplus">${plusHtml('', null, 'c-kw-add', gname)}</span></span>
       <div class="cwbrow"></div></div>`;
   }
   function kwRedraw(){
