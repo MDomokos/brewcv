@@ -4536,7 +4536,9 @@ if (want('the skill wordbank, round two: the search box, the tray as a well, an 
     ok(`${drink}: with the bank not shown, the sidebar card reaches the last rail tab`, !off.bank && off.body >= off.tab, JSON.stringify(off));
     await p2.frameLocator('#sheet iframe').locator('.band[data-section="skills"] .tab').first().click(); await settle(p2); await p2.keyboard.press('Escape'); await settle(p2);
     const on = await geo();
-    ok(`${drink}: with the bank shown, the sidebar card reaches the last rail tab and clears its own rounded corner`, on.bank && on.body - on.r >= on.tab, JSON.stringify(on));
+    ok(`${drink}: with the bank shown, the last rail tab ends on the sidebar card, clear of its rounded corner`, on.bank && on.body - on.r >= on.tab, JSON.stringify(on));
+    const tight = await p2.evaluate(() => { const b = document.querySelector('#body'), cs = getComputedStyle(b); return { min: cs.minHeight, h: Math.round(b.getBoundingClientRect().height), content: Math.round(b.scrollHeight) }; });
+    ok(`${drink}: …and the card is only as tall as its content (the tabs fit the card, not the card the tabs)`, ['auto', '0px'].includes(tight.min) && tight.h <= tight.content + 1, JSON.stringify(tight));
     await c2.close();
   }
 }

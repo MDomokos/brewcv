@@ -500,7 +500,7 @@ function bindChrome(){
   $('#file').addEventListener('change', e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); });
   addEventListener('dragover', e => { e.preventDefault(); });
   addEventListener('drop', dropFile);
-  new ResizeObserver(placeRail).observe($('#head'));        // the name wraps to more or fewer lines: the tabs follow the editor card
+  { const ro = new ResizeObserver(placeRail); ro.observe($('#head')); ro.observe($('#body')); }        // the name wraps, or the card grows or shrinks: the tabs follow the editor card
 }
 
 function renderAll(){ syncIntro(); renderHead(); renderBody(); renderFoot(); }
@@ -667,12 +667,20 @@ function drawPlaces(){
   pt.style.setProperty('--ti', String(P.findIndex(x => x[0] === here)));      // Coffee's sliding thumb
   pt.innerHTML = P.map(([k, ic, name, key, tip]) => `<button class="ptab" data-act="place" data-p="${k}" ${here === k ? 'aria-current="page"' : ''} data-tip="${esc(tip || name)}|${esc(t('ux6h.key', { key }))}" data-tip-pos="b" aria-label="${esc(name)}">${icon(ic, { role: 'control' })}<span>${esc(name)}</span></button>`).join('');
 }
-// The tabs hang off the editor card: the first starts 30px below its top, whatever the name card's height. Not while the name window
-// has the card's place (the body is not there to measure).
+// The tabs hang off the editor card: the first starts 30px below its top, whatever the name card's height, and a short card (Skills, with
+// the bank under it) gets shorter tabs, so the last one and its corner still end on the card. Not while the name window has the card's
+// place (the body is not there to measure).
 function placeRail(){
-  const body = $('#body');
-  if (!body || !body.offsetParent || ui.layout?.phone) return;
-  $('#rail').style.setProperty('--tt', `${body.offsetTop + 30}px`);
+  const body = $('#body'), rail = $('#rail');
+  if (!body || !body.offsetParent || ui.layout?.phone){ rail?.style.removeProperty('--tabh'); rail?.classList.remove('short-tabs'); return; }
+  rail.style.setProperty('--tt', `${body.offsetTop + 30}px`);
+  const first = rail.querySelector('.rtabs .tab');
+  if (!first) return;
+  const corner = rail.querySelector('.rtabs .tab:last-child[aria-selected=true]') ? 12 : 2;      // the open tab's 10px corner hangs under it: room for it only when it is the last
+  const room = body.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(body).borderBottomLeftRadius) || 0) - corner - first.getBoundingClientRect().top - 2 * 8;      // from the first tab's top to clear of the card's own corner, less two gaps
+  const h = Math.max(34, Math.min(58, Math.floor(room / 3)));
+  rail.style.setProperty('--tabh', `${h}px`);
+  rail.classList.toggle('short-tabs', h < 44);      // too short for the icon and the name: the name alone
 }
 
 // #scr holds the Library and Career: from the left gutter to the seam, the sidebar's height

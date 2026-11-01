@@ -358,8 +358,7 @@ html:not([data-motion="reduce"]) .pen { transition: opacity 120ms ease-out; }
 @keyframes wbnudge { 0%, 45% { border-color: var(--gh); background: color-mix(in srgb, var(--gh) 30%, transparent); color: var(--ink); } }
 .bankcard[hidden] { display: none; }
 body:not([data-phone=true]):not(.is-intro) .col.has-bank > #body { flex: 0 1 auto; max-height: 55%; }
-/* the rail's tabs (workbench.css .rtabs: 30px under the card's top, three of 58 and two gaps of 8) always end on the card: tall enough for the last one, its corner and the card's own */
-body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { min-height: calc(232px + var(--r-panel)); padding-bottom: 12px; }
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { padding-bottom: 12px; }      /* only as tall as its content: the rail's tabs fit the card (shell.js placeRail), not the card the tabs */
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body::after { display: none; }
 .col > .bankcard:not([hidden]) { display: flex; flex-direction: column; }      /* (the empty well fills what is left of it) */
 .col > .bankcard { flex: 1 1 0; min-height: 160px; overflow: auto; margin-top: 8px; padding: 10px 12px 46px; background: var(--surface); border-radius: var(--r-panel);
@@ -387,12 +386,13 @@ body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body:
 .wbmark { font: 700 14px/1 var(--font-mono, monospace); color: var(--ink-soft); min-width: 12px; text-align: center; }
 .wbaddrow.near .wbmark { color: var(--page-warn); }
 .wbuses { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-soft); font-size: 11px; }
-/* the tray: a well, a step darker than the window (as the folder tabs are under the panel) and sunk, the words raised in it; with nothing to show it takes the window's height */
-.wbtray { --well: color-mix(in srgb, var(--surface) 82%, var(--shade)); display: grid; gap: 6px; padding: 8px; border-radius: var(--r-m); background: var(--well); box-shadow: var(--elev-inset), inset 0 0 0 1px var(--line); }
+/* the tray: a well, a step darker than the window (as the folder tabs are under the panel) and sunk, the words raised in it, at its top; it is the rest of the window, its note centred when it has nothing to show */
+.wbtray { --well: color-mix(in srgb, var(--surface) 82%, var(--shade)); display: grid; align-content: start; gap: 6px; padding: 8px; border-radius: var(--r-m); background: var(--well); box-shadow: var(--elev-inset), inset 0 0 0 1px var(--line); }
 html[data-drink="tea"][data-theme="dark"] .wbtray { --well: color-mix(in srgb, var(--surface) 72%, var(--shade)); }
 html[data-drink="coffee"] .wbtray { --well: color-mix(in srgb, var(--surface) 93%, var(--ink)); }
 html[data-drink="coffee"][data-theme="dark"] .wbtray { --well: color-mix(in srgb, var(--surface) 88%, var(--ink)); }
-.wbtray.is-empty { flex: 1 0 auto; place-content: center; justify-items: center; text-align: center; }
+.col > .bankcard > .wbtray { flex: 1 0 auto; }      /* the well is the whole rest of the window: words are dropped and picked up anywhere in it */
+.wbtray.is-empty { place-content: center; justify-items: center; text-align: center; }
 .wbtray.is-empty > .wbempty { margin: 0; }
 .wbsec { display: grid; grid-template-columns: minmax(0, 72px) 1fr; gap: 0 8px; align-items: start; border-radius: var(--r-m); padding: 2px 0; }
 .wbsec.wbloose { grid-template-columns: 1fr; }
