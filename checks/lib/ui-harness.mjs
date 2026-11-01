@@ -73,7 +73,8 @@ export async function makeUi({ resume = 0, lang = null } = {}){
   work();
   let career = null;
   let checklist = null;
-  const edit = initEdit({ ...ctx, detailsHtml: id => career.detailsHtml(id), outlineHtml: () => checklist.outlineHtml(), sectionInfo: (...a) => checklist.sectionInfo(...a) });
+  const bank = { namesHtml: () => '<!-- the skill groups by name: src/ui/wordbank.js -->', delGroupHtml: () => '', openWords(){}, pickGroup(){}, deleteGroup(){} };      // it builds its window in the DOM; the smoke test covers it
+  const edit = initEdit({ ...ctx, bank: () => bank, detailsHtml: id => career.detailsHtml(id), outlineHtml: () => checklist.outlineHtml(), sectionInfo: (...a) => checklist.sectionInfo(...a) });
   career = initCareer({ ...ctx, edit });
   checklist = initChecklist({ ...ctx, edit, career, timelineHtml: () => career.timelineHtml() });
   // the handlers edit.bind() puts on #body, to be fired by hand
