@@ -294,7 +294,8 @@ export function plan(state, entries, { fresh = false } = {}){
     const sentences = e.read.text.split(/\n+/).flatMap(l => l.split(/(?<=[.!?])\s+/)).map(s => s.trim()).filter(s => s.split(/\s+/).length >= 6 && !covered(s));
     // the saved resume it went out with (its company and role are in the file's name), and a saved resume for that role that has no company yet is offered it, unticked
     const meta = metaOf(e.name, e.modified), mine = state.resumes ?? [];
-    const sent = meta.company ? mine.find(r => normText(r.company) === normText(meta.company) && (!meta.role || normText(r.role) === normText(meta.role))) : null;
+    const apart = r => Math.abs(Date.parse(r.savedAt || r.date) - Date.parse(meta.date)) || 0;      // the nearest in date when several went to that company and role
+    const sent = meta.company ? mine.filter(r => normText(r.company) === normText(meta.company) && (!meta.role || normText(r.role) === normText(meta.role))).sort((a, b) => apart(a) - apart(b))[0] : null;
     const offers = meta.company && meta.role ? mine.filter(r => !r.company && normText(r.role) === normText(meta.role)).map(r => ({ kind: 'add', as: 'other', entry: '', what: t('i6.setCompany', { resume: resumeLabel(r) }), b: meta.company, on: false,
       apply: d => { const x = (d.resumes ?? []).find(y => y.id === r.id); if (x) x.company = meta.company; } })) : [];
     files.push({ entry: e, lang: langOf(e), items: offers, needs: [], unplaced: unplacedOf({ ...e, read: { ...e.read, leftovers: [], trace: [] } }, sentences), link: mate?.sha256 ?? null, resume: sent?.id ?? null });
@@ -385,19 +386,46 @@ export function applyPlan(d, p, { at = new Date().toISOString() } = {}){
     for (const n of f.needs) if (n.chosen != null) n.options[n.chosen].apply(d);
     const skipped = [...f.items.filter(x => x.kind === 'add' && !x.on).map(x => x.b ?? x.what), ...f.needs.filter(n => n.chosen == null).map(n => n.b), ...f.unplaced.filter(u => u.choice === 'skip').map(u => u.text)].map(s => clip(s, 80));
     for (const u of f.unplaced) place(d, u, f.lang);
-    const taken = { ...stamp(d, before, e, at), skipped, unplaced: f.unplaced.filter(u => !u.choice).length };
+    const left = f.unplaced.filter(u => !u.choice).map(u => u.text);
+    const taken = { ...stamp(d, before, e, at), skipped, unplaced: left.length, ...(left.length ? { lines: left } : {}) };
     if (['resume', 'letter', 'format', 'unread'].includes(e.status)){
       const type = e.type || TYPES[r.kind] || 'application/octet-stream';
-      const round = (d.resumes ?? []).find(r => r.id === f.resume)?.round;
-      const link = e.status === 'letter' ? { ...(f.link ? { with: DOC.docId(f.link) } : {}), ...(f.resume ? { resume: f.resume } : {}), ...(round ? { round } : {}) } : {};
+      const mate = e.status === 'letter' ? (d.resumes ?? []).find(r => r.id === f.resume) : null;
+      const round = mate ? mate.round : DOC.currentRound(d)?.id;      // a letter is in its resume's round; any other import, in the current one
+      const link = e.status === 'letter' ? { ...(f.link ? { with: DOC.docId(f.link) } : {}), ...(f.resume ? { resume: f.resume } : {}) } : {};
       const doc = DOC.addDocument(d, { name: e.name, type, sha256: e.sha256, size: e.size, addedAt: at,
         bytesDataUrl: e.size <= DOC.MAX_EMBED && e.bytes ? dataUrl(e.bytes, type) : undefined,
         meta: { ...metaOf(e.name, e.modified), kind: e.status === 'letter' ? 'cover-letter' : e.status === 'unread' ? 'other' : e.of ? kindOfDoc(e.of) : 'resume', lang: r.lang ?? '' },
-        text: r.text ?? '', from: 'imported', layout: r.pdf ? (e.layout ?? r.layout) : undefined, of: e.of?.id, taken });
+        text: r.text ?? '', from: 'imported', layout: r.pdf ? (e.layout ?? r.layout) : undefined, of: e.of?.id, taken, thumb: e.thumb, round });
       Object.assign(doc, link);
       made.push(doc);
     }
     DOC.logImport(d, { sha256: e.sha256, name: e.name, kind: r.kind ?? 'other', at, result: e.status, recordId: d.record.recordId ?? null, saved: e.modified ? new Date(e.modified).toISOString() : null });
   }
   return made;
+}
+
+// Puts lines a document left unplaced where the person says (the same menu as at import, `place`): [{ text, choice }]. The versions made are stamped as at import; the document's
+// `taken` follows (a line put away, or marked "not a resume line", is no longer unplaced).
+// shortcut: a line is offered with the career's jobs in order, not the entry printed above it in the document (that is not kept); a document imported before its lines were kept lists none.
+export function placeLines(d, id, picks, { at = new Date().toISOString() } = {}){
+  const doc = (d.documents ?? []).find(x => x.id === id);
+  if (!doc) return;
+  const before = { f: new Set(d.record.facts.map(x => x.id)), v: new Set(d.record.variants.map(x => x.id)) }, done = picks.filter(u => u.choice);
+  for (const u of done) place(d, u, doc.meta?.lang || 'en');
+  const got = stamp(d, before, doc, at), put = new Set(done.map(u => u.text)), left = (doc.taken?.lines ?? []).filter(x => !put.has(x));
+  const { lines, ...rest } = doc.taken ?? {};
+  doc.taken = { ...rest, claims: [...(rest.claims ?? []), ...got.claims], versions: [...(rest.versions ?? []), ...got.versions],
+    skipped: [...(rest.skipped ?? []), ...done.filter(u => u.choice === 'skip').map(u => clip(u.text, 80))], unplaced: left.length, ...(left.length ? { lines: left } : {}) };
+}
+
+// The claims a cover letter leans on, read only: each sentence of six words or more against the career's versions (`sim`, 60%), the best claim of each, once. [{ fact, text }]
+export function mentions(record, text){
+  const out = new Map();
+  for (const s of String(text ?? '').split(/\n+/).flatMap(l => l.split(/(?<=[.!?])\s+/)).map(x => x.trim()).filter(x => x.split(/\s+/).length >= 6)){
+    let best = null;
+    for (const f of record.facts.filter(x => !/-(position|meta)$/.test(x.id) && !x.archived)) for (const v of versionsOf(record, f.id)){ const m = sim(v.text, s); if (m >= 0.6 && (!best || m > best.m)) best = { fact: f.id, text: v.text, m }; }
+    if (best && !out.has(best.fact)) out.set(best.fact, { fact: best.fact, text: best.text });
+  }
+  return [...out.values()];
 }

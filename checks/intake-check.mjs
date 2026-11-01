@@ -25,6 +25,7 @@ const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
 const FIX = path.join(REPO, 'checks/fixtures/import');
 const clone = x => structuredClone(x);
+const J = x => JSON.stringify(x);
 let failed = 0;
 const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${!cond && extra ? '  — ' + extra : ''}`); if (!cond) failed++; };
 const section = t => console.log(`\n— ${t}`);
@@ -238,6 +239,32 @@ section('a cover letter');
   ok('and the same letter again is merged before', (() => { X.classify(a.d, [letter]); return letter.status === 'seen'; })());
 }
 
+
+section('the Library: the current round, the lines left to place, the nearest resume for a letter');
+{
+  const st = state();
+  const docx = await entry('helix-1col-word.docx'), pdf = await entry('helix-1col-word.pdf');
+  const p0 = planOf(st, [docx, pdf]);
+  const none = applied(st, p0);
+  ok('with no round started an import has no round (a file is as it always was)', none.docs.every(d => !('round' in d)));
+  const withR = { ...st, rounds: [{ id: 'r-old', name: 'Spring', from: '2027-01-01', to: '2027-06-01' }, { id: 'r-now', name: 'Autumn', from: '2027-06-01' }] };
+  const p1 = planOf(withR, [docx, pdf]);
+  const a = applied(withR, p1);
+  ok('with rounds, every file of an import goes into the current round (the newest not archived)', a.docs.length === 2 && a.docs.every(d => d.round === 'r-now') && applied({ ...withR, rounds: [...withR.rounds.slice(0, 1), { ...withR.rounds[1], archived: true }] }, planOf(withR, [docx, pdf])).docs.every(d => d.round === 'r-old'));
+  const left = p1.files[0].unplaced.map(u => u.text);
+  ok('the lines left with no home are kept on the document, in the order of the file, as many as it says are unplaced', left.length > 2 && J(a.docs[0].taken.lines) === J(left) && a.docs[0].taken.unplaced === left.length);
+  p1.files[0].unplaced[0].choice = 'skip';
+  const b = applied(withR, p1);
+  ok('a line the person put away is no longer listed as unplaced, and is told as skipped', b.docs[0].taken.lines.length === left.length - 1 && !b.docs[0].taken.lines.includes(left[0]) && b.docs[0].taken.skipped.some(x => left[0].startsWith(x.replace(/…$/, ''))));
+
+  // a letter named for a company and role that two saved resumes share: the nearest in date is offered it
+  const text = ['Dear hiring team at Northgate,', '', 'I am writing to apply for the Product Designer role because I enjoy turning rough ideas into tested products that people use.', 'In my last role I led a small team that rebuilt a dose counter and shipped it on schedule to a new manufacturing partner.', 'I would welcome a conversation about how my experience with medical devices could help your design group this year.', '', 'Kind regards,', 'Dana Okonkwo'].join('\n');
+  const letter = await entry('2026-03-12 Northgate - Product Designer (letter).txt', new TextEncoder().encode(text));
+  const two = state();
+  for (const [i, d] of [[0, '2025-01-10'], [1, '2026-03-01'], [2, '2026-12-01']]) { two.resumes[i].company = 'Northgate'; two.resumes[i].role = 'Product Designer'; two.resumes[i].savedAt = d; }
+  const pl = planOf(two, [letter]);
+  ok('a letter goes with the saved resume of that company and role that is nearest to its date', pl.files[0].resume === two.resumes[1].id);
+}
 
 section('only an empty career, or the example, starts from a file');
 {

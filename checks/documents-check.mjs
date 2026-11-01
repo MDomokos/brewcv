@@ -16,6 +16,9 @@ import * as DOC from '../src/model/documents.js';
 import { normText } from '../src/model/record.js';
 import * as M from '../src/model/merge.js';
 import * as RS from '../src/model/resumes.js';
+import * as X from '../src/model/intake.js';
+import { printedFacts, newResume } from '../src/model/resume.js';
+import { usedVersions } from '../src/model/resumes.js';
 import { errText } from '../src/i18n/index.js';
 import { createStore, isAssetRef } from '../src/store/store.js';
 import { createPersist, memoryBackend, memoryFolder, makeBackup, readBackup, readFolder, keepOriginals, filesOf } from '../src/store/persist.js';
@@ -374,6 +377,122 @@ section('a clocked merge keeps both sides’ documents, rounds and import log');
   const [sc, sd] = [await C.persist.forMerge(), await D.persist.forMerge()];
   const cd = M.merge(sd, sc), dc = M.merge(sc, sd);
   ok('a log that is new to a copy is one change, so it is committed, and both orders agree', cd.changed === 1 && cd.logged === true && cd.state.imports.length === 1 && ab.logged === true && J(cd.state) === J(dc.state) && M.merge(sc, sc).changed === 0);
+}
+
+section('the Library: rounds, the archive, groups, removing and rebuilding');
+{
+  const lines = r => { const p = printedFacts(base, r); return [p.summary, ...p.work.flatMap(w => [w.position, ...w.highlights])].filter(x => x?.text).map(x => x.text); };
+  const en = resumes.find(r => (r.lang ?? 'en') === 'en' && lines(r).length >= 8), enLines = lines(en);
+  const doc = (n, extra = {}) => { const f = file('%PDF-1.4', `lib-${n}`); return { f, add: (st, more = {}) => { const x = { ...extra, ...more }, d = addFile(st, f, { name: `${n}.pdf`, text: enLines.join('\n'), ...x }); for (const k of ['with', 'resume']) if (x[k]) d[k] = x[k]; return d; } }; };      // a letter’s links are set by the import, not by addDocument
+
+  // rounds: the current one is the newest that is not archived; new and duplicated resumes go into it
+  const st = fresh(); st.cur = newResume(st.record, { format: 'a4' });
+  ok('with no round, a new resume has none (it is saved as it always was)', RS.saveNew(st, { name: 'No round' }) && st.resumes.at(-1).round === undefined);
+  let threw = false; try { DOC.startRound(st, '  '); } catch { threw = true; }
+  ok('a round needs a name', threw && !st.rounds);
+  const spring = DOC.startRound(st, 'Spring 2027', '2027-03-01'), autumn = DOC.startRound(st, 'Autumn 2027', '2027-09-01');
+  ok('starting a round closes the one before it, and the new one is the current round', st.rounds.find(r => r.id === spring.id).to === '2027-09-01' && DOC.currentRound(st).id === autumn.id && DOC.startRound(st, 'Autumn 2027', '2027-09-01').id === autumn.id && st.rounds.length === 2);
+  const made1 = RS.saveNew(st, { name: 'In autumn' }), made2 = RS.duplicate(st, st.resumes[0].id);
+  ok('a new resume and a duplicate go into the current round', st.resumes.find(r => r.id === made1.id).round === autumn.id && st.resumes.find(r => r.id === made2.id).round === autumn.id);
+  DOC.mark(st, 'resumes', made2.id, { round: spring.id });
+  ok('moving the open resume to a round changes its working copy too, so the next save keeps it, and its last-saved date does not move', (() => { const was = st.resumes.find(r => r.id === made2.id).savedAt; RS.settle(st); const r = st.resumes.find(x => x.id === made2.id); return r.round === spring.id && st.cur.round === spring.id && r.savedAt === was; })());
+  const dup3 = RS.duplicate(st, made2.id);
+  ok('a copy of a resume in an older round goes into the current one, not its original’s', st.resumes.find(r => r.id === dup3.id).round === autumn.id);
+  DOC.mark(st, 'rounds', spring.id, { archived: true });
+  ok('a resume in an archived round is hidden, one that is archived itself is hidden, the rest are not', DOC.hidden(st, st.resumes.find(r => r.id === made2.id)) && !DOC.hidden(st, st.resumes.find(r => r.id === made1.id)) && (DOC.mark(st, 'resumes', made1.id, { archived: true }), DOC.hidden(st, st.resumes.find(r => r.id === made1.id))));
+  DOC.mark(st, 'resumes', made1.id, { archived: false });
+  ok('and the archive flag goes away when it is switched off', !('archived' in st.resumes.find(r => r.id === made1.id)) && DOC.currentRound(st).id === autumn.id);
+  ok('rounds and the archive are not printed: every saved resume renders byte for byte the same', eq(printed(st.record, resumes.map(r => st.resumes.find(x => x.id === r.id)).filter(Boolean)), printed(base, resumes)));
+
+  // groups: formats of one resume, the same company and role in another language, a letter, the resume a file was exported from
+  const g = fresh();
+  const a = doc('a', { meta: { company: 'Northgate', role: 'Designer', date: '2026-01-05', lang: 'en', jobType: '', kind: 'resume' } }).add(g, { addedAt: '2026-10-26T09:00:00.000Z' });
+  const b = doc('b').add(g, { of: a.id, addedAt: '2026-10-26T09:01:00.000Z', text: enLines.join('\n') });
+  const hu = doc('hu').add(g, { text: 'Egy más nyelvű önéletrajz\nnincs benne semmi közös', meta: { company: 'Northgate', role: 'Designer', date: '2026-01-05', lang: 'hu', jobType: '', kind: 'resume' }, addedAt: '2026-10-26T09:02:00.000Z' });
+  const letter = doc('letter').add(g, { text: 'Dear hiring team,', with: a.id, meta: { company: 'Northgate', role: 'Designer', date: '2026-01-05', lang: 'en', jobType: '', kind: 'cover-letter' }, addedAt: '2026-10-26T09:03:00.000Z' });
+  const lone = doc('lone').add(g, { text: 'Something else entirely\nthat no resume prints', meta: { company: 'Other', role: 'Welder', date: '2025-01-05', lang: 'en', jobType: '', kind: 'resume' }, addedAt: '2026-10-26T09:04:00.000Z' });
+  const gs = RS.docGroups(g);
+  const mine = gs.find(x => x.id === a.id);
+  ok('another format, the same company and role in another language, and a letter dropped with the file are one group; an unrelated file is its own', gs.length === 2 && J(mine.members.map(m => m.id)) === J([a.id, b.id, hu.id, letter.id].sort((x, y) => g.documents.findIndex(d => d.id === x) - g.documents.findIndex(d => d.id === y))) && mine.lead.id === a.id && gs.find(x => x.id === lone.id).members.length === 1);
+  ok('a group whose file holds the lines a saved resume prints sits with that resume; one that holds none sits with none', mine.resume !== null && RS.savedOf(g, mine.resume) && lines(RS.savedOf(g, mine.resume)).every(l => normText(enLines.join('\n')).includes(normText(l))) && gs.find(x => x.id === lone.id).resume === null);
+  const few = fresh(); few.resumes = [en]; few.frozen = {};
+  const cut = k => enLines.slice(0, enLines.length - k).join('\n');
+  const k1 = Math.floor(enLines.length * 0.1), k2 = Math.ceil(enLines.length * 0.2);
+  ok('90% of a resume’s lines in the document is enough, 80% is not, and a few lines prove nothing', RS.exportedFrom(few, cut(k1))?.id === en.id && RS.exportedFrom(few, cut(k2)) === null && RS.exportedFrom(few, enLines.slice(0, 2).join('\n')) === null);
+  const lett = fresh(); doc('l2').add(lett, { text: 'Dear team', meta: { company: 'Z', role: 'Q', date: '', lang: 'en', jobType: '', kind: 'cover-letter' }, resume: resumes[3].id });
+  ok('a letter with no file of its own joins the saved resume it went out with', RS.docGroups(lett)[0].resume === resumes[3].id);
+
+  // removing: a mark in the record, the copies that pointed at it are re-pointed, a merge does not bring it back
+  const rm = fresh();
+  const r1 = doc('r1').add(rm, { addedAt: '2026-10-26T09:00:00.000Z' }), r2 = doc('r2').add(rm, { of: r1.id, addedAt: '2026-10-26T09:01:00.000Z' }), r3 = doc('r3').add(rm, { of: r1.id, addedAt: '2026-10-26T09:02:00.000Z' });
+  const lt = doc('r4').add(rm, { text: 'Dear', with: r1.id, meta: { kind: 'cover-letter' }, addedAt: '2026-10-26T09:03:00.000Z' });
+  DOC.removeDocuments(rm, [r1.id]);
+  ok('removing the first copy leaves a mark in the record, and the next copy becomes the original the others point to', rm.record.removed[`document:${r1.id}`]?.hash && !rm.documents.some(d => d.id === r1.id) && !('of' in rm.documents.find(d => d.id === r2.id)) && rm.documents.find(d => d.id === r3.id).of === r2.id && !('with' in rm.documents.find(d => d.id === lt.id)));
+  ok('the mark does not hold the original’s bytes', !JSON.stringify(rm.record.removed).includes('base64'));
+  DOC.removeDocuments(rm, [r2.id, r3.id, lt.id]);
+  ok('removing the last ones leaves no list', rm.documents === undefined);
+  {
+    let id = 0, wall = Date.parse('2026-11-01T09:00:00.000Z');
+    const device = () => { const store = createStore(fresh()); return { store, persist: createPersist({ store, backend: memoryBackend(), now: () => new Date(wall), setTimer: () => ++id, clearTimer: () => {} }) }; };
+    const A = device(), B = device();
+    A.store.commit(d => { doc('m1').add(d); }, 'A adds'); wall += 60_000;
+    const withDoc = await A.persist.forMerge();
+    const taken = M.merge(await B.persist.forMerge(), withDoc);      // B opens A’s file the way the app does: merge, commit, and adopt the clock
+    B.store.commit(d => { Object.assign(d, structuredClone(taken.state)); }, 'B takes it'); await B.persist.adoptClock(taken.clock);
+    wall += 60_000;
+    const sb = await B.persist.forMerge(); wall += 60_000;
+    const gone = doc('m1').f;
+    A.store.commit(d => { DOC.removeDocuments(d, [DOC.docId(gone.sha256)]); }, 'A removes it'); wall += 60_000;
+    const sa = await A.persist.forMerge();
+    const ab = M.merge(sa, sb), ba = M.merge(sb, sa);
+    ok('a copy that still has a removed document does not bring it back, in either order, and both orders agree', !(ab.state.documents ?? []).length && !(ba.state.documents ?? []).length && J(ab.state) === J(ba.state) && ab.state.record.removed?.[`document:${DOC.docId(gone.sha256)}`]);
+  }
+
+  // Remove duplicate copies: the ticked stay (the first when none), and a copy a printed version links back to, or one in the receipt, stays too
+  const dp = fresh();
+  const c1 = doc('c1').add(dp, { addedAt: '2026-10-26T09:00:00.000Z' }), c2 = doc('c2').add(dp, { of: c1.id, addedAt: '2026-10-26T09:01:00.000Z' }), c3 = doc('c3').add(dp, { of: c1.id, addedAt: '2026-10-26T09:02:00.000Z' });
+  const ids3 = [c1.id, c2.id, c3.id];
+  ok('a dry run says what would go and removes nothing; with nothing ticked the first copy stays', J(RS.dropDuplicates(dp, ids3, [], [], true)) === J([c2.id, c3.id]) && dp.documents.length === 3);
+  const used = fresh(); const dd = doc('c4').add(used); const dd2 = doc('c5').add(used, { of: dd.id });
+  const pv = used.resumes.flatMap(r => usedVersions(used.record, r))[0];
+  used.record.variants.find(v => v.id === pv.variant).origin = { doc: dd2.sha256.slice(0, 12) };
+  ok('a copy that a version a saved resume prints links back to stays even when it is not ticked', J(RS.dropDuplicates(used, [dd.id, dd2.id], [dd.id], [], true)) === J([]));
+  ok('a copy in the receipt on the screen stays too', J(RS.dropDuplicates(dp, ids3, [c1.id], [c2.id], true)) === J([c3.id]));
+  const gone3 = RS.dropDuplicates(dp, ids3, [c1.id, c3.id]);
+  ok('the ticked copies stay, the others go with a mark, and the one that was only a copy of a copy is re-pointed', J(gone3) === J([c2.id]) && dp.documents.length === 2 && dp.record.removed[`document:${c2.id}`] && dp.documents.find(d => d.id === c3.id).of === c1.id);
+
+  // the claims a letter leans on
+  const claim = base.variants.find(v => v.text.split(/\s+/).length >= 8);
+  const says = X.mentions(base, `Dear team,\n\nIn my last role ${claim.text.replace(/\.$/, '').toLowerCase()}, which is why I am writing.\nA sentence that no claim of the career is anything like at all, about gardening in spring.`);
+  ok('a sentence close to a version names its claim, once; a sentence like none names nothing', says.length === 1 && says[0].text === claim.text);
+
+  // rebuild: an exact version is picked, a close wording is this resume's own, the rest is counted; the career is not touched
+  const rb = fresh(), allVersions = base.variants.length, record0 = J(rb.record);
+  const d1 = doc('rb').add(rb, { text: enLines.join('\n'), meta: { company: 'Northgate', role: 'Designer', date: '', lang: 'en', jobType: '', kind: 'resume' } });
+  const n0 = rb.resumes.length, res = RS.rebuildFrom(d1, rb);
+  const rmade = rb.resumes.find(r => r.id === res.id), got = lines(rmade).map(normText);
+  ok('every line of the document is an exact version of the career: all are picked, none is the resume’s own, none is left out', res.picked === enLines.length && res.own === 0 && res.left === 0 && rb.resumes.length === n0 + 1 && rb.openId === res.id && rmade.company === 'Northgate');
+  ok('the new resume prints those same lines', enLines.every(l => got.includes(normText(l))), J(got.slice(0, 2)));
+  ok('the career and the other saved resumes are as they were', J(rb.record) === record0 && J(rb.record.variants).length > 0 && rb.record.variants.length === allVersions && eq(printed(rb.record, resumes), printedBefore));
+  const edited = enLines.slice(), at = edited.findIndex(l => l.split(' ').length > 8);
+  edited[at] = edited[at].replace(/\b(\w{4,})\b/, 'sturdy $1');
+  const rb2 = fresh(), d2 = doc('rb2').add(rb2, { text: [...edited, 'A line that is like none of the career’s claims at all, about gardening'].join('\n') });
+  const rres2 = RS.rebuildFrom(d2, rb2), rmade2 = rb2.resumes.find(r => r.id === rres2.id);
+  ok('a wording close to a claim’s is the resume’s own text for it (the version is not changed), and a line like none is left out and counted', rres2.own === 1 && rres2.picked === enLines.length - 1 && rres2.left === 1 && Object.values(rmade2.overrides).includes(edited[at]) && J(rb2.record) === record0);
+  ok('the resume’s own text is kept as a one-off, not offered as a pending edit', Object.keys(rmade2.overrides).every(f => rmade2.overrideMeta[f].kept === true));
+  const hu2 = resumes.find(r => r.lang === 'hu'), huLines = lines(hu2);
+  const rb3 = fresh(), res3 = RS.rebuildFrom(doc('rb3').add(rb3, { text: huLines.join('\n') }), rb3);
+  ok('a document in another language gives a resume in that language', rb3.resumes.find(r => r.id === res3.id).lang === 'hu' && res3.picked === huLines.length, `${res3.picked}/${huLines.length}`);
+
+  // placing the lines a document left: the same menu as at import, stamped, and the document follows
+  const pl = fresh(), pd = doc('pl').add(pl, { taken: { claims: [], versions: [], skipped: [], unplaced: 2, lines: ['Taught the new hires to read a drawing in one afternoon', 'Some line that is not a resume line'] } });
+  const job0 = pl.record.work[0].id, v0 = pl.record.variants.length;
+  X.placeLines(pl, pd.id, [{ text: 'Taught the new hires to read a drawing in one afternoon', choice: `job:${job0}` }, { text: 'Some line that is not a resume line', choice: 'skip' }], { at: '2026-11-02T10:00:00.000Z' });
+  const nd = pl.documents.find(d => d.id === pd.id), nv = pl.record.variants.slice(v0);
+  ok('a line put under a job is a new claim with one version, stamped with the document, tagged imported, and the document says nothing is left unplaced', nv.length === 1 && nv[0].source === 'Imported from pl.pdf, 2026-11-02' && nv[0].tags.includes('imported') && nv[0].origin.doc === pd.sha256.slice(0, 12) && nd.taken.unplaced === 0 && !('lines' in nd.taken) && nd.taken.versions.includes(nv[0].id) && nd.taken.skipped.length === 1);
+  const pl2 = fresh(), pd2 = doc('pl2').add(pl2, { taken: { claims: [], versions: [], skipped: [], unplaced: 2, lines: ['one', 'two'] } });
+  X.placeLines(pl2, pd2.id, [{ text: 'one', choice: '' }], {});
+  ok('a line left alone stays unplaced and nothing is added', pl2.documents[0].taken.lines.length === 2 && pl2.record.variants.length === base.variants.length);
 }
 
 console.log(failed ? `\n${failed} documents check(s) FAILED` : '\nall documents checks passed');

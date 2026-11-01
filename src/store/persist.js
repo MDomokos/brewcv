@@ -183,7 +183,7 @@ const listsOf = s => Object.fromEntries(LISTS.filter(k => s?.[k]?.length).map(k 
 // From a file anyone can edit: only entries that have an id (the import log: a sha256).
 const cleanList = (x, key) => (Array.isArray(x) ? x.filter(e => e && typeof e === 'object' && typeof e[key] === 'string') : []);
 const cleanLists = o => ({ documents: cleanList(o?.documents, 'id'), rounds: cleanList(o?.rounds, 'id'), imports: cleanList(o?.imports, 'sha256') });
-const textOnly = docs => docs.map(({ embedded, ...d }) => d);
+const textOnly = docs => docs.map(({ embedded, thumb, ...d }) => d);
 
 // `clock`, `device`: the object clocks (src/model/merge.js) and the device that stamped them. A file without them is read as before.
 export function makeBackup(state, { saved = new Date().toISOString(), checkpoints, app = APP_VERSION, clock, device } = {}){
@@ -210,6 +210,7 @@ export function keepOriginals(next, current){
   for (const d of next.documents ?? []){
     const mine = (current?.documents ?? []).find(x => x.sha256 === d.sha256);
     if (mine?.embedded && !d.embedded) d.embedded = mine.embedded;
+    if (mine?.thumb && !d.thumb) d.thumb = mine.thumb;
   }
   return next;
 }

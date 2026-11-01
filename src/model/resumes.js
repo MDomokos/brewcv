@@ -12,12 +12,15 @@
 //  - A snapshot is the open resume as it printed when Save was pressed, plus the sends (where and when it went).
 
 import { t, keyed } from '../i18n/index.js';
-import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere, printedLabel, ownLabels, labelIn } from './resume.js';
+import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere, printedLabel, ownLabels, labelIn, isDraft } from './resume.js';
+import { entriesOf } from './entries.js';
+import { sim } from './diff.js';
+import { linesOf, currentRound, removeDocuments } from './documents.js';
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang, stashOwn, printedFactIds } from './lang.js';
 import { LockedError, guard, isLocked } from './lock.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
-import { matchNumber, tombstone } from './record.js';
+import { matchNumber, tombstone, normText } from './record.js';
 
 const clone = x => structuredClone(x);
 export const today = () => new Date().toISOString().slice(0, 10);
@@ -99,6 +102,9 @@ export function saveNew(state, { name, company, role, forKind, jobType, tags, ta
   r.date = date;
   delete r.id;
   r.id = uniqueId(state.resumes, r);
+  delete r.archived;
+  const round = currentRound(state);      // a new resume goes into the current round (a copy does not keep its original's)
+  if (round) r.round = round.id; else delete r.round;
   if (r.jobType){
     state.record.jobTypes ??= [];
     if (!known) state.record.jobTypes.push(r.jobType);
@@ -213,7 +219,7 @@ export function openSaved(state, id){
 // A copy of a saved resume's recipe to start something else from: no name, no snapshots, no For. Lines it holds at older wording stay held.
 function copyOf(src){
   const r = clone(src);
-  for (const k of ['id', 'savedAt', 'date', 'snapshots', 'forKind', 'parent', 'inStep']) delete r[k];
+  for (const k of ['id', 'savedAt', 'date', 'snapshots', 'forKind', 'parent', 'inStep', 'round', 'archived']) delete r[k];
   r.company = ''; r.role = '';
   return r;
 }
@@ -703,4 +709,91 @@ export function differences(model, p, c){
   if (p.format !== c.format) out.push(t('ux6e.sum.paper', { a: t(p.format === 'us-letter' ? 'paper.letter' : 'paper.a4'), b: t(c.format === 'us-letter' ? 'paper.letter' : 'paper.a4') }));
   if (skillNames(model, p) !== skillNames(model, c) || JSON.stringify(arrangementOf(model, p).groups) !== JSON.stringify(arrangementOf(model, c).groups)) out.push(t('ux6e.sum.skills', { order: skillNames(model, c) }));
   return out;
+}
+
+// ---- the Library's documents beside the resumes ----
+
+// The lines of a saved resume that are versions: the summary, a job's title and its bullets, as it printed when last saved (normText).
+const versionLines = (state, r) => { const b = state.frozen?.[r.id] ?? bodyOf(state, r, {}); return [b.basics?.summary, ...(b.work ?? []).flatMap(w => [w.position, ...(w.highlights ?? [])])].filter(Boolean).map(normText); };
+// The saved resume a document was exported from: at least 90% of the lines the resume prints as versions (three or more) are lines of the document, exact after normText.
+// The best fit, then the newest.
+// shortcut: it is the resume's lines found in the document, not the document's lines found in the resume (an export also holds the contact line, the dates and the headings, which no version has, so it could not reach 90%); a longer document that holds all of a resume's lines is taken for an export of it too. Upgrade when a real file shows a wrong group.
+export function exportedFrom(state, text){
+  const mine = linesOf(text);
+  let best = null;
+  for (const r of state.resumes ?? []){
+    const want = [...new Set(versionLines(state, r))], s = want.filter(l => mine.has(l)).length / Math.max(1, want.length);
+    if (want.length >= 3 && s >= 0.9 && (!best || s > best.s || (s === best.s && String(r.savedAt ?? '') > String(best.r.savedAt ?? '')))) best = { r, s };
+  }
+  return best?.r ?? null;
+}
+
+// The documents as cards: the formats of one resume (`of`) and the same company and role in other languages are one group (a letter joins the group of the file it was dropped with),
+// and a group joins the saved resume it was exported from, else the one a letter says it went out with. [{ id, members, lead, resume }], members oldest first, resume an id or null.
+export function docGroups(state){
+  const docs = [...(state.documents ?? [])].sort((a, b) => String(a.addedAt).localeCompare(String(b.addedAt)) || (a.id < b.id ? -1 : 1));
+  const byId = new Map(docs.map(d => [d.id, d])), isLetter = d => (d.meta?.kind ?? d.kind) === 'cover-letter';
+  const top = d => { for (let n = 0; d.of && byId.has(d.of) && n < 20; n++) d = byId.get(d.of); return d; };
+  const stack = new Map(), gids = new Map(), groups = new Map();
+  const gid = d => {
+    const r = top(d), k = normText(r.meta?.company) && normText(r.meta?.role) ? `${normText(r.meta.company)}|${normText(r.meta.role)}` : '';
+    if (!gids.has(r.id)){ gids.set(r.id, k && stack.has(k) ? stack.get(k) : r.id); if (k && !stack.has(k)) stack.set(k, r.id); }
+    return gids.get(r.id);
+  };
+  for (const d of docs){ const id = isLetter(d) ? (byId.has(d.with) ? gid(byId.get(d.with)) : d.id) : gid(d); (groups.get(id) ?? groups.set(id, []).get(id)).push(d); }
+  return [...groups].map(([id, members]) => {
+    const resume = members.filter(m => !isLetter(m)).map(m => exportedFrom(state, m.text)).find(Boolean) ?? members.map(m => (m.resume ? savedOf(state, m.resume) : null)).find(Boolean) ?? null;
+    return { id, members, lead: members.find(m => !isLetter(m)) ?? members[0], resume: resume?.id ?? null };
+  });
+}
+
+// Rebuild as a BrewCV resume (after the vault's build_copies.mjs, take or override): a line of the document that is exactly a version of the record (normText) is picked; a line close to
+// a claim's wording (60% of the words) is this resume's own text for that claim, the record's versions untouched; any other line is left out and counted. The new resume is saved and
+// open, like newFrom. Returns { id, picked, own, left }.
+// shortcut: a line with no close claim is not put on the resume (Place lines files it first), and the sections that are not versions (skills, education, languages) print as the career has them; upgrade with a document that says its jobs.
+export function rebuildFrom(doc, state){
+  const model = state.record, seen = new Set(), L0 = doc.meta?.lang || 'en';
+  const lines = String(doc.text ?? '').split('\n').map(x => x.trim()).filter(x => x && !seen.has(normText(x)) && seen.add(normText(x)));
+  const slots = [], ok = v => v && !isDraft(v) && !v.archived;
+  const add = (fact, job, pos = false) => { const f = (model.facts ?? []).find(x => x.id === fact); if (f && !f.archived) slots.push({ fact, job, pos, vs: f.variants.map(id => model.variants.find(v => v.id === id)).filter(ok) }); };
+  add(model.basics?.summary, null);
+  for (const w of entriesOf(model).filter(e => !e.archived)){ add(w.display?.position, w.id, true); for (const h of w.highlights ?? []) add(h, w.id); }
+  const lg = v => v.lang ?? 'en', tally = {};
+  for (const l of lines) for (const s of slots) for (const v of s.vs) if (normText(v.text) === normText(l)) tally[lg(v)] = (tally[lg(v)] ?? 0) + 1;
+  const lang = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0] ?? L0, used = new Set(), picks = {}, overrides = {}, meta = {}, got = [], rest = [];
+  lines.forEach((l, at) => {
+    const hit = slots.filter(s => !used.has(s.fact)).map(s => [s, s.vs.find(v => lg(v) === lang && normText(v.text) === normText(l))]).find(([, v]) => v);
+    if (hit){ picks[hit[0].fact] = hit[1].id; used.add(hit[0].fact); got.push({ s: hit[0], at }); } else rest.push([l, at]);
+  });
+  const picked = got.length;
+  let left = 0;
+  for (const [l, at] of rest){
+    let best = null;
+    for (const s of slots.filter(x => !used.has(x.fact))) for (const v of s.vs) if (lg(v) === lang){ const m = sim(v.text, l); if (m >= 0.6 && (!best || m > best.m)) best = { s, v, m }; }
+    if (!best){ left++; continue; }
+    used.add(best.s.fact); got.push({ s: best.s, at });
+    overrides[best.s.fact] = l; meta[best.s.fact] = { marks: [], base: best.v.id, kept: true };
+  }
+  const r = newResume(model, { format: 'a4', lang, pageLimit: 0 }), byJob = new Map();
+  for (const g of got.sort((a, b) => a.at - b.at)) if (g.s.job && !g.s.pos) (byJob.get(g.s.job) ?? byJob.set(g.s.job, []).get(g.s.job)).push(g);
+  for (const sec of r.sections) if (Array.isArray(sec.work)){
+    sec.work = sec.work.map(x => (typeof x === 'string' ? x : x.id)).filter(id => byJob.has(id)).sort((a, b) => byJob.get(a)[0].at - byJob.get(b)[0].at).map(id => ({ id, highlights: byJob.get(id).map(g => g.s.fact) }));
+    if (!sec.work.length) sec.weight = 0;
+  }
+  r.picks = picks; r.overrides = overrides;
+  if (Object.keys(meta).length) r.overrideMeta = meta;
+  state.cur = r; state.openId = null;
+  const company = doc.meta?.company ?? '', role = doc.meta?.role ?? '';
+  return { ...saveNew(state, { name: nameFrom({ company, role }) || doc.name.replace(/\.[^.]+$/, ''), company, role, tagVersions: false }), picked, own: Object.keys(overrides).length, left };
+}
+
+// Remove duplicate copies: of the documents `ids` (the formats of one resume), the ticked ones in `keep` stay (the first when none is), and the rest go by removeDocuments. A copy also stays when a saved
+// resume prints a version that links back to it (`origin`), or when it is in `protect` (the receipt on the screen). Returns the ids removed (`dry`: that would be, and nothing is).
+export function dropDuplicates(state, ids, keep = [], protect = [], dry = false){
+  const docs = ids.map(id => (state.documents ?? []).find(d => d.id === id)).filter(Boolean), vs = new Map(state.record.variants.map(v => [v.id, v]));
+  const used = new Set((state.resumes ?? []).flatMap(r => usedVersions(state.record, r)).map(u => vs.get(u.variant)?.origin?.doc).filter(Boolean));
+  const stay = new Set(keep.length ? keep : docs.slice(0, 1).map(d => d.id));
+  const gone = docs.filter(d => !stay.has(d.id) && !protect.includes(d.id) && !used.has(d.sha256.slice(0, 12))).map(d => d.id);
+  if (gone.length && !dry) removeDocuments(state, gone);
+  return gone;
 }

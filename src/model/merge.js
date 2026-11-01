@@ -41,14 +41,14 @@ export function keysOf(state = {}){
 }
 
 // A version's metrics are a cache each device measures for itself, a resume's frozen text is what it printed when it was last saved here, and a
-// claim's list of versions is merged as a list: none of them is an edit. A document's original (its bytes) is not hashed, only whether it has one.
+// claim's list of versions is merged as a list: none of them is an edit. A document's original (its bytes) is not hashed, only whether it has one, and nor is its picture.
 const SKIP = { variant: 'metrics', fact: 'variants', resume: 'frozen', document: 'embedded' };
 // A document's addedAt is not hashed either: a merge gives the earliest, and that must not change which copy is the newer.
-const hashOf = (k, o) => { const s = SKIP[kindOf(k)]; return fnv(JSON.stringify(canon(s ? { ...o, [s]: s === 'embedded' && o[s] ? 1 : undefined, ...(s === 'embedded' && { addedAt: undefined }) } : o))); };
+const hashOf = (k, o) => { const s = SKIP[kindOf(k)]; return fnv(JSON.stringify(canon(s ? { ...o, [s]: s === 'embedded' && o[s] ? 1 : undefined, ...(s === 'embedded' && { addedAt: undefined, thumb: undefined }) } : o))); };
 // the document that a merge keeps has the earliest addedAt of the copies
 const earliest = (o, a, b) => (o instanceof Gone || !('addedAt' in o) ? o : { ...o, addedAt: [a.addedAt, b.addedAt].sort()[0] });
 const J = x => JSON.stringify(x);
-const FROM_FILE = o => J(canon({ ...o, addedAt: 0, name: 0, path: 0, size: 0, type: 0, embedded: o.embedded ? 1 : 0 }));      // a document without what the file itself says
+const FROM_FILE = o => J(canon({ ...o, addedAt: 0, name: 0, path: 0, size: 0, type: 0, thumb: 0, embedded: o.embedded ? 1 : 0 }));      // a document without what the file itself says
 const EPOCH = '1970-01-01T00:00:00.000Z';
 
 // The clock for `state` now. A save that changed something is the next save of this device: each object whose hash changed (a new one too) gets that
@@ -242,7 +242,7 @@ function mergeOf(mine, theirs){
     splits.set(id, { lose, h6, key: k });
   }
   // a document or a round with one id on both sides is the same one (one file is one document everywhere): not a split. A document's details join silently, a round's are a plain value.
-  // shortcut: nothing deletes a document or a round yet, so neither has a mark; upgrade with the Library's remove (I-7).
+  // A removed document leaves a mark like any object (removeDocuments); a round is archived, never removed.
   // shortcut: a section made on both sides (the certified list, each device's first certificate) is one section, its lists joined, not two; upgrade if sections ever need to be kept apart.
   if (splits.size){
     const A0 = A, B0 = B, maps = new Map([[A0, new Map()], [B0, new Map()]]);

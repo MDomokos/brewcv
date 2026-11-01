@@ -1,21 +1,23 @@
 // The files a person imported or exported, kept in the state with their text and details, and (with no linked folder) their bytes.
 // Pure: each function changes the state it is given (a draft inside commit()) and returns what it made. No DOM, no I/O.
-// A document is { id, name, type, size, sha256, addedAt, path?, embedded?, meta, from, taken, text, layout?, of?, with?, resume?, round?, archived? }. `embedded` is the original
-// as a data: URL, which the store keeps outside its undo steps; `taken` is { claims, versions, skipped, unplaced }, what the record took from it; `layout` is a PDF's [{ page, headerBottom, split }] as the person left it; a cover letter has `with` (the document of the resume it was dropped with) and `resume` (the saved resume it went out with, by company and role) beside its `round`.
+// A document is { id, name, type, size, sha256, addedAt, path?, embedded?, thumb?, meta, from, taken, text, layout?, of?, with?, resume?, round?, archived? }. `embedded` is the original
+// as a data: URL, which the store keeps outside its undo steps, and `thumb` the picture of its first page (a PDF's), the same; `taken` is { claims, versions, skipped, unplaced, lines? },
+// what the record took from it (`lines`: the lines it left unplaced); `layout` is a PDF's [{ page, headerBottom, split }] as the person left it; a cover letter has `with` (the document of the resume it was dropped with) and `resume` (the saved resume it went out with, by company and role) beside its `round`.
 
 import { t, keyed, UI_LANGS } from '../i18n/index.js';
-import { normText, wordMoves } from './record.js';
+import { normText, wordMoves, tombstone } from './record.js';
+import { fnv } from '../store/store.js';
 
 export const MAX_EMBED = 10 * 1024 * 1024;      // an original is embedded up to this many bytes
 export const docId = sha => `doc-${sha.slice(0, 12)}`;      // one file is one document, on every device
-const linesOf = text => new Set(String(text ?? '').split('\n').map(normText).filter(Boolean));
+export const linesOf = text => new Set(String(text ?? '').split('\n').map(normText).filter(Boolean));
 const find = (state, id) => (state.documents ?? []).find(d => d.id === id) ?? null;
 
 export const findBySha = (state, sha) => (state.documents ?? []).find(d => d.sha256 === sha) ?? null;
 
 // The same file again is the document it already is. `of`: the id sameDocument found, when this is another format of one; `round`: the current round.
 // Embedded only when `path` (a file in the linked folder) is not given; the caller decides, and I-8 adds the reference.
-export function addDocument(state, { name, type, bytesDataUrl, path, sha256, size, meta = {}, text = '', from = 'imported', layout, of, round, taken, addedAt = new Date().toISOString() }){
+export function addDocument(state, { name, type, bytesDataUrl, path, sha256, size, meta = {}, text = '', from = 'imported', layout, of, round, taken, thumb, addedAt = new Date().toISOString() }){
   if (!/^[0-9a-f]{64}$/.test(sha256 ?? '')) throw new Error('a document needs the sha256 of its file');
   const had = findBySha(state, sha256);
   if (had) return had;
@@ -23,13 +25,12 @@ export function addDocument(state, { name, type, bytesDataUrl, path, sha256, siz
   const bytes = bytesDataUrl ? Math.floor((bytesDataUrl.length - bytesDataUrl.indexOf(',') - 1) * 3 / 4) : 0;      // measured here, not taken from the caller (base64 is 4 characters for 3 bytes)
   if (!path && bytes > MAX_EMBED) throw keyed('i2.tooBig', { mb: Math.ceil(bytes / 1e6), max: MAX_EMBED / 1024 / 1024 });
   const doc = { id: docId(sha256), name, type, size, sha256, addedAt, ...(path ? { path } : bytesDataUrl ? { embedded: bytesDataUrl } : {}), meta, from,
-    taken: taken ?? { claims: [], versions: [], skipped: [], unplaced: 0 }, text, ...(layout ? { layout } : {}), ...(of ? { of } : {}), ...(round ? { round } : {}) };
+    taken: taken ?? { claims: [], versions: [], skipped: [], unplaced: 0 }, text, ...(thumb ? { thumb } : {}), ...(layout ? { layout } : {}), ...(of ? { of } : {}), ...(round ? { round } : {}) };
   (state.documents ??= []).push(doc);
   return doc;
 }
 
-// Drops the original and keeps the text. The store's asset goes with the last reference.
-// shortcut: nothing calls store.gcAssets() yet, so the bytes stay in memory until the page reloads (the browser copy is removed at the next save); upgrade when the Library calls it.
+// Drops the original and keeps the text. The store's asset goes with the last reference (the caller runs store.gcAssets(), which counts Undo too).
 export function keepTextOnly(state, id){
   const d = find(state, id);
   if (d) delete d.embedded;
@@ -122,4 +123,40 @@ export function safety(doc, { folderVerified = false, lastFileSave = null, check
     : { ok: false, state: 'none', text: t('i2.keptNone') };
   const safe = read.ok && record.ok && kept.ok;
   return { read, record, kept, safe, text: t(safe ? 'i2.safe' : 'i2.notSafe') };
+}
+
+// ---- the Library: rounds, the archive, removing ----
+
+// A round is one period of applying. The current one is the newest that is not archived; new and duplicated resumes and imports go into it.
+export const currentRound = state => (state.rounds ?? []).filter(r => !r.archived).sort((a, b) => String(b.from).localeCompare(String(a.from)) || (a.id < b.id ? 1 : -1))[0] ?? null;
+export function startRound(state, name, from = new Date().toISOString().slice(0, 10)){
+  const n = String(name ?? '').trim().slice(0, 60);
+  if (!n) throw keyed('i7.needRoundName');
+  const prev = currentRound(state);
+  if (prev && !prev.to) prev.to = from;
+  const r = { id: `round-${fnv(`${n}|${from}`)}`, name: n, from };
+  if ((state.rounds ??= []).some(x => x.id === r.id)) return state.rounds.find(x => x.id === r.id);
+  state.rounds.push(r);
+  return r;
+}
+// `round` and `archived` are plain values on a resume, a document or a round; a falsy one takes the key away. A resume that is open has a working copy that settle() writes back, so it takes the change too.
+export function mark(state, where, id, patch){
+  for (const x of [(state[where] ?? []).find(y => y.id === id), where === 'resumes' && state.openId === id ? state.cur : null])
+    if (x) for (const [k, v] of Object.entries(patch)) if (v) x[k] = v; else delete x[k];
+}
+// Hidden from the default views: archived itself, or in an archived round.
+export const hidden = (state, x) => !!x.archived || !!(x.round && (state.rounds ?? []).find(r => r.id === x.round)?.archived);
+
+// Removes documents (with a mark in the record, so a merge does not bring them back). A document that others point to as their original hands that to the next copy.
+// The bytes go with the last reference; the caller runs store.gcAssets().
+export function removeDocuments(state, ids){
+  const gone = new Set(ids), docs = state.documents ?? [];
+  for (const d of docs) if (gone.has(d.id)) tombstone(state.record, 'document', d.id, { ...d, embedded: undefined, thumb: undefined });
+  for (const d of docs.filter(x => gone.has(x.id))){
+    const heirs = docs.filter(x => x.of === d.id && !gone.has(x.id)), up = d.of && !gone.has(d.of) ? d.of : heirs[0]?.id;
+    for (const h of heirs) if (h.id === up) delete h.of; else h.of = up;
+  }
+  state.documents = docs.filter(d => !gone.has(d.id));
+  for (const d of state.documents) if (gone.has(d.with)) delete d.with;
+  if (!state.documents.length) delete state.documents;
 }
