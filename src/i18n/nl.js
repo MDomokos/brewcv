@@ -1688,4 +1688,10 @@ export default {
   'i6.fScore': 'cijfer',
   'i6.newProject': 'Nieuw project',
   'i6.newSchool': 'Nieuwe school',
+  'i6b.checkWith': 'Controleer de woorden met',
+  'i6b.noOriginal': 'Geen origineel',
+  'i6b.notChecked': 'Niet vergeleken met een origineel: de nieuwe regels staan eerst uit.',
+  'i6b.allFound': 'Elke tekst staat in {doc}.',
+  'i6b.someMissing': 'Sommige teksten staan niet in {doc}: ze staan eerst uit.',
+  'i6b.notIn': 'Niet in {doc}',
 };

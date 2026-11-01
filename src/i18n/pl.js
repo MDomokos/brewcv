@@ -1688,4 +1688,10 @@ export default {
   'i6.fScore': 'ocena',
   'i6.newProject': 'Nowy projekt',
   'i6.newSchool': 'Nowa szkoła',
+  'i6b.checkWith': 'Sprawdź słowa z',
+  'i6b.noOriginal': 'Bez oryginału',
+  'i6b.notChecked': 'Nie porównano z oryginałem: nowe wiersze są domyślnie niezaznaczone.',
+  'i6b.allFound': 'Każdy tekst jest w {doc}.',
+  'i6b.someMissing': 'Niektórych tekstów nie ma w {doc}: są domyślnie niezaznaczone.',
+  'i6b.notIn': 'Brak w {doc}',
 };

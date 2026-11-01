@@ -2320,6 +2320,49 @@ if (want('import: documents on the one door — reading, the layout view, what�
   await ctx.close();
 }
 
+// A JSON Resume an assistant made from an old resume: its words are looked for in the document it names (src/ui/files.js, src/model/intake.js). Told apart by data attributes and ticks.
+if (want('import: a JSON Resume from an assistant is checked against its document')) {
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  const view = () => page.getAttribute('#body', 'data-view');
+  const A = 'Calibrated the torque rig every week against a reference gauge.', B = 'Trained two new technicians on the clean room gowning procedure.', B2 = B.replace('Trained', 'Coached');
+  // the career's own details and first job, so the file differs from it by the two lines only; the document holds the same details and the lines as written
+  const own = await page.evaluate(() => { const r = window.__wb.store.state.record, w = r.work[0]; return { basics: { name: r.basics.name, label: r.basics.label, email: r.basics.email, phone: r.basics.phone, location: { city: r.basics.location.city } },
+    job: { name: w.name, position: w.position, location: w.location, startDate: w.startDate, ...(w.endDate ? { endDate: w.endDate } : {}) } }; });
+  const text = [own.basics.name, own.basics.label, own.basics.email, own.basics.phone, own.basics.location.city, own.job.position, own.job.name, own.job.location, own.job.startDate, own.job.endDate ?? '', A, B].filter(Boolean).join('\n');
+  await page.evaluate(text => window.__wb.store.commit(d => {
+    d.record.meta.owner = 'Sam Example';
+    d.documents = [{ id: 'doc-000000000001', name: 'Old CV 2023.pdf', type: 'application/pdf', size: 10, sha256: '0'.repeat(64), addedAt: '2026-01-01T00:00:00.000Z', meta: { kind: 'resume' }, from: 'imported', taken: { claims: [], versions: [], skipped: [], unplaced: 0 }, text }];
+  }, 'smoke: a document'), text);
+  const jr = { basics: own.basics, work: [{ ...own.job, highlights: [A, B2] }], meta: { source: 'old cv 2023.PDF' } };
+  const paste = async () => { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page); await page.fill('#imp-paste', JSON.stringify(jr)); await page.click('[data-act=imp-paste]'); await settle(page); };
+  const rows = () => page.$$eval('#body input[data-mi]', es => es.map(e => [e.checked, e.parentElement.textContent]));
+  await paste();
+  ok('a JSON Resume whose meta.source names a Library document is checked against it, with the document chosen in the menu, and some texts are not in it',
+    (await view()) === 'review' && (await page.getAttribute('[data-check]', 'data-check')) === 'missing' && (await page.$eval('#imp-doc', e => e.value)) === 'doc-000000000001');
+  await pickOption(page, '#imp-doc', '');
+  ok('with no original picked, the page says it was not checked', (await page.getAttribute('[data-check]', 'data-check')) === 'none');
+  await page.click('[data-act=imp-merge]'); await settle(page);
+  let r = await rows();
+  ok('and every item starts unticked', (await view()) === 'merge' && r.length >= 2 && r.every(x => !x[0]), JSON.stringify(r.map(x => x[0])));
+  await page.click('[data-act=goto][data-v=review]'); await settle(page);
+  await pickOption(page, '#imp-doc', 'doc-000000000001');
+  await page.click('[data-act=imp-merge]'); await settle(page);
+  r = await rows();
+  ok('checked against the document: the line it has stays ticked and the reworded one is listed apart, unticked',
+    (await page.$$('[data-notin]')).length === 1 && (await page.$$('[data-notin] + .mlist input[data-mi]')).length === 1 && (await page.$eval('[data-notin] + .mlist input[data-mi]', e => e.checked)) === false
+    && r.filter(x => /Calibrated/.test(x[1]))[0]?.[0] === true && r.filter(x => /Coached/.test(x[1])).every(x => !x[0]), JSON.stringify(r.map(x => x[0])));
+  ok('the reworded line is shown as a word diff against the document’s line', (await page.$$('[data-notin] + .mlist del')).length > 0 && (await page.$$('[data-notin] + .mlist ins')).length > 0);
+  await page.click('[data-act=imp-do-merge]'); await settle(page);
+  const s = await st();
+  const has = x => s.record.variants.some(v => v.text === x);
+  ok('adding takes the ticked line only', has(A) && !has(B2) && !has(B));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
+
 // The first import into an example career: the newest file becomes the career, as "Open it" does for a JSON file.
 if (want('import: an example career starts from the newest file')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });

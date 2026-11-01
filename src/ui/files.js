@@ -82,6 +82,7 @@ function reviewView(){
     <p class="muted small">${esc(g.file)}</p>
     ${warn}
     <table class="kv">${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
+    ${checkPicker(g)}${checkLine(g)}
     ${(g.review?.notShown ?? []).length ? `<span class="lbl">${h('files.notShown')}</span><ul class="small">${g.review.notShown.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
     ${out.length ? `<label class="check"><input type="checkbox" id="imp-outside" ${F.outside ? 'checked' : ''}> ${h('files.outside', { n: out.length })}</label>
       <ul class="small">${out.slice(0, 5).map(e => `<li>${esc(e.where)}: “${esc(e.text.slice(0, 60))}${e.text.length > 60 ? '…' : ''}”</li>`).join('')}</ul>` : ''}
@@ -89,13 +90,24 @@ function reviewView(){
     <p class="note">${g.kind === 'resume' || v?.kind === 'same' ? '' : h('files.eitherWay')}</p>`;
 }
 
+// A JSON Resume an assistant made from a document: its words are looked for in that document (the one its meta.source names, or one picked here).
+const docsWithText = () => (st().documents ?? []).filter(d => d.text);
+const checkDoc = g => (F.checkDoc === undefined ? DOC.sourceOf(st(), g.json) : docsWithText().find(d => d.id === F.checkDoc) ?? null);
+const checkPicker = g => (g.kind === 'jsonresume' && docsWithText().length
+  ? `<label class="field"><span class="lbl">${h('i6b.checkWith')}</span><select id="imp-doc" aria-label="${esc(t('i6b.checkWith'))}"><option value="">${h('i6b.noOriginal')}</option>${docsWithText().map(d => `<option value="${esc(d.id)}" ${checkDoc(g)?.id === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : '');
+function checkLine(g){
+  if (g?.kind !== 'jsonresume') return '';
+  const doc = checkDoc(g), some = doc && DOC.checkWords(g.json, doc.text).some(r => !r.found);
+  return `<p class="small" role="status" data-check="${doc ? (some ? 'missing' : 'ok') : 'none'}">${esc(doc ? t(some ? 'i6b.someMissing' : 'i6b.allFound', { doc: doc.name }) : t('i6b.notChecked'))}</p>`;
+}
+
 function itemsHtml(items, checkable){
   if (!items.length) return `<p class="muted">${h('files.noDiff')}</p>`;
   const G = checkable ? { add: t('merge.willAdd'), change: t('merge.different'), keep: t('merge.onlyYours') } : { add: t('merge.added'), change: t('merge.changed'), keep: t('merge.removed') };
-  return ['add', 'change', 'keep'].map(k => {
-    const its = items.map((x, i) => [x, i]).filter(([x]) => x.kind === k);
+  return ['notin', 'add', 'change', 'keep'].map(k => {
+    const its = items.map((x, i) => [x, i]).filter(([x]) => (x.notIn ? 'notin' : x.kind) === k);
     if (!its.length) return '';
-    return `<div class="mgroup ${k}">${G[k]} · ${its.length}</div><div class="mlist">${its.map(([x, i]) => {
+    return `<div class="mgroup ${k === 'notin' ? 'change' : k}" ${k === 'notin' ? 'data-notin="1"' : ''}>${esc(k === 'notin' ? t('i6b.notIn', { doc: its[0][0].notIn }) : G[k])} · ${its.length}</div><div class="mlist">${its.map(([x, i]) => {
       const body = bodyOf(x);
       return checkable && k !== 'keep'
         ? `<label class="mi"><input type="checkbox" data-mi="${i}" ${x.on ? 'checked' : ''}><span><span class="mw">${esc(x.what)}</span><span class="mx">${body}</span></span></label>`
@@ -109,7 +121,7 @@ function mergeView(){
   const n = items.filter(x => x.on && x.kind !== 'keep').length;
   return `<a class="back" data-act="goto" data-v="review">${withArrows(h('merge.cancel'))}</a><h2 class="title">${h('merge.title', { file: F.got?.file ?? '' })}</h2>
     <p class="small">${h('merge.intro')}</p>
-    ${itemsHtml(items, true)}
+    ${checkLine(F.got)}${itemsHtml(items, true)}
     <div class="btns"><button class="primary" data-act="imp-do-merge" ${n ? '' : 'disabled'}>${h('merge.doN', { n })}</button><button class="del" data-act="imp-replace">${h('merge.replaceInstead')}</button></div>`;
 }
 
@@ -169,6 +181,7 @@ async function take(text, name, mode = null){
   }
   F.got = got;
   F.outside = true;
+  F.checkDoc = undefined;
   C.setView('review');
 }
 
@@ -258,6 +271,7 @@ async function act(a, tg){
     case 'imp-merge': {
       const inc = incomingState();
       F.items = D.diffRecords(st().record, inc.record, { fromResumes: st().resumes, toResumes: inc.resumes });
+      if (F.got.kind === 'jsonresume') X.checkItems(F.items, F.got.json, checkDoc(F.got), st().record);
       F.incoming = inc;
       C.setView('merge');
       return true;
@@ -603,6 +617,7 @@ function bind(body){
       if (b){ b.disabled = !n; b.textContent = tr('merge.doN', { n }); }
     }
     if (t.id === 'imp-outside') F.outside = t.checked;
+    if (t.id === 'imp-doc'){ F.checkDoc = t.value; C.renderBody(); }
     if (t.dataset.flang !== undefined && F.drop){      // read again in another language
       const i = Number(t.dataset.flang), e = F.drop.entries[i], lang = t.value;
       loadCatalogue(lang).then(() => { e.read = { ...e.read, ...X.readIn(e.read.items, lang, e.layout) }; judge(F.drop.entries); C.renderBody(); });

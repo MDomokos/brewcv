@@ -1688,4 +1688,10 @@ export default {
   'i6.fScore': 'voto',
   'i6.newProject': 'Nuovo progetto',
   'i6.newSchool': 'Nuova scuola',
+  'i6b.checkWith': 'Controlla le parole con',
+  'i6b.noOriginal': 'Nessun originale',
+  'i6b.notChecked': 'Non confrontato con un originale: le sue righe nuove partono senza spunta.',
+  'i6b.allFound': 'Ogni testo è in {doc}.',
+  'i6b.someMissing': 'Alcuni testi non sono in {doc}: partono senza spunta.',
+  'i6b.notIn': 'Non in {doc}',
 };

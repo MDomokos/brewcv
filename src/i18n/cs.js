@@ -1688,4 +1688,10 @@ export default {
   'i6.fScore': 'hodnocení',
   'i6.newProject': 'Nový projekt',
   'i6.newSchool': 'Nová škola',
+  'i6b.checkWith': 'Zkontrolovat slova podle',
+  'i6b.noOriginal': 'Žádný originál',
+  'i6b.notChecked': 'Nesrovnáno s originálem: nové řádky jsou zpočátku nezaškrtnuté.',
+  'i6b.allFound': 'Každý text je v {doc}.',
+  'i6b.someMissing': 'Některé texty nejsou v {doc}: jsou zpočátku nezaškrtnuté.',
+  'i6b.notIn': 'Není v {doc}',
 };

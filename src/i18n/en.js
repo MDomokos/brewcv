@@ -1692,4 +1692,10 @@ export default {
   'i6.fScore': 'grade',
   'i6.newProject': 'New project',
   'i6.newSchool': 'New school',
+  'i6b.checkWith': 'Check the words against',
+  'i6b.noOriginal': 'No original',
+  'i6b.notChecked': 'Not checked against an original: its new lines start unticked.',
+  'i6b.allFound': 'Every text is in {doc}.',
+  'i6b.someMissing': 'Some texts are not in {doc}: they start unticked.',
+  'i6b.notIn': 'Not in {doc}',
 };

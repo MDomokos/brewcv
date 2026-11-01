@@ -1688,4 +1688,10 @@ export default {
   'i6.fScore': 'jegy',
   'i6.newProject': 'Új projekt',
   'i6.newSchool': 'Új iskola',
+  'i6b.checkWith': 'A szavak ellenőrzése ehhez képest:',
+  'i6b.noOriginal': 'Nincs eredeti',
+  'i6b.notChecked': 'Nincs eredetihez hasonlítva: az új sorok eleinte nincsenek kipipálva.',
+  'i6b.allFound': 'Minden szöveg szerepel itt: {doc}.',
+  'i6b.someMissing': 'Néhány szöveg nem szerepel itt: {doc}. Eleinte nincsenek kipipálva.',
+  'i6b.notIn': 'Nincs benne: {doc}',
 };

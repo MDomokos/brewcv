@@ -1688,4 +1688,10 @@ export default {
   'i6.fScore': 'nota',
   'i6.newProject': 'Proyecto nuevo',
   'i6.newSchool': 'Centro de estudios nuevo',
+  'i6b.checkWith': 'Comprobar las palabras con',
+  'i6b.noOriginal': 'Sin original',
+  'i6b.notChecked': 'No comparado con un original: sus líneas nuevas empiezan sin marcar.',
+  'i6b.allFound': 'Todos los textos están en {doc}.',
+  'i6b.someMissing': 'Algunos textos no están en {doc}: empiezan sin marcar.',
+  'i6b.notIn': 'No está en {doc}',
 };

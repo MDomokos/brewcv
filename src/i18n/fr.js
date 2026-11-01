@@ -1688,4 +1688,10 @@ export default {
   'i6.fScore': 'mention',
   'i6.newProject': 'Nouveau projet',
   'i6.newSchool': 'Nouvelle école',
+  'i6b.checkWith': 'Vérifier les mots d’après',
+  'i6b.noOriginal': 'Aucun original',
+  'i6b.notChecked': 'Non comparé à un original : ses nouvelles lignes ne sont pas cochées.',
+  'i6b.allFound': 'Chaque texte figure dans {doc}.',
+  'i6b.someMissing': 'Certains textes ne figurent pas dans {doc} : ils ne sont pas cochés.',
+  'i6b.notIn': 'Absent de {doc}',
 };
