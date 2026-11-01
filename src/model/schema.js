@@ -19,6 +19,17 @@ const MORE_ENTRIES = [['projects', 'projectHighlights'], ['volunteer', 'voluntee
 const isEntryShape = x => !!x && typeof x === 'object' && typeof x.id === 'string' && typeof x.display?.position === 'string' && Array.isArray(x.highlights);
 
 const clone = x => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
+// A file from outside can carry the key "__proto__" (JSON.parse makes it an own key): it reaches into Object.prototype wherever a copy assigns by key. No record has one, so it is deleted, at every depth.
+export function dropProto(root){
+  const todo = [root];
+  while (todo.length){
+    const x = todo.pop();
+    if (!x || typeof x !== 'object') continue;
+    delete x.__proto__;      // an own key only: the accessor on Object.prototype stays
+    for (const v of Object.values(x)) todo.push(v);
+  }
+  return root;
+}
 const isObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
 
 export function detect(json){

@@ -25,10 +25,14 @@ function gapSpans(text){
 const markOpen = slot =>
   `<span class="${slot && slot !== 'primary' ? `mark mark--${slot}` : 'mark'}">`;
 
+// A link comes from a file the person opened, so only these schemes make one (a `javascript:` or `data:` address prints as plain text), and its quotes cannot end the attribute.
+const SAFE_HREF = /^(?:https?|mailto|tel):/i;
+export const safeHref = h => (typeof h === 'string' && SAFE_HREF.test(h.trim()) ? h.trim().replace(/[&"'<>]/g, c => `&#${c.charCodeAt(0)};`) : null);
+
 function spansFor(v, extra = []){
   return [
     ...(v.marks ?? []).map(m => ({ start: m.start, end: m.end, open: markOpen(m.slot), close: '</span>' })),
-    ...(v.links ?? []).map(l => ({ start: l.start, end: l.end, open: `<a href="${l.href}">`, close: '</a>' })),
+    ...(v.links ?? []).filter(l => safeHref(l.href)).map(l => ({ start: l.start, end: l.end, open: `<a href="${safeHref(l.href)}">`, close: '</a>' })),
     ...extra,
     ...gapSpans(v.text ?? ''),
   ].sort((a, b) => a.start - b.start || b.end - a.end);

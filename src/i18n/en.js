@@ -1600,4 +1600,5 @@ export default {
   'i2.keptNone': 'No checked copy of the original is kept',
   'i2.safe': 'Safe to delete the original',
   'i2.notSafe': 'Not safe to delete the original yet',
+  'i6.storageFull': 'This browser has no room left to keep your work. Nothing is lost: it is all still here. Save to file now, then free some space.',
 };

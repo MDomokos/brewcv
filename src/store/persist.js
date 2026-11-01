@@ -3,7 +3,7 @@
 // written, and a declined permission just stops the mirror.
 
 import { t, keyed } from '../i18n/index.js';
-import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId } from '../model/schema.js';
+import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId, dropProto } from '../model/schema.js';
 import { assetRefs } from './store.js';
 import { tick, baseline, opened, floored, foreign, renameActor, cleanClock } from '../model/merge.js';
 
@@ -12,8 +12,9 @@ export const SAVE_FILE_NAME = 'brewcv.json';
 // package.json's version, which checks/version-check.mjs keeps equal to it.
 export const APP_VERSION = '1.6.2';
 
+// of a text, or of the bytes of a file
 export async function sha256(text){
-  const buf = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  const buf = await globalThis.crypto.subtle.digest('SHA-256', typeof text === 'string' ? new TextEncoder().encode(text) : text);
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -259,6 +260,7 @@ export function readBackup(obj){
   catch (e){ throw e?.key ? e : keyed('error.notBackup'); }
 }
 function readBackupOf(obj){
+  dropProto(obj);      // the file is untrusted: read in place, once
   if (detect(obj) !== 'backup') throw keyed('error.notBackup');
   const { model, warnings } = load(obj.record);
   const resumes = [], frozen = {};
@@ -347,7 +349,11 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       if (pendingCommits){ file.n += pendingCommits; pendingCommits = 0; await backend.put('meta/fileDirty', file.n); }
       const mirrored = linked ? await writeFolder() : [];
       if (mirrored) setStatus('saved');     // null: the folder refused and writeFolder set the error
-    } catch (e){ setStatus('error', e.message); }
+    } catch (e){
+      // out of room in the browser's storage: what is in memory and the last good copy in storage are both as they were; the person is told what to do
+      const full = e?.name === 'QuotaExceededError' || e?.code === 22;
+      setStatus('error', full ? t('i6.storageFull') : e.message, full ? 'storage-full' : null);
+    }
     for (const w of waiters.splice(0)) w();
   }
 

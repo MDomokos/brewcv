@@ -2,7 +2,7 @@
 // outsideEdits() finds JSON Resume body text edited in another tool; schema.js load() ignores those.
 
 import { t, catalogue } from '../i18n/index.js';
-import { detect, load, loadResume, BODY_KEYS } from './schema.js';
+import { detect, load, loadResume, dropProto, BODY_KEYS } from './schema.js';
 import { defaultVariant, DEFAULT_LANG } from './resume.js';
 import { addVersion, setDefault } from './record.js';
 import * as B from './build.js';
@@ -148,7 +148,7 @@ export function readImport(text, name = 'file'){
 }
 function read(text, name){
   let json;
-  try { json = JSON.parse(text); }
+  try { json = dropProto(JSON.parse(text)); }
   catch (e){ return { kind: 'error', file: name, message: t('imp.notJson', { msg: e.message }) }; }
   const kind = detect(json);
   if (kind === 'library' || kind === 'library-v3'){

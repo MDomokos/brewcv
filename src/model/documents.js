@@ -1,7 +1,7 @@
 // The files a person imported or exported, kept in the state with their text and details, and (with no linked folder) their bytes.
 // Pure: each function changes the state it is given (a draft inside commit()) and returns what it made. No DOM, no I/O.
-// A document is { id, name, type, size, sha256, addedAt, path?, embedded?, meta, from, taken, text, of?, round?, archived? }. `embedded` is the original
-// as a data: URL, which the store keeps outside its undo steps; `taken` is { claims, versions, skipped, unplaced }, what the record took from it.
+// A document is { id, name, type, size, sha256, addedAt, path?, embedded?, meta, from, taken, text, layout?, of?, round?, archived? }. `embedded` is the original
+// as a data: URL, which the store keeps outside its undo steps; `taken` is { claims, versions, skipped, unplaced }, what the record took from it; `layout` is a PDF's [{ page, headerBottom, split }] as the person left it.
 
 import { t, keyed } from '../i18n/index.js';
 import { normText } from './record.js';
@@ -15,7 +15,7 @@ export const findBySha = (state, sha) => (state.documents ?? []).find(d => d.sha
 
 // The same file again is the document it already is. `of`: the id sameDocument found, when this is another format of one; `round`: the current round.
 // Embedded only when `path` (a file in the linked folder) is not given; the caller decides, and I-8 adds the reference.
-export function addDocument(state, { name, type, bytesDataUrl, path, sha256, size, meta = {}, text = '', from = 'imported', of, round, taken, addedAt = new Date().toISOString() }){
+export function addDocument(state, { name, type, bytesDataUrl, path, sha256, size, meta = {}, text = '', from = 'imported', layout, of, round, taken, addedAt = new Date().toISOString() }){
   if (!/^[0-9a-f]{64}$/.test(sha256 ?? '')) throw new Error('a document needs the sha256 of its file');
   const had = findBySha(state, sha256);
   if (had) return had;
@@ -23,7 +23,7 @@ export function addDocument(state, { name, type, bytesDataUrl, path, sha256, siz
   const bytes = bytesDataUrl ? Math.floor((bytesDataUrl.length - bytesDataUrl.indexOf(',') - 1) * 3 / 4) : 0;      // measured here, not taken from the caller (base64 is 4 characters for 3 bytes)
   if (!path && bytes > MAX_EMBED) throw keyed('i2.tooBig', { mb: Math.ceil(bytes / 1e6), max: MAX_EMBED / 1024 / 1024 });
   const doc = { id: docId(sha256), name, type, size, sha256, addedAt, ...(path ? { path } : bytesDataUrl ? { embedded: bytesDataUrl } : {}), meta, from,
-    taken: taken ?? { claims: [], versions: [], skipped: [], unplaced: 0 }, text, ...(of ? { of } : {}), ...(round ? { round } : {}) };
+    taken: taken ?? { claims: [], versions: [], skipped: [], unplaced: 0 }, text, ...(layout ? { layout } : {}), ...(of ? { of } : {}), ...(round ? { round } : {}) };
   (state.documents ??= []).push(doc);
   return doc;
 }

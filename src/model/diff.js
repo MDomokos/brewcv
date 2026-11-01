@@ -3,7 +3,7 @@
 // except in another copy of the same career, where it is a change.
 
 import { t } from '../i18n/index.js';
-import { wordDiff, addVersion, versionsIn, tombstoned, normText } from './record.js';
+import { wordDiff, addVersion, suggestNumber, versionsIn, tombstoned, normText } from './record.js';
 import { resumeLabel, uniqueId, snapshotsOf, printedKey, sameSend, sendLabel } from './resumes.js';
 import { slug } from './build.js';
 import { jobTypesOf } from './focus.js';
@@ -68,7 +68,7 @@ export function copyFact(dst, src, factId, prefer = factId){
 
 function copyVersion(dst, factId, v){
   if (versionsOf(ixOf(dst), factId).some(w => normText(w.text) === normText(v.text) && (w.lang ?? 'en') === (v.lang ?? 'en'))) return null;
-  const nv = addVersion(dst, factId, { text: v.text, lang: v.lang ?? 'en', as: 'major', source: v.source });
+  const nv = addVersion(dst, factId, { text: v.text, lang: v.lang ?? 'en', n: suggestNumber(dst, factId, v.text, v.lang ?? 'en').n, source: v.source });      // 70% of the words of a version kept: its sub-version (v2.1); else a new major
   nv.tags = [...new Set([...(nv.tags ?? []), ...(v.tags ?? [])])];
   if (nv.text === v.text){ nv.marks = clone(v.marks ?? []); nv.links = clone(v.links ?? []); }
   if (v.separator) nv.separator = v.separator;
@@ -77,6 +77,9 @@ function copyVersion(dst, factId, v){
 
 export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {}){
   const items = [];
+  // `entry`: the job (or other entry) an item belongs to, for the import's screen, which groups by it; `as`: what kind of thing it adds there
+  let entry = null;
+  const put = (x, as) => items.push({ ...x, ...(entry ? { entry } : {}), ...(as ? { as } : {}) });
   const F = ixOf(from), T = ixOf(to);
   // Two copies of one career: a version the other has under an id mine has, in other words, is another text of it, not a new version.
   const sameRecord = !!from.recordId && from.recordId === to.recordId;
@@ -88,7 +91,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
 
   const value = (what, a, b, apply) => {
     if (normText(a) === normText(b) || b === undefined || b === null || b === '') return;
-    items.push({ kind: a ? 'change' : 'add', what, a: a ?? '', b, on: !a, apply });
+    put({ kind: a ? 'change' : 'add', what, a: a ?? '', b, on: !a, apply });
   };
   const fb = from.basics ?? {}, tb = to.basics ?? {};
   value(t('diff.name'), fb.name, tb.name, d => { d.record.basics.name = tb.name; });
@@ -96,12 +99,12 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
   for (const k of ['email', 'phone', 'url']) value(t(`diff.${k}`), fb[k], tb[k], d => { d.record.basics[k] = tb[k]; });
   value(t('diff.city'), fb.location?.city, tb.location?.city, d => { d.record.basics.location = { ...(d.record.basics.location ?? {}), city: tb.location.city }; });
   if (tb.image && tb.image !== fb.image)
-    items.push({ kind: fb.image ? 'change' : 'add', what: t('diff.photo'), a: fb.image ? t('diff.aPhoto') : '', b: fb.image ? t('diff.otherPhoto') : t('diff.aPhoto'), on: !fb.image, apply: d => { d.record.basics.image = tb.image; } });
+    put({ kind: fb.image ? 'change' : 'add', what: t('diff.photo'), a: fb.image ? t('diff.aPhoto') : '', b: fb.image ? t('diff.otherPhoto') : t('diff.aPhoto'), on: !fb.image, apply: d => { d.record.basics.image = tb.image; } });
 
   const claimItems = (fromId, toId, where) => {
     const fvs = versionsOf(F, fromId);
     const was = !!F.facts.get(fromId)?.archived, now = !!T.facts.get(toId)?.archived;
-    if (was !== now) items.push({ kind: 'change', what: `${where} · ${clip(claimText(F, fromId))}`, a: was ? t('arch.diffArchived') : t('arch.diffNot'), b: now ? t('arch.diffArchived') : t('arch.diffNot'), on: false,
+    if (was !== now) put({ kind: 'change', what: `${where} · ${clip(claimText(F, fromId))}`, a: was ? t('arch.diffArchived') : t('arch.diffNot'), b: now ? t('arch.diffArchived') : t('arch.diffNot'), on: false,
       apply: d => { const f = d.record.facts.find(x => x.id === fromId); if (f){ if (now) f.archived = true; else delete f.archived; } } });
     for (const v of versionsOf(T, toId)){
       const same = fvs.find(w => normText(w.text) === normText(v.text) && (w.lang ?? 'en') === (v.lang ?? 'en'));
@@ -112,10 +115,10 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
         const item = { kind: twin ? 'change' : 'add', what,
           diff: near ? wordDiff(near.text, v.text) : [{ op: '+', text: v.text }], on: !twin,
           apply: d => { if (d.record.facts.some(f => f.id === fromId)) copyVersion(d.record, fromId, v); } };
-        items.push(twin ? item : goneOr(item, 'variant', v.id));
+        put(twin ? item : goneOr(item, 'variant', v.id), 'wording');
       } else {
         const nt = (v.tags ?? []).filter(x => !(same.tags ?? []).includes(x));
-        if (nt.length) items.push({ kind: 'add', what: t('diff.tags', { claim: clip(claimText(F, fromId)), v: same.n }), b: nt.join(', '), on: true,
+        if (nt.length) put({ kind: 'add', what: t('diff.tags', { claim: clip(claimText(F, fromId)), v: same.n }), b: nt.join(', '), on: true,
           apply: d => { const w = d.record.variants.find(x => x.id === same.id); if (w) w.tags = [...new Set([...(w.tags ?? []), ...nt])]; } });
       }
     }
@@ -130,8 +133,9 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
 
   for (const tj of to.work ?? []){
     const fj = matchJob(tj, from.work ?? []);
+    entry = (fj ?? tj).name;
     if (!fj){
-      items.push({ kind: 'add', what: t('diff.newJob'), b: `${tj.position} · ${tj.name} · ${tj.startDate ?? ''} – ${tj.endDate ?? t('diff.present')} · ${t('diff.claims', { n: (tj.highlights ?? []).length })}`, on: true,
+      put({ kind: 'add', what: t('diff.newJob'), b: `${tj.position} · ${tj.name} · ${tj.startDate ?? ''} – ${tj.endDate ?? t('diff.present')} · ${t('diff.claims', { n: (tj.highlights ?? []).length })}`, on: true,
         apply: d => {
           if (matchJob(tj, d.record.work)) return;
           const taken = new Set([...d.record.work.map(w => w.id), ...d.record.facts.map(f => f.id)]);
@@ -143,15 +147,15 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
           d.record.work.sort((a, b) => String(b.endDate ?? '9999').localeCompare(String(a.endDate ?? '9999')) || String(b.startDate).localeCompare(String(a.startDate)));
           const s = d.record.sections.find(x => x.kind === 'entries');
           if (s){ s.content.work = d.record.work.filter(x => s.content.work.includes(x.id) || x.id === wid).map(x => x.id); }
-        } });
+        } }, 'job');
       continue;
     }
     const at = name => d => d.record.work.find(w => w.id === fj.id);
-    if (!!fj.archived !== !!tj.archived) items.push({ kind: 'change', what: `${fj.name} · ${t('arch.diffJob')}`, a: fj.archived ? t('arch.diffArchived') : t('arch.diffNot'), b: tj.archived ? t('arch.diffArchived') : t('arch.diffNot'), on: false,
+    if (!!fj.archived !== !!tj.archived) put({ kind: 'change', what: `${fj.name} · ${t('arch.diffJob')}`, a: fj.archived ? t('arch.diffArchived') : t('arch.diffNot'), b: tj.archived ? t('arch.diffArchived') : t('arch.diffNot'), on: false,
       apply: d => { const w = at()(d); if (w){ if (tj.archived) w.archived = true; else delete w.archived; } } });
     for (const [k, label] of [['position', t('diff.title')], ['startDate', t('diff.start')], ['endDate', t('diff.end')], ['location', t('diff.place')]]){
       const a = fj[k] ?? (k === 'endDate' ? 'present' : ''), b = tj[k] ?? (k === 'endDate' ? 'present' : '');
-      if (normText(a) !== normText(b)) items.push({ kind: 'change', what: `${fj.name} · ${label}`, a, b, on: false,
+      if (normText(a) !== normText(b)) put({ kind: 'change', what: `${fj.name} · ${label}`, a, b, on: false,
         apply: d => { const w = at()(d); if (w) w[k] = tj[k] ?? null; } });
     }
     for (const k of ['position', 'meta']) if (fj.display?.[k] && tj.display?.[k]) claimItems(fj.display[k], tj.display[k], `${fj.name} · ${k === 'position' ? 'title' : 'meta line'}`);
@@ -160,30 +164,31 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
     for (const th of tj.highlights ?? []){
       const fh = matchClaim(T, th, F, fcands);
       if (!fh){
-        items.push(goneOr({ kind: 'add', what: t('diff.newClaim', { job: fj.name }), b: `${claimText(T, th)} · ${t('diff.versions', { n: versionsOf(T, th).length })}`, on: true,
-          apply: d => { const w = at()(d); if (!w) return; const id = copyFact(d.record, to, th); if (id) w.highlights.push(id); } }, 'fact', th));
+        put(goneOr({ kind: 'add', what: t('diff.newClaim', { job: fj.name }), b: `${claimText(T, th)} · ${t('diff.versions', { n: versionsOf(T, th).length })}`, on: true,
+          apply: d => { const w = at()(d); if (!w) return; const id = copyFact(d.record, to, th); if (id) w.highlights.push(id); } }, 'fact', th), 'line');
         continue;
       }
       matched.add(fh);
       claimItems(fh, th, fj.name);
     }
     for (const fh of fcands) if (!matched.has(fh) && !matchClaim(F, fh, T, tj.highlights ?? []))
-      items.push({ kind: 'keep', what: t('diff.onlyYoursIn', { job: fj.name }), b: claimText(F, fh) });
+      put({ kind: 'keep', what: t('diff.onlyYoursIn', { job: fj.name }), b: claimText(F, fh) });
   }
-  for (const fj of from.work ?? []) if (!matchJob(fj, to.work ?? [])) items.push({ kind: 'keep', what: t('diff.onlyYours'), b: `${fj.position} · ${fj.name}` });
+  entry = null;
+  for (const fj of from.work ?? []) if (!matchJob(fj, to.work ?? [])) put({ kind: 'keep', what: t('diff.onlyYours'), b: `${fj.position} · ${fj.name}` });
 
   const mineJt = jobTypesOf(from);
   for (const jt of to.jobTypes ?? []){
     const n = jobTypesOf({ jobTypes: [jt] })[0];
     if (!n) continue;
     const have = mineJt.find(x => x.id === n.id);
-    if (!have) items.push({ kind: 'add', what: t('diff.jobType'), b: n.tags.length === 1 && n.label === n.id ? n.label : `${n.label}: ${n.tags.join(', ')}`, on: true,
+    if (!have) put({ kind: 'add', what: t('diff.jobType'), b: n.tags.length === 1 && n.label === n.id ? n.label : `${n.label}: ${n.tags.join(', ')}`, on: true,
       apply: d => { d.record.jobTypes ??= []; if (!jobTypesOf(d.record).some(x => x.id === n.id)) d.record.jobTypes.push(typeof jt === 'string' ? jt : clone(jt)); } });
-    else if (have.tags.join('|') !== n.tags.join('|') || have.label !== n.label) items.push({ kind: 'change', what: `${t('diff.jobType')} · ${have.label}`, a: have.tags.join(', '), b: n.tags.join(', '), on: false,
+    else if (have.tags.join('|') !== n.tags.join('|') || have.label !== n.label) put({ kind: 'change', what: `${t('diff.jobType')} · ${have.label}`, a: have.tags.join(', '), b: n.tags.join(', '), on: false,
       apply: d => { const i = (d.record.jobTypes ?? []).findIndex(x => jobTypesOf({ jobTypes: [x] })[0]?.id === n.id); if (i >= 0) d.record.jobTypes[i] = clone(n); } });
   }
   for (const k of to.same ?? []) if (!(from.same ?? []).includes(k) && F.facts.has(k.replace(/^fact:/, '')))
-    items.push({ kind: 'add', what: t('diff.same'), b: k.replace(/^\w+:/, ''), on: true, apply: d => { d.record.same = [...new Set([...(d.record.same ?? []), k])]; } });
+    put({ kind: 'add', what: t('diff.same'), b: k.replace(/^\w+:/, ''), on: true, apply: d => { d.record.same = [...new Set([...(d.record.same ?? []), k])]; } });
   for (const r of toResumes){
     const mine = fromResumes.find(x => resumeLabel(x) === resumeLabel(r));
     if (mine){
@@ -193,7 +198,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
         const have = snapshotsOf(mine).find(x => printedKey(x.recipe, x.body) === key);
         const sends = have ? s.sends.filter(e => !have.sends.some(h => sameSend(h, e))) : s.sends;
         if (have && !sends.length) continue;
-        items.push(goneOr({ kind: 'add', what: t('ux1.diffSnapshot', { name: resumeLabel(r) }), on: true,
+        put(goneOr({ kind: 'add', what: t('ux1.diffSnapshot', { name: resumeLabel(r) }), on: true,
           b: sends.map(e => [sendLabel(e) || t('ux1.noRecipient'), e.date].filter(Boolean).join(' · ')).join('; ') || t('ux1.snapshotWord'),
           apply: d => {
             const m = (d.resumes ?? []).find(x => resumeLabel(x) === resumeLabel(r));
@@ -210,7 +215,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
       }
       continue;
     }
-    items.push(goneOr({ kind: 'add', what: t('diff.savedResume'), b: `${resumeLabel(r)}${r.jobType ? ` · ${r.jobType}` : ''}`, on: true,
+    put(goneOr({ kind: 'add', what: t('diff.savedResume'), b: `${resumeLabel(r)}${r.jobType ? ` · ${r.jobType}` : ''}`, on: true,
       apply: (d, frozen) => {
         if ((d.resumes ?? []).some(x => resumeLabel(x) === resumeLabel(r))) return;
         const c = clone(r); c.id = uniqueId(d.resumes, c);
@@ -219,7 +224,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
       } }, 'resume', r.id));
   }
   for (const r of fromResumes) if (!toResumes.some(x => resumeLabel(x) === resumeLabel(r)) && toResumes.length)
-    items.push({ kind: 'keep', what: t('diff.savedOnlyYours'), b: resumeLabel(r) });
+    put({ kind: 'keep', what: t('diff.savedOnlyYours'), b: resumeLabel(r) });
   return items;
 }
 

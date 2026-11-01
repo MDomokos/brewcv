@@ -7,7 +7,7 @@
 
 import { fnv } from '../store/store.js';
 import { t, keyed } from '../i18n/index.js';
-import { BODY_KEYS } from './schema.js';
+import { BODY_KEYS, dropProto } from './schema.js';
 import { canon, resumeLabel, openSaved, groupOf, mirror } from './resumes.js';
 import { tombstone, nextMajor, normText, compareN, versionsIn } from './record.js';
 import { deleteClaim, deleteItem } from './career.js';
@@ -227,6 +227,7 @@ export function merge(mine, theirs){
   catch (e){ throw e?.key ? e : keyed('error.notBackup'); }
 }
 function mergeOf(mine, theirs){
+  dropProto(theirs);      // the other copy comes from a file
   let A = side(mine), B = side(theirs);
   const summary = [], pending = [];      // pending: the splits, whose lines come once the copies are renamed
 

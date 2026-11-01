@@ -180,7 +180,9 @@ async function boot(){
   $('#pages').addEventListener('scroll', onPagesScroll, { passive: true });
   addEventListener('scroll', onPagesScroll, { passive: true });
   document.addEventListener('fullscreenchange', relayout);
-  persist.onStatus(renderHead);
+  // the browser's storage is full: said once, in a toast; the header's Saved mark carries the same words from then on
+  let toldFull = false;
+  persist.onStatus(s => { renderHead(); if (s.code === 'storage-full' && !toldFull) toast(s.error, 'bad'); toldFull = s.code === 'storage-full'; });
   store.subscribe(onChange);
   // an older session may hold a resume that was never saved: save it now, as every change from here on does
   if (cur() && !store.state.openId) store.commit(() => {}, t('ux1.undoSaveDraft'));
