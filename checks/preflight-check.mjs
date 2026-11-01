@@ -90,7 +90,7 @@ expect('a listed ODT or DOCX is accepted, one with an address in any part (comme
 expect('the real fixtures, as listed, pass: names, hashes and text', (() => {
   const real = path.join(path.dirname(script), 'fixtures/import');
   const out = run('fxr', d => { fs.mkdirSync(path.join(d, 'checks/fixtures'), { recursive: true }); fs.cpSync(real, path.join(d, 'checks/fixtures/import'), { recursive: true }); });
-  return !out.includes(STAY) && !out.includes(CONTENT) && fs.readdirSync(real).filter(f => /\.(pdf|docx|odt)$/.test(f)).length === 19;
+  return !out.includes(STAY) && !out.includes(CONTENT) && fs.readdirSync(real).filter(f => /\.(pdf|docx|odt)$/.test(f)).length === 22;
 })());
 
 // Windows builds failed on icons\icon-192.png: every rule tests a path with forward slashes

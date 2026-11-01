@@ -2,7 +2,7 @@
 // PDF.js is loaded by a dynamic import() the first time a PDF is read. Each item is { text, x, y, width, height, fontName, hasEOL, page } with x and y from the item's transform (y grows upward, in the page's
 // own points: `page` tells the pages apart and y starts again on each), height the font size, and fontName the font's real name from commonObjs (`fontExtraProperties` keeps it: in a browser the font object has only a made-up name
 // without it; "-Bold" is added when the font is bold and its name does not say so, since the parser tells bold by the name). Pages follow each other; what the producer wrote is kept in the order it wrote it, with these repairs of what a PDF
-// does to a page: a space PDF.js made from a gap is part of the text again (and is dropped before , . ; : ! or ?, which is glyph positioning); a bullet of any shape is "•"; letter-spaced capitals are one
+// does to a page: a space PDF.js made from a gap is part of the text again (and is dropped before , . ; : ! ? or a closing bracket and after an opening one, which is glyph positioning); a bullet of any shape is "•"; letter-spaced capitals are one
 // word; a page written in a jumbled order is put top to bottom; a short label in the left margin beside a line is a line of its own; and the lines of one paragraph or bullet that the page wrapped are one
 // line again, so a PDF and the DOCX of the same resume give the same lines (`sameDocument`).
 // shortcut: no cmaps, standard-font data or wasm are vendored, so text in a font the PDF does not embed (a CJK one) may be missing and a JPEG 2000 picture does not draw; add the folders and cMapUrl,
@@ -36,11 +36,11 @@ const PUA_BULLET = /^[\uf0b7\uf0a7\uf0d8\uf0fc\uf076]/;      // the symbol-font 
 // a bullet of any shape is "•", as the DOCX reader writes it, so one resume in PDF and in DOCX has the same lines
 const bullet = t => (PUA_BULLET.test(t) ? t.replace(PUA_BULLET, '•') : BULLET_POINTS.includes(t.trim()) ? t.replace(t.trim(), '•') : t);
 const isBullet = t => BULLET_POINTS.includes(t[0]) || /^[-–]\s/.test(t);
-const PUNCT = /^[,.;:!?]/;
-// a line of single capitals apart ("E X P E R I E N C E", "PAT E N T": a pair the font kerned stays together): four parts or more, most of them a single letter
+const PUNCT = /^[,.;:!?)\]}]/;
+// a line of capitals apart ("E X P E R I E N C E", "PAT E N T", "TA PA S Z TA L AT": a pair the font kerned stays together): four parts or more, none of more than three letters, two in five of them a single letter
 const despace = t => {
   const w = t.trim().split(' ');
-  return w.length >= 4 && w.every(p => /^(?:\p{Lu}{1,3}|&)$/u.test(p)) && w.filter(p => p.length === 1).length * 10 >= w.length * 6 ? t.trim().replace(/(?<=\p{Lu}) (?=\p{Lu})/gu, '') : t;
+  return w.length >= 4 && w.every(p => /^(?:\p{Lu}{1,3}|&)$/u.test(p)) && w.filter(p => p.length === 1).length * 5 >= w.length * 2 ? t.trim().replace(/(?<=\p{Lu}) (?=\p{Lu})/gu, '') : t;
 };
 
 // One page's items, with the spaces PDF.js made from gaps kept in the text and the empty items that only end a line taken in
@@ -51,7 +51,7 @@ function pageItems(content, commonObjs, page){
     if (!it.str.trim()){
       if (!prev) return;
       if (it.hasEOL) prev.hasEOL = true;
-      else if (!PUNCT.test(all[k + 1]?.str ?? '') && !prev.text.endsWith(' ') && it.width <= 2.5 * prev.height){ prev.text += ' '; prev.width += it.width; }      // a space before , . ; : ! or ? is glyph positioning; a gap of more than two ems is a gap, not a space
+      else if (!PUNCT.test(all[k + 1]?.str ?? '') && !/[(\[{]$/.test(prev.text) && !prev.text.endsWith(' ') && it.width <= 2.5 * prev.height){ prev.text += ' '; prev.width += it.width; }      // a space before , . ; : ! ? or a closing bracket, or after an opening one, is glyph positioning; a gap of more than two ems is a gap, not a space
       return;
     }
     const f = commonObjs.has(it.fontName) ? commonObjs.get(it.fontName) : {}, name = f.name ?? f.loadedName ?? it.fontName;
@@ -113,7 +113,7 @@ function margins(rows){
 
 // The lines of a paragraph or bullet that the page wrapped, one line again. B goes on A when it starts where A's text starts, with no bullet, one line gap lower (a tenth more than the
 // tightest gap in the document at that size), in the same size, and A runs to the right edge of its column but for the word B starts with.
-// The two rows are set in the same font (a bold heading after a sentence is not its next line) and A is not short for its column when B starts with a capital.
+// The two rows are both all bold or neither (a bold heading after a sentence is not its next line; a bold key word in a line is not a heading) and A is not short for its column when B starts with a capital.
 // A word split at the line end is one word again when its hyphen is a soft hyphen or a hyphen PDF.js read as an item of its own (a browser's), or when the whole word is one of `known`
 // (the file's own words, and the caller's); any other hyphen is a compound ("self-managed") and stays.
 // shortcut: the gap is a tenth over the tightest, so a document that sets its bullets as close as its wrapped lines joins a bullet to the one above it (and a column narrower than nine ems is not a text: its
@@ -126,13 +126,13 @@ function joinWrapped(rows, known){
     edge.set(key, Math.max(edge.get(key) ?? 0, r.x1));
     if (up && up.page === r.page && Math.abs(up.h - r.h) < 0.3 && up.y > r.y) tight.set(Math.round(r.h), Math.min(tight.get(Math.round(r.h)) ?? Infinity, up.y - r.y));
   });
-  const font = r => { const n = new Map(); for (const i of r.r) n.set(i.fontName, (n.get(i.fontName) ?? 0) + i.text.length); return [...n].sort((x, y) => y[1] - x[1])[0][0]; };      // the font most of a row is set in
-  rows.forEach(r => { r.font = font(r); });
+  const bold = r => r.r.filter(i => !isBullet(i.text.trim())).every(i => /bold/i.test(i.fontName));      // a row all in bold is a heading; a bold phrase inside a line is a key word
+  rows.forEach(r => { r.bold = bold(r); });
   const out = [];
   for (const b of rows){
     const a = out.at(-1), first = b.r[0], word = first.text.trim().split(/\s+/)[0], wordWidth = first.width * word.length / Math.max(first.text.length, 1);
     const right = a && edge.get(`${a.page}:${Math.round(text(a) / 4)}`);      // the longest line of its column: where lines wrap, when it is wide enough to be a text and not a list of short lines
-    if (!(a && a.page === b.page && !isBullet(first.text.trim()) && Math.abs(text(a) - b.x) <= 3 && Math.abs(a.h - b.h) < 0.3 && a.y > b.y && a.font === b.font
+    if (!(a && a.page === b.page && !isBullet(first.text.trim()) && Math.abs(text(a) - b.x) <= 3 && Math.abs(a.h - b.h) < 0.3 && a.y > b.y && a.bold === b.bold
       && a.y - b.y <= 1.12 * tight.get(Math.round(b.h)) && right - text(a) >= 9 * b.h && a.x1 + wordWidth + 12 >= right
       && !(a.x1 - text(a) < 0.6 * (right - text(a)) && /^\p{Lu}/u.test(first.text.trim())))){ out.push(b); continue; }
     const lone = a.r.length > 1 && a.r.at(-1).text === '-';

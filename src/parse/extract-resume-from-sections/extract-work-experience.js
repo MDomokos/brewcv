@@ -41,8 +41,9 @@ export const extractWorkExperience = (sections, lex) => {
     // The line with the date may hold the company, the title and the place ("Hydra Medical · Mar 2023 – Present · Lisbon"): it is cut at its separators and the parts with no date are told apart.
     // A part with a legal form is the company, one with a job-title word the title, one that is a place the place; no part is dropped: one nothing claims is a leftover.
     const isDate = t => dateFeatureSets(lex).reduce((n, [has, score]) => n + (has({ text: t }) ? score : 0), 0) > 0;
-    const parts = date.split(/\s*[·|•]\s*/).filter(t => t && !isDate(t));
-    const places = parts.filter(isPlace), rest = parts.filter(t => !isPlace(t));
+    // before the dates is the company or the title (even one word: "SELF-EMPLOYED"), after them the place comes last
+    const segments = date.split(/\s*[·|•]\s*/).filter(Boolean), k = segments.findIndex(isDate), before = segments.slice(0, Math.max(k, 0)), after = k < 0 ? [] : segments.slice(k + 1);
+    const places = after.filter(isPlace), rest = [...before, ...after.filter(t => !isPlace(t))];
     if (!jobTitle) jobTitle = rest.find(t => hasJobTitle({ text: t }) && !hasForm(t)) ?? '';
     const COMPANY_FEATURE_SET = [
       [isBold, 2],
@@ -52,6 +53,8 @@ export const extractWorkExperience = (sections, lex) => {
     ];
     let [company, companyScores] = getTextWithHighestFeatureScore(subsectionInfoTextItems, COMPANY_FEATURE_SET, false);
     if (!company || company === jobTitle || company === date) company = rest.find(hasForm) ?? rest.find(t => t !== jobTitle && !hasJobTitle({ text: t })) ?? '';
+    // no job-title word anywhere (a title in another language): a bold line over a "Company · dates" line is the title, and the part before the dates the company
+    if (!jobTitle && before.length && company && company !== date && !hasForm(company)){ jobTitle = company; company = before[0]; }
     // a title with no job-title word is what the dated line holds besides the company and the place
     const left = rest.filter(t => t !== company && t !== jobTitle);
     if (!jobTitle && left.length) jobTitle = left.shift();

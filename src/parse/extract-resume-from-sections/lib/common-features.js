@@ -1,4 +1,4 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/common-features.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; word lists from the lexicon; Unicode letters; months, seasons and "present" matched by a boundary rule; 2026-11-01: an item set in capitals by its style counts as upper case
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/common-features.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; word lists from the lexicon; Unicode letters; months, seasons and "present" matched by a boundary rule; 2026-11-01: an item set in capitals by its style counts as upper case; a month is also its three-letter form
 // Types stripped. Changed: the word lists come from the lexicon (see lexicon.js); a letter is any Unicode
 // letter, so Hungarian or German headings and names count; a month, season or "present" is found in any case,
 // from a letter boundary on, and as a whole word where it is short (see `found`). An item a reader marked `caps` (all capitals by its style, typed in
@@ -21,7 +21,7 @@ const hasYear = item => /(?:19|20)\d{2}/.test(item.text);
 const found = (text, words, whole) => words.some(w =>
   new RegExp(`(?<!\\p{L})${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${whole || w.length <= 4 ? '(?!\\p{L})' : ''}`, 'iu').test(text));
 export const dateFeatureSets = lex => {
-  const hasMonth = item => lex.months.some(month => found(item.text, [month, month.slice(0, 4)]));
+  const hasMonth = item => lex.months.some(month => found(item.text, [month, month.slice(0, 4), month.slice(0, 3)]));      // and the three-letter form a design sets (SET, GIU, DIC, MAR)
   const hasSeason = item => found(item.text, lex.seasons, true);
   const hasPresent = item => found(item.text, lex.present, true);
   return [

@@ -1,4 +1,4 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/bullet-points.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; 2026-11-01: a separator ("·", "–") is not a word
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/lib/bullet-points.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; 2026-11-01: a separator ("·", "–") is not a word, and a line with a range of years is not prose
 // Types stripped. Changed: a word has a letter in it (a "·" or a "–" between a company, a date and a city is not one), so a line of dates and places is not a description.
 
 /**
@@ -87,7 +87,8 @@ const getFirstBulletPointLineIdx = lines => {
 
 // Only consider words that don't contain numbers
 const isWord = str => /^[^0-9]+$/.test(str) && /\p{L}/u.test(str);
-const hasAtLeast8Words = item => item.text.split(/\s/).filter(isWord).length >= 8;
+// a line of dates is not prose: a year before a dash ("SET. DE 2021 – FEV. DE 2023", "2021. SZEPT. – 2023. FEBR.") with a company and a place around it can hold eight words
+const hasAtLeast8Words = item => item.text.split(/\s/).filter(isWord).length >= 8 && !/(?:19|20)\d{2}\D{0,25}\s[–—-]\s/.test(item.text);
 
 export const getDescriptionsLineIdx = lines => {
   // The main heuristic to determine descriptions is to check if has bullet point

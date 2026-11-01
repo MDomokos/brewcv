@@ -8,10 +8,10 @@ const plain = s => squash(BULLET_POINTS.reduce((t, b) => t.replaceAll(b, ' '), s
 const shared = (a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return i; };
 
 // "Mar 2019 – Present", "2019. március – 2021. június", "2018 - 2020" into JSON Resume's dates.
-// shortcut: a dash always splits, so an ISO "2019-03" is read as two dates; a part without a year is kept as written in startDate;
+// shortcut: an en or em dash, a hyphen between spaces or between digits splits, so an ISO "2019-03" is read as two dates; a part without a year is kept as written in startDate;
 // Czech červen and červenec (June, July) are told apart only when the whole name is there. Read the numbers around a month when a real resume needs them.
 function dates(raw, lex){
-  const [from, to] = raw.split(/\s*[-–—]\s*/);
+  const [from, to] = raw.split(/\s*[–—]\s*|\s+-\s+|(?<=\d)-(?=\d)/);      // not a hyphen inside a word ("SELF-EMPLOYED · JAN 2021")
   const one = s => {
     const year = s?.match(/(?:19|20)\d{2}/)?.[0];
     if (!year) return undefined;

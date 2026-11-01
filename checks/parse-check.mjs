@@ -42,7 +42,7 @@ const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'} 
 const section = t => console.log(`\n— ${t}`);
 // a document's text as the Library will keep it: the lines of the items, an item's text joined by a space, one line per row
 const textOf = items => { const out = []; let line = []; for (const i of items){ line.push(i.text); if (i.hasEOL){ out.push(line.join(' ')); line = []; } } return out.join('\n'); };
-await Promise.all(['hu', 'de', 'it'].map(loadCatalogue));
+await Promise.all(['hu', 'de', 'it', 'pt'].map(loadCatalogue));
 
 section('one column');
 {
@@ -768,11 +768,12 @@ const FIX = path.join(REPO, 'checks/fixtures/import');
 const fixture = f => new Uint8Array(fs.readFileSync(path.join(FIX, f)));
 const record = readLibrary(path.join(REPO, 'data/example.json')).model;
 const helix = readRecipe(path.join(REPO, 'data/example-resumes/Helix Diagnostics - Product Development Engineer.json'), record).recipe;
-const want = resolve(record, helix, { local: false }).body;
-const wantBullets = want.work.flatMap(w => w.highlights ?? []);
+const wantHelix = resolve(record, helix, { local: false }).body;
+const want = wantHelix;      // what the Helix fixtures should give
+const wantBulletsHelix = want.work.flatMap(w => w.highlights ?? []), wantBullets = wantBulletsHelix;
 const recordWords = [...new Set(JSON.stringify(record).toLowerCase().match(/\p{L}+/gu))];      // what the app passes to readPdf: the record's own words
 // what a reading got of the example: the bullets word for word (after normText), each job's dates, the name and the email; `short` lists what falls short
-function score(jr){
+function score(jr, want = wantHelix, wantBullets = wantBulletsHelix){
   const got = (jr.work ?? []).flatMap(w => w.highlights ?? []).map(normText);
   const bullets = wantBullets.filter(b => got.includes(normText(b)));
   const dates = want.work.filter(w => (jr.work ?? []).some(g => g.startDate === w.startDate && g.endDate === w.endDate));
@@ -788,7 +789,7 @@ const board = [];      // the score of every file, for the table at the end
 
 section('PDF: every producer reads, in Node, with the vendored PDF.js');
 {
-  const pdfs = fs.readdirSync(FIX).filter(f => f.endsWith('.pdf')).sort();
+  const pdfs = fs.readdirSync(FIX).filter(f => /^helix-.*\.pdf$/.test(f)).sort();
   ok('the fixtures are the eleven PDFs: Word, Google Docs, LibreOffice, Pages and BrewCV in one column, Chrome too, and Affinity, LibreOffice, Pages, Word and Chrome in two', J(pdfs.map(f => f.replace(/^helix-|\.pdf$/g, ''))) === J(['1col-brewcv', '1col-chrome', '1col-gdocs', '1col-libreoffice', '1col-pages', '1col-word', '2col-affinity', '2col-chrome', '2col-libreoffice', '2col-pages', '2col-word']), pdfs.join(', '));
   for (const f of pdfs){
     const items = await readPdf(fixture(f), recordWords), got = parseResume(items), s = score(got.jsonResume);
@@ -805,6 +806,19 @@ section('PDF: every producer reads, in Node, with the vendored PDF.js');
   ok('a word split at a line end is joined when the record knows it ("suppliers"), and the hyphen stays when nothing says it is a split word', pagesWith.some(h => h.includes('moulding suppliers behind')) && pagesWithout.some(h => h.includes('moulding sup-pliers behind')), J([pagesWith[1], pagesWithout[1]]));
   const lone = await readPdf(fixture('helix-1col-chrome.pdf'));
   ok('a browser\'s own hyphen at a line end (a lone "-" item: "quali" and "fied") is a split word', textOf(lone).includes('and qualified the moulding'), '');
+}
+
+section('PDF: BrewCV\'s own B2 exports read back (other resumes and languages, both paper sizes, key words in bold, two pages)');
+{
+  // made by scripts/render.mjs and scripts/export-pdf.mjs from the saved resumes in data/example-resumes: 14 resumes in ten languages, A4 and US Letter, the key words highlighted or bold, screen, print and pen, all read to every job with
+  // its dates and all the bullets (174 files, by hand); these three are the ones that failed before: a Hungarian heading letter-spaced in kerned pairs, dates with three-letter months and a comma in the place, a hyphen inside a company, a bold key word in a line
+  const B2 = [['example-b2-en-letter-2pages.pdf', 'Medtech Lisboa - Mechanical Engineer.json', 'en', 2], ['example-b2-hu-a4.pdf', 'Dunamenti Műszer Kft. - Terméktervező.json', 'hu', 1], ['example-b2-pt-a4.pdf', 'Oficina do Norte - Engenheira de produto.json', 'pt', 1]];
+  for (const [f, saved, lang, pages] of B2){
+    const own = resolve(record, readRecipe(path.join(REPO, 'data/example-resumes', saved), record).recipe, { local: false }).body, ownBullets = own.work.flatMap(w => w.highlights ?? []);
+    const items = await readPdf(fixture(f), recordWords), jr = parseResume(items, lexiconFor(lang)).jsonResume, got = (jr.work ?? []).flatMap(w => w.highlights ?? []).map(normText);
+    const jobs = own.work.filter(w => (jr.work ?? []).some(g => g.startDate === w.startDate && (g.endDate ?? '') === (w.endDate ?? ''))), bullets = ownBullets.filter(b => got.includes(normText(b)));
+    ok(`${f}: ${jobs.length} of ${own.work.length} jobs with their dates, ${bullets.length} of ${ownBullets.length} bullets word for word, on ${new Set(items.map(i => i.page)).size} page(s)`, jobs.length === own.work.length && bullets.length >= 0.95 * ownBullets.length && new Set(items.map(i => i.page)).size === pages, ownBullets.filter(b => !bullets.includes(b)).map(b => b.slice(0, 40)).join('; '));
+  }
 }
 
 section('PDF: DOCX and ODT files as Word, Google Docs and LibreOffice write them');
@@ -850,9 +864,11 @@ section('PDF: what the reader repairs, on small PDFs written here (checks/lib/pd
   ok('a compound split at its hyphen ("self-managed") keeps it', self.length === 1 && self[0].includes('a self-managed group'), J(self));
   const glue = a => readPdf(pdf([[T(57, 700, 'EU patent holder', { bold: true }), T(57 + 80.01 + 3, 700, a)]]));
   const withPunct = await glue('. Spent'), withWord = await glue('Spent');
+  const wParen = (await readPdf(pdf([[T(57, 700, 'inhaler (', { bold: true })]])))[0].width, paren = await readPdf(pdf([[T(57, 700, 'inhaler (', { bold: true }), T(57 + wParen + 3, 700, '400,000 units')]]));
+  ok('and not after an opening bracket ("inhaler ( 400,000") either', J(paren.map(i => i.text)) === J(['inhaler (400,000 units']), J(paren.map(i => i.text)));
   ok('a space PDF.js made from a gap (a word in another font, 3 pt on) is part of the text, except before a full stop, a comma, a semicolon or a colon', J(withPunct.map(i => i.text)) === J(['EU patent holder. Spent']) && J(withWord.map(i => i.text)) === J(['EU patent holder Spent']), J([withPunct.map(i => i.text), withWord.map(i => i.text)]));
-  const spaced = await rows([T(57, 700, 'E X P E R I E N C E', { bold: true }), T(57, 680, 'P A T E N T', { bold: true }), T(57, 660, 'CAD & 3D'), T(57, 640, 'A B C')]);
-  ok('letter-spaced capitals are one word ("E X P E R I E N C E"), but "CAD & 3D" and "A B C" are not', J(spaced) === J(['EXPERIENCE', 'PATENT', 'CAD & 3D', 'A B C']), J(spaced));
+  const spaced = await rows([T(57, 700, 'E X P E R I E N C E', { bold: true }), T(57, 680, 'P A T E N T', { bold: true }), T(57, 660, 'CAD & 3D'), T(57, 640, 'A B C'), T(57, 620, 'TA PA S Z TA L AT', { bold: true })]);
+  ok('letter-spaced capitals are one word ("E X P E R I E N C E", and "TA PA S Z TA L AT", where the font kerned some pairs), but "CAD & 3D" and "A B C" are not', J(spaced) === J(['EXPERIENCE', 'PATENT', 'CAD & 3D', 'A B C', 'TAPASZTALAT']), J(spaced));
   // a label in the margin, beside the first line of its section, and the lines of the text at x = 130
   const labels = await rows([T(130, 700, 'Design Engineer', { bold: true }), T(130, 686, 'Hydra Medical, Mar 2023'), T(130, 660, 'Planned the formative usability studies and wrote the design history file for the whole team'), T(40, 620, 'SKILLS', { size: 8, bold: true }), T(130, 620, 'CAD and 3D', { bold: true }), T(130, 606, 'SolidWorks, Creo, Fusion 360 and the rest of the tools the team used on the line every day')]);
   ok('a label in the left margin beside a line is a line of its own, before it (and the text stays one column for the parser)', labels.indexOf('SKILLS') === labels.indexOf('CAD and 3D') - 1 && labels.includes('SKILLS'), J(labels));
@@ -922,6 +938,12 @@ section('PDF: the parser on what a PDF gives it (page breaks, headings with wide
   ok('a legal form (GmbH, Kft., SA, Lda, Inc., S.p.A.) marks the company on the dated line', J(forms) === J(['Feinmess Instrumente GmbH', 'Dunamenti Műszer Kft.', 'Lumen SA', 'Oficina Aberta Lda', 'Acme Inc.', 'Riva S.p.A.']), J(forms));
   const odd = jobOf('Acme Holdings Ltd', 'Staff Wrangler · Mar 2020 – Present · Night Shift · Porto');
   ok('a title with no job-title word is the title, and a part nothing claims ("Night Shift") is a leftover, not dropped', odd.job?.name === 'Acme Holdings Ltd' && odd.job.position === 'Staff Wrangler' && odd.job.location === 'Porto' && odd.r.leftovers.some(l => l.text === 'Night Shift'), J([odd.job, odd.r.leftovers]));
+  // a design's own dates: three-letter months, a comma in the place, a hyphen inside a company, a title in another language, a letter-spaced Hungarian heading
+  const plain = [I('Guida della riprogettazione del contadosi di un inalatore da 400 000 unità all\'anno e riduzione dei componenti.', 664), I('Realizzazione del banco di prova a caduta e a cicli usato dal team per la verifica del progetto.', 651)];
+  const it2 = parseResume([...head, I('Técnica de prototipagem', 716, { bold: true }), I('POLYTECHNIC PROTOTYPING LAB · SET. DE 2021 – FEV. DE 2023 · PORTO, PORTUGAL', 704, { height: 7 }), ...plain], lexiconFor('pt')).jsonResume.work;
+  ok('Portuguese: a dated line with three-letter months (SET., FEV.), a place with a comma and nine words is the date line, not a description; the company comes from it and the title from the bold line over it', it2?.length === 1 && it2[0].startDate === '2021-09' && it2[0].endDate === '2023-02' && it2[0].name === 'POLYTECHNIC PROTOTYPING LAB' && it2[0].position === 'Técnica de prototipagem' && it2[0].highlights?.length === 2, J(it2));
+  const self = work([I('Freelance CAD Designer', 716, { bold: true }), I('SELF-EMPLOYED · JAN 2021 – AUG 2021 · REMOTE', 690), ...bul]);
+  ok('a hyphen inside a company ("SELF-EMPLOYED") is not the dash of the dates, and a one-word part before the dates is the company, the one after them the place', self?.[0].name === 'SELF-EMPLOYED' && self[0].startDate === '2021-01' && self[0].endDate === '2021-08' && self[0].location === 'REMOTE', J(self));
   const sidebar = (heading, lex) => parseResume([I('Jane Q. Sample', 780, { bold: true }), I('Mechanical engineer', 760), I(heading, 740, { bold: true, title: true }), I('Lisbon, Portugal', 720), I('jane.sample@example.com', 700), I('+351 900 000 000', 680), I('janesample.example', 660), I('EXPERIENCE', 620, { bold: true }), I('Design Engineer', 596, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 570), ...bul.map(b => ({ ...b, y: b.y - 94 }))], lex).jsonResume.basics;
   const side = sidebar('Contact');
   ok('the lines under a Contact heading are the profile\'s: the email, the phone (with a plus), the url (a bare domain) and the place (city, country)', side.email === 'jane.sample@example.com' && side.phone === '+351 900 000 000' && side.url === 'janesample.example' && side.location?.city === 'Lisbon', J(side));
