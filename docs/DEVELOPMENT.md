@@ -408,7 +408,7 @@ mv data/identity.local.json checks/deny.local.json "$HOME/Library/Application Su
 
 ## Status
 
-0.1.0–0.4.0 built the documents, the fact library, the renderer and Fit. 0.5.1–0.5.13 built the app, 0.6.1–0.6.10 added the ten languages, Settings, the Career redesign and scrolled pages, and 0.7.1–0.7.4 gave Career and Resume one editing menu. 0.8.0 is the first public release. The nine non-English catalogues and eight of the example resumes still need a native speaker's review. What each version changed is in [CHANGELOG.md](../CHANGELOG.md).
+0.1.0–0.4.0 built the documents, the fact library, the renderer and Fit. 0.5.1–0.5.13 built the app, 0.6.1–0.6.10 added the ten languages, Settings, the Career redesign and scrolled pages, and 0.7.1–0.7.4 gave Career and Resume one editing menu. 0.8.0 is the first public release; the versions before it were never deployed. The nine non-English catalogues and eight of the example resumes still need a native speaker's review. What each version changed is in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Versioning and releases
 
@@ -426,6 +426,7 @@ The app's version is in `package.json` and nowhere else by hand. It follows [Sem
 From 1.0.0 on, breaking changes take the major number instead, and features the minor. Moving to 1.0.0 is a decision, not a count: when the format and the interface are ones you will keep supporting (for example, once the translations have had their native review).
 
 **Day to day.**
+- `CHANGELOG.md` is in the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format, newest first: `## Unreleased`, then one `## X.Y.Z - YYYY-MM-DD` per release. It holds only its title and the entries; how it is named, versioned and written is here.
 - Every user-visible change gets a line under `## Unreleased` in `CHANGELOG.md`, in the same change, under *Added*, *Changed*, *Deprecated*, *Removed*, *Fixed* or *Security*, in that order. Describe the result, not the steps: if an unreleased entry is revised before the release, edit it rather than adding another. Internal refactors and check-only changes need no entry.
 - The changelog is for the app's users, to skim. Each entry is one line: a bold phrase saying what changed for them, then at most one short sentence (what happens to saved resumes, say). No file names, pixel values, check names or how a bug came about: those go in the commit message.
 - No milestone or stage numbers in code, check names, comments or commit messages. Name the feature, or the version when history matters (`before 0.5.1`, `the 0.4.0 pins`).

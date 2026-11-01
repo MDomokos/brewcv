@@ -1,7 +1,5 @@
 # Changelog
 
-Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format with [Semantic Versioning](https://semver.org/) ([how versions are chosen](docs/DEVELOPMENT.md#versioning-and-releases)). 0.8.0 is the first public release; the versions before it were never deployed.
-
 ## Unreleased
 
 ## 1.7.0 - 2026-11-01
