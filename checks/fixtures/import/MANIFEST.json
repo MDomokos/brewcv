@@ -1,0 +1,24 @@
+{
+ "about": "The only PDF, DOCX and ODT files the repo may hold: one fictional resume set by each producer, metadata stripped. preflight-deploy and history-scan accept a file only when its name and sha256 are listed here; change a file and this list together, after looking at the file.",
+ "files": {
+  "helix-1col-brewcv.pdf": "480199a6fe5bb994ada6af6eb2911ccfc6b7a50b3c819d2a5e755ba45eb73845",
+  "helix-1col-chrome.pdf": "75b0a20490e0ab5b3a631b725016501c07808434bc17346b8524acbe38ea8959",
+  "helix-1col-gdocs.docx": "3f08f938765013020c59d69a9956d948d6967352365da5f4c2ad6b02458ee334",
+  "helix-1col-gdocs.pdf": "ce7d81d04464590fd36e731f123bae6841a3eb8c22bff9c46e4531266e21888d",
+  "helix-1col-libreoffice.docx": "81fae640ee4ad455ce32230934b17bb6596a607226de6ed6f65bc8b265f70c67",
+  "helix-1col-libreoffice.odt": "3e06fc3c10a5c96ed94d958c111363dae3305c11a215d27bca6a2c5ac9ee8073",
+  "helix-1col-libreoffice.pdf": "916dec9133eaf641fa921741415aac38905c8d4815aebc403beb26e028e35c37",
+  "helix-1col-pages.pdf": "b5d3818040a3f6d28df63412d289e1f4cc16856e849b51824a76dbbd7f344f11",
+  "helix-1col-word.docx": "88efe63fd03caae6089514adab6eaf2ac9fdbb1d4bbc43769eefb18c3c08ebc7",
+  "helix-1col-word.odt": "4353b7623d929f42f4a1b102f677c4a3ba148fb95ef4f4be1cbedb7d0d2bbfb7",
+  "helix-1col-word.pdf": "f55299d9b0af421e1d67b122a2af4b9dc7bcfed857c25028112742473e20abaf",
+  "helix-2col-affinity.pdf": "3bbbfdef7c3ee9f99d07e9d9eb3302ccb638a16a4c7ed290298ab16ce7a86d6c",
+  "helix-2col-chrome.pdf": "36bb53c2136ee516fcab598967233fc3d92e13dc5a5642186897595b59c3684e",
+  "helix-2col-libreoffice.docx": "16087bc0a6d416c7a0a937ebb5c535c6322e03b7a1aac26be877bbe9456ef2f9",
+  "helix-2col-libreoffice.odt": "869d4b8c742216e4da1f0b71326e38d51b2bb5d3a8a4fb57c4000643d943333c",
+  "helix-2col-libreoffice.pdf": "243bc7645850aab4d73b8662ebdeae819de4494fdaf68fab04aee0737d0af081",
+  "helix-2col-pages.pdf": "fdf7decbe29d8f78ef8f69150d0444143c6a92f2ebb87ca98534737a0d90ea68",
+  "helix-2col-word.odt": "50965ca4a75aaf42c5921d5fd52892427b338af7dca58740e07111826d3e5118",
+  "helix-2col-word.pdf": "6efeee5c4586b6e09dfa65b3465883b4e25aa65ff63f55edc3f90505e97e25d0"
+ }
+}

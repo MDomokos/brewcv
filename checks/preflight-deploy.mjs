@@ -12,7 +12,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { findPrivate, REPO } from '../scripts/lib/private-files.mjs';
+import zlib from 'node:zlib';
 import { unzip } from '../src/parse/unzip.js';
+import { DOCUMENT, FIXTURES, allowed, manifestIn } from './lib/manifest.mjs';
 
 const ROOT = path.resolve(process.argv[2] ?? '.');
 // paths are tested and shown with forward slashes, whatever the platform (on Windows path.relative gives backslashes)
@@ -152,39 +154,53 @@ function fileIgnored(rel){
   }
 }
 
-// The one place PDFs, Word and ODT files may be: the import fixtures (checks/fixtures/import/), one fictional resume set by each producer. A file there has its metadata stripped, and this says what is left:
-// an Info dictionary that holds a text (who made it, with what, when, its title), an XMP packet with anything in it, a docProps or meta.xml part with a text, or a private value anywhere in it.
-// shortcut: an Info dictionary that is not a plain object (inside an object stream) cannot be read here and is refused; the fixtures are made with a plain one. Read it with PDF.js when one needs it.
-const FIXTURE = /^checks\/fixtures\/import\/[^/]+\.(pdf|docx|odt)$/i;
-const INFO_KEYS = /\/(?:Title|Author|Subject|Keywords|Creator|Producer|CreationDate|ModDate)\s*(\([^)]*\)|<[^>]*>)/g;
-const blank = v => (v[0] === '(' ? !v.slice(1, -1).trim() : /^(?:FEFF)?(?:0020|20|00)*$/i.test(v.slice(1, -1).replace(/\s/g, '')));      // spaces only, in text or in hex
-async function leftover(rel, buf, deny){
-  const raw = buf.toString('latin1');
-  if (/\.pdf$/i.test(rel)){
-    for (const m of raw.matchAll(/\/Info\s+(\d+)\s+0\s+R/g)){
-      const o = new RegExp(`(?:^|\\s)${m[1]}\\s+0\\s+obj([\\s\\S]*?)endobj`).exec(raw);
-      if (!o) return 'its Info dictionary is not a plain object, so it cannot be checked';
-      if ([...o[1].matchAll(INFO_KEYS)].some(k => !blank(k[1]))) return 'its Info dictionary holds a text (the title, who made it, with what, or when)';
-    }
-    if (/<x:xmpmeta(?![^>]*\/>)/.test(raw)) return 'an XMP packet holds metadata';
-    return deny.some(d => raw.includes(d)) ? 'a private value is in it' : null;
+// PDF, DOCX and ODT files: only the import fixtures (checks/fixtures/import/, see checks/lib/manifest.mjs), by name and sha256, and wherever they are found: in a dot folder, in a folder .gitignore names
+// (the deploy tree carries the .gitignore, which would hide them), anywhere. An allowed file's text is read as well, for a private value and for an address or a number that is not the fictional person's.
+// shortcut: a PDF's text is read by the vendored reader, and its objects (the Info dictionary, XMP, object streams) by inflating every stream and reading the hex strings; a PDF no reader can open is refused.
+const manifest = manifestIn(ROOT);
+function walkAll(dir, out = []){
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })){
+    if (e.name === '.git') continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) walkAll(p, out); else out.push(p);
   }
-  const z = unzip(new Uint8Array(buf));
-  for (const n of z.names){
-    if (n.endsWith('/')) continue;
-    const text = new TextDecoder().decode(await z.read(n));
-    if (['docProps/core.xml', 'docProps/app.xml', 'meta.xml'].includes(n) && text.replace(/<[^>]*>/g, '').trim()) return `${n} holds a text (who made it, with what, when, or its title)`;
-    if (deny.some(d => text.includes(d))) return `a private value is in ${n}`;
+  return out;
+}
+// a PDF's hex strings, as bytes and, behind a byte order mark, as UTF-16
+const hex = t => [...t.matchAll(/<((?:[0-9A-Fa-f]{2}\s*){2,})>/g)].flatMap(m => {
+  const b = Buffer.from(m[1].replace(/\s/g, ''), 'hex'), out = [b.toString('latin1')];
+  if (b[0] === 0xfe && b[1] === 0xff && b.length % 2 === 0) out.push(Buffer.from(b.subarray(2)).swap16().toString('utf16le'));
+  return out;
+});
+async function textsOf(rel, buf){
+  if (/\.pdf$/i.test(rel)){
+    const raw = buf.toString('latin1'), out = [raw];      // the streams that hold no zero byte: a font has the shape of anything
+    for (const m of raw.matchAll(/stream\r?\n/g)){
+      try { const t = zlib.inflateSync(buf.subarray(m.index + m[0].length, raw.indexOf('endstream', m.index))).toString('latin1'); if (!t.includes('\0')) out.push(t); } catch { /* not Flate */ }
+    }
+    for (const t of [...out]) out.push(...hex(t));
+    const { readPdf } = await import('../src/parse/pdf.js');
+    out.push((await readPdf(new Uint8Array(buf))).map(i => i.text).join('\n'));
+    return out;
+  }
+  const z = unzip(new Uint8Array(buf)), out = [];      // the text parts only: a font or a picture has the shape of anything
+  for (const n of z.names) if (/\.(xml|rels|rdf|txt|html?|json)$/i.test(n)){ const b = Buffer.from(await z.read(n)); out.push(b.toString('latin1'), b.toString('utf8')); }
+  return out;
+}
+const shapeOf = text => {
+  for (const m of text.matchAll(EMAIL)) if (!ALLOWED_EMAILS.includes(m[0]) && !EXAMPLE_DOMAIN.test(m[0].split('@')[1])) return `an address (${m[0]})`;
+  for (const m of text.replace(/U\+[0-9A-Fa-f?]+(?:-[0-9A-Fa-f]+)?/g, '').matchAll(PHONE)){
+    const num = m[0].replace(/[  ().-]+/g, ' ').trim();
+    if (!ALLOWED_PHONES.some(a => a.replace(/\s+/g, '') === num.replace(/\s+/g, ''))) return `a number (${num})`;
   }
   return null;
-}
+};
 
 for (const f of files){
   const rel = relOf(f);
   if (rel === 'data/resume-data.json') flag(f, 0, 'real library', 'data/resume-data.json is present. It is gitignored, but it must not be in a deploy tree either');
   if (/\.local\.json$/.test(rel))      flag(f, 0, 'local file', `${rel} is a private overlay and must not be published`);
   if (/^out\//.test(rel))              flag(f, 0, 'rendered output', rel);
-  if (/\.pdf$/i.test(rel) && !FIXTURE.test(rel)) flag(f, 0, 'PDF', `${rel}: rendered documents stay outside the repo`);
   if (/^data\/recipes\//.test(rel))    flag(f, 0, 'recipe', `${rel}: recipes name real applications`);
   // The only images that ship are the app's own icons, and the README's pictures (made from the fictional example, kept out of the site).
   if (RASTER.test(rel) && !/^(src-tauri\/)?icons\//.test(rel) && !/^docs\/intro\/[^/]+\.webp$/.test(rel))
@@ -219,9 +235,15 @@ for (const [name, keys] of [['identity.local.json', null], ['deny.local.json', '
 console.log(deny.length ? `preflight: ${deny.length} private value${deny.length === 1 ? '' : 's'} loaded, checked as well as the shapes`
   : 'preflight: no private identity or deny file found (CI, or not set up): checking shapes only. See docs/DEVELOPMENT.md, "Real data is not in this repo"');
 
-for (const f of files){
-  const rel = relOf(f), why = FIXTURE.test(rel) ? await leftover(rel, fs.readFileSync(f), deny) : null;
-  if (why) flag(f, 0, 'fixture metadata', `${rel}: ${why}. Strip it, leaving the text as it is`);
+for (const f of walkAll(ROOT)){
+  const rel = relOf(f);
+  if (!DOCUMENT.test(rel)) continue;
+  const buf = fs.readFileSync(f);
+  if (!allowed(manifest, rel, buf)){ flag(f, 0, 'document', `${rel}: rendered documents and resume files stay outside the repo (the import fixtures are the exception: listed by name and sha256 in ${FIXTURES}MANIFEST.json)`); continue; }
+  let texts;
+  try { texts = await textsOf(rel, buf); } catch (e){ flag(f, 0, 'fixture content', `${rel}: cannot be read (${e.message})`); continue; }
+  const hit = texts.some(t => deny.some(d => t.includes(d))) ? 'a private value is in it' : texts.map(shapeOf).find(Boolean);
+  if (hit) flag(f, 0, 'fixture content', `${rel}: ${hit}`);
 }
 
 for (const f of files){
@@ -230,7 +252,7 @@ for (const f of files){
   const lines = fs.readFileSync(f, 'utf8').split('\n');
 
   // vendor/pdfjs/ holds another project's minified code: its tables of numbers and letters have the shape of a phone number and an address, so only private values and images are looked for there
-  const own = !rel.startsWith('vendor/pdfjs/');
+  const own = !['vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs'].includes(rel);
   lines.forEach((line, n) => {
     if (own) for (const m of line.matchAll(EMAIL)){
       const addr = m[0];

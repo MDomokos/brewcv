@@ -12,6 +12,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { findPrivate } from '../scripts/lib/private-files.mjs';
+import { DOCUMENT, FIXTURES, manifestIn, sha256 } from './lib/manifest.mjs';
 
 const git = (...args) => {
   try { return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 28 }); }
@@ -38,7 +39,7 @@ const NEVER = [
   [/\.local\.json$/,                'a private overlay'],
   [/(^|\/)portrait\.\w+$/,          'the portrait'],
   [/(^|\/)recipes\//,               'a recipe (names a real application)'],
-  [/\.(afpub|psd|docx|pages)$/i,    'a resume source file'],
+  [/\.(afpub|psd|docx|odt|pages)$/i, 'a resume source file'],
   [/\.pdf$/i,                       'a rendered document'],
   [/\.jsonresume\.json$/,           'a JSON Resume export'],
   [/^\.env/,                        'an env file'],
@@ -47,13 +48,22 @@ const NEVER = [
   [/\.(zip|tgz|tar\.gz|7z|bak)$/i,  'an archive or backup (it can hold a whole working tree)'],
   [/\.(png|jpe?g|webp|gif|avif|heic)$/i, 'an image outside icons/ and docs/'],
 ];
+const manifest = manifestIn(process.cwd());
+const blobs = new Map();      // path -> the blobs it was ever added or changed to
+for (const l of git('log', ...SELECT, '--pretty=format:', '--raw', '--no-abbrev', '--diff-filter=AM').split('\n')){
+  const m = /^:\d+ \d+ \w+ (\w{40}) \w+\t(.+)$/.exec(l);
+  if (m && DOCUMENT.test(m[2])) blobs.set(m[2], [...(blobs.get(m[2]) ?? []), m[1]]);
+}
+const fixtureOk = f => f.startsWith(FIXTURES) && !f.slice(FIXTURES.length).includes('/') && (blobs.get(f) ?? []).every(b => {
+  try { return sha256(execFileSync('git', ['cat-file', 'blob', b], { maxBuffer: 1 << 28 })) === manifest[f.slice(FIXTURES.length)]; } catch { return false; }
+});
 const everSeen = new Set(
   git('log', ...SELECT, '--pretty=format:', '--name-only', '--diff-filter=AM')
     .split('\n').map(s => s.trim()).filter(Boolean));
 for (const f of everSeen){
   // docs/intro/*.webp are cut-outs of the start screen's story, and docs/moments/*.gif (older) were recordings of the app on the example data (a fictional person), looked at frame by frame before they were added
-  // checks/fixtures/import/ holds one fictional resume set by each producer, metadata stripped (preflight-deploy checks the files themselves)
-  if (/^checks\/fixtures\/import\/[^/]+\.(pdf|docx|odt)$/i.test(f)) continue;
+  // an import fixture: listed by name and sha256 in MANIFEST.json, and every version of it in the history has those bytes (preflight-deploy reads the text)
+  if (DOCUMENT.test(f) && fixtureOk(f)) continue;
   if (/^(src-tauri\/)?icons\//.test(f) || /^docs\/[^/]+\.(png|gif)$/i.test(f) || /^docs\/moments\/[^/]+\.gif$/i.test(f) || /^docs\/intro\/[^/]+\.webp$/i.test(f)) continue;
   for (const [re, what] of NEVER)
     if (re.test(f)){ findings.push({ kind: 'file', detail: `${f}: ${what}` }); break; }
@@ -79,7 +89,7 @@ for (const [what, pattern] of PATTERNS){
     const m = line.match(/^([0-9a-f]{7,40}):([^:]+):(\d+):(.*)$/);
     if (!m) continue;
     const [, rev, file, , text] = m;
-    if (file.startsWith('vendor/pdfjs/') && what !== 'embedded image') continue;      // another project's minified code (PDF.js): its tables have the shape of an address and a number
+    if (['vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs'].includes(file) && what !== 'embedded image') continue;      // another project's minified code (PDF.js): its tables have the shape of an address and a number
     const key = `${file}`;
     if (!hits.has(key)) hits.set(key, { file, rev, sample: text.trim().slice(0, 90), n: 0 });
     hits.get(key).n++;

@@ -4,6 +4,7 @@
 // Each case builds a throwaway repository with its own overlay and runs the scan inside it.
 
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -41,8 +42,13 @@ expect('a denied value in an author name alone passes', run([{ message: 'Add', n
 expect('a font unicode-range is not a phone number', run([{ message: 'Add', content: 'unicode-range: U+0000-00FF, U+0131, U+0152-0153;' }]).status === 0);
 expect('a phone number in a file still fails', run([{ message: 'Add', content: 'Call +44' + ' 7700 900123' }]).status === 1);
 
-// the import fixtures and the vendored PDF.js are the two places the rules relax
-expect('a PDF anywhere else fails, and one in checks/fixtures/import/ passes', run([{ message: 'Add', file: 'docs/a.pdf' }]).status === 1 && run([{ message: 'Add', file: 'checks/fixtures/import/helix-1col-word.pdf' }]).status === 0);
-expect('a number and an address in vendor/pdfjs/ pass, elsewhere they fail', run([{ message: 'Add', file: 'vendor/pdfjs/a.min.mjs', content: 'x=+386' + '4292196,y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 0 && run([{ message: 'Add', file: 'vendor/other/a.js', content: 'y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 1);
+// the import fixtures (by name and sha256 in MANIFEST.json) and the two vendored PDF.js files are the places the rules relax
+const sha = c => crypto.createHash('sha256').update(c).digest('hex'), FX = 'checks/fixtures/import/';
+const listed = (name, c) => ({ message: 'Add', file: FX + 'MANIFEST.json', content: JSON.stringify({ files: { [name]: sha(c) } }) });
+expect('a PDF anywhere else fails, and one in checks/fixtures/import/ passes only when the manifest lists its name and bytes', run([{ message: 'Add', file: 'docs/a.pdf' }]).status === 1 && run([{ message: 'Add', file: FX + 'a.pdf', content: 'x' }]).status === 1
+  && run([listed('a.pdf', 'x'), { message: 'Add', file: FX + 'a.pdf', content: 'x' }]).status === 0);
+expect('a listed fixture whose bytes changed, in any commit of the history, fails; so does an ODT outside the manifest', run([listed('a.pdf', 'x'), { message: 'Add', file: FX + 'a.pdf', content: 'x' }, { message: 'Change', file: FX + 'a.pdf', content: 'y' }]).status === 1
+  && run([{ message: 'Add', file: FX + 'a.odt', content: 'x' }]).status === 1 && run([{ message: 'Add', file: 'a/b.odt', content: 'x' }]).status === 1);
+expect('a number and an address in the two vendored PDF.js files pass, elsewhere in vendor/ they fail', run([{ message: 'Add', file: 'vendor/pdfjs/pdf.min.mjs', content: 'x=+386' + '4292196,y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 0 && run([{ message: 'Add', file: 'vendor/pdfjs/other.mjs', content: 'y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 1);
 
 process.exit(bad ? 1 : 0);
