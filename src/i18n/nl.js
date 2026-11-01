@@ -1594,6 +1594,7 @@ export default {
   'wb.groupDeleted': "“{name}” van dit cv verwijderd; de woorden staan weer in de bank.",
   'wb.groupsLabel': "De vaardigheidsgroepen op de pagina",
   'wb.hereTip': "Staat al in deze groep",
+  'wb.inBank': "“{word}” staat al in de bank.",
   'wb.inLang': "{word} in het {lang}",
   'wb.missTip': "Nog niet in het {lang}: het wordt in het Engels afgedrukt",
   'wb.missing': "ontbrekend: {n}",

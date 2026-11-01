@@ -1594,6 +1594,7 @@ export default {
   'wb.groupDeleted': "«{name}» eliminado deste currículo; as suas palavras voltaram ao banco.",
   'wb.groupsLabel': "Os grupos de competências da página",
   'wb.hereTip': "Já está neste grupo",
+  'wb.inBank': "«{word}» já está no banco.",
   'wb.inLang': "{word} em {lang}",
   'wb.missTip': "Ainda não está em {lang}: imprime-se em inglês",
   'wb.missing': "em falta: {n}",

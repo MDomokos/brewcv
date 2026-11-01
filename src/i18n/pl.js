@@ -1594,6 +1594,7 @@ export default {
   'wb.groupDeleted': "Usunięto „{name}” z tego CV; jego słowa wróciły do banku.",
   'wb.groupsLabel': "Grupy umiejętności na stronie",
   'wb.hereTip': "Już jest w tej grupie",
+  'wb.inBank': "„{word}” już jest w banku.",
   'wb.inLang': "{word} w języku: {lang}",
   'wb.missTip': "Jeszcze nie w języku: {lang}; drukuje się po angielsku",
   'wb.missing': "brakuje: {n}",

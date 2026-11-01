@@ -1594,6 +1594,7 @@ export default {
   'wb.groupDeleted': "„{name}“ aus diesem Lebenslauf gelöscht; seine Wörter sind zurück in der Wortbank.",
   'wb.groupsLabel': "Die Kenntnisgruppen auf der Seite",
   'wb.hereTip': "Schon in dieser Gruppe",
+  'wb.inBank': "„{word}“ ist schon in der Wortbank.",
   'wb.inLang': "{word} auf {lang}",
   'wb.missTip': "Noch nicht auf {lang}: es wird auf Englisch gedruckt",
   'wb.missing': "fehlend: {n}",

@@ -1594,6 +1594,7 @@ export default {
   'wb.groupDeleted': "„{name}“ smazáno z tohoto životopisu; jeho slova jsou zpět v bance.",
   'wb.groupsLabel': "Skupiny dovedností na stránce",
   'wb.hereTip': "Už je v této skupině",
+  'wb.inBank': "„{word}“ už je v bance.",
   'wb.inLang': "{word} v jazyce {lang}",
   'wb.missTip': "Zatím ne v jazyce {lang}: tiskne se anglicky",
   'wb.missing': "chybí: {n}",

@@ -1598,6 +1598,7 @@ export default {
   'wb.groupDeleted': "“{name}” deleted from this resume; its words are back in the bank.",
   'wb.groupsLabel': "The skill groups on the page",
   'wb.hereTip': "In this group already",
+  'wb.inBank': "“{word}” is in the bank already.",
   'wb.inLang': "{word} in {lang}",
   'wb.missTip': "Not in {lang} yet: it prints in English",
   'wb.missing': "missing: {n}",

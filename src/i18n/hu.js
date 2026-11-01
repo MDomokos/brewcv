@@ -1594,6 +1594,7 @@ export default {
   'wb.groupDeleted': "„{name}” törölve erről az önéletrajzról; a szavai visszakerültek a bankba.",
   'wb.groupsLabel': "Az oldal készségcsoportjai",
   'wb.hereTip': "Már ebben a csoportban van",
+  'wb.inBank': "„{word}” már a bankban van.",
   'wb.inLang': "{word} – {lang}",
   'wb.missTip': "Még nincs meg ezen a nyelven: {lang}; angolul nyomtatódik",
   'wb.missing': "hiányzik: {n}",
