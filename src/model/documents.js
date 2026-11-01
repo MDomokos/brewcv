@@ -61,27 +61,37 @@ export const sourceOf = (state, json) => {
 
 // The word check (spec, "With an AI assistant, optional"): every text of a JSON Resume an assistant made from a document, looked for in that document's text.
 // Returns [{ path, text, found, near }]; `near` is the document's closest line to a text that is not in it, else null. Pure.
-// A text is in the document when it is inside one of its lines, whatever the case, quotes, dashes, spaces, punctuation and line-end hyphens (a word split at a line end is
-// joined first), so a corrected typo, a reworded line, or two lines run into one are not. A date is in it when its year is, and its month, if it has one, as a number or a month name.
-// shortcut: a line the document wrapped is not one line here (the readers give whole lines, a hard-wrapped text file does not); a month name is looked for anywhere in the
-// document, in the ten interface languages; a link, a country code, a network name and `meta` are not compared; upgrade when a real file shows one of these wrongly listed.
-const KEY = s => normText(s).replace(/[^\p{L}\p{N}]+/gu, '');
+// Texts are compared word by word after normText (case, quotes, dashes, spaces and a final full stop do not count; a number, an email or a word with + or # keeps its own marks, so
+// "C" is not "C++", "Java" not "JavaScript", "$15M" not "$1.5M"). A prose text (a highlight, a summary, a description) must be a whole line of the document; a short field (a name,
+// a title, a skill, a contact item) must be whole words inside one line. A word split at a line end is joined first, with and without its hyphen.
+// A date is in the document when its year is and, if it has a month, the month sits next to that year in one line, as a number or as a name in any interface language.
+// shortcut: a bullet the document wrapped over two lines is two lines here (the readers give whole lines, a hard-wrapped text file does not), so it is listed; a link, a country code, a network
+// name and `meta` are not compared; upgrade when a real file shows one of these wrongly listed.
+const TOKEN = /[$€£¥]?[\p{L}\p{N}]+(?:[.,@/_'-][\p{L}\p{N}]+)*[+#%]*/gu;
+const wordsOf = s => normText(s).match(TOKEN) ?? [];
+const PROSE = /(?:^|\.)(?:highlights\.\d+|summary|description)$/;
 const SKIP = /^(?:meta|\$schema)$|(?:^|\.)(?:url|image|countryCode|network)$/;
 const DATE = /^(\d{4})(?:-(\d\d))?(?:-\d\d)?$/;
-const monthRe = n => new RegExp(`(?<!\\p{L})(?:${[...new Set(UI_LANGS.flatMap(l => ['long', 'short'].map(w => normText(new Intl.DateTimeFormat(l, { month: w, timeZone: 'UTC' }).format(Date.UTC(2000, n - 1, 15))))))].join('|')})(?!\\p{L})`, 'u');
+const monthNames = n => [...new Set(UI_LANGS.flatMap(l => ['long', 'short'].map(w => normText(new Intl.DateTimeFormat(l, { month: w, timeZone: 'UTC' }).format(Date.UTC(2000, n - 1, 15))))))].join('|');
 function textsOf(o, path = '', out = []){
   if (typeof o === 'string'){ if (o.trim()) out.push({ path, text: o }); }
   else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)){ const p = path ? `${path}.${k}` : k; if (!SKIP.test(p)) textsOf(v, p, out); }
   return out;
 }
+const within = (w, l) => { for (let i = 0; i + w.length <= l.length; i++) if (w.every((x, k) => l[i + k] === x)) return true; return false; };
 export function checkWords(json, docText){
-  const doc = String(docText ?? ''), flat = normText(doc);
-  const lines = doc.replace(/(\p{L})[-\u00ad\u2010]\n(?=\p{L})/gu, '$1').split('\n').map(s => s.trim()).filter(Boolean), keys = lines.map(KEY);
-  const inDate = (y, m) => new RegExp(`(?<!\\d)${y}(?!\\d)`).test(flat)
-    && (!m || new RegExp(`(?<!\\d)0?${+m}\\s*[./-]\\s*${y}|${y}\\s*[./-]\\s*0?${+m}(?!\\d)`).test(flat) || monthRe(+m).test(flat));
+  const doc = String(docText ?? '');
+  const lines = [...new Set(['$1', '$1-'].flatMap(j => doc.replace(/(\p{L})[-\u00ad\u2010]\n(?=\p{L})/gu, j).split('\n')).map(s => s.trim()).filter(Boolean))];
+  const toks = lines.map(wordsOf), whole = new Set(toks.map(w => w.join(' '))), flat = lines.map(normText);
+  const inDate = (y, m) => {
+    const name = m && `(?<!\\p{L})(?:${monthNames(+m)})(?!\\p{L})`;
+    const re = !m ? new RegExp(`(?<!\\d)${y}(?!\\d)`, 'u')
+      : new RegExp(`${name}[\\s.,]*(?:\\d{1,2}[\\s.,]*)?(?<!\\d)${y}(?!\\d)|(?<!\\d)${y}[\\s.,]*${name}|(?<!\\d)0?${+m}\\s*[./-]\\s*${y}(?!\\d)|(?<!\\d)${y}\\s*[./-]\\s*0?${+m}(?!\\d)`, 'u');
+    return flat.some(l => re.test(l));
+  };
   return textsOf(json).map(({ path, text }) => {
-    const d = DATE.exec(text.trim());
-    const found = d ? inDate(d[1], d[2]) : keys.some(k => k.includes(KEY(text)));
+    const d = DATE.exec(text.trim()), w = wordsOf(text);
+    const found = d ? inDate(d[1], d[2]) : !w.length || (PROSE.test(path) ? whole.has(w.join(' ')) : toks.some(l => within(w, l)));
     let near = null, best = 0;
     if (!found) for (const l of lines){ const s = wordMoves(normText(l), normText(text)).shared; if (s > best){ best = s; near = l; } }
     return { path, text, found, near };

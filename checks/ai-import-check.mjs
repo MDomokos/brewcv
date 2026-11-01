@@ -80,6 +80,19 @@ section('quotes, dashes and line-end hyphens are not changes (normText)');
   ok('a word changed is still missing, and so is a text over two lines with no hyphen', !found('Cut the weight of the inhaler body by a half.') && !found('Ten fine parts Café worker'));
 }
 
+section('whole words, not pieces of them');
+{
+  const doc = ['Skills: C++, CAD, JavaScript', 'Cut cost by $1.5M in 2021.', 'Pooled a team of five', 'Contact: john.smith@example.org', 'Team Lead, Acme', 'March 2019 – June 2021'].join('\n');
+  const skill = t => check({ skills: [{ keywords: [t] }] }, doc)[0].found, bullet = t => check({ work: [{ highlights: [t] }] }, doc)[0].found, field = t => check({ basics: { label: t } }, doc)[0].found;
+  ok('a skill is whole words: C is not C++ or CAD, Java is not JavaScript, and the whole name is found', !skill('C') && !skill('Java') && skill('C++') && skill('JavaScript') && skill('CAD'));
+  ok('a short field is found inside a line as whole words (a title in a longer line)', field('Team Lead') && field('Lead') && !field('Lea') && !field('Team Leader'));
+  ok('a truncated bullet is missing, the whole one found (a final full stop does not count)', !bullet('Cut cost') && !bullet('Cut cost by $1.5M') && bullet('Cut cost by $1.5M in 2021') && bullet('Cut cost by $1.5M in 2021.'));
+  ok('1.5 is not 15, and $15M is not $1.5M', !bullet('Cut cost by $15M in 2021.') && !field('$15M') && field('$1.5M'));
+  ok('led is not Pooled', !field('led a team') && !bullet('led a team of five') && bullet('pooled a team of five'));
+  ok('an email is the whole address', !field('johnsmith@example.org') && !field('john.smith@') && field('john.smith@example.org'));
+  ok('a month is next to its year in one line: June is 2021\'s, not 2019\'s', check({ work: [{ startDate: '2019-06' }, { startDate: '2021-06' }, { startDate: '2019-03' }] }, doc).map(r => r.found).join() === 'false,true,true');
+}
+
 section('the merge items: a missing text starts unticked, with the nearest line');
 {
   const doc = { id: 'doc-1', name: 'Old CV 2023.pdf', text: docText };
