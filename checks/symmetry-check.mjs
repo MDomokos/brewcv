@@ -358,34 +358,6 @@ await run('the tool beside the padlock: revert an edit, remove a line only here,
   await ctx.close();
 });
 
-// ---- skills: back to the record's groups, and delete a set (fix 14) ----
-await run('skills: back to the record\'s groups, and delete a set (fix 14)', async () => {
-  const { ctx, page } = await open(1470, 832);
-  const wait = () => page.waitForTimeout(700);
-  const st = () => page.evaluate(() => JSON.stringify({ sets: window.__wb.store.state.record.skillSets ?? null, arr: window.__wb.store.state.cur.skillArrangement ?? null }));
-  const cur = () => page.evaluate(() => JSON.stringify({ ...window.__wb.store.state.cur, savedAt: 0 }));
-  await page.click('#outline [data-act=select-section][data-id=skills]'); await wait();
-  const c0 = await cur(), s0 = await st();
-  ok('with the record\u2019s own groups there is nothing to go back to (no "Your career\u2019s groups" option) and nothing to delete', !(await page.$('#sk-set option[value="~record"]')) && (await page.$eval('[data-act=sk-del]', b => b.disabled)));
-  await page.click('[data-act=sk-save]'); await wait();
-  const saved = await st();
-  const first = await page.$eval('#sk-set', s => s.options[0].textContent);
-  ok('Save as the set writes a set and the "Start from a set" menu now lists "Your career\u2019s groups" first among its choices', saved !== s0 && (await page.$$eval('#sk-set option', os => os.map(o => o.textContent)))[1] === 'Your career\u2019s groups', first);
-  ok('…and "Delete this set" is enabled', !(await page.$eval('[data-act=sk-del]', b => b.disabled)));
-  await page.click('[data-act=sk-del]'); await wait();
-  const gone = JSON.parse(await st());
-  ok('"Delete this set" removes the set (the key goes with its last language), with an Undo button on the toast', gone.sets === null && !!(await page.$('#toast.on [data-act=toast-undo]')));
-  await page.click('#toast [data-act=toast-undo]'); await wait();
-  ok('…and Undo brings the set back', (await st()) === saved);
-  await pickOption(page, '#sk-set', '~record'); await wait();
-  ok('"Your career\u2019s groups" takes the arrangement away: the resume is as before the set was applied', JSON.parse(await st()).arr === null && (await cur()) === c0);
-  ok('…and the sets of the record are untouched by it', JSON.stringify(JSON.parse(await st()).sets) === JSON.stringify(JSON.parse(saved).sets));
-  // locked: the skills are held
-  await page.evaluate(async () => { const L = await import('/src/model/lock.js'); window.__wb.store.commit(d => { L.setLocked(d.cur, 'skills', true); }, 'check: lock'); }); await wait();
-  ok('locked, the menu and both set buttons are disabled with the reason', await page.$eval('#sk-set', s => s.disabled && !!s.title) && await page.$eval('[data-act=sk-save]', b => b.disabled && !!b.title) && await page.$eval('[data-act=sk-del]', b => b.disabled && !!b.title));
-  await ctx.close();
-});
-
 // ---- skills: + group, and the chip\u2019s tool takes it away again (fix 15) ----
 await run('skills: + group, and the chip\u2019s tool takes it away again (fix 15)', async () => {
   const { ctx, page } = await open(1470, 832);
@@ -393,10 +365,14 @@ await run('skills: + group, and the chip\u2019s tool takes it away again (fix 15
   const groups = () => page.evaluate(async () => { const T = await import('/src/model/resume.js'); return T.arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.map(g => g.id).join(); });
   await page.click('#outline [data-act=select-section][data-id=skills]'); await wait();
   const g0 = await groups();
-  ok('the Skills view has a "+ group" button under the groups', (await page.$$eval('#body .skarr [data-act=sk-addgroup]', bs => bs.map(b => b.textContent.trim()))).join() === '+ group');
-  await page.click('#body [data-act=sk-addgroup]'); await wait();
+  ok('the Skills view lists the groups by name, in print order', (await page.$$eval('#body .sknames .skname', bs => bs.map(b => b.dataset.g))).join() === g0);
+  const sk = await page.frameLocator('#sheet iframe').locator('.skills__group').first().boundingBox();
+  await page.mouse.move(sk.x + 12, sk.y + sk.height - 6); await page.mouse.move(sk.x + 14, sk.y + sk.height - 5); await wait();
+  await page.click('#handlay .wbsplus'); await wait();
   const g1 = await groups();
-  ok('"+ group" adds a group at the end, selected and written at once on the page', g1.split(',').length === g0.split(',').length + 1 && g1.endsWith('~sg-1') && (await page.evaluate(() => window.__wb.ui.sel.id)) === '~sg-1');
+  ok('the page\u2019s "+" under the skills adds a group at the end, picked, its heading written at once on the page', g1.split(',').length === g0.split(',').length + 1 && g1.endsWith('~sg-1') && (await page.evaluate(() => window.__wb.ui.sel.id)) === '~g:~sg-1');
+  await page.keyboard.press('Escape'); await wait();
+  await page.click('#body .sknames [data-g="~sg-1"]'); await wait();
   await page.mouse.move(4, 4); await page.waitForTimeout(500);
   ok('…and the chip offers its inverse, "Remove the skill group … from this resume"', /^Remove the skill group .+ from this resume$/.test(await page.$eval('#editlay .dp-fix', b => b.getAttribute('aria-label')).catch(() => '')));
   await page.click('#editlay .dp-fix'); await wait();
@@ -598,7 +574,7 @@ await run('on a phone: the depth row carries the tools, the name window and the 
   ok('…and it puts the line back', !(await page.evaluate(() => window.__wb.store.state.cur.overrides?.['hydra-inhaler'])));
   // Skills: "+ group" on a phone too (UX-6f 4c, rewritten: a phone writes a new group in the panel's two fields)
   await fr.locator('.band[data-section=skills] .skills__label').first().tap(); await wait();
-  ok('the Skills view has "+ group" on a phone too (a new group is written in the panel)', await page.$eval('[data-act=sk-addgroup]', b => getComputedStyle(b).display !== 'none'));
+  ok('the Skills view lists the groups by name on a phone too', (await page.$$eval('.sknames .skname', bs => bs.length)) > 0);
   // the name window: Delete beside Duplicate
   await page.click('#docname-btn'); await wait();
   const pacts = await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act));

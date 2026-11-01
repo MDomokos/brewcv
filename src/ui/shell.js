@@ -30,6 +30,7 @@ import { icon, withArrows } from './icons.js';
 import { indexModel, targetOf, up, same, step, lineSel, keyOf, versionsOf, NONE, isTyping } from './select.js';
 import { openActualSize } from './actual.js';
 import { initEdit } from './edit.js';
+import { initWordbank } from './wordbank.js';
 import { initResumes, snapBarText } from './resumes.js';
 import { initSwitcher, nameHtml } from './switcher.js';
 import { initScreens } from './screens.js';
@@ -85,10 +86,11 @@ function alsoChanged(peers){
   setTimeout(() => { if ($('#toast').classList.contains('on')) return; alsoSaid = true; toast(t('ml2.alsoChanged', { lang: names }), '', true); }, 0);
 }
 const persist = createPersist({ store, backend });
+let bank = null;       // the skill wordbank (src/ui/wordbank.js), made once the editor is
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
-  onDrawn: () => { onpage?.afterDraw(); hands?.drawn(); find?.refresh(); }, onPointer: e => hands?.pointer(e),
+  onDrawn: () => { onpage?.afterDraw(); hands?.drawn(); find?.refresh(); }, onPointer: e => { if (!bank?.pointer(e)) hands?.pointer(e); },
   extraCss: r => design.extraCss(store.state.record, r),
   // the hand, the wheel and the pinch over the page itself go to the canvas
   frameEvents: {
@@ -108,7 +110,7 @@ const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => r
   ix: () => ui.ix ?? indexModel(work(), cur()), fillText: () => fillText(), select: sel => select(sel),
   writeStarted: () => { dock.renderFoot(); hands?.refresh(); }, writeEnded: () => { dock.renderFoot(); hands?.refresh(); }, redrawSoon: () => schedule(),
   endHover: () => { ui.hoverV = null; if (ui.previewing) endPreview(); }, previewVersion: (fact, vid) => { ui.hoverV = vid; return previewVersion(fact, vid); } });
-const hands = initHands({ ui, sheet, canvas, edit: () => edit, onpage: () => onpage, record: () => record(), cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k), undoN: () => store.history.undo,
+const hands = initHands({ ui, sheet, canvas, edit: () => edit, bank: () => bank, onpage: () => onpage, record: () => record(), cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k), undoN: () => store.history.undo,
   jobName: id => (ui.ix ?? indexModel(work(), cur())).work.get(id)?.name ?? id, writingFact: () => onpage.fact(), togglePhoto: () => design.togglePhoto() });
 window.__wb = { store, persist, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile(), busy: () => timer !== null || drawing > 0 };      // for checks and the console
 
@@ -426,7 +428,7 @@ function reveal({ page, top, bottom }){
 }
 
 function pick({ variant, label = null, section, page = -1, at = null }){
-  if (ui.fitting || ui.snap || ui.view === 'welcome' || canvas.handed || hands.justDragged()) return;
+  if (ui.fitting || ui.snap || ui.view === 'welcome' || canvas.handed || hands.justDragged() || bank?.justDragged()) return;
   const next = targetOf(ui.ix ?? indexModel(work(), cur()), { variant, label, section });
   // a faded page stays clickable: its blank paper brings it forward, and a line on it is worked on there
   const other = !ui.layout?.phone && page >= 0 && page !== ui.page;
@@ -910,6 +912,7 @@ function renderBody(animate = false){
   const at0 = tabs0 ? tabs0.indexOf(ae) : -1, key0 = tabs0 ? keyOf(ae) : null;
   if (ui.snap && !ui.view && !snapNow()) ui.snap = null;
   const finish = () => {
+    bank?.render();      // the word bank's own window, while Skills is selected
     tierAll(el); if (there) tierAll($('#body'));      // styled before the first paint, so no button fades its shadow in
     // a step between two lines of one kind of panel does not animate; a new kind of panel fades in once (opacity only)
     el.classList.remove('anim-in');
@@ -1498,7 +1501,7 @@ const edit = initEdit({
   pendingHtml: (id, at) => review.pendingHtml(id, at), canPend: (id, at) => review.canPend(id, at),
   store, ui, sheet, toast, say, record, cur, lang, work, chooseVariant, sectionTitle, textOfFact, resumeName, fillText,
   ix: () => ui.ix ?? indexModel(work(), cur()), togglePhoto: () => design.togglePhoto(),
-  redrawNow: () => { clearTimeout(timer); timer = null; return redraw(); },
+  redrawNow: () => { clearTimeout(timer); timer = null; return redraw(); }, bank: () => bank,
   onpage: { keepView: fn => onpage.keepView(fn), begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh(), render: f => onpage.render(f) },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
   outlineHtml: (...a) => checklist.outlineHtml(...a), depthKids: (...a) => checklist.kidsOf(...a), sectionInfo: (...a) => checklist.sectionInfo(...a),
@@ -1513,6 +1516,9 @@ const edit = initEdit({
 });
 edit.bind($('#body'));
 window.__wb.edit = edit;
+bank = initWordbank({ store, ui, sheet, canvas, toast, say, record, cur, lang, select: (sel, o) => select(sel, o), resumeName, edit: () => edit,
+  redrawNow: () => { clearTimeout(timer); timer = null; return redraw(); } });
+window.__wb.bank = bank;
 window.__wb.motion = motion;
 const resumes = initResumes({
   store, ui, persist, toast, work, NONE, setView, setSnap, snapshotTaken: () => snapshotTaken(),

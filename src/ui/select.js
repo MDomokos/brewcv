@@ -48,6 +48,7 @@ export function indexModel(model, recipe = null){
 export function selOfFact(ix, fact, section = null){
   if (fact.startsWith('~h:')) return { kind: 'section', id: fact.slice(3), heading: true };
   if (fact.startsWith('~t:')) return { kind: 'bullet', id: fact, section: ix.owned.get(fact.slice(3)) ?? section ?? 'summary' };
+  if (fact.startsWith('~g:')) return { kind: 'bullet', id: fact, section: 'skills' };      // a skill group's heading, written where it prints
   if (ix.header.has(fact)) return { kind: 'bullet', id: fact, section: 'header' };      // the name, the headline and the contact line are written where they print
   if (ix.skillGroups.has(fact)) return { kind: 'bullet', id: fact, section: 'skills' };
   if (ix.display.has(fact)){ const job = ix.display.get(fact); return { kind: 'bullet', id: fact, section: ix.jobSection.get(job) ?? 'experience', owner: job }; }
@@ -76,7 +77,7 @@ export function up(sel){
 }
 
 // The keys of the page's labels (a heading, a language's name); a line only on one resume is `~new-n`, which is not one
-export const isLabelKey = k => /^~[ht]:/.test(k ?? '');
+export const isLabelKey = k => /^~[htg]:/.test(k ?? '');
 // The selection for a text of the page by its key (a claim, or `~h:`/`~t:`): what the arrows and Tab walk through
 export const lineSel = (ix, id) => selOfFact(ix, id) ?? { kind: 'bullet', id, section: 'summary' };
 // the key of what a selection is on the page, or null

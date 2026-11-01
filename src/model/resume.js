@@ -632,91 +632,47 @@ export function pickVersion(model, recipe, factId, vid){
   parkOverride(model, recipe, factId);
 }
 
-// ---- skill sets: model.skillSets[name] = { [lang]: [{ id, items }] }, one per job type or tag ----
+// ---- a resume's skill groups: recipe.skillArrangement = { groups: [{ id, items, label?, lang?, shelf? }] } ----
+// A group is this resume's: a heading (its own, `label`, written in `lang`; else a shelf's name, `shelf`; else the record group's, for a
+// group of the record) over an ordered list of the bank's word ids. A word is in one group of a resume at most. A resume with none prints
+// the record's groups as they are; its first change copies them here, as words. (model.skillSets, the sets of an older version, are kept
+// in the file as they are and no longer used.)
 export const skillSets = model => model.skillSets ?? {};
-const groupsOf = (model, name, lang) => skillSets(model)[name]?.[lang] ?? skillSets(model)[name]?.[DEFAULT_LANG] ?? null;
-// This resume's own arrangement, or the skills section as it prints now; `from` names the set it matches by name.
+// This resume's own groups, or the record's as it prints them now (their words as typed in the claims, which `arrange` turns into words)
 export function arrangementOf(model, recipe){
   if (recipe.skillArrangement) return recipe.skillArrangement;
-  const lang = recipe.lang ?? DEFAULT_LANG;
   const groups = (itemList(model, recipe, 'skills') ?? []).filter(g => g.on)
     .map(g => ({ id: g.id, items: splitWords(chooseVariant(model, g.id, recipe).v?.text) }));
-  return { from: recipe.jobType && groupsOf(model, recipe.jobType, lang) ? recipe.jobType : null, groups };
+  return { groups };
 }
 export function setArrangement(recipe, arrangement){ recipe.skillArrangement = structuredClone(arrangement); }
-// A set with no groups in the resume's language starts it from the English ones: `lang: 'en'` says so (they are listed as untranslated)
-export function applySet(model, recipe, name){
-  const L = recipe.lang ?? DEFAULT_LANG, groups = groupsOf(model, name, L);
-  if (!groups) throw new Error(`no skill set ${name}`);
-  guard(model, recipe, skillsSection(model));
-  for (const g of arrangementOf(model, recipe).groups) guard(model, recipe, g.id);      // a set replaces every group
-  recipe.skillArrangement = { from: name, ...(skillSets(model)[name][L] ? {} : { lang: DEFAULT_LANG }), groups: structuredClone(groups) };
-}
-// Back to the record's own groups (the inverse of applySet): the resume's arrangement goes. Held like applySet.
-export function clearArrangement(model, recipe){
-  if (!recipe.skillArrangement) return;
-  guard(model, recipe, skillsSection(model));
-  for (const g of arrangementOf(model, recipe).groups) guard(model, recipe, g.id);
-  delete recipe.skillArrangement;
-}
-// The set saved for a tag in one language goes; the tag's last set takes its key with it (and the last key, `skillSets`).
-export function deleteSkillSet(model, name, lang = DEFAULT_LANG){
-  const mine = { ...skillSets(model)[name] };
-  if (!mine[lang]) return false;
-  delete mine[lang];
-  const sets = { ...skillSets(model) };
-  if (Object.keys(mine).length) sets[name] = mine; else delete sets[name];
-  if (Object.keys(sets).length) model.skillSets = sets; else delete model.skillSets;
-  return true;
-}
-export function saveSetForTag(model, name, arrangement, lang = DEFAULT_LANG){
-  const L = arrangement.lang ?? lang;      // groups that are still the English fallback are the English set, not the resume's language's
-  model.skillSets = { ...skillSets(model), [name]: { ...skillSets(model)[name], [L]: structuredClone(arrangement.groups) } };
-}
 export const groupLabel = (model, recipe, gid) => model.i18n?.[recipe.lang ?? DEFAULT_LANG]?.labels?.[gid] ?? (model.facts ?? []).find(f => f.id === gid)?.label ?? gid;
 // What a group of this resume prints over its words: its own heading, else its shelf's name, else the record group's
 export const groupHeading = (model, recipe, g) => g.label ?? (g.shelf ? SB.shelfName(model, g.shelf, recipe.lang ?? DEFAULT_LANG) : groupLabel(model, recipe, g.id));
 const splitWords = text => String(text ?? '').split(/,\s*/).map(x => x.trim()).filter(Boolean);
 
-// Arranging the skills on this resume: the first change copies what prints now into `recipe.skillArrangement`, and each change after it
-// is to that copy. A group is { id, items, label? }: a group of the record keeps its id (and its name, unless `label` renames it here);
-// one made on the page is `~sg-n` and has a `label` of its own.
 // Each change works on word ids: typed text of an older arrangement (or of the record's groups) becomes the bank's words first.
 const arrange = (model, recipe, fn, ...ids) => {
   for (const id of [skillsSection(model), ...ids.filter(Boolean)]) guard(model, recipe, id);
   const a = structuredClone(arrangementOf(model, recipe));
   SB.seedBank(model);
   a.groups = SB.toWordIds(model, a.groups, a.lang ?? recipe.lang ?? DEFAULT_LANG);
-  delete a.lang;
+  delete a.lang; delete a.from;
   const r = fn(a.groups, a); recipe.skillArrangement = a; return r;
 };
 const groupAt = (groups, gid) => { const i = groups.findIndex(g => g.id === gid); if (i < 0) throw new Error(`no skill group ${gid}`); return i; };
-// the skills as typed: separated by commas or line breaks
-export const parseItems = text => String(text).split(/[,\n]/).map(x => x.trim()).filter(Boolean);
-// What was written in a group: the first line is its name, the rest its skills; one line only is its skills. No skills left: the group goes.
-export const readGroup = text => { const lines = String(text).split('\n'), named = lines.length > 1; return { name: named ? lines[0].trim() : null, items: parseItems(named ? lines.slice(1).join('\n') : text) }; };
-export function writeGroup(model, recipe, gid, text){
-  const { name, items } = readGroup(text);
-  arrange(model, recipe, groups => {
-    const i = groupAt(groups, gid);
-    if (!items.length) groups.splice(i, 1);
-    else {
-      const was = groups[i].label, label = name !== null && name !== (was ?? groupLabel(model, recipe, gid)) ? name : was;
-      groups[i] = { ...groups[i], items, lang: recipe.lang ?? DEFAULT_LANG, ...(label !== undefined ? { label } : {}) };      // typed here: in this language
-    }
-  }, gid);
+// The word ids on this resume, by the group they are in (typed text the bank has no word for is left out)
+export function wordsOnResume(model, recipe){
+  const out = new Map(), L = recipe.lang ?? DEFAULT_LANG;
+  for (const g of arrangementOf(model, recipe).groups) for (const id of SB.idsOf(model, g.items, g.lang ?? L)) if (!out.has(id)) out.set(id, g.id);
+  return out;
 }
-// A group as the page writes it: its name, a line break, its skills
-export function groupText(model, recipe, gid){
-  const g = arrangementOf(model, recipe).groups.find(x => x.id === gid);
-  return g ? `${g.label ?? groupLabel(model, recipe, gid)}\n${g.items.join(', ')}` : '';
-}
-// A new empty group after `afterId` (null: first); the page writes in it at once, and it goes if it is left empty.
-export function addSkillGroup(model, recipe, afterId = null){
+// A new empty group after `afterId` (null: at the end). Its heading is written on the page. An empty group prints nothing and stays until deleted.
+export function addSkillGroup(model, recipe, afterId = null, { label = '', shelf = null } = {}){
   return arrange(model, recipe, groups => {
     let n = 1; while (groups.some(g => g.id === `~sg-${n}`)) n++;
-    const id = `~sg-${n}`, at = afterId == null ? 0 : groupAt(groups, afterId) + 1;
-    groups.splice(at, 0, { id, items: [], label: '' });
+    const id = `~sg-${n}`, at = afterId == null ? groups.length : groupAt(groups, afterId) + 1;
+    groups.splice(at, 0, { id, items: [], ...(shelf ? { shelf } : { label, lang: recipe.lang ?? DEFAULT_LANG }) });
     return id;
   });
 }
@@ -726,15 +682,61 @@ export function moveSkillGroup(model, recipe, gid, beforeId = null){
     groups.splice(beforeId == null ? groups.length : groupAt(groups, beforeId), 0, g);
   }, gid);
 }
-// One skill from a group to a place in another (or the same): `j` is its index there once it has left; a group left with no skills goes
+// The group leaves this resume; its words go back to the bank (they stay in the bank).
+export function removeSkillGroup(model, recipe, gid){
+  arrange(model, recipe, groups => { groups.splice(groupAt(groups, gid), 1); }, gid);
+}
+// One skill from a group to a place in another (or the same): `j` is its index there once it has left. A group left empty stays.
 export function moveSkill(model, recipe, from, i, to, j){
   arrange(model, recipe, groups => {
     const src = groups[groupAt(groups, from)], dst = groups[groupAt(groups, to)];
     if (i < 0 || i >= src.items.length) throw new Error(`no skill ${i} in ${from}`);
     const [item] = src.items.splice(i, 1);
     dst.items.splice(Math.max(0, Math.min(j, dst.items.length)), 0, item);
-    if (!src.items.length && src !== dst) groups.splice(groups.indexOf(src), 1);
   }, from, to);
+}
+// A word of the bank into group `gid`, before `beforeId` (null: at its end). From another group of this resume it moves.
+export function placeWord(model, recipe, wid, gid, beforeId = null){
+  if (!SB.wordOf(model, wid)) throw new Error(`no word ${wid}`);
+  const from = wordsOnResume(model, recipe).get(wid);
+  arrange(model, recipe, groups => {
+    for (const g of groups){ const k = g.items.indexOf(wid); if (k >= 0) g.items.splice(k, 1); }
+    const dst = groups[groupAt(groups, gid)], at = beforeId == null ? -1 : dst.items.indexOf(beforeId);
+    dst.items.splice(at < 0 ? dst.items.length : at, 0, wid);
+  }, from, gid);
+}
+// A word off this resume, back to the bank. Its group stays, even emptied.
+export function takeWord(model, recipe, wid){
+  const from = wordsOnResume(model, recipe).get(wid);
+  if (!from) return false;
+  arrange(model, recipe, groups => { for (const g of groups){ const k = g.items.indexOf(wid); if (k >= 0) g.items.splice(k, 1); } }, from);
+  return true;
+}
+// A group's heading on this resume, in its language: a shelf's name (as the bank has it in that language) makes the group use the shelf's name in
+// every language; anything else is this resume's own; empty text gives the record group's back (or, for a group made here, leaves it unnamed).
+export function setGroupHeading(model, recipe, gid, text){
+  const L = recipe.lang ?? DEFAULT_LANG, v = String(text ?? '').replace(/\s+/g, ' ').trim();
+  const shelf = v && SB.shelvesOf(model).find(s => SB.norm(SB.shelfName(model, s.id, L)) === SB.norm(v));
+  arrange(model, recipe, groups => {
+    const g = groups[groupAt(groups, gid)];
+    delete g.label; delete g.lang; delete g.shelf;
+    if (shelf) g.shelf = shelf.id;
+    else if (v && v !== groupLabel(model, recipe, gid)) Object.assign(g, { label: v, lang: L });
+    else if (!v && gid.startsWith('~sg-')) Object.assign(g, { label: '', lang: L });
+  }, gid);
+}
+// Start from another resume: its groups (as it prints them) in place of this resume's, as words, under its headings.
+export function useGroupsOf(model, recipe, src){
+  const L = src.lang ?? DEFAULT_LANG, from = structuredClone(arrangementOf(model, src).groups);
+  arrange(model, recipe, (groups, a) => {
+    for (const g of groups) guard(model, recipe, g.id);      // they all go
+    a.groups = SB.toWordIds(model, from.map(g => ({ ...g, lang: g.lang ?? L })), L).map(g => {
+      const out = { id: g.id, items: g.items };
+      if (g.shelf) out.shelf = g.shelf;
+      else if (g.label !== undefined) Object.assign(out, { label: g.label, lang: g.lang ?? L });
+      return out;
+    });
+  });
 }
 
 // The resume's photo switch (recipe.photo) and the record's photo (basics.image).
@@ -1026,12 +1028,14 @@ export const recordTerm = (model, fid, lang) =>
 // A heading or a language's name, by the page's key (`~h:<section>`, `~t:<fact>`), written on this resume in `lang`; the record's own
 // words reset it. `labelNow` is what the resume prints.
 export function setLabel(model, recipe, key, lang, text){
+  if (key.startsWith('~g:')) return setGroupHeading(model, recipe, key.slice(3), text);      // a skill group's heading: in the resume's language
   const id = key.slice(3), heading = key.startsWith('~h:'), t = String(text ?? '').replace(/\s+/g, ' ').trim();
   const reset = !t || t === (heading ? recordTitle(model, id, lang) : recordTerm(model, id, lang));
   if (heading) setSectionLabel(model, recipe, id, lang, reset ? null : t); else setTerm(model, recipe, id, lang, reset ? '' : t);
 }
 export const labelNow = (model, recipe, key, lang) => {
   const id = key.slice(3);
+  if (key.startsWith('~g:')) return printedLabel(model, recipe, key);
   return key.startsWith('~h:') ? labelOf(model, recipe, id, lang) ?? recordTitle(model, id, lang) : termOf(recipe, id) ?? recordTerm(model, id, lang);
 };
 

@@ -89,7 +89,7 @@ export function initOnPage(C){
   // ---- drawing the layers ----
   function signature(lvl, chip){
     const ed = edit().editing, tg = geom?.tg;
-    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, ed && !ed.group && !ed.label ? [versionItems(ed.fact), isMine(ed.fact)] : null, selMiss(lvl), ed ? missTag(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
+    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, ed && !ed.label ? [versionItems(ed.fact), isMine(ed.fact)] : null, selMiss(lvl), ed ? missTag(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
   }
   function render(force = false){
     lay ??= $('#editlay');
@@ -130,7 +130,7 @@ export function initOnPage(C){
     if (sm) return toolsHtml({ vn: sm.n, tag: { fact: ui.sel.id, items: [], miss: sm }, canMove: false });      // a line that prints the other language is not written here: its greyed number is all it has
     if (!fact) return '';
     const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
-    if (!ed || ed.group || ed.label) return '';      // a skill group, a heading and a language's name have no versions
+    if (!ed || ed.label) return '';      // a heading (a skill group's too) and a language's name have no versions
     const vn = C.work().variants.find(v => v.id === ed.vid)?.n ?? '·';       // the version the line was written from
     return toolsHtml({ vn, tag: { fact, items: versionItems(fact), mine: isMine(fact), miss: missTag(fact), locked: edit().lockedId(fact) ? t('ux6c.lockedHint') : '' }, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact) });
   }
@@ -296,19 +296,12 @@ export function initOnPage(C){
     w.append(...lead);
     return w;
   }
-  // A skill group is written where it is printed, whole: its own paragraph, the name on the first line where its label stands and the skills below (UX-6f 4c: no second
-  // name under the real one). The label's and the skills' own looks are kept for the two lines (the frame's .skills__group[contenteditable] rules).
-  const fieldOf = el => (edit().editing?.group ? el?.closest('.skills__group') ?? el : el);
   function attach(el, caret = null, point = null){
     const ed = edit().editing;
     if (!ed) return;
-    if (ed.group){
-      const g = el.closest('.skills__group'), cs = q => g.ownerDocument.defaultView.getComputedStyle(g.querySelector(q) ?? g);
-      if (g){ el = g; const l = cs('.skills__label'), i = cs('.skills__items'); g.style.setProperty('--rb-gl', l.color); g.style.setProperty('--rb-gw', l.fontWeight); g.style.setProperty('--rb-gi', i.color); }
-    } else el = writable(el);
+    el = writable(el);
     S.el = el;
     // the plain text in, with its line breaks and spaces as they are; marks come back when it is saved and drawn again
-    const onSkills = ed.group && point && !!el.ownerDocument.elementFromPoint(point.x, point.y)?.closest('.skills__items');      // a click on a group's skills puts the caret at their end (the group is written as name, line break, skills)
     el.textContent = ed.draft;
     el.style.whiteSpace = 'pre-wrap';
     el.contentEditable = supportsPlain ? 'plaintext-only' : 'true';
@@ -331,12 +324,11 @@ export function initOnPage(C){
     if (!document.activeElement?.closest?.('#editlay')) el.focus({ preventScroll: true });      // a redraw while the version tag has the focus does not take it back
     const doc = el.ownerDocument, hit = point && caretAt(doc, point);
     if (caret) setCaret(el, caret);
-    else if (onSkills){ const sel = doc.defaultView.getSelection(), r = doc.createRange(); r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
     else if (hit && el.contains(hit.startContainer)){ const sel = doc.defaultView.getSelection(); sel.removeAllRanges(); sel.addRange(hit); }      // one click: the caret where it was clicked
     else {
       const sel = el.ownerDocument.defaultView.getSelection(), r = el.ownerDocument.createRange();
       r.selectNodeContents(el);
-      if (ed.mode !== 'new') r.collapse(!!ed.group && !ed.base.trim());      // a new skill group starts at its name; a new version starts with the copy selected, as the text box did
+      if (ed.mode !== 'new') r.collapse(!ed.base.trim());      // an empty heading (a new skill group's) starts with the caret; a new version starts with the copy selected, as the text box did
       sel.removeAllRanges(); sel.addRange(r);
     }
     rememberCaret();
@@ -398,19 +390,9 @@ export function initOnPage(C){
       if (!e.shiftKey && lay?.querySelector('[data-act=ob-up]')){ done(); act(e.key === 'ArrowUp' ? 'ob-up' : 'ob-down'); return; }
     }
     if (e.key === 'Escape'){ done(); edit().cancelEdit(); return; }
-    if (e.key === 'Enter' && !e.shiftKey && !e.altKey && edit().editing?.group && toSkills()){ done(); return; }
     if (e.key === 'Enter' && !e.shiftKey && !e.altKey){ done(); if (!addAfter() && !next(1)) edit().cancelEdit(); return; }
     if (e.key === 'Tab' && !mod && !e.altKey){ done(); next(e.shiftKey ? -1 : 1); return; }
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !mod && !e.altKey && !e.shiftKey && atEdge(e.target.closest('[contenteditable]') ?? S.el, e.key === 'ArrowDown' ? 1 : -1)){ done(); next(e.key === 'ArrowDown' ? 1 : -1); }
-  }
-  // Enter on a skill group's name goes down to its skills (their end), never a second name; on the skills it goes on as on a line. False when the caret is on the skills.
-  function toSkills(){
-    const tx = plainOf(S.el), nl = tx.indexOf('\n'), at = caretOf(S.el)?.start ?? tx.length;
-    if (nl >= 0 && at > nl) return false;
-    if (nl < 0){ S.el.textContent = `${tx}\n`; onInput(); }      // a group with no skills yet: their line is made
-    const end = plainOf(S.el).length;
-    setCaret(S.el, { start: end, end }); rememberCaret();
-    return true;
   }
   // Enter at a job's last line (with words in it): a new empty line after it, only on this resume until the Review list (UX-6d) makes
   // it a claim with a source. Written at once, in the same zoom. False when this is not that, or the job's last line is empty.
@@ -448,7 +430,7 @@ export function initOnPage(C){
   function begin(){
     const ed = edit().editing;
     if (!ed || phone() || ui.view || ui.snap) return false;
-    const el = fieldOf(sheet.elOf(ed.fact, C.ix()));
+    const el = sheet.elOf(ed.fact, C.ix());
     if (!el) return false;
     ui.writing = true;
     S = { fact: ed.fact, el: null, caret: null, composing: false };
@@ -504,7 +486,7 @@ export function initOnPage(C){
   function afterDraw(){
     if (ui.writing && S){
       const ed = edit().editing;
-      const el = ed ? fieldOf(sheet.elOf(S.fact, C.ix())) : null;
+      const el = ed ? sheet.elOf(S.fact, C.ix()) : null;
       if (el && el !== S.el && !ui.hoverFact) attach(el, S.caret);      // a version under the pointer in the sidebar shows in place of the draft; the draft comes back with the page
     }
     render();

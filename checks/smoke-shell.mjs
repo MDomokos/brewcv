@@ -4185,92 +4185,70 @@ if (want('on the page: moving lines within their job, the hover areas, and + at 
   await ctx.close();
 }
 
-if (want('on the page: skills arranged in place, two columns, sets, and the keyboard')) {
-  const ctx = await newContext({ motion: true, viewport: { width: 1470, height: 832 } });
+if (want('the skill wordbank: the groups by name, the bank’s window, moving words, Find or add, the page’s "+", a group onto the bank, languages')) {
+  const ctx = await newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const bad = await open(page);
-  const group = n => frameBox(page, '.skills__group', n);
-  const arr = () => page.evaluate(() => window.__wb.store.state.cur.skillArrangement?.groups.map(g => [g.id, g.items, g.label]) ?? null);
-  const skillsText = () => frameDoc(page, d => [...d.querySelectorAll('.skills__group')].map(g => g.innerText.replace(/\n+/g, ' / ')));
-  // two columns: each column's group has its own grip and "+" beside it
-  const g0 = await group(0), g1 = await group(1);
-  await page.mouse.move(g0.x + 8, g0.y + 8, { steps: 3 }); await settle(page);
-  const h0 = await hands(page);
-  await page.mouse.move(g1.x + 8, g1.y + 8, { steps: 3 }); await settle(page);
-  const h1 = await hands(page);
-  ok('two columns: each group gets its own grip and "+", beside it', g1.x > g0.x + g0.width / 2 && !!h0.grip && !!h1.grip && h0.grip.fact !== h1.grip.fact && h0.grip.left + h0.grip.width <= g0.x && h1.grip.left + h1.grip.width <= g1.x && h1.grip.left > h0.grip.left + 100 && !!h0.plus && !!h1.plus, JSON.stringify([h0.grip, h1.grip, g0, g1]));
-  ok('…the grips are buttons named for what they move, and nothing is arranged yet', /skill group/.test(h1.grip.name) && (await arr()) === null);
-  // write a group in place: its name, a line break, its skills
-  await page.mouse.click(g0.x + 40, g0.y + 24); await settle(page);
-  ok('one click writes a skill group: its name, then its skills', (await page.evaluate(() => window.__wb.edit.editing?.draft)) === 'CAD & 3D\nSolidWorks (CSWP), Creo, Fusion 360, KeyShot');
-  await page.keyboard.insertText('!'); await settle(page);
-  ok('…a click on the skills puts the caret at the end of the skills, not at the end of the name', (await page.evaluate(() => window.__wb.edit.editing?.draft)) === 'CAD & 3D\nSolidWorks (CSWP), Creo, Fusion 360, KeyShot!', JSON.stringify(await page.evaluate(() => window.__wb.edit.editing?.draft)));
-  await page.keyboard.press('ControlOrMeta+a'); await page.keyboard.insertText('Tools\nCreo, Onshape'); await settle(page);
-  await page.keyboard.press('Escape'); await settle(page);
-  ok('leaving it keeps what was typed on this resume: the arrangement has the group renamed, with its skills', JSON.stringify((await arr())?.[0]) === JSON.stringify(['skills-cad', ['Creo', 'Onshape'], 'Tools']) && (await skillsText())[0] === 'Tools / Creo, Onshape', JSON.stringify(await arr()));
-  ok('…the other groups are as they printed, and there is no sidebar question or save button', (await arr()).length === 4 && !(await page.$('#body [data-act^=ed-]')));
-  for (const [how, go] of [['Esc', () => page.keyboard.press('Escape')], ['Tab', () => page.keyboard.press('Tab')], ['Enter', () => page.keyboard.press('Enter')], ['a click on the bare canvas', async () => page.mouse.click(...(await bareSpot(page)))]]){
-    await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await settle(page);
-    await page.mouse.click((await group(2)).x + 40, (await group(2)).y + 24); await settle(page);
-    await appendLine(page, `, Kept by ${how}`);
-    await go(); await settle(page);
-    ok(`no lost text: ${how} keeps a skill typed in a group`, (await skillsText()).some(t => t.includes(`Kept by ${how}`)) && (await arr()).some(g => g[1].includes(`Kept by ${how}`)));
-  }
-  await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await settle(page);
-  // a skill dragged to another group, on the page
-  const sk = await page.evaluate(() => { const d = document.querySelector('#sheet iframe').contentDocument; const e = [...d.querySelectorAll('[data-skill]')].find(x => x.textContent === 'Python'); const r = e.getBoundingClientRect(), f = document.querySelector('#sheet iframe').getBoundingClientRect(), k = f.width / document.querySelector('#sheet iframe').offsetWidth; return { x: f.left + r.left * k, y: f.top + r.top * k, w: r.width * k, h: r.height * k }; });
-  const t1 = await frameBox(page, '.skills__group:nth-child(2) [data-skill]', 1);
-  await page.mouse.move(sk.x + 4, sk.y + sk.h / 2); await page.mouse.down();
-  await page.mouse.move(t1.x + 4, t1.y + t1.height / 2, { steps: 8 }); await page.waitForTimeout(150);
-  const hd = await hands(page);
-  await page.mouse.up(); await settle(page);
-  const a2 = await arr();
-  ok('a skill dragged to another group lands in it, at the place shown, and leaves its own group', hd.drop && a2.find(g => g[0] === 'skills-fabrication')[1][1] === 'Python' && !a2.find(g => g[0] === 'skills-software')[1].includes('Python'), JSON.stringify(a2));
-  const u = await undoN(page);
-  const sk2 = await frameBox(page, '.skills__group:nth-child(1) [data-skill]', 0);
-  await page.mouse.move(sk2.x + 4, sk2.y + 4); await page.mouse.down(); await page.mouse.move(120, 700, { steps: 6 }); await page.waitForTimeout(100);
-  const rf = await hands(page);
-  await page.mouse.up(); await settle(page);
-  ok('a skill dropped anywhere but a skill group is refused, without a word, and nothing changes', rf.tip === '' && !rf.drop && (await undoN(page)) === u);
-  // the sidebar: chips with a keyboard route between groups
-  await page.waitForTimeout(350);      // (a click within 250 ms of a drag is not a click: the refusal's toast used to take that long to settle)
-  await page.mouse.click((await group(0)).x + 40, (await group(0)).y + 30); await settle(page);
-  await page.keyboard.press('Escape'); await settle(page);
-  ok('the skills section\'s sidebar offers a set to start from, the groups with their skills as buttons, and saving the set for a tag', !!(await page.$('#body #sk-set')) && (await page.$$('#body .skchip')).length >= 10 && !!(await page.$('#body #sk-tag')) && !!(await page.$('#body [data-act=sk-save]')));
-  await page.focus('#body .skgroup:nth-of-type(1) .skchip'); await page.keyboard.press('Alt+ArrowDown'); await settle(page);
-  const a3 = await arr();
-  ok('Alt+↓ on a skill button moves it to the start of the group below: a keyboard way between groups', a3[1][1][0] === 'Creo' && !a3[0][1].includes('Creo'), JSON.stringify(a3));
-  // + adds a group, written at once; left empty it goes
-  const gx = await group(1);
-  await page.mouse.move(gx.x + 40, gx.y + 8, { steps: 3 }); await settle(page);
-  const pp = (await hands(page)).plus;
-  await page.mouse.click(pp.left + 9, pp.top + 9); await settle(page);
-  ok('"+" adds an empty skill group after this one and writes it at once, starting at its name', (await arr()).length === 5 && /^~sg-/.test((await page.evaluate(() => window.__wb.edit.editing?.fact)) ?? ''));
-  await page.keyboard.insertText('Process'); await page.keyboard.press('Shift+Enter'); await page.keyboard.insertText('Lean, 5S'); await page.keyboard.press('Escape'); await settle(page);
-  ok('written, it prints under its own name', (await skillsText()).some(t => t === 'Process / Lean, 5S'));
-  await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await settle(page);
-  const gz = await group(2);
-  await page.mouse.click(gz.x + 40, gz.y + 24); await settle(page);
-  await page.keyboard.press('ControlOrMeta+a'); await page.keyboard.press('Backspace'); await page.keyboard.press('Escape'); await settle(page);
-  ok('a group emptied on the page is removed (Ctrl+Z brings it back)', (await arr()).length === 4 && (await page.evaluate(() => { window.__wb.store.undo?.(); return 1; })) === 1);
-  // sets: start from one, arrange, save it for a tag; a hu resume starts from the en set and its groups are listed as untranslated
-  await page.evaluate(() => { window.__wb.store.commit(d => { d.record.skillSets = { 'cad': { en: [{ id: 'skills-fabrication', items: ['CNC', 'Laser'] }, { id: 'skills-testing', items: ['IEC 62366'] }] } }; }, 'sets'); });
-  await settle(page);
-  await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await settle(page);
-  await page.frameLocator('#sheet iframe').locator('.band[data-section="skills"] .tab').first().click(); await settle(page);
-  await pickOption(page, '#body #sk-set', 'cad'); await settle(page);
-  const a4 = await arr();
-  ok('starting from a set puts its groups on the resume as a copy, free to arrange', JSON.stringify(a4.map(g => g[0])) === JSON.stringify(['skills-fabrication', 'skills-testing']) && a4[0][1].join() === 'CNC,Laser', JSON.stringify(a4));
-  const tagV = await page.evaluate(() => document.querySelector('#sk-tag')?.value);
-  await page.click('#body [data-act=sk-save]'); await settle(page);
-  ok('"Save as the set for the tag" keeps this arrangement as that tag\'s set, for this language', !!tagV && JSON.stringify(await page.evaluate(t => window.__wb.store.state.record.skillSets[t]?.en?.map(g => g.id), tagV)) === JSON.stringify(['skills-fabrication', 'skills-testing']) && /Saved as the set/.test(await page.textContent('#toast')), tagV);
-  // a Hungarian resume started from an English-only set: the groups come over and are outlined as untranslated, like any line with no wording
-  await openByName(page, 'Dunamenti');
-  await page.frameLocator('#sheet iframe').locator('.band[data-section="skills"] .tab').first().click(); await settle(page);
-  await pickOption(page, '#body #sk-set', 'cad'); await settle(page);
-  const hu = await page.evaluate(() => ({ lang: window.__wb.store.state.cur.lang, arr: window.__wb.store.state.cur.skillArrangement }));
-  ok('a hu resume starts from the set\'s en groups when the set has no hu ones, and the arrangement says so', hu.lang === 'hu' && hu.arr?.lang === 'en' && hu.arr.groups[0].items.join() === 'CNC,Laser', JSON.stringify(hu.arr));
-  ok('…the page outlines those groups like any untranslated line', (await frameDoc(page, d => d.querySelectorAll('.skills__group.rb-miss').length)) >= 1);
+  const fr = page.frameLocator('#sheet iframe');
+  const groupsNow = () => frameDoc(page, d => [...d.querySelectorAll('.skills__group')].map(g => `${g.querySelector('.skills__label').textContent}: ${[...g.querySelectorAll('[data-skill]')].map(x => x.textContent).join(', ')}`));
+  const wordAt = async text => { const b = await fr.locator('.skills__group [data-word]', { hasText: new RegExp(`^${text}$`) }).first().boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+  const carry = async (from, to, wait = 0) => { await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(from.x + 8, from.y + 3, { steps: 3 }); await page.mouse.move(to.x, to.y, { steps: 12 }); if (wait) await page.waitForTimeout(wait); await page.mouse.move(to.x + 1, to.y); await page.mouse.up(); await settle(page); };
+  const bankMid = async () => { const b = await page.locator('#bankcard').boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+  await fr.locator('.band[data-section="skills"] .tab').first().click(); await settle(page); await page.keyboard.press('Escape'); await settle(page);
+  ok('Skills selected: the sidebar card lists the groups by name under Position, and the bank is a window of its own below it', await page.isVisible('#bankcard') && (await page.locator('.sknames .skname').allTextContents()).join('|') === 'CAD & 3D|Fabrication|Test & QA|Software' && await page.isVisible('#bankcard .wbq'));
+  await page.click('.sknames [data-g="skills-fabrication"]'); await settle(page);
+  ok('a name picks its group (the selection), filled; Delete group stands in the Position row', await page.evaluate(() => window.__wb.ui.sel.id) === 'skills-fabrication' && await page.isVisible('.hposrow [data-act=sk-delgroup]') && (await page.textContent('.skname.is-pick')) === 'Fabrication');
+  await carry(await wordAt('KeyShot'), await bankMid());
+  ok('a word dragged off the page goes back to the bank (the resume\'s groups become the bank\'s words)', !(await groupsNow())[0].includes('KeyShot') && (await page.locator('#bankcard .wbtray .wbchip').allTextContents()).includes('KeyShot') && (await page.evaluate(() => window.__wb.store.state.cur.skillArrangement.groups[0].items)).every(x => x.startsWith('sw-')));
+  await page.click('#bankcard .wbchip[data-id="sw-keyshot"]'); await settle(page);
+  ok('a bank word clicked goes to the end of the picked group, and leaves the bank', (await groupsNow())[1].endsWith('KeyShot') && !(await page.locator('#bankcard .wbtray .wbchip').allTextContents()).includes('KeyShot'));
+  const git = await wordAt('Git');
+  await carry(await wordAt('Creo'), { x: git.x + 4, y: git.y }, 600);
+  ok('a word carried into another group, held there past the resistance, lands beside the word it is let go on', (await groupsNow())[3].includes('Creo') && !(await groupsNow())[0].includes('Creo'));
+  await page.fill('#bankcard .wbq', 'Pythn'); await settle(page);
+  ok('Find or add: a word like one in the bank shows "≈" and that word', await page.isVisible('#bankcard .wbaddrow.near') && (await page.textContent('#bankcard .wbaddrow.near')).includes('Python'));
+  await page.focus('#bankcard .wbq'); await page.keyboard.press('Enter'); await settle(page);
+  ok('…the first Enter only rings the "+ Add" in the warning colour; nothing is added', await page.evaluate(() => document.querySelector('.wbqplus')?.classList.contains('warned')) && !JSON.stringify(await groupsNow()).includes('Pythn'));
+  await page.keyboard.press('Enter'); await settle(page);
+  ok('…the second adds it to the bank and to the picked group, and empties the box', JSON.stringify(await groupsNow()).includes('Pythn') && (await page.inputValue('#bankcard .wbq')) === '');
+  await page.fill('#bankcard .wbq', 'pythn'); await settle(page);
+  ok('a word the bank has shows "=", how many saved resumes print it, and Delete; the "+ Add" steps aside', await page.isVisible('#bankcard .wbaddrow.dup [data-act=wb-delw]') && !(await page.isVisible('#bankcard .wbqplus')));
+  await page.click('#bankcard .wbaddrow.dup [data-act=wb-delw]'); await settle(page);
+  ok('Delete lists every saved resume that prints it first', (await page.textContent('#bankcard .wbdelw')).includes('Example Instruments'));
+  await page.click('#bankcard [data-act=wb-delw-yes]'); await settle(page);
+  ok('…confirmed, it leaves the bank and the resume, with Undo', !JSON.stringify(await groupsNow()).includes('Pythn') && await page.isVisible('#toast [data-act=toast-undo]'));
+  await page.click('#toast [data-act=toast-undo]'); await settle(page);
+  ok('…and Undo puts it back', JSON.stringify(await groupsNow()).includes('Pythn'));
+  // the page's "+" under the whole section: a new group at the end, its heading written at once
+  await page.evaluate(() => document.querySelector('#toast').classList.remove('on'));      // (the Undo note can stand over the page)
+  const g1 = await frameBox(page, '.skills__group', 1);
+  await page.mouse.move(g1.x + 12, g1.y + g1.height - 6); await page.mouse.move(g1.x + 14, g1.y + g1.height - 5); await page.waitForTimeout(300);      // (the page's chip stands on the group's top right)
+  ok('hovering the skills, the app\'s "+" stands under the whole section, and one after the group\'s last word', await page.isVisible('#handlay .wbsplus') && await page.isVisible('#handlay .wbwplus'), JSON.stringify([await page.isVisible('#handlay .wbsplus'), await page.isVisible('#handlay .wbwplus'), await page.evaluate(() => window.__wb.bank.state), await page.evaluate(() => window.__wb.ui.sel)]));
+  await page.click('#handlay .wbsplus'); await settle(page);
+  await page.keyboard.insertText('Tools'); await page.keyboard.press('Enter'); await settle(page);
+  ok('…it adds an empty group at the end, its heading written on the page', (await groupsNow()).at(-1) === 'Tools: ' && (await page.evaluate(() => JSON.stringify(window.__wb.store.state.cur.skillArrangement.groups.at(-1)))) === '{"id":"~sg-1","items":[],"label":"Tools","lang":"en"}');
+  await fr.locator('.band[data-section="skills"] .tab').first().click(); await settle(page); await page.keyboard.press('Escape'); await settle(page);
+  await page.click('.sknames [data-g="~sg-1"]'); await settle(page);
+  const tb = await frameBox(page, '.skills__group[data-group="~sg-1"]');
+  await page.mouse.move(tb.x + 4, tb.y + 4); await page.mouse.move(tb.x + 6, tb.y + 6); await page.waitForTimeout(300);
+  await page.click('#handlay .wbwplus'); await page.keyboard.insertText('Lathe'); await page.keyboard.press('Enter'); await settle(page);
+  ok('the "+" after a group\'s words opens a box there: a new word goes into the bank and onto the group', (await groupsNow()).at(-1) === 'Tools: Lathe');
+  const tg = await frameBox(page, '.skills__group[data-group="~sg-1"]');
+  await page.evaluate(() => document.querySelector('#toast').classList.remove('on'));
+  await carry({ x: tg.x + tg.width - 6, y: tg.y + tg.height - 3 }, { x: (await bankMid()).x, y: (await page.locator('#bankcard').boundingBox()).y + 200 });
+  ok('a group carried onto the bank comes off the resume, with Undo', !(await groupsNow()).some(x => x.startsWith('Tools')) && await page.isVisible('#toast [data-act=toast-undo]'));
+  await page.keyboard.press('ControlOrMeta+z'); await settle(page);
+  // languages: a Hungarian copy prints the bank's Hungarian, product names as they are, and outlines a word with none
+  await openByName(page, 'Dunamenti'); await page.keyboard.press('Escape'); await settle(page);
+  await fr.locator('.band[data-section="skills"] .tab').first().click(); await settle(page); await page.keyboard.press('Escape'); await settle(page);
+  await carry(await wordAt('Python'), await bankMid());
+  const hu = await groupsNow();
+  ok('Hungarian: once arranged, translated words print in Hungarian, product names unchanged, a word with no Hungarian outlined', hu[1].includes('CNC-marás') && hu[0].includes('SolidWorks (CSWP)') && (await frameDoc(page, d => [...d.querySelectorAll('[data-word].rb-miss')].map(x => x.textContent))).includes('design verification'), JSON.stringify(hu));
+  ok('…the globe says how many are missing in the resume\'s language (two of the record\'s, and the two words added above)', /HU\s*4/.test(await page.textContent('#bankcard .wbtr')), await page.textContent('#bankcard .wbtr'));
+  await fr.locator('[data-word].rb-miss', { hasText: 'design verification' }).click(); await page.waitForTimeout(300); await settle(page);
+  ok('…a click on the outlined word opens the words view on that word\'s line, in Hungarian', await page.evaluate(() => document.activeElement?.dataset?.key) === 'in:sw-design-verification:hu');
+  await page.keyboard.insertText('tervezésellenőrzés'); await page.keyboard.press('Enter'); await settle(page);
+  ok('…written there, the page prints it, every resume alike', (await groupsNow())[2].includes('tervezésellenőrzés'));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
@@ -5564,118 +5542,6 @@ if (want('ux6f s3-4: a version change never draws the old and the new words over
   await ctx.close();
 }
 
-if (want('ux6f s3-5: skills: the group’s name and its skills look different while written, and the sidebar list wears the versions rows')) {
-  const ctx = await newContext({ motion: true, viewport: { width: 1470, height: 832 } });
-  const page = await ctx.newPage();
-  const bad = await open(page);
-  const g0 = await frameBox(page, '.skills__group', 0);
-  await page.mouse.move(g0.x + 40, g0.y + 8, { steps: 3 }); await settle(page);
-  await page.mouse.click(g0.x + 40, g0.y + 24); await settle(page);
-  // (UX-6f 4c item 8, rewritten: the group is written in its own paragraph, the name where its label stands in the label's look, the skills below in theirs)
-  const w = await frameDoc(page, d => { const e = d.querySelector('.skills__group[contenteditable]'); if (!e) return null; const f = d.defaultView.getComputedStyle(e, '::first-line'), b = d.defaultView.getComputedStyle(e); return { head: f.fontWeight, headColor: f.color, body: b.fontWeight, bodyColor: b.color }; });
-  ok('writing a group on the page: the name (first line) is bold, the skills below are not and are in their own colour', !!w && Number(w.head) >= 700 && Number(w.body) < 700 && w.headColor !== w.bodyColor, JSON.stringify(w));
-  ok('the sidebar says what the two parts are', /first line is the name/.test(await page.textContent('#body .skwrite')));
-  await page.keyboard.press('Escape'); await settle(page);
-  // the sidebar's list: a row per group with a ring and the number of its version; the groups are still what you select (chips) and move
-  const rows = () => page.evaluate(() => ({ groups: document.querySelectorAll('#body .skgroups .skgroup').length, rings: document.querySelectorAll('#body .skgroups .skgroup .rad').length, tags: [...document.querySelectorAll('#body .skgroups .skghead .n')].map(e => e.textContent), chips: document.querySelectorAll('#body .skchip[draggable=true]').length, pend: document.querySelectorAll('#body .skpend .vrow.pend').length }));
-  await toEditHome(page); await page.click('#outline [data-act=select-section][data-id=skills]'); await settle(page);
-  const a = await rows();
-  ok('Skills in the sidebar: each group is a row with a ring and its version’s number, its skills are chips as before; nothing is arranged, so no pending row', a.groups >= 3 && a.rings === a.groups && a.tags.length === a.groups && a.tags.every(x => /^v\d/.test(x)) && a.chips > 5 && a.pend === 0, JSON.stringify(a));
-  await page.mouse.click(g0.x + 40, g0.y + 24); await settle(page);
-  await page.keyboard.press('ControlOrMeta+a'); await page.keyboard.insertText('Tools\nCreo, Onshape'); await settle(page);
-  await page.keyboard.press('Escape'); await settle(page);
-  await toEditHome(page); await page.click('#outline [data-act=select-section][data-id=skills]'); await settle(page);
-  const b = await rows();
-  ok('an arrangement on this resume is the pending row above the list: “on this resume only”, Save as the set, and ↺ back to the record’s groups', b.pend === 1 && /on this resume only/.test(await page.textContent('#body .skpend')) && (await page.locator('#body .skpend [data-act=sk-save]').count()) === 1 && (await page.locator('#body [data-act=sk-save]').count()) === 1 && (await page.locator('#body .skpend [data-act=sk-record]').count()) === 1, JSON.stringify(b));
-  await page.click('#body .skpend [data-act=sk-record]'); await settle(page);
-  ok('↺ puts the record’s groups back (the arrangement goes) in one undo step with a toast', (await page.evaluate(() => !window.__wb.store.state.cur.skillArrangement)) && (await rows()).pend === 0 && !!(await page.$('#toast.on')));
-  await page.keyboard.press('Control+z'); await settle(page);
-  ok('…and Undo brings it back', (await page.evaluate(() => !!window.__wb.store.state.cur.skillArrangement)));
-  ok('no console errors', bad.length === 0, bad[0] ?? '');
-  await ctx.close();
-}
-
-// UX-6f 4c item 8: a skill group's header is the thing written: no second name appears under it, a click on the name or on the skills puts the caret there (the skills: at
-// their end), Enter on the name goes down to the skills and makes no empty name, and a change to the name is saved as the group's name
-if (want('ux6f s4c-8: a skill group is written in its own header')) for (const motion of [false, true]) {
-  const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
-  const page = await ctx.newPage();
-  const bad = await open(page);
-  const tag = motion ? 'with motion' : 'reduced motion';
-  const G = '.band[data-section=skills] .skills__group';
-  const name = (await page.frameLocator('#sheet iframe').locator(`${G} .skills__label`).first().textContent()).trim();
-  const state = () => frameDoc(page, (d, name) => {
-    const e = d.querySelector('[contenteditable]:not([contenteditable=false])'); if (!e) return null;
-    const g = e.closest('.skills__group'), sel = d.getSelection(), r = d.createRange(); r.setStart(e, 0); r.setEnd(sel.anchorNode, sel.anchorOffset);
-    return { group: e.matches('.skills__group'), labels: g ? [...g.querySelectorAll('.skills__label')].filter(l => l.getClientRects().length).length : -1, names: (g?.innerText ?? '').split(name).length - 1, text: e.innerText, caret: r.toString().length };
-  }, name);
-  const lb = await frameBox(page, `${G} .skills__label`, 0);
-  await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2, { steps: 3 }); await settle(page);
-  await page.mouse.click(lb.x + lb.width / 2, lb.y + lb.height / 2); await settle(page);
-  if (!(await state())){ await page.mouse.click(lb.x + lb.width / 2, lb.y + lb.height / 2); await settle(page); }
-  const a = await state();
-  ok(`${tag}: writing a skill group writes its own paragraph: one name shows, where its label stood, with no label left beside it`, !!a && a.group && a.labels === 0 && a.names === 1, JSON.stringify(a));
-  ok(`${tag}: a click in the middle of the name puts the caret in the name, where it was clicked`, !!a && a.caret > 0 && a.caret < name.length, JSON.stringify({ a, name }));
-  await page.keyboard.press('Enter'); await settle(page);
-  const b = await state();
-  ok(`${tag}: Enter on the name goes down to the end of the skills: no empty name, still the same group written`, !!b && b.text.split('\n').length === a.text.split('\n').length && b.caret === b.text.length && b.names === 1, JSON.stringify(b));
-  await page.keyboard.press('Escape'); await settle(page);
-  const it = await frameBox(page, `${G} .skills__items`, 0);
-  await page.mouse.click(it.x + 6, it.y + it.height / 2); await settle(page);
-  if (!(await state())){ await page.mouse.click(it.x + 6, it.y + it.height / 2); await settle(page); }
-  const c = await state();
-  ok(`${tag}: a click on the skills puts the caret at their end`, !!c && c.caret === c.text.length, JSON.stringify(c));
-  const lb2 = await frameBox(page, '[contenteditable]', 0);
-  await page.mouse.click(lb2.x + 2, lb2.y + 4); await page.keyboard.press('End'); await page.keyboard.insertText('Z'); await settle(page);
-  await page.keyboard.press('Escape'); await settle(page);
-  const saved = await page.evaluate(n => (window.__wb.store.state.cur.skillArrangement?.groups ?? []).some(g => g.label === `${n}Z`), name);
-  const shown = (await page.frameLocator('#sheet iframe').locator(`${G} .skills__label`).first().textContent()).trim();
-  ok(`${tag}: a change to the name is saved as the group's name and printed as its label`, saved && shown === `${name}Z`, JSON.stringify({ saved, shown }));
-  ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
-  await ctx.close();
-}
-
-// UX-6f 4c item 9: where a skill group cannot be written on the page (a phone), the panel writes it: the selected group's pencil opens two fields, Name and Skills,
-// saved as one undo step, with Cancel; "+ Add group" adds an empty group and opens them
-if (want('ux6f s4c-9: a skill group is written in the panel on a phone')) {
-  const ctx = await newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
-  const ph = await ctx.newPage();
-  const bad = await open(ph);
-  const groups = () => ph.evaluate(async () => { const T = await import('/src/model/resume.js'), s = window.__wb.store.state; return T.arrangementOf(s.record, s.cur).groups.map(g => ({ id: g.id, name: g.label ?? T.groupLabel(s.record, s.cur, g.id), items: g.items })); });
-  const undos = () => ph.evaluate(() => window.__wb.store.history.undo);
-  await ph.evaluate(() => document.querySelector('#sheet iframe').contentDocument.querySelector('.skills__group').scrollIntoView({ block: 'center' })); await settle(ph);
-  await ph.frameLocator('#sheet iframe').locator('.skills__group').first().tap(); await settle(ph);
-  const g0 = (await groups())[0];
-  const pen = ph.locator('#body .skgroup [data-act=edit]');
-  ok('phone: the selected skill group has a pencil in the panel', (await pen.count()) === 1);
-  if (await pen.count()){ await pen.click(); await settle(ph); }
-  const f = await ph.evaluate(() => ({ name: document.querySelector('#sk-gname')?.value, items: document.querySelector('#sk-gitems')?.value, onPage: !!document.querySelector('#sheet iframe').contentDocument.querySelector('[contenteditable]:not([contenteditable=false])') }));
-  ok('phone: …it opens the group in two fields, its name and its skills, and nothing is written on the page', f.name === g0.name && f.items === g0.items.join(', ') && !f.onPage, JSON.stringify({ f, g0 }));
-  const u0 = await undos();
-  if (f.name !== undefined){ await ph.fill('#sk-gname', 'Tools Q'); await ph.fill('#sk-gitems', 'Creo\nOnshape, KeyShot'); await ph.click('#body [data-act=sk-gsave]'); await settle(ph); }
-  const g1 = (await groups())[0];
-  ok('phone: Save keeps the name and the skills (one per line or by commas) as one undo step', g1.name === 'Tools Q' && JSON.stringify(g1.items) === JSON.stringify(['Creo', 'Onshape', 'KeyShot']) && (await undos()) === u0 + 1, JSON.stringify({ g1, u: [u0, await undos()] }));
-  await ph.evaluate(() => window.__wb.store.undo()); await settle(ph);
-  const g2 = (await groups())[0];
-  ok('phone: …and one Undo brings the group back as it was', g2.name === g0.name && JSON.stringify(g2.items) === JSON.stringify(g0.items), JSON.stringify(g2));
-  await ph.evaluate(() => document.querySelector('#sheet iframe').contentDocument.querySelector('.skills__group').scrollIntoView({ block: 'center' })); await settle(ph);
-  await ph.frameLocator('#sheet iframe').locator('.skills__group').first().tap(); await settle(ph);
-  if (await pen.count()){ await pen.click(); await settle(ph); await ph.fill('#sk-gname', 'Nope'); await ph.click('#body [data-act=sk-gcancel]'); await settle(ph); }
-  ok('phone: Cancel keeps nothing', (await groups())[0].name === g0.name && !(await ph.locator('#sk-gname').count()));
-  const n0 = (await groups()).length, add = ph.locator('#body [data-act=sk-addgroup]');
-  if (await add.isVisible()){ await add.click(); await settle(ph); }
-  const opened = await ph.evaluate(() => ({ name: document.querySelector('#sk-gname')?.value, items: document.querySelector('#sk-gitems')?.value }));
-  ok('phone: + Add group adds an empty group and opens its two fields', opened.name === '' || (opened.name !== undefined && !opened.items), JSON.stringify(opened));
-  if (opened.name !== undefined){ await ph.fill('#sk-gname', 'Field kit'); await ph.fill('#sk-gitems', 'Calipers, Torque wrench'); await ph.click('#body [data-act=sk-gsave]'); await settle(ph); }
-  const added = (await groups()).find(g => g.name === 'Field kit');
-  ok('phone: …saved, it is a group of its own with its skills', (await groups()).length === n0 + 1 && !!added && JSON.stringify(added.items) === JSON.stringify(['Calipers', 'Torque wrench']), JSON.stringify(await groups()));
-  ok('phone: no console errors', bad.length === 0, bad[0] ?? '');
-  await ctx.close();
-}
-
-// UX-6f 4c item 10: one position chip, on the page and at the top of the card: the same markup and size; each level with deeper ones lists its
-// children (the one the selection came through marked and first), opened by hover, focus, Alt+↓ or a long press, closed by Esc (the focus back on
-// its level); a choice selects that block as the Outline's row does; the chip does not grow; the list stays in the window
 if (want('ux6f s4c-10: one position chip, the page’s without lists, the card’s with a list per level')) {
   const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
@@ -6476,17 +6342,17 @@ if (want('ux6f s4-4: the "+" stands at the bottom and centre of its block and st
   await page.keyboard.press('Escape'); await settle(page);
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
-  // two columns: each skill group has its own "+" at its bottom centre
+  // the skills: one "+" under the whole section, at its centre, adds a group at the end (src/ui/wordbank.js)
   const ctx2 = await newContext({ motion: true, viewport: { width: 1470, height: 832 } });
   const pg2 = await ctx2.newPage();
   const bad2 = await open(pg2);
-  const g0 = await frameBox(pg2, '.skills__group', 0), g1 = await frameBox(pg2, '.skills__group', 1);
+  const g0 = await frameBox(pg2, '.skills__group', 0), g1 = await frameBox(pg2, '.skills__group', 1), sk = await frameBox(pg2, '.skills');
   await pg2.mouse.move(g0.x + 40, g0.y + 8, { steps: 3 }); await settle(pg2);
-  const sp = (await hands(pg2)).plus;
-  ok('a skill group’s "+" stands under the group, at its centre', !!sp && sp.top >= g0.y + g0.height - 1 && sp.top <= g0.y + g0.height + 6 && Math.abs(sp.left + sp.width / 2 - (g0.x + g0.width / 2)) <= 90 && sp.left >= g0.x, JSON.stringify([sp, g0]));
+  const sp = await pg2.evaluate(() => { const b = document.querySelector('#handlay .wbsplus'); if (!b || b.hidden) return null; const r = b.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width }; });
+  ok('the skills\' "+" stands under the whole section, at its centre', !!sp && sp.top >= sk.y + sk.height - 1 && sp.top <= sk.y + sk.height + 12 && Math.abs(sp.left + sp.width / 2 - (sk.x + sk.width / 2)) <= 4, JSON.stringify([sp, sk]));
   await pg2.mouse.move(g1.x + 40, g1.y + 8, { steps: 3 }); await settle(pg2);
-  const sp1 = (await hands(pg2)).plus;
-  ok('…and the group in the other column has its own, under it', !!sp1 && sp1.left >= g1.x && sp1.left + sp1.width <= g1.x + g1.width + 1 && sp1.left > (sp?.left ?? 0) + 100, JSON.stringify([sp1, g1]));
+  const sp1 = await pg2.evaluate(() => { const b = document.querySelector('#handlay .wbsplus'); if (!b || b.hidden) return null; const r = b.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width }; });
+  ok('…the same one for the group in the other column', !!sp1 && Math.abs(sp1.left - (sp?.left ?? -99)) < 1, JSON.stringify([sp1, sp]));
   ok('no console errors', bad2.length === 0, bad2[0] ?? '');
   await ctx2.close();
 }

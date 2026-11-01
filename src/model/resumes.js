@@ -12,12 +12,13 @@
 //  - A snapshot is the open resume as it printed when Save was pressed, plus the sends (where and when it went).
 
 import { t, keyed } from '../i18n/index.js';
-import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere, printedLabel, ownLabels, labelIn } from './resume.js';
+import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere, printedLabel, ownLabels, labelIn, wordsOnResume, takeWord } from './resume.js';
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang, stashOwn, printedFactIds } from './lang.js';
 import { LockedError, guard, isLocked } from './lock.js';
 import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
-import { matchNumber } from './record.js';
+import { matchNumber, reanchor } from './record.js';
+import * as SB from './skillbank.js';
 
 const clone = x => structuredClone(x);
 export const today = () => new Date().toISOString().slice(0, 10);
@@ -699,4 +700,54 @@ export function differences(model, p, c){
   if (p.format !== c.format) out.push(t('ux6e.sum.paper', { a: t(p.format === 'us-letter' ? 'paper.letter' : 'paper.a4'), b: t(c.format === 'us-letter' ? 'paper.letter' : 'paper.a4') }));
   if (skillNames(model, p) !== skillNames(model, c) || JSON.stringify(arrangementOf(model, p).groups) !== JSON.stringify(arrangementOf(model, c).groups)) out.push(t('ux6e.sum.skills', { order: skillNames(model, c) }));
   return out;
+}
+
+// ---- the skill wordbank across every resume ----
+// The saved resumes that print a word (its own groups, or the record's groups it prints as they are). A sent copy never changes and is not one.
+export const wordUses = (state, wid) => (state.resumes ?? []).filter(r => wordsOnResume(state.record, r).has(wid));
+// The record's skill groups follow the bank: a word written anew in `lang` (or taken out, `to` null) is written so in their wordings in that language,
+// so a resume that prints the record's groups as they are says what the bank says. The highlights move with their words.
+function syncClaims(model, lang, from, to){
+  const n = SB.norm(from);
+  if (!n) return;
+  const vs = new Map((model.variants ?? []).map(v => [v.id, v]));
+  for (const gid of SB.recordGroupIds(model)){
+    const f = model.facts.find(x => x.id === gid), ens = f.variants.filter(id => (vs.get(id)?.lang ?? 'en') === 'en');
+    for (const vid of f.variants){
+      const v = vs.get(vid);
+      if (!v || (v.lang ?? 'en') !== lang) continue;
+      const toks = v.text.split(/,\s*/), i = toks.findIndex(x => SB.norm(x) === n);
+      if (i < 0) continue;
+      if (to == null) toks.splice(i, 1); else toks[i] = to;
+      const old = v.text, text = toks.join(', ');
+      v.text = text;
+      v.marks = reanchor(v.marks, old, text, m => m.expect ?? [...old].slice(m.start, m.end).join(''));
+      v.links = reanchor(v.links, old, text);
+      v.metrics = { ...(v.metrics ?? {}), chars: [...text].length, measured: {} };
+      const s = (model.skills ?? []).find(x => x.id === gid);
+      if (s && lang === 'en' && vid === (f.default?.en ?? ens[0])) s.keywords = toks.map(x => x.trim()).filter(Boolean);
+    }
+  }
+}
+const langsOf = model => [...new Set((model.variants ?? []).map(v => v.lang ?? 'en'))];
+// A word's English (`lang` en) or its wording in another language, written in the bank: every resume says it.
+export function renameWord(model, wid, lang, text){
+  const w = SB.wordOf(model, wid);
+  if (!w) throw new Error(`no word ${wid}`);
+  const was = lang === 'en' ? w.name : SB.labelIn(model, wid, lang);
+  SB.setWordText(model, wid, lang, text);
+  const now = lang === 'en' ? w.name : SB.labelIn(model, wid, lang);
+  if (!was || !now || was === now) return;
+  syncClaims(model, lang, was, now);
+  if (lang === 'en') for (const L of langsOf(model)) if (L !== 'en' && (w.same || !SB.labelIn(model, wid, L))) syncClaims(model, L, was, now);      // where it prints its English
+}
+// A word deleted from the bank comes off every saved resume that prints it (and the open one), and out of the record's groups. Returns how many resumes.
+export function dropWordEverywhere(state, wid){
+  const m = state.record, w = SB.wordOf(m, wid);
+  if (!w) return 0;
+  const uses = new Set(wordUses(state, wid).map(r => r.id));
+  for (const r of [...(state.resumes ?? []), state.cur].filter(Boolean)) if (r.skillArrangement && wordsOnResume(m, r).has(wid)) takeWord(m, r, wid);
+  for (const L of langsOf(m)){ syncClaims(m, L, w.name, null); const l = SB.labelIn(m, wid, L); if (l) syncClaims(m, L, l, null); }
+  SB.dropWord(m, wid);
+  return uses.size;
 }

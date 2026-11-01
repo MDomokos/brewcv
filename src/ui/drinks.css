@@ -47,6 +47,9 @@ html[data-drink="coffee"] :is(.lbl, .pop__sub, .obeye, .obkeep h3, .swlist .lbl)
 html[data-drink="coffee"] body[data-phone=true]:not(.is-intro) .col { border: 1px solid var(--line-strong); }
 html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #body { border: 1px solid var(--line-strong); border-bottom: 0; }
 html[data-drink="coffee"] :is(.pop.card, .menu.card, .switcher, .help, .obcard) { border: 1px solid var(--line-strong); }
+html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > .bankcard, html[data-drink="coffee"] .wbwadd > .wbaddrow { border: 1px solid var(--line-strong); }      /* the word bank's window and the page's word box: a hairline, no lift */
+html[data-drink="coffee"] .wbwadd > .wbaddrow.near { border-color: color-mix(in srgb, var(--page-warn) 70%, transparent); }
+html[data-drink="coffee"] .wbghost:not(.is-page) { border-color: var(--ink-soft); }
 html[data-drink="coffee"] .seg { padding: 0; gap: 4px; }
 html[data-drink="coffee"] .seg [role=tab], html[data-drink="coffee"] .seg button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 4px 6px; color: var(--faint); }
 html[data-drink="coffee"] .seg [role=tab][aria-selected=true], html[data-drink="coffee"] .seg button[aria-pressed=true] { background: transparent; color: var(--ink); border-bottom-color: var(--ink); box-shadow: none; }

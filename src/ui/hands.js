@@ -69,7 +69,7 @@ export function initHands(C){
     const s = ui.sel, x = ix();
     if (s.kind === 'header' || (s.kind === 'bullet' && s.section === 'header')) return reread({ k: 'header' });
     if (s.kind === 'bullet' && s.job) return reread({ k: 'line', fact: s.id, job: s.job });
-    if (s.kind === 'bullet' && s.section === 'skills') return reread({ k: 'group', fact: s.id });
+    if (s.kind === 'bullet' && s.section === 'skills') return reread({ k: 'group', fact: s.id.replace(/^~g:/, '') });
     if (s.kind === 'job') { const l = sheet.jobLines(s.id, x).at(-1); return l ? { k: 'line', fact: l.fact, job: s.id, rect: l.rect, edge: l.edge, selOnly: true } : null; }
     return null;
   }
@@ -115,10 +115,7 @@ export function initHands(C){
     const gel = h && (h.k === 'line' || h.k === 'group') && !h.selOnly && on() && !locked(h.fact) && near(h) ? sheet.plateOf(h, ix()) : null;
     // the "+": just under the job's last line, or under the skill group it stands by
     let last = null, label = '';
-    if (h && on() && (h.k === 'line' || h.k === 'group') && !locked(h.k === 'line' ? h.job : h.fact)){
-      if (h.k === 'line'){ last = sheet.jobLines(h.job, x).at(-1); label = t('ux6c.plusLine', { job: C.jobName(h.job) }); }
-      else { const g = sheet.skillGroups(x).find(q => q.fact === h.fact); last = g ?? h; label = t('ux6c.plusGroup'); }      // a skill group is added after the one it stands by: each column has its own (its whole box, not the skills' alone)
-    }
+    if (h && on() && h.k === 'line' && !locked(h.job)){ last = sheet.jobLines(h.job, x).at(-1); label = t('ux6c.plusLine', { job: C.jobName(h.job) }); }      // (the skills' "+" is src/ui/wordbank.js's: under the whole section, and after a group's last word)
     bridge = null;
     if (last){
       // the "+" stands at the bottom and centre of the block (the job, or the skill group), a little under its last row, so it is not taken for a grip; where printed text
@@ -215,7 +212,7 @@ export function initHands(C){
     // one that does not is the click it was. A line being written takes its own presses.
     if (e.type === 'pointerdown') touch = e.pointerType === 'touch';
     if (e.type === 'pointerdown' && e.button === 0 && !e.defaultPrevented && !e.target.closest?.('[contenteditable]')){
-      const s = sheet.skillAt(ix(), x, y), h = s || e.pointerType === 'touch' ? null : sheet.handAt(ix(), x, y);
+      const s = null, h = e.pointerType === 'touch' ? null : sheet.handAt(ix(), x, y);      // a skill word is moved by src/ui/wordbank.js
       const tab = h && (h.k === 'line' || h.k === 'group') && x < h.rect.left && x >= h.rect.left - TAB_HOLD && y >= h.rect.top && y <= h.rect.top + h.rect.height;      // where its plate's tab (the dots) is, shown yet or not
       const mine = h && (h.d <= HOLD || tab) && h.k !== 'header' && !(ui.writing && C.writingFact() === h.fact);
       const edge = !s && !mine && e.pointerType !== 'touch' ? onPlate(x, y) : null;
@@ -510,6 +507,8 @@ export function initHands(C){
     sheet.doc?.removeEventListener('keydown', escDrag, true);
     if (!d){ sheet.unnudge(false); return; }
     if (p) dragEnded = performance.now();
+    $('#bankcard')?.classList.remove('drop-bank');
+    if (p && d.moved && d.kind === 'group' && C.bank?.()?.overBank(canvas.cam.x + p.x * canvas.cam.k, canvas.cam.y + p.y * canvas.cam.k)){ sheet.land(null, false); C.bank().deleteGroup(d.fact); place(); return; }
     const lifted = d.rowEl;      // a drop that changes nothing sets it down again
     if (p && d.moved && d.ok){
       if (d.kind === 'skill') C.edit().moveSkill(d.fact, d.k, d.to.g, d.to.j);
@@ -546,7 +545,9 @@ export function initHands(C){
   // Esc during a drag: nothing is dropped, everything goes back, no undo step; the click that follows the release is not a click
   function escDrag(e){ if (e.key === 'Escape' && drag?.moved){ e.preventDefault(); e.stopPropagation(); spent = true; dragEnded = performance.now(); endDrag(null); } }
   window.addEventListener('keydown', escDrag, true);
-  const dragMove = p => { drag.moved = true; dragTo(p); preview(drag, p); };
+  // a skill group carried over the bank's window comes off the resume when it is let go there (src/ui/wordbank.js)
+  const overBank = p => drag?.kind === 'group' && !!C.bank?.()?.overBank(canvas.cam.x + p.x * canvas.cam.k, canvas.cam.y + p.y * canvas.cam.k);
+  const dragMove = p => { drag.moved = true; $('#bankcard')?.classList.toggle('drop-bank', overBank(p)); dragTo(p); preview(drag, p); };
 
   // ---- the sidebar's rows: grabbing a row drags its block (no handles), the page showing the same preview ----
   const rowId = el => el.dataset.bullet ?? el.dataset.item ?? el.dataset.job ?? el.dataset.sid;

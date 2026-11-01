@@ -133,51 +133,6 @@ section('saved resumes: parent, rename, closest, same company');
   ok('sameCompany ignores case and spaces, itself, and no company', eq(RS.sameCompany({ resumes: [a, b, c, d] }, a), [b]) && RS.sameCompany({ resumes: [a, d] }, d).length === 0);
 }
 
-section('skill sets: back to the record\'s groups, and delete a set (UX-6c-iv-b)');
-{
-  const m = clone(model), g = [{ id: 'skills-cad', items: ['CAD'] }];
-  T.saveSetForTag(m, 'Hardware design', { groups: g });
-  T.saveSetForTag(m, 'Hardware design', { groups: g }, 'hu');
-  const rc = T.newResume(m, { lang: 'en' }), before = clone(rc);
-  T.applySet(m, rc, 'Hardware design');
-  ok('applySet is undone by clearArrangement: the recipe is as it was', (T.clearArrangement(m, rc), eq(rc, before)));
-  ok('clearArrangement on a resume with none changes nothing', (T.clearArrangement(m, rc), eq(rc, before)));
-  const LK = await import('../src/model/lock.js');
-  const lk = clone(rc); T.applySet(m, lk, 'Hardware design'); LK.setLocked(lk, 'skills-cad', true);
-  ok('clearArrangement is held while a group is locked', throws(() => T.clearArrangement(m, lk)) && !!lk.skillArrangement);
-  ok('deleteSkillSet removes one language of a tag and keeps the other', T.deleteSkillSet(m, 'Hardware design', 'hu') && eq(Object.keys(m.skillSets['Hardware design']), ['en']));
-  ok('…the tag\'s last set takes the tag with it, and the last tag takes skillSets', T.deleteSkillSet(m, 'Hardware design', 'en') && !('skillSets' in m));
-  ok('…a set that is not there is not deleted', T.deleteSkillSet(m, 'Hardware design', 'en') === false);
-}
-
-section('skill sets: per language, falling back to English');
-{
-  const m = clone(model);
-  const en = [{ id: 'skills-cad', items: ['CAD', 'FEA'] }], hu = [{ id: 'skills-cad', items: ['CAD', 'VEM'] }];
-  ok('a record without sets has none', eq(T.skillSets(m), {}));
-  T.saveSetForTag(m, 'Hardware design', { groups: en });
-  T.saveSetForTag(m, 'Hardware design', { groups: hu }, 'hu');
-  T.saveSetForTag(m, 'Prototyping', { groups: en });
-  ok('a set holds a list of groups per language', eq(Object.keys(m.skillSets['Hardware design']), ['en', 'hu']) && m.skillSets['Hardware design'].hu[0].items[1] === 'VEM');
-  const rc = T.newResume(m, { lang: 'hu' });
-  T.applySet(m, rc, 'Hardware design');
-  ok('applySet takes the recipe\'s language', rc.skillArrangement.from === 'Hardware design' && eq(rc.skillArrangement.groups, hu));
-  T.applySet(m, rc, 'Prototyping');
-  ok('hu falls back to en when the set has no hu', eq(rc.skillArrangement.groups, en));
-  rc.skillArrangement.groups[0].items.push('X');
-  ok('the recipe holds a copy', m.skillSets.Prototyping.en[0].items.length === 2);
-  ok('an unknown set is refused', throws(() => T.applySet(m, rc, 'Nope')));
-  const base = T.newResume(m, { lang: 'en' });
-  base.jobType = 'Prototyping';
-  const arr = T.arrangementOf(m, base);
-  ok('with no arrangement of its own, the skills print as groups', arr.groups.length === 4 && arr.groups[0].id === 'skills-cad' && arr.groups[0].items.length > 1 && arr.from === 'Prototyping');
-  ok('a job type with no set is from nothing', T.arrangementOf(m, { ...base, jobType: 'Other' }).from === null);
-  T.setArrangement(base, { from: null, groups: hu });
-  ok('an arrangement of its own wins, as a copy', eq(T.arrangementOf(m, base).groups, hu) && T.arrangementOf(m, base) === base.skillArrangement && hu[0].items.length === 2);
-  ok('groupLabel reads the language\'s labels', T.groupLabel(m, { lang: 'hu' }, 'skills-cad') === 'CAD és 3D');
-  ok('groupLabel falls back to the claim\'s label, then the id', T.groupLabel(m, { lang: 'en' }, 'skills-cad') === (m.facts.find(f => f.id === 'skills-cad').label ?? 'skills-cad') && T.groupLabel(m, { lang: 'en' }, 'zzz') === 'zzz');
-}
-
 section('photo');
 {
   const r = {};
@@ -450,84 +405,60 @@ section('a line only on this resume: empty, language, add and remove, anchors, s
   ok('the same id in two resumes, on different jobs, is two claims that differ', other.length === 2 && other.every(r => r.differs));
 }
 
-section('skills arranged on the page (UX-6c-ii)');
+section('a resume\'s own skill groups: words from the bank, placed, moved and taken back');
 {
   const m = clone(model), html = r => renderPages(m, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
   const rc = clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe);
-  const before = html(rc), groups0 = T.arrangementOf(m, rc).groups.map(g => g.id);
-  ok('a resume with no arrangement prints as before', !rc.skillArrangement && html(clone(rc)) === before);
-  T.writeGroup(m, rc, 'skills-cad', 'Tools\nCreo, Fusion 360\nKeyShot');
-  const cad = rc.skillArrangement.groups.find(g => g.id === 'skills-cad');
-  ok('writing a group: the first line is its name, the rest its skills (commas or line breaks)', cad.label === 'Tools' && eq(cad.items, ['Creo', 'Fusion 360', 'KeyShot']) && eq(rc.skillArrangement.groups.map(g => g.id), groups0));
-  ok('…the first change copies the other groups as they print', rc.skillArrangement.groups.every(g => g.items.length) && T.groupText(m, rc, 'skills-cad') === 'Tools\nCreo, Fusion 360, KeyShot');
-  const page = html(rc);
-  ok('the renderer prints the arrangement: the name, the skills joined, in order', page.includes('>Tools</span><br><span class="skills__items">Creo, Fusion 360, KeyShot</span>') && !page.includes('SolidWorks (CSWP)') && page !== before);
-  ok('one line only is its skills, the name stays', (T.writeGroup(m, rc, 'skills-cad', 'A, B'), rc.skillArrangement.groups[0].label === 'Tools' && eq(rc.skillArrangement.groups[0].items, ['A', 'B'])));
-  const g = T.addSkillGroup(m, rc, 'skills-cad');
-  ok('a new group follows the one it was added after, empty, and prints nowhere until it has skills', g === '~sg-1' && rc.skillArrangement.groups[1].id === g && !html(rc).includes('~sg-1'));
-  T.writeGroup(m, rc, g, 'Process\nLean, 5S');
-  ok('written, it prints under its own name', html(rc).includes('>Process</span><br><span class="skills__items">Lean, 5S</span>'));
-  T.moveSkill(m, rc, 'skills-cad', 0, g, 1);
+  const before = html(rc), groups0 = T.arrangementOf(m, rc).groups.map(g => g.id), id = n => SB.findWord(m, n).id;
   const texts = g => g.items.map(x => SB.wordText(m, x).text);
-  ok('a skill moves to a place in another group, and every typed skill is a word of the bank now', eq(texts(rc.skillArrangement.groups[0]), ['B']) && eq(texts(rc.skillArrangement.groups[1]), ['Lean', 'A', '5S']) && rc.skillArrangement.groups.every(x => x.items.every(i => SB.wordOf(m, i))));
-  T.moveSkill(m, rc, 'skills-cad', 0, g, 0);
-  ok('a group left with no skills goes', !rc.skillArrangement.groups.some(x => x.id === 'skills-cad') && rc.skillArrangement.groups[0].id === g);
+  ok('a resume with no groups of its own prints the record\'s, and lists their words as on it', !rc.skillArrangement && html(clone(rc)) === before && T.wordsOnResume(m, rc).get(id('Creo')) === 'skills-cad');
+  T.takeWord(m, rc, id('SolidWorks (CSWP)'));
+  ok('taking a word off copies the groups as they print, as the bank\'s words, without it', eq(rc.skillArrangement.groups.map(g => g.id), groups0) && rc.skillArrangement.groups.every(g => g.items.every(x => SB.wordOf(m, x))) && eq(texts(rc.skillArrangement.groups[0]), ['Creo', 'Fusion 360', 'KeyShot']));
+  const page = html(rc);
+  ok('the renderer prints the groups: the heading, the words joined, in order', page.includes('>CAD &amp; 3D</span><br><span class="skills__items">Creo, Fusion 360, KeyShot</span>') && !page.includes('SolidWorks (CSWP)') && page !== before);
+  T.placeWord(m, rc, id('SolidWorks (CSWP)'), 'skills-software', id('Git'));
+  ok('a word from the bank goes into a group, before a word, or at its end', eq(texts(rc.skillArrangement.groups[3]), ['Python', 'MATLAB', 'SolidWorks (CSWP)', 'Git', 'Excel']));
+  T.placeWord(m, rc, id('SolidWorks (CSWP)'), 'skills-cad');
+  ok('…from another group it moves, never twice on a resume', eq(texts(rc.skillArrangement.groups[0]), ['Creo', 'Fusion 360', 'KeyShot', 'SolidWorks (CSWP)']) && !rc.skillArrangement.groups[3].items.includes(id('SolidWorks (CSWP)')));
+  const g = T.addSkillGroup(m, rc, 'skills-cad');
+  ok('a new group follows the one it was added after (none: last), empty, and prints nowhere until it has words', g === '~sg-1' && rc.skillArrangement.groups[1].id === g && !html(rc).includes('~sg-1') && T.addSkillGroup(m, clone(rc)) === '~sg-2');
+  T.setGroupHeading(m, rc, g, 'Process'); T.placeWord(m, rc, id('PPAP'), g);
+  ok('its heading written, it prints under it', html(rc).includes('>Process</span><br><span class="skills__items">PPAP</span>') && rc.skillArrangement.groups[1].label === 'Process' && rc.skillArrangement.groups[1].lang === 'en');
+  T.moveSkill(m, rc, 'skills-cad', 0, g, 1);
+  ok('a word moves to a place in another group (the keyboard route)', eq(texts(rc.skillArrangement.groups[1]), ['PPAP', 'Creo']));
+  for (const w of [...rc.skillArrangement.groups[0].items]) T.takeWord(m, rc, w);
+  ok('a group left with no words stays, and prints nothing', rc.skillArrangement.groups[0].id === 'skills-cad' && !rc.skillArrangement.groups[0].items.length && !html(rc).includes('CAD &amp; 3D'));
   T.moveSkillGroup(m, rc, g, null);
   ok('a group moves before another, or last', rc.skillArrangement.groups.at(-1).id === g);
-  T.writeGroup(m, rc, g, '');
-  ok('emptied, a group is removed', !rc.skillArrangement.groups.some(x => x.id === g));
-  ok('an unknown group is refused', throws(() => T.writeGroup(m, rc, 'nope', 'x')) && throws(() => T.moveSkill(m, rc, 'nope', 0, g, 0)));
+  T.removeSkillGroup(m, rc, g);
+  ok('a group deleted from the resume is gone, its words still in the bank', !rc.skillArrangement.groups.some(x => x.id === g) && !!SB.wordOf(m, id('PPAP')));
+  ok('an unknown group or word is refused', throws(() => T.removeSkillGroup(m, rc, 'nope')) && throws(() => T.placeWord(m, rc, 'sw-nope', 'skills-software')) && throws(() => T.moveSkill(m, rc, 'nope', 0, 'skills-cad', 0)));
+  // headings: its own in this language, a shelf's name, or the record group's back
+  const sh = SB.addShelf(m, 'Design'); SB.setShelfName(m, sh.id, 'de', 'Konstruktion');
+  T.setGroupHeading(m, rc, 'skills-cad', 'design');
+  ok('a heading that is a shelf\'s name uses the shelf\'s name, in every language', rc.skillArrangement.groups[0].shelf === sh.id && rc.skillArrangement.groups[0].label === undefined && T.printedLabel(m, { ...rc, lang: 'de' }, '~g:skills-cad') === 'Konstruktion');
+  T.setLabel(m, rc, '~g:skills-cad', 'en', 'CAD & 3D');
+  ok('…the record group\'s own heading takes it back to the record\'s', !('shelf' in rc.skillArrangement.groups[0]) && !('label' in rc.skillArrangement.groups[0]));
   const arranged = clone(rc);
   const back = S.loadResume(JSON.parse(JSON.stringify(S.saveResume(m, arranged).file)), m);
-  ok('the arrangement comes back from the saved file, with no warnings', back.warnings.length === 0 && eq(back.recipe.skillArrangement, arranged.skillArrangement));
+  ok('the groups come back from the saved file, with no warnings', back.warnings.length === 0 && eq(back.recipe.skillArrangement, arranged.skillArrangement));
   const ex = X.jsonResumeFile(m, arranged).file, txt = X.plainText(ex);
-  ok('the exports follow the arrangement: the JSON Resume file has the groups as arranged, and a skill taken off the page is not in the text', eq(ex.skills.map(x => x.name), arranged.skillArrangement.groups.map(g => g.label ?? T.groupLabel(m, arranged, g.id))) && !ex.skills.some(x => x.keywords.includes('SolidWorks (CSWP)')) && !txt.includes('SolidWorks (CSWP)') && txt.includes('Fabrication'), JSON.stringify(ex.skills));
-  ok('…a resume with no arrangement exports the record\'s groups, and the old note is gone', X.jsonResumeFile(m, clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe)).file.skills.some(x => x.keywords.includes('SolidWorks (CSWP)')) && !T.resolve(m, rc).problems.some(x => x.includes('arranges')));
+  ok('the exports follow the groups: a word taken off the page is not in the JSON Resume file or the text', !ex.skills.some(x => x.keywords.includes('KeyShot')) && !txt.includes('KeyShot') && txt.includes('Fabrication'), JSON.stringify(ex.skills));
+  // start from another resume
+  const other = clone(S.loadResume(read(`data/example-resumes/${names[1]}`), m).recipe);
+  T.useGroupsOf(m, other, arranged);
+  ok('starting from another resume copies its groups, as words, in place of this one\'s', eq(other.skillArrangement.groups.map(x => x.items), arranged.skillArrangement.groups.map(x => x.items)));
   // a file anyone can edit
   const mal = v => { const f = S.saveResume(m, clone(arranged)).file; f.meta.resumeBuilder.resume.skillArrangement = v; return S.loadResume(JSON.parse(JSON.stringify(f)), m); };
   const bad = [mal('x'), mal({ groups: 'x' }), mal({ groups: [null, { id: 'a' }, { id: 'a', items: ['x'] }, { id: 'a', items: ['y'] }, { id: 'b', items: [1] }, { id: 'c', items: ['z'], label: 5 }] })];
   ok('a malformed arrangement is cleaned, each with a warning, and the page renders', bad.every(w => w.warnings.length && (() => { try { html(w.recipe); return true; } catch { return false; } })())
     && bad[0].recipe.skillArrangement === undefined && bad[1].recipe.skillArrangement === undefined && eq(bad[2].recipe.skillArrangement.groups, [{ id: 'a', items: ['x'] }, { id: 'c', items: ['z'] }]), JSON.stringify(bad.map(w => w.recipe.skillArrangement)));
-  // sets per language: hu falls back to en, and what falls back is listed as untranslated
-  const hr = T.newResume(m, { lang: 'hu' });
-  T.saveSetForTag(m, 'Hardware', { groups: [{ id: 'skills-fabrication', items: ['CAD', 'FEA'] }] });
-  T.applySet(m, hr, 'Hardware');
-  ok('a set with no hu groups starts a hu resume from the en ones, and says so', hr.skillArrangement.lang === 'en' && eq(hr.skillArrangement.groups, [{ id: 'skills-fabrication', items: ['CAD', 'FEA'] }]));
-  ok('…those groups are listed as untranslated', L.missingList(m, hr).some(x => x.id === 'skills-fabrication' && x.key === 'fact:skills-fabrication'));
-  T.writeGroup(m, hr, 'skills-fabrication', 'CAD\nCAD, VEM');
-  ok('…until written in hu', !L.missingList(m, hr).some(x => x.id === 'skills-fabrication'));
-  T.saveSetForTag(m, 'Hardware', { groups: [{ id: 'skills-fabrication', items: ['CAD', 'VEM'] }] }, 'hu');
-  T.applySet(m, hr, 'Hardware');
-  ok('a set that has hu groups does not fall back', hr.skillArrangement.lang === undefined && eq(Object.keys(m.skillSets.Hardware), ['en', 'hu']));
-  // the arrangement as a set for a tag
-  T.saveSetForTag(m, 'Medical', T.arrangementOf(m, arranged), 'en');
-  const again = clone(rc); T.applySet(m, again, 'Medical');
-  ok('saved as the set for a tag, and applied from it, the arrangement is the same', eq(again.skillArrangement.groups, arranged.skillArrangement.groups) && again.skillArrangement.from === 'Medical');
-}
-
-section('skill sets follow their tag and job type; a fallback set is saved as English; no skills, no band');
-{
-  const m = clone(model), html = r => renderPages(m, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
-  const rc = clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe);
-  T.writeGroup(m, rc, 'skills-cad', 'Tools\nCreo');
   const emptied = clone(rc); emptied.skillArrangement.groups = [];
-  ok('an arrangement with no groups prints no Skills band, and none with only empty groups', !html(emptied).includes('data-section="skills"') && !/>Skills</.test(html(emptied)) && html(rc).includes('>Tools</span>'));
-  const [t1, t2] = m.vocabulary.tags;      // two tags of the record's own list
-  const arr = clone(T.arrangementOf(m, rc));
-  T.saveSetForTag(m, t1, { ...arr, lang: 'en' }, 'hu');
-  ok('groups that are still the English fallback are saved as the English set', eq(Object.keys(m.skillSets[t1]), ['en']));
-  T.saveSetForTag(m, t2, arr, 'hu');
-  const mine = clone(rc); mine.skillArrangement.from = t1;
-  K.renameTag(m, t1, 'Renamed tag', [mine]);
-  ok('renaming a tag renames its skill set and the arrangements that began as it', !m.skillSets[t1] && !!m.skillSets['Renamed tag'] && mine.skillArrangement.from === 'Renamed tag');
-  K.mergeTag(m, 'Renamed tag', t2, [mine]);
-  ok('merging keeps the target\'s sets and adds the other\'s', eq(Object.keys(m.skillSets), [t2]) && eq(Object.keys(m.skillSets[t2]).sort(), ['en', 'hu']) && mine.skillArrangement.from === t2);
-  K.deleteTag(m, t2, [mine]);
-  ok('deleting a tag deletes its set and unlinks the arrangements', !m.skillSets && mine.skillArrangement.from === undefined);
-  const jt = K.addJobType(m, 'CAD jobs', []); T.saveSetForTag(m, 'CAD jobs', arr, 'en');
-  const two = clone(rc); two.skillArrangement.from = 'CAD jobs';
-  K.renameJobType(m, jt, 'Design jobs', [two]);
-  ok('renaming a job type renames its set too', !!m.skillSets['Design jobs'] && !m.skillSets['CAD jobs'] && two.skillArrangement.from === 'Design jobs');
+  ok('an arrangement with no groups prints no Skills band, and none with only empty groups', !html(emptied).includes('data-section="skills"') && !/>Skills</.test(html(emptied)));
+  // the set of an older version: still in the file, and its tag still follows a rename
+  const [t1] = m.vocabulary.tags; m.skillSets = { [t1]: { en: [{ id: 'skills-cad', items: ['Creo'] }] } };
+  K.renameTag(m, t1, 'Renamed tag', []);
+  ok('an older version\'s skill set is kept and follows its tag', !!m.skillSets['Renamed tag']);
 }
 section('an edited contact line keeps the links whose words it still has');
 {
@@ -639,18 +570,20 @@ section('UX-6c-iii-b: the lock');
     setSectionLabel: ['~h:education', r => T.setSectionLabel(model, r, 'education', 'en', 'Studies')],
     addLocalLine: [job, r => T.addLocalLine(model, r, job, null)],
     removeLocalLine: ['~new-1', r => T.removeLocalLine(model, r, '~new-1')],
-    writeGroup: ['skills-cad', r => T.writeGroup(model, r, 'skills-cad', 'CAD, FEA')],
+    setGroupHeading: ['skills-cad', r => T.setGroupHeading(model, r, 'skills-cad', 'CAD')],
+    'setLabel (a skill group)': ['skills-cad', r => T.setLabel(model, r, '~g:skills-cad', 'en', 'CAD')],
+    placeWord: ['skills-cad', r => T.placeWord(model, r, 'sw-python', 'skills-cad')],
+    takeWord: ['skills-cad', r => T.takeWord(model, r, 'sw-creo')],
+    removeSkillGroup: ['skills-cad', r => T.removeSkillGroup(model, r, 'skills-cad')],
     addSkillGroup: ['skills', r => T.addSkillGroup(model, r, null)],
     moveSkillGroup: ['skills-cad', r => T.moveSkillGroup(model, r, 'skills-cad', null)],
     moveSkill: ['skills-cad', r => T.moveSkill(model, r, 'skills-cad', 0, 'skills-software', 0)],
-    applySet: ['skills', r => T.applySet(model, r, Object.keys(model.skillSets ?? { x: 1 })[0] === 'x' ? 'x' : Object.keys(model.skillSets)[0])],
+    useGroupsOf: ['skills', r => T.useGroupsOf(model, r, nobody)],
     setPhoto: ['header', r => T.setPhoto(model, r, { show: true })],
     acceptNewer: [line, r => RS.acceptNewer(r, line, model)],
   };
-  const sets = { ...model, skillSets: { Demo: { en: [{ id: 'skills-cad', items: ['CAD'] }] } } };
   for (const [name, [id, fn]] of Object.entries(calls)){
-    const m0 = name === 'applySet' ? sets : model;
-    const run = r => (name === 'applySet' ? T.applySet(sets, r, 'Demo') : fn(r));
+    const run = r => fn(r);
     // the target locked directly, then by the nearest ancestor that is not the page
     const prep = r => { if (name === 'removeLocalLine'){ r.localLines = { [job]: [{ id: '~new-1', after: null }] }; r.overrides = { '~new-1': 'x' }; } if (name === 'parkOverride') r.overrides = { [line]: 'x' }; if (name === 'acceptNewer') r.held = [line]; if (name === 'unparkOverride') r.parked = { [line]: { text: 'p', meta: {} } }; return r; };
     const direct = prep(withLock(base, id)), page = prep(withLock(base, LK.PAGE)), free = prep(clone(nobody));

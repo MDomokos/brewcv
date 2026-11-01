@@ -92,8 +92,20 @@ html.rb-previewing .document > .page { outline: var(--plate-line) solid var(--pl
 html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit), html.rb-focus .skills__items[data-variant]:not(.rb-hit), html.rb-focus .pairs dd[data-variant]:not(.rb-hit), html.rb-focus .runs strong[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity var(--rb-m-base, 240ms) var(--rb-m-out, ease-out); }
 html.rb-writing :is([data-variant], [data-label]):not([contenteditable]) { opacity: var(--rb-wdim, .94); }
 html.rb-ui [contenteditable] { cursor: text; }
-html.rb-ui .skills__group[contenteditable] { color: var(--rb-gi); }      /* a skill group written in place (onpage.js): the name on the first line in its label's own look, the skills below in theirs */
-html.rb-ui .skills__group[contenteditable]::first-line { color: var(--rb-gl); font-weight: var(--rb-gw); }
+/* the skill words (src/ui/wordbank.js): each one grabbed and carried; the picked group's words as soft tiles; while a word is carried every group a
+   dashed drop zone, the word's place a slot of its width, and the group it is held back from a firmer edge; a new word written where it will print */
+html.rb-ui .skills__group [data-word] { cursor: grab; border-radius: var(--plate-r); -webkit-user-select: none; user-select: none; }
+html.rb-ui .skills__group.rb-sel [data-word]:not(.rb-wsocket) { box-shadow: 0 0 0 var(--plate-hair) var(--plate-accent); }
+html.rb-skcarry, html.rb-skcarry * { cursor: grabbing !important; user-select: none !important; }
+html.rb-skcarry .skills__group [data-word] { display: inline-block; }
+html.rb-skcarry .skills__group { outline: var(--plate-hair) dashed var(--plate-accent); outline-offset: 4px; }
+html.rb-skcarry .skills__group.rb-sknear { outline-style: solid; }
+html.rb-ui .rb-wsocket { color: transparent !important; background: var(--plate-tint-sel); box-shadow: none; }
+html.rb-ui .rb-newword { display: inline-block; min-width: 3em; white-space: nowrap; cursor: text; outline: var(--plate-hair) solid var(--plate-accent); outline-offset: 2px; background: var(--plate-paper, transparent); }
+html.rb-ui .rb-newword.rb-warned { outline: 2px solid var(--plate-miss); }
+.rb-newword.wb-shake { animation: rb-shake .35s; }
+.rb-sknudge .skills__group { animation: rb-flash 900ms var(--rb-m-out, ease-out); }
+@keyframes rb-shake { 25% { translate: -3px 0; } 75% { translate: 3px 0; } }
 .band .tab.rb-miss-tab { background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--plate-miss) 45%, transparent) 0 3px, transparent 3px 7px) !important; }
 [data-rb-hid] { -webkit-text-fill-color: transparent; }
 [data-rb-hid]::marker { -webkit-text-fill-color: currentcolor; }

@@ -38,7 +38,7 @@ const want = t => !process.env.ONLY || process.env.ONLY.split(',').some(o => t.i
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 const DELETE_X = 'M4 4l8 8M12 4l-8 8';      // the close drawing: delete is an X, not the bin
-const DEL_ACTS = ['rm-delete', 'snap-delete', 'delete-version', 'earlier-remove', 'delete-claim', 'tag-rm', 'd-photo-rm', 'local-remove', 'sk-del', 'c-del-entry', 'c-del-item',
+const DEL_ACTS = ['rm-delete', 'snap-delete', 'delete-version', 'earlier-remove', 'delete-claim', 'tag-rm', 'd-photo-rm', 'local-remove', 'sk-delgroup', 'wb-delw', 'wb-delw-yes', 'wb-delshelf', 'c-del-entry', 'c-del-item',
   'c-kind-del', 'c-kind-del-all', 'c-jt-del', 'c-tag-del', 'c-jt-tag-rm', 'c-kw-rm', 'd-drop', 'lang-remove', 'start-over'];
 const LOOKS = [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']];
 

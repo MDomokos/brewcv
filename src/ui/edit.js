@@ -57,7 +57,6 @@ function dropLine(fact){
 // Leaving a line keeps what was typed on this resume, and nothing asks: one override with the highlights it keeps and the version it
 // was written from. The words of that version again drop the override.
 function keepEdit(ed){
-  if (ed.group) return keepGroup(ed);
   if (ed.label) return keepLabel(ed);
   if (!isDirty(ed) || !ed.draft.trim()) return;      // an emptied line keeps what it had: the last kept edit, or the version's words
   const text = ed.draft.trim(), base = ix().variants.get(ed.vid), here = text !== base?.text.trim() || marksChanged(ed);
@@ -74,14 +73,6 @@ function keepLabel(ed){
   if (!isDirty(ed) || !ed.draft.trim()) return;
   C.ui.previewing = false;
   commit(d => T.setLabel(d.record, d.cur, ed.fact, ed.lang, ed.draft), t('ux6c.undoLabel'));
-}
-// A skill group written on the page: its name and skills, kept on this resume's arrangement. No skills left (a new group, or all
-// of them deleted): the group goes, and Ctrl+Z brings it back.
-function keepGroup(ed){
-  const had = T.arrangementOf(rec(), cur()).groups.find(g => g.id === ed.fact)?.items.length;
-  if (ed.draft === ed.base && had) return;
-  C.ui.previewing = false;
-  commit(d => T.writeGroup(d.record, d.cur, ed.fact, ed.draft), t('ux6c.undoSkills'), had && !T.readGroup(ed.draft).items.length ? `${t('ux6c.groupRemoved')} ${t('toast.ctrlZUndoes')}` : undefined, true);
 }
 // the highlights of the text the line started from, moved onto what was typed (a mark whose words are gone is dropped)
 // (highlights set by hand, ed.mk, are anchored to the text they were set on, so what is typed after moves them too)
@@ -181,12 +172,11 @@ function noneView(){
 }
 
 // bullets and prose run over several lines; the other texts are one line
-const multiline = ed => !ed.label && !ed.group && (!!T.jobOfFact(rec(), ed.fact, cur()) || ix().summaries.has(ed.fact));
+const multiline = ed => !ed.label && (!!T.jobOfFact(rec(), ed.fact, cur()) || ix().summaries.has(ed.fact));
 // The accessible name of a text written on the page: the heading of its section and what it is there (Education, degree)
 function fieldName(ed){
   const id = ed.fact, of = (sec, what) => `${sec}, ${what}`, secOf = sid => C.sectionTitle(sid);
-  if (ed.label) return id.startsWith('~h:') ? of(secOf(id.slice(3)), t('ux6c.n.heading')) : of(secOf(ix().owned.get(id.slice(3))), t('ux6c.n.name'));
-  if (ed.group) return of(secOf('skills'), t('ux6c.n.group'));
+  if (ed.label) return id.startsWith('~h:') ? of(secOf(id.slice(3)), t('ux6c.n.heading')) : id.startsWith('~g:') ? of(secOf('skills'), t('ux6c.n.group')) : of(secOf(ix().owned.get(id.slice(3))), t('ux6c.n.name'));
   const f = Object.entries(rec().basics?.display ?? {}).find(([, x]) => x === id);
   if (f) return of(t('ux6c.header'), t(`ux6c.f.${f[0]}`));
   const w = [...ix().work.values()].find(x => Object.values(x.display ?? {}).includes(id));
@@ -197,7 +187,7 @@ function fieldName(ed){
   return j ? of(j.name ?? j.organization ?? j.entity ?? j.id, t('ux3.crumbLine')) : of(secOf('summary'), t('ux6c.n.text'));
 }
 // what a line is called in the depth chip and the card: its summary, else its words; a new empty line only on this resume is "New line"
-const lineName = id => (id.startsWith('~t:') ? T.labelNow(rec(), cur(), id, lang()) : '') || (ix().skillGroups.has(id) ? T.arrangementOf(rec(), cur()).groups.find(g => g.id === id)?.label ?? T.groupLabel(rec(), cur(), id) : '')
+const lineName = id => (id.startsWith('~g:') ? T.labelNow(rec(), cur(), id, lang()) : id.startsWith('~t:') ? T.labelNow(rec(), cur(), id, lang()) : '') || (ix().skillGroups.has(id) ? T.printedLabel(rec(), cur(), `~g:${id}`) : '')
   || ix().facts.get(id)?.summary || C.textOfFact(id) || (T.isLocal(cur(), id) ? t('ux6c.newLine') : id);
 
 // One depth indicator (UX-6c): the levels of what is selected, from the page down. The chip on the page and the row at the top of
@@ -213,7 +203,7 @@ function depth(sel = C.ui.sel){
   const word = s => clip(String(s ?? '').trim().split(/\s+/)[0].replace(/[,.;:]+$/, ''), 12);
   const jw = jobId && ix().work.get(jobId), jobName = jw?.name ?? jw?.organization ?? jw?.entity ?? jobId;
   // an item's word ties to its real content; a date line is Dates; a language's or reference's text takes its pair's name
-  const itemWord = id => word(id.startsWith('~t:') || ix().skillGroups.has(id) ? lineName(id) : /-meta$/.test(id) ? t('ux6c.f.dates') : ix().sections.get(ix().owned.get(id))?.kind === 'pairs' ? lineName(`~t:${id}`) : C.textOfFact(id) || lineName(id));
+  const itemWord = id => word(id.startsWith('~t:') || id.startsWith('~g:') || ix().skillGroups.has(id) ? lineName(id) : /-meta$/.test(id) ? t('ux6c.f.dates') : ix().sections.get(ix().owned.get(id))?.kind === 'pairs' ? lineName(`~t:${id}`) : C.textOfFact(id) || lineName(id));
   // the header's field the selection is on: Name, Headline, Contact or Photo
   const field = sel.kind === 'header' ? (sel.id ? t(`ux6c.f.${sel.id}`) : null) : sel.kind === 'bullet' ? Object.entries(rec().basics?.display ?? {}).map(([k, f]) => (f === sel.id ? t(`ux6c.f.${k}`) : null)).find(Boolean) : null;
   const fieldLevel = field && { word: field, ...(sel.kind === 'bullet' ? { act: 'select-fact', attrs: `${at(sel.id)} data-section="header"` } : { act: 'select-header' }) };
@@ -239,7 +229,7 @@ function lockIdOf(sel = C.ui.sel){
     case 'header': return sel.id ?? 'header';
     case 'job': return sel.id;
     case 'section': return sel.heading ? `~h:${sel.id}` : sel.id;
-    case 'bullet': return sel.id;
+    case 'bullet': return sel.section === 'skills' ? sel.id.replace(/^~g:/, '') : sel.id;      // a skill group's heading is held by the group's lock
     case 'record': return sel.what === 'item' ? factOfRecordSel(rec(), sel) ?? sel.id : null;      // the display claim the lock is held on, not the publication's id
   }
   return null;
@@ -282,7 +272,7 @@ function chipTools(sel){
 function fixTool(sel, id, name, held){
   const key = keyOf(sel), group = ix().skillGroups.has(id);
   const revert = { act: 'chip-revert', icon: 'replay', name: t('ux6c.revertX', { name }), disabled: held };
-  if (isLabelKey(key)) return (key.startsWith('~h:') ? T.labelOf(rec(), cur(), key.slice(3), lang()) != null : T.termOf(cur(), key.slice(3)) != null) ? revert : null;
+  if (isLabelKey(key)) return (key.startsWith('~h:') ? T.labelOf(rec(), cur(), key.slice(3), lang()) != null : key.startsWith('~g:') ? !!(cur().skillArrangement?.groups ?? []).find(g => g.id === key.slice(3))?.label : T.termOf(cur(), key.slice(3)) != null) ? revert : null;
   if (sel.kind !== 'bullet' && !(sel.kind === 'record' && group)) return null;
   if (group) return { act: 'chip-remove', icon: 'delete', del: true, name: t('ux6c.removeX', { name: t('ux6c.theGroup', { name: clip(lineName(id) === id ? t('ux6c.newGroup') : lineName(id), 30) }) }), disabled: held };
   if (T.isLocal(cur(), id)) return { act: 'chip-remove', icon: 'delete', del: true, name: t('ux6c.removeX', { name }), disabled: held };
@@ -349,32 +339,8 @@ function chipOn(kind, id){
   else commit(d => T.setItemOn(d.record, d.cur, id, !on), !on ? t('undo.turnOn') : t('undo.turnOff'));
 }
 
-// The skills of this resume as groups of skills: where to start from, the groups and skills to arrange, and where to keep the result.
-// Each skill is a button (Alt+← → moves it in its group, Alt+↑ ↓ to the group above or below) and can be dragged to another group.
-function skillsHtml(){
-  const m = rec(), arr = T.arrangementOf(m, cur()), sets = Object.keys(T.skillSets(m)), { types, tags } = lensChoices(m, lang());
-  const tag = cur().jobType ?? arr.from ?? '', all = [...types, ...tags], arranged = !!cur().skillArrangement;
-  const saved = x => !!T.skillSets(m)[x]?.[arr.lang ?? cur().lang ?? DEFAULT_LANG];      // the set Save writes for this tag, in this language
-  const ge = E.edit?.group && E.edit.panel ? E.edit : null, gt = ge && T.readGroup(ge.draft);      // a group written here (a phone, or not on the page): its name and its skills, one undo step
-  return `<div class="skarr">${ge ? `<div class="editor skedit" data-fact="${esc(ge.fact)}">
-      <label class="field"><span class="lbl">${h('career.f.group')}</span><input id="sk-gname" value="${esc(gt.name ?? '')}" autocomplete="off"></label>
-      <label class="field"><span class="lbl">${h('career.group.skills')}</span><textarea id="sk-gitems" rows="3" spellcheck="true">${esc(gt.items.join(', '))}</textarea></label>
-      <div class="btns"><button class="primary sm" data-act="sk-gsave">${h('head.save')}</button><span class="grow"></span><button class="sm ghost" data-act="sk-gcancel">${h('btn.cancel')}</button></div></div>`
-    : E.edit?.group ? `<p class="note skwrite">${h('ux6f.groupHint')}</p>` : ''}
-    <label class="field"><span class="lbl inline">${h('ux6c.startFrom')}</span><select id="sk-set" ${sets.length || arranged ? '' : 'disabled'}><option value="">${esc(arr.from ? t('ux6c.setNow', { name: jobTypeLabel(m, arr.from) }) : t('ux6c.setNone'))}</option>
-      ${arranged ? `<option value="~record">${esc(t('ux6c.recordGroups'))}</option>` : ''}
-      ${sets.map(n => `<option value="${esc(n)}">${esc(jobTypeLabel(m, n))}</option>`).join('')}</select></label>
-    ${sets.length ? '' : `<p class="muted small">${h('ux6c.noSets')}</p>`}
-    ${arranged ? `<div class="vlist skpend"><div class="vrow cur only pend"><span class="rad"></span><span class="pendhd"><span class="n">${esc(arr.from ? jobTypeLabel(m, arr.from) : '•')}</span><span class="mine">${h('ux6g.onlyHere')}</span><span class="grow"></span><span class="vbtn"><button class="ghost sm" data-act="sk-record" title="${esc(t('ux6c.recordGroups'))}" aria-label="${esc(t('ux6c.recordGroups'))}">↺</button></span></span>
-      <div class="pendbody"><div class="rvbtns"><button class="primary" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button></div></div></div></div>` : ''}
-    <div class="vlist skgroups">${arr.groups.map(g => { const name = g.label ?? T.groupLabel(m, cur(), g.id) ?? '', n = arranged ? null : C.chooseVariant(work(), g.id, cur()).v?.n; return `<div class="skgroup" data-g="${esc(g.id)}"><div class="skghead"><span class="rad"></span>${n ? `<span class="n">v${esc(n)}</span>` : ''}<b>${esc(name || t('ux6c.newGroup'))}</b>${C.ui.sel.id === g.id && !E.edit ? `<span class="grow"></span><button class="ghost sm" data-act="edit" title="${esc(t('edit.editThis'))}" aria-label="${esc(t('edit.editThis'))}">${icon('edit')}</button>` : ''}</div>
-      <div class="skchips">${g.items.map((x, k) => `<button class="skchip" draggable="true" data-g="${esc(g.id)}" data-k="${k}" title="${esc(t('ux6c.skillTip', { name: x }))}">${esc(x)}</button>`).join('')}</div></div>`; }).join('')}</div>
-    <button class="sm ghost addline" data-act="sk-addgroup">${h('ux6c.addGroup')}</button>
-    <div class="skfoot"><label class="field"><span class="lbl inline">${h('ux6c.saveFor')}</span><select id="sk-tag">${all.map(x => `<option value="${esc(x.tag)}" ${x.tag === tag ? 'selected' : ''} ${saved(x.tag) ? 'data-set="1"' : ''}>${esc(x.label)}</option>`).join('')}</select></label>
-      ${arranged ? '' : `<button class="sm" data-act="sk-save" ${all.length ? '' : 'disabled'}>${h('ux6c.saveSet')}</button>`}
-      ${delBtn(`data-act="sk-del" ${saved(tag) ? '' : 'disabled'}`, t('ux6c.deleteSet'))}</div>
-  </div>`;
-}
+// The skills of this resume: its groups by name, in print order, under Position (src/ui/wordbank.js). The picked one takes the bank's words.
+const skillsHtml = () => C.bank().namesHtml();
 // a skill group one place up or down, or before another (the drag on the page); a line before another of its job
 function stepGroupBy(id, d){
   const ids = T.arrangementOf(rec(), cur()).groups.map(g => g.id), i = ids.indexOf(id), j = i + d;
@@ -389,7 +355,7 @@ function moveLineBy(id, before){
   commit(d => T.moveBullet(d.record, d.cur, id, before), t('ux2.undoMoveItem'));
   return true;
 }
-// A new empty skill group after `afterId`, written at once on the page. It goes again if it is left empty.
+// A new empty skill group after `afterId` (null: at the end), picked, its heading written at once on the page. An empty group stays until deleted.
 async function addGroup(afterId = null){
   clearEdit();
   let id;
@@ -397,8 +363,8 @@ async function addGroup(afterId = null){
   if (!id) return false;
   C.work();
   await C.redrawNow?.();
-  C.select({ kind: 'bullet', id, section: 'skills' });
-  if (C.ui.sel.id === id) startEdit();      // on the page, or on a phone in the panel's fields
+  C.select({ kind: 'bullet', id: `~g:${id}`, section: 'skills' });
+  if (C.ui.sel.id === `~g:${id}`) startEdit();
   return true;
 }
 // one skill of a group to a place in another group (the keyboard route, the drag in the sidebar and the drag on the page share it);
@@ -424,14 +390,14 @@ function sectionView(s, sel = s){
   const at = movable.findIndex(x => x.id === s.id);
   const isHeader = sec.kind === 'header';
   // its own list: the jobs or the items, each with a tick, a grip and ↑ ↓ (the Outline's rows)
-  const inner = isHeader ? '' : s.id === 'skills' ? skillsHtml() + (cur().skillArrangement ? '' : C.outlineHtml(null, s.id)) : C.outlineHtml(null, s.id);
+  const inner = isHeader ? '' : s.id === 'skills' ? skillsHtml() : C.outlineHtml(null, s.id);
   const grouped = me && !me.fixed && me.on, info = C.sectionInfo(s.id), c = me?.on && !isHeader ? info.counts : null;
   // row 1: the heading as the section's heading text on a hue band (written in place: the band is the box), a reset arrow once it is changed, the cue, the language; row 2: Group
   const head = isHeader ? `<p class="muted small hnote">${h('edit.headerFirst')}</p>` : `<label class="hband hhead"><input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" aria-label="${esc(t('edit.headingHere', { lang: LANG_NAME[L] ?? L }))}" autocomplete="off"><span class="pen" aria-hidden="true">${icon('edit', { role: 'inline' })}</span>${own ? `<button type="button" class="rs" data-act="label-reset" aria-label="${esc(t('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) }))}" title="${esc(t('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) }))}">${icon('replay', { role: 'inline' })}</button>` : ''}<span class="grow"></span>${c ? `<span class="hcue">↓ ${esc(t('ux2.nOfM', { n: c.on, m: c.total }))}</span>` : ''}<span class="hlang" title="${esc(LANG_NAME[L] ?? L)}">${esc(L.toUpperCase())}</span></label>`;
   const first = grouped && movable.find(x => x.on)?.id === s.id;
   const rows = `${!isHeader && L !== DEFAULT_LANG ? `<div class="ctlrow">${sw(`data-same="section:${esc(s.id)}"`, isSame(rec(), `section:${s.id}`), h('edit.sameHeading'))}</div>` : ''}${grouped ? `<div class="ctlrow hgrp">${sw(`data-secgroup="${esc(s.id)}"`, T.groupedOf(cur(), s.id), `<span class="gl" aria-hidden="true"><i></i><i></i></span>${h('edit.groupUnder')}`, first)}${own ? `<button type="button" class="ghost sm" data-act="label-all">${h('edit.labelAll')}</button>` : ''}</div>${first ? `<p class="why muted small">${h('edit.groupFirst')}</p>` : ''}` : me && me.fixed && !isHeader ? `<p class="muted small hnote">${h('edit.summaryFollows')}</p>` : ''}`;
   return `${headHtml(sel, info.hue, head + rows, { off: !!me && !me.fixed && !me.on })}${labelNotes(k => k === `~h:${s.id}`)}
-    ${me && !me.fixed ? `<span class="lbl hpos">${h('edit.position', { at: at + 1, n: movable.length })}</span>` : ''}
+    ${me && !me.fixed ? (s.id === 'skills' ? `<div class="hposrow"><span class="lbl hpos">${h('edit.position', { at: at + 1, n: movable.length })}</span><span class="grow"></span>${C.bank().delGroupHtml()}</div>` : `<span class="lbl hpos">${h('edit.position', { at: at + 1, n: movable.length })}</span>`) : ''}
     ${inner}`;
 }
 
@@ -580,7 +546,7 @@ function startEdit(mode = null, vid = null){
   const key = keyOf(C.ui.sel), id = isLabelKey(key) ? null : fid();
   if (isLabelKey(key)) return startLabel(key);
   if (!id) return;
-  if (ix().skillGroups.has(id)) return startGroup(id);
+  if (ix().skillGroups.has(id)) return;      // a group is picked, not written: its heading is written where it prints, its words come from the bank
   if (guarded(id) && E.softOpen !== id) return softLock(id);
   const L = lang();
   const over = overrideOf(id);
@@ -606,15 +572,6 @@ function startEdit(mode = null, vid = null){
   if (E.edit.panel) focusEditor(m === 'new');
 }
 // A skill group is written on the page: its name, a line break, its skills (nothing to pick from, no versions); where it cannot be, in the panel
-function startGroup(id){
-  const text = T.groupText(rec(), cur(), id);
-  E.edit = { fact: id, group: true, mode: 'edit', vid: null, marks: [], base: text, draft: text };
-  E.compare = null;
-  C.endHover();
-  E.edit.panel = !C.onpage?.begin();      // a phone, or a group not on the page: the panel's two fields (skillsHtml)
-  C.renderBody();
-  if (E.edit?.panel) focusEditor();
-}
 // A heading or a language's name is written on the page only: the text printed now, kept in this resume's language
 function startLabel(key){
   const text = T.labelNow(rec(), cur(), key, lang());
@@ -636,7 +593,6 @@ function goLabel(key, id){
   return true;
 }
 function focusEditor(selectAll = false){
-  if (E.edit?.group) return $('#sk-gname')?.focus();
   const ta = $('#ed');
   if (!ta) return;
   autosize(ta);
@@ -676,7 +632,7 @@ function onEditorInput(ta){
 // the line on the page was typed in: the same bookkeeping as the text box, from the plain text of the line
 // Highlights written on the page (the pointer with Alt or Ctrl+Alt held, or Ctrl/Cmd+Shift+H): the highlights of `text` as they are now, and a drag from a to b
 // (UTF-16 offsets of the plain text, as the browser has them) toggles the whole words it touches. Nothing is kept until the line is left, as for the words.
-const writtenMarks = ed => !!ed && !ed.group && !ed.label && !ed.panel;
+const writtenMarks = ed => !!ed && !ed.label && !ed.panel;
 function marksNow(text){ const ed = E.edit; return writtenMarks(ed) ? marksFor(ed, text ?? ed.draft) : []; }
 function setMarks(text, next){
   const ed = E.edit;
@@ -729,7 +685,6 @@ async function livePreview(){
   if (!ed || !ed.draft.trim() || C.ui.hoverFact) return;      // a version under the pointer is on the page; the draft is drawn again when the pointer leaves
   const text = ed.draft.trim(), r = structuredClone(cur());
   if (ed.label) T.setLabel(rec(), r, ed.fact, ed.lang, text);
-  else if (ed.group){ if (!T.readGroup(ed.draft).items.length) return; T.writeGroup(rec(), r, ed.fact, ed.draft); }      // a group with no skills yet is left as it is until the line is left
   else {
     try { T.setOverride(rec(), r, ed.fact, text, { marks: marksFor(ed, text), base: ed.vid }); }
     catch (e){ if (!(e instanceof LK.LockedError)) throw e; clearEdit(false); C.onpage?.end(); lockedHint(); return; }      // locked while it was open
@@ -807,12 +762,13 @@ async function act(a, tg){
       if (tg.getAttribute('aria-disabled') === 'true'){ lockedHint(); return true; }
       clearEdit();      // what is being written is kept first, as for the padlock
       const key = keyOf(sel);
-      if (a === 'chip-remove') await act(ix().skillGroups.has(s.id) ? 'group-remove' : 'local-remove', tg);
+      if (a === 'chip-remove') await act(ix().skillGroups.has(s.id.replace(/^~g:/, '')) ? 'group-remove' : 'local-remove', tg);
       else if (isLabelKey(key)) commit(d => T.setLabel(d.record, d.cur, key, lang(), ''), t('undo.resetHeading'), t('toast.backToSaved'));
       else await act('only-remove', tg);
       return true;
     }
-    case 'group-remove': commit(d => T.writeGroup(d.record, d.cur, s.id, ''), t('ux6c.undoSkills'), `${t('ux6c.groupRemoved')} ${t('toast.ctrlZUndoes')}`, true); C.select({ kind: 'section', id: 'skills' }); return true;
+    case 'group-remove': case 'sk-delgroup': C.bank().deleteGroup(s.id.replace(/^~g:/, '')); return true;
+    case 'sk-pick': { const g = tg.dataset.g; C.bank().pickGroup(s.kind === 'bullet' && s.section === 'skills' && s.id.replace(/^~g:/, '') === g ? null : g); return true; }      // a click on the picked one lets it go
     case 'only-remove': commit(d => T.setOverride(d.record, d.cur, s.id, null), t('edit.backToSaved'), t('toast.backToSaved')); return true;
     case 'unfold': E.openMinor.add(`${s.id}:${lang()}:${tg.dataset.m}`); C.renderBody(); return true;
     case 'fold': { const id = tg.dataset.fact ?? s.id; E.fold.set(id, !folded(id)); C.renderBody(); return true; }
@@ -954,21 +910,6 @@ async function act(a, tg){
       commit(d => { const v = d.record.variants.find(x => x.id === vid); if (v) v.tags = (v.tags ?? []).filter(x => x !== tag); }, t('undo.removeTag'));
       return true;
     }
-    case 'sk-save': {
-      const name = $('#sk-tag')?.value;
-      if (!name) return true;
-      commit(d => { const arr = T.arrangementOf(d.record, d.cur); T.saveSetForTag(d.record, name, arr, d.cur.lang ?? DEFAULT_LANG); T.setArrangement(d.cur, { ...arr, from: name }); }, t('ux6c.undoSaveSet'), t('ux6c.setSaved', { name: jobTypeLabel(rec(), name) }));
-      return true;
-    }
-    case 'sk-record': commit(d => T.clearArrangement(d.record, d.cur), t('ux6c.undoStartFrom'), t('ux6c.setCleared')); return true;
-    case 'sk-gsave': { const ed = E.edit; clearEdit(false); if (ed?.group) keepGroup(ed); C.renderBody(); return true; }      // the panel's group: name and skills as one undo step
-    case 'sk-gcancel': { const ed = E.edit; clearEdit(false); if (ed?.group && !T.readGroup(ed.base).items.length) commit(d => T.writeGroup(d.record, d.cur, ed.fact, ''), t('ux6c.undoSkills')); C.renderBody(); return true; }      // a new group left empty goes
-    case 'sk-addgroup': addGroup(T.arrangementOf(rec(), cur()).groups.at(-1)?.id ?? null); return true;      // at the end, written at once on the page
-    case 'sk-del': {
-      const name = $('#sk-tag')?.value, L = T.arrangementOf(rec(), cur()).lang ?? cur().lang ?? DEFAULT_LANG;
-      if (name) commit(d => { T.deleteSkillSet(d.record, name, L); }, t('ux6c.undoDeleteSet'), t('ux6c.setDeleted', { name: jobTypeLabel(rec(), name) }), true);
-      return true;
-    }
     case 'order-reset': resetOrder(tg.dataset.kind, tg.dataset.id); return true;
     case 'label-reset': commit(d => T.setSectionLabel(d.record, d.cur, sel.id, lang(), null), t('undo.resetHeading')); return true;
     case 'lock-toggle': case 'row-lock': lockToggle(tg.dataset.id); return true;
@@ -1003,11 +944,6 @@ function bind(body){
     else if (t.id === 'b-on') setBullet(C.ui.sel.id, t.checked);
     else if (t.dataset.photo !== undefined) C.togglePhoto();
     else if (t.dataset.item){ const id = t.dataset.item, on = t.checked; commit(d => T.setItemOn(d.record, d.cur, id, on), on ? tr('undo.turnOn') : tr('undo.turnOff')); }
-    else if (t.id === 'sk-set'){
-      if (t.value === '~record') commit(d => T.clearArrangement(d.record, d.cur), tr('ux6c.undoStartFrom'), tr('ux6c.setCleared'));
-      else if (t.value){ const name = t.value; commit(d => T.applySet(d.record, d.cur, name), tr('ux6c.undoStartFrom'), tr('ux6c.setApplied', { name: jobTypeLabel(rec(), name) })); }
-    }
-    else if (t.id === 'sk-tag'){ const b = $('[data-act=sk-del]'); if (b) b.disabled = !t.selectedOptions[0]?.dataset.set; }      // the button follows the tag chosen
     else if (t.id === 'lens'){ E.focus = t.value || null; E.applyOpen = false; C.setFocus(); C.renderBody(); }
     else if (t.dataset.instep !== undefined){ const id = cur().id, name = stepOffer()?.name; if (name) commit(d => setInStep(d, id, true), tr('ml2.keepInStep', { name })); }
     else if (t.dataset.same){ const k = t.dataset.same, on = t.checked; commit(d => setSame(d.record, k, on), on ? tr('edit.sameEvery') : tr('undo.notSame')); }
@@ -1015,7 +951,6 @@ function bind(body){
   body.addEventListener('input', e => {
     const t = e.target;
     if (t.id === 'ed') onEditorInput(t);
-    if ((t.id === 'sk-gname' || t.id === 'sk-gitems') && E.edit?.group) E.edit.draft = `${$('#sk-gname').value}\n${$('#sk-gitems').value}`;      // kept as typed: leaving keeps it (keepGroup)
     if (t.classList?.contains('new-claim')) E.claimDrafts.set(t.dataset.entry, t.value);
   });
   // the heading box commits on blur (Enter blurs it), as one undo step
@@ -1030,15 +965,6 @@ function bind(body){
       return;
     }
     if (t.classList?.contains('new-claim') && e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); t.closest('.addrow')?.querySelector('[data-act=add-claim]')?.click(); }
-    if (t.classList?.contains('skchip') && e.altKey && e.key.startsWith('Arrow')){
-      e.preventDefault(); e.stopPropagation();
-      const g = t.dataset.g, k = Number(t.dataset.k), ids = T.arrangementOf(rec(), cur()).groups.map(x => x.id), at = ids.indexOf(g);
-      const n = (id, i) => T.arrangementOf(rec(), cur()).groups.find(x => x.id === id)?.items.length ?? i;
-      const to = e.key === 'ArrowLeft' || e.key === 'ArrowRight' ? [g, k + (e.key === 'ArrowLeft' ? -1 : 1)]
-        : e.key === 'ArrowUp' ? [ids[at - 1], n(ids[at - 1], 0)] : [ids[at + 1], 0];
-      if (to[0] && to[1] >= 0 && (to[0] !== g || to[1] < n(g, 0)) && moveSkillBy(g, k, to[0], to[1])) E.chip = { g: to[0], k: to[1] };
-      return;
-    }
     if ((t.id === 'sec-label' || t.id === 'term-in') && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
     if (t.id === 'sec-label' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); t.value = T.labelOf(rec(), cur(), t.dataset.sid, lang()) ?? ''; t.blur(); }
     if (t.id === 'term-in' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); t.value = T.termOf(cur(), t.dataset.key.slice(3)) ?? ''; t.blur(); }
@@ -1063,32 +989,6 @@ function bind(body){
     if (t.id === 'sec-label') rename(t.dataset.sid, t.value);
   });
 
-  body.addEventListener('dragstart', e => {
-    const sk = e.target.closest?.('.skchip[draggable=true]');
-    if (!sk) return;
-    E.dragSkill = { g: sk.dataset.g, k: Number(sk.dataset.k) }; sk.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', sk.textContent);
-  });
-  body.addEventListener('dragover', e => {
-    if (!E.dragSkill) return;
-    const chip = e.target.closest?.('.skchip'), box = chip?.parentElement ?? e.target.closest?.('.skchips');
-    if (!box) return;
-    e.preventDefault();
-    for (const n of body.querySelectorAll('.drop-above, .drop-below')) n.classList.remove('drop-above', 'drop-below');
-    if (chip){ const bb = chip.getBoundingClientRect(); chip.classList.add(e.clientX < bb.left + bb.width / 2 ? 'drop-above' : 'drop-below'); }
-  });
-  body.addEventListener('drop', e => {
-    if (!E.dragSkill) return;
-    const from = E.dragSkill, chip = e.target.closest?.('.skchip'), box = chip?.parentElement ?? e.target.closest?.('.skchips');
-    E.dragSkill = null;
-    if (!box) return;
-    e.preventDefault();
-    const to = box.closest('.skgroup').dataset.g, at = chip ? Number(chip.dataset.k) + (chip.classList.contains('drop-below') ? 1 : 0) : box.children.length;
-    moveSkillBy(from.g, from.k, to, to === from.g && at > from.k ? at - 1 : at);
-  });
-  body.addEventListener('dragend', () => {
-    E.dragSkill = null;
-    for (const n of body.querySelectorAll('.dragging, .drop-above, .drop-below')) n.classList.remove('dragging', 'drop-above', 'drop-below');
-  });
 }
 
 function setBullet(id, on){
@@ -1281,9 +1181,6 @@ const api = {
       if (E.foldAuto.folded && !E.fold.has(vl.dataset.fact)) return C.renderBody();
     }
     if (E.edit && $('#ed') && document.activeElement?.id !== 'ed') focusEditor(); else if ($('#ed')) autosize($('#ed'));
-    else if (E.edit?.group && $('#sk-gname') && !document.activeElement?.closest?.('.skedit')) focusEditor();      // the panel's group fields keep the focus across a redraw
-    // a skill moved with the keyboard keeps the focus, where it landed (it may have left its group empty: that group is gone)
-    if (E.chip){ const c = document.querySelector(`#body .skchip[data-g="${CSS.escape(E.chip.g)}"][data-k="${E.chip.k}"]`); E.chip = null; c?.focus(); }
     // the tag box keeps focus across the redraw a new tag causes
     const ti = E.tagFocus && document.querySelector(`.tag-in[data-vid="${CSS.escape(E.tagFocus)}"]`);
     if (ti && document.activeElement !== ti) ti.focus();

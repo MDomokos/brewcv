@@ -6,7 +6,7 @@ import { isOmitted, offOf, inOrder, isLocal, withLocal, keepLinks, termOf } from
 import { entriesOf } from './model/entries.js';
 import { designOf, PRESETS, DENSITIES, RELATED } from './model/design.js';
 import { lookOf } from './themes.js';
-import { wordText, shelfName } from './model/skillbank.js';
+import { wordText, shelfName, findWord } from './model/skillbank.js';
 
 const GAP = '⬜';
 const RUN_SEP = ' · ';
@@ -61,6 +61,7 @@ function h(doc, tag, cls, opts = {}){
 // Data attributes don't affect layout, so an annotated document lays out like a sent one.
 const mark = (ctx, v) => ctx.annotate ? { 'data-variant': v.id } : {};
 const markAttr = (ctx, v) => ctx.annotate ? ` data-variant="${v.id}"` : '';
+const labelAttr = (ctx, gid) => ctx.annotate ? ` data-label="g:${encode(gid)}"` : '';      // a skill group's heading, written where it prints
 
 function band(ctx, { tag = 'section', mod, label, section, gutter = [], content = [] }){
   const b = h(ctx.doc, tag, `band ${mod}`, { attrs: {
@@ -212,15 +213,18 @@ export function grid(ctx, s){
       const ws = a.items.map(ctx.word);
       const items = ctx.annotate ? ws.map(w => `<span data-skill${w.id ? ` data-word="${encode(w.id)}"` : ''}>${encode(w.text)}</span>`).join(', ') : encode(ws.map(w => w.text).join(', '));
       g.append(h(doc, 'p', 'skills__group', { attrs: ctx.annotate ? { 'data-variant': `${a.id}-override`, 'data-group': a.id } : {}, html:
-        `<span class="skills__label">${encode(a.label ?? (a.shelf ? shelfName(ctx.data, a.shelf, ctx.lang) : ctx.label(a.id)))}</span><br><span class="skills__items">${items}</span>` }));
+        `<span class="skills__label"${labelAttr(ctx, a.id)}>${encode(a.label ?? (a.shelf ? shelfName(ctx.data, a.shelf, ctx.lang) : ctx.label(a.id)))}</span><br><span class="skills__items">${items}</span>` }));
     }
     return sectionBand(ctx, s, [g]);
   }
   for (const fid of s.content.groups){
     const v = ctx.pick(fid);
-    g.append(h(doc, 'p', 'skills__group', { html:
-      `<span class="skills__label">${encode(ctx.label(fid))}</span><br>`
-      + `<span class="skills__items"${markAttr(ctx, v)}>${inlineOf(v)}</span>` }));
+    // the page's copy: each word of a plain line is marked, so it can be moved before the resume has groups of its own
+    const words = ctx.annotate && s.id === 'skills' && !(v.marks ?? []).length && !(v.links ?? []).length && !v.text.includes(GAP)
+      ? v.text.split(', ').map(x => { const w = findWord(ctx.data, x, ctx.lang); return `<span data-skill${w ? ` data-word="${encode(w.id)}"` : ''}>${encode(x)}</span>`; }).join(', ') : null;
+    g.append(h(doc, 'p', 'skills__group', { attrs: ctx.annotate && s.id === 'skills' ? { 'data-group': fid } : {}, html:
+      `<span class="skills__label"${s.id === 'skills' ? labelAttr(ctx, fid) : ''}>${encode(ctx.label(fid))}</span><br>`
+      + `<span class="skills__items"${markAttr(ctx, v)}>${words ?? inlineOf(v)}</span>` }));
   }
   return sectionBand(ctx, s, [g]);
 }

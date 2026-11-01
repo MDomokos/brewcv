@@ -140,7 +140,7 @@ await part('the inspector: the page across the panel, the name on a card over it
       const job = model.work[0], fact = job.highlights.find(h => d.cur.overrides?.[h] === undefined);
       T.setOverride(model, d.cur, fact, 'A sentence written only on this resume.', { marks: [], base: null });
       const id = T.addLocalLine(model, d.cur, job.id, null); T.setOverride(model, d.cur, id, 'A line that only this resume has.', { marks: [], base: null });
-      const g = T.arrangementOf(model, d.cur).groups[0]; T.writeGroup(model, d.cur, g.id, `Renamed group\nOne skill, Another skill`);
+      const g = T.arrangementOf(model, d.cur).groups[0]; T.setGroupHeading(model, d.cur, g.id, 'Renamed group');
     }, 'edits');
     b.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Smoke Co', role: 'Role' }); }, 'send');
   });

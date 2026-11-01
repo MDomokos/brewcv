@@ -387,15 +387,15 @@ section('a skill group name and a language\'s name behave the same');
 {
   const { store, hu } = fresh();
   ok('a skill group name written in Hungarian keeps English\'s', () => {
-    writeLabel(store, hu, d => T.writeGroup(d.record, d.cur, 'skills-cad', 'CAD és 3D tervezés\nSolidWorks, Fusion'));
+    writeLabel(store, hu, d => T.setLabel(d.record, d.cur, '~g:skills-cad', 'hu', 'CAD és 3D tervezés'));
     return eq(saved(store, hu).labelFrom, { '~g:skills-cad': { en: 'CAD & 3D' } });
   });
-  writeLabel(store, EN, d => T.writeGroup(d.record, d.cur, 'skills-cad', 'Computer-aided design\nSolidWorks, Fusion'));
+  writeLabel(store, EN, d => T.setLabel(d.record, d.cur, '~g:skills-cad', 'en', 'Computer-aided design'));
   ok('a renamed English group lists the Hungarian one, with the group\'s id, label and the skills section', () => {
     const m = kind(missing(store, hu), 'heading-changed', 'skills-cad');
     return m?.from === 'en' && m.was === 'CAD & 3D' && m.now === 'Computer-aided design' && m.labelKey === '~g:skills-cad' && m.where.section === 'skills' && m.label === 'CAD és 3D tervezés';
   });
-  writeLabel(store, hu, d => T.writeGroup(d.record, d.cur, 'skills-cad', 'CAD és 3D rajz\nSolidWorks, Fusion'));
+  writeLabel(store, hu, d => T.setLabel(d.record, d.cur, '~g:skills-cad', 'hu', 'CAD és 3D rajz'));
   ok('saving the Hungarian one stops it', () => !kind(missing(store, hu), 'heading-changed', 'skills-cad'));
   ok('a language\'s name written in Hungarian keeps English\'s, and a change in English lists it', () => {
     writeLabel(store, EN, d => T.setSectionOn(d.record, d.cur, 'languages', true));

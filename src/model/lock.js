@@ -21,6 +21,7 @@ export function parentOfId(model, recipe, id){
   if (id === PAGE) return null;
   if (id.startsWith('~h:')) return id.slice(3);
   if (id.startsWith('~t:')) return id.slice(3);
+  if (id.startsWith('~g:')) return id.slice(3);
   const own = localJob(recipe, id);
   if (own) return own;
   const jobs = entriesOf(model);

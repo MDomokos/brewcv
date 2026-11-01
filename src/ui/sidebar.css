@@ -341,3 +341,100 @@ html:not([data-motion="reduce"]) .pen { transition: opacity 120ms ease-out; }
 /* the panel's scrollbar: a slim rounded thumb in the panel's own ink at low contrast that steps up while the panel is hovered, no arrows (Chromium ignores ::-webkit-scrollbar once scrollbar-color is set, so these two are the whole style) */
 #body { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 30%, transparent) transparent; }
 #body:hover { scrollbar-color: color-mix(in srgb, var(--ink-soft) 60%, transparent) transparent; }
+
+/* ---- 12. The skill wordbank (src/ui/wordbank.js). The sidebar card lists the page's skill groups by name under Position: the picked one filled in
+   its hue, the others quieter. The bank is a window of its own under the card, the rest of the column, scrolling on its own. Colour is only a hover
+   or selection wash, in the shared hues; a dash is a warning only. ---- */
+.hposrow { display: flex; align-items: center; gap: 6px; min-height: 28px; }
+.hposrow > .lbl.hpos { margin: 0; }
+.sknames { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
+.skname { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 2px 9px 2px 7px; font-size: 12px; line-height: 1.4; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink-soft); overflow-wrap: anywhere; text-align: left; }
+.skname > i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--gh); opacity: .5; }
+.skname:hover:not(:disabled) { background: color-mix(in srgb, var(--gh) 14%, var(--raised)); color: var(--ink); }
+.skname.is-pick, .skname.is-pick:hover:not(:disabled) { background: color-mix(in srgb, var(--gh) 34%, var(--raised)); border-color: color-mix(in srgb, var(--gh) 70%, var(--line-strong)); color: var(--ink); font-weight: 650; }
+.skname.is-pick > i { opacity: 1; }
+.skname.drop-on { box-shadow: 0 0 0 2px var(--gh); }
+.sknames.wb-nudge .skname { animation: wbnudge 1s ease-out; }
+@keyframes wbnudge { 0%, 45% { border-color: var(--gh); background: color-mix(in srgb, var(--gh) 30%, transparent); color: var(--ink); } }
+.bankcard[hidden] { display: none; }
+body:not([data-phone=true]):not(.is-intro) .col.has-bank > #body { flex: 0 1 auto; max-height: 55%; }
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { padding-bottom: 12px; }
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body::after { display: none; }
+.col > .bankcard { flex: 1 1 0; min-height: 160px; overflow: auto; margin-top: 8px; padding: 10px 12px 46px; background: var(--surface); border-radius: var(--r-panel);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px var(--line-strong); scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 30%, transparent) transparent; }
+.bankcard.drop-bank { outline: 2px solid var(--sel-mark); outline-offset: -2px; }
+.wbtop { position: sticky; top: -10px; z-index: 2; margin: -10px 0 4px; padding: 10px 0 6px; background: var(--surface); display: grid; gap: 6px; }
+.wbbar { display: flex; align-items: center; gap: 2px; }
+.ib.wbtr { width: auto; min-width: 28px; padding: 0 5px; gap: 3px; grid-auto-flow: column; }
+.ib.wbtr.miss > span { font: 650 11px/1 var(--font-mono, monospace); color: var(--page-warn); }
+.wbqwrap { position: relative; flex: 1 1 auto; min-width: 0; display: flex; margin-right: 2px; }
+.wbqwrap > .wbq { width: 100%; padding-right: 64px; }
+.wbq::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }      /* Esc empties the box: an X means delete */
+.obplus.press.is-free.wbqplus { position: absolute; right: 4px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; }
+.obplus.press.is-free.wbqplus.has-text { width: auto; padding: 0 8px 0 5px; display: inline-flex; gap: 2px; font-size: 11.5px; font-weight: 650; --face: color-mix(in srgb, var(--gh, var(--plate-tint-hover)) 40%, transparent); }
+.obplus.press.is-free.wbqplus.near { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--page-warn) 70%, transparent); }
+.obplus.press.is-free.wbqplus.warned { box-shadow: 0 0 0 2px var(--page-warn); }
+.wb-shake { animation: wbshake .35s; }
+@keyframes wbshake { 25% { translate: -3px -50%; } 75% { translate: 3px -50%; } }
+.wbaddrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 2px 0 8px; padding: 5px 8px; border-radius: var(--r-m); background: var(--hover); font-size: 12px; }
+.wbaddrow.near { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--page-warn) 70%, transparent); }
+.wbmark { font: 700 14px/1 var(--font-mono, monospace); color: var(--ink-soft); min-width: 12px; text-align: center; }
+.wbaddrow.near .wbmark { color: var(--page-warn); }
+.wbuses { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-soft); font-size: 11px; }
+.wbtray { display: grid; gap: 6px; padding-bottom: 6px; }
+.wbsec { display: grid; grid-template-columns: minmax(0, 72px) 1fr; gap: 0 8px; align-items: start; border-radius: var(--r-m); padding: 2px 0; }
+.wbsec.wbloose { grid-template-columns: 1fr; }
+.wbsec.wbloose > .wbclu { display: none; }
+.wbsec.drop-on { background: var(--hover); box-shadow: inset 0 0 0 1px var(--sel-mark); }
+.wbclu { font-size: 11px; line-height: 1.3; color: var(--ink-soft); text-align: right; padding-top: 4px; overflow-wrap: anywhere; }
+.wbtiles { display: flex; flex-wrap: wrap; gap: 4px; min-height: 24px; align-items: center; }
+.wbshelfnote, .wbempty { font-size: 11.5px; font-style: italic; color: var(--faint, var(--ink-soft)); opacity: .8; }
+.skchip.wbchip { cursor: grab; touch-action: none; }
+.skchip.wbchip.miss { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--page-warn) 55%, transparent); }
+.skchip.wbchip.socket { opacity: .35; }
+.wbfix { padding: 0 4px; margin-left: -6px; font: 650 10px/1.6 var(--font-mono, monospace); text-transform: uppercase; color: var(--page-warn); background: transparent; border: 0; }
+.wbghost { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; margin: 0; white-space: nowrap; box-shadow: var(--shadow-lift); }
+.wbghost.is-page { padding: 0 2px; border: 0; border-radius: 2px; background: var(--paper); }
+html.wb-carry, html.wb-carry * { cursor: grabbing !important; user-select: none !important; }
+html.wb-carry #handlay .obplus, html.wb-carry #handlay .obgrip { visibility: hidden; }      /* the "+" buttons step aside while a word is carried */
+.wbwadd { position: fixed; z-index: 50; max-width: 300px; }
+.wbwadd[hidden] { display: none; }
+.wbwadd > .wbaddrow { margin: 0; background: var(--surface); box-shadow: var(--shadow-panel), inset 0 0 0 1px var(--line-strong); }
+.wbwadd > .wbaddrow.near { box-shadow: var(--shadow-panel), inset 0 0 0 1px color-mix(in srgb, var(--page-warn) 70%, transparent); }
+.obplus.press.is-free.wbwplus { position: absolute; width: 18px; height: 18px; }
+.wbdelw ul { margin: 4px 0 6px; padding-left: 18px; font-size: 12px; }
+.wbfixcard, .wbfrom, .wbedit { display: grid; gap: 6px; margin: 0 0 8px; }
+.wbfixh { display: flex; align-items: center; gap: 6px; }
+.wbnote { margin: 0; }
+.wbgrid { display: grid; gap: 3px; }
+.wbrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 24px 24px; gap: 4px; align-items: center; }
+.wbgrid.en .wbrow { grid-template-columns: minmax(0, 1fr) 24px 24px; }
+.wbfixcard .wbrow { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 24px; }
+.wbrow.wbrowg { margin-top: 6px; }
+.wbrow.wbrowg .wbin { font-weight: 650; }
+.wbgrid:not(.en) .wbrow.wbrowg { grid-template-columns: minmax(0, 1fr) 24px 24px; }
+.wben { font-size: 12px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbcell { position: relative; display: flex; min-width: 0; }
+.wbin { width: 100%; font-size: 12.5px; padding: 3px 6px; }
+.wbin.empty { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--page-warn) 50%, transparent); }
+.wbrev { position: absolute; right: 4px; top: 50%; translate: 0 -50%; font: 650 9.5px/1 var(--font-mono, monospace); color: var(--page-warn); pointer-events: none; }
+.wbsame { font-size: 12px; color: var(--ink-soft); opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbeq { width: 24px; height: 24px; padding: 0; font: 700 13px/1 var(--font-mono, monospace); border-radius: var(--r-s); border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink-soft); }
+.wbeq[aria-pressed=true] { background: transparent; color: var(--ink); border-color: var(--ink-soft); }      /* on is quiet: a name, nothing to do */
+.wbrow .del.sm { width: 24px; height: 24px; padding: 0; justify-content: center; opacity: 0; }
+.wbrow:hover .del.sm, .wbrow:focus-within .del.sm, .wbrow .del.sm:focus-visible { opacity: 1; }      /* delete shows on its line's hover or focus */
+.wbtodo { margin: 0 0 2px; font-size: 11.5px; font-weight: 650; color: var(--page-warn); }
+.wbsep { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
+.wb-ring { animation: wbring 1.2s ease-out; }
+@keyframes wbring { from { box-shadow: 0 0 0 3px color-mix(in srgb, var(--page-warn) 60%, transparent); } }
+.wbstrip > button { font-size: 11px; }
+.wbstrip > button small { margin-left: 3px; font-size: 9.5px; color: var(--page-warn); }
+.wbstrip > button small.ok { color: var(--ok-ink, var(--ink-soft)); }
+.wbfromr { padding: 6px 8px; border-radius: var(--r-m); background: var(--hover); display: grid; gap: 2px; }
+.wbfromt { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.wbfromg { margin: 0; font-size: 11.5px; color: var(--ink-soft); }
+.wbfromg > b { color: var(--ink); font-weight: 650; }
+.wbrole { text-align: left; margin: 4px 0 0; }
+.wb-flash { animation: wbflash 1.1s ease-out; }
+@keyframes wbflash { from { box-shadow: 0 0 0 4px color-mix(in srgb, var(--sel-mark) 55%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .wb-shake, .sknames.wb-nudge .skname, .wb-flash, .wb-ring { animation: none; } }
