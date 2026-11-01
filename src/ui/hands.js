@@ -43,6 +43,7 @@ export function initHands(C){
   lay?.append(ghostEl, grip, plus, slot, fgrip, dropEl, tip);
 
   let hover = null;                 // under the pointer: { k: 'line' | 'group' | 'job' | 'section' | 'header', fact, rect, job }
+  let word = null;                  // the skill word under the pointer, in the hovered group: it takes the plate, not its group (a press on it carries the word)
   let only = null;                  // the text under the pointer that has no hands (a summary, a title, a heading), or the deepest one in the header: its plate alone
   let drag = null, pend = null;     // a drag under way; a skill pressed on the page that may become one
   let bridge = null;                // the corridor under the block, from its last row to the "+": the pointer crossing it keeps the block it is on (page pixels)
@@ -258,7 +259,8 @@ export function initHands(C){
       return;
     }
     only = !h || h.k === 'header' ? el : null;
-    if (h){ clearTimeout(graceT); hover = h; if (!same || only !== prev || near(h) !== tabNear) place(); }      // (and as it nears the left side, where the dots show)
+    const w = h?.k === 'group' ? sheet.wordAt(x, y) : null, moved = w !== word; word = w;
+    if (h){ clearTimeout(graceT); hover = h; if (!same || only !== prev || near(h) !== tabNear || moved) place(); }      // (and as it nears the left side, where the dots show)
     else { if (hover) grace(); if (only !== prev) place(); }
   }
   // the pointer has stopped (or has been slow long enough): the block it is on takes the hover
@@ -276,9 +278,10 @@ export function initHands(C){
     if (b === grip || b === fgrip) for (const [ev, v] of [['pointerenter', true], ['pointerleave', false]]) b.addEventListener(ev, () => sheet.setTab(null, v));      // the dots full under the pointer, a written line's too
     b.addEventListener('pointerleave', () => { onHands = false; if (!drag) grace(); });
   }
-  // the block whose plate is drawn as hovered: the hands' block (a tab in focus counts), else the text under the pointer
+  // the block whose plate is drawn as hovered: the hands' block (a tab in focus counts), a skill word in it, else the text under the pointer
   function hotEl(){
     const b = [grip, fgrip].find(q => !q.hidden && q === document.activeElement), h = b ? { k: b.dataset.k, fact: b.dataset.fact } : reread(hover);
+    if (!b && h?.k === 'group' && word?.isConnected && !onHands) return word;      // (on the grip: the group's plate, which the grip's tab is part of)
     return (h && h.k !== 'header' ? sheet.plateOf(h, ix()) : null) ?? only;
   }
   for (const b of [grip, fgrip]) for (const ev of ['focus', 'blur']) b.addEventListener(ev, () => { if (!drag) place(); });
@@ -321,12 +324,14 @@ export function initHands(C){
     sheet.guide('drop', r && !screen ? (vertical ? { left: r.left - 2, top: r.top, width: 4, height: r.height } : { left: r.left, top: r.top - 2, width: r.width, height: 4 }) : null, { faint });      // (a soft shaded bar, 4 px)
     if (r && screen) Object.assign(dropEl.style, vertical ? { left: `${r.left - 2}px`, top: `${r.top}px`, width: '4px', height: `${r.height}px` } : { left: `${r.left}px`, top: `${r.top - 2}px`, width: `${r.width}px`, height: '4px' });
   };
+  // the lefts of the columns places stand in (skill groups in a two-column look: a grid, filled row by row)
+  const colsOf = qs => [...new Set(qs.map(q => Math.round(q.rect.left)))].sort((a, b) => a - b);
   // the block's siblings and the room they live in, measured once when a drag starts: the preview moves them by a transform, which would move the measure
   function sibsOf(d){
     const x = ix(), pick = r => (typeof r === 'string' ? r : r.id);
     let sibs, room;
     if (d.kind === 'line'){ sibs = sheet.jobLines(d.job, x).map(l => ({ id: l.fact, rect: l.rect })); room = [box(sibs.map(q => q.rect))]; }
-    else if (d.kind === 'group'){ sibs = sheet.skillGroups(x).map(g => ({ id: g.fact, rect: g.rect })); room = [box(sibs.map(q => q.rect))]; }
+    else if (d.kind === 'group'){ sibs = sheet.skillGroups(x).map(g => ({ id: g.fact, rect: g.rect, nat: g.nat })); room = [box(sibs.map(q => q.rect))]; }
     else {      // a block among its siblings: the parent's room is the band (or the pages), a drop outside it is refused
       const ids = d.kind === 'job' ? T.jobRefs(rec(), C.cur(), d.sid).map(pick).filter(id => rec().work.some(w => w.id === id && !w.archived))
         : d.kind === 'section' ? T.sectionList(rec(), C.cur()).filter(q => q.on && !q.fixed).map(q => q.id) : (T.itemList(rec(), C.cur(), d.sid) ?? []).filter(i => i.on).map(i => i.id);
@@ -335,8 +340,9 @@ export function initHands(C){
       room = (d.kind === 'section' ? sheet.pageBoxes() : sheet.rectsOfBand(d.sid)).map(b => box([b]));      // a section that runs over two pages has a band on each
     }
     if (!sibs.length) room = [];
-    const pages = sheet.pageBoxes(), pageOf = r => pages.findIndex(b => r.left >= b.left - 1 && r.left < b.left + b.width);
-    return { sibs, room, box: sibs.length ? box(sibs.map(q => q.rect)) : null, own: d.kind === 'line' ? sheet.rectOfJob(d.job, x) : null,      // box: the first place to the last, which the lifted block never leaves; own: the job a line's heading is part of
+    const pages = sheet.pageBoxes(), pageOf = r => pages.findIndex(b => r.left >= b.left - 1 && r.left < b.left + b.width), cols = d.kind === 'group' ? colsOf(sibs) : [], B = sibs.length ? box(sibs.map(q => q.rect)) : null;
+    // sx: in a grid of skill groups, a step across the columns counts as a step down a row (a row's pitch over a column's) when the place is found, so crossing is as easy
+    return { sibs, room, box: B, own: d.kind === 'line' ? sheet.rectOfJob(d.job, x) : null, sx: cols.length > 1 ? Math.min(1, (B.bottom - B.top) / Math.ceil(sibs.length / cols.length) / (cols[1] - cols[0])) : 1,      // box: the first place to the last, which the lifted block never leaves; own: the job a line's heading is part of
       pg: sibs.map(q => pageOf(q.rect)),      // the page each is on: the gap opens, and closes, page by page
       inline: d.kind === 'item' && sibs.length > 1 && sibs.every(q => Math.abs(q.rect.top - sibs[0].rect.top) < 3), els: new Map(sibs.map(q => [q.id, sheet.blockEls(d.kind, q.id, x)])) };
   }
@@ -380,7 +386,7 @@ export function initHands(C){
     for (let at = 0; at <= n; at++){
       if (at === from + 1) continue;
       const o = layout(d, { at, near: at > from ? at - 1 : at })?.own; if (!o) continue;
-      const v = Math.hypot(rx - o.dx, ry - o.dy);      // (both axes, also in a one-axis list: a place on the next page is across)
+      const v = Math.hypot(rx - o.dx * d.S.sx, ry - o.dy);      // (both axes, also in a one-axis list: a place on the next page is across; in a grid the columns are as near as the rows, S.sx)
       if (v < bd - .01){ bd = v; best = at; }
     }
     return { at: best, near: best > from ? best - 1 : Math.min(best, n - 1) };
@@ -441,7 +447,7 @@ export function initHands(C){
   function layout(d, o = {}){
     const S = d.S;
     if (!S) return null;
-    const { sibs, pg } = S, n = sibs.length, from = sibs.findIndex(q => q.id === d.fact), at = o.at ?? (d.ok ? d.at : from), fold = o.fold ?? !!S.fold, moves = [], slot = {};
+    const { sibs, pg } = S, n = sibs.length, from = sibs.findIndex(q => q.id === d.fact), at = o.at ?? (d.ok ? d.at : from), fold = o.fold ?? !!S.fold, moves = [], slot = {}, xy = {};
     let own = null;
     if (from >= 0){
       const ax = S.inline ? 'left' : 'top', sz = S.inline ? 'width' : 'height', key = S.inline ? 'dx' : 'dy', szOf = q => (fold && S.fold && q.id === d.fact ? S.fold : q.rect[sz]);      // folded: the block takes its heading's room
@@ -450,12 +456,22 @@ export function initHands(C){
       for (const g of new Set(pg)){
         const orig = sibs.filter((_, i) => pg[i] === g), list = orig.filter(q => q.id !== d.fact);
         if (g === land) list.splice(sibs.slice(0, at).filter((q, i) => pg[i] === g && q.id !== d.fact).length, 0, sibs[from]);
+        const cols = d.kind === 'group' ? colsOf(orig) : [];
+        if (cols.length > 1){      // a grid (skill groups in two columns): the new order fills it row by row, each row as tall as its tallest group, so the others move across as well as down
+          const nc = cols.length, rg = orig[nc] ? orig[nc].rect.top - orig[0].rect.top - Math.max(...orig.slice(0, nc).map(q => q.nat)) : 0;
+          for (let k = 0, top = orig[0].rect.top; k < list.length; k += nc){
+            const row = list.slice(k, k + nc);
+            row.forEach((q, c) => { xy[q.id] = { dx: cols[c] - q.rect.left, dy: top - q.rect.top }; });
+            top += Math.max(...row.map(q => q.nat)) + rg;
+          }
+          continue;
+        }
         const gaps = orig.slice(1).map((q, k) => q.rect[ax] - orig[k].rect[ax] - orig[k].rect[sz]);
         let pos = orig[0].rect[ax];
         list.forEach((q, k) => { slot[q.id] = pos - q.rect[ax]; pos += szOf(q) + (gaps[k] ?? gaps.at(-1) ?? gap); });
       }
-      for (const q of sibs) if (q.id !== d.fact) moves.push({ els: S.els.get(q.id), [key]: slot[q.id] });
-      own = { dx: S.inline ? slot[d.fact] : ref.rect.left - sibs[from].rect.left, dy: S.inline ? 0 : slot[d.fact] };
+      for (const q of sibs) if (q.id !== d.fact) moves.push({ els: S.els.get(q.id), ...(xy[q.id] ? { ...xy[q.id], ms: GLIDE() } : { [key]: slot[q.id] }) });      // (in a grid one may wrap a whole row across: it slides at the plate's glide, not the short pop)
+      own = xy[d.fact] ?? { dx: S.inline ? slot[d.fact] : ref.rect.left - sibs[from].rect.left, dy: S.inline ? 0 : slot[d.fact] };
     }
     return { moves, own, slot };
   }
@@ -478,6 +494,15 @@ export function initHands(C){
     }
     if (own) sheet.socket(S.els.get(d.fact), own);      // the dashed socket where it will land (at first, its home)
     sheet.nudge(moves);
+    if (d.kind === 'group'){ const ids = sibs.map(q => q.id).filter(id => id !== d.fact); ids.splice(sibs.slice(0, d.ok ? d.at : from).filter(q => q.id !== d.fact).length, 0, d.fact); names(ids); }
+  }
+  // the sidebar card's names of the skill groups (wordbank.js namesHtml) take the order the drop would leave, sliding there; put back when nothing is dropped
+  function names(ids){
+    const bx = $('.sknames'), els = bx ? ids.map(id => bx.querySelector(`[data-g="${CSS.escape(id)}"]`)).filter(Boolean) : [];
+    if (els.every((e, i) => bx.children[i] === e)) return;
+    const was = new Map(els.map(e => [e, e.getBoundingClientRect()]));
+    bx.append(...els);
+    for (const e of els){ const a = was.get(e), b = e.getBoundingClientRect(); if (Math.abs(a.left - b.left) + Math.abs(a.top - b.top) > .5) play(e, [{ translate: `${a.left - b.left}px ${a.top - b.top}px` }, { translate: '0px 0px' }], { ms: GLIDE(), kind: 'move', name: 'names:slide' }); }
   }
   // …and the same where the pointer is over a row of the sidebar (`rows`: the block's siblings there, in order): the place is found among the rows
   function rowTo(d, rows, e){
@@ -524,6 +549,7 @@ export function initHands(C){
         C.ui.morph = null;
       }
     }
+    if (d.kind === 'group' && d.S) names(d.S.sibs.map(q => q.id));      // nothing moved: the names go back (a drop that moves the group draws the card again)
     if (lifted?.isConnected){ lifted.style.transition = 'transform var(--m-base) var(--m-out)'; lifted.style.transform = ''; setTimeout(() => { lifted.style.transition = ''; lifted.classList.remove('is-lifted'); }, 260); }
     sheet.land(null, false);
     place();
