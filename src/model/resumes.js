@@ -791,8 +791,8 @@ export function rebuildFrom(doc, state){
 // Checkpoints keep no bytes, so an original (a document with `embedded`) may go only when safety() says it is safe: in a saved file the person checked. The same holds for a copy a version a saved
 // resume prints links back to (`origin.doc`) and for a copy the receipt on the screen depends on (`protect`). ctx: { checked, protect } (checked as safety() takes it). Returns the ids of `ids` that may not go.
 export function dropGuard(state, ids, { checked = null, protect = [] } = {}){
-  const vs = new Map(state.record.variants.map(v => [v.id, v]));
-  const used = new Set((state.resumes ?? []).flatMap(r => usedVersions(state.record, r)).map(u => vs.get(u.variant)?.origin?.doc).filter(Boolean));
+  const vs = new Map(state.record.variants.map(v => [v.id, v]));      // every version a saved resume prints: the header, summary, titles, bullets and the items of other sections (a one-off text is no version)
+  const used = new Set((state.resumes ?? []).flatMap(r => printedFactIds(state.record, r).filter(p => r.overrides?.[p.fact] === undefined).map(p => chooseVariant(state.record, p.fact, r).v?.id)).map(id => vs.get(id)?.origin?.doc).filter(Boolean));
   return ids.map(id => (state.documents ?? []).find(d => d.id === id)).filter(d => d && (d.embedded || protect.includes(d.id) || used.has(d.sha256.slice(0, 12))) && !safety(d, { checked }).safe).map(d => d.id);
 }
 const guarded = (state, ids, ctx) => { if (dropGuard(state, ids, ctx).length) throw keyed('i7.saveFirst'); };
@@ -801,11 +801,11 @@ export function removeGuarded(state, ids, ctx){ guarded(state, ids, ctx); remove
 // Keep text only drops the original, so the same guard.
 export function keepTextGuarded(state, id, ctx){ guarded(state, [id], ctx); keepTextOnly(state, id); }
 
-// The true copies of a document: the formats of one document (its `of` chain), in its own language. Another language, another resume of one company and role, and a letter are not copies. Oldest first.
+// The true copies of a document: the formats of one document (its `of` chain), in the language of the one asked about (a copy with none is in its original's). Another language, another resume of one company and role, and a letter are not copies. Oldest first.
 export function copiesOf(state, id){
   const docs = state.documents ?? [], byId = new Map(docs.map(d => [d.id, d])), root = d => { for (let n = 0; d.of && byId.has(d.of) && n < 20; n++) d = byId.get(d.of); return d; };
-  const mine = byId.get(id), top = mine && root(mine);
-  return top ? docs.filter(d => root(d) === top && (d.meta?.kind ?? d.kind) !== 'cover-letter' && (d.meta?.lang ?? '') === (top.meta?.lang ?? '')).sort((a, b) => String(a.addedAt).localeCompare(String(b.addedAt)) || (a.id < b.id ? -1 : 1)).map(d => d.id) : [];
+  const mine = byId.get(id), top = mine && root(mine), lang = d => d.meta?.lang || top.meta?.lang || '';      // a copy with no language is in its original's
+  return top ? docs.filter(d => root(d) === top && (d.meta?.kind ?? d.kind) !== 'cover-letter' && lang(d) === lang(mine)).sort((a, b) => String(a.addedAt).localeCompare(String(b.addedAt)) || (a.id < b.id ? -1 : 1)).map(d => d.id) : [];
 }
 
 // Remove duplicate copies: of the copies `ids`, the ticked ones in `keep` stay (the first when none of them is in `ids`), and the rest go by removeDocuments, except those dropGuard refuses. One copy that holds the

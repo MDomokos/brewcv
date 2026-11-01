@@ -143,7 +143,10 @@ export function inspector(){
 }
 
 // ---- Remove these…, in an archived round: its resumes and documents with ticks, none ticked ----
+// the ticks that are still on something in the round (an item moved to another round has lost its tick)
+const liveTicks = id => { const { resumes, documents } = DOC.roundItems(st(), id), live = new Set([...resumes.map(r => `r:${r}`), ...documents.map(d => `d:${d}`)]); return [...L.rmTicks].filter(k => live.has(k)); };
 export function roundPanel(round){
+  L.rmTicks = new Set(liveTicks(round.id));
   const { resumes, documents } = DOC.roundItems(st(), round.id), docs = documents.map(id => st().documents.find(d => d.id === id));
   const row = (key, name, extra) => `<label class="mi"><input type="checkbox" data-rmk="${esc(key)}" ${L.rmTicks.has(key) ? 'checked' : ''}><span><span class="mw">${esc(name)}</span><span class="mx">${esc(extra)}</span></span></label>`;
   return `<div class="dpanel" data-panel="round" data-round="${esc(round.id)}"><p class="note">${h('i7.rmNote')}</p><div class="mlist">${resumes.map(id => row(`r:${id}`, RS.resumeLabel(RS.savedOf(st(), id)), t('i7.aResume'))).join('')}${docs.map(d => row(`d:${d.id}`, d.name, typeOf(d))).join('')}</div>
@@ -217,8 +220,8 @@ async function act(a, tg){
     case 'rm-round-open': L.rm = id; L.rmTicks.clear(); C.renderBody(); return true;
     case 'rm-round-close': L.rm = null; L.rmTicks.clear(); C.renderBody(); return true;
     case 'rm-round-do': {
-      const rs = [...L.rmTicks].filter(k => k.startsWith('r:')).map(k => k.slice(2)), ds = [...L.rmTicks].filter(k => k.startsWith('d:')).map(k => k.slice(2));
-      if (!L.rmTicks.size || refused(ds)) return true;
+      const ticks = liveTicks(id), rs = ticks.filter(k => k.startsWith('r:')).map(k => k.slice(2)), ds = ticks.filter(k => k.startsWith('d:')).map(k => k.slice(2));
+      if (!ticks.length || refused(ds)) return true;
       if (await checkpointed(t('i7.checkpointRound'), x => { for (const r of rs) RS.deleteSaved(x, r); if (ds.length) RS.removeGuarded(x, ds, ctx()); })){ L.rm = null; L.rmTicks.clear(); C.toast(t('i7.rmDone', { n: rs.length + ds.length })); }
       C.renderBody(); return true;
     }

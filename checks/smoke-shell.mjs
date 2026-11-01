@@ -2635,6 +2635,14 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   await page.click(`#scr .rround[data-round="${spring.id}"] [data-act=rm-round-open]`); await settle(page);
   const ticks0 = await page.$$eval('#scr [data-rmk]', es => es.map(e => [e.dataset.rmk, e.checked]));
   ok('Remove these… lists the round’s resumes and documents, none ticked, the button off', ticks0.length === 2 && ticks0.every(t => !t[1]) && ticks0.some(t => t[0].startsWith('r:')) && ticks0.some(t => t[0].startsWith('d:')) && await page.$eval('#scr [data-act=rm-round-do]', b => b.disabled));
+  // a tick on something moved to another round is gone with it: the count and what Remove drops follow
+  await page.check(`#scr [data-rmk="d:${Bw.id}"]`);
+  await page.click(`${card(Bw)} .rsel`); await settle(page);
+  await pickOption(page, '#body [data-doc-round]', autumn.id); await settle(page); await unfold();
+  ok('a file ticked and then moved to another round is no longer in the list, its tick is gone and the button is off', (await page.$$(`#scr [data-rmk="d:${Bw.id}"]`)).length === 0 && await page.$eval('#scr [data-act=rm-round-do]', b => b.disabled));
+  await page.click(`${card(Bw)} .rsel`); await settle(page);
+  await pickOption(page, '#body [data-doc-round]', spring.id); await settle(page); await unfold();
+  ok('moved back it is listed again, unticked', (await page.$$(`#scr [data-rmk="d:${Bw.id}"]`)).length === 1 && !(await page.$eval(`#scr [data-rmk="d:${Bw.id}"]`, e => e.checked)));
   const cps1 = (await page.evaluate(() => window.__wb.persist.listCheckpoints())).length;
   await page.check(`#scr [data-rmk="d:${Bw.id}"]`);
   await page.click('#scr [data-act=rm-round-do]'); await settle(page);
