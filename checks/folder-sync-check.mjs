@@ -7,6 +7,7 @@
 
 import { memoryFolder, safe, ignored, conflictCopy } from '../src/store/persist.js';
 import { libraryName } from '../src/store/space.js';
+import { exportName } from '../src/export.js';
 import { scenarios } from './lib/space-scenarios.mjs';
 
 let failed = 0;
@@ -20,6 +21,8 @@ section('what the folder ignores, and the names it makes');
   const bad = 'a\\b/c:d*e?f"g<h>i|j#k^l[m]n';
   ok('a safe name has none of \\ / : * ? " < > | # ^ [ ]', !/[\\/:*?"<>|#^[\]]/.test(safe(bad)), safe(bad));
   ok('…is NFC, at most 120 characters, with no trailing dot or space', safe('é'.repeat(200)) === safe('é'.repeat(200)).normalize('NFC') && safe('x'.repeat(300)).length === 120 && !/[. ]$/.test(safe('name. . ')) && safe('...') === 'checkpoint' && safe('', 'device') === 'device');
+  const out = exportName({ company: 'A#B', role: 'C[1]^' }, { basics: { name: 'N.' } }, 'pdf');
+  ok('every name the app makes goes through safe(): an export’s too', out === safe('A#B - C[1]^ - N.') + '.pdf' && !/[#^[\]]/.test(out), out);
   ok('the standard name of a library file: date, company, role, a language that is not English', libraryName({ date: '2024-03-12', company: 'Acme', role: 'Product Designer', ext: '.pdf' }) === '2024-03-12 Acme - Product Designer.pdf' && libraryName({ date: '2024-03-12', company: 'Acme', role: 'Product Designer', lang: 'hu', ext: '.pdf' }) === '2024-03-12 Acme - Product Designer (hu).pdf' && libraryName({ stem: '2020-01-01 Old name', ext: '.pdf', date: '2024-01-01' }) === '2020-01-01 Old name.pdf');
 }
 

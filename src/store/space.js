@@ -316,7 +316,7 @@ export function createSpace({ persist, store, now = () => new Date() }){
 
   async function run(){
     const d = folder();
-    if (!d) return null;
+    if (!d){ last = null; return null; }
     const r = { merged: [], changed: 0, summary: [], waiting: [], other: [], devices: [], conflicts: [], outside: 0, absorbed: 0, fresh: [], inbox: [] };
     await mergeDevices(d, r);
     await absorb(d, r);

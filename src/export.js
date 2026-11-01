@@ -5,6 +5,7 @@ import { resolve } from './model/resume.js';
 import { JSON_RESUME_SCHEMA, JSON_RESUME_VERSION } from './model/schema.js';
 import { langName } from './model/lang.js';
 import { t } from './i18n/index.js';
+import { safe } from './store/persist.js';
 
 // css: [{ href, text }] in template order, with url()s already inlined.
 export function assembleHtml({ templateHtml, css = [], documentHtml, title = 'Resume', lang = 'en', rootVars = {}, htmlClass = '' }){
@@ -144,6 +145,6 @@ export function preflight({ model, recipe, fills = [], missing = 0, newer = 0, v
 
 export function exportName(recipe, model, ext){
   const parts = [recipe.company, recipe.role, model.basics?.name].filter(Boolean);
-  const base = (parts.length ? parts.join(' - ') : 'Resume').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const base = safe(parts.length ? parts.join(' - ') : 'Resume', 'Resume');      // a name that works everywhere (src/store/persist.js)
   return `${base}.${ext}`;
 }

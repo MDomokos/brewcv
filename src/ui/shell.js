@@ -1094,7 +1094,7 @@ async function onClick(e){
     case 'fullscreen': toggleFullscreen(); break;
     case 'open': ui.menu = false; pickFile(); break;
     case 'link': ui.menu = false; linkFolder(); break;
-    case 'unlink': ui.menu = false; await persist.unlink(); renderHead(); toast(t('toast.unlinked')); break;
+    case 'unlink': ui.menu = false; await persist.unlink(); await space.sync(); renderHead(); toast(t('toast.unlinked')); break;
     case 'reconnect': reconnect(); break;
     case 'inbox-read': files.openFiles(await space.load(space.last.inbox)); break;
     case 'save-file': ui.menu = false; review.saveFlow(tg); break;
@@ -1432,6 +1432,7 @@ async function linkFolder(startAt){
 
 // `root` is the folder the person picked. Its data is in BrewCV/ (or, in an older folder, at the top); the Library and the Inbox are beside it.
 async function adoptFolder(root, fresh){
+  if (!(await persist.becomeWriter())){ ui.readOnly = true; ui.reconnect = null; renderHead(); return; }      // another window writes this folder; this one only reads
   const f = await dataFolder(root);
   const devs = await space.probe(f);      // the other devices' files of this career merge by themselves; another career's files are asked about
   let disk = null, adopted = false, keepMine = false;
@@ -1452,7 +1453,7 @@ async function adoptFolder(root, fresh){
       } else keepMine = true;
     }
   }
-  if ((await persist.link(f)) === null){ ui.readOnly = true; ui.reconnect = null; renderHead(); return; }      // another window writes this folder
+  await persist.link(f);
   ui.readOnly = false;
   if (keepMine) await persist.acceptAll();      // the person said this device's state may be written over what is there
   if (adopted && disk) await persist.dropMerged(disk.leftovers).catch(() => {});     // a spelling of a name that was merged into the one just written

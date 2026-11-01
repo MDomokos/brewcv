@@ -15,6 +15,9 @@ import { createSpace, moveIntoBrewCV, planOrganise, organise, undoOrganise, reco
 import { clockFits } from '../../src/model/merge.js';
 import { readLibrary } from '../../scripts/lib/library.mjs';
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
+import { renderPages } from '../../src/render.js';
+import { createDocument } from '../../scripts/lib/dom.mjs';
 
 const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -39,6 +42,8 @@ async function device(M, name, extra = {}){
   const space = createSpace({ persist, store });
   return { store, persist, folder, data, space, files: M };
 }
+// every saved resume of a device, printed: the hash of its pages
+const printed = d => d.store.state.resumes.map(r => crypto.createHash('sha256').update(renderPages(d.store.state.record, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('\n')).digest('hex')).join();
 const view = d => [...filesOf(d.store.materialize())].map(([k, v]) => `${k}\n${v}`).join('\n=====\n');
 const label = d => d.store.state.record.basics.label;
 const edit = (d, fn, what = 'edit') => { d.store.commit(fn, what); return d.persist.flush(); };
@@ -167,7 +172,7 @@ section('a document moved, renamed or deleted outside');
   shared.set(p1, bytes);
   await edit(A, d => { DOC.addDocument(d, { name: '2024-03-12 Acme - Designer.txt', type: 'text/plain', path: p1, sha256: sha, size: bytes.length, text: 'Led the dosing system redesign.', meta: { company: 'Acme', role: 'Designer', date: '2024-03-12', lang: 'en', jobType: '', kind: 'resume' } }); }, 'document');
   const id = DOC.docId(sha), docOf = d => d.store.state.documents.find(x => x.id === id);
-  const recBefore = J(A.store.state.record);
+  const recBefore = J(A.store.state.record), printBefore = printed(A);
   await A.space.sync();
   ok('a document at its path is in the folder: nothing changes, and the receipt can tell it was read back', A.space.last.moved === 0 && A.space.last.missing === 0 && A.space.docStatus(id) === null && A.space.verified(docOf(A)));
   const p2 = 'Library/2025/2024-03-12 Acme - Designer renamed.txt';
@@ -199,6 +204,7 @@ section('a document moved, renamed or deleted outside');
   shared.set('Library/2025/copy of the same.txt', bytes);
   await A.space.sync();
   ok('one hash at two paths: the document’s own copy stays, the other goes to Deleted/', shared.has(p2) && !shared.has('Library/2025/copy of the same.txt') && listed(shared, 'Deleted').some(n => /copy of the same\.txt$/.test(n)));
+  ok('none of it changes a page: every saved resume prints byte for byte as before', printed(A) === printBefore);
   shared.delete(p2); await A.space.sync();
 }
 
@@ -214,7 +220,7 @@ section('an older folder, with the data at the top, opens and moves into BrewCV/
   ok('…and it reads as it always did', got.state.resumes.length === 2 && got.warnings.length === 0);
   // a copy that fails leaves the top as it was
   const w = root.write;
-  root.write = async (p, d) => { if (p === 'BrewCV/resume-data.json') throw new Error('disk full'); return w(p, d); };
+  root.write = async (p, d) => { if (p.startsWith('BrewCV/checkpoints/')) throw new Error('disk full'); return w(p, d); };      // the last file but one: resume-data.json, which makes BrewCV/ the data folder, must not be there yet
   let threw = false;
   try { await moveIntoBrewCV(root); } catch { threw = true; }
   root.write = w;
@@ -350,11 +356,18 @@ section('what a file from the folder cannot do');
   await d.persist.link(d.data); await d.space.sync();
   const plant = text => text.replace(/^\{/, '{"__proto__":{"polluted":"yes"},').replace(/"basics":\s*\{/, '"basics":{"__proto__":{"polluted":"deep"},');
   const mineFile = [...sf.keys()].find(k => /devices\/Mac/.test(k)), recipeFile = [...sf.keys()].find(k => k.startsWith('BrewCV/recipes/'));
-  sf.set('BrewCV/devices/Evil 0001.json', plant(sf.get(mineFile)));
+  // a device whose edit is a place with the key in it: its file carries a change the merge takes
+  const evil = await device(make(), 'Evil', { state: structuredClone(d.store.state) });
+  await evil.persist.link(evil.data);
+  await edit(evil, x => { x.record.basics.location = { city: 'Elsewhere' }; }, 'evil');
+  await evil.space.sync();
+  sf.set('BrewCV/devices/Evil 0001.json', plant([...evil.files.fx.entries()].find(([k]) => /devices\/Evil/.test(k))[1]).replace(/"location":\s*\{/, '"location":{"__proto__":{"polluted":"yes"},'));
   sf.set('BrewCV/recipes/Evil.json', plant(sf.get(recipeFile)));
   sf.set('BrewCV/resume-data.sync-conflict-20261101-120000-ABCDEFG.json', plant(sf.get('BrewCV/resume-data.json')));
-  await d.space.sync(); await d.space.sync();
-  ok('a __proto__ key in a device file, a recipe or a conflict copy reaches no object’s prototype', ({}).polluted === undefined && Object.prototype.polluted === undefined && d.store.state.record.polluted === undefined && d.store.state.record.basics.polluted === undefined);
+  const rr = await d.space.sync(); await d.space.sync();
+  const owns = (x, seen = new Set()) => !!x && typeof x === 'object' && !seen.has(x) && (seen.add(x), Object.hasOwn(x, '__proto__') || Object.values(x).some(v => owns(v, seen)));
+  ok('a __proto__ key in a device file, a recipe or a conflict copy reaches no object’s prototype, and is in nothing the state holds', !owns(d.store.state) && !owns(d.store.materialize()) && ({}).polluted === undefined && Object.prototype.polluted === undefined && d.store.state.record.polluted === undefined && d.store.state.record.basics.polluted === undefined);
+  ok('…the device file and the recipe were read in all the same, without it', rr.merged.includes('devices/Evil 0001.json') && d.store.state.record.basics.location.city === 'Elsewhere' && d.store.state.resumes.some(r => r.id === 'Evil.json'), J([rr.merged, rr.changed, d.store.state.record.basics.location]));
   sf.set('BrewCV/devices/Names <img src=x onerror=1>.json', sf.get(mineFile));
   await d.space.sync();
   ok('a name from the folder is data: the device list holds it as text for the screens to escape', d.space.devices().every(x => typeof x.name === 'string') && d.space.devices().some(x => x.name.includes('<img')));
