@@ -1538,7 +1538,7 @@ switcher.bind();
 Object.assign(VIEWS, resumes.views);
 VIEWS.record = () => recordTab.view();
 const thumbs = initThumbs({ work, extraCss: r => design.extraCss(store.state.record, r), chrome: r => docChrome(r.lang ?? 'en') });
-const screens = initScreens({ store, work, setView, resumes, view: () => ui.view, renderBody: () => renderBody(), leave: () => leaveView() }, thumbs);
+const screens = initScreens({ store, work, setView, resumes, view: () => ui.view, renderBody: () => renderBody(), leave: () => leaveView(), persist, toast, files: { checked: () => files.checked(), receipt: () => files.receipt() } }, thumbs);
 Object.assign(VIEWS, screens.views);
 window.__wb.thumbs = thumbs; window.__wb.screens = screens;
 const files = initFiles({

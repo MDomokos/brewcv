@@ -30,8 +30,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import zlib from 'node:zlib';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { pickOption } from './lib/dropdown.mjs';
+import { pdf as makePdf } from './lib/pdf.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8131);
@@ -2384,6 +2386,230 @@ if (want('import: an example career starts from the newest file')) {
   await ctx.close();
 }
 
+
+// The Library's documents (I-7): a card for each imported or exported file beside the saved resumes, in every view; an exported file sits with its resume; the inspector (preview, the three
+// ticks, what was taken, Place lines, Rebuild, Download, Remove); search finds a word only a document has; rounds, the archive, removing. Told apart by data attributes, counts and states.
+if (want('library: documents beside the resumes — cards, the exported file grouped, the inspector, Rebuild, search, rounds, the archive, removing')) {
+  const FIX = path.join(ROOT, 'checks/fixtures/import');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-library-'));
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 }, acceptDownloads: true });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  await page.evaluate(() => window.__wb.store.commit(d => { d.record.meta.owner = 'Sam Example'; }, 'smoke: make it mine'));      // the example on its own is replaced, not merged into
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  const view = () => page.getAttribute('#body', 'data-view');
+  const drop = async files => { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page); await page.setInputFiles('#file', files); await page.waitForSelector('#body[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page); };
+  const unfold = async () => { await page.evaluate(() => document.querySelectorAll('#scr .rround').forEach(d => { d.open = true; })); await settle(page); };      // the folds of rounds are shut until opened
+  const lib = async v => { await page.evaluate(() => window.__wb.setView('resumes')); await settle(page); if (v) { await page.click(`[data-act=scr-view][data-v=${v}]`); await settle(page); } await unfold(); };
+  const shot = async n => { if (process.env.LIBRARY_SHOTS) { fs.mkdirSync(process.env.LIBRARY_SHOTS, { recursive: true }); await page.screenshot({ path: path.join(process.env.LIBRARY_SHOTS, `${n}.png`) }); } };      // for a person to look at; nothing is asserted on a picture
+  const s0 = await st();
+  const open0 = s0.resumes.find(r => r.id === s0.openId), body0 = s0.frozen[s0.openId];
+  const printedLines = b => [b.basics?.summary, ...(b.work ?? []).flatMap(w => [w.position, ...(w.highlights ?? [])])].filter(Boolean);
+  const lines0 = printedLines(body0);
+
+  // ---- an exported file (made here as a resume PDF: the open resume’s header, its dated jobs and the lines it printed), another resume of someone else’s work, and a Word file with its PDF ----
+  const win = l => l.replace(/’/g, '\x92').replace(/–/g, '\x96').replace(/—/g, '\x97');
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], dt = d => (d ? `${MON[+d.slice(5, 7) - 1]} ${d.slice(0, 4)}` : 'Present');
+  const page1 = rows => { let y = 800; return makePdf([rows.map(([text, size = 10, bold = false]) => { y -= size + 6; return { x: 40, y, text: win(text), size, bold }; })], { flate: true }); };
+  const exported = path.join(tmp, '2026-03-12 Example - Design Engineer.pdf');
+  fs.writeFileSync(exported, page1([['Dana Okonkwo', 16, true], [body0.basics.label, 11], [[body0.basics.location?.city, body0.basics.email, body0.basics.phone].filter(Boolean).join(' · '), 9], ['Summary', 12, true], [body0.basics.summary], ['Experience', 12, true],
+    ...body0.work.flatMap(w => [[w.position, 11, true], [`${w.name} · ${dt(w.startDate)} - ${dt(w.endDate)}${w.location ? ` · ${w.location}` : ''}`, 9], ...w.highlights.map(h => [h])])]));
+  const bikes = path.join(tmp, '2025-05-02 Harbour Cycles - Bicycle Mechanic.pdf');
+  fs.writeFileSync(bikes, page1([['Dana Okonkwo', 16, true], ['Bicycle mechanic', 11], ['Gdansk, Poland · dana@example.org', 9], ['Experience', 12, true], ['Bicycle Mechanic', 11, true], ['Harbour Cycles · Mar 2015 - Dec 2016 · Gdansk', 9],
+    ['Repaired vintage bicycles through two salt-air seasons beside the Gdansk harbour.'], ['Taught three apprentices to true a wheel by ear and by feel.'], ['Kept a ledger of every frame number that passed the stand.']]));
+  const WORD = path.join(FIX, 'helix-1col-word.docx'), HPDF = path.join(FIX, 'helix-1col-word.pdf');
+  await drop([exported, WORD, HPDF]);
+  await page.click('[data-act=imp-continue]'); await settle(page);
+  await page.click('[data-act=imp-apply]'); await settle(page);
+  await page.waitForSelector('#body[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
+  const letter = path.join(tmp, '2025-05-02 Harbour Cycles - Bicycle Mechanic (letter).txt');
+  fs.writeFileSync(letter, ['Dear hiring team at Harbour Cycles,', '', 'I am writing to apply for the Bicycle Mechanic role because I enjoy bringing tired machines back to life for people who ride them every day.', `In my last role ${lines0[2].replace(/^(.)/, c => c.toLowerCase()).replace(/\.$/, '')}, and I would like to do the same for your repair stand.`, 'I would welcome a conversation about how that experience could help your workshop this season.', '', 'Kind regards,', 'Dana Okonkwo'].join('\n'));
+  await drop([bikes, letter]);      // …and the other resume with its letter, nothing of the resume ticked: its words are only in the Library
+  await page.click('[data-act=imp-continue]'); await settle(page);
+  for (const b of await page.$$('[data-pi]:checked')) await b.uncheck();
+  for (const k of await page.$$eval('[data-place]', es => es.map(e => e.dataset.place))) await pickOption(page, `[data-place="${k}"]`, 'skip');
+  await page.click('[data-act=imp-apply]'); await settle(page);
+  await page.waitForSelector('#body[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
+  const s1 = await st();
+  const docOf = n => s1.documents.find(d => d.name === n);
+  const A = docOf(path.basename(exported)), Bw = docOf('helix-1col-word.docx'), Bp = docOf('helix-1col-word.pdf'), Cb = docOf(path.basename(bikes)), Cl = docOf(path.basename(letter));
+  ok('five files are documents; the Word file’s PDF is another format of it; the letter was dropped with the other resume', s1.documents.length === 5 && Bp.of === Bw.id && !A.of && !Cb.of && A.meta.kind === 'resume' && Cl.meta.kind === 'cover-letter' && Cl.with === Cb.id);
+  const card = d => `#scr .rdoc[data-did="${d.id}"]`;
+  const DOCID = (state, f) => state.documents.find(d => d.name === path.basename(f)).id;
+
+  // ---- a card in each view; formats of one resume are one card; an exported file sits with its resume ----
+  for (const v of ['type', 'date', 'company']) {
+    await lib(v);
+    const n = await page.$$eval('#scr .rdoc', es => es.map(e => e.dataset.formats).sort().join());
+    ok(`${v} view: a document card for each group: the exported file, the other resume with its letter and the Word file with its PDF (one card each, two formats)`, n === '1,2,2' && (await page.$$(`${card(A)}, ${card(Bw)}, ${card(Cb)}`)).length === 3, n);
+  }
+  await lib('type');
+  const prev = id => page.$eval(`#scr .rdoc[data-did="${id}"]`, e => e.previousElementSibling?.dataset.rid ?? e.previousElementSibling?.dataset.did ?? '');
+  ok('the exported file’s card says where it was exported from and comes right after that saved resume; the other two files stand on their own', (await page.getAttribute(card(A), 'data-from')) === s0.openId && (await page.textContent(`${card(A)} .rfrom`)).length > 0 && (await prev(A.id)) === s0.openId && !(await page.getAttribute(card(Cb), 'data-from')) && !(await page.getAttribute(card(Bw), 'data-from')));
+  ok('the Word file’s lines are not all placed, the other resume’s are all dealt with; each card has a badge per format', (await page.getAttribute(card(Cb), 'data-state')) === 'record' && (await page.getAttribute(card(Bw), 'data-state')) === 'unplaced' && (await page.$$(`${card(Bw)} .pill`)).length === 2 && (await page.$$(`${card(A)} .pill`)).length === 1);
+  ok('a PDF’s card has its first page as a picture; a Word file’s card has a badge and its first line', (await page.$$(`${card(A)} .dthumb img`)).length === 1 && (await page.$$(`${card(Bw)} .dthumb .dbadge`)).length === 1);
+
+  await shot('1-library-cards');
+  // ---- the inspector: three ticks, the preview of a PDF in a sandboxed frame of a blob: address, what was taken ----
+  await page.click(`${card(Bw)} .rsel`); await settle(page);
+  ok('selecting a group shows its inspector: the formats with their sizes, and the three ticks of the receipt, each with a state', (await page.$$('#body .insp-doc')).length === 1 && (await page.$$('#body .dformats button')).length === 2 && (await page.$$eval('#body .ticks li', es => es.map(e => e.dataset.state))).join() === 'read,unplaced,browser');
+  ok('a Word file has no frame; its first lines are shown as text', (await page.$$('#body .insp-doc iframe')).length === 0 && (await page.$$('#body .insp-doc .dtext')).length === 1);
+  await page.click(`#body .dformats button[data-id="${Bp.id}"]`); await settle(page);
+  await page.click('#body .insp-doc .dview summary'); await settle(page);
+  const fr = await page.$eval('#body .insp-doc iframe.dprev', f => ({ sandbox: f.getAttribute('sandbox'), src: f.getAttribute('src').slice(0, 5), n: document.querySelectorAll('iframe[src^="blob:"]').length }));
+  await shot('2-inspector-preview');
+  ok('a PDF’s preview is one frame of a blob: address with sandbox set to nothing', fr.sandbox === '' && fr.src === 'blob:' && fr.n === 1, JSON.stringify(fr));
+  await page.click(`${card(Cb)} .rsel`); await settle(page);
+  ok('what was taken from a file is told; the earlier frame is gone and the PDF’s own is the only one', (await page.$$('#body .insp-doc [data-taken]')).length === 1 && (await page.$$('iframe[src^="blob:"]')).length === 1);
+  await page.click(`${card(Bw)} .rsel`); await settle(page);
+  ok('and for a file that added claims, each links into Career', Bw.taken.claims.length + Bw.taken.versions.length > 0 ? (await page.$$('#body .dtaken [data-act=rec-job]')).length >= 1 : true, JSON.stringify(Bw.taken));
+
+  // ---- Rebuild: the exported file becomes a saved resume that prints the same lines ----
+  await page.click(`${card(A)} .rsel`); await settle(page);
+  await page.click('#body [data-act=doc-rebuild]'); await settle(page);
+  const s2 = await st(), made = s2.resumes.find(r => !s0.resumes.some(x => x.id === r.id));
+  const lines2 = printedLines(s2.frozen[made.id]);
+  ok('Rebuild makes a saved resume, opened in the editor, that prints the same lines as the one the file was exported from; the career is untouched', s2.resumes.length === s0.resumes.length + 1 && s2.openId === made.id && (await page.evaluate(() => window.__wb.ui.view)) === null && JSON.stringify(lines2.slice().sort()) === JSON.stringify(lines0.slice().sort()) && JSON.stringify(s2.record) === JSON.stringify(s1.record), lines2.length + '/' + lines0.length);
+  ok('the other saved resumes print what they did', s0.resumes.every(r => JSON.stringify(s2.frozen[r.id]) === JSON.stringify(s0.frozen[r.id])));
+
+  // ---- search finds a word only a document has ----
+  const un = Bw.taken.lines;
+  const everything = JSON.stringify(s2.record).toLowerCase() + JSON.stringify(s2.resumes).toLowerCase();
+  const word = Cb.text.split(/\W+/).find(w => w.length > 6 && !everything.includes(w.toLowerCase()));
+  await lib();
+  await page.fill('#scr-q', word); await page.dispatchEvent('#scr-q', 'input'); await settle(page);
+  ok(`a search for “${word}”, a word in a document and nowhere in the career, finds that document’s card with the line marked; no resume shows the word`, (await page.$$(`${card(Cb)} .rhit mark`)).length >= 1 && (await page.$$('#scr .rcard[data-rid] .rhit')).length === 0 && (await page.$$(`${card(A)}`)).length === 0 && (await page.$$(`${card(Bw)}`)).length === 0);
+  await page.fill('#scr-q', ''); await page.dispatchEvent('#scr-q', 'input'); await settle(page);
+
+  // ---- Place lines: the same menu as at import, from the inspector ----
+  await page.click(`${card(Bw)} .rsel`); await settle(page);
+  await page.click('#body [data-act=doc-place]'); await settle(page);
+  const jobs = await page.$$eval('#body [data-lplace="0"] option', os => os.map(o => o.value).filter(v => v.startsWith('job:')));
+  await shot('3-place-lines');
+  ok('Place lines lists the lines left over, each with the “Put it in…” menu and none chosen', (await page.$$('#body [data-lplace]')).length === un.length && jobs.length >= 3 && (await page.$eval('#body [data-act=doc-place-do]', b => b.disabled)));
+  await pickOption(page, '#body [data-lplace="0"]', jobs[0]);
+  ok('choosing one line enables the button', !(await page.$eval('#body [data-act=doc-place-do]', b => b.disabled)));
+  const v0 = (await st()).record.variants.length;
+  await page.click('#body [data-act=doc-place-do]'); await settle(page);
+  const s3 = await st(), hd = s3.documents.find(d => d.id === Bw.id);
+  ok('the line is now a claim under that job, stamped with the document and tagged imported; the document has one line fewer unplaced; a checkpoint was made first', s3.record.variants.length === v0 + 1 && hd.taken.unplaced === un.length - 1 && s3.record.variants.at(-1).tags.includes('imported') && /^Imported from helix-1col-word\.docx/.test(s3.record.variants.at(-1).source) && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).some(c => /helix-1col-word/.test(c.label)));
+
+  // ---- a letter sits with its resume's group; its inspector lists the claims it leans on; Download gives the original back ----
+  await lib();
+  await page.click(`${card(Cb)} .rsel`); await settle(page);
+  await page.click(`#body .dformats button[data-id="${Cl.id}"]`); await settle(page);
+  ok('the letter is one of the group’s formats, and its inspector lists the claims it leans on, read only', (await page.$$(`${card(Cb)} .pill`)).length === 2 && (await page.$$('#body .dmentions li')).length >= 1 && (await page.$$('#body [data-act=doc-rebuild]')).length === 0);
+  await page.click(`#body .dformats button[data-id="${Cb.id}"]`); await settle(page);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click(`#body [data-act=doc-download][data-id="${Cb.id}"]`)]);
+  const dlPath = path.join(tmp, 'back.pdf'); await dl.saveAs(dlPath);
+  ok('Download gives the original back, byte for byte, under its own name', dl.suggestedFilename() === Cb.name && crypto.createHash('sha256').update(fs.readFileSync(dlPath)).digest('hex') === Cb.sha256);
+
+  // ---- the inspector's third tick turns green only after Check a saved file ----
+  ok('before that the PDF’s ticks are read, in the career, and only in this browser: not safe', (await page.$$eval('#body .ticks li', es => es.map(e => e.dataset.state))).join() === 'read,in,browser' && (await page.getAttribute('#body .ticks', 'data-safe')) === 'false');
+  const saved = path.join(tmp, 'saved-brewcv.json');
+  fs.writeFileSync(saved, await page.evaluate(async () => { const { makeBackup } = await import('/src/store/persist.js'); return JSON.stringify(makeBackup(window.__wb.store.materialize())); }));
+  await page.click('#body [data-act=imp-check]'); await page.setInputFiles('#file', saved); await page.waitForSelector('#body .ticks li[data-state=file]', { timeout: 30000 }); await settle(page);
+  ok('after Check a saved file the original is found in it: kept in brewcv.json, and safe to delete', (await page.getAttribute('#body .ticks', 'data-safe')) === 'true');
+
+  // ---- rounds: the current one first, older ones folded, Earlier for what has none; new imports go into the current round ----
+  await lib();
+  ok('with no round yet there are no round folds', (await page.$$('#scr .rround')).length === 0);
+  const startRound = async name => { await page.click('#scr [data-act=round-new]'); await page.fill('#rd-name', name); await page.dispatchEvent('#rd-name', 'input'); await page.click('[data-act=round-create]'); await settle(page); };
+  await startRound('Spring 2027');
+  await startRound('Autumn 2027');
+  const s4 = await st(), [spring, autumn] = [s4.rounds.find(r => r.name === 'Spring 2027'), s4.rounds.find(r => r.name === 'Autumn 2027')];
+  const folds = await page.$$eval('#scr .rround', es => es.map(e => ({ round: e.dataset.round, open: e.open, current: !!e.dataset.current, n: Number(e.dataset.n) })));
+  ok('two rounds started: the first is closed by the second, the newest is the current one, open and first; the older round and Earlier are folded; the resumes and documents from before are under Earlier', s4.rounds.length === 2 && spring.to === autumn.from && folds[0].round === autumn.id && folds[0].current && folds[0].open && folds.find(f => f.round === spring.id).open === false && folds.at(-1).round === '' && folds.at(-1).open === false && folds.at(-1).n >= s4.resumes.length, JSON.stringify(folds));
+  await shot('4-rounds');
+  const txt = path.join(tmp, '2026-06-01 Acme - Tester.txt');
+  fs.writeFileSync(txt, ['Dana Okonkwo', 'Tester', '', 'Experience', 'Tester', 'Acme · Jan 2020 - Present', 'Wrote the acceptance checks for a firmware update that reached forty thousand devices.'].join('\n'));
+  await drop([txt]); await page.click('[data-act=imp-continue]'); await settle(page);
+  await page.click('[data-act=imp-apply]'); await settle(page); await page.waitForSelector('#body[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
+  const s5 = await st();
+  ok('a file imported now goes into the current round', s5.documents.find(d => d.name === path.basename(txt)).round === autumn.id);
+  await lib();
+  ok('and its card is in the current round’s fold', (await page.$$(`#scr .rround[data-current] .rdoc[data-did="${DOCID(s5, txt)}"]`)).length === 1);
+  // a resume and a document moved to a round from the inspector
+  await page.click(`#scr .rcard[data-rid="${s0.openId}"] .rsel`); await settle(page);
+  await pickOption(page, '#body [data-res-round]', spring.id); await settle(page); await unfold();
+  await page.click(`${card(Bw)} .rsel`); await settle(page);
+  await pickOption(page, '#body [data-doc-round]', spring.id); await settle(page); await unfold();
+  const s6 = await st();
+  ok('a resume and a document (all its formats) move to a round from their inspectors, and the resume’s round is not a change to what it prints', s6.resumes.find(r => r.id === s0.openId).round === spring.id && [Bw, Bp].every(d => s6.documents.find(x => x.id === d.id).round === spring.id) && JSON.stringify(s6.frozen) === JSON.stringify(s5.frozen) && (await page.$$(`#scr .rround[data-round="${spring.id}"] .rdoc[data-did="${Bw.id}"]`)).length === 1);
+
+  // ---- the archive: out of the views, searchable, back with Show archived; Nothing is deleted ----
+  await page.click(`${card(Cb)} .rsel`); await settle(page);
+  await page.click('#body [data-act=doc-archive]'); await settle(page);
+  ok('an archived group leaves the default views', (await page.$$(card(Cb))).length === 0 && (await page.$$('#scr [data-act=scr-archived]')).length === 1 && (await st()).documents.filter(d => d.archived).length === 2);
+  await page.fill('#scr-q', 'harbour'); await page.dispatchEvent('#scr-q', 'input'); await settle(page);
+  ok('an archived group stays searchable: a search finds it, marked archived', (await page.$$(`${card(Cb)}[data-archived]`)).length === 1);
+  await page.fill('#scr-q', ''); await page.dispatchEvent('#scr-q', 'input'); await settle(page);
+  await page.click('#scr [data-act=scr-archived]'); await settle(page);
+  ok('Show archived brings it back, marked; nothing was deleted', (await page.$$(`${card(Cb)}[data-archived]`)).length === 1);
+  await page.click(`${card(Cb)} .rsel`); await settle(page);
+  await page.click('#body [data-act=doc-archive]'); await settle(page);
+  ok('Bring back clears the mark, and with nothing archived left the switch goes away', (await st()).documents.filter(d => d.archived).length === 0 && (await page.$$('#scr [data-act=scr-archived]')).length === 0);
+
+  // ---- Remove duplicate copies: tick the copies to keep; a checkpoint first; the text stays ----
+  await page.click(`${card(Bw)} .rsel`); await settle(page);
+  await page.click('#body [data-act=doc-dups]'); await settle(page);
+  const keeps = await page.$$eval('#body [data-lkeep]', es => es.map(e => [e.dataset.lkeep, e.checked, e.disabled]));
+  ok('Remove duplicate copies lists the copies, the first imported ticked, and offers to remove the other', keeps.length === 2 && keeps.find(k => k[0] === Bw.id)[1] === true && keeps.find(k => k[0] === Bp.id)[1] === false && (await page.textContent('#body [data-act=doc-dups-do]')).includes('1'));
+  const cps0 = (await page.evaluate(() => window.__wb.persist.listCheckpoints())).length;
+  await page.click('#body [data-act=doc-dups-do]'); await settle(page);
+  const s7 = await st();
+  ok('the other copy is removed with a mark in the career and a checkpoint made first; the kept one stays, with its text, and nothing is left pointing at the removed one', !s7.documents.some(d => d.id === Bp.id) && s7.documents.some(d => d.id === Bw.id && d.text === Bw.text) && s7.record.removed[`document:${Bp.id}`] && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).length === cps0 + 1 && !s7.documents.some(d => d.of === Bp.id));
+
+  // ---- Remove from Library: a tick first, a checkpoint first; Undo brings it back ----
+  await page.click(`${card(Cb)} .rsel`); await settle(page);
+  await page.click(`#body [data-act=doc-remove]`); await settle(page);
+  ok('Remove from Library asks for a tick first: the button is off until it is ticked', await page.$eval('#body [data-act=doc-remove-do]', b => b.disabled));
+  await page.check('#body [data-lok]');
+  ok('ticked, the button is on', !(await page.$eval('#body [data-act=doc-remove-do]', b => b.disabled)));
+  await page.click('#body [data-act=doc-remove-do]'); await settle(page);
+  const s8 = await st();
+  ok('the document is gone from the Library, with a mark and a checkpoint; the lines it brought stay in the career', !s8.documents.some(d => d.id === Cb.id) && s8.record.removed[`document:${Cb.id}`] && JSON.stringify(s8.record.variants) === JSON.stringify(s7.record.variants) && (await page.$$(card(Cb))).length === 0);
+  await page.evaluate(() => window.__wb.store.undo()); await settle(page);
+  ok('Undo brings the document back with its original', (await st()).documents.some(d => d.id === Cb.id && /^(?:asset:|data:)/.test(d.embedded)));
+
+  // ---- Keep text only drops the original and keeps the text ----
+  await lib();
+  await page.click(`${card(A)} .rsel`); await settle(page);
+  await page.click(`#body [data-act=doc-keeptext][data-id="${A.id}"]`); await settle(page);
+  const kept = (await st()).documents.find(d => d.id === A.id);
+  ok('Keep text only drops the original and keeps the text; it can no longer be downloaded, and the receipt’s third tick says no copy is kept', !kept.embedded && kept.text === A.text && (await page.$$('#body [data-act=doc-download]')).length === 0 && (await page.$$eval('#body .ticks li', es => es.at(-1).dataset.state)) === 'none');
+
+  // ---- Remove these…, in an archived round: ticks, none ticked; a checkpoint first ----
+  await page.evaluate(() => window.__wb.setView('resumes')); await settle(page);
+  await page.click(`#scr .rround[data-round="${spring.id}"] [data-act=round-archive]`); await settle(page);
+  ok('an archived round leaves the views with everything in it', (await page.$$(`#scr .rround[data-round="${spring.id}"]`)).length === 0);
+  await page.click('#scr [data-act=scr-archived]'); await settle(page);
+  await page.click(`#scr .rround[data-round="${spring.id}"] [data-act=rm-round-open]`); await settle(page);
+  const ticks0 = await page.$$eval('#scr [data-rmk]', es => es.map(e => [e.dataset.rmk, e.checked]));
+  ok('Remove these… lists the round’s resumes and documents, none ticked, the button off', ticks0.length === 2 && ticks0.every(t => !t[1]) && ticks0.some(t => t[0].startsWith('r:')) && ticks0.some(t => t[0].startsWith('d:')) && await page.$eval('#scr [data-act=rm-round-do]', b => b.disabled));
+  const cps1 = (await page.evaluate(() => window.__wb.persist.listCheckpoints())).length;
+  await page.check(`#scr [data-rmk="d:${Bw.id}"]`);
+  await page.click('#scr [data-act=rm-round-do]'); await settle(page);
+  const s9 = await st();
+  ok('the ticked document is removed, the unticked resume stays, a checkpoint was made first', !s9.documents.some(d => d.id === Bw.id) && s9.resumes.some(r => r.id === s0.openId) && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).length === cps1 + 1 && s9.record.removed[`document:${Bw.id}`]);
+
+  // ---- a file named like markup is text everywhere in the Library ----
+  const X_ = '<img src=x data-xss onerror="window.__xss=1">';
+  const hostile = path.join(tmp, `${X_} 2026-01-01 Corp.txt`);
+  fs.writeFileSync(hostile, ['Dana Okonkwo', 'Experience', 'Maker', `Corp ${X_} · Jan 2020 - Present`, `Built ${X_} a thing for the people who use it every day.`].join('\n'));
+  await drop([hostile]); await page.click('[data-act=imp-continue]'); await settle(page);
+  await page.click('[data-act=imp-apply]'); await settle(page); await page.waitForSelector('#body[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
+  await lib();
+  const hd2 = (await st()).documents.find(d => d.name.includes('data-xss'));
+  await page.click(`#scr .rdoc[data-did="${hd2.id}"] .rsel`); await settle(page);
+  await page.fill('#scr-q', 'thing'); await page.dispatchEvent('#scr-q', 'input'); await settle(page);
+  const probe = await page.evaluate(() => ({ nodes: document.querySelectorAll('[data-xss]').length, ran: window.__xss ?? null, text: document.querySelector('#scr .rdoc .rname')?.textContent ?? '' }));
+  ok('a document named and written like markup is its own characters on the card, in the search and in the inspector: no element made, nothing run', probe.nodes === 0 && probe.ran === null && probe.text.includes('<img src=x'), JSON.stringify(probe));
+  await page.fill('#scr-q', ''); await page.dispatchEvent('#scr-q', 'input'); await settle(page);
+
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+}
 
 if (want('save to file: one file, Ctrl+S, opening it safely')) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'brewcv-save-'));

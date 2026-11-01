@@ -11,7 +11,7 @@ import * as RS from '../model/resumes.js';
 import * as M from '../model/merge.js';
 import * as X from '../model/intake.js';
 import * as DOC from '../model/documents.js';
-import { pdfPages } from '../parse/pdf.js';
+import { pdfPages, pdfThumb } from '../parse/pdf.js';
 import { fnv } from '../store/store.js';
 import { readBackup, makeBackup, openVerdict, sha256 } from '../store/persist.js';
 import { ensureRecordId, dropProto } from '../model/schema.js';
@@ -26,7 +26,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const $ = s => document.querySelector(s);
 const st = () => C.store.state;
 // drop: the files of one import being read, judged and reviewed ({ entries, plan, done, checked }); see the import door below
-const F = { got: null, items: null, merged: null, outside: true, drop: null, history: { list: null, sel: null, items: null, compare: null } };
+const F = { got: null, items: null, merged: null, outside: true, drop: null, checked: null, history: { list: null, sel: null, items: null, compare: null } };
 const KIND = k => ({ library: t('files.kindLibrary'), jsonresume: t('files.kindJsonResume'), backup: t('files.kindBackup'), resume: t('files.kindResume'), theme: t('files.kindTheme'), error: t('files.kindError') }[k]);
 const stamp = iso => (iso ? String(iso).slice(0, 16).replace('T', ' ') : '—');
 const isExample = () => /\(fictional\)/.test(st().record?.meta?.owner ?? '');
@@ -215,12 +215,15 @@ export async function openFiles(list, mode = null){
       e.bytes = new Uint8Array(await f.arrayBuffer());
       e.sha256 = await sha256(e.bytes);
       e.read = /\.css$/i.test(f.name) ? { kind: 'json' } : await X.readFile(e.bytes, f.name, { lang: uiLang(), words: X.wordsOf(st().record) });      // among several files a theme is a data file: opened on its own
+      // the picture of a PDF's first page, drawn while the person reads the screens and kept with the document (an image the store keeps out of the undo steps); a file it cannot draw has none
+      if (e.read.pdf) e.thumbP = pdfThumb(e.read.pdf, 240).catch(() => undefined);
     } catch (err){ e.error = err; e.sha256 ??= f.name; }
     if (one && !e.error && (e.read.kind === 'json' || (/\.json$/i.test(f.name) && e.read.kind === 'txt'))){ await take(new TextDecoder().decode(e.bytes), f.name, mode); return; }
   }
   if (mode === 'compare'){ C.toast(t('toast.onlyCompare'), 'warn'); return; }
   judge(entries);
-  F.drop = { entries, plan: null, done: null, checked: null, open: new Set(), pages: new Map() };
+  F.drop = { entries, plan: null, done: null, open: new Set(), pages: new Map() };
+  F.checked = null;      // a check of a saved file is about the import it was made for
   entries.forEach((e, i) => { if (wantsLayout(e)) F.drop.open.add(i); });
   C.setView('reading');
   entries.forEach((e, i) => { if (F.drop.open.has(i)) loadPages(i); });
@@ -259,6 +262,7 @@ async function act(a, tg){
   if (await importAct(a, tg)) return true;
   switch (a){
     case 'imp-pick': C.pickFile(); return true;
+    case 'imp-check': C.pickFile('check'); return true;
     case 'imp-paste': {
       const text = $('#imp-paste')?.value ?? '';
       if (!text.trim()){ C.toast(t('toast.pasteFirst'), 'warn'); return true; }
@@ -446,19 +450,21 @@ function needsHtml(p){
   return rows.length ? `<div class="mgroup change" data-needs="${rows.length}">${h('i6.needsYou')} · ${rows.length}</div><div class="mlist">${rows.join('')}</div>` : '';
 }
 
+// The "Put it in…" menu of a line with no home (here, and in the Library's inspector); `attr` names the select for whoever listens to it
+export function placeMenu(o, u, attr){
+  const opt = (v, label) => `<option value="${esc(v)}" ${u.choice === v ? 'selected' : ''}>${esc(label)}</option>`;
+  return `<select ${attr} aria-label="${esc(t('i6.putIn'))}"><option value="">${esc(t('i6.putIn'))}</option>
+    ${o.jobs.length ? `<optgroup label="${esc(t('i6.underJob'))}">${o.jobs.map(j => opt(j.value, j.above ? `${j.label} ${t('i6.above')}` : j.label)).join('')}</optgroup>` : ''}
+    ${o.claims.length ? `<optgroup label="${esc(t('i6.asWording'))}">${o.claims.map(c => opt(c.value, c.label)).join('')}</optgroup>` : ''}
+    ${o.skills.length ? `<optgroup label="${esc(t('i6.inSkills'))}">${o.skills.map(c => opt(c.value, c.label)).join('')}</optgroup>` : ''}
+    ${o.sections.length ? `<optgroup label="${esc(t('i6.inSection'))}">${o.sections.map(c => opt(c.value, c.label)).join('')}</optgroup>` : ''}
+    ${opt('skip', t('i6.notResume'))}</select>`;
+}
 function placeHtml(p, fi, f){
   if (!f.unplaced.length) return '';
   return `<div class="mgroup" data-unplaced="${f.unplaced.length}">${h('i6.unplacedTitle', { n: f.unplaced.length })}${p.files.length > 1 ? ` · ${esc(f.entry.name)}` : ''}</div><p class="note">${h('i6.unplacedNote')}</p>
-    <div class="mlist">${f.unplaced.map((u, ui) => {
-      const o = X.placeOptions(p, u), opt = (v, label) => `<option value="${esc(v)}" ${u.choice === v ? 'selected' : ''}>${esc(label)}</option>`;
-      return `<div class="mi ro" data-line="${fi}.${ui}"><span class="sym keep">?</span><span><span class="mx">${esc(u.text)}</span>
-        <select data-place="${fi}.${ui}" aria-label="${esc(t('i6.putIn'))}"><option value="">${esc(t('i6.putIn'))}</option>
-          ${o.jobs.length ? `<optgroup label="${esc(t('i6.underJob'))}">${o.jobs.map(j => opt(j.value, j.above ? `${j.label} ${t('i6.above')}` : j.label)).join('')}</optgroup>` : ''}
-          ${o.claims.length ? `<optgroup label="${esc(t('i6.asWording'))}">${o.claims.map(c => opt(c.value, c.label)).join('')}</optgroup>` : ''}
-          ${o.skills.length ? `<optgroup label="${esc(t('i6.inSkills'))}">${o.skills.map(c => opt(c.value, c.label)).join('')}</optgroup>` : ''}
-          ${o.sections.length ? `<optgroup label="${esc(t('i6.inSection'))}">${o.sections.map(c => opt(c.value, c.label)).join('')}</optgroup>` : ''}
-          ${opt('skip', t('i6.notResume'))}</select></span></div>`;
-    }).join('')}</div>`;
+    <div class="mlist">${f.unplaced.map((u, ui) => `<div class="mi ro" data-line="${fi}.${ui}"><span class="sym keep">?</span><span><span class="mx">${esc(u.text)}</span>
+        ${placeMenu(X.placeOptions(p, u), u, `data-place="${fi}.${ui}"`)}</span></div>`).join('')}</div>`;
 }
 
 function whatsnewView(){
@@ -489,7 +495,7 @@ function receiptView(){
   if (!D?.done) return importView();
   const docs = D.done.ids.map(id => (st().documents ?? []).find(x => x.id === id)).filter(Boolean);
   const rows = docs.map(doc => {
-    const sf = DOC.safety(doc, { lastFileSave: C.persist.fileState.last, checked: D.checked });
+    const sf = DOC.safety(doc, { lastFileSave: C.persist.fileState.last, checked: F.checked });
     return `<div class="mi ro" data-doc="${esc(doc.id)}" data-kind="${esc(doc.meta?.kind ?? '')}" data-safe="${sf.safe}" data-read="${sf.read.state}" data-record="${sf.record.state}" data-kept="${sf.kept.state}"><span class="sym ${sf.safe ? 'add' : 'keep'}">${sf.safe ? '✓' : '·'}</span>
       <span><span class="mw">${esc(doc.name)}${doc.of ? ` · ${esc(t('i6.formatShort'))}` : ''}</span>
       <ul class="small ticks">${[sf.read, sf.record, sf.kept].map(x => `<li data-ok="${x.ok}">${x.ok ? '✓' : '○'} ${esc(x.text)}</li>`).join('')}</ul>
@@ -508,7 +514,7 @@ async function checkSaved(file){
   try { backup = dropProto(JSON.parse(await file.text())); } catch { backup = null; }
   if (!backup?.resumeBuilderBackup){ C.toast(t('i6.notBackup'), 'warn'); return; }
   const ids = DOC.inFile(st(), backup);
-  if (F.drop) F.drop.checked = { at: new Date().toISOString(), ids };
+  F.checked = { at: new Date().toISOString(), ids };      // kept for the session: the Library’s inspector shows it too
   C.toast(t('i6.checked', { n: ids.length }));
   C.renderBody();
 }
@@ -557,6 +563,7 @@ async function importAct(a, tg){
         try { await C.persist.checkpoint(t('i6.checkpoint'), 'import'); }
         catch (e){ C.toast(isFull(e) ? t('i6.storageFull') : errText(e), 'bad'); return true; }      // nothing was applied
         C.ui.sel = C.NONE;
+        await Promise.all(D.entries.map(async e => { if (e.thumbP) e.thumb = await e.thumbP; }));
         let made = [];
         if (!commit(d => { made = X.applyPlan(d, D.plan, { at }); }, label)) return true;
         D.done = { at, label, ids: made.map(x => x.id) };
@@ -565,7 +572,6 @@ async function importAct(a, tg){
       return true;
     }
     case 'imp-save': if (await C.saveToFile()) C.renderBody(); return true;
-    case 'imp-check': C.pickFile('check'); return true;
     case 'imp-undo-import':
       if (C.store.history.next === D.done.label){ C.ui.sel = C.NONE; C.store.undo(); }
       F.drop = null; C.setView(null);
@@ -635,6 +641,6 @@ function bind(body){
 
 const api = {
   views: { import: importView, review: reviewView, merge: mergeView, merged: mergedView, history: historyView, reading: readingView, whatsnew: whatsnewView, receipt: receiptView },
-  act, bind, openFiles, take,
+  act, bind, openFiles, take, checked: () => F.checked, receipt: () => F.drop?.done?.ids ?? [],
   compareFolder: () => act('cp-folder'),
 };

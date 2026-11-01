@@ -5,30 +5,34 @@
 // Duplicate and Delete are resumes.js's, and the resume list's search and views are here.
 
 import * as RS from '../model/resumes.js';
+import * as DOC from '../model/documents.js';
 import { jobTypeLabel } from '../model/focus.js';
 import { pendingEdits } from '../model/resume.js';
 import { langName } from '../model/lang.js';
-import { t, h } from '../i18n/index.js';
+import { t, h, errText } from '../i18n/index.js';
 import { pageSize, computeLayout } from './layout.js';
 import { side } from './sidewidth.js';
 import { play, reduced } from './motion.js';
 import { nameHtml } from './switcher.js';
 import { icon, withArrows } from './icons.js';
 import { F, snippet, careerHtml } from './find.js';
+import { initLibrary } from './library.js';
 
-let C = null, T = null;
+let C = null, T = null, LIB = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const VIEW_KEY = 'rb-manage-view', VIEWS = ['type', 'date', 'company'];
 const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : 'type'; } catch { return 'type'; } };
 // ticked: resumes ("id") and sent copies ("id|snapshot"); cmp: what Compare shows, and focus the row in the inspector;
 // sel: the selected card (null: the open resume's); nj: the resume whose "Use for a new job" form is open; draft: what was typed in
 // that form, per resume, kept until the copy is made
-const V = { hits: new Map(), view: savedView(), ticked: new Set(), cmp: [], sel: null, nj: null, draft: new Map(), sentOnly: false, rows: [], focus: -1 };
+// showArchived: archived resumes, documents and rounds are in the views; fold: the rounds the person opened or shut; roundForm: the form of "Start a new round" is open, with what was typed
+const V = { hits: new Map(), view: savedView(), ticked: new Set(), cmp: [], sel: null, nj: null, draft: new Map(), sentOnly: false, rows: [], focus: -1, showArchived: false, fold: new Map(), roundForm: false, roundDraft: '' };
 const phone = () => document.body.dataset.phone === 'true';
 const selId = () => (V.sel && RS.savedOf(st(), V.sel) ? V.sel : st().openId);
 
 export function initScreens(ctx, thumbs){
   C = ctx; T = thumbs;
+  LIB = initLibrary({ ...ctx, repaint: () => paintInspector() });
   // N and P step through the differences wherever the focus is, as long as it is not in a text box
   document.addEventListener('keydown', e => {
     if (C.view() !== 'compare' || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, select, textarea') || (e.key !== 'n' && e.key !== 'p')) return;
@@ -69,7 +73,7 @@ function phoneExtras(r){
 }
 function card(r){
   const open = r.id === st().openId, n = RS.snapshotsOf(r).length, role = r.role || '', company = r.company || '';
-  return `<article class="rcard ${open ? 'open' : ''} ${r.id === selId() ? 'sel' : ''} ${V.ticked.has(r.id) ? 'ticked' : ''}" data-rid="${esc(r.id)}">
+  return `<article class="rcard ${open ? 'open' : ''} ${r.id === selId() && !LIB.sel() ? 'sel' : ''} ${V.ticked.has(r.id) ? 'ticked' : ''}" data-rid="${esc(r.id)}" ${r.round ? `data-round="${esc(r.round)}"` : ''} ${r.archived ? 'data-archived="1"' : ''}>
     ${tick(r.id, t('ux6e.tick', { name: label(r) }))}
     <span class="thumbwrap">${thumb(r.id, r.format)}</span>
     <h4 class="rname">${C.resumes.renamingHere(r.id, 'screen') ? C.resumes.renameInput(r) : `<button class="rsel" data-act="scr-sel" data-id="${esc(r.id)}" aria-pressed="${r.id === selId()}" ${open ? 'aria-current="true"' : ''}>${nameHtml(company && role ? company : label(r))}</button>`}</h4>
@@ -82,23 +86,47 @@ function card(r){
   </article>`;
 }
 
+// A document group on its own (not exported from a saved resume) is listed beside the resumes: it has what the views group by (job type, company, date, round)
+const pseudo = g => ({ id: `doc:${g.id}`, name: g.lead.name, company: g.lead.meta?.company ?? '', role: g.lead.meta?.role ?? '', jobType: g.lead.meta?.jobType ?? '', savedAt: g.lead.meta?.date || String(g.lead.addedAt ?? '').slice(0, 10), lang: g.lead.meta?.lang, round: g.lead.round, g });
+
 function listHtml(){
-  const all = st().resumes ?? [], q = F.q.trim().toLowerCase();
+  if (!anyArchived()) V.showArchived = false;      // nothing left to show: the switch is off
+  const all = st().resumes ?? [], q = F.q.trim().toLowerCase(), rounds = st().rounds ?? [], show = V.showArchived || !!q;      // archived items stay searchable
   // a resume is found by its name, its sent-to or the words of the lines it prints; the one selected and the ones ticked for Compare stay in the results
   V.hits = new Map(all.map(r => [r.id, RS.hits(C.work(), recipeOf(r.id), q)]).filter(([, h]) => h.length));
   const claim = r => !F.claim || RS.prints(C.work(), recipeOf(r.id), F.claim.facts, F.claim.vid);
-  const list = all.filter(r => claim(r) && (RS.matches(st().record, r, F.q) || V.hits.has(r.id) || r.id === V.sel || V.ticked.has(r.id) || (q && RS.snapshotsOf(r).some(s => s.sends.some(x => String(x.company).toLowerCase().includes(q))))) && (!V.sentOnly || RS.snapshotsOf(r).length));
+  // the documents: a group is found by its names and the words of its files; one exported from a saved resume sits under it, any other is listed on its own
+  const gs = F.claim || V.sentOnly ? [] : RS.docGroups(st()).filter(g => (show || !g.members.every(m => DOC.hidden(st(), m))) && LIB.matches(g, q));
+  const attached = id => gs.filter(g => g.resume === id);
+  const list = all.filter(r => claim(r) && (show || !DOC.hidden(st(), r) || r.id === V.sel || V.ticked.has(r.id)) && (RS.matches(st().record, r, F.q) || V.hits.has(r.id) || r.id === V.sel || V.ticked.has(r.id) || (q && (attached(r.id).length || RS.snapshotsOf(r).some(s => s.sends.some(x => String(x.company).toLowerCase().includes(q)))))) && (!V.sentOnly || RS.snapshotsOf(r).length));
+  const items = [...list, ...gs.filter(g => !g.resume).map(pseudo)];
   const found = careerHtml();      // …and the Career entries that hold the word, under the cards
-  if (!list.length) return `<p class="muted small swnone">${h(F.claim ? 'ux6f.noPrint' : all.length ? 'ux1.noMatch' : 'ux1.noneYet')}</p>${found}`;
-  const group = (name, rs) => `<h3 class="lbl">${esc(name)} · ${rs.length}</h3><div class="rgrid">${rs.map(card).join('')}</div>`;
+  if (!items.length) return `<p class="muted small swnone">${h(F.claim ? 'ux6f.noPrint' : all.length || (st().documents ?? []).length ? 'ux1.noMatch' : 'ux1.noneYet')}</p>${found}`;
+  const cardOf = r => (r.g ? LIB.card(r.g, F.q) : card(r) + attached(r.id).map(g => LIB.card(g, F.q)).join(''));
+  const group = (name, rs) => `<h3 class="lbl">${esc(name)} · ${rs.length}</h3><div class="rgrid">${rs.map(cardOf).join('')}</div>`;
   const byNewest = gs => gs.map(g => ({ ...g, rs: g.rs.slice().sort(newest) })).sort((a, b) => newest(a.rs[0], b.rs[0]));
-  if (V.view === 'date'){
-    const years = new Map();
-    for (const r of list.slice().sort(newest)){ const y = r.id === st().openId ? t('ux6h.now') : (r.savedAt || '').slice(0, 4) || t('ux2.noDate'); years.set(y, [...(years.get(y) ?? []), r]); }
-    return [...years].map(([y, rs]) => group(y, rs)).join('') + found;
-  }
-  if (V.view === 'company') return byNewest(RS.byCompany(list).map(g => ({ name: g.key ? g.label : t('ux2.noCompany'), rs: g.rows.map(x => x.resume) }))).map(g => group(g.name, g.rs)).join('') + found;
-  return byNewest(RS.grouped(st().record, list).map(g => ({ name: g.type ? g.label : t('resumes.noType'), rs: g.resumes }))).map(g => group(g.name, g.rs)).join('') + found;
+  const view = list => {
+    if (V.view === 'date'){
+      const years = new Map();
+      for (const r of list.slice().sort(newest)){ const y = r.id === st().openId ? t('ux6h.now') : (r.savedAt || '').slice(0, 4) || t('ux2.noDate'); years.set(y, [...(years.get(y) ?? []), r]); }
+      return [...years].map(([y, rs]) => group(y, rs)).join('');
+    }
+    if (V.view === 'company') return byNewest(RS.byCompany(list).map(g => ({ name: g.key ? g.label : t('ux2.noCompany'), rs: g.rows.map(x => x.resume) }))).map(g => group(g.name, g.rs)).join('');
+    return byNewest(RS.grouped(st().record, list).map(g => ({ name: g.type ? g.label : t('resumes.noType'), rs: g.resumes }))).map(g => group(g.name, g.rs)).join('');
+  };
+  if (!rounds.length) return view(items) + found;
+  // rounds: the current one first and open, the older ones folded under their names (each with the same views), then "Earlier" for what has none
+  const cur = DOC.currentRound(st())?.id, known = new Set(rounds.map(r => r.id));
+  const sorted = [...rounds].sort((a, b) => (b.id === cur) - (a.id === cur) || String(b.from).localeCompare(String(a.from)) || (a.id < b.id ? -1 : 1));
+  const bucket = (key, name, round) => {
+    const its = items.filter(x => (known.has(x.round) ? x.round : '') === key);
+    if (round?.archived && !show) return '';
+    if (!round && !its.length) return '';
+    const open = V.fold.has(key || 'earlier') ? V.fold.get(key || 'earlier') : key === cur || !!q || LIB.rm() === key;
+    const acts = round ? `<div class="btns racts"><button class="sm" data-act="round-archive" data-id="${esc(key)}" data-on="${round.archived ? '0' : '1'}">${h(round.archived ? 'i7.unarchiveRound' : 'i7.archiveRound')}</button>${round.archived ? `<button class="sm del" data-act="rm-round-open" data-id="${esc(key)}">${h('i7.rmThese')}</button>` : ''}</div>` : '';
+    return `<details class="rround" data-round="${esc(key)}" data-n="${its.length}" ${round?.archived ? 'data-archived="1"' : ''} ${key === cur ? 'data-current="1"' : ''} ${open ? 'open' : ''}><summary>${esc(name)} · ${its.length}</summary>${acts}${round && LIB.rm() === key ? LIB.roundPanel(round) : ''}${its.length ? view(its) : `<p class="muted small">${h('i7.roundEmpty')}</p>`}</details>`;
+  };
+  return sorted.map(r => bucket(r.id, r.name, r)).join('') + bucket('', t('i7.earlier'), null) + found;
 }
 
 // the one primary of the Library is Compare once two are ticked (the bar under the cards), so "Use for a new job" is a secondary until then
@@ -110,6 +138,8 @@ function ticksHtml(){
     : `<span class="muted small" id="scr-tickinfo">${h('ux6h.tickHint')}</span>`;
 }
 // two or more ticked: Compare and Clear follow the cards (a bar at the foot of the list), not only the toolbar
+// shortcut: the resume switcher still lists an archived resume (the Library's views leave it out), and a phone has no inspector, so a document card there has none of its actions; upgrade when archiving is asked for in those places.
+const anyArchived = () => (st().resumes ?? []).some(r => r.archived) || (st().documents ?? []).some(d => d.archived) || (st().rounds ?? []).some(r => r.archived);
 const barHtml = () => (V.ticked.size >= 2 ? `<button class="sm press primary" data-tier="primary" id="scr-bar-cmp" data-act="scr-compare">${h('ux6e.compareN', { n: V.ticked.size })}</button><button class="sm press" data-tier="secondary" data-act="scr-clear">${h('ux6e.clear')}</button>` : '');
 // the toolbar floats at the top of the content (flow.css): never a bar across the window
 function resumesView(){
@@ -120,7 +150,11 @@ function resumesView(){
       ${F.claim ? `<button class="sm press" data-tier="secondary" data-act="find-claim-clear" aria-label="${esc(t('ux6f.clearClaim'))}">${esc(t('ux6f.printsChip', { name: F.claim.label }))} \u00d7</button>` : ''}
       <div class="seg" role="group" aria-label="${esc(t('ux2.manageViews'))}">${VIEWS.map(v => `<button data-act="scr-view" data-v="${v}" aria-pressed="${V.view === v}">${h(`ux2.view.${v}`)}</button>`).join('')}</div>
       <button class="sm" data-act="scr-sent" aria-pressed="${V.sentOnly}">${h('ux6h.sentOnly')}</button>
+      <button class="sm" data-act="round-new" aria-expanded="${V.roundForm}">${h('i7.newRound')}</button>
+      ${anyArchived() ? `<button class="sm" data-act="scr-archived" aria-pressed="${V.showArchived}">${h('i7.showArchived')}</button>` : ''}
       <span class="scrticks" id="scr-ticks" role="status">${ticksHtml()}</span></div>
+    ${V.roundForm ? `<div class="njform" id="round-form" role="group" aria-label="${esc(t('i7.newRound'))}"><label>${h('i7.roundName')}<input id="rd-name" autocomplete="off" maxlength="60" value="${esc(V.roundDraft)}"></label><p class="small muted">${h('i7.roundNote')}</p>
+      <div class="btns"><button class="primary" data-act="round-create">${h('i7.roundStart')}</button><button class="ghost" data-act="round-cancel">${h('ux6h.cancel')}</button></div></div>` : ''}
     <div id="scr-list">${listHtml()}</div><div class="cmpbar" id="scr-bar" role="group" aria-label="${esc(t('ux6h.compare'))}">${barHtml()}</div></section>`;
 }
 function afterResumes(){
@@ -139,12 +173,13 @@ function refreshTicks(){
 // the selection moves without redrawing the pictures
 function paintSel(){
   for (const c of document.querySelectorAll('#scr-list .rcard')){
-    const b = c.querySelector('.rsel'), on = c.dataset.rid === selId();
+    const b = c.querySelector('.rsel'), on = c.dataset.did ? c.dataset.did === LIB.sel() : c.dataset.rid === selId() && !LIB.sel();
     c.classList.toggle('sel', on); b?.setAttribute('aria-pressed', String(on));
   }
 }
 // Esc in the Library: the new-job form closes (what was typed is kept); then the selection goes back to the open resume; then the ticks are cleared
 function clearSel(){
+  if (LIB.sel()){ LIB.clear(); paintInspector(); return; }
   if (V.nj){ V.nj = null; paintInspector(); return; }
   if (V.sel && V.sel !== st().openId){ V.sel = null; paintInspector(); return; }
   if (V.ticked.size){ V.ticked.clear(); document.querySelectorAll('#scr-list .rtick').forEach(x => { x.checked = false; }); refreshTicks(); }
@@ -172,7 +207,8 @@ function resumeInspector(){
       <button class="ihpage" tabindex="-1" ${open ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(r.id)}"`} aria-label="${esc(t('ux6e.open', { name: label(r) }))}">${thumb(r.id, r.format)}</button>
     </div>
     <div class="ihcap"><span class="lbl">${h(open ? 'ux6h.openNow' : 'ux6h.selected')}</span><h2 class="oi-name">${esc(label(r))}</h2><p class="small">${esc(metaOf(r))}${pend ? ` · ${h('ux6e.pending', { n: pend })}` : ''}</p></div>
-    ${nj || `<div class="btns iacts"><button ${pressOf()} data-act="nj-open" data-id="${esc(r.id)}">${h('ux6h.newJob')}</button>${open ? `<button data-act="place" data-p="editor">${h('ux6h.keepEditing')}</button>` : `<button data-act="sw-open" data-id="${esc(r.id)}">${h('ux6e.openBtn')}</button>`}<span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span></div>`}
+    ${nj || `<div class="btns iacts"><button ${pressOf()} data-act="nj-open" data-id="${esc(r.id)}">${h('ux6h.newJob')}</button>${open ? `<button data-act="place" data-p="editor">${h('ux6h.keepEditing')}</button>` : `<button data-act="sw-open" data-id="${esc(r.id)}">${h('ux6e.openBtn')}</button>`}<span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span><button class="sm" data-act="rm-archive" data-id="${esc(r.id)}" data-on="${r.archived ? '0' : '1'}">${h(r.archived ? 'i7.unarchive' : 'i7.archive')}</button></div>`}
+    ${(st().rounds ?? []).length ? `<label class="field"><span class="lbl">${h('i7.round')}</span><select data-res-round="${esc(r.id)}" aria-label="${esc(t('i7.round'))}"><option value="">${h('i7.earlier')}</option>${(st().rounds ?? []).map(x => `<option value="${esc(x.id)}" ${x.id === r.round ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}
     <dl class="ovw" aria-label="${esc(t('ux6f.overview'))}">
       <dt>${h('ux6f.ovSent')}</dt><dd>${last ? `<span class="pill">${h('ux6h.sentN', { n: snaps.length })}</span> ${esc([RS.sendLabel(last.sends.at(-1)) || t('ux1.noRecipient'), sentDate(last)].join(' \u00b7 '))}` : esc(t('ux6f.notSent'))}
         <button class="sm press" data-tier="secondary" data-act="rm-sent" data-id="${esc(r.id)}">${h('ux3b.markSent')}</button></dd>
@@ -197,7 +233,7 @@ function paintInspector(){
   const bd = document.getElementById('body');
   if (phone() || !bd) return;
   const ae = document.activeElement, kept = bd.contains(ae) && ae.id ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
-  bd.innerHTML = C.view() === 'compare' ? cmpInspector() : resumeInspector(); T.fill(bd, recipeOf);
+  bd.innerHTML = C.view() === 'compare' ? cmpInspector() : LIB.sel() ? LIB.inspector() : resumeInspector(); T.fill(bd, recipeOf);
   const n = kept && document.getElementById(kept.id);
   if (n){ n.focus({ preventScroll: true }); try { n.setSelectionRange(kept.a, kept.b); } catch { /* not a text box */ } }
 }
@@ -359,13 +395,27 @@ function stepDiff(d){
 // ---- acts ----
 function compare(keys){ V.cmp = keys; V.focus = -1; C.setView('compare'); }
 async function act(a, tg){
+  if (await LIB.act(a, tg)) return true;
   switch (a){
+    case 'scr-archived': V.showArchived = !V.showArchived; C.renderBody(); return true;
+    case 'round-new': V.roundForm = !V.roundForm; C.renderBody(); if (V.roundForm) document.getElementById('rd-name')?.focus(); return true;
+    case 'round-cancel': V.roundForm = false; V.roundDraft = ''; C.renderBody(); return true;
+    case 'round-create': {
+      const name = document.getElementById('rd-name')?.value ?? V.roundDraft;
+      if (!name.trim()){ document.getElementById('rd-name')?.focus(); return true; }
+      let ok = false;
+      try { ok = C.store.commit(d => { DOC.startRound(d, name); }, t('i7.undoRound', { name: name.trim() })); } catch (e){ C.toast(errText(e), 'bad'); return true; }
+      if (ok){ V.roundForm = false; V.roundDraft = ''; V.fold.clear(); C.renderBody(); }
+      return true;
+    }
+    case 'round-archive': C.store.commit(d => { DOC.mark(d, 'rounds', tg.dataset.id, { archived: tg.dataset.on === '1' }); }, t(tg.dataset.on === '1' ? 'i7.undoArchive' : 'i7.undoUnarchive')); C.renderBody(); return true;
+    case 'rm-archive': C.store.commit(d => { DOC.mark(d, 'resumes', tg.dataset.id, { archived: tg.dataset.on === '1' }); }, t(tg.dataset.on === '1' ? 'i7.undoArchive' : 'i7.undoUnarchive')); C.renderBody(); return true;
     case 'scr-view': V.view = tg.dataset.v; try { localStorage.setItem(VIEW_KEY, V.view); } catch { /* this session only */ } C.renderBody(); return true;
     case 'scr-sent': V.sentOnly = !V.sentOnly; C.renderBody(); return true;
     case 'scr-sel': {
       const id = tg.dataset.id;
-      if (selId() === id){ C.resumes.open(id); return true; }      // a second click, or Enter, on the selected card opens it
-      V.sel = id; paintInspector(); return true;
+      if (selId() === id && !LIB.sel()){ C.resumes.open(id); return true; }      // a second click, or Enter, on the selected card opens it
+      LIB.clear(); V.sel = id; paintInspector(); return true;
     }
     case 'nj-open': V.nj = V.sel = tg.dataset.id; paintInspector(); document.getElementById('nj-company')?.focus(); return true;
     case 'nj-cancel': V.nj = null; paintInspector(); return true;
@@ -391,13 +441,17 @@ async function act(a, tg){
 }
 
 function bind(body){
+  LIB.bind(body);
+  body.addEventListener('toggle', e => { const d = e.target.closest?.('.rround'); if (d) V.fold.set(d.dataset.round || 'earlier', d.open); }, true);      // the folds of the rounds the person opened or shut
   body.addEventListener('change', e => {
+    if (e.target.dataset?.resRound !== undefined){ C.store.commit(d => { DOC.mark(d, 'resumes', e.target.dataset.resRound, { round: e.target.value }); }, t('i7.undoRound')); C.renderBody(); return; }
     const key = e.target.dataset?.cmp;
     if (key === undefined) return;
     e.target.checked ? V.ticked.add(key) : V.ticked.delete(key);
     refreshTicks();
   });
   body.addEventListener('input', e => {
+    if (e.target.id === 'rd-name'){ V.roundDraft = e.target.value; return; }
     if (e.target.id === 'nj-company' || e.target.id === 'nj-role'){ V.draft.set(V.nj, { ...V.draft.get(V.nj), [e.target.id === 'nj-company' ? 'company' : 'role']: e.target.value }); return; }
     if (e.target.id === 'cmp-q'){ F.q = e.target.value; markRows(); return; }
     if (e.target.id !== 'scr-q') return;
@@ -409,16 +463,18 @@ function bind(body){
   body.addEventListener('pointerover', e => {
     if (phone()) return;
     const w = e.target.closest?.('.rcard .thumbwrap'); if (!w) return;
-    const card = w.closest('.rcard'); if (HV.card === card) return;
+    const card = w.closest('.rcard'); if (HV.card === card || card.dataset.did) return;      // a document has no page to show large
     clearTimeout(HV.t); HV.t = setTimeout(() => showPreview(card), 350);
   });
   body.addEventListener('pointerout', e => { const w = e.target.closest?.('.rcard .thumbwrap'); if (w && !w.contains(e.relatedTarget)) hidePreview(); });
   body.addEventListener('scroll', () => { if (HV.n < 2) hidePreview(); }, true);
   body.addEventListener('pointerdown', hidePreview);
   // a click on a card's picture or its blank space is a click on the card (its name button takes the rest)
-  body.addEventListener('click', e => { const c = e.target.closest?.('.rcard'); if (c && !e.target.closest('input, button, select, a, .rowmenu')) act('scr-sel', { dataset: { id: c.dataset.rid } }); });
-  body.addEventListener('dblclick', e => { const c = e.target.closest?.('.rcard'); if (c && !e.target.closest('input')) C.resumes.open(c.dataset.rid); });
+  body.addEventListener('click', e => { const c = e.target.closest?.('.rcard'); if (c && !e.target.closest('input, button, select, a, .rowmenu')) c.dataset.did ? act('doc-sel', { dataset: { id: c.dataset.did } }) : act('scr-sel', { dataset: { id: c.dataset.rid } }); });
+  body.addEventListener('dblclick', e => { const c = e.target.closest?.('.rcard'); if (c?.dataset.rid && !e.target.closest('input')) C.resumes.open(c.dataset.rid); });
   body.addEventListener('keydown', e => {
+    if (e.target.closest?.('#round-form') && e.key === 'Enter'){ e.preventDefault(); document.querySelector('[data-act=round-create]')?.click(); return; }
+    if (e.target.closest?.('#round-form') && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); V.roundForm = false; V.roundDraft = ''; C.renderBody(); return; }
     if (e.target.closest?.('.njform') && e.key === 'Enter'){ e.preventDefault(); document.querySelector('[data-act=nj-create]')?.click(); return; }
     if (e.target.closest?.('.njform') && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); clearSel(); return; }
     if (e.target.id === 'cmp-q'){

@@ -31,6 +31,7 @@ if (p){
   ok('no directive names another host, a wildcard or eval', Object.values(p).every(v => remote(v).length === 0));
   ok("script-src is 'self' only (no inline script, no eval)", only(p['script-src']));
   ok("worker-src is 'self' only, for the vendored PDF.js worker (no blob:, no remote script)", only(p['worker-src']) && fs.existsSync(path.join(ROOT, 'vendor/pdfjs/pdf.worker.min.mjs')));
+  ok("frame-src is 'self' and blob: only, for the Library's preview of an original (a sandboxed frame of a blob: address); no other directive names blob: but img-src", (p['frame-src'] ?? []).slice().sort().join() === "'self',blob:" && Object.entries(p).every(([k, v]) => k === 'frame-src' || k === 'img-src' || !v.includes('blob:')));
   const head = html.slice(0, html.indexOf('</head>'));
   const firstScript = head.search(/<script\b|<link\b/i);
   ok('the tag comes before any script or stylesheet', html.indexOf('Content-Security-Policy') < firstScript);

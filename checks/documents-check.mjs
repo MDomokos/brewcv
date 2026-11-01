@@ -427,8 +427,8 @@ section('the Library: rounds, the archive, groups, removing and rebuilding');
   const r1 = doc('r1').add(rm, { addedAt: '2026-10-26T09:00:00.000Z' }), r2 = doc('r2').add(rm, { of: r1.id, addedAt: '2026-10-26T09:01:00.000Z' }), r3 = doc('r3').add(rm, { of: r1.id, addedAt: '2026-10-26T09:02:00.000Z' });
   const lt = doc('r4').add(rm, { text: 'Dear', with: r1.id, meta: { kind: 'cover-letter' }, addedAt: '2026-10-26T09:03:00.000Z' });
   DOC.removeDocuments(rm, [r1.id]);
-  ok('removing the first copy leaves a mark in the record, and the next copy becomes the original the others point to', rm.record.removed[`document:${r1.id}`]?.hash && !rm.documents.some(d => d.id === r1.id) && !('of' in rm.documents.find(d => d.id === r2.id)) && rm.documents.find(d => d.id === r3.id).of === r2.id && !('with' in rm.documents.find(d => d.id === lt.id)));
-  ok('the mark does not hold the original’s bytes', !JSON.stringify(rm.record.removed).includes('base64'));
+  ok('removing the first copy leaves a mark in the record, and the next copy becomes the original the others point to', rm.record.removed?.[`document:${r1.id}`]?.hash && !rm.documents.some(d => d.id === r1.id) && !('of' in rm.documents.find(d => d.id === r2.id)) && rm.documents.find(d => d.id === r3.id).of === r2.id && !('with' in rm.documents.find(d => d.id === lt.id)));
+  ok('the mark does not hold the original’s bytes', !JSON.stringify(rm.record.removed ?? {}).includes('base64'));
   DOC.removeDocuments(rm, [r2.id, r3.id, lt.id]);
   ok('removing the last ones leaves no list', rm.documents === undefined);
   {
@@ -459,7 +459,7 @@ section('the Library: rounds, the archive, groups, removing and rebuilding');
   ok('a copy that a version a saved resume prints links back to stays even when it is not ticked', J(RS.dropDuplicates(used, [dd.id, dd2.id], [dd.id], [], true)) === J([]));
   ok('a copy in the receipt on the screen stays too', J(RS.dropDuplicates(dp, ids3, [c1.id], [c2.id], true)) === J([c3.id]));
   const gone3 = RS.dropDuplicates(dp, ids3, [c1.id, c3.id]);
-  ok('the ticked copies stay, the others go with a mark, and the one that was only a copy of a copy is re-pointed', J(gone3) === J([c2.id]) && dp.documents.length === 2 && dp.record.removed[`document:${c2.id}`] && dp.documents.find(d => d.id === c3.id).of === c1.id);
+  ok('the ticked copies stay, the others go with a mark, and the one that was only a copy of a copy is re-pointed', J(gone3) === J([c2.id]) && dp.documents.length === 2 && dp.record.removed?.[`document:${c2.id}`] && dp.documents.find(d => d.id === c3.id).of === c1.id);
 
   // the claims a letter leans on
   const claim = base.variants.find(v => v.text.split(/\s+/).length >= 8);
