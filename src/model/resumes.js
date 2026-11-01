@@ -451,7 +451,8 @@ function mirrored(state, src, o){
   if (src.sections) next.sections = withOwn(clone(src.sections), o.sections, ['label']);
   if (src.skillArrangement){
     const a = clone(src.skillArrangement), b = o.skillArrangement;
-    next.skillArrangement = { ...a, ...(b?.lang !== undefined ? { lang: b.lang } : {}), groups: withOwn(a.groups, b?.groups, ['label', 'lang']) };
+    // a group of the original's own with no heading here yet prints the original's, in its language, until this copy writes its own
+    next.skillArrangement = { ...a, ...(b?.lang !== undefined ? { lang: b.lang } : {}), groups: withOwn(a.groups, b?.groups, ['label', 'lang']).map((g, i) => (g.label === undefined && a.groups[i]?.label !== undefined ? { ...g, label: a.groups[i].label, lang: a.groups[i].lang ?? langOfR(src) } : g)) };
   } else delete next.skillArrangement;
   // a line only on the original has its text there; here it starts as typed, and goes with the line
   const over = { ...(o.overrides ?? {}) }, meta = { ...(o.overrideMeta ?? {}) };

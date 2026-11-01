@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { entriesOf } from '../../src/model/entries.js';
 import { THEMES } from '../../src/themes.js';
 import { offersOf, MEDIA } from '../../src/model/design.js';
+import * as SB from '../../src/model/skillbank.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const namesIn = (dir, ext) => fs.readdirSync(path.join(REPO, dir)).filter(f => f.endsWith(ext)).map(f => f.slice(0, -ext.length)).sort();
@@ -49,4 +50,19 @@ export function factIdsOfSection(section, ix){
     else if (x && typeof x === 'object') Object.values(x).forEach(walk);
   })(section.content);
   return out;
+}
+
+// The skill wordbank in one language: every word with what it prints there (`printable` false: it has no wording in that language and is not the same
+// in every language, so it cannot be picked for that resume), the shelves, and the groups picks.json's `skills` may name: a record group (its heading
+// is the record's, in that language) or a shelf (its name is the heading).
+export function bankOf(model, lang = DEFAULT_LANG){
+  const heading = (id, en) => (lang === DEFAULT_LANG ? en : model.i18n?.[lang]?.labels?.[id]) ?? en;
+  const groupIds = new Set((model.sections ?? []).filter(s => s.kind === 'grid').flatMap(s => s.content?.groups ?? []));
+  return {
+    groups: [...(model.skills ?? []).filter(g => groupIds.has(g.id)).map(g => ({ id: g.id, heading: heading(g.id, g.name), kind: 'record group' })),
+      ...SB.shelvesOf(model).map(s => ({ id: s.id, heading: SB.shelfName(model, s.id, lang), kind: 'shelf' }))],
+    words: SB.wordsOf(model).map(w => { const x = SB.wordText(model, w.id, lang);
+      return { id: w.id, name: w.name, text: x.text, ...(w.shelf ? { shelf: w.shelf } : {}), same: !!w.same, translated: lang === DEFAULT_LANG || w.same || !x.miss,
+        needsReview: (w.needsReview ?? []).includes(lang), printable: !x.miss }; }),
+  };
 }

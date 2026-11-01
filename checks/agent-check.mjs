@@ -151,6 +151,27 @@ ok('an existing file is not overwritten', run('scripts/new-resume.mjs', EX, mkPi
 ok('--force replaces it', run('scripts/new-resume.mjs', EX, mkPicks('good.json', picks()), out, '--force').code === 0);
 ok('it takes the one file too', run('scripts/new-resume.mjs', oneFile, mkPicks('good.json', picks()), path.join(tmp, 'out1')).code === 0);
 
+// skills: the resume's own groups of the bank's words
+section('skills: groups of the bank\'s words');
+{
+  const claims = JSON.parse(run('scripts/claims.mjs', EX, '--lang', 'hu', '--json').out);
+  const word = id => claims.bank.words.find(x => x.id === id);
+  ok('claims.mjs lists the bank in the language asked: each word\'s text there, same, printable, and the groups skills may name', word('sw-cnc-milling')?.text === 'CNC-marás' && word('sw-creo')?.same === true && word('sw-design-verification')?.printable === false && claims.bank.groups.some(g => g.id === 'skills-cad' && g.heading === 'CAD és 3D'));
+  const sk = [{ group: 'skills-fabrication', words: ['sw-cnc-milling', 'sw-creo'] }, { group: 'skills-cad', words: ['sw-solidworks-cswp'] }];
+  const d = path.join(tmp, 'skills'), r = run('scripts/new-resume.mjs', EX, mkPicks('sk.json', picks({ skills: sk })), d);
+  const f = path.join(d, 'Northgate Dosing Systems - Mechanical Design Engineer.json'), back = r.code === 0 && S.loadResume(JSON.parse(fs.readFileSync(f, 'utf8')), model);
+  ok('new-resume writes them as the resume\'s own groups, in order, and the saved body prints those words', r.code === 0 && JSON.stringify(back.recipe.skillArrangement) === JSON.stringify({ groups: [{ id: 'skills-fabrication', items: ['sw-cnc-milling', 'sw-creo'] }, { id: 'skills-cad', items: ['sw-solidworks-cswp'] }] })
+    && JSON.stringify(JSON.parse(fs.readFileSync(f, 'utf8')).skills) === JSON.stringify([{ name: 'Fabrication', keywords: ['CNC milling', 'Creo'] }, { name: 'CAD & 3D', keywords: ['SolidWorks (CSWP)'] }]), r.err);
+  const html = path.join(tmp, 'sk.html'), rr = run('scripts/render.mjs', EX, f, html);
+  ok('…and render.mjs prints them', rr.code === 0 && fs.readFileSync(html, 'utf8').includes('<span class="skills__items">CNC milling, Creo</span>'), rr.err);
+  refuse('a skills group that is no record group or shelf', mkPicks('s1.json', picks({ skills: [{ group: 'nope', words: ['sw-creo'] }] })), EX, /skills\[0\]\.group: "nope" is not/);
+  refuse('a word that is not in the bank', mkPicks('s2.json', picks({ skills: [{ group: 'skills-cad', words: ['sw-nope'] }] })), EX, /"sw-nope" is not a word of the bank/);
+  refuse('a word twice', mkPicks('s3.json', picks({ skills: [{ group: 'skills-cad', words: ['sw-creo'] }, { group: 'skills-software', words: ['sw-creo'] }] })), EX, /sw-creo is in two groups/);
+  refuse('a group twice', mkPicks('s4.json', picks({ skills: [{ group: 'skills-cad', words: ['sw-creo'] }, { group: 'skills-cad', words: ['sw-git'] }] })), EX, /skills-cad is listed twice/);
+  refuse('a group with no words', mkPicks('s5.json', picks({ skills: [{ group: 'skills-cad', words: [] }] })), EX, /words: must be a list of word ids, not empty/);
+  refuse('text in a group (a heading of its own)', mkPicks('s6.json', picks({ skills: [{ group: 'skills-cad', words: ['sw-creo'], label: 'Mine' }] })), EX, /label: not allowed/);
+  refuse('a word with no wording in the resume\'s language', mkPicks('s7.json', picks({ lang: 'hu', format: 'a4-hu', summary: 'summary-v1-hu', bullets: ['hydra-inhaler-v2-hu'], skills: [{ group: 'skills-testing', words: ['sw-design-verification'] }] })), EX, /has no hu wording/);
+}
 // jobOrder: the print order of the jobs
 {
   const two = picks({ bullets: [...picks().bullets, 'poly-jigs-v1'] });

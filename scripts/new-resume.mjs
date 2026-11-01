@@ -4,10 +4,12 @@
 // versions that exist and never takes text, so an agent can tailor a resume without writing a bullet.
 //
 // picks.json: { company, role, lang, format, pageLimit, look?, design?, exportMedium?, jobType?, summary?: versionId,
-//   bullets: [versionId, ...], jobOrder?: [jobId, ...] }  (print order of the jobs that have picked bullets: some or all; the rest follow
+//   bullets: [versionId, ...], jobOrder?: [jobId, ...], skills?: [{ group, words: [wordId, ...] }] }  (print order of the jobs that have picked bullets: some or all; the rest follow
 //   in the record's order). look: a look's id (b2 when left out); design: { preset, fonts, size, density, colour, words }, the settings
 //   that look offers; exportMedium: screen, print or pen. `theme` (a stylesheet name) still works in an old picks.json.
-// The order of bullets is the print order within each job; an order equal to the record's is not stored.
+// The order of bullets is the print order within each job; an order equal to the record's is not stored. skills: the resume's own skill
+//   groups, in print order: `group` a record group's id (its heading is the record's) or a shelf's (its name is the heading), `words` the
+//   bank's word ids in print order (claims.mjs lists them). Left out, the record's groups print as they are.
 // Writes nothing, and says why, if anything in it is wrong. Never overwrites a file without --force.
 
 import fs from 'node:fs';
@@ -18,7 +20,7 @@ import { entriesOf, entryKey } from '../src/model/entries.js';
 import { LANGS, resumeFileName, migrateRecipe, saveResume } from '../src/model/schema.js';
 import { today } from '../src/model/resumes.js';
 import { readLibrary, readJson, writeResume } from './lib/library.mjs';
-import { indexOf, langOf, versionsOf, factIdsOfSection, optionsOf, stylesheetsOf } from './lib/claims.mjs';
+import { indexOf, langOf, versionsOf, factIdsOfSection, optionsOf, stylesheetsOf, bankOf } from './lib/claims.mjs';
 import { THEMES } from '../src/themes.js';
 import { MEDIA, designProblems, setDesign } from '../src/model/design.js';
 
@@ -43,7 +45,7 @@ const ix = indexOf(model);
 const errors = [];
 const bad = m => errors.push(m);
 
-const ALLOWED = ['company', 'role', 'lang', 'format', 'pageLimit', 'theme', 'look', 'design', 'exportMedium', 'jobType', 'summary', 'bullets', 'jobOrder'];
+const ALLOWED = ['company', 'role', 'lang', 'format', 'pageLimit', 'theme', 'look', 'design', 'exportMedium', 'jobType', 'summary', 'bullets', 'jobOrder', 'skills'];
 if (!picks || typeof picks !== 'object' || Array.isArray(picks)){ console.error(`${PICKS}: not an object`); process.exit(1); }
 for (const k of Object.keys(picks))
   if (!ALLOWED.includes(k)) bad(`${k}: not allowed in picks.json. The only text it takes is company and role; wording comes from the record's versions, by id.`);
@@ -124,6 +126,30 @@ else for (const [i, id] of jobOrder.entries()){
   else if (jobOrder.indexOf(id) !== i) bad(`jobOrder: ${id} is listed twice`);
 }
 
+// skills: groups of the bank's words, each group a record group or a shelf, no group or word twice, every word printable in this language
+const skills = [];
+if (picks.skills !== undefined){
+  const bank = bankOf(model, lang ?? 'en'), groups = new Map(bank.groups.map(g => [g.id, g])), words = new Map(bank.words.map(w => [w.id, w])), seenG = new Set(), seenW = new Set();
+  if (!Array.isArray(picks.skills) || !picks.skills.length) bad('skills: must be a list of groups, each { group, words }; leave it out to print the record\'s groups as they are');
+  else for (const [i, g] of picks.skills.entries()){
+    const at = `skills[${i}]`;
+    if (!g || typeof g !== 'object' || Array.isArray(g)){ bad(`${at}: must be { group, words }`); continue; }
+    for (const k of Object.keys(g)) if (!['group', 'words'].includes(k)) bad(`${at}.${k}: not allowed. A group takes no text: its heading is the record group's or the shelf's`);
+    if (!groups.has(g.group)) bad(`${at}.group: ${JSON.stringify(g.group)} is not a record skill group or a shelf (${bank.groups.map(x => x.id).join(', ') || 'none'})`);
+    else if (seenG.has(g.group)) bad(`${at}.group: ${g.group} is listed twice`);
+    seenG.add(g.group);
+    if (!Array.isArray(g.words) || !g.words.length){ bad(`${at}.words: must be a list of word ids, not empty`); continue; }
+    for (const id of g.words){
+      const w = typeof id === 'string' && words.get(id);
+      if (!w){ bad(`${at}.words: ${JSON.stringify(id)} is not a word of the bank`); continue; }
+      if (seenW.has(id)){ bad(`${at}.words: ${id} is in two groups or listed twice; a word prints once`); continue; }
+      seenW.add(id);
+      if (!w.printable) bad(`${at}.words: ${id} ("${w.name}") has no ${lang} wording and is not the same in every language`);
+    }
+    if (groups.has(g.group)) skills.push({ group: groups.get(g.group), words: g.words });
+  }
+}
+
 if (errors.length){
   console.error(`refusing, ${errors.length} problem${errors.length === 1 ? '' : 's'}; nothing was written:`);
   for (const e of errors) console.error(`  ✗ ${e}`);
@@ -145,6 +171,7 @@ if (jobOrder.length) for (const id of [...jobOrder, ...jobRefs(model, recipe, se
 // each bullet to the end of its job, in the order listed: the job ends up in the listed order (moveBullet stores nothing for the record's own)
 for (const fact of bullets.keys()) moveBullet(model, recipe, fact);
 for (const [fact, version] of bullets) recipe.picks[fact] = version;
+if (skills.length) recipe.skillArrangement = { groups: skills.map((g, i) => (g.group.kind === 'shelf' ? { id: `~sg-${i + 1}`, items: [...g.words], shelf: g.group.id } : { id: g.group.id, items: [...g.words] })) };
 if (picks.summary !== undefined) recipe.picks[summaryFact] = picks.summary;
 Object.assign(recipe, { company, role, jobType });
 recipe.application = `${company} - ${role}`;
@@ -191,7 +218,7 @@ const problems = writeResume(file, model, recipe);
 
 const empty = entriesOf(model).filter(j => !(j.highlights ?? []).some(h => bullets.has(h)));
 console.log(`wrote ${file}`);
-console.log(`  ${bullets.size} bullet${bullets.size === 1 ? '' : 's'}${picks.summary !== undefined ? ' and a summary' : ''} picked, ${lang}, ${format}@${lookId ?? theme}${recipe.design ? ` ${JSON.stringify(recipe.design)}` : ''}${recipe.exportMedium ? `, for ${recipe.exportMedium}` : ''}, ${picks.pageLimit === 0 ? 'any number of pages' : `${picks.pageLimit} page${picks.pageLimit === 1 ? '' : 's'}`}`);
+console.log(`  ${bullets.size} bullet${bullets.size === 1 ? '' : 's'}${picks.summary !== undefined ? ' and a summary' : ''}${skills.length ? `, ${skills.reduce((n, g) => n + g.words.length, 0)} skill words in ${skills.length} group${skills.length === 1 ? '' : 's'}` : ''} picked, ${lang}, ${format}@${lookId ?? theme}${recipe.design ? ` ${JSON.stringify(recipe.design)}` : ''}${recipe.exportMedium ? `, for ${recipe.exportMedium}` : ''}, ${picks.pageLimit === 0 ? 'any number of pages' : `${picks.pageLimit} page${picks.pageLimit === 1 ? '' : 's'}`}`);
 if (empty.length) console.log(`  jobs left off, no bullet picked: ${empty.map(j => j.id).join(', ')}`);
 for (const a of auto) console.log(`  chose, because the default would print a refused version: ${a}`);
 for (const p of problems) console.log(`  ⚠  will not export: ${p}`);

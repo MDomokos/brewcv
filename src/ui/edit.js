@@ -885,6 +885,8 @@ async function act(a, tg){
     case 'go-missing': {
       const k = tg.dataset.kind, id = tg.dataset.id;
       if (k === 'heading-changed') return goLabel(tg.dataset.lkey, id);
+      if (k === 'group') return goLabel(`~g:${id}`, id);      // a skill group's heading of this resume's own: written where it prints
+      if (k === 'word'){ C.select({ kind: 'section', id: 'skills' }, { pane: 'edit' }); C.bank().openWords(lang(), id); return true; }      // a skill word: its line in the bank's words view
       if (k !== 'heading' && k !== 'edited-elsewhere' && grouped()) E.writeIn = { fact: id, mode: 'translate' };      // a group's line opens with its box
       // the missing text is written in Edit, wherever the list was
       if (k === 'heading') C.select({ kind: 'section', id }, { pane: 'edit' });

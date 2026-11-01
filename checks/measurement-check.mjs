@@ -82,8 +82,8 @@ const variantIds = s => new Set([...s.matchAll(/data-variant="([^"]+)"/g)].map(m
   const names = bands(annotated).map(b => b.match(/data-section="([^"]+)"/)[1]);
   ok('the names are section ids, in page order', names.join() === 'header,summary,experience,experience,skills,patent,education',
      names.join());
-  ok('annotating changes nothing but the attributes',
-     annotated.replace(/ data-(variant|section|label)="[^"]*"/g, '') === plain);
+  ok('annotating changes nothing but the attributes (and the bare spans that mark each skill word for moving)',
+     annotated.replace(/<span data-skill(?: data-word="[^"]*")?>([^<]*)<\/span>/g, '$1').replace(/ data-(variant|section|label|group)="[^"]*"/g, '') === plain);
 }
 
 function probeCoverage(label, d, recipe, { quiet = false } = {}){

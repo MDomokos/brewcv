@@ -648,7 +648,7 @@ export function arrangementOf(model, recipe){
 export function setArrangement(recipe, arrangement){ recipe.skillArrangement = structuredClone(arrangement); }
 export const groupLabel = (model, recipe, gid) => model.i18n?.[recipe.lang ?? DEFAULT_LANG]?.labels?.[gid] ?? (model.facts ?? []).find(f => f.id === gid)?.label ?? gid;
 // What a group of this resume prints over its words: its own heading, else its shelf's name, else the record group's
-export const groupHeading = (model, recipe, g) => g.label ?? (g.shelf ? SB.shelfName(model, g.shelf, recipe.lang ?? DEFAULT_LANG) : groupLabel(model, recipe, g.id));
+export const groupHeading = (model, recipe, g) => g.label ?? (g.shelf ? SB.shelfName(model, g.shelf, recipe.lang ?? DEFAULT_LANG) : g.id.startsWith('~sg-') ? '' : groupLabel(model, recipe, g.id));
 const splitWords = text => String(text ?? '').split(/,\s*/).map(x => x.trim()).filter(Boolean);
 
 // Each change works on word ids: typed text of an older arrangement (or of the record's groups) becomes the bank's words first.

@@ -787,7 +787,7 @@ if (want('on the page: the chip on the frame, at four sizes')) {
     await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape');
     await settle(page);
     await page.click('#outline [data-act=select-section][data-id=skills]'); await settle(page);
-    await page.click('#body .outline.only [data-act=cl-open]'); await settle(page);
+    await page.click('#body .sknames .skname'); await settle(page);      // the first group, picked by its name
     const gs = await chipGeomOf(page), ws = await page.$$eval('#editlay .obchip .dp-l:not(.dp-back) .dp-w', e => e.map(x => x.textContent));
     ok(`${w}x${h}: …and for a skill group: Page › Skills › CAD, on the section's frame`, JSON.stringify(ws) === JSON.stringify(['Page', 'Skills', 'CAD']) && gs.onEdge && gs.nearRight && gs.over === 0 && gs.room, JSON.stringify([ws, gs]));
     // an item of education, a language, a certificate and a job's title: the frame goes round the item (or the job), the chip stands on it
@@ -4374,7 +4374,7 @@ if (want('on the page: every printed text is written where it is printed, and ea
     ['the summary', '.summary', 'fact', 'summary', null],
     ['a heading', `${S('experience')} h2.tab`, 'head', '~h:experience', null],
     ['a job’s title', `${S('experience')} .role-title`, 'fact', 'hydra-position', null], ['a job’s date line', `${S('experience')} .entry .meta`, 'fact', 'hydra-meta', null], ['a bullet', `${S('experience')} .bullets li`, 'fact', 'hydra-inhaler', null],
-    ['a skill group', `${S('skills')} .skills__items`, 'group', 'skills-cad', null],
+    ['a skill group\u2019s heading', `${S('skills')} .skills__label`, 'ghead', '~g:skills-cad', null],
     ['a certificate', `${S('certified')} .runs strong`, 'fact', 'cert-solidworks', ['Page', 'Certified', 'SolidWorks']],
     ['the patent’s title', `${S('patent')} .item__title`, 'fact', 'patent-title', ['Page', 'Patent', 'Dose-counti…']], ['the patent’s line', `${S('patent')} .meta--flat`, 'fact', 'patent-meta', ['Page', 'Patent', 'Dates']],
     ['education’s degree', `${S('education')} .item__title`, 'fact', 'edu-degree', ['Page', 'Education', 'M.Eng']], ['education’s school', `${S('education')} .item__title-secondary`, 'fact', 'edu-school', ['Page', 'Education', 'Universidade']], ['education’s date line', `${S('education')} .meta--flat`, 'fact', 'edu-meta', ['Page', 'Education', 'Dates']],
@@ -4405,10 +4405,10 @@ if (want('on the page: every printed text is written where it is printed, and ea
     await page.keyboard.press('Escape'); await settle(page);
     const c = await cur(), id = key.slice(3), L = 'en';
     const stored = kind === 'fact' ? c.overrides?.[key]?.endsWith(mark) && !!c.overrideMeta?.[key]?.base && Array.isArray(c.overrideMeta[key].marks)
-      : kind === 'group' ? c.skillArrangement?.groups.find(g => g.id === key)?.items.at(-1).endsWith(mark)
+      : kind === 'ghead' ? c.skillArrangement?.groups.find(g => g.id === id)?.label?.endsWith(mark)
       : kind === 'head' ? c.sections.find(s => s.id === id)?.label?.[L]?.endsWith(mark) : c.terms?.[id]?.[L]?.endsWith(mark);
-    ok(`${name}: Esc keeps it on this resume (${kind === 'fact' ? 'an edit with its base version and its highlights' : kind === 'group' ? 'the skills of this resume\'s own arrangement' : kind === 'head' ? 'the heading in the resume’s language' : 'the name on this resume, in its language'}), asking nothing`, !!stored && dialogs === 0, JSON.stringify(kind === 'fact' ? c.overrideMeta?.[key] : kind === 'group' ? c.skillArrangement : kind === 'head' ? c.sections.find(s => s.id === id)?.label : c.terms));
-    ok(`${name}: the page prints it`, await printedIn(kind === 'head' || kind === 'term' ? '[data-label]' : '[data-variant]', mark));
+    ok(`${name}: Esc keeps it on this resume (${kind === 'fact' ? 'an edit with its base version and its highlights' : kind === 'ghead' ? 'the group\'s heading on this resume, in its language' : kind === 'head' ? 'the heading in the resume’s language' : 'the name on this resume, in its language'}), asking nothing`, !!stored && dialogs === 0, JSON.stringify(kind === 'fact' ? c.overrideMeta?.[key] : kind === 'group' ? c.skillArrangement : kind === 'head' ? c.sections.find(s => s.id === id)?.label : c.terms));
+    ok(`${name}: the page prints it`, await printedIn(kind === 'head' || kind === 'term' || kind === 'ghead' ? '[data-label]' : '[data-variant]', mark));
     if (kind === 'fact') keys.push(key);
     if (chip){
       // selected as an item: the chip names the item, the frame goes round it, the card is the text's own view

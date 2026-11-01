@@ -5,7 +5,7 @@
 
 import { readLibrary } from './lib/library.mjs';
 import { LANGS } from '../src/model/schema.js';
-import { indexOf, versionsOf, jobsOf, factIdsOfSection, optionsOf } from './lib/claims.mjs';
+import { indexOf, versionsOf, jobsOf, factIdsOfSection, optionsOf, bankOf } from './lib/claims.mjs';
 
 const argv = process.argv.slice(2);
 const VALUED = new Set(['--lang', '--tag', '--job']);
@@ -55,6 +55,7 @@ if (!JOB){
   const sumId = model.basics?.summary ?? 'summary';
   out.summary = ix.fact.has(sumId) && keep(claim(sumId)) ? claim(sumId) : null;
   out.skills = (model.skills ?? []).map(s => ({ id: s.id, name: s.name, keywords: s.keywords ?? [] }));
+  out.bank = bankOf(model, LANG);
   const inJobs = new Set(jobs.flatMap(j => j.highlights ?? []));
   out.sections = (model.sections ?? []).filter(s => !['header', 'summary'].includes(s.kind) && s.id !== sumId)
     .map(s => ({ id: s.id, title: s.title, pickable: false, claims: factIdsOfSection(s, ix).filter(id => !inJobs.has(id)).map(claim).filter(keep) }))
@@ -87,8 +88,13 @@ else {
   }
   if (out.summary){ console.log('\nsummary'); printClaim(out.summary, '  '); }
   if (out.skills?.length){
-    console.log('\nskills (printed as they are in the record)');
+    console.log('\nskills (printed as they are in the record, unless picks.json lists "skills")');
     for (const s of out.skills) console.log(`  ${s.id}  ${s.name}: ${s.keywords.join(', ')}`);
+  }
+  if (out.bank?.words.length){
+    console.log(`\nthe skill wordbank in ${LANG}: picks.json "skills" takes groups (a record group or a shelf) of these word ids`);
+    console.log(`  groups: ${out.bank.groups.map(g => `${g.id} (${g.heading}, ${g.kind})`).join(' · ')}`);
+    for (const w of out.bank.words) console.log(`  ${w.id}  ${w.text}${w.same ? '  [same in every language]' : ''}${w.printable ? '' : `  [can't pick: no ${LANG} wording]`}${w.needsReview ? '  [machine-translated, needs review]' : ''}${w.shelf ? `  (shelf ${w.shelf})` : ''}`);
   }
   for (const s of out.sections ?? []){ console.log(`\n${s.id}${s.title ? ` (${s.title})` : ''}: printed as the record has it, not picked`); for (const c of s.claims) printClaim(c, '  '); }
 }

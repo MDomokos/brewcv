@@ -951,6 +951,17 @@ section('the skill wordbank and the record\'s groups: one list of words, every r
   const uses = RS.wordUses(st, id('Python')).length, n = RS.dropWordEverywhere(st, id('Python'));
   ok('deleting a word takes it off every saved resume that prints it, its own groups and the record\'s alike, and out of the bank', n === uses && n > 1 && !SB.findWord(m, 'Python') && !st.resumes.some(r => JSON.stringify(T.resolve(m, r).body.skills ?? []).includes('"Python"')) && !m.skills.some(g => g.keywords.includes('Python')));
 }
+section('a language copy and the headings of a resume\'s own skill groups');
+{
+  const m = clone(model), base = clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe);
+  const a = { ...clone(base), id: 'A.json' }; T.addSkillGroup(m, a, null); T.setGroupHeading(m, a, '~sg-1', 'Tools'); T.placeWord(m, a, 'sw-git', '~sg-1');
+  const b = { ...clone(a), id: 'B.json', lang: 'hu', parent: 'A.json', inStep: true }; delete b.skillArrangement.groups.at(-1).label; delete b.skillArrangement.groups.at(-1).lang;
+  const st = { record: m, resumes: [a, b], frozen: {}, cur: clone(a), openId: 'A.json' };
+  RS.mirror(st, 'A.json');
+  const g = RS.savedOf(st, 'B.json').skillArrangement.groups.at(-1);
+  ok('a copy with no heading of its own for a group made on the page prints the original\'s, in its language, and lists it as missing', g.label === 'Tools' && g.lang === 'en' && L.missingList(m, RS.savedOf(st, 'B.json')).some(x => x.kind === 'group' && x.id === '~sg-1'));
+  ok('…and a group with no heading at all is not named by its id', T.groupHeading(m, a, { id: '~sg-9', items: [] }) === '');
+}
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {
   // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i (re-set by Look settings L-2 and L-3, and again when the job title went beside the name in Compact density only: the Polish and Czech one-pagers lose a bullet again, to fill 88-96%). Change it only when the example or the renderer is meant to change.

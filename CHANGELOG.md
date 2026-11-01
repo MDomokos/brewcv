@@ -4,6 +4,9 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+### Added
+- **A word bank for skills: each word kept once, translated once, and picked into each resume's own groups.** Drag words between the page and the bank, and every language copy prints them in its language, the exported files too.
+
 ## 1.6.2 - 2026-10-24
 
 ### Added

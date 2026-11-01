@@ -38,6 +38,8 @@ for (const v of data.variants) bag.push(v.text, ...(v.tags ?? []));
 for (const f of data.facts) bag.push(f.summary ?? '', f.label ?? '', f.term ?? '');
 for (const w of data.work ?? []) bag.push(w.position, w.name, w.location ?? '');
 for (const s of data.skills ?? []) bag.push(s.name, ...(s.keywords ?? []));
+for (const w of data.skillBank?.words ?? []) bag.push(w.name);      // the skill wordbank: every word, in every language it has
+for (const l of Object.values(data.i18n ?? {})) bag.push(...Object.values(l?.labels ?? {}).filter(x => typeof x === 'string'));
 for (const e of data.education ?? []) bag.push(e.institution, e.studyType, e.area, e.score ?? e.honours ?? '');
 for (const p of data.publications ?? []) bag.push(p.name, p.publisher ?? '', p.role ?? '', p.identifier ?? '');
 for (const c of data.certificates ?? []) bag.push(c.name, c.issuer ?? '');
