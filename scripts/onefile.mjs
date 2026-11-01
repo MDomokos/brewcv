@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFolder, readBackup, makeBackup, filesOf } from '../src/store/persist.js';
+import { readFolder, readBackup, makeBackup, filesOf, dataFolder } from '../src/store/persist.js';
 import { ensureRecordId } from '../src/model/schema.js';
 
 const argv = process.argv.slice(2);
@@ -42,7 +42,7 @@ const noOriginal = d => console.error(`warning: the original of ${d.name} is not
 
 export async function pack(dataDir, out, { force = false, saved = new Date().toISOString() } = {}){
   if (fs.existsSync(out) && !force) throw new Error(`${out} exists; pass --force to replace it`);
-  const got = await readFolder(nodeFolder(dataDir));
+  const got = await readFolder(await dataFolder(nodeFolder(dataDir)));      // BrewCV/ when the folder has its data there, else the top
   if (!got) throw new Error(`${dataDir} has no resume-data.json`);
   for (const w of got.warnings) console.error(`warning: ${w}`);
   for (const n of got.skipped) console.error(`skipped recipes/${n}: it is a copy a sync tool made after a conflict`);

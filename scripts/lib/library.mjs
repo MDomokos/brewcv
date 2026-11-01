@@ -10,10 +10,17 @@ export const readJson = f => {
   catch (e){ throw new Error(`${f}: not readable as JSON: ${e.message}`); }
 };
 
-// A record file, or the one file (the app's backup, resumeBuilderBackup: 1), whose record is read.
+// A folder is a data folder of either layout: BrewCV/resume-data.json when the folder has its data there, else resume-data.json at the top (older folders).
+export function dataFile(p){
+  if (!fs.statSync(p, { throwIfNoEntry: false })?.isDirectory()) return p;
+  const inner = path.join(p, 'BrewCV', 'resume-data.json');
+  return fs.existsSync(inner) ? inner : path.join(p, 'resume-data.json');
+}
+
+// A record file, a data folder, or the one file (the app's backup, resumeBuilderBackup: 1), whose record is read.
 // kind is the file's kind before loading; saved is the one file's date.
 export function readLibrary(file){
-  const json = readJson(file);
+  const json = readJson(dataFile(file));
   const kind = detect(json);
   if (kind === 'backup') return { ...load(json.record ?? {}), kind, saved: json.saved ?? null };
   return { ...load(json), kind };

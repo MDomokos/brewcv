@@ -3,9 +3,9 @@
 // written, and a declined permission just stops the mirror.
 
 import { t, keyed } from '../i18n/index.js';
-import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId, dropProto } from '../model/schema.js';
+import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId, dropProto, BODY_KEYS } from '../model/schema.js';
 import { assetRefs } from './store.js';
-import { tick, baseline, opened, floored, foreign, renameActor, cleanClock } from '../model/merge.js';
+import { tick, baseline, opened, floored, foreign, renameActor, cleanClock, keepOpen } from '../model/merge.js';
 
 // The one file you save and open yourself. Never translated.
 export const SAVE_FILE_NAME = 'brewcv.json';
@@ -23,8 +23,12 @@ export const CONFLICT_PATTERNS = [
   { from: 'Syncthing', re: /\.sync-conflict-\d{8}-\d{6}(?:-[A-Z0-9]+)?(?:\.[^.]+)?$/i },
   { from: 'Dropbox', re: /\((?:[^)]*['’]s )?conflicted copy(?: [^)]*)?\)/i },
   { from: 'iCloud', re: /^(?:brewcv|resume-data) \d+\.json$/i },
+  { from: 'Synology Drive', re: /_[^_\\/]+_[A-Za-z]{3}-\d{1,2}-\d{4}-\d{4}_[A-Za-z]*Conflict(?:\.[^.]+)?$/ },
 ];
 export const conflictCopy = name => CONFLICT_PATTERNS.find(p => p.re.test(String(name)))?.from ?? null;
+// What a sync tool or an office program leaves while it works: never read, never taken for damage.
+export const IGNORED = /^(?:\.syncthing\..*\.tmp|~\$.*|\.~lock\..*#|.*\.tmp|\.DS_Store|@eaDir|#recycle|\.stfolder|\.stversions)$/i;
+export const ignored = name => IGNORED.test(String(name).split('/').at(-1));
 
 export const AUTO_KINDS = new Set(['import', 'merge', 'replace', 'restore', 'first-save']);
 export const AUTO_KEEP = 50;
@@ -79,14 +83,23 @@ export function idbBackend(idb = globalThis.indexedDB, store = 'kv'){
   };
 }
 
+// A folder in memory, for the checks. `seed` is an object, or the Map (`_files`) of another memoryFolder, so two devices can share one folder.
+// A value is text or bytes; `list('')` is the top; a modified time is a counter that goes up at every write.
 export function memoryFolder(seed = {}){
-  const files = new Map(Object.entries(seed));
+  const files = seed instanceof Map ? seed : new Map(Object.entries(seed)), times = (files.times ??= new Map());
+  const put = (p, v) => { files.set(p, v); times.set(p, files.tick = (files.tick ?? 0) + 1); };
+  const bytes = v => (typeof v === 'string' ? new TextEncoder().encode(v) : new Uint8Array(v));
+  const under = dir => (dir ? dir.replace(/\/?$/, '/') : '');
+  const rest = (dir, k) => (k.startsWith(under(dir)) ? k.slice(under(dir).length) : null);
   return {
-    async read(p){ return files.has(p) ? files.get(p) : null; },
-    async write(p, text){ files.set(p, text); },
-    async list(dir){ const pre = dir.replace(/\/?$/, '/'); return [...files.keys()].filter(k => k.startsWith(pre) && !k.slice(pre.length).includes('/')).map(k => k.slice(pre.length)).sort(); },
+    async read(p){ return files.has(p) ? (typeof files.get(p) === 'string' ? files.get(p) : new TextDecoder().decode(files.get(p))) : null; },
+    async readBytes(p){ return files.has(p) ? bytes(files.get(p)) : null; },
+    async write(p, data){ put(p, typeof data === 'string' ? data : new Uint8Array(data)); },
+    async stat(p){ return files.has(p) ? { size: bytes(files.get(p)).length, mtime: times.get(p) ?? 0 } : null; },
+    async list(dir){ return [...files.keys()].map(k => rest(dir, k)).filter(r => r && !r.includes('/')).sort(); },
+    async dirs(dir){ return [...new Set([...files.keys()].map(k => rest(dir, k)).filter(r => r?.includes('/')).map(r => r.split('/')[0]))].sort(); },
     async permission(){ return 'granted'; },
-    async remove(p){ files.delete(p); },
+    async remove(p){ files.delete(p); times.delete(p); },
     name: 'memory',
     _files: files,
   };
@@ -112,19 +125,29 @@ export function fsaFolder(dir){
       try { const { d, name } = await walk(p, false); return await (await (await d.getFileHandle(name)).getFile()).text(); }
       catch { return null; }
     },
-    async list(sub){
+    async readBytes(p){
+      try { const { d, name } = await walk(p, false); return new Uint8Array(await (await (await d.getFileHandle(name)).getFile()).arrayBuffer()); }
+      catch { return null; }
+    },
+    async stat(p){
+      try { const { d, name } = await walk(p, false); const f = await (await d.getFileHandle(name)).getFile(); return { size: f.size, mtime: f.lastModified }; }
+      catch { return null; }
+    },
+    async list(sub, kind = 'file'){
       try {
         let d = dir;
         for (const seg of sub.split('/').filter(Boolean)) d = await d.getDirectoryHandle(seg);
         const out = [];
-        for await (const [name, h] of d.entries()) if (h.kind === 'file') out.push(name);
+        for await (const [name, h] of d.entries()) if (h.kind === kind) out.push(name);
         return out.sort();
       } catch { return []; }
     },
-    async write(p, text){
+    dirs(sub){ return this.list(sub, 'directory'); },
+    // text or bytes; createWritable swaps the file in when it closes, so a reader never sees half of it
+    async write(p, data){
       const { d, name } = await walk(p, true);
       const w = await (await d.getFileHandle(name, { create: true })).createWritable();
-      await w.write(text); await w.close();
+      await w.write(data); await w.close();
     },
     async remove(p){
       try { const { d, name } = await walk(p, false); await d.removeEntry(name); } catch { /* already gone */ }
@@ -136,20 +159,26 @@ export function fsaFolder(dir){
 // next launch (the persisted-scope plugin keeps the permission the dialog gave it). `T` is window.__TAURI__ (a fake in the checks).
 export const tauriApi = (T = globalThis.__TAURI__) => (T?.fs && T?.dialog ? T : null);
 export function tauriFolder(path, T = tauriApi()){
-  const fs = T.fs, at = p => `${path.replace(/[\\/]+$/, '')}/${p}`;
+  const fs = T.fs, base = path.replace(/[\\/]+$/, ''), at = p => (p.replace(/\/+$/, '') ? `${base}/${p.replace(/\/+$/, '')}` : base);      // '' and 'dir/' are the folder itself and `dir`
   return {
     name: path.split(/[\\/]/).filter(Boolean).at(-1) ?? path,
     handle: path,
     // no prompt here: a path the plugin still lets us reach is granted; otherwise the person picks the folder again
     async permission(){ try { return (await fs.exists(path)) ? 'granted' : 'prompt'; } catch { return 'prompt'; } },
     async read(p){ try { return await fs.readTextFile(at(p)); } catch { return null; } },
-    async list(sub){
-      try { return (await fs.readDir(at(sub))).filter(e => e.isFile).map(e => e.name).sort(); } catch { return []; }
+    async readBytes(p){ try { return new Uint8Array(await fs.readFile(at(p))); } catch { return null; } },
+    async stat(p){ try { const s = await fs.stat(at(p)); return { size: s.size, mtime: +s.mtime || 0 }; } catch { return null; } },
+    async list(sub, kind = 'isFile'){
+      try { return (await fs.readDir(at(sub))).filter(e => e[kind]).map(e => e.name).sort(); } catch { return []; }
     },
-    async write(p, text){
+    dirs(sub){ return this.list(sub, 'isDirectory'); },
+    // text or bytes, written to a temporary name and renamed into place, so a sync tool never reads half of it
+    async write(p, data){
       const i = p.lastIndexOf('/');
       if (i > 0) await fs.mkdir(at(p.slice(0, i)), { recursive: true });
-      await fs.writeTextFile(at(p), text);
+      const tmp = `${at(p)}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+      try { await (typeof data === 'string' ? fs.writeTextFile(tmp, data) : fs.writeFile(tmp, data)); await fs.rename(tmp, at(p)); }
+      catch (e){ await fs.remove(tmp).catch(() => {}); throw e; }
     },
     async remove(p){ try { await fs.remove(at(p)); } catch { /* already gone */ } },
   };
@@ -157,8 +186,52 @@ export function tauriFolder(path, T = tauriApi()){
 // what a remembered handle was: a path (desktop) or a FileSystemDirectoryHandle (browser)
 export const folderOf = (h, T) => (typeof h === 'string' ? tauriFolder(h, T) : fsaFolder(h));
 
+// ---- the resume space (src/store/space.js): BrewCV's own data sits in BrewCV/ of the folder the person linked, or at the top of an older folder ----
+
+// The same folder object, every path under `pre`. It marks a resume space (`space`), and `root` is the folder the person linked (the Library and Inbox are beside BrewCV/).
+export function prefixed(root, pre){
+  const w = { name: root.name, handle: root.handle, root, space: true, permission: ask => root.permission(ask) };
+  for (const m of ['read', 'readBytes', 'write', 'stat', 'list', 'dirs', 'remove']) w[m] = (p, ...a) => root[m](pre + p, ...a);
+  return w;
+}
+// BrewCV/ when the folder has its data there (or nothing yet); else the top of it, where older folders keep resume-data.json. `legacy`: moving it into BrewCV/ is offered.
+export async function dataFolder(root){
+  const there = (await root.read('BrewCV/resume-data.json')) !== null || (await root.list('BrewCV/devices')).length > 0;
+  const old = !there && (await root.read('resume-data.json')) !== null;
+  return Object.assign(prefixed(root, old ? '' : 'BrewCV/'), { legacy: old });
+}
+
+// A name that works on Windows, macOS, Linux and Android: none of \ / : * ? " < > | # ^ [ ] or a control character, composed accents, at most 120 characters, no trailing dot or space.
+// shortcut: a Windows reserved name (CON, NUL) is not changed; rename it by hand if a folder ever holds one.
+export const safe = (s, fallback = 'checkpoint') => String(s).normalize('NFC').replace(/[\\/:*?"<>|#^\[\]\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120).replace(/[. ]+$/, '') || fallback;
+
+// The one way the app removes a file in a resume space: it goes to Deleted/ (in the data folder) as `<day> <name>`, copied, read back and checked, and only then taken from where it was. The folder is the undo;
+// sweepDeleted removes what is 30 days old, the only place a file is unlinked for good. `from`: the folder `p` is in, when it is not the data folder; `copy`: leave the original (a file that is about to be overwritten).
+export async function toDeleted(data, p, { from = data, copy = false, day = new Date().toISOString().slice(0, 10) } = {}){
+  const bytes = await from.readBytes(p);
+  if (bytes === null) return null;
+  const [, stem, ext = ''] = /^(.*?)(\.[^.]*)?$/.exec(p.split('/').at(-1));
+  let to = `Deleted/${day} ${safe(stem + ext, 'file')}`, n = 2;
+  while (await data.stat(to)) to = `Deleted/${day} ${safe(`${stem} ${n++}${ext}`, 'file')}`;
+  await data.write(to, bytes);
+  const back = await data.readBytes(to);
+  if (!back || (await sha256(back)) !== (await sha256(bytes))){ await data.remove(to); throw new Error(`${p}: the copy in Deleted/ did not read back the same`); }
+  if (!copy) await from.remove(p);
+  return to;
+}
+export async function sweepDeleted(data, now = new Date(), days = 30){
+  const gone = [];
+  for (const name of await data.list('Deleted')){
+    const day = /^(\d{4}-\d\d-\d\d) /.exec(name)?.[1];
+    if (day && now - new Date(`${day}T00:00:00Z`) > days * 864e5){ await data.remove(`Deleted/${name}`); gone.push(name); }
+  }
+  return gone;
+}
+
 // a saved resume's `id` is its file name, not part of what the file says
 const stripId = r => { const c = { ...r }; delete c.id; return c; };
+// The body of a saved resume's file in one order of keys (BODY_KEYS, as a file read back gives them): a text frozen just now and the same text read from a file would otherwise be two files, and two devices would write both.
+const ordered = f => { const o = { $schema: f.$schema }; for (const k of BODY_KEYS) if (f[k] !== undefined) o[k] = f[k]; for (const k of Object.keys(f)) if (!(k in o)) o[k] = f[k]; return o; };
 // The Library's lists (documents without their bytes, rounds, the import log) are the merged view `library.json`; it is there only when one holds something.
 // shortcut: a folder (and a checkpoint file in it) carries documents text-only, since an embedded original is not written out yet; upgrade with the folder layout (I-8: originals as files in Library/<year>/).
 export function filesOf(state){
@@ -172,7 +245,7 @@ export function filesOf(state){
     let name = resumeFileName(r), n = 2;
     while (used.has(nameKey(name))) name = resumeFileName(r).replace(/\.json$/, ` ${n++}.json`);
     used.add(nameKey(name));
-    out.set(`recipes/${name}`, serialize(saveResume(state.record, stripId(r), state.frozen?.[r.id] ?? null).file));
+    out.set(`recipes/${name}`, serialize(ordered(saveResume(state.record, stripId(r), state.frozen?.[r.id] ?? null).file)));
   }
   return out;
 }
@@ -226,7 +299,7 @@ export async function readFolder(folder){
   // grouped by that, and a group is one resume
   const groups = new Map();
   for (const name of await folder.list('recipes')){
-    if (!name.endsWith('.json')) continue;
+    if (!name.endsWith('.json') || ignored(name)) continue;
     const from = conflictCopy(name);
     if (from){ skipped.push(name); warnings.push(`skipped recipes/${name}: a conflict copy made by ${from}`); continue; }
     const k = nameKey(name);
@@ -291,7 +364,7 @@ export function openVerdict({ file, last, localRecordId, changes, localClock = f
   return { kind: 'ok' };
 }
 
-function uniqueName(list, recipe){
+export function uniqueName(list, recipe){
   const base = resumeFileName(recipe);
   let id = base, n = 2;
   while (list.some(r => nameKey(r.id) === nameKey(id))) id = base.replace(/\.json$/, ` ${n++}.json`);
@@ -299,14 +372,17 @@ function uniqueName(list, recipe){
 }
 
 const fileStamp = iso => iso.replace(/:/g, '-').replace(/\.\d+Z$/, 'Z');
-const safe = s => String(s).replace(/[^\p{L}\p{N} _.,()-]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'checkpoint';
 
+// `locks`: navigator.locks. In a resume space (a folder from dataFolder()) one window is the writer; the others only read. `deviceName`: what this device's file is called.
 export function createPersist({ store, backend = memoryBackend(), folder = null, debounceMs = 400,
-  now = () => new Date(), setTimer = setTimeout, clearTimer = clearTimeout } = {}){
+  now = () => new Date(), setTimer = setTimeout, clearTimer = clearTimeout, locks = null, deviceName = null } = {}){
   let timer = null, waiters = [], status = 'idle', lastError = null, errorCode = null;
   let linked = folder;
   const written = new Map();          // path → text last written to the folder
   let diskHash = null;                // hash of resume-data.json as the app last read or wrote it (a linked folder)
+  // A resume space: the files of the merged view (resume-data.json, library.json, recipes/) are guarded by what this device last read or wrote; one it did not is `outside`, left alone until space.js reads it in.
+  const known = new Map(), outside = new Set();
+  let writer = !locks;
   const file = { last: null, n: 0 }; // the last save to the one file, and the changes since (kept in the browser's storage)
   let pendingCommits = 0;
   // The object clocks (src/model/merge.js), ticked at every save. A state that is here from the start is the common start of every copy made from it.
@@ -319,6 +395,21 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     await backend.put('meta/clock', clock);
     return clock;
   };
+  const guessName = () => { const ua = globalThis.navigator?.userAgent ?? ''; return /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : 'Device'; };
+  // shortcut: a device is named after its system (and cannot be renamed); two Macs are told apart by the four characters of the id; upgrade with a name field in Settings.
+  const nameOf = async () => safe(deviceName ?? (await backend.get('meta/deviceName')) ?? guessName(), 'device');
+  const devicePath = async () => `devices/${await nameOf()} ${(await actor()).slice(0, 4)}.json`;
+  // The text of this device's file: its state without any original, with the clock stamped now. Nothing in it changes until the state does, so an unchanged file is not written again.
+  async function deviceText(){
+    const state = store.materialize(), c = await stamp(state);
+    const at = Object.values(c.keys).reduce((m, e) => (e.at > m ? e.at : m), '1970-01-01T00:00:00.000Z');
+    return JSON.stringify(makeBackup({ ...state, documents: textOnly(state.documents ?? []) }, { saved: at, clock: c, device }), null, 2) + '\n';
+  }
+  // The Web Lock is held until the window closes; a window that cannot get it only reads (it writes nothing to the folder).
+  const becomeWriter = () => new Promise(resolve => {
+    if (writer || !locks) return resolve(writer = true);
+    locks.request('brewcv-writer', { ifAvailable: true }, lock => (lock ? (resolve(writer = true), new Promise(() => {})) : resolve(false))).catch(() => resolve(false));
+  });
   const statusSubs = new Set();
   const setStatus = (s, err = null, code = null) => { status = s; lastError = err; errorCode = code; for (const fn of statusSubs) fn({ status, error: err, code }); };
 
@@ -359,12 +450,19 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
   }
 
   async function writeFolder(){
+    if (linked.space && !writer) return [];
     if ((await linked.permission()) !== 'granted'){ setStatus('error', 'not writing to disk: the folder needs permission again'); return null; }
-    const files = filesOf(store.materialize());
+    const spaced = !!linked.space, files = filesOf(store.materialize());
+    if (spaced && store.state.record) files.set(await devicePath(), await deviceText());
     const out = [];
     for (const [p, text] of files){
       if (written.get(p) === text) continue;
-      if (p === 'resume-data.json'){
+      if (spaced && !p.startsWith('devices/')){
+        // a file this device did not write or read is somebody else's (a person, an agent, a sync tool): not written over until space.js has read it in
+        const onDisk = await linked.read(p), h = onDisk === null ? null : await sha256(onDisk);
+        if (onDisk !== null && onDisk !== text && h !== known.get(p)){ outside.add(p); continue; }
+        outside.delete(p);
+      } else if (p === 'resume-data.json'){
         // never write over a file somebody else changed since the app read or wrote it
         const onDisk = await linked.read(p);
         if (onDisk !== null && (diskHash === null || (await sha256(onDisk)) !== diskHash)){
@@ -374,14 +472,15 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       }
       await linked.write(p, text);
       written.set(p, text);
+      if (spaced && !p.startsWith('devices/')) known.set(p, await sha256(text));
       if (p === 'resume-data.json') diskHash = await sha256(text);
       out.push(p);
     }
     // a renamed or deleted resume: remove its old file, but only one written since the folder was
-    // linked, so a file put there by hand is never deleted
+    // linked, so a file put there by hand is never deleted (in a resume space it goes to Deleted/)
     for (const p of [...written.keys()]) if (p.startsWith('recipes/') && !files.has(p) && linked.remove){
-      await linked.remove(p);
-      written.delete(p);
+      if (spaced) await toDeleted(linked, p); else await linked.remove(p);
+      written.delete(p); known.delete(p);
       out.push(`-${p}`);
     }
     return out;
@@ -418,8 +517,8 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       await backend.delete(`checkpoint/${c.id}`);
     }
     await backend.put('checkpoints/index', index);
-    if (linked && (await linked.permission()) === 'granted')
-      await linked.write(`checkpoints/${fileStamp(at)} ${safe(label)}.json`, serialize(makeBackup({ ...store.materialize(), documents: textOnly(store.state.documents ?? []) }, { saved: at })));
+    if (linked && writer && (await linked.permission()) === 'granted')
+      await linked.write(`checkpoints/${linked.space ? `${await nameOf()}/` : ''}${fileStamp(at)} ${safe(label)}.json`, serialize(makeBackup({ ...store.materialize(), documents: textOnly(store.state.documents ?? []) }, { saved: at })));
     return id;
   }
 
@@ -445,6 +544,33 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       return { state: { record: state.record, resumes: state.resumes ?? [], frozen: state.frozen ?? {}, ...listsOf(state) }, clock: await stamp(state) };
     },
     async adoptClock(c){ clock = c; await backend.put('meta/clock', clock); },
+    // A merge's result becomes the state in one commit. Its clock is taken first, so the save that commit starts stamps nothing (the merge is no edit); it is given back if the commit is refused.
+    async adoptMerge(m, label){
+      const was = clock;
+      clock = m.clock;
+      try { store.commit(d => keepOpen(d, e => Object.assign(e, structuredClone(keepOriginals(m.state, store.materialize())))), label); }
+      catch (e){ clock = was; throw e; }
+      await backend.put('meta/clock', clock);
+    },
+    // the resume space: who is writing, what this device's file is called, the files in the folder this device did not write (see writeFolder)
+    becomeWriter,
+    get writer(){ return writer; },
+    get folder(){ return linked; },
+    devicePath,
+    get outside(){ return outside; },
+    knows: (p, h) => known.get(p) === h,
+    async accept(p, text){ known.set(p, await sha256(text)); outside.delete(p); },
+    // the person said the files in the folder may be written over (keep this device's state)
+    async acceptAll(){
+      for (const p of ['resume-data.json', 'library.json', ...(await linked.list('recipes')).filter(n => n.endsWith('.json') && !ignored(n)).map(n => `recipes/${n}`)]){
+        const text = await linked.read(p);
+        if (text !== null) known.set(p, await sha256(text));
+      }
+      outside.clear();
+    },
+    // this device's own notes (the files last seen in the folder, the moves Organise made), kept in the browser and never in the folder
+    local: k => backend.get(`local/${k}`),
+    setLocal: (k, v) => backend.put(`local/${k}`, v),
     // the backup text for the one file, without checkpoints; markFileSaved once it was delivered
     async prepareFile(){
       if (store.state?.record && !store.state.record.recordId) store.commit(d => { ensureRecordId(d.record); }, t('save.recordId'));
@@ -484,8 +610,9 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
     },
 
     async link(f){
+      if (f.space && !(await becomeWriter())) return null;      // another window writes this folder
       linked = f;
-      written.clear();
+      written.clear(); known.clear(); outside.clear();
       // Before the first write over a resume-data/3 folder, keep the originals once
       // as resume-data.v3.json and recipes-v3/.
       const old = await f.read('resume-data.json');
@@ -499,6 +626,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
         }
       }
       if (f.handle !== undefined) await backend.put('handle/folder', f.handle);
+      if (f.space) return [];      // nothing is written until space.js has read in what is there
       const there = await f.read('resume-data.json');         // what is on disk now is what the person chose to keep or replace
       diskHash = there === null ? null : await sha256(there);
       // a file already on disk with the same text is left alone: no new modification time for a sync tool to carry to other devices
@@ -512,7 +640,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       for (const name of names){
         if (name === name.normalize('NFC') || !linked?.remove) continue;
         if ((await linked.read(`recipes/${name.normalize('NFC')}`)) === null) continue;
-        await linked.remove(`recipes/${name}`);
+        if (linked.space) await toDeleted(linked, `recipes/${name}`); else await linked.remove(`recipes/${name}`);
         gone.push(name);
       }
       return gone;
@@ -525,7 +653,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       if (status === 'error' && errorCode === 'folder-changed') setStatus('idle');
       return linked ? (await writeFolder()) ?? [] : [];
     },
-    unlink(){ linked = null; written.clear(); diskHash = null; return backend.delete('handle/folder'); },
+    unlink(){ linked = null; written.clear(); known.clear(); outside.clear(); diskHash = null; return backend.delete('handle/folder'); },
     rememberedFolder(){ return backend.get('handle/folder'); },
     writeFolder: async () => (linked ? (await writeFolder()) ?? [] : []),
 

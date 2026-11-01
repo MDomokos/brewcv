@@ -208,7 +208,7 @@ export async function openFiles(list, mode = null){
   if (one && mode === 'check') return checkSaved(one);
   const entries = [];
   for (const f of list){
-    const e = { name: f.name, size: f.size, type: f.type, modified: f.lastModified };
+    const e = { name: f.name, size: f.size, type: f.type, modified: f.lastModified, ...(f.path ? { path: f.path } : {}) };      // path: a file of the linked folder, kept as a reference
     entries.push(e);
     try {
       if (f.size > X.MAX_FILE) throw Object.assign(new Error('too large'), { code: 'big' });
@@ -496,7 +496,7 @@ function receiptView(){
   if (!D?.done) return importView();
   const docs = D.done.ids.map(id => (st().documents ?? []).find(x => x.id === id)).filter(Boolean);
   const rows = docs.map(doc => {
-    const sf = DOC.safety(doc, { lastFileSave: C.persist.fileState.last, checked: F.checked });
+    const sf = DOC.safety(doc, { lastFileSave: C.persist.fileState.last, checked: F.checked, folderVerified: C.space.verified(doc) });
     return `<div class="mi ro" data-doc="${esc(doc.id)}" data-kind="${esc(doc.meta?.kind ?? '')}" data-safe="${sf.safe}" data-read="${sf.read.state}" data-record="${sf.record.state}" data-kept="${sf.kept.state}"><span class="sym ${sf.safe ? 'add' : 'keep'}">${sf.safe ? '✓' : '·'}</span>
       <span><span class="mw">${esc(doc.name)}${doc.of ? ` · ${esc(t('i6.formatShort'))}` : ''}</span>
       <ul class="small ticks">${[sf.read, sf.record, sf.kept].map(x => `<li data-ok="${x.ok}">${x.ok ? '✓' : '○'} ${esc(x.text)}</li>`).join('')}</ul>
@@ -564,6 +564,7 @@ async function importAct(a, tg){
         try { await C.persist.checkpoint(t('i6.checkpoint'), 'import'); }
         catch (e){ C.toast(isFull(e) ? t('i6.storageFull') : errText(e), 'bad'); return true; }      // nothing was applied
         C.ui.sel = C.NONE;
+        await C.space?.file(D.entries);      // an Inbox file is filed into Library/ before its document is made, so the document has its final path
         await Promise.all(D.entries.map(async e => { if (e.thumbP) e.thumb = await e.thumbP; }));
         let made = [];
         if (!commit(d => { made = X.applyPlan(d, D.plan, { at }); }, label)) return true;

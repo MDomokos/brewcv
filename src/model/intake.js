@@ -92,7 +92,7 @@ async function bestRead(items, first){
 
 // "2024-03-12 Acme - Product Designer (hu).pdf": the date, company and role a file's name carries (the folder layout's names); else the file's own date.
 const NAME = /^(\d{4}-\d\d-\d\d)[ _]+(.+?)(?: - (.+?))?(?: \([^)]*\))?\.[A-Za-z0-9]+$/;
-function metaOf(name, modified){
+export function metaOf(name, modified){
   const m = NAME.exec(name);
   return { company: m?.[2] ?? '', role: m?.[3] ?? '', date: m?.[1] ?? (modified ? new Date(modified).toISOString().slice(0, 10) : ''), lang: '', jobType: '', kind: 'resume' };
 }
@@ -375,7 +375,7 @@ const place = (d, u, lang) => {
 };
 
 // Joins the plan to the draft state `d` (inside store.commit): the career, a document for every file, the import log. Returns the documents made.
-// An original is embedded when it is 10 MB or less; with a linked folder it is a file in Library/ instead (I-8), until then it is embedded here as well.
+// An original is embedded when it is 10 MB or less; a file of the linked folder (`e.path`) is a reference to it instead.
 export function applyPlan(d, p, { at = new Date().toISOString() } = {}){
   if (p.start){
     d.record = fromJsonResume(p.start.read.jsonResume, p.start.read.lang ?? 'en').model;
@@ -397,7 +397,7 @@ export function applyPlan(d, p, { at = new Date().toISOString() } = {}){
       const round = mate ? mate.round : DOC.currentRound(d)?.id;      // a letter is in its resume's round; any other import, in the current one
       const link = e.status === 'letter' ? { ...(f.link ? { with: DOC.docId(f.link) } : {}), ...(f.resume ? { resume: f.resume } : {}) } : {};
       const doc = DOC.addDocument(d, { name: e.name, type, sha256: e.sha256, size: e.size, addedAt: at,
-        bytesDataUrl: e.size <= DOC.MAX_EMBED && e.bytes ? dataUrl(e.bytes, type) : undefined,
+        path: e.path, bytesDataUrl: !e.path && e.size <= DOC.MAX_EMBED && e.bytes ? dataUrl(e.bytes, type) : undefined,
         meta: { ...metaOf(e.name, e.modified), kind: e.status === 'letter' ? 'cover-letter' : e.status === 'unread' ? 'other' : e.of ? kindOfDoc(e.of) : 'resume', lang: r.lang ?? '' },
         text: r.text ?? '', from: 'imported', layout: r.pdf ? (e.layout ?? r.layout) : undefined, of: e.of?.id, taken, thumb: e.thumb, round });
       Object.assign(doc, link);

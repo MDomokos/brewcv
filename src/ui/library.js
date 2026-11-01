@@ -2,7 +2,7 @@
 // whether it is safe to delete, what was taken from it, Place lines, Rebuild, Download, Remove), and the removing of a round's resumes and documents. screens.js draws the Library
 // and its rounds around these; the model is src/model/documents.js, resumes.js (docGroups, rebuildFrom, dropDuplicates) and intake.js (placeLines).
 // A document's text and name are always written as text (esc), and a PDF original reaches the page only as pictures of its pages drawn by PDF.js (no frame, no plugin).
-// shortcut: there is no linked folder yet (I-8), so no document has a path: "Show in folder" and the tick that deletes the file in the folder as well are not here, and Remove takes the document with its embedded original.
+// shortcut: "Show in folder" and the tick that deletes the file in the folder as well are not here yet (a document with a path is removed from the Library, its file left in the folder), and Remove takes the document with its embedded original.
 
 import * as RS from '../model/resumes.js';
 import * as DOC from '../model/documents.js';
@@ -36,8 +36,8 @@ const ctx = () => ({ checked: C.files.checked(), protect: C.files.receipt() }); 
 const groupOf = id => groups().find(g => g.id === id) ?? null;
 // the card's one state line: lines not placed, a file kept unread, or all in the career
 const stateOf = g => {
-  const un = g.members.reduce((n, m) => n + (m.taken?.unplaced ?? 0), 0);
-  return un ? ['unplaced', t('i7.stUnplaced', { n: un })] : g.members.every(m => !String(m.text ?? '').trim()) ? ['file', t('i7.stFile')] : ['record', t('i7.stRecord')];
+  const un = g.members.reduce((n, m) => n + (m.taken?.unplaced ?? 0), 0), gone = g.members.map(m => C.space.docStatus(m.id));
+  return gone.includes('cloud') ? ['cloud', t('i8.inCloud')] : gone.includes('missing') ? ['missing', t('i8.missing')] : un ? ['unplaced', t('i7.stUnplaced', { n: un })] : g.members.every(m => !String(m.text ?? '').trim()) ? ['file', t('i7.stFile')] : ['record', t('i7.stRecord')];
 };
 
 // ---- search: a group is found by its names and by the words in any of its files' text ----
@@ -111,7 +111,7 @@ export function inspector(){
   const g = groupOf(L.sel);
   if (!g) return '';
   const d = g.members.find(m => m.id === L.member) ?? g.lead, rounds = st().rounds ?? [], resume = g.resume && RS.savedOf(st(), g.resume);
-  const sf = DOC.safety(d, { lastFileSave: C.persist.fileState.last, checked: C.files.checked() });
+  const sf = DOC.safety(d, { lastFileSave: C.persist.fileState.last, checked: C.files.checked(), folderVerified: C.space.verified(d) });
   const pic = bytesUrl(d.thumb), un = d.taken?.lines?.length ?? 0, copies = RS.copiesOf(st(), d.id), archived = g.members.every(m => m.archived);
   const says = isLetter(d) ? X.mentions(st().record, d.text) : [];
   return `<section class="insp insp-doc" aria-label="${esc(d.name)}" data-did="${esc(g.id)}" data-member="${esc(d.id)}">

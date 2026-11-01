@@ -14,6 +14,7 @@ import { icon as drawn } from './icons.js';
 import { exportFx } from './exportfx.js';
 import { drink } from './drink.js';
 import { SAVE_FILE_NAME } from '../store/persist.js';
+import { libraryDir, libraryName } from '../store/space.js';
 
 let C = null;
 export function initExport(ctx){ C = ctx; return api; }
@@ -64,9 +65,17 @@ export async function buildHtml(recipe = C.cur(), laid = C.ui.laid){
 
 // The desktop app (Tauri): one Save dialog, then a hidden window prints the page straight to that file (desktop/print.js).
 // Returns true when it handled the export; false means "use the print dialog instead" (not macOS or Linux, or the export failed to start).
+// With a folder linked the Save dialog opens in Library/<year>/ under the standard name: the date, company and role, and the language when it is not English.
+async function libraryPdfPath(){
+  const root = C.persist.folder?.root;
+  if (typeof root?.handle !== 'string') return undefined;      // only the desktop app's folder is a path
+  const r = C.cur(), date = new Date().toISOString().slice(0, 10), dir = `${root.handle.replace(/[\\/]+$/, '')}/${libraryDir(date)}`;
+  try { await window.__TAURI__.fs.mkdir(dir, { recursive: true }); } catch { return undefined; }
+  return `${dir}/${libraryName({ date, company: r.company, role: r.role, lang: r.lang, stem: st().record.basics?.name || 'Resume', ext: '.pdf' })}`;
+}
 async function savePdfFile(html){
   const T = window.__TAURI__;
-  const path = await T.dialog.save({ defaultPath: X.exportName(C.cur(), st().record, 'pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  const path = await T.dialog.save({ defaultPath: (await libraryPdfPath()) ?? X.exportName(C.cur(), st().record, 'pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (!path) return true;
   const w = new T.webviewWindow.WebviewWindow('print' + Date.now(), { url: 'desktop/print.html', visible: false, width: 900, height: 1100 });
   await new Promise((ok, no) => { w.once('tauri://created', ok); w.once('tauri://error', e => no(new Error(String(e.payload)))); });

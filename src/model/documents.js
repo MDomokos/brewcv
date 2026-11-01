@@ -16,7 +16,7 @@ const find = (state, id) => (state.documents ?? []).find(d => d.id === id) ?? nu
 export const findBySha = (state, sha) => (state.documents ?? []).find(d => d.sha256 === sha) ?? null;
 
 // The same file again is the document it already is. `of`: the id sameDocument found, when this is another format of one; `round`: the current round.
-// Embedded only when `path` (a file in the linked folder) is not given; the caller decides, and I-8 adds the reference.
+// Embedded only when `path` (a file in the linked folder) is not given; the caller decides.
 export function addDocument(state, { name, type, bytesDataUrl, path, sha256, size, meta = {}, text = '', from = 'imported', layout, of, round, taken, thumb, addedAt = new Date().toISOString() }){
   if (!/^[0-9a-f]{64}$/.test(sha256 ?? '')) throw new Error('a document needs the sha256 of its file');
   const had = findBySha(state, sha256);

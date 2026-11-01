@@ -19,6 +19,7 @@ const SHELL = [
   './src/model/review.js',
   './src/store/store.js',
   './src/store/persist.js',
+  './src/store/space.js',
   './src/paginate.js',
   './src/ui/drink-boot.js',
   './src/ui/boot.js',

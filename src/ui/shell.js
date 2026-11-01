@@ -3,7 +3,8 @@
 
 import { createStore } from '../store/store.js';
 import { askOk } from './ask.js';
-import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, readFolder, keepOriginals, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
+import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, dataFolder, readFolder, keepOriginals, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
+import { createSpace, moveIntoBrewCV } from '../store/space.js';
 import { load, loadResume, LANGS } from '../model/schema.js';
 import { chooseVariant, newResume, pickVersion } from '../model/resume.js';
 import { LockedError } from '../model/lock.js';
@@ -84,7 +85,8 @@ function alsoChanged(peers){
   // after the change's own message, which stays if there is one: the next change says it then
   setTimeout(() => { if ($('#toast').classList.contains('on')) return; alsoSaid = true; toast(t('ml2.alsoChanged', { lang: names }), '', true); }, 0);
 }
-const persist = createPersist({ store, backend });
+const persist = createPersist({ store, backend, locks: globalThis.navigator?.locks });
+const space = createSpace({ persist, store });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
@@ -110,7 +112,7 @@ const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => r
   endHover: () => { ui.hoverV = null; if (ui.previewing) endPreview(); }, previewVersion: (fact, vid) => { ui.hoverV = vid; return previewVersion(fact, vid); } });
 const hands = initHands({ ui, sheet, canvas, edit: () => edit, onpage: () => onpage, record: () => record(), cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k), undoN: () => store.history.undo,
   jobName: id => (ui.ix ?? indexModel(work(), cur())).work.get(id)?.name ?? id, writingFact: () => onpage.fact(), togglePhoto: () => design.togglePhoto() });
-window.__wb = { store, persist, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile(), busy: () => timer !== null || drawing > 0 };      // for checks and the console
+window.__wb = { store, persist, space, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile(), busy: () => timer !== null || drawing > 0 };      // for checks and the console
 
 // The tea garden runs in tea, with its setting on, with motion allowed, off a phone and off the start screen; otherwise it rests.
 // ?garden-check[=idle seconds] is for checks/garden-check.mjs: a short idle time and the garden's test hooks on __wb.garden.
@@ -187,6 +189,8 @@ async function boot(){
   // an older session may hold a resume that was never saved: save it now, as every change from here on does
   if (cur() && !store.state.openId) store.commit(() => {}, t('ux1.undoSaveDraft'));
   checkFolder();
+  addEventListener('focus', resync);
+  setInterval(resync, 5 * 60_000);
   // the column and its first words now; the sheet follows as soon as it has been laid out
   try { relayout(); renderAll(); } catch (e){ console.error(e); }
   let drew = await redraw();
@@ -591,7 +595,9 @@ function drawHead(){
     ${st.code === 'folder-changed' ? `<div class="hrow notice" role="alert"><span class="small">${esc(st.error)}</span><span class="btns"><button class="sm" data-act="folder-compare">${h('save.folderCompare')}</button><button class="sm" data-act="folder-overwrite">${h('save.folderOverwrite')}</button></span></div>` : ''}
     ${ui.saveNote ? `<div class="hrow notice" role="status"><span class="small">${esc(t('save.note'))}${ui.persisted === false ? ' ' + esc(t('save.noteStorage')) : ''}</span><button class="sm" data-act="save-note-ok">${h('save.noteOk')}</button></div>` : ''}
     ${snap ? `<div class="hrow notice snapbar" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${withArrows(h('ux1.backToResume'))}</button></div>` : ''}
-    ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}`;
+    ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}
+    ${ui.readOnly ? `<div class="hrow notice" role="status"><span class="small">${h('i8.readOnly')}</span></div>` : ''}
+    ${space.last?.inbox.length ? `<div class="hrow notice"><span class="small">${h('i8.inbox', { n: space.last.inbox.length })}</span><button class="sm" data-act="inbox-read">${h('i8.inboxRead')}</button></div>` : ''}`;
   const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" tabindex="0" data-tip="${esc(savedTip())}" data-tip-pos="b">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
   const mode = dock.modeOf();
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
@@ -1090,6 +1096,7 @@ async function onClick(e){
     case 'link': ui.menu = false; linkFolder(); break;
     case 'unlink': ui.menu = false; await persist.unlink(); renderHead(); toast(t('toast.unlinked')); break;
     case 'reconnect': reconnect(); break;
+    case 'inbox-read': files.openFiles(await space.load(space.last.inbox)); break;
     case 'save-file': ui.menu = false; review.saveFlow(tg); break;
     case 'review-open': review.open(tg); break;
     case 'save-note-ok': ui.saveNote = false; renderHead(); break;
@@ -1423,29 +1430,52 @@ async function linkFolder(startAt){
   await adoptFolder(f, true);
 }
 
-async function adoptFolder(f, fresh){
-  const disk = await readFolder(f).catch(e => { toast(`${f.name}: ${errText(e)}`, 'bad'); return null; });
-  let adopted = false;
-  if (disk){
-    const cmp = await persist.compareFolder(f);
-    if (!cmp.same){
-      const useDisk = await askOk(t(disk.state.resumes.length ? 'confirm.folderHasResumes' : 'confirm.folderHas', { name: f.name, n: disk.state.resumes.length }), { ok: 'OK', cancel: 'Cancel' });
-      if (useDisk){
-        await persist.checkpoint(t('checkpoint.beforeFolder', { name: f.name }), 'replace');
+// `root` is the folder the person picked. Its data is in BrewCV/ (or, in an older folder, at the top); the Library and the Inbox are beside it.
+async function adoptFolder(root, fresh){
+  const f = await dataFolder(root);
+  const devs = await space.probe(f);      // the other devices' files of this career merge by themselves; another career's files are asked about
+  let disk = null, adopted = false, keepMine = false;
+  if (!devs.mergeable && devs.newest){
+    if (await askOk(t('confirm.folderHasResumes', { name: root.name, n: devs.newest.got.state.resumes.length }), { ok: 'OK', cancel: 'Cancel' })){ ui.sel = NONE; await space.adopt(devs.newest); adopted = true; }
+    else keepMine = true;
+  } else if (!devs.mergeable){
+    disk = await readFolder(f).catch(e => { toast(`${root.name}: ${errText(e)}`, 'bad'); return null; });
+    if (disk && !(await persist.compareFolder(f)).same){
+      if (await askOk(t(disk.state.resumes.length ? 'confirm.folderHasResumes' : 'confirm.folderHas', { name: root.name, n: disk.state.resumes.length }), { ok: 'OK', cancel: 'Cancel' })){
+        await persist.checkpoint(t('checkpoint.beforeFolder', { name: root.name }), 'replace');
         ui.sel = NONE;
         const st = keepOriginals(disk.state, store.state);      // the folder holds documents text-only: the originals this browser has stay
         if (st.openId) RS.openSaved(st, st.openId);
         if (!st.cur){ st.cur = newResume(st.record); st.openId = null; }
-        store.replace(st, t('undo.useFolder', { name: f.name }));
+        store.replace(st, t('undo.useFolder', { name: root.name }));
         adopted = true;
-      }
+      } else keepMine = true;
     }
   }
-  const wrote = await persist.link(f);
-  if (adopted) await persist.dropMerged(disk.leftovers).catch(() => {});     // a spelling of a name that was merged into the one just written
+  if ((await persist.link(f)) === null){ ui.readOnly = true; ui.reconnect = null; renderHead(); return; }      // another window writes this folder
+  ui.readOnly = false;
+  if (keepMine) await persist.acceptAll();      // the person said this device's state may be written over what is there
+  if (adopted && disk) await persist.dropMerged(disk.leftovers).catch(() => {});     // a spelling of a name that was merged into the one just written
   ui.reconnect = null;
+  const r = await space.sync().catch(e => { toast(`${root.name}: ${errText(e)}`, 'bad'); return null; });
   renderHead();
-  toast(wrote.length ? t('toast.linkedWrote', { name: f.name, n: wrote.length }) : t('toast.linked', { name: f.name }));
+  toast(r?.changed ? t('i8.synced', { n: r.changed }) : t('toast.linked', { name: root.name }));
+  // an older folder keeps its data at the top: moving it into BrewCV/ is offered once
+  if (f.legacy && (await persist.local('moveAsked')) !== root.name){
+    await persist.setLocal('moveAsked', root.name);
+    if (await askOk(t('i8.move', { name: root.name }), { ok: 'OK', cancel: 'Cancel' })){
+      try { await persist.checkpoint(t('i8.checkpointMove'), 'replace'); toast(t('i8.moved', { n: await moveIntoBrewCV(root) })); await adoptFolder(root, false); }
+      catch (e){ toast(`${root.name}: ${errText(e)}`, 'bad'); }
+    }
+  }
+}
+
+// On launch, on coming back to the window and every five minutes: the other devices' files, what changed outside, the documents, the Inbox. A window that was not the writer tries again.
+async function resync(){
+  if (ui.readOnly) return checkFolder();
+  if (!persist.folder?.space) return;
+  try { await space.sync(); } catch (e){ console.error(e); }
+  renderHead(); if (ui.view === 'settings') renderBody();
 }
 
 async function checkFolder(){
@@ -1538,18 +1568,18 @@ switcher.bind();
 Object.assign(VIEWS, resumes.views);
 VIEWS.record = () => recordTab.view();
 const thumbs = initThumbs({ work, extraCss: r => design.extraCss(store.state.record, r), chrome: r => docChrome(r.lang ?? 'en') });
-const screens = initScreens({ store, work, setView, resumes, view: () => ui.view, renderBody: () => renderBody(), leave: () => leaveView(), persist, toast, files: { checked: () => files.checked(), receipt: () => files.receipt() } }, thumbs);
+const screens = initScreens({ store, work, setView, resumes, view: () => ui.view, renderBody: () => renderBody(), leave: () => leaveView(), persist, space, toast, files: { checked: () => files.checked(), receipt: () => files.receipt() } }, thumbs);
 Object.assign(VIEWS, screens.views);
 window.__wb.thumbs = thumbs; window.__wb.screens = screens;
 const files = initFiles({
-  store, ui, persist, toast, NONE, setView, pickFile, download, saveToFile,
+  store, ui, persist, space, toast, NONE, setView, pickFile, download, saveToFile,
   onImage: f => design.setPhoto(f), onThemeText: (t, n) => design.importTheme(t, n), onTheme: (j, n) => design.importTheme(j, n),
   renderBody: () => renderBody(),
 });
 Object.assign(VIEWS, files.views);
 files.bind($('#body'));
 window.__wb.files = files;
-const exporter = initExport({ store, ui, toast, work, cur: () => shown(),
+const exporter = initExport({ store, ui, persist, toast, work, cur: () => shown(),
   // the Fix of a major warning: to the page, the header or the line it is about, in the Editor, with the thing in view and the keyboard on it (the photo's switch, the line's version in use)
   goFix: async f => {
     await dock.setMode('edit');
@@ -1597,7 +1627,7 @@ for (const m of [screens, resumes, checklist, career, edit]) m.bind($('#scr')); 
 window.__wb.resumes = resumes;
 window.__wb.switcher = switcher;
 
-const settings = initSettings({ store, ui, toast, setView, renderBody: () => renderBody(), syncUi: r => syncUi(r), syncGarden });
+const settings = initSettings({ store, ui, persist, space, files, toast, setView, renderBody: () => renderBody(), syncUi: r => syncUi(r), syncGarden });
 Object.assign(VIEWS, settings.views);
 settings.bind($('#body'));
 window.__wb.settings = settings;
