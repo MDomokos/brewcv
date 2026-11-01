@@ -109,6 +109,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
     if (was !== now) put({ kind: 'change', what: `${where} · ${clip(claimText(F, fromId))}`, a: was ? t('arch.diffArchived') : t('arch.diffNot'), b: now ? t('arch.diffArchived') : t('arch.diffNot'), on: false,
       apply: d => { const f = d.record.facts.find(x => x.id === fromId); if (f){ if (now) f.archived = true; else delete f.archived; } } });
     for (const v of versionsOf(T, toId)){
+      if (!String(v.text ?? '').trim()) continue;      // a blank one (a file with no label, email or summary) is nothing to offer, and addVersion refuses it
       const same = fvs.find(w => normText(w.text) === normText(v.text) && (w.lang ?? 'en') === (v.lang ?? 'en'));
       if (!same){
         const twin = sameRecord ? fvs.find(w => w.id === v.id) : null;

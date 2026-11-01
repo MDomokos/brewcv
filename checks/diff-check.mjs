@@ -11,6 +11,7 @@ import * as S from '../src/model/schema.js';
 import * as D from '../src/model/diff.js';
 import * as R from '../src/model/record.js';
 import * as B from '../src/model/build.js';
+import { fromJsonResume } from '../src/model/import.js';
 import { newResume } from '../src/model/resume.js';
 import { validate } from './lib/validate.mjs';
 import { createDocument } from '../scripts/lib/dom.mjs';
@@ -236,4 +237,16 @@ section('how another copy’s jobs and wordings are matched and numbered');
 }
 
 console.log(failed ? `\n${failed} diff check(s) FAILED` : '\nall diff checks passed');
+section('a file with a blank label, email or summary offers nothing blank');
+{
+  const sparse = fromJsonResume({ basics: { name: 'Sam Example' }, work: [] }).model;      // no label, email, phone or summary: their versions are blank
+  const items = D.diffRecords(mine, sparse, { fromResumes: [], toResumes: [] });
+  ok('the fixture: the file does carry blank versions', sparse.variants.some(v => !String(v.text).trim()));
+  const d = { record: clone(mine), resumes: [], frozen: {} };
+  let n = -1, err = '';
+  try { n = D.applyItems(d, items.filter(x => x.on)); } catch (e){ err = e.message; }
+  ok('every ticked item applies (none is a blank version, which addVersion refuses)', n >= 0 && !err, err);
+  ok('and no item offers a version with no text', items.every(x => !/New version/.test(x.what) || !/Discipline|Contact|Summary/.test(x.what)), JSON.stringify(items.map(x => x.what)));
+}
+
 process.exit(failed ? 1 : 0);
