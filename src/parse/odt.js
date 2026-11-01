@@ -29,6 +29,7 @@ export async function readOdt(bytes){
     if (skip(e)) continue;
     const p = out.cur;
     if (e.text !== undefined){ if (p) p.runs.push({ text: e.raw ? e.text : unescape(e.text), ...(p.spans.at(-1) ?? p.base) }); continue; }
+    if (e.name === 'table:table-cell' && !e.close && +attr(e.tag, 'table:number-columns-spanned') > 1) tb.merge();
     if (tb.event(e)) continue;
     if (e.name === 'style:style') style = e.close ? null : attr(e.tag, 'style:name');
     else if (e.name === 'style:text-properties'){
@@ -40,8 +41,8 @@ export async function readOdt(bytes){
       tb.tag(out.open({ runs: [], spans: [], base: looks.get(attr(e.tag, 'text:style-name')) ?? {}, level: e.name === 'text:h' ? +(attr(e.tag, 'text:outline-level') ?? 1) : undefined, bullet: e.name === 'text:p' && list > 0 }));
       if (e.self) out.close();
     } else if (!p) continue;
-    else if (e.name === 'text:span'){      // each open span holds the look it gives: its own over the one around it
-      if (e.close) p.spans.pop(); else if (!e.self) p.spans.push({ ...(p.spans.at(-1) ?? p.base), ...looks.get(attr(e.tag, 'text:style-name')) });
+    else if (e.name === 'text:span' || e.name === 'text:a'){      // each open span (or link) holds the look it gives: its own over the one around it
+      if (e.close) p.spans.pop(); else if (!e.self) p.spans.push({ ...(p.spans.at(-1) ?? p.base), ...looks.get(attr(e.tag, 'text:style-name')), ...(e.name === 'text:a' ? { link: true } : {}) });
     }
     else if (e.close) continue;
     else if (e.name === 'text:tab') p.runs.push({ text: '\t' });

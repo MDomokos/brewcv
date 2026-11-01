@@ -27,13 +27,13 @@ export function readHtml(bytes){
   const flush = () => { if (runs.some(r => r.text.trim())) paras.push({ runs, level: head || undefined, bullet: items > 0 && !head }); runs = []; };
   for (const e of scan(decode(bytes))){
     if (skip(e)) continue;
-    if (e.name && !e.close && !e.self) looks[e.depth - 1] = { ...looks[e.depth - 2], ...look(e.tag), ...(e.name === 'u' ? { underline: true } : {}) };
+    if (e.name && !e.close && !e.self) looks[e.depth - 1] = { ...looks[e.depth - 2], ...look(e.tag), ...(e.name === 'u' ? { underline: true } : {}), ...(e.name === 'a' ? { link: true } : {}) };
     if (e.name === 'button'){ button = !e.close && !e.self; continue; }      // a button holds no block or cell: one left open ends at the next one
     if (button){ if (e.text !== undefined) continue; if (BLOCK.has(e.name) || e.name === 'td' || e.name === 'th') button = false; }
     if (e.text !== undefined){
       const text = e.raw ? e.text : unescape(pre ? e.text : e.text.replace(/[ \t\n\r\f]+/g, ' '));      // <pre> keeps its line breaks
       const l = looks[e.depth - 1] ?? {};
-      if (text.trim() || runs.length) runs.push({ text, bold: strong > 0 || !!l.bold, size: l.size, color: l.color, underline: l.underline, caps: l.caps });      // a space between two tags is kept, one between two blocks is not
+      if (text.trim() || runs.length) runs.push({ text, bold: strong > 0 || !!l.bold, size: l.size, color: l.color, underline: l.underline, caps: l.caps, link: l.link });      // a space between two tags is kept, one between two blocks is not
       continue;
     }
     const open = !e.close;

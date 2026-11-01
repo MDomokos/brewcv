@@ -55,7 +55,7 @@ export async function readDocx(bytes){
     let sect = null, inSect = false;
     const endRun = p => {
       const r = p.run, of = k => r[k] ?? chain(r.style, k) ?? chain(p.style ?? plain, k) ?? defaults[k];
-      if (r && !r.vanish) p.runs.push({ text: r.text, bold: r.bold ?? (r.strong || !!p.style?.bold), size: of('size') ?? 10, color: of('color'), underline: of('underline'), caps: of('caps') });
+      if (r && !r.vanish) p.runs.push({ text: r.text, bold: r.bold ?? (r.strong || !!p.style?.bold), size: of('size') ?? 10, color: of('color'), underline: of('underline'), caps: of('caps'), link: p.link > 0 });
       p.run = null;
     };
     const endPara = () => { const p = out.cur; endRun(p); p.level = p.style?.level; p.bullet = p.numId !== undefined ? p.numId !== '0' : !!p.style?.list; out.close(); };
@@ -64,6 +64,8 @@ export async function readDocx(bytes){
       const p = out.cur, run = p?.run;
       if (e.text !== undefined){ if (p?.inT && run) run.text += e.raw ? e.text : unescape(e.text); continue; }
       if (tb.event(e)) continue;
+      if (e.name === 'w:gridspan' && +attr(e.tag, 'w:val') > 1){ tb.merge(); continue; }
+      if (e.name === 'w:hyperlink' && p){ p.link = Math.max(0, (p.link ?? 0) + (e.close ? -1 : e.self ? 0 : 1)); continue; }
       if (e.name === 'w:p'){
         if (e.close){ if (p) endPara(); } else { tb.tag(out.open({ runs: [], run: null, inPr: false, inT: false })); if (e.self) endPara(); }
       } else if (e.name === 'w:sectpr'){ inSect = !e.close && !e.self; if (!e.close) sect = { refs: [], titlePg: false }; }

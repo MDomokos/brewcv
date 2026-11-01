@@ -1,5 +1,5 @@
-// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/extract-profile.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; section words from the lexicon; Unicode letters in a name; comments reworded
-// Types stripped. Changed: the section keywords come from the lexicon, and a name may hold any Unicode letter
+// Ported from OpenResume by Xitang Zhao (AGPL-3.0), src/app/lib/parse-resume-from-pdf/extract-resume-from-sections/extract-profile.ts, commit 4f8255a2c763479837f69f1dccf2a3338730cd79; modified for BrewCV 2026-10-26: types stripped; section words from the lexicon; Unicode letters in a name; comments reworded; 2026-11-02: email, url and city patterns bounded
+// Types stripped. Changed: the email, url and city patterns are bounded (a hostile line of 100,000 characters took seconds in the unbounded ones: a match longer than the bound is cut), the section keywords come from the lexicon, and a name may hold any Unicode letter
 // (`[\p{L}\s.]` for `[a-zA-Z\s\.]`). Comments reworded: the email pattern's and the email feature set's, and the name's example.
 import { getSectionLinesByKeywords } from './lib/get-section-lines.js';
 import { isBold, hasNumber, hasComma, hasLetter, hasLetterAndIsAllUpperCase } from './lib/common-features.js';
@@ -10,7 +10,7 @@ export const matchOnlyLetterSpaceOrPeriod = item => item.text.match(/^[\p{L}\s.]
 
 // Email
 // Simple email regex: text, an at sign, text, a dot, text (no spaces)
-export const matchEmail = item => item.text.match(/\S+@\S+\.\S+/);
+export const matchEmail = item => item.text.match(/[^\s@]{1,100}@[^\s@]{1,100}\.[^\s@]{1,100}/);
 const hasAt = item => item.text.includes('@');
 
 // Phone
@@ -21,15 +21,15 @@ const hasParenthesis = item => /\([0-9]+\)/.test(item.text);
 // Location
 // Simple location regex that matches "<City>, <ST>"
 // shortcut: only "City, ST"; a Hungarian or German address is left over. Add patterns per country when a real resume needs one.
-export const matchCityAndState = item => item.text.match(/[A-Z][a-zA-Z\s]+, [A-Z]{2}/);
+export const matchCityAndState = item => item.text.match(/[A-Z][a-zA-Z\s]{1,40}, [A-Z]{2}/);
 
 // Url
 // Simple url regex that matches "xxx.xxx/xxx" (xxx = anything not space)
-export const matchUrl = item => item.text.match(/\S+\.[a-z]+\/\S+/);
+export const matchUrl = item => item.text.match(/\S{1,100}\.[a-z]{1,30}\/\S{1,200}/);
 // Match https://xxx.xxx where s is optional
-const matchUrlHttpFallback = item => item.text.match(/https?:\/\/\S+\.\S+/);
+const matchUrlHttpFallback = item => item.text.match(/https?:\/\/\S{1,100}\.\S{1,200}/);
 // Match www.xxx.xxx
-const matchUrlWwwFallback = item => item.text.match(/www\.\S+\.\S+/);
+const matchUrlWwwFallback = item => item.text.match(/www\.\S{1,100}\.\S{1,200}/);
 const hasSlash = item => item.text.includes('/');
 
 // Summary

@@ -98,15 +98,19 @@ export function toJsonResume(resume, lines, sections, lex){
   const taken = [];
   (function walk(v){ if (typeof v === 'string'){ if (plain(v)) taken.push(plain(v)); } else if (v && typeof v === 'object') Object.values(v).forEach(walk); })(resume);
   const matched = [p.email, p.phone, p.url, p.location, ...resume.educations.map(e => e.gpa)].filter(Boolean).map(plain);
-  const inside = t => taken.some(s => s === t || (t.length >= 3 && s.includes(t)));
+  // shortcut: a line that lies inside a taken text is looked for in the first 200,000 characters of the texts of 2,000 characters or less, so a hostile file of 40,000 lines is read in a second
+  // and not in a minute; a line past that is a leftover. Raise the limit, or index the texts, when a real file needs it.
+  const exact = new Set(taken), blob = taken.filter(s => s.length <= 2000).join('\n').slice(0, 200000);
+  const inside = t => exact.has(t) || (t.length >= 3 && blob.includes(t));
   const used = i => {
     const pieces = i.text.split(new RegExp(`[${BULLET_POINTS.join('')}]`, 'u')).map(plain).filter(Boolean);
     return pieces.every(inside) || matched.some(m => pieces.some(t => t.includes(m)));
   };
+  const where = new Map(lines.map((l, i) => [l, i]));      // a line's number, found at once (indexOf made a long file quadratic)
   const leftovers = [];
   for (const [section, ls] of Object.entries(sections)) for (const l of ls){
     if (l.some(used) || !plain(l.map(i => i.text).join(' '))) continue;
-    const n = lines.indexOf(l);
+    const n = where.get(l);
     leftovers.push({ text: l.map(i => i.text).join(' ').trim(), section, ...(pageOf(n) != null ? { page: pageOf(n) } : {}), line: n + 1 });
   }
   return { jsonResume: out, trace, leftovers };

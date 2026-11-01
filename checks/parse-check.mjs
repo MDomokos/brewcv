@@ -195,7 +195,8 @@ section('what a file is: by its bytes, whatever its name');
     ['JSON named .txt', enc('{"basics":{"name":"Jane"}}'), 'a.txt', 'json'], ['text that opens with a bracket but is not JSON', enc('[Jane] is an engineer'), 'a.json', 'txt'],
     ['UTF-16 text', Uint8Array.of(0xff, 0xfe, 74, 0, 97, 0, 110, 0, 101, 0), 'a.pdf', 'txt'],
     ['a PNG named .pdf', png, 'a.pdf', 'image'], ['a JPEG', jpg, 'a.txt', 'image'], ['a GIF', gif, 'a.txt', 'image'], ['a WebP', webp, 'a.txt', 'image'],
-    ['an old .doc, by its OLE header', ole, 'a.docx', 'doc'], ['a modern Pages file: its preview is a picture, but it is a Pages file', R.zip({ 'QuickLook/Preview.jpg': 'x', 'Index/Document.iwa': 'x' }), 'a.pages', 'pages'], ['a ZIP with nothing we read', R.zip({ 'a.bin': 'x' }), 'a.docx', 'other'], ['bytes that are not text', Uint8Array.of(1, 2, 0, 3, 0, 0), 'a.txt', 'other'],
+    ['an old .doc: an OLE file with the stream name WordDocument', Uint8Array.of(...ole, ...new TextEncoder().encode('W\0o\0r\0d\0D\0o\0c\0u\0m\0e\0n\0t\0')), 'a.docx', 'doc'], ['an OLE file with no Word stream (an old .xls)', ole, 'a.xls', 'other'],
+    ['a Numbers file and a Keynote file: iWork, but not Pages', R.zip({ 'Index/Document.iwa': 'x', 'Index/CalculationEngine.iwa': 'x' }), 'a.numbers', 'other'], ['a Keynote file', R.zip({ 'Index/Document.iwa': 'x', 'Index/Slide.iwa': 'x', 'QuickLook/Preview.jpg': 'x' }), 'a.key', 'other'], ['a modern Pages file: its preview is a picture, but it is a Pages file', R.zip({ 'QuickLook/Preview.jpg': 'x', 'Index/Document.iwa': 'x' }), 'a.pages', 'pages'], ['a ZIP with nothing we read', R.zip({ 'a.bin': 'x' }), 'a.docx', 'other'], ['bytes that are not text', Uint8Array.of(1, 2, 0, 3, 0, 0), 'a.txt', 'other'],
   ];
   for (const [what, bytes, name, want] of cases){ const got = identify(bytes, name); ok(`${what}: ${want}`, got === want, got); }
 }
@@ -633,14 +634,20 @@ section('documents formatted by hand: no heading styles, the look set on each ru
 
   // typed bullets and symbols, and a line break inside a paragraph
   const tab = '<w:r><w:tab/></w:r>', lines = async xml => textOf(await readDocx(doc(xml)));
-  ok('typed bullets ("•" and a tab, "- ", "– ", "▪", "*", "o" and a tab) are list items and the glyph is not text; w:sym F0B7 and U+F0B7 are bullets too; a private-use glyph inside a line is dropped',
-    await lines(para(run('•') + tab + run('One')) + para(run('- Two')) + para(run('– Three')) + para(run('▪ Four')) + para(run('* Five')) + para(run('o') + tab + run('Six'))
-      + para('<w:r><w:sym w:font="Symbol" w:char="F0B7"/></w:r>' + tab + run('Seven')) + para(run('') + tab + run('Eight')) + para(run('Call  555')))
-    === '• One\n• Two\n• Three\n• Four\n• Five\n• Six\n• Seven\n• Eight\nCall 555');
+  const sym = c => `<w:r><w:sym w:font="Symbol" w:char="${c}"/></w:r>`;
+  ok('typed bullets ("•" and a tab, "- ", "▪", "*", "o" and a tab) are list items and the glyph is not text; the symbol-font bullets (w:sym or the character, F0B7, F0A7, F0D8, F0FC, F076) are bullets too',
+    await lines(para(run('•') + tab + run('One')) + para(run('- Two')) + para(run('▪ Four')) + para(run('* Five')) + para(run('o') + tab + run('Six'))
+      + para(sym('F0B7') + tab + run('Seven')) + para(run('\uf0b7') + tab + run('Eight')) + para(sym('F0A7') + tab + run('Nine')) + para(sym('F0D8') + run(' Ten')) + para(run('\uf0fc Eleven')) + para(sym('F076') + tab + run('Twelve')))
+    === '• One\n• Two\n• Four\n• Five\n• Six\n• Seven\n• Eight\n• Nine\n• Ten\n• Eleven\n• Twelve');
+  ok('any other symbol (a phone, an envelope, a colon in Wingdings) is no bullet: alone in front of a line\'s text it is dropped, and in the middle of text it stays, as does private-use text of any other script',
+    await lines(para(sym('F028') + tab + run('555 0100')) + para(sym('F02A') + run(' jane@example.com')) + para(run('\uf03a Site')) + para(run('Call \uf028 555')) + para(run('a\ue000b'))) === '555 0100\njane@example.com\nSite\nCall \uf028 555\na\ue000b');
+  ok('an en dash opens a bullet only when three lines of the document do ("– 2019" once is a dash); a line of only "-" or "•" between text stays as a line',
+    await lines(para(run('– 2019 to date')) + para(run('Text'))) === '– 2019 to date\nText' && await lines(para(run('– One')) + para(run('– Two')) + para(run('– Three'))) === '• One\n• Two\n• Three'
+    && await lines(para(run('A')) + para(run('- ')) + para(run('B')) + para(run('•') + tab) + para(run('C'))) === 'A\n-\nB\n•\nC');
   ok('text that only starts like a bullet stays text: "o Python" (one space), "-5 degrees", "*Note", "2019 – 2021"', await lines(para(run('o Python')) + para(run('-5 degrees')) + para(run('*Note')) + para(run('2019 – 2021'))) === 'o Python\n-5 degrees\n*Note\n2019 – 2021');
   ok('a line break (Shift+Enter) starts a new line, and a typed bullet after it is a bullet', await lines('<w:p><w:r><w:t>Title</w:t><w:br/><w:t>- Nine</w:t></w:r></w:p>') === 'Title\n• Nine');
-  const spaced = textOf(readTxt(enc('E X P E R I E N C E\nW O R K   E X P E R I E N C E\nA B\nJ R R Tolkien\nE X P E R I E N C E 2019\n')));
-  ok('spaced letters are read as their word, spaced words as words; two letters, initials before a name and a line with more are text', spaced === 'EXPERIENCE\nWORK EXPERIENCE\nA B\nJ R R Tolkien\nE X P E R I E N C E 2019', spaced);
+  const spaced = textOf(readTxt(enc('E X P E R I E N C E\nW O R K   E X P E R I E N C E\nA B\nA B C\nJ O B S\nJ R R Tolkien\nE X P E R I E N C E 2019\nE x p e r i e n c e\n')));
+  ok('spaced capitals of five letters or more are read as their word, spaced words as words; "A B C", "J O B S", initials before a name, lower case and a line with more are text', spaced === 'EXPERIENCE\nWORK EXPERIENCE\nA B\nA B C\nJ O B S\nJ R R Tolkien\nE X P E R I E N C E 2019\nE x p e r i e n c e', spaced);
 
   // a table: a layout (two rows or fewer, a cell of four lines or more) is read column by column, a data table row by row
   const cells = r => `<w:tr>${r.map(c => `<w:tc>${c.map(t => para(run(t))).join('')}</w:tc>`).join('')}</w:tr>`, tbl = rows => `<w:tbl>${rows.map(cells).join('')}</w:tbl>`;
@@ -648,10 +655,15 @@ section('documents formatted by hand: no heading styles, the look set on each ru
   ok('Word: a layout table is read column by column (L1 L2 L3, then R1 to R5), the paragraphs around it stay where they are', await lines(para(run('Before')) + tbl(cols.layout) + para(run('After'))) === 'Before\nL1\nL2\nL3\nR1\nR2\nR3\nR4\nR5\nAfter');
   ok('Word: a table of three rows, or of two rows with short cells, is data and stays row by row', await lines(tbl(cols.rows3)) === 'A1\nB1\nA2\nB2\nA3\nB3' && await lines(tbl(cols.short)) === 'Skill\nLevel\nPython\nExpert' && await lines(tbl(cols.long3)) === 'A1\nB1\nB2\nB3\nB4\nA2\nB5\nA3\nB6');
   ok('Word: a table inside a cell is part of that cell, and two tables are two', await lines(tbl([[['L1', 'L2'], ['R1', 'R2', 'R3', 'R4']], [['L3'], ['R5']]]).replace('<w:tc><w:p><w:r><w:t>L1', `<w:tc>${tbl([[['in']]])}<w:p><w:r><w:t>L1`) + tbl(cols.short)) === 'in\nL1\nL2\nL3\nR1\nR2\nR3\nR4\nR5\nSkill\nLevel\nPython\nExpert');
+  const span = `<w:tbl>${cells([['Jane Q. Sample'], ['jane@example.com', '(555) 010-0100', 'Springfield, IL', 'www.example.com/jane']])}<w:tr><w:tc><w:tcPr><w:gridSpan w:val="2"/></w:tcPr>${['Experience', 'Acme', 'Engineer', 'Built a bench.'].map(t => para(run(t))).join('')}</w:tc></w:tr></w:tbl>`;
+  ok('Word: a header row over a body row that spans both columns (gridSpan) is not a layout: it is read row by row', await lines(span) === 'Jane Q. Sample\njane@example.com\n(555) 010-0100\nSpringfield, IL\nwww.example.com/jane\nExperience\nAcme\nEngineer\nBuilt a bench.');
   const odtTable = rows => `<table:table>${rows.map(r => `<table:table-row>${r.map(c => (c ? `<table:table-cell>${c.map(t => `<text:p>${t}</text:p>`).join('')}</table:table-cell>` : '<table:covered-table-cell/>')).join('')}</table:table-row>`).join('')}</table:table>`;
   const odtLines = async x => textOf(await readOdt(R.zip({ mimetype: 'application/vnd.oasis.opendocument.text', 'content.xml': `<o xmlns:text="t" xmlns:table="b">${x}</o>` })));
   ok('ODT: a layout table is read column by column (a covered cell is a cell), a data table row by row', await odtLines(odtTable(cols.layout)) === 'L1\nL2\nL3\nR1\nR2\nR3\nR4\nR5' && await odtLines(odtTable(cols.rows3)) === 'A1\nB1\nA2\nB2\nA3\nB3'
     && await odtLines(odtTable([[['A1', 'A2', 'A3', 'A4'], ['B1']], [null, ['B2']]])) === 'A1\nA2\nA3\nA4\nB1\nB2');
+
+  ok('ODT: the same header row over a body cell with table:number-columns-spanned is read row by row',
+    await odtLines('<table:table><table:table-row><table:table-cell><text:p>Name</text:p></table:table-cell><table:table-cell><text:p>c1</text:p><text:p>c2</text:p><text:p>c3</text:p><text:p>c4</text:p></table:table-cell></table:table-row><table:table-row><table:table-cell table:number-columns-spanned="2"><text:p>Experience</text:p></table:table-cell><table:covered-table-cell/></table:table-row></table:table>') === 'Name\nc1\nc2\nc3\nc4\nExperience');
 
   // the parser: a short line alone that is set apart from the body is a section title, with care
   const L = (text, o = {}) => [{ text, x: 0, y: 0, width: 50, height: 10, fontName: 'Sans', hasEOL: true, ...o }];
@@ -661,13 +673,43 @@ section('documents formatted by hand: no heading styles, the look set on each ru
   const head = [L('Jane', B({ height: 20 })), L('jane.sample@example.com')];
   ok('a short line alone, 14 pt bold over 10 pt text, is a title whatever its words; the name, larger, on the first line is not', J(keys([...head, L('Career Highlights', B()), ...text, L('Open Source', B()), ...text])) === J(['profile', 'Career Highlights', 'Open Source']));
   ok('so is one that is only underlined, or only coloured, unlike the body', J(keys([...head, L('Career Highlights', { underline: true }), ...text, L('Open Source', { underline: true }), ...text])) === J(['profile', 'Career Highlights', 'Open Source']) && J(keys([...head, L('Career Highlights', { color: '2f5496' }), ...text, L('Open Source', { color: '2f5496' }), ...text])) === J(['profile', 'Career Highlights', 'Open Source']));
-  ok('only the most emphasised look counts, and a line with a dot, a digit or more than four words is no title (an underlined address does not outrank the headings)', J(keys([...head, L('www.example.com/jane', { underline: true, color: '2f5496' }), L('Career Highlights', { underline: true }), ...text, L('A heading that runs to five words', { underline: true }), L('Page 2', { underline: true }), ...text])) === J(['profile', 'Career Highlights']));
+  ok('only the most emphasised look that two lines have counts, and a line with a dot, a digit or more than four words is no title (an underlined address does not outrank the headings)', J(keys([...head, L('www.example.com/jane', { underline: true, color: '2f5496' }), L('Career Highlights', { underline: true }), ...text, L('A heading that runs to five words', { underline: true }), L('Page 2', { underline: true }), L('Open Source', { underline: true }), ...text])) === J(['profile', 'Career Highlights', 'Open Source']));
   ok('where the rules already find a title ("Experience"), another line with its look is a title only if it has a title word: "Professional Work Experience" is, "Career Highlights" is not', J(keys([...head, L('Experience', B()), ...text, L('Professional Work Experience', B()), ...text, L('Career Highlights', B()), ...text])) === J(['profile', 'Experience', 'Professional Work Experience']));
   ok('a heading a reader marked (title) is trusted alone: no line is a title by its look then', J(keys([...head, L('Education', B({ title: true })), ...text, L('Professional Work Experience', B()), ...text])) === J(['profile', 'Education']));
   ok('the look of the titles the rules already find is the look to match: a plain "Experience" means an underlined line is no title', J(keys([...head, L('Experience'), ...text, L('Professional Work Experience', { underline: true }), ...text])) === J(['profile', 'Experience']));
   ok('a bold line set in capitals by its style (typed in mixed case) is a title by the old rule, caps or not, and so is a typed one', J(keys([...head, L('Experience', B({ title: true, height: 10 })), ...text, L('Career Highlights', { fontName: 'Sans-Bold', caps: true }), ...text, L('SOFTWARE', { fontName: 'Sans-Bold' }), ...text, L('Software', { fontName: 'Sans-Bold' }), ...text])) === J(['profile', 'Experience', 'Career Highlights', 'SOFTWARE']));
   ok('more than ten lines with the same look are not section titles', keys([...head, ...Array.from({ length: 11 }, (_, k) => [L(`Company ${'ABCDEFGHIJK'[k]}`, B()), ...text]).flat()]).length === 1);
   ok('a line with two items (a company and its date) is no title, and neither is one in the body\'s own look', J(keys([...head, [...L('Acme', B({ hasEOL: false })), ...L('2020', { x: 300 })], ...text, L('Open Source'), ...text])) === J(['profile']));
+  // bold capital headings at body size: a bold company or job title alone on its line, with a title word inside it, is no section (the work history was lost to it)
+  const rows = (...r) => r.flatMap((x, k) => (x ? [{ text: x.t ?? x, x: 0, y: -k, width: 50, height: x.h ?? 10, fontName: x.b ? 'Sans-Bold' : 'Sans', hasEOL: true }] : []));
+  const cap = t => ({ t, b: 1 });
+  const jobsOf = (a, b) => parseResume(rows('Jane Q. Sample', 'jane.sample@example.com', cap('WORK EXPERIENCE'), a, 'Mar 2021 – Present', '• Led the redesign of the dose counter.', null, b, '2018 – 2021', '• Ran the tolerance study.', null, cap('EDUCATION'), 'Lakeside State University', '2010 – 2014')).jsonResume.work?.map(w => w.name).join(' | ');
+  for (const [a, b] of [['Workday', 'Network Rail'], ['Framework Labs', 'Teamwork Inc'], ['Art History Museum', 'Honor Society Group']])
+    ok(`bold companies "${a}" and "${b}" next to bold capital headings are companies, not sections`, jobsOf(cap(a), cap(b)) === `${a} | ${b}`, jobsOf(cap(a), cap(b)));
+  const pm = parseResume(rows('Jane Q. Sample', 'jane.sample@example.com', cap('WORK EXPERIENCE'), cap('Head of Projects'), 'Acme Corp', 'Mar 2021 – Present', '• Led the redesign.', null, cap('Team Lead Projects'), 'Beta Works', '2018 – 2021', '• Ran the shop.')).jsonResume.work;
+  ok('and so are a bold "Head of Projects" and "Team Lead Projects" (they hold a job-title word): both jobs are found', pm?.length === 2, J(pm));
+  const sized = [...head, L('Career Highlights', B({ height: 16 })), L('Acme Corp', B({ height: 12 })), ...text, L('Open Source', B({ height: 16 })), L('Beta Corp', B({ height: 12 })), ...text];
+  ok('the size ranks by how much larger it is: 16 pt headings over 12 pt bold companies over 10 pt text, the companies are no titles', J(keys(sized)) === J(['profile', 'Career Highlights', 'Open Source']), J(keys(sized)));
+  ok('headings that are only bold at the body\'s size (words unknown) are titles', J(keys([...head, L('Career Highlights', B({ height: 10 })), ...text, L('Open Source', B({ height: 10 })), ...text])) === J(['profile', 'Career Highlights', 'Open Source']));
+  const tag = L('Quality and Craft', { height: 14 }), lnk = { underline: true, color: '0563c1' };
+  ok('a tagline set larger on its own, or one lone link, does not set the look: the look must be on two lines', J(keys([...head, tag, ...text, L('Career Highlights', B({ height: 10 })), ...text, L('Open Source', B({ height: 10 })), ...text, L('LinkedIn', lnk)])) === J(['profile', 'Career Highlights', 'Open Source']));
+  ok('links never set the look: two hyperlinks (a flag, or a profile-site word) in blue and underlined, among bold headings', J(keys([...head, L('Resume Online', { ...lnk, link: true }), L('Case Studies', { ...lnk, link: true }), L('LinkedIn', lnk), L('GitHub', lnk), L('Career Highlights', B({ height: 10 })), ...text, L('Open Source', B({ height: 10 })), ...text])) === J(['profile', 'Career Highlights', 'Open Source']));
+  ok('the contact block never sets the look: two larger lines above the e-mail line are not titles', J(keys([L('Jane', B({ height: 20 })), L('Writer'), L('Springfield Illinois', { height: 14 }), L('Open Studio', { height: 14 }), L('jane@example.com'), L('Career Highlights', B({ height: 10 })), ...text, L('Open Source', B({ height: 10 })), ...text])) === J(['profile', 'Career Highlights', 'Open Source']));
+
+  const link = [...(await readDocx(doc(para(`<w:hyperlink r:id="x" xmlns:r="r">${run('Site')}</w:hyperlink>`) + para(run('Plain'))))), ...(await readOdt(R.zip({ mimetype: 'application/vnd.oasis.opendocument.text', 'content.xml': '<o xmlns:text="t" xmlns:xlink="x"><text:p><text:a xlink:href="u">Site</text:a></text:p><text:p>Plain</text:p></o>' }))), ...readHtml(enc('<p><a href="u">Site</a></p><p>Plain</p>'))].map(i => !!i.link);
+  ok('Word (w:hyperlink), ODT (text:a) and HTML (a) mark the item of a link', J(link) === J([true, false, true, false, true, false]), J(link));
+
+  // a hostile file does not freeze the page: one line of 100,000 runs, many items on a line, and very many lines
+  const timed = async f => { const t0 = Date.now(); await f(); return Date.now() - t0; };
+  const longRuns = R.zip({ 'word/document.xml': `<w:document xmlns:w="w"><w:body><w:p>${Array.from({ length: 100000 }, (_, k) => `<w:r><w:t>w${k}</w:t></w:r>`).join('')}</w:p></w:body></w:document>` });
+  const t1 = await timed(async () => { const it = await readDocx(longRuns); ok('one line of 100,000 runs is one item of 600 KB', it.length === 1 && it[0].text.length > 500000); parseResume(it); });
+  const t2 = await timed(() => parseResume(readTxt(enc(Array.from({ length: 40000 }, (_, k) => `line ${k} Mar 2020`).join('\n')))));
+  const t3 = await timed(() => parseResume(readTxt(enc('@'.repeat(100000) + ' ' + 'http://'.repeat(20000) + ' ' + 'a.'.repeat(50000) + ' ' + 'Ab'.repeat(50000)))));
+  ok('and it is read in a few seconds, not minutes: 100,000 runs on a line, 40,000 lines, and e-mail, url and city look-alikes of 100,000 characters', t1 < 3000 && t2 < 3000 && t3 < 3000, `${t1} ${t2} ${t3} ms`);
+
+  // styles that point at each other, or at nothing
+  const loop = (await readDocx(doc(para(run('a'), '<w:pStyle w:val="A"/>') + para(run('b'), '<w:pStyle w:val="Nope"/>'), '<w:style w:type="paragraph" w:styleId="A"><w:name w:val="A"/><w:basedOn w:val="B"/></w:style><w:style w:type="paragraph" w:styleId="B"><w:name w:val="B"/><w:basedOn w:val="A"/><w:rPr><w:sz w:val="30"/></w:rPr></w:style>'))).map(i => i.height);
+  ok('a style based on itself through another, and a style that is not there, end: the first takes the size of the one it is based on, the second the default', J(loop) === J([15, 10]), J(loop));
   const flat = n => readTxt(enc(Array.from({ length: n }, (_, k) => `Line ${'abcdefghijklmnop'[k]}`).join('\n'))), noJobs = n => parseResume(flat(n)).doubts.map(d => d.kind);
   ok('a file of more than ten lines with no job found raises the doubt "jobs"; a short one, or one with jobs, does not', noJobs(12).includes('jobs') && !noJobs(10).includes('jobs') && !parseResume(F.oneColumn).doubts.some(d => d.kind === 'jobs'), J(noJobs(12)));
 }

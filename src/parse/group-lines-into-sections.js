@@ -15,29 +15,44 @@ export const PROFILE_SECTION = 'profile';
  * into the closest section title above these lines.
  */
 // A heading set by hand (no heading style): a short line of letters (four words at most, no digits or marks) alone on its row whose look is the titles' look. The look is
-// how far a line is set apart from the body text: its size clearly above the body's most common size (1.5 pt), underlined, coloured or bold unlike the body, in that order of weight.
-// The titles' look is that of the lines the rules below already take for titles (a known word, bold capitals); then a line with that look and a title word in it is a title too
-// ("Professional Work Experience" is more than two words). With no such title the most emphasised look among the short lines alone is the titles' look, whatever the words.
+// how far a line is set apart from the body text: its size clearly above the body's most common size (1.5 pt, and the more the higher), underlined, coloured or bold unlike the
+// body, in that order of weight. The titles' look is that of the lines the rules below already take for titles (a known word, bold capitals); then a line with that look is a
+// title too if it ends in a title word ("Professional Work Experience", "Skills" but not "Workday" or "Art History Museum") and holds no job-title word ("Project Manager").
+// With no such title the most emphasised look that two lines or more have is the titles' look, whatever the words. A link, a profile-site word and the contact block (down to the last
+// line in the first eight that has an @, an address or a phone number) never set the look.
 // shortcut: used only when no reader marked a heading, and only when that look is on ten lines or fewer. A resume that sets its company names like its section titles (bold on a
-// line of their own) and has no title the rules below know gets titles that are companies; a heading in the body's own look is not seen. Tune the numbers on real files.
+// line of their own) and has no title the rules below know gets titles that are companies; a heading in the body's own look is not seen; a document with one heading in its look
+// is not found; a title word ends a line up to two letters longer than the lexicon's (Skills, Courses). Tune the numbers on real files.
 const SHORT = /^[\p{L}\s&'/-]{2,40}:?$/u;
+const SITE = /\b(?:linkedin|github|gitlab|twitter|facebook|instagram|behance|dribbble|xing|orcid|skype|telegram|whatsapp|website|portfolio)\b/i;
+const CONTACT = /@|https?:|www\.|\.(?:com|org|net|io|dev|edu)\b|\d{3}\D{0,2}\d{3}/i;
 const high = a => a.reduce((m, r) => (r > m ? r : m), 0);
-const byLook = (lines, known, words) => {
+const byLook = (lines, known, lex) => {
   const items = lines.flat();
   if (!items.length || items.some(i => i.title)) return [];
   const most = f => { const n = new Map(); for (const i of items) n.set(f(i), (n.get(f(i)) ?? 0) + i.text.length); return [...n].sort((a, b) => b[1] - a[1])[0][0]; };
   const body = { height: most(i => i.height), color: most(i => i.color ?? ''), bold: most(isBold) };
-  const ranks = lines.map((l, i) => (i < 2 || l.length !== 1 ? 0
-    : (l[0].height >= body.height + 1.5 ? 8 : 0) + (l[0].underline ? 4 : 0) + ((l[0].color ?? '') !== body.color ? 2 : 0) + (isBold(l[0]) && !body.bold ? 1 : 0)));
-  const short = lines.map(l => SHORT.test(l[0]?.text.trim() ?? '') && l[0].text.trim().split(/\s+/).length <= 4);
-  const top = known.some(Boolean) ? high(ranks.filter((r, i) => known[i])) : high(ranks.filter((r, i) => short[i]));
-  const set = ranks.map((r, i) => !!top && r === top && short[i] && !known[i] && (!known.some(Boolean) || words.some(w => lines[i][0].text.toLowerCase().includes(w))));
+  const jobs = new Set(lex.jobTitles.map(j => j.toLowerCase())), words = [...lex.titleWords, ...Object.values(lex.sections).flat()];
+  let contact = -1;
+  lines.slice(0, 8).forEach((l, i) => { if (CONTACT.test(l.map(x => x.text).join(' '))) contact = i; });
+  const text = l => l[0]?.text.trim() ?? '', list = l => text(l).toLowerCase().replace(/:$/, '').split(/\s+/);
+  const short = lines.map(l => SHORT.test(text(l)) && list(l).length <= 4 && !list(l).some(w => jobs.has(w)));
+  const ranks = lines.map((l, i) => {
+    if (i < 2 || i <= contact || l.length !== 1 || l[0].link || SITE.test(l[0].text)) return 0;
+    const up = l[0].height - body.height;
+    return (up >= 1.5 ? Math.round(up) * 100 : 0) + (l[0].underline ? 4 : 0) + ((l[0].color ?? '') !== body.color ? 2 : 0) + (isBold(l[0]) && !body.bold ? 1 : 0);
+  });
+  const count = new Map();
+  for (const r of ranks.filter((r, i) => r && short[i])) count.set(r, (count.get(r) ?? 0) + 1);
+  const top = known.some(Boolean) ? high(ranks.filter((r, i) => known[i])) : high([...count].filter(([, n]) => n >= 2).map(([r]) => r));
+  const word = l => words.some(k => list(l).at(-1).startsWith(k) && list(l).at(-1).length <= k.length + 2);
+  const set = ranks.map((r, i) => !!top && r === top && short[i] && (!known.some(Boolean) || word(lines[i])));
   return set.filter(Boolean).length <= 10 ? set : [];
 };
 
 export const groupLinesIntoSections = (lines, lex) => {
   const sections = {};
-  const known = lines.map((line, i) => isSectionTitle(line, i, lex.titleWords)), look = byLook(lines, known, [...lex.titleWords, ...Object.values(lex.sections).flat()]);
+  const known = lines.map((line, i) => isSectionTitle(line, i, lex.titleWords)), look = byLook(lines, known, lex);
   let sectionName = PROFILE_SECTION;
   let sectionLines = [];
   for (let i = 0; i < lines.length; i++) {
