@@ -72,11 +72,11 @@ export const groupLinesIntoSections = (lines, lex) => {
   return sections;
 };
 
-// a title word is the whole line or its end, with at most three letters after it (a plural: "Skills", "Tapasztalatok"): "Work Experience" is a title, "Patent Attorney", "Language Teacher" and "Project Manager" are not
-const endsWithTitleWord = (text, words) => {
-  const t = text.toLowerCase().replace(/:$/, '');
-  return words.some(k => { const i = t.lastIndexOf(k); return i >= 0 && /^\p{L}{0,3}$/u.test(t.slice(i + k.length)); });
-};
+// a title word is the whole line or its end, with at most three letters after it (a plural: "Skills", "Tapasztalatok"): "Work Experience" is a title, "Patent Attorney", "Language Teacher" and "Project Manager" are not.
+// A heading of two things with an ampersand ("Education & Training", "Skills & Tools") is a title when either side ends in one.
+// shortcut: only the ampersand joins (as before, when a heading was a title by any title word in two words at most); one with the word "and" reads by its last part, or by its look
+const AND = /\s&\s/;
+const endsWithTitleWord = (text, words) => text.toLowerCase().replace(/:$/, '').split(AND).some(t => words.some(k => { const i = t.lastIndexOf(k); return i >= 0 && /^\p{L}{0,3}$/u.test(t.slice(i + k.length)); }));
 
 const isSectionTitle = (line, lineNumber, lex) => {
   const isFirstTwoLines = lineNumber < 2;

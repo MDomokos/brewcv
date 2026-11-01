@@ -43,7 +43,7 @@ export const parseResume = (all, lexicon, given) => {
   const text = l => l.map(i => i.text).join(' '), year = /\b(?:19|20)\d{2}\b/;
   const dated = lines.some(l => /(?:19|20)\d{2}\D{0,12}\s[-–—]\s|\s[-–—]\s\D{0,12}(?:19|20)\d{2}|\b(?:19|20)\d{2}[-–—](?:19|20)\d{2}\b/.test(text(l))) || lines.filter(l => year.test(text(l))).length >= 2;
   const letter = Object.keys(sections).filter(k => k !== PROFILE_SECTION).length <= 1 && proseLines.length >= 3 && size(proseLines) * 10 >= size(lines) * 6 && !dated;
-  const undated = (jsonResume.work ?? []).filter(w => !w.startDate).length, unnamed = (jsonResume.work ?? []).filter(w => !w.name).length;
+  const undated = (jsonResume.work ?? []).filter(w => !w.startDate).length, unnamed = (jsonResume.work ?? []).filter(w => !w.name).length + (resume?.workExperiences ?? []).filter(w => w.unsure).length;
   const sides = [];      // the lines of the header and the footer, each as a leftover of its own section
   let cur = [];
   for (const i of all) if (i.side){ cur.push(i.text); if (i.hasEOL){ sides.push({ text: cur.join(' '), section: i.side }); cur = []; } }

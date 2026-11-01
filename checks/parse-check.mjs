@@ -884,6 +884,16 @@ section('PDF: what the reader repairs, on small PDFs written here (checks/lib/pd
   ok('a bold heading of the same size under a full line is not joined to it, nor the line under it to the heading', J(head1) === J([l1, 'Skills', 'Python and MATLAB']), J(head1));
   const col = await rows([T(57, 720, 'Portuguese citizen with a work permit'), T(57, 660, 'Mechanical design'), T(57, 647, 'Internationalisation of products')]);
   ok('a short line of a column (under 60 percent of it) followed by a capitalised word too long for what is left is not joined to it', col.length === 3, J(col));
+  // items of a list and sentences set one under the other are not wrapped lines, even when they run nearly as long as the longest line of the column
+  const side = await rows([T(57, 720, 'Portuguese citizen with a work permit'), T(57, 690, 'CAD, 3D printing, soldering'), T(57, 677, 'Verification and testing')]);
+  ok('a sidebar list ("CAD, 3D printing, soldering" over "Verification and testing"), the first line 60 percent of the column or more, is two lines: a capital opens a new item unless the line above runs to the edge', side.length === 3, J(side));
+  const edu = await rows([T(57, 700, 'M.Eng. Mechanical Engineering, Porto, 2019'), T(57, 687, 'B.Sc. Porto, 2017'), T(57, 674, 'Technical certificate, Lisbon, 2015')]);
+  ok('"M.Eng. Mechanical Engineering, Porto, 2019" over "B.Sc. Porto, 2017": a line that ends with a year is the end of its item', edu.length === 3, J(edu));
+  const sen = ['Led the redesign of the dose counter on an inhaler that runs four hundred thousand units.', 'Built the drop and cycle test rig that the team uses for design verification of parts.', 'Planned and ran three rounds of usability studies with fourteen patients at the clinic.', 'Wrote the protocols for the rig and trained the technicians to run every shift of the week.'];
+  const sens = await rows(sen.map((t, k) => T(57, 700 - 13 * k, t)));
+  ok('four sentences set one under the other at the leading, each ending with a full stop, are four lines', sens.length === 4, J(sens));
+  const rev = await rows(sen.map((t, k) => T(57, 700 - 13 * k, t)).reverse());
+  ok('and the same page written bottom up (put top to bottom first) is the same four lines', J(rev) === J(sen), J(rev));
   // pages
   const two = await readPdf(pdf([[T(57, 700, 'Page one text')], [T(57, 700, 'Page two text')]]));
   ok('pages follow each other, each item with its page, and y starts again on each', J(two.map(i => [i.page, i.y, i.text])) === J([[1, 700, 'Page one text'], [2, 700, 'Page two text']]), J(two));
@@ -936,6 +946,16 @@ section('PDF: the parser on what a PDF gives it (page breaks, headings with wide
   ok('"City, Country" is a place too', !country?.name && country.location === 'Lisbon, Portugal', J(country));
   const forms = ['Feinmess Instrumente GmbH', 'Dunamenti Műszer Kft.', 'Lumen SA', 'Oficina Aberta Lda', 'Acme Inc.', 'Riva S.p.A.'].map(c => jobOf('Design Engineer', `${c} · Mar 2020 – Present · Munich`).job?.name);
   ok('a legal form (GmbH, Kft., SA, Lda, Inc., S.p.A.) marks the company on the dated line', J(forms) === J(['Feinmess Instrumente GmbH', 'Dunamenti Műszer Kft.', 'Lumen SA', 'Oficina Aberta Lda', 'Acme Inc.', 'Riva S.p.A.']), J(forms));
+  for (const [pos, label] of [['Partner', 'a title the lexicon does not know'], ['Chief Flavour Wrangler', 'a title with no title word']]){
+    const r = jobOf('Northgate Law', `${pos} · Mar 2020 – Present · Lisbon`), j = r.job;
+    ok(`a bold company over "${pos} · dates · place" (${label}) is the company and ${pos} the position, with no doubt: the first line is set apart and the dated line holds one other part`, j?.name === 'Northgate Law' && j.position === pos && j.location === 'Lisbon' && !r.r.doubts.some(d => d.kind === 'company'), J([j, r.r.doubts]));
+  }
+  const law = jobOf('Patent Attorney', 'Hydra Law, Mar 2020 – Present'), lawJob = law.job;
+  ok('a bold first line over "Hydra Law, dates" (the company before the dates in the same part, after a comma): both are kept, none is lost', lawJob?.name === 'Patent Attorney' && lawJob.position === 'Hydra Law' && lawJob.startDate === '2020-03', J(lawJob));
+  const undecided = jobOf('Northgate Law', 'Partner · Mar 2020 – Present', false);
+  ok('a first line that is not set apart (not bold, not larger) with one other part on the dated line keeps both and raises the company doubt', undecided.job?.name === 'Northgate Law' && undecided.job.position === 'Partner' && undecided.r.doubts.some(d => d.kind === 'company'), J([undecided.job, undecided.r.doubts]));
+  const roles = work([I('Northgate Law', 716, { bold: true }), I('Senior Manager', 704, { bold: true }), I('Mar 2018 – Feb 2020', 692), I('Director', 678, { bold: true }), I('Mar 2020 – Present', 666), ...bul.map(b => ({ ...b, y: b.y - 20 }))]);
+  ok('two dated lines in one job are two roles at the same company (the second starts at its title, takes the descriptions): none is glued into the other\'s position', roles?.length === 2 && roles[0].name === 'Northgate Law' && roles[0].position === 'Senior Manager' && roles[0].endDate === '2020-02' && !roles[0].highlights && roles[1].name === 'Northgate Law' && roles[1].position === 'Director' && roles[1].startDate === '2020-03' && roles[1].highlights?.length === 2, J(roles));
   const odd = jobOf('Acme Holdings Ltd', 'Staff Wrangler · Mar 2020 – Present · Night Shift · Porto');
   ok('a title with no job-title word is the title, and a part nothing claims ("Night Shift") is a leftover, not dropped', odd.job?.name === 'Acme Holdings Ltd' && odd.job.position === 'Staff Wrangler' && odd.job.location === 'Porto' && odd.r.leftovers.some(l => l.text === 'Night Shift'), J([odd.job, odd.r.leftovers]));
   // a design's own dates: three-letter months, a comma in the place, a hyphen inside a company, a title in another language, a letter-spaced Hungarian heading
@@ -958,6 +978,8 @@ section('PDF: the parser on what a PDF gives it (page breaks, headings with wide
   }
   const plural = parseResume([...head, I('Design Engineer', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 690), ...bul, I('Languages', 612), I('English: C2', 598), I('Skills', 560), I('Python, MATLAB', 546)]);
   ok('while a title word that ends a line (Languages, Skills, Work Experience) is still a section title, and its lines are not a bullet\'s', plural.jsonResume.work?.[0].highlights?.length === 2 && plural.jsonResume.work[0].highlights[1].endsWith('every new part that comes in') && plural.jsonResume.skills?.length > 0, J(plural.jsonResume));
+  const both = parseResume([...head, I('Design Engineer', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 690), ...bul, I('Skills & Tools', 612), I('Python, MATLAB', 598), I('Education & Training', 570), I('Lakeside University · 2010 – 2014', 556)]);
+  ok('a heading of two things with an ampersand and the title word first ("Skills & Tools", "Education & Training"), in mixed case and not bold, still opens its section (and its lines are no bullet\'s)', both.jsonResume.work?.length === 1 && both.jsonResume.work[0].highlights?.length === 2 && both.jsonResume.skills?.length > 0 && both.jsonResume.education?.length > 0, J(both.jsonResume));
   const de = parseResume([...head, I('Konstrukteur', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 690), ...bul, I('Sprachen', 612), I('Deutsch: C2', 598)], lexiconFor('de')).jsonResume.work;
   ok('the catalogue\'s title words are used: the German "Sprachen" under the last job is a section, not a job or text of its last bullet', de?.length === 1 && de[0].highlights?.length === 2 && de[0].highlights[1].endsWith('every new part that comes in'), J(de));
   const patent = work([I('Design Engineer', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 690), ...bul, I('Patent', 612, { bold: true }), I('Dose-counting mechanism for a metered inhaler', 588, { bold: true }), I('Co-inventor · EP 3 000 000 B1 · 2025', 574)]);

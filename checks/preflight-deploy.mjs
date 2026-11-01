@@ -14,7 +14,8 @@ import { execFileSync } from 'node:child_process';
 import { findPrivate, REPO } from '../scripts/lib/private-files.mjs';
 import zlib from 'node:zlib';
 import { unzip } from '../src/parse/unzip.js';
-import { DOCUMENT, FIXTURES, allowed, manifestIn } from './lib/manifest.mjs';
+import { DOCUMENT, FIXTURES, allowed, manifestIn, sniff } from './lib/manifest.mjs';
+import { pdfMetadata, zipMetadata } from './lib/metadata.mjs';
 
 const ROOT = path.resolve(process.argv[2] ?? '.');
 // paths are tested and shown with forward slashes, whatever the platform (on Windows path.relative gives backslashes)
@@ -160,7 +161,7 @@ function fileIgnored(rel){
 const manifest = manifestIn(ROOT);
 function walkAll(dir, out = []){
   for (const e of fs.readdirSync(dir, { withFileTypes: true })){
-    if (e.name === '.git') continue;
+    if (e.name === '.git' || e.name === 'node_modules') continue;      // out/ and the dot folders are read
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walkAll(p, out); else out.push(p);
   }
@@ -236,11 +237,12 @@ console.log(deny.length ? `preflight: ${deny.length} private value${deny.length 
   : 'preflight: no private identity or deny file found (CI, or not set up): checking shapes only. See docs/DEVELOPMENT.md, "Real data is not in this repo"');
 
 for (const f of walkAll(ROOT)){
-  const rel = relOf(f);
-  if (!DOCUMENT.test(rel)) continue;
-  const buf = fs.readFileSync(f);
-  if (!allowed(manifest, rel, buf)){ flag(f, 0, 'document', `${rel}: rendered documents and resume files stay outside the repo (the import fixtures are the exception: listed by name and sha256 in ${FIXTURES}MANIFEST.json)`); continue; }
+  const rel = relOf(f), buf = fs.readFileSync(f), kind = DOCUMENT.test(rel) ? 'by name' : sniff(buf);      // by its bytes too: a PDF named real.bin, a ZIP of Word files
+  if (!kind) continue;
+  if (!allowed(manifest, rel, buf)){ flag(f, 0, 'document', `${rel}: a ${kind === 'by name' ? 'PDF, Word or OpenDocument file' : `${kind} (told by its bytes, not its name)`}: rendered documents and resume files stay outside the repo (the import fixtures are the exception: listed by name and sha256 in ${FIXTURES}MANIFEST.json; dot folders and out/ are looked at too)`); continue; }
   let texts;
+  const meta = /\.pdf$/i.test(rel) ? pdfMetadata(buf) : await zipMetadata(buf).catch(() => 'a part cannot be read');
+  if (meta){ flag(f, 0, 'fixture metadata', `${rel}: ${meta}`); continue; }
   try { texts = await textsOf(rel, buf); } catch (e){ flag(f, 0, 'fixture content', `${rel}: cannot be read (${e.message})`); continue; }
   const hit = texts.some(t => deny.some(d => t.includes(d))) ? 'a private value is in it' : texts.map(shapeOf).find(Boolean);
   if (hit) flag(f, 0, 'fixture content', `${rel}: ${hit}`);

@@ -12,7 +12,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { findPrivate } from '../scripts/lib/private-files.mjs';
-import { DOCUMENT, FIXTURES, manifestIn, sha256 } from './lib/manifest.mjs';
+import { DOCUMENT, FIXTURES, manifestIn, sha256, sniff } from './lib/manifest.mjs';
 
 const git = (...args) => {
   try { return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1 << 28 }); }
@@ -52,18 +52,33 @@ const manifest = manifestIn(process.cwd());
 const blobs = new Map();      // path -> the blobs it was ever added or changed to
 for (const l of git('log', ...SELECT, '--pretty=format:', '--raw', '--no-abbrev', '--diff-filter=AM').split('\n')){
   const m = /^:\d+ \d+ \w+ (\w{40}) \w+\t(.+)$/.exec(l);
-  if (m && DOCUMENT.test(m[2])) blobs.set(m[2], [...(blobs.get(m[2]) ?? []), m[1]]);
+  if (m) blobs.set(m[2], [...(blobs.get(m[2]) ?? []), m[1]]);
 }
-const fixtureOk = f => f.startsWith(FIXTURES) && !f.slice(FIXTURES.length).includes('/') && (blobs.get(f) ?? []).every(b => {
-  try { return sha256(execFileSync('git', ['cat-file', 'blob', b], { maxBuffer: 1 << 28 })) === manifest[f.slice(FIXTURES.length)]; } catch { return false; }
-});
+// every blob is read once, by its bytes: what it is (a PDF, or a ZIP of Word or ODT files, whatever its path) and its sha256
+const kinds = new Map(), hashes = new Map();
+{
+  const all = [...new Set([...blobs.values()].flat())];
+  for (let i = 0; i < all.length; i += 300){
+    const chunk = all.slice(i, i + 300), out = execFileSync('git', ['cat-file', '--batch'], { input: chunk.join('\n') + '\n', maxBuffer: 1 << 30 });
+    for (let at = 0; at < out.length;){
+      const nl = out.indexOf(10, at), [sha, , size] = out.toString('latin1', at, nl).split(' '), body = out.subarray(nl + 1, nl + 1 + +size);
+      kinds.set(sha, sniff(body)); hashes.set(sha, sha256(body));
+      at = nl + 1 + +size + 1;
+    }
+  }
+}
+const isDocument = f => DOCUMENT.test(f) || (blobs.get(f) ?? []).some(b => kinds.get(b));
+const fixtureOk = f => f.startsWith(FIXTURES) && !f.slice(FIXTURES.length).includes('/') && DOCUMENT.test(f) && (blobs.get(f) ?? []).every(b => hashes.get(b) === manifest[f.slice(FIXTURES.length)]);
 const everSeen = new Set(
   git('log', ...SELECT, '--pretty=format:', '--name-only', '--diff-filter=AM')
     .split('\n').map(s => s.trim()).filter(Boolean));
 for (const f of everSeen){
   // docs/intro/*.webp are cut-outs of the start screen's story, and docs/moments/*.gif (older) were recordings of the app on the example data (a fictional person), looked at frame by frame before they were added
   // an import fixture: listed by name and sha256 in MANIFEST.json, and every version of it in the history has those bytes (preflight-deploy reads the text)
-  if (DOCUMENT.test(f) && fixtureOk(f)) continue;
+  if (isDocument(f)){
+    if (fixtureOk(f)) continue;
+    if (!DOCUMENT.test(f)){ findings.push({ kind: 'file', detail: `${f}: a PDF, Word or OpenDocument file under another name (told by its bytes)` }); continue; }
+  }
   if (/^(src-tauri\/)?icons\//.test(f) || /^docs\/[^/]+\.(png|gif)$/i.test(f) || /^docs\/moments\/[^/]+\.gif$/i.test(f) || /^docs\/intro\/[^/]+\.webp$/i.test(f)) continue;
   for (const [re, what] of NEVER)
     if (re.test(f)){ findings.push({ kind: 'file', detail: `${f}: ${what}` }); break; }

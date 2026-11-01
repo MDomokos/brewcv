@@ -16,6 +16,7 @@ const hasMoreThan5Words = item => item.text.split(/\s/).length > 5;
 const SUFFIX = /(?:^|[\s,])(?:Ltd|Limited|GmbH|AG|KG|Kft|Zrt|Bt|Nyrt|Inc|LLC|LLP|Corp|Co|SAS|SARL|SA|S\.A|SL|S\.L|BV|B\.V|NV|N\.V|Lda|SpA|S\.p\.A|Srl|S\.r\.l|sp\. ?z o\.o|s\.r\.o|a\.s|plc|PLC|Oy|AB|A\/S)\.?$/;
 const hasForm = t => SUFFIX.test(t.trim());
 const isPlace = t => !hasForm(t) && (/,/.test(t) ? /^\p{Lu}[\p{L}.' -]{1,30}, \p{Lu}[\p{L}.' -]{1,30}$/u.test(t.trim()) : /^\p{Lu}[\p{L}.'-]{1,30}$/u.test(t.trim()));
+const YEAR = /(?:19|20)\d{2}/;
 
 export const extractWorkExperience = (sections, lex) => {
   const hasJobTitle = item => lex.jobTitles.some(jobTitle => item.text.split(/\s/).some(word => word === jobTitle));
@@ -25,24 +26,28 @@ export const extractWorkExperience = (sections, lex) => {
     [hasMoreThan5Words, -2],
     [item => hasForm(item.text), -6],      // a company with a title word in it ("Engineering Director Ltd") is not the title
   ];
+  const isDate = t => dateFeatureSets(lex).reduce((n, [has, score]) => n + (has({ text: t }) ? score : 0), 0) > 0;
+  const isDateWord = w => /^[–—-]$/.test(w) || isDate(w);
 
   const workExperiences = [];
   const workExperiencesScores = [];
   const lines = getSectionLinesByKeywords(sections, lex.sections.work);
   const subsections = divideSectionIntoSubsections(lines);
 
-  for (const subsectionLines of subsections) {
-    const descriptionsLineIdx = getDescriptionsLineIdx(subsectionLines) ?? 2;
-    if (descriptionsLineIdx === 0) continue;
-
-    const subsectionInfoTextItems = subsectionLines.slice(0, descriptionsLineIdx).flat();
-    const [date, dateScores] = getTextWithHighestFeatureScore(subsectionInfoTextItems, dateFeatureSets(lex));
-    let [jobTitle, jobTitleScores] = getTextWithHighestFeatureScore(subsectionInfoTextItems, JOB_TITLE_FEATURE_SET);
-    // The line with the date may hold the company, the title and the place ("Hydra Medical · Mar 2023 – Present · Lisbon"): it is cut at its separators and the parts with no date are told apart.
-    // A part with a legal form is the company, one with a job-title word the title, one that is a place the place; no part is dropped: one nothing claims is a leftover.
-    const isDate = t => dateFeatureSets(lex).reduce((n, [has, score]) => n + (has({ text: t }) ? score : 0), 0) > 0;
-    // before the dates is the company or the title (even one word: "SELF-EMPLOYED"), after them the place comes last
-    const segments = date.split(/\s*[·|•]\s*/).filter(Boolean), k = segments.findIndex(isDate), before = segments.slice(0, Math.max(k, 0)), after = k < 0 ? [] : segments.slice(k + 1);
+  // One entry from the lines above its descriptions. `inherit` is the company of the entry above, for a second dated line in one job (a later role at the same company).
+  const read = (infoLines, descriptionsLines, inherit) => {
+    const items = infoLines.flat();
+    const [date, dateScores] = getTextWithHighestFeatureScore(items, dateFeatureSets(lex));
+    let [jobTitle, jobTitleScores] = getTextWithHighestFeatureScore(items, JOB_TITLE_FEATURE_SET);
+    // The line with the date may hold the company, the title and the place ("Hydra Medical · Mar 2023 – Present · Lisbon", "Hydra Law, Mar 2020 – Present"): it is cut at its separators and at the dates, and the parts
+    // are told apart. A part with a legal form is the company, one with a job-title word the title, one after the dates that is a place the place; no part is dropped: one nothing claims is a leftover.
+    const segments = date.split(/\s*[·|•]\s*/).filter(Boolean), k = segments.findIndex(isDate);
+    let before = segments.slice(0, Math.max(k, 0)), after = k < 0 ? [] : segments.slice(k + 1);
+    if (k >= 0){      // the words of the date's own segment before and after the dates ("Hydra Law, Mar 2020 – Present")
+      const w = segments[k].split(/\s+/), first = w.findIndex(isDateWord), last = w.length - 1 - [...w].reverse().findIndex(isDateWord);
+      const trim = x => x.join(' ').replace(/^[\s,;:–—-]+|[\s,;:–—-]+$/g, '');
+      before = [...before, trim(w.slice(0, first))].filter(Boolean); after = [trim(w.slice(last + 1)), ...after].filter(Boolean);
+    }
     const places = after.filter(isPlace), rest = [...before, ...after.filter(t => !isPlace(t))];
     if (!jobTitle) jobTitle = rest.find(t => hasJobTitle({ text: t }) && !hasForm(t)) ?? '';
     const COMPANY_FEATURE_SET = [
@@ -51,19 +56,39 @@ export const extractWorkExperience = (sections, lex) => {
       [getHasText(date), -4],
       [getHasText(jobTitle), -4],
     ];
-    let [company, companyScores] = getTextWithHighestFeatureScore(subsectionInfoTextItems, COMPANY_FEATURE_SET, false);
+    let [company, companyScores] = getTextWithHighestFeatureScore(items, COMPANY_FEATURE_SET, false);
     if (!company || company === jobTitle || company === date) company = rest.find(hasForm) ?? rest.find(t => t !== jobTitle && !hasJobTitle({ text: t })) ?? '';
-    // no job-title word anywhere (a title in another language): a bold line over a "Company · dates" line is the title, and the part before the dates the company
-    if (!jobTitle && before.length && company && company !== date && !hasForm(company)){ jobTitle = company; company = before[0]; }
+    let doubt = false;
+    // no job-title word anywhere: the first line is a title when it is set larger than the dated line (a heading over small print), else the company ("Northgate Law" over "Partner · Mar 2020 – Present");
+    // with no way to tell, both are kept, one as the company and one as the position, and the company doubt is raised
+    if (!jobTitle && company && company !== date && !hasForm(company) && rest.length === 1 && rest[0] !== company){
+      const h = x => items.find(i => i.text === x)?.height ?? 0;
+      if (h(company) >= 1.15 * h(date)){ jobTitle = company; company = rest[0]; }
+      else { jobTitle = rest[0]; const it = items.find(i => i.text === company); doubt = !(it && isBold(it)); }
+    }
     // a title with no job-title word is what the dated line holds besides the company and the place
     const left = rest.filter(t => t !== company && t !== jobTitle);
     if (!jobTitle && left.length) jobTitle = left.shift();
+    if (!company && inherit) company = inherit;
 
-    const subsectionDescriptionsLines = subsectionLines.slice(descriptionsLineIdx);
-    const descriptions = getBulletPointsFromLines(subsectionDescriptionsLines);
+    return { entry: { company, jobTitle, date, descriptions: getBulletPointsFromLines(descriptionsLines), ...(places.length ? { location: places[0] } : {}), ...(left.length || places.length > 1 ? { left: [...left, ...places.slice(1)] } : {}), ...(doubt ? { unsure: true } : {}) }, scores: { companyScores, jobTitleScores, dateScores } };
+  };
 
-    workExperiences.push({ company, jobTitle, date, descriptions, ...(places.length ? { location: places[0] } : {}), ...(left.length || places.length > 1 ? { left: [...left, ...places.slice(1)] } : {}) });
-    workExperiencesScores.push({ companyScores, jobTitleScores, dateScores });
+  for (const subsectionLines of subsections) {
+    const descriptionsLineIdx = getDescriptionsLineIdx(subsectionLines) ?? 2;
+    if (descriptionsLineIdx === 0) continue;
+    const info = subsectionLines.slice(0, descriptionsLineIdx), descLines = subsectionLines.slice(descriptionsLineIdx);
+    // two dated lines in one job are two roles at one company: the second starts at the line above its dates (its title), and takes the descriptions; none is glued into another's title
+    const dated = info.map((l, i) => (l.some(it => YEAR.test(it.text) && isDate(it.text)) ? i : -1)).filter(i => i >= 0);
+    const starts = dated.slice(1).map((d, n) => (d - 1 > dated[n] ? d - 1 : d));
+    const groups = [0, ...starts].map((from, n, all) => info.slice(from, all[n + 1] ?? info.length));
+    let company;
+    groups.forEach((g, n) => {
+      const { entry, scores } = read(g, n === groups.length - 1 ? descLines : [], company);
+      company ??= entry.company || undefined;
+      workExperiences.push(entry);
+      workExperiencesScores.push(scores);
+    });
   }
   return { workExperiences, workExperiencesScores };
 };

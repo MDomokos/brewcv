@@ -23,12 +23,12 @@ async function load(){
   return lib;
 }
 // Runs fn on the opened document, then destroys the loading task (which ends its worker). Whatever PDF.js throws is the code 'pdf' ('encrypted' for a password), unless it already has a code.
-const code = (e, c, message) => Object.assign(new Error(message), { code: c });
+const code = (c, message) => Object.assign(new Error(message), { code: c });
 async function withDoc(bytes, fn){
   const pdfjs = await load();
   const task = pdfjs.getDocument({ data: new Uint8Array(bytes), verbosity: 0, disableFontFace: true, isEvalSupported: false, fontExtraProperties: true });
   try { return await fn(await task.promise); }
-  catch (e){ throw typeof e.code === 'string' ? e : e.name === 'PasswordException' ? code(e, 'encrypted', 'This file is password protected') : code(e, 'pdf', 'This is not a PDF that can be read'); }
+  catch (e){ throw typeof e.code === 'string' ? e : e.name === 'PasswordException' ? code('encrypted', 'This file is password protected') : code('pdf', 'This is not a PDF that can be read'); }
   finally { await task.destroy().catch(() => {}); }
 }
 
@@ -113,6 +113,7 @@ function margins(rows){
 
 // The lines of a paragraph or bullet that the page wrapped, one line again. B goes on A when it starts where A's text starts, with no bullet, one line gap lower (a tenth more than the
 // tightest gap in the document at that size), in the same size, and A runs to the right edge of its column but for the word B starts with.
+// A is not joined when it ends a sentence (. ! ?) or ends with a year; B opening with a capital joins only a line that runs to the edge (a list of short items does not).
 // The two rows are both all bold or neither (a bold heading after a sentence is not its next line; a bold key word in a line is not a heading) and A is not short for its column when B starts with a capital.
 // A word split at the line end is one word again when its hyphen is a soft hyphen or a hyphen PDF.js read as an item of its own (a browser's), or when the whole word is one of `known`
 // (the file's own words, and the caller's); any other hyphen is a compound ("self-managed") and stays.
@@ -134,7 +135,9 @@ function joinWrapped(rows, known){
     const right = a && edge.get(`${a.page}:${Math.round(text(a) / 4)}`);      // the longest line of its column: where lines wrap, when it is wide enough to be a text and not a list of short lines
     if (!(a && a.page === b.page && !isBullet(first.text.trim()) && Math.abs(text(a) - b.x) <= 3 && Math.abs(a.h - b.h) < 0.3 && a.y > b.y && a.bold === b.bold
       && a.y - b.y <= 1.12 * tight.get(Math.round(b.h)) && right - text(a) >= 9 * b.h && a.x1 + wordWidth + 12 >= right
-      && !(a.x1 - text(a) < 0.6 * (right - text(a)) && /^\p{Lu}/u.test(first.text.trim())))){ out.push(b); continue; }
+      && !(a.x1 - text(a) < 0.6 * (right - text(a)) && /^\p{Lu}/u.test(first.text.trim()))
+      && !/(?:[.!?]|\b(?:19|20)\d{2})$/.test(a.r.at(-1).text.trim())      // a line that ends a sentence or with a year is the end of its item
+      && (!/^\p{Lu}/u.test(first.text.trim()) || right - a.x1 <= 6 || /[,-]$/.test(a.r.at(-1).text.trim())))){ out.push(b); continue; }      // a capital opens a new item, unless the line above runs to the very edge or goes on after a comma
     const lone = a.r.length > 1 && a.r.at(-1).text === '-';
     if (lone) a.r.pop();
     const last = a.r.at(-1), tail = last.text.replace(/\s+$/, ''), head = b.r.map(i => i.text).join('');
@@ -162,12 +165,12 @@ const glue = items => items.reduce((out, i) => {
 
 // words: the lowercase words the caller knows (the record's), for the hyphens at line ends; optional
 export const readPdf = (bytes, words = []) => withDoc(bytes, async doc => {
-  if (doc.numPages > MAX_PAGES) throw code(null, 'big', 'This file is too large to read');
+  if (doc.numPages > MAX_PAGES) throw code('big', 'This file is too large to read');
   const pages = [];
   let total = 0;
   for (let n = 1; n <= doc.numPages; n++){
     const page = await doc.getPage(n), content = await page.getTextContent();
-    if (content.items.length > MAX_PAGE_ITEMS || (total += content.items.length) > MAX_ITEMS) throw code(null, 'big', 'This file is too large to read');
+    if (content.items.length > MAX_PAGE_ITEMS || (total += content.items.length) > MAX_ITEMS) throw code('big', 'This file is too large to read');
     await page.getOperatorList();      // loads the fonts into commonObjs
     pages.push(pageItems(content, page.commonObjs, n));
   }
@@ -185,12 +188,12 @@ export const readPdf = (bytes, words = []) => withDoc(bytes, async doc => {
 export const pdfThumb = (bytes, width = 240) => withDoc(bytes, async doc => {
   const page = await doc.getPage(1);
   const viewport = page.getViewport({ scale: width / page.getViewport({ scale: 1 }).width });
-  if (!(viewport.height <= 4096)) throw code(null, 'big', 'The first page is too large to draw');      // a page a hundred times taller than wide would be a canvas the browser refuses
+  if (!(viewport.height <= 4096)) throw code('big', 'The first page is too large to draw');      // a page a hundred times taller than wide would be a canvas the browser refuses
   const canvas = document.createElement('canvas');
   canvas.width = Math.ceil(viewport.width);
   canvas.height = Math.ceil(viewport.height);
   await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
   const url = canvas.toDataURL('image/png');
-  if (!url.startsWith('data:image/png')) throw code(null, 'big', 'The first page is too large to draw');
+  if (!url.startsWith('data:image/png')) throw code('big', 'The first page is too large to draw');
   return url;
 });
