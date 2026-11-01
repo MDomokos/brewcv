@@ -448,23 +448,77 @@ section('the Library: rounds, the archive, groups, removing and rebuilding');
     ok('a copy that still has a removed document does not bring it back, in either order, and both orders agree', !(ab.state.documents ?? []).length && !(ba.state.documents ?? []).length && J(ab.state) === J(ba.state) && ab.state.record.removed?.[`document:${DOC.docId(gone.sha256)}`]);
   }
 
-  // Remove duplicate copies: the ticked stay (the first when none), and a copy a printed version links back to, or one in the receipt, stays too
+  // Every path that drops bytes or documents: a copy may go only when its original is safe (in a saved file that was checked); the copies are true copies; one copy with bytes stays
   const dp = fresh();
   const c1 = doc('c1').add(dp, { addedAt: '2026-10-26T09:00:00.000Z' }), c2 = doc('c2').add(dp, { of: c1.id, addedAt: '2026-10-26T09:01:00.000Z' }), c3 = doc('c3').add(dp, { of: c1.id, addedAt: '2026-10-26T09:02:00.000Z' });
-  const ids3 = [c1.id, c2.id, c3.id];
-  ok('a dry run says what would go and removes nothing; with nothing ticked the first copy stays', J(RS.dropDuplicates(dp, ids3, [], [], true)) === J([c2.id, c3.id]) && dp.documents.length === 3);
+  const ids3 = [c1.id, c2.id, c3.id], safe = ids => ({ checked: { at: '2026-10-26T10:00:00.000Z', ids } }), all3 = safe(ids3);
+  ok('a dry run says what would go and removes nothing; with nothing ticked the first copy stays', J(RS.dropDuplicates(dp, ids3, [], all3, true)) === J([c2.id, c3.id]) && dp.documents.length === 3);
+  ok('a copy whose original is not in a checked saved file is not removed, ticked or not', J(RS.dropDuplicates(dp, ids3, [c1.id], {}, true)) === J([]) && J(RS.dropDuplicates(dp, ids3, [c1.id], safe([c2.id]), true)) === J([c2.id]));
+  ok('a ticked copy that is not one of the copies never lets all of them go', J(RS.dropDuplicates(dp, ids3, ['doc-not-one-of-them'], all3, true)) === J([c2.id, c3.id]) && J(RS.dropDuplicates(dp, ids3, ['doc-not-one-of-them', 'other'], all3, true)).indexOf(c1.id) < 0);
+  const to = fresh(), o1 = doc('o1').add(to, { addedAt: '2026-10-26T09:00:00.000Z' }), o2 = doc('o2').add(to, { of: o1.id, addedAt: '2026-10-26T09:01:00.000Z' });
+  DOC.keepTextOnly(to, o1.id); DOC.keepTextOnly(to, o2.id);
+  ok('with copies that hold no bytes, a ticked id that is not one of them still never lets all of them go', J(RS.dropDuplicates(to, [o1.id, o2.id], ['elsewhere'], {}, true)) === J([o2.id]));
+  const tx = fresh(), t1 = doc('t1').add(tx, { addedAt: '2026-10-26T09:00:00.000Z' }), t2 = doc('t2').add(tx, { of: t1.id, addedAt: '2026-10-26T09:01:00.000Z' }), t3 = doc('t3').add(tx, { of: t1.id, addedAt: '2026-10-26T09:02:00.000Z' });
+  DOC.keepTextOnly(tx, t1.id);
+  ok('when the copies ticked to stay hold no bytes, the first copy that does is kept too', J(RS.dropDuplicates(tx, [t1.id, t2.id, t3.id], [t1.id], safe([t2.id, t3.id]), true)) === J([t3.id]));
   const used = fresh(); const dd = doc('c4').add(used); const dd2 = doc('c5').add(used, { of: dd.id });
   const pv = used.resumes.flatMap(r => usedVersions(used.record, r))[0];
   used.record.variants.find(v => v.id === pv.variant).origin = { doc: dd2.sha256.slice(0, 12) };
-  ok('a copy that a version a saved resume prints links back to stays even when it is not ticked', J(RS.dropDuplicates(used, [dd.id, dd2.id], [dd.id], [], true)) === J([]));
-  ok('a copy in the receipt on the screen stays too', J(RS.dropDuplicates(dp, ids3, [c1.id], [c2.id], true)) === J([c3.id]));
-  const gone3 = RS.dropDuplicates(dp, ids3, [c1.id, c3.id]);
+  DOC.keepTextOnly(used, dd2.id); const noBytes = RS.dropGuard(used, [dd2.id], safe([dd2.id]));
+  ok('a copy a version a saved resume prints links back to is not removed until it is safe, even with no bytes of its own', J(RS.dropGuard(used, [dd2.id], {})) === J([dd2.id]) && noBytes.length === 1);
+  ok('a copy in the receipt on the screen is not removed until it is safe either', J(RS.dropGuard(dp, [c2.id], { protect: [c2.id] })) === J([c2.id]) && RS.dropGuard(dp, [c2.id], { protect: [c2.id], ...safe([c2.id]) }).length === 0);
+  const gone3 = RS.dropDuplicates(dp, ids3, [c1.id, c3.id], all3);
   ok('the ticked copies stay, the others go with a mark, and the one that was only a copy of a copy is re-pointed', J(gone3) === J([c2.id]) && dp.documents.length === 2 && dp.record.removed?.[`document:${c2.id}`] && dp.documents.find(d => d.id === c3.id).of === c1.id);
+  const rg = fresh(), g1 = doc('g1').add(rg), g2 = doc('g2').add(rg);
+  let thrown = null; try { RS.removeGuarded(rg, [g1.id], {}); } catch (e) { thrown = e.key; }
+  ok('Remove from Library and Remove these… refuse an original that is not safe, with the one line saying to save first, and remove nothing', thrown === 'i7.saveFirst' && rg.documents.length === 2 && !rg.record.removed);
+  RS.removeGuarded(rg, [g1.id], safe([g1.id]));
+  ok('and remove it once it is safe', rg.documents.length === 1 && rg.record.removed?.[`document:${g1.id}`]);
+  let thrown2 = null; try { RS.keepTextGuarded(rg, g2.id, {}); } catch (e) { thrown2 = e.key; }
+  ok('Keep text only is refused the same way, and works once safe', thrown2 === 'i7.saveFirst' && rg.documents[0].embedded && (RS.keepTextGuarded(rg, g2.id, safe([g2.id])), !rg.documents[0].embedded));
+  const so = fresh(), s1 = doc('so').add(so); DOC.keepTextOnly(so, s1.id);
+  ok('a document with no original to lose is not held back', RS.dropGuard(so, [s1.id], {}).length === 0);
+  // true copies only
+  const cp = fresh(), CO = { company: 'Northgate', role: 'Designer', date: '', jobType: '', kind: 'resume' };
+  const z1 = doc('z1').add(cp, { meta: { ...CO, lang: 'en' }, addedAt: '2026-10-26T09:00:00.000Z' }), z2 = doc('z2').add(cp, { of: z1.id, meta: { ...CO, lang: 'en' }, addedAt: '2026-10-26T09:01:00.000Z' });
+  const z3 = doc('z3').add(cp, { meta: { ...CO, lang: 'hu' }, addedAt: '2026-10-26T09:02:00.000Z' }), z4 = doc('z4').add(cp, { meta: { ...CO, lang: 'en' }, addedAt: '2026-10-26T09:03:00.000Z' });
+  const z5 = doc('z5').add(cp, { of: z1.id, meta: { ...CO, lang: 'hu' }, addedAt: '2026-10-26T09:04:00.000Z' }), z6 = doc('z6').add(cp, { text: 'Dear', meta: { ...CO, lang: 'en', kind: 'cover-letter' }, addedAt: '2026-10-26T09:05:00.000Z' });
+  ok('the copies of a document are its formats in its own language: not another language, not another resume of the same company and role, not a letter', J(RS.copiesOf(cp, z2.id)) === J([z1.id, z2.id]) && J(RS.copiesOf(cp, z1.id)) === J([z1.id, z2.id]) && J(RS.copiesOf(cp, z3.id)) === J([z3.id]) && J(RS.copiesOf(cp, z4.id)) === J([z4.id]) && RS.docGroups(cp).some(g => g.members.length > 4));
+  // Remove these… takes the files that are in the round, not the rest of their group
+  const rr = fresh(), q1 = doc('q1').add(rr, { round: 'r-old' }), q2 = doc('q2').add(rr, { of: q1.id, round: 'r-new' });
+  rr.resumes[0].round = 'r-old';
+  ok('what Remove these… lists for a round is its resumes and the documents in that round themselves', J(DOC.roundItems(rr, 'r-old').documents) === J([q1.id]) && J(DOC.roundItems(rr, 'r-old').resumes) === J([rr.resumes[0].id]) && J(DOC.roundItems(rr, 'r-new').documents) === J([q2.id]));
 
   // the claims a letter leans on
   const claim = base.variants.find(v => v.text.split(/\s+/).length >= 8);
   const says = X.mentions(base, `Dear team,\n\nIn my last role ${claim.text.replace(/\.$/, '').toLowerCase()}, which is why I am writing.\nA sentence that no claim of the career is anything like at all, about gardening in spring.`);
   ok('a sentence close to a version names its claim, once; a sentence like none names nothing', says.length === 1 && says[0].text === claim.text);
+
+  // rounds: the same name on one day is one round; two on one day, the later started is current whatever their ids
+  const sd = fresh(), a1 = DOC.startRound(sd, 'Spring', '2027-03-01'), a2 = DOC.startRound(sd, 'Spring', '2027-03-01');
+  ok('the same name on the same day is the round that is there: it does not close itself', a1 === a2 && sd.rounds.length === 1 && !('to' in sd.rounds[0]));
+  const orders = [['Alpha', 'Beta'], ['Beta', 'Alpha'], ['Zed', 'Ant'], ['Ant', 'Zed']].map(([x, y]) => { const t = fresh(); DOC.startRound(t, x, '2027-05-05'); const later = DOC.startRound(t, y, '2027-05-05'); return DOC.currentRound(t).id === later.id; });
+  ok('two rounds started on one day: the one started later is current, in either order of names', orders.every(Boolean), J(orders));
+
+  // restoring a sent copy keeps the round and the archive mark of the resume
+  const rs = fresh(); rs.cur = newResume(rs.record, { format: 'a4' }); DOC.startRound(rs, 'Autumn', '2027-09-01'); const made0 = RS.saveNew(rs, { name: 'Sent one' });
+  RS.takeSnapshot(rs, { company: 'Acme', role: 'Tester' }); DOC.mark(rs, 'resumes', made0.id, { archived: true });
+  RS.restoreSnapshot(rs, RS.snapshotsOf(RS.savedOf(rs, made0.id))[0].id);
+  ok('restoring a sent copy keeps the open resume’s round and archive mark', RS.savedOf(rs, made0.id).round === rs.rounds[0].id && RS.savedOf(rs, made0.id).archived === true);
+
+  // the picture of a document is not an edit (not in the merge hash), and the folder’s text-only copy drops it and reading the folder back keeps this one’s
+  const pic = `${['data:image', '/png;base64,'].join('')}${'A'.repeat(2000)}`, th = fresh(), tdoc = addFile(th, pdf, { thumb: pic });
+  const h0 = M.tick(null, th, 'a').keys[`document:${tdoc.id}`].hash, th2 = clone(th); delete th2.documents[0].thumb;
+  ok('a document with its picture and one without hash alike, so making the picture on one device is no edit', tdoc.thumb === pic && M.tick(null, th2, 'a').keys[`document:${tdoc.id}`].hash === h0);
+  const fo = filesOf(th), lib = JSON.parse(fo.get('library.json')), bare = !('thumb' in lib.documents[0]) && !('embedded' in lib.documents[0]), back = keepOriginals({ documents: lib.documents }, th);
+  ok('the folder’s library.json holds neither the original nor the picture; reading it back keeps this state’s picture', bare && back.documents[0].thumb === pic && back.documents[0].embedded === th.documents[0].embedded);
+
+  // rebuild never picks a version still tagged archive
+  const ra = fresh(), raDoc = doc('ra').add(ra, { text: enLines.join('\n') });
+  const bul = ra.record.variants.find(v => enLines.includes(v.text) && v.id !== 'summary');
+  bul.tags = [...(bul.tags ?? []), 'archive'];
+  const raRes = RS.rebuildFrom(raDoc, ra), raMade = ra.resumes.find(r => r.id === raRes.id);
+  ok('a version still tagged archive is never picked: its line is left out or the resume’s own text, never that version', !Object.values(raMade.picks).includes(bul.id) && raRes.picked < enLines.length);
 
   // rebuild: an exact version is picked, a close wording is this resume's own, the rest is counted; the career is not touched
   const rb = fresh(), allVersions = base.variants.length, record0 = J(rb.record);

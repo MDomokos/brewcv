@@ -12,10 +12,10 @@
 //  - A snapshot is the open resume as it printed when Save was pressed, plus the sends (where and when it went).
 
 import { t, keyed } from '../i18n/index.js';
-import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere, printedLabel, ownLabels, labelIn, isDraft } from './resume.js';
+import { resolve, printedFacts, frozenDiffs, newResume, chooseVariant, isLocal, jobRefs, arrangementOf, groupLabel, keepHere, printedLabel, ownLabels, labelIn, isDraft, isArchive } from './resume.js';
 import { entriesOf } from './entries.js';
 import { sim } from './diff.js';
-import { linesOf, currentRound, removeDocuments } from './documents.js';
+import { linesOf, currentRound, removeDocuments, keepTextOnly, safety } from './documents.js';
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang, stashOwn, printedFactIds } from './lang.js';
 import { LockedError, guard, isLocked } from './lock.js';
@@ -377,7 +377,7 @@ export function deleteSnapshot(state, sid){
   if (saved && !saved.snapshots.length) delete saved.snapshots;
 }
 
-const KEEP_ON_RESTORE = ['id', 'name', 'application', 'title', 'company', 'role', 'forKind', 'jobType', 'tags', 'savedAt', 'date', 'inStep'];
+const KEEP_ON_RESTORE = ['id', 'name', 'application', 'title', 'company', 'role', 'forKind', 'jobType', 'tags', 'savedAt', 'date', 'inStep', 'round', 'archived'];
 // Restore as current: the open resume prints as the snapshot did; its name and For stay.
 export function restoreSnapshot(state, sid){
   const snap = findSnapshot(state, sid);
@@ -754,7 +754,7 @@ export function docGroups(state){
 export function rebuildFrom(doc, state){
   const model = state.record, seen = new Set(), L0 = doc.meta?.lang || 'en';
   const lines = String(doc.text ?? '').split('\n').map(x => x.trim()).filter(x => x && !seen.has(normText(x)) && seen.add(normText(x)));
-  const slots = [], ok = v => v && !isDraft(v) && !v.archived;
+  const slots = [], ok = v => v && !isDraft(v) && !isArchive(v);
   const add = (fact, job, pos = false) => { const f = (model.facts ?? []).find(x => x.id === fact); if (f && !f.archived) slots.push({ fact, job, pos, vs: f.variants.map(id => model.variants.find(v => v.id === id)).filter(ok) }); };
   add(model.basics?.summary, null);
   for (const w of entriesOf(model).filter(e => !e.archived)){ add(w.display?.position, w.id, true); for (const h of w.highlights ?? []) add(h, w.id); }
@@ -787,13 +787,35 @@ export function rebuildFrom(doc, state){
   return { ...saveNew(state, { name: nameFrom({ company, role }) || doc.name.replace(/\.[^.]+$/, ''), company, role, tagVersions: false }), picked, own: Object.keys(overrides).length, left };
 }
 
-// Remove duplicate copies: of the documents `ids` (the formats of one resume), the ticked ones in `keep` stay (the first when none is), and the rest go by removeDocuments. A copy also stays when a saved
-// resume prints a version that links back to it (`origin`), or when it is in `protect` (the receipt on the screen). Returns the ids removed (`dry`: that would be, and nothing is).
-export function dropDuplicates(state, ids, keep = [], protect = [], dry = false){
-  const docs = ids.map(id => (state.documents ?? []).find(d => d.id === id)).filter(Boolean), vs = new Map(state.record.variants.map(v => [v.id, v]));
+// ---- dropping documents or their bytes: one guard for every path ----
+// Checkpoints keep no bytes, so an original (a document with `embedded`) may go only when safety() says it is safe: in a saved file the person checked. The same holds for a copy a version a saved
+// resume prints links back to (`origin.doc`) and for a copy the receipt on the screen depends on (`protect`). ctx: { checked, protect } (checked as safety() takes it). Returns the ids of `ids` that may not go.
+export function dropGuard(state, ids, { checked = null, protect = [] } = {}){
+  const vs = new Map(state.record.variants.map(v => [v.id, v]));
   const used = new Set((state.resumes ?? []).flatMap(r => usedVersions(state.record, r)).map(u => vs.get(u.variant)?.origin?.doc).filter(Boolean));
-  const stay = new Set(keep.length ? keep : docs.slice(0, 1).map(d => d.id));
-  const gone = docs.filter(d => !stay.has(d.id) && !protect.includes(d.id) && !used.has(d.sha256.slice(0, 12))).map(d => d.id);
+  return ids.map(id => (state.documents ?? []).find(d => d.id === id)).filter(d => d && (d.embedded || protect.includes(d.id) || used.has(d.sha256.slice(0, 12))) && !safety(d, { checked }).safe).map(d => d.id);
+}
+const guarded = (state, ids, ctx) => { if (dropGuard(state, ids, ctx).length) throw keyed('i7.saveFirst'); };
+// Remove from Library, and Remove these… (its documents): each refused unless its original is safe.
+export function removeGuarded(state, ids, ctx){ guarded(state, ids, ctx); removeDocuments(state, ids); }
+// Keep text only drops the original, so the same guard.
+export function keepTextGuarded(state, id, ctx){ guarded(state, [id], ctx); keepTextOnly(state, id); }
+
+// The true copies of a document: the formats of one document (its `of` chain), in its own language. Another language, another resume of one company and role, and a letter are not copies. Oldest first.
+export function copiesOf(state, id){
+  const docs = state.documents ?? [], byId = new Map(docs.map(d => [d.id, d])), root = d => { for (let n = 0; d.of && byId.has(d.of) && n < 20; n++) d = byId.get(d.of); return d; };
+  const mine = byId.get(id), top = mine && root(mine);
+  return top ? docs.filter(d => root(d) === top && (d.meta?.kind ?? d.kind) !== 'cover-letter' && (d.meta?.lang ?? '') === (top.meta?.lang ?? '')).sort((a, b) => String(a.addedAt).localeCompare(String(b.addedAt)) || (a.id < b.id ? -1 : 1)).map(d => d.id) : [];
+}
+
+// Remove duplicate copies: of the copies `ids`, the ticked ones in `keep` stay (the first when none of them is in `ids`), and the rest go by removeDocuments, except those dropGuard refuses. One copy that holds the
+// bytes always stays: if the ones left are text only, the first with bytes is kept. Returns the ids removed (`dry`: that would be, and nothing is).
+export function dropDuplicates(state, ids, keep = [], ctx = {}, dry = false){
+  const docs = ids.map(id => (state.documents ?? []).find(d => d.id === id)).filter(Boolean), have = new Set(docs.map(d => d.id));
+  const ticked = keep.filter(k => have.has(k)), stay = new Set(ticked.length ? ticked : docs.slice(0, 1).map(d => d.id)), refused = new Set(dropGuard(state, [...have], ctx));
+  const gone = docs.filter(d => !stay.has(d.id) && !refused.has(d.id)).map(d => d.id);
+  const left = docs.filter(d => !gone.includes(d.id));
+  if (docs.some(d => d.embedded) && !left.some(d => d.embedded)){ const b = docs.find(d => d.embedded).id; gone.splice(gone.indexOf(b), 1); }
   if (gone.length && !dry) removeDocuments(state, gone);
   return gone;
 }

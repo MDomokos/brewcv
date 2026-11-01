@@ -25,7 +25,7 @@ import { fromJsonResume, lexiconFor } from './import.js';
 import { diffRecords, applyItems, matchJob, sim, org } from './diff.js';
 import { entriesOf } from './entries.js';
 import { addEntryClaim, addProject, addLanguage, addCertificate, addInterest, addPublication, addKindEntry, kindsOf } from './career.js';
-import { addVersion, suggestNumber, normText, wordDiff } from './record.js';
+import { addVersion, suggestNumber, normText, wordDiff, tombstoned } from './record.js';
 import { newResume } from './resume.js';
 import { resumeLabel } from './resumes.js';
 import * as B from './build.js';
@@ -127,18 +127,21 @@ const SKIPPED = /^(?:work\.|basics\.(?:name|label|email|phone|url|location)\b)|D
 
 // ---- what each file is ----
 
-// Sets `status` on each entry ({ name, sha256, read | error }): error (could not be read), skip (a picture or a data file: opened on its own), unread (kept as a file),
+// Sets `status` on each entry ({ name, sha256, read | error }; `deleted`: the day the person removed this document from the Library): error (could not be read), skip (a picture or a data file: opened on its own), unread (kept as a file),
 // seen (merged before; `seen` is when), format (another format of a document: `of`), letter, resume. A PDF is judged after the formats whose text is exact.
 export function classify(state, entries){
   const docs = [...(state.documents ?? [])], shas = new Map();
   for (const e of [...entries].sort((a, b) => (a.read?.kind === 'pdf') - (b.read?.kind === 'pdf'))){
-    delete e.of; delete e.seen;
+    delete e.of; delete e.seen; delete e.deleted;
     const r = e.read;
     if (e.error) e.status = 'error';
     else if (['image', 'json'].includes(r.kind)) e.status = 'skip';
     else if (r.kind === 'other' || !r.lines?.length) e.status = 'unread';
     else {
-      const was = DOC.alreadyImported(state, e.sha256)?.at ?? DOC.findBySha(state, e.sha256)?.addedAt ?? shas.get(e.sha256);
+      // a document the person removed is not "merged before": it is read again, and importing it brings it back (applyPlan clears its mark)
+      const gone = tombstoned(state.record, 'document', DOC.docId(e.sha256));
+      if (gone) e.deleted = gone.at;
+      const was = gone ? shas.get(e.sha256) : DOC.alreadyImported(state, e.sha256)?.at ?? DOC.findBySha(state, e.sha256)?.addedAt ?? shas.get(e.sha256);
       if (was){ e.status = 'seen'; e.seen = was; }
       else {
         const same = DOC.sameDocument({ documents: docs }, r.text);
@@ -398,6 +401,7 @@ export function applyPlan(d, p, { at = new Date().toISOString() } = {}){
         meta: { ...metaOf(e.name, e.modified), kind: e.status === 'letter' ? 'cover-letter' : e.status === 'unread' ? 'other' : e.of ? kindOfDoc(e.of) : 'resume', lang: r.lang ?? '' },
         text: r.text ?? '', from: 'imported', layout: r.pdf ? (e.layout ?? r.layout) : undefined, of: e.of?.id, taken, thumb: e.thumb, round });
       Object.assign(doc, link);
+      if (d.record.removed?.[`document:${doc.id}`]){ delete d.record.removed[`document:${doc.id}`]; if (!Object.keys(d.record.removed).length) delete d.record.removed; }      // brought back: its mark goes
       made.push(doc);
     }
     DOC.logImport(d, { sha256: e.sha256, name: e.name, kind: r.kind ?? 'other', at, result: e.status, recordId: d.record.recordId ?? null, saved: e.modified ? new Date(e.modified).toISOString() : null });

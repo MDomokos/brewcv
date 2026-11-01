@@ -266,6 +266,25 @@ section('the Library: the current round, the lines left to place, the nearest re
   ok('a letter goes with the saved resume of that company and role that is nearest to its date', pl.files[0].resume === two.resumes[1].id);
 }
 
+section('a removed document, and the first page’s picture');
+{
+  const st = state();
+  const docx = await entry('helix-1col-word.docx');
+  docx.thumb = `${['data:image', '/png;base64,'].join('')}${'B'.repeat(2000)}`;      // built here: the privacy scan reads a written-out image as a portrait
+  const first = applied(st, planOf(st, [docx]));
+  ok('the picture of a first page the screen drew is kept with the document', first.docs[0].thumb === docx.thumb);
+  const gone = clone(first.d);
+  DOC.removeDocuments(gone, [first.docs[0].id]);
+  ok('a document the person removed was imported before (the log has it), but is not "merged before"', DOC.alreadyImported(gone, docx.sha256) && !DOC.findBySha(gone, docx.sha256));
+  const again = await entry('helix-1col-word.docx');
+  X.classify(gone, [again]);
+  ok('dropped again it is read, not "merged before", and says when it was deleted', again.status !== 'seen' && again.deleted === gone.record.removed[`document:${first.docs[0].id}`].at && /^\d{4}-\d\d-\d\d$/.test(again.deleted));
+  const back = applied(gone, planOf(gone, [again]));
+  ok('importing it brings it back: the document is there again with its original and the mark is gone', back.d.documents.some(d => d.id === first.docs[0].id && d.embedded) && !back.d.record.removed?.[`document:${first.docs[0].id}`]);
+  const fresh2 = await entry('helix-1col-word.docx'); X.classify(first.d, [fresh2]);
+  ok('a document that was never removed is still "merged before"', fresh2.status === 'seen' && !('deleted' in fresh2));
+}
+
 section('only an empty career, or the example, starts from a file');
 {
   const blank = { record: B.blankRecord({}), resumes: [], frozen: {} };

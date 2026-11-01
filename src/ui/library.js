@@ -1,7 +1,7 @@
 // The Library's documents (I-7): a card for each group of files (the formats of one resume, its languages, its letter), the inspector of one (a preview, where the original is kept and
 // whether it is safe to delete, what was taken from it, Place lines, Rebuild, Download, Remove), and the removing of a round's resumes and documents. screens.js draws the Library
 // and its rounds around these; the model is src/model/documents.js, resumes.js (docGroups, rebuildFrom, dropDuplicates) and intake.js (placeLines).
-// A document's text and name are always written as text (esc), and its original only ever reaches the page as a sandboxed frame of a blob: URL.
+// A document's text and name are always written as text (esc), and a PDF original reaches the page only as pictures of its pages drawn by PDF.js (no frame, no plugin).
 // shortcut: there is no linked folder yet (I-8), so no document has a path: "Show in folder" and the tick that deletes the file in the folder as well are not here, and Remove takes the document with its embedded original.
 
 import * as RS from '../model/resumes.js';
@@ -11,14 +11,15 @@ import { entriesOf } from '../model/entries.js';
 import { isAssetRef } from '../store/store.js';
 import { t, h, errText } from '../i18n/index.js';
 import { langName } from '../model/lang.js';
-import { placeMenu } from './files.js';
+import { placeMenu, kb } from './files.js';
+import { pdfPages } from '../parse/pdf.js';
 import { snippet } from './find.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-// sel: the group shown in the inspector; member: the file of it that is looked at; panel: 'place', 'remove' or 'dups'; picks: where each unplaced line goes (by its place in `taken.lines`);
-// keep: the copies ticked to stay; ok: the tick that lets a removal go; rm: the round whose "Remove these…" is open, with its ticks; url: the blob: address of the preview
-const L = { sel: null, member: null, panel: null, picks: new Map(), keep: new Set(), ok: false, rm: null, rmTicks: new Set(), url: null };
+// sel: the group shown in the inspector; member: the file of it that is looked at; panel: 'place', 'remove', 'keeptext' or 'dups'; picks: where each unplaced line goes (by its place in `taken.lines`);
+// keep: the copies ticked to stay; ok: the tick that lets a removal go; rm: the round whose "Remove these…" is open, with its ticks; pages: the pages of the PDF shown, drawn once ({ sha, urls })
+const L = { sel: null, member: null, panel: null, picks: new Map(), keep: new Set(), ok: false, rm: null, rmTicks: new Set(), pages: null };
 const st = () => C.store.state;
 
 export function initLibrary(ctx){ C = ctx; return api; }
@@ -28,10 +29,10 @@ const bytesUrl = ref => (isAssetRef(ref) ? C.store.asset(ref) ?? null : ref ?? n
 const typeOf = d => (/\.([A-Za-z0-9]{1,5})$/.exec(d.name)?.[1] ?? d.type?.split(/[/.+]/).pop() ?? '').toUpperCase().slice(0, 5);
 const isLetter = d => (d.meta?.kind ?? d.kind) === 'cover-letter';
 const dateOf = d => d.meta?.date || String(d.addedAt ?? '').slice(0, 10);
-const kb = n => (n < 1024 * 100 ? `${(n / 1024).toFixed(1)} KB` : `${Math.round(n / 1024)} KB`);
 const first = d => String(d.text ?? '').split('\n').find(l => l.trim())?.trim() ?? '';
 const company = d => (d.meta?.company && d.meta?.role ? `${d.meta.company} — ${d.meta.role}` : d.meta?.company || d.meta?.role || '');
 const groups = () => RS.docGroups(st());
+const ctx = () => ({ checked: C.files.checked(), protect: C.files.receipt() });      // what the guard of every removal asks: the file checked, the receipt on the screen
 const groupOf = id => groups().find(g => g.id === id) ?? null;
 // the card's one state line: lines not placed, a file kept unread, or all in the career
 const stateOf = g => {
@@ -40,7 +41,7 @@ const stateOf = g => {
 };
 
 // ---- search: a group is found by its names and by the words in any of its files' text ----
-export const hits = (g, q) => {
+const hits = (g, q) => {
   const n = String(q ?? '').trim().toLowerCase();
   return n ? g.members.flatMap(m => String(m.text ?? '').split('\n')).filter(l => l.toLowerCase().includes(n)) : [];
 };
@@ -65,14 +66,16 @@ export function card(g, q = ''){
 }
 
 // ---- the inspector ----
-// the preview is the browser's own PDF viewer, in a frame of a blob: address with no permissions at all (sandbox=""): the file's own scripts never run in the page.
-// shortcut: Chromium and Brave refuse to show a PDF in any sandboxed frame (an error page), so it is behind a button and the first page's picture is what shows; upgrade by drawing the pages with PDF.js (pdfPages) here, which needs no frame and no change to the page's policy, if the owner prefers.
-function previewUrl(d){
-  if (L.url){ URL.revokeObjectURL(L.url); L.url = null; }
-  const data = d.type === 'application/pdf' ? bytesUrl(d.embedded) : null;
-  if (!data) return null;
-  const bin = atob(data.slice(data.indexOf(',') + 1));
-  return (L.url = URL.createObjectURL(new Blob([Uint8Array.from(bin, c => c.charCodeAt(0))], { type: 'application/pdf' })));
+const bytesOf = data => { const bin = atob(data.slice(data.indexOf(',') + 1)); return Uint8Array.from(bin, c => c.charCodeAt(0)); };
+// The pages of a PDF original, drawn by PDF.js after the inspector is on the screen (up to 8, as the layout view); the picture of the first page stands in until they are there.
+// shortcut: one document's pages are kept (the last shown), so going back to it draws them again; a PDF PDF.js cannot draw keeps its first-page picture.
+async function drawPages(){
+  const host = document.querySelector('#body .dpages'), d = host && members().find(m => m.id === host.dataset.id);
+  if (!d?.embedded || d.type !== 'application/pdf') return;
+  try {
+    if (L.pages?.sha !== d.sha256) L.pages = { sha: d.sha256, urls: (await pdfPages(bytesOf(bytesUrl(d.embedded)), 420)).map(p => p.url) };
+  } catch { return; }
+  if (host.isConnected && L.pages?.sha === d.sha256) host.replaceChildren(...L.pages.urls.map(u => Object.assign(document.createElement('img'), { src: u, alt: '', className: 'dpage' })));
 }
 const claimLinks = (d, n = 6) => {
   const rec = st().record, ids = d.taken?.claims ?? [];
@@ -90,14 +93,15 @@ function placePanel(d){
     `<div class="mi ro" data-line="${i}"><span class="sym keep">?</span><span><span class="mx">${esc(text)}</span>${placeMenu(X.placeOptions(rec, { text }), { choice: L.picks.get(i) ?? '' }, `data-lplace="${i}"`)}</span></div>`).join('')}</div>
     <div class="btns"><button class="primary" data-act="doc-place-do" ${[...L.picks.values()].some(Boolean) ? '' : 'disabled'}>${h('i7.placeDo')}</button><button data-act="doc-panel-close">${h('ux6h.cancel')}</button></div></div>`;
 }
-function removePanel(d){
-  return `<div class="dpanel" data-panel="remove"><label class="check"><input type="checkbox" data-lok ${L.ok ? 'checked' : ''}> ${h('i7.removeTick', { name: d.name })}</label>
-    <div class="btns"><button class="del" data-act="doc-remove-do" ${L.ok ? '' : 'disabled'}>${h('i7.removeDo')}</button><button data-act="doc-panel-close">${h('ux6h.cancel')}</button></div></div>`;
+// a tick that lets Remove from Library, or Keep text only, go ahead (nothing is dropped without it)
+function confirmPanel(kind, d){
+  return `<div class="dpanel" data-panel="${kind}"><label class="check"><input type="checkbox" data-lok ${L.ok ? 'checked' : ''}> ${h(kind === 'remove' ? 'i7.removeTick' : 'i7.keepTextTick', { name: d.name })}</label>
+    <div class="btns"><button class="del" data-act="doc-${kind}-do" ${L.ok ? '' : 'disabled'}>${h(kind === 'remove' ? 'i7.removeDo' : 'i7.keepText')}</button><button data-act="doc-panel-close">${h('ux6h.cancel')}</button></div></div>`;
 }
-function dupsPanel(g){
-  const ids = g.members.filter(m => !isLetter(m)).map(m => m.id), keep = [...L.keep], gone = RS.dropDuplicates(st(), ids, keep, C.files.receipt(), true);
+function dupsPanel(g, d){
+  const ids = RS.copiesOf(st(), d.id), keep = [...L.keep], gone = RS.dropDuplicates(st(), ids, keep, ctx(), true);
   return `<div class="dpanel" data-panel="dups"><p class="note">${h('i7.dupsNote')}</p><div class="mlist">${ids.map(id => {
-    const m = g.members.find(x => x.id === id), forced = !gone.includes(id) && !L.keep.has(id) && L.keep.size > 0;
+    const m = g.members.find(x => x.id === id) ?? d, forced = !gone.includes(id) && !L.keep.has(id) && L.keep.size > 0;
     return `<label class="mi"><input type="checkbox" data-lkeep="${esc(id)}" ${L.keep.has(id) || forced ? 'checked' : ''} ${forced ? 'disabled' : ''}><span><span class="mw">${esc(m.name)}</span><span class="mx">${esc(`${typeOf(m)} · ${kb(m.size)}`)}${forced ? ` · ${esc(t('i7.dupsForced'))}` : ''}</span></span></label>`;
   }).join('')}</div>
     <div class="btns"><button class="del" data-act="doc-dups-do" ${gone.length ? '' : 'disabled'}>${h('i7.dupsDo', { n: gone.length })}</button><button data-act="doc-panel-close">${h('ux6h.cancel')}</button></div></div>`;
@@ -108,11 +112,10 @@ export function inspector(){
   if (!g) return '';
   const d = g.members.find(m => m.id === L.member) ?? g.lead, rounds = st().rounds ?? [], resume = g.resume && RS.savedOf(st(), g.resume);
   const sf = DOC.safety(d, { lastFileSave: C.persist.fileState.last, checked: C.files.checked() });
-  const url = previewUrl(d), pic = bytesUrl(d.thumb), un = d.taken?.lines?.length ?? 0, copies = g.members.filter(m => !isLetter(m)), archived = g.members.every(m => m.archived);
+  const pic = bytesUrl(d.thumb), un = d.taken?.lines?.length ?? 0, copies = RS.copiesOf(st(), d.id), archived = g.members.every(m => m.archived);
   const says = isLetter(d) ? X.mentions(st().record, d.text) : [];
   return `<section class="insp insp-doc" aria-label="${esc(d.name)}" data-did="${esc(g.id)}" data-member="${esc(d.id)}">
-    <div class="ihero">${pic ? `<img class="dpic" src="${esc(pic)}" alt="">` : `<p class="dtext">${esc(String(d.text ?? '').split('\n').slice(0, 12).join('\n'))}</p>`}</div>
-    ${url ? `<details class="dview"><summary>${h('i7.viewer')}</summary><iframe class="dprev" sandbox="" src="${esc(url)}" title="${esc(t('i7.preview'))}"></iframe></details>` : ''}
+    <div class="ihero">${pic ? `<div class="dpages" data-id="${esc(d.id)}"><img class="dpage" src="${esc(pic)}" alt=""></div>` : `<p class="dtext">${esc(String(d.text ?? '').split('\n').slice(0, 12).join('\n'))}</p>`}</div>
     <div class="ihcap"><span class="lbl">${h('ux6h.selected')}</span><h2 class="oi-name">${esc(d.name)}</h2><p class="small">${esc([company(d), dateOf(d), d.meta?.lang ? langName(d.meta.lang) : '', `${typeOf(d)} · ${kb(d.size)}`].filter(Boolean).join(' · '))}</p></div>
     ${resume ? `<p class="small" data-from="${esc(resume.id)}">${esc(t('i7.exportedFrom', { name: RS.resumeLabel(resume) }))} <button class="sm" data-act="sw-open" data-id="${esc(resume.id)}">${h('ux6e.openBtn')}</button></p>` : ''}
     ${g.members.length > 1 ? `<span class="lbl">${h('i7.formats')}</span><ul class="dformats">${g.members.map(m => `<li><button class="sm" data-act="doc-member" data-id="${esc(m.id)}" aria-pressed="${m.id === d.id}">${esc(`${isLetter(m) ? t('i7.letter') : typeOf(m)} · ${m.name} · ${kb(m.size)}`)}</button></li>`).join('')}</ul>` : ''}
@@ -132,27 +135,33 @@ export function inspector(){
     ${says.length ? `<span class="lbl">${h('i7.mentions')}</span><ul class="dmentions" data-mentions="${says.length}">${says.map(x => `<li>${esc(x.text.slice(0, 120))}</li>`).join('')}</ul>` : ''}
     <div class="btns">
       ${copies.length > 1 ? `<button class="sm" data-act="doc-dups">${h('i7.dups')}</button>` : ''}
-      ${d.embedded ? `<button class="sm" data-act="doc-keeptext" data-id="${esc(d.id)}">${h('i7.keepText')}</button>` : ''}
+      ${d.embedded ? `<button class="sm" data-act="doc-keeptext">${h('i7.keepText')}</button>` : ''}
       <button class="sm del" data-act="doc-remove">${h('i7.remove')}</button>
     </div>
-    ${L.panel === 'dups' ? dupsPanel(g) : ''}${L.panel === 'remove' ? removePanel(d) : ''}
+    ${L.panel === 'dups' ? dupsPanel(g, d) : ''}${L.panel === 'remove' || L.panel === 'keeptext' ? confirmPanel(L.panel, d) : ''}
   </section>`;
 }
 
 // ---- Remove these…, in an archived round: its resumes and documents with ticks, none ticked ----
 export function roundPanel(round){
-  const all = st().resumes ?? [], rs = all.filter(r => r.round === round.id), gs = groups().filter(g => g.members.some(m => m.round === round.id));
+  const { resumes, documents } = DOC.roundItems(st(), round.id), docs = documents.map(id => st().documents.find(d => d.id === id));
   const row = (key, name, extra) => `<label class="mi"><input type="checkbox" data-rmk="${esc(key)}" ${L.rmTicks.has(key) ? 'checked' : ''}><span><span class="mw">${esc(name)}</span><span class="mx">${esc(extra)}</span></span></label>`;
-  return `<div class="dpanel" data-panel="round" data-round="${esc(round.id)}"><p class="note">${h('i7.rmNote')}</p><div class="mlist">${rs.map(r => row(`r:${r.id}`, RS.resumeLabel(r), t('i7.aResume'))).join('')}${gs.map(g => row(`d:${g.id}`, g.lead.name, `${g.members.map(typeOf).join(', ')}`)).join('')}</div>
+  return `<div class="dpanel" data-panel="round" data-round="${esc(round.id)}"><p class="note">${h('i7.rmNote')}</p><div class="mlist">${resumes.map(id => row(`r:${id}`, RS.resumeLabel(RS.savedOf(st(), id)), t('i7.aResume'))).join('')}${docs.map(d => row(`d:${d.id}`, d.name, typeOf(d))).join('')}</div>
     <div class="btns"><button class="del" data-act="rm-round-do" data-id="${esc(round.id)}" ${L.rmTicks.size ? '' : 'disabled'}>${h('i7.rmDo', { n: L.rmTicks.size })}</button><button data-act="rm-round-close">${h('ux6h.cancel')}</button></div></div>`;
 }
 
 // ---- acts ----
+// A checkpoint first, then the change; and nothing that drops an original goes while it is not safe (dropGuard), which is said in one line before anything is made.
+function refused(ids){
+  if (!RS.dropGuard(st(), ids, ctx()).length) return false;
+  C.toast(t('i7.saveFirst'), 'warn'); return true;
+}
 async function checkpointed(label, fn){
   try { await C.persist.checkpoint(label); } catch (e){ C.toast(errText(e), 'bad'); return false; }      // nothing is removed without a checkpoint
   try { const ok = C.store.commit(d => { fn(d); }, label); C.store.gcAssets(); return ok; } catch (e){ C.toast(errText(e), 'bad'); return false; }
 }
 const members = () => groupOf(L.sel)?.members ?? [];
+const current = () => members().find(m => m.id === L.member) ?? groupOf(L.sel)?.lead;
 function save(bytes, name, type){
   const a = document.createElement('a'), url = URL.createObjectURL(new Blob([bytes], { type }));
   a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
@@ -166,12 +175,13 @@ async function act(a, tg){
     case 'doc-member': L.member = id; L.panel = null; L.picks.clear(); C.repaint(); return true;
     case 'doc-panel-close': L.panel = null; C.repaint(); return true;
     case 'doc-place': L.panel = L.panel === 'place' ? null : 'place'; L.picks.clear(); C.repaint(); return true;
-    case 'doc-remove': L.panel = 'remove'; L.ok = false; C.repaint(); return true;
-    case 'doc-dups': L.panel = 'dups'; L.keep = new Set(members().filter(m => !isLetter(m)).slice(0, 1).map(m => m.id)); C.repaint(); return true;
+    case 'doc-remove': case 'doc-keeptext': L.panel = a === 'doc-remove' ? 'remove' : 'keeptext'; L.ok = false; C.repaint(); return true;
+    case 'doc-dups': L.panel = 'dups'; L.keep = new Set(RS.copiesOf(st(), current().id).slice(0, 1)); C.repaint(); return true;
     case 'doc-rebuild': C.resumes.rebuild(id); return true;
     case 'doc-download': {
       const d = members().find(m => m.id === id), data = d && bytesUrl(d.embedded);
-      if (data) save(Uint8Array.from(atob(data.slice(data.indexOf(',') + 1)), c => c.charCodeAt(0)), d.name, d.type || 'application/octet-stream');
+      try { if (data) save(bytesOf(data), d.name, d.type || 'application/octet-stream'); }
+      catch { C.toast(t('i7.badOriginal'), 'bad'); }      // a stored original that is not valid base64
       return true;
     }
     case 'doc-archive': {
@@ -179,35 +189,37 @@ async function act(a, tg){
       C.store.commit(d => { for (const m of members()) DOC.mark(d, 'documents', m.id, { archived: on }); }, t(on ? 'i7.undoArchive' : 'i7.undoUnarchive'));
       C.renderBody(); return true;
     }
-    case 'doc-keeptext': {
-      const d = members().find(m => m.id === id);
-      if (d && C.store.commit(x => { DOC.keepTextOnly(x, id); }, t('i7.undoKeepText'))) C.store.gcAssets();
+    case 'doc-keeptext-do': {
+      const d = current();
+      if (!L.ok || refused([d.id])) return true;
+      if (await checkpointed(t('i7.checkpointKeepText', { name: d.name }), x => RS.keepTextGuarded(x, d.id, ctx()))){ L.panel = null; L.ok = false; }
       C.renderBody(); return true;
     }
     case 'doc-place-do': {
-      const d = members().find(m => m.id === L.member) ?? groupOf(L.sel).lead, lines = d.taken?.lines ?? [];
+      const d = current(), lines = d.taken?.lines ?? [];
       const picks = lines.map((text, i) => ({ text, choice: L.picks.get(i) ?? '' }));
       await C.persist.checkpoint(t('i7.checkpointPlace', { name: d.name })).catch(() => null);
       C.store.commit(x => { X.placeLines(x, d.id, picks); }, t('i7.undoPlace', { name: d.name }));
       L.panel = null; L.picks.clear(); C.renderBody(); return true;
     }
     case 'doc-remove-do': {
-      const d = members().find(m => m.id === L.member) ?? groupOf(L.sel).lead;
-      if (!L.ok) return true;
-      if (await checkpointed(t('i7.checkpointRemove', { name: d.name }), x => DOC.removeDocuments(x, [d.id]))){ L.sel = null; L.member = null; L.panel = null; C.toast(t('i7.removed', { name: d.name })); }
+      const d = current();
+      if (!L.ok || refused([d.id])) return true;
+      if (await checkpointed(t('i7.checkpointRemove', { name: d.name }), x => RS.removeGuarded(x, [d.id], ctx()))){ L.sel = null; L.member = null; L.panel = null; C.toast(t('i7.removed', { name: d.name })); }
       C.renderBody(); return true;
     }
     case 'doc-dups-do': {
-      const g = groupOf(L.sel); let gone = [];
-      if (await checkpointed(t('i7.checkpointDups'), x => { gone = RS.dropDuplicates(x, g.members.filter(m => !isLetter(m)).map(m => m.id), [...L.keep], C.files.receipt()); })){ L.panel = null; L.member = null; C.toast(t('i7.dupsDone', { n: gone.length })); }
+      const ids = RS.copiesOf(st(), current().id); let gone = [];
+      if (!RS.dropDuplicates(st(), ids, [...L.keep], ctx(), true).length) return true;
+      if (await checkpointed(t('i7.checkpointDups'), x => { gone = RS.dropDuplicates(x, ids, [...L.keep], ctx()); })){ L.panel = null; L.member = null; C.toast(t('i7.dupsDone', { n: gone.length })); }
       C.renderBody(); return true;
     }
     case 'rm-round-open': L.rm = id; L.rmTicks.clear(); C.renderBody(); return true;
     case 'rm-round-close': L.rm = null; L.rmTicks.clear(); C.renderBody(); return true;
     case 'rm-round-do': {
-      const rs = [...L.rmTicks].filter(k => k.startsWith('r:')).map(k => k.slice(2)), gs = [...L.rmTicks].filter(k => k.startsWith('d:')).flatMap(k => groupOf(k.slice(2))?.members.map(m => m.id) ?? []);
-      if (!L.rmTicks.size) return true;
-      if (await checkpointed(t('i7.checkpointRound'), x => { for (const r of rs) RS.deleteSaved(x, r); if (gs.length) DOC.removeDocuments(x, gs); })){ L.rm = null; L.rmTicks.clear(); C.toast(t('i7.rmDone', { n: rs.length + gs.length })); }
+      const rs = [...L.rmTicks].filter(k => k.startsWith('r:')).map(k => k.slice(2)), ds = [...L.rmTicks].filter(k => k.startsWith('d:')).map(k => k.slice(2));
+      if (!L.rmTicks.size || refused(ds)) return true;
+      if (await checkpointed(t('i7.checkpointRound'), x => { for (const r of rs) RS.deleteSaved(x, r); if (ds.length) RS.removeGuarded(x, ds, ctx()); })){ L.rm = null; L.rmTicks.clear(); C.toast(t('i7.rmDone', { n: rs.length + ds.length })); }
       C.renderBody(); return true;
     }
   }
@@ -219,7 +231,7 @@ function bind(body){
   body.addEventListener('change', e => {
     const x = e.target;
     if (x.dataset?.lplace !== undefined){ L.picks.set(Number(x.dataset.lplace), x.value); const b = body.querySelector('[data-act=doc-place-do]'); if (b) b.disabled = ![...L.picks.values()].some(Boolean); }
-    else if (x.dataset?.lok !== undefined){ L.ok = x.checked; const b = body.querySelector('[data-act=doc-remove-do]'); if (b) b.disabled = !L.ok; }
+    else if (x.dataset?.lok !== undefined){ L.ok = x.checked; const b = body.querySelector('[data-act=doc-remove-do], [data-act=doc-keeptext-do]'); if (b) b.disabled = !L.ok; }
     else if (x.dataset?.lkeep !== undefined){ x.checked ? L.keep.add(x.dataset.lkeep) : L.keep.delete(x.dataset.lkeep); C.repaint(); }
     else if (x.dataset?.rmk !== undefined){
       x.checked ? L.rmTicks.add(x.dataset.rmk) : L.rmTicks.delete(x.dataset.rmk);
@@ -232,8 +244,7 @@ function bind(body){
 }
 
 const api = {
-  card, inspector, roundPanel, hits, matches, act, bind,
+  card, inspector, roundPanel, matches, act, bind, after: drawPages,
   sel: () => (groupOf(L.sel) ? L.sel : null), rm: () => L.rm,
-  select: id => { L.sel = id; L.member = null; L.panel = null; },
-  clear(){ const was = L.sel !== null; L.sel = null; L.member = null; L.panel = null; if (L.url){ URL.revokeObjectURL(L.url); L.url = null; } return was; },
+  clear(){ L.sel = null; L.member = null; L.panel = null; L.pages = null; },
 };

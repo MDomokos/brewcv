@@ -266,13 +266,11 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .rround { margin: 0 0 12px; }
 .rround > summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
 .rround .racts { margin: 4px 0 8px; }
-.insp-doc .dprev { width: 100%; height: min(60vh, 560px); border: 0; background: var(--sheet); }
-.insp-doc .dpic { display: block; width: 100%; max-width: 320px; margin: 0 auto; }
-.insp-doc .dview { margin: 8px 0; }
-.insp-doc .dview > summary { cursor: pointer; font-size: 12px; }
 .insp-doc .dtext { margin: 0; padding: 10px; white-space: pre-wrap; font-size: 11px; max-height: 240px; overflow: hidden; background: var(--sheet); color: var(--paper-ink); }
 .insp-doc .ihero { margin: -14px -16px 0; overflow: hidden; border-radius: inherit; }
 .insp-doc :is(.dformats, .dtaken, .dmentions) { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 4px; }
 .insp-doc .dformats button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent); }
 .insp-doc .dpanel { margin: 8px 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-m); }
 .insp-doc .ticks { list-style: none; margin: 4px 0; padding: 0; }
+.insp-doc .dpages { display: grid; gap: 6px; }
+.insp-doc .dpage { display: block; width: 100%; max-width: 420px; margin: 0 auto; background: var(--sheet); }

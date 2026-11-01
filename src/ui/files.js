@@ -363,7 +363,7 @@ async function act(a, tg){
 // ---- documents: Reading, What's new, the receipt ----
 
 const clip = (x, n = 40) => (String(x).length > n ? `${String(x).slice(0, n - 1)}…` : String(x));
-const kb = n => (n < 1024 * 100 ? `${(n / 1024).toFixed(1)} KB` : `${Math.round(n / 1024)} KB`);
+export const kb = n => (n < 1024 * 100 ? `${(n / 1024).toFixed(1)} KB` : `${Math.round(n / 1024)} KB`);
 const codeText = err => (has(`i6.err.${err?.code}`) ? t(`i6.err.${err.code}`) : t('i6.err.other'));
 const isFull = e => e?.name === 'QuotaExceededError' || e?.code === 22;
 const wantsLayout = e => ['pdf', 'pages'].includes(e.read?.kind) && e.status === 'resume' && e.read.doubts.some(d => d.kind !== 'letter');
@@ -414,8 +414,9 @@ function rowHtml(e, i){
   const what = e.status === 'error' ? codeText(e.error) : e.status === 'skip' ? t(r.kind === 'image' ? 'i6.skipImage' : 'i6.skipData') : e.status === 'unread' ? t(r.kind === 'other' || !r.kind ? 'i6.unread' : 'i6.noText')
     : e.status === 'seen' ? t('i6.seen', { date: String(e.seen).slice(0, 10) }) : e.status === 'format' ? formatText(e)
     : e.status === 'letter' ? t('i6.letter') : [t(`i6.type.${r.kind}`), ...(r.pdf ? [t('head.pages', { n: r.pages })] : []), t('i6.lines', { n: lines })].join(', ');
-  return `<div class="mi ro" data-file="${i}" data-status="${e.status}" data-kind="${esc(r.kind ?? '')}" data-lines="${lines}" data-read="${fnv(r.text ?? '')}" data-doubts="${doubts.map(d => d.kind).join(' ')}" data-news="${e.news ?? ''}"><span class="sym ${e.status === 'resume' || e.status === 'letter' ? 'add' : e.status === 'error' ? 'keep' : 'change'}">·</span>
+  return `<div class="mi ro" data-file="${i}" data-status="${e.status}" data-kind="${esc(r.kind ?? '')}" data-lines="${lines}" data-read="${fnv(r.text ?? '')}" data-doubts="${doubts.map(d => d.kind).join(' ')}" data-news="${e.news ?? ''}" data-deleted="${esc(e.deleted ?? '')}"><span class="sym ${e.status === 'resume' || e.status === 'letter' ? 'add' : e.status === 'error' ? 'keep' : 'change'}">·</span>
     <span><span class="mw">${name}</span><span class="mx">${esc(what)}</span>
+    ${e.deleted ? `<span class="mx doubt">${esc(t('i7.deletedOn', { date: e.deleted }))}</span>` : ''}
     ${e.size > DOC.MAX_EMBED ? `<span class="mx doubt">${esc(t('i2.tooBig', { mb: Math.ceil(e.size / 1e6), max: DOC.MAX_EMBED / 1024 / 1024 }))}</span>` : ''}
     ${doubts.length ? `<span class="mx doubt">${doubts.map(d => esc(t(`i6.d.${d.kind}`, { n: d.n ?? 0, page: d.page ?? 0 }))).join(' ')}</span>` : ''}
     ${langMenu(e, i)}

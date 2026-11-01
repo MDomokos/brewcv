@@ -127,16 +127,17 @@ export function safety(doc, { folderVerified = false, lastFileSave = null, check
 
 // ---- the Library: rounds, the archive, removing ----
 
-// A round is one period of applying. The current one is the newest that is not archived; new and duplicated resumes and imports go into it.
-export const currentRound = state => (state.rounds ?? []).filter(r => !r.archived).sort((a, b) => String(b.from).localeCompare(String(a.from)) || (a.id < b.id ? 1 : -1))[0] ?? null;
+// A round is one period of applying. The current one is the newest that is not archived; of two started on one day, the one started later. New and duplicated resumes and imports go into it.
+export const currentRound = state => (state.rounds ?? []).filter(r => !r.archived).reduce((best, r) => (!best || String(r.from) >= String(best.from) ? r : best), null);
 export function startRound(state, name, from = new Date().toISOString().slice(0, 10)){
   const n = String(name ?? '').trim().slice(0, 60);
   if (!n) throw keyed('i7.needRoundName');
+  const id = `round-${fnv(`${n}|${from}`)}`, had = (state.rounds ?? []).find(x => x.id === id);
+  if (had) return had;      // the same name on the same day is the round that is already there
   const prev = currentRound(state);
   if (prev && !prev.to) prev.to = from;
-  const r = { id: `round-${fnv(`${n}|${from}`)}`, name: n, from };
-  if ((state.rounds ??= []).some(x => x.id === r.id)) return state.rounds.find(x => x.id === r.id);
-  state.rounds.push(r);
+  const r = { id, name: n, from };
+  (state.rounds ??= []).push(r);
   return r;
 }
 // `round` and `archived` are plain values on a resume, a document or a round; a falsy one takes the key away. A resume that is open has a working copy that settle() writes back, so it takes the change too.
@@ -146,6 +147,9 @@ export function mark(state, where, id, patch){
 }
 // Hidden from the default views: archived itself, or in an archived round.
 export const hidden = (state, x) => !!x.archived || !!(x.round && (state.rounds ?? []).find(r => r.id === x.round)?.archived);
+
+// What "Remove these…" lists for an archived round: the saved resumes and the documents that are in that round themselves (a group's other formats in another round are not).
+export const roundItems = (state, id) => ({ resumes: (state.resumes ?? []).filter(r => r.round === id).map(r => r.id), documents: (state.documents ?? []).filter(d => d.round === id).map(d => d.id) });
 
 // Removes documents (with a mark in the record, so a merge does not bring them back). A document that others point to as their original hands that to the next copy.
 // The bytes go with the last reference; the caller runs store.gcAssets().

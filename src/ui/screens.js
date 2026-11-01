@@ -233,7 +233,7 @@ function paintInspector(){
   const bd = document.getElementById('body');
   if (phone() || !bd) return;
   const ae = document.activeElement, kept = bd.contains(ae) && ae.id ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
-  bd.innerHTML = C.view() === 'compare' ? cmpInspector() : LIB.sel() ? LIB.inspector() : resumeInspector(); T.fill(bd, recipeOf);
+  bd.innerHTML = C.view() === 'compare' ? cmpInspector() : LIB.sel() ? LIB.inspector() : resumeInspector(); T.fill(bd, recipeOf); LIB.after();
   const n = kept && document.getElementById(kept.id);
   if (n){ n.focus({ preventScroll: true }); try { n.setSelectionRange(kept.a, kept.b); } catch { /* not a text box */ } }
 }
