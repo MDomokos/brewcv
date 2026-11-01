@@ -50,4 +50,7 @@ ok("the web build's connect-src is still 'self' only (the desktop copy alone add
 const printCsp = fs.readFileSync(path.join(ROOT, 'desktop/print.html'), 'utf8').match(/Content-Security-Policy" content="([^"]+)"/)?.[1] ?? '';
 ok('the print window lets the export keep its inline styles, data: fonts and images', /style-src[^;]*'unsafe-inline'/.test(printCsp) && /font-src[^;]*data:/.test(printCsp) && /img-src[^;]*data:/.test(printCsp), printCsp);
 ok('…and still allows script only from the app\'s own files', /script-src 'self'(;|$)/.test(printCsp));
+// PDF.js is loaded by URL from src/parse/pdf.js, so the import walk above does not see it: the staged copy must hold it, or the desktop build 404s when a PDF is opened
+const staged = listFiles();
+ok('the staged copy holds PDF.js and its worker (src/parse/pdf.js loads them by URL)', ['vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs', 'vendor/pdfjs/LICENSE'].every(f => staged.includes(f)), staged.filter(f => f.startsWith('vendor')).join(', '));
 process.exit(failed ? 1 : 0);
