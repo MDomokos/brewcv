@@ -953,6 +953,11 @@ section('the skill wordbank and the record\'s groups: one list of words, every r
   const sh = ['Tools', 'Quality', 'Design'].map(x => SB.addShelf(m, x).id);
   SB.moveShelf(m, sh[2], sh[0]); SB.moveShelf(m, sh[0], null);
   ok('a shelf moves before another, or to the end, the others keeping their order', eq(SB.shelvesOf(m).map(s => s.id), [sh[2], sh[1], sh[0]]));
+  { const c = clone(m), f = c.facts.find(x => x.id === 'skills-testing'), v1 = c.variants.find(v => v.id === f.default.en), plain = { lang: 'en', format: 'a4' };
+    const v2 = R.addVersion(c, f.id, { text: 'ISO 13485, PPAP', lang: 'en', as: 'major' }); R.setDefault(c, v2.id);
+    ok('a skill group\'s words are the version a resume with no pick prints (not the default the JSON Resume body shows)', T.textOf(c, f.id, plain) === v1.text && eq(K.skillWords(c, f.id, 'en'), v1.text.split(', ')));
+    K.setSkillWords(c, f.id, [...K.skillWords(c, f.id, 'en'), 'FMEA'], 'en');
+    ok('…written there, that resume prints them; the other version stays, and the record\'s keywords follow', T.textOf(c, f.id, plain).endsWith(', FMEA') && c.variants.find(v => v.id === v2.id).text === 'ISO 13485, PPAP' && c.skills.find(s => s.id === f.id).keywords.at(-1) === 'FMEA' && !!SB.findWord(c, 'FMEA')); }
   K.moveSkill(m, 'skills-software', 'skills-cad'); K.moveSkill(m, 'skills-cad', null);
   ok('a record skill group moves before another, or to the end, and the skills section lists them so', eq(m.skills.map(s => s.id), ['skills-software', 'skills-fabrication', 'skills-testing', 'skills-cad']) && eq(T.itemsOf(m, 'skills'), m.skills.map(s => s.id)));
 }

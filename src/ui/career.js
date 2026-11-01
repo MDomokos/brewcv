@@ -288,7 +288,7 @@ function itemView(group, id){
       <span class="lbl inline">${h('career.f.skills')}</span>${CB.wordsHtml(id, name || s.name)}
       ${jsonOnly(field('c-slevel', h('career.f.skillLevel'), s.level ?? '', { right: shared(), ph: t('career.f.skillLevelPh') }))}
       <p class="note small cbank">${h('career.bankNote')} <button type="button" class="sm ghost" data-act="c-bank">${h('career.bankOpen')}</button></p>`,
-    { title: name || s.name, name: name || s.name, missing: !name, n: t('career.iOfN', { i: i + 1, n: m.skills.length }), versions: id, sid });
+    { title: name || s.name, name: name || s.name, missing: !name, n: t('career.iOfN', { i: i + 1, n: m.skills.length }), sid });      // no versions: a skill is in the record or deleted, and each resume picks its own
   }
   if (group === 'languages'){
     const l = (m.languages ?? []).find(x => x.id === id); if (!l) return '';
@@ -413,7 +413,7 @@ const say = res => {
   if (kept.length) C.toast(t('career.keptNote', { what: kept.join(t('career.and')) }));
 };
 const splitDegree = (text, e) => { const t0 = String(text ?? '').trim(); if (!e) return { studyType: t0 }; const st0 = e.studyType && t0.startsWith(e.studyType) ? e.studyType : t0.split(' ')[0]; return { studyType: st0, area: t0.slice(st0.length).trim() || e.area }; };
-const keywordsNow = id => W.kwDraft ?? [...((rec().skills ?? []).find(s => s.id === id)?.keywords ?? [])];
+const keywordsNow = id => W.kwDraft ?? K.skillWords(rec(), id, L());      // the words its line prints, in the language written in
 
 function saveEntry(key, id){
   const Lg = L();
@@ -443,7 +443,7 @@ function saveAbout(part){
 function saveItem(group, id){
   const Lg = L();
   let res;
-  if (group === 'skills') commit(d => { res = K.updateSkill(d.record, id, { name: val('c-gname'), keywords: keywordsNow(id), ...opt('level', 'c-slevel') }, Lg); }, t('undo.editItem'));
+  if (group === 'skills') commit(d => { res = K.updateSkill(d.record, id, { name: val('c-gname'), ...opt('level', 'c-slevel') }, Lg); if (W.kwDraft) res = K.setSkillWords(d.record, id, W.kwDraft, Lg); }, t('undo.editItem'));
   if (group === 'languages') commit(d => { res = K.updateLanguage(d.record, id, { language: val('c-lname'), fluency: val('c-level') }, Lg); }, t('undo.editItem'));
   if (group === 'certificates') commit(d => { res = K.updateCertificate(d.record, id, { name: val('c-cname'), issuer: val('c-issuer'), date: val('c-date'), expires: val('c-expires'), url: val('c-url') }); }, t('undo.editItem'));
   if (group === 'publications') commit(d => { res = K.updatePublication(d.record, id, { name: val('c-pname'), publisher: val('c-publisher'), releaseDate: val('c-date'), ...opt('url', 'c-url'), ...opt('summary', 'c-psum') }, Lg); }, t('undo.editItem'));

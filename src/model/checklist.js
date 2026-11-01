@@ -98,7 +98,7 @@ export function checklist(model, recipe, lang = recipe?.lang ?? DEFAULT_LANG){
     const rows = items.map(x => {
       const itemId = order && rank.has(x.id) ? x.id : null;
       return { id: `${group}:${x.id}`, kind: 'item', item: itemId, section: sid, text: x.title + (x.sub && group !== 'skills' ? ` · ${x.sub}` : ''),
-        nv: nvOf(model, ['skills', 'languages', 'interests', 'references'].includes(group) ? x.id : null, lang), on: sectionOnNow && !(itemId && offSet.has(itemId)),
+        nv: nvOf(model, ['languages', 'interests', 'references'].includes(group) ? x.id : null, lang), on: sectionOnNow && !(itemId && offSet.has(itemId)),      // (a skill group has no versions to manage)
         sel: { kind: 'record', what: 'item', group, id: x.id } };
     });
     return order ? rows.sort((a, c) => (rank.get(a.item) ?? 1e9) - (rank.get(c.item) ?? 1e9)) : rows;

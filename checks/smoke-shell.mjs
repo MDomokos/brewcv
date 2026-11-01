@@ -1435,7 +1435,7 @@ if (want('the record forms: details, About you, languages, no Save button')) {
   // Skills and credentials: a skill group, a language
   await inRecord(page, 'credentials'); await settle(page);
   await showGroup(page, 'credentials'); await page.click('#body .clg[data-g=credentials] .clrow:has-text("CAD") .clt'); await settle(page);
-  ok('a skill group opens in the inspector: its name and keywords, then its versions, no Save', (await page.getAttribute('#body', 'data-view')) === 'record' && await page.isVisible('#c-gname') && await page.isVisible('#c-kw-in') && (await page.locator('.vrow').count()) >= 1 && !(await page.$('[data-act=c-save-item]')));
+  ok('a skill group opens in the inspector: its name and its words, no versions, no Save', (await page.getAttribute('#body', 'data-view')) === 'record' && await page.isVisible('#c-gname') && await page.isVisible('#c-kw-in') && (await page.locator('.vrow').count()) === 0 && !(await page.$('[data-act=c-save-item]')));
   await page.fill('#c-kw-in', 'Onshape'); await page.keyboard.press('Enter'); await settle(page);
   ok('a keyword added with Enter is in the record at once', (await st()).record.skills[0].keywords.includes('Onshape'));
   await page.click('#body .cwbkws .cwbkw:has-text("Onshape") .del'); await settle(page);
@@ -1657,6 +1657,11 @@ if (want('Career: the skill words, Find or add with its warning, moving words an
     await inRecord(page, 'credentials'); await page.click('#body .clg[data-g=credentials] .clrow[data-item=skills-cad] .clt'); await settle(page);
     const kws = async () => (await page.evaluate(() => window.__wb.store.state.record.skills.find(s => s.id === 'skills-cad').keywords));
     ok('a record skill group\'s form shows its words as the bank\'s chips, and the record\'s groups by name', JSON.stringify(await page.locator('#body .cwbkws .cwbkw').allTextContents()) === JSON.stringify(await kws()) && (await page.locator('#body .cwbgroups .skname').allTextContents()).join('|') === 'CAD & 3D|Fabrication|Test & QA|Software');
+    const noVersions = () => page.evaluate(() => !document.querySelector('#body .vlist, #body .vrow, #body .vtags, #body [data-act=use-version], #body [data-act=delete-version]') && !/Versions/.test(document.querySelector('#body').innerText));
+    ok('…and no versions: no versions list or version controls in the form, and no version count on the skill rows in Career', await noVersions() && (await inRecord(page, 'credentials'), await page.locator('#body .clg[data-g=credentials] .clrow[data-sec=skills] .clv').count()) === 0);
+    await toEditHome(page); await page.click('#outline [data-act=ol-toggle][data-g="sec:skills"]'); await settle(page);
+    ok('…in the Editor too: the skill rows of the Outline have no version count, and the form they open has no versions', (await page.locator('#outline .clrow[data-sec=skills] .clv').count()) === 0 && (await page.click('#outline .clrow[data-item=skills-cad] .clt'), await settle(page), await page.isVisible('#body .cwbkws')) && await noVersions());
+    await inRecord(page, 'credentials'); await page.click('#body .clg[data-g=credentials] .clrow[data-item=skills-cad] .clt'); await settle(page);
     await page.fill('#c-kw-in', 'onshape'); await settle(page);
     ok('…its Find or add shows "=" for a word of the bank', await page.isVisible('#body .cwbgroup .wbaddrow.dup'));
     await page.keyboard.press('Enter'); await settle(page);

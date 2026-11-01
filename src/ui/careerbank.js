@@ -27,7 +27,7 @@ const uid = (kind, x) => `cwb-${kind}-${String(x).replace(/[^A-Za-z0-9-]/g, c =>
 
 export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
   const B = { q: '', warned: null, delw: null, shelf: null, kwWarned: null };
-  let D = null, dragged = 0;
+  let D = null, spent = false;      // spent: the click that ends a drag is not a click
   const rec = () => C.work(), st = () => C.store.state;
   const $b = s => document.querySelector(`#body ${s}`);
   const commit = (fn, label, done, undo = false) => {
@@ -126,7 +126,7 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
     commit(d => { n = RS.dropWordEverywhere(d, wid); }, t('wb.undoDelete'));
     C.toast(t(n ? 'wb.deletedOn' : 'wb.deleted', { word: w.name, n }), '', true);
   }
-  const editShelf = () => setTimeout(() => { const n = $b('#cb-shelf'); n?.focus(); n?.select(); }, 30);
+  const editShelf = () => { const n = $b('#cb-shelf'); n?.focus(); n?.select(); };
 
   // ---- a record skill group's form: its words as the bank's chips, the same Find or add, and the record's groups by name ----
   function groupsHtml(gid){
@@ -136,8 +136,8 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
       return `<button type="button" class="skname${on ? ' is-pick' : ''}" style="--gh:var(--hue-${HUES[i % HUES.length]})" data-drag="g" data-act="c-sel-skill" data-id="${esc(s.id)}" id="${uid('g', s.id)}"${on ? ' aria-current="true"' : ''} title="${esc(t('career.bankGroupTip'))}"><i aria-hidden="true"></i>${esc(name)}</button>`; }).join('')}</div>`;
   }
   function wordsHtml(gid, gname){
-    const m = rec(), chips = keywordsOf(gid).map((k, n) => { const w = SB.findWord(m, k), x = w ? text(w.id) : { text: k, miss: false };
-      return `<span class="skchip wbchip cwbkw${x.miss ? ' miss' : ''}" data-drag="k" data-n="${n}" data-act="c-kw-chip" data-id="${esc(k)}" id="${uid('k', k)}" tabindex="0" title="${esc(t('career.bankWordTip'))}">${esc(x.text)}${delBtn(`data-act="c-kw-rm" data-n="${n}"`, t('edit.removeTag', { tag: x.text }), { text: false })}</span>`; }).join('');
+    const chips = keywordsOf(gid).map((k, n) =>      // each word as the group's line prints it
+      `<span class="skchip wbchip cwbkw" data-drag="k" data-n="${n}" data-act="c-kw-chip" data-id="${esc(k)}" id="${uid('k', k)}" tabindex="0" title="${esc(t('career.bankWordTip'))}">${esc(k)}${delBtn(`data-act="c-kw-rm" data-n="${n}"`, t('edit.removeTag', { tag: k }), { text: false })}</span>`).join('');
     return `<div class="cwb cwbgroup" data-g="${esc(gid)}" data-name="${esc(gname)}">${chips ? `<div class="wbtiles cwbkws">${chips}</div>` : ''}
       <span class="wbqwrap"><input type="search" id="c-kw-in" class="wbq" placeholder="${esc(t('wb.find'))}" aria-label="${esc(t('wb.find'))}" autocomplete="off" spellcheck="false"><span class="cwbplus">${plusHtml('', null, 'c-kw-add', gname)}</span></span>
       <div class="cwbrow"></div></div>`;
@@ -159,7 +159,7 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
       if (!exact && near.length && B.kwWarned !== parts[0]){ B.kwWarned = parts[0]; kwRedraw(); shake($b('.cwbgroup .wbqplus')); return; }
     }
     const kw = keywordsOf(gid), have = new Set(kw.map(SB.norm));
-    const fresh = parts.map(p => SB.findWord(rec(), p, L())?.name ?? p).filter(x => !have.has(SB.norm(x)) && have.add(SB.norm(x)));
+    const fresh = parts.map(p => { const w = SB.findWord(rec(), p, L()); return w ? text(w.id).text : p; }).filter(x => !have.has(SB.norm(x)) && have.add(SB.norm(x)));
     B.kwWarned = null;
     if (el) el.value = '';
     if (!fresh.length){ C.toast(t('wb.hereTip'), ''); kwRedraw(); return; }
@@ -171,6 +171,7 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
   // ---- moving: a press that moves carries a copy (the Editor bank's chip), the place it would land is marked, and it lands where it is let go,
   // as one undo step. Esc puts it back. From the keyboard, Alt+arrows move what has the focus one place (a bank word: ↑ ↓ to the shelf above or below).
   function down(e){
+    spent = false;
     if (e.target.closest('[data-act=c-bk-delshelf]')){ e.preventDefault(); return; }      // the shelf's name keeps the caret: its Delete is pressed, not left
     const hd = e.button === 0 && e.pointerType !== 'touch' && !e.target.closest('.del, input') ? e.target.closest('[data-drag]') : null;
     const kind = hd?.dataset.drag, unit = kind === 's' ? hd.closest('.wbsec') : hd, scope = hd?.closest(SCOPE[kind]);
@@ -226,7 +227,7 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
     document.documentElement.classList.remove('wb-carry');
     d.unit.classList.remove('socket');
     d.scope.closest('.cwb')?.classList.remove('is-carry');
-    dragged = performance.now();
+    spent = true; setTimeout(() => { spent = false; }, 300);      // (a drag let go outside the panel has no click here)
     if (!cancel && tg) drop(d, tg);
   }
   function drop(d, tg){
@@ -257,7 +258,6 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
   }
 
   function act(a, tg){
-    if (tg.dataset.drag && performance.now() - dragged < 300) return true;      // the click that ends a drag is not a click
     const id = tg.dataset.id;
     switch (a){
       case 'c-bk-add': add(); return true;
@@ -266,10 +266,10 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
       case 'c-bk-delw-no': B.delw = null; redraw(); return true;
       case 'c-bk-delw-yes': deleteWord(B.delw); return true;
       case 'c-bk-shelf': B.shelf = id; redraw(); editShelf(); return true;
-      case 'c-bk-newshelf': { let sid; if (commit(d => { sid = SB.addShelf(d.record, t('wb.newShelf'), DEFAULT_LANG).id; }, t('wb.undoShelf'))){ B.shelf = sid; C.renderBody(); editShelf(); } return true; }
+      case 'c-bk-newshelf': { let sid; if (commit(d => { sid = SB.addShelf(d.record, t('wb.newShelf'), DEFAULT_LANG).id; }, t('wb.undoShelf'))){ B.shelf = sid; C.renderBody(); editShelf(); setTimeout(() => { if (document.activeElement?.id !== 'cb-shelf') editShelf(); }, 30); } return true; }      // (again after the render the change asks for)
       case 'c-bk-delshelf': B.shelf = null; commit(d => SB.dropShelf(d.record, id), t('wb.undoShelf'), t('wb.shelfDeleted'), true); return true;
       case 'c-kw-add': kwAdd(groupNow()); return true;
-      case 'c-kw-take': { const w = SB.wordOf(rec(), id); if (w) kwAdd(groupNow(), [w.name]); return true; }
+      case 'c-kw-take': { if (SB.wordOf(rec(), id)) kwAdd(groupNow(), [text(id).text]); return true; }
       case 'c-kw-chip': return true;
       case 'c-sel-skill': C.select({ kind: 'record', what: 'item', group: 'skills', id }); return true;
     }
@@ -278,6 +278,7 @@ export function initCareerBank(C, { lang: L, keywordsOf, setKeywords }){
 
   function bind(body){
     body.addEventListener('pointerdown', down);
+    body.addEventListener('click', e => { if (spent){ spent = false; e.stopPropagation(); e.preventDefault(); } }, true);
     body.addEventListener('input', e => {
       if (e.target.id === 'cb-q'){ B.q = e.target.value; B.warned = null; B.delw = null; redraw(); }
       else if (e.target.id === 'c-kw-in'){ B.kwWarned = null; kwRedraw(); }

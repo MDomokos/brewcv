@@ -2,7 +2,7 @@
 // Non-English facts go in i18n.<lang> fields, labels and terms. Employers, institutions and dates are shared.
 
 import { keyed } from '../i18n/index.js';
-import { defaultVariant, DEFAULT_LANG, sectionOfEntry } from './resume.js';
+import { defaultVariant, chooseVariant, DEFAULT_LANG, sectionOfEntry } from './resume.js';
 import { saveOver, addVersion, RecordError } from './record.js';
 import { fmtMonth, ym, addJob, addBullet, addFact, slug, metaLineOf, presentIn, contactText, SEP } from './build.js';
 import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
@@ -652,6 +652,24 @@ export function updateSkill(model, id, { name, keywords, level } = {}, lang = DE
     toBank(model, s.keywords, lang);
   }
   return res;
+}
+// A record skill group has no versions to manage: its words are the version a resume with no pick of its own prints (the renderer's rule: one
+// written for the format, else -base, else the first in the language; f.default is not read there). The words are written into that version, in
+// the language they are written in, and the record's keywords follow the English. A version kept from before, or picked by a saved resume, stays.
+const splitWords = text => String(text ?? '').split(/,\s*/).map(x => x.trim()).filter(Boolean);
+const printedIn = (model, id, lang) => { const v = chooseVariant(model, id, { lang }).v; return v && (v.lang ?? DEFAULT_LANG) === lang ? v : null; };
+export const skillWords = (model, id, lang = DEFAULT_LANG) => splitWords((printedIn(model, id, lang) ?? printedIn(model, id, DEFAULT_LANG))?.text);
+export function setSkillWords(model, id, words, lang = DEFAULT_LANG){
+  const s = (model.skills ?? []).find(x => x.id === id);
+  if (!s) throw new Error(`no such skill group: ${id}`);
+  const list = words.map(cleanWord).filter(Boolean), text = list.join(', '), v = printedIn(model, id, lang), before = v?.text;
+  if (lang === DEFAULT_LANG) s.keywords = list;
+  toBank(model, list, lang);
+  if (!text) return { printed: 'kept' };      // a version needs some text: the last word taken out leaves the line as it was
+  if (v) saveOver(model, v.id, text); else addVersion(model, id, { text, lang, as: 'major' });
+  // a language that writes the group exactly as the English did (product names) follows it
+  if (lang === DEFAULT_LANG && before) for (const l of langsOfFact(model, id)) if (l !== lang){ const w = printedIn(model, id, l); if (w?.text === before) saveOver(model, w.id, text); }
+  return { printed: v ? 'followed' : 'created' };
 }
 // A skill group moved in the record: before `beforeId` (null: the end). A resume that prints the record's groups in their own order follows it.
 export function moveSkill(model, id, beforeId = null){
