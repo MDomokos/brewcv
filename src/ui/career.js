@@ -285,7 +285,8 @@ function itemView(group, id){
     const i = (m.skills ?? []).indexOf(s);
     return shell(`${field('c-gname', h('career.f.group'), name, { right: tr, miss: !name, ph: s.name })}
       <span class="lbl inline">${h('career.f.skills')}</span><div class="tags" id="c-kw">${(s.keywords ?? []).map((w, n) => `<span class="tag">${esc(w)}${delBtn(`data-act="c-kw-rm" data-n="${n}"`, t('edit.removeTag', { tag: w }), { text: false })}</span>`).join('')}<input id="c-kw-in" placeholder="${esc(t('career.f.skillPh'))}" aria-label="${esc(t('career.f.skillPh'))}"></div>
-      ${jsonOnly(field('c-slevel', h('career.f.skillLevel'), s.level ?? '', { right: shared(), ph: t('career.f.skillLevelPh') }))}`,
+      ${jsonOnly(field('c-slevel', h('career.f.skillLevel'), s.level ?? '', { right: shared(), ph: t('career.f.skillLevelPh') }))}
+      <p class="note small cbank">${h('career.bankNote')} <button type="button" class="sm ghost" data-act="c-bank">${h('career.bankOpen')}</button></p>`,
     { title: name || s.name, name: name || s.name, missing: !name, n: t('career.iOfN', { i: i + 1, n: m.skills.length }), versions: id, sid });
   }
   if (group === 'languages'){
@@ -587,6 +588,7 @@ async function act(a, tg){
       C.renderBody();
       return true;
     }
+    case 'c-bank': C.openBank?.(); return true;      // every word, its wordings and its shelf: the bank's words view, in the Editor
     case 'c-kw-rm': {
       const s = C.ui.sel; if (s.what !== 'item') return true;
       const kw = keywordsNow(s.id); kw.splice(Number(tg.dataset.n), 1); W.kwDraft = kw; saveItem('skills', s.id); W.kwDraft = null; return true;

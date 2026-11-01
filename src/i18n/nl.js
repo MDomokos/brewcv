@@ -1552,6 +1552,8 @@ export default {
   'ml3.matchPick': 'Kies een versie',
   'ml3.undoMatch': 'Koppel een versie in {lang} aan zijn nummer',
   'ml3.matched': 'v{from} in {lang} is nu v{n}.',
+  'career.bankNote': "De woorden van deze groep staan ook in de woordenbank, met hun vertalingen in elke taal en hun planken.",
+  'career.bankOpen': "De bank bewerken",
   // the skill wordbank (src/ui/wordbank.js)
   'wb.add': "Toevoegen",
   'wb.addAgain': "Druk nog eens om het als nieuw woord toe te voegen",

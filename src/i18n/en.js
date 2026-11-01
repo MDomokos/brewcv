@@ -1556,6 +1556,8 @@ export default {
   'ml3.matchPick': 'Pick a version',
   'ml3.undoMatch': 'Match a {lang} version to its number',
   'ml3.matched': '{lang} v{from} is now v{n}.',
+  'career.bankNote': "The words of this group are in the word bank too, with their wordings in every language and their shelves.",
+  'career.bankOpen': "Edit the bank",
   // the skill wordbank (src/ui/wordbank.js)
   'wb.add': "Add",
   'wb.addAgain': "Press again to add it as a new word",

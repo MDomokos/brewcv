@@ -574,7 +574,7 @@ export function initWordbank(C){
   }
 
   return {
-    render, namesHtml, delGroupHtml, deleteGroup, pointer, pickGroup, take,
+    render, namesHtml, delGroupHtml, deleteGroup, pointer, pickGroup, take, openWords,
     // a group dragged by its grip and let go over the bank's window comes off the resume (src/ui/hands.js)
     overBank: (x, y) => !!card && !card.hidden && !!document.elementFromPoint(x, y)?.closest?.('#bankcard'),
     get dragging(){ return !!D?.on; },

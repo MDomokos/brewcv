@@ -935,6 +935,22 @@ section('the skill wordbank: a resume\'s groups print the bank\'s words in its l
   const plain = clone(S.loadResume(read('data/example-resumes/Dunamenti Műszer Kft. - Terméktervező.json'), m).recipe); plain.off = [...(plain.off ?? []), 'skills-software'];
   ok('…a resume never arranged costs its record groups, the ones it leaves out not', !F.cost(m, plain).pages.flatMap(x => x.rows).some(r => r.fact === 'skills-software') && F.cost(m, plain).pages.flatMap(x => x.rows).some(r => r.fact === 'skills-cad'));
 }
+section('the skill wordbank and the record\'s groups: one list of words, every resume alike');
+{
+  const st = exampleState(), m = st.record, id = n => SB.findWord(m, n).id;
+  K.updateSkill(m, 'skills-cad', { keywords: [...m.skills[0].keywords, 'Onshape'] });
+  ok('a skill written into one of the record\'s groups in Career is a word of the bank too, once', !!SB.findWord(m, 'Onshape') && SB.wordsOf(m).filter(w => w.name === 'Onshape').length === 1);
+  K.updateSkill(m, 'skills-cad', { keywords: m.skills[0].keywords });
+  ok('…written again, it is not added twice', SB.wordsOf(m).filter(w => w.name === 'Onshape').length === 1);
+  const plain = st.resumes.find(r => !r.skillArrangement && (r.lang ?? 'en') === 'hu');
+  RS.renameWord(m, id('CNC milling'), 'hu', 'CNC marás');
+  ok('a word written anew in the bank is written so in the record\'s groups, so a resume that prints them as they are says it too', T.resolve(m, plain).body.skills.some(g => g.keywords.includes('CNC marás')) && !JSON.stringify(m.variants).includes('CNC-marás'));
+  RS.renameWord(m, id('Creo'), 'en', 'PTC Creo');
+  ok('…its English too, in every language where it prints its English', m.skills[0].keywords.includes('PTC Creo') && T.resolve(m, plain).body.skills[0].keywords.includes('PTC Creo'));
+  const arranged = st.resumes[0]; T.takeWord(m, arranged, id('KeyShot'));
+  const uses = RS.wordUses(st, id('Python')).length, n = RS.dropWordEverywhere(st, id('Python'));
+  ok('deleting a word takes it off every saved resume that prints it, its own groups and the record\'s alike, and out of the bank', n === uses && n > 1 && !SB.findWord(m, 'Python') && !st.resumes.some(r => JSON.stringify(T.resolve(m, r).body.skills ?? []).includes('"Python"')) && !m.skills.some(g => g.keywords.includes('Python')));
+}
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {
   // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i (re-set by Look settings L-2 and L-3, and again when the job title went beside the name in Compact density only: the Polish and Czech one-pagers lose a bullet again, to fill 88-96%). Change it only when the example or the renderer is meant to change.

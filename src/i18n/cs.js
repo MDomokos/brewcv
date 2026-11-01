@@ -1552,6 +1552,8 @@ export default {
   'ml3.matchPick': 'Vybrat verzi',
   'ml3.undoMatch': 'Přiřadit verzi v jazyce {lang} k jejímu číslu',
   'ml3.matched': 'v{from} v jazyce {lang} je nyní v{n}.',
+  'career.bankNote': "Slova této skupiny jsou i v bance slov, s překlady ve všech jazycích a policemi.",
+  'career.bankOpen': "Upravit banku",
   // the skill wordbank (src/ui/wordbank.js)
   'wb.add': "Přidat",
   'wb.addAgain': "Stiskněte znovu a přidá se jako nové slovo",

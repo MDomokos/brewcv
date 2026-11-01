@@ -9,6 +9,7 @@ import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
 import { lockedHolders, guard } from './lock.js';
 import { jobTypesOf, normaliseJobType, tagVocab, TAG_CAP } from './focus.js';
 import { setI18n, dropI18n } from './labels.js';
+import { seedBank, findWord, addWord, cleanWord } from './skillbank.js';
 
 const now = () => new Date().toISOString().slice(0, 7);
 const months = (a, b) => {
@@ -648,8 +649,14 @@ export function updateSkill(model, id, { name, keywords, level } = {}, lang = DE
   if (keywords !== undefined){
     s.keywords = (Array.isArray(keywords) ? keywords : String(keywords).split(',')).map(x => String(x).trim()).filter(Boolean);
     for (const l of langsOfFact(model, id)){ const r = follow(model, id, l, before, skillText(s)); if (l === lang) res.printed = r; }
+    toBank(model, s.keywords, lang);
   }
   return res;
+}
+// A skill written into one of the record's groups is a word of the bank too (once: the bank's word for it in any language counts).
+function toBank(model, words, lang = DEFAULT_LANG){
+  seedBank(model);
+  for (const w of words) if (cleanWord(w) && !findWord(model, w, lang)) addWord(model, { name: w, lang });
 }
 function ensureListSection(model, kind, id, title, key, after = null){
   model.sections ??= [];
@@ -670,6 +677,7 @@ export function addSkill(model, { name = '', keywords = [] } = {}, lang = DEFAUL
   if (lang !== DEFAULT_LANG) setI18n(model, lang, 'labels', id, n);
   const s = ensureListSection(model, 'grid', 'skills', 'Skills', 'groups', ['certified', 'patent', 'education', 'languages', 'interests']);
   s.content.groups = [...(s.content.groups ?? []), id];
+  toBank(model, kw, lang);
   return id;
 }
 

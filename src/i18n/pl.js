@@ -1552,6 +1552,8 @@ export default {
   'ml3.matchPick': 'Wybierz wersję',
   'ml3.undoMatch': 'Dopasuj wersję w języku: {lang} do jej numeru',
   'ml3.matched': 'v{from} w języku: {lang} to teraz v{n}.',
+  'career.bankNote': "Słowa tej grupy są też w banku słów, z tłumaczeniami w każdym języku i półkami.",
+  'career.bankOpen': "Edytuj bank",
   // the skill wordbank (src/ui/wordbank.js)
   'wb.add': "Dodaj",
   'wb.addAgain': "Naciśnij jeszcze raz, aby dodać je jako nowe słowo",

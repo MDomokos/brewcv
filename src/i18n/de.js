@@ -1552,6 +1552,8 @@ export default {
   'ml3.matchPick': 'Version wählen',
   'ml3.undoMatch': 'Eine Version auf {lang} ihrer Nummer zuordnen',
   'ml3.matched': '{lang} v{from} ist jetzt v{n}.',
+  'career.bankNote': "Die Wörter dieser Gruppe stehen auch in der Wortbank, mit ihren Wörtern in jeder Sprache und ihren Regalen.",
+  'career.bankOpen': "Wortbank bearbeiten",
   // the skill wordbank (src/ui/wordbank.js)
   'wb.add': "Hinzufügen",
   'wb.addAgain': "Noch einmal drücken, um es als neues Wort hinzuzufügen",

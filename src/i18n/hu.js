@@ -1552,6 +1552,8 @@ export default {
   'ml3.matchPick': 'Válassz egy változatot',
   'ml3.undoMatch': 'Egy {lang} nyelvű változat párosítása a számához',
   'ml3.matched': 'A(z) {lang} v{from} mostantól v{n}.',
+  'career.bankNote': "A csoport szavai a szóbankban is megvannak, minden nyelvű alakjukkal és polcaikkal.",
+  'career.bankOpen': "A bank szerkesztése",
   // the skill wordbank (src/ui/wordbank.js)
   'wb.add': "Hozzáadás",
   'wb.addAgain': "Nyomja meg újra, és új szóként kerül be",

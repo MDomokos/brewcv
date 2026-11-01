@@ -1571,6 +1571,7 @@ Object.assign(VIEWS, onboarding.views);
 onboarding.bind($('#body'));
 window.__wb.onboarding = onboarding;
 const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi(r), edit, lang, select: s => select(s), renderBody: (a) => renderBody(a),
+  openBank: () => { setView(null); select({ kind: 'section', id: 'skills' }); bank.openWords('en'); },
   renderHead: () => renderHead(), photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 career.bind($('#body'));
 window.__wb.career = career;
