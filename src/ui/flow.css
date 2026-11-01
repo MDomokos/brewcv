@@ -224,9 +224,6 @@ body:not([data-phone=true]) #body > .insp-bank { flex: 1 1 0; min-height: 280px;
 .cwbgroups .skname[data-at=after] { box-shadow: 3px 0 0 var(--sel-mark); }
 .cwbgroups .socket { opacity: .35; }
 .cwbkw { display: inline-flex; align-items: center; }
-.cwbkw button.del.press:has(> svg:only-child) { width: 20px; height: 20px; margin: -2px -6px -2px 2px; border-width: 0; border-radius: var(--r-pill); opacity: .6; }      /* a tag's X, quieter: it is on every word */
-.cwbkw button.del.press:has(> svg:only-child):is(:hover, :focus-visible) { opacity: 1; }
-.cwbkw .del svg { width: 12px; height: 12px; }
 .cwbgroup .wbqwrap { margin: 0; }
 
 /* ---- the shadows roll with the mat (matroll.js): a copy of Tea's shadows on the roll's layer, in the layer's own frame, flipped back where the

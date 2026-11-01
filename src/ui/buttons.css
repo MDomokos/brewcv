@@ -46,7 +46,7 @@ button.press:is([data-act=scr-sent], .keep)[aria-pressed=true]:hover:not(:disabl
 button.del.press { background-color: transparent; border: 1.5px solid var(--bad); color: var(--bad); }
 button.del.press:is(:hover:not(:disabled), :focus-visible, .is-down) { background-color: var(--bad); border-color: var(--bad); color: var(--surface); }
 button.del.press:has(> svg:only-child) { width: 28px; height: 28px; padding: 0; }      /* the X alone: a 28 box round the 16 px icon */
-.tag button.del.press:has(> svg:only-child) { width: 24px; height: 24px; margin: -2px -8px -2px 3px; border-width: 1px; border-radius: var(--r-pill); }      /* in a tag: the same X, a 24 target with a slimmer ring */
+:is(.tag, .cwbkw) button.del.press:has(> svg:only-child) { width: 24px; height: 24px; margin: -2px -8px -2px 3px; border-width: 1px; border-radius: var(--r-pill); }      /* in a tag: the same X, a 24 target with a slimmer ring */
 :is(#col, #scr) :is(.menu, .pop, [role=menu]) button.del[role^=menuitem] { color: var(--bad); justify-content: flex-start; gap: 8px; }
 .del[role^=menuitem] > span { flex: 1; }
 .dp-t.del { color: var(--bad); opacity: 1; }

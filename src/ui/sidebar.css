@@ -348,10 +348,10 @@ html:not([data-motion="reduce"]) .pen { transition: opacity 120ms ease-out; }
 .hposrow { display: flex; align-items: center; gap: 6px; min-height: 28px; }
 .hposrow > .lbl.hpos { margin: 0; }
 .sknames { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 2px; }
-.skname { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 2px 9px 2px 7px; font-size: 12px; line-height: 1.4; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink-soft); overflow-wrap: anywhere; text-align: left; }
+.skname { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 2px 9px 2px 7px; font-size: 12px; line-height: 1.4; border-radius: var(--r-pill); border: 1px solid color-mix(in srgb, var(--ink) 25%, var(--line-strong)); background: var(--raised); color: var(--ink-soft); overflow-wrap: anywhere; text-align: left; }      /* an edge of 3:1 on a form's tint too */
 .skname > i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--gh); opacity: .5; }
 .skname:hover:not(:disabled) { background: color-mix(in srgb, var(--gh) 14%, var(--raised)); color: var(--ink); }
-.skname.is-pick, .skname.is-pick:hover:not(:disabled) { background: color-mix(in srgb, var(--gh) 34%, var(--raised)); border-color: color-mix(in srgb, var(--gh) 70%, var(--line-strong)); color: var(--ink); font-weight: 650; }
+.skname.is-pick, .skname.is-pick:hover:not(:disabled) { background: color-mix(in srgb, var(--gh) 34%, var(--raised)); border-color: color-mix(in srgb, var(--gh) 55%, var(--ink)); color: var(--ink); font-weight: 650; }
 .skname.is-pick > i { opacity: 1; }
 .skname.drop-on { box-shadow: 0 0 0 2px var(--gh); }
 .sknames.wb-nudge .skname { animation: wbnudge 1s ease-out; }
