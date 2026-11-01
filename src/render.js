@@ -6,6 +6,7 @@ import { isOmitted, offOf, inOrder, isLocal, withLocal, keepLinks, termOf } from
 import { entriesOf } from './model/entries.js';
 import { designOf, PRESETS, DENSITIES, RELATED } from './model/design.js';
 import { lookOf } from './themes.js';
+import { wordText, shelfName } from './model/skillbank.js';
 
 const GAP = '⬜';
 const RUN_SEP = ' · ';
@@ -201,16 +202,17 @@ export function item(ctx, s){
 export function grid(ctx, s){
   const { doc } = ctx;
   const g = h(doc, 'div', 'skills');
-  // This resume's own arrangement of the skills (recipe.skillArrangement): each group is its skills joined, under its own name or the
-  // claim's. The page's copy marks each group and skill so they can be written and moved there; one with no skills prints only there.
+  // This resume's own skill groups (recipe.skillArrangement): each group's words in the resume's language, joined, under its own heading, a
+  // shelf's name or the record group's. The page's copy marks each group and word so they can be moved there; an empty group prints only there.
   const own = s.id === 'skills' ? ctx.recipe.skillArrangement?.groups : null;
   if (own){
     if (!ctx.annotate && !own.some(a => a.items.length)) return null;      // every group emptied: no band, not a heading over nothing
     for (const a of own){
       if (!a.items.length && !ctx.annotate) continue;
-      const items = ctx.annotate ? a.items.map(x => `<span data-skill>${encode(x)}</span>`).join(', ') : encode(a.items.join(', '));
+      const ws = a.items.map(ctx.word);
+      const items = ctx.annotate ? ws.map(w => `<span data-skill${w.id ? ` data-word="${encode(w.id)}"` : ''}>${encode(w.text)}</span>`).join(', ') : encode(ws.map(w => w.text).join(', '));
       g.append(h(doc, 'p', 'skills__group', { attrs: ctx.annotate ? { 'data-variant': `${a.id}-override`, 'data-group': a.id } : {}, html:
-        `<span class="skills__label">${encode(a.label ?? ctx.label(a.id))}</span><br><span class="skills__items">${items}</span>` }));
+        `<span class="skills__label">${encode(a.label ?? (a.shelf ? shelfName(ctx.data, a.shelf, ctx.lang) : ctx.label(a.id)))}</span><br><span class="skills__items">${items}</span>` }));
     }
     return sectionBand(ctx, s, [g]);
   }
@@ -366,6 +368,16 @@ function makeCtx(data, recipe, doc, opts){
     lang,
     term: fid => termOf(recipe, fid) ?? data.i18n?.[lang]?.terms?.[fid] ?? facts.get(fid)?.term ?? fid,
     label: fid => data.i18n?.[lang]?.labels?.[fid] ?? facts.get(fid)?.label ?? '',
+    // A skill word with no wording in this language prints its English with opts.fallback (the app, which outlines it); the CLI throws.
+    word: item => {
+      const w = wordText(data, item, lang);
+      if (w.miss && !opts.fallback){
+        const e = new RenderError(`skill word ${w.id} ("${w.text}") has no "${lang}" wording to render`);
+        e.missingLang = true;
+        throw e;
+      }
+      return w;
+    },
     proseFact: s => (s.id === 'summary' && recipe.summary) || s.content.fact,
     workOrder: s => { const e = recipe.sections?.find(x => x.id === s.id); return inOrder(e?.work ?? s.content.work, e?.order); },
     // A merged phrasing drops the facts it covers, so nothing prints twice.

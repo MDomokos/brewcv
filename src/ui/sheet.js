@@ -435,6 +435,7 @@ export function createSheet(host, hooks = {}){
         const f = factOfVariant(marked.ix, el.getAttribute('data-variant'));       // a skill group of an arrangement is printed as <fact>-override
         if (f && marked.miss.facts.has(f)) el.classList.add('rb-miss');
       }
+      for (const el of fr.doc.querySelectorAll('[data-word]')) if (marked.miss.words.has(el.getAttribute('data-word'))) el.classList.add('rb-miss');      // a skill word in its English
       for (const id of marked.miss.headings) for (const t of fr.doc.querySelectorAll(`.band[data-section="${CSS.escape(id)}"] .tab`)) t.classList.add('rb-miss-tab');
     }
     for (const el of findEls()) el.classList.add('rb-find');      // the search's second highlight; the page's own markup is untouched
@@ -601,7 +602,7 @@ export function createSheet(host, hooks = {}){
     setFind(q, ix){ marked.find = q || null; if (ix) marked.ix = ix; mark(); },
     finds(ix){ return findEls().map(el => factOfVariant(ix, el.getAttribute('data-variant'))).filter(Boolean); },
     setMissing(list, ix){
-      marked.miss = list?.length ? { facts: new Set(list.filter(x => x.kind === 'fact').map(x => x.id)), headings: list.filter(x => x.kind === 'heading' || (x.kind === 'heading-changed' && x.where?.kind === 'section')).map(x => x.id) } : null;
+      marked.miss = list?.length ? { facts: new Set(list.filter(x => x.kind === 'fact').map(x => x.id)), words: new Set(list.filter(x => x.kind === 'word').map(x => x.id)), headings: list.filter(x => x.kind === 'heading' || (x.kind === 'heading-changed' && x.where?.kind === 'section')).map(x => x.id) } : null;
       if (ix) marked.ix = ix; mark();
     },
     // a row of the record checklist is under the pointer: its line on the page lights up, if it is on the page

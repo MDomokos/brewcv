@@ -81,7 +81,7 @@
   ],
   "skills": [
     {
-      "name": "CAD & 3D",
+      "name": "CAO et 3D",
       "keywords": [
         "SolidWorks (CSWP)",
         "Creo",
@@ -92,25 +92,25 @@
     {
       "name": "Fabrication",
       "keywords": [
-        "3D printing FDM/SLA",
-        "CNC milling",
-        "laser cutting",
-        "silicone tooling",
-        "injection-moulding DFM"
+        "Impression 3D FDM/SLA",
+        "fraisage CNC",
+        "découpe laser",
+        "outillage silicone",
+        "DFM pour moulage par injection"
       ]
     },
     {
-      "name": "Test & QA",
+      "name": "Essais et qualité",
       "keywords": [
         "ISO 13485",
         "IEC 62366",
-        "design verification",
-        "first-article inspection",
+        "vérification de conception",
+        "inspection du premier article",
         "PPAP"
       ]
     },
     {
-      "name": "Software",
+      "name": "Logiciels",
       "keywords": [
         "Python",
         "MATLAB",

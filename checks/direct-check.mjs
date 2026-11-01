@@ -468,7 +468,8 @@ section('skills arranged on the page (UX-6c-ii)');
   T.writeGroup(m, rc, g, 'Process\nLean, 5S');
   ok('written, it prints under its own name', html(rc).includes('>Process</span><br><span class="skills__items">Lean, 5S</span>'));
   T.moveSkill(m, rc, 'skills-cad', 0, g, 1);
-  ok('a skill moves to a place in another group', eq(rc.skillArrangement.groups[0].items, ['B']) && eq(rc.skillArrangement.groups[1].items, ['Lean', 'A', '5S']));
+  const texts = g => g.items.map(x => SB.wordText(m, x).text);
+  ok('a skill moves to a place in another group, and every typed skill is a word of the bank now', eq(texts(rc.skillArrangement.groups[0]), ['B']) && eq(texts(rc.skillArrangement.groups[1]), ['Lean', 'A', '5S']) && rc.skillArrangement.groups.every(x => x.items.every(i => SB.wordOf(m, i))));
   T.moveSkill(m, rc, 'skills-cad', 0, g, 0);
   ok('a group left with no skills goes', !rc.skillArrangement.groups.some(x => x.id === 'skills-cad') && rc.skillArrangement.groups[0].id === g);
   T.moveSkillGroup(m, rc, g, null);
@@ -975,6 +976,31 @@ section('the skill wordbank: seeded from the record on first open');
     res.meta.resumeBuilder.resume.skillArrangement = { groups: [{ id: 'skills-cad', items: ['sw-creo', 'sw-gone', 'Typed'] }, { id: 'skills-software', items: ['sw-creo', 'sw-python'] }] };
     const back = S.loadResume(res, model);
     ok('a resume\'s word the bank does not have, or a word twice, is dropped with a warning; typed text stays', eq(back.recipe.skillArrangement.groups.map(g => g.items), [['sw-creo', 'Typed'], ['sw-python']]) && back.warnings.some(x => /a word twice/.test(x))); }
+}
+section('the skill wordbank: a resume\'s groups print the bank\'s words in its language');
+{
+  const m = clone(model), page = (r, o = {}) => renderPages(m, r, createDocument(), { fallback: true, annotate: true, ...o }).pages.map(p => p.outerHTML).join('');
+  const hu = clone(S.loadResume(read('data/example-resumes/Dunamenti Műszer Kft. - Terméktervező.json'), m).recipe), before = page(hu);
+  ok('a resume never arranged prints its record groups as before, and its JSON Resume skills are in its language now', !hu.skillArrangement && T.resolve(m, hu).body.skills[1].name === 'Gyártás' && T.resolve(m, hu).body.skills[1].keywords[1] === 'CNC-marás');
+  const id = n => SB.findWord(m, n).id;
+  hu.skillArrangement = { groups: [{ id: 'skills-fabrication', items: [id('CNC milling'), id('Creo'), id('design verification')] }, { id: '~sg-1', label: 'Saját', items: [] }] };
+  const p = page(hu);
+  ok('arranged, each word prints in the resume\'s language, a product name as it is, the page\'s copy marks each word', p.includes(`<span data-skill data-word="${id('CNC milling')}">CNC-marás</span>, <span data-skill data-word="${id('Creo')}">Creo</span>`) && p !== before);
+  ok('…a word with no Hungarian prints its English in the app, and is listed as missing', p.includes('>design verification</span>') && L.missingList(m, hu).some(x => x.kind === 'word' && x.id === id('design verification')) && !L.missingList(m, hu).some(x => x.kind === 'word' && x.id === id('Creo')));
+  ok('…the command line refuses it, as it refuses a claim with no version in the language', (() => { try { renderPages(m, hu, createDocument(), {}); return false; } catch (e){ return e.missingLang === true && /design verification/.test(e.message); } })());
+  ok('…the JSON Resume skills say the same words, with the missing one as a problem', eq(T.resolve(m, hu).body.skills, [{ name: 'Gyártás', keywords: ['CNC-marás', 'Creo', 'design verification'] }]) && T.resolve(m, hu).problems.some(x => x.includes(id('design verification'))));
+  ok('an empty group prints only on the page\'s copy', page(hu).includes('data-group="~sg-1"') && !renderPages(m, hu, createDocument(), { fallback: true }).pages[0].outerHTML.includes('Saját'));
+  SB.setWordText(m, id('design verification'), 'hu', 'tervezésellenőrzés');
+  ok('written in Hungarian in the bank, every resume prints it, and it is no longer missing', page(hu).includes('>tervezésellenőrzés</span>') && !L.missingList(m, hu).some(x => x.kind === 'word'));
+  const shelf = SB.addShelf(m, 'Quality'); SB.setShelfName(m, shelf.id, 'hu', 'Minőség');
+  hu.skillArrangement.groups[1] = { id: '~sg-1', shelf: shelf.id, items: [id('ISO 13485')] };
+  ok('a group named after a shelf prints the shelf\'s name in the resume\'s language', page(hu).includes('>Minőség</span><br>'));
+  // Fit: the resume's own groups are fixed rows, never swapped
+  const F = await import('../src/fit.js');
+  const c = F.cost(m, hu), rows = c.pages.flatMap(x => x.rows).filter(r => r.section === 'skills');
+  ok('Fit costs the resume\'s own groups as fixed rows and offers no swap for them', rows.length === 2 && rows.every(r => r.fixed && r.fact === null) && !F.candidates(m, hu).some(x => /^skills-/.test(x.fact)) && !c.unmeasured.includes(null));
+  const plain = clone(S.loadResume(read('data/example-resumes/Dunamenti Műszer Kft. - Terméktervező.json'), m).recipe); plain.off = [...(plain.off ?? []), 'skills-software'];
+  ok('…a resume never arranged costs its record groups, the ones it leaves out not', !F.cost(m, plain).pages.flatMap(x => x.rows).some(r => r.fact === 'skills-software') && F.cost(m, plain).pages.flatMap(x => x.rows).some(r => r.fact === 'skills-cad'));
 }
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {

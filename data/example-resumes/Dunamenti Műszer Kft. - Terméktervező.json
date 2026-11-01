@@ -80,7 +80,7 @@
   ],
   "skills": [
     {
-      "name": "CAD & 3D",
+      "name": "CAD és 3D",
       "keywords": [
         "SolidWorks (CSWP)",
         "Creo",
@@ -89,17 +89,17 @@
       ]
     },
     {
-      "name": "Fabrication",
+      "name": "Gyártás",
       "keywords": [
-        "3D printing FDM/SLA",
-        "CNC milling",
-        "laser cutting",
-        "silicone tooling",
-        "injection-moulding DFM"
+        "3D-nyomtatás FDM/SLA",
+        "CNC-marás",
+        "lézervágás",
+        "szilikonszerszám",
+        "fröccsöntési DFM"
       ]
     },
     {
-      "name": "Test & QA",
+      "name": "Vizsgálat és QA",
       "keywords": [
         "ISO 13485",
         "IEC 62366",
@@ -109,7 +109,7 @@
       ]
     },
     {
-      "name": "Software",
+      "name": "Szoftver",
       "keywords": [
         "Python",
         "MATLAB",

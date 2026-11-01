@@ -90,22 +90,22 @@
       ]
     },
     {
-      "name": "Fabrication",
+      "name": "Fertigung",
       "keywords": [
-        "3D printing FDM/SLA",
-        "CNC milling",
-        "laser cutting",
-        "silicone tooling",
-        "injection-moulding DFM"
+        "3D-Druck FDM/SLA",
+        "CNC-Fräsen",
+        "Laserschneiden",
+        "Silikonformen",
+        "DFM für Spritzguss"
       ]
     },
     {
-      "name": "Test & QA",
+      "name": "Prüfung & QS",
       "keywords": [
         "ISO 13485",
         "IEC 62366",
-        "design verification",
-        "first-article inspection",
+        "Designverifizierung",
+        "Erstmusterprüfung",
         "PPAP"
       ]
     },

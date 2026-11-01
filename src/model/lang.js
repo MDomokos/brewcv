@@ -9,6 +9,7 @@ import { localEntry, isLocal } from '../recipe.js';
 import { isLocked } from './lock.js';
 import { listedBullets, jobRefs, sectionList, chooseVariant, printedLabel, ownLabels, labelIn, isDraft, isArchive } from './resume.js';
 import { staleI18n } from './labels.js';
+import { wordText } from './skillbank.js';
 
 export const DEFAULT_LANG = 'en';
 export const LANG_NAMES = { en: 'English', de: 'Deutsch', fr: 'Français', es: 'Español', it: 'Italiano', pt: 'Português', nl: 'Nederlands', pl: 'Polski', cs: 'Čeština', hu: 'Magyar' };
@@ -103,6 +104,12 @@ export function missingList(model, recipe, { chrome = docChrome(recipe?.lang ?? 
   // a skill arrangement replaces the groups' texts: its groups are untranslated only when they came from another language's set
   const arr = recipe.skillArrangement, arranged = new Set((arr?.groups ?? []).map(g => g.id));
   for (const g of arr?.groups ?? []) if ((g.lang ?? arr.lang) && (g.lang ?? arr.lang) !== lang && facts.has(g.id) && !isSame(model, sameKey(g.id))){ seen.add(g.id); out.push({ key: sameKey(g.id), kind: 'fact', id: g.id, label: g.label ?? facts.get(g.id).label ?? g.id, where: { fact: g.id, kind: 'item', section: 'skills' } }); }
+  // …and a word of the bank with no wording in this language prints its English (kind 'word')
+  const skillsOn = arr && sectionList(model, recipe).some(x => x.id === 'skills' && x.on);
+  if (skillsOn && lang !== DEFAULT_LANG) for (const g of arr.groups) for (const x of g.items){
+    const w = wordText(model, x, lang);
+    if (w.miss && !seen.has(`word:${w.id}`)){ seen.add(`word:${w.id}`); out.push({ key: `word:${w.id}`, kind: 'word', id: w.id, label: w.text, where: { kind: 'section', id: 'skills' } }); }
+  }
   const printed = printedFactIds(model, recipe);
   for (const p of printed){
     if (seen.has(p.fact) || (arranged.has(p.fact) && p.kind === 'item')) continue;

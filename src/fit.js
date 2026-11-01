@@ -4,9 +4,10 @@
 
 import { entriesOf } from './model/entries.js';
 import { refusal } from './model/resume.js';
-import { isOmitted, hasBudget, weightOf, pinsOf } from './recipe.js';
+import { isOmitted, hasBudget, weightOf, pinsOf, offOf } from './recipe.js';
 import { isLocked } from './model/lock.js';
 import { measureKey } from './render.js';
+import { wordText } from './model/skillbank.js';
 
 const LINE_CHARS = { 'us-letter': 84, a4: 73.5 };   // chars per line, measured
 
@@ -100,12 +101,17 @@ function costPage(data, recipe, slots, colWidth){
       }
     }
     else if (s.kind === 'item'){ add(s.content.title); add(s.content.meta); }
-    else if (s.kind === 'grid') (s.content.groups ?? []).forEach(id => add(id));
+    else if (s.kind === 'grid'){
+      const own = s.id === 'skills' ? recipe.skillArrangement?.groups : null;
+      // this resume's own skill groups are fixed rows: Fit measures what they print and never changes the words chosen
+      if (own){ for (const a of own) if (a.items.length) rows.push({ section: s.id, slot: si, fact: null, variant: null, fixed: true, ...lines({ text: a.items.map(x => wordText(data, x, recipe.lang ?? 'en').text).join(', ') }, k, colWidth) }); }
+      else { const off = new Set(offOf(recipe)); (s.content.groups ?? []).filter(id => !off.has(id)).forEach(id => add(id)); }
+    }
     else if (s.kind === 'pairs') (s.content.pairs ?? []).forEach(id => add(id));
     else if (s.kind === 'runs') (s.content.items ?? []).forEach(id => add(id));
   }
   return { rows, claims, lines: rows.reduce((n, r) => n + r.lines, 0),
-           unmeasured: rows.filter(r => !r.measured).map(r => r.variant) };
+           unmeasured: rows.filter(r => !r.measured && r.variant).map(r => r.variant) };
 }
 
 export function cost(data, recipe, colWidth){

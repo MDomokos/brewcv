@@ -23,6 +23,7 @@ import { designOf, PRESETS, RELATED } from './design.js';
 import { lookOf } from '../themes.js';
 import { LockedError, guard, guardOff, guardUp, isLocked, skillsSection } from './lock.js';
 import { setI18n, englishOf } from './labels.js';
+import * as SB from './skillbank.js';
 export { offOf, keepOf, migratePins, inOrder, isLocal, localOf, termOf };
 
 // Built once for a model while its lists are as they were. A model is changed in place by adding or deleting a version or a fact: that is a new list, a new
@@ -192,10 +193,18 @@ export function resolve(model, recipe = null, { local = true } = {}){
       summary: p.summary ?? [p.role, p.identifier].filter(Boolean).join(' · '),
     })),
     certificates: (model.certificates ?? []).map(c => ({ name: c.name, issuer: c.issuer, ...std(c, JR.certificates) })),
-    skills: recipe?.skillArrangement      // the groups this resume arranges on its page, as it prints them
-      ? (wantSection('skills') ? recipe.skillArrangement.groups.filter(a => a.items.length).map(a => ({ name: a.label ?? groupLabel(model, recipe, a.id), keywords: [...a.items] })) : [])
-      : (model.skills ?? []).filter(() => wantSection('skills'))
-        .map(s => ({ name: s.name, ...std(s, JR.skills), keywords: s.keywords })),
+    // with a resume, its skills as it prints them, in its language: its own groups of words, else the record's groups it shows
+    skills: !recipe ? (model.skills ?? []).map(s => ({ name: s.name, ...std(s, JR.skills), keywords: s.keywords }))
+      : !wantSection('skills') ? []
+      : recipe.skillArrangement ? recipe.skillArrangement.groups.filter(a => a.items.length).map(a => ({ name: groupHeading(model, recipe, a), keywords: a.items.map(x => {
+        const w = SB.wordText(model, x, lang);
+        if (w.miss) problems.push(`skill word ${w.id} has no "${lang}" wording, so it prints in English`);
+        return w.text;
+      }) }))
+      : (itemList(model, recipe, skillsSection(model)) ?? (model.skills ?? []).map(s => ({ id: s.id, on: true }))).filter(g => g.on).map(g => {
+        const s = (model.skills ?? []).find(x => x.id === g.id), v = chooseVariant(model, g.id, recipe, ix).v;
+        return { name: groupLabel(model, recipe, g.id), ...std(s, JR.skills), keywords: v ? splitWords(v.text) : [...(s?.keywords ?? [])] };
+      }),
     languages: (model.languages ?? []).map(l => ({ language: l.language, fluency: l.fluency })),
     interests: (model.interests ?? []).map(i => ({ name: i.name, ...std(i, JR.interests) })),
   };
@@ -631,7 +640,7 @@ export function arrangementOf(model, recipe){
   if (recipe.skillArrangement) return recipe.skillArrangement;
   const lang = recipe.lang ?? DEFAULT_LANG;
   const groups = (itemList(model, recipe, 'skills') ?? []).filter(g => g.on)
-    .map(g => ({ id: g.id, items: String(chooseVariant(model, g.id, recipe).v?.text ?? '').split(/,\s*/).filter(Boolean) }));
+    .map(g => ({ id: g.id, items: splitWords(chooseVariant(model, g.id, recipe).v?.text) }));
   return { from: recipe.jobType && groupsOf(model, recipe.jobType, lang) ? recipe.jobType : null, groups };
 }
 export function setArrangement(recipe, arrangement){ recipe.skillArrangement = structuredClone(arrangement); }
@@ -665,11 +674,22 @@ export function saveSetForTag(model, name, arrangement, lang = DEFAULT_LANG){
   model.skillSets = { ...skillSets(model), [name]: { ...skillSets(model)[name], [L]: structuredClone(arrangement.groups) } };
 }
 export const groupLabel = (model, recipe, gid) => model.i18n?.[recipe.lang ?? DEFAULT_LANG]?.labels?.[gid] ?? (model.facts ?? []).find(f => f.id === gid)?.label ?? gid;
+// What a group of this resume prints over its words: its own heading, else its shelf's name, else the record group's
+export const groupHeading = (model, recipe, g) => g.label ?? (g.shelf ? SB.shelfName(model, g.shelf, recipe.lang ?? DEFAULT_LANG) : groupLabel(model, recipe, g.id));
+const splitWords = text => String(text ?? '').split(/,\s*/).map(x => x.trim()).filter(Boolean);
 
 // Arranging the skills on this resume: the first change copies what prints now into `recipe.skillArrangement`, and each change after it
 // is to that copy. A group is { id, items, label? }: a group of the record keeps its id (and its name, unless `label` renames it here);
 // one made on the page is `~sg-n` and has a `label` of its own.
-const arrange = (model, recipe, fn, ...ids) => { for (const id of [skillsSection(model), ...ids.filter(Boolean)]) guard(model, recipe, id); const a = structuredClone(arrangementOf(model, recipe)); const r = fn(a.groups, a); recipe.skillArrangement = a; return r; };
+// Each change works on word ids: typed text of an older arrangement (or of the record's groups) becomes the bank's words first.
+const arrange = (model, recipe, fn, ...ids) => {
+  for (const id of [skillsSection(model), ...ids.filter(Boolean)]) guard(model, recipe, id);
+  const a = structuredClone(arrangementOf(model, recipe));
+  SB.seedBank(model);
+  a.groups = SB.toWordIds(model, a.groups, a.lang ?? recipe.lang ?? DEFAULT_LANG);
+  delete a.lang;
+  const r = fn(a.groups, a); recipe.skillArrangement = a; return r;
+};
 const groupAt = (groups, gid) => { const i = groups.findIndex(g => g.id === gid); if (i < 0) throw new Error(`no skill group ${gid}`); return i; };
 // the skills as typed: separated by commas or line breaks
 export const parseItems = text => String(text).split(/[,\n]/).map(x => x.trim()).filter(Boolean);
@@ -1018,7 +1038,7 @@ export const labelNow = (model, recipe, key, lang) => {
 // What a resume prints for a label key in its own language: `~h:<section>` a heading, `~t:<fact>` a language's name, `~g:<skill group>` a group's name.
 export function printedLabel(model, recipe, key){
   const id = key.slice(3);
-  if (key.startsWith('~g:')) return (recipe.skillArrangement?.groups ?? []).find(g => g.id === id)?.label ?? groupLabel(model, recipe, id);
+  if (key.startsWith('~g:')){ const g = (recipe.skillArrangement?.groups ?? []).find(x => x.id === id); return g ? groupHeading(model, recipe, g) : groupLabel(model, recipe, id); }
   return labelNow(model, recipe, key, recipe.lang ?? DEFAULT_LANG);
 }
 // The labels this resume writes itself, by label key (`~f:` is a field of the record, which no resume writes).
