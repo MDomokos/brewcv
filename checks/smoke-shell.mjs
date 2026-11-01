@@ -1596,7 +1596,7 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   await ctx.close();
 }
 
-if (want('Career: the skill words, Find or add with its warning, moving words and shelves, the Editor\'s bank in Career\'s order, a record group\'s words as chips')) {
+if (want('Career: the skill words, Find or add with its warning, moving words and shelves, the Editor’s bank in Career’s order, a record group’s words as chips')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
