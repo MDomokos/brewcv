@@ -213,6 +213,11 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .cwb [data-at=after] { box-shadow: 3px 0 0 var(--sel-mark); }
 .cwb .wbsec[data-at=before] { box-shadow: inset 0 2px 0 var(--sel-mark); }
 .cwb .wbsec[data-at=after] { box-shadow: inset 0 -2px 0 var(--sel-mark); }
+/* the Skill words card fills the panel: the well takes all the height under the box and its buttons, down to the panel's foot, the words at its top, and scrolls inside */
+body:not([data-phone=true]) #body:has(> .insp-bank) { display: flex; flex-direction: column; }
+body:not([data-phone=true]) #body > .insp-bank { flex: 1 1 0; min-height: 280px; align-content: stretch; grid-template-rows: auto auto minmax(0, 1fr); }
+.insp-bank .cwbbank { display: flex; flex-direction: column; min-height: 0; }
+.insp-bank .cwbbank > .cwbtray { flex: 1 1 auto; min-height: 96px; overflow-y: auto; align-content: start; }
 .cwbgroups { margin: 0 0 8px; }
 .cwbgroups .skname { cursor: grab; touch-action: none; }
 .cwbgroups .skname[data-at=before] { box-shadow: -3px 0 0 var(--sel-mark); }

@@ -1686,6 +1686,20 @@ if (want('Career: the skill words, Find or add with its warning, moving words an
     ok('…confirmed, it leaves the bank and the record\'s groups, with Undo', !(await bank()).words.some(w => w.id === 'sw-excel') && !(await page.evaluate(() => JSON.stringify(window.__wb.store.state.record.skills))).includes('"Excel"') && await page.isVisible('#toast [data-act=toast-undo]'));
     await page.click('#toast [data-act=toast-undo]'); await settle(page);
     ok('…and Undo puts it back', (await bank()).words.some(w => w.id === 'sw-excel'));
+    // "Sort by skill groups": a shelf per record group after the shelves there, in the record's group order; a word on no shelf goes onto its group's
+    const bank0 = JSON.stringify(await bank()), groupNames = await page.evaluate(() => window.__wb.store.state.record.skills.map(s => s.name)), shelfOf = async id => { const b = await bank(); return b.shelves.find(s => s.id === b.words.find(w => w.id === id).shelf)?.name; };
+    ok('the card offers "Sort by skill groups" while it would change something, its tooltip saying it makes a shelf from each group', await page.isVisible('#body .cwbbank [data-act=c-bk-sort]') && /shelf from each/.test(await page.getAttribute('#body .cwbbank [data-act=c-bk-sort]', 'title')));
+    await page.click('#body .cwbbank [data-act=c-bk-sort]'); await settle(page);
+    const sorted = await bank(), sortedShelves = sorted.shelves.map(s => s.id);
+    ok('…pressed, it makes a shelf from each skill group, after the shelves there, in the order of the record\'s groups', sorted.shelves.slice(-groupNames.length).map(s => s.name).join() === groupNames.join() && sorted.shelves.length === JSON.parse(bank0).shelves.length + groupNames.length);
+    ok('…a word on no shelf lands on its group\'s shelf, a word already on a shelf stays, and a word in no group stays on none', (await shelfOf('sw-creo')) === 'CAD & 3D' && (await shelfOf('sw-cnc-milling')) === 'Fabrication' && (await shelfOf('sw-excel')) === 'Software' && (await shelfOf('sw-git')) === 'Code' && (await shelfOf('sw-lathe')) === 'Quality' && (await shelfOf('sw-pythn')) === undefined);
+    ok('…it says how many words went onto how many shelves, with Undo; and the button is gone, as there is nothing left to sort', /Words moved: \d+\. Shelves made: 4\./.test(await page.textContent('#toast')) && await page.isVisible('#toast [data-act=toast-undo]') && !(await page.isVisible('#body .cwbbank [data-act=c-bk-sort]')));
+    await page.click('#toast [data-act=toast-undo]'); await settle(page);
+    ok('…Undo restores the bank in one step, with the button back', JSON.stringify(await bank()) === bank0 && await page.isVisible('#body .cwbbank [data-act=c-bk-sort]'));
+    await page.click('#body .cwbbank [data-act=c-bk-sort]'); await settle(page);
+    const sortedTray = await tray();
+    await toEditHome(page); await page.click('#outline [data-act=select-section][data-id=skills]'); await settle(page);
+    ok('the Editor\'s bank shows the same shelves in the same order', JSON.stringify(sortedTray.filter(x => x[0]).map(x => x[0])) === JSON.stringify(sortedShelves) && JSON.stringify(await page.$$eval('#bankcard .wbtray .wbsec', rs => rs.map(r => r.dataset.sec).filter(Boolean))) === JSON.stringify(sortedShelves));
     // the Editor bank's own well, in every drink: Career's words (the bank's, and a record group's) sit in the same well, a step darker than the card
     // round it with the same inset; where the cards are one colour (Coffee, and the Editor's form) it is the same colour, and Tea's Career card is its own
     const wells = [];

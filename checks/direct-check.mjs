@@ -961,6 +961,26 @@ section('the skill wordbank and the record\'s groups: one list of words, every r
   K.moveSkill(m, 'skills-software', 'skills-cad'); K.moveSkill(m, 'skills-cad', null);
   ok('a record skill group moves before another, or to the end, and the skills section lists them so', eq(m.skills.map(s => s.id), ['skills-software', 'skills-fabrication', 'skills-testing', 'skills-cad']) && eq(T.itemsOf(m, 'skills'), m.skills.map(s => s.id)));
 }
+section('the skill wordbank: shelves made from the record\'s skill groups, when the person asks');
+{
+  const m = clone(model), shelfOfWord = n => SB.wordOf(m, SB.findWord(m, n).id).shelf, groups = m.skills.map(s => s.id), gname = s => s.name;
+  const bank0 = clone(m.skillBank), dry = SB.shelvesFromGroups(m, { dry: true });
+  ok('counted first, it changes nothing: a shelf per group, every word of the groups', eq(dry, { shelves: 4, words: SB.wordsOf(m).length }) && eq(m.skillBank, bank0));
+  const got = SB.shelvesFromGroups(m), shelves = SB.shelvesOf(m);
+  ok('a shelf per record group, named as the group, in the record\'s group order', eq(got, dry) && eq(shelves.map(s => s.name), m.skills.map(gname)) && eq(m.skills.map(s => s.id), groups));
+  ok('…its name in each language the group has one is the shelf\'s there', shelves.every((s, i) => Object.keys(m.i18n).every(l => SB.shelfName(m, s.id, l) === (m.i18n[l].labels?.[groups[i]] ?? s.name))) && SB.shelfName(m, shelves[1].id, 'hu') === 'Gyártás');
+  ok('each word lands on its group\'s shelf, the words of a group in its order', eq(SB.wordsOf(m).filter(w => w.shelf === shelves[0].id).map(w => w.name), m.skills[0].keywords) && shelfOfWord('PPAP') === shelves[2].id && shelfOfWord('Excel') === shelves[3].id);
+  const done = clone(m.skillBank);
+  ok('asked again, nothing changes', eq(SB.shelvesFromGroups(m), { shelves: 0, words: 0 }) && eq(m.skillBank, done));
+  // a shelf of the name is used (case and accents ignored), a word on a shelf stays, a word in no group stays, a word in two groups goes to the first
+  const c = clone(model), id = n => SB.findWord(c, n).id, cs = SB.addShelf(c, 'FABRICATIÓN'), extra = SB.addShelf(c, 'Extras');
+  SB.moveWord(c, id('CNC milling'), { shelf: extra.id }); SB.addWord(c, { name: 'Onshape' }); c.skills[1].keywords.push('Creo');
+  const r = SB.shelvesFromGroups(c), by = n => SB.wordOf(c, id(n)).shelf;
+  ok('a shelf that has the group\'s name is used, not made again; only the others are made', r.shelves === 3 && SB.shelvesOf(c).length === 5 && SB.shelvesOf(c)[0].id === cs.id && by('laser cutting') === cs.id && by('3D printing FDM/SLA') === cs.id);
+  ok('a word already on a shelf stays, a word in no group stays on none, a word in two groups goes to the first', by('CNC milling') === extra.id && by('Onshape') === undefined && by('Creo') === SB.shelvesOf(c)[2].id);
+  ok('the shelves made follow the group order after the ones there already', eq(SB.shelvesOf(c).map(s => s.name), ['FABRICATIÓN', 'Extras', 'CAD & 3D', 'Test & QA', 'Software']));
+  ok('a record with no bank is left alone', eq(SB.shelvesFromGroups({ skills: m.skills }), { shelves: 0, words: 0 }));
+}
 section('a language copy and the headings of a resume\'s own skill groups');
 {
   const m = clone(model), base = clone(S.loadResume(read(`data/example-resumes/${names[0]}`), m).recipe);
