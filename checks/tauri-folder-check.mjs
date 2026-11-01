@@ -21,13 +21,13 @@ const section = t => console.log(`\n— ${t}`);
 // files: path -> text; dirs: set of paths; scope: folders the dialog granted. Calls outside the scope throw, like the plugin.
 function fakeTauri(files = {}, dirs = []){
   const disk = new Map(Object.entries(files)), d = new Set(dirs), scope = new Set(), log = [], time = new Map();
-  let tick = 0;
-  const touch = p => time.set(p, ++tick);
+  let tick = 0, old = 0;
+  const touch = (p, ancient = false) => time.set(p, ancient ? ++old : (tick = Math.max(Date.now(), tick + 1)));      // a planted file is old (`ancient`); a write is now
   const parents = p => { for (let i = p.indexOf('/', 1); i > 0; i = p.indexOf('/', i + 1)) d.add(p.slice(0, i)); };      // a recursive mkdir makes every folder above
   const text = v => (typeof v === 'string' ? v : new TextDecoder().decode(v));
   const guard = p => { if (![...scope].some(s => p === s || p.startsWith(s + '/'))) throw new Error(`forbidden path: ${p}`); };
   const T = {
-    _disk: disk, _dirs: d, _scope: scope, _log: log, _picked: null, _touch: touch, _parents: parents,
+    _disk: disk, _dirs: d, _scope: scope, _log: log, _picked: null, _touch: touch, _time: time, _parents: parents,
     dialog: { async open(o){ log.push(['open', o]); if (T._picked) scope.add(T._picked); return T._picked; } },
     fs: {
       async exists(p){ guard(p); return d.has(p) || disk.has(p); },
@@ -192,8 +192,9 @@ section('writes are atomic, and bytes, sizes and folders come through the plugin
     const abs = p => `/R/${p}`, rel = k => k.slice(3);
     const fx = {
       get: p => T6._disk.get(abs(p)), has: p => T6._disk.has(abs(p)), delete: p => T6._disk.delete(abs(p)),
-      set: (p, v) => { T6._parents(abs(p)); T6._disk.set(abs(p), v); T6._touch(abs(p)); },
+      set: (p, v) => { T6._parents(abs(p)); T6._disk.set(abs(p), v); T6._touch(abs(p), true); },
       keys: () => [...T6._disk.keys()].filter(k => k.startsWith('/R/')).map(rel), entries: () => [...T6._disk].filter(([k]) => k.startsWith('/R/')).map(([k, v]) => [rel(k), v]),
+      later: p => T6._time.set(abs(p), Date.now() + 5 * 864e5),      // a time in the future: a clock out of step
       values: () => fx.entries().map(([, v]) => v), get size(){ return fx.keys().length; },
     };
     return { fx, root: () => tauriFolder('/R', T6) };

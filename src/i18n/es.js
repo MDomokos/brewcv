@@ -1775,8 +1775,9 @@ export default {
   'i8.organiseNote': 'Estos archivos pasarían a Library. Cada uno se copia, se vuelve a leer y se comprueba antes de quitar el antiguo.',
   'i8.organiseOk': 'Mover {n} archivos',
   'i8.organiseStopped': 'Detenido tras {n} movimientos: no se pudo copiar {file}. No se movió nada más.',
+  'i8.organiseUndo': 'Deshacer los movimientos',
   'i8.readFound': 'Leerlos en mi trayectoria',
-  'i8.readOnly': 'Abierto en otra ventana. Esta ventana solo lee.',
+  'i8.readOnly': 'Abierto en otra ventana. Los cambios hechos en esta ventana no se guardan.',
   'i8.rescan': 'Volver a buscar',
   'i8.synced': '{n} cambios de otros dispositivos fusionados.',
   'i8.undoAdopt': 'Abrir la trayectoria de {name}',
@@ -1786,4 +1787,7 @@ export default {
   'i8.undoRecipe': '{name} leído',
   'i8.undoReference': 'Originales archivados en la carpeta',
   'i8.undoSync': 'Fusionar {name}',
+  'i8.errRead': '{path}: no se puede leer',
+  'i8.errTaken': '{path}: el nombre ya está en uso',
+  'i8.errCopy': '{path}: la copia no se volvió a leer igual',
 };

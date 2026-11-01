@@ -96,11 +96,11 @@ function settingsView(){
 
 // ---- the linked folder: what was found in it, Organise, and the devices that write to it ----
 // A name from the folder (a device, a file) is only ever written through esc().
-const P = { plan: null, result: null };
+const P = { plan: null, result: null, undo: false };
 const time = iso => (iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '');
 function folderHtml(){
   const last = C.space.last, found = last?.fresh ?? [], devs = C.space.devices();
-  const row = d => `<li class="mrow"><span>${esc(d.name)}</span> <span class="muted small">${esc(d.mine ? t('i8.deviceThis') : d.state === 'waiting' ? t('i8.deviceWaiting') : d.state === 'other' ? t('i8.deviceOther') : t('i8.deviceSeen', { time: time(d.saved) }))}</span>${d.mine ? '' : ` <button class="sm ghost" data-act="folder-forget" data-p="${esc(d.path)}">${h('i8.forget')}</button>`}</li>`;
+  const row = d => `<li class="mrow"><span>${esc(d.name)}</span> <span class="muted small">${esc(d.mine ? t('i8.deviceThis') : d.state === 'waiting' ? t('i8.deviceWaiting') : d.state === 'other' ? t('i8.deviceOther') : t('i8.deviceSeen', { time: time(d.saved) }))}</span>${d.state === 'merged' ? ` <button class="sm ghost" data-act="folder-forget" data-p="${esc(d.path)}">${h('i8.forget')}</button>` : ''}</li>`;
   return `<p class="small">${h('i8.folderNote', { name: C.persist.status.linked })}</p>
     <div class="btns"><button class="sm" data-act="folder-rescan">${h('i8.rescan')}</button></div>
     ${found.length ? `<p class="small">${h('i8.found', { n: found.length })}</p>
@@ -108,7 +108,7 @@ function folderHtml(){
     ${P.plan ? `<div class="dpanel"><p class="note">${h('i8.organiseNote')}</p>
       <ul class="mlist">${P.plan.map(m => `<li class="mrow"><span>${esc(m.from)}</span> <span class="muted">→</span> <span>${esc(m.to)}</span></li>`).join('')}</ul>
       <div class="btns"><button class="primary sm" data-act="folder-organise-ok">${h('i8.organiseOk', { n: P.plan.length })}</button><button class="sm ghost" data-act="folder-organise-no">${h('btn.cancel')}</button></div></div>` : ''}
-    ${P.result ? `<p class="small" role="status">${esc(P.result)}</p>` : ''}
+    ${P.result ? `<p class="small" role="status">${esc(P.result)} ${P.undo ? `<button class="sm ghost" data-act="folder-organise-undo">${h('i8.organiseUndo')}</button>` : ''}</p>` : ''}
     <span class="lbl">${h('i8.devices')}</span>
     <ul class="mlist">${devs.map(row).join('')}</ul>
     ${devs.length < 2 ? `<p class="note">${h('i8.noOthers')}</p>` : ''}`;
@@ -142,9 +142,11 @@ async function act(a, tg){
       const res = await C.space.organise(P.plan);
       P.plan = null;
       P.result = res.failed ? t('i8.organiseStopped', { n: res.done.length, file: res.failed.from }) : t('i8.organiseDone', { n: res.done.length });
+      P.undo = res.done.length > 0;
       await C.space.sync(); C.renderBody();
       return true;
     }
+    case 'folder-organise-undo': await C.space.undoOrganise(); P.undo = false; P.result = null; await C.space.sync(); C.renderBody(); return true;
     case 'folder-forget': await C.space.forget(tg.dataset.p); await C.space.sync(); C.renderBody(); return true;
   }
   return false;

@@ -1,6 +1,6 @@
 // The linked folder as the person's resume space (spec: "The folder is the resume space", "Two devices, one synced folder"). persist.js writes this device's own file and the merged
 // view; this reads what the folder holds besides: the other devices' files (merged by their clocks), files changed outside (a person, an agent, a sync tool), the documents (found
-// by content, not by path), the Inbox, and BrewCV.md. Nothing here is deleted: a file the app takes away goes to Deleted/ (persist.js toDeleted), where a scan removes it after 30 days.
+// by content, not by path), the Inbox, and BrewCV.md. Nothing here is deleted: a file the app takes away goes to BrewCV/Deleted/ (persist.js toDeleted), where a scan removes what the app put there after 30 days.
 // A folder is the object persist.js describes (read, write, list, dirs, stat, readBytes, remove); the checks play two devices with two stores and one shared memoryFolder map.
 
 import { t } from '../i18n/index.js';
@@ -11,14 +11,14 @@ import { canon } from '../model/resumes.js';
 import { openSaved } from '../model/resumes.js';
 import { metaOf } from '../model/intake.js';
 import { newResume } from '../model/resume.js';
-import { sha256, safe, conflictCopy, ignored, readBackup, filesOf, toDeleted, sweepDeleted, uniqueName } from './persist.js';
+import { sha256, safe, conflictCopy, ignored, readBackup, filesOf, uniqueName, keepOriginals } from './persist.js';
 
 // ---- the tree ----
 
 const KINDS = /\.(?:pdf|docx|odt|pages|md|txt|html?)$/i;      // what a scan lists; a font, code or a picture is not a resume
 const TEXT = /\.(?:md|txt|html?)$/i;                          // notes: only the ones that look like a resume
 const MAX = 20000, DEEP = 8;
-const skipDir = (d, depth) => d.startsWith('.') || /^(?:node_modules|fonts?)$/i.test(d) || (depth === 0 && /^(?:BrewCV|Inbox)$/i.test(d));
+const skipDir = (d, depth) => d.startsWith('.') || /^(?:node_modules|fonts?)$/i.test(d) || (depth === 0 && /^(?:BrewCV|Inbox|Deleted|checkpoints)$/i.test(d));
 
 // Resume-like text: at least two of three signs (section titles on lines of their own, years, an address or a number to call).
 // shortcut: English section words only; a note in another language needs two of the other signs. Upgrade by reading the lexicon of the interface language.
@@ -45,11 +45,13 @@ export async function walk(root, dir = '', depth = 0, out = { files: [], stubs: 
 //   missing the file is gone                                                { id }
 //   cloud   iCloud or another tool keeps it in the cloud                    { id }
 //   changed other bytes at a known path: a new version of the document      { id, path, sha256 }
-//   dups    a second copy of a document's bytes at another path             [path]
+//   dups    a second copy of a document's bytes elsewhere in the tree: told, never moved   [path]
+//   inboxDups  a copy in Inbox/ of a file the Library already holds                       [path]
 //   fresh   resume-like files that are no document yet                      [{ path, size, mtime }]
 export async function reconcile(state, root, cache = {}){
   const docs = (state.documents ?? []).filter(d => d.path), isDoc = new Set(docs.map(d => d.path)), sizes = new Set(docs.map(d => d.size));
-  const { files, stubs } = await walk(root), out = { moved: [], missing: [], cloud: [], changed: [], dups: [], fresh: [] };
+  const current = new Map();      // a document's file, as it is now: path → hash
+  const { files, stubs } = await walk(root), out = { moved: [], missing: [], cloud: [], changed: [], dups: [], inboxDups: [], fresh: [] };
   const hash = async (p, s) => {
     const c = cache[p];
     if (c && c.size === s.size && c.mtime === s.mtime) return c.sha256;
@@ -73,9 +75,15 @@ export async function reconcile(state, root, cache = {}){
       continue;
     }
     const h = await hash(d.path, s);
+    if (h) current.set(d.path, h);
     if (h === null) out.cloud.push({ id: d.id });      // listed and sized, but it cannot be read: not downloaded
     else if (h !== d.sha256) out.changed.push({ id: d.id, path: d.path, sha256: h });
     else if (byHash.has(d.sha256)){ out.dups.push(byHash.get(d.sha256)); byHash.delete(d.sha256); }
+  }
+  // A copy in Inbox/ of a file the Library holds is a duplicate only when it is the very file the Library holds now: if that was edited since, the copy is the original and a file of its own.
+  for (const n of await root.list('Inbox')){
+    const p = `Inbox/${n}`, s = n.startsWith('.') || ignored(n) ? null : await root.stat(p), h = s ? await hash(p, s) : null;
+    if (h && docs.some(d => d.path.startsWith('Library/') && current.get(d.path) === h)) out.inboxDups.push(p);
   }
   const claimed = new Set([...out.moved.map(m => m.to), ...out.dups]);
   for (const f of fresh.filter(f => !claimed.has(f.path))){
@@ -117,13 +125,13 @@ export const pathFor = async (root, doc) => {
 // A file moved by copying it, reading the copy back, checking its hash, and only then taking the old one. A copy that fails is removed and the old file stays.
 export async function moveFile(root, from, to){
   const bytes = await root.readBytes(from);
-  if (bytes === null) throw new Error(`${from}: cannot be read`);
-  if (await root.stat(to)) throw new Error(`${to}: is taken`);
+  if (bytes === null) throw new Error(t('i8.errRead', { path: from }));
+  if (await root.stat(to)) throw new Error(t('i8.errTaken', { path: to }));
   const want = await sha256(bytes);
   try {
     await root.write(to, bytes);
     const back = await root.readBytes(to);
-    if (!back || (await sha256(back)) !== want) throw new Error(`${to}: the copy did not read back the same`);
+    if (!back || (await sha256(back)) !== want) throw new Error(t('i8.errCopy', { path: to }));
   } catch (e){ await root.remove(to); throw e; }
   await root.remove(from);
   return want;
@@ -157,22 +165,29 @@ export async function undoOrganise(root, done){
 }
 
 // An older folder keeps its data at the top. Moved into BrewCV/ once, on OK: every copy is made and checked first (resume-data.json last, since it is what makes BrewCV/ the data folder), then the old files go.
-const TOP = ['resume-data.v3.json', 'library.json', 'resume-data.json'], TOP_DIRS = ['recipes', 'recipes-v3', 'checkpoints'];
+// Moved: the record, the Library's lists, the saved resumes, this device's and the other devices' files and the checkpoints (a folder inside one too), all `.json`. A Deleted/ at the top is the person's, and stays.
+const TOP = ['resume-data.v3.json', 'library.json', 'resume-data.json'], TOP_DIRS = ['recipes', 'recipes-v3', 'devices', 'checkpoints'];
+async function files(root, dir, out = []){
+  for (const n of await root.list(dir)) if (n.endsWith('.json') && !ignored(n)) out.push(`${dir}/${n}`);      // the app's files only: anything else in those folders is the person's
+  for (const d of await root.dirs(dir)) await files(root, `${dir}/${d}`, out);
+  return out;
+}
 export async function moveIntoBrewCV(root){
   const list = [];
   for (const n of TOP) if ((await root.stat(n)) && !(await root.stat(`BrewCV/${n}`))) list.push(n);
-  for (const dir of TOP_DIRS) for (const n of await root.list(dir)) if (!ignored(n)) list.push(`${dir}/${n}`);
+  for (const dir of TOP_DIRS) list.push(...await files(root, dir));
   list.sort((a, b) => (a === 'resume-data.json') - (b === 'resume-data.json'));
   for (const p of list){
     const bytes = await root.readBytes(p), want = await sha256(bytes);
-    await root.write(`BrewCV/${p}`, bytes);
+    await root.write(`BrewCV/${p}`, bytes);      // makes the folders it needs
     const back = await root.readBytes(`BrewCV/${p}`);
-    if (!back || (await sha256(back)) !== want){ await root.remove(`BrewCV/${p}`); throw new Error(`${p}: the copy did not read back the same`); }
+    if (!back || (await sha256(back)) !== want){ await root.remove(`BrewCV/${p}`); throw new Error(t('i8.errCopy', { path: p })); }
   }
   for (const p of list) await root.remove(p);
   return list.length;
 }
 
+const okPath = p => typeof p === 'string' && !!p && !/^[\\/]|^[A-Za-z]:|\0/.test(p) && !p.split(/[\\/]/).includes('..');
 const dataUrlBytes = url => Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), c => c.charCodeAt(0));
 // the same file, whatever order a tool wrote its keys in (an older build, an editor)
 const same = (a, b) => { try { return a === b || JSON.stringify(canon(JSON.parse(a))) === JSON.stringify(canon(JSON.parse(b))); } catch { return false; } };
@@ -184,6 +199,7 @@ export function createSpace({ persist, store, now = () => new Date() }){
   const folder = () => (persist.folder?.space && persist.writer ? persist.folder : null);
 
   // the device files of this career that are not this device's, newest first
+  // shortcut: every device file is read in full at each scan (they hold text only, so a few hundred KB); upgrade by comparing size and time first, as documents() does.
   async function others(d){
     const me = await persist.devicePath(), rid = store.state.record?.recordId ?? null, out = [];
     for (const n of await d.list('devices')){
@@ -192,6 +208,8 @@ export function createSpace({ persist, store, now = () => new Date() }){
       if (path === me || text === null) continue;
       let got = null;
       try { got = readBackup(JSON.parse(text)); } catch { /* half written, or not a device file: it waits for the next scan */ }
+      // a path in another device's file is the place of a file in this folder: one that is absolute, climbs out with .. or is not text points at nothing of ours
+      for (const doc of got?.state.documents ?? []) if (doc.path !== undefined && !okPath(doc.path)) delete doc.path;
       out.push({ path, name: nameOfDevice(path), text, got, same: !!got && !!rid && got.info.recordId === rid });
     }
     return out.sort((a, b) => String(b.got?.info.saved).localeCompare(String(a.got?.info.saved)));
@@ -212,6 +230,8 @@ export function createSpace({ persist, store, now = () => new Date() }){
     await persist.markFileOpened({ at: x.got.info.saved ?? now().toISOString(), recordId: state.record.recordId ?? null, hash: null, clock: x.got.info.clock });
   }
 
+  const shape = s => JSON.stringify(canon({ record: s.record, resumes: s.resumes ?? [], frozen: s.frozen ?? {}, documents: s.documents ?? [], rounds: s.rounds ?? [], imports: s.imports ?? [] }));
+  const reordered = m => shape(keepOriginals(structuredClone(m.state), store.materialize())) !== shape(store.materialize());
   async function mergeDevices(d, r){
     for (const x of await others(d)){
       const h = await sha256(x.text);
@@ -222,40 +242,59 @@ export function createSpace({ persist, store, now = () => new Date() }){
       if (m.changed){
         await persist.checkpoint(t('i8.checkpointSync', { name: x.name }), 'merge');
         await persist.adoptMerge(m, t('i8.undoSync', { name: x.name }));
-      } else await persist.adoptClock(m.clock);      // the file's stamps are now ones this copy has seen
+      } else if (reordered(m)) await persist.adoptMerge(m, t('i8.undoSync', { name: x.name }));      // nothing to tell, but the merge puts lists in an order this copy does not have: the same order on every device
+      else await persist.adoptClock(m.clock);      // the file's stamps are now ones this copy has seen
       seen.set(x.path, h);
       r.changed += m.changed - (m.logged ? 1 : 0); r.summary.push(...m.summary); r.merged.push(x.path);
       r.devices.push({ path: x.path, name: x.name, saved: x.got.info.saved, state: 'merged' });
-      if (conflictCopy(x.path)) await toDeleted(d, x.path);      // a copy a sync tool made of a device file, merged like any other
+      if (conflictCopy(x.path.split('/').at(-1))) await persist.trash(x.path);      // a copy a sync tool made of a device file, merged like any other
     }
   }
 
   // A merged-view file somebody else wrote. resume-data.json: its body text edited outside becomes versions (the file as it was is kept in Deleted/ first). A conflict copy of one: the same, then
-  // out of the way. A recipe the app has no resume for, or one that differs from it, is read in as a saved resume of its own once it has been seen twice running (a device's own file may still be on its way).
-  // shortcut: a conflict copy's other changes are not offered, only its outside edits (its content came from device files this scan has merged); library.json written by hand is written over.
-  async function outsideEdits(d, p, text, r){
+  // out of the way. A recipe that is not this device's own write (browser storage keeps the hashes) and is not what the merged state would write is read in as a saved resume of its own, never over
+  // another: once it has been seen twice running and has not changed for ten minutes (a device's own file may still be on its way). A conflict copy of a recipe is read in the same way, at once, when
+  // it says something no saved resume does, and then moved.
+  // shortcut: a conflict copy's other changes to the career are not offered, only its outside edits (its content came from device files this scan has merged); library.json is derived, so one that is not this device's is kept in Deleted/ and written again.
+  async function outsideEdits(p, text, r){
     const got = readImport(text, p);
     if (got.kind !== 'library' || !got.outside.length) return;
-    await toDeleted(d, p, { copy: true });
     store.commit(x => { applyOutsideEdits(x.record, got.outside); }, t('i8.undoOutside'));
     r.outside += got.outside.length;
   }
+  function readIn(n, got, own, r){
+    store.commit(x => {
+      const rid = own ? n.normalize('NFC') : uniqueName(x.resumes ?? [], got.recipe);
+      (x.resumes ??= []).push({ ...got.recipe, id: rid });
+      if (got.frozen) (x.frozen ??= {})[rid] = got.frozen;
+    }, t('i8.undoRecipe', { name: n }));
+    r.absorbed++;
+  }
   async function absorb(d, r){
+    const mine = filesOf(store.materialize());
     for (const dir of ['', 'recipes']) for (const n of await d.list(dir)){
       const p = dir ? `${dir}/${n}` : n;
       if (ignored(n) || !n.endsWith('.json') || !conflictCopy(n) || (!dir && !/^(?:resume-data|library)/i.test(n))) continue;
       const text = await d.read(p);
       try { JSON.parse(text); } catch { continue; }      // still being written
-      if (!dir && /^resume-data/i.test(n)) await outsideEdits(d, p, text, r);
-      await toDeleted(d, p);
+      if (!dir && /^resume-data/i.test(n)) await outsideEdits(p, text, r);
+      if (dir){
+        try { const got = loadResume(dropProto(JSON.parse(text)), store.state.record); if (![...mine.values()].some(v => same(v, text))) readIn(n, got, false, r); }
+        catch { continue; }      // not a saved resume: it waits
+      }
+      await persist.trash(p);
       r.conflicts.push(p);
     }
     const view = await d.read('resume-data.json');
     if (view !== null && !persist.knows('resume-data.json', await sha256(view))){
-      try { JSON.parse(view); await outsideEdits(d, 'resume-data.json', view, r); await persist.accept('resume-data.json', view); }
+      try {
+        JSON.parse(view);
+        if (!same(mine.get('resume-data.json'), view)) await persist.trash('resume-data.json', { copy: true });      // it is about to be written over: what it says is kept (an older version put back, a file edited)
+        await outsideEdits('resume-data.json', view, r);
+        await persist.accept('resume-data.json', view);
+      }
       catch { /* half written: next scan */ }
     }
-    const mine = filesOf(store.materialize());
     for (const n of await d.list('recipes')){
       const p = `recipes/${n}`;
       if (!n.endsWith('.json') || ignored(n) || conflictCopy(n)) continue;
@@ -264,14 +303,14 @@ export function createSpace({ persist, store, now = () => new Date() }){
       if (same(mine.get(p), text)){ await persist.accept(p, text); continue; }
       let got;
       try { got = loadResume(dropProto(JSON.parse(text)), store.state.record); } catch { continue; }      // does not parse: it waits
+      const m = (await d.stat(p))?.mtime ?? 0;
+      // shortcut: a device file that arrives more than ten minutes after its saved resume leaves a copy of that resume (nothing is lost; delete the copy); upgrade by keeping the hashes each device file says it wrote.
+      if (m > 1e11 && m <= now() && now() - m < 600000) continue;      // written a moment ago: its device file may be on its way (a time in the future, a clock out of step, counts as old)
       if (later.get(p) !== h){ later.set(p, h); continue; }
-      const id = n.normalize('NFC'), list = store.state.resumes ?? [], taken = list.some(x => nameKey(x.id) === nameKey(id));
-      store.commit(x => {
-        const rid = taken ? uniqueName(x.resumes, got.recipe) : id;
-        (x.resumes ??= []).push({ ...got.recipe, id: rid });
-        if (got.frozen) (x.frozen ??= {})[rid] = got.frozen;
-      }, t('i8.undoRecipe', { name: n }));
-      later.delete(p); r.absorbed++;
+      const taken = (store.state.resumes ?? []).some(x => nameKey(x.id) === nameKey(n.normalize('NFC')));
+      readIn(n, got, !taken, r);
+      later.delete(p);
+      await persist.trash(p, { copy: true });      // it is about to be written over
       await persist.accept(p, text);
     }
   }
@@ -296,16 +335,17 @@ export function createSpace({ persist, store, now = () => new Date() }){
     r.referenced = done.length;
   }
 
+  // shortcut: other bytes at a document's path (`edited`) are listed and shown on its card, not read again by themselves; a file the person drops in again is the way. The second copy of one hash keeps the document's own path, not the older name.
   async function documents(d, r){
     const root = d.root, cache = (await persist.local('scan')) ?? {};
-    const got = await reconcile(store.state, root, cache);
-    await persist.setLocal('scan', cache);
+    const was = JSON.stringify(cache), got = await reconcile(store.state, root, cache);
+    if (JSON.stringify(cache) !== was) await persist.setLocal('scan', cache);
     status.clear();
     for (const [k, list] of [['cloud', got.cloud], ['missing', got.missing], ['changed', got.changed]]) for (const x of list) status.set(x.id, k);
     for (const x of store.state.documents ?? []) if (x.path && !status.has(x.id) && !got.moved.some(m => m.id === x.id)) verified.set(x.path, x.sha256);
     if (got.moved.length) store.commit(x => { for (const m of got.moved){ const y = x.documents.find(z => z.id === m.id); if (y) y.path = m.to; } }, t('i8.undoMoved'));
-    for (const p of got.dups) await toDeleted(d, p, { from: root });      // one hash at two paths: the document's own copy stays
-    Object.assign(r, { moved: got.moved.length, missing: got.missing.length, cloud: got.cloud.length, edited: got.changed, fresh: got.fresh, dups: got.dups.length });
+    for (const p of got.inboxDups) await persist.trash(p, { from: root });      // the same file in Inbox/ and in Library/: the one in Library/ stays
+    Object.assign(r, { moved: got.moved.length, missing: got.missing.length, cloud: got.cloud.length, edited: got.changed, fresh: got.fresh, dups: got.dups });
   }
 
   async function brewcvMd(root){
@@ -323,7 +363,7 @@ export function createSpace({ persist, store, now = () => new Date() }){
     await reference(d.root, r);
     await documents(d, r);
     await persist.writeFolder();
-    await sweepDeleted(d, now());
+    await persist.sweep();
     await brewcvMd(d.root);
     r.inbox = (await d.root.list('Inbox')).filter(n => !n.startsWith('.') && !ignored(n)).map(n => `Inbox/${n}`);
     const me = await persist.devicePath();
@@ -348,7 +388,7 @@ export function createSpace({ persist, store, now = () => new Date() }){
     for (const e of entries.filter(x => x.path?.startsWith('Inbox/') && x.sha256)){
       try {
         const had = (store.state.documents ?? []).find(x => x.sha256 === e.sha256);
-        if (had?.path && had.path !== e.path && await d.root.stat(had.path)){ await toDeleted(d, e.path, { from: d.root }); e.path = had.path; continue; }
+        if (had?.path && had.path !== e.path && (await sha256((await d.root.readBytes(had.path)) ?? new Uint8Array())) === e.sha256){ await persist.trash(e.path, { from: d.root }); e.path = had.path; continue; }      // the Library's file is still this one
         if (!['resume', 'letter', 'format', 'unread'].includes(e.status)) continue;
         const to = await pathFor(d.root, { name: e.name, meta: metaOf(e.name, e.modified), addedAt: now().toISOString() });
         verified.set(to, await moveFile(d.root, e.path, to));
@@ -367,7 +407,15 @@ export function createSpace({ persist, store, now = () => new Date() }){
     docStatus: id => status.get(id) ?? null,
     // the file at this document's path was read back and its hash checked: the receipt's third tick
     verified: x => !!x.path && verified.get(x.path) === x.sha256,
-    async forget(path){ const d = folder(); if (d && path.startsWith('devices/')){ await toDeleted(d, path); seen.delete(path); } },
+    // A device's file goes to Deleted/ only when what it holds is already merged (what it wrote after the last scan is not).
+    async forget(path){
+      const d = folder(), text = d && path.startsWith('devices/') ? await d.read(path) : null;
+      if (text === null || seen.get(path) !== await sha256(text)) return false;
+      await persist.trash(path);
+      seen.delete(path);
+      return true;
+    },
+    // shortcut: the moves Organise made are logged in this browser's storage, so Undo is for this device and does not outlast clearing it; upgrade by a log file per device in BrewCV/.
     plan: () => planOrganise(folder().root, last?.fresh ?? []),
     async organise(plan){
       const d = folder(), res = await organise(d.root, plan ?? await planOrganise(d.root, last?.fresh ?? []));

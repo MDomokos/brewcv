@@ -1775,8 +1775,9 @@ export default {
   'i8.organiseNote': 'Te pliki trafiłyby do Library. Każdy jest kopiowany, odczytywany i sprawdzany, zanim zniknie stary.',
   'i8.organiseOk': 'Przenieś {n} plików',
   'i8.organiseStopped': 'Zatrzymano po {n} przeniesieniach: nie udało się skopiować {file}. Nic więcej nie przeniesiono.',
+  'i8.organiseUndo': 'Cofnij przeniesienia',
   'i8.readFound': 'Wczytaj je do mojej kariery',
-  'i8.readOnly': 'Otwarte w innym oknie. To okno tylko czyta.',
+  'i8.readOnly': 'Otwarte w innym oknie. Zmiany w tym oknie nie są zapisywane.',
   'i8.rescan': 'Przeszukaj ponownie',
   'i8.synced': 'Scalono {n} zmian z innych urządzeń.',
   'i8.undoAdopt': 'Otwórz karierę z {name}',
@@ -1786,4 +1787,7 @@ export default {
   'i8.undoRecipe': 'Wczytano {name}',
   'i8.undoReference': 'Oryginały złożone w folderze',
   'i8.undoSync': 'Scal {name}',
+  'i8.errRead': '{path}: nie można odczytać',
+  'i8.errTaken': '{path}: nazwa jest zajęta',
+  'i8.errCopy': '{path}: kopia nie odczytała się tak samo',
 };

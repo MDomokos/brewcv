@@ -1775,8 +1775,9 @@ export default {
   'i8.organiseNote': 'Tyto soubory by se přesunuly do Library. Každý se zkopíruje, přečte zpět a zkontroluje, než zmizí starý.',
   'i8.organiseOk': 'Přesunout soubory: {n}',
   'i8.organiseStopped': 'Zastaveno po {n} přesunech: {file} se nepodařilo zkopírovat. Nic dalšího se nepřesunulo.',
+  'i8.organiseUndo': 'Vrátit přesuny zpět',
   'i8.readFound': 'Přečíst je do mé kariéry',
-  'i8.readOnly': 'Otevřeno v jiném okně. Toto okno jen čte.',
+  'i8.readOnly': 'Otevřeno v jiném okně. Změny v tomto okně se neukládají.',
   'i8.rescan': 'Prohledat znovu',
   'i8.synced': 'Sloučeno změn z jiných zařízení: {n}.',
   'i8.undoAdopt': 'Otevřít kariéru z {name}',
@@ -1786,4 +1787,7 @@ export default {
   'i8.undoRecipe': 'Načteno {name}',
   'i8.undoReference': 'Originály uloženy do složky',
   'i8.undoSync': 'Sloučit {name}',
+  'i8.errRead': '{path}: nelze přečíst',
+  'i8.errTaken': '{path}: název je obsazený',
+  'i8.errCopy': '{path}: kopie se nepřečetla stejně',
 };

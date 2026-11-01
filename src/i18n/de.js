@@ -1775,8 +1775,9 @@ export default {
   'i8.organiseNote': 'Diese Dateien würden nach Library verschoben. Jede wird kopiert, zurückgelesen und geprüft, bevor die alte verschwindet.',
   'i8.organiseOk': '{n} Dateien verschieben',
   'i8.organiseStopped': 'Nach {n} Verschiebungen gestoppt: {file} ließ sich nicht kopieren. Sonst wurde nichts verschoben.',
+  'i8.organiseUndo': 'Verschiebungen rückgängig machen',
   'i8.readFound': 'In meinen Werdegang einlesen',
-  'i8.readOnly': 'In einem anderen Fenster geöffnet. Dieses Fenster liest nur.',
+  'i8.readOnly': 'In einem anderen Fenster geöffnet. Änderungen in diesem Fenster werden nicht gespeichert.',
   'i8.rescan': 'Neu durchsuchen',
   'i8.synced': '{n} Änderungen von anderen Geräten zusammengeführt.',
   'i8.undoAdopt': 'Werdegang von {name} öffnen',
@@ -1786,4 +1787,7 @@ export default {
   'i8.undoRecipe': '{name} eingelesen',
   'i8.undoReference': 'Originale im Ordner abgelegt',
   'i8.undoSync': '{name} zusammenführen',
+  'i8.errRead': '{path}: lässt sich nicht lesen',
+  'i8.errTaken': '{path}: der Name ist vergeben',
+  'i8.errCopy': '{path}: die Kopie wurde nicht gleich zurückgelesen',
 };

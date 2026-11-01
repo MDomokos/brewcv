@@ -1775,8 +1775,9 @@ export default {
   'i8.organiseNote': 'Questi file verrebbero spostati in Library. Ognuno viene copiato, riletto e controllato prima che il vecchio sparisca.',
   'i8.organiseOk': 'Sposta {n} file',
   'i8.organiseStopped': 'Fermato dopo {n} spostamenti: {file} non si è potuto copiare. Nient’altro è stato spostato.',
+  'i8.organiseUndo': 'Annulla gli spostamenti',
   'i8.readFound': 'Leggili nel mio percorso',
-  'i8.readOnly': 'Aperto in un’altra finestra. Questa finestra legge soltanto.',
+  'i8.readOnly': 'Aperto in un’altra finestra. Le modifiche fatte in questa finestra non vengono salvate.',
   'i8.rescan': 'Cerca di nuovo',
   'i8.synced': '{n} modifiche di altri dispositivi unite.',
   'i8.undoAdopt': 'Apri il percorso di {name}',
@@ -1786,4 +1787,7 @@ export default {
   'i8.undoRecipe': '{name} letto',
   'i8.undoReference': 'Originali archiviati nella cartella',
   'i8.undoSync': 'Unisci {name}',
+  'i8.errRead': '{path}: non si può leggere',
+  'i8.errTaken': '{path}: il nome è già in uso',
+  'i8.errCopy': '{path}: la copia non è stata riletta uguale',
 };

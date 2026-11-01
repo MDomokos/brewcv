@@ -1775,8 +1775,9 @@ export default {
   'i8.organiseNote': 'Ezek a fájlok a Library mappába kerülnének. Mindegyiket lemásolja, visszaolvassa és ellenőrzi, mielőtt a régi eltűnik.',
   'i8.organiseOk': '{n} fájl áthelyezése',
   'i8.organiseStopped': '{n} áthelyezés után megállt: a(z) {file} nem másolható. Más nem lett áthelyezve.',
+  'i8.organiseUndo': 'Az áthelyezések visszavonása',
   'i8.readFound': 'Beolvasásuk a pályámba',
-  'i8.readOnly': 'Másik ablakban nyitva. Ez az ablak csak olvas.',
+  'i8.readOnly': 'Másik ablakban nyitva. Az ebben az ablakban végzett módosítások nem kerülnek mentésre.',
   'i8.rescan': 'Újrakeresés',
   'i8.synced': '{n} módosítás egyesítve más eszközökről.',
   'i8.undoAdopt': '{name} pályájának megnyitása',
@@ -1786,4 +1787,7 @@ export default {
   'i8.undoRecipe': '{name} beolvasva',
   'i8.undoReference': 'Az eredetik a mappába téve',
   'i8.undoSync': '{name} egyesítése',
+  'i8.errRead': '{path}: nem olvasható',
+  'i8.errTaken': '{path}: a név foglalt',
+  'i8.errCopy': '{path}: a másolat visszaolvasva nem egyezett',
 };

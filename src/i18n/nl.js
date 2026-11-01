@@ -1775,8 +1775,9 @@ export default {
   'i8.organiseNote': 'Deze bestanden zouden naar Library gaan. Elk wordt gekopieerd, teruggelezen en gecontroleerd voordat het oude verdwijnt.',
   'i8.organiseOk': '{n} bestanden verplaatsen',
   'i8.organiseStopped': 'Gestopt na {n} verplaatsingen: {file} kon niet worden gekopieerd. Er is verder niets verplaatst.',
+  'i8.organiseUndo': 'Verplaatsingen ongedaan maken',
   'i8.readFound': 'Inlezen in mijn loopbaan',
-  'i8.readOnly': 'Open in een ander venster. Dit venster leest alleen.',
+  'i8.readOnly': 'Open in een ander venster. Wijzigingen in dit venster worden niet bewaard.',
   'i8.rescan': 'Opnieuw zoeken',
   'i8.synced': '{n} wijzigingen van andere apparaten samengevoegd.',
   'i8.undoAdopt': 'Loopbaan van {name} openen',
@@ -1786,4 +1787,7 @@ export default {
   'i8.undoRecipe': '{name} ingelezen',
   'i8.undoReference': 'Originelen in de map opgeborgen',
   'i8.undoSync': '{name} samenvoegen',
+  'i8.errRead': '{path}: kan niet worden gelezen',
+  'i8.errTaken': '{path}: de naam is al in gebruik',
+  'i8.errCopy': '{path}: de kopie werd niet hetzelfde teruggelezen',
 };

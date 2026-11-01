@@ -50,6 +50,7 @@ export function createStore(initial = {}, opts = {}){
   const maxBytes = opts.maxBytes ?? 32e6;
   const coalesceMs = opts.coalesceMs ?? 800;
   const now = opts.now ?? (() => Date.now());
+  const refuse = opts.refuse ?? null;       // () => true while no change may be made (a window that only reads): commit, undo and redo then do nothing and `opts.refused()` is told
   const settle = opts.settle ?? null;       // runs on the draft inside every commit, so its writes are part of the same undo step
 
   const assets = new Map(opts.assets ?? []);
@@ -77,6 +78,7 @@ export function createStore(initial = {}, opts = {}){
     // fn(draft) mutates a deep copy. Returns true if anything changed. `merge`: a key for one continuous edit of one thing (typing in a text);
     // only commits with the same label and key inside the window are one undo step. Without it every commit is its own step.
     commit(fn, label = 'Edit', merge = null){
+      if (refuse?.()){ opts.refused?.(); return false; }
       const draft = JSON.parse(last.json);
       const ret = fn(draft);
       const out = ret !== undefined && ret !== draft && typeof ret === 'object' ? ret : draft;
@@ -98,7 +100,7 @@ export function createStore(initial = {}, opts = {}){
     },
 
     undo(){
-      if (!undoS.length) return null;
+      if (refuse?.() || !undoS.length) return null;
       const label = last.label;
       redoS.push(last);
       const prev = undoS.pop(); undoBytes -= prev.bytes;
@@ -107,7 +109,7 @@ export function createStore(initial = {}, opts = {}){
       return label;
     },
     redo(){
-      if (!redoS.length) return null;
+      if (refuse?.() || !redoS.length) return null;
       const next = redoS.pop();
       undoS.push({ ...last }); undoBytes += last.bytes;
       setLast({ ...next, at: 0 });

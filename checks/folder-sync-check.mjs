@@ -21,14 +21,30 @@ section('what the folder ignores, and the names it makes');
   const bad = 'a\\b/c:d*e?f"g<h>i|j#k^l[m]n';
   ok('a safe name has none of \\ / : * ? " < > | # ^ [ ]', !/[\\/:*?"<>|#^[\]]/.test(safe(bad)), safe(bad));
   ok('…is NFC, at most 120 characters, with no trailing dot or space', safe('é'.repeat(200)) === safe('é'.repeat(200)).normalize('NFC') && safe('x'.repeat(300)).length === 120 && !/[. ]$/.test(safe('name. . ')) && safe('...') === 'checkpoint' && safe('', 'device') === 'device');
+  ok('bidi controls, DEL and C1 controls are stripped too', safe('a\u202eb\u2066c\u007fd\u0085e\u009ff') === 'a b c d e f' && !/[\u202a-\u202e\u2066-\u2069\u007f-\u009f]/.test(safe('x\u202ay\u2069z')));
   const out = exportName({ company: 'A#B', role: 'C[1]^' }, { basics: { name: 'N.' } }, 'pdf');
   ok('every name the app makes goes through safe(): an export’s too', out === safe('A#B - C[1]^ - N.') + '.pdf' && !/[#^[\]]/.test(out), out);
   ok('the standard name of a library file: date, company, role, a language that is not English', libraryName({ date: '2024-03-12', company: 'Acme', role: 'Product Designer', ext: '.pdf' }) === '2024-03-12 Acme - Product Designer.pdf' && libraryName({ date: '2024-03-12', company: 'Acme', role: 'Product Designer', lang: 'hu', ext: '.pdf' }) === '2024-03-12 Acme - Product Designer (hu).pdf' && libraryName({ stem: '2020-01-01 Old name', ext: '.pdf', date: '2024-01-01' }) === '2020-01-01 Old name.pdf');
 }
 
 
+{
+  section('a window that only reads cannot change anything');
+  const { createStore } = await import('../src/store/store.js');
+  let off = false, told = 0;
+  const st = createStore({ n: 1 }, { refuse: () => off, refused: () => told++ });
+  st.commit(d => { d.n = 2; }, 'a');
+  off = true;
+  const kept = st.commit(d => { d.n = 3; }, 'b'), undone = st.undo();
+  ok('with editing off a change is refused and says so, undo does nothing', kept === false && undone === null && st.state.n === 2 && told === 1);
+  off = false;
+  ok('…and with it on again nothing was lost', st.undo() === 'a' && st.state.n === 1);
+}
+
 // one storage, a folder object for each device
-const make = () => { const fx = new Map(); return { fx, root: () => memoryFolder(fx) }; };
+// a file the check puts in the folder by hand is an old one (its time is 0); a file a folder object writes has the time of the write
+class Disk extends Map { set(k, v){ super.set(k, v); this.times?.set(k, 0); return this; } later(k){ this.times.set(k, Date.now() + 5 * 864e5); } }      // later: a time in the future, a clock out of step
+const make = () => { const fx = new Disk(); return { fx, root: () => memoryFolder(fx) }; };
 await scenarios({ ok, section, make });
 
 console.log(failed ? `\n${failed} folder-sync check(s) FAILED` : '\nall folder-sync checks passed');

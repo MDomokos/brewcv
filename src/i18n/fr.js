@@ -1775,8 +1775,9 @@ export default {
   'i8.organiseNote': 'Ces fichiers seraient déplacés dans Library. Chacun est copié, relu et vérifié avant que l’ancien disparaisse.',
   'i8.organiseOk': 'Déplacer {n} fichiers',
   'i8.organiseStopped': 'Arrêt après {n} déplacements : {file} n’a pas pu être copié. Rien d’autre n’a été déplacé.',
+  'i8.organiseUndo': 'Annuler les déplacements',
   'i8.readFound': 'Les lire dans mon parcours',
-  'i8.readOnly': 'Ouvert dans une autre fenêtre. Cette fenêtre ne fait que lire.',
+  'i8.readOnly': 'Ouvert dans une autre fenêtre. Les modifications faites dans celle-ci ne sont pas enregistrées.',
   'i8.rescan': 'Analyser à nouveau',
   'i8.synced': '{n} modifications d’autres appareils fusionnées.',
   'i8.undoAdopt': 'Ouvrir le parcours de {name}',
@@ -1786,4 +1787,7 @@ export default {
   'i8.undoRecipe': '{name} lu',
   'i8.undoReference': 'Originaux rangés dans le dossier',
   'i8.undoSync': 'Fusion de {name}',
+  'i8.errRead': '{path} : illisible',
+  'i8.errTaken': '{path} : le nom est pris',
+  'i8.errCopy': '{path} : la copie n’a pas été relue à l’identique',
 };

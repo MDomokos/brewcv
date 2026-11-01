@@ -1779,8 +1779,9 @@ export default {
   'i8.organiseNote': 'These files would move into Library. Each is copied, read back and checked before the old one goes.',
   'i8.organiseOk': 'Move {n} files',
   'i8.organiseStopped': 'Stopped after {n} moves: {file} could not be copied. Nothing else was moved.',
+  'i8.organiseUndo': 'Undo the moves',
   'i8.readFound': 'Read them into my career',
-  'i8.readOnly': 'Open in another window. This window only reads.',
+  'i8.readOnly': 'Open in another window. Changes made in this window are not saved.',
   'i8.rescan': 'Rescan',
   'i8.synced': 'Merged {n} changes from other devices.',
   'i8.undoAdopt': 'Open the career of {name}',
@@ -1790,4 +1791,7 @@ export default {
   'i8.undoRecipe': 'Read in {name}',
   'i8.undoReference': 'Originals filed in the folder',
   'i8.undoSync': 'Merge {name}',
+  'i8.errRead': '{path}: cannot be read',
+  'i8.errTaken': '{path}: the name is taken',
+  'i8.errCopy': '{path}: the copy did not read back the same',
 };

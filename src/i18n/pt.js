@@ -1775,8 +1775,9 @@ export default {
   'i8.organiseNote': 'Estes ficheiros passariam para Library. Cada um é copiado, relido e verificado antes de o antigo sair.',
   'i8.organiseOk': 'Mover {n} ficheiros',
   'i8.organiseStopped': 'Parou após {n} movimentos: não foi possível copiar {file}. Mais nada foi movido.',
+  'i8.organiseUndo': 'Anular os movimentos',
   'i8.readFound': 'Lê-los para o meu percurso',
-  'i8.readOnly': 'Aberto noutra janela. Esta janela só lê.',
+  'i8.readOnly': 'Aberto noutra janela. As alterações feitas nesta janela não são guardadas.',
   'i8.rescan': 'Procurar de novo',
   'i8.synced': '{n} alterações de outros dispositivos juntadas.',
   'i8.undoAdopt': 'Abrir o percurso de {name}',
@@ -1786,4 +1787,7 @@ export default {
   'i8.undoRecipe': '{name} lido',
   'i8.undoReference': 'Originais arquivados na pasta',
   'i8.undoSync': 'Juntar {name}',
+  'i8.errRead': '{path}: não se consegue ler',
+  'i8.errTaken': '{path}: o nome já está em uso',
+  'i8.errCopy': '{path}: a cópia não foi relida igual',
 };

@@ -61,7 +61,9 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 
 const params = new URLSearchParams(location.search);
 const backend = params.has('memory') ? memoryBackend() : idbBackend();   // ?memory: a clean, throwaway session (checks)
-const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle });      // autosave of the open resume rides on every commit
+// A window that does not hold the writer lock only reads: once it is up, nothing in it can be changed (what was typed would be lost when it starts again as the writer).
+let editsOff = false;
+const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle, refuse: () => editsOff, refused: () => toast(t('i8.readOnly'), 'warn') });      // autosave of the open resume rides on every commit
 // A change the lock refuses, from any path, says why and changes nothing: it never surfaces as an uncaught error.
 const rawCommit = store.commit;
 store.commit = (fn, label, merge) => {
@@ -85,7 +87,8 @@ function alsoChanged(peers){
   // after the change's own message, which stays if there is one: the next change says it then
   setTimeout(() => { if ($('#toast').classList.contains('on')) return; alsoSaid = true; toast(t('ml2.alsoChanged', { lang: names }), '', true); }, 0);
 }
-const persist = createPersist({ store, backend, locks: globalThis.navigator?.locks });
+// One window of a browser profile writes its storage and its folder; the others only read (the throwaway ?memory session has its own storage and needs no lock)
+const persist = createPersist({ store, backend, locks: params.has('memory') ? null : globalThis.navigator?.locks });
 const space = createSpace({ persist, store });
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },
@@ -155,6 +158,7 @@ function restyle(){ staticText(); renderAll(); }
 async function boot(){
   requestPersistence().then(p => { ui.persisted = p; });
   let restored = false;
+  if (!(await persist.becomeWriter())) ui.readOnly = true;      // before anything is read or saved: this window then writes nothing to the browser's storage
   try { restored = await persist.restore(); } catch { /* blocked storage: start fresh */ }
   if (!restored || !store.state.record){
     await loadExample({ quiet: true });
@@ -210,6 +214,7 @@ async function boot(){
     else if (location.hash !== '#resume' && (store.state.resumes?.length ?? 0) >= 2) setView('resumes');
     history.replaceState(null, '', hashOf());
   }
+  editsOff = !!ui.readOnly;
   document.body.classList.add('is-ready');
   ui.ready = true;
 }
@@ -1427,11 +1432,11 @@ async function linkFolder(startAt){
     else f = fsaFolder(await showDirectoryPicker({ id: 'brewcv', mode: 'readwrite' }));
   } catch { return; }
   if ((await f.permission(true)) !== 'granted') return toast(t('toast.noFolderPermission'), 'warn');
-  await adoptFolder(f, true);
+  await adoptFolder(f);
 }
 
 // `root` is the folder the person picked. Its data is in BrewCV/ (or, in an older folder, at the top); the Library and the Inbox are beside it.
-async function adoptFolder(root, fresh){
+async function adoptFolder(root){
   if (!(await persist.becomeWriter())){ ui.readOnly = true; ui.reconnect = null; renderHead(); return; }      // another window writes this folder; this one only reads
   const f = await dataFolder(root);
   const devs = await space.probe(f);      // the other devices' files of this career merge by themselves; another career's files are asked about
@@ -1463,9 +1468,10 @@ async function adoptFolder(root, fresh){
   toast(r?.changed ? t('i8.synced', { n: r.changed }) : t('toast.linked', { name: root.name }));
   // an older folder keeps its data at the top: moving it into BrewCV/ is offered once
   if (f.legacy && (await persist.local('moveAsked')) !== root.name){
-    await persist.setLocal('moveAsked', root.name);
-    if (await askOk(t('i8.move', { name: root.name }), { ok: 'OK', cancel: 'Cancel' })){
-      try { await persist.checkpoint(t('i8.checkpointMove'), 'replace'); toast(t('i8.moved', { n: await moveIntoBrewCV(root) })); await adoptFolder(root, false); }
+    const yes = await askOk(t('i8.move', { name: root.name }), { ok: 'OK', cancel: 'Cancel' });
+    await persist.setLocal('moveAsked', root.name);      // asked once: after the answer
+    if (yes){
+      try { await persist.checkpoint(t('i8.checkpointMove'), 'replace'); toast(t('i8.moved', { n: await moveIntoBrewCV(root) })); await adoptFolder(root); }
       catch (e){ toast(`${root.name}: ${errText(e)}`, 'bad'); }
     }
   }
@@ -1473,7 +1479,7 @@ async function adoptFolder(root, fresh){
 
 // On launch, on coming back to the window and every five minutes: the other devices' files, what changed outside, the documents, the Inbox. A window that was not the writer tries again.
 async function resync(){
-  if (ui.readOnly) return checkFolder();
+  if (ui.readOnly){ if (await persist.becomeWriter()) location.reload(); return; }      // the other window closed: start again as the writer, from what it saved
   if (!persist.folder?.space) return;
   try { await space.sync(); } catch (e){ console.error(e); }
   renderHead(); if (ui.view === 'settings') renderBody();
@@ -1483,7 +1489,7 @@ async function checkFolder(){
   const h = await persist.rememberedFolder().catch(() => null);
   if (!h) return;
   const f = folderOf(h);
-  if ((await f.permission(false)) === 'granted') return adoptFolder(f, false);
+  if ((await f.permission(false)) === 'granted') return adoptFolder(f);
   ui.reconnect = f; renderHead();
 }
 async function reconnect(){
@@ -1492,7 +1498,7 @@ async function reconnect(){
   // desktop: a path has no permission to ask for and the folder may have moved, so the person picks it again, starting beside the old one
   if (typeof f.handle === 'string') return linkFolder(f.handle.replace(/[\\/][^\\/]*$/, '') || undefined);
   if ((await f.permission(true)) !== 'granted') return toast(t('toast.stillNoDisk'), 'warn');
-  await adoptFolder(f, false);
+  await adoptFolder(f);
 }
 
 // A toast never covers the page. It hangs under the sidebar's header, over the sidebar's own body. (On a phone the page fills the
