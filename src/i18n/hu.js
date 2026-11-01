@@ -1558,7 +1558,7 @@ export default {
   'wb.add': "Hozzáadás",
   'wb.addAgain': "Nyomja meg újra, és új szóként kerül be",
   'wb.addBank': "„{word}” hozzáadása a szóbankhoz",
-  'wb.addEmpty': "Szó hozzáadása: írja be a mezőbe",
+  'wb.addEmpty': "Új szó hozzáadása",
   'wb.addNear': "Hasonlít egy szóra a bankban: mégis hozzáadja?",
   'wb.addTo': "„{word}” hozzáadása ide: {group}",
   'wb.added': "„{word}” most már a bankban van.",
@@ -1586,7 +1586,6 @@ export default {
   'wb.groupDeleted': "„{name}” törölve erről az önéletrajzról; a szavai visszakerültek a bankba.",
   'wb.groupsLabel': "Az oldal készségcsoportjai",
   'wb.hereTip': "Már ebben a csoportban van",
-  'wb.inBank': "„{word}” már a bankban van.",
   'wb.inLang': "{word} – {lang}",
   'wb.missTip': "Még nincs meg ezen a nyelven: {lang}; angolul nyomtatódik",
   'wb.missing': "hiányzik: {n}",
@@ -1630,4 +1629,6 @@ export default {
   'wb.wordsTip': "A bank szerkesztése: szavak, fordítások, polcok",
   'wb.writeIn': "Megírás ezen a nyelven: {lang}",
   'wb.writeLang': "A nyelv, amelyen ír",
+  'wb.newWord': "Új készségszó",
+  'wb.showTip': "Az oldalon van: egy kattintás megmutatja",
 };

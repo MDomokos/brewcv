@@ -22,8 +22,8 @@ const RESIST = 28, DWELL = 450, BAND = 0.2, HOLD_PX = 10, MOVE = 5, SLIDE_MS = 1
 const PAGE_ICON = '<svg class="ico" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><rect x="4.2" y="2.4" width="7.6" height="11.2" rx="1.4"/></svg>';
 
 export function initWordbank(C){
-  const B = { q: '', warned: null, view: null, wlang: null, delw: null, wadd: null };
-  let D = null, justDragged = 0;
+  const B = { q: '', add: false, warned: null, view: null, wlang: null, delw: null, wadd: null };      // add: the box is in add mode (the "+" beside it was pressed)
+  let D = null, justDragged = 0, drawing = false;
   const card = $('#bankcard');
   const st = () => C.store.state, rec = () => C.record(), cur = () => C.cur(), L = () => cur()?.lang ?? DEFAULT_LANG;
   const groups = () => (cur() ? T.arrangementOf(rec(), cur()).groups : []);
@@ -75,22 +75,22 @@ export function initWordbank(C){
   const matches = (w, q) => !q || forms(w).some(f => SB.norm(f).includes(q));
   const chip = (w, { cls = '', act = 'wb-take' } = {}) => {
     const x = SB.wordText(rec(), w.id, L());
-    return `<button type="button" class="skchip wbchip${x.miss ? ' miss' : ''}${cls}" data-act="${act}" data-id="${esc(w.id)}" data-key="${act}:${esc(w.id)}" title="${esc(x.miss ? t('wb.missTip', { lang: langName(L()) }) : pick() ? t('wb.takeTip', { group: head(groups().find(g => g.id === pick())) }) : t('wb.pickFirst'))}">${esc(x.text)}</button>`
+    return `<button type="button" class="skchip wbchip${x.miss ? ' miss' : ''}${cls}" data-act="${act}" data-id="${esc(w.id)}" data-key="${act}:${esc(w.id)}" title="${esc(act === 'wb-show' ? t('wb.showTip') : x.miss ? t('wb.missTip', { lang: langName(L()) }) : pick() ? t('wb.takeTip', { group: head(groups().find(g => g.id === pick())) }) : t('wb.pickFirst'))}">${esc(x.text)}</button>`
       + (x.miss && act === 'wb-take' ? `<button type="button" class="wbfix" data-act="wb-fix" data-id="${esc(w.id)}" title="${esc(t('wb.writeIn', { lang: langName(L()) }))}">${esc(L())}</button>` : '');
   };
   function plusHtml(){
     const q = B.q.trim(), sim = q ? SB.similar(rec(), q) : null, gi = groups().findIndex(g => g.id === pick());
-    if (sim?.exact) return '';
+    if (sim?.exact || (!q && B.add)) return '';      // (in add mode the leading "+" says it)
     const near = !!sim?.near.length, warned = near && B.warned === q, g = gi >= 0 ? groups()[gi] : null;
-    return `<button type="button" class="obplus press is-free wbqplus${q ? ' has-text' : ''}${near ? ' near' : ''}${warned ? ' warned' : ''}" data-tier="tertiary" data-act="wb-add" data-key="wb-add"${q && g ? ` style="--gh:${hue(gi)}"` : ''}
+    return `<button type="button" class="obplus press is-free wbqplus${q ? ' has-text' : ''}${near ? ' near' : ''}${warned ? ' warned' : ''}" data-tier="tertiary" data-act="${q ? 'wb-add' : 'wb-addmode'}" data-key="wb-add"${q && g ? ` style="--gh:${hue(gi)}"` : ''}
       title="${esc(!q ? t('wb.addEmpty') : warned ? t('wb.addAgain') : near ? t('wb.addNear') : g ? t('wb.addTo', { word: q, group: head(g) }) : t('wb.addBank', { word: q }))}" aria-label="${esc(q ? t('wb.addBank', { word: q }) : t('wb.addEmpty'))}">${icon('add', { role: 'inline' })}${q ? `<span>${h('wb.add')}</span>` : ''}</button>`;
   }
   function findHtml(){
     const q = B.q.trim();
     if (!q) return '';
     const { exact, near } = SB.similar(rec(), q);
-    if (exact){ const n = RS.wordUses(st(), exact.id).length;
-      return `<div class="wbaddrow dup"><span class="wbmark" title="${esc(t('wb.exactTip'))}">=</span>${chip(exact)}<span class="wbuses" title="${esc(t('wb.usesTip', { n }))}">${PAGE_ICON}${n}</span><span class="grow"></span>${delBtn(`data-act="wb-delw" data-id="${esc(exact.id)}"`, t('wb.delete'), { name: t('wb.deleteWord', { word: exact.name }) })}</div>`; }
+    if (exact){ const n = RS.wordUses(st(), exact.id).length;      // (a word on the page shows where it is; the Delete steps aside while its question is asked)
+      return `<div class="wbaddrow dup"><span class="wbmark" title="${esc(t('wb.exactTip'))}">=</span>${chip(exact, onRes().has(exact.id) ? { act: 'wb-show' } : {})}<span class="wbuses" title="${esc(t('wb.usesTip', { n }))}">${PAGE_ICON}${n}</span><span class="grow"></span>${B.delw === exact.id ? '' : delBtn(`data-act="wb-delw" data-id="${esc(exact.id)}"`, t('wb.delete'), { name: t('wb.deleteWord', { word: exact.name }) })}</div>`; }
     return near.length ? `<div class="wbaddrow near"><span class="wbmark" title="${esc(t('wb.nearTip'))}">≈</span>${near.map(w => chip(w)).join('')}</div>` : '';
   }
   function delwHtml(){
@@ -115,8 +115,9 @@ export function initWordbank(C){
       const note = ws.length ? '' : `<span class="wbshelfnote">${h(all.length ? 'wb.allHere' : 'wb.noWords')}</span>`;
       rows.push(`<div class="wbsec" data-sec="${esc(s.id)}" title="${esc(t('wb.shelfTip'))}"><span class="wbclu">${esc(SB.shelfName(rec(), s.id, L()))}</span><div class="wbtiles">${note}${ws.map(w => chip(w)).join('')}</div></div>`);
     }
-    if (!rows.length && !q) rows.push(`<p class="muted small wbempty">${h(words.length ? 'wb.allOnResume' : 'wb.bankEmpty')}</p>`);      // (while finding, the row under the box says it)
-    return `<div class="wbtray" data-bankdrop>${rows.join('')}</div>`;
+    const none = !rows.length;      // nothing to show: the well takes the window's height (with the message, unless words are being found: the row under the box says it)
+    if (none && !q) rows.push(`<p class="muted small wbempty">${h(words.length ? 'wb.allOnResume' : 'wb.bankEmpty')}</p>`);
+    return `<div class="wbtray${none ? ' is-empty' : ''}" data-bankdrop>${rows.join('')}</div>`;
   }
   // the languages this resume has copies in (English, the words themselves, first)
   const stripLangs = () => [...new Set([DEFAULT_LANG, ...RS.groupOf(st(), cur()).map(r => r.lang ?? DEFAULT_LANG), L()])];
@@ -176,23 +177,26 @@ export function initWordbank(C){
       ${others.length ? [...byRole].map(([role, rs]) => `<p class="wbclu wbrole">${esc(role)}</p>${rs.map(r => `<div class="wbfromr"><div class="wbfromt"><b>${esc(C.resumeName(r))}</b><span class="grow"></span><button type="button" class="sm" data-act="wb-use" data-id="${esc(r.id)}">${h('wb.useGroups')}</button></div>${groupsOf(r)}</div>`).join('')}`).join('')
         : `<p class="muted small">${h('wb.noOthers')}</p>`}</div>`;
   }
+  // the box: a magnifier leads it (Find); in add mode a "+" does, and the placeholder says what is typed
+  const boxHtml = () => { const say = t(B.add ? 'wb.newWord' : 'wb.find');
+    return `<span class="wbqwrap${B.add ? ' is-add' : ''}"><i class="wbqico" aria-hidden="true">${icon(B.add ? 'add' : 'search', { role: 'inline' })}</i><input type="search" class="sw-q wbq" data-key="wb-q" placeholder="${esc(say)}" aria-label="${esc(say)}" value="${esc(B.q)}" autocomplete="off" spellcheck="false">${plusHtml()}</span>`; };
   function bankHtml(){
     const strip = B.view === 'words' && stripLangs().length > 1 ? `<div class="wbbar2">${stripHtml(wlangNow())}</div>` : '';
-    const top = `<div class="wbtop"><div class="wbbar"><span class="wbqwrap"><input type="search" class="wbq" data-key="wb-q" placeholder="${esc(t('wb.find'))}" aria-label="${esc(t('wb.find'))}" value="${esc(B.q)}" autocomplete="off" spellcheck="false">${plusHtml()}</span>
+    const top = `<div class="wbtop"><div class="wbbar">${boxHtml()}
       ${trBtnHtml()}<button type="button" class="ib press wbfromb" data-tier="tertiary" data-act="wb-from" data-key="wb-from" aria-pressed="${B.view === 'from'}" title="${esc(t('wb.from'))}" aria-label="${esc(t('wb.from'))}">${icon('list')}</button>
       <button type="button" class="ib press wbpen" data-tier="tertiary" data-act="wb-words" data-key="wb-pen" aria-pressed="${B.view === 'words' && B.wlang === DEFAULT_LANG}" title="${esc(t('wb.wordsTip'))}" aria-label="${esc(t('wb.wordsTip'))}">${icon('edit')}</button></div>${strip}</div>`;
     const body = B.view === 'words' ? wordsHtml() : B.view === 'from' ? fromHtml() : trayHtml();
-    return `${top}${delwHtml()}${B.view === 'words' ? '' : findHtml()}${body}`;
+    return `${top}${B.view === 'words' ? '' : findHtml()}${delwHtml()}${body}`;
   }
   function render(){
     if (!card) return;
     const on = active();
     card.hidden = !on;
     card.closest('.col')?.classList.toggle('has-bank', on);
-    if (!on){ if (card.innerHTML) card.innerHTML = ''; return; }
+    if (!on){ B.add = false; if (card.innerHTML) card.innerHTML = ''; return; }
     const a = document.activeElement, key = card.contains(a) ? a?.dataset?.key : null, ss = a?.selectionStart, se = a?.selectionEnd, top = card.scrollTop;
     if (a?.matches?.('.wbin') && card.contains(a)) return;      // a word being written is not redrawn under the caret (its change redraws when it is left)
-    card.innerHTML = bankHtml();
+    drawing = true; card.innerHTML = bankHtml(); drawing = false;
     tierAll(card);
     card.scrollTop = top;
     if (key){ const n = card.querySelector(`[data-key="${CSS.escape(key)}"]`); if (n){ n.focus({ preventScroll: true }); if (ss != null && n.setSelectionRange) try { n.setSelectionRange(ss, se); } catch { /* not a text box */ } } }
@@ -200,8 +204,19 @@ export function initWordbank(C){
   const focusKey = k => card?.querySelector(`[data-key="${CSS.escape(k)}"]`)?.focus();
   const shake = el => { if (!el || reduced()) return; el.classList.remove('wb-shake'); void el.offsetWidth; el.classList.add('wb-shake'); };
 
+  // a word on the page: shown where it is (the page brought up, scrolled to it) with the page's own flash
+  function showWord(wid){
+    const doc = C.sheet.doc, el = doc?.querySelector(`.skills__group [data-word="${CSS.escape(wid)}"]`);
+    if (!el) return;
+    const at = [...doc.querySelectorAll('.document > .page')].findIndex(p => p.contains(el));
+    if (at >= 0 && at !== C.ui.page) C.canvas.goToPage(at);
+    else C.canvas.ensureVisible(C.sheet.rectOfEl(el));
+    if (reduced()){ el.style.backgroundColor = 'var(--plate-tint-sel)'; setTimeout(() => { el.style.backgroundColor = ''; }, 1000); return; }      // (the page's flash is an animation: still, it is held a second)
+    el.classList.remove('rb-flash'); void el.offsetWidth; el.classList.add('rb-flash');
+    el.addEventListener('animationend', () => el.classList.remove('rb-flash'), { once: true });
+  }
   // Find or add: Enter, the "+" (or a word typed with commas, each) adds it to the bank on no shelf, and into the picked group. A word the bank has is
-  // taken (with a group picked) or pointed at; with words like it shown, the first press only shakes the "+", the second adds.
+  // shown, if it is on the page, else taken (with a group picked) or pointed at; with words like it shown, the first press only shakes the "+", the second adds.
   function addFromFind(){
     const text = B.q.trim();
     if (!text){ focusKey('wb-q'); return; }
@@ -209,9 +224,9 @@ export function initWordbank(C){
     if (parts.length === 1){
       const { exact, near } = SB.similar(rec(), parts[0]);
       if (exact){
-        B.q = ''; B.warned = null;
-        if (g && onRes().get(exact.id) !== g) take(exact.id);
-        else { C.toast(t('wb.inBank', { word: wtext(exact.id).text }), ''); render(); }
+        if (onRes().has(exact.id)) showWord(exact.id);
+        else if (g){ B.q = ''; B.warned = null; take(exact.id); }
+        else nudge();
         focusKey('wb-q'); return;
       }
       if (near.length && B.warned !== parts[0]){ B.warned = parts[0]; render(); shake(card.querySelector('.wbqplus')); focusKey('wb-q'); return; }
@@ -237,7 +252,9 @@ export function initWordbank(C){
       if (!b || performance.now() - justDragged < 300) return;
       const a = b.dataset.act, id = b.dataset.id;
       if (a === 'wb-take') take(id);
+      else if (a === 'wb-show') showWord(id);
       else if (a === 'wb-add') addFromFind();
+      else if (a === 'wb-addmode'){ B.add = true; render(); focusKey('wb-q'); }
       else if (a === 'wb-from'){ B.view = B.view === 'from' ? null : 'from'; render(); }
       else if (a === 'wb-words'){ if (B.view === 'words' && B.wlang === DEFAULT_LANG){ B.view = null; render(); } else openWords(DEFAULT_LANG); }
       else if (a === 'wb-words-done'){ B.view = null; render(); }
@@ -258,7 +275,7 @@ export function initWordbank(C){
     card.addEventListener('keydown', e => {
       const x = e.target;
       if (x.matches('.wbq') && e.key === 'Enter' && !e.isComposing){ e.preventDefault(); addFromFind(); }
-      else if (x.matches('.wbq') && e.key === 'Escape' && B.q){ e.preventDefault(); e.stopPropagation(); B.q = ''; B.warned = null; render(); }
+      else if (x.matches('.wbq') && e.key === 'Escape' && (B.q || B.add)){ e.preventDefault(); e.stopPropagation(); Object.assign(B, { q: '', add: false, warned: null }); render(); }
       else if (x.matches('.wbin') && e.key === 'Enter'){      // kept, and on to the next empty line
         e.preventDefault();
         const ins = [...card.querySelectorAll('.wbin')], next = ins.slice(ins.indexOf(x) + 1).find(n => !n.value.trim())?.dataset.key;
@@ -274,6 +291,13 @@ export function initWordbank(C){
       if (x.dataset.wl) commit(d => RS.renameWord(d.record, x.dataset.wl, x.dataset.l, x.value), t('wb.undoWord'));
       else if (x.dataset.sl) commit(d => SB.setShelfName(d.record, x.dataset.sl, x.dataset.l, x.value), t('wb.undoShelf'));
       if (x.dataset.wl || x.dataset.sl) setTimeout(render);
+    });
+    // an empty box that is left is back to Find (only the box is redrawn: a click that began on something else must still land)
+    card.addEventListener('focusout', e => {
+      if (drawing || !B.add || !e.target.matches?.('.wbq') || e.target.value || card.contains(e.relatedTarget)) return;
+      B.add = false;
+      const w = card.querySelector('.wbqwrap');
+      if (w){ w.outerHTML = boxHtml(); tierAll(card); }
     });
     card.addEventListener('pointerdown', e => bankDown(e));
   }

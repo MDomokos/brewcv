@@ -4253,6 +4253,105 @@ if (want('the skill wordbank: the groups by name, the bank’s window, moving wo
   await ctx.close();
 }
 
+if (want('the skill wordbank, round two: the search box, the tray as a well, an exact word shown on the page, one Delete, the add mode, the rail on a card')) {
+  const ctx = await newContext({ motion: true, viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const fr = page.frameLocator('#sheet iframe');
+  const Q = '#bankcard .wbq';
+  const groupsNow = () => frameDoc(page, d => [...d.querySelectorAll('.skills__group')].map(g => `${g.querySelector('.skills__label').textContent}: ${[...g.querySelectorAll('[data-skill]')].map(x => x.textContent).join(', ')}`));
+  const type = async text => { await page.fill(Q, text); await settle(page); };
+  const wordOn = text => frameDoc(page, (d, t) => { const e = [...d.querySelectorAll('.skills__group [data-word]')].find(x => x.textContent === t); return e ? { flash: e.classList.contains('rb-flash'), anim: d.defaultView.getComputedStyle(e).animationName, bg: e.style.backgroundColor, x: e.getBoundingClientRect().left } : null; }, text);
+  await fr.locator('.band[data-section="skills"] .tab').first().click(); await settle(page); await page.keyboard.press('Escape'); await settle(page);
+  const box = await page.evaluate(() => { const i = document.querySelector('#bankcard .wbq'), p = document.querySelector('#bankcard .wbqplus'); return { sw: i.classList.contains('sw-q'), ico: document.querySelector('#bankcard .wbqico svg')?.innerHTML ?? '', place: i.placeholder, act: p?.dataset.act, title: p?.title, plus: p?.querySelectorAll('svg').length, text: p?.textContent.trim() }; });
+  ok('the box is the app\'s search box (.sw-q) with a magnifier leading it; with nothing typed one quiet round "+" stands at its right', box.sw && box.ico.includes('circle') && box.place === 'Find or add a word' && box.act === 'wb-addmode' && box.title === 'Add a new word' && box.plus === 1 && box.text === '', JSON.stringify(box));
+  // the tray is a well: darker than the window, and with nothing to show it takes the window's height, its message in the middle
+  const well = await page.evaluate(() => { const c = document.querySelector('#bankcard'), t = c.querySelector('.wbtray'), m = t.querySelector('.wbempty'), cb = c.getBoundingClientRect(), tb = t.getBoundingClientRect(), mb = m?.getBoundingClientRect();
+    return { bg: getComputedStyle(t).backgroundColor !== getComputedStyle(c).backgroundColor, inset: getComputedStyle(t).boxShadow.includes('inset'), empty: t.classList.contains('is-empty'), gap: Math.round(cb.bottom - tb.bottom), dx: mb ? Math.round(mb.left + mb.width / 2 - (tb.left + tb.width / 2)) : null, dy: mb ? Math.round(mb.top + mb.height / 2 - (tb.top + tb.height / 2)) : null, text: m?.textContent }; });
+  ok('the tray is a well (its own darker ground, sunk); with no word to show it fills the window\'s height and its message is centred in it both ways', well.bg && well.inset && well.empty && well.gap <= 60 && Math.abs(well.dx) <= 2 && Math.abs(well.dy) <= 2 && /on this resume/.test(well.text), JSON.stringify(well));
+  // a word the bank has and the page prints: Enter and a click on its "=" chip show it on the page (the page's own flash), and nothing moves
+  await page.click('.sknames [data-g="skills-fabrication"]'); await settle(page);
+  const arranged = () => page.evaluate(() => JSON.stringify(window.__wb.store.state.cur.skillArrangement));
+  const before = await arranged();
+  await type('python');
+  ok('a word on the page shows "=" with its chip, which says it is on the page', await page.isVisible('#bankcard .wbaddrow.dup .wbchip[data-act=wb-show]') && (await page.getAttribute('#bankcard .wbaddrow.dup .wbchip', 'title')) === 'On the page: a click shows it');
+  await page.focus(Q); await page.keyboard.press('Enter');
+  const fl = await wordOn('Python');      // (not settled: the flash is over in a second)
+  ok('…Enter flashes that word on the page (the page\'s own flash), keeps the box as it is, and moves nothing', fl?.flash && fl.anim === 'rb-flash' && (await page.inputValue(Q)) === 'python' && (await arranged()) === before, JSON.stringify(fl));
+  await frameDoc(page, d => { for (const e of d.querySelectorAll('.rb-flash')) e.classList.remove('rb-flash'); });
+  await page.click('#bankcard .wbaddrow.dup .wbchip');
+  ok('…and so does a click on its chip', (await wordOn('Python'))?.flash && (await arranged()) === before);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await frameDoc(page, d => { for (const e of d.querySelectorAll('.rb-flash')) e.classList.remove('rb-flash'); });
+  await page.focus(Q); await page.keyboard.press('Enter');
+  const rm = await wordOn('Python');
+  ok('…with reduced motion it is held lit for a second instead', !!rm?.bg, JSON.stringify(rm));
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.evaluate(() => window.__wb.canvas.zoomTo(3)); await settle(page);
+  await page.focus(Q); await page.keyboard.press('Enter'); await settle(page);
+  const sideLeft = await page.evaluate(() => document.querySelector('#bankcard').getBoundingClientRect().left);
+  const at = await fr.locator('.skills__group [data-word]', { hasText: /^Python$/ }).first().boundingBox();
+  ok('…the page is scrolled to it if it was out of view', !!at && at.x >= 0 && at.x + at.width <= sideLeft && at.y >= 0 && at.y + at.height <= 800, JSON.stringify(at));
+  await page.evaluate(() => window.__wb.canvas.reset()); await settle(page);
+  // a word in the bank but not on the page keeps its way: into the picked group, or the nudge with none picked
+  await page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => { T.takeWord(d.record, d.cur, 'sw-keyshot'); }, 'off the page'); });
+  await settle(page);
+  await page.evaluate(() => window.__wb.bank.pickGroup(null)); await settle(page);      // no group picked
+  await type('keyshot'); await page.focus(Q); await page.keyboard.press('Enter'); await settle(page);
+  const nud = await page.evaluate(() => ({ nudge: document.querySelector('.sknames')?.classList.contains('wb-nudge'), box: document.querySelector('#bankcard .wbq').value, row: !!document.querySelector('#bankcard .wbaddrow.dup .wbchip[data-act=wb-take]') }));
+  ok('a word of the bank that is not on the page, Enter with no group picked: the groups\' names nudge, nothing is placed, the box keeps its word', nud.nudge && nud.row && !(await groupsNow()).join('|').includes('KeyShot') && nud.box === 'keyshot', JSON.stringify(nud));
+  await page.click('.sknames [data-g="skills-fabrication"]'); await settle(page);
+  await page.focus(Q); await page.keyboard.press('Enter'); await settle(page);
+  ok('…with a group picked it goes to the end of that group, and the box is emptied', (await groupsNow())[1].endsWith('KeyShot') && (await page.inputValue(Q)) === '');
+  // one Delete: the row's own steps aside while its question is asked; the list, then one row of buttons
+  await type('python');
+  await page.click('#bankcard .wbaddrow.dup [data-act=wb-delw]'); await settle(page);
+  const ask = await page.evaluate(() => { const c = document.querySelector('#bankcard'), row = c.querySelector('.wbaddrow.dup'), q = c.querySelector('.wbdelw'); return { dels: c.querySelectorAll('.del').length, inRow: row.querySelectorAll('.del').length, word: row.querySelector('.wbchip')?.textContent, below: !!(row.compareDocumentPosition(q) & Node.DOCUMENT_POSITION_FOLLOWING), list: q.querySelectorAll('li').length, btns: [...q.querySelectorAll('.btns button')].map(b => `${b.className.includes('del') ? 'del' : b.className.includes('ghost') ? 'ghost' : '?'}:${b.textContent.trim()}`) }; });
+  ok('Delete on the "=" row opens the question under it: the row\'s own Delete goes, the word stays shown, the resumes that print it are listed', ask.inRow === 0 && ask.word === 'Python' && ask.below && ask.list > 0, JSON.stringify(ask));
+  ok('…one button row: "Delete from all of them" is the only delete button on the window, and a plain Cancel', ask.dels === 1 && JSON.stringify(ask.btns) === JSON.stringify(['ghost:Cancel', 'del:Delete from all of them']), JSON.stringify(ask));
+  await page.click('#bankcard [data-act=wb-delw-no]'); await settle(page);
+  ok('…Cancel brings the row\'s Delete back and nothing is deleted', (await page.locator('#bankcard .wbaddrow.dup [data-act=wb-delw]').count()) === 1 && (await page.locator('#bankcard .wbdelw').count()) === 0);
+  await page.evaluate(async () => { const S = await import('/src/model/skillbank.js'); window.__wb.store.commit(d => { S.addWord(d.record, { name: 'Zymurgy', lang: 'en' }); }, 'a word of its own'); });
+  await settle(page); await type('zymurgy');
+  await page.click('#bankcard .wbaddrow.dup [data-act=wb-delw]'); await settle(page);
+  const none = await page.evaluate(() => { const q = document.querySelector('#bankcard .wbdelw'); return { text: q.querySelector('p').textContent, list: q.querySelectorAll('li').length, btns: [...q.querySelectorAll('.btns button')].map(b => b.textContent.trim()), dels: document.querySelectorAll('#bankcard .del').length }; });
+  ok('with no saved resume printing it, the question says so, and the one button reads "Delete"', /No saved resume prints it/.test(none.text) && none.list === 0 && JSON.stringify(none.btns) === JSON.stringify(['Cancel', 'Delete']) && none.dels === 1, JSON.stringify(none));
+  await page.click('#bankcard [data-act=wb-delw-no]'); await settle(page);
+  // the "+" in the box: add mode
+  await type('');
+  await page.click('#bankcard .wbqplus'); await settle(page);
+  const mode = await page.evaluate(() => ({ focus: document.activeElement?.classList.contains('wbq'), place: document.activeElement?.placeholder, ico: document.querySelector('#bankcard .wbqico svg').innerHTML, plus: document.querySelectorAll('#bankcard .wbqplus').length }));
+  ok('the "+" puts the box into add mode: it is focused, the magnifier is a "+", the placeholder says "New skill word", and no second "+" stands at the right', mode.focus && mode.place === 'New skill word' && !mode.ico.includes('circle') && mode.plus === 0, JSON.stringify(mode));
+  await page.keyboard.insertText('pyth'); await settle(page);
+  ok('…the tray keeps filtering as you type (the like word shows), and "+ Add" stands at the right', await page.isVisible('#bankcard .wbaddrow.near') && (await page.textContent('#bankcard .wbqplus')).trim() === 'Add');
+  await page.keyboard.press('Escape'); await settle(page);
+  const back = await page.evaluate(() => ({ place: document.querySelector('#bankcard .wbq').placeholder, val: document.querySelector('#bankcard .wbq').value, ico: document.querySelector('#bankcard .wbqico svg').innerHTML.includes('circle'), act: document.querySelector('#bankcard .wbqplus')?.dataset.act }));
+  ok('…Esc is back to Find: the box emptied, the magnifier and the quiet "+" are back', back.place === 'Find or add a word' && back.val === '' && back.ico && back.act === 'wb-addmode', JSON.stringify(back));
+  await page.click('#bankcard .wbqplus'); await settle(page);
+  await page.evaluate(() => document.activeElement.blur()); await settle(page);
+  ok('…and so is leaving the box empty', (await page.getAttribute(Q, 'placeholder')) === 'Find or add a word');
+  await page.click('#bankcard .wbqplus'); await settle(page);
+  await page.keyboard.insertText('Zymurgy'); await settle(page);
+  ok('an exact word hides the "+" in add mode too', (await page.locator('#bankcard .wbqplus').count()) === 0 && await page.isVisible('#bankcard .wbaddrow.dup'));
+  await type('Quokka'); await page.keyboard.press('Enter'); await settle(page);
+  ok('…and a new word typed in add mode is added as before: to the bank and the picked group', (await page.evaluate(() => window.__wb.store.state.record.skillBank.words.some(w => w.name === 'Quokka'))) && (await groupsNow())[1].includes('Quokka'));
+  ok('no console errors', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+  // the rail's tabs end on the card: with the bank shown the sidebar card reaches the last tab and its corner; with it not shown the card does anyway
+  for (const drink of ['tea', 'coffee']) {
+    const c2 = await newContext({ viewport: { width: 1280, height: 800 } });
+    const p2 = await c2.newPage();
+    await open(p2, undefined, { drink });
+    const geo = () => p2.evaluate(() => { const tabs = [...document.querySelectorAll('#rtabs .tab')], l = tabs.at(-1).getBoundingClientRect(), b = document.querySelector('#body').getBoundingClientRect(); return { tab: Math.round(l.bottom), body: Math.round(b.bottom), r: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--r-panel')) || 0, bank: !document.querySelector('#bankcard').hidden }; });
+    const off = await geo();
+    ok(`${drink}: with the bank not shown, the sidebar card reaches the last rail tab`, !off.bank && off.body >= off.tab, JSON.stringify(off));
+    await p2.frameLocator('#sheet iframe').locator('.band[data-section="skills"] .tab').first().click(); await settle(p2); await p2.keyboard.press('Escape'); await settle(p2);
+    const on = await geo();
+    ok(`${drink}: with the bank shown, the sidebar card reaches the last rail tab and clears its own rounded corner`, on.bank && on.body - on.r >= on.tab, JSON.stringify(on));
+    await c2.close();
+  }
+}
+
 if (want('on the page: the header written in place, the photo slot, a dropped picture')) {
   const ctx = await newContext({ motion: true, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();

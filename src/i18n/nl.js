@@ -1558,7 +1558,7 @@ export default {
   'wb.add': "Toevoegen",
   'wb.addAgain': "Druk nog eens om het als nieuw woord toe te voegen",
   'wb.addBank': "“{word}” aan de woordenbank toevoegen",
-  'wb.addEmpty': "Een woord toevoegen: typ het in het vak",
+  'wb.addEmpty': "Een nieuw woord toevoegen",
   'wb.addNear': "Lijkt op een woord in de bank: toch toevoegen?",
   'wb.addTo': "“{word}” aan {group} toevoegen",
   'wb.added': "“{word}” staat nu in de bank.",
@@ -1586,7 +1586,6 @@ export default {
   'wb.groupDeleted': "“{name}” van dit cv verwijderd; de woorden staan weer in de bank.",
   'wb.groupsLabel': "De vaardigheidsgroepen op de pagina",
   'wb.hereTip': "Staat al in deze groep",
-  'wb.inBank': "“{word}” staat al in de bank.",
   'wb.inLang': "{word} in het {lang}",
   'wb.missTip': "Nog niet in het {lang}: het wordt in het Engels afgedrukt",
   'wb.missing': "ontbrekend: {n}",
@@ -1630,4 +1629,6 @@ export default {
   'wb.wordsTip': "De bank bewerken: woorden, vertalingen, planken",
   'wb.writeIn': "Schrijf het in het {lang}",
   'wb.writeLang': "De taal waarin je schrijft",
+  'wb.newWord': "Nieuw vaardigheidswoord",
+  'wb.showTip': "Staat op de pagina: een klik toont het",
 };

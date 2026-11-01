@@ -1558,7 +1558,7 @@ export default {
   'wb.add': "Añadir",
   'wb.addAgain': "Pulsa otra vez para añadirla como palabra nueva",
   'wb.addBank': "Añadir «{word}» al banco de palabras",
-  'wb.addEmpty': "Añadir una palabra: escríbela en el campo",
+  'wb.addEmpty': "Añadir una palabra nueva",
   'wb.addNear': "Parecida a una palabra del banco: ¿añadirla igualmente?",
   'wb.addTo': "Añadir «{word}» a {group}",
   'wb.added': "«{word}» ya está en el banco.",
@@ -1586,7 +1586,6 @@ export default {
   'wb.groupDeleted': "«{name}» eliminado de este currículum; sus palabras vuelven al banco.",
   'wb.groupsLabel': "Los grupos de habilidades de la página",
   'wb.hereTip': "Ya está en este grupo",
-  'wb.inBank': "«{word}» ya está en el banco.",
   'wb.inLang': "{word} en {lang}",
   'wb.missTip': "Aún no está en {lang}: se imprime en inglés",
   'wb.missing': "faltan: {n}",
@@ -1630,4 +1629,6 @@ export default {
   'wb.wordsTip': "Editar el banco: palabras, traducciones, estantes",
   'wb.writeIn': "Escribirla en {lang}",
   'wb.writeLang': "El idioma en el que escribes",
+  'wb.newWord': "Nueva palabra de habilidad",
+  'wb.showTip': "Está en la página: un clic la muestra",
 };
