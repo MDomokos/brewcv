@@ -52,6 +52,8 @@ const everSeen = new Set(
     .split('\n').map(s => s.trim()).filter(Boolean));
 for (const f of everSeen){
   // docs/intro/*.webp are cut-outs of the start screen's story, and docs/moments/*.gif (older) were recordings of the app on the example data (a fictional person), looked at frame by frame before they were added
+  // checks/fixtures/import/ holds one fictional resume set by each producer, metadata stripped (preflight-deploy checks the files themselves)
+  if (/^checks\/fixtures\/import\/[^/]+\.(pdf|docx|odt)$/i.test(f)) continue;
   if (/^(src-tauri\/)?icons\//.test(f) || /^docs\/[^/]+\.(png|gif)$/i.test(f) || /^docs\/moments\/[^/]+\.gif$/i.test(f) || /^docs\/intro\/[^/]+\.webp$/i.test(f)) continue;
   for (const [re, what] of NEVER)
     if (re.test(f)){ findings.push({ kind: 'file', detail: `${f}: ${what}` }); break; }
@@ -77,6 +79,7 @@ for (const [what, pattern] of PATTERNS){
     const m = line.match(/^([0-9a-f]{7,40}):([^:]+):(\d+):(.*)$/);
     if (!m) continue;
     const [, rev, file, , text] = m;
+    if (file.startsWith('vendor/') && what !== 'embedded image') continue;      // other projects' minified code (PDF.js): its tables have the shape of an address and a number
     const key = `${file}`;
     if (!hits.has(key)) hits.set(key, { file, rev, sample: text.trim().slice(0, 90), n: 0 });
     hits.get(key).n++;

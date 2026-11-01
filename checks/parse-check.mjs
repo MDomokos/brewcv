@@ -20,6 +20,7 @@ import { readMd } from '../src/parse/md.js';
 import { readTxt } from '../src/parse/txt.js';
 import { readPages } from '../src/parse/pages.js';
 import { readLinkedin } from '../src/parse/linkedin.js';
+import { readPdf } from '../src/parse/pdf.js';
 import { parseCsv } from '../src/parse/csv.js';
 import { clean, itemsOf } from '../src/parse/lines.js';
 import { groupLinesIntoSections } from '../src/parse/group-lines-into-sections.js';
@@ -27,9 +28,12 @@ import { withEnglish } from '../src/parse/lexicon.js';
 import { lexiconFor, fromJsonResume } from '../src/model/import.js';
 import { normText } from '../src/model/record.js';
 import { sameDocument } from '../src/model/documents.js';
+import { resolve } from '../src/model/resume.js';
+import { readLibrary, readRecipe } from '../scripts/lib/library.mjs';
 import { loadCatalogue } from '../src/i18n/index.js';
 import * as F from './lib/parse-fixtures.mjs';
 import * as R from './lib/reader-fixtures.mjs';
+import { pdf } from './lib/pdf.mjs';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const J = x => JSON.stringify(x);
@@ -753,6 +757,154 @@ section('documents formatted by hand: no heading styles, the look set on each ru
   ok('a file of more than ten lines with no job found raises the doubt "jobs"; a short one, or one with jobs, does not', noJobs(12).includes('jobs') && !noJobs(10).includes('jobs') && !parseResume(F.oneColumn).doubts.some(d => d.kind === 'jobs'), J(noJobs(12)));
 }
 
+// ———— I-5: PDF ————
+// The fixtures in checks/fixtures/import/ are one resume (data/example.json with the Helix saved resume) set by each producer: Word, Google Docs, LibreOffice, Pages, Affinity, BrewCV's own
+// export (the B2 look: its section names in the left margin) and Chrome (the Classic looks, through scripts/export-pdf.mjs), in one column and in two; and the Word, Google Docs and
+// LibreOffice DOCX and ODT of the same text. Their metadata is stripped (Info, XMP, docProps, meta.xml): nothing in them but the fictional text. The Pages and Affinity files are the PDFs those apps
+// export (a modern .pages file holds a picture of page 1, not a PDF: see "what a file is").
+const FIX = path.join(REPO, 'checks/fixtures/import');
+const fixture = f => new Uint8Array(fs.readFileSync(path.join(FIX, f)));
+const record = readLibrary(path.join(REPO, 'data/example.json')).model;
+const helix = readRecipe(path.join(REPO, 'data/example-resumes/Helix Diagnostics - Product Development Engineer.json'), record).recipe;
+const want = resolve(record, helix, { local: false }).body;
+const wantBullets = want.work.flatMap(w => w.highlights ?? []);
+const recordWords = [...new Set(JSON.stringify(record).toLowerCase().match(/\p{L}+/gu))];      // what the app passes to readPdf: the record's own words
+// what a reading got of the example: the bullets word for word (after normText), each job's dates, the name and the email; `short` lists what falls short
+function score(jr){
+  const got = (jr.work ?? []).flatMap(w => w.highlights ?? []).map(normText);
+  const bullets = wantBullets.filter(b => got.includes(normText(b)));
+  const dates = want.work.filter(w => (jr.work ?? []).some(g => g.startDate === w.startDate && g.endDate === w.endDate));
+  const name = jr.basics?.name === want.basics.name, email = jr.basics?.email === want.basics.email;
+  const short = [...wantBullets.filter(b => !bullets.includes(b)).map(b => `bullet "${b.slice(0, 40)}…"`), ...want.work.filter(w => !dates.includes(w)).map(w => `dates of "${w.position}"`), ...(name ? [] : ['the name']), ...(email ? [] : ['the email'])];
+  return { bullets: bullets.length, dates: dates.length, name, email, short, pass: bullets.length >= 0.95 * wantBullets.length && dates.length === want.work.length && name && email };
+}
+const board = [];      // the score of every file, for the table at the end
+
+section('PDF: every producer reads, in Node, with the vendored PDF.js');
+{
+  const pdfs = fs.readdirSync(FIX).filter(f => f.endsWith('.pdf')).sort();
+  ok('the fixtures are the eleven PDFs: Word, Google Docs, LibreOffice, Pages and BrewCV in one column, Chrome too, and Affinity, LibreOffice, Pages, Word and Chrome in two', J(pdfs.map(f => f.replace(/^helix-|\.pdf$/g, ''))) === J(['1col-brewcv', '1col-chrome', '1col-gdocs', '1col-libreoffice', '1col-pages', '1col-word', '2col-affinity', '2col-chrome', '2col-libreoffice', '2col-pages', '2col-word']), pdfs.join(', '));
+  for (const f of pdfs){
+    const items = await readPdf(fixture(f), recordWords), got = parseResume(items), s = score(got.jsonResume);
+    board.push([f.replace(/^helix-|\.pdf$/g, ''), s]);
+    ok(`${f}: ${s.bullets} of ${wantBullets.length} bullets word for word, ${s.dates} of ${want.work.length} jobs with their dates, the name and the email`, s.pass, `falls short: ${s.short.join('; ')}`);
+    if (!s.pass) console.log(`      falls short: ${s.short.join('; ')}`);
+  }
+  const paged = await readPdf(fixture('helix-1col-word.pdf'));
+  ok('an item carries its page, and y starts again on each: Word puts the last language on page 2, at the top', paged.some(i => i.page === 1) && paged.some(i => i.page === 2 && i.text === 'Hungarian: B1' && i.y > 700), J(paged.filter(i => i.page === 2)));
+  const word = paged;
+  ok('the font name is the real one, and bold is told from it: the name in Word is TimesNewRomanPS-Bold at 20 pt', word.some(i => i.text === 'Dana Okonkwo' && /Bold/.test(i.fontName) && i.height === 20), J(word.slice(0, 2)));
+  // the hyphen at a line end: the Pages files hyphenate "suppliers" as "sup-" and "pliers"
+  const pagesWith = parseResume(await readPdf(fixture('helix-1col-pages.pdf'), recordWords)).jsonResume.work[0].highlights, pagesWithout = parseResume(await readPdf(fixture('helix-1col-pages.pdf'))).jsonResume.work[0].highlights;
+  ok('a word split at a line end is joined when the record knows it ("suppliers"), and the hyphen stays when nothing says it is a split word', pagesWith.some(h => h.includes('moulding suppliers behind')) && pagesWithout.some(h => h.includes('moulding sup-pliers behind')), J([pagesWith[1], pagesWithout[1]]));
+  const lone = await readPdf(fixture('helix-1col-chrome.pdf'));
+  ok('a browser\'s own hyphen at a line end (a lone "-" item: "quali" and "fied") is a split word', textOf(lone).includes('and qualified the moulding'), '');
+}
+
+section('PDF: DOCX and ODT files as Word, Google Docs and LibreOffice write them');
+{
+  const files = fs.readdirSync(FIX).filter(f => /\.(docx|odt)$/.test(f)).sort();
+  ok('the fixtures are four DOCX (Word for the web, Google Docs, LibreOffice twice) and four ODT (Word and LibreOffice, one column and two)', files.length === 8, files.join(', '));
+  for (const f of files){
+    const items = await (f.endsWith('.docx') ? readDocx : readOdt)(fixture(f)), got = parseResume(items), s = score(got.jsonResume);
+    board.push([f.replace(/^helix-/, ''), s]);
+    // in two columns the sidebar's "Contact" is a heading, so its lines are a section of their own and not the profile's: the email is left over (a limit of the parser, not of the reader)
+    const needed = f.startsWith('helix-1col') ? s.pass : s.bullets === wantBullets.length && s.dates === want.work.length && s.name;
+    ok(`${f}: ${s.bullets} of ${wantBullets.length} bullets, ${s.dates} of ${want.work.length} jobs dated, the name${f.startsWith('helix-1col') ? ' and the email' : ''}; ${(got.jsonResume.work ?? []).length} jobs, ${got.leftovers.length} leftovers`, needed, `falls short: ${s.short.join('; ')}`);
+    if (s.short.length) console.log(`      falls short: ${s.short.join('; ')}${f.startsWith('helix-2col') ? ' (the sidebar\'s Contact heading makes its lines a section)' : ''}`);
+  }
+}
+
+section('PDF: one resume in a PDF and in a DOCX or an ODT is one document');
+{
+  const as = async f => textOf(await (f.endsWith('.pdf') ? readPdf(fixture(f), recordWords) : f.endsWith('.docx') ? readDocx(fixture(f)) : readOdt(fixture(f))));
+  for (const [a, b] of [['helix-1col-word.pdf', 'helix-1col-word.docx'], ['helix-1col-gdocs.pdf', 'helix-1col-gdocs.docx'], ['helix-1col-libreoffice.pdf', 'helix-1col-libreoffice.docx'], ['helix-2col-libreoffice.pdf', 'helix-2col-libreoffice.docx'],
+    ['helix-1col-word.pdf', 'helix-1col-word.odt'], ['helix-2col-word.pdf', 'helix-2col-word.odt'], ['helix-1col-libreoffice.pdf', 'helix-1col-libreoffice.odt'], ['helix-2col-libreoffice.pdf', 'helix-2col-libreoffice.odt']]){
+    const ta = await as(a), tb = await as(b), mine = new Set(ta.split('\n').map(normText).filter(Boolean)), theirs = new Set(tb.split('\n').map(normText).filter(Boolean));
+    const shared = [...mine].filter(l => theirs.has(l)).length;
+    ok(`${a} and ${b}: ${shared} of ${mine.size} lines are the same, and sameDocument links them`, sameDocument({ documents: [{ text: tb }] }, ta) !== null, `${shared}/${mine.size} vs ${theirs.size}: ${[...mine].filter(l => !theirs.has(l)).slice(0, 3).join(' | ')}`);
+  }
+  ok('and a PDF of another text is not linked to it', sameDocument({ documents: [{ text: await as('helix-1col-word.docx') }] }, textOf(F.oneColumn)) === null);
+}
+
+section('PDF: what the reader repairs, on small PDFs written here (checks/lib/pdf.mjs)');
+{
+  const T = (x, y, text, o = {}) => ({ x, y, text, ...o });
+  const rows = async (items, words) => textOf(await readPdf(pdf([items]), words)).split('\n');
+  // three lines of one bullet, wrapped at the right edge, then a second bullet, a heading and a short line
+  const l1 = 'Led the dose-counter redesign on an inhaler running four hundred thousand units a year and', l2 = 'cut the part count from nine to five, taking two weeks out of the tooling schedule for the';
+  const bulleted = [T(57, 700, '\x95'), T(78, 700, l1), T(78, 687, l2), T(78, 674, 'whole team.'), T(57, 648, '\x95'), T(78, 648, 'Built the rig.'), T(57, 600, 'Skills', { bold: true }), T(57, 587, 'Python, MATLAB'), T(57, 574, 'Git, Excel')];
+  const got = await rows(bulleted);
+  ok('the lines a page wrapped are one line: a bullet of three lines is one, and the next bullet, a heading and two short lines are not joined to it', J(got) === J([`• ${l1} ${l2} whole team.`, '• Built the rig.', 'Skills', 'Python, MATLAB', 'Git, Excel']), J(got));
+  const para = await rows([T(57, 700, l1), T(57, 687, l2), T(57, 674, 'whole team.'), T(57, 640, l1), T(57, 627, 'second paragraph.')]);
+  ok('a paragraph with no bullet joins the same way, and a gap wider than a line starts the next paragraph', J(para) === J([`${l1} ${l2} whole team.`, `${l1} second paragraph.`]), J(para));
+  const longA = 'Worked with the supply team on the new dose counter for the clinic in the north, and the co-';
+  const hyA = await rows([T(57, 700, longA), T(57, 687, 'operation of the whole group.')], ['cooperation']);
+  const hyB = await rows([T(57, 700, longA), T(57, 687, 'operation of the whole group.')]);
+  ok('a hyphen at a line end goes when the joined word is known ("cooperation"), and stays when nothing says so, as a compound does', hyA.length === 1 && hyA[0].includes('the cooperation of the whole') && hyB.length === 1 && hyB[0].includes('the co-operation of the whole'), J([hyA, hyB]));
+  const self = await rows([T(57, 700, 'Worked with the supply team on the new dose counter for the clinic in the north, as a self-'), T(57, 687, 'managed group of three engineers.')]);
+  ok('a compound split at its hyphen ("self-managed") keeps it', self.length === 1 && self[0].includes('a self-managed group'), J(self));
+  const glue = a => readPdf(pdf([[T(57, 700, 'EU patent holder', { bold: true }), T(57 + 80.01 + 3, 700, a)]]));
+  const withPunct = await glue('. Spent'), withWord = await glue('Spent');
+  ok('a space PDF.js made from a gap (a word in another font, 3 pt on) is part of the text, except before a full stop, a comma, a semicolon or a colon', J(withPunct.map(i => i.text)) === J(['EU patent holder. Spent']) && J(withWord.map(i => i.text)) === J(['EU patent holder Spent']), J([withPunct.map(i => i.text), withWord.map(i => i.text)]));
+  const spaced = await rows([T(57, 700, 'E X P E R I E N C E', { bold: true }), T(57, 680, 'P A T E N T', { bold: true }), T(57, 660, 'CAD & 3D'), T(57, 640, 'A B C')]);
+  ok('letter-spaced capitals are one word ("E X P E R I E N C E"), but "CAD & 3D" and "A B C" are not', J(spaced) === J(['EXPERIENCE', 'PATENT', 'CAD & 3D', 'A B C']), J(spaced));
+  // a label in the margin, beside the first line of its section, and the lines of the text at x = 130
+  const labels = await rows([T(130, 700, 'Design Engineer', { bold: true }), T(130, 686, 'Hydra Medical, Mar 2023'), T(130, 660, 'Planned the formative usability studies and wrote the design history file for the whole team'), T(40, 620, 'SKILLS', { size: 8, bold: true }), T(130, 620, 'CAD and 3D', { bold: true }), T(130, 606, 'SolidWorks, Creo, Fusion 360 and the rest of the tools the team used on the line every day')]);
+  ok('a label in the left margin beside a line is a line of its own, before it (and the text stays one column for the parser)', labels.indexOf('SKILLS') === labels.indexOf('CAD and 3D') - 1 && labels.includes('SKILLS'), J(labels));
+  const layout = layoutOf(await readPdf(pdf([[T(130, 700, 'Design Engineer', { bold: true }), T(130, 686, 'Hydra Medical, Mar 2023'), T(130, 672, 'Planned the formative usability studies and wrote the design history file for the whole team'), T(40, 620, 'SKILLS', { size: 8, bold: true }), T(130, 620, 'CAD and 3D', { bold: true }), T(40, 560, 'PATENT', { size: 8, bold: true }), T(130, 560, 'Dose counter'), T(130, 546, 'Co-inventor'), T(40, 500, 'EDUCATION', { size: 8, bold: true }), T(130, 500, 'M.Eng. Porto')]])));
+  ok('margin labels sit at the text\'s edge, so the parser guesses no column for them', layout.layout.every(g => g.split === undefined) && layout.doubts.length === 0, J(layout));
+  // a page written in a jumbled order is put top to bottom; two columns written one after the other are left as they are
+  const jumbled = await rows([T(57, 500, 'Fourth line'), T(57, 600, 'Third line'), T(57, 400, 'Sixth line'), T(57, 700, 'First line'), T(57, 450, 'Fifth line'), T(57, 650, 'Second line')]);
+  ok('a page written in a jumbled order is put top to bottom', J(jumbled) === J(['First line', 'Second line', 'Third line', 'Fourth line', 'Fifth line', 'Sixth line']), J(jumbled));
+  const cols = await rows([T(57, 700, 'Left one'), T(57, 686, 'Left two'), T(57, 672, 'Left three'), T(300, 700, 'Right one'), T(300, 686, 'Right two'), T(300, 672, 'Right three')]);
+  ok('two columns written one after the other are not re-sorted', J(cols) === J(['Left one', 'Left two', 'Left three', 'Right one', 'Right two', 'Right three']), J(cols));
+  // pages
+  const two = await readPdf(pdf([[T(57, 700, 'Page one text')], [T(57, 700, 'Page two text')]]));
+  ok('pages follow each other, each item with its page, and y starts again on each', J(two.map(i => [i.page, i.y, i.text])) === J([[1, 700, 'Page one text'], [2, 700, 'Page two text']]), J(two));
+  // codes
+  const code = async b => { try { await readPdf(b); return 'read'; } catch (e){ return e.code; } };
+  ok('a file that is not a PDF is refused with the code pdf, and more than 30 pages with big', await code(new TextEncoder().encode('not a pdf at all')) === 'pdf' && await code(pdf(Array.from({ length: 31 }, () => []))) === 'big');
+}
+
+section('PDF: the parser on what a PDF gives it (page breaks, headings with wide gaps, no bullet marks)');
+{
+  const I = (text, y, o = {}) => ({ text, x: 57, y, width: text.length * 5, height: 10, fontName: o.bold ? 'Arial-Bold' : 'Arial', hasEOL: true, page: 1, ...o });
+  const head = [I('Jane Q. Sample', 780, { bold: true }), I('jane.sample@example.com', 766), I('EXPERIENCE', 740, { bold: true })];
+  const two = parseResume([...head, I('Design Engineer', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 690), I('• Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year', 663), I('• Built the test rig the team now uses for verification of every new part that comes in', 650),
+    I('• Wrote the protocols for the rig and trained the team to run them on every shift that is planned', 637), I('Prototyping Technician', 599, { bold: true }), I('Polytechnic Lab · Sep 2019 – Feb 2021', 573), I('• Ran a seven-machine prototyping shop with four FDM printers, a resin printer and a mill', 546)]).jsonResume.work;
+  ok('a title, a date line and a list set apart by wide gaps (as Affinity and Word set them) are one job each, with the dates and the bullets', two?.length === 2 && two[0].highlights?.length === 3 && two[0].startDate === '2021-03' && two[1].highlights?.length === 1 && two[1].startDate === '2019-09', J(two));
+  const flat = parseResume([...head, I('Design Engineer', 716, { bold: true }), I('NORTHGATE DOSING SYSTEMS · MAR 2021 – PRESENT · LISBON', 704, { height: 7 }), I('Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year.', 688), I('Built the test rig the team now uses for verification of every new part that comes in.', 674),
+    I('Prototyping Technician', 646, { bold: true }), I('POLYTECHNIC LAB · SEP 2019 – FEB 2021 · PORTO', 634, { height: 7 }), I('Ran a seven-machine prototyping shop with four FDM printers, a resin printer and a mill.', 618)]).jsonResume.work;
+  ok('with no bullet marks, a line of a company, dates and a place is not a description, and the long lines under it are', flat?.length === 2 && flat[0].highlights?.length === 2 && flat[0].startDate === '2021-03' && flat[1].highlights?.length === 1 && flat[1].startDate === '2019-09', J(flat));
+  // a job that goes on over a page break keeps its bullets; a new page that starts with a job title starts a job
+  const pg = (items, page) => items.map(i => ({ ...i, page }));
+  const broken = parseResume([...pg([...head, I('Design Engineer', 716, { bold: true }), I('Northgate Dosing Systems · Mar 2021 – Present', 702), I('• Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year', 688)], 1),
+    ...pg([I('• Built the test rig the team now uses for verification of every new part that comes in', 800), I('Prototyping Technician', 770, { bold: true }), I('Polytechnic Lab · Sep 2019 – Feb 2021', 756), I('• Ran a seven-machine prototyping shop with four FDM printers, a resin printer and a mill', 742)], 2)]).jsonResume.work;
+  ok('a job that goes on over a page break keeps its bullet, and a title at the top of the next page is a job of its own', broken?.length === 2 && broken[0].highlights?.length === 2 && broken[1].position === 'Prototyping Technician' && broken[1].highlights?.length === 1, J(broken));
+  const top = parseResume([...pg([...head, I('Design Engineer', 716), I('Northgate Dosing Systems · Mar 2021 – Present', 702), I('• Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year', 688), I('• Built the test rig the team now uses for verification of every new part that comes in', 675)], 1),
+    ...pg([I('Prototyping Technician', 780), I('Polytechnic Lab · Sep 2019 – Feb 2021', 766), I('Ran a seven-machine prototyping shop with four FDM printers, a resin printer and a mill, week after week', 752), I('Built the fixtures for the flow tests and wrote the bench instructions for the technicians who ran them', 738)], 2)]).jsonResume.work;
+  ok('a title that is the first line of a page, where y is higher than the line before it, still starts a job (the gap is not measured across pages, and the title is not bold, which the parser would otherwise go by)', top?.length === 2 && top[0].highlights?.length === 2 && top[1].position === 'Prototyping Technician', J(top));
+  // a company name the page wrapped over two lines is joined by the reader, which says where its last line sat: the gap to the title under it is a line's, not two
+  const wrapped = parseResume([...head, I('Northgate Dosing Systems and Partners Limited', 716, { bottom: 703 }), I('Design Engineer', 690), I('Mar 2021 – Present', 677), I('• Led the redesign of the dose counter on an inhaler that runs four hundred thousand units a year', 664),
+    I('• Built the test rig the team now uses for verification of every new part that comes in', 651), I('• Wrote the protocols for the rig and trained the team to run them on every shift that is planned', 638)]).jsonResume.work;
+  ok('a line the reader joined from two is measured from its last line: a long company name over two lines is not cut off from the title under it (the title is not bold, which the parser would otherwise go by)', wrapped?.length === 1 && wrapped[0].highlights?.length === 3 && wrapped[0].startDate === '2021-03', J(wrapped));
+}
+
+section('vendor/pdfjs and its reader');
+{
+  const pdfjs = path.join(REPO, 'vendor/pdfjs'), version = fs.readFileSync(path.join(pdfjs, 'VERSION'), 'utf8').trim();
+  ok('vendor/pdfjs holds the library, its worker, the Apache licence and the version, and nothing else', J(fs.readdirSync(pdfjs).sort()) === J(['LICENSE', 'VERSION', 'pdf.min.mjs', 'pdf.worker.min.mjs']) && /Apache License/.test(fs.readFileSync(path.join(pdfjs, 'LICENSE'), 'utf8')), fs.readdirSync(pdfjs).join(', '));
+  ok('VERSION is a 6.x release, and it is the one the library says it is', /^6\.\d+\.\d+$/.test(version) && fs.readFileSync(path.join(pdfjs, 'pdf.min.mjs'), 'utf8').includes(`"${version}"`), version);
+  const sw = fs.readFileSync(path.join(REPO, 'sw.js'), 'utf8');
+  ok('the service worker caches the library and its worker', ["'./vendor/pdfjs/pdf.min.mjs'", "'./vendor/pdfjs/pdf.worker.min.mjs'"].every(f => sw.includes(f)));
+  const src = fs.readFileSync(path.join(REPO, 'src/parse/pdf.js'), 'utf8');
+  ok('src/parse/pdf.js loads PDF.js by a dynamic import() of vendor/pdfjs, never a static one, and from nowhere else', /await import\(DIR \+ 'pdf\.min\.mjs'\)/.test(src) && !/^import .*pdfjs/m.test(src) && src.includes("new URL('../../vendor/pdfjs/', import.meta.url)") && !/https?:\/\//.test(src.replace(/\/\/.*$/gm, '')));
+  ok('and nothing else in src/ or the page names it: it is loaded when a PDF is read', fs.readdirSync(path.join(REPO, 'src'), { recursive: true }).filter(f => f.endsWith('.js') && !f.startsWith('parse')).every(f => !fs.readFileSync(path.join(REPO, 'src', f), 'utf8').includes('vendor/pdfjs')) && !fs.readFileSync(path.join(REPO, 'index.html'), 'utf8').includes('pdfjs'));
+}
+
+section('the table: the score of every file (what a PDF, a DOCX and an ODT give of the example)');
+for (const [name, s] of board) console.log(`      ${name.padEnd(24)} bullets ${s.bullets}/${wantBullets.length}  dates ${s.dates}/${want.work.length}  name ${s.name ? 'yes' : 'NO'}  email ${s.email ? 'yes' : 'no'}`);
 section('src/parse/ stands alone');
 {
   const files = [];
@@ -768,7 +920,7 @@ section('src/parse/ stands alone');
   const head = f => fs.readFileSync(f, 'utf8').split('\n')[0];
   const bad = js.filter(f => !/^\/\/ (Ported from OpenResume by Xitang Zhao \(AGPL-3\.0\), src\/app\/lib\/parse-resume-from-pdf\/\S+, commit [0-9a-f]{40}; modified for BrewCV \d{4}-\d{2}-\d{2}: \S.*$|Not from OpenResume)/.test(head(f)));
   ok('each file names its OpenResume author, source and commit, and what BrewCV changed, or says it is not from OpenResume', bad.length === 0, bad.map(f => path.relative(REPO, f)).join(', '));
-  ok('the files that are not from OpenResume are the column split, the JSON Resume mapping, the CSV reader, the ZIP reader, the text cleaning and the readers', J(names.filter(n => head(path.join(REPO, 'src/parse', n)).startsWith('// Not from'))) === J(['csv.js', 'docx.js', 'html.js', 'identify.js', 'lines.js', 'linkedin.js', 'md.js', 'odt.js', 'pages.js', 'split-columns.js', 'to-json-resume.js', 'txt.js', 'unzip.js']), names.join(', '));
+  ok('the files that are not from OpenResume are the column split, the JSON Resume mapping, the CSV reader, the ZIP reader, the text cleaning and the readers', J(names.filter(n => head(path.join(REPO, 'src/parse', n)).startsWith('// Not from'))) === J(['csv.js', 'docx.js', 'html.js', 'identify.js', 'lines.js', 'linkedin.js', 'md.js', 'odt.js', 'pages.js', 'pdf.js', 'split-columns.js', 'to-json-resume.js', 'txt.js', 'unzip.js']), names.join(', '));
   ok('the README credits OpenResume and names where the port is', /OpenResume[^\n]*src\/parse/.test(fs.readFileSync(path.join(REPO, 'README.md'), 'utf8')) && fs.existsSync(path.join(REPO, 'src/parse/README.md')));
 }
 

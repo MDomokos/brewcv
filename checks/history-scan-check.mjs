@@ -17,9 +17,10 @@ function run(commits){
   sh('git', ['init', '-q', '-b', 'main']);
   fs.mkdirSync(path.join(dir, 'checks'));
   fs.writeFileSync(path.join(dir, 'checks/deny.local.json'), JSON.stringify({ deny: ['forbidden-word'], commitEmails: [OWN] }));
-  commits.forEach(({ message, email = OWN, name = 'Someone', content }, i) => {
-    fs.writeFileSync(path.join(dir, 'f.txt'), content ?? String(i));
-    sh('git', ['add', 'f.txt']);
+  commits.forEach(({ message, email = OWN, name = 'Someone', content, file = 'f.txt' }, i) => {
+    fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+    fs.writeFileSync(path.join(dir, file), content ?? String(i));
+    sh('git', ['add', file]);
     sh('git', ['commit', '-q', '-m', message], { GIT_AUTHOR_NAME: name, GIT_AUTHOR_EMAIL: email, GIT_COMMITTER_NAME: name, GIT_COMMITTER_EMAIL: email });
   });
   // hermetic: the owner's real private files (outside the tree, see scripts/lib/private-files.mjs) must not be read here, so the
@@ -39,5 +40,9 @@ expect('an author email outside commitEmails fails', run([{ message: 'Add', emai
 expect('a denied value in an author name alone passes', run([{ message: 'Add', name: 'forbidden-word' }]).status === 0);
 expect('a font unicode-range is not a phone number', run([{ message: 'Add', content: 'unicode-range: U+0000-00FF, U+0131, U+0152-0153;' }]).status === 0);
 expect('a phone number in a file still fails', run([{ message: 'Add', content: 'Call +44' + ' 7700 900123' }]).status === 1);
+
+// the import fixtures and the vendored PDF.js are the two places the rules relax
+expect('a PDF anywhere else fails, and one in checks/fixtures/import/ passes', run([{ message: 'Add', file: 'docs/a.pdf' }]).status === 1 && run([{ message: 'Add', file: 'checks/fixtures/import/helix-1col-word.pdf' }]).status === 0);
+expect('a number and an address in vendor/ pass, in src/ they fail', run([{ message: 'Add', file: 'vendor/lib/a.min.mjs', content: 'x=+386' + '4292196,y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 0 && run([{ message: 'Add', file: 'src/a.js', content: 'y="jm@kbswfq' + '.pkbgltMlwbaof"' }]).status === 1);
 
 process.exit(bad ? 1 : 0);
