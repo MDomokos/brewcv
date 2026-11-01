@@ -29,7 +29,7 @@ const versionsOf = (ix, factId) => (ix.facts.get(factId)?.variants ?? []).map(id
 const claimText = (ix, factId) => ix.facts.get(factId)?.summary ?? versionsOf(ix, factId)[0]?.text ?? factId;
 
 // an organisation by its name, whatever case, punctuation and legal form ("Acme Inc." is "ACME")
-const org = s => normText(s).replace(/[.,]/g, '').replace(/\b(?:inc|ltd|gmbh|kft|zrt)\b/g, '').replace(/\s+/g, ' ').trim();
+export const org = s => normText(s).replace(/[.,]/g, '').replace(/\b(?:inc|ltd|gmbh|kft|zrt)\b/g, '').replace(/\s+/g, ' ').trim();
 export const matchJob = (j, list) => list.find(x => x.id === j.id)
   ?? list.find(x => org(x.name) === org(j.name) && x.startDate === j.startDate)
   ?? list.find(x => org(x.name) === org(j.name));
@@ -158,7 +158,8 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
     for (const [k, label] of [['position', t('diff.title')], ['startDate', t('diff.start')], ['endDate', t('diff.end')], ['location', t('diff.place')]]){
       const a = fj[k] ?? (k === 'endDate' ? 'present' : ''), b = tj[k] ?? (k === 'endDate' ? 'present' : '');
       if (k !== 'endDate' && !tj[k]) continue;      // the other copy says nothing about it: that is no difference
-      if (normText(a) !== normText(b)) put({ kind: fj[k] ? 'change' : 'add', what: `${fj.name} · ${label}`, a, b, on: !fj[k],      // a detail the job lacks is added; another value is for the person
+      const had = fj[k] || k === 'endDate';      // no end date is "present", a value the person has: another one is a change
+      if (normText(a) !== normText(b)) put({ kind: had ? 'change' : 'add', what: `${fj.name} · ${label}`, a, b, on: !had,      // a detail the job lacks is added; another value is for the person
         apply: d => { const w = at()(d); if (w) w[k] = tj[k] ?? null; } });
     }
     for (const k of ['position', 'meta']) if (fj.display?.[k] && tj.display?.[k]) claimItems(fj.display[k], tj.display[k], `${fj.name} · ${k === 'position' ? 'title' : 'meta line'}`);

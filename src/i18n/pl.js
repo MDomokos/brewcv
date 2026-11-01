@@ -1679,4 +1679,13 @@ export default {
   'i6.newLine': 'Nowy wiersz',
   'i6.newWording': 'Nowe sformułowanie wiersza „{claim}”',
   'i6.twoFit': 'Ten wiersz pasuje do dwóch twoich wierszy',
+  'i6.formatNew': 'Inny format pliku {name}. Wiersze, które ma, a ty nie, są proponowane dalej.',
+  'i6.fileLang': 'Język pliku',
+  'i6.inSection': 'W innej sekcji',
+  'i6.fWith': 'z',
+  'i6.fStudy': 'stopień',
+  'i6.fArea': 'kierunek',
+  'i6.fScore': 'ocena',
+  'i6.newProject': 'Nowy projekt',
+  'i6.newSchool': 'Nowa szkoła',
 };

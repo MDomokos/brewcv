@@ -20,7 +20,7 @@ function carry(to, from, skip = []){
   return to;
 }
 
-export function fromJsonResume(json){
+export function fromJsonResume(json, lang = DEFAULT_LANG){      // `lang`: the language the file's job texts are written in
   const b = json.basics ?? {};
   // the printed contact line reads "City, Region" and shows a profile when
   // there's no website; the record keeps the fields as they came
@@ -42,7 +42,7 @@ export function fromJsonResume(json){
   let claims = 0;
   for (const w of json.work ?? []){
     const id = B.addJob(m, { position: w.position ?? '', name: w.name ?? w.company ?? '', location: w.location ?? '',
-      startDate: w.startDate ?? '', endDate: w.endDate ?? '', bullets: [...(w.highlights ?? []), ...(!(w.highlights ?? []).length && w.summary ? [w.summary] : [])] });
+      startDate: w.startDate ?? '', endDate: w.endDate ?? '', lang, bullets: [...(w.highlights ?? []), ...(!(w.highlights ?? []).length && w.summary ? [w.summary] : [])] });
     if (id){ const x = m.work.find(y => y.id === id); carry(x, w, ['company', 'highlights', 'id']); claims += x.highlights.length; }
   }
   const edu = (json.education ?? [])[0];

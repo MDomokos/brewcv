@@ -1679,4 +1679,13 @@ export default {
   'i6.newLine': 'Új sor',
   'i6.newWording': 'A(z) „{claim}” új megfogalmazása',
   'i6.twoFit': 'Ez a sor két sorodhoz is illik',
+  'i6.formatNew': 'A(z) {name} másik formátuma. Azok a sorok, amelyek nála megvannak, nálad nem, ezután következnek.',
+  'i6.fileLang': 'A fájl nyelve',
+  'i6.inSection': 'Másik szakaszban',
+  'i6.fWith': 'ezzel:',
+  'i6.fStudy': 'fokozat',
+  'i6.fArea': 'szak',
+  'i6.fScore': 'jegy',
+  'i6.newProject': 'Új projekt',
+  'i6.newSchool': 'Új iskola',
 };

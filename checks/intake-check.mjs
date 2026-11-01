@@ -12,7 +12,9 @@ import { fileURLToPath } from 'node:url';
 import * as S from '../src/model/schema.js';
 import * as X from '../src/model/intake.js';
 import * as DOC from '../src/model/documents.js';
-import { lexiconFor } from '../src/model/import.js';
+import { fromJsonResume, lexiconFor } from '../src/model/import.js';
+import * as B from '../src/model/build.js';
+import { t } from '../src/i18n/index.js';
 import { normText, tombstone } from '../src/model/record.js';
 import { fnv } from '../src/store/store.js';
 import { loadCatalogue } from '../src/i18n/index.js';
@@ -34,21 +36,20 @@ const names = read('data/example-resumes/index.json');
 const resumes = names.map(n => ({ ...S.loadResume(read(`data/example-resumes/${n}`), base).recipe, id: n }));
 const printed = (record, list) => list.map(r => crypto.createHash('sha256').update(renderPages(record, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('\n')).digest('hex'));
 const state = () => ({ record: clone(base), resumes: clone(resumes), frozen: {}, cur: null, openId: null });
-const lexicon = lexiconFor('en');
 
 // a file as the screens hold it: its bytes read, its sha, its date
 async function entry(name, bytes, modified = 1000){
   bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(fs.readFileSync(path.join(FIX, name)));
-  return { name, size: bytes.length, modified, bytes, sha256: crypto.createHash('sha256').update(bytes).digest('hex'), read: await X.readFile(bytes, name, { lexicon }) };
+  return { name, size: bytes.length, modified, bytes, sha256: crypto.createHash('sha256').update(bytes).digest('hex'), read: await X.readFile(bytes, name, {}) };
 }
 // a file whose reading is made here: the JSON Resume the parser would give, and the text
-function made(name, { work = [], basics = { name: 'Dana Okonkwo' }, extra = {}, leftovers = [], trace = [], lines = [], modified = 1000, status = 'resume' } = {}){
+function made(name, { work = [], basics = { name: 'Dana Okonkwo' }, extra = {}, leftovers = [], trace = [], lines = [], modified = 1000, status = 'resume', lang = 'en' } = {}){
   const text = lines.map(l => l.text).join('\n') || `${name}\n${work.flatMap(w => w.highlights ?? []).join('\n')}`;
   return { name, size: text.length, modified, bytes: new TextEncoder().encode(text), sha256: crypto.createHash('sha256').update(name + text).digest('hex'), status,
-    read: { kind: 'md', jsonResume: { basics, work, ...extra }, trace, leftovers, lines: lines.length ? lines : text.split('\n').map(t => ({ text: t, page: 1 })), text, doubts: [], layout: [], boxes: [] } };
+    read: { kind: 'md', jsonResume: { basics, work, ...extra }, trace, leftovers, lines: lines.length ? lines : text.split('\n').map(t => ({ text: t, page: 1 })), text, doubts: [], layout: [], boxes: [], lang } };
 }
 const job = (over = {}) => ({ name: 'Hydra Medical', position: 'Design Engineer', startDate: '2023-03', highlights: [HYDRA_KEEP], ...over });
-const planOf = (st, entries, o = {}) => { X.classify(st, entries); return X.plan(st, entries, { lexicon, ...o }); };
+const planOf = (st, entries, o = {}) => { X.classify(st, entries); return X.plan(st, entries, o); };
 const applied = (st, p, at = '2026-11-01T10:00:00.000Z') => { const d = clone(st); const docs = X.applyPlan(d, p, { at }); return { d, docs }; };
 const fact = (rec, id) => rec.facts.find(f => f.id === id);
 const textOf = (rec, id) => rec.variants.find(v => v.id === id).text;
@@ -73,7 +74,7 @@ section('what each file of a drop is');
   ok('a picture and a data file are for their own screens; any other type is kept unread', png.status === 'skip' && json.status === 'skip' && blob.status === 'unread', [png, json, blob].map(e => e.status).join());
   const codes = [];
   for (const [n, b] of [['old.doc', new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, ...new TextEncoder().encode('W\0o\0r\0d\0D\0o\0c\0u\0m\0e\0n\0t')])], ['cut.docx', new Uint8Array(fs.readFileSync(path.join(FIX, 'helix-1col-word.docx'))).subarray(0, 300)], ['nothing.pdf', new TextEncoder().encode('%PDF-1.4\nnot a pdf at all')]])
-    try { await X.readFile(b, n, { lexicon }); codes.push('none'); } catch (e) { codes.push(e.code); }
+    try { await X.readFile(b, n, {}); codes.push('none'); } catch (e) { codes.push(e.code); }
   ok('an old Word file, a cut-short ZIP and a PDF that is none each fail with a code the screen turns into words', codes.join() === 'doc,zip,pdf', codes.join());
   const big = await X.readFile(new Uint8Array(8), 'x.txt', {}).then(() => 'read', e => e.code);
   ok('a file over the size limit is refused with the code big before it is read', await X.readFile({ length: X.MAX_FILE + 1 }, 'x.pdf', {}).then(() => 'read', e => e.code) === 'big' && big === 'read');
@@ -141,33 +142,33 @@ section('what joining would do');
   gone.record.variants = gone.record.variants.filter(x => x !== v); fact(gone.record, 'hydra-testing').variants = fact(gone.record, 'hydra-testing').variants.filter(x => x !== v.id);
   p = planOf(gone, [made('back.md', { work: [job({ highlights: [v.text, 'Something else entirely about welding fixtures and jigs'] })] })]);
   const back = p.files[0].items.find(x => x.kind === 'keep');
-  ok('a text the person deleted is listed as deleted, unticked, and can be brought back; it is never added ticked', back && back.on === false && /deleted/i.test(back.what) && p.files[0].items.filter(x => x.on).length === 1, JSON.stringify(p.files[0].items.map(x => [x.kind, x.on, x.what])));
+  ok('a text the person deleted is listed apart (kept, unticked, with a way to bring it back); it is never added ticked', back && back.kind === 'keep' && back.on === false && typeof back.apply === 'function' && p.files[0].items.filter(x => x.on).length === 1, JSON.stringify(p.files[0].items.map(x => [x.kind, x.on, x.what])));
 }
 
 section('lines with no home');
 {
   const st = state();
-  const lines = ['Dana Okonkwo', 'Hydra Medical', 'Page 1 of 2', 'Dana Okonkwo · dana@example.org', 'References available on request', 'Referenzen auf Anfrage', '3', 'Fixture design for the line, a thing nobody wrote down', 'Nowhere University, BSc Welding'].map((text, i) => ({ text, page: 1, line: i + 1 }));
+  const lines = ['Dana Okonkwo', 'Hydra Medical', 'Page 1 of 2', 'Dana Okonkwo · dana@example.org', 'References available on request', 'Referenzen auf Anfrage', '3', 'Fixture design for the line, a thing nobody wrote down', 'Skills: Welding fixtures'].map((text, i) => ({ text, page: 1, line: i + 1 }));
   const f = made('left.md', { basics: { name: 'Dana Okonkwo', email: 'dana@example.org' }, lines, work: [job()],
-    extra: { education: [{ institution: 'Nowhere University', studyType: 'BSc', area: 'Welding' }] },
-    trace: [{ path: 'work.0.name', line: 2 }, { path: 'education.0.institution', line: 9 }],
+    extra: { skills: [{ name: 'Skills', keywords: ['Welding fixtures'] }] },
+    trace: [{ path: 'work.0.name', line: 2 }, { path: 'skills.0.keywords.0', line: 9 }],
     leftovers: [...lines.slice(2, 8).map(l => ({ text: l.text, section: 'EXPERIENCE', line: l.line }))] });
   const p = planOf(st, [f]);
   const left = p.files[0].unplaced.map(u => u.text);
   ok('page numbers, "Page 1 of 2", the name and contact repeated, and "references available on request" (in two languages) are dropped without asking', !left.some(t => /^(?:Page|3$|Dana|Referenzen|References)/.test(t)) && left.includes('Fixture design for the line, a thing nobody wrote down'), left.join(' | '));
-  ok('a text of the file that is in no part of the career (a school) is listed too, as the line it was on', left.includes('Nowhere University, BSc Welding'));
+  ok('a text of the file that is in no part of the career (a skill) is listed too, as the line it was on', left.includes('Skills: Welding fixtures'));
   ok('every other line is listed under the lines to place, none chosen, the job above it offered first when it sits in the work section', p.files[0].unplaced.every(u => u.choice === '') && p.files[0].unplaced.find(u => u.text.startsWith('Fixture'))?.above === 'hydra', JSON.stringify(p.files[0].unplaced.map(u => [u.section, u.above])));
   const o = X.placeOptions(p, p.files[0].unplaced.find(u => u.text.startsWith('Fixture')));
-  ok('the menu offers the jobs (the one above first), the closest claims and the skills lines', o.jobs[0].value === 'job:hydra' && o.jobs.length === base.work.length && o.skills.length >= 1);
+  ok('the menu offers the jobs (the one above first), the closest claims and the skills lines', o.jobs[0].value === 'job:hydra' && o.jobs.length >= base.work.length && o.skills.length >= 1 && ['list:languages', 'list:certificates', 'list:interests', 'list:publications', 'list:education'].every(v => o.sections.some(x => x.value === v)));
 
-  const u0 = p.files[0].unplaced.find(u => u.text.startsWith('Fixture')), u1 = p.files[0].unplaced.find(u => u.text.startsWith('Nowhere'));
+  const u0 = p.files[0].unplaced.find(u => u.text.startsWith('Fixture')), u1 = p.files[0].unplaced.find(u => u.text.startsWith('Skills:'));
   u0.choice = 'job:hydra'; u1.choice = 'skip';
   const a = applied(st, p);
-  ok('a line put under a job is a new claim there, stamped; one skipped adds nothing; both leave nothing unplaced', a.d.record.work[0].highlights.length === base.work[0].highlights.length + 1 && a.d.record.variants.length === base.variants.length + 1 + 0 && a.docs[0].taken.unplaced === 0 && a.docs[0].taken.skipped.includes('Nowhere University, BSc Welding'), JSON.stringify(a.docs[0].taken));
+  ok('a line put under a job is a new claim there, stamped; one skipped adds nothing; both leave nothing unplaced', a.d.record.work[0].highlights.length === base.work[0].highlights.length + 1 && a.d.record.variants.length === base.variants.length + 1 + 0 && a.docs[0].taken.unplaced === 0 && a.docs[0].taken.skipped.includes('Skills: Welding fixtures'), JSON.stringify(a.docs[0].taken));
   u0.choice = 'claim:hydra-dfm'; u1.choice = 'skills:skills-cad';
-  const c = applied(st, p);
+  const c = applied(st, p); 
   ok('a line put as a wording of a claim, or in a skills line, is a new version of it, never the default', c.d.record.variants.length === base.variants.length + 2 && JSON.stringify(fact(c.d.record, 'hydra-dfm').default) === JSON.stringify(fact(base, 'hydra-dfm').default) && JSON.stringify(fact(c.d.record, 'skills-cad').default) === JSON.stringify(fact(base, 'skills-cad').default)
-    && c.d.record.variants.some(v => /^skills-cad/.test(v.id) && /, Nowhere University, BSc Welding$/.test(v.text)));
+    && c.d.record.variants.some(v => /^skills-cad/.test(v.id) && /, Skills: Welding fixtures$/.test(v.text)));
   u0.choice = ''; u1.choice = '';
   ok('lines left alone stay in the document’s text and are counted as not placed', applied(st, p).docs[0].taken.unplaced === p.files[0].unplaced.length);
 }
@@ -209,7 +210,7 @@ section('applying: documents, the log, and what must not change');
   X.classify(st, [pdfb2]);
   ok('a PDF with a column the parser does not trust says so', pdfb2.read.doubts.some(d => d.kind === 'columns' && d.page === 2));
   const given = pdfb2.read.layout.map(l => (l.page === 2 ? { ...l, split: 275 } : l));
-  const re = X.analyse(pdfb2.read.items, lexicon, given);
+  const re = X.analyse(pdfb2.read.items, lexiconFor('en'), given);
   ok('a layout given for the page is used as it is: the page is read again (other lines, other sections as boxes), and the doubt about its columns is gone', fnv(re.text) !== fnv(pdfb2.read.text) && !re.doubts.some(d => d.kind === 'columns') && re.layout.find(l => l.page === 2).split === 275 && re.boxes.some(b => b.page === 2));
   pdfb2.layout = given; pdfb2.read = { ...pdfb2.read, ...re };
   const pb = planOf(st, [pdfb2]);
@@ -235,6 +236,119 @@ section('a cover letter');
   l.items[0].on = true;
   ok('ticked, the saved resume gets the company', applied(st, p).d.resumes[0].company === 'Northgate');
   ok('and the same letter again is merged before', (() => { X.classify(a.d, [letter]); return letter.status === 'seen'; })());
+}
+
+
+section('only an empty career, or the example, starts from a file');
+{
+  const blank = { record: B.blankRecord({}), resumes: [], frozen: {} };
+  ok('a career with no name, summary, skills, entries or saved resumes is empty', X.isEmpty(blank));
+  const named = clone(blank); named.record.basics.name = 'Pat Example';
+  ok('one with only a name is not empty', !X.isEmpty(named));
+  const sums = clone(blank); B.setSummary(sums.record, 'A summary in a few words');
+  ok('…nor one with only a summary, only a skill, only a saved resume or only a school', !X.isEmpty(sums) && !X.isEmpty({ ...blank, record: (() => { const r = clone(blank.record); B.setSkills(r, [{ name: 'Tools', keywords: ['a'] }]); return r; })() })
+    && !X.isEmpty({ ...blank, resumes: [{ id: 'r.json' }] }) && !X.isEmpty({ ...blank, record: (() => { const r = clone(blank.record); B.setEducation(r, { institution: 'Somewhere' }); return r; })() }));
+  const nojobs = state(); nojobs.record.work = []; nojobs.record.sections = nojobs.record.sections.filter(s => s.id !== 'experience');
+  ok('a career with no jobs but a name, skills and saved resumes is not empty, and the example is not', !X.isEmpty(nojobs) && !X.isEmpty(state()));
+  const f = made('start.md', { modified: 5000, work: [job()] });
+  const p = planOf(nojobs, [f], { fresh: X.isEmpty(nojobs) });
+  const a = applied(nojobs, p);
+  ok('so a file is joined to it: its name, skills and saved resumes are still there', !p.start && a.d.resumes.length === nojobs.resumes.length && a.d.record.skills.length === nojobs.record.skills.length && a.d.record.basics.name === base.basics.name);
+}
+
+section('the language of a file and of what it adds');
+{
+  const st = state();
+  const hu = textOf(base, 'hydra-testing-v1-hu');
+  const word = made('hu-word.md', { lang: 'hu', work: [job({ highlights: [HYDRA_KEEP, hu.replace(/^\S+/, 'Összeállítottam')] })] });
+  const line = made('hu-line.md', { lang: 'hu', work: [job({ highlights: [HYDRA_KEEP, 'Szerszámkészítő műhely vezetése három évig a gyárban'] })] });
+  let p = planOf(st, [word]);
+  const w = p.files[0].items.find(x => x.as === 'wording');
+  ok('a new wording matched to a Hungarian version is a Hungarian version, whatever the file’s language', !!w && applied(st, p).d.record.variants.some(v => !base.variants.some(b => b.id === v.id) && v.lang === 'hu' && v.id.startsWith('hydra-testing')), JSON.stringify(p.files[0].items.map(x => x.what)));
+  p = planOf(st, [made('en-word.md', { lang: 'en', work: [job({ highlights: [HYDRA_KEEP, HYDRA.toler.replace('Built', 'Calculated')] })] })]);
+  ok('and an English one is English', applied(st, p).d.record.variants.filter(v => !base.variants.some(b => b.id === v.id)).every(v => v.lang === 'en'));
+  p = planOf(st, [line]);
+  const d = applied(st, p).d, fresh = d.record.variants.filter(v => !base.variants.some(b => b.id === v.id));
+  ok('a new line takes the language of the file: a Hungarian version beside the English base the career needs', fresh.some(v => v.lang === 'hu' && /Szerszámkészítő/.test(v.text)) && fresh.some(v => v.lang === 'en' && /Szerszámkészítő/.test(v.text)) && !fresh.some(v => v.lang === 'en' && /Design Engineer/.test(v.text)));
+  u: {
+    const u = made('hu-place.md', { lang: 'hu', work: [job()], leftovers: [{ text: 'Egy sor, amit nem tudtunk elhelyezni sehova', section: 'EXPERIENCE', line: 3 }] });
+    const q = planOf(st, [u]); q.files[0].unplaced[0].choice = 'job:hydra';
+    ok('a line placed by hand takes the file’s language too', applied(st, q).d.record.variants.some(v => v.lang === 'hu' && /Egy sor, amit/.test(v.text)));
+  }
+  const bytes = new Uint8Array(fs.readFileSync(path.join(FIX, 'example-b2-hu-a4.pdf')));
+  const en = await X.readFile(bytes, 'hu.pdf', { lang: 'en', fixed: true }), auto = await X.readFile(bytes, 'hu.pdf', { lang: 'en' });
+  ok('a Hungarian PDF read in English has no jobs; read with every language it is found to be Hungarian, with its jobs', (en.jsonResume.work ?? []).length === 0 && auto.lang === 'hu' && (auto.jsonResume.work ?? []).length >= 3, `${en.lang} ${(auto.jsonResume.work ?? []).length} ${auto.lang}`);
+  const pt = await X.readFile(new Uint8Array(fs.readFileSync(path.join(FIX, 'example-b2-pt-a4.pdf'))), 'pt.pdf', { lang: 'en' });
+  ok('and a Portuguese one Portuguese', pt.lang === 'pt' && (pt.jsonResume.work ?? []).length >= 3);
+  const clean = await X.readFile(new Uint8Array(fs.readFileSync(path.join(FIX, 'helix-1col-word.docx'))), 'w.docx', { lang: 'en' });
+  ok('a file that reads cleanly in the language asked for is left in it', clean.lang === 'en');
+  const again = X.readIn(auto.items, 'en');
+  ok('the person can read it again in another language', again.lang === 'en' && (again.jsonResume.work ?? []).length === 0 && X.readIn(auto.items, 'hu').lang === 'hu');
+  const fj = fromJsonResume({ basics: { name: 'Pat' }, work: [{ name: 'Műhely Kft.', position: 'Vezető', startDate: '2020-01', highlights: ['Három évig vezettem a műhelyt'] }] }, 'hu').model;
+  ok('a job of a Hungarian file has Hungarian versions', fj.variants.some(v => v.lang === 'hu' && /vezettem/.test(v.text)));
+}
+
+section('a revised resume is not swallowed as another format');
+{
+  const st = state();
+  const lines = base.variants.filter(v => v.lang === 'en').map(v => v.text).slice(0, 30).map(text => ({ text, page: 1 }));
+  st.documents = [{ id: 'doc-aaaaaaaaaaaa', name: 'old.docx', sha256: 'a'.repeat(64), size: 1, type: 'x', addedAt: '2026-01-01T00:00:00.000Z', meta: { kind: 'resume' }, text: lines.map(l => l.text).join('\n'), taken: {} }];
+  const same = made('copy.pdf', { lines, work: [job()] });
+  const revised = made('revised.pdf', { lines: lines.map((l, i) => (i === 3 ? { ...l, text: HYDRA.toler.replace('Built', 'Calculated') } : l)), work: [job({ highlights: [HYDRA_KEEP, HYDRA.toler.replace('Built', 'Calculated')] })] });
+  X.classify(st, [same]); X.classify(st, [revised]);
+  ok('a copy and a revision of a document in the Library are both linked to it (another format of it)', same.status === 'format' && revised.status === 'format' && revised.of.id === 'doc-aaaaaaaaaaaa');
+  let p = X.plan(st, [same], {});
+  ok('an exact copy has nothing new: the screens may say so', same.news === false && p.files[0].items.length === 0 && p.files[0].unplaced.length === 0);
+  p = X.plan(st, [revised], {});
+  ok('a revised copy still has its changed line planned as a new wording, and is not "nothing new"', revised.news === true && p.files[0].items.some(x => x.as === 'wording' && x.on), JSON.stringify(p.files[0].items.map(x => x.what)));
+  const a = applied(st, p);
+  ok('applied, the new wording is in the career and the file is a document linked to the old one', a.d.record.variants.length === base.variants.length + 1 && a.docs[0].of === 'doc-aaaaaaaaaaaa');
+  const letterDoc = { ...st.documents[0], id: 'doc-bbbbbbbbbbbb', name: 'letter.docx', sha256: 'b'.repeat(64), meta: { kind: 'cover-letter' }, text: lines.map(l => `x ${l.text}`).join('\n') };
+  const stl = { ...state(), documents: [letterDoc] };
+  const pdfOfLetter = made('letter.pdf', { lines: lines.map(l => ({ ...l, text: `x ${l.text}` })), work: [job()] });
+  X.classify(stl, [pdfOfLetter]);
+  const b = applied(stl, X.plan(stl, [pdfOfLetter], {}));
+  ok('a PDF copy of a cover letter is a cover letter, and puts nothing in the career', pdfOfLetter.status === 'format' && b.docs[0].meta.kind === 'cover-letter' && b.d.record.variants.length === base.variants.length);
+}
+
+section('education and projects are entries, and another section can take a line');
+{
+  const st = state();
+  const fileOf = (extra, more = {}) => made('entries.md', { work: [job()], extra, ...more });
+  let p = planOf(st, [fileOf({ education: [{ institution: 'universidade do porto', studyType: 'M.Eng.', area: 'Mechanical Engineering', startDate: '2016-09', endDate: '2022-07' }] })]);
+  const it = p.files[0].items.filter(x => x.entry === 'Universidade do Porto');
+  ok('a school of the career is matched by its name, whatever the case: the one different value (an end date) is a change, unticked, and nothing new is added', it.length === 1 && it[0].kind === 'change' && it[0].on === false && it[0].a === '2021-07' && it[0].b === '2022-07' && !p.files[0].items.some(x => x.what === t('i6.newSchool')), JSON.stringify(it.map(x => [x.what, x.kind, x.a, x.b])));
+  const un = applied(st, p); ok('…left unticked, the career keeps its own date', un.d.record.education[0].endDate === '2021-07');
+  it[0].on = true; ok('…ticked, the file’s is used', applied(st, p).d.record.education[0].endDate === '2022-07');
+  p = planOf(st, [fileOf({ education: [{ institution: 'Politehnica Timisoara', studyType: 'BSc', area: 'Physics', endDate: '2014-07' }] })]);
+  const ns = p.files[0].items.find(x => x.entry === 'Politehnica Timisoara');
+  ok('a school the career lacks is a new entry, ticked', ns?.kind === 'add' && ns.on === true && ns.as === 'job');
+  const ad = applied(st, p).d;
+  ok('applied, it is one more education entry, and the first is as it was', ad.record.education.length === 2 && ad.record.education[0].institution === st.record.education[0].institution && ad.record.education[1].institution === 'Politehnica Timisoara');
+  const proj = base.projects[0];
+  p = planOf(st, [fileOf({ projects: [{ name: proj.name, highlights: ['Machined the base from one billet of aluminium and anodised it black for the shop'] }, { name: 'A wholly new side project', startDate: '2023-01', highlights: ['Wrote the firmware for a small tide clock'] }] })]);
+  const pi = p.files[0].items;
+  ok('a project of the career is matched by its name and its new line is offered under it; a project the career lacks is a new entry', pi.some(x => x.as === 'line' && x.entry === proj.name && x.on) && pi.some(x => x.as === 'job' && x.entry === 'A wholly new side project'), JSON.stringify(pi.map(x => [x.as, x.entry])));
+  const pd = applied(st, p).d, pp = pd.record.projects;
+  ok('applied, the line is a claim of that project and the new project has its own line, both stamped', pp.find(x => x.id === proj.id).highlights.length === proj.highlights.length + 1 && pp.some(x => x.name === 'A wholly new side project' && x.highlights.length === 1)
+    && pd.record.variants.filter(v => !base.variants.some(b => b.id === v.id)).every(v => v.source && v.tags.includes('imported')));
+  const f2 = made('lists.md', { work: [job()], leftovers: ['Hungarian: B2', 'Safety Officer Certificate 2022', 'Collecting old tools'].map((text, i) => ({ text, section: 'Other', line: 5 + i })) });
+  p = planOf(st, [f2]);
+  const o = X.placeOptions(p, p.files[0].unplaced[0]);
+  ok('the menu offers another section: languages, certificates, interests, publications, education', ['languages', 'certificates', 'interests', 'publications', 'education'].every(k => o.sections.some(x => x.value === `list:${k}`)));
+  p.files[0].unplaced[0].choice = 'list:languages'; p.files[0].unplaced[1].choice = 'list:certificates'; p.files[0].unplaced[2].choice = 'list:interests';
+  const ls = applied(st, p);
+  ok('a line put there is an item of that list, with its parts (a language and its level), stamped, and nothing is left unplaced', ls.d.record.languages.some(l => l.language === 'Hungarian' && l.fluency === 'B2') && ls.d.record.certificates.some(c => /Safety Officer/.test(c.name)) && ls.d.record.interests.some(c => /old tools/.test(c.name)) && ls.docs[0].taken.unplaced === 0
+    && ls.d.record.variants.filter(v => !base.variants.some(b => b.id === v.id)).every(v => v.source && v.tags.includes('imported')));
+}
+
+section('what the first reading cannot tell: a file read in another way gives the same plan once its language is set');
+{
+  const bytes = new Uint8Array(fs.readFileSync(path.join(FIX, 'example-b2-hu-a4.pdf')));
+  const e = await entry('hu.pdf', bytes);
+  const st = state();
+  X.classify(st, [e]);
+  ok('a Hungarian file read with the interface in English is planned as Hungarian: its jobs found, its new lines Hungarian', e.read.lang === 'hu' && X.plan(st, [e], {}).files[0].items.some(x => x.as === 'job'));
 }
 
 process.exit(failed ? 1 : 0);

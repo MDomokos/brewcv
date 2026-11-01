@@ -6,7 +6,7 @@
   "select": {
     "src/ui/career.js": 6,
     "src/ui/edit.js": 3,
-    "src/ui/files.js": 1,
+    "src/ui/files.js": 2,
     "src/ui/onboarding.js": 1,
     "src/ui/resumes.js": 5,
     "src/ui/review.js": 1,

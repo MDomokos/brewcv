@@ -1679,4 +1679,13 @@ export default {
   'i6.newLine': 'Neue Zeile',
   'i6.newWording': 'Neue Formulierung von „{claim}“',
   'i6.twoFit': 'Diese Zeile passt zu zwei deiner Zeilen',
+  'i6.formatNew': 'Ein anderes Format von {name}. Die Zeilen, die es hat und deine nicht, werden als Nächstes angeboten.',
+  'i6.fileLang': 'Sprache der Datei',
+  'i6.inSection': 'In einem anderen Abschnitt',
+  'i6.fWith': 'mit',
+  'i6.fStudy': 'Abschluss',
+  'i6.fArea': 'Fach',
+  'i6.fScore': 'Note',
+  'i6.newProject': 'Neues Projekt',
+  'i6.newSchool': 'Neue Schule',
 };

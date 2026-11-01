@@ -1683,4 +1683,13 @@ export default {
   'i6.newLine': 'New line',
   'i6.newWording': 'New wording of “{claim}”',
   'i6.twoFit': 'This line fits two of your lines',
+  'i6.formatNew': 'Another format of {name}. The lines it has that yours doesn’t are offered next.',
+  'i6.fileLang': 'Language of the file',
+  'i6.inSection': 'In another section',
+  'i6.fWith': 'with',
+  'i6.fStudy': 'degree',
+  'i6.fArea': 'field',
+  'i6.fScore': 'grade',
+  'i6.newProject': 'New project',
+  'i6.newSchool': 'New school',
 };

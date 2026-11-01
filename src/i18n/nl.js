@@ -1679,4 +1679,13 @@ export default {
   'i6.newLine': 'Nieuwe regel',
   'i6.newWording': 'Nieuwe formulering van “{claim}”',
   'i6.twoFit': 'Deze regel past bij twee van je regels',
+  'i6.formatNew': 'Een ander formaat van {name}. De regels die het heeft en de jouwe niet, worden hierna aangeboden.',
+  'i6.fileLang': 'Taal van het bestand',
+  'i6.inSection': 'In een ander onderdeel',
+  'i6.fWith': 'met',
+  'i6.fStudy': 'diploma',
+  'i6.fArea': 'richting',
+  'i6.fScore': 'cijfer',
+  'i6.newProject': 'Nieuw project',
+  'i6.newSchool': 'Nieuwe school',
 };

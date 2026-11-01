@@ -1679,4 +1679,13 @@ export default {
   'i6.newLine': 'Linha nova',
   'i6.newWording': 'Nova formulação de «{claim}»',
   'i6.twoFit': 'Esta linha encaixa em duas das suas linhas',
+  'i6.formatNew': 'Outro formato de {name}. As linhas que tem e as suas não têm são oferecidas a seguir.',
+  'i6.fileLang': 'Idioma do ficheiro',
+  'i6.inSection': 'Noutra secção',
+  'i6.fWith': 'com',
+  'i6.fStudy': 'grau',
+  'i6.fArea': 'área',
+  'i6.fScore': 'nota',
+  'i6.newProject': 'Projeto novo',
+  'i6.newSchool': 'Escola nova',
 };

@@ -2,7 +2,7 @@
 // Older library files are migrated on load; save always writes resume-data/4.
 
 import { validate } from '../checks/lib/validate.mjs';
-import { load, save as toFile, serialize, loadResume, saveResume } from './model/schema.js';
+import { load, save as toFile, serialize, loadResume, saveResume, dropProto } from './model/schema.js';
 import { openDb } from './store/persist.js';
 
 const STORE = 'handles', KEY = 'library';
@@ -55,13 +55,13 @@ export async function openFromDisk(){
     multiple: false,
   });
   const file = await handle.getFile();
-  const loaded = wrap(JSON.parse(await file.text()), file.name, handle);
+  const loaded = wrap(dropProto(JSON.parse(await file.text())), file.name, handle);
   await put(KEY, handle);
   return loaded;
 }
 
 export async function openFromInput(file){
-  return wrap(JSON.parse(await file.text()), file.name);
+  return wrap(dropProto(JSON.parse(await file.text())), file.name);
 }
 
 // Reopening needs a user gesture, so the caller offers a button.
@@ -76,7 +76,7 @@ export async function reopen(handle){
   const perm = await handle.requestPermission({ mode: 'readwrite' });
   if (perm !== 'granted') throw new Error('permission declined');
   const file = await handle.getFile();
-  return wrap(JSON.parse(await file.text()), file.name, handle);
+  return wrap(dropProto(JSON.parse(await file.text())), file.name, handle);
 }
 
 export async function save(loaded){
@@ -110,7 +110,7 @@ export function wrapRecipe(recipe, data, origin){
 
 function parseRecipe(text){
   let j;
-  try { j = JSON.parse(text); }
+  try { j = dropProto(JSON.parse(text)); }
   catch (e){ throw new Error(`not readable as JSON: ${e.message}`); }
   let r;
   try { r = loadResume(j).recipe; }

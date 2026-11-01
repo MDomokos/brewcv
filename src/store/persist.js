@@ -218,7 +218,7 @@ export function keepOriginals(next, current){
 export async function readFolder(folder){
   const text = await folder.read('resume-data.json');
   if (text === null) return null;
-  const { model, warnings } = load(JSON.parse(text));
+  const { model, warnings } = load(dropProto(JSON.parse(text)));
   const resumes = [], frozen = {};
   const skipped = [], leftovers = [];
   // one saved resume can be on disk under two spellings of its name (composed or decomposed accents): the files are
@@ -236,7 +236,7 @@ export async function readFolder(folder){
     names.sort((x, y) => Number(y === y.normalize('NFC')) - Number(x === x.normalize('NFC')));   // the name the app writes first
     const read = [];
     for (const name of names){
-      try { const text = await folder.read(`recipes/${name}`); read.push({ name, text, got: loadResume(JSON.parse(text), model) }); }
+      try { const text = await folder.read(`recipes/${name}`); read.push({ name, text, got: loadResume(dropProto(JSON.parse(text)), model) }); }
       catch (e){ warnings.push(`recipes/${name}: ${e.message}`); }
     }
     if (!read.length) continue;
@@ -250,7 +250,7 @@ export async function readFolder(folder){
   }
   let lists = cleanLists();
   const lib = await folder.read('library.json');
-  if (lib !== null) try { lists = cleanLists(JSON.parse(lib)); } catch (e){ warnings.push(`library.json: ${e.message}`); }
+  if (lib !== null) try { lists = cleanLists(dropProto(JSON.parse(lib))); } catch (e){ warnings.push(`library.json: ${e.message}`); }
   return { state: { record: model, resumes, frozen, ...lists, cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, skipped, leftovers };
 }
 
@@ -489,7 +489,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       // as resume-data.v3.json and recipes-v3/.
       const old = await f.read('resume-data.json');
       let v3 = false;
-      try { v3 = old !== null && detect(JSON.parse(old)) === 'library-v3'; } catch {}
+      try { v3 = old !== null && detect(dropProto(JSON.parse(old))) === 'library-v3'; } catch {}
       if (v3 && (await f.read('resume-data.v3.json')) === null){
         await f.write('resume-data.v3.json', old);
         for (const name of (await f.list?.('recipes')) ?? []){
@@ -533,7 +533,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
       if (text === null) return { same: false, disk: null };
       const mine = filesOf(store.materialize()).get('resume-data.json');
       if (text === mine) return { same: true, disk: null };
-      try { return { same: false, disk: { record: load(JSON.parse(text)).model } }; }
+      try { return { same: false, disk: { record: load(dropProto(JSON.parse(text))).model } }; }
       catch (e){ return { same: false, disk: null, error: e.message }; }
     },
 

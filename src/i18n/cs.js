@@ -1679,4 +1679,13 @@ export default {
   'i6.newLine': 'Nový řádek',
   'i6.newWording': 'Nové znění řádku „{claim}“',
   'i6.twoFit': 'Tento řádek odpovídá dvěma vašim řádkům',
+  'i6.formatNew': 'Jiný formát souboru {name}. Řádky, které má on a vy ne, se nabídnou dále.',
+  'i6.fileLang': 'Jazyk souboru',
+  'i6.inSection': 'V jiném oddílu',
+  'i6.fWith': 's',
+  'i6.fStudy': 'titul',
+  'i6.fArea': 'obor',
+  'i6.fScore': 'hodnocení',
+  'i6.newProject': 'Nový projekt',
+  'i6.newSchool': 'Nová škola',
 };

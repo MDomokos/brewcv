@@ -201,5 +201,39 @@ section('snapshots: a file whose resume has snapshots mine does not');
   ok('a whole resume only theirs has arrives with its snapshots', RS.snapshotsOf(d2.resumes.find(r => r.name === 'Only theirs')).length === 1);
 }
 
+section('how another copy’s jobs and wordings are matched and numbered');
+{
+  const A = clone(mine), job = A.work.find(w => w.id === 'hydra');
+  job.location = ''; job.endDate = null;
+  const other = clone(mine), oj = other.work.find(w => w.id === 'hydra');
+  const run = (a, b) => D.diffRecords(a, b, { fromResumes: [], toResumes: [] });
+  // a detail the job lacks, and no end date ("present")
+  oj.location = 'Lisbon'; oj.endDate = '2024-01';
+  const items = run(A, other).filter(x => /Hydra/.test(x.what));
+  const place = items.find(x => x.b === 'Lisbon'), end = items.find(x => x.b === '2024-01');
+  ok('a detail the job lacks is added, ticked', place?.kind === 'add' && place.on === true);
+  ok('a job with no end date is current: the other copy’s end date is a change, unticked (the job may not have ended)', end?.kind === 'change' && end.on === false && end.a === 'present', JSON.stringify(end));
+  const applied = { record: clone(A), resumes: [], frozen: {} };
+  D.applyItems(applied, items);
+  ok('applying leaves the end date alone and sets the place', applied.record.work.find(w => w.id === 'hydra').endDate === null && applied.record.work.find(w => w.id === 'hydra').location === 'Lisbon');
+  oj.location = ''; oj.endDate = null;
+  ok('a detail the other copy leaves empty is no difference', run(A, other).every(x => !/Hydra/.test(x.what) || x.kind === 'keep'));
+
+  // the same organisation by its name, whatever the case, punctuation or legal form (the spec's rule for entries)
+  const legal = clone(mine); legal.work.find(w => w.id === 'hydra').name = 'HYDRA MEDICAL, Inc.'; legal.work.find(w => w.id === 'hydra').id = 'hydra-other';
+  ok('"HYDRA MEDICAL, Inc." is the job "Hydra Medical": no new job', run(mine, legal).every(x => x.what !== 'New job'), JSON.stringify(run(mine, legal).filter(x => x.kind === 'add').map(x => x.what)));
+  legal.work.find(w => w.id === 'hydra-other').name = 'Hydra Systems GmbH';
+  ok('another name is a new job', run(mine, legal).some(x => x.what === 'New job'));
+
+  // a reworded version is numbered by how much of the old one it keeps: 70% or more a sub-version, else a new whole number
+  const fid = 'hydra-tolerance', base = R.versionsIn(mine, fid).find(v => v.lang === 'en');
+  const close = clone(mine), far = clone(mine);
+  R.addVersion(close, fid, { text: base.text.replace('Built', 'Calculated'), lang: 'en', as: 'major', n: '9' });
+  R.addVersion(far, fid, { text: 'Something wholly different about welding fixtures and jigs for a plant', lang: 'en', as: 'major', n: '9' });
+  const numbered = other => { const d = { record: clone(mine), resumes: [], frozen: {} }; D.applyItems(d, run(mine, other)); return R.versionsIn(d.record, fid).filter(v => !R.versionsIn(mine, fid).some(x => x.id === v.id)).map(v => v.n); };
+  const nc = numbered(close), nf = numbered(far);
+  ok('a version that keeps most of an older one is its sub-version (v1.1 or v1.2); one that does not is a new whole number', nc.length === 1 && /^1\.\d$/.test(nc[0]) && nf.length === 1 && /^\d+$/.test(nf[0]) && nf[0] !== '1', `${nc} ${nf}`);
+}
+
 console.log(failed ? `\n${failed} diff check(s) FAILED` : '\nall diff checks passed');
 process.exit(failed ? 1 : 0);

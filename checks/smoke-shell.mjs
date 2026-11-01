@@ -2170,6 +2170,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
   ok('several files at once open the Reading screen, one row each', (await view()) === 'reading' && (await rows()).length === 2);
   let r = await rows();
   ok('the Word file is read as a resume; the PDF of the same resume is another format of it, so it adds nothing', r[0].status === 'resume' && r[0].kind === 'docx' && r[0].lines > 10 && r[1].status === 'format' && r[1].kind === 'pdf');
+  ok('each resume row has the language it was read in, as a menu, and the PDF copy is told apart from a new file', (await page.$$('[data-file] [data-flang]')).length === 2 && (await page.$eval('[data-file="0"] [data-flang]', e => e.value)) === 'en' && (await page.getAttribute('[data-file="1"]', 'data-news')) === 'false');
   ok('a file with no doubt shows no layout view (a Word file has none; the PDF is another format and adds nothing)', (await page.$$('[data-layout]')).length === 0 && r[0].doubts === '' && r[1].doubts === '');
   await page.click('[data-act=imp-continue]'); await settle(page);
   ok('Continue shows What’s new', (await view()) === 'whatsnew');
@@ -2184,12 +2185,13 @@ if (want('import: documents on the one door — reading, the layout view, what�
   ok('every line left with no home has one menu, which offers the jobs, and none is chosen for you', places.length >= 3 && jobs.length >= 3 && (await page.$$eval('[data-place]', es => es.every(e => e.value === ''))));
   await pickOption(page, '[data-place="0.0"]', jobs[0]);
   for (const k of places.slice(1)) await pickOption(page, `[data-place="${k}"]`, 'skip');
-  const nApply = await page.textContent('[data-act=imp-apply]');
-  ok('one line put under a job by hand, the rest skipped: the button counts the change(s) it will make', /2/.test(nApply), nApply);
+  const nApply = Number(await page.getAttribute('[data-act=imp-apply]', 'data-n'));
+  ok('one line put under a job by hand, the rest skipped, and one value chosen: the button counts the 2 changes it will make', nApply === 2, String(nApply));
   const undoN0 = (await page.evaluate(() => window.__wb.store.history)).undo;
-  await page.click('[data-act=imp-apply]'); await settle(page);
+  await page.evaluate(() => { const b = document.querySelector('[data-act=imp-apply]'); b.click(); b.click(); });      // a second click while the first is at work does nothing: the button is disabled at once
+  await page.waitForSelector('#body[data-view=receipt]'); await settle(page);
   const s1 = await st();
-  ok('Add makes one step of the undo history, one checkpoint first, and shows the receipt', (await view()) === 'receipt' && (await page.evaluate(() => window.__wb.store.history)).undo === undoN0 + 1 && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).some(c => c.kind === 'import'));
+  ok('Add (clicked twice at once) makes one step of the undo history and one checkpoint, and shows the receipt', (await view()) === 'receipt' && (await page.evaluate(() => window.__wb.store.history)).undo === undoN0 + 1 && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).filter(c => c.kind === 'import').length === 1);
   const stamped = s1.record.variants.filter(v => !s0.record.variants.some(x => x.id === v.id));
   ok('what the file added is stamped: a source naming the file, the tag imported (listed in the career’s tags) and its document; no claim’s default moved; the saved resumes are the same', stamped.length >= 1 && stamped.every(v => /^Imported from helix-1col-word\.docx/.test(v.source) && v.tags.includes('imported') && /^[0-9a-f]{12}$/.test(v.origin?.doc ?? '')) && s1.record.vocabulary.tags.includes('imported')
     && JSON.stringify(s1.record.facts.filter(f => s0.record.facts.some(x => x.id === f.id)).map(f => [f.id, f.default])) === defaults(s0) && JSON.stringify(s1.resumes) === JSON.stringify(s0.resumes), stamped.map(v => v.id).join());
@@ -2287,6 +2289,16 @@ if (want('import: documents on the one door — reading, the layout view, what�
   await drop([old, blob, path.join(FIX, 'example-twocol-medium-letter.pdf')]);
   r = await rows();
   ok('an old Word file says what to do (an error row with no way on), another type is kept as a file, and the good one beside them is still read', r[0].status === 'error' && r[1].status === 'unread' && r[2].status === 'resume');
+  await page.click('[data-act=goto][data-v=import]'); await settle(page);
+
+  // ---- the language a file is read in ----
+  await drop([path.join(FIX, 'example-b2-hu-a4.pdf')]);
+  ok('a Hungarian PDF opened with the interface in English is found to be Hungarian by itself: its jobs are read, no doubt is raised', (await page.$eval('[data-file="0"] [data-flang]', e => e.value)) === 'hu' && (await rows())[0].doubts === '', JSON.stringify(await rows()));
+  await pickOption(page, '[data-file="0"] [data-flang]', 'en');
+  await page.waitForFunction(() => /jobs/.test(document.querySelector('[data-file="0"]').dataset.doubts), null, { timeout: 15000 });
+  ok('changing the menu reads the file again in that language (English finds no jobs here)', (await page.$eval('[data-file="0"] [data-flang]', e => e.value)) === 'en');
+  await pickOption(page, '[data-file="0"] [data-flang]', 'hu');
+  await page.waitForFunction(() => document.querySelector('[data-file="0"]').dataset.doubts === '', null, { timeout: 15000 });
   await page.click('[data-act=goto][data-v=import]'); await settle(page);
 
   // ---- hardening: imported text is text, never HTML ----

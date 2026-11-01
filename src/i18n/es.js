@@ -1679,4 +1679,13 @@ export default {
   'i6.newLine': 'Línea nueva',
   'i6.newWording': 'Nueva redacción de «{claim}»',
   'i6.twoFit': 'Esta línea encaja con dos de tus líneas',
+  'i6.formatNew': 'Otro formato de {name}. Las líneas que tiene y las tuyas no se ofrecen a continuación.',
+  'i6.fileLang': 'Idioma del archivo',
+  'i6.inSection': 'En otra sección',
+  'i6.fWith': 'con',
+  'i6.fStudy': 'título',
+  'i6.fArea': 'especialidad',
+  'i6.fScore': 'nota',
+  'i6.newProject': 'Proyecto nuevo',
+  'i6.newSchool': 'Centro de estudios nuevo',
 };

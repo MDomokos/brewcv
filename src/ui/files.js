@@ -1,5 +1,7 @@
 // Files: opening any file (picker, drop, paste), the review card, the merge preview, History
 // with checkpoints, and Compare with a file. Models: src/model/import.js and src/model/diff.js.
+// Resumes as documents (a DOCX, PDF, ODT, Pages, text, HTML or LinkedIn file): Reading (what each file is, the layout view of a PDF), What's new
+// (Needs you, what to add, lines with no home), and the receipt (is the original safe to delete). Their model is src/model/intake.js.
 
 import { inDesktop } from './ask.js';
 import { withArrows } from './icons.js';
@@ -14,7 +16,8 @@ import { fnv } from '../store/store.js';
 import { readBackup, makeBackup, openVerdict, sha256 } from '../store/persist.js';
 import { ensureRecordId, dropProto } from '../model/schema.js';
 import { newResume } from '../model/resume.js';
-import { t, h, errText, uiLang, has } from '../i18n/index.js';
+import { t, h, errText, uiLang, has, UI_LANGS, loadCatalogue } from '../i18n/index.js';
+import { langName } from '../model/lang.js';
 
 let C = null;
 export function initFiles(ctx){ C = ctx; return api; }
@@ -183,7 +186,6 @@ async function autoMerge(g){
   C.setView('merged');
 }
 
-export const openFile = (file, mode = null) => openFiles([file], mode);
 // Every file comes through here, one or several. A picture, a theme and a JSON file on its own keep their screens; any other kind is read
 // (src/model/intake.js), judged, and shown on the Reading screen, then What's new, then the receipt.
 export async function openFiles(list, mode = null){
@@ -199,12 +201,12 @@ export async function openFiles(list, mode = null){
       if (f.size > X.MAX_FILE) throw Object.assign(new Error('too large'), { code: 'big' });
       e.bytes = new Uint8Array(await f.arrayBuffer());
       e.sha256 = await sha256(e.bytes);
-      e.read = await X.readFile(e.bytes, f.name, { lexicon: I.lexiconFor(uiLang()), words: X.wordsOf(st().record) });
+      e.read = /\.css$/i.test(f.name) ? { kind: 'json' } : await X.readFile(e.bytes, f.name, { lang: uiLang(), words: X.wordsOf(st().record) });      // among several files a theme is a data file: opened on its own
     } catch (err){ e.error = err; e.sha256 ??= f.name; }
     if (one && !e.error && (e.read.kind === 'json' || (/\.json$/i.test(f.name) && e.read.kind === 'txt'))){ await take(new TextDecoder().decode(e.bytes), f.name, mode); return; }
   }
   if (mode === 'compare'){ C.toast(t('toast.onlyCompare'), 'warn'); return; }
-  X.classify(st(), entries);
+  judge(entries);
   F.drop = { entries, plan: null, done: null, checked: null, open: new Set(), pages: new Map() };
   entries.forEach((e, i) => { if (wantsLayout(e)) F.drop.open.add(i); });
   C.setView('reading');
@@ -349,6 +351,17 @@ const isFull = e => e?.name === 'QuotaExceededError' || e?.code === 22;
 const wantsLayout = e => ['pdf', 'pages'].includes(e.read?.kind) && e.status === 'resume' && e.read.doubts.some(d => d.kind !== 'letter');
 const canLayout = e => ['pdf', 'pages'].includes(e.read?.kind) && ['resume', 'letter'].includes(e.status);
 
+// What each file is, and (for a copy of a document) whether it brings anything: `news` is set by planning it
+const freshCareer = () => isExample() || X.isEmpty(st());
+function judge(entries){
+  X.classify(st(), entries);
+  try { X.plan(st(), entries, { fresh: freshCareer() }); } catch { /* made again, and its error shown, on Continue */ }
+}
+const formatText = e => t(e.news ? 'i6.formatNew' : 'i6.format', { name: e.of.name });
+// the language a file is read in, changed from here (reading it again); a file with no page positions to read has none to choose
+const langMenu = (e, i) => (e.read?.items?.length && ['resume', 'letter', 'format'].includes(e.status)
+  ? `<label class="mx">${h('i6.fileLang')} <select data-flang="${i}" aria-label="${esc(t('i6.fileLang'))}">${UI_LANGS.map(l => `<option value="${l}" ${l === e.read.lang ? 'selected' : ''}>${esc(langName(l))}</option>`).join('')}</select></label>` : '');
+
 async function loadPages(i){
   const D = F.drop, e = D?.entries[i];
   if (!e?.read?.pdf || D.pages.has(i)) return;
@@ -381,11 +394,13 @@ function rowHtml(e, i){
   const doubts = e.status === 'resume' ? r.doubts.filter(d => d.kind !== 'letter') : [];
   const lines = r.lines?.length ?? 0;
   const what = e.status === 'error' ? codeText(e.error) : e.status === 'skip' ? t(r.kind === 'image' ? 'i6.skipImage' : 'i6.skipData') : e.status === 'unread' ? t(r.kind === 'other' || !r.kind ? 'i6.unread' : 'i6.noText')
-    : e.status === 'seen' ? t('i6.seen', { date: String(e.seen).slice(0, 10) }) : e.status === 'format' ? t('i6.format', { name: e.of.name })
+    : e.status === 'seen' ? t('i6.seen', { date: String(e.seen).slice(0, 10) }) : e.status === 'format' ? formatText(e)
     : e.status === 'letter' ? t('i6.letter') : [t(`i6.type.${r.kind}`), ...(r.pdf ? [t('head.pages', { n: r.pages })] : []), t('i6.lines', { n: lines })].join(', ');
-  return `<div class="mi ro" data-file="${i}" data-status="${e.status}" data-kind="${esc(r.kind ?? '')}" data-lines="${lines}" data-read="${fnv(r.text ?? '')}" data-doubts="${doubts.map(d => d.kind).join(' ')}"><span class="sym ${e.status === 'resume' || e.status === 'letter' ? 'add' : e.status === 'error' ? 'keep' : 'change'}">·</span>
+  return `<div class="mi ro" data-file="${i}" data-status="${e.status}" data-kind="${esc(r.kind ?? '')}" data-lines="${lines}" data-read="${fnv(r.text ?? '')}" data-doubts="${doubts.map(d => d.kind).join(' ')}" data-news="${e.news ?? ''}"><span class="sym ${e.status === 'resume' || e.status === 'letter' ? 'add' : e.status === 'error' ? 'keep' : 'change'}">·</span>
     <span><span class="mw">${name}</span><span class="mx">${esc(what)}</span>
+    ${e.size > DOC.MAX_EMBED ? `<span class="mx doubt">${esc(t('i2.tooBig', { mb: Math.ceil(e.size / 1e6), max: DOC.MAX_EMBED / 1024 / 1024 }))}</span>` : ''}
     ${doubts.length ? `<span class="mx doubt">${doubts.map(d => esc(t(`i6.d.${d.kind}`, { n: d.n ?? 0, page: d.page ?? 0 }))).join(' ')}</span>` : ''}
+    ${langMenu(e, i)}
     ${layoutHtml(e, i)}</span></div>`;
 }
 
@@ -427,6 +442,7 @@ function placeHtml(p, fi, f){
           ${o.jobs.length ? `<optgroup label="${esc(t('i6.underJob'))}">${o.jobs.map(j => opt(j.value, j.above ? `${j.label} ${t('i6.above')}` : j.label)).join('')}</optgroup>` : ''}
           ${o.claims.length ? `<optgroup label="${esc(t('i6.asWording'))}">${o.claims.map(c => opt(c.value, c.label)).join('')}</optgroup>` : ''}
           ${o.skills.length ? `<optgroup label="${esc(t('i6.inSkills'))}">${o.skills.map(c => opt(c.value, c.label)).join('')}</optgroup>` : ''}
+          ${o.sections.length ? `<optgroup label="${esc(t('i6.inSection'))}">${o.sections.map(c => opt(c.value, c.label)).join('')}</optgroup>` : ''}
           ${opt('skip', t('i6.notResume'))}</select></span></div>`;
     }).join('')}</div>`;
 }
@@ -438,7 +454,7 @@ function whatsnewView(){
   const files = p.files.map((f, fi) => {
     const groups = new Map();
     f.items.forEach((x, ii) => { if (x.kind !== 'change') (groups.get(x.entry ?? '') ?? groups.set(x.entry ?? '', []).get(x.entry ?? '')).push([x, ii]); });
-    const head = f.entry.status === 'letter' ? `<p class="small" data-letter="1">${h('i6.letterNote', { file: f.entry.name })}</p>` : f.entry.status === 'format' ? `<p class="small">${h('i6.format', { name: f.entry.of.name })}</p>` : '';
+    const head = f.entry.status === 'letter' ? `<p class="small" data-letter="1">${h('i6.letterNote', { file: f.entry.name })}</p>` : f.entry.status === 'format' ? `<p class="small">${esc(formatText(f.entry))}</p>` : '';
     const body = [...groups].map(([entry, rows]) => {
       const n = as => rows.filter(([x]) => x.as === as).length, other = rows.length - n('line') - n('wording');
       const job = (p.sim.record.work ?? []).find(w => w.name === entry);
@@ -451,7 +467,7 @@ function whatsnewView(){
   const n = countOf(p);
   return `<a class="back" data-act="imp-back">${withArrows(h('merge.cancel'))}</a><h2 class="title">${h('i6.newTitle')}</h2>
     <p class="small">${h('i6.newIntro')}</p>${first}${needsHtml(p)}${files || `<p class="muted">${h('files.noDiff')}</p>`}
-    <div class="btns"><button class="primary" data-act="imp-apply">${n ? h('i6.addN', { n }) : h('i6.addNone')}</button></div>`;
+    <div class="btns"><button class="primary" data-act="imp-apply" data-n="${n}">${n ? h('i6.addN', { n }) : h('i6.addNone')}</button></div>`;
 }
 
 function receiptView(){
@@ -485,8 +501,8 @@ async function checkSaved(file){
 
 function reread(i){
   const D = F.drop, e = D.entries[i];
-  e.read = { ...e.read, ...X.analyse(e.read.items, I.lexiconFor(uiLang()), e.layout) };
-  X.classify(st(), D.entries);
+  e.read = { ...e.read, ...X.readIn(e.read.items, e.read.lang, e.layout) };
+  judge(D.entries);
   C.renderBody();
 }
 // `patch` for one page of a PDF: the layout is the one used so far, with this page's header line or split given
@@ -501,7 +517,7 @@ async function importAct(a, tg){
   if (!D) return false;
   switch (a){
     case 'imp-continue': {
-      try { D.plan = X.plan(st(), D.entries, { fresh: isExample() || !(st().record.work ?? []).length, lexicon: I.lexiconFor(uiLang()) }); }
+      try { D.plan = X.plan(st(), D.entries, { fresh: freshCareer() }); }
       catch (e){ C.toast(errText(e), 'bad'); return true; }
       C.setView('whatsnew');
       return true;
@@ -520,14 +536,18 @@ async function importAct(a, tg){
       return true;
     }
     case 'imp-apply': {
+      if (D.applying) return true;      // a second click while the first is at work would make the import twice
+      D.applying = true; tg.disabled = true;
       const label = t('i6.undoLabel'), at = new Date().toISOString();
-      try { await C.persist.checkpoint(t('i6.checkpoint'), 'import'); }
-      catch (e){ C.toast(isFull(e) ? t('i6.storageFull') : errText(e), 'bad'); return true; }      // nothing was applied
-      C.ui.sel = C.NONE;
-      let made = [];
-      if (!commit(d => { made = X.applyPlan(d, D.plan, { at }); }, label)) return true;
-      D.done = { at, label, ids: made.map(x => x.id) };
-      C.setView('receipt');
+      try {
+        try { await C.persist.checkpoint(t('i6.checkpoint'), 'import'); }
+        catch (e){ C.toast(isFull(e) ? t('i6.storageFull') : errText(e), 'bad'); return true; }      // nothing was applied
+        C.ui.sel = C.NONE;
+        let made = [];
+        if (!commit(d => { made = X.applyPlan(d, D.plan, { at }); }, label)) return true;
+        D.done = { at, label, ids: made.map(x => x.id) };
+        C.setView('receipt');
+      } finally { D.applying = false; tg.disabled = false; }
       return true;
     }
     case 'imp-save': if (await C.saveToFile()) C.renderBody(); return true;
@@ -583,12 +603,16 @@ function bind(body){
       if (b){ b.disabled = !n; b.textContent = tr('merge.doN', { n }); }
     }
     if (t.id === 'imp-outside') F.outside = t.checked;
+    if (t.dataset.flang !== undefined && F.drop){      // read again in another language
+      const i = Number(t.dataset.flang), e = F.drop.entries[i], lang = t.value;
+      loadCatalogue(lang).then(() => { e.read = { ...e.read, ...X.readIn(e.read.items, lang, e.layout) }; judge(F.drop.entries); C.renderBody(); });
+    }
     const p = F.drop?.plan;
     if (p && (t.dataset.pi !== undefined || t.dataset.place !== undefined)){
       if (t.dataset.pi !== undefined){ const [fi, ii] = t.dataset.pi.split('.').map(Number); p.files[fi].items[ii].on = t.checked; }
       else { const [fi, ui] = t.dataset.place.split('.').map(Number); p.files[fi].unplaced[ui].choice = t.value; }
       const n = countOf(p), b = $('[data-act=imp-apply]');
-      if (b) b.textContent = n ? tr('i6.addN', { n }) : tr('i6.addNone');
+      if (b){ b.textContent = n ? tr('i6.addN', { n }) : tr('i6.addNone'); b.dataset.n = n; }
     }
   });
   bindLayout(body);
@@ -596,6 +620,6 @@ function bind(body){
 
 const api = {
   views: { import: importView, review: reviewView, merge: mergeView, merged: mergedView, history: historyView, reading: readingView, whatsnew: whatsnewView, receipt: receiptView },
-  act, bind, openFile, openFiles, take,
+  act, bind, openFiles, take,
   compareFolder: () => act('cp-folder'),
 };

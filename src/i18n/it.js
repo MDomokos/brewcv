@@ -1679,4 +1679,13 @@ export default {
   'i6.newLine': 'Nuova riga',
   'i6.newWording': 'Nuova formulazione di «{claim}»',
   'i6.twoFit': 'Questa riga si adatta a due delle tue righe',
+  'i6.formatNew': 'Un altro formato di {name}. Le righe che ha e le tue no sono proposte subito dopo.',
+  'i6.fileLang': 'Lingua del file',
+  'i6.inSection': 'In un’altra sezione',
+  'i6.fWith': 'con',
+  'i6.fStudy': 'titolo',
+  'i6.fArea': 'ambito',
+  'i6.fScore': 'voto',
+  'i6.newProject': 'Nuovo progetto',
+  'i6.newSchool': 'Nuova scuola',
 };

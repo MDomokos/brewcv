@@ -13,7 +13,8 @@ import { readImport } from '../src/model/import.js';
 import { merge, baseline, tick } from '../src/model/merge.js';
 import { load } from '../src/model/schema.js';
 import { createStore } from '../src/store/store.js';
-import { createPersist, memoryBackend, readBackup, makeBackup } from '../src/store/persist.js';
+import { createPersist, memoryBackend, memoryFolder, readBackup, readFolder, makeBackup, filesOf } from '../src/store/persist.js';
+import { openFromInput } from '../src/data.js';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -68,6 +69,18 @@ section('the key __proto__ in an opened file');
   const m = merge({ state: clean0, clock: baseline(clean0) }, theirs);
   ok('merge drops it: nothing it returns has the key, and no object gained a prototype from it', !owns(m.state) && ({}).polluted === undefined && Object.getPrototypeOf(m.state.record) === Object.prototype && m.state.record.polluted === undefined);
   ok('and what was not poisoned is read as before', rb.state.record.basics.name === example.basics.name && m.state.record.basics.name === example.basics.name && m.state.documents.length === 1);
+  // the same key in the files of a linked folder and in a file opened as a library
+  const folder = memoryFolder();
+  const files = filesOf({ record: model, resumes: [], frozen: {}, documents: [doc] });
+  const bad = text => text.replace(/^\{/, '{"__proto__":{"polluted":"yes"},');
+  folder._files.set('resume-data.json', bad(files.get('resume-data.json')));
+  folder._files.set('library.json', bad(files.get('library.json')).replace('"meta": {}', '"meta": {"__proto__":{"polluted":"yes"}}'));
+  const recipe = JSON.parse(JSON.stringify(read('data/example-resumes/Example Instruments - Design Engineer.json')));
+  folder._files.set('recipes/x.json', bad(JSON.stringify(recipe)));
+  const fromFolder = await readFolder(folder);
+  ok('a linked folder’s files are read without the key: resume-data.json, library.json and a saved resume', !owns(fromFolder.state) && fromFolder.state.resumes.length === 1 && ({}).polluted === undefined, String(owns(fromFolder.state)));
+  const lib = await openFromInput({ name: 'x.json', text: async () => bad(JSON.stringify(example)).replace('"basics":{', '"basics":{"zz":{"__proto__":{"polluted":"yes"}},') });
+  ok('a file opened as a library (src/data.js) is read without it', !owns(lib.data) && ({}).polluted === undefined);
 }
 
 section('the browser’s storage is full');
