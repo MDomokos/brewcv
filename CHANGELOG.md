@@ -4,8 +4,27 @@ Every notable change to BrewCV, newest first, in the [Keep a Changelog](https://
 
 ## Unreleased
 
+## 1.7.0 - 2026-11-01
+
 ### Added
-- **A word bank for skills: each word kept once, translated once, and picked into each resume's own groups.** Drag words between the page and the bank, or sort them onto shelves in Career, and every language copy prints them in its language, the exported files too.
+- **A word bank for skills: every skill word is kept once, and each resume takes the ones it prints.** The bank has its own window; drag a word onto a skill group on the page, and back onto the bank to take it off.
+- **Each resume makes its own skill groups on the page,** with a + to add a group or a skill, and Start from a resume copies another resume's groups.
+- **Find or add a word shows the words the bank already has, and similar ones, before it adds a new one.**
+- **A skill word is translated once, or marked the same in every language like a product name.** Translations lists what this resume's languages still miss, and a missing word prints in English, outlined in the app, until it is written.
+- **Shelves sort the bank and never print, and Career has a Skill words card with the whole bank.** Move words and shelves there, or let Sort by skill groups make a shelf from each of your skill groups.
+- **Deleting a word from the bank first lists the saved resumes that print it,** and Undo brings it back.
+- **A coding agent can pick skill words too:** picks.json takes them by id, and claims.mjs lists the bank in the resume's language.
+
+### Changed
+- **Skill groups have no versions to manage;** a group is the words it holds.
+
+### Removed
+- **Skill sets saved for a tag.** Start a resume's skills from another resume instead.
+- **Writing a whole skill group as one block of text.** Add its words from the bank, or one at a time with the + after its last word.
+
+### Fixed
+- **Skills export in the resume's language,** in the JSON Resume and plain-text files too, instead of always in English.
+- **Importing a JSON Resume keeps skills that have a name but no keywords,** as one group of skills.
 
 ## 1.6.2 - 2026-10-24
 
