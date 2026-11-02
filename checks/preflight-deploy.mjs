@@ -12,6 +12,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { findPrivate, REPO } from '../scripts/lib/private-files.mjs';
+import zlib from 'node:zlib';
+import { unzip } from '../src/parse/unzip.js';
+import { ARCHIVE_NAME, DOCUMENT, FIXTURES, allowed, manifestIn, sniff } from './lib/manifest.mjs';
+import { pdfMetadata, zipMetadata } from './lib/metadata.mjs';
 
 const ROOT = path.resolve(process.argv[2] ?? '.');
 // paths are tested and shown with forward slashes, whatever the platform (on Windows path.relative gives backslashes)
@@ -151,12 +155,53 @@ function fileIgnored(rel){
   }
 }
 
+// PDF, DOCX and ODT files: only the import fixtures (checks/fixtures/import/, see checks/lib/manifest.mjs), by name and sha256, and wherever they are found: in a dot folder, in a folder .gitignore names
+// (the deploy tree carries the .gitignore, which would hide them), anywhere. An allowed file's text is read as well, for a private value and for an address or a number that is not the fictional person's.
+// shortcut: a PDF's text is read by the vendored reader, and its objects (the Info dictionary, XMP, object streams) by inflating every stream and reading the hex strings; a PDF no reader can open is refused.
+const manifest = manifestIn(ROOT);
+function walkAll(dir, out = []){
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })){
+    if (e.name === '.git' || e.name === 'node_modules') continue;      // out/ and the dot folders are read
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) walkAll(p, out); else out.push(p);
+  }
+  return out;
+}
+// a PDF's hex strings, as bytes and, behind a byte order mark, as UTF-16
+const hex = t => [...t.matchAll(/<((?:[0-9A-Fa-f]{2}\s*){2,})>/g)].flatMap(m => {
+  const b = Buffer.from(m[1].replace(/\s/g, ''), 'hex'), out = [b.toString('latin1')];
+  if (b[0] === 0xfe && b[1] === 0xff && b.length % 2 === 0) out.push(Buffer.from(b.subarray(2)).swap16().toString('utf16le'));
+  return out;
+});
+async function textsOf(rel, buf){
+  if (/\.pdf$/i.test(rel)){
+    const raw = buf.toString('latin1'), out = [raw];      // the streams that hold no zero byte: a font has the shape of anything
+    for (const m of raw.matchAll(/stream\r?\n/g)){
+      try { const t = zlib.inflateSync(buf.subarray(m.index + m[0].length, raw.indexOf('endstream', m.index))).toString('latin1'); if (!t.includes('\0')) out.push(t); } catch { /* not Flate */ }
+    }
+    for (const t of [...out]) out.push(...hex(t));
+    const { readPdf } = await import('../src/parse/pdf.js');
+    out.push((await readPdf(new Uint8Array(buf))).map(i => i.text).join('\n'));
+    return out;
+  }
+  const z = unzip(new Uint8Array(buf)), out = [];      // the text parts only: a font or a picture has the shape of anything
+  for (const n of z.names) if (/\.(xml|rels|rdf|txt|html?|json)$/i.test(n)){ const b = Buffer.from(await z.read(n)); out.push(b.toString('latin1'), b.toString('utf8')); }
+  return out;
+}
+const shapeOf = text => {
+  for (const m of text.matchAll(EMAIL)) if (!ALLOWED_EMAILS.includes(m[0]) && !EXAMPLE_DOMAIN.test(m[0].split('@')[1])) return `an address (${m[0]})`;
+  for (const m of text.replace(/U\+[0-9A-Fa-f?]+(?:-[0-9A-Fa-f]+)?/g, '').matchAll(PHONE)){
+    const num = m[0].replace(/[  ().-]+/g, ' ').trim();
+    if (!ALLOWED_PHONES.some(a => a.replace(/\s+/g, '') === num.replace(/\s+/g, ''))) return `a number (${num})`;
+  }
+  return null;
+};
+
 for (const f of files){
   const rel = relOf(f);
   if (rel === 'data/resume-data.json') flag(f, 0, 'real library', 'data/resume-data.json is present. It is gitignored, but it must not be in a deploy tree either');
   if (/\.local\.json$/.test(rel))      flag(f, 0, 'local file', `${rel} is a private overlay and must not be published`);
   if (/^out\//.test(rel))              flag(f, 0, 'rendered output', rel);
-  if (/\.pdf$/i.test(rel))             flag(f, 0, 'PDF', `${rel}: rendered documents stay outside the repo`);
   if (/^data\/recipes\//.test(rel))    flag(f, 0, 'recipe', `${rel}: recipes name real applications`);
   // The only images that ship are the app's own icons, and the README's pictures (made from the fictional example, kept out of the site).
   if (RASTER.test(rel) && !/^(src-tauri\/)?icons\//.test(rel) && !/^docs\/intro\/[^/]+\.webp$/.test(rel))
@@ -191,13 +236,27 @@ for (const [name, keys] of [['identity.local.json', null], ['deny.local.json', '
 console.log(deny.length ? `preflight: ${deny.length} private value${deny.length === 1 ? '' : 's'} loaded, checked as well as the shapes`
   : 'preflight: no private identity or deny file found (CI, or not set up): checking shapes only. See docs/DEVELOPMENT.md, "Real data is not in this repo"');
 
+for (const f of walkAll(ROOT)){
+  const rel = relOf(f), buf = fs.readFileSync(f), kind = DOCUMENT.test(rel) ? 'by name' : ARCHIVE_NAME.test(rel) ? 'archive' : await sniff(buf);      // by its bytes too: a PDF named real.bin, a ZIP of Word files
+  if (!kind) continue;
+  if (!allowed(manifest, rel, buf)){ flag(f, 0, 'document', `${rel}: a ${kind === 'by name' ? 'PDF, Word or OpenDocument file' : kind === 'archive' ? 'archive (gzip, tar, 7z, rar, bzip2 or xz: it can hold anything)' : `${kind} (told by its bytes, not its name)`}: rendered documents and resume files stay outside the repo (the import fixtures are the exception: listed by name and sha256 in ${FIXTURES}MANIFEST.json; dot folders and out/ are looked at too)`); continue; }
+  let texts;
+  const meta = /\.pdf$/i.test(rel) ? pdfMetadata(buf) : await zipMetadata(buf).catch(() => 'a part cannot be read');
+  if (meta){ flag(f, 0, 'fixture metadata', `${rel}: ${meta}`); continue; }
+  try { texts = await textsOf(rel, buf); } catch (e){ flag(f, 0, 'fixture content', `${rel}: cannot be read (${e.message})`); continue; }
+  const hit = texts.some(t => deny.some(d => t.includes(d))) ? 'a private value is in it' : texts.map(shapeOf).find(Boolean);
+  if (hit) flag(f, 0, 'fixture content', `${rel}: ${hit}`);
+}
+
 for (const f of files){
   if (!TEXT.test(f)) continue;
   const rel = relOf(f);
   const lines = fs.readFileSync(f, 'utf8').split('\n');
 
+  // vendor/pdfjs/ holds another project's minified code: its tables of numbers and letters have the shape of a phone number and an address, so only private values and images are looked for there
+  const own = !['vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs'].includes(rel);
   lines.forEach((line, n) => {
-    for (const m of line.matchAll(EMAIL)){
+    if (own) for (const m of line.matchAll(EMAIL)){
       const addr = m[0];
       if (ALLOWED_EMAILS.includes(addr)) continue;
       const domain = addr.split('@')[1];
@@ -205,7 +264,7 @@ for (const f of files){
       flag(f, n + 1, 'email address', addr);
     }
     // a font's unicode-range (U+0152-0153) has the shape of a number
-    for (const m of line.replace(/U\+[0-9A-Fa-f?]+(?:-[0-9A-Fa-f]+)?/g, '').matchAll(PHONE)){
+    if (own) for (const m of line.replace(/U\+[0-9A-Fa-f?]+(?:-[0-9A-Fa-f]+)?/g, '').matchAll(PHONE)){
       const num = m[0].replace(/[  ().-]+/g, ' ').trim();
       if (ALLOWED_PHONES.some(a => a.replace(/\s+/g, '') === num.replace(/\s+/g, ''))) continue;
       flag(f, n + 1, 'phone number', num);

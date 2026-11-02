@@ -1,14 +1,14 @@
 // One state object: every change goes through commit() and is undoable.
 // Undo keeps whole-state snapshots. Commits with the same label and the same merge
 // key (one continuous edit of one thing) within 800 ms coalesce, so typing a sentence is one step; any other commit is its own step.
-// data:image/ strings over 1 KB become "asset:<id>" refs kept outside the snapshots
+// data: URLs over 1 KB (a photo, an embedded original) become "asset:<id>" refs kept outside the snapshots
 // (a ~60 KB photo over 200 steps would be 12 MB). materialize() puts them back.
 
 const ASSET_MIN = 1024;
-const ASSET_RE = /^data:image\//;
+const ASSET_RE = /^data:/;
 export const isAssetRef = s => typeof s === 'string' && s.startsWith('asset:');
 
-function fnv(s){
+export function fnv(s){
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return h.toString(16).padStart(8, '0');
@@ -50,6 +50,7 @@ export function createStore(initial = {}, opts = {}){
   const maxBytes = opts.maxBytes ?? 32e6;
   const coalesceMs = opts.coalesceMs ?? 800;
   const now = opts.now ?? (() => Date.now());
+  const refuse = opts.refuse ?? null;       // () => true while no change may be made (a window that only reads): commit, undo and redo then do nothing and `opts.refused()` is told
   const settle = opts.settle ?? null;       // runs on the draft inside every commit, so its writes are part of the same undo step
 
   const assets = new Map(opts.assets ?? []);
@@ -77,6 +78,7 @@ export function createStore(initial = {}, opts = {}){
     // fn(draft) mutates a deep copy. Returns true if anything changed. `merge`: a key for one continuous edit of one thing (typing in a text);
     // only commits with the same label and key inside the window are one undo step. Without it every commit is its own step.
     commit(fn, label = 'Edit', merge = null){
+      if (refuse?.()){ opts.refused?.(); return false; }
       const draft = JSON.parse(last.json);
       const ret = fn(draft);
       const out = ret !== undefined && ret !== draft && typeof ret === 'object' ? ret : draft;
@@ -98,7 +100,7 @@ export function createStore(initial = {}, opts = {}){
     },
 
     undo(){
-      if (!undoS.length) return null;
+      if (refuse?.() || !undoS.length) return null;
       const label = last.label;
       redoS.push(last);
       const prev = undoS.pop(); undoBytes -= prev.bytes;
@@ -107,7 +109,7 @@ export function createStore(initial = {}, opts = {}){
       return label;
     },
     redo(){
-      if (!redoS.length) return null;
+      if (refuse?.() || !redoS.length) return null;
       const next = redoS.pop();
       undoS.push({ ...last }); undoBytes += last.bytes;
       setLast({ ...next, at: 0 });
@@ -151,10 +153,15 @@ export function createStore(initial = {}, opts = {}){
       return out;
     },
 
-    // Drop assets nothing references, counting undo and redo too.
-    gcAssets(){
+    // Every asset the state, undo and redo still point to.
+    liveRefs(){
       const live = assetRefs(state);
       for (const s of [...undoS, ...redoS]) for (const m of s.json.matchAll(/"(asset:[0-9a-f]{8}-[0-9a-z]+)"/g)) live.add(m[1]);
+      return live;
+    },
+    // Drop assets nothing references, counting undo and redo too.
+    gcAssets(){
+      const live = store.liveRefs();
       for (const k of [...assets.keys()]) if (!live.has(k)) assets.delete(k);
     },
   };

@@ -82,6 +82,7 @@ function settingsView(){
     ${groupHtml(t('set.uiHead'), `${uiChoice(pref, inUse)}
     <p class="note">${h('set.machineNote')}</p>`, browser)}
     ${groupHtml(t('ux5a.viewHead'), viewSettingsHtml(), browser)}
+    ${C.persist.folder?.space ? groupHtml(t('i8.folder'), folderHtml(), C.persist.status.linked) : ''}
     ${groupHtml(t('set.langsUse'), `<p class="small muted">${h('set.langsUseNote')}</p>
     ${langChecks(inUse)}
     <p class="note">${h('set.untickNote')}</p>`, t('uxs.everyResume'))}
@@ -91,6 +92,28 @@ function settingsView(){
     <span class="lbl">${h('set.versionHead')}</span>
     <p class="small" data-appversion>${esc(appVersion ?? '…')}</p>
     <p class="note">${h('set.versionNote')}</p>`)}`;
+}
+
+// ---- the linked folder: what was found in it, Organise, and the devices that write to it ----
+// A name from the folder (a device, a file) is only ever written through esc().
+const P = { plan: null, result: null, undo: false };
+const time = iso => (iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '');
+function folderHtml(){
+  const last = C.space.last, found = last?.fresh ?? [], devs = C.space.devices();
+  const row = d => `<li class="mrow"><span>${esc(d.name)}</span> <span class="muted small">${esc(d.mine ? t('i8.deviceThis') : d.state === 'waiting' ? t('i8.deviceWaiting') : d.state === 'other' ? t('i8.deviceOther') : t('i8.deviceSeen', { time: time(d.saved) }))}</span>${d.state === 'merged' ? ` <button class="sm ghost" data-act="folder-forget" data-p="${esc(d.path)}">${h('i8.forget')}</button>` : ''}</li>`;
+  return `<p class="small">${h('i8.folderNote', { name: C.persist.status.linked })}</p>
+    <label class="field"><span class="lbl">${h('i8b.docs')}</span><input data-docs autocomplete="off" maxlength="120" value="${esc(last?.docs ?? 'Documents')}"></label>
+    <p class="note">${h('i8b.docsNote')}</p>
+    <div class="btns"><button class="sm" data-act="folder-rescan">${h('i8.rescan')}</button></div>
+    ${found.length ? `<p class="small">${h('i8.found', { n: found.length })}</p>
+      <div class="btns"><button class="sm" data-act="folder-read">${h('i8.readFound')}</button><button class="sm" data-act="folder-organise">${h('i8.organise')}</button></div>` : ''}
+    ${P.plan ? `<div class="dpanel"><p class="note">${h('i8.organiseNote')}</p>
+      <ul class="mlist">${P.plan.map(m => `<li class="mrow"><span>${esc(m.from)}</span> <span class="muted">→</span> <span>${esc(m.to)}</span></li>`).join('')}</ul>
+      <div class="btns"><button class="primary sm" data-act="folder-organise-ok">${h('i8.organiseOk', { n: P.plan.length })}</button><button class="sm ghost" data-act="folder-organise-no">${h('btn.cancel')}</button></div></div>` : ''}
+    ${P.result ? `<p class="small" role="status">${esc(P.result)} ${P.undo ? `<button class="sm ghost" data-act="folder-organise-undo">${h('i8.organiseUndo')}</button>` : ''}</p>` : ''}
+    <span class="lbl">${h('i8.devices')}</span>
+    <ul class="mlist">${devs.map(row).join('')}</ul>
+    ${devs.length < 2 ? `<p class="note">${h('i8.noOthers')}</p>` : ''}`;
 }
 
 // The app's version is the service worker's VERSION: one place, stamped with the commit on deploy.
@@ -113,6 +136,20 @@ function setUiPref(pref){
 async function act(a, tg){
   switch (a){
     case 'set-ask-again': clearPref(); C.toast(t('toast.askAgain')); return true;
+    case 'folder-rescan': await C.space.sync(); P.result = null; C.renderBody(); return true;
+    case 'folder-read': C.files.openFiles(await C.space.load(C.space.last.fresh.map(f => f.path))); return true;
+    case 'folder-organise': P.plan = await C.space.plan(); P.result = null; C.renderBody(); return true;
+    case 'folder-organise-no': P.plan = null; C.renderBody(); return true;
+    case 'folder-organise-ok': {
+      const res = await C.space.organise(P.plan);
+      P.plan = null;
+      P.result = res.failed ? t('i8.organiseStopped', { n: res.done.length, file: res.failed.from }) : t('i8.organiseDone', { n: res.done.length });
+      P.undo = res.done.length > 0;
+      await C.space.sync(); C.renderBody();
+      return true;
+    }
+    case 'folder-organise-undo': await C.space.undoOrganise(); P.undo = false; P.result = null; await C.space.sync(); C.renderBody(); return true;
+    case 'folder-forget': await C.space.forget(tg.dataset.p); await C.space.sync(); C.renderBody(); return true;
   }
   return false;
 }
@@ -136,6 +173,7 @@ function bind(body){
     }
     if (el.dataset.uimode){ const sel = body.querySelector('[data-uilang]'); setUiPref(el.dataset.uimode === 'fixed' ? { mode: 'fixed', lang: sel?.value ?? 'en' } : { mode: 'follow' }); C.renderBody(); return; }
     if (el.dataset.uilang !== undefined){ setUiPref({ mode: 'fixed', lang: el.value }); C.renderBody(); return; }
+    if (el.dataset.docs !== undefined){ C.space.setDocs(el.value).then(ok => { if (!ok) C.toast(t('i8b.docsBad'), 'warn'); return C.space.sync(); }).then(() => C.renderBody()); return; }
     if (el.dataset.reduceMotion !== undefined){ setReduce(el.checked); C.syncGarden(); return; }
     if (el.dataset.garden !== undefined){ writeGarden(el.checked); C.syncGarden(); return; }
     if (el.dataset.drink){ setDrink(el.dataset.drink); return; }

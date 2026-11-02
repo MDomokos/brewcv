@@ -50,6 +50,10 @@ out/
 *.psd
 *.docx
 *.pages
+# except the import fixtures: one fictional resume set by each producer, metadata stripped (checks/preflight-deploy.mjs says what is left in them)
+!checks/fixtures/import/*.pdf
+!checks/fixtures/import/*.docx
+!checks/fixtures/import/*.odt
 
 # Secrets
 .env

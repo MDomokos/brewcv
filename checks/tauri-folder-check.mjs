@@ -8,8 +8,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as S from '../src/model/schema.js';
 import * as RS from '../src/model/resumes.js';
-import { createPersist, memoryBackend, readFolder, tauriApi, tauriFolder, folderOf } from '../src/store/persist.js';
+import { createPersist, memoryBackend, readFolder, tauriApi, tauriFolder, folderOf, dataFolder } from '../src/store/persist.js';
 import { createStore } from '../src/store/store.js';
+import { scenarios } from './lib/space-scenarios.mjs';
 
 const REPO = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = f => JSON.parse(fs.readFileSync(path.join(REPO, f), 'utf8'));
@@ -19,16 +20,24 @@ const section = t => console.log(`\n— ${t}`);
 
 // files: path -> text; dirs: set of paths; scope: folders the dialog granted. Calls outside the scope throw, like the plugin.
 function fakeTauri(files = {}, dirs = []){
-  const disk = new Map(Object.entries(files)), d = new Set(dirs), scope = new Set(), log = [];
+  const disk = new Map(Object.entries(files)), d = new Set(dirs), scope = new Set(), log = [], time = new Map();
+  let tick = 0, old = 0;
+  const touch = (p, ancient = false) => time.set(p, ancient ? ++old : (tick = Math.max(Date.now(), tick + 1)));      // a planted file is old (`ancient`); a write is now
+  const parents = p => { for (let i = p.indexOf('/', 1); i > 0; i = p.indexOf('/', i + 1)) d.add(p.slice(0, i)); };      // a recursive mkdir makes every folder above
+  const text = v => (typeof v === 'string' ? v : new TextDecoder().decode(v));
   const guard = p => { if (![...scope].some(s => p === s || p.startsWith(s + '/'))) throw new Error(`forbidden path: ${p}`); };
   const T = {
-    _disk: disk, _dirs: d, _scope: scope, _log: log, _picked: null,
+    _disk: disk, _dirs: d, _scope: scope, _log: log, _picked: null, _touch: touch, _time: time, _parents: parents,
     dialog: { async open(o){ log.push(['open', o]); if (T._picked) scope.add(T._picked); return T._picked; } },
     fs: {
       async exists(p){ guard(p); return d.has(p) || disk.has(p); },
-      async readTextFile(p){ guard(p); if (!disk.has(p)) throw new Error('No such file'); return disk.get(p); },
-      async writeTextFile(p, t){ guard(p); if (!d.has(p.slice(0, p.lastIndexOf('/')))) throw new Error('No such directory'); disk.set(p, t); },
-      async mkdir(p, o){ guard(p); log.push(['mkdir', p, o]); d.add(p); },
+      async readTextFile(p){ guard(p); if (!disk.has(p)) throw new Error('No such file'); return text(disk.get(p)); },
+      async readFile(p){ guard(p); if (!disk.has(p)) throw new Error('No such file'); const v = disk.get(p); return typeof v === 'string' ? new TextEncoder().encode(v) : v; },
+      async writeTextFile(p, t){ guard(p); if (!d.has(p.slice(0, p.lastIndexOf('/')))) throw new Error('No such directory'); disk.set(p, t); touch(p); },
+      async writeFile(p, b){ guard(p); if (!d.has(p.slice(0, p.lastIndexOf('/')))) throw new Error('No such directory'); disk.set(p, new Uint8Array(b)); touch(p); },
+      async rename(a, b){ guard(a); guard(b); log.push(['rename', a, b]); if (!disk.has(a)) throw new Error('No such file'); disk.set(b, disk.get(a)); disk.delete(a); touch(b); time.delete(a); },
+      async stat(p){ guard(p); if (!disk.has(p)) throw new Error('No such file'); const v = disk.get(p); return { size: typeof v === 'string' ? new TextEncoder().encode(v).length : v.length, mtime: new Date(time.get(p) ?? 0) }; },
+      async mkdir(p, o){ guard(p); log.push(['mkdir', p, o]); d.add(p); if (o?.recursive) parents(p); },
       async remove(p){ guard(p); if (!disk.delete(p)) throw new Error('No such file'); },
       async readDir(p){
         guard(p); if (!d.has(p)) throw new Error('No such directory');
@@ -154,5 +163,42 @@ section('linking a folder that already holds the same files');
   T4._disk.set('/E/recipes/' + id, 'changed elsewhere');
   const third = await createPersist({ store, backend: memoryBackend(), ...instant }).link(folder);
   ok('a file that differs on disk is written again, and only that one', third.length === 1 && third[0] === 'recipes/' + id, third.join(' | '));
+}
+
+section('writes are atomic, and bytes, sizes and folders come through the plugin');
+{
+  const T5 = fakeTauri({}, ['/F']); T5._picked = '/F'; await T5.dialog.open({});
+  const f5 = tauriFolder('/F', T5);
+  await f5.write('BrewCV/devices/Mac abcd.json', '{"a":1}');
+  const ren = T5._log.filter(l => l[0] === 'rename');
+  ok('a text write goes to a temporary name and is renamed into place: a sync tool never reads half of it', ren.length === 1 && /\.tmp$/.test(ren[0][1]) && ren[0][2] === '/F/BrewCV/devices/Mac abcd.json' && [...T5._disk.keys()].every(k => !k.endsWith('.tmp')));
+  const bytes = new Uint8Array([0, 1, 2, 255, 254]);
+  await f5.write('Documents/2024/x.pdf', bytes);
+  ok('bytes are written and read back as bytes, and sized', JSON.stringify([...(await f5.readBytes('Documents/2024/x.pdf'))]) === JSON.stringify([...bytes]) && (await f5.stat('Documents/2024/x.pdf')).size === 5 && (await f5.stat('nothing')) === null && (await f5.readBytes('nothing')) === null);
+  ok('folders are listed apart from files, at any level, the top included', JSON.stringify(await f5.dirs('')) === '["BrewCV","Documents"]' && JSON.stringify(await f5.dirs('BrewCV')) === '["devices"]' && JSON.stringify(await f5.list('BrewCV/devices')) === '["Mac abcd.json"]' && (await f5.list('')).length === 0);
+  const orig = T5.fs.rename;
+  T5.fs.rename = async () => { throw new Error('rename refused'); };
+  let threw = false; try { await f5.write('BrewCV/x.json', '1'); } catch { threw = true; }
+  T5.fs.rename = orig;
+  ok('a rename that fails leaves no temporary file behind and the write fails loudly', threw && [...T5._disk.keys()].every(k => !k.endsWith('.tmp')) && !T5._disk.has('/F/BrewCV/x.json'));
+  const dd = await dataFolder(f5);
+  ok('the data folder is BrewCV/ in the desktop folder too, and its paths are prefixed', dd.legacy === false && (await dd.read('devices/Mac abcd.json')) === '{"a":1}' && dd.root === f5 && dd.handle === '/F');
+}
+
+// the same scenarios as checks/folder-sync-check.mjs, on the desktop folder: one fake disk, a folder object for each device
+{
+  const make = () => {
+    const T6 = fakeTauri({}, ['/R']); T6._picked = '/R'; T6.dialog.open({});
+    const abs = p => `/R/${p}`, rel = k => k.slice(3);
+    const fx = {
+      get: p => T6._disk.get(abs(p)), has: p => T6._disk.has(abs(p)), delete: p => T6._disk.delete(abs(p)),
+      set: (p, v) => { T6._parents(abs(p)); T6._disk.set(abs(p), v); T6._touch(abs(p), true); },
+      keys: () => [...T6._disk.keys()].filter(k => k.startsWith('/R/')).map(rel), entries: () => [...T6._disk].filter(([k]) => k.startsWith('/R/')).map(([k, v]) => [rel(k), v]),
+      later: p => T6._time.set(abs(p), Date.now() + 5 * 864e5),      // a time in the future: a clock out of step
+      values: () => fx.entries().map(([, v]) => v), get size(){ return fx.keys().length; },
+    };
+    return { fx, root: () => tauriFolder('/R', T6) };
+  };
+  await scenarios({ ok: (n, c, e) => ok(`desktop folder: ${n}`, c, e), section: t => section(`desktop folder — ${t}`), make });
 }
 process.exit(failed ? 1 : 0);

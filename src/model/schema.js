@@ -20,6 +20,17 @@ const MORE_ENTRIES = [['projects', 'projectHighlights'], ['volunteer', 'voluntee
 const isEntryShape = x => !!x && typeof x === 'object' && typeof x.id === 'string' && typeof x.display?.position === 'string' && Array.isArray(x.highlights);
 
 const clone = x => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
+// A file from outside can carry the key "__proto__" (JSON.parse makes it an own key): it reaches into Object.prototype wherever a copy assigns by key. No record has one, so it is deleted, at every depth.
+export function dropProto(root){
+  const todo = [root];
+  while (todo.length){
+    const x = todo.pop();
+    if (!x || typeof x !== 'object') continue;
+    delete x.__proto__;      // an own key only: the accessor on Object.prototype stays
+    for (const v of Object.values(x)) todo.push(v);
+  }
+  return root;
+}
 const isObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
 
 export function detect(json){
@@ -76,17 +87,18 @@ export function migrate(v3){
 // idempotent; returns how many wordings it changed.
 export function mergeArchiveTag(m){
   const isTag = t => String(t).toLowerCase() === 'archive';
-  const byId = new Map((m?.variants ?? []).map(v => [v.id, v]));
+  const objects = list => (Array.isArray(list) ? list : []).filter(x => x && typeof x === 'object');      // a damaged file may hold anything in a list
+  const byId = new Map(objects(m?.variants).map(v => [v.id, v]));
   let n = 0;
-  for (const v of m?.variants ?? []){
+  for (const v of objects(m?.variants)){
     if (!Array.isArray(v.tags) || !v.tags.some(isTag)) continue;
     const keep = v.tags.filter(t => !isTag(t));
     if (keep.length) v.tags = keep; else delete v.tags;
     v.archived = true;
     n++;
   }
-  for (const f of m?.facts ?? []){
-    const vs = (f.variants ?? []).map(id => byId.get(id)).filter(Boolean);
+  for (const f of objects(m?.facts)){
+    const vs = (Array.isArray(f.variants) ? f.variants : []).map(id => byId.get(id)).filter(Boolean);
     if (f.archived || !vs.length || !vs.every(v => v.archived === true)) continue;
     const job = (m.work ?? []).find(w => (w.highlights ?? []).includes(f.id));
     const live = job && (job.highlights ?? []).some(h => h !== f.id && !(m.facts ?? []).find(x => x.id === h)?.archived);
@@ -225,7 +237,7 @@ export function load(file){
   }
   (model.work ?? []).forEach((w, i) => {
     const ids = rb.highlights?.[workKey(w, i)];
-    if (!ids){
+    if (!ids || !Array.isArray(ids)){
       if (Array.isArray(w.highlights) && w.highlights.length){
         warnings.push(`work ${workKey(w, i)} has ${w.highlights.length} highlight(s) with no claims behind them; they are ignored here; Open or import turns them into claims`);
         w.highlights = [];

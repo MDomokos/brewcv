@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { parseCsv } from '../src/parse/csv.js';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const S = await import(pathToFileURL(path.join(ROOT, 'scripts/i18n-review.mjs')).href);
@@ -25,7 +26,7 @@ const en = (await import(pathToFileURL(path.join(ROOT, 'src/i18n/en.js')).href))
 
 const csv = await S.sheet(tmp, 'hu');
 ok('the sheet starts with a byte order mark', csv.charCodeAt(0) === 0xFEFF);
-const rows = S.parseCsv(csv);
+const rows = parseCsv(csv);
 ok('row 1 names the file, row 2 the columns', rows[0][1] === 'src/i18n/hu.js' && rows[1].join() === 'key,english,current,corrected,note');
 const keys = rows.slice(2).map(r => r[0]);
 ok('rows are sorted by key', keys.every((k, i) => !i || keys[i - 1] <= k));
@@ -53,7 +54,7 @@ ok("the review marker is still 'machine'", /^export const review = 'machine';$/m
 const other = fs.readFileSync(path.join(tmp, 'src/i18n/de.js'), 'utf8') === fs.readFileSync(path.join(ROOT, 'src/i18n/de.js'), 'utf8');
 ok('no other catalogue was touched', other);
 
-const bad = S.parseCsv(csv); bad[0][1] = 'src/i18n/en.js';
+const bad = parseCsv(csv); bad[0][1] = 'src/i18n/en.js';
 let refused = false; try { await S.applyTo(tmp, S.toCsv(bad)); } catch { refused = true; }
 ok('a sheet for English is refused', refused);
 

@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { parseCsv } from '../src/parse/csv.js';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const UI_LANGS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'cs', 'hu'];
@@ -19,20 +20,6 @@ const BOM = '﻿';
 // --- CSV ------------------------------------------------------------------------------------
 const cell = v => { const s = String(v ?? ''); return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 export const toCsv = rows => BOM + rows.map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
-export function parseCsv(text){
-  const rows = []; let row = [], cur = '', q = false;
-  const s = text.replace(/^﻿/, '');
-  for (let i = 0; i < s.length; i++){
-    const c = s[i];
-    if (q){ if (c === '"'){ if (s[i + 1] === '"'){ cur += '"'; i++; } else q = false; } else cur += c; }
-    else if (c === '"') q = true;
-    else if (c === ','){ row.push(cur); cur = ''; }
-    else if (c === '\n' || c === '\r'){ if (c === '\r' && s[i + 1] === '\n') i++; row.push(cur); cur = ''; rows.push(row); row = []; }
-    else cur += c;
-  }
-  if (cur !== '' || row.length){ row.push(cur); rows.push(row); }
-  return rows;
-}
 
 // --- the catalogues ---------------------------------------------------------------------------
 const catalogue = async (root, lang) => (await import(pathToFileURL(path.join(root, `src/i18n/${lang}.js`)).href + `?t=${Date.now()}`)).default;

@@ -14,6 +14,7 @@ import { icon as drawn } from './icons.js';
 import { exportFx } from './exportfx.js';
 import { drink } from './drink.js';
 import { SAVE_FILE_NAME } from '../store/persist.js';
+import { libraryName, ensureDirs } from '../store/space.js';
 
 let C = null;
 export function initExport(ctx){ C = ctx; return api; }
@@ -64,9 +65,21 @@ export async function buildHtml(recipe = C.cur(), laid = C.ui.laid){
 
 // The desktop app (Tauri): one Save dialog, then a hidden window prints the page straight to that file (desktop/print.js).
 // Returns true when it handled the export; false means "use the print dialog instead" (not macOS or Linux, or the export failed to start).
+// With a folder linked the Save dialog opens in the document's search and company folder (Documents/<search>/<company>/) under the standard name: the date, company and role, and the language when it is not English.
+// The folders are made for the dialog; `undo` takes the ones this call made away again when nothing was saved in them.
+async function libraryPdfPath(){
+  const root = C.persist.folder?.root;
+  if (typeof root?.handle !== 'string') return {};      // only the desktop app's folder is a path
+  const r = C.cur(), date = new Date().toISOString().slice(0, 10), rel = await C.space.dirFor(date, r.company), base = root.handle.replace(/[\\/]+$/, '');
+  let undo;
+  try { undo = await ensureDirs(window.__TAURI__.fs, base, rel); } catch { return {}; }
+  const dir = `${base}/${rel}`;
+  return { undo, dir, file: `${dir}/${libraryName({ date, company: r.company, role: r.role, lang: r.lang, stem: st().record.basics?.name || 'Resume', ext: '.pdf' })}` };
+}
 async function savePdfFile(html){
-  const T = window.__TAURI__;
-  const path = await T.dialog.save({ defaultPath: X.exportName(C.cur(), st().record, 'pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  const T = window.__TAURI__, lib = await libraryPdfPath();
+  const path = await T.dialog.save({ defaultPath: lib.file ?? X.exportName(C.cur(), st().record, 'pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  if (!path || !path.startsWith(`${lib.dir}/`)) await lib.undo?.();      // cancelled, or saved somewhere else: the folders made for the dialog go again
   if (!path) return true;
   const w = new T.webviewWindow.WebviewWindow('print' + Date.now(), { url: 'desktop/print.html', visible: false, width: 900, height: 1100 });
   await new Promise((ok, no) => { w.once('tauri://created', ok); w.once('tauri://error', e => no(new Error(String(e.payload)))); });

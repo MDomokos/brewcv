@@ -1,6 +1,6 @@
 # How to tailor a CV with BrewCV
 
-For a coding agent that has been asked to turn a job ad into a resume. You choose among wordings that already exist. You never write one, unless the person asks you to: then follow [When the person asks for more](#when-the-person-asks-for-more).
+For a coding agent that has been asked to turn a job ad into a resume. You choose among wordings that already exist. You never write one, unless the person asks you to: then follow [When the person asks for more](#when-the-person-asks-for-more). To bring old resumes into the record instead, see [Import old resumes with an AI assistant](#import-old-resumes-with-an-ai-assistant).
 
 ## What you are working with
 
@@ -86,3 +86,31 @@ Keep it short.
 - **Keyword gaps**, in two lists: *not claimed anywhere* (the record has nothing for it), and *claimed in other words* (a claim exists under a different name; say which).
 - **Proposed wording**: only if some would help, each tied to its claim.
 - **Changes to the record**, if the person asked for any: every version, source and tag you added, by id, and which ones need the person's read.
+
+## Import old resumes with an AI assistant
+
+Optional. BrewCV's own import (**Open or import** in the app) reads PDF, Word and other files on the person's device, offline, and stays the default. An assistant can read hard layouts and group rewordings by meaning, but it may paraphrase, fix a typo or invent a date. So the assistant proposes the structure and BrewCV checks the words.
+
+**Privacy.** The files go to the assistant's service. The built-in import keeps them on the device.
+
+### With a chat assistant
+
+A chat never writes BrewCV's own file, whose rules (sources, numbers, ids) are easy to break. It writes one JSON Resume per old resume, and BrewCV opens each through the usual import screens.
+
+1. In BrewCV, drop the old files on the import door first. They are read and kept in the Library with their text, and you may leave every line unticked. The check below needs that text; a scan has none.
+2. Give the files to the assistant with this prompt:
+
+   > For each attached resume, give me one JSON Resume (the jsonresume.org schema) in its own code block. Copy every text word for word from the file. Do not correct, shorten, merge, reorder or invent anything, dates included. Keep each bullet as one separate string in `work[].highlights`. Write dates as YYYY-MM, or YYYY if the file gives only a year. Set `meta.source` to the file's exact name. Leave out anything that does not fit a field.
+
+3. Save each block as a `.json` file, or paste it, at **Open or import**.
+4. BrewCV looks for every text in the document that `meta.source` names (or the one chosen under **Check the words against**), word by word, ignoring case, quotes, dashes and line-end hyphens. A bullet or summary must be a whole line of the document; a skill, title or contact item must be whole words inside a line, so "Java" is not found in "JavaScript". A text that is not there is listed under **Not in <document>**, unticked, with the document's nearest line beside it. With no document it says it was not checked against an original, and every line starts unticked. Tick only what is right.
+
+### With a coding agent
+
+Only when the person asks, and only on the file they name. The rules under [When the person asks for more](#when-the-person-asks-for-more) apply.
+
+- Read each document's text from the Library (`documents[].text` in the one file) or from the file itself.
+- Group the lines of several documents into claims and versions with the app's own code (`addVersion` in `src/model/record.js`), never by editing the record's JSON. Copy the wording exactly.
+- Give every new version a `source` that names its document and day (`Imported from <file>, <date>`), the tag `imported` (also in `vocabulary.tags`) and `origin: { doc: <first 12 characters of the document's sha256> }`. Never make one the default, so no saved resume changes.
+- Look for every text in its document with `checkWords(jsonResume, docText)` in `src/model/documents.js` (put the texts in a JSON Resume). Add none that is not found, and list it in your report with the nearest line.
+- Then run `node checks/validate-data.mjs <data>` and say what it printed.

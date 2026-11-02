@@ -5,10 +5,29 @@
 
 import { isDraft, isArchive } from './resume.js';
 import { guard } from './lock.js';
+import { fnv } from '../store/store.js';
 
 export const DEFAULT_LANG = 'en';
 export const VERSION_N = /^\d+(\.\d+)?$/;
 const langOf = v => v?.lang ?? DEFAULT_LANG;
+
+// Text as a person reads it: ligatures, soft hyphens, curly quotes, dashes, non-breaking spaces, a word split at a line end, the space before
+// punctuation and a final full stop don't count. A port of norm() in the vault's match_phrasings.py. For matching only, never for storing.
+export const normText = s => String(s ?? '').normalize('NFKC').replace(/\u00ad/g, '')
+  .replace(/[‘’‚′]/g, "'").replace(/[“”„″]/g, '"').replace(/[\u2010-\u2015\u2212]/g, '-').replace(/×/g, 'x')
+  .replace(/([\p{L}\p{N}_])- ([\p{L}\p{N}_])/gu, '$1-$2').replace(/\s+([;,.:])/g, '$1').replace(/\s+/g, ' ').trim().toLowerCase().replace(/\.$/, '');
+
+// What a delete leaves in `model.removed`, so a merge can tell "you deleted this" from "you never had this". `kind`: fact, variant, an entry
+// store (projects, awards, ...), resume or snapshot. `at` is the day, so two runs of one edit write the same record. Saved resumes live outside
+// the record, but theirs are kept here too, so they travel with it. A merge goes by the key alone: whatever an older copy still has under a
+// deleted key is listed, never added, even if it has changed since. `hash` is for per-object clocks: of a version's normalised text, else of the object's JSON.
+// shortcut: diffRecords (a file with no clocks) does not copy the other record's marks into this one; the merge of two clocked copies (src/model/merge.js) does, with stamps. A restored item keeps its mark, which does no harm until it is deleted again.
+export function tombstone(model, kind, id, obj){
+  if (!model) return;
+  const marks = { ...model.removed, [`${kind}:${id}`]: { at: new Date().toISOString().slice(0, 10), hash: fnv(kind === 'variant' ? normText(obj.text) : JSON.stringify(obj)) } };
+  model.removed = Object.fromEntries(Object.keys(marks).sort().map(k => [k, marks[k]]));      // one order, so two copies with the same marks are the same bytes
+}
+export const tombstoned = (model, kind, id) => model?.removed?.[`${kind}:${id}`] ?? null;
 const cps = s => [...s];
 
 export const major = n => String(n ?? '0').split('.')[0];
@@ -168,6 +187,7 @@ export function deleteVersion(model, vid, recipes = [], recipe = null){
   const L = langOf(v);
   const same = versionsIn(model, f.id, L);
   if (L === DEFAULT_LANG && same.length < 2) throw new RecordError('the last version of a claim can’t be deleted');
+  tombstone(model, 'variant', vid, v);
   model.variants = model.variants.filter(x => x.id !== vid);
   f.variants = f.variants.filter(x => x !== vid);
   if (VERSION_N.test(String(v.n))){

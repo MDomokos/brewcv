@@ -3,7 +3,8 @@
 
 import { createStore } from '../store/store.js';
 import { askOk } from './ask.js';
-import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, readFolder, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
+import { createPersist, idbBackend, memoryBackend, fsaFolder, tauriApi, tauriFolder, folderOf, dataFolder, readFolder, keepOriginals, requestPersistence, SAVE_FILE_NAME } from '../store/persist.js';
+import { createSpace, moveIntoBrewCV } from '../store/space.js';
 import { load, loadResume, LANGS } from '../model/schema.js';
 import { chooseVariant, newResume, pickVersion } from '../model/resume.js';
 import { LockedError } from '../model/lock.js';
@@ -61,7 +62,9 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 
 const params = new URLSearchParams(location.search);
 const backend = params.has('memory') ? memoryBackend() : idbBackend();   // ?memory: a clean, throwaway session (checks)
-const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle });      // autosave of the open resume rides on every commit
+// A window that does not hold the writer lock only reads: once it is up, nothing in it can be changed (what was typed would be lost when it starts again as the writer).
+let editsOff = false;
+const store = createStore({ record: null, resumes: [], cur: null, openId: null }, { settle: RS.settle, refuse: () => editsOff, refused: () => toast(t('i8.readOnly'), 'warn') });      // autosave of the open resume rides on every commit
 // A change the lock refuses, from any path, says why and changes nothing: it never surfaces as an uncaught error.
 const rawCommit = store.commit;
 store.commit = (fn, label, merge) => {
@@ -85,7 +88,9 @@ function alsoChanged(peers){
   // after the change's own message, which stays if there is one: the next change says it then
   setTimeout(() => { if ($('#toast').classList.contains('on')) return; alsoSaid = true; toast(t('ml2.alsoChanged', { lang: names }), '', true); }, 0);
 }
-const persist = createPersist({ store, backend });
+// One window of a browser profile writes its storage and its folder; the others only read (the throwaway ?memory session has its own storage and needs no lock)
+const persist = createPersist({ store, backend, locks: params.has('memory') ? null : globalThis.navigator?.locks });
+const space = createSpace({ persist, store });
 let bank = null;       // the skill wordbank (src/ui/wordbank.js), made once the editor is
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },
@@ -112,7 +117,7 @@ const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => r
   endHover: () => { ui.hoverV = null; if (ui.previewing) endPreview(); }, previewVersion: (fact, vid) => { ui.hoverV = vid; return previewVersion(fact, vid); } });
 const hands = initHands({ ui, sheet, canvas, edit: () => edit, bank: () => bank, onpage: () => onpage, record: () => record(), cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k), undoN: () => store.history.undo,
   jobName: id => (ui.ix ?? indexModel(work(), cur())).work.get(id)?.name ?? id, writingFact: () => onpage.fact(), togglePhoto: () => design.togglePhoto() });
-window.__wb = { store, persist, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile(), busy: () => timer !== null || drawing > 0 };      // for checks and the console
+window.__wb = { store, persist, space, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile(), busy: () => timer !== null || drawing > 0 };      // for checks and the console
 
 // The tea garden runs in tea, with its setting on, with motion allowed, off a phone and off the start screen; otherwise it rests.
 // ?garden-check[=idle seconds] is for checks/garden-check.mjs: a short idle time and the garden's test hooks on __wb.garden.
@@ -155,6 +160,7 @@ function restyle(){ staticText(); renderAll(); }
 async function boot(){
   requestPersistence().then(p => { ui.persisted = p; });
   let restored = false;
+  if (!(await persist.becomeWriter())) ui.readOnly = true;      // before anything is read or saved: this window then writes nothing to the browser's storage
   try { restored = await persist.restore(); } catch { /* blocked storage: start fresh */ }
   if (!restored || !store.state.record){
     await loadExample({ quiet: true });
@@ -182,11 +188,15 @@ async function boot(){
   $('#pages').addEventListener('scroll', onPagesScroll, { passive: true });
   addEventListener('scroll', onPagesScroll, { passive: true });
   document.addEventListener('fullscreenchange', relayout);
-  persist.onStatus(renderHead);
+  // the browser's storage is full: said once, in a toast; the header's Saved mark carries the same words from then on
+  let toldFull = false;
+  persist.onStatus(s => { renderHead(); if (s.code === 'storage-full' && !toldFull) toast(s.error, 'bad'); toldFull = s.code === 'storage-full'; });
   store.subscribe(onChange);
   // an older session may hold a resume that was never saved: save it now, as every change from here on does
   if (cur() && !store.state.openId) store.commit(() => {}, t('ux1.undoSaveDraft'));
   checkFolder();
+  addEventListener('focus', resync);
+  setInterval(resync, 5 * 60_000);
   // the column and its first words now; the sheet follows as soon as it has been laid out
   try { relayout(); renderAll(); } catch (e){ console.error(e); }
   let drew = await redraw();
@@ -206,6 +216,7 @@ async function boot(){
     else if (location.hash !== '#resume' && (store.state.resumes?.length ?? 0) >= 2) setView('resumes');
     history.replaceState(null, '', hashOf());
   }
+  editsOff = !!ui.readOnly;
   document.body.classList.add('is-ready');
   ui.ready = true;
 }
@@ -489,7 +500,7 @@ function select(sel, { keepScroll = false, stay = false } = {}){
 }
 
 // a picture dropped on the editor or on the page asks what it is for; any other file goes through the one door
-function dropFile(e){ e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (!f) return; if (/^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view)) design.askPhoto(f); else openFile(f); }
+function dropFile(e){ e.preventDefault(); const list = [...(e.dataTransfer?.files ?? [])], f = list[0]; if (!f) return; if (list.length === 1 && /^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view)) design.askPhoto(f); else openFiles(list); }
 
 function closeBodyMenus(){ return [resumes, career].some(m => m.closeMenus?.()); }
 const hoverFact = id => sheet.setHover(id, ui.ix);
@@ -497,7 +508,7 @@ const hoverFact = id => sheet.setHover(id, ui.ix);
 function bindChrome(){
   document.body.addEventListener('click', onClick);
   document.addEventListener('keydown', key);
-  $('#file').addEventListener('change', e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); });
+  $('#file').addEventListener('change', e => { const list = [...(e.target.files ?? [])]; e.target.value = ''; if (list.length) openFiles(list); });
   addEventListener('dragover', e => { e.preventDefault(); });
   addEventListener('drop', dropFile);
   { const ro = new ResizeObserver(placeRail); ro.observe($('#head')); ro.observe($('#body')); }        // the name wraps, or the card grows or shrinks: the tabs follow the editor card
@@ -591,7 +602,9 @@ function drawHead(){
     ${st.code === 'folder-changed' ? `<div class="hrow notice" role="alert"><span class="small">${esc(st.error)}</span><span class="btns"><button class="sm" data-act="folder-compare">${h('save.folderCompare')}</button><button class="sm" data-act="folder-overwrite">${h('save.folderOverwrite')}</button></span></div>` : ''}
     ${ui.saveNote ? `<div class="hrow notice" role="status"><span class="small">${esc(t('save.note'))}${ui.persisted === false ? ' ' + esc(t('save.noteStorage')) : ''}</span><button class="sm" data-act="save-note-ok">${h('save.noteOk')}</button></div>` : ''}
     ${snap ? `<div class="hrow notice snapbar" role="status"><span>${esc(snapBarText(snap))}</span><button class="sm" data-act="snap-close">${withArrows(h('ux1.backToResume'))}</button></div>` : ''}
-    ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}`;
+    ${ui.reconnect ? `<div class="hrow notice"><span class="small">${h('head.reconnectNote', { name: ui.reconnect.name })}</span><button class="sm" data-act="reconnect">${h('head.reconnect')}</button></div>` : ''}
+    ${ui.readOnly ? `<div class="hrow notice" role="status"><span class="small">${h('i8.readOnly')}</span></div>` : ''}
+    ${space.last?.inbox.length ? `<div class="hrow notice"><span class="small">${h('i8.inbox', { n: space.last.inbox.length })}</span><button class="sm" data-act="inbox-read">${h('i8.inboxRead')}</button></div>` : ''}`;
   const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" tabindex="0" data-tip="${esc(savedTip())}" data-tip-pos="b">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
   const mode = dock.modeOf();
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
@@ -1097,8 +1110,9 @@ async function onClick(e){
     case 'fullscreen': toggleFullscreen(); break;
     case 'open': ui.menu = false; pickFile(); break;
     case 'link': ui.menu = false; linkFolder(); break;
-    case 'unlink': ui.menu = false; await persist.unlink(); renderHead(); toast(t('toast.unlinked')); break;
+    case 'unlink': ui.menu = false; await persist.unlink(); await space.sync(); renderHead(); toast(t('toast.unlinked')); break;
     case 'reconnect': reconnect(); break;
+    case 'inbox-read': files.openFiles(await space.load(space.last.inbox)); break;
     case 'save-file': ui.menu = false; review.saveFlow(tg); break;
     case 'review-open': review.open(tg); break;
     case 'save-note-ok': ui.saveNote = false; renderHead(); break;
@@ -1373,12 +1387,12 @@ function openActual(){
 }
 
 // Every file goes through one door (src/ui/files.js); `ui.pickMode` says who asked.
-async function openFile(file){
-  const mode = ui.pickMode ?? null; ui.pickMode = null;
+async function openFiles(list){
+  const mode = ui.pickMode ?? null, file = list[0]; ui.pickMode = null;
   try {
-    if (mode === 'photo' || /^image\//.test(file.type)) return await design.setPhoto(file);
+    if (mode === 'photo' || (list.length === 1 && /^image\//.test(file.type))) return await design.setPhoto(file);
     if (mode === 'theme') return design.importTheme(await file.text(), file.name);
-    return await files.openFile(file, mode);
+    return await files.openFiles(mode ? [file] : list, mode);      // a mode (Compare, Check a saved file) is about one file
   } catch (e){ toast(`${file.name}: ${errText(e)}`, 'bad'); }
 }
 function pickFile(mode = null){ ui.pickMode = mode; $('#file').click(); }
@@ -1429,39 +1443,64 @@ async function linkFolder(startAt){
     else f = fsaFolder(await showDirectoryPicker({ id: 'brewcv', mode: 'readwrite' }));
   } catch { return; }
   if ((await f.permission(true)) !== 'granted') return toast(t('toast.noFolderPermission'), 'warn');
-  await adoptFolder(f, true);
+  await adoptFolder(f);
 }
 
-async function adoptFolder(f, fresh){
-  const disk = await readFolder(f).catch(e => { toast(`${f.name}: ${errText(e)}`, 'bad'); return null; });
-  let adopted = false;
-  if (disk){
-    const cmp = await persist.compareFolder(f);
-    if (!cmp.same){
-      const useDisk = await askOk(t(disk.state.resumes.length ? 'confirm.folderHasResumes' : 'confirm.folderHas', { name: f.name, n: disk.state.resumes.length }), { ok: 'OK', cancel: 'Cancel' });
-      if (useDisk){
-        await persist.checkpoint(t('checkpoint.beforeFolder', { name: f.name }), 'replace');
+// `root` is the folder the person picked. Its data is in BrewCV/ (or, in an older folder, at the top); the documents (Documents/) and BrewCV/ are the only folders it makes.
+async function adoptFolder(root){
+  if (!(await persist.becomeWriter())){ ui.readOnly = true; ui.reconnect = null; renderHead(); return; }      // another window writes this folder; this one only reads
+  const f = await dataFolder(root);
+  const devs = await space.probe(f);      // the other devices' files of this career merge by themselves; another career's files are asked about
+  let disk = null, adopted = false, keepMine = false;
+  if (!devs.mergeable && devs.newest){
+    if (await askOk(t('confirm.folderHasResumes', { name: root.name, n: devs.newest.got.state.resumes.length }), { ok: 'OK', cancel: 'Cancel' })){ ui.sel = NONE; await space.adopt(devs.newest); adopted = true; }
+    else keepMine = true;
+  } else if (!devs.mergeable){
+    disk = await readFolder(f).catch(e => { toast(`${root.name}: ${errText(e)}`, 'bad'); return null; });
+    if (disk && !(await persist.compareFolder(f)).same){
+      if (await askOk(t(disk.state.resumes.length ? 'confirm.folderHasResumes' : 'confirm.folderHas', { name: root.name, n: disk.state.resumes.length }), { ok: 'OK', cancel: 'Cancel' })){
+        await persist.checkpoint(t('checkpoint.beforeFolder', { name: root.name }), 'replace');
         ui.sel = NONE;
-        const st = disk.state;
+        const st = keepOriginals(disk.state, store.state);      // the folder holds documents text-only: the originals this browser has stay
         if (st.openId) RS.openSaved(st, st.openId);
         if (!st.cur){ st.cur = newResume(st.record); st.openId = null; }
-        store.replace(st, t('undo.useFolder', { name: f.name }));
+        store.replace(st, t('undo.useFolder', { name: root.name }));
         adopted = true;
-      }
+      } else keepMine = true;
     }
   }
-  const wrote = await persist.link(f);
-  if (adopted) await persist.dropMerged(disk.leftovers).catch(() => {});     // a spelling of a name that was merged into the one just written
+  await persist.link(f);
+  ui.readOnly = false;
+  if (keepMine) await persist.acceptAll();      // the person said this device's state may be written over what is there
+  if (adopted && disk) await persist.dropMerged(disk.leftovers).catch(() => {});     // a spelling of a name that was merged into the one just written
   ui.reconnect = null;
+  const r = await space.sync().catch(e => { toast(`${root.name}: ${errText(e)}`, 'bad'); return null; });
   renderHead();
-  toast(wrote.length ? t('toast.linkedWrote', { name: f.name, n: wrote.length }) : t('toast.linked', { name: f.name }));
+  toast(r?.changed ? t('i8.synced', { n: r.changed }) : t('toast.linked', { name: root.name }));
+  // an older folder keeps its data at the top: moving it into BrewCV/ is offered once
+  if (f.legacy && (await persist.local('moveAsked')) !== root.name){
+    const yes = await askOk(t('i8.move', { name: root.name }), { ok: 'OK', cancel: 'Cancel' });
+    await persist.setLocal('moveAsked', root.name);      // asked once: after the answer
+    if (yes){
+      try { await persist.checkpoint(t('i8.checkpointMove'), 'replace'); toast(t('i8.moved', { n: await moveIntoBrewCV(root) })); await adoptFolder(root); }
+      catch (e){ toast(`${root.name}: ${errText(e)}`, 'bad'); }
+    }
+  }
+}
+
+// On launch, on coming back to the window and every five minutes: the other devices' files, what changed outside, the documents, the Inbox. A window that was not the writer tries again.
+async function resync(){
+  if (ui.readOnly){ if (await persist.becomeWriter()) location.reload(); return; }      // the other window closed: start again as the writer, from what it saved
+  if (!persist.folder?.space) return;
+  try { await space.sync(); } catch (e){ console.error(e); }
+  renderHead(); if (ui.view === 'settings') renderBody();
 }
 
 async function checkFolder(){
   const h = await persist.rememberedFolder().catch(() => null);
   if (!h) return;
   const f = folderOf(h);
-  if ((await f.permission(false)) === 'granted') return adoptFolder(f, false);
+  if ((await f.permission(false)) === 'granted') return adoptFolder(f);
   ui.reconnect = f; renderHead();
 }
 async function reconnect(){
@@ -1470,7 +1509,7 @@ async function reconnect(){
   // desktop: a path has no permission to ask for and the folder may have moved, so the person picks it again, starting beside the old one
   if (typeof f.handle === 'string') return linkFolder(f.handle.replace(/[\\/][^\\/]*$/, '') || undefined);
   if ((await f.permission(true)) !== 'granted') return toast(t('toast.stillNoDisk'), 'warn');
-  await adoptFolder(f, false);
+  await adoptFolder(f);
 }
 
 // A toast never covers the page. It hangs under the sidebar's header, over the sidebar's own body. (On a phone the page fills the
@@ -1550,18 +1589,18 @@ switcher.bind();
 Object.assign(VIEWS, resumes.views);
 VIEWS.record = () => recordTab.view();
 const thumbs = initThumbs({ work, extraCss: r => design.extraCss(store.state.record, r), chrome: r => docChrome(r.lang ?? 'en') });
-const screens = initScreens({ store, work, setView, resumes, view: () => ui.view, renderBody: () => renderBody(), leave: () => leaveView() }, thumbs);
+const screens = initScreens({ store, work, setView, resumes, view: () => ui.view, renderBody: () => renderBody(), leave: () => leaveView(), persist, space, toast, files: { checked: () => files.checked(), receipt: () => files.receipt() } }, thumbs);
 Object.assign(VIEWS, screens.views);
 window.__wb.thumbs = thumbs; window.__wb.screens = screens;
 const files = initFiles({
-  store, ui, persist, toast, NONE, setView, pickFile, download, saveToFile,
+  store, ui, persist, space, toast, NONE, setView, pickFile, download, saveToFile,
   onImage: f => design.setPhoto(f), onThemeText: (t, n) => design.importTheme(t, n), onTheme: (j, n) => design.importTheme(j, n),
   renderBody: () => renderBody(),
 });
 Object.assign(VIEWS, files.views);
 files.bind($('#body'));
 window.__wb.files = files;
-const exporter = initExport({ store, ui, toast, work, cur: () => shown(),
+const exporter = initExport({ store, ui, persist, space, toast, work, cur: () => shown(),
   // the Fix of a major warning: to the page, the header or the line it is about, in the Editor, with the thing in view and the keyboard on it (the photo's switch, the line's version in use)
   goFix: async f => {
     await dock.setMode('edit');
@@ -1610,7 +1649,7 @@ for (const m of [screens, resumes, checklist, career, edit]) m.bind($('#scr')); 
 window.__wb.resumes = resumes;
 window.__wb.switcher = switcher;
 
-const settings = initSettings({ store, ui, toast, setView, renderBody: () => renderBody(), syncUi: r => syncUi(r), syncGarden });
+const settings = initSettings({ store, ui, persist, space, files, toast, setView, renderBody: () => renderBody(), syncUi: r => syncUi(r), syncGarden });
 Object.assign(VIEWS, settings.views);
 settings.bind($('#body'));
 window.__wb.settings = settings;

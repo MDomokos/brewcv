@@ -43,6 +43,7 @@
 <link rel="modulepreload" href="src/ui/shell.js">
 <link rel="modulepreload" href="src/store/store.js">
 <link rel="modulepreload" href="src/store/persist.js">
+<link rel="modulepreload" href="src/store/space.js">
 <link rel="modulepreload" href="src/i18n/index.js">
 <link rel="modulepreload" href="src/i18n/en.js">
 <link rel="modulepreload" href="src/model/schema.js">
@@ -89,6 +90,38 @@
 <link rel="modulepreload" href="src/ui/files.js">
 <link rel="modulepreload" href="src/model/import.js">
 <link rel="modulepreload" href="src/model/diff.js">
+<link rel="modulepreload" href="src/model/merge.js">
+<link rel="modulepreload" href="src/parse/csv.js">
+<link rel="modulepreload" href="src/parse/docx.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/extract-education.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/extract-profile.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/extract-project.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/extract-skills.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/extract-work-experience.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/index.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/lib/bullet-points.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/lib/common-features.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/lib/feature-scoring-system.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/lib/get-section-lines.js">
+<link rel="modulepreload" href="src/parse/extract-resume-from-sections/lib/subsections.js">
+<link rel="modulepreload" href="src/parse/group-lines-into-sections.js">
+<link rel="modulepreload" href="src/parse/group-text-items-into-lines.js">
+<link rel="modulepreload" href="src/parse/html.js">
+<link rel="modulepreload" href="src/parse/identify.js">
+<link rel="modulepreload" href="src/parse/index.js">
+<link rel="modulepreload" href="src/parse/lexicon.js">
+<link rel="modulepreload" href="src/parse/lines.js">
+<link rel="modulepreload" href="src/parse/linkedin.js">
+<link rel="modulepreload" href="src/parse/md.js">
+<link rel="modulepreload" href="src/parse/odt.js">
+<link rel="modulepreload" href="src/parse/pages.js">
+<link rel="modulepreload" href="src/parse/pdf.js">
+<link rel="modulepreload" href="src/parse/split-columns.js">
+<link rel="modulepreload" href="src/parse/to-json-resume.js">
+<link rel="modulepreload" href="src/parse/txt.js">
+<link rel="modulepreload" href="src/parse/unzip.js">
+<link rel="modulepreload" href="src/model/documents.js">
+<link rel="modulepreload" href="src/model/intake.js">
 <link rel="modulepreload" href="src/ui/export.js">
 <link rel="modulepreload" href="src/export.js">
 <link rel="modulepreload" href="src/ui/design.js">
@@ -104,6 +137,7 @@
 <link rel="modulepreload" href="src/ui/checklist.js">
 <link rel="modulepreload" href="src/ui/record.js">
 <link rel="modulepreload" href="src/ui/screens.js">
+<link rel="modulepreload" href="src/ui/library.js">
 <link rel="modulepreload" href="src/ui/thumbs.js">
 <link rel="modulepreload" href="src/ui/help.js">
 <link rel="modulepreload" href="src/ui/press.js">
@@ -146,7 +180,7 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="announce" class="sr" role="status" aria-live="polite"></div>
-<input type="file" id="file" accept="application/json,.json,.css,image/*" hidden>
+<input type="file" id="file" multiple accept="application/json,.json,.css,image/*,.pdf,.docx,.doc,.odt,.pages,.html,.htm,.md,.markdown,.txt,.zip,text/*" hidden>
 
 <div id="no-origin" class="card no-origin" hidden>
   <h2>This page needs an origin</h2>

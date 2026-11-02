@@ -165,7 +165,13 @@ Pull requests and translation fixes are welcome. See [CONTRIBUTING.md](CONTRIBUT
 
 - [JSON Resume](https://jsonresume.org) (MIT): the schema's field vocabulary and date format.
 - [Resume Matcher](https://github.com/srbhr/Resume-Matcher) (Apache-2.0): the idea of reporting job-ad keywords your resume doesn't cover, reimplemented from scratch with no network calls and no LLM.
+- [OpenResume](https://github.com/xitanggg/open-resume) by Xitang Zhao (AGPL-3.0): `src/parse/` is a port of its resume parser, which finds the lines, sections and fields in the text of a resume file. Each ported file says which of its files it came from.
+- [PDF.js](https://github.com/mozilla/pdf.js) by Mozilla (Apache-2.0): `vendor/pdfjs/` holds a pinned release (its legacy build, for older web views), which reads the text, positions and fonts of a PDF when you open one. It is the only code the app takes in as it is.
+- The fonts in `fonts/`, self-hosted and redistributed under the SIL Open Font License 1.1 (each licence is in `fonts/OFL-*.txt`): [Hanken Grotesk](https://github.com/marcologous/hanken-grotesk) (the Hanken Grotesk Project Authors), [Fira Code](https://github.com/tonsky/FiraCode) (the Fira Code Project Authors, after Fira Mono), [Source Serif 4](https://github.com/adobe-fonts/source-serif) and [Source Sans 3](https://github.com/adobe-fonts/source-sans) (Adobe, as packaged by Fontsource), and [IBM Plex Sans and IBM Plex Mono](https://github.com/IBM/plex) (IBM Corp.).
+- [Syncthing](https://syncthing.net) (MPL-2.0) and [Automerge](https://automerge.org) (MIT): the merge of two copies of a record, with a version vector for each object, follows the approach of both; no code was taken from either.
+- [Design Tokens Community Group](https://www.designtokens.org) format: themes are read and written in the published token format; no code taken.
+- [Tauri](https://tauri.app) (Apache-2.0 or MIT): the desktop build wraps the app in a system web view; it is built with Tauri's crates, none of which is copied into this repository.
 
-No code from other projects is copied. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#prior-art-and-what-was-taken-from-it).
+No other code from other projects is copied. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#prior-art-and-what-was-taken-from-it).
 
-Copyright (C) 2026 the BrewCV contributors. BrewCV is free software under the [GNU Affero General Public License](LICENSE), version 3 or later. If you run a modified copy as a network service, you must offer its users your source. The fonts in `fonts/` (Hanken Grotesk, Fira Code) are under the SIL Open Font License.
+Copyright (C) 2026 the BrewCV contributors. BrewCV is free software under the [GNU Affero General Public License](LICENSE), version 3 or later. If you run a modified copy as a network service, you must offer its users your source. The fonts in `fonts/` are under the SIL Open Font License, not the AGPL (see above).

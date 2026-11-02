@@ -244,6 +244,16 @@ function newJob(id, company, role){
   return true;
 }
 
+// Rebuild as a BrewCV resume (Library, a document's inspector): the new resume is saved, open, and in the current round
+function rebuild(docId){
+  if (!C.leaveOk()) return false;
+  let res;
+  V.row = null; C.ui.sel = C.NONE; C.setSnap(null);
+  if (!commit(d => { res = RS.rebuildFrom(d.documents.find(x => x.id === docId), d); }, t('i7.undoRebuild'))){ rerender(); return false; }
+  C.noteOpen(res.id); C.setView(null); C.toast(t('i7.rebuilt', { name: RS.resumeLabel(st().cur), picked: res.picked, own: res.own, left: res.left }));
+  return true;
+}
+
 async function act(a, tg){
   const who = tg?.dataset?.for;
   if (who === 'new'){
@@ -434,7 +444,7 @@ export function previewSaved(id){
 }
 
 const api = {
-  views: VIEWS, act, bind, newJob, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone, delHtml, askHtml,
+  views: VIEWS, act, bind, newJob, rebuild, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone, delHtml, askHtml,
   reset(){ V.hover = null; V.menu = null; V.row = null; V.renaming = null; V.nv = null; V.ask = null; },
   closeMenus(){
     if (V.row){ V.row = null; rerender(); return true; }
