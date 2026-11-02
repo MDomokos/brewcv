@@ -2,7 +2,8 @@ import { chromium } from 'playwright';
 import { pathToFileURL } from 'url';
 import path from 'path';
 const DOC  = path.resolve(process.argv[2] ?? 'templates/us-letter.html');
-const MOCK = path.resolve(process.argv[3] ?? 'b2-mockup-reference.html');
+if (!process.argv[3]){ console.error('usage: node checks/measure.mjs <rendered.html> <reference.html>'); process.exit(2); }
+const MOCK = path.resolve(process.argv[3]);
 import fs from 'fs';
 import { withIdentity } from '../scripts/lib/identity.mjs';
 const CANDIDATES=[process.env.CHROME_PATH,'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
@@ -61,6 +62,6 @@ console.log(`\nmax |dx| = ${maxdx.toFixed(2)}px   max |dy| = ${maxdy.toFixed(2)}
 console.log(maxdx===0 && maxdy===0 && !unmatched
   ? 'geometry: identical, 0.00px in both axes.'
   : 'geometry: NOT identical.');
-console.log('\nmine swipe  :', JSON.stringify(A.swipe));
-console.log('mockup swipe:', JSON.stringify(B.swipe));
+console.log('\nrendered swipe :', JSON.stringify(A.swipe));
+console.log('reference swipe:', JSON.stringify(B.swipe));
 await b.close();
