@@ -17,7 +17,7 @@ let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // What a tick does is shown once, on a line of the person's own resume (a line travels from its row to its place on the page), where a
-// one-line hint used to say it (UX-2)
+// one-line hint used to say it
 const HINT_KEY = 'rb-cl-hint';
 const hintDone = () => { try { return localStorage.getItem(HINT_KEY) === '1'; } catch { return true; } };
 const setHintDone = () => { try { localStorage.setItem(HINT_KEY, '1'); } catch { /* shown again next time */ } };
@@ -47,7 +47,7 @@ function rowHtml(r, g, end){
   const act = t('ux6c.showX', { name });
   const key = photo ? 'data-photo="1"' : r.item ? `data-item="${esc(r.item)}"` : r.kind === 'claim' && !r.fixed ? `data-on="${esc(r.id)}"` : '';
   const why = r.fixed ? t('ux2.alwaysOn', { text: r.text.slice(0, 60) }) : t('ux2.printsWithSection', { text: r.text.slice(0, 60) });
-  // the Outline's switch is the pill, as everywhere; the Record's is the tick (it waits for the Record screens, UX-6e)
+  // the Outline's switch is the pill, as everywhere; the Record's is the tick (it waits for the Record screens)
   const on = r.fixed || r.on;
   const box = r.noTick && !photo ? '<span class="cbnone" aria-hidden="true"></span>'
     : end ? (key ? showSw(key, r.on, name) : sw(`aria-label="${esc(why)}"`, on, '', true))
@@ -192,7 +192,7 @@ export function outlineHtml(only = null, section = null){
     ${manual ? `<p class="note">${h('edit.dragManual')}</p>` : ''}</section>`;
 }
 
-// The children of a level of the depth chip (UX-6f 4c), as the Outline lists them, in print order: the page's sections, a section's jobs
+// The children of a level of the depth chip, as the Outline lists them, in print order: the page's sections, a section's jobs
 // or items (the header's fields), a job's lines that print. [{ text, sel }]: `sel` is what the Outline's row selects.
 export function kidsOf(kind, id){
   const m = C.work(), cur = C.cur();

@@ -1,4 +1,4 @@
-// Suggestions under a text field, in the app's own card (UX-6f): a <datalist>'s popup cannot take the drink's tokens. An input with
+// Suggestions under a text field, in the app's own card: a <datalist>'s popup cannot take the drink's tokens. An input with
 // data-suggest='["a","b"]' offers the entries that contain what is typed (at most eight, not the one already typed); a pick fills the field and
 // presses Enter in it, which is what its form does with a typed value. Nothing is offered until something is typed; ↓ asks for the whole list and moves into it, ↑ ↓ move, Esc closes. The list never takes the
 // focus from the field when it is clicked.

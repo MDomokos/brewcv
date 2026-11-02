@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/screens-check.mjs
-// What the three places hold (UX-6e, UX-6h; the routing, the tabs and the keys are places-check's). In Chromium on the fictional example:
+// What the three places hold (the routing, the tabs and the keys are places-check's). In Chromium on the fictional example:
 //   - the Library: cards with the information beside the picture (company, role, paper, language, pages), Open now, a Sent N times badge, a tick
 //     named for its resume, a second page fanned behind a longer resume, newest first; as many to a row as hold 260 px (three at 1280, five at
 //     1920, seven at 2560); a click selects and a second click (or a double click) opens; the thumbnails are pictures of the real first page and
@@ -89,7 +89,7 @@ await part('the cards: the information beside the picture, badges, ticks, the fa
 await part('cards per row: three at 1280, five at 1920, seven at 2560', async () => {
   for (const [w, h, want] of [[1280, 720, 3], [1920, 1080, 5], [2560, 1440, 7]]){
     const { ctx, page } = await open(w, h);
-    await openResume(page, MEDTECH);      // a resume that may run to two pages: the sidebar is at its narrow width, so the cards have the room the brief measured
+    await openResume(page, MEDTECH);      // a resume that may run to two pages: the sidebar is at its narrow width, so the cards have the room they need
     await goLibrary(page);
     const cols = await page.evaluate(() => { const cs = [...document.querySelectorAll('#scr .rcard')]; return { cols: new Set(cs.map(c => Math.round(c.getBoundingClientRect().left))).size, min: Math.min(...cs.map(c => c.getBoundingClientRect().width)) }; });
     ok(`${w}×${h}: ${want} cards to a row, none under 260 px wide`, cols.cols === want && cols.min >= 260 - 1, JSON.stringify(cols));
@@ -337,7 +337,7 @@ await part('Mark as sent… from the Library: in the inspector and in the ⋯ me
   await page.keyboard.press('Escape'); await settle(page);
   await page.click('#body .iacts .smore'); await page.click('.rowmenu [data-act=rm-sent]'); await settle(page, 500);
   const d = await page.evaluate(() => ({ view: window.__wb.ui.view, open: window.__wb.store.state.openId, co: !!document.querySelector('#sv-co'), date: !!document.querySelector('#sv-date'), prim: document.querySelector('#body [data-act=sv-do]')?.dataset.tier, sec: document.querySelector('#body [data-act=sent-back]')?.dataset.tier }));
-  ok('from the ⋯ menu: Export\u2019s own dialog (Sent to?) for that resume, which is opened, with its confirm as the primary and Cancel as tertiary words (one Cancel, UX-6 round 2)', d.view === 'sent' && d.open === other && d.co && d.date && d.prim === 'primary' && d.sec === 'tertiary', JSON.stringify(d));
+  ok('from the ⋯ menu: Export\u2019s own dialog (Sent to?) for that resume, which is opened, with its confirm as the primary and Cancel as tertiary words (one Cancel)', d.view === 'sent' && d.open === other && d.co && d.date && d.prim === 'primary' && d.sec === 'tertiary', JSON.stringify(d));
   await page.click('[data-act=sent-back]'); await settle(page);
   ok('Cancel goes back to the Library, nothing sent', await view(page) === 'resumes' && await sentCount() === 0);
   await page.click('#body [data-act=rm-sent]'); await settle(page, 400);

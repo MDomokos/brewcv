@@ -109,7 +109,7 @@ const hl = highlights(data, recipe, CEILING);
 console.log(`\nhighlights: ${hl.marks.length} against a ceiling of ${hl.ceiling}`);
 for (const m of hl.marks) console.log(`  ${m.section.padEnd(12)} ${JSON.stringify(m.text)}`);
 if (hl.over)
-  console.log(`  ${hl.over} over the ceiling. The 0.1.0 documents set five, the agreed mockup carries seven, and which`
+  console.log(`  ${hl.over} over the ceiling. The 0.1.0 documents set five, the agreed design carries seven, and which`
     + `\n  ${hl.over} come off has been open since 0.1.0. Nothing here decides it.`);
 
 if (TRIM > 0){

@@ -60,7 +60,7 @@ export const sourceOf = (state, json) => {
   return name ? (state.documents ?? []).find(d => d.text && normText(d.name) === name) ?? null : null;
 };
 
-// The word check (spec, "With an AI assistant, optional"): every text of a JSON Resume an assistant made from a document, looked for in that document's text.
+// The word check: every text of a JSON Resume an assistant made from a document, looked for in that document's text.
 // Returns [{ path, text, found, near }]; `near` is the document's closest line to a text that is not in it, else null. Pure.
 // Texts are compared word by word after normText (case, quotes, dashes, spaces and a final full stop do not count; a number, an email or a word with + or # keeps its own marks, so
 // "C" is not "C++", "Java" not "JavaScript", "$15M" not "$1.5M"). A prose text (a highlight, a summary, a description) must be a whole line of the document; a short field (a name,
@@ -107,7 +107,7 @@ export function inFile(state, backup){
 }
 
 const at = iso => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-// The receipt's three ticks and the verdict (spec, "Is my old file safe to delete?"), each worked out from what is stored:
+// The receipt's three ticks and the verdict (is my old file safe to delete?), each worked out from what is stored:
 //   read, record, kept: { ok, state, text }; safe: all three; text: the verdict.
 // folderVerified: the file was read back from the linked folder and its hash checked. lastFileSave: { at } of the last Save to file here.
 // checked: { at, ids } where ids is inFile()'s answer for a brewcv.json the person picked after the import: a download alone proves nothing.

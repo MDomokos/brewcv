@@ -1,4 +1,4 @@
-// What the app draws over the page must not overlap (UX-6f 4c): the plate and its ring trail, the grip, the "+", the version tools, the depth chip, the socket, the
+// What the app draws over the page must not overlap: the plate and its ring trail, the grip, the "+", the version tools, the depth chip, the socket, the
 // drop line, the bumper rail, the card, the search, preview and missing-text marks, the zoom bar and the photo slot. shapes(page) collects every one that is shown, in screen
 // pixels, from the app's layers (#editlay, #handlay, the zoom bar, an open list of the chip's) and from the page's frame; overlaps(list) returns the pairs that overlap beyond what the design means
 // (ALLOWED), and every shape that covers printed text that is not its own. An outline (a ring, the rail, a socket, a mark) is its stroke only: a shape inside it does not
@@ -7,9 +7,9 @@
 // The pairs the design means, each with why. `touch`: they may overlap by at most this many px (a tab's face over its plate's line); `inside`: the first may stand inside the
 // second's box (nesting), crossing nothing.
 export const ALLOWED = [
-  { a: 'grip', b: 'plate', inside: true, why: 'the grip is a clear button over the left tab of its plate, which draws the dots itself (direct editing C, item 4): it stands inside the plate\'s box' },
+  { a: 'grip', b: 'plate', inside: true, why: 'the grip is a clear button over the left tab of its plate, which draws the dots itself: it stands inside the plate\'s box' },
   { a: 'plate', b: 'plus', touch: 3, why: 'on the last line the "+" is the plate\'s bottom tab: its face lies over the plate\'s line' },
-  { a: 'chip', b: 'plate', touch: 99, why: 'the depth chip stands on the top edge of the plate of the block it names (UX-6c)' },
+  { a: 'chip', b: 'plate', touch: 99, why: 'the depth chip stands on the top edge of the plate of the block it names' },
   { a: 'chip', b: 'ring', touch: 99, why: 'the depth chip stands on the top edge of its frame, which may be a ring behind the selection' },
   { a: 'lift', b: 'socket', touch: 1e9, why: 'a lifted block travels over its own socket (where it came from, where it will land)' },
   { a: 'card', b: 'socket', touch: 1e9, why: 'a large block\'s card travels over its own socket' },
@@ -57,7 +57,7 @@ export function shapes(page){
       const of = kind === 'grip' || kind === 'plus' ? blockOf(el.dataset.k === 'line' && kind === 'plus' ? el.dataset.job : el.dataset.fact, kind === 'plus' && el.dataset.k === 'line' ? 'job' : el.dataset.k) : null;
       out.push({ kind, name: `${kind}${el.dataset.k ? `:${el.dataset.k}` : ''}`, rect: rr, stroke: kind === 'rail' ? parseFloat(c.borderTopWidth) || 1 : 0, about: of && S(box(of.getBoundingClientRect())), own: ownOf(of) });
     }
-    for (const l of document.querySelectorAll('#editlay .dplist:not([hidden])')) out.push({ kind: 'list', name: 'list', rect: box(l.getBoundingClientRect()), stroke: 0, about: null });      // a level's list, open under the chip (item 10)
+    for (const l of document.querySelectorAll('#editlay .dplist:not([hidden])')) out.push({ kind: 'list', name: 'list', rect: box(l.getBoundingClientRect()), stroke: 0, about: null });      // a level's list, open under the chip
     const zb = document.querySelector('#zoombar');
     if (shown(zb)) out.push({ kind: 'zoombar', name: 'zoombar', rect: box(zb.getBoundingClientRect()), stroke: 0, about: null });
     if (!d) return { shapes: out, texts };
@@ -65,7 +65,7 @@ export function shapes(page){
     for (const p of wb.sheet.plates?.() ?? []){
       if (+win.getComputedStyle(p.div).opacity <= .2) continue;
       const ow = parseFloat(win.getComputedStyle(p.div).outlineWidth) || 0;
-      const moving = p.div.getAnimations().some(a => /^(left|top|width|height)$/.test(a.transitionProperty));      // on its way from one block to the next (a glide, UX-6f 4c)
+      const moving = p.div.getAnimations().some(a => /^(left|top|width|height)$/.test(a.transitionProperty));      // on its way from one block to the next (a glide)
       out.push({ kind: 'plate', name: `plate:${p.role}${moving ? ' gliding' : ''}`, rect: S(grow(box(p.div.getBoundingClientRect()), ow)), stroke: 0, about: S(box(p.el.getBoundingClientRect())), own: ownOf(p.el), moving });
     }
     const mark = (sel, kind, fill) => { for (const el of d.querySelectorAll(sel)){ const c = win.getComputedStyle(el); if (c.outlineStyle === 'none' && kind !== 'lift' && kind !== 'card') continue; const o = parseFloat(c.outlineOffset) || 0, w = parseFloat(c.outlineWidth) || 0; out.push({ kind, name: `${kind}:${el.getAttribute('data-variant') ?? el.getAttribute('data-section') ?? el.className}`, rect: S(grow(box(el.getBoundingClientRect()), o + w)), stroke: fill ? 0 : w, about: S(box(el.getBoundingClientRect())), own: ownOf(el) }); } };
@@ -91,7 +91,7 @@ const parts = s => (!s.stroke ? [s.rect] : [
 const within = (a, b) => a.left >= b.left - .5 && a.top >= b.top - .5 && a.left + a.width <= b.left + b.width + .5 && a.top + a.height <= b.top + b.height + .5;
 
 // The overlaps: [{ a, b, px }] for pairs beyond what ALLOWED says (px: how deep, in screen px), and [{ a, px }] for a shape over printed text that is not its own (a text whose
-// node is inside the shape's block, or whose middle is inside its box, `about`, is its own; the words of a lifted block travel with it, over everything, item 6). Sub-pixel touches (under .75 px) are not overlaps.
+// node is inside the shape's block, or whose middle is inside its box, `about`, is its own; the words of a lifted block travel with it, over everything). Sub-pixel touches (under .75 px) are not overlaps.
 export function overlaps({ shapes: list, texts }, { slack = .75 } = {}){
   const pairs = [], text = [];
   for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++){
@@ -108,7 +108,7 @@ export function overlaps({ shapes: list, texts }, { slack = .75 } = {}){
   const lifted = list.filter(s => s.kind === 'lift' || s.kind === 'card'), carried = t => lifted.some(l => within({ left: t.left + t.width / 2, top: t.top + t.height / 2, width: 0, height: 0 }, l.rect));
   for (const s of list){
     const own = (t, i) => carried(t) || !!s.own?.includes(i) || !!s.about && t.left + t.width / 2 >= s.about.left - 1 && t.left + t.width / 2 <= s.about.left + s.about.width + 1 && t.top + t.height / 2 >= s.about.top - 1 && t.top + t.height / 2 <= s.about.top + s.about.height + 1;
-    if (['lift', 'card', 'accent', 'list'].includes(s.kind) || s.moving) continue;      // (the chip's open list is the topmost thing while it is open, as a lifted block is)      // a lifted block covers what it passes (it is the topmost thing, item 6), and so does a plate on its way to the next block (for --plate-glide); a mark tints its own text
+    if (['lift', 'card', 'accent', 'list'].includes(s.kind) || s.moving) continue;      // (the chip's open list is the topmost thing while it is open, as a lifted block is)      // a lifted block covers what it passes (it is the topmost thing), and so does a plate on its way to the next block (for --plate-glide); a mark tints its own text
     let px = 0;
     for (const [i, t] of texts.entries()){ if (own(t, i)) continue; for (const p of parts(s)) if (inter(p, t) > 0) px = Math.max(px, depth(p, t)); }
     if (px > slack) text.push({ a: s.name, px: Math.round(px * 10) / 10 });

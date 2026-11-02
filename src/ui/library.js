@@ -1,4 +1,4 @@
-// The Library's documents (I-7): a card for each group of files (the formats of one resume, its languages, its letter), the inspector of one (a preview, where the original is kept and
+// The Library's documents: a card for each group of files (the formats of one resume, its languages, its letter), the inspector of one (a preview, where the original is kept and
 // whether it is safe to delete, what was taken from it, Place lines, Rebuild, Download, Remove), and the removing of a round's resumes and documents. screens.js draws the Library
 // and its rounds around these; the model is src/model/documents.js, resumes.js (docGroups, rebuildFrom, dropDuplicates) and intake.js (placeLines).
 // A document's text and name are always written as text (esc), and a PDF original reaches the page only as pictures of its pages drawn by PDF.js (no frame, no plugin).

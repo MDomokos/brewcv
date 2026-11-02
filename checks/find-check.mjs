@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/find-check.mjs
-// One search (UX-6f, stage 1). In Chromium on the fictional example:
+// One search. In Chromium on the fictional example:
 //   - the key: Ctrl+F (Cmd+F on a Mac) opens the search and focuses its field in the Library, the Editor, Career and Compare (each has its own field, in the same spot); the next press, with the field
 //     focused, is left to the browser; "/" does the same as the first press; plain F is a letter, full screen is F11, and Ctrl+F never reaches either; Ctrl+Shift+F is not touched,
 //   - one query for the Library, Career and the Editor's bar; the results are grouped (Career entries and claims, resumes) and say where a word is, and a click goes there,
@@ -315,7 +315,7 @@ await part('the press: each control is raised in Tea and Coffee, light and dark,
       const rest = await read(sel);
       await page.$eval(sel, b => b.classList.add('is-down')); await settle(page, motion ? 400 : 10);
       const down = await read(sel);
-      // UX-6 round 2: a secondary has a shadow that closes; a tertiary icon (the close button) has none, only its quiet frame (buttons.css)
+      // a secondary has a shadow that closes; a tertiary icon (the close button) has none, only its quiet frame (buttons.css)
       if (tier === 'secondary') ok(`${tag}: the ${name} is a ${tier} press: a shadow at rest that closes and a face that moves when pressed`, rest.press && rest.tier === tier && rest.sh !== 'none' && /(^| )0px 0px 0px 0px$/.test(down.sh) && down.tf !== rest.tf && down.tf !== 'none', JSON.stringify({ rest, down }));
       else ok(`${tag}: the ${name} is a ${tier} press, an icon tool: no shadow, a quiet frame at rest, and a face that moves when pressed`, rest.press && rest.tier === tier && rest.icon && rest.sh === 'none' && rest.frame && down.tf !== rest.tf && down.tf !== 'none', JSON.stringify({ rest, down }));
       if (!motion) ok(`${tag}: no transition, so the pressed look is there at once`, rest.tr === '0s', rest.tr);

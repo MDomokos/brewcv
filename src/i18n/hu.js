@@ -975,7 +975,7 @@ export default {
   'save.folderOverwrite': 'Felülírás',
   'save.folderSame': 'A mappában lévő fájl megegyezik a tiéddel.',
   'save.folderNone': 'A mappában nincs összehasonlítható, olvasható fájl.',
-  // ux1: saving, snapshots, the switcher, fewer duplicates
+  // saving, snapshots, the switcher, fewer duplicates
   'ux1.savedDevice': 'Mentve ezen az eszközön',
   'ux1.saveFailed': 'Nincs mentve ezen az eszközön',
   'ux1.search': 'Önéletrajzok keresése',
@@ -1047,7 +1047,7 @@ export default {
   'ux1.add': 'Hozzáadás',
   'ux1.addEnter': 'Az Enter hozzáadja',
   'ux1.diffSnapshot': 'Pillanatkép: {name}',
-  // UX-2: one screen
+  // one screen
   'ux2.modes': 'Mit mutat a panel',
   'ux2.modeEdit': 'Szöveg',
   'ux2.modeDesign': 'Kinézet',
@@ -1492,7 +1492,7 @@ export default {
   'ux6f.exAnyway': 'Exportálás mégis',
   'ux6f.k.find': 'Keresés az önéletrajzokban, a Karrierben és a megnyitott önéletrajzban',
   'ux6f.k.grip': 'Fókuszban lévő fogantyúnál: a blokk mozgatása egy hellyel. Az Esc visszateszi a felemelt blokkot',
-  // the sidebar's titled groups (UX-6 sidebar)
+  // the sidebar's titled groups
   'uxs.look': 'Megjelenés',
   'uxs.thisBrowser': 'ez a böngésző',
   'uxs.everyResume': 'minden önéletrajz',
@@ -1501,7 +1501,7 @@ export default {
   'uxr.locked': 'Zárolva',
   'uxr.unlocked': 'Feloldva',
   'uxs.paperPages': 'Papír és oldalak',
-  // the sidebar's width control (UX-6 sidebar)
+  // the sidebar's width control
   'uxs.sideWidth': 'Az oldalsáv szélessége',
   'uxs.sideTip': 'Húzza a szélesítéshez; dupla kattintás az ablak saját szélességéért',
   'uxs.sideHide': 'Oldalsáv elrejtése',
@@ -1512,7 +1512,7 @@ export default {
   'ux6g.exReady': 'Küldésre kész',
   'ux6g.tailor': 'Testreszabás állástípusra…',
   'ux6g.tailorOn': 'Testreszabás: {name}',
-  // multilingual, step 2: the language copies on the page
+  // multilingual: the language copies on the page
   'ml2.tagMiss': 'A v{v} változat csak {lang} nyelven készült el. Nyisd meg a mezőt, hogy itt megírd.',
   'ml2.tagMissTip': 'Itt még nincs megírva: csak {lang} nyelven. Kattints a megíráshoz.',
   'ml2.noVersionAt': '<b>Még nincs v{n} {lang} nyelven.</b> Az oldal a(z) {from} változatot nyomtatja, körberajzolva.',
@@ -1528,7 +1528,7 @@ export default {
   'ml2.alsoChanged': '{lang} nyelven is megváltozott',
   'ml2.keepInStep': 'Szinkronban tartás: {name}',
   'ml2.keepInStepTip': 'A sorok sorrendje, az elrejtett sorok, a változatválasztás és a megjelenés ilyenkor mindkettőben változik. A saját választásaid megmaradnak.',
-  // ml3: headings and one-off texts changed in another language, matching an old version to a number
+  // headings and one-off texts changed in another language, matching an old version to a number
   'ml3.editedIn': '{n} szerkesztve {lang} nyelven, még nem változat',
   'ml3.editedRow': '{lang} nyelven szerkesztve, még nem változat',
   'ml3.headingRow': 'A cím megváltozott {lang} nyelven',

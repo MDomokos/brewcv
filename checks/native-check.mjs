@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // node checks/native-check.mjs            the native form controls in src/ and index.html, against the list in checks/fixtures/native-controls.snapshot.json
 // node checks/native-check.mjs --write    record the list (only when a control was added or taken out on purpose)
-// UX-6f: a browser's own select list, date and month popup, colour picker and datalist cannot take the drink's tokens, so none of them may stay in
+// a browser's own select list, date and month popup, colour picker and datalist cannot take the drink's tokens, so none of them may stay in
 // the app's own screens. What remains must be listed here with what themes it:
 //   select      shown as the app's own menu (src/ui/dropdown.js dresses every <select> that is drawn, hidden, as the field)
 //   range       themed by accent-color and the page's color-scheme

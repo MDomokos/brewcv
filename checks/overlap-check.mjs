@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/overlap-check.mjs
-// Nothing the app draws over the page overlaps another of its marks, or printed text it is not about (UX-6f 4c): the plate and its ring trail, the grip, the "+",
+// Nothing the app draws over the page overlaps another of its marks, or printed text it is not about: the plate and its ring trail, the grip, the "+",
 // the version tools, the depth chip, the socket, the drop line, the rail, the card, the search, preview and missing-text marks, the zoom bar and the photo slot. The
 // shapes and the allowed pairs are checks/lib/overlap.mjs. Run over a line (the first, a middle and the last of a job), a skill group, a job, a section and a header line,
 // at rest, hovered, selected (and with the chip's list open), written and lifted, and in the middle of a glide; in Tea and Coffee, light and dark; at the page's fit and at 130%; in a narrow window and at
@@ -95,7 +95,7 @@ async function sweep(page, tag, { states = ['rest', 'hover', 'glide', 'selected'
       await page.waitForTimeout(500);
     }
     if (states.includes('selected')){ await page.mouse.click(pt.x, pt.y); await page.waitForTimeout(500); if (await page.evaluate(() => window.__wb.ui.writing)) await page.keyboard.press('Escape'); await page.mouse.move(4, 4); await page.waitForTimeout(500); await look(`${w} selected`, ['plate']);
-      const lv = page.locator('#editlay .depth .dp-l[aria-haspopup]').last();      // the chip's deepest list open (item 10)
+      const lv = page.locator('#editlay .depth .dp-l[aria-haspopup]').last();      // the chip's deepest list open
       if (states.includes('list') && await lv.isVisible()){ await lv.hover(); await page.waitForTimeout(300); await look(`${w} selected, its chip's list open`, ['list']); await page.mouse.move(4, 4); await page.waitForTimeout(300); }
       // a line under a selected job hovered: its "+" (hands.js) and the job's chip (placed before it, onpage.js placeChip) stand clear of each other; the second job is where they met
       if (name === 'job' && states.includes('hover')) for (const j of [0, 1]){

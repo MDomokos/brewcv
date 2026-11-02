@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/review-model-check.mjs
-// The Review list's model after the UX-6d review: a draft or an archived version is never a parent or a pick, a duplicate keeps the lines
+// The Review list's model: a draft or an archived version is never a parent or a pick, a duplicate keeps the lines
 // its original holds, a heading typed equal to the record's is not listed, highlights follow the trimmed text, what an update or
 // 'Use for every resume' does to the other resumes is counted without the resumes that lock it.
 import fs from 'node:fs';
@@ -76,7 +76,7 @@ const edit = (st, text, marks = []) => setOverride(st.record, st.cur, fact, text
   const v = st.record.variants.find(x => x.id === out.vid);
   ok('marks shift by the trimmed leading characters', v.text === 'Rebuilt the rig again' && JSON.stringify(v.marks.map(m => [m.start, m.end])) === '[[0,7]]', JSON.stringify(v.marks));
 }
-{ // UX-6f: a second edit of a line is a pending edit of its own
+{ // a second edit of a line is a pending edit of its own
   const st = state(), set = (text, stack = true) => { if (stack) stackOverride(st.record, st.cur, fact); setOverride(st.record, st.cur, fact, text, { marks: [], base: null }); };
   st.record.requireSource = false;
   const key0 = RS.printedKey(st.cur, null);

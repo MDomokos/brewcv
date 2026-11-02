@@ -28,14 +28,14 @@ const vals = x => x;
 
 // Added to, or taken out of, the Resume on purpose since the snapshot, so left out before comparing: 🗑 in a
 // claim's header (the X, 16 px), "+ Add something you did" under a job's claims, "Esc goes back" in the keys line, Archive
-// beside the delete X, the Keep button; and, in the one-screen rework (UX-2), the hint paragraphs (keys, drag, versions), the "From
+// beside the delete X, the Keep button; and, in the one-screen rework, the hint paragraphs (keys, drag, versions), the "From
 // Career …" lines and the sort-of-duplicate "Title and meta line" rows.
 const M10_ADDS = html => String(html)
-  .replace(/<button class="(?:ghost sm|del sm)" data-act="delete-claim"[^>]*><svg class="ico" viewBox="0 0 16 16" width="16" height="16"[^>]*><path d="M4 4l8 8M12 4l-8 8"\/><\/svg><\/button>/g, '')      // the one delete look since icon round 3: the registry's X at the control size (no bin, no glyph)
+  .replace(/<button class="(?:ghost sm|del sm)" data-act="delete-claim"[^>]*><svg class="ico" viewBox="0 0 16 16" width="16" height="16"[^>]*><path d="M4 4l8 8M12 4l-8 8"\/><\/svg><\/button>/g, '')      // the one delete look: the registry's X at the control size (no bin, no glyph)
   .replace(/<button class="ghost sm" data-act="(?:un)?archive-claim"[^>]*>[^<]*<\/button>/g, '')
-  .replace(/<button class="keep sm"[^>]*>.*?<\/button>/g, '')      // Keep is an icon since UX-6b: its name is in aria-label
+  .replace(/<button class="keep sm"[^>]*>.*?<\/button>/g, '')      // Keep is an icon: its name is in aria-label
   .replace(', <kbd>Esc</kbd> goes back', '')
-  .replace(/<span class="dp-tools">.*?<\/span><\/nav>/gs, '</nav>')      // the padlock and the switch on the depth row (UX-6c-iii-b)
+  .replace(/<span class="dp-tools">.*?<\/span><\/nav>/gs, '</nav>')      // the padlock and the switch on the depth row
   .replace(/\s*<p class="lockbar">[\s\S]*?<\/p>/g, '')       // the page's padlock
   .replace(/\s*<div class="ctlrow"><label class="swl"[^>]*><input[^>]*data-secgroup[^>]*>.*?<\/label><\/div>\s*<p class="muted small">[^<]*<\/p>/gs, '')      // a section's Group under the section above, and its note
   .replace(/<button type="button" class="sm ghost pagelock[^"]*"[^>]*>.*?<\/button>/gs, '')
@@ -116,7 +116,7 @@ async function resumeSnapshot(){
     u.store.commit(d => T.setJobOn(d.record, d.cur, job.id, false), 'seed');
     view({ kind: 'job', id: job.id }, 'job-off'); view(sel, 'many-job-off');
 
-    // on the page (UX-3, UX-6c): the tools in the line's margin (the version number, ↑ and ↓, the counts; nothing to save, since leaving
+    // on the page: the tools in the line's margin (the version number, ↑ and ↓, the counts; nothing to save, since leaving
     // the line keeps it), and the panel while a line is written there (the versions and a note: no text box, no "Write a new version")
     {
       const now = u.ctx.chooseVariant(u.work(), many, u.cur()).v;
@@ -175,7 +175,7 @@ section('the desktop panel shows every version in full, with the words that diff
   setPhone(false);
 }
 
-section('leaving a line keeps it on this resume (UX-6c): an edit with its base and highlights, the base’s words drop it, nothing asks');
+section('leaving a line keeps it on this resume: an edit with its base and highlights, the base’s words drop it, nothing asks');
 {
   const u = await makeUi({ resume: 0 });
   const id = u.work().work[0].highlights.find(f => (T.chooseVariant(u.work(), f, u.cur()).v?.marks ?? []).length) ?? u.work().work[0].highlights[0];
@@ -209,7 +209,7 @@ section('one depth indicator: the sidebar’s row is parts.js depthHtml, the chi
   const sel = { kind: 'bullet', id, job: job.id, section: 'experience' };
   const chip = u.edit.depthHtml(sel, { page: true });
   const shape = h => (h.slice(0, h.indexOf('</nav>')).match(/class="[^"]*"/g) ?? []).filter(c => c !== 'class="dp-n"').map(c => c.replace(/ sm\b/, '')).join(',');
-  // (UX-6f 4c, rewritten: one component, the same size, the same words; only its name and its lists' ids say where it is)
+  // (rewritten: one component, the same size, the same words; only its name and its lists' ids say where it is)
   const same = h => h.slice(0, h.indexOf('</nav>')).replace(/ aria-label="[^"]*"/, '').replace(/dp-(page|card)-/g, 'dp-');
   // (J, rewritten: the same nav is now the folder tab of the header card, so the view opens with .hdr and its nav is the chip's)
   ok('the editor card opens with a header (.hdr) whose tab is the same <nav class="depth sm"> the chip draws, word for word, and no old crumb', row.startsWith('<div class="hdr"') && row.includes('<div class="hcard">') && same(row.slice(row.indexOf('<nav'))) === same(chip) && chip.startsWith('<nav class="depth sm"') && !row.includes('class="crumb"'));
@@ -221,14 +221,14 @@ section('one depth indicator: the sidebar’s row is parts.js depthHtml, the chi
   ok('a section: Page › Experience; the header: Page › Header (the card as the chip)', /<span class="dp-w">Experience<\/span>/.test(u.edit.depthHtml({ kind: 'section', id: 'experience' })) && /<span class="dp-w">Header<\/span>/.test(u.edit.depthHtml({ kind: 'header' })));
 }
 
-section('the padlock and the switch on the depth row (UX-6c-iii-b): one component, a name each, aria-pressed');
+section('the padlock and the switch on the depth row: one component, a name each, aria-pressed');
 {
   const u = await makeUi({ resume: 0 });
   const job = u.work().work[0], id = job.highlights[0], sel = { kind: 'bullet', id, job: job.id, section: 'experience' };
   const chip = u.edit.depthHtml(sel, { page: true }), row = String(u.edit.bulletView(sel));
   const btn = (h, cls) => (h.match(new RegExp(`<button[^>]*class="dp-t ${cls}[^"]*"[^>]*>`)) ?? [])[0] ?? '';
   ok('the chip and the sidebar’s row both end with a padlock and a switch, in that order, inside the nav', [chip, row].every(h => /<span class="dp-tools"><button[^>]*dp-lock[^>]*>.*<\/button><button[^>]*dp-show[^>]*>.*<\/button><\/span><\/nav>/s.test(h)));
-  ok('the padlock is a button named for what the chip names, not pressed, and says Lock; the show/hide button holds the tick (.pillsw, drawn as a tick since the sidebar session), says Hide and has no aria-pressed (a button is named for what it will do)', /aria-pressed="false" aria-label="Lock the line in /.test(btn(chip, 'dp-lock')) && /aria-label="Hide the line in [^"]* from this resume"/.test(btn(chip, 'dp-show')) && !/aria-pressed/.test(btn(chip, 'dp-show')) && /class="pillsw on"/.test(chip) && /data-act="lock-toggle" data-id="/.test(btn(chip, 'dp-lock')));
+  ok('the padlock is a button named for what the chip names, not pressed, and says Lock; the show/hide button holds the tick (.pillsw, drawn as a tick), says Hide and has no aria-pressed (a button is named for what it will do)', /aria-pressed="false" aria-label="Lock the line in /.test(btn(chip, 'dp-lock')) && /aria-label="Hide the line in [^"]* from this resume"/.test(btn(chip, 'dp-show')) && !/aria-pressed/.test(btn(chip, 'dp-show')) && /class="pillsw on"/.test(chip) && /data-act="lock-toggle" data-id="/.test(btn(chip, 'dp-lock')));
   ok('the header, a heading and the page have a padlock and no switch', [{ kind: 'header', id: 'name' }, { kind: 'section', id: 'experience', heading: true }].every(x => { const h = u.edit.depthHtml(x, { page: true }); return /dp-lock/.test(h) && !/dp-show/.test(h); }));
   u.store.commit(d => { d.cur.locked = [id]; }, 'lock');
   const locked = u.edit.depthHtml(sel, { page: true });
@@ -236,7 +236,7 @@ section('the padlock and the switch on the depth row (UX-6c-iii-b): one componen
   u.store.commit(d => { delete d.cur.locked; }, 'unlock');
 }
 
-section('the version tag beside a line (UX-6g): a button with a listbox of numbers; locked, disabled with the reason');
+section('the version tag beside a line: a button with a listbox of numbers; locked, disabled with the reason');
 {
   const items = [{ id: 'a-v1', n: '1' }, { id: 'a-v2', n: '2', cur: true }, { id: null, n: '2.1', mine: true }, { id: 'a-v3', n: '3' }];
   const html = versionTagHtml('2', { fact: 'a', items });

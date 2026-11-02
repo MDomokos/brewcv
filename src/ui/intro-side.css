@@ -1,5 +1,5 @@
 /* The start screen's column (src/ui/start.js): the header, the three ways in, the language, Yours to keep. One column drawn straight on the
-   canvas, in rows that line up with the picture beside it (Intro Lab v19, E2). Every colour is a token from workbench.css, like
+   canvas, in rows that line up with the picture beside it. Every colour is a token from workbench.css, like
    start.css, which this file follows in index.html; nothing here writes a colour of its own. */
 
 /* the column's width on the start screen is the layout's (src/ui/layout.js, slim); what is drawn in it is --iw wide and sits in the middle of it */

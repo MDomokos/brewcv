@@ -1,4 +1,4 @@
-// The linked folder as the person's resume space (spec: "The folder is the resume space", "Two devices, one synced folder"). persist.js writes this device's own file and the merged
+// The linked folder as the person's resume space. persist.js writes this device's own file and the merged
 // view; this reads what the folder holds besides: the other devices' files (merged by their clocks), files changed outside (a person, an agent, a sync tool), the documents (found
 // by content, not by path), the Inbox (BrewCV/Inbox/), and BrewCV.md. Nothing here is deleted: a file the app takes away goes to BrewCV/Deleted/ (persist.js toDeleted), where a scan removes what the app put there after 30 days.
 // A folder is the object persist.js describes (read, write, list, dirs, stat, readBytes, remove); the checks play two devices with two stores and one shared memoryFolder map.
@@ -226,7 +226,7 @@ export function createSpace({ persist, store, now = () => new Date() }){
   let last = null, busy = null;
   const folder = () => (persist.folder?.space && persist.writer ? persist.folder : null);
   // Where documents go: a folder inside the linked one, kept on this device (a path is not a thing to share between machines). Changing it moves nothing: files are found by content.
-  // shortcut: the desktop app takes a folder inside the linked one too, not any folder on the disk (a document's path is relative to the linked folder); upgrade when the owner decides how an outside folder is recorded.
+  // shortcut: the desktop app takes a folder inside the linked one too, not any folder on the disk (a document's path is relative to the linked folder); upgrade when a decision is made on how an outside folder is recorded.
   const where = async () => ({ rounds: store.state.rounds ?? [], base: (await persist.local('docs')) || DOCS,
     held: [...new Set((store.state.documents ?? []).map(x => baseOf(x.path)).filter(Boolean))] });
 

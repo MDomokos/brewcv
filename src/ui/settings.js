@@ -63,7 +63,7 @@ function settingsView(){
   const pref = C.ui.pref;
   loadVersion();
   const browser = t('uxs.thisBrowser');
-  // grouped by what each acts on, this browser first, then your career (UX-6 sidebar audit (e))
+  // grouped by what each acts on, this browser first, then your career
   return `<h2 class="title">${h('set.title')}</h2>
     ${groupHtml(t('uxs.look'), `<span class="lbl">${h('m11.setDrinkHead')}</span>
     <div class="uichoice" role="radiogroup" aria-label="${esc(t('m11.setDrinkHead'))}">

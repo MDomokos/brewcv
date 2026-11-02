@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/sidebar-check.mjs           (ONLY=fit,ticks,... runs only those sections)
-// The sidebar (UX-6 sidebar session), in Chromium through Playwright (CHROME_PATH, or PW_BUNDLED=1); writes nothing.
+// The sidebar, in Chromium through Playwright (CHROME_PATH, or PW_BUNDLED=1); writes nothing.
 //  fit:   at the narrowest sidebar, in all ten languages, every text in the Edit views (nothing selected, a line, a skill group, a job, a section,
 //         the same with a job in its own order, the header, the photo), Design, Export, Settings and the Library's inspector is at least as wide as
 //         8 of its characters (or all of it, if shorter), none is cut by an ancestor or an ellipsis, and no short button or chip breaks inside its words.
@@ -140,7 +140,7 @@ function ticks(){
   const px = c => { const x = document.createElement('canvas').getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 1, 1); x.fillStyle = c; x.fillRect(0, 0, 1, 1); return [...x.getImageData(0, 0, 1, 1).data].slice(0, 3); };
   const lum = c => { const [r, g, b] = px(c).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
   const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-  // the fill a ticked box should have where it stands (round 2: the Outline's content ticks take a neutral ink; round 3's design pass: its section ticks the accent, one colour for every section)
+  // the fill a ticked box should have where it stands (the Outline's content ticks take a neutral ink; its section ticks the accent, one colour for every section)
   const fillAt = e => { const probe = document.createElement('i'); probe.style.color = e.matches('#outline .srow input[data-secon]') ? 'var(--accent)' : 'var(--cb-on)'; e.parentElement.append(probe); const c = getComputedStyle(probe).color; probe.remove(); return c; };
   const out = [], seen = [];
   for (const e of document.querySelectorAll('#col input[type=checkbox], #switcher input[type=checkbox]')){
@@ -228,7 +228,7 @@ function depth(){
   }
   const panel = R(document.querySelector('#body')), modes = [...document.querySelectorAll('#rail .rtabs .tab')], on = modes.find(b => b.getAttribute('aria-selected') === 'true');
   if (!on || Math.abs(R(on).right - panel.left) > 1.5) out.bad.push('the open mode does not join the panel');
-  for (const b of modes) if (b !== on && (R(b).right < panel.left - 0.01 || R(b).right > panel.left + 1.01)) out.bad.push(`the mode "${b.textContent.trim()}" does not touch the panel (${(R(b).right - panel.left).toFixed(1)} px under it)`);      // rewritten in round 2: the folder tabs touch the panel
+  for (const b of modes) if (b !== on && (R(b).right < panel.left - 0.01 || R(b).right > panel.left + 1.01)) out.bad.push(`the mode "${b.textContent.trim()}" does not touch the panel (${(R(b).right - panel.left).toFixed(1)} px under it)`);      // the folder tabs touch the panel
   const fld = document.querySelector('#body input:not([type]):not(#sec-label), #body input[type=text], #body textarea');      // (J: the section's heading is written in place on its band, no box)
   if (fld && !/inset/.test(getComputedStyle(fld).boxShadow)) out.bad.push('a field is not sunk');
   return out;
@@ -242,7 +242,7 @@ if (want('depth')){
     ok(`${drink} ${theme}: the --elev tokens are set; the active place stands up by more than colour (Tea: 3 px higher and a raised shadow; Coffee: a raised thumb in a sunk track), its words 4.5:1; the open mode joins the panel, the others touch it (at most 1 px under it); a field is sunk`, !d.bad.length, d.bad.join(' | '));
     await page.click('#docname-btn'); await page.waitForTimeout(400);
     const nc = await page.evaluate(() => ({ btn: getComputedStyle(document.querySelector('#docname-btn')).boxShadow, fill: getComputedStyle(document.querySelector('#docname-btn')).backgroundColor, win: getComputedStyle(document.querySelector('#switcher')).boxShadow, pop: getComputedStyle(document.documentElement).getPropertyValue('--elev-pop').trim() }));
-    // UX-6 round 2 (item 11): no shadow on the name card's button, not even sunk: it reads open by its fill
+    // no shadow on the name card's button, not even sunk: it reads open by its fill
     ok(`${drink} ${theme}: the name card's button is filled, with no shadow, while its window is open, the window a popover (--elev-pop)`, nc.btn === 'none' && !/rgba\(0, 0, 0, 0\)/.test(nc.fill) && nc.win !== 'none' && !!nc.pop, JSON.stringify(nc));
     await page.keyboard.press('Escape');
     ok(`${drink} ${theme}: depth: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
@@ -250,7 +250,7 @@ if (want('depth')){
   }
 }
 
-// frame (round 2): the modes are the panel's folder tabs: each closed one touches the panel (0 to 1 px under its edge), its fill or its edge
+// frame: the modes are the panel's folder tabs: each closed one touches the panel (0 to 1 px under its edge), its fill or its edge
 // stands 1.5:1 off the mat and its fill a visible step (1.1:1) off the panel; the fold chevron is a chrome card, its icon 3:1 on its face and
 // its face or edge 3:1 on the mat. In the four looks, in Edit and Design (each mode is its own tea).
 function frame(){
@@ -299,7 +299,7 @@ if (want('frame')){
   }
 }
 
-// finish (round 3, rewritten in round 3's design pass): the Export view ends the process, one hierarchy: 1 the finish header (a cup of 44 px) and the
+// finish: the Export view ends the process, one hierarchy: 1 the finish header (a cup of 44 px) and the
 // status row (one 24 px glyph, the page result, Fit and the page bars at its end), 2 "Get the file" (PDF the hero, taller, first and widest; the three other
 // formats three equal rows), 3 "Sent it?" (the same row), then the backup as a quiet row without band or icon. The bands are on the sidebar's six muted
 // hues (--hue-1..6: distinct, none a primary, hues), the words 4.5:1 and the icon 3:1 on their band in the four looks; every icon is 44 (the cup) or 24 px (one size reads as a header).
@@ -346,7 +346,7 @@ if (want('finish') || want('hues')){
   }
 }
 
-// corner (round 2): help and info live in one "?" at the panel's bottom right (a phone: its foot), not in a hint at the Outline's top: a 28 px
+// corner: help and info live in one "?" at the panel's bottom right (a phone: its foot), not in a hint at the Outline's top: a 28 px
 // tertiary icon with a visible edge in the four looks; a click, or Enter on it, opens a card of four rows (the shortcuts, privacy, the source,
 // the version), arrows walk it, Esc closes it and gives the focus back; the shortcuts row opens the sheet, and so does the ? key; the card stays
 // in the window, and at the end of a scroll the "?" covers none of the last row's controls; the ⋯ menu no longer lists those three.
@@ -409,11 +409,11 @@ if (want('corner')){
     await ctx.close(); }
 }
 
-// columns (round 2): the Outline reads as a hierarchy and its controls stand in columns. With Experience, a job in it and Skills open, in the
+// columns: the Outline reads as a hierarchy and its controls stand in columns. With Experience, a job in it and Skills open, in the
 // four looks, in English and German: every tick's centre (sections, jobs, the off jobs, lines, a section's own items) is on one x within
 // 0.5 px, every padlock's (a fixed section's too) on another; a section's heading is a band of its kind's hue (one of the six) with the title 14.5 px / 750 beside a 24 px monochrome icon (no coloured circle) at 3:1,
 // the words 4.5:1, in the four looks, at most six hues; a job's 13 px / 650, a line's 12.5 px / 450; a line and a section's own item start under the
-// job's title (not left of it). (Rewritten in round 3's design pass: the 16 px coloured chip and the open section's band only became this.)
+// job's title (not left of it). (The 16 px coloured chip and the open section's band only became this.)
 if (want('columns')){
   console.log('\n— columns');
   for (const lang of ['en', 'de']) for (const [drink, theme] of LOOKS){
@@ -450,7 +450,7 @@ if (want('columns')){
   }
 }
 
-// lock (round 2): locked and unlocked differ by more than the icon (computed style: the padlock's opacity, its chip, its filled body; the
+// lock: locked and unlocked differ by more than the icon (computed style: the padlock's opacity, its chip, its filled body; the
 // row's marker) in the four looks, on the Outline's rows, the depth row and the page chip, and the page lock; a padlock's title is a state
 // word; no .obtip or .locknote ever appears for a lock; a click on locked text moves the padlock (no toast while one is on screen); locking, unlocking and that click
 // play the padlock's motion (lock:lock, lock:ring, lock:unlock, lock:shake), and under reduced motion nothing starts.

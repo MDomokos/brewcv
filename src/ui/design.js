@@ -96,7 +96,7 @@ function designView(){
   const manual = Array.isArray(r.pages);
   // the usual case (Fit keeps it to the limit) is the tooltip; a note shows only when something is out of the ordinary
   const fitNote = t(manual ? 'design.manualNote' : r.pageLimit === 0 ? 'design.flowNote' : r.pageLimit === 2 ? 'design.fitTwo' : 'design.fitOne', { n: r.pages?.length });
-  // paper first (the pages fit on it), then the look and its settings, then the photo's pointer (UX-6 sidebar audit (e))
+  // paper first (the pages fit on it), then the look and its settings, then the photo's pointer
   return `<h2 class="title">${h('head.design')}</h2>
     ${groupHtml(t('uxs.paperPages'), `<div class="kv">
       <span class="lbl">${h('design.paper')}</span><div class="seg fill" role="group" aria-label="${esc(t('design.paper'))}"><button data-act="d-paper" data-f="us-letter" aria-pressed="${!a4}">${h('paper.letter')}</button><button data-act="d-paper" data-f="a4" aria-pressed="${a4}">${h('paper.a4')}</button></div>

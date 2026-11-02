@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// node checks/direct-d-check.mjs   (builder D of UX-6 direct editing, round 2; one section per item)
+// node checks/direct-d-check.mjs   (one section per item)
 //  1. the sidebar flash: arrow steps between lines run no CSS animation in the panel and the card never dips below full opacity ; a change of
 //     panel kind runs one short opacity-only fade.
 //  2. the chip: 26 px tall with the tick centred (page and card), the page chip on the page's paper, no lists on the page, and the "back" button

@@ -37,7 +37,7 @@ export function reviewList(model, recipe){
 }
 export const reviewCount = (model, recipe) => { const r = reviewList(model, recipe); return r.edits.length + r.labels.length + r.newer.length; };
 
-// The edit of `id` and what to suggest for it. `at`: an earlier edit of the line (UX-6f), not the one on the page.
+// The edit of `id` and what to suggest for it. `at`: an earlier edit of the line, not the one on the page.
 const editAt = (recipe, id, at) => (at == null ? overrideOf(recipe, id) : earlierOf(recipe, id)[at] && { ...earlierOf(recipe, id)[at], on: true });
 export function editRow(model, recipe, id, at = null){
   const o = editAt(recipe, id, at), local = isLocal(recipe, id);

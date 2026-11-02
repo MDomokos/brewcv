@@ -209,7 +209,7 @@ section('five copies of one career, merged in any order');
   R.saveOver(s, firstVersion(hydra[4]), 'Held every tolerance stack to the drawing.'); save();
   K.deleteClaim(s, hydra[5], []); save();
   // shortcut: these edits are to different claims, so any order agrees. Two copies that each add a version to the same claim number them in the
-  // order they are merged; that case is settled by merging oldest first and by the object clocks (step I-1), not here.
+  // order they are merged; that case is settled by merging oldest first and by the object clocks (below), not here.
   const merge = order => {
     const d = { record: clone(base), resumes: clone(resumes) };
     for (const i of order) D.applyItems(d, diff(d.record, files[i], d.resumes));
@@ -229,7 +229,7 @@ section('five copies of one career, merged in any order');
 }
 
 
-// ---- I-1: object clocks and merge ----
+// ---- object clocks and merge ----
 let wall = Date.parse('2026-10-26T09:00:00.000Z');
 const later = () => { wall += 60_000; };
 const J = x => JSON.stringify(x);
@@ -259,7 +259,7 @@ section('object clocks: keys and ticks');
   const st = { record: clone(base), resumes: clone(resumes), frozen: {} };
   const c0 = M.baseline(st);
   const want = ['basics.name', 'settings', `fact:${hydra[0]}`, `variant:${v0}`, 'work:hydra', 'education:porto-meng', 'skills:skills-cad', 'section:experience', `resume:${names[0]}`];
-  ok('the keys are the spec’s: facts, versions, jobs and the other entries, sections, resumes, basics fields, settings', want.every(k => k in c0.keys), want.filter(k => !(k in c0.keys)).join(', '));
+  ok('the keys are: facts, versions, jobs and the other entries, sections, resumes, basics fields, settings', want.every(k => k in c0.keys), want.filter(k => !(k in c0.keys)).join(', '));
   ok('a state taken with no clock starts every key at the common start, with no device’s save seen', Object.values(c0.keys).every(e => J(e.v) === '{"base":1}' && /^[0-9a-f]{8}$/.test(e.hash)) && J(c0.seen) === '{}');
   ok('ticking a state that did not change changes nothing, and counts no save', J(M.tick(c0, st, 'd1', wall)) === J(c0));
   const e1 = clone(st); R.saveOver(e1.record, v0, 'Redesigned the inhaler dose counter, now in service.');
@@ -973,7 +973,7 @@ section('what a merge leaves alone');
   ok('versions measured differently on two devices are not a conflict', mm.summary.length === 0 && mm.changed === 0);
 }
 
-section('documents, rounds and the import log (I-2)');
+section('documents, rounds and the import log');
 {
   const sha = c => c.repeat(64).slice(0, 64);
   const pdfUrl = `data:application/pdf;base64,${Buffer.from('%PDF-1.4 ' + 'x'.repeat(3000)).toString('base64')}`, pdfUrl2 = `data:application/pdf;base64,${Buffer.from('%PDF-1.4 ' + 'y'.repeat(3000)).toString('base64')}`;

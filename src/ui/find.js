@@ -1,4 +1,4 @@
-// Search (UX-6f). Ctrl+F (Cmd+F on a Mac) opens the app's search in every place and puts the caret in its field; the "/" key does the same where
+// Search. Ctrl+F (Cmd+F on a Mac) opens the app's search in every place and puts the caret in its field; the "/" key does the same where
 // a browser or a window keeps Ctrl+F for itself. The Library, Career and Compare have their field first in their toolbar (screens.js, record.js); the Editor
 // has this bar, over the page, in the same spot: the top left of the work area, the toolbars' own place. While one of the app's fields has the focus the next press is left to the browser (its own find still works).
 // Full screen is F11 (a plain F is a letter) and Ctrl+Shift+F is not touched. Pure view state; nothing here is written or undone.

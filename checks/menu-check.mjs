@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/menu-check.mjs
-// The editor menu's layout (UX-6c-iv-a), in Chromium on the example:
+// The editor menu's layout, in Chromium on the example:
 //  - a desktop has no footer: nothing is drawn under the editor card, which runs to the column's end, at three window sizes;
 //  - Fit is in Export only, at the top beside the page bars (the name card has neither Fit nor Saved); its chip (after a Fit that changed something) hangs right under it with no error, and Ctrl+Z undoes;
 //  - the page bars at the top of Export: a click on a bar of a two-page resume brings that page forward, the "+n" goes to the first page not drawn;
@@ -103,11 +103,11 @@ for (const [drink, theme] of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'lig
       openBg: cs(open).backgroundColor, openBorder: cs(open).borderLeftWidth, openBorderColor: cs(open).borderLeftColor, headBg: cs(head).backgroundColor, shutBg: cs(shut).backgroundColor, shutBorder: cs(shut).borderLeftColor === 'rgba(0, 0, 0, 0)' ? '0' : cs(shut).borderLeftWidth, shutExpanded: shut.querySelector('[data-act=ol-toggle]')?.getAttribute('aria-expanded'),
       gap: parseFloat(cs(open).marginTop) };
   });
-  // (UX-6 sidebar, audit (c)): one sign of containment, the flat card: its edge and surface; the accent bar and the tinted header said it twice more.
-  // Round 2 (item 16): the open section's head had a quiet band in its kind's colour (at most 12%); round 3's design pass: every section's head is a band of its kind's hue (one of six), opaque; a closed
+  // one sign of containment, the flat card: its edge and surface; the accent bar and the tinted header said it twice more.
+  // every section's head is a band of its kind's hue (one of six), opaque, not a quiet band on the open one only; a closed
   // section's 1 px edge is transparent (it keeps the tick column).
   const quiet = c => c === 'rgba(0, 0, 0, 0)' || (+(/\/ ([\d.]+)\)$/.exec(c)?.[1] ?? /rgba\([^)]*, ([\d.]+)\)$/.exec(c)?.[1] ?? 1)) <= 0.12;
-  ok(`${tag}: an open section is a container: a group with a name, aria-expanded on its header, an edge and a surface that a closed one does not have, no accent bar, its head a band of its kind's hue (round 3's design pass: it was a quiet 12% band on the open one only)`, !!look && look.role === 'group' && !!look.name && look.expanded === 'true' && look.shutExpanded === 'false' && parseFloat(look.openBorder) === 1 && parseFloat(look.shutBorder) === 0 && look.openBg !== look.shutBg && look.headBg !== 'rgba(0, 0, 0, 0)' && look.gap >= 4, JSON.stringify(look));
+  ok(`${tag}: an open section is a container: a group with a name, aria-expanded on its header, an edge and a surface that a closed one does not have, no accent bar, its head a band of its kind's hue (not a quiet 12% band on the open one only)`, !!look && look.role === 'group' && !!look.name && look.expanded === 'true' && look.shutExpanded === 'false' && parseFloat(look.openBorder) === 1 && parseFloat(look.shutBorder) === 0 && look.openBg !== look.shutBg && look.headBg !== 'rgba(0, 0, 0, 0)' && look.gap >= 4, JSON.stringify(look));
   await ctx.close();
 }
 {

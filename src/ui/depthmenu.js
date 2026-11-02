@@ -1,4 +1,4 @@
-// The depth chip's level lists (UX-6f 4c), on the page and in the card alike (parts.js depthHtml): a level with deeper ones lists its children,
+// The depth chip's level lists, on the page and in the card alike (parts.js depthHtml): a level with deeper ones lists its children,
 // the version tag's way (onpage.js openVers). It opens on hover, on focus, with Alt+↓ (or ↓) from the level, and on a long press by touch (a tap goes
 // up, as the word does); it opens on the child the selection came through. ↑ ↓ Home End move, Enter chooses (dp-open, the Outline's row act: it selects
 // that block), Esc closes and gives the focus back to the level, Tab and leaving close it. The chip never grows: the list is a popover under its

@@ -15,7 +15,7 @@ const en = (await import(pathToFileURL(path.join(ROOT, 'src/i18n/en.js')))).defa
 const keys = Object.keys(en);
 const holes = v => [...new Set((typeof v === 'string' ? [v] : Object.values(v)).flatMap(s => [...String(s).matchAll(/\{(\w+)\}/g)].map(m => m[1])))].sort().join(',');
 
-// The place is Career and its data is "your career" (UX-6h): no English value says "record" as a noun. The allow-list is for a word that is not the noun (none yet).
+// The place is Career and its data is "your career": no English value says "record" as a noun. The allow-list is for a word that is not the noun (none yet).
 {
   const ALLOWED = new Set();
   const say = Object.entries(en).filter(([k, v]) => !ALLOWED.has(k) && /\brecord('s|’s|s)?\b/i.test(typeof v === 'string' ? v : Object.values(v).join('|'))).map(([k]) => k);

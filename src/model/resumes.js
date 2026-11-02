@@ -799,7 +799,7 @@ export function docGroups(state){
   });
 }
 
-// Rebuild as a BrewCV resume (after the vault's build_copies.mjs, take or override): a line of the document that is exactly a version of the record (normText) is picked; a line close to
+// Rebuild as a BrewCV resume: a line of the document that is exactly a version of the record (normText) is picked; a line close to
 // a claim's wording (60% of the words) is this resume's own text for that claim, the record's versions untouched; any other line is left out and counted. The new resume is saved and
 // open, like newFrom. Returns { id, picked, own, left }.
 // shortcut: a line with no close claim is not put on the resume (Place lines files it first), and the sections that are not versions (skills, education, languages) print as the career has them; upgrade with a document that says its jobs.

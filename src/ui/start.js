@@ -1,8 +1,8 @@
-// The start screen (UX-3), built from the editor's own layout.
+// The start screen, built from the editor's own layout.
 //   - the header area: the logo, the name, the Tea and Coffee cups and the light and dark button, the title and the tagline; the inspector area:
 //     the three ways in and the interface language; the footer area: the four "Yours to keep" points, each opening its sentence in a popover, and
 //     "Why JSON?" opening its four points the same way (all drawn bare on the canvas: src/ui/intro-side.css); and the page area, where the story
-//     of how it works plays (src/ui/story.js, from Intro Lab v17): one career file, a page pulled from it, any look, a resume for every job.
+//     of how it works plays (src/ui/story.js): one career file, a page pulled from it, any look, a resume for every job.
 // Everything is drawn from tokens (src/ui/start.css). The three ways in change state rather than screens: the grey lines become the
 // real page (shell.js).
 

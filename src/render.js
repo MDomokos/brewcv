@@ -119,7 +119,7 @@ export function header(ctx){
     else gutter.push(h(doc, 'div', 'portrait portrait--missing', { html: encode(p.label ?? 'PHOTO') }));
   }
   // The job title goes beside the name in Compact density only, except in a centred header (a photo leaves it under the portrait).
-  // Its line break becomes a space there and in a centred header (the Classic audit measured 16px lost to it): the same length,
+  // Its line break becomes a space there and in a centred header (16px were lost to it in the Classic look): the same length,
   // so the highlights stay on their words.
   const look = lookOf(recipe), design = designOf(recipe, look);
   const centred = !!look.design?.centred;

@@ -975,7 +975,7 @@ export default {
   'save.folderOverwrite': 'Overschrijven',
   'save.folderSame': 'Het bestand in de map is hetzelfde als het jouwe.',
   'save.folderNone': 'Er is geen leesbaar bestand in de map om mee te vergelijken.',
-  // ux1: saving, snapshots, the switcher, fewer duplicates
+  // saving, snapshots, the switcher, fewer duplicates
   'ux1.savedDevice': 'Opgeslagen op dit apparaat',
   'ux1.saveFailed': 'Niet opgeslagen op dit apparaat',
   'ux1.search': 'Cv’s zoeken',
@@ -1047,7 +1047,7 @@ export default {
   'ux1.add': 'Toevoegen',
   'ux1.addEnter': 'Enter voegt toe',
   'ux1.diffSnapshot': 'Momentopname van {name}',
-  // UX-2: one screen
+  // one screen
   'ux2.modes': 'Wat het paneel toont',
   'ux2.modeEdit': 'Wijzigen',
   'ux2.modeDesign': 'Ontwerp',
@@ -1492,7 +1492,7 @@ export default {
   'ux6f.exAnyway': 'Toch exporteren',
   'ux6f.k.find': 'De cv’s, Carrière en het open cv doorzoeken',
   'ux6f.k.grip': 'Met een greep in focus: het blok één plek verplaatsen. Esc zet een opgetild blok terug',
-  // the sidebar's titled groups (UX-6 sidebar)
+  // the sidebar's titled groups
   'uxs.look': 'Uiterlijk',
   'uxs.thisBrowser': 'deze browser',
   'uxs.everyResume': 'elk cv',
@@ -1501,7 +1501,7 @@ export default {
   'uxr.locked': 'Vergrendeld',
   'uxr.unlocked': 'Ontgrendeld',
   'uxs.paperPages': 'Papier en pagina’s',
-  // the sidebar's width control (UX-6 sidebar)
+  // the sidebar's width control
   'uxs.sideWidth': 'Breedte van de zijbalk',
   'uxs.sideTip': 'Sleep om hem breder te maken; dubbelklik voor de breedte van het venster',
   'uxs.sideHide': 'Zijbalk verbergen',
@@ -1512,7 +1512,7 @@ export default {
   'ux6g.exReady': 'Klaar om te versturen',
   'ux6g.tailor': 'Afstemmen op een functietype…',
   'ux6g.tailorOn': 'Afgestemd: {name}',
-  // multilingual, step 2: the language copies on the page
+  // multilingual: the language copies on the page
   'ml2.tagMiss': 'Versie {v}, alleen in {lang} geschreven. Open het vak om haar hier te schrijven.',
   'ml2.tagMissTip': 'Hier nog niet geschreven: alleen in {lang}. Klik om te schrijven.',
   'ml2.noVersionAt': '<b>Nog geen v{n} in {lang}.</b> De pagina drukt die van {from} af, omlijnd.',
@@ -1528,7 +1528,7 @@ export default {
   'ml2.alsoChanged': 'Ook gewijzigd in {lang}',
   'ml2.keepInStep': 'Gelijk houden met {name}',
   'ml2.keepInStepTip': 'De volgorde van regels, verborgen regels, versiekeuzes en het uiterlijk veranderen dan in beide. Je eigen keuzes blijven bewaard.',
-  // ml3: headings and one-off texts changed in another language, matching an old version to a number
+  // headings and one-off texts changed in another language, matching an old version to a number
   'ml3.editedIn': '{n} bewerkt in {lang}, nog geen versie',
   'ml3.editedRow': 'Bewerkt in {lang}, nog geen versie',
   'ml3.headingRow': 'Kop gewijzigd in {lang}',

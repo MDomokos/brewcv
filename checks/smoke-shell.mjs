@@ -12,10 +12,10 @@
 //  - PW_BUNDLED=1 uses Playwright's own Chromium. Without it the run looks for Google Chrome (CHROME_PATH), and many test
 //    browsers can stop your own Brave or Chrome from opening.
 //  - AXE_CORE=/path/to/axe.min.js adds the accessibility pass (skipped without it; it is not in the repo).
-// What to watch out for, above all with other sessions on the same machine:
+// What to watch out for, above all with other runs on the same machine:
 //  - PORT and PORT+1 are both taken (the deployed section). Two runs on adjacent ports collide with EADDRINUSE; leave a gap.
 //  - Keep to about three runs at once. A full run next to others is slower and makes timing checks flaky.
-//  - Kill by exact PID, and its children, never by name: `pkill -f smoke-shell` or `pkill -f Chrome` stops other sessions'
+//  - Kill by exact PID, and its children, never by name: `pkill -f smoke-shell` or `pkill -f Chrome` stops other
 //    runs and your own browser.
 //  - The checks serve the files in this folder as they are: do not edit src/ while a run is going, or it tests a mix.
 //  - A wait for an element that is no longer there blocks for 30 seconds and then ends the whole run, so one stale selector hides
@@ -79,7 +79,7 @@ async function open(page, q, { help = false, drink = null, theme = null, guard =
   await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
   await page.waitForFunction(() => (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   if (!guard) await page.evaluate(() => window.__wb.edit.setGuard?.(false));
-  if (!gate) await page.evaluate(() => window.__wb.hands.gate?.(false));      // the page hovers what the pointer settles on, not what it passes (UX-6f 1b): a check that is not about that sees the hover at once
+  if (!gate) await page.evaluate(() => window.__wb.hands.gate?.(false));      // the page hovers what the pointer settles on, not what it passes: a check that is not about that sees the hover at once
   if (!fold) await page.evaluate(() => window.__wb.edit.setAutoFold?.(false));      // the versions list folds when it does not fit: a check that is not about that sees every version, in any window      // the name, the dates and the contact are guarded against a stray click; a check that is not about that writes them at once
   return bad;
 }
@@ -329,7 +329,7 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 
-  // the sheet does not open by itself, and no hint says how (round 2: help and info are the "?" at the panel's foot)
+  // the sheet does not open by itself, and no hint says how (help and info are the "?" at the panel's foot)
   const ctx2 = await newContext({ motion: true, viewport: { width: 1440, height: 900 } });
   const p2 = await ctx2.newPage();
   await open(p2, undefined, { help: true });
@@ -398,7 +398,7 @@ if (want('one screen: nothing is drawn on the page for claims that are off, and 
   const page = await ctx.newPage();
   const bad = await open(page);
   const sheet = page.frameLocator('#sheet iframe');
-  const own = ':not(.rb-plate, .rb-plate *)';      // the page's own markup: the plates laid over it are the frame's furniture (UX-6f 4c), not the page's
+  const own = ':not(.rb-plate, .rb-plate *)';      // the page's own markup: the plates laid over it are the frame's furniture, not the page's
   const before = await frameDoc(page, (d, own) => d.querySelectorAll(`*${own}`).length, own);
   await sheet.locator('.bullets li').first().click(); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);      // one click wrote the line; out of it, the line is selected
@@ -504,7 +504,7 @@ if (want('pages, Fit, the Hungarian resume')) {
 }
 
 
-// The canvas (UX-3): pages side by side on one canvas, the wheel, the hand, the pinch, the bright page, the page-moved event.
+// The canvas: pages side by side on one canvas, the wheel, the hand, the pinch, the bright page, the page-moved event.
 // Medtech has two pages. Both at once needs the row at the full height to fit left of the sidebar; otherwise the pages keep that size and the view travels sideways.
 const camOf = page => page.evaluate(() => {
   const w = window.__wb, c = w.canvas, ui = w.ui;
@@ -733,11 +733,11 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
   }
 }
 
-// Editing on the page (UX-3, UX-6c): three levels, Esc goes up one; one click writes a line where it is printed, leaving it keeps it on
+// Editing on the page: three levels, Esc goes up one; one click writes a line where it is printed, leaving it keeps it on
 // this resume, a chip says where you are.
 // (the frames are the page's own plates now: the job has its plate when it is selected, and its ring behind the line that is written)
 const lay = page => page.evaluate(() => { const el = document.querySelector('#editlay'); const q = s => el.querySelector(s), d = document.querySelector('#sheet iframe').contentDocument; return {
-  veil: [...el.querySelectorAll('.obveil')].map(v => +getComputedStyle(v).opacity), job: !!d.querySelector('.entry.rb-sel, .entry .rb-sel'),      /* (no ring round the job since direct editing C: the job, or a line of it, is selected) */ dashed: !!d.querySelector('.entry.rb-ring'), line: d.documentElement.classList.contains('rb-writing') && !!d.querySelector('[contenteditable]'),
+  veil: [...el.querySelectorAll('.obveil')].map(v => +getComputedStyle(v).opacity), job: !!d.querySelector('.entry.rb-sel, .entry .rb-sel'),      /* (no ring round the job: the job, or a line of it, is selected) */ dashed: !!d.querySelector('.entry.rb-ring'), line: d.documentElement.classList.contains('rb-writing') && !!d.querySelector('[contenteditable]'),
   tools: [...el.querySelectorAll('.obtools > [data-act]')].map(b => b.dataset.act), badge: q('.obv')?.textContent.trim() ?? null,
   chip: q('.obchip .depth') ? { words: [...el.querySelectorAll('.obchip .dp-l:not(.dp-back) .dp-w')].map(w => w.textContent), cur: q('.obchip .dp-l.cur .dp-w')?.textContent } : null }; });
 const overOf = (page, f) => page.evaluate(f => { const c = window.__wb.store.state.cur; return { text: c.overrides?.[f], meta: c.overrideMeta?.[f], parked: c.parked?.[f] }; }, f);
@@ -828,9 +828,9 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   const l2 = await lay(page);
   ok('one click on a line writes it at once: an editable line with a role and a name', (await lineEl(page).count()) === 1 && (await page.evaluate(() => window.__wb.ui.writing === true)) && (await lineEl(page).getAttribute('role')) === 'textbox' && !!(await lineEl(page).getAttribute('aria-label')));
   ok('…the caret is where it was clicked, not at an end of the line', await page.evaluate(() => { const el = window.__wb.onpage.el(), s = el.ownerDocument.getSelection(); if (!s.rangeCount || !s.isCollapsed || !el.contains(s.anchorNode)) return false; const r = el.ownerDocument.createRange(); r.selectNodeContents(el); r.setEnd(s.anchorNode, s.anchorOffset); const n = r.toString().length; return n > 0 && n < el.textContent.length; }));
-  ok('…the line is part of the page: no cover cut out around it, a thin outline, nothing drawn round its job (direct editing C), the rest of the text fades only a little (94%)', l2.line && l2.veil.length === 0 && !l2.dashed
+  ok('…the line is part of the page: no cover cut out around it, a thin outline, nothing drawn round its job, the rest of the text fades only a little (94%)', l2.line && l2.veil.length === 0 && !l2.dashed
     && await frameDoc(page, d => d.documentElement.classList.contains('rb-writing') && Math.abs(+getComputedStyle(d.querySelector('.bullets li:not([contenteditable])')).opacity - 0.94) < 0.01 && getComputedStyle(d.querySelector('[contenteditable]')).opacity === '1')
-    && await frameDoc(page, d => { const p = window.__wb.sheet.plates().find(q => q.role === 'write'); return !!p && parseFloat(d.defaultView.getComputedStyle(p.div).outlineWidth) <= 1; }), JSON.stringify(l2.veil));      // (the thin outline is the plate's, laid over the line: UX-6f 4c)
+    && await frameDoc(page, d => { const p = window.__wb.sheet.plates().find(q => q.role === 'write'); return !!p && parseFloat(d.defaultView.getComputedStyle(p.div).outlineWidth) <= 1; }), JSON.stringify(l2.veil));      // (the thin outline is the plate's, laid over the line)
   ok('…the view eased to the writing zoom: 130% of the whole page', Math.abs((await zoomOf(page)) - 1.3) < 0.02 && z0 === 1, `${await zoomOf(page)}`);
   ok('…the tools stand in the margin: the version pill, ↑ and ↓ in one row, no counts, and nothing to save', JSON.stringify(l2.tools) === JSON.stringify(['ob-up', 'ob-down']) && /^v/.test(l2.badge) && !(await page.$('#ob-stats, #editlay .obstats')) && !(await page.$('[data-act=ed-save], [data-act=ed-saveas], [data-act=ed-only], [data-act=ed-new], [data-act=ed-promote]')));
   ok('…nothing is drawn in the page itself, and only the chip and the tools take clicks', await page.evaluate(() => { const d = document.querySelector('#sheet iframe').contentDocument; return !d.querySelector('.obveil, .obtools, .obchip') && getComputedStyle(document.querySelector('#editlay')).pointerEvents === 'none'; }));
@@ -848,7 +848,7 @@ if (want('on the page: three levels, writing a line where it is printed, the too
     const look = n => getComputedStyle(n).fontFamily;
     return { shape: shape(a) === shape(b), sm: a.classList.contains('sm') && b.classList.contains('sm') && getComputedStyle(a).fontSize === getComputedStyle(b).fontSize, face: look(a.querySelector('.dp-l.cur')) === look(b.querySelector('.dp-l.cur')), sep: look(a.querySelector('.dp-s')) === look(b.querySelector('.dp-s')), crumb: !document.querySelector('#body .crumb') };
   });
-  ok('…the sidebar opens with the same component (UX-6f 4c: at the same size too): the same levels, separators and face (the page’s without lists), and no old crumb', same && same.shape && same.sm && same.face && same.sep && same.crumb, JSON.stringify(same));
+  ok('…the sidebar opens with the same component (at the same size too): the same levels, separators and face (the page’s without lists), and no old crumb', same && same.shape && same.sm && same.face && same.sep && same.crumb, JSON.stringify(same));
   ok('…the chip’s levels are buttons, in the focus order, each with a pointer target of at least 24 x 24 px', await page.evaluate(() => [...document.querySelectorAll('#editlay .obchip .dp-l')].every(b => b.tagName === 'BUTTON' && b.tabIndex === 0 && b.getBoundingClientRect().height + 6 >= 24 && b.getBoundingClientRect().width + 2 >= 24)));
 
   // typing, and leaving: kept on this resume, nothing asks (E1)
@@ -932,7 +932,7 @@ if (want('on the page: three levels, writing a line where it is printed, the too
   const eN = await factOf(page);
   ok('Enter at a job’s last line adds an empty line after it and writes it, in the same zoom, and adds no claim', /^~new-/.test(eN) && (await locals()).includes(eN) && (await lineEl(page).count()) === 1 && !(await lineText(page)).trim()
     && Math.abs((await zoomOf(page)) - 1.3) < 0.02 && (await page.evaluate(() => window.__wb.store.state.record.facts.length)) === nFacts && (await page.evaluate(() => window.__wb.sheet.order(window.__wb.ui.ix))).at(-1) !== eL, `${eL} → ${eN}`);
-  ok('…its place is the job’s end, and the sidebar names it', (await page.evaluate(({ id }) => { const j = Object.entries(window.__wb.store.state.cur.localLines).find(([, l]) => l.some(x => x.id === id)); return j && j[1].find(x => x.id === id).after; }, { id: eN })) === eL && /New line/.test(await page.textContent('#body .title')));      // (UX-6f 4c: the card's title names it; the chip is the page's, in single words)
+  ok('…its place is the job’s end, and the sidebar names it', (await page.evaluate(({ id }) => { const j = Object.entries(window.__wb.store.state.cur.localLines).find(([, l]) => l.some(x => x.id === id)); return j && j[1].find(x => x.id === id).after; }, { id: eN })) === eL && /New line/.test(await page.textContent('#body .title')));      // (the card's title names it; the chip is the page's, in single words)
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc on an empty new line leaves no empty bullet: the line is gone, the job is selected', (await locals()).length === 0 && (await emptyLis()) === 0 && (await selOf(page)).startsWith('job:') && (await lineEl(page).count()) === 0);
   await esc3();
@@ -1340,7 +1340,7 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   ok('the entries on the timeline: the jobs newest first, projects and education beside them; About you, the lists and the skill words are the cards on top', names[0] === 'hydra' && names.indexOf('hydra') < names.indexOf('poly') && names.indexOf('poly') < names.indexOf('atelier') && names.includes('chassis-jig') && names.includes('education') && (await page.$$eval('#scr .recmore .srow', rs => rs.map(r => r.dataset.grp))).join() === 'about,credentials,~bank', names.join());
   await showGroup(page, 'hydra');
   ok('the selected entry is open in the inspector, its rows shown (the entry\u2019s fold is not offered)', (await page.$$('#body .clg.open')).length === 1 && (await page.$$('#body .clg[data-g=hydra] .clrow')).length === 7 && !(await page.$('#body .clg[data-g=hydra] .clcaret:visible')));
-  ok('no hint above the list: what a tick does is shown once, by a line travelling to the page (UX-4)', !(await page.$('#checklist .clhint')) && await page.evaluate(() => localStorage.getItem('rb-cl-hint') === '1'));
+  ok('no hint above the list: what a tick does is shown once, by a line travelling to the page', !(await page.$('#checklist .clhint')) && await page.evaluate(() => localStorage.getItem('rb-cl-hint') === '1'));
 
   await page.evaluate(() => document.querySelector('#body .clg[data-g=hydra]').scrollIntoView({ block: 'center' })); await settle(page);
   const rows = page.locator('#body .clg[data-g=hydra] .clrow');
@@ -2512,7 +2512,7 @@ if (want('import: an example career starts from the newest file')) {
 }
 
 
-// The Library's documents (I-7): a card for each imported or exported file beside the saved resumes, in every view; an exported file sits with its resume; the inspector (preview, the three
+// The Library's documents: a card for each imported or exported file beside the saved resumes, in every view; an exported file sits with its resume; the inspector (preview, the three
 // ticks, what was taken, Place lines, Rebuild, Download, Remove); search finds a word only a document has; rounds, the archive, removing. Told apart by data attributes, counts and states.
 if (want('library: documents beside the resumes — cards, the exported file grouped, the inspector, Rebuild, search, rounds, the archive, removing')) {
   const FIX = path.join(ROOT, 'checks/fixtures/import');
@@ -2994,7 +2994,7 @@ if (want('export')) {
   }
   await page.click('#tab-export'); await settle(page);
   ok('Export lists pre-flight checks', (await page.$$('.checks li')).length >= 1);
-  // UX-6f 5.1: the Review button is a button the size of its label, not a 20 px column, and a major warning holds an export back
+  // the Review button is a button the size of its label, not a 20 px column, and a major warning holds an export back
   await openByName(page, 'Example Instruments'); await page.click('#tab-export'); await settle(page);      // an English resume: the heading typed below is an edit the text file leaves out
   await page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => T.setSectionLabel(d.record, d.cur, 'experience', 'en', 'Work history'), 'smoke: heading'); });
   await settle(page);
@@ -3662,7 +3662,7 @@ if (want('drinks: the page marks, exports, no corner at other sizes')) {
   const ctx = await newContext({ motion: true, viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
   const bad = await open(page);
-  // the selection's plate (UX-6f 4c, laid over the line) draws a deeper wash and no edge, the wash made from the drink's selection mark (--plate-tint-sel from --sel-mark): read its tint as r,g,b,a
+  // the selection's plate (laid over the line) draws a deeper wash and no edge, the wash made from the drink's selection mark (--plate-tint-sel from --sel-mark): read its tint as r,g,b,a
   const mark = () => frameDoc(page, d => { const p = window.__wb.sheet.plates().find(q => q.role === 'sel'); if (!p) return null; const c = d.defaultView.getComputedStyle(p.div).backgroundColor, n = c.match(/[\d.]+/g).map(Number); return c.startsWith('color(') ? { r: Math.round(n[0] * 255), g: Math.round(n[1] * 255), b: Math.round(n[2] * 255), a: n[3] ?? 1 } : { r: n[0], g: n[1], b: n[2], a: n[3] ?? 1 }; });
   const near = (t, r, g, b) => !!t && t.a > 0.05 && Math.abs(t.r - r) <= 2 && Math.abs(t.g - g) <= 2 && Math.abs(t.b - b) <= 2;
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
@@ -3698,7 +3698,7 @@ if (want('drinks: the page marks, exports, no corner at other sizes')) {
   }
 }
 
-// The start screen (UX-3), built from the editor's own areas: the header, the inspector and the footer are the column; the page area
+// The start screen, built from the editor's own areas: the header, the inspector and the footer are the column; the page area
 // holds the picture of how it works. The three ways in change state rather than screens.
 // what the story shows is what its moment says: each slot, the sheets of the stack, nothing hidden that should show (call it once nothing is moving)
 const storyDiff = page => page.evaluate(() => {
@@ -3833,7 +3833,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   }
   ok('nothing of the editor shows: no tabs, no zoom bar, no meter, no Fit, and the sheet waits', !(await page.isVisible('#tab-edit')) && !(await page.$('[data-act=fit]')) && (await page.evaluate(() => getComputedStyle(document.querySelector('#sheet')).visibility)) === 'hidden');
 
-  // the story (mockup E2): a framed board with a big number and a step control, no timeline
+  // the story: a framed board with a big number and a step control, no timeline
   ok('the story is a framed board left of the column, with a rim, and has no timeline of any kind', await page.evaluate(() => { const ss = document.querySelector('#ss'), r = ss.getBoundingClientRect(), col = document.querySelector('#col').getBoundingClientRect(); return !!ss.querySelector('.frame') && !!ss.querySelector('.rimshade') && r.right <= col.left && r.width > 700 && !ss.querySelector('.stops, .track, .ss-steps, .knob'); }));
   await page.evaluate(() => window.__wb.onboarding.start.replay()); await page.waitForTimeout(600);
   const navText = () => page.evaluate(() => document.querySelector('#ss .ncur').textContent.replace(/\s+/g, ' ').trim().toLowerCase());
@@ -4002,7 +4002,7 @@ if (want('the start screen: other windows, a phone, reduced motion, a record tha
   }
 }
 
-// UX-3b: the Record tab, one meaning of save (Mark as sent at the end of Export), and the panel fixes.
+// the Record tab, one meaning of save (Mark as sent at the end of Export), and the panel fixes.
 if (want('the Record tab, Mark as sent, and the panel fixes')) {
   const snapsOf = page => page.evaluate(() => { const s = window.__wb.store.state; return (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).map(x => x.sends.length); });
   const onPageCount = page => frameDoc(page, d => d.querySelectorAll('.bullets li').length);
@@ -4074,7 +4074,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     ok(`${tag}: Esc in Career stays in Career; E goes back to the editor (the Outline), and the sidebar is as wide as before`, (await page.evaluate(() => window.__wb.ui.view)) === 'record' && (await page.keyboard.press('e'), await settle(page), (await page.evaluate(() => window.__wb.ui.view)) === null) && (await page.getAttribute('#tab-edit', 'aria-selected')) === 'true' && Math.abs((await col()).width - before.width) < 1);
 
     // ---- the ways in: the name menu, the job chip and a section's count ----
-    // the name window has no Career button since UX-6 round 2 (Career is a place tab): its tab opens Career, and the name window has no Record
+    // the name window has no Career button now that Career is a place tab: its tab opens Career, and the name window has no Record
     await page.click('#docname-btn'); const swRecord = !!(await page.$('#switcher [data-act=sw-record]')); await page.keyboard.press('Escape'); await settle(page);
     await page.click('#ptabs [data-p=career]'); await settle(page);
     ok(`${tag}: Career is its place tab (the name window has no Career button)`, (await page.evaluate(() => window.__wb.ui.view)) === 'record' && !swRecord && !(await page.isVisible('#switcher')));
@@ -4242,7 +4242,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
   }
 }
 
-// The M8 accessibility pass: axe-core on every main view. axe-core is a dev tool and is not in the repo (nothing in
+// The accessibility pass: axe-core on every main view. axe-core is a dev tool and is not in the repo (nothing in
 // BrewCV has a dependency): AXE_CORE=/path/to/axe.min.js (from `npm install axe-core` anywhere) runs it, else it is skipped.
 if (want('accessibility: axe-core on every view')) {
   const axePath = process.env.AXE_CORE;
@@ -4733,14 +4733,14 @@ if (want('a page on the move stays flat: no 3D transform, no will-change, no lif
   }
 }
 
-// ---- UX-6c-ii: moving things on the page, the header, skills ----
+// ---- moving things on the page, the header, skills ----
 const hands = page => page.evaluate(() => {
   const q = s => document.querySelector(`#handlay ${s}`), box = e => { const r = e.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; };
   const g = q('.obgrip'), p = q('.obplus'), sl = q('.obslot');
   return { grip: g && !g.hidden ? { ...box(g), fact: g.dataset.fact, k: g.dataset.k, name: g.getAttribute('aria-label'), tag: g.tagName, tab: g.tabIndex } : null,
     plus: p && !p.hidden ? { ...box(p), name: p.getAttribute('aria-label'), tag: p.tagName, tab: p.tabIndex, job: p.dataset.job } : null,
     slot: sl && !sl.hidden ? { ...box(sl), name: sl.getAttribute('aria-label'), pressed: sl.getAttribute('aria-pressed'), tag: sl.tagName } : null,
-    // the drop line: the app's over the sidebar, the frame's over the page (drawn under the lifted block, UX-6f 4c)
+    // the drop line: the app's over the sidebar, the frame's over the page (drawn under the lifted block)
     ...(fd => { const fdrop = fd?.querySelector('body > .rb-drop'); return { drop: !q('.obdrop').hidden || !!fdrop, faint: (q('.obdrop').classList.contains('is-faint') && !q('.obdrop').hidden) || !!fdrop?.classList.contains('is-faint') }; })(document.querySelector('#sheet iframe')?.contentDocument),
     tip: q('.obtip').hidden ? '' : q('.obtip').textContent };
 });
@@ -4757,7 +4757,7 @@ if (want('on the page: moving lines within their job, the hover areas, and + at 
     const page = await ctx.newPage();
     const bad = await open(page);
     const l = await frameBox(page, '.entry .bullets li', 1);
-    await page.mouse.move(l.x + 60, l.y + 4, { steps: 4 }); await page.mouse.move(l.x + 4, l.y + 4, { steps: 6 }); await settle(page);      // (direct editing C: the grip's dots show as the pointer nears the left side)
+    await page.mouse.move(l.x + 60, l.y + 4, { steps: 4 }); await page.mouse.move(l.x + 4, l.y + 4, { steps: 6 }); await settle(page);      // (the grip's dots show as the pointer nears the left side)
     const hs = await hands(page);
     const geo = await page.evaluate(() => {
       const w = window.__wb, v = w.canvas.view, zb = document.querySelector('#zoombar')?.getBoundingClientRect();
@@ -4801,9 +4801,9 @@ if (want('on the page: moving lines within their job, the hover areas, and + at 
   let gp = (await hands(page)).grip;
   const l3 = await li(2);
   await page.mouse.move(gp.left + 9, gp.top + 9, { steps: 4 }); await page.mouse.down();
-  await page.mouse.move(gp.left + 40, gp.top + 9 + (l3.y + l3.height + 1) - (a.y + a.height), { steps: 8 }); await page.waitForTimeout(150);      // the block's leading edge (its bottom, UX-6f 4b) just under the third line: that is the slot it takes, not the pointer's place
+  await page.mouse.move(gp.left + 40, gp.top + 9 + (l3.y + l3.height + 1) - (a.y + a.height), { steps: 8 }); await page.waitForTimeout(150);      // the block's leading edge (its bottom) just under the third line: that is the slot it takes, not the pointer's place
   const during = await hands(page);
-  const landedL = await frameDoc(page, d => !!d.querySelector('.rb-lift, .rb-card') && !!d.querySelector('.rb-socket'));      // (the snap drag, direct editing C: the line stands at its place, over its socket; the free drag shows the bar)
+  const landedL = await frameDoc(page, d => !!d.querySelector('.rb-lift, .rb-card') && !!d.querySelector('.rb-socket'));      // (the snap drag: the line stands at its place, over its socket; the free drag shows the bar)
   ok('dragging a line shows where it will land', (during.drop || landedL) && !during.tip, JSON.stringify({ during, landedL }));
   await page.mouse.up(); await settle(page);
   const after = (await printed(page))[0];
@@ -5007,7 +5007,7 @@ if (want('the skill wordbank: the groups by name, the bank’s window, moving wo
   await ctx.close();
 }
 
-if (want('the skill wordbank, round two: the search box, the tray as a well, an exact word shown on the page, one Delete, the add mode, the rail on a card')) {
+if (want('the skill wordbank: the search box, the tray as a well, an exact word shown on the page, one Delete, the add mode, the rail on a card')) {
   const ctx = await newContext({ motion: true, viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -5195,8 +5195,8 @@ if (want('on the page: a job opens by its name')) {
   await ctx.close();
 }
 
-// ---- UX-6c-iii-a: every printed text is written where it is printed, and each item is selected ----
-// The audit made a check: for every kind of text the renderer prints (Medtech, and a scratch record with a custom section, volunteering,
+// ---- every printed text is written where it is printed, and each item is selected ----
+// For every kind of text the renderer prints (Medtech, and a scratch record with a custom section, volunteering,
 // awards, references and projects), one click writes it in place (an editable element on that text, with a role and a name), typing and Esc keep
 // it on this resume (an edit with its base version and marks, a heading in the resume's language, a language's name on the resume), and the
 // page prints it. An item of education, patent, a language, a certificate or an interest is selected as a whole.
@@ -5270,7 +5270,7 @@ if (want('on the page: every printed text is written where it is printed, and ea
       const words = await page.$$eval('#editlay .obchip .dp-l:not(.dp-back) .dp-w', e => e.map(x => x.textContent));
       const fb = await frameRectOf(page);
       const bx = await fr.locator(sel).first().boundingBox();
-      // (UX-6f 4c: the frame is the item's plate, whose stand-off is fitted to the words around it: never more than 2 page px inside the item's box where its neighbours are close)
+      // (the frame is the item's plate, whose stand-off is fitted to the words around it: never more than 2 page px inside the item's box where its neighbours are close)
       const fin = 2 * (await page.evaluate(() => window.__wb.canvas.cam.k)) + 1;
       ok(`${name}: selected, the chip says ${chip.join(' › ')} and the plate’s frame goes round the item`, JSON.stringify(words) === JSON.stringify(chip) && !!fb && !!bx && fb.left <= bx.x + fin && fb.right >= bx.x + bx.width - fin && fb.top <= bx.y + fin && fb.bottom >= bx.y + bx.height - fin && fb.height < 200, JSON.stringify([words, fb, bx]));
       const g = await chipGeomOf(page);
@@ -5296,7 +5296,7 @@ if (want('on the page: every printed text is written where it is printed, and ea
   await page.evaluate(async () => { const L = await import('/src/model/lang.js'); window.__wb.store.commit(d => { L.switchLang(d.cur, 'en'); }, 'switch back'); });
   await settle(page);
 
-  // each edit is on the Review list's data with its base (UX-6d offers it as a version)
+  // each edit is on the Review list's data with its base (the Review list offers it as a version)
   const pend = await page.evaluate(async () => { const T = await import('/src/model/resume.js'), c = window.__wb.store.state.cur; return T.pendingEdits(c).filter(id => c.overrideMeta?.[id]?.base).sort(); });
   ok('every text edited above is listed by pendingEdits with its base version (header facts too)', keys.every(k => pend.includes(k)), JSON.stringify(keys.filter(k => !pend.includes(k))));
 
@@ -5443,7 +5443,7 @@ if (want('the lock: the padlock, the chip’s switch, and grips for jobs, sectio
   const before = await lines();
   await hydraLine(0).click(); await settle(page);
   ok('a click on locked text starts no caret: nothing on the page is editable, the line’s block is selected, the chip shows', (await fr.locator('[contenteditable]').count()) === 0 && (await page.evaluate(() => window.__wb.ui.sel.id)) === 'hydra-inhaler' && !(await page.evaluate(() => window.__wb.ui.writing)) && (await page.locator('#editlay .obchip').count()) === 1);
-  // round 3: no text popup and no toast while a padlock is on screen: the padlock wobbles with a ring, the plate flashes; the live region keeps the sentence
+  // no text popup and no toast while a padlock is on screen: the padlock wobbles with a ring, the plate flashes; the live region keeps the sentence
   const said = await page.evaluate(() => ({ toast: document.querySelector('#toast.on.warn')?.textContent ?? '', announce: document.querySelector('#announce').textContent, names: [...new Set(window.__wb.motion.stats.names)] }));
   ok('…no text popup and no toast (the padlock is on screen): it wobbles, sends a ring and the plate flashes, and the live region says “Locked. Click the padlock to unlock.”', (await hint()) === '' && said.toast === '' && said.announce === 'Locked. Click the padlock to unlock.' && ['lock:shake', 'lock:ring', 'lock:flash'].every(n => said.names.includes(n)), JSON.stringify([await hint(), said]));
   ok('…and no note in the sidebar explains it', !(await page.$('.locknote')));
@@ -5620,7 +5620,7 @@ if (want('the lock: the grips for jobs, sections and items, at four sizes')) {
       const g = await geo();
       if (!g) fails.push(`${name}: no grip`); else if (g.tag !== 'BUTTON' || g.tab !== 0 || !g.inRoom || g.text || g.bar || g.chip || !g.near) fails.push(`${name}: ${JSON.stringify(g)}`);
     }
-    ok(`${w}x${h}: a job, a section and an item each show a grip button from the frame’s top near its left end (UX-6f 4c: as tall as the plate), in the room, over no text, the chip or the zoom bar`, fails.length === 0, fails.join('; '));
+    ok(`${w}x${h}: a job, a section and an item each show a grip button from the frame’s top near its left end (as tall as the plate), in the room, over no text, the chip or the zoom bar`, fails.length === 0, fails.join('; '));
     ok(`${w}x${h}: no console errors`, bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -5650,7 +5650,7 @@ if (want('the lock: the grips for jobs, sections and items, at four sizes')) {
   const t1 = await frameBox(page, '.entry .role-title', 1), t2 = await frameBox(page, '.entry .role-title', 2);
   await dragTo(g, t2.x + 40, t2.y + t2.height + 40);
   const during = await hands(page);
-  const landed = await frameDoc(page, d => !!d.querySelector('.rb-lift, .rb-card') && !!d.querySelector('.rb-socket'));      // (the snap drag, direct editing C: the block stands at its place, over its socket; the free drag shows the bar)
+  const landed = await frameDoc(page, d => !!d.querySelector('.rb-lift, .rb-card') && !!d.querySelector('.rb-socket'));      // (the snap drag: the block stands at its place, over its socket; the free drag shows the bar)
   ok('dragging a job shows where it will land', (during.drop || landed) && !during.tip, JSON.stringify({ during, landed }));
   await page.mouse.up(); await settle(page);
   const order1 = await jobsOrder();
@@ -6024,7 +6024,7 @@ if (want('the Review list: a phone, and focus')) {
   await ctx.close();
 }
 
-// ---- UX-6g ----
+// ---- versions you can reach, edits that become versions ----
 // A pointer path, not a jump: the pointer enters the element from the left in a few moves
 const glide = async (page, loc) => { const b = await loc.boundingBox(); await page.mouse.move(b.x - 30, b.y + b.height / 2); await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 6 }); };
 // …and from where the pointer is, in a few moves (inside a popup, the way in from outside would leave it)
@@ -6032,7 +6032,7 @@ const slide = async (page, loc) => { const b = await loc.boundingBox(); await pa
 const lineNow = (page, fact) => page.evaluate(f => { const w = window.__wb, el = w.sheet.elOf(f, w.ui.ix); return (el?.textContent ?? '').replace(/\s+/g, ' ').trim(); }, fact);
 const norm = s => String(s).replace(/\s+/g, ' ').trim();
 
-if (want('ux6g: a version hovered in the sidebar previews while a line is written')) for (const motion of [false, true]) {
+if (want('a version hovered in the sidebar previews while a line is written')) for (const motion of [false, true]) {
   const ctx = await newContext({ motion, viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6064,7 +6064,7 @@ if (want('ux6g: a version hovered in the sidebar previews while a line is writte
   await ctx.close();
 }
 
-if (want('ux6g: the version tag beside a line is a control')) for (const motion of [false, true]) {
+if (want('the version tag beside a line is a control')) for (const motion of [false, true]) {
   const ctx = await newContext({ motion, viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6119,7 +6119,7 @@ if (want('ux6g: the version tag beside a line is a control')) for (const motion 
   ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
-if (want('ux6g fix: the version tag keeps the focus on a line with typed text')) {
+if (want('the version tag keeps the focus on a line with typed text')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6150,7 +6150,7 @@ if (want('ux6g fix: the version tag keeps the focus on a line with typed text'))
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
-if (want('ux6g: the version tag, by touch')) {
+if (want('the version tag by touch')) {
   const ctx = await newContext({ hasTouch: true, viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6167,7 +6167,7 @@ if (want('ux6g: the version tag, by touch')) {
   await ctx.close();
 }
 
-if (want('ux6g: an edit on this resume is a pending version in the versions list')) {
+if (want('an edit on this resume is a pending version in the versions list')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6240,7 +6240,7 @@ if (want('ux6g: an edit on this resume is a pending version in the versions list
   await ctx.close();
 }
 
-if (want('ux6g: the pending version on a phone')) {
+if (want('the pending version on a phone')) {
   // a phone has no hands: the version tag is not there, the sidebar’s rows are the way; the pencil stays there, the only way to write a text
   const ctx = await newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
   const ph = await ctx.newPage();
@@ -6258,7 +6258,7 @@ if (want('ux6g: the pending version on a phone')) {
   await ctx.close();
 }
 
-if (want('ux6f s3-1: where an edit was saved is named on the tag, in the list and in a toast')) {
+if (want('where an edit was saved is named on the tag, in the list and in a toast')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6284,7 +6284,7 @@ if (want('ux6f s3-1: where an edit was saved is named on the tag, in the list an
   await ctx.close();
 }
 
-if (want('ux6f s3-2: the versions list folds when it does not fit the panel, and keeps the one in use and the edits')) {
+if (want('the versions list folds when it does not fit the panel, and keeps the one in use and the edits')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 500 } });
   const page = await ctx.newPage();
   const bad = await open(page, undefined, { fold: true });
@@ -6316,7 +6316,7 @@ if (want('ux6f s3-2: the versions list folds when it does not fit the panel, and
   await ctx.close();
 }
 
-if (want('ux6f s3-3: a second edit of a line is a pending row of its own, each kept or updated by itself')) {
+if (want('a second edit of a line is a pending row of its own, each kept or updated by itself')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 1000 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6353,7 +6353,7 @@ if (want('ux6f s3-3: a second edit of a line is a pending row of its own, each k
   await ctx.close();
 }
 
-if (want('ux6f s3-4: a version change never draws the old and the new words over each other')) {
+if (want('a version change never draws the old and the new words over each other')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 1000 }, reducedMotion: 'no-preference' });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6397,7 +6397,7 @@ if (want('ux6f s3-4: a version change never draws the old and the new words over
   await ctx.close();
 }
 
-if (want('ux6f s4c-10: one position chip, the page’s without lists, the card’s with a list per level')) {
+if (want('one position chip, the page’s without lists, the card’s with a list per level')) {
   const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6452,7 +6452,7 @@ if (want('ux6f s4c-10: one position chip, the page’s without lists, the card�
   await pctx.close();
 }
 
-if (want('ux6f s3-6: Career dates are month and year pickers in the app’s own menu, with Present, and the date line follows')) {
+if (want('Career dates are month and year pickers in the app’s own menu, with Present, and the date line follows')) {
   const ctx = await newContext({ motion: true, viewport: { width: 1470, height: 900 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6491,7 +6491,7 @@ if (want('ux6f s3-6: Career dates are month and year pickers in the app’s own 
   await ctx.close();
 }
 
-if (want('ux6f s3-7: the name, the dates and the contact are locked against a stray click; a second click or the lock opens them')) for (const motion of [true, false]) {
+if (want('the name, the dates and the contact are locked against a stray click; a second click or the lock opens them')) for (const motion of [true, false]) {
   const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page, undefined, { guard: true });
@@ -6542,7 +6542,7 @@ if (want('ux6f s3-7: the name, the dates and the contact are locked against a st
   await ctx.close();
 }
 
-if (want('ux6f s3-8: the photo’s tick on the page’s slot shows a picture in place of the check; About you’s is the plain tick')) {
+if (want('the photo’s tick on the page’s slot shows a picture in place of the check; About you’s is the plain tick')) {
   const ctx = await newContext({ motion: true, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6550,9 +6550,9 @@ if (want('ux6f s3-8: the photo’s tick on the page’s slot shows a picture in 
   const b = await sheet.locator('.name').first().boundingBox();
   await page.mouse.move(b.x + 20, b.y + 20, { steps: 3 }); await page.mouse.click(b.x + 20, b.y + 20); await settle(page, 500);
   await page.keyboard.press('Escape'); await settle(page, 400);
-  // (the UX-6 sidebar session made show/hide a tick: the picture now stands where the tick's check is, no knob to travel)
+  // (show/hide is a tick: the picture now stands where the tick's check is, no knob to travel)
   const ico = sel => page.evaluate(s => { const e = document.querySelector(s); if (!e) return null; const c = getComputedStyle(e, '::before'), m = c.webkitMaskImage || c.maskImage; return { picture: /rect/.test(m), check: /M2 6\.4/.test(m), w: c.width, op: c.opacity, color: c.backgroundColor, box: Math.round(e.getBoundingClientRect().width) }; }, sel);
-  // (icon round 3: the picture is the registry's `photo` icon, 12 px, drawn in the tick; no CSS mask)
+  // (the picture is the registry's `photo` icon, 12 px, drawn in the tick; no CSS mask)
   const slot = await page.evaluate(() => { const e = document.querySelector('.obslot .pillsw'), g = e?.querySelector('svg.ico'); if (!g) return null; return { picture: !!g.querySelector('rect') && !!g.querySelector('circle'), w: Math.round(g.getBoundingClientRect().width), mask: getComputedStyle(e, '::before').display !== 'none', color: getComputedStyle(g).color, box: Math.round(e.getBoundingClientRect().width) }; });
   ok('the page’s photo slot: the photo icon (12 px, the drink’s colour) in a 17 px tick, shown while the photo is off, no mask', !!slot && slot.picture && slot.w === 12 && !slot.mask && slot.box === 17 && slot.color !== 'rgba(0, 0, 0, 0)', JSON.stringify(slot));
   await page.click('#body .depth [data-act=select-header]'); await settle(page, 500);
@@ -6565,7 +6565,7 @@ if (want('ux6f s3-8: the photo’s tick on the page’s slot shows a picture in 
   await ctx.close();
 }
 
-if (want('ux6f s3-2 phone: the versions list never starts folded in a phone’s bottom sheet')) {
+if (want('the versions list never starts folded in a phone’s bottom sheet')) {
   const ctx = await newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
   const ph = await ctx.newPage();
   const bad = await open(ph, undefined, { fold: true });
@@ -6578,24 +6578,24 @@ if (want('ux6f s3-2 phone: the versions list never starts folded in a phone’s 
   await ctx.close();
 }
 
-if (want('ux6g: one highlight while a line is written')) for (const motion of [false, true]) {
+if (want('one highlight while a line is written')) for (const motion of [false, true]) {
   const ctx = await newContext({ motion, viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
   const sheet = page.frameLocator('#sheet iframe');
   const tag = motion ? 'with motion' : 'under reduced motion';
   const li = sheet.locator('.bullets li');
-  // the plate on the line (UX-6f 4c: hover, selection and writing are drawn by the plate laid over the line, not by the line's own outline); the corner the grip stands on is square
+  // the plate on the line (hover, selection and writing are drawn by the plate laid over the line, not by the line's own outline); the corner the grip stands on is square
   const outline = (i) => li.nth(i).evaluate(e => { const p = window.parent.__wb.sheet.plates().find(q => q.el === e || e.contains(q.el)); if (!p) return { style: 'none', hover: e.classList.contains('rb-hot') }; const c = getComputedStyle(p.div), pr = p.div.getBoundingClientRect(), er = p.el.getBoundingClientRect(); return { style: c.outlineStyle, width: c.outlineWidth, offset: `${Math.round(pr.right - er.right)}px`, radius: c.borderTopRightRadius, bg: c.backgroundColor, hover: p.role === 'hot' }; });      // (the stand-off on the right: the left holds the grip's tab)
   const b0 = await li.nth(0).boundingBox();
   await page.mouse.move(b0.x - 40, b0.y + 4); await page.mouse.move(b0.x + 20, b0.y + 6, { steps: 6 }); await settle(page);
   const h = await outline(0);
-  ok(`${tag}: the pointer on a line shades it, 4px off: a wash, no outline (direct editing C)`, h.hover && h.width === '0px' && !/, 0\)$|transparent/.test(h.bg) && h.offset === '4px', JSON.stringify(h));
+  ok(`${tag}: the pointer on a line shades it, 4px off: a wash, no outline`, h.hover && h.width === '0px' && !/, 0\)$|transparent/.test(h.bg) && h.offset === '4px', JSON.stringify(h));
   await page.mouse.click(b0.x + 20, b0.y + 6); await settle(page);
   ok(`${tag}: a click writes the line`, (await lineEl(page).count()) === 1);
   const o1 = await outline(0);
   ok(`${tag}: …and the line under the pointer is outlined once: the written field's hairline, no second plate`, o1.style === 'solid' && o1.width === '1px' && !o1.hover, JSON.stringify(o1));
-  ok(`${tag}: the written field is the hover plate pressed in: a thin rule, a stand-off no further and a corner no rounder (UX-6f 4c: it keeps inside half the gap to its neighbours, its corner the block's turned by that stand-off)`, parseFloat(o1.width) <= 1 && parseFloat(o1.offset) <= parseFloat(h.offset) && parseFloat(o1.radius) <= parseFloat(h.radius), `${JSON.stringify(o1)} ${JSON.stringify(h)}`);
+  ok(`${tag}: the written field is the hover plate pressed in: a thin rule, a stand-off no further and a corner no rounder (it keeps inside half the gap to its neighbours, its corner the block's turned by that stand-off)`, parseFloat(o1.width) <= 1 && parseFloat(o1.offset) <= parseFloat(h.offset) && parseFloat(o1.radius) <= parseFloat(h.radius), `${JSON.stringify(o1)} ${JSON.stringify(h)}`);
   await page.keyboard.press('Enter'); await settle(page);
   const o2 = await outline(0);      // (with the zoom the page may have moved from under the pointer: only the outline is asserted)
   ok(`${tag}: Enter moves on to the next line; the previous one, still under the pointer, has no highlight`, (await page.evaluate(() => window.__wb.edit.editing?.fact)) !== undefined && o2.style === 'none', JSON.stringify(o2));
@@ -6610,7 +6610,7 @@ if (want('ux6g: one highlight while a line is written')) for (const motion of [f
   await ctx.close();
 }
 
-if (want('ux6g: the photo tick and its settings are in About you')) {
+if (want('the photo tick and its settings are in About you')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6637,14 +6637,14 @@ if (want('ux6g: the photo tick and its settings are in About you')) {
   await ctx.close();
 }
 
-// ---- UX-6g stage b: moving and adding, shown before it is done ----
+// ---- moving and adding, shown before it is done ----
 // what the page's blocks look like now: the transform each carries and the order they are in
 const lifted = page => frameDoc(page, d => [...d.querySelectorAll('.rb-lift')].length);
 const moved = page => frameDoc(page, d => [...d.querySelectorAll('[style*="transform"]')].length);
 const tops = (page, sel) => frameDoc(page, (d, q) => [...d.querySelectorAll(q)].map(e => Math.round(e.getBoundingClientRect().top)), sel);
 const recordSig = page => page.evaluate(() => JSON.stringify(window.__wb.store.state.cur));
 
-if (want('ux6g b: grips say what they move')) {
+if (want('grips say what they move')) {
   const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6652,12 +6652,12 @@ if (want('ux6g b: grips say what they move')) {
   const fgrip = () => page.evaluate(() => { const g = document.querySelector('#handlay .obfgrip'); if (!g || g.hidden) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, k: g.dataset.k, name: g.getAttribute('aria-label'), tag: g.tagName, cursor: getComputedStyle(g).cursor, op: Number(getComputedStyle(g).opacity), shadow: getComputedStyle(g).boxShadow }; });
   const shade = async () => { const r = await page.frameLocator('#sheet iframe').locator('.rb-hot').first().boundingBox({ timeout: 300 }).catch(() => null); return r && { left: r.x, top: r.y, right: r.x + r.width, bottom: r.y + r.height }; };      // the hovered block's plate: the grip is its tab
   const head = await frameBox(page, '.entry .role-title', 1);
-  await page.mouse.move(head.x + 12, head.y + head.height / 2, { steps: 4 }); await settle(page);      // (near its left side, where the grip shows, direct editing C)
+  await page.mouse.move(head.x + 12, head.y + head.height / 2, { steps: 4 }); await settle(page);      // (near its left side, where the grip shows)
   let g = await fgrip();
   ok('hovering a job’s heading (nothing selected) shows the job’s grip, a button named for what it moves', !!g && g.k === 'job' && g.tag === 'BUTTON' && /^Move this job within its section/.test(g.name) && g.cursor === 'grab', JSON.stringify(g));
   ok('…the grip is light: the plate’s own tab, narrow, no shadow of its own', g.w <= 16 && g.shadow === 'none', JSON.stringify(g));
   const path = [];
-  for (let k = 1; k <= 14; k++){ await page.mouse.move(head.x + 12 + (g.x - head.x - 12) * k / 14, head.y + head.height / 2); await page.waitForTimeout(25); path.push(!!(await fgrip())); }      // (the grip runs the plate's height, UX-6f 4c: beside the heading is on it)
+  for (let k = 1; k <= 14; k++){ await page.mouse.move(head.x + 12 + (g.x - head.x - 12) * k / 14, head.y + head.height / 2); await page.waitForTimeout(25); path.push(!!(await fgrip())); }      // (the grip runs the plate's height: beside the heading is on it)
   ok('…the pointer moving from the heading across to the grip beside it never loses it (14 steps)', path.every(Boolean), path.join());
   const sh = await shade(), entry = await frameBox(page, '.entry', 1);
   ok('…and on the grip the whole job has its plate: its lines too', !!sh && sh.left <= entry.x + 1 && sh.top <= entry.y + 1 && sh.right >= entry.x + entry.width - 1 && sh.bottom >= entry.y + entry.height - 1, JSON.stringify([sh, entry]));
@@ -6683,7 +6683,7 @@ if (want('ux6g b: grips say what they move')) {
   await ctx.close();
 }
 
-if (want('ux6g fix: a lifted block is clipped to its own page')) {
+if (want('a lifted block is clipped to its own page')) {
   const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6703,7 +6703,7 @@ if (want('ux6g fix: a lifted block is clipped to its own page')) {
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
-if (want('ux6g b: a drag shows where the block will land')) for (const motion of [false, true]) {
+if (want('a drag shows where the block will land')) for (const motion of [false, true]) {
   const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page, '?memory&drag=free');      // (the free drag's mechanics, kept behind the review flag ?drag=free; the default snap is direct-c-check snap)
@@ -6714,7 +6714,7 @@ if (want('ux6g b: a drag shows where the block will land')) for (const motion of
   await page.mouse.move(a.x + 16, a.y + 4, { steps: 3 }); await settle(page);
   const gp = (await hands(page)).grip;
   await page.mouse.move(gp.left + 8, gp.top + 8, { steps: 3 }); await page.mouse.down();
-  await page.mouse.move(gp.left + 40, gp.top + 8 + (l2.y + l2.height + 1) - (a.y + a.height), { steps: 8 }); await page.waitForTimeout(500);      // (the block's leading edge, its bottom, just under the third line: the slot after it, UX-6f 4b)
+  await page.mouse.move(gp.left + 40, gp.top + 8 + (l2.y + l2.height + 1) - (a.y + a.height), { steps: 8 }); await page.waitForTimeout(500);      // (the block's leading edge, its bottom, just under the third line: the slot after it)
   const t1 = await tops(page, '.entry:first-child .bullets li');
   ok(`${w}: while a line is dragged it is lifted and follows the pointer`, (await lifted(page)) === 1 && t1[0] > t0[0] + 20, JSON.stringify([t0, t1]));
   ok(`${w}: …the lines it passes move up into its place, so the gap is where it will land`, t1[1] < t0[1] && t1[2] < t0[2] && Math.abs(t1[1] - t0[0]) < 3 && Math.abs(t1[3] - t0[3]) < 3, JSON.stringify([t0, t1]));
@@ -6757,7 +6757,7 @@ if (want('ux6g b: a drag shows where the block will land')) for (const motion of
   await ctx.close();
 }
 
-if (want('ux6g b: grabbing a row of the sidebar drags its block')) {
+if (want('grabbing a row of the sidebar drags its block')) {
   const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6841,7 +6841,7 @@ if (want('ux6g b: grabbing a row of the sidebar drags its block')) {
   const S0 = [...await rows('#outline .osec > .srow[data-sid=experience]'), ...await rows('#outline .osec > .srow[data-sid=skills]')], so0 = await frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')).filter((s, i, a) => a.indexOf(s) === i));
   await page.mouse.move(S0[0].x, S0[0].y, { steps: 3 }); await page.mouse.down();
   await page.mouse.move(S0[1].x, S0[1].y + 14, { steps: 8 }); await page.waitForTimeout(400);
-  ok('dragging a section’s row takes the section on the page: Experience is more than a third of its page, so it is folded in place (UX-6f 4b), not lifted whole', (await frameDoc(page, d => d.querySelectorAll('.rb-fold').length)) >= 1 && (await lifted(page)) === 0 && (await hands(page)).drop);
+  ok('dragging a section’s row takes the section on the page: Experience is more than a third of its page, so it is folded in place, not lifted whole', (await frameDoc(page, d => d.querySelectorAll('.rb-fold').length)) >= 1 && (await lifted(page)) === 0 && (await hands(page)).drop);
   await page.mouse.up(); await settle(page); await page.waitForTimeout(300);
   const so1 = await frameDoc(page, d => [...d.querySelectorAll('.band[data-section]')].map(b => b.getAttribute('data-section')).filter((s, i, a) => a.indexOf(s) === i));
   ok('…dropped, the section moves below the next one (Experience below Skills)', JSON.stringify(so1) !== JSON.stringify(so0) && so1.indexOf('experience') > so1.indexOf('skills'), JSON.stringify([so0, so1]));
@@ -6849,7 +6849,7 @@ if (want('ux6g b: grabbing a row of the sidebar drags its block')) {
   await ctx.close();
 }
 
-if (want('ux6g b: a "+" shows the line it will add')) for (const motion of [false, true]) {
+if (want('a "+" shows the line it will add')) for (const motion of [false, true]) {
   const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6884,8 +6884,8 @@ if (want('ux6g b: a "+" shows the line it will add')) for (const motion of [fals
   await ctx.close();
 }
 
-// ---- UX-6f stage 4: moving things ----
-if (want('ux6f s4-1: the grip is a bigger target, the block and its outline are the handle')) {
+// ---- moving things ----
+if (want('the grip is a bigger target, the block and its outline are the handle')) {
   const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -6900,8 +6900,8 @@ if (want('ux6f s4-1: the grip is a bigger target, the block and its outline are 
   ok('…it stands flush with the line’s outline (no gap between the outline and the grip)', !!gp && Math.abs(gp.left + gp.width - (l.x - 4)) <= 3, JSON.stringify([gp, l]));
   await page.mouse.move(gp.left + 12, gp.top + 12, { steps: 3 }); await page.waitForTimeout(300);
   const sh = await page.frameLocator('#sheet iframe').locator('.rb-hot').first().boundingBox({ timeout: 300 }).catch(() => null);
-  const pl = await page.evaluate(() => { const w = window.__wb, p = w.sheet.plates().find(q => q.role === 'hot'); if (!p) return null; const r = w.canvas.screenRect(p.div.getBoundingClientRect()), lw = parseFloat(getComputedStyle(p.div).outlineWidth) * w.canvas.cam.k; return { left: r.left, top: r.top - lw }; });      // the plate as drawn (UX-6f 4c: its stand-off up and down fitted to the lines around it)
-  ok('on the grip, the line keeps its plate and the grip is its left tab (inside the plate on its left side, same top: direct editing C)', !!sh && !!pl && Math.abs(pl.left - gp.left) <= 3 && Math.abs(pl.top - gp.top) <= 3 && sh.x + sh.width >= l.x + l.width - 1 && sh.y <= l.y + 1 && sh.y + sh.height >= l.y + l.height - 1, JSON.stringify([sh, gp, l, pl]));
+  const pl = await page.evaluate(() => { const w = window.__wb, p = w.sheet.plates().find(q => q.role === 'hot'); if (!p) return null; const r = w.canvas.screenRect(p.div.getBoundingClientRect()), lw = parseFloat(getComputedStyle(p.div).outlineWidth) * w.canvas.cam.k; return { left: r.left, top: r.top - lw }; });      // the plate as drawn (its stand-off up and down fitted to the lines around it)
+  ok('on the grip, the line keeps its plate and the grip is its left tab (inside the plate on its left side, same top)', !!sh && !!pl && Math.abs(pl.left - gp.left) <= 3 && Math.abs(pl.top - gp.top) <= 3 && sh.x + sh.width >= l.x + l.width - 1 && sh.y <= l.y + 1 && sh.y + sh.height >= l.y + l.height - 1, JSON.stringify([sh, gp, l, pl]));
   // pressing on the text: 3 px is still a click, 6 px is a drag
   await page.mouse.move(4, 4); await page.waitForTimeout(500);
   const dragged = async (dx, dy, from = { x: l.x + 60, y: l.y + 6 }) => {
@@ -6947,7 +6947,7 @@ if (want('ux6f s4-1: the grip is a bigger target, the block and its outline are 
   await ctx.close();
 }
 
-if (want('ux6f s4-2: a lifted block stays inside its container and latches to its places')) {
+if (want('a lifted block stays inside its container and latches to its places')) {
   const ctx = await newContext({ viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page, '?memory&drag=free');      // (the free drag's mechanics, kept behind the review flag ?drag=free; the default snap is direct-c-check snap)
@@ -7017,14 +7017,14 @@ if (want('ux6f s4-2: a lifted block stays inside its container and latches to it
   await ctx.close();
 }
 
-if (want('ux6f s4-3: a drop is animated: the block travels to its place, nothing is redrawn under it')) for (const motion of [true, false]) {
+if (want('a drop is animated: the block travels to its place, nothing is redrawn under it')) for (const motion of [true, false]) {
   const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page, '?memory&drag=free');      // (the landing from where the pointer had it: the free drag's, behind the review flag; a snapped block lands from its place, its lag at most)
   await openByName(page, 'Medtech');
   const w = motion ? 'with motion' : 'reduced motion';
   const fr = page.frameLocator('#sheet iframe');
-  const grab = () => page.evaluate(() => { const g = [...document.querySelectorAll('#handlay .obgrip')].find(e => !e.hidden); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 12) }; });      // (taken by its top: the grip runs its plate's height, UX-6f 4c)
+  const grab = () => page.evaluate(() => { const g = [...document.querySelectorAll('#handlay .obgrip')].find(e => !e.hidden); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 12) }; });      // (taken by its top: the grip runs its plate's height)
   const toHome = async () => { await page.waitForTimeout(350); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.mouse.move(4, 4); await settle(page); };      // (a click within 250 ms of a drag is not a click)
   // sample the page every frame from just before the release: the lifted block (found again by what it prints, since a redraw would give a new element), the others, the undo count
   const rec = () => page.evaluate(() => {
@@ -7053,7 +7053,7 @@ if (want('ux6f s4-3: a drop is animated: the block travels to its place, nothing
     await page.mouse.move(g.x, g.y); await page.mouse.down();
     if (motion) await page.evaluate(() => { const doc = document.querySelector('#sheet iframe').contentDocument; window.__shr = []; window.__rd = []; const t0 = performance.now(), step = () => { const e = doc.querySelector('.rb-lift'); if (e) window.__rd.push(...e.getAnimations().filter(a => !a.transitionProperty).map(a => a.effect.getTiming().duration)); if (e) window.__shr.push((s => Math.max(0, ...[...s.matchAll(/(-?[\d.]+)px (-?[\d.]+)px/g)].map(m => parseFloat(m[1]))))(doc.defaultView.getComputedStyle(e).boxShadow)); if (performance.now() - t0 < 600) requestAnimationFrame(step); }; requestAnimationFrame(step); });
     await page.mouse.move(pointer.x, pointer.y, { steps: 10 }); await page.waitForTimeout(250);
-    if (motion){ const shr = await page.evaluate(() => window.__shr); ok(`${w}: ${name}: it rises with its shadow when lifted: the shadow grows from nothing to its full size, never shrinking again`, shr.length >= 3 && shr[0] < 2.5 && shr.at(-1) >= 2.9 &&      /* (--plate-lift 3px 4px since direct editing C) */ shr.every((v, i) => i === 0 || v >= shr[i - 1] - 0.2), JSON.stringify(shr.slice(0, 14).map(v => Math.round(v * 10) / 10))); }
+    if (motion){ const shr = await page.evaluate(() => window.__shr); ok(`${w}: ${name}: it rises with its shadow when lifted: the shadow grows from nothing to its full size, never shrinking again`, shr.length >= 3 && shr[0] < 2.5 && shr.at(-1) >= 2.9 &&      /* (--plate-lift 3px 4px) */ shr.every((v, i) => i === 0 || v >= shr[i - 1] - 0.2), JSON.stringify(shr.slice(0, 14).map(v => Math.round(v * 10) / 10))); }
     if (motion){ const rd = await page.evaluate(() => window.__rd); ok(`${w}: ${name}: the rise matches the landing: the shortest of it (120 ms)`, rd.length > 0 && rd.every(v => v >= 120 && v <= 125), JSON.stringify(rd.slice(0, 6))); }
     ok(`${w}: ${name}: lifted while dragged`, await rec());
     await page.mouse.up(); await page.waitForTimeout(700);
@@ -7159,14 +7159,14 @@ if (want('ux6f s4-3: a drop is animated: the block travels to its place, nothing
   await ctx.close();
 }
 
-if (want('ux6f s4-4: the "+" stands at the bottom and centre of its block and stays while the pointer goes to it')) {
+if (want('the "+" stands at the bottom and centre of its block and stays while the pointer goes to it')) {
   const ctx = await newContext({ motion: true, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page);
   await openByName(page, 'Medtech');
   const li = n => frameBox(page, '.entry:first-child .bullets li', n);
   const last = await li(6), first = await li(0), title = await frameBox(page, '.entry .role-title', 1);
-  await page.mouse.move(last.x + 16, last.y + 4, { steps: 3 }); await settle(page);      // (near its left side: the grip shows there, direct editing C)
+  await page.mouse.move(last.x + 16, last.y + 4, { steps: 3 }); await settle(page);      // (near its left side: the grip shows there)
   const h = await hands(page), pl = h.plus, gp = h.grip;
   const cx = pl.left + pl.width / 2, mid = last.x + last.width / 2;
   ok('the "+" is under the job’s last line, at the bottom of the block (its top within 6 px of the line’s bottom)', pl.top >= last.y + last.height && pl.top <= last.y + last.height + 6, JSON.stringify([pl, last]));
@@ -7212,8 +7212,8 @@ if (want('ux6f s4-4: the "+" stands at the bottom and centre of its block and st
   await ctx2.close();
 }
 
-// ---- UX-6f stage 4b: quicker drags ----
-if (want('ux6f s4b-3: a neighbour takes the slot at 30% of its height, not at its midpoint, for every kind that drags')) {
+// ---- quicker drags ----
+if (want('a neighbour takes the slot at 30% of its height, not at its midpoint, for every kind that drags')) {
   const ctx = await newContext({ motion: true, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page, '?memory&drag=free');      // (the 30% rule is the free drag's, behind the review flag; the snap pops at halfway: direct-c-check snap)
@@ -7221,7 +7221,7 @@ if (want('ux6f s4b-3: a neighbour takes the slot at 30% of its height, not at it
   const fr = page.frameLocator('#sheet iframe');
   const setSwap = v => page.evaluate(x => { const f = window.__wb.hands.feel; if (f) f.SWAP = x; return f?.SWAP; }, v);
   ok('the swap point is a constant on window.__wb.hands.feel, 0.3', (await setSwap(.3)) === .3);
-  const grab = () => page.evaluate(() => { const g = [...document.querySelectorAll('#handlay .obgrip')].find(e => !e.hidden); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 12) }; });      // (taken by its top: the grip runs its plate's height, UX-6f 4c)
+  const grab = () => page.evaluate(() => { const g = [...document.querySelectorAll('#handlay .obgrip')].find(e => !e.hidden); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 12) }; });      // (taken by its top: the grip runs its plate's height)
   const toHome = async () => { await page.waitForTimeout(350); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.mouse.move(4, 4); await settle(page); };
   const union = async sel => { const bs = await Promise.all((await fr.locator(sel).all()).map(l => l.boundingBox())); const x = Math.min(...bs.map(b => b.x)), y = Math.min(...bs.map(b => b.y)); return { x, y, width: Math.max(...bs.map(b => b.x + b.width)) - x, height: Math.max(...bs.map(b => b.y + b.height)) - y }; };
   const seen = [];      // the pop's time: every animation that is not a transition, as it runs
@@ -7283,7 +7283,7 @@ if (want('ux6f s4b-3: a neighbour takes the slot at 30% of its height, not at it
   await ctx.close();
 }
 
-if (want('ux6f s4b-4: the bumper replaces the text popup: (?drag=free) the block resists at the edge of its places, squashes, and no rail is drawn')) for (const motion of [true, false]) {
+if (want('the bumper replaces the text popup: (?drag=free) the block resists at the edge of its places, squashes, and no rail is drawn')) for (const motion of [true, false]) {
   const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page, '?memory&drag=free');      // (the bumper is the free drag's, kept behind the review flag; the default snaps: direct-c-check snap)
@@ -7291,8 +7291,8 @@ if (want('ux6f s4b-4: the bumper replaces the text popup: (?drag=free) the block
   const w = motion ? 'with motion' : 'reduced motion';
   const fr = page.frameLocator('#sheet iframe');
   const k = await page.evaluate(() => window.__wb.canvas.cam.k);
-  const grab = () => page.evaluate(() => { const g = [...document.querySelectorAll('#handlay .obgrip')].find(e => !e.hidden); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 12) }; });      // (taken by its top: the grip runs its plate's height, UX-6f 4c)
-  // the rail over the page is the frame's (under the lifted block, UX-6f 4c), in screen px here; over the sidebar it is the app's
+  const grab = () => page.evaluate(() => { const g = [...document.querySelectorAll('#handlay .obgrip')].find(e => !e.hidden); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 12) }; });      // (taken by its top: the grip runs its plate's height)
+  // the rail over the page is the frame's (under the lifted block), in screen px here; over the sidebar it is the app's
   const rail = () => page.evaluate(() => { const f = document.querySelector('#sheet iframe')?.contentDocument?.querySelector('body > .rb-rail'), a = document.querySelector('#handlay .obrail'), r = f ?? (a && !a.hidden ? a : null); if (!r) return null; const q = r.getBoundingClientRect(), b = f ? window.__wb.canvas.screenRect({ left: q.left, top: q.top, width: q.width, height: q.height }) : { left: q.left, top: q.top, width: q.width, height: q.height }; return { left: b.left, top: b.top, right: b.left + b.width, bottom: b.top + b.height, edges: ['top', 'bottom', 'left', 'right'].filter(e => r.classList.contains(`is-${e}`)) }; });
   const scaleY = () => frameDoc(page, d => { const e = d.querySelector('.rb-lift'); return e ? new DOMMatrix(d.defaultView.getComputedStyle(e).transform).d : null; });
   const toHome = async () => { await page.waitForTimeout(350); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.mouse.move(4, 4); await settle(page); };
@@ -7312,7 +7312,7 @@ if (want('ux6f s4b-4: the bumper replaces the text popup: (?drag=free) the block
     const lb = await fr.locator('.rb-lift').first().boundingBox(), rl = await rail(), h = await hands(page);
     R.push({ D, over: Math.round((B.top - lb.y) * 10) / 10, sy: Math.round((await scaleY()) * 1000) / 1000, rail: rl && { edges: rl.edges, around: rl.left <= B.left + 1 && rl.top <= B.top - 1 && rl.bottom >= B.bottom - 1 }, tip: h.tip });
   }
-  const reach = 12 * k,      // (FEEL.REACH, 12 page px since direct editing C)
+  const reach = 12 * k,      // (FEEL.REACH, 12 page px)
   want_ = D => Math.min(D / 3, reach);
   if (motion){
     ok(`${w}: at the edge the block is on it; past it, it follows the pointer at a third of the distance, never more than 12 page px (${Math.round(reach)} px here)`, Math.abs(R[0].over) <= 2.5 && R.slice(1).every(q => Math.abs(q.over - want_(q.D)) <= 3), JSON.stringify(R.map(q => [q.D, q.over, Math.round(want_(q.D))])));
@@ -7320,7 +7320,7 @@ if (want('ux6f s4b-4: the bumper replaces the text popup: (?drag=free) the block
   } else {
     ok(`${w}: the block stops at the edge: no overshoot and no squash`, R.every(q => Math.abs(q.over) <= 2.5 && q.sy === 1), JSON.stringify(R.map(q => [q.D, q.over, q.sy])));
   }
-  ok(`${w}: no rail and no edge is drawn round the container (direct editing C: shaded places only)`, R.every(q => !q.rail), JSON.stringify(R.map(q => q.rail)));
+  ok(`${w}: no rail and no edge is drawn round the container (shaded places only)`, R.every(q => !q.rail), JSON.stringify(R.map(q => q.rail)));
   ok(`${w}: no text popup anywhere in it`, R.every(q => q.tip === ''));
   // let go of it there: it comes back (the squash restoring with it), nothing is lifted or transformed afterwards
   if (motion){
@@ -7351,14 +7351,14 @@ if (want('ux6f s4b-4: the bumper replaces the text popup: (?drag=free) the block
   await ctx.close();
 }
 
-if (want('ux6f s4b-5: a large block collapses in place: the others stay in view, the slot is found on the collapsed layout, the card opens into the block where it lands')) for (const motion of [true, false]) {
+if (want('a large block collapses in place: the others stay in view, the slot is found on the collapsed layout, the card opens into the block where it lands')) for (const motion of [true, false]) {
   const ctx = await newContext({ motion, viewport: { width: 1470, height: 832 } });
   const page = await ctx.newPage();
   const bad = await open(page);
   await openByName(page, 'Medtech');
   const w = motion ? 'with motion' : 'reduced motion';
   const fr = page.frameLocator('#sheet iframe');
-  const grab = () => page.evaluate(() => { const g = [...document.querySelectorAll('#handlay .obgrip')].find(e => !e.hidden); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 12) }; });      // (taken by its top: the grip runs its plate's height, UX-6f 4c)
+  const grab = () => page.evaluate(() => { const g = [...document.querySelectorAll('#handlay .obgrip')].find(e => !e.hidden); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 12) }; });      // (taken by its top: the grip runs its plate's height)
   const toHome = async () => { await page.waitForTimeout(350); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.mouse.move(4, 4); await settle(page); };
   const setSwap = v => page.evaluate(x => { const f = window.__wb.hands.feel; if (f) f.SWAP = x; return f?.SWAP; }, v);
   const state = () => frameDoc(page, d => ({ lift: d.querySelectorAll('.rb-lift').length, fold: d.querySelectorAll('.rb-fold').length, card: d.querySelectorAll('.rb-card').length, socket: d.querySelectorAll('.rb-socket').length, moved: d.querySelectorAll('[style*="transform"]').length }));
@@ -7441,7 +7441,7 @@ if (want('ux6f s4b-5: a large block collapses in place: the others stay in view,
   await ctx.close();
 }
 
-if (want('ux6f s5-4: landmarks')) {
+if (want('landmarks: the depth nav on the page and the one in the card have different names')) {
   // axe's landmark-unique without axe: the chip on the page and the editor card both draw the depth nav, and two navs with one name fail it
   const ctx = await newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
@@ -7453,7 +7453,7 @@ if (want('ux6f s5-4: landmarks')) {
   await ctx.close();
 }
 
-if (want('ux6f s5-6: native controls')) for (const [drink, theme] of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']]) {
+if (want('native controls: every select, date and colour is the app’s own')) for (const [drink, theme] of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']]) {
   // a browser's own select list, date and month popup, colour picker and datalist cannot take the drink's tokens: every select is the app's own menu, a date is the
   // app's own picker, the colour is a hex field, the suggestions are the app's own card (checks/native-check.mjs lists what native control is left)
   const ctx = await newContext({ viewport: { width: 1440, height: 900 }, colorScheme: theme });
@@ -7540,7 +7540,7 @@ if (want('ux6f s5-6: native controls')) for (const [drink, theme] of [['tea', 'l
   await ctx.close();
 }
 
-if (want('ux6f s5-7: the start screen has one banner')) {
+if (want('the start screen has one banner')) {
   // axe's landmark-banner-is-top-level and landmark-no-duplicate-banner without axe: the sample pages the story draws are pictures, so their heading block is
   // not a <header> banner; a header is a banner only when it is not marked presentational, and the page has at most one
   const ctx = await newContext({ viewport: { width: 1440, height: 900 } });
@@ -7555,7 +7555,7 @@ if (want('ux6f s5-7: the start screen has one banner')) {
   await ctx.close();
 }
 
-// the four major warnings the Export dialog holds back, each with how to build it, where its Fix lands and how to mend it (UX-6f 5.8 one at a time, 5.9 several)
+// the four major warnings the Export dialog holds back, each with how to build it, where its Fix lands and how to mend it (one at a time, then several)
 const majorCases = {
   overflow: {
     build: async page => page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => { d.cur.pageLimit = 2; for (const w of d.record.work ?? []) for (const id of w.highlights ?? []) { try { T.setBulletOn(d.record, d.cur, id, true); if (id === window.__fix || id === window.__dfix) continue; T.setOverride(d.record, d.cur, id, 'Long line of words. '.repeat(14), { marks: [], base: null }); } catch { /* a line that cannot be on */ } } }, 'smoke: too much for two pages'); }),
@@ -7587,7 +7587,7 @@ const majorCases = {
   },
 };
 
-if (want('ux6f s5-8: Fix goes to the problem')) {
+if (want('Export’s Fix goes to the problem')) {
   // Export holds back a major warning behind a dialog: Fix leaves Export and lands on the thing (selected, its panel open, the keyboard on it), Dismiss exports as it is,
   // and once the problem is mended a second Export goes straight through. One case for each major kind.
   for (const [name, c] of Object.entries(majorCases)){
@@ -7625,7 +7625,7 @@ if (want('ux6f s5-8: Fix goes to the problem')) {
   await pctx.close();
 }
 
-if (want('ux6f s5-9: several major warnings')) {
+if (want('Export holds back several major warnings')) {
   // More than one major warning: ONE dialog lists them all in the pre-flight order, each with its own Fix (which lands on its own problem), "Export anyway" exports as it is,
   // and a later Export lists only what is still major. Built with 2, 3 and all 4 at once.
   const ORDER = ['overflow', 'photo', 'placeholder', 'draft'];

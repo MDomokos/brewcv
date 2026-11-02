@@ -190,8 +190,8 @@ function fieldName(ed){
 const lineName = id => (id.startsWith('~g:') ? T.labelNow(rec(), cur(), id, lang()) : id.startsWith('~t:') ? T.labelNow(rec(), cur(), id, lang()) : '') || (ix().skillGroups.has(id) ? T.printedLabel(rec(), cur(), `~g:${id}`) : '')
   || ix().facts.get(id)?.summary || C.textOfFact(id) || (T.isLocal(cur(), id) ? t('ux6c.newLine') : id);
 
-// One depth indicator (UX-6c): the levels of what is selected, from the page down. The chip on the page and the row at the top of
-// the editor card are one component (parts.js depthHtml, UX-6f 4c): general, in single words (Page › Experience › Hydra, Page › Skills › CAD, no
+// One depth indicator: the levels of what is selected, from the page down. The chip on the page and the row at the top of
+// the editor card are one component (parts.js depthHtml): general, in single words (Page › Experience › Hydra, Page › Skills › CAD, no
 // line level); the card's title under it names the content in full. A level with deeper ones carries them (`kids`, the Outline's rows) and the one
 // the selection came through (`came`): its list goes deeper or sideways, its word goes up.
 function depth(sel = C.ui.sel){
@@ -221,7 +221,7 @@ const depthHtml = (sel = C.ui.sel, { page = false } = {}) => depthMarkup(depth(s
 const isAbove = (to, from) => { try { const a = depth(to), b = depth(from), k = l => `${l.act}|${l.attrs ?? ''}`; return (a.length < b.length || (to.kind === 'job' && from.kind === 'bullet')) && a.every((l, i) => k(l) === k(b[i])); } catch { return false; } };
 const backOf = () => { const b = C.ui.back; if (!b) return null; try { return { word: depth(b.sel).at(-1).word }; } catch { return null; } };
 
-// ---- the lock (UX-6c-iii-b) ----
+// ---- the lock ----
 // the id the padlock holds for a selection: the block the chip names (a heading is its own block)
 function lockIdOf(sel = C.ui.sel){
   switch (sel.kind){
@@ -295,7 +295,7 @@ function lockToggle(id){
   C.say(on ? t('ux6c.nowLocked', { name }) : t('ux6c.nowUnlocked', { name }));
   lockMotion(id, on ? 'lock' : 'unlock');
 }
-// Round 2 (item 17), and after round 3: no sentence explains a lock, the lock itself answers. Every padlock of a block on screen (the Outline's row, the
+// No sentence explains a lock, the lock itself answers. Every padlock of a block on screen (the Outline's row, the
 // page chip, the depth row, the page lock), once the redraw is in: locking drops the shackle in and sends a ring out, unlocking lifts it; a click on locked or guarded
 // text wobbles the lock, sends a ring out of it and flashes the block's plate once in the lock's accent (the live region keeps the sentence). A short "Locked" toast
 // only where no lock is on screen to move. Nothing moves under reduced motion.
@@ -463,7 +463,7 @@ function pendOf(id, L, ed){
   const free = !isLockedId(id) && C.pendingHtml && C.canPend(id);
   return { n: R.suggestNumber(work(), id, over, L).n, html: free ? C.pendingHtml(id) : '' };
 }
-// …and the line's earlier edits (UX-6f), each its own pending row, oldest first
+// …and the line's earlier edits, each its own pending row, oldest first
 function earlierRows(id, L, ed){
   if (ed || T.isLocal(cur(), id) || !ix().facts.has(id)) return [];
   const free = !isLockedId(id) && C.pendingHtml;
@@ -519,7 +519,7 @@ async function addLine(jobId, afterId = undefined){
   return true;
 }
 
-// UX-6f: the name, the date lines and the contact line are guarded against a stray click (a per-session guard, not recipe.locked: it is not saved,
+// the name, the date lines and the contact line are guarded against a stray click (a per-session guard, not recipe.locked: it is not saved,
 // asks for no migration of the saved resumes and does not hold the line against the Career forms). The first click or Enter selects the line and
 // shows a small lock (it turns in); a second click, Enter, or the lock itself opens it for writing, until the selection moves to another line.
 const guarded = id => E.guardOn && (id === 'name' || id === 'contact' || /-(meta|position)$/.test(id));
@@ -794,7 +794,7 @@ async function act(a, tg){
     case 'delete-claim': {
       const id = s.id, name = ix().facts.get(id)?.summary ?? id;
       if (!id || !isClaim(id)) return true;
-      // a claim with more than one version asks first, in place (UX-6 round 2: two steps for a delete that takes more than one thing)
+      // a claim with more than one version asks first, in place (two steps for a delete that takes more than one thing)
       if (versionCount(id) > 1 && !tg.dataset.sure){ E.delAsk = id; C.renderBody(); setTimeout(() => document.querySelector('#body .delask [data-act=delete-claim]')?.focus(), 0); return true; }
       E.delAsk = null;
       const job = ix().highlight.get(id);
@@ -1103,7 +1103,7 @@ function lockPass(){
   const body = $('#body');
   if (!body || C.ui.snap) return;
   const rec_ = !C.ui.view;      // the Outline's rows are in the Edit view only; the Record view's own fields are held below
-  const why = t('uxr.locked');      // a short word, not a sentence (round 2)
+  const why = t('uxr.locked');      // a short word, not a sentence
   const off = (el, tip = why) => {
     if (el.matches('input, select, textarea, button')) el.disabled = true;
     else { el.removeAttribute('data-act'); el.removeAttribute('data-v'); el.removeAttribute('tabindex'); el.setAttribute('aria-disabled', 'true'); }

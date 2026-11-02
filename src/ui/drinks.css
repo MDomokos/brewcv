@@ -84,7 +84,7 @@ html[data-drink="coffee"] .clv { color: var(--ink-soft); }
 html[data-drink="coffee"] .obtools { font-family: var(--font-mono); }
 
 /* ---------- checkboxes: plain, with a visible edge; amber in tea, ink in coffee ---------- */
-/* every show/hide and plain on/off in the app is this tick (.sw, and .pillsw drawn inside a button), with the tertiary press (UX-6 sidebar) */
+/* every show/hide and plain on/off in the app is this tick (.sw, and .pillsw drawn inside a button), with the tertiary press */
 :is(.cb, .sw, .pillsw) {
   -webkit-appearance: none; appearance: none; width: 17px; height: 17px; margin: 0; display: inline-grid; place-content: center; cursor: pointer;
   border-radius: var(--r-xs); border: 1.5px solid var(--line-strong); background: var(--input);
@@ -255,7 +255,7 @@ html[data-drink="tea"] .vrow.cur .n { color: var(--ink); }      /* the ring and 
 html[data-drink="tea"] { --mat-lit: var(--paper); }
 html[data-drink="tea"][data-theme="dark"] { --mat-lit: color-mix(in srgb, var(--accent) 50%, var(--mat-b)); }
 
-/* ---------- the logo is the switch; the mat rolls up and unrolls (src/ui/matroll.js, UX-4) ---------- */
+/* ---------- the logo is the switch; the mat rolls up and unrolls (src/ui/matroll.js) ---------- */
 button.logoswitch { background: transparent; border: 0; padding: 0; margin: 0; color: inherit; line-height: 0; border-radius: var(--r-s); cursor: pointer; }
 button.logoswitch:hover:not(:disabled) { border: 0; }
 button.logoswitch:active:not(:disabled) { transform: none; }
@@ -302,7 +302,7 @@ html[data-motion="reduce"] button.logoswitch:hover img { transform: none; }
       color-mix(in srgb, var(--mr-mat-b, var(--mat-b)) 45%, var(--l)) 68% 84%,
       color-mix(in srgb, var(--mr-mat-c, var(--mat-c)) 78%, var(--l)) 84%); }
 
-/* ---------- exports: a scroll of the bamboo mat in tea, a till receipt in coffee (src/ui/exportfx.js, UX-4) ---------- */
+/* ---------- exports: a scroll of the bamboo mat in tea, a till receipt in coffee (src/ui/exportfx.js) ---------- */
 .mo-mat { position: fixed; pointer-events: none; border-radius: 2px;
   background:
     linear-gradient(var(--mat-wash), var(--mat-wash)),

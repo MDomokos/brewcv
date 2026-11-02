@@ -1,4 +1,4 @@
-// A month and year picker, and a day picker, in the app's own menu (UX-6f), because the browser's own month and date popups cannot be themed. A
+// A month and year picker, and a day picker, in the app's own menu, because the browser's own month and date popups cannot be themed. A
 // field is a button that shows the date; the value lives in a hidden input with the field's id, so the forms read it as they read any field. The
 // month menu is a year with ‹ ›, twelve months, and Present (an open end) or No date; the day menu is a month with ‹ ›, its days, and Today. The
 // value is written as YYYY-MM or YYYY-MM-DD and checked against the JSON Resume date pattern (isIsoDate); an empty value is an open end or no date.

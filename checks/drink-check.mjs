@@ -54,7 +54,7 @@ for (const [name, blk] of [['tea', B.teaLight], ['coffee', B.coffeeLight]]){
 const shared = ['--r-xs', '--r-s', '--r-m', '--r-l', '--r-pill', '--r-round', '--r-panel'];
 ok('tea: the panel is 24px', B.root['--r-panel'] === '24px');
 ok('coffee: 2px corners on everything', shared.every(k => B.coffeeLight[k] === '2px'));
-// the press (UX-6f): one class in three tiers; each drink and theme has its own edge and shadow colour, the geometry is shared, the tertiary tier does not lift
+// the press: one class in three tiers; each drink and theme has its own edge and shadow colour, the geometry is shared, the tertiary tier does not lift
 ok('the press: an edge and a shadow colour in all four drink blocks, the three tiers\' travel in :root, the tertiary tier lifts nothing, one class', [B.teaLight, B.teaDark, B.coffeeLight, B.coffeeDark].every(b => b['--press-edge'] && b['--press-sh'])
   && ['p', 's', 't'].every(k => ['x', 'y', 'lift', 'travel'].every(n => B.root[`--press-${k}-${n}`])) && B.root['--press-t-lift'] === '0px' && /\n\.press \{/.test(strip(wb)) && /\.press\[data-tier=primary\]/.test(strip(wb)) && fs.existsSync(path.join(ROOT, 'src/ui/press.js')));
 ok('coffee: no shadows', ['--shadow-panel', '--shadow-lift', '--shadow-chip', '--shadow-toast', '--page-shadow', '--drop-sm'].every(k => B.coffeeLight[k] === 'none'));
@@ -123,7 +123,7 @@ for (const drink of ['tea', 'coffee']) for (const mode of ['light', 'dark']){
   const bad = hits.filter(x => !(x.r >= x.min));
   ok(`${drink} ${mode}: ${hits.length} pairs, text at 4.5:1 and edges, focus and marks at 3:1`, !bad.length, bad.map(x => `${x.fg} on ${x.bg} ${Number.isNaN(x.r) ? '?' : x.r.toFixed(2)} (< ${x.min})`).join('; '));
 }
-// ---- UX-5c: the four other teas (Edit is --surface, today's matcha), light and dark: cream ink on every one, the amber labels on the sheet,
+// ---- the four other teas (Edit is --surface, today's matcha), light and dark: cream ink on every one, the amber labels on the sheet,
 // the edge of a control, and each tea's icon on the cream of a closed tab ----
 for (const mode of ['light', 'dark']){
   const T = tokens('tea', mode === 'dark');
@@ -146,7 +146,7 @@ for (const mode of ['light', 'dark']){
   const L = tokens('tea', false), D = tokens('tea', true);
   const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 1);
   ok('the dark teas are the light ones darkened to 82 percent (the way the matcha is: #2E4636 → #26392d)', ['outline', 'design', 'export', 'record'].every(n => near(hex(D[`--tea-${n}`]), dk(L[`--tea-${n}`], 0.82))) && near(hex(D['--surface']), dk(L['--surface'], 0.82)));
-  ok('the teas are the plan\'s: oolong #4d3d1e, rooibos #5c2b22, earl grey #2c3a4f, pu-erh #3b2723, and Edit\'s matcha #2E4636', L['--tea-outline'] === '#4d3d1e' && L['--tea-design'] === '#5c2b22' && L['--tea-export'] === '#2c3a4f' && L['--tea-record'] === '#3b2723' && L['--surface'].toLowerCase() === '#2e4636');
+  ok('the teas are: oolong #4d3d1e, rooibos #5c2b22, earl grey #2c3a4f, pu-erh #3b2723, and Edit\'s matcha #2E4636', L['--tea-outline'] === '#4d3d1e' && L['--tea-design'] === '#5c2b22' && L['--tea-export'] === '#2c3a4f' && L['--tea-record'] === '#3b2723' && L['--surface'].toLowerCase() === '#2e4636');
   ok('coffee has no per-tab colours: its tab cards are its own surface, ink and hairline', ['coffeeLight', 'coffeeDark'].every(b => B[b]['--tab-bg'] === 'var(--surface)' && B[b]['--tab-ink'] === 'var(--ink)'));
 }
 

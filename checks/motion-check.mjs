@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/motion-check.mjs
-// UX-4, motion that explains: the rules every moment follows, checked in Node. The moments themselves (what each one starts, that
+// motion that explains: the rules every moment follows, checked in Node. The moments themselves (what each one starts, that
 // nothing starts under reduced motion, that the page that prints is the same) are in checks/smoke-shell.mjs, the "motion:" section.
 //   - the tokens: 150 to 400 ms, an ease-out for arriving and an ease-in for leaving, on :root, tuned in one place
 //   - one rule for reduced motion (the system's, and the Reduce motion setting), and nothing else asks the system on its own
@@ -40,11 +40,11 @@ section('reduced motion: one rule');
   ok('motion.js sets it from the system’s wish and from the setting', /prefers-reduced-motion: reduce/.test(src['motion.js']) && /rb-reduce-motion/.test(src['motion.js']) && /setAttribute\('data-motion'/.test(src['motion.js']));
   const own = UI.filter(f => f !== 'motion.js' && /matchMedia\(['"]\(prefers-reduced-motion/.test(src[f]));
   ok('nothing else in src/ui asks the system on its own (the canvas, the Record tab, the start screen and the garden all ask motion.js)', !own.length, own.join());
-  ok('the canvas takes its ease from --m-travel and the shared rule (write mode zoom in and out, UX-3)', /dur\('travel'\)/.test(src['canvas.js']) && /from '\.\/motion\.js'/.test(src['canvas.js']) && !/EASE_MS/.test(src['canvas.js']));
+  ok('the canvas takes its ease from --m-travel and the shared rule (write mode zoom in and out)', /dur\('travel'\)/.test(src['canvas.js']) && /from '\.\/motion\.js'/.test(src['canvas.js']) && !/EASE_MS/.test(src['canvas.js']));
   ok('the page’s frame follows it too (sheet.js copies the tokens and the rule across)', /rb-still/.test(src['sheet.js']) && /--rb-m-base/.test(src['sheet.js']));
   ok('the Reduce motion setting is in Settings, per browser', /data-reduce-motion/.test(src['settings.js']) && /setReduce/.test(src['settings.js']));
   const cssFiles = ['workbench.css', 'drinks.css', 'start.css', 'intro-side.css', 'flow.css', 'sidebar.css', 'buttons.css'].map(f => read(`src/ui/${f}`)).join('\n');
-  ok('the CSS animations of UX-4 (the overflow edge, the roll, the logo) are inside the blanket rule, none opts out of it', !/data-motion="full"/.test(cssFiles) && /ovIn/.test(cssFiles));
+  ok('the CSS animations (the overflow edge, the roll, the logo) are inside the blanket rule, none opts out of it', !/data-motion="full"/.test(cssFiles) && /ovIn/.test(cssFiles));
 }
 
 section('never blocks, nothing left behind');
@@ -102,7 +102,7 @@ section('the thirteen moments are wired');
     [13, 'An export has a picture in each drink', has('exportfx.js', /async function tea/) && has('exportfx.js', /async function coffee/) && has('export.js', /exportFx/)],
   ];
   for (const [n, name, pass] of rows) ok(`${n}. ${name}`, !!pass);
-  ok('no moment starts a loop: an animation is played once (iterations are never set)', !/iterations|infinite/.test(MOMENTS.map(f => src[f]).join('\n') + css.slice(css.indexOf('UX-4'))));
+  ok('no moment starts a loop: an animation is played once (iterations are never set)', !/iterations|infinite/.test(MOMENTS.map(f => src[f]).join('\n') + css.slice(css.indexOf('/* motion, for the moments'))));
   ok('the new modules are preloaded and cached', MOMENTS.every(f => read('index.html').includes(`src/ui/${f}`) && read('sw.js').includes(`./src/ui/${f}`)));
   void all;
 }

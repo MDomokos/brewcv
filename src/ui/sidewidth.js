@@ -1,4 +1,4 @@
-// The sidebar's width (UX-6 sidebar, item 4). A handle on its inner edge widens it on a big screen (pointer, or ← → on the focused handle, Shift for
+// The sidebar's width. A handle on its inner edge widens it on a big screen (pointer, or ← → on the focused handle, Shift for
 // bigger steps, Home and End for the narrowest and widest); a double-click on it, or Enter, gives back the width the window would choose. Ctrl+\ (⌘\)
 // or the rail's chevron folds it to the rail, and the page takes the width; the key, the chevron, a mode tab or the handle bring it back. Remembered
 // per browser. The page refits by the camera's own rule (computeLayout, canvas.layout); a selection never changes the width, so the page's x moves

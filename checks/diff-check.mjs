@@ -220,7 +220,7 @@ section('how another copy’s jobs and wordings are matched and numbered');
   oj.location = ''; oj.endDate = null;
   ok('a detail the other copy leaves empty is no difference', run(A, other).every(x => !/Hydra/.test(x.what) || x.kind === 'keep'));
 
-  // the same organisation by its name, whatever the case, punctuation or legal form (the spec's rule for entries)
+  // the same organisation by its name, whatever the case, punctuation or legal form
   const legal = clone(mine); legal.work.find(w => w.id === 'hydra').name = 'HYDRA MEDICAL, Inc.'; legal.work.find(w => w.id === 'hydra').id = 'hydra-other';
   ok('"HYDRA MEDICAL, Inc." is the job "Hydra Medical": no new job', run(mine, legal).every(x => x.what !== 'New job'), JSON.stringify(run(mine, legal).filter(x => x.kind === 'add').map(x => x.what)));
   legal.work.find(w => w.id === 'hydra-other').name = 'Hydra Systems GmbH';

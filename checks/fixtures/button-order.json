@@ -1,5 +1,5 @@
 {
- "about": "The order of related buttons (UX-6 sidebar round 2): affirm first, then the alternatives, then dismiss, then the destructive at the far end; a flow keeps its Back and Next. Each pair lists its members in order (a member is a selector) and the views of checks/button-check.mjs (section order) where it must be found; it is checked in every view it appears in. 'cancel' lists every Cancel: tertiary words, a link.",
+ "about": "The order of related buttons: affirm first, then the alternatives, then dismiss, then the destructive at the far end; a flow keeps its Back and Next. Each pair lists its members in order (a member is a selector) and the views of checks/button-check.mjs (section order) where it must be found; it is checked in every view it appears in. 'cancel' lists every Cancel: tertiary words, a link.",
  "pairs": [
   { "name": "Save, Save as, This only, Cancel", "order": ["[data-act=ed-save]", "[data-act=ed-saveas]", "[data-act=ed-only]", "[data-act=ed-cancel]"], "in": [] },
   { "name": "Fix, Dismiss", "order": ["[data-exb=fix]", "[data-exb=dismiss]"], "in": ["export dialog"] },

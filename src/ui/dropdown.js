@@ -1,4 +1,4 @@
-// The select, in the app's own menu (UX-6f). A native <select>'s open list cannot take the drink's tokens (the browser, or on a Mac the system,
+// The select, in the app's own menu. A native <select>'s open list cannot take the drink's tokens (the browser, or on a Mac the system,
 // draws it), so every select in the app is shown as a button that opens a listbox in the app's own card, in Tea and Coffee, light and dark.
 // The <select> stays in the page, hidden, and is still the field: forms read its value, the app listens for its `change`, a test can read its
 // options. A pick sets the select and fires `input` and `change` on it, so nothing that used a select needed to change. A select added to the

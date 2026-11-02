@@ -139,7 +139,7 @@ section('ten languages');
   ok('unticking one hides it and deletes nothing', eq(L.langsInUse(m), ['en', 'de']) && m.variants.some(v => v.lang === 'hu'));
   let threw = false; try { L.setLangsInUse(m, []); } catch { threw = true; }
   ok('at least one stays', threw && eq(L.langsInUse(m), ['en', 'de']));
-  // removing a language (UX-6c-iv-b): refused while a resume, a sent copy or a version uses it, with the reason; allowed when nothing does
+  // removing a language: refused while a resume, a sent copy or a version uses it, with the reason; allowed when nothing does
   const r = clone(model); r.langs = ['en', 'hu', 'de'];
   const state = { record: r, cur: { lang: 'en' }, openId: 'a', resumes: [{ id: 'a', lang: 'de' }, { id: 'b', lang: 'fr', snapshots: [{ recipe: { lang: 'de' } }] }] };
   const why = x => { try { L.removeLang(clone(state), x); return null; } catch (e) { return e.key ?? e.message; } };

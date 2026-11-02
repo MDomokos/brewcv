@@ -1,4 +1,4 @@
-// What an export looks like (UX-4): one for each drink, in its own style, played over the app after the download has started (the
+// What an export looks like: one for each drink, in its own style, played over the app after the download has started (the
 // export itself never waits for it).
 //   Tea:    the page is rolled up like the bamboo mat into a scroll, which is carried to the button, with a little steam.
 //   Coffee: a thin crema line reads the page from top to bottom, then a till receipt is printed under the button, line by line.

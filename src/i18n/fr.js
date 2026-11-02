@@ -975,7 +975,7 @@ export default {
   'save.folderOverwrite': 'Écraser',
   'save.folderSame': 'Le fichier du dossier est identique au vôtre.',
   'save.folderNone': 'Il n’y a aucun fichier lisible à comparer dans le dossier.',
-  // ux1: saving, snapshots, the switcher, fewer duplicates
+  // saving, snapshots, the switcher, fewer duplicates
   'ux1.savedDevice': 'Enregistré sur cet appareil',
   'ux1.saveFailed': 'Non enregistré sur cet appareil',
   'ux1.search': 'Rechercher un CV',
@@ -1047,7 +1047,7 @@ export default {
   'ux1.add': 'Ajouter',
   'ux1.addEnter': 'Entrée l’ajoute',
   'ux1.diffSnapshot': 'Instantané de {name}',
-  // UX-2: one screen
+  // one screen
   'ux2.modes': 'Ce que montre le panneau',
   'ux2.modeEdit': 'Modifier',
   'ux2.modeDesign': 'Style',
@@ -1492,7 +1492,7 @@ export default {
   'ux6f.exAnyway': 'Exporter quand même',
   'ux6f.k.find': 'Chercher dans les CV, Parcours et le CV ouvert',
   'ux6f.k.grip': 'Avec une poignée active : déplacer son bloc d’un cran. Échap repose un bloc soulevé',
-  // the sidebar's titled groups (UX-6 sidebar)
+  // the sidebar's titled groups
   'uxs.look': 'Apparence',
   'uxs.thisBrowser': 'ce navigateur',
   'uxs.everyResume': 'tous les CV',
@@ -1501,7 +1501,7 @@ export default {
   'uxr.locked': 'Verrouillé',
   'uxr.unlocked': 'Déverrouillé',
   'uxs.paperPages': 'Papier et pages',
-  // the sidebar's width control (UX-6 sidebar)
+  // the sidebar's width control
   'uxs.sideWidth': 'Largeur du panneau latéral',
   'uxs.sideTip': 'Faire glisser pour l’élargir ; double-clic pour la largeur de la fenêtre',
   'uxs.sideHide': 'Masquer le panneau latéral',
@@ -1512,7 +1512,7 @@ export default {
   'ux6g.exReady': 'Prêt à envoyer',
   'ux6g.tailor': 'Adapter à un type de poste…',
   'ux6g.tailorOn': 'Adapter : {name}',
-  // multilingual, step 2: the language copies on the page
+  // multilingual: the language copies on the page
   'ml2.tagMiss': 'Version {v}, écrite en {lang} seulement. Ouvrez la zone pour l’écrire ici.',
   'ml2.tagMissTip': 'Pas encore écrite ici : seulement en {lang}. Cliquez pour l’écrire.',
   'ml2.noVersionAt': '<b>Pas encore de v{n} en {lang}.</b> La page imprime celle en {from}, encadrée.',
@@ -1528,7 +1528,7 @@ export default {
   'ml2.alsoChanged': 'Modifié aussi en {lang}',
   'ml2.keepInStep': 'Garder en phase avec {name}',
   'ml2.keepInStepTip': 'L’ordre des lignes, les lignes masquées, le choix des versions et l’apparence changent alors dans les deux. Vos propres choix sont conservés.',
-  // ml3: headings and one-off texts changed in another language, matching an old version to a number
+  // headings and one-off texts changed in another language, matching an old version to a number
   'ml3.editedIn': '{n} modifié en {lang}, pas encore une version',
   'ml3.editedRow': 'Modifié en {lang}, pas encore une version',
   'ml3.headingRow': 'Titre modifié en {lang}',

@@ -1,4 +1,4 @@
-// The Review list (UX-6d): a dialog that turns the edits on this resume into versions, sends headings and names to the record, adds a line
+// The Review list: a dialog that turns the edits on this resume into versions, sends headings and names to the record, adds a line
 // only here to the record as a claim, and decides the newer wording of the other resumes. The rows are read from the model every time
 // the store changes; the dialog keeps only what was typed and what was done (to show the result and its Undo). Nothing here writes to the
 // record except through src/model/review.js, inside one store.commit per choice, so each choice is one undo step.
@@ -11,7 +11,7 @@ import { acceptNewer, keepOlder, resumeLabel } from '../model/resumes.js';
 import { reviewList, reviewCount, editRow, applyEdit, printersOf, majorsOf, needsSource, cleanSource, SOURCE_MAX, keepLabel, useEverywhere, everywhereOf } from '../model/review.js';
 
 let C = null, el = null, box = null, live = null, S = null;
-const P = { mode: new Map(), source: new Map() };      // the choices of the rows in the versions list (UX-6g): the same rows, drawn there
+const P = { mode: new Map(), source: new Map() };      // the choices of the rows in the versions list: the same rows, drawn there
 const st = () => C.store.state;
 const model = () => C.work();
 const jobName = id => (model().work ?? []).find(w => w.id === id)?.name ?? id;
@@ -317,7 +317,7 @@ function onClose(){
   (s?.opener?.isConnected ? s.opener : document.querySelector('#filestate'))?.focus?.();
 }
 
-// ---- the same rows in the versions list (UX-6g) ----
+// ---- the same rows in the versions list ----
 // An edit on this resume is a pending version there, with the choices the list offers (the primary button, Update, Another option + Apply,
 // Keep on this resume only), the same labels and the same required source. The dialog's state S is put aside while they are drawn or used.
 const withP = fn => { const was = S; S = P; try { return fn(); } finally { S = was; } };

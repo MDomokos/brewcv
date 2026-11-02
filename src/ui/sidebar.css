@@ -1,4 +1,4 @@
-/* The sidebar (UX-6 sidebar session): its own rules, loaded last. The tokens stay in workbench.css and drinks.css; nothing here names a colour. */
+/* The sidebar: its own rules, loaded last. The tokens stay in workbench.css and drinks.css; nothing here names a colour. */
 
 /* ---- 1. Nothing squeezed (checks/sidebar-check.mjs, fit) ----
    A title breaks only between words, so its smallest width is its longest word and a row can never press it into one letter a line;
@@ -52,7 +52,7 @@
 .sgroup.sentrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
 .sgroup.sentrow .sgh { margin: 0; }
 
-/* ---- 4. Depth (audit (f)): the sidebar's layers on five shared tokens. Ground (the mat) › panel (the editor and name cards) › card (a group,
+/* ---- 4. Depth: the sidebar's layers on five shared tokens. Ground (the mat) › panel (the editor and name cards) › card (a group,
    an open section: flat, an edge) › row › field (sunk) › popover (highest). Only what can be pressed is raised: --elev-raised is the secondary
    press's own shadow, --elev-low the tertiary's, so a raised button and a raised tab read at one height. The colours come from each drink's
    --press-sh and --shadow-panel, so the four looks each have their own; Coffee keeps its hairlines and a short hard offset. ---- */
@@ -75,7 +75,7 @@ html[data-drink="coffee"] { --elev-pop: 4px 4px 0 color-mix(in srgb, var(--ink) 
 .outline .osec.open > .item.srow.is-sel { background: var(--mark-soft); }
 .outline .osec.open > .obody { margin: 2px 4px 3px 4px; padding: 0; border-left: 0; }
 .outline .osec.open .clg.open > .clgh { background: transparent; }
-/* (the depth row keeps its frame: it becomes the page chip's one component, the; audit (c) is left to that) */
+/* (the depth row keeps its frame: it is the page chip's one component) */
 
 /* ---- 5. The switchers (): the place tabs are one level over the modes, the modes one over the panel's content. The active item is part of
    the surface it opens and stands up; the others sit lower and quieter, behind it. Tertiary/secondary, never primary; a 1 px travel on press
@@ -87,7 +87,7 @@ html[data-drink="tea"] .ptabs .ptab[aria-current=page] { filter: drop-shadow(0 0
 html[data-drink="coffee"] .ptabs { box-shadow: var(--elev-inset); }
 html[data-drink="coffee"] .ptabs::before { box-shadow: var(--elev-raised); }
 .ptabs .ptab:active:not([aria-current]) { translate: 0 1px; }
-/* the modes are the panel's folder tabs (round 2): the panel's own material. The open one is its surface and covers its edge; the others are
+/* the modes are the panel's folder tabs: the panel's own material. The open one is its surface and covers its edge; the others are
    that surface a step darker, flush with the panel and 1 px under its edge (the panel's edge, or its surface, runs on over them), a shadow
    inside where they go under it and a soft one cast outwards. Coffee: the same by edge and tone (sidebar-check, depth). */
 .rtabs { --tab-back: color-mix(in srgb, var(--surface) 80%, var(--shade)); --tab-front: var(--surface); }
@@ -100,7 +100,7 @@ html[data-drink="coffee"] .col .rtabs .tab:not([aria-selected=true]), html[data-
 .col .rtabs .tab:not([aria-selected=true]) .ti, .col.is-name .rtabs .tab .ti { color: var(--ink-soft); }
 .rtabs .tab:hover:not(:disabled, [aria-selected=true]) { background: color-mix(in srgb, var(--tab-back) 50%, var(--surface)); color: var(--ink); }
 .rtabs .tab:active:not([aria-selected=true]) { translate: 1px 0; }
-/* folded to the rail (round 3): no panel is there to hang from, so each mode is a whole rounded card on the mat, its own edge and soft shadow, in a
+/* folded to the rail: no panel is there to hang from, so each mode is a whole rounded card on the mat, its own edge and soft shadow, in a
    gap from the window's edge; the current one has the surface, the accent edge and icon (not a join). The open sidebar's tabs are above, unchanged. */
 html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x) { width: 46px; margin: 0 0 0 4px; border-radius: var(--r-l); background: var(--tab-back); color: var(--ink-soft);
   border: 1px solid var(--line-strong); box-shadow: 0 2px 6px -1px color-mix(in srgb, var(--press-sh) 60%, transparent); translate: none; }
@@ -141,7 +141,7 @@ body.side-off:not([data-phone=true]):not(.is-intro) .col > :is(#ptabs, #head, #b
 #rail > [data-act=side-fold]:hover:not(:disabled) { background: linear-gradient(var(--hover), var(--hover)) var(--chrome); color: var(--ink); border: 1px solid var(--fold-edge); }
 body.side-moving .col { transition: left var(--dur-2) var(--ease), width var(--dur-2) var(--ease); }
 
-/* ---- 8. The "?" corner (round 2, shell.js cornerHtml): help and info at the panel's bottom right, out of the Outline's way: it stands on the
+/* ---- 8. The "?" corner (shell.js cornerHtml): help and info at the panel's bottom right, out of the Outline's way: it stands on the
    panel's foot, a band the rows scroll under, so it never covers a tick or a padlock; its card opens upwards, right-aligned inside the panel.
    A tertiary icon with an edge, in the open sheet's tea. A phone has it at the end of its foot. ---- */
 #corner { display: none; }
@@ -157,7 +157,7 @@ body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #body::after { 
 .cornermenu button { background: transparent; }      /* rows, as the links beside them */
 .cornermenu [data-appversion] { font: 500 11.5px/1 var(--font-mono); }
 
-/* ---- 9. The Outline's hierarchy and columns (round 2, item 16). A section is a heading (14.5 px, 750, its kind's chip from Career,
+/* ---- 9. The Outline's hierarchy and columns. A section is a heading (14.5 px, 750, its kind's chip from Career,
    a taller row, a quiet band behind the open one's head); a job is 13 px / 650, the employer muted; a line 12.5 px / 450 and starts under
    its job's title, as a section's own items start under its title (a child's caret stands under its parent's chip). One tick column and one
    padlock column for every level: the nesting is on the left only, every row keeps 4 px on its right, no container between them takes any
@@ -199,7 +199,7 @@ html[data-drink="tea"][data-theme="dark"] { --hue-tint-ol: 27%; }
 .outline .item.srow input[data-secon]:not(.pill):checked, .outline .item.srow input[data-secon]:not(.pill).press:checked:hover:not(:disabled) { background-color: var(--accent); border-color: var(--accent); }
 html[data-drink="tea"] .outline .obody { --cb-on: var(--ink-soft); --cb-check: var(--surface); }
 
-/* ---- 10. The lock (round 2, item 17): locked and unlocked differ by more than the icon. Locked: the padlock filled, at full strength,
+/* ---- 10. The lock: locked and unlocked differ by more than the icon. Locked: the padlock filled, at full strength,
    on a small warm chip, and its row in the Outline has a thin marker in the accent; unlocked: the outline padlock, quieter. The same on the
    Outline's rows, the depth row and the page chip (.dp-lock), and the page's lock. The motion (edit.js lockMotion) says the rest. ---- */
 :is(.rowlock, .dp-lock, .pagelock) svg { overflow: visible; }
@@ -253,7 +253,7 @@ html[data-drink="coffee"] .col > #body .hdr > .depth.sm { border-radius: 2px 2px
 .hdr + .hpos { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
 
 
-/* ---- 9. One set of hues for the sidebar's header bands (round 3: "random icons, sizes and colours"). Six muted hues per drink, none a
+/* ---- 9. One set of hues for the sidebar's header bands. Six muted hues per drink, none a
    primary: --hue-1 matcha/crema, 2 amber/mocha, 3 clay, 4 slate, 5 plum, 6 sage/olive. A band is its hue at --hue-tint over the panel's surface;
    its icon is the hue taken --hue-deep of the way back from the ink (3:1 on the band); the words on a band stay the ink (4.5:1). Set --hk on a
    band (or on what holds it) and .hband / .hic do the rest. Export's bands, the finish header and the Outline's section headings all use them

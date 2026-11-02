@@ -124,7 +124,7 @@ function exportView(){
   // one filled button on the screen: Fit when it would change something, else PDF
   const fitFirst = fitFilled(C.ui.fills, C.cur()?.pageLimit);
   const file = C.fileLine();
-  // the finish (round 3): 1 know it is ready (the cup, the status row with Fit and the page bars at its end), 2 get the file, 3 record that it was sent;
+  // the finish: 1 know it is ready (the cup, the status row with Fit and the page bars at its end), 2 get the file, 3 record that it was sent;
   // the backup is housekeeping, a quiet row under the bands. Icons: the cup (44), one status glyph (24), a band's (28): document, paper plane.
   const medium = mediumOf(C.cur());
   const r = C.cur(), look = list.some(c => c.level !== 'ok'), bad = list.some(c => c.level === 'bad');

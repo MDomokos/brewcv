@@ -1,4 +1,4 @@
-/* The button system (UX-6 sidebar round 2): every button differs from what it stands on by an edge, a fill or the weight of its words;
+/* The button system: every button differs from what it stands on by an edge, a fill or the weight of its words;
    depth only adds to that. src/ui/press.js gives each button its role:
    primary      the accent fill and the heavy shadow, one a view (the popovers are the only other thing that stands that high)
    secondary    a 1.5 px edge at 3:1 against its ground, a small shadow
@@ -52,7 +52,7 @@ button.del.press:has(> svg:only-child) { width: 28px; height: 28px; padding: 0; 
 .dp-t.del { color: var(--bad); opacity: 1; }
 .dp-t.del:is(:hover, :focus-visible):not([aria-disabled=true]) { background: var(--bad); color: var(--surface); }
 
-/* the name card (item 11): the name is one large button, the card's whole top, its fill reaching the card's edge; ⋯ is a flat icon in a
+/* the name card: the name is one large button, the card's whole top, its fill reaching the card's edge; ⋯ is a flat icon in a
    corner of its own, 8 px inside the card; neither has a shadow (the name stays filled, not sunk, while its window is open) */
 body:not([data-phone=true]):not(.is-intro) .col > #head:not(.is-place) { padding: 0; }
 body:not([data-phone=true]):not(.is-intro) .col > #head:not(.is-place) > .hrow.top { align-items: stretch; gap: 0; }

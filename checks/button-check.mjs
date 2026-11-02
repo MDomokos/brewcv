@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/button-check.mjs           (ONLY=contrast,del,order,name runs only those sections)
-// The button system (UX-6 sidebar round 2), in Chromium through Playwright (CHROME_PATH, or PW_BUNDLED=1); writes nothing.
+// The button system, in Chromium through Playwright (CHROME_PATH, or PW_BUNDLED=1); writes nothing.
 //  contrast: in Tea and Coffee, light and dark, on every sidebar view, the name window, the ⋯ menu and a row menu, the Library and Career, the
 //            export dialog, the Review list and the toast: every primary, secondary and destructive button differs from its ground by an edge or
 //            a fill of 3:1 (not by its shadow); no button is left without a tier (press.js reaches the Library, the dialogs and the toast); a

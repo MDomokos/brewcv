@@ -16,7 +16,7 @@ export const groupHtml = (title, inner, scope = '') => `<section class="sgroup">
 
 export const crumb = (parts, { close = 'deselect' } = {}) => `<div class="crumb">${parts.map((p, i) => (p.act ? `<a data-act="${p.act}" ${p.attrs ?? ''}>${esc(p.t)}</a>` : `<span>${esc(p.t)}</span>`) + (i < parts.length - 1 ? '<span>›</span>' : '')).join('')}<button class="x ghost sm" data-act="${close}" title="Esc" aria-label="${esc(t('body.close'))}">${icon('close')}</button></div>`;
 
-// One look for every delete and remove (UX-6 round 2): the X (the registry's delete) at the control size, the warning colour, an outline in it that fills on hover (buttons.css .del),
+// One look for every delete and remove: the X (the registry's delete) at the control size, the warning colour, an outline in it that fills on hover (buttons.css .del),
 // press.js gives it the destructive tier. `label` (plain text) is drawn where there is room; `text: false` draws the X alone, named `name`. `row`: a
 // menu's row. It stands last in its row, after a gap.
 export const delBtn = (attrs, label, { text = true, name = '', row = false } = {}) =>
@@ -209,8 +209,8 @@ export function versionsHtml(x){
 }
 
 const pencil = `<button class="ghost sm" data-act="edit" title="${esc(t('edit.editThis'))}" aria-label="${esc(t('edit.editThis'))}">${icon('edit')}</button>`;
-// An edit on this resume, in the list where it would be numbered (UX-6g): the number, "on this resume only", the Review list's choices for it
-// (p.html; none when locked) and the way back to the saved version. An earlier edit of the line (UX-6f, `p.at`) is a row of its own: its words,
+// An edit on this resume, in the list where it would be numbered: the number, "on this resume only", the Review list's choices for it
+// (p.html; none when locked) and the way back to the saved version. An earlier edit of the line (`p.at`) is a row of its own: its words,
 // a button to show it on the page, the same choices, and a way to throw it away.
 const pendRow = (x, over, p = x.pend) => {
   const early = p.at !== undefined, at = early ? ` data-at="${p.at}"` : '';
@@ -254,13 +254,13 @@ export const addClaimHtml = ({ id, key, draft = '' }) =>
   `<label class="field addclaim"><span class="lbl inline">${h('career.addClaim')}</span>
       <span class="addrow"><textarea class="new-claim" data-entry="${esc(id)}" rows="1" placeholder="${esc(t('career.claimPh'))}">${esc(draft)}</textarea><button class="sm addc" data-act="add-claim" data-key="${esc(key)}" data-id="${esc(id)}" title="${esc(t('ux1.addEnter'))}" aria-label="${esc(t('career.addClaim'))}">${h('ux1.add')}</button></span></label>`;
 
-// ---- on the page (UX-3): the three levels drawn over the page, and the tools in the line's right margin ----
+// ---- on the page: the three levels drawn over the page, and the tools in the line's right margin ----
 // Pure strings, like the rest of this file; src/ui/onpage.js puts them over the page and keeps them in place.
 
 const iconButton = (act, ic, name, tip, attrs = '') =>
   `<button class="ib" data-act="${act}" ${attrs} data-tip="${esc(name)}|${esc(tip)}" data-tip-pos="l" aria-label="${esc(name)}">${icon(ic)}</button>`;
 
-// The version number beside a line is a control (UX-6g): hovering, focusing or clicking it lists the line's other versions as numbers (lower stacked above the
+// The version number beside a line is a control: hovering, focusing or clicking it lists the line's other versions as numbers (lower stacked above the
 // pill, higher below it; the one in use is the pill and is not listed again); moving over one previews it on the page, a click or Enter chooses it, Esc closes. `tag`: { fact, items, locked },
 // items [{ id, n, cur, mine }] in number order (`mine`: the edit on this resume, shown where it would be numbered); `mine` (of the tag): the text is on this resume only, a dot
 // on the tag with the words in its tooltip and its name; `locked`: the lock's words.
@@ -294,7 +294,7 @@ export function toolsHtml({ vn, tag = null, canMove = false, ends = {} }){
   return `<div class="obtools writing" role="toolbar" aria-label="${esc(t('ux3.tools'))}">${badge}${mv}</div>`;
 }
 
-// The photo, in one place (UX-6g): the sidebar's About you. The picture (or its absence), add / replace / remove, the switch (the same pill
+// The photo, in one place: the sidebar's About you. The picture (or its absence), add / replace / remove, the switch (the same pill
 // as the page's slot and the Outline row), the shape. `rec`: the record, `r`: the open resume, `url`: the picture's address.
 export function photoHtml({ rec, r, a4 = true, url = '' }){
   const hasPhoto = !!(rec.basics?.image || rec.basics?.portrait?.state === 'present');
@@ -310,12 +310,12 @@ export function photoHtml({ rec, r, a4 = true, url = '' }){
 export const orderMarkHtml = (custom, kind, id, name) => (custom
   ? `<span class="pill custom">${h('ux5b.custom')}</span><button class="ghost sm" data-act="order-reset" data-kind="${kind}" data-id="${esc(id)}" aria-label="${esc(t('ux5b.resetTitle', { name }))}">${h('ux5b.reset')}</button>` : '');
 
-// One depth indicator (UX-6c), the same markup and styles on the page (the floating chip, `small`) and at the top of the editor card:
+// One depth indicator, the same markup and styles on the page (the floating chip, `small`) and at the top of the editor card:
 // Page › Section › Job, Page › Section › Item, Page › Header › Field. levels: [{ word, act, attrs?, kids?, came? }] from the page down, the last is where
 // you are.
-// `lock` ({ id, on, by, name }) and `show` ({ kind, id, on, name, disabled }) are the two small buttons at its right end (UX-6c-iii-b): the
+// `lock` ({ id, on, by, name }) and `show` ({ kind, id, on, name, disabled }) are the two small buttons at its right end: the
 // padlock of the block the chip names, and its on/off switch. Both are real buttons with a name; the padlock is aria-pressed when locked.
-// One component on the page and in the card (UX-6f 4c): `where` ('page' | 'card') only names it and keeps its ids apart. A level with `kids`
+// One component on the page and in the card: `where` ('page' | 'card') only names it and keeps its ids apart. A level with `kids`
 // ([{ text, sel }], the Outline's rows) has a list of them (src/ui/depthmenu.js opens it), the one it came through (`came`) marked: the word goes up, the list deeper or sideways.
 // On the page (`where` 'page') a word only goes one level up: no lists. `back` ({ word }): for a moment after going up its own branch, a small ↩ after the tools (not a crumb) returns to the depth just left.
 export function depthHtml(levels, { where = 'card', lock = null, show = null, fix = null, back = null } = {}){

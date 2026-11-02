@@ -1,4 +1,4 @@
-// Tea and Coffee, switched by the logo (UX-4). The tea canvas is a bamboo mat and the coffee canvas is a drawn grid; the logo is the
+// Tea and Coffee, switched by the logo. The tea canvas is a bamboo mat and the coffee canvas is a drawn grid; the logo is the
 // switch, and what it will do is shown before it is done:
 //   Tea → Coffee: the mat starts to roll up from the bottom, and the grid shows under it. Coffee → Tea: the mat starts to unroll
 //   from the bottom over the grid. Hovering the logo shows the first part of that (a peek); a click, or Shift+F, or the corner buttons,

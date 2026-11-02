@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/ai-import-check.mjs
-// The word check for a JSON Resume an AI assistant made from an old resume (spec, "With an AI assistant, optional"): every text of it is looked for in the document it
+// The word check for a JSON Resume an AI assistant made from an old resume: every text of it is looked for in the document it
 // names (src/model/documents.js: checkWords, sourceOf), and the merge items that carry a missing text start unticked, with the document's nearest line (src/model/intake.js: checkItems).
 // The JSON Resume and the document text are made here from the example's own words.
 

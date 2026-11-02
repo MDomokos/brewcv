@@ -249,10 +249,10 @@ section('persist: the linked folder');
   ok('with a folder linked, no backup nudge', !(await p.needsBackupNudge()));
   ok('compareFolder: same', (await p.compareFolder()).same === true);
   const disk = JSON.parse(folder._files.get('resume-data.json'));
-  disk.basics.name = 'Edited in the vault';
+  disk.basics.name = 'Edited on disk';
   folder._files.set('resume-data.json', JSON.stringify(disk));
   const cmp = await p.compareFolder();
-  ok('compareFolder: newer on disk is reported with its state', cmp.same === false && cmp.disk?.record.basics.name === 'Edited in the vault');
+  ok('compareFolder: newer on disk is reported with its state', cmp.same === false && cmp.disk?.record.basics.name === 'Edited on disk');
 
   folder.permission = async () => 'denied';
   s.commit(d => { d.record.basics.label = 'Offline'; }, 'Edit');

@@ -1,4 +1,4 @@
-// The table the mat lies on (prototype): what shows when the view is zoomed out. A top-down drawing in millimetres, so a teapot is the size
+// The table the mat lies on: what shows when the view is zoomed out. A top-down drawing in millimetres, so a teapot is the size
 // of a teapot beside the A4 sheet (src/ui/canvas.js scales one millimetre to what the page's is on screen): a wooden table around the mat,
 // and things on it. Tea has the tea things; Coffee has a mug and a pen, and its mat is a cutting mat with a ruler printed on two edges.
 // The shapes are drawn at a convenient size and each is put at its real one by the `f` of `at`. The things are separate groups so one

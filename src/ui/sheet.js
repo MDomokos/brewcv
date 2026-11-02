@@ -36,7 +36,7 @@ html.rb-space, html.rb-space * { cursor: grab !important; }
 .band[data-section] { --po: var(--plate-off-section); --pk: var(--plate-k-section); }      /* the bigger the block, the fainter its tint */
 :is(.rb-prev, .rb-find, .rb-miss, .rb-lift, .rb-card, .rb-socket) { border-radius: var(--plate-r); outline-offset: var(--po); }
 :is(.rb-prev, .rb-find) { box-shadow: inset 0 0 0 100vmax var(--tint), 0 0 0 var(--po) var(--tint); }      /* the plate's tint fills the block and the stand-off round it */
-/* Hover and selection (UX-6f 4c) are one shape that moves: a plate laid over the page (sheet.js paintPlates), the block's box and its level's stand-off (--po), its corner the
+/* Hover and selection are one shape that moves: a plate laid over the page (sheet.js paintPlates), the block's box and its level's stand-off (--po), its corner the
    block's radius turned by the stand-off. It glides from block to block (place, size and corner in --plate-glide, ease-out), fades in (--plate-in) and out (--plate-out) where
    it is, and multiplies with the paper so the words under it keep their ink. Frame furniture: aria-hidden, never in the document, the render or a print. */
 .rb-plate { position: fixed; left: 0; top: 0; z-index: 4; pointer-events: none; box-sizing: border-box; mix-blend-mode: multiply; opacity: 0;
@@ -44,7 +44,7 @@ html.rb-space, html.rb-space * { cursor: grab !important; }
   transition: left var(--plate-glide) var(--rb-m-out), top var(--plate-glide) var(--rb-m-out), width var(--plate-glide) var(--rb-m-out), height var(--plate-glide) var(--rb-m-out),
     outline-color var(--plate-glide) var(--rb-m-out), background-color var(--plate-glide) var(--rb-m-out), opacity var(--plate-out) var(--rb-m-out); }      /* (not the corner: it never changes as writing starts) */
 .rb-plate.is-on { opacity: 1; transition-property: left, top, width, height, outline-color, background-color, opacity; transition-duration: var(--plate-glide), var(--plate-glide), var(--plate-glide), var(--plate-glide), var(--plate-glide), var(--plate-glide), var(--plate-in); }
-/* the ladder (lab v2 "light"): hover is the wash alone, no edge */
+/* the ladder: hover is the wash alone, no edge */
 .rb-plate.is-hot { --pw: 0px; --pc: transparent; --pt: color-mix(in srgb, var(--plate-tint-hover) calc(var(--pk) * 100%), transparent); }
 /* selected: a deeper wash (x1.5), no edge (shading, not outlines); nothing is drawn round the blocks it is part of, the chip says where it is */
 .rb-plate.is-hot.is-boost { --pt: color-mix(in srgb, var(--plate-tint-boost) calc(var(--pk) * 100%), transparent); }      /* the sidebar's row under the pointer: the same plate, x1.4 */
@@ -52,7 +52,7 @@ html.rb-space, html.rb-space * { cursor: grab !important; }
 /* pressed in, writing: the line recedes to a thin rule (--plate-write) at the written field's own stand-off (--rb-wo), no tint: the field takes the paper */
 html.rb-cam .rb-plate { transition: opacity var(--plate-out) var(--rb-m-out); }
 .rb-plate.is-write { --pw: var(--plate-write); --pc: var(--plate-ink); }
-/* the grip (item 4): 2x3 dots in the plate's own left tab (--tw wide, the plate widened into it; inside its edge where words leave no room), in the plate ink; quiet while written */
+/* the grip: 2x3 dots in the plate's own left tab (--tw wide, the plate widened into it; inside its edge where words leave no room), in the plate ink; quiet while written */
 .rb-plate.is-grip::before { content: ''; position: absolute; width: 10px; height: 15px; left: calc((max(var(--tw, 0px), var(--plate-tab-w)) - 10px) / 2); top: calc(min(50%, 14px) - 7.5px);
   background: radial-gradient(circle, var(--plate-ink) 1.3px, transparent 1.7px) 0 0 / 5px 5px; }
 .rb-plate.is-write.is-grip:not(.is-grip-hot)::before { opacity: .4; }
@@ -87,7 +87,7 @@ html.rb-cam .rb-plate { transition: opacity var(--plate-out) var(--rb-m-out); }
 /* its home keeps a shaded socket of the same shape, the wash where it will land (sheet.socket); no outline */
 .rb-socket { position: fixed; z-index: 1; pointer-events: none; background: var(--plate-tint-hover); box-shadow: 0 0 0 var(--po) var(--plate-tint-hover); }
 /* pressed in, writing: the line recedes to a thin rule, its field takes the paper with a soft inner shadow; nothing is drawn past half the gap to the text around it
-   (--rb-wo, sheet.setWriting: the stand-off that leaves room for the rule), so it never covers a neighbour (UX-6f 4c) */
+   (--rb-wo, sheet.setWriting: the stand-off that leaves room for the rule), so it never covers a neighbour */
 html.rb-writing [contenteditable] { outline: none; border-radius: var(--plate-r); background-color: var(--plate-paper); box-shadow: inset 0 1px 2px var(--plate-inner), 0 0 0 max(0px, var(--rb-wo, 0px)) var(--plate-paper); }      /* its rule is the plate's (.rb-plate.is-write) */
 html.rb-previewing .document > .page { outline: var(--plate-line) solid var(--plate-accent); outline-offset: var(--plate-off-job); }
 html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit), html.rb-focus .skills__items[data-variant]:not(.rb-hit), html.rb-focus .pairs dd[data-variant]:not(.rb-hit), html.rb-focus .runs strong[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity var(--rb-m-base, 240ms) var(--rb-m-out, ease-out); }
@@ -147,7 +147,7 @@ export function createSheet(host, hooks = {}){
   let card = null, folded = [], foldHome = null;   // a large lifted block: the card carried at the pointer, the elements folded in place and where they stood
   let sockets = [];              // the lifted block's home, one socket for each element it is printed in (a section runs over two pages)
   let tabEls = [], tabHot = false;      // the blocks whose plates show the grip's dots (the line's or group's, the job's or section's), and whether the pointer is on one
-  let plates = [];               // the plates over the page (UX-6f 4c): { div, el, role: 'hot' | 'sel' | 'write', on, hid }
+  let plates = [];               // the plates over the page: { div, el, role: 'hot' | 'sel' | 'write', on, hid }
   let pv = null;                 // the block a row of the sidebar under the pointer stands for (setHover)
   let hot = null;                // the block whose hover plate is drawn
   const nudged = new Set();      // the elements a drag preview has moved
@@ -200,7 +200,7 @@ export function createSheet(host, hooks = {}){
           if (e.target.closest?.('[contenteditable]:not([contenteditable=false])')) return;      // the line being written takes its own clicks
           const pg = [...doc.querySelectorAll('.document > .page')].indexOf(e.target.closest?.('.document > .page'));
           const hit = e.target.closest?.('[data-variant], [data-label], .band[data-section]'), g = e.target.closest?.('.skills__group');
-          const el = g && !g.contains(hit) ? g.querySelector('[data-variant]') ?? hit : hit;      // a skill group's name is its group's (UX-6f 4c: a click on it writes the group)
+          const el = g && !g.contains(hit) ? g.querySelector('[data-variant]') ?? hit : hit;      // a skill group's name is its group's (a click on it writes the group)
           if (!el) return hooks.onPick?.({ variant: null, section: null, page: pg });
           const band = el.closest('.band[data-section]');
           hooks.onPick?.({ variant: el.getAttribute('data-variant'), label: el.getAttribute('data-label'), section: band?.getAttribute('data-section') ?? null, page: pg, at: { x: e.clientX, y: e.clientY } });
@@ -336,7 +336,7 @@ export function createSheet(host, hooks = {}){
   const unsocket = () => { for (const q of sockets) q.remove(); sockets = []; };
   // a skill group's own height: in a grid row it is stretched to the row's tallest, which a move to another row changes (a lifted one wears its own, .rb-lift)
   const natH = el => { el.style.alignSelf = 'start'; const h = el.getBoundingClientRect().height; el.style.alignSelf = ''; return h; };
-  // ---- the plates that move (UX-6f 4c): hover and selection are drawn by shapes laid over the page, one per block, that glide from block to block ----
+  // ---- the plates that move: hover and selection are drawn by shapes laid over the page, one per block, that glide from block to block ----
   // What is wanted: while a line is written, its field's plate (pressed in); else the selection's (each element it is printed in) and the hovered block's, unless that is selected.
   // A plate keeps to its role (the hover's moves with the hover, the selection's with the selection) and glides from where it is, or from where it was let go GLIDE_KEEP ms ago;
   // otherwise it appears where it goes. Nothing is drawn while a block is lifted (the lifted block wears its own plate) or a skill word is carried. Reduced motion: no glide (the frame's rb-still).
@@ -356,7 +356,7 @@ export function createSheet(host, hooks = {}){
     return out;
   }
   const family = r => (r === 'hot' || r === 'scope' ? r : 'sel');
-  // How far a plate stands off its box (UX-6f 4c): its level's stand-off (`po`), but never so far that its rule (`lw` px) passes half the gap to the printed text around it
+  // How far a plate stands off its box: its level's stand-off (`po`), but never so far that its rule (`lw` px) passes half the gap to the printed text around it
   // (negative: the rule is drawn inside the box). Across (x) the words on the same rows count, up and down (y) the words above and below it, so a line keeps its stand-off to
   // the side (where its grip stands) and comes in where the next line is close; `u` is one stand-off all round (the nearest words in any direction), a written line's. Hover,
   // selection, the socket and the hands on them take the selection's rule (the thicker), so a plate keeps its shape from hover to selection.
@@ -391,7 +391,7 @@ export function createSheet(host, hooks = {}){
       if (!p){ const div = fr.doc.createElement('div'); div.className = 'rb-plate'; div.setAttribute('aria-hidden', 'true'); fr.doc.body.append(div); p = { div, on: false, hid: 0 }; plates.push(p); }
       used.push(p);
       const cs = win.getComputedStyle(w.el), r = w.el.getBoundingClientRect(), f = standOff(w.el, w.role === 'write' ? writeRule() : w.el.hasAttribute('data-word') ? 0 : undefined), o = w.role === 'write' ? { x: f.u, y: f.u } : f;      // (a skill word: a wash with no rule, flush with the comma beside it)
-      // the grip (item 4): its 2x3 dots are this plate's, in a tab it widens into on the left when the gap to the words there leaves room, else inside its own edge
+      // the grip: its 2x3 dots are this plate's, in a tab it widens into on the left when the gap to the words there leaves room, else inside its own edge
       const tab = tabEls.includes(w.el), tw = tab && o.x + tabW() + lw0() <= f.l - 1 ? tabW() : 0;
       const st = { left: `${r.left - o.x - tw}px`, top: `${r.top - o.y}px`, width: `${r.width + 2 * o.x + tw}px`, height: `${r.height + 2 * o.y}px` };
       p.box = tab ? { left: r.left - o.x - tw, top: r.top - o.y, width: Math.max(tw, tabW()), height: r.height + 2 * o.y } : null;
@@ -676,7 +676,7 @@ export function createSheet(host, hooks = {}){
     plateAt(x, y){ return fr?.frame.isConnected ? fr.doc.elementFromPoint(x, y)?.closest('[data-variant], [data-label]') ?? null : null; },
     // the skill word under a point: a press there carries the word, not its group (wordbank.js), so it has a plate of its own
     wordAt(x, y){ return fr?.frame.isConnected ? fr.doc.elementFromPoint(x, y)?.closest('.skills__group [data-word]') ?? null : null; },
-    // the blocks whose plates show the grip's dots (item 4): at most the line's or group's and the job's, section's or item's; `hot`: the pointer is on a grip (full dots while writing)
+    // the blocks whose plates show the grip's dots: at most the line's or group's and the job's, section's or item's; `hot`: the pointer is on a grip (full dots while writing)
     setTab(els, hot = tabHot){ const t = (els ?? tabEls).filter(e => e?.isConnected); if (hot !== tabHot || t.length !== tabEls.length || t.some((e, i) => e !== tabEls[i])){ tabEls = t; tabHot = hot; paintPlates(); } },
     // where the tab of a block's plate is to be, in the page's pixels (not where a glide has it now): the grip's button is laid over it
     // the camera is moving (canvas.js): the plates take their new shape at once, never tweening against the ease (a glide under way ends where it was going)
@@ -713,7 +713,7 @@ export function createSheet(host, hooks = {}){
       for (const q of sockets) q.style.transform = to ? `translate(${to.dx ?? 0}px, ${to.dy ?? 0}px)` : '';
     },
     // the rail and the drop line of a drag over the page (hands.js), `r` in the page's pixels (null: gone); `on`: its states ({ top, faint, … }). Frame furniture under the
-    // lifted block, which stays the topmost thing on the page (UX-6f 4c)
+    // lifted block, which stays the topmost thing on the page
     guide(kind, r, on = {}){
       if (!fr?.frame.isConnected) return;
       let el = fr.doc.querySelector(`body > .rb-${kind}`);
@@ -851,7 +851,7 @@ export function createSheet(host, hooks = {}){
     // The line, skill group or header under a point. A line owns the margin left of its text and the gap below it, so the gaps between
     // lines belong to a line and not to the job: the nearest one within reach gets the point, a point inside one beats a point near one.
     // A job or a section (the big plates) is a candidate only on its heading row (a small slop round it) or in the strip at its side (`side`: the margin left of a job,
-    // a section's tab column), never through the vertical reach into a gap, so a slow pointer between lines or blocks never jumps to the bigger one (lab v2 mode A).
+    // a section's tab column), never through the vertical reach into a gap, so a slow pointer between lines or blocks never jumps to the bigger one.
     handAt(ix, x, y){
       if (!fr?.frame.isConnected) return null;
       let best = null, bd = Infinity;

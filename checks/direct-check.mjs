@@ -195,7 +195,7 @@ section('the saved-resume file: new keys round trip, old files open, nothing pri
   const old = S.saveResume(model, plain).file;
   ok('a file without the keys opens with no warnings', S.loadResume(JSON.parse(JSON.stringify(old)), model).warnings.length === 0 && !JSON.stringify(old).includes('overrideMeta') && !JSON.stringify(old).includes('"parent"'));
   const html = r => renderPages(model, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('');
-  const ignorant = clone(back.recipe); for (const k of ['parent', 'parked', 'overrideMeta']) delete ignorant[k];       // the skill arrangement prints (UX-6c-ii), so code that ignores it is not the same
+  const ignorant = clone(back.recipe); for (const k of ['parent', 'parked', 'overrideMeta']) delete ignorant[k];       // the skill arrangement prints, so code that ignores it is not the same
   ok('code that ignores the keys that do not print, prints the same as code that reads them', html(back.recipe) === html(ignorant));
   ok('and a copy\'s parent link is not part of what it prints', RS.printedKey(rc, {}) === RS.printedKey({ ...rc, parent: 'x', parked: {} }, {}));
 }
@@ -468,7 +468,7 @@ section('an edited contact line keeps the links whose words it still has');
   const page = html(rc);
   ok('the link whose words are still there stays, re-anchored; the one whose words went is dropped, with a warning', page.includes('<a href="mailto:dana@example.org">dana@example.org</a>') && !page.includes('https://danaokonkwo.example') && T.resolve(m, rc).problems.some(x => x.includes('dropped the link to https://danaokonkwo.example')) && !T.resolve(m, rc).problems.some(x => x.includes('dropped the link to mailto')));
 }
-section('every printed text can be written on the resume: an edit with its base and highlights, a heading, a language\'s name (UX-6c-iii-a)');
+section('every printed text can be written on the resume: an edit with its base and highlights, a heading, a language\'s name');
 {
   const m = clone(model), page = r => renderPages(m, r, createDocument(), { fallback: true, annotate: true }).pages.map(p => p.outerHTML).join('');
   const rc = clone(S.loadResume(read('data/example-resumes/Medtech Lisboa - Mechanical Engineer.json'), m).recipe);
@@ -478,7 +478,7 @@ section('every printed text can be written on the resume: an edit with its base 
   ids.forEach((id, n) => T.setOverride(model, rc, id, `Edited ${n}`, { marks: [], base: baseOf(id) }));
   const printed = page(rc);
   ok('each of them prints as an edit, on the page the app draws and in what is sent', ids.every((id, n) => printed.includes(`data-variant="${id}-override"`) && printed.includes(`Edited ${n}`)));
-  ok('each is on the Review list (pendingEdits) with its base version and its marks, so UX-6d can offer it as a version', eq(T.pendingEdits(rc).sort(), [...ids].sort()) && ids.every(id => rc.overrideMeta[id].base === baseOf(id) && Array.isArray(rc.overrideMeta[id].marks)));
+  ok('each is on the Review list (pendingEdits) with its base version and its marks, so the Review list can offer it as a version', eq(T.pendingEdits(rc).sort(), [...ids].sort()) && ids.every(id => rc.overrideMeta[id].base === baseOf(id) && Array.isArray(rc.overrideMeta[id].marks)));
   ok('an edit equal to its base drops, and the resume is as it was', (() => { const r2 = clone(rc); for (const id of ids) T.dropOverride(model, r2, id); return !r2.overrides || !Object.keys(r2.overrides).length; })());
   // a heading: the existing per-language label
   const r3 = clone(S.loadResume(read('data/example-resumes/Medtech Lisboa - Mechanical Engineer.json'), m).recipe), before = JSON.stringify(r3);
@@ -497,7 +497,7 @@ section('every printed text can be written on the resume: an edit with its base 
   ok('the record\'s name takes it back: no `terms` key is left', JSON.stringify(r3) === before && !('terms' in r3));
   ok('a name or heading that was never written leaves no trace in what is sent', !renderPages(m, rc, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join('').includes('data-label'));
 }
-section('UX-6c-iii-a fixes: line breaks, hand-edited names, dropped facts, edits per language');
+section('line breaks, hand-edited names, dropped facts, edits per language');
 {
   const r = T.newResume(model, {});
   T.setLabel(model, r, '~h:education', 'en', 'Stud\n  ies');
@@ -514,7 +514,7 @@ section('UX-6c-iii-a fixes: line breaks, hand-edited names, dropped facts, edits
   L.switchLang(e, 'en');
   ok('an edit keeps its base and marks per language', e.overrides['edu-degree'] === 'English words' && e.overrideMeta['edu-degree'].base === 'edu-degree-v1', JSON.stringify(e.overrideMeta));
 }
-section('UX-6c-iii-b: the lock');
+section('the lock');
 {
   const LK = await import('../src/model/lock.js');
   const F = await import('../src/model/focus.js');
@@ -686,7 +686,7 @@ section('UX-6c-iii-b: the lock');
     }
   }
 }
-section('UX-6c-iii-b fix round: hiding, layout, stale locks, restore, record edits');
+section('hiding, layout, stale locks, restore, record edits');
 {
   const LK = await import('../src/model/lock.js');
   const lockedErr = fn => { try { fn(); return false; } catch (e){ return e instanceof LK.LockedError; } };
@@ -745,7 +745,7 @@ section('UX-6c-iii-b fix round: hiding, layout, stale locks, restore, record edi
   ok('saving over a version, deleting one, and renaming a kind refuse when the open resume has it locked', lockedErr(() => R.saveOver(clone(model), vid, 'New words', withLock(base, line))) && lockedErr(() => R.deleteVersion(clone(model), vid, [], withLock(base, job))) && lockedErr(() => K.updateKind(heads.m, heads.id, { name: { en: 'Societies' } }, [], withLock(base, `~h:${heads.sec}`)))
     && !lockedErr(() => R.saveOver(clone(model), vid, 'New words', clone(base))));
 }
-section('UX-6d: the Review list\'s model');
+section('the Review list\'s model');
 {
   const V = await import('../src/model/review.js');
   const LK = await import('../src/model/lock.js');
@@ -994,7 +994,7 @@ section('a language copy and the headings of a resume\'s own skill groups');
 }
 section('a resume that uses none of it renders as before (the 14 example resumes)');
 {
-  // SHA-256 of every example resume's pages, in file order, as drawn before UX-6c-i (re-set by Look settings L-2 and L-3, and again when the job title went beside the name in Compact density only: the Polish and Czech one-pagers lose a bullet again, to fill 88-96%). Change it only when the example or the renderer is meant to change.
+  // SHA-256 of every example resume's pages, in file order, as drawn before direct editing (re-set when the look settings changed, and again when the job title went beside the name in Compact density only: the Polish and Czech one-pagers lose a bullet again, to fill 88-96%). Change it only when the example or the renderer is meant to change.
   const h = crypto.createHash('sha256');
   for (const n of fs.readdirSync(path.join(REPO, 'data/example-resumes')).filter(f => f.endsWith('.json') && f !== 'index.json').sort())
     h.update(renderPages(model, S.loadResume(read(`data/example-resumes/${n}`), model).recipe, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join(''));

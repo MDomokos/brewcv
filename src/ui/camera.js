@@ -8,7 +8,7 @@
 import { pageSize, PAGE_GAP, G } from './layout.js';
 
 export const OVERSHOOT = 60;          // how far a pan may be pulled past its limit, at most (px)
-export const MAGNET = 35, BOUNCE = 8; // defaults: round 3 found 60 and 25 too strong
+export const MAGNET = 35, BOUNCE = 8; // defaults: 60 and 25 were too strong
 export const SNAP_FIT = 0.05;         // a zoom within this of the fit view snaps to it
 export const KEEP_Y = 0.9;            // up and down, where a page runs the whole height: it never goes far off
 

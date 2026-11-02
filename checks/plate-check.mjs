@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // node checks/plate-check.mjs
-// The plate (UX-6f 4b): a block's own outline is the one selection system, four heights (hover, selected, writing, lifted), one shape per level
+// The plate: a block's own outline is the one selection system, four heights (hover, selected, writing, lifted), one shape per level
 // (line, group, job, section), every colour, width and stand-off a `--plate-*` token (workbench.css, per drink and theme), copied into the page's frame.
 //  (a) the frame's stylesheet: the selection classes it knows are exactly the plate's, and every rule of one takes its outline, shadow, radius and fill from
 //      the plate tokens (no stray one), and the tokens reach the frame in all four looks (Tea, Coffee, light, dark)
 //  (b) each class on each level, by what the browser draws: width, style, colour, stand-off, radius and shadow are what the tokens give
 //  (c) the real states per level: the pointer on a block gives it the hover plate (and no other block), a click or the sidebar the selected one, the ring trail behind
 //      it, writing the pressed-in field, a drag the lifted plate and the dashed socket at its home
-//  (d) hover is intent (UX-6f 1b): a fast sweep across blocks, or off the page, draws no plate; a slow one shows the block it stops on and only one at a time; a stop after
+//  (d) hover is intent: a fast sweep across blocks, or off the page, draws no plate; a slow one shows the block it stops on and only one at a time; a stop after
 //      a fast sweep shows it within 150 ms; a press, a grip in focus and an arrow step show theirs at once; leaving the page cancels it; into the sidebar and out leaves nothing
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
 
@@ -67,8 +67,8 @@ const LEVELS = {
 
 // ---- (a) the frame's stylesheet ----
 const FURNITURE = ['rb-ui', 'rb-single', 'rb-stack', 'rb-shown', 'rb-faded', 'rb-current', 'rb-still', 'rb-cam', 'rb-handing', 'rb-dragging', 'rb-space', 'rb-clip', 'rb-fold', 'rb-writing', 'rb-focus', 'rb-hit', 'rb-previewing', 'rb-sel', 'rb-fade', 'rb-flash', 'rb-miss-tab'];
-// (UX-6f 4c: hover and selection are drawn by .rb-plate, the shape that moves; rb-hot and rb-sel only mark their blocks, and rb-cool and rb-tab are gone)
-const PLATE_CLASSES = ['rb-plate', 'rb-prev', 'rb-find', 'rb-miss', 'rb-lift', 'rb-card', 'rb-socket', 'rb-drop'];      // (rb-rail, rb-drop: a drag's rail and drop line, in the frame under the lifted block since 4c-6)
+// (hover and selection are drawn by .rb-plate, the shape that moves; rb-hot and rb-sel only mark their blocks, and rb-cool and rb-tab are gone)
+const PLATE_CLASSES = ['rb-plate', 'rb-prev', 'rb-find', 'rb-miss', 'rb-lift', 'rb-card', 'rb-socket', 'rb-drop'];      // (rb-rail, rb-drop: a drag's rail and drop line, in the frame under the lifted block)
 const LOOKS = [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']];
 const TOKENS = ['off-line', 'off-group', 'off-job', 'off-section', 'r', 'hair', 'line', 'write', 'lift', 'ink', 'ink-hover', 'ring', 'tint-hover', 'tint-sel', 'accent', 'accent-tint', 'miss', 'lift-sh', 'inner'];
 for (const [drink, theme] of part('a') ? LOOKS : []){
@@ -110,7 +110,7 @@ for (const [drink, theme] of part('a') ? LOOKS : []){
       const probe = d.createElement('i'); d.body.append(probe);
       const read = css => { probe.style.cssText = `outline-style: solid; ${css}`; const c = win.getComputedStyle(probe); return { color: c.outlineColor, width: c.outlineWidth, offset: c.outlineOffset, radius: c.borderTopLeftRadius, shadow: c.boxShadow }; };
       const CASES = { 'rb-prev': { w: 'line', c: 'accent', style: 'solid' },
-        'rb-find': { w: 'hair', c: 'accent', style: 'solid' }, 'rb-miss': { w: 'hair', c: 'miss', style: 'dashed' }, 'rb-lift': { w: 'line', c: 'ink', style: 'none' } };      // (the lift: no outline, direct editing C)
+        'rb-find': { w: 'hair', c: 'accent', style: 'solid' }, 'rb-miss': { w: 'hair', c: 'miss', style: 'dashed' }, 'rb-lift': { w: 'line', c: 'ink', style: 'none' } };      // (the lift: no outline)
       const out = [];
       for (const [lv, spec] of Object.entries(LV)){
         const el = d.querySelectorAll(spec.sel)[spec.n]; if (!el){ out.push({ lv, missing: true }); continue; }
@@ -126,15 +126,15 @@ for (const [drink, theme] of part('a') ? LOOKS : []){
           if (c.style !== 'none' && got.color !== w.color) bad.push(`color ${got.color} != ${w.color}`);
           if (got.offset !== shape.offset) bad.push(`offset ${got.offset} != ${shape.offset}`);
           if (got.radius !== shape.radius) bad.push(`radius ${got.radius} != ${shape.radius}`);
-          // (the lighter lift, direct editing C item 6: the hover wash over the paper, a small shadow)
+          // (the lighter lift: the hover wash over the paper, a small shadow)
           if (cls === 'rb-lift'){ const sh = read(`box-shadow: inset 0 0 0 100vmax var(--plate-tint-hover), 0 0 0 var(--plate-off-${spec.token}) var(--plate-tint-hover), 0 0 0 var(--plate-off-${spec.token}) var(--plate-paper), var(--plate-lift) var(--plate-off-${spec.token}) var(--plate-lift-sh)`).shadow; if (got.shadow !== sh) bad.push(`shadow ${got.shadow} != ${sh}`); }
           else if (cls !== 'rb-ring' && cls !== 'rb-miss' && !/inset/.test(got.shadow)) bad.push(`no tint: ${got.shadow}`);
           out.push({ lv, cls, bad });
           el.classList.remove(cls); el.style.removeProperty('--plate-paper');
         }
-        // hover and selection: the plate that moves (UX-6f 4c), laid over the block at its level's stand-off, its corner the block's radius turned by it
-        // (the ladder, lab v2 "light": hover is the wash alone, no edge; selected a 1px edge in the plate ink, lighter on a job and a section by its --pe)
-        for (const [role, c] of Object.entries({ hot: { w: '0px', c: 'transparent' }, sel: { w: '0px', c: 'transparent' } })){      // (direct editing C, round 3: selected is a deeper wash, no edge)
+        // hover and selection: the plate that moves, laid over the block at its level's stand-off, its corner the block's radius turned by it
+        // (the ladder: hover is the wash alone, no edge; selected a 1px edge in the plate ink, lighter on a job and a section by its --pe)
+        for (const [role, c] of Object.entries({ hot: { w: '0px', c: 'transparent' }, sel: { w: '0px', c: 'transparent' } })){      // (selected is a deeper wash, no edge)
           const pl = d.createElement('div'), ecs = win.getComputedStyle(el);
           pl.className = `rb-plate is-${role} is-on`; for (const k of ['--po', '--pk', '--pe']) pl.style.setProperty(k, ecs.getPropertyValue(k)); d.body.append(pl);
           const cs = win.getComputedStyle(pl), w = read(`--pe: ${ecs.getPropertyValue('--pe')}; outline-width: ${c.w}; outline-color: ${c.c}`), rr = read(`border-radius: calc(var(--plate-r) + var(--plate-off-${spec.token}))`).radius, bad = [];
@@ -168,7 +168,7 @@ if (part('c')) {
   const st = (lv) => frameDoc(page, (d, spec) => {
     const el = d.querySelectorAll(spec.sel)[spec.n], win = d.defaultView, cs = el && win.getComputedStyle(el);
     const on = c => [...d.querySelectorAll(`.${c}`)];
-    const pl = el && window.__wb.sheet.plates().find(p => p.el === el), pc = pl && win.getComputedStyle(pl.div), er = el?.getBoundingClientRect(), pr = pl?.div.getBoundingClientRect();      // its plate: the shape that moves (UX-6f 4c)
+    const pl = el && window.__wb.sheet.plates().find(p => p.el === el), pc = pl && win.getComputedStyle(pl.div), er = el?.getBoundingClientRect(), pr = pl?.div.getBoundingClientRect();      // its plate: the shape that moves
     return { cls: el ? [...el.classList].filter(c => c.startsWith('rb-')) : null, hot: on('rb-hot').length, sel: on('rb-sel').length, lift: on('rb-lift').length, socket: on('rb-socket').length, ring: on('rb-ring').length, plates: window.__wb.sheet.plates().length,
       outline: pl ? { style: pc.outlineStyle, width: pc.outlineWidth, offset: `${Math.round(pr.right - er.right)}px`, role: pl.role } : null, writing: d.documentElement.classList.contains('rb-writing') };
   }, { sel: LEVELS[lv].sel, n: LEVELS[lv].n, token: LEVELS[lv].token });
@@ -183,7 +183,7 @@ if (part('c')) {
     await glide(page, at.x, at.y);
     const s = await st(lv);
     ok(`plate: ${lv}: hover is the wash plate (no edge) on that block and no other`, s.cls?.includes('rb-hot') && s.hot === 1 && s.sel === 0 && s.plates === 1 && s.outline?.role === 'hot' && s.outline.width === '0px' && s.outline.offset === px(await off(lv)), JSON.stringify(s));
-    // the grip's dots are the plate's own (direct editing C, item 4): they show as the pointer nears the left side, in the plate's tab; the grip is a clear button over it
+    // the grip's dots are the plate's own: they show as the pointer nears the left side, in the plate's tab; the grip is a clear button over it
     await page.mouse.move(b.x + 6, at.y, { steps: 6 }); await page.waitForTimeout(400);
     const tab = await page.evaluate(() => { const g = [...document.querySelectorAll('#handlay .obgrip')].find(e => !e.hidden), p = window.__wb.sheet.plates().find(q => q.div.classList.contains('is-grip')); if (!g || !p) return null; const c = getComputedStyle(g), dots = p.div.ownerDocument.defaultView.getComputedStyle(p.div, '::before'); return { bg: c.backgroundColor, shadow: c.boxShadow, dots: dots.content !== 'none' && dots.backgroundImage.includes('radial'), w: g.getBoundingClientRect().width }; });
     ok(`plate: ${lv}: near its left side the plate draws the grip's dots in its own tab; the grip is a clear button, no shadow`, !!tab && tab.dots && /, 0\)$|transparent/.test(tab.bg) && tab.shadow === 'none' && tab.w <= 16, JSON.stringify(tab));
@@ -210,7 +210,7 @@ if (part('c')) {
     await page.mouse.click(b.x + 30, b.y + 6); await page.waitForTimeout(600);
     const w = await frameDoc(page, d => { const e = d.querySelector('[contenteditable]'); if (!e) return null; const pl = window.__wb.sheet.plates().find(p => p.role === 'write'); if (!pl) return { plate: false }; const pc = d.defaultView.getComputedStyle(pl.div), cs = d.defaultView.getComputedStyle(e), r = d.createElement('i'); d.body.append(r); r.style.cssText = 'background-color: var(--plate-paper); outline: 1px solid var(--plate-ink)'; const want = d.defaultView.getComputedStyle(r); const o = { style: pc.outlineStyle, width: pc.outlineWidth, color: pc.outlineColor === want.outlineColor, paper: cs.backgroundColor === want.backgroundColor, inner: /inset/.test(cs.boxShadow), hot: window.__wb.sheet.plates().filter(p => p.role !== 'write' && !(p.role === 'sel' && p.el.contains(e))).length, up: window.__wb.sheet.plates().filter(p => p.role === 'sel' && p.el.contains(e) && p.el !== e).length, own: cs.outlineStyle }; r.remove(); return o; });
     ok(`plate: ${lv}: the block above the written line (its job, or its section) keeps one faint plate: where the line is`, !!w && w.up === 1, JSON.stringify(w));
-    ok(`plate: ${lv}: writing is pressed in: a thin rule (--plate-write, the plate's, UX-6f 4c) in the selection ink, the field the paper's colour with a soft inner shadow, no other plate on it (the block above has its own)`, !!w && w.own === 'none' && w.style === 'solid' && w.width === (await frameDoc(page, d => { const i = d.createElement('i'); d.body.append(i); i.style.cssText = 'outline: var(--plate-write) solid'; const v = d.defaultView.getComputedStyle(i).outlineWidth; i.remove(); return v; })) && w.color && w.paper && w.inner && w.hot === 0, JSON.stringify(w));
+    ok(`plate: ${lv}: writing is pressed in: a thin rule (--plate-write, the plate's) in the selection ink, the field the paper's colour with a soft inner shadow, no other plate on it (the block above has its own)`, !!w && w.own === 'none' && w.style === 'solid' && w.width === (await frameDoc(page, d => { const i = d.createElement('i'); d.body.append(i); i.style.cssText = 'outline: var(--plate-write) solid'; const v = d.defaultView.getComputedStyle(i).outlineWidth; i.remove(); return v; })) && w.color && w.paper && w.inner && w.hot === 0, JSON.stringify(w));
   }
   // lifted: the plate rises with the larger press shadow, and its home keeps a dashed socket of the same shape
   for (const lv of ['line', 'group', 'job', 'section']){
@@ -228,7 +228,7 @@ if (part('c')) {
       probe.remove(); return res;
     }, { sel: spec.sel, n: spec.n, token: spec.token });
     ok(`plate: ${lv}: lifted is the same plate risen: the wash, a small lift shadow, no outline, and nothing else drawn on it${lv === 'section' ? ' (a section is carried as its card, its home folded)' : ''}`, s.lifted && s.shadow && s.outline && s.n >= 1 && s.hot === 0, JSON.stringify(s));
-    // (UX-6f 4c, rewritten: the socket is the plate's shape as drawn: the home's box grown by its stand-off fitted to the words around it, no further than the level's, its corner turned by it)
+    // (rewritten: the socket is the plate's shape as drawn: the home's box grown by its stand-off fitted to the words around it, no further than the level's, its corner turned by it)
     const so = s.socket && { x: (s.socket.w - s.el.w) / 2, y: (s.socket.h - s.el.h) / 2 }, tokOff = parseFloat(await tok(`--plate-off-${spec.token}`)), r0 = parseFloat(await tok('--plate-r'));
     ok(`plate: ${lv}: its home keeps a shaded socket of the plate's shape, no outline (its box grown by the fitted stand-off, never past the level's, its corner turned by it), one for each element lifted`, !!so && s.socket.style === 'none' && !/, 0\)$|transparent/.test(s.socket.bg) && s.socket.n === s.nLift && s.socket.offset === '0px' && [so.x, so.y].every(v => v >= -2.6 && v <= tokOff + .6) && Math.abs(parseFloat(s.socket.radius) - (r0 + Math.max(so.x, so.y))) <= .6, JSON.stringify({ s, so }));
     await page.keyboard.press('Escape'); await page.mouse.up(); await page.waitForTimeout(500);
@@ -249,7 +249,7 @@ if (part('c')) {
   await ctx.close();
 }
 
-// ---- (d) hover is intent, not a reflex (UX-6f 1b) ----
+// ---- (d) hover is intent, not a reflex ----
 for (const motion of part('d') ? [true, false] : []){
   const { ctx, page, bad } = await open('tea', 'light', motion);
   await openByName(page, 'Medtech');
@@ -284,7 +284,7 @@ for (const motion of part('d') ? [true, false] : []){
   ok(`intent: ${tag}: the same sweep, slowed, shows the block it stops on, and never two hovered at once`, rec.length > 10 && rec.every(r => r.hots <= 1) && !!end && end.hot === stop && Math.max(...rec.map(r => r.hots)) === 1, JSON.stringify({ end, stop, hots: Math.max(...rec.map(r => r.hots)) }));
   if (motion){
     // the plates fade: the one it left fades out while the next fades in, so for a moment two are drawn, one hovered
-    // the plate moves (UX-6f 4c, no longer a cross-fade): one plate travels from block to block, never two drawn
+    // the plate moves (no longer a cross-fade): one plate travels from block to block, never two drawn
     ok('intent: with motion the slow sweep glides: one plate travels from block to block, and never two are drawn', rec.some(r => r.moving) && rec.every(r => r.n <= 1), JSON.stringify({ moving: rec.filter(r => r.moving).length, two: rec.filter(r => r.n > 1).length }));
   } else {
     ok('intent: with reduced motion the plate is there at once (no fade in any frame) and goes at once', rec.every(r => r.n === 0 || r.a === 1 || r.hots === 0) && rec.every(r => r.n <= 1), JSON.stringify(rec.filter(r => r.n > 1).slice(0, 3)));
@@ -339,21 +339,21 @@ for (const motion of part('d') ? [true, false] : []){
   await ctx.close();
 }
 
-// ---- (e) UX-6f 4c ----
+// ---- (e) the plate that moves ----
 // the plate drawn now (hover, else selection), in window pixels: its edges (where its line starts) and its outer corner's radius on the camera's scale
 const drawnPlate = page => page.evaluate(() => {
   const w = window.__wb, p = w.sheet.plates().find(q => q.role === 'hot') ?? w.sheet.plates().find(q => q.role === 'sel'); if (!p) return null;
   const s = w.canvas.screenRect(p.div.getBoundingClientRect()), k = w.canvas.cam.k;
   return { left: s.left, top: s.top, bottom: s.top + s.height, r: parseFloat(p.div.ownerDocument.defaultView.getComputedStyle(p.div).borderTopRightRadius) * k };      // (its left corners are square where the grip stands)
 });
-// 4c-1: writing is lighter: what the written line draws (its rule and its paper) stays inside its own box plus half the gap to the printed text around it
+// writing is lighter: what the written line draws (its rule and its paper) stays inside its own box plus half the gap to the printed text around it
 const writtenShape = page => frameDoc(page, d => {
   const el = d.querySelector('[contenteditable]:not([contenteditable=false])'); if (!el) return null;
   const cs = d.defaultView.getComputedStyle(el), r = el.getBoundingClientRect();
   const spread = Math.max(0, ...[...cs.boxShadow.matchAll(/(?:^|,)\s*(?:rgba?\([^)]*\)\s*)?(-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px(?!.*inset)/g)].filter(m => !/inset/.test(m[0])).map(m => +m[4] + Math.max(Math.abs(+m[1]), Math.abs(+m[2]))));
-  // the written field's own outline and paper, and (UX-6f 4c) the plate laid over it, its rule drawn outside its box
+  // the written field's own outline and paper, and the plate laid over it, its rule drawn outside its box
   const pl = window.__wb?.sheet.plates?.().find(p => p.role === 'write'), pr = pl?.div.getBoundingClientRect(), pw = pl ? parseFloat(d.defaultView.getComputedStyle(pl.div).outlineWidth) : 0;
-  const tw = pl ? parseFloat(pl.div.style.getPropertyValue('--tw')) || 0 : 0;      // (the grip's tab, direct editing C item 4: the plate widens into it only where the words on its rows leave room)
+  const tw = pl ? parseFloat(pl.div.style.getPropertyValue('--tw')) || 0 : 0;      // (the grip's tab: the plate widens into it only where the words on its rows leave room)
   const plateExt = pr ? Math.max(r.left - pr.left - tw, r.top - pr.top, pr.right - r.right, pr.bottom - r.bottom) + pw : 0;
   const ext = Math.max(cs.outlineStyle === 'none' ? 0 : parseFloat(cs.outlineOffset) + parseFloat(cs.outlineWidth), spread, plateExt);
   const walker = d.createTreeWalker(d.querySelector('.document'), 4), rg = d.createRange(), near = [];
@@ -373,13 +373,13 @@ for (const motion of part('e') ? [true, false] : []){
   const WRITE = { 'a middle line': ['.entry:first-child .bullets li', 2, 60], 'the first line of a job': ['.entry:first-child .bullets li', 0, 60], 'a skill group': ['.skills__items', 0, 20], 'the summary': ['.summary', 0, 40], 'a job title': ['.entry:first-child .role-title', 0, 20] };
   for (const [name, [sel, n, dx]] of Object.entries(WRITE)){
     await rest(page); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); window.__wb.canvas.reset({ page: 0 }); }); await page.waitForTimeout(900);      // (the camera comes back out from the writing zoom)
-    const b = await box(page, sel, n); if (!b){ ok(`4c-1: ${tag}: ${name} is on the page`, false); continue; }
+    const b = await box(page, sel, n); if (!b){ ok(`${tag}: ${name} is on the page`, false); continue; }
     await page.mouse.click(b.x + dx, b.y + 6); await page.waitForTimeout(500); if (!(await page.evaluate(() => window.__wb.ui.writing))) await page.mouse.click(b.x + dx, b.y + 6); await page.waitForTimeout(900);
     const w = await writtenShape(page);
-    ok(`4c-1: ${tag}: writing ${name}: nothing it draws passes half the gap to the text around it`, !!w && w.ext <= w.gap / 2 + .3, JSON.stringify(w));
-    ok(`4c-1: ${tag}: writing ${name}: its drawn shape covers no neighbour's text`, !!w && w.ext < w.gap, JSON.stringify(w));
+    ok(`${tag}: writing ${name}: nothing it draws passes half the gap to the text around it`, !!w && w.ext <= w.gap / 2 + .3, JSON.stringify(w));
+    ok(`${tag}: writing ${name}: its drawn shape covers no neighbour's text`, !!w && w.ext < w.gap, JSON.stringify(w));
   }
-  // 4c-2 (rewritten for the joined control): the version pill and the ↑ ↓ beside a written line: one row at the right of the line, ONE control with one opaque face tinted
+  // the version pill and the ↑ ↓ beside a written line: one row at the right of the line, ONE control with one opaque face tinted
   // from the plate, a thin edge, the plate's corner, visible against the paper; the parts have no face of their own at rest, the arrows in the paper's ink (readable on the face
   // over the desk too) and the plate's corner; the same targets as before
   {
@@ -396,12 +396,12 @@ for (const motion of part('e') ? [true, false] : []){
         up: { color: cs(up).color, r: cs(up).borderTopLeftRadius, w: Math.round(r(up).width), h: Math.round(r(up).height) }, want };
     });
     const clear = c => /rgba\(0, 0, 0, 0\)|transparent/.test(c);
-    ok(`4c-2: ${tag}: the tools beside a written line stand in one row: the version pill, then ↑, then ↓, level with each other`, !!t && t.row.pill < t.row.up && t.row.up < t.row.down && Math.max(...t.row.tops) - Math.min(...t.row.tops) <= 1, JSON.stringify(t));
-    ok(`4c-2: ${tag}: the control (pill and arrows joined) has ONE opaque face tinted from the plate, a thin edge and the plate's corner; the pill has none of its own`, !!t && !clear(t.bar.bg) && t.bar.bg !== t.want.paper && t.bar.faceVsPaper > 1.02 && t.bar.r === t.want.r && t.bar.shadow !== 'none' && t.bar.border === '0px' && clear(t.tag.bg), JSON.stringify(t));
-    ok(`4c-2: ${tag}: the control's edge shows against the paper at rest (at least 1.5 to 1), and the arrows wear the plate's corner and the paper's ink`, !!t && t.tag.edgeVsPaper >= 1.5 && t.up.r === t.want.r && t.up.color === t.want.ink, JSON.stringify(t));
-    ok(`4c-2: ${tag}: their targets are as big as before (the pill 28 px tall, the arrows 28 px square, a control box)`, !!t && t.tag.h >= 28 && t.tag.w >= 28 && t.up.w >= 28 && t.up.h >= 28, JSON.stringify(t));
+    ok(`${tag}: the tools beside a written line stand in one row: the version pill, then ↑, then ↓, level with each other`, !!t && t.row.pill < t.row.up && t.row.up < t.row.down && Math.max(...t.row.tops) - Math.min(...t.row.tops) <= 1, JSON.stringify(t));
+    ok(`${tag}: the control (pill and arrows joined) has ONE opaque face tinted from the plate, a thin edge and the plate's corner; the pill has none of its own`, !!t && !clear(t.bar.bg) && t.bar.bg !== t.want.paper && t.bar.faceVsPaper > 1.02 && t.bar.r === t.want.r && t.bar.shadow !== 'none' && t.bar.border === '0px' && clear(t.tag.bg), JSON.stringify(t));
+    ok(`${tag}: the control's edge shows against the paper at rest (at least 1.5 to 1), and the arrows wear the plate's corner and the paper's ink`, !!t && t.tag.edgeVsPaper >= 1.5 && t.up.r === t.want.r && t.up.color === t.want.ink, JSON.stringify(t));
+    ok(`${tag}: their targets are as big as before (the pill 28 px tall, the arrows 28 px square, a control box)`, !!t && t.tag.h >= 28 && t.tag.w >= 28 && t.up.w >= 28 && t.up.h >= 28, JSON.stringify(t));
   }
-  // 4c-3 (rewritten for direct editing C: the plate's ladder): the "+": under a line that is not the job's last it is a shaded pill of its own (the wash, no edge but a faint
+  // the "+" (the plate's ladder): under a line that is not the job's last it is a shaded pill of its own (the wash, no edge but a faint
   // hairline round it, round corners); on the last line it is the plate's bottom tab, the same wash, no edge, square at the top; between the two it changes with an
   // animation (none under reduced motion)
   {
@@ -411,7 +411,7 @@ for (const motion of part('e') ? [true, false] : []){
       return { free: p.classList.contains('is-free'), top: r.top, bw: parseFloat(c.borderTopWidth), wash: /gradient/.test(c.backgroundImage), ring: c.boxShadow, tc: parseFloat(c.borderTopWidth) > 0 ? c.borderTopColor : 'transparent', lc: c.borderLeftColor, tl: parseFloat(c.borderTopLeftRadius), bl: parseFloat(c.borderBottomLeftRadius), anims: p.getAnimations().filter(a => a.transitionProperty).length }; });
     const mid = await job.nth(1).boundingBox(); await glide(page, mid.x + 60, mid.y + 6);
     const a = await plusNow();
-    ok(`4c-3: ${tag}: under a middle line the "+" is a shaded pill of its own: the wash, no edge (a faint hairline round it), four round corners`, !!a && a.free && a.wash && a.bw === 0 && a.ring !== 'none' && a.tl > 0 && a.bl > 0, JSON.stringify(a));
+    ok(`${tag}: under a middle line the "+" is a shaded pill of its own: the wash, no edge (a faint hairline round it), four round corners`, !!a && a.free && a.wash && a.bw === 0 && a.ring !== 'none' && a.tl > 0 && a.bl > 0, JSON.stringify(a));
     const last = await job.nth(n - 1).boundingBox(), prev = await job.nth(n - 2).boundingBox();
     await glide(page, prev.x + 60, prev.y + 6);
     await page.evaluate(() => { window.__plusRec = []; const f = () => { const p = document.querySelector('#handlay .obplus'); if (p && !p.hidden){ const c = getComputedStyle(p); window.__plusRec.push({ tc: c.borderTopColor, tl: c.borderTopLeftRadius, anims: p.getAnimations().filter(a => a.transitionProperty).length }); } window.__plusRaf = requestAnimationFrame(f); }; f(); });
@@ -420,11 +420,11 @@ for (const motion of part('e') ? [true, false] : []){
     const rec = await page.evaluate(() => { cancelAnimationFrame(window.__plusRaf); return window.__plusRec; });
     const z = await plusNow();
     const edge = (await drawnPlate(page))?.bottom;      // where the last line's plate as drawn (its stand-off, fitted to the words around it) ends: the plate's line is drawn from there out
-    ok(`4c-3: ${tag}: on the job's last line the "+" is the plate's bottom tab: the plate's wash, no edge, square at the top`, !!z && !z.free && z.wash && z.bw === 0 && z.ring === 'none' && z.tl === 0 && Math.abs(z.top - edge) < 1.5, JSON.stringify({ z, edge }));
+    ok(`${tag}: on the job's last line the "+" is the plate's bottom tab: the plate's wash, no edge, square at the top`, !!z && !z.free && z.wash && z.bw === 0 && z.ring === 'none' && z.tl === 0 && Math.abs(z.top - edge) < 1.5, JSON.stringify({ z, edge }));
     const between = rec.filter(r => r.anims > 0 || (r.tl !== '0px' && r.tl !== rec.at(-1)?.tl && r.tl !== rec[0]?.tl));
-    ok(`4c-3: ${tag}: between the two forms the "+" ${motion ? 'changes with an animation' : 'changes at once (no animation)'}`, motion ? between.length > 0 : between.length === 0, JSON.stringify({ frames: rec.length, between: between.length }));
+    ok(`${tag}: between the two forms the "+" ${motion ? 'changes with an animation' : 'changes at once (no animation)'}`, motion ? between.length > 0 : between.length === 0, JSON.stringify({ frames: rec.length, between: between.length }));
   }
-  // 4c-4 (rewritten for direct editing C, item 4): the grip is part of the plate: its dots are in the plate's left tab, the plate widened into it where the words leave room,
+  // the grip is part of the plate: its dots are in the plate's left tab, the plate widened into it where the words leave room,
   // and its button lies over that tab, inside the plate's box; while a line is written the dots stay at about 40%, and full again under the pointer
   for (const lv of ['line', 'group', 'job', 'section']){
     await rest(page); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); window.__wb.canvas.reset({ page: 0 }); }); await page.waitForTimeout(900);
@@ -436,7 +436,7 @@ for (const motion of part('e') ? [true, false] : []){
       return { g: [q.left, q.top, q.right, q.bottom].map(Math.round), plate: [r.left, r.top, r.left + r.width, r.top + r.height].map(Math.round), gap: Math.round(el.left - r.left), tw: Math.round(tw), role: p.role };
     });
     const [gl, gt, gr, gb] = g.g ?? [], [pl, pt, pr, pb] = g.plate ?? [];
-    ok(`4c-4: ${tag}: ${lv}: the grip's button lies over the plate's left tab, the plate's full height, inside its box${lv === 'line' ? ', the plate widened into the tab' : ''}`,
+    ok(`${tag}: ${lv}: the grip's button lies over the plate's left tab, the plate's full height, inside its box${lv === 'line' ? ', the plate widened into the tab' : ''}`,
       !!g.g && Math.abs(gl - pl) <= 1 && Math.abs(gt - pt) <= 1 && Math.abs(gb - pb) <= 1 && gr <= pr && (lv !== 'line' || g.tw > 0), JSON.stringify(g));
   }
   {
@@ -444,12 +444,12 @@ for (const motion of part('e') ? [true, false] : []){
     const b = await box(page, '.entry:first-child .bullets li', 2); await page.mouse.click(b.x + 60, b.y + 6); await page.waitForTimeout(900);
     const dim = () => page.evaluate(() => { const p = window.__wb.sheet.plates().find(q => q.role === 'write'), e = [...document.querySelectorAll('#handlay .obgrip:not(.obfgrip)')].find(q => !q.hidden); return p && e ? { o: +p.div.ownerDocument.defaultView.getComputedStyle(p.div, '::before').opacity, grip: p.div.classList.contains('is-grip'), r: e.getBoundingClientRect().toJSON() } : null; });
     const d0 = await dim();
-    ok(`4c-4: ${tag}: while a line is written its dots stay in its plate's tab, dimmed to about 40%`, !!d0 && d0.grip && d0.o > .3 && d0.o < .5, JSON.stringify(d0));
+    ok(`${tag}: while a line is written its dots stay in its plate's tab, dimmed to about 40%`, !!d0 && d0.grip && d0.o > .3 && d0.o < .5, JSON.stringify(d0));
     if (d0){ await page.mouse.move(d0.r.x + d0.r.width / 2, d0.r.y + d0.r.height / 2, { steps: 4 }); await page.waitForTimeout(400); }
     const d1 = await dim();
-    ok(`4c-4: ${tag}: …and full again under the pointer`, !!d1 && d1.o === 1, JSON.stringify(d1));
+    ok(`${tag}: …and full again under the pointer`, !!d1 && d1.o === 1, JSON.stringify(d1));
   }
-  // 4c-5: one plate that moves: hover and selection are a shape over the page that glides (place, size and corner, about 120 ms, ease-out) from block to block, a fast
+  // one plate that moves: hover and selection are a shape over the page that glides (place, size and corner, about 120 ms, ease-out) from block to block, a fast
   // sweep shows nothing on the way and the plate then travels to where the pointer settles; reduced motion: it is at its place at once. Frame furniture only.
   {
     const rec0 = role => page.evaluate(r => { window.__pr = []; const f = () => { const p = window.__wb.sheet.plates?.().find(q => q.role === r), b = p?.div.getBoundingClientRect(); window.__pr.push({ t: performance.now(), top: b ? Math.round(b.top * 10) / 10 : null, h: b ? Math.round(b.height * 10) / 10 : null, a: p ? +getComputedStyle(p.div).opacity : 0, n: window.__wb.sheet.plates?.().filter(q => q.role === r).length ?? 0 }); window.__prR = requestAnimationFrame(f); }; f(); }, role);
@@ -464,7 +464,7 @@ for (const motion of part('e') ? [true, false] : []){
     let rec = await stop0(); const s1 = await selTop();
     const mid = s0 != null && s1 != null ? between(rec, s0, s1) : [];
     const done = rec.find(r => r.top != null && Math.abs(r.top - s1) < .6 && rec.indexOf(r) > rec.findIndex(q => q.top != null && Math.abs(q.top - s0) > .6));
-    ok(`4c-5: ${tag}: an arrow step ${motion ? 'glides the selection\'s plate to the next line (frames in between, there in under 250 ms)' : 'puts the selection\'s plate on the next line at once (no frame in between)'}`,
+    ok(`${tag}: an arrow step ${motion ? 'glides the selection\'s plate to the next line (frames in between, there in under 250 ms)' : 'puts the selection\'s plate on the next line at once (no frame in between)'}`,
       s0 != null && s1 != null && s1 > s0 + 5 && (motion ? mid.length >= 2 && !!done && done.t - rec[0].t < 250 : mid.length === 0) && rec.every(r => r.n <= 1), JSON.stringify({ s0, s1, mid: mid.length, ms: done && Math.round(done.t - rec[0].t), frames: rec.length }));
     // the hover: from one line to the next, slowly
     await rest(page); const L = []; for (let i = 0; i < 6; i++) L.push(await box(page, '.entry:first-child .bullets li', i));
@@ -473,7 +473,7 @@ for (const motion of part('e') ? [true, false] : []){
     const h0 = await hTop();
     await rec0('hot'); for (let k = 1; k <= 6; k++){ await page.mouse.move(L[1].x + 100, L[1].y + 6 + (L[3].y - L[1].y) * k / 6); await page.waitForTimeout(16); } await page.waitForTimeout(400);
     rec = await stop0(); const h1 = await hTop();
-    ok(`4c-5: ${tag}: the hover's plate ${motion ? 'travels' : 'jumps'} from line to line as the pointer goes slowly, one plate at every frame`, h0 != null && h1 != null && h1 > h0 + 10 && rec.every(r => r.n <= 1) && (motion ? between(rec, h0, h1).length >= 3 : true), JSON.stringify({ h0, h1, mid: between(rec, h0, h1).length }));
+    ok(`${tag}: the hover's plate ${motion ? 'travels' : 'jumps'} from line to line as the pointer goes slowly, one plate at every frame`, h0 != null && h1 != null && h1 > h0 + 10 && rec.every(r => r.n <= 1) && (motion ? between(rec, h0, h1).length >= 3 : true), JSON.stringify({ h0, h1, mid: between(rec, h0, h1).length }));
     // a fast sweep across three sections: nothing shows on the way; where it settles the plate comes from where it was (with motion) and stays there
     await rest(page); await page.evaluate(() => window.__wb.canvas.reset({ page: 0 })); await page.waitForTimeout(700);
     const secs = []; for (const sel of ['.summary', '.band[data-section=experience] .role-title', '.band[data-section=education] [data-variant]', '.skills__group']){ const b = await box(page, sel, 0); if (b) secs.push(b); }      // a text in each of four sections
@@ -489,14 +489,14 @@ for (const motion of part('e') ? [true, false] : []){
     }
     const during = sw.rec.filter(r => r.t < sw.tStop - 10), after = sw.rec.filter(r => r.t >= sw.tStop);
     const onWay = during.filter(r => r.a > .2 && !(sw.a0 != null && Math.abs(r.top - sw.a0) < 1));      // the plate it left fades out where it was
-    ok(`4c-5: ${tag}: a fast sweep over three sections draws no plate on the way (above 20%): the one it left fades where it was`, gap < 35 && during.length > 3 && sw.a0 != null && onWay.length === 0, JSON.stringify({ gap, a0: sw.a0, onWay: onWay.slice(0, 3) }));
-    ok(`4c-5: ${tag}: …where it settles the plate ${motion ? 'travels in from where it was (frames in between)' : 'is there at once'} and ends on the block under the pointer, one plate all the way`,
+    ok(`${tag}: a fast sweep over three sections draws no plate on the way (above 20%): the one it left fades where it was`, gap < 35 && during.length > 3 && sw.a0 != null && onWay.length === 0, JSON.stringify({ gap, a0: sw.a0, onWay: onWay.slice(0, 3) }));
+    ok(`${tag}: …where it settles the plate ${motion ? 'travels in from where it was (frames in between)' : 'is there at once'} and ends on the block under the pointer, one plate all the way`,
       sw.end != null && sw.end > (sw.a0 ?? 0) + 50 && sw.rec.every(r => r.n <= 1) && (motion ? between(after, sw.a0, sw.end).length >= 1 : between(after.filter(r => r.a > 0), sw.a0, sw.end).length === 0), JSON.stringify({ a0: sw.a0, end: sw.end, mid: between(after, sw.a0, sw.end).length }));
     // frame furniture: never in the document, hidden from assistive tech, takes no pointer
     const furn = await frameDoc(page, d => { const ps = [...d.querySelectorAll('.rb-plate')]; return { n: ps.length, inDoc: !!d.querySelector('.document .rb-plate'), hidden: ps.every(p => p.getAttribute('aria-hidden') === 'true'), events: ps.every(p => d.defaultView.getComputedStyle(p).pointerEvents === 'none') }; });
-    ok(`4c-5: ${tag}: the plates are frame furniture: outside the printed document, aria-hidden, no pointer events`, furn.n >= 1 && !furn.inDoc && furn.hidden && furn.events, JSON.stringify(furn));
+    ok(`${tag}: the plates are frame furniture: outside the printed document, aria-hidden, no pointer events`, furn.n >= 1 && !furn.inDoc && furn.hidden && furn.events, JSON.stringify(furn));
   }
-  // 4c-6: a lifted block (its text, plate and shadow) is the topmost thing on the page: at points over it nothing of the page's or of the app's layers is drawn over it
+  // a lifted block (its text, plate and shadow) is the topmost thing on the page: at points over it nothing of the page's or of the app's layers is drawn over it
   for (const lv of ['line', 'group', 'job', 'section']){
     await rest(page); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); window.__wb.canvas.reset({ page: 0 }); }); await page.waitForTimeout(900);
     const spec = LEVELS[lv], home = await box(page, spec.sel, spec.n);
@@ -520,10 +520,10 @@ for (const motion of part('e') ? [true, false] : []){
       }
       return { lifted: lift.className, n: pts.length, over: [...new Set(over)] };
     });
-    ok(`4c-6: ${tag}: ${lv}: the lifted block is the topmost thing on the page: nothing of the page, the frame's furniture or the app's layers is drawn over it`, !!top && top.over.length === 0, JSON.stringify(top));
+    ok(`${tag}: ${lv}: the lifted block is the topmost thing on the page: nothing of the page, the frame's furniture or the app's layers is drawn over it`, !!top && top.over.length === 0, JSON.stringify(top));
     await page.keyboard.press('Escape'); await page.mouse.up(); await page.waitForTimeout(500);
   }
-  ok(`4c-1: ${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
+  ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
 

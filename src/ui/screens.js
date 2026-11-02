@@ -1,4 +1,4 @@
-// The Library place and its Compare mode (UX-6e, UX-6h). The Library holds every resume as a card with a picture of its first page
+// The Library place and its Compare mode. The Library holds every resume as a card with a picture of its first page
 // (thumbs.js) and the information beside it; one card is selected (the open resume at first: Enter on it opens it, as a second click on it
 // does); tick any number and compare them in a table with a column for each. Drawn left of the sidebar (a phone: the whole screen); Esc goes
 // up one level (Compare to the grid, then the selection), never to another place. The model is src/model/resumes.js; the row menu, rename,

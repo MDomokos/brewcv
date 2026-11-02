@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/review-ui-check.mjs
-// The Review list's behaviour after the UX-6d review, in Chromium on the fictional example:
+// The Review list's behaviour, in Chromium on the fictional example:
 //   - a resume whose company is markup shows as text in the Update note, never as an element,
 //   - 'Use all the newer wording' is one commit and one undo step and skips a locked line,
 //   - the Another-option select only chooses: nothing is written until Apply, and a Replace says who else prints the version,

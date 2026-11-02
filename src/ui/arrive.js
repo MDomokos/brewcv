@@ -1,4 +1,4 @@
-// The two arrivals (UX-4): the start screen turns into the editor, and the quiet onboarding editor opens up to the whole one.
+// The two arrivals: the start screen turns into the editor, and the quiet onboarding editor opens up to the whole one.
 // Both are told after the fact (the editor is already what it is); shell.js calls them when it sees the screen change.
 //   fromStart:   the grey skeleton lines of the start screen become the page's text, line by line (src/ui/pagemotion.js reveal), and
 //                the intro parts become the editor's controls: the header, the panel and the footer come in from where they were.

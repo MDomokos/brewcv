@@ -583,7 +583,7 @@ export function unparkOverride(model, recipe, factId){
 export const overrideOf = (recipe, factId) => (factId in (recipe.overrides ?? {})
   ? { text: recipe.overrides[factId], ...(recipe.overrideMeta?.[factId] ?? {}), on: true }
   : recipe.parked?.[factId] ? { text: recipe.parked[factId].text, ...(recipe.parked[factId].meta ?? {}), on: false } : null);
-// A second edit of a line does not replace the first (UX-6f): the one on the page, if it is still to be decided on, is kept among the line's earlier
+// A second edit of a line does not replace the first: the one on the page, if it is still to be decided on, is kept among the line's earlier
 // edits (recipe.earlier[fact], oldest first) before the new text is set, so each stays its own row of the versions list. Not printed.
 export function stackOverride(model, recipe, factId){
   guard(model, recipe, factId);
@@ -593,7 +593,7 @@ export function stackOverride(model, recipe, factId){
   recipe.earlier = { ...(recipe.earlier ?? {}), [factId]: [...rest, { text: o.text, marks: o.marks ?? [], base: o.base ?? null }] };
 }
 // The saved resumes that print a line in their own words (an edit of it on that resume, not locked), and the switch back to the record's wording
-// for all of them (UX-6f: a date line follows its dates again). A locked resume is left as it is.
+// for all of them (a date line follows its dates again). A locked resume is left as it is.
 export const ownWording = (model, recipes, factId) => recipes.filter(r => r.overrides?.[factId] !== undefined && !isLocked(model, r, factId));
 export function useRecordWording(model, recipes, factId){
   const rs = ownWording(model, recipes, factId);
@@ -618,9 +618,9 @@ export function swapEarlier(model, recipe, factId, at){
   else dropEarlier(model, recipe, factId, at);
   setOverride(model, recipe, factId, e.text, { marks: e.marks, base: e.base });
 }
-// The edits not yet decided on (UX-6d's Review list).
+// The edits not yet decided on (the Review list's).
 export const pendingEdits = recipe => Object.keys(recipe.overrides ?? {}).filter(f => !recipe.overrideMeta?.[f]?.kept);
-// …and the ones UX-6d's Review list may offer: it skips a locked line (it would change its text), so it reads this, not pendingEdits.
+// …and the ones the Review list may offer: it skips a locked line (it would change its text), so it reads this, not pendingEdits.
 export const reviewableEdits = (model, recipe) => pendingEdits(recipe).filter(f => !isLocked(model, recipe, f));
 export function keepHere(recipe, factId){
   recipe.overrideMeta = { ...(recipe.overrideMeta ?? {}), [factId]: { ...recipe.overrideMeta?.[factId], kept: true } };

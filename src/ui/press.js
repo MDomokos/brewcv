@@ -1,7 +1,7 @@
 // Enter and Space press a .press control (workbench.css) the way the pointer does: the browser gives :active to Space on a button, not to Enter,
 // and a row that is not a button gets neither. The look is the class's; this only holds it down while the key is.
 //
-// The sidebar's buttons take their tier from their role (UX-6 sidebar, audit (b)), said once here rather than on every button: .primary is the
+// The sidebar's buttons take their tier from their role, said once here rather than on every button: .primary is the
 // primary (one a view at most), a delete (.del, parts.js delBtn) is destructive, a ghost, an icon or a chip is tertiary, any other button secondary.
 // A button that already names its tier keeps it. A tertiary with no words is an icon tool (data-icon): a quiet frame, where a tertiary with words is a link.
 // OWN are the controls with a look of their own that says what they are (segments, templates, swatches, the rows and their parts, the tabs, the

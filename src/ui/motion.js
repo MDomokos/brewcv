@@ -1,4 +1,4 @@
-// Motion that explains (UX-4). One place for the rules every moment follows:
+// Motion that explains. One place for the rules every moment follows:
 //   - a moment is 150 to 400 ms; things arriving ease out, things leaving ease in. The durations and easings are custom properties
 //     on :root (src/ui/workbench.css, --m-*), read from there, so they are tuned in one place.
 //   - it never blocks input: the state has already changed when an animation starts, a new action retargets or skips the one under

@@ -975,7 +975,7 @@ export default {
   'save.folderOverwrite': 'Überschreiben',
   'save.folderSame': 'Die Datei im Ordner ist dieselbe wie deine.',
   'save.folderNone': 'Im Ordner gibt es keine lesbare Datei zum Vergleichen.',
-  // ux1: saving, snapshots, the switcher, fewer duplicates
+  // saving, snapshots, the switcher, fewer duplicates
   'ux1.savedDevice': 'Auf diesem Gerät gespeichert',
   'ux1.saveFailed': 'Nicht auf diesem Gerät gespeichert',
   'ux1.search': 'Lebensläufe suchen',
@@ -1047,7 +1047,7 @@ export default {
   'ux1.add': 'Hinzufügen',
   'ux1.addEnter': 'Enter fügt es hinzu',
   'ux1.diffSnapshot': 'Momentaufnahme von {name}',
-  // UX-2: one screen
+  // one screen
   'ux2.modes': 'Was das Feld zeigt',
   'ux2.modeEdit': 'Ändern',
   'ux2.modeDesign': 'Design',
@@ -1492,7 +1492,7 @@ export default {
   'ux6f.exAnyway': 'Trotzdem exportieren',
   'ux6f.k.find': 'Die Lebensläufe, die Karriere und den geöffneten Lebenslauf durchsuchen',
   'ux6f.k.grip': 'Mit dem Griff im Fokus: den Block eine Stelle verschieben. Esc legt einen angehobenen Block zurück',
-  // the sidebar's titled groups (UX-6 sidebar)
+  // the sidebar's titled groups
   'uxs.look': 'Aussehen',
   'uxs.thisBrowser': 'dieser Browser',
   'uxs.everyResume': 'jeder Lebenslauf',
@@ -1501,7 +1501,7 @@ export default {
   'uxr.locked': 'Gesperrt',
   'uxr.unlocked': 'Entsperrt',
   'uxs.paperPages': 'Papier und Seiten',
-  // the sidebar's width control (UX-6 sidebar)
+  // the sidebar's width control
   'uxs.sideWidth': 'Breite der Seitenleiste',
   'uxs.sideTip': 'Ziehen, um sie zu verbreitern; Doppelklick für die Breite des Fensters',
   'uxs.sideHide': 'Seitenleiste ausblenden',
@@ -1512,7 +1512,7 @@ export default {
   'ux6g.exReady': 'Bereit zum Versand',
   'ux6g.tailor': 'Auf einen Jobtyp zuschneiden…',
   'ux6g.tailorOn': 'Zuschnitt: {name}',
-  // multilingual, step 2: the language copies on the page
+  // multilingual: the language copies on the page
   'ml2.tagMiss': 'Version {v}, nur auf {lang} geschrieben. Das Feld öffnen, um sie hier zu schreiben.',
   'ml2.tagMissTip': 'Hier noch nicht geschrieben: nur auf {lang}. Klicken zum Schreiben.',
   'ml2.noVersionAt': '<b>Noch keine v{n} auf {lang}.</b> Die Seite druckt die von {from}, umrandet.',
@@ -1528,7 +1528,7 @@ export default {
   'ml2.alsoChanged': 'Auch geändert in {lang}',
   'ml2.keepInStep': 'Im Gleichschritt mit {name} halten',
   'ml2.keepInStepTip': 'Reihenfolge der Zeilen, ausgeblendete Zeilen, Versionswahl und Aussehen ändern sich dann in beiden. Deine eigenen Auswahlen bleiben erhalten.',
-  // ml3: headings and one-off texts changed in another language, matching an old version to a number
+  // headings and one-off texts changed in another language, matching an old version to a number
   'ml3.editedIn': '{n} auf {lang} bearbeitet, noch keine Version',
   'ml3.editedRow': 'Auf {lang} bearbeitet, noch keine Version',
   'ml3.headingRow': 'Überschrift auf {lang} geändert',

@@ -765,7 +765,7 @@ section('documents formatted by hand: no heading styles, the look set on each ru
   ok('a file of more than ten lines with no job found raises the doubt "jobs"; a short one, or one with jobs, does not', noJobs(12).includes('jobs') && !noJobs(10).includes('jobs') && !parseResume(F.oneColumn).doubts.some(d => d.kind === 'jobs'), J(noJobs(12)));
 }
 
-// ———— I-5: PDF ————
+// ———— PDF ————
 // The fixtures in checks/fixtures/import/ are one resume (data/example.json with the Helix saved resume) set by each producer: Word, Google Docs, LibreOffice, Pages, Affinity, BrewCV's own
 // export (the B2 look: its section names in the left margin) and Chrome (the Classic looks, through scripts/export-pdf.mjs), in one column and in two; and the Word, Google Docs and
 // LibreOffice DOCX and ODT of the same text. Their metadata is stripped (Info, XMP, docProps, meta.xml): nothing in them but the fictional text. The Pages and Affinity files are the PDFs those apps
@@ -845,7 +845,7 @@ section('PDF: a two-column design with a mono date line set right, headings in m
   ok('the columns are guessed (the sidebar at 401, not the dates set right at 286), though no two rows share a baseline', layoutOf(items).layout[0].split === 401 && layoutOf(items).doubts.length === 0, J(layoutOf(items)));
 }
 
-section('PDF: the owner\'s shape, invented: no name in the main column, which starts with its heading; the name and address at the top of the sidebar');
+section('PDF: the shape of a real file, invented: no name in the main column, which starts with its heading; the name and address at the top of the sidebar');
 {
   // made like the one above, on the shape of a real file: a main column of flowing text that starts with a 16 pt "Experience" heading (no name in it), then two sections ("Experience", "Earlier work") with four jobs, each a 12 pt
   // title in a Black face, a mono date line set right (job 2: a point or two above its title's baseline), one or two mono lines (the company, and a place), and plain sentences that wrap, some with short tails and some one line

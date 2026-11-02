@@ -32,10 +32,10 @@ recipes/
 !docs/*.gif
 !docs/intro/*.webp
 
-# Prototypes live in the vault, never here
+# Prototypes are kept outside the repository
 prototypes/
 
-# Rendered output — lives in the vault
+# Rendered output
 out/
 *.pdf
 

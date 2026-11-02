@@ -753,7 +753,7 @@ function sentLine(){
   return send && RS.sendLabel(send) ? `${t('ux1.sentTo2', { to: RS.sendLabel(send) })} · ${send.date || snap.at.slice(0, 10)}` : '';
 }
 
-// ---- moments in the header (UX-4) ----
+// ---- moments in the header ----
 // Another resume was opened: its name slides in. A snapshot was taken: a small copy of the page drops into the name, and the "Sent to"
 // line appears under it. All of it after the fact: the head already says the new thing.
 let namedId;
@@ -854,7 +854,7 @@ async function loadLangCounts(){
   if (sel && document.activeElement !== (sel._dd ?? sel)) sel.outerHTML = langSelect();
 }
 
-// The "?" corner (round 2): help and info at the sidebar's foot, out of the Outline's way: the shortcuts, privacy, the source, the version.
+// The "?" corner: help and info at the sidebar's foot, out of the Outline's way: the shortcuts, privacy, the source, the version.
 // A desktop draws it in #corner over the panel's bottom right (the panel keeps a row free under its content); a phone in the foot (dock.js).
 function cornerHtml(){
   const open = !!ui.corner;

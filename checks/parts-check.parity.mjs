@@ -109,7 +109,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
     const before = u.work().work[0].highlights.length;
     const h = fromPage(u, fact);
     ok('🗑 is in the header, above the versions', h.includes('data-act="delete-claim"') && h.indexOf('data-act="delete-claim"') < h.indexOf('<span class="lbl">'));
-    // UX-6 round 2: a claim with more than one version asks first, in place; the second press deletes
+    // a claim with more than one version asks first, in place; the second press deletes
     await u.click('delete-claim');
     const asked = u.edit.bulletView(u.ui.sel);
     ok('a claim with more than one version asks first, in place: the question, Cancel, then the delete last; nothing is deleted yet', u.work().facts.some(f => f.id === fact.id) && /class="missbar delask"/.test(asked) && asked.indexOf('data-act="delete-claim-no"') > -1 && asked.indexOf('data-act="delete-claim-no"') < asked.lastIndexOf('data-act="delete-claim"'));
@@ -139,7 +139,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
       && (list.match(/<section class="clg open[ "]/g) ?? []).length === (list.match(/<section class="clg[ "]/g) ?? []).length && !list.includes('class="new-claim"'));
     const outline = String(u.checklist.outlineHtml());
     const og = (outline.match(new RegExp(`<section class="clg open[^"]*" data-g="${job.id}">[\\s\\S]*?</section>`)) ?? [''])[0];
-    // (UX-6 sidebar: the lines that are off stay in place, greyed, where "+ n more" folded them; the fold holds only archived lines)
+    // (the lines that are off stay in place, greyed, where "+ n more" folded them; the fold holds only archived lines)
     ok('in the Outline the job in focus is open, with its lines, those that are off in place, and “+ line”; Edit’s job panel no longer lists its lines or the box',
       og.includes('class="clrow') && og.includes('data-act="ol-newline"') && !og.includes('data-act="ol-addline"') && (og.match(/class="clrow/g) ?? []).length >= w.work.find(x => x.id === job.id).highlights.filter(h => !w.facts.find(f => f.id === h)?.archived).length && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('data-act="add-claim"') && !String(u.edit.jobView({ kind: 'job', id: job.id })).includes('class="clrow'));
     ok('…and a line that is not in a job has no open job in the Outline', (u.select({ kind: 'bullet', id: w.basics.summary, section: 'summary' }), !/<section class="clg open/.test(String(u.checklist.outlineHtml()))));

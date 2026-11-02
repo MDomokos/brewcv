@@ -266,7 +266,7 @@ function drawFoot(){
 const BAR_OUT_MS = 900, BAR_FLASH_MS = 1200, BAR_NEAR = { x: 140, y: 100 };      // it goes 0.9 s after the pointer leaves (and comes back at once if it returns while it fades)
 let barOver = 0, sheetOn = false, barT = 0, flashT = 0, lastY = Infinity, lastX = Infinity;
 function bar(){ return $('#zoombar'); }
-// Where printed text runs under the bar (a page zoomed in), it stands aside until the pointer comes within 48 px of it, or a key zooms (UX-6f 4c: it covers no text it is
+// Where printed text runs under the bar (a page zoomed in), it stands aside until the pointer comes within 48 px of it, or a key zooms (it covers no text it is
 // not about). Called as the pointer moves and as the camera moves (shell.js).
 export function barAside(){
   const b = C && bar();

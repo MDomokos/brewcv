@@ -975,7 +975,7 @@ export default {
   'save.folderOverwrite': 'Overwrite it',
   'save.folderSame': 'The folder’s file is the same as yours.',
   'save.folderNone': 'There is no readable file in the folder to compare.',
-  // ux1: saving, snapshots, the switcher, fewer duplicates
+  // saving, snapshots, the switcher, fewer duplicates
   'ux1.savedDevice': 'Saved on this device',
   'ux1.saveFailed': 'Not saved on this device',
   'ux1.search': 'Search resumes',
@@ -1047,7 +1047,7 @@ export default {
   'ux1.add': 'Add',
   'ux1.addEnter': 'Enter adds it',
   'ux1.diffSnapshot': 'Snapshot of {name}',
-  // UX-2: one screen
+  // one screen
   'ux2.modes': 'What the panel shows',
   'ux2.modeEdit': 'Edit',
   'ux2.modeDesign': 'Design',
@@ -1200,7 +1200,7 @@ export default {
   'ux5c.outlineFoot': 'Fit cuts from the bottom. Put what matters first.',
   'ux5c.editNone': 'Click a line on the page, or pick one in the Outline, to see its versions.',
   'ux5c.line': '+ line here',
-  // UX-6b: the rail, the name card and window, the thin page meters
+  // the rail, the name card and window, the thin page meters
   'ux6b.rail': 'Views, other screens and history',
   'ux6b.history': 'History',
   'ux6b.duplicatedFrom': 'Duplicated from {name}',
@@ -1209,7 +1209,7 @@ export default {
   'ux6b.fillOver': 'over the band',
   'ux6b.backup': 'Backup',
   'ux6b.photoHint': 'Usual in Central Europe, not in the US or UK.',
-  // UX-6c: writing on the page, and where you are
+  // writing on the page, and where you are
   'ux6c.k.nextLine': 'Keep the line you are writing and write the next',
   'ux6c.k.lineBreak': 'A line break inside the line',
   'hl.k.drag': 'Hold and drag over words: highlight or clear them (Ctrl+Alt works too)',
@@ -1233,7 +1233,7 @@ export default {
   'ux6c.photoKept': 'Photo saved to your career. It is not on this resume.',
   'ux6c.newGroup': 'New group',
   'ux6c.undoSkills': 'Arrange the skills',
-  // UX-6c-iii-a: every printed text is written where it is printed
+  // every printed text is written where it is printed
   'ux6c.f.name': 'Name',
   'ux6c.f.label': 'Headline',
   'ux6c.f.contact': 'Contact',
@@ -1429,7 +1429,7 @@ export default {
   'ux6h.scopeAll': 'A change to these facts or to a line\'s words reaches every resume that prints it.',
   'ux6h.scopeTick': 'Ticks put lines on {name}, the open resume.',
   'ux6h.recPick': 'Pick an entry on the timeline, or a card on top, to see and edit it. Ticks put its lines on {name}.',
-  // UX-6f: one search (English until the translation step)
+  // one search
   'ux6f.search': 'Search',
   'ux6f.close': 'Close the search',
   'ux6f.inCareer': 'In Career \u00b7 {n}',
@@ -1496,7 +1496,7 @@ export default {
   'ux6f.exAnyway': 'Export anyway',
   'ux6f.k.grip': 'With a grip focused: move what it holds one place. Esc puts a lifted block back',
   'ux6f.k.find': 'Search the resumes, Career and the open resume',
-  // the sidebar's titled groups (UX-6 sidebar)
+  // the sidebar's titled groups
   'uxs.look': 'Look',
   'uxs.thisBrowser': 'this browser',
   'uxs.everyResume': 'every resume',
@@ -1505,7 +1505,7 @@ export default {
   'uxr.locked': 'Locked',
   'uxr.unlocked': 'Unlocked',
   'uxs.paperPages': 'Paper and pages',
-  // the sidebar's width control (UX-6 sidebar)
+  // the sidebar's width control
   'uxs.sideWidth': 'Sidebar width',
   'uxs.sideTip': 'Drag to widen it; double-click for the window’s own width',
   'uxs.sideHide': 'Hide the sidebar',
@@ -1516,7 +1516,7 @@ export default {
   'ux6g.exReady': 'Ready to send',
   'ux6g.tailor': 'Tailor for a job type…',
   'ux6g.tailorOn': 'Tailor: {name}',
-  // multilingual, step 2: the language copies on the page
+  // multilingual: the language copies on the page
   'ml2.tagMiss': 'Version {v}, written in {lang} only. Open the box to write it here.',
   'ml2.tagMissTip': 'Not written here yet: only in {lang}. Click to write it.',
   'ml2.noVersionAt': '<b>No {lang} v{n} yet.</b> The page prints the {from} one, outlined.',
@@ -1532,7 +1532,7 @@ export default {
   'ml2.alsoChanged': 'Also changed in {lang}',
   'ml2.keepInStep': 'Keep in step with {name}',
   'ml2.keepInStepTip': 'Line order, hidden lines, version picks and the look then change in both. Your own picks are kept.',
-  // ml3: headings and one-off texts changed in another language, matching an old version to a number
+  // headings and one-off texts changed in another language, matching an old version to a number
   'ml3.editedIn': '{n} edited in {lang}, not yet a version',
   'ml3.editedRow': 'Edited in {lang}, not yet a version',
   'ml3.headingRow': 'Heading changed in {lang}',

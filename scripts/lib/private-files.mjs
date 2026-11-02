@@ -1,4 +1,4 @@
-// Where the owner's private check files live: outside the working tree, so no copy of the tree (a deploy, a
+// Where your private check files live: outside the working tree, so no copy of the tree (a deploy, a
 // Flatpak source dir, a zip, an agent that reads the repo) can carry them.
 //   identity.local.json   { "email": "...", "phone": "...", "city": "..." }
 //   deny.local.json       { "deny": ["a retired address"], "commitEmails": ["the address commits may use"] }

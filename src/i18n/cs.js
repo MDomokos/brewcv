@@ -975,7 +975,7 @@ export default {
   'save.folderOverwrite': 'Přepsat',
   'save.folderSame': 'Soubor ve složce je stejný jako váš.',
   'save.folderNone': 'Ve složce není žádný čitelný soubor k porovnání.',
-  // ux1: saving, snapshots, the switcher, fewer duplicates
+  // saving, snapshots, the switcher, fewer duplicates
   'ux1.savedDevice': 'Uloženo v tomto zařízení',
   'ux1.saveFailed': 'Neuloženo v tomto zařízení',
   'ux1.search': 'Hledat životopisy',
@@ -1047,7 +1047,7 @@ export default {
   'ux1.add': 'Přidat',
   'ux1.addEnter': 'Enter ho přidá',
   'ux1.diffSnapshot': 'Snímek: {name}',
-  // UX-2: one screen
+  // one screen
   'ux2.modes': 'Co panel ukazuje',
   'ux2.modeEdit': 'Upravit',
   'ux2.modeDesign': 'Vzhled',
@@ -1492,7 +1492,7 @@ export default {
   'ux6f.exAnyway': 'Přesto exportovat',
   'ux6f.k.find': 'Hledat v životopisech, Kariéře a otevřeném životopise',
   'ux6f.k.grip': 'S aktivním úchytem: přesunout jeho blok o jedno místo. Esc vrátí zvednutý blok zpět',
-  // the sidebar's titled groups (UX-6 sidebar)
+  // the sidebar's titled groups
   'uxs.look': 'Vzhled',
   'uxs.thisBrowser': 'tento prohlížeč',
   'uxs.everyResume': 'všechny životopisy',
@@ -1501,7 +1501,7 @@ export default {
   'uxr.locked': 'Zamčeno',
   'uxr.unlocked': 'Odemčeno',
   'uxs.paperPages': 'Papír a stránky',
-  // the sidebar's width control (UX-6 sidebar)
+  // the sidebar's width control
   'uxs.sideWidth': 'Šířka postranního panelu',
   'uxs.sideTip': 'Tažením jej rozšíříte; dvojklik vrátí šířku okna',
   'uxs.sideHide': 'Skrýt postranní panel',
@@ -1512,7 +1512,7 @@ export default {
   'ux6g.exReady': 'Připraveno k odeslání',
   'ux6g.tailor': 'Přizpůsobit typu pozice…',
   'ux6g.tailorOn': 'Přizpůsobeno: {name}',
-  // multilingual, step 2: the language copies on the page
+  // multilingual: the language copies on the page
   'ml2.tagMiss': 'Verze {v}, napsaná jen v jazyce {lang}. Otevřete pole a napište ji zde.',
   'ml2.tagMissTip': 'Zde ještě nenapsáno: jen v jazyce {lang}. Kliknutím ji napíšete.',
   'ml2.noVersionAt': '<b>Zatím žádná v{n} v jazyce {lang}.</b> Stránka tiskne verzi z jazyka {from}, s obrysem.',
@@ -1528,7 +1528,7 @@ export default {
   'ml2.alsoChanged': 'Změněno také v jazyce {lang}',
   'ml2.keepInStep': 'Držet v souladu s: {name}',
   'ml2.keepInStepTip': 'Pořadí řádků, skryté řádky, výběr verzí a vzhled se pak mění v obou. Vaše vlastní volby zůstanou.',
-  // ml3: headings and one-off texts changed in another language, matching an old version to a number
+  // headings and one-off texts changed in another language, matching an old version to a number
   'ml3.editedIn': '{n} upraveno v jazyce {lang}, zatím ne verze',
   'ml3.editedRow': 'Upraveno v jazyce {lang}, zatím ne verze',
   'ml3.headingRow': 'Nadpis změněn v jazyce {lang}',

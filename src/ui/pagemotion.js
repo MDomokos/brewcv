@@ -1,4 +1,4 @@
-// Moments on the page (UX-4): Fit, a version under the pointer, a lens applied, a line ticked, a resume switched.
+// Moments on the page: Fit, a version under the pointer, a lens applied, a line ticked, a resume switched.
 //
 // The page is drawn by the real renderer into the frame, and the state has already changed when any of this starts: the final render
 // is in place, exactly what prints. What moves here is a picture of the difference, made of throwaway clones in the frame's
@@ -18,7 +18,7 @@ const MIN_SHARED = 1 / 3;               // versions sharing fewer words than thi
 const FIT_BUDGET = 600;                 // Fit's staggered crossfades finish within this many ms
 const px = n => `${n.toFixed(2)}px`;
 // (Both fade with a linear ease so that they meet at the same moment.)
-// Two texts never show over each other (UX-6f): in one change of words the old fade out in the first half and the new fade in in the second.
+// Two texts never show over each other: in one change of words the old fade out in the first half and the new fade in in the second.
 const OUT = [{ opacity: 1 }, { opacity: 0, offset: 0.5 }, { opacity: 0 }];
 const inFrom = (...first) => [{ opacity: 0, ...first[0] }, { opacity: 0, offset: 0.5 }, { opacity: 1, ...first[1] }];
 

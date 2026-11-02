@@ -40,7 +40,7 @@ async function probe(src, rootSel){
   return data;
 }
 
-// The reference is either a mockup (.sheet > div) or another document from this repo (.page).
+// The reference is either a reference page (.sheet > div) or another document from this repo (.page).
 const A = await withIdentity(DOC, f => probe(f,'.page'));
 const B = await withIdentity(MOCK, f => probe(f, /<div class="sheet"/.test(fs.readFileSync(f,'utf8')) ? '.sheet > div' : '.page'));
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// node checks/direct-c-check.mjs   (builder C of UX-6 direct editing, round 2; one section per item)
+// node checks/direct-c-check.mjs   (one section per item)
 //  1. the tint: the plate that moves has a fill in hover and selected, in all four looks, read from what the browser draws (no --pk set by hand).
-//  2. the ladder (lab v2 "light"): hover a wash of --sel-mark at the drink's strength and no edge; selected the wash x1.5 and a 1px edge in the plate ink (a job's
+//  2. the ladder: hover a wash of --sel-mark at the drink's strength and no edge; selected the wash x1.5 and a 1px edge in the plate ink (a job's
 //     wash x0.8, a section's x0.7, and each at least 1.06:1 against the paper); writing no wash; one corner (plate-r + its stand-off) in every state, the written field at plate-r, no corner transition;
 //     the fade-in 160 ms and the glide 180 ms.
 //  3. hover zones: a slow pointer path down through the lines and the gaps of two sections (over the text, and in the lines' left margin) draws a job's or a section's

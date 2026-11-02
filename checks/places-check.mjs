@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/places-check.mjs
-// The three places (UX-6h), in Chromium on the fictional example: Library, Editor and Career.
+// The three places, in Chromium on the fictional example: Library, Editor and Career.
 //   - three place tabs, buttons with a name and their key in the tip, aria-current on the one you are in; the Editor's has the pencil,
 //   - W, E and R change place, and do nothing while a field has the focus or a modifier is held,
 //   - Esc goes up one level inside a place and never changes place: from Compare, from a selected card, from Career's open Add menu, from a written line,
@@ -224,7 +224,7 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
       const e = document.querySelector(sel); if (!e){ bad.push(`${sel}: missing`); continue; }
       const s = getComputedStyle(e, pseudo), radii = ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].map(c => parseFloat(s[`border${c}Radius`]));
       if (radii.some(r => r > 2.01)) bad.push(`${sel}${pseudo ?? ''} radius ${radii}`);
-      // the track is sunk and the thumb raised (UX-6 sidebar, the switchers' depth): Coffee's own hard edge, never a blurred shadow
+      // the track is sunk and the thumb raised (the switchers' depth): Coffee's own hard edge, never a blurred shadow
       const hard = (sel === '#ptabs') && s.boxShadow !== 'none' && [...s.boxShadow.matchAll(/(-?[\d.]+)px (-?[\d.]+)px ([\d.]+)px/g)].every(m => m[3] === '0');
       if (s.boxShadow !== 'none' && !hard) bad.push(`${sel}${pseudo ?? ''} shadow ${s.boxShadow}`);
     }

@@ -1,4 +1,4 @@
-// Editing on the page (UX-3, UX-6c). Three layers: the page, a job, a line. Esc goes up one.
+// Editing on the page. Three layers: the page, a job, a line. Esc goes up one.
 //   - At the job level the job is framed and the rest of the page dims. The line being written is part of the page: no cover cut
 //     out around it, the rest of the page's text fades a little (in the frame, src/ui/sheet.js setWriting), a thin outline.
 //   - A line is written where it is printed: the element on the page becomes editable, holding the plain text of the version
@@ -238,7 +238,7 @@ export function initOnPage(C){
       const edgeR = R({ left: pg.left + pg.width - pg.padRight, top: lr.top, width: 0, height: 0 });
       const sr = R(lr);
       const view = canvas.view, room = view ? view.left + view.width : innerWidth, twW = tw.offsetWidth;
-      const ring = geom.sec && !geom.itemFrame ? R(pad(geom.sec, off('section') + 1)) : null;      // outside the section's ring (UX-6f 4c: the tools cross no line of the plate's)
+      const ring = geom.sec && !geom.itemFrame ? R(pad(geom.sec, off('section') + 1)) : null;      // outside the section's ring (the tools cross no line of the plate's)
       // The row stays right of the line. Its ↑ ↓ may run past `room` and slide under the sidebar (the layer is below it); only when the
       // pill itself would be partly covered does the whole row go left of the line, all together, never split.
       const pw = tw.querySelector('.obvwrap, .obv')?.offsetWidth ?? twW, x = Math.max(edgeR.left + 8, ring ? ring.left + ring.width + 4 : 0);
@@ -265,7 +265,7 @@ export function initOnPage(C){
     const lo = Math.max(v.left + 6, pg ? pg.left + 2 : -Infinity), hi = v.left + v.width - w - 6;      // the chip may stand past the page's right edge, on the desk, when the page's margin has no clear place for its tools
     const lowest = v.top + v.height - h - 56;
     // on the top edge, else just above it (a tight item frame has text under its edge), each also 3px up or down (with denser lines the gap between two lines can be a pixel short of the chip);
-    // else on the bottom edge or just under it (UX-6f 4c: never over text)
+    // else on the bottom edge or just under it (never over text)
     const clampY = y => Math.max(v.top + 6, Math.min(y, lowest));
     const top = [0, -3, 3].flatMap(d => [f.top - h / 2, f.top - h].map(y => clampY(y) + d)), ys = [...top, ...[f.top + f.height - h / 2, f.top + f.height].map(clampY)];
     const texts = sheet.textRects().map(r => canvas.screenRect(r));
@@ -333,7 +333,7 @@ export function initOnPage(C){
     }
     rememberCaret();
     paintMarks();
-    sheet.setWriting(DIM.line);      // the field is there now: its stand-off is measured and the plate takes it (UX-6f 4c)
+    sheet.setWriting(DIM.line);      // the field is there now: its stand-off is measured and the plate takes it
   }
   // the caret under a point of the frame (Chromium and Safari, then Firefox)
   function caretAt(doc, p){
@@ -394,7 +394,7 @@ export function initOnPage(C){
     if (e.key === 'Tab' && !mod && !e.altKey){ done(); next(e.shiftKey ? -1 : 1); return; }
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !mod && !e.altKey && !e.shiftKey && atEdge(e.target.closest('[contenteditable]') ?? S.el, e.key === 'ArrowDown' ? 1 : -1)){ done(); next(e.key === 'ArrowDown' ? 1 : -1); }
   }
-  // Enter at a job's last line (with words in it): a new empty line after it, only on this resume until the Review list (UX-6d) makes
+  // Enter at a job's last line (with words in it): a new empty line after it, only on this resume until the Review list makes
   // it a claim with a source. Written at once, in the same zoom. False when this is not that, or the job's last line is empty.
   function addAfter(){
     const ed = edit().editing;

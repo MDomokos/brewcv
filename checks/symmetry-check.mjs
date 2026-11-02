@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/symmetry-check.mjs
-// Every action has its inverse, and the same control looks and sits the same (UX-6c-iv-b), in Chromium on the example:
+// Every action has its inverse, and the same control looks and sits the same, in Chromium on the example:
 //  - the stale strings are gone; the Fit chip stays until the next change; "+ line" has two labels;
 //  - the Outline: a tick on every job's head, archived lines under "+ n more" with Unarchive;
 //  - one tick and one wording for show/hide on the chip, the depth row, sections, jobs, lines, items and the photo, each a round trip
@@ -137,7 +137,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   // a line: the chip on the page, the depth row, its row in the Outline, its own view
   await page.click('#outline [data-act=select-section][data-id=experience]'); await wait();
   await page.click('#body [data-act=select-job][data-id=hydra]'); await wait();
-  if (await page.$('#body [data-act=ol-more][aria-expanded=false]')) await page.click('#body [data-act=ol-more]');      // (a line switched off stays in place since the sidebar session; the fold holds archived lines)
+  if (await page.$('#body [data-act=ol-more][aria-expanded=false]')) await page.click('#body [data-act=ol-more]');      // (a line switched off stays in place; the fold holds archived lines)
   await trip('line, on its row in the Outline', '#body .clrow[data-fact=hydra-inhaler] input.sw[data-on]', () => page.click('#body .clrow[data-fact=hydra-inhaler] .swl'));
   await page.click('#body .clrow[data-fact=hydra-inhaler] .clt'); await wait(); await away();
   ok('the chip and the depth row have the tick (no eye), and no aria-pressed on it', !!(await page.$('#editlay .dp-show .pillsw')) && !!(await page.$('#body .depth .dp-show .pillsw')) && !(await page.$('#editlay .dp-show[aria-pressed], #body .dp-show[aria-pressed]')));
@@ -229,7 +229,7 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   const chipTick = await box('#editlay .dp-show .pillsw'), depthTick = await box('#body .depth .dp-show .pillsw');
   const same = (a, b) => !!a && !!b && Math.abs(a.w - b.w) < 0.6 && Math.abs(a.h - b.h) < 0.6;
   ok(`${tag}: the padlock is one size (a 24 px target) on the chip, in the depth row and on the Outline's rows`, same(chipLock, depthLock) && same(chipLock, row) && chipLock.w >= 24 && chipLock.h >= 24, JSON.stringify([chipLock, depthLock, row]));
-  ok(`${tag}: a content tick is one size (17 by 17, a square) on the chip and in the depth row; a section's tick in the Outline is 20 by 20 (sidebar round 2)`, same(chipTick, depthTick) && chipTick.w === 17 && chipTick.h === 17 && !!rowTick && rowTick.w === 20 && rowTick.h === 20, JSON.stringify([chipTick, depthTick, rowTick]));
+  ok(`${tag}: a content tick is one size (17 by 17, a square) on the chip and in the depth row; a section's tick in the Outline is 20 by 20`, same(chipTick, depthTick) && chipTick.w === 17 && chipTick.h === 17 && !!rowTick && rowTick.w === 20 && rowTick.h === 20, JSON.stringify([chipTick, depthTick, rowTick]));
   ok(`${tag}: at rest the padlock and the chip's and depth row's tick draw at the same 55%`, [chipLock, depthLock, row, chipShow, depthShow].every(b => b && Math.abs(b.op - 0.55) < 0.02), JSON.stringify([chipLock, depthLock, row, chipShow, depthShow].map(b => b?.op)));
   ok(`${tag}: the chip's padlock and tick are visible with no hover, each a target of at least 24 px`, !!chipShow && chipShow.vis && chipShow.w >= 24 && chipShow.h >= 24 && chipLock.vis, JSON.stringify([chipShow, chipLock]));
   await page.hover('#editlay .dp-show'); await page.waitForTimeout(400);
@@ -237,8 +237,8 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await ctx.close();
 }
 
-// ---- an Undo button on the toast of a delete (UX-6c-iv-b stage 2, fix 18) ----
-await run('an Undo button on the toast of a delete (UX-6c-iv-b stage 2, fix 18)', async () => {
+// ---- an Undo button on the toast of a delete ----
+await run('an Undo button on the toast of a delete', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const nVersions = () => page.evaluate(() => window.__wb.store.state.record.variants.length);
@@ -262,7 +262,7 @@ await run('an Undo button on the toast of a delete (UX-6c-iv-b stage 2, fix 18)'
   await page.click(`#body .depth [data-act=select-job]`); await wait();
   await page.click(`#body .clrow[data-fact="${fact}"] .clt`); await wait();
   await page.click('#body [data-act=delete-claim]'); await wait();
-  if (await page.$('#body .delask')){ await page.click('#body .delask [data-act=delete-claim]'); await wait(); }      // a claim of several versions asks first (UX-6 round 2)
+  if (await page.$('#body .delask')){ await page.click('#body .delask [data-act=delete-claim]'); await wait(); }      // a claim of several versions asks first
   ok('a deleted claim\u2019s toast (after its question, for a claim of several versions) has an Undo button, and it brings the claim back', (await nFacts()) === f0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nFacts()) === f0));
   const nEdu = () => page.evaluate(() => window.__wb.store.state.record.projects.length);
   const e0 = await nEdu();
@@ -358,8 +358,8 @@ await run('the tool beside the padlock: revert an edit, remove a line only here,
   await ctx.close();
 });
 
-// ---- skills: + group, and the chip\u2019s tool takes it away again (fix 15) ----
-await run('skills: + group, and the chip\u2019s tool takes it away again (fix 15)', async () => {
+// ---- skills: + group, and the chip\u2019s tool takes it away again ----
+await run('skills: + group, and the chip\u2019s tool takes it away again', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const groups = () => page.evaluate(async () => { const T = await import('/src/model/resume.js'); return T.arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.map(g => g.id).join(); });
@@ -380,15 +380,15 @@ await run('skills: + group, and the chip\u2019s tool takes it away again (fix 15
   await ctx.close();
 });
 
-// ---- Delete beside Duplicate in the name window (fix 16) ----
-await run('Delete beside Duplicate in the name window (fix 16)', async () => {
+// ---- Delete beside Duplicate in the name window ----
+await run('Delete beside Duplicate in the name window', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const state = () => page.evaluate(() => { const s = window.__wb.store.state; return { n: s.resumes.length, open: s.openId, snaps: (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).length }; });
   const s0 = await state();
   await page.click('#docname-btn'); await wait();
   const acts = await page.$$eval('#switcher .swacts > button', bs => bs.map(b => b.dataset.act));
-  ok('the name window has Duplicate first and Delete last in its row (the delete at the far end, UX-6 round 2)', acts[0] === 'rm-dup' && acts.at(-1) === 'rm-delete', acts.join());
+  ok('the name window has Duplicate first and Delete last in its row (the delete at the far end)', acts[0] === 'rm-dup' && acts.at(-1) === 'rm-delete', acts.join());
   await page.click('#switcher [data-act=rm-dup]'); await wait();
   const s1 = await state();
   if (!(await page.$('#switcher:not([hidden]) [data-act=rm-delete]'))){ await page.click('#docname-btn'); await wait(); }      // Duplicate leaves the name window open, the name ready to type over
@@ -401,8 +401,8 @@ await run('Delete beside Duplicate in the name window (fix 16)', async () => {
   await ctx.close();
 });
 
-// ---- delete a sent copy from its own view (fix 17) ----
-await run('delete a sent copy from its own view (fix 17)', async () => {
+// ---- delete a sent copy from its own view ----
+await run('delete a sent copy from its own view', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const state = () => page.evaluate(() => { const s = window.__wb.store.state; return { n: s.resumes.length, open: s.openId, snaps: (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).length }; });
@@ -431,7 +431,7 @@ await run('delete a sent copy from its own view (fix 17)', async () => {
   await ctx.close();
 });
 
-// ---- deleting a locked resume, or its sent copy, asks first (UX-6c-iv-b follow-up) ----
+// ---- deleting a locked resume, or its sent copy, asks first ----
 await run('deleting a locked resume or a sent copy asks first', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
@@ -441,7 +441,7 @@ await run('deleting a locked resume or a sent copy asks first', async () => {
   const state = () => page.evaluate(() => { const s = window.__wb.store.state; return { n: s.resumes.length, snaps: (s.resumes.find(r => r.id === s.openId)?.snapshots ?? []).length }; });
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Acme', role: 'Engineer', date: '2026-01-02' }); d.cur.locked = ['hydra-inhaler']; }, 'check: sent and locked'); }); await wait();
   const n0 = (await state()).n;
-  // the open resume has a sent copy, so its Delete asks in place first (UX-6 round 2); then the lock's question
+  // the open resume has a sent copy, so its Delete asks in place first; then the lock's question
   const delOpen = async () => { await page.click('#switcher [data-act=rm-delete]'); await wait(); if (await page.$('#switcher .delask')){ await page.click('#switcher .delask [data-act=rm-delete]'); await wait(); } };
   // the sent copy
   await page.click('#docname-btn'); await wait();
@@ -473,8 +473,8 @@ await run('deleting a locked resume or a sent copy asks first', async () => {
   await ctx.close();
 });
 
-// ---- remove a language from the record when nothing uses it (fix 19) ----
-await run('remove a language from the record when nothing uses it (fix 19)', async () => {
+// ---- remove a language from the record when nothing uses it ----
+await run('remove a language from the record when nothing uses it', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
   const langs = () => page.evaluate(async () => { const L = await import('/src/model/lang.js'); return L.langsInUse(window.__wb.store.state.record).join(); });
@@ -506,7 +506,7 @@ await run('remove a language from the record when nothing uses it (fix 19)', asy
   await ctx.close();
 });
 
-// ---- Fit waits while a screen is open (UX-6c-iv-b follow-up): on a phone; a desktop's Fit is Export's and not on the page elsewhere ----
+// ---- Fit waits while a screen is open: on a phone; a desktop's Fit is Export's and not on the page elsewhere ----
 await run('Fit is Export\u2019s: not on the Library, there and not held in Export', async () => {
   const ctx = await browser.newContext({ viewport: { width: 1470, height: 832 } });
   await ctx.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } });
@@ -572,7 +572,7 @@ await run('on a phone: the depth row carries the tools, the name window and the 
   ok('on a phone the depth row has the revert tool, a 24 px target', !!box && box.width >= 24 && box.height >= 24 && /back to the saved words/.test(await fix.getAttribute('aria-label')));
   await fix?.click(); await wait();
   ok('…and it puts the line back', !(await page.evaluate(() => window.__wb.store.state.cur.overrides?.['hydra-inhaler'])));
-  // Skills: "+ group" on a phone too (UX-6f 4c, rewritten: a phone writes a new group in the panel's two fields)
+  // Skills: "+ group" on a phone too (rewritten: a phone writes a new group in the panel's two fields)
   await fr.locator('.band[data-section=skills] .skills__label').first().tap(); await wait();
   ok('the Skills view lists the groups by name on a phone too', (await page.$$eval('.sknames .skname', bs => bs.length)) > 0);
   // the name window: Delete beside Duplicate

@@ -620,7 +620,7 @@ section('the Record tab: the timeline and every kind of addition are there, and 
     const a = sels(String(u.checklist.html())), b = sels(String(u.checklist.outlineHtml()));
     return b.size >= 3 && [...b].every(x => a.has(x));
   })());
-  // (UX-6 sidebar: a line that is off keeps its row in place, greyed; "+ n more" was the fold for them and now holds only archived lines)
+  // (a line that is off keeps its row in place, greyed; "+ n more" was the fold for them and now holds only archived lines)
   ok('the Outline has no timeline: the open job is its lines, the ones that are off in place among them, and a “+ line”', (() => { u.select({ kind: 'job', id: 'hydra' }); const g = String(u.checklist.outlineHtml()); const job = g.slice(g.indexOf('data-g="hydra"')); return !/rectl|tl2/.test(g) && /data-act="ol-newline"/.test(g) && /class="clrow[^"]*is-off/.test(job.slice(0, job.indexOf('ol-newline'))); })());
 }
 
@@ -645,7 +645,7 @@ section('what Career did, and where each part went (the ledger of data-act)');
     ['c-add-summary', 'About you’s panel when there is no summary', () => { const m = structuredClone(u.record()); return /data-act="c-add-summary"/.test(String(u.career.panel({ kind: 'header' }))) || !!m.basics.summary; }],
     ['c-add / c-add-cancel / c-create', 'the + Add menu opens the form in the panel; Create makes it', async () => { await u.click('c-add', { what: 'skills' }); return u.ui.sel.kind === 'add' && /data-act="c-create" data-what="skills"/.test(String(u.career.panel(u.ui.sel))); }],
     ['c-kind-new / -edit / -cancel / -preset / -colour / -icon / -save / -del…', 'the kind editor in the panel (from the + Add menu)', async () => { await u.click('c-kind-new'); return u.ui.sel.kind === 'kind' && /data-act="c-kind-preset"/.test(String(u.career.panel(u.ui.sel))); }],
-    ['c-tip-next / c-tip-skip / c-tips-again', 'removed: the tour is gone, and a line that travels from its row to the page shows what a tick does (UX-4)', () => { u.career.act('c-tip-next', { dataset: {} }); return !/class="clhint"/.test(list()); }],
+    ['c-tip-next / c-tip-skip / c-tips-again', 'removed: the tour is gone, and a line that travels from its row to the page shows what a tick does', () => { u.career.act('c-tip-next', { dataset: {} }); return !/class="clhint"/.test(list()); }],
     ['c-lang-menu / lang / lang-add / lang-more', 'the header’s language control: the resume’s language is the one you edit in', () => true],
     ['ws, to-career, the thumbnail, Career’s undo', 'gone: one screen; undo and redo live in the footer', () => true],
   ];
@@ -673,7 +673,7 @@ section('careerHits: what the search finds in Career');
   ok('langGroups: a language with no match has no group, and the current language shows its versions even when none of them holds the word', langGroups(careerHits(m, 'toolmaker').find(x => x.fact === 'hydra-dfm').versions, 'en').folds.length === 0 && langGroups(careerHits(m, 'toolmaker').find(x => x.fact === 'hydra-dfm').versions, 'it').open.length === 1 && none.open.length === 1);
 }
 
-section('dates are real dates (UX-6f)');
+section('dates are real dates');
 {
   const model = S.load(read('data/example.json')).model, names = read('data/example-resumes/index.json');
   const recipes = names.map(n => ({ ...S.loadResume(read(`data/example-resumes/${n}`), model).recipe, id: n }));

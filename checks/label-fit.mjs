@@ -157,7 +157,7 @@ for (const lang of I.UI_LANGS){
   await pg.waitForTimeout(500);
   const bad = await pg.evaluate(() => {
     const out = [];
-    // UX-3: the start screen's own labels fit where they are drawn
+    // the start screen's own labels fit where they are drawn
     for (const el of document.querySelectorAll('.obchoices .obb > span, .oblang, .obhero, .obsub, .obeye, .obkhead h3, .obwhy, .obkb span, .ncur, .nmenu button, .num, .nlabel, .cap, .mrow .t, .obreplay')){
       if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).display !== 'inline') out.push(`“${el.textContent.trim().slice(0, 30)}” is cut`);
     }

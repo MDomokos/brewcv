@@ -46,7 +46,7 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
   dappleEl.className = 'g-dapple'; dappleEl.hidden = true; dappleEl.setAttribute('aria-hidden', 'true');
   const rainSky = document.createElement('div');
   rainSky.className = 'g-rainsky';
-  // everything that lies on the mat is in #gworld, in the mat's own pixels, and scales with the table when the view zooms (prototype, canvas.js matMove)
+  // everything that lies on the mat is in #gworld, in the mat's own pixels, and scales with the table when the view zooms (canvas.js matMove)
   const world = document.createElement('div');
   world.id = 'gworld';
   box.append(rainSky, world);

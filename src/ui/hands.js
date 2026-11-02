@@ -1,14 +1,14 @@
-// The hands over the page (UX-6c-ii): on the block under the pointer (or selected), a grip to move it, a "+" to add after it, and the photo
+// The hands over the page: on the block under the pointer (or selected), a grip to move it, a "+" to add after it, and the photo
 // slot by the name. The grip and the "+" are the tabs of the block's plate (src/ui/plate.js, `--plate-*`): flush with its edge, the same ink.
 // Drawn in the app's layer (#handlay) over the page, in screen pixels, from the rectangles the sheet reports in the page's own pixels; nothing
 // here is in an export. The block under the pointer also has its hover plate (`sheet.setHot`): one block at a time, the deepest text under it.
-// The pointer is read for intent (UX-6f 1b, plate.js HOVER_*): what it passes does not hover, what it settles on does.
+// The pointer is read for intent (plate.js HOVER_*): what it passes does not hover, what it settles on does.
 //   - A line moves only within its job, a skill group within Skills, a skill to a place in any group. A drop anywhere else is refused, and
 //     nothing changes: the block meets the bumper (it follows the pointer at a third of the distance past the edge of its places, squashed a little, with the
-//     shaded places only, no rail or edge, direct editing C), and over another container's places only a faint bar shows. No text says so. The sidebar's ↑ ↓ and chips are the keyboard route; the grip itself takes ↑ ↓ too.
+//     shaded places only, no rail or edge), and over another container's places only a faint bar shows. No text says so. The sidebar's ↑ ↓ and chips are the keyboard route; the grip itself takes ↑ ↓ too.
 //   - The grip and the "+" stay reachable on the way to them: a line owns the margin left of its text and the gap below it (the
 //     sheet's handAt), and leaving the page waits a moment (motion.js `fast`) before they go, unless the pointer is on them.
-//   - A job, a section and an item (UX-6c-iii-b) have a grip on the plate of the selected block (or of the heading under the pointer): its left
+//   - A job, a section and an item have a grip on the plate of the selected block (or of the heading under the pointer): its left
 //     tab, at the top. Its plate's edge is a handle too (`onPlate`). It moves the block within its parent (jobs within their section, sections within the page, items within their section); a drop
 //     elsewhere is refused the same way. A locked block has no grip (the padlock stands at its corner), no "+" and no skill drag.
 //   - A drag shows a shaded drop bar and the socket's wash. Off under reduced motion: the grip's fade only, the squash and the overshoot; the drop bar
@@ -84,7 +84,7 @@ export function initHands(C){
     return !bare || !sheet.textRects().some(q => { const s = R(q); return x < s.left + s.width && x + w > s.left && y < s.top + s.height && y + h > s.top; });
   }
   const put = (el, x, y, ok) => { el.hidden = !ok; if (ok) { el.style.left = `${Math.round(x)}px`; el.style.top = `${Math.round(y)}px`; } };
-  // The hands glide with the plate they stand on (UX-6f 4c): a grip or "+" that was shown (or let go less than GLIDE_KEEP ms ago) and stands somewhere else now, under the same
+  // The hands glide with the plate they stand on: a grip or "+" that was shown (or let go less than GLIDE_KEEP ms ago) and stands somewhere else now, under the same
   // camera, travels there in --plate-glide, as the plate does; one the camera moved is put there at once (the page moved, not the hand). None under reduced motion.
   const camSig = () => { const c = canvas.cam; return `${c.x.toFixed(1)}|${c.y.toFixed(1)}|${c.k.toFixed(4)}`; };
   const was = new Map(), under = new Map();      // each hand where it was last seen: { r, t, cam }; under: the camera it was last placed under
@@ -110,7 +110,7 @@ export function initHands(C){
     const h = on() ? target() : null;
     sheet.setHot(on() ? hotEl() : null);
     const x = ix();
-    // the grip (item 4): the 2x3 dots in a tab of the plate itself (sheet.setTab: the plate widens into it), shown when the pointer nears the plate's left side, on the grip
+    // the grip: the 2x3 dots in a tab of the plate itself (sheet.setTab: the plate widens into it), shown when the pointer nears the plate's left side, on the grip
     // itself, with the grip in focus, or for the selection (and so on touch, which has no hover); while the line is written its dots dim (the plate's .is-write). The grip
     // here is a clear button over the tab: the target, the focus and the label.
     const gel = h && (h.k === 'line' || h.k === 'group') && !h.selOnly && on() && !locked(h.fact) && near(h) ? sheet.plateOf(h, ix()) : null;
@@ -150,7 +150,7 @@ export function initHands(C){
     sheet.setTab([gel, fel]); tabNear = !!h && near(h);
     putTab(grip, gel, h); putTab(fgrip, fel, ft && { k: ft.k, fact: ft.id, sid: ft.sid, job: '' });
     if (plus.hidden) hideGhost();
-    // a hand that has just appeared fades in (off under reduced motion); one that was already there stays (the "+" changes its shape in place, UX-6f 4c)
+    // a hand that has just appeared fades in (off under reduced motion); one that was already there stays (the "+" changes its shape in place)
     for (const b of [grip, plus, slot, fgrip]){ if (!b.hidden && !shown.has(b)) play(b, [{ opacity: 0 }, { opacity: 1 }], { key: `hand:${b.className}`, ms: HOVER_IN, name: 'hand:in' }); b.hidden ? shown.delete(b) : shown.add(b); }
   }
   // ---- the grips of jobs, sections and items ----
@@ -241,7 +241,7 @@ export function initHands(C){
     if (drag) return;
     if (bridge && x >= bridge.x && x <= bridge.x2 && y >= bridge.y && y <= bridge.y2){ clearTimeout(graceT); return; }      // on the way to the "+": it stays
     if (e.pointerType === 'touch') return;      // touch has no hover
-    // Hover is intent (UX-6f 1b): above HOVER_SPEED nothing starts, and what the pointer has left goes; once it is slow for HOVER_DWELL ms (it stops, or it was slow all along: no wait) the block under it takes the plate
+    // Hover is intent: above HOVER_SPEED nothing starts, and what the pointer has left goes; once it is slow for HOVER_DWELL ms (it stops, or it was slow all along: no wait) the block under it takes the plate
     const first = gateOn && !hp, v = gateOn ? pace(x, y) : 0, now = performance.now();      // the first move on the page has no pace yet (it may have come in fast from the desk): it waits for the next, or for the pointer to stop
     hp = { x, y }; clearTimeout(settleT); cancelAnimationFrame(raf);
     if (v > HOVER_SPEED) fastAt = now;
@@ -318,7 +318,7 @@ export function initHands(C){
   const textNear = p => sheet.textRects().find(r => p.x >= r.left - RIM && p.x <= r.left + r.width + RIM && p.y >= r.top - RIM && p.y <= r.top + r.height + RIM);
   const within = (p, b, l = 70, r = 14, v = 30) => p.x >= b.left - l && p.x <= b.right + r && p.y >= b.top - v && p.y <= b.bottom + v;
   // `faint`: not where it will drop but another place the pointer is nearing (nothing drops there); `screen`: `r` is in window pixels (a row of the sidebar). Over the page the
-  // drop bar is the frame's (sheet.guide), drawn under the lifted block, which is the topmost thing on the page (UX-6f 4c); over the sidebar they are the app's.
+  // drop bar is the frame's (sheet.guide), drawn under the lifted block, which is the topmost thing on the page; over the sidebar they are the app's.
   const showDrop = (r, vertical = false, faint = false, screen = false) => {
     dropEl.hidden = !(r && screen); dropEl.classList.toggle('is-faint', !!faint);
     sheet.guide('drop', r && !screen ? (vertical ? { left: r.left - 2, top: r.top, width: 4, height: r.height } : { left: r.left, top: r.top - 2, width: r.width, height: 4 }) : null, { faint });      // (a soft shaded bar, 4 px)
@@ -360,7 +360,7 @@ export function initHands(C){
     const n = els.reduce((v, e) => v + e.querySelectorAll('li').length, 0), c = sheet.fold(els, [sheet.headOf(els[0]).text, n ? t('edit.lnShort', { n }) : ''].filter(Boolean).join(' · '));
     if (c){ S.held = { left: d.p0.x - c.w / 2, top: d.p0.y - c.h / 2, width: c.w, height: c.h }; sheet.carry(S.held.left, S.held.top); }
   }
-  // The place a lifted block would take among its places (UX-6f 4b): `rs` are the places' rectangles in order (the lifted block's own, `f`, where it was lifted from), `P` the leading
+  // The place a lifted block would take among its places: `rs` are the places' rectangles in order (the lifted block's own, `f`, where it was lifted from), `P` the leading
   // edge of the lifted block, as a point. A neighbour is passed when the point has crossed FEEL.SWAP of its extent from the side the block comes from, along `ax`, not its
   // midpoint. Returns { at, near }: the index the block would be put at (among all the places, itself included), and the neighbour it is by.
   function slotAt(rs, f, P, ax){
@@ -372,7 +372,7 @@ export function initHands(C){
     const passed = m > f ? v >= lo + FEEL.SWAP * sz : v <= lo + sz - FEEL.SWAP * sz;
     return { at: m > f ? (passed ? m + 1 : m) : (passed ? m : m + 1), near: m };
   }
-  // The drag snaps (direct editing C round 3): the lifted block is drawn at the place it would land, lagging a little toward the pointer (LAG.K of the way from that
+  // The drag snaps: the lifted block is drawn at the place it would land, lagging a little toward the pointer (LAG.K of the way from that
   // place, at most LAG.MAX page px along its list and LAG.ACROSS across a one-axis list), and pops to the next place with a short glide once the pointer is nearer that place's
   // landing than this one's (halfway between them). No bumper: at either end it stays in the end place with its lag.
   // shortcut: review flag for the snap-or-free drag decision, remove when decided (`?drag=free`: the free follow with its 12 px give and bumper, shift below)
@@ -429,7 +429,7 @@ export function initHands(C){
       d.at = at; d.near = near; d.ok = at !== from && at !== from + 1; d.to = sibs[at]?.id ?? null;
       if (d.ok && (FREE || S.fold || !d.p0)){      // (snapped, the block itself stands in the place: no bar)
         const r = rs[ax === 'x' ? near : Math.min(at, n - 1)], end = ax === 'x' ? at > near : at >= n;      // across: on the side of the neighbour it goes by; down: above the place it takes, or under the last
-        const up = ax === 'y' && !end && at > 0 && S.pg[at - 1] === S.pg[at] ? rs[at - 1] : null;      // between two places on a page: the middle of the gap, as far from the words on each side as it can be (UX-6f 4c)
+        const up = ax === 'y' && !end && at > 0 && S.pg[at - 1] === S.pg[at] ? rs[at - 1] : null;      // between two places on a page: the middle of the gap, as far from the words on each side as it can be
         showDrop(ax === 'x' ? { left: end ? r.left + r.width + 2 : r.left - 2, top: r.top, width: 0, height: r.height } : { left: r.left, width: r.width, top: end ? r.top + r.height + 2 : up ? (up.top + up.height + r.top) / 2 : r.top - 2, height: 0 }, ax === 'x');
       }
     } else {
