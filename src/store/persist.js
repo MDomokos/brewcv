@@ -11,7 +11,7 @@ import { tick, baseline, opened, floored, foreign, renameActor, cleanClock, keep
 // The one file you save and open yourself. Never translated.
 export const SAVE_FILE_NAME = 'brewcv.json';
 // package.json's version, which checks/version-check.mjs keeps equal to it.
-export const APP_VERSION = '1.7.0';
+export const APP_VERSION = '1.8.0';
 
 // of a text, or of the bytes of a file
 export async function sha256(text){

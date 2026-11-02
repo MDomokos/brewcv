@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 1.8.0 - 2026-11-02
+
+### Added
+- **Open the resumes you already have:** Word (DOCX), ODT, PDF, text, Markdown, web pages, Pages files and LinkedIn exports are read on your device, and nothing is uploaded.
+- **What's new lists every line a file would add, and nothing changes until you press the button.** A checkpoint is saved first, and Undo takes the whole import back.
+- **A PDF with an unusual layout can be set right by hand:** drag the lines to where the header ends and the columns split, and the page is read again at once.
+- **A cover letter goes to the Library, not your career,** with the sentences none of your lines covers listed to place if you want.
+- **A JSON Resume made elsewhere is checked word by word against the file it was read from.** A text that isn't there starts unticked, with the file's nearest line beside it; AGENTS.md has a prompt for making one.
+- **Opening another copy of your career file merges the two by itself.** Each line says what was kept, what you deleted stays deleted, and Undo brings the other back.
+- **The Library keeps every imported and exported file beside your saved resumes,** previews PDFs page by page, and can rebuild an old resume as a BrewCV one.
+- **Rounds group one period of applying, such as "Spring 2027".** Older rounds fold away, and a round can be archived and brought back.
+- **Removing a file or its duplicate copies makes a checkpoint first, and a removed file can be brought back.** An original goes only once Check a saved file has found it in a file you saved.
+- **A linked folder becomes your job-search folder:** BrewCV keeps its own files in a BrewCV folder and files your documents in Documents, by search and company. Your own files stay where they are.
+- **Files dropped in BrewCV/Inbox are read when you open the app.**
+- **Several devices can share the linked folder through a sync app such as Syncthing,** and their changes are merged by themselves.
+- **Organise the folder moves resume files from elsewhere in it into Documents,** checking each copy before the old file goes, with Undo.
+- **Choose where in the linked folder your documents go.** Changing it moves nothing.
+- **In the desktop app, Save as PDF opens in the document's own folder.**
+
+### Changed
+- **A full browser says so, and nothing is lost:** save to file, then free some space.
+- **A window that can't write to the linked folder says so before it asks anything.**
+
+### Fixed
+- **An opened file can't add links other than web, email and phone ones.**
+
 ## 1.7.0 - 2026-11-01
 
 ### Added
