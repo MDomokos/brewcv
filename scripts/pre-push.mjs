@@ -3,7 +3,7 @@
 // git runs it with `<remote name> <url>` and one line per ref on stdin: `<local ref> <local sha> <remote ref> <remote sha>`.
 // It refuses the push when what is about to be published holds anything private:
 //   1. the commits being pushed (not the whole history) go through checks/history-scan.mjs: private file names, identity shapes,
-//      your private values in messages, author identities outside commitEmails;
+//      the private values in messages, author identities outside commitEmails;
 //   2. a push to main, which the Pages workflow deploys, also assembles the site the way .github/workflows/pages.yml does (from the
 //      pushed commit itself with `git archive`, so ignored files cannot get in, with the excludes read from pages.yml) and runs
 //      version-check, name-check and preflight-deploy on it (preflight-deploy matches the private values too: CI cannot).

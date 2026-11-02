@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // node scripts/artifact-scan.mjs <file.zip|file> ...   (run it on every file you are about to publish)
-// A binary built on your own machine carries that machine's paths: the Rust compiler embeds source locations, so a macOS build made
-// on a laptop holds /Users/<your name>/.cargo/... hundreds of times. This finds what ties a file to a person or a device: home-folder
-// paths other than a CI runner's, your user name, your host name, your private values (the same private folder the privacy gate
+// A binary built on a personal machine carries that machine's paths: the Rust compiler embeds source locations, so a macOS build made
+// on a laptop holds /Users/<name>/.cargo/... hundreds of times. This finds what ties a file to a person or a device: home-folder
+// paths other than a CI runner's, the local user name and host name, the private values (the same private folder the privacy gate
 // reads: scripts/lib/private-files.mjs), and private-key markers or key files. A zip is read entry by entry. Exit 1 on any finding.
 // Publish what CI built (generic runner paths), not a local build, unless this says clean. It cannot read inside a Flatpak bundle (compressed).
 
@@ -38,7 +38,7 @@ function scan(label, buf){
   // as plain text only when the name is distinctive: a short common word ("user") is all over any program, and its paths are caught above
   if (user.length >= 6 && count(user) && !homes.has(user)) say(label, 'this machine\'s user name', count(user));
   if (host.length > 3 && count(host)) say(label, 'this machine\'s host name', count(host));
-  for (const v of values) if (count(v)) say(label, 'one of your private values (not shown)', count(v));
+  for (const v of values) if (count(v)) say(label, 'one of the private values (not shown)', count(v));
   if (KEY.test(text)) say(label, 'a private-key marker');
   if (KEYFILE.test(label)) say(label, 'a key or certificate file');
 }

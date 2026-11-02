@@ -10,13 +10,13 @@
 //    (`for i in $(seq 1 110); do grep -q "all shell checks passed" out/smoke.txt && break; sleep 5; done`), and also stop when the
 //    file shows a crash ("Node.js v") or the process is gone, or the loop waits for ever.
 //  - PW_BUNDLED=1 uses Playwright's own Chromium. Without it the run looks for Google Chrome (CHROME_PATH), and many test
-//    browsers can stop your own Brave or Chrome from opening.
+//    browsers can stop a Brave or Chrome already in use from opening.
 //  - AXE_CORE=/path/to/axe.min.js adds the accessibility pass (skipped without it; it is not in the repo).
 // What to watch out for, above all with other runs on the same machine:
 //  - PORT and PORT+1 are both taken (the deployed section). Two runs on adjacent ports collide with EADDRINUSE; leave a gap.
 //  - Keep to about three runs at once. A full run next to others is slower and makes timing checks flaky.
 //  - Kill by exact PID, and its children, never by name: `pkill -f smoke-shell` or `pkill -f Chrome` stops other
-//    runs and your own browser.
+//    runs and any browser in use.
 //  - The checks serve the files in this folder as they are: do not edit src/ while a run is going, or it tests a mix.
 //  - A wait for an element that is no longer there blocks for 30 seconds and then ends the whole run, so one stale selector hides
 //    every section after it. After any bulk replace in this file, check that no helper now calls itself: it would loop for ever

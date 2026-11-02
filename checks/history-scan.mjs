@@ -3,7 +3,7 @@
 // With no arguments it scans every commit on every ref. With arguments (for example `abc123..def456`, or `HEAD --not --remotes=origin`)
 // it scans only those commits: their files, contents, messages and author identities.
 // Private values come from deny.local.json, kept outside the repo ($BREWCV_PRIVATE_DIR or the platform default; see
-// scripts/lib/private-files.mjs). It does NOT read identity.local.json: add your email, phone and city to "deny" to have
+// scripts/lib/private-files.mjs). It does NOT read identity.local.json: add the email, phone and city to "deny" to have
 // them searched for in commit messages. File contents are only checked for shapes.
 // .gitignore covers the working tree; this covers the commits. A file added and deleted again is still in
 // every clone, and preflight-deploy.mjs only reads the tree about to ship.

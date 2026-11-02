@@ -1,4 +1,4 @@
-// The story on the start screen: your whole career kept once in one file, a page pulled from it line by line, the same
+// The story on the start screen: a whole career kept once in one file, a page pulled from it line by line, the same
 // words in any look, and a new resume for every application. Four steps, each with a big number that says what is happening in it.
 //   - src/ui/start.js builds the right-hand column; this file draws the board to its left: a framed window on the table, a 1022-wide stage
 //     scaled to the board's width, a control (‹ n of 4 ›) and the big number that carry the step. There is no timeline.

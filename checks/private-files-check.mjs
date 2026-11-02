@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node checks/private-files-check.mjs
-// Your private check files (identity.local.json, deny.local.json) live outside the repo. This runs the gate against a
+// The private check files (identity.local.json, deny.local.json) live outside the repo. This runs the gate against a
 // temp tree with a FAKE file planted in the new location, in the old in-tree location, and with none, and checks where
 // scripts/lib/private-files.mjs looks on each platform. HOME, XDG_CONFIG_HOME and APPDATA point into the temp dir, so
 // the real files on this machine are never read for the planted cases.

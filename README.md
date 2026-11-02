@@ -134,7 +134,7 @@ A theme changes colour, type and spacing, never the layout. Make one from a toke
 English is the original. Nine of the ten interface languages were machine-written and are marked as such in the app. To correct one, you need only Node:
 
 1. `node scripts/i18n-review.mjs de` (or `fr`, `es`, `it`, `pt`, `nl`, `pl`, `cs`, `hu`) writes a spreadsheet to `out/i18n-review/de.csv`. Fill in the *corrected* column.
-2. `node scripts/i18n-review.mjs --apply out/i18n-review/de.csv` writes your corrections into `src/i18n/de.js`.
+2. `node scripts/i18n-review.mjs --apply out/i18n-review/de.csv` writes the corrections into `src/i18n/de.js`.
 3. Open a pull request, or attach the spreadsheet to an issue.
 
 </details>

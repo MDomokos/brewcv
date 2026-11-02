@@ -186,7 +186,7 @@ async function act(a, tg){
     }
     case 'ob-import': C.ui.askLang = false; C.setView('import'); return true;   // a file brings its own languages
     case 'ob-example': {
-      // straight away, in the language the start screen is showing; the languages question waits for your own record
+      // straight away, in the language the start screen is showing; the languages question waits for the person's own record
       const L = C.ui.introLang ?? uiLang();
       const r0 = (C.store.state.resumes ?? []).find(x => (x.lang ?? 'en') === L);
       if (r0 && r0.id !== C.store.state.openId){

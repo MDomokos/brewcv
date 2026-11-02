@@ -26,7 +26,7 @@ function run(commits){
     sh('git', ['add', file]);
     sh('git', ['commit', '-q', '-m', message], { GIT_AUTHOR_NAME: name, GIT_AUTHOR_EMAIL: email, GIT_COMMITTER_NAME: name, GIT_COMMITTER_EMAIL: email });
   });
-  // hermetic: your real private files (outside the tree, see scripts/lib/private-files.mjs) must not be read here, so the
+  // hermetic: the real private files (outside the tree, see scripts/lib/private-files.mjs) must not be read here, so the
   // scan gets an empty home and no private folder, and only the overlay this case wrote
   const r = sh('node', [scan], { HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'home-')), BREWCV_PRIVATE_DIR: '', XDG_CONFIG_HOME: '', APPDATA: '' });
   fs.rmSync(dir, { recursive: true, force: true });
