@@ -676,11 +676,11 @@ function deckHtml(rs, insp){
 const openExport = () => exporter.open(placeOf() === 'library' ? screens.target().ids : [store.state.openId], ui.view ?? null);
 
 // ---- the rail (a desktop): the logo, the editor's tabs, the other screens, undo and redo. Three containers: the tabs touch the editor card,
-// the screens are dashed and icon only, undo and redo sit at the foot. ----
+// undo and redo sit at the foot. Folded, the top of the rail carries the Export stub. ----
 function drawRail(mode, saved = ''){
   const hs = store.history, tea = drink() === 'tea', editor = placeOf() === 'editor';
   const tab = (m, key, ic) => `<button role="tab" class="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'design', 'export'].includes(mode)) ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? ic[1] : ic[0], { role: 'header' })}</span><span class="tl">${h(key)}</span></button>`;
-  // the seam: undo, redo and Saved in one card at the top, the same on every place; Edit, Design and Export joined to the panel in the editor only; the logo at the foot
+  // the foot: undo, redo, Saved and the fold chevron in one card, the same on every place, over the logo; Content and Look joined to the panel in the editor only
   $('#rail').innerHTML = `${logoBtn(30, { base: 'logo', pos: 'l' })}
     ${editor ? `<div class="rtabs" id="rtabs" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}" data-tea="${esc(dock.teaNow())}">${tab('edit', 'ux2.modeEdit', ['edit', 'steep'])}${tab('design', 'ux2.modeDesign', ['design', 'latte'])}</div>` : ''}
     <div class="rhist" role="group" aria-label="${esc(t('ux6b.history'))}">

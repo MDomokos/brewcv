@@ -53,7 +53,7 @@ html[data-drink="coffee"] .ptabs .ptab[aria-current=page] { color: var(--paper-i
 html[data-drink="coffee"] .ptabs .ptab:hover:not([aria-current]) { background: transparent; color: var(--tab-ink); }
 @media (max-height: 850px){ html[data-drink="coffee"] .ptabs .ptab, html[data-drink="coffee"] .ptabs .ptab[aria-current=page] { height: 26px; } }
 
-/* ---- the seam: undo, redo and Saved in one card at the top, the same on every place; Edit, Design and Export under it (the editor only); the logo at the foot ---- */
+/* ---- the history card: undo, redo, Saved and the fold chevron in one card at the rail’s foot, over the logo, the same on every place ---- */
 .rsaved { display: grid; place-items: center; min-height: 22px; }
 .rsaved .savestate { padding: 0; }
 

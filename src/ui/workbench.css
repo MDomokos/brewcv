@@ -1150,7 +1150,7 @@ html body:not([data-phone=true]):not(.is-intro) :is(.col > #head, .col > .switch
 }
 
 /* the rail: left of the sidebar, in the room the layout keeps for it. Three containers: the tabs (touching the editor card), the other
-   screens (dashed, icon only) and undo and redo. Hung from the column, so it follows it. */
+   screens (dashed, icon only) and undo and redo (at the foot). Hung from the column, so it follows it. */
 .rail { position: absolute; right: 100%; top: 0; bottom: 0; width: 54px; z-index: 2; }
 .rail > * { position: absolute; }
 body:is([data-phone=true], .is-intro, .is-quiet) .rail, .col.is-full > .rail { display: none; }
@@ -1174,7 +1174,7 @@ body:is([data-phone=true], .is-intro, .is-quiet) .rail, .col.is-full > .rail { d
 .rmore { flex: 0 0 100%; padding: 0 2px; border: 0; background: transparent; color: var(--ink-soft); font: 700 11px/1 var(--font-mono); border-radius: var(--r-xs); min-height: 24px; }
 .rmore:hover { background: var(--hover-strong); border: 0; }
 .rmore.overflow { color: var(--bad); }
-.rhist { left: 0; top: 0; width: 46px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 4px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
+.rhist { left: 2px; bottom: 48px; width: 50px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 38px; background: linear-gradient(var(--line), var(--line)) center bottom 35px / 30px 1px no-repeat, var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
 .rhist .ib { width: 32px; height: 32px; }
 
 /* the body: one sheet, or two side by side (Outline and Edit, when the room allows) */

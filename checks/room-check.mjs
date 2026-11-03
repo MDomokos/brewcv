@@ -8,7 +8,7 @@
 //  (b) the page at fit fills the window's height less 32px, and
 //  (c) the page's x is the same for nothing selected, a line, a job, Design, Export and back; writing a line zooms in, and the page is back
 //      where it was at the page level.
-// And the shape: the place tabs, the name card (the name and the menu), the seam (undo, redo and Saved at the top; Edit, Design and Export joined to the
+// And the shape: the place tabs, the name card (the name and the menu), the history card (undo, redo, Saved and the fold chevron at the rail's foot; Content and Look joined to the
 // panel; the logo at the foot) and no footer: the editor card runs to the column's end. The sidebar is what sideWidth says (316 to 520px, and up to 100px more for a
 // resume limited to one page), the rail 54px more.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes only to out/.
@@ -138,7 +138,7 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
         barsInRail: !!document.querySelector('#rail .meter'), screensInRail: !!document.querySelector('#rail .scr, #rail .rscreens'),
         savedInSeam: !!document.querySelector('#rail .rhist .savestate'),
         zoombar: [...document.querySelectorAll('#zoombar [data-act]')].map(b => b.dataset.act),
-        seam: { histTop: hist.top - col.top, logoBottom: col.bottom - logo.bottom, tabsBelowHist: r('#rail .rtabs').top >= hist.bottom },
+        seam: { histBottom: col.bottom - hist.bottom, logoBottom: col.bottom - logo.bottom, tabsAboveHist: r('#rail .rtabs').bottom <= hist.top },
         want: sideWidth(innerWidth, innerHeight, one), one,
         widths: { col: col.width, rail: rail.width, gap: col.left - rail.right, tabTouches: Math.abs(tab.right - body.left) < 1.5, tabInside: tab.top >= body.top && tab.bottom <= body.bottom, nameAbove: head.bottom <= body.top, placesAbove: pt.bottom <= head.top + 14 },
       };
@@ -148,7 +148,7 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
     ok(`the sidebar is what sideWidth says (${shape.want}px, ${shape.one ? 'a one-page resume' : 'two pages'}), with the rail touching it; the first tab touches the editor card, inside its height; the place tabs and the name card are above it`, shape.widths.col === shape.want && Math.abs(shape.widths.gap) < 1 && shape.widths.tabTouches && shape.widths.tabInside && shape.widths.nameAbove && shape.widths.placesAbove, JSON.stringify(shape.widths));
     ok('the three places are tabs on top of the column, Editor the current one', shape.places.join() === 'Library,Editor*,Career', shape.places.join());
     ok('the name card has the name and the menu: no Save to file, undo, redo, logo, Fit or Saved', shape.head.join() === 'switcher,menu' && shape.savedInSeam, shape.head.join());
-    ok('the seam: undo, redo and Saved in one card at the top, the logo at the foot, Edit, Design and Export under the card', ['drink-switch', 'mode', 'undo', 'redo'].every(a => shape.railActs.includes(a)) && shape.seam.histTop < 1 && shape.seam.logoBottom < 1 && shape.seam.tabsBelowHist, JSON.stringify(shape.seam));
+    ok('the history card: undo, redo, Saved and the fold chevron in one card at the foot of the rail, over the logo, Content and Look above it', ['drink-switch', 'mode', 'undo', 'redo'].every(a => shape.railActs.includes(a)) && shape.seam.histBottom > 40 && shape.seam.histBottom < 130 && shape.seam.logoBottom < 1 && shape.seam.tabsAboveHist, JSON.stringify(shape.seam));
     ok('no screen buttons and no page bars in the rail (the places are the tabs; the bars are Export\'s)', !shape.barsInRail && !shape.screensInRail);
     ok('there is no footer: the editor card runs to the column\'s end', !shape.footShown && Math.abs(shape.bodyBottom - shape.colBottom) < 1.5, `${shape.bodyBottom} ${shape.colBottom}`);
     ok('Actual size is on the zoom bar', shape.zoombar.includes('actual'), shape.zoombar.join());

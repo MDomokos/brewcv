@@ -100,13 +100,14 @@ html[data-drink="coffee"] .col .rtabs .tab:not([aria-selected=true]), html[data-
 .col .rtabs .tab:not([aria-selected=true]) .ti, .col.is-name .rtabs .tab .ti { color: var(--ink-soft); }
 .rtabs .tab:hover:not(:disabled, [aria-selected=true]) { background: color-mix(in srgb, var(--tab-back) 50%, var(--surface)); color: var(--ink); }
 .rtabs .tab:active:not([aria-selected=true]) { translate: 1px 0; }
-/* folded to the rail: no panel is there to hang from, so each mode is a whole rounded card on the mat, its own edge and soft shadow, in a
-   gap from the window's edge; the current one has the surface, the accent edge and icon (not a join). The open sidebar's tabs are above, unchanged. */
-html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x) { width: 46px; margin: 0 0 0 4px; border-radius: var(--r-l); background: var(--tab-back); color: var(--ink-soft);
-  border: 1px solid var(--line-strong); box-shadow: 0 2px 6px -1px color-mix(in srgb, var(--press-sh) 60%, transparent); translate: none; }
+/* folded to the rail: no panel is there to hang from, so Export and the modes are one chrome card at the top (Export its head, held in the room
+   left at the card's top); the modes are flat rows in it, the current one has the surface, the accent edge and icon. The open sidebar's tabs are above, unchanged. */
+html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs { top: 0; left: 2px; width: 50px; gap: 4px; padding: 69px 2px 2px; background: linear-gradient(var(--chrome-line), var(--chrome-line)) center 63px / 30px 1px no-repeat, var(--chrome); border: 1px solid var(--chrome-edge); border-radius: var(--r-l); }
+html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x) { width: 44px; margin: 0; border-radius: calc(var(--r-l) - 2px); background: transparent; color: var(--chrome-soft);
+  border: 1px solid transparent; box-shadow: none; translate: none; }
+html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x, [aria-selected=true]) .ti { color: var(--chrome-soft); }
 html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x)::before, html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x)::after { display: none; }
-html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-selected=true]:not(.x) { background: var(--surface); color: var(--ink); width: 46px; margin: 0 0 0 4px; border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), 0 3px 8px -1px color-mix(in srgb, var(--press-sh) 70%, transparent); }
+html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-selected=true]:not(.x) { background: var(--surface); color: var(--ink); width: 44px; margin: 0; border-color: var(--accent); box-shadow: none; }
 html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-selected=true]:not(.x) .ti { color: var(--accent); }
 /* the name card's button: the tertiary press; while its window is open it reads as pressed in (sunk), the window over it a popover */
 #head .docname[aria-expanded=true] { background: var(--chrome-hover); box-shadow: var(--elev-inset); transform: none; }      /* over the tertiary press's hover */
@@ -135,10 +136,10 @@ html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-sele
 .sidegrip:focus-visible { outline: none; }
 .sidegrip:focus-visible::after { top: 0; bottom: 0; background: var(--focus); }
 body.side-off:not([data-phone=true]):not(.is-intro) .col > :is(#ptabs, #head, #body, #foot, #switcher, #bankcard) { display: none; }
-/* the chevron over the logo, at the foot of the rail: a small chrome card like undo and redo's, so it reads on the mat in every look */
-#rail > [data-act=side-fold] { --ink: var(--chrome-ink); --hover: var(--chrome-hover-strong); --focus: var(--chrome-accent); --fold-edge: color-mix(in srgb, var(--chrome-edge) 75%, var(--chrome-ink));
-  left: 13px; bottom: 48px; width: 28px; height: 28px; background: var(--chrome); color: var(--chrome-ink); border: 1px solid var(--fold-edge); border-radius: var(--r-m); }
-#rail > [data-act=side-fold]:hover:not(:disabled) { background: linear-gradient(var(--hover), var(--hover)) var(--chrome); color: var(--ink); border: 1px solid var(--fold-edge); }
+/* the chevron over the logo: the last row of the history card (undo, redo and Saved), under a hairline, so the foot is one card */
+#rail > [data-act=side-fold] { --ink: var(--chrome-ink); --hover: var(--chrome-hover-strong); --focus: var(--chrome-accent);
+  left: 11px; bottom: 53px; width: 32px; height: 28px; background: transparent; color: var(--chrome-ink); border: 0; border-radius: var(--r-m); }
+#rail > [data-act=side-fold]:hover:not(:disabled) { background: var(--hover); color: var(--ink); border: 0; }
 body.side-moving .col { transition: left var(--dur-2) var(--ease), width var(--dur-2) var(--ease); }
 
 /* ---- 8. The "?" corner (shell.js cornerHtml): help and info at the panel's bottom right, out of the Outline's way: it stands on the
