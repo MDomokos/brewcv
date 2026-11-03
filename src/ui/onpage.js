@@ -23,6 +23,7 @@ import { t } from '../i18n/index.js';
 import { PHONE_MAX } from './layout.js';
 import { reduced } from './motion.js';
 import { icon } from './icons.js';
+import { isKey } from './help.js';
 import { off } from './plate.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -383,7 +384,7 @@ export function initOnPage(C){
     if (e.isComposing || e.keyCode === 229) return;
     const mod = e.ctrlKey || e.metaKey;
     const done = () => { e.preventDefault(); e.stopPropagation(); };
-    if (mod && e.shiftKey && !e.altKey && e.code === 'KeyH'){ done(); markSelection(); return; }      // Ctrl/Cmd+Shift+H: the selection, highlighted or cleared
+    if (mod && e.shiftKey && !e.altKey && isKey(e, 'h')){ done(); markSelection(); return; }      // Ctrl/Cmd+Shift+H: the selection, highlighted or cleared
     // Alt+↑ ↓ move the line, as the arrows beside it say (and as they do for a selected line); Alt+Shift+↓ is the way from the line to its versions
     if (e.altKey && !mod && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){
       if (e.shiftKey && e.key === 'ArrowDown' && tag() && !tag().disabled){ done(); openVers('key'); return; }

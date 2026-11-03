@@ -34,6 +34,7 @@ export const ICONS = {
   check: '<path d="M3.4 8.4 6.6 11.4l6-6.6"/>',
   teacup: '<path d="M2.5 6.5h9v2.8a3.6 3.6 0 0 1-3.6 3.6H6.1a3.6 3.6 0 0 1-3.6-3.6z"/><path d="M11.5 7.4h.8a1.6 1.6 0 0 1 0 3.2h-1"/><path d="M5.5 2.2c-.6.8.6 1.4 0 2.4M8.2 2.2c-.6.8.6 1.4 0 2.4"/>',
   list: '<path d="M5.4 3.6h8M5.4 8h8M5.4 12.4h8"/><circle cx="2.6" cy="3.6" r=".6"/><circle cx="2.6" cy="8" r=".6"/><circle cx="2.6" cy="12.4" r=".6"/>',
+  cards: '<rect x="2.4" y="2.4" width="4.6" height="4.6" rx="1"/><rect x="9" y="2.4" width="4.6" height="4.6" rx="1"/><rect x="2.4" y="9" width="4.6" height="4.6" rx="1"/><rect x="9" y="9" width="4.6" height="4.6" rx="1"/>',
   steep: '<path d="M2.6 8.4h9.2v2.2a3.4 3.4 0 0 1-3.4 3.4H6a3.4 3.4 0 0 1-3.4-3.4z"/><path d="M11.8 9.2h.7a1.4 1.4 0 0 1 0 2.8h-1"/><path d="M7.2 1.6v2.8"/><path d="M5.4 4.4h3.6l-.5 4H5.9z"/>',
   latte: '<circle cx="8" cy="8" r="5.8"/><path d="M8 11.4c-2.6-1.5-3.4-2.6-3.4-3.7 0-1 .8-1.7 1.7-1.7.8 0 1.4.5 1.7 1 .3-.5.9-1 1.7-1 .9 0 1.7.7 1.7 1.7 0 1.1-.8 2.2-3.4 3.7z"/>',
   cupout: '<path d="M2.6 3.4h7.4v1.6H2.6z"/><path d="M3.2 5l.7 8.4h4.8L9.4 5"/><path d="M10.8 9.2h3.4M12.8 7.4l1.8 1.8-1.8 1.8"/>',
@@ -68,6 +69,8 @@ export const ICONS = {
   flag: '<path d="M3.5 14.5V2M3.5 2.5h8.5l-2 3 2 3H3.5"/>',
   mic: '<rect x="5.8" y="1.6" width="4.4" height="7.6" rx="2.2"/><path d="M3.4 7.6a4.6 4.6 0 0 0 9.2 0M8 12.2v2.2"/>',
   dot: '<circle cx="8" cy="8" r="4.2"/>',
+  fileout: '<path d="M8.6 2H4.2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.2"/><path d="M8.6 2v3h2.8v1.4"/><path d="M6.8 9.2h7.4M12.2 7.2l2 2-2 2"/>',
+  newdoc: '<path d="M9.4 2H4.2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7.6a1 1 0 0 0 1-1V5.4z"/><path d="M9.4 2v3.4h3.4M8 7.6v4.6M5.7 9.9h4.6"/>',
 };
 ICONS.frame = ICONS.photo;      // the old name of the picture frame: a saved custom kind may still hold it
 

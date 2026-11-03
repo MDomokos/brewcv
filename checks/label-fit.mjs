@@ -112,11 +112,11 @@ for (const lang of I.UI_LANGS){
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
     problems.push(...await probe('record', '#checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw, #checklist .addline'));
     await pg.keyboard.press('e'); await pg.waitForTimeout(500);      // E: Career is a place of its own, and Esc stays in it: back to the editor
-    await pg.click('#tab-export'); await pg.waitForTimeout(400);
-    problems.push(...await probe('export', '.sentrow *, .filerow *, .sentrule, .dl button'));
+    await pg.evaluate(() => window.__wb.export.open()); await pg.waitForTimeout(400);
+    problems.push(...await probe('export', '#body .xptop *, #body .xph, #body .seg button, #body .dl button, #fileline, #filestate'));
     await pg.click('[data-act=mark-sent]'); await pg.waitForTimeout(400);
     problems.push(...await probe('mark as sent', '#body .btns button, #body .field *, #body .note'));
-    await pg.click('#tab-design'); await pg.waitForTimeout(400);
+    await pg.evaluate(() => window.__wb.setView('design')); await pg.waitForTimeout(400);      // the Sent form is in the Export place, which has no rail
     problems.push(...await probe('design', '#body .seg button, #body .tpl, #body .drow .item, #body .drow .btns button, #body .drow .note, #body .photo-ctl .btns button, #body .photo-ctl .note'));
     await pg.click('#tab-edit'); await pg.waitForTimeout(300);
     await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await pg.waitForTimeout(500);

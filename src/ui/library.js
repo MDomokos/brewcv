@@ -50,19 +50,32 @@ export const matches = (g, q) => {
   return !n || g.members.some(m => [m.name, m.meta?.company, m.meta?.role, m.meta?.lang].some(x => String(x ?? '').toLowerCase().includes(n))) || hits(g, q).length > 0;
 };
 
-// ---- the card ----
+// ---- the card, and the list's row ----
+const langs = g => [...new Set(g.members.map(m => m.meta?.lang).filter(Boolean))].map(l => l.toUpperCase()).join('/');
+const docHooks = (g, state) => `data-did="${esc(g.id)}" data-kind="${esc(g.lead.meta?.kind ?? '')}" data-formats="${g.members.length}" data-state="${state[0]}" ${g.resume ? `data-from="${esc(g.resume)}"` : ''} ${g.members.every(m => m.archived) ? 'data-archived="1"' : ''}`;
+const pills = g => g.members.map(m => `<span class="pill" data-member="${esc(m.id)}">${esc(isLetter(m) ? t('i7.letter') : typeOf(m))}</span>`).join('');
 export function card(g, q = ''){
   const d = g.lead, resume = g.resume && RS.savedOf(st(), g.resume), pic = bytesUrl(d.thumb), state = stateOf(g), hit = hits(g, q)[0], sel = L.sel === g.id;
-  const meta = [company(d), dateOf(d), [...new Set(g.members.map(m => m.meta?.lang).filter(Boolean))].map(l => l.toUpperCase()).join('/')].filter(Boolean).join(' · ');
-  return `<article class="rcard rdoc ${sel ? 'sel' : ''}" data-did="${esc(g.id)}" data-kind="${esc(d.meta?.kind ?? '')}" data-formats="${g.members.length}" data-state="${state[0]}" ${g.resume ? `data-from="${esc(g.resume)}"` : ''} ${g.members.every(m => m.archived) ? 'data-archived="1"' : ''}>
+  const meta = [company(d), dateOf(d), langs(g)].filter(Boolean).join(' · ');
+  return `<article class="rcard rdoc ${sel ? 'sel' : ''}" ${docHooks(g, state)}>
     <span class="thumbwrap"><span class="rthumb dthumb" style="aspect-ratio:210 / 297">${pic ? `<img src="${esc(pic)}" alt="">` : `<span class="dbadge">${esc(typeOf(d))}</span><span class="dline">${esc(first(d))}</span>`}</span></span>
     <h4 class="rname"><button class="rsel" data-act="doc-sel" data-id="${esc(g.id)}" aria-pressed="${sel}">${esc(d.name)}</button></h4>
     <p class="rmeta">${esc(meta)}</p>
     ${resume ? `<p class="rfrom">${esc(t('i7.exportedFrom', { name: RS.resumeLabel(resume) }))}</p>` : ''}
     ${hit ? `<p class="rhit">${snippet(hit, q)}</p>` : ''}
-    <p class="rbadges">${g.members.map(m => `<span class="pill" data-member="${esc(m.id)}">${esc(isLetter(m) ? t('i7.letter') : typeOf(m))}</span>`).join('')}</p>
+    <p class="rbadges">${pills(g)}</p>
     <p class="rstate" data-state="${state[0]}">${esc(state[1])}</p>
   </article>`;
+}
+// the list's columns after the name (screens.js names them): every one a cell, blank where there is nothing
+export const COLS = ['company', 'role', 'type', 'paper', 'lang', 'pages', 'sent', 'changed'];
+export const cells = o => COLS.map(k => `<td class="c-${k}">${esc(o[k] ?? '')}</td>`).join('');
+// a document group's row: on its own, or under the resume it was exported from (parent), hidden while that resume is folded
+export function row(g, q = '', parent = null, hidden = false){
+  const d = g.lead, state = stateOf(g), hit = hits(g, q)[0], sel = L.sel === g.id;
+  return `<tr class="rline rdoc ${parent ? 'rsub' : ''} ${sel ? 'sel' : ''}" ${docHooks(g, state)} ${parent ? `data-parent="${esc(parent)}"` : ''} ${hidden ? 'hidden' : ''}><td class="c-tick"></td>
+    <td class="c-name"><button class="rsel" data-act="doc-sel" data-id="${esc(g.id)}" aria-pressed="${sel}">${esc(d.name)}</button> ${pills(g)} <span class="rstate" data-state="${state[0]}">${esc(state[1])}</span>${hit ? `<span class="rhit">${snippet(hit, q)}</span>` : ''}</td>
+    ${cells({ company: d.meta?.company, role: d.meta?.role, lang: langs(g), changed: dateOf(d) })}</tr>`;
 }
 
 // ---- the inspector ----
@@ -123,7 +136,7 @@ export function inspector(){
       ${un ? `<button class="sm" data-act="doc-place" data-state="${L.panel === 'place' ? 'open' : ''}">${h('i7.place', { n: un })}</button>` : ''}
       ${String(d.text ?? '').trim() && !isLetter(d) && d.meta?.kind !== 'other' ? `<button class="sm primary" data-act="doc-rebuild" data-id="${esc(d.id)}">${h('i7.rebuild')}</button>` : ''}
       ${d.embedded ? `<button class="sm" data-act="doc-download" data-id="${esc(d.id)}">${h('i7.download')}</button>` : ''}
-      <button class="sm" data-act="doc-archive" data-on="${archived ? '0' : '1'}">${h(archived ? 'i7.unarchive' : 'i7.archive')}</button>
+      ${archived ? `<button class="sm" data-act="doc-archive" data-on="0">${h('i7.unarchive')}</button>` : ''}
     </div>
     ${L.panel === 'place' ? placePanel(d) : ''}
     ${rounds.length ? `<label class="field"><span class="lbl">${h('i7.round')}</span><select data-doc-round aria-label="${esc(t('i7.round'))}"><option value="">${h('i7.earlier')}</option>${rounds.map(r => `<option value="${esc(r.id)}" ${r.id === d.round ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>` : ''}
@@ -247,7 +260,7 @@ function bind(body){
 }
 
 const api = {
-  card, inspector, roundPanel, matches, act, bind, after: drawPages,
+  card, row, inspector, roundPanel, matches, act, bind, after: drawPages,
   sel: () => (groupOf(L.sel) ? L.sel : null), rm: () => L.rm,
   clear(){ L.sel = null; L.member = null; L.panel = null; L.pages = null; },
 };

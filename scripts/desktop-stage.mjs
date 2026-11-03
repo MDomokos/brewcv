@@ -15,7 +15,7 @@ export const OUT = path.join(ROOT, '_desktop');
 export const DIRS = ['src', 'fonts', 'icons', 'themes', 'formats', 'templates', 'desktop', 'vendor'];      // vendor: PDF.js, which src/parse/pdf.js loads by URL
 // data/ is an allowlist, not a folder copy: whatever else lands in data/ (a backup, a private file with an unexpected name) is not
 // embedded in the binary. These are the only data/ paths the app fetches; checks/desktop-check.mjs re-reads src/ to keep that true.
-export const DATA = ['data/example.json', 'data/example-resumes'];
+export const DATA = ['data/example.json', 'data/example-library.json', 'data/example-resumes'];
 // the one module the app imports from outside src/ (found by walking the import graph; the check re-walks it)
 export const FILES = ['index.html', 'manifest.webmanifest', 'scripts/lib/html.mjs'];
 // connect-src stays 'self' in the web build; only this staged copy adds the desktop IPC schemes

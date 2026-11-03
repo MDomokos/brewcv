@@ -536,6 +536,14 @@ export function matchVersion(state, vid, n){
 
 // The resume this one was copied from, if it is still saved.
 export const parentOf = (state, r) => (r?.parent ? savedOf(state, r.parent) : null);
+// A resume and its copies in other languages for the same company and role (kept in step or not) are one item of the Library: the original up the
+// `parent` chain first, then the copies in saved order. A copy in the same language, or for another company or role, is a resume of its own.
+const langUp = (state, x) => { const p = parentOf(state, x); return p && langOfR(p) !== langOfR(x) && (p.company ?? '') === (x.company ?? '') && (p.role ?? '') === (x.role ?? '') ? p : null; };
+export function langRoot(state, r){ for (let n = 0; r && langUp(state, r) && n < 50; n++) r = langUp(state, r); return r ?? null; }
+export function langFamily(state, r){
+  const root = langRoot(state, r);
+  return root ? [root, ...(state.resumes ?? []).filter(x => x !== root && langRoot(state, x) === root)] : [];
+}
 // For resumes made before parents were recorded: the other resume in the same language that prints most of the same lines.
 // printedOf(r) lists what r prints.
 export function closestTo(state, r, printedOf){

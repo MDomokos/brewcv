@@ -146,13 +146,11 @@ function tailorBox(){
   return `<div class="tailor${open ? ' open' : ''}"><div class="tailorrow"><button type="button" class="sm ghost tailor-t" data-act="tailor-toggle" aria-expanded="${open}" aria-controls="tailor-box">${icon('focus', { role: 'inline' })}<span>${h('ux6g.tailor')}</span></button>${chip}${pageLockHtml('lensrow-end')}</div>${open ? `<div id="tailor-box">${lensBox()}</div>` : ''}</div>`;
 }
 
-// The Outline: this resume in print order. A slim row with the page lock, the sections (checklist.js outlineHtml), the Tailor row, and the way
-// Fit works at the foot.
+// The Outline: this resume in print order. A slim row with the page lock, the sections (checklist.js outlineHtml) and the Tailor row.
 function outlineView(){
   return `${C.newerBanner()}${missingBar()}
     ${C.outlineHtml()}
-    ${tailorBox()}
-    <p class="muted tiny outfoot">${h('ux5c.outlineFoot')}</p>`;
+    ${tailorBox()}`;
 }
 // the whole page's padlock: Edit with nothing selected has it
 function pageLockHtml(cls = ''){

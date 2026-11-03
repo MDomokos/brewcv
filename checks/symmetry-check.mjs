@@ -150,6 +150,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   await trip('job, on the chip', '#editlay .dp-show', () => page.click('#editlay .dp-show'), '#body .depth .dp-show', () => page.click('#body .depth .dp-show'));
   ok('job, in its own view (J, rewritten: no tick of its own, the depth row\'s is the one, tripped above)', !(await page.$('#body .ctlrow input[data-jobon=hydra]')) && (await page.$$('#body .hdr .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')));
   await page.click('#body .depth [data-act=deselect]'); await wait();
+  await page.click('#outline [data-act=ol-toggle][data-g="sec:experience"]'); await wait();      // every section starts folded
   await trip('job, on its head in the Outline', '#outline .clg[data-g=hydra] > .clgh input[data-jobon=hydra]', () => page.click('#outline .clg[data-g=hydra] > .clgh .swl'), '#outline input[data-jobon=hydra]', () => page.click('#outline input[data-jobon=hydra] >> xpath=..'));
 
   // a section: the chip, its own view, its row in the Outline
@@ -177,7 +178,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
     ok('(a moved section list shows no "custom" and no Reset: section order is not time)', (await order()) !== o1 && !(await page.$('.ordhead [data-act=order-reset]')) && !(await page.$('.ordhead .pill.custom')), `${o1} / ${await order()} / ${await page.evaluate(() => JSON.stringify(window.__wb.store.state.cur.sections))}`);
     const moved = (await order()).split(',');
     // the act itself stays (the model resets; only its button is gone): a stand-in button reaches it
-    await page.evaluate(() => { const b = document.createElement('button'); b.dataset.act = 'order-reset'; b.dataset.kind = 'sections'; b.dataset.id = 'sections'; b.id = 'reset-stand-in'; document.querySelector('#body').append(b); });
+    await page.evaluate(() => { const b = document.createElement('button'); b.dataset.act = 'order-reset'; b.dataset.kind = 'sections'; b.dataset.id = 'sections'; b.id = 'reset-stand-in'; document.querySelector('#body').insertBefore(b, document.querySelector('#body > .privacy')); });      // (before the privacy line, which ends the panel level with the "?")
     await page.click('#reset-stand-in'); await wait();
     const after = (await order()).split(',');
     ok('Reset puts the printed sections back in the record\u2019s order and the off section stays at its place in the list', after.indexOf('skills') === moved.indexOf('skills') && after.filter(x => x !== 'skills').join() === o1.split(',').filter(x => x !== 'skills').join(), `${o1} / ${moved} / ${after}`);
@@ -518,8 +519,9 @@ await run('Fit is Export\u2019s: not on the Library, there and not held in Expor
   await page.waitForTimeout(600);
   const wait = () => page.waitForTimeout(700);
   ok('in the editor Fit is not on the page until Export is open', !(await page.$('[data-act=fit]')));
-  await page.click('#tab-export'); await wait();
+  await page.evaluate(() => window.__wb.export.open()); await wait();
   ok('in Export Fit is once on the page and not held', (await page.$$('[data-act=fit]')).length === 1 && (await page.$eval('#body [data-act=fit]', b => b.getAttribute('aria-disabled'))) === null);
+  await page.evaluate(() => window.__wb.export.back()); await wait();
   await page.click('#ptabs [data-p=library]'); await wait();
   ok('with the Library open there is no Fit on the page to press', !(await page.$('[data-act=fit]')));
   await ctx.close();

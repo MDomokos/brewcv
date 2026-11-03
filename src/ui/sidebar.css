@@ -271,44 +271,80 @@ html[data-drink="coffee"] { --hue-tint: 30%; --hue-deep: 45%; }
 html[data-drink="coffee"][data-theme="dark"] { --hue-tint: 46%; --hue-deep: 70%; }
 .hband { background: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-tint), var(--surface)); }
 .hic { color: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-deep), var(--ink)); }
-/* Export, top to bottom: the finish header (the cup 44, a hue-1 band), the status row (one glyph 24, the page result, Fit and the page bars at its end),
-   "Get the file" (a hue-2 band: PDF the hero, the three other formats three equal rows), "Sent it?" (hue 3, the same row), the backup a quiet row. A band
-   is a 24 px icon and a 14 px / 700 title on its hue; a note is 11.5 px muted; every row under a band is one pattern: the title, the note under it. */
-.exhero { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; column-gap: 12px; padding: 6px 12px; border-radius: var(--r-l); }
-.exhero .excup { grid-row: 1 / span 2; display: grid; }
-.exhero .title { margin: 0; font-size: 18px; line-height: 1.2; overflow-wrap: anywhere; }
-.exhero p { margin: 0; max-width: 100%; overflow-wrap: anywhere; }
-.exhero .exwho { font: 650 12.5px/1.3 var(--font-ui); color: var(--ink); }
-/* the weight of every icon is its role's token (drinks.css --ic-sw-*): the cup 44, a band or the status glyph 24 */
-.excup .ico, .exic .ico, .exst .ico { vertical-align: top; }
-.exstat { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 0; padding: 0 2px; }
-.exstat .checks { flex: 1 1 11em; margin: 0; gap: 6px; }
-.exstat .checks li { grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 13px; line-height: 1.3; }
-.exstat .checks li.warn, .exstat .checks li.bad { font-weight: 600; }
+/* The Export place: the final step is the whole column, half again as wide as the sidebar; the place tabs, the name card, the rail and the
+   foot step aside (the pages keep the room on the left). The panel: ← Back and "Final step", what is exported, then a grid of blocks on
+   the drink's surface: Ready | Made for, Download (the whole width: four cards, PDF the filled one), Sent? | Backup. */
+body.is-export :is(#ptabs, #rail, #foot, #corner, #bankcard) { display: none !important; }
+/* the name card steps aside too; a notice in it (the save note, a folder changed, read only) and the app menu stay */
+body.is-export #head:not(:has(.notice, .menu)), body.is-export #head > :not(.notice, .menu) { display: none !important; }
+body.is-export #body { flex: 1 1 auto; max-height: none; padding: 18px 22px 22px; }
+body.xp-list #pages { visibility: hidden; }
+.xptop { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.xptop .xpback { min-height: 40px; padding: 0 14px; font: 700 15px var(--font-ui); }
+.xpstep, .xptag { font: 700 11px var(--font-label, var(--font-ui)); letter-spacing: .08em; text-transform: uppercase; }
+.xpstep { color: var(--ink-soft); }
+.xptag { color: var(--ink-soft); }
+.xpwhat { margin: 16px 0 14px; }
+#body .xpwhat .title { display: flex; flex-direction: column; margin: 2px 0 0; font-size: 26px; line-height: 1.15; overflow-wrap: anywhere; }
+.xpwhat .xprole { font-size: 17px; font-weight: 600; color: var(--ink-soft); }
+.xpgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.xpb { min-width: 0; margin: 0; padding: 14px 16px; border: 1px solid var(--line-strong, var(--line)); border-radius: var(--r-l); }
+.xpwide, .xpgrid.is-many > [data-k=ready] { grid-column: 1 / -1; }
+.xph { margin: 0 0 10px; font: 700 15px/1.25 var(--font-ui); }
+.xpb .note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.35; }
+.xpb .checks { margin: 0; gap: 6px; }
+.xpb .checks li { grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 13.5px; line-height: 1.35; }
+.xpb .checks li.warn, .xpb .checks li.bad { font-weight: 600; }
+.xpb .checks li.wait { opacity: .6; }
+.xpb .checks li .muted { font-weight: 400; }
 .exst { display: grid; width: 24px; height: 24px; }
-.exfit { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+.exst .ico { vertical-align: top; }
+/* Ready: Fit and the page bars at the heading's end, where the rows under them never move them (the Fit chip waits under Fit) */
+.xpb.exstat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; }
+.xpb.exstat .xph { grid-area: 1 / 1; margin: 0; }
+.exstat .exfit { grid-area: 1 / 2; display: flex; align-items: center; gap: 8px; }
+.xpb.exstat .checks { grid-column: 1 / -1; margin-top: 8px; }
 .exfit .meters { flex: none; }
-.exg { margin-top: 10px; }
-.exg .note { margin: 5px 2px 0; font-size: 11.5px; line-height: 1.3; }
-.exg > .sgh { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 36px; margin: 0 0 5px; padding: 4px 12px; border-radius: var(--r-m); font: 700 14px/1.25 var(--font-ui); }
-.exg > .sgh .exic { display: grid; }
-/* the formats: PDF is the hero, the filled one, the whole width and taller; the others are three equal rows, the title and its note under it */
-.exg .dl { grid-template-columns: minmax(0, 1fr); gap: 5px; }
-.exg .dl button { min-height: 42px; padding: 3px 12px; line-height: 1.25; align-content: center; }
-.exg .dl button b { font-size: 14px; font-weight: 700; }
-.exg .dl button small { font-size: 11.5px; line-height: 1.3; }
-.exg .dl button[data-act=ex-pdf] { min-height: 56px; }
-.exg .dl button[data-act=ex-pdf] b { font-size: 17px; }
-/* the backup is housekeeping: no band, no icon */
-.exkeep { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin-top: 10px; padding: 8px 2px 0; border-top: 1px solid var(--line); }
-.exkt { display: grid; flex: 1 1 10em; min-width: 0; font-size: 12.5px; line-height: 1.3; overflow-wrap: anywhere; }
-.exkt b { font-weight: 650; } .exkt .small { font-size: 11.5px; }
-@media (prefers-reduced-motion: no-preference){
-  html:not([data-motion="reduce"]) .excup .steam { animation: exsteam 2.6s var(--ease, ease-in-out) 1 both; }
-  html:not([data-motion="reduce"]) .excup .steam:nth-of-type(2) { animation-delay: .25s; }
-  html:not([data-motion="reduce"]) .excup .steam:nth-of-type(3) { animation-delay: .5s; }
+.exfit .fitslot { display: inline-flex; }      /* its box is the button's: the Fit chip waits right under it */
+/* the formats: four cards, two by two; PDF is filled (unless Fit is the one to press first) */
+.xpb[data-k=file] .dl { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 8px; }
+.xpb .dl button.primary :is(b, small) { color: var(--on-accent); }
+.xpb .dl button { min-height: 64px; padding: 10px 14px; line-height: 1.25; align-content: center; border-radius: var(--r-m); }
+.xpb .dl button b { font-size: 15px; font-weight: 700; }
+.xpb .dl button small { font-size: 12.5px; line-height: 1.3; }
+.xpb[data-k=sent] .dl { grid-template-columns: max-content; }
+.xpb[data-k=sent] .dl button { min-height: 44px; }
+.xpsend { display: grid; gap: 8px; }
+.exkeep #fileline { margin: 0 0 8px; }
+/* several resumes: their pages in a row left of the panel, one at a time when they do not fit */
+.xpages { position: fixed; z-index: 1; }
+.xptrack { display: flex; align-items: center; gap: 24px; box-sizing: border-box; height: 100%; padding: 16px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scroll-padding-inline: 16px; scrollbar-width: thin; }
+.xptrack:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+.xpfig { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; scroll-snap-align: start; }
+.xpfig:only-child { margin: 0 auto; }
+.xpstrip { display: flex; gap: 16px; }
+.xpslot { display: block; overflow: hidden; background: #fff; box-shadow: 0 8px 30px -8px rgb(0 0 0 / .45); }
+.xpslot iframe { display: block; border: 0; transform-origin: 0 0; pointer-events: none; }
+.xpfig figcaption { max-width: 100%; padding: 2px 10px; border-radius: var(--r-pill); background: var(--paper); box-shadow: var(--shadow-chip); font: 600 13px/1.3 var(--font-ui); color: var(--paper-ink); text-align: center; overflow-wrap: anywhere; }
+.xptravel { position: absolute; top: 50%; translate: 0 -50%; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
+.xptravel[data-d="-1"] { left: 8px; } .xptravel[data-d="1"] { right: 8px; } .xptravel[hidden] { display: none; }
+/* a short window: the panel tightens so it fits without scrolling */
+@media (max-height: 820px){
+  body.is-export #body { padding: 12px 18px 14px; }
+  .xpwhat { margin: 8px 0 10px; }
+  #body .xpwhat .title { font-size: 21px; }
+  .xpwhat .xprole { font-size: 15px; }
+  .xpgrid { gap: 8px; }
+  .xpb { padding: 10px 14px; }
+  .xph { margin-bottom: 6px; }
+  .xpb .dl button { min-height: 52px; padding: 6px 12px; }
+  .xpb .note { margin-top: 5px; }
 }
-@keyframes exsteam { 0% { opacity: 0; translate: 0 2px; } 35% { opacity: 1; } 70% { opacity: .55; translate: 0 -1.5px; } 100% { opacity: 1; translate: 0 0; } }
+@media (max-width: 719px){
+  body.is-export #body { padding: 12px 14px 16px; }
+  .xpgrid { grid-template-columns: minmax(0, 1fr); }
+  #body .xpwhat .title { font-size: 21px; }
+}
 
 /* the job view's header: the title and the date line are plain rows written in place. At rest no pencil; the hover wash, a text cursor and a 12 px pencil come on hover or focus
    (the section heading's band shows its pencil the same way); a touch screen has no hover, so the pencil stays, faint */
@@ -333,10 +369,8 @@ html:not([data-motion="reduce"]) .pen { transition: opacity 120ms ease-out; }
 .jlink .sm { min-height: 20px; padding: 0 4px; border: 0; background: transparent; box-shadow: none; font-size: 11.5px; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
 .jlink .sm:hover { color: var(--ink); background: transparent; }
 
-/* a hairline between every two closed section rows, on or off, whatever the band under or over it (the row's own border sat inside the band and went unseen) */
-.outline .osec { position: relative; }
+/* no lines between the section rows: the pills are the rows, an off one is a plain quiet row */
 .outline .osec:not(.open) > .item.srow { border-bottom: 0; }
-.outline .osec:not(.open) + .osec:not(.open)::before { content: ""; position: absolute; inset: 0 8px auto; height: 1px; background: color-mix(in srgb, var(--ink) 26%, transparent); pointer-events: none; z-index: 1; }
 
 /* the panel's scrollbar: a slim rounded thumb in the panel's own ink at low contrast that steps up while the panel is hovered, no arrows (Chromium ignores ::-webkit-scrollbar once scrollbar-color is set, so these two are the whole style) */
 #body { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 30%, transparent) transparent; }
@@ -387,14 +421,14 @@ body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body:
 .wbaddrow.near .wbmark { color: var(--page-warn); }
 .wbuses { display: inline-flex; align-items: center; gap: 2px; color: var(--ink-soft); font-size: 11px; }
 /* the tray: a well, a step darker than the window (as the folder tabs are under the panel) and sunk, the words raised in it, at its top; it is the rest of the window, its note centred when it has nothing to show */
-.wbtray { --well: color-mix(in srgb, var(--surface) 82%, var(--shade)); display: grid; align-content: start; gap: 6px; padding: 8px; border-radius: var(--r-m); background: var(--well); box-shadow: var(--elev-inset), inset 0 0 0 1px var(--line); }
+.wbtray { --well: color-mix(in srgb, var(--surface) 82%, var(--shade)); display: grid; align-content: start; padding: 8px; border-radius: var(--r-m); background: var(--well); box-shadow: var(--elev-inset), inset 0 0 0 1px var(--line); }
 html[data-drink="tea"][data-theme="dark"] .wbtray { --well: color-mix(in srgb, var(--surface) 72%, var(--shade)); }
 html[data-drink="coffee"] .wbtray { --well: color-mix(in srgb, var(--surface) 93%, var(--ink)); }
 html[data-drink="coffee"][data-theme="dark"] .wbtray { --well: color-mix(in srgb, var(--surface) 88%, var(--ink)); }
 .col > .bankcard > .wbtray { flex: 1 0 auto; }      /* the well is the whole rest of the window: words are dropped and picked up anywhere in it */
 .wbtray.is-empty { place-content: center; justify-items: center; text-align: center; }
 .wbtray.is-empty > .wbempty { margin: 0; }
-.wbsec { display: grid; grid-template-columns: minmax(0, 72px) 1fr; gap: 0 8px; align-items: start; border-radius: var(--r-m); padding: 2px 0; }
+.wbsec { display: grid; grid-template-columns: minmax(0, 72px) 1fr; gap: 0 8px; align-items: start; border-radius: var(--r-m); padding: 8px 0; }      /* no gap between shelves and a one-line shelf 40px tall: the whole row is the drop target */
 .wbsec.wbloose { grid-template-columns: 1fr; }
 .wbsec.wbloose > .wbclu { display: none; }
 .wbsec.drop-on { background: var(--hover); box-shadow: inset 0 0 0 1px var(--sel-mark); }
@@ -454,3 +488,8 @@ html.wb-carry #handlay .obplus, html.wb-carry #handlay .obgrip { visibility: hid
 .wb-flash { animation: wbflash 1.1s ease-out; }
 @keyframes wbflash { from { box-shadow: 0 0 0 4px color-mix(in srgb, var(--sel-mark) 55%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .wb-shake, .sknames.wb-nudge .skname, .wb-flash, .wb-ring { animation: none; } }
+/* the Library's inspector, while something is ticked: whether the resume it shows is in the export, and the switch to put it in or take it out */
+#body .istrip { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 6px; padding: 2px 2px 4px; font: 600 12px var(--font-ui); color: var(--ink-soft); }
+#body .istrip[hidden] { display: none; }
+#body .istrip.is-in { color: var(--ink); }
+#body .istrip button { background: transparent; border-color: transparent; box-shadow: none; text-decoration: underline; text-underline-offset: 3px; color: var(--ink); }

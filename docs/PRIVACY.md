@@ -18,7 +18,7 @@ Use the network panel in your browser's developer tools. It lists every request 
 
 1. Open BrewCV. Press **F12**, or **Cmd+Option+I** on a Mac, and choose the **Network** tab.
 2. Reload the page, so the list starts from the beginning.
-3. Use the app: open the example, edit a line, run Fit, export, open Design, import a file.
+3. Use the app: open the example, edit a line, run Fit, export, open Look, import a file.
 4. Filter by **Fetch/XHR**. These are the requests a page makes by itself, and the only way a page could send your data out.
 
 **Firefox**

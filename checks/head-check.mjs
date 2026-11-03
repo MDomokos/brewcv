@@ -100,10 +100,11 @@ for (const [drink, theme] of LOOKS){
       const bad = { closed: [], opened: [] }, names = {}, tabH = [];
       for (const [key, name] of Object.entries(NAMES)){
         try {
-          await page.evaluate(async ([l, n]) => {
+          const want = await page.evaluate(async ([l, n]) => {
             const I = await import('/src/i18n/index.js'); await I.loadCatalogue(l);
             window.__wb.ui.pref = { mode: 'fixed', lang: l };
             window.__wb.store.commit(d => { d.cur.name = n; }, 'name');
+            return ['ux6h.placeLibrary', 'ux6h.placeEditor', 'ux6h.placeCareer'].map(k => I.tIn(l, k)).join();      // the place tabs in this language
           }, [lang, name]);
           await settle(page);
           if (await page.evaluate(() => document.querySelector('#switcher') && !document.querySelector('#switcher').hidden)) await page.keyboard.press('Escape');
@@ -113,7 +114,7 @@ for (const [drink, theme] of LOOKS){
           if (a.name.compact){ if (a.name.lines !== 1 || !a.name.headFit) bad.closed.push(`${key}: the compact name card is not one line (${JSON.stringify(a.name)})`); }
           else if (a.name.cut || a.name.ellipsis || !a.name.inside || a.name.tall) bad.closed.push(`${key}: the name is cut (${JSON.stringify(a.name)})`);
           if (a.name.lines > 3) bad.closed.push(`${key}: the name takes ${a.name.lines} lines`);
-          if (a.tabs.names.join() !== 'Library,Editor,Career' || a.tabs.current !== 1 || !a.tabs.svg.every(Boolean) || a.tabs.cut) bad.closed.push(`${key}: the place tabs (${JSON.stringify(a.tabs)})`);
+          if (a.tabs.names.join() !== want || a.tabs.current !== 1 || !a.tabs.svg.every(Boolean) || a.tabs.cut) bad.closed.push(`${key}: the place tabs (${JSON.stringify(a.tabs)})`);
           tabH.push(...a.tabs.h);
           await page.click('#docname-btn'); await settle(page);
           const o = await page.evaluate(PROBE);

@@ -14,7 +14,7 @@ html[data-drink="coffee"] :where(*) { --press-edge: color-mix(in srgb, var(--ink
 html[data-drink="coffee"][data-theme="dark"] :where(*) { --press-sh: color-mix(in srgb, var(--ink) 45%, transparent); }
 /* paper (the Library, Career, the search bar): an edge of 3:1 on the paper, where the paper's own hairline is not */
 .scr, .find { --line-strong: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); }
-html .scr :is(.found, .tbar, .cmpbar) :where(*), html .find :where(*) { --press-edge: var(--line-strong); --press-sh: var(--press-paper-sh); }      /* a paper face wears a paper shadow in every look */
+html .scr :is(.found, .tbar) :where(*), html .find :where(*) { --press-edge: var(--line-strong); --press-sh: var(--press-paper-sh); }      /* a paper face wears a paper shadow in every look */
 
 /* secondary: the edge carries it */
 .press[data-tier=secondary] { border-width: 1.5px; border-style: solid; }
@@ -28,9 +28,9 @@ button.ghost.press[data-tier=tertiary]:not([data-icon]):is(:hover:not(:disabled)
 .press[data-tier=tertiary][data-icon]:is(.ib, .smore, .x, .keep, .kset, .tool, .ghost):not(.obtools .ib, [data-act=side-fold]) { border: 1px solid color-mix(in srgb, var(--line-strong) 45%, transparent); }
 .press[data-tier=tertiary][data-icon]:is(.ib, .smore, .x, .keep, .kset, .tool, .ghost):not(.obtools .ib, [data-act=side-fold]):is(:hover:not(:disabled), :focus-visible) { border-color: var(--press-edge); background-color: var(--hover-strong); }
 
-/* a button that stays pressed (Sent only, Keep): on is filled with the ink, off is the plain button */
-button.press:is([data-act=scr-sent], .keep)[aria-pressed=true] { background-color: var(--ink); color: var(--surface); border-color: var(--ink); opacity: 1; }
-button.press:is([data-act=scr-sent], .keep)[aria-pressed=true]:hover:not(:disabled) { background-color: color-mix(in srgb, var(--ink) 88%, var(--surface)); }
+/* a button that stays pressed (Keep): on is filled with the ink, off is the plain button */
+button.press.keep[aria-pressed=true] { background-color: var(--ink); color: var(--surface); border-color: var(--ink); opacity: 1; }
+button.press.keep[aria-pressed=true]:hover:not(:disabled) { background-color: color-mix(in srgb, var(--ink) 88%, var(--surface)); }
 
 /* the date field's button: an edge you can see on a washed card */
 .mpf .mpbtn { border-color: color-mix(in srgb, var(--line-strong) 80%, var(--ink)); }
@@ -52,14 +52,44 @@ button.del.press:has(> svg:only-child) { width: 28px; height: 28px; padding: 0; 
 .dp-t.del { color: var(--bad); opacity: 1; }
 .dp-t.del:is(:hover, :focus-visible):not([aria-disabled=true]) { background: var(--bad); color: var(--surface); }
 
-/* the name card: the name is one large button, the card's whole top, its fill reaching the card's edge; ⋯ is a flat icon in a
-   corner of its own, 8 px inside the card; neither has a shadow (the name stays filled, not sunk, while its window is open) */
-body:not([data-phone=true]):not(.is-intro) .col > #head:not(.is-place) { padding: 0; }
-body:not([data-phone=true]):not(.is-intro) .col > #head:not(.is-place) > .hrow.top { align-items: stretch; gap: 0; }
-body:not([data-phone=true]):not(.is-intro) #head .docname { padding: 10px 8px 10px 12px; border: 0; border-radius: calc(var(--r-l) - 1px) 0 0 calc(var(--r-l) - 1px); }
-body:not([data-phone=true]):not(.is-intro) #head:has(> .sentrow) .docname, body:not([data-phone=true]):not(.is-intro) .col.is-name > #head .docname { border-bottom-left-radius: 0; }
-body:not([data-phone=true]):not(.is-intro) #head:not(.is-place) .hside { padding: 8px 8px 8px 0; }
-body:not([data-phone=true]):not(.is-intro) .col > #head > .sentrow { padding: 0 12px 8px; }
+/* the name card, the same in every place: a tag line saying what it names (the app menu small at its end), the name (one large button,
+   its fill reaching the card's left edge), the notes under it; Export is its stub, the accent-filled right end from the top edge to the
+   bottom one, the header's one primary. Several ticked: the names as a deck over stacked sheets, and Export a bar along the card's foot. */
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: 0; padding: 0; }
+body:not([data-phone=true]):not(.is-intro) .col > #head > :not(.hstub, .menu) { grid-column: 1; }
+body:not([data-phone=true]):not(.is-intro) .col > #head > .hrow.top { align-items: stretch; gap: 0; }
+#head .hmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+#head .htag { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 26px; padding: 4px 4px 0 12px; }
+#head .htagl { font: 700 10px/1.2 var(--font-label); letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
+#head .htagl.is-other { color: var(--accent); }
+#head .htag [data-act=menu] { flex: none; width: 26px; height: 22px; display: grid; place-items: center; }
+body:not([data-phone=true]):not(.is-intro) #head .docname { padding: 2px 8px 8px 12px; border: 0; border-radius: 0; align-self: stretch; }
+body:not([data-phone=true]):not(.is-intro) #head .hmain .docname .dn { flex: 0 1 auto; }
+body:not([data-phone=true]):not(.is-intro) .col > #head > :is(.sentrow, .psub) { margin: 0; padding: 0 12px 8px; }
+#head > .psub { font-size: 12px; color: var(--ink-soft); }
+html[data-drink] body:not([data-phone=true]):not(.is-intro) #head .hstub { grid-column: 2; grid-row: 1 / span 12; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-width: 68px; margin: 0; padding: 8px 12px; border: 0; border-radius: 0 calc(var(--r-l) - 1px) calc(var(--r-l) - 1px) 0; background: var(--accent); color: var(--on-accent); font: 750 12px/1 var(--font-ui); box-shadow: none; transform: none; cursor: pointer; }
+html[data-drink] body:not([data-phone=true]):not(.is-intro) #head .hstub:hover { background: color-mix(in srgb, var(--accent) 88%, var(--ink)); }
+html[data-drink] body:not([data-phone=true]):not(.is-intro) #head .hstub:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
+#head .hstub .hn { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 4px; padding: 0 5px; border-radius: var(--r-pill); background: var(--on-accent); color: var(--accent); font-size: 11px; }
+html[data-drink] body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head.is-many { grid-template-columns: minmax(0, 1fr); }
+html[data-drink] body:not([data-phone=true]):not(.is-intro) #head.is-many .hstub { order: 1; grid-column: 1; grid-row: auto; flex-direction: row; gap: 8px; min-height: 38px; border-radius: 0 0 calc(var(--r-l) - 1px) calc(var(--r-l) - 1px); font-size: 13px; }
+#head .hdeck { list-style: none; margin: 2px 0 6px; padding: 0 10px 0 8px; font-size: 13px; line-height: 1.3; }
+#head .hdeck li { display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; border-top: 1px solid var(--line); }
+#head .hdeck li:first-child { border-top: 0; }
+#head .hdeck li.is-insp { box-shadow: inset 2px 0 0 var(--ink); }
+#head .hdeck li > .ico { flex: none; margin-top: 2px; color: var(--ink-soft); }
+#head .hdeck .hln { min-width: 0; overflow-wrap: anywhere; }
+#head .hdeck :is(.swco, .swrole) { display: inline; }
+#head .hdeck .swrole::before { content: " — "; }
+#head .hdeck li.hmore { padding: 2px 0 0 18px; border-top: 0; }
+#head .hmorebtn { padding: 2px 6px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink-soft); font: 700 12px var(--font-ui); box-shadow: none; cursor: pointer; }
+#head .hmorebtn:hover { background: var(--hover); color: var(--ink); }
+/* the sheets behind the deck: one for two ticked, two for three or more */
+html[data-drink] body:not([data-phone=true]):not(.is-intro) .col > #head.is-many[data-layers="1"] { margin-bottom: 14px; box-shadow: 5px 5px 0 -1px var(--surface), 5px 5px 0 0 var(--line-strong); }
+html[data-drink] body:not([data-phone=true]):not(.is-intro) .col > #head.is-many[data-layers="2"] { margin-bottom: 18px; box-shadow: 5px 5px 0 -1px var(--surface), 5px 5px 0 0 var(--line-strong), 10px 10px 0 -1px var(--surface), 10px 10px 0 0 var(--line-strong); }
+html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #head.is-many[data-layers="1"] { box-shadow: 5px 5px 0 -1px var(--band-bg), 5px 5px 0 0 var(--crema); }
+html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #head.is-many[data-layers="2"] { box-shadow: 5px 5px 0 -1px var(--band-bg), 5px 5px 0 0 var(--crema), 10px 10px 0 -1px var(--band-bg), 10px 10px 0 0 var(--crema); }
 #head :is(.docname, [data-act=menu]), #head :is(.docname, [data-act=menu]):is(:hover, :active, .is-down, [aria-expanded=true]) { box-shadow: none; }
 html #head .docname:hover { background-color: var(--hover); }      /* over Coffee's transparent head buttons */
 html #head .docname[aria-expanded=true] { background-color: var(--chrome-hover); }

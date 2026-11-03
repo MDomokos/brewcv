@@ -246,7 +246,8 @@
         "photo": {
           "show": false,
           "shape": "rect"
-        }
+        },
+        "round": "round-9edce3c0"
       }
     }
   }

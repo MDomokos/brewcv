@@ -11,7 +11,15 @@ import { migrate, save, serialize, saveResume, resumeFileName } from '../src/mod
 import { seedBank } from '../src/model/skillbank.js';
 import { validate } from '../checks/lib/validate.mjs';
 import { fmtMonth } from '../src/model/build.js';
-import { LANGS } from '../src/model/schema.js';
+import { LANGS, load, loadResume } from '../src/model/schema.js';
+import crypto from 'node:crypto';
+import * as RS from '../src/model/resumes.js';
+import * as DOC from '../src/model/documents.js';
+import { readFile, metaOf } from '../src/model/intake.js';
+import { newResume } from '../src/model/resume.js';
+import { loadCatalogue } from '../src/i18n/index.js';
+import { pdf } from '../checks/lib/pdf.mjs';
+import { zip } from '../checks/lib/zip.mjs';
 
 const OUT = process.argv[2] ?? 'data/example.json';
 const DIR = path.dirname(OUT);
@@ -477,14 +485,136 @@ if (bad){ console.error(`\nnot written: ${bad} error(s)`); process.exit(1); }
 seedBank(record);      // the skill words, as the app makes them on first open
 fs.writeFileSync(OUT, serialize(save(record)));
 fs.mkdirSync(RESUMES, { recursive: true });
-// remove only stale files; compare names in NFC since macOS may decompose "ő"
-const NAMES = new Set([...SAVED.map(resumeFileName), 'index.json'].map(n => n.normalize('NFC')));
-for (const f of fs.readdirSync(RESUMES)) if (f.endsWith('.json') && !NAMES.has(f.normalize('NFC'))) fs.rmSync(path.join(RESUMES, f));
 for (const r of SAVED) fs.writeFileSync(path.join(RESUMES, resumeFileName(r)), serialize(saveResume(record, r).file));
-fs.writeFileSync(path.join(DIR, 'example-recipe.json'), serialize(saveResume(record, SAVED[0]).file));
+
+// ---- the Library: language copies, sent copies, documents and rounds ----
+// Made with the app's own model functions on the state the app loads (as loadExample builds it), then written out: the resumes with their
+// rounds and snapshots, the copies as resumes of their own, and the documents, rounds and import log in example-library.json.
+const LIB = await (async () => {
+  const model = load(JSON.parse(fs.readFileSync(OUT, 'utf8'))).model;
+  const st = { record: model, resumes: [], frozen: {}, cur: newResume(model), openId: null };
+  for (const n of SAVED.map(resumeFileName)){
+    const got = loadResume(JSON.parse(fs.readFileSync(path.join(RESUMES, n), 'utf8')), model);
+    st.resumes.push({ ...got.recipe, id: n });
+    if (got.frozen) st.frozen[n] = got.frozen;
+  }
+  const id = (company, role) => st.resumes.find(r => r.company === company && r.role === role).id;
+  const EI = id('Example Instruments', 'Design Engineer'), MED = id('Medtech Lisboa', 'Mechanical Engineer'), FEIN = id('Feinmess Instrumente GmbH', 'Konstrukteur');
+  const OFI = id('Oficina Aberta', 'Workshop Lead');
+  // rounds: an archived one, an older one, the current one; the resumes saved before the first are in none (Earlier)
+  const summer = DOC.startRound(st, 'Summer 2026', '2026-08-01'), sept = DOC.startRound(st, 'September 2026', '2026-09-01');
+  DOC.mark(st, 'rounds', summer.id, { archived: true });
+  const oct = DOC.startRound(st, 'October 2026', '2026-09-26');
+  const IN = [[summer, [OFI, id('Ferro Tools', 'Manufacturing Engineer')]], [sept, [MED, id('Helix Diagnostics', 'Product Development Engineer')]],
+    [oct, [EI, id('Dunamenti Műszer Kft.', 'Terméktervező'), FEIN]]];
+  for (const [r, ids] of IN) for (const x of ids) DOC.mark(st, 'resumes', x, { round: r.id });
+  // one application in three languages: an English copy kept in step with the German original, a French one that is not
+  const day = d => ({ savedAt: d, date: d });
+  const EN = RS.duplicate(st, FEIN, { lang: 'en' }).id, FR = RS.duplicate(st, FEIN, { lang: 'fr' }).id;
+  RS.setInStep(st, FR, false);
+  // sent copies (Mark as sent); the first resume is left as it was, never sent, as the checks open it
+  const sent = (rid, date, at) => { RS.openSaved(st, rid); const r = RS.savedOf(st, rid); RS.takeSnapshot(st, { company: r.company, role: r.role }, { at, date }); };
+  sent(OFI, '2026-08-31', '2026-08-31T16:05:00.000Z');
+  sent(MED, '2026-09-14', '2026-09-14T08:40:00.000Z');
+  sent(FEIN, '2026-10-07', '2026-10-07T07:55:00.000Z');
+  sent(EN, '2026-10-07', '2026-10-07T07:58:00.000Z');
+  // made on that day, not on the day this script runs (saving the English copy wrote its German original too: the group prints as one)
+  for (const x of [EN, FR, FEIN]) if (x !== FEIN || RS.savedOf(st, x).savedAt === RS.today()) Object.assign(RS.savedOf(st, x), day('2026-10-07'));
+  const moved = st.resumes.filter(r => r.savedAt === RS.today()).map(r => r.id);
+  if (moved.length) throw new Error(`took the date this script ran: ${moved.join(', ')}`);
+
+  // documents, as an import makes them (src/model/intake.js applyPlan): the file's bytes embedded, the text the app's reader takes from it
+  const WIN = { '’': 0x92, '‘': 0x91, '“': 0x93, '”': 0x94, '–': 0x96, '—': 0x97, '•': 0x95, '…': 0x85, '€': 0x80, 'œ': 0x9c, 'Œ': 0x8c };
+  const ansi = s => [...s].map(c => (WIN[c] ? String.fromCharCode(WIN[c]) : c.codePointAt(0) < 256 ? c : '?')).join('');
+  // Helvetica's widths (thousandths of an em) for space to ~, so a line wraps where it meets the right margin, as a word processor's does, and the reader joins it again
+  const HELV = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, ...Array(10).fill(556), 278, 278, 584, 584, 584, 556, 1015,
+    667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333,
+    556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
+  const widthOf = (s, size) => [...s].reduce((n, c) => n + (HELV[c.codePointAt(0) - 32] ?? 556), 0) * size / 1000;
+  const LEFT = 48, MEASURE = 595 - 2 * LEFT;
+  const wrap = (s, size, room) => { const out = []; let l = ''; for (const w of s.split(' ')){ if (l && widthOf(`${l} ${w}`, size) > room){ out.push(l); l = w; } else l = l ? `${l} ${w}` : w; } return l ? [...out, l] : out; };
+  // [{ text, size?, bold?, indent?, gap? }] set down an A4 page in Helvetica
+  const toPdf = lines => {
+    let y = 800; const page = [];
+    for (const l of lines){ const size = l.size ?? 9, x = LEFT + (l.indent ?? 0); for (const part of wrap(l.text, size, MEASURE - (l.indent ?? 0))){ page.push({ x, y, text: ansi(part), size, bold: !!l.bold }); y -= size + 3; } y -= l.gap ?? 3; }
+    return pdf([page], { flate: true });
+  };
+  const xml = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const toDocx = lines => zip({
+    '[Content_Types].xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+    '_rels/.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+    'word/document.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${W}"><w:body>${lines.map(l => `<w:p>${l.indent ? '<w:pPr><w:ind w:left="360"/></w:pPr>' : ''}<w:r>${l.bold || l.size > 9 ? `<w:rPr>${l.bold ? '<w:b/>' : ''}${l.size > 9 ? `<w:sz w:val="${l.size * 2}"/>` : ''}</w:rPr>` : ''}<w:t xml:space="preserve">${xml(l.text)}</w:t></w:r></w:p>`).join('')}</w:body></w:document>`,
+  });
+  // a saved resume's printed lines, as its PDF or Word copy holds them: name, contact, summary, then each job's title, line and bullets
+  const vtext = (fact, L) => { const f = model.facts.find(x => x.id === fact), vs = (f?.variants ?? []).map(v => model.variants.find(x => x.id === v)); return (vs.find(v => v.lang === L) ?? vs.find(v => (v.lang ?? 'en') === 'en'))?.text ?? ''; };
+  const head = (sec, L) => (L === 'en' ? record.sections.find(s => s.id === sec).title : record.i18n[L]?.sections?.[sec]) ?? record.sections.find(s => s.id === sec).title;
+  const resumeLines = (body, L) => [
+    { text: body.basics.name, size: 16, bold: true }, { text: body.basics.label }, { text: [body.basics.email, body.basics.phone, body.basics.url].filter(Boolean).join(' · '), gap: 8 },
+    { text: head('summary', L), bold: true }, { text: body.basics.summary, gap: 8 }, { text: head('experience', L), bold: true },
+    ...body.work.flatMap(w => [{ text: w.position, bold: true }, { text: vtext(`${model.work.find(j => j.name === w.name).id}-meta`, L) }, ...w.highlights.map(text => ({ text, indent: 12 })), { text: '', gap: 2 }].filter(l => l.text || l.gap)),
+    { text: head('education', L), bold: true }, ...body.education.map(e => ({ text: `${e.studyType} ${e.area} · ${e.institution} · ${e.endDate.slice(0, 4)}` })),
+  ].filter(l => l.text);
+  const lastSent = rid => RS.snapshotsOf(RS.savedOf(st, rid)).at(-1).body;
+  const docs = [];
+  const add = async (name, bytes, { lang = 'en', modified, at, round, status = 'resume', of, with: mate, resume, unplaced = [] }) => {
+    const ext = name.split('.').pop(), type = ext === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    await loadCatalogue(lang);
+    const r = await readFile(bytes, name, { lang, fixed: true, words: [] });
+    const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+    const doc = DOC.addDocument(st, { name, type, sha256, size: bytes.length, addedAt: at, bytesDataUrl: `data:${type};base64,${Buffer.from(bytes).toString('base64')}`,
+      meta: { ...metaOf(name, modified), kind: status === 'letter' ? 'cover-letter' : 'resume', lang }, text: r.text ?? '', from: 'imported', layout: r.pdf ? r.layout : undefined,
+      of: of?.id, round: round?.id, taken: { claims: [], versions: [], skipped: [], unplaced: unplaced.length, ...(unplaced.length ? { lines: unplaced } : {}) } });
+    if (mate) doc.with = mate.id;
+    if (resume) doc.resume = resume;
+    DOC.logImport(st, { sha256, name, kind: ext, at, result: of ? 'format' : status, recordId: null, saved: new Date(modified).toISOString() });
+    docs.push(doc);
+    return doc;
+  };
+  // the PDF sent to Example Instruments, its Word copy and the letter that went with them
+  const ei = resumeLines(st.frozen[EI], 'en');
+  const eiPdf = await add('2026-09-29 Example Instruments - Design Engineer.pdf', toPdf(ei), { modified: '2026-09-29T09:05:00Z', at: '2026-09-29T09:20:00.000Z', round: oct });
+  await add('2026-09-29 Example Instruments - Design Engineer.docx', toDocx(ei), { modified: '2026-09-29T09:02:00Z', at: '2026-09-29T09:20:01.000Z', round: oct, of: eiPdf });
+  const letter = (to, lines) => [{ text: 'Dana Okonkwo', bold: true }, { text: 'dana@example.org · +351 900 000 000', gap: 10 }, { text: to, gap: 8 }, ...lines.map(text => ({ text, gap: 6 })), { text: 'Kind regards,' }, { text: 'Dana Okonkwo' }];
+  await add('2026-09-29 Example Instruments - Cover letter.docx', toDocx(letter('Dear Example Instruments hiring team,', [
+    'I am applying for the Design Engineer role. At Hydra Medical I led the dose-counter redesign on an inhaler running 400,000 units a year, cutting the part count from nine to five.',
+    'I also built the drop and cycle test rig the team now uses for design verification, and before that ran a seven-machine prototyping shop at the Polytechnic Prototyping Lab in Porto.',
+    'I would welcome the chance to talk about how that work fits your instruments.'])), { modified: '2026-09-28T18:30:00Z', at: '2026-09-29T09:20:02.000Z', round: oct, status: 'letter', with: eiPdf, resume: EI });
+  // a letter that went out with the Medtech Lisboa resume, dropped in on its own
+  await add('2026-09-14 Medtech Lisboa - Cover letter.pdf', toPdf(letter('Dear Medtech Lisboa team,', [
+    'Your Mechanical Engineer opening asks for single-use device experience. I design single-use medical devices at Hydra Medical, from first sketch to tooling release, and I am a co-inventor on an EU patent for a dose-counting mechanism.',
+    'Before moving into design I spent three years on the clean-room side of a contract manufacturer, so I know how the parts I draw are built and inspected.',
+    'I live in Lisbon and would be glad to meet.'])), { modified: '2026-09-13T20:10:00Z', at: '2026-09-14T08:45:00.000Z', round: sept, status: 'letter', resume: MED });
+  // the Feinmess application in German and in English: one company and role, two languages, one group
+  await add('2026-10-07 Feinmess Instrumente GmbH - Konstrukteur (de).pdf', toPdf(resumeLines(lastSent(FEIN), 'de')), { lang: 'de', modified: '2026-10-07T07:50:00Z', at: '2026-10-07T08:05:00.000Z', round: oct });
+  await add('2026-10-07 Feinmess Instrumente GmbH - Konstrukteur (en).pdf', toPdf(resumeLines(lastSent(EN), 'en')), { modified: '2026-10-07T07:52:00Z', at: '2026-10-07T08:05:01.000Z', round: oct });
+  // an old resume on its own, from before the first round, with one line the career does not hold
+  const old = ['poly', 'free', 'medisure', 'atelier'].map(j => model.work.find(w => w.id === j));
+  const live = f => !model.facts.find(x => x.id === f)?.archived;
+  const extra = 'Driving licence, category B';
+  await add('Dana Okonkwo CV 2023.docx', toDocx([{ text: 'Dana Okonkwo', size: 16, bold: true }, { text: vtext('tagline', 'en').replace('\n', ' ') }, { text: 'dana@example.org' },
+    { text: head('experience', 'en'), bold: true }, ...old.flatMap(w => [{ text: vtext(`${w.id}-position`, 'en'), bold: true }, { text: vtext(`${w.id}-meta`, 'en') }, ...w.highlights.filter(live).map(h => ({ text: vtext(h, 'en'), indent: 12 }))]),
+    { text: head('education', 'en'), bold: true }, { text: vtext('edu-degree', 'en') }, { text: vtext('edu-school', 'en') }, { text: 'Other', bold: true }, { text: extra }]),
+  { modified: '2023-02-20T10:00:00Z', at: '2026-07-20T19:30:00.000Z', unplaced: [extra] });
+  // what each card should say: a resume it went out with, or none
+  const groups = RS.docGroups(st), from = name => groups.find(g => g.members.some(m => m.name === name))?.resume ?? null;
+  const want = { '2026-09-29 Example Instruments - Design Engineer.pdf': EI, '2026-09-14 Medtech Lisboa - Cover letter.pdf': MED, '2026-10-07 Feinmess Instrumente GmbH - Konstrukteur (de).pdf': FEIN, 'Dana Okonkwo CV 2023.docx': null };
+  for (const [n, rid] of Object.entries(want)) if (from(n) !== rid) throw new Error(`${n} is not with ${rid}: ${from(n)}`);
+  if (groups.length !== 4) throw new Error(`${groups.length} document groups, not 4`);
+  return { st, docs };
+})();
+
+// remove only stale files; compare names in NFC since macOS may decompose "ő"
+const ALL_NAMES = LIB.st.resumes.map(r => r.id);
+const NAMES = new Set([...ALL_NAMES, 'index.json'].map(n => n.normalize('NFC')));
+for (const f of fs.readdirSync(RESUMES)) if (f.endsWith('.json') && !NAMES.has(f.normalize('NFC'))) fs.rmSync(path.join(RESUMES, f));
+for (const { id, ...r } of LIB.st.resumes) fs.writeFileSync(path.join(RESUMES, id), serialize(saveResume(LIB.st.record, r).file));      // the id is the file's name
+fs.copyFileSync(path.join(RESUMES, ALL_NAMES[0]), path.join(DIR, 'example-recipe.json'));
+const { documents, rounds, imports } = LIB.st;
+fs.writeFileSync(path.join(DIR, 'example-library.json'), JSON.stringify({ documents, rounds, imports }, null, 2) + '\n');
 // The browser cannot list a folder, so the app reads this to find the saved resumes.
-fs.writeFileSync(path.join(RESUMES, 'index.json'), JSON.stringify(SAVED.map(resumeFileName), null, 2) + '\n');
+fs.writeFileSync(path.join(RESUMES, 'index.json'), JSON.stringify(ALL_NAMES, null, 2) + '\n');
 
 const hu = variants.filter(v => v.lang === 'hu').length;
 console.log(`${path.relative('.', OUT)}: ${JOBS.length} jobs, ${facts.length} facts, ${variants.length} versions (${hu} hu), `
-  + `${record.jobTypes.length} job types, ${SAVED.length} saved resumes in ${path.relative('.', RESUMES)}/`);
+  + `${record.jobTypes.length} job types, ${ALL_NAMES.length} saved resumes, ${LIB.docs.length} documents and ${LIB.st.rounds.length} rounds in ${path.relative('.', RESUMES)}/`);

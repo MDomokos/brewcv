@@ -12,16 +12,20 @@
 //     editor past halfway and lands on the editor's page; under reduced motion nothing grows,
 //   - the hover preview: a page beside the card after the rest, "2 / 2" on a wheel, gone when the pointer leaves or anything is clicked,
 //   - Compare of three (one a sent copy): back and Esc keep the ticks, N and P step the rows that differ and the inspector shows the row,
+//   - the Library as a list: a row for each resume and file, the sent copies and files of a resume folded under it, selecting, opening, the keys,
+//     ticks, search, rounds and carrying a row onto one, remembered; fewer columns when narrow; a phone keeps the cards,
 //   - Career: profile cards and the timeline (newest first), the entry docked in the inspector with both scopes named, its lines to tick,
 //     search finding a line and marking it; nothing floats over the timeline,
 //   - no bar across the window on any place, and, at three sizes in the ten languages with a long and a 60 character name, nothing clipped or overlapping.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing. ONLY=de,hu limits the languages of the layout part.
 
 import { chromium } from 'playwright';
+import { plainExample } from './lib/plain-example.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pickOption } from './lib/dropdown.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8312);
@@ -42,13 +46,16 @@ const part = async (name, fn) => { if (PART && !name.includes(PART)) return; con
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 
-async function open(w, h, look = ['tea', 'light'], { motion = false } = {}){
+// The parts below were written for the example's fourteen resumes with no rounds, files or sends, and make their own: the example's Library (its rounds, files, sends and
+// language copies) is taken off first. `library` keeps it, for the part that looks at it.
+async function open(w, h, look = ['tea', 'light'], { motion = false, library = false } = {}){
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: motion ? 'no-preference' : 'reduce' });
   await ctx.addInitScript(([d, t, m]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); localStorage.setItem('rb-reduce-motion', m ? '0' : '1'); } catch { /* none */ } }, [...look, motion]);
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  if (!library) await page.evaluate(plainExample);
   await page.waitForTimeout(400);
   return { ctx, page, errors };
 }
@@ -56,6 +63,8 @@ const settle = (page, ms = 300) => page.waitForTimeout(ms);
 const st = page => page.evaluate(() => { const s = window.__wb.store.state; return { openId: s.openId, ids: s.resumes.map(r => r.id), parents: Object.fromEntries(s.resumes.map(r => [r.id, r.parent ?? null])), names: Object.fromEntries(s.resumes.map(r => [r.id, r.name ?? null])) }; });
 const view = page => page.evaluate(() => window.__wb.ui.view);
 const thumbsDone = (page, n) => page.waitForFunction(n => document.querySelectorAll('#scr [data-thumb] iframe').length >= n, n, { timeout: 60000 });
+// the Library's resume items: a resume and its copies in other languages are one, the hidden ones (in an archived round) left out
+const items = page => page.evaluate(async () => { const RS = await import('/src/model/resumes.js'), DOC = await import('/src/model/documents.js'), s = window.__wb.store.state; return new Set(s.resumes.filter(r => !DOC.hidden(s, r)).map(r => RS.langRoot(s, r).id)).size; });
 const MEDTECH = 'Medtech Lisboa - Mechanical Engineer.json';      // two pages, an A4 resume that may run to two: the sidebar is at its narrow width when it is open
 const goLibrary = async page => { await page.click('#ptabs [data-p=library]'); await settle(page); };
 // make a resume the open one without going through the UI (it has to be a resume that is saved)
@@ -66,9 +75,9 @@ await part('the cards: the information beside the picture, badges, ticks, the fa
   const { ctx, page } = await open(1470, 832);
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Smoke Co', role: 'Role' }); }, 'send'); });
   await goLibrary(page);
-  const s0 = await st(page); await thumbsDone(page, s0.ids.length);
+  const n0 = await items(page); await thumbsDone(page, n0);
   const c = await page.evaluate(id => {
-    const cs = [...document.querySelectorAll('#scr .rcard')], R = e => e.getBoundingClientRect(), first = cs[0], open = document.querySelector('#scr .rcard.open');
+    const cs = [...document.querySelectorAll('#scr .rcard:not(.rdoc)')], R = e => e.getBoundingClientRect(), first = cs[0], open = document.querySelector('#scr .rcard.open');
     const med = document.querySelector(`#scr .rcard[data-rid="${id}"]`);
     return { n: cs.length, openFirst: first === open, openNow: first.querySelector('.is-open')?.textContent, sentBadge: first.querySelector('.rbadges .pill:not(.is-open)')?.textContent,
       role: first.querySelector('.rrole')?.textContent, meta: first.querySelector('.rmeta')?.textContent, name: first.querySelector('.rname')?.textContent.trim(),
@@ -76,12 +85,12 @@ await part('the cards: the information beside the picture, badges, ticks, the fa
       tickNamed: cs.every(x => (x.querySelector('input.rtick')?.getAttribute('aria-label') ?? '').length > 3), noDiffs: !document.querySelector('#scr .rcard [data-act=scr-differs], #scr .rcard .rfrom'),
       fan: getComputedStyle(med.querySelector('.thumbwrap'), '::before').content !== 'none', noFan: getComputedStyle(first.querySelector('.thumbwrap'), '::before').content === 'none' };
   }, MEDTECH);
-  ok('every resume has a card; the open one is first and says "Open now"', c.n === s0.ids.length && c.openFirst && c.openNow === 'Open now');
+  ok('every resume has a card, its language copies on it; the open one is first and says "Open now"', c.n === n0 && c.openFirst && c.openNow === 'Open now');
   ok('the card has the company, the role, the paper, the language and the pages, beside the picture', c.name === 'Example Instruments' && c.role === 'Design Engineer' && /Letter/.test(c.meta) && /EN/.test(c.meta) && /1 p/.test(c.meta) && c.beside, `${c.name} | ${c.role} | ${c.meta}`);
   ok('a resume that was sent says "Sent 1×"', c.sentBadge === 'Sent 1×', c.sentBadge);
   ok('every tick box has a name, and the card holds no "What differs" (it is the inspector\u2019s)', c.tickNamed && c.noDiffs);
   ok('a resume of two pages fans its second sheet out behind the first; one of a single page does not', c.fan && c.noFan);
-  const order = await page.evaluate(() => [...document.querySelectorAll('#scr .rgrid')].map(g => [...g.querySelectorAll('.rcard')].map(x => (x.classList.contains('open') ? '9999' : window.__wb.store.state.resumes.find(r => r.id === x.dataset.rid).savedAt || ''))));
+  const order = await page.evaluate(() => [...document.querySelectorAll('#scr .rgrid')].map(g => [...g.querySelectorAll('.rcard:not(.rdoc)')].map(x => (x.classList.contains('open') ? '9999' : window.__wb.store.state.resumes.find(r => r.id === x.dataset.rid).savedAt || ''))));
   ok('within each group the cards run newest first (the open resume counts as the newest)', order.length > 1 && order.every(g => g.every((d, i) => !i || g[i - 1] >= d)) && order.some(g => g.length > 2));
   await ctx.close();
 });
@@ -97,9 +106,40 @@ await part('cards per row: three at 1280, five at 1920, seven at 2560', async ()
   }
 });
 
+await part('zoom: the Library cards and the Career timeline step with - + 0 and Ctrl+wheel, within limits, remembered, text size unchanged, not while typing', async () => {
+  const { ctx, page } = await open(1470, 832);
+  const lib = () => page.evaluate(() => { const c = document.querySelector('#scr .rcard'); return { w: Math.round(c.querySelector('.rthumb').getBoundingClientRect().width), cols: new Set([...document.querySelectorAll('#scr .rcard')].map(x => Math.round(x.getBoundingClientRect().left))).size, fs: getComputedStyle(c.querySelector('.rrole')).fontSize, store: localStorage.getItem('rb-zoom-library') }; });
+  await goLibrary(page);
+  const d = await lib();
+  for (let i = 0; i < 8; i++) await page.keyboard.press('-');
+  const out = await lib();
+  if (process.env.ZOOM_SHOTS) await page.screenshot({ path: `${process.env.ZOOM_SHOTS}/zoom-lib-out.png` });
+  await page.keyboard.press('0'); const back = await lib();
+  for (let i = 0; i < 8; i++) await page.keyboard.press('+');
+  const inn = await lib();
+  if (process.env.ZOOM_SHOTS) await page.screenshot({ path: `${process.env.ZOOM_SHOTS}/zoom-lib-in.png` });
+  ok('Library: - shrinks the cards (more to a row), 0 resets, + enlarges them (two or more still to a row), the text keeps its size', out.w < d.w && inn.w > d.w && back.w === d.w && out.cols > d.cols && inn.cols < d.cols && inn.cols >= 2 && out.fs === d.fs && inn.fs === d.fs, JSON.stringify({ d, out, back, inn }));
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForFunction(() => document.body.classList.contains('is-ready')); await goLibrary(page);
+  ok('Library: a reload keeps the zoom', (await lib()).w === inn.w && (await lib()).store === '5');
+  await page.fill('#scr-q', ''); await page.focus('#scr-q'); await page.keyboard.type('+-0');
+  ok('typing + - 0 in the search field does not zoom, and the keys are the field’s', await page.evaluate(() => localStorage.getItem('rb-zoom-library')) === '5' && await page.inputValue('#scr-q') === '+-0');
+  await page.fill('#scr-q', ''); await page.evaluate(() => document.activeElement.blur());
+  await page.click('#ptabs [data-p=career]'); await settle(page, 500);
+  const car = () => page.evaluate(() => { const r = document.querySelector('#scr .rectl'), row = document.querySelector('#scr .rectl .row'); return { w: Math.round(r.getBoundingClientRect().width), h: Math.round(r.getBoundingClientRect().height), fs: getComputedStyle(row.querySelector('.t')).fontSize, store: localStorage.getItem('rb-zoom-career') }; });
+  const c0 = await car();
+  for (let i = 0; i < 8; i++) await page.keyboard.press('-');
+  const c1 = await car();
+  if (process.env.ZOOM_SHOTS) await page.screenshot({ path: `${process.env.ZOOM_SHOTS}/zoom-career-out.png` });
+  await page.keyboard.press('0'); const c2 = await car();
+  await page.mouse.move(400, 400); await page.keyboard.down('Control'); await page.mouse.wheel(0, -120); await page.keyboard.up('Control'); await settle(page, 200);
+  const c3 = await car();
+  ok('Career: - tightens the timeline (shorter, narrower, to 5 steps), 0 resets, Ctrl+wheel steps it; the text keeps its size; the Library’s zoom is its own', c1.h < c0.h && c1.w < c0.w && c1.store === '-5' && c2.h === c0.h && c2.w === c0.w && c3.store === '1' && c3.h > c0.h && c1.fs === c0.fs && c3.fs === c0.fs, JSON.stringify({ c0, c1, c2, c3 }));
+  await ctx.close();
+});
+
 await part('a click selects, a second click on the selected card (or a double click) opens it; the thumbnails', async () => {
   const { ctx, page, errors } = await open(1470, 832);
-  const s0 = await st(page), n = s0.ids.length;
+  const s0 = await st(page), n = await items(page);
   await goLibrary(page);
   ok('the Library opens with the open resume selected and the focus on its card; the sidebar\u2019s body is the inspector', await view(page) === 'resumes' && await page.evaluate(() => document.activeElement?.matches('#scr .rcard.sel .rsel') && document.querySelector('#body').dataset.view === 'inspector' && !!document.querySelector('#body .insp-res')));
   ok('…and there is no back button on a desktop', !(await page.$('#scr [data-act=scr-back]')));
@@ -263,7 +303,7 @@ await part('the growing page: it grows as you scroll over the inspector\u2019s p
 await part('the hover preview: a readable page beside the card after a rest; the wheel turns its pages; it goes when the pointer leaves or anything is clicked', async () => {
   const { ctx, page } = await open(1470, 832, ['tea', 'light'], { motion: true });
   const s0 = await st(page);
-  await goLibrary(page); await thumbsDone(page, s0.ids.length);
+  await goLibrary(page); await thumbsDone(page, await items(page));
   const w1 = `#scr .rcard[data-rid="${MEDTECH}"] .thumbwrap`;
   await page.locator(w1).scrollIntoViewIfNeeded();
   await page.hover(w1); await page.waitForTimeout(150);
@@ -289,13 +329,13 @@ await part('Compare of three (one a sent copy): back and Esc keep the ticks; Pre
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Smoke Co', role: 'Role' }); }, 'send'); });
   const s0 = await st(page);
   await goLibrary(page);
-  ok('Compare is not offered until something is ticked, and then is off until two are', !(await page.$('#scr-cmp')) && (await page.check(`#scr .rcard[data-rid="${s0.ids[1]}"] .rtick`), await page.isDisabled('#scr-cmp')));
-  const bar = () => page.evaluate(() => { const b = document.querySelector('#scr-bar'), c = b?.querySelector('[data-act=scr-compare]'); return { shown: !!c && b.getBoundingClientRect().height > 0, tier: c?.dataset.tier, clear: !!b?.querySelector('[data-act=scr-clear]'),
-    primaries: [...document.querySelectorAll('#scr [data-tier=primary], #body [data-tier=primary], #scr button.primary, #body button.primary')].filter(x => x.offsetParent).length, nj: document.querySelector('#body [data-act=nj-open]')?.dataset.tier }; });
+  ok('Compare is not offered until two are ticked', !(await page.$('#scr-cmp')) && (await page.check(`#scr .rcard[data-rid="${s0.ids[1]}"] .rtick`), !(await page.$('#scr-cmp'))));
+  const bar = () => page.evaluate(() => { const b = document.querySelector('#scr-ticks'), c = b?.querySelector('[data-act=scr-compare]'); return { shown: !!c && b.getBoundingClientRect().height > 0, tier: c?.dataset.tier, clear: !!b?.querySelector('[data-act=scr-clear]'), floats: !b?.closest('.tbar'),
+    primaries: [...document.querySelectorAll('#scr [data-tier=primary], #scr button.primary')].filter(x => x.offsetParent).map(x => x.dataset.act).join(), nj: document.querySelector('#body [data-act=nj-open]')?.dataset.tier }; });
   const b1 = await bar();
   await page.check(`#scr .rcard[data-rid="${s0.ids[2]}"] .rtick`);
   const b2 = await bar();
-  ok('two ticked: Compare (primary tier) and Clear appear in a bar by the cards, and nothing else in the view is primary; with one ticked there is no bar and Use for a new job is the primary', !b1.shown && b1.primaries === 1 && b1.nj === 'primary' && b2.shown && b2.tier === 'primary' && b2.clear && b2.primaries === 1 && b2.nj === 'secondary', JSON.stringify({ b1, b2 }));
+  ok('two ticked: Compare (a secondary) and Clear float at the list\u2019s foot, out of the header; the list\u2019s one primary stays New resume; with one ticked there is no Compare and Use for a new job is the primary', !b1.shown && b1.clear && b1.floats && b1.primaries === 'sw-new' && b1.nj === 'primary' && b2.shown && b2.tier === 'secondary' && b2.clear && b2.primaries === 'sw-new' && b2.nj === 'secondary', JSON.stringify({ b1, b2 }));
   await page.check(`#scr .rcard[data-rid="${s0.ids[0]}"] .rtick`);
   ok('three ticks turn Compare on: "Compare 3"', !(await page.isDisabled('#scr-cmp')) && /Compare 3/.test(await page.textContent('#scr-cmp')));
   await page.click('#scr-cmp'); await settle(page);
@@ -348,23 +388,84 @@ await part('Mark as sent… from the Library: in the inspector and in the ⋯ me
   await ctx.close();
 });
 
-await part('the Library\u2019s toolbar: search finds a send\u2019s company, the views, Sent only, the row menu; Esc clears the search first', async () => {
+await part('the Library\u2019s toolbar: its groups, tiers and selection line; search finds a send\u2019s company, the views, Sent only, the row menu; Esc clears the search first', async () => {
   const { ctx, page } = await open(1470, 832);
   await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.takeSnapshot(d, { kind: 'company', company: 'Smoke Co', role: 'Role' }); }, 'send'); });
   await goLibrary(page);
   const distinct = () => page.$$eval('#scr .rcard', r => new Set(r.map(x => x.dataset.rid)).size);      // the Company view lists a resume under each company it was sent to
   const all = await distinct();
-  await page.click('[data-act=scr-sent]'); await settle(page);
-  ok('Sent only lists the resumes that have sends', (await distinct()) === 1 && await page.getAttribute('[data-act=scr-sent]', 'aria-pressed') === 'true');
-  await page.click('[data-act=scr-sent]'); await settle(page);
-  await page.click('[data-act=scr-view][data-v=company]'); await settle(page);
+  const hd = await page.evaluate(() => {
+    const tb = document.querySelector('#resumes .tbar'), kids = [...tb.children], bar = tb.querySelector('.lbar'), sw = [...bar.querySelectorAll('.lswitch button')];
+    const tier = sel => { const b = tb.querySelector(sel); return b ? [b.dataset.tier, !!b.querySelector('svg'), b.hasAttribute('data-icon')].join() : null; };
+    const ctl = [...tb.querySelectorAll('.sw-q, button:not(.newres), .ddbtn, .lswitch')].filter(e => e.getClientRects().length && !e.closest('.lswitch button')), cs = e => getComputedStyle(e);
+    return { kids: kids.map(e => e.id || e.className.split(' ')[0]).join(), acts: [...tb.querySelectorAll(':scope > .tgrp button')].map(b => b.dataset.act).join(),
+      add: tier('[data-act=goto][data-v=import]'), round: tier('[data-act=round-new]'), nr: tier('[data-act=sw-new]'), nrh: Math.round(tb.querySelector('[data-act=sw-new]').getBoundingClientRect().height), filtersOwnRow: bar.getBoundingClientRect().top >= tb.querySelector('.sw-q').getBoundingClientRect().bottom, dds: [...bar.querySelectorAll('select[data-named]')].map(x => `${x.id}=${x._dd?.textContent.trim()}`).join(),
+      sw: sw.map(b => [b.dataset.act, b.getAttribute('aria-pressed'), !!b.querySelector('svg'), !!b.title && b.title === b.getAttribute('aria-label')].join(':')).join(),
+      hint: !!bar.querySelector('#scr-hint > #scr-tickinfo'), chips: tb.querySelectorAll('.fchip, .seg [data-act=scr-view]').length, under: !!document.querySelector('#scr-bar, #resumes .cmpbar'),
+      one: ['height', 'borderTopLeftRadius', 'fontSize'].map(p => new Set(ctl.map(e => cs(e)[p])).size).join() };
+  });
+  ok('the header: the search, then New round, Add files and New resume (last); its last row, on its own, the list\u2019s bar with Group and Show (the app\u2019s dropdowns, named) and the cards/list switch (icons with names), the hint in it; no chips, no bar under the cards', hd.kids === 'scr-q,tgrp,scr-lbar' && hd.acts === 'round-new,goto,sw-new' && hd.filtersOwnRow && hd.dds === 'scr-group=Group: Job type,scr-show=Show: All' && hd.sw === 'scr-cards:true:true:true,scr-list:false:true:true' && hd.hint && !hd.chips && !hd.under, JSON.stringify(hd));
+  ok('…New resume the 40 px primary, Add files a secondary and New round tertiary words, each with its icon; one height, one radius and one font size for every other control in the header and the bar', hd.nr === 'primary,true,false' && hd.nrh === 40 && hd.add === 'secondary,true,false' && hd.round === 'tertiary,true,false' && hd.one === '1,1,1', JSON.stringify(hd));
+  await page.check('#scr .rcard .rtick >> nth=0'); await page.check('#scr .rcard .rtick >> nth=1'); await settle(page, 100);
+  const line = await page.evaluate(() => ({ kids: [...document.querySelectorAll('#resumes > #scr-ticks > *')].map(e => e.dataset.act ?? e.id).join(), hint: !!document.querySelector('#scr-tickinfo'), pos: getComputedStyle(document.querySelector('#scr-ticks')).position }));
+  ok('two ticked: the floating bar at the list\u2019s foot says "2 ticked", then Compare and Clear (no rounds: no Move to round…); the hint has gone', line.kids === 'scr-nticked,scr-compare,scr-clear' && !line.hint && line.pos === 'sticky' && /^2 ticked$/.test((await page.textContent('#scr-nticked')).trim()), JSON.stringify(line));
+  await page.click('#scr-ticks [data-act=scr-clear]'); await settle(page);
+  await pickOption(page, '#scr-show', 'sent'); await settle(page);
+  ok('Show: Sent only lists the resumes that have sends', (await distinct()) === 1 && await page.$eval('#scr-show', x => x.value) === 'sent');
+  await pickOption(page, '#scr-show', 'all'); await settle(page);
+  await pickOption(page, '#scr-group', 'company'); await settle(page);
   await page.fill('#scr-q', 'smoke co'); await settle(page);
   ok('search finds a send\u2019s company: only the resume that went to Smoke Co', (await distinct()) === 1);
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc clears the search first', await page.inputValue('#scr-q') === '' && (await distinct()) === all && await view(page) === 'resumes');
-  await page.click('[data-act=scr-view][data-v=date]'); await settle(page);
-  ok('the Date view groups by year, the open resume under Now, and the view is remembered', /Now/.test(await page.textContent('#scr h3.lbl')) && await page.getAttribute('[data-act=scr-view][data-v=date]', 'aria-pressed') === 'true');
-  await page.click('[data-act=scr-view][data-v=type]'); await settle(page);
+  await pickOption(page, '#scr-group', 'date'); await settle(page);
+  ok('the Date view groups by year, the open resume under Now, and the view is remembered', /Now/.test(await page.textContent('#scr h3.lbl')) && await page.$eval('#scr-group', x => x.value) === 'date' && await page.evaluate(() => localStorage.getItem('rb-manage-view')) === 'date');
+  await pickOption(page, '#scr-group', 'type'); await settle(page);
+  await ctx.close();
+});
+
+await part('the sidebar’s card: what it names and Export takes (ticks win, then the selection, then the open resume), the deck, the inspector’s strip', async () => {
+  const { ctx, page, errors } = await open(1470, 832);
+  const s0 = await st(page), ids = s0.ids.filter(id => id !== s0.openId), L = await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); return Object.fromEntries(window.__wb.store.state.resumes.map(r => [r.id, RS.resumeLabel(r)])); }), lbl = id => L[id];
+  const card = () => page.evaluate(() => { const h = document.querySelector('#head'), x = h.querySelector('.hstub'), d = h.querySelector('.hdeck'), hr = h.getBoundingClientRect(), xr = x.getBoundingClientRect();
+    return { tag: h.querySelector('.htagl')?.textContent, name: h.querySelector('.hmain .docname')?.textContent.replace(/\s+/g, ' ').trim(), note: h.querySelector('.dnote')?.textContent ?? '', deck: [...(d?.querySelectorAll('li:not(.hmore)') ?? [])].map(l => (l.classList.contains('is-insp') ? '>' : '') + l.textContent.replace(/\s+/g, ' ').trim()),
+      more: h.querySelector('.hmorebtn')?.textContent ?? '', layers: h.dataset.layers, stub: x.textContent.replace(/\s+/g, ' ').trim(), foot: Math.abs(xr.width - hr.width) < 3 && (!d || xr.top >= d.getBoundingClientRect().bottom - 1), side: Math.abs(hr.right - xr.right) <= 1 && Math.abs(xr.top - hr.top) <= 1,
+      strip: [...(document.querySelector('#istrip:not([hidden])')?.children ?? [])].map(e => e.textContent.trim()).join(' ') }; });
+  const xp = () => page.evaluate(() => ({ view: window.__wb.ui.view, ids: window.__wb.ui.xp?.ids, from: window.__wb.ui.xp?.from }));
+  const flat = n => String(n).replace(/\s+/g, ' ').trim();
+  let c = await card();
+  ok('the editor: "Open resume", its name, Export the stub at the card’s right end', c.tag === 'Open resume' && c.side && /^Export$/.test(c.stub), JSON.stringify(c));
+  await page.click('#head .hstub'); await settle(page, 500);
+  let x = await xp();
+  ok('…Export opens the Export place for the open resume, back to the editor', x.view === 'export' && x.ids?.join() === s0.openId && x.from === null, JSON.stringify(x));
+  await page.evaluate(() => window.__wb.setView(null)); await settle(page);
+  await goLibrary(page);
+  c = await card();
+  ok('the Library, nothing selected or ticked: the open resume, no Library counts and no New resume in the card', c.tag === 'Open resume' && !c.note && !(await page.$('#head [data-act=sw-new], #head .psub')), JSON.stringify(c));
+  await page.click(`#scr .rcard[data-rid="${ids[1]}"] .rsel`); await settle(page);
+  c = await card();
+  ok('a selected resume: "Selected in the Library", its name, and "In the editor: …" under it', c.tag === 'Selected in the Library' && flat(c.name) === flat(lbl(ids[1])) && c.note === `In the editor: ${lbl(s0.openId)}` && !c.strip, JSON.stringify(c));
+  await page.check(`#scr .rcard[data-rid="${ids[2]}"] .rtick`); await settle(page);
+  c = await card();
+  ok('a tick wins over the selection: "1 ticked in the Library" names the ticked one; the inspector (still the selected one) says it is not in the export', c.tag === '1 ticked in the Library' && flat(c.name) === flat(lbl(ids[2])) && c.strip === 'Not in the export · Export takes the 1 ticked Add to export', JSON.stringify(c));
+  await page.click('#istrip [data-act=scr-tick]'); await settle(page);
+  c = await card();
+  ok('"Add to export" ticks the inspector’s resume: two ticked are a deck of two rows over one sheet, the inspector’s marked; Export a bar along the foot, "Export 2"', c.tag === '2 ticked in the Library' && c.deck.join('|') === `${flat(lbl(ids[2]))}|>${flat(lbl(ids[1]))}` && c.layers === '1' && c.foot && c.stub === 'Export 2' && c.strip === '✓ In the export · 2 of 2 Take out', JSON.stringify(c));
+  ok('…its card is ticked too', await page.isChecked(`#scr .rcard[data-rid="${ids[1]}"] .rtick`));
+  for (const id of ids.slice(3, 5)) await page.check(`#scr .rcard[data-rid="${id}"] .rtick`);
+  await settle(page);
+  c = await card();
+  ok('four ticked: two sheets behind, every name its own row, open by default with "Fold to two"', c.tag === '4 ticked in the Library' && c.deck.length === 4 && c.layers === '2' && /^Fold to two/.test(c.more), JSON.stringify(c));
+  await page.click('#head .hmorebtn'); await settle(page);
+  c = await card();
+  ok('…folded: the first two and "+2 more · show all", which opens it again', c.deck.length === 2 && /^\+2 more · show all/.test(c.more) && (await page.click('#head .hmorebtn'), await settle(page), (await card()).deck.length === 4), JSON.stringify(c));
+  await page.click('#head .hstub'); await settle(page, 500);
+  x = await xp();
+  ok('Export takes the four ticked, in the order they were ticked, back to the Library', x.view === 'export' && x.ids?.join() === [ids[2], ids[1], ids[3], ids[4]].join() && x.from === 'resumes', JSON.stringify(x));
+  await page.evaluate(() => window.__wb.setView('resumes')); await settle(page);
+  await page.click('#istrip [data-act=scr-tick]'); await settle(page);
+  ok('"Take out" unticks the inspector’s resume', (await card()).tag === '3 ticked in the Library' && !(await page.isChecked(`#scr .rcard[data-rid="${ids[1]}"] .rtick`)));
+  ok('no page errors', !errors.length, errors.join(' | '));
   await ctx.close();
 });
 
@@ -390,6 +491,188 @@ await part('the Library\u2019s search finds a resume by the lines it prints (DFM
   const tk = await names();
   ok('a resume ticked for Compare stays in the results when the search moves on, so the second one can be ticked beside it', tk.some(n => /Helix/.test(n)) && tk.some(n => /Feinmess/.test(n)), tk.join(' | '));
   await page.fill('#scr-q', ''); await settle(page);
+  await ctx.close();
+});
+
+await part('the list view: rows with the columns, files folded under their resume, select and open, the keys, ticks, search, rounds and carrying, remembered', async () => {
+  const { ctx, page, errors } = await open(1470, 832);
+  const s0 = await st(page);
+  await page.evaluate(async id => {
+    const RS = await import('/src/model/resumes.js'), DOC = await import('/src/model/documents.js');
+    window.__wb.store.commit(d => {
+      RS.takeSnapshot(d, { kind: 'company', company: 'Smoke Co', role: 'Role' });
+      DOC.addDocument(d, { name: 'attached.txt', type: 'text/plain', sha256: 'a'.repeat(64), size: 10, meta: { kind: 'resume', company: 'Attachco', role: 'Rolea' }, text: 'attached line' }).resume = id;
+      DOC.addDocument(d, { name: 'free.txt', type: 'text/plain', sha256: 'b'.repeat(64), size: 10, meta: { kind: 'resume', company: 'Freeco', role: 'Roleb' }, text: 'free line' });
+    }, 'seed');
+  }, s0.ids[1]);
+  await goLibrary(page);
+  await page.click('[data-act=scr-list]'); await settle(page);
+  const L = await page.evaluate(async ([ids, rid]) => {
+    const list = document.querySelector('#scr-list'), att = list.querySelector(`tr.rsub.rdoc[data-did][data-parent="${CSS.escape(rid)}"]`), DOC = await import('/src/model/documents.js'), s = window.__wb.store.state;
+    const shown = ids.filter(id => !DOC.hidden(s, s.resumes.find(r => r.id === id)));      // a language copy is its original's row, or a row under it
+    return { pressed: document.querySelector('[data-act=scr-list]').getAttribute('aria-pressed'), cards: list.querySelectorAll('.rcard').length, rows: shown.every(id => list.querySelectorAll(`tr.rline[data-rid="${CSS.escape(id)}"], tr[data-lid="${CSS.escape(id)}"]`).length >= 1),
+      th: list.querySelector('table.rtable thead tr')?.children.length, tables: list.querySelectorAll('table').length, heads: list.querySelectorAll('thead').length, groups: list.querySelectorAll('tbody.rgroup > tr.rghead:first-child').length, thumbs: list.querySelectorAll('[data-thumb]').length, attHidden: !!att?.hidden, attParent: att?.dataset.parent === rid, free: list.querySelectorAll('tr.rdoc:not(.rsub):not([data-parent])').length };
+  }, [s0.ids, s0.ids[1]]);
+  ok('the list switch shows one table: one column header (the tick, the name, company, role, job type, paper, language, pages, sent, last changed), each group a header row in it, a row for each resume, no pictures', L.pressed === 'true' && L.cards === 0 && L.rows && L.th === 10 && L.tables === 1 && L.heads === 1 && L.groups >= 2 && L.thumbs === 0, JSON.stringify(L));
+  ok('a file exported from a resume is folded under its row; a file of its own has a row of its own', L.attHidden && L.attParent && L.free === 1, JSON.stringify(L));
+  const fold = `#scr tr.rline[data-rid="${s0.ids[1]}"] .rfold`;
+  await page.click(fold); await settle(page, 100);
+  ok('the fold arrow shows it and says so', await page.getAttribute(fold, 'aria-expanded') === 'true' && await page.isVisible('#scr tr.rsub.rdoc[data-did]'));
+  await page.click(`#scr tr.rline[data-rid="${s0.ids[2]}"] td.c-company`); await settle(page);
+  const sel = await page.evaluate(id => ({ sel: document.querySelector('#scr tr.rline.sel')?.dataset.rid, insp: document.querySelector('#body .insp-res .oi-name')?.textContent.trim(), name: document.querySelector(`#scr tr.rline[data-rid="${CSS.escape(id)}"] .rsel`)?.textContent.trim() }), s0.ids[2]);
+  ok('a click on a row selects it and the inspector shows it', sel.sel === s0.ids[2] && /—/.test(sel.insp ?? '') && await view(page) === 'resumes', JSON.stringify(sel));
+  await page.dblclick(`#scr tr.rline[data-rid="${s0.ids[3]}"] td.c-role`); await settle(page, 500);
+  ok('a double click on a row opens it', await view(page) === null && (await st(page)).openId === s0.ids[3]);
+  await goLibrary(page);
+  await page.focus(`#scr tr.rline[data-rid="${s0.ids[2]}"] .rsel`);
+  const next = await page.evaluate(() => { const all = [...document.querySelectorAll('#scr-list .rtable tr:not([hidden]) .rsel')].filter(b => b.getClientRects().length); return all[all.indexOf(document.activeElement) + 1]?.closest('tr').dataset.rid; });
+  await page.keyboard.press('ArrowDown');
+  ok('ArrowDown moves to the next row', !!next && await page.evaluate(() => document.activeElement?.closest('tr')?.dataset.rid) === next && await view(page) === 'resumes', next);
+  await page.keyboard.press('Enter'); await page.keyboard.press('Enter'); await settle(page, 500);
+  ok('Enter selects that row, and Enter again opens it', await view(page) === null && (await st(page)).openId === next);
+  await goLibrary(page);
+  await page.check(`#scr tr.rline[data-rid="${s0.ids[1]}"] .rtick`); await page.check(`#scr tr.rline[data-rid="${s0.ids[2]}"] .rtick`); await settle(page, 100);
+  ok('ticking two rows offers Compare in the floating bar and marks the rows', !!(await page.$('#resumes > #scr-ticks #scr-cmp')) && (await page.$$('#scr tr.rline.ticked')).length === 2);
+  await page.click('#scr-ticks [data-act=scr-clear]'); await settle(page);
+  await page.fill('#scr-q', 'DFM'); await settle(page);
+  ok('a search marks the word in the rows', (await page.$$('#scr-list .rtable .rhit mark.fnd')).length > 0);
+  await page.fill('#scr-q', ''); await settle(page);
+  await page.evaluate(async () => { const DOC = await import('/src/model/documents.js'); window.__wb.store.commit(d => { DOC.startRound(d, 'Autumn'); }, 'round'); window.__wb.setView(null); window.__wb.setView('resumes'); });
+  await settle(page);
+  const round = await page.evaluate(() => window.__wb.store.state.rounds[0].id);
+  ok('with a round, the rounds are header rows of the same table, Earlier folded', (await page.$$('#scr table')).length === 1 && (await page.$$('#scr .rtable tbody.rrhead')).length === 2 && await page.getAttribute('#scr tbody.rrhead[data-round=""] .rfold', 'aria-expanded') === 'false' && !(await page.isVisible(`#scr tr.rline[data-rid="${s0.ids[2]}"]`)));
+  await page.click('#scr tbody.rrhead[data-round=""] .rfold'); await settle(page, 100);
+  const a = await page.locator(`#scr tr.rline[data-rid="${s0.ids[2]}"] td.c-company`).boundingBox(), b = await page.locator('#scr tbody.rrhead[data-current] th').boundingBox();
+  await page.mouse.move(a.x + 10, a.y + a.height / 2); await page.mouse.down(); await page.mouse.move(b.x + 20, b.y + b.height / 2, { steps: 8 }); await page.mouse.up(); await settle(page);
+  ok('a row carried onto a round’s name moves there', await page.evaluate(id => window.__wb.store.state.resumes.find(r => r.id === id).round, s0.ids[2]) === round);
+  // a round's name is written in place, in the list's header row and in the cards' fold (a click there does not fold it); Earlier has none
+  const rname = () => page.evaluate(() => window.__wb.store.state.rounds[0].name);
+  await page.click('#scr tbody.rrhead[data-current] .rrname'); await page.keyboard.type('Winter push'); await page.keyboard.press('Enter'); await settle(page);
+  const inList = await rname();
+  await page.click('[data-act=scr-cards]'); await settle(page);
+  const det = '#scr .rround[data-current]', wasOpen = await page.evaluate(d => document.querySelector(d).open, det);
+  await page.click(`${det} > summary .rrname`); await settle(page, 100);
+  const ed = await page.evaluate(d => ({ focus: document.activeElement?.id, open: document.querySelector(d).open, pen: !!document.querySelector('.rround[data-round=""] .rrname') }), det);
+  await page.keyboard.type('zzz'); await page.keyboard.press('Escape'); await settle(page);
+  const afterEsc = await rname(), u = await page.evaluate(() => window.__wb.store.history.undo);
+  await page.click(`${det} > summary .rrname`); await page.keyboard.type('Spring'); await page.locator('#scr-q').click(); await settle(page);
+  const left = await rname(), u2 = await page.evaluate(() => window.__wb.store.history.undo);
+  await page.evaluate(() => window.__wb.store.undo()); await settle(page);
+  ok('a round\u2019s name is written in place: in the list\u2019s header row, and in the cards\u2019 fold without folding it; Enter or leaving keeps it as one undo step, Esc does not; Earlier has none', inList === 'Winter push' && ed.focus === 'rr-name' && ed.open === wasOpen && !ed.pen && afterEsc === 'Winter push' && left === 'Spring' && u2 === u + 1 && await rname() === 'Winter push', JSON.stringify({ inList, ed, afterEsc, left }));
+  await page.click('[data-act=scr-list]'); await settle(page);
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForFunction(() => document.body.classList.contains('is-ready')); await goLibrary(page);
+  ok('the list is remembered', (await page.$$('#scr .rtable')).length > 0 && (await page.$$('#scr .rcard')).length === 0);
+  await page.click('[data-act=scr-cards]'); await settle(page);
+  ok('the switch again brings the cards back', (await page.$$('#scr .rtable')).length === 0 && (await page.$$('#scr .rcard')).length > 0 && await page.evaluate(() => localStorage.getItem('rb-manage-list')) === '0');
+  ok('no errors', errors.length === 0, errors[0] ?? '');
+  await ctx.close();
+  const n = await open(1280, 720);
+  await goLibrary(n.page); await n.page.click('[data-act=scr-list]'); await settle(n.page);
+  const w = await n.page.evaluate(() => { const q = s => document.querySelector(`#scr .rtable ${s}`).getBoundingClientRect(), tb = q(''), ws = ['company', 'role', 'type', 'sent', 'changed'].map(k => q(`thead .c-${k}`).width);
+    return { paper: q('th.c-paper').width, name: q('th.c-name').width, most: q('th.c-name').width > Math.max(...ws), fill: Math.round(tb.right - q('tr.rline td.c-changed').right), scroll: document.querySelector('#scr').scrollWidth - document.querySelector('#scr').clientWidth }; });
+  ok('at 1280 the list drops the paper, language and pages columns, its rows fill the table with the name the widest, and nothing scrolls sideways', w.paper === 0 && w.most && w.fill <= 2 && w.scroll <= 1, JSON.stringify(w));
+  await n.ctx.close();
+});
+
+await part('language copies: one item with a chip for each language, a chip selects, a move takes them all, the files chip, the list folds a row for each language', async () => {
+  const { ctx, page, errors } = await open(1470, 832);
+  // Medtech Lisboa in German (sent once, a file exported from it), then a French copy of the German one, open: one item of three; a round to move it to
+  const ids = await page.evaluate(async id => {
+    const RS = await import('/src/model/resumes.js'), DOC = await import('/src/model/documents.js'); let de, fr;
+    window.__wb.store.commit(d => {
+      de = RS.duplicate(d, id, { lang: 'de' }).id; RS.takeSnapshot(d, { kind: 'company', company: 'Smoke Co', role: 'Role' }); fr = RS.duplicate(d, de, { lang: 'fr' }).id;
+      DOC.addDocument(d, { name: 'sent.txt', type: 'text/plain', sha256: 'c'.repeat(64), size: 10, meta: { kind: 'resume', company: 'Medco', role: 'Rolec' }, text: 'sent line' }).resume = de;
+      DOC.startRound(d, 'Autumn');
+    }, 'seed');
+    return [id, de, fr];
+  }, MEDTECH);
+  await goLibrary(page);
+  const card = id => `#scr .rcard[data-rid="${id}"]`, chips = id => page.evaluate(c => [...document.querySelectorAll(`${c} .rlang`)].map(b => `${b.textContent}${b.getAttribute('aria-pressed') === 'true' ? '*' : ''}${b.classList.contains('ticked') ? '+' : ''}`).join(' '), card(id));
+  const a = await page.evaluate(ids => ({ cards: ids.map(id => document.querySelectorAll(`#scr .rcard[data-rid="${CSS.escape(id)}"]`).length).join(), sel: document.querySelector(`#scr .rcard[data-rid="${CSS.escape(ids[2])}"]`)?.classList.contains('sel'), from: !!document.querySelector(`#scr .rcard[data-rid="${CSS.escape(ids[2])}"] .rfrom`) }), ids);
+  ok('a resume and its copies in other languages are one card: the open copy shown, a chip for each language (the shown one marked), no "from" line', a.cards === '0,0,1' && await chips(ids[2]) === 'EN DE FR*' && a.sel && !a.from, JSON.stringify({ ...a, chips: await chips(ids[2]) }));
+  const cur = await page.evaluate(() => window.__wb.store.state.rounds[0].id);
+  await pickOption(page, '#body [data-res-round]', cur); await settle(page);
+  ok('moving it to a round moves the original and every language copy', await page.evaluate(ids => ids.map(id => window.__wb.store.state.resumes.find(r => r.id === id).round), ids).then(rs => rs.every(r => r === cur)));
+  await page.click(`${card(ids[2])} .rlang:text-is("DE")`); await settle(page);
+  const b = await page.evaluate(() => ({ lbl: document.querySelector('#body .ihcap .lbl')?.textContent, view: window.__wb.ui.view }));
+  ok('a chip selects that language: the card shows it, marked, and the inspector names the language it shows', await page.$(card(ids[1])) && await chips(ids[1]) === 'EN DE* FR' && /Deutsch/.test(b.lbl) && b.view === 'resumes' && await page.evaluate(c => document.querySelector(c).classList.contains('sel'), card(ids[1])), JSON.stringify(b));
+  await page.click(`${card(ids[1])} .rlang:text-is("DE")`); await settle(page, 500);
+  ok('…and a second click on it opens it', await view(page) === null && (await st(page)).openId === ids[1]);
+  await goLibrary(page);
+  const want = await page.evaluate(async ids => { const RS = await import('/src/model/resumes.js'), s = window.__wb.store.state; return ids.reduce((n, id) => n + RS.snapshotsOf(RS.savedOf(s, id)).length, 0) + RS.docGroups(s).filter(g => ids.includes(g.resume)).reduce((n, g) => n + g.members.length, 0); }, ids);
+  const said = await page.evaluate(async n => (await import('/src/i18n/index.js')).t('i7.nFiles', { n }), want);      // the open resume's language may be the page's
+  ok(`the card counts the files of all its languages, sent copies and documents: "${want} files"`, want >= 2 && (await page.textContent(`${card(ids[1])} .rfiles`)).trim() === said, said);
+  await page.click(`${card(ids[1])} .rfiles`); await settle(page, 400);
+  const f = await page.evaluate(() => { const x = document.querySelector('#body .ifiles'), r = x?.getBoundingClientRect(), b = document.querySelector('#body').getBoundingClientRect(); return { n: document.querySelectorAll('#body .ifiles li').length, seen: !!r && r.top >= b.top - 1 && r.top < b.bottom - 20 }; });
+  ok('…the chip brings the inspector to them, one line each', f.n === want && f.seen, JSON.stringify(f));
+  await page.check(`${card(ids[1])} .rtick`); await settle(page, 100);
+  ok('a tick ticks the language shown, and its chip says so', await page.evaluate(() => [...document.querySelectorAll('#scr-ticks, #scr-nticked')].length > 0) && await chips(ids[1]) === 'EN DE*+ FR');
+  await page.click('#scr-ticks [data-act=scr-clear]'); await settle(page);
+  const frName = await page.evaluate(id => window.__wb.store.state.resumes.find(r => r.id === id).name, ids[2]);
+  await page.fill('#scr-q', frName); await settle(page);
+  ok('a search that finds a copy shows its item with that language marked', await page.$(card(ids[2])) && (await chips(ids[2])).includes('FR*'), `${frName}: ${await chips(ids[2])}`);
+  await page.fill('#scr-q', ''); await settle(page);
+  await page.click('[data-act=scr-list]'); await settle(page);
+  const L = await page.evaluate(ids => {
+    const q = s => [...document.querySelectorAll(`#scr-list ${s}`)], sub = q(`tr.rsub[data-parent="${CSS.escape(ids[0])}"]`);
+    return { rows: ids.map(id => q(`tr.rline[data-rid="${CSS.escape(id)}"]`).length).join(), langs: sub.filter(x => x.dataset.lid).map(x => x.querySelector('.rsel').textContent).join(), first: sub.findIndex(x => !x.dataset.lid), last: sub.map(x => !!x.dataset.lid).lastIndexOf(true),
+      files: sub.filter(x => !x.dataset.lid).reduce((n, x) => n + Number(x.dataset.formats ?? 1), 0), hidden: sub.every(x => x.hidden), chip: q(`tr.rline[data-rid="${CSS.escape(ids[1])}"] .c-sent .rfiles`).length };
+  }, ids);
+  ok('the list: one row for the item, and folded under it a row for each language before the files of all of them, as many as the card counts', L.rows === '0,1,0' && L.langs === 'English,Deutsch,Français' && L.last < L.first && L.files === want && L.hidden && L.chip === 1, JSON.stringify(L));
+  await page.click(`#scr tr.rline[data-rid="${ids[1]}"] .rfiles`); await settle(page, 100);
+  ok('…its files chip unfolds the row', await page.getAttribute(`#scr tr.rline[data-rid="${ids[1]}"] .rfold`, 'aria-expanded') === 'true' && await page.isVisible(`#scr tr[data-lid="${ids[2]}"]`));
+  await page.click(`#scr tr[data-lid="${ids[2]}"] .rsel`); await settle(page);
+  ok('…a language row selects that language', await page.$(`#scr tr.rline.sel[data-rid="${ids[2]}"]`) && /Français/.test(await page.textContent('#body .ihcap .lbl')));
+  ok('no errors', errors.length === 0, errors[0] ?? '');
+  await page.click('[data-act=scr-cards]'); await settle(page);
+  await ctx.close();
+});
+
+await part('the example’s own Library: rounds (the current one open, an older one folded, an archived one hidden until asked for) and Earlier, files with the resume they went out with, one application in three languages, sent copies', async () => {
+  const { ctx, page, errors } = await open(1470, 832, undefined, { library: true });
+  await goLibrary(page);
+  const look = () => page.evaluate(async () => {
+    const RS = await import('/src/model/resumes.js'), st = window.__wb.store.state, all = sel => [...document.querySelectorAll(sel)];
+    const doc = name => all('#scr .rcard.rdoc').find(c => c.querySelector('.rsel')?.textContent.trim() === name);
+    const fein = st.resumes.find(r => r.company.startsWith('Feinmess') && !r.parent), copies = st.resumes.filter(r => r.parent === fein.id);
+    return { rounds: all('#scr .rround').map(d => [d.querySelector('summary').textContent.split('·')[0].trim(), d.open ? 'open' : 'shut', d.dataset.current ? 'current' : '', d.dataset.archived ? `archived ${d.dataset.n}` : ''].filter(Boolean).join(' ')),
+      pdf: { ...doc('2026-09-29 Example Instruments - Design Engineer.pdf')?.dataset }, cv: doc('Dana Okonkwo CV 2023.docx')?.closest('.rround')?.dataset.round, cvState: doc('Dana Okonkwo CV 2023.docx')?.dataset.state,
+      langs: copies.map(r => r.lang ?? 'en').sort().join(), inStep: copies.filter(r => r.inStep).map(r => r.lang ?? 'en').join(), group: RS.groupOf(st, fein).length,
+      attached: RS.docGroups(st).filter(g => g.resume && all('#scr .rcard.rdoc').some(c => c.dataset.did === g.id)).length, alone: all('#scr .rcard.rdoc').length,
+      counts: all('#scr .rgrid').every(g => g.previousElementSibling?.textContent.trim().endsWith(`· ${g.children.length}`)),
+      sent: st.resumes.filter(r => RS.snapshotsOf(r).length).length, letters: st.documents.filter(d => d.meta.kind === 'cover-letter').length, originals: st.documents.every(d => d.embedded) };
+  });
+  const a = await look();
+  ok('three rounds: the current one first and open, the older one folded, the archived one left out, then Earlier, folded', a.rounds.join('|') === 'October 2026 open current|September 2026 shut|Earlier shut', a.rounds.join('|'));
+  ok('a document that belongs to a resume (the PDF sent to Example Instruments, its Word copy and its letter) is no card of its own; documents tied to no resume are, and each heading counts the cards under it', !a.pdf.from && a.attached === 0 && a.alone >= 1 && a.counts, JSON.stringify({ pdf: a.pdf, attached: a.attached, alone: a.alone, counts: a.counts }));
+  ok('an old resume on its own is in Earlier, with a line the career does not hold', a.cv === '' && a.cvState === 'unplaced', `${a.cv} ${a.cvState}`);
+  ok('one application in three languages: the German original, an English copy kept in step, a French one that is not', a.langs === 'en,fr' && a.inStep === 'en' && a.group === 2, JSON.stringify(a));
+  ok('four resumes have sent copies, two letters went with them, and every file keeps its original', a.sent === 4 && a.letters === 2 && a.originals);
+  await page.evaluate(() => { const s = document.querySelector('#scr-show'); s.value = 'archived'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+  await settle(page);
+  ok('Show archived brings the archived round back, with its two resumes', (await look()).rounds.includes('Summer 2026 shut archived 2'), (await look()).rounds.join('|'));
+  const fam = await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'), s = window.__wb.store.state; return RS.langFamily(s, s.resumes.find(r => r.company.startsWith('Feinmess') && !r.parent)).map(r => r.id); });
+  const u = await page.evaluate(async fam => {
+    const RS = await import('/src/model/resumes.js'), s = window.__wb.store.state, cards = [...document.querySelectorAll('#scr .rcard:not(.rdoc)')].filter(c => fam.includes(c.dataset.rid));
+    const want = fam.reduce((n, id) => n + RS.snapshotsOf(RS.savedOf(s, id)).length, 0) + RS.docGroups(s).filter(g => fam.includes(g.resume)).reduce((n, g) => n + g.members.length, 0);
+    return { cards: cards.length, chips: [...(cards[0]?.querySelectorAll('.rlang') ?? [])].map(b => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(' '), files: cards[0]?.querySelector('.rfiles')?.textContent.trim(), want };
+  }, fam);
+  ok('the application in three languages is one card: a chip for each language, the original shown; its files chip counts the sent copies and documents of all three', u.cards === 1 && u.chips === 'DE* EN FR' && u.files === `${u.want} files` && u.want >= 4, JSON.stringify(u));
+  await page.click('[data-act=scr-list]'); await settle(page);
+  const L = await page.evaluate(fam => {
+    const q = s => [...document.querySelectorAll(`#scr-list ${s}`)], sub = q(`tr.rsub[data-parent="${CSS.escape(fam[0])}"]`);
+    return { rows: fam.map(id => q(`tr.rline[data-rid="${CSS.escape(id)}"]`).length).join(), langs: sub.filter(x => x.dataset.lid).map(x => x.querySelector('.rsel').textContent).join(), files: sub.filter(x => !x.dataset.lid).reduce((n, x) => n + Number(x.dataset.formats ?? 1), 0), langsFirst: sub.findIndex(x => !x.dataset.lid) === 3 };
+  }, fam);
+  ok('…in the list one row, folded under it a row for each language and then its files, as many as the card counts', L.rows === '1,0,0' && L.langs === 'Deutsch,English,Français' && L.files === u.want && L.langsFirst, JSON.stringify(L));
+  await page.setViewportSize({ width: 1180, height: 832 }); await settle(page);
+  const pill = await page.evaluate(() => { const p = document.querySelector('#scr tr.rline.open .pill.is-open'), td = p?.closest('td'), r = p?.getBoundingClientRect(); return p && { whole: p.scrollWidth <= p.clientWidth + 1 && r.right <= td.getBoundingClientRect().right + 1, cut: (n => n.scrollWidth > n.clientWidth)(td.querySelector('.rsel')), text: p.textContent }; });
+  ok('a narrow list cuts a row’s name short before its "Open now" pill, which keeps its width', pill?.whole && pill.cut, JSON.stringify(pill));
+  await page.click('[data-act=scr-cards]'); await settle(page);
+  await page.fill('#scr-q', '2026-09-29'); await settle(page, 400);
+  const sq = await page.evaluate(() => ({ cards: [...document.querySelectorAll('#scr .rcard')].map(c => c.dataset.rid ?? `doc:${c.dataset.did}`), hit: [...document.querySelectorAll('#scr .rcard .rfiles.is-hit')].map(b => b.closest('.rcard').dataset.rid) }));
+  ok('a search that finds only a document’s words shows its resume’s card, with the files chip marked', sq.cards.join() === 'Example Instruments - Design Engineer.json' && sq.hit.join() === 'Example Instruments - Design Engineer.json', JSON.stringify(sq));
+  await page.fill('#scr-q', ''); await settle(page, 400);
+  ok('no page errors', !errors.length, errors.join(' | '));
   await ctx.close();
 });
 
@@ -441,10 +724,10 @@ const PROBE = `(() => {
   const out = { clipped: [], overlap: [], bars: [], wide: 0, scroll: 0 };
   for (const id of ['#head', '#foot']){ const e = document.querySelector(id); if (e && vis(e) && e.getBoundingClientRect().width > innerWidth / 2) out.bars.push(id + ' ' + Math.round(e.getBoundingClientRect().width)); }
   const body = document.querySelector('#scr'); out.scroll = body.scrollWidth - body.clientWidth;
-  const controls = [...document.querySelectorAll('#scr button, #scr input:not([type=checkbox]), #scr select, #scr h2, #ptabs button, #head button, #head .psub')].filter(vis).filter(e => !e.closest('.cmpscroll, .rowmenu, .rectl, .sr'));
+  const controls = [...document.querySelectorAll('#scr button, #scr input:not([type=checkbox]), #scr select, #scr h2, #ptabs button, #head button, #head .psub')].filter(vis).filter(e => !e.closest('.cmpscroll, .rowmenu, .rectl, .sr, #head .docname'));      // the name card's name is head-check's (a short window keeps it one line)
   for (const el of controls){
     const r = el.getBoundingClientRect();
-    for (const t of textRects(el)) if (t.right > r.right + 1 || t.left < r.left - 1){ out.clipped.push(label(el)); break; }
+    if (!el.matches('.rtable .cname > .rsel')) for (const t of textRects(el)) if (t.right > r.right + 1 || t.left < r.left - 1){ out.clipped.push(label(el)); break; }      // (a list row's name is cut short before its pills: the narrow list's own check)
     if (el.matches('h2, .rname') && el.scrollWidth > el.clientWidth + 1) out.clipped.push(label(el));
   }
   for (const el of document.querySelectorAll('#scr .rname')) if (vis(el) && el.scrollWidth > el.clientWidth + 1) out.clipped.push(label(el));
@@ -471,12 +754,14 @@ for (const [w, h] of SIZES){
         window.__wb.store.commit(d => { d.cur.name = n; const o = d.resumes.find(r => r.id === other); o.name = n + ' (2)'; }, 'name');
       }, [lang, name, s0.ids[1]]);
       await settle(page);
-      for (const screen of ['resumes', 'compare', 'record']){
+      for (const screen of ['resumes', 'compare', 'record', ...(w === 1280 ? ['list'] : [])]){      // list: the Library as a table
         try {
           if (screen === 'compare') await page.evaluate(ids => window.__wb.screens.compare(ids), s0.ids.slice(0, 3));
-          else await page.evaluate(s => window.__wb.setView(s), screen);
+          else await page.evaluate(s => window.__wb.setView(s), screen === 'list' ? 'resumes' : screen);
+          if (screen === 'list') await page.click('[data-act=scr-list]');
           await page.waitForTimeout(200);
           const a = await page.evaluate(PROBE);
+          if (screen === 'list') await page.click('[data-act=scr-cards]');
           for (const k of ['clipped', 'overlap', 'bars']) bad.push(...a[k].map(x => `${screen} ${key}: ${k} ${x}`));
           if (a.scroll > 1 && screen !== 'compare') bad.push(`${screen} ${key}: the screen scrolls sideways by ${a.scroll}px`);
         } catch (e){ bad.push(`${screen} ${key}: ${String(e.message ?? e).split('\n')[0].slice(0, 80)}`); }
@@ -490,7 +775,12 @@ for (const [w, h] of SIZES){
 // ---------------------------------------------------------------- a phone: Resumes cards two to a row, thumbnails cropped behind the text, a tidy header
 {
   const { ctx, page } = await open(390, 844);
+  await page.evaluate(() => localStorage.setItem('rb-manage-list', '1')); await page.reload({ waitUntil: 'networkidle' }); await page.waitForFunction(() => document.body.classList.contains('is-ready'));
+  await page.evaluate(plainExample);      // (the reload brought the example's Library back)
   await page.evaluate(() => { window.__wb.thumbs.fill = () => {}; });
+  await page.evaluate(() => window.__wb.setView('resumes')); await page.waitForTimeout(200);
+  ok('a phone keeps the cards with the list remembered, and has no list switch', await page.evaluate(() => !document.querySelector('[data-act=scr-list]') && !document.querySelector('.rtable') && document.querySelectorAll('#body .rcard').length > 0));
+  await page.evaluate(() => window.__wb.setView(null));
   const s0 = await st(page);
   for (const lang of LANGS){
     const bad = [];
@@ -503,7 +793,7 @@ for (const [w, h] of SIZES){
       await page.evaluate(() => window.__wb.setView('resumes')); await page.waitForTimeout(200);
       const a = await page.evaluate(() => {
         const R = e => e.getBoundingClientRect(), cards = [...document.querySelectorAll('#body .rcard')], c0 = cards[0], w = R(c0).width;
-        const body = R(document.querySelector('#resumes')), q = R(document.querySelector('#scr-q')), seg = R(document.querySelector('#resumes .seg'));
+        const body = R(document.querySelector('#resumes')), q = R(document.querySelector('#scr-q')), seg = R(document.querySelector('#resumes .lbar'));      // the list's bar (Group and Show) took the views' place
         const thumb = R(c0.querySelector('.thumbwrap'));
         const over = [];
         for (const c of cards){
@@ -521,7 +811,7 @@ for (const [w, h] of SIZES){
       });
       if (a.cols !== 2) bad.push(`${key}: ${a.cols} columns`);
       if (a.qw < 0.9) bad.push(`${key}: search ${Math.round(a.qw * 100)}% wide`);
-      if (a.segw < 0.9) bad.push(`${key}: views ${Math.round(a.segw * 100)}% wide`);
+      if (a.segw < 0.9) bad.push(`${key}: the list\u2019s bar ${Math.round(a.segw * 100)}% wide`);
       if (a.thumbH >= 0.7) bad.push(`${key}: thumbnail ${a.thumbH.toFixed(2)} of the card width`);
       bad.push(...a.over.map(x => `${key}: ${x}`));
       if (a.scroll > 1) bad.push(`${key}: sideways scroll ${a.scroll}`);

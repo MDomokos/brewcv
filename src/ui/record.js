@@ -8,7 +8,6 @@
 
 import { reduced } from './motion.js';
 import { withArrows } from './icons.js';
-import { checklist as model } from '../model/checklist.js';
 import { t, h } from '../i18n/index.js';
 import { F, careerHtml, resumesHtml, printsButton } from './find.js';
 import { careerHits } from '../model/checklist.js';
@@ -129,12 +128,6 @@ function open(groups = []){
 // Esc in Career: the search, then the selection (an open form closes first: its own Esc handler, before this one)
 function clearSel(){ if (F.q){ F.q = ''; C.renderBody(); return; } if (R.sel !== null){ R.sel = null; C.renderBody(); } }
 
-// the place card's second line: how many entries, and how many of the lines are on the open resume
-function summary(){
-  const cl = model(C.work(), C.cur(), C.lang());
-  return t('ux6h.recSub', { n: cl.groups.filter(g => g.kind === 'entry' && !g.archived).length, on: cl.on, of: cl.total });
-}
-
 async function act(a, tg){
   switch (a){
     // a click on the timeline or a card: the entry opens in the inspector
@@ -145,4 +138,4 @@ async function act(a, tg){
   return false;
 }
 
-const api = { view, afterRender, open, act, clearSel, summary, refocus, label: () => t('ux6h.placeCareer') };
+const api = { view, afterRender, open, act, clearSel, refocus, label: () => t('ux6h.placeCareer') };

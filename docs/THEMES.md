@@ -4,7 +4,7 @@ You can change how a BrewCV resume looks without touching the app's code. There 
 
 A theme changes colour, type, sizes, spacing and two switches (the tab style and the highlight style). It never changes the layout: which section sits where, the page size, the gutter. That's on purpose. Fit and the page breaks measure the real page, so a theme can't break them.
 
-Before any of that, the Design view has settings of its own, which need no file. They are on [the page below](#the-design-views-settings); an imported theme still has the last word over them.
+Before any of that, the Look view has settings of its own, which need no file. They are on [the page below](#the-look-views-settings); an imported theme still has the last word over them.
 
 What makes a theme good, and which of it a check holds you to, is in [THEME-DESIGN-RULES.md](THEME-DESIGN-RULES.md).
 
@@ -16,9 +16,9 @@ What makes a theme good, and which of it a check holds you to, is in [THEME-DESI
 | An AI model | [Route 4](#route-4-an-ai-model) |
 | Illustrator | Illustrator has no direct route. Make the colours and type in Figma, or write them into a tokens file. |
 
-## The Design view's settings
+## The Look view's settings
 
-**Design** has six settings for the open resume, and one choice at export. None of them needs a theme file, and each look offers only what its page holds up with: a combination the look doesn't offer can't be picked or saved.
+**Look** has six settings for the open resume, and one choice at export. None of them needs a theme file, and each look offers only what its page holds up with: a combination the look doesn't offer can't be picked or saved.
 
 | Setting | Choices | Default |
 |---|---|---|
@@ -35,7 +35,7 @@ What makes a theme good, and which of it a check holds you to, is in [THEME-DESI
 - **Density.** Compact also sets the languages in a row and a smaller name, and puts the job title beside the name (and keeps it on one line in the centred Classic header).
 - **Colour** is two shades: the one on a screen and the highlighter shade the export prints in. *Any colour* is one shade for both, and gets the contrast note.
 - **Made for** (Export): for a screen, for printing (the highlighter shade, and nothing within ¼ in of the paper's edge, which is where a band of colour stops short in Banner) or for a highlighter pen (black and white, with dotted guides to go over with a pen). It applies to the PDF and the HTML page, not to the editor.
-- **An older look** (Tinted tabs, Mono print) on a saved resume renders as before, shows its name, and the Design view offers one button that moves the resume to B2 Marker with the section style that draws the same labels.
+- **An older look** (Tinted tabs, Mono print) on a saved resume renders as before, shows its name, and the Look view offers one button that moves the resume to B2 Marker with the section style that draws the same labels.
 - **An imported theme** (a tokens file, below) still overrides the settings: its colours, fonts and sizes are added after them, so where the two disagree the file wins. The resume's own *any colour* does too.
 - **Agents** set the same things in `picks.json` (`look`, `design`, `exportMedium`); see [AGENTS.md](../AGENTS.md).
 
@@ -65,9 +65,9 @@ A theme is a [DTCG](https://www.designtokens.org/) tokens file: JSON with colour
 
    It says how many tokens it read, names everything it ignored and why, flags a font the app has no files for, and checks the accent against the tab text (4.5:1 or better). It also prints the CSS it would apply. Fix what it names and run it again.
 
-4. Open BrewCV, then **Design › + Import a theme** and choose the file. (You can also drop it on the page.) It's applied to the resume you have open, and it shows under *Design › Theme*. The theme is saved in your record, so it comes with your backups.
+4. Open BrewCV, then **Look › + Import a theme** and choose the file. (You can also drop it on the page.) It's applied to the resume you have open, and it shows under *Look › Theme*. The theme is saved in your record, so it comes with your backups.
 
-5. To share a theme, send the file. Whoever receives it imports it the same way. **Design › Export this theme** writes your current look back out as a tokens file.
+5. To share a theme, send the file. Whoever receives it imports it the same way. **Look › Export this theme** writes your current look back out as a tokens file.
 
 **What tokens can't change:** layout. You can't move the photo, add a column, reorder what's in the header or change the page size. They also can't add a font the app doesn't have. A font that isn't installed on the reader's machine falls back to Hanken Grotesk, and the import says so. The app ships Hanken Grotesk and Fira Code, Source Serif 4 and Source Sans 3 (the Classic looks) and IBM Plex Sans and Plex Mono; Georgia, Helvetica, Arial and the other common system fonts work where the machine has them.
 

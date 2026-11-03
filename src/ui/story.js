@@ -12,6 +12,7 @@ import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { reduced } from './motion.js';
 import { OLD } from './story-old.js';
+import { isKey } from './help.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -495,9 +496,10 @@ function listen(){
   // the arrow keys and 1 to 4 move between steps while the start screen is up (not in a field, not with a modifier)
   document.addEventListener('keydown', e => {
     if (!document.body.classList.contains('is-intro') || !$('#ss') || e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.('input, textarea, select, [contenteditable]')) return;
+    const n = ['1', '2', '3', '4'].find(c => isKey(e, c));      // the digit row too where digits need Shift (AZERTY)
     if (e.key === 'ArrowRight') user(cur % STEPS.length + 1);
     else if (e.key === 'ArrowLeft') user(Math.max(1, cur - 1));
-    else if (/^[1-4]$/.test(e.key) && !e.target.closest?.('.menu, .pop')) user(+e.key);
+    else if (n && !e.target.closest?.('.menu, .pop')) user(+n);
     else if (e.key === 'Escape') menu(false);
   });
 }
@@ -511,16 +513,39 @@ export function stageHtml(){
 }
 // the stage is a 1022-wide picture scaled to the board; on a phone the board is as tall as it needs to be. The sidebar's first row and its
 // language row start level with the file's top edge and its first lit line (the page tells the column where they are)
+const STAGE_H = 820, MAX_SC = 1.6, HUG = 20, SC0 = .98, MAX_Z = 1.25;      // SC0: what an ordinary 1440x900 window draws
 function fit(){
   const ss = $('#ss'); if (!ss || !STAGE) return;
   const flow = getComputedStyle(ss.parentElement).position === 'static';
-  // beside the column the picture also has to fit the board's height (the stage is 700 tall at the least), so a short or ultrawide window
-  // shrinks it and centres it instead of cutting it off
-  SC = Math.max(.25, flow ? ss.clientWidth / 1022 : Math.min(ss.clientWidth / 1022, ss.clientHeight / 700));
+  for (const k of ['left', 'right', 'top', 'bottom', 'width', 'height', 'boxSizing']) ss.style[k] = '';      // the board is the whole area first (its css box)
+  // beside the column the picture also has to fit the board's height: the steps' content ends at about 810 stage px (the tools and the slips; the page
+  // of step 4 runs under the rim on purpose), so STAGE_H is that and the rim. A short or ultrawide window shrinks the picture; a large one stops at
+  // MAX_SC. Where the picture is narrower than the area (or, at the cap, shorter) the board shrinks to it plus HUG, and board and column become one
+  // group centred in the window (body.intro-hug, start.css): the column as tall as the board, one ordinary gap off it, zoomed a little with the picture
+  const aw = ss.clientWidth, ah = ss.clientHeight, bd = ss.offsetWidth - aw, gapX = ss.parentElement.clientWidth - ss.offsetLeft - ss.offsetWidth;
+  const fitSc = flow ? aw / 1022 : Math.min(aw / 1022, ah / STAGE_H);
+  SC = Math.max(.25, flow ? fitSc : Math.min(fitSc, MAX_SC));
+  const bw = Math.min(aw, 1022 * SC + 2 * HUG), bh = fitSc > MAX_SC ? Math.min(ah, STAGE_H * SC + 2 * HUG) : ah;
+  const hug = !flow && (bw < aw || bh < ah), B = document.body;
+  B.classList.toggle('intro-hug', hug);
+  if (hug){
+    const colw = parseFloat(getComputedStyle(B).getPropertyValue('--colw')) || 392;
+    const z = Math.max(1, Math.min(SC / SC0, MAX_Z, (innerWidth - 32 - bw - bd - gapX) / colw));      // never wider than the window
+    const x = (innerWidth - (bw + bd + gapX + colw * z)) / 2, y = ss.offsetTop + (ah - bh) / 2, st = ss.style;
+    st.boxSizing = 'content-box'; st.right = st.bottom = 'auto';
+    st.left = `${x.toFixed(1)}px`; st.top = `${y.toFixed(1)}px`; st.width = `${bw.toFixed(1)}px`; st.height = `${bh.toFixed(1)}px`;
+    // the column is zoomed, so its own lengths are the screen's divided by the zoom
+    B.style.setProperty('--hug-z', z.toFixed(4));
+    B.style.setProperty('--hug-x', `${((x + bw + bd + gapX) / z).toFixed(2)}px`);
+    B.style.setProperty('--hug-y', `${(y / z).toFixed(2)}px`);
+    B.style.setProperty('--hug-h', `${((bh + bd) / z).toFixed(2)}px`);
+  }
+  const gap = !flow && fitSc > MAX_SC ? Math.max(0, (ss.clientHeight - STAGE_H * SC) / 2) : 0;
   STAGE.style.left = flow ? '' : `${Math.max(0, (ss.clientWidth - 1022 * SC) / 2).toFixed(1)}px`;
-  if (flow) ss.style.height = `${(760 * SC).toFixed(1)}px`; else ss.style.height = '';
+  STAGE.style.top = gap ? `${gap.toFixed(1)}px` : '';
+  if (flow) ss.style.height = `${(760 * SC).toFixed(1)}px`;
   STAGE.style.transform = `scale(${SC.toFixed(4)})`;
-  const sh = ss.clientHeight / SC;
+  const sh = (ss.clientHeight - gap) / SC;
   STAGE.style.height = `${sh.toFixed(1)}px`;
   // the top page of step 4 runs about 40 px under the rim whatever the window's height (the stack follows it)
   const pgy4 = Math.round(Math.max(60, Math.min(240, sh - 752)));
@@ -548,7 +573,7 @@ export function mount(){
   // with reduced motion nothing plays: the picture opens on its last step
   if (reduced()){ auto = false; go(STEPS.length); } else { auto = true; later(700, () => go(1)); }
 }
-export function unmount(){ clear(); clearTimeout(stackTimer); ro?.disconnect(); ro = null; }
+export function unmount(){ clear(); clearTimeout(stackTimer); ro?.disconnect(); ro = null; document.body.classList.remove('intro-hug'); }
 // a first start-up (or a return to the start screen) plays from the top again
 export function begin(){
   clear(); clearTimeout(stackTimer); cur = 0; prev = null; started = false; auto = true; settled = true;

@@ -110,7 +110,7 @@ section('deleting a claim');
   const res = K.deleteClaim(ex, id, rs);
   ok('the claim and every version go', !ex.facts.some(f => f.id === id) && res.versions === nv && !ex.variants.some(v => v.id.startsWith(`${id}-`)));
   ok('its job forgets it', !w.highlights.includes(id));
-  ok('no resume mentions it any more', !JSON.stringify(rs).includes(`"${id}"`));
+  ok('no resume mentions it any more (a sent copy keeps what it printed)', !JSON.stringify(rs.map(({ snapshots, ...r }) => r)).includes(`"${id}"`) && rs.some(r => JSON.stringify(r.snapshots ?? []).includes(`"${id}"`)));
   ok('the record and every resume still validate and render', rs.every(r => validate(S.save(ex), r).errors.length === 0) && rs.every(r => { try { html(ex, r); return true; } catch { return false; } }),
      rs.map(r => validate(S.save(ex), r).errors[0]).filter(Boolean)[0]);
   const one = ex.work.find(x => x.highlights.length === 1);

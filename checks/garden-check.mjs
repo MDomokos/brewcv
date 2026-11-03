@@ -168,6 +168,7 @@ async function editing(){
   const ok = reporter('editing'), s = await open(ok, { ctx: { viewport: { width: 2560, height: 1100 } } }), { page } = s;      // wide enough for both pages beside the sidebar
   await ready(page);
   await page.click('#docname-btn'); await page.waitForSelector('#switcher .sopt');
+  await page.fill('#switcher #sw-q', 'Medtech');      // the window lists the recent ones until a search
   await page.click('#switcher .sopt:has-text("Medtech")'); await sleep(1500);
   await sleep(1200);
   ok('two pages side by side', (await pagesNow(page)).length === 2 && await page.evaluate(() => window.__wb.canvas.scene === 'all'));

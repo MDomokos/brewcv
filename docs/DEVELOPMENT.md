@@ -20,17 +20,17 @@ manifest.webmanifest, sw.js   installable, offline (bump VERSION in sw.js with a
 templates/                 the page templates: holes the renderer fills
 formats/                   page box, margins, horizontal grid (Letter, A4, Hungarian A4)
 themes/                    type and colour (b2-marker + overlays) and their *.tokens.json
-fonts/                     Hanken Grotesk 400/700/800 · Fira Code 400, and the Design view's other pairings (Source Serif 4 + Source Sans 3, IBM Plex Sans + Plex Mono), self-hosted
+fonts/                     Hanken Grotesk 400/700/800 · Fira Code 400, and the Look view's other pairings (Source Serif 4 + Source Sans 3, IBM Plex Sans + Plex Mono), self-hosted
 figma/README.md            the theme round trip through Figma Variables
 src/render.js              library + recipe → pages (the same module in the app and in Node)
 src/fit.js, paginate.js    Fit, and block pagination
 src/recipe.js, data.js     what a recipe's keys mean; file helpers for the CLI
-src/themes.js              the built-in looks: the one place one is registered (scripts/new-theme.mjs adds one), with what the Design view's settings offer on each (`design`)
+src/themes.js              the built-in looks: the one place one is registered (scripts/new-theme.mjs adds one), with what the Look view's settings offer on each (`design`)
 src/export.js              the HTML page, plain text, JSON Resume, pre-flight
 src/model/                 pure, tested in Node:
   schema.js                  resume-data/4: detect, load, save, migrate, saved-resume files
   resume.js                  the selection rule, resolve(), the tailoring edits
-  design.js                  the Design view's look settings: the tables, designOf, designCss, lookCss (see "The look settings" below)
+  design.js                  the Look view's look settings: the tables, designOf, designCss, lookCss (see "The look settings" below)
   record.js                  version numbers, save over / as, delete, the word diff, and the word move (which words of one version are the words of another)
   resumes.js                 saved resumes: autosave (settle), snapshots and sends, open, frozen text, compare, new, duplicate
   focus.js                   tags and job-type focus
@@ -70,7 +70,7 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            name, which wraps and is never cut, except on a short window, where it is one line, and the app menu) in the editor, or the place card (the counts
                            and the action of the Library or Career; the tab names the place) in the others; then, in the editor, the card whose body is what is selected (nothing is the
                            Outline, a job its lines, a line its versions), which runs to the column's end (a desktop has no footer; a phone and the start screen still use `#foot`).
-                           The seam (`#rail`, left of the column) is one card at its top with undo, redo and Saved, the same in every place, Edit · Design · Export as a
+                           The seam (`#rail`, left of the column) is one card at its top with undo, redo and Saved, the same in every place, Content · Look · Export as a
                            vertical tab list touching the editor card (the editor only), and the logo (the drink switch) at its foot. Fit and the page fill (the page bars) are
                            once, at the top of Export (`renderFoot` in dock.js finds `.fitslot` anywhere). When the name is clicked, the name window: the name
                            card grows down over the editor card with the rename field, where the resume was copied from,
@@ -132,9 +132,10 @@ scripts/                   render, fit, export-pdf, tokens, theme-check, i18n-re
                            claims and new-resume (what a coding agent uses; see AGENTS.md), onefile (a folder ↔ the one file),
                            intro-media/ (re-makes the README's pictures in docs/intro/; its README has the gotchas)
 checks/                    the Node checks, the Chromium smoke test, the guards
-data/example.json          the fictional sample record, and data/example-resumes/ its fourteen
+data/example.json          the fictional sample record, and data/example-resumes/ its sixteen
                            resumes (one or more per language; all but English and Hungarian need
-                           a native review)
+                           a native review); data/example-library.json its Library: documents,
+                           rounds and the import log (all three written by build-example)
 docs/                      this guide, THEMES.md (making a theme), THEME-DESIGN-RULES.md (what makes one good), PRIVACY.md (checking what the app sends)
 ```
 
@@ -269,7 +270,7 @@ Every script that takes `<data.json>` except `checks/validate-data.mjs` reads ei
 
 ## Desktop build (macOS, preview)
 
-An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. The stage script leaves out what the website's deploy leaves out (`*.local.json`, `resume-data.json`, `data/recipes/`): `data/identity.local.json` was ignored by git but sat in the working tree, and the app would have embedded it in its binary (the private files now live outside the repo, see above). `data/` is staged from an allowlist (`data/example.json`, `data/example-resumes/`: the only paths the app fetches; `checks/desktop-check.mjs` re-reads `src/` to keep that true), so a stray file in `data/` is never copied. `beforeBuildCommand` then runs `checks/preflight-deploy.mjs _desktop --app`, the deploy's privacy gate without its web-only requirements (`sw.js`, `.nojekyll`), and the build stops on a finding. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Link a folder works too (below); updates are not in this build.
+An experimental [Tauri 2](https://tauri.app) wrapper in `src-tauri/`. The app itself is unchanged: `scripts/desktop-stage.mjs` copies the files it loads into the gitignored `_desktop/` (names normalised to Unicode NFC; the staged `index.html` alone also allows Tauri's IPC in `connect-src`, so the web build's policy stays `'self'`), and Tauri bundles that folder. `checks/desktop-check.mjs` keeps the copy list whole. The stage script leaves out what the website's deploy leaves out (`*.local.json`, `resume-data.json`, `data/recipes/`): `data/identity.local.json` was ignored by git but sat in the working tree, and the app would have embedded it in its binary (the private files now live outside the repo, see above). `data/` is staged from an allowlist (`data/example.json`, `data/example-library.json`, `data/example-resumes/`: the only paths the app fetches; `checks/desktop-check.mjs` re-reads `src/` to keep that true), so a stray file in `data/` is never copied. `beforeBuildCommand` then runs `checks/preflight-deploy.mjs _desktop --app`, the deploy's privacy gate without its web-only requirements (`sw.js`, `.nojekyll`), and the build stops on a finding. In the desktop app, Export > PDF asks for a file name and writes the PDF directly (macOS only; elsewhere it falls back to the print dialog). Link a folder works too (below); updates are not in this build.
 
 Prerequisites: Rust (`brew install rustup`, then `rustup default stable`) and the Tauri CLI, which is not a dependency of this repo. Run it with `npx @tauri-apps/cli@2.12.2 ...` (or `cargo install tauri-cli --version '~2.12'` and `cargo tauri ...`). The `tauri` crate is pinned to a minor version because the raw WKWebView types behind the PDF export can change between minors.
 
@@ -500,7 +501,7 @@ The README lists the features; this is the full tour as it stood at 0.7.4, kept 
 - **The press.** Pressable controls take the class `press` and a tier in `data-tier` (primary, one a view at most; secondary, the default; tertiary): a raised face with an edge and a flat shadow, a lift on hover, travel on press with the shadow closing. The travel is a transform, so nothing moves; the geometry is in `:root` (`--press-p-*`, `--press-s-*`, `--press-t-*`) and the edge and shadow colours (`--press-edge`, `--press-sh`) are in each drink's blocks. `src/ui/press.js` holds the look while Enter or Space is down. Under reduced motion there is no transition, and the pressed look stays.
 - **Tags and focus.** Tag the version in use (type, Enter). Click a job type or tag to see which bullets have a matching version, then *Select bullets for X*: one undo step, never touching *Keep*.
 - **Languages:** English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Czech and Hungarian. Switching moves an A4 resume to that language's A4 format. A text with no version in the resume's language prints in English, outlined, and is listed in the card; click it to write it, or mark it *same in every language*.
-- **Design:** one page, two, or as many as needed; Letter or A4; six looks, each with its section style, fonts, text size, density, colour and key words; an accent with a live contrast check; themes (import CSS, JSON or DTCG design tokens, export DTCG); the photo, set in About you (cropped to 35 × 45 mm, with a note on where photos are expected).
+- **Look:** one page, two, or as many as needed; Letter or A4; six looks, each with its section style, fonts, text size, density, colour and key words; an accent with a live contrast check; themes (import CSS, JSON or DTCG design tokens, export DTCG); the photo, set in About you (cropped to 35 × 45 mm, with a note on where photos are expected).
 - **Export:** pre-flight checks, then **PDF** (print, with the page size set), a self-contained **HTML page**, **plain text / ATS**, **JSON Resume**, and a **backup** of everything.
 - **Files.** *⋯ › Open or import* (or drop a file anywhere, or paste JSON) reads a JSON Resume, a BrewCV record or backup, a saved resume, a theme or a photo. With a record already open it shows a **merge preview** (*Will add*, *Different values*, *Only in yours*) before anything changes. A record edited in another tool has those edits turned into versions.
 - **History.** Every change is undoable (Ctrl+Z, 200 steps). Each commit is its own step; only `store.commit(fn, label, merge)` with a merge key (one continuous edit of one thing, such as the accent colour input) merges with the previous commit of the same label and key inside 800 ms. Ticks, switches, moves, locks and deletes never pass a key. Checkpoints are saved before every import, merge, replace and restore, and on each first save; *⋯ › History* compares one with now, restores it or downloads it, and compares any file with the open record.
@@ -537,4 +538,4 @@ The render half of this problem is solved several times over in the open. The li
 
 ## Fonts
 
-Hanken Grotesk and Fira Code, Source Serif 4 and Source Sans 3 (the Classic looks), and IBM Plex Sans and Plex Mono (a pairing the Design view offers), all SIL Open Font License, self-hosted and redistributed here, each in a latin and a latin-ext file so all ten languages have their letters. Licences in `fonts/`. A pairing other than the look's own is loaded by `designCss` with `@font-face` rules (`FONTS[...].faces` in `src/model/design.js`); the look's own is already in its stylesheet.
+Hanken Grotesk and Fira Code, Source Serif 4 and Source Sans 3 (the Classic looks), and IBM Plex Sans and Plex Mono (a pairing the Look view offers), all SIL Open Font License, self-hosted and redistributed here, each in a latin and a latin-ext file so all ten languages have their letters. Licences in `fonts/`. A pairing other than the look's own is loaded by `designCss` with `@font-face` rules (`FONTS[...].faces` in `src/model/design.js`); the look's own is already in its stylesheet.

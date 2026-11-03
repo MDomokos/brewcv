@@ -25,6 +25,7 @@
 //    mouse to (4, 4) before pressing Esc in a test.
 
 import { chromium } from 'playwright';
+import { plainExample } from './lib/plain-example.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -67,8 +68,12 @@ const exe = process.env.CHROME_PATH
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 
 // the sidebar's width for this window and this resume's page limit (layout.js sideWidth): 316 or 340 and up, 520 at most
+// #scr spans the window (its ground scrolls with it); what it draws sits in its content box, left of the rail
+const scrBox = page => page.evaluate(() => { const e = document.querySelector('#scr'), r = e.getBoundingClientRect(), cs = getComputedStyle(e); return { left: r.left + parseFloat(cs.paddingLeft), right: r.right - parseFloat(cs.paddingRight), width: r.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) }; });
 const sideNow = page => page.evaluate(async () => { const { sideWidth } = await import('/src/ui/layout.js'); return sideWidth(innerWidth, innerHeight, window.__wb.store.state.cur?.pageLimit === 1); });
-async function open(page, q, { help = false, drink = null, theme = null, guard = false, fold = false, gate = false } = {}){
+// The sections were written for the example's fourteen resumes with no rounds, files or sends, and make their own: the example's Library (its rounds, files, sends and
+// language copies) is taken off when it loads (checks/lib/plain-example.mjs). `library` keeps it.
+async function open(page, q, { help = false, drink = null, theme = null, guard = false, fold = false, gate = false, library = false } = {}){
   const bad = [];
   // the shortcut sheet is seen once it has been opened (and the panel hint goes with it): a check that is not about it starts with the
   // sheet seen.
@@ -81,6 +86,7 @@ async function open(page, q, { help = false, drink = null, theme = null, guard =
   if (!guard) await page.evaluate(() => window.__wb.edit.setGuard?.(false));
   if (!gate) await page.evaluate(() => window.__wb.hands.gate?.(false));      // the page hovers what the pointer settles on, not what it passes: a check that is not about that sees the hover at once
   if (!fold) await page.evaluate(() => window.__wb.edit.setAutoFold?.(false));      // the versions list folds when it does not fit: a check that is not about that sees every version, in any window      // the name, the dates and the contact are guarded against a stray click; a check that is not about that writes them at once
+  if (!library){ await page.evaluate(plainExample); await page.waitForFunction(() => (window.__wb?.ui?.fills?.length ?? 0) > 0 && !window.__wb.busy(), null, { timeout: 20000 }); }
   return bad;
 }
 // a drop that is refused leaves no note: the toast is as it was marked (under reduced motion the last one stays on)
@@ -94,6 +100,10 @@ const bareSpot = page => page.evaluate(() => { const f = document.querySelector(
 const firstBullet = page => frameDoc(page, d => d.querySelector('.bullets li')?.textContent ?? '');
 // The page is quiet: two frames drawn, fonts loaded, no redraw or autosave waiting, no finite animation running (in the page and in
 // the sheet), the pages not moving, and the pictures of an open screen drawn. It polls every frame for 30 s at most (a loaded machine is slow, not wrong), then a FAIL by name (and the run goes on).
+// the import window from the menu; one already open goes back to its first step
+const openImport = async page => { if (await page.$('#import[open]')) await page.evaluate(() => window.__wb.setView('import')); else { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); } await settle(page); };
+// the step of the import window while it is open, else the sidebar's view
+const importStep = page => page.evaluate(() => document.querySelector('#import[open]')?.dataset.view ?? document.getElementById('body').dataset.view);
 async function settle(page){
   const quiet = () => {       // true when quiet; else false, with the reason in window.__why (the page's CSP forbids evaluating a string)
     const wb = window.__wb, finite = d => d.getAnimations().every(a => a.playState !== 'running' || a.effect.getComputedTiming().iterations === Infinity);
@@ -119,7 +129,10 @@ const writeLine = async (page, text) => { await lineEl(page).focus(); await page
 const caretTo = (page, where) => page.evaluate(w => { const el = window.__wb.onpage.el(); const d = el.ownerDocument, sel = d.defaultView.getSelection(), r = d.createRange(); r.selectNodeContents(el); r.collapse(w === 'start'); sel.removeAllRanges(); sel.addRange(r); }, where);
 const appendLine = async (page, text) => { await lineEl(page).first().focus(); await caretTo(page, 'end'); await page.keyboard.insertText(text); await settle(page); };
 // Open a saved resume the way a person does: through the switcher under the name in the head.
+// the Export place has no name card, rail or place tabs: back to where it was opened from
+async function leaveExport(page){ if (await page.evaluate(() => ['export', 'sent'].includes(window.__wb.ui.view) && !!window.__wb.ui.xp)){ await page.evaluate(() => window.__wb.export.back()); await settle(page); } }
 async function openByName(page, text){
+  await leaveExport(page);
   if (!(await page.isVisible('#switcher'))) await page.click('#docname-btn');
   await page.waitForSelector('#switcher .sopt');
   await page.fill('#switcher #sw-q', text);       // the name window lists the recent ones; a search lists them all
@@ -146,7 +159,9 @@ const rect = (page, s) => page.$eval(s, el => el.getBoundingClientRect().toJSON(
 // Mark as sent: the end of Export
 async function markSent(page){ await page.evaluate(() => window.__wb.dock.setMode('export')); await settle(page); await page.click('[data-act=mark-sent]'); }
 // The Outline: Edit with nothing selected
-async function toEditHome(page){ await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await settle(page); }
+// every section of the Outline starts folded: the tests that read the lines of Summary and Experience open them first
+async function openOl(page){ for (const sid of ['summary', 'experience']){ const t = page.locator(`#outline [data-act=ol-toggle][data-g="sec:${sid}"][aria-expanded=false]`); if (await t.count()) await t.click(); } await settle(page); }
+async function toEditHome(page){ await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await settle(page); await openOl(page); }
 // The first job selected: its lines are the movable rows
 async function toJobOutline(page){ await toEditHome(page); await page.click('#outline [data-act=select-section][data-id=experience]'); await settle(page); await page.locator('#body .jobname').first().click(); await settle(page); }      // from the Outline: the section, then the job by its name (a click on the page would write the title)
 // + Add lives in the Record tab's header
@@ -170,10 +185,10 @@ if (want('layout: the page and the sidebar, centred in the window')) for (const 
   let s = await rect(page, '#sheet'), c = await rect(page, '#col'), hd = await rect(page, '#head');
   const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
   ok(`${w}×${h}: loads with no console errors`, bad.length === 0, bad[0] ?? '');
-  ok(`${w}×${h}: the sidebar is open, with the rail beside it: Edit, Design and Export are its tabs (none in the name card), Edit is selected; nothing is selected, so Edit shows the Outline`, await page.isVisible('#body') && await page.isVisible('#head') && await page.isVisible('#rail') && !(await page.$('#tabs')) && (await page.$$('#rail [role=tab]')).length === 3 && (await page.$$('#head [role=tab]')).length === 0 && (await page.getAttribute('#tab-edit', 'aria-selected')) === 'true' && (await page.getAttribute('#body', 'data-mode')) === 'outline');
+  ok(`${w}×${h}: the sidebar is open, with the rail beside it: Content and Look are its tabs (none in the name card; Export is a place of its own), Edit is selected; nothing is selected, so Edit shows the Outline`, await page.isVisible('#body') && await page.isVisible('#head') && await page.isVisible('#rail') && !(await page.$('#tabs')) && (await page.$$('#rail [role=tab]')).length === 2 && (await page.$$('#head [role=tab]')).length === 0 && (await page.getAttribute('#tab-edit', 'aria-selected')) === 'true' && (await page.getAttribute('#body', 'data-mode')) === 'outline');
   const rl = await rect(page, '#rail');
   ok(`${w}×${h}: the page runs the full height (16px from top and bottom) and sits in the room left of the rail`, Math.abs(s.top - 16) < 1 && Math.abs(h - s.bottom - 16) < 1 && s.right < rl.left - 16 + 1, `${s.right.toFixed(1)} ${rl.left.toFixed(1)}`);
-  ok(`${w}×${h}: the sidebar is as wide as sideWidth says (316 under 1400px windows, 340 from there, more beside a one-page resume), 16px from the top, the bottom and the right; the 54px rail touches it`, Math.abs(c.width - await sideNow(page)) < 1 && Math.abs(c.top - 16) < 1 && Math.abs(c.height - (h - 32)) < 1 && Math.abs(w - c.right - 16) < 1 && Math.abs(rl.width - 54) < 1 && Math.abs(rl.right - c.left) < 1, `${c.width}px`);
+  ok(`${w}×${h}: the sidebar is as wide as sideWidth says (316 under 1400px windows, 340 from there, more beside a one-page resume), 16px from the top and the bottom, 16px and the stacked sheets' gutter from the right; the 54px rail touches it`, Math.abs(c.width - await sideNow(page)) < 1 && Math.abs(c.top - 16) < 1 && Math.abs(c.height - (h - 32)) < 1 && Math.abs(w - c.right - 16 - await page.evaluate(async () => (await import('/src/ui/layout.js')).SIDE_EDGE)) < 1 && Math.abs(rl.width - 54) < 1 && Math.abs(rl.right - c.left) < 1, `${c.width}px`);
   ok(`${w}×${h}: the page is centred in the room left of the rail`, Math.abs((s.left + s.right) / 2 - (rl.left - 16) / 2) < 2, `${((s.left + s.right) / 2).toFixed(1)} vs ${((rl.left - 16) / 2).toFixed(1)}`);
   ok(`${w}×${h}: the name card: the name and the menu (no Saved, Fit, logo, Save to file, undo, redo or tabs); the seam: the logo, the tabs, Saved, undo and redo; the places are tabs on top (no page bars: they are Export's)`, await page.evaluate(() => { const hd = document.querySelector('#head'), rail = document.querySelector('#rail'); return !hd.querySelector('.logoswitch') && !!hd.querySelector('#docname-btn') && !hd.querySelector('#savestate') && !hd.querySelector('#filestate') && !hd.querySelector('[data-act=undo]') && !!hd.querySelector('[data-act=menu]') && !!rail.querySelector('.logoswitch') && ['undo', 'redo'].every(a => rail.querySelector(`[data-act=${a}]`)) && !!rail.querySelector('.rhist #savestate') && !rail.querySelector('.scr, .meter') && !hd.querySelector('.meter, [data-act=fit]') && document.querySelectorAll('#ptabs .ptab').length === 3; }));
   ok(`${w}×${h}: there is no footer: nothing is drawn at the bottom, and the editor card runs to the column's end, under the name card`, await page.evaluate(() => !document.querySelector('#foot')?.getClientRects().length && !document.querySelector('#foot')?.children.length) && Math.abs((await rect(page, '#body')).bottom - c.bottom) < 1 && (await rect(page, '#ptabs')).top === c.top && hd.top > c.top && hd.bottom < (await rect(page, '#body')).top);
@@ -190,7 +205,7 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   const key = k => page.keyboard.press(k);
   ok('the sidebar is on screen with its rail, no old tabs, no fold and no panel mode', await page.isVisible('#body') && await page.isVisible('#rail') && !(await page.$('#tabs')) && !(await page.$('.is-folded')) && (await page.evaluate(() => window.__wb.ui.panel)) === undefined && (await page.evaluate(() => window.__wb.ui.folded)) === undefined);
   ok('E does nothing now: the sidebar does not fold', (await key('e'), await settle(page), await page.isVisible('#body') && await page.isVisible('#head')));
-  ok('Edit, Design and Export are a vertical tab list in the rail: one tab stop, roving', await page.evaluate(() => { const l = document.querySelector('#rail [role=tablist]'); return !!l && l.getAttribute('aria-orientation') === 'vertical' && [...l.querySelectorAll('[role=tab]')].map(b => b.dataset.m).join() === 'edit,design,export' && l.querySelectorAll('[tabindex="0"]').length === 1 && l.querySelectorAll('[tabindex="-1"]').length === 2 && l.getAttribute('aria-label') && [...l.querySelectorAll('[role=tab]')].every(b => b.getAttribute('aria-controls') === 'body'); }));
+  ok('Content and Look are a vertical tab list in the rail (Export is a place of its own): one tab stop, roving', await page.evaluate(() => { const l = document.querySelector('#rail [role=tablist]'); return !!l && l.getAttribute('aria-orientation') === 'vertical' && [...l.querySelectorAll('[role=tab]')].map(b => b.dataset.m).join() === 'edit,design' && l.querySelectorAll('[tabindex="0"]').length === 1 && l.querySelectorAll('[tabindex="-1"]').length === 1 && l.getAttribute('aria-label') && [...l.querySelectorAll('[role=tab]')].every(b => b.getAttribute('aria-controls') === 'body'); }));
   // the zoom bar: only while the pointer is over the page
   await page.mouse.move(1450, 20); await page.waitForTimeout(800);
   ok('the zoom bar is hidden while the pointer is away from the page', !(await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on'))) && (await page.evaluate(() => +getComputedStyle(document.querySelector('#zoombar')).opacity)) < 0.05);
@@ -234,16 +249,17 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   ok('…and back at once if it returns while the bar is fading out', await page.evaluate(() => document.querySelector('#zoombar').classList.contains('on')));
   await page.mouse.move(300, 120, { steps: 3 }); await page.waitForTimeout(1500);
   await key('0'); await settle(page);
-  // Edit, Design and Export: the arrows move between the tabs and open each
+  // Content and Look: the arrows move between the tabs and open each (Export is a place of its own)
   await page.click('#tab-edit'); await settle(page);
   await page.focus('#tab-edit'); await key('ArrowDown'); await settle(page);
   ok('↓ moves to Design and opens it, the focus on it', (await S()).tab === 'design' && (await S()).view === 'design' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-design');
   await key('End'); await settle(page);
-  ok('End goes to Export, Home back to Edit', (await S()).tab === 'export' && (await (async () => { await key('Home'); await settle(page); return (await S()).tab === 'edit' && (await page.getAttribute('#body', 'data-view')) === 'outline'; })()));
+  await key('Home'); await settle(page);
+  ok('End goes to Look, Home back to Content', (await (async () => { await key('End'); await settle(page); return (await S()).tab === 'design'; })()) && (await (async () => { await key('Home'); await settle(page); return (await S()).tab === 'edit' && (await page.getAttribute('#body', 'data-view')) === 'outline'; })()));
   // keyboard: a disabled tab is skipped, Record leaves Edit as the tab stop, the menu takes the focus, an Outline line hands it to the inspector and Esc hands it back
   await page.evaluate(() => { document.querySelector('#tab-design').disabled = true; });
   await page.focus('#tab-edit'); await key('ArrowDown'); await settle(page);
-  ok('↓ skips a disabled Design tab', (await S()).tab === 'export' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-export');
+  ok('↓ skips a disabled Look tab: Content keeps the focus', (await S()).tab === 'edit' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-edit');
   await page.click('#tab-edit'); await settle(page);
   await page.evaluate(() => window.__wb.setView('record')); await settle(page);
   ok('in Career the rail has no Edit, Design or Export tabs (they are the editor’s), and the Career tab is current', (await page.evaluate(() => window.__wb.ui.view)) === 'record' && await page.evaluate(() => !document.querySelector('#rail [role=tab]') && document.querySelector('#ptabs [aria-current=page]')?.dataset.p === 'career'));
@@ -253,7 +269,7 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   await page.click('[data-act=menu]'); await page.waitForTimeout(100);
   ok('the ⋯ menu takes the focus on its first item, and ↓ moves on', await page.evaluate(() => document.activeElement?.closest('.menu') !== null) && await (async () => { await key('ArrowDown'); return page.evaluate(() => !!document.activeElement?.closest('.menu') && document.activeElement !== document.querySelector('.menu [role=menuitem]')); })());
   await key('Escape'); await settle(page);
-  await page.click('#tab-edit'); await settle(page);
+  await page.click('#tab-edit'); await settle(page); await openOl(page);
   await page.locator('#outline .clt:visible').first().click(); await settle(page);
   ok('opening a line from the Outline puts the focus on the inspector’s heading', await page.evaluate(() => document.activeElement?.matches('#body .title')));
   for (let i = 0; i < 3 && (await page.evaluate(() => window.__wb.ui.sel.kind)) !== 'none'; i++){ await key('Escape'); await settle(page); }
@@ -261,11 +277,11 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   ok('the stripe on the sidebar’s top is gone', await page.evaluate(() => ['none', 'normal'].includes(getComputedStyle(document.querySelector('#body'), '::before').content)));
   // the page's x never moves with a sheet or a selection
   const xs = [];
-  for (const m of ['edit', 'design', 'export']){ await page.click(`#tab-${m}`); await settle(page); xs.push(Math.round((await rect(page, '#sheet')).left * 10)); }
+  for (const m of ['edit', 'design']){ await page.click(`#tab-${m}`); await settle(page); xs.push(Math.round((await rect(page, '#sheet')).left * 10)); }
   await page.mouse.move(4, 4); await key('ArrowDown'); await settle(page); xs.push(Math.round((await rect(page, '#sheet')).left * 10));      // a line selected (a click would write it, and zoom)
   await key('Escape'); await key('Escape'); await settle(page);
   await page.click('#outline [data-act=select-section][data-id=experience]'); await settle(page); await page.locator('#body .jobname').first().click(); await settle(page); xs.push(Math.round((await rect(page, '#sheet')).left * 10));      // a job, from the sidebar (a click on its title would write it, and zoom)
-  ok('the page’s x is the same on Edit, Design and Export and for a line or a job selected', new Set(xs).size === 1 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job', xs.join());
+  ok('the page’s x is the same on Content and Look and for a line or a job selected', new Set(xs).size === 1 && (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'job', xs.join());
   await page.mouse.move(4, 4); await key('Escape'); await key('Escape'); await settle(page);
   // Esc goes up a level
   await sheet.locator('.bullets li').first().click(); await settle(page);
@@ -309,8 +325,8 @@ if (want('one screen: the sidebar, the zoom bar, the shortcut sheet')) {
   ok('the rail’s icons have a hover hint: a title and one line', await page.isVisible('#tip.on') && /Undo/.test(await page.textContent('#tip b')) && (await page.textContent('#tip')).length > 8);
   await page.mouse.move(4, 4);
   // the same hints for a keyboard: on focus, and Esc takes one away
-  await page.focus('#docname-btn'); await page.keyboard.press('Tab'); await page.waitForSelector('#tip.on');
-  ok('a hint shows on keyboard focus too: Tab to the menu button', await page.evaluate(() => document.activeElement?.matches('[data-act=menu]')) && await page.isVisible('#tip.on'));
+  await page.focus('#docname-btn'); await page.keyboard.press('Shift+Tab'); await page.waitForSelector('#tip.on');      // (the menu ends the tag line above the name)
+  ok('a hint shows on keyboard focus too: Shift+Tab to the menu button', await page.evaluate(() => document.activeElement?.matches('[data-act=menu]')) && await page.isVisible('#tip.on'));
   await page.keyboard.press('Escape'); await page.waitForTimeout(150);
   ok('…and Esc takes it away', !(await page.isVisible('#tip.on')));
   await page.focus('#savestate'); await page.waitForSelector('#tip.on');
@@ -417,7 +433,7 @@ if (want('selecting, preview, versions, undo')) {
   const bad = await open(page);
   const sheet = page.frameLocator('#sheet iframe');
   ok('the example opens on its first saved resume', /Example Instruments/.test(await page.textContent('#docname')));
-  ok('the Outline lists the sections in print order when nothing is selected, and says how Fit works', /Fit cuts from the bottom/.test(await page.textContent('#body')) && (await page.$$('#seclist .srow')).length >= 4);
+  ok('the Outline lists the sections in print order when nothing is selected, and says where the resume is kept', /Saved on this device/.test(await page.textContent('#body')) && (await page.$$('#seclist .srow')).length >= 4);
 
   await sheet.locator('.bullets li').first().click(); await settle(page);
   ok('clicking a bullet on the sheet writes it', (await page.getAttribute('#body', 'data-view')) === 'bullet' && (await lineEl(page).count()) === 1);
@@ -475,7 +491,7 @@ if (want('pages, Fit, the Hungarian resume')) {
   await openByName(page, 'Medtech'); await settle(page);
   const pages = await frameDoc(page, d => d.querySelectorAll('.document > .page').length);
   ok('a two-page resume is paginated into two pages', pages === 2, `${pages}`);
-  await page.click('#tab-export'); await settle(page);      // Fit and the page bars are Export's
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);      // Fit and the page bars are Export's
   ok('at 1280×800: a thin bar for each page at the top of Export beside Fit, named by its page, and one page in view', (await page.$$('#meter .meter')).length === 2 && (await page.evaluate(() => document.body.dataset.pages)) === 'one' && await page.evaluate(() => { const n = [...document.querySelectorAll('#meter .meter')].map(m => m.getAttribute('aria-label')); return /page 1/.test(n[0]) && /page 2/.test(n[1]); }));
   await page.click('[data-act=goto-page][data-page="1"]'); await settle(page);
   ok('the meter of page 2 brings page 2 forward', (await page.evaluate(() => window.__wb.ui.page)) === 1 && (await page.getAttribute('#meter .meter[data-page="1"]', 'aria-current')) === 'true');
@@ -483,7 +499,7 @@ if (want('pages, Fit, the Hungarian resume')) {
   ok('no page before the last overflows', fills.slice(0, -1).every(o => !(o > 0)));
 
   await openByName(page, 'Example Instruments');
-  await page.click('#tab-export'); await settle(page);
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);
   const undoBefore = await page.evaluate(() => window.__wb.store.history.undo);
   await page.click('[data-act=fit]');
   await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 60000 });
@@ -515,7 +531,7 @@ const camOf = page => page.evaluate(() => {
 const movedCount = page => page.evaluate(() => window.__moved ?? 0);
 const watchMoved = page => page.evaluate(() => { window.__moved = 0; document.addEventListener('brewcv:pages-moved', () => { window.__moved++; }); });
 // the page bars are Export's: open Export, click the page's bar, and go back to the editor (the camera is not touched by either)
-const viaMeter = async (page, n) => { await page.evaluate(() => window.__wb.setView('export')); await page.click(`[data-act=goto-page][data-page="${n}"]`); await page.evaluate(() => window.__wb.setView(null)); await settle(page); };
+const viaMeter = async (page, n) => { await page.evaluate(() => window.__wb.setView('export')); await page.click(`[data-act=goto-page][data-page="${n}"]`); await settle(page); await page.evaluate(() => window.__wb.setView(null)); await settle(page); };
 const wheel = async (page, dy, dx = 0, at = [400, 400]) => { await page.mouse.move(...at); await page.mouse.wheel(dx, dy); };
 
 if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bright page')) {
@@ -601,7 +617,7 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     await page.keyboard.press('ArrowLeft'); await settle(page);
     ok('← goes back', (await camOf(page)).page === 0);
     await viaMeter(page, 1);
-    ok('a meter goes to its page', (await camOf(page)).page === 1 && Math.abs((await camOf(page)).x - (c0.x - step)) < 1.5);
+    { const c = await camOf(page); ok('a meter goes to its page', c.page === 1 && Math.abs(c.x - (c0.x - step)) < 1.5, `page ${c.page}, x ${c.x.toFixed(1)} vs ${(c0.x - step).toFixed(1)}`); }
     ok('the camera told the page layer once it settled', (await movedCount(page)) >= 1);
 
     // a faded page stays clickable
@@ -683,6 +699,44 @@ if (want('the canvas: both pages or one, the wheel, the hand, the pinch, the bri
     ok('a further Esc at the page level leaves the sidebar folded', await page.evaluate(() => document.body.classList.contains('side-off')));
     await page.keyboard.press('Control+Backslash'); await settle(page);
     ok('a window resize is told to the page layer once it settles', await (async () => { const n0 = await movedCount(page); await page.setViewportSize({ width: 1300, height: 820 }); await settle(page); const n1 = await movedCount(page); return n1 > n0 && n1 - n0 <= 2; })());
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+
+  // ---- Esc at the page level and a click of the middle button fold the sidebar, then fit the whole resume to the window left of the rail ----
+  {
+    const ctx = await newContext({ motion: true, viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    const bad = await open(page);
+    // every page wholly in the window left of the rail, the row centred on the room the layout gives it (mid), as tall as the height allows
+    const whole = () => page.evaluate(() => {
+      const f = document.querySelector('#sheet iframe'), r = f.getBoundingClientRect(), k = r.width / f.offsetWidth, rail = document.querySelector('#rail').getBoundingClientRect();
+      const ps = [...f.contentDocument.querySelectorAll('.document > .page')].map(p => p.getBoundingClientRect()).map(p => ({ l: r.left + p.left * k, r: r.left + p.right * k, t: r.top + p.top * k, b: r.top + p.bottom * k }));
+      const l = Math.min(...ps.map(p => p.l)), rr = Math.max(...ps.map(p => p.r));
+      return { off: document.body.classList.contains('side-off'), n: ps.length, inView: ps.every(p => p.l >= 0 && p.r <= rail.left && p.t >= 0 && p.b <= innerHeight + 0.5),
+        dx: (l + rr) / 2 - window.__wb.ui.layout.view.mid, fillH: (ps[0].b - ps[0].t) / (innerHeight - 32) };
+    });
+    // as tall as fits; two Letter pages share the room at a little under the full height (layout.js FOLDED_SPREAD)
+    const good = (m, min = 1) => m.off && m.inView && Math.abs(m.dx) < 1 && m.fillH >= min - 0.01 && m.fillH < 1.01;
+    for (const which of ['one page', 'two pages', 'two Letter pages']){
+      if (which === 'two pages') await openByName(page, 'Medtech');
+      if (which === 'two Letter pages'){ await page.click('#tab-design'); await settle(page); await page.click('[data-act=d-paper][data-f=us-letter]'); await settle(page); await page.click('#tab-edit'); await settle(page); }
+      const min = which === 'two Letter pages' ? 0.8 : 1;
+      await page.evaluate(() => localStorage.removeItem('rb-esc-fold'));      // this check is about the fold (the init script sets it again in a new frame)
+      await page.mouse.move(4, 4); await page.keyboard.press('='); await settle(page);
+      for (let i = 0; i < 4 && !(await page.evaluate(() => document.body.classList.contains('side-off'))); i++){ await page.keyboard.press('Escape'); await settle(page); }
+      const esc = await whole();
+      ok(`1440×900, ${which}: Esc from a zoomed view folds the sidebar and shows the whole resume, centred and as tall as fits`, good(esc, min) && esc.n === (which === 'one page' ? 1 : 2), JSON.stringify(esc));
+      await page.keyboard.press('Control+Backslash'); await settle(page);
+      const at = await page.evaluate(() => { const f = document.querySelector('#sheet iframe').getBoundingClientRect(); return [Math.max(4, f.left - 30), 300]; });
+      await page.mouse.move(...at); await page.mouse.down({ button: 'middle' }); await page.mouse.up({ button: 'middle' }); await settle(page);
+      const mid = await whole();
+      ok(`1440×900, ${which}: a click of the middle button does the same`, good(mid, min), JSON.stringify(mid));
+      await page.keyboard.press('Control+Backslash'); await settle(page);
+    }
+    await page.evaluate(() => localStorage.setItem('rb-esc-fold', 'off'));
+    await page.mouse.move(600, 300); await page.mouse.down({ button: 'middle' }); await page.mouse.up({ button: 'middle' }); await settle(page);
+    ok('with the fold off, a click of the middle button leaves the sidebar open', !(await whole()).off);
     ok('no console errors', bad.length === 0, bad[0] ?? '');
     await ctx.close();
   }
@@ -1267,7 +1321,7 @@ if (want('the welcome language step, the interface language, Settings')) {
     await pickLang(page, 'en'); await settle(page);
     u = await ui(page);
     ok('+ Add a language adds English and switches the resume to it', u.cur === 'en' && JSON.stringify(u.langs) === '["de","en"]', JSON.stringify(u));
-    ok('the interface follows the resume into English', u.lang === 'en' && u.design === 'Design');
+    ok('the interface follows the resume into English', u.lang === 'en' && u.design === 'Look');
     ok('and the toast is already in English', /This resume is now in English/.test(await page.textContent('#toast')));
     await page.click('#docname-btn'); await settle(page);
     ok('the language list now has just the two in use', (await page.$$eval('#sw-lang option', o => o.filter(x => !/^[+-]/.test(x.value)).length)) === 2);
@@ -1383,8 +1437,8 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   // the timeline, under the cards
   await page.evaluate(() => { document.querySelector('#scr').scrollTop = 0; });
   ok('the timeline is under the cards: two columns, five jobs and three beside them', await page.isVisible('#checklist .rectl .tl2') && (await page.$$('#checklist .rectl .tl2 .main .row')).length === 5 && (await page.$$('#checklist .rectl .tl2 .side .srow')).length === 3 && !(await page.$('#timeline')));
-  const tl = await rect(page, '#checklist .rectl'), scr = await rect(page, '#scr'), col = await rect(page, '#col');
-  ok('it is as wide as Career’s content: Career is drawn left of the sidebar (in #scr), 16px from the window’s edge, and does not reach the seam', tl.left >= scr.left && tl.right <= scr.right && Math.abs(scr.left - 16) < 1 && scr.right < col.left - 54 && Math.abs(col.right - (await page.evaluate(() => innerWidth - 16))) < 1, `${tl.left}-${tl.right} vs ${scr.left}-${scr.right}`);
+  const tl = await rect(page, '#checklist .rectl'), scr = await scrBox(page), col = await rect(page, '#col');
+  ok('it is as wide as Career’s content: Career is drawn left of the sidebar (in #scr), 20px from the window’s edge, and does not reach the seam', tl.left >= scr.left && tl.right <= scr.right + 1 && Math.abs(scr.left - 20) < 1 && scr.right < col.left - 54 && Math.abs(col.right - (await page.evaluate(async () => innerWidth - 16 - (await import('/src/ui/layout.js')).SIDE_EDGE))) < 1, `${tl.left}-${tl.right} vs ${scr.left}-${scr.right}`);
   await page.click('#checklist .rectl .row:has-text("Prototyping Technician")'); await settle(page);
   ok('an entry in it opens in the inspector, and the place stays', (await page.evaluate(() => window.__wb.ui.view)) === 'record' && !!(await page.$('#body .clg[data-g=poly]')) && await page.evaluate(() => document.querySelectorAll('#scr .rectl .is-sel').length) === 1);
   await page.click('#checklist .rectl .srow:has-text("M.Eng.")'); await settle(page);
@@ -1501,7 +1555,7 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
     ok('the answers appear on the page as they are typed', (await frameDoc(p3, d => d.body.textContent)).includes('Robin Vale'));
     for (let i = 0; i < 6; i++){ if (await p3.isVisible('[data-act=ob-skip]')) await p3.click('[data-act=ob-skip]'); else if (await p3.isVisible('[data-act=ob-next]')) await p3.click('[data-act=ob-next]'); await settle(p3); }
     if (await p3.isVisible('[data-act=ob-finish]')) await p3.click('[data-act=ob-finish]'); await settle(p3);
-    ok('Start editing brings the rest in: the header with Edit, Design and Export, and the Outline', await p3.isVisible('#head') && await p3.isVisible('#tab-edit') && /Fit cuts from the bottom/.test(await p3.textContent('#body')));
+    ok('Start editing brings the rest in: the header with Edit, Design and Export, and the Outline', await p3.isVisible('#head') && await p3.isVisible('#tab-edit') && /Saved on this device/.test(await p3.textContent('#body')));
     await openAdd(p3); await settle(p3);
     ok('+ Add lists every kind: job, education, project, skills, languages, certificates, publications, interests, references, and “Something else”', ['work', 'education', 'project', 'skills', 'languages', 'certificates', 'publications', 'interests', 'references'].every(async k => true) && (await p3.$$('.addm [data-act=c-add]')).length >= 9 && await p3.isVisible('.addm [data-act=c-kind-new]'));
     await p3.click('.addm [data-what=work]'); await settle(p3);
@@ -1538,10 +1592,11 @@ if (want('adding to the record: + Add, an empty record, projects, kinds, referen
   const out = await frameDoc(page, d => d.body.textContent);
   ok('put on the resume, the Projects section prints it, title and meta line and bullets', out.includes('Formula Student chassis jig') && out.includes('welding jig'));
   ok('and it paginates', (await page.evaluate(() => window.__wb.ui.fills.every(p => !(p.overflow > 0)))));
-  await page.click('#tab-export'); await settle(page);      // Fit is Export's
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);      // Fit is Export's
   await page.click('[data-act=fit]');
   await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 60000 }); await settle(page);
   ok('Fit runs with it on', /%/.test(await page.getAttribute('#meter .meter', 'aria-label')) && (await st()).cur.sections.find(x => x.id === 'projects')?.weight !== 0);
+  await page.evaluate(() => window.__wb.export.back()); await settle(page);
   await page.click('#tab-edit'); await settle(page);
 
   // a custom kind: Awards, from the preset
@@ -1927,10 +1982,11 @@ if (want('saved resumes')) {
   await page.waitForFunction(() => /Saved on this device/.test(document.querySelector('#announce')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
   ok('Saved has no role of its own; a finished save is said through the #announce live region', (await page.getAttribute('#savestate', 'role')) === null && /Saved on this device/.test(await page.textContent('#announce')));
   await page.evaluate(n => window.__wb.store.commit(d => { d.cur.name = n; }, 'name'), nameWas);      // later steps look the resume up by its name
-  await page.click('#tab-export'); await settle(page);
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);
   ok('Save to file is always there (in Export), outline not filled, with where the file stands', !(await page.isDisabled('#filestate')) && !(await page.getAttribute('#filestate', 'class')).includes('primary') && /Not saved to a file yet/.test(await page.textContent('#fileline')));
+  await page.evaluate(() => window.__wb.export.back()); await settle(page);
   await page.click('#tab-edit'); await settle(page);
-  ok('there is no Resumes tab: the rail’s tab list has Edit, Design and Export; the Library is a place tab on top of the column (no screen buttons in the rail)', (await page.$$('#rail [role=tab]')).length === 3 && !/Resumes/.test(await page.textContent('#rail [role=tablist]')) && (await page.$$('#ptabs .ptab')).length === 3 && (await page.$$('#rail .scr')).length === 0);
+  ok('there is no Resumes tab: the rail’s tab list has Content and Look (Export is a place); the Library is a place tab on top of the column (no screen buttons in the rail)', (await page.$$('#rail [role=tab]')).length === 2 && !/Resumes/.test(await page.textContent('#rail [role=tablist]')) && (await page.$$('#ptabs .ptab')).length === 3 && (await page.$$('#rail .scr')).length === 0);
   ok('the menu is the short one', await (async () => { await page.click('[data-act=menu]'); const t = await page.textContent('.menu'); await page.keyboard.press('Escape'); await page.click('[data-act=menu]').catch(() => {}); return !/Saved resumes|New resume|Restore a backup|Languages you use/.test(t) && /Open or import/.test(t) && !/Save to file/.test(t) && /History and checkpoints/.test(t) && /Settings/.test(t) && !/Privacy|Source code|Keyboard shortcuts/.test(t) && /Load the example/.test(t) && /Start over/.test(t); })());
   await page.mouse.click(4, 400); await settle(page);
 
@@ -1993,6 +2049,7 @@ if (want('saved resumes')) {
   await markSent(page); await settle(page); await page.click('[data-act=sv-do]'); await settle(page);
   r = saved(await st());
   ok('after a change, Save makes a second snapshot', r.snapshots.length === 2);
+  await leaveExport(page);
   await page.click('#docname-btn'); await settle(page);
   ok('the switcher folds the snapshots under their resume', (await page.$$('#switcher .swrow.is-cur .snapline')).length >= 2 && /Sent to Smoke Test Co/.test(await page.textContent('#switcher .swrow.is-cur')));
 
@@ -2075,15 +2132,16 @@ if (want('saved resumes')) {
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher [data-act=sw-manage]'); await settle(page);
   ok('Manage all opens the Library, a place of its own drawn left of the sidebar (#scr), with its inspector in the sidebar, the selected card focused, and the place card small', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && !(await page.isVisible('#switcher')) && (await rect(page, '#scr')).width > 700 && (await rect(page, '#head')).width < 450 && await page.evaluate(() => document.querySelector('#body').dataset.view === 'inspector' && document.activeElement?.matches('#scr .rcard.sel .rsel')));
-  ok('…with the search box, three views (Job type, Date, Company), a tick box on each card, and in the inspector Use for a new job, Open and the row menu', (await page.$$('#resumes [data-act=scr-view]')).length === 3 && (await page.getAttribute('#resumes [data-act=scr-view][aria-pressed=true]', 'data-v')) === 'type' && !!(await page.$('#body .iacts .smore')) && (await page.$$('#resumes .rcard .rtick')).length > 10 && await page.isVisible('#scr-q'));
-  ok('Compare is not offered until something is ticked, and is off until two are', !(await page.$('#scr-cmp')) && (await page.check('#resumes .rcard[data-rid="Example Instruments - Design Engineer.json"] .rtick'), await page.isDisabled('#scr-cmp')));
+  ok('…with the search box, three views (Job type, Date, Company), a tick box on each card, and in the inspector Use for a new job, Open and the row menu', (await page.$$('#scr-group option')).length === 3 && (await page.$eval('#scr-group', s => s.value)) === 'type' && !!(await page.$('#body .iacts .smore')) && (await page.$$('#resumes .rcard .rtick')).length > 10 && await page.isVisible('#scr-q'));
+  ok('Compare is not offered until two are ticked', !(await page.$('#scr-cmp')) && (await page.check('#resumes .rcard[data-rid="Example Instruments - Design Engineer.json"] .rtick'), !(await page.$('#scr-cmp'))));
   await page.check('#resumes .rcard:has-text("Helix") .rtick');
-  ok('two ticks turn Compare on', !(await page.isDisabled('#scr-cmp')) && /Compare 2/.test(await page.textContent('#scr-cmp')));
+  ok('two ticks offer Compare', !(await page.isDisabled('#scr-cmp')) && /Compare 2/.test(await page.textContent('#scr-cmp')));
   await page.click('#scr-cmp'); await settle(page);
   ok('Compare opens the two side by side, a mode of the Library', (await page.getAttribute('#scr', 'data-view')) === 'compare' && (await page.$$('table.cmp tbody tr')).length > 8 && (await page.$$('table.cmp tr.diff-row')).length > 0);
   await page.click('#compare [data-act=scr-back]'); await settle(page);
   ok('its way back reopens the list with the two still ticked', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && (await page.$$('#resumes .rtick:checked')).length === 2);
-  await page.click('#resumes [data-act=scr-view][data-v=date]'); await settle(page);
+  await page.click('#resumes [data-act=scr-clear]'); await settle(page);      // with ticks the list's bar is the selection line
+  await pickOption(page, '#scr-group', 'date'); await settle(page);
   ok('the Date view: the year bands, the open resume under Now, newest first', (await page.$$('#resumes h3.lbl')).length >= 1 && /Now/.test(await page.textContent('#resumes h3.lbl')));
   if (await page.$('#resumes .rcard:not(.open):has(.rbadges .pill) .rsel')){ await page.click('#resumes .rcard:not(.open):has(.rbadges .pill) .rsel >> nth=0'); await settle(page); }
   ok('…and the sends of a resume are listed in the inspector, under it', (await page.$$('#body .oi-sent [data-act=sw-snap]')).length >= 1);
@@ -2092,8 +2150,8 @@ if (want('saved resumes')) {
   await page.click('[data-act=snap-close]'); await settle(page);
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher [data-act=sw-manage]'); await settle(page);
-  ok('the view you left it on is remembered (Date)', (await page.getAttribute('#resumes [data-act=scr-view][aria-pressed=true]', 'data-v')) === 'date');
-  await page.click('#resumes [data-act=scr-view][data-v=company]'); await settle(page);
+  ok('the view you left it on is remembered (Date)', (await page.$eval('#scr-group', s => s.value)) === 'date');
+  await pickOption(page, '#scr-group', 'company'); await settle(page);
   ok('the Company view: grouped by the company of the For line and of each send, outreach marked', (await page.$$('#resumes h3.lbl')).length >= 5 && /Smoke Test Co/.test(await page.textContent('#resumes')) && /Geospatial/.test(await page.textContent('#resumes')));
   if (await page.$('#resumes [data-act=scr-clear]')){ await page.click('#resumes [data-act=scr-clear]'); await settle(page); } // ticked resumes stay in the results, so untick the Compare pair first
   await page.fill('#scr-q', 'smoke test'); await settle(page);
@@ -2102,7 +2160,7 @@ if (want('saved resumes')) {
   ok('Esc clears the search, and Esc again stays in the Library (it never changes place)', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && await page.inputValue('#scr-q') === '');
   await page.click('#ptabs [data-p=editor]'); await settle(page);
   await page.click('#ptabs [data-p=library]'); await settle(page);
-  await page.click('#resumes [data-act=scr-view][data-v=type]'); await settle(page);
+  await pickOption(page, '#scr-group', 'type'); await settle(page);
   await page.click('#resumes .rcard[data-rid="Helix Diagnostics - Product Development Engineer.json"] .thumbwrap'); await settle(page);
   await page.click('#resumes .rcard[data-rid="Helix Diagnostics - Product Development Engineer.json"] .thumbwrap'); await settle(page);
   ok('clicking a card’s picture selects it, and a second click opens it', /Helix Diagnostics/.test(await page.textContent('#docname')) && (await page.evaluate(() => window.__wb.ui.view)) === null, await page.textContent('#docname'));
@@ -2223,13 +2281,20 @@ if (want('import, merge, history')) {
   page.on('dialog', d => d.accept('Smoke checkpoint'));
   const st = () => page.evaluate(() => window.__wb.store.state);
   const jr = fs.readFileSync(path.join(ROOT, 'checks/fixtures/jsonresume-sample.json'), 'utf8');
-  await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page);
+  await openImport(page);
   ok('⋯ › Open or import shows the one door', await page.isVisible('#imp-paste') && await page.isVisible('[data-act=imp-pick]'));
+  const under = await page.evaluate(() => ({ view: window.__wb.ui.view, body: document.getElementById('body').dataset.view }));
+  ok('…in a window over the editor, which stays as it was behind it', await page.evaluate(() => !!document.querySelector('#import[open]')) && !under.view && under.body !== 'import', JSON.stringify(under));
+  await page.click('#import [data-act=imp-close]'); await settle(page);
+  ok('× closes it: the editor as it was, the focus back on the menu', await page.evaluate(b => !document.querySelector('#import[open]') && !window.__wb.ui.view && document.getElementById('body').dataset.view === b && !!document.activeElement?.matches('[data-act=menu]'), under.body), await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80)));
+  await page.evaluate(text => { const dt = new DataTransfer(); dt.items.add(new File([text], 'dropped.json', { type: 'application/json' })); document.getElementById('col').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); }, jr); await settle(page);
+  ok('a file dropped on the window opens the import window on its review', (await importStep(page)) === 'review' && /A JSON Resume/.test(await page.textContent('#import .title')));
+  await page.click('#import [data-act=goto][data-v=import]'); await settle(page);
   await page.fill('#imp-paste', '{"basics": '); await page.click('[data-act=imp-paste]'); await settle(page);
-  ok('broken JSON says why', /valid JSON/.test(await page.textContent('#body')));
-  await page.click('[data-act=goto][data-v=import]'); await settle(page);
+  ok('broken JSON says why', /valid JSON/.test(await page.textContent('#import')));
+  await page.click('#import [data-act=goto][data-v=import]'); await settle(page);
   await page.fill('#imp-paste', jr); await page.click('[data-act=imp-paste]'); await settle(page);
-  ok('a pasted JSON Resume is recognised, with a review card', /A JSON Resume/.test(await page.textContent('#body .title')) && /Claims/.test(await page.textContent('table.kv')));
+  ok('a pasted JSON Resume is recognised, with a review card', /A JSON Resume/.test(await page.textContent('#import .title')) && /Claims/.test(await page.textContent('table.kv')));
   ok('a linked photo is not fetched', /linked, not embedded/.test(await page.textContent('table.kv')));
   await page.click('[data-act=imp-merge]'); await settle(page);
   ok('add to the example: the merge preview groups what it found', (await page.$$('.mgroup')).length >= 2 && (await page.$$('.mi input[type=checkbox]')).length > 3);
@@ -2243,7 +2308,7 @@ if (want('import, merge, history')) {
   await page.keyboard.press('Control+z'); await settle(page);
   ok('and Ctrl+Z takes the merge back', !(await st()).record.work.some(w => w.name === 'Fjord Instruments'));
 
-  await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page);
+  await openImport(page);
   await page.fill('#imp-paste', jr); await page.click('[data-act=imp-paste]'); await settle(page);
   await page.click('[data-act=imp-replace]'); await settle(page);
   ok('opening it instead makes it the record', (await st()).record.basics.name === 'Robin Vale' && /Robin Vale/.test(await frameDoc(page, d => d.body.textContent)));
@@ -2252,7 +2317,7 @@ if (want('import, merge, history')) {
   // a record edited outside: its edits become versions
   const ex = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/example.json'), 'utf8'));
   ex.work[0].highlights[0] = 'Edited in a text editor, outside the app.';
-  await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page);
+  await openImport(page);
   await page.fill('#imp-paste', JSON.stringify(ex)); await page.click('[data-act=imp-paste]'); await settle(page);
   ok('a record edited outside says so', /Edited outside/.test(await page.textContent('table.kv')) && await page.isChecked('#imp-outside'));
   await page.click('[data-act=imp-replace]'); await settle(page);
@@ -2285,11 +2350,11 @@ if (want('import: documents on the one door — reading, the layout view, what�
   const bad = await open(page);
   await page.evaluate(() => window.__wb.store.commit(d => { d.record.meta.owner = 'Sam Example'; }, 'smoke: make it mine'));      // the example on its own is replaced, not merged into
   const st = () => page.evaluate(() => window.__wb.store.state);
-  const view = () => page.getAttribute('#body', 'data-view');
-  const door = async () => { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page); };
-  const drop = async files => { await door(); await page.setInputFiles('#file', files); await page.waitForSelector('#body[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page); };      // reading a PDF is not the page's own work: wait for its screen
-  const rows = () => page.$$eval('#body [data-file]', es => es.map(e => ({ status: e.dataset.status, kind: e.dataset.kind, lines: Number(e.dataset.lines), read: e.dataset.read, doubts: e.dataset.doubts })));
-  const receipt = () => page.$$eval('#body [data-doc]', es => es.map(e => ({ kind: e.dataset.kind, safe: e.dataset.safe, read: e.dataset.read, record: e.dataset.record, kept: e.dataset.kept })));
+  const view = () => importStep(page);
+  const door = async () => { await openImport(page); };
+  const drop = async files => { await door(); await page.setInputFiles('#file', files); await page.waitForSelector('#import[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page); };      // reading a PDF is not the page's own work: wait for its screen
+  const rows = () => page.$$eval('#import [data-file]', es => es.map(e => ({ status: e.dataset.status, kind: e.dataset.kind, lines: Number(e.dataset.lines), read: e.dataset.read, doubts: e.dataset.doubts })));
+  const receipt = () => page.$$eval('#import [data-doc]', es => es.map(e => ({ kind: e.dataset.kind, safe: e.dataset.safe, read: e.dataset.read, record: e.dataset.record, kept: e.dataset.kept })));
   const defaults = state => JSON.stringify(state.record.facts.map(f => [f.id, f.default]));
   const WORD = path.join(FIX, 'helix-1col-word.docx'), PDF = path.join(FIX, 'helix-1col-word.pdf');
   const s0 = await st();
@@ -2303,7 +2368,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
   ok('a file with no doubt shows no layout view (a Word file has none; the PDF is another format and adds nothing)', (await page.$$('[data-layout]')).length === 0 && r[0].doubts === '' && r[1].doubts === '');
   await page.click('[data-act=imp-continue]'); await settle(page);
   ok('Continue shows What’s new', (await view()) === 'whatsnew');
-  const sections = await page.$$eval('#body [data-needs], #body [data-unplaced]', es => es.map(e => (e.hasAttribute('data-needs') ? 'needs' : 'unplaced')));
+  const sections = await page.$$eval('#import [data-needs], #import [data-unplaced]', es => es.map(e => (e.hasAttribute('data-needs') ? 'needs' : 'unplaced')));
   ok('Needs you comes first, then the lines we couldn’t place', sections.length === 2 && sections[0] === 'needs' && sections[1] === 'unplaced', sections.join());
   const need = '[data-need="0.0"]';
   ok('a plain value that differs is a choice with two buttons, and the first choice is to keep yours', (await page.getAttribute(need, 'data-chosen')) === 'keep' && (await page.$$(`${need} [data-act=imp-need]`)).length === 2);
@@ -2318,7 +2383,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
   ok('one line put under a job by hand, the rest skipped, and one value chosen: the button counts the 2 changes it will make', nApply === 2, String(nApply));
   const undoN0 = (await page.evaluate(() => window.__wb.store.history)).undo;
   await page.evaluate(() => { const b = document.querySelector('[data-act=imp-apply]'); b.click(); b.click(); });      // a second click while the first is at work does nothing: the button is disabled at once
-  await page.waitForSelector('#body[data-view=receipt]'); await settle(page);
+  await page.waitForSelector('#import[data-view=receipt]'); await settle(page);
   const s1 = await st();
   ok('Add (clicked twice at once) makes one step of the undo history and one checkpoint, and shows the receipt', (await view()) === 'receipt' && (await page.evaluate(() => window.__wb.store.history)).undo === undoN0 + 1 && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).filter(c => c.kind === 'import').length === 1);
   const stamped = s1.record.variants.filter(v => !s0.record.variants.some(x => x.id === v.id));
@@ -2335,6 +2400,19 @@ if (want('import: documents on the one door — reading, the layout view, what�
   await page.click('[data-act=imp-undo-import]'); await settle(page);
   const s4 = await st();
   ok('Undo takes back the whole import in one step: the career, the documents and the log are as before', JSON.stringify(s4.record) === JSON.stringify(s0.record) && (s4.documents ?? []).length === 0 && (s4.imports ?? []).length === 0 && !['reading', 'whatsnew', 'receipt'].includes(await view()));
+  // ---- Add files in the Library: the same window, over the Library; Close clears the filters that would hide the new file ----
+  await page.evaluate(() => window.__wb.setView('resumes')); await settle(page);
+  await pickOption(page, '#scr-show', 'sent'); await page.fill('#scr-q', 'zzz-nothing'); await settle(page);
+  await page.click('#resumes [data-act=goto][data-v=import]'); await settle(page);
+  ok('Add files in the Library opens the import window over it: a modal dialog named by its title, the Library behind it as it was', await page.evaluate(() => { const d = document.querySelector('#import[open]'); return !!d && window.__wb.ui.view === 'resumes' && d.getAttribute('role') === 'dialog' && d.getAttribute('aria-modal') === 'true' && document.getElementById(d.getAttribute('aria-labelledby'))?.closest('#import') === d && document.querySelector('#scr-q')?.value === 'zzz-nothing'; }) && await page.isVisible('[data-act=imp-pick]'));
+  await page.setInputFiles('#file', WORD); await page.waitForSelector('#import[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page);
+  await page.click('[data-act=imp-continue]'); await settle(page);
+  for (const k of await page.$$eval('[data-place]', es => es.map(e => e.dataset.place))) await pickOption(page, `[data-place="${k}"]`, 'skip');
+  await page.click('[data-act=imp-apply]'); await page.waitForSelector('#import[data-view=receipt]'); await settle(page);
+  await page.click('[data-act=imp-done]'); await settle(page);
+  const back = await page.evaluate(() => ({ view: window.__wb.ui.view, open: !!document.querySelector('#import[open]'), focus: !!document.activeElement?.matches('#resumes [data-act=goto][data-v=import]'), sent: document.querySelector('#scr-show')?.value, q: document.querySelector('#scr-q')?.value, docs: document.querySelectorAll('#resumes .rdoc').length }));
+  ok('…and Close returns to the Library, the focus on Add files, with Sent only off and the search cleared, the new file’s card in view', back.view === 'resumes' && !back.open && back.focus && back.sent === 'all' && back.q === '' && back.docs >= 1, JSON.stringify(back));
+  await page.evaluate(() => window.__wb.store.undo()); await settle(page);
   await drop([WORD, PDF]);
   await page.click('[data-act=imp-continue]'); await settle(page);
   for (const k of await page.$$eval('[data-place]', es => es.map(e => e.dataset.place))) await pickOption(page, `[data-place="${k}"]`, 'skip');
@@ -2344,7 +2422,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
   const saved = path.join(tmp, 'saved-brewcv.json'); await dl.saveAs(saved); await settle(page);
   rc = await receipt();
   ok('after Save to file it says saved, and is still not safe: a download alone proves nothing', rc.every(x => x.kept === 'saved' && x.safe === 'false'), JSON.stringify(rc));
-  await page.click('[data-act=imp-check]'); await page.setInputFiles('#file', saved); await page.waitForFunction(() => document.querySelector('#body [data-doc][data-kept=file]'), null, { timeout: 30000 }); await settle(page);
+  await page.click('[data-act=imp-check]'); await page.setInputFiles('#file', saved); await page.waitForFunction(() => document.querySelector('#import [data-doc][data-kept=file]'), null, { timeout: 30000 }); await settle(page);
   rc = await receipt();
   ok('after Check a saved file finds the originals in it, each row is kept in brewcv.json and safe to delete', (await view()) === 'receipt' && rc.every(x => x.kept === 'file' && x.safe === 'true'), JSON.stringify(rc));
   await page.click('[data-act=imp-check]'); await page.setInputFiles('#file', WORD); await page.waitForTimeout(500); await settle(page);
@@ -2352,11 +2430,19 @@ if (want('import: documents on the one door — reading, the layout view, what�
   await page.click('[data-act=imp-done]'); await settle(page);
   const sAfter = await st();
 
-  // ---- the same files again ----
+  // ---- the same files again (after an Add files closed with Esc, which leaves the Library and its search as they were) ----
+  await page.evaluate(() => window.__wb.setView('resumes')); await settle(page);
+  await page.fill('#scr-q', 'zzz-nothing'); await settle(page);
+  await page.click('#resumes [data-act=goto][data-v=import]'); await settle(page);
+  await page.keyboard.press('Escape'); await settle(page);
+  const esc = await page.evaluate(() => ({ view: window.__wb.ui.view, open: !!document.querySelector('#import[open]'), focus: !!document.activeElement?.matches('#resumes [data-act=goto][data-v=import]'), q: document.querySelector('#scr-q')?.value }));
+  ok('Esc closes the import window: the Library as it was, its search kept, the focus back on Add files', esc.view === 'resumes' && !esc.open && esc.focus && esc.q === 'zzz-nothing', JSON.stringify(esc));
   await drop([WORD, PDF]);
   r = await rows();
   ok('the same files dropped again are merged before: nothing new, nothing to continue with', r.length === 2 && r.every(x => x.status === 'seen') && (await page.$$('[data-act=imp-continue]')).length === 0, JSON.stringify(r));
   await page.click('[data-act=imp-done]'); await settle(page);
+  ok('Close with nothing added returns to the Library it was opened over, its search kept', await page.evaluate(() => window.__wb.ui.view === 'resumes' && !document.querySelector('#import[open]') && document.querySelector('#scr-q')?.value === 'zzz-nothing'));
+  await page.fill('#scr-q', ''); await settle(page);
   const s2 = await st();
   ok('and nothing in the career or the log changed', JSON.stringify(s2.record) === JSON.stringify(sAfter.record) && s2.imports.length === 2 && s2.documents.length === 2);
 
@@ -2411,14 +2497,14 @@ if (want('import: documents on the one door — reading, the layout view, what�
   // ---- a text pasted, and files that cannot be read ----
   await door();
   await page.fill('#imp-paste', 'Hello\nthis is no resume at all');
-  await page.click('[data-act=imp-paste]'); await page.waitForSelector('#body[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page);
+  await page.click('[data-act=imp-paste]'); await page.waitForSelector('#import[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page);
   ok('pasted text that is not JSON is read like a text file', (await view()) === 'reading' && (await rows()).length === 1);
   const old = path.join(tmp, 'old.doc'); fs.writeFileSync(old, Buffer.concat([Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), Buffer.from('W\0o\0r\0d\0D\0o\0c\0u\0m\0e\0n\0t', 'latin1')]));
   const blob = path.join(tmp, 'thing.afpub'); fs.writeFileSync(blob, Buffer.from([0, 1, 2, 3, 4, 5, 6, 7, 8]));
   await drop([old, blob, path.join(FIX, 'example-twocol-medium-letter.pdf')]);
   r = await rows();
   ok('an old Word file says what to do (an error row with no way on), another type is kept as a file, and the good one beside them is still read', r[0].status === 'error' && r[1].status === 'unread' && r[2].status === 'resume');
-  await page.click('[data-act=goto][data-v=import]'); await settle(page);
+  await page.click('#import [data-act=goto][data-v=import]'); await settle(page);
 
   // ---- the language a file is read in ----
   await drop([path.join(FIX, 'example-b2-hu-a4.pdf')]);
@@ -2428,7 +2514,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
   ok('changing the menu reads the file again in that language (English finds no jobs here)', (await page.$eval('[data-file="0"] [data-flang]', e => e.value)) === 'en');
   await pickOption(page, '[data-file="0"] [data-flang]', 'hu');
   await page.waitForFunction(() => document.querySelector('[data-file="0"]').dataset.doubts === '', null, { timeout: 15000 });
-  await page.click('[data-act=goto][data-v=import]'); await settle(page);
+  await page.click('#import [data-act=goto][data-v=import]'); await settle(page);
 
   // ---- hardening: imported text is text, never HTML ----
   const X_ = '<img src=x data-xss onerror="window.__xss=1">';
@@ -2439,7 +2525,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
   await page.fill('#imp-paste', JSON.stringify(hostile)); await page.click('[data-act=imp-paste]'); await settle(page);
   const probe = () => page.evaluate(() => ({ nodes: document.querySelectorAll('[data-xss]').length + [...document.querySelectorAll('iframe')].reduce((n, f) => { try { return n + f.contentDocument.querySelectorAll('[data-xss]').length; } catch { return n; } }, 0), ran: window.__xss ?? null }));
   let pr = await probe();
-  ok('a file’s HTML shows as text on the review screen: no element made, nothing run', /<img src=x/.test(await page.textContent('#body')) && pr.nodes === 0 && pr.ran === null, JSON.stringify(pr));
+  ok('a file’s HTML shows as text on the review screen: no element made, nothing run', /<img src=x/.test(await page.textContent('#import')) && pr.nodes === 0 && pr.ran === null, JSON.stringify(pr));
   await page.click('[data-act=imp-replace]'); await settle(page);
   const seen = [];
   for (const v of [null, 'resumes', 'record', 'career']) { await page.evaluate(x => window.__wb.setView(x), v); await settle(page); pr = await probe(); seen.push(pr); }
@@ -2455,7 +2541,7 @@ if (want('import: a JSON Resume from an assistant is checked against its documen
   const page = await ctx.newPage();
   const bad = await open(page);
   const st = () => page.evaluate(() => window.__wb.store.state);
-  const view = () => page.getAttribute('#body', 'data-view');
+  const view = () => importStep(page);
   const A = 'Calibrated the torque rig every week against a reference gauge.', B = 'Trained two new technicians on the clean room gowning procedure.', B2 = B.replace('Trained', 'Coached');
   // the career's own details and first job, so the file differs from it by the two lines only; the document holds the same details and the lines as written
   const own = await page.evaluate(() => { const r = window.__wb.store.state.record, w = r.work[0]; return { basics: { name: r.basics.name, label: r.basics.label, email: r.basics.email, phone: r.basics.phone, location: { city: r.basics.location.city } },
@@ -2466,8 +2552,8 @@ if (want('import: a JSON Resume from an assistant is checked against its documen
     d.documents = [{ id: 'doc-000000000001', name: 'Old CV 2023.pdf', type: 'application/pdf', size: 10, sha256: '0'.repeat(64), addedAt: '2026-01-01T00:00:00.000Z', meta: { kind: 'resume' }, from: 'imported', taken: { claims: [], versions: [], skipped: [], unplaced: 0 }, text }];
   }, 'smoke: a document'), text);
   const jr = { basics: own.basics, work: [{ ...own.job, highlights: [A, B2] }], meta: { source: 'old cv 2023.PDF' } };
-  const paste = async () => { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page); await page.fill('#imp-paste', JSON.stringify(jr)); await page.click('[data-act=imp-paste]'); await settle(page); };
-  const rows = () => page.$$eval('#body input[data-mi]', es => es.map(e => [e.checked, e.parentElement.textContent]));
+  const paste = async () => { await openImport(page); await page.fill('#imp-paste', JSON.stringify(jr)); await page.click('[data-act=imp-paste]'); await settle(page); };
+  const rows = () => page.$$eval('#import input[data-mi]', es => es.map(e => [e.checked, e.parentElement.textContent]));
   await paste();
   ok('a JSON Resume whose meta.source names a Library document is checked against it, with the document chosen in the menu, and some texts are not in it',
     (await view()) === 'review' && (await page.getAttribute('[data-check]', 'data-check')) === 'missing' && (await page.$eval('#imp-doc', e => e.value)) === 'doc-000000000001');
@@ -2476,7 +2562,7 @@ if (want('import: a JSON Resume from an assistant is checked against its documen
   await page.click('[data-act=imp-merge]'); await settle(page);
   let r = await rows();
   ok('and every item starts unticked', (await view()) === 'merge' && r.length >= 2 && r.every(x => !x[0]), JSON.stringify(r.map(x => x[0])));
-  await page.click('[data-act=goto][data-v=review]'); await settle(page);
+  await page.click('#import [data-act=goto][data-v=review]'); await settle(page);
   await pickOption(page, '#imp-doc', 'doc-000000000001');
   await page.click('[data-act=imp-merge]'); await settle(page);
   r = await rows();
@@ -2498,8 +2584,8 @@ if (want('import: an example career starts from the newest file')) {
   const page = await ctx.newPage();
   const bad = await open(page);
   const st = () => page.evaluate(() => window.__wb.store.state);
-  await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page);
-  await page.setInputFiles('#file', [path.join(ROOT, 'checks/fixtures/import/example-twocol-no-name-letter.pdf'), path.join(ROOT, 'checks/fixtures/import/helix-1col-word.docx')]); await page.waitForSelector('#body[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page);
+  await openImport(page);
+  await page.setInputFiles('#file', [path.join(ROOT, 'checks/fixtures/import/example-twocol-no-name-letter.pdf'), path.join(ROOT, 'checks/fixtures/import/helix-1col-word.docx')]); await page.waitForSelector('#import[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page);
   await page.click('[data-act=imp-continue]'); await settle(page);
   ok('the example is not merged into: the page says the career starts from the newest file', (await page.$$('[data-start]')).length === 1);
   await page.click('[data-act=imp-apply]'); await settle(page);
@@ -2522,12 +2608,12 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   const bad = await open(page);
   await page.evaluate(() => window.__wb.store.commit(d => { d.record.meta.owner = 'Sam Example'; }, 'smoke: make it mine'));      // the example on its own is replaced, not merged into
   const st = () => page.evaluate(() => window.__wb.store.state);
-  const view = () => page.getAttribute('#body', 'data-view');
-  const drop = async files => { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page); await page.setInputFiles('#file', files); await page.waitForSelector('#body[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page); };
+  const view = () => importStep(page);
+  const drop = async files => { await openImport(page); await page.setInputFiles('#file', files); await page.waitForSelector('#import[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page); };
   const unfold = async () => { await page.evaluate(() => document.querySelectorAll('#scr .rround').forEach(d => { d.open = true; })); await settle(page); };      // the folds of rounds are shut until opened
-  const lib = async v => { await page.evaluate(() => window.__wb.setView('resumes')); await settle(page); if (v) { await page.click(`[data-act=scr-view][data-v=${v}]`); await settle(page); } await unfold(); };
-  const skipLines = async (c, memberId) => {      // every line a file left unplaced put away ("Not a resume line"), so nothing of it is waiting
-    await lib(); await page.click(`${c} .rsel`); await settle(page);
+  const lib = async v => { await page.evaluate(() => window.__wb.setView('resumes')); await settle(page); if (v) { await pickOption(page, '#scr-group', v); await settle(page); } await unfold(); };
+  const skipLines = async (d, memberId) => {      // every line a file left unplaced put away ("Not a resume line"), so nothing of it is waiting
+    await lib(); await pick(d);
     if (memberId) { await page.click(`#body .dformats button[data-id="${memberId}"]`); await settle(page); }
     if (!(await page.$('#body [data-act=doc-place]'))) return;
     await page.click('#body [data-act=doc-place]'); await settle(page);
@@ -2554,7 +2640,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   await drop([exported, WORD, HPDF]);
   await page.click('[data-act=imp-continue]'); await settle(page);
   await page.click('[data-act=imp-apply]'); await settle(page);
-  await page.waitForSelector('#body[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
+  await page.waitForSelector('#import[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
   const letter = path.join(tmp, '2025-05-02 Harbour Cycles - Bicycle Mechanic (letter).txt');
   fs.writeFileSync(letter, ['Dear hiring team at Harbour Cycles,', '', 'I am writing to apply for the Bicycle Mechanic role because I enjoy bringing tired machines back to life for people who ride them every day.', `In my last role ${lines0[2].replace(/^(.)/, c => c.toLowerCase()).replace(/\.$/, '')}, and I would like to do the same for your repair stand.`, 'I would welcome a conversation about how that experience could help your workshop this season.', '', 'Kind regards,', 'Dana Okonkwo'].join('\n'));
   await drop([bikes, letter]);      // …and the other resume with its letter, nothing of the resume ticked: its words are only in the Library
@@ -2562,25 +2648,33 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   for (const b of await page.$$('[data-pi]:checked')) await b.uncheck();
   for (const k of await page.$$eval('[data-place]', es => es.map(e => e.dataset.place))) await pickOption(page, `[data-place="${k}"]`, 'skip');
   await page.click('[data-act=imp-apply]'); await settle(page);
-  await page.waitForSelector('#body[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
+  await page.waitForSelector('#import[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
   const s1 = await st();
   const docOf = n => s1.documents.find(d => d.name === n);
   const A = docOf(path.basename(exported)), Bw = docOf('helix-1col-word.docx'), Bp = docOf('helix-1col-word.pdf'), Cb = docOf(path.basename(bikes)), Cl = docOf(path.basename(letter));
   ok('five files are documents; the Word file’s PDF is another format of it; the letter was dropped with the other resume', s1.documents.length === 5 && Bp.of === Bw.id && !A.of && !Cb.of && A.meta.kind === 'resume' && Cl.meta.kind === 'cover-letter' && Cl.with === Cb.id);
   const card = d => `#scr .rdoc[data-did="${d.id}"]`;
+  // a document that belongs to a resume is no card of its own: it is reached through that resume's inspector (its Files)
+  const groupOf = d => page.evaluate(async id => { const RS = await import('/src/model/resumes.js'), g = RS.docGroups(window.__wb.store.state).find(x => x.members.some(m => m.id === id)); return { id: g.id, resume: g.resume ?? null }; }, d.id);
+  const pick = async d => {
+    if (await page.$(card(d))) { await page.click(`${card(d)} .rsel`); return settle(page); }
+    const g = await groupOf(d);
+    if (!(await page.$(`#scr .rcard.sel[data-rid="${g.resume}"]`))) { await page.click(`#scr .rcard[data-rid="${g.resume}"] .rsel`); await settle(page); }      // a second click on a selected card would open it
+    await page.click(`#body .oi-files [data-act=doc-sel][data-id="${g.id}"]`); await settle(page);
+  };
   const DOCID = (state, f) => state.documents.find(d => d.name === path.basename(f)).id;
 
   // ---- a card in each view; formats of one resume are one card; an exported file sits with its resume ----
   for (const v of ['type', 'date', 'company']) {
     await lib(v);
     const n = await page.$$eval('#scr .rdoc', es => es.map(e => e.dataset.formats).sort().join());
-    ok(`${v} view: a document card for each group: the exported file, the other resume with its letter and the Word file with its PDF (one card each, two formats)`, n === '1,2,2' && (await page.$$(`${card(A)}, ${card(Bw)}, ${card(Cb)}`)).length === 3, n);
+    ok(`${v} view: a document card for each group tied to no resume: the other resume with its letter and the Word file with its PDF (one card each, two formats); the exported file is no card`, n === '2,2' && (await page.$$(`${card(Bw)}, ${card(Cb)}`)).length === 2 && !(await page.$(card(A))), n);
   }
   await lib('type');
-  const prev = id => page.$eval(`#scr .rdoc[data-did="${id}"]`, e => e.previousElementSibling?.dataset.rid ?? e.previousElementSibling?.dataset.did ?? '');
-  ok('the exported file’s card says where it was exported from and comes right after that saved resume; the other two files stand on their own', (await page.getAttribute(card(A), 'data-from')) === s0.openId && (await page.textContent(`${card(A)} .rfrom`)).length > 0 && (await prev(A.id)) === s0.openId && !(await page.getAttribute(card(Cb), 'data-from')) && !(await page.getAttribute(card(Bw), 'data-from')));
-  ok('the Word file’s lines are not all placed, the other resume’s are all dealt with; each card has a badge per format', (await page.getAttribute(card(Cb), 'data-state')) === 'record' && (await page.getAttribute(card(Bw), 'data-state')) === 'unplaced' && (await page.$$(`${card(Bw)} .pill`)).length === 2 && (await page.$$(`${card(A)} .pill`)).length === 1);
-  ok('a PDF’s card has its first page as a picture; a Word file’s card has a badge and its first line', (await page.$$(`${card(A)} .dthumb img`)).length === 1 && (await page.$$(`${card(Bw)} .dthumb .dbadge`)).length === 1);
+  const gA = await groupOf(A);
+  ok('the exported file belongs to the saved resume it was exported from: that card’s files chip counts it, and the resume’s inspector lists it under Files; the other two files stand on their own', gA.resume === s0.openId && /\d+ files?/.test(await page.textContent(`#scr .rcard[data-rid="${s0.openId}"] .rfiles`)) && (await pick(A), (await page.$$('#body .insp-doc')).length === 1) && !(await page.getAttribute(card(Cb), 'data-from')) && !(await page.getAttribute(card(Bw), 'data-from')));
+  ok('the Word file’s lines are not all placed, the other resume’s are all dealt with; each card has a badge per format', (await page.getAttribute(card(Cb), 'data-state')) === 'record' && (await page.getAttribute(card(Bw), 'data-state')) === 'unplaced' && (await page.$$(`${card(Bw)} .pill`)).length === 2 && (await page.$$(`${card(Cb)} .pill`)).length === 2);
+  ok('a PDF’s card has its first page as a picture; a Word file’s card has a badge and its first line', (await page.$$(`${card(Cb)} .dthumb img`)).length === 1 && (await page.$$(`${card(Bw)} .dthumb .dbadge`)).length === 1);
 
   await shot('1-library-cards');
   // ---- the inspector: three ticks, the pages of a PDF drawn as pictures, what was taken ----
@@ -2597,7 +2691,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   ok('and for a file that added claims, each links into Career', Bw.taken.claims.length + Bw.taken.versions.length > 0 ? (await page.$$('#body .dtaken [data-act=rec-job]')).length >= 1 : true, JSON.stringify(Bw.taken));
 
   // ---- Rebuild: the exported file becomes a saved resume that prints the same lines ----
-  await page.click(`${card(A)} .rsel`); await settle(page);
+  await lib(); await pick(A);
   await page.click('#body [data-act=doc-rebuild]'); await settle(page);
   const s2 = await st(), made = s2.resumes.find(r => !s0.resumes.some(x => x.id === r.id));
   const lines2 = printedLines(s2.frozen[made.id]);
@@ -2626,7 +2720,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   const s3 = await st(), hd = s3.documents.find(d => d.id === Bw.id);
   ok('the line is now a claim under that job, stamped with the document and tagged imported; the document has one line fewer unplaced; a checkpoint was made first', s3.record.variants.length === v0 + 1 && hd.taken.unplaced === un.length - 1 && s3.record.variants.at(-1).tags.includes('imported') && /^Imported from helix-1col-word\.docx/.test(s3.record.variants.at(-1).source) && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).some(c => /helix-1col-word/.test(c.label)));
 
-  for (const [c, m] of [[card(Bw), Bw.id], [card(Bw), Bp.id], [card(A), null]]) await skipLines(c, m);
+  for (const [d, m] of [[Bw, Bw.id], [Bw, Bp.id], [A, null]]) await skipLines(d, m);
   ok('with every line left over put away, no document of these is waiting on lines', (await st()).documents.filter(d => [Bw, Bp, A].some(x => x.id === d.id)).every(d => d.taken.unplaced === 0 && !d.taken.lines));
 
   // ---- a letter sits with its resume's group; its inspector lists the claims it leans on; Download gives the original back ----
@@ -2663,7 +2757,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   const txt = path.join(tmp, '2026-06-01 Acme - Tester.txt');
   fs.writeFileSync(txt, ['Dana Okonkwo', 'Tester', '', 'Experience', 'Tester', 'Acme · Jan 2020 - Present', 'Wrote the acceptance checks for a firmware update that reached forty thousand devices.'].join('\n'));
   await drop([txt]); await page.click('[data-act=imp-continue]'); await settle(page);
-  await page.click('[data-act=imp-apply]'); await settle(page); await page.waitForSelector('#body[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
+  await page.click('[data-act=imp-apply]'); await settle(page); await page.waitForSelector('#import[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
   const s5 = await st();
   ok('a file imported now goes into the current round', s5.documents.find(d => d.name === path.basename(txt)).round === autumn.id);
   await lib();
@@ -2675,40 +2769,108 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   await pickOption(page, '#body [data-doc-round]', spring.id); await settle(page); await unfold();
   const s6 = await st();
   ok('a resume and a document (all its formats) move to a round from their inspectors, and the resume’s round is not a change to what it prints', s6.resumes.find(r => r.id === s0.openId).round === spring.id && [Bw, Bp].every(d => s6.documents.find(x => x.id === d.id).round === spring.id) && JSON.stringify(s6.frozen) === JSON.stringify(s5.frozen) && (await page.$$(`#scr .rround[data-round="${spring.id}"] .rdoc[data-did="${Bw.id}"]`)).length === 1);
+  const R = s0.openId, R2 = s6.resumes.find(r => r.id !== R && !r.archived).id, roundOf = async id => (await st()).resumes.find(r => r.id === id).round ?? '';
+  // a copy made for a new job goes into the current round, and says so when that is not its original's
+  await page.click(`#scr .rcard[data-rid="${R}"] .rsel`); await settle(page);
+  await page.click('#body [data-act=nj-open]'); await page.fill('#nj-company', 'Copyco'); await page.click('#body [data-act=nj-create]'); await settle(page);
+  const sc = await st(), toastNow = await page.textContent('#toast');
+  ok('a copy of a resume in an older round goes into the current one, and the toast says “Added to” it', sc.cur.round === autumn.id && toastNow.includes('Added to Autumn 2027'), toastNow);
+  await page.evaluate(() => window.__wb.store.undo()); await settle(page); await lib();
+  // the round's name box is typed in readable ink in Tea and Coffee, light and dark
+  await page.click('#scr [data-act=round-new]'); await page.fill('#rd-name', 'Ink');
+  const inks = await page.evaluate(() => {
+    const rgb = s => { const n = s.match(/[\d.]+/g).map(Number); return s.startsWith('color(') ? [...n.slice(0, 3).map(x => x * 255), n[3] ?? 1] : [...n.slice(0, 3), n[3] ?? 1]; };
+    const lum = c => { const [r, g, b] = c.slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const html = document.documentElement, was = [html.dataset.drink, html.dataset.theme], out = [];
+    for (const drink of ['tea', 'coffee']) for (const theme of ['light', 'dark']){
+      html.dataset.drink = drink; html.dataset.theme = theme;
+      const cs = getComputedStyle(document.getElementById('rd-name')), fg = rgb(cs.color), bg = rgb(cs.backgroundColor), [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+      out.push({ at: `${drink}/${theme}`, opaque: bg[3] === 1, ratio: +((a + 0.05) / (b + 0.05)).toFixed(2) });
+    }
+    [html.dataset.drink, html.dataset.theme] = was;
+    return out;
+  });
+  ok('the new round’s name is typed in readable ink on its own box in Tea and Coffee, light and dark (4.5:1 or more)', inks.every(x => x.opaque && x.ratio >= 4.5), JSON.stringify(inks));
+  await page.click('[data-act=round-cancel]'); await settle(page);
+  // ---- a card carried onto a round's name moves there (folded or not, Earlier too); a ticked card takes the ticked ones; Move to round… in the header's selection line; one undo step each ----
+  const only = async keep => { await page.evaluate(k => document.querySelectorAll('#scr .rround').forEach(d => { d.open = k.includes(d.dataset.round); }), keep); await settle(page); };
+  const undos = () => page.evaluate(() => window.__wb.store.history.undo);
+  const carry = async (from, round) => {
+    await page.locator(`${from} .thumbwrap`).scrollIntoViewIfNeeded();
+    const a = await page.locator(`${from} .thumbwrap`).boundingBox(), b = await page.locator(`#scr .rround[data-round="${round}"] > summary`).boundingBox();
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await page.mouse.down();
+    await page.mouse.move(a.x + a.width / 2 + 3, a.y + a.height / 2 + 2);
+    const early = (await page.$$('.wbghost')).length;      // under the threshold: not carried
+    await page.mouse.move(b.x + 20, b.y + b.height / 2, { steps: 6 });
+    const lit = await page.$$eval('#scr .rround > summary.drop-on', es => es.map(e => e.parentElement.dataset.round));
+    await shot('5-carry');
+    await page.mouse.up(); await settle(page);
+    return { early, lit };
+  };
+  await only([spring.id]);
+  const u0 = await undos(), c1 = await carry(`#scr .rcard[data-rid="${R}"]`, autumn.id);
+  ok('a resume card carried onto a folded round’s name: the name is lit under the pointer, the card moves there as one undo step, and nothing is carried before the pointer has moved a little', c1.early === 0 && c1.lit.join() === autumn.id && (await roundOf(R)) === autumn.id && (await undos()) === u0 + 1 && (await page.$$('.wbghost')).length === 0, JSON.stringify(c1));
+  await page.evaluate(() => window.__wb.store.undo()); await settle(page);
+  await only([spring.id]);
+  const c2 = await carry(card(Bw), '');
+  ok('a document card carried onto Earlier takes every file of it out of its round', (await st()).documents.filter(d => d.id === Bw.id || d.id === Bp.id).every(d => !d.round) && c2.lit.join() === '');
+  await page.evaluate(() => window.__wb.store.undo()); await settle(page);
+  await only([spring.id, '']);
+  await page.check(`#scr .rtick[data-cmp="${R}"]`); await page.check(`#scr .rtick[data-cmp="${R2}"]`);
+  const was2 = await roundOf(R2);
+  await only([spring.id]);
+  const u1 = await undos(); await carry(`#scr .rcard[data-rid="${R}"]`, autumn.id);
+  ok('a ticked card carried takes every ticked one with it, as one undo step', (await roundOf(R)) === autumn.id && (await roundOf(R2)) === autumn.id && (await undos()) === u1 + 1);
+  await page.evaluate(() => window.__wb.store.undo()); await settle(page);
+  ok('…and one Undo puts both back', (await roundOf(R)) === spring.id && (await roundOf(R2)) === was2);
+  const popW = async () => { await page.click('#scr-ticks .ddbtn'); const w = await page.evaluate(() => { const p = document.querySelector('.ddpop').getBoundingClientRect(), b = document.querySelector('#scr-ticks .ddbtn').getBoundingClientRect(); return { pop: p.width, right: innerWidth - p.right, btn: b.width }; }); await shot('6-move-to-round'); await page.keyboard.press('Escape'); return w; };
+  ok('two ticked: the floating bar at the list’s foot has Move to round… (the app’s own list) beside Compare and Clear, and there is no other bar under the cards', (await page.$$('#resumes > #scr-ticks .ddbtn + select[data-move-round]')).length === 1 && (await page.$$('#scr-ticks [data-act=scr-compare]')).length === 1 && (await page.$$('#scr-ticks [data-act=scr-clear]')).length === 1 && !(await page.$('#scr-bar')));
+  const pw = await popW();
+  ok('…its list is as wide as its rounds’ names, not stretched to the window’s edge', pw.pop < 360 && pw.right > 200 && pw.pop >= pw.btn - 1, JSON.stringify(pw));
+  await pickOption(page, '#scr-ticks [data-move-round]', autumn.id); await settle(page);
+  ok('Move to round… moves every ticked one, as one undo step', (await roundOf(R)) === autumn.id && (await roundOf(R2)) === autumn.id && (await undos()) === u1 + 1);      // (the Undo before took one off)
+  await page.evaluate(() => window.__wb.store.undo()); await settle(page);
+  await only([spring.id, '']); await page.uncheck(`#scr .rtick[data-cmp="${R2}"]`); await settle(page);
+  ok('one ticked: the floating bar has Move to round… and no Compare', (await page.$$('#scr-ticks select[data-move-round]')).length === 1 && (await page.$$('#scr-ticks [data-act=scr-compare]')).length === 0);
+  await page.click('#scr [data-act=scr-clear]'); await settle(page);
+  ok('none ticked: the floating bar goes and the list bar has its hint again', (await page.$$('#scr-ticks > *')).length === 0 && await page.isHidden('#scr-ticks') && (await page.$$('#scr-hint #scr-tickinfo')).length === 1);
 
-  // ---- the archive: out of the views, searchable, back with Show archived; Nothing is deleted ----
+  // ---- the archive (rounds archive; an item archived in an older file still hides): out of the views, searchable, back with the Archived chip; nothing is deleted ----
   await page.click(`${card(Cb)} .rsel`); await settle(page);
-  await page.click('#body [data-act=doc-archive]'); await settle(page);
-  ok('an archived group leaves the default views', (await page.$$(card(Cb))).length === 0 && (await page.$$('#scr [data-act=scr-archived]')).length === 1 && (await st()).documents.filter(d => d.archived).length === 2);
+  ok('a document’s inspector has no Archive of its own (a round is archived, not an item)', (await page.$$('#body [data-act=doc-archive]')).length === 0);
+  await page.evaluate(async ([w, ids]) => { const DOC = await import('/src/model/documents.js'); window.__wb.store.commit(d => { for (const id of ids) DOC.mark(d, w, id, { archived: true }); }, 'an archive from an older file'); window.__wb.setView(null); window.__wb.setView('resumes'); }, ['documents', await page.evaluate(async g => (await import('/src/model/resumes.js')).docGroups(window.__wb.store.state).find(x => x.id === g).members.map(m => m.id), Cb.id)]); await settle(page); await unfold();
+  ok('an archived group leaves the default views', (await page.$$(card(Cb))).length === 0 && (await page.$$('#scr-show option[value=archived]')).length === 1 && (await st()).documents.filter(d => d.archived).length === 2);
   await page.fill('#scr-q', 'harbour'); await page.dispatchEvent('#scr-q', 'input'); await settle(page);
   ok('an archived group stays searchable: a search finds it, marked archived', (await page.$$(`${card(Cb)}[data-archived]`)).length === 1);
   await page.fill('#scr-q', ''); await page.dispatchEvent('#scr-q', 'input'); await settle(page);
-  await page.click('#scr [data-act=scr-archived]'); await settle(page);
+  await pickOption(page, '#scr-show', 'archived'); await settle(page);
   ok('Show archived brings it back, marked; nothing was deleted', (await page.$$(`${card(Cb)}[data-archived]`)).length === 1);
   await page.click(`${card(Cb)} .rsel`); await settle(page);
+  ok('…its inspector offers only Bring back', (await page.$$('#body [data-act=doc-archive]')).length === 1 && (await page.textContent('#body [data-act=doc-archive]')).trim() === 'Bring back' && (await page.getAttribute('#body [data-act=doc-archive]', 'data-on')) === '0');
   await page.click('#body [data-act=doc-archive]'); await settle(page);
-  ok('Bring back clears the mark, and with nothing archived left the switch goes away', (await st()).documents.filter(d => d.archived).length === 0 && (await page.$$('#scr [data-act=scr-archived]')).length === 0);
+  ok('Bring back clears the mark, and with nothing archived left the switch goes away', (await st()).documents.filter(d => d.archived).length === 0 && (await page.$$('#scr-show option[value=archived]')).length === 0);
 
   // ---- a file under an archived resume is reachable with Show archived ----
   await lib();
-  const fromId = await page.getAttribute(card(A), 'data-from');      // the resume it sits under now (the rebuilt one prints the same lines)
+  const fromId = (await groupOf(A)).resume;      // the resume it belongs to now (the rebuilt one prints the same lines)
   await page.click(`#scr .rcard[data-rid="${fromId}"] .rsel`); await settle(page);
-  await page.click('#body [data-act=rm-archive]'); await settle(page);
+  ok('a resume’s inspector has no Archive of its own', (await page.$$('#body [data-act=rm-archive]')).length === 0);
+  await page.evaluate(async ([w, ids]) => { const DOC = await import('/src/model/documents.js'); window.__wb.store.commit(d => { for (const id of ids) DOC.mark(d, w, id, { archived: true }); }, 'an archive from an older file'); window.__wb.setView(null); window.__wb.setView('resumes'); }, ['resumes', [fromId]]); await settle(page); await unfold();
   await page.click(`#scr .rcard[data-rid="${s0.resumes.find(r => r.id !== fromId).id}"] .rsel`); await settle(page);      // the selected card stays until another is selected
   await page.evaluate(() => window.__wb.setView(null)); await lib();      // the list is drawn again
   ok('a resume archived: it and the file exported from it leave the views', (await page.$$(`#scr .rcard[data-rid="${fromId}"]`)).length === 0 && (await page.$$(card(A))).length === 0);
-  await page.click('#scr [data-act=scr-archived]'); await settle(page);
-  ok('Show archived brings back the resume, and the file exported from it with it', (await page.$$(`#scr .rcard[data-rid="${fromId}"][data-archived]`)).length === 1 && (await page.$$(card(A))).length === 1);
+  await pickOption(page, '#scr-show', 'archived'); await settle(page);
+  ok('Show archived brings back the resume, and the file exported from it with it (its files chip)', (await page.$$(`#scr .rcard[data-rid="${fromId}"][data-archived] .rfiles`)).length === 1);
   await page.click(`#scr .rcard[data-rid="${fromId}"] .rsel`); await settle(page);
   await page.click('#body [data-act=rm-archive]'); await settle(page);
-  ok('and brought back, nothing is archived and the switch goes', (await page.$$('#scr [data-act=scr-archived]')).length === 0 && (await page.$$(card(A))).length === 1);
+  ok('and brought back, nothing is archived and the switch goes', (await page.$$('#scr-show option[value=archived]')).length === 0 && (await page.$$(`#scr .rcard[data-rid="${fromId}"] .rfiles`)).length === 1);
 
   // ---- nothing that drops an original goes while the original is not in a saved file that was checked ----
   const cpsR = (await page.evaluate(() => window.__wb.persist.listCheckpoints())).length, docsR = (await st()).documents.length;
   await page.click(`${card(Cb)} .rsel`); await settle(page);
   await page.click('#body [data-act=doc-remove]'); await settle(page); await page.check('#body [data-lok]');
   await page.click('#body [data-act=doc-remove-do]'); await settle(page);
-  await page.click(`${card(A)} .rsel`); await settle(page);
+  await pick(A);
   await page.click('#body [data-act=doc-keeptext]'); await settle(page); await page.check('#body [data-lok]');
   await page.click('#body [data-act=doc-keeptext-do]'); await settle(page);
   const sR = await st();
@@ -2743,7 +2905,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
 
   // ---- Keep text only drops the original and keeps the text ----
   await lib();
-  await page.click(`${card(A)} .rsel`); await settle(page);
+  await pick(A);
   await page.click('#body [data-act=doc-keeptext]'); await settle(page);
   ok('Keep text only asks for a tick first: the button is off until it is ticked', await page.$eval('#body [data-act=doc-keeptext-do]', b => b.disabled));
   await page.check('#body [data-lok]');
@@ -2756,7 +2918,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   await page.evaluate(() => window.__wb.setView('resumes')); await settle(page);
   await page.click(`#scr .rround[data-round="${spring.id}"] [data-act=round-archive]`); await settle(page);
   ok('an archived round leaves the views with everything in it', (await page.$$(`#scr .rround[data-round="${spring.id}"]`)).length === 0);
-  await page.click('#scr [data-act=scr-archived]'); await settle(page);
+  await pickOption(page, '#scr-show', 'archived'); await settle(page);
   await page.click(`#scr .rround[data-round="${spring.id}"] [data-act=rm-round-open]`); await settle(page);
   const ticks0 = await page.$$eval('#scr [data-rmk]', es => es.map(e => [e.dataset.rmk, e.checked]));
   ok('Remove these… lists the round’s resumes and documents, none ticked, the button off', ticks0.length === 2 && ticks0.every(t => !t[1]) && ticks0.some(t => t[0].startsWith('r:')) && ticks0.some(t => t[0].startsWith('d:')) && await page.$eval('#scr [data-act=rm-round-do]', b => b.disabled));
@@ -2778,7 +2940,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   await drop([WORD]);
   ok('the removed Word file dropped again is read, not “merged before”, and the row says when it was deleted', (await page.$eval('[data-file="0"]', e => [e.dataset.status, e.dataset.deleted])).join() === `resume,${s9.record.removed[`document:${Bw.id}`].at}`);
   await page.click('[data-act=imp-continue]'); await settle(page);
-  await page.click('[data-act=imp-apply]'); await settle(page); await page.waitForSelector('#body[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
+  await page.click('[data-act=imp-apply]'); await settle(page); await page.waitForSelector('#import[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
   const s10 = await st();
   ok('importing it brings it back, with its original, and its mark in the career is gone', s10.documents.some(d => d.id === Bw.id && d.embedded) && !s10.record.removed?.[`document:${Bw.id}`]);
 
@@ -2787,7 +2949,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   const hostile = path.join(tmp, `${X_} 2026-01-01 Corp.txt`);
   fs.writeFileSync(hostile, ['Dana Okonkwo', 'Experience', 'Maker', `Corp ${X_} · Jan 2020 - Present`, `Built ${X_} a thing for the people who use it every day.`].join('\n'));
   await drop([hostile]); await page.click('[data-act=imp-continue]'); await settle(page);
-  await page.click('[data-act=imp-apply]'); await settle(page); await page.waitForSelector('#body[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
+  await page.click('[data-act=imp-apply]'); await settle(page); await page.waitForSelector('#import[data-view=receipt]'); await page.click('[data-act=imp-done]'); await settle(page);
   await lib();
   const hd2 = (await st()).documents.find(d => d.name.includes('data-xss'));
   await page.click(`#scr .rdoc[data-did="${hd2.id}"] .rsel`); await settle(page);
@@ -2811,7 +2973,7 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   const fstate = () => page.evaluate(() => { const f = window.__wb.persist.fileState; return { last: f.last, changes: f.changes }; });
   // where the file stands: the second line of Saved’s hint (the Export panel says it too)
   const head = async () => page.evaluate(() => document.querySelector('#savestate').dataset.tip.split('|')[1]);
-  const saveClick = async () => { if (!(await page.$('#body #filestate'))){ await page.click('#tab-export'); await settle(page); } await page.click('#filestate'); };
+  const saveClick = async () => { if (!(await page.$('#body #filestate'))){ await page.evaluate(() => window.__wb.export.open()); await settle(page); } await page.click('#filestate'); };
   const edit = label => page.evaluate(l => window.__wb.store.commit(d => { d.record.basics.label = l; }, 'smoke edit'), label);
   let n = 0;
   const downloaded = async trigger => {
@@ -2820,7 +2982,7 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
     await d.saveAs(p);
     return { name: d.suggestedFilename(), path: p, json: JSON.parse(fs.readFileSync(p, 'utf8')) };
   };
-  const open1 = async file => { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); await settle(page); await page.setInputFiles('#file', file); await settle(page); };
+  const open1 = async file => { await openImport(page); await page.setInputFiles('#file', file); await settle(page); };
   const copy = (src, fn, name) => { const j = JSON.parse(fs.readFileSync(src, 'utf8')); fn(j); const p = path.join(tmp, name); fs.writeFileSync(p, JSON.stringify(j, null, 2)); return p; };
 
   ok('before any file save, Saved’s hint says so', /Not saved to a file yet/.test(await head()));
@@ -2841,7 +3003,7 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   await edit('Smoke label two'); await settle(page);
   ok('two changes: “2 changes not saved to a file”', /^2 changes not saved to a file/.test(await head()), await head());
 
-  await page.click('#tab-export'); await settle(page);
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);
   const f2 = await downloaded(() => page.keyboard.press('Control+s'));
   ok('Ctrl+S saves to the file too, in any view (here Export)', f2.name === 'brewcv.json' && f2.json.record.basics.label === 'Smoke label two' && f2.json.recordId === f1.json.recordId);
   ok('and the count starts again', /^Saved to file/.test(await head()) && (await fstate()).changes === 0);
@@ -2857,15 +3019,15 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   // opening files next to what this browser has
   const last = (await fstate()).last;
   await open1(mac.path);
-  ok('the file just saved, nothing changed since: “Already up to date”', /Already up to date/.test(await page.textContent('#body')) && !(await page.$('[data-act=imp-replace]')) && (await st()).record.basics.label === 'Smoke label two');
+  ok('the file just saved, nothing changed since: “Already up to date”', /Already up to date/.test(await page.textContent('#import')) && !(await page.$('[data-act=imp-replace]')) && (await st()).record.basics.label === 'Smoke label two');
   // a file with clocks and the same record merges by itself; the warnings below are for a file without clocks (an older backup)
   const oldClocked = copy(mac.path, j => { j.saved = '2020-01-01T00:00:00.000Z'; }, 'older-clocked.json');
   await open1(oldClocked);
-  ok('an older file with clocks merges by itself: nothing to ask, nothing new', (await page.getAttribute('#body .title', 'data-changes')) === '0' && await page.isVisible('[data-act=imp-merged-close]') && !(await page.$('[data-act=imp-replace]')) && (await st()).record.basics.label === 'Smoke label two');
+  ok('an older file with clocks merges by itself: nothing to ask, nothing new', (await page.getAttribute('#import .title', 'data-changes')) === '0' && await page.isVisible('[data-act=imp-merged-close]') && !(await page.$('[data-act=imp-replace]')) && (await st()).record.basics.label === 'Smoke label two');
   await page.click('[data-act=imp-merged-close]'); await settle(page);
   const old = copy(mac.path, j => { j.saved = '2020-01-01T00:00:00.000Z'; delete j.clock; delete j.device; }, 'older.json');
   await open1(old);
-  ok('an older file of this record warns, with Save them first, Merge and Replace anyway', /older than the one you last saved here/.test(await page.textContent('#body'))
+  ok('an older file of this record warns, with Save them first, Merge and Replace anyway', /older than the one you last saved here/.test(await page.textContent('#import'))
     && await page.isVisible('[data-act=imp-save-first]') && await page.isVisible('[data-act=imp-merge]') && await page.isVisible('[data-act=imp-replace]'));
   ok('and nothing has changed', (await st()).record.basics.label === 'Smoke label two' && (await fstate()).last.at === last.at);
   await edit('Not in any file'); await settle(page);
@@ -2878,7 +3040,7 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   ok('a file with clocks that was edited outside is not merged by itself, and offers Replace', !(await page.$('[data-act=imp-merged-close]')) && await page.isVisible('[data-act=imp-replace]') && (await st()).record.basics.label === 'Not in any file');
   const mac0 = copy(mac.path, j => { delete j.clock; delete j.device; }, 'no-clock.json');
   await open1(mac0);
-  ok('with changes not in a file and a file without clocks: “This browser has 1 change that isn’t in any file”', /This browser has 1 change that isn.t in any file/.test(await page.textContent('#body')) && await page.isVisible('[data-act=imp-save-first]'));
+  ok('with changes not in a file and a file without clocks: “This browser has 1 change that isn’t in any file”', /This browser has 1 change that isn.t in any file/.test(await page.textContent('#import')) && await page.isVisible('[data-act=imp-save-first]'));
   const f3 = await downloaded(() => page.click('[data-act=imp-save-first]'));
   await settle(page);
   ok('Save them first saves those changes to the file…', f3.json.record.basics.label === 'Not in any file');
@@ -2887,7 +3049,7 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   ok('with a checkpoint taken first', await page.evaluate(async () => (await window.__wb.persist.listCheckpoints()).some(c => /Before opening/.test(c.label))));
   const other = copy(mac.path, j => { j.recordId = 'someone-elses-record'; j.record.meta.resumeBuilder.recordId = 'someone-elses-record'; }, 'other.json');
   await open1(other);
-  ok('a file from another record says so, with Merge or Replace only', /different career file/.test(await page.textContent('#body')) && await page.isVisible('[data-act=imp-merge]') && await page.isVisible('[data-act=imp-replace]') && !(await page.$('[data-act=imp-save-first]')));
+  ok('a file from another record says so, with Merge or Replace only', /different career file/.test(await page.textContent('#import')) && await page.isVisible('[data-act=imp-merge]') && await page.isVisible('[data-act=imp-replace]') && !(await page.$('[data-act=imp-save-first]')));
   const edited = copy(mac.path, j => { const w = j.record.work.find(x => (x.highlights ?? []).length); w.highlights[0] = 'Reworded in another tool, outside BrewCV.'; }, 'edited.json');
   await open1(edited);
   ok('text edited outside BrewCV in the one file is offered as versions', /Edited outside BrewCV/.test(await page.textContent('table.kv')) && await page.isChecked('#imp-outside'));
@@ -2912,7 +3074,7 @@ if (want('save to file: one file, Ctrl+S, opening it safely')) {
   ok('and its clock carries on from the file it was opened from', Object.keys(back.clock?.keys ?? {}).length > 100 && Object.entries(mac.json.clock.keys['basics.label'].v).every(([a, n]) => back.clock.keys['basics.label'].v[a] >= n) && Object.keys(back.clock.keys['basics.label'].v).length > Object.keys(mac.json.clock.keys['basics.label'].v).length);
   // the first browser opens what the second saved: both have clocks and one record, so it merges by itself
   await open1(path.join(tmp, 'again.json'));
-  ok('a file with clocks from another copy of the record merges by itself, and says how many changes', Number(await page.getAttribute('#body .title', 'data-changes')) >= 1 && (await st()).record.basics.label === 'From the second browser');
+  ok('a file with clocks from another copy of the record merges by itself, and says how many changes', Number(await page.getAttribute('#import .title', 'data-changes')) >= 1 && (await st()).record.basics.label === 'From the second browser');
   ok('a checkpoint was taken first', await page.evaluate(async () => (await window.__wb.persist.listCheckpoints()).some(c => c.kind === 'merge')));
   await page.click('[data-act=imp-merged-close]'); await settle(page);
   await page.keyboard.press('Control+z'); await settle(page);
@@ -2992,10 +3154,10 @@ if (want('export')) {
     ok(`${pick}: no scripts and no app attributes`, !/<script|data-variant|rb-sel/.test(html));
     await off.close();
   }
-  await page.click('#tab-export'); await settle(page);
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);
   ok('Export lists pre-flight checks', (await page.$$('.checks li')).length >= 1);
   // the Review button is a button the size of its label, not a 20 px column, and a major warning holds an export back
-  await openByName(page, 'Example Instruments'); await page.click('#tab-export'); await settle(page);      // an English resume: the heading typed below is an edit the text file leaves out
+  await openByName(page, 'Example Instruments'); await page.evaluate(() => window.__wb.export.open()); await settle(page);      // an English resume: the heading typed below is an edit the text file leaves out
   await page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => T.setSectionLabel(d.record, d.cur, 'experience', 'en', 'Work history'), 'smoke: heading'); });
   await settle(page);
   const rvBox = await page.evaluate(() => { const r = document.querySelector('#body .checks [data-act=review-open]')?.getBoundingClientRect(); return r && { w: r.width, h: r.height }; });
@@ -3009,7 +3171,7 @@ if (want('export')) {
   ok('…its Fix is the one primary press control, Dismiss is secondary', await page.evaluate(() => { const d = document.querySelector('#exblock'); return d.querySelectorAll('.primary').length === 1 && d.querySelector('[data-exb=fix]').dataset.tier === 'primary' && d.querySelector('[data-exb=dismiss]').dataset.tier === 'secondary'; }));
   await page.click('#exblock [data-exb=fix]'); await settle(page);
   ok('…Fix closes it, leaves Export and selects the header, where the photo is', (await dlgs()).n === 0 && !got && await page.evaluate(() => window.__wb.ui.view === null && window.__wb.ui.sel.kind === 'header'));
-  await page.click('#tab-export'); await settle(page);
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);
   const [dl2] = await Promise.all([page.waitForEvent('download'), (async () => { await page.click('[data-act=ex-html]'); await page.waitForSelector('#exblock[open]'); await page.click('#exblock [data-exb=dismiss]'); })()]);
   await settle(page);
   ok('…Dismiss exports anyway', !!dl2 && dl2.suggestedFilename().endsWith('.html') && (await dlgs()).n === 0);
@@ -3024,7 +3186,7 @@ if (want('export')) {
     const medium = async () => (await st()).cur.exportMedium;
     const pressed = () => page.$$eval('[data-act=ex-medium]', bs => bs.filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.dataset.v).join());
     const built = () => page.evaluate(() => window.__wb.export.buildHtml());
-    const note = async () => (await page.textContent('#body .kv .note')).trim();      // one line for the chosen medium, in the interface's language
+    const note = async () => (await page.textContent('#body [data-k=medium] .note')).trim();      // one line for the chosen medium, in the interface's language
     ok('Export offers three choices, a screen first and pressed, and a resume at its default has no exportMedium', (await page.$$eval('[data-act=ex-medium]', bs => bs.map(b => b.dataset.v).join())) === 'screen,print,pen' && await pressed() === 'screen' && !(await medium()));
     const scr = await built();
     ok('for a screen the file has no paper class and no pen', !/medium-print/.test(scr) && !/--accent:transparent/.test(scr));
@@ -3048,13 +3210,30 @@ if (want('export')) {
     const other = await page.evaluate(() => window.__wb.store.state.resumes.filter(r => r.exportMedium).length);
     ok('the choice is the resume\'s own: no other saved resume has one', other === 0);
   }
-  await openByName(page, 'Dunamenti'); await page.click('#tab-export'); await settle(page);
+  await openByName(page, 'Dunamenti'); await page.evaluate(() => window.__wb.export.open()); await settle(page);
   for (const [act, ext] of [['ex-html', 'html'], ['ex-txt', 'txt'], ['ex-json', 'json']]){
     // Dunamenti has the photo switched on and no photo: a major warning, so the first press asks; Dismiss exports it as it is
     const [dl] = await Promise.all([page.waitForEvent('download'), (async () => { await page.click(`[data-act=${act}]`); await page.click('#exblock [data-exb=dismiss]'); })()]);
     const p = path.join(tmp, dl.suggestedFilename());
     await dl.saveAs(p);
     ok(`${ext} downloads, named for the resume`, dl.suggestedFilename().endsWith(`.${ext}`) && /Dunamenti/.test(dl.suggestedFilename()) && fs.statSync(p).size > 500);
+  }
+  // the Export place for several resumes, from the Library: their files come as one ZIP, one file each; Esc goes back to the Library
+  {
+    const { unzip } = await import('../src/parse/unzip.js');
+    await page.evaluate(() => window.__wb.export.back()); await settle(page);
+    await page.keyboard.press('w'); await settle(page);
+    const ids = await page.evaluate(() => window.__wb.store.state.resumes.slice(0, 4).map(r => r.id));
+    await page.evaluate(ids => window.__wb.export.open(ids, 'resumes'), ids);
+    await page.waitForFunction(() => document.querySelectorAll('#xpages .xpfig .xpslot').length >= 4 && !document.querySelector('#body [data-k=ready] li.wait'), null, { timeout: 30000 });
+    const four = await page.evaluate(() => ({ figs: document.querySelectorAll('#xpages .xpfig').length, lines: document.querySelectorAll('#body [data-k=ready] li[data-id]').length, title: document.querySelector('#body .xpwhat .title').textContent, cards: [...document.querySelectorAll('#body [data-k=file] .dl b')].map(b => b.textContent) }));
+    ok('Export of 4: four rows of pages, four ready lines, "4 resumes", each card "· 4 files" (in the interface’s language)', four.figs === 4 && four.lines === 4 && /^4 /.test(four.title) && four.cards.length === 4 && four.cards.every(c => / · 4 \S+$/.test(c)), JSON.stringify(four));
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#body [data-act=ex-json]')]);
+    const z = unzip(new Uint8Array(fs.readFileSync(await dl.path())));
+    const docs = await Promise.all(z.names.map(async n => JSON.parse(new TextDecoder().decode(await z.read(n)))));
+    ok('JSON Resume of 4 is one .zip of four .json files, each named after its resume and each a JSON Resume', dl.suggestedFilename().endsWith('.zip') && z.names.length === 4 && z.names.every(n => n.endsWith('.json')) && new Set(z.names).size === 4 && docs.every(d => d.basics && Array.isArray(d.work)), z.names.join(' | '));
+    await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
+    ok('Esc leaves Export for the Library it was opened from', await page.evaluate(() => window.__wb.ui.view === 'resumes' && !document.getElementById('xpages') && !document.body.classList.contains('is-export')));
   }
   fs.rmSync(tmp, { recursive: true, force: true });
   ok('no console errors', bad.length === 0, bad[0] ?? '');
@@ -3071,6 +3250,7 @@ if (want('design and theme tokens')) {
   await page.click('#tab-design'); await settle(page);
   ok('Design opens from the header', (await page.getAttribute('#body', 'data-view')) === 'design');
   await page.click('[data-act=d-set][data-k=preset][data-v=marker]'); await settle(page);
+  if (!(await page.$('#d-color'))) await page.click('[data-act=d-custom]');      // (the hex field opens from the last swatch)
   await page.fill('#d-color', '#9cc3ff'); await settle(page);
   ok('any colour recolours the Marker section style', (await tabBg()) === 'rgb(156, 195, 255)' && (await st()).cur.accent === '#9cc3ff' && JSON.stringify((await st()).cur.overlays) === '[]' && (await st()).cur.design.preset === 'marker');
   ok('and says the tab text still reads', /readable/.test(await page.textContent('#body')));
@@ -3080,8 +3260,9 @@ if (want('design and theme tokens')) {
   await page.click('[data-act=d-set][data-k=preset][data-v=quiet]'); await settle(page);
   ok('B2 Marker with its own section style: the label is plain text, whatever the accent, and the style left no key', JSON.stringify((await st()).cur.overlays) === '[]' && (await tabBg()) === 'rgba(0, 0, 0, 0)' && !(await st()).cur.design, await tabBg());
   await page.click('[data-act=d-pages][data-n="0"]'); await settle(page);
-  await page.click('#tab-export'); await settle(page);
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);
   ok('pages: as many as needed turns Fit off (Fit is in Export)', (await st()).cur.pageLimit === 0 && await page.isDisabled('[data-act=fit]'));
+  await page.evaluate(() => window.__wb.export.back()); await settle(page);
   await page.click('#tab-design'); await settle(page);
   await page.click('[data-act=d-pages][data-n="1"]'); await settle(page);
   await page.click('[data-act=d-paper][data-f=a4]'); await settle(page);
@@ -3167,6 +3348,7 @@ if (want('design and theme settings')) {
   await undo();
   ok('and offered again on A4', !(await page.isDisabled('[data-act=d-set][data-k=size][data-v=small]')));
   await set('colour', 'green');
+  if (!(await page.$('#d-color'))) await page.click('[data-act=d-custom]');      // (the hex field opens from the last swatch)
   await page.fill('#d-color', '#336699'); await settle(page);
   ok('any colour sets recipe.accent, and a named colour replaces it', (await st()).cur.accent === '#336699' && (await design()).colour === 'green');
   await set('colour', 'pink');
@@ -3228,7 +3410,7 @@ if (want('onboarding and the record')) {
   await page.click('[data-act=ob-finish]'); await settle(page);
   const page1 = await text();
   ok('blank → a finished resume: both jobs, their claims, the degree, the skills', ['Fjord Instruments', 'IP68 housing', 'Northwind Labs', 'B.Sc.', 'Onshape'].every(x => page1.includes(x)));
-  ok('Start editing brings the rest in: the place tabs, the header with Edit, Design and Export (Fit and the meters are Export’s), and the Outline', await page.isVisible('#head') && await page.isVisible('#ptabs') && await page.isVisible('#tab-edit') && !(await page.$('[data-act=fit]')) && /Fit cuts from the bottom/.test(await page.textContent('#body')));
+  ok('Start editing brings the rest in: the place tabs, the header with Edit, Design and Export (Fit and the meters are Export’s), and the Outline', await page.isVisible('#head') && await page.isVisible('#ptabs') && await page.isVisible('#tab-edit') && !(await page.$('[data-act=fit]')) && /Saved on this device/.test(await page.textContent('#body')));
   ok('on A4', (await st()).cur.format === 'a4');
   ok('the first tip shows', /Tip 1 of 3/.test(await page.textContent('#body')));
   ok('and the record validates', await page.evaluate(async () => { const V = await import('./checks/lib/validate.mjs'); const S = await import('./src/model/schema.js'); const s = window.__wb.store.state; return V.validate(S.save(window.__wb.store.materialize(s.record)), s.cur).errors.length === 0; }));
@@ -3586,8 +3768,8 @@ if (want('drinks: Fit, the meters, the moments')) {
   const bad = await open(page);
   const setFills = fills => page.evaluate(f => { window.__wb.ui.fills = f; window.__wb.dock.renderFoot(); }, fills);
   const fitFilled = () => page.$eval('#body [data-act=fit]', b => b.classList.contains('primary'));      // Fit and the page bars are Export's
-  const again = async () => { await page.click('#tab-edit'); await page.click('#tab-export'); await settle(page); };      // Export is drawn again with the new fills
-  await page.click('#tab-export'); await settle(page);
+  const again = async () => { await page.evaluate(() => window.__wb.export.back()); await page.click('#tab-edit'); await page.evaluate(() => window.__wb.export.open()); await settle(page); };      // Export is drawn again with the new fills
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);
   const real = await page.evaluate(() => window.__wb.ui.fills);
   ok('the example opens at 92%: in the band, so Fit is plain', !(await fitFilled()) && Math.abs(100 * real[0].used / real[0].usable - 92) < 2);
   ok('…and Export fills PDF instead: one filled button on the screen', (await page.$eval('[data-act=ex-pdf]', b => b.classList.contains('primary'))) && (await page.$$('#body button.primary')).length === 1);
@@ -3630,10 +3812,10 @@ if (want('drinks: Fit, the meters, the moments')) {
   const rm = await newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   const pg = await rm.newPage();
   await open(pg);
-  await pg.click('#tab-export'); await pg.waitForTimeout(300);
+  await pg.evaluate(() => window.__wb.export.open()); await pg.waitForTimeout(300);
   ok('reduced motion: no steam', await pg.evaluate(() => { const m = document.querySelector('.exfit .meter'); return !m.classList.contains('steam') || getComputedStyle(m.querySelector('.mbar'), '::before').content === 'none'; }));
   await pg.hover('#body [data-act=fit]'); await pg.waitForTimeout(100);
-  ok('reduced motion: Fit and the rail’s tabs do not swing, and the toast does not', await pg.evaluate(() => getComputedStyle(document.querySelector('#body [data-act=fit]')).animationName === 'none' && getComputedStyle(document.querySelector('#tab-export')).animationName === 'none'));
+  ok('reduced motion: Fit and the rail’s tabs do not swing, and the toast does not', await pg.evaluate(() => getComputedStyle(document.querySelector('#body [data-act=fit]')).animationName === 'none' && getComputedStyle(document.querySelector('#tab-design') ?? document.body).animationName === 'none'));
   await pg.evaluate(() => { const t = document.querySelector('#toast'); t.textContent = 'x'; t.className = 'toast on'; }); await pg.waitForTimeout(500);
   ok('…the toast still appears, without swinging', await pg.evaluate(() => { const t = document.querySelector('#toast'); return t.classList.contains('on') && getComputedStyle(t).animationName === 'none' && getComputedStyle(t).opacity === '1'; }));
   await pg.evaluate(() => { const i = document.querySelector('#rail .logo img'); i.classList.add('dunk'); });
@@ -3689,11 +3871,11 @@ if (want('drinks: the page marks, exports, no corner at other sizes')) {
     const p = await c.newPage();
     await open(p, '?memory&welcome', { drink });
     ok(`${drink}: the start screen has no drink corner: its logo is the switch`, !(await p.$('#brewmode')) && await p.isVisible('.logoswitch'));
-    ok(`${drink}: the ways in are drawn on the canvas, one line each (40, 34 and 28px) and told apart by their shape, and the start button is the one filled control`, await p.evaluate(d => {
+    ok(`${drink}: the ways in are drawn on the canvas, one line each (40, 34 and 28px; in the roomy column a one-line name over its note) and told apart by their shape, and the start button is the one filled control`, await p.evaluate(d => {
       const b = k => document.querySelector(`.obchoices .obw.${k} .obb`), cs = k => getComputedStyle(b(k)), h = k => Math.round(b(k).getBoundingClientRect().height);
-      const shapes = d === 'tea' ? cs('p').clipPath !== 'none' && cs('s').borderTopLeftRadius === '16px' && cs('s').borderTopRightRadius === '3px' && cs('t').textDecorationLine === 'underline'
-        : cs('p').borderTopWidth === '2px' && cs('p').boxShadow !== 'none' && cs('s').maskImage !== 'none' && cs('t').textDecorationLine === 'underline';
-      return getComputedStyle(document.querySelector('#body')).backgroundColor === 'rgba(0, 0, 0, 0)' && h('p') === 40 && h('s') === 34 && h('t') === 28 && shapes && document.querySelectorAll('.obchoices .primary').length === 1; }, drink));
+      const shapes = d === 'tea' ? cs('p').clipPath !== 'none' && cs('s').borderTopLeftRadius === '16px' && cs('s').borderTopRightRadius === '3px' && getComputedStyle(b('t').querySelector('.obtx > span')).textDecorationLine === 'underline'
+        : cs('p').borderTopWidth === '2px' && cs('p').boxShadow !== 'none' && cs('s').maskImage !== 'none' && getComputedStyle(b('t').querySelector('.obtx > span')).textDecorationLine === 'underline';
+      return getComputedStyle(document.querySelector('#body')).backgroundColor === 'rgba(0, 0, 0, 0)' && (document.body.classList.contains('intro-roomy') ? ['p', 's', 't'].every(k => b(k).querySelector('.obnote') && new Set([...b(k).querySelector('.obtx > span').getClientRects()].map(r => Math.round(r.top))).size === 1) : h('p') === 40 && h('s') === 34 && h('t') === 28) && shapes && document.querySelectorAll('.obchoices .primary').length === 1; }, drink));
     await c.close();
   }
 }
@@ -3747,7 +3929,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
     await page.click('#head .obcup[data-m=coffee]'); await page.waitForTimeout(1300);
     const coffee = await now();
     ok('the Coffee cup switches the app to Coffee (the same setting as the logo and Settings: rb-drink), the cups and the logo follow', coffee.drink === 'coffee' && coffee.ls.startsWith('coffee,') && coffee.cups === 'false,true' && /icon-coffee/.test(coffee.logo), JSON.stringify(coffee));
-    ok('Coffee draws the first way in as a stamp and has no string: the rope and its last stretch are not drawn', await page.evaluate(() => getComputedStyle(document.querySelector('#obrope path')).display === 'none' && getComputedStyle(document.querySelector('.obw.p .obstr')).display === 'none' && document.querySelector('.obw.p .obb').getBoundingClientRect().height === 40 && getComputedStyle(document.querySelector('.obw.p .obb')).borderTopWidth === '2px'));
+    ok('Coffee draws the first way in as a stamp and has no string: the rope and its last stretch are not drawn', await page.evaluate(() => getComputedStyle(document.querySelector('#obrope path')).display === 'none' && getComputedStyle(document.querySelector('.obw.p .obstr')).display === 'none' && document.querySelector('.obw.p .obb').getBoundingClientRect().height >= 40 && getComputedStyle(document.querySelector('.obw.p .obb')).borderTopWidth === '2px'));
     await page.click('#head .obsun'); await page.waitForTimeout(600);
     const dark = await now();
     ok('the sun and moon button switches to dark (rb-theme), and back to light', dark.theme === 'dark' && dark.ls === 'coffee,dark' && dark.sun === 'true' && await page.evaluate(() => getComputedStyle(document.querySelector('#head .obsun .moon')).display !== 'none' && getComputedStyle(document.querySelector('#head .obsun .sun')).display === 'none'), JSON.stringify(dark));
@@ -3758,12 +3940,14 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   }
   ok('inspector area: the three ways in, with the start button the one filled control', (await page.$$('#body .obchoices button')).length === 3 && (await page.$$('#body .obchoices button.primary')).length === 1 && /Start from scratch/.test(await page.textContent('#body .obchoices .primary')));
   ok('…the interface language row, one chip for each of the ten languages', (await page.$$('#body .oblangs .oblang')).length === 10 && (await page.getAttribute('#body .oblang.on', 'data-l')) === 'en');
-  ok('…the notes that were a second line under each way in are its tooltip, so each is one line', await page.evaluate(() => [...document.querySelectorAll('#body .obchoices .obb')].every(b => b.title.length > 10 && !b.querySelector('small') && b.getBoundingClientRect().height <= 40)));
+  ok('…each way in says what it does: a second line in a tall column, its tooltip in a short one', await page.evaluate(() => document.body.classList.contains('intro-roomy') && [...document.querySelectorAll('#body .obchoices .obb')].every(b => b.title.length > 10 && getComputedStyle(b.querySelector('.obnote')).display !== 'none' && b.querySelector('.obnote').textContent === b.title)));
+  ok('…and Yours to keep shows each sentence in the open, no popover, right after the languages', await page.evaluate(() => { const k = document.querySelector('#foot .obkeep').getBoundingClientRect(), l = document.querySelector('.oblangrow').getBoundingClientRect(); return [...document.querySelectorAll('#foot .obkp .obpop')].every(p => getComputedStyle(p).display === 'block' && getComputedStyle(p).position === 'static') && k.top - l.bottom < 80; }));
+  await page.setViewportSize({ width: 1280, height: 800 }); await settle(page); await page.waitForTimeout(400);      // the short form: icons at the foot, sentences in popovers
   ok('…the languages are a Language label over a grid of five columns', await page.evaluate(() => { const g = getComputedStyle(document.querySelector('#body .oblangs')); return g.gridTemplateColumns.split(' ').length === 5 && /Language/i.test(document.querySelector('#body .oblangrow .obeye').textContent); }));
   const popShown = () => page.evaluate(() => [...document.querySelectorAll('#foot .obpop')].map(e => getComputedStyle(e).display !== 'none').join());
-  ok('footer area: the heading Yours to keep, a Why JSON? pill beside it and four short lines (Standard file, Stays in your browser, Nothing to install, No lock-in), and every popover shut', await page.evaluate(() => /Yours to keep/i.test(document.querySelector('#foot .obkhead h3').textContent) && /Why JSON/.test(document.querySelector('#foot .obkhead .obwhy').textContent)
-    && [...document.querySelectorAll('#foot .obkb')].map(b => b.textContent.trim()).join('|') === 'Standard file|Stays in your browser|Nothing to install|No lock-in' && [...document.querySelectorAll('#foot .obpop')].every(e => getComputedStyle(e).display === 'none')));
-  ok('…the four points keep their words in the popovers (title and sentence), JSON Resume a link, Private among them', (await page.$$('#foot .obkp')).length === 4 && /Private/.test(await page.textContent('#foot')) && /Nothing uploaded, no account/.test(await page.textContent('#foot')) && !!(await page.$('#foot .obkp a[href="https://jsonresume.org/schema"]')));
+  ok('footer area: the heading Yours to keep, a Why JSON? pill beside it and four short lines (Standard file, Saved on this device, Nothing to install, No lock-in), and every popover shut', await page.evaluate(() => /Yours to keep/i.test(document.querySelector('#foot .obkhead h3').textContent) && /Why JSON/.test(document.querySelector('#foot .obkhead .obwhy').textContent)
+    && [...document.querySelectorAll('#foot .obkb')].map(b => b.textContent.trim()).join('|') === 'Standard file|Saved on this device|Nothing to install|No lock-in' && [...document.querySelectorAll('#foot .obpop')].every(e => getComputedStyle(e).display === 'none')));
+  ok('…the four points keep their words in the popovers (title and sentence), JSON Resume a link, Private among them', (await page.$$('#foot .obkp')).length === 4 && /Private/.test(await page.textContent('#foot')) && /no account/.test(await page.textContent('#foot')) && !!(await page.$('#foot .obkp a[href="https://jsonresume.org/schema"]')));
   await page.hover('#foot .obkp:nth-child(2) .obkb'); await page.waitForTimeout(200);
   ok('pointing at a line opens its sentence in a popover above it', (await popShown()) === 'false,false,true,false,false' && await page.evaluate(() => { const p = document.querySelector('#obkp1').getBoundingClientRect(), b = document.querySelector('#foot .obkp:nth-child(2) .obkb').getBoundingClientRect(); return p.bottom <= b.top; }));
   await page.mouse.move(4, 4); await page.waitForTimeout(200);
@@ -3778,17 +3962,18 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   ok('the keyboard opens one too (focus), and Esc puts it away until the focus has left', focused === 'false,false,false,true,false' && (await popShown()) === 'false,false,false,false,false');
   await page.click('#foot .obwhy'); await page.mouse.move(4, 4); await page.waitForTimeout(300);
   ok('“Why JSON?” opens its four points and the link over the page, in a popover and not in place (the footer stays where it is), and a click elsewhere closes it', await page.evaluate(() => { const p = document.querySelector('#obwhypop'); return getComputedStyle(p).display !== 'none' && p.querySelectorAll('li').length === 4 && /File over app/.test(p.textContent) && !!p.querySelector('a[href*="stephango"]') && document.querySelector('#foot .obwhy').getAttribute('aria-expanded') === 'true'; })
-    && (await r('#foot')).bottom > 880);
+    && (await r('#foot')).bottom > 740);
   await page.click('#head .obsub'); await page.waitForTimeout(200);
   ok('…a click elsewhere closes it', (await popShown()) === 'false,false,false,false,false');
+  await page.setViewportSize({ width: 1440, height: 900 }); await settle(page); await page.waitForTimeout(400);
   ok('…light, and not equal to the inspector: no card around them', await page.evaluate(() => { const f = getComputedStyle(document.querySelector('#foot')); return f.backgroundColor === 'rgba(0, 0, 0, 0)' && f.boxShadow === 'none'; }));
   // the rows follow the board's: --ways-top and --lang-top on the body (screen y of the career file's top edge and of its first lit line), announced by introlayout
   {
     const say = (ways, lang) => page.evaluate(([w, l]) => { for (const [k, v] of [['--ways-top', w], ['--lang-top', l]]) v == null ? document.body.style.removeProperty(k) : document.body.style.setProperty(k, `${v}px`); document.dispatchEvent(new CustomEvent('introlayout')); return new Promise(r => setTimeout(r, 150)); }, [ways, lang]);
     const tops = () => page.evaluate(() => ({ ways: Math.round(document.querySelector('.obchoices').getBoundingClientRect().top), lang: Math.round(document.querySelector('.oblangrow').getBoundingClientRect().top), head: Math.round(document.querySelector('#head').getBoundingClientRect().bottom), tag: Math.round(document.querySelector('.obw.p .obb').getBoundingClientRect().top) }));
-    await say(320, 480);
+    await say(255, 500);
     const asked = await tops();
-    ok('the ways in start level with the board’s career file (--ways-top) and the language row level with its first line (--lang-top), when the board says so', Math.abs(asked.ways - 320) <= 1 && Math.abs(asked.lang - 480) <= 1, JSON.stringify(asked));
+    ok('the ways in start level with the board’s career file (--ways-top) and the language row level with its first line (--lang-top), when the board says so', Math.abs(asked.ways - 255) <= 1 && Math.abs(asked.lang - 500) <= 1, JSON.stringify(asked));
     await say(asked.head + 4, 10);
     const least = await tops();
     ok('…and a row the board puts too high does not squeeze the column: the gaps are at least 18px and 28px', least.ways - least.head >= 18 && least.lang - (await page.$eval('.obchoices', el => Math.round(el.getBoundingClientRect().bottom))) >= 28, JSON.stringify(least));
@@ -3818,7 +4003,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
     // the string: its far end under the picture's board, its near end the tag's hole
     const rope = () => page.evaluate(() => { const bp = document.querySelector('#obrope path'), fp = document.querySelector('.obw.p .obstr path'), end = d => d.match(/L(-?[\d.]+) (-?[\d.]+)$/)?.slice(1).map(Number);
       return { back: bp.getAttribute('d'), front: fp.getAttribute('d'), show: getComputedStyle(bp).display !== 'none', z: getComputedStyle(document.querySelector('#obrope')).zIndex, end: end(bp.getAttribute('d')), start: bp.getAttribute('d').match(/^M(-?[\d.]+) (-?[\d.]+)/).slice(1).map(Number),
-        hole: (() => { const b = document.querySelector('.obw.p').getBoundingClientRect(); return [b.left + 23, b.top + 20]; })(), ssRight: document.querySelector('#ss').getBoundingClientRect().right, ss: +getComputedStyle(document.querySelector('#startstage')).zIndex, col: +getComputedStyle(document.querySelector('#col')).zIndex }; });
+        hole: (() => { const b = document.querySelector('.obw.p').getBoundingClientRect(); return [b.left + 23, b.top + b.height / 2]; })(), ssRight: document.querySelector('#ss').getBoundingClientRect().right, ss: +getComputedStyle(document.querySelector('#startstage')).zIndex, col: +getComputedStyle(document.querySelector('#col')).zIndex }; });
     const at0 = await rope();
     ok('the tag has a string: a rope in a layer of its own above the straw and below the picture (z 5; the picture’s stage is 6 and the column 10), tied 36px inside the picture’s right edge and ending at the tag’s hole', at0.show && at0.z === '5' && at0.ss > 5 && at0.col > at0.ss && /^M/.test(at0.back) && Math.abs(at0.start[0] - (at0.ssRight - 36)) < 2 && Math.abs(at0.end[0] - at0.hole[0]) < 2 && Math.abs(at0.end[1] - at0.hole[1]) < 2, JSON.stringify(at0));
     ok('…its last stretch is drawn again over the tag, so it is threaded through the hole', /^M.*L/.test(at0.front) && at0.front !== at0.back);
@@ -3894,7 +4079,7 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   const gone = await stepOf(page), menuShut = !(await page.isVisible('#ss .nmenu'));
   ok('“3 of 4” opens the list of steps, and a click on a name goes there and closes it', menuOpen && gone === 2 && menuShut, JSON.stringify({ menuOpen, gone, menuShut }));
   await page.click('#ss .s-lcol .num'); await page.waitForTimeout(150);
-  ok('the big character is the next button, and its label and sentence change with the control at once', (await stepOf(page)) === 3 && /Design, language and paper/.test(await page.textContent('#ss .cap')) && /look, same words/.test(await page.textContent('#ss .nlabel')));
+  ok('the big character is the next button, and its label and sentence change with the control at once', (await stepOf(page)) === 3 && /Look, language and paper/.test(await page.textContent('#ss .cap')) && /look, same words/.test(await page.textContent('#ss .nlabel')));
   await page.waitForTimeout(500);
   await page.mouse.move(700, 880); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(600);
   ok('the arrow keys move between steps (right goes on)', (await stepOf(page)) === 4);
@@ -3905,13 +4090,16 @@ if (want('the start screen: the editor’s areas, the story, the three ways in')
   await page.click('#ss [data-act=ob-replay]'); await page.waitForTimeout(900);
   ok('Replay starts it again from the beginning, and the autoplay runs again', (await stepOf(page)) === 1 && (await page.getAttribute('#ss', 'data-auto')) === 'true');
 
-  // language chips preview in place, on hover; a click keeps it
-  const chipBefore = await page.evaluate(() => { const c = document.querySelector('.oblang[data-l=de]'); c.dataset.mark = 'same'; return document.querySelector('#head .obhero').textContent; });
-  await page.hover('.oblang[data-l=de]'); await page.waitForTimeout(900);
-  const chipAfter = await page.textContent('#head .obhero'), chipMark = await page.getAttribute('.oblang[data-l=de]', 'data-mark');
-  ok('hovering a language chip shows the whole screen in that language, in place (the chip is not redrawn)', chipAfter !== chipBefore && chipMark === 'same', JSON.stringify({ chipBefore, chipAfter, chipMark }));
+  // language chips preview in place, on hover: the hero and the line under it alone, nothing below moves; a click keeps the language
+  const chipBefore = await page.evaluate(() => { const c = document.querySelector('.oblang[data-l=de]'); c.dataset.mark = 'same'; return { hero: document.querySelector('#head .obhero').textContent, way: document.querySelector('.obchoices .obw.p').getBoundingClientRect().top, keep: document.querySelector('#foot h3')?.textContent, lang: document.documentElement.lang }; });
+  await page.hover('.oblang[data-l=de]'); await page.waitForTimeout(400);
+  const chipAfter = await page.evaluate(() => ({ hero: document.querySelector('#head .obhero').textContent, way: document.querySelector('.obchoices .obw.p').getBoundingClientRect().top, keep: document.querySelector('#foot h3')?.textContent, lang: document.documentElement.lang, mark: document.querySelector('.oblang[data-l=de]').dataset.mark }));
+  ok('hovering a language chip shows the hero in that language, in place (the chip is not redrawn), and the rest of the page, its place and the interface language stay', chipAfter.hero !== chipBefore.hero && chipAfter.mark === 'same' && chipAfter.way === chipBefore.way && chipAfter.keep === chipBefore.keep && chipAfter.lang === chipBefore.lang, JSON.stringify({ chipBefore, chipAfter }));
   await page.mouse.move(700, 800); await page.waitForTimeout(700);
-  ok('…and moving away puts it back', (await page.textContent('#head .obhero')) === chipBefore);
+  ok('…and moving away puts it back', (await page.textContent('#head .obhero')) === chipBefore.hero);
+  await page.click('.oblang[data-l=de]'); await page.mouse.move(700, 800); await page.waitForTimeout(500);      // the rows may settle in the new words: the pointer leaves the chips
+  ok('…a click keeps the language and the rest of the page follows', (await page.textContent('#head .obhero')) === chipAfter.hero && (await page.evaluate(() => document.documentElement.lang)) === 'de' && (await page.textContent('#foot h3')) !== chipBefore.keep, JSON.stringify({ chipBefore, h3: await page.textContent('#foot h3'), hero: await page.textContent('#head .obhero'), lang: await page.evaluate(() => document.documentElement.lang) }));
+  await page.click('.oblang[data-l=en]'); await page.waitForTimeout(500);
 
   // choosing: a state change, not another screen
   await page.click('[data-act=ob-example]'); await page.waitForTimeout(1500);
@@ -4020,8 +4208,8 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
 
     // ---- Edit, Design and Export, and R ----
     const tabs = await page.$$eval('#rail [role=tab]', els => els.map(e => e.textContent.trim()));
-    ok(`${tag}: the rail’s tab list is Edit · Design · Export`, tabs.length === 3 && tabs.every(x => x.length > 2) && (await page.$$eval('#rail [role=tab]', els => els.map(e => e.dataset.m).join())) === 'edit,design,export', tabs.join('|'));
-    ok(`${tag}: …with the same tablist semantics, one tab stop`, await page.evaluate(() => { const t = [...document.querySelectorAll('#rail [role=tab]')]; return t.length === 3 && t.filter(x => x.tabIndex === 0).length === 1 && t.filter(x => x.getAttribute('aria-selected') === 'true').length === 1; }));
+    ok(`${tag}: the rail’s tab list is Content · Look (Export is a place of its own)`, tabs.length === 2 && tabs.every(x => x.length > 2) && (await page.$$eval('#rail [role=tab]', els => els.map(e => e.dataset.m).join())) === 'edit,design', tabs.join('|'));
+    ok(`${tag}: …with the same tablist semantics, one tab stop`, await page.evaluate(() => { const t = [...document.querySelectorAll('#rail [role=tab]')]; return t.length === 2 && t.filter(x => x.tabIndex === 0).length === 1 && t.filter(x => x.getAttribute('aria-selected') === 'true').length === 1; }));
     await page.keyboard.press('Escape'); await settle(page);   // nothing selected
     const before = await col(), pageBefore = await rect(page, '#sheet');
     ok(`${tag}: the sidebar is as wide as sideWidth says in the Outline at 1440 (340px, up to 100 more beside a one-page resume)`, Math.abs(before.width - await sideNow(page)) < 1 && before.width >= 340, `${before.width}px`);
@@ -4031,10 +4219,10 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     ok(`${tag}: R opens Career, and Edit, Design and Export (the editor’s tabs) are not there`, (await page.evaluate(() => window.__wb.ui.view)) === 'record' && (await page.$$('#rail [role=tab]')).length === 0 && (await page.getAttribute('#scr', 'data-mode')) === 'record');
     ok(`${tag}: Career is drawn left of the sidebar: the sidebar keeps its place and its width, and the page stays where it was under it`, Math.abs(after.left - before.left) < 1 && Math.abs(after.width - before.width) < 1 && Math.abs(after.height - before.height) < 1 && Math.abs(pageAfter.left - pageBefore.left) < 1 && Math.abs(pageAfter.width - pageBefore.width) < 1, `${before.width}px → ${after.width}px`);
     ok(`${tag}: the pages' own event did not fire: the pages did not move`, (await page.evaluate(() => window.__moved)) === 0, String(await page.evaluate(() => window.__moved)));
-    ok(`${tag}: the sidebar keeps 16px from the right`, Math.abs(1440 - after.right - 16) < 1);
+    ok(`${tag}: the sidebar keeps 24px from the right (the gutter and 8px for the card's stacked sheets)`, Math.abs(1440 - after.right - 24) < 1);
 
     // ---- what Record shows ----
-    ok(`${tag}: a toolbar: the search, n/m (n of m on to a screen reader), + Add; the place card says how many entries`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && !!h.querySelector('#rec-q') && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]') && /\d+ entries/.test(document.querySelector('#head').textContent); }));
+    ok(`${tag}: a toolbar: the search, n/m (n of m on to a screen reader), + Add; the sidebar’s card names the open resume, with Export as its stub`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && !!h.querySelector('#rec-q') && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]') && /^Open resume$/i.test(document.querySelector('#head .htagl')?.textContent ?? '') && !!document.querySelector('#head .hstub'); }));
     ok(`${tag}: the timeline is as wide as Career, under the cards on top, and runs down: the newest year first`, await page.evaluate(() => { const t = document.querySelector('#checklist .rectl .tl2'); const b = document.querySelector('#scr'); const y = [...t.querySelectorAll('.yr')].map(e => e.getBoundingClientRect().top); return !!t && t.getBoundingClientRect().width > b.getBoundingClientRect().width * 0.5 && y.length >= 4 && y.every((v, i) => !i || y[i - 1] < v) && !document.querySelector('#timeline') && document.querySelector('#scr .recmore').getBoundingClientRect().bottom <= t.getBoundingClientRect().top + 30; }));
     ok(`${tag}: the cards are About you, Skills and credentials, and Skill words, and the entry in the inspector is the newest job, its lines shown`, await page.evaluate(() => [...document.querySelectorAll('#scr .recmore .srow')].map(r => r.dataset.grp).join() === 'about,credentials,~bank' && document.querySelector('#body .insp-rec .clg[data-g=hydra] .clrow') !== null));
     await page.locator('#body .cb[data-on]').first().click(); await settle(page);
@@ -4095,7 +4283,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     // the Outline: sections with their counts, in print order
     await toEditHome(page);
     ok(`${tag}: the Outline lists the sections in print order with "n/m", and no checklist`, await page.evaluate(() => { const t = document.querySelector('#outline'); return !!t && !document.querySelector('#checklist') && document.querySelectorAll('#seclist .osec').length >= 5 && /\d+ of \d+ on/.test(document.querySelector('#seclist .osec[data-sid=experience] .srow')?.textContent ?? '') && !document.querySelector('[data-act=c-tl]'); }));
-    ok(`${tag}: Fixed sections say "always first", and the foot says how Fit works`, await page.evaluate(() => document.querySelectorAll('#seclist .osec .srow.fixed').length >= 2 && /Fit cuts from the bottom/.test(document.querySelector('#body').textContent)));
+    ok(`${tag}: Fixed sections say "always first", and the foot says where the resume is kept`, await page.evaluate(() => document.querySelectorAll('#seclist .osec .srow.fixed').length >= 2 && /Saved on this device/.test(document.querySelector('#body').textContent)));
     await page.keyboard.press('Escape'); await settle(page);
 
     // ---- the job level: versions, then the job's own lines, then Details, then the way to the record ----
@@ -4117,13 +4305,13 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     // ---- one meaning of save ----
     ok(`${tag}: no control in the header says only Save, and there is no data-act=save`, await page.evaluate(() => ![...document.querySelectorAll('#head button')].some(b => /^\s*Save\s*$/i.test(b.textContent)) && !document.querySelector('[data-act=save]') && !document.querySelector('#save')));
     ok(`${tag}: the name card is the name and the menu (no language, no Save to file, no Saved); ✓ Saved is the seam’s`, await page.evaluate(() => { const r = document.querySelector('#head .hrow.top'); return !!r.querySelector('#docname-btn') && !r.querySelector('#langbtn') && !r.querySelector('#savestate') && !!r.querySelector('[data-act=menu]') && !r.querySelector('#filestate') && !!document.querySelector('#rail .rhist #savestate'); }));
-    await page.click('#tab-export'); await settle(page);
+    await page.evaluate(() => window.__wb.export.open()); await settle(page);
     ok(`${tag}: Save to file is in Export, and the line beside it says whether the file is saved`, /Save to file/.test(await page.textContent('#filestate')) && /Not saved to a file yet/.test(await page.textContent('#fileline')));
     const dl = await Promise.all([page.waitForEvent('download'), page.click('#filestate')]);
     await settle(page);
     ok(`${tag}: Save to file downloads the one file, and the line says so`, /brewcv/.test(dl[0].suggestedFilename()) && /Saved to file/.test(await page.textContent('#fileline')));
-    ok(`${tag}: Export's last band is "Sent it?" with Mark as sent…, after the downloads`, await page.evaluate(() => { const g = [...document.querySelectorAll('#body .exg')].at(-1), b = g?.querySelector('[data-act=mark-sent]'), d = document.querySelector('#body .exg[data-k=file] .dl'); return g?.dataset.k === 'sent' && /Sent it\?/.test(g.querySelector('.hband')?.textContent ?? '') && !!b && /Mark as sent…/.test(b.textContent) && b.getBoundingClientRect().top > d.getBoundingClientRect().bottom; }));
-    ok(`${tag}: after "Sent it?" only the Backup footer follows: a quiet row with no band, holding Save to file`, await page.evaluate(() => { const g = document.querySelector('#body .exg[data-k=sent]'), f = document.querySelector('#body .exkeep'); return !!f && g.compareDocumentPosition(f) === Node.DOCUMENT_POSITION_FOLLOWING && f.getBoundingClientRect().top >= g.getBoundingClientRect().bottom && !f.querySelector('.hband') && !!f.querySelector('#filestate') && !document.querySelector('#body .exg ~ .exg[data-k=sent] ~ .exg'); }));
+    ok(`${tag}: Export's "Sent it?" block holds Mark as sent…, after the downloads`, await page.evaluate(() => { const g = document.querySelector('#body .xpb[data-k=sent]'), b = g?.querySelector('[data-act=mark-sent]'), d = document.querySelector('#body .xpb[data-k=file] .dl'); return /Sent it\?/.test(g?.querySelector('.xph')?.textContent ?? '') && !!b && /Mark as sent…/.test(b.textContent) && b.getBoundingClientRect().top > d.getBoundingClientRect().bottom; }));
+    ok(`${tag}: the Backup block comes last, beside "Sent it?", holding Save to file`, await page.evaluate(() => { const g = document.querySelector('#body .xpb[data-k=sent]'), f = document.querySelector('#body .xpb[data-k=keep]'); return !!f && g.nextElementSibling === f && !f.nextElementSibling && Math.abs(f.getBoundingClientRect().top - g.getBoundingClientRect().top) < 1 && !!f.querySelector('#filestate'); }));
     const s0 = await snapsOf(page);
     await page.click('[data-act=mark-sent]'); await settle(page);
     ok(`${tag}: it opens "Sent to?" with kind, company, role and date, and a commit button that says Mark as sent`, await page.evaluate(() => !!document.querySelector('#sv-kind') && !!document.querySelector('#sv-co') && !!document.querySelector('#sv-role') && !!document.querySelector('#sv-date') && /^Mark as sent$/.test(document.querySelector('[data-act=sv-do]')?.textContent.trim() ?? '')));
@@ -4137,6 +4325,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.fill('#sv-co', 'Another Company'); await page.click('[data-act=sv-do]'); await settle(page);
     const s2 = await snapsOf(page);
     ok(`${tag}: …and the send goes onto the last snapshot`, s2.length === s1.length && s2.at(-1) === 2, JSON.stringify(s2));
+    await leaveExport(page);
     await page.click('#tab-edit'); await settle(page);
 
     // ---- the shortcut sheet ----
@@ -4155,8 +4344,8 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.click('[data-act=sw-manage]'); await settle(page);
     const man = await page.evaluate(() => { const b = document.querySelector('#scr').getBoundingClientRect(), hd = document.querySelector('#head').getBoundingClientRect(), ft = document.querySelector('#foot').getBoundingClientRect(); return { view: window.__wb.ui.view, bodyWide: b.width > innerWidth * 0.5, small: hd.width <= innerWidth / 2 && ft.width <= innerWidth / 2 }; });
     ok(`${tag}: Manage all is the Library: a card of its own left of the sidebar, with the place card and the foot small, no bar across the window`, man.view === 'resumes' && man.bodyWide && man.small, JSON.stringify(man));
-    await page.check('#scr .rcard .rtick >> nth=0');      // one tick: Compare is there, and off until a second
-    ok(`${tag}: "Compare" is readable when disabled`, await page.evaluate(() => { const b = document.querySelector('#scr-cmp'); return b.disabled && getComputedStyle(b).opacity === '1'; }));
+    await page.check('#scr .rcard .rtick >> nth=0');      // one tick: the floating bar counts it, and Compare waits for a second
+    ok(`${tag}: one tick: the floating bar says "1 ticked" and offers no Compare yet`, await page.evaluate(() => !document.querySelector('#scr-cmp') && /\b1\b/.test(document.querySelector('#scr-ticks #scr-nticked')?.textContent ?? '')));
     await page.click('#ptabs [data-p=editor]'); await settle(page);
 
     // ---- toasts never cover the page ----
@@ -4225,7 +4414,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await open(page);
     const s0 = await rect(page, '#sheet'), c0 = await rect(page, '#col');
     await page.keyboard.press('r'); await settle(page);
-    const c = await rect(page, '#col'), s = await rect(page, '#sheet'), sc = await rect(page, '#scr');
+    const c = await rect(page, '#col'), s = await rect(page, '#sheet'), sc = await scrBox(page);
     ok('1024: Career is drawn left of the sidebar, which keeps its place and width, and the page has not moved', Math.abs(c.width - c0.width) < 1 && Math.abs(c.left - c0.left) < 1 && Math.abs(s.left - s0.left) < 1 && sc.right < c.left && sc.width > 300, `${c.width} at ${c.left}, Career ${sc.width}`);
     ok('…and the timeline and the groups are there', await page.evaluate(() => !!document.querySelector('#checklist .rectl .tl2') && document.querySelectorAll('#checklist .clg.open').length >= 5));
     await ctx.close();
@@ -4286,14 +4475,16 @@ if (want('accessibility: axe-core on every view')) {
       await page.click('.addm [data-what=work]'); await settle(page);
       await runAxe(page, 'a form for something new');
       await page.click('[data-act=c-add-cancel]'); await settle(page);
-      for (const m of ['design', 'export']){ await page.click(`#tab-${m}`); await settle(page); await runAxe(page, m); }
+      for (const m of ['design', 'export']){ if (m === 'export') await page.evaluate(() => window.__wb.export.open()); else await page.click(`#tab-${m}`); await settle(page); await runAxe(page, m); }
       await page.click('[data-act=mark-sent]'); await settle(page); await runAxe(page, 'Mark as sent');
       await page.click('[data-act=sent-back]'); await settle(page);
+      await leaveExport(page);
       await page.click('#tab-edit'); await settle(page);
       await page.click('#docname-btn'); await settle(page); await runAxe(page, 'the switcher');
       await page.click('#switcher [data-act=sw-manage]'); await settle(page); await runAxe(page, 'the Library');
-      await page.click('#resumes [data-act=scr-view][data-v=date]'); await settle(page); await runAxe(page, 'the Library by date');
-      await page.click('#resumes [data-act=scr-view][data-v=type]'); await page.check('#resumes .rcard .rtick >> nth=0'); await page.check('#resumes .rcard .rtick >> nth=1'); await page.click('#scr-cmp'); await settle(page); await runAxe(page, 'Compare, a mode of the Library');
+      await pickOption(page, '#scr-group', 'date'); await settle(page); await runAxe(page, 'the Library by date');
+      await page.click('#resumes [data-act=scr-list]'); await settle(page); await runAxe(page, 'the Library as a list'); await page.click('#resumes [data-act=scr-cards]'); await settle(page);
+      await pickOption(page, '#scr-group', 'type'); await page.check('#resumes .rcard .rtick >> nth=0'); await page.check('#resumes .rcard .rtick >> nth=1'); await page.click('#scr-cmp'); await settle(page); await runAxe(page, 'Compare, a mode of the Library');
       await page.keyboard.press('e'); await settle(page);
       await page.click('[data-act=menu]'); await runAxe(page, 'the ⋯ menu'); await page.keyboard.press('Escape');
       await page.click('#corner [data-act=corner]'); await runAxe(page, 'the "?" corner'); await page.click('.cornermenu [data-act=help]'); await settle(page); await runAxe(page, 'the shortcut sheet');
@@ -4390,7 +4581,7 @@ if (want('deployed: a subpath, offline, a phone, names')) {
   const ctx2 = await newContext({ viewport: { width: 1536, height: 864 } });
   const p2 = await ctx2.newPage();
   await open(p2);
-  const unnamed = async () => p2.evaluate(() => [...document.querySelectorAll('#col button, #col input, #col textarea, #col [role=button], #zoombar button')]
+  const unnamed = async () => p2.evaluate(() => [...document.querySelectorAll('#col button, #col input, #col textarea, #col [role=button], #zoombar button, #import button, #import textarea')]
     .filter(e => e.offsetParent !== null)
     .filter(e => !(e.getAttribute('aria-label') || e.title || e.textContent.trim() || e.closest('label') || (e.id && document.querySelector(`label[for="${e.id}"]`)) || e.placeholder))
     .map(e => e.outerHTML.slice(0, 80)));
@@ -4542,10 +4733,11 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
     await page.evaluate(id => window.__wb.resumes.open(id), ids[2]); await page.waitForTimeout(250);
     got.switch = await names(); await page.waitForTimeout(800);
     // a snapshot: a small copy of the page drops into the name, and "Sent to" appears under it
-    await page.evaluate(() => window.__wb.resumes.markSent()); await page.waitForTimeout(300);
+    await page.evaluate(() => { window.__wb.export.open(); window.__wb.resumes.markSent(); }); await page.waitForTimeout(300);      // (Mark as sent is Export's)
     await page.fill('#sv-co', 'Acme Corp'); await page.fill('#sv-role', 'Engineer'); await clear();
     await page.click('[data-act=sv-do]'); await page.waitForTimeout(300);
     got.snapshot = await names(); await page.waitForTimeout(700);
+    await page.evaluate(() => window.__wb.export.back()); await page.waitForTimeout(400);      // back to the editor, where the name card says where it was sent
     got.sent = await page.evaluate(() => document.querySelector('#head .dsent')?.textContent ?? null);
     // the logo: hovering says what it will do, and starts the mat; a click rolls it up (Tea to Coffee), another unrolls it
     await clear();
@@ -4558,6 +4750,7 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
     await page.evaluate(() => window.__wb.setView('export')); await settle(page); await clear();
     await page.click('[data-act=ex-html]'); await page.click('#exblock [data-exb=dismiss]', { timeout: 2000 }).catch(() => {}); await page.waitForTimeout(900);      // this resume has a major warning (a photo, none to print): the dialog asks first
     got.exportCoffee = await names(); await page.waitForTimeout(2200);
+    await page.evaluate(() => window.__wb.export.back()); await settle(page);      // (Export is a place without the rail: back to the editor for the logo)
     await page.mouse.move(4, 4);
     await page.hover('#rail .logoswitch'); await page.waitForTimeout(300); await clear();
     await page.click('#rail .logoswitch'); await page.waitForTimeout(150);
@@ -5467,7 +5660,7 @@ if (want('the lock: the padlock, the chip’s switch, and grips for jobs, sectio
   await esc2();
 
   // ---- the Outline: the lock icons, inherited ones, and the rows ----
-  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await settle(page);
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await settle(page); await openOl(page);
   await page.click('#outline .clg[data-g=hydra] .ocaret'); await settle(page);
   const row = '#outline .clrow[data-fact=hydra-inhaler]';
   const rl = await page.evaluate(r => { const e = document.querySelector(r), b = e?.querySelector('.rowlock'); return b && { pressed: b.getAttribute('aria-pressed'), name: b.getAttribute('aria-label'), tag: b.tagName, tab: b.tabIndex, h: b.getBoundingClientRect().height, cb: e.querySelector('input.sw').disabled, drag: e.draggable, inh: e.classList.contains('is-inherited') }; }, row);
@@ -5821,7 +6014,7 @@ if (want('the Review list: edits become versions, with sources, undo and the new
   const isOpen = () => ev(() => window.__wb.review.isOpen);
   const undoSteps = () => ev(() => window.__wb.store.history.undo);
   const rows = () => page.$$eval(`${R} .rvrow`, r => r.map(x => ({ id: x.dataset.id, kind: x.dataset.kind, done: x.classList.contains('done'), text: x.innerText })));
-  const saveBtn = async () => { if (!(await page.$('#body #filestate'))){ await page.click('#tab-export'); await settle(page); } };
+  const saveBtn = async () => { if (!(await page.$('#body #filestate'))){ await page.evaluate(() => window.__wb.export.open()); await settle(page); } };
   const downloaded = async trigger => { const [d] = await Promise.all([page.waitForEvent('download'), trigger()]); const p = path.join(tmp, d.suggestedFilename()); await d.saveAs(p); return p; };
   const ids = await ev(async () => { const T = await import('/src/model/resume.js'), s = window.__wb.store.state; return T.listedBullets(s.record, s.cur, 'hydra'); });
 
@@ -5850,7 +6043,7 @@ if (want('the Review list: edits become versions, with sources, undo and the new
   ok('three edits are pending: one written on the page, one far from its versions, one line only here', (await pending()) === 3);
 
   // Ctrl+S opens the list, with the focus inside
-  await page.click('#tab-export'); await settle(page);
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);
   await page.focus('#filestate'); await page.keyboard.press('Control+s'); await settle(page);
   const dlg = await page.$eval(R, e => ({ role: e.tagName === 'DIALOG' && e.open, name: document.getElementById(e.getAttribute('aria-labelledby'))?.textContent, modal: e.matches(':modal') }));
   ok('Ctrl+S opens the Review list first: a real modal dialog with a name', dlg.role && dlg.modal && dlg.name === 'Review your edits', JSON.stringify(dlg));
@@ -5933,7 +6126,7 @@ if (want('the Review list: edits become versions, with sources, undo and the new
 
   // the export pre-flight has a Review button; exporting offers the list once, without waiting (a heading typed here is one of the edits the text and JSON file leave out)
   await ev(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => T.setSectionLabel(d.record, d.cur, 'experience', 'en', 'Work history'), 'smoke: heading'); });
-  await page.click('#tab-export'); await settle(page);
+  await page.evaluate(() => window.__wb.export.open()); await settle(page);
   ok('the pre-flight row about edits not in the text or JSON file has a Review button that opens the list', await (async () => { await page.click('#body .checks [data-act=review-open]'); await settle(page); const o = await isOpen(); await page.keyboard.press('Escape'); await settle(page); return o; })());
   const dl = await Promise.all([page.waitForEvent('download'), page.click('[data-act=ex-json]')]);
   await settle(page);
@@ -5977,7 +6170,7 @@ if (want('the Review list: the newer wording is its second group')) {
     // an Update from the list changes the shared version; the other resume keeps its words and is offered the new ones
     await page.frameLocator('#sheet iframe').locator(`[data-variant="${shared.variant}"]`).first().click(); await settle(page);
     await writeLine(page, shared.text.replace(/\w+(\W*)$/, 'brandnew$1')); await page.keyboard.press('Escape'); await settle(page);
-    await page.click('#tab-export'); await settle(page);
+    await page.evaluate(() => window.__wb.export.open()); await settle(page);
     await page.click('#filestate'); await settle(page);
     const row = `${R} .rvrow[data-id="${shared.fact}"]`;
     ok('the tiny edit names the resume that prints the version and says it is offered the change', /Update v/.test(await page.textContent(row)) && /other resumes? (is|are) offered the change as newer wording/.test(await page.textContent(row)));
@@ -5985,6 +6178,7 @@ if (want('the Review list: the newer wording is its second group')) {
     ok('Update changes the version itself, and the row says Undo puts the old words back', (await st()).record.variants.find(v => v.id === shared.variant).text.includes('brandnew') && /now has these words/.test(await page.textContent(row)));
     ok('the other resume’s own text and every sent copy are unchanged', JSON.stringify((await st()).frozen[shared.other]) === otherBefore);
     await page.keyboard.press('Escape'); await settle(page);
+    await leaveExport(page);
     await page.click('#docname-btn'); await settle(page);
     await page.fill('#sw-q', shared.other.split(' - ')[0]); await settle(page);
     await page.click(`#switcher .swrow[data-rid="${shared.other}"] .sopt`); await settle(page);
@@ -7558,7 +7752,7 @@ if (want('the start screen has one banner')) {
 // the four major warnings the Export dialog holds back, each with how to build it, where its Fix lands and how to mend it (one at a time, then several)
 const majorCases = {
   overflow: {
-    build: async page => page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => { d.cur.pageLimit = 2; for (const w of d.record.work ?? []) for (const id of w.highlights ?? []) { try { T.setBulletOn(d.record, d.cur, id, true); if (id === window.__fix || id === window.__dfix) continue; T.setOverride(d.record, d.cur, id, 'Long line of words. '.repeat(14), { marks: [], base: null }); } catch { /* a line that cannot be on */ } } }, 'smoke: too much for two pages'); }),
+    build: async page => page.evaluate(async () => { const T = await import('/src/model/resume.js'); window.__wb.store.commit(d => { d.cur.pageLimit = 2; for (const w of d.record.work ?? []) for (const id of w.highlights ?? []) { try { T.setBulletOn(d.record, d.cur, id, true); if (id === window.__fix || id === window.__dfix) continue; T.setOverride(d.record, d.cur, id, 'Long line of words. '.repeat(20), { marks: [], base: null }); } catch { /* a line that cannot be on */ } } }, 'smoke: too much for two pages'); }),
     key: 'overflow',
     lands: async page => page.evaluate(() => { const w = window.__wb, l = document.querySelector('#ovlay .ov-line')?.getBoundingClientRect(); return w.ui.view === null && w.ui.page === 1 && w.ui.sel.kind === 'none' && !!l && l.top >= 0 && l.bottom <= innerHeight && l.right > 0 && l.left < innerWidth && document.querySelector('#tab-edit')?.getAttribute('aria-selected') === 'true'; }),
     mend: async page => page.evaluate(() => window.__wb.store.commit(d => { d.cur.pageLimit = 0; }, 'smoke: as many pages as needed')),

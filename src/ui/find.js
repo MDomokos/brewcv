@@ -5,7 +5,7 @@
 
 import { t } from '../i18n/index.js';
 import { icon } from './icons.js';
-import { isMac } from './help.js';
+import { isMac, isKey } from './help.js';
 import * as RS from '../model/resumes.js';
 import { checklist, careerHits, langGroups } from '../model/checklist.js';
 import { langName } from '../model/lang.js';
@@ -14,7 +14,7 @@ import { uiLang } from '../i18n/index.js';
 export const FIELD = '#scr-q, #rec-q, #cmp-q, #find-q';
 export const hasFocus = () => !!document.activeElement?.matches?.(FIELD);
 // Ctrl+F, or Cmd+F on a Mac (Ctrl+F there is the text box's "forward one character")
-export const isFindKey = e => !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f' && (isMac() ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey);
+export const isFindKey = e => !e.altKey && !e.shiftKey && isKey(e, 'f') && (isMac() ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey);
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // A text as safe HTML with every place of the word marked (the drink's highlight token, see mark.fnd). shortcut: the match is on the lower-cased text, so a letter

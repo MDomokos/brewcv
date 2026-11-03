@@ -10,6 +10,7 @@ import { ZOOM_MIN, ZOOM_MAX, PHONE_MAX } from './layout.js';
 import { onDrinkChange } from './drink.js';
 import { play } from './motion.js';
 import { sw } from './parts.js';
+import { isKey } from './help.js';
 
 let C = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -170,7 +171,7 @@ function tween(draw){
 const fitBtn = (u, limit, needed) => {
   const away = phone() && ['record', 'resumes', 'compare'].includes(u.view);      // a phone's screen covers the page Fit would work on: held, with the reason (a desktop's Fit is Export's)
   const why = esc(t('ux6c.fitAway'));
-  return `<button class="fit sm${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''}${away ? ` aria-disabled="true" aria-description="${why}"` : ''} title="${away ? why : esc(limit === 0 ? t('foot.fitOff') : t('foot.fitTitle'))}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
+  return `<button class="fit sm${needed ? ' primary' : ''}" data-act="fit" ${u.fitting || limit === 0 || u.snap ? 'disabled' : ''}${away ? ` aria-disabled="true" aria-description="${why}"` : ''} title="${away ? why : esc(limit === 0 ? t('foot.fitOff') : `${t('foot.fitTitle')}. ${t('ux5c.outlineFoot')}`)}">${u.fitting ? h('foot.fitting') : h('foot.fit')}</button>`;
 };
 const STATE_WORD = { under: 'ux6b.fillUnder', ok: 'ux6b.fillIn', over: 'ux6b.fillOver', overflow: 'ux6b.fillOver' };
 // A desktop draws at most this many bars; more pages end in a "+n" that goes to the first page not drawn.
@@ -342,9 +343,9 @@ async function act(a, tg){
 
 function onKey(e){
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
-  if (e.key === '-' || e.key === '_'){ e.preventDefault(); zoomBy(-1); flashBar(); return true; }
-  if (e.key === '=' || e.key === '+'){ e.preventDefault(); zoomBy(1); flashBar(); return true; }
-  if (e.key === '0'){ e.preventDefault(); zoomTo(1); flashBar(); return true; }
+  if (isKey(e, '-', '_')){ e.preventDefault(); zoomBy(-1); flashBar(); return true; }
+  if (isKey(e, '+', '=')){ e.preventDefault(); zoomBy(1); flashBar(); return true; }
+  if (isKey(e, '0')){ e.preventDefault(); zoomTo(1); flashBar(); return true; }
   return false;
 }
 // The tabs (the rail's, up and down; a phone's, in its head, left and right) are one tab stop: the arrows move between them and open each

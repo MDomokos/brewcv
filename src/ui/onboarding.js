@@ -37,7 +37,7 @@ const field = (id, label, value, attrs = '') => `<label class="field"><span clas
 const nav = (skip = true, nextLabel = t('onb.next')) => `<div class="btns obnav"><button class="ghost" data-act="ob-back">${h('onb.back')}</button><span class="grow"></span>${skip ? `<button class="ghost" data-act="ob-skip">${h('onb.skip')}</button>` : ''}<button class="primary" data-act="ob-next">${esc(nextLabel)}</button></div>`;
 
 
-// ---- the start screen's language chips: hover shows the page's words in that language, a click keeps it ----
+// ---- the start screen's language chips: hover shows the hero and its line in that language (start.js preview), a click keeps it and re-texts the page ----
 // The words change in place (src/ui/start.js retext), so the chips stay under the pointer.
 let baseLang = null;                                // the language the page opened in, until one is clicked
 const demoLang = () => C.ui.introLang ?? (baseLang ??= uiLang());
@@ -184,7 +184,7 @@ async function act(a, tg){
       O.step = 'about'; C.renderBody(true); setTimeout(() => $('#ob-name')?.focus(), 250);
       return true;
     }
-    case 'ob-import': C.ui.askLang = false; C.setView('import'); return true;   // a file brings its own languages
+    case 'ob-import': C.setView('import'); return true;
     case 'ob-example': {
       // straight away, in the language the start screen is showing; the languages question waits for the person's own record
       const L = C.ui.introLang ?? uiLang();
@@ -233,10 +233,10 @@ function bind(body){
   start.bindSide();
   let timer = null;
   const on = (ev, fn) => body.addEventListener(ev, e => { if (O.step === 'welcome') fn(e); });
-  // hovering (or focusing) a language chip shows the page in that language; leaving goes back to the kept one
+  // hovering (or focusing) a language chip shows the hero and the line under it in that language, at once and without moving anything; leaving goes back to the kept one
   const lc = e => e.target.closest?.('.oblang');
-  const lenter = e => { const c = lc(e); if (c){ clearTimeout(langTimer); showLang(c.dataset.l, c.dataset.l); } };
-  const lleave = e => { const c = lc(e); if (c && !c.contains(e.relatedTarget)){ clearTimeout(langTimer); langTimer = setTimeout(() => showLang(demoLang()), 90); } };
+  const lenter = async e => { const c = lc(e); if (!c) return; clearTimeout(langTimer); const l = c.dataset.l, tok = ++langTok; markLangs(l); await loadCatalogue(l); if (tok === langTok) start.preview(l); };
+  const lleave = e => { const c = lc(e); if (c && !c.contains(e.relatedTarget)){ clearTimeout(langTimer); langTimer = setTimeout(() => { langTok++; start.preview(null); markLangs(); }, 90); } };
   on('mouseover', lenter); on('mouseout', lleave); on('focusin', lenter); on('focusout', lleave);
   body.addEventListener('input', e => {
     if (O.step !== 'about' || !e.target.id?.startsWith('ob-')) return;

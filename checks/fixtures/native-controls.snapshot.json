@@ -6,12 +6,13 @@
   "select": {
     "src/ui/career.js": 6,
     "src/ui/edit.js": 1,
+    "src/ui/export.js": 1,
     "src/ui/files.js": 3,
     "src/ui/library.js": 1,
     "src/ui/onboarding.js": 1,
     "src/ui/resumes.js": 5,
     "src/ui/review.js": 1,
-    "src/ui/screens.js": 1,
+    "src/ui/screens.js": 3,
     "src/ui/settings.js": 1,
     "src/ui/shell.js": 1,
     "src/ui/switcher.js": 1

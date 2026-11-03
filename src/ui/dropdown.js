@@ -1,7 +1,7 @@
 // The select, in the app's own menu. A native <select>'s open list cannot take the drink's tokens (the browser, or on a Mac the system,
 // draws it), so every select in the app is shown as a button that opens a listbox in the app's own card, in Tea and Coffee, light and dark.
 // The <select> stays in the page, hidden, and is still the field: forms read its value, the app listens for its `change`, a test can read its
-// options. A pick sets the select and fires `input` and `change` on it, so nothing that used a select needed to change. A select added to the
+// options; a select marked data-named shows its name before its value ("Group: Date"). A pick sets the select and fires `input` and `change` on it, so nothing that used a select needed to change. A select added to the
 // page later (a form drawn again) is dressed by the observer; one that goes takes its button with it.
 // Keys: the button opens on Enter, Space, ↓ or ↑; in the list ↑ ↓ Home End move, a letter jumps to the next option that starts with it, Enter or
 // Space picks, Esc closes and returns to the button, Tab closes and moves on.
@@ -26,7 +26,7 @@ function paint(sel){
   const btn = sel._dd;
   if (!btn) return;
   const o = sel.selectedOptions[0], text = o?.textContent.trim() ?? '', name = nameOf(sel);
-  btn.innerHTML = `<span class="ddt">${esc(text)}</span><span class="ddc" aria-hidden="true">${icon('caret', { role: 'inline' })}</span>`;
+  btn.innerHTML = `<span class="ddt">${sel.hasAttribute('data-named') && name ? `${esc(name)}: ` : ''}${esc(text)}</span><span class="ddc" aria-hidden="true">${icon('caret', { role: 'inline' })}</span>`;
   btn.setAttribute('aria-label', name ? `${name}: ${text}` : text);
   btn.disabled = sel.disabled;
   if (o?.lang) btn.lang = o.lang; else btn.removeAttribute('lang');

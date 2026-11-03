@@ -10,13 +10,7 @@
 .ptabs .ptab:hover:not([aria-current]) { background: color-mix(in srgb, var(--tab-bg) 85%, transparent); color: var(--tab-ink); }
 .ptabs .ptab[aria-current=page] { height: 39px; margin-top: 0; background: var(--tab-bg); color: var(--tab-ink); font-weight: 750; }
 .ptabs .ptab:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-/* the card under the tabs: the name card, or the place card (counts and the place's action; the tab names the place) */
-body:not([data-phone=true]):not(.is-intro) .col > #head.is-place { position: relative; padding: 10px 76px 10px 14px; }
-#head.is-place .ptitle { display: flex; align-items: center; gap: 8px; }
-#head.is-place h2 { margin: 0; font-size: 16px; font-weight: 750; }
-#head.is-place .psub { margin: 2px 0 0; font-size: 12px; color: var(--ink-soft); }
-#head.is-place .pacts { margin-top: 8px; display: flex; gap: 6px; }
-#head.is-place .pcorner { position: absolute; right: 8px; top: 8px; display: flex; align-items: center; gap: 4px; }
+/* the card under the tabs is the name card in every place (buttons.css) */
 /* a short window: the tabs and the card take less height */
 @media (max-height: 850px){
   .ptabs .ptab { height: 27px; margin-top: 3px; font-size: 11px; gap: 5px; }
@@ -26,9 +20,6 @@ body:not([data-phone=true]):not(.is-intro) .col > #head.is-place { position: rel
   .col > #head .docname .dn .swco { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .col > #head .docname .dn .swrole { overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
   .col > #head .docname .dn .swrole::before { content: "— "; }
-  body:not([data-phone=true]):not(.is-intro) .col > #head.is-place { padding-top: 6px; padding-bottom: 6px; }
-  #head.is-place .psub { display: inline; margin: 0; }
-  #head.is-place .pacts { display: inline-flex; margin: 0 0 0 8px; vertical-align: middle; }
 }
 
 /* Tea: the places are tea tags, each on its own thread through a punched hole, tucked behind the name card at their foot; the one you are on
@@ -44,7 +35,7 @@ html[data-drink="tea"] .ptabs .ptab, html[data-drink="tea"] .ptabs .ptab[aria-cu
   position: relative; height: 44px; margin-top: 0; padding: 9px 8px 12px; border: 0; border-radius: 0; overflow: visible; transform-origin: 50% -12px;
   background: linear-gradient(135deg, transparent 8px, var(--tg) 0) left top / 51% 100% no-repeat, linear-gradient(225deg, transparent 8px, var(--tg) 0) right top / 51% 100% no-repeat;
   color: var(--tab-ink); font-weight: 650; filter: drop-shadow(0 0 .6px color-mix(in srgb, var(--tab-ink) 55%, transparent)); }
-html[data-drink="tea"] .ptabs .ptab[aria-current=page] { --tg: var(--accent); color: var(--on-accent, var(--tab-ink)); font-weight: 750; }
+html[data-drink="tea"] .ptabs .ptab[aria-current=page] { --tg: var(--tab-bg); color: var(--tab-ink); font-weight: 750; }      /* one filled accent per area: the sidebar's is Export */
 html[data-drink="tea"] .ptabs .ptab:hover:not([aria-current]) { --tg: var(--tab-bg); color: var(--tab-ink);
   background: linear-gradient(135deg, transparent 8px, var(--tg) 0) left top / 51% 100% no-repeat, linear-gradient(225deg, transparent 8px, var(--tg) 0) right top / 51% 100% no-repeat; }
 html[data-drink="tea"] .ptabs .ptab::before { content: ""; position: absolute; left: calc(50% - .8px); top: -12px; width: 1.6px; height: 20px; background: var(--thread); pointer-events: none; }
@@ -72,13 +63,69 @@ html[data-drink="coffee"] .ptabs .ptab:hover:not([aria-current]) { background: t
    paper; the toolbar floats at the top of the content, as the zoom bar does over the page: never a bar across the window. The open resume's
    page is not drawn behind it. ---- */
 .scr { position: fixed; z-index: 6; overflow: auto; padding: 0 4px 16px; color: var(--paper-ink);
-  --surface: var(--paper); --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --line: var(--paper-line); --line-strong: color-mix(in srgb, var(--paper-line) 70%, var(--paper-ink)); }
+  --surface: var(--paper); --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --line: var(--paper-line); --line-strong: color-mix(in srgb, var(--paper-line) 70%, var(--paper-ink)); --field: var(--sheet); }
+/* dark: the things on the ground are the drink's dark surfaces, not paper (the roles back to the theme's, the paper made of them); a picture of a
+   page stays the page's white, dimmed, here, in the hover preview and in the inspector (the editor's page is not) */
+html[data-theme="dark"] .scr { --surface: inherit; --raised: inherit; --ink: inherit; --ink-soft: inherit; --line: inherit; --line-strong: inherit; --bad: inherit;
+  --paper: var(--surface); --paper-ink: var(--ink); --paper-soft: var(--ink-soft); --paper-line: var(--line); --paper-hover: var(--hover); --paper-edge: var(--line-strong); --press-paper-sh: var(--press-sh); --field: var(--input); }
+html[data-theme="dark"] :is(.scr .rthumb, .scr .dthumb, .scr .thumbwrap::before, .hoverprev, .insp-res .ihpage, .insp-doc .dpage) { filter: brightness(.85); }
+html[data-theme="dark"] .scr .thumbwrap::before { background: var(--sheet); }
+html[data-theme="dark"] .scr .rcard.rdoc .dthumb { color: var(--sample-grey); --paper-soft: var(--sample-grey); }
 .scr[hidden] { display: none; }
 body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: hidden; }
-.scr .tbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; width: fit-content; max-width: 100%; box-sizing: border-box; margin: 12px 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper); box-shadow: var(--shadow-chip); }
+.scr .tbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; width: fit-content; max-width: 100%; box-sizing: border-box; margin: 12px 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper); box-shadow: var(--shadow-chip); }
 .scr .tbar .sw-q { width: 240px; }
+/* the Library's header, three blocks: the search (wide), then New round and Add files (the one heavier); its last row is the list's own bar (Group,
+   Show and the cards/list switch on the list's fill), whose filters give way to the selection line (N ticked, Compare, Move to round…, Clear) */
+#scr #resumes .tbar { --ctl: 30px; --ctl-r: var(--r-s); --ctl-fs: 13px; width: auto; gap: 8px 16px; padding: 8px 10px 0; }
+#scr #resumes .tbar :is(button, .sw-q, .ddbtn, .seg, .lbl, .scrticks > span) { box-sizing: border-box; margin: 0; font-family: inherit; font-size: var(--ctl-fs); font-weight: 500; line-height: 1.2; letter-spacing: normal; text-transform: none; }
+#scr #resumes .tbar :is(button, .sw-q, .ddbtn, .seg) { height: var(--ctl); min-height: 0; border-radius: var(--ctl-r); }
+#scr #resumes .tbar :is(button, .ddbtn):not(.seg button) { padding: 0 10px; }
+#scr #resumes .tbar .sw-q { flex: 1 1 240px; width: auto; max-width: 560px; padding: 0 10px; }
+#scr #resumes .tbar > .tgrp { margin-left: auto; flex-wrap: nowrap; gap: 8px; }
+#scr #resumes .tbar svg.ico { width: 16px; height: 16px; }
+#scr #resumes .tbar [data-act=goto][data-v=import] { font-weight: 650; }
+#resumes .lbar { flex: 1 1 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+#scr #resumes .lbar { margin: 0 -10px; padding: 5px 10px; border-top: 1px solid var(--line); border-radius: 0 0 var(--r-m) var(--r-m); background: color-mix(in srgb, var(--paper-ink) 6%, var(--paper)); }
+#resumes .lbar .lctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+#scr #resumes .lbar :is(.ddbtn, button.press[data-tier=secondary]) { border: 1px solid var(--line-strong); background-color: transparent; color: var(--paper-ink); box-shadow: none; }
+#scr #resumes .lbar :is(.ddbtn, button.press[data-tier=secondary]):is(:hover:not(:disabled), [aria-expanded=true]) { background-color: var(--paper-hover); }
+#scr #resumes .lbar .lswitch { margin-left: auto; padding: 2px; flex-wrap: nowrap; }
+#scr #resumes .lbar .lswitch button { display: inline-grid; place-items: center; width: calc(var(--ctl) + 2px); height: calc(var(--ctl) - 4px); padding: 0; border-radius: calc(var(--ctl-r) - 2px); }
 .scr .tbar .seg { background: color-mix(in srgb, var(--paper-ink) 7%, transparent); }
-.scr :is(input[type=search], input[type=text], select) { background: var(--sheet); color: var(--paper-ink); border: 1px solid var(--line-strong); }
+/* zones: the search at the left; after a divider New round, Add files and New resume (the list's one filled accent); the filters on their own
+   row; what is done with the ticked set floats at the list's foot (.selbar). Both rows stay one line: below about 640px of list the three
+   buttons keep only their icons, the hint is cut short and then goes, the dropdowns narrow last. */
+#scr #resumes { container: library / inline-size; }
+#scr #resumes .tbar { flex-wrap: wrap; }
+#scr #resumes .tbar .sw-q { flex: 1 1 auto; min-width: 90px; max-width: none; }
+#scr #resumes .tbar > .tgrp { flex: none; position: relative; margin-left: 13px; align-items: center; }
+#scr #resumes .tbar > .tgrp::before { content: ""; position: absolute; left: -13px; top: 4px; bottom: 4px; width: 1px; background: var(--line-strong); }
+#scr #resumes .tbar button.newres { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px 0 14px; font-size: 14px; font-weight: 750; }
+#scr #resumes .tbar button.newres svg.ico { width: 16px; height: 16px; }
+#scr #resumes .lbar { flex-wrap: nowrap; min-width: 0; }
+#scr #resumes .lbar .lctl { flex: 0 1 auto; flex-wrap: nowrap; min-width: 0; }
+#scr #resumes .lbar .ddbtn { min-width: 0; max-width: 100%; }
+#scr #resumes .lbar .ddbtn .ddt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#scr #resumes .lbar #scr-hint { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#scr #resumes .lbar .lswitch { flex: none; }
+@container library (max-width: 640px){
+  #scr #resumes .tbar > .tgrp button { gap: 0; padding-inline: 9px; }
+  #scr #resumes .tbar > .tgrp button > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  #scr #resumes .lbar #scr-hint { display: none; }
+}
+@container library (max-width: 420px){ #scr #resumes .lbar .ddbtn { max-width: 118px; } }
+#resumes .selbar { position: sticky; bottom: 20px; z-index: 3; display: flex; align-items: center; gap: 10px; width: fit-content; margin: 12px auto 0; padding: 6px 8px 6px 16px;
+  border: 1.5px solid var(--paper-ink); border-radius: var(--r-pill); background: var(--paper); color: var(--paper-ink); font: 600 13px var(--font-ui); box-shadow: var(--shadow-panel); }
+#resumes .selbar[hidden] { display: none; }
+#resumes .selbar :is(button, .ddbtn) { height: 30px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); background-color: transparent; color: var(--paper-ink); box-shadow: none; }
+#resumes .selbar [data-act=scr-clear] { border-color: transparent; text-decoration: underline; text-underline-offset: 3px; }
+#resumes .selbar :is(button, .ddbtn):hover { background-color: var(--paper-hover); }
+/* calm: the ticks are ink, the cards flat, the selected one ringed in ink */
+#scr { --cb-on: var(--paper-ink); --cb-check: var(--paper); }
+#scr .rtick { accent-color: var(--paper-ink); }
+.scr :is(.rcard, .rtable) .rfiles.is-hit { border-color: var(--paper-ink); color: var(--paper-ink); font-weight: 700; background: var(--mark-soft); }
+.scr :is(input[type=search], input[type=text], select) { background: var(--field); color: var(--paper-ink); border: 1px solid var(--line-strong); }
 .scr .lbl { color: var(--paper-soft); }
 /* labels that lie on the ground (group names, years, column heads) get a paper tab, so they read on a dark ground too */
 .scr :is(h3.lbl, .rectl .yr, .rectl .colhead > span) { width: fit-content; padding: 2px 8px; border-radius: var(--r-s); background: color-mix(in srgb, var(--paper) 88%, transparent); color: var(--paper-ink); }
@@ -90,10 +137,10 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 
 /* ---- the Library: cards with the information beside the picture, as many to a row as hold 260 px; a click selects (the ring), a click on the
    selected card opens it; a resume of more than one page fans its second sheet out from behind the first ---- */
-.scr .rgrid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.scr .rcard { grid-template-columns: 84px minmax(0, 1fr); column-gap: 10px; row-gap: 2px; padding: 8px 30px 8px 8px; background: var(--paper); box-shadow: var(--shadow-chip); align-content: start; }
+.scr .rgrid { grid-template-columns: repeat(auto-fill, minmax(calc(260px * var(--lz, 1)), 1fr)); gap: 10px; }      /* --lz: the Library's zoom (placezoom.js) */
+.scr .rcard { grid-template-columns: calc(84px * var(--lz, 1)) minmax(0, 1fr); column-gap: 10px; row-gap: 2px; padding: 8px 30px 8px 8px; background: var(--paper); box-shadow: none; align-content: start; }
 .scr .rcard .thumbwrap { grid-column: 1; grid-row: 1 / span 5; align-self: start; }
-.scr .rcard .thumbwrap .rthumb { width: 84px; background: var(--sheet); box-shadow: 0 0 0 1px var(--sheet-edge); }
+.scr .rcard .thumbwrap .rthumb { width: calc(84px * var(--lz, 1)); background: var(--sheet); box-shadow: 0 0 0 1px var(--sheet-edge); }
 .scr .rcard > :not(.thumbwrap):not(.rtick) { grid-column: 2; margin: 0; }
 .scr .rcard .rsel { all: unset; cursor: pointer; font-weight: 700; color: var(--paper-ink); overflow-wrap: anywhere; }
 .scr .rcard .rsel::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-m); }
@@ -101,11 +148,67 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .scr .rcard .rrole { font-size: 12px; color: var(--paper-ink); }
 .scr .rcard :is(.rmeta, .rfrom) { color: var(--paper-soft); }
 .scr .rcard .rbadges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.scr .rcard .pill { font-size: 10.5px; padding: 1px 7px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); color: var(--paper-soft); background: transparent; }
-.scr .rcard .pill.is-open { background: var(--paper-ink); color: var(--paper); border-color: var(--paper-ink); }
+.scr :is(.rcard, .rtable) .pill { font-size: 10.5px; padding: 1px 7px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); color: var(--paper-soft); background: transparent; }
+.scr :is(.rcard, .rtable) .pill.is-open { background: var(--paper-ink); color: var(--paper); border-color: var(--paper-ink); }
 .scr .rcard .rtick { top: 8px; right: 8px; left: auto; }
-.scr .rcard.sel { box-shadow: 0 0 0 3px var(--accent); border-color: transparent; }
+.scr .rcard.sel { box-shadow: 0 0 0 2px var(--paper-ink); border-color: transparent; }
 .scr .rcard.ticked:not(.sel) { border-color: var(--paper-ink); }
+/* an item's languages and its files: quiet chips over the card's click area; the language shown marked, the open one edged as an open card is, a ticked one tinted */
+.scr :is(.rcard, .rtable) .rlangs { display: inline-flex; align-items: center; gap: 1px; font-size: 10.5px; color: var(--paper-soft); }
+.scr :is(.rcard, .rtable) :is(.rlang, .rfiles) { all: unset; position: relative; z-index: 1; cursor: pointer; font-size: 10.5px; line-height: 1.5; padding: 0 5px; border: 1px solid transparent; border-radius: var(--r-pill); color: var(--paper-soft); }
+.scr :is(.rcard, .rtable) .rfiles { padding: 0 7px; border-color: var(--line-strong); }
+.scr .rtable .rfiles { margin-left: -6px; }
+.scr :is(.rcard, .rtable) :is(.rlang, .rfiles):hover { background: color-mix(in srgb, var(--paper-ink) 8%, transparent); }
+.scr :is(.rcard, .rtable) :is(.rlang, .rfiles):active { translate: 0 1px; }
+.scr :is(.rcard, .rtable) :is(.rlang, .rfiles):focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.scr :is(.rcard, .rtable) .rlang[aria-pressed=true] { color: var(--paper-ink); font-weight: 700; box-shadow: inset 0 -2px 0 var(--accent); }
+.scr :is(.rcard, .rtable) .rlang[aria-current=true] { border-color: var(--mark); }
+.scr :is(.rcard, .rtable) .rlang.ticked { background: var(--mark-soft); }
+.scr .rtable tr[data-lid] .rsel[aria-pressed=true] { font-weight: 700; }
+/* a row's name gives way before its pills and chips do: it is cut short, they keep their width */
+.scr .rtable .cname { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.scr .rtable .cname > .rsel { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.scr .rtable :is(.cname > :not(.rsel), .rlangs, .rlang, .rfiles) { flex: none; }
+.scr .rtable td:is(.c-lang, .c-sent):has(.rlangs, .rfiles) { text-overflow: clip; }
+.scr .rtable .rlang { padding: 0 2px; }
+/* the Library as a list: one sheet, one table; a column header that stays under the toolbar, the groups and rounds as slim header rows, hairlines
+   between compact rows, a resume's sent copies and files folded under it on a guide line; the narrower, the fewer columns */
+#scr-list { container-type: inline-size; }
+.scr .rtable { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-chip); font-size: 13px;
+  --row-pad: 7px; --row-stripe: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); --row-hover: color-mix(in srgb, var(--paper-ink) 9%, var(--paper)); }
+.scr .rtable :is(th, td) { padding: var(--row-pad) 10px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.45; }
+.scr .rtable thead th { position: sticky; top: var(--tbar-h, 0px); z-index: 2; padding-block: 6px; background: var(--paper); border-bottom: 1px solid var(--line); font-size: 11.5px; font-weight: 500; color: var(--paper-soft); }
+.scr .rtable thead th:first-child { border-top-left-radius: var(--r-m); } .scr .rtable thead th:last-child { border-top-right-radius: var(--r-m); }
+.scr .rtable td { color: var(--paper-soft); }
+/* no dividers: every other row is tinted, counted again from each group's or round's header row (folded rows do not count) */
+.scr .rtable :where(tbody > tr:nth-child(even of :not([hidden], .rghead))) { background: var(--row-stripe); }
+.scr .rtable :is(.rghead, .rrhead tr) th { padding: 5px 8px 3px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); color: var(--paper-ink); font-size: 11.5px; font-weight: 650; }
+.scr .rtable .rrhead th { padding: 5px 8px; font-size: 12.5px; font-weight: 700; white-space: normal; background: color-mix(in srgb, var(--paper-ink) 8%, var(--paper)); }
+.scr .rtable .rrhead .racts { display: inline-flex; margin: 0 0 0 12px; vertical-align: middle; }
+.scr .rtable .rrhead.drop-on th { box-shadow: inset 0 0 0 2px var(--sel-mark); }      /* the round a carried row would go to */
+.scr .rtable .c-tick { width: 58px; box-sizing: border-box; text-align: right; }
+/* the name takes what the others leave; company, role and job type a share of the width, the short ones their text's */
+.scr .rtable .c-name { color: var(--paper-ink); }
+.scr .rtable :is(th.c-company, th.c-role) { width: 15%; } .scr .rtable th.c-type { width: 10%; }
+.scr .rtable :is(th.c-paper, th.c-pages, th.c-sent) { width: calc(9ch + 20px); } .scr .rtable th.c-lang { width: calc(12ch + 20px); }      /* room for three language chips */ .scr .rtable th.c-changed { width: calc(12ch + 24px); }      /* ch of the heading's smaller type */
+.scr .rtable .rline { cursor: pointer; }
+.scr .rtable .rline:hover { background: var(--row-hover); }
+.scr .rtable .rline.ticked { background: var(--mark-soft); }
+.scr .rtable .rline.sel > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.scr .rtable .rsub .c-name { padding-left: 28px; background: linear-gradient(var(--line-strong), var(--line-strong)) 13px 0 / 1px 100% no-repeat; }
+.scr .rtable :is(.rsel, .rfold) { all: unset; cursor: pointer; }
+.scr .rtable .rsel { font-weight: 500; }
+.scr .rtable .c-tick .rfold { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 4px; vertical-align: middle; color: var(--paper-soft); }
+.scr .rtable .rrhead .rfold { display: inline-flex; align-items: center; gap: 4px; }
+.scr .rtable :is(.rsel, .rfold):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
+.scr .rtable .rfold[aria-expanded=false] svg { rotate: -90deg; }
+.scr .rtable .rtick { vertical-align: middle; margin: 0; }
+.scr .rtable .snapline { padding: 0; text-align: left; }
+.scr .rtable .rhit { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.scr .rtable .rstate { font-size: 11.5px; color: var(--paper-soft); }
+/* a dropped column keeps its place at no width: the header rows span all ten */
+@container (max-width: 1040px){ .scr .rtable :is(th, td):is(.c-paper, .c-lang, .c-pages) { width: 0; padding: 0; visibility: hidden; } }
+@container (max-width: 600px){ .scr .rtable :is(th, td):is(.c-type, .c-role, .c-changed) { width: 0; padding: 0; visibility: hidden; } }
 .thumbwrap { position: relative; }
 .thumbwrap .rthumb { z-index: 1; }
 .thumbwrap:has(.rthumb[data-pages]:not([data-pages="1"]))::before { content: ""; position: absolute; inset: 0; z-index: 0; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--paper); box-shadow: var(--shadow-chip); transform: rotate(4deg); transform-origin: 0 100%; }
@@ -118,8 +221,10 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .insp .oi-name { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
 .insp .btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .insp ul { margin: 0; padding-left: 16px; font-size: 12.5px; }
-.insp .oi-sent { list-style: none; padding: 0; display: grid; gap: 4px; }
-.insp .oi-sent li { display: flex; gap: 6px; align-items: center; }
+.insp :is(.oi-sent, .oi-files) { list-style: none; padding: 0; display: grid; gap: 4px; }
+.insp :is(.oi-sent, .oi-files) li { display: flex; gap: 6px; align-items: center; }
+.insp .oi-sent li > .pill { flex: none; }
+.insp .ifiles { display: grid; gap: 8px; scroll-margin-top: 14px; }
 .insp > button.sm { justify-self: start; }
 .njform { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--line-strong); border-radius: var(--r-m); }
 .njform label { display: grid; gap: 3px; font-size: 12px; }
@@ -185,9 +290,13 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .scr .checklist > :is(.clcols, .archmore, .clg) { display: none; }
 .scr .tbar .grow { display: none; }
 .scr .tbar .clall { font-size: 12px; color: var(--ink-soft); }
-.scr .checklist .rectl { max-width: 980px; margin: 0 auto; border: 0; padding: 0; overflow: visible; }
+.scr .checklist .rectl { max-width: calc(980px * var(--cz, 1)); margin: 0 auto; border: 0; padding: 0; overflow: visible; }      /* --cz: Career's zoom (placezoom.js) */
+.scr .rectl .row { padding: calc(7px * var(--cz, 1)) 12px calc(8px * var(--cz, 1)); }
+.scr .rectl .srow { padding: calc(5px * var(--cz, 1)) 8px; }
+.scr .rectl :is(.main, .side) { gap: calc(3px * var(--cz, 1)); }
+.scr .rectl .yr { margin-top: calc(10px * var(--cz, 1)); }
 .scr .checklist .recmore { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 0; border: 0; }
-.scr .checklist .recmore .srow { display: inline-flex; width: auto; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper); font-weight: 650; box-shadow: var(--shadow-chip); }
+.scr .checklist .recmore .srow { display: inline-flex; width: auto; padding: calc(8px * var(--cz, 1)) calc(14px * var(--cz, 1)); border: 1px solid var(--line); border-radius: var(--r-m); background: var(--paper); font-weight: 650; box-shadow: var(--shadow-chip); }
 .scr .checklist .rectl :is(.row, .srow) { background: var(--paper); }
 .scr .checklist .rectl .is-sel { box-shadow: 0 0 0 3px var(--accent) !important; border-color: transparent !important; }
 .insp-rec .scope { margin: 0; padding: 6px 8px; border-radius: var(--r-s); font-size: 12px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
@@ -249,7 +358,7 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 
 /* the results under the cards (Library) and over the timeline (Career): a row says where it is and shows the line with the word marked */
 .scr .found { max-width: 980px; margin: 0 auto 14px; }
-.scr :is(.found, .tbar, .cmpbar), .find { --press-edge: var(--paper-edge); --press-sh: var(--press-paper-sh); }      /* a paper face wears a paper shadow */
+.scr :is(.found, .tbar), .find { --press-edge: var(--paper-edge); --press-sh: var(--press-paper-sh); }      /* a paper face wears a paper shadow */
 .scr .found ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .scr .found .frow { display: grid; gap: 2px; justify-items: start; width: 100%; padding: 8px 12px; text-align: left; font-weight: 500; background: var(--paper); color: var(--paper-ink); border-radius: var(--r-m); }
 .scr .found .frow .fwhere { font-weight: 650; }
@@ -267,7 +376,7 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .scr .found .fvers .ftext { color: inherit; }
 .scr .found .fvers .hit { color: var(--paper-ink); }
 .scr .found .fvers li:not(.hit) .ftext { opacity: .7; }
-.scr :is(.rcard, .found) mark.fnd {      /* a card and a result row are paper in every theme */
+.scr :is(.rcard, .rtable, .found) mark.fnd {      /* a card and a result row are paper in every theme */
   background: var(--sample-1-soft); box-shadow: inset 0 -2px 0 var(--sample-1); color: var(--paper-ink); }
 .fcount { min-width: 5.5em; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .find .fnav { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; }
@@ -286,7 +395,7 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .scr .found .fmore { background: var(--paper); color: var(--paper-ink); }
 
 /* the Library's documents and rounds */
-.scr .rcard.rdoc .dthumb { display: grid; align-content: start; gap: 2px; overflow: hidden; width: 84px; padding: 4px; box-sizing: border-box; background: var(--sheet); box-shadow: 0 0 0 1px var(--sheet-edge); }
+.scr .rcard.rdoc .dthumb { display: grid; align-content: start; gap: 2px; overflow: hidden; width: calc(84px * var(--lz, 1)); padding: 4px; box-sizing: border-box; background: var(--sheet); box-shadow: 0 0 0 1px var(--sheet-edge); }
 .scr .rcard.rdoc .dthumb img { display: block; object-fit: cover; margin: -4px; width: calc(100% + 8px); height: calc(100% + 8px); }
 .scr .rcard.rdoc .dbadge { font-size: 11px; font-weight: 700; color: var(--paper-soft); }
 .scr .rcard.rdoc .dline { font-size: 6.5px; line-height: 1.2; color: var(--paper-soft); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; }
@@ -294,7 +403,12 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .scr .rcard .rstate[data-state="unplaced"] { color: var(--paper-ink); font-weight: 600; }
 .rround { margin: 0 0 12px; }
 .rround > summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+.rround > summary.drop-on { width: fit-content; margin: 0 -8px; padding: 4px 8px; border-radius: var(--r-s); background: var(--paper); color: var(--paper-ink); box-shadow: 0 0 0 2px var(--sel-mark); }      /* the round a carried card would go to */
 .rround .racts { margin: 4px 0 8px; }
+.scr .racts .press[data-tier=secondary] { --press-edge: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }      /* a round's actions sit on the ground behind the list: an edge at 3:1 */
+/* a round's name, written in place (the job title's pattern: the wash, a text cursor and the pencil on hover or focus) */
+.scr .rrname.hedit { display: inline-flex; width: auto; min-height: 0; padding: 1px 4px; margin: 0 -4px; font-weight: inherit; vertical-align: baseline; }
+.scr .rrin { width: 18em; max-width: 60vw; padding: 1px 6px; font: inherit; }
 .insp-doc .dtext { margin: 0; padding: 10px; white-space: pre-wrap; font-size: 11px; max-height: 240px; overflow: hidden; background: var(--sheet); color: var(--paper-ink); }
 .insp-doc .ihero { margin: -14px -16px 0; overflow: hidden; border-radius: inherit; }
 .insp-doc :is(.dformats, .dtaken, .dmentions) { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 4px; }

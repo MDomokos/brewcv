@@ -59,7 +59,7 @@ for (const [i, [w, h]] of SIZES.entries()){
     line: async () => { await frame.locator('.bullets li').first().click(); await page.keyboard.press('Escape'); },      // one click writes; Esc leaves the line selected
     job: async () => { await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(300); await page.locator('#body .jobname').first().click(); },      // by its name in the sidebar: a click on its title on the page writes it
     design: async () => { await page.click('#tab-design'); },
-    export: async () => { await page.click('#tab-export'); },
+    export: async () => { await page.evaluate(() => window.__wb.export.open()); },
     outline: async () => { await frame.locator('.bullets li').first().click(); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); },
     writing: async () => { await frame.locator('.bullets li').nth(1).click(); await page.waitForTimeout(500); },
   };
@@ -109,9 +109,10 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
     ok(`${w}×${h}: writing a line zooms in, and Esc to the page brings the page back`, zoomed && Math.abs(xs.at(-1) - r0.left) < 0.5);
     await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(300); await page.locator('#body .jobname').first().click(); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);      // a job, by its name in the sidebar (a click on its title would write it, and zoom)
     await page.click('#tab-design'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
-    await page.click('#tab-export'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
+    await page.evaluate(() => window.__wb.export.open()); await page.waitForTimeout(400);      // Export is a place of its own, with a wider column: the page moves there
+    await page.evaluate(() => window.__wb.export.back()); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
     await page.click('#tab-edit'); await page.waitForTimeout(400); xs.push((await pageRect(page)).left);
-    ok(`${w}×${h}: the page's x is the same for nothing selected, a line, a job, Design, Export and Edit`, chose && Math.max(...xs) - Math.min(...xs) < 0.5, xs.map(x => x.toFixed(1)).join(' '));
+    ok(`${w}×${h}: the page's x is the same for nothing selected, a line, a job, Design, back from Export and Edit`, chose && Math.max(...xs) - Math.min(...xs) < 0.5, xs.map(x => x.toFixed(1)).join(' '));
   } catch (e){ ok(`${w}×${h}: the layout measures`, false, String(e.message ?? e).split('\n')[0].slice(0, 100)); }
   await ctx.close();
 }
@@ -143,7 +144,7 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
       };
     });
     ok('no old tabs and no fold', !shape.tabs && !shape.folded);
-    ok('the rail has Edit, Design and Export as a vertical, labelled tab list; the head has no tabs', shape.segs.join() === 'edit,design,export' && !!shape.segRole && shape.vertical === 'vertical' && shape.headTabs === 0, shape.segs.join());
+    ok('the rail has Content and Look as a vertical, labelled tab list (Export is a place of its own); the head has no tabs', shape.segs.join() === 'edit,design' && !!shape.segRole && shape.vertical === 'vertical' && shape.headTabs === 0, shape.segs.join());
     ok(`the sidebar is what sideWidth says (${shape.want}px, ${shape.one ? 'a one-page resume' : 'two pages'}), with the rail touching it; the first tab touches the editor card, inside its height; the place tabs and the name card are above it`, shape.widths.col === shape.want && Math.abs(shape.widths.gap) < 1 && shape.widths.tabTouches && shape.widths.tabInside && shape.widths.nameAbove && shape.widths.placesAbove, JSON.stringify(shape.widths));
     ok('the three places are tabs on top of the column, Editor the current one', shape.places.join() === 'Library,Editor*,Career', shape.places.join());
     ok('the name card has the name and the menu: no Save to file, undo, redo, logo, Fit or Saved', shape.head.join() === 'switcher,menu' && shape.savedInSeam, shape.head.join());
@@ -153,21 +154,24 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
     ok('Actual size is on the zoom bar', shape.zoombar.includes('actual'), shape.zoombar.join());
     // the tab list: the arrow keys (up and down) move between the tabs and open them
     await page.focus('#tab-edit'); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(300);
-    ok('the arrow keys move down Edit, Design, Export and open each', await page.evaluate(() => document.activeElement.id === 'tab-design' && window.__wb.ui.view === 'design'));
+    ok('the arrow keys move down Content and Look and open each', await page.evaluate(() => document.activeElement.id === 'tab-design' && window.__wb.ui.view === 'design'));
     await page.keyboard.press('End'); await page.waitForTimeout(300);
-    ok('End goes to Export, Home to Edit', await page.evaluate(() => document.activeElement.id === 'tab-export' && window.__wb.ui.view === 'export'));
-    ok('Save to file is in the Export panel, with where the file stands', await page.evaluate(() => !!document.querySelector('#body #filestate[data-act=save-file]') && /file/i.test(document.querySelector('#fileline')?.textContent ?? '')));
     await page.keyboard.press('Home'); await page.waitForTimeout(300);
+    ok('End goes to Look, the last tab (Export is a place of its own)', await page.evaluate(() => document.activeElement.id === 'tab-edit') && await (async () => { await page.keyboard.press('End'); await page.waitForTimeout(300); return page.evaluate(() => document.activeElement.id === 'tab-design' && window.__wb.ui.view === 'design'); })());
+    await page.evaluate(() => window.__wb.export.open()); await page.waitForTimeout(300);
+    ok('Save to file is in the Export panel, with where the file stands', await page.evaluate(() => !!document.querySelector('#body #filestate[data-act=save-file]') && /file/i.test(document.querySelector('#fileline')?.textContent ?? '')));
+    await page.evaluate(() => window.__wb.export.back()); await page.waitForTimeout(300);
+    await page.focus('#tab-design'); await page.keyboard.press('Home'); await page.waitForTimeout(300);
     ok('Home goes to Edit', await page.evaluate(() => document.activeElement.id === 'tab-edit' && !window.__wb.ui.view));
   } catch (e){ ok('the sidebar has the new shape', false, String(e.message ?? e).split('\n')[0].slice(0, 100)); }
   await ctx.close();
 }
 
-// the panel under the tabs at 1280×720 (compact) measures 596 to 611px; a place tab or the name card taller than that would show here
+// the panel under the tabs at 1280×720 (compact) measures about 584px since the name card carries its tag line and the Export stub; a place tab or the name card taller than that would show here
 {
   const { ctx, page } = await open(1280, 720);
   const hgt = await page.evaluate(() => Math.round(document.querySelector('#body').getBoundingClientRect().height));
-  ok('1280×720: the panel under the compact tabs and the one-line name card is about 600px high', hgt >= 590 && hgt <= 625, `${hgt}px`);
+  ok('1280×720: the panel under the compact tabs and the one-line name card is about 585px high', hgt >= 576 && hgt <= 611, `${hgt}px`);
   await ctx.close();
 }
 await browser.close(); server.close();

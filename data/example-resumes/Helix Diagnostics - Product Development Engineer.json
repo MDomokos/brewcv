@@ -249,7 +249,8 @@
         "photo": {
           "show": false,
           "shape": "rect"
-        }
+        },
+        "round": "round-b2aab4c8"
       }
     }
   }

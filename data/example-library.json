@@ -1,0 +1,301 @@
+{
+  "documents": [
+    {
+      "id": "doc-bf6354647c84",
+      "name": "2026-09-29 Example Instruments - Design Engineer.pdf",
+      "type": "application/pdf",
+      "size": 1707,
+      "sha256": "bf6354647c844444aae6b38fa75d7630f1cb0358c17e2068600459f448d1d29f",
+      "addedAt": "2026-09-29T09:20:00.000Z",
+      "embedded": "data:application/pdf;base64,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",
+      "meta": {
+        "company": "Example Instruments",
+        "role": "Design Engineer",
+        "date": "2026-09-29",
+        "lang": "en",
+        "jobType": "",
+        "kind": "resume"
+      },
+      "from": "imported",
+      "taken": {
+        "claims": [],
+        "versions": [],
+        "skipped": [],
+        "unplaced": 0
+      },
+      "text": "Dana Okonkwo\nMechanical & Design Engineer\ndana@example.org · +351 900 000 000 · https://danaokonkwo.example\nSummary\nMechanical engineer on single-use medical devices, from sketch to tooling release; EU patent holder.\nExperience\nDesign Engineer\nHydra Medical · Mar 2023 – Present · Lisbon\nLed the dose-counter redesign on a 400,000-unit-a-year inhaler: nine parts down to five, two weeks off the tooling schedule.\nBuilt the team’s drop and cycle test rig and wrote its verification protocols.\nQualified two moulding suppliers, one in Portugal and one in Poland, and ran the first-article inspections.\nBuilt the tolerance stack for the counter mechanism and caught a 0.3 mm interference before the first tool was cut.\nPrototyping Technician\nPolytechnic Prototyping Lab · Sep 2021 – Feb 2023 · Porto\nRan a seven-machine prototyping shop: four FDM printers, a resin printer, a benchtop mill and a laser cutter.\nKept the shop’s machines running: logged and fixed about 300 faults a year, most of them within a day.\nClean-room Technician\nMedisure Contract Manufacturing · Jun 2018 – Dec 2020 · Porto\nCut scrap on the balloon-bonding line from 6% to 2.5% by redesigning the bonding fixture.\nSet up SPC charts on the two highest-scrap stations and trained the line leads to read them.\nRan the validation build for a new catheter line: installation, operational and performance qualification on 11 stations.\nEducation\nM.Eng. Mechanical Engineering · Universidade do Porto · 2021",
+      "layout": [
+        {
+          "page": 1,
+          "headerBottom": 817
+        }
+      ],
+      "round": "round-9edce3c0"
+    },
+    {
+      "id": "doc-a396e09f926e",
+      "name": "2026-09-29 Example Instruments - Design Engineer.docx",
+      "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "size": 4440,
+      "sha256": "a396e09f926e631859bca79d71dd648167569b60fe616a0e775524a89567be24",
+      "addedAt": "2026-09-29T09:20:01.000Z",
+      "embedded": "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQAAAAAAAAAAAB5bjPXrQEAAK0BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz48VHlwZXMgeG1sbnM9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9wYWNrYWdlLzIwMDYvY29udGVudC10eXBlcyI+PERlZmF1bHQgRXh0ZW5zaW9uPSJyZWxzIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLXBhY2thZ2UucmVsYXRpb25zaGlwcyt4bWwiLz48RGVmYXVsdCBFeHRlbnNpb249InhtbCIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3htbCIvPjxPdmVycmlkZSBQYXJ0TmFtZT0iL3dvcmQvZG9jdW1lbnQueG1sIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLW9mZmljZWRvY3VtZW50LndvcmRwcm9jZXNzaW5nbWwuZG9jdW1lbnQubWFpbit4bWwiLz48L1R5cGVzPlBLAwQUAAAAAAAAAAAAm/036ikBAAApAQAACwAAAF9yZWxzLy5yZWxzPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxSZWxhdGlvbnNoaXBzIHhtbG5zPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L3JlbGF0aW9uc2hpcHMiPjxSZWxhdGlvbnNoaXAgSWQ9InJJZDEiIFR5cGU9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9vZmZpY2VEb2N1bWVudC8yMDA2L3JlbGF0aW9uc2hpcHMvb2ZmaWNlRG9jdW1lbnQiIFRhcmdldD0id29yZC9kb2N1bWVudC54bWwiLz48L1JlbGF0aW9uc2hpcHM+UEsDBBQAAAAAAAAAAABcMJizKg0AACoNAAARAAAAd29yZC9kb2N1bWVudC54bWw8P3htbCB2ZXJzaW9uPSIxLjAiIGVuY29kaW5nPSJVVEYtOCIgc3RhbmRhbG9uZT0ieWVzIj8+PHc6ZG9jdW1lbnQgeG1sbnM6dz0iaHR0cDovL3NjaGVtYXMub3BlbnhtbGZvcm1hdHMub3JnL3dvcmRwcm9jZXNzaW5nbWwvMjAwNi9tYWluIj48dzpib2R5Pjx3OnA+PHc6cj48dzpyUHI+PHc6Yi8+PHc6c3ogdzp2YWw9IjMyIi8+PC93OnJQcj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkRhbmEgT2tvbmt3bzwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPk1lY2hhbmljYWwgJmFtcDsgRGVzaWduIEVuZ2luZWVyPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+ZGFuYUBleGFtcGxlLm9yZyDCtyArMzUxIDkwMCAwMDAgMDAwIMK3IGh0dHBzOi8vZGFuYW9rb25rd28uZXhhbXBsZTwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzpyUHI+PHc6Yi8+PC93OnJQcj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPlN1bW1hcnk8L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5NZWNoYW5pY2FsIGVuZ2luZWVyIG9uIHNpbmdsZS11c2UgbWVkaWNhbCBkZXZpY2VzLCBmcm9tIHNrZXRjaCB0byB0b29saW5nIHJlbGVhc2U7IEVVIHBhdGVudCBob2xkZXIuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnJQcj48dzpiLz48L3c6clByPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+RXhwZXJpZW5jZTwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzpyUHI+PHc6Yi8+PC93OnJQcj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkRlc2lnbiBFbmdpbmVlcjwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkh5ZHJhIE1lZGljYWwgwrcgTWFyIDIwMjMg4oCTIFByZXNlbnQgwrcgTGlzYm9uPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpwUHI+PHc6aW5kIHc6bGVmdD0iMzYwIi8+PC93OnBQcj48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+TGVkIHRoZSBkb3NlLWNvdW50ZXIgcmVkZXNpZ24gb24gYSA0MDAsMDAwLXVuaXQtYS15ZWFyIGluaGFsZXI6IG5pbmUgcGFydHMgZG93biB0byBmaXZlLCB0d28gd2Vla3Mgb2ZmIHRoZSB0b29saW5nIHNjaGVkdWxlLjwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cFByPjx3OmluZCB3OmxlZnQ9IjM2MCIvPjwvdzpwUHI+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkJ1aWx0IHRoZSB0ZWFt4oCZcyBkcm9wIGFuZCBjeWNsZSB0ZXN0IHJpZyBhbmQgd3JvdGUgaXRzIHZlcmlmaWNhdGlvbiBwcm90b2NvbHMuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpwUHI+PHc6aW5kIHc6bGVmdD0iMzYwIi8+PC93OnBQcj48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+UXVhbGlmaWVkIHR3byBtb3VsZGluZyBzdXBwbGllcnMsIG9uZSBpbiBQb3J0dWdhbCBhbmQgb25lIGluIFBvbGFuZCwgYW5kIHJhbiB0aGUgZmlyc3QtYXJ0aWNsZSBpbnNwZWN0aW9ucy48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnBQcj48dzppbmQgdzpsZWZ0PSIzNjAiLz48L3c6cFByPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5CdWlsdCB0aGUgdG9sZXJhbmNlIHN0YWNrIGZvciB0aGUgY291bnRlciBtZWNoYW5pc20gYW5kIGNhdWdodCBhIDAuMyBtbSBpbnRlcmZlcmVuY2UgYmVmb3JlIHRoZSBmaXJzdCB0b29sIHdhcyBjdXQuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnJQcj48dzpiLz48L3c6clByPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+UHJvdG90eXBpbmcgVGVjaG5pY2lhbjwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPlBvbHl0ZWNobmljIFByb3RvdHlwaW5nIExhYiDCtyBTZXAgMjAyMSDigJMgRmViIDIwMjMgwrcgUG9ydG88L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnBQcj48dzppbmQgdzpsZWZ0PSIzNjAiLz48L3c6cFByPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5SYW4gYSBzZXZlbi1tYWNoaW5lIHByb3RvdHlwaW5nIHNob3A6IGZvdXIgRkRNIHByaW50ZXJzLCBhIHJlc2luIHByaW50ZXIsIGEgYmVuY2h0b3AgbWlsbCBhbmQgYSBsYXNlciBjdXR0ZXIuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpwUHI+PHc6aW5kIHc6bGVmdD0iMzYwIi8+PC93OnBQcj48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+S2VwdCB0aGUgc2hvcOKAmXMgbWFjaGluZXMgcnVubmluZzogbG9nZ2VkIGFuZCBmaXhlZCBhYm91dCAzMDAgZmF1bHRzIGEgeWVhciwgbW9zdCBvZiB0aGVtIHdpdGhpbiBhIGRheS48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6clByPjx3OmIvPjwvdzpyUHI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5DbGVhbi1yb29tIFRlY2huaWNpYW48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5NZWRpc3VyZSBDb250cmFjdCBNYW51ZmFjdHVyaW5nIMK3IEp1biAyMDE4IOKAkyBEZWMgMjAyMCDCtyBQb3J0bzwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cFByPjx3OmluZCB3OmxlZnQ9IjM2MCIvPjwvdzpwUHI+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkN1dCBzY3JhcCBvbiB0aGUgYmFsbG9vbi1ib25kaW5nIGxpbmUgZnJvbSA2JSB0byAyLjUlIGJ5IHJlZGVzaWduaW5nIHRoZSBib25kaW5nIGZpeHR1cmUuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpwUHI+PHc6aW5kIHc6bGVmdD0iMzYwIi8+PC93OnBQcj48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+U2V0IHVwIFNQQyBjaGFydHMgb24gdGhlIHR3byBoaWdoZXN0LXNjcmFwIHN0YXRpb25zIGFuZCB0cmFpbmVkIHRoZSBsaW5lIGxlYWRzIHRvIHJlYWQgdGhlbS48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnBQcj48dzppbmQgdzpsZWZ0PSIzNjAiLz48L3c6cFByPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5SYW4gdGhlIHZhbGlkYXRpb24gYnVpbGQgZm9yIGEgbmV3IGNhdGhldGVyIGxpbmU6IGluc3RhbGxhdGlvbiwgb3BlcmF0aW9uYWwgYW5kIHBlcmZvcm1hbmNlIHF1YWxpZmljYXRpb24gb24gMTEgc3RhdGlvbnMuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnJQcj48dzpiLz48L3c6clByPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+RWR1Y2F0aW9uPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+TS5FbmcuIE1lY2hhbmljYWwgRW5naW5lZXJpbmcgwrcgVW5pdmVyc2lkYWRlIGRvIFBvcnRvIMK3IDIwMjE8L3c6dD48L3c6cj48L3c6cD48L3c6Ym9keT48L3c6ZG9jdW1lbnQ+UEsBAhQAFAAAAAAAAAAAAHluM9etAQAArQEAABMAAAAAAAAAAAAAAAAAAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAAUAAAAAAAAAAAAm/036ikBAAApAQAACwAAAAAAAAAAAAAAAADeAQAAX3JlbHMvLnJlbHNQSwECFAAUAAAAAAAAAAAAXDCYsyoNAAAqDQAAEQAAAAAAAAAAAAAAAAAwAwAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAMAAwC5AAAAiRAAAAAA",
+      "meta": {
+        "company": "Example Instruments",
+        "role": "Design Engineer",
+        "date": "2026-09-29",
+        "lang": "en",
+        "jobType": "",
+        "kind": "resume"
+      },
+      "from": "imported",
+      "taken": {
+        "claims": [],
+        "versions": [],
+        "skipped": [],
+        "unplaced": 0
+      },
+      "text": "Dana Okonkwo\nMechanical & Design Engineer\ndana@example.org · +351 900 000 000 · https://danaokonkwo.example\nSummary\nMechanical engineer on single-use medical devices, from sketch to tooling release; EU patent holder.\nExperience\nDesign Engineer\nHydra Medical · Mar 2023 – Present · Lisbon\nLed the dose-counter redesign on a 400,000-unit-a-year inhaler: nine parts down to five, two weeks off the tooling schedule.\nBuilt the team’s drop and cycle test rig and wrote its verification protocols.\nQualified two moulding suppliers, one in Portugal and one in Poland, and ran the first-article inspections.\nBuilt the tolerance stack for the counter mechanism and caught a 0.3 mm interference before the first tool was cut.\nPrototyping Technician\nPolytechnic Prototyping Lab · Sep 2021 – Feb 2023 · Porto\nRan a seven-machine prototyping shop: four FDM printers, a resin printer, a benchtop mill and a laser cutter.\nKept the shop’s machines running: logged and fixed about 300 faults a year, most of them within a day.\nClean-room Technician\nMedisure Contract Manufacturing · Jun 2018 – Dec 2020 · Porto\nCut scrap on the balloon-bonding line from 6% to 2.5% by redesigning the bonding fixture.\nSet up SPC charts on the two highest-scrap stations and trained the line leads to read them.\nRan the validation build for a new catheter line: installation, operational and performance qualification on 11 stations.\nEducation\nM.Eng. Mechanical Engineering · Universidade do Porto · 2021",
+      "of": "doc-bf6354647c84",
+      "round": "round-9edce3c0"
+    },
+    {
+      "id": "doc-7d20f1a30edf",
+      "name": "2026-09-29 Example Instruments - Cover letter.docx",
+      "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "size": 2237,
+      "sha256": "7d20f1a30edf129227435765dbff5c2c9d8960a1c59b733c5af4fbb27e506c05",
+      "addedAt": "2026-09-29T09:20:02.000Z",
+      "embedded": "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQAAAAAAAAAAAB5bjPXrQEAAK0BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz48VHlwZXMgeG1sbnM9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9wYWNrYWdlLzIwMDYvY29udGVudC10eXBlcyI+PERlZmF1bHQgRXh0ZW5zaW9uPSJyZWxzIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLXBhY2thZ2UucmVsYXRpb25zaGlwcyt4bWwiLz48RGVmYXVsdCBFeHRlbnNpb249InhtbCIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3htbCIvPjxPdmVycmlkZSBQYXJ0TmFtZT0iL3dvcmQvZG9jdW1lbnQueG1sIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLW9mZmljZWRvY3VtZW50LndvcmRwcm9jZXNzaW5nbWwuZG9jdW1lbnQubWFpbit4bWwiLz48L1R5cGVzPlBLAwQUAAAAAAAAAAAAm/036ikBAAApAQAACwAAAF9yZWxzLy5yZWxzPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxSZWxhdGlvbnNoaXBzIHhtbG5zPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L3JlbGF0aW9uc2hpcHMiPjxSZWxhdGlvbnNoaXAgSWQ9InJJZDEiIFR5cGU9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9vZmZpY2VEb2N1bWVudC8yMDA2L3JlbGF0aW9uc2hpcHMvb2ZmaWNlRG9jdW1lbnQiIFRhcmdldD0id29yZC9kb2N1bWVudC54bWwiLz48L1JlbGF0aW9uc2hpcHM+UEsDBBQAAAAAAAAAAACAKheHjwQAAI8EAAARAAAAd29yZC9kb2N1bWVudC54bWw8P3htbCB2ZXJzaW9uPSIxLjAiIGVuY29kaW5nPSJVVEYtOCIgc3RhbmRhbG9uZT0ieWVzIj8+PHc6ZG9jdW1lbnQgeG1sbnM6dz0iaHR0cDovL3NjaGVtYXMub3BlbnhtbGZvcm1hdHMub3JnL3dvcmRwcm9jZXNzaW5nbWwvMjAwNi9tYWluIj48dzpib2R5Pjx3OnA+PHc6cj48dzpyUHI+PHc6Yi8+PC93OnJQcj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkRhbmEgT2tvbmt3bzwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPmRhbmFAZXhhbXBsZS5vcmcgwrcgKzM1MSA5MDAgMDAwIDAwMDwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkRlYXIgRXhhbXBsZSBJbnN0cnVtZW50cyBoaXJpbmcgdGVhbSw8L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5JIGFtIGFwcGx5aW5nIGZvciB0aGUgRGVzaWduIEVuZ2luZWVyIHJvbGUuIEF0IEh5ZHJhIE1lZGljYWwgSSBsZWQgdGhlIGRvc2UtY291bnRlciByZWRlc2lnbiBvbiBhbiBpbmhhbGVyIHJ1bm5pbmcgNDAwLDAwMCB1bml0cyBhIHllYXIsIGN1dHRpbmcgdGhlIHBhcnQgY291bnQgZnJvbSBuaW5lIHRvIGZpdmUuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+SSBhbHNvIGJ1aWx0IHRoZSBkcm9wIGFuZCBjeWNsZSB0ZXN0IHJpZyB0aGUgdGVhbSBub3cgdXNlcyBmb3IgZGVzaWduIHZlcmlmaWNhdGlvbiwgYW5kIGJlZm9yZSB0aGF0IHJhbiBhIHNldmVuLW1hY2hpbmUgcHJvdG90eXBpbmcgc2hvcCBhdCB0aGUgUG9seXRlY2huaWMgUHJvdG90eXBpbmcgTGFiIGluIFBvcnRvLjwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkkgd291bGQgd2VsY29tZSB0aGUgY2hhbmNlIHRvIHRhbGsgYWJvdXQgaG93IHRoYXQgd29yayBmaXRzIHlvdXIgaW5zdHJ1bWVudHMuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+S2luZCByZWdhcmRzLDwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkRhbmEgT2tvbmt3bzwvdzp0PjwvdzpyPjwvdzpwPjwvdzpib2R5Pjwvdzpkb2N1bWVudD5QSwECFAAUAAAAAAAAAAAAeW4z160BAACtAQAAEwAAAAAAAAAAAAAAAAAAAAAAW0NvbnRlbnRfVHlwZXNdLnhtbFBLAQIUABQAAAAAAAAAAACb/TfqKQEAACkBAAALAAAAAAAAAAAAAAAAAN4BAABfcmVscy8ucmVsc1BLAQIUABQAAAAAAAAAAACAKheHjwQAAI8EAAARAAAAAAAAAAAAAAAAADADAAB3b3JkL2RvY3VtZW50LnhtbFBLBQYAAAAAAwADALkAAADuBwAAAAA=",
+      "meta": {
+        "company": "Example Instruments",
+        "role": "Cover letter",
+        "date": "2026-09-29",
+        "lang": "en",
+        "jobType": "",
+        "kind": "cover-letter"
+      },
+      "from": "imported",
+      "taken": {
+        "claims": [],
+        "versions": [],
+        "skipped": [],
+        "unplaced": 0
+      },
+      "text": "Dana Okonkwo\ndana@example.org · +351 900 000 000\nDear Example Instruments hiring team,\nI am applying for the Design Engineer role. At Hydra Medical I led the dose-counter redesign on an inhaler running 400,000 units a year, cutting the part count from nine to five.\nI also built the drop and cycle test rig the team now uses for design verification, and before that ran a seven-machine prototyping shop at the Polytechnic Prototyping Lab in Porto.\nI would welcome the chance to talk about how that work fits your instruments.\nKind regards,\nDana Okonkwo",
+      "round": "round-9edce3c0",
+      "with": "doc-bf6354647c84",
+      "resume": "Example Instruments - Design Engineer.json"
+    },
+    {
+      "id": "doc-0c1298481264",
+      "name": "2026-09-14 Medtech Lisboa - Cover letter.pdf",
+      "type": "application/pdf",
+      "size": 1138,
+      "sha256": "0c129848126406e9cbd126e8f1bfdbbf7a10ab9a233a4fbff2f8b57fe18a2698",
+      "addedAt": "2026-09-14T08:45:00.000Z",
+      "embedded": "data:application/pdf;base64,JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs2IDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYS1Cb2xkIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggNDEzIC9GaWx0ZXIgL0ZsYXRlRGVjb2RlID4+CnN0cmVhbQp4nHVTsa7TQBDs+YopQSTBIS8hr0MRQVjwRBMKys3d2j5s71p75+S9L+P3kH0C0bi4bmZ2ZjR3uuDd5/d4xKXCwxHHosDF4/UnEsL3VqW96xtcfuF8eXWaoNt/0A/H/Qz1JPSRn6kfOt6o1fiNt7v9Fo9FgSK/JYXDLh9jMjyxT+wafAvxqoTE1K+WeA+Z91PHiecakuCow1nqIMwGHViC1KDYRlRqiEHqjtdjZHi+Bcfg54EtsDjeoITnGGr5H9aznzUzPIISvrx4oyVLu+1s6SnTVqhMe1TBYkJsObkGSZFUu8mXcccUeQUSjxLUg+B0HeTGktSgAhKcf2CgxJLmCASvkddOR0mTRp9zx36zZGmbWzpxpcbo9TbRgiT9G7dEHCb51BgzXpgsTqdTw3Adk6xNtUcMnqHVbFGSkUvoScaKXBqNbYWoKNGK3tHofWYPZCmiXDJW5K680R1kjOsYujR3ESQO7BL7pVCHYw5Vogs3RpC8F5nZdx07jyuj7shPfffMaVHpkOf7NYiHcU3m49LgDvvFX/EHyY39PQplbmRzdHJlYW0KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiAvRjIgNCAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iagp4cmVmCjAgNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyMTIgMDAwMDAgbiAKMDAwMDAwMDMxNCAwMDAwMCBuIAowMDAwMDAwNzk5IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNyAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKOTM1CiUlRU9GCg==",
+      "meta": {
+        "company": "Medtech Lisboa",
+        "role": "Cover letter",
+        "date": "2026-09-14",
+        "lang": "en",
+        "jobType": "",
+        "kind": "cover-letter"
+      },
+      "from": "imported",
+      "taken": {
+        "claims": [],
+        "versions": [],
+        "skipped": [],
+        "unplaced": 0
+      },
+      "text": "Dana Okonkwo\ndana@example.org · +351 900 000 000\nDear Medtech Lisboa team,\nYour Mechanical Engineer opening asks for single-use device experience. I design single-use medical devices at Hydra Medical, from first sketch to tooling release, and I am a co-inventor on an EU patent for a dose-counting mechanism.\nBefore moving into design I spent three years on the clean-room side of a contract manufacturer, so I know how the parts I draw are built and inspected.\nI live in Lisbon and would be glad to meet.\nKind regards,\nDana Okonkwo",
+      "layout": [
+        {
+          "page": 1,
+          "headerBottom": 810
+        }
+      ],
+      "round": "round-b2aab4c8",
+      "resume": "Medtech Lisboa - Mechanical Engineer.json"
+    },
+    {
+      "id": "doc-cb3713747f77",
+      "name": "2026-10-07 Feinmess Instrumente GmbH - Konstrukteur (de).pdf",
+      "type": "application/pdf",
+      "size": 1716,
+      "sha256": "cb3713747f770f30571c7765a01d37efa2ab978d86d505d93a885bca8969fd96",
+      "addedAt": "2026-10-07T08:05:00.000Z",
+      "embedded": "data:application/pdf;base64,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",
+      "meta": {
+        "company": "Feinmess Instrumente GmbH",
+        "role": "Konstrukteur",
+        "date": "2026-10-07",
+        "lang": "de",
+        "jobType": "",
+        "kind": "resume"
+      },
+      "from": "imported",
+      "taken": {
+        "claims": [],
+        "versions": [],
+        "skipped": [],
+        "unplaced": 0
+      },
+      "text": "Dana Okonkwo\nMechanical & Design Engineer\ndana@example.org · +351 900 000 000 · https://danaokonkwo.example\nKurzprofil\nMaschinenbauingenieur für Einweg-Medizinprodukte, vom ersten Entwurf bis zur Werkzeugfreigabe; EU-Patentinhaber. Drei Jahre im Reinraum eines Lohnfertigers, danach Wechsel in die Konstruktion.\nWerdegang\nKonstrukteur\nHydra Medical · März 2023 – heute · Lissabon, Portugal\nLeitung der Neukonstruktion des Dosiszählers eines Inhalators mit 400.000 Stück pro Jahr; Teileanzahl von neun auf fünf reduziert.\nAufbau des Fall- und Zyklustestprüfstands, den das Team heute für die Designverifizierung nutzt, samt zugehörigen Prüfprotokollen.\nWöchentliche DFM-Reviews mit dem Werkzeugbauer über drei T1-Musterrunden; 41 von 44 Punkten vor der Werkzeugfreigabe abgeschlossen.\nPrototypentechniker\nPolytechnic Prototyping Lab · Sept. 2021 – Feb. 2023 · Porto, Portugal\nLeitung einer Prototypenwerkstatt mit sieben Maschinen: vier FDM-Drucker, ein Harzdrucker, eine Tischfräse und ein Laserschneider.\nReinraumtechniker\nMedisure Contract Manufacturing · Juni 2018 – Dez. 2020 · Porto, Portugal\nISO-7-Reinraummontage für drei Katheterprodukte, rund 9.000 Stück pro Woche im Zweischichtbetrieb.\nAusschuss an der Ballonverklebungslinie von 6 % auf 2,5 % gesenkt durch Neukonstruktion der Klebevorrichtung.\nAusbildung\nM.Eng. Mechanical Engineering · Universidade do Porto · 2021",
+      "layout": [
+        {
+          "page": 1,
+          "headerBottom": 817
+        }
+      ],
+      "round": "round-9edce3c0"
+    },
+    {
+      "id": "doc-6b83f3147bbd",
+      "name": "2026-10-07 Feinmess Instrumente GmbH - Konstrukteur (en).pdf",
+      "type": "application/pdf",
+      "size": 1609,
+      "sha256": "6b83f3147bbd01de7a31f7ff63433efab2472ad0e074deb0a6a9c887997b2a33",
+      "addedAt": "2026-10-07T08:05:01.000Z",
+      "embedded": "data:application/pdf;base64,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",
+      "meta": {
+        "company": "Feinmess Instrumente GmbH",
+        "role": "Konstrukteur",
+        "date": "2026-10-07",
+        "lang": "en",
+        "jobType": "",
+        "kind": "resume"
+      },
+      "from": "imported",
+      "taken": {
+        "claims": [],
+        "versions": [],
+        "skipped": [],
+        "unplaced": 0
+      },
+      "text": "Dana Okonkwo\nMechanical & Design Engineer\ndana@example.org · +351 900 000 000 · https://danaokonkwo.example\nSummary\nMechanical engineer working on single-use medical devices from first sketch to tooling release; EU patent holder. Spent three years on the clean-room side of a contract manufacturer before moving into design.\nExperience\nDesign Engineer\nHydra Medical · Mar 2023 – Present · Lisbon\nLed the dose-counter redesign on an inhaler running 400,000 units a year; cut the part count from nine to five.\nBuilt the drop and cycle test rig the team now uses for design verification, and wrote the test protocols that go with it.\nRan the weekly DFM reviews with the toolmaker through three rounds of T1 samples, closing 41 of 44 issues before tooling release.\nPrototyping Technician\nPolytechnic Prototyping Lab · Sep 2021 – Feb 2023 · Porto\nRan a seven-machine prototyping shop: four FDM printers, a resin printer, a benchtop mill and a laser cutter.\nClean-room Technician\nMedisure Contract Manufacturing · Jun 2018 – Dec 2020 · Porto\nRan ISO 7 clean-room assembly for three catheter products, about 9,000 units a week across two shifts.\nCut scrap on the balloon-bonding line from 6% to 2.5% by redesigning the bonding fixture.\nEducation\nM.Eng. Mechanical Engineering · Universidade do Porto · 2021",
+      "layout": [
+        {
+          "page": 1,
+          "headerBottom": 817
+        }
+      ],
+      "round": "round-9edce3c0"
+    },
+    {
+      "id": "doc-99134404414e",
+      "name": "Dana Okonkwo CV 2023.docx",
+      "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "size": 5346,
+      "sha256": "99134404414e73b40897be006b517a9fbde3121a0e23dc7a6b465a0959b6c8ce",
+      "addedAt": "2026-07-20T19:30:00.000Z",
+      "embedded": "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQAAAAAAAAAAAB5bjPXrQEAAK0BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz48VHlwZXMgeG1sbnM9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9wYWNrYWdlLzIwMDYvY29udGVudC10eXBlcyI+PERlZmF1bHQgRXh0ZW5zaW9uPSJyZWxzIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLXBhY2thZ2UucmVsYXRpb25zaGlwcyt4bWwiLz48RGVmYXVsdCBFeHRlbnNpb249InhtbCIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3htbCIvPjxPdmVycmlkZSBQYXJ0TmFtZT0iL3dvcmQvZG9jdW1lbnQueG1sIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLW9mZmljZWRvY3VtZW50LndvcmRwcm9jZXNzaW5nbWwuZG9jdW1lbnQubWFpbit4bWwiLz48L1R5cGVzPlBLAwQUAAAAAAAAAAAAm/036ikBAAApAQAACwAAAF9yZWxzLy5yZWxzPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxSZWxhdGlvbnNoaXBzIHhtbG5zPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L3JlbGF0aW9uc2hpcHMiPjxSZWxhdGlvbnNoaXAgSWQ9InJJZDEiIFR5cGU9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9vZmZpY2VEb2N1bWVudC8yMDA2L3JlbGF0aW9uc2hpcHMvb2ZmaWNlRG9jdW1lbnQiIFRhcmdldD0id29yZC9kb2N1bWVudC54bWwiLz48L1JlbGF0aW9uc2hpcHM+UEsDBBQAAAAAAAAAAABrfex8tBAAALQQAAARAAAAd29yZC9kb2N1bWVudC54bWw8P3htbCB2ZXJzaW9uPSIxLjAiIGVuY29kaW5nPSJVVEYtOCIgc3RhbmRhbG9uZT0ieWVzIj8+PHc6ZG9jdW1lbnQgeG1sbnM6dz0iaHR0cDovL3NjaGVtYXMub3BlbnhtbGZvcm1hdHMub3JnL3dvcmRwcm9jZXNzaW5nbWwvMjAwNi9tYWluIj48dzpib2R5Pjx3OnA+PHc6cj48dzpyUHI+PHc6Yi8+PHc6c3ogdzp2YWw9IjMyIi8+PC93OnJQcj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkRhbmEgT2tvbmt3bzwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPk1lY2hhbmljYWwgJmFtcDsgRGVzaWduIEVuZ2luZWVyPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+ZGFuYUBleGFtcGxlLm9yZzwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzpyUHI+PHc6Yi8+PC93OnJQcj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkV4cGVyaWVuY2U8L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6clByPjx3OmIvPjwvdzpyUHI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5Qcm90b3R5cGluZyBUZWNobmljaWFuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+UG9seXRlY2huaWMgUHJvdG90eXBpbmcgTGFiIMK3IFNlcCAyMDIxIOKAkyBGZWIgMjAyMyDCtyBQb3J0bzwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cFByPjx3OmluZCB3OmxlZnQ9IjM2MCIvPjwvdzpwUHI+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPlJhbiBhIHNldmVuLW1hY2hpbmUgcHJvdG90eXBpbmcgc2hvcDogZm91ciBGRE0gcHJpbnRlcnMsIGEgcmVzaW4gcHJpbnRlciwgYSBiZW5jaHRvcCBtaWxsIGFuZCBhIGxhc2VyIGN1dHRlci48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnBQcj48dzppbmQgdzpsZWZ0PSIzNjAiLz48L3c6cFByPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5UYXVnaHQgdGhlIG1hY2hpbmUtc2FmZXR5IGluZHVjdGlvbiB0byBhYm91dCAxMjAgc3R1ZGVudHMgYSB5ZWFyIGFuZCB3cm90ZSB0aGUgaGFuZGJvb2sgZm9yIGl0Ljwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cFByPjx3OmluZCB3OmxlZnQ9IjM2MCIvPjwvdzpwUHI+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkRlc2lnbmVkIGFuZCBwcmludGVkIG92ZXIgNjAgamlncyBhbmQgZml4dHVyZXMgZm9yIHN0dWRlbnQgY2Fwc3RvbmUgcHJvamVjdHMsIGZyb20gZHJpbGwgZ3VpZGVzIHRvIGEgdmFjdXVtLWZvcm1pbmcgZnJhbWUuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpwUHI+PHc6aW5kIHc6bGVmdD0iMzYwIi8+PC93OnBQcj48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+S2VwdCB0aGUgc2hvcOKAmXMgbWFjaGluZXMgcnVubmluZzogbG9nZ2VkIGFuZCBmaXhlZCBhYm91dCAzMDAgZmF1bHRzIGEgeWVhciwgbW9zdCBvZiB0aGVtIHdpdGhpbiBhIGRheS48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnBQcj48dzppbmQgdzpsZWZ0PSIzNjAiLz48L3c6cFByPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5Xcm90ZSB0aGUgbGFi4oCZcyBlcXVpcG1lbnQgZ3JhbnQgYXBwbGljYXRpb246IOKCrDQ4LDAwMCBmb3IgYSBmaXZlLWF4aXMgbWlsbCwgYXBwcm92ZWQgb24gZmlyc3Qgc3VibWlzc2lvbi48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6clByPjx3OmIvPjwvdzpyUHI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5GcmVlbGFuY2UgQ0FEIERlc2lnbmVyPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+U2VsZi1lbXBsb3llZCDCtyBKYW4gMjAyMSDigJMgQXVnIDIwMjEgwrcgUmVtb3RlPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpwUHI+PHc6aW5kIHc6bGVmdD0iMzYwIi8+PC93OnBQcj48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+Q0FEIGFuZCByZW5kZXJpbmcgZm9yIHR3byBzbWFsbCBmdXJuaXR1cmUgc3R1ZGlvcywgaW5jbHVkaW5nIHRoZSBhc3NlbWJseSBkcmF3aW5ncyB0aGV5IHNoaXBwZWQgd2l0aCB0aGUgcHJvZHVjdC48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnBQcj48dzppbmQgdzpsZWZ0PSIzNjAiLz48L3c6cFByPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5CdWlsdCBhIHNlYXJjaGFibGUgcGFydHMgbGlicmFyeSBmb3Igb25lIHN0dWRpbyBzbyB0aGVpciBqb2luZXJzIGNvdWxkIGZpbmQgaGFyZHdhcmUgYnkgZml4aW5nIHR5cGUgYW5kIGxvYWQuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnJQcj48dzpiLz48L3c6clByPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+Q2xlYW4tcm9vbSBUZWNobmljaWFuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+TWVkaXN1cmUgQ29udHJhY3QgTWFudWZhY3R1cmluZyDCtyBKdW4gMjAxOCDigJMgRGVjIDIwMjAgwrcgUG9ydG88L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnBQcj48dzppbmQgdzpsZWZ0PSIzNjAiLz48L3c6cFByPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5SYW4gSVNPIDcgY2xlYW4tcm9vbSBhc3NlbWJseSBmb3IgdGhyZWUgY2F0aGV0ZXIgcHJvZHVjdHMsIGFib3V0IDksMDAwIHVuaXRzIGEgd2VlayBhY3Jvc3MgdHdvIHNoaWZ0cy48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnBQcj48dzppbmQgdzpsZWZ0PSIzNjAiLz48L3c6cFByPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5DdXQgc2NyYXAgb24gdGhlIGJhbGxvb24tYm9uZGluZyBsaW5lIGZyb20gNiUgdG8gMi41JSBieSByZWRlc2lnbmluZyB0aGUgYm9uZGluZyBmaXh0dXJlLjwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cFByPjx3OmluZCB3OmxlZnQ9IjM2MCIvPjwvdzpwUHI+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPlNldCB1cCBTUEMgY2hhcnRzIG9uIHRoZSB0d28gaGlnaGVzdC1zY3JhcCBzdGF0aW9ucyBhbmQgdHJhaW5lZCB0aGUgbGluZSBsZWFkcyB0byByZWFkIHRoZW0uPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpwUHI+PHc6aW5kIHc6bGVmdD0iMzYwIi8+PC93OnBQcj48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+UmFuIHRoZSB2YWxpZGF0aW9uIGJ1aWxkIGZvciBhIG5ldyBjYXRoZXRlciBsaW5lOiBpbnN0YWxsYXRpb24sIG9wZXJhdGlvbmFsIGFuZCBwZXJmb3JtYW5jZSBxdWFsaWZpY2F0aW9uIG9uIDExIHN0YXRpb25zLjwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cFByPjx3OmluZCB3OmxlZnQ9IjM2MCIvPjwvdzpwUHI+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPldyb3RlIG9yIHJld3JvdGUgMjIgd29yayBpbnN0cnVjdGlvbnMgYWZ0ZXIgYSBjdXN0b21lciBhdWRpdCwgYWxsIGFjY2VwdGVkIHdpdGhvdXQgZmluZGluZ3MgYXQgdGhlIGZvbGxvdy11cC48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6clByPjx3OmIvPjwvdzpyUHI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5EZXNpZ24gSW50ZXJuPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+QXRlbGllciBOb3J0ZSDCtyBKdW4gMjAxNyDigJMgU2VwIDIwMTcgwrcgUG9ydG88L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnBQcj48dzppbmQgdzpsZWZ0PSIzNjAiLz48L3c6cFByPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5Nb2RlbGxlZCBhbmQgcmVuZGVyZWQgYW4gZWlnaHQtcGllY2Ugb3V0ZG9vciBmdXJuaXR1cmUgcmFuZ2UgZm9yIHRoZSBzdHVkaW/igJlzIHRyYWRlLWZhaXIgY2F0YWxvZ3VlLjwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzpyUHI+PHc6Yi8+PC93OnJQcj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPkVkdWNhdGlvbjwvdzp0PjwvdzpyPjwvdzpwPjx3OnA+PHc6cj48dzp0IHhtbDpzcGFjZT0icHJlc2VydmUiPk0uRW5nLiBNZWNoYW5pY2FsIEVuZ2luZWVyaW5nPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+VW5pdmVyc2lkYWRlIGRvIFBvcnRvPC93OnQ+PC93OnI+PC93OnA+PHc6cD48dzpyPjx3OnJQcj48dzpiLz48L3c6clByPjx3OnQgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+T3RoZXI8L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6dCB4bWw6c3BhY2U9InByZXNlcnZlIj5Ecml2aW5nIGxpY2VuY2UsIGNhdGVnb3J5IEI8L3c6dD48L3c6cj48L3c6cD48L3c6Ym9keT48L3c6ZG9jdW1lbnQ+UEsBAhQAFAAAAAAAAAAAAHluM9etAQAArQEAABMAAAAAAAAAAAAAAAAAAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAAUAAAAAAAAAAAAm/036ikBAAApAQAACwAAAAAAAAAAAAAAAADeAQAAX3JlbHMvLnJlbHNQSwECFAAUAAAAAAAAAAAAa33sfLQQAAC0EAAAEQAAAAAAAAAAAAAAAAAwAwAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAMAAwC5AAAAExQAAAAA",
+      "meta": {
+        "company": "",
+        "role": "",
+        "date": "2023-02-20",
+        "lang": "en",
+        "jobType": "",
+        "kind": "resume"
+      },
+      "from": "imported",
+      "taken": {
+        "claims": [],
+        "versions": [],
+        "skipped": [],
+        "unplaced": 1,
+        "lines": [
+          "Driving licence, category B"
+        ]
+      },
+      "text": "Dana Okonkwo\nMechanical & Design Engineer\ndana@example.org\nExperience\nPrototyping Technician\nPolytechnic Prototyping Lab · Sep 2021 – Feb 2023 · Porto\nRan a seven-machine prototyping shop: four FDM printers, a resin printer, a benchtop mill and a laser cutter.\nTaught the machine-safety induction to about 120 students a year and wrote the handbook for it.\nDesigned and printed over 60 jigs and fixtures for student capstone projects, from drill guides to a vacuum-forming frame.\nKept the shop’s machines running: logged and fixed about 300 faults a year, most of them within a day.\nWrote the lab’s equipment grant application: €48,000 for a five-axis mill, approved on first submission.\nFreelance CAD Designer\nSelf-employed · Jan 2021 – Aug 2021 · Remote\nCAD and rendering for two small furniture studios, including the assembly drawings they shipped with the product.\nBuilt a searchable parts library for one studio so their joiners could find hardware by fixing type and load.\nClean-room Technician\nMedisure Contract Manufacturing · Jun 2018 – Dec 2020 · Porto\nRan ISO 7 clean-room assembly for three catheter products, about 9,000 units a week across two shifts.\nCut scrap on the balloon-bonding line from 6% to 2.5% by redesigning the bonding fixture.\nSet up SPC charts on the two highest-scrap stations and trained the line leads to read them.\nRan the validation build for a new catheter line: installation, operational and performance qualification on 11 stations.\nWrote or rewrote 22 work instructions after a customer audit, all accepted without findings at the follow-up.\nDesign Intern\nAtelier Norte · Jun 2017 – Sep 2017 · Porto\nModelled and rendered an eight-piece outdoor furniture range for the studio’s trade-fair catalogue.\nEducation\nM.Eng. Mechanical Engineering\nUniversidade do Porto\nOther\nDriving licence, category B"
+    }
+  ],
+  "rounds": [
+    {
+      "id": "round-5d1007c5",
+      "name": "Summer 2026",
+      "from": "2026-08-01",
+      "to": "2026-09-01",
+      "archived": true
+    },
+    {
+      "id": "round-b2aab4c8",
+      "name": "September 2026",
+      "from": "2026-09-01",
+      "to": "2026-09-26"
+    },
+    {
+      "id": "round-9edce3c0",
+      "name": "October 2026",
+      "from": "2026-09-26"
+    }
+  ],
+  "imports": [
+    {
+      "sha256": "bf6354647c844444aae6b38fa75d7630f1cb0358c17e2068600459f448d1d29f",
+      "name": "2026-09-29 Example Instruments - Design Engineer.pdf",
+      "kind": "pdf",
+      "at": "2026-09-29T09:20:00.000Z",
+      "result": "resume",
+      "recordId": null,
+      "saved": "2026-09-29T09:05:00.000Z"
+    },
+    {
+      "sha256": "a396e09f926e631859bca79d71dd648167569b60fe616a0e775524a89567be24",
+      "name": "2026-09-29 Example Instruments - Design Engineer.docx",
+      "kind": "docx",
+      "at": "2026-09-29T09:20:01.000Z",
+      "result": "format",
+      "recordId": null,
+      "saved": "2026-09-29T09:02:00.000Z"
+    },
+    {
+      "sha256": "7d20f1a30edf129227435765dbff5c2c9d8960a1c59b733c5af4fbb27e506c05",
+      "name": "2026-09-29 Example Instruments - Cover letter.docx",
+      "kind": "docx",
+      "at": "2026-09-29T09:20:02.000Z",
+      "result": "letter",
+      "recordId": null,
+      "saved": "2026-09-28T18:30:00.000Z"
+    },
+    {
+      "sha256": "0c129848126406e9cbd126e8f1bfdbbf7a10ab9a233a4fbff2f8b57fe18a2698",
+      "name": "2026-09-14 Medtech Lisboa - Cover letter.pdf",
+      "kind": "pdf",
+      "at": "2026-09-14T08:45:00.000Z",
+      "result": "letter",
+      "recordId": null,
+      "saved": "2026-09-13T20:10:00.000Z"
+    },
+    {
+      "sha256": "cb3713747f770f30571c7765a01d37efa2ab978d86d505d93a885bca8969fd96",
+      "name": "2026-10-07 Feinmess Instrumente GmbH - Konstrukteur (de).pdf",
+      "kind": "pdf",
+      "at": "2026-10-07T08:05:00.000Z",
+      "result": "resume",
+      "recordId": null,
+      "saved": "2026-10-07T07:50:00.000Z"
+    },
+    {
+      "sha256": "6b83f3147bbd01de7a31f7ff63433efab2472ad0e074deb0a6a9c887997b2a33",
+      "name": "2026-10-07 Feinmess Instrumente GmbH - Konstrukteur (en).pdf",
+      "kind": "pdf",
+      "at": "2026-10-07T08:05:01.000Z",
+      "result": "resume",
+      "recordId": null,
+      "saved": "2026-10-07T07:52:00.000Z"
+    },
+    {
+      "sha256": "99134404414e73b40897be006b517a9fbde3121a0e23dc7a6b465a0959b6c8ce",
+      "name": "Dana Okonkwo CV 2023.docx",
+      "kind": "docx",
+      "at": "2026-07-20T19:30:00.000Z",
+      "result": "resume",
+      "recordId": null,
+      "saved": "2023-02-20T10:00:00.000Z"
+    }
+  ]
+}

@@ -280,6 +280,7 @@ export function createSheet(host, hooks = {}){
     const css = hooks.extraCss?.(recipe) ?? '';
     const el = f.doc.getElementById('rb-tokens');
     if (el && el.textContent !== css) el.textContent = css;
+    f.doc.documentElement.classList.toggle('medium-print', !!hooks.onPaper?.(recipe));      // a look may keep clear of the paper's edge (src/model/design.js)
   }
 
   async function draw(work, recipe){

@@ -186,6 +186,9 @@ section('order, and an empty or example career');
   ok('an empty or example career starts from the newest file, and the older ones are added to it', fresh.start.name === 'two.md' && fresh.files[0].entry === fresh.start && fresh.files[0].base && fresh.files[1].items.some(x => x.kind === 'add' && x.as === 'job'));
   const f = applied(st, fresh);
   ok('applied, the career is the newest file’s with the older one joined, every version stamped, and the saved resumes are the new career’s own', f.d.record.basics.name === 'Pat Example' && f.d.record.work.map(w => w.name).sort().join() === 'New Works,Old Works' && f.d.record.variants.every(v => v.source && v.tags.includes('imported')) && f.d.resumes.length === 0);
+  const lib = { ...st, ...read('data/example-library.json') }, one = made('one.md', { modified: 1000, basics: { name: 'Pat Example' }, work: [job({ name: 'Old Works', highlights: ['Cut scrap on the balloon line by a third'] })] });
+  const g = applied(lib, planOf(lib, [one], { fresh: true }));
+  ok('…and the example’s own documents, rounds and import log go with it: the Library holds only the new file', lib.documents.length > 1 && lib.rounds.length && g.d.documents.length === 1 && g.d.documents[0].name === 'one.md' && !g.d.rounds && g.d.imports.length === 1 && !g.d.documents[0].round);
 }
 
 section('applying: documents, the log, and what must not change');

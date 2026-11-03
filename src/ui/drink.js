@@ -66,7 +66,7 @@ export function logoBtn(size = 28, { base = 'logo', pos = 'b' } = {}){
 
 // Shift+F, unless a field or an editable line has the keyboard
 export function isDrinkKey(e){
-  if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || String(e.key).toLowerCase() !== 'f') return false;
+  if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.getModifierState?.('AltGraph') || String(e.key).toLowerCase() !== 'f') return false;
   return !e.target?.closest?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select, .ddbtn, [contenteditable=""], [contenteditable=true]');
 }
 

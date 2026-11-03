@@ -125,5 +125,20 @@ section('finding a browser for the PDF script');
   ok('none found: null, so the script can name CHROME_PATH', findBrowser({}, () => false, none) === null);
 }
 
+section('several files as one ZIP (src/zip.js)');
+{
+  const { zip, crc32, uniqueNames } = await import('../src/zip.js');
+  const { unzip } = await import('../src/parse/unzip.js');
+  ok('the CRC-32 of "123456789" is CBF43926', crc32(new TextEncoder().encode('123456789')) === 0xcbf43926);
+  const names = uniqueNames(['Ferro Tools - Engineer.html', 'Medtech Lisboa - Engineer.html', 'ferro tools - engineer.html', 'Señora Ångström.txt']);
+  ok('a name met twice (in any case) gets " (2)" before its extension', names[2] === 'ferro tools - engineer (2).html' && names[0] === 'Ferro Tools - Engineer.html', names.join(' | '));
+  const files = names.map((name, i) => ({ name, data: i === 3 ? new Uint8Array([0, 255, 7]) : `<p>résumé ${i}</p>` }));
+  const z = unzip(zip(files));
+  ok('the ZIP holds N files with the right names, read back by the app’s own reader', z.names.length === 4 && names.every(n => z.names.includes(n)), z.names.join(' | '));
+  const back = await Promise.all(names.map(n => z.read(n)));
+  ok('every entry reads back byte for byte (text as UTF-8, bytes as they were)', new TextDecoder().decode(back[1]) === '<p>résumé 1</p>' && back[3].join() === '0,255,7');
+  ok('an empty list is an empty ZIP', unzip(zip([])).names.length === 0);
+}
+
 console.log(failed ? `\n${failed} export check(s) FAILED` : '\nall export checks passed');
 process.exit(failed ? 1 : 0);

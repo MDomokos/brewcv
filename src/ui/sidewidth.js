@@ -24,6 +24,10 @@ function setSide(next){
 }
 export const toggleSide = () => setSide({ off: !S.off });
 export const openSide = () => { if (S.off) setSide({ off: false }); };
+// rb-esc-fold = off keeps the sidebar open at the page level (for the checks, which press Esc to rest)
+const escFolds = () => { try { return localStorage.getItem('rb-esc-fold') !== 'off'; } catch { return true; } };
+// Esc at the page level and a click of the middle button: the sidebar folds away first, so the whole resume is fitted to the window it leaves
+export const foldForAll = L => { if (L && !L.phone && !S.off && escFolds()) toggleSide(); };
 
 // the handle's numbers follow the layout (called by relayout)
 export function syncSide(L){

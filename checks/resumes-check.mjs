@@ -207,6 +207,11 @@ section('duplicating');
   ok('rename changes the name and the file name', st.cur.name === 'Fabrikam - Ingenieur' && st.openId === 'Fabrikam - Ingenieur.json' && st.frozen['Fabrikam - Ingenieur.json'] && !st.frozen[lt.id]);
   const idOf = RS.renameSaved(st, st.openId, '  ').id;
   ok('an empty name falls back', !!RS.savedOf(st, idOf).name);
+  const fr = RS.duplicate(st, idOf, { lang: 'fr' }).id, same = RS.duplicate(st, src).id, far = RS.duplicate(st, src, { lang: 'it' }).id;
+  RS.savedOf(st, far).company = 'Elsewhere';
+  const fam = id => RS.langFamily(st, RS.savedOf(st, id)).map(r => r.id);
+  ok('the original and its copies in other languages for the same company and role are one item, the original first, up the chain', eq(fam(fr), [src, idOf, fr]) && eq(fam(src), fam(fr)), fam(fr).join());
+  ok('…a copy in the same language, or for another company, is a resume of its own', eq(fam(same), [same]) && eq(fam(far), [far]), `${fam(same)} | ${fam(far)}`);
 }
 
 section('snapshots: Save freezes what is sent');
@@ -421,8 +426,9 @@ section('saving and listing with a bundle job type');
 section('the grown switcher: the Date and Company views');
 {
   const st = exampleState();
-  const a = st.resumes[0], b = st.resumes[1], c = st.resumes[2];
-  // a is sent to Acme (twice, the second time as outreach), b to Acme and Birch, c never sent
+  // three resumes the example never sent: a is sent to Acme (twice, the second time as outreach), b to Acme and Birch, c never sent
+  const [a, b, c] = st.resumes.filter(r => !RS.snapshotsOf(r).length);
+  const had = RS.sendEvents(st.resumes).filter(e => e.kind === 'send').length, sentBefore = st.resumes.filter(r => RS.snapshotsOf(r).length).length;
   RS.openSaved(st, a.id);
   RS.takeSnapshot(st, { company: 'Acme', role: 'Engineer', date: '2026-03-02' });
   RS.takeSnapshot(st, { kind: 'outreach', company: 'Acme', role: 'Engineer', date: '2026-04-09' });
@@ -431,8 +437,8 @@ section('the grown switcher: the Date and Company views');
   RS.takeSnapshot(st, { company: 'Birch', role: 'Lead', date: '2026-01-15' });
   const rs = st.resumes;
   const ev = RS.sendEvents(rs);
-  ok('Date: every send is an event, newest first', ev.filter(e => e.kind === 'send').length === 4 && ev.filter(e => e.kind === 'send').every((e, i, l) => !i || l[i - 1].date >= e.date), ev.map(e => e.date).join());
-  ok('…a resume never sent comes in once, at the day it was saved', ev.filter(e => e.kind === 'saved').length === rs.length - 2 && ev.filter(e => e.kind === 'saved').every(e => e.resume.id !== a.id && e.resume.id !== b.id));
+  ok('Date: every send is an event, newest first', had > 0 && ev.filter(e => e.kind === 'send').length === had + 4 && ev.filter(e => e.kind === 'send').every((e, i, l) => !i || l[i - 1].date >= e.date), ev.map(e => e.date).join());
+  ok('…a resume never sent comes in once, at the day it was saved', ev.filter(e => e.kind === 'saved').length === rs.length - sentBefore - 2 && ev.filter(e => e.kind === 'saved').every(e => e.resume.id !== a.id && e.resume.id !== b.id && !RS.snapshotsOf(e.resume).length));
   const bands = RS.sendBands(ev);
   ok('…in bands of a year, newest year first', bands.every(x => x.events.every(e => e.date.slice(0, 4) === x.year)) && bands.map(x => x.year).join() === [...new Set(ev.map(e => e.date.slice(0, 4)))].join());
   const co = RS.byCompany(rs);
@@ -552,9 +558,9 @@ section('RS.prints: which resumes print a claim, and in which version');
 {
   const rs = fs.readdirSync(path.join(REPO, 'data/example-resumes')).filter(f => f.endsWith('.json') && f !== 'index.json').map(f => S.loadResume(read(`data/example-resumes/${f}`), model).recipe);
   const n = (facts, vid) => rs.filter(r => RS.prints(model, r, facts, vid)).length;
-  ok('a claim is printed by the resumes that pick one of its versions (the other languages print their own wording of it)', n(['hydra-dfm']) === 8 && n(['hydra-inhaler', 'hydra-testing']) === 14);
-  ok('a version is printed by the resumes that pick that very one', n(['hydra-dfm'], 'hydra-dfm-v1') === 2 && n(['hydra-dfm'], 'hydra-dfm-v1-hu') === 0);
-  ok('a claim no resume prints is found by none, and a job\u2019s title counts as printed with the job', n(['caliper-stand-files']) === 0 && n(['hydra-position']) === 14);
+  ok('a claim is printed by the resumes that pick one of its versions (the other languages print their own wording of it)', n(['hydra-dfm']) === 10 && n(['hydra-inhaler', 'hydra-testing']) === 16);      // 14 resumes and the German one's English and French copies
+  ok('a version is printed by the resumes that pick that very one', n(['hydra-dfm'], 'hydra-dfm-v1') === 3 && n(['hydra-dfm'], 'hydra-dfm-v1-hu') === 0);
+  ok('a claim no resume prints is found by none, and a job\u2019s title counts as printed with the job', n(['caliper-stand-files']) === 0 && n(['hydra-position']) === 16);
   const r = clone(rs.find(x => RS.prints(model, x, ['hydra-dfm'], 'hydra-dfm-v1')));
   r.overrides = { ...(r.overrides ?? {}), 'hydra-dfm': 'Only here' };
   ok('a text edited on this resume only is the claim, not a version of it', RS.prints(model, r, ['hydra-dfm']) && !RS.prints(model, r, ['hydra-dfm'], 'hydra-dfm-v1'));

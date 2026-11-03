@@ -4,7 +4,8 @@
 // (Needs you, what to add, lines with no home), and the receipt (is the original safe to delete). Their model is src/model/intake.js.
 
 import { inDesktop } from './ask.js';
-import { withArrows } from './icons.js';
+import { withArrows, icon } from './icons.js';
+import { showAll } from './screens.js';
 import * as I from '../model/import.js';
 import * as D from '../model/diff.js';
 import * as RS from '../model/resumes.js';
@@ -156,7 +157,7 @@ function historyView(){
 
 async function loadHistory(){
   F.history.list = await C.persist.listCheckpoints().catch(() => []);
-  C.renderBody();
+  repaint();
 }
 
 async function take(text, name, mode = null){
@@ -253,7 +254,7 @@ async function replace(){
   // the file just opened is now the last one saved here, so the next save carries on from it
   if (g.kind === 'backup') await C.persist.markFileOpened({ at: g.info?.saved ?? new Date().toISOString(), recordId: next.record.recordId ?? null, hash: g.hash ?? null, clock: g.info?.clock ?? null });
   F.got = null; F.items = null;
-  C.setView(null);
+  leave();
   C.toast(t('toast.fileOpen', { file: g.file }));
 }
 
@@ -288,17 +289,18 @@ async function act(a, tg){
       commit(d => { n = D.applyItems(d, its, frozen); }, t('undo.merge', { file: F.got.file }));
       C.toast(t('toast.merged', { n }));
       F.got = null; F.items = null;
-      C.setView(null);
+      leave();
       return true;
     }
     case 'imp-undo': {
       const x = F.merged?.summary[Number(tg.dataset.i)];
       if (!x || x.undone) return true;
       if (commit(d => M.keepOpen(d, x.undo), t('undo.merge', { file: F.merged.file }))) x.undone = true;
-      C.renderBody();
+      repaint();
       return true;
     }
-    case 'imp-merged-close': F.merged = null; C.setView(null); return true;
+    case 'imp-merged-close': F.merged = null; closeImport(); return true;
+    case 'imp-close': closeImport(); return true;
     case 'imp-resume': {
       const g = F.got;
       commit(d => {
@@ -308,16 +310,16 @@ async function act(a, tg){
         if (g.frozen) d.frozen = { ...(d.frozen ?? {}), [r.id]: g.frozen };
         RS.openSaved(d, r.id);
       }, t('undo.open', { name: g.file }), t('toast.isOpen', { name: g.file }));
-      F.got = null; C.ui.sel = C.NONE; C.setView(null);
+      F.got = null; C.ui.sel = C.NONE; leave();
       return true;
     }
-    case 'imp-theme': if (C.onTheme) C.onTheme(F.got.json, F.got.file); else C.toast(t('toast.themesInDesign'), 'warn'); return true;
+    case 'imp-theme': closeImport(); if (C.onTheme) C.onTheme(F.got.json, F.got.file); else C.toast(t('toast.themesInDesign'), 'warn'); return true;
     case 'cp-new': {
       const field = $('#cp-name');
       const l = (field ? field.value : prompt(t('history.namePrompt'), t('checkpoint.named', { date: new Date().toLocaleString() })))?.trim();
       if (!l) return true;
       await C.persist.checkpoint(l);
-      H.list = null; C.renderBody(); C.toast(t('toast.checkpointSaved'));
+      H.list = null; repaint(); C.toast(t('toast.checkpointSaved'));
       return true;
     }
     case 'cp-file': C.pickFile('compare'); return true;
@@ -328,7 +330,7 @@ async function act(a, tg){
       C.setView('history');
       return true;
     }
-    case 'cp-compare-close': H.compare = null; C.renderBody(); return true;
+    case 'cp-compare-close': H.compare = null; repaint(); return true;
     case 'cp-sel': {
       H.sel = H.sel === tg.dataset.id ? null : tg.dataset.id;
       H.items = null;
@@ -338,7 +340,7 @@ async function act(a, tg){
         // the checkpoint is "from", now is "to"
         H.items = c?.state?.record ? D.diffRecords(c.state.record, now.record, { fromResumes: c.state.resumes ?? [], toResumes: now.resumes ?? [] }) : [];
       }
-      C.renderBody();
+      repaint();
       return true;
     }
     case 'cp-restore': {
@@ -385,7 +387,7 @@ async function loadPages(i){
   if (!e?.read?.pdf || D.pages.has(i)) return;
   D.pages.set(i, 'loading');
   try { D.pages.set(i, await pdfPages(e.read.pdf)); } catch (err){ D.pages.set(i, { error: err }); }
-  C.renderBody();
+  repaint();
 }
 
 // A page and its layout: the full-width header ends at `headerBottom`, the columns are cut at `split` (the page's own points, y up)
@@ -517,14 +519,14 @@ async function checkSaved(file){
   const ids = DOC.inFile(st(), backup);
   F.checked = { at: new Date().toISOString(), ids };      // kept for the session: the Library’s inspector shows it too
   C.toast(t('i6.checked', { n: ids.length }));
-  C.renderBody();
+  repaint();
 }
 
 function reread(i){
   const D = F.drop, e = D.entries[i];
   e.read = { ...e.read, ...X.readIn(e.read.items, e.read.lang, e.layout) };
   judge(D.entries);
-  C.renderBody();
+  repaint();
 }
 // `patch` for one page of a PDF: the layout is the one used so far, with this page's header line or split given
 function setLayout(i, page, patch){
@@ -547,13 +549,13 @@ async function importAct(a, tg){
     case 'imp-need': {
       const [fi, ii] = tg.dataset.k.split('.').map(Number);
       D.plan.files[fi].items[ii].on = tg.dataset.pick === 'use';
-      C.renderBody();
+      repaint();
       return true;
     }
     case 'imp-opt': {
       const [fi, j] = tg.dataset.k.split('.').map(Number), n = D.plan.files[fi].needs[j], o = Number(tg.dataset.o);
       n.chosen = n.chosen === o ? null : o;
-      C.renderBody();
+      repaint();
       return true;
     }
     case 'imp-apply': {
@@ -569,22 +571,86 @@ async function importAct(a, tg){
         let made = [];
         if (!commit(d => { made = X.applyPlan(d, D.plan, { at }); }, label)) return true;
         D.done = { at, label, ids: made.map(x => x.id) };
+        W.added = true;
         C.setView('receipt');
       } finally { D.applying = false; tg.disabled = false; }
       return true;
     }
-    case 'imp-save': if (await C.saveToFile()) C.renderBody(); return true;
+    case 'imp-save': if (await C.saveToFile()) repaint(); return true;
     case 'imp-undo-import':
-      if (C.store.history.next === D.done.label){ C.ui.sel = C.NONE; C.store.undo(); }
-      F.drop = null; C.setView(null);
+      if (C.store.history.next === D.done.label){ C.ui.sel = C.NONE; C.store.undo(); W.added = false; }
+      F.drop = null; closeImport();
       return true;
-    case 'imp-done': F.drop = null; C.setView(null); return true;
-    case 'lv-open': D.open.add(Number(tg.dataset.f)); loadPages(Number(tg.dataset.f)); C.renderBody(); return true;
-    case 'lv-close': D.open.delete(Number(tg.dataset.f)); C.renderBody(); return true;
+    case 'imp-done': F.drop = null; closeImport(); return true;
+    case 'lv-open': D.open.add(Number(tg.dataset.f)); loadPages(Number(tg.dataset.f)); repaint(); return true;
+    case 'lv-close': D.open.delete(Number(tg.dataset.f)); repaint(); return true;
     case 'lv-one': setLayout(Number(tg.dataset.f), Number(tg.dataset.page), { split: null }); return true;
   }
   return false;
 }
+
+// The import window: every step of opening a file, over whatever is on screen, which stays as it was behind the scrim.
+// Esc and × close it; Tab turns round inside it; the place behind keeps its keys to itself while it is open.
+const STEPS = { import: importView, review: reviewView, merge: mergeView, merged: mergedView, reading: readingView, whatsnew: whatsnewView, receipt: receiptView };
+const W = { el: null, step: null, opener: null, key: null, at: '', added: false };
+const FOCUS = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex="0"]';
+const mark = () => `${C.store.history.undo}|${C.store.history.next}`;
+// the control that opened it, found again if the place behind was redrawn (a menu item: the menu's button)
+const keyOf = el => (el?.closest?.('.menu') ? '[data-act=menu]' : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.v ? `[data-v="${el.dataset.v}"]` : ''}` : null);
+function show(step){
+  if (!STEPS[step]) return false;
+  if (!W.el){
+    W.el = Object.assign(document.createElement('dialog'), { id: 'import', className: 'card rvdlg impdlg' });
+    for (const [k, v] of [['role', 'dialog'], ['aria-modal', 'true'], ['aria-labelledby', 'imp-h']]) W.el.setAttribute(k, v);
+    W.el.innerHTML = `<button class="ghost sm" data-act="imp-close">${icon('close')}</button><div class="rvbody"></div>`;
+    document.body.append(W.el);
+    W.el.addEventListener('keydown', winKey);
+    W.el.addEventListener('cancel', e => { e.preventDefault(); closeImport(); });
+    W.el.addEventListener('close', () => document.body.append(document.getElementById('toast')));
+    bind(W.el);
+  }
+  W.step = step;
+  if (!W.el.open){
+    W.opener = document.activeElement; W.key = keyOf(W.opener); W.at = mark(); W.added = false;
+    W.el.querySelector('[data-act=imp-close]').setAttribute('aria-label', t('body.close'));      // in the language of the moment
+    W.el.showModal();
+    W.el.append(document.getElementById('toast'));      // what an action says is read over the scrim, not under it
+  }
+  draw(true);
+  return true;
+}
+function draw(fresh = false){
+  const body = W.el.querySelector('.rvbody'), ae = document.activeElement, all = () => [...body.querySelectorAll(FOCUS)];
+  const at = !fresh && body.contains(ae) ? all().indexOf(ae) : -1, id = at >= 0 ? ae.id : '', top = body.scrollTop;
+  body.innerHTML = STEPS[W.step]();
+  W.el.dataset.view = W.step;
+  body.querySelector('.title')?.setAttribute('id', 'imp-h');
+  for (const a of body.querySelectorAll('a[data-act]:not([href])')){ a.tabIndex = 0; a.setAttribute('role', 'button'); }
+  body.scrollTop = fresh ? 0 : top;
+  const to = fresh ? body.querySelector('.primary:not([disabled])') ?? all()[0] : at >= 0 ? (id && body.querySelector(`#${CSS.escape(id)}`)) || all()[at] : null;
+  to?.focus({ preventScroll: !fresh });
+}
+const repaint = () => (W.el?.open ? draw() : C.renderBody());
+function winKey(e){
+  e.stopPropagation();
+  if (e.key === 'Escape'){ e.preventDefault(); closeImport(); return; }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role=button][data-act]')){ e.preventDefault(); e.target.click(); return; }
+  if (e.key !== 'Tab') return;
+  const all = [...W.el.querySelectorAll(FOCUS)].filter(x => x.getClientRects().length), at = all.indexOf(document.activeElement);
+  if (all.length && (e.shiftKey ? at <= 0 : at === all.length - 1)){ e.preventDefault(); all[e.shiftKey ? all.length - 1 : 0].focus(); }
+}
+// Closing goes back to the place behind as it was, the focus on what opened the window. Documents just added are not hidden by a
+// Library filter (Sent only, a claim, the search are cleared); a file that changed the record from the start screen goes on to the editor.
+function closeImport(){
+  if (!W.el?.open) return;
+  const changed = mark() !== W.at;
+  W.el.close();
+  if (W.added){ W.added = false; showAll(); C.renderBody(); }
+  if (C.ui.view === 'welcome' && changed){ C.setView(null); return; }
+  (W.opener?.isConnected ? W.opener : W.key && document.querySelector(W.key))?.focus({ preventScroll: true });
+}
+// a file that replaces the record, merges into it or opens a saved resume ends in the editor
+function leave(){ closeImport(); if (C.ui.view) C.setView(null); }
 
 // Dragging a line over a page (or the arrow keys on it) reads the page again: the header line moves down or up, the split line left or right.
 function bindLayout(body){
@@ -625,10 +691,10 @@ function bind(body){
       if (b){ b.disabled = !n; b.textContent = tr('merge.doN', { n }); }
     }
     if (t.id === 'imp-outside') F.outside = t.checked;
-    if (t.id === 'imp-doc'){ F.checkDoc = t.value; C.renderBody(); }
+    if (t.id === 'imp-doc'){ F.checkDoc = t.value; repaint(); }
     if (t.dataset.flang !== undefined && F.drop){      // read again in another language
       const i = Number(t.dataset.flang), e = F.drop.entries[i], lang = t.value;
-      loadCatalogue(lang).then(() => { e.read = { ...e.read, ...X.readIn(e.read.items, lang, e.layout) }; judge(F.drop.entries); C.renderBody(); });
+      loadCatalogue(lang).then(() => { e.read = { ...e.read, ...X.readIn(e.read.items, lang, e.layout) }; judge(F.drop.entries); repaint(); });
     }
     const p = F.drop?.plan;
     if (p && (t.dataset.pi !== undefined || t.dataset.place !== undefined)){
@@ -642,7 +708,7 @@ function bind(body){
 }
 
 const api = {
-  views: { import: importView, review: reviewView, merge: mergeView, merged: mergedView, history: historyView, reading: readingView, whatsnew: whatsnewView, receipt: receiptView },
-  act, bind, openFiles, take, checked: () => F.checked, receipt: () => F.drop?.done?.ids ?? [],
+  views: { history: historyView },
+  show, get isOpen(){ return !!W.el?.open; }, act, bind, openFiles, take, checked: () => F.checked, receipt: () => F.drop?.done?.ids ?? [],
   compareFolder: () => act('cp-folder'),
 };

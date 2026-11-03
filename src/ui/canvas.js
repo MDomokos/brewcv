@@ -11,6 +11,7 @@ import {
 import { clampZoom, PHONE_MAX } from './layout.js';
 import { onLinux } from './ask.js';
 import { reduced, dur } from './motion.js';
+import { foldForAll } from './sidewidth.js';
 import { tableSvg, tableObjects, rulerSvg } from './table.js';
 
 // the ease between views is --m-travel
@@ -345,7 +346,7 @@ export function initCanvas(C){
     const was = drag; drag = null; document.body.classList.remove('is-handing'); C.sheet.setHand(false, space);
     if (was.moved) handedAt = performance.now();
     else if (was.bare) C.bareClick?.();
-    else if (was.btn === 1) reset();      // the middle button, clicked: the whole resume (the same as 0)
+    else if (was.btn === 1){ foldForAll(ui.layout); reset(); }      // the middle button, clicked: the whole resume, as Esc at the page level
     if (was.moved) go(hardCam(cam, geo, view), { spring: true });
   }
   let pinch = null;

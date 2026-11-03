@@ -82,19 +82,21 @@ class Rope {
   // false when there is no string to draw: Coffee, a phone (the CSS shows no .obstr there), or no tag
   visible(){ return !!this.w?.isConnected && this.front.getClientRects().length > 0; }
   show(on){ this.path.style.display = on ? '' : 'none'; }
+  // The column may be zoomed (the large-screen intro): the tag's own lengths (offsetWidth, its transform, the hole's depth) are then z times smaller than
+  // the screen's, where the rope is drawn; the rope's points are in screen pixels, and the svg over the tag draws in the tag's own.
   geo(){
-    const wr = this.w.getBoundingClientRect(), H = this.mv.offsetHeight;
+    const wr = this.w.getBoundingClientRect(), z = wr.width / (this.w.offsetWidth || 1) || 1;
     if (!wr.width) return false;
-    Object.assign(this, { wr, W: this.mv.offsetWidth, H, fr: this.front.getBoundingClientRect() });
+    Object.assign(this, { wr, z, W: this.mv.offsetWidth, H: this.mv.offsetHeight, fr: this.front.getBoundingClientRect() });
     this.hx = parseFloat(getComputedStyle(this.w).getPropertyValue('--d')) + 4;   // the hole: the notch's depth and half the hole's width, from the tag's left edge
-    this.H0 = [wr.left + this.hx, wr.top + H / 2];                              // the hole at rest
-    this.A = [boardEdge() - HOLE_FROM_EDGE, wr.top + H / 2 + ANCHOR_DROP];      // where it is tied
+    this.H0 = [wr.left + this.hx * z, wr.top + wr.height / 2];                    // the hole at rest
+    this.A = [boardEdge() - HOLE_FROM_EDGE, this.H0[1] + ANCHOR_DROP];            // where it is tied
     return true;
   }
   // the hole now: its place at rest carried through the tag's transform
   hole(){
-    const t = getComputedStyle(this.mv).transform, m = t === 'none' ? new DOMMatrix() : new DOMMatrix(t), P = m.transformPoint(new DOMPoint(this.hx - this.W / 2, 0, 0));
-    return [this.wr.left + this.W / 2 + P.x / P.w, this.wr.top + this.H / 2 + P.y / P.w];
+    const t = getComputedStyle(this.mv).transform, m = t === 'none' ? new DOMMatrix() : new DOMMatrix(t), P = m.transformPoint(new DOMPoint(this.hx - this.W / 2, 0, 0)), z = this.z;
+    return [this.wr.left + (this.W / 2 + P.x / P.w) * z, this.wr.top + this.wr.height / 2 + P.y / P.w * z];
   }
   setup(){
     const [ax, ay] = this.A, [hx, hy] = this.H0;
@@ -121,15 +123,15 @@ class Rope {
     this.draw(this.pts);
   }
   // a smooth curve through the points, in the coordinates of the svg it is drawn in
-  curve(pts, ox, oy){
-    const f = v => v.toFixed(1), n = pts.length;
+  curve(pts, ox, oy, k = 1){
+    const f = v => (v / k).toFixed(1), n = pts.length;
     let d = `M${f(pts[0].x - ox)} ${f(pts[0].y - oy)}`;
     for (let i = 1; i < n - 1; i++) d += `Q${f(pts[i].x - ox)} ${f(pts[i].y - oy)} ${f((pts[i].x + pts[i + 1].x) / 2 - ox)} ${f((pts[i].y + pts[i + 1].y) / 2 - oy)}`;
     return `${d}L${f(pts[n - 1].x - ox)} ${f(pts[n - 1].y - oy)}`;
   }
   draw(pts){
     this.path.setAttribute('d', this.curve(pts, 0, 0));          // the layer is fixed at the window's corner: client pixels
-    this.fpath.setAttribute('d', this.curve(pts, this.fr.left, this.fr.top));
+    this.fpath.setAttribute('d', this.curve(pts, this.fr.left, this.fr.top, this.z));
   }
   step(){
     if (!this.visible()) return false;

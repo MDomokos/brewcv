@@ -11,7 +11,7 @@
    a measuring shot glass for the meter, one crema accent. No tea shapes. */
 
 /* ---------- the canvas ---------- */
-html[data-drink="tea"] body {
+html[data-drink="tea"] body, html[data-drink="tea"] body.has-scr:not([data-phone=true]) .scr {
   background:
     linear-gradient(var(--mat-wash), var(--mat-wash)),
     linear-gradient(90deg, transparent 0 calc(50% - 3px), var(--mat-thread) calc(50% - 3px) calc(50% - 1.5px), transparent calc(50% - 1.5px) calc(50% + 1.5px), var(--mat-thread) calc(50% + 1.5px) calc(50% + 3px), transparent calc(50% + 3px)) 0 0 / 260px 100%,
@@ -20,6 +20,8 @@ html[data-drink="tea"] body {
 }
 html[data-drink="coffee"] body {
   font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+}
+html[data-drink="coffee"] body, html[data-drink="coffee"] body.has-scr:not([data-phone=true]) .scr {
   background:
     linear-gradient(var(--grid-major) 1px, transparent 1px) 0 0 / 120px 120px,
     linear-gradient(90deg, var(--grid-major) 1px, transparent 1px) 0 0 / 120px 120px,
@@ -27,6 +29,15 @@ html[data-drink="coffee"] body {
     linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px) 0 0 / 24px 24px,
     var(--canvas);
 }
+
+/* In the Library and Career the mat or the grid is the list's own background and scrolls with it, so the cards lie on a table that slides
+   (the browser moves both together, nothing per frame). The list's box is the whole window (shell.js layoutScreen); its padding keeps the
+   gutter, and what sticks stops at the padding's edge. While the drinks roll, the list lets the roll show through.
+   shortcut: the list's mat covers the garden's effects in the window's margins there; let them through when the garden in the places is reworked */
+html[data-drink] body.has-scr:not([data-phone=true]) .scr { background-attachment: local; }
+html[data-drink] body.has-scr:has(.matroll) .scr { background: none; }
+/* the editor's mat layers (canvas.js, placed inline) would cover the list's mat in a place */
+body.has-scr:not([data-phone=true]) :is(#mat, #tbl, #mruler) { display: none !important; }
 
 /* ---------- type ---------- */
 html[data-drink="tea"] :is(.title, .lead) { font-weight: 800; letter-spacing: -.005em; }

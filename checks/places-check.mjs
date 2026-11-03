@@ -11,7 +11,10 @@
 //   - every place keeps its state: the editor its selection, the Library its search, ticks and selection, Career its scroll,
 //   - the seam (undo, redo and Saved) is in the same spot on all three places, within 1px,
 //   - Tea's tags swing when the pointer brushes past, in steps, and rest within 0.75 s; nothing moves in Coffee or under reduced motion,
-//   - in Coffee every new part has a square corner and no soft shadow (the place track sunk and its thumb raised by a hard edge).
+//   - in Coffee every new part has a square corner and no soft shadow (the place track sunk and its thumb raised by a hard edge),
+//   - Export is a place of its own (the rail keeps Content and Look): the page large on the left, a column half again as wide on the right,
+//     ← Back and Esc return to where it was opened from as it was; several resumes show their pages in a row, a ready line each, and their
+//     files come as one ZIP with one file for each, named after its resume; Mark each as sent marks every one in one undo step.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
 
 import { chromium } from 'playwright';
@@ -19,6 +22,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { unzip } from '../src/parse/unzip.js';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8313);
@@ -79,7 +83,7 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
 
   // Esc never changes place
   await page.click('#ptabs [data-p=library]'); await settle(page);
-  const ids = await page.evaluate(() => window.__wb.store.state.resumes.map(r => r.id));
+  const ids = await page.evaluate(() => [...document.querySelectorAll('#scr .rcard[data-rid]')].filter(c => c.checkVisibility()).map(c => c.dataset.rid));      // the cards on the screen: a folded or archived round's are not
   await page.check(`#scr .rcard[data-rid="${ids[1]}"] .rtick`); await page.check(`#scr .rcard[data-rid="${ids[2]}"] .rtick`);
   await page.click('#scr-cmp'); await settle(page);
   ok('Compare is a mode of the Library: its tab is the Library’s, the address is #compare, "← All resumes" is the way back', await view(page) === 'compare' && await cur(page) === 'Library' && await hash(page) === '#compare' && /All resumes/.test(await page.textContent('#compare [data-act=scr-back]')));
@@ -190,7 +194,7 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   const spots = [];
   for (const k of ['e', 'w', 'r']){ await page.keyboard.press(k); await settle(page); spots.push(await hist(page)); }
   ok('undo, redo and Saved are one card in the same spot on all three places (within 1px)', spots.every(s => s.every((v, i) => Math.abs(v - spots[0][i]) <= 1)) && await page.evaluate(() => !!document.querySelector('#rail .rhist .savestate') && !!document.querySelector('#rail [data-act=undo]') && !!document.querySelector('#rail .logo')), JSON.stringify(spots));
-  ok('the logo is at the seam’s foot and Edit, Design and Export only in the editor', await page.evaluate(() => { const l = document.querySelector('#rail .logo').getBoundingClientRect(), c = document.querySelector('#col').getBoundingClientRect(); return Math.abs(c.bottom - l.bottom) < 2 && !document.querySelector('#rail .rtabs'); }));
+  ok('the logo is at the seam’s foot and Content and Look only in the editor', await page.evaluate(() => { const l = document.querySelector('#rail .logo').getBoundingClientRect(), c = document.querySelector('#col').getBoundingClientRect(); return Math.abs(c.bottom - l.bottom) < 2 && !document.querySelector('#rail .rtabs'); }));
   await ctx.close();
 }
 
@@ -232,6 +236,66 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   });
   ok('Coffee: the place tabs (and the pill’s thumb), the place card, #scr and the seam have square corners and no soft shadow (the track is sunk and the thumb raised by a hard edge, nothing else has one)', flatSquare.length === 0, flatSquare.join(' ; '));
   await coffee.ctx.close();
+}
+
+// ---------------------------------------------------------------- the Export place
+{
+  const { ctx, page, errors } = await open(1440, 900);
+  const rail = await page.evaluate(() => [...document.querySelectorAll('#rtabs [role=tab]')].map(b => b.dataset.m).join());
+  ok('the editor’s rail has Content and Look only: Export is a place of its own', rail === 'edit,design' && !(await page.$('#tab-export')), rail);
+  const before = await page.evaluate(() => ({ colW: document.getElementById('col').getBoundingClientRect().width, sel: (window.__wb.ui.sel = { kind: 'job', id: 'hydra' }, 'hydra') }));
+  await page.evaluate(() => window.__wb.setView(null)); await settle(page);
+  await page.evaluate(() => window.__wb.export.open()); await page.waitForTimeout(700);
+  const one = await page.evaluate(() => {
+    const col = document.getElementById('col').getBoundingClientRect(), sheet = document.querySelector('#sheet iframe').getBoundingClientRect(), shown = id => { const e = document.getElementById(id); return !!e && getComputedStyle(e).display !== 'none'; };
+    return { view: window.__wb.ui.view, place: document.body.classList.contains('is-export'), colW: col.width, colLeft: col.left, pageRight: sheet.right, pageH: sheet.height, chrome: ['ptabs', 'rail', 'head'].filter(shown),
+      back: document.querySelector('#body [data-act=xp-back]')?.textContent.trim(), focus: document.activeElement?.dataset?.act, title: document.querySelector('#body .xpwhat .title')?.textContent,
+      blocks: [...document.querySelectorAll('#body .xpgrid > .xpb')].map(b => b.dataset.k).join(), cards: [...document.querySelectorAll('#body [data-k=file] .dl button')].map(b => b.dataset.act).join(), sent: !!document.querySelector('#body [data-act=mark-sent]') };
+  });
+  ok('Export opens as a place: the view is Export, the place tabs, the name card and the rail step aside', one.view === 'export' && one.place && one.chrome.length === 0, JSON.stringify(one.chrome));
+  ok('the column is about half again as wide as the sidebar (never over half the window), and the editor’s page stays uncovered on the left', Math.abs(one.colW - Math.min(Math.round(1.5 * before.colW), 720)) <= 2 && one.pageRight <= one.colLeft && one.pageH > 700, `${before.colW} → ${one.colW}, page right ${one.pageRight} col ${one.colLeft}`);
+  ok('the panel: ← Back to Editor (with the focus), Exporting the resume, then Ready, Made for, Download, Sent, Backup; four download cards and Mark as sent', /Back to Editor/.test(one.back) && one.focus === 'xp-back' && /Example Instruments/.test(one.title) && one.blocks === 'ready,medium,file,sent,keep' && one.cards === 'ex-pdf,ex-html,ex-txt,ex-json' && one.sent, JSON.stringify(one));
+  await page.click('#body [data-act=ex-medium][data-v=pen]'); await page.waitForTimeout(900);
+  ok('Made for: a highlighter pen draws the page on the left for paper (its class on the page) and is saved with the resume', await page.evaluate(() => document.querySelector('#sheet iframe').contentDocument.documentElement.classList.contains('medium-print') && window.__wb.store.state.cur.exportMedium === 'pen'));
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.waitForTimeout(900);
+  const backed = await page.evaluate(() => ({ view: window.__wb.ui.view ?? null, sel: window.__wb.ui.sel, place: document.body.classList.contains('is-export'), colW: document.getElementById('col').getBoundingClientRect().width, paper: document.querySelector('#sheet iframe').contentDocument.documentElement.classList.contains('medium-print') }));
+  ok('Esc goes back to the editor as it was: the same selection, the sidebar its own width, the page on a screen again', backed.view === null && backed.sel?.id === 'hydra' && !backed.place && Math.abs(backed.colW - before.colW) < 1 && !backed.paper, JSON.stringify(backed));
+  await page.evaluate(() => { window.__wb.store.undo?.(); });
+
+  // several, from the Library
+  await page.evaluate(() => window.__wb.setView('resumes')); await settle(page);
+  const ids = await page.evaluate(() => window.__wb.store.state.resumes.filter(r => r.id !== window.__wb.store.state.openId).slice(0, 3).map(r => r.id));
+  const sends = () => page.evaluate(ids => ids.map(id => (window.__wb.store.state.resumes.find(r => r.id === id).snapshots ?? []).reduce((n, x) => n + x.sends.length, 0)), ids);
+  const sends0 = await sends(), open0 = await page.evaluate(() => ({ id: window.__wb.store.state.openId, cur: JSON.stringify({ ...window.__wb.store.state.cur, savedAt: 0 }) }));
+  await page.evaluate(ids => window.__wb.export.open(ids, 'resumes'), ids);
+  await page.waitForFunction(() => document.querySelectorAll('#xpages .xpslot iframe').length >= 3 && !document.querySelector('#body [data-k=ready] li.wait'), null, { timeout: 30000 });
+  const many = await page.evaluate(() => {
+    const col = document.getElementById('col').getBoundingClientRect(), figs = [...document.querySelectorAll('#xpages .xpfig')];
+    return { figs: figs.length, inRoom: document.getElementById('xpages').getBoundingClientRect().right <= col.left, canvas: getComputedStyle(document.getElementById('pages')).visibility,
+      title: document.querySelector('#body .xpwhat .title').textContent, lines: [...document.querySelectorAll('#body [data-k=ready] li[data-id]')].length,
+      cards: [...document.querySelectorAll('#body [data-k=file] .dl button b')].map(b => b.textContent), zip: /one \.zip/.test(document.querySelector('#body [data-k=file] .note').textContent),
+      send: document.querySelector('#body [data-act=xp-send]')?.textContent.trim(), back: document.querySelector('#body [data-act=xp-back]').textContent.trim() };
+  });
+  ok('several: every resume’s pages in a row left of the panel (the editor’s page hidden), "3 resumes", a ready line for each', many.figs === 3 && many.inRoom && many.canvas === 'hidden' && many.title === '3 resumes' && many.lines === 3, JSON.stringify(many));
+  ok('several: each download card says "· 3 files", the note says they come as one .zip, Mark each as sent…, ← Back to Library', many.cards.every(c => / · 3 files$/.test(c)) && many.cards.length === 4 && many.zip && many.send === 'Mark each as sent…' && /Back to Library/.test(many.back), JSON.stringify(many));
+  const shown = () => page.evaluate(() => [...document.querySelectorAll('#xpages .xptravel')].map(b => getComputedStyle(b).display !== 'none'));
+  const t0 = await shown();
+  await page.click('#xpages .xptravel[data-d="1"]'); await page.waitForTimeout(700);
+  const t1 = await shown(), moved = await page.evaluate(() => document.querySelector('#xpages .xptrack').scrollLeft);
+  ok('several: the row does not fit, so › travels to the next resume and ‹ appears; at the start there is no ‹', t0.join() === 'false,true' && moved > 100 && t1[0] === true, `${t0} → ${t1}, scrolled ${moved}`);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#body [data-act=ex-html]')]);
+  const z = unzip(new Uint8Array(fs.readFileSync(await dl.path())));
+  const want = await page.evaluate(ids => ids.map(id => { const r = window.__wb.store.state.resumes.find(x => x.id === id); return [r.company, r.role].filter(Boolean).join(' - '); }), ids);
+  const html = await z.read(z.names[0]);
+  ok('several: HTML comes as one .zip with one file for each resume, each named after its resume', /\.zip$/.test(dl.suggestedFilename()) && z.names.length === 3 && want.every(w => z.names.some(n => n.startsWith(w) && n.endsWith('.html'))) && /<html/i.test(new TextDecoder().decode(html)), `${dl.suggestedFilename()}: ${z.names.join(' | ')}`);
+  await page.click('#body [data-act=xp-send]'); await settle(page);
+  await page.click('#body [data-act=xp-send-do]'); await page.waitForTimeout(500);
+  const sends1 = await sends(), open1 = await page.evaluate(() => ({ id: window.__wb.store.state.openId, cur: JSON.stringify({ ...window.__wb.store.state.cur, savedAt: 0 }) }));
+  ok('Mark each as sent: every listed resume has a new send, the open resume is still the one open, unchanged', sends1.every((n, i) => n === sends0[i] + 1) && open1.id === open0.id && open1.cur === open0.cur, `${sends0} → ${sends1}`);
+  await page.click('#body [data-act=xp-back]'); await page.waitForTimeout(600);
+  ok('← Back goes to the Library; the row of pages is gone and the editor’s page is back', await page.evaluate(() => window.__wb.ui.view === 'resumes' && !document.getElementById('xpages') && !document.body.classList.contains('xp-list')));
+  ok('no errors on the page', errors.length === 0, errors.join(' | '));
+  await ctx.close();
 }
 
 await browser.close(); server.close();

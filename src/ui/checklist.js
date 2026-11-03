@@ -99,8 +99,8 @@ const addLineHtml = g => (S.adding === g.id ? addClaimHtml({ id: g.id, key: g.ke
 
 // ---- the Outline: this resume in print order ----
 // The sections as they print, each with its count; a job folds to its count and opens when the selected line is in it (or by hand,
-// and then it stays); under an open job its lines that are on, "+ n more" for the ones that are off, and "+ line". Skills, Patent
-// and the other lists fold to one row until opened. An open section is a container (its head is the container's header). Every row has its
+// and then it stays); under an open job its lines that are on, "+ n more" for the ones that are off, and "+ line". Every section
+// folds to one row until opened. An open section is a container (its head is the container's header). Every row has its
 // tick at the right end (the padlock before it, as on the page chip), and "n v" to open
 // Edit at the line.
 const folded = (key, forced) => { const f = S.fold.get(key); return f === 'open' || (f !== 'shut' && forced) ? false : true; };
@@ -166,16 +166,14 @@ export function outlineHtml(only = null, section = null){
   // a section that is off stays in its own row, dimmed, with the same pill; it has nothing to fold
   const secHtml = s => {
     const counts = s.on && sectionCounts(m, cl, s.id);
-    const isEntries = groupsOfSection(m, cl, s.id)[0]?.kind === 'entry';
-    const foldable = s.on && s.id !== 'summary' && !isEntries;
-    const open = s.on && (!foldable || !folded(`sec:${s.id}`, focusSec === s.id));
+    const open = s.on && !folded(`sec:${s.id}`, focusSec === s.id);
     const title = esc(C.sectionTitle(s.id));
     const info = s.fixed ? h('edit.alwaysFirst') : counts ? nOfM(counts.on, counts.total) : '';
     const chosen = sel.kind === 'section' && sel.id === s.id;
     const kind = kindOfSec(s.id);
     return `<div class="osec ${open ? 'open' : ''}" data-sid="${esc(s.id)}" role="group" aria-label="${title}" style="--hk:${kindHue(kind)}">
       <div class="item srow ${s.fixed ? 'fixed' : ''}${s.on ? '' : ' is-off'} ${chosen ? 'is-sel' : ''}" data-sid="${esc(s.id)}">
-        ${foldable ? `<button class="osecaret" data-act="ol-toggle" data-g="sec:${esc(s.id)}" aria-expanded="${open}" aria-controls="ol-sec-${esc(s.id)}" aria-label="${title}"><span class="clc" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>` : '<span class="osecaret"></span>'}${kindChip(kind)}
+        ${s.on ? `<button class="osecaret" data-act="ol-toggle" data-g="sec:${esc(s.id)}" aria-expanded="${open}" aria-controls="ol-sec-${esc(s.id)}" aria-label="${title}"><span class="clc" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>` : '<span class="osecaret"></span>'}${kindChip(kind)}
         <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${title}</a><span class="scount muted tiny">${info}</span></span>
         ${s.fixed ? '' : showSw(`data-secon="${esc(s.id)}"`, s.on, C.sectionTitle(s.id))}
       </div>
@@ -328,7 +326,10 @@ function bind(body){
   const ROW = ':is(#body, #scr) :is(.clrow[data-fact], .srow[data-sid], .clgh)';
   const blockOf = r => r.matches('.clrow') ? (r.dataset.fact ? { kind: 'bullet', id: r.dataset.fact } : null) : r.matches('.srow') ? { kind: 'section', id: r.dataset.sid } : { kind: 'job', id: r.closest('.clg')?.dataset.g };
   const hover = r => C.hoverFact(r ? blockOf(r) : null);
-  for (const [ev, on] of [['mouseover', true], ['focusin', true], ['mouseout', false], ['focusout', false]]) body.addEventListener(ev, e => { const r = e.target.closest?.(ROW); if (r && (on || !r.contains(e.relatedTarget)) && (ev !== 'focusin' || e.target.matches(':focus-visible'))) hover(on ? r : null); });      // (a click's focus is not a hover: only the keyboard's)
+  let byMouse = false;
+  for (const [ev, on] of [['mouseover', true], ['focusin', true], ['mouseout', false], ['focusout', false]]) body.addEventListener(ev, e => { const r = e.target.closest?.(ROW); if (r && (on || !r.contains(e.relatedTarget)) && (ev !== 'focusin' || e.target.matches(':focus-visible'))){ hover(on ? r : null); byMouse = on && ev === 'mouseover'; } });      // (a click's focus is not a hover: only the keyboard's)
+  // a row drawn again under the pointer never sends its mouseout: the pointer over anything that is not a row ends the hover
+  document.addEventListener('mouseover', e => { if (byMouse && !e.target.closest?.(ROW)){ byMouse = false; hover(null); } });
 }
 
 const api = { html, outlineHtml, kidsOf, sectionInfo, act, bind, afterRender, landed };

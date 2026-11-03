@@ -10,6 +10,7 @@
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing. PART=key runs the parts whose name has these words.
 
 import { chromium } from 'playwright';
+import { plainExample } from './lib/plain-example.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -39,6 +40,7 @@ async function open(w, h, look = ['tea', 'light'], { motion = false } = {}){
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
+  await page.evaluate(plainExample);      // written for the example without its rounds, files, sends and language copies
   await page.waitForTimeout(400);
   return { ctx, page, errors };
 }
@@ -341,12 +343,12 @@ await part('the press: each control is raised in Tea and Coffee, light and dark,
   }
 });
 
-await part('the press: the result rows (tertiary) and "Resumes that print this" (secondary) wear a paper shadow on paper, in all four looks', async () => {
+await part('the press: the result rows (tertiary) and "Resumes that print this" (secondary) wear a paper shadow on paper in light, the drink\u2019s own on its dark surfaces in dark', async () => {
   for (const look of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']]){
     const { ctx, page } = await open(1470, 832, look, { motion: true });
     await goPlace(page, 'career'); await page.fill('#rec-q', 'toolmaker'); await settle(page, 500);
     const r = await page.evaluate(() => { const f = s => { const b = document.querySelector(s); return { tier: b.dataset.tier, sh: getComputedStyle(b).boxShadow, edge: getComputedStyle(b).borderTopColor }; }; return { row: f('#scr .found .frow'), btn: f('#scr .found .fhead [data-act=find-prints]'), ver: f('#scr .found .fvp') }; });
-    ok(`${look.join(' ')}: a result row is tertiary, the button secondary, the version\u2019s button tertiary, all with the paper shadow`, r.row.tier === 'tertiary' && r.btn.tier === 'secondary' && r.ver.tier === 'tertiary' && /rgba\(34, 48, 42/.test(r.btn.sh) && /2px 2px/.test(r.btn.sh), JSON.stringify(r));
+    ok(`${look.join(' ')}: a result row is tertiary, the button secondary, the version\u2019s button tertiary, all with the ${look[1] === 'light' ? 'paper' : 'dark surface\u2019s'} shadow`, r.row.tier === 'tertiary' && r.btn.tier === 'secondary' && r.ver.tier === 'tertiary' && /rgba\(34, 48, 42/.test(r.btn.sh) === (look[1] === 'light') && /2px 2px/.test(r.btn.sh), JSON.stringify(r));
     if (process.env.SHOTS){
       const clip = { x: 10, y: 80, width: 940, height: 130 }, name = `find-results-${look.join('-')}`;
       await page.screenshot({ path: path.join(process.env.SHOTS, `${name}-rest.png`), clip });

@@ -992,13 +992,14 @@ section('a language copy and the headings of a resume\'s own skill groups');
   ok('a copy with no heading of its own for a group made on the page prints the original\'s, in its language, and lists it as missing', g.label === 'Tools' && g.lang === 'en' && L.missingList(m, RS.savedOf(st, 'B.json')).some(x => x.kind === 'group' && x.id === '~sg-1'));
   ok('…and a group with no heading at all is not named by its id', T.groupHeading(m, a, { id: '~sg-9', items: [] }) === '');
 }
-section('a resume that uses none of it renders as before (the 14 example resumes)');
+section('a resume that uses none of it renders as before (the 14 example resumes that are not language copies)');
 {
   // SHA-256 of every example resume's pages, in file order, as drawn before direct editing (re-set when the look settings changed, and again when the job title went beside the name in Compact density only: the Polish and Czech one-pagers lose a bullet again, to fill 88-96%). Change it only when the example or the renderer is meant to change.
+  // The language copies (`parent`) came later and are left out, so the hash still says the fourteen print as they did.
   const h = crypto.createHash('sha256');
-  for (const n of fs.readdirSync(path.join(REPO, 'data/example-resumes')).filter(f => f.endsWith('.json') && f !== 'index.json').sort())
-    h.update(renderPages(model, S.loadResume(read(`data/example-resumes/${n}`), model).recipe, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join(''));
-  ok('the 14 example resumes hash to what they always did', h.digest('hex') === 'a8e35aad45ca8f34f3a8a53a4f9cdfd44ff68f1a465445b43e5f5fa17b5c406d');
+  const own = fs.readdirSync(path.join(REPO, 'data/example-resumes')).filter(f => f.endsWith('.json') && f !== 'index.json').sort().map(n => S.loadResume(read(`data/example-resumes/${n}`), model).recipe).filter(r => !r.parent);
+  for (const r of own) h.update(renderPages(model, r, createDocument(), { fallback: true }).pages.map(p => p.outerHTML).join(''));
+  ok('the 14 example resumes hash to what they always did', own.length === 14 && h.digest('hex') === 'a8e35aad45ca8f34f3a8a53a4f9cdfd44ff68f1a465445b43e5f5fa17b5c406d');
 }
 
 console.log(failed ? `\n${failed} direct check(s) FAILED` : '\nall direct checks passed');

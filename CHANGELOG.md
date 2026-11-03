@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Added
+- **Export is a place of its own:** the Export button on the name card opens it for the open resume, or for every resume ticked in the Library, and several files download as one .zip.
+- **The name card is in every place,** and in the Library it names the ticked or selected resumes.
+- **The Library can show a list instead of cards,** one row per resume with its sent copies, files and languages folded under it.
+- **Drag resumes onto a round, or tick several and move them at once;** a round is renamed in place.
+- **Drop skill words on a shelf to move them there.**
+- **Zoom the Library and Career** with - and +, or Ctrl and the wheel; the text keeps its size.
+- **Esc or a middle click folds the sidebar and fits the whole resume,** two pages side by side when they are large enough.
+- **The example shows a full Library:** sixteen resumes, with files, sends, rounds and language copies.
+
+### Changed
+- **The editor's tabs are Content and Look,** and every section of the outline folds.
+- **One resume in several languages is one item in the Library,** with a chip for each language; its documents sit with it instead of on cards of their own.
+- **The Library's header and list bar are split,** with New resume in the bar and what to do with the ticked ones floating at the list's foot.
+- **The Library and Career use dark surfaces in dark mode,** and their background scrolls with the list.
+- **Archiving is for rounds:** a file in the Library no longer has an Archive button.
+- **Import opens as a floating window.**
+- **Keyboard shortcuts follow your keyboard layout.**
+- **The start screen is calmer and fills a large screen,** with a note under each way in and a language chip that previews the headline on hover.
+- **Duplicating a resume says so.**
+- **A long "Sent to" line in the name window wraps instead of being cut.**
+
+### Fixed
+- **The new round's name field takes typing again.**
+- **A sidebar row drawn again under the pointer no longer leaves its highlight on the page.**
+
 ## 1.8.0 - 2026-11-02
 
 ### Added

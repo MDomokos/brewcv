@@ -5,6 +5,7 @@
 
 import { t, h, errText } from '../i18n/index.js';
 import { escapeHtml as esc } from '../export.js';
+import { isKey } from './help.js';
 import { wordDiff, nextMajor, nextMinor, major } from '../model/record.js';
 import { recordTitle, recordTerm, earlierOf } from '../model/resume.js';
 import { acceptNewer, keepOlder, resumeLabel } from '../model/resumes.js';
@@ -293,7 +294,7 @@ function onKey(e){
     if (all.length && (e.shiftKey ? at <= 0 : at === all.length - 1)){ e.preventDefault(); all[e.shiftKey ? all.length - 1 : 0].focus(); }
     return;
   }
-  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  const mod = e.ctrlKey || e.metaKey, k = ['s', 'o', 'p', 'z', 'y'].find(c => isKey(e, c));
   if (mod && !e.altKey && ['s', 'o', 'p'].includes(k)){      // the browser's own Save, Open and Print must not open over the dialog
     e.preventDefault();
     if (k === 's' && !e.isComposing && e.keyCode !== 229) saveNow();

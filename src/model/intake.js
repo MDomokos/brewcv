@@ -378,6 +378,7 @@ const place = (d, u, lang) => {
 // An original is embedded when it is 10 MB or less; a file of the linked folder (`e.path`) is a reference to it instead.
 export function applyPlan(d, p, { at = new Date().toISOString() } = {}){
   if (p.start){
+    if (/\(fictional\)/.test(d.record?.meta?.owner ?? '')){ delete d.documents; delete d.rounds; delete d.imports; }      // the example's own Library goes with its career
     d.record = fromJsonResume(p.start.read.jsonResume, p.start.read.lang ?? 'en').model;
     d.resumes = []; d.frozen = {}; d.cur = newResume(d.record, { format: 'a4' }); d.openId = null;
   }

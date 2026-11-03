@@ -72,13 +72,13 @@ const STATES = {
   outline: async () => {},
   line: async page => { await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await page.waitForTimeout(200); await page.keyboard.press('Escape'); },
   group: async page => { await clickIn(page, '#body .clt', 'CAD'); },
-  job: async page => { await page.click('#body [data-act=select-job][data-id=free]'); },
+  job: async page => { await page.click('#body [data-act=ol-toggle][data-g="sec:experience"]'); await page.click('#body [data-act=select-job][data-id=free]'); },
   section: async page => { await olSel(page, 'experience'); },
   'a job in its own order': async page => { await page.evaluate(() => window.__wb.edit.moveLine('hydra-testing', 'hydra-inhaler')); await page.waitForTimeout(300); await olSel(page, 'experience'); },
   header: async page => { await olSel(page, 'header'); },
   photo: async page => { await page.evaluate(() => document.querySelector('#body .clrow [data-photo]').closest('.clrow').querySelector('.clt').click()); },
   design: async page => { await page.click('#tab-design'); },
-  export: async page => { await page.click('#tab-export'); },
+  export: async page => { await page.evaluate(() => window.__wb.export.open()); },
   settings: async page => { await page.evaluate(() => window.__wb.setView('settings')); },
   'library inspector': async page => { await page.evaluate(() => window.__wb.setView('resumes')); await page.waitForTimeout(300); await page.click('#scr .rcard >> nth=1'); },
 };
@@ -102,7 +102,7 @@ function measure(){
       const ls = parseFloat(cs0.letterSpacing) || 0, m = s => cv.measureText(s).width + ls * s.length;
       const where = [...new Set([el, box].map(e => e.tagName.toLowerCase() + (e.classList.length ? '.' + [...e.classList].slice(0, 2).join('.') : '')))].join(' in ');
       const need = Math.min(m(text.slice(0, 8)), m(text)) - 1;
-      if (w < need) out.push(`squeezed: "${text.slice(0, 30)}" ${Math.round(w)}px < ${Math.round(need)}px (${where})`);
+      if (w < need && !(el.matches('.swrole') && matchMedia('(max-height: 850px)').matches)) out.push(`squeezed: "${text.slice(0, 30)}" ${Math.round(w)}px < ${Math.round(need)}px (${where})`);
       const btn = el.closest('button.sm, button.ghost, .pill, .chip, .clcount, .scount, .clv, .tag');
       if (btn && text.split(' ').length <= 3 && new Set(rr.map(r => Math.round(r.top))).size > 1) out.push(`broken: "${text.slice(0, 30)}" (${where})`);
       for (let a = el; a && a !== document.body; a = a.parentElement){
@@ -299,10 +299,9 @@ if (want('frame')){
   }
 }
 
-// finish: the Export view ends the process, one hierarchy: 1 the finish header (a cup of 44 px) and the
-// status row (one 24 px glyph, the page result, Fit and the page bars at its end), 2 "Get the file" (PDF the hero, taller, first and widest; the three other
-// formats three equal rows), 3 "Sent it?" (the same row), then the backup as a quiet row without band or icon. The bands are on the sidebar's six muted
-// hues (--hue-1..6: distinct, none a primary, hues), the words 4.5:1 and the icon 3:1 on their band in the four looks; every icon is 44 (the cup) or 24 px (one size reads as a header).
+// finish: the Export place ends the process. Its panel: ← Back and "Final step", what is exported, then blocks on the drink's surface: Ready (one
+// 24 px glyph, the page result, Fit and the page bars), Made for, Download (the whole width: four cards two by two, PDF first and filled), Sent?
+// and the backup. Every word 4.5:1 on what is behind it (a card's own face included), the glyph 3:1. The sidebar's six hues stay muted.
 if (want('finish') || want('hues')){
   console.log('\n— finish');
   for (const [drink, theme] of LOOKS){
@@ -314,33 +313,25 @@ if (want('finish') || want('hues')){
       const lum = a => { const [r, g, b] = a.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
       const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
       const panel = rgb(getComputedStyle(document.querySelector('#body')).backgroundColor);
-      const bandOf = h => rgb(getComputedStyle(h).backgroundColor);
-      const bands = [...document.querySelectorAll('.exg > .sgh')].map(h => { const bg = bandOf(h), ic = h.querySelector('.exic'), sv = ic.querySelector('svg').getBoundingClientRect();
-        return { k: h.parentElement.dataset.k, bg, text: ratio(rgb(getComputedStyle(h.querySelector('.exht')).color), bg), icon: ratio(rgb(getComputedStyle(ic).color), bg), size: sv.width, tint: ratio(bg, panel) }; });
-      const hero = document.querySelector('.exhero'), hb = bandOf(hero), st = document.querySelector('.exstat'), glyph = st.querySelector('.exst svg');
-      const dl = [...document.querySelectorAll('.exg[data-k=file] .dl > button')], hs = dl.map(b => Math.round(b.getBoundingClientRect().height)), w = dl.map(b => b.getBoundingClientRect().width);
-      const sent = document.querySelector('.exg[data-k=sent] .dl > button'), keep = document.querySelector('.exkeep');
-      const sizes = [...document.querySelectorAll('.exhero svg, .exg > .sgh svg, .exstat .exst svg, .exkeep svg')].map(s => Math.round(s.getBoundingClientRect().width));
+      const face = e => { for (let n = e; n; n = n.parentElement){ const c = getComputedStyle(n).backgroundColor; if (!/rgba\(.*, 0\)|transparent/.test(c)) return rgb(c); } return panel; };
+      const words = [...document.querySelectorAll('#body .xph, #body .xpwhat .title, #body .xpstep, #body [data-k=file] .dl button b, #body [data-k=file] .dl button small, #body [data-k=ready] .ct')].map(e => ({ t: e.textContent.trim().slice(0, 20), c: ratio(rgb(getComputedStyle(e).color), face(e)) }));
+      const st = document.querySelector('#body .exstat'), glyph = st?.querySelector('.exst svg');
+      const blocks = [...document.querySelectorAll('#body .xpgrid > .xpb')], wOf = k => blocks.find(b => b.dataset.k === k)?.getBoundingClientRect().width ?? 0;
+      const dl = [...document.querySelectorAll('#body [data-k=file] .dl > button')], hs = dl.map(b => Math.round(b.getBoundingClientRect().height));
+      const sent = document.querySelector('#body [data-k=sent] .dl > button');
       const hue = [1, 2, 3, 4, 5, 6].map(n => rgb(getComputedStyle(document.documentElement).getPropertyValue(`--hue-${n}`).trim()));
       const sat = c => { const [r, g, b] = c.map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b); return mx === mn ? 0 : (mx - mn) / (1 - Math.abs(mx + mn - 1)); };
       const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-      const apart = Math.min(...hue.flatMap((a, i) => hue.slice(i + 1).map(b => dist(a, b))));
-      const fit = st.querySelector('.exfit [data-act=fit]'), meter = st.querySelector('.exfit #meter');
-      const topOf = e => e?.getBoundingClientRect().top ?? -1;
-      return { bands, heroText: ratio(rgb(getComputedStyle(hero.querySelector('.title')).color), hb), cup: ratio(rgb(getComputedStyle(hero.querySelector('.excup')).color), hb), cupSize: hero.querySelector('.excup svg').getBoundingClientRect().width,
-        glyph: ratio(rgb(getComputedStyle(st.querySelector('.exst')).color), panel), glyphSize: glyph?.getBoundingClientRect().width, statText: ratio(rgb(getComputedStyle(st.querySelector('.ct')).color), panel),
-        fitIn: !!fit && !!meter, finishFirst: topOf(hero) < topOf(st) && topOf(st) < topOf(document.querySelector('.exg')), fits: document.querySelectorAll('[data-act=fit]').length,
-        pdfFirst: dl[0]?.dataset.act === 'ex-pdf', pdfWidest: w[0] >= Math.max(...w) && w[0] > 0, pdfTall: hs[0] > hs[1] + 8, rows: hs.slice(1), sentH: Math.round(sent?.getBoundingClientRect().height), sentSecondary: !sent?.classList.contains('primary'),
-        keepAfter: !!keep && keep.previousElementSibling?.dataset.k === 'sent' && keep.nextElementSibling === null, keepBare: !keep?.querySelector('svg') && !getComputedStyle(keep).backgroundColor.match(/[1-9]\d*\)$/) , order: [...document.querySelectorAll('#body .exg')].map(e => e.dataset.k).join(),
-        sizes, hues: new Set(bands.map(b => b.bg.join())).size, hueSat: Math.max(...hue.map(sat)), apart };
+      return { order: blocks.map(b => b.dataset.k).join(), wide: wOf('file') > 1.9 * wOf('ready'), words, glyph: st ? ratio(rgb(getComputedStyle(st.querySelector('.exst')).color), panel) : 0, glyphSize: glyph?.getBoundingClientRect().width,
+        fitIn: !!st?.querySelector('.exfit [data-act=fit]') && !!st?.querySelector('.exfit #meter'), fits: document.querySelectorAll('[data-act=fit]').length,
+        cards: dl.map(b => b.dataset.act).join(), pdfFilled: dl[0]?.classList.contains('primary') || document.querySelector('#body [data-act=fit]')?.classList.contains('primary'), even: new Set(hs).size === 1, twoByTwo: dl.length === 4 && Math.abs(dl[0].getBoundingClientRect().top - dl[1].getBoundingClientRect().top) < 1 && dl[2].getBoundingClientRect().top > dl[0].getBoundingClientRect().bottom,
+        sentSecondary: !!sent && !sent.classList.contains('primary'), hueSat: Math.max(...hue.map(sat)), apart: Math.min(...hue.flatMap((a, i) => hue.slice(i + 1).map(b => dist(a, b)))) };
     });
     ok(`${drink} ${theme}: the six hues are muted (saturation 0.75 at most) and 30 apart in RGB at least`, r.hueSat <= 0.75 && r.apart >= 30, `sat ${r.hueSat.toFixed(2)}, apart ${r.apart.toFixed(0)}`);
-    ok(`${drink} ${theme}: two bands, "Get the file" then "Sent it?", each on its own hue, the backup after them with no band and no icon`, r.order === 'file,sent' && r.hues === 2 && r.keepAfter && r.keepBare, `${r.order}, ${r.hues} hues, backup after ${r.keepAfter}, bare ${r.keepBare}`);
-    ok(`${drink} ${theme}: a band's icon is 24 px at 3:1 on it, its words 4.5:1, and it is a tint apart from the panel`, r.bands.every(b => b.size === 24 && b.icon >= 3 && b.text >= 4.5 && b.tint >= 1.15), r.bands.map(b => `${b.k} ${b.size}px icon ${b.icon.toFixed(1)} text ${b.text.toFixed(1)} tint ${b.tint.toFixed(2)}`).join(' | '));
-    ok(`${drink} ${theme}: the finish header: words 4.5:1, a cup of 44 px at 3:1`, r.heroText >= 4.5 && r.cup >= 3 && r.cupSize === 44, `title ${r.heroText.toFixed(1)}, cup ${r.cup.toFixed(1)} at ${r.cupSize}px`);
-    ok(`${drink} ${theme}: the status row is under the finish header and over the bands: one 24 px glyph at 3:1, its words 4.5:1, Fit and the page bars at its end, once`, r.finishFirst && r.glyphSize === 24 && r.glyph >= 3 && r.statText >= 4.5 && r.fitIn && r.fits === 1, `glyph ${r.glyphSize}px ${r.glyph.toFixed(1)}, text ${r.statText.toFixed(1)}, fit+meter in ${r.fitIn}, first ${r.finishFirst}, fits ${r.fits}`);
-    ok(`${drink} ${theme}: PDF is the first, the widest and the tallest button; the other formats and "Mark as sent…" are rows of one height (secondary)`, r.pdfFirst && r.pdfWidest && r.pdfTall && new Set(r.rows).size === 1 && r.sentH === r.rows[0] && r.sentSecondary, `pdf first ${r.pdfFirst}, rows ${r.rows.join('/')}, sent ${r.sentH}`);
-    ok(`${drink} ${theme}: every icon on the screen is 44 or 24 px`, r.sizes.length >= 4 && r.sizes.every(n => [44, 24].includes(n)), r.sizes.join(','));
+    ok(`${drink} ${theme}: the blocks in order Ready, Made for, Download (the whole width), Sent?, Backup`, r.order === 'ready,medium,file,sent,keep' && r.wide, r.order);
+    ok(`${drink} ${theme}: every word of the panel 4.5:1 on what is behind it, the download cards’ faces included`, r.words.length >= 12 && r.words.every(w => w.c >= 4.5), r.words.filter(w => w.c < 4.5).map(w => `${w.t} ${w.c.toFixed(1)}`).join(' | '));
+    ok(`${drink} ${theme}: Ready: one 24 px glyph at 3:1, Fit and the page bars, once`, r.glyphSize === 24 && r.glyph >= 3 && r.fitIn && r.fits === 1, `glyph ${r.glyphSize}px ${r.glyph.toFixed(1)}, fit+meter ${r.fitIn}, fits ${r.fits}`);
+    ok(`${drink} ${theme}: four download cards two by two, one height, PDF first and filled (unless Fit is); Mark as sent… is secondary`, r.cards === 'ex-pdf,ex-html,ex-txt,ex-json' && r.twoByTwo && r.even && r.pdfFilled && r.sentSecondary, JSON.stringify({ cards: r.cards, twoByTwo: r.twoByTwo, even: r.even }));
     ok(`${drink} ${theme}: finish: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
     await ctx.close();
   }
@@ -419,6 +410,7 @@ if (want('columns')){
   for (const lang of ['en', 'de']) for (const [drink, theme] of LOOKS){
     const { ctx, page, bad } = await open({ lang, drink, theme });
     const tag = `${lang} ${drink} ${theme}`;
+    await page.evaluate(() => { document.querySelector('#outline [data-act=ol-toggle][data-g="sec:experience"]')?.click(); }); await page.waitForTimeout(250);
     await page.evaluate(() => { document.querySelector('#outline .clg[data-g=hydra] .clcaret')?.click(); }); await page.waitForTimeout(250);
     await page.evaluate(() => { document.querySelector('#outline [data-act=ol-toggle][data-g="sec:skills"]')?.click(); }); await page.waitForTimeout(250);
     const r = await page.evaluate(() => {

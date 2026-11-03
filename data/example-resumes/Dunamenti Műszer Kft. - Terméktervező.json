@@ -244,7 +244,8 @@
         "photo": {
           "show": true,
           "shape": "rect"
-        }
+        },
+        "round": "round-9edce3c0"
       }
     }
   }

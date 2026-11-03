@@ -10,6 +10,7 @@ import { play } from './motion.js';
 import { t } from '../i18n/index.js';
 
 let C = null, sheet = null;
+const MEDIUM = Symbol('medium');      // what a picture is made for (the Export place's screen, print or pen); never part of the recipe as saved
 const cache = new WeakMap();      // the working model → Map(content key → Promise of { src, pages, format })
 export const stats = { drawn: 0, shown: 0 };
 
@@ -20,27 +21,27 @@ function hidden(){
   const host = document.createElement('div');
   host.className = 'thumbhost'; host.setAttribute('aria-hidden', 'true'); host.inert = true;
   document.body.append(host);
-  return (sheet = createSheet(host, { extraCss: r => C.extraCss(r), chrome: r => C.chrome(r) }));
+  return (sheet = createSheet(host, { extraCss: r => C.extraCss(r, r[MEDIUM]), onPaper: r => r[MEDIUM] === 'print' || r[MEDIUM] === 'pen', chrome: r => C.chrome(r) }));
 }
 
-async function draw(work, recipe){
+async function draw(work, recipe, medium = 'screen'){
   const s = hidden();
-  const { laid } = await s.show(work, recipe);
+  const { laid, pages: fills } = await s.show(work, medium === 'screen' ? recipe : { ...recipe, [MEDIUM]: medium });
   const doc = s.doc, page = doc.querySelector('.document > .page');
   const head = [...doc.head.querySelectorAll('link[rel=stylesheet], style')].map(e => e.outerHTML).join('');
   stats.drawn++;
-  const wrap = html => `<!doctype html><html lang="${recipe.lang ?? 'en'}"><head><base href="${new URL('templates/', document.baseURI).href}">${head}</head><body><div class="document">${html}</div></body></html>`;
+  const wrap = html => `<!doctype html><html lang="${recipe.lang ?? 'en'}"${doc.documentElement.classList.contains('medium-print') ? ' class="medium-print"' : ''}><head><base href="${new URL('templates/', document.baseURI).href}">${head}</head><body><div class="document">${html}</div></body></html>`;
   // every page is kept too, one document each, for the readable preview that turns its pages
   return { src: wrap(page?.outerHTML ?? ''), srcs: [...doc.querySelectorAll('.document > .page')].map(p => wrap(p.outerHTML)),
-    pages: laid.pages?.length ?? 1, format: recipe.format };
+    pages: laid.pages?.length ?? 1, format: recipe.format, laid, fills };
 }
 
-// the picture of one resume (a recipe as it prints): from the cache, or drawn
-export function entry(recipe){
+// the picture of one resume (a recipe as it prints), for a screen or the paper medium named: from the cache, or drawn
+export function entry(recipe, medium = 'screen'){
   const work = C.work();
   const maps = cache.get(work) ?? cache.set(work, new Map()).get(work);
-  const key = JSON.stringify(recipe);
-  if (!maps.has(key)) maps.set(key, draw(work, recipe).catch(() => null));
+  const key = medium === 'screen' ? JSON.stringify(recipe) : `${medium}|${JSON.stringify(recipe)}`;
+  if (!maps.has(key)) maps.set(key, draw(work, recipe, medium).catch(() => null));
   return maps.get(key);
 }
 

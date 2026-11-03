@@ -261,7 +261,7 @@ section('the shipped example: data/example.json and data/example-resumes/');
   ok('leaves some Hungarian missing on purpose', model.facts.some(f => !f.variants.some(id => model.variants.find(v => v.id === id).lang === 'hu')));
   const dir = path.join(REPO, 'data/example-resumes');
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'index.json').sort();
-  ok('fourteen saved resumes: the six of 0.5.13 and one per new language (0.6.5)', files.length === 14, files.join(', '));
+  ok('sixteen saved resumes: the six of 0.5.13, one per new language (0.6.5), and an English and a French copy of the German one', files.length === 16, files.join(', '));
   // index.json spells names in NFC, but a Mac may hand a decomposed name back from disk: accept either
   const listed = read('data/example-resumes/index.json');
   ok('index.json lists every saved resume, spelled NFC', listed.length === files.length && listed.every(n => n === n.normalize('NFC') && files.some(f => f.normalize('NFC') === n)));

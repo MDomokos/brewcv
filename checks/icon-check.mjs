@@ -64,7 +64,7 @@ const SCREENS = {
   section: async page => { await click(page, '#body [data-act=select-section][data-id=experience]'); },
   job: async page => { await click(page, '#body [data-act=select-job][data-id=free]'); },
   design: async page => { await click(page, '#tab-design'); },
-  export: async page => { await click(page, '#tab-export'); },
+  export: async page => { await page.evaluate(() => window.__wb.export.open()); },
   library: async page => { await page.evaluate(() => window.__wb.setView('resumes')); await settle(page); },
   inspector: async page => { await page.evaluate(() => window.__wb.setView('resumes')); await settle(page); await click(page, '#scr .rcard >> nth=1'); },
   settings: async page => { await page.evaluate(() => window.__wb.setView('settings')); },
@@ -146,8 +146,8 @@ for (const [drink, theme] of LOOKS){
     const two = Object.entries(used).filter(([, cs]) => cs.size > 1);
     ok(`${tag}: no icon is on the controls of two concepts on screen`, !two.length && all.some(i => i.concept), two.map(([n, cs]) => `${n}: ${[...cs].join('+')}`).join(' | '));
     const tea = drink === 'tea', P = Object.fromEntries(places);
-    ok(`${tag}: the places and modes draw this drink's own tabs (Library list; Editor and Edit ${tea ? 'steep' : 'edit'}; Career ${tea ? 'recordbook' : 'timeline'}; Design ${tea ? 'latte' : 'design'}; Export ${tea ? 'cupout' : 'export'})`,
-      P.library === 'list' && P.editor === (tea ? 'steep' : 'edit') && P.career === (tea ? 'recordbook' : 'timeline') && P.edit === (tea ? 'steep' : 'edit') && P.design === (tea ? 'latte' : 'design') && P.export === (tea ? 'cupout' : 'export'), JSON.stringify(P));
+    ok(`${tag}: the places and modes draw this drink's own tabs (Library list; Editor and Edit ${tea ? 'steep' : 'edit'}; Career ${tea ? 'recordbook' : 'timeline'}; Look ${tea ? 'latte' : 'design'}; no Export tab: it is a place)`,
+      P.library === 'list' && P.editor === (tea ? 'steep' : 'edit') && P.career === (tea ? 'recordbook' : 'timeline') && P.edit === (tea ? 'steep' : 'edit') && P.design === (tea ? 'latte' : 'design') && !('export' in P), JSON.stringify(P));
     ok(`${tag}: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
   }
   await ctx.close();

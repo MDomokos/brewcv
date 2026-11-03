@@ -27,7 +27,7 @@ A good test: if a tag would never appear in a job type, you probably don't need 
 
 ## Set up job types
 
-1. In the Edit panel with nothing selected, choose **Add job types** beside the Highlight row (or open **Skills and credentials** in Career and choose **Job types…**). The panel lists them.
+1. In the Content panel with nothing selected, choose **Add job types** beside the Highlight row (or open **Skills and credentials** in Career and choose **Job types…**). The panel lists them.
 2. Type a name, for example `CAD designer`, and choose **Add job type**.
 3. In the new row, type a tag and press Enter. The box takes only a tag from the list (it suggests them); to make a new one, add it under **Tags** first. Add as many as the kind of job needs. Remove one with its ×.
 4. Rename a job type by editing its name. Delete one with the bin; resumes you saved with that job type keep its name as written.
@@ -36,7 +36,7 @@ Job types can share tags. `hardware` can be in both "CAD designer" and "Rugged f
 
 ## Tailor a resume to a job type
 
-1. Choose the resume you are working on, or start a new one. Click nothing on the page, so the Edit panel shows its home view (press **E** if the panel is folded).
+1. Choose the resume you are working on, or start a new one. Click nothing on the page, so the Content panel shows its home view (press **E** if the panel is folded).
 2. In the **Highlight** row, choose from the one list: the job types first (named bundles of tags), then every tag. Choosing one only highlights: the lines that match stay bright and the rest dim on the page.
 3. Choose **Apply…**. The panel says how many bullets would be switched on, off, or changed to another version. Choose **Select bullets for …** to apply it. One undo (Ctrl+Z) reverses all of it.
 

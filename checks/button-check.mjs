@@ -4,7 +4,7 @@
 //  contrast: in Tea and Coffee, light and dark, on every sidebar view, the name window, the ⋯ menu and a row menu, the Library and Career, the
 //            export dialog, the Review list and the toast: every primary, secondary and destructive button differs from its ground by an edge or
 //            a fill of 3:1 (not by its shadow); no button is left without a tier (press.js reaches the Library, the dialogs and the toast); a
-//            tertiary button has no shadow; only a primary has the heavy one; Sent only and Keep look pressed when they are.
+//            tertiary button has no shadow; only a primary has the heavy one; Keep looks pressed when it is.
 //  del:      every delete and remove in src/ui is drawn by parts.js delBtn (the chip's remove by its del flag); in the views that show them
 //            (a line, its versions and tags, the name window, a row menu, the ⋯ menu, a skill group, Career) each has the class .del and the
 //            one X (the registry's delete) at 16 px, in the warning colour, and nothing but another delete follows it in its row; a line with more than one version
@@ -21,6 +21,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pickOption } from './lib/dropdown.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8403);
@@ -61,18 +62,18 @@ const VIEWS = {
   outline: async () => {},
   line: async page => { await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await page.waitForTimeout(200); await page.keyboard.press('Escape'); },
   'skill group': async page => { await clickIn(page, '#body .clt', 'CAD'); },
-  job: async page => { await page.click('#body [data-act=select-job][data-id=free]'); },
+  job: async page => { if (await page.$('#body [data-act=ol-toggle][data-g="sec:experience"][aria-expanded=false]')) await page.click('#body [data-act=ol-toggle][data-g="sec:experience"]'); await page.click('#body [data-act=select-job][data-id=free]'); },      // (a section is folded until opened)
   section: async page => { await page.click('#body [data-act=select-section][data-id=experience]'); },
   header: async page => { await page.click('#body [data-act=select-section][data-id=header]'); },
   design: async page => { await page.click('#tab-design'); },
-  export: async page => { await page.click('#tab-export'); },
+  export: async page => { await page.evaluate(() => window.__wb.export.open()); },
   settings: async page => { await page.evaluate(() => window.__wb.setView('settings')); },
   'name window': nameWin,
   menu: async page => { await page.click('#head [data-act=menu]'); },
   'row menu': async page => { await nameWin(page); await page.click('#switcher .swrow .smore'); },
-  library: async page => { await page.evaluate(() => window.__wb.setView('resumes')); await page.waitForTimeout(400); await page.click('#scr .rcard >> nth=1'); await page.click('#scr [data-act=scr-sent]'); },
+  library: async page => { await page.evaluate(() => window.__wb.setView('resumes')); await page.waitForTimeout(400); await page.click('#scr .rcard >> nth=1'); await pickOption(page, '#scr-show', 'sent'); },
   career: async page => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); await page.evaluate(() => document.querySelector('#scr .row, #scr .srow')?.click()); },
-  'export dialog': async page => { await page.click('#tab-export'); await page.evaluate(() => window.__wb.store.commit(d => { d.cur.photo = { show: true, shape: 'rect' }; }, 'check: photo on, none')); await page.waitForTimeout(300); await page.click('[data-act=ex-html]'); },
+  'export dialog': async page => { await page.evaluate(() => window.__wb.export.open()); await page.evaluate(() => window.__wb.store.commit(d => { d.cur.photo = { show: true, shape: 'rect' }; }, 'check: photo on, none')); await page.waitForTimeout(300); await page.click('[data-act=ex-html]'); },
   'review list': async page => { await page.evaluate(() => window.__wb.review.open()); },
   toast: async page => { await VIEWS.line(page); await page.hover('#body .vrow:not(.cur)'); await page.click('#body .vrow:not(.cur) [data-act=delete-version]'); },
 };
@@ -105,7 +106,7 @@ async function measure(){
     if (tier === 'tertiary' && !e.matches('.clv.many') && sh.some(([x, y]) => x || y))      // a count of many versions is a stack of tags, drawn by its shadow
     out.shadow.push(name(e));
     if (tier !== 'primary' && sh.some(([x, y]) => Math.max(Math.abs(x), Math.abs(y)) > 2)) out.heavy.push(`${name(e)} ${cs.boxShadow}`);
-    if (e.matches('[data-act=scr-sent], .keep') && e.getAttribute('aria-pressed') === 'true') out.pressed.push([name(e), ratio(over(rgba(cs.backgroundColor), ground(e)), ground(e))]);
+    if (e.matches('.keep') && e.getAttribute('aria-pressed') === 'true') out.pressed.push([name(e), ratio(over(rgba(cs.backgroundColor), ground(e)), ground(e))]);
     if (!['primary', 'secondary', 'destructive'].includes(tier)) continue;
     out.n++;
     const g = ground(e), parts = [];
@@ -130,7 +131,7 @@ if (want('contrast')){
       ok(`${tag}: every primary, secondary and destructive button has an edge or a fill at 3:1 against its ground (${r.n})`, !r.weak.length, [...new Set(r.weak)].slice(0, 6).join(' | '));
       ok(`${tag}: every button has a tier (press.js) or a look of its own`, !r.untiered.length, [...new Set(r.untiered)].slice(0, 6).join(' | '));
       ok(`${tag}: no tertiary button has a shadow, and only a primary the heavy one`, !r.shadow.length && !r.heavy.length, [...r.shadow, ...r.heavy].slice(0, 4).join(' | '));
-      if (r.pressed.length) ok(`${tag}: a pressed Sent only or Keep is filled (3:1 against its ground)`, r.pressed.every(([, x]) => x >= 3), JSON.stringify(r.pressed));
+      if (r.pressed.length) ok(`${tag}: a pressed Keep is filled (3:1 against its ground)`, r.pressed.every(([, x]) => x >= 3), JSON.stringify(r.pressed));
     }
     ok(`${drink} ${theme}: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
     await ctx.close();
@@ -283,17 +284,18 @@ if (want('name')){
   for (const [drink, theme] of LOOKS){
     const { ctx, page, bad } = await open({ drink, theme });
     const card = async () => page.evaluate(() => {
-      const hd = document.querySelector('#head').getBoundingClientRect(), b = document.querySelector('#docname-btn'), m = document.querySelector('#head [data-act=menu]');
-      const br = b.getBoundingClientRect(), mr = m.getBoundingClientRect(), sh = e => getComputedStyle(e).boxShadow;
-      return { left: br.left - hd.left, top: br.top - hd.top, toMenu: mr.left - br.right, menuIn: Math.min(hd.right - mr.right, mr.top - hd.top), sh: [sh(b), sh(m)] };
+      const hd = document.querySelector('#head').getBoundingClientRect(), b = document.querySelector('#docname-btn'), m = document.querySelector('#head [data-act=menu]'), x = document.querySelector('#head .hstub'), tg = document.querySelector('#head .htag');
+      const br = b.getBoundingClientRect(), mr = m.getBoundingClientRect(), xr = x.getBoundingClientRect(), sh = e => getComputedStyle(e).boxShadow;
+      return { left: br.left - hd.left, underTag: br.top >= tg.getBoundingClientRect().bottom - 1, menuOnTag: tg.contains(m) && mr.right <= xr.left, stub: [xr.top - hd.top, hd.bottom - xr.bottom, hd.right - xr.right].map(v => Math.round(v)).join(),
+        fill: getComputedStyle(x).backgroundColor !== 'rgba(0, 0, 0, 0)', sh: [sh(b), sh(m), sh(x)] };
     });
     const tag = `${drink} ${theme}`;
     const c0 = await card();
-    ok(`${tag}: the name is one large button, the card's top edge to edge, and ⋯ a corner of its own 8 px inside the card`, c0.left <= 1.5 && c0.top <= 1.5 && c0.toMenu >= 0 && c0.menuIn >= 8, JSON.stringify(c0));
+    ok(`${tag}: the name is one large button from the card's left edge under the tag line, ⋯ small at the tag line's end, and Export the filled stub at the card's right end, top edge to bottom edge (Coffee's 2px foot rule under it)`, c0.left <= 1.5 && c0.underTag && c0.menuOnTag && c0.stub.split(',').every(v => Math.abs(v) <= 2) && c0.fill, JSON.stringify(c0));
     await page.hover('#docname-btn'); await page.waitForTimeout(150); const c1 = await card();
     await page.hover('#head [data-act=menu]'); await page.waitForTimeout(150); const c2 = await card();
     await page.click('#docname-btn'); await page.waitForTimeout(300); await page.mouse.move(4, 4); const c3 = await card();
-    ok(`${tag}: neither the name nor ⋯ has a shadow, at rest, on hover or with the window open`, [c0, c1, c2, c3].every(c => c.sh.every(x => x === 'none')), JSON.stringify([c0.sh, c1.sh, c2.sh, c3.sh]));
+    ok(`${tag}: neither the name, ⋯ nor the Export stub has a shadow, at rest, on hover or with the window open`, [c0, c1, c2, c3].every(c => c.sh.every(x => x === 'none')), JSON.stringify([c0.sh, c1.sh, c2.sh, c3.sh]));
     const w = await win(page);
     ok(`${tag}: the name window: "This resume" holds Duplicate then Delete, no Record, + New resume first in the list, Manage all full width with an arrow`, w.acts === 'rm-dup,rm-delete' && !!w.lbl && !w.record && w.first === 'sw-new' && w.manage, JSON.stringify(w));
     await page.keyboard.press('Escape'); await page.waitForTimeout(200);

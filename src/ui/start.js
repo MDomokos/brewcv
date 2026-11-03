@@ -6,10 +6,11 @@
 // Everything is drawn from tokens (src/ui/start.css). The three ways in change state rather than screens: the grey lines become the
 // real page (shell.js).
 
-import { t, h, uiLang } from '../i18n/index.js';
+import { t, h, tIn, uiLang } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { logoBtn, drink, themePref, resolveTheme } from './drink.js';
 import * as fx from './buttonfx.js';
+import { play } from './motion.js';
 import * as story from './story.js';
 
 
@@ -35,6 +36,23 @@ const CUPS = {
   coffee: '<path d="M4.5 8h11v8.5a3.5 3.5 0 0 1-3.5 3.5H8a3.5 3.5 0 0 1-3.5-3.5z"/><path d="M15.5 10.2h1.2a2.8 2.8 0 0 1 0 5.6h-1.2"/><path class="stm" d="M7.5 2.5c-.9 1 .9 2 0 3.2M11.5 2.5c-.9 1 .9 2 0 3.2"/><path class="liq" d="M4.5 8h11v3h-11z"/>',
 };
 const SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>';
+// A language chip under the pointer previews its language on the hero and the line under it alone (the interface's own language changes on a click).
+// The block holds its height meanwhile, so nothing below it moves; the catalogue of `lang` must be loaded.
+const PREVIEW = [['.obhero', 'onb.hero'], ['.obsub', 'onb.intro']];
+function endPreview(){ const box = document.querySelector('.obtxt'); if (box){ delete box.dataset.pv; box.style.height = ''; } }
+export function preview(lang){
+  const box = document.querySelector('.obtxt'); if (!box) return;
+  const on = !!lang && lang !== uiLang();
+  if (!on && !box.dataset.pv) return;
+  if (on && !box.dataset.pv) box.style.height = `${box.offsetHeight}px`;
+  for (const [sel, key] of PREVIEW){
+    const e = box.querySelector(sel); if (!e) continue;
+    if (on) e.textContent = tIn(lang, key); else e.innerHTML = h(key);
+    play(e, { opacity: [0, 1] }, { ms: 'fast', key: `pv-${sel}`, name: 'lang-preview' });
+  }
+  if (on) box.dataset.pv = lang; else endPreview();
+}
+
 const MOON = '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>';
 const glyph = (d, cls = '') => `<svg class="obic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
 const cup = (d, key) => `<button type="button" class="obcup" data-act="drink-set" data-m="${d}" data-ht="${key}" title="${esc(t(key))}" aria-label="${esc(t(key))}" aria-pressed="${drink() === d}">${glyph(CUPS[d])}</button>`;
@@ -42,19 +60,20 @@ const cup = (d, key) => `<button type="button" class="obcup" data-act="drink-set
 export const headHtml = () => `<div class="obhead"><div class="obrow"><span class="oblogo">${logoBtn(42, { base: 'oblogobtn' })}<span>BrewCV</span></span>
   <div class="obswitch"><div class="obcups" role="group" data-hl="intro.drinks" aria-label="${esc(t('intro.drinks'))}">${cup('tea', 'm11.tea')}${cup('coffee', 'm11.coffee')}</div>
     <button type="button" class="obsun" data-act="theme-toggle" data-ht="intro.dark" title="${esc(t('intro.dark'))}" aria-label="${esc(t('intro.dark'))}" aria-pressed="${resolveTheme(themePref()) === 'dark'}">${glyph(SUN, 'sun')}${glyph(MOON, 'moon')}</button></div></div>
-  <h2 class="obhero" data-h="onb.hero">${h('onb.hero')}</h2><p class="obsub" data-h="onb.intro">${h('onb.intro')}</p></div>`;
+  <div class="obtxt"><h2 class="obhero" data-h="onb.hero">${h('onb.hero')}</h2><p class="obsub" data-h="onb.intro">${h('onb.intro')}</p></div></div>`;
 
-// the three ways in are one line each, told apart by their shape (src/ui/intro-side.css); what they do goes in their hint. A wrapper holds each
-// still, the layer inside it leans toward the pointer (src/ui/buttonfx.js), and the first has a string (Tea only) that hangs from its hole.
-const way = (cls, act, key, extra = '') => `<div class="obw ${cls}">${extra}<div class="obmv"><button class="obb${cls === 'p' ? ' primary' : ''}" data-act="${act}" data-ht="${key}Note" title="${esc(t(`${key}Note`))}"><span data-h="${key}">${h(key)}</span></button></div></div>`;
+// the three ways in are told apart by their shape (src/ui/intro-side.css); each has a label and, where the column is tall, a second line that says what it does
+// (it is the button's hint where it is not). A wrapper holds each still, the layer inside it leans toward the pointer (src/ui/buttonfx.js), and the first has
+// a string (Tea only) that hangs from its hole.
+const way = (cls, act, key, note, extra = '') => `<div class="obw ${cls}">${extra}<div class="obmv"><button class="obb${cls === 'p' ? ' primary' : ''}" data-act="${act}" data-ht="${note}" title="${esc(t(note))}"><span class="obtx"><span data-h="${key}">${h(key)}</span><small class="obnote" data-h="${note}">${h(note)}</small></span></button></div></div>`;
 
 export function bodyHtml({ langs, current }){
   return `<div class="obstart">
     <div class="obgap" id="obgap" aria-hidden="true"></div>
     <div class="obchoices">
-      ${way('p', 'ob-scratch', 'onb.scratch', '<svg class="obstr" viewBox="0 0 130 80" aria-hidden="true"><path d=""/></svg>')}
-      ${way('s', 'ob-import', 'onb.import')}
-      ${way('t', 'ob-example', 'onb.example')}
+      ${way('p', 'ob-scratch', 'onb.scratch', 'onb.scratchNote', '<svg class="obstr" viewBox="0 0 130 80" aria-hidden="true"><path d=""/></svg>')}
+      ${way('s', 'ob-import', 'onb.import', 'onb.importNote')}
+      ${way('t', 'ob-example', 'onb.example', 'onb.exampleNote')}
     </div>
     <div class="obgap" id="obgap2" aria-hidden="true"></div>
     <div class="oblangrow"><span class="obeye" data-h="intro.lang">${h('intro.lang')}</span>
@@ -77,6 +96,7 @@ export const { stageHtml, mount, unmount, begin, setStep, replay, act, current }
 // the words change language in place (nothing is drawn again, so the chips stay under the pointer)
 export function retext(){
   const lg = uiLang();
+  endPreview();
   document.querySelectorAll('#head [data-h], #body [data-h], #foot [data-h]').forEach(e => {
     if (e.dataset.lg === lg) return;
     e.dataset.lg = lg;
@@ -99,12 +119,25 @@ export function retext(){
 // first line is, for the language row), and an introlayout event whenever they change. The gaps grow so the ways in and the language chips start there;
 // before the board has said, and on a phone, they are their least.
 const metric = name => parseFloat(getComputedStyle(document.body).getPropertyValue(name));
+// A tall column (ROOMY_H layout px) also says what each way in does and shows Yours to keep in full, right after the languages (body.intro-roomy); a short
+// one keeps the one-line ways in and the icons at its foot. The rows follow the picture's where they can: when the extra lines would overflow the column,
+// the alignment gives way before anything is cut, and the column keeps the short form if even that is not enough.
+const ROOMY_H = 800;
 export function fit(){
-  const g1 = document.getElementById('obgap'), g2 = document.getElementById('obgap2'), ways = document.querySelector('.obchoices');
-  if (!g1 || !g2 || !ways) return;
+  const g1 = document.getElementById('obgap'), g2 = document.getElementById('obgap2'), ways = document.querySelector('.obchoices'), col = document.getElementById('col');
+  if (!g1 || !g2 || !ways || !col) return;
   const phone = document.body.dataset.phone === 'true', top = metric('--ways-top'), lang = metric('--lang-top');
-  g1.style.height = !phone && top ? `${Math.max(18, top - g1.getBoundingClientRect().top)}px` : '';
-  g2.style.height = !phone && lang ? `${Math.max(28, lang - ways.getBoundingClientRect().bottom)}px` : '';
+  const z = !phone && document.body.classList.contains('intro-hug') ? metric('--hug-z') || 1 : 1;      // the column is zoomed: its lengths are the screen's over z
+  const cut = () => col.scrollHeight - col.clientHeight > 1;
+  const gaps = () => {
+    g1.style.height = !phone && top ? `${Math.max(18, (top - g1.getBoundingClientRect().top) / z)}px` : '';
+    g2.style.height = !phone && lang ? `${Math.max(28, (lang - ways.getBoundingClientRect().bottom) / z)}px` : '';
+    for (const [g, min] of [[g2, 28], [g1, 18]]) if (!phone && cut()) g.style.height = `${Math.max(min, g.getBoundingClientRect().height / z - (col.scrollHeight - col.clientHeight))}px`;
+  };
+  const roomy = !phone && col.clientHeight >= ROOMY_H;
+  document.body.classList.toggle('intro-roomy', roomy);
+  gaps();
+  if (roomy && cut()){ document.body.classList.remove('intro-roomy'); gaps(); }
 }
 
 // once, at start-up: what the column does when something around it changes (a part is drawn again, the window, the board says where its rows are, the fonts)
@@ -117,6 +150,7 @@ export function bindSide(){
   const seen = new MutationObserver(again);
   for (const id of ['head', 'body', 'foot']){ const e = document.getElementById(id); if (e) seen.observe(e, { childList: true, subtree: true }); }
   document.addEventListener('introlayout', again);
+  new MutationObserver(again).observe(document.documentElement, { attributes: true, attributeFilter: ['data-drink'] });      // the other drink's type is another size
   addEventListener('resize', again);
   document.fonts?.ready.then(again);
   popovers();

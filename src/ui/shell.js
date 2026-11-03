@@ -20,9 +20,10 @@ import { pageLeft, springStep, atRest } from './camera.js';
 import { initDock, storeZoomWrite, ib, barAside } from './dock.js';
 import { initChecklist } from './checklist.js';
 import { initRecord } from './record.js';
-import { initHelp, keyText } from './help.js';
+import { initHelp, keyText, isKey, writes } from './help.js';
+import { initPlaceZoom } from './placezoom.js';
 import { initPress, tierAll } from './press.js';
-import { initSide, syncSide, side, toggleSide } from './sidewidth.js';
+import { initSide, syncSide, side, toggleSide, foldForAll } from './sidewidth.js';
 import { initDropdowns } from './dropdown.js';
 import { initSuggest } from './suggest.js';
 import { initFind, isFindKey, hasFocus as inFind } from './find.js';
@@ -37,7 +38,8 @@ import { initSwitcher, nameHtml } from './switcher.js';
 import { initScreens } from './screens.js';
 import { initThumbs } from './thumbs.js';
 import { initFiles } from './files.js';
-import { initExport } from './export.js';
+import { initExport, inPlace, shownMedium } from './export.js';
+import { onPaper } from '../model/design.js';
 import { initDesign } from './design.js';
 import { initOnboarding } from './onboarding.js';
 import { initCareer } from './career.js';
@@ -96,7 +98,7 @@ let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
   onDrawn: () => { onpage?.afterDraw(); hands?.drawn(); find?.refresh(); }, onPointer: e => { if (!bank?.pointer(e)) hands?.pointer(e); },
-  extraCss: r => design.extraCss(store.state.record, r),
+  extraCss: r => design.extraCss(store.state.record, r, shownMedium(r)), onPaper: r => onPaper(shownMedium(r)),      // the Export place shows the medium the files are made for
   // the hand, the wheel and the pinch over the page itself go to the canvas
   frameEvents: {
     wheel: (...a) => { garden?.wheel(); return canvas.frameEvents.wheel(...a); }, down: (...a) => { garden?.down(...a); return canvas.frameEvents.down(...a); },
@@ -226,6 +228,8 @@ async function loadExample({ quiet = false } = {}){
   const { model } = load(json);
   const names = await (await fetch('./data/example-resumes/index.json', { cache: 'no-cache' })).json();
   const resumes = [], frozen = {};
+  // the Library's lists: documents (their originals embedded), rounds and the import log
+  const lib = fetch('./data/example-library.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null)).catch(() => null);
   // all at once; the order of `names` is kept
   const files = await Promise.all(names.map(async n => {
     const r = await fetch(`./data/example-resumes/${encodeURIComponent(n)}`, { cache: 'no-cache' });
@@ -238,7 +242,8 @@ async function loadExample({ quiet = false } = {}){
     resumes.push({ ...got.recipe, id: n });
     if (got.frozen) frozen[n] = got.frozen;
   }
-  const state = { record: model, resumes, frozen, cur: newResume(model), openId: null };
+  const lists = await lib;
+  const state = { record: model, resumes, frozen, cur: newResume(model), openId: null, ...Object.fromEntries(['documents', 'rounds', 'imports'].filter(k => lists?.[k]?.length).map(k => [k, lists[k]])) };
   if (resumes[0]) RS.openSaved(state, resumes[0].id);
   if (store.state.record && !quiet){ await persist.checkpoint(t('checkpoint.beforeExample'), 'replace'); store.replace(state, t('undo.loadExample')); }
   else store.reset(state, 'example');
@@ -357,16 +362,17 @@ async function drawSheet(){
 const SCREENS = ['record', 'resumes', 'compare'];
 const fullWindow = () => innerWidth < PHONE_MAX && SCREENS.includes(ui.view);
 // the layout changes only when the sidebar becomes the whole screen or stops being it (a phone)
-const syncFull = () => { if ($('#col').classList.contains('is-full') !== fullWindow()) relayout(); };
+const syncFull = () => { if ($('#col').classList.contains('is-full') !== fullWindow() || document.body.classList.contains('is-export') !== inPlace()){ if (cur()?.exportMedium) schedule(); relayout(); } };      // the page is drawn again in its medium, or back on a screen
 function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: fullWindow(), slim: ui.view === 'welcome', oneUp: c.pageLimit === 1, side: side() });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: fullWindow(), slim: ui.view === 'welcome', oneUp: c.pageLimit === 1, side: side(), final: inPlace() });
   const host = $('#sheet'), box = $('#pages');
   const col = $('#col');
   Object.assign(col.style, { left: `${L.col.left}px`, top: `${L.col.top}px`, width: `${L.col.width}px`, height: `${L.col.height}px` });
   col.classList.toggle('is-full', fullWindow());
+  document.body.classList.toggle('is-export', inPlace());
   ui.layout = L;
   syncSide(L);
   layoutScreen();
@@ -410,6 +416,7 @@ function relayout(){
   renderFoot();
   renderChip();
   placeRail();
+  exporter.drawPages();
 }
 
 // The pages scroll in #pages on a big screen, and in the window on a phone.
@@ -500,7 +507,7 @@ function select(sel, { keepScroll = false, stay = false } = {}){
 }
 
 // a picture dropped on the editor or on the page asks what it is for; any other file goes through the one door
-function dropFile(e){ e.preventDefault(); const list = [...(e.dataTransfer?.files ?? [])], f = list[0]; if (!f) return; if (list.length === 1 && /^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view)) design.askPhoto(f); else openFiles(list); }
+function dropFile(e){ e.preventDefault(); const list = [...(e.dataTransfer?.files ?? [])], f = list[0]; if (!f) return; if (list.length === 1 && /^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view) && !files.isOpen) design.askPhoto(f); else openFiles(list); }
 
 function closeBodyMenus(){ return [resumes, career].some(m => m.closeMenus?.()); }
 const hoverFact = id => sheet.setHover(id, ui.ix);
@@ -531,8 +538,11 @@ const isExample = () => /\(fictional\)/.test(record()?.meta?.owner ?? '');
 // Views that replace the body card until ← Back or Esc; null is the Edit view.
 const VIEWS = {};
 function setView(v){
+  if (files.show(v)){ renderHead(); return; }      // a step of opening a file is a window over the place, which stays as it is
   if (v && !VIEWS[v]) return;
   const was = ui.view;
+  if (v === 'export' && !ui.xp) ui.xp = { ids: [store.state.openId], from: was };      // every way into Export is the place, for the open resume
+  if (v !== 'export' && v !== 'sent') ui.xp = null;
   ui.focusKept = false;
   if (SCREENS.includes(was) && !ui.layout?.phone) (ui.scrolled ??= {})[was] = $('#scr').scrollTop;      // each place keeps its scroll (N6)
   ui.view = v;
@@ -610,23 +620,29 @@ function drawHead(){
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
     const menuBtn = `<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>`;
-    if (SCREENS.includes(ui.view)){
-      // the place card under the tabs: the counts and the action of the place (the tab names it); the app menu stays in its corner
-      $('#head').innerHTML = `${screens.placeCard(ui.view, recordTab.summary())}<div class="pcorner">${menuBtn}</div>${notices}${ui.menu ? menuHtml() : ''}`;
-      $('#head').classList.add('is-place');
-    } else {
-      // the name card: the resume's name (never cut: it wraps) and the app menu. Saved, undo and redo are the seam's; Fit is Export's.
-      $('#head').classList.remove('is-place');
-      $('#head').innerHTML = `
-    <div class="hrow top">
-      <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>
-      <div class="hside"><div class="hsidetop">${menuBtn}</div></div>
-    </div>
-    ${from ? `<div class="hrow sentrow"><span class="dfrom">${esc(from)}</span></div>` : ''}
-    ${sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
+    // One name card in every place: a tag line saying what it names (with the app menu at its end), the name, and Export as its stub.
+    // In the Library the ticked resumes win, then the selected one, then the open one; everywhere else it is the open resume.
+    const place = SCREENS.includes(ui.view), editorHere = !place, tg = placeOf() === 'library' ? screens.target() : { ids: [store.state.openId], kind: 'open' };
+    const rs = tg.ids.map(id => RS.savedOf(store.state, id)).filter(Boolean), many = rs.length > 1, other = tg.kind !== 'open' ? RS.savedOf(store.state, store.state.openId) : null;
+    if (!many) ui.deckFold = false;
+    const tag = `<div class="htag"><span class="htagl ${tg.kind !== 'open' ? 'is-other' : ''}">${h(tg.kind === 'ticked' ? 'hc.tagTicked' : tg.kind === 'selected' ? 'hc.tagSel' : 'hc.tagOpen', { n: rs.length })}</span>${menuBtn}</div>`;
+    const name = editorHere
+      ? `<button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>`
+      : !many ? `<button class="docname" ${rs[0]?.id === store.state.openId ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(rs[0]?.id ?? '')}"`} title="${esc(t('ux6e.open', { name: resumeName(rs[0]) }))}"><span class="dn">${nameHtml(resumeName(rs[0]))}</span></button>`
+        : deckHtml(rs, screens.inspected());
+    const stub = `<button class="hstub" data-act="export-place" data-tip="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}|" aria-label="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}">${icon('fileout', { role: many ? 'control' : 'header' })}<span>${h('ux2.modeExport')}${many ? ` <b class="hn">${rs.length}</b>` : ''}</span></button>`;
+    $('#head').classList.toggle('is-place', place);
+    $('#head').classList.toggle('is-many', many);
+    $('#head').dataset.layers = many ? String(Math.min(rs.length, 3) - 1) : '0';
+    $('#head').innerHTML = `
+    <div class="hrow top"><div class="hmain">${tag}${name}</div></div>
+    ${other ? `<div class="hrow sentrow"><span class="dnote">${h('hc.inEditor', { name: resumeName(other) })}</span></div>` : ''}
+    ${editorHere && from ? `<div class="hrow sentrow"><span class="dfrom">${esc(from)}</span></div>` : ''}
+    ${editorHere && sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
+    ${ui.view === 'compare' ? screens.placeCard('compare') : ''}
+    ${rs.length ? stub : ''}
     ${notices}
     ${ui.menu ? menuHtml() : ''}`;
-    }
     drawRail(mode, savedState);
   } else {
   $('#ptabs').hidden = true;
@@ -652,6 +668,16 @@ function drawHead(){
   headMoments(sent);
 }
 
+// Several ticked: a deck of names, one row each (they wrap, never cut), the inspector's resume marked; from four, the list folds to its first two
+const DECK_LONG = 4, DECK_KEEP = 2;
+function deckHtml(rs, insp){
+  const shown = ui.deckFold ? rs.slice(0, DECK_KEEP) : rs;
+  const more = rs.length >= DECK_LONG ? `<li class="hmore"><button class="hmorebtn" data-act="hc-fold" aria-expanded="${!ui.deckFold}">${h(ui.deckFold ? 'hc.more' : 'hc.fold', { n: rs.length - DECK_KEEP })}</button></li>` : '';
+  return `<ul class="hdeck" aria-label="${esc(t('hc.tagTicked', { n: rs.length }))}">${shown.map(r => `<li ${r.id === insp ? 'class="is-insp" aria-current="true"' : ''}>${icon('document', { role: 'inline' })}<span class="hln">${nameHtml(resumeName(r))}</span></li>`).join('')}${more}</ul>`;
+}
+// Export opens the Export place for what the card names, with the view to come back to
+const openExport = () => exporter.open(placeOf() === 'library' ? screens.target().ids : [store.state.openId], ui.view ?? null);
+
 // ---- the rail (a desktop): the logo, the editor's tabs, the other screens, undo and redo. Three containers: the tabs touch the editor card,
 // the screens are dashed and icon only, undo and redo sit at the foot. ----
 function drawRail(mode, saved = ''){
@@ -659,7 +685,7 @@ function drawRail(mode, saved = ''){
   const tab = (m, key, ic) => `<button role="tab" class="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'design', 'export'].includes(mode)) ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? ic[1] : ic[0], { role: 'header' })}</span><span class="tl">${h(key)}</span></button>`;
   // the seam: undo, redo and Saved in one card at the top, the same on every place; Edit, Design and Export joined to the panel in the editor only; the logo at the foot
   $('#rail').innerHTML = `${logoBtn(30, { base: 'logo', pos: 'l' })}
-    ${editor ? `<div class="rtabs" id="rtabs" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}" data-tea="${esc(dock.teaNow())}">${tab('edit', 'ux2.modeEdit', ['edit', 'steep'])}${tab('design', 'ux2.modeDesign', ['design', 'latte'])}${tab('export', 'ux2.modeExport', ['export', 'cupout'])}</div>` : ''}
+    ${editor ? `<div class="rtabs" id="rtabs" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}" data-tea="${esc(dock.teaNow())}">${tab('edit', 'ux2.modeEdit', ['edit', 'steep'])}${tab('design', 'ux2.modeDesign', ['design', 'latte'])}</div>` : ''}
     <div class="rhist" role="group" aria-label="${esc(t('ux6b.history'))}">
       <span class="rsaved">${saved}</span>
       ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
@@ -678,7 +704,7 @@ function drawPlaces(){
   pt.hidden = false;
   pt.setAttribute('aria-label', t('ux6h.places'));
   pt.style.setProperty('--ti', String(P.findIndex(x => x[0] === here)));      // Coffee's sliding thumb
-  pt.innerHTML = P.map(([k, ic, name, key, tip]) => `<button class="ptab" data-act="place" data-p="${k}" ${here === k ? 'aria-current="page"' : ''} data-tip="${esc(tip || name)}|${esc(t('ux6h.key', { key }))}" data-tip-pos="b" aria-label="${esc(name)}">${icon(ic, { role: 'control' })}<span>${esc(name)}</span></button>`).join('');
+  pt.innerHTML = P.map(([k, ic, name, key, tip]) => `<button class="ptab" data-act="place" data-p="${k}" ${here === k ? 'aria-current="page"' : ''} data-tip="${esc(tip || name)}|${esc(t('ux6h.key', { key: keyText(key) }))}" data-tip-pos="b" aria-label="${esc(name)}">${icon(ic, { role: 'control' })}<span>${esc(name)}</span></button>`).join('');
 }
 // The tabs hang off the editor card: the first starts 30px below its top, whatever the name card's height, and a short card (Skills, with
 // the bank under it) gets shorter tabs, so the last one and its corner still end on the card. Not while the name window has the card's
@@ -691,16 +717,19 @@ function placeRail(){
   if (!first) return;
   const corner = rail.querySelector('.rtabs .tab:last-child[aria-selected=true]') ? 12 : 2;      // the open tab's 10px corner hangs under it: room for it only when it is the last
   const room = body.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(body).borderBottomLeftRadius) || 0) - corner - first.getBoundingClientRect().top - 2 * 8;      // from the first tab's top to clear of the card's own corner, less two gaps
-  const h = Math.max(34, Math.min(58, Math.floor(room / 3)));
+  const h = Math.max(34, Math.min(58, Math.floor(room / 2)));
   rail.style.setProperty('--tabh', `${h}px`);
   rail.classList.toggle('short-tabs', h < 44);      // too short for the icon and the name: the name alone
 }
 
-// #scr holds the Library and Career: from the left gutter to the seam, the sidebar's height
+// #scr holds the Library and Career: the list runs from the left gutter to the seam, the sidebar's height. Its box is the whole window, so the
+// mat it carries and scrolls (drinks.css) reaches every edge; its padding keeps the list where it was. The rail and the sidebar stand over it.
 function layoutScreen(){
   const L = ui.layout, scr = $('#scr');
+  if (L?.phone) scr.style.padding = '';
   if (!L || L.phone || scr.hidden) return;
-  Object.assign(scr.style, { left: `${G}px`, top: `${G}px`, height: `${innerHeight - 2 * G}px`, width: `${Math.max(0, L.col.left - RAIL_W - 2 * G)}px` });
+  const w = Math.max(0, L.col.left - RAIL_W - 2 * G);
+  Object.assign(scr.style, { left: '0px', top: '0px', height: `${innerHeight}px`, width: `${innerWidth}px`, padding: `${G}px ${innerWidth - G - w + 4}px ${2 * G}px ${G + 4}px` });
 }
 
 // Tea: the place tags hang on threads and swing when the pointer brushes past them, as the folded Tea tags did on main (dock.js swingTags):
@@ -1071,6 +1100,8 @@ async function onClick(e){
   if (await design.act(act, tg)) return;
   if (await edit.act(act, tg)) return;
   switch (act){
+    case 'export-place': openExport(); break;
+    case 'hc-fold': ui.deckFold = !ui.deckFold; renderHead(); break;
     case 'menu': ui.menu = !ui.menu; if (ui.menu) switcher.close(); renderHead(); if (ui.menu) focusMenu('.menu'); break;
     case 'select-record': {
       const d = tg.dataset;
@@ -1268,16 +1299,16 @@ function key(e){
   if (menuKey(e)) return;
   const typing = isTyping(e.target);
   const mod = e.ctrlKey || e.metaKey;
-  if (typing && mod && ['z', 'y'].includes(e.key.toLowerCase())) return;      // the text box's own undo
+  if (typing && mod && isKey(e, 'z', 'y')) return;      // the text box's own undo
   if (e.key === 'F11' && !mod && !e.altKey && !e.shiftKey){ e.preventDefault(); toggleFullscreen(); return; }      // full screen is F11, in a text box too; a plain F is a letter
-  if (mod && !e.altKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); stepHistory(e.shiftKey ? 'redo' : 'undo'); return; }
-  if (mod && e.key.toLowerCase() === 'y'){ e.preventDefault(); stepHistory('redo'); return; }
-  if (mod && !e.altKey && e.key.toLowerCase() === 's'){ e.preventDefault(); if (!e.isComposing && e.keyCode !== 229) review.saveFlow(); return; }
-  if (mod && e.key.toLowerCase() === 'o'){ e.preventDefault(); switcher.openOrFocus(); return; }
-  if (mod && !e.altKey && e.code === 'Backslash' && !ui.layout?.phone && ui.view !== 'welcome'){ e.preventDefault(); toggleSide(); return; }      // the sidebar folds to the rail and back (sidewidth.js)
+  if (mod && !e.altKey && isKey(e, 'z')){ e.preventDefault(); stepHistory(e.shiftKey ? 'redo' : 'undo'); return; }
+  if (mod && isKey(e, 'y')){ e.preventDefault(); stepHistory('redo'); return; }
+  if (mod && !e.altKey && isKey(e, 's')){ e.preventDefault(); if (!e.isComposing && e.keyCode !== 229) review.saveFlow(); return; }
+  if (mod && isKey(e, 'o')){ e.preventDefault(); switcher.openOrFocus(); return; }
+  if (mod && !e.altKey && isKey(e, '\\') && !ui.layout?.phone && ui.view !== 'welcome'){ e.preventDefault(); toggleSide(); return; }      // the sidebar folds to the rail and back (sidewidth.js)
   // the app's search: the first press is ours, the next one (the field has the focus) is the browser's own find; a dialog keeps its keys
   if (isFindKey(e) && ui.view !== 'welcome' && !inFind() && !e.target.closest?.('dialog, [aria-modal=true]')){ e.preventDefault(); find.open(); return; }
-  if (typing) return;
+  if (typing || e.isComposing || e.keyCode === 229) return;      // an IME at work is typing too
   if (isDrinkKey(e)){ e.preventDefault(); switchDrink(); return; }          // Shift+F: tea or coffee, in place
   if (ui.view === 'welcome') return;                    // the introduction and the questions have their own keys
   if (ui.snap && e.key !== 'Escape') return;           // a snapshot is read-only
@@ -1290,6 +1321,7 @@ function key(e){
     if (closeBodyMenus()) return;
     if (edit.key(e)) return;
     if (SCREENS.includes(ui.view)){ leaveView(); return; }      // up one level inside the place, never to another
+    if (inPlace()){ exporter.back(); return; }      // Export: back where it was opened from
     if (ui.view){ setView(null); return; }
     if (ui.snap){ setSnap(null); renderAll(); return; }
     if (ui.previewing){ endPreview(); return; }
@@ -1298,14 +1330,16 @@ function key(e){
     const next = up(ui.sel);
     if (next.kind !== 'none'){ select(next); return; }
     if (ui.sel.kind !== 'none'){ select(NONE); backToTab(); return; }
-    if (!ui.layout?.phone && !side().off && escFolds()) toggleSide();      // the sidebar folds away, and the pages centre in the whole window
+    foldForAll(ui.layout);      // the sidebar folds away, and the pages centre in the whole window
     dock.allTheWayOut();
     return;
   }
-  if (!mod && !e.altKey && !e.shiftKey && 'wer'.includes(e.key.toLowerCase()) && e.key.length === 1){ e.preventDefault(); goPlace({ w: 'library', e: 'editor', r: 'career' }[e.key.toLowerCase()]); return; }      // W E R: the three places, in a row
+  const place = !mod && !writes(e) && !e.shiftKey && { KeyW: 'library', KeyE: 'editor', KeyR: 'career' }[e.code];
+  if (place){ e.preventDefault(); goPlace(place); return; }      // W E R: the three places, in a row, by where the keys sit (Z E R on AZERTY)
   if (edit.key(e)) return;
-  if (e.key === '?' && !mod){ e.preventDefault(); help.toggle(); return; }
-  if (e.key === '/' && !mod && !e.altKey && ui.view !== 'welcome'){ e.preventDefault(); find.open(); return; }      // the way in where a browser or a window keeps Ctrl+F
+  if (e.key === '?' && !mod && !writes(e)){ e.preventDefault(); help.toggle(); return; }
+  if (e.key === '/' && !mod && !writes(e) && ui.view !== 'welcome'){ e.preventDefault(); find.open(); return; }      // the way in where a browser or a window keeps Ctrl+F
+  if (placeZoom.key(e)) return;      // the Library and Career zoom their own cards
   if (dock.onKey(e)) return;
   // the arrows walk the page; inside the panel, the timeline or a menu they belong to what has the focus
   if (e.target.closest?.('#col, #timeline, #help, #switcher')) return;
@@ -1334,8 +1368,6 @@ async function switchDrink(){
   }
   toggleDrink();
 }
-// rb-esc-fold = off keeps the sidebar open at the page level (for the checks, which press Esc to rest)
-const escFolds = () => { try { return localStorage.getItem('rb-esc-fold') !== 'off'; } catch { return true; } };
 async function toggleFullscreen(){
   const win = globalThis.__TAURI__?.window?.getCurrentWindow?.();      // the desktop app: the window itself, which Esc does not leave (the page's full screen is left by Esc)
   if (win){
@@ -1588,8 +1620,8 @@ const switcher = initSwitcher({ store, ui, toast, setView, work, previewRecipe, 
 switcher.bind();
 Object.assign(VIEWS, resumes.views);
 VIEWS.record = () => recordTab.view();
-const thumbs = initThumbs({ work, extraCss: r => design.extraCss(store.state.record, r), chrome: r => docChrome(r.lang ?? 'en') });
-const screens = initScreens({ store, work, setView, resumes, view: () => ui.view, renderBody: () => renderBody(), leave: () => leaveView(), persist, space, toast, files: { checked: () => files.checked(), receipt: () => files.receipt() } }, thumbs);
+const thumbs = initThumbs({ work, extraCss: (r, medium) => design.extraCss(store.state.record, r, medium), chrome: r => docChrome(r.lang ?? 'en') });
+const screens = initScreens({ store, work, setView, resumes, view: () => ui.view, renderBody: () => renderBody(), renderHead: () => renderHead(), leave: () => leaveView(), persist, space, toast, files: { checked: () => files.checked(), receipt: () => files.receipt() } }, thumbs);
 Object.assign(VIEWS, screens.views);
 window.__wb.thumbs = thumbs; window.__wb.screens = screens;
 const files = initFiles({
@@ -1600,7 +1632,7 @@ const files = initFiles({
 Object.assign(VIEWS, files.views);
 files.bind($('#body'));
 window.__wb.files = files;
-const exporter = initExport({ store, ui, persist, space, toast, work, cur: () => shown(),
+const exporter = initExport({ store, ui, persist, space, toast, work, cur: () => shown(), setView, held: id => resumes.heldRecipe(id), thumb: (r, m) => thumbs.entry(r, m),
   // the Fix of a major warning: to the page, the header or the line it is about, in the Editor, with the thing in view and the keyboard on it (the photo's switch, the line's version in use)
   goFix: async f => {
     await dock.setMode('edit');
@@ -1646,6 +1678,7 @@ window.__wb.export = exporter;
 resumes.bind($('#body'));
 screens.bind($('#body'));
 for (const m of [screens, resumes, checklist, career, edit]) m.bind($('#scr'));      // the Library and Career have their own host (the ticks are edit.js's)
+const placeZoom = initPlaceZoom({ view: () => ui.view, scr: $('#scr') });
 window.__wb.resumes = resumes;
 window.__wb.switcher = switcher;
 

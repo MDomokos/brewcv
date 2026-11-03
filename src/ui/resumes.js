@@ -186,6 +186,8 @@ function newerBanner(){
 
 const VIEWS = { new: newView, sent: saveView, snapshot: snapshotView };
 
+// a copy goes into the current round (RS.saveNew): when that is not its original's, the toast says where it went
+const inRound = (msg, was) => { const rs = st().rounds ?? [], to = st().cur?.round ?? ''; return [msg, rs.length && to !== (was ?? '') ? t('i7.addedTo', { round: rs.find(x => x.id === to)?.name ?? t('i7.earlier') }) : ''].filter(Boolean).join(' · '); };
 function commit(fn, label, done, undo = false){
   try { const ok = C.store.commit(d => { fn(d); }, label); if (ok && done) C.toast(done, '', undo); return ok; }
   catch (e){ C.toast(errText(e), 'bad'); return false; }
@@ -239,8 +241,9 @@ function newJob(id, company, role){
   if (!C.leaveOk()) return false;
   let res;
   V.row = null; C.ui.sel = C.NONE; C.setSnap(null);
+  const was = RS.savedOf(st(), id)?.round;
   if (!commit(d => { res = RS.duplicate(d, id, { name: RS.nameFrom({ company, role }), company, role }); }, t('ux1.undoDup'))){ rerender(); return false; }
-  C.noteOpen(res.id); C.setView(null); C.toast(t('ux6h.created', { name: RS.resumeLabel(st().cur) }));
+  C.noteOpen(res.id); C.setView(null); C.toast(inRound(t('ux6h.created', { name: RS.resumeLabel(st().cur) }), was));
   return true;
 }
 
@@ -284,12 +287,14 @@ async function act(a, tg){
       let res;
       V.row = null;
       C.ui.sel = C.NONE; C.setSnap(null);
+      const was = RS.savedOf(st(), id)?.round;
       const ok = commit(d => { res = RS.duplicate(d, id, { lang }); }, t(lang ? 'ux1.undoDupLang' : 'ux1.undoDup'));
       if (ok){
         C.noteOpen(res.id);
         C.setView(null);
         // the copy is open, under its parent, with its name selected to type over: that says it (a phone has no name field, and says it in a toast)
-        if (!C.nameReady()) C.toast(lang ? t('ux1.dupLangDone', { name: RS.resumeLabel(st().cur), lang: langName(lang) }) : t('ux1.dupDone', { name: RS.resumeLabel(st().cur) }));
+        const say = inRound(C.nameReady() ? '' : lang ? t('ux1.dupLangDone', { name: RS.resumeLabel(st().cur), lang: langName(lang) }) : t('ux1.dupDone', { name: RS.resumeLabel(st().cur) }), was);
+        if (say) C.toast(say);
       } else rerender();
       return true;
     }
@@ -352,8 +357,9 @@ async function act(a, tg){
       const sid = C.ui.snap?.id;
       if (!sid) return true;
       let res;
+      const was = RS.savedOf(st())?.round;      // the snapshot's resume is the open one
       C.setSnap(null); C.ui.sel = C.NONE;
-      if (commit(d => { res = RS.duplicateSnapshot(d, sid); }, t('ux1.undoDup'))){ C.noteOpen(res.id); C.toast(t('ux1.dupDone', { name: RS.resumeLabel(st().cur) })); }
+      if (commit(d => { res = RS.duplicateSnapshot(d, sid); }, t('ux1.undoDup'))){ C.noteOpen(res.id); C.toast(inRound(t('ux1.dupDone', { name: RS.resumeLabel(st().cur) }), was)); }
       C.setView(null);
       return true;
     }
