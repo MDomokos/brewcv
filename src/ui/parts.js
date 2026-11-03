@@ -77,9 +77,15 @@ export function missBar({ lang, list, act = 'go-missing', group = false, offer =
     ${list.length > 8 ? `<div class="tiny muted">${h('edit.andMore', { n: list.length - 8 })}</div>` : ''}</div>`;
 }
 
-const tagChip = (tg, { vid = null, jobTypes = [], focus = [] } = {}) =>
-  `<span class="tag ${jobTypes.includes(tg) ? 'jt' : ''} ${focus.includes(tg) ? 'on' : ''}">${esc(tg)}${vid ? delBtn(`data-act="tag-rm" data-v="${esc(vid)}" data-tag="${esc(tg)}"`, t('edit.removeTag', { tag: tg }), { text: false }) : ''}</span>`;
-const tagBox = (v, x) => `<div class="vtags tagin">${(v.tags ?? []).map(tg => tagChip(tg, { vid: v.id, jobTypes: x.jobTypes, focus: x.focusTags ?? [] })).join('')}<input class="tag-in" data-suggest="${esc(JSON.stringify(x.tagList))}" placeholder="${esc(t('edit.tagPh'))}" data-vid="${esc(v.id)}" aria-label="${esc(t('edit.addTag', { v: v.n }))}"></div>`;
+// Under a version: its flags (machine-translated, imported), and which saved resumes print it, folded until asked (x.uses: version id → names;
+// x.useOpen: the ones unfolded). The summary's own data-act keeps a click on it from choosing the row's version.
+const FLAG = { 'needs-review': () => [t('wb.review'), t('wb.reviewTip')], imported: v => [t('flag.imported'), v.source ?? ''] };
+function vtags(v, x){
+  const flags = R.flagsOf(v).map(f => { const [label, tip] = FLAG[f](v); return `<span class="tag flag" title="${esc(tip)}">${esc(label)}</span>`; }).join('');
+  const names = x.uses?.get(v.id) ?? [];
+  const use = names.length ? `<details class="vuse" data-v="${esc(v.id)}"${x.useOpen?.has(v.id) ? ' open' : ''}><summary data-act="vuse">${h('use.count', { n: names.length })}</summary><span class="vuses">${names.map(esc).join(' · ')}</span></details>` : '';
+  return flags || use ? `<div class="vtags">${flags}${use}</div>` : '';
+}
 
 // The editor, in place of the row it edits. x.dirty: the draft is worth saving;
 // x.canOnly: a resume can hold its own text for this claim.
@@ -227,14 +233,13 @@ const v_isCur = (v, using, over) => over === undefined && v.id === using?.id;
 function vrow(v, using, over, x){
   const isCur = v_isCur(v, using, over);
   const minor = String(v.n).includes('.');
-  const star = (x.focusTags ?? []).some(tg => (v.tags ?? []).includes(tg)) ? `<span class="star" title="${esc(t('edit.tagged', { tag: x.focusLabel ?? x.focus }))}">${icon('focus', { role: 'inline' })}</span>` : '';
-  if (isCur) return `<div class="vrow cur ${minor ? 'minor' : ''}" data-v="${esc(v.id)}"><span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${esc(v.text)}</span>
+  if (isCur) return `<div class="vrow cur ${minor ? 'minor' : ''}" data-v="${esc(v.id)}"><span class="rad"></span><span class="n">v${esc(v.n)}</span><span class="tx">${esc(v.text)}</span>
     ${x.full ? '' : `<span class="vbtn">${pencil}</span>`}
-    ${tagBox(v, x)}</div>`;
+    ${vtags(v, x)}</div>`;
   return `<div class="vrow ${minor ? 'minor' : ''}" data-act="use-version" data-v="${esc(v.id)}" tabindex="0" title="${esc(v.text)}">
-    <span class="rad"></span><span class="n">v${esc(v.n)}${star}</span><span class="tx">${x.full ? marked(v.text, over ?? using?.text ?? '') : gist(v.text, over ?? using?.text ?? '')}</span>
+    <span class="rad"></span><span class="n">v${esc(v.n)}</span><span class="tx">${x.full ? marked(v.text, over ?? using?.text ?? '') : gist(v.text, over ?? using?.text ?? '')}</span>
     <span class="acts"><button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('edit.compareTitle'))}" aria-label="${esc(t('edit.compareTitle'))}">${icon('compare')}</button>${delBtn(`data-act="delete-version" data-v="${esc(v.id)}"`, t('edit.deleteV', { v: v.n }), { text: false })}</span>
-    ${(v.tags ?? []).length ? `<div class="vtags">${v.tags.slice(0, 4).map(tg => tagChip(tg, { jobTypes: x.jobTypes, focus: x.focusTags ?? [] })).join('')}${v.tags.length > 4 ? `<span class="muted tiny">+${v.tags.length - 4}</span>` : ''}</div>` : ''}</div>`;
+    ${vtags(v, x)}</div>`;
 }
 
 // Under the claim's heading: Keep (its on/off is the chip's tick). 🗑 deletes the claim and every version of it.

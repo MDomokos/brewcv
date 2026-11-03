@@ -90,7 +90,6 @@ html.rb-cam .rb-plate { transition: opacity var(--plate-out) var(--rb-m-out); }
    (--rb-wo, sheet.setWriting: the stand-off that leaves room for the rule), so it never covers a neighbour */
 html.rb-writing [contenteditable] { outline: none; border-radius: var(--plate-r); background-color: var(--plate-paper); box-shadow: inset 0 1px 2px var(--plate-inner), 0 0 0 max(0px, var(--rb-wo, 0px)) var(--plate-paper); }      /* its rule is the plate's (.rb-plate.is-write) */
 html.rb-previewing .document > .page { outline: var(--plate-line) solid var(--plate-accent); outline-offset: var(--plate-off-job); }
-html.rb-focus .bullets li[data-variant]:not(.rb-hit), html.rb-focus .summary[data-variant]:not(.rb-hit), html.rb-focus .skills__items[data-variant]:not(.rb-hit), html.rb-focus .pairs dd[data-variant]:not(.rb-hit), html.rb-focus .runs strong[data-variant]:not(.rb-hit) { opacity: .28; transition: opacity var(--rb-m-base, 240ms) var(--rb-m-out, ease-out); }
 html.rb-writing :is([data-variant], [data-label]):not([contenteditable]) { opacity: var(--rb-wdim, .94); }
 html.rb-ui [contenteditable] { cursor: text; }
 /* the skill words (src/ui/wordbank.js): each one grabbed and carried, under the pointer its own small plate (hands.js; no edges, at rest or carried); while a word
@@ -140,7 +139,7 @@ export function createSheet(host, hooks = {}){
   let fr = null;
   let shown = null, textCache = null;
   let view = { mode: 'spread', page: 0 };
-  let marked = { sel: null, ix: null, prev: null, focus: null, miss: null, hover: null, find: null, scope: false };
+  let marked = { sel: null, ix: null, prev: null, miss: null, hover: null, find: null, scope: false };
   let fade = [];
   // the page that does not wait (rb-faded: kept as the name of the state) is the current one, marked only when another waits
   const markFade = pages => { const any = fade.some(Boolean); pages.forEach((p, i) => { p.classList.toggle('rb-faded', !!fade[i]); p.classList.toggle('rb-current', any && !fade[i]); }); };
@@ -154,7 +153,6 @@ export function createSheet(host, hooks = {}){
   let landing = null;            // the lifted block coming down: { anims, done }
   let pending = null;
   let revealed = null;            // the selection last scrolled into view (stack mode)
-  let focusKey = '';              // which lines the lens picks, as one string: a redraw that picks the same ones does not brighten them again
   // One drawing at a time: a preview, its end, a redraw and a Fit can overlap, and two on
   // different templates would each swap the iframe out from under the other.
   let chain = Promise.resolve();
@@ -442,7 +440,7 @@ export function createSheet(host, hooks = {}){
   function mark(){ markEls(); paintPlates(); }
   function markEls(){
     if (!fr) return;
-    for (const el of fr.doc.querySelectorAll('.rb-sel, .rb-scope, .rb-fade, .rb-prev, .rb-hit, .rb-find, .rb-miss, .rb-miss-tab')) el.classList.remove('rb-sel', 'rb-scope', 'rb-fade', 'rb-prev', 'rb-hit', 'rb-find', 'rb-miss', 'rb-miss-tab');
+    for (const el of fr.doc.querySelectorAll('.rb-sel, .rb-scope, .rb-fade, .rb-prev, .rb-find, .rb-miss, .rb-miss-tab')) el.classList.remove('rb-sel', 'rb-scope', 'rb-fade', 'rb-prev', 'rb-find', 'rb-miss', 'rb-miss-tab');
     paper();
     // texts with no version in the resume's language print in English, outlined
     if (marked.miss && marked.ix){
@@ -454,14 +452,6 @@ export function createSheet(host, hooks = {}){
       for (const id of marked.miss.headings) for (const t of fr.doc.querySelectorAll(`.band[data-section="${CSS.escape(id)}"] .tab`)) t.classList.add('rb-miss-tab');
     }
     for (const el of findEls()) el.classList.add('rb-find');      // the search's second highlight; the page's own markup is untouched
-    fr.doc.documentElement.classList.toggle('rb-focus', !!marked.focus);
-    if (marked.focus && marked.ix){
-      for (const el of fr.doc.querySelectorAll('[data-variant]')){
-        const a = el.getAttribute('data-variant');
-        const f = marked.ix.factOfVariant.get(a) ?? (a.endsWith('-override') ? a.slice(0, -9) : null);
-        if (f && marked.focus.has(f)) el.classList.add('rb-hit');
-      }
-    }
     pv = marked.hover && marked.ix ? elsOf(marked.hover, marked.ix)[0] ?? null : null;      // a row of the sidebar under the pointer: its block takes the page's one hover plate, a little stronger
     const { sel, ix } = marked;
     if (!sel || !ix) return;
@@ -825,13 +815,6 @@ export function createSheet(host, hooks = {}){
       fr?.doc.querySelectorAll('.rb-clip').forEach(p => p.classList.remove('rb-clip'));
       this.unfold(); unsocket();
       nudged.clear(); paintPlates();
-    },
-    setFocus(facts, ix){
-      const was = focusKey;
-      marked.focus = facts && facts.size ? facts : null; focusKey = marked.focus ? [...marked.focus].sort().join() : '';
-      if (ix) marked.ix = ix; mark();
-      // the lens has just been turned on, or changed: the lines it picks out brighten (the others dim by a transition, in the frame's CSS)
-      if (focusKey && focusKey !== was) for (const el of fr?.doc.querySelectorAll('.rb-hit') ?? []) play(el, [{ filter: 'brightness(1.2)' }, { filter: 'none' }], { ms: 'slow', name: 'lens:hit' });
     },
     flash(sectionId){
       for (const el of fr?.doc.querySelectorAll(`.band[data-section="${CSS.escape(sectionId)}"]`) ?? []){

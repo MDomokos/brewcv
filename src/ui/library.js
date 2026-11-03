@@ -68,7 +68,7 @@ export function card(g, q = ''){
   </article>`;
 }
 // the list's columns after the name (screens.js names them): every one a cell, blank where there is nothing
-export const COLS = ['company', 'role', 'type', 'paper', 'lang', 'pages', 'sent', 'changed'];
+export const COLS = ['company', 'role', 'paper', 'lang', 'pages', 'sent', 'changed'];
 export const cells = o => COLS.map(k => `<td class="c-${k}">${esc(o[k] ?? '')}</td>`).join('');
 // a document group's row: on its own, or under the resume it was exported from (parent), hidden while that resume is folded
 export function row(g, q = '', parent = null, hidden = false){

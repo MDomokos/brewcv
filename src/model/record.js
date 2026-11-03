@@ -124,6 +124,11 @@ function freeId(model, base){
   for (let i = 2; ; i++) if (!ids.has(`${base}-${i}`)) return `${base}-${i}`;
 }
 
+// The two marks a version can carry in its `tags`: machine-translated and not yet read by a native speaker, and taken from an imported document.
+// Older files may hold other tags there; they are kept as they are and not shown.
+export const FLAGS = ['needs-review', 'imported'];
+export const flagsOf = v => FLAGS.filter(f => (v?.tags ?? []).includes(f));
+
 // Tags, language and source come from `from`. `as`: 'minor' (vN.x under from's major) or 'major'.
 // `marks` are the highlights the text already has; without them `from`'s are moved onto the new text. `source` wins over from's.
 // `n`: the number to give it (to match another language's), refused when the language has it or had it.

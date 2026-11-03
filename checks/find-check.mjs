@@ -117,7 +117,7 @@ await part('the keyboard: typing f or F in any writing surface never toggles ful
   await typeIn('the name on the page', () => sheet.locator('.name').first().click());
   await typeIn('a skill group on the page', async () => { const b = await sheet.locator('.skills__group').first().boundingBox(); await page.mouse.click(b.x + 40, b.y + 24); });
   await typeIn('the sidebar heading field', async () => { await page.evaluate(() => { window.__wb.ui.sel = { kind: 'section', id: 'experience' }; window.__wb.setView(null); }); await settle(page, 300); await page.click('#sec-label'); });
-  await typeIn('a select', async () => { await page.evaluate(() => { window.__wb.setView(null); }); await page.evaluate(() => { if (!document.querySelector('#lens')) document.querySelector('[data-act=tailor-toggle]')?.click(); }); await page.waitForTimeout(200); await page.focus('.ddbtn[data-ddf=lens]'); });
+  await typeIn('a select', async () => { await page.evaluate(() => { window.__wb.setView('new'); }); await page.waitForTimeout(200); await page.focus('.ddbtn[data-ddf=nv-kind]'); });
   await typeIn('the Editor’s search bar', async () => { await page.keyboard.press(`${mod}+f`); });
   await leave();
   await typeIn('the name window’s search', async () => { await page.click('#docname-btn'); await page.waitForSelector('#switcher #sw-q'); await page.focus('#switcher #sw-q'); });

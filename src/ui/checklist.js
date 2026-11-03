@@ -88,8 +88,7 @@ function groupHtml(g, open, ctx){
   // skills and credentials: each list under the section that prints it
   return `<section class="clg ${open ? 'open' : ''}" data-g="${esc(g.id)}"><h3 class="clgh">${caret(g, open, h('ux2.groupCredentials'), nOfM(g.on, g.total))}</h3>
     ${body(g.subs.filter(s => s.rows.length).map(s => `<div class="clsub"><div class="clsubh"><b>${esc(t(`career.group.${s.id}`))}</b>${sectionSwitch(s.section, s.sectionOn, t(`career.group.${s.id}`))}</div>
-        <ul class="clrows">${rowsHtml(s.rows, g)}</ul></div>`).join('')
-      + `<div class="clopen"><button class="sm ghost" data-act="cl-open" data-sel="${selAttr({ kind: 'record', what: 'jobtypes' })}">${h('ux2.jobTypes')}</button></div>`)}</section>`;
+        <ul class="clrows">${rowsHtml(s.rows, g)}</ul></div>`).join(''))}</section>`;
 }
 
 

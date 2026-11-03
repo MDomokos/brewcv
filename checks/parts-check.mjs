@@ -108,11 +108,8 @@ async function resumeSnapshot(){
     u.store.commit(d => T.setKeep(d.record, d.cur, many, true), 'seed');
     view(sel, 'many-kept');
     const using = u.ctx.chooseVariant(u.work(), many, u.cur()).v;
-    u.store.commit(d => { const v = d.record.variants.find(x => x.id === using.id); v.tags = ['hardware', 'survey']; }, 'seed');
-    view(sel, 'many-tagged');
-    await u.click('focus', { tag: 'hardware' });
-    view(sel, 'many-focus'); view({ kind: 'none' }, 'home-focus');
-    await u.click('focus-clear');
+    u.store.commit(d => { const v = d.record.variants.find(x => x.id === using.id); v.tags = ['hardware', 'needs-review', 'imported']; v.source = 'Imported from old.pdf, 2026-01-05'; }, 'seed');
+    view(sel, 'many-flagged');      // the two flags show; another tag an older file holds does not
     u.store.commit(d => T.setJobOn(d.record, d.cur, job.id, false), 'seed');
     view({ kind: 'job', id: job.id }, 'job-off'); view(sel, 'many-job-off');
 
@@ -151,8 +148,8 @@ section('the Resume\'s markup is what it was');
     ok('a claim of a job has 🗑 in its header; a job panel has a Details fold, and the + Add something you did box moved to the checklist',
       now['en/bullet-0'].includes('data-act="delete-claim"') && now['en/job'].includes('<details class="jr details"') && !now['en/job'].includes('data-act="add-claim"'));
     ok('a title, a summary and a header text have no 🗑 (they are not claims)', ['en/summary-bullet', 'en/header-fact', 'en/job-title-fact'].every(k => !now[k].includes('delete-claim')));
-    ok('the snapshot covers the editor in every mode, compare, folds, focus and a missing language',
-      ['en/many-editor-edit', 'en/many-editor-new', 'en/many-override-editor', 'en/many-override', 'en/many-compare', 'en/many-minor-folded', 'en/many-minor-open', 'en/many-focus', 'hu/bullet-0', 'de/bullet-0', 'hu/missing-writein', 'de/missing-same', 'pl/home'].every(k => k in now));
+    ok('the snapshot covers the editor in every mode, compare, folds, flags and a missing language',
+      ['en/many-editor-edit', 'en/many-editor-new', 'en/many-override-editor', 'en/many-override', 'en/many-compare', 'en/many-minor-folded', 'en/many-minor-open', 'en/many-flagged', 'hu/bullet-0', 'de/bullet-0', 'hu/missing-writein', 'de/missing-same', 'pl/home'].every(k => k in now));
     ok('the missing-language page has the write-in box and the home page the missing list', now['hu/missing-writein'].includes('id="ed-new"') && now['pl/home'].includes('missbar') && now['pl/home'].includes('miss-go'));
   }
 }

@@ -455,10 +455,6 @@ section('a resume\'s own skill groups: words from the bank, placed, moved and ta
     && bad[0].recipe.skillArrangement === undefined && bad[1].recipe.skillArrangement === undefined && eq(bad[2].recipe.skillArrangement.groups, [{ id: 'a', items: ['x'] }, { id: 'c', items: ['z'] }]), JSON.stringify(bad.map(w => w.recipe.skillArrangement)));
   const emptied = clone(rc); emptied.skillArrangement.groups = [];
   ok('an arrangement with no groups prints no Skills band, and none with only empty groups', !html(emptied).includes('data-section="skills"') && !/>Skills</.test(html(emptied)));
-  // the set of an older version: still in the file, and its tag still follows a rename
-  const [t1] = m.vocabulary.tags; m.skillSets = { [t1]: { en: [{ id: 'skills-cad', items: ['Creo'] }] } };
-  K.renameTag(m, t1, 'Renamed tag', []);
-  ok('an older version\'s skill set is kept and follows its tag', !!m.skillSets['Renamed tag']);
 }
 section('an edited contact line keeps the links whose words it still has');
 {
@@ -517,7 +513,6 @@ section('line breaks, hand-edited names, dropped facts, edits per language');
 section('the lock');
 {
   const LK = await import('../src/model/lock.js');
-  const F = await import('../src/model/focus.js');
   const lockedErr = fn => { try { fn(); return false; } catch (e){ return e instanceof LK.LockedError; } };
   const withLock = (r, ...ids) => { const c = clone(r); for (const id of ids) LK.setLocked(c, id, true); return c; };
   const base = T.newResume(model, {});
@@ -600,15 +595,6 @@ section('the lock');
   ok('a locked heading refuses its rename and "use this heading everywhere" skips it', lockedErr(() => T.setLabel(model, hl, '~h:experience', 'en', 'Work')) && (() => { const r = clone(base); T.setSectionLabel(model, r, 'experience', 'en', 'Work'); r.locked = ['~h:experience']; const m = clone(model); return T.useLabelEverywhere(m, r, 'experience', 'en') === false && r.sections.find(x => x.id === 'experience').label.en === 'Work' && m.sections.find(x => x.id === 'experience').title !== 'Work'; })());
 
   // bulk functions skip locked content and report it
-  {
-    const jt = F.jobTypesOf(model)[0]?.id;
-    const open = clone(mk0());
-    function mk0(){ return S.loadResume(read(`data/example-resumes/${names[1]}`), model).recipe; }
-    const plan = F.planTag(model, clone(open), jt), pageLocked = withLock(open, LK.PAGE), plan2 = F.planTag(model, pageLocked, jt);
-    const applied = clone(pageLocked); F.applyTag(model, applied, jt);
-    ok('tag focus changes an unlocked resume (the control)', plan.on + plan.off + plan.sw > 0, JSON.stringify([jt, plan.on, plan.off, plan.sw]));
-    ok('tag focus on a locked page changes nothing and reports what it skipped', plan2.on + plan2.off + plan2.sw === 0 && plan2.locked > 0 && JSON.stringify(applied) === JSON.stringify(pageLocked), JSON.stringify([plan2.on, plan2.off, plan2.sw, plan2.locked]));
-  }
   {
     const r = clone(base); r.held = [line]; r.overrides = { ...r.overrides, [line]: 'older words' };
     const live = T.chooseVariant(model, line, { ...r, overrides: {} }).v.text;

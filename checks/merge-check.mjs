@@ -205,7 +205,7 @@ section('five copies of one career, merged in any order');
   R.addVersion(s, hydra[0], { text: 'Led the dose counter redesign, sketch to supplier tooling.', as: 'major' }); save();
   R.addVersion(s, hydra[1], { text: 'Built the drop and cycle rig and wrote its protocols.', as: 'major' }); save();
   const tagged = s.variants.find(v => v.id === firstVersion(hydra[3]));
-  tagged.tags = [...(tagged.tags ?? []), 'safety']; save();
+  tagged.tags = [...(tagged.tags ?? []), 'imported']; save();
   R.saveOver(s, firstVersion(hydra[4]), 'Held every tolerance stack to the drawing.'); save();
   K.deleteClaim(s, hydra[5], []); save();
   // shortcut: these edits are to different claims, so any order agrees. Two copies that each add a version to the same claim number them in the
@@ -218,7 +218,7 @@ section('five copies of one career, merged in any order');
   const forward = merge([0, 1, 2, 3, 4]), backward = merge([4, 3, 2, 1, 0]), shuffled = merge([2, 0, 4, 1, 3]);
   const json = d => JSON.stringify(d.record);
   ok('forward, backward and shuffled end in byte-identical records', json(forward) === json(backward) && json(backward) === json(shuffled));
-  ok('and the edits that add are in', count(forward.record, hydra[0]) === count(base, hydra[0]) + 1 && count(forward.record, hydra[1]) === count(base, hydra[1]) + 1 && forward.record.variants.find(v => v.id === firstVersion(hydra[3])).tags.includes('safety'));
+  ok('and the edits that add are in', count(forward.record, hydra[0]) === count(base, hydra[0]) + 1 && count(forward.record, hydra[1]) === count(base, hydra[1]) + 1 && forward.record.variants.find(v => v.id === firstVersion(hydra[3])).tags.includes('imported'));
   ok('the edit and the deletion were left to the person', R.versionsIn(forward.record, hydra[4])[0].text === base.variants.find(v => v.id === firstVersion(hydra[4])).text && forward.record.facts.some(f => f.id === hydra[5]));
   const again = merge([0, 1, 2, 3, 4]);
   for (const i of [0, 1, 2, 3, 4]) D.applyItems(again, diff(again.record, files[i], again.resumes));

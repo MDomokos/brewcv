@@ -6,7 +6,8 @@
 // picks.json: { company, role, lang, format, pageLimit, look?, design?, exportMedium?, jobType?, summary?: versionId,
 //   bullets: [versionId, ...], jobOrder?: [jobId, ...], skills?: [{ group, words: [wordId, ...] }] }  (print order of the jobs that have picked bullets: some or all; the rest follow
 //   in the record's order). look: a look's id (b2 when left out); design: { preset, fonts, size, density, colour, words }, the settings
-//   that look offers; exportMedium: screen, print or pen. `theme` (a stylesheet name) still works in an old picks.json.
+//   that look offers; exportMedium: screen, print or pen. `theme` (a stylesheet name) and `jobType` (a label the app no longer shows, kept
+//   in the file as given) still work in an old picks.json.
 // The order of bullets is the print order within each job; an order equal to the record's is not stored. skills: the resume's own skill
 //   groups, in print order: `group` a record group's id (its heading is the record's) or a shelf's (its name is the heading), `words` the
 //   bank's word ids in print order (claims.mjs lists them). Left out, the record's groups print as they are.

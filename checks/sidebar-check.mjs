@@ -33,7 +33,6 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pickOption } from './lib/dropdown.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 8151);
@@ -913,41 +912,21 @@ if (want('jobheader')){
   await ctx.close();
 }
 
-// tailor: the Highlight lens is one quiet row at the foot of the Outline (shut at first); the top is a slim row with the page lock, so the sections come first
-if (want('tailor')){
-  console.log('\n— tailor');
+// pagerow: the Outline ends in a slim row with the page lock; nothing else follows it, and the sections come first
+if (want('pagerow')){
+  console.log('\n— pagerow');
   const { ctx, page, bad } = await open({ w: 1470, h: 832 });
   await rest(page); await page.waitForTimeout(300);
-  const st = () => page.evaluate(() => {
+  const a = await page.evaluate(() => {
     const body = document.querySelector('#body'), R = e => e.getBoundingClientRect(), vis = e => R(e).width > 0 && R(e).height > 0;
-    const act = [...body.querySelectorAll('button, select, input, a[href]')].filter(vis), first = body.querySelector('.outline [data-act=select-section]');
-    const tail = body.querySelector('.tailor'), after = tail && [...body.querySelectorAll('button, select, input')].filter(vis).filter(e => !tail.contains(e) && tail.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING);
-    return { lock: act[0]?.classList.contains('pagelock'), second: !!act[1]?.closest('.outline'), room: first ? Math.round(R(first).top - R(body).top) : null, tail: !!tail, after: after ? after.length : null,
-      exp: tail?.querySelector('[data-act=tailor-toggle]')?.getAttribute('aria-expanded'),
-      sel: !!document.querySelector('#lens'), apply: !!document.querySelector('[data-act=lens-apply]'), chip: body.querySelector('.tailorchip')?.textContent.trim() ?? null, focus: window.__wb.edit.focus ?? null };
+    const first = body.querySelector('.outline [data-act=select-section]'), row = body.querySelector('.pagerow');
+    const after = row && [...body.querySelectorAll('button, select, input')].filter(vis).filter(e => !row.contains(e) && row.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return { row: !!row, lock: !!row?.querySelector('.pagelock.rowend[data-act=lock-toggle]'), after: after ? after.length : null, room: first ? Math.round(R(first).top - R(body).top) : null,
+      gone: !document.querySelector('#lens, [data-act=tailor-toggle], .tailor') };
   });
-  const a = await st();
-  ok('tailor: the first control of the Outline is the page lock (a slim top row), and the next one is a section row', a.lock && a.second, JSON.stringify(a));
-  ok('tailor: the Tailor row is the last row of the Outline (nothing interactive after it but its own), shut at first: no select, no "Select these…"', a.tail && a.after === 0 && a.exp === 'false' && !a.sel && !a.apply, JSON.stringify(a));
-  ok('tailor: the Outline gains room: its first section row is at least 30 px higher than with the lens at the top (base: 97 px below the panel\'s top at 1470 x 832)', a.room !== null && a.room <= 97 - 30, String(a.room));
-  await page.click('#body [data-act=tailor-toggle]'); await page.waitForTimeout(250);
-  const b = await st();
-  ok('tailor: opening the row shows the select and "Select these…" in it', b.exp === 'true' && b.sel && b.apply, JSON.stringify(b));
-  const type = await page.evaluate(() => [...document.querySelectorAll('#lens option')].map(o => o.value).find(v => v));
-  const undo0 = await page.evaluate(() => window.__wb.store.history.undo);
-  await pickOption(page, '#lens', type); await page.waitForTimeout(300);
-  await page.click('[data-act=lens-apply]'); await page.waitForTimeout(300);
-  const plan = await page.textContent('.focusbox').catch(() => '');
-  ok('tailor: choosing a job type and "Select these…" says the plan, as before', /turn on \d+, turn off \d+ and switch \d+/.test(plan) && (await page.evaluate(() => window.__wb.store.history.undo)) === undo0, plan.slice(0, 80));
-  await page.click('[data-act=focus-apply]'); await page.waitForTimeout(500);
-  ok('tailor: applying it changes the resume as before (one undo step)', (await page.evaluate(() => window.__wb.store.history.undo)) !== undo0);
-  await page.click('#body [data-act=tailor-toggle]'); await page.waitForTimeout(250);
-  const c = await st();
-  ok('tailor: shut with a type chosen, the row shows a chip "Tailor: …" with the type, and the select is gone', !!c.chip && /^Tailor: /.test(c.chip) && !c.sel && c.focus === type, JSON.stringify(c));
-  await page.click('#body .tailorchip [data-act=focus-clear]'); await page.waitForTimeout(250);
-  const d = await st();
-  ok('tailor: the chip\'s x clears the lens and the chip goes', d.chip === null && d.focus === null, JSON.stringify(d));
-  ok('tailor: no page errors', !bad.length, bad.slice(0, 2).join(' | '));
+  ok('pagerow: the Outline\'s last row is the slim page-lock row, with nothing interactive after it, and no Tailor row or lens', a.row && a.lock && a.after === 0 && a.gone, JSON.stringify(a));
+  ok('pagerow: the sections come first: the first section row is near the panel\'s top (at most 67 px below it at 1470 x 832)', a.room !== null && a.room <= 67, String(a.room));
+  ok('pagerow: no page errors', !bad.length, bad.slice(0, 2).join(' | '));
   await ctx.close();
 }
 

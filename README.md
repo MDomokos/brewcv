@@ -30,7 +30,7 @@ Most people end up with ten near-identical Word files, one per application, each
 ## Your files stay your own
 
 - **Nothing is uploaded.** No account, no server, no tracking. The page tells your browser to refuse any request to another address, and you can [watch the network tab yourself](docs/PRIVACY.md).
-- **Plain files, standard format.** Everything is [JSON Resume](https://jsonresume.org/schema) with versions, languages and tags added. Open it in any editor, today or in twenty years. It's [file over app](https://stephango.com/file-over-app).
+- **Plain files, standard format.** Everything is [JSON Resume](https://jsonresume.org/schema) with versions and languages added. Open it in any editor, today or in twenty years. It's [file over app](https://stephango.com/file-over-app).
 - **One-file backup.** *⋯ › Back up* downloads your record and every saved resume as a single file. Chrome and Edge can also mirror them to a folder on your disk.
 - **Every change is undoable, and history is yours.** 200 undo steps, plus a checkpoint before any import or merge that you can compare, restore or download.
 - **Export anywhere.** PDF, a self-contained HTML page, plain text for ATS, JSON Resume.
@@ -49,13 +49,13 @@ Most people end up with ten near-identical Word files, one per application, each
 <details>
 <summary><b>How versions work</b></summary>
 
-- A line can have many versions (v1, v2, v2.1…), each in as many of the ten languages as you like, with tags such as a job type.
+- A line can have many versions (v1, v2, v2.1…), each in as many of the ten languages as you like. Each version says which of your saved resumes print it.
 - Each saved resume stores only *which* version of each line it prints, plus layout settings. Edit on the page and the change is kept on that resume, and you choose whether to save it as a new version or update the old one.
-- Select every bullet for a job type or tag in one step. One undo reverses it, and lines marked *Keep* are never touched.
+- Start a new resume from the saved one most like the job, by role and company, and adjust it on the page.
 - A line with no translation prints in English, outlined, so you can spot it.
 - Import a file edited elsewhere, by hand or by an AI, and the changes arrive as new versions after a **merge preview**. Nothing is overwritten.
 
-Details: [docs/TAGS-AND-JOB-TYPES.md](docs/TAGS-AND-JOB-TYPES.md).
+Details: [docs/ARCHIVING.md](docs/ARCHIVING.md).
 
 </details>
 

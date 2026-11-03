@@ -1,7 +1,6 @@
 // A select is shown as a button that opens the app's own list (src/ui/dropdown.js); the <select> stays in the page, hidden, as the field. A browser check
 // makes a choice through the button, as a person does. `sel`: the select's selector or locator; `v`: the option's value, { label } (its text) or { index }.
 export async function pickOption(page, sel, v){
-  if (sel === '#lens' && !(await page.$('#lens'))) await page.click('[data-act=tailor-toggle]');      // the Outline's Tailor row is shut until it is opened
   const loc = (typeof sel === 'string' ? page.locator(sel) : sel).first();
   const i = await loc.evaluate((s, v) => { const o = [...s.options]; return typeof v === 'string' ? o.findIndex(x => x.value === v) : v.index ?? o.findIndex(x => x.textContent.trim() === v.label); }, v);
   if (i < 0) throw new Error(`no option ${JSON.stringify(v)} in ${sel}`);

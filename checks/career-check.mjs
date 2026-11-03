@@ -414,105 +414,19 @@ section('archiving a whole job');
   ok('Ctrl+Z undoes it', JSON.stringify(u.record()) === before2);
 }
 
-section('job types, in their own panel');
-{
-  const u = await makeUi();
-  const sel = { kind: 'record', what: 'jobtypes' };
-  const page = () => String(u.career.panel(sel));
-  ok('the panel lists the job types, tags as chips', /class="jtrow"/.test(page()) && /data-act="c-jt-tag-rm" data-id="Prototyping" data-tag="fabrication"/.test(page()));
-  ok('the Edit panel with nothing selected reaches it (Add job types / Job types…)', /data-act="cl-open" data-sel="[^"]*jobtypes[^"]*"/.test(String(u.checklist.html())) && true);
-  const n = u.record().jobTypes.length;
-  dom.set('jt-new', { value: 'CAD designer' });
-  await u.click('c-jt-add');
-  const made = u.record().jobTypes.at(-1);
-  ok('a new job type gets an id from its name, and no tags yet', u.record().jobTypes.length === n + 1 && made.id === 'cad-designer' && made.label === 'CAD designer' && made.tags.length === 0);
-  let dup = u.toasts.length; dom.set('jt-new', { value: 'cad designer' }); await u.click('c-jt-add');
-  ok('the same name again is refused', u.record().jobTypes.length === n + 1 && u.toasts.length === dup + 1 && u.toasts.at(-1).tone === 'bad');
-  const input = (id, v) => ({ classList: { contains: c => c === 'jt-tag-in' }, dataset: { id }, value: v, closest: () => null, matches: () => false });
-  u.fire('keydown', input('cad-designer', 'cad'), { key: 'Enter' });
-  u.fire('keydown', input('cad-designer', 'hardware'), { key: 'Enter' });
-  ok('Enter adds a tag, a second one too, never twice', (() => { u.fire('keydown', input('cad-designer', 'cad'), { key: 'Enter' }); return u.record().jobTypes.at(-1).tags.join() === 'cad,hardware'; })());
-  await u.click('c-jt-tag-rm', { id: 'cad-designer', tag: 'hardware' });
-  ok('× removes a tag', u.record().jobTypes.at(-1).tags.join() === 'cad');
-  u.fire('change', { classList: { contains: c => c === 'jt-label' }, dataset: { id: 'cad-designer' }, value: 'CAD designers', closest: () => null });
-  ok('renaming changes the label and keeps the id', u.record().jobTypes.at(-1).label === 'CAD designers' && u.record().jobTypes.at(-1).id === 'cad-designer');
-  // an old string job type becomes an object the first time it is edited
-  await u.click('c-jt-tag-rm', { id: 'Medical devices', tag: 'Medical devices' });
-  const old = u.record().jobTypes.find(j => (j.id ?? j) === 'Medical devices');
-  ok('an old string job type turns into an object when edited', typeof old === 'object' && old.id === 'Medical devices' && old.tags.length === 0);
-  await u.click('c-jt-del', { id: 'cad-designer' });
-  ok('deleting removes it', !u.record().jobTypes.some(j => j.id === 'cad-designer'));
-  u.store.undo();
-  ok('Ctrl+Z brings it back', u.record().jobTypes.some(j => j.id === 'cad-designer'));
-}
-
-section('tags, in the same panel: one closed list, made and tidied here');
-{
-  const u = await makeUi();
-  const page = () => String(u.career.panel({ kind: 'record', what: 'jobtypes' }));
-  const before = u.record().vocabulary.tags.length;
-  ok('the panel lists every tag with its name box, a merge menu and a bin, and counts them against the cap', /class="tag-name" data-tag="cad"/.test(page()) && /class="tag-merge" data-tag="cad"/.test(page()) && /data-act="c-tag-del" data-tag="cad"/.test(page()) && /id="tag-count"/.test(page()));
-  ok('the example has 11 of the 12 the list allows, and the new-tag box is open', /11 of 12 tags/.test(page()) && !/id="tag-new"[^>]*disabled/.test(page()));
-  dom.set('tag-new', { value: 'laser' }); await u.click('c-tag-add');
-  ok('one more fills the list: the box shuts and says how to make room', /12 of 12 tags/.test(page()) && /id="tag-new"[^>]*disabled/.test(page()) && /Merge two tags/.test(page()));
-  u.store.undo();
-  const t = (name, v) => ({ classList: { contains: c => c === 'tag-name' }, dataset: { tag: name }, value: v, closest: () => null });
-  const m = (name, v) => ({ classList: { contains: c => c === 'tag-merge' }, dataset: { tag: name }, value: v, closest: () => null });
-  const usedBy = tg => u.record().variants.filter(v => (v.tags ?? []).includes(tg)).length;
-  const nCad = usedBy('cad');
-  u.fire('change', t('cad', 'cad-design'));
-  ok('renaming a tag renames it on every wording, and in the list', usedBy('cad-design') === nCad && usedBy('cad') === 0 && u.record().vocabulary.tags.includes('cad-design') && !u.record().vocabulary.tags.includes('cad'));
-  const nLead = usedBy('leadership');
-  u.fire('change', m('leadership', 'teaching'));
-  ok('merging a tag into another leaves one, on all their wordings', nLead > 0 && usedBy('leadership') === 0 && usedBy('teaching') >= nLead && !u.record().vocabulary.tags.includes('leadership'));
-  u.store.undo();
-  ok('one undo brings the merge back whole', usedBy('leadership') === nLead && u.record().vocabulary.tags.includes('leadership'));
-  const tagged = u.record().variants[0];
-  const input = v => ({ classList: { contains: c => c === 'tag-in' }, dataset: { vid: tagged.id }, value: v, closest: () => null, matches: () => false });
-  const toasts = u.toasts.length;
-  u.fire('keydown', input('brand-new-zz'), { key: 'Enter' });
-  ok('a tag typed on a wording that is not in the list is refused, with a message; none is made', !(u.record().variants[0].tags ?? []).includes('brand-new-zz') && u.toasts.length === toasts + 1 && u.toasts.at(-1).tone === 'bad' && !u.record().vocabulary.tags.includes('brand-new-zz'));
-  await u.click('c-tag-del', { tag: 'web' });
-  ok('the bin removes a tag from the list and from every wording', !u.record().vocabulary.tags.includes('web') && usedBy('web') === 0 && u.record().vocabulary.tags.length === before - 1);
-  u.store.undo();
-  ok('and Ctrl+Z puts it back', u.record().vocabulary.tags.includes('web') && usedBy('web') >= 1);
-  // below the cap a tag is added from the box
-  const v = await makeUi();
-  v.store.commit(d => { d.record.vocabulary.tags = ['cad']; for (const x of d.record.variants) delete x.tags; d.record.jobTypes = []; }, 'seed');
-  dom.set('tag-new', { value: 'laser' });
-  await v.click('c-tag-add');
-  ok('under the cap, a new tag is added from its box', v.record().vocabulary.tags.join() === 'cad,laser');
-}
-
-section('a new person starts with no tags, and the panel says how to use them');
-{
-  const B = await import('../src/model/build.js');
-  const F = await import('../src/model/focus.js');
-  const blank = B.blankRecord({ name: 'Pat Example' });
-  ok('a blank record has an empty tag list and no job types', F.tagVocab(blank).length === 0 && F.jobTypesOf(blank).length === 0 && (blank.vocabulary.tags ?? []).length === 0);
-  const u = await makeUi();
-  u.store.commit(d => { d.record.vocabulary = { ...d.record.vocabulary, tags: [] }; d.record.jobTypes = []; for (const v of d.record.variants) delete v.tags; }, 'seed');
-  const html = String(u.career.panel({ kind: 'record', what: 'jobtypes' }));
-  ok('its Tags part is empty, open to a three-step how-to, with the new-tag box ready', /No tags yet/.test(html) && /<details class="taghow" open>/.test(html) && /How to use tags/.test(html) && !/id="tag-new"[^>]*disabled/.test(html));
-}
-
-section('the Highlight lens: job types first, and Apply');
+section('no tags or job types to keep');
 {
   const u = await makeUi({ resume: 0 });
-  const home = () => String(u.edit.outlineView());
-  ok('the lens is the Tailor row at the foot of the Outline, shut at first (no select until it is opened)', /class="tailor"/.test(home()) && !/<select id="lens"/.test(home()));
-  await u.click('tailor-toggle');
-  ok('the lens is one row: Nothing first, then the job types', /<select id="lens"><option value="">Nothing<\/option>\s*<optgroup label="Job types"><option value="[^"]+"[^>]*>[^<]+ \(\d+\)<\/option>/.test(home()));
-  ok('one list: job types in their own group, then every tag (nothing hidden), no “+ tags” switch', /<optgroup label="Job types">/.test(home()) && /<optgroup label="Tags">/.test(home()) && !/data-act="lens-tags"/.test(home()) && !/data-act="focus" data-tag="/.test(home()));
-  u.fire('change', { id: 'lens', value: 'Prototyping', dataset: {}, classList: { contains: () => false } });
-  ok('choosing a job type only highlights it: nothing in the resume changed, no plan line yet', u.edit.focus === 'Prototyping' && !/class="focusbox"/.test(home()));
-  const before = JSON.stringify(u.cur());
-  await u.click('lens-apply');
-  ok('Apply… shows the plan line and a button to apply it', /class="focusbox"/.test(home()) && /data-act="focus-apply"/.test(home()) && /turn(ed)? on|switch/i.test(home().replace(/<[^>]+>/g, ' ')) );
-  await u.click('focus-apply');
-  ok('applying it changes the resume', JSON.stringify(u.cur()) !== before);
-  u.store.undo();
-  ok('one Ctrl+Z puts it all back', JSON.stringify(u.cur()) === before);
+  const home = String(u.edit.outlineView());
+  ok('the Outline ends in a slim row with the page lock, and no Tailor row or lens', /<div class="pagerow"><button[^>]*data-act="lock-toggle"/.test(home) && !/tailor|id="lens"|focusbox/.test(home));
+  ok('Career has no Job types panel', String(u.career.panel({ kind: 'record', what: 'jobtypes' })) === '');
+  // each version says which saved resumes print it, folded until asked
+  u.store.commit(d => { d.resumes = [{ ...structuredClone(d.cur), id: 'Use Co - Tester.json', name: 'Use Co - Tester' }]; }, 'seed');
+  const job = u.record().work[0].id, line = T.printedFacts(u.record(), u.cur()).work.find(w => w.job === job).highlights[0].fact;
+  const using = T.chooseVariant(u.record(), line, u.cur()).v.id;
+  const panel = String(u.edit.bulletView({ kind: 'bullet', id: line, job, section: 'experience' }));
+  ok('the version in use is “On 1 resume”, folded, with the resume’s name inside', new RegExp(`<details class="vuse" data-v="${using}"><summary data-act="vuse">On 1 resume</summary><span class="vuses">Use Co - Tester</span></details>`).test(panel), panel.match(/<details class="vuse"[^]*?<\/details>/)?.[0]);
+  ok('no tag chip or tag box is left on a version', !/tag-in|data-act="tag-rm"/.test(panel));
 }
 
 section('the forms: a field commits when you leave it, Enter leaves it, Esc puts it back');
@@ -636,7 +550,6 @@ section('what Career did, and where each part went (the ledger of data-act)');
     ['c-sel-fact', 'About you’s links to the headline and contact versions', async () => { await u.click('c-sel-fact', { fact: u.record().basics.display.label }); return u.ui.sel.kind === 'bullet' && u.ui.sel.section === 'header'; }],
     ['c-claim', 'a claim’s row in the checklist (cl-open) opens the claim panel', async () => { const id = u.record().work[0].highlights[0]; await u.click('cl-open', { sel: JSON.stringify({ kind: 'bullet', id, job: 'hydra', section: 'experience' }) }); return u.ui.sel.id === id; }],
     ['c-up', 'Esc (one level up), and the panel’s ✕', () => true],
-    ['c-jt-add / c-jt-del / c-jt-tag-rm', 'the Job types panel (the lens’s “Add job types”, the checklist’s “Job types…”)', () => /jobtypes/.test(list())],
     ['c-arch-jobs / c-arch-entry / c-unarch-entry / c-arch-show', 'the checklist’s “n archived” folds; Archive job in a job’s Details', () => /data-act="c-arch-show"|archmore|Archive/.test(list() + String(u.edit.jobView({ kind: 'job', id: 'hydra' })))],
     ['c-details', 'the Details fold of a job’s panel', () => /<details class="jr details" data-det="hydra"/.test(String(u.edit.jobView({ kind: 'job', id: 'hydra' })))],
     ['c-step (newer / older in the same kind)', 'dropped: the checklist and the timeline walk the entries', () => true],

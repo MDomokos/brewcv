@@ -3,11 +3,9 @@
 // between resumes; the row menu here is shared by both. The model is src/model/resumes.js.
 
 import * as RS from '../model/resumes.js';
-import { jobTypesOf, jobTypeLabel, planTag } from '../model/focus.js';
 import { t, h, errText, loadCatalogue, uiLang } from '../i18n/index.js';
 import { dayFieldHtml, initMonthPick } from './monthpick.js';
 import { langName, langsInUse, addLangInUse, a4FormatOf } from '../model/lang.js';
-import { newResume } from '../model/resume.js';
 import { langMenuHtml, focusMenu } from './langmenu.js';
 import { icon, withArrows } from './icons.js';
 import { askOk } from './ask.js';
@@ -21,11 +19,10 @@ const $ = s => document.querySelector(s);
 const V = { hover: null, menu: null, more: false, row: null, renaming: null, nv: null, send: null, ask: null };
 
 const st = () => C.store.state;
-const typeLabel = id => jobTypeLabel(st().record, id);
 
 // ---- the row menu: Duplicate, Duplicate in another language…, Rename, Delete ----
 
-// A resume can be on screen twice (under Recent and in its job type): the menu opens where it was asked for.
+// A resume can be on screen twice (under Recent and in its group): the menu opens where it was asked for.
 export function rowMenuHtml(id, where = 'group'){
   if (V.row?.id !== id || V.row.where !== where) return '';
   const r = RS.savedOf(st(), id);
@@ -63,52 +60,36 @@ export const renameInput = r => `<input class="swren" data-rename="${esc(r.id)}"
 
 function nvInit(){
   const c = st().cur ?? {};
-  const jobType = '';
-  const nv = { name: '', touched: false, jobType, newType: '', kind: 'company', company: '', role: '',
+  const nv = { name: '', touched: false, kind: 'company', company: '', role: '',
     lang: c.lang ?? 'en', paper: c.format === 'us-letter' ? 'us-letter' : 'a4', start: null, fromId: null, picking: false };
-  nv.start = lastOf(nv) ? 'latest' : 'all';
-  nv.fromId = lastOf(nv)?.id ?? null;
+  nv.start = similarOf(nv) ? 'latest' : 'all';
   return nv;
 }
 const nv = () => (V.nv ??= nvInit());
-const lastOf = n => { const list = RS.byNewest(st().resumes ?? []); return (n.jobType ? list.find(r => r.jobType === n.jobType) : list[0]) ?? null; };
-const nvName = n => n.touched ? n.name : RS.nameFrom({ company: n.company, role: n.role, jobLabel: n.newType || (n.jobType ? typeLabel(n.jobType) : '') });
+// the resume to start from: the one chosen under Change, else the saved one most like the company and role typed so far
+const similarOf = n => (n.fromId ? RS.savedOf(st(), n.fromId) : null) ?? RS.similarTo(st(), n);
+const nvName = n => n.touched ? n.name : RS.nameFrom({ company: n.company, role: n.role });
 const formatOf = n => (n.paper === 'us-letter' ? 'us-letter' : a4FormatOf(n.lang));
-const typeOf = n => (n.jobType === '+' ? n.newType.trim() : n.jobType);
-
-function nvPlan(n){
-  const T = typeOf(n);
-  if (!T || !jobTypesOf(st().record).some(j => j.id === T)) return null;
-  const probe = newResume(st().record, { format: formatOf(n), lang: n.lang, pageLimit: st().cur?.pageLimit ?? 1 });
-  return planTag(C.work(), probe, T);
-}
 
 function newView(){
   const n = nv();
-  const T = jobTypesOf(st().record);
-  const last = lastOf(n) ?? null;
-  const picked = n.fromId ? RS.savedOf(st(), n.fromId) : last;
-  const plan = nvPlan(n);
+  const picked = similarOf(n);
   const L = n.lang, inUse = langsInUse(st().record);
   const opt = (v, label, extra = '', off = false) => `<label class="startopt ${off ? 'is-off' : ''}" data-start="${v}"><input type="radio" name="nv-start" value="${v}" ${n.start === v ? 'checked' : ''} ${off ? 'disabled' : ''}> <span>${label}${extra}</span></label>`;
-  // The decision comes first: what kind of job, and what to start from. Then its name and who it is for, and last the language and paper.
+  // Who it is for comes first, since it finds the resume to start from; then what to start from, its name, and last the language and paper.
   return `<h2 class="title">${h('ux1.newTitle')}</h2>
-    <label class="field"><span class="lbl inline">${h('resumes.jobType')}</span><select id="nv-type">
-      <option value="">${h('ux1.noType')}</option>${T.map(j => `<option value="${esc(j.id)}" ${n.jobType === j.id ? 'selected' : ''}>${esc(j.label)}</option>`).join('')}<option value="+" ${n.jobType === '+' ? 'selected' : ''}>${h('ux1.newType')}</option></select></label>
-    ${n.jobType === '+' ? `<label class="field"><input id="nv-newtype" value="${esc(n.newType)}" autocomplete="off" placeholder="${esc(t('resumes.jobTypePh'))}" aria-label="${esc(t('ux1.newType'))}"></label>` : ''}
-    <span class="lbl">${h('ux1.startFrom')}</span>
-    <div class="startopts">
-      ${opt('latest', typeOf(n) ? h('ux1.startLatestType', { type: typeLabel(typeOf(n)) }) : h('ux1.startLatest'), picked ? ` <b>${esc(RS.resumeLabel(picked))}</b> <a data-act="nv-change" role="button" tabindex="0">${h('ux1.change')}</a>` : '', !last)}
-      ${n.picking ? `<select id="nv-from" aria-label="${esc(t('ux1.change'))}">${(st().resumes ?? []).map(r => `<option value="${esc(r.id)}" ${r.id === n.fromId ? 'selected' : ''}>${esc(RS.resumeLabel(r))}</option>`).join('')}</select>` : ''}
-      ${opt('tagged', h('ux1.startTagged', { type: esc(typeOf(n) ? typeLabel(typeOf(n)) : t('ux1.thisType')) }), plan ? `<span class="muted small block">${h('ux1.startPlan', { on: plan.on, off: plan.off, sw: plan.sw })}</span>` : `<span class="muted small block">${h('ux3b.pickTypeFirst')}</span>`, !plan)}
-      ${opt('all', h('ux1.startAll'))}
-      ${opt('empty', h('ux1.startEmpty'))}
-    </div>
-    <label class="field"><span class="lbl inline">${h('ux1.name')}</span><input id="nv-name" value="${esc(nvName(n))}" autocomplete="off" placeholder="${esc(t('ux1.namePh'))}"></label>
     <span class="lbl">${h('ux1.for')}</span>
     <label class="field"><select id="nv-kind" aria-label="${esc(t('ux1.kind'))}"><option value="company" ${n.kind === 'company' ? 'selected' : ''}>${h('ux1.kindCompany')}</option><option value="outreach" ${n.kind === 'outreach' ? 'selected' : ''}>${h('ux1.kindOutreach')}</option></select></label>
     <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="nv-co" value="${esc(n.company)}" autocomplete="off"></label>
     <label class="field"><span class="lbl inline">${h('resumes.role')}</span><input id="nv-role" value="${esc(n.role)}" autocomplete="off"></label>
+    <span class="lbl">${h('ux1.startFrom')}</span>
+    <div class="startopts">
+      ${opt('latest', h('ux1.startSimilar'), picked ? ` <b id="nv-similar">${esc(RS.resumeLabel(picked))}</b> <a data-act="nv-change" role="button" tabindex="0">${h('ux1.change')}</a>` : '', !picked)}
+      ${n.picking ? `<select id="nv-from" aria-label="${esc(t('ux1.change'))}">${RS.byNewest(st().resumes ?? []).map(r => `<option value="${esc(r.id)}" ${r.id === picked?.id ? 'selected' : ''}>${esc(RS.resumeLabel(r))}</option>`).join('')}</select>` : ''}
+      ${opt('all', h('ux1.startAll'))}
+      ${opt('empty', h('ux1.startEmpty'))}
+    </div>
+    <label class="field"><span class="lbl inline">${h('ux1.name')}</span><input id="nv-name" value="${esc(nvName(n))}" autocomplete="off" placeholder="${esc(t('ux1.namePh'))}"></label>
     <span class="lbl">${h('resumes.language')}</span>
     <span class="lang-menu inbody"><button class="sm langbtn" data-act="lang-menu-body" data-for="new" aria-haspopup="menu" aria-expanded="${V.menu === 'new'}">${esc(langName(L))} ${icon('caret', { role: 'inline' })}</button>
     ${V.menu === 'new' ? langMenuHtml({ for: 'new', current: L, inUse, more: V.more, label: t('resumes.language') }) : ''}</span>
@@ -119,8 +100,8 @@ function newView(){
 
 function nvOptions(){
   const n = nv();
-  const start = n.start === 'tagged' && !nvPlan(n) ? 'all' : n.start === 'latest' && !lastOf(n) ? 'all' : n.start;
-  return { start, fromId: start === 'latest' ? (n.fromId ?? lastOf(n)?.id) : null, jobType: typeOf(n), name: nvName(n).trim(), company: n.company, role: n.role,
+  const start = n.start === 'latest' && !similarOf(n) ? 'all' : n.start;
+  return { start, fromId: start === 'latest' ? similarOf(n).id : null, name: nvName(n).trim(), company: n.company, role: n.role,
     forKind: n.kind, format: formatOf(n), lang: n.lang };
 }
 function nvPreview(start){
@@ -128,7 +109,7 @@ function nvPreview(start){
   try {
     const o = nvOptions();
     o.start = start;
-    if (start === 'latest') o.fromId = n.fromId ?? lastOf(n)?.id;
+    if (start === 'latest') o.fromId = similarOf(n)?.id;
     if (start === 'latest' && !o.fromId) return;
     C.previewRecipe(RS.startRecipe(st(), o), null);
   } catch { /* the option is not available */ }
@@ -319,7 +300,6 @@ async function act(a, tg){
     case 'nv-create': {
       const n = nv();
       const o = nvOptions();
-      if (n.jobType === '+' && !n.newType.trim()){ C.toast(t('jt.needName'), 'warn'); $('#nv-newtype')?.focus(); return true; }
       if (!C.leaveOk()) return true;
       C.ui.sel = C.NONE; C.setSnap(null);
       await loadCatalogue(n.lang);
@@ -389,7 +369,6 @@ function bind(body){
     const el = e.target;
     if (el.name === 'nv-start'){ nv().start = el.value; if (el.value !== 'latest') nv().picking = false; C.renderBody(); return; }
     const n = V.nv;
-    if (el.id === 'nv-type' && n){ n.jobType = el.value; if (n.start === 'tagged' && !nvPlan(n)) n.start = 'all'; const l = lastOf(n); n.fromId = l?.id ?? null; if (n.start === 'latest' && !l) n.start = 'all'; C.renderBody(); return; }
     if (el.id === 'nv-kind' && n) n.kind = el.value;
     if (el.id === 'nv-paper' && n) n.paper = el.value;
     if (el.id === 'nv-from' && n){ n.fromId = el.value; n.picking = false; C.renderBody(); }
@@ -402,10 +381,12 @@ function bind(body){
     if (el.id === 'sv-date' && V.send) V.send.date = el.value;
     if (!n) return;
     if (el.id === 'nv-name'){ n.name = el.value; n.touched = el.value.trim() !== ''; return; }
-    if (el.id === 'nv-newtype') n.newType = el.value;
     if (el.id === 'nv-co') n.company = el.value;
     if (el.id === 'nv-role') n.role = el.value;
-    if (['nv-newtype', 'nv-co', 'nv-role'].includes(el.id) && !n.touched){ const f = $('#nv-name'); if (f) f.value = nvName(n); }
+    if (['nv-co', 'nv-role'].includes(el.id)){
+      if (!n.touched){ const f = $('#nv-name'); if (f) f.value = nvName(n); }
+      const s = $('#nv-similar'); if (s) s.textContent = RS.resumeLabel(similarOf(n));      // drawn in place: a redraw would take the caret out of the field
+    }
   });
   // hover a saved resume: see it on the sheet without opening it
   body.addEventListener('mouseover', e => {
@@ -426,7 +407,7 @@ function bind(body){
   });
   body.addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.closest?.('#sv-co, #sv-role, #sv-date, #sv-kind')){ e.preventDefault(); act('sv-do', e.target); }
-    if (e.key === 'Enter' && e.target.closest?.('#nv-name, #nv-co, #nv-role, #nv-newtype')){ e.preventDefault(); act('nv-create', e.target); }
+    if (e.key === 'Enter' && e.target.closest?.('#nv-name, #nv-co, #nv-role')){ e.preventDefault(); act('nv-create', e.target); }
     if (e.target.classList?.contains('swren')){
       if (e.key === 'Enter'){ e.preventDefault(); renameDone(e.target, true); }
       if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); renameDone(e.target, true); }

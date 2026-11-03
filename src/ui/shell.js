@@ -25,7 +25,6 @@ import { initPlaceZoom } from './placezoom.js';
 import { initPress, tierAll } from './press.js';
 import { initSide, syncSide, side, toggleSide, foldForAll } from './sidewidth.js';
 import { initDropdowns } from './dropdown.js';
-import { initSuggest } from './suggest.js';
 import { initFind, isFindKey, hasFocus as inFind } from './find.js';
 import { initReview } from './review.js';
 import { icon, withArrows } from './icons.js';
@@ -47,7 +46,6 @@ import * as RS from '../model/resumes.js';
 import { switchLang, missingList, langName, langsInUse, addLangInUse, removeLang, removableLangs } from '../model/lang.js';
 import { langMenuHtml, menuKey, focusMenu } from './langmenu.js';
 import { delBtn } from './parts.js';
-import { jobTypeLabel } from '../model/focus.js';
 import { t, h, errText, uiLang, docChrome, loadCatalogue, setUiLang, setUiLangNow, UI_LANGS } from '../i18n/index.js';
 import { initSettings, readPref, browserLang, readGarden } from './settings.js';
 import * as motion from './motion.js';
@@ -330,7 +328,6 @@ async function drawSheet(){
     ui.laid = res.laid; ui.fills = res.pages; ui.previewing = false; ui.previewSwitch = false;
     relayout();
     sheet.select(ui.sel, ui.ix);
-    sheet.setFocus(edit.focusHits(), ui.ix);
     sheet.setMissing(missingList(w, r, RS.groupOpts(store.state, r)), ui.ix);
     renderAll();
     renderChip();
@@ -646,7 +643,7 @@ function drawHead(){
     drawRail(mode, savedState);
   } else {
   $('#ptabs').hidden = true;
-  const meta = r ? [jobTypeLabel(store.state.record, r.jobType), r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
+  const meta = r ? [r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const savebtn = `<button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>`;
   $('#head').innerHTML = `
@@ -1584,7 +1581,6 @@ const edit = initEdit({
   onpage: { keepView: fn => onpage.keepView(fn), begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh(), render: f => onpage.render(f) },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
   outlineHtml: (...a) => checklist.outlineHtml(...a), depthKids: (...a) => checklist.kidsOf(...a), sectionInfo: (...a) => checklist.sectionInfo(...a),
-  setFocus: () => sheet.setFocus(edit.focusHits(), ui.ix),
   select: (sel, o) => select(sel, o),
   renderBody: () => renderBody(),
   flash: id => { ui.flashAfter = id; },
@@ -1666,8 +1662,7 @@ const find = initFind({ view: () => ui.view, leaveWriting: async () => !ui.writi
 window.__wb.find = find;
 initPress();
 initSide(document.getElementById('col'), () => relayout());
-initDropdowns();      // every select is shown in the app's own menu (dropdown.js), and a field's suggestions in the app's own card (suggest.js)
-initSuggest();
+initDropdowns();      // every select is shown in the app's own menu (dropdown.js)
 window.__wb.help = help;
 const dock = initDock({ store, ui, shown, setView, leaveWriting: () => edit.cancelEdit(), goToPage, canvas, sheet, restyleMarks: () => sheet.restyle(), startFoot: () => onboarding.footHtml(), cornerHtml: () => cornerHtml() });
 window.__wb.dock = dock;

@@ -8,7 +8,6 @@
 import * as RS from '../model/resumes.js';
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
-import { jobTypeLabel } from '../model/focus.js';
 import { play } from './motion.js';
 
 let C = null;
@@ -60,8 +59,7 @@ function html(){
   if (!phone()){
     const open = RS.savedOf(st(), st().openId), parent = open ? RS.parentOf(st(), open) : null, r = st().cur;
     const recent = q ? [] : [...new Set([st().openId, ...recentIds()])].map(id => all.find(x => x.id === id)).filter(Boolean).slice(0, WINDOW_RECENT);
-    const groups = q ? RS.grouped(st().record, list) : [];
-    const type = r?.jobType ? jobTypeLabel(st().record, r.jobType) : '';
+    const groups = q ? RS.grouped(list) : [];
     return `<label class="lbl" for="sw-rn">${h('ux1.rename')}</label>
     <input id="sw-rn" class="sw-q" data-rid="${esc(st().openId ?? '')}" value="${esc(RS.resumeLabel(r))}" autocomplete="off" ${open ? '' : 'disabled'}>
     ${parent ? `<p class="muted tiny swfrom">${h('ux6b.duplicatedFrom', { name: RS.resumeLabel(parent) })}</p>` : ''}
@@ -69,17 +67,16 @@ function html(){
     <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.dup')}</button>${C.resumes.delHtml(st().openId, !open)}</div>${C.resumes.askHtml(st().openId)}
     <label class="sr" for="sw-lang">${h('head.langGroup')}</label>
     <div class="swlang">${C.langSelect()}<select id="sw-paper" class="sw-q" aria-label="${esc(t('design.paper'))}"><option value="a4" ${r?.format === 'us-letter' ? '' : 'selected'}>${h('paper.a4')}</option><option value="us-letter" ${r?.format === 'us-letter' ? 'selected' : ''}>${h('paper.letter')}</option></select></div>
-    ${type ? `<p class="muted tiny">${esc(type)}</p>` : ''}
     ${search}
     <div id="sw-list" class="swlist" role="group" aria-label="${esc(t('ux1.switcherTitle'))}">
       <button class="swnew" data-act="sw-new">${h('ux1.newResume')}</button>
       ${recent.length ? `<span class="lbl">${h('ux1.recent')}</span>${recent.map(x => rowHtml(x, 'recent')).join('')}` : ''}
-      ${groups.map(g => `<span class="lbl">${esc(g.type ? g.label : t('resumes.noType'))}</span>${g.resumes.map(x => rowHtml(x, 'group')).join('')}`).join('')}
+      ${groups.map(g => `<span class="lbl">${esc(g.key ? g.label : t('resumes.noRole'))}</span>${g.resumes.map(x => rowHtml(x, 'group')).join('')}`).join('')}
       ${q && !list.length ? `<p class="muted small swnone">${h('ux1.noMatch')}</p>` : ''}
     </div>
     <div class="swfoot"><button class="sm swmanage" data-act="sw-manage"><span>${h('ux1.manageAll', { n: all.length })}</span>${icon('right', { role: 'control' })}</button></div>`;
   }
-  const groups = RS.grouped(st().record, list);
+  const groups = RS.grouped(list);
   const recent = q ? [] : recentIds().map(id => all.find(r => r.id === id)).filter(Boolean).slice(0, RECENT_N);
   return `<span class="lbl">${h('edit.thisResume')}</span>
   <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.dup')}</button>${C.resumes.delHtml(st().openId, !st().openId)}</div>${C.resumes.askHtml(st().openId)}
@@ -87,7 +84,7 @@ function html(){
   <div id="sw-list" class="swlist" role="group" aria-label="${esc(t('ux1.switcherTitle'))}">
     <button class="swnew" data-act="sw-new">${h('ux1.newResume')}</button>
     ${recent.length ? `<span class="lbl">${h('ux1.recent')}</span>${recent.map(r => rowHtml(r, 'recent')).join('')}` : ''}
-    ${groups.map(g => `<span class="lbl">${esc(g.type ? g.label : t('resumes.noType'))}</span>${g.resumes.map(r => rowHtml(r, 'group')).join('')}`).join('')}
+    ${groups.map(g => `<span class="lbl">${esc(g.key ? g.label : t('resumes.noRole'))}</span>${g.resumes.map(r => rowHtml(r, 'group')).join('')}`).join('')}
     ${list.length ? '' : `<p class="muted small swnone">${h(all.length ? 'ux1.noMatch' : 'ux1.noneYet')}</p>`}
   </div>
   <div class="swfoot"><button class="sm swmanage" data-act="sw-manage"><span>${h('ux1.manageAll', { n: all.length })}</span>${icon('right', { role: 'control' })}</button></div>`;

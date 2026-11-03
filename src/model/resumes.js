@@ -19,15 +19,14 @@ import { linesOf, currentRound, removeDocuments, keepTextOnly, safety } from './
 import { resumeFileName, nameKey } from './schema.js';
 import { switchLang, stashOwn, printedFactIds } from './lang.js';
 import { LockedError, guard, isLocked } from './lock.js';
-import { applyTag, jobTypesOf, jobTypeById, jobTypeLabel, tagsOf } from './focus.js';
 import { matchNumber, reanchor, tombstone, normText } from './record.js';
 import * as SB from './skillbank.js';
 
 const clone = x => structuredClone(x);
 export const today = () => new Date().toISOString().slice(0, 10);
 export const resumeLabel = r => (!r ? t('resumes.noResume') : r.name || (r.company && r.role ? `${r.company} — ${r.role}` : r.company || r.title || r.application || t('resumes.untitled')));
-// "<Company or sector> - <Role>"; the job type's label stands in for a missing company
-export const nameFrom = ({ company = '', role = '', jobLabel = '' } = {}) => [String(company).trim() || String(jobLabel).trim(), String(role).trim()].filter(Boolean).join(' - ');
+// "<Company or sector> - <Role>"
+export const nameFrom = ({ company = '', role = '' } = {}) => [String(company).trim(), String(role).trim()].filter(Boolean).join(' - ');
 
 // unique case-insensitively
 export function uniqueId(resumes, recipe, except = null){
@@ -54,18 +53,6 @@ export function usedVersions(model, recipe){
   return out;
 }
 
-// Only a job type that is a single tag (the old form) teaches the record: a bundle's tags are yours to set.
-export function tagVersions(model, recipe, T){
-  let n = 0;
-  if (jobTypeById(model, T) && jobTypeById(model, T).tags.length !== 1) return 0;
-  T = tagsOf(model, T)[0];
-  for (const { variant } of usedVersions(model, recipe)){
-    const v = model.variants.find(x => x.id === variant);
-    if (v && !(v.tags ?? []).includes(T)){ v.tags = [...(v.tags ?? []), T]; n++; }
-  }
-  return n;
-}
-
 // Key order and bookkeeping don't change what a resume prints.
 export const canon = x => (Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(k => [k, canon(x[k])])) : x);
 const NOT_PRINTED = ['id', 'savedAt', 'date', 'application', 'title', 'name', 'company', 'role', 'forKind', 'jobType', 'tags', 'snapshots', 'held', 'byLang', 'parent', 'parked', 'earlier', 'locked', 'inStep', 'labelFrom', 'round', 'archived'];
@@ -82,22 +69,14 @@ const kindOf = (r, forKind) => {
 };
 
 // Saves state.cur as a new resume and opens it. Nothing is required: the name falls back to the For fields, then
-// the job type, then what the resume was called. Tagging versions with the job type lets the record learn which
-// wording suits which job.
-export function saveNew(state, { name, company, role, forKind, jobType, tags, tagVersions: tagThem = true, date = today() } = {}){
+// what the resume was called. A job type or tags an older file gave the resume are kept as they were.
+export function saveNew(state, { name, company, role, forKind, date = today() } = {}){
   const r = clone(state.cur);
   delete r.snapshots;
   r.company = String(company ?? r.company ?? '').trim();
   r.role = String(role ?? r.role ?? '').trim();
   kindOf(r, forKind);
-  r.jobType = String(jobType ?? r.jobType ?? '').trim();
-  r.tags = [...new Set((tags ?? r.tags ?? []).map(t => String(t).trim()).filter(Boolean))];
-  let tagged = 0;
-  // what was typed may be a job type's label
-  const known = jobTypesOf(state.record).find(j => j.id === r.jobType) ?? jobTypesOf(state.record).find(j => j.label.toLowerCase() === r.jobType.toLowerCase());
-  if (known) r.jobType = known.id;
-  const label = r.jobType ? jobTypeLabel(state.record, r.jobType) : '';
-  r.name = String(name ?? '').trim() || nameFrom({ company: r.company, role: r.role, jobLabel: label }) || r.name || r.application || r.title || t('resumes.untitled');
+  r.name = String(name ?? '').trim() || nameFrom({ company: r.company, role: r.role }) || r.name || r.application || r.title || t('resumes.untitled');
   r.application = r.title = r.name;
   r.savedAt = date;
   r.date = date;
@@ -106,16 +85,11 @@ export function saveNew(state, { name, company, role, forKind, jobType, tags, ta
   delete r.archived;
   const round = currentRound(state);      // a new resume goes into the current round (a copy does not keep its original's)
   if (round) r.round = round.id; else delete r.round;
-  if (r.jobType){
-    state.record.jobTypes ??= [];
-    if (!known) state.record.jobTypes.push(r.jobType);
-    if (tagThem) tagged = tagVersions(state.record, r, r.jobType);
-  }
   state.resumes = [...(state.resumes ?? []), r];
   state.cur = clone(r);
   state.openId = r.id;
   state.frozen = { ...(state.frozen ?? {}), [r.id]: bodyOf(state, r) };
-  return { id: r.id, tagged };
+  return { id: r.id };
 }
 
 // Runs inside every commit (src/store/store.js): the open resume is written into `resumes` and its frozen text
@@ -124,7 +98,7 @@ export function saveNew(state, { name, company, role, forKind, jobType, tags, ta
 export function settle(state){
   if (!state?.record || !state.cur) return;
   const i = state.openId ? (state.resumes ?? []).findIndex(r => r.id === state.openId) : -1;
-  if (i < 0){ saveNew(state, { tagVersions: false }); return; }
+  if (i < 0){ saveNew(state); return; }
   const prev = state.resumes[i];
   const next = { ...clone(state.cur), id: state.openId };
   delete next.snapshots;
@@ -226,34 +200,40 @@ function copyOf(src){
 }
 
 // The recipe a new resume would start as, without saving anything (the form previews it).
-// start: 'latest' (copy fromId, or the newest saved resume of jobType), 'tagged' (bullets tagged jobType),
-// 'all' (everything in the record) or 'empty'.
-export function startRecipe(state, { start = 'all', fromId = null, jobType = '', format, lang } = {}){
+// start: 'latest' (copy fromId, or the saved resume most like `company` and `role`), 'all' (everything in the record) or 'empty'.
+export function startRecipe(state, { start = 'all', fromId = null, company = '', role = '', format, lang } = {}){
   const f = format ?? state.cur?.format ?? 'a4';
   const L = lang ?? state.cur?.lang ?? 'en';
   let r;
   if (start === 'latest'){
-    const src = fromId ? savedOf(state, fromId) : byNewest(state.resumes ?? []).find(x => x.jobType === jobType);
-    if (!src) throw new Error(`no saved resume of type ${jobType}`);
+    const src = fromId ? savedOf(state, fromId) : similarTo(state, { company, role });
+    if (!src) throw new Error('no saved resume to start from');
     r = copyOf(src);
+    r.jobType = ''; r.tags = [];      // the copy starts with no job type or tags, as a new resume does; the original keeps its own
     holdFrozen(state.record, r, state.frozen?.[src.id] ?? null);
     switchLang(r, L, state.record);
     if (format) r.format = format;
   } else {
     r = newResume(state.record, { format: f, lang: L, pageLimit: state.cur?.pageLimit ?? 1 });
-    if (start === 'tagged') applyTag(state.record, r, jobType);
     if (start === 'empty') r.sections = r.sections.map(s => ({ ...s, weight: 0, ...(s.work ? { work: [] } : {}) }));
   }
-  r.jobType = jobType;
   return r;
 }
 
+// The saved resume most like a new job: the most words of the role in common, then the same company, then the newest. Null with none saved.
+export function similarTo(state, { company = '', role = '' } = {}){
+  const words = x => new Set(String(x ?? '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(w => w.length > 1));
+  const mine = words(role), co = String(company).trim().toLowerCase();
+  const score = r => [...words(r.role)].filter(w => mine.has(w)).length * 2 + (co && String(r.company ?? '').trim().toLowerCase() === co ? 1 : 0);
+  return byNewest((state.resumes ?? []).filter(r => !r.archived)).reduce((best, r) => (!best || score(r) > score(best) ? r : best), null);
+}
+
 // The result is saved and open.
-export function newFrom(state, { name, company, role, forKind, tags, jobType = '', ...start } = {}){
-  const r = startRecipe(state, { ...start, jobType });
+export function newFrom(state, { name, company, role, forKind, ...start } = {}){
+  const r = startRecipe(state, { ...start, company, role });
   state.cur = r;
   state.openId = null;
-  return saveNew(state, { name, company, role, forKind, jobType, tags: tags ?? [], tagVersions: false });
+  return saveNew(state, { name, company, role, forKind });
 }
 
 // Saves a copy of a resume (in another language, if asked) and opens it. Holds come along.
@@ -270,7 +250,7 @@ export function duplicate(state, id, { lang = null, name = null, company, role }
   if (to){ switchLang(r, to, state.record); r.inStep = true; delete r.labelFrom; }      // what the original's labels were written against is no word of this language's
   state.cur = r;
   state.openId = null;
-  const out = saveNew(state, { name: name ?? (to ? t('ux1.langCopy', { name: base, lang: to.toUpperCase() }) : t('ux1.copyOf', { name: base })), company, role, tagVersions: false });
+  const out = saveNew(state, { name: name ?? (to ? t('ux1.langCopy', { name: base, lang: to.toUpperCase() }) : t('ux1.copyOf', { name: base })), company, role });
   if (to){ mirror(state, src.id); syncCur(state); }      // the new copy starts as the group prints, not with the empty picks switchLang leaves
   return out;
 }
@@ -279,7 +259,7 @@ export function renameSaved(state, id, name){
   const i = (state.resumes ?? []).findIndex(r => r.id === id);
   if (i < 0) throw new Error(`no saved resume ${id}`);
   const r = state.resumes[i];
-  r.name = String(name ?? '').trim() || nameFrom({ company: r.company, role: r.role, jobLabel: r.jobType ? jobTypeLabel(state.record, r.jobType) : '' }) || t('resumes.untitled');
+  r.name = String(name ?? '').trim() || nameFrom({ company: r.company, role: r.role }) || t('resumes.untitled');
   r.application = r.title = r.name;
   const nid = uniqueId(state.resumes, r, id);
   if (nid !== id){
@@ -355,8 +335,7 @@ export function takeSnapshot(state, send = {}, { at = new Date().toISOString(), 
     added = true;
   }
   saved.snapshots = snaps;
-  const tagged = state.cur.jobType ? tagVersions(state.record, state.cur, state.cur.jobType) : 0;
-  return { id: snap.id, added, repeated, tagged };
+  return { id: snap.id, added, repeated };
 }
 
 export function findSnapshot(state, sid, rid = state.openId){
@@ -566,7 +545,7 @@ export const sameCompany = (state, r) => (state.resumes ?? []).filter(o => o !==
 export function matches(model, r, q){
   const needle = String(q ?? '').trim().toLowerCase();
   if (!needle) return true;
-  return [resumeLabel(r), r.company, r.role, r.jobType ? jobTypeLabel(model, r.jobType) : '', r.lang].some(x => String(x ?? '').toLowerCase().includes(needle));
+  return [resumeLabel(r), r.company, r.role, r.lang].some(x => String(x ?? '').toLowerCase().includes(needle));
 }
 
 // The lines a resume prints (its summary, a job's title and its bullets) whose words hold the search: [{ fact, text }]. The Library finds a resume by them.
@@ -586,13 +565,14 @@ export function prints(model, r, facts, vid = null){
 
 export const byNewest = list => [...list].sort((a, b) => String(b.savedAt ?? '').localeCompare(String(a.savedAt ?? '')) || resumeLabel(a).localeCompare(resumeLabel(b)));
 
-// The record's job types in order, then others, then no job type last.
-export function grouped(model, resumes){
-  const types = [...new Set([...jobTypesOf(model).map(j => j.id), ...resumes.map(r => r.jobType).filter(Boolean)])];
-  const out = types.map(type => ({ type, label: jobTypeLabel(model, type), resumes: byNewest(resumes.filter(r => r.jobType === type)) })).filter(g => g.resumes.length);
-  const none = resumes.filter(r => !r.jobType);
-  if (none.length) out.push({ type: '', resumes: byNewest(none) });
-  return out;
+// By role, as typed (case and spacing aside), in alphabetical order; no role last.
+export function grouped(resumes){
+  const groups = new Map();
+  for (const r of byNewest(resumes)){
+    const label = String(r.role ?? '').trim(), key = label.toLowerCase().replace(/\s+/g, ' ');
+    (groups.get(key) ?? groups.set(key, { key, label, resumes: [] }).get(key)).resumes.push(r);
+  }
+  return [...groups.values()].sort((a, b) => (a.key === '') - (b.key === '') || a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 }
 
 // ---- the grown switcher's other two views ----
@@ -682,7 +662,7 @@ export function compareMany(model, list){
   const pages = r => (r.pageLimit === 0 ? t('cmp.anyPages') : r.pageLimit ? String(r.pageLimit) : Array.isArray(r.pages) ? t('cmp.byHand', { n: r.pages.length }) : '—');
   const nSections = r => (r.sections ?? []).filter(s => s && s.weight !== 0).length;
   const settings = [
-    [t('resumes.jobType'), r => (r.jobType ? jobTypeLabel(model, r.jobType) : '—')],
+    [t('resumes.role'), r => r.role || '—'],
     [t('cmp.language'), r => (r.lang ?? 'en').toUpperCase()],
     [t('design.paper'), r => (r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'))],
     [t('design.pages'), pages],

@@ -104,7 +104,7 @@ section('what joining would do');
   const a = applied(st, p);
   const nv = a.d.record.variants.filter(v => !base.variants.some(b => b.id === v.id));
   ok('it is a new version of that claim, numbered as a sub-version (v1.1 or v1.2), and the claim’s default stays what it was', nv.length === 1 && nv[0].id.startsWith('hydra-tolerance-') && /^1\.\d$/.test(nv[0].n) && JSON.stringify(fact(a.d.record, 'hydra-tolerance').default) === JSON.stringify(fact(base, 'hydra-tolerance').default), JSON.stringify(nv.map(v => [v.id, v.n])));
-  ok('the version has a source naming the file and the day, the tag imported (and the career lists the tag) and the document it came from', nv[0].source === 'Imported from near.md, 2026-11-01' && nv[0].tags.includes('imported') && a.d.record.vocabulary.tags.includes('imported') && nv[0].origin?.doc === near.sha256.slice(0, 12), JSON.stringify([nv[0].source, nv[0].tags, nv[0].origin]));
+  ok('the version has a source naming the file and the day, the flag imported (not added to the career’s list of tags) and the document it came from', nv[0].source === 'Imported from near.md, 2026-11-01' && nv[0].tags.includes('imported') && !(a.d.record.vocabulary.tags ?? []).includes('imported') && nv[0].origin?.doc === near.sha256.slice(0, 12), JSON.stringify([nv[0].source, nv[0].tags, nv[0].origin]));
 
   const line = made('line.md', { work: [job({ highlights: [HYDRA_KEEP, 'Taught the new hires how to read a drawing in a single afternoon'] })] });
   p = planOf(st, [line]);

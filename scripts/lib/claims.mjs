@@ -35,7 +35,7 @@ export function indexOf(model){
 // A claim's versions in one language, with the reason each can't be picked.
 export function versionsOf(model, ix, fact, lang){
   return (fact.variants ?? []).map(id => ix.version.get(id)).filter(v => v && langOf(v) === lang)
-    .map(v => ({ id: v.id, n: v.n ?? '', chars: [...(v.text ?? '')].length, tags: v.tags ?? [], text: v.text ?? '',
+    .map(v => ({ id: v.id, n: v.n ?? '', chars: [...(v.text ?? '')].length, text: v.text ?? '',
       default: fact.default?.[lang] === v.id, needsReview: (v.tags ?? []).includes('needs-review'), refused: refusal(fact, v) }));
 }
 

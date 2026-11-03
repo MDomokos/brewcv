@@ -13,7 +13,6 @@ import * as R from '../src/model/record.js';
 import { resolve, chooseVariant, setOverride, addLocalLine, setGroupHeading, arrangementOf, setPhoto } from '../src/model/resume.js';
 import { filesOf, createPersist, memoryBackend, memoryFolder, readFolder } from '../src/store/persist.js';
 import { createStore } from '../src/store/store.js';
-import { jobTypesOf } from '../src/model/focus.js';
 import { missingList } from '../src/model/lang.js';
 import { validate } from './lib/validate.mjs';
 
@@ -107,22 +106,22 @@ section('saving a new resume');
   ok('a duplicate is a saved resume of its own, open', st.openId !== names[0] && st.resumes.some(r => r.id === st.openId) && st.cur.id === st.openId);
   const n0 = st.resumes.length;
   const used = RS.usedVersions(st.record, st.cur);
-  const { id, tagged } = RS.saveNew(st, { company: 'Northwind Optics', role: 'Design Engineer', jobType: 'Optics', tags: ['hardware', ' ', 'remote'] });
+  const variants0 = JSON.stringify(st.record.variants), jobTypes0 = JSON.stringify(st.record.jobTypes);
+  st.cur.jobType = 'Optics'; st.cur.tags = ['hardware'];      // what an older file gave the resume
+  const { id } = RS.saveNew(st, { company: 'Northwind Optics', role: 'Design Engineer' });
   ok('saveNew adds a saved resume named Company - Role', st.resumes.length === n0 + 1 && id === 'Northwind Optics - Design Engineer.json' && st.openId === id && st.cur.name === 'Northwind Optics - Design Engineer');
   ok('its For is the company and role, with a kind', st.cur.company === 'Northwind Optics' && st.cur.role === 'Design Engineer' && st.cur.forKind === 'company');
-  ok('the job type joins the record’s job types', st.record.jobTypes.includes('Optics'));
-  ok('every version it uses is tagged with it', tagged === used.length && used.every(u => st.record.variants.find(v => v.id === u.variant).tags.includes('Optics')));
-  ok('blank tags are dropped', eq(st.cur.tags, ['hardware', 'remote']));
+  ok('saving tags no version and adds no job type to the record', JSON.stringify(st.record.variants) === variants0 && JSON.stringify(st.record.jobTypes) === jobTypes0 && used.length > 0);
+  ok('a job type and tags an older file gave the resume are kept as they were', st.cur.jobType === 'Optics' && eq(st.cur.tags, ['hardware']));
   ok('its text is frozen as it prints now', eq(st.frozen[id], resolve(st.record, st.cur).body));
   RS.saveNew(st, { company: 'Northwind Optics', role: 'Design Engineer' });
   ok('a second save with the same name gets " 2"', st.openId === 'Northwind Optics - Design Engineer 2.json');
-  ok('a resume keeps its own job type unless told another', st.cur.jobType === 'Optics');
   ok('no company is needed', (() => { RS.saveNew(st, { company: '', role: '', name: 'Geospatial - GIS Solutions Engineer' }); return st.cur.name === 'Geospatial - GIS Solutions Engineer' && st.cur.company === '' && !st.cur.forKind && st.openId === 'Geospatial - GIS Solutions Engineer.json'; })());
   ok('nothing at all is fine too', (() => { RS.saveNew(st, { name: '', company: '', role: '' }); return !!st.cur.name && st.resumes.some(r => r.id === st.openId); })());
   ok('outreach is a kind of For', (() => { RS.saveNew(st, { company: 'Geospatial', role: 'GIS Engineer', forKind: 'outreach' }); return st.cur.forKind === 'outreach' && st.cur.name === 'Geospatial - GIS Engineer'; })());
   ok('every saved resume validates', st.resumes.every(r => validate(S.save(st.record), r).errors.length === 0),
      st.resumes.map(r => validate(S.save(st.record), r).errors[0]).filter(Boolean)[0]);
-  ok('a name with no For: the job type’s label stands in', (() => { RS.saveNew(st, { jobType: 'Optics', company: '', role: 'Lead' }); return st.cur.name === 'Optics - Lead'; })());
+  ok('a name with only a role is the role', (() => { RS.saveNew(st, { company: '', role: 'Lead' }); return st.cur.name === 'Lead'; })());
 }
 
 section('frozen text and newer wording');
@@ -163,24 +162,23 @@ section('+ New resume');
 {
   const st = exampleState();
   const n0 = st.resumes.length;
-  const type = jobTypesOf(st.record)[0].id;
-  const latest = RS.byNewest(st.resumes).find(r => r.jobType === type);
+  const like = st.resumes.find(r => r.company === 'Medtech Lisboa');
   const all = RS.newFrom(st, { start: 'all', name: 'Everything' });
   ok('everything on: every job, saved and open at once', st.resumes.length === n0 + 1 && st.openId === all.id && st.cur.sections.find(s => s.id === 'experience').work.length === st.record.work.length);
-  RS.newFrom(st, { start: 'latest', jobType: type, fromId: latest.id, company: 'Fabrikam', role: 'Engineer' });
-  ok('the last of a type copies the newest saved one of it', eq(st.cur.sections, latest.sections) && st.cur.jobType === type && st.cur.company === 'Fabrikam' && !st.cur.snapshots);
+  ok('the similar resume is the one with most of the role’s words', RS.similarTo(st, { company: 'Fabrikam', role: 'Senior Mechanical Engineer' })?.id === like.id);
+  ok('…the same company counts too, and with nothing typed it is the newest', RS.similarTo(st, { company: 'medtech lisboa ' })?.id === like.id && RS.similarTo(st, {})?.id === RS.byNewest(st.resumes.filter(r => !r.archived))[0].id);
+  RS.newFrom(st, { start: 'latest', company: 'Fabrikam', role: 'Mechanical Engineer' });
+  ok('starting from a similar resume copies it', eq(st.cur.sections, like.sections) && st.cur.company === 'Fabrikam' && st.cur.role === 'Mechanical Engineer' && !st.cur.snapshots && st.cur.jobType === '' && eq(st.cur.tags, []));
   ok('…and starts with none of its snapshots or sends', !RS.savedOf(st).snapshots);
-  const other = RS.byNewest(st.resumes).find(r => r.jobType !== type) ?? st.resumes[0];
+  const other = RS.byNewest(st.resumes).find(r => r.id !== like.id && !eq(r.sections, like.sections)) ?? st.resumes[0];
   RS.newFrom(st, { start: 'latest', fromId: other.id, name: 'Copy of another' });
   ok('"change" picks any resume to copy', eq(st.cur.sections, other.sections));
-  const rec = RS.startRecipe(st, { start: 'tagged', jobType: type });
+  const rec = RS.startRecipe(st, { start: 'latest', role: 'Design Engineer' });
   ok('startRecipe previews without saving', st.resumes.length === n0 + 3 && !!rec.picks);
-  RS.newFrom(st, { start: 'tagged', jobType: type, lang: 'en' });
-  ok('bullets for the job type: the tagged versions are picked', Object.values(st.cur.picks).some(vid => (st.record.variants.find(v => v.id === vid)?.tags ?? []).includes(type)));
   ok('…and it validates', validate(S.save(st.record), st.cur).errors.length === 0, validate(S.save(st.record), st.cur).errors[0]);
   RS.newFrom(st, { start: 'empty', name: 'Blank' });
   ok('an empty page prints no job', resolve(st.record, st.cur).body.work.length === 0 && validate(S.save(st.record), st.cur).errors.length === 0, validate(S.save(st.record), st.cur).errors[0]);
-  ok('latest of a type with no saved resume is refused', throws(() => RS.newFrom(st, { start: 'latest', jobType: 'Nope' })));
+  ok('a similar resume with none saved is refused', throws(() => RS.newFrom({ ...st, resumes: [] }, { start: 'latest' })));
   RS.newFrom(st, { start: 'all', lang: 'de', format: 'a4-hu' });
   ok('language and paper are the form’s', st.cur.lang === 'de' && st.cur.format === 'a4-hu');
   RS.newFrom(st, { start: 'all', company: 'Contoso', role: '' });
@@ -296,15 +294,12 @@ section('opening a snapshot: read-only, restore, duplicate');
   ok('…printing as the snapshot did', JSON.stringify(resolve(store.state.record, store.state.cur).body) === bodyThen);
   ok('…and the original is untouched', RS.snapshotsOf(RS.savedOf(store.state, from)).length === 1 && RS.savedOf(store.state, from).pageLimit === 2);
   ok('…it validates', validate(S.save(store.state.record), RS.savedOf(store.state)).errors.length === 0);
-  // a snapshot of a job type teaches the record
+  // a snapshot of a resume with an older job type tags nothing
   const t0 = clone(st);
-  const jt = jobTypesOf(t0.record).find(j => typeof j.tags?.length === 'number' && j.tags.length === 1);
-  if (jt){
-    t0.cur.jobType = jt.id; RS.settle(t0);
-    const before = JSON.stringify(t0.record.variants);
-    RS.takeSnapshot(t0, {});
-    ok('a snapshot of a job type tags the versions it used, as the first save did', JSON.stringify(t0.record.variants) !== before || RS.usedVersions(t0.record, t0.cur).every(x => t0.record.variants.find(v => v.id === x.variant).tags?.includes(jt.tags[0])));
-  }
+  t0.cur.jobType = 'Hardware design'; RS.settle(t0);
+  const vars0 = JSON.stringify(t0.record.variants);
+  RS.takeSnapshot(t0, {});
+  ok('a snapshot tags no version', JSON.stringify(t0.record.variants) === vars0);
   // other resumes' frozen text is untouched by snapshots and by edits in the open one
   const other = names[1], f0 = JSON.stringify(store.state.frozen[other]), file0 = filesOf(store.state).get(`recipes/${other}`);
   store.commit(d => { d.cur.pageLimit = 1; RS.takeSnapshot(d, { company: 'X' }); }, 'x');
@@ -332,12 +327,13 @@ section('a reload keeps the open resume, its snapshots and what was sent');
 section('listing, compare, delete');
 {
   const st = exampleState();
-  const g = RS.grouped(st.record, st.resumes);
-  ok('grouped by job type in the record’s order', g.map(x => x.type).join('|') === jobTypesOf(st.record).map(j => j.id).filter(t => st.resumes.some(r => r.jobType === t)).join('|'));
+  const g = RS.grouped(st.resumes);
+  ok('grouped by role, in alphabetical order, no role last', g.length > 1 && g.every((x, i) => i === 0 || !x.key || x.label.localeCompare(g[i - 1].label, undefined, { sensitivity: 'base' }) >= 0) && g.flatMap(x => x.resumes).length === st.resumes.length && g.every(x => x.resumes.every(r => String(r.role ?? '').trim().toLowerCase().replace(/\s+/g, ' ') === x.key)));
+  ok('the same role in another case or spacing is one group', RS.grouped([{ id: 'a', role: 'Design  Engineer' }, { id: 'b', role: 'design engineer' }, { id: 'c' }]).map(x => x.resumes.length).join() === '2,1');
   ok('newest first in each group', g.every(x => x.resumes.every((r, i, a) => i === 0 || String(a[i - 1].savedAt) >= String(r.savedAt))));
   const [a, b] = st.resumes;
   const rows = RS.compareRows(st.record, a, b);
-  ok('compare: the settings first', rows.slice(0, 6).map(r => r.label).join() === 'Job type,Language,Paper,Pages,Photo,Sections');
+  ok('compare: the settings first', rows.slice(0, 6).map(r => r.label).join() === 'Role,Language,Paper,Pages,Photo,Sections');
   ok('then every claim either prints', rows.filter(r => r.kind === 'claim').length >= RS.usedVersions(st.record, a).length);
   ok('a claim only one prints shows — on the other', rows.some(r => r.kind === 'claim' && (r.a.label === '—') !== (r.b.label === '—')));
   ok('rows that differ say so', rows.some(r => r.differs) && rows.some(r => !r.differs));
@@ -401,26 +397,6 @@ section('archiving a claim a saved resume prints');
   RS.newFrom(st, { start: 'all' });
   const used = new Set(RS.usedVersions(st.record, st.cur).map(u => u.fact));
   ok('a new resume prints none of the archived claims', [...used].every(f => !st.record.facts.find(x => x.id === f)?.archived));
-}
-
-section('saving and listing with a bundle job type');
-{
-  const st = exampleState();
-  st.record.jobTypes.push({ id: 'cad-designer', label: 'CAD designer', tags: ['cad', 'Hardware design'] });
-  RS.duplicate(st, names[0]);
-  const r = RS.saveNew(st, { company: 'Bundle Co', role: 'Designer', jobType: 'cad designer' });
-  ok('a typed label finds the job type, and the resume keeps its id', st.cur.jobType === 'cad-designer' && st.record.jobTypes.filter(j => (j.id ?? j) === 'cad-designer' || j === 'cad designer').length === 1);
-  ok('a bundle does not tag the versions the resume used', r.tagged === 0 && !JSON.stringify(st.record.variants).includes('"cad designer"'));
-  const g = RS.grouped(st.record, st.resumes).find(x => x.type === 'cad-designer');
-  ok('listing groups by id and shows the label', g?.label === 'CAD designer' && g.resumes.length === 1);
-  const cmp = RS.compareRows(st.record, st.resumes.find(x => x.jobType === 'cad-designer'), st.resumes[0]).find(x => x.kind === 'setting');
-  ok('compare shows the label', cmp.a === 'CAD designer');
-  RS.newFrom(st, { start: 'tagged', jobType: 'cad-designer' });
-  ok('a new resume from a bundle applies it and keeps the id', st.cur.jobType === 'cad-designer');
-  const st2 = exampleState();
-  RS.duplicate(st2, names[0]);
-  RS.saveNew(st2, { company: 'Old Co', jobType: 'Brand new type' });
-  ok('a new typed name is still the old one-tag form', st2.record.jobTypes.at(-1) === 'Brand new type');
 }
 
 section('the grown switcher: the Date and Company views');
@@ -494,7 +470,7 @@ section('compare any number, and what differs');
 {
   const st = exampleState(), m = st.record, [a, b, c] = st.resumes;
   const rows = RS.compareMany(m, [a, b, c]);
-  ok('a cell for each of the three on every row, the settings first', rows.every(r => r.cells.length === 3) && rows.slice(0, 6).map(r => r.label).join() === 'Job type,Language,Paper,Pages,Photo,Sections');
+  ok('a cell for each of the three on every row, the settings first', rows.every(r => r.cells.length === 3) && rows.slice(0, 6).map(r => r.label).join() === 'Role,Language,Paper,Pages,Photo,Sections');
   ok('the job order and the skill order are rows of their own', ['Job order', 'Skills'].every(l => rows.some(r => r.kind === 'setting' && r.label === l)));
   ok('the header lines are claims too, and a claim only some print says — for the others', rows.some(r => r.kind === 'claim' && r.fact === 'tagline') && rows.some(r => r.kind === 'claim' && r.cells.some(x => x.label === '—') && r.cells.some(x => x.label !== '—')));
   ok('for two it is compareRows', RS.compareRows(m, a, b).every((r, i) => eq(r.a, RS.compareMany(m, [a, b])[i].cells[0]) && eq(r.b, RS.compareMany(m, [a, b])[i].cells[1])));

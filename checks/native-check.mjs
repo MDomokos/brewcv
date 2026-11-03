@@ -6,7 +6,7 @@
 //   select      shown as the app's own menu (src/ui/dropdown.js dresses every <select> that is drawn, hidden, as the field)
 //   range       themed by accent-color and the page's color-scheme
 //   file        a hidden input that only opens the system's file dialog: there is nothing of the browser's to theme
-//   date, month, time, color, datetime-local, week, datalist, list=   none: monthpick.js (months and days), the hex field in Design, suggest.js
+//   date, month, time, color, datetime-local, week, datalist, list=   none: monthpick.js (months and days), the hex field in Design
 // A new native control, or one more of a kind, fails until it is themed or replaced and the list is written again.
 
 import fs from 'node:fs';

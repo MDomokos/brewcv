@@ -343,12 +343,10 @@ const uiName = k => (k.name?.en ? 'en' : Object.keys(k.name ?? {})[0]);
 // ---- applying ----
 
 const stampOf = (name, at) => `Imported from ${name}, ${String(at).slice(0, 10)}`;
-// Every version a file added gets its source, the tag `imported` (in the career's list of tags) and the document it came from; none is made the default of a claim that had one.
+// Every version a file added gets its source, the flag `imported` and the document it came from; none is made the default of a claim that had one.
 function stamp(d, before, e, at){
   const fresh = d.record.variants.filter(v => !before.v.has(v.id));
   if (fresh.length){
-    const tags = ((d.record.vocabulary ??= {}).tags ??= []);
-    if (!tags.includes('imported')) tags.push('imported');
     for (const v of fresh){ v.source = stampOf(e.name, at); v.tags = [...new Set([...(v.tags ?? []), 'imported'])]; v.origin = { doc: e.sha256.slice(0, 12) }; }
   }
   return { claims: d.record.facts.filter(f => !before.f.has(f.id)).map(f => f.id), versions: fresh.map(v => v.id) };

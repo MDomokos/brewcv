@@ -343,7 +343,8 @@ body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #body[data-mode
 .rowlock.inherited { opacity: .75; }
 .lockbar { margin: 0 0 8px; }
 .pagelock { display: inline-flex; align-items: center; gap: 6px; }
-.pagelock.lensrow-end { margin-left: auto; width: 24px; height: 24px; padding: 0; justify-content: center; }
+.pagerow { display: flex; align-items: center; margin: 8px 0 0; }
+.pagelock.rowend { margin-left: auto; width: 24px; height: 24px; padding: 0; justify-content: center; }
 .pagelock.is-locked { color: var(--ink); }
 .title { font-size: 16.5px; font-weight: 750; line-height: 1.3; margin: 0 0 8px; }
 .meta { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 6px; }
@@ -435,7 +436,6 @@ details.jr[open] > summary { margin-bottom: 4px; }
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: var(--r-m); padding: 7px 10px; font-size: 13px; margin-bottom: 10px; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 8px; }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 1px 8px; background: var(--raised); color: var(--ink-soft); }
-.tag.jt { background: var(--accent-soft); border-color: var(--accent-line); color: var(--ink); }
 button.tag { cursor: pointer; }
 .check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 8px 0; }
 .item.rrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; background: var(--raised); border: 1px solid var(--line); padding: 7px 10px; }
@@ -447,13 +447,11 @@ table.cmp thead th { font-size: 11.5px; color: var(--ink-soft); border-top: 0; }
 table.cmp tbody th { font-weight: 500; color: var(--ink-soft); max-width: 160px; }
 table.cmp tr.setting th { color: var(--ink); }
 
-.tag.on { box-shadow: 0 0 0 2px var(--mark); color: var(--ink); }
 .vtags { grid-column: 3 / -1; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 2px; }
-.tagin input { border: 1px dashed var(--line); border-radius: var(--r-pill); font: inherit; font-size: 11.5px; padding: 1px 8px; width: 90px; background: transparent; }
-.tagin input:focus { outline: 2px solid var(--focus); border-color: transparent; }
-.star { color: var(--warn); margin-left: 2px; }
-.focusbox { border: 1px solid var(--accent-line); background: var(--hover); border-radius: var(--r-m); padding: 8px 10px; font-size: 12.5px; margin: 4px 0 8px; }
-.focusbox .btns { margin-top: 7px; }
+.tag.flag { font-weight: 500; color: var(--ink-soft); }
+.vuse { font-size: 11.5px; color: var(--ink-soft); }
+.vuse > summary { cursor: pointer; }
+.vuse .vuses { display: block; color: var(--ink); }
 
 .langs { display: inline-flex; gap: 2px; }
 .langs button { padding: 2px 7px; font-size: 11.5px; position: relative; }
@@ -660,8 +658,6 @@ button.newv.inline { padding: 0 2px; margin: 0 -2px; border: 0; background: none
 button.newv.press, button.newv.press:hover:not(:disabled) { box-shadow: none; }
 .iconb { width: 28px; height: 28px; padding: 0; display: grid; place-items: center; border-radius: var(--r-s); }
 .iconb[aria-pressed=true] { box-shadow: 0 0 0 2px currentColor; }
-.tags { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
-.tags input { border: 1px dashed var(--line); border-radius: var(--r-pill); font: inherit; font-size: 11.5px; padding: 1px 8px; width: 110px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 /* no sideways scrolling anywhere in the column */
 .body { overflow-x: hidden; overflow-wrap: break-word; }
@@ -694,8 +690,7 @@ body[data-phone=true] .head { padding: 8px 12px 4px; }
 body[data-phone=true] .head .hrow.tools, body[data-phone=true] .ws, body[data-phone=true] .langs, body[data-phone=true] .savestate { display: none; }
 body[data-phone=true] .body { padding: 10px 14px 14px; }
 body[data-phone=true] .vbtn, body[data-phone=true] .vrow .acts, body[data-phone=true] .newv, body[data-phone=true] .ctlrow,
-body[data-phone=true] .tagin input, body[data-phone=true] .vtags .del, body[data-phone=true] .note, body[data-phone=true] .focusbox,
-body[data-phone=true] [data-act=focus], body[data-phone=true] #seclist, body[data-phone=true] .writein textarea, body[data-phone=true] .writein .btns,
+body[data-phone=true] .note, body[data-phone=true] #seclist, body[data-phone=true] .writein textarea, body[data-phone=true] .writein .btns,
 body[data-phone=true] .field, body[data-phone=true] [data-act=fit] { display: none !important; }
 body[data-phone=true] .vrow .mt2 { display: inline; }
 body[data-phone=true] .foot { padding: 6px 12px; border-top: 1px solid var(--line); }
@@ -875,7 +870,6 @@ body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: 
 .clt { text-align: left; border: 0; background: transparent; padding: 0 4px; margin: 3px 0; font-weight: 500; font-size: 12.5px; line-height: 1.35; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; border-radius: var(--r-s); }
 .clt:hover { background: transparent; border: 0; text-decoration: underline; text-decoration-color: var(--line-strong); }
 .clv { font-size: 11px; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.clopen { margin: 4px 0 0; }
 .clsub { margin: 6px 0 4px; } .clsubh { display: flex; align-items: center; justify-content: space-between; font-size: 12px; padding: 0 4px; }
 .clsec { margin: 4px 0 2px 4px; }
 .inline-menu { display: grid; gap: 1px; padding: 6px; margin: 4px 0 8px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--raised); }
@@ -887,17 +881,6 @@ body.is-handing, body.is-handing .pages, body.is-handing .sheet-frame { cursor: 
 
 /* the Edit panel with nothing selected */
 .toprow { display: flex; margin: 0 0 2px; }      /* the Outline's first row: the page lock at the right, nothing else */
-.tailor { margin: 8px 0 0; }
-.tailorrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.tailor-t { display: inline-flex; align-items: center; gap: 6px; }
-.tailor.open .tailor-t { font-weight: 650; }
-.tailorchip { display: inline-flex; align-items: center; gap: 2px; min-height: 24px; padding: 0 2px 0 8px; border-radius: var(--r-round); background: var(--hover); border: 1px solid var(--accent-line); font-size: 12px; }
-.tailorchip .rs { display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--r-round); background: transparent; color: inherit; cursor: pointer; }
-.tailorchip .rs:hover { background: color-mix(in srgb, var(--ink) 15%, transparent); }
-.lens { margin: 6px 0 4px; }
-.lensrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.lensrow .lbl { margin: 0; }
-.lensrow select { flex: 1; min-width: 120px; font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--raised); }
 .item.srow .stext { display: grid; min-width: 0; }
 .item.srow { grid-template-columns: 12px minmax(0, 1fr) auto; }
 details.details > summary { cursor: pointer; font-size: 12.5px; font-weight: 650; }
@@ -928,7 +911,7 @@ body[data-phone=true] .checklist { display: none; }
 .help { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%); }
 
 .pop.card { background: var(--pop); }
-body[data-phone=true] .lens, body[data-phone=true] .lead { display: none; }
+body[data-phone=true] .lead { display: none; }
 /* ---- editing on the page: the layers, the chip, the tools beside the line. Drawn over the page, in the app's layer ---- */
 .editlay { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 9;      /* above #handlay (8): where the chip and the "+" meet, the chip is on top (the plus line button is below the chip) */ pointer-events: none; }
 .editlay > * { position: absolute; }
@@ -1008,17 +991,16 @@ body:not([data-phone=true]):is(.is-quiet, .is-intro) .col > #body { border-radiu
 
 /* Controls keep an edge you can see: 3:1 against what they sit on. */
 button { border-color: var(--line-strong); }
-:is(.field input, .field select, .field textarea, .opt select, .lensrow select, .sw-q, .swren, .writein textarea, textarea.paste, .tags input, .tagin input, .editor textarea, .addrow textarea) { border-color: var(--line-strong); }
+:is(.field input, .field select, .field textarea, .opt select, .sw-q, .swren, .writein textarea, textarea.paste, .editor textarea, .addrow textarea) { border-color: var(--line-strong); }
 /* …but rows of a menu or a list, and the tertiary text and icons, which say what they are by their place and their words (buttons.css) */
 :is(.ghost, .ib, .clcaret, .clt, .sopt, .smore, .meter, .oblang, .obc, .obrow, .keep, .snapline, .docname, .menu button, .inline-menu button, .seg button, .seg [role=tab], .pop [role^=menuitem], .pop [role=option]) { border-color: transparent; }
-:is(.field input, .field select, .field textarea, .opt select, .lensrow select, .sw-q, .swren, .writein textarea, textarea.paste, .tags input, .tagin input, .editor textarea, .addrow textarea, textarea, input:not([type])) { background: var(--input); color: var(--ink); }
+:is(.field input, .field select, .field textarea, .opt select, .sw-q, .swren, .writein textarea, textarea.paste, .editor textarea, .addrow textarea, textarea, input:not([type])) { background: var(--input); color: var(--ink); }
 .cb, input[type=radio], input[type=checkbox], input[type=range], progress { accent-color: var(--mark); }
 
 /* One filled button on screen: Fit, and only when it would change something (outside 88 to 96 percent, or overflowing); then Export's PDF while Fit is not.
    dock.js and export.js decide this from the pages' fill, and put .primary on the one that is filled. */
 .seg { background: var(--seg-bg); }
 .seg button[aria-pressed=true] { background: var(--raised); color: var(--ink); }
-.tag.on { box-shadow: 0 0 0 2px var(--mark); }
 .dl button.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 .dl button { background: var(--raised); color: var(--ink); }
 button.primary small { color: inherit; opacity: .85; }
@@ -1557,7 +1539,6 @@ select[data-dd] { display: none !important; }
 .ddbtn[aria-expanded=true] { border-color: var(--mark); }
 .ddbtn:disabled { opacity: .5; }
 .field .ddbtn { width: 100%; box-sizing: border-box; }
-.lensrow .ddbtn { flex: 1; min-width: 120px; font-size: 13px; }
 .switcher .ddbtn { width: 100%; box-sizing: border-box; font-size: 13px; padding: 5px 8px; }
 .scr .ddbtn { background: var(--field); color: var(--paper-ink); }
 .rvdlg .ddbtn { min-height: 28px; }

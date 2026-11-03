@@ -7,9 +7,8 @@ import * as MK from '../model/marks.js';
 import * as T from '../model/resume.js';
 import * as LK from '../model/lock.js';
 import { key as measureKeyOf } from '../fit.js';
-import { tagVocab, planTag, applyTag, tagHits, jobTypesOf, jobTypeLabel, tagsOf, lensChoices } from '../model/focus.js';
 import { missingList, writeInPlan, matchPlan, isSame, sameKey, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
-import { groupOf, inGroup, groupOpts, parentOf, setInStep, matchVersion, keepLabelAs } from '../model/resumes.js';
+import { groupOf, inGroup, groupOpts, parentOf, setInStep, matchVersion, keepLabelAs, prints, resumeLabel } from '../model/resumes.js';
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
 import { keyOf, isLabelKey } from './select.js';
@@ -26,7 +25,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { writeIn: null, enter: null, edit: null, compare: null, openMinor: new Set(), fold: new Map(), foldAuto: null, softShown: null, softOpen: null, guardOn: true, autoFold: true, timer: null, focus: null, tailor: false, claimDrafts: new Map(), applyOpen: false, delAsk: null };
+const E = { writeIn: null, enter: null, edit: null, compare: null, openMinor: new Set(), fold: new Map(), foldAuto: null, softShown: null, softOpen: null, guardOn: true, autoFold: true, timer: null, claimDrafts: new Map(), delAsk: null, useOpen: new Set() };
 
 function commit(fn, label, done, undo = false){
   try {
@@ -117,40 +116,11 @@ const labelNotes = pred => changedLabels(pred).map(labelChangedHtml).join('');
 // the lines a write-in box is for: a text the language has no version of at the number the line prints, or an older one
 const isLineMiss = m => m.kind === 'fact' || m.kind === 'behind';
 
-// ---- the Highlight lens: one list of tags, job types (bundles of tags) first ----
-function lensBox(){
-  const { types, tags } = lensChoices(rec(), lang());
-  if (!types.length && !tags.length) return `<div class="lens"><span class="muted small">${h('ux2.lensNone')}</span> <button class="sm ghost" data-act="lens-edit">${h('ux2.lensEdit')}</button></div>`;
-  const chosen = E.focus;
-  const known = types.some(x => x.tag === chosen) || tags.some(x => x.tag === chosen);
-  const opt = x => `<option value="${esc(x.tag)}" ${chosen === x.tag ? 'selected' : ''}>${esc(x.label)} (${x.n})</option>`;
-  let out = `<div class="lens"><div class="lensrow"><label for="lens" class="lbl inline"><span class="lt">${h('ux3b.lens')}</span></label>
-      <select id="lens"><option value="">${h('ux2.lensOff')}</option>
-        ${types.length ? `<optgroup label="${esc(t('ux2.lensTypes'))}">${types.map(opt).join('')}</optgroup>` : ''}
-        ${tags.length ? `<optgroup label="${esc(t('ux2.lensTagsGroup'))}">${tags.map(opt).join('')}</optgroup>` : ''}
-        ${chosen && !known ? `<option value="${esc(chosen)}" selected>${esc(chosen)}</option>` : ''}</select>
-      <button class="sm" data-act="lens-apply" aria-expanded="${E.applyOpen}" ${chosen ? '' : 'disabled'}>${h('ux3b.lensApply')}</button></div>`;
-  if (chosen && E.applyOpen){
-    const p = planTag(work(), cur(), chosen);
-    out += `<div class="focusbox">${h('edit.focusPlan', { on: p.on, off: p.off, sw: p.sw })}
-      <div class="btns"><button class="sm primary" data-act="focus-apply" ${p.on + p.off + p.sw ? '' : 'disabled'}>${h('edit.focusApply', { tag: jobTypeLabel(rec(), chosen) })}</button><button class="sm ghost" data-act="lens-apply">${h('btn.cancel')}</button></div></div>`;
-  }
-  return out + '</div>';
-}
-
-// The Tailor row: the Highlight lens, one quiet row at the foot of the Outline. Shut, a chosen job type or tag shows in it as a chip (its x clears it);
-// open, it is the lens as it was (the select, "Select these…", the plan).
-function tailorBox(){
-  const open = E.tailor, chosen = E.focus, name = chosen ? jobTypeLabel(rec(), chosen) : '';
-  const chip = chosen && !open ? `<span class="tailorchip" title="${esc(`${t('ux3b.lens')} ${name}`)}"><span class="tc">${esc(t('ux6g.tailorOn', { name }))}</span><button type="button" class="rs" data-act="focus-clear" aria-label="${esc(`${t('design.remove')}: ${name}`)}">${icon('close', { role: 'inline' })}</button></span>` : '';
-  return `<div class="tailor${open ? ' open' : ''}"><div class="tailorrow"><button type="button" class="sm ghost tailor-t" data-act="tailor-toggle" aria-expanded="${open}" aria-controls="tailor-box">${icon('focus', { role: 'inline' })}<span>${h('ux6g.tailor')}</span></button>${chip}${pageLockHtml('lensrow-end')}</div>${open ? `<div id="tailor-box">${lensBox()}</div>` : ''}</div>`;
-}
-
-// The Outline: this resume in print order. A slim row with the page lock, the sections (checklist.js outlineHtml) and the Tailor row.
+// The Outline: this resume in print order: the sections (checklist.js outlineHtml), then a slim row with the page lock.
 function outlineView(){
   return `${C.newerBanner()}${missingBar()}
     ${C.outlineHtml()}
-    ${tailorBox()}`;
+    <div class="pagerow">${pageLockHtml('rowend')}</div>`;
 }
 // the whole page's padlock: Edit with nothing selected has it
 function pageLockHtml(cls = ''){
@@ -161,10 +131,9 @@ function pageLockHtml(cls = ''){
 }
 // Edit with nothing selected: what this resume is for, and one line on how to pick a line
 function noneView(){
-  const r = cur(), type = r.jobType ? jobTypeLabel(rec(), r.jobType) : '';
+  const r = cur();
   return `${C.newerBanner()}${missingBar()}
     <h2 class="title">${esc(C.resumeName(r))}</h2>
-    ${type ? `<p class="meta">${esc(type)}</p>` : ''}
     ${pageLockHtml()}
     <p class="lead edithint">${h('ux5c.editNone')}</p>`;
 }
@@ -481,6 +450,16 @@ function writeInX(id){
   const mp = plan.have ? null : matchPlan(C.store.state, cur(), id);      // this language may already have it, under another number
   return { plan, mode: on?.mode === 'match' && !mp ? 'translate' : on?.mode ?? 'translate', seed: on?.seed ?? null, open: !!on, others, match: mp && { ...mp, pick: on?.pick ?? null } };
 }
+// The saved resumes that print each version of a claim, by name: Map(version id → [name]). A line edited on one resume only counts for no version.
+function usesOf(id){
+  const m = work(), out = new Map();
+  for (const r of C.store.state.resumes ?? []){
+    if (r.overrides?.[id] !== undefined || !prints(m, r, [id])) continue;
+    const vid = T.chooseVariant(m, id, r).v?.id;
+    if (vid) out.set(vid, [...(out.get(vid) ?? []), resumeLabel(r)]);
+  }
+  return out;
+}
 function versionsX(id){
   const L = lang();
   const using = usingOf(id);
@@ -492,8 +471,7 @@ function versionsX(id){
     pend: pendOf(id, L, ed), earlier: earlierRows(id, L, ed),
     m: work(), fact: id, lang: L, full: document.body.dataset.phone !== 'true',     // every version in full, with what differs marked (the phone's sheet keeps the gist)
     vs, using, folded: folded(id), over: overrideOf(id), parked: cur().parked?.[id]?.text, ed, writing,
-    compare: E.compare, openMinor: E.openMinor, focus: E.focus, focusTags: E.focus ? tagsOf(rec(), E.focus) : [], focusLabel: E.focus ? jobTypeLabel(rec(), E.focus) : null,
-    lines: linesOf, jobTypes: jobTypesOf(rec()).map(j => j.id), tagList: tagVocab(rec()),
+    compare: E.compare, openMinor: E.openMinor, lines: linesOf, uses: usesOf(id), useOpen: E.useOpen,
     dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id, cur()) || id === cur().summary),
     ref: C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
     wi: writeInX(id),
@@ -891,25 +869,6 @@ async function act(a, tg){
       else { const job = T.jobOfFact(rec(), id, cur()); C.select(job ? { kind: 'bullet', id, job: job.id, section: 'experience' } : { kind: 'bullet', id, section: tg.dataset.section ?? 'summary', owner: tg.dataset.owner ?? undefined }, { pane: 'edit' }); }
       return true;
     }
-    case 'focus': E.focus = E.focus === tg.dataset.tag ? null : tg.dataset.tag; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
-    case 'focus-clear': E.focus = null; E.applyOpen = false; C.setFocus(); C.renderBody(); return true;
-    case 'tailor-toggle': E.tailor = !E.tailor; if (!E.tailor) E.applyOpen = false; C.renderBody(); $('#body [data-act=tailor-toggle]')?.focus(); return true;
-    case 'lens-apply': E.applyOpen = !E.applyOpen && !!E.focus; C.renderBody(); return true;
-    case 'lens-edit': C.select({ kind: 'record', what: 'jobtypes' }); return true;
-    case 'focus-apply': {
-      const F = E.focus;
-      let p;
-      C.ui.morph = { kind: 'apply' };       // joining lines slide in, leaving ones fold away
-      commit(d => { p = applyTag(d.record, d.cur, F); }, t('undo.selectFor', { tag: jobTypeLabel(rec(), F) }));
-      E.applyOpen = false;
-      if (p) C.toast(t('toast.selectedFor', { tag: jobTypeLabel(rec(), F), on: p.on, off: p.off, sw: p.sw }), '', true);
-      return true;
-    }
-    case 'tag-rm': {
-      const vid = tg.dataset.v, tag = tg.dataset.tag;
-      commit(d => { const v = d.record.variants.find(x => x.id === vid); if (v) v.tags = (v.tags ?? []).filter(x => x !== tag); }, t('undo.removeTag'));
-      return true;
-    }
     case 'order-reset': resetOrder(tg.dataset.kind, tg.dataset.id); return true;
     case 'label-reset': commit(d => T.setSectionLabel(d.record, d.cur, sel.id, lang(), null), t('undo.resetHeading')); return true;
     case 'lock-toggle': case 'row-lock': lockToggle(tg.dataset.id); return true;
@@ -944,7 +903,6 @@ function bind(body){
     else if (t.id === 'b-on') setBullet(C.ui.sel.id, t.checked);
     else if (t.dataset.photo !== undefined) C.togglePhoto();
     else if (t.dataset.item){ const id = t.dataset.item, on = t.checked; commit(d => T.setItemOn(d.record, d.cur, id, on), on ? tr('undo.turnOn') : tr('undo.turnOff')); }
-    else if (t.id === 'lens'){ E.focus = t.value || null; E.applyOpen = false; C.setFocus(); C.renderBody(); }
     else if (t.dataset.instep !== undefined){ const id = cur().id, name = stepOffer()?.name; if (name) commit(d => setInStep(d, id, true), tr('ml2.keepInStep', { name })); }
     else if (t.dataset.same){ const k = t.dataset.same, on = t.checked; commit(d => setSame(d.record, k, on), on ? tr('edit.sameEvery') : tr('undo.notSame')); }
   });
@@ -956,14 +914,6 @@ function bind(body){
   // the heading box commits on blur (Enter blurs it), as one undo step
   body.addEventListener('keydown', e => {
     const t = e.target;
-    if (t.classList?.contains('tag-in') && e.key === 'Escape'){ E.tagFocus = null; t.blur(); return; }
-    if (t.classList?.contains('tag-in') && e.key === 'Enter'){
-      e.preventDefault();
-      const tag = t.value.trim(), vid = t.dataset.vid;
-      if (!tag) return;
-      commit(d => K.tagVersion(d.record, vid, tag), tr('undo.addTag'));
-      return;
-    }
     if (t.classList?.contains('new-claim') && e.key === 'Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); t.closest('.addrow')?.querySelector('[data-act=add-claim]')?.click(); }
     if ((t.id === 'sec-label' || t.id === 'term-in') && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
     if (t.id === 'sec-label' && e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); t.value = T.labelOf(rec(), cur(), t.dataset.sid, lang()) ?? ''; t.blur(); }
@@ -980,11 +930,10 @@ function bind(body){
   // the chip's tick or padlock under the pointer or the focus: the block it governs, drawn on the page
   const scope = on => e => { const b = e.target.closest?.('.hdr > .depth .dp-show, .hdr > .depth .dp-lock'); if (b && !(on === false && b.contains(e.relatedTarget))) C.sheet.setScope(on, b.classList.contains('dp-lock') ? (b.classList.contains('is-locked') ? 'unlock' : 'lock') : b.querySelector('.pillsw.on') ? 'hide' : 'show'); };
   for (const [ev, on] of [['mouseover', true], ['focusin', true], ['mouseout', false], ['focusout', false]]) body.addEventListener(ev, scope(on));
-  body.addEventListener('focusin', e => { if (e.target.classList?.contains('tag-in')) E.tagFocus = e.target.dataset.vid; });
-  document.addEventListener('mousedown', e => { if (!e.target.closest?.('.tag-in')) E.tagFocus = null; }, true);
+  // which saved resumes print a version: folded until asked, and kept open across redraws
+  body.addEventListener('toggle', e => { const d = e.target; if (d.classList?.contains('vuse')) E.useOpen[d.open ? 'add' : 'delete'](d.dataset.v); }, true);
   body.addEventListener('focusout', e => {
     const t = e.target;
-    if (t.classList?.contains('tag-in') && e.relatedTarget) E.tagFocus = null;     // moved on, not redrawn
     if (t.id === 'term-in') renameTerm(t.dataset.key, t.value);
     if (t.id === 'sec-label') rename(t.dataset.sid, t.value);
   });
@@ -1163,7 +1112,7 @@ function leaving(next){
 
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, redraft: () => { if (E.edit && !E.edit.panel && isDirty()) livePreview(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
-  fieldName, isAbove, outlineView, noneView, lensBox, sectionView, jobView, bulletView, factPanel, act, bind, key, toggleMark, unmarkAt, marksNow, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockSaid, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, multiline,
+  fieldName, isAbove, outlineView, noneView, sectionView, jobView, bulletView, factPanel, act, bind, key, toggleMark, unmarkAt, marksNow, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockSaid, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, multiline,
   missingOf: id => (grouped() ? missingNow().find(m => m.id === id && isLineMiss(m)) ?? null : null),      // a group's line that prints the other language's version
   get editing(){ return E.edit; },
   get softShown(){ return E.softShown; },
@@ -1181,9 +1130,6 @@ const api = {
       if (E.foldAuto.folded && !E.fold.has(vl.dataset.fact)) return C.renderBody();
     }
     if (E.edit && $('#ed') && document.activeElement?.id !== 'ed') focusEditor(); else if ($('#ed')) autosize($('#ed'));
-    // the tag box keeps focus across the redraw a new tag causes
-    const ti = E.tagFocus && document.querySelector(`.tag-in[data-vid="${CSS.escape(E.tagFocus)}"]`);
-    if (ti && document.activeElement !== ti) ti.focus();
     // a version just saved: its row slides into the list under its parent (the list already has it; this shows where it came from)
     if (E.enter){
       const row = document.querySelector(`#body .vlist .vrow[data-v="${CSS.escape(E.enter)}"]`);
@@ -1194,6 +1140,4 @@ const api = {
       }
     }
   },
-  get focus(){ return E.focus; },
-  focusHits(){ return E.focus ? tagHits(work(), E.focus, lang()) : null; },
 };

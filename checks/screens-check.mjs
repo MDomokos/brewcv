@@ -50,7 +50,8 @@ const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executa
 // language copies) is taken off first. `library` keeps it, for the part that looks at it.
 async function open(w, h, look = ['tea', 'light'], { motion = false, library = false } = {}){
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: motion ? 'no-preference' : 'reduce' });
-  await ctx.addInitScript(([d, t, m]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); localStorage.setItem('rb-reduce-motion', m ? '0' : '1'); } catch { /* none */ } }, [...look, motion]);
+  await ctx.addInitScript(([d, t, m]) => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); localStorage.setItem('rb-drink', d); localStorage.setItem('rb-theme', t); localStorage.setItem('rb-reduce-motion', m ? '0' : '1');
+    if (!localStorage.getItem('rb-manage-view')) localStorage.setItem('rb-manage-view', 'date'); } catch { /* none */ } }, [...look, motion]);      // the parts measure groups of several cards: the example's roles all differ, so grouped by role each card is a group of its own
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
@@ -404,7 +405,7 @@ await part('the Library\u2019s toolbar: its groups, tiers and selection line; se
       hint: !!bar.querySelector('#scr-hint > #scr-tickinfo'), chips: tb.querySelectorAll('.fchip, .seg [data-act=scr-view]').length, under: !!document.querySelector('#scr-bar, #resumes .cmpbar'),
       one: ['height', 'borderTopLeftRadius', 'fontSize'].map(p => new Set(ctl.map(e => cs(e)[p])).size).join() };
   });
-  ok('the header: the search, then New round, Add files and New resume (last); its last row, on its own, the list\u2019s bar with Group and Show (the app\u2019s dropdowns, named) and the cards/list switch (icons with names), the hint in it; no chips, no bar under the cards', hd.kids === 'scr-q,tgrp,scr-lbar' && hd.acts === 'round-new,goto,sw-new' && hd.filtersOwnRow && hd.dds === 'scr-group=Group: Job type,scr-show=Show: All' && hd.sw === 'scr-cards:true:true:true,scr-list:false:true:true' && hd.hint && !hd.chips && !hd.under, JSON.stringify(hd));
+  ok('the header: the search, then New round, Add files and New resume (last); its last row, on its own, the list\u2019s bar with Group and Show (the app\u2019s dropdowns, named) and the cards/list switch (icons with names), the hint in it; no chips, no bar under the cards', hd.kids === 'scr-q,tgrp,scr-lbar' && hd.acts === 'round-new,goto,sw-new' && hd.filtersOwnRow && hd.dds === 'scr-group=Group: Date,scr-show=Show: All' && hd.sw === 'scr-cards:true:true:true,scr-list:false:true:true' && hd.hint && !hd.chips && !hd.under, JSON.stringify(hd));
   ok('…New resume the 40 px primary, Add files a secondary and New round tertiary words, each with its icon; one height, one radius and one font size for every other control in the header and the bar', hd.nr === 'primary,true,false' && hd.nrh === 40 && hd.add === 'secondary,true,false' && hd.round === 'tertiary,true,false' && hd.one === '1,1,1', JSON.stringify(hd));
   await page.check('#scr .rcard .rtick >> nth=0'); await page.check('#scr .rcard .rtick >> nth=1'); await settle(page, 100);
   const line = await page.evaluate(() => ({ kids: [...document.querySelectorAll('#resumes > #scr-ticks > *')].map(e => e.dataset.act ?? e.id).join(), hint: !!document.querySelector('#scr-tickinfo'), pos: getComputedStyle(document.querySelector('#scr-ticks')).position }));
@@ -418,9 +419,11 @@ await part('the Library\u2019s toolbar: its groups, tiers and selection line; se
   ok('search finds a send\u2019s company: only the resume that went to Smoke Co', (await distinct()) === 1);
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc clears the search first', await page.inputValue('#scr-q') === '' && (await distinct()) === all && await view(page) === 'resumes');
+  await pickOption(page, '#scr-group', 'role'); await settle(page);
+  ok('the Role view groups by the role as typed, each group a heading', (await page.$$('#scr h3.lbl')).length >= 2 && await page.evaluate(() => localStorage.getItem('rb-manage-view')) === 'role');
   await pickOption(page, '#scr-group', 'date'); await settle(page);
   ok('the Date view groups by year, the open resume under Now, and the view is remembered', /Now/.test(await page.textContent('#scr h3.lbl')) && await page.$eval('#scr-group', x => x.value) === 'date' && await page.evaluate(() => localStorage.getItem('rb-manage-view')) === 'date');
-  await pickOption(page, '#scr-group', 'type'); await settle(page);
+  await pickOption(page, '#scr-group', 'role'); await settle(page);
   await ctx.close();
 });
 
@@ -513,7 +516,7 @@ await part('the list view: rows with the columns, files folded under their resum
     return { pressed: document.querySelector('[data-act=scr-list]').getAttribute('aria-pressed'), cards: list.querySelectorAll('.rcard').length, rows: shown.every(id => list.querySelectorAll(`tr.rline[data-rid="${CSS.escape(id)}"], tr[data-lid="${CSS.escape(id)}"]`).length >= 1),
       th: list.querySelector('table.rtable thead tr')?.children.length, tables: list.querySelectorAll('table').length, heads: list.querySelectorAll('thead').length, groups: list.querySelectorAll('tbody.rgroup > tr.rghead:first-child').length, thumbs: list.querySelectorAll('[data-thumb]').length, attHidden: !!att?.hidden, attParent: att?.dataset.parent === rid, free: list.querySelectorAll('tr.rdoc:not(.rsub):not([data-parent])').length };
   }, [s0.ids, s0.ids[1]]);
-  ok('the list switch shows one table: one column header (the tick, the name, company, role, job type, paper, language, pages, sent, last changed), each group a header row in it, a row for each resume, no pictures', L.pressed === 'true' && L.cards === 0 && L.rows && L.th === 10 && L.tables === 1 && L.heads === 1 && L.groups >= 2 && L.thumbs === 0, JSON.stringify(L));
+  ok('the list switch shows one table: one column header (the tick, the name, company, role, paper, language, pages, sent, last changed), each group a header row in it, a row for each resume, no pictures', L.pressed === 'true' && L.cards === 0 && L.rows && L.th === 9 && L.tables === 1 && L.heads === 1 && L.groups >= 2 && L.thumbs === 0, JSON.stringify(L));
   ok('a file exported from a resume is folded under its row; a file of its own has a row of its own', L.attHidden && L.attParent && L.free === 1, JSON.stringify(L));
   const fold = `#scr tr.rline[data-rid="${s0.ids[1]}"] .rfold`;
   await page.click(fold); await settle(page, 100);
@@ -568,7 +571,7 @@ await part('the list view: rows with the columns, files folded under their resum
   await ctx.close();
   const n = await open(1280, 720);
   await goLibrary(n.page); await n.page.click('[data-act=scr-list]'); await settle(n.page);
-  const w = await n.page.evaluate(() => { const q = s => document.querySelector(`#scr .rtable ${s}`).getBoundingClientRect(), tb = q(''), ws = ['company', 'role', 'type', 'sent', 'changed'].map(k => q(`thead .c-${k}`).width);
+  const w = await n.page.evaluate(() => { const q = s => document.querySelector(`#scr .rtable ${s}`).getBoundingClientRect(), tb = q(''), ws = ['company', 'role', 'sent', 'changed'].map(k => q(`thead .c-${k}`).width);
     return { paper: q('th.c-paper').width, name: q('th.c-name').width, most: q('th.c-name').width > Math.max(...ws), fill: Math.round(tb.right - q('tr.rline td.c-changed').right), scroll: document.querySelector('#scr').scrollWidth - document.querySelector('#scr').clientWidth }; });
   ok('at 1280 the list drops the paper, language and pages columns, its rows fill the table with the name the widest, and nothing scrolls sideways', w.paper === 0 && w.most && w.fill <= 2 && w.scroll <= 1, JSON.stringify(w));
   await n.ctx.close();

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Tags and job types are gone:** each wording says which saved resumes print it, the Library groups by role, and a new resume starts from the most similar one; older files keep their tags and open as before.
+
 ## 1.8.1 - 2026-11-03
 
 ### Added

@@ -3,7 +3,7 @@
 // Every default heading (doc.section.*) and its "continued" note fits the gutter of its language's A4
 // format and of Letter, measured in Chromium with the real theme, clearing it by at least 3px (the
 // margin a4-hu.css sets). Then the app's own labels in each of the ten languages, with the sidebar at its narrowest width (316px under 1400px, 340px from there, more on a large screen)
-// in three windows: the place tabs, the name card, the foot, the zoom bar with Actual size, the Outline, the checklist, the lens, the
+// in three windows: the place tabs, the name card, the foot, the zoom bar with Actual size, the Outline, the checklist, the
 // switcher and Settings all fit what they are in. A label that is too wide is reported with its language, its text and its
 // measured width (the check never shortens one). Writes only to out/. Needs playwright and a Chromium.
 
@@ -107,7 +107,7 @@ for (const lang of I.UI_LANGS){
     problems.push(...await probe('head', '#head button, #head .hrow, #ptabs .ptab, #ptabs .ptab span'));
     problems.push(...await probe('foot', '#foot button, #foot .hfill, #foot .meters'));
     problems.push(...await probe('zoom bar', '#zoombar button, #zoombar .vbar, #zoombar .meters'));
-    problems.push(...await probe('outline', '#outline .srow *, #outline .clcaret, #outline .clcount, #outline .archmore, #outline .addline, .lens button, .lens select, .lensrow, .tailor button, .tailorchip'));
+    problems.push(...await probe('outline', '#outline .srow *, #outline .clcaret, #outline .clcount, #outline .archmore, #outline .addline'));
     // Record, Export's Mark as sent, and the job level
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
     problems.push(...await probe('record', '#checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw, #checklist .addline'));

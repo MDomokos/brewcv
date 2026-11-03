@@ -50,7 +50,7 @@ f2.default = Object.fromEntries(Object.entries(f2.default).map(([l, v]) => [l, v
 R.addVersion(theirs, newId, { text: 'Built the drop and cycle test rig, and wrote the protocols the team still runs.', from: f2.variants[0], as: 'minor' });
 B.addBullet(theirs, 'poly', 'Ran the lab’s weekly safety walk-round and kept its log.');
 const tagged = theirs.variants.find(v => v.id === theirs.facts.find(f => f.id === 'poly-shop')?.variants[0]) ?? theirs.variants.find(v => v.lang === 'en' && (v.tags ?? []).length);
-tagged.tags = [...tagged.tags, 'safety'];
+tagged.tags = [...(tagged.tags ?? []), 'safety', 'imported'];
 theirs.work.find(w => w.id === 'medisure').endDate = '2021-01';
 B.addJob(theirs, { position: 'Test Engineer', name: 'Lumen Devices', location: 'Braga', startDate: '2016-01', endDate: '2016-12', bullets: ['Ran 300 drop tests on a hand-held meter.', 'Wrote the test reports.'] });
 theirs.jobTypes.push('Test engineering');
@@ -68,10 +68,10 @@ ok('a renamed claim is not a new claim', !items.some(x => x.what.startsWith('New
 ok('a claim under a new id is matched by its wording, and its new version found', !!has(/New version · Hydra Medical/) && !items.some(x => x.what === 'New claim · Hydra Medical' && /drop and cycle/i.test(x.b)));
 ok('a new version is shown as a word diff against its nearest sibling', has(/New version · Hydra Medical/).diff.some(r => r.op === '+') && has(/New version · Hydra Medical/).diff.some(r => r.op === '='));
 ok('a new claim in an existing job', /safety walk-round/.test(items.find(x => x.what === 'New claim · Polytechnic Prototyping Lab')?.b ?? ''));
-ok('new tags on a version', /safety/.test(has(/^Tags ·/)?.b ?? ''));
+ok('a new flag on a version is offered, and a plain tag is not', has(/^Tags ·/)?.b === 'imported');
 ok('conflicting dates are a change, not ticked', has(/Medisure.* · end/)?.kind === 'change' && has(/Medisure.* · end/).on === false);
 ok('a new job', /Lumen Devices/.test(items.find(x => x.what === 'New job')?.b ?? '') && items.find(x => x.what === 'New job').on);
-ok('a job type and a saved resume', !!has(/^Job type/) && !!has(/^Saved resume$/));
+ok('a saved resume, and no job type', !has(/^Job type/) && !!has(/^Saved resume$/));
 ok('a job only in yours is listed, to keep', items.some(x => x.kind === 'keep' && x.b.includes(onlyMine.name)));
 
 section('applying');
@@ -85,7 +85,7 @@ section('applying');
   ok('the reworded version is a new version on the existing claim', R.versionsIn(d.record, h2).some(v => /protocols the team still runs/.test(v.text)));
   ok('the end date was not changed (not ticked)', d.record.work.find(w => w.id === 'medisure').endDate === mine.work.find(w => w.id === 'medisure').endDate);
   ok('nothing of yours was removed', mine.work.every(w => d.record.work.some(x => x.id === w.id)) && mine.facts.every(f => d.record.facts.some(x => x.id === f.id)));
-  ok('the job type and the saved resume are in', d.record.jobTypes.includes('Test engineering') && d.resumes.some(r => r.company === 'Lumen Devices'));
+  ok('the saved resume is in, and the other file’s job type is not offered', !d.record.jobTypes.includes('Test engineering') && d.resumes.some(r => r.company === 'Lumen Devices') && !items.some(x => /^Job type/.test(x.what)));
   const v = validate(S.save(d.record));
   ok('the merged record validates', v.errors.length === 0, v.errors[0]);
   ok('and every resume still renders', d.resumes.every(r => { try { renderPages(d.record, r, createDocument(), { fallback: true }); return true; } catch (e){ console.log('   ', e.message); return false; } }));
@@ -141,27 +141,6 @@ section('archiving a whole job is a change too');
   const d = { record: clone(mine), resumes: clone(resumes) };
   D.applyItems(d, it.map(x => ({ ...x, on: true })));
   ok('applying it archives the job here', d.record.work.find(w => w.id === 'atelier').archived === true);
-}
-
-section('job types that are bundles');
-{
-  const t3 = clone(mine);
-  t3.jobTypes.push({ id: 'new-bundle', label: 'New bundle', tags: ['cad', 'fabrication'] });
-  const it = D.diffRecords(mine, t3, { fromResumes: resumes, toResumes: clone(resumes) }).filter(x => /^Job type/.test(x.what));
-  ok('a new bundle is an add, ticked, and says its tags', it.length === 1 && it[0].kind === 'add' && it[0].on && /New bundle: cad, fabrication/.test(it[0].b), JSON.stringify(it));
-  const d = { record: clone(mine), resumes: clone(resumes) };
-  D.applyItems(d, it);
-  ok('applying it adds the object', JSON.stringify(d.record.jobTypes.at(-1)) === JSON.stringify(t3.jobTypes.at(-1)));
-  ok('merging again finds nothing', D.diffRecords(d.record, t3, { fromResumes: d.resumes, toResumes: clone(resumes) }).every(x => !/^Job type/.test(x.what)));
-  const t4 = clone(d.record);
-  t4.jobTypes.find(j => j.id === 'new-bundle').tags.push('cnc');
-  const ch = D.diffRecords(d.record, t4, { fromResumes: d.resumes, toResumes: clone(resumes) }).filter(x => /^Job type/.test(x.what));
-  ok('different tags under the same id are a change, not ticked', ch.length === 1 && ch[0].kind === 'change' && ch[0].on === false && ch[0].b === 'cad, fabrication, cnc');
-  D.applyItems(d, ch.map(x => ({ ...x, on: true })));
-  ok('…and applying it updates the tags', d.record.jobTypes.find(j => j.id === 'new-bundle').tags.join() === 'cad,fabrication,cnc');
-  const s3 = clone(mine); s3.jobTypes.push('Old style');
-  const ot = D.diffRecords(mine, s3, { fromResumes: resumes, toResumes: clone(resumes) }).filter(x => /^Job type/.test(x.what));
-  ok('the old string form is still an add', ot.length === 1 && ot[0].b === 'Old style');
 }
 
 section('snapshots: a file whose resume has snapshots mine does not');

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// node scripts/claims.mjs <resume-data.json> [--lang en] [--tag <t>] [--job <id>] [--json]
+// node scripts/claims.mjs <resume-data.json> [--lang en] [--job <id>] [--json]
 // Reads the record (a record file or the one file) and lists every claim with each of its versions in
 // one language, so an agent can choose among them. Versions that can't be picked are marked. Writes nothing.
+// --tag is accepted and ignored, with a warning, so an older command still runs: claims are chosen by their words, not by tags.
 
 import { readLibrary } from './lib/library.mjs';
 import { LANGS } from '../src/model/schema.js';
@@ -12,11 +13,12 @@ const VALUED = new Set(['--lang', '--tag', '--job']);
 const arg = f => { const i = argv.indexOf(f); return i < 0 ? undefined : argv[i + 1]; };
 const skip = new Set(argv.flatMap((a, i) => VALUED.has(a) ? [i, i + 1] : []));
 const [FILE] = argv.filter((a, i) => !a.startsWith('--') && !skip.has(i));
-const LANG = arg('--lang') ?? 'en', TAG = arg('--tag'), JOB = arg('--job'), JSON_OUT = argv.includes('--json');
+const LANG = arg('--lang') ?? 'en', JOB = arg('--job'), JSON_OUT = argv.includes('--json');
 if (!FILE || [...VALUED].some(f => argv.includes(f) && arg(f) === undefined)){
-  console.error('usage: node scripts/claims.mjs <resume-data.json> [--lang en] [--tag <t>] [--job <id>] [--json]');
+  console.error('usage: node scripts/claims.mjs <resume-data.json> [--lang en] [--job <id>] [--json]');
   process.exit(2);
 }
+if (argv.includes('--tag')) console.error('warning: --tag is no longer used and lists every claim: choose by the ad\'s words and the versions\' text.');
 if (!LANGS.includes(LANG)){ console.error(`--lang ${LANG}: not one of ${LANGS.join(', ')}`); process.exit(2); }
 
 let lib;
@@ -36,7 +38,6 @@ const claim = (id, job = null) => {
   const versions = versionsOf(model, ix, f, LANG).map(v => (job?.archived && !v.refused ? { ...v, refused: 'archived job' } : v));
   return { id, summary: f.summary ?? '', archived: !!f.archived, versions };
 };
-const keep = c => !TAG || c.versions.some(v => v.tags.some(t => String(t).toLowerCase() === TAG.toLowerCase()));
 
 // as the page does: this language's title, else the English one, else the record's own
 const positionOf = j => {
@@ -48,17 +49,17 @@ const out = {
   file: FILE, ...(saved ? { saved } : {}), lang: LANG, options: { ...optionsOf(), langs: LANGS },
   jobs: jobs.filter(j => !JOB || j.id === JOB).map(j => ({
     id: j.id, position: positionOf(j),
-    employer: j.name ?? j.entity ?? '', archived: !!j.archived, claims: (j.highlights ?? []).filter(id => ix.fact.has(id)).map(id => claim(id, j)).filter(keep),
+    employer: j.name ?? j.entity ?? '', archived: !!j.archived, claims: (j.highlights ?? []).filter(id => ix.fact.has(id)).map(id => claim(id, j)),
   })),
 };
 if (!JOB){
   const sumId = model.basics?.summary ?? 'summary';
-  out.summary = ix.fact.has(sumId) && keep(claim(sumId)) ? claim(sumId) : null;
+  out.summary = ix.fact.has(sumId) ? claim(sumId) : null;
   out.skills = (model.skills ?? []).map(s => ({ id: s.id, name: s.name, keywords: s.keywords ?? [] }));
   out.bank = bankOf(model, LANG);
   const inJobs = new Set(jobs.flatMap(j => j.highlights ?? []));
   out.sections = (model.sections ?? []).filter(s => !['header', 'summary'].includes(s.kind) && s.id !== sumId)
-    .map(s => ({ id: s.id, title: s.title, pickable: false, claims: factIdsOfSection(s, ix).filter(id => !inJobs.has(id)).map(claim).filter(keep) }))
+    .map(s => ({ id: s.id, title: s.title, pickable: false, claims: factIdsOfSection(s, ix).filter(id => !inJobs.has(id)).map(claim) }))
     .filter(s => s.claims.length);
 }
 
@@ -69,10 +70,10 @@ else {
   const printClaim = (c, pad) => {
     console.log(`${pad}${c.id}  ${c.summary}${c.archived ? '  [archived claim]' : ''}`);
     for (const v of c.versions)
-      console.log(`${pad}  ${v.id}  v${v.n}  ${v.chars} chars  [${v.tags.join(', ')}]${mark(v)}\n${pad}    ${v.text.replace(/\n/g, ' / ')}`);
+      console.log(`${pad}  ${v.id}  v${v.n}  ${v.chars} chars${mark(v)}\n${pad}    ${v.text.replace(/\n/g, ' / ')}`);
     if (!c.versions.length) console.log(`${pad}  (no ${LANG} version)`);
   };
-  console.log(`${FILE}${saved ? ` (saved ${saved})` : ''} · language ${LANG}${TAG ? ` · tag ${TAG}` : ''}`);
+  console.log(`${FILE}${saved ? ` (saved ${saved})` : ''} · language ${LANG}`);
   const O = out.options;
   console.log(`picks.json may use: format ${O.formats.join(', ')} · look ${O.looks.map(l => l.id).join(', ')} (b2 when left out) · exportMedium ${O.exportMedia.join(', ')} (screen when left out)`);
   console.log('  "design" takes what the look offers (its own default is marked *; left out, a setting is the look\'s default):');

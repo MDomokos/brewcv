@@ -3,10 +3,9 @@
 // except in another copy of the same career, where it is a change.
 
 import { t } from '../i18n/index.js';
-import { wordDiff, addVersion, suggestNumber, versionsIn, tombstoned, normText } from './record.js';
+import { wordDiff, addVersion, suggestNumber, versionsIn, tombstoned, normText, FLAGS } from './record.js';
 import { resumeLabel, uniqueId, snapshotsOf, printedKey, sameSend, sendLabel } from './resumes.js';
 import { slug } from './build.js';
-import { jobTypesOf } from './focus.js';
 
 const clone = x => structuredClone(x);
 const wset = s => new Set(normText(s).split(/[^\p{L}\p{N}]+/u).filter(w => w.length > 2));
@@ -120,7 +119,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
           apply: d => { if (d.record.facts.some(f => f.id === fromId)) copyVersion(d.record, fromId, v); } };
         put(twin ? item : goneOr(item, 'variant', v.id), 'wording');
       } else {
-        const nt = (v.tags ?? []).filter(x => !(same.tags ?? []).includes(x));
+        const nt = (v.tags ?? []).filter(x => FLAGS.includes(x) && !(same.tags ?? []).includes(x));      // only the flags: a version's other tags are not shown
         if (nt.length) put({ kind: 'add', what: t('diff.tags', { claim: clip(claimText(F, fromId)), v: same.n }), b: nt.join(', '), on: true,
           apply: d => { const w = d.record.variants.find(x => x.id === same.id); if (w) w.tags = [...new Set([...(w.tags ?? []), ...nt])]; } });
       }
@@ -182,16 +181,6 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
   entry = null;
   for (const fj of from.work ?? []) if (!matchJob(fj, to.work ?? [])) put({ kind: 'keep', what: t('diff.onlyYours'), b: `${fj.position} · ${fj.name}` });
 
-  const mineJt = jobTypesOf(from);
-  for (const jt of to.jobTypes ?? []){
-    const n = jobTypesOf({ jobTypes: [jt] })[0];
-    if (!n) continue;
-    const have = mineJt.find(x => x.id === n.id);
-    if (!have) put({ kind: 'add', what: t('diff.jobType'), b: n.tags.length === 1 && n.label === n.id ? n.label : `${n.label}: ${n.tags.join(', ')}`, on: true,
-      apply: d => { d.record.jobTypes ??= []; if (!jobTypesOf(d.record).some(x => x.id === n.id)) d.record.jobTypes.push(typeof jt === 'string' ? jt : clone(jt)); } });
-    else if (have.tags.join('|') !== n.tags.join('|') || have.label !== n.label) put({ kind: 'change', what: `${t('diff.jobType')} · ${have.label}`, a: have.tags.join(', '), b: n.tags.join(', '), on: false,
-      apply: d => { const i = (d.record.jobTypes ?? []).findIndex(x => jobTypesOf({ jobTypes: [x] })[0]?.id === n.id); if (i >= 0) d.record.jobTypes[i] = clone(n); } });
-  }
   for (const k of to.same ?? []) if (!(from.same ?? []).includes(k) && F.facts.has(k.replace(/^fact:/, '')))
     put({ kind: 'add', what: t('diff.same'), b: k.replace(/^\w+:/, ''), on: true, apply: d => { d.record.same = [...new Set([...(d.record.same ?? []), k])]; } });
   for (const r of toResumes){
@@ -220,7 +209,7 @@ export function diffRecords(from, to, { fromResumes = [], toResumes = [] } = {})
       }
       continue;
     }
-    put(goneOr({ kind: 'add', what: t('diff.savedResume'), b: `${resumeLabel(r)}${r.jobType ? ` · ${r.jobType}` : ''}`, on: true,
+    put(goneOr({ kind: 'add', what: t('diff.savedResume'), b: `${resumeLabel(r)}${r.role ? ` · ${r.role}` : ''}`, on: true,
       apply: (d, frozen) => {
         if ((d.resumes ?? []).some(x => resumeLabel(x) === resumeLabel(r))) return;
         const c = clone(r); c.id = uniqueId(d.resumes, c);

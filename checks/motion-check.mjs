@@ -89,7 +89,7 @@ section('the thirteen moments are wired');
   const rows = [
     [1, 'Fit: swapped lines crossfade in turn, dropped ones fold, the meter fills, a chip with Undo', has('pagemotion.js', /kind === 'fit'/) && has('shell.js', /ux4\.chipShorter/) && has('shell.js', /chip-undo/) && has('dock.js', /name: 'meter'/)],
     [2, 'Hovering a version: the words move (one word diff in src/model, the one the inspector underlines)', has('pagemotion.js', /wordMoves/) && has('shell.js', /words: factId/) && /export function wordMoves/.test(read('src/model/record.js')) && /R\.wordDiff/.test(read('src/ui/parts.js'))],
-    [3, 'The lens brightens its lines; Apply slides joining lines in and folds leaving ones away', has('sheet.js', /lens:hit/) && has('edit.js', /kind: 'apply'/) && has('pagemotion.js', /:join|\$\{kind\}:join/)],
+    [3, 'A change slides joining lines in and folds leaving ones away', has('pagemotion.js', /:join|\$\{kind\}:join/)],
     [4, 'A tick in the checklist: the line travels to the page and back; the one-line hint is gone', has('checklist.js', /tick:land/) && has('checklist.js', /tick:back/) && has('checklist.js', /tick:sample/) && !/clhint/.test(css) && !has('checklist.js', /ux2\.hint/)],
     [5, 'Write mode: the zoom uses the shared tokens and the reduced-motion rule', has('canvas.js', /dur\('travel'\)/) && has('canvas.js', /reduced/)],
     [6, 'A snapshot drops a small page into the name, and "Sent to" appears under it', has('shell.js', /snapshot:drop/) && has('shell.js', /snapshot:line/) && has('shell.js', /ux1\.sentTo2/) && has('resumes.js', /snapshotTaken/)],

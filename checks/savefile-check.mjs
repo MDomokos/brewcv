@@ -63,6 +63,12 @@ section('the format');
   const o = readBackup(old);
   ok('a backup from before this change still opens, without an id', o.info.recordId === null && o.state.resumes.length === ex.resumes.length);
   ok('and the kind is found from the content, whatever the file is called', I.readImport(text(old), `${['Resume', 'Builder'].join(' ')} backup 2026-01-01.json`).kind === 'backup' && I.readImport(text(file), 'whatever.txt').kind === 'backup');
+  // tags and job types are no longer shown, but a file that has them keeps them, unchanged, through open and save
+  const tagsOf = st => JSON.stringify([st.record.jobTypes, st.record.vocabulary?.tags, st.record.variants.map(v => [v.id, v.tags ?? null]), st.resumes.map(r => [r.id, r.jobType ?? null, r.tags ?? null])]);
+  const again = readBackup(JSON.parse(text(makeBackup(back.state))));
+  ok('job types, the tag list, the tags on versions and on resumes come back unchanged, and twice over', tagsOf(back.state) === tagsOf(ex) && tagsOf(again.state) === tagsOf(ex) && ex.record.jobTypes.length > 0 && ex.record.vocabulary.tags.length > 0 && ex.resumes.some(r => r.jobType),
+    JSON.stringify([back.warnings, again.warnings]));
+  ok('…with no warning', !(back.warnings ?? []).length && !(again.warnings ?? []).length, JSON.stringify([back.warnings, again.warnings]));
   const withCp = makeBackup(ex, { checkpoints: [{ id: 'c1' }] });
   ok('checkpoints are only written when asked for', 'checkpoints' in withCp);
 }

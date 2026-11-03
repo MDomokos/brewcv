@@ -44,12 +44,12 @@ ok('claims.mjs --json reads the example', !!claims, cl.err);
 const allBullets = claims.jobs.flatMap(j => j.claims);
 const first = claims.jobs.find(j => j.id === 'hydra');
 ok('every job lists its claims, each with versions in English', claims.jobs.length === (model.work.length + model.projects.length) && allBullets.every(c => c.versions.length > 0));
-ok('a version carries id, number, characters, tags and text', Object.keys(first.claims[0].versions[0]).join() === 'id,n,chars,tags,text,default,needsReview,refused');
+ok('a version carries id, number, characters and text, and no tags', Object.keys(first.claims[0].versions[0]).join() === 'id,n,chars,text,default,needsReview,refused');
 ok('the summary, skills and other sections are listed', claims.summary?.versions.length > 1 && claims.skills.length > 0 && claims.sections.some(s => s.id === 'education'));
 const textOut = run('scripts/claims.mjs', EX, '--job', 'hydra');
 ok('the text output is for reading', textOut.code === 0 && textOut.out.includes('hydra-inhaler-v1') && !textOut.out.includes('poly'));
 ok('--job narrows to one job', JSON.parse(run('scripts/claims.mjs', EX, '--job', 'hydra', '--json').out).jobs.length === 1);
-ok('--tag keeps claims with a version carrying it', JSON.parse(run('scripts/claims.mjs', EX, '--tag', 'cad', '--json').out).jobs.flatMap(j => j.claims).length < allBullets.length);
+{ const r = run('scripts/claims.mjs', EX, '--tag', 'cad', '--json'); ok('--tag is accepted and ignored, with a warning: every claim is listed', r.code === 0 && /--tag is no longer used/.test(r.err) && JSON.parse(r.out).jobs.flatMap(j => j.claims).length === allBullets.length); }
 ok('an unknown job is refused', run('scripts/claims.mjs', EX, '--job', 'nope').code === 1);
 
 // a copy of the example with a draft and an archive version, and the same record as the one file
@@ -96,8 +96,7 @@ const oneFile = w('one.json', { resumeBuilderBackup: 1, saved: '2026-01-02T03:04
   const before = JSON.stringify(listing());
   run('scripts/claims.mjs', traps); run('scripts/claims.mjs', oneFile, '--json');
   ok('claims writes nothing', before === JSON.stringify(listing()));
-  const none = JSON.parse(run('scripts/claims.mjs', EX, '--tag', 'no-such-tag', '--json').out);
-  ok('--tag filters the summary too', none.summary === null && none.jobs.every(x => x.claims.length === 0));
+  const none = JSON.parse(run('scripts/claims.mjs', EX, '--json').out);
   ok('the summary is not listed twice, and other sections say they are not picked', !none.sections.some(s => s.id === 'summary') && JSON.parse(run('scripts/claims.mjs', EX, '--json').out).sections.every(s => s.pickable === false));
   const hu = JSON.parse(run('scripts/claims.mjs', EX, '--lang', 'hu', '--json').out);
   ok('a job title with no version in the language falls back, never "undefined"', hu.jobs.every(x => x.position && !/undefined/.test(x.position)));

@@ -7,7 +7,6 @@ import { saveOver, addVersion, RecordError, tombstone } from './record.js';
 import { fmtMonth, ym, addJob, addBullet, addFact, slug, metaLineOf, presentIn, contactText, SEP } from './build.js';
 import { entriesOf, isEntry, entryKey, isArchived } from './entries.js';
 import { lockedHolders, guard } from './lock.js';
-import { jobTypesOf, normaliseJobType, tagVocab, TAG_CAP } from './focus.js';
 import { setI18n, dropI18n } from './labels.js';
 import { seedBank, findWord, addWord, cleanWord } from './skillbank.js';
 
@@ -429,112 +428,6 @@ export function deleteClaim(model, factId, recipes = []){
   if (w) w.highlights = w.highlights.filter(h => h !== factId);
   if (w && entryKey(model, w.id) !== 'work') syncEntry(model, w);
   return { job: w?.id ?? null, versions: res.versions };
-}
-
-// Job types: { id, label, tags }. The old string form is read as one tag and becomes an object when edited.
-function jobTypeAt(model, id){
-  model.jobTypes ??= [];
-  const i = model.jobTypes.findIndex(j => normaliseJobType(j)?.id === id);
-  if (i < 0) throw new Error(`no such job type: ${id}`);
-  model.jobTypes[i] = normaliseJobType(model.jobTypes[i]);
-  return model.jobTypes[i];
-}
-export function addJobType(model, label, tags = []){
-  const text = String(label ?? '').trim();
-  if (!text) throw keyed('jt.needName');
-  const taken = new Set(jobTypesOf(model).flatMap(j => [j.id, j.label.toLowerCase()]));
-  if (taken.has(text.toLowerCase())) throw keyed('jt.exists', { name: text });
-  const id = slug(text, new Set(jobTypesOf(model).map(j => j.id)), 'job-type');
-  (model.jobTypes ??= []).push({ id, label: text, tags: [...new Set(tags.map(x => String(x).trim()).filter(Boolean))] });
-  return id;
-}
-// A skill set is named by a tag or a job type, and an arrangement's `from` names the set it began as: they follow a rename or a merge, and go with a delete (`to` null).
-function moveSet(model, from, to, recipes = []){
-  const sets = model.skillSets;
-  if (sets?.[from]){
-    const { [from]: set, ...rest } = sets;
-    model.skillSets = to == null ? rest : { ...rest, [to]: { ...set, ...rest[to] } };
-    if (!Object.keys(model.skillSets).length) delete model.skillSets;
-  }
-  for (const r of recipes) if (r?.skillArrangement?.from === from){ if (to == null) delete r.skillArrangement.from; else r.skillArrangement.from = to; }
-}
-export function renameJobType(model, id, label, recipes = []){
-  const text = String(label ?? '').trim();
-  if (!text) throw keyed('jt.needName');
-  if (jobTypesOf(model).some(j => j.id !== id && j.label.toLowerCase() === text.toLowerCase())) throw keyed('jt.exists', { name: text });
-  const j = jobTypeAt(model, id), was = j.label;
-  j.label = text;
-  if (was !== text) moveSet(model, was, text, recipes);
-}
-export function addJobTypeTag(model, id, tag){
-  const t = knownTag(model, tag);
-  const j = jobTypeAt(model, id);
-  if (!j.tags.includes(t)) j.tags.push(t);
-}
-
-// ---- tags: one closed list ----
-// A wording or a job type takes a tag from the list only. Making, renaming, merging and deleting happen here,
-// each across every wording and job type at once, and the list stops at TAG_CAP: to add one, merge two.
-const tagKey = x => String(x ?? '').trim().toLowerCase();
-function cleanTag(name){
-  const text = String(name ?? '').replace(/\s+/g, ' ').trim();
-  if (!text) throw keyed('ux2.errTagName');
-  if (text.length > 30 || /[<>$]/.test(text) || tagKey(text) === 'archive') throw keyed('ux2.errTagBad', { name: text });
-  return text;
-}
-// The list's own spelling of a tag (an exact match first, since the list may hold Cad and cad), or a keyed error if the list has none like it.
-function knownTag(model, name){
-  const k = tagKey(name), list = tagVocab(model);
-  const hit = list.find(x => x === String(name ?? '').trim()) ?? list.find(x => tagKey(x) === k);
-  if (!hit) throw keyed('ux2.errTagUnknown', { name: String(name ?? '').trim() });
-  return hit;
-}
-const swapTag = (model, from, to, recipes) => {
-  moveSet(model, from, to, recipes);
-  const put = list => [...new Set((list ?? []).map(x => (x === from ? to : x)))];
-  for (const v of model.variants ?? []) if ((v.tags ?? []).includes(from)) v.tags = put(v.tags);
-  model.jobTypes = (model.jobTypes ?? []).map(j => { const n = normaliseJobType(j); if (!n || !n.tags.includes(from)) return j; return { ...n, tags: put(n.tags) }; });
-  if (model.vocabulary?.tags) model.vocabulary.tags = put(model.vocabulary.tags);
-};
-export function addTag(model, name){
-  const text = cleanTag(name);
-  if (tagVocab(model).some(x => tagKey(x) === tagKey(text))) throw keyed('ux2.errTagExists', { name: text });
-  if (tagVocab(model).length >= TAG_CAP) throw keyed('ux2.errTagCap', { n: TAG_CAP });
-  ((model.vocabulary ??= {}).tags ??= []).push(text);
-  return text;
-}
-export function renameTag(model, from, to, recipes = []){
-  const was = knownTag(model, from), text = cleanTag(to);
-  if (text === was) return;
-  if (tagVocab(model).some(x => x !== was && tagKey(x) === tagKey(text))) throw keyed('ux2.errTagExists', { name: text });
-  swapTag(model, was, text, recipes);
-}
-export function mergeTag(model, from, into, recipes = []){
-  const a = knownTag(model, from), b = knownTag(model, into);
-  if (a === b) throw keyed('ux2.errTagSame');
-  swapTag(model, a, b, recipes);
-}
-export function deleteTag(model, name, recipes = []){
-  const a = knownTag(model, name);
-  moveSet(model, a, null, recipes);
-  const drop = list => (list ?? []).filter(x => x !== a);
-  for (const v of model.variants ?? []) if ((v.tags ?? []).includes(a)){ v.tags = drop(v.tags); if (!v.tags.length) delete v.tags; }
-  model.jobTypes = (model.jobTypes ?? []).map(j => { const n = normaliseJobType(j); return n && n.tags.includes(a) ? { ...n, tags: drop(n.tags) } : j; });
-  if (model.vocabulary?.tags) model.vocabulary.tags = drop(model.vocabulary.tags);
-}
-// Puts a tag from the list on one wording.
-export function tagVersion(model, vid, name){
-  const a = knownTag(model, name), v = (model.variants ?? []).find(x => x.id === vid);
-  if (v && !(v.tags ?? []).includes(a)) v.tags = [...(v.tags ?? []), a];
-}
-export function removeJobTypeTag(model, id, tag){
-  const j = jobTypeAt(model, id);
-  j.tags = j.tags.filter(x => x !== tag);
-}
-// Saved resumes keep the id they were saved with; it shows as typed.
-export function deleteJobType(model, id){
-  jobTypeAt(model, id);
-  model.jobTypes = model.jobTypes.filter(j => normaliseJobType(j)?.id !== id);
 }
 
 // Hides a claim without deleting it. Saved resumes keep printing it. A job keeps one unarchived claim at least.

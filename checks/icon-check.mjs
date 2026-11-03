@@ -5,7 +5,7 @@
 //            inspector, Settings, Career and a Career form, the name window, the head menu, the language menu, the help card) and on a phone,
 //            every rendered icon is one of the four role sizes (12, 16, 24, 44), its tokens are the drink's (Tea 1.75 / 1.75 / 2.25 / 3 px, Coffee
 //            1.5 / 1.5 / 2 / 2.5 px) and the stroke it draws is its role's token, in screen pixels (non-scaling).
-//  concepts: every control of a registered concept (delete, close, edit, revert, lock, add, more, pin, focus, help, zoom) renders the icon the
+//  concepts: every control of a registered concept (delete, close, edit, revert, lock, add, more, pin, help, zoom) renders the icon the
 //            registry (CONCEPT in src/ui/icons.js) names, on every screen it appears on; delete is the X, never a bin; no registered icon serves
 //            two concepts (delete and close share the X and differ by the control's tier); the places and modes draw the drink's own tab drawing.
 //  outline:  the Outline's sections each have an icon of their own (Name and contact is not Summary), at most six hues, Skills and Patent not one.
@@ -39,7 +39,7 @@ const WEIGHTS = { tea: { inline: 1.75, control: 1.75, header: 2.25, display: 3 }
 const CONTROLS = [
   ['delete', 'button.del, .dp-fix.del'], ['close', '.crumb > .x, [data-act=help-close], [data-act=find-close]'],
   ['edit', '[data-act=edit]'], ['revert', '[data-act=only-remove]'], ['lock', '[data-act=row-lock], [data-act=lock-toggle], .obsoft'],
-  ['add', '.obplus'], ['more', '.smore, [data-act=menu]'], ['pin', '[data-act=keep]'], ['focus', '.star'], ['help', '[data-act=corner]'],
+  ['add', '.obplus'], ['more', '.smore, [data-act=menu]'], ['pin', '[data-act=keep]'], ['help', '[data-act=corner]'],
   ['zoomIn', '[data-act=zoom-in]'], ['zoomOut', '[data-act=zoom-out]'],
 ];
 const LOCKS = ['lock', 'unlock'];
@@ -154,9 +154,9 @@ for (const [drink, theme] of LOOKS){
 }
 
 if (want('concepts')){
-  // the controls that need a long walk to reach (the pencil on a phone, the star of a focused tag) are read from the code: no glyph stands for an action
+  // the controls that need a long walk to reach (the pencil on a phone) are read from the code: no glyph stands for an action
   const src = fs.readFileSync(path.join(ROOT, 'src/ui/parts.js'), 'utf8');
-  ok('the pencil, the revert control and the focus star are icons of the registry, not glyphs', /data-act="edit"[^`]*\$\{icon\('edit'\)\}/.test(src) && /data-act="only-remove"[^`]*\$\{icon\('revert'\)\}/.test(src) && /class="star"[^`]*\$\{icon\('focus'/.test(src) && !/>[↺★]</.test(src));
+  ok('the pencil and the revert control are icons of the registry, not glyphs', /data-act="edit"[^`]*\$\{icon\('edit'\)\}/.test(src) && /data-act="only-remove"[^`]*\$\{icon\('revert'\)\}/.test(src) && !/>[↺★]</.test(src));
   const { ctx, page } = await open({ w: 390, h: 800 });
   await rest(page);
   const r = await inspect(page, CONTROLS);

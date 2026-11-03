@@ -6,7 +6,6 @@
 
 import * as RS from '../model/resumes.js';
 import * as DOC from '../model/documents.js';
-import { jobTypeLabel } from '../model/focus.js';
 import { pendingEdits } from '../model/resume.js';
 import { langName } from '../model/lang.js';
 import { t, h, errText } from '../i18n/index.js';
@@ -20,8 +19,8 @@ import { initLibrary, cells, COLS } from './library.js';
 
 let C = null, T = null, LIB = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const VIEW_KEY = 'rb-manage-view', VIEWS = ['type', 'date', 'company'];
-const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : 'type'; } catch { return 'type'; } };
+const VIEW_KEY = 'rb-manage-view', VIEWS = ['role', 'date', 'company'];
+const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : 'role'; } catch { return 'role'; } };      // an older 'type' is read as role
 const LIST_KEY = 'rb-manage-list', savedList = () => { try { return localStorage.getItem(LIST_KEY) === '1'; } catch { return false; } };
 // ticked: resumes ("id") and sent copies ("id|snapshot"); cmp: what Compare shows, and focus the row in the inspector;
 // sel: the selected card (null: the open resume's); nj: the resume whose "Use for a new job" form is open; draft: what was typed in
@@ -63,7 +62,7 @@ const ratio = format => { const { w, h: ph } = pageSize(format); return `${w} / 
 const thumb = (key, format) => `<span class="rthumb" data-thumb="${esc(key)}" style="aspect-ratio:${ratio(format)}"></span>`;
 
 // ---- the Library ----
-const metaParts = r => [r.jobType ? jobTypeLabel(st().record, r.jobType) : '', r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'), (r.lang ?? 'en').toUpperCase(),
+const metaParts = r => [r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'), (r.lang ?? 'en').toUpperCase(),
   r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('resumes.pShort', { n: r.pageLimit }) : ''];
 const metaOf = r => metaParts(r).filter(Boolean).join(' · ');
 const tick = (key, name) => `<input type="checkbox" class="rtick" data-cmp="${esc(key)}" ${V.ticked.has(key) ? 'checked' : ''} aria-label="${esc(name)}">`;
@@ -100,7 +99,7 @@ function card(r, fam = [r]){
     <span class="thumbwrap">${thumb(r.id, r.format)}</span>
     <h4 class="rname">${nameBtn(r, nameHtml(company && role ? company : label(r)))}</h4>
     ${company && role ? `<p class="rrole">${esc(role)}</p>` : ''}
-    <p class="rmeta">${esc(metaParts(r).filter((x, i) => x && !(fam.length > 1 && i === 2)).join(' · '))}</p>
+    <p class="rmeta">${esc(metaParts(r).filter((x, i) => x && !(fam.length > 1 && i === 1)).join(' · '))}</p>
     ${p && !fam.includes(p) ? `<p class="rfrom">${esc(t('ux6f.from', { name: label(p) }))}</p>` : ''}
     ${V.hits.has(r.id) ? `<p class="rhit">${snippet(V.hits.get(r.id)[0].text, F.q)}${V.hits.get(r.id).length > 1 ? ` <small class="muted">+${V.hits.get(r.id).length - 1}</small>` : ''}</p>` : ''}
     <p class="rbadges">${langChips(fam, r)}${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}${n ? `<span class="pill">${h('ux6h.sentN', { n })}</span>` : ''}${filesChip(fam, r)}</p>
@@ -108,26 +107,26 @@ function card(r, fam = [r]){
   </article>`;
 }
 // the list's row of a resume; under it, folded, its sent copies (newest first, each with its tick) and the files exported from it
-const HEADS = { company: 'ux6h.company', role: 'ux6h.role', type: 'ux2.view.type', paper: 'design.paper', lang: 'ux6f.ovLang', pages: 'ux6f.ovPages', sent: 'ux6f.ovSent', changed: 'ux6f.ovChanged' };
+const HEADS = { company: 'ux6h.company', role: 'ux6h.role', paper: 'design.paper', lang: 'ux6f.ovLang', pages: 'ux6f.ovPages', sent: 'ux6f.ovSent', changed: 'ux6f.ovChanged' };
 const HEAD = () => `<th class="c-tick" scope="col"><span class="sr">${h('ux6h.compare')}</span></th><th class="c-name" scope="col">${h('ux1.name')}</th>${COLS.map(k => `<th class="c-${k}" scope="col">${h(HEADS[k])}</th>`).join('')}`;
 // With language copies (fam): the row is the one shown, its Language cell the chips, and the fold holds a row for each language before the files of all of them;
 // with files, its Sent cell is the files chip (the sent copies are among them)
 function row(r, fam = [r]){
-  const open = r.id === st().openId, [snaps, docs] = filesOf(fam), [type, paper, lang, pages] = metaParts(r), many = fam.length > 1, id = fam[0].id;
+  const open = r.id === st().openId, [snaps, docs] = filesOf(fam), [paper, lang, pages] = metaParts(r), many = fam.length > 1, id = fam[0].id;
   const unfold = V.open.has(id) || !!F.q.trim() || docs.some(g => g.id === LIB.sel());
   const fold = many || snaps.length || docs.length ? `<button class="rfold" data-act="scr-fold" data-id="${esc(id)}" aria-expanded="${unfold}" aria-label="${esc(t('i7.foldFiles', { name: label(r) }))}">${icon('caret', { role: 'inline' })}</button>` : '';
   const hit = V.hits.get(r.id), sub = `class="rsub" data-parent="${esc(id)}" ${unfold ? '' : 'hidden'}`, sentN = x => (RS.snapshotsOf(x).length ? t('ux6h.sentN', { n: RS.snapshotsOf(x).length }) : '');
   return `<tr class="rline ${open ? 'open' : ''} ${r.id === selId() && !LIB.sel() ? 'sel' : ''} ${V.ticked.has(r.id) ? 'ticked' : ''}" ${hooks(r)}>
     <td class="c-tick">${fold}${tick(r.id, t('ux6e.tick', { name: label(r) }))}</td>
     <td class="c-name"><span class="cname">${nameBtn(r, esc(label(r)))}${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>${hit ? `<span class="rhit">${snippet(hit[0].text, F.q)}</span>` : ''}</td>
-    ${cells({ company: r.company, role: r.role, type, paper, lang: many ? '' : lang, pages, sent: filesChip(fam, r) ? '' : sentN(r), changed: r.savedAt }).replace('<td class="c-lang"></td>', `<td class="c-lang">${langChips(fam, r)}</td>`).replace('<td class="c-sent"></td>', `<td class="c-sent">${filesChip(fam, r)}</td>`)}</tr>`
-    + (many ? fam.map(x => `<tr ${sub} data-lid="${esc(x.id)}"><td class="c-tick"></td><td class="c-name"><span class="cname"><button class="rsel" data-act="scr-lang" data-id="${esc(x.id)}" data-item="${esc(id)}" aria-pressed="${x.id === r.id}">${esc(langName(x.lang ?? 'en'))}</button>${x.id === st().openId ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span></td>${cells({ lang: LC(x), pages: metaParts(x)[3], sent: sentN(x), changed: x.savedAt })}</tr>`).join('') : '')
+    ${cells({ company: r.company, role: r.role, paper, lang: many ? '' : lang, pages, sent: filesChip(fam, r) ? '' : sentN(r), changed: r.savedAt }).replace('<td class="c-lang"></td>', `<td class="c-lang">${langChips(fam, r)}</td>`).replace('<td class="c-sent"></td>', `<td class="c-sent">${filesChip(fam, r)}</td>`)}</tr>`
+    + (many ? fam.map(x => `<tr ${sub} data-lid="${esc(x.id)}"><td class="c-tick"></td><td class="c-name"><span class="cname"><button class="rsel" data-act="scr-lang" data-id="${esc(x.id)}" data-item="${esc(id)}" aria-pressed="${x.id === r.id}">${esc(langName(x.lang ?? 'en'))}</button>${x.id === st().openId ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span></td>${cells({ lang: LC(x), pages: metaParts(x)[2], sent: sentN(x), changed: x.savedAt })}</tr>`).join('') : '')
     + snaps.map(([x, s]) => `<tr ${sub}><td class="c-tick">${sentTick(x, s)}</td><td class="c-name">${snapLine(x, s)}</td>${cells({ company: s.sends[0]?.company, role: s.sends[0]?.role, lang: many ? LC(x) : '', changed: sentDate(s) })}</tr>`).join('')
     + docs.map(g => LIB.row(g, F.q, id, !unfold)).join('');
 }
 
-// A document group on its own (not exported from a saved resume) is listed beside the resumes: it has what the views group by (job type, company, date, round)
-const pseudo = g => ({ id: `doc:${g.id}`, name: g.lead.name, company: g.lead.meta?.company ?? '', role: g.lead.meta?.role ?? '', jobType: g.lead.meta?.jobType ?? '', savedAt: g.lead.meta?.date || String(g.lead.addedAt ?? '').slice(0, 10), lang: g.lead.meta?.lang, round: g.lead.round, g });
+// A document group on its own (not exported from a saved resume) is listed beside the resumes: it has what the views group by (role, company, date, round)
+const pseudo = g => ({ id: `doc:${g.id}`, name: g.lead.name, company: g.lead.meta?.company ?? '', role: g.lead.meta?.role ?? '', savedAt: g.lead.meta?.date || String(g.lead.addedAt ?? '').slice(0, 10), lang: g.lead.meta?.lang, round: g.lead.round, g });
 
 function listHtml(){
   if (!anyArchived()) V.showArchived = false;      // nothing left to show: the switch is off
@@ -151,7 +150,7 @@ function listHtml(){
   const rowOf = r => (r.g ? LIB.row(r.g, F.q) : row(shownOf(V.fam.get(r.id), matched), V.fam.get(r.id)));
   // the list is one table: a group is a header row and its rows (a tbody, inside its round's while that round is open)
   let inRound = '';
-  const group = (name, rs) => (listing() ? `<tbody class="rgroup" ${inRound}><tr class="rghead"><th colspan="10" scope="colgroup">${esc(name)} · ${rs.length}</th></tr>${rs.map(rowOf).join('')}</tbody>`
+  const group = (name, rs) => (listing() ? `<tbody class="rgroup" ${inRound}><tr class="rghead"><th colspan="9" scope="colgroup">${esc(name)} · ${rs.length}</th></tr>${rs.map(rowOf).join('')}</tbody>`
     : `<h3 class="lbl">${esc(name)} · ${rs.length}</h3><div class="rgrid">${rs.map(cardOf).join('')}</div>`);
   const table = body => (listing() ? `<table class="rtable"><caption class="sr">${h('ux6h.allResumes')}</caption><thead><tr>${HEAD()}</tr></thead>${body}</table>` : body);
   const byNewest = gs => gs.map(g => ({ ...g, rs: g.rs.slice().sort(newest) })).sort((a, b) => newest(a.rs[0], b.rs[0]));
@@ -162,7 +161,7 @@ function listHtml(){
       return [...years].map(([y, rs]) => group(y, rs)).join('');
     }
     if (V.view === 'company') return byNewest(RS.byCompany(list).map(g => ({ name: g.key ? g.label : t('ux2.noCompany'), rs: g.rows.map(x => x.resume) }))).map(g => group(g.name, g.rs)).join('');
-    return byNewest(RS.grouped(st().record, list).map(g => ({ name: g.type ? g.label : t('resumes.noType'), rs: g.resumes }))).map(g => group(g.name, g.rs)).join('');
+    return byNewest(RS.grouped(list).map(g => ({ name: g.key ? g.label : t('resumes.noRole'), rs: g.resumes }))).map(g => group(g.name, g.rs)).join('');
   };
   if (!rounds.length) return table(view(items)) + found;
   // rounds: the current one first and open, the older ones folded under their names (each with the same views), then "Earlier" for what has none
@@ -177,8 +176,8 @@ function listHtml(){
     const attrs = `data-round="${esc(key)}" data-n="${its.length}" ${round?.archived ? 'data-archived="1"' : ''} ${key === cur ? 'data-current="1"' : ''}`, panel = round && LIB.rm() === key ? LIB.roundPanel(round) : '';
     if (listing()){      // a round is a header row with its fold and its actions; its groups follow, hidden while it is folded
       inRound = `data-in="${esc(key)}" ${open ? '' : 'hidden'}`;
-      return `<tbody class="rrhead" ${attrs}><tr><th colspan="10" scope="colgroup"><button class="rfold" data-act="scr-rfold" data-round="${esc(key)}" aria-expanded="${open}" aria-label="${esc(name)}">${icon('caret', { role: 'inline' })}</button> ${roundName(key, name, round)} · ${its.length}${acts}${panel}</th></tr></tbody>`
-        + (its.length ? view(its) : `<tbody ${inRound}><tr><td colspan="10" class="muted small">${h('i7.roundEmpty')}</td></tr></tbody>`);
+      return `<tbody class="rrhead" ${attrs}><tr><th colspan="9" scope="colgroup"><button class="rfold" data-act="scr-rfold" data-round="${esc(key)}" aria-expanded="${open}" aria-label="${esc(name)}">${icon('caret', { role: 'inline' })}</button> ${roundName(key, name, round)} · ${its.length}${acts}${panel}</th></tr></tbody>`
+        + (its.length ? view(its) : `<tbody ${inRound}><tr><td colspan="9" class="muted small">${h('i7.roundEmpty')}</td></tr></tbody>`);
     }
     return `<details class="rround" ${attrs} ${open ? 'open' : ''}><summary>${roundName(key, name, round)} · ${its.length}</summary>${acts}${panel}${its.length ? view(its) : `<p class="muted small">${h('i7.roundEmpty')}</p>`}</details>`;
   };

@@ -2109,22 +2109,20 @@ if (want('saved resumes')) {
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher .swnew'); await settle(page);
   ok('+ New resume opens the form in the panel', (await page.getAttribute('#body', 'data-view')) === 'new' && !(await page.isVisible('#switcher')));
-  ok('…Start from: the last resume is the default, with the other three', (await page.$$('.startopt')).length === 4 && await page.isChecked('.startopt[data-start=latest] input'));
+  ok('…Start from: a similar resume is the default, with the other two', (await page.$$('.startopt')).length === 3 && await page.isChecked('.startopt[data-start=latest] input'));
   await page.fill('#nv-co', 'Geospatial'); await page.fill('#nv-role', 'GIS Solutions Engineer');
   ok('the name is filled from For as you type', (await page.inputValue('#nv-name')) === 'Geospatial - GIS Solutions Engineer');
   await pickOption(page, '#nv-kind', 'outreach');
-  const lt = await page.$$eval('#nv-type option', o => o.map(x => x.value).filter(v => v && v !== '+'));
-  await pickOption(page, '#nv-type', lt[0]); await settle(page);
-  const tagged = await page.textContent('.startopt[data-start=tagged]');
-  ok('picking a job type enables “Bullets for …” with its plan line', !(await page.getAttribute('.startopt[data-start=tagged]', 'class')).includes('is-off') && /Turns on \d+, turns off \d+, switches \d+/.test(tagged), tagged);
+  const like = await page.evaluate(async () => { const RS = await import('./src/model/resumes.js'); const r = RS.similarTo(window.__wb.store.state, { company: 'Geospatial', role: 'GIS Solutions Engineer' }); return { id: r.id, name: RS.resumeLabel(r) }; });
+  ok('the similar resume is named as the role is typed: the one most like the company and role', (await page.textContent('#nv-similar')) === like.name, `${await page.textContent('#nv-similar')} / ${like.name}`);
   const nameBefore = await firstBullet(page);
   await page.hover('.startopt[data-start=empty]'); await settle(page);
   ok('hovering an option previews it on the page', (await firstBullet(page)) !== nameBefore);
   await page.mouse.move(700, 400); await settle(page);
-  await page.check('.startopt[data-start=tagged] input'); await settle(page);
+  await page.check('.startopt[data-start=latest] input'); await settle(page);
   await page.click('[data-act=nv-create]'); await settle(page);
   const made = await st();
-  ok('Create saves and opens it: named from For, outreach, with its job type', made.cur.name === 'Geospatial - GIS Solutions Engineer' && made.cur.forKind === 'outreach' && made.cur.jobType === lt[0] && made.openId === made.cur.id);
+  ok('Create saves and opens it: named from For, outreach, a copy of the similar resume', made.cur.name === 'Geospatial - GIS Solutions Engineer' && made.cur.forKind === 'outreach' && made.openId === made.cur.id && JSON.stringify(made.cur.sections) === JSON.stringify(made.resumes.find(r => r.id === like.id).sections));
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher .swnew'); await settle(page);
   await page.click('[data-act=nv-create]'); await settle(page);
@@ -2132,7 +2130,7 @@ if (want('saved resumes')) {
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher [data-act=sw-manage]'); await settle(page);
   ok('Manage all opens the Library, a place of its own drawn left of the sidebar (#scr), with its inspector in the sidebar, the selected card focused, and the place card small', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && !(await page.isVisible('#switcher')) && (await rect(page, '#scr')).width > 700 && (await rect(page, '#head')).width < 450 && await page.evaluate(() => document.querySelector('#body').dataset.view === 'inspector' && document.activeElement?.matches('#scr .rcard.sel .rsel')));
-  ok('…with the search box, three views (Job type, Date, Company), a tick box on each card, and in the inspector Use for a new job, Open and the row menu', (await page.$$('#scr-group option')).length === 3 && (await page.$eval('#scr-group', s => s.value)) === 'type' && !!(await page.$('#body .iacts .smore')) && (await page.$$('#resumes .rcard .rtick')).length > 10 && await page.isVisible('#scr-q'));
+  ok('…with the search box, three views (Role, Date, Company), a tick box on each card, and in the inspector Use for a new job, Open and the row menu', (await page.$$('#scr-group option')).length === 3 && (await page.$eval('#scr-group', s => s.value)) === 'role' && !!(await page.$('#body .iacts .smore')) && (await page.$$('#resumes .rcard .rtick')).length > 10 && await page.isVisible('#scr-q'));
   ok('Compare is not offered until two are ticked', !(await page.$('#scr-cmp')) && (await page.check('#resumes .rcard[data-rid="Example Instruments - Design Engineer.json"] .rtick'), !(await page.$('#scr-cmp'))));
   await page.check('#resumes .rcard:has-text("Helix") .rtick');
   ok('two ticks offer Compare', !(await page.isDisabled('#scr-cmp')) && /Compare 2/.test(await page.textContent('#scr-cmp')));
@@ -2160,7 +2158,7 @@ if (want('saved resumes')) {
   ok('Esc clears the search, and Esc again stays in the Library (it never changes place)', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && await page.inputValue('#scr-q') === '');
   await page.click('#ptabs [data-p=editor]'); await settle(page);
   await page.click('#ptabs [data-p=library]'); await settle(page);
-  await pickOption(page, '#scr-group', 'type'); await settle(page);
+  await pickOption(page, '#scr-group', 'role'); await settle(page);
   await page.click('#resumes .rcard[data-rid="Helix Diagnostics - Product Development Engineer.json"] .thumbwrap'); await settle(page);
   await page.click('#resumes .rcard[data-rid="Helix Diagnostics - Product Development Engineer.json"] .thumbwrap'); await settle(page);
   ok('clicking a card’s picture selects it, and a second click opens it', /Helix Diagnostics/.test(await page.textContent('#docname')) && (await page.evaluate(() => window.__wb.ui.view)) === null, await page.textContent('#docname'));
@@ -2198,38 +2196,26 @@ if (want('saved resumes')) {
 }
 
 
-if (want('tags and focus')) {
+if (want('a version says which saved resumes print it')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
-  const st = () => page.evaluate(() => window.__wb.store.state);
-  await openByName(page, 'Medtech'); await settle(page);
-  ok('the Outline\'s Tailor row is shut at the foot and, opened, is one lens row: Highlight, one list: the job types, then every tag', !(await page.$('#lens')) && await page.isVisible('[data-act=tailor-toggle]') && await page.click('[data-act=tailor-toggle]').then(() => true) && await page.isVisible('.ddbtn[data-ddf=lens]') && (await page.$$('#lens optgroup')).length === 2 && (await page.evaluate(() => document.querySelectorAll('#lens optgroup')[1].children.length)) > 3 && !(await page.$('[data-act=lens-tags]')));
-  const undo0 = await page.evaluate(() => window.__wb.store.history.undo);
-  await pickOption(page, '#lens', 'Prototyping'); await settle(page);
-  const faded = await frameDoc(page, d => [d.documentElement.classList.contains('rb-focus'), d.querySelectorAll('.rb-hit').length, d.querySelectorAll('.bullets li').length]);
-  ok('choosing a job type keeps the matching bullets bright and fades the rest', faded[0] && faded[1] > 0 && faded[1] < faded[2], faded.join());
-  ok('and changes nothing in the resume: it only highlights', (await page.evaluate(() => window.__wb.store.history.undo)) === undo0 && !(await page.$('.focusbox')));
-  await page.click('[data-act=lens-apply]'); await settle(page);
-  ok('Apply… says what selecting would do', /turn on \d+, turn off \d+ and switch \d+/.test(await page.textContent('.focusbox')));
-  await page.click('[data-act=focus-apply]'); await settle(page);
-  ok('applying is one undo step', (await page.evaluate(() => window.__wb.store.history.undo)) === undo0 + 1);
-  ok('and leaves nothing more to do', !(await page.$('.focusbox')) || await page.isDisabled('[data-act=focus-apply]'));
-  await page.keyboard.press('Control+z'); await settle(page);
-  await page.frameLocator('#sheet iframe').locator('.bullets li.rb-hit').first().click(); await settle(page);
-  ok('a focused tag stars its versions in the list', (await page.$$('.vrow .star')).length >= 1);
-  const vid = await page.getAttribute('.vrow.cur', 'data-v');
-  await page.fill('.tag-in', 'smoke-tag'); await page.press('.tag-in', 'Enter'); await settle(page);
-  ok('a tag that is not on the list is refused: no tag is made', !((await st()).record.variants.find(v => v.id === vid).tags ?? []).includes('smoke-tag') && !(await st()).record.vocabulary.tags.includes('smoke-tag'));
-  const pick = await page.evaluate(id => { const s = window.__wb.store.state.record; return s.vocabulary.tags.find(t => !(s.variants.find(v => v.id === id).tags ?? []).includes(t)); }, vid);
-  await page.fill('.tag-in', pick); await page.press('.tag-in', 'Enter'); await settle(page);
-  ok('Enter in the tag box tags the version in use with a tag from the list', (await st()).record.variants.find(v => v.id === vid).tags.includes(pick));
-  ok('and the box keeps focus for the next one', await page.evaluate(() => document.activeElement?.classList.contains('tag-in')));
-  await page.click(`.vrow.cur .tag:has-text("${pick}") .del`); await settle(page);
-  ok('× removes it', !((await st()).record.variants.find(v => v.id === vid).tags ?? []).includes(pick));
-  await toEditHome(page);
-  await pickOption(page, '#lens', ''); await settle(page);
-  ok('choosing Nothing brings the page back', !(await frameDoc(page, d => d.documentElement.classList.contains('rb-focus'))));
+  const claimPanel = async () => {
+    await page.frameLocator('#sheet iframe').locator('.band[data-section="experience"] .tab').first().click(); await settle(page);
+    await page.click('#body [data-act=select-job] >> nth=0'); await settle(page);
+    await page.click('#outline .clg.open .clrow >> nth=0 >> .clv'); await settle(page);          // “n v” opens Edit at that line
+  };
+  await claimPanel();
+  const use = await page.evaluate(() => { const d = document.querySelector('#body .vrow.cur details.vuse'); return d && { open: d.open, sum: d.querySelector('summary').textContent.trim(), names: d.querySelector('.vuses').textContent.trim() }; });
+  ok('the version in use says how many saved resumes print it, folded: their names only when unfolded', !!use && !use.open && /^On \d+ resumes?$/.test(use.sum) && use.names.length > 0, JSON.stringify(use));
+  ok('no tag chip, tag box or star is left on a version', !(await page.$('#body .tag-in, #body [data-act=tag-rm], #body .vrow .star')));
+  await page.click('#body .vrow.cur details.vuse summary'); await settle(page);
+  ok('unfolded, it names the resumes', await page.evaluate(() => document.querySelector('#body .vrow.cur details.vuse')?.open === true && document.querySelector('#body .vrow.cur .vuses').offsetHeight > 0));
+  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
+  await openByName(page, 'Meetlab'); await settle(page);      // Dutch: machine-written wording, flagged for review
+  await claimPanel();
+  const flag = await page.evaluate(() => [...document.querySelectorAll('#body .vrow .tag.flag')].map(e => [e.textContent.trim(), e.title]));
+  ok('a machine-translated version shows its review flag, saying why in its title', flag.some(([t, tip]) => t && tip && !/^Imported from/.test(tip)), JSON.stringify(flag));
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
@@ -2387,7 +2373,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
   const s1 = await st();
   ok('Add (clicked twice at once) makes one step of the undo history and one checkpoint, and shows the receipt', (await view()) === 'receipt' && (await page.evaluate(() => window.__wb.store.history)).undo === undoN0 + 1 && (await page.evaluate(() => window.__wb.persist.listCheckpoints())).filter(c => c.kind === 'import').length === 1);
   const stamped = s1.record.variants.filter(v => !s0.record.variants.some(x => x.id === v.id));
-  ok('what the file added is stamped: a source naming the file, the tag imported (listed in the career’s tags) and its document; no claim’s default moved; the saved resumes are the same', stamped.length >= 1 && stamped.every(v => /^Imported from helix-1col-word\.docx/.test(v.source) && v.tags.includes('imported') && /^[0-9a-f]{12}$/.test(v.origin?.doc ?? '')) && s1.record.vocabulary.tags.includes('imported')
+  ok('what the file added is stamped: a source naming the file, the flag imported (not added to the career’s tag list) and its document; no claim’s default moved; the saved resumes are the same', stamped.length >= 1 && stamped.every(v => /^Imported from helix-1col-word\.docx/.test(v.source) && v.tags.includes('imported') && /^[0-9a-f]{12}$/.test(v.origin?.doc ?? '')) && !(s1.record.vocabulary?.tags ?? []).includes('imported')
     && JSON.stringify(s1.record.facts.filter(f => s0.record.facts.some(x => x.id === f.id)).map(f => [f.id, f.default])) === defaults(s0) && JSON.stringify(s1.resumes) === JSON.stringify(s0.resumes), stamped.map(v => v.id).join());
   ok('the value the person chose was used, and a line they did not tick stays out', s1.record.work[0].location === 'Lisbon' && s1.documents.length === 2 && s1.imports.length === 2);
   ok('the originals are kept inside the browser: a document for each file, the PDF linked as another format of the Word file', s1.documents.every(d => /^doc-[0-9a-f]{12}$/.test(d.id) && /^(?:asset:|data:)/.test(d.embedded)) && s1.documents.find(d => d.name.endsWith('.pdf')).of === s1.documents.find(d => d.name.endsWith('.docx')).id);
@@ -2665,12 +2651,12 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   const DOCID = (state, f) => state.documents.find(d => d.name === path.basename(f)).id;
 
   // ---- a card in each view; formats of one resume are one card; an exported file sits with its resume ----
-  for (const v of ['type', 'date', 'company']) {
+  for (const v of ['role', 'date', 'company']) {
     await lib(v);
     const n = await page.$$eval('#scr .rdoc', es => es.map(e => e.dataset.formats).sort().join());
     ok(`${v} view: a document card for each group tied to no resume: the other resume with its letter and the Word file with its PDF (one card each, two formats); the exported file is no card`, n === '2,2' && (await page.$$(`${card(Bw)}, ${card(Cb)}`)).length === 2 && !(await page.$(card(A))), n);
   }
-  await lib('type');
+  await lib('role');
   const gA = await groupOf(A);
   ok('the exported file belongs to the saved resume it was exported from: that card’s files chip counts it, and the resume’s inspector lists it under Files; the other two files stand on their own', gA.resume === s0.openId && /\d+ files?/.test(await page.textContent(`#scr .rcard[data-rid="${s0.openId}"] .rfiles`)) && (await pick(A), (await page.$$('#body .insp-doc')).length === 1) && !(await page.getAttribute(card(Cb), 'data-from')) && !(await page.getAttribute(card(Bw), 'data-from')));
   ok('the Word file’s lines are not all placed, the other resume’s are all dealt with; each card has a badge per format', (await page.getAttribute(card(Cb), 'data-state')) === 'record' && (await page.getAttribute(card(Bw), 'data-state')) === 'unplaced' && (await page.$$(`${card(Bw)} .pill`)).length === 2 && (await page.$$(`${card(Cb)} .pill`)).length === 2);
@@ -3440,7 +3426,7 @@ if (want('onboarding and the record')) {
 }
 
 
-if (want('bullets: re-arrange within a job; tags: one closed list')) {
+if (want('bullets: re-arrange within a job')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -3457,17 +3443,6 @@ if (want('bullets: re-arrange within a job; tags: one closed list')) {
   ok('…the recipe holds the order for that job only, and undo puts it back', JSON.stringify((await st()).cur.work ?? (await st()).cur.sections).includes('highlights'));
   await page.keyboard.press('Control+z'); await settle(page);
   ok('one Ctrl+Z undoes it', JSON.stringify(await lis()) === JSON.stringify(before));
-  // tags: the panel for them is the job types one
-  await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await settle(page);
-  await inRecord(page, 'credentials'); await settle(page);
-  await showGroup(page, 'credentials'); await page.click('#body [data-act=cl-open][data-sel*=jobtypes]'); await settle(page);
-  ok('the Tags part lists each tag with a name box, a merge menu and a bin', (await page.locator('#body .tagrow').count()) >= 5 && (await page.locator('#body .tagrow .tag-merge').count()) >= 5 && (await page.locator('#body #tag-count').count()) === 1);
-  const n0 = (await st()).record.vocabulary.tags.length;
-  await page.locator('#body .tagrow .tag-name').first().fill('zz-renamed'); await page.keyboard.press('Enter'); await settle(page);
-  ok('renaming one changes it in the list', (await st()).record.vocabulary.tags.includes('zz-renamed') && (await st()).record.vocabulary.tags.length === n0);
-  await pickOption(page, page.locator('#body .tagrow .tag-merge[data-tag="zz-renamed"]'), { index: 1 }); await settle(page);
-  ok('merging it into another takes it out of the list', !(await st()).record.vocabulary.tags.includes('zz-renamed') && (await st()).record.vocabulary.tags.length === n0 - 1);
-  ok('no sideways scroll in the tag list', await page.evaluate(() => { const b = document.querySelector('#body'); return b.scrollWidth <= b.clientWidth + 1; }));
   ok('nothing threw', bad.length === 0, bad.join('; '));
   await ctx.close();
 }
@@ -3586,7 +3561,7 @@ if (want('record: a moved bullet moves in the list too; "n v" on the contact lin
   await ctx.close();
 }
 
-if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging system')) {
+if (want('items: tick one by one, re-arrange in print, Alt+arrows')) {
   const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
   const page = await ctx.newPage();
   const bad = await open(page);
@@ -3615,15 +3590,6 @@ if (want('items: tick one by one, re-arrange in print, Alt+arrows, one tagging s
   await page.keyboard.press('Alt+ArrowUp'); await settle(page);
   ok('with an item open in the inspector, Alt+↑ moves it too', (await sheetSkills())[0] === before[1]);
   await page.keyboard.press('Control+z'); await settle(page);
-  // a section's items: all off takes the section off
-  await toEditHome(page);
-  // one tagging system: a tag on an item is found like a tag on a bullet
-  await page.evaluate(() => { const w = window.__wb.store; w.commit(d => { const f = d.record.facts.find(x => x.id === d.record.sections.find(s => s.id === 'skills').content.groups[2]); const v = d.record.variants.find(x => x.id === f.variants[0]); v.tags = [...(v.tags ?? []), 'zz-everything']; }, 'seed'); });
-  await settle(page); await page.evaluate(() => { if (!document.querySelector('#lens')) document.querySelector('[data-act=tailor-toggle]')?.click(); }); await settle(page);
-  ok('the lens lists that tag with the others, in the one list', await page.evaluate(() => [...document.querySelectorAll('#lens optgroup')[1].children].some(o => o.value === 'zz-everything')));
-  await pickOption(page, '#lens', 'zz-everything'); await settle(page);
-  ok('choosing it highlights the skill group on the page, and dims the rest', (await frameDoc(page, d => d.querySelectorAll('.skills__items.rb-hit').length)) === 1);
-  await pickOption(page, '#lens', ''); await settle(page);
   ok('no console errors', bad.length === 0, bad[0] ?? '');
   await ctx.close();
 }
@@ -4364,13 +4330,8 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.click('#docname-btn'); await page.click('[data-act=sw-new]'); await settle(page);
     const order2 = await page.evaluate(() => [...document.querySelectorAll('#body .lbl')].map(l => l.textContent.trim().toLowerCase()));
     const ix = k => order2.findIndex(x => x.includes(k));
-    ok(`${tag}: New resume asks in this order: Job type, Start from, Name, For, Language, Paper`, ix('job type') < ix('start from') && ix('start from') < ix('name') && ix('name') < ix('for') && ix('for') < ix('language') && ix('language') < ix('paper'), order2.join(' | '));
-    ok(`${tag}: …and the greyed "Bullets for this job type" says why`, /Pick a job type first/.test(await page.textContent('.startopt.is-off')));
+    ok(`${tag}: New resume asks in this order: For, Start from, Name, Language, Paper`, ix('for') === 0 && ix('for') < ix('start from') && ix('start from') < ix('name') && ix('name') < ix('language') && ix('language') < ix('paper'), order2.join(' | '));
     await page.keyboard.press('Escape'); await settle(page);
-
-    // ---- Highlight ----
-    await toEditHome(page); await page.evaluate(() => { if (!document.querySelector('#lens')) document.querySelector('[data-act=tailor-toggle]')?.click(); }); 
-    ok(`${tag}: Highlight reads "Highlight bullets for" and the button "Select these…"`, /Highlight bullets for/i.test(await page.textContent('.lensrow .lt')) && /Select these…/.test(await page.textContent('[data-act=lens-apply]')));
 
     ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');
     await ctx.close();
@@ -4484,7 +4445,7 @@ if (want('accessibility: axe-core on every view')) {
       await page.click('#switcher [data-act=sw-manage]'); await settle(page); await runAxe(page, 'the Library');
       await pickOption(page, '#scr-group', 'date'); await settle(page); await runAxe(page, 'the Library by date');
       await page.click('#resumes [data-act=scr-list]'); await settle(page); await runAxe(page, 'the Library as a list'); await page.click('#resumes [data-act=scr-cards]'); await settle(page);
-      await pickOption(page, '#scr-group', 'type'); await page.check('#resumes .rcard .rtick >> nth=0'); await page.check('#resumes .rcard .rtick >> nth=1'); await page.click('#scr-cmp'); await settle(page); await runAxe(page, 'Compare, a mode of the Library');
+      await pickOption(page, '#scr-group', 'role'); await page.check('#resumes .rcard .rtick >> nth=0'); await page.check('#resumes .rcard .rtick >> nth=1'); await page.click('#scr-cmp'); await settle(page); await runAxe(page, 'Compare, a mode of the Library');
       await page.keyboard.press('e'); await settle(page);
       await page.click('[data-act=menu]'); await runAxe(page, 'the ⋯ menu'); await page.keyboard.press('Escape');
       await page.click('#corner [data-act=corner]'); await runAxe(page, 'the "?" corner'); await page.click('.cornermenu [data-act=help]'); await settle(page); await runAxe(page, 'the shortcut sheet');
@@ -4708,17 +4669,9 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
     await page.waitForTimeout(900); docs.unfitted = await doc();
     got.chipGone = await page.evaluate(() => !document.querySelector('.fitchip'));
     await page.keyboard.press('Control+Shift+z'); await page.waitForTimeout(1200); docs.refitted = await doc();
-    // the lens: the matching lines brighten, then Apply: lines join and leave
     await page.mouse.move(4, 4);
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
     await page.evaluate(() => window.__wb.dock.setMode('outline')); await settle(page);
-    await page.evaluate(() => { if (!document.querySelector('#lens')) document.querySelector('[data-act=tailor-toggle]')?.click(); }); await settle(page);
-    const type = await page.evaluate(() => [...document.querySelectorAll('#lens option')].map(o => o.value).find(v => v)); await clear();
-    await pickOption(page, '#lens', type); await page.waitForTimeout(400);
-    got.lens = await names(); docs.lens = await doc(); await clear();
-    await page.click('[data-act=lens-apply]'); await page.click('[data-act=focus-apply]'); await page.waitForTimeout(250);
-    got.apply = await names(); await page.waitForTimeout(700); docs.applied = await doc();
-    await pickOption(page, '#lens', ''); await settle(page);
     // a tick in the Record tab: the line travels (and the first time, one line makes the trip on its own)
     await page.evaluate(() => localStorage.removeItem('rb-cl-hint'));
     await page.keyboard.press('r'); await page.waitForTimeout(900);
@@ -4769,7 +4722,6 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
   const A = await walk(false), B = await walk(true);
   ok('with motion: a version under the pointer moves its words, and the lines below slide', has(A.got.hover, 'hover:') && A.got.hoverRunning > 0, A.got.hover.join());
   ok('with motion: a saved version slides into its list', has(A.got.version, 'version:in'));
-  ok('with motion: the lens brightens the lines it picks, and Apply slides the joining lines in and folds the leaving ones away', has(A.got.lens, 'lens:hit') && has(A.got.apply, 'apply:'), JSON.stringify([A.got.lens, A.got.apply]));
   ok('with motion: a page that overflows fades its dashed edge in', A.got.overflow === 'ovIn', String(A.got.overflow));
   ok('with motion: Fit crossfades the swapped lines, folds the dropped ones, fills the meter, and leaves a chip with Undo', has(A.got.fit, 'fit:', 'chip:in') && /·|shorter|left out|swapped/.test(A.got.chip ?? '') || A.got.chip === null && has(A.got.fit, 'fit:'), JSON.stringify([A.got.fit, A.got.chip]));
   ok('…the chip says what Fit did in the interface language’s words, never a key', !/^ux4\./.test(A.got.chip ?? ''), A.got.chip ?? '');
@@ -7655,37 +7607,35 @@ if (want('native controls: every select, date and colour is the app’s own')) f
   const bad = await open(page, undefined, { drink, theme });
   const tag = `${drink} ${theme}`;
   // a token as it is where the control is (the Tea panels set their own): a probe next to the button or the list
-  const token = (t, prop = 'backgroundColor', at = '.ddbtn, #mp-menu, .ddpop, .sgpop') => page.evaluate(([t, prop, at]) => { const e = document.createElement('i'); e.style[prop === 'color' ? 'color' : 'backgroundColor'] = `var(${t})`; (document.querySelector(at)?.parentElement ?? document.body).append(e); const v = getComputedStyle(e)[prop]; e.remove(); return v; }, [t, prop, at]);
+  const token = (t, prop = 'backgroundColor', at = '.ddbtn, #mp-menu, .ddpop') => page.evaluate(([t, prop, at]) => { const e = document.createElement('i'); e.style[prop === 'color' ? 'color' : 'backgroundColor'] = `var(${t})`; (document.querySelector(at)?.parentElement ?? document.body).append(e); const v = getComputedStyle(e)[prop]; e.remove(); return v; }, [t, prop, at]);
   const native = () => page.evaluate(() => ({ native: document.querySelectorAll('input[type=month], input[type=date], input[type=time], input[type=color], input[type=datetime-local], input[type=week], datalist, input[list]').length, bare: [...document.querySelectorAll('select')].filter(x => !x.hidden || !x._dd?.isConnected || x._dd.nextElementSibling !== x).length, selects: document.querySelectorAll('select').length }));
   ok(`${tag}: the page's form controls follow the theme: color-scheme is ${theme}`, await page.evaluate(t => getComputedStyle(document.documentElement).colorScheme === t, theme));
   await page.evaluate(() => window.__wb.setView('settings')); await settle(page);
   ok(`${tag}: a range slider has an accent colour, not the browser's own`, await page.evaluate(() => { const r = document.querySelector('#zw'); return !!r && getComputedStyle(r).accentColor !== 'auto'; }));
-  // the Outline's Highlight select: a button and the app's list
-  await page.evaluate(() => window.__wb.setView(null)); await settle(page);
-  await page.evaluate(() => { if (!document.querySelector('#lens')) document.querySelector('[data-act=tailor-toggle]')?.click(); }); await settle(page);
-  const b = '.ddbtn[data-ddf=lens]';
-  ok(`${tag}: the Highlight select is hidden and its button is a secondary press in the input's own colours`, await page.evaluate(() => getComputedStyle(document.querySelector('#lens')).display === 'none') && await page.$eval(b, e => e.dataset.tier === 'secondary' && e.classList.contains('press') && e.getAttribute('aria-haspopup') === 'listbox') && (await page.$eval(b, e => getComputedStyle(e).backgroundColor)) === await token('--input'));
+  // New resume's For select: a button and the app's list
+  await page.evaluate(() => window.__wb.setView('new')); await settle(page);
+  const b = '.ddbtn[data-ddf=nv-kind]';
+  ok(`${tag}: the For select is hidden and its button is a secondary press in the input's own colours`, await page.evaluate(() => getComputedStyle(document.querySelector('#nv-kind')).display === 'none') && await page.$eval(b, e => e.dataset.tier === 'secondary' && e.classList.contains('press') && e.getAttribute('aria-haspopup') === 'listbox') && (await page.$eval(b, e => getComputedStyle(e).backgroundColor)) === await token('--input'));
   await page.click(b); await settle(page);
-  const m = await page.evaluate(() => { const l = document.querySelector('.ddpop'), c = l && getComputedStyle(l), o = [...(l?.querySelectorAll('.ddopt') ?? [])]; return { role: l?.getAttribute('role'), bg: c?.backgroundColor, ink: c?.color, n: o.length, sel: o.filter(x => x.getAttribute('aria-selected') === 'true').length, tiers: [...new Set(o.map(x => x.dataset.tier))].join(), expanded: document.querySelector('.ddbtn[data-ddf=lens]').getAttribute('aria-expanded'), groups: l?.querySelectorAll('[role=group]').length, inside: l ? (() => { const r = l.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; })() : false }; });
-  ok(`${tag}: the open list is the app's own card: a listbox in the pop-up colours, one row selected, rows tertiary presses, inside the window`, m.role === 'listbox' && m.bg === await token('--pop', 'backgroundColor', '.ddpop') && m.ink === await token('--ink', 'color', '.ddpop') && m.n >= 3 && m.sel === 1 && m.tiers === 'tertiary' && m.expanded === 'true' && m.inside, JSON.stringify(m));
-  ok(`${tag}: its groups (the job types and the tags) are groups of the list`, m.groups === 2, String(m.groups));
+  const m = await page.evaluate(() => { const l = document.querySelector('.ddpop'), c = l && getComputedStyle(l), o = [...(l?.querySelectorAll('.ddopt') ?? [])]; return { role: l?.getAttribute('role'), bg: c?.backgroundColor, ink: c?.color, n: o.length, sel: o.filter(x => x.getAttribute('aria-selected') === 'true').length, tiers: [...new Set(o.map(x => x.dataset.tier))].join(), expanded: document.querySelector('.ddbtn[data-ddf=nv-kind]').getAttribute('aria-expanded'), groups: l?.querySelectorAll('[role=group]').length, inside: l ? (() => { const r = l.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; })() : false }; });
+  ok(`${tag}: the open list is the app's own card: a listbox in the pop-up colours, one row selected, rows tertiary presses, inside the window`, m.role === 'listbox' && m.bg === await token('--pop', 'backgroundColor', '.ddpop') && m.ink === await token('--ink', 'color', '.ddpop') && m.n >= 2 && m.sel === 1 && m.tiers === 'tertiary' && m.expanded === 'true' && m.inside, JSON.stringify(m));
   await page.keyboard.press('ArrowDown');      // the open list starts on the chosen row
   const second = await page.evaluate(() => document.activeElement?.dataset.i);
   await page.keyboard.press('Escape'); await settle(page);
-  ok(`${tag}: ↓ moves in the list, Esc closes it and the focus goes back to the button`, second === '1' && !(await page.$('.ddpop')) && await page.evaluate(() => document.activeElement?.dataset.ddf === 'lens' && document.querySelector('.ddbtn[data-ddf=lens]').getAttribute('aria-expanded') === 'false'));
+  ok(`${tag}: ↓ moves in the list, Esc closes it and the focus goes back to the button`, second === '1' && !(await page.$('.ddpop')) && await page.evaluate(() => document.activeElement?.dataset.ddf === 'nv-kind' && document.querySelector('.ddbtn[data-ddf=nv-kind]').getAttribute('aria-expanded') === 'false'));
   await page.focus(b); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Tab'); await settle(page);
-  ok(`${tag}: Tab in the open list closes it and goes on from the button (the focus is not lost)`, await page.evaluate(() => !document.querySelector('.ddpop') && document.activeElement !== document.body && !document.activeElement.classList.contains('ddopt') && document.activeElement !== document.querySelector('.ddbtn[data-ddf=lens]')));
-  await page.evaluate(() => { window.__chg = 0; document.querySelector('#lens').addEventListener('change', () => window.__chg++); });
+  ok(`${tag}: Tab in the open list closes it and goes on from the button (the focus is not lost)`, await page.evaluate(() => !document.querySelector('.ddpop') && document.activeElement !== document.body && !document.activeElement.classList.contains('ddopt') && document.activeElement !== document.querySelector('.ddbtn[data-ddf=nv-kind]')));
+  await page.evaluate(() => { window.__chg = 0; document.querySelector('#nv-kind').addEventListener('change', () => window.__chg++); });
   await page.focus(b); await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter'); await settle(page);
-  ok(`${tag}: ↓ on the button opens the list, ↓ and Enter choose: the select has the value, fired change once, and the button shows it`, await page.evaluate(() => { const s = document.querySelector('#lens'); return s.selectedIndex === 1 && window.__chg === 1 && document.querySelector('.ddbtn[data-ddf=lens] .ddt').textContent.trim() === s.selectedOptions[0].textContent.trim(); }));
-  await pickOption(page, '#lens', ''); await settle(page);
+  ok(`${tag}: ↓ on the button opens the list, ↓ and Enter choose: the select has the value, fired change once, and the button shows it`, await page.evaluate(() => { const s = document.querySelector('#nv-kind'); return s.selectedIndex === 1 && window.__chg === 1 && document.querySelector('.ddbtn[data-ddf=nv-kind] .ddt').textContent.trim() === s.selectedOptions[0].textContent.trim(); }));
+  await pickOption(page, '#nv-kind', 'company'); await settle(page);
   // every select on these screens is dressed, and no native date, month, colour or datalist is left
   const seen = {};
   for (const v of ['new', 'sent', 'settings', 'design', 'export', 'resumes']){ await page.evaluate(v => window.__wb.setView(v), v); await settle(page); const n = await native(); seen[v] = n; }
   await page.evaluate(() => window.__wb.dock.setMode('record')); await settle(page);
   await page.click('[data-act=c-pop]'); await settle(page); await page.click('.addm [data-what=project]'); await settle(page);
   seen.project = await native();
-  ok(`${tag}: no native date, month, colour or datalist control on the new-project form, Mark as sent, Settings, Design, Export or the Library, and every select there is hidden behind its button`, Object.values(seen).every(n => n.native === 0 && n.bare === 0) && seen.project.selects >= 1 && seen.new.selects >= 3, JSON.stringify(seen));
+  ok(`${tag}: no native date, month, colour or datalist control on the new-project form, Mark as sent, Settings, Design, Export or the Library, and every select there is hidden behind its button`, Object.values(seen).every(n => n.native === 0 && n.bare === 0) && seen.project.selects >= 1 && seen.new.selects >= 2, JSON.stringify(seen));
   await page.click('.ddbtn[data-ddf=c-during]'); await settle(page);
   ok(`${tag}: the new-project form's “Done during” is the app's list too`, await page.evaluate(() => !!document.querySelector('.ddpop [role=option]') && getComputedStyle(document.querySelector('.ddpop')).position === 'fixed'));
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
@@ -7707,18 +7657,6 @@ if (want('native controls: every select, date and colour is the app’s own')) f
   ok(`${tag}: any colour is a hex field under the swatches, and a valid code sets the accent`, (await page.evaluate(() => window.__wb.store.state.cur.accent)) === '#336699' && (await page.getAttribute('#d-color', 'aria-invalid')) !== 'true');
   await page.fill('#d-color', 'blue'); await page.keyboard.press('Tab'); await settle(page);
   ok(`${tag}: …and a code that is not one is marked and changes nothing`, (await page.getAttribute('#d-color', 'aria-invalid')) === 'true' && (await page.evaluate(() => window.__wb.store.state.cur.accent)) === '#336699');
-  // the suggestions under a tag box: the app's own card
-  await page.evaluate(() => window.__wb.setView(null)); await settle(page);
-  await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
-  const u0 = await page.evaluate(() => window.__wb.store.history.undo);
-  await page.click('.vrow.cur .tag-in').catch(() => page.focus('.tag-in'));
-  await page.keyboard.type('a'); await settle(page);
-  const uTyped = await page.evaluate(() => window.__wb.store.history.undo);
-  const sg = await page.evaluate(() => { const l = document.querySelector('.sgpop'); return { n: l?.querySelectorAll('.ddopt').length ?? 0, bg: l && getComputedStyle(l).backgroundColor, focus: document.activeElement?.classList.contains('tag-in') }; });
-  ok(`${tag}: typing in a tag box offers the tags that contain it in the app's own card, and the box keeps the focus`, sg.n >= 1 && sg.bg === await token('--pop', 'backgroundColor', '.sgpop') && sg.focus && !(await page.$('datalist')), JSON.stringify(sg));
-  await page.click('.sgpop .ddopt >> nth=0'); await settle(page);
-  const u1 = await page.evaluate(() => window.__wb.store.history.undo);
-  ok(`${tag}: a click on a suggestion tags the version (one undo step) and closes the card`, u1 === u0 + 1 && !(await page.$('.sgpop')), `${u0} -> typed ${uTyped} -> ${u1}, card ${!!(await page.$('.sgpop'))}`);
   // the first-visit questions: the job's dates are the app's month picker too (not the browser's month inputs)
   const pw = await ctx.newPage();
   const badW = await open(pw, '?memory&welcome', { drink, theme });
