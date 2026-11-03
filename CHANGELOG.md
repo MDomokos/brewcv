@@ -36,20 +36,26 @@
 - **A PDF with an unusual layout can be set right by hand:** drag the lines to where the header ends and the columns split, and the page is read again at once.
 - **A cover letter goes to the Library, not your career,** with the sentences none of your lines covers listed to place if you want.
 - **A JSON Resume made elsewhere is checked word by word against the file it was read from.** A text that isn't there starts unticked, with the file's nearest line beside it; AGENTS.md has a prompt for making one.
-- **Opening another copy of your career file merges the two by itself.** Each line says what was kept, what you deleted stays deleted, and Undo brings the other back.
 - **The Library keeps every imported and exported file beside your saved resumes,** previews PDFs page by page, and can rebuild an old resume as a BrewCV one.
 - **Rounds group one period of applying, such as "Spring 2027".** Older rounds fold away, and a round can be archived and brought back.
 - **Removing a file or its duplicate copies makes a checkpoint first, and a removed file can be brought back.** An original goes only once Check a saved file has found it in a file you saved.
 - **A linked folder becomes your job-search folder:** BrewCV keeps its own files in a BrewCV folder and files your documents in Documents, by search and company. Your own files stay where they are.
 - **Files dropped in BrewCV/Inbox are read when you open the app.**
-- **Several devices can share the linked folder through a sync app such as Syncthing,** and their changes are merged by themselves.
 - **Organise the folder moves resume files from elsewhere in it into Documents,** checking each copy before the old file goes, with Undo.
 - **Choose where in the linked folder your documents go.** Changing it moves nothing.
 - **In the desktop app, Save as PDF opens in the document's own folder.**
 
+### Sync
+- **Work on two devices with no connection between them, and bring them together later.** Open one device's saved file on the other and the two careers merge by themselves: every change from either side is kept, what you deleted stays deleted, and when both changed the same line the newer edit wins and the other is listed. Undo brings the other copy back.
+- **Or let a sync app you already use carry the linked folder between devices,** such as Syncthing, Dropbox, iCloud Drive or Synology Drive. There is no BrewCV account or server: your career travels only through the tool you chose.
+- **Each device writes only its own file in the folder,** so two devices never overwrite each other, even when both were offline and saved at the same time. Whichever order the changes arrive in, every device ends with the same career.
+- **The conflict copies a sync app leaves are merged in and cleared away** instead of piling up beside your files. They wait in BrewCV/Deleted for 30 days.
+- **A file still arriving waits until it is complete,** and a sync app's temporary and lock files are never read, so a half-synced folder can't damage your career.
+- **Changes made to the folder outside BrewCV are picked up:** a file edited, moved, renamed or deleted by you or another program.
+- **Two windows on one device take turns writing,** and a window that can't write to the linked folder says so before it asks anything.
+
 ### Changed
 - **A full browser says so, and nothing is lost:** save to file, then free some space.
-- **A window that can't write to the linked folder says so before it asks anything.**
 
 ### Fixed
 - **An opened file can't add links other than web, email and phone ones.**
