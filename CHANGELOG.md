@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.8.1 - 2026-11-03
 
 ### Added
 - **Export is a place of its own:** the Export button on the name card opens it for the open resume, or for every resume ticked in the Library, and several files download as one .zip.
