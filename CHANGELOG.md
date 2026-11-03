@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.3 - 2026-11-03
+
+### Changed
+- **A resume is named from its position and workplace, with an optional short word:** "Design Engineer, Example Instruments · EU". New resume and Rename ask for those, and the Library list reads the same way: Role, Company, Name.
+- **A click in the Library only selects a resume;** Enter, a double click or Open opens it.
+- **The Library's side panel shows the selected resume's pages and what its card does not say,** without scrolling: Open and Use for a new job, its language (a switch when it has copies in other languages), when it changed, where it came from and its round, with its sent copies and files folded. The pages grow larger when the pointer rests on them.
+- **Undo and redo sit at the foot of the rail.** With the sidebar folded, the rail is two cards: Export, Content and Look at the top, undo and redo at the foot.
+
+### Fixed
+- **Long roles and companies in the Library list** wrap instead of being cut off.
+- **The version list beside a line being written** is no longer cut off by the sidebar, and a short list shows every number.
+
 ## 1.8.2 - 2026-11-03
 
 ### Changed
