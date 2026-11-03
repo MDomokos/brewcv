@@ -178,8 +178,8 @@ export function initOnPage(C){
   function capStacks(l, b){
     const v = canvas.view ?? { top: 0, height: innerHeight }, r = b.getBoundingClientRect();
     const up = l.querySelector('.obvstack.up'), dn = l.querySelector('.obvstack.dn');
-    if (up){ up.style.maxHeight = `${Math.max(28, r.top - (v.top + 6))}px`; up.scrollTop = up.scrollHeight; }      // the nearest lower version stays by the pill
-    if (dn){ dn.style.maxHeight = `${Math.max(28, v.top + v.height - 56 - r.bottom)}px`; dn.scrollTop = 0; }
+    if (up){ up.style.maxHeight = `${Math.max(Math.min(up.scrollHeight, 96), r.top - (v.top + 6))}px`; up.scrollTop = up.scrollHeight; }      // the nearest lower version stays by the pill
+    if (dn){ dn.style.maxHeight = `${Math.max(Math.min(dn.scrollHeight, 96), v.top + v.height - 56 - r.bottom)}px`; dn.scrollTop = 0; }
   }
   // end: the preview goes too (not when a version was just chosen: the choice takes the page over)
   function closeVers({ end = true, back = false } = {}){
@@ -245,9 +245,9 @@ export function initOnPage(C){
       const pw = tw.querySelector('.obvwrap, .obv')?.offsetWidth ?? twW, x = Math.max(edgeR.left + 8, ring ? ring.left + ring.width + 4 : 0);
       let left = Math.max(sr.left + sr.width + 6 > x ? sr.left + sr.width + 6 : x, 6);
       if (left + pw + 3 > room) left = Math.max(6, sr.left - twW - 6);
-      // what runs past the sidebar's rail is hidden: the arrows go behind the editor (the layer is under the sidebar, but the rail's empty height shows through)
+      // what runs past the sidebar's rail is hidden (sideways only, so the open list keeps its height): the arrows go behind the editor (the layer is under the sidebar, but the rail's empty height shows through)
       const rl = document.querySelector('#rail')?.getBoundingClientRect(), cut = rl && rl.width ? Math.max(room, rl.left) : room, over = left + twW - cut;
-      tw.style.clipPath = over > 0 ? `inset(-6px ${Math.ceil(over)}px -6px -6px)` : '';
+      tw.style.clipPath = over > 0 ? `inset(-9999px ${Math.ceil(over)}px -9999px -9999px)` : '';
       Object.assign(tw.style, { left: `${left}px`, top: `${Math.max(6, sr.top - 4)}px` });
     } else if (tw) tw.style.display = 'none';
     frameNow = geom.job && (lvl === 'job' || lvl === 'line') ? R(lvl === 'job' ? fit(geom.job, off('job')) : pad(geom.job, off('job'))) : R(fit(geom.sec ?? geom.job ?? geom.line, secPad()));      // a line's frame is its job's ring, at its full stand-off

@@ -6238,6 +6238,7 @@ if (want('the version tag beside a line is a control')) for (const motion of [fa
     return { hit, geo: [f.left, f.top, f.width, f.height, w.canvas.cam.k, w.canvas.cam.x, w.canvas.cam.y].join() };
   });
   ok(`${tag}: the list covers no printed text and the page does not move`, cover.hit === 0 && cover.geo === geo0, JSON.stringify(cover));
+  ok(`${tag}: every number of a short list is shown whole, not cut off or under the sidebar`, await page.evaluate(() => [...document.querySelectorAll('#editlay .obvopt')].every(o => { const r = o.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === o; })) || n > 3);
   for (let i = 0; i < n; i++) {
     const o = opts.nth(i), vid = await o.getAttribute('data-v');
     if (!vid) continue;
