@@ -1,6 +1,6 @@
 // The Library place and its Compare mode. The Library holds every resume as a card with a picture of its first page
-// (thumbs.js) and the information beside it; one card is selected (the open resume at first: Enter on it opens it, as a second click on it
-// does); tick any number and compare them in a table with a column for each. Drawn left of the sidebar (a phone: the whole screen); Esc goes
+// (thumbs.js) and the information beside it; a click selects a card (the open resume at first), and Enter, a double click or the inspector's
+// Open opens it; tick any number and compare them in a table with a column for each. Drawn left of the sidebar (a phone: the whole screen); Esc goes
 // up one level (Compare to the grid, then the selection), never to another place. The model is src/model/resumes.js; the row menu, rename,
 // Duplicate and Delete are resumes.js's, and the resume list's search and views are here.
 
@@ -9,8 +9,7 @@ import * as DOC from '../model/documents.js';
 import { pendingEdits } from '../model/resume.js';
 import { langName } from '../model/lang.js';
 import { t, h, errText } from '../i18n/index.js';
-import { pageSize, computeLayout } from './layout.js';
-import { side } from './sidewidth.js';
+import { pageSize } from './layout.js';
 import { play, reduced } from './motion.js';
 import { nameHtml } from './switcher.js';
 import { icon, withArrows } from './icons.js';
@@ -28,7 +27,7 @@ const LIST_KEY = 'rb-manage-list', savedList = () => { try { return localStorage
 // showArchived: archived resumes, documents and rounds are in the views; fold: the rounds the person opened or shut; roundForm: the form of "Start a new round" is open, with what was typed
 // list: the Library as a table (remembered; a phone keeps the cards); open: the resumes whose sent copies and files are unfolded in it
 // fam: each item's resume and its language copies, by the item's id (as drawn); lang: the language picked on an item's chips; gs: the document groups drawn
-const V = { hits: new Map(), view: savedView(), ticked: new Set(), cmp: [], sel: null, nj: null, draft: new Map(), sentOnly: false, rows: [], focus: -1, showArchived: false, fold: new Map(), roundForm: false, roundDraft: '', list: savedList(), open: new Set(), fam: new Map(), lang: new Map(), gs: [] };
+const V = { hits: new Map(), view: savedView(), ticked: new Set(), cmp: [], sel: null, nj: null, draft: new Map(), sentOnly: false, rows: [], focus: -1, showArchived: false, fold: new Map(), det: new Set(), roundForm: false, roundDraft: '', list: savedList(), open: new Set(), fam: new Map(), lang: new Map(), gs: [] };
 const phone = () => document.body.dataset.phone === 'true';
 const listing = () => V.list && !phone();
 // what hides items: Sent only, the claim and the search (files just added are shown)
@@ -59,7 +58,7 @@ function itemOf(key){
 const sentDate = s => s.sends.at(-1)?.date || s.at.slice(0, 10);
 const recipeOf = key => itemOf(key)?.recipe ?? null;
 const ratio = format => { const { w, h: ph } = pageSize(format); return `${w} / ${ph}`; };
-const thumb = (key, format) => `<span class="rthumb" data-thumb="${esc(key)}" style="aspect-ratio:${ratio(format)}"></span>`;
+const thumb = (key, format, page = 0) => `<span class="rthumb" data-thumb="${esc(key)}" ${page ? `data-page="${page}"` : ''} style="aspect-ratio:${ratio(format)}"></span>`;
 
 // ---- the Library ----
 const metaParts = r => [r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'), (r.lang ?? 'en').toUpperCase(),
@@ -241,7 +240,7 @@ const dd = (id, key, at, opts) => `<select id="${id}" data-named aria-label="${e
 const showOf = () => (V.sentOnly ? 'sent' : V.showArchived && anyArchived() ? 'archived' : 'all');
 const sw = (a, ic, key, on) => `<button type="button" data-act="${a}" aria-pressed="${on}" title="${esc(t(key))}" aria-label="${esc(t(key))}">${icon(ic)}</button>`;
 function resumesView(){
-  hidePreview(); endGrow();
+  hidePreview();
   return `<section class="scrn" id="resumes" aria-label="${esc(t('ux6h.allResumes'))}">
     <div class="scrhead tbar">${phone() ? `<button class="sm scrback" data-act="scr-back">${withArrows(h('ux1.backToResume'))}</button>` : ''}
       <input id="scr-q" type="search" class="sw-q" aria-label="${esc(t('ux6h.search'))}" placeholder="${esc(t('ux6h.search'))}" value="${esc(F.q)}" autocomplete="off">
@@ -275,7 +274,7 @@ function refreshTicks(){
   if (hint) hint.innerHTML = hintHtml();
   const strip = document.getElementById('istrip'); if (strip) strip.outerHTML = stripHtml(selId());
   C.renderHead();
-  for (const b of document.querySelectorAll('#body [data-act=nj-open], #body [data-act=nj-create]')){ b.dataset.tier = prim().t; b.classList.toggle('primary', !!prim().c); }
+  for (const b of document.querySelectorAll('#body .iopen, #body [data-act=nj-create]')){ b.dataset.tier = prim().t; b.classList.toggle('primary', !!prim().c); }
   for (const c of document.querySelectorAll('#scr-list :is(.rcard, .rline)')) c.classList.toggle('ticked', V.ticked.has(c.dataset.rid));      // a document has no tick
   for (const c of document.querySelectorAll('#scr-list .rlang')) c.classList.toggle('ticked', V.ticked.has(c.dataset.id));
 }
@@ -297,14 +296,13 @@ function clearSel(){
 // ---- the inspector: the selected resume, or the open one, in the editor panel's place ----
 function resumeInspector(){
   const r = RS.savedOf(st(), selId()); if (!r) return `<p class="muted">${h('ux1.noneYet')}</p>`;
-  const open = r.id === st().openId, p = RS.parentOf(st(), r), snaps = RS.snapshotsOf(r);
+  const open = r.id === st().openId, p = RS.parentOf(st(), r);
   const guess = !p && RS.closestTo(st(), r, x => RS.printedIds(C.work(), x))?.r;
-  const from = p || guess, last = snaps.at(-1);
-  const diffs = from ? RS.differences(C.work(), itemOf(from.id).recipe, itemOf(r.id).recipe) : [];
   const pend = pendingEdits(r).length;
   // its files: the sent copies and the documents of every language of its item, each copy named by its language when there are several
   const fam = famOf(r), many = fam.length > 1, [fsnaps, fdocs] = filesOf(fam);
   const sent = fsnaps.map(([x, s]) => `<li>${sentTick(x, s)}${many ? `<span class="pill">${esc(LC(x))}</span>` : ''}${snapLine(x, s)}</li>`).join('');
+  const newest = fsnaps.map(([, s]) => s).sort((a, b) => sentDate(b).localeCompare(sentDate(a)))[0];      // the latest send of any of its languages
   const docs = fdocs.flatMap(g => g.members.map(m => `<li><button class="sm" data-act="doc-sel" data-id="${esc(g.id)}">${esc(m.name)}</button></li>`)).join('');
   const d = V.draft.get(r.id) ?? {};
   const nj = V.nj === r.id ? `<div class="njform" role="group" aria-label="${esc(t('ux6h.newJob'))}">
@@ -312,33 +310,30 @@ function resumeInspector(){
       <label>${h('ux6h.role')}<input id="nj-role" type="text" autocomplete="off" value="${esc(d.role ?? r.role ?? '')}"></label>
       <p class="small muted">${h('ux6h.njNote', { name: label(r) })}</p>
       <div class="btns"><button ${pressOf()} data-act="nj-create" data-id="${esc(r.id)}">${h('ux6h.njCreate')}</button><button class="ghost" data-act="nj-cancel">${h('ux6h.cancel')}</button></div></div>` : '';
-  const g = RS.glance(C.work(), itemOf(r.id).recipe);
-  const more = (list, n) => (list.length > n ? `<details class="imore"><summary>${h('ux6h.more', { n: list.length - n })}</summary><ul>${list.slice(n).map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '');
+  const openBtn = `class="iopen press ${prim().c}" data-tier="${prim().t}" ${open ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(r.id)}"`}`;
+  // its pages, every one, scrolled in place, as tall as they are or what the rest leaves (resting on them shows them large; looking is not opening: Open, Enter
+  // or a double click on its card is); then Open and Use for a new job, the most used, on their own line; then what its card does not say:
+  // its language (a switch between its language copies), when it last changed, where it came from, its round, and its sent copies and files folded
   return `<section class="insp insp-res" aria-label="${esc(label(r))}">
     ${stripHtml(r.id)}
-    <div class="ihero">
-      <button class="ihpage" tabindex="-1" ${open ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(r.id)}"`} aria-label="${esc(t('ux6e.open', { name: label(r) }))}">${thumb(r.id, r.format)}</button>
-    </div>
-    <div class="ihcap"><span class="lbl">${h(open ? 'ux6h.openNow' : 'ux6h.selected')}${many ? ` · ${esc(langName(r.lang ?? 'en'))}` : ''}</span><h2 class="oi-name">${esc(label(r))}</h2><p class="small">${esc(metaOf(r))}${pend ? ` · ${h('ux6e.pending', { n: pend })}` : ''}</p></div>
-    ${nj || `<div class="btns iacts"><button ${pressOf()} data-act="nj-open" data-id="${esc(r.id)}">${h('ux6h.newJob')}</button>${open ? `<button data-act="place" data-p="editor">${h('ux6h.keepEditing')}</button>` : `<button data-act="sw-open" data-id="${esc(r.id)}">${h('ux6e.openBtn')}</button>`}<span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span>${r.archived ? `<button class="sm" data-act="rm-archive" data-id="${esc(r.id)}" data-on="0">${h('i7.unarchive')}</button>` : ''}</div>`}
-    ${(st().rounds ?? []).length ? `<label class="field"><span class="lbl">${h('i7.round')}</span><select data-res-round="${esc(r.id)}" aria-label="${esc(t('i7.round'))}">${roundOpts(r.round)}</select></label>` : ''}
+    <div class="ihero" data-id="${esc(r.id)}"><div class="ihpage">${thumb(r.id, r.format)}</div><div class="ihpage ihmore"></div></div>
+    ${nj || `<div class="btns iacts"><button ${openBtn}>${h(open ? 'ux6h.keepEditing' : 'ux6e.openBtn')}</button><button data-act="nj-open" data-id="${esc(r.id)}">${h('ux6h.newJob')}</button><span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span>${r.archived ? `<button class="sm" data-act="rm-archive" data-id="${esc(r.id)}" data-on="0">${h('i7.unarchive')}</button>` : ''}</div>`}
     <dl class="ovw" aria-label="${esc(t('ux6f.overview'))}">
-      <dt>${h('ux6f.ovSent')}</dt><dd>${last ? `<span class="pill">${h('ux6h.sentN', { n: snaps.length })}</span> ${esc([RS.sendLabel(last.sends.at(-1)) || t('ux1.noRecipient'), sentDate(last)].join(' \u00b7 '))}` : esc(t('ux6f.notSent'))}
-        <button class="sm press" data-tier="secondary" data-act="rm-sent" data-id="${esc(r.id)}">${h('ux3b.markSent')}</button></dd>
-      <dt>${h('ux6f.ovFrom')}</dt><dd>${esc(p ? label(p) : guess ? t('ux6e.closest', { name: label(guess) }) : t('ux6f.noParent'))}</dd>
-      <dt>${h('ux6f.ovLang')}</dt><dd>${esc(langName(r.lang ?? 'en'))}</dd>
-      <dt>${h('ux6f.ovPages')}</dt><dd>${esc(r.pageLimit ? t('head.pages', { n: r.pageLimit }) : t('head.anyLength'))}</dd>
-      <dt>${h('ux6f.ovChanged')}</dt><dd>${esc(r.savedAt || '\u2014')}</dd>
+      <dt>${h('ux6f.ovLang')}</dt><dd>${many ? `<span class="ilangs" role="group" aria-label="${esc(t('ux6f.ovLang'))}">${fam.map(x => `<button type="button" class="sm" data-act="scr-lang" data-id="${esc(x.id)}" data-item="${esc(fam[0].id)}" aria-pressed="${x.id === r.id}" lang="${esc(x.lang ?? 'en')}">${esc(langName(x.lang ?? 'en'))}</button>`).join('')}</span>` : esc(langName(r.lang ?? 'en'))}</dd>
+      <dt>${h('ux6f.ovChanged')}</dt><dd>${esc(r.savedAt || '\u2014')}${pend ? ` · ${h('ux6e.pending', { n: pend })}` : ''}</dd>
+      ${p || guess ? `<dt>${h('ux6f.ovFrom')}</dt><dd>${esc(p ? label(p) : t('ux6e.closest', { name: label(guess) }))} <button class="sm" data-act="scr-differs" data-id="${esc(r.id)}">${h('ux6h.compareParent')}</button></dd>` : ''}
+      ${(st().rounds ?? []).length ? `<dt><label for="ir-round">${h('i7.round')}</label></dt><dd><select id="ir-round" data-res-round="${esc(r.id)}">${roundOpts(r.round)}</select></dd>` : ''}
     </dl>
-    <span class="lbl">${h('ux6h.glance')}</span>
-    <dl class="glance">
-      ${g.pitch ? `<dt>${h('ux6h.pitch')}</dt><dd class="gpitch">${esc(g.pitch)}</dd>` : ''}
-      ${g.jobs.length ? `<dt>${h('ux6h.jobs')}</dt><dd><ol class="gjobs">${g.jobs.map(j => `<li><span>${esc(j.name)}</span><small>${h('ux6h.lines', { n: j.n })}</small></li>`).join('')}</ol></dd>` : ''}
-      ${g.skills ? `<dt>${h('ux6h.skills')}</dt><dd>${esc(g.skills)}</dd>` : ''}
-    </dl>
-    ${from ? `<span class="lbl">${h('ux6h.whatDiffers')}</span>${diffs.length ? `<ul class="oi-diff">${diffs.slice(0, 3).map(x => `<li>${esc(x)}</li>`).join('')}</ul>${more(diffs, 3)}` : `<p class="small muted">${h('ux6e.nothing')}</p>`}<button class="sm" data-act="scr-differs" data-id="${esc(r.id)}">${h('ux6h.compareParent')}</button>` : ''}
-    ${sent || docs ? `<div class="ifiles">${sent ? `<span class="lbl">${h('ux6h.sent')}</span><ul class="oi-sent">${sent}</ul>` : ''}${docs ? `<span class="lbl">${h('i7.files')}</span><ul class="oi-files">${docs}</ul>` : ''}</div>` : ''}
+    ${sent ? `<details class="idet" data-k="sent" ${V.det.has('sent') ? 'open' : ''}><summary><span class="pill">${h('ux6h.sentN', { n: fsnaps.length })}</span><span class="small">${esc([RS.sendLabel(newest.sends.at(-1)) || t('ux1.noRecipient'), sentDate(newest)].join(' \u00b7 '))}</span></summary><ul class="oi-sent">${sent}</ul></details>` : ''}
+    ${docs ? `<details class="idet" data-k="files" ${V.det.has('files') ? 'open' : ''}><summary><span class="lbl">${h('i7.files')}</span><span class="pill">${fdocs.reduce((n, g) => n + g.members.length, 0)}</span></summary><ul class="oi-files">${docs}</ul></details>` : ''}
   </section>`;
+}
+// the inspector's later pages, once its first is drawn
+function morePages(key, e){
+  const box = document.querySelector(`#body .ihero[data-id="${CSS.escape(key)}"] .ihmore`);
+  if (!box || box.childElementCount || !(e.srcs?.length > 1)) return;
+  box.innerHTML = e.srcs.slice(1).map((_, i) => thumb(key, e.format, i + 1)).join('');
+  T.fill(box, recipeOf);
 }
 // the inspector is drawn again when the selection or the form changes; the cards keep their pictures. A phone has none (its card has the actions).
 function paintInspector(){
@@ -347,67 +342,9 @@ function paintInspector(){
   const bd = document.getElementById('body');
   if (phone() || !bd) return;
   const ae = document.activeElement, kept = bd.contains(ae) && ae.id ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
-  bd.innerHTML = C.view() === 'compare' ? cmpInspector() : LIB.sel() ? LIB.inspector() : resumeInspector(); T.fill(bd, recipeOf); LIB.after();
+  bd.innerHTML = C.view() === 'compare' ? cmpInspector() : LIB.sel() ? LIB.inspector() : resumeInspector(); T.fill(bd, recipeOf, morePages); LIB.after();
   const n = kept && document.getElementById(kept.id);
   if (n){ n.focus({ preventScroll: true }); try { n.setSelectionRange(kept.a, kept.b); } catch { /* not a text box */ } }
-}
-
-// ---- the selected resume grows out of the inspector to where the editor shows its page, as you scroll over it; far enough, and it opens.
-// It is drawn at its final size from the start and shrunk, so it stays sharp all the way. Scrolling back (or letting go early) returns it.
-// Under reduced motion nothing grows: a click opens. ----
-const X = { p: 0, ghost: null, from: null, to: null, id: null, idle: 0, raf: 0 };
-const ease = p => p * p * (3 - 2 * p);
-// where the editor will draw this resume's first page: its own layout, for this window
-function pageRect(r, pages){
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: r.format, pages, oneUp: r.pageLimit === 1, side: side() }), { w, h } = pageSize(r.format);
-  return { left: L.sheet.left, top: L.sheet.top, width: w * L.fit, height: h * L.fit };
-}
-function drawGrow(){
-  const e = ease(X.p), f = X.from, to = X.to, s0 = f.width / to.width, s = s0 + (1 - s0) * e;
-  const x = f.left + (to.left - f.left) * e, y = f.top + (to.top - f.top) * e, cut = Math.max(0, to.height - f.visible / s0) * (1 - e);
-  X.ghost.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${s.toFixed(4)})`;
-  X.ghost.style.clipPath = `inset(0 0 ${cut.toFixed(1)}px 0)`;
-}
-function startGrow(){
-  const page = document.querySelector('#body .insp-res .ihpage'), r = RS.savedOf(st(), selId());
-  if (!page || !r) return false;
-  const b = page.getBoundingClientRect(), box = page.closest('.ihero').getBoundingClientRect();
-  X.id = r.id; X.to = pageRect(r, Number(page.querySelector('[data-pages]')?.dataset.pages) || 1); X.from = { left: b.left, top: b.top, width: b.width, visible: Math.min(b.height, box.bottom - b.top) };
-  X.ghost = document.createElement('div'); X.ghost.className = 'growpage'; X.ghost.setAttribute('aria-hidden', 'true');
-  X.ghost.style.width = `${X.to.width}px`; X.ghost.innerHTML = thumb(r.id, r.format);
-  document.body.append(X.ghost); T.fill(X.ghost, recipeOf);
-  page.style.visibility = 'hidden';
-  return true;
-}
-function endGrow(){
-  cancelAnimationFrame(X.raf); clearTimeout(X.idle);
-  X.ghost?.remove(); X.ghost = null; X.p = 0;
-  const page = document.querySelector('#body .insp-res .ihpage'); if (page) page.style.visibility = '';
-}
-function settleGrow(to){
-  cancelAnimationFrame(X.raf);
-  const from = X.p, t0 = performance.now(), ms = 240;
-  const step = now => { const k = Math.min(1, (now - t0) / ms); X.p = from + (to - from) * k; drawGrow(); if (k < 1) X.raf = requestAnimationFrame(step); else if (to) openGrown(); else endGrow(); };
-  X.raf = requestAnimationFrame(step);
-}
-function openGrown(){
-  const id = X.id, g = X.ghost;
-  X.ghost = null; X.p = 0; cancelAnimationFrame(X.raf); clearTimeout(X.idle);
-  if (id === st().openId) C.setView(null); else C.resumes.open(id);
-  setTimeout(() => g?.remove(), 450);                 // the editor's page is drawn under it by then, in the same place
-}
-function wheelGrow(e){
-  if (reduced() || C.view() !== 'resumes' || e.ctrlKey || !e.target.closest?.('.insp-res :is(.ihero, .ihcap)')) return;
-  const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
-  if (!X.ghost && dy <= 0) return;                 // scrolling up over a page at rest scrolls nothing
-  e.preventDefault();
-  if (!X.ghost && !startGrow()) return;
-  X.p = Math.max(0, Math.min(1, X.p + dy / 700));
-  drawGrow();
-  clearTimeout(X.idle);
-  if (X.p >= 1) return openGrown();
-  if (X.p <= 0) return endGrow();
-  X.idle = setTimeout(() => settleGrow(X.p > 0.55 ? 1 : 0), 220);
 }
 
 // ---- resting on a card's picture shows its first page large enough to read, beside the card; scrolling over the picture turns the pages ----
@@ -415,7 +352,7 @@ const HV = { t: 0, el: null, card: null, at: 0, n: 1, acc: 0 };
 const railLeft = () => document.getElementById('rail')?.getBoundingClientRect().left ?? innerWidth;
 function hidePreview(){ clearTimeout(HV.t); HV.el?.remove(); HV.el = null; HV.card = null; }
 function showPreview(card){
-  const r = RS.savedOf(st(), card.dataset.rid); if (!r) return;
+  const r = RS.savedOf(st(), card.dataset.rid ?? card.dataset.id); if (!r) return;
   hidePreview(); HV.card = card;
   const { w, h } = pageSize(r.format), H = Math.min(innerHeight - 32, 1120), W = H * w / h, c = card.getBoundingClientRect(), rl = railLeft();
   let left = c.left + c.width / 2 < rl / 2 ? c.right + 12 : c.left - 12 - W;
@@ -424,7 +361,8 @@ function showPreview(card){
   Object.assign(el.style, { left: `${left}px`, top: '16px', width: `${W}px`, height: `${H}px` });
   el.innerHTML = `<div class="hpstrip">${thumb(r.id, r.format)}</div>`;
   document.body.append(el); HV.el = el; HV.at = 0; HV.n = 1; HV.acc = 0; T.fill(el, recipeOf);
-  play(el, [{ transform: 'scale(.97)' }, { transform: 'none' }], { ms: 'fast', name: 'preview:in' });
+  if (card.classList.contains('ihero')){ el.style.transformOrigin = '0 0'; play(el, [{ transform: `translate(${c.left - left}px, ${c.top - 16}px) scale(${c.width / W})`, opacity: .6 }, { transform: 'none', opacity: 1 }], { ms: 'slow', name: 'preview:grow' }); }      // the inspector's pages grow into it
+  else play(el, [{ transform: 'scale(.97)' }, { transform: 'none' }], { ms: 'fast', name: 'preview:in' });
   // a resume of more than one page: every page, stacked; the wheel over the card's picture turns them
   T.entry(recipeOf(r.id)).then(e => {
     if (!e || HV.el !== el || !(e.srcs?.length > 1)) return;
@@ -435,7 +373,7 @@ function showPreview(card){
   });
 }
 function turnPreview(e){
-  if (!HV.el || HV.n < 2 || !e.target.closest?.('.rcard .thumbwrap')) return;
+  if (!HV.el || HV.n < 2 || !e.target.closest?.('.rcard .thumbwrap, .insp-res .ihero')) return;
   e.preventDefault();
   HV.acc += e.deltaY * (e.deltaMode === 1 ? 16 : 1);
   if (Math.abs(HV.acc) < 40) return;
@@ -576,12 +514,11 @@ async function act(a, tg){
     }
     case 'scr-sel': {
       const id = tg.dataset.id;
-      if (selId() === id && !LIB.sel()){ C.resumes.open(id); return true; }      // a second click, or Enter, on the selected card opens it
       LIB.clear(); V.sel = id; paintInspector(); return true;
     }
-    case 'scr-lang': {      // a language of an item: selected, and the item drawn with it; a second click on it opens it
+    case 'scr-lang': {      // a language of an item: selected, and the item drawn with it
       const id = tg.dataset.id, kind = tg.matches('.rlang') ? '.rlang' : 'tr[data-lid] .rsel';
-      if (selId() === id && !LIB.sel()){ C.resumes.open(id); return true; }
+      if (selId() === id && !LIB.sel()) return true;      // drawn already: the chip stays, so a double click on it reaches the list
       LIB.clear(); V.sel = id; V.lang.set(tg.dataset.item, id);
       document.getElementById('scr-list').innerHTML = listHtml(); afterResumes();
       document.querySelector(`#scr-list ${kind}[data-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
@@ -589,8 +526,7 @@ async function act(a, tg){
     }
     case 'scr-files': {      // an item's files: the list unfolds its row; the cards select it and bring the inspector to its files
       if (listing()){ const f = document.querySelector(`#scr-list .rfold[data-id="${CSS.escape(tg.dataset.item)}"]`); if (f) act('scr-fold', f); return true; }
-      LIB.clear(); V.sel = tg.dataset.id; paintInspector();
-      document.querySelector('#body .ifiles')?.scrollIntoView({ block: 'start', behavior: reduced() ? 'auto' : 'smooth' });
+      LIB.clear(); V.sel = tg.dataset.id; V.det.add('sent').add('files'); paintInspector();
       return true;
     }
     case 'nj-open': V.nj = V.sel = tg.dataset.id; paintInspector(); document.getElementById('nj-company')?.focus(); return true;
@@ -624,6 +560,7 @@ async function act(a, tg){
 
 function bind(body){
   LIB.bind(body);
+  body.addEventListener('toggle', e => { if (e.target.matches?.('.idet')) V.det[e.target.open ? 'add' : 'delete'](e.target.dataset.k); }, true);      // a fold opened stays open from resume to resume
   body.addEventListener('toggle', e => { const d = e.target.closest?.('.rround'); if (d) V.fold.set(d.dataset.round || 'earlier', d.open); }, true);      // the folds of the rounds the person opened or shut
   body.addEventListener('change', e => {
     if (e.target.dataset?.resRound !== undefined) return moveTo(e.target.value, [e.target.dataset.resRound]);
@@ -643,15 +580,14 @@ function bind(body){
     F.q = e.target.value;
     document.getElementById('scr-list').innerHTML = listHtml(); afterResumes();
   });
-  body.addEventListener('wheel', wheelGrow, { passive: false });
   body.addEventListener('wheel', turnPreview, { passive: false });
   body.addEventListener('pointerover', e => {
     if (phone() || RD.ghost) return;
-    const w = e.target.closest?.('.rcard .thumbwrap'); if (!w) return;
-    const card = w.closest('.rcard'); if (HV.card === card || card.dataset.did) return;      // a document has no page to show large
+    const w = e.target.closest?.('.rcard .thumbwrap, .insp-res .ihero'); if (!w) return;
+    const card = w.closest('.rcard') ?? w; if (HV.card === card || card.dataset.did) return;      // a document has no page to show large
     clearTimeout(HV.t); HV.t = setTimeout(() => showPreview(card), 350);
   });
-  body.addEventListener('pointerout', e => { const w = e.target.closest?.('.rcard .thumbwrap'); if (w && !w.contains(e.relatedTarget)) hidePreview(); });
+  body.addEventListener('pointerout', e => { const w = e.target.closest?.('.rcard .thumbwrap, .insp-res .ihero'); if (w && !w.contains(e.relatedTarget)) hidePreview(); });
   body.addEventListener('scroll', () => { if (HV.n < 2) hidePreview(); }, true);
   body.addEventListener('pointerdown', hidePreview);
   body.addEventListener('pointerdown', carryCard);
@@ -662,7 +598,8 @@ function bind(body){
   body.addEventListener('click', e => { if (RD.spent){ RD.spent = false; e.stopPropagation(); e.preventDefault(); } }, true);      // the click that ends a carry is not a click
   // a click on a card's picture or its blank space (a row's cells) is a click on the card (its name button takes the rest)
   body.addEventListener('click', e => { const c = e.target.closest?.(':is(.rcard, .rline)'); if (c && !e.target.closest('input, button, select, a, .rowmenu')) c.dataset.did ? act('doc-sel', { dataset: { id: c.dataset.did } }) : act('scr-sel', { dataset: { id: c.dataset.rid } }); });
-  body.addEventListener('dblclick', e => { const c = e.target.closest?.(':is(.rcard, .rline)'); if (c?.dataset.rid && !e.target.closest('input')) C.resumes.open(c.dataset.rid); });
+  // a double click opens it (on a language's chip or row: that language)
+  body.addEventListener('dblclick', e => { const c = e.target.closest?.(':is(.rcard, .rline, tr[data-lid])'), id = e.target.closest?.('[data-act=scr-lang]')?.dataset.id ?? c?.dataset.rid ?? c?.dataset.lid; if (id && !e.target.closest('input')) C.resumes.open(id); });
   body.addEventListener('keydown', e => {
     if (e.target.id === 'rr-name' && (e.key === 'Enter' || e.key === 'Escape')){ e.preventDefault(); e.stopPropagation(); if (e.key === 'Escape' || e.target.value.trim()) renameRound(e.target, e.key === 'Enter'); return; }      // an empty name is not kept
     if (e.target.closest?.('#round-form') && e.key === 'Enter'){ e.preventDefault(); document.querySelector('[data-act=round-create]')?.click(); return; }
@@ -674,10 +611,12 @@ function bind(body){
       else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); if (F.q){ F.q = ''; e.target.value = ''; markRows(); } else C.leave(); }
       return;
     }
-    // the list: ↑ ↓ go from row to row, → and ← unfold and fold a resume's sent copies and files (not the page's keys)
+    // Enter on a card's or a row's name opens it (a click only selects)
+    if (e.key === 'Enter' && e.target.matches?.('#scr-list .rsel:is([data-act=scr-sel], [data-act=scr-lang])')){ e.preventDefault(); C.resumes.open(e.target.dataset.id); return; }
+    // the list: ↑ ↓ go from row to row and select it, → and ← unfold and fold a resume's sent copies and files (not the page's keys)
     if (e.target.matches?.('.rtable .rsel') && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)){
       e.preventDefault(); e.stopPropagation();
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown'){ const all = [...document.querySelectorAll('#scr-list .rtable tr:not([hidden]) .rsel')].filter(b => b.getClientRects().length), i = all.indexOf(e.target); all[i + (e.key === 'ArrowDown' ? 1 : -1)]?.focus(); return; }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown'){ const all = [...document.querySelectorAll('#scr-list .rtable tr:not([hidden]) .rsel')].filter(b => b.getClientRects().length), i = all.indexOf(e.target); const to = all[i + (e.key === 'ArrowDown' ? 1 : -1)]; to?.focus(); if (to) act(to.dataset.act, to); return; }
       const f = e.target.closest('tr').querySelector('.rfold');
       if (f && (f.getAttribute('aria-expanded') === 'true') !== (e.key === 'ArrowRight')) f.click();
       return;

@@ -2143,7 +2143,7 @@ if (want('saved resumes')) {
   ok('the Date view: the year bands, the open resume under Now, newest first', (await page.$$('#resumes h3.lbl')).length >= 1 && /Now/.test(await page.textContent('#resumes h3.lbl')));
   if (await page.$('#resumes .rcard:not(.open):has(.rbadges .pill) .rsel')){ await page.click('#resumes .rcard:not(.open):has(.rbadges .pill) .rsel >> nth=0'); await settle(page); }
   ok('…and the sends of a resume are listed in the inspector, under it', (await page.$$('#body .oi-sent [data-act=sw-snap]')).length >= 1);
-  await page.click('#body .oi-sent [data-act=sw-snap] >> nth=0'); await settle(page);
+  await page.click('#body .idet[data-k=sent] summary'); await page.click('#body .oi-sent [data-act=sw-snap] >> nth=0'); await settle(page);
   ok('a send opens that snapshot, read-only', await page.isVisible('.snapbar') && (await page.evaluate(() => window.__wb.ui.view)) === null);
   await page.click('[data-act=snap-close]'); await settle(page);
   await page.click('#docname-btn'); await settle(page);
@@ -2159,9 +2159,24 @@ if (want('saved resumes')) {
   await page.click('#ptabs [data-p=editor]'); await settle(page);
   await page.click('#ptabs [data-p=library]'); await settle(page);
   await pickOption(page, '#scr-group', 'role'); await settle(page);
-  await page.click('#resumes .rcard[data-rid="Helix Diagnostics - Product Development Engineer.json"] .thumbwrap'); await settle(page);
-  await page.click('#resumes .rcard[data-rid="Helix Diagnostics - Product Development Engineer.json"] .thumbwrap'); await settle(page);
-  ok('clicking a card’s picture selects it, and a second click opens it', /Helix Diagnostics/.test(await page.textContent('#docname')) && (await page.evaluate(() => window.__wb.ui.view)) === null, await page.textContent('#docname'));
+  const helix = '#resumes .rcard[data-rid="Helix Diagnostics - Product Development Engineer.json"]', openNow = () => page.evaluate(() => window.__wb.store.state.openId);
+  const was = await openNow();
+  await page.click(`${helix} .thumbwrap`); await settle(page);
+  await page.click(`${helix} .thumbwrap`); await settle(page);
+  ok('clicking a card’s picture selects it, and a second click opens nothing', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && await openNow() === was && !!(await page.$(`${helix}.sel`)));
+  await page.locator('#body .ihero').hover(); await page.mouse.wheel(0, 600); await settle(page);
+  ok('the wheel over the inspector’s pages opens nothing', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && await openNow() === was);
+  await page.click('#body .iacts .iopen'); await settle(page);
+  ok('…and its Open opens it', /Helix Diagnostics/.test(await page.textContent('#docname')) && (await page.evaluate(() => window.__wb.ui.view)) === null, await page.textContent('#docname'));
+  await page.click('#ptabs [data-p=library]'); await settle(page);
+  await page.click(`#resumes .rcard[data-rid="${was}"] .rsel`); await settle(page);
+  ok('a click selects another card without opening it', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && await openNow() !== was && !!(await page.$(`#resumes .rcard.sel[data-rid="${was}"]`)));
+  await page.dblclick(`#resumes .rcard[data-rid="${was}"] .thumbwrap`); await settle(page);
+  ok('…and a double click on it opens it', (await page.evaluate(() => window.__wb.ui.view)) === null && await openNow() === was);
+  await page.click('#ptabs [data-p=library]'); await settle(page);
+  await page.click(`${helix} .rsel`); await settle(page);
+  await page.keyboard.press('Enter'); await settle(page);
+  ok('Enter on a card opens it', (await page.evaluate(() => window.__wb.ui.view)) === null && /Helix Diagnostics/.test(await page.textContent('#docname')));
 
   // newer wording: save over a version another saved resume prints
   const shared = await page.evaluate(async () => {
@@ -2645,7 +2660,8 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   const pick = async d => {
     if (await page.$(card(d))) { await page.click(`${card(d)} .rsel`); return settle(page); }
     const g = await groupOf(d);
-    if (!(await page.$(`#scr .rcard.sel[data-rid="${g.resume}"]`))) { await page.click(`#scr .rcard[data-rid="${g.resume}"] .rsel`); await settle(page); }      // a second click on a selected card would open it
+    await page.click(`#scr .rcard[data-rid="${g.resume}"] .rsel`); await settle(page);
+    if (!(await page.$('#body .idet[data-k=files][open]'))) await page.click('#body .idet[data-k=files] summary');
     await page.click(`#body .oi-files [data-act=doc-sel][data-id="${g.id}"]`); await settle(page);
   };
   const DOCID = (state, f) => state.documents.find(d => d.name === path.basename(f)).id;
@@ -2678,7 +2694,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
 
   // ---- Rebuild: the exported file becomes a saved resume that prints the same lines ----
   await lib(); await pick(A);
-  await page.click('#body [data-act=doc-rebuild]'); await settle(page);
+  await page.mouse.move(0, 0); await page.click('#body [data-act=doc-rebuild]'); await settle(page);      // a pointer left on its edge would rock its hover lift
   const s2 = await st(), made = s2.resumes.find(r => !s0.resumes.some(x => x.id === r.id));
   const lines2 = printedLines(s2.frozen[made.id]);
   ok('Rebuild makes a saved resume, opened in the editor, that prints the same lines as the one the file was exported from; the career is untouched', s2.resumes.length === s0.resumes.length + 1 && s2.openId === made.id && (await page.evaluate(() => window.__wb.ui.view)) === null && JSON.stringify(lines2.slice().sort()) === JSON.stringify(lines0.slice().sort()) && JSON.stringify(s2.record) === JSON.stringify(s1.record), lines2.length + '/' + lines0.length);

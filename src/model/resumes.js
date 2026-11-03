@@ -650,13 +650,6 @@ const jobName = (model, id) => [...(model.work ?? []), ...(model.projects ?? [])
 const skillNames = (model, r) => arrangementOf(model, r).groups.map(g => g.label ?? groupLabel(model, r, g.id)).join(', ');
 const claimLabel = (model, key, f, cells) => (model.facts ?? []).find(x => x.id === f)?.summary ?? (key.startsWith('local:') ? (cells.find(c => c.text)?.text ?? '').slice(0, 60) : f);
 
-// What a resume prints, at a glance (the Library's inspector): its summary's words, its jobs in order with how many of their lines it prints,
-// and its skill groups in order
-export function glance(model, r){
-  const p = printedFacts(model, r);
-  return { pitch: p.summary ? cellOf(model, r, p.summary.fact)?.text ?? '' : '', jobs: p.work.map(w => ({ name: jobName(model, w.job), n: w.highlights.length })), skills: skillNames(model, r) };
-}
-
 // Rows for a table with a column per resume: the settings, then every claim any of them prints. `cells` has one entry per resume.
 export function compareMany(model, list){
   const pages = r => (r.pageLimit === 0 ? t('cmp.anyPages') : r.pageLimit ? String(r.pageLimit) : Array.isArray(r.pages) ? t('cmp.byHand', { n: r.pages.length }) : '—');

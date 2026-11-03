@@ -83,11 +83,10 @@ src/ui/                    the Workbench: shell, sheet (the iframe), layout, sel
                            dock (the page bars and Fit, the phone's foot, the zoom bar over the page with Actual size, hover hints that show on keyboard focus too, the rail's keys), checklist (the record's groups, drawn by record.js and, at the job
                            level, beside the job), record (Career: profile cards on top, the vertical timeline under them, newest first, the selected entry moved into the inspector with its Details folded and its lines to tick, both scopes named; search finds entries and lines; a click on the timeline, the page's job chip and Edit's "n of m on" links arrive here),
                            screens (the Library: a card for each resume, the information beside the picture, Open now and Sent N times, a tick for Compare,
-                           as many to a row as hold 260px, newest first; a click selects and a second click opens; the inspector is the selected resume's
-                           first page across the panel with its name on a card over the foot, Use for a new job (the company is required, what was typed is kept
-                           per resume until the copy is made; `newJob` in resumes.js, `duplicate()` takes a company and a role), At a glance (`glance()`), where it
-                           came from, what differs, its sent copies; scrolling down over the page grows it out of the panel to where the editor shows it
-                           (`wheelGrow`, `settleGrow`, `openGrown`, the target is `computeLayout`'s own sheet; nothing grows under reduced motion); resting on a
+                           as many to a row as hold 260px, newest first; a click selects, and Enter, a double click or the inspector's Open opens; the inspector
+                           is the selected resume's pages across the panel, scrolled in place and never opening it (`morePages` adds the pages after the first),
+                           its name, a few facts (sent, last changed, where it came from), Open, Use for a new job (the company is required, what was typed is
+                           kept per resume until the copy is made; `newJob` in resumes.js, `duplicate()` takes a company and a role), its sent copies; resting on a
                            card's picture shows its page beside the card and the wheel turns its pages (`showPreview`, `turnPreview`; not on keyboard focus);
                            Compare: a table with a column for each, Previous and Next difference and the keys N and P, the inspector shows the row in focus; the
                            model is compareMany, differences and glance in model/resumes.js), thumbs (the pictures: one hidden sheet lays each resume
@@ -213,7 +212,7 @@ node checks/head-check.mjs            the place tabs, the name card (no Fit, no 
 node checks/review-model-check.mjs    the Review list's model: parents and picks, a duplicate's held lines, headings, marks, who an update reaches
 node checks/review-ui-check.mjs       the Review list's behaviour: markup in a name, Apply, all the newer wording, keys, a failed save
 node checks/review-check.mjs          the Review list in all ten languages at three window sizes and on a phone: nothing cut, overlapping or pushed out
-node checks/screens-check.mjs         what the three places hold: the Library's cards, per row at 1280, 1920 and 2560, select then open, the inspector, Use for a new job, the growing page, the hover preview, Compare (N and P), Career's docked entry and search, no bar, ten languages (PART=growing runs one part)
+node checks/screens-check.mjs         what the three places hold: the Library's cards, per row at 1280, 1920 and 2560, select then open, the inspector and its pages, Use for a new job, the hover preview, Compare (N and P), Career's docked entry and search, no bar, ten languages (PART=pages runs one part)
 node checks/places-check.mjs          the three places: the tabs, W E R, Esc, the address, Back and Forward, the landing, each place's state, the seam, the swing, Coffee square and flat
 node checks/room-check.mjs            the sidebar and the layout around the page, at three window sizes
 node checks/label-fit.mjs             every language's headings fit the gutter, and the app's labels fit the sidebar

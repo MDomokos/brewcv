@@ -3,13 +3,13 @@
 // What the three places hold (the routing, the tabs and the keys are places-check's). In Chromium on the fictional example:
 //   - the Library: cards with the information beside the picture (company, role, paper, language, pages), Open now, a Sent N times badge, a tick
 //     named for its resume, a second page fanned behind a longer resume, newest first; as many to a row as hold 260 px (three at 1280, five at
-//     1920, seven at 2560); a click selects and a second click (or a double click) opens; the thumbnails are pictures of the real first page and
+//     1920, seven at 2560); a click selects (a second one too) and Enter, a double click or the inspector's Open opens; the thumbnails are pictures of the real first page and
 //     each is drawn once; every page of a resume is kept in the cache,
-//   - the inspector in the sidebar's body: the page across its width, the name and details on a card over its foot, Use for a new job (a company
-//     is required; Enter makes the copy under its parent with the company and role and opens it; what was typed survives leaving the place), Open,
-//     the row menu (Duplicate opens the copy with its name ready), At a glance, where it came from, what differs (three, the rest folded), its sent copies,
-//   - the growing page: scrolling down over the inspector's page grows it toward where the editor shows it, returns when let go early, becomes the
-//     editor past halfway and lands on the editor's page; under reduced motion nothing grows,
+//   - the inspector in the sidebar's body, with no scroll of its own: every page across its width, scrolled in place (the wheel and a click there never
+//     open it), Open as the primary and Use for a new job right under them, then the language with a switch, last changed, where it came from, the
+//     round, and the sent copies and files folded; Use for a new job (a
+//     company is required; Enter makes the copy under its parent with the company and role and opens it; what was typed survives leaving the place),
+//     the row menu (Duplicate opens the copy with its name ready), its sent copies,
 //   - the hover preview: a page beside the card after the rest, "2 / 2" on a wheel, gone when the pointer leaves or anything is clicked,
 //   - Compare of three (one a sent copy): back and Esc keep the ticks, N and P step the rows that differ and the inspector shows the row,
 //   - the Library as a list: a row for each resume and file, the sent copies and files of a resume folded under it, selecting, opening, the keys,
@@ -41,7 +41,7 @@ await new Promise(r => server.listen(PORT, r));
 let failed = 0;
 const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? `  — ${extra}` : ''}`); if (!cond) failed++; };
 // a part that stops (a control that is not there) is one failure with its reason, and the parts after it still run
-const PART = process.env.PART;      // PART=growing runs only the parts whose name has these words
+const PART = process.env.PART;      // PART=pages runs only the parts whose name has these words
 const part = async (name, fn) => { if (PART && !name.includes(PART)) return; console.log(`\n— ${name}`); try { await fn(); } catch (e){ ok(`${name}: ran to its end`, false, String(e.message ?? e).split('\n')[0].slice(0, 160)); } };
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
@@ -138,7 +138,7 @@ await part('zoom: the Library cards and the Career timeline step with - + 0 and 
   await ctx.close();
 });
 
-await part('a click selects, a second click on the selected card (or a double click) opens it; the thumbnails', async () => {
+await part('a click selects (a second one too); Enter, a double click or Open opens it; the thumbnails', async () => {
   const { ctx, page, errors } = await open(1470, 832);
   const s0 = await st(page), n = await items(page);
   await goLibrary(page);
@@ -154,21 +154,24 @@ await part('a click selects, a second click on the selected card (or a double cl
   ok('the thumbnail cache keeps every page of a resume, one document each (not only the first)', entry.pages === 2 && entry.srcs === 2 && entry.second, JSON.stringify(entry));
   const other = s0.ids[1];
   await page.click(`#scr .rcard[data-rid="${other}"] .rsel`); await settle(page);
-  const a = await page.evaluate(id => ({ view: window.__wb.ui.view, open: window.__wb.store.state.openId, sel: document.querySelector('#scr .rcard.sel')?.dataset.rid, insp: document.querySelector('#body .insp-res .oi-name')?.textContent.trim(), inspSel: id }), other);
+  const a = await page.evaluate(id => ({ view: window.__wb.ui.view, open: window.__wb.store.state.openId, sel: document.querySelector('#scr .rcard.sel')?.dataset.rid, insp: document.querySelector('#body .insp-res')?.getAttribute('aria-label'), inspSel: id }), other);
   ok('a click on a card selects it: it is ringed and the inspector shows it, and nothing opens', a.view === 'resumes' && a.sel === other && a.open === s0.openId && /—/.test(a.insp) && a.insp !== 'Example Instruments — Design Engineer', JSON.stringify(a));
   await page.click(`#scr .rcard[data-rid="${other}"] .rsel`); await settle(page, 500);
-  ok('a click on the selected card opens it in the editor', await view(page) === null && (await st(page)).openId === other);
+  await page.click(`#scr .rcard[data-rid="${other}"] .thumbwrap`); await settle(page, 500);
+  ok('a second click on the selected card, on its name or its picture, opens nothing', await view(page) === 'resumes' && (await st(page)).openId === s0.openId && await page.$(`#scr .rcard.sel[data-rid="${other}"]`));
+  await page.click('#body .iacts .iopen'); await settle(page, 500);
+  ok('the inspector\u2019s Open (a real button, the primary) opens it in the editor', await view(page) === null && (await st(page)).openId === other);
   await goLibrary(page);
   await page.dblclick(`#scr .rcard[data-rid="${s0.ids[2]}"] .rname`); await settle(page, 500);
   ok('a double click on a card opens it', await view(page) === null && (await st(page)).openId === s0.ids[2]);
   await goLibrary(page);
-  await page.focus(`#scr .rcard[data-rid="${s0.ids[3]}"] .rsel`); await page.keyboard.press('Enter'); await page.keyboard.press('Enter'); await settle(page, 500);
-  ok('Enter on a card selects it, and Enter again opens it', await view(page) === null && (await st(page)).openId === s0.ids[3]);
+  await page.focus(`#scr .rcard[data-rid="${s0.ids[3]}"] .rsel`); await page.keyboard.press('Enter'); await settle(page, 500);
+  ok('Enter on a card opens it', await view(page) === null && (await st(page)).openId === s0.ids[3]);
   ok('no errors in the Library', errors.length === 0, errors[0] ?? '');
   await ctx.close();
 });
 
-await part('the inspector: the page across the panel, the name on a card over its foot, At a glance, where it came from, what differs, sent copies', async () => {
+await part('the inspector: the pages across the panel, the name and the facts under them, Open, where it came from, sent copies', async () => {
   const { ctx, page } = await open(1470, 832);
   const s0 = await st(page);
   // a copy under a parent with edits, a line only on it and its skills arranged, and a sent copy
@@ -188,21 +191,19 @@ await part('the inspector: the page across the panel, the name on a card over it
   const kid = (await st(page)).openId;
   await goLibrary(page); await thumbsDone(page, 3); await settle(page);
   const g = await page.evaluate(() => {
-    const R = e => e.getBoundingClientRect(), b = document.querySelector('#body'), hero = b.querySelector('.ihero'), cap = b.querySelector('.ihcap'), br = R(b);
-    const pitch = b.querySelector('.glance .gpitch')?.textContent ?? '', jobs = [...b.querySelectorAll('.glance .gjobs li')].map(li => li.textContent), dt = [...b.querySelectorAll('.glance dt')].map(x => x.textContent);
-    return { heroW: R(hero).width, bodyW: br.width, heroLeft: R(hero).left - br.left, capOver: R(cap).top < R(hero).bottom - 10, capBg: getComputedStyle(cap).backgroundColor, capShadowFade: getComputedStyle(cap).backgroundImage === 'none',
-      name: b.querySelector('.oi-name').textContent.trim(), primary: b.querySelector('.iacts .primary')?.textContent.trim(), keep: [...b.querySelectorAll('.iacts button')].map(x => x.textContent.trim()), more: !!b.querySelector('.iacts .rcmore .smore'),
-      pitch, jobs, dt, labels: [...b.querySelectorAll('.lbl')].map(x => x.textContent.trim()), ovt: [...b.querySelectorAll('.ovw dt')].map(x => x.textContent), ov: [...b.querySelectorAll('.ovw dd')].map(x => x.textContent.replace(/\s+/g, ' ').trim()), ovFirst: b.querySelector('.ihcap ~ .ovw, .iacts ~ .ovw') === b.querySelector('.ovw') && !!b.querySelector('.ovw .pill'),
-      diffs: b.querySelectorAll('.oi-diff li').length, folded: b.querySelector('details.imore summary')?.textContent, sent: [...b.querySelectorAll('.oi-sent li')].map(x => x.textContent.replace(/\s+/g, ' ').trim()) };
+    const R = e => e.getBoundingClientRect(), b = document.querySelector('#body'), hero = b.querySelector('.ihero'), br = R(b);
+    return { heroW: R(hero).width, bodyW: br.width, heroLeft: R(hero).left - br.left, noScroll: b.scrollHeight <= b.clientHeight + 1, gone: !b.querySelector('.glance, .oi-diff, .imore, .ihcap'),
+      primary: b.querySelector('.iacts .primary')?.textContent.trim(), keep: [...b.querySelectorAll('.iacts button')].map(x => x.textContent.trim()), more: !!b.querySelector('.iacts .rcmore .smore'),
+      ovt: [...b.querySelectorAll('.ovw dt')].map(x => x.textContent), ov: Object.fromEntries([...b.querySelectorAll('.ovw dt')].map(x => [x.textContent, x.nextElementSibling.textContent.replace(/\s+/g, ' ').trim()])), actsFirst: !!b.querySelector('.ihero + .iacts + .ovw'),
+      sentSum: b.querySelector('.idet[data-k=sent] summary')?.textContent.replace(/\s+/g, ' ').trim(), sent: [...b.querySelectorAll('.oi-sent li')].map(x => x.textContent.replace(/\s+/g, ' ').trim()) };
   });
-  ok('the page runs across the panel\u2019s full width, edge to edge', Math.abs(g.heroW - g.bodyW) < 2 && Math.abs(g.heroLeft) < 2, `${g.heroW} of ${g.bodyW}`);
-  ok('the name and details are a card of the panel\u2019s own surface over the page\u2019s foot, with no fade', g.capOver && g.capShadowFade && g.capBg !== 'rgba(0, 0, 0, 0)');
-  ok('Use for a new job is the primary action, with Keep editing (the resume is open) and the ⋯ menu', g.primary === 'Use for a new job…' && g.keep.includes('Keep editing') && g.more, g.keep.join(' | '));
-  ok('At a glance: the pitch, the jobs in order with how many of their lines print, the skills in order', g.dt.join() === 'Pitch,Jobs,Skills, in order' && g.pitch.length > 20 && g.jobs.length >= 2 && /\d+ lines?/.test(g.jobs[0]), JSON.stringify(g.jobs));
-  ok('the overview is a table of fields, the sent facts first (the chip, to whom, when), then from, language, pages, last changed', g.ovt.join() === 'Sent,From,Language,Pages,Last changed' && /^Sent 1× Smoke Co - Role · 20\d\d-\d\d-\d\d/.test(g.ov[0]) && g.ovFirst, JSON.stringify(g.ov));
-  ok('…From names the parent, Language the language, Pages the limit, Last changed a date; a resume nobody sent says Not sent', await page.evaluate(() => { const dd = [...document.querySelectorAll('#body .ovw dd')].map(x => x.textContent.replace(/\s+/g, ' ').trim()); return /Example Instruments/.test(dd[1]) && dd[2] === 'English' && /page/.test(dd[3]) && /^20\d\d-/.test(dd[4]); }) && await (async () => { await page.click(`#scr .rcard[data-rid="${s0.ids[3]}"] .rsel`); await settle(page); return /^Not sent/.test(await page.textContent('#body .ovw dd')); })());
+  ok('the pages run across the panel\u2019s full width, edge to edge', Math.abs(g.heroW - g.bodyW) < 2 && Math.abs(g.heroLeft) < 2, `${g.heroW} of ${g.bodyW}`);
+  ok('the buttons follow the pages on their own line, then the facts; no name line, At a glance or what differs (the card says those); the panel does not scroll', g.actsFirst && g.gone && g.noScroll);
+  ok('Keep editing (the resume is open) is the primary action, with Use for a new job and the ⋯ menu', g.primary === 'Keep editing' && g.keep.includes('Use for a new job…') && g.more, g.keep.join(' | '));
+  ok('the facts: last changed and where it came from; the sent copies fold under a line with the chip, to whom and when', g.ovt.filter(x => x !== 'Round').join() === 'Language,Last changed,From' && g.ov.Language === 'English' && /^Sent 1×\s*Smoke Co - Role · 20\d\d-\d\d-\d\d$/.test(g.sentSum ?? '') && /Example Instruments/.test(g.ov.From) && /^20\d\d-/.test(g.ov['Last changed']), JSON.stringify({ ov: g.ov, sentSum: g.sentSum }));
+  ok('…company and role are no facts here, even when the name lacks them (the card shows them)', await (async () => { await page.evaluate(id => { const b = window.__wb; b.store.commit(d => { const r = d.resumes.find(x => x.id === id); r.name = 'My own name'; r.company = 'Acme'; r.role = 'Engineer'; }, 'name'); }, s0.ids[3]); await page.click(`#scr .rcard[data-rid="${s0.ids[3]}"] .rsel`); await settle(page); return page.evaluate(() => [...document.querySelectorAll('#body .ovw dt')].map(x => x.textContent).join()); })().then(x => !/Company|Role/.test(x)));
+  ok('…a resume nobody sent has no sent fold (its card has no Sent chip either)', await (async () => { await page.click(`#scr .rcard[data-rid="${s0.ids[3]}"] .rsel`); await settle(page); return page.evaluate(() => !document.querySelector('#body .idet[data-k=sent]')); })());
   await page.click(`#scr .rcard[data-rid="${kid}"] .rsel`); await settle(page);
-  ok('what differs: the first three, the rest folded', g.diffs === 3 && /more/.test(g.folded ?? ''), `${g.diffs} ${g.folded}`);
   ok('its sent copies are listed with their dates', g.sent.length === 1 && /Smoke Co/.test(g.sent[0]) && /20\d\d/.test(g.sent[0]), g.sent.join());
   await page.click('#body [data-act=scr-differs]'); await settle(page);
   ok('"Compare with it" opens Compare of the copy and its parent', await view(page) === 'compare' && (await page.$$('#compare thead th[scope=col]')).length === 3);      // the line's heading and the two resumes
@@ -214,8 +215,6 @@ await part('the inspector: the page across the panel, the name on a card over it
   const s1 = await st(page), f = await page.evaluate(() => { const a = document.activeElement; return { id: a?.id, all: a?.selectionStart === 0 && a?.selectionEnd === a?.value.length && a.value.length > 0 }; });
   ok('Duplicate opens the copy at once, under its parent, with the name field focused and its text selected', await view(page) === null && s1.parents[s1.openId] === kid && f.id === 'sw-rn' && f.all, JSON.stringify(f));
   await page.keyboard.press('Escape'); await settle(page);
-  await goLibrary(page);
-  await page.click(`#scr .rcard[data-rid="${s1.openId}"] .rsel`); await settle(page);      // already selected (it is open): this opens it
   await goLibrary(page);
   await page.click('#body .iacts .smore'); await page.click('#body .rowmenu [data-act=rm-rename]'); await settle(page);
   ok('Rename is in place on the card', await page.isVisible('#scr .rcard .swren'));
@@ -267,38 +266,25 @@ await part('a phone: the name card of a copy says "from <parent>" under its name
   await ctx.close();
 });
 
-await part('the growing page: it grows as you scroll over the inspector\u2019s page, returns when let go, becomes the editor past halfway; nothing grows under reduced motion', async () => {
-  const { ctx, page } = await open(1470, 832, ['tea', 'light'], { motion: true });
-  const s0 = await st(page), other = s0.ids[1];
+await part('the inspector\u2019s pages: every page, scrolled in place; the wheel over them and a click on them never open the resume', async () => {
+  const { ctx, page, errors } = await open(1470, 832, ['tea', 'light'], { motion: true });
+  const s0 = await st(page);
   await goLibrary(page);
-  await page.click(`#scr .rcard[data-rid="${other}"] .rsel`); await settle(page);
-  await page.waitForFunction(() => document.querySelector('#body .ihpage [data-thumb] iframe'), null, { timeout: 20000 });
+  await page.click(`#scr .rcard[data-rid="${MEDTECH}"] .rsel`); await settle(page);
+  await page.waitForFunction(() => document.querySelectorAll('#body .ihero [data-thumb] iframe').length === 2, null, { timeout: 20000 });
   const hero = await page.locator('#body .ihero').boundingBox();
+  ok('a resume of two pages shows both, one under the other, taller than the panel shows', await page.evaluate(() => { const h = document.querySelector('#body .ihero'), f = [...h.querySelectorAll('iframe')].map(x => x.getBoundingClientRect()); return f[1].top >= f[0].bottom - 1 && h.scrollHeight > h.clientHeight + 40; }));
   await page.mouse.move(hero.x + 100, hero.y + 100);
-  await page.mouse.wheel(0, 120); await page.waitForTimeout(80);
-  const g1 = await page.evaluate(() => { const g = document.querySelector('.growpage'); return g && { w: g.getBoundingClientRect().width, flat: !/matrix3d|translate3d|rotate[XYZ]/.test(g.style.transform + getComputedStyle(g).transform), willChange: getComputedStyle(g).willChange, hidden: getComputedStyle(document.querySelector('#body .ihpage')).visibility }; });
-  ok('scrolling down over the page lifts a copy of it out of the panel (its own page, flat: no 3D transform, no will-change); the panel\u2019s page is hidden meanwhile', !!g1 && g1.flat && g1.willChange === 'auto' && g1.hidden === 'hidden', JSON.stringify(g1));
-  await page.waitForTimeout(1000);
-  ok('letting go early returns it: no copy, the page is back, nothing opened', await page.evaluate(() => !document.querySelector('.growpage') && getComputedStyle(document.querySelector('#body .ihpage')).visibility === 'visible' && window.__wb.ui.view === 'resumes' && window.__wb.store.state.openId !== window.__wb.store.state.resumes[1].id));
-  await page.mouse.wheel(0, 250); await page.mouse.wheel(0, 250); await page.waitForTimeout(200);
-  const mid = await page.evaluate(() => { const g = document.querySelector('.growpage'); return g && g.getBoundingClientRect().width; });
-  ok('past halfway it is bigger than it was', mid > g1.w * 1.2, `${g1.w} → ${mid}`);
-  await page.waitForFunction(() => window.__wb.ui.view === null, null, { timeout: 4000 });
-  await page.waitForTimeout(150);
-  const landed = await page.evaluate(() => { const g = document.querySelector('.growpage'), b = window.__wb.ui.layout.sheet; if (!g) return null; const a = g.getBoundingClientRect(); return { dl: Math.abs(a.left - b.left), dt: Math.abs(a.top - b.top), dw: Math.abs(a.width - b.width), open: window.__wb.store.state.openId }; });
-  ok('it settles and becomes the editor on that resume, in the place the editor shows its page', !!landed && landed.open === other && landed.dl < 8 && landed.dt < 8 && landed.dw < 8, JSON.stringify(landed));
-  await page.waitForTimeout(700);
-  ok('…and the copy is gone a moment later', await page.evaluate(() => !document.querySelector('.growpage')));
+  for (let i = 0; i < 4; i++){ await page.mouse.wheel(0, 250); await page.waitForTimeout(80); }
+  await settle(page, 500);
+  const w = await page.evaluate(() => ({ top: document.querySelector('#body .ihero').scrollTop, view: window.__wb.ui.view, open: window.__wb.store.state.openId }));
+  ok('the wheel over them scrolls them, and nothing opens', w.top > 100 && w.view === 'resumes' && w.open === s0.openId && w.open !== MEDTECH, JSON.stringify(w));
+  await page.click('#body .ihero'); await settle(page, 500);
+  ok('a click on them opens nothing either', await view(page) === 'resumes' && (await st(page)).openId === s0.openId);
+  await page.dblclick(`#scr .rcard[data-rid="${MEDTECH}"] .thumbwrap`); await settle(page, 500);
+  ok('a double click on the card opens it', await view(page) === null && (await st(page)).openId === MEDTECH);
+  ok('no errors', errors.length === 0, errors[0] ?? '');
   await ctx.close();
-  const r = await open(1470, 832);
-  await goLibrary(r.page); await r.page.click(`#scr .rcard[data-rid="${other}"] .rsel`); await settle(r.page);
-  await r.page.waitForFunction(() => document.querySelector('#body .ihpage [data-thumb] iframe'), null, { timeout: 20000 });
-  const h2 = await r.page.locator('#body .ihero').boundingBox();
-  await r.page.mouse.move(h2.x + 100, h2.y + 100); await r.page.mouse.wheel(0, 300); await settle(r.page);
-  ok('under reduced motion nothing grows', await r.page.evaluate(() => !document.querySelector('.growpage')) && await view(r.page) === 'resumes');
-  await r.page.click('#body .ihpage'); await settle(r.page, 500);
-  ok('…and a click on the page opens it', await view(r.page) === null && (await st(r.page)).openId === other);
-  await r.ctx.close();
 });
 
 await part('the hover preview: a readable page beside the card after a rest; the wheel turns its pages; it goes when the pointer leaves or anything is clicked', async () => {
@@ -332,11 +318,11 @@ await part('Compare of three (one a sent copy): back and Esc keep the ticks; Pre
   await goLibrary(page);
   ok('Compare is not offered until two are ticked', !(await page.$('#scr-cmp')) && (await page.check(`#scr .rcard[data-rid="${s0.ids[1]}"] .rtick`), !(await page.$('#scr-cmp'))));
   const bar = () => page.evaluate(() => { const b = document.querySelector('#scr-ticks'), c = b?.querySelector('[data-act=scr-compare]'); return { shown: !!c && b.getBoundingClientRect().height > 0, tier: c?.dataset.tier, clear: !!b?.querySelector('[data-act=scr-clear]'), floats: !b?.closest('.tbar'),
-    primaries: [...document.querySelectorAll('#scr [data-tier=primary], #scr button.primary')].filter(x => x.offsetParent).map(x => x.dataset.act).join(), nj: document.querySelector('#body [data-act=nj-open]')?.dataset.tier }; });
+    primaries: [...document.querySelectorAll('#scr [data-tier=primary], #scr button.primary')].filter(x => x.offsetParent).map(x => x.dataset.act).join(), open: document.querySelector('#body .iopen')?.dataset.tier }; });
   const b1 = await bar();
   await page.check(`#scr .rcard[data-rid="${s0.ids[2]}"] .rtick`);
   const b2 = await bar();
-  ok('two ticked: Compare (a secondary) and Clear float at the list\u2019s foot, out of the header; the list\u2019s one primary stays New resume; with one ticked there is no Compare and Use for a new job is the primary', !b1.shown && b1.clear && b1.floats && b1.primaries === 'sw-new' && b1.nj === 'primary' && b2.shown && b2.tier === 'secondary' && b2.clear && b2.primaries === 'sw-new' && b2.nj === 'secondary', JSON.stringify({ b1, b2 }));
+  ok('two ticked: Compare (a secondary) and Clear float at the list\u2019s foot, out of the header; the list\u2019s one primary stays New resume; with one ticked there is no Compare and the inspector\u2019s Open is the primary', !b1.shown && b1.clear && b1.floats && b1.primaries === 'sw-new' && b1.open === 'primary' && b2.shown && b2.tier === 'secondary' && b2.clear && b2.primaries === 'sw-new' && b2.open === 'secondary', JSON.stringify({ b1, b2 }));
   await page.check(`#scr .rcard[data-rid="${s0.ids[0]}"] .rtick`);
   ok('three ticks turn Compare on: "Compare 3"', !(await page.isDisabled('#scr-cmp')) && /Compare 3/.test(await page.textContent('#scr-cmp')));
   await page.click('#scr-cmp'); await settle(page);
@@ -362,26 +348,24 @@ await part('Compare of three (one a sent copy): back and Esc keep the ticks; Pre
   await page.click('[data-act=scr-clear]');
   ok('Clear ticks clears them', (await page.$$('#scr .rtick:checked')).length === 0 && !(await page.$('#scr-cmp')));
   // a sent copy in the inspector can be ticked too
-  ok('a sent copy has its own tick in the inspector, named for its resume, and compares', await page.evaluate(() => !!document.querySelector('#body .oi-sent .rtick')?.getAttribute('aria-label')) && (await page.check('#body .oi-sent .rtick'), await page.check(`#scr .rcard[data-rid="${s0.ids[1]}"] .rtick`), await page.click('#scr-cmp'), await settle(page), (await page.$$('#compare thead th[scope=col]')).length === 3));
+  ok('a sent copy has its own tick in the inspector, named for its resume, and compares', await page.evaluate(() => !!document.querySelector('#body .oi-sent .rtick')?.getAttribute('aria-label')) && (await page.click('#body .idet[data-k=sent] summary'), await page.check('#body .oi-sent .rtick'), await page.check(`#scr .rcard[data-rid="${s0.ids[1]}"] .rtick`), await page.click('#scr-cmp'), await settle(page), (await page.$$('#compare thead th[scope=col]')).length === 3));
   await ctx.close();
 });
 
-await part('Mark as sent… from the Library: in the inspector and in the ⋯ menu, the same dialog as Export\u2019s, and the Library again when it is done', async () => {
+await part('Mark as sent… from the Library: in the inspector’s ⋯ menu, the same dialog as Export\u2019s, and the Library again when it is done', async () => {
   const { ctx, page, errors } = await open(1470, 832);
   const s0 = await st(page), other = s0.ids[2];
   await goLibrary(page);
   await page.click(`#scr .rcard[data-rid="${other}"] .rsel`); await settle(page);
   const sentCount = id => page.evaluate(id => (window.__wb.store.state.resumes.find(r => r.id === id).snapshots ?? []).length, other);
-  ok('the inspector of a resume that is not open has Mark as sent… (a secondary), and the ⋯ menu (the card\u2019s menu on a phone) has it too',
-    await page.evaluate(() => { const b = document.querySelector('#body [data-act=rm-sent]'); return b?.textContent.includes('Mark as sent') && b.dataset.tier === 'secondary'; })
-    && (await page.click('#body .iacts .smore'), await page.isVisible('.rowmenu [data-act=rm-sent]')));
+  ok('the inspector\u2019s ⋯ menu (the card\u2019s menu on a phone) has Mark as sent…', (await page.click('#body .iacts .smore'), await page.isVisible('.rowmenu [data-act=rm-sent]')));
   await page.keyboard.press('Escape'); await settle(page);
   await page.click('#body .iacts .smore'); await page.click('.rowmenu [data-act=rm-sent]'); await settle(page, 500);
   const d = await page.evaluate(() => ({ view: window.__wb.ui.view, open: window.__wb.store.state.openId, co: !!document.querySelector('#sv-co'), date: !!document.querySelector('#sv-date'), prim: document.querySelector('#body [data-act=sv-do]')?.dataset.tier, sec: document.querySelector('#body [data-act=sent-back]')?.dataset.tier }));
   ok('from the ⋯ menu: Export\u2019s own dialog (Sent to?) for that resume, which is opened, with its confirm as the primary and Cancel as tertiary words (one Cancel)', d.view === 'sent' && d.open === other && d.co && d.date && d.prim === 'primary' && d.sec === 'tertiary', JSON.stringify(d));
   await page.click('[data-act=sent-back]'); await settle(page);
   ok('Cancel goes back to the Library, nothing sent', await view(page) === 'resumes' && await sentCount() === 0);
-  await page.click('#body [data-act=rm-sent]'); await settle(page, 400);
+  await page.click('#body .iacts .smore'); await page.click('.rowmenu [data-act=rm-sent]'); await settle(page, 400);
   await page.fill('#sv-co', 'Northgate Dosing'); await page.fill('#sv-role', 'Mechanical Design Engineer'); await page.click('[data-act=sv-do]'); await settle(page, 600);
   const e = await page.evaluate(() => ({ view: window.__wb.ui.view, sel: document.querySelector('#scr .rcard.sel')?.dataset.rid, badge: document.querySelector('#scr .rcard.sel .pill:not(.is-open)')?.textContent, list: document.querySelector('#body .oi-sent')?.textContent.replace(/\s+/g, ' ') }));
   ok('Mark as sent keeps a copy and returns to the Library with that resume selected, its card badged and the inspector listing the send', await view(page) === 'resumes' && await sentCount() === 1 && e.sel === other && /Sent 1/.test(e.badge ?? '') && /Northgate Dosing/.test(e.list ?? ''), JSON.stringify(e));
@@ -522,7 +506,7 @@ await part('the list view: rows with the columns, files folded under their resum
   await page.click(fold); await settle(page, 100);
   ok('the fold arrow shows it and says so', await page.getAttribute(fold, 'aria-expanded') === 'true' && await page.isVisible('#scr tr.rsub.rdoc[data-did]'));
   await page.click(`#scr tr.rline[data-rid="${s0.ids[2]}"] td.c-company`); await settle(page);
-  const sel = await page.evaluate(id => ({ sel: document.querySelector('#scr tr.rline.sel')?.dataset.rid, insp: document.querySelector('#body .insp-res .oi-name')?.textContent.trim(), name: document.querySelector(`#scr tr.rline[data-rid="${CSS.escape(id)}"] .rsel`)?.textContent.trim() }), s0.ids[2]);
+  const sel = await page.evaluate(id => ({ sel: document.querySelector('#scr tr.rline.sel')?.dataset.rid, insp: document.querySelector('#body .insp-res')?.getAttribute('aria-label'), name: document.querySelector(`#scr tr.rline[data-rid="${CSS.escape(id)}"] .rsel`)?.textContent.trim() }), s0.ids[2]);
   ok('a click on a row selects it and the inspector shows it', sel.sel === s0.ids[2] && /—/.test(sel.insp ?? '') && await view(page) === 'resumes', JSON.stringify(sel));
   await page.dblclick(`#scr tr.rline[data-rid="${s0.ids[3]}"] td.c-role`); await settle(page, 500);
   ok('a double click on a row opens it', await view(page) === null && (await st(page)).openId === s0.ids[3]);
@@ -530,9 +514,10 @@ await part('the list view: rows with the columns, files folded under their resum
   await page.focus(`#scr tr.rline[data-rid="${s0.ids[2]}"] .rsel`);
   const next = await page.evaluate(() => { const all = [...document.querySelectorAll('#scr-list .rtable tr:not([hidden]) .rsel')].filter(b => b.getClientRects().length); return all[all.indexOf(document.activeElement) + 1]?.closest('tr').dataset.rid; });
   await page.keyboard.press('ArrowDown');
-  ok('ArrowDown moves to the next row', !!next && await page.evaluate(() => document.activeElement?.closest('tr')?.dataset.rid) === next && await view(page) === 'resumes', next);
-  await page.keyboard.press('Enter'); await page.keyboard.press('Enter'); await settle(page, 500);
-  ok('Enter selects that row, and Enter again opens it', await view(page) === null && (await st(page)).openId === next);
+  await settle(page);
+  ok('ArrowDown moves to the next row and selects it, opening nothing', !!next && await page.evaluate(() => document.activeElement?.closest('tr')?.dataset.rid) === next && await page.evaluate(() => document.querySelector('#scr tr.rline.sel')?.dataset.rid) === next && await view(page) === 'resumes', next);
+  await page.keyboard.press('Enter'); await settle(page, 500);
+  ok('Enter opens it', await view(page) === null && (await st(page)).openId === next);
   await goLibrary(page);
   await page.check(`#scr tr.rline[data-rid="${s0.ids[1]}"] .rtick`); await page.check(`#scr tr.rline[data-rid="${s0.ids[2]}"] .rtick`); await settle(page, 100);
   ok('ticking two rows offers Compare in the floating bar and marks the rows', !!(await page.$('#resumes > #scr-ticks #scr-cmp')) && (await page.$$('#scr tr.rline.ticked')).length === 2);
@@ -597,17 +582,22 @@ await part('language copies: one item with a chip for each language, a chip sele
   await pickOption(page, '#body [data-res-round]', cur); await settle(page);
   ok('moving it to a round moves the original and every language copy', await page.evaluate(ids => ids.map(id => window.__wb.store.state.resumes.find(r => r.id === id).round), ids).then(rs => rs.every(r => r === cur)));
   await page.click(`${card(ids[2])} .rlang:text-is("DE")`); await settle(page);
-  const b = await page.evaluate(() => ({ lbl: document.querySelector('#body .ihcap .lbl')?.textContent, view: window.__wb.ui.view }));
-  ok('a chip selects that language: the card shows it, marked, and the inspector names the language it shows', await page.$(card(ids[1])) && await chips(ids[1]) === 'EN DE* FR' && /Deutsch/.test(b.lbl) && b.view === 'resumes' && await page.evaluate(c => document.querySelector(c).classList.contains('sel'), card(ids[1])), JSON.stringify(b));
+  const b = await page.evaluate(() => ({ lbl: document.querySelector('#body .ilangs [aria-pressed=true]')?.textContent, view: window.__wb.ui.view }));
+  ok('a chip selects that language: the card shows it, marked, and the inspector\u2019s language switch marks it', await page.$(card(ids[1])) && await chips(ids[1]) === 'EN DE* FR' && /Deutsch/.test(b.lbl ?? '') && b.view === 'resumes' && await page.evaluate(c => document.querySelector(c).classList.contains('sel'), card(ids[1])), JSON.stringify(b));
+  await page.click('#body .ilangs [lang=fr]'); await settle(page);
+  ok('…the inspector\u2019s switch selects another language: the card follows', await chips(ids[2]) === 'EN DE FR*' && /Français/.test(await page.textContent('#body .ilangs [aria-pressed=true]')), await chips(ids[2]));
+  await page.click('#body .ilangs [lang=de]'); await settle(page);
   await page.click(`${card(ids[1])} .rlang:text-is("DE")`); await settle(page, 500);
-  ok('…and a second click on it opens it', await view(page) === null && (await st(page)).openId === ids[1]);
+  ok('…a second click on it opens nothing', await view(page) === 'resumes' && (await st(page)).openId !== ids[1]);
+  await page.dblclick(`${card(ids[1])} .rlang:text-is("DE")`); await settle(page, 500);
+  ok('…and a double click on it opens that language', await view(page) === null && (await st(page)).openId === ids[1]);
   await goLibrary(page);
   const want = await page.evaluate(async ids => { const RS = await import('/src/model/resumes.js'), s = window.__wb.store.state; return ids.reduce((n, id) => n + RS.snapshotsOf(RS.savedOf(s, id)).length, 0) + RS.docGroups(s).filter(g => ids.includes(g.resume)).reduce((n, g) => n + g.members.length, 0); }, ids);
   const said = await page.evaluate(async n => (await import('/src/i18n/index.js')).t('i7.nFiles', { n }), want);      // the open resume's language may be the page's
   ok(`the card counts the files of all its languages, sent copies and documents: "${want} files"`, want >= 2 && (await page.textContent(`${card(ids[1])} .rfiles`)).trim() === said, said);
   await page.click(`${card(ids[1])} .rfiles`); await settle(page, 400);
-  const f = await page.evaluate(() => { const x = document.querySelector('#body .ifiles'), r = x?.getBoundingClientRect(), b = document.querySelector('#body').getBoundingClientRect(); return { n: document.querySelectorAll('#body .ifiles li').length, seen: !!r && r.top >= b.top - 1 && r.top < b.bottom - 20 }; });
-  ok('…the chip brings the inspector to them, one line each', f.n === want && f.seen, JSON.stringify(f));
+  const f = await page.evaluate(() => { const x = document.querySelector('#body .idet[open] li'), r = x?.getBoundingClientRect(), b = document.querySelector('#body').getBoundingClientRect(); return { n: document.querySelectorAll('#body .idet[open] li').length, seen: !!r && r.top >= b.top - 1 && r.top < b.bottom - 20 }; });
+  ok('…the chip unfolds them in the inspector, one line each', f.n === want && f.seen, JSON.stringify(f));
   await page.check(`${card(ids[1])} .rtick`); await settle(page, 100);
   ok('a tick ticks the language shown, and its chip says so', await page.evaluate(() => [...document.querySelectorAll('#scr-ticks, #scr-nticked')].length > 0) && await chips(ids[1]) === 'EN DE*+ FR');
   await page.click('#scr-ticks [data-act=scr-clear]'); await settle(page);
@@ -625,7 +615,7 @@ await part('language copies: one item with a chip for each language, a chip sele
   await page.click(`#scr tr.rline[data-rid="${ids[1]}"] .rfiles`); await settle(page, 100);
   ok('…its files chip unfolds the row', await page.getAttribute(`#scr tr.rline[data-rid="${ids[1]}"] .rfold`, 'aria-expanded') === 'true' && await page.isVisible(`#scr tr[data-lid="${ids[2]}"]`));
   await page.click(`#scr tr[data-lid="${ids[2]}"] .rsel`); await settle(page);
-  ok('…a language row selects that language', await page.$(`#scr tr.rline.sel[data-rid="${ids[2]}"]`) && /Français/.test(await page.textContent('#body .ihcap .lbl')));
+  ok('…a language row selects that language', await page.$(`#scr tr.rline.sel[data-rid="${ids[2]}"]`) && await page.$(`#body .ihero[data-id="${ids[2]}"]`));
   ok('no errors', errors.length === 0, errors[0] ?? '');
   await page.click('[data-act=scr-cards]'); await settle(page);
   await ctx.close();

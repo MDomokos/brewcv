@@ -45,7 +45,7 @@ export function entry(recipe, medium = 'screen'){
   return maps.get(key);
 }
 
-// Put the pictures in: every `[data-thumb]` under root is a box whose value names a resume; `recipeOf(name)` is what it prints;
+// Put the pictures in: every `[data-thumb]` under root is a box whose value names a resume (its first page, or the one `data-page` counts from 0); `recipeOf(name)` is what it prints;
 // `onShown(name, entry)` hears of each one that arrived (its page count is in the entry).
 export function fill(root, recipeOf, onShown = null){
   for (const slot of root.querySelectorAll('[data-thumb]')){
@@ -54,7 +54,7 @@ export function fill(root, recipeOf, onShown = null){
     entry(recipe).then(e => {
       if (!e || !slot.isConnected) return;
       const { w, h } = pageSize(e.format), f = document.createElement('iframe');
-      f.title = t('ux6e.thumb'); f.tabIndex = -1; f.setAttribute('scrolling', 'no'); f.srcdoc = e.src;
+      f.title = t('ux6e.thumb'); f.tabIndex = -1; f.setAttribute('scrolling', 'no'); f.srcdoc = e.srcs?.[slot.dataset.page] ?? e.src;      // data-page: a later page
       f.style.cssText = `width:${w}px;height:${h}px;`;
       new ResizeObserver(() => { f.style.transform = `scale(${slot.clientWidth / w})`; }).observe(slot);   // follows the box when the window is resized
       slot.replaceChildren(f); slot.dataset.pages = String(e.pages); stats.shown++;
