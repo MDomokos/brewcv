@@ -1,9 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.8.2 - 2026-11-03
 
 ### Changed
-- **Tags and job types are gone:** each wording says which saved resumes print it, the Library groups by role, and a new resume starts from the most similar one; older files keep their tags and open as before.
+- **Each wording says which saved resumes print it,** folded under the wording until you open it.
+- **The Library and the resume switcher group resumes by role.**
+- **A new resume starts from the saved one most like the job,** found by the company and role you type.
+
+### Removed
+- **Tags, job types and the Tailor row.** Files that have tags keep them unchanged; machine-translated and imported wordings keep their marks.
 
 ## 1.8.1 - 2026-11-03
 
