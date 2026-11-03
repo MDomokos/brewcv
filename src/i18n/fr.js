@@ -136,8 +136,9 @@ export default {
 
   'resumes.pShort': '{n} p.',
   'resumes.newTitle': 'Nouveau CV',
-  'resumes.company': 'Entreprise',
+  'resumes.company': 'Lieu de travail',
   'resumes.role': 'Poste',
+  'resumes.word': 'Mot personnalisé (facultatif)',
   'resumes.language': 'Langue',
   'resumes.savedHere': 'Il est enregistré dans ce navigateur. Le texte qu’il imprime est gardé tel quel ; les modifications ultérieures de votre parcours vous seront proposées comme formulation plus récente à sa réouverture.',
   'resumes.savedLinked': 'Il est enregistré dans ce navigateur, et sous <code>recipes/…json</code> dans {name}. Le texte qu’il imprime est gardé tel quel ; les modifications ultérieures de votre parcours vous seront proposées comme formulation plus récente à sa réouverture.',
@@ -981,7 +982,6 @@ export default {
   'ux1.undoSnapshot': 'Enregistrer un instantané',
   'ux1.newTitle': 'Nouveau CV',
   'ux1.name': 'Nom',
-  'ux1.namePh': 'Entreprise ou secteur - Poste',
   'ux1.for': 'Pour (facultatif)',
   'ux1.kind': 'Genre',
   'ux1.kindCompany': 'Une entreprise',

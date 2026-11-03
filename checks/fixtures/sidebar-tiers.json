@@ -187,6 +187,8 @@
   "switcher button": "tertiary / panel",
   "menu button": "tertiary / panel",
   "sw-rn input:text": "input / popover",
+  "sw-rn-co input:text": "input / popover",
+  "sw-rn-word input:text": "input / popover",
   "rm-dup button": "secondary / popover",
   "rm-delete button": "destructive / popover",
   "ddbtn button": "secondary / popover",

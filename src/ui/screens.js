@@ -89,7 +89,7 @@ function phoneExtras(r){
       <span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span></div>`;
 }
 const hooks = r => `data-rid="${esc(r.id)}" ${r.round ? `data-round="${esc(r.round)}"` : ''} ${r.archived ? 'data-archived="1"' : ''}`;      // a card's and a row's: what selecting, ticking and carrying read
-const nameBtn = (r, html) => (C.resumes.renamingHere(r.id, 'screen') ? C.resumes.renameInput(r) : `<button class="rsel" data-act="scr-sel" data-id="${esc(r.id)}" aria-pressed="${r.id === selId()}" ${r.id === st().openId ? 'aria-current="true"' : ''}>${html}</button>`);
+const nameBtn = (r, html, aria = '') => (C.resumes.renamingHere(r.id, 'screen') ? C.resumes.renameInput(r) : `<button class="rsel" data-act="scr-sel" data-id="${esc(r.id)}" aria-pressed="${r.id === selId()}" ${aria ? `aria-label="${esc(aria)}"` : ''} ${r.id === st().openId ? 'aria-current="true"' : ''}>${html}</button>`);
 // a resume's card; with language copies (fam), the one shown of them, its language chips and no "from" line for its original
 function card(r, fam = [r]){
   const open = r.id === st().openId, n = RS.snapshotsOf(r).length, role = r.role || '', company = r.company || '', p = RS.parentOf(st(), r);
@@ -106,8 +106,8 @@ function card(r, fam = [r]){
   </article>`;
 }
 // the list's row of a resume; under it, folded, its sent copies (newest first, each with its tick) and the files exported from it
-const HEADS = { company: 'ux6h.company', role: 'ux6h.role', paper: 'design.paper', lang: 'ux6f.ovLang', pages: 'ux6f.ovPages', sent: 'ux6f.ovSent', changed: 'ux6f.ovChanged' };
-const HEAD = () => `<th class="c-tick" scope="col"><span class="sr">${h('ux6h.compare')}</span></th><th class="c-name" scope="col">${h('ux1.name')}</th>${COLS.map(k => `<th class="c-${k}" scope="col">${h(HEADS[k])}</th>`).join('')}`;
+const HEADS = { name: 'ux1.name', company: 'ux6h.company', role: 'ux6h.role', paper: 'design.paper', lang: 'ux6f.ovLang', pages: 'ux6f.ovPages', sent: 'ux6f.ovSent', changed: 'ux6f.ovChanged' };
+const HEAD = () => `<th class="c-tick" scope="col"><span class="sr">${h('ux6h.compare')}</span></th>${COLS.map(k => `<th class="c-${k}" scope="col">${h(HEADS[k])}</th>`).join('')}`;
 // With language copies (fam): the row is the one shown, its Language cell the chips, and the fold holds a row for each language before the files of all of them;
 // with files, its Sent cell is the files chip (the sent copies are among them)
 function row(r, fam = [r]){
@@ -117,10 +117,9 @@ function row(r, fam = [r]){
   const hit = V.hits.get(r.id), sub = `class="rsub" data-parent="${esc(id)}" ${unfold ? '' : 'hidden'}`, sentN = x => (RS.snapshotsOf(x).length ? t('ux6h.sentN', { n: RS.snapshotsOf(x).length }) : '');
   return `<tr class="rline ${open ? 'open' : ''} ${r.id === selId() && !LIB.sel() ? 'sel' : ''} ${V.ticked.has(r.id) ? 'ticked' : ''}" ${hooks(r)}>
     <td class="c-tick">${fold}${tick(r.id, t('ux6e.tick', { name: label(r) }))}</td>
-    <td class="c-name"><span class="cname">${nameBtn(r, esc(label(r)))}${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>${hit ? `<span class="rhit">${snippet(hit[0].text, F.q)}</span>` : ''}</td>
-    ${cells({ company: r.company, role: r.role, paper, lang: many ? '' : lang, pages, sent: filesChip(fam, r) ? '' : sentN(r), changed: r.savedAt }).replace('<td class="c-lang"></td>', `<td class="c-lang">${langChips(fam, r)}</td>`).replace('<td class="c-sent"></td>', `<td class="c-sent">${filesChip(fam, r)}</td>`)}</tr>`
-    + (many ? fam.map(x => `<tr ${sub} data-lid="${esc(x.id)}"><td class="c-tick"></td><td class="c-name"><span class="cname"><button class="rsel" data-act="scr-lang" data-id="${esc(x.id)}" data-item="${esc(id)}" aria-pressed="${x.id === r.id}">${esc(langName(x.lang ?? 'en'))}</button>${x.id === st().openId ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span></td>${cells({ lang: LC(x), pages: metaParts(x)[2], sent: sentN(x), changed: x.savedAt })}</tr>`).join('') : '')
-    + snaps.map(([x, s]) => `<tr ${sub}><td class="c-tick">${sentTick(x, s)}</td><td class="c-name">${snapLine(x, s)}</td>${cells({ company: s.sends[0]?.company, role: s.sends[0]?.role, lang: many ? LC(x) : '', changed: sentDate(s) })}</tr>`).join('')
+    ${cells({ name: `<span class="cname">${nameBtn(r, esc(RS.wordOf(r)) || '<span class="muted">—</span>', label(r))}${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>${hit ? `<span class="rhit">${snippet(hit[0].text, F.q)}</span>` : ''}`, company: r.company, role: r.role, paper, lang: many ? '' : lang, pages, sent: filesChip(fam, r) ? '' : sentN(r), changed: r.savedAt }).replace('<td class="c-lang"></td>', `<td class="c-lang">${langChips(fam, r)}</td>`).replace('<td class="c-sent"></td>', `<td class="c-sent">${filesChip(fam, r)}</td>`)}</tr>`
+    + (many ? fam.map(x => `<tr ${sub} data-lid="${esc(x.id)}"><td class="c-tick"></td>${cells({ name: `<span class="cname"><button class="rsel" data-act="scr-lang" data-id="${esc(x.id)}" data-item="${esc(id)}" aria-pressed="${x.id === r.id}">${esc(langName(x.lang ?? 'en'))}</button>${x.id === st().openId ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>`, lang: LC(x), pages: metaParts(x)[3], sent: sentN(x), changed: x.savedAt })}</tr>`).join('') : '')
+    + snaps.map(([x, s]) => `<tr ${sub}><td class="c-tick">${sentTick(x, s)}</td>${cells({ name: snapLine(x, s), company: s.sends[0]?.company, role: s.sends[0]?.role, lang: many ? LC(x) : '', changed: sentDate(s) })}</tr>`).join('')
     + docs.map(g => LIB.row(g, F.q, id, !unfold)).join('');
 }
 

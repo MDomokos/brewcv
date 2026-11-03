@@ -218,8 +218,8 @@ await part('the inspector: the pages across the panel, the name and the facts un
   await goLibrary(page);
   await page.click('#body .iacts .smore'); await page.click('#body .rowmenu [data-act=rm-rename]'); await settle(page);
   ok('Rename is in place on the card', await page.isVisible('#scr .rcard .swren'));
-  await page.fill('#scr .swren', 'Renamed here'); await page.keyboard.press('Enter'); await settle(page);
-  ok('…and keeps what was typed', Object.values((await st(page)).names).includes('Renamed here'));
+  await page.fill('#scr .swren[data-f=company]', 'Renamed'); await page.fill('#scr .swren[data-f=role]', 'here'); await page.fill('#scr .swren[data-f=word]', ''); await page.keyboard.press('Enter'); await settle(page);
+  ok('…and keeps what was typed', Object.values((await st(page)).names).includes('here, Renamed'));
   await ctx.close();
 });
 
@@ -241,13 +241,13 @@ await part('Use for a new job: a company is required; Enter makes the copy under
   ok('Esc closes the form (Esc never changes place) and the text is still there when it is opened again', await view(page) === 'resumes' && !(await page.$('#nj-company')) && (await page.click('#body [data-act=nj-open]'), await settle(page), await page.inputValue('#nj-company')) === 'Contoso Labs');
   await page.focus('#nj-role'); await page.keyboard.press('Enter'); await settle(page, 600);
   const s1 = await st(page), r = await page.evaluate(() => { const s = window.__wb.store.state, c = s.resumes.find(x => x.id === s.openId); return { company: c.company, role: c.role, name: c.name, keys: Object.keys(c).sort().join() }; });
-  ok('Enter makes the copy under its parent and opens it in the editor, with the company and the role in the fields a resume has', await view(page) === null && s1.ids.length === s0.ids.length + 1 && s1.parents[s1.openId] === parent && r.company === 'Contoso Labs' && r.role === 'Lead Engineer' && r.name === 'Contoso Labs - Lead Engineer', JSON.stringify(r));
+  ok('Enter makes the copy under its parent and opens it in the editor, with the company and the role in the fields a resume has', await view(page) === null && s1.ids.length === s0.ids.length + 1 && s1.parents[s1.openId] === parent && r.company === 'Contoso Labs' && r.role === 'Lead Engineer' && r.name === 'Lead Engineer, Contoso Labs', JSON.stringify(r));
   // the copy says what it came from: under its name in the name card, on its card, and it is the selected card
   const nm = await page.evaluate(() => ({ own: document.querySelector('#docname')?.textContent.replace(/\s+/g, ' ').trim(), from: document.querySelector('#head .dfrom')?.textContent }));
   await goLibrary(page);
   const lib = await page.evaluate(() => { const c = document.querySelector('#scr .rcard.sel'); return { id: c?.dataset.rid, from: c?.querySelector('.rfrom')?.textContent }; });
   const parentName = await page.evaluate(async id => (await import('/src/model/resumes.js')).resumeLabel(window.__wb.store.state.resumes.find(x => x.id === id)), parent);
-  ok('after the copy the name card has its own name and "from <parent>", and the Library has the copy selected with "from <parent>" on its card', /^Contoso Labs \W+ Lead Engineer$/.test(nm.own ?? '') && nm.from === `from ${parentName}` && lib.id === s1.openId && lib.from === `from ${parentName}`, JSON.stringify({ nm, lib }));
+  ok('after the copy the name card has its own name and "from <parent>", and the Library has the copy selected with "from <parent>" on its card', nm.own === 'Lead Engineer, Contoso Labs' && nm.from === `from ${parentName}` && lib.id === s1.openId && lib.from === `from ${parentName}`, JSON.stringify({ nm, lib }));
   ok('…and its form is empty next time (the draft went with the copy)', (await goLibrary(page), await page.click(`#scr .rcard[data-rid="${parent}"] .rsel`), await page.click('#body [data-act=nj-open]'), await settle(page), await page.inputValue('#nj-company')) === '');
   ok('no errors', errors.length === 0, errors[0] ?? '');
   await ctx.close();
@@ -500,7 +500,7 @@ await part('the list view: rows with the columns, files folded under their resum
     return { pressed: document.querySelector('[data-act=scr-list]').getAttribute('aria-pressed'), cards: list.querySelectorAll('.rcard').length, rows: shown.every(id => list.querySelectorAll(`tr.rline[data-rid="${CSS.escape(id)}"], tr[data-lid="${CSS.escape(id)}"]`).length >= 1),
       th: list.querySelector('table.rtable thead tr')?.children.length, tables: list.querySelectorAll('table').length, heads: list.querySelectorAll('thead').length, groups: list.querySelectorAll('tbody.rgroup > tr.rghead:first-child').length, thumbs: list.querySelectorAll('[data-thumb]').length, attHidden: !!att?.hidden, attParent: att?.dataset.parent === rid, free: list.querySelectorAll('tr.rdoc:not(.rsub):not([data-parent])').length };
   }, [s0.ids, s0.ids[1]]);
-  ok('the list switch shows one table: one column header (the tick, the name, company, role, paper, language, pages, sent, last changed), each group a header row in it, a row for each resume, no pictures', L.pressed === 'true' && L.cards === 0 && L.rows && L.th === 9 && L.tables === 1 && L.heads === 1 && L.groups >= 2 && L.thumbs === 0, JSON.stringify(L));
+  ok('the list switch shows one table: one column header (the tick, role, company, name, paper, language, pages, sent, last changed), each group a header row in it, a row for each resume, no pictures', L.pressed === 'true' && L.cards === 0 && L.rows && L.th === 9 && L.tables === 1 && L.heads === 1 && L.groups >= 2 && L.thumbs === 0, JSON.stringify(L));
   ok('a file exported from a resume is folded under its row; a file of its own has a row of its own', L.attHidden && L.attParent && L.free === 1, JSON.stringify(L));
   const fold = `#scr tr.rline[data-rid="${s0.ids[1]}"] .rfold`;
   await page.click(fold); await settle(page, 100);
@@ -556,9 +556,9 @@ await part('the list view: rows with the columns, files folded under their resum
   await ctx.close();
   const n = await open(1280, 720);
   await goLibrary(n.page); await n.page.click('[data-act=scr-list]'); await settle(n.page);
-  const w = await n.page.evaluate(() => { const q = s => document.querySelector(`#scr .rtable ${s}`).getBoundingClientRect(), tb = q(''), ws = ['company', 'role', 'sent', 'changed'].map(k => q(`thead .c-${k}`).width);
-    return { paper: q('th.c-paper').width, name: q('th.c-name').width, most: q('th.c-name').width > Math.max(...ws), fill: Math.round(tb.right - q('tr.rline td.c-changed').right), scroll: document.querySelector('#scr').scrollWidth - document.querySelector('#scr').clientWidth }; });
-  ok('at 1280 the list drops the paper, language and pages columns, its rows fill the table with the name the widest, and nothing scrolls sideways', w.paper === 0 && w.most && w.fill <= 2 && w.scroll <= 1, JSON.stringify(w));
+  const w = await n.page.evaluate(() => { const q = s => document.querySelector(`#scr .rtable ${s}`).getBoundingClientRect(), tb = q('');
+    return { paper: q('th.c-paper').width, name: q('th.c-name').width, cut: [...document.querySelectorAll('#scr .rtable tr.rline td:is(.c-role, .c-company)')].filter(td => td.scrollWidth > td.clientWidth).length, fill: Math.round(tb.right - q('tr.rline td.c-changed').right), scroll: document.querySelector('#scr').scrollWidth - document.querySelector('#scr').clientWidth }; });
+  ok('at 1280 the list drops the paper, language and pages columns, its rows fill the table, no role or company cut (a long one wraps), and nothing scrolls sideways', w.paper === 0 && w.cut === 0 && w.fill <= 2 && w.scroll <= 1, JSON.stringify(w));
   await n.ctx.close();
 });
 
@@ -659,7 +659,7 @@ await part('the example’s own Library: rounds (the current one open, an older 
   ok('…in the list one row, folded under it a row for each language and then its files, as many as the card counts', L.rows === '1,0,0' && L.langs === 'Deutsch,English,Français' && L.files === u.want && L.langsFirst, JSON.stringify(L));
   await page.setViewportSize({ width: 1180, height: 832 }); await settle(page);
   const pill = await page.evaluate(() => { const p = document.querySelector('#scr tr.rline.open .pill.is-open'), td = p?.closest('td'), r = p?.getBoundingClientRect(); return p && { whole: p.scrollWidth <= p.clientWidth + 1 && r.right <= td.getBoundingClientRect().right + 1, cut: (n => n.scrollWidth > n.clientWidth)(td.querySelector('.rsel')), text: p.textContent }; });
-  ok('a narrow list cuts a row’s name short before its "Open now" pill, which keeps its width', pill?.whole && pill.cut, JSON.stringify(pill));
+  ok('in a narrow list the "Open now" pill keeps its width, inside its cell', !!pill?.whole, JSON.stringify(pill));
   await page.click('[data-act=scr-cards]'); await settle(page);
   await page.fill('#scr-q', '2026-09-29'); await settle(page, 400);
   const sq = await page.evaluate(() => ({ cards: [...document.querySelectorAll('#scr .rcard')].map(c => c.dataset.rid ?? `doc:${c.dataset.did}`), hit: [...document.querySelectorAll('#scr .rcard .rfiles.is-hit')].map(b => b.closest('.rcard').dataset.rid) }));

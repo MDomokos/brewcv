@@ -136,8 +136,9 @@ export default {
 
   'resumes.pShort': '{n} str.',
   'resumes.newTitle': 'Nowe CV',
-  'resumes.company': 'Firma',
+  'resumes.company': 'Miejsce pracy',
   'resumes.role': 'Stanowisko',
+  'resumes.word': 'Własne słowo (opcjonalnie)',
   'resumes.language': 'Język',
   'resumes.savedHere': 'Jest zapisane w tej przeglądarce. Drukowany tekst zostaje taki jak teraz; późniejsze zmiany w twojej karierze zobaczysz jako nowsze brzmienie przy ponownym otwarciu.',
   'resumes.savedLinked': 'Jest zapisane w tej przeglądarce oraz jako <code>recipes/…json</code> w {name}. Drukowany tekst zostaje taki jak teraz; późniejsze zmiany w twojej karierze zobaczysz jako nowsze brzmienie przy ponownym otwarciu.',
@@ -981,7 +982,6 @@ export default {
   'ux1.undoSnapshot': 'Zapisz migawkę',
   'ux1.newTitle': 'Nowe CV',
   'ux1.name': 'Nazwa',
-  'ux1.namePh': 'Firma lub branża - Stanowisko',
   'ux1.for': 'Dla (opcjonalnie)',
   'ux1.kind': 'Rodzaj',
   'ux1.kindCompany': 'Firma',

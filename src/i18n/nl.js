@@ -136,8 +136,9 @@ export default {
 
   'resumes.pShort': '{n} p.',
   'resumes.newTitle': 'Nieuw cv',
-  'resumes.company': 'Bedrijf',
+  'resumes.company': 'Werkplek',
   'resumes.role': 'Functie',
+  'resumes.word': 'Eigen woord (optioneel)',
   'resumes.language': 'Taal',
   'resumes.savedHere': 'Het is opgeslagen in deze browser. De tekst die het afdrukt blijft zoals hij nu is; latere wijzigingen in je carrière worden als nieuwere formulering aangeboden als je het weer opent.',
   'resumes.savedLinked': 'Het is opgeslagen in deze browser, en als <code>recipes/…json</code> in {name}. De tekst die het afdrukt blijft zoals hij nu is; latere wijzigingen in je carrière worden als nieuwere formulering aangeboden als je het weer opent.',
@@ -981,7 +982,6 @@ export default {
   'ux1.undoSnapshot': 'Een momentopname opslaan',
   'ux1.newTitle': 'Nieuw cv',
   'ux1.name': 'Naam',
-  'ux1.namePh': 'Bedrijf of sector - Functie',
   'ux1.for': 'Voor (optioneel)',
   'ux1.kind': 'Soort',
   'ux1.kindCompany': 'Een bedrijf',

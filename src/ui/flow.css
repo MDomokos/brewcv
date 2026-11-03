@@ -180,6 +180,7 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .scr .rtable thead th { position: sticky; top: var(--tbar-h, 0px); z-index: 2; padding-block: 6px; background: var(--paper); border-bottom: 1px solid var(--line); font-size: 11.5px; font-weight: 500; color: var(--paper-soft); }
 .scr .rtable thead th:first-child { border-top-left-radius: var(--r-m); } .scr .rtable thead th:last-child { border-top-right-radius: var(--r-m); }
 .scr .rtable td { color: var(--paper-soft); }
+.scr .rtable td:is(.c-role, .c-company) { white-space: normal; overflow-wrap: break-word; }      /* a long name wraps to a second line, never cut */
 /* no dividers: every other row is tinted, counted again from each group's or round's header row (folded rows do not count) */
 .scr .rtable :where(tbody > tr:nth-child(even of :not([hidden], .rghead))) { background: var(--row-stripe); }
 .scr .rtable :is(.rghead, .rrhead tr) th { padding: 5px 8px 3px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); color: var(--paper-ink); font-size: 11.5px; font-weight: 650; }
@@ -189,7 +190,7 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .scr .rtable .c-tick { width: 58px; box-sizing: border-box; text-align: right; }
 /* the name takes what the others leave; company and role a share of the width, the short ones their text's */
 .scr .rtable .c-name { color: var(--paper-ink); }
-.scr .rtable :is(th.c-company, th.c-role) { width: 15%; }
+.scr .rtable th.c-name { width: calc(6ch + 96px); }      /* the short word and the Open now pill; Role and Company share the rest */
 .scr .rtable :is(th.c-paper, th.c-pages, th.c-sent) { width: calc(9ch + 20px); } .scr .rtable th.c-lang { width: calc(12ch + 20px); }      /* room for three language chips */ .scr .rtable th.c-changed { width: calc(12ch + 24px); }      /* ch of the heading's smaller type */
 .scr .rtable .rline { cursor: pointer; }
 .scr .rtable .rline:hover { background: var(--row-hover); }
@@ -208,7 +209,7 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .scr .rtable .rstate { font-size: 11.5px; color: var(--paper-soft); }
 /* a dropped column keeps its place at no width: the header rows span all nine */
 @container (max-width: 1040px){ .scr .rtable :is(th, td):is(.c-paper, .c-lang, .c-pages) { width: 0; padding: 0; visibility: hidden; } }
-@container (max-width: 600px){ .scr .rtable :is(th, td):is(.c-role, .c-changed) { width: 0; padding: 0; visibility: hidden; } }
+@container (max-width: 600px){ .scr .rtable :is(th, td):is(.c-changed) { width: 0; padding: 0; visibility: hidden; } }
 .thumbwrap { position: relative; }
 .thumbwrap .rthumb { z-index: 1; }
 .thumbwrap:has(.rthumb[data-pages]:not([data-pages="1"]))::before { content: ""; position: absolute; inset: 0; z-index: 0; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--paper); box-shadow: var(--shadow-chip); transform: rotate(4deg); transform-origin: 0 100%; }

@@ -54,13 +54,13 @@ export const delHtml = (id, disabled = false) => delBtn(`data-act="rm-delete" da
 export const askHtml = id => (V.ask === id && RS.savedOf(st(), id) ? delAskHtml(askText(RS.savedOf(st(), id)), `data-act="rm-delete" data-id="${esc(id)}" data-sure="1"`, t('ux1.delete'), 'data-act="rm-ask-no"') : '');
 export const moreButton = (id, where = 'group') => `<button class="smore" data-act="rm-menu" data-id="${esc(id)}" data-where="${where}" aria-haspopup="menu" aria-expanded="${V.row?.id === id && V.row.where === where}" title="${esc(t('ux1.rowMenuTitle'))}" aria-label="${esc(t('ux1.rowMenu', { name: RS.resumeLabel(RS.savedOf(st(), id)) }))}">${icon('more')}</button>`;
 export const renamingHere = (id, where = 'group') => V.renaming?.id === id && V.renaming.where === where;
-export const renameInput = r => `<input class="swren" data-rename="${esc(r.id)}" value="${esc(RS.resumeLabel(r))}" aria-label="${esc(t('ux1.rename'))}" autocomplete="off">`;
+export const renameInput = r => `<span class="swrenbox" data-rename="${esc(r.id)}"><input class="swren" data-f="role" value="${esc(r.role ?? '')}" placeholder="${esc(t('resumes.role'))}" aria-label="${esc(t('resumes.role'))}" autocomplete="off"><input class="swren" data-f="company" value="${esc(r.company ?? '')}" placeholder="${esc(r.company ? t('resumes.company') : RS.resumeLabel(r))}" aria-label="${esc(t('resumes.company'))}" autocomplete="off"><input class="swren" data-f="word" value="${esc(RS.wordOf(r))}" placeholder="${esc(t('resumes.word'))}" aria-label="${esc(t('resumes.word'))}" autocomplete="off"></span>`;
 
 // ---- + New resume ----
 
 function nvInit(){
   const c = st().cur ?? {};
-  const nv = { name: '', touched: false, kind: 'company', company: '', role: '',
+  const nv = { kind: 'company', company: '', role: '', word: '',
     lang: c.lang ?? 'en', paper: c.format === 'us-letter' ? 'us-letter' : 'a4', start: null, fromId: null, picking: false };
   nv.start = similarOf(nv) ? 'latest' : 'all';
   return nv;
@@ -68,7 +68,7 @@ function nvInit(){
 const nv = () => (V.nv ??= nvInit());
 // the resume to start from: the one chosen under Change, else the saved one most like the company and role typed so far
 const similarOf = n => (n.fromId ? RS.savedOf(st(), n.fromId) : null) ?? RS.similarTo(st(), n);
-const nvName = n => n.touched ? n.name : RS.nameFrom({ company: n.company, role: n.role });
+const nvName = n => RS.nameFrom({ company: n.company, role: n.role, word: n.word });
 const formatOf = n => (n.paper === 'us-letter' ? 'us-letter' : a4FormatOf(n.lang));
 
 function newView(){
@@ -76,12 +76,13 @@ function newView(){
   const picked = similarOf(n);
   const L = n.lang, inUse = langsInUse(st().record);
   const opt = (v, label, extra = '', off = false) => `<label class="startopt ${off ? 'is-off' : ''}" data-start="${v}"><input type="radio" name="nv-start" value="${v}" ${n.start === v ? 'checked' : ''} ${off ? 'disabled' : ''}> <span>${label}${extra}</span></label>`;
-  // Who it is for comes first, since it finds the resume to start from; then what to start from, its name, and last the language and paper.
+  // Who it is for comes first, since it names the resume and finds the one to start from; then what to start from, and last the language and paper.
   return `<h2 class="title">${h('ux1.newTitle')}</h2>
     <span class="lbl">${h('ux1.for')}</span>
     <label class="field"><select id="nv-kind" aria-label="${esc(t('ux1.kind'))}"><option value="company" ${n.kind === 'company' ? 'selected' : ''}>${h('ux1.kindCompany')}</option><option value="outreach" ${n.kind === 'outreach' ? 'selected' : ''}>${h('ux1.kindOutreach')}</option></select></label>
-    <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="nv-co" value="${esc(n.company)}" autocomplete="off"></label>
     <label class="field"><span class="lbl inline">${h('resumes.role')}</span><input id="nv-role" value="${esc(n.role)}" autocomplete="off"></label>
+    <label class="field"><span class="lbl inline">${h('resumes.company')}</span><input id="nv-co" value="${esc(n.company)}" autocomplete="off"></label>
+    <label class="field"><span class="lbl inline">${h('resumes.word')}</span><input id="nv-word" value="${esc(n.word)}" autocomplete="off"></label>
     <span class="lbl">${h('ux1.startFrom')}</span>
     <div class="startopts">
       ${opt('latest', h('ux1.startSimilar'), picked ? ` <b id="nv-similar">${esc(RS.resumeLabel(picked))}</b> <a data-act="nv-change" role="button" tabindex="0">${h('ux1.change')}</a>` : '', !picked)}
@@ -89,7 +90,6 @@ function newView(){
       ${opt('all', h('ux1.startAll'))}
       ${opt('empty', h('ux1.startEmpty'))}
     </div>
-    <label class="field"><span class="lbl inline">${h('ux1.name')}</span><input id="nv-name" value="${esc(nvName(n))}" autocomplete="off" placeholder="${esc(t('ux1.namePh'))}"></label>
     <span class="lbl">${h('resumes.language')}</span>
     <span class="lang-menu inbody"><button class="sm langbtn" data-act="lang-menu-body" data-for="new" aria-haspopup="menu" aria-expanded="${V.menu === 'new'}">${esc(langName(L))} ${icon('caret', { role: 'inline' })}</button>
     ${V.menu === 'new' ? langMenuHtml({ for: 'new', current: L, inUse, more: V.more, label: t('resumes.language') }) : ''}</span>
@@ -351,14 +351,15 @@ async function act(a, tg){
 }
 
 function renameDone(input, keep){
-  const id = input.dataset.rename;
+  const box = input.closest('.swrenbox'), id = box.dataset.rename;
   if (V.renaming?.id !== id) return;
   V.renaming = null;
-  const name = input.value.trim();
+  const f = k => box.querySelector(`[data-f=${k}]`).value.trim();
+  const company = f('company'), role = f('role'), word = f('word');
   const r = RS.savedOf(st(), id);
-  if (keep && r && name && name !== RS.resumeLabel(r)){
+  if (keep && r && (company || role) && (company !== (r.company ?? '') || role !== (r.role ?? '') || word !== RS.wordOf(r))){
     let res;
-    commit(d => { res = RS.renameSaved(d, id, name); }, t('ux1.undoRename'));
+    commit(d => { res = RS.renameSaved(d, id, RS.nameFrom({ company, role, word }), { company, role }); }, t('ux1.undoRename'));
     if (res) C.noteRename?.(id, res.id);
   }
   rerender();
@@ -380,13 +381,10 @@ function bind(body){
     if (el.id === 'sv-role' && V.send) V.send.role = el.value;
     if (el.id === 'sv-date' && V.send) V.send.date = el.value;
     if (!n) return;
-    if (el.id === 'nv-name'){ n.name = el.value; n.touched = el.value.trim() !== ''; return; }
     if (el.id === 'nv-co') n.company = el.value;
     if (el.id === 'nv-role') n.role = el.value;
-    if (['nv-co', 'nv-role'].includes(el.id)){
-      if (!n.touched){ const f = $('#nv-name'); if (f) f.value = nvName(n); }
-      const s = $('#nv-similar'); if (s) s.textContent = RS.resumeLabel(similarOf(n));      // drawn in place: a redraw would take the caret out of the field
-    }
+    if (el.id === 'nv-word') n.word = el.value;
+    if (['nv-co', 'nv-role'].includes(el.id)){ const s = $('#nv-similar'); if (s) s.textContent = RS.resumeLabel(similarOf(n)); }      // drawn in place: a redraw would take the caret out of the field
   });
   // hover a saved resume: see it on the sheet without opening it
   body.addEventListener('mouseover', e => {
@@ -407,14 +405,14 @@ function bind(body){
   });
   body.addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.closest?.('#sv-co, #sv-role, #sv-date, #sv-kind')){ e.preventDefault(); act('sv-do', e.target); }
-    if (e.key === 'Enter' && e.target.closest?.('#nv-name, #nv-co, #nv-role')){ e.preventDefault(); act('nv-create', e.target); }
+    if (e.key === 'Enter' && e.target.closest?.('#nv-co, #nv-role, #nv-word')){ e.preventDefault(); act('nv-create', e.target); }
     if (e.target.classList?.contains('swren')){
       if (e.key === 'Enter'){ e.preventDefault(); renameDone(e.target, true); }
-      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); renameDone(e.target, true); }
+      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); renameDone(e.target, false); }
     }
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.rrow .t, [data-act=nv-change]')){ e.preventDefault(); e.target.click(); }
   });
-  body.addEventListener('focusout', e => { if (e.target.classList?.contains('swren')) renameDone(e.target, true); });
+  body.addEventListener('focusout', e => { if (e.target.classList?.contains('swren') && !e.relatedTarget?.closest?.('.swrenbox')) renameDone(e.target, true); });
 }
 
 // a saved resume as it prints: its sent wording held over the record's present one

@@ -31,7 +31,7 @@ function exampleState(){
   const resumes = [], frozen = {};
   for (const n of names){
     const got = S.loadResume(read(`data/example-resumes/${n}`), model);
-    resumes.push({ ...got.recipe, id: n });
+    resumes.push({ ...got.recipe, id: n, name: n.replace(/\.json$/, '') });
     frozen[n] = got.frozen;
   }
   const st = { record: clone(model), resumes, frozen, cur: null, openId: null };
@@ -109,16 +109,16 @@ section('saving a new resume');
   const variants0 = JSON.stringify(st.record.variants), jobTypes0 = JSON.stringify(st.record.jobTypes);
   st.cur.jobType = 'Optics'; st.cur.tags = ['hardware'];      // what an older file gave the resume
   const { id } = RS.saveNew(st, { company: 'Northwind Optics', role: 'Design Engineer' });
-  ok('saveNew adds a saved resume named Company - Role', st.resumes.length === n0 + 1 && id === 'Northwind Optics - Design Engineer.json' && st.openId === id && st.cur.name === 'Northwind Optics - Design Engineer');
+  ok('saveNew adds a saved resume named Role, Company', st.resumes.length === n0 + 1 && id === 'Design Engineer, Northwind Optics.json' && st.openId === id && st.cur.name === 'Design Engineer, Northwind Optics');
   ok('its For is the company and role, with a kind', st.cur.company === 'Northwind Optics' && st.cur.role === 'Design Engineer' && st.cur.forKind === 'company');
   ok('saving tags no version and adds no job type to the record', JSON.stringify(st.record.variants) === variants0 && JSON.stringify(st.record.jobTypes) === jobTypes0 && used.length > 0);
   ok('a job type and tags an older file gave the resume are kept as they were', st.cur.jobType === 'Optics' && eq(st.cur.tags, ['hardware']));
   ok('its text is frozen as it prints now', eq(st.frozen[id], resolve(st.record, st.cur).body));
   RS.saveNew(st, { company: 'Northwind Optics', role: 'Design Engineer' });
-  ok('a second save with the same name gets " 2"', st.openId === 'Northwind Optics - Design Engineer 2.json');
+  ok('a second save with the same name gets " 2"', st.openId === 'Design Engineer, Northwind Optics 2.json');
   ok('no company is needed', (() => { RS.saveNew(st, { company: '', role: '', name: 'Geospatial - GIS Solutions Engineer' }); return st.cur.name === 'Geospatial - GIS Solutions Engineer' && st.cur.company === '' && !st.cur.forKind && st.openId === 'Geospatial - GIS Solutions Engineer.json'; })());
   ok('nothing at all is fine too', (() => { RS.saveNew(st, { name: '', company: '', role: '' }); return !!st.cur.name && st.resumes.some(r => r.id === st.openId); })());
-  ok('outreach is a kind of For', (() => { RS.saveNew(st, { company: 'Geospatial', role: 'GIS Engineer', forKind: 'outreach' }); return st.cur.forKind === 'outreach' && st.cur.name === 'Geospatial - GIS Engineer'; })());
+  ok('outreach is a kind of For', (() => { RS.saveNew(st, { company: 'Geospatial', role: 'GIS Engineer', forKind: 'outreach' }); return st.cur.forKind === 'outreach' && st.cur.name === 'GIS Engineer, Geospatial'; })());
   ok('every saved resume validates', st.resumes.every(r => validate(S.save(st.record), r).errors.length === 0),
      st.resumes.map(r => validate(S.save(st.record), r).errors[0]).filter(Boolean)[0]);
   ok('a name with only a role is the role', (() => { RS.saveNew(st, { company: '', role: 'Lead' }); return st.cur.name === 'Lead'; })());
@@ -333,7 +333,7 @@ section('listing, compare, delete');
   ok('newest first in each group', g.every(x => x.resumes.every((r, i, a) => i === 0 || String(a[i - 1].savedAt) >= String(r.savedAt))));
   const [a, b] = st.resumes;
   const rows = RS.compareRows(st.record, a, b);
-  ok('compare: the settings first', rows.slice(0, 6).map(r => r.label).join() === 'Role,Language,Paper,Pages,Photo,Sections');
+  ok('compare: the settings first', rows.slice(0, 6).map(r => r.label).join() === 'Position,Language,Paper,Pages,Photo,Sections');
   ok('then every claim either prints', rows.filter(r => r.kind === 'claim').length >= RS.usedVersions(st.record, a).length);
   ok('a claim only one prints shows — on the other', rows.some(r => r.kind === 'claim' && (r.a.label === '—') !== (r.b.label === '—')));
   ok('rows that differ say so', rows.some(r => r.differs) && rows.some(r => !r.differs));
@@ -470,7 +470,7 @@ section('compare any number, and what differs');
 {
   const st = exampleState(), m = st.record, [a, b, c] = st.resumes;
   const rows = RS.compareMany(m, [a, b, c]);
-  ok('a cell for each of the three on every row, the settings first', rows.every(r => r.cells.length === 3) && rows.slice(0, 6).map(r => r.label).join() === 'Role,Language,Paper,Pages,Photo,Sections');
+  ok('a cell for each of the three on every row, the settings first', rows.every(r => r.cells.length === 3) && rows.slice(0, 6).map(r => r.label).join() === 'Position,Language,Paper,Pages,Photo,Sections');
   ok('the job order and the skill order are rows of their own', ['Job order', 'Skills'].every(l => rows.some(r => r.kind === 'setting' && r.label === l)));
   ok('the header lines are claims too, and a claim only some print says — for the others', rows.some(r => r.kind === 'claim' && r.fact === 'tagline') && rows.some(r => r.kind === 'claim' && r.cells.some(x => x.label === '—') && r.cells.some(x => x.label !== '—')));
   ok('for two it is compareRows', RS.compareRows(m, a, b).every((r, i) => eq(r.a, RS.compareMany(m, [a, b])[i].cells[0]) && eq(r.b, RS.compareMany(m, [a, b])[i].cells[1])));
@@ -506,9 +506,11 @@ section('compare any number, and what differs');
 section('Use for a new job');
 {
   const st = exampleState(), src = st.resumes[0], before = Object.keys(src).sort();
+  ok('nameFrom builds "Role, Company · word"; wordOf reads the new form, the old form, and keeps a custom name', RS.nameFrom({ company: 'Feinmess GmbH', role: 'Konstrukteur' }) === 'Konstrukteur, Feinmess GmbH' && RS.nameFrom({ company: 'CAD', role: 'Engineer', word: 'EU' }) === 'Engineer, CAD · EU'
+    && RS.wordOf({ name: 'Engineer, Acme · EU', company: 'Acme', role: 'Engineer' }) === 'EU' && RS.wordOf({ name: 'Engineer, Acme', company: 'Acme', role: 'Engineer' }) === '' && RS.wordOf({ name: 'Acme - Engineer - EU', company: 'Acme', role: 'Engineer' }) === 'EU' && RS.wordOf({ name: 'My own name', company: 'Acme', role: 'Engineer' }) === 'My own name');
   const res = RS.duplicate(st, src.id, { name: RS.nameFrom({ company: 'Contoso Labs', role: 'Lead Engineer' }), company: 'Contoso Labs', role: 'Lead Engineer' });
   const kid = RS.savedOf(st, res.id);
-  ok('a copy made for a job has the company and the role in the fields a resume already has, and opens under its parent', kid.company === 'Contoso Labs' && kid.role === 'Lead Engineer' && kid.parent === src.id && st.openId === kid.id && kid.name === 'Contoso Labs - Lead Engineer');
+  ok('a copy made for a job has the company and the role in the fields a resume already has, and opens under its parent', kid.company === 'Contoso Labs' && kid.role === 'Lead Engineer' && kid.parent === src.id && st.openId === kid.id && kid.name === 'Lead Engineer, Contoso Labs');
   const st2 = exampleState(), plain = RS.savedOf(st2, RS.duplicate(st2, st2.resumes[0].id).id);
   ok('a plain duplicate keeps the company and the role of its source, as before', plain.company === st2.resumes[0].company && plain.role === st2.resumes[0].role);
   ok('…and the copy made for a job has the very keys a plain duplicate has: no new format', eq(Object.keys(kid).sort(), Object.keys(plain).sort()));

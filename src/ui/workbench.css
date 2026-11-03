@@ -776,6 +776,8 @@ body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
 .snapline:hover { color: var(--ink); text-decoration: underline; }
 .swfoot { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding-top: 7px; }
 .swnone { padding: 6px 8px; }
+.swrenbox { grid-column: 1; display: flex; gap: 4px; min-width: 0; }
+.swrenbox .swren { min-width: 0; flex: 1; }
 .swren { width: 100%; font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--mark); border-radius: var(--r-s); background: var(--raised); color: var(--ink); grid-column: 1; }
 .rowmenu { right: 6px; top: calc(100% - 2px); min-width: 200px; z-index: 50; }
 .item.rrow { position: relative; }

@@ -61,7 +61,7 @@ function html(){
     const recent = q ? [] : [...new Set([st().openId, ...recentIds()])].map(id => all.find(x => x.id === id)).filter(Boolean).slice(0, WINDOW_RECENT);
     const groups = q ? RS.grouped(list) : [];
     return `<label class="lbl" for="sw-rn">${h('ux1.rename')}</label>
-    <input id="sw-rn" class="sw-q" data-rid="${esc(st().openId ?? '')}" value="${esc(RS.resumeLabel(r))}" autocomplete="off" ${open ? '' : 'disabled'}>
+    <span class="swrenbox" id="sw-rnbox" data-rid="${esc(st().openId ?? '')}"><input id="sw-rn" class="sw-q" value="${esc(r?.role ?? '')}" placeholder="${esc(t('resumes.role'))}" aria-label="${esc(t('resumes.role'))}" autocomplete="off" ${open ? '' : 'disabled'}><input id="sw-rn-co" class="sw-q" value="${esc(r?.company ?? '')}" placeholder="${esc(r?.company ? t('resumes.company') : RS.resumeLabel(r))}" aria-label="${esc(t('resumes.company'))}" autocomplete="off" ${open ? '' : 'disabled'}><input id="sw-rn-word" class="sw-q" value="${esc(RS.wordOf(r))}" placeholder="${esc(t('resumes.word'))}" aria-label="${esc(t('resumes.word'))}" autocomplete="off" ${open ? '' : 'disabled'}></span>
     ${parent ? `<p class="muted tiny swfrom">${h('ux6b.duplicatedFrom', { name: RS.resumeLabel(parent) })}</p>` : ''}
     <span class="lbl">${h('edit.thisResume')}</span>
     <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.dup')}</button>${C.resumes.delHtml(st().openId, !open)}</div>${C.resumes.askHtml(st().openId)}
@@ -132,7 +132,7 @@ function open({ name = false } = {}){
 const nameField = () => { const n = el.querySelector('#sw-rn'); n?.focus(); n?.select(); };
 function close({ focusBack = false } = {}){
   if (!S.open) return;
-  const rn = el.querySelector('#sw-rn');
+  const rn = el.querySelector('#sw-rnbox');
   if (rn && rn.dataset.rid === st().openId) rename(rn);                  // a name typed and not confirmed is kept (not on another resume: it was opened)
   S.open = false; S.q = '';
   C.relayout();
@@ -146,7 +146,7 @@ const toggle = () => (S.open ? close({ focusBack: true }) : open());
 // Ctrl+O: open it, or if it is open already, back to the search box
 const openOrFocus = () => { if (!S.open) open(); el.querySelector('#sw-q')?.focus(); };
 
-function navItems(){ return [...el.querySelectorAll('#sw-rn, .swacts button:not(:disabled), .delask button, #sw-q, .ddbtn, .swnew, .sopt, .smore, .snapline, .swfoot button:not(:disabled)')].filter(x => !x.closest('.rowmenu')); }
+function navItems(){ return [...el.querySelectorAll('#sw-rn, #sw-rn-co, #sw-rn-word, .swacts button:not(:disabled), .delask button, #sw-q, .ddbtn, .swnew, .sopt, .smore, .snapline, .swfoot button:not(:disabled)')].filter(x => !x.closest('.rowmenu')); }
 
 async function act(a, tg){
   switch (a){
@@ -160,11 +160,11 @@ async function act(a, tg){
 }
 
 // the open resume's name, from the rename field (on Enter or when the field is left)
-function rename(input){
-  const id = st().openId, r = RS.savedOf(st(), id), name = input.value.trim();
-  if (!r || !name || name === RS.resumeLabel(r)){ input.value = RS.resumeLabel(st().cur); return; }
+function rename(box){
+  const id = st().openId, r = RS.savedOf(st(), id), v = k => box.querySelector(k).value.trim(), role = v('#sw-rn'), company = v('#sw-rn-co'), word = v('#sw-rn-word');
+  if (!r || !(company || role) || (company === (r.company ?? '') && role === (r.role ?? '') && word === RS.wordOf(r))){ box.querySelector('#sw-rn').value = r?.role ?? ''; box.querySelector('#sw-rn-co').value = r?.company ?? ''; box.querySelector('#sw-rn-word').value = RS.wordOf(r); return; }
   let res;
-  try { C.store.commit(d => { res = RS.renameSaved(d, id, name); }, t('ux1.undoRename')); } catch (e){ C.toast(e.message, 'bad'); return; }
+  try { C.store.commit(d => { res = RS.renameSaved(d, id, RS.nameFrom({ company, role, word }), { company, role }); }, t('ux1.undoRename')); } catch (e){ C.toast(e.message, 'bad'); return; }
   if (res) noteRename(id, res.id);
 }
 
@@ -178,7 +178,6 @@ function bind(){
   document.getElementById('head').after(el);        // under the name card: with it, one card while the window is open
   el.addEventListener('input', e => { if (e.target.id === 'sw-q'){ S.q = e.target.value; render(); } });
   el.addEventListener('change', e => {
-    if (e.target.id === 'sw-rn') return rename(e.target);
     if (e.target.id === 'sw-lang') return C.chooseLang(e.target.value);
     if (e.target.id === 'sw-paper') return C.choosePaper(e.target.value);
   });
@@ -203,16 +202,17 @@ function bind(){
     if (row && S.hover !== `${row.dataset.id}:`){ S.hover = `${row.dataset.id}:`; C.resumes.previewSaved(row.dataset.id); }
   });
   // renaming a row happens in place
-  el.addEventListener('focusout', e => { if (e.target.classList?.contains('swren')) C.resumes.renameDone(e.target, true); });
+  el.addEventListener('focusout', e => { if (e.target.closest?.('#sw-rnbox') && !e.relatedTarget?.closest?.('#sw-rnbox')) rename(e.target.closest('#sw-rnbox')); });
+  el.addEventListener('focusout', e => { if (e.target.classList?.contains('swren') && !e.relatedTarget?.closest?.('.swrenbox')) C.resumes.renameDone(e.target, true); });
   el.addEventListener('keydown', e => {
     if (e.target.classList?.contains('swren')){
       if (e.key === 'Enter'){ e.preventDefault(); C.resumes.renameDone(e.target, true); }
-      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); C.resumes.renameDone(e.target, true); }
+      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); C.resumes.renameDone(e.target, false); }
       return;
     }
     if (e.target.closest('.rowmenu')){ if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); C.resumes.closeMenus(); } return; }
     if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); close({ focusBack: true }); return; }
-    if (e.target.id === 'sw-rn' && e.key === 'Enter'){ e.preventDefault(); close({ focusBack: true }); return; }      // Enter confirms the name
+    if (e.target.closest('#sw-rnbox') && e.key === 'Enter'){ e.preventDefault(); close({ focusBack: true }); return; }      // Enter confirms the name
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
       if (e.target.tagName === 'SELECT') return;
       const items = navItems();

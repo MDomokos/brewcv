@@ -136,8 +136,9 @@ export default {
 
   'resumes.pShort': '{n} s.',
   'resumes.newTitle': 'Nový životopis',
-  'resumes.company': 'Firma',
+  'resumes.company': 'Pracoviště',
   'resumes.role': 'Pozice',
+  'resumes.word': 'Vlastní slovo (volitelné)',
   'resumes.language': 'Jazyk',
   'resumes.savedHere': 'Je uložen v tomto prohlížeči. Text, který tiskne, zůstane takový, jaký je teď; pozdější úpravy vaší kariéry se vám při dalším otevření nabídnou jako novější znění.',
   'resumes.savedLinked': 'Je uložen v tomto prohlížeči a jako <code>recipes/…json</code> ve složce {name}. Text, který tiskne, zůstane takový, jaký je teď; pozdější úpravy vaší kariéry se vám při dalším otevření nabídnou jako novější znění.',
@@ -981,7 +982,6 @@ export default {
   'ux1.undoSnapshot': 'Uložit snímek',
   'ux1.newTitle': 'Nový životopis',
   'ux1.name': 'Název',
-  'ux1.namePh': 'Firma nebo obor - Pozice',
   'ux1.for': 'Pro (nepovinné)',
   'ux1.kind': 'Druh',
   'ux1.kindCompany': 'Firma',

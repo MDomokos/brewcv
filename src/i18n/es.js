@@ -136,8 +136,9 @@ export default {
 
   'resumes.pShort': '{n} p.',
   'resumes.newTitle': 'Nuevo currículum',
-  'resumes.company': 'Empresa',
+  'resumes.company': 'Lugar de trabajo',
   'resumes.role': 'Puesto',
+  'resumes.word': 'Palabra propia (opcional)',
   'resumes.language': 'Idioma',
   'resumes.savedHere': 'Se guarda en este navegador. El texto que imprime se conserva tal como está ahora; los cambios posteriores en tu trayectoria se te ofrecen como redacción más reciente cuando lo vuelvas a abrir.',
   'resumes.savedLinked': 'Se guarda en este navegador, y como <code>recipes/…json</code> en {name}. El texto que imprime se conserva tal como está ahora; los cambios posteriores en tu trayectoria se te ofrecen como redacción más reciente cuando lo vuelvas a abrir.',
@@ -981,7 +982,6 @@ export default {
   'ux1.undoSnapshot': 'Guardar una instantánea',
   'ux1.newTitle': 'Nuevo currículum',
   'ux1.name': 'Nombre',
-  'ux1.namePh': 'Empresa o sector - Puesto',
   'ux1.for': 'Para (opcional)',
   'ux1.kind': 'Clase',
   'ux1.kindCompany': 'Una empresa',

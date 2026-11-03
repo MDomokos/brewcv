@@ -2093,14 +2093,14 @@ if (want('saved resumes')) {
   await page.click('#docname-btn'); await settle(page);
   ok('the name window says where a copy came from: “Duplicated from …” (the open copy is in Hungarian, so the app says it in Hungarian)', /Másolat innen: Example Instruments/.test(await page.textContent('#switcher .swfrom')));
   await page.click('#switcher .swrow.is-cur .smore'); await page.click('.rowmenu [data-act=rm-rename]'); await settle(page);
-  await page.fill('.swren', 'Renamed By Smoke'); await page.keyboard.press('Enter'); await settle(page);
-  ok('Rename changes the name and the file name', (await st()).cur.name === 'Renamed By Smoke' && (await st()).openId === 'Renamed By Smoke.json');
-  ok('…and the switcher stays open with the new name', await page.isVisible('#switcher') && /Renamed By Smoke/.test(await page.textContent('#switcher .swrow.is-cur')));
+  await page.fill('.swren[data-f=company]', 'Renamed By'); await page.fill('.swren[data-f=role]', 'Smoke'); await page.fill('.swren[data-f=word]', ''); await page.keyboard.press('Enter'); await settle(page);
+  ok('Rename changes the name and the file name', (await st()).cur.name === 'Smoke, Renamed By' && (await st()).cur.company === 'Renamed By' && (await st()).cur.role === 'Smoke' && (await st()).openId === 'Smoke, Renamed By.json');
+  ok('…and the switcher stays open with the new name', await page.isVisible('#switcher') && /Smoke.*Renamed By/.test(await page.textContent('#switcher .swrow.is-cur')));
   await page.click('#switcher .swrow.is-cur .smore'); await page.click('.rowmenu [data-act=rm-delete]'); await settle(page);
-  ok('Delete removes it (Ctrl+Z brings it back) and opens another', !(await st()).resumes.some(x => x.id === 'Renamed By Smoke.json') && !!saved(await st()));
+  ok('Delete removes it (Ctrl+Z brings it back) and opens another', !(await st()).resumes.some(x => x.id === 'Smoke, Renamed By.json') && !!saved(await st()));
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+z'); await settle(page);
-  ok('Ctrl+Z brings it back', (await st()).resumes.some(x => x.id === 'Renamed By Smoke.json'));
+  ok('Ctrl+Z brings it back', (await st()).resumes.some(x => x.id === 'Smoke, Renamed By.json'));
 
   // + New resume
   await page.click('#docname-btn'); await settle(page);
@@ -2111,7 +2111,7 @@ if (want('saved resumes')) {
   ok('+ New resume opens the form in the panel', (await page.getAttribute('#body', 'data-view')) === 'new' && !(await page.isVisible('#switcher')));
   ok('…Start from: a similar resume is the default, with the other two', (await page.$$('.startopt')).length === 3 && await page.isChecked('.startopt[data-start=latest] input'));
   await page.fill('#nv-co', 'Geospatial'); await page.fill('#nv-role', 'GIS Solutions Engineer');
-  ok('the name is filled from For as you type', (await page.inputValue('#nv-name')) === 'Geospatial - GIS Solutions Engineer');
+  ok('there is no free-form name field, and Workplace and Position are asked', !(await page.$('#nv-name')) && (await page.textContent('#body')).includes('Workplace') && (await page.textContent('#body')).includes('Position'));
   await pickOption(page, '#nv-kind', 'outreach');
   const like = await page.evaluate(async () => { const RS = await import('./src/model/resumes.js'); const r = RS.similarTo(window.__wb.store.state, { company: 'Geospatial', role: 'GIS Solutions Engineer' }); return { id: r.id, name: RS.resumeLabel(r) }; });
   ok('the similar resume is named as the role is typed: the one most like the company and role', (await page.textContent('#nv-similar')) === like.name, `${await page.textContent('#nv-similar')} / ${like.name}`);
@@ -2122,7 +2122,7 @@ if (want('saved resumes')) {
   await page.check('.startopt[data-start=latest] input'); await settle(page);
   await page.click('[data-act=nv-create]'); await settle(page);
   const made = await st();
-  ok('Create saves and opens it: named from For, outreach, a copy of the similar resume', made.cur.name === 'Geospatial - GIS Solutions Engineer' && made.cur.forKind === 'outreach' && made.openId === made.cur.id && JSON.stringify(made.cur.sections) === JSON.stringify(made.resumes.find(r => r.id === like.id).sections));
+  ok('Create saves and opens it: named from For, outreach, a copy of the similar resume', made.cur.name === 'GIS Solutions Engineer, Geospatial' && made.cur.forKind === 'outreach' && made.openId === made.cur.id && JSON.stringify(made.cur.sections) === JSON.stringify(made.resumes.find(r => r.id === like.id).sections));
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher .swnew'); await settle(page);
   await page.click('[data-act=nv-create]'); await settle(page);
@@ -4346,7 +4346,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.click('#docname-btn'); await page.click('[data-act=sw-new]'); await settle(page);
     const order2 = await page.evaluate(() => [...document.querySelectorAll('#body .lbl')].map(l => l.textContent.trim().toLowerCase()));
     const ix = k => order2.findIndex(x => x.includes(k));
-    ok(`${tag}: New resume asks in this order: For, Start from, Name, Language, Paper`, ix('for') === 0 && ix('for') < ix('start from') && ix('start from') < ix('name') && ix('name') < ix('language') && ix('language') < ix('paper'), order2.join(' | '));
+    ok(`${tag}: New resume asks in this order: For, Position, Workplace, Custom word, Start from, Language, Paper`, ix('for') === 0 && ix('for') < ix('position') && ix('position') < ix('workplace') && ix('workplace') < ix('custom word') && ix('custom word') < ix('start from') && ix('start from') < ix('language') && ix('language') < ix('paper'), order2.join(' | '));
     await page.keyboard.press('Escape'); await settle(page);
 
     ok(`${tag}: no console errors`, bad.length === 0, bad[0] ?? '');

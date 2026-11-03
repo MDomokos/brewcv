@@ -25,8 +25,22 @@ import * as SB from './skillbank.js';
 const clone = x => structuredClone(x);
 export const today = () => new Date().toISOString().slice(0, 10);
 export const resumeLabel = r => (!r ? t('resumes.noResume') : r.name || (r.company && r.role ? `${r.company} — ${r.role}` : r.company || r.title || r.application || t('resumes.untitled')));
-// "<Company or sector> - <Role>"
-export const nameFrom = ({ company = '', role = '' } = {}) => [String(company).trim(), String(role).trim()].filter(Boolean).join(' - ');
+// "<Role>, <Company> · <word>"; the word is optional
+export const nameFrom = ({ company = '', role = '', word = '' } = {}) => {
+  const head = [String(role).trim(), String(company).trim()].filter(Boolean).join(', '), w = String(word).trim();
+  return [head, w].filter(Boolean).join(' · ');
+};
+// The custom word of a name: what follows "Role, Company" (or the older "Company - Role"). A name of neither form is all word.
+export function wordOf(r){
+  const name = String(r?.name ?? '').trim(), company = String(r?.company ?? '').trim(), role = String(r?.role ?? '').trim();
+  for (const head of [[role, company].filter(Boolean).join(', '), [company, role].filter(Boolean).join(' - ')]){
+    if (!head) continue;
+    if (name === head) return '';
+    const m = name.startsWith(head) && name.slice(head.length).match(/^(?: · | - )(.*)$/);
+    if (m) return m[1].trim();
+  }
+  return name;
+}
 
 // unique case-insensitively
 export function uniqueId(resumes, recipe, except = null){
@@ -255,10 +269,11 @@ export function duplicate(state, id, { lang = null, name = null, company, role }
   return out;
 }
 
-export function renameSaved(state, id, name){
+export function renameSaved(state, id, name, fields){
   const i = (state.resumes ?? []).findIndex(r => r.id === id);
   if (i < 0) throw new Error(`no saved resume ${id}`);
   const r = state.resumes[i];
+  if (fields){ r.company = String(fields.company ?? '').trim(); r.role = String(fields.role ?? '').trim(); }
   r.name = String(name ?? '').trim() || nameFrom({ company: r.company, role: r.role }) || t('resumes.untitled');
   r.application = r.title = r.name;
   const nid = uniqueId(state.resumes, r, id);
@@ -269,7 +284,7 @@ export function renameSaved(state, id, name){
   if (nid !== id) for (const o of [...state.resumes, state.cur]) if (o?.parent === id) o.parent = nid;    // a parent link is an id, and a rename changes the id
   if (state.openId === id){
     state.openId = nid;
-    state.cur = { ...state.cur, id: nid, name: r.name, application: r.name, title: r.name };
+    state.cur = { ...state.cur, id: nid, name: r.name, application: r.name, title: r.name, ...(fields && { company: r.company, role: r.role }) };
   }
   return { id: nid };
 }

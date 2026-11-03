@@ -136,8 +136,9 @@ export default {
 
   'resumes.pShort': '{n} o.',
   'resumes.newTitle': 'Új önéletrajz',
-  'resumes.company': 'Cég',
+  'resumes.company': 'Munkahely',
   'resumes.role': 'Pozíció',
+  'resumes.word': 'Egyéni szó (nem kötelező)',
   'resumes.language': 'Nyelv',
   'resumes.savedHere': 'Ebben a böngészőben mentve. A nyomtatott szöveg a mostani állapotában marad; a karriered későbbi módosításait újabb megfogalmazásként ajánlja fel, amikor újra megnyitod.',
   'resumes.savedLinked': 'Ebben a böngészőben mentve, és <code>recipes/…json</code> fájlként ide: {name}. A nyomtatott szöveg a mostani állapotában marad; a karriered későbbi módosításait újabb megfogalmazásként ajánlja fel, amikor újra megnyitod.',
@@ -981,7 +982,6 @@ export default {
   'ux1.undoSnapshot': 'Pillanatkép mentése',
   'ux1.newTitle': 'Új önéletrajz',
   'ux1.name': 'Név',
-  'ux1.namePh': 'Cég vagy terület - Pozíció',
   'ux1.for': 'Kinek (nem kötelező)',
   'ux1.kind': 'Fajta',
   'ux1.kindCompany': 'Egy cég',
