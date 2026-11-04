@@ -188,7 +188,22 @@ export const readPdf = (bytes, words = []) => withDoc(bytes, async doc => {
   });
 });
 
-// The first `max` pages as PNG data URLs, `width` pixels wide, for the layout view: { url, width, height, pw, ph }, the size in pixels and in the page's own points.
+// Whether a canvas gives back what was drawn on it (a few levels off is fine, as in Brave): a browser that guards against fingerprinting (Mullvad, Tor) returns noise from getImageData and toDataURL.
+let readback;
+export const canvasReadable = () => readback ??= (() => {
+  try {
+    const g = Object.assign(document.createElement('canvas'), { width: 2, height: 2 }).getContext('2d', { willReadFrequently: true });
+    const want = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [10, 20, 30]];
+    want.forEach((c, k) => { g.fillStyle = `rgb(${c})`; g.fillRect(k % 2, k >> 1, 1, 1); });
+    const d = g.getImageData(0, 0, 2, 2).data;
+    return want.every((c, k) => c.every((v, j) => Math.abs(d[4 * k + j] - v) <= 24));
+  } catch { return false; }
+})();
+// A copy of a drawn canvas to put in the page (a canvas has one place); drawing between canvases is not guarded.
+export const copyCanvas = c => { const n = Object.assign(document.createElement('canvas'), { width: c.width, height: c.height }); n.getContext('2d').drawImage(c, 0, 0); return n; };
+
+// The first `max` pages drawn on canvases, `width` pixels wide, for the layout view: { canvas, width, height, pw, ph }, the size in pixels and in the page's own points.
+// Show a copy of the canvas, not a data URL read back from it: that is what fingerprint guards poison.
 // Browser only: it draws on a canvas.
 // shortcut: only the first 8 pages are drawn (a resume is two or three); raise `max` when the view must show more
 export const pdfPages = (bytes, width = 560, max = 8) => withDoc(bytes, async doc => {
@@ -200,14 +215,15 @@ export const pdfPages = (bytes, width = 560, max = 8) => withDoc(bytes, async do
     canvas.width = Math.ceil(viewport.width);
     canvas.height = Math.ceil(viewport.height);
     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    out.push({ url: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height, pw: pts.width, ph: pts.height });
+    out.push({ canvas, width: canvas.width, height: canvas.height, pw: pts.width, ph: pts.height });
   }
   return out;
 });
 
-// Page 1 as a PNG data URL, `width` pixels wide, for the Library. Browser only: it draws on a canvas.
+// Page 1 as a PNG data URL, `width` pixels wide, for the Library; undefined when the canvas cannot be read back (it is stored, so noise must not be). Browser only: it draws on a canvas.
 // shortcut: it needs a canvas, so Node cannot run it; checks/pdf-thumb-check.mjs draws one in a browser
 export const pdfThumb = (bytes, width = 240) => withDoc(bytes, async doc => {
+  if (!canvasReadable()) return undefined;
   const page = await doc.getPage(1);
   const viewport = page.getViewport({ scale: width / page.getViewport({ scale: 1 }).width });
   if (!(viewport.height <= 4096)) throw code('big', 'The first page is too large to draw');      // a page a hundred times taller than wide would be a canvas the browser refuses

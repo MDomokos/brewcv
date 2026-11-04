@@ -12,7 +12,7 @@ import { isAssetRef } from '../store/store.js';
 import { t, h, errText } from '../i18n/index.js';
 import { langName } from '../model/lang.js';
 import { placeMenu, kb } from './files.js';
-import { pdfPages } from '../parse/pdf.js';
+import { pdfPages, copyCanvas } from '../parse/pdf.js';
 import { snippet } from './find.js';
 
 let C = null;
@@ -85,9 +85,9 @@ async function drawPages(){
   const host = document.querySelector('#body .dpages'), d = host && members().find(m => m.id === host.dataset.id);
   if (!d?.embedded || d.type !== 'application/pdf') return;
   try {
-    if (L.pages?.sha !== d.sha256) L.pages = { sha: d.sha256, urls: (await pdfPages(bytesOf(bytesUrl(d.embedded)), 420)).map(p => p.url) };
+    if (L.pages?.sha !== d.sha256) L.pages = { sha: d.sha256, cvs: (await pdfPages(bytesOf(bytesUrl(d.embedded)), 420)).map(p => p.canvas) };
   } catch { return; }
-  if (host.isConnected && L.pages?.sha === d.sha256) host.replaceChildren(...L.pages.urls.map(u => Object.assign(document.createElement('img'), { src: u, alt: '', className: 'dpage' })));
+  if (host.isConnected && L.pages?.sha === d.sha256) host.replaceChildren(...L.pages.cvs.map(c => Object.assign(copyCanvas(c), { className: 'dpage' })));
 }
 const claimLinks = (d, n = 6) => {
   const rec = st().record, ids = d.taken?.claims ?? [];

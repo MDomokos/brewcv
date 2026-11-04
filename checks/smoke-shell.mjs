@@ -2438,7 +2438,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
   await drop([DOUBT, CLEAN]);
   r = await rows();
   ok('a PDF with a column the parser does not trust opens the layout view by itself, a clean one in the same drop shows only the link', r[0].doubts === 'columns' && (await page.$$('[data-layout="0"]')).length === 1 && r[1].status === 'resume' && r[1].doubts === '' && (await page.$$('[data-layout="1"]')).length === 0 && (await page.$$('.lvlink[data-act=lv-open][data-f="1"]')).length === 1, JSON.stringify(r));
-  await page.waitForFunction(() => document.querySelectorAll('[data-layout="0"] .lvpage img').length === 2 && [...document.querySelectorAll('[data-layout="0"] .lvpage img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 20000 });
+  await page.waitForFunction(() => document.querySelectorAll('[data-layout="0"] .lvpage canvas').length === 2 && [...document.querySelectorAll('[data-layout="0"] .lvpage canvas')].every(i => !i.dataset.lvsrc && i.width > 0), null, { timeout: 20000 });
   ok('each page is drawn with two lines over it, a header line and a split line, and the sections found as boxes', (await page.$$('[data-layout="0"] .lvpage')).length === 2 && (await page.$$('[data-layout="0"] [data-lv=h]')).length === 2 && (await page.$$('[data-layout="0"] [data-lv=v]')).length === 2 && (await page.$$('[data-layout="0"] .lvbox')).length > 2);
   const readBefore = r[0].read;
   const pg = page.locator('[data-layout="0"] .lvpage[data-page="2"]');
@@ -2670,9 +2670,9 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   ok('selecting a group shows its inspector: the formats with their sizes, and the three ticks of the receipt, each with a state', (await page.$$('#body .insp-doc')).length === 1 && (await page.$$('#body .dformats button')).length === 2 && (await page.$$eval('#body .ticks li', es => es.map(e => e.dataset.state))).join() === 'read,unplaced,browser');
   ok('a Word file has no pages to draw; its first lines are shown as text', (await page.$$('#body .insp-doc .dpages')).length === 0 && (await page.$$('#body .insp-doc .dtext')).length === 1);
   await page.click(`#body .dformats button[data-id="${Bp.id}"]`); await settle(page);
-  await page.waitForFunction(() => document.querySelectorAll('#body .dpages img.dpage').length === 2 && [...document.querySelectorAll('#body .dpages img.dpage')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 30000 });
+  await page.waitForFunction(() => document.querySelectorAll('#body .dpages canvas.dpage').length === 2 && [...document.querySelectorAll('#body .dpages canvas.dpage')].every(i => i.width > 0), null, { timeout: 30000 });
   await shot('2-inspector-preview');
-  ok('a PDF’s inspector draws each of its pages as a picture, with no frame, plugin or object in the page', (await page.$$('#body .dpages img.dpage')).length === 2 && (await page.$$('#body iframe, #body object, #body embed')).length === 0);
+  ok('a PDF’s inspector draws each of its pages as a picture, with no frame, plugin or object in the page', (await page.$$('#body .dpages canvas.dpage')).length === 2 && (await page.$$('#body iframe, #body object, #body embed')).length === 0);
   await page.click(`${card(Cb)} .rsel`); await settle(page);
   ok('what was taken from a file is told, and the pages are those of the file now shown', (await page.$$('#body .insp-doc [data-taken]')).length === 1 && (await page.$eval('#body .dpages', e => e.dataset.id)) === Cb.id);
   await page.click(`${card(Bw)} .rsel`); await settle(page);

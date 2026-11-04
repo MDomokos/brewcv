@@ -392,6 +392,15 @@ async function loadPages(i){
   try { D.pages.set(i, await pdfPages(e.read.pdf)); } catch (err){ D.pages.set(i, { error: err }); }
   repaint();
 }
+// the markup holds an empty canvas per page; the drawn one is copied in as it appears (a data URL of it would be noise under fingerprint guards)
+const fillPages = () => {
+  for (const c of document.querySelectorAll('canvas[data-lvsrc]')){
+    const [i, k] = c.dataset.lvsrc.split(':'), src = F.drop?.pages.get(Number(i))?.[k]?.canvas;
+    c.removeAttribute('data-lvsrc');
+    if (src) c.getContext('2d').drawImage(src, 0, 0);
+  }
+};
+new MutationObserver(fillPages).observe(document.body, { childList: true, subtree: true });
 
 // A page and its layout: the full-width header ends at `headerBottom`, the columns are cut at `split` (the page's own points, y up)
 function pageHtml(e, i, pg, n){
@@ -399,7 +408,7 @@ function pageHtml(e, i, pg, n){
   const pct = (v, of) => `${(100 * v / of).toFixed(2)}%`;
   const boxes = e.read.boxes.filter(b => b.page === n).map(b => `<div class="lvbox" data-section="${esc(b.label)}" style="left:${pct(b.x0, pw)};top:${pct(ph - b.y1, ph)};width:${pct(b.x1 - b.x0, pw)};height:${pct(b.y1 - b.y0, ph)}"><span>${esc(b.label)}</span></div>`).join('');
   const handle = (kind, at, ghost, label) => `<div class="lv${kind}${ghost ? ' ghost' : ''}" id="lv${kind}-${i}-${n}" data-lv="${kind}" data-f="${i}" data-page="${n}" role="slider" tabindex="0" aria-label="${esc(label)}" aria-orientation="${kind === 'h' ? 'vertical' : 'horizontal'}" style="${kind === 'h' ? 'top' : 'left'}:${at}"></div>`;
-  return `<div class="lvpage" data-page="${n}" data-pw="${pw}" data-ph="${ph}" data-split="${lay.split ?? ''}" data-header="${lay.headerBottom ?? ''}"><img src="${pg.url}" alt="" draggable="false">${boxes}
+  return `<div class="lvpage" data-page="${n}" data-pw="${pw}" data-ph="${ph}" data-split="${lay.split ?? ''}" data-header="${lay.headerBottom ?? ''}"><canvas data-lvsrc="${i}:${n - 1}" width="${pg.width}" height="${pg.height}" aria-hidden="true"></canvas>${boxes}
     ${handle('h', lay.headerBottom != null ? pct(ph - lay.headerBottom, ph) : '0%', lay.headerBottom == null, t('i6.headerLine', { n }))}${handle('v', lay.split != null ? pct(lay.split, pw) : '50%', lay.split == null, t('i6.splitLine', { n }))}</div>
     <div class="btns"><button class="sm ghost" data-act="lv-one" data-f="${i}" data-page="${n}" ${lay.split == null ? 'disabled' : ''}>${h('i6.oneColumn')}</button></div>`;
 }

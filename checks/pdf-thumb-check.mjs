@@ -73,6 +73,21 @@ const ended = await page.evaluate(async ([file, tall]) => {
 }, [FILE, tall]);
 ok('every read and every thumbnail ends its worker (three reads, three workers made, three ended)', ended.made === 3 && ended.ended === 3, JSON.stringify(ended));
 ok('a first page far taller than wide gives the code big from pdfThumb, not an empty data URL', ended.code === 'big', JSON.stringify(ended));
+// a browser that poisons canvas readback (resistFingerprinting): no stored picture is made, and the pages are still drawn for the screen
+const poisoned = await ctx.newPage();
+await poisoned.addInitScript(() => {
+  const noise = new Uint8ClampedArray(16).map(() => Math.random() * 255);
+  CanvasRenderingContext2D.prototype.getImageData = function (x, y, w, h){ return new ImageData(noise, 2, 2); };
+  HTMLCanvasElement.prototype.toDataURL = () => ['data:image/png', 'base64,AAAA'].join(';');
+});
+await poisoned.goto(`http://localhost:${PORT}/index.html`, { waitUntil: 'domcontentloaded' });
+const pz = await poisoned.evaluate(async file => {
+  const { pdfThumb, pdfPages, canvasReadable } = await import('/src/parse/pdf.js');
+  const bytes = new Uint8Array(await (await fetch(`/${file}`)).arrayBuffer());
+  const pages = await pdfPages(bytes, 300);
+  return { readable: canvasReadable(), thumb: await pdfThumb(bytes, 240), pages: pages.length, canvas: pages[0].canvas instanceof HTMLCanvasElement && pages[0].canvas.width === 300 };
+}, FILE);
+ok('under poisoned canvas readback pdfThumb makes no picture to store, and pdfPages still gives a drawn canvas', pz.readable === false && pz.thumb === undefined && pz.pages >= 1 && pz.canvas, JSON.stringify(pz));
 const csp = await page.evaluate(() => window.__csp);
 ok('no Content-Security-Policy violation (the worker and the library load from the app\'s own address), no request to another address and no page error', csp.length === 0 && outside.length === 0 && errors.length === 0, JSON.stringify({ csp, outside, errors }));
 
