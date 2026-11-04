@@ -1359,6 +1359,7 @@ export default {
   'card.noteSection': 'Une nouvelle section entre dans votre parcours.',
   'card.noteEntry': 'Une nouvelle entrée entre dans votre parcours.',
   'card.page': 'Page {n}',
+  'string.back': 'Revenir à la sélection, page {n}',
   'card.offPage': 'Hors de la page',
   'card.tools': 'Outils pour {name}',
   'card.versions': 'Versions : v{v} sur ce CV',

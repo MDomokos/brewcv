@@ -1359,6 +1359,7 @@ export default {
   'card.noteSection': 'Nowa sekcja trafia do twojej kariery.',
   'card.noteEntry': 'Nowy wpis trafia do twojej kariery.',
   'card.page': 'Strona {n}',
+  'string.back': 'Wróć do zaznaczenia na stronie {n}',
   'card.offPage': 'Poza stroną',
   'card.tools': 'Narzędzia: {name}',
   'card.versions': 'Wersje: v{v} w tym CV',

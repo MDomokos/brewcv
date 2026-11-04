@@ -137,7 +137,17 @@ body[data-away] .col > :is(#body.is-float, #bankcard) { opacity: .5; transition:
 body[data-away] .col > :is(#body.is-float, #bankcard):is(:hover, :focus-within) { opacity: 1; }
 html[data-drink="tea"] .col > #body.is-float.has-string { background-image: radial-gradient(circle at 14px 14px, color-mix(in srgb, var(--tab-bg) 85%, var(--thread)) 3.5px, var(--hole) 3.5px 4.5px, transparent 4.5px); background-repeat: no-repeat; }
 html[data-drink="tea"] .col > #body.is-float.has-string .ctop { padding-left: 14px; }      /* (the hole's room) */
-html[data-motion=reduce] #string, html[data-motion=reduce] body[data-away] .col > * { transition: none; }
+#string.is-off { opacity: 0; }
+/* the chip that names the page of a selection out of the view; it stands at the view's edge, on that side */
+#strmark { position: fixed; z-index: 12; transform: translateY(-50%); padding: 4px 10px; border: 1px solid var(--str-ink); border-radius: var(--r-pill); background: var(--paper); color: var(--paper-ink);
+  font: 600 12px/1.3 var(--font-ui); white-space: nowrap; cursor: pointer; animation: strmark-in .2s .15s both; }
+#strmark[hidden] { display: none; }
+#strmark[data-side=r] { transform: translate(-100%, -50%); }
+#strmark[data-side=t] { transform: translateX(-50%); }
+#strmark[data-side=b] { transform: translate(-50%, -100%); }
+#strmark:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@keyframes strmark-in { from { opacity: 0; } }
+html[data-motion=reduce] #string, html[data-motion=reduce] #strmark, html[data-motion=reduce] body[data-away] .col > * { transition: none; animation: none; }
 
 /* ---- Career's lens (shell.js lensMarks): with a resume open, "Its picks" frames the name card in the accent and dims, in place, what the resume
    does not use (the timeline's entries, an entry's lines); "Whole career" shows the career plain, with no frame and no ticks ---- */

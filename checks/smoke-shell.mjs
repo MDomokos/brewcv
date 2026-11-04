@@ -2244,6 +2244,40 @@ if (want('languages')) {
   await page.click('.missbar .miss-go:has-text("Dinghy sailing")'); await settle(page);
   ok('a missing text opens with the English for reference and a box to write it', await page.isVisible('#ed-new') && await page.isVisible('.writein .ref'));
   await page.fill('#ed-new', 'Vitorlázás'); await page.click('[data-act=write-in]'); await settle(page);
+if (want('the string lets go of a line out of view: a chip names its page and brings it back')) {
+  for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
+    const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+    const page = await ctx.newPage();
+    const bad = await open(page, undefined, { drink, theme });
+    await openByName(page, 'Medtech'); await settle(page);
+    const li = page.frameLocator('#sheet iframe').locator('.document > .page').nth(0).locator('.bullets li').first();
+    await li.click(); await settle(page); await page.keyboard.press('Escape'); await settle(page);
+    const st = () => page.evaluate(() => { const m = document.querySelector('#strmark') ?? document.createElement('i'), s = document.querySelector('#string'), r = m.getBoundingClientRect(), v = window.__wb.canvas.view;
+      return { on: window.__wb.string.state.on, sel: window.__wb.ui.sel.kind, off: s.classList.contains('is-off'), op: getComputedStyle(s).opacity, mark: !m.hidden && r.width > 0, text: m.textContent, aria: m.getAttribute('aria-label'), side: m.dataset.side, left: r.left, right: r.right, vl: v.left, vr: v.left + v.width, card: document.querySelector('#body').classList.contains('is-float') }; });
+    const a = await st();
+    ok(`${drink} ${theme}: a line on page 1 selected, the string is tied to it and no chip shows`, a.sel === 'bullet' && a.on && !a.off && !a.mark, JSON.stringify(a));
+    await page.evaluate(() => window.__wb.canvas.goToPage(1)); await settle(page);
+    const b = await st();
+    ok(`${drink} ${theme}: page 2 brought forward, the line out of view: the string fades, a chip “← Page 1” at the view’s left edge, the card stays open`, b.sel === 'bullet' && b.off && b.op === '0' && b.mark && b.side === 'l' && /^← Page 1$/.test(b.text) && /page 1/.test(b.aria) && b.left >= b.vl && b.left < b.vl + 40 && b.card, JSON.stringify(b));
+    await page.focus('#strmark').catch(() => {}); await page.keyboard.press('Enter'); await settle(page);
+    const c = await st();
+    ok(`${drink} ${theme}: Enter on the chip brings the line back, the string is tied again and the chip goes`, c.sel === 'bullet' && c.on && !c.off && c.op === '1' && !c.mark && (await page.evaluate(() => window.__wb.ui.page)) === 0, JSON.stringify(c));
+    if (drink === 'tea'){
+      await page.evaluate(() => window.__wb.canvas.goToPage(1)); await settle(page);
+      const was = (await st()).mark;
+      await page.click('#strmark', { timeout: 3000 }).catch(() => {}); await settle(page);
+      ok('a click on the chip does the same', was && !(await st()).mark && (await st()).on && !(await st()).off);
+      await page.evaluate(() => window.__wb.canvas.goToPage(1)); await settle(page);
+      const id0 = await page.evaluate(() => window.__wb.ui.sel.id);
+      await page.frameLocator('#sheet iframe').locator('.document > .page').nth(1).locator('.bullets li').first().click(); await settle(page); await page.keyboard.press('Escape'); await settle(page);
+      const d = await st();
+      ok('a line on the other page is selected as before: the string moves to it, no chip', d.sel === 'bullet' && (await page.evaluate(() => window.__wb.ui.sel.id)) !== id0 && d.on && !d.off && !d.mark, JSON.stringify(d));
+    }
+    ok('no console errors', bad.length === 0, bad[0] ?? '');
+    await ctx.close();
+  }
+}
+
   ok('saving writes Hungarian v1, and the page prints it', /Vitorlázás/.test(await frameDoc(page, d => d.body.textContent)) && (await st()).record.variants.some(v => v.lang === 'hu' && v.text === 'Vitorlázás' && v.n === '1'));
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc from a line that is in no job goes to the page', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none');

@@ -1362,6 +1362,7 @@ export default {
   'card.noteSection': 'A new section goes into your career.',
   'card.noteEntry': 'A new entry goes into your career.',
   'card.page': 'Page {n}',
+  'string.back': 'Back to the selection on page {n}',
   'card.offPage': 'Off the page',
   'card.tools': 'Tools for {name}',
   'card.versions': 'Versions: v{v} on this resume',

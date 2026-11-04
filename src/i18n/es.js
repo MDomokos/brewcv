@@ -1359,6 +1359,7 @@ export default {
   'card.noteSection': 'Una nueva sección entra en tu trayectoria.',
   'card.noteEntry': 'Una nueva entrada entra en tu trayectoria.',
   'card.page': 'Página {n}',
+  'string.back': 'Volver a la selección en la página {n}',
   'card.offPage': 'Fuera de la página',
   'card.tools': 'Herramientas de {name}',
   'card.versions': 'Versiones: v{v} en este currículum',

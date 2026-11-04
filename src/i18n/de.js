@@ -1359,6 +1359,7 @@ export default {
   'card.noteSection': 'Ein neuer Abschnitt kommt in deine Karriere.',
   'card.noteEntry': 'Ein neuer Eintrag kommt in deine Karriere.',
   'card.page': 'Seite {n}',
+  'string.back': 'Zurück zur Auswahl auf Seite {n}',
   'card.offPage': 'Nicht auf der Seite',
   'card.tools': 'Werkzeuge für {name}',
   'card.versions': 'Versionen: v{v} auf diesem Lebenslauf',

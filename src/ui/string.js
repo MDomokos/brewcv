@@ -6,8 +6,11 @@
 // Zoomed far out (under 0.7 of the fit) nobody writes: the card fades to half (full under the pointer), the string is cut at its middle and both
 // halves fall slack and fade; above 0.8 it is tied again. Drawn on events only (shell.js placeCard asks, on every draw and camera step); one frame
 // loop runs while an end glides, the sag settles or the card glides, none at rest. Under reduced motion: no glide, no spring.
+// What is selected out of the view (the room left of the column): the string fades and a chip at the view's edge, on its side, names its page; a
+// click on the chip brings it back into view and the string is tied again.
 import { reduced } from './motion.js';
 import { onDrinkChange, drink } from './drink.js';
+import { t } from '../i18n/index.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const HOLE = 14;      // Tea's punched hole, from the card's top-left corner (sidebar.css draws it)
@@ -19,6 +22,12 @@ export function initString({ ui, sheet, canvas, selRect, leave }){
   svg.innerHTML = '<path/><path/><circle r="3"/>';
   document.body.append(svg);
   const [p1, p2] = svg.querySelectorAll('path'), knot = svg.querySelector('circle');
+  const mark = document.createElement('button');
+  mark.id = 'strmark'; mark.type = 'button'; mark.hidden = true;
+  document.body.append(mark);
+  let back = null;      // what brings the selection into view, while it is out of it
+  mark.addEventListener('click', () => back?.());
+  mark.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation(); });      // the chip's own, not the page's Enter (write the line)
   // p: the ends as drawn; pt: where they belong; g: the page end's glide; c, v, t: the sag's control point, its speed, where it rests; d: 0 tied .. 1 cut
   const S = { on: false, p: [0, 0, 0, 0], pt: [0, 0, 0, 0], off: [0, 0], g: null, c: [0, 0], v: [0, 0], t: [0, 0], d: 0, dt: 0, k: 1, raf: 0, last: 0, key: '', geo: '', tx: [], pageR: 0 };
   let away = false, gliding = false;
@@ -82,7 +91,7 @@ export function initString({ ui, sheet, canvas, selRect, leave }){
   }
   function hide(){
     if (svg.style.display === 'none') return;
-    svg.style.display = 'none'; document.querySelector('#body')?.classList.remove('has-string');
+    svg.style.display = 'none'; document.querySelector('#body')?.classList.remove('has-string'); offView(null);
     Object.assign(S, { on: false, key: '', geo: '', g: null }); cancelAnimationFrame(S.raf); S.raf = 0;
   }
   // zoomed far out: cut below 0.7, tied again above 0.8 (so it does not flicker); writing ends
@@ -105,7 +114,11 @@ export function initString({ ui, sheet, canvas, selRect, leave }){
     const cam = canvas.cam, tk = `${cam.x}|${cam.y}|${cam.k}|${sheet.textRects().length}`;
     if (S.tk !== tk){ S.tk = tk; S.tx = sheet.textRects().map(q => { const s = scr(q); return { l: s.left + 1, r: s.left + s.width - 1, t: s.top + 1, b: s.top + s.height - 1 }; }); }
     const rr = { l: r.left, r: r.left + r.width, t: r.top, b: r.top + r.height };
-    const pg = sheet.pageBoxes().map(scr).find(b => rr.l >= b.left - 1 && rr.l <= b.left + b.width + 1) ?? null;
+    const boxes = sheet.pageBoxes().map(scr), pi = boxes.findIndex(b => rr.l >= b.left - 1 && rr.l <= b.left + b.width + 1), pg = boxes[pi] ?? null;
+    const near = pi >= 0 ? pi : boxes.reduce((a, b, i) => (Math.abs(b.left + b.width / 2 - rr.l) < Math.abs(boxes[a].left + boxes[a].width / 2 - rr.l) ? i : a), 0);
+    // out of the view, or on a faded page beside the bright one (one page at a time)
+    const v = canvas.view, faded = canvas.scene === 'one' && !canvas.free && near !== ui.page;
+    offView(v && (rr.r < v.left + 4 || (faded && near < ui.page) ? 'l' : rr.l > v.left + v.width - 4 || faded ? 'r' : rr.b < v.top + 4 ? 't' : rr.t > v.top + v.height - 4 ? 'b' : null), v, rr, near, r);
     S.pageR = pg ? pg.left + pg.width : rr.r;
     const beside = S.tx.some(q => q.l > rr.r + 2 && q.b > rr.t + 1 && q.t < rr.b - 1);      // two columns: the paper's edge, level with it
     const first = S.tx.filter(q => q.l >= rr.l - 2 && q.r <= rr.r + 2 && q.t >= rr.t - 2 && q.b <= rr.b + 2).sort((a, b) => a.t - b.t)[0];
@@ -118,6 +131,24 @@ export function initString({ ui, sheet, canvas, selRect, leave }){
     S.geo = geo;
     const fresh = key !== S.key; S.key = key;
     to([x0, y0, x1, y1], fresh);
+  }
+  // the selection out of the view: the string fades, the chip stands at the view's edge on its side, level with it (or under it)
+  function offView(side, v, rr, pi, r){
+    svg.classList.toggle('is-off', !!side);
+    if (!side){ if (!mark.hidden){ mark.hidden = true; back = null; } return; }
+    const n = pi + 1, label = t('card.page', { n }), aria = t('string.back', { n });
+    if (mark.dataset.side !== side || mark.dataset.n !== String(n)){
+      mark.dataset.side = side; mark.dataset.n = n;
+      mark.textContent = `${{ l: '←', r: '→', t: '↑', b: '↓' }[side]} ${label}`;
+      mark.setAttribute('aria-label', aria);
+    }
+    const cl = (x, a, b) => Math.max(a, Math.min(b, x)), m = 12;
+    const x = side === 'l' ? v.left + m : side === 'r' ? v.left + v.width - m : cl((rr.l + rr.r) / 2, v.left + 60, v.left + v.width - 60);
+    const y = side === 't' ? v.top + m : side === 'b' ? v.top + v.height - m : cl((rr.t + rr.b) / 2, v.top + 24, v.top + v.height - 24);
+    mark.style.left = `${Math.round(x)}px`; mark.style.top = `${Math.round(y)}px`;
+    const cam = canvas.cam, box = { left: (r.left - cam.x) / cam.k, top: (r.top - cam.y) / cam.k, width: r.width / cam.k, height: r.height / cam.k };
+    back = () => (pi !== ui.page ? canvas.goToPage(pi) : canvas.ensureVisible(box));      // as the word bank does
+    mark.hidden = false;
   }
   function update(){ zoomNow(); measure(); }
   // the card's own glide (a CSS transition of its margin): the card end follows it, frame by frame, only while it runs

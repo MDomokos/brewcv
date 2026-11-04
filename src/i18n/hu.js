@@ -1359,6 +1359,7 @@ export default {
   'card.noteSection': 'Az új szakasz a karrieredbe kerül.',
   'card.noteEntry': 'Az új bejegyzés a karrieredbe kerül.',
   'card.page': '{n}. oldal',
+  'string.back': 'Vissza a kijelöléshez ({n}. oldal)',
   'card.offPage': 'Nincs az oldalon',
   'card.tools': 'Eszközök: {name}',
   'card.versions': 'Változatok: ezen az önéletrajzon v{v}',

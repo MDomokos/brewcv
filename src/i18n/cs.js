@@ -1359,6 +1359,7 @@ export default {
   'card.noteSection': 'Nová sekce se zapíše do vaší kariéry.',
   'card.noteEntry': 'Nová položka se zapíše do vaší kariéry.',
   'card.page': 'Strana {n}',
+  'string.back': 'Zpět k výběru na straně {n}',
   'card.offPage': 'Mimo stránku',
   'card.tools': 'Nástroje pro: {name}',
   'card.versions': 'Verze: na tomto životopisu v{v}',

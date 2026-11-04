@@ -1359,6 +1359,7 @@ export default {
   'card.noteSection': 'Een nieuwe sectie komt in je carrière.',
   'card.noteEntry': 'Een nieuwe vermelding komt in je carrière.',
   'card.page': 'Pagina {n}',
+  'string.back': 'Terug naar de selectie op pagina {n}',
   'card.offPage': 'Niet op de pagina',
   'card.tools': 'Gereedschap voor {name}',
   'card.versions': 'Versies: v{v} op dit cv',
