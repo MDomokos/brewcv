@@ -6,7 +6,8 @@
 - **Every panel has the same inner spacing,** with its text on the name card's line, and its buttons follow one height scale.
 - **Export shows two whole pages side by side** whenever the window has room, and its panel fits without scrolling.
 - **Export's panel is the sidebar's width,** using its full height, and widens only when its content would not fit.
-- **A download no longer animates the page away:** the page stays where it is.
+- **Export's Download PDF is one big button,** with HTML, plain text and JSON Resume in a quieter row under it.
+- **A download lifts the finished pages for a moment,** with a sheen across them, instead of carrying the page away. Nothing moves under reduced motion.
 
 ### Fixed
 - **The sidebar has its full width from the start;** it no longer widens after the first edit.

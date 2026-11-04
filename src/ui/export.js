@@ -16,6 +16,7 @@ import { G } from './layout.js';
 import { fitFilled } from './dock.js';
 import { icon as drawn, withArrows } from './icons.js';
 import { drink } from './drink.js';
+import { reduced } from './motion.js';
 import { SAVE_FILE_NAME } from '../store/persist.js';
 import { libraryName, ensureDirs } from '../store/space.js';
 
@@ -315,11 +316,20 @@ function blocked(a, tg){
   return true;
 }
 
+// a download: the finished pages lift a little, a sheen crosses them, and they settle (about a second); nothing under reduced motion
+function lift(){
+  const el = document.querySelector('#xpages .xptrack') ?? document.getElementById('sheet');
+  if (reduced() || !el) return;
+  const r = el.getBoundingClientRect(), sheen = Object.assign(document.createElement('div'), { className: 'xp-sheen' });
+  Object.assign(sheen.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  document.body.append(sheen);
+  el.classList.remove('is-lifting'); void el.offsetWidth; el.classList.add('is-lifting');
+  setTimeout(() => { sheen.remove(); el.classList.remove('is-lifting'); }, 1200);
+}
 async function act(a, tg, force = false){
   const s = st();
   const many = listed();
   if (!force && !many && ['ex-pdf', 'ex-html', 'ex-txt', 'ex-json'].includes(a) && blocked(a, tg)) return true;
-  // after the download has started: the drink's own picture of it, from the page to the button that was pressed
   try {
     switch (a){
       case 'xp-back': back(); return true;
@@ -329,15 +339,15 @@ async function act(a, tg, force = false){
     }
     // a listed set: its medium is this export's (nothing saved), its files are made from each resume as it prints
     if (many && a === 'ex-medium'){ if (MEDIA.includes(tg.dataset.v)){ xp().medium = tg.dataset.v; C.renderBody(); drawPages(); } return true; }
-    if (many && ['ex-pdf', 'ex-html', 'ex-txt', 'ex-json'].includes(a)){ const fmt = a.slice(3); await downloadListed(fmt); return true; }
+    if (many && ['ex-pdf', 'ex-html', 'ex-txt', 'ex-json'].includes(a)){ const fmt = a.slice(3); await downloadListed(fmt); lift(); return true; }
     switch (a){
       // per resume, with undo; the default (a screen) is no key at all
       case 'ex-medium': { const v = tg.dataset.v; if (MEDIA.includes(v)) C.store.commit(d => { if (v === 'screen') delete d.cur.exportMedium; else d.cur.exportMedium = v; }, t('export.medium')); return true; }
       case 'ex-fix': { const f = checks()[+tg.dataset.i]?.fix ?? {}; C.goFix?.(f.vid ? { fact: factOf(C.work(), f.vid)?.id } : f); return true; }
-      case 'ex-pdf': if (!window.__TAURI__) C.toast(t('toast.printDialog')); await printPdf(); C.offerReview?.(); return true;
-      case 'ex-html': C.download(await buildHtml(), X.exportName(C.cur(), s.record, 'html'), 'text/html'); C.toast(t('toast.htmlDone'), '', false, true); return true;
-      case 'ex-txt': { const r = C.cur(), lang = r.lang ?? 'en'; await loadCatalogue(lang); C.download(X.plainText(X.jsonResumeFile(C.work(), r).file, { lang, chrome: docChrome(lang) }), X.exportName(r, s.record, 'txt'), 'text/plain'); const lost = X.unexportedNote(X.unexported(C.work(), r)); C.toast(lost ? `${t('toast.txtDone')} ${lost}` : t('toast.txtDone'), lost ? 'warn' : '', false, true); return true; }
-      case 'ex-json': { const { file, problems } = X.jsonResumeFile(C.work(), C.cur()); C.download(JSON.stringify(file, null, 2) + '\n', X.exportName(C.cur(), s.record, 'json')); const lost = X.unexportedNote(X.unexported(C.work(), C.cur())); C.toast(lost || (problems.length ? t('toast.jsonNotes', { n: problems.length, first: problems[0] }) : t('toast.jsonDone')), lost || problems.length ? 'warn' : '', false, true); return true; }
+      case 'ex-pdf': if (!window.__TAURI__) C.toast(t('toast.printDialog')); await printPdf(); lift(); C.offerReview?.(); return true;      // (after the print dialog, which freezes the page while it is open)
+      case 'ex-html': C.download(await buildHtml(), X.exportName(C.cur(), s.record, 'html'), 'text/html'); C.toast(t('toast.htmlDone'), '', false, true); lift(); return true;
+      case 'ex-txt': { const r = C.cur(), lang = r.lang ?? 'en'; await loadCatalogue(lang); C.download(X.plainText(X.jsonResumeFile(C.work(), r).file, { lang, chrome: docChrome(lang) }), X.exportName(r, s.record, 'txt'), 'text/plain'); const lost = X.unexportedNote(X.unexported(C.work(), r)); C.toast(lost ? `${t('toast.txtDone')} ${lost}` : t('toast.txtDone'), lost ? 'warn' : '', false, true); lift(); return true; }
+      case 'ex-json': { const { file, problems } = X.jsonResumeFile(C.work(), C.cur()); C.download(JSON.stringify(file, null, 2) + '\n', X.exportName(C.cur(), s.record, 'json')); const lost = X.unexportedNote(X.unexported(C.work(), C.cur())); C.toast(lost || (problems.length ? t('toast.jsonNotes', { n: problems.length, first: problems[0] }) : t('toast.jsonDone')), lost || problems.length ? 'warn' : '', false, true); lift(); return true; }
     }
   } catch (e){ console.error(e); C.toast(t('toast.exportFailed', { msg: errText(e) }), 'bad'); return true; }
   return false;

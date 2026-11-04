@@ -3239,6 +3239,8 @@ if (want('export')) {
     const pen = await built();
     ok('for a highlighter pen: black and white, dotted guides, the paper class', (await medium()) === 'pen' && /class="medium-print"/.test(pen) && /--accent:transparent/.test(pen) && /dotted/.test(pen) && (await note()).length > 20 && (await note()) !== printNote);
     const [penDl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act=ex-html]')]);
+    ok('under reduced motion a download does not lift the pages or draw a sheen', await page.evaluate(() => !document.querySelector('.is-lifting, .xp-sheen')));
+    ok('the formats: Download PDF is the one big button, the other three a row under it', await page.evaluate(() => { const b = [...document.querySelectorAll('.xpb[data-k=file] .dl > button')].map(x => x.getBoundingClientRect()); return b.length === 4 && b[0].height > b[1].height + 20 && Math.abs(b[1].top - b[3].top) < 1.5 && b[1].top > b[0].bottom; }), await page.evaluate(() => JSON.stringify([...document.querySelectorAll('.xpb[data-k=file] .dl > button')].map(x => { const r = x.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height), Math.round(r.left)]; }))));
     const penText = fs.readFileSync(await penDl.path(), 'utf8');
     ok('the HTML file Export makes is the pen one, with no script', /class="medium-print"/.test(penText) && /--accent:transparent/.test(penText) && !/<script/.test(penText));
     await page.keyboard.press('Control+z'); await settle(page);
@@ -4770,6 +4772,7 @@ if (want('motion: the twelve moments play, are off under reduced motion, and lea
     got.unroll = await names(); await page.waitForTimeout(700);
     got.tea = await page.evaluate(m => ({ drink: document.documentElement.dataset.drink, logo: eval(m)() }), `(${mark})`);
     if (await page.$('#rail .appmenu')) await page.keyboard.press('Escape');
+    await page.waitForTimeout(1500);      // the mat's unroll has ended
     got.left = await running();
     got.played = await page.evaluate(() => window.__wb.motion.stats.played);
     got.errors = bad.length;
