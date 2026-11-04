@@ -451,9 +451,9 @@ table.cmp tr.setting th { color: var(--ink); }
 .vuse > summary { cursor: pointer; }
 .vuse .vuses { margin: 4px 0 0; padding: 0; list-style: none; max-height: 9.5em; overflow-y: auto; color: var(--ink); }      /* one resume a line, the longest cut */
 .vuse .vuses > li { padding: 0 0 0 8px; border-left: 2px solid var(--line); line-height: 1.35; }
-.vuse .vuseb { display: block; width: 100%; padding: 2px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.vuse .vuseb:hover { background: var(--hover); }
-.vuse .vuseb:focus-visible { outline-offset: -2px; }
+#body .vuse button.vuseb { display: block; width: 100%; min-height: 0; margin: 0; padding: 2px 0; border: 0; border-radius: 0; background: none; box-shadow: none; transform: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#body .vuse button.vuseb:hover { background: var(--hover); }
+#body .vuse button.vuseb:focus-visible { outline-offset: -2px; }
 .vuse .vuses > li.this { padding: 2px 0 2px 8px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vusepv { position: fixed; z-index: 35; pointer-events: none; background: var(--sheet); border-radius: var(--r-xs); overflow: hidden; box-shadow: var(--shadow-toast); }
 

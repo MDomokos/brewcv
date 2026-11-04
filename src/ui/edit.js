@@ -8,7 +8,7 @@ import * as T from '../model/resume.js';
 import * as LK from '../model/lock.js';
 import { key as measureKeyOf } from '../fit.js';
 import { missingList, writeInPlan, matchPlan, isSame, sameKey, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
-import { groupOf, inGroup, groupOpts, parentOf, setInStep, matchVersion, keepLabelAs, prints, resumeLabel, nameFrom } from '../model/resumes.js';
+import { groupOf, inGroup, groupOpts, parentOf, setInStep, matchVersion, keepLabelAs, prints, resumeLabel, nameFrom, wordOf } from '../model/resumes.js';
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel, groupOf as recordGroupOf } from '../model/checklist.js';
 import { keyOf, isLabelKey } from './select.js';
@@ -590,7 +590,8 @@ function usesOf(id){
   for (const r of C.store.state.resumes ?? []){
     if (r.overrides?.[id] !== undefined || !prints(m, r, [id])) continue;
     const vid = T.chooseVariant(m, id, r).v?.id;
-    if (vid) out.set(vid, [...(out.get(vid) ?? []), { id: r.id, name: !r.name && r.company && r.role ? nameFrom({ company: r.company, role: r.role }) : resumeLabel(r) }]);
+    // an old "Company - Role" name reads role first; a name that is all word stays
+    if (vid) out.set(vid, [...(out.get(vid) ?? []), { id: r.id, name: r.company && r.role && !(r.name && wordOf(r) === r.name) ? nameFrom({ company: r.company, role: r.role, word: wordOf(r) }) : resumeLabel(r) }]);
   }
   return out;
 }

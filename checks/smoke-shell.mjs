@@ -2217,6 +2217,7 @@ if (want('a version says which saved resumes print it')) {
   await page.click('#body .vrow.cur details.vuse summary'); await settle(page);
   ok('unfolded, it names the resumes', await page.evaluate(() => document.querySelector('#body .vrow.cur details.vuse')?.open === true && document.querySelector('#body .vrow.cur .vuses').offsetHeight > 0));
   const first = await page.evaluate(() => ({ id: window.__wb.store.state.openId, sel: window.__wb.ui.sel.id, rows: [...document.querySelectorAll('#body .vrow.cur .vuseb')].map(b => ({ rid: b.dataset.rid, text: b.textContent.trim() })) }));
+  ok('a row has no border or shadow at rest', await page.evaluate(() => { const c = getComputedStyle(document.querySelector('#body .vuseb')); return c.borderTopWidth === '0px' && c.boxShadow === 'none' && c.backgroundColor === 'rgba(0, 0, 0, 0)'; }));
   ok('each row is a button reading "Role, Company"', first.rows.length > 0 && first.rows.every(r => /^[^—]+, /.test(r.text) && !/ — /.test(r.text)), JSON.stringify(first.rows));
   const other = first.rows.find(r => r.rid !== first.id);
   await page.hover(`#body .vrow.cur .vuseb[data-rid="${other?.rid}"]`); await page.waitForSelector('.vusepv iframe', { timeout: 8000 }).catch(() => {});
