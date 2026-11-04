@@ -368,7 +368,7 @@ await part('Mark as sent… from the Library: in the inspector’s ⋯ menu, the
   await page.click('#body .iacts .smore'); await page.click('.rowmenu [data-act=rm-sent]'); await settle(page, 400);
   await page.fill('#sv-co', 'Northgate Dosing'); await page.fill('#sv-role', 'Mechanical Design Engineer'); await page.click('[data-act=sv-do]'); await settle(page, 600);
   const e = await page.evaluate(() => ({ view: window.__wb.ui.view, sel: document.querySelector('#scr .rcard.sel')?.dataset.rid, badge: document.querySelector('#scr .rcard.sel .pill:not(.is-open)')?.textContent, list: document.querySelector('#body .oi-sent')?.textContent.replace(/\s+/g, ' ') }));
-  ok('Mark as sent keeps a copy and returns to the Library with that resume selected, its card badged and the inspector listing the send', await view(page) === 'resumes' && await sentCount() === 1 && e.sel === other && /Sent 1/.test(e.badge ?? '') && /Northgate Dosing/.test(e.list ?? ''), JSON.stringify(e));
+  ok('Mark as sent keeps a copy and returns to the Library with that resume selected, its card badged and the inspector listing the send', await view(page) === 'resumes' && await sentCount() === 1 && e.sel === other && /Sent 1|1× elküldve/.test(e.badge ?? '') && /Northgate Dosing/.test(e.list ?? ''), JSON.stringify(e));
   ok('no errors', errors.length === 0, errors[0] ?? '');
   await ctx.close();
 });
@@ -528,8 +528,7 @@ await part('the list view: rows with the columns, files folded under their resum
   await page.evaluate(async () => { const DOC = await import('/src/model/documents.js'); window.__wb.store.commit(d => { DOC.startRound(d, 'Autumn'); }, 'round'); window.__wb.setView(null); window.__wb.setView('resumes'); });
   await settle(page);
   const round = await page.evaluate(() => window.__wb.store.state.rounds[0].id);
-  ok('with a round, the rounds are header rows of the same table, Earlier folded', (await page.$$('#scr table')).length === 1 && (await page.$$('#scr .rtable tbody.rrhead')).length === 2 && await page.getAttribute('#scr tbody.rrhead[data-round=""] .rfold', 'aria-expanded') === 'false' && !(await page.isVisible(`#scr tr.rline[data-rid="${s0.ids[2]}"]`)));
-  await page.click('#scr tbody.rrhead[data-round=""] .rfold'); await settle(page, 100);
+  ok('with a round, the rounds are header rows of the same table, every round open', (await page.$$('#scr table')).length === 1 && (await page.$$('#scr .rtable tbody.rrhead')).length === 2 && await page.getAttribute('#scr tbody.rrhead[data-round=""] .rfold', 'aria-expanded') === 'true' && await page.isVisible(`#scr tr.rline[data-rid="${s0.ids[2]}"]`));
   const a = await page.locator(`#scr tr.rline[data-rid="${s0.ids[2]}"] td.c-company`).boundingBox(), b = await page.locator('#scr tbody.rrhead[data-current] th').boundingBox();
   await page.mouse.move(a.x + 10, a.y + a.height / 2); await page.mouse.down(); await page.mouse.move(b.x + 20, b.y + b.height / 2, { steps: 8 }); await page.mouse.up(); await settle(page);
   ok('a row carried onto a round’s name moves there', await page.evaluate(id => window.__wb.store.state.resumes.find(r => r.id === id).round, s0.ids[2]) === round);
@@ -636,14 +635,14 @@ await part('the example’s own Library: rounds (the current one open, an older 
       sent: st.resumes.filter(r => RS.snapshotsOf(r).length).length, letters: st.documents.filter(d => d.meta.kind === 'cover-letter').length, originals: st.documents.every(d => d.embedded) };
   });
   const a = await look();
-  ok('three rounds: the current one first and open, the older one folded, the archived one left out, then Earlier, folded', a.rounds.join('|') === 'October 2026 open current|September 2026 shut|Earlier shut', a.rounds.join('|'));
+  ok('three rounds: the current one first and open, the older one open too, the archived one left out, then Earlier, open', a.rounds.join('|') === 'October 2026 open current|September 2026 open|Earlier open', a.rounds.join('|'));
   ok('a document that belongs to a resume (the PDF sent to Example Instruments, its Word copy and its letter) is no card of its own; documents tied to no resume are, and each heading counts the cards under it', !a.pdf.from && a.attached === 0 && a.alone >= 1 && a.counts, JSON.stringify({ pdf: a.pdf, attached: a.attached, alone: a.alone, counts: a.counts }));
   ok('an old resume on its own is in Earlier, with a line the career does not hold', a.cv === '' && a.cvState === 'unplaced', `${a.cv} ${a.cvState}`);
   ok('one application in three languages: the German original, an English copy kept in step, a French one that is not', a.langs === 'en,fr' && a.inStep === 'en' && a.group === 2, JSON.stringify(a));
   ok('four resumes have sent copies, two letters went with them, and every file keeps its original', a.sent === 4 && a.letters === 2 && a.originals);
   await page.evaluate(() => { const s = document.querySelector('#scr-show'); s.value = 'archived'; s.dispatchEvent(new Event('change', { bubbles: true })); });
   await settle(page);
-  ok('Show archived brings the archived round back, with its two resumes', (await look()).rounds.includes('Summer 2026 shut archived 2'), (await look()).rounds.join('|'));
+  ok('Show archived brings the archived round back, with its two resumes', (await look()).rounds.includes('Summer 2026 open archived 2'), (await look()).rounds.join('|'));
   const fam = await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'), s = window.__wb.store.state; return RS.langFamily(s, s.resumes.find(r => r.company.startsWith('Feinmess') && !r.parent)).map(r => r.id); });
   const u = await page.evaluate(async fam => {
     const RS = await import('/src/model/resumes.js'), s = window.__wb.store.state, cards = [...document.querySelectorAll('#scr .rcard:not(.rdoc)')].filter(c => fam.includes(c.dataset.rid));

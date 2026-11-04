@@ -19,7 +19,7 @@ import { initLibrary, cells, COLS } from './library.js';
 let C = null, T = null, LIB = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const VIEW_KEY = 'rb-manage-view', VIEWS = ['role', 'date', 'company'];
-const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : 'role'; } catch { return 'role'; } };      // an older 'type' is read as role
+const savedView = () => { try { const v = localStorage.getItem(VIEW_KEY); return VIEWS.includes(v) ? v : 'date'; } catch { return 'date'; } };      // newest first unless chosen; an older 'type' is read as date
 const LIST_KEY = 'rb-manage-list', savedList = () => { try { return localStorage.getItem(LIST_KEY) === '1'; } catch { return false; } };
 // ticked: resumes ("id") and sent copies ("id|snapshot"); cmp: what Compare shows, and focus the row in the inspector;
 // sel: the selected card (null: the open resume's); nj: the resume whose "Use for a new job" form is open; draft: what was typed in
@@ -117,7 +117,7 @@ function row(r, fam = [r]){
   const hit = V.hits.get(r.id), sub = `class="rsub" data-parent="${esc(id)}" ${unfold ? '' : 'hidden'}`, sentN = x => (RS.snapshotsOf(x).length ? t('ux6h.sentN', { n: RS.snapshotsOf(x).length }) : '');
   return `<tr class="rline ${open ? 'open' : ''} ${r.id === selId() && !LIB.sel() ? 'sel' : ''} ${V.ticked.has(r.id) ? 'ticked' : ''}" ${hooks(r)}>
     <td class="c-tick">${fold}${tick(r.id, t('ux6e.tick', { name: label(r) }))}</td>
-    ${cells({ name: `<span class="cname">${nameBtn(r, esc(RS.wordOf(r)) || '<span class="muted">—</span>', label(r))}${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>${hit ? `<span class="rhit">${snippet(hit[0].text, F.q)}</span>` : ''}`, company: r.company, role: r.role, paper, lang: many ? '' : lang, pages, sent: filesChip(fam, r) ? '' : sentN(r), changed: r.savedAt }).replace('<td class="c-lang"></td>', `<td class="c-lang">${langChips(fam, r)}</td>`).replace('<td class="c-sent"></td>', `<td class="c-sent">${filesChip(fam, r)}</td>`)}</tr>`
+    ${cells({ name: `<span class="cname"><span class="ficon">${icon('document', { role: 'inline' })}</span>${nameBtn(r, esc(RS.wordOf(r)) || esc(label(r)), label(r))}${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>${hit ? `<span class="rhit">${snippet(hit[0].text, F.q)}</span>` : ''}`, company: r.company, role: r.role, paper, lang: many ? '' : lang, pages, sent: filesChip(fam, r) ? '' : sentN(r), changed: r.savedAt }).replace('<td class="c-lang"></td>', `<td class="c-lang">${langChips(fam, r)}</td>`).replace('<td class="c-sent"></td>', `<td class="c-sent">${filesChip(fam, r)}</td>`)}</tr>`
     + (many ? fam.map(x => `<tr ${sub} data-lid="${esc(x.id)}"><td class="c-tick"></td>${cells({ name: `<span class="cname"><button class="rsel" data-act="scr-lang" data-id="${esc(x.id)}" data-item="${esc(id)}" aria-pressed="${x.id === r.id}">${esc(langName(x.lang ?? 'en'))}</button>${x.id === st().openId ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>`, lang: LC(x), pages: metaParts(x)[3], sent: sentN(x), changed: x.savedAt })}</tr>`).join('') : '')
     + snaps.map(([x, s]) => `<tr ${sub}><td class="c-tick">${sentTick(x, s)}</td>${cells({ name: snapLine(x, s), company: s.sends[0]?.company, role: s.sends[0]?.role, lang: many ? LC(x) : '', changed: sentDate(s) })}</tr>`).join('')
     + docs.map(g => LIB.row(g, F.q, id, !unfold)).join('');
@@ -169,12 +169,12 @@ function listHtml(){
     const its = items.filter(x => (known.has(x.round) ? x.round : '') === key);
     if (round?.archived && !show) return '';
     if (!round && !its.length) return '';
-    const open = V.fold.has(key || 'earlier') ? V.fold.get(key || 'earlier') : key === cur || !!q || LIB.rm() === key;
-    const acts = round ? `<div class="btns racts"><button class="sm" data-act="round-archive" data-id="${esc(key)}" data-on="${round.archived ? '0' : '1'}">${h(round.archived ? 'i7.unarchiveRound' : 'i7.archiveRound')}</button>${round.archived ? `<button class="sm del" data-act="rm-round-open" data-id="${esc(key)}">${h('i7.rmThese')}</button>` : ''}</div>` : '';
+    const open = V.fold.has(key || 'earlier') ? V.fold.get(key || 'earlier') : true;      // every round is open until the person folds it
+    const acts = round ? `<div class="btns racts"><button class="sm ghost rarch" data-act="round-archive" data-id="${esc(key)}" data-on="${round.archived ? '0' : '1'}" title="${esc(t(round.archived ? 'i7.unarchiveRound' : 'i7.archiveRound'))}" aria-label="${esc(t(round.archived ? 'i7.unarchiveRound' : 'i7.archiveRound'))}">${icon('archive', { role: 'inline' })}</button>${round.archived ? `<button class="sm del" data-act="rm-round-open" data-id="${esc(key)}">${h('i7.rmThese')}</button>` : ''}</div>` : '';
     const attrs = `data-round="${esc(key)}" data-n="${its.length}" ${round?.archived ? 'data-archived="1"' : ''} ${key === cur ? 'data-current="1"' : ''}`, panel = round && LIB.rm() === key ? LIB.roundPanel(round) : '';
     if (listing()){      // a round is a header row with its fold and its actions; its groups follow, hidden while it is folded
       inRound = `data-in="${esc(key)}" ${open ? '' : 'hidden'}`;
-      return `<tbody class="rrhead" ${attrs}><tr><th colspan="9" scope="colgroup"><button class="rfold" data-act="scr-rfold" data-round="${esc(key)}" aria-expanded="${open}" aria-label="${esc(name)}">${icon('caret', { role: 'inline' })}</button> ${roundName(key, name, round)} · ${its.length}${acts}${panel}</th></tr></tbody>`
+      return `<tbody class="rrhead" ${attrs}><tr><th colspan="9" scope="colgroup"><button class="rfold" data-act="scr-rfold" data-round="${esc(key)}" aria-expanded="${open}" aria-label="${esc(name)}">${icon('caret', { role: 'inline' })}</button> <span class="ficon">${icon('flag', { role: 'inline' })}</span>${roundName(key, name, round)} · ${its.length}${acts}${panel}</th></tr></tbody>`
         + (its.length ? view(its) : `<tbody ${inRound}><tr><td colspan="9" class="muted small">${h('i7.roundEmpty')}</td></tr></tbody>`);
     }
     return `<details class="rround" ${attrs} ${open ? 'open' : ''}><summary>${roundName(key, name, round)} · ${its.length}</summary>${acts}${panel}${its.length ? view(its) : `<p class="muted small">${h('i7.roundEmpty')}</p>`}</details>`;

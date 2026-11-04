@@ -12,6 +12,7 @@ import { isAssetRef } from '../store/store.js';
 import { t, h, errText } from '../i18n/index.js';
 import { langName } from '../model/lang.js';
 import { placeMenu, kb } from './files.js';
+import { icon } from './icons.js';
 import { pdfPages, copyCanvas } from '../parse/pdf.js';
 import { snippet } from './find.js';
 
@@ -68,13 +69,13 @@ export function card(g, q = ''){
   </article>`;
 }
 // the list's columns after the tick (screens.js names them): every one a cell, blank where there is nothing; `name` is ready HTML
-export const COLS = ['role', 'company', 'name', 'paper', 'lang', 'pages', 'sent', 'changed'];
+export const COLS = ['name', 'role', 'company', 'paper', 'lang', 'pages', 'sent', 'changed'];
 export const cells = o => COLS.map(k => `<td class="c-${k}">${k === 'name' ? (o.name ?? '') : esc(o[k] ?? '')}</td>`).join('');
 // a document group's row: on its own, or under the resume it was exported from (parent), hidden while that resume is folded
 export function row(g, q = '', parent = null, hidden = false){
   const d = g.lead, state = stateOf(g), hit = hits(g, q)[0], sel = L.sel === g.id;
   return `<tr class="rline rdoc ${parent ? 'rsub' : ''} ${sel ? 'sel' : ''}" ${docHooks(g, state)} ${parent ? `data-parent="${esc(parent)}"` : ''} ${hidden ? 'hidden' : ''}><td class="c-tick"></td>
-    ${cells({ name: `<button class="rsel" data-act="doc-sel" data-id="${esc(g.id)}" aria-pressed="${sel}">${esc(d.name)}</button> ${pills(g)} <span class="rstate" data-state="${state[0]}">${esc(state[1])}</span>${hit ? `<span class="rhit">${snippet(hit, q)}</span>` : ''}`, company: d.meta?.company, role: d.meta?.role, lang: langs(g), changed: dateOf(d) })}</tr>`;
+    ${cells({ name: `<span class="cname"><span class="ficon">${icon('fileout', { role: 'inline' })}</span><button class="rsel" data-act="doc-sel" data-id="${esc(g.id)}" aria-pressed="${sel}">${esc(d.name)}</button>${pills(g)}<span class="rstate" data-state="${state[0]}">${esc(state[1])}</span></span>${hit ? `<span class="rhit">${snippet(hit, q)}</span>` : ''}`, company: d.meta?.company, role: d.meta?.role, lang: langs(g), changed: dateOf(d) })}</tr>`;
 }
 
 // ---- the inspector ----

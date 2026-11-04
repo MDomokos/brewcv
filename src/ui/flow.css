@@ -290,7 +290,7 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
    between compact rows, a resume's sent copies and files folded under it on a guide line; the narrower, the fewer columns */
 #scr-list { container-type: inline-size; }
 .scr .rtable { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--shadow-chip); font-size: 13px;
-  --row-pad: 7px; --row-stripe: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); --row-hover: color-mix(in srgb, var(--paper-ink) 9%, var(--paper)); }
+  --row-pad: 5px; --row-stripe: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); --row-hover: color-mix(in srgb, var(--paper-ink) 9%, var(--paper)); }
 .scr .rtable :is(th, td) { padding: var(--row-pad) 10px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.45; }
 .scr .rtable thead th { position: sticky; top: var(--tbar-h, 0px); z-index: 2; padding-block: 6px; background: var(--paper); border-bottom: 1px solid var(--line); font-size: 11.5px; font-weight: 500; color: var(--paper-soft); }
 .scr .rtable thead th:first-child { border-top-left-radius: var(--r-m); } .scr .rtable thead th:last-child { border-top-right-radius: var(--r-m); }
@@ -300,13 +300,19 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .scr .rtable :where(tbody > tr:nth-child(even of :not([hidden], .rghead))) { background: var(--row-stripe); }
 .scr .rtable :is(.rghead, .rrhead tr) th { padding: 5px 8px 3px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); color: var(--paper-ink); font-size: 11.5px; font-weight: 650; }
 .scr .rtable .rrhead th { padding: 5px 8px; font-size: 12.5px; font-weight: 700; white-space: normal; background: color-mix(in srgb, var(--paper-ink) 8%, var(--paper)); }
+.scr .rarch { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; min-width: 0; border-color: transparent; }
+.scr .rtable .rarch { color: var(--paper-soft); } .scr .rtable .rarch:hover { color: var(--paper-ink); }
+.scr .rround .rarch { color: var(--ink); opacity: .7; } .scr .rround .rarch:hover { opacity: 1; }      /* cards: on the ground, not on paper */
 .scr .rtable .rrhead .racts { display: inline-flex; margin: 0 0 0 12px; vertical-align: middle; }
 .scr .rtable .rrhead.drop-on th { box-shadow: inset 0 0 0 2px var(--sel-mark); }      /* the round a carried row would go to */
 .scr .rtable .c-tick { width: 58px; box-sizing: border-box; text-align: right; }
 /* the name takes what the others leave; company and role a share of the width, the short ones their text's */
 .scr .rtable .c-name { color: var(--paper-ink); }
-.scr .rtable th.c-name { width: calc(6ch + 96px); }      /* the short word and the Open now pill; Role and Company share the rest */
+.scr .rtable :is(th.c-role, th.c-company) { width: 17%; }      /* Name takes the rest */
 .scr .rtable :is(th.c-paper, th.c-pages, th.c-sent) { width: calc(9ch + 20px); } .scr .rtable th.c-lang { width: calc(12ch + 20px); }      /* room for three language chips */ .scr .rtable th.c-changed { width: calc(12ch + 24px); }      /* ch of the heading's smaller type */
+.scr .rtable .ficon { display: inline-grid; place-items: center; flex: none; margin-right: 6px; color: var(--paper-soft); vertical-align: middle; }
+.scr .rtable .rdoc :is(.rsel, .c-name) { font-weight: 400; color: var(--paper-soft); }      /* an attached file reads quieter than a resume */
+.scr .rtable .rdoc .pill { font-size: 9.5px; padding: 0 5px; letter-spacing: .04em; }
 .scr .rtable .rline { cursor: pointer; }
 .scr .rtable .rline:hover { background: var(--row-hover); }
 .scr .rtable .rline.ticked { background: var(--mark-soft); }
@@ -526,7 +532,7 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .rround { margin: 0 0 12px; }
 .rround > summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
 .rround > summary.drop-on { width: fit-content; margin: 0 -8px; padding: 4px 8px; border-radius: var(--r-s); background: var(--paper); color: var(--paper-ink); box-shadow: 0 0 0 2px var(--sel-mark); }      /* the round a carried card would go to */
-.rround .racts { margin: 4px 0 8px; }
+.rround > :is(summary, .racts) { float: left; } .rround > .racts { margin: 3px 0 0 6px; } .rround > :not(summary, .racts) { clear: both; }      /* the round's actions sit beside its name */
 .scr .racts .press[data-tier=secondary] { --press-edge: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }      /* a round's actions sit on the ground behind the list: an edge at 3:1 */
 /* a round's name, written in place (the job title's pattern: the wash, a text cursor and the pencil on hover or focus) */
 .scr .rrname.hedit { display: inline-flex; width: auto; min-height: 0; padding: 1px 4px; margin: 0 -4px; font-weight: inherit; vertical-align: baseline; }
