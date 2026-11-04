@@ -425,7 +425,7 @@ section('no tags or job types to keep');
   const job = u.record().work[0].id, line = T.printedFacts(u.record(), u.cur()).work.find(w => w.job === job).highlights[0].fact;
   const using = T.chooseVariant(u.record(), line, u.cur()).v.id;
   const panel = String(u.edit.bulletView({ kind: 'bullet', id: line, job, section: 'experience' }));
-  ok('the version in use is “On 1 resume”, folded, with the resume’s name inside', new RegExp(`<details class="vuse" data-v="${using}"><summary data-act="vuse">On 1 resume</summary><span class="vuses">Use Co - Tester</span></details>`).test(panel), panel.match(/<details class="vuse"[^]*?<\/details>/)?.[0]);
+  ok('the version in use is “On 1 resume”, folded, with the resume’s name inside', new RegExp(`<details class="vuse" data-v="${using}"><summary data-act="vuse">On 1 resume</summary><ul class="vuses"><li title="Use Co - Tester">Use Co - Tester</li></ul></details>`).test(panel), panel.match(/<details class="vuse"[^]*?<\/details>/)?.[0]);
   ok('no tag chip or tag box is left on a version', !/tag-in|data-act="tag-rm"/.test(panel));
 }
 
