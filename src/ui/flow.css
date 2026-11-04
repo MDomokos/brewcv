@@ -13,14 +13,14 @@
   --way-ease: cubic-bezier(.3, .7, .2, 1); --lv-res-lift: 0 -2px 6px -2px rgba(0, 0, 0, .22), 0 6px 16px -8px rgba(30, 40, 25, .35);
 }
 /* the levels' materials: the places (closed, hovered, open: ground, ink, edge), the card and its tabs, and the bar */
-:root, html[data-drink="tea"] { --way-step: 6px; --pl: color-mix(in srgb, #2e4636 14%, #fbf6e8); --pl-hover: color-mix(in srgb, #2e4636 24%, #fbf6e8); --pl-ink: #2e4636; --pl-edge: transparent;
+:root, html[data-drink="tea"] { --way-step: 13px; --pl: color-mix(in srgb, #2e4636 14%, #fbf6e8); --pl-hover: color-mix(in srgb, #2e4636 24%, #fbf6e8); --pl-ink: #2e4636; --pl-edge: transparent;
   --pl-ring: inset 0 0 0 1px color-mix(in srgb, #2e4636 22%, transparent); --pl-on: #2e4636; --pl-on-ink: #f2e6cf; --pl-on-edge: transparent; --pl-on-lift: none;
   --lv-res: #fbf6e8; --lv-res-closed: #e9dfc6; --lv-res-edge: #8a7a4e; --lv-bar: #1f2c23; --lv-bar-edge: #121a14; --lv-bar-ink: #f2e6cf; --lv-bar-ok: #b9d79a; --lv-open-edit: var(--tea-outline); --lv-open-design: var(--tea-design);
   --fold-bg: #1f2c23; --fold-edge: #121a14; --fold-ink: #f2e6cf; --str-ink: var(--thread); }
 html[data-drink="tea"][data-theme="dark"] { --pl: #2c4234; --pl-hover: #36503f; --pl-ink: #e8dcc0; --pl-ring: inset 0 0 0 1px rgba(242, 230, 207, .16);
   --pl-on: #f3ead4; --pl-on-ink: #22302a; --pl-on-lift: 0 1px 0 rgba(0, 0, 0, .3); --lv-res: #f3ead4; --lv-res-closed: #cfc3a4; --lv-res-edge: #8f8257;
   --lv-bar-edge: color-mix(in srgb, var(--lv-bar-ink) 50%, transparent); }      /* a dark bar on a dark mat stands off it by its edge */
-html[data-drink="coffee"] { --way-step: 10px; --pl: #d8d2ca; --pl-hover: #cbc4bb; --pl-ink: #222; --pl-edge: #a9a299; --pl-ring: none; --pl-on: var(--paper); --pl-on-ink: var(--paper-ink);
+html[data-drink="coffee"] { --way-step: 13px; --pl: #d8d2ca; --pl-hover: #cbc4bb; --pl-ink: #222; --pl-edge: #a9a299; --pl-ring: none; --pl-on: var(--paper); --pl-on-ink: var(--paper-ink);
   --pl-on-edge: #a9a299; --pl-on-lift: 0 1px 0 rgba(0, 0, 0, .18); --lv-res: var(--chrome); --lv-res-closed: color-mix(in srgb, var(--chrome) 64%, #000); --lv-res-edge: var(--chrome-edge);
   --lv-bar: color-mix(in srgb, var(--tab-ink) 5%, #0d0b0a); --lv-bar-edge: var(--tab-line, var(--line-strong)); --lv-bar-ink: #f3ece2; --lv-bar-ok: var(--chrome-ok); --lv-res-lift: none; --lv-open-edit: currentColor; --lv-open-design: var(--chrome-accent);
   --fold-bg: var(--chrome); --fold-edge: var(--chrome-edge); --fold-ink: var(--chrome-ink); --str-ink: color-mix(in srgb, var(--plate-ink, var(--sel-mark)) 46%, #000); }
@@ -73,7 +73,7 @@ html[data-motion=reduce] :is(.wtab, .wtab *, .col > #head) { animation: none !im
 /* ---- the bar (shell.js drawRail): the app's level at the column's foot, solid and full width: the brand (home), Saved, undo and redo; then the "?" and the fold ---- */
 .rail { display: none; }
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col:not(.is-full) > #rail { display: flex; }
-.col > #rail { position: relative; margin-top: auto; flex: none; align-items: center; gap: 2px; height: 44px; padding: 0 6px 0 4px; box-sizing: border-box;
+.col > #rail { position: relative; margin-top: auto; flex: none; align-items: center; gap: 2px; height: 44px; padding: 0 5px; box-sizing: border-box;
   background: var(--lv-bar); border: 1px solid var(--lv-bar-edge); border-radius: var(--r-l); color: var(--lv-bar-ink);
   --ink: var(--lv-bar-ink); --ink-soft: var(--lv-bar-ink); --hover: color-mix(in srgb, var(--lv-bar-ink) 14%, transparent); --hover-strong: color-mix(in srgb, var(--lv-bar-ink) 22%, transparent);
   --line: color-mix(in srgb, var(--lv-bar-ink) 28%, transparent); --line-strong: color-mix(in srgb, var(--lv-bar-ink) 40%, transparent); --surface: var(--lv-bar); --focus: var(--lv-bar-ink); --ok: var(--lv-bar-ok); }
@@ -253,7 +253,7 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 #scr #resumes > .tbar { position: sticky; top: 0; z-index: 4; flex: none; width: auto; max-width: none; margin: 0; padding: 10px 14px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--paper); box-shadow: none; }
 #scr #checklist > .tbar { margin-top: 0; }
 #scr .tbar :is(input.sw-q, button.sm) { box-sizing: border-box; height: var(--h-ctl); min-height: 0; }
-#scr #scr-list { flex: 1 1 0; min-height: 0; overflow: auto; margin: 0; padding: 12px 16px 24px; scroll-padding-top: 32px; }
+#scr #scr-list { flex: 1 1 0; min-height: 0; overflow: auto; margin: 0; padding: 20px 16px 32px; scroll-padding-top: 32px; }
 #scr #scr-list:has(.rtable) { padding-inline: 0; padding-top: 0; }
 #scr #scr-list .rtable { border: 0; box-shadow: none; border-radius: 0; }
 #scr #scr-list.is-top .rtable thead th { box-shadow: 0 8px 10px -8px color-mix(in srgb, var(--paper-ink) 45%, transparent); }
@@ -265,6 +265,27 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 .scr [data-archived] > :is(summary, tr) > th, .scr details[data-archived] > summary { color: var(--paper-soft); }
 .scr [data-archived] .rrname { font-weight: 600; }
 .scr [data-archived] .rarch { width: auto; display: inline-flex; gap: 5px; padding: 0 8px; opacity: 1; font-size: 12px; font-weight: 600; color: var(--paper-ink); border-color: var(--line-strong); }
+/* the Library's header, one row while the pane has the room: [search]  [Group | Show][cards | list]  |  [New round, Add files, New resume], 12 px
+   above and below it and 16 at the sides, the list under it on the same column. The search alone; how the list is shown in two tinted boxes
+   side by side (the filters joined in one); after a divider, what makes something new. Below 900 px of pane it is the two rows again. */
+#scr #resumes > .tbar { padding: 12px 16px 0; }
+#scr #resumes > .tbar .lbar { margin-inline: -16px; padding-inline: 16px; }
+@container library (min-width: 900px){
+  #scr #resumes > .tbar { flex-wrap: wrap; gap: 8px 6px; padding-bottom: 12px; }      /* a long language wraps the three buttons under it */
+  #scr #resumes .lbar { display: contents; }
+  #scr #resumes .tbar input.sw-q { order: 0; flex: 1 1 160px; margin-right: 14px; }
+  #scr #resumes .lbar .lctl { order: 1; flex: none; gap: 0; padding: 2px; font-size: var(--ctl-fs); border-radius: calc(var(--r-s) + 2px); background: color-mix(in srgb, var(--paper-ink) 7%, transparent); }
+  #scr #resumes .lbar .lctl .ddbtn.ddbtn { height: calc(var(--ctl) - 4px); border: 0; border-radius: var(--r-s); background-color: transparent; }
+  #scr #resumes .lbar .lctl > * + * { position: relative; margin-left: 1px; }
+  #scr #resumes .lbar .lctl > * + *::before { content: ""; position: absolute; left: -1px; top: 6px; bottom: 6px; width: 1px; background: var(--line-strong); }
+  #scr #resumes .lbar #scr-hint { display: none; }
+  #scr #resumes .lbar .lswitch { order: 2; margin-left: 0; }
+  #scr #resumes .tbar > .tgrp { order: 3; margin-left: 29px; gap: 6px; }
+  #scr #resumes .tbar > .tgrp::before { left: -18px; top: 2px; bottom: 2px; }
+}
+/* the name card: its rows 12 px inside its edge */
+.col > #head .hrow.top { padding-top: 6px; }
+.col > #head .examplechip { padding-left: 12px; font-size: 12px; }
 /* the small inline actions, one height */
 button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-arch-entry]) { height: var(--h-sm); min-height: 0; padding-block: 0; }
 
@@ -275,8 +296,8 @@ button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-a
 
 /* ---- the Library: cards with the information beside the picture, as many to a row as hold 260 px; a click selects (the ring), a click on the
    selected card opens it; a resume of more than one page fans its second sheet out from behind the first ---- */
-.scr .rgrid { grid-template-columns: repeat(auto-fill, minmax(calc(260px * var(--lz, 1)), 1fr)); gap: 10px; }      /* --lz: the Library's zoom (placezoom.js) */
-.scr .rcard { grid-template-columns: calc(84px * var(--lz, 1)) minmax(0, 1fr); column-gap: 10px; row-gap: 2px; padding: 8px 30px 8px 8px; background: var(--paper); box-shadow: none; align-content: start; }
+.scr .rgrid { grid-template-columns: repeat(auto-fill, minmax(calc(280px * var(--lz, 1)), 1fr)); gap: 16px; }      /* --lz: the Library's zoom (placezoom.js) */
+.scr .rcard { grid-template-columns: calc(84px * var(--lz, 1)) minmax(0, 1fr); column-gap: 14px; row-gap: 3px; padding: 12px 34px 12px 12px; background: var(--paper); box-shadow: none; align-content: start; }
 .scr .rcard .thumbwrap { grid-column: 1; grid-row: 1 / span 5; align-self: start; }
 .scr .rcard .thumbwrap .rthumb { width: calc(84px * var(--lz, 1)); background: var(--sheet); box-shadow: 0 0 0 1px var(--sheet-edge); }
 .scr .rcard > :not(.thumbwrap):not(.rtick) { grid-column: 2; margin: 0; }
@@ -285,11 +306,15 @@ button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-a
 .scr .rcard .rsel:focus-visible::after { outline: 2px solid var(--focus); outline-offset: 2px; }
 .scr .rcard .rrole { font-size: 12px; color: var(--paper-ink); }
 .scr .rcard :is(.rmeta, .rfrom) { color: var(--paper-soft); }
-.scr .rcard .rbadges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.scr .rcard .rbadges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .scr :is(.rcard, .rtable) .pill { font-size: 10.5px; padding: 1px 7px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); color: var(--paper-soft); background: transparent; }
 .scr :is(.rcard, .rtable) .pill.is-open { background: var(--paper-ink); color: var(--paper); border-color: var(--paper-ink); }
-.scr .rcard .rtick { top: 8px; right: 8px; left: auto; }
-.scr .rcard.sel { box-shadow: 0 0 0 2px var(--paper-ink); border-color: transparent; }
+.scr .rcard .rtick { top: 12px; right: 12px; left: auto; }
+/* the selected card wears the accent and points at the inspector, whose top is the same accent; the open one is told by its "Open now" */
+.scr .rcard.open:not(.sel) { border-color: var(--line); }
+.scr .rcard.sel { border-color: transparent; box-shadow: 0 0 0 2.5px var(--accent), 0 8px 18px -8px color-mix(in srgb, var(--accent) 70%, transparent); background: color-mix(in srgb, var(--accent) 7%, var(--paper)); }
+.scr .rcard.sel::after { content: ""; position: absolute; top: calc(50% - 8px); right: -10px; border: 8px solid transparent; border-left: 9px solid var(--accent); border-right: 0; }
+.scr .rtable tr.sel > :is(td, th) { background: color-mix(in srgb, var(--accent) 22%, var(--paper)) !important; }
 .scr .rcard.ticked:not(.sel) { border-color: var(--paper-ink); }
 /* an item's languages and its files: quiet chips over the card's click area; the language shown marked, the open one edged as an open card is, a ticked one tinted */
 .scr :is(.rcard, .rtable) .rlangs { display: inline-flex; align-items: center; gap: 1px; font-size: 10.5px; color: var(--paper-soft); }
@@ -336,7 +361,7 @@ button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-a
 .scr .rtable .rline { cursor: pointer; }
 .scr .rtable .rline:hover { background: var(--row-hover); }
 .scr .rtable .rline.ticked { background: var(--mark-soft); }
-.scr .rtable .rline.sel > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.scr .rtable .rline.sel > td:first-child { box-shadow: inset 4px 0 0 var(--accent); }
 .scr .rtable .rsub .c-name { padding-left: 28px; background: linear-gradient(var(--line-strong), var(--line-strong)) 13px 0 / 1px 100% no-repeat; }
 .scr .rtable :is(.rsel, .rfold) { all: unset; cursor: pointer; }
 .scr .rtable .rsel { font-weight: 500; }
@@ -371,27 +396,34 @@ button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-a
 .njform label { display: grid; gap: 3px; font-size: 12px; }
 .njform input { width: 100%; box-sizing: border-box; }
 .njform p { margin: 0; }
+/* the inspector: 12 px inside its edge like every frame of the sidebar; its top is the selected resume's name on the accent, the selected card's
+   colour, so the two read as one */
+body:not([data-phone=true]):not(.is-intro) .col > #body:has(> .insp-res) { padding: 12px 13px; box-shadow: 0 0 0 1.5px var(--accent), var(--shadow-panel); }
+.insp-res .ititle { order: -1; margin: -12px -13px -8px; padding: 9px 13px 9px 28px; border-radius: var(--r-l) var(--r-l) 0 0;
+  background: var(--accent) radial-gradient(circle at 15px 50%, var(--on-accent) 0 3.5px, transparent 4px); color: var(--on-accent); font: 700 13px/1.3 var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the selected resume's pages lead, scrolled in place (the wheel over them scrolls them and nothing else), as tall as they are or as
    the rest leaves, so the panel itself does not scroll; the facts under them are only what the resume's card does not say, the rest folded */
 #body[data-view=inspector]:has(> .insp-res) { display: flex; flex-direction: column; }
 #body > .insp-res { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .insp-res > * { flex: none; }
-.insp-res .ihero { flex: 0 1 auto; min-height: 160px; margin: -14px -16px 0; overflow-y: auto; overscroll-behavior: contain; border-radius: inherit; background: var(--sheet); }
+.insp-res .ihero { flex: 0 1 auto; min-height: 160px; margin: 0 -13px; overflow-y: auto; overscroll-behavior: contain; border-radius: inherit; background: var(--sheet); }
 .insp-res .ihpage { display: grid; gap: 1px; background: var(--sheet-edge); }
 .insp-res .ihpage:empty { display: none; }
 .insp-res .ihpage .rthumb { display: block; width: 100%; background: var(--sheet); }
-.insp-res .iacts { flex-wrap: nowrap; margin: 4px 0 2px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.insp-res .iacts { flex-wrap: nowrap; margin: 4px 0 2px; padding-bottom: 2px; }
+#body .insp-res .iacts > button, #body .insp-res .iacts .rcmore > button { box-sizing: border-box; height: var(--h-row); min-height: 0; padding-block: 0; }
+#body .insp-res .iacts .rcmore > button { width: var(--h-row); }
 .insp-res .iacts > button { flex: none; }
 .insp-res .iacts > button:first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .insp-res .iacts .rcmore { margin-left: auto; flex: none; position: relative; }
-.insp-res .idet { border-top: 1px solid var(--line); padding-top: 6px; font-size: 12.5px; }
+.insp-res .idet { font-size: 12.5px; }
 .insp-res .idet summary { display: flex; gap: 8px; align-items: center; cursor: pointer; min-height: 24px; }
-.insp-res .idet summary .lbl { margin: 0; }
+.insp-res .idet summary .lbl { margin: 0; text-transform: none; letter-spacing: 0; font: 600 12.5px/1.2 var(--font-ui); color: var(--ink-soft); }
 .insp-res .idet summary .small { min-width: 0; overflow-wrap: anywhere; color: var(--ink-soft); }
 .insp-res .idet ul { margin: 6px 0 2px; }
 .insp-res .idet .pill { flex: none; font-size: 10.5px; padding: 1px 7px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); color: var(--ink-soft); }
-.insp-res .ovw { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; align-items: baseline; margin: 2px 0 4px; font-size: 12.5px; }
-.insp-res .ovw dt { font-size: 11px; color: var(--ink-soft); padding-top: 2px; }
+.insp-res .ovw { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 12px; align-items: baseline; margin: 6px 0 4px; padding: 10px 12px; border-radius: var(--r-m); background: color-mix(in srgb, var(--ink) 6%, transparent); font-size: 12px; }
+.insp-res .ovw dt { font-size: 11.5px; color: var(--ink-soft); padding-top: 2px; }
 .insp-res .ovw dd { margin: 0; overflow-wrap: anywhere; }
 .insp-res .ovw dd .sm { margin-left: 4px; }
 .insp-res .ovw select { max-width: 100%; }
@@ -549,10 +581,10 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .scr .rcard.rdoc .dline { font-size: 6.5px; line-height: 1.2; color: var(--paper-soft); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; }
 .scr .rcard .rstate { font-size: 11.5px; color: var(--paper-soft); }
 .scr .rcard .rstate[data-state="unplaced"] { color: var(--paper-ink); font-weight: 600; }
-.rround { margin: 0 0 12px; }
-.rround > summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+.rround { position: relative; margin: 0 0 28px; }      /* air: 28 between rounds, 16 between cards, 12 inside one */
+.rround > summary { width: fit-content; cursor: pointer; font-weight: 700; font-size: 15px; padding: 2px 0 8px; }
 .rround > summary.drop-on { width: fit-content; margin: 0 -8px; padding: 4px 8px; border-radius: var(--r-s); background: var(--paper); color: var(--paper-ink); box-shadow: 0 0 0 2px var(--sel-mark); }      /* the round a carried card would go to */
-.rround > :is(summary, .racts) { float: left; } .rround > .racts { margin: 3px 0 0 6px; } .rround > :not(summary, .racts) { clear: both; }      /* the round's actions sit beside its name */
+.rround > .racts { position: absolute; top: 0; right: 0; margin: 0; }      /* the round's actions at its right end: rarely used */
 .scr .racts .press[data-tier=secondary] { --press-edge: color-mix(in srgb, var(--paper-ink) 70%, var(--paper)); }      /* a round's actions sit on the ground behind the list: an edge at 3:1 */
 /* a round's name, written in place (the job title's pattern: the wash, a text cursor and the pencil on hover or focus) */
 .scr .rrname.hedit { display: inline-flex; width: auto; min-height: 0; padding: 1px 4px; margin: 0 -4px; font-weight: inherit; vertical-align: baseline; }

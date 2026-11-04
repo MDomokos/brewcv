@@ -149,11 +149,11 @@ function listHtml(){
   // the list is one table: a group is a header row and its rows (a tbody, inside its round's while that round is open)
   let inRound = '';
   const group = (name, rs) => (listing() ? `<tbody class="rgroup" ${inRound}>${name == null ? '' : `<tr class="rghead"><th colspan="7" scope="colgroup">${esc(name)} · ${rs.length}</th></tr>`}${rs.map(rowOf).join('')}</tbody>`
-    : `<h3 class="lbl">${esc(name)} · ${rs.length}</h3><div class="rgrid">${rs.map(cardOf).join('')}</div>`);
+    : `${name == null ? '' : `<h3 class="lbl">${esc(name)} · ${rs.length}</h3>`}<div class="rgrid">${rs.map(cardOf).join('')}</div>`);
   const table = body => (listing() ? `<table class="rtable"><caption class="sr">${h('ux6h.allResumes')}</caption><thead><tr>${HEAD()}</tr></thead>${body}</table>` : body);
   const byNewest = gs => gs.map(g => ({ ...g, rs: g.rs.slice().sort(newest) })).sort((a, b) => newest(a.rs[0], b.rs[0]));
   const view = list => {
-    if (V.view === 'date' && listing() && rounds.length) return group(null, list.slice().sort(newest));      // a round's rows by date, no year rows between: the date is a column
+    if (V.view === 'date' && rounds.length) return group(null, list.slice().sort(newest));      // a round's resumes by date, no year labels between: the round says when
     if (V.view === 'date'){
       const years = new Map();
       for (const r of list.slice().sort(newest)){ const y = recency(r) === '9999' ? t('ux6h.now') : recency(r).slice(0, 4) || t('ux2.noDate'); years.set(y, [...(years.get(y) ?? []), r]); }
@@ -310,14 +310,15 @@ function resumeInspector(){
   const openBtn = `class="iopen press ${prim().c}" data-tier="${prim().t}" ${open ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(r.id)}"`}`;
   // its pages, every one, scrolled in place, as tall as they are or what the rest leaves (resting on them shows them large; looking is not opening: Open, Enter
   // or a double click on its card is); then Open and Use for a new job, the most used, on their own line; then what its card does not say:
-  // its language (a switch between its language copies), when it last changed, where it came from, its round, and its sent copies and files folded
+  // its language (a switch between its language copies), changes waiting (when it last changed is the list's column), where it came from, its round, and its sent copies and files folded
   return `<section class="insp insp-res" aria-label="${esc(label(r))}">
+    <p class="ititle" aria-hidden="true">${esc(label(r))}</p>
     ${stripHtml(r.id)}
     <div class="ihero" data-id="${esc(r.id)}"><div class="ihpage">${thumb(r.id, r.format)}</div><div class="ihpage ihmore"></div></div>
     ${nj || `<div class="btns iacts"><button ${openBtn}>${h(open ? 'ux6h.keepEditing' : 'ux6e.openBtn')}</button><button data-act="nj-open" data-id="${esc(r.id)}">${h('ux6h.newJob')}</button><span class="rcmore">${C.resumes.moreButton(r.id, 'screen')}${C.resumes.rowMenuHtml(r.id, 'screen')}</span>${r.archived ? `<button class="sm" data-act="rm-archive" data-id="${esc(r.id)}" data-on="0">${h('i7.unarchive')}</button>` : ''}</div>`}
     <dl class="ovw" aria-label="${esc(t('ux6f.overview'))}">
       <dt>${h('ux6f.ovLang')}</dt><dd>${many ? `<span class="ilangs" role="group" aria-label="${esc(t('ux6f.ovLang'))}">${fam.map(x => `<button type="button" class="sm" data-act="scr-lang" data-id="${esc(x.id)}" data-item="${esc(fam[0].id)}" aria-pressed="${x.id === r.id}" lang="${esc(x.lang ?? 'en')}">${esc(langName(x.lang ?? 'en'))}</button>`).join('')}</span>` : esc(langName(r.lang ?? 'en'))}</dd>
-      <dt>${h('ux6f.ovChanged')}</dt><dd>${esc(r.savedAt || '\u2014')}${pend ? ` · ${h('ux6e.pending', { n: pend })}` : ''}</dd>
+      ${pend ? `<dt>${h('ux6f.ovChanged')}</dt><dd>${esc(r.savedAt || '\u2014')} · ${h('ux6e.pending', { n: pend })}</dd>` : ''}
       ${p || guess ? `<dt>${h('ux6f.ovFrom')}</dt><dd>${esc(p ? label(p) : t('ux6e.closest', { name: label(guess) }))} <button class="sm" data-act="scr-differs" data-id="${esc(r.id)}">${h('ux6h.compareParent')}</button></dd>` : ''}
       ${(st().rounds ?? []).length ? `<dt><label for="ir-round">${h('i7.round')}</label></dt><dd><select id="ir-round" data-res-round="${esc(r.id)}">${roundOpts(r.round)}</select></dd>` : ''}
     </dl>

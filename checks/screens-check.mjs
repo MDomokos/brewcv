@@ -382,15 +382,18 @@ await part('the Library\u2019s toolbar: its groups, tiers and selection line; se
   const hd = await page.evaluate(() => {
     const tb = document.querySelector('#resumes .tbar'), kids = [...tb.children], bar = tb.querySelector('.lbar'), sw = [...bar.querySelectorAll('.lswitch button')];
     const tier = sel => { const b = tb.querySelector(sel); return b ? [b.dataset.tier, !!b.querySelector('svg'), b.hasAttribute('data-icon')].join() : null; };
-    const ctl = [...tb.querySelectorAll('.sw-q, button:not(.newres), .ddbtn, .lswitch')].filter(e => e.getClientRects().length && !e.closest('.lswitch button')), cs = e => getComputedStyle(e);
+    const ctl = [...tb.querySelectorAll('.sw-q, button:not(.newres), .ddbtn, .lswitch, .lctl')].filter(e => e.getClientRects().length && !e.closest('.lswitch button, .lctl .ddbtn')), cs = e => getComputedStyle(e);
     return { kids: kids.map(e => e.id || e.className.split(' ')[0]).join(), acts: [...tb.querySelectorAll(':scope > .tgrp button')].map(b => b.dataset.act).join(),
-      add: tier('[data-act=goto][data-v=import]'), round: tier('[data-act=round-new]'), nr: tier('[data-act=sw-new]'), nrh: Math.round(tb.querySelector('[data-act=sw-new]').getBoundingClientRect().height), filtersOwnRow: bar.getBoundingClientRect().top >= tb.querySelector('.sw-q').getBoundingClientRect().bottom, dds: [...bar.querySelectorAll('select[data-named]')].map(x => `${x.id}=${x._dd?.textContent.trim()}`).join(),
+      add: tier('[data-act=goto][data-v=import]'), round: tier('[data-act=round-new]'), nr: tier('[data-act=sw-new]'), nrh: Math.round(tb.querySelector('[data-act=sw-new]').getBoundingClientRect().height), filtersOwnRow: tb.querySelector('.lctl').getBoundingClientRect().top >= tb.querySelector('.sw-q').getBoundingClientRect().bottom, tabTop: Math.round(document.querySelector('.wsheets > .wtab').getBoundingClientRect().top) === Math.round(tb.querySelector('[data-act=sw-new]').getBoundingClientRect().top), dds: [...bar.querySelectorAll('select[data-named]')].map(x => `${x.id}=${x._dd?.textContent.trim()}`).join(),
       sw: sw.map(b => [b.dataset.act, b.getAttribute('aria-pressed'), !!b.querySelector('svg'), !!b.title && b.title === b.getAttribute('aria-label')].join(':')).join(),
       hint: !!bar.querySelector('#scr-hint > #scr-tickinfo'), chips: tb.querySelectorAll('.fchip, .seg [data-act=scr-view]').length, under: !!document.querySelector('#scr-bar, #resumes .cmpbar'),
-      one: ['height', 'borderTopLeftRadius', 'fontSize'].map(p => new Set(ctl.map(e => cs(e)[p])).size).join() };
+      one: ['height', 'fontSize'].map(p => new Set(ctl.map(e => cs(e)[p])).size).join() };
   });
-  ok('the header: the search, then New round, Add files and New resume (last); its last row, on its own, the list\u2019s bar with Group and Show (the app\u2019s dropdowns, named) and the cards/list switch (icons with names), the hint in it; no chips, no bar under the cards', hd.kids === 'scr-q,tgrp,scr-lbar' && hd.acts === 'round-new,goto,sw-new' && hd.filtersOwnRow && hd.dds === 'scr-group=Group: Date,scr-show=Show: All' && hd.sw === 'scr-cards:true:true:true,scr-list:false:true:true' && hd.hint && !hd.chips && !hd.under, JSON.stringify(hd));
-  ok('…New resume the 32 px primary, Add files a secondary and New round tertiary words, each with its icon; one height, one radius and one font size for every other control in the header and the bar', hd.nr === 'primary,true,false' && hd.nrh === 32 && hd.add === 'secondary,true,false' && hd.round === 'tertiary,true,false' && hd.one === '1,1,1', JSON.stringify(hd));
+  ok('the header, one row while there is room: the search, Group and Show (the app\u2019s dropdowns, named, in one box), the cards/list switch (icons with names), then New round, Add files and New resume; Content and Look start on its buttons\u2019 top; no chips, no bar under the cards', hd.kids === 'scr-q,tgrp,scr-lbar' && hd.acts === 'round-new,goto,sw-new' && !hd.filtersOwnRow && hd.tabTop && hd.dds === 'scr-group=Group: Date,scr-show=Show: All' && hd.sw === 'scr-cards:true:true:true,scr-list:false:true:true' && hd.hint && !hd.chips && !hd.under, JSON.stringify(hd));
+  ok('…New resume the 32 px primary, Add files a secondary and New round tertiary words, each with its icon; one height and one font size for every other control in the header', hd.nr === 'primary,true,false' && hd.nrh === 32 && hd.add === 'secondary,true,false' && hd.round === 'tertiary,true,false' && hd.one === '1,1', JSON.stringify(hd));
+  await page.setViewportSize({ width: 1150, height: 832 }); await settle(page, 300);
+  ok('…with less room it is the two rows again: Group, Show and the switch under the search', await page.evaluate(() => { const tb = document.querySelector('#resumes .tbar'); return tb.querySelector('.lctl').getBoundingClientRect().top >= tb.querySelector('.sw-q').getBoundingClientRect().bottom; }));
+  await page.setViewportSize({ width: 1470, height: 832 }); await settle(page, 300);
   await page.check('#scr .rcard .rtick >> nth=0'); await page.check('#scr .rcard .rtick >> nth=1'); await settle(page, 100);
   const line = await page.evaluate(() => ({ kids: [...document.querySelectorAll('#resumes > #scr-ticks > *')].map(e => e.dataset.act ?? e.id).join(), hint: !!document.querySelector('#scr-tickinfo'), pos: getComputedStyle(document.querySelector('#scr-ticks')).position }));
   ok('two ticked: the floating bar at the list\u2019s foot says "2 ticked", then Compare and Clear (no rounds: no Move to round…); the hint has gone', line.kids === 'scr-nticked,scr-compare,scr-clear' && !line.hint && line.pos === 'absolute' && /^2 ticked$/.test((await page.textContent('#scr-nticked')).trim()), JSON.stringify(line));
@@ -406,12 +409,12 @@ await part('the Library\u2019s toolbar: its groups, tiers and selection line; se
   await pickOption(page, '#scr-group', 'role'); await settle(page);
   ok('the Role view groups by the role as typed, each group a heading', (await page.$$('#scr h3.lbl')).length >= 2 && await page.evaluate(() => localStorage.getItem('rb-manage-view')) === 'role');
   await pickOption(page, '#scr-group', 'date'); await settle(page);
-  ok('the Date view groups by year, the open resume under Now, and the view is remembered', /Now/.test(await page.textContent('#scr h3.lbl')) && await page.$eval('#scr-group', x => x.value) === 'date' && await page.evaluate(() => localStorage.getItem('rb-manage-view')) === 'date');
+  ok('the Date view: a round\u2019s resumes by date with no year headings inside it (the round says when), and the view is remembered', !(await page.$('#scr .rround h3.lbl')) && await page.$eval('#scr-group', x => x.value) === 'date' && await page.evaluate(() => localStorage.getItem('rb-manage-view')) === 'date');
   await pickOption(page, '#scr-group', 'role'); await settle(page);
   await ctx.close();
 });
 
-await part('the sidebar’s card: what it names and Export takes (ticks win, then the selection, then the open resume), the deck, the inspector’s strip', async () => {
+await part('the sidebar’s card: what it names and Export takes (ticks win, else the open resume; the inspector names the selected one), the deck, the inspector’s strip', async () => {
   const { ctx, page, errors } = await open(1470, 832);
   const s0 = await st(page), ids = s0.ids.filter(id => id !== s0.openId), L = await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); return Object.fromEntries(window.__wb.store.state.resumes.map(r => [r.id, RS.resumeLabel(r)])); }), lbl = id => L[id];
   const card = () => page.evaluate(() => { const h = document.querySelector('#head'), x = h.querySelector('.hstub'), d = h.querySelector('.hdeck'), hr = h.getBoundingClientRect(), xr = x.getBoundingClientRect();
@@ -421,17 +424,18 @@ await part('the sidebar’s card: what it names and Export takes (ticks win, the
   const xp = () => page.evaluate(() => ({ view: window.__wb.ui.view, ids: window.__wb.ui.xp?.ids, from: window.__wb.ui.xp?.from }));
   const flat = n => String(n).replace(/\s+/g, ' ').trim();
   let c = await card();
-  ok('the editor: "Open resume", its name, Export a button inset at the card’s right end', c.tag === 'Open resume' && c.side && /^Export$/.test(c.stub), JSON.stringify(c));
+  ok('the editor: no tag, the open resume\u2019s name, Export a button inset at the card’s right end', !c.tag && c.side && /^Export$/.test(c.stub), JSON.stringify(c));
   await page.click('#head .hstub'); await settle(page, 500);
   let x = await xp();
   ok('…Export opens the Export place for the open resume, back to the editor', x.view === 'export' && x.ids?.join() === s0.openId && x.from === null, JSON.stringify(x));
   await page.evaluate(() => window.__wb.setView(null)); await settle(page);
   await goLibrary(page);
   c = await card();
-  ok('the Library, nothing selected or ticked: the open resume, no Library counts and no New resume in the card', c.tag === 'Open resume' && !c.note && !(await page.$('#head [data-act=sw-new], #head .psub')), JSON.stringify(c));
+  ok('the Library, nothing selected or ticked: the open resume, no Library counts and no New resume in the card', !c.tag && !c.note && !(await page.$('#head [data-act=sw-new], #head .psub')), JSON.stringify(c));
   await page.click(`#scr .rcard[data-rid="${ids[1]}"] .rsel`); await settle(page);
   c = await card();
-  ok('a selected resume: "Selected in the Library", its name, and "In the editor: …" under it', c.tag === 'Selected in the Library' && flat(c.name) === flat(lbl(ids[1])) && c.note === `In the editor: ${lbl(s0.openId)}` && !c.strip, JSON.stringify(c));
+  const it = await page.evaluate(() => document.querySelector('#body .insp-res .ititle')?.textContent.trim());
+  ok('a selected resume: the card still names the open one, with no tag; the inspector names the selected one at its top', !c.tag && flat(c.name) === flat(lbl(s0.openId)) && !c.note && !c.strip && flat(it) === flat(lbl(ids[1])), JSON.stringify({ ...c, it }));
   await page.check(`#scr .rcard[data-rid="${ids[2]}"] .rtick`); await settle(page);
   c = await card();
   ok('a tick wins over the selection: "1 ticked in the Library" names the ticked one; the inspector (still the selected one) says it is not in the export', c.tag === '1 ticked in the Library' && flat(c.name) === flat(lbl(ids[2])) && c.strip === 'Not in the export · Export takes the 1 ticked Add to export', JSON.stringify(c));
@@ -631,12 +635,12 @@ await part('the example’s own Library: rounds (the current one open, an older 
       pdf: { ...doc('2026-09-29 Example Instruments - Design Engineer.pdf')?.dataset }, cv: doc('Dana Okonkwo CV 2023.docx')?.closest('.rround')?.dataset.round, cvState: doc('Dana Okonkwo CV 2023.docx')?.dataset.state,
       langs: copies.map(r => r.lang ?? 'en').sort().join(), inStep: copies.filter(r => r.inStep).map(r => r.lang ?? 'en').join(), group: RS.groupOf(st, fein).length,
       attached: RS.docGroups(st).filter(g => g.resume && all('#scr .rcard.rdoc').some(c => c.dataset.did === g.id)).length, alone: all('#scr .rcard.rdoc').length,
-      counts: all('#scr .rgrid').every(g => g.previousElementSibling?.textContent.trim().endsWith(`· ${g.children.length}`)),
+      counts: all('#scr .rgrid').every(g => (g.previousElementSibling?.matches('h3') ? g.previousElementSibling : g.closest('.rround')?.querySelector('summary'))?.textContent.trim().endsWith(`· ${g.children.length}`)),      // a round with no headings inside counts on its own name
       sent: st.resumes.filter(r => RS.snapshotsOf(r).length).length, letters: st.documents.filter(d => d.meta.kind === 'cover-letter').length, originals: st.documents.every(d => d.embedded) };
   });
   const a = await look();
   ok('three rounds: the current one first and open, the older one open too, the archived one left out, then Earlier, open', a.rounds.join('|') === 'October 2026 open current|September 2026 open|Earlier open', a.rounds.join('|'));
-  ok('a document that belongs to a resume (the PDF sent to Example Instruments, its Word copy and its letter) is no card of its own; documents tied to no resume are, and each heading counts the cards under it', !a.pdf.from && a.attached === 0 && a.alone >= 1 && a.counts, JSON.stringify({ pdf: a.pdf, attached: a.attached, alone: a.alone, counts: a.counts }));
+  ok('a document that belongs to a resume (the PDF sent to Example Instruments, its Word copy and its letter) is no card of its own; documents tied to no resume are, and each heading (or the round\u2019s name) counts the cards under it', !a.pdf.from && a.attached === 0 && a.alone >= 1 && a.counts, JSON.stringify({ pdf: a.pdf, attached: a.attached, alone: a.alone, counts: a.counts }));
   ok('an old resume on its own is in Earlier, with a line the career does not hold', a.cv === '' && a.cvState === 'unplaced', `${a.cv} ${a.cvState}`);
   ok('one application in three languages: the German original, an English copy kept in step, a French one that is not', a.langs === 'en,fr' && a.inStep === 'en' && a.group === 2, JSON.stringify(a));
   ok('four resumes have sent copies, two letters went with them, and every file keeps its original', a.sent === 4 && a.letters === 2 && a.originals);

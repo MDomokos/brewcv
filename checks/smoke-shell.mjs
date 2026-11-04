@@ -3710,7 +3710,7 @@ if (want('one panel for a claim: from the page and from the checklist')) {
 // M11a: Tea and Coffee, light and dark. One app, two looks; the resume prints the same in all of them.
 if (want('drinks: tea and coffee, light and dark')) {
   const EXPECT = {   // the panel's surface and the page canvas, per drink and theme (src/ui/workbench.css)
-    'tea light': { surface: 'rgb(46, 70, 54)', radius: '24px', mono: false }, 'tea dark': { surface: 'rgb(38, 57, 45)', radius: '24px', mono: false },
+    'tea light': { surface: 'rgb(46, 70, 54)', radius: '16px', mono: false }, 'tea dark': { surface: 'rgb(38, 57, 45)', radius: '16px', mono: false },
     'coffee light': { surface: 'rgb(255, 255, 255)', radius: '2px', mono: true }, 'coffee dark': { surface: 'rgb(12, 9, 7)', radius: '2px', mono: true },
   };
   for (const drink of ['tea', 'coffee']) for (const theme of ['light', 'dark']){
@@ -4250,7 +4250,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     ok(`${tag}: the sidebar keeps 24px from the right (the gutter and 8px for the card's stacked sheets)`, Math.abs(1440 - after.right - 24) < 1);
 
     // ---- what Record shows ----
-    ok(`${tag}: a toolbar: the search, n/m (n of m on to a screen reader), + Add; the sidebar’s card names the open resume, with Export as its stub`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && !!h.querySelector('#rec-q') && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]') && /^Open resume$/i.test(document.querySelector('#head .htagl')?.textContent ?? '') && !!document.querySelector('#head .hstub'); }));
+    ok(`${tag}: a toolbar: the search, n/m (n of m on to a screen reader), + Add; the sidebar’s card names the open resume, with Export as its stub`, await page.evaluate(() => { const h = document.querySelector('#checklist .clhead'); return !!h && !!h.querySelector('#rec-q') && /\d+ of \d+ on/.test(h.textContent) && !!h.querySelector('[data-act=c-pop]') && !document.querySelector('#head .htagl') && !!document.querySelector('#head .hstub'); }));
     ok(`${tag}: the timeline is as wide as Career, under the cards on top, and runs down: the newest year first`, await page.evaluate(() => { const t = document.querySelector('#checklist .rectl .tl2'); const b = document.querySelector('#scr'); const y = [...t.querySelectorAll('.yr')].map(e => e.getBoundingClientRect().top); return !!t && t.getBoundingClientRect().width > b.getBoundingClientRect().width * 0.5 && y.length >= 4 && y.every((v, i) => !i || y[i - 1] < v) && !document.querySelector('#timeline') && document.querySelector('#scr .recmore').getBoundingClientRect().bottom <= t.getBoundingClientRect().top + 30; }));
     ok(`${tag}: the cards are About you, Skills and credentials, and Skill words, and the entry in the inspector is the newest job, its lines shown`, await page.evaluate(() => [...document.querySelectorAll('#scr .recmore .srow')].map(r => r.dataset.grp).join() === 'about,credentials,~bank' && document.querySelector('#body .insp-rec .clg[data-g=hydra] .clrow') !== null));
     await page.locator('#body .cb[data-on]').first().click(); await settle(page);
@@ -7997,7 +7997,7 @@ if (want('close the open resume')) {
   ok('a reload keeps nothing open (in Career, where it was), with the same resumes', r.id === null && r.closed && r.view === 'record' && (await page.evaluate(() => window.__wb.store.state.resumes.length)) === n0, JSON.stringify(r));
   await page.click('#ptabs [data-p=library]'); await settle(page);
   await page.click('.rsel[data-act=scr-sel]'); await settle(page);
-  await page.click('#head .docname[data-act=sw-open]'); await settle(page);
+  await page.click('#body .iopen'); await settle(page);
   const o = await st(page);
   ok('opening a resume from the Library restores everything: open, in the editor, tabs enabled, Export stub back', !!o.id && !o.closed && o.view === null && !o.off[0] && !o.off[1] && o.stub, JSON.stringify(o));
   const was = o.id;

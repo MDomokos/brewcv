@@ -1111,7 +1111,7 @@ body:not([data-phone=true]):not(.is-intro) .col > #body { margin-bottom: 8px; } 
 body:where(:not([data-phone=true], .is-intro)) .col > :where(#head, #body) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 body:not([data-phone=true]):not(.is-intro) .col > #head { flex: none; min-height: 0; margin-bottom: 8px; padding: 5px 6px 5px 4px; position: relative; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head { display: block; }
-body:not([data-phone=true]):not(.is-intro) .col > #body { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel), inset -1px 0 0 var(--line-strong), inset 0 1px 0 var(--line-strong), inset 0 -1px 0 var(--line-strong); transition: background-color var(--m-base) var(--m-out); }      /* one shadow, down and to the right like every panel */
+body:not([data-phone=true]):not(.is-intro) .col > #body { background: var(--surface); border-radius: var(--r-l); box-shadow: var(--shadow-panel), inset -1px 0 0 var(--line-strong), inset 0 1px 0 var(--line-strong), inset 0 -1px 0 var(--line-strong); transition: background-color var(--m-base) var(--m-out); }      /* one shadow, down and to the right like every panel */
 body.is-quiet .col > #body { border-radius: var(--r-panel); }
 /* the name window: the name card and the switcher are one card; the editor card is gone. A desktop's editor has no footer: the editor card takes the column down to its end. */
 body:not([data-phone=true]):not(.is-intro) .col > #foot { display: none; }
@@ -1121,7 +1121,7 @@ body:not([data-phone=true]) .switcher { position: static; flex: 1 1 0; min-heigh
   background: var(--surface); border: 1px solid var(--line-strong); border-top: 0; border-radius: 0 0 var(--r-l) var(--r-l); }
 body:not([data-phone=true]) .switcher[hidden] { display: none; }
 body:not([data-phone=true]) .switcher > * { flex: none; }
-body:not([data-phone=true]) .switcher > .swlist { flex: 1 1 auto; }
+body:not([data-phone=true]) .switcher > .swlist { flex: 1 1 auto; min-height: 64px; }      /* never squeezed to nothing: the window scrolls instead */
 body:not([data-phone=true]) .switcher > .lbl { margin: 6px 0 0; }
 body:not([data-phone=true]) .switcher > .lbl:first-child { margin-top: 0; }
 body:not([data-phone=true]) .switcher .swacts { flex-wrap: wrap; }

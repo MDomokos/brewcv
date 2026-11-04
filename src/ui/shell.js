@@ -647,12 +647,12 @@ function drawHead(){
   const mode = dock.modeOf(), closed = !!store.state.closed;
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''} ${closed && m !== 'record' ? `aria-disabled="true" title="${esc(t('close.tip'))}"` : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
-    // One name card in every place: a tag line saying what it names, the name, and Export inset at its end.
-    // In the Library the ticked resumes win, then the selected one, then the open one; everywhere else it is the open resume.
-    const place = SCREENS.includes(ui.view), editorHere = !place, tg = placeOf() === 'library' ? screens.target() : { ids: [store.state.openId], kind: 'open' };
-    const rs = tg.ids.map(id => RS.savedOf(store.state, id)).filter(Boolean), many = rs.length > 1, none = !rs.length && closed, other = tg.kind !== 'open' ? RS.savedOf(store.state, store.state.openId) : null;
+    // One name card in every place: the name and Export inset at its end. It names the open resume; in the Library resumes ticked for
+    // Compare win, under a tag line saying so. A selected resume is named at the inspector's top, not here.
+    const place = SCREENS.includes(ui.view), editorHere = !place, lib = placeOf() === 'library' ? screens.target() : null, tg = lib?.kind === 'ticked' ? lib : { ids: [store.state.openId], kind: 'open' };      // a selected one is named by the inspector
+    const rs = tg.ids.map(id => RS.savedOf(store.state, id)).filter(Boolean), many = rs.length > 1, none = !rs.length && closed;
     if (!many) ui.deckFold = false;
-    const tag = `<div class="htag"><span class="htagl ${tg.kind !== 'open' ? 'is-other' : ''}">${none ? '' : h(tg.kind === 'ticked' ? 'hc.tagTicked' : tg.kind === 'selected' ? 'hc.tagSel' : 'hc.tagOpen', { n: rs.length })}</span></div>`;
+    const tag = tg.kind === 'ticked' ? `<div class="htag"><span class="htagl is-other">${h('hc.tagTicked', { n: rs.length })}</span></div>` : '';      // the open resume needs no tag
     const name = none ? `<span class="docname is-none"><span class="dn">${h('close.none')}</span></span>`
       : editorHere
       ? `<button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>`
@@ -670,7 +670,6 @@ function drawHead(){
     $('#head').innerHTML = `
     <div class="hrow top"><div class="hmain">${tag}${name}</div></div>
     ${none ? `<div class="hrow sentrow"><span class="dnote">${h('close.hint')}</span></div>` : ''}
-    ${other ? `<div class="hrow sentrow"><span class="dnote">${h('hc.inEditor', { name: resumeName(other) })}</span></div>` : ''}
     ${editorHere && from ? `<div class="hrow sentrow"><span class="dfrom">${esc(from)}</span></div>` : ''}
     ${editorHere && sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
     ${ui.view === 'compare' ? screens.placeCard('compare') : ''}
