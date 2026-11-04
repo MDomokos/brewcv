@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **The Look sheet is shorter, so less of it hides below the panel:** the templates and the section styles are one row each that scrolls sideways, and the notes under the pickers are tooltips.
+
+### Fixed
+- **Content and Look in a folded sidebar's strip open the sidebar again;** the click showed nothing.
+- **A sent copy's name in the Library's side panel wraps** instead of being cut off.
+- **The "+" under the skills stands clear of the line below,** and it is not shown while a skill group is written.
+- **The "+" under a written last line hangs from its job's plate,** where it stood a little inside it.
+- **Creatures no longer come in on a part of the mat that is off the screen** when you have zoomed in on the page.
+
 ## 1.9.1 - 2026-11-04
 
 ### Changed
