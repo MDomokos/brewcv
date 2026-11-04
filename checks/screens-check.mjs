@@ -3,7 +3,7 @@
 // What the three places hold (the routing, the tabs and the keys are places-check's). In Chromium on the fictional example:
 //   - the Library: cards with the information beside the picture (company, role, paper, language, pages), Open now, a Sent N times badge, a tick
 //     named for its resume, a second page fanned behind a longer resume, newest first; as many to a row as hold 260 px (three at 1280, five at
-//     1920, eight at 2560); a click selects (a second one too) and Enter, a double click or the inspector's Open opens; the thumbnails are pictures of the real first page and
+//     1920, seven at 2560); a click selects (a second one too) and Enter, a double click or the inspector's Open opens; the thumbnails are pictures of the real first page and
 //     each is drawn once; every page of a resume is kept in the cache,
 //   - the inspector in the sidebar's body, with no scroll of its own: every page across its width, scrolled in place (the wheel and a click there never
 //     open it), Open as the primary and Use for a new job right under them, then the language with a switch, last changed, where it came from, the
@@ -96,8 +96,8 @@ await part('the cards: the information beside the picture, badges, ticks, the fa
   await ctx.close();
 });
 
-await part('cards per row: three at 1280, five at 1920, eight at 2560 (no rail: the Library has its width back)', async () => {
-  for (const [w, h, want] of [[1280, 720, 3], [1920, 1080, 5], [2560, 1440, 8]]){
+await part('cards per row: three at 1280, five at 1920, seven at 2560 (no rail: the Library has its width back)', async () => {
+  for (const [w, h, want] of [[1280, 720, 3], [1920, 1080, 5], [2560, 1440, 7]]){
     const { ctx, page } = await open(w, h);
     await openResume(page, MEDTECH);      // a resume that may run to two pages: the sidebar is at its narrow width, so the cards have the room they need
     await goLibrary(page);
@@ -390,10 +390,10 @@ await part('the Library\u2019s toolbar: its groups, tiers and selection line; se
       one: ['height', 'borderTopLeftRadius', 'fontSize'].map(p => new Set(ctl.map(e => cs(e)[p])).size).join() };
   });
   ok('the header: the search, then New round, Add files and New resume (last); its last row, on its own, the list\u2019s bar with Group and Show (the app\u2019s dropdowns, named) and the cards/list switch (icons with names), the hint in it; no chips, no bar under the cards', hd.kids === 'scr-q,tgrp,scr-lbar' && hd.acts === 'round-new,goto,sw-new' && hd.filtersOwnRow && hd.dds === 'scr-group=Group: Date,scr-show=Show: All' && hd.sw === 'scr-cards:true:true:true,scr-list:false:true:true' && hd.hint && !hd.chips && !hd.under, JSON.stringify(hd));
-  ok('…New resume the 40 px primary, Add files a secondary and New round tertiary words, each with its icon; one height, one radius and one font size for every other control in the header and the bar', hd.nr === 'primary,true,false' && hd.nrh === 40 && hd.add === 'secondary,true,false' && hd.round === 'tertiary,true,false' && hd.one === '1,1,1', JSON.stringify(hd));
+  ok('…New resume the 32 px primary, Add files a secondary and New round tertiary words, each with its icon; one height, one radius and one font size for every other control in the header and the bar', hd.nr === 'primary,true,false' && hd.nrh === 32 && hd.add === 'secondary,true,false' && hd.round === 'tertiary,true,false' && hd.one === '1,1,1', JSON.stringify(hd));
   await page.check('#scr .rcard .rtick >> nth=0'); await page.check('#scr .rcard .rtick >> nth=1'); await settle(page, 100);
   const line = await page.evaluate(() => ({ kids: [...document.querySelectorAll('#resumes > #scr-ticks > *')].map(e => e.dataset.act ?? e.id).join(), hint: !!document.querySelector('#scr-tickinfo'), pos: getComputedStyle(document.querySelector('#scr-ticks')).position }));
-  ok('two ticked: the floating bar at the list\u2019s foot says "2 ticked", then Compare and Clear (no rounds: no Move to round…); the hint has gone', line.kids === 'scr-nticked,scr-compare,scr-clear' && !line.hint && line.pos === 'sticky' && /^2 ticked$/.test((await page.textContent('#scr-nticked')).trim()), JSON.stringify(line));
+  ok('two ticked: the floating bar at the list\u2019s foot says "2 ticked", then Compare and Clear (no rounds: no Move to round…); the hint has gone', line.kids === 'scr-nticked,scr-compare,scr-clear' && !line.hint && line.pos === 'absolute' && /^2 ticked$/.test((await page.textContent('#scr-nticked')).trim()), JSON.stringify(line));
   await page.click('#scr-ticks [data-act=scr-clear]'); await settle(page);
   await pickOption(page, '#scr-show', 'sent'); await settle(page);
   ok('Show: Sent only lists the resumes that have sends', (await distinct()) === 1 && await page.$eval('#scr-show', x => x.value) === 'sent');

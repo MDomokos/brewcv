@@ -1777,6 +1777,8 @@ export default {
   'i7.newRoundShort': 'Új kör',
   'i7.renameRound': '{name} kör átnevezése',
   'i7.archivedChip': 'Archivált',
+  'i7.unarchiveBtn': 'Archiválás visszavonása',
+  'i7.nArchivedRounds': { one: '{n} archivált kör · Mutatás', other: '{n} archivált kör · Mutatás' },
   'i7.nTicked': 'Bepipálva: {n}',
   'i7.addedTo': 'Hozzáadva a körhöz: {round}',
   'i7.undoPlace': '{name} sorainak elhelyezése',

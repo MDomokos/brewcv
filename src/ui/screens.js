@@ -171,7 +171,7 @@ function listHtml(){
     if (round?.archived && !show) return '';
     if (!round && !its.length) return '';
     const open = V.fold.has(key || 'earlier') ? V.fold.get(key || 'earlier') : true;      // every round is open until the person folds it
-    const acts = round ? `<div class="btns racts"><button class="sm ghost rarch" data-act="round-archive" data-id="${esc(key)}" data-on="${round.archived ? '0' : '1'}" title="${esc(t(round.archived ? 'i7.unarchiveRound' : 'i7.archiveRound'))}" aria-label="${esc(t(round.archived ? 'i7.unarchiveRound' : 'i7.archiveRound'))}">${icon('archive', { role: 'inline' })}</button>${round.archived ? `<button class="sm del" data-act="rm-round-open" data-id="${esc(key)}">${h('i7.rmThese')}</button>` : ''}</div>` : '';
+    const acts = round ? `<div class="btns racts"><button class="sm ghost rarch" data-act="round-archive" data-id="${esc(key)}" data-on="${round.archived ? '0' : '1'}" title="${esc(t(round.archived ? 'i7.unarchiveRound' : 'i7.archiveRound'))}" aria-label="${esc(t(round.archived ? 'i7.unarchiveRound' : 'i7.archiveRound'))}">${icon('archive', { role: 'inline' })}${round.archived ? `<span>${h('i7.unarchiveBtn')}</span>` : ''}</button>${round.archived ? `<button class="sm del" data-act="rm-round-open" data-id="${esc(key)}">${h('i7.rmThese')}</button>` : ''}</div>` : '';
     const attrs = `data-round="${esc(key)}" data-n="${its.length}" ${round?.archived ? 'data-archived="1"' : ''} ${key === cur ? 'data-current="1"' : ''}`, panel = round && LIB.rm() === key ? LIB.roundPanel(round) : '';
     if (listing()){      // a round is a header row with its fold and its actions; its groups follow, hidden while it is folded
       inRound = `data-in="${esc(key)}" ${open ? '' : 'hidden'}`;
@@ -180,7 +180,8 @@ function listHtml(){
     }
     return `<details class="rround" ${attrs} ${open ? 'open' : ''}><summary>${roundName(key, name, round)} · ${its.length}</summary>${acts}${panel}${its.length ? view(its) : `<p class="muted small">${h('i7.roundEmpty')}</p>`}</details>`;
   };
-  return table(sorted.map(r => bucket(r.id, r.name, r)).join('') + bucket('', t('i7.earlier'), null)) + found;
+  const hidden = show ? 0 : rounds.filter(r => r.archived).length;      // archived rounds are out of the list: one quiet row at its end brings them in
+  return table(sorted.map(r => bucket(r.id, r.name, r)).join('') + bucket('', t('i7.earlier'), null)) + (hidden ? `<button class="ghost rarchrow" data-act="show-archived">${h('i7.nArchivedRounds', { n: hidden })}</button>` : '') + found;
 }
 
 // a round's name is written in place, as a job's title is (Enter or leaving keeps it, Esc does not, one undo step); Earlier is no round and has none
@@ -262,11 +263,7 @@ function afterResumes(){
   if (V.seen !== st().openId){ V.sel = null; V.nj = null; V.seen = st().openId; }
   T.fill(document.getElementById('scr-list'), recipeOf);
   paintInspector();
-  const tb = document.querySelector('#scr #resumes .tbar');      // the list's column header stays under the toolbar, however many rows it wraps to
-  RO ??= new ResizeObserver(([e]) => document.getElementById('scr')?.style.setProperty('--tbar-h', `${e.target.offsetHeight}px`));
-  RO.disconnect(); if (tb) RO.observe(tb);
 }
-let RO = null;
 // a tick changes the toolbar and the card, not the pictures
 function refreshTicks(){
   const bar = document.getElementById('scr-ticks'), hint = document.getElementById('scr-hint');
@@ -497,6 +494,7 @@ async function act(a, tg){
       if (ok){ V.roundForm = false; V.roundDraft = ''; V.fold.clear(); C.renderBody(); }
       return true;
     }
+    case 'show-archived': V.sentOnly = false; V.showArchived = true; C.renderBody(); return true;
     case 'round-archive': C.store.commit(d => { DOC.mark(d, 'rounds', tg.dataset.id, { archived: tg.dataset.on === '1' }); }, t(tg.dataset.on === '1' ? 'i7.undoArchive' : 'i7.undoUnarchive')); C.renderBody(); return true;
     case 'rm-archive': C.store.commit(d => { DOC.mark(d, 'resumes', tg.dataset.id, { archived: tg.dataset.on === '1' }); }, t(tg.dataset.on === '1' ? 'i7.undoArchive' : 'i7.undoUnarchive')); C.renderBody(); return true;
     case 'scr-list': case 'scr-cards': V.list = a === 'scr-list'; try { localStorage.setItem(LIST_KEY, V.list ? '1' : '0'); } catch { /* this session only */ } C.renderBody(); return true;

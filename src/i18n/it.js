@@ -1777,6 +1777,8 @@ export default {
   'i7.newRoundShort': 'Nuovo giro',
   'i7.renameRound': 'Rinomina il giro {name}',
   'i7.archivedChip': 'Archiviati',
+  'i7.unarchiveBtn': 'Disarchivia',
+  'i7.nArchivedRounds': { one: '{n} giro archiviato · Mostra', many: '{n} giri archiviati · Mostra', other: '{n} giri archiviati · Mostra' },
   'i7.nTicked': 'Spuntati: {n}',
   'i7.addedTo': 'Aggiunto al giro {round}',
   'i7.undoPlace': 'Colloca le righe di {name}',

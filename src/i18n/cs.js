@@ -1777,6 +1777,8 @@ export default {
   'i7.newRoundShort': 'Nové kolo',
   'i7.renameRound': 'Přejmenovat kolo {name}',
   'i7.archivedChip': 'Archivované',
+  'i7.unarchiveBtn': 'Vrátit z archivu',
+  'i7.nArchivedRounds': { one: '{n} archivované kolo · Zobrazit', few: '{n} archivovaná kola · Zobrazit', many: '{n} archivovaného kola · Zobrazit', other: '{n} archivovaných kol · Zobrazit' },
   'i7.nTicked': 'Zaškrtnuto: {n}',
   'i7.addedTo': 'Přidáno do kola {round}',
   'i7.undoPlace': 'Umístit řádky z: {name}',

@@ -1777,6 +1777,8 @@ export default {
   'i7.newRoundShort': 'Nieuwe ronde',
   'i7.renameRound': 'Ronde {name} hernoemen',
   'i7.archivedChip': 'Gearchiveerd',
+  'i7.unarchiveBtn': 'Uit archief halen',
+  'i7.nArchivedRounds': { one: '{n} gearchiveerde ronde · Tonen', other: '{n} gearchiveerde ronden · Tonen' },
   'i7.nTicked': 'Aangevinkt: {n}',
   'i7.addedTo': 'Toegevoegd aan ronde {round}',
   'i7.undoPlace': 'Regels van {name} plaatsen',

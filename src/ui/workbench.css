@@ -21,6 +21,9 @@
 
 :root {
   --G: 16px;
+  /* button heights: 32 for a toolbar or bar row, 28 for a row inside a card, 22 for a small action in a line. A primary stands out by
+     colour, not height. The workspace tabs keep their own sizes. */
+  --h-ctl: 32px; --h-row: 28px; --h-sm: 22px;
   /* motion, for the moments tea has and for the app's own: durations and easings. A moment is never a loop. */
   --dur-1: 110ms; --dur-2: 200ms; --dur-3: 320ms; --dur-moment: 1200ms;
   --ease: cubic-bezier(.2, .8, .2, 1); --ease-in-out: cubic-bezier(.4, 0, .2, 1); --ease-pop: cubic-bezier(.3, 1.6, .5, 1); --ease-swing: cubic-bezier(.3, 1.5, .5, 1);
@@ -1164,8 +1167,9 @@ html body:not([data-phone=true]):not(.is-intro) :is(.col > #head, .col > .switch
 .body { scrollbar-color: var(--line-strong) transparent; }
 
 /* the zoom bar: only while the pointer is over the page */
-.zoombar { position: fixed; z-index: 12; bottom: var(--G); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: var(--r-pill);
+.zoombar { position: fixed; z-index: 12; bottom: var(--G); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; box-sizing: border-box; height: 44px; padding: 0 6px; border-radius: var(--r-pill);      /* the foot bar's height and edge */
   background: var(--surface); color: var(--ink); box-shadow: var(--shadow-chip); opacity: 0; pointer-events: none; transition: opacity var(--m-slow) var(--m-inout); }
+.zoombar :is(.ib, .sm) { height: var(--h-ctl); } .zoombar .ib { width: var(--h-ctl); }
 .zoombar.on { opacity: 1; pointer-events: auto; transition-duration: var(--m-base); }
 .zoombar.on.is-aside { opacity: 0; pointer-events: none; }      /* printed text under it, the pointer not near: it stands aside (dock.js barAside) */
 body.is-intro .zoombar, body.is-quiet .zoombar, body[data-phone=true] .zoombar { display: none; }

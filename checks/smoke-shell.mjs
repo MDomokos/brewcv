@@ -1422,10 +1422,10 @@ if (want('the record checklist: groups, ticks, the page and the timeline')) {
   await page.keyboard.press('Control+z'); await settle(page);
 
   // the timeline, under the cards
-  await page.evaluate(() => { document.querySelector('#scr').scrollTop = 0; });
+  await page.evaluate(() => { document.querySelector('#checklist').scrollTop = 0; });
   ok('the timeline is under the cards: two columns, five jobs and three beside them', await page.isVisible('#checklist .rectl .tl2') && (await page.$$('#checklist .rectl .tl2 .main .row')).length === 5 && (await page.$$('#checklist .rectl .tl2 .side .srow')).length === 3 && !(await page.$('#timeline')));
   const tl = await rect(page, '#checklist .rectl'), scr = await scrBox(page), col = await rect(page, '#col');
-  ok('it is as wide as Career’s content: Career is drawn left of the sidebar (in #scr), 20px from the window’s edge, and does not reach the sidebar', tl.left >= scr.left && tl.right <= scr.right + 1 && Math.abs(scr.left - 20) < 1 && scr.right < col.left && Math.abs(col.right - (await page.evaluate(async () => innerWidth - 16 - (await import('/src/ui/layout.js')).SIDE_EDGE))) < 1, `${tl.left}-${tl.right} vs ${scr.left}-${scr.right}`);
+  ok('it is as wide as Career’s content: Career is drawn left of the sidebar (in #scr), 16px from the window’s edge (the sidebar’s gutter), and does not reach the sidebar', tl.left >= scr.left && tl.right <= scr.right + 1 && Math.abs(scr.left - 16) < 1 && scr.right < col.left && Math.abs(col.right - (await page.evaluate(async () => innerWidth - 16 - (await import('/src/ui/layout.js')).SIDE_EDGE))) < 1, `${tl.left}-${tl.right} vs ${scr.left}-${scr.right}`);
   await page.click('#checklist .rectl .row:has-text("Prototyping Technician")'); await settle(page);
   ok('an entry in it opens in the inspector, and the place stays', (await page.evaluate(() => window.__wb.ui.view)) === 'record' && !!(await page.$('#body .clg[data-g=poly]')) && await page.evaluate(() => document.querySelectorAll('#scr .rectl .is-sel').length) === 1);
   await page.click('#checklist .rectl .srow:has-text("M.Eng.")'); await settle(page);

@@ -1777,6 +1777,8 @@ export default {
   'i7.newRoundShort': 'Nouvelle période',
   'i7.renameRound': 'Renommer la période {name}',
   'i7.archivedChip': 'Archivés',
+  'i7.unarchiveBtn': 'Désarchiver',
+  'i7.nArchivedRounds': { one: '{n} période archivée · Afficher', many: '{n} périodes archivées · Afficher', other: '{n} périodes archivées · Afficher' },
   'i7.nTicked': 'Cochés : {n}',
   'i7.addedTo': 'Ajouté à la période {round}',
   'i7.undoPlace': 'Placer les lignes de {name}',

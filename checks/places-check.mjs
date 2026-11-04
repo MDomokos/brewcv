@@ -149,11 +149,11 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   await page.fill('#scr-q', ''); await page.dispatchEvent('#scr-q', 'input'); await page.evaluate(() => document.activeElement.blur());
   await page.setViewportSize({ width: 1470, height: 520 });      // short enough for the timeline to scroll
   await page.keyboard.press('r'); await settle(page);
-  await page.evaluate(() => { document.querySelector('#scr').scrollTop = 300; }); await settle(page);
-  const top0 = await page.evaluate(() => document.querySelector('#scr').scrollTop);
+  await page.evaluate(() => { document.querySelector('#checklist').scrollTop = 300; }); await settle(page);
+  const top0 = await page.evaluate(() => document.querySelector('#checklist').scrollTop);
   await page.keyboard.press('w'); await settle(page);
   await page.keyboard.press('r'); await settle(page);
-  const top1 = await page.evaluate(() => document.querySelector('#scr').scrollTop);
+  const top1 = await page.evaluate(() => document.querySelector('#checklist').scrollTop);
   ok('Career keeps its scroll', top0 > 100 && Math.abs(top1 - top0) < 2, `${top0} then ${top1}`);
   await page.setViewportSize({ width: 1470, height: 832 });
   await ctx.close();

@@ -1777,6 +1777,8 @@ export default {
   'i7.newRoundShort': 'Neue Runde',
   'i7.renameRound': 'Runde {name} umbenennen',
   'i7.archivedChip': 'Archiviert',
+  'i7.unarchiveBtn': 'Archivierung aufheben',
+  'i7.nArchivedRounds': { one: '{n} archivierte Runde · Anzeigen', other: '{n} archivierte Runden · Anzeigen' },
   'i7.nTicked': 'Angekreuzt: {n}',
   'i7.addedTo': 'Zur Runde {round} hinzugefügt',
   'i7.undoPlace': 'Zeilen von {name} zuordnen',

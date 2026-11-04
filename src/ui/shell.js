@@ -553,7 +553,7 @@ function setView(v){
   if (v === 'export' && !ui.xp) ui.xp = { ids: [store.state.openId], from: was };      // every way into Export is the place, for the open resume
   if (v !== 'export' && v !== 'sent') ui.xp = null;
   ui.focusKept = false;
-  if (SCREENS.includes(was) && !ui.layout?.phone) (ui.scrolled ??= {})[was] = $('#scr').scrollTop;      // each place keeps its scroll (N6)
+  if (SCREENS.includes(was) && !ui.layout?.phone) (ui.scrolled ??= {})[was] = scroller().scrollTop;      // each place keeps its scroll (N6)
   ui.view = v;
   find.sync();
   syncIntro();                 // the start screen's areas are the editor's again before they are drawn
@@ -564,7 +564,7 @@ function setView(v){
   renderHead();
   renderBody(true);
   renderChip();
-  if (SCREENS.includes(v) && !ui.layout?.phone) $('#scr').scrollTop = ui.scrolled?.[v] ?? 0;
+  if (SCREENS.includes(v) && !ui.layout?.phone) scroller().scrollTop = ui.scrolled?.[v] ?? 0;
   // a place opens with the focus on its tab (the Library: on the selected card); leaving one for the editor puts it on the Editor tab
   if (SCREENS.includes(v) && !SCREENS.includes(was)) (v === 'resumes' && screens.focusSel() || $(`#ptabs [data-p="${placeOf()}"]`) || $('#body [data-act=scr-back]'))?.focus({ preventScroll: true });
   else if (SCREENS.includes(was) && !SCREENS.includes(v) && !ui.focusKept) $(`#ptabs [data-p="${placeOf()}"]`)?.focus({ preventScroll: true });
@@ -784,6 +784,14 @@ function morph(a, b){
   const bs = [...b.childNodes];
   [...a.childNodes].forEach((c, i) => morph(c, bs[i]));
 }
+// What scrolls in a place: the list inside the Library's pane, Career's pane, else #scr (a phone)
+const scroller = () => $('#scr #scr-list, #scr #checklist') ?? $('#scr');
+// A pane's marks: a shadow under its pinned header once scrolled, a fade at its foot while there is more below
+function paneMarks(){
+  const el = $('#scr #scr-list, #scr #checklist'); if (!el) return;
+  el.classList.toggle('is-top', el.scrollTop > 2);
+  el.classList.toggle('is-more', el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+}
 // #scr holds the Library and Career: the list runs from the left gutter to the seam, the sidebar's height. Its box is the whole window, so the
 // mat it carries and scrolls (drinks.css) reaches every edge; its padding keeps the list where it was. The rail and the sidebar stand over it.
 function layoutScreen(){
@@ -791,7 +799,7 @@ function layoutScreen(){
   if (L?.phone) scr.style.padding = '';
   if (!L || L.phone || scr.hidden) return;
   const w = Math.max(0, L.col.left - L.railW - 2 * G);
-  Object.assign(scr.style, { left: '0px', top: '0px', height: `${innerHeight}px`, width: `${innerWidth}px`, padding: `${G}px ${innerWidth - G - w + 4}px ${2 * G}px ${G + 4}px` });
+  Object.assign(scr.style, { left: '0px', top: '0px', height: `${innerHeight}px`, width: `${innerWidth}px`, padding: `${G}px ${innerWidth - G - w}px ${G}px ${G}px` });
 }
 
 
@@ -970,7 +978,8 @@ function renderBody(animate = false){
   if (there){ $('#body').dataset.view = $('#body').dataset.mode = 'inspector'; el = scr; layoutScreen(); }
   else if (scr.innerHTML) scr.innerHTML = '';
   const s = ui.sel, before = el.dataset.view;
-  const keep = el.scrollTop, keepSide = there ? $('#body').scrollTop : 0;
+  const inner = () => (there ? $('#scr #scr-list, #scr #checklist') : null) ?? el;
+  const keep = inner().scrollTop, keepSide = there ? $('#body').scrollTop : 0;
   // a record form with something typed in it is not redrawn under the caret; one you have left or not changed is, and the focus stays where it was
   // (a place's inspector is in the sidebar's body: the focus may be there)
   const ae = document.activeElement, fh = there && $('#body').contains(ae) ? $('#body') : el;
@@ -996,7 +1005,8 @@ function renderBody(animate = false){
     // a step between two lines of one kind of panel does not animate; a new kind of panel fades in once (opacity only)
     el.classList.remove('anim-in');
     if (animate && el.dataset.view !== before){ void el.offsetWidth; el.classList.add('anim-in'); }
-    if (animate) el.scrollTop = 0; else el.scrollTop = keep;
+    inner().scrollTop = animate ? 0 : keep;
+    paneMarks();
     if (there) $('#body').scrollTop = animate ? 0 : keepSide;
     if (had){ const n = document.getElementById(had.id); if (n && n !== document.activeElement){ n.focus(); try { n.setSelectionRange(had.start, had.end); } catch { /* not a text box */ } } }
     else if (at0 >= 0){
@@ -1751,7 +1761,9 @@ Object.assign(VIEWS, exporter.views);
 window.__wb.export = exporter;
 resumes.bind($('#body'));
 screens.bind($('#body'));
-for (const m of [screens, resumes, checklist, career, edit]) m.bind($('#scr'));      // the Library and Career have their own host (the ticks are edit.js's)
+for (const m of [screens, resumes, checklist, career, edit]) m.bind($('#scr'));
+{ let q = 0; const soon = () => { q ||= requestAnimationFrame(() => { q = 0; paneMarks(); }); };
+  $('#scr').addEventListener('scroll', soon, true); addEventListener('resize', soon); new MutationObserver(soon).observe($('#scr'), { childList: true, subtree: true }); }      // the Library and Career have their own host (the ticks are edit.js's)
 const placeZoom = initPlaceZoom({ view: () => ui.view, scr: $('#scr') });
 window.__wb.resumes = resumes;
 window.__wb.switcher = switcher;

@@ -1777,6 +1777,8 @@ export default {
   'i7.newRoundShort': 'Nueva ronda',
   'i7.renameRound': 'Cambiar el nombre de la ronda {name}',
   'i7.archivedChip': 'Archivados',
+  'i7.unarchiveBtn': 'Desarchivar',
+  'i7.nArchivedRounds': { one: '{n} ronda archivada · Mostrar', many: '{n} rondas archivadas · Mostrar', other: '{n} rondas archivadas · Mostrar' },
   'i7.nTicked': 'Marcados: {n}',
   'i7.addedTo': 'Añadido a la ronda {round}',
   'i7.undoPlace': 'Colocar las líneas de {name}',

@@ -1781,6 +1781,8 @@ export default {
   'i7.newRoundShort': 'New round',
   'i7.renameRound': 'Rename the round {name}',
   'i7.archivedChip': 'Archived',
+  'i7.unarchiveBtn': 'Unarchive',
+  'i7.nArchivedRounds': { one: '{n} archived round · Show', other: '{n} archived rounds · Show' },
   'i7.nTicked': '{n} ticked',
   'i7.addedTo': 'Added to {round}',
   'i7.undoPlace': 'Place lines of {name}',
