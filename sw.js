@@ -103,7 +103,6 @@ const SHELL = [
   './src/ui/plate.js',
   './src/ui/arrive.js',
   './src/ui/matroll.js',
-  './src/ui/exportfx.js',
   './src/ui/parts.js',
   './src/model/career.js',
   './src/model/entries.js',

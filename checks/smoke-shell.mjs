@@ -4683,7 +4683,7 @@ if (want('the session survives a reload')) {
   await ctx.close();
 }
 
-if (want('motion: the thirteen moments play, are off under reduced motion, and leave the same page')) {
+if (want('motion: the twelve moments play, are off under reduced motion, and leave the same page')) {
   // One walk through every moment, once with motion and once with reduced motion emulated. With motion, each moment starts the
   // animations it names (window.__wb.motion.stats.names); with reduced motion, nothing starts at all, nothing is left running, and the
   // printed page (the frame's .document) is the same, character for character, after every step.
@@ -4764,20 +4764,12 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
     got.roll = await names(); await page.waitForTimeout(700);
     got.coffee = await page.evaluate(m => ({ drink: document.documentElement.dataset.drink, logo: eval(m)(), to: document.querySelector('#rail .appmenu .mdrink [data-act=drink-switch]')?.dataset.to, layer: !!document.querySelector('.matroll') }), `(${mark})`);
     if (await page.$('#rail .appmenu')) await page.keyboard.press('Escape');
-    // an export in coffee: a crema line reads the page and a receipt prints
-    await page.evaluate(() => window.__wb.setView('export')); await settle(page); await clear();
-    await page.click('[data-act=ex-html]'); await page.click('#exblock [data-exb=dismiss]', { timeout: 2000 }).catch(() => {}); await page.waitForTimeout(900);      // this resume has a major warning (a photo, none to print): the dialog asks first
-    got.exportCoffee = await names(); await page.waitForTimeout(2200);
-    await page.evaluate(() => window.__wb.export.back()); await settle(page);      // (Export is a place without the bar: back to the editor for the menu)
     await page.mouse.move(4, 4);
     await page.hover(await pill('tea')); await page.waitForTimeout(300); await clear();
     await page.click(await pill('tea')); await page.waitForTimeout(150);
     got.unroll = await names(); await page.waitForTimeout(700);
     got.tea = await page.evaluate(m => ({ drink: document.documentElement.dataset.drink, logo: eval(m)() }), `(${mark})`);
     if (await page.$('#rail .appmenu')) await page.keyboard.press('Escape');
-    await page.evaluate(() => window.__wb.setView('export')); await settle(page); await clear();
-    await page.click('[data-act=ex-html]'); await page.click('#exblock [data-exb=dismiss]', { timeout: 2000 }).catch(() => {}); await page.waitForTimeout(900);      // this resume has a major warning (a photo, none to print): the dialog asks first; the carry starts once the page is wrapped
-    got.exportTea = await names(); await page.waitForTimeout(2200);
     got.left = await running();
     got.played = await page.evaluate(() => window.__wb.motion.stats.played);
     got.errors = bad.length;
@@ -4798,7 +4790,6 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
   ok('with motion: hovering Coffee in the "?" menu starts the mat rolling up', A.got.peek.layer && A.got.peek.to === 'coffee' && A.got.peek.drink === 'tea', JSON.stringify(A.got.peek));
   ok('…a click carries it on: the mat rolls up, the drink is Coffee, the bar\'s mark is the coffee one and the menu now offers Tea', has(A.got.roll, 'mat:up') && A.got.coffee.drink === 'coffee' && /BE7F4A/.test(A.got.coffee.logo) && A.got.coffee.to === 'tea');
   ok('…and back: the mat unrolls, the drink is Tea, the mark the tea one', has(A.got.unroll, 'mat:down') && A.got.tea.drink === 'tea' && /D9A65A/.test(A.got.tea.logo));
-  ok('with motion: an export has a picture in each drink: a crema line and a receipt in coffee, a wrapped scroll and steam in tea', has(A.got.exportCoffee, 'export:coffee-scan', 'export:coffee-print') && has(A.got.exportTea, 'export:tea-wrap', 'export:tea-carry'), JSON.stringify([A.got.exportCoffee, A.got.exportTea]));
   ok('with motion: everything is over, and nothing it drew is left behind', A.got.left === 0, String(A.got.left));
   ok('with motion: no console errors', A.got.errors === 0);
 

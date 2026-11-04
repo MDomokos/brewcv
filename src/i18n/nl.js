@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'De bamboemat rolt op en het raster verschijnt eronder.',
   'ux4.logoToTea': 'Naar Thee wisselen',
   'ux4.logoToTeaTip': 'De bamboemat rolt uit over het raster.',
-  'ux4.fxExport': 'Exporteren',
-  'ux4.fxDone': 'Klaar',
   'ux5a.viewHead': 'Pagina en paneel',
   'ux5b.lineUp': 'De regel omhoog verplaatsen',
   'ux5b.lineDown': 'De regel omlaag verplaatsen',

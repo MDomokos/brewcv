@@ -107,8 +107,9 @@ for (const [vw, vh] of [[1536, 864], [1440, 900], [1100, 760]]){
 section('layout: the Export place');
 for (const [vw, vh, o] of [[1440, 900, {}], [1100, 760, {}], [2560, 1440, {}], [1440, 900, { side: { off: true } }], [1440, 900, { side: { w: 600 } }]]){
   const base = lay(vw, vh, { ...o, side: o.side?.off ? null : o.side }), L = lay(vw, vh, { ...o, final: true });
-  ok(`${vw}×${vh}${o.side ? ` (${JSON.stringify(o.side)})` : ''}: Export has no rail and a column half again as wide as the sidebar (${base.col.width} → ${L.col.width}), never over half the window, never folded; the page uncovered left of it`,
-    L.railW === 0 && L.col.width === Math.min(Math.round(1.5 * base.col.width), Math.floor(vw / 2)) && L.col.left + L.col.width === vw - G && L.sheet.left + L.sheet.width <= L.col.left - G + 1e-6 && L.sheet.height > 0.5 * vh);
+  const W = lay(vw, vh, { ...o, final: true, finalWide: true });
+  ok(`${vw}×${vh}${o.side ? ` (${JSON.stringify(o.side)})` : ''}: Export has no rail and a column as wide as the sidebar (${L.col.width}), half again as wide only when its panel needs it (${W.col.width}), never over half the window, never folded; the page uncovered left of it`,
+    L.railW === 0 && (o.side?.off ? L.col.width === lay(vw, vh).col.width : L.col.width === base.col.width) && W.col.width === Math.min(Math.round(1.5 * L.col.width), Math.floor(vw / 2)) && W.col.left + W.col.width === vw - G && L.col.left + L.col.width === vw - G && L.sheet.left + L.sheet.width <= L.col.left - G + 1e-6 && L.sheet.height > 0.5 * vh);
 }
 for (const [vw, vh] of [[1280, 800], [1536, 864], [1920, 1080], [2560, 1440]]){
   const one = lay(vw, vh, { final: true }), L = lay(vw, vh, { final: true, pages: 2 }), letter = computeLayout({ vw, vh, format: 'us-letter', pages: 2, final: true });

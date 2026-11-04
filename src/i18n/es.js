@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'La esterilla de bambú se enrolla y debajo aparece la cuadrícula.',
   'ux4.logoToTea': 'Cambiar a Té',
   'ux4.logoToTeaTip': 'La esterilla de bambú se desenrolla sobre la cuadrícula.',
-  'ux4.fxExport': 'Exportar',
-  'ux4.fxDone': 'Listo',
   'ux5a.viewHead': 'Página y panel',
   'ux5b.lineUp': 'Subir la línea',
   'ux5b.lineDown': 'Bajar la línea',

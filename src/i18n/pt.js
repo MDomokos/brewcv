@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'A esteira de bambu enrola-se e por baixo aparece a grelha.',
   'ux4.logoToTea': 'Mudar para Chá',
   'ux4.logoToTeaTip': 'A esteira de bambu desenrola-se sobre a grelha.',
-  'ux4.fxExport': 'Exportar',
-  'ux4.fxDone': 'Pronto',
   'ux5a.viewHead': 'Página e painel',
   'ux5b.lineUp': 'Subir a linha',
   'ux5b.lineDown': 'Descer a linha',

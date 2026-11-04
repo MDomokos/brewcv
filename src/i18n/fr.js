@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'Le tapis de bambou s\'enroule et la grille apparaît dessous.',
   'ux4.logoToTea': 'Passer au Thé',
   'ux4.logoToTeaTip': 'Le tapis de bambou se déroule sur la grille.',
-  'ux4.fxExport': 'Exporter',
-  'ux4.fxDone': 'Terminé',
   'ux5a.viewHead': 'Page et panneau',
   'ux5b.lineUp': 'Monter la ligne',
   'ux5b.lineDown': 'Descendre la ligne',

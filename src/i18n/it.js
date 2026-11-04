@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'La stuoia di bambù si arrotola e sotto compare la griglia.',
   'ux4.logoToTea': 'Passa al Tè',
   'ux4.logoToTeaTip': 'La stuoia di bambù si srotola sopra la griglia.',
-  'ux4.fxExport': 'Esporta',
-  'ux4.fxDone': 'Fatto',
   'ux5a.viewHead': 'Pagina e pannello',
   'ux5b.lineUp': 'Sposta la riga su',
   'ux5b.lineDown': 'Sposta la riga giù',

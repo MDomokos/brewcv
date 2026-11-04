@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'Bambusová rohož se svine a pod ní se objeví mřížka.',
   'ux4.logoToTea': 'Přepnout na Čaj',
   'ux4.logoToTeaTip': 'Bambusová rohož se rozvine přes mřížku.',
-  'ux4.fxExport': 'Export',
-  'ux4.fxDone': 'Hotovo',
   'ux5a.viewHead': 'Stránka a panel',
   'ux5b.lineUp': 'Posunout řádek nahoru',
   'ux5b.lineDown': 'Posunout řádek dolů',

@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'The bamboo mat rolls up and the grid shows under it.',
   'ux4.logoToTea': 'Switch to Tea',
   'ux4.logoToTeaTip': 'The bamboo mat unrolls over the grid.',
-  'ux4.fxExport': 'Export',
-  'ux4.fxDone': 'Done',
   'ux5a.viewHead': 'Page and panel',
   'ux5b.lineUp': 'Move the line up',
   'ux5b.lineDown': 'Move the line down',

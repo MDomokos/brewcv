@@ -43,9 +43,10 @@ export const clampZoom = z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number.isFin
 // zoom: 1 is the whole page fitted to the window.
 // `slim`: the start screen and the first questions: the column is 27% of the window (340 to 392px).
 // `side`: the person's choice ({ w, off }): a width of their own, or folded to its strips (the column takes no room; the page has the rest).
-// `final`: the Export place: the column FINAL_X as wide as the sidebar would be (never folded, never over half the window).
+// `final`: the Export place: the column as wide as the sidebar (never folded); `finalWide`: its panel does not fit that narrow, so it is
+// FINAL_X as wide (never over half the window).
 export const SLIM_MIN = 340, SLIM_MAX = 392, FINAL_X = 1.5;
-export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = false, slim = false, oneUp = false, side = null, final = false }){
+export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = false, slim = false, oneUp = false, side = null, final = false, finalWide = false }){
   const { w, h } = pageSize(format);
   const n = Math.max(1, pages);
   const z = clampZoom(zoom);
@@ -65,7 +66,7 @@ export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = fals
   const tall = (vh - 2 * G) / h;
   const rowW = k => k * w + (k - 1) * PAGE_GAP;
   const own = side?.w ? clampSide(side.w, vw) : sideWidth(vw, vh, oneUp);
-  let colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.272))) : final ? Math.min(Math.round(FINAL_X * own), Math.floor(vw / 2)) : side?.off ? 0 : own;
+  let colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.272))) : final ? (finalWide ? Math.min(Math.round(FINAL_X * own), Math.floor(vw / 2)) : own) : side?.off ? 0 : own;
   // Export with more than one page: the column gives up its extra width (down to the sidebar's) so the pages sit whole side by side, each at least
   // FOLDED_SPREAD of a page's full size; where even that is too little, it keeps its width and the view travels from page to page
   if (final && n > 1){ const most = Math.floor(vw - 4 * G - FOLDED_SPREAD * tall * rowW(n)); if (most >= own) colW = Math.min(colW, most); }

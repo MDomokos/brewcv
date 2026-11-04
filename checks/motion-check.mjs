@@ -6,7 +6,7 @@
 //   - one rule for reduced motion (the system's, and the Reduce motion setting), and nothing else asks the system on its own
 //   - never blocks: a new animation under the same key replaces the last; with motion off, play() starts nothing
 //   - no animation library, no hard-coded durations in the moments; the page's render never imported by the moments
-//   - the thirteen moments are each wired, the logo has its two tiles, and every string is in the catalogues
+//   - the twelve moments are each wired, the logo has its two tiles, and every string is in the catalogues
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,7 +21,7 @@ const section = t => console.log(`\n— ${t}`);
 const css = read('src/ui/workbench.css');
 const UI = fs.readdirSync(path.join(ROOT, 'src/ui')).filter(f => f.endsWith('.js'));
 const src = Object.fromEntries(UI.map(f => [f, read(`src/ui/${f}`)]));
-const MOMENTS = ['motion.js', 'pagemotion.js', 'arrive.js', 'matroll.js', 'exportfx.js'];
+const MOMENTS = ['motion.js', 'pagemotion.js', 'arrive.js', 'matroll.js'];
 
 section('the tokens');
 {
@@ -82,7 +82,7 @@ section('no library, no hard-coded times, the page untouched');
   ok('the layers (the motion layer, the mat) take no pointer events', /\.motionlay \{[^}]*pointer-events: none/.test(css) && /\.matroll \{[^}]*pointer-events: none/.test(read('src/ui/drinks.css')));
 }
 
-section('the thirteen moments are wired');
+section('the twelve moments are wired');
 {
   const has = (f, re) => re.test(src[f]);
   const all = Object.values(src).join('\n');
@@ -99,7 +99,6 @@ section('the thirteen moments are wired');
     [10, 'Start screen to editor: lines are written in, the controls come in', has('arrive.js', /fromStart/) && has('pagemotion.js', /export function reveal/) && has('shell.js', /arrive\.fromStart/)],
     [11, 'Onboarding to Start editing: the header, footer, rail and zoom bar slide in', has('arrive.js', /fromQuiet/) && has('shell.js', /arrive\.fromQuiet/) && !has('onboarding.js', /fade-in/)],
     [12, 'Tea and Coffee by the logo: its own tile, a hint, the mat rolls up and unrolls', has('drink.js', /export function logoBtn/) && has('matroll.js', /mat:\$\{el\.dataset\.kind\}/) && has('shell.js', /drink-switch/) && /\.roller/.test(read('src/ui/drinks.css'))],
-    [13, 'An export has a picture in each drink', has('exportfx.js', /async function tea/) && has('exportfx.js', /async function coffee/) && has('export.js', /exportFx/)],
   ];
   for (const [n, name, pass] of rows) ok(`${n}. ${name}`, !!pass);
   ok('no moment starts a loop: an animation is played once (iterations are never set)', !/iterations|infinite/.test(MOMENTS.map(f => src[f]).join('\n') + css.slice(css.indexOf('/* motion, for the moments'))));

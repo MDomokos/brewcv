@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'Bambusowa mata się zwija, a pod nią pokazuje się siatka.',
   'ux4.logoToTea': 'Przełącz na Herbatę',
   'ux4.logoToTeaTip': 'Bambusowa mata rozwija się nad siatką.',
-  'ux4.fxExport': 'Eksport',
-  'ux4.fxDone': 'Gotowe',
   'ux5a.viewHead': 'Strona i panel',
   'ux5b.lineUp': 'Przesuń wiersz w górę',
   'ux5b.lineDown': 'Przesuń wiersz w dół',

@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'A bambuszszőnyeg feltekeredik, és alatta megjelenik a rács.',
   'ux4.logoToTea': 'Váltás Teára',
   'ux4.logoToTeaTip': 'A bambuszszőnyeg kigördül a rács fölé.',
-  'ux4.fxExport': 'Exportálás',
-  'ux4.fxDone': 'Kész',
   'ux5a.viewHead': 'Oldal és panel',
   'ux5b.lineUp': 'A sor mozgatása felfelé',
   'ux5b.lineDown': 'A sor mozgatása lefelé',

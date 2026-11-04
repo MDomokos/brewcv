@@ -362,12 +362,12 @@ async function drawSheet(){
 const SCREENS = ['record', 'resumes', 'compare'];
 const fullWindow = () => innerWidth < PHONE_MAX && SCREENS.includes(ui.view);
 // the layout changes only when the sidebar becomes the whole screen or stops being it (a phone), Export opens or closes, or the start screen's slim column ends
-const syncFull = () => { if ($('#col').classList.contains('is-full') !== fullWindow() || document.body.classList.contains('is-export') !== inPlace() || ui.layout?.slim !== (ui.view === 'welcome')){ if (cur()?.exportMedium) schedule(); relayout(); } };      // the page is drawn again in its medium, or back on a screen
+const syncFull = () => { if (!inPlace()) ui.xpWide = false; if ($('#col').classList.contains('is-full') !== fullWindow() || document.body.classList.contains('is-export') !== inPlace() || ui.layout?.slim !== (ui.view === 'welcome')){ if (cur()?.exportMedium) schedule(); relayout(); } };      // the page is drawn again in its medium, or back on a screen
 function relayout(){
   const c = shown();
   if (!c) return;
   const pages = ui.laid?.pages?.length ?? 1;
-  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: fullWindow(), slim: ui.view === 'welcome', oneUp: c.pageLimit === 1, side: side(), final: inPlace() });
+  const L = computeLayout({ vw: innerWidth, vh: innerHeight, format: c.format, pages, zoom: 1, wide: fullWindow(), slim: ui.view === 'welcome', oneUp: c.pageLimit === 1, side: side(), final: inPlace(), finalWide: inPlace() && !!ui.xpWide });
   const host = $('#sheet'), box = $('#pages');
   const col = $('#col');
   Object.assign(col.style, { left: `${L.col.left}px`, top: `${L.col.top}px`, width: `${L.col.width}px`, height: `${L.col.height}px` });
@@ -1009,6 +1009,8 @@ function renderBody(animate = false){
     if (there){ const side = $('#body'); side.classList.remove('anim-in'); if (animate && el.dataset.view !== before){ void side.offsetWidth; side.classList.add('anim-in'); } }      // the sidebar's panel fades with its place, the same fade
     inner().scrollTop = animate ? 0 : keep;
     paneMarks();
+    // Export's panel is the sidebar's width; only when its content does not fit the height does it widen (until Export is left)
+    if (inPlace() && !ui.layout?.phone && !ui.xpWide && el.scrollHeight > el.clientHeight + 1){ ui.xpWide = true; relayout(); }
     if (there) $('#body').scrollTop = animate ? 0 : keepSide;
     if (had){ const n = document.getElementById(had.id); if (n && n !== document.activeElement){ n.focus(); try { n.setSelectionRange(had.start, had.end); } catch { /* not a text box */ } } }
     else if (at0 >= 0){

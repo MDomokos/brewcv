@@ -1111,8 +1111,6 @@ export default {
   'ux4.logoToCoffeeTip': 'Die Bambusmatte rollt sich auf, und das Raster kommt darunter zum Vorschein.',
   'ux4.logoToTea': 'Zu Tee wechseln',
   'ux4.logoToTeaTip': 'Die Bambusmatte rollt sich über dem Raster aus.',
-  'ux4.fxExport': 'Export',
-  'ux4.fxDone': 'Fertig',
   'ux5a.viewHead': 'Seite und Panel',
   'ux5b.lineUp': 'Zeile nach oben schieben',
   'ux5b.lineDown': 'Zeile nach unten schieben',
