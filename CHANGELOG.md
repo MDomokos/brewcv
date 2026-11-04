@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9.3 - 2026-11-04
+
+### Changed
+- **The tabs above the card ease more calmly:** the open tab grows less and no longer hops or flashes, and the curve at its foot rises with its colour.
+- **Place switches are smoother:** the name card eases to its height between Resumes and Career instead of jumping, the sidebar panel fades in with its place, and the garden holds still while a place changes.
+- **Place switches do less work:** repeated text matching and month names are cached.
+
 ## 1.9.2 - 2026-11-04
 
 ### Changed
