@@ -69,23 +69,34 @@ function settingsHtml(r, look){
   const dflt = esc(t('look.default'));
   const sizeWhy = letter ? h('look.sizeLetter') : L.sizes ? h('look.sizeFull', { px: Math.min(...Object.values(L.sizes)) }) : '';
   const presets = L.presets ?? Object.keys(PRESETS), fonts = L.fonts ?? Object.keys(FONTS);
-  const style = (look.earlier ? '' : `<span class="lbl">${h('look.set.preset')}</span><div class="opts three" role="group" aria-label="${esc(t('look.set.preset'))}">${presets.map(id =>
-      `<button ${set('preset', id)} aria-pressed="${D.preset === id}" title="${esc(t(`look.presetNote.${id}`))}"${id === L.preset ? ` aria-label="${esc(t(`look.preset.${id}`))}, ${dflt}"` : ''}>${h(`look.preset.${id}`)}${id === L.preset ? '<i class="dflt" aria-hidden="true"></i>' : ''}</button>`).join('')}</div>
-      <p class="note clamp">${h(`look.presetNote.${D.preset}`)}</p>`);
+  const style = (look.earlier ? '' : `<span class="lbl">${h('look.set.preset')}</span><div class="opts oneline" data-row="preset" role="group" aria-label="${esc(t('look.set.preset'))}">${presets.map(id =>
+      `<button ${set('preset', id)} aria-pressed="${D.preset === id}" title="${esc(t(`look.presetNote.${id}`))}"${id === L.preset ? ` aria-label="${esc(t(`look.preset.${id}`))}, ${dflt}"` : ''}>${h(`look.preset.${id}`)}${id === L.preset ? '<i class="dflt" aria-hidden="true"></i>' : ''}</button>`).join('')}</div>`);
   const text = `<div class="kv"><span class="lbl">${h('look.set.fonts')}</span><div class="opts three" role="group" aria-label="${esc(t('look.set.fonts'))}">${fonts.map(id =>
-      `<button ${set('fonts', id)} aria-pressed="${D.fonts === id}" title="${esc(FONTS[id].name)}"><span class="sample" style="font-family:${esc(FONTS[id].head)}">${esc(FONTS[id].short)}</span></button>`).join('')}</div>
-      <p class="note">${esc(FONTS[D.fonts].name)}${D.fonts === L.font ? ` · ${dflt}` : ''}</p>`
-    + row('size', seg('size', Object.keys(SIZES).map(id => [id, t(`look.size.${id}`), `${sizeOf(id)}px`, id === 'small' && sizeWhy ? sizeWhy.replace(/<[^>]*>/g, '') : '']), D.size, id => (id === 'small' && letter) || (L.sizes && !(id in L.sizes))), sizeWhy)
+      `<button ${set('fonts', id)} aria-pressed="${D.fonts === id}" title="${esc(FONTS[id].name)}${id === L.font ? ` · ${dflt}` : ''}"><span class="sample" style="font-family:${esc(FONTS[id].head)}">${esc(FONTS[id].short)}</span>${id === L.font ? '<i class="dflt" aria-hidden="true"></i>' : ''}</button>`).join('')}</div>`
+    + row('size', seg('size', Object.keys(SIZES).map(id => [id, t(`look.size.${id}`), `${sizeOf(id)}px`, id === 'small' && sizeWhy ? sizeWhy.replace(/<[^>]*>/g, '') : '']), D.size, id => (id === 'small' && letter) || (L.sizes && !(id in L.sizes))))      // (why Small is off is its tooltip)
     + row('density', seg('density', Object.keys(DENSITIES).map(id => [id, t(`look.density.${id}`)]), D.density), '', t(`look.densityNote.${D.density}`))
     + row('colour', `<div class="sws">${Object.entries(COLOURS).map(([id, [screen, print]]) => { const title = t('look.colourTitle', { name: t(`look.colour.${id}`), screen, print });
         return `<button class="swatch split" style="background:linear-gradient(90deg,${screen} 50%,${print} 50%)" ${set('colour', id)} aria-pressed="${colourOn === id}" aria-label="${esc(title)}" title="${esc(title)}"></button>`; }).join('')}
         <button type="button" class="swatch custom press" data-tier="tertiary" data-act="d-custom" aria-expanded="${customOpen}" aria-controls="d-hexrow" title="${esc(t('design.anyColour'))}" aria-label="${esc(t('design.pickColour'))}"></button>
         ${r.accent ? `<button class="sm ghost" data-act="d-accent" data-c="">${h('design.themesOwn')}</button>` : ''}</div>
         ${customOpen ? `<div class="hexrow" id="d-hexrow"><label class="field"><span class="lbl inline">${h('ux6f.hexColour')}</span><input type="text" id="d-color" value="${esc(shade)}" maxlength="7" spellcheck="false" autocomplete="off"></label></div>` : ''}`,
-      `<span class="${chk.ok ? '' : 'bad'}">${chk.ok ? h('design.contrastOk', { r: chk.ratio.toFixed(1) }) : h('design.contrastBad', { r: chk.ratio?.toFixed(1) })}</span>`, t('look.colourNote'))
+      chk.ok && !customOpen ? '' : `<span class="${chk.ok ? '' : 'bad'}">${chk.ok ? h('design.contrastOk', { r: chk.ratio.toFixed(1) }) : h('design.contrastBad', { r: chk.ratio?.toFixed(1) })}</span>`,
+      chk.ok ? `${t('look.colourNote')} ${t('design.contrastOk', { r: chk.ratio.toFixed(1) })}` : t('look.colourNote'))      // (the note shows while a colour is typed or when it reads poorly; a named colour's is the tooltip)
     + row('words', seg('words', WORDS.map(id => [id, t(`look.words.${id}`)]), D.words))
     + '</div>';
   return [style, text];       // the look's own style and fonts, then the text and colour rows
+}
+
+// the one-row pickers (templates, section styles) scroll sideways: the body is drawn again at every change, so their place is kept, and the chosen one stays in view
+const rowX = {};
+function keepRows(){
+  setTimeout(() => {
+    for (const el of document.querySelectorAll('#body [data-row]')){
+      el.scrollLeft = rowX[el.dataset.row] ?? 0;
+      const on = el.querySelector('[aria-pressed=true]');
+      if (on && (on.offsetLeft < el.scrollLeft || on.offsetLeft + on.offsetWidth > el.scrollLeft + el.clientWidth)) el.scrollLeft = on.offsetLeft - 8;
+    }
+  });
 }
 
 function designView(){
@@ -99,23 +110,24 @@ function designView(){
   // the usual case (Fit keeps it to the limit) is the tooltip; a note shows only when something is out of the ordinary
   const fitNote = t(manual ? 'design.manualNote' : r.pageLimit === 0 ? 'design.flowNote' : r.pageLimit === 2 ? 'design.fitTwo' : 'design.fitOne', { n: r.pages?.length });
   const [lookSet, textSet] = tpl.design ? settingsHtml(r, tpl) : ['', ''];
-  // paper first (the pages fit on it), then the look, its text and colour, the imported themes, then the photo's pointer
+  keepRows();
+  // paper first (the pages fit on it), then the look, its text and colour, the imported themes and the photo's pointer
   return `<h2 class="title">${h('head.design')}</h2>
     ${groupHtml(t('uxs.paperPages'), `<div class="kv">
       <span class="lbl">${h('design.paper')}</span><div class="seg fill" role="group" aria-label="${esc(t('design.paper'))}"><button data-act="d-paper" data-f="us-letter" aria-pressed="${!a4}">${h('paper.letter')}</button><button data-act="d-paper" data-f="a4" aria-pressed="${a4}">${h('paper.a4')}</button></div>
       <span class="lbl">${h('design.pages')}</span><div class="seg fill" role="group" aria-label="${esc(t('design.pages'))}" title="${esc(fitNote)}">${[[1, t('design.onePage')], [2, t('design.twoPages')], [0, t('design.anyPages')]].map(([n, l]) => `<button data-act="d-pages" data-n="${n}" aria-pressed="${!manual && (r.pageLimit ?? 1) === n}">${esc(l)}</button>`).join('')}</div>
     </div>
     ${manual || r.pageLimit === 0 ? `<p class="note">${manual ? h('design.manualNote', { n: r.pages.length }) : h('design.flowNote')}</p>` : ''}`)}
-    ${groupHtml(t('design.template'), `<div class="tpls" role="group" aria-label="${esc(t('design.template'))}">${TEMPLATES.map(x => `<button class="tpl" data-act="d-tpl" data-t="${x.id}" aria-pressed="${tpl?.id === x.id}" title="${esc(tplNote(x))}"><i class="tpl-${x.id}"></i>${esc(tplName(x))}</button>`).join('')}</div>
+    ${groupHtml(t('design.template'), `<div class="tpls" data-row="tpl" role="group" aria-label="${esc(t('design.template'))}">${TEMPLATES.map(x => `<button class="tpl" data-act="d-tpl" data-t="${x.id}" aria-pressed="${tpl?.id === x.id}" title="${esc(tplNote(x))}"><i class="tpl-${x.id}"></i>${esc(tplName(x))}</button>`).join('')}</div>
     ${tpl.earlier ? `<p class="note">${h('look.earlier', { name: tplName(tpl) })}</p><div class="btns"><button class="sm" data-act="d-earlier">${h('look.earlierBtn', { name: tplName(THEMES[0]) })}</button></div>`
-      : `<p class="note clamp">${esc(tplNote(tpl))}</p>`}
+      : ''}
     ${lookSet}`)}
     ${textSet ? groupHtml(t('look.textColour'), textSet) : ''}
     ${groupHtml(t('design.theme'), `<div class="list">${['', ...themes.map(x => x.id)].map(id => { const th = themes.find(x => x.id === id);
       return `<button class="item ${(r.look ?? '') === id ? 'is-cur' : ''}" data-act="d-look" data-id="${esc(id)}"><span>${esc(th ? th.name : t('design.templatesOwn'))}</span><span class="muted small">${th ? h('design.tokensImported', { n: Object.keys(th.tokens).length }) : h('design.builtIn')}</span></button>`; }).join('')}</div>
     ${fontWarn.length ? `<p class="note bad">${h('design.fontWarn', { fonts: fontWarn.join(', '), n: fontWarn.length })}</p>` : ''}
-    <div class="btns"><button class="sm" data-act="d-import">${h('design.import')}</button><button class="sm ghost" data-act="d-export">${h('design.export')}</button>${look ? delBtn(`data-act="d-drop" data-id="${esc(look.id)}"`, t('design.removeX', { name: look.name })) : ''}</div>`)}
-    ${groupHtml(t('design.photo'), `<p class="note">${h('ux6g.photoMoved')} <button class="sm ghost" data-act="select-header">${h('career.step1')}</button></p>`)}`;
+    <div class="btns"><button class="sm" data-act="d-import">${h('design.import')}</button><button class="sm ghost" data-act="d-export">${h('design.export')}</button>${look ? delBtn(`data-act="d-drop" data-id="${esc(look.id)}"`, t('design.removeX', { name: look.name })) : ''}</div>
+    <p class="note">${h('ux6g.photoMoved')} <button class="sm ghost" data-act="select-header">${h('career.step1')}</button></p>`)}`;
 }
 
 function commit(fn, label, done, undo = false, merge = null){
@@ -224,6 +236,7 @@ async function act(a, tg){
 }
 
 function bind(body){
+  body.addEventListener('scroll', e => { const k = e.target.dataset?.row; if (k) rowX[k] = e.target.scrollLeft; }, true);
   body.addEventListener('change', e => {
     const el = e.target;
     if (el.id === 'd-photo-on'){ const on = el.checked; commit(d => setResumePhoto(d.record, d.cur, { show: on }), on ? t('undo.showPhoto') : t('undo.hidePhoto')); }

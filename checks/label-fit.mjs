@@ -98,7 +98,8 @@ for (const lang of I.UI_LANGS){
         if (!el.offsetParent && getComputedStyle(el).position !== 'fixed') continue;
         const r = el.getBoundingClientRect();
         if (r.width === 0) continue;
-        if (r.right > col.right + 1.5 && !el.closest('#switcher, #help')) bad.push(`${el.tagName}.${el.className || el.id} runs ${(r.right - col.right).toFixed(0)}px out of the panel: “${(el.textContent || '').trim().slice(0, 30)}”`);
+        if (r.right > col.right + 1.5 && !el.closest('#switcher, #help, [data-row]'))      // (a one-row picker scrolls sideways: its far tiles are reached by scrolling)
+        bad.push(`${el.tagName}.${el.className || el.id} runs ${(r.right - col.right).toFixed(0)}px out of the panel: “${(el.textContent || '').trim().slice(0, 30)}”`);
         if (!el.matches(ELL) && !el.matches('.sr') && !el.closest(ELL) && el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX !== 'visible') bad.push(`${el.tagName}.${el.className || el.id} is cut: “${(el.textContent || '').trim().slice(0, 30)}” ${el.scrollWidth}>${el.clientWidth}`);
       }
       return bad;

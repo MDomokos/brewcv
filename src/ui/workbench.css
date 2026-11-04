@@ -1254,7 +1254,10 @@ mark.dw { background: var(--ins-bg); color: inherit; border-radius: 2px; padding
 .opts button[aria-pressed=true] { border-color: var(--mark); box-shadow: 0 0 0 1px var(--mark); }
 .opts .sample { font-size: 13.5px; font-weight: 700; white-space: nowrap; }
 .opts .dflt { flex: none; width: 5px; height: 5px; border-radius: var(--r-round); background: var(--ink-soft); }      /* the look's default */
-[data-mode=design] .tpls { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+[data-mode=design] .tpls { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; padding: 1px 1px 4px; }      /* one row, sideways; a tile's tooltip says what the look is */
+[data-mode=design] .tpl { flex: 0 0 76px; }
+.opts.oneline { display: flex; overflow-x: auto; scrollbar-width: thin; padding: 1px 1px 4px; }
+.opts.oneline button { flex: none; white-space: nowrap; }
 [data-mode=design] .drow.two { grid-template-columns: minmax(0, 1fr); }
 [data-mode=design] .tpl { font-size: 11px; line-height: 1.2; padding: 4px; gap: 3px; align-content: start; }
 [data-mode=design] .tpl i { height: 24px; }
