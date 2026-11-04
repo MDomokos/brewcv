@@ -29,6 +29,7 @@
 - **The "Made for" tips open above the choices,** so they no longer merge into the PDF button.
 - **Scrollbars stay inside the rounded panels and the Library's pane in Firefox and Mullvad Browser too,** instead of running into the corners.
 - **The resume preview's scrollbar ends short of the title above it and the buttons below.**
+- **The resume preview shows no line above its first page or under its last,** only between pages.
 
 ## 1.9.2 - 2026-11-04
 

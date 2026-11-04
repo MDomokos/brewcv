@@ -416,11 +416,12 @@ body:not([data-phone=true]):not(.is-intro) .col > #body:has(> .insp-res) { paddi
 #body > .insp-res { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .insp-res > * { flex: none; }
 .insp-res .ihero { flex: 0 1 auto; min-height: 160px; margin: 0 -13px; overflow-y: auto; overscroll-behavior: contain; border-radius: inherit; background: var(--sheet); }
-.insp-res .ihpage { display: grid; gap: 1px; background: var(--sheet-edge); }
+.insp-res .ihpage { display: grid; }
+.insp-res .ihpage .rthumb + .rthumb, .insp-res .ihmore .rthumb:first-child { border-top: 1px solid var(--sheet-edge); }      /* a line between pages only: none above the first or under the last */
 .insp-res .ihero { overflow-x: hidden; }
 .insp-res .ihero > .ihpage { margin-right: -10px; }      /* the page runs under the scrollbar, so the bar sits on the page, not in a strip of its own (the bar's width) */
 .insp-res .ihpage:empty { display: none; }
-.insp-res .ihpage .rthumb { display: block; width: 100%; background: var(--sheet); }
+.insp-res .ihpage .rthumb { display: block; width: 100%; background: var(--sheet); border: 0; border-radius: 0; box-shadow: none; }      /* the preview is the page itself: no thumbnail frame */
 .insp-res .iacts { flex-wrap: nowrap; margin: 4px 0 2px; padding-bottom: 2px; }
 #body .insp-res .iacts > button, #body .insp-res .iacts .rcmore > button { box-sizing: border-box; height: var(--h-row); min-height: 0; padding-block: 0; }
 #body .insp-res .iacts .rcmore > button { width: var(--h-row); }
