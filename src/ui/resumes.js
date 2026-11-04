@@ -185,7 +185,7 @@ function open(id, { quiet = false } = {}){
   V.row = null; V.renaming = null;
   C.noteOpen(id);
   C.setView(null);
-  if (!quiet) C.toast(res?.held?.length ? t('toast.openHeld', { name: RS.resumeLabel(r), n: res.held.length }) : t('toast.isOpen', { name: RS.resumeLabel(r) }));
+  if (!quiet && res?.held?.length) C.toast(t('toast.openHeld', { name: RS.resumeLabel(r), n: res.held.length }));      // the name card already says which is open
   return true;
 }
 

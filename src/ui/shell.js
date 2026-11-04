@@ -1601,16 +1601,13 @@ async function reconnect(){
   await adoptFolder(f);
 }
 
-// A toast never covers the page. It hangs under the sidebar's header, over the sidebar's own body. (On a phone the page fills the
-// width: it stays at the top.)
+// A toast sits at the foot of the page area, over the zoom bar's row (centred on the page, clear of the sidebar). On a phone it
+// rests on top of the bottom sheet; over the import dialog it centres on the window.
 function placeToast(el){
-  const L = ui.layout;
-  el.classList.remove('docked');
-  for (const k of ['left', 'right', 'top', 'width', 'maxWidth']) el.style[k] = '';
-  if (!L || L.phone) return;
-  const c = $('#col').getBoundingClientRect(), hd = $('#head').getBoundingClientRect();
-  el.classList.add('docked');
-  Object.assign(el.style, { left: `${Math.round(c.left + 8)}px`, top: `${Math.round(hd.bottom + 8)}px`, width: `${Math.round(c.width - 16)}px` });
+  const L = ui.layout, over = el.parentElement !== document.body;
+  const x = over || !L ? '50%' : `${Math.round(L.view.mid)}px`;
+  const y = over || !L ? 24 : L.phone ? Math.round(innerHeight - $('#col').getBoundingClientRect().top + 10) : 66;
+  el.style.setProperty('--toast-x', x); el.style.setProperty('--toast-y', `${y}px`);
 }
 // the live region (a lock explains itself by moving, edit.js lockSaid, not by a sentence)
 const say = text => { const el = $('#announce'); if (el){ el.textContent = ''; setTimeout(() => { el.textContent = text; }, 30); } };
