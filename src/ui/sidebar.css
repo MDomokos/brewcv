@@ -422,6 +422,7 @@ html.wb-carry #handlay .obplus, html.wb-carry #handlay .obgrip { visibility: hid
 .wbwadd > .wbaddrow { margin: 0; background: var(--surface); box-shadow: var(--shadow-panel), inset 0 0 0 1px var(--line-strong); }
 .wbwadd > .wbaddrow.near { box-shadow: var(--shadow-panel), inset 0 0 0 1px color-mix(in srgb, var(--page-warn) 70%, transparent); }
 .obplus.press.is-free.wbwplus { position: absolute; width: 18px; height: 18px; }
+.obplus.wbsplus::after { inset: 0 -4px -4px; }      /* no hit area above it: that is the last group's bottom edge */
 .wbdelw ul { margin: 4px 0 6px; padding-left: 18px; font-size: 12px; max-height: 8.6em; overflow: auto; }      /* a long list scrolls inside, so the word above and the buttons below stay in view */
 .wbfixcard, .wbfrom, .wbedit { display: grid; gap: 6px; margin: 0 0 8px; }
 .wbfixh { display: flex; align-items: center; gap: 6px; }
