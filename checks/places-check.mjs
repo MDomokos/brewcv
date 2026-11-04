@@ -269,12 +269,12 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   await page.keyboard.press('r'); await settle(page);
   const st = () => page.evaluate(() => ({ lens: document.body.dataset.lens, frame: document.querySelector('#head').classList.contains('is-lens'), btns: [...document.querySelectorAll('#head .hlens [data-act=lens]')].map(b => b.dataset.v + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(), off: [...document.querySelectorAll('#scr .tl2 [data-unpicked]')].map(r => r.dataset.id) }));
   const a = await st();
-  ok('Career with a resume open: the name card\'s row is Its picks | Whole career, Its picks on, the card framed in the accent', a.lens === 'picks' && a.frame && a.btns === 'picks*,whole', JSON.stringify(a));
+  ok('Career with a resume open: the name card\'s row is Whole career | Its picks, Its picks on, the card framed in the accent', a.lens === 'picks' && a.frame && a.btns === 'whole,picks*', JSON.stringify(a));
   const shown = await page.evaluate(() => { const w = window.__wb, d = document.querySelector('#sheet iframe').contentDocument, ix = w.ui.ix, p = new Set([...d.querySelectorAll('[data-variant]')].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)); return [...document.querySelectorAll('#scr .tl2 [data-id]')].map(r => { const x = (w.store.materialize(w.store.state.record)[r.dataset.key] ?? []).find(e => e.id === r.dataset.id); return [r.dataset.id, !!x && [...Object.values(x.display ?? {}), ...(x.highlights ?? [])].some(f => p.has(f))]; }); });
   ok('…the entries the resume does not print are dimmed in place, and only those (an education printed is not)', shown.length > 3 && shown.every(([id, on]) => a.off.includes(id) === !on) && shown.some(([, on]) => on) && a.off.length > 0, JSON.stringify({ shown, off: a.off }));
   await page.click('#head .hlens [data-v=whole]'); await settle(page);
   const b = await st();
-  ok('Whole career: no frame, nothing dimmed', b.lens === 'whole' && !b.frame && b.off.length === 0 && b.btns === 'picks,whole*', JSON.stringify(b));
+  ok('Whole career: no frame, nothing dimmed', b.lens === 'whole' && !b.frame && b.off.length === 0 && b.btns === 'whole*,picks', JSON.stringify(b));
   await page.keyboard.press('e'); await settle(page);
   ok('…and the row is Career\'s only: none in the editor', !(await page.$('#head .hlens')) && (await page.evaluate(() => document.body.dataset.lens)) === '');
   await ctx.close();
