@@ -3862,7 +3862,7 @@ if (want('drinks: Fit, the meters, the moments')) {
   const box = p2.locator('#body .cb[data-on]:not(:checked)').first();
   await box.click();
   ok('tea: the tick pops once, on the line just ticked', await p2.waitForFunction(() => document.querySelector('#body .cb.pop:checked'), null, { timeout: 2000 }).then(() => true, () => false));
-  ok('tea: the toast hangs on a string (a hole and a string above it)', await p2.evaluate(() => { const t = document.querySelector('#toast'); return getComputedStyle(t, '::before').content !== 'none' && getComputedStyle(t, '::after').content !== 'none'; }));
+  ok('tea: the toast is a flat tag with its hole', await p2.evaluate(() => getComputedStyle(document.querySelector('#toast'), '::after').content !== 'none'));
   await p2.keyboard.press('Shift+F'); await p2.waitForTimeout(600);
   ok('coffee: no tea shapes: the bag does not dunk, the toast has no string', !(await p2.evaluate(() => document.querySelector('#rail .brand .mark').classList.contains('dunk'))) && await p2.evaluate(() => getComputedStyle(document.querySelector('#toast'), '::before').content === 'none'));
   await c2.close();
@@ -4384,7 +4384,7 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await page.keyboard.press('Control+z'); await settle(page);
     const toastOpen = await page.evaluate(() => document.querySelector('#toast').classList.contains('on'));
     const tr = await rect(page, '#toast'); const prs = await pageRects(page);
-    ok(`${tag}: a toast (panel open) hangs under the panel's header and covers none of the page`, toastOpen && tr.left >= (await col()).left && tr.top >= (await rect(page, '#head')).bottom - 1 && clear(tr, prs), JSON.stringify(tr));
+    ok(`${tag}: a toast (panel open) sits by the foot bar and covers none of the page`, toastOpen && tr.left >= (await col()).left && tr.bottom <= (await rect(page, '#rail')).top + 1 && clear(tr, prs), JSON.stringify(tr));
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
     await settle(page);
 
@@ -4417,9 +4417,9 @@ if (want('the Record tab, Mark as sent, and the panel fixes')) {
     await ctx.close();
   }
 
-  // ---- a toast under the sidebar's head, at 1440 and at 1024 ----
+  // ---- a toast by the sidebar's foot bar, at 1440 and at 1024 ----
   for (const [w, h] of [[1440, 900], [1024, 768]]){
-    const name = 'under the header';
+    const name = 'by the foot bar';
     const ctx = await newContext({ motion: true, viewport: { width: w, height: h } });
     const page = await ctx.newPage();
     await open(page);
@@ -4851,7 +4851,7 @@ if (want('nothing over the text')) {
   const offenders = page => page.evaluate(() => {
     const wb = window.__wb;
     const lines = wb.sheet.textRects().map(r => wb.canvas.screenRect(r));
-    const allowed = '#sheet, #pages, #editlay, #ovlay, #garden, .g-dapple, #motionlay, #zoombar, .obtoolswrap, #string';       // (the zoom bar shows while the pointer is over the page, which is what the pointer resting on a line is; the string's box is the window, its line goes round the text)
+    const allowed = '#sheet, #pages, #editlay, #ovlay, #garden, .g-dapple, #motionlay, #zoombar, .obtoolswrap, #string, #mat, #tbl, #mruler';       // (the table, mat and rulers lie under the page at z 0; the zoom bar shows while the pointer is over the page, which is what the pointer resting on a line is; the string's box is the window, its line goes round the text)
     const name = el => el.id ? '#' + el.id : el.tagName.toLowerCase() + '.' + [...el.classList].slice(0, 2).join('.');
     // the on-page layer holds the tools and the chip, and nothing else; the chip is held to the text like the rest
     const out = [...document.querySelectorAll('#editlay > *')].filter(el => !el.matches('.obtoolswrap, .obchip')).map(name);

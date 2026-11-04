@@ -1619,12 +1619,15 @@ async function reconnect(){
   await adoptFolder(f);
 }
 
-// A toast sits at the foot of the page area, over the zoom bar's row (centred on the page, clear of the sidebar). On a phone it
+// A toast sits just above the foot bar, centred on the sidebar column and over only the panel's bottom edge. On a phone it
 // rests on top of the bottom sheet; over the import dialog it centres on the window.
 function placeToast(el){
-  const L = ui.layout, over = el.parentElement !== document.body;
-  const x = over || !L ? '50%' : `${Math.round(L.view.mid)}px`;
-  const y = over || !L ? 24 : L.phone ? Math.round(innerHeight - $('#col').getBoundingClientRect().top + 10) : 66;
+  const over = el.parentElement !== document.body, col = $('#col')?.getBoundingClientRect(), rail = $('#rail')?.getBoundingClientRect();
+  let x = '50%', y = 24;
+  if (!over && col){
+    if (document.body.dataset.phone === 'true') y = Math.round(innerHeight - col.top + 10);
+    else { x = `${Math.round(col.left + col.width / 2)}px`; y = Math.round(innerHeight - (rail?.height ? rail.top : col.bottom) + 6); }
+  }
   el.style.setProperty('--toast-x', x); el.style.setProperty('--toast-y', `${y}px`);
 }
 // the live region (a lock explains itself by moving, edit.js lockSaid, not by a sentence)
