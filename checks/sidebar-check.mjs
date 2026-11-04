@@ -109,6 +109,7 @@ function measure(){
         const ac = getComputedStyle(a);
         if (ac.overflowX === 'visible' && ac.overflowY === 'visible') continue;
         const ar = a.getBoundingClientRect();
+        if (a.matches('[data-row]')) break;      // a one-row picker scrolls sideways: its far tiles are reached by scrolling
         if (a.matches('.swrole') && matchMedia('(max-height: 850px)').matches) break;      // the name card in a short window is one line: only the role may end in an ellipsis (head-check)
         if (rr.some(r => r.right > ar.right + 1.5 || r.left < ar.left - 1.5) || (a === el && el.scrollWidth > el.clientWidth + 1)) out.push(`cut: "${text.slice(0, 30)}" by ${a.tagName.toLowerCase()}.${[...a.classList].slice(0, 2).join('.')}${ac.textOverflow === 'ellipsis' ? ' (ellipsis)' : ''}`);
         break;
@@ -541,11 +542,9 @@ if (want('off')){
 // tiers: every control in the sidebar has a tier (press.js) or a look of its own named there, and a layer; at most one primary a view.
 // The snapshot (checks/fixtures/sidebar-tiers.json; WRITE=1 records it) names them, so a new control nobody classified fails.
 const TIER_STATES = { outline: STATES.outline, line: STATES.line, job: STATES.job, section: STATES.section, header: STATES.header, design: STATES.design, export: STATES.export, settings: STATES.settings,
-  'name window': async page => { await page.click('#docname-btn'); }, menu: async page => { await page.click('#head [data-act=menu]'); },
-  '? card': async page => { await page.click('#corner [data-act=corner]'); }, 'library inspector': STATES['library inspector'],
-  'career inspector': async page => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); },
-  // the card's depth row with a level's list open (parts.js depthHtml, depthmenu.js): its options are list rows, a look of their own
-  'depth list': async page => { await STATES.job(page); await page.waitForTimeout(300); await page.focus('#col .depth .dp-l[aria-haspopup]'); await page.keyboard.press('Alt+ArrowDown'); } };
+  'name window': async page => { await page.click('#docname-btn'); }, menu: async page => { await page.click('#rail [data-act=menu]'); },
+  'library inspector': STATES['library inspector'],
+  'career inspector': async page => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); } };
 async function tiers(){
   const { OWN = '' } = await import('/src/ui/press.js');
   const name = e => e.dataset.act || e.id || e.getAttribute('role') || [...e.classList].filter(c => c !== 'press')[0] || e.tagName.toLowerCase();
@@ -614,9 +613,11 @@ if (want('width')){
     for (const [k, w] of [['Home', 316], ['End', 640]]){
       await page.focus(grip); await page.keyboard.press(k); await page.waitForTimeout(400);
       const xs = [];
-      for (const go of [STATES.outline, STATES.line, STATES.job, STATES.design, STATES.export]){ await rest(page); await go(page); await page.waitForTimeout(350); xs.push(await pageX(page)); }
-      ok(`at ${w} px the page's x is the same for nothing selected, a line, a job, Design and Export`, xs.every(x => x === xs[0]), xs.join(' '));
-      await rest(page);
+      for (const go of [STATES.outline, STATES.line, STATES.job, STATES.design]){ await rest(page); await go(page); await page.waitForTimeout(350); xs.push(await pageX(page)); }
+      ok(`at ${w} px the page's x is the same for nothing selected, a line, a job and Design`, xs.every(x => x === xs[0]), xs.join(' '));
+      // (Export is a place with a column of its own, and the page centres in what is left; back from it, the page is where it was)
+      await rest(page); await STATES.export(page); await page.waitForTimeout(500); await rest(page); await page.waitForTimeout(500);
+      ok(`at ${w} px the page is back where it was after Export`, (await pageX(page)) === xs[0], `${await pageX(page)} ≠ ${xs[0]}`);
       const hid = await page.evaluate(() => { const e = document.querySelector('#body'); return e.scrollWidth > e.clientWidth + 1; });
       ok(`at ${w} px the sidebar hides nothing sideways (no text wider than its panel)`, !hid);
     }
@@ -633,14 +634,15 @@ if (want('width')){
     // fold to the rail and back: the key and the chevron
     const xOpen = await pageX(page);
     await page.mouse.move(600, 500); await page.keyboard.press('Control+Backslash'); await page.waitForTimeout(500);
-    const folded = await page.evaluate(() => ({ w: Math.round(document.querySelector('#col').getBoundingClientRect().width), body: !!document.querySelector('#body').offsetParent || !!document.querySelector('#head').offsetParent || !!document.querySelector('#ptabs').offsetParent, rail: !!document.querySelector('#rail .rtabs')?.offsetParent, fold: document.querySelector('#rail [data-act=side-fold]')?.getAttribute('aria-expanded'), tier: document.querySelector('#rail [data-act=side-fold]')?.dataset.tier }));
+    const folded = await page.evaluate(() => ({ w: Math.round(document.querySelector('#col').getBoundingClientRect().width), body: !!document.querySelector('#body').offsetParent || !!document.querySelector('#head').offsetParent, rail: !!document.querySelector('#ptabs')?.offsetParent && !!document.querySelector('#rail')?.offsetParent, fold: document.querySelector('#rail [data-act=side-fold]')?.getAttribute('aria-expanded'), tier: document.querySelector('#rail [data-act=side-fold]')?.dataset.tier }));
     const xFold = await pageX(page);
     ok('Ctrl+\\ folds the sidebar to the rail: the panel goes, the rail stays, its chevron says so (a tertiary press), and the page takes the width', folded.w === 0 && !folded.body && folded.rail && folded.fold === 'false' && folded.tier === 'tertiary' && xFold !== xOpen, JSON.stringify({ ...folded, xOpen, xFold }));
-    const stub = await page.evaluate(() => { const b = document.querySelector('#head .hstub')?.getBoundingClientRect(), r = document.querySelector('#rail').getBoundingClientRect(); return b && { whole: b.left >= r.left - 0.5 && b.right <= r.right + 0.5 && b.top >= 0 && b.right <= innerWidth && b.width >= 50, label: document.querySelector('#head .hstub span').scrollWidth <= b.width }; });
-    ok('…folded, Export stands whole at the top of the rail: inside the window, its name not cut', stub?.whole && stub.label, JSON.stringify(stub));
-    const xs = []; for (const go of [STATES.line, STATES.job]){ await rest(page); await page.keyboard.press('Escape'); await go(page).catch(() => {}); await page.waitForTimeout(300); xs.push(await pageX(page)); }
-    ok('…folded, a selection on the page does not open it, and the page\'s x stays', xs.every(x => x === xFold) && (await colW(page)) === 0, xs.join(' '));
-    await rest(page);
+    const stub = await page.evaluate(() => { const b = document.querySelector('#ptabs .wexport')?.getBoundingClientRect(), r = document.querySelector('#ptabs').getBoundingClientRect(); return b && { whole: b.left >= r.left - 0.5 && b.right <= r.right + 0.5 && b.top >= 0 && b.right <= innerWidth && b.width >= 40, label: document.querySelector('#ptabs .wexport span').scrollWidth <= b.width }; });
+    ok('…folded, Export stands whole in the tab card at the top of the rail: inside the window, its name not cut', stub?.whole && stub.label, JSON.stringify(stub));
+    // a click on a line opens a folded sidebar: its card follows the selection
+    await rest(page); await STATES.line(page); await page.waitForTimeout(500);
+    ok('…folded, a click on a line on the page opens it at its width (the card follows the selection)', (await colW(page)) === w0, String(await colW(page)));
+    await rest(page); await page.mouse.move(600, 500); await page.keyboard.press('Control+Backslash'); await page.waitForTimeout(500);
     await page.click('#rail [data-act=side-fold]'); await page.waitForTimeout(500);
     ok('…the chevron opens it again at its width, and the page goes back', (await colW(page)) === w0 && (await pageX(page)) === xOpen);
     await page.keyboard.press('Control+Backslash'); await page.waitForTimeout(400);

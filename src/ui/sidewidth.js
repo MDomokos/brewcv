@@ -68,4 +68,6 @@ export function initSide(col, onChange){
     const k = { ArrowLeft: () => to(now() + step), ArrowRight: () => to(now() - step), Home: () => to(SIDE_MIN), End: () => to(sideMax(innerWidth)), Enter: () => setSide({ w: null, off: false }) }[e.key];
     if (k){ e.preventDefault(); e.stopPropagation(); k(); }
   });
+  // a mode tab (Content, Look) in the folded strip opens the sidebar
+  col.addEventListener('click', e => { if (S.off && e.target.closest?.('#ptabs [data-act=mode]')) openSide(); }, true);
 }

@@ -78,7 +78,7 @@ const freeSpot = async (page, far = 70) => {
   for (let x = p.l + 30; x < p.r - 30; x += 24) for (let y = p.t + 30; y < p.b - 200; y += 24){ const d = Math.min(1e9, ...ls.map(([a, b]) => Math.hypot(a - x, b - y))); if (d > bestD){ bestD = d; best = [x, y]; } }
   return best;
 };
-const clear = async page => { for (let i = 0; i < 80 && (await leaves(page)).some(l => l.on); i++) await sleep(500); };
+const clear = async page => { for (let i = 0, clean = 0; i < 80 && clean < 2; i++){ clean = (await leaves(page)).some(l => l.on) ? 0 : clean + 1; await sleep(500); } };      // (two clean looks in a row: a leaf gliding off may still cross the page between one look and the next)
 const landed = async page => { for (let i = 0; i < 120 && await page.evaluate(() => document.querySelectorAll('#garden .g-leaf.falling, #garden .g-petal.falling').length); i++) await sleep(500); await sleep(2500); };
 
 // ---- the flow: a clean start, a wave spreads, the way back, the click, the print gate ----
@@ -171,6 +171,7 @@ async function editing(){
   await page.fill('#switcher #sw-q', 'Medtech');      // the window lists the recent ones until a search
   await page.click('#switcher .sopt:has-text("Medtech")'); await sleep(1500);
   await sleep(1200);
+  await page.waitForFunction(() => window.__wb.canvas.scene === 'all', null, { timeout: 10000 }).catch(() => { /* the check below says so */ });
   ok('two pages side by side', (await pagesNow(page)).length === 2 && await page.evaluate(() => window.__wb.canvas.scene === 'all'));
   await park(page);
   await hook(page, 'rest'); await hook(page, 'wave', 7); await hook(page, 'wave', 7);
@@ -292,7 +293,7 @@ async function drinks(){
   await ready(page);
   await park(page);
   await hook(page, 'rest'); await hook(page, 'wave', 4); await hook(page, 'bug');
-  await sleep(7000);
+  await sleep(7000); await landed(page);      // (the count is taken when every leaf has come down)
   const lying = (await page.$$('#garden .g-thing.g-leaf')).length;
   await switchDrink(page); await sleep(900);
   ok('switching to coffee rests it: nothing shows', await page.evaluate(() => getComputedStyle(document.getElementById('garden')).display === 'none'));
