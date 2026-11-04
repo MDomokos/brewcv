@@ -641,7 +641,7 @@ function drawHead(){
     const stub = `<button class="hstub" data-act="export-place" data-tip="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}|" aria-label="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}">${icon('fileout', { role: many ? 'control' : 'header' })}<span>${h('ux2.modeExport')}${many ? ` <b class="hn">${rs.length}</b>` : ''}</span></button>`;
     // Career with a resume open: the card's bottom row says whether Career shows its picks (the rest dimmed) or the whole career
     const lens = placeOf() === 'career' && !!RS.savedOf(store.state, store.state.openId), lensV = ui.careerWhole ? 'whole' : 'picks';
-    const lensRow = lens ? `<div class="hrow hlens"><div class="seg fill" role="group" aria-label="${esc(t('lens.label'))}">${['picks', 'whole'].map(v => `<button type="button" data-act="lens" data-v="${v}" aria-pressed="${lensV === v}">${h(`lens.${v}`)}</button>`).join('')}</div></div>` : '';
+    const lensRow = lens ? `<div class="hrow hlens"><div class="seg fill" role="group" aria-label="${esc(t('lens.label'))}">${['whole', 'picks'].map(v => `<button type="button" data-act="lens" data-v="${v}" aria-pressed="${lensV === v}">${h(`lens.${v}`)}</button>`).join('')}</div></div>` : '';
     document.body.dataset.lens = lens ? lensV : '';
     $('#head').classList.toggle('is-lens', lens && lensV === 'picks');
     $('#head').classList.toggle('is-place', place);
