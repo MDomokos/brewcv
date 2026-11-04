@@ -2118,7 +2118,7 @@ if (want('saved resumes')) {
   await page.click('#docname-btn'); await settle(page);
   await page.click('#switcher [data-act=sw-manage]'); await settle(page);
   ok('Manage all opens the Library, a place of its own drawn left of the sidebar (#scr), with its inspector in the sidebar, the selected card focused, and the place card small', (await page.evaluate(() => window.__wb.ui.view)) === 'resumes' && !(await page.isVisible('#switcher')) && (await rect(page, '#scr')).width > 700 && (await rect(page, '#head')).width < 450 && await page.evaluate(() => document.querySelector('#body').dataset.view === 'inspector' && document.activeElement?.matches('#scr .rcard.sel .rsel')));
-  ok('…with the search box, three views (Role, Date, Company), a tick box on each card, and in the inspector Use for a new job, Open and the row menu', (await page.$$('#scr-group option')).length === 3 && (await page.$eval('#scr-group', s => s.value)) === 'role' && !!(await page.$('#body .iacts .smore')) && (await page.$$('#resumes .rcard .rtick')).length > 10 && await page.isVisible('#scr-q'));
+  ok('…with the search box, three views (Role, Date, Company), a tick box on each card, and in the inspector Use for a new job, Open and the row menu', (await page.$$('#scr-group option')).length === 3 && (await page.$eval('#scr-group', s => s.value)) === 'date' && !!(await page.$('#body .iacts .smore')) && (await page.$$('#resumes .rcard .rtick')).length > 10 && await page.isVisible('#scr-q'));
   ok('Compare is not offered until two are ticked', !(await page.$('#scr-cmp')) && (await page.check('#resumes .rcard[data-rid="Example Instruments - Design Engineer.json"] .rtick'), !(await page.$('#scr-cmp'))));
   await page.check('#resumes .rcard:has-text("Helix") .rtick');
   ok('two ticks offer Compare', !(await page.isDisabled('#scr-cmp')) && /Compare 2/.test(await page.textContent('#scr-cmp')));
@@ -2208,12 +2208,27 @@ if (want('a version says which saved resumes print it')) {
     await page.click('#body [data-act=select-job] >> nth=0'); await settle(page);
     await page.click('#outline .clg.open .clrow >> nth=0 >> .clv'); await settle(page);          // “n v” opens Edit at that line
   };
+  await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); window.__wb.store.commit(d => { RS.duplicate(d, d.openId, { name: 'Test Lead, Copy Co', company: 'Copy Co', role: 'Test Lead' }); }, 'dup'); });      // a second saved resume printing the same lines
+  await settle(page);
   await claimPanel();
   const use = await page.evaluate(() => { const d = document.querySelector('#body .vrow.cur details.vuse'); return d && { open: d.open, sum: d.querySelector('summary').textContent.trim(), names: d.querySelector('.vuses').textContent.trim() }; });
   ok('the version in use says how many saved resumes print it, folded: their names only when unfolded', !!use && !use.open && /^On \d+ resumes?$/.test(use.sum) && use.names.length > 0, JSON.stringify(use));
   ok('no tag chip, tag box or star is left on a version', !(await page.$('#body .tag-in, #body [data-act=tag-rm], #body .vrow .star')));
   await page.click('#body .vrow.cur details.vuse summary'); await settle(page);
   ok('unfolded, it names the resumes', await page.evaluate(() => document.querySelector('#body .vrow.cur details.vuse')?.open === true && document.querySelector('#body .vrow.cur .vuses').offsetHeight > 0));
+  const first = await page.evaluate(() => ({ id: window.__wb.store.state.openId, sel: window.__wb.ui.sel.id, rows: [...document.querySelectorAll('#body .vrow.cur .vuseb')].map(b => ({ rid: b.dataset.rid, text: b.textContent.trim() })) }));
+  ok('each row is a button reading "Role, Company"', first.rows.length > 0 && first.rows.every(r => /^[^—]+, /.test(r.text) && !/ — /.test(r.text)), JSON.stringify(first.rows));
+  const other = first.rows.find(r => r.rid !== first.id);
+  await page.hover(`#body .vrow.cur .vuseb[data-rid="${other?.rid}"]`); await page.waitForSelector('.vusepv iframe', { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  ok('resting on a row shows that resume\'s page with the line marked', await page.evaluate(() => { const f = document.querySelector('.vusepv iframe'); return !!f && /#ffe27a/.test(f.srcdoc) && f.srcdoc.includes('data-variant="' + document.querySelector('#body .vrow.cur details.vuse').dataset.v + '"'); }));
+  await page.click(`#body .vrow.cur .vuseb[data-rid="${other?.rid}"]`); await settle(page); await page.waitForTimeout(500);
+  const second = await page.evaluate(() => ({ id: window.__wb.store.state.openId, sel: window.__wb.ui.sel.id, hash: location.hash }));
+  ok('a click opens that resume with the same line selected', second.id === other?.rid && second.sel === first.sel && !(await page.$('.vusepv')), JSON.stringify([first, second]));
+  await page.goBack(); await settle(page); await page.waitForTimeout(500);
+  ok('Back returns to the first resume at its line', await page.evaluate(([id, sel]) => window.__wb.store.state.openId === id && window.__wb.ui.sel.id === sel, [first.id, first.sel]));
+  await page.goForward(); await settle(page); await page.waitForTimeout(500);
+  ok('Forward goes to the other resume again', await page.evaluate(([id, sel]) => window.__wb.store.state.openId === id && window.__wb.ui.sel.id === sel, [other?.rid, first.sel]));
   await page.mouse.move(4, 4); await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
   await openByName(page, 'Meetlab'); await settle(page);      // Dutch: machine-written wording, flagged for review
   await claimPanel();
@@ -2224,26 +2239,6 @@ if (want('a version says which saved resumes print it')) {
 }
 
 
-if (want('languages')) {
-  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
-  const page = await ctx.newPage();
-  const bad = await open(page);
-  const st = () => page.evaluate(() => window.__wb.store.state);
-  ok('the name card has no language button; the name window has a language list, a labelled select', !(await page.$('#langbtn')) && !(await page.$('#head .dline')));
-  await page.click('#docname-btn'); await settle(page);
-  ok('it lists the languages you use (the example lists all ten) and the current one is chosen, with a label', (await page.$$eval('#sw-lang option', o => o.filter(x => !/^[+-]/.test(x.value)).length)) === 10 && /English/.test(await page.$eval('#sw-lang', e => e.selectedOptions[0].textContent)) && (await page.$$('label[for=sw-lang]')).length === 1);
-  ok('each with what is left to write', /to write|complete/.test(await page.$$eval('#sw-lang option', o => o.map(x => x.textContent).join())));
-  await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc closes the window', !(await page.isVisible('#switcher')));
-  await pickLang(page, 'hu'); await settle(page);
-  ok('the Hungarian button switches the resume to Hungarian', (await st()).cur.lang === 'hu' && /Tapasztalat/i.test(await frameDoc(page, d => d.body.textContent)));
-  await page.click('#seclist .srow[data-sid=interests] .swl'); await settle(page);
-  ok('a section with no Hungarian still prints, in English', /Dinghy sailing/.test(await frameDoc(page, d => d.body.textContent)));
-  ok('outlined on the page', (await frameDoc(page, d => d.querySelectorAll('.rb-miss').length)) >= 3);
-  ok('and listed in the card', (await page.$$('.missbar .miss-go')).length >= 3);
-  await page.click('.missbar .miss-go:has-text("Dinghy sailing")'); await settle(page);
-  ok('a missing text opens with the English for reference and a box to write it', await page.isVisible('#ed-new') && await page.isVisible('.writein .ref'));
-  await page.fill('#ed-new', 'Vitorlázás'); await page.click('[data-act=write-in]'); await settle(page);
 if (want('the string lets go of a line out of view: a chip names its page and brings it back')) {
   for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
     const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
@@ -2278,6 +2273,26 @@ if (want('the string lets go of a line out of view: a chip names its page and br
   }
 }
 
+if (want('languages')) {
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = await open(page);
+  const st = () => page.evaluate(() => window.__wb.store.state);
+  ok('the name card has no language button; the name window has a language list, a labelled select', !(await page.$('#langbtn')) && !(await page.$('#head .dline')));
+  await page.click('#docname-btn'); await settle(page);
+  ok('it lists the languages you use (the example lists all ten) and the current one is chosen, with a label', (await page.$$eval('#sw-lang option', o => o.filter(x => !/^[+-]/.test(x.value)).length)) === 10 && /English/.test(await page.$eval('#sw-lang', e => e.selectedOptions[0].textContent)) && (await page.$$('label[for=sw-lang]')).length === 1);
+  ok('each with what is left to write', /to write|complete/.test(await page.$$eval('#sw-lang option', o => o.map(x => x.textContent).join())));
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc closes the window', !(await page.isVisible('#switcher')));
+  await pickLang(page, 'hu'); await settle(page);
+  ok('the Hungarian button switches the resume to Hungarian', (await st()).cur.lang === 'hu' && /Tapasztalat/i.test(await frameDoc(page, d => d.body.textContent)));
+  await page.click('#seclist .srow[data-sid=interests] .swl'); await settle(page);
+  ok('a section with no Hungarian still prints, in English', /Dinghy sailing/.test(await frameDoc(page, d => d.body.textContent)));
+  ok('outlined on the page', (await frameDoc(page, d => d.querySelectorAll('.rb-miss').length)) >= 3);
+  ok('and listed in the card', (await page.$$('.missbar .miss-go')).length >= 3);
+  await page.click('.missbar .miss-go:has-text("Dinghy sailing")'); await settle(page);
+  ok('a missing text opens with the English for reference and a box to write it', await page.isVisible('#ed-new') && await page.isVisible('.writein .ref'));
+  await page.fill('#ed-new', 'Vitorlázás'); await page.click('[data-act=write-in]'); await settle(page);
   ok('saving writes Hungarian v1, and the page prints it', /Vitorlázás/.test(await frameDoc(page, d => d.body.textContent)) && (await st()).record.variants.some(v => v.lang === 'hu' && v.text === 'Vitorlázás' && v.n === '1'));
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc from a line that is in no job goes to the page', (await page.evaluate(() => window.__wb.ui.sel.kind)) === 'none');
@@ -2776,7 +2791,7 @@ if (want('library: documents beside the resumes — cards, the exported file gro
   await startRound('Autumn 2027');
   const s4 = await st(), [spring, autumn] = [s4.rounds.find(r => r.name === 'Spring 2027'), s4.rounds.find(r => r.name === 'Autumn 2027')];
   const folds = await page.$$eval('#scr .rround', es => es.map(e => ({ round: e.dataset.round, open: e.open, current: !!e.dataset.current, n: Number(e.dataset.n) })));
-  ok('two rounds started: the first is closed by the second, the newest is the current one, open and first; the older round and Earlier are folded; the resumes and documents from before are under Earlier', s4.rounds.length === 2 && spring.to === autumn.from && folds[0].round === autumn.id && folds[0].current && folds[0].open && folds.find(f => f.round === spring.id).open === false && folds.at(-1).round === '' && folds.at(-1).open === false && folds.at(-1).n >= s4.resumes.length, JSON.stringify(folds));
+  ok('two rounds started: the first is closed by the second, the newest is the current one, open and first; every round is open; the resumes and documents from before are under Earlier', s4.rounds.length === 2 && spring.to === autumn.from && folds[0].round === autumn.id && folds[0].current && folds[0].open && folds.find(f => f.round === spring.id).open === true && folds.at(-1).round === '' && folds.at(-1).open === true && folds.at(-1).n >= s4.resumes.length, JSON.stringify(folds));
   await shot('4-rounds');
   const txt = path.join(tmp, '2026-06-01 Acme - Tester.txt');
   fs.writeFileSync(txt, ['Dana Okonkwo', 'Tester', '', 'Experience', 'Tester', 'Acme · Jan 2020 - Present', 'Wrote the acceptance checks for a firmware update that reached forty thousand devices.'].join('\n'));

@@ -582,8 +582,25 @@ async function goPlace(p){
 // D4: the address follows the place, so the browser's Back and Forward move between places. Ids only, never names.
 const hashOf = (v = ui.view) => ({ resumes: '#resumes', compare: '#compare', record: '#record' }[v] ?? '#resume');
 let routing = false;
+// A jump from a version's list to another resume at the same line: each end of it is a history entry that knows its resume and line, so Back
+// (the mouse's too) and Forward reopen them. shortcut: an entry keeps its resume when the person later leaves by other ways, only the next Back to it reopens it.
+const lineOf = () => JSON.parse(JSON.stringify(ui.sel));
+async function openLine(rid, sel){
+  if (!resumes.open(rid, { quiet: true })) return false;
+  clearTimeout(timer); timer = null; await redraw();
+  select(sel);
+  return true;
+}
+async function jumpTo(rid, sel){
+  if (!rid || rid === store.state.openId) return;
+  history.replaceState({ rid: store.state.openId, sel: lineOf() }, '', location.href);
+  routing = true; try { if (!(await openLine(rid, sel))) return; } finally { routing = false; }
+  history.pushState({ rid, sel: JSON.parse(JSON.stringify(sel)) }, '', hashOf());
+}
 function remember(){ if (!routing && ui.ready && ui.view !== 'welcome' && location.hash !== hashOf()) history.pushState(null, '', hashOf()); }
 function route(){
+  const s = history.state;
+  if (s?.rid && s.rid !== store.state.openId && ui.view === null && ui.ready){ routing = true; openLine(s.rid, s.sel).finally(() => { routing = false; }); return; }
   const v = { '#resumes': 'resumes', '#compare': screens.canCompare() ? 'compare' : 'resumes', '#record': 'record' }[location.hash] ?? null;
   if (ui.view === 'welcome' || (v === null && !SCREENS.includes(ui.view)) || v === ui.view) return;
   routing = true; try { setView(v); } finally { routing = false; }
@@ -1638,7 +1655,7 @@ const edit = initEdit({
   onpage: { keepView: fn => onpage.keepView(fn), begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh(), render: f => onpage.render(f) },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
   outlineHtml: (...a) => checklist.outlineHtml(...a), depthKids: (...a) => checklist.kidsOf(...a), sectionInfo: (...a) => checklist.sectionInfo(...a),
-  select: (sel, o) => select(sel, o),
+  select: (sel, o) => select(sel, o), jumpTo, heldRecipe: id => resumes.heldRecipe(id), thumbEntry: r => thumbs.entry(r),
   renderBody: () => renderBody(),
   flash: id => { ui.flashAfter = id; },
   endHover: () => { ui.hoverV = null; if (ui.previewing) endPreview(); },

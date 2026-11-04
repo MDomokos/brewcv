@@ -8,7 +8,7 @@ import * as T from '../model/resume.js';
 import * as LK from '../model/lock.js';
 import { key as measureKeyOf } from '../fit.js';
 import { missingList, writeInPlan, matchPlan, isSame, sameKey, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
-import { groupOf, inGroup, groupOpts, parentOf, setInStep, matchVersion, keepLabelAs, prints, resumeLabel } from '../model/resumes.js';
+import { groupOf, inGroup, groupOpts, parentOf, setInStep, matchVersion, keepLabelAs, prints, resumeLabel, nameFrom } from '../model/resumes.js';
 import * as K from '../model/career.js';
 import { recordSelOfFact, factOfRecordSel, groupOf as recordGroupOf } from '../model/checklist.js';
 import { keyOf, isLabelKey } from './select.js';
@@ -16,6 +16,7 @@ import { t, h, errText } from '../i18n/index.js';
 import { askIfLocked } from './ask.js';
 import { play, played, reduced } from './motion.js';
 import { icon } from './icons.js';
+import { pageSize } from './layout.js';
 import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, delBtn, delAskHtml, labelChangedHtml, topHtml, gist } from './parts.js';
 
 let C = null;
@@ -583,13 +584,13 @@ function writeInX(id){
   const mp = plan.have ? null : matchPlan(C.store.state, cur(), id);      // this language may already have it, under another number
   return { plan, mode: on?.mode === 'match' && !mp ? 'translate' : on?.mode ?? 'translate', seed: on?.seed ?? null, open: !!on, others, match: mp && { ...mp, pick: on?.pick ?? null } };
 }
-// The saved resumes that print each version of a claim, by name: Map(version id → [name]). A line edited on one resume only counts for no version.
+// The saved resumes that print each version of a claim: Map(version id → [{ id, name }]), the name as "Role, Company · word". A line edited on one resume only counts for no version.
 function usesOf(id){
   const m = work(), out = new Map();
   for (const r of C.store.state.resumes ?? []){
     if (r.overrides?.[id] !== undefined || !prints(m, r, [id])) continue;
     const vid = T.chooseVariant(m, id, r).v?.id;
-    if (vid) out.set(vid, [...(out.get(vid) ?? []), resumeLabel(r)]);
+    if (vid) out.set(vid, [...(out.get(vid) ?? []), { id: r.id, name: !r.name && r.company && r.role ? nameFrom({ company: r.company, role: r.role }) : resumeLabel(r) }]);
   }
   return out;
 }
@@ -840,9 +841,31 @@ function saveEdit(kind){
   if (!resume) C.renderBody();     // closes the editor even when nothing changed
 }
 
+// Resting on a resume in a version's list shows its page small, the version's words marked (no touch: a tap opens it).
+let usePv = null, useT = 0;
+function hideUsePeek(){ clearTimeout(useT); usePv?.remove(); usePv = null; }
+function showUsePeek(b){
+  hideUsePeek();
+  const rid = b.dataset.rid, vid = b.closest('.vuse')?.dataset.v, r = C.store.state.resumes.find(x => x.id === rid), recipe = r && rid !== C.store.state.openId && C.heldRecipe(rid);      // not the open one: it is the page
+  if (!recipe) return;
+  const { w, h } = pageSize(r.format), W = 230, H = Math.round(W * h / w), c = b.getBoundingClientRect();
+  const el = document.createElement('div'); el.className = 'vusepv'; el.setAttribute('aria-hidden', 'true');
+  el.style.cssText = `width:${W}px;height:${H}px;left:${Math.max(8, c.left > innerWidth / 2 ? c.left - 12 - W : c.right + 12)}px;top:${Math.max(8, Math.min(innerHeight - H - 8, c.top - H / 3))}px`;
+  document.body.append(el); usePv = el;
+  C.thumbEntry(recipe).then(e => {
+    if (!e || usePv !== el) return;
+    const mark = `<style>[data-variant="${CSS.escape(vid)}"]{background:#ffe27a!important;outline:3px solid #ffe27a}</style></head>`;
+    const i = Math.max(0, e.srcs.findIndex(x => x.includes(`data-variant="${vid}"`))), f = document.createElement('iframe');
+    f.tabIndex = -1; f.setAttribute('scrolling', 'no'); f.srcdoc = e.srcs[i].replace('</head>', mark);
+    f.style.cssText = `width:${w}px;height:${h}px;transform:scale(${W / w});transform-origin:0 0;border:0`;
+    el.append(f);
+  });
+}
+
 async function act(a, tg){
   const s = { id: fid() }, sel = C.ui.sel;     // s: the claim open; sel: what the Resume has selected (a section, for the cases below)
   switch (a){
+    case 'vuse-open': hideUsePeek(); await C.jumpTo(tg.dataset.rid, C.ui.sel); return true;
     case 'edit': startEdit(null, tg?.dataset?.v ?? null); return true;
     case 'job-details': {      // the card's link: the job's own fields (dates, links) are in the Details fold below its lines
       const d = $(`#body details[data-det="${CSS.escape(tg.dataset.job)}"]`);
@@ -1089,6 +1112,8 @@ function bind(body){
   }, true);
   body.addEventListener('click', e => { if (e.target.closest?.('.cpop [data-act]')) setTimeout(closeTop); });
   // which saved resumes print a version: folded until asked, and kept open across redraws
+  body.addEventListener('pointerover', e => { const b = e.target.closest?.('.vuseb'); if (b && e.pointerType !== 'touch' && !b.contains(e.relatedTarget)){ clearTimeout(useT); useT = setTimeout(() => showUsePeek(b), 250); } });
+  body.addEventListener('pointerout', e => { const b = e.target.closest?.('.vuseb'); if (b && !b.contains(e.relatedTarget)) hideUsePeek(); });
   body.addEventListener('toggle', e => { const d = e.target; if (d.classList?.contains('vuse')) E.useOpen[d.open ? 'add' : 'delete'](d.dataset.v); }, true);
   body.addEventListener('focusout', e => {
     const t = e.target;

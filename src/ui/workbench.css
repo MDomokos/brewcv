@@ -450,7 +450,10 @@ table.cmp tr.setting th { color: var(--ink); }
 .vuse { font-size: 11.5px; color: var(--ink-soft); }
 .vuse > summary { cursor: pointer; }
 .vuse .vuses { margin: 4px 0 0; padding: 0; list-style: none; max-height: 9.5em; overflow-y: auto; color: var(--ink); }      /* one resume a line, the longest cut */
-.vuse .vuses > li { padding: 2px 0 2px 8px; border-left: 2px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
+.vuse .vuses > li { padding: 0 0 0 8px; border-left: 2px solid var(--line); line-height: 1.35; }
+.vuse .vuseb { display: block; width: 100%; padding: 2px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vuse .vuseb:hover, .vuse .vuseb:focus-visible { text-decoration: underline; }
+.vusepv { position: fixed; z-index: 35; pointer-events: none; background: var(--sheet); border-radius: var(--r-xs); overflow: hidden; box-shadow: var(--shadow-toast); }
 
 .langs { display: inline-flex; gap: 2px; }
 .langs button { padding: 2px 7px; font-size: 11.5px; position: relative; }

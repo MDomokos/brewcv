@@ -77,13 +77,13 @@ export function missBar({ lang, list, act = 'go-missing', group = false, offer =
     ${list.length > 8 ? `<div class="tiny muted">${h('edit.andMore', { n: list.length - 8 })}</div>` : ''}</div>`;
 }
 
-// Under a version: its flags (machine-translated, imported), and which saved resumes print it, folded until asked (x.uses: version id → names;
+// Under a version: its flags (machine-translated, imported), and which saved resumes print it, folded until asked (x.uses: version id → { id, name } of each, a button that opens it at this line;
 // x.useOpen: the ones unfolded). The summary's own data-act keeps a click on it from choosing the row's version.
 const FLAG = { 'needs-review': () => [t('wb.review'), t('wb.reviewTip')], imported: v => [t('flag.imported'), v.source ?? ''] };
 function vtags(v, x){
   const flags = R.flagsOf(v).map(f => { const [label, tip] = FLAG[f](v); return `<span class="tag flag" title="${esc(tip)}">${esc(label)}</span>`; }).join('');
   const names = x.uses?.get(v.id) ?? [];
-  const use = names.length ? `<details class="vuse" data-v="${esc(v.id)}"${x.useOpen?.has(v.id) ? ' open' : ''}><summary data-act="vuse">${h('use.count', { n: names.length })}</summary><ul class="vuses">${names.map(n => `<li title="${esc(n)}">${esc(n)}</li>`).join('')}</ul></details>` : '';
+  const use = names.length ? `<details class="vuse" data-v="${esc(v.id)}"${x.useOpen?.has(v.id) ? ' open' : ''}><summary data-act="vuse">${h('use.count', { n: names.length })}</summary><ul class="vuses">${names.map(n => `<li><button type="button" class="vuseb" data-act="vuse-open" data-rid="${esc(n.id)}" title="${esc(n.name)}">${esc(n.name)}</button></li>`).join('')}</ul></details>` : '';
   return flags || use ? `<div class="vtags">${flags}${use}</div>` : '';
 }
 
