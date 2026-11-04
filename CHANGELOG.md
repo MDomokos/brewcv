@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.9.3 - 2026-11-04
 
 ### Changed
+- **The tabs above the card ease more calmly:** the open tab grows less and no longer hops or flashes, and the curve at its foot rises with its colour.
+- **Place switches are smoother:** the name card eases to its height between Resumes and Career instead of jumping, the sidebar panel fades in with its place, and the garden holds still while a place changes.
+- **Place switches do less work:** repeated text matching and month names are cached.
 - **Every panel has the same inner spacing,** with its text on the name card's line, and its buttons follow one height scale.
 - **Export shows two whole pages side by side** whenever the window has room, and its panel fits without scrolling.
 - **Export's panel is the sidebar's width,** using its full height, and widens only when its content would not fit.
@@ -13,13 +16,6 @@
 - **The sidebar has its full width from the start;** it no longer widens after the first edit.
 - **Export always shows the whole pages,** even after you zoomed in on a line.
 - **About you opens with the same top row as every other panel;** the old "Page › Header › Name" chip is gone.
-
-## 1.9.3 - 2026-11-04
-
-### Changed
-- **The tabs above the card ease more calmly:** the open tab grows less and no longer hops or flashes, and the curve at its foot rises with its colour.
-- **Place switches are smoother:** the name card eases to its height between Resumes and Career instead of jumping, the sidebar panel fades in with its place, and the garden holds still while a place changes.
-- **Place switches do less work:** repeated text matching and month names are cached.
 
 ## 1.9.2 - 2026-11-04
 
