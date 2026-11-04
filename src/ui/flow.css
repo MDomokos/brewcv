@@ -757,7 +757,7 @@ html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { b
 .scr .ce-cmp + .ce-v { border-top: 0; }
 .scr .ce-v.is-this { border-radius: var(--r-s); background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
 .scr .ce-v.is-edit { grid-template-columns: 64px minmax(0, 1fr); border: 1px solid var(--accent); border-radius: var(--r-s); }
-.scr .ce-v.ce-en { border-top: 1px dashed var(--line-strong); color: var(--ink-soft); }
+.scr .ce-v.ce-en { border-top: 1px solid var(--line); color: var(--ink-soft); }
 .scr .ce-vnc { display: grid; gap: 2px; align-content: start; }
 .scr .ce-vn { color: var(--ink); font: 600 12.5px/1.4 var(--font-ui); font-variant-numeric: tabular-nums; }
 .scr .ce-vd { color: var(--ink-soft); font: 11px/1.3 var(--font-ui); }
@@ -898,7 +898,7 @@ button.ce-chip:hover { background: var(--hover); border-color: var(--line-strong
 .ce-side .ce-ct b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ce-side .ce-ct small { color: var(--ink-soft); font-size: 12px; }
 .ce-cx { display: grid; gap: 1px; }
-.ce-r { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 30px; padding: 0 8px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink); font: 13px/1.3 var(--font-ui); text-align: left; box-shadow: none; }
+.ce-r { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: var(--h-row); padding: 0 8px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink); font: 13px/1.3 var(--font-ui); text-align: left; box-shadow: none; }
 .ce-r span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ce-r b { flex: none; font-size: 12.5px; font-weight: 600; }
 button.ce-r { cursor: pointer; }

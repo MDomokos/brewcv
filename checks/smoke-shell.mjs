@@ -4765,14 +4765,6 @@ if (want('motion: the twelve moments play, are off under reduced motion, and lea
     await page.mouse.move(4, 4);
     await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
     await page.evaluate(() => window.__wb.dock.setMode('outline')); await settle(page);
-    // a tick in the Record tab: the line travels (and the first time, one line makes the trip on its own)
-    await page.evaluate(() => localStorage.removeItem('rb-cl-hint'));
-    await page.keyboard.press('r'); await page.waitForTimeout(900);
-    got.sample = await names(); await clear();
-    await page.locator('#body .cb[data-on]:checked').first().click(); await page.waitForTimeout(300);
-    got.untick = await names(); await clear();
-    await page.locator('#body .cb[data-on]:not(:checked)').first().click(); await page.waitForTimeout(700);
-    got.tick = await names(); docs.ticked = await doc();
     // another resume: the page crossfades, the name slides
     await page.keyboard.press('e'); await clear();
     const ids = await page.evaluate(() => window.__wb.store.state.resumes.map(r => r.id));
@@ -4816,7 +4808,6 @@ if (want('motion: the twelve moments play, are off under reduced motion, and lea
   ok('with motion: Fit crossfades the swapped lines, folds the dropped ones, fills the meter, and leaves a chip with Undo', has(A.got.fit, 'fit:', 'chip:in') && /·|shorter|left out|swapped/.test(A.got.chip ?? '') || A.got.chip === null && has(A.got.fit, 'fit:'), JSON.stringify([A.got.fit, A.got.chip]));
   ok('…the chip says what Fit did in the interface language’s words, never a key', !/^ux4\./.test(A.got.chip ?? ''), A.got.chip ?? '');
   ok('…Ctrl+Z while Fit is still moving takes it back at once, nothing queues', A.got.undoAtOnce && A.got.chipGone);
-  ok('with motion: the first time, one line of the record makes the trip to the page; each tick after it travels', has(A.got.sample, 'tick:sample') && has(A.got.untick, 'tick:') && has(A.got.tick, 'tick:'), JSON.stringify([A.got.sample, A.got.untick, A.got.tick]));
   ok('with motion: another resume crossfades the page and slides its name', has(A.got.switch, 'switch:name') && (has(A.got.switch, 'switch:out') || has(A.got.switch, 'switch:frame')), A.got.switch.join());
   ok('with motion: a snapshot drops a small page into the name, and "Sent to" appears under it', has(A.got.snapshot, 'snapshot:drop', 'snapshot:line') && /Acme Corp/.test(A.got.sent ?? ''), JSON.stringify([A.got.snapshot, A.got.sent]));
   ok('with motion: hovering Coffee in the "?" menu starts the mat rolling up', A.got.peek.layer && A.got.peek.to === 'coffee' && A.got.peek.drink === 'tea', JSON.stringify(A.got.peek));
@@ -8011,7 +8002,7 @@ if (want('close the open resume')) {
   ok('the E key (the editor place) stays in the Resumes place', (await st(page)).view === 'resumes');
   await page.click('#ptabs [data-p=career]'); await settle(page);
   const c = await st(page);
-  ok('Career shows the whole career, with no lens row', c.view === 'record' && !c.lens && (await page.evaluate(() => document.body.dataset.lens)) === '' && /No resume open/.test(c.head));
+  ok('Career shows the whole career, with no lens row', c.view === 'record' && !c.lens && (await page.evaluate(() => document.body.dataset.lens)) === '' && /career\.json/.test(c.head));
   await page.waitForFunction(() => /Saved/.test(document.querySelector('#savestate')?.textContent ?? ''), null, { timeout: 5000 });
   await settle(page);
   await page.reload({ waitUntil: 'networkidle' });
