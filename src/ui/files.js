@@ -39,14 +39,18 @@ function commit(fn, label, done){
 const bodyOf = x => (x.diff ? diffHtml(x.diff) : x.a ? `<del>${esc(x.a)}</del> → <ins>${esc(x.b)}</ins>` : esc(x.b ?? ''));
 const diffHtml = runs => runs.map(r => (r.op === '=' ? esc(r.text) : r.op === '-' ? `<del>${esc(r.text)}</del>` : `<ins>${esc(r.text)}</ins>`)).join('');
 
+// The accepted kinds at a glance ([label or key, reads best]): DOCX, ODT and text are exact, a PDF's layout may need checking (i6.best); a backup restores everything.
+const KINDS = [['i6.kind.resume', [['DOCX', 1], ['ODT', 1], ['TXT / MD / HTML', 1], ['PDF'], ['Pages'], ['LinkedIn']]], ['i6.kind.data', [['i6.chip.backup', 1], ['i6.chip.saved'], ['JSON Resume'], ['i6.chip.theme']]]];
+const chip = ([n, best]) => `<li class="ichip"${best ? ' data-best="1"' : ''}>${has(n) ? h(n) : esc(n)}${best ? `<b>${h('i6.bestTag')}</b>` : ''}</li>`;
 function importView(){
   return `<h2 class="title">${h('files.importTitle')}</h2>
-    <p class="small">${h('i6.intro')}</p>
+    <ol class="isteps">${['i6.step1', 'i6.step2', 'i6.step3'].map((k, i) => `<li${i ? '' : ' aria-current="step"'}><b>${i + 1}</b> ${h(k)}</li>`).join('')}</ol>
+    <div class="idrop"><p>${h('i6.dropHere')}</p><button class="primary" data-act="imp-pick">${h('i6.choose')}</button></div>
+    ${KINDS.map(([k, cs]) => `<div class="ikind"><span class="lbl">${h(k)}</span><ul>${cs.map(chip).join('')}</ul></div>`).join('')}
     <p class="small">${h('i6.best')}</p>
-    <div class="btns"><button class="primary" data-act="imp-pick">${h('i6.choose')}</button></div>
-    <p class="note">${h('i6.orDrop')}</p>
+    <p class="ipriv">${icon('lock')}<span>${h('i6.private')}</span></p>
     <span class="lbl">${h('i6.orPaste')}</span>
-    <textarea id="imp-paste" class="paste" rows="6" placeholder='{ "basics": { "name": … } }' aria-label="${esc(t('i6.orPaste'))}"></textarea>
+    <textarea id="imp-paste" class="paste" rows="4" placeholder='{ "basics": { "name": … } }' aria-label="${esc(t('i6.orPaste'))}"></textarea>
     <div class="btns"><button class="sm" data-act="imp-paste">${h('files.readIt')}</button></div>`;
 }
 

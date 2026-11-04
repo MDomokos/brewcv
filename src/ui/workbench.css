@@ -1432,6 +1432,21 @@ button.primary.press { border-color: var(--press-edge); }      /* the press's ed
 .impdlg .back + .title { padding-right: 0; }
 .impdlg .back { margin-right: 40px; }
 .impdlg .lbl { margin: 12px 0 5px; }
+.impdlg::backdrop { background: color-mix(in srgb, var(--paper-ink) 62%, transparent); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){ .impdlg::backdrop { background: color-mix(in srgb, var(--paper-ink) 72%, transparent); } }
+.isteps { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; margin: 0 0 12px; padding: 0; color: var(--ink-soft); font-size: 13px; }
+.isteps li { display: flex; align-items: center; gap: 6px; }
+.isteps b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line-strong); font-size: 12px; }
+.isteps [aria-current=step] { color: var(--ink); font-weight: 600; }
+.isteps [aria-current=step] b { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.idrop { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 16px; margin-bottom: 4px; border: 2px dashed var(--line-strong); border-radius: var(--r-m); background: var(--raised); text-align: center; }
+.idrop p { margin: 0; color: var(--ink-soft); }
+.ikind ul { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.ichip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 13px; background: var(--surface); }
+.ichip[data-best] { border-color: var(--ink); }
+.ichip b { font-size: 11px; padding: 0 6px; border-radius: 999px; background: var(--ink); color: var(--surface); }
+.ipriv { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; color: var(--ink-soft); font-size: 13px; }
+.ipriv svg { flex: none; }
 @media (max-width: 719px){
   .rvdlg:not(.exdlg)[open] { width: 100vw; height: 100dvh; max-height: none; margin: 0; border-radius: 0; border-width: 0; }
   .rvhead, .rvbody, .rvfoot { padding-left: 12px; padding-right: 12px; }
