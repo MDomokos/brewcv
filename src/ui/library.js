@@ -75,7 +75,7 @@ export const cells = o => COLS.map(k => `<td class="c-${k}"${k !== 'name' && o[k
 export function row(g, q = '', parent = null, hidden = false){
   const d = g.lead, state = stateOf(g), hit = hits(g, q)[0], sel = L.sel === g.id;
   return `<tr class="rline rdoc ${parent ? 'rsub' : ''} ${sel ? 'sel' : ''}" ${docHooks(g, state)} ${parent ? `data-parent="${esc(parent)}"` : ''} ${hidden ? 'hidden' : ''}><td class="c-tick"></td>
-    ${cells({ name: `<span class="cname"><span class="ficon">${icon('fileout', { role: 'inline' })}</span><button class="rsel" data-act="doc-sel" data-id="${esc(g.id)}" aria-pressed="${sel}" title="${esc(d.name)}">${esc(d.name)}</button>${pills(g)}<span class="rstate" data-state="${state[0]}">${esc(state[1])}</span></span>${hit ? `<span class="rhit">${snippet(hit, q)}</span>` : ''}`, company: d.meta?.company, role: d.meta?.role, lang: langs(g), changed: dateOf(d) })}</tr>`;
+    ${cells({ name: `<span class="cname"><span class="ficon">${icon('fileout', { role: 'control' })}</span><button class="rsel" data-act="doc-sel" data-id="${esc(g.id)}" aria-pressed="${sel}" title="${esc(d.name)}">${esc(d.name)}</button>${pills(g)}<span class="rstate" data-state="${state[0]}">${esc(state[1])}</span></span>${hit ? `<span class="rhit">${snippet(hit, q)}</span>` : ''}`, company: d.meta?.company, role: d.meta?.role, lang: langs(g), changed: dateOf(d) })}</tr>`;
 }
 
 // ---- the inspector ----

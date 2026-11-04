@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **The Resumes list is roomier:** larger text and row spacing, bigger file icons, and unticked boxes stay quiet until you reach the row.
+- **Scrollbars fit the theme:** a slim thumb with the theme's corners that stops short of rounded edges; the resume preview's sits on the page.
+- **The garden keeps moving** when you switch between Content, Look and Export.
+
+### Fixed
+- **Content and Look no longer fade out with several resumes ticked,** and clicking one says why it is off.
+
 ## 1.9.3 - 2026-11-04
 
 ### Changed

@@ -53,7 +53,7 @@ html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #hea
 .wtab.is-on .way { animation: way-pop .3s var(--way-ease); }
 .wtab:hover:not(.is-on):not([aria-disabled=true]) { --wbg: color-mix(in srgb, var(--lv-res) 60%, var(--lv-res-closed)); color: var(--chrome-ink); }
 .wtab:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
-.wtab[aria-disabled=true] { opacity: .45; cursor: default; }
+.wtab[aria-disabled=true] { --wbg: var(--lv-res-closed); color: color-mix(in srgb, var(--chrome-ink) 45%, var(--lv-res-closed)); cursor: default; }      /* a solid shade of the closed tab, not a fade: the page's texture would show through */
 .wsheets > #tab-edit.is-on .way { color: var(--lv-open-edit); }
 .wsheets > #tab-design.is-on .way { color: var(--lv-open-design); }
 .wsheets > .wtab:last-child { border-top-right-radius: var(--r-l); }
@@ -345,8 +345,8 @@ button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-a
 /* the Library as a list: one sheet, one table; a column header that stays under the toolbar, the groups and rounds as slim header rows, hairlines
    between compact rows, a resume's sent copies and files folded under it on a guide line; the narrower, the fewer columns */
 #scr-list { container-type: inline-size; }
-.scr .rtable { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; background: transparent; font-size: 13px;
-  --row-pad: 5px; --row-stripe: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); --row-hover: color-mix(in srgb, var(--paper-ink) 9%, var(--paper)); }
+.scr .rtable { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; background: transparent; font-size: 14px;
+  --row-pad: 9px; --row-stripe: color-mix(in srgb, var(--paper-ink) 4%, var(--paper)); --row-hover: color-mix(in srgb, var(--paper-ink) 9%, var(--paper)); }
 .scr .rtable :is(th, td) { padding: var(--row-pad) 10px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.45; }
 .scr .rtable thead th { position: sticky; top: 0; z-index: 2; padding-block: 6px; background: var(--paper); border-bottom: 1px solid var(--line); font-size: 11.5px; font-weight: 500; color: var(--paper-soft); }
 .scr .rtable td { color: var(--paper-soft); }
@@ -363,7 +363,7 @@ button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-a
 /* the name takes what the others leave; company and role a share of the width, the short ones their text's */
 .scr .rtable .c-name { color: var(--paper-ink); }
 .scr .rtable :is(th.c-paper, th.c-pages, th.c-sent) { width: calc(9ch + 20px); } .scr .rtable th.c-lang { width: calc(12ch + 20px); }      /* room for three language chips */ .scr .rtable th.c-changed { width: calc(12ch + 24px); }      /* ch of the heading's smaller type */
-.scr .rtable .ficon { display: inline-grid; place-items: center; flex: none; margin-right: 6px; color: var(--paper-soft); vertical-align: middle; }
+.scr .rtable .ficon { display: inline-grid; place-items: center; flex: none; margin: 0 6px 0 4px; color: var(--paper-soft); vertical-align: middle; }
 .scr .rtable .rdoc :is(.rsel, .c-name) { font-weight: 400; color: var(--paper-soft); }      /* an attached file reads quieter than a resume */
 .scr .rtable .rdoc .pill { font-size: 9.5px; padding: 0 5px; letter-spacing: .04em; }
 .scr .rtable .rline { cursor: pointer; }
@@ -378,6 +378,7 @@ button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-a
 .scr .rtable :is(.rsel, .rfold):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-xs); }
 .scr .rtable .rfold[aria-expanded=false] svg { rotate: -90deg; }
 .scr .rtable .rtick { vertical-align: middle; margin: 0; }
+.scr .rtable .rtick:not(:checked) { opacity: .4; } .scr .rtable .rline:is(:hover, :focus-within) .rtick { opacity: 1; }      /* an unticked box stays quiet beside the file icon until the row is reached */
 .scr .rtable .snapline { padding: 0; text-align: left; }
 .scr .rtable .rhit { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
 .scr .rtable .rstate { font-size: 11.5px; color: var(--paper-soft); }
@@ -416,6 +417,8 @@ body:not([data-phone=true]):not(.is-intro) .col > #body:has(> .insp-res) { paddi
 .insp-res > * { flex: none; }
 .insp-res .ihero { flex: 0 1 auto; min-height: 160px; margin: 0 -13px; overflow-y: auto; overscroll-behavior: contain; border-radius: inherit; background: var(--sheet); }
 .insp-res .ihpage { display: grid; gap: 1px; background: var(--sheet-edge); }
+.insp-res .ihero { overflow-x: hidden; }
+.insp-res .ihero > .ihpage { margin-right: -10px; }      /* the page runs under the scrollbar, so the bar sits on the page, not in a strip of its own (the bar's width) */
 .insp-res .ihpage:empty { display: none; }
 .insp-res .ihpage .rthumb { display: block; width: 100%; background: var(--sheet); }
 .insp-res .iacts { flex-wrap: nowrap; margin: 4px 0 2px; padding-bottom: 2px; }

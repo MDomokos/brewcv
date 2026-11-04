@@ -53,7 +53,7 @@ function installTips(){
   const hide = () => { clearTimeout(timer); clearTimeout(hideT); tip.classList.remove('on'); cur = null; };
   // a control redrawn under the pointer is out and over again in one go: the hint waits a moment before it goes, and the same hint comes straight back
   const softHide = () => { clearTimeout(timer); clearTimeout(hideT); hideT = setTimeout(hide, 180); };
-  const arm = el => {
+  const arm = (el, now = false) => {
     clearTimeout(timer); clearTimeout(hideT);
     if (!el){ cur = null; softHide(); return; }
     const same = el.dataset.tip === lastText && performance.now() - lastAt < 900;
@@ -73,8 +73,9 @@ function installTips(){
       if (y + th > innerHeight - 6) y = r.top - th - 8;
       tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(Math.max(6, y))}px)`; tip.classList.add('on');
       lastText = el.dataset.tip; lastAt = performance.now();
-    }, tip.classList.contains('on') || same ? 0 : 380);
+    }, now || tip.classList.contains('on') || same ? 0 : 380);
   };
+  document.addEventListener('tip-now', e => arm(e.target, true));      // a click on a resting control: its hint at once, where the pointer is
   // A tip is for a pointer that moved onto the element. A click that redraws the element under a still pointer makes the browser
   // send a pointerover from the same spot: that is not a move, so it waits for the next one.
   document.addEventListener('pointerover', e => {

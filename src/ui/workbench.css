@@ -690,21 +690,6 @@ body.is-actual .pagebox, body.is-actual .col { visibility: hidden; }
 .opt:has(> .opt-t) > input { margin-top: 3px; flex: none; }
 .opt select, .field select { font: inherit; font-size: 13.5px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--raised); color: var(--ink); max-width: 100%; min-width: 0; }
 
-/* thin scrollbars, on the app's own scrollers only */
-.body, .menu, .pages, .actual__scroll, body[data-phone=true] {
-  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
-}
-.body::-webkit-scrollbar, .menu::-webkit-scrollbar, .pages::-webkit-scrollbar,
-.actual__scroll::-webkit-scrollbar, body[data-phone=true]::-webkit-scrollbar { width: 10px; height: 10px; }
-.body::-webkit-scrollbar-track, .menu::-webkit-scrollbar-track, .pages::-webkit-scrollbar-track,
-.actual__scroll::-webkit-scrollbar-track, body[data-phone=true]::-webkit-scrollbar-track { background: transparent; }
-.body::-webkit-scrollbar-thumb, .menu::-webkit-scrollbar-thumb, .pages::-webkit-scrollbar-thumb,
-.actual__scroll::-webkit-scrollbar-thumb, body[data-phone=true]::-webkit-scrollbar-thumb {
-  background: var(--line-strong); border-radius: var(--r-m); border: 3px solid transparent; background-clip: padding-box;
-}
-.body::-webkit-scrollbar-thumb:hover, .menu::-webkit-scrollbar-thumb:hover, .pages::-webkit-scrollbar-thumb:hover,
-.actual__scroll::-webkit-scrollbar-thumb:hover, body[data-phone=true]::-webkit-scrollbar-thumb:hover { background-color: var(--line-strong); }
-.body::-webkit-scrollbar-corner, .pages::-webkit-scrollbar-corner { background: transparent; }
 
 /* the start screen is src/ui/start.css; two small rules of the questions that follow it */
 
@@ -905,7 +890,7 @@ button.obv.miss:hover { opacity: .8; }
 .obtools:has(.obvlist:not([hidden]) .obvstack.up) { border-top-left-radius: 0; }
 .obtools:has(.obvlist:not([hidden]) .obvstack.dn) { border-bottom-left-radius: 0; }
 .obtoolswrap:has(.obvlist:not([hidden])) { z-index: 5; }
-.obvstack { position: absolute; left: 0; right: 0; box-sizing: border-box; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; pointer-events: auto; color: var(--paper-ink); background: var(--obv-face); }
+.obvstack { position: absolute; left: 0; right: 0; box-sizing: border-box; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; pointer-events: auto; color: var(--paper-ink); background: var(--obv-face); }
 .obvstack.up { bottom: 100%; border-radius: calc(var(--plate-r) + var(--plate-off-line)) calc(var(--plate-r) + var(--plate-off-line)) 0 0; box-shadow: inset var(--plate-hair) 0 0 var(--obv-edge), inset calc(-1 * var(--plate-hair)) 0 0 var(--obv-edge), inset 0 var(--plate-hair) 0 var(--obv-edge); }      /* lower numbers, the nearest by the row */
 .obvstack.dn { top: 100%; border-radius: 0 0 calc(var(--plate-r) + var(--plate-off-line)) calc(var(--plate-r) + var(--plate-off-line)); box-shadow: inset var(--plate-hair) 0 0 var(--obv-edge), inset calc(-1 * var(--plate-hair)) 0 0 var(--obv-edge), inset 0 calc(-1 * var(--plate-hair)) 0 var(--obv-edge); }      /* higher numbers */
 .obvopt { display: flex; align-items: center; justify-content: flex-start; gap: 6px; flex: none; min-height: 26px; padding: 0 8px; border-radius: 0; font: 12px var(--font-mono); color: var(--paper-ink); cursor: pointer; white-space: nowrap; }
@@ -969,8 +954,7 @@ button.primary small { color: inherit; opacity: .85; }
 [data-act=fit].primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 
 /* Scroll bars in the surface's own colour. */
-:is(.body, .menu, .pages, .switcher, .swlist) { scrollbar-color: var(--line-strong) transparent; }
-:is(.body, .menu, .pages)::-webkit-scrollbar-thumb { background-color: var(--line-strong); }
+:is(.body, .menu, .pages, .switcher, .swlist) { --sb: var(--line-strong); }
 
 
 /* ===== the Record tab, one meaning of save, and the panel fixes. Every colour a token. ===== */
@@ -1116,7 +1100,6 @@ html body:not([data-phone=true]):not(.is-intro) :is(.col > #head, .col > .switch
 /* the body: one sheet, or two side by side (Outline and Edit, when the room allows) */
 .col > #body { padding: 12px 13px; scroll-padding: 8px; }
 body[data-phone=true] .col > #body { padding: 14px 16px; }      /* a phone keeps its own */      /* every panel: 12 px inside its edge, its text on the name card's line */
-.body { scrollbar-color: var(--line-strong) transparent; }
 
 /* the zoom bar: only while the pointer is over the page */
 .zoombar { position: fixed; z-index: 12; bottom: var(--G); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; box-sizing: border-box; height: 44px; padding: 0 6px; border-radius: var(--r-pill);      /* the foot bar's height and edge */
@@ -1206,9 +1189,9 @@ mark.dw { background: var(--ins-bg); color: inherit; border-radius: 2px; padding
 .opts button[aria-pressed=true] { border-color: var(--mark); box-shadow: 0 0 0 1px var(--mark); }
 .opts .sample { font-size: 13.5px; font-weight: 700; white-space: nowrap; }
 .opts .dflt { flex: none; width: 5px; height: 5px; border-radius: var(--r-round); background: var(--ink-soft); }      /* the look's default */
-[data-mode=design] .tpls { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; padding: 1px 1px 4px; }      /* one row, sideways; a tile's tooltip says what the look is */
+[data-mode=design] .tpls { display: flex; gap: 4px; overflow-x: auto; padding: 1px 1px 4px; }      /* one row, sideways; a tile's tooltip says what the look is */
 [data-mode=design] .tpl { flex: 0 0 76px; }
-.opts.oneline { display: flex; overflow-x: auto; scrollbar-width: thin; padding: 1px 1px 4px; }
+.opts.oneline { display: flex; overflow-x: auto; padding: 1px 1px 4px; }
 .opts.oneline button { flex: none; white-space: nowrap; }
 [data-mode=design] .drow.two { grid-template-columns: minmax(0, 1fr); }
 [data-mode=design] .tpl { font-size: 11px; line-height: 1.2; padding: 4px; gap: 3px; align-content: start; }
@@ -1434,7 +1417,28 @@ button.obv.mine::before { content: ''; width: 6px; height: 6px; margin-right: 5p
    corner, the arrows, form controls) follow the theme through color-scheme. The resume is drawn in its own frame and keeps its own. */
 html[data-theme="light"] { color-scheme: light; }
 html[data-theme="dark"] { color-scheme: dark; }
-* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 38%, transparent) transparent; }
+/* One shape for every scrollbar: a floating pill thumb, and a track pulled in from both ends by the corner radius of what it sits in (--sb-inset, the
+   panels' --r-panel; --r-m elsewhere), so it never runs into a rounded corner. The colour is --sb, set per surface (the paper's ink on a resume, the panel's
+   elsewhere). scrollbar-width / scrollbar-color switch ::-webkit-scrollbar off in Chromium, so they are for Firefox alone (Mullvad Browser too), which has no webkit bars and no way to inset the track: there it is a thin bar in the surface's colour. */
+@supports (-moz-appearance: none) { * { scrollbar-width: thin; scrollbar-color: var(--sb, color-mix(in srgb, var(--ink) 38%, transparent)) transparent; } }
+/* Firefox draws its bar square across a rounded panel's corners and cannot inset it: the scroller is clipped to the panel's shape on the corners it shares with it
+   (the bar's own end is cut with it). --r-l is the panels' radius. */
+@supports (-moz-appearance: none) {
+  #body { clip-path: inset(0 round var(--r-l)); }
+  #scr-list { clip-path: inset(0 round 0 0 var(--r-l) var(--r-l)); }
+  .insp-res .ihero { clip-path: inset(0 round var(--r-l) var(--r-l) 0 0); }
+}
+::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-track:vertical { margin-block: var(--sb-inset, var(--r-m)); }
+::-webkit-scrollbar-track:horizontal { margin-inline: var(--sb-inset, var(--r-m)); }
+/* a 6px thumb centred in the 10px bar, in the theme's own roundness: a full pill in tea, the 2px corner in coffee (--r-pill) */
+::-webkit-scrollbar-thumb { background-color: var(--sb, color-mix(in srgb, var(--ink) 38%, transparent)); border: 2px solid transparent; background-clip: padding-box; border-radius: var(--r-pill); min-height: 28px; min-width: 28px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--sb-hover, color-mix(in srgb, var(--ink) 62%, transparent)); }
+::-webkit-scrollbar-corner { background: transparent; }
+/* the resume's own surfaces (the preview, the page, the actual-size view): the paper's ink, as the resume is drawn */
+.ihero, .pages, .actual__scroll, .hoverprev { --sb: color-mix(in srgb, var(--paper-ink) 30%, transparent); --sb-hover: color-mix(in srgb, var(--paper-ink) 55%, transparent); --sb-inset: var(--r-xs); }
+.scr, #scr-list { --sb: color-mix(in srgb, var(--paper-ink) 30%, transparent); --sb-hover: color-mix(in srgb, var(--paper-ink) 55%, transparent); }
 
 /* the versions list's fold toggle, beside its label */
 .vhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin: 16px 0 6px; }
@@ -1542,5 +1546,5 @@ html[data-drink="coffee"] #mat { background-color: var(--canvas); background-ima
     linear-gradient(var(--grid-major) 1px, transparent 1px), linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
     linear-gradient(var(--grid-minor) 1px, transparent 1px), linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px), linear-gradient(var(--canvas), var(--canvas)); } 
 /* nothing open: Content, Look (and a phone's tabs) wait; the name card says so, muted */
-.wsheets .wtab[aria-disabled=true], .modes [role=tab][aria-disabled=true] { opacity: .45; cursor: default; }
+.modes [role=tab][aria-disabled=true] { opacity: .45; cursor: default; }
 #head .docname.is-none { color: var(--muted); cursor: default; }

@@ -309,7 +309,7 @@ body.is-export #body { container: xpanel / inline-size; }
 .exkeep #fileline { margin: 0 0 8px; }
 /* several resumes: their pages in a row left of the panel, one at a time when they do not fit */
 .xpages { position: fixed; z-index: 1; }
-.xptrack { display: flex; align-items: center; gap: 24px; box-sizing: border-box; height: 100%; padding: 16px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scroll-padding-inline: 16px; scrollbar-width: thin; }
+.xptrack { display: flex; align-items: center; gap: 24px; box-sizing: border-box; height: 100%; padding: 16px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scroll-padding-inline: 16px; }
 .xptrack:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
 .xpfig { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; scroll-snap-align: start; }
 .xpfig:only-child { margin: 0 auto; }
@@ -363,9 +363,9 @@ html:not([data-motion="reduce"]) .pen { transition: opacity 120ms ease-out; }
 /* no lines between the section rows: the pills are the rows, an off one is a plain quiet row */
 .outline .osec:not(.open) > .item.srow { border-bottom: 0; }
 
-/* the panel's scrollbar: a slim rounded thumb in the panel's own ink at low contrast that steps up while the panel is hovered, no arrows (Chromium ignores ::-webkit-scrollbar once scrollbar-color is set, so these two are the whole style) */
-#body { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 30%, transparent) transparent; }
-#body:hover { scrollbar-color: color-mix(in srgb, var(--ink-soft) 60%, transparent) transparent; }
+/* the panel's scrollbar: a slim rounded thumb in the panel's own ink at low contrast that steps up while the panel is hovered (--sb; the shape is the global one at the end of workbench.css) */
+#body { --sb: color-mix(in srgb, var(--ink-soft) 30%, transparent); --sb-inset: var(--r-panel); }
+#body:hover { --sb: color-mix(in srgb, var(--ink-soft) 60%, transparent); }
 
 /* ---- 12. The skill wordbank (src/ui/wordbank.js). The sidebar card lists the page's skill groups by name under Position: the picked one filled in
    its hue, the others quieter. The bank is a window of its own under the card, the rest of the column, scrolling on its own. Colour is only a hover
@@ -388,7 +388,7 @@ body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body:
 .col > .bankcard:not([hidden]) { display: flex; flex-direction: column; }      /* (the empty well fills what is left of it) */
 .col > .bankcard { flex: 1 1 0; min-height: max(160px, 45vh);      /* always generous: the place to drop skills */
   overflow: auto; margin-top: 8px; padding: 10px 12px 46px; background: var(--surface); border-radius: var(--r-panel);
-  box-shadow: var(--shadow-panel), inset 0 0 0 1px var(--line-strong); scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 30%, transparent) transparent; }
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px var(--line-strong); --sb: color-mix(in srgb, var(--ink-soft) 30%, transparent); --sb-inset: var(--r-panel); }
 .bankcard.drop-bank { outline: 2px solid var(--sel-mark); outline-offset: -2px; }
 .wbtop { position: sticky; top: -12px; z-index: 2; margin: -12px 0 4px; padding: 12px 0 6px; background: var(--surface); display: grid; gap: 6px; }
 .wbbar { display: flex; align-items: center; gap: 2px; }

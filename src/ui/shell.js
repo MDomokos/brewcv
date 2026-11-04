@@ -546,7 +546,8 @@ function setView(v){
   ui.focusKept = false;
   if (SCREENS.includes(was) && !ui.layout?.phone) (ui.scrolled ??= {})[was] = scroller().scrollTop;      // each place keeps its scroll (N6)
   ui.view = v;
-  if (was !== v){ document.body.classList.add('is-switching'); clearTimeout(switchTimer); switchTimer = setTimeout(() => document.body.classList.remove('is-switching'), 520); }      // the garden holds still while a place's tabs and panel move
+  const isSheet = x => !x || x === 'design' || x === 'export' || x === 'sent';      // Content (the Edit view), Look and Export
+  if (was !== v && !(isSheet(was) && isSheet(v))){ document.body.classList.add('is-switching'); clearTimeout(switchTimer); switchTimer = setTimeout(() => document.body.classList.remove('is-switching'), 520); }      // the garden holds still while a place's tabs and panel move (not between Content, Look and Export, which only swap the panel)
   find.sync();
   syncIntro();                 // the start screen's areas are the editor's again before they are drawn
   if (ui.previewing) endPreview();
@@ -1181,7 +1182,7 @@ async function onClick(e){
     case 'export-place': openExport(); break;
     case 'lens': ui.careerWhole = tg.dataset.v === 'whole'; renderHead(); lensMarks(); break;
     case 'sheet': {      // Content or Look from Career or the Library: the resume the card names, then that sheet
-      if (tg.getAttribute('aria-disabled') === 'true') break;
+      if (tg.getAttribute('aria-disabled') === 'true') { tg.dispatchEvent(new Event('tip-now', { bubbles: true })); break; }      // why it rests: its hint, shown at once
       if (id && id !== store.state.openId && !resumes.open(id)) break;
       await dock.setMode(tg.dataset.m); break;
     }
