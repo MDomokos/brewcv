@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.9.1 - 2026-11-04
+
+### Changed
+- **Open or import shows what it takes at a glance:** three steps, one drop zone with Choose files, and the file kinds with the best ones marked. Pasting folds away until you need it, and the app behind is dimmed and blurred.
+- **Look and Settings are easier to scan:** one heading style, each setting's label beside its control, tea or coffee and light or dark as switches, and the longer help in tooltips.
+- **Career's Whole career and Its picks are told apart better:** Whole career sits in the name card's corner, Its picks is part of the card, and the chosen one is underlined.
+- **The sidebar panel keeps a gap above the bar at its foot.**
+
+### Fixed
+- **Text fields have the theme's rounded corners** everywhere in Tea.
+- **An imported PDF's pages show as they are in browsers that guard against fingerprinting** (Mullvad, Tor), instead of as stripes. There, no thumbnail is stored, and a photo is refused with a note instead of being saved as noise.
+
 ## 1.9.0 - 2026-11-04
 
 ### Changed
