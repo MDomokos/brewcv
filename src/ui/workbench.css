@@ -995,6 +995,7 @@ button { border-color: var(--line-strong); }
 /* …but rows of a menu or a list, and the tertiary text and icons, which say what they are by their place and their words (buttons.css) */
 :is(.ghost, .ib, .clcaret, .clt, .sopt, .smore, .meter, .oblang, .obc, .obrow, .keep, .snapline, .docname, .menu button, .inline-menu button, .seg button, .seg [role=tab], .pop [role^=menuitem], .pop [role=option]) { border-color: transparent; }
 :is(.field input, .field select, .field textarea, .opt select, .sw-q, .swren, .writein textarea, textarea.paste, .editor textarea, .addrow textarea, textarea, input:not([type])) { background: var(--input); color: var(--ink); }
+input:is(:not([type]), [type=text], [type=search], [type=email], [type=tel], [type=url], [type=number], [type=password]), textarea { border-radius: var(--r-s); }      /* every text field takes the theme's field radius */
 .cb, input[type=radio], input[type=checkbox], input[type=range], progress { accent-color: var(--mark); }
 
 /* One filled button on screen: Fit, and only when it would change something (outside 88 to 96 percent, or overflowing); then Export's PDF while Fit is not.
@@ -1100,6 +1101,7 @@ html[data-drink="tea"] [data-tea="record"] { --tea: var(--tea-record); --surface
 
 /* the name card and the editor card */
 body:not([data-phone=true]):not(.is-intro) .col { gap: 0; }
+body:not([data-phone=true]):not(.is-intro) .col > #body { margin-bottom: 8px; }      /* the same gap as under the name card */
 body:where(:not([data-phone=true], .is-intro)) .col > :where(#head, #body) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 body:not([data-phone=true]):not(.is-intro) .col > #head { flex: none; min-height: 0; margin-bottom: 8px; padding: 5px 6px 5px 4px; position: relative; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head { display: block; }
