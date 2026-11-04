@@ -352,6 +352,7 @@ export default {
   'toast.photoRemoved': 'Photo removed. Ctrl+Z brings it back.',
   'error.imageUnreadable': 'that image could not be read',
   'error.photoTooBig': 'that photo is too detailed to fit 300 KB',
+  'error.photoBlocked': "this browser's fingerprint guard hides what a picture holds, so the photo can't be cropped here: add it in another browser",
 
   // the model's words a person sees
   'diff.name': 'Name',

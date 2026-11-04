@@ -352,6 +352,7 @@ export default {
   'toast.photoRemoved': 'Foto rimossa. Ctrl+Z la riporta.',
   'error.imageUnreadable': 'impossibile leggere quell’immagine',
   'error.photoTooBig': 'quella foto è troppo dettagliata per stare in 300 KB',
+  'error.photoBlocked': "la protezione dalle impronte di questo browser nasconde il contenuto delle immagini, quindi qui la foto non si può ritagliare: aggiungila in un altro browser",
 
   // the model's words a person sees
   'diff.name': 'Nome',

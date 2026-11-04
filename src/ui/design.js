@@ -11,6 +11,7 @@ import { t, h, errText, keyed } from '../i18n/index.js';
 import { askPhotoLocked } from './ask.js';
 import { LANG_INFO } from '../model/lang.js';
 import { groupHtml, delBtn } from './parts.js';
+import { canvasReadable } from '../parse/pdf.js';
 
 let C = null;
 export function initDesign(ctx){ C = ctx; return api; }
@@ -37,6 +38,7 @@ export async function cropPhoto(file){
     if (sw / sh > ratio) sw = sh * ratio; else sh = sw / ratio;
     const sx = (img.naturalWidth - sw) / 2;
     const sy = (img.naturalHeight - sh) * 0.35;                   // a little above centre: heads, not chins
+    if (!canvasReadable()) throw keyed('error.photoBlocked');      // the crop is read back from a canvas, which a fingerprint guard turns to noise
     const cv = document.createElement('canvas');
     cv.width = W; cv.height = H;
     const g = cv.getContext('2d');

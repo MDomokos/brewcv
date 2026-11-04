@@ -352,6 +352,7 @@ export default {
   'toast.photoRemoved': 'Foto verwijderd. Ctrl+Z haalt hem terug.',
   'error.imageUnreadable': 'die afbeelding kon niet worden gelezen',
   'error.photoTooBig': 'die foto is te gedetailleerd voor 300 KB',
+  'error.photoBlocked': "de vingerafdrukbescherming van deze browser verbergt wat een afbeelding bevat, dus de foto kan hier niet worden bijgesneden: voeg hem toe in een andere browser",
 
   // the model's words a person sees
   'diff.name': 'Naam',

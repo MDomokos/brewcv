@@ -352,6 +352,7 @@ export default {
   'toast.photoRemoved': 'Fotka odebrána. Ctrl+Z ji vrátí.',
   'error.imageUnreadable': 'obrázek nelze přečíst',
   'error.photoTooBig': 'fotka je příliš detailní, aby se vešla do 300 KB',
+  'error.photoBlocked': "ochrana proti otiskům v tomto prohlížeči skrývá obsah obrázku, takže fotku tu nelze oříznout: přidejte ji v jiném prohlížeči",
 
   // the model's words a person sees
   'diff.name': 'Jméno',

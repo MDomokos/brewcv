@@ -352,6 +352,7 @@ export default {
   'toast.photoRemoved': 'Usunięto zdjęcie. Ctrl+Z je przywraca.',
   'error.imageUnreadable': 'nie udało się odczytać obrazu',
   'error.photoTooBig': 'zdjęcie jest zbyt szczegółowe, by zmieścić się w 300 KB',
+  'error.photoBlocked': "ochrona przed odciskiem przeglądarki ukrywa zawartość obrazu, więc nie można tu przyciąć zdjęcia: dodaj je w innej przeglądarce",
 
   // the model's words a person sees
   'diff.name': 'Imię i nazwisko',

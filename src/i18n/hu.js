@@ -352,6 +352,7 @@ export default {
   'toast.photoRemoved': 'Fénykép eltávolítva. A Ctrl+Z visszahozza.',
   'error.imageUnreadable': 'a képet nem sikerült beolvasni',
   'error.photoTooBig': 'a fénykép túl részletes ahhoz, hogy beférjen 300 KB-ba',
+  'error.photoBlocked': "ennek a böngészőnek az ujjlenyomat-védelme elrejti a kép tartalmát, ezért itt nem vágható ki a fénykép: add hozzá egy másik böngészőben",
 
   // the model's words a person sees
   'diff.name': 'Név',
