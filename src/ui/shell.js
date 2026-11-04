@@ -546,6 +546,7 @@ const isExample = () => /\(fictional\)/.test(record()?.meta?.owner ?? '');
 
 // Views that replace the body card until ← Back or Esc; null is the Edit view.
 const VIEWS = {};
+let switchTimer = 0;
 function setView(v){
   if (files.show(v)){ renderHead(); return; }      // a step of opening a file is a window over the place, which stays as it is
   if (v && !VIEWS[v]) return;
@@ -556,6 +557,7 @@ function setView(v){
   ui.focusKept = false;
   if (SCREENS.includes(was) && !ui.layout?.phone) (ui.scrolled ??= {})[was] = scroller().scrollTop;      // each place keeps its scroll (N6)
   ui.view = v;
+  if (was !== v){ document.body.classList.add('is-switching'); clearTimeout(switchTimer); switchTimer = setTimeout(() => document.body.classList.remove('is-switching'), 520); }      // the garden holds still while a place's tabs and panel move
   find.sync();
   syncIntro();                 // the start screen's areas are the editor's again before they are drawn
   if (ui.previewing) endPreview();
@@ -617,7 +619,15 @@ const leaveView = () => (ui.view === 'compare' ? setView('resumes') : fullWindow
 const focusKey = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}${el.dataset.p ? `[data-p="${el.dataset.p}"]` : ''}` : null);
 function renderHead(){
   const ae = document.activeElement, kept = ae && ae.closest?.('#head, #rail, #ptabs') ? focusKey(ae) : null;
+  const hd = $('#head'), h0 = hd?.offsetHeight ?? 0;
   drawHead();
+  // a place that adds or drops a row of the name card (Career's lens) changes its height: the card eases to it, and the panel under it follows, rather than jumping
+  const h1 = hd?.offsetHeight ?? 0;
+  if (h0 && h1 && h0 !== h1 && ui.ready && !reduced()){
+    hd.style.overflow = 'hidden';
+    const done = () => { hd.style.overflow = ''; };
+    hd.animate([{ height: `${h0}px` }, { height: `${h1}px` }], { duration: 260, easing: 'cubic-bezier(.3, .7, .2, 1)' }).addEventListener('finish', done, { once: true });
+  }
   for (const id of ['#head', '#rail', '#ptabs', '#foot']){ const n = $(id); if (n) tierAll(n); }      // styled before the first paint
   if (kept){ const n = $(`#head ${kept}`) ?? $(`#rail ${kept}`) ?? $(`#ptabs ${kept}`); if (n && n !== document.activeElement) n.focus({ preventScroll: true }); }
 }
@@ -1007,6 +1017,7 @@ function renderBody(animate = false){
     // a step between two lines of one kind of panel does not animate; a new kind of panel fades in once (opacity only)
     el.classList.remove('anim-in');
     if (animate && el.dataset.view !== before){ void el.offsetWidth; el.classList.add('anim-in'); }
+    if (there){ const side = $('#body'); side.classList.remove('anim-in'); if (animate && el.dataset.view !== before){ void side.offsetWidth; side.classList.add('anim-in'); } }      // the sidebar's panel fades with its place, the same fade
     inner().scrollTop = animate ? 0 : keep;
     paneMarks();
     if (there) $('#body').scrollTop = animate ? 0 : keepSide;

@@ -20,7 +20,9 @@ const pad = n => String(n).padStart(2, '0');
 const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
 // the month's short name and "Mar 2023" in a language
-const monthName = (m, lang) => { try { return new Intl.DateTimeFormat(lang, { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, m - 1, 15))); } catch { return String(m); } };
+const monthNames = new Map();
+const monthName = (m, lang) => { const k = `${lang}|${m}`; if (!monthNames.has(k)) monthNames.set(k, monthNameOf(m, lang)); return monthNames.get(k); };
+const monthNameOf = (m, lang) => { try { return new Intl.DateTimeFormat(lang, { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, m - 1, 15))); } catch { return String(m); } };
 export function monthText(value, lang, { present = false } = {}){
   if (!isIsoDate(value)) return present ? t('doc.present') : t('ux6f.noDate');
   const [y, m] = value.split('-');

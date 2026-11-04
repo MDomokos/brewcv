@@ -39,16 +39,18 @@ body:not([data-phone=true]):not(.is-intro) .col > #head { position: relative; z-
 body:not([data-phone=true]):not(.is-intro) .col.is-l-open > #head { border-top-right-radius: 0; }
 html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #head { border: 1px solid var(--lv-res-edge); }      /* (not the crema line along its foot) */
 
-/* a tab: its drawing, and its name only while it is open; the open one is about 1.7 times as wide */
-.wtab { --wbg: var(--lv-res-closed); --way-ground: var(--wbg); position: relative; flex: 1 1 0; min-width: 40px; height: 36px; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; gap: 0;
+/* a tab: its drawing, and its name only while it is open; the open one is about 1.4 times as wide (the width, padding and seam all ease together) */
+@property --wfill { syntax: "<color>"; inherits: true; initial-value: transparent; }
+.wtab { --wbg: var(--lv-res-closed); --wfill: var(--wbg); --way-ground: var(--wbg); position: relative; flex: 1 1 0; min-width: 40px; height: 36px; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; gap: 0;
   box-sizing: border-box; border: 1px solid var(--lv-res-edge); border-bottom: 0; border-radius: var(--r-m) var(--r-m) 0 0; background: var(--wbg); color: color-mix(in srgb, var(--chrome-ink) 75%, transparent);
   font: 650 12px/1 var(--font-ui); white-space: nowrap; box-shadow: none; transform: none; cursor: pointer; z-index: 2;
-  transition: flex-grow .38s var(--way-ease), background-color .22s, color .22s, gap .38s var(--way-ease); }
+  interpolate-size: allow-keywords;      /* the open tab's min-width (its word) eases in with the rest, not as a step */
+  transition: flex-grow .38s var(--way-ease), background-color .3s var(--way-ease), color .3s var(--way-ease), gap .38s var(--way-ease), padding .38s var(--way-ease), min-width .38s var(--way-ease), --wfill .3s var(--way-ease); }
 .wtab .way { flex: none; width: 22px; height: 22px; }
 .wtab .ww { display: inline-block; max-width: 0; opacity: 0; overflow: hidden; text-overflow: ellipsis; transition: max-width .38s var(--way-ease), opacity .2s; }
-.wtab.is-on { --wbg: var(--lv-res); flex-grow: 1.7; min-width: max-content; gap: 6px; padding: 0 10px; color: var(--chrome-ink); font-weight: 750; z-index: 4; animation: way-rise .34s var(--way-ease); }
+.wtab.is-on { --wbg: var(--lv-res); flex-grow: 1.4; min-width: max-content; gap: 6px; padding: 0 10px; color: var(--chrome-ink); font-weight: 750; z-index: 4; }
 .wtab.is-on .ww { max-width: 160px; opacity: 1; transition-delay: 0s, .12s; }
-.wtab.is-on .way { animation: way-pop .34s cubic-bezier(.3, .7, .2, 1.4); }
+.wtab.is-on .way { animation: way-pop .3s var(--way-ease); }
 .wtab:hover:not(.is-on):not([aria-disabled=true]) { --wbg: color-mix(in srgb, var(--lv-res) 60%, var(--lv-res-closed)); color: var(--chrome-ink); }
 .wtab:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
 .wtab[aria-disabled=true] { opacity: .45; cursor: default; }
@@ -57,16 +59,22 @@ html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #hea
 .wsheets > .wtab:last-child { border-top-right-radius: var(--r-l); }
 /* the app's places: buttons of their own, round all round; nothing under them */
 .wplaces > .wtab { --wbg: var(--pl); border: 1px solid var(--pl-edge); border-radius: var(--r-m); box-shadow: var(--pl-ring); color: var(--pl-ink); }
-.wplaces > .wtab.is-on { --wbg: var(--pl-on); border-color: var(--pl-on-edge); box-shadow: var(--pl-on-lift); color: var(--pl-on-ink); animation-name: way-settle; }
+.wplaces > .wtab.is-on { --wbg: var(--pl-on); border-color: var(--pl-on-edge); box-shadow: var(--pl-on-lift); color: var(--pl-on-ink); animation: way-settle .3s var(--way-ease); }
 .wplaces > .wtab:hover:not(.is-on) { --wbg: var(--pl-hover); color: var(--pl-ink); }
 .wplaces > .wtab::after { display: none; }
 /* a closed card tab runs 12px down behind the card, in its own colour and edge; the open one covers the card's edge, and Look carries the card's side up */
-.wsheets > .wtab::after { content: ""; position: absolute; left: -1px; right: -1px; bottom: -12px; height: 12px; background: inherit; border: 1px solid var(--lv-res-edge); border-top: 0; border-bottom: 0; pointer-events: none; }
-.wsheets > .wtab.is-on::after { left: 0; right: 0; bottom: -3px; height: 4px; border: 0; }
-.wsheets > .wtab.is-on:last-child::after { right: -1px; border-right: 1px solid var(--lv-res-edge); }
-@keyframes way-settle { from { scale: .94; } to { scale: 1; } }
-@keyframes way-rise { from { translate: 0 5px; } to { translate: 0 0; } }
-@keyframes way-pop { from { scale: .82; } to { scale: 1; } }
+.wsheets > .wtab::after { content: ""; position: absolute; left: -1px; right: -1px; bottom: -12px; height: 12px; background: var(--wbg); border: solid var(--lv-res-edge); border-width: 0 1px; pointer-events: none;
+  transition: background-color .3s var(--way-ease), left .38s var(--way-ease), right .38s var(--way-ease), bottom .38s var(--way-ease), height .38s var(--way-ease), border-left-width .38s var(--way-ease), border-right-width .38s var(--way-ease); }
+.wsheets > .wtab.is-on::after { left: 0; right: 0; bottom: -3px; height: 4px; border-width: 0; transition: background-color .3s var(--way-ease); }      /* it covers the card's edge at once, as its colour fades; a tab that closes lets go of it by easing */
+.wsheets > .wtab.is-on:last-child::after { right: -1px; border-right-width: 1px; }
+/* the open tab flows into the card: a concave curve at each foot (Content both sides; Look, against the card's edge, its left only); Coffee keeps square corners */
+.wsheets > .wtab::before { content: ""; position: absolute; left: -9px; right: -9px; bottom: -1px; height: 9px; z-index: 5; pointer-events: none; transform: scaleY(0); transform-origin: 50% 100%; transition: transform .38s var(--way-ease);
+  background: radial-gradient(circle at 0 0, transparent 7.5px, var(--lv-res-edge) 7.5px 8.5px, var(--wfill) 8.5px) left bottom / 9px 9px no-repeat, radial-gradient(circle at 100% 0, transparent 7.5px, var(--lv-res-edge) 7.5px 8.5px, var(--wfill) 8.5px) right bottom / 9px 9px no-repeat; }
+.wsheets > .wtab.is-on::before { transform: none; }
+.wsheets > .wtab:last-child::before { right: 0; background: radial-gradient(circle at 0 0, transparent 7.5px, var(--lv-res-edge) 7.5px 8.5px, var(--wfill) 8.5px) left bottom / 9px 9px no-repeat; }
+html[data-drink="coffee"] .wsheets > .wtab::before, body.side-off .wsheets > .wtab::before { display: none; }
+@keyframes way-settle { from { scale: .97; } to { scale: 1; } }
+@keyframes way-pop { from { scale: .9; } to { scale: 1; } }
 html[data-motion=reduce] :is(.wtab, .wtab *, .col > #head) { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce){ :is(.wtab, .wtab *, .col > #head) { animation: none !important; transition: none !important; } }
 

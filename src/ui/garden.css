@@ -125,3 +125,6 @@ html.g-breeze .hrow.modes .seg [role=tab]:nth-child(3) { animation-delay: .24s; 
 #garden.paused :is(.g-bug, .g-fly .w, .g-glow) { animation-play-state: paused; }
 
 @media (prefers-reduced-motion: reduce){ .g-bug.walking::before, .g-fly .w, .g-glow, .g-dapple { animation: none; } }
+
+/* while a place changes (shell.js setView) nothing in the garden moves, so the page's own animation has the frame to itself */
+body.is-switching :is(#garden, .g-dapple) , body.is-switching :is(#garden, .g-dapple) * { animation-play-state: paused !important; }

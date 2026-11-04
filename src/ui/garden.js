@@ -150,6 +150,7 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
   const run = () => { if (!running && active){ running = true; last = performance.now(); requestAnimationFrame(tick); } };
   function tick(now){
     if (!active){ running = false; return; }
+    if (document.body.classList.contains('is-switching')){ last = now; requestAnimationFrame(tick); return; }      // a place is changing: the garden waits
     // rAF's timestamp can be earlier than the performance.now() taken in run(): never let dt go negative
     const dt = Math.max(.25, Math.min(3, (now - last) / 16.67)); last = now;
     let busy = false;

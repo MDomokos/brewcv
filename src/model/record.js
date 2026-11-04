@@ -13,9 +13,16 @@ const langOf = v => v?.lang ?? DEFAULT_LANG;
 
 // Text as a person reads it: ligatures, soft hyphens, curly quotes, dashes, non-breaking spaces, a word split at a line end, the space before
 // punctuation and a final full stop don't count. For matching only, never for storing.
-export const normText = s => String(s ?? '').normalize('NFKC').replace(/\u00ad/g, '')
+const normMemo = new Map();      // a place's redraw normalises the same lines again and again; pure, so cached (emptied when it grows)
+const normRaw = s => String(s ?? '').normalize('NFKC').replace(/\u00ad/g, '')
   .replace(/[‘’‚′]/g, "'").replace(/[“”„″]/g, '"').replace(/[\u2010-\u2015\u2212]/g, '-').replace(/×/g, 'x')
   .replace(/([\p{L}\p{N}_])- ([\p{L}\p{N}_])/gu, '$1-$2').replace(/\s+([;,.:])/g, '$1').replace(/\s+/g, ' ').trim().toLowerCase().replace(/\.$/, '');
+export const normText = s => {
+  if (typeof s !== 'string') return normRaw(s);
+  let r = normMemo.get(s);
+  if (r === undefined){ if (normMemo.size > 4000) normMemo.clear(); normMemo.set(s, r = normRaw(s)); }
+  return r;
+};
 
 // What a delete leaves in `model.removed`, so a merge can tell "you deleted this" from "you never had this". `kind`: fact, variant, an entry
 // store (projects, awards, ...), resume or snapshot. `at` is the day, so two runs of one edit write the same record. Saved resumes live outside

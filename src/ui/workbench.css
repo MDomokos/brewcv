@@ -271,8 +271,8 @@ body.is-ready .paper-skel { display: none; }
 .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
 
 .body { flex: 1; min-height: 0; overflow: auto; padding: 16px 16px 22px; position: relative; }
-.anim-in > * { animation: panelIn .12s var(--ease); }      /* a new kind of panel: one short fade, no slide */
-@keyframes panelIn { from { opacity: 0; } to { opacity: 1; } }
+.anim-in > * { animation: panelIn .2s var(--ease); }      /* a new kind of panel: one short fade with a small rise */
+@keyframes panelIn { from { opacity: 0; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }
 .lead { font-size: 15px; font-weight: 650; margin: 0 0 4px; }
 .privacy { margin-top: 18px; }
 #body[data-mode=outline] { display: flex; flex-direction: column; }      /* the privacy line is the panel's foot: it sits at the bottom, after the list when the list is long */
