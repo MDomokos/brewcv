@@ -21,7 +21,10 @@ import { SAVE_FILE_NAME } from '../store/persist.js';
 import { libraryName, ensureDirs } from '../store/space.js';
 
 let C = null;
-export function initExport(ctx){ C = ctx; initMonthPick({ name: 'export', lang: () => uiLang(), change: input => { if (C.ui.xp && input.id === 'xp-date') C.ui.xp.date = input.value; } }); return api; }
+export function initExport(ctx){ C = ctx;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && closeHelp()) e.stopPropagation(); }, true);
+  document.addEventListener('pointerdown', e => { if (xp()?.help && !e.target.closest?.('.xphelp, .xphelp-b')) closeHelp(); }, true);
+  initMonthPick({ name: 'export', lang: () => uiLang(), change: input => { if (C.ui.xp && input.id === 'xp-date') C.ui.xp.date = input.value; } }); return api; }
 
 const esc = X.escapeHtml;
 const mediumOf = r => (MEDIA.includes(r?.exportMedium) ? r.exportMedium : 'screen');
@@ -197,10 +200,10 @@ function exportView(){
     <div class="xpwhat"><span class="xptag">${h('xp.exporting')}</span><h2 class="title">${many && n > 1 ? `<span class="xpco">${esc(t('xp.n', { n }))}</span>` : name(many ? its[0]?.r ?? r : r)}</h2></div>
     <div class="xpgrid${many ? ' is-many' : ''}">
     <section class="xpb${many ? '' : ' exstat'}${look ? ' is-warn' : ''}" data-k="ready" style="--hk:var(--hue-1)"><h3 class="xph">${h('xp.ready')}</h3><ul class="checks">${many ? its.map(line).join('') : list.map(row).filter((_, i) => !i || list[i].level !== 'ok').join('')}</ul></section>
-    <section class="xpb" data-k="medium"><h3 class="xph" title="${esc(t('export.mediumTitle'))}">${h('export.medium')}</h3>
-      <div class="seg fill" role="group" aria-label="${esc(t('export.medium'))}">${MEDIA.map(m => `<button data-act="ex-medium" data-v="${m}" aria-pressed="${medium === m}" data-tip="${esc(t(`export.medium.${m}`))}|${esc(t(`export.mediumNote.${m}`))}" data-tip-pos="b"${C.ui.snap && !many ? ' disabled' : ''}>${h(`export.medium.${m}`)}</button>`).join('')}</div>
+    <section class="xpb" data-k="medium"><h3 class="xph" title="${esc(t('export.mediumTitle'))}">${h('export.medium')}</h3>${helpHtml('medium', MEDIA.map(m => [t(`export.medium.${m}`), t(`export.mediumNote.${m}`)]))}
+      <div class="seg fill" role="group" aria-label="${esc(t('export.medium'))}">${MEDIA.map(m => `<button data-act="ex-medium" data-v="${m}" aria-pressed="${medium === m}" data-tip="${esc(t(`export.medium.${m}`))}|${esc(t(`export.mediumNote.${m}`))}" data-tip-pos="t"${C.ui.snap && !many ? ' disabled' : ''}>${h(`export.medium.${m}`)}</button>`).join('')}</div>
       ${medium ? `<p class="note">${h(`export.mediumNote.${medium}`)}</p>` : ''}</section>
-    <section class="xpb xpwide exg" data-k="file"><h3 class="xph">${h(n > 1 ? 'xp.downloadAll' : 'export.download')}</h3>
+    <section class="xpb xpwide exg" data-k="file"><h3 class="xph">${h(n > 1 ? 'xp.downloadAll' : 'export.download')}</h3>${helpHtml('file', [['PDF', 'pdf'], [t('export.html'), 'html'], [t('export.txt'), 'txt'], ['JSON Resume', 'json']].map(([name, k]) => [name, t(`export.for.${k}`)]))}
       <div class="dl">${card('ex-pdf', 'PDF', 'export.pdfNote', !fitFirst)}${card('ex-html', h('export.html'), 'export.htmlNote')}${card('ex-txt', h('export.txt'), 'export.txtNote')}${card('ex-json', 'JSON Resume', 'export.jsonNote')}</div>
       <p class="note">${h(n > 1 ? 'xp.zipNote' : 'export.note')}</p></section>
     <section class="xpb exg" data-k="sent"><h3 class="xph">${h('ux3b.sentRow')}</h3>${sent}</section>
@@ -209,6 +212,14 @@ function exportView(){
 }
 const drawn_ = ic => drawn(ic, { role: 'header' });
 
+// a box's "?": at its top right corner, it opens a card over the box that says what each of its choices is good for (Esc, a press elsewhere
+// or the "?" again closes it)
+function helpHtml(k, items){
+  const open = xp()?.help === k;
+  return `<button type="button" class="xphelp-b" data-act="xp-help" data-v="${k}" aria-expanded="${open}" aria-controls="xph-${k}" aria-label="${esc(t('export.helpName'))}" title="${esc(t('export.helpName'))}">?</button>`
+    + (open ? `<div class="xphelp" id="xph-${k}" role="region" aria-label="${esc(t('export.helpName'))}"><dl>${items.map(([name, what]) => `<dt>${esc(name)}</dt><dd>${esc(what)}</dd>`).join('')}</dl></div>` : '');
+}
+const closeHelp = () => { if (xp()?.help){ xp().help = null; C.renderBody(); return true; } return false; };
 // the backup's box: Save to file; with a linked folder, a line saying the folder already has everything, and (in the desktop app, which can)
 // a button that opens that folder. A browser cannot open a folder on the computer, so there the line stands alone.
 function keepHtml(file){
@@ -340,6 +351,7 @@ async function act(a, tg, force = false){
   if (!force && !many && ['ex-pdf', 'ex-html', 'ex-txt', 'ex-json'].includes(a) && blocked(a, tg)) return true;
   try {
     switch (a){
+      case 'xp-help': { const k = tg.dataset.v; xp().help = xp().help === k ? null : k; C.renderBody(); document.querySelector(`#body .xphelp-b[data-v="${k}"]`)?.focus(); return true; }
       case 'xp-back': back(); return true;
       case 'xp-send': xp().sending = true; C.renderBody(); document.getElementById('xp-kind')?.focus(); return true;
       case 'xp-send-cancel': xp().sending = false; C.renderBody(); document.querySelector('#body [data-act=xp-send]')?.focus(); return true;

@@ -225,6 +225,7 @@ export default {
   'export.for.json': 'Your resume as data in the JSON Resume standard, for other tools and sites that read it.',
   'export.keepLinked': 'Your linked folder “{name}” already has it, kept up to date.',
   'export.openFolder': 'Open folder',
+  'export.helpName': 'What these choices are for',
   'export.note': 'Everything is made here, in this browser. Other ways out (Figma, community themes) are in the README.',
   'toast.printDialog': 'Opening the print dialog: choose “Save as PDF”.',
   'toast.pdfSaved': 'Saved {path}',

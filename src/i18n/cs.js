@@ -225,6 +225,7 @@ export default {
   'export.for.json': 'Váš životopis jako data ve standardu JSON Resume pro další nástroje a weby, které ho čtou.',
   'export.keepLinked': 'Vaše propojená složka „{name}“ ho už má, stále aktuální.',
   'export.openFolder': 'Otevřít složku',
+  'export.helpName': 'K čemu tyto volby slouží',
   'export.note': 'Vše vzniká zde, v tomto prohlížeči. Další cesty ven (Figma, komunitní motivy) najdete v README.',
   'toast.printDialog': 'Otevírá se dialog tisku: zvolte „Uložit jako PDF“.',
   'toast.pdfSaved': 'Uloženo: {path}',

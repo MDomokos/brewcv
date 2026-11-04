@@ -225,6 +225,7 @@ export default {
   'export.for.json': 'Az önéletrajzod adatként, a JSON Resume szabvány szerint, más eszközöknek és oldalaknak, amelyek olvassák.',
   'export.keepLinked': 'A csatolt „{name}” mappádban már megvan, mindig naprakészen.',
   'export.openFolder': 'Mappa megnyitása',
+  'export.helpName': 'Mire valók ezek a lehetőségek',
   'export.note': 'Minden itt, ebben a böngészőben készül. Más kimeneti lehetőségek (Figma, közösségi témák) a README-ben.',
   'toast.printDialog': 'Megnyílik a nyomtatás: válaszd a „Mentés PDF-ként” lehetőséget.',
   'toast.pdfSaved': 'Mentve: {path}',

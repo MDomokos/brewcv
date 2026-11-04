@@ -225,6 +225,7 @@ export default {
   'export.for.json': 'Je cv als gegevens in de JSON Resume-standaard, voor andere programma’s en sites die het lezen.',
   'export.keepLinked': 'Je gekoppelde map ‘{name}’ heeft het al, steeds bijgewerkt.',
   'export.openFolder': 'Map openen',
+  'export.helpName': 'Waar deze keuzes voor zijn',
   'export.note': 'Alles wordt hier gemaakt, in deze browser. Andere uitvoermogelijkheden (Figma, communitythema’s) staan in de README.',
   'toast.printDialog': 'Afdrukvenster wordt geopend: kies “Opslaan als PDF”.',
   'toast.pdfSaved': 'Opgeslagen: {path}',

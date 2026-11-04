@@ -1,15 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Changed
-- **The Resumes list is roomier:** larger text and row spacing, bigger file icons, and unticked boxes stay quiet until you reach the row.
-- **Scrollbars fit the theme:** a slim thumb with the theme's corners that stops short of rounded edges; the resume preview's sits on the page.
-- **The garden keeps moving** when you switch between Content, Look and Export.
-
-### Fixed
-- **Content and Look no longer fade out with several resumes ticked,** and clicking one says why it is off.
-
 ## 1.9.3 - 2026-11-04
 
 ### Changed
@@ -24,6 +14,10 @@
 - **Export's formats and "Made for" choices say on hover what each one is good for.**
 - **With a linked folder, Export's backup box says the folder already has everything,** and in the desktop app a button opens that folder.
 - **Sent it? and the backup each end with a full-width button,** level with each other.
+- **The Resumes list is roomier:** larger text and row spacing, bigger file icons, and unticked boxes stay quiet until you reach the row.
+- **Scrollbars fit the theme:** a slim thumb with the theme's corners that stops short of rounded edges; the resume preview's sits on the page.
+- **The garden keeps moving** when you switch between Content, Look and Export.
+- **Export's "Made for" and "Download" boxes have a ? in their corner** that opens a short card on what each choice is good for.
 
 ### Fixed
 - **The sidebar has its full width from the start;** it no longer widens after the first edit.
@@ -31,6 +25,8 @@
 - **About you opens with the same top row as every other panel;** the old "Page › Header › Name" chip is gone.
 - **The HTML, plain text and JSON buttons fit their names in a narrow panel;** a long name wraps inside its button.
 - **Untranslated texts' dashed outlines no longer overlap** after switching language: texts one under another share one box, the others keep a gap, and the corners follow the theme.
+- **Content and Look no longer fade out with several resumes ticked,** and clicking one says why it is off.
+- **The "Made for" tips open above the choices,** so they no longer merge into the PDF button.
 
 ## 1.9.2 - 2026-11-04
 

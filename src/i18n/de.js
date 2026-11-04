@@ -225,6 +225,7 @@ export default {
   'export.for.json': 'Ihr Lebenslauf als Daten im JSON-Resume-Standard, für andere Programme und Seiten, die ihn lesen.',
   'export.keepLinked': 'Ihr verknüpfter Ordner „{name}“ hat ihn bereits, immer aktuell.',
   'export.openFolder': 'Ordner öffnen',
+  'export.helpName': 'Wofür diese Optionen sind',
   'export.note': 'Alles entsteht hier, in diesem Browser. Weitere Wege (Figma, Community-Themes) stehen in der README.',
   'toast.printDialog': 'Druckdialog öffnet sich: Wähl „Als PDF speichern“.',
   'toast.pdfSaved': 'Gespeichert: {path}',

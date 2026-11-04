@@ -225,6 +225,7 @@ export default {
   'export.for.json': 'Twoje CV jako dane w standardzie JSON Resume, dla innych narzędzi i serwisów, które go czytają.',
   'export.keepLinked': 'Twój połączony folder „{name}” już je ma, zawsze aktualne.',
   'export.openFolder': 'Otwórz folder',
+  'export.helpName': 'Do czego służą te opcje',
   'export.note': 'Wszystko powstaje tutaj, w tej przeglądarce. Inne sposoby eksportu (Figma, motywy społeczności) opisuje README.',
   'toast.printDialog': 'Otwieram okno drukowania: wybierz „Zapisz jako PDF”.',
   'toast.pdfSaved': 'Zapisano: {path}',

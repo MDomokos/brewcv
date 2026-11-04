@@ -225,6 +225,7 @@ export default {
   'export.for.json': 'O seu currículo como dados no padrão JSON Resume, para outras ferramentas e sites que o leem.',
   'export.keepLinked': 'A sua pasta ligada «{name}» já o tem, sempre atualizado.',
   'export.openFolder': 'Abrir pasta',
+  'export.helpName': 'Para que servem estas opções',
   'export.note': 'Tudo é feito aqui, neste navegador. Outras saídas (Figma, temas da comunidade) estão no README.',
   'toast.printDialog': 'A abrir a janela de impressão: escolha «Guardar como PDF».',
   'toast.pdfSaved': 'Guardado: {path}',
