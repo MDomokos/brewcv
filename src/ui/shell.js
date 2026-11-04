@@ -787,11 +787,11 @@ function morph(a, b){
   const bs = [...b.childNodes];
   [...a.childNodes].forEach((c, i) => morph(c, bs[i]));
 }
-// What scrolls in a place: the list inside the Library's pane, Career's pane, else #scr (a phone)
-const scroller = () => $('#scr #scr-list, #scr #checklist') ?? $('#scr');
+// What scrolls in a place: the list inside the Library's pane, else #scr (Career, a phone)
+const scroller = () => $('#scr #scr-list') ?? $('#scr');
 // A pane's marks: a shadow under its pinned header once scrolled, a fade at its foot while there is more below
 function paneMarks(){
-  const el = $('#scr #scr-list, #scr #checklist'); if (!el) return;
+  const el = $('#scr #scr-list'); if (!el) return;
   el.classList.toggle('is-top', el.scrollTop > 2);
   el.classList.toggle('is-more', el.scrollTop + el.clientHeight < el.scrollHeight - 2);
 }
@@ -981,7 +981,7 @@ function renderBody(animate = false){
   if (there){ $('#body').dataset.view = $('#body').dataset.mode = 'inspector'; el = scr; layoutScreen(); }
   else if (scr.innerHTML) scr.innerHTML = '';
   const s = ui.sel, before = el.dataset.view;
-  const inner = () => (there ? $('#scr #scr-list, #scr #checklist') : null) ?? el;
+  const inner = () => (there ? $('#scr #scr-list') : null) ?? el;
   const keep = inner().scrollTop, keepSide = there ? $('#body').scrollTop : 0;
   // a record form with something typed in it is not redrawn under the caret; one you have left or not changed is, and the focus stays where it was
   // (a place's inspector is in the sidebar's body: the focus may be there)

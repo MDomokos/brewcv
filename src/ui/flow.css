@@ -245,20 +245,19 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 /* labels that lie on the ground (group names, years, column heads) get a paper tab, so they read on a dark ground too */
 .scr :is(h3.lbl, .rectl .yr, .rectl .colhead > span) { width: fit-content; padding: 2px 8px; border-radius: var(--r-s); background: color-mix(in srgb, var(--paper) 88%, transparent); color: var(--paper-ink); }
 
-/* the panes: the toolbar is the header row (a hairline under it), the list or the timeline under it is all that scrolls; the pinned column head
-   sticks at the scroller's own top, so no row shows above it. A shadow under it once scrolled, a fade at the foot while there is more below. */
-#scr:is(:has(#resumes), :has(#checklist)) { overflow: hidden; }
-#scr :is(#resumes, #checklist) { position: relative; box-sizing: border-box; height: 100%; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--paper-edge, var(--line-strong)); border-radius: var(--r-l); background: var(--paper); box-shadow: var(--shadow-panel); }
-#scr #checklist { display: block; overflow: auto; }
-#scr :is(#resumes, #checklist) > .tbar { position: sticky; top: 0; z-index: 4; flex: none; width: auto; max-width: none; margin: 0; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--paper); box-shadow: none; }
-#scr #resumes > .tbar { padding-bottom: 0; }
+/* the Library's pane: the toolbar is the header row (a hairline under it), the list under it is all that scrolls; the pinned column head sticks at
+   the scroller's own top, so no row shows above it. A shadow under it once scrolled, a fade at the foot while there is more below. Career has no
+   pane: its cards lie on the ground, the whole place scrolls, and its toolbar floats at the top as the zoom bar does over the page. */
+#scr:has(#resumes) { overflow: hidden; }
+#scr #resumes { position: relative; box-sizing: border-box; height: 100%; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--paper-edge, var(--line-strong)); border-radius: var(--r-l); background: var(--paper); box-shadow: var(--shadow-panel); }
+#scr #resumes > .tbar { position: sticky; top: 0; z-index: 4; flex: none; width: auto; max-width: none; margin: 0; padding: 10px 14px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--paper); box-shadow: none; }
+#scr #checklist > .tbar { margin-top: 0; }
 #scr .tbar :is(input.sw-q, button.sm) { box-sizing: border-box; height: var(--h-ctl); min-height: 0; }
-#scr #checklist .rectl { padding: 12px 16px 24px; }
 #scr #scr-list { flex: 1 1 0; min-height: 0; overflow: auto; margin: 0; padding: 12px 16px 24px; scroll-padding-top: 32px; }
 #scr #scr-list:has(.rtable) { padding-inline: 0; padding-top: 0; }
 #scr #scr-list .rtable { border: 0; box-shadow: none; border-radius: 0; }
 #scr #scr-list.is-top .rtable thead th { box-shadow: 0 8px 10px -8px color-mix(in srgb, var(--paper-ink) 45%, transparent); }
-#scr :is(#scr-list, #checklist).is-more { -webkit-mask-image: linear-gradient(to bottom, var(--paper) calc(100% - 36px), transparent); mask-image: linear-gradient(to bottom, var(--paper) calc(100% - 36px), transparent); }
+#scr #scr-list.is-more { -webkit-mask-image: linear-gradient(to bottom, var(--paper) calc(100% - 36px), transparent); mask-image: linear-gradient(to bottom, var(--paper) calc(100% - 36px), transparent); }
 /* archived rounds: out of the list until asked for; one quiet row at its end brings them in, and a shown one's header reads muted with a worded Unarchive */
 #scr .rarchrow { all: unset; display: block; box-sizing: border-box; width: 100%; padding: 10px 16px; cursor: pointer; color: var(--paper-soft); font-size: 12.5px; }
 #scr .rarchrow:hover { color: var(--paper-ink); text-decoration: underline; text-underline-offset: 3px; }
