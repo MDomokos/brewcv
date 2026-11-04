@@ -2,60 +2,163 @@
    and #scr, where the Library and Career are drawn left of the sidebar. Loaded after the other stylesheets. Every radius and shadow is a
    token (--r-xs to --r-pill, --shadow-chip and the rest), so Coffee draws it square and flat. */
 
-/* ---- the place tabs: the card under the active one joins it ---- */
-.ptabs { flex: none; display: flex; gap: 4px; padding: 0 10px; margin-bottom: -1px; position: relative; z-index: 1; }
-.ptabs[hidden], body:is([data-phone=true], .is-intro, .is-quiet) .ptabs { display: none; }
-.ptabs .ptab { flex: 1; min-width: 0; height: 34px; margin-top: 4px; padding: 0 8px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--tab-line, var(--line-strong)); border-bottom: 0; border-radius: var(--r-m) var(--r-m) 0 0; background: color-mix(in srgb, var(--tab-bg) 55%, transparent); color: color-mix(in srgb, var(--tab-ink) 70%, transparent); font: 600 12px/1 var(--font-ui); white-space: nowrap; }
-.ptabs .ptab > span { overflow: hidden; text-overflow: ellipsis; }
-.ptabs .ptab:hover:not([aria-current]) { background: color-mix(in srgb, var(--tab-bg) 85%, transparent); color: var(--tab-ink); }
-.ptabs .ptab[aria-current=page] { height: 39px; margin-top: 0; background: var(--tab-bg); color: var(--tab-ink); font-weight: 750; }
-.ptabs .ptab:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-/* the card under the tabs is the name card in every place (buttons.css) */
-/* a short window: the tabs and the card take less height */
+/* ---- The way (shell.js drawPlaces): one row, two levels, read left to right: Your career → Resumes → Content → Look, then Export inside
+   the name card. The app's places are free-standing buttons, round all round, one step above the card's tabs (6px in Tea, 10px in Coffee): that
+   step is all that parts the levels. This resume's sheets are the card's folder tabs: a closed one sits behind the card and runs 12px down behind
+   it, the open one sits in front and runs into it, covering its edge; Look is flush with the card's right corner, which goes square only while
+   Look is open, where the tab hides it. Nothing here lifts or is pushed: hover is a colour only. ---- */
+:root {
+  --thread: #a88a5c; --hole: rgba(30, 40, 25, .45);
+  --sheet: #fff; --sheet-edge: rgba(0, 0, 0, .13); --hint-bg: rgba(30, 30, 30, .78); --hint-ink: #fff;      /* a page's own white, and the hairline round a picture of one */
+  --way-ease: cubic-bezier(.3, .7, .2, 1); --lv-res-lift: 0 -2px 6px -2px rgba(0, 0, 0, .22), 0 6px 16px -8px rgba(30, 40, 25, .35);
+}
+/* the levels' materials: the places (closed, hovered, open: ground, ink, edge), the card and its tabs, and the bar */
+:root, html[data-drink="tea"] { --way-step: 6px; --pl: color-mix(in srgb, #2e4636 14%, #fbf6e8); --pl-hover: color-mix(in srgb, #2e4636 24%, #fbf6e8); --pl-ink: #2e4636; --pl-edge: transparent;
+  --pl-ring: inset 0 0 0 1px color-mix(in srgb, #2e4636 22%, transparent); --pl-on: #2e4636; --pl-on-ink: #f2e6cf; --pl-on-edge: transparent; --pl-on-lift: none;
+  --lv-res: #fbf6e8; --lv-res-closed: #e9dfc6; --lv-res-edge: #8a7a4e; --lv-bar: #1f2c23; --lv-bar-edge: #121a14; --lv-bar-ink: #f2e6cf; --lv-bar-ok: #b9d79a; --lv-open-edit: var(--tea-outline); --lv-open-design: var(--tea-design);
+  --fold-bg: #1f2c23; --fold-edge: #121a14; --fold-ink: #f2e6cf; --str-ink: var(--thread); }
+html[data-drink="tea"][data-theme="dark"] { --pl: #2c4234; --pl-hover: #36503f; --pl-ink: #e8dcc0; --pl-ring: inset 0 0 0 1px rgba(242, 230, 207, .16);
+  --pl-on: #f3ead4; --pl-on-ink: #22302a; --pl-on-lift: 0 1px 0 rgba(0, 0, 0, .3); --lv-res: #f3ead4; --lv-res-closed: #cfc3a4; --lv-res-edge: #8f8257;
+  --lv-bar-edge: color-mix(in srgb, var(--lv-bar-ink) 50%, transparent); }      /* a dark bar on a dark mat stands off it by its edge */
+html[data-drink="coffee"] { --way-step: 10px; --pl: #d8d2ca; --pl-hover: #cbc4bb; --pl-ink: #222; --pl-edge: #a9a299; --pl-ring: none; --pl-on: var(--paper); --pl-on-ink: var(--paper-ink);
+  --pl-on-edge: #a9a299; --pl-on-lift: 0 1px 0 rgba(0, 0, 0, .18); --lv-res: var(--chrome); --lv-res-closed: color-mix(in srgb, var(--chrome) 64%, #000); --lv-res-edge: var(--chrome-edge);
+  --lv-bar: color-mix(in srgb, var(--tab-ink) 5%, #0d0b0a); --lv-bar-edge: var(--tab-line, var(--line-strong)); --lv-bar-ink: #f3ece2; --lv-bar-ok: var(--chrome-ok); --lv-res-lift: none; --lv-open-edit: currentColor; --lv-open-design: var(--chrome-accent);
+  --fold-bg: var(--chrome); --fold-edge: var(--chrome-edge); --fold-ink: var(--chrome-ink); --str-ink: color-mix(in srgb, var(--plate-ink, var(--sel-mark)) 46%, #000); }
+html[data-drink="coffee"][data-theme="dark"] { --pl: color-mix(in srgb, var(--tab-ink) 9%, #0d0b0a); --pl-hover: color-mix(in srgb, var(--tab-ink) 15%, #0d0b0a); --pl-ink: var(--tab-ink);
+  --pl-edge: color-mix(in srgb, var(--tab-ink) 22%, transparent); --pl-on-edge: var(--paper); --pl-on-lift: none; --lv-res-closed: color-mix(in srgb, var(--chrome) 58%, #0d0b0a);
+  --lv-bar-edge: color-mix(in srgb, var(--lv-bar-ink) 50%, transparent); }
+
+.col > #ptabs[hidden], body:is([data-phone=true], .is-intro, .is-quiet) .col > #ptabs { display: none; }
+.col > #ptabs { position: relative; flex: none; display: flex; align-items: flex-end; gap: 10px; height: calc(36px + var(--way-step)); }
+.col > #ptabs > :is(.wplaces, .wsheets) { flex: 1 1 0; min-width: min-content; display: flex; }      /* (a long open word may widen its half) */
+.col > #ptabs > .wplaces { align-self: flex-start; gap: 8px; }
+.col > #ptabs > .wsheets { gap: 4px; }
+.col > #ptabs .wexport { display: none; }
+body:not([data-phone=true]):not(.is-intro) .col > #head { position: relative; z-index: 3; background: var(--lv-res); border: 1px solid var(--lv-res-edge); transition: border-radius .2s;
+  box-shadow: var(--lv-res-lift); }
+body:not([data-phone=true]):not(.is-intro) .col.is-l-open > #head { border-top-right-radius: 0; }
+html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #head { border: 1px solid var(--lv-res-edge); }      /* (not the crema line along its foot) */
+
+/* a tab: its drawing, and its name only while it is open; the open one is about 1.7 times as wide */
+.wtab { --wbg: var(--lv-res-closed); --way-ground: var(--wbg); position: relative; flex: 1 1 0; min-width: 40px; height: 36px; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; gap: 0;
+  box-sizing: border-box; border: 1px solid var(--lv-res-edge); border-bottom: 0; border-radius: var(--r-m) var(--r-m) 0 0; background: var(--wbg); color: color-mix(in srgb, var(--chrome-ink) 75%, transparent);
+  font: 650 12px/1 var(--font-ui); white-space: nowrap; box-shadow: none; transform: none; cursor: pointer; z-index: 2;
+  transition: flex-grow .38s var(--way-ease), background-color .22s, color .22s, gap .38s var(--way-ease); }
+.wtab .way { flex: none; width: 22px; height: 22px; }
+.wtab .ww { display: inline-block; max-width: 0; opacity: 0; overflow: hidden; text-overflow: ellipsis; transition: max-width .38s var(--way-ease), opacity .2s; }
+.wtab.is-on { --wbg: var(--lv-res); flex-grow: 1.7; min-width: max-content; gap: 6px; padding: 0 10px; color: var(--chrome-ink); font-weight: 750; z-index: 4; animation: way-rise .34s var(--way-ease); }
+.wtab.is-on .ww { max-width: 160px; opacity: 1; transition-delay: 0s, .12s; }
+.wtab.is-on .way { animation: way-pop .34s cubic-bezier(.3, .7, .2, 1.4); }
+.wtab:hover:not(.is-on):not([aria-disabled=true]) { --wbg: color-mix(in srgb, var(--lv-res) 60%, var(--lv-res-closed)); color: var(--chrome-ink); }
+.wtab:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
+.wtab[aria-disabled=true] { opacity: .45; cursor: default; }
+.wsheets > #tab-edit.is-on .way { color: var(--lv-open-edit); }
+.wsheets > #tab-design.is-on .way { color: var(--lv-open-design); }
+.wsheets > .wtab:last-child { border-top-right-radius: var(--r-l); }
+/* the app's places: buttons of their own, round all round; nothing under them */
+.wplaces > .wtab { --wbg: var(--pl); border: 1px solid var(--pl-edge); border-radius: var(--r-m); box-shadow: var(--pl-ring); color: var(--pl-ink); }
+.wplaces > .wtab.is-on { --wbg: var(--pl-on); border-color: var(--pl-on-edge); box-shadow: var(--pl-on-lift); color: var(--pl-on-ink); animation-name: way-settle; }
+.wplaces > .wtab:hover:not(.is-on) { --wbg: var(--pl-hover); color: var(--pl-ink); }
+.wplaces > .wtab::after { display: none; }
+/* a closed card tab runs 12px down behind the card, in its own colour and edge; the open one covers the card's edge, and Look carries the card's side up */
+.wsheets > .wtab::after { content: ""; position: absolute; left: -1px; right: -1px; bottom: -12px; height: 12px; background: inherit; border: 1px solid var(--lv-res-edge); border-top: 0; border-bottom: 0; pointer-events: none; }
+.wsheets > .wtab.is-on::after { left: 0; right: 0; bottom: -3px; height: 4px; border: 0; }
+.wsheets > .wtab.is-on:last-child::after { right: -1px; border-right: 1px solid var(--lv-res-edge); }
+@keyframes way-settle { from { scale: .94; } to { scale: 1; } }
+@keyframes way-rise { from { translate: 0 5px; } to { translate: 0 0; } }
+@keyframes way-pop { from { scale: .82; } to { scale: 1; } }
+html[data-motion=reduce] :is(.wtab, .wtab *, .col > #head) { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce){ :is(.wtab, .wtab *, .col > #head) { animation: none !important; transition: none !important; } }
+
+/* ---- the bar (shell.js drawRail): the app's level at the column's foot, solid and full width: the brand (home), Saved, undo and redo; then the "?" and the fold ---- */
+.rail { display: none; }
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col:not(.is-full) > #rail { display: flex; }
+.col > #rail { position: relative; margin-top: auto; flex: none; align-items: center; gap: 2px; height: 44px; padding: 0 6px 0 4px; box-sizing: border-box;
+  background: var(--lv-bar); border: 1px solid var(--lv-bar-edge); border-radius: var(--r-l); color: var(--lv-bar-ink);
+  --ink: var(--lv-bar-ink); --ink-soft: var(--lv-bar-ink); --hover: color-mix(in srgb, var(--lv-bar-ink) 14%, transparent); --hover-strong: color-mix(in srgb, var(--lv-bar-ink) 22%, transparent);
+  --line: color-mix(in srgb, var(--lv-bar-ink) 28%, transparent); --line-strong: color-mix(in srgb, var(--lv-bar-ink) 40%, transparent); --surface: var(--lv-bar); --focus: var(--lv-bar-ink); --ok: var(--lv-bar-ok); }
+#rail .rgap { flex: 1; }
+#rail .rhist { display: flex; align-items: center; gap: 2px; padding: 0 4px; margin: 0 2px; border-left: 1px solid var(--line); }
+#rail :is(.ib, .savestate) { width: 30px; height: 30px; }
+.rsaved { display: grid; place-items: center; }
+.rsaved .savestate { padding: 0; }
+#rail .brand { flex: none; display: flex; align-items: center; gap: 5px; height: 36px; padding: 0 8px 0 4px; border: 0; border-radius: var(--r-m); background: none; color: inherit; box-shadow: none; transform: none; cursor: pointer; font: 800 13px/1 var(--font-ui); letter-spacing: -.01em; }
+#rail .brand:hover { background: var(--hover); }
+#rail .brand:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+#rail .brand .mark { display: block; width: 24px; height: 24px; transition: transform var(--m-fast) var(--m-out); }
+#rail .brand:hover .mark { transform: rotate(-4deg) scale(1.06); }
+html[data-motion=reduce] #rail .brand:hover .mark { transform: none; }
+#rail .rhelp { display: inline-grid; }
+#rail [data-act=menu][aria-expanded=true] { background: var(--hover-strong); }
+/* the one menu, opening up from the bar, at its right */
+#rail .appmenu { position: absolute; top: auto; right: 0; bottom: calc(100% + 6px); width: 260px; max-width: calc(100vw - 32px); display: grid; gap: 1px; padding: 7px; }
+#rail .appmenu > [role=menuitem] { text-align: left; background: transparent; }
+#rail .appmenu [data-appversion] { font: 500 11.5px/1 var(--font-mono); }
+#rail .appmenu hr { margin: 4px 2px; border: 0; border-top: 1px solid var(--line); }
+#rail .appmenu .mdrink { display: flex; align-items: center; gap: 6px; padding: 2px 2px 4px; }
+#rail .appmenu .mdrink .seg { flex: 1; display: flex; padding: 2px; border-radius: var(--r-pill); background: var(--hover); }
+#rail .appmenu .mdrink .seg > button { flex: 1; height: 28px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink); font: 600 12px/1 var(--font-ui); box-shadow: none; }
+#rail .appmenu .mdrink .seg > [aria-pressed=true] { background: var(--raised); box-shadow: var(--shadow-chip); opacity: 1; }
+#rail .appmenu .mdrink .ib { width: 32px; height: 32px; }
+
+/* ---- folded (sidebar.css 7): two strips of one make at the window's edge, the same width, material and corners: the way's on top (the places,
+   a hairline, Content and Look, then Export), the bar's at the foot (Saved, undo, redo, the "?", the fold, then the mark). Folded is for arranging. ---- */
+body.side-off:not([data-phone=true]):not(.is-intro) .col > :is(#ptabs, #rail) { position: absolute; right: 0; width: 54px; height: auto; margin: 0; padding: 4px; box-sizing: border-box; flex-direction: column; align-items: center; gap: 0;
+  background: var(--fold-bg); border: 1px solid var(--fold-edge); border-radius: var(--r-l); color: var(--fold-ink); --lv-bar-ink: var(--fold-ink);
+  --chrome-ink: var(--fold-ink); --chrome-hover-strong: color-mix(in srgb, var(--fold-ink) 20%, transparent); --line: color-mix(in srgb, var(--fold-ink) 24%, transparent); --way-ground: var(--fold-bg); }
+body.side-off:not([data-phone=true]):not(.is-intro) .col > #ptabs { top: 0; }
+body.side-off:not([data-phone=true]):not(.is-intro) .col > #rail { bottom: 0; top: auto; }
+body.side-off:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head { display: none; }
+body.side-off .col > #ptabs > :is(.wplaces, .wsheets) { flex: none; flex-direction: column; align-self: auto; gap: 3px; width: 44px; }
+body.side-off .col > #ptabs > .wsheets { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+body.side-off .col > #ptabs .wtab { --wbg: transparent; --way-ground: var(--fold-bg); flex: none; width: 44px; height: 38px; padding: 0; border: 0; border-radius: var(--r-m); box-shadow: none; color: var(--fold-ink); animation: none; }
+body.side-off .col > #ptabs .wtab.is-on { --wbg: var(--chrome-hover-strong); }
+body.side-off .col > #ptabs .wtab:hover:not(.is-on) { --wbg: color-mix(in srgb, var(--fold-ink) 12%, transparent); color: var(--fold-ink); }
+body.side-off .col > #ptabs .wtab.is-on { color: var(--fold-ink); }
+body.side-off .col > #ptabs .wtab::after, body.side-off .col > #ptabs .wtab .ww { display: none; }
+body.side-off .col > #ptabs .wsheets > .wtab.is-on .way { color: inherit; }
+body.side-off .col > #ptabs .wexport { display: flex; width: 44px; min-height: 46px; margin-top: 4px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 2px; border: 0;
+  border-radius: var(--r-m); background: var(--chrome-accent); color: var(--chrome-on-accent); font: 700 11px/1 var(--font-ui); box-shadow: none; transform: none; cursor: pointer; }
+body.side-off .col > #ptabs .wexport:hover { background: color-mix(in srgb, var(--chrome-accent) 88%, var(--fold-ink)); }
+body.side-off .col > #ptabs .wexport .hn { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--r-pill); background: var(--chrome-on-accent); color: var(--chrome-accent); font-size: 10px; }
+body.side-off .col > #rail .rgap, body.side-off .col > #rail .brand > span { display: none; }
+body.side-off .col > #rail .rhist { flex-direction: column; margin: 0 0 2px; padding: 0 0 4px; border: 0; border-bottom: 1px solid var(--line); }
+body.side-off .col > #rail .brand { order: 9; justify-content: center; width: 36px; padding: 0; }
+
+/* ---- the string (string.js): Tea's thread (1.6 px) and its knot at the page end, into the card's punched hole; Coffee's plain line (1.5 px, the plate's
+   ink deepened so it reads on the mat). Above the column, so it shows on the card as far as the hole. Zoomed far out it is cut and fades, the card at half. ---- */
+#string { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 11; pointer-events: none; overflow: visible; transition: opacity .3s .05s; }
+#string path { fill: none; stroke: var(--str-ink); stroke-width: 1.6; stroke-linecap: round; }
+#string circle { fill: var(--str-ink); }
+html[data-drink="coffee"] #string path { stroke-width: 1.5; stroke-linecap: butt; stroke-linejoin: round; }
+html[data-drink="coffee"] #string circle { display: none; }
+body[data-away] #string { opacity: 0; }
+body[data-away] .col > :is(#body.is-float, #bankcard) { opacity: .5; transition: opacity var(--m-base) var(--m-out); }
+body[data-away] .col > :is(#body.is-float, #bankcard):is(:hover, :focus-within) { opacity: 1; }
+html[data-drink="tea"] .col > #body.is-float.has-string { background-image: radial-gradient(circle at 14px 14px, color-mix(in srgb, var(--tab-bg) 85%, var(--thread)) 3.5px, var(--hole) 3.5px 4.5px, transparent 4.5px); background-repeat: no-repeat; }
+html[data-drink="tea"] .col > #body.is-float.has-string .ctop { padding-left: 14px; }      /* (the hole's room) */
+html[data-motion=reduce] #string, html[data-motion=reduce] body[data-away] .col > * { transition: none; }
+
+/* ---- Career's lens (shell.js lensMarks): with a resume open, "Its picks" frames the name card in the accent and dims, in place, what the resume
+   does not use (the timeline's entries, an entry's lines); "Whole career" shows the career plain, with no frame and no ticks ---- */
+.col > #head .hlens { padding: 0 8px 8px; }
+.col > #head .hlens .seg { width: 100%; box-sizing: border-box; flex-wrap: nowrap; }
+.col > #head .hlens .seg > button { flex: 1 1 0; min-width: 0; white-space: nowrap; }
+body:not([data-phone=true]):not(.is-intro) .col > #head.is-lens { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--lv-res-lift); }
+body[data-lens=picks] #scr .tl2 [data-unpicked] { opacity: .42; filter: saturate(.6); transition: opacity var(--m-fast) var(--m-out); }
+body[data-lens=picks] #scr .tl2 [data-unpicked]:is(:hover, :focus-visible) { opacity: .8; }
+body[data-lens=picks] #body .insp-rec .clrow.is-off { opacity: .5; }
+body[data-lens=whole] #body .insp-rec .clrow .cb { visibility: hidden; }      /* hidden, not removed: nothing moves between the two */
+body[data-lens=whole] #body .insp-rec .clrow.is-off .clt { opacity: 1; color: var(--ink); }
+
+/* a short window: the name card takes less height */
 @media (max-height: 850px){
-  .ptabs .ptab { height: 27px; margin-top: 3px; font-size: 11px; gap: 5px; }
-  .ptabs .ptab[aria-current=page] { height: 30px; margin-top: 0; }
   body:not([data-phone=true]) .col > #head .hrow.top { align-items: center; }
   .col > #head .docname .dn { display: flex; gap: .35em; min-width: 0; white-space: nowrap; overflow: hidden; }
   .col > #head .docname .dn .swco { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .col > #head .docname .dn .swrole { overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
   .col > #head .docname .dn .swrole::before { content: "— "; }
 }
-
-/* Tea: the places are tea tags, each on its own thread through a punched hole, tucked behind the name card at their foot; the one you are on
-   is in the drink's accent. They swing when the pointer brushes past (shell.js swingPlaces), about the thread's top. The tag's cut corners are
-   drawn by its background, so the thread above it is not clipped. */
-:root {
-  --thread: #a88a5c; --hole: rgba(30, 40, 25, .45);
-  --sheet: #fff; --sheet-edge: rgba(0, 0, 0, .13); --hint-bg: rgba(30, 30, 30, .78); --hint-ink: #fff;      /* a page's own white, and the hairline round a picture of one */
-}
-html[data-drink="tea"] .ptabs { gap: 8px; padding: 12px 10px 0; margin-bottom: -12px; }
-html[data-drink="tea"] .col > #head { z-index: 1; }
-html[data-drink="tea"] .ptabs .ptab, html[data-drink="tea"] .ptabs .ptab[aria-current=page] { --tg: color-mix(in srgb, var(--tab-bg) 94%, transparent);
-  position: relative; height: 44px; margin-top: 0; padding: 9px 8px 12px; border: 0; border-radius: 0; overflow: visible; transform-origin: 50% -12px;
-  background: linear-gradient(135deg, transparent 8px, var(--tg) 0) left top / 51% 100% no-repeat, linear-gradient(225deg, transparent 8px, var(--tg) 0) right top / 51% 100% no-repeat;
-  color: var(--tab-ink); font-weight: 650; filter: drop-shadow(0 0 .6px color-mix(in srgb, var(--tab-ink) 55%, transparent)); }
-html[data-drink="tea"] .ptabs .ptab[aria-current=page] { --tg: var(--tab-bg); color: var(--tab-ink); font-weight: 750; }      /* one filled accent per area: the sidebar's is Export */
-html[data-drink="tea"] .ptabs .ptab:hover:not([aria-current]) { --tg: var(--tab-bg); color: var(--tab-ink);
-  background: linear-gradient(135deg, transparent 8px, var(--tg) 0) left top / 51% 100% no-repeat, linear-gradient(225deg, transparent 8px, var(--tg) 0) right top / 51% 100% no-repeat; }
-html[data-drink="tea"] .ptabs .ptab::before { content: ""; position: absolute; left: calc(50% - .8px); top: -12px; width: 1.6px; height: 20px; background: var(--thread); pointer-events: none; }
-html[data-drink="tea"] .ptabs .ptab::after { content: ""; position: absolute; left: calc(50% - 3.5px); top: 4px; width: 7px; height: 7px; border-radius: var(--r-round); pointer-events: none;
-  background: linear-gradient(var(--thread), var(--thread)) center / 1.6px 100% no-repeat, var(--hole); }
-@media (max-height: 850px){ html[data-drink="tea"] .ptabs .ptab, html[data-drink="tea"] .ptabs .ptab[aria-current=page] { height: 38px; } }
-
-/* Coffee: one segmented pill; a raised thumb slides to the place you are on */
-html[data-drink="coffee"] .ptabs { position: relative; gap: 0; padding: 3px; margin: 0 4px 8px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--tab-ink) 9%, var(--tab-bg)); border: 1px solid var(--tab-line, var(--line-strong)); }
-html[data-drink="coffee"] .ptabs::before { content: ""; position: absolute; top: 3px; bottom: 3px; left: calc(3px + var(--ti, 0) * (100% - 6px) / 3); width: calc((100% - 6px) / 3); border-radius: var(--r-pill); background: var(--paper); box-shadow: var(--shadow-chip); transition: left .22s cubic-bezier(.3, .7, .2, 1); }
-html[data-motion=reduce][data-drink="coffee"] .ptabs::before { transition: none; }
-@media (prefers-reduced-motion: reduce){ html[data-drink="coffee"] .ptabs::before { transition: none; } }
-html[data-drink="coffee"] .ptabs .ptab, html[data-drink="coffee"] .ptabs .ptab[aria-current=page] { position: relative; z-index: 1; height: 30px; margin-top: 0; border: 0; border-radius: var(--r-pill); background: transparent; color: color-mix(in srgb, var(--tab-ink) 70%, transparent); }
-html[data-drink="coffee"] .ptabs .ptab[aria-current=page] { color: var(--paper-ink); font-weight: 750; }
-html[data-drink="coffee"] .ptabs .ptab:hover:not([aria-current]) { background: transparent; color: var(--tab-ink); }
-@media (max-height: 850px){ html[data-drink="coffee"] .ptabs .ptab, html[data-drink="coffee"] .ptabs .ptab[aria-current=page] { height: 26px; } }
-
-/* ---- the history card: undo, redo, Saved and the fold chevron in one card at the rail’s foot, over the logo, the same on every place ---- */
-.rsaved { display: grid; place-items: center; min-height: 22px; }
-.rsaved .savestate { padding: 0; }
 
 /* ---- Fit and the page fill: once, at the top of Export ---- */
 
@@ -302,6 +405,15 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 /* the entry's own heading is the inspector's title, not drawn twice (its order mark and Unarchive stay) */
 .insp-rec .clg { display: block !important; border: 0; padding: 0; margin: 0; }
 .insp-rec .clg > .clgh :is(.clcaret, .clname, .clcount) { display: none; }
+/* a line's wordings as a stack: one thin offset edge behind the row for each wording past the first (four at most); the count is the tip of its hit area */
+.insp-rec .clrow[data-nv] { margin: 0 8px calc(var(--nv, 0) * 3px + 1px) 0; border-radius: var(--r-xs); background: var(--raised); }
+.insp-rec .clrow[data-nv="1"] { --nv: 1; box-shadow: 1px 1px 0 0 var(--surface), 3px 3px 0 0 var(--line-strong); }
+.insp-rec .clrow[data-nv="2"] { --nv: 2; box-shadow: 1px 1px 0 0 var(--surface), 3px 3px 0 0 var(--line-strong), 4px 4px 0 0 var(--surface), 6px 6px 0 0 var(--line-strong); }
+.insp-rec .clrow[data-nv="3"] { --nv: 3; box-shadow: 1px 1px 0 0 var(--surface), 3px 3px 0 0 var(--line-strong), 4px 4px 0 0 var(--surface), 6px 6px 0 0 var(--line-strong), 7px 7px 0 0 var(--surface), 9px 9px 0 0 var(--line-strong); }
+.insp-rec .clrow[data-nv="4"] { --nv: 4; box-shadow: 1px 1px 0 0 var(--surface), 3px 3px 0 0 var(--line-strong), 4px 4px 0 0 var(--surface), 6px 6px 0 0 var(--line-strong), 7px 7px 0 0 var(--surface), 9px 9px 0 0 var(--line-strong), 10px 10px 0 0 var(--surface), 12px 12px 0 0 var(--line-strong); }
+.insp-rec .clrow[data-nv]:hover { background: var(--hover-strong); }
+html[data-drink] .insp-rec .clrow[data-nv] .clv { width: 18px; height: 22px; margin: 0; padding: 0; font-size: 0; color: transparent; background: transparent; border: 0; box-shadow: none; }
+html[data-drink] .insp-rec .clrow[data-nv] .clv::before { display: none; }
 .insp-rec .clrow.qhit { background: var(--mark-soft); border-radius: var(--r-xs); }
 /* the skill words (careerbank.js): the Editor bank's chips, its round "+", its rows and its well (.wbtray, sidebar.css 12: the bank's words, and a
    record group's words); a shelf's name is its handle (a click writes it); where a carried word, shelf or group would land is a bar in the selection's colour */

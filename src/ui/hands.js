@@ -47,7 +47,7 @@ export function initHands(C){
   let only = null;                  // the text under the pointer that has no hands (a summary, a title, a heading), or the deepest one in the header: its plate alone
   let drag = null, pend = null;     // a drag under way; a skill pressed on the page that may become one
   let bridge = null;                // the corridor under the block, from its last row to the "+": the pointer crossing it keeps the block it is on (page pixels)
-  let graceT = 0, onHands = false, dragEnded = 0, spent = false, raf = 0;
+  let graceT = 0, onHands = false, dragEnded = 0, spent = false, raf = 0, rewrite = null;      // rewrite: the line that was being written when its drag began
   const shown = new Set();          // the hands drawn at the last place(): only one that was not fades in
   const trail = [];                 // the pointer over the page, newest last: { t, x, y } in screen px
   let hp = null, fastAt = -1e9, settleT = 0;      // where it is (null: off the page); when it was last fast; the timer that finds the block it has stopped on
@@ -191,6 +191,12 @@ export function initHands(C){
   function refresh(){ if (!on()) { hover = null; drag = null; } place(); }
   // the page was drawn again: none of the preview's transforms are in it (a block that landed on its place was an element of the old page)
   function drawn(){ if (!drag) sheet.unnudge(false); refresh(); }
+  // once the drop has landed and the page is drawn again (a few polls, no frame loop), the dragged line is written again
+  function resume(){
+    const f = rewrite; if (!f || drag) return;
+    if (C.busy() || document.body.classList.contains('is-dragging') || sheet.doc?.querySelector('.rb-lift')) return void setTimeout(resume, 90);
+    rewrite = null; if (!ui.writing) openLine(f);
+  }
 
   // The selected job, section or item has its plate's edge as a handle all round: a press on the plate or just outside it (6 px), outside its block, that moves 4 px lifts it (as the grip does)
   function onPlate(x, y){
@@ -528,6 +534,7 @@ export function initHands(C){
   // drop and a drop where it was use the same motion back. Reduced motion: it is there at once.
   function endDrag(p){
     const d = drag;
+    if (d?.moved && d.wrote){ rewrite = d.fact; setTimeout(resume, 90); }      // a line dragged while written is written again where it lands
     drag = null; showDrop(null); document.body.classList.remove('is-dragging'); sheet.doc?.documentElement.classList.remove('rb-dragging');
     sheet.doc?.removeEventListener('keydown', escDrag, true);
     if (!d){ sheet.unnudge(false); return; }
@@ -627,7 +634,7 @@ export function initHands(C){
       e.preventDefault();
       el.setPointerCapture(e.pointerId);
       pend = null;
-      drag = { ...what, start: { x: e.clientX, y: e.clientY }, p0: pt(e), ok: false, to: null, moved: false, id: e.pointerId, press: true };
+      drag = { ...what, start: { x: e.clientX, y: e.clientY }, p0: pt(e), ok: false, to: null, moved: false, id: e.pointerId, press: true, wrote: what.kind === 'line' && !!ui.writing };
     });
     el.addEventListener('pointermove', e => {
       if (!drag?.press) return;

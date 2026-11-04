@@ -10,6 +10,7 @@ import { addClaimHtml, orderMarkHtml, showSw, sw } from './parts.js';
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
 import { ghost, fly, reduced } from './motion.js';
+import { FILL_BAND } from '../fit.js';
 import * as K from '../model/career.js';
 import { kindHue, kindChip } from './career.js';
 
@@ -56,9 +57,10 @@ function rowHtml(r, g, end){
     : `<input type="checkbox" class="cb" ${on ? 'checked' : ''} disabled aria-label="${esc(why)}">`;
   const text = r.id === 'about:photo' ? t('career.about.photo') : r.text || t('ux2.empty');
   const drag = r.item ? `data-item="${esc(r.item)}" data-sec="${esc(r.section)}"` : bulletMovable(r, g) ? `data-bullet="${esc(r.id)}" data-bjob="${esc(g.id)}"` : '';
-  return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''} ${isSel(r) ? 'is-sel' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${drag}>
+  // data-nv: the wordings past the first, drawn in Career as a stack behind the row (flow.css)
+  return `<li class="clrow ${r.on ? '' : 'is-off'} ${r.archived ? 'is-archived' : ''} ${isSel(r) ? 'is-sel' : ''}" data-fact="${esc(r.kind === 'claim' ? r.id : '')}" ${r.nv ? `data-nv="${Math.min(4, r.nv - 1)}"` : ''} ${drag}>
       ${end ? '' : box}<button class="clt" data-act="cl-open" data-sel="${selAttr(r.sel)}">${esc(text.replace(/\n/g, ' · '))}</button>
-      ${r.nv ? `<button class="clv${r.nv > 1 ? ' many' : ''}" data-act="cl-edit" data-sel="${selAttr(r.vsel ?? r.sel)}" title="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv })).replace(/\s+/, '<span class="sp"> </span>')}</button>` : ''}
+      ${r.nv ? `<button class="clv${r.nv > 1 ? ' many' : ''}" data-act="cl-edit" data-sel="${selAttr(r.vsel ?? r.sel)}" data-tip="${esc(t('ux2.versionsN', { n: r.nv }))}" aria-label="${esc(t('ux2.versionsN', { n: r.nv }))}">${esc(t('ux2.nv', { n: r.nv })).replace(/\s+/, '<span class="sp"> </span>')}</button>` : ''}
       ${r.archived ? `<span class="pill arch" title="${esc(t('arch.badgeTitle'))}">${h('arch.badge')}</span><button class="ghost sm" data-act="unarchive-claim" data-id="${esc(r.id)}">${h('arch.unarchive')}</button>` : ''}${end ? box : ''}</li>`;
 }
 
@@ -163,18 +165,20 @@ export function outlineHtml(only = null, section = null){
   // a section's Career kind (its chip and colour): the header and the summary are About; the rest is the kind whose section it is
   const kindOfSec = sid => sectionKind(m, sid);
   // a section that is off stays in its own row, dimmed, with the same pill; it has nothing to fold
-  const secHtml = s => {
+  // `cont`: the second row of a section that runs onto the next page (the map lists it under both)
+  const secHtml = (s, cont = false) => {
     const counts = s.on && sectionCounts(m, cl, s.id);
-    const open = s.on && !folded(`sec:${s.id}`, focusSec === s.id);
+    const open = s.on && !cont && !folded(`sec:${s.id}`, focusSec === s.id);
     const title = esc(C.sectionTitle(s.id));
     const info = s.fixed ? h('edit.alwaysFirst') : counts ? nOfM(counts.on, counts.total) : '';
     const chosen = sel.kind === 'section' && sel.id === s.id;
     const kind = kindOfSec(s.id);
-    return `<div class="osec ${open ? 'open' : ''}" data-sid="${esc(s.id)}" role="group" aria-label="${title}" style="--hk:${kindHue(kind)}">
+    return `<div class="osec ${open ? 'open' : ''}${cont ? ' is-cont' : ''}" data-sid="${esc(s.id)}" role="group" aria-label="${title}" style="--hk:${kindHue(kind)}">
       <div class="item srow ${s.fixed ? 'fixed' : ''}${s.on ? '' : ' is-off'} ${chosen ? 'is-sel' : ''}" data-sid="${esc(s.id)}">
         ${s.on ? `<button class="osecaret" data-act="ol-toggle" data-g="sec:${esc(s.id)}" aria-expanded="${open}" aria-controls="ol-sec-${esc(s.id)}" aria-label="${title}"><span class="clc" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>` : '<span class="osecaret"></span>'}${kindChip(kind)}
         <span class="stext"><a class="t" data-act="select-section" data-id="${esc(s.id)}">${title}</a><span class="scount muted tiny">${info}</span></span>
         ${s.fixed ? '' : showSw(`data-secon="${esc(s.id)}"`, s.on, C.sectionTitle(s.id))}
+        <button type="button" class="ogo" data-act="select-section" data-id="${esc(s.id)}" aria-label="${title}" tabindex="-1">›</button>
       </div>
       <div class="obody" id="ol-sec-${esc(s.id)}" ${open ? '' : 'hidden'}>${s.on ? bodyOf(s) : ''}</div></div>`;
   };
@@ -184,9 +188,27 @@ export function outlineHtml(only = null, section = null){
   // `section`: a section's id, for the sidebar when that section is selected: its jobs or items
   if (section) return `<section class="outline only" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}">${bodyOf({ id: section })}</section>`;
   const manual = Array.isArray(cur.pages);
-  return `<section class="outline" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><h2 class="sr">${h('ux5c.tabOutline')}</h2>
-    <div class="list" id="seclist">${list.map(secHtml).join('')}</div>
+  return `<section class="outline map" id="outline" aria-label="${esc(t('ux5c.tabOutline'))}"><h2 class="sr">${h('ux5c.tabOutline')}</h2>
+    <div class="list" id="seclist">${mapHtml(list, secHtml)}</div>
     ${manual ? `<p class="note">${h('edit.dragManual')}</p>` : ''}</section>`;
+}
+
+// The top level is a map of the page: the sections in page order under Page 1, Page 2, each page with its fill; a section that runs onto the next
+// page listed under both; the sections that print nothing under "Off the page"; the last row adds a section (edit.js, top-add)
+function mapHtml(list, secHtml){
+  const pages = C.sectionsByPage?.() ?? [], fills = C.ui.fills ?? [], seen = new Set();
+  const head = (i, f, last) => {
+    const pct = f ? 100 * f.used / f.usable : 0, st = f?.overflow > 0 ? 'overflow' : last && (pct < FILL_BAND[0] || pct > FILL_BAND[1]) ? 'off' : 'ok';
+    return `<div class="mpg"><b>${h('card.page', { n: i + 1 })}</b><span class="mfill is-${st}" style="--p:${Math.min(100, pct).toFixed(1)}" aria-hidden="true"><i></i></span><em>${Math.round(pct)}%</em></div>`;
+  };
+  let out = pages.length ? '' : list.map(x => secHtml(x)).join('');
+  pages.forEach((ids, i) => {
+    out += head(i, fills[i], i === pages.length - 1);
+    for (const id of ids){ const x = list.find(y => y.id === id); if (!x) continue; out += secHtml(x, seen.has(id)); seen.add(id); }
+  });
+  const rest = pages.length ? list.filter(x => !seen.has(x.id)) : [];
+  if (rest.length) out += `<div class="mpg"><b>${h('card.offPage')}</b></div>${rest.map(x => secHtml(x)).join('')}`;
+  return out + (C.ui.snap ? '' : `<div class="cnewrow"><button type="button" class="item srow" data-act="top-add"><span class="cplus" aria-hidden="true">+</span><span>${h('card.newSection')}</span></button></div>`);
 }
 
 // The children of a level of the depth chip, as the Outline lists them, in print order: the page's sections, a section's jobs
@@ -280,8 +302,8 @@ async function act(a, tg){
     // a click on a row: in the Outline it selects the line and the Outline stays; in the Record it opens Edit at the line
     case 'cl-open': case 'dp-open': {      // (dp-open: an option of the depth chip's list, which selects as the row does)
       C.select(JSON.parse(tg.dataset.sel));
-      // the panel's heading takes the focus, so the keyboard carries on in the inspector and Esc goes back out
-      const title = document.querySelector('#body .title');
+      // the panel's heading (a line's card has none: its toolbar) takes the focus, so the keyboard carries on in the inspector (Enter writes the line) and Esc goes back out
+      const title = document.querySelector('#body .title') ?? document.querySelector('#body .ctop .cchip');
       if (title){ title.tabIndex = -1; title.focus({ preventScroll: true }); }
       return true;
     }

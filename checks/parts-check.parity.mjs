@@ -45,7 +45,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
       const off = w.work.flatMap(j => j.highlights.map(id => ({ job: j.id, id }))).find(c => !T.listedBullets(u.record(), u.cur(), c.job).includes(c.id) && !(w.facts.find(f => f.id === c.id)?.archived));
       const row = String(u.checklist.html()).match(new RegExp(`<li class="clrow is-off[^"]*" data-fact="${off.id}"[^>]*>[\\s\\S]*?</li>`));
       const { html: h } = await fromList(u, off);
-      return !!off && !!row && !/checked/.test(row[0].match(/<input[^>]*>/)[0]) && h.includes('<h2 class="title"') && /class="vlist( full)?"/.test(h);
+      return !!off && !!row && !/checked/.test(row[0].match(/<input[^>]*>/)[0]) && h.startsWith('<div class="ctop">') && /class="vlist( full)?"/.test(h);
     })());
   }
 
@@ -157,7 +157,7 @@ export default async function parity({ ok, section, makeUi, dom, R, T }){
     const u = await makeUi({ resume: 0 });
     const job = u.work().work[0];
     const h = String(u.edit.jobView({ kind: 'job', id: job.id }));
-    ok('a job’s panel (J, rewritten; the title row and the meta line with a pencil each): a header card with its position and its meta line (no switch of its own: the chip\'s tick is the job\'s), and a Details fold that starts shut', /<div class="hdr"[^>]*><nav[\s\S]*<div class="hcard"><div class="hband hhead jhead"><h2 class="title">/.test(h) && /class="meta"/.test(h) && /data-act="job-fact" data-id="[^"]*-position"/.test(h) && /data-act="job-fact" data-id="[^"]*-meta"/.test(h) && !h.includes(`data-jobon="${job.id}"`) && /<details class="jr details" data-det="[^"]+" >/.test(h));
+    ok('a job’s panel: its top row, then its position as the title (no switch of its own: the toolbar\'s is the job\'s), and a Details fold that starts shut', h.startsWith('<div class="ctop">') && /<div class="hdr"[^>]*><h2 class="title ctitle">[^<]+<\/h2><\/div>/.test(h) && !h.includes(`data-jobon="${job.id}"`) && /<details class="jr details" data-det="[^"]+" >/.test(h));
     ok('the old “Title and meta line” rows and the bullets list are not in it (the checklist lists the lines)', !/Title and meta line/.test(h) && !h.includes('data-act="select-fact"') && !h.includes('data-on='));
     ok('it holds title, employer, dates (month pickers), place and More fields (JSON Resume)', ['c-pos', 'c-org', 'c-start', 'c-end', 'c-loc'].every(id => h.includes(`id="${id}"`)) && /More fields \(JSON Resume\)/.test(h));
     ok('its fields are one form, committed as you leave them', h.includes(`data-form="entry" data-key="work" data-id="${job.id}"`) && !/data-act="c-save"/.test(h));

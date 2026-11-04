@@ -66,11 +66,11 @@ const LEVELS = {
 };
 
 // ---- (a) the frame's stylesheet ----
-const FURNITURE = ['rb-ui', 'rb-single', 'rb-stack', 'rb-shown', 'rb-faded', 'rb-current', 'rb-still', 'rb-cam', 'rb-handing', 'rb-dragging', 'rb-space', 'rb-clip', 'rb-fold', 'rb-writing', 'rb-focus', 'rb-hit', 'rb-previewing', 'rb-sel', 'rb-fade', 'rb-flash', 'rb-miss-tab'];
+const FURNITURE = ['rb-ui', 'rb-single', 'rb-stack', 'rb-shown', 'rb-faded', 'rb-current', 'rb-still', 'rb-cam', 'rb-handing', 'rb-dragging', 'rb-space', 'rb-clip', 'rb-fold', 'rb-writing', 'rb-focus', 'rb-hit', 'rb-previewing', 'rb-sel', 'rb-fade', 'rb-flash', 'rb-miss-tab', 'rb-nobullet', 'rb-words'];
 // (hover and selection are drawn by .rb-plate, the shape that moves; rb-hot and rb-sel only mark their blocks, and rb-cool and rb-tab are gone)
 const PLATE_CLASSES = ['rb-plate', 'rb-prev', 'rb-find', 'rb-miss', 'rb-lift', 'rb-card', 'rb-socket', 'rb-drop'];      // (rb-rail, rb-drop: a drag's rail and drop line, in the frame under the lifted block)
 const LOOKS = [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']];
-const TOKENS = ['off-line', 'off-group', 'off-job', 'off-section', 'r', 'hair', 'line', 'write', 'lift', 'ink', 'ink-hover', 'ring', 'tint-hover', 'tint-sel', 'accent', 'accent-tint', 'miss', 'lift-sh', 'inner'];
+const TOKENS = ['off-line', 'off-group', 'off-job', 'off-section', 'r', 'hair', 'line', 'lift', 'ink', 'ink-hover', 'ring', 'tint-hover', 'tint-sel', 'accent', 'accent-tint', 'miss', 'lift-sh', 'inner'];
 for (const [drink, theme] of part('a') ? LOOKS : []){
   const { ctx, page, bad } = await open(drink, theme);
   await openByName(page, 'Medtech');
@@ -203,14 +203,14 @@ if (part('c')) {
     const rings = await frameDoc(page, d => ({ entry: !!d.querySelector('.entry.rb-ring'), band: !!d.querySelector('.band[data-section].rb-ring'), n: d.querySelectorAll('.rb-ring').length }));
     ok(`plate: ${lv}: nothing is drawn round the blocks it is part of (no ring trail: the chip says where it is)`, rings.n === 0, JSON.stringify(rings));
   }
-  // writing: the line (and a skill group) recede to a hairline, the field takes the paper
+  // writing: the line (and a skill group) is a paper cutout in its block's wash, at the selected stand-off
   for (const lv of ['line', 'group']){
     await rest(page); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(300);
     const b = await box(page, lv === 'group' ? '.skills__items' : LEVELS.line.sel, lv === 'group' ? 0 : 1);
     await page.mouse.click(b.x + 30, b.y + 6); await page.waitForTimeout(600);
-    const w = await frameDoc(page, d => { const e = d.querySelector('[contenteditable]'); if (!e) return null; const pl = window.__wb.sheet.plates().find(p => p.role === 'write'); if (!pl) return { plate: false }; const pc = d.defaultView.getComputedStyle(pl.div), cs = d.defaultView.getComputedStyle(e), r = d.createElement('i'); d.body.append(r); r.style.cssText = 'background-color: var(--plate-paper); outline: 1px solid var(--plate-ink)'; const want = d.defaultView.getComputedStyle(r); const o = { style: pc.outlineStyle, width: pc.outlineWidth, color: pc.outlineColor === want.outlineColor, paper: cs.backgroundColor === want.backgroundColor, inner: /inset/.test(cs.boxShadow), hot: window.__wb.sheet.plates().filter(p => p.role !== 'write' && !(p.role === 'sel' && p.el.contains(e))).length, up: window.__wb.sheet.plates().filter(p => p.role === 'sel' && p.el.contains(e) && p.el !== e).length, own: cs.outlineStyle }; r.remove(); return o; });
+    const w = await frameDoc(page, d => { const e = d.querySelector('[contenteditable]'); if (!e) return null; const pl = window.__wb.sheet.plates().find(p => p.role === 'write'); if (!pl) return { plate: false }; const pc = d.defaultView.getComputedStyle(pl.div), cs = d.defaultView.getComputedStyle(e), r = d.createElement('i'); d.body.append(r); r.style.cssText = 'background-color: var(--plate-paper)'; const want = d.defaultView.getComputedStyle(r); const o = { rule: pc.outlineStyle === 'none' || parseFloat(pc.outlineWidth) === 0, paper: pc.backgroundColor === want.backgroundColor, blend: pc.mixBlendMode, inner: /inset/.test(pc.boxShadow), bare: cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.boxShadow === 'none', over: +cs.zIndex > +pc.zIndex, hot: window.__wb.sheet.plates().filter(p => p.role !== 'write' && !(p.role === 'sel' && p.el.contains(e))).length, up: window.__wb.sheet.plates().filter(p => p.role === 'sel' && p.el.contains(e) && p.el !== e).length, own: cs.outlineStyle }; r.remove(); return o; });
     ok(`plate: ${lv}: the block above the written line (its job, or its section) keeps one faint plate: where the line is`, !!w && w.up === 1, JSON.stringify(w));
-    ok(`plate: ${lv}: writing is pressed in: a thin rule (--plate-write, the plate's) in the selection ink, the field the paper's colour with a soft inner shadow, no other plate on it (the block above has its own)`, !!w && w.own === 'none' && w.style === 'solid' && w.width === (await frameDoc(page, d => { const i = d.createElement('i'); d.body.append(i); i.style.cssText = 'outline: var(--plate-write) solid'; const v = d.defaultView.getComputedStyle(i).outlineWidth; i.remove(); return v; })) && w.color && w.paper && w.inner && w.hot === 0, JSON.stringify(w));
+    ok(`plate: ${lv}: writing is a paper cutout in the block's wash: the plate the paper's colour with a soft inner shadow, no rule, not multiplied; the field bare, its words over it; no other plate on it (the block above has its own)`, !!w && w.own === 'none' && w.rule && w.paper && w.blend === 'normal' && w.inner && w.bare && w.over && w.hot === 0, JSON.stringify(w));
   }
   // lifted: the plate rises with the larger press shadow, and its home keeps a dashed socket of the same shape
   for (const lv of ['line', 'group', 'job', 'section']){
@@ -385,21 +385,9 @@ for (const motion of part('e') ? [true, false] : []){
   {
     await rest(page); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); window.__wb.canvas.reset({ page: 0 }); }); await page.waitForTimeout(900);
     const b = await box(page, '.entry:first-child .bullets li', 2); await page.mouse.click(b.x + 60, b.y + 6); await page.waitForTimeout(900);
-    const t = await page.evaluate(() => {
-      const q = s => document.querySelector(`#editlay ${s}`), cs = e => getComputedStyle(e), bar = q('.obtools'), tag = q('.obv'), up = q('[data-act=ob-up]'), down = q('[data-act=ob-down]'), probe = document.createElement('i');
-      if (!bar || !tag || !up || !down) return null;
-      document.body.append(probe); probe.style.cssText = 'color: var(--paper-ink); border-radius: calc(var(--plate-r) + var(--plate-off-line)); background: var(--paper)'; const want = { ink: cs(probe).color, r: cs(probe).borderTopLeftRadius, paper: cs(probe).backgroundColor }; probe.remove();
-      const r = e => e.getBoundingClientRect(), lum = c => { const k = document.createElement('canvas').getContext('2d'); k.fillStyle = c; k.fillRect(0, 0, 1, 1); const [R, G, B] = [...k.getImageData(0, 0, 1, 1).data].slice(0, 3).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * R + .7152 * G + .0722 * B; };
-      const ring = cs(bar).boxShadow.match(/(rgba?|color)\([^)]*\)/)?.[0] ?? '', cr = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
-      return { row: { pill: r(tag).left, up: r(up).left, down: r(down).left, tops: [r(tag), r(up), r(down)].map(x => Math.round((x.top + x.bottom) / 2)) },
-        bar: { bg: cs(bar).backgroundColor, shadow: cs(bar).boxShadow, border: cs(bar).borderTopWidth, r: cs(bar).borderTopLeftRadius, faceVsPaper: cr(cs(bar).backgroundColor, want.paper) }, tag: { bg: cs(tag).backgroundColor, ring, r: cs(tag).borderTopLeftRadius, h: Math.round(r(tag).height), w: Math.round(r(tag).width), faceVsPaper: cr(cs(bar).backgroundColor, want.paper), edgeVsPaper: ring ? cr(ring, want.paper) : 0 },
-        up: { color: cs(up).color, r: cs(up).borderTopLeftRadius, w: Math.round(r(up).width), h: Math.round(r(up).height) }, want };
-    });
-    const clear = c => /rgba\(0, 0, 0, 0\)|transparent/.test(c);
-    ok(`${tag}: the tools beside a written line stand in one row: the version pill, then ↑, then ↓, level with each other`, !!t && t.row.pill < t.row.up && t.row.up < t.row.down && Math.max(...t.row.tops) - Math.min(...t.row.tops) <= 1, JSON.stringify(t));
-    ok(`${tag}: the control (pill and arrows joined) has ONE opaque face tinted from the plate, a thin edge and the plate's corner; the pill has none of its own`, !!t && !clear(t.bar.bg) && t.bar.bg !== t.want.paper && t.bar.faceVsPaper > 1.02 && t.bar.r === t.want.r && t.bar.shadow !== 'none' && t.bar.border === '0px' && clear(t.tag.bg), JSON.stringify(t));
-    ok(`${tag}: the control's edge shows against the paper at rest (at least 1.5 to 1), and the arrows wear the plate's corner and the paper's ink`, !!t && t.tag.edgeVsPaper >= 1.5 && t.up.r === t.want.r && t.up.color === t.want.ink, JSON.stringify(t));
-    ok(`${tag}: their targets are as big as before (the pill 28 px tall, the arrows 28 px square, a control box)`, !!t && t.tag.h >= 28 && t.tag.w >= 28 && t.up.w >= 28 && t.up.h >= 28, JSON.stringify(t));
+    // the version and the movers are the card's now (its top row; direct-d-check measures them): nothing of them stands beside the line on the page
+    const t = await page.evaluate(() => ({ writing: !!window.__wb.ui.writing, page: !!document.querySelector('#editlay .obtools, #editlay .obv'), card: ['.cver', '.cmv[data-d="-1"]', '.cmv[data-d="1"]'].every(s => !!document.querySelector(`#body .ctop ${s}`)) }));
+    ok(`${tag}: a written line has no tools beside it on the page: its version and ↑ ↓ are in the card's toolbar`, t.writing && !t.page && t.card, JSON.stringify(t));
   }
   // the "+" (the plate's ladder): under a line that is not the job's last it is a shaded pill of its own (the wash, no edge but a faint
   // hairline round it, round corners); on the last line it is the plate's bottom tab, the same wash, no edge, square at the top; between the two it changes with an
@@ -444,7 +432,7 @@ for (const motion of part('e') ? [true, false] : []){
     const b = await box(page, '.entry:first-child .bullets li', 2); await page.mouse.click(b.x + 60, b.y + 6); await page.waitForTimeout(900);
     const dim = () => page.evaluate(() => { const p = window.__wb.sheet.plates().find(q => q.role === 'write'), e = [...document.querySelectorAll('#handlay .obgrip:not(.obfgrip)')].find(q => !q.hidden); return p && e ? { o: +p.div.ownerDocument.defaultView.getComputedStyle(p.div, '::before').opacity, grip: p.div.classList.contains('is-grip'), r: e.getBoundingClientRect().toJSON() } : null; });
     const d0 = await dim();
-    ok(`${tag}: while a line is written its dots stay in its plate's tab, dimmed to about 40%`, !!d0 && d0.grip && d0.o > .3 && d0.o < .5, JSON.stringify(d0));
+    ok(`${tag}: while a line is written its dots stay in its plate, as they look when it is not (no dimming)`, !!d0 && d0.grip && d0.o === 1, JSON.stringify(d0));
     if (d0){ await page.mouse.move(d0.r.x + d0.r.width / 2, d0.r.y + d0.r.height / 2, { steps: 4 }); await page.waitForTimeout(400); }
     const d1 = await dim();
     ok(`${tag}: …and full again under the pointer`, !!d1 && d1.o === 1, JSON.stringify(d1));

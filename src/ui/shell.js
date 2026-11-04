@@ -11,23 +11,24 @@ import { LockedError } from '../model/lock.js';
 import { groupOf } from '../model/checklist.js';
 import { fit, key as measureKeyOf } from '../fit.js';
 import { createSheet } from './sheet.js';
-import { computeLayout, pageSize, pageInView, pageTop, G, PHONE_MAX, RAIL_W } from './layout.js';
+import { computeLayout, pageSize, pageInView, pageTop, G, PHONE_MAX } from './layout.js';
 import { initCanvas, PAGES_MOVED } from './canvas.js';
 import { initOnPage } from './onpage.js';
 import { initHands } from './hands.js';
+import { initString } from './string.js';
 import { bindDepthMenu } from './depthmenu.js';
-import { pageLeft, springStep, atRest } from './camera.js';
+import { pageLeft } from './camera.js';
 import { initDock, storeZoomWrite, ib, barAside } from './dock.js';
 import { initChecklist } from './checklist.js';
 import { initRecord } from './record.js';
 import { initHelp, keyText, isKey, writes } from './help.js';
 import { initPlaceZoom } from './placezoom.js';
 import { initPress, tierAll } from './press.js';
-import { initSide, syncSide, side, toggleSide, foldForAll } from './sidewidth.js';
+import { initSide, syncSide, side, toggleSide, openSide, foldForAll } from './sidewidth.js';
 import { initDropdowns } from './dropdown.js';
 import { initFind, isFindKey, hasFocus as inFind } from './find.js';
 import { initReview } from './review.js';
-import { icon, withArrows } from './icons.js';
+import { icon, withArrows, wayIcon } from './icons.js';
 import { indexModel, targetOf, up, same, step, lineSel, keyOf, versionsOf, NONE, isTyping } from './select.js';
 import { openActualSize } from './actual.js';
 import { initEdit } from './edit.js';
@@ -51,7 +52,7 @@ import { initSettings, readPref, browserLang, readGarden } from './settings.js';
 import * as motion from './motion.js';
 import { reduced, onMotionChange, play, ghost, fly } from './motion.js';
 import * as arrive from './arrive.js';
-import { initDrink, onDrinkChange, isDrinkKey, toggleDrink, setDrink, setThemePref, themePref, resolveTheme, drink, logoBtn } from './drink.js';
+import { initDrink, onDrinkChange, isDrinkKey, toggleDrink, setDrink, setThemePref, themePref, resolveTheme, drink, logoBtn, markHtml } from './drink.js';
 import { initMatRoll } from './matroll.js';
 
 // Where the source is published; the menu links to it (AGPL-3.0, section 13). Change it here when the repo moves.
@@ -95,7 +96,7 @@ let bank = null;       // the skill wordbank (src/ui/wordbank.js), made once the
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
-  onDrawn: () => { onpage?.afterDraw(); hands?.drawn(); find?.refresh(); }, onPointer: e => { if (!bank?.pointer(e)) hands?.pointer(e); },
+  onDrawn: () => { onpage?.afterDraw(); hands?.drawn(); find?.refresh(); mapChanged(); if (ui.view === 'record') lensMarks(); }, onPointer: e => { if (!bank?.pointer(e)) hands?.pointer(e); },
   extraCss: r => design.extraCss(store.state.record, r, shownMedium(r)), onPaper: r => onPaper(shownMedium(r)),      // the Export place shows the medium the files are made for
   // the hand, the wheel and the pinch over the page itself go to the canvas
   frameEvents: {
@@ -105,19 +106,23 @@ const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => 
     key: { down: e => { garden?.key(e); canvas.frameEvents.key.down(e); }, up: e => canvas.frameEvents.key.up(e) },
   } });
 
+const cornerEl = document.getElementById('corner');      // a phone's "?" corner (its foot draws it)
+let cardY = 0;      // the floating card's distance below its home, px
+let string = null;      // the string between the card and the selection (string.js), made once the page's layers are
 const ui = {
   pref: readPref() ?? { mode: 'follow' }, askLang: !readPref(),
   sel: NONE, previewing: false, page: 0, menu: false, laid: null, fills: [], zoom: 1,
   back: null, fitting: false, lastFit: null, work: null, workKey: null, ix: null, probed: new Set(), snap: null,
 };
-const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: (on, y, x) => { dock?.sheetOver(on, y, x); fullBarAt(y); }, moved: () => { placeOverflow(); onpage?.place(); hands?.place(); barAside(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
+const canvas = initCanvas({ ui, host: $('#sheet'), box: $('#pages'), sheet, writeZoomChanged: pct => { storeZoomWrite(pct); ui.zoomWrite = pct; }, sheetOver: (on, y, x) => { dock?.sheetOver(on, y, x); fullBarAt(y); }, moved: () => { placeOverflow(); onpage?.place(); hands?.place(); placeCard(); barAside(); const z = $('#zoompct'); if (z) z.textContent = `${Math.round((ui.zoom ?? 1) * 100)}%`; }, pageChanged: () => renderFoot(), bareClick: () => bareClick() });
 const onpage = initOnPage({ ui, sheet, canvas, edit: () => edit, record: () => record(), cur: () => cur(), work: () => work(), lang: () => lang(), chooseVariant,
   ix: () => ui.ix ?? indexModel(work(), cur()), fillText: () => fillText(), select: sel => select(sel),
   writeStarted: () => { dock.renderFoot(); hands?.refresh(); }, writeEnded: () => { dock.renderFoot(); hands?.refresh(); }, redrawSoon: () => schedule(),
   endHover: () => { ui.hoverV = null; if (ui.previewing) endPreview(); }, previewVersion: (fact, vid) => { ui.hoverV = vid; return previewVersion(fact, vid); } });
-const hands = initHands({ ui, sheet, canvas, edit: () => edit, bank: () => bank, onpage: () => onpage, record: () => record(), cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k), undoN: () => store.history.undo,
+const hands = initHands({ ui, sheet, canvas, busy: () => timer !== null || drawing > 0, edit: () => edit, bank: () => bank, onpage: () => onpage, record: () => record(), cur: () => cur(), ix: () => ui.ix ?? indexModel(work(), cur()), select: sel => select(sel), toast: (m, k) => toast(m, k), undoN: () => store.history.undo,
   jobName: id => (ui.ix ?? indexModel(work(), cur())).work.get(id)?.name ?? id, writingFact: () => onpage.fact(), togglePhoto: () => design.togglePhoto() });
-window.__wb = { store, persist, space, sheet, ui, canvas, onpage, hands, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile(), busy: () => timer !== null || drawing > 0 };      // for checks and the console
+string = initString({ ui, sheet, canvas, selRect: () => onpage.selRect(), leave: () => edit.leaveLine() });
+window.__wb = { store, persist, space, sheet, ui, canvas, onpage, hands, string, renderOverflow: () => renderOverflow(), setView: v => setView(v), saveToFile: () => saveToFile(), fit: () => runFit(), busy: () => timer !== null || drawing > 0 };      // for checks and the console
 
 // The tea garden runs in tea, with its setting on, with motion allowed, off a phone and off the start screen; otherwise it rests.
 // ?garden-check[=idle seconds] is for checks/garden-check.mjs: a short idle time and the garden's test hooks on __wb.garden.
@@ -412,7 +417,6 @@ function relayout(){
   document.body.style.setProperty('--colw', `${L.col.width}px`);
   renderFoot();
   renderChip();
-  placeRail();
   exporter.drawPages();
 }
 
@@ -442,7 +446,7 @@ function reveal({ page, top, bottom }){
   scrollPagesTo(Math.max(0, Math.min(y0 - 48, pageTop(L, page) + (y1 - y0 > view ? 0 : Math.max(0, y1 - (L.sheet.top + page * L.pageStep) - view + 48)))));
 }
 
-function pick({ variant, label = null, section, page = -1, at = null }){
+function pick({ variant, label = null, section, page = -1, at = null, words = true }){
   if (ui.fitting || ui.snap || ui.view === 'welcome' || canvas.handed || hands.justDragged() || bank?.justDragged()) return;
   const next = targetOf(ui.ix ?? indexModel(work(), cur()), { variant, label, section });
   // a faded page stays clickable: its blank paper brings it forward, and a line on it is worked on there
@@ -451,9 +455,13 @@ function pick({ variant, label = null, section, page = -1, at = null }){
   // From the page, one click on a line puts the caret in it, where it was clicked (no mode to enter first); while a line is written, a
   // click on another goes on writing there, in the same zoom, whichever job or page it is on. A phone only selects.
   const writes = (next.kind === 'bullet' || next.heading) && !ui.layout?.phone;
-  // a job's title and dates: the first click selects the job and shows its lines; once the job is selected, a click on them writes
+  if (side().off && !ui.layout?.phone && next.kind !== 'none'){ openSide(); select(next); return; }
+  // a heading (a job's or entry's title and dates, a section's name): a click on its words writes them, a click beside them selects its block
   const head = edit.headOf(next);
-  if (head){
+  if ((head || next.heading) && !ui.layout?.phone){
+    if (!words){ select(head ? { kind: 'job', id: head } : { kind: 'section', id: next.id }); return; }
+    if (head) edit.openGuard(next.id);
+  } else if (head){      // a phone: the first click selects the job, a second writes
     const s = ui.sel;
     if (!(s.kind === 'job' && s.id === head) && !(s.kind === 'bullet' && (s.job === head || s.owner === head))){ select({ kind: 'job', id: head }); return; }
     edit.openGuard(next.id);
@@ -515,7 +523,11 @@ function bindChrome(){
   $('#file').addEventListener('change', e => { const list = [...(e.target.files ?? [])]; e.target.value = ''; if (list.length) openFiles(list); });
   addEventListener('dragover', e => { e.preventDefault(); });
   addEventListener('drop', dropFile);
-  { const ro = new ResizeObserver(placeRail); ro.observe($('#head')); ro.observe($('#body')); }        // the name wraps, or the card grows or shrinks: the tabs follow the editor card
+  // the sidebar column's bare background, above or below the floating card, folds the sidebar: a press that starts there (a drag let go
+  // over it is a click on the column too)
+  let bare = false;
+  $('#col').addEventListener('pointerdown', e => { bare = e.target.id === 'col'; });
+  $('#col').addEventListener('click', e => { if (bare && e.target.id === 'col' && document.body.classList.contains('card-float')) toggleSide(); });
 }
 
 function renderAll(){ syncIntro(); renderHead(); renderBody(); renderFoot(); }
@@ -616,18 +628,22 @@ function drawHead(){
   const mode = dock.modeOf();
   const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
-    const menuBtn = `<button class="ib" data-act="menu" aria-haspopup="true" aria-expanded="${!!ui.menu}" data-tip="${esc(t('head.menuTitle'))}|" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>`;
-    // One name card in every place: a tag line saying what it names (with the app menu at its end), the name, and Export as its stub.
+    // One name card in every place: a tag line saying what it names, the name, and Export inset at its end.
     // In the Library the ticked resumes win, then the selected one, then the open one; everywhere else it is the open resume.
     const place = SCREENS.includes(ui.view), editorHere = !place, tg = placeOf() === 'library' ? screens.target() : { ids: [store.state.openId], kind: 'open' };
     const rs = tg.ids.map(id => RS.savedOf(store.state, id)).filter(Boolean), many = rs.length > 1, other = tg.kind !== 'open' ? RS.savedOf(store.state, store.state.openId) : null;
     if (!many) ui.deckFold = false;
-    const tag = `<div class="htag"><span class="htagl ${tg.kind !== 'open' ? 'is-other' : ''}">${h(tg.kind === 'ticked' ? 'hc.tagTicked' : tg.kind === 'selected' ? 'hc.tagSel' : 'hc.tagOpen', { n: rs.length })}</span>${menuBtn}</div>`;
+    const tag = `<div class="htag"><span class="htagl ${tg.kind !== 'open' ? 'is-other' : ''}">${h(tg.kind === 'ticked' ? 'hc.tagTicked' : tg.kind === 'selected' ? 'hc.tagSel' : 'hc.tagOpen', { n: rs.length })}</span></div>`;
     const name = editorHere
       ? `<button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>`
       : !many ? `<button class="docname" ${rs[0]?.id === store.state.openId ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(rs[0]?.id ?? '')}"`} title="${esc(t('ux6e.open', { name: resumeName(rs[0]) }))}"><span class="dn">${nameHtml(resumeName(rs[0]))}</span></button>`
         : deckHtml(rs, screens.inspected());
     const stub = `<button class="hstub" data-act="export-place" data-tip="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}|" aria-label="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}">${icon('fileout', { role: many ? 'control' : 'header' })}<span>${h('ux2.modeExport')}${many ? ` <b class="hn">${rs.length}</b>` : ''}</span></button>`;
+    // Career with a resume open: the card's bottom row says whether Career shows its picks (the rest dimmed) or the whole career
+    const lens = placeOf() === 'career' && !!RS.savedOf(store.state, store.state.openId), lensV = ui.careerWhole ? 'whole' : 'picks';
+    const lensRow = lens ? `<div class="hrow hlens"><div class="seg fill" role="group" aria-label="${esc(t('lens.label'))}">${['picks', 'whole'].map(v => `<button type="button" data-act="lens" data-v="${v}" aria-pressed="${lensV === v}">${h(`lens.${v}`)}</button>`).join('')}</div></div>` : '';
+    document.body.dataset.lens = lens ? lensV : '';
+    $('#head').classList.toggle('is-lens', lens && lensV === 'picks');
     $('#head').classList.toggle('is-place', place);
     $('#head').classList.toggle('is-many', many);
     $('#head').dataset.layers = many ? String(Math.min(rs.length, 3) - 1) : '0';
@@ -636,11 +652,11 @@ function drawHead(){
     ${other ? `<div class="hrow sentrow"><span class="dnote">${h('hc.inEditor', { name: resumeName(other) })}</span></div>` : ''}
     ${editorHere && from ? `<div class="hrow sentrow"><span class="dfrom">${esc(from)}</span></div>` : ''}
     ${editorHere && sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
+    ${lensRow}
     ${ui.view === 'compare' ? screens.placeCard('compare') : ''}
     ${rs.length ? stub : ''}
-    ${notices}
-    ${ui.menu ? menuHtml() : ''}`;
-    drawRail(mode, savedState);
+    ${notices}`;
+    drawRail(savedState, many, rs.length ? stub.replace('class="hstub"', 'class="wexport"') : '');      // folded, Export is the way's strip's last cell
   } else {
   $('#ptabs').hidden = true;
   const meta = r ? [r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
@@ -660,7 +676,7 @@ function drawHead(){
     </div>
     ${notices}
     ${ui.menu ? menuHtml() : ''}`;
-  $('#rail').innerHTML = ''; $('#corner').innerHTML = '';
+  $('#rail').innerHTML = ''; cornerEl.innerHTML = '';
   }
   headMoments(sent);
 }
@@ -675,92 +691,91 @@ function deckHtml(rs, insp){
 // Export opens the Export place for what the card names, with the view to come back to
 const openExport = () => exporter.open(placeOf() === 'library' ? screens.target().ids : [store.state.openId], ui.view ?? null);
 
-// ---- the rail (a desktop): the logo, the editor's tabs, the other screens, undo and redo. Three containers: the tabs touch the editor card,
-// undo and redo sit at the foot. Folded, the top of the rail carries the Export stub. ----
-function drawRail(mode, saved = ''){
-  const hs = store.history, tea = drink() === 'tea', editor = placeOf() === 'editor';
-  const tab = (m, key, ic) => `<button role="tab" class="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'design', 'export'].includes(mode)) ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''}><span class="ti">${icon(tea ? ic[1] : ic[0], { role: 'header' })}</span><span class="tl">${h(key)}</span></button>`;
-  // the foot: undo, redo, Saved and the fold chevron in one card, the same on every place, over the logo; Content and Look joined to the panel in the editor only
-  $('#rail').innerHTML = `${logoBtn(30, { base: 'logo', pos: 'l' })}
-    ${editor ? `<div class="rtabs" id="rtabs" role="tablist" aria-orientation="vertical" aria-label="${esc(t('ux2.modes'))}" data-tea="${esc(dock.teaNow())}">${tab('edit', 'ux2.modeEdit', ['edit', 'steep'])}${tab('design', 'ux2.modeDesign', ['design', 'latte'])}</div>` : ''}
+// ---- the bar (a desktop): the app's own level at the column's foot, the same in every place: the brand (home: Resumes), Saved, undo and redo,
+// then the "?" (the one menu: the drink, help, settings and files) and the fold. Folded, it is the bottom strip. ----
+function drawRail(saved = '', many = false, exp = ''){
+  const hs = store.history, tp = side().off ? 'l' : 't';
+  $('#rail').innerHTML = `<button type="button" class="brand" data-act="place" data-p="library" data-tip="BrewCV|${esc(t('way.homeTip'))}" data-tip-pos="${tp}" aria-label="${esc(t('way.home'))}">${markHtml()}<span>BrewCV</span></button>
     <div class="rhist" role="group" aria-label="${esc(t('ux6b.history'))}">
       <span class="rsaved">${saved}</span>
-      ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', 'l')}
-      ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', 'l')}
+      ${ib('undo', 'undo', t('foot.undo'), hs.next ? t('foot.undoWhat', { what: hs.next, n: hs.undo }) : t('foot.undoN', { n: hs.undo }), hs.undo ? '' : 'disabled', tp)}
+      ${ib('redo', 'redo', t('foot.redo'), hs.nextRedo ? t('foot.redoWhat', { what: hs.nextRedo }) : t('foot.redo'), hs.redo ? '' : 'disabled', tp)}
     </div>
-    ${ib('side-fold', side().off ? 'left' : 'right', t(side().off ? 'uxs.sideShow' : 'uxs.sideHide'), keyText('Ctrl', '\\'), `aria-expanded="${!side().off}" aria-controls="body"`, 'l')}`;
-  $('#corner').innerHTML = cornerHtml();
-  drawPlaces();
-  placeRail();
+    <span class="rgap"></span>
+    <span class="rhelp">${ui.menu ? appMenuHtml() : ''}${ib('menu', 'help', t('way.menu'), '', `aria-haspopup="true" aria-expanded="${!!ui.menu}"`, tp)}</span>
+    ${ib('side-fold', side().off ? 'left' : 'right', t(side().off ? 'uxs.sideShow' : 'uxs.sideHide'), keyText('Ctrl', '\\'), `aria-expanded="${!side().off}" aria-controls="body"`, tp)}`;
+  drawPlaces(many, exp);
 }
-// The place tabs on top of the right column: Library, Editor (the pencil) and Career, in this order, each a button with its key in the tip.
-function drawPlaces(){
-  const pt = $('#ptabs'), here = placeOf(), on = RS.savedOf(store.state, store.state.openId);
-  const tea = drink() === 'tea';      // the places that show a rail tab's idea draw that tab's drawing in this drink (steep / edit, recordbook / timeline)
-  const P = [['library', 'list', t('ux6h.placeLibrary'), 'W'], ['editor', tea ? 'steep' : 'edit', t('ux6h.placeEditor'), 'E', on && t('ux6h.editorOpen', { name: resumeName(on) })], ['career', tea ? 'recordbook' : 'timeline', t('ux6h.placeCareer'), 'R']];
+// The "?" menu (a desktop): Tea or Coffee and light or dark, then help and settings, then the files
+function appMenuHtml(){
+  const linked = persist.status.linked, d = drink(), dark = resolveTheme(themePref()) === 'dark';
+  const pill = k => `<button type="button" aria-pressed="${k === d}" ${k === d ? 'disabled' : `data-act="drink-switch" data-to="${k}"`}>${h(`m11.${k}`)}</button>`;
+  return `<div class="menu card appmenu" role="menu" aria-label="${esc(t('way.menu'))}">
+    <div class="mdrink"><span class="seg" role="group" aria-label="${esc(t('way.drink'))}">${pill('tea')}${pill('coffee')}</span>${ib('theme-toggle', dark ? 'moon' : 'sun', t('intro.dark'), '', `aria-pressed="${dark}"`, 'l')}</div>
+    <hr>
+    <button role="menuitem" data-act="help">${h('ux2.shortcuts')}</button>
+    <button role="menuitem" data-act="goto" data-v="settings">${h('menu.settings')} <span class="muted">${settings.versionHtml()}</span></button>
+    <a role="menuitem" href="${SOURCE_URL}/blob/main/docs/PRIVACY.md" target="_blank" rel="noopener">${h('priv.link')}</a>
+    <a role="menuitem" href="${SOURCE_URL}" target="_blank" rel="noopener">${h('src.link')}</a>
+    <hr>
+    <button role="menuitem" data-act="goto" data-v="import">${h('menu.open')}</button>
+    <button role="menuitem" data-act="${linked ? 'unlink' : 'link'}" ${'showDirectoryPicker' in window || tauriApi() || linked ? '' : `disabled title="${esc(t('menu.linkNeeds'))}"`}>${linked ? h('menu.unlink', { name: linked }) : h('menu.link')}</button>
+    <button role="menuitem" data-act="goto" data-v="history">${h('menu.history')}</button>
+    <hr>
+    <button role="menuitem" data-act="example">${h('menu.example')}</button>
+    ${delBtn('data-act="start-over"', t('menu.startOver'), { row: true })}
+  </div>`;
+}
+// The way: one row, two levels, read left to right: Your career → Resumes (the app's places, buttons one step above the card),
+// then Content → Look (this resume's sheets, the card's own folder tabs), then Export inside the card. Only the open tab says its name; the others are
+// drawings, with the name and the key in the tip. In Career and the Library, Content and Look open the resume the card names; with several ticked they rest.
+function drawPlaces(many = false, exp = ''){
+  const pt = $('#ptabs'), here = placeOf(), ed = here === 'editor', mode = dock.modeOf();
+  const cur = ed ? (mode === 'design' ? 'design' : 'edit') : here;
+  const tip = (name, line, key) => `${esc(name)}|${esc(line)}${key ? ` ${esc(t('ux6h.key', { key: keyText(key) }))}` : ''}`;
+  const face = (k, name) => `${wayIcon(k)}<span class="ww">${esc(name)}</span>`;
+  const place = (k, name, key) => `<button class="wtab ${cur === k ? 'is-on' : ''}" data-act="place" data-p="${k}" ${cur === k ? 'aria-current="page"' : ''} data-tip="${tip(name, t(`way.${k}Tip`), key)}" data-tip-pos="b" aria-label="${esc(name)}">${face(k, name)}</button>`;
+  const id = placeOf() === 'library' ? screens.target().ids[0] : store.state.openId;
+  const sheet = (m, name, key) => `<button role="tab" class="wtab ${cur === m ? 'is-on' : ''}" id="tab-${m}" ${ed ? `data-act="mode" data-m="${m}"` : `data-act="sheet" data-m="${m}" data-id="${esc(id ?? '')}"`} aria-selected="${cur === m}" aria-controls="body"
+    tabindex="${cur === m || (m === 'edit' && cur !== 'design') ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''} ${many ? 'aria-disabled="true"' : ''} data-tip="${tip(name, many ? t('way.oneAtATime') : t(`way.${m}Tip`), key)}" data-tip-pos="b" aria-label="${esc(name)}">${face(m, name)}</button>`;
   pt.hidden = false;
   pt.setAttribute('aria-label', t('ux6h.places'));
-  pt.style.setProperty('--ti', String(P.findIndex(x => x[0] === here)));      // Coffee's sliding thumb
-  pt.innerHTML = P.map(([k, ic, name, key, tip]) => `<button class="ptab" data-act="place" data-p="${k}" ${here === k ? 'aria-current="page"' : ''} data-tip="${esc(tip || name)}|${esc(t('ux6h.key', { key: keyText(key) }))}" data-tip-pos="b" aria-label="${esc(name)}">${icon(ic, { role: 'control' })}<span>${esc(name)}</span></button>`).join('');
+  const next = pt.cloneNode(false);
+  next.innerHTML = `<div class="wplaces">${place('career', t('ux6h.placeCareer'), 'R')}${place('library', t('ux6h.placeLibrary'), 'W')}</div>
+    <div class="wsheets" role="tablist" aria-label="${esc(t('ux2.modes'))}">${sheet('edit', t('ux2.modeEdit'), 'E')}${sheet('design', t('ux2.modeDesign'))}</div>${exp}`;
+  const ns = [...next.childNodes];
+  if (pt.childNodes.length === ns.length) [...pt.childNodes].forEach((c, i) => morph(c, ns[i])); else pt.replaceChildren(...ns);
+  $('#col').classList.toggle('is-l-open', cur === 'design');      // the card's corner under Look is square while Look is open, where the tab hides it
 }
-// The tabs hang off the editor card: the first starts 30px below its top, whatever the name card's height, and a short card (Skills, with
-// the bank under it) gets shorter tabs, so the last one and its corner still end on the card. Not while the name window has the card's
-// place (the body is not there to measure).
-function placeRail(){
-  const body = $('#body'), rail = $('#rail');
-  if (!body || !body.offsetParent || ui.layout?.phone){ rail?.style.removeProperty('--tabh'); rail?.classList.remove('short-tabs'); return; }
-  rail.style.setProperty('--tt', `${body.offsetTop + 30}px`);
-  const first = rail.querySelector('.rtabs .tab');
-  if (!first) return;
-  const corner = rail.querySelector('.rtabs .tab:last-child[aria-selected=true]') ? 12 : 2;      // the open tab's 10px corner hangs under it: room for it only when it is the last
-  const room = body.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(body).borderBottomLeftRadius) || 0) - corner - first.getBoundingClientRect().top - 2 * 8;      // from the first tab's top to clear of the card's own corner, less two gaps
-  const h = Math.max(34, Math.min(58, Math.floor(room / 2)));
-  rail.style.setProperty('--tabh', `${h}px`);
-  rail.classList.toggle('short-tabs', h < 44);      // too short for the icon and the name: the name alone
+// Career's picks: an entry of the timeline the open resume does not print is dimmed in place: none of its facts or lines is on its page
+function lensMarks(){
+  const picks = document.body.dataset.lens === 'picks', rows = document.querySelectorAll('#scr .tl2 :is(.row, .srow)[data-id]');
+  const ix = picks ? ui.ix ?? indexModel(work(), cur()) : null, w = picks ? work() : null;
+  const printed = picks ? new Set([...(sheet.doc?.querySelectorAll('[data-variant]') ?? [])].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)) : null;
+  const used = (key, id) => { const x = (w[key] ?? []).find(e => e.id === id); return !!x && [...Object.values(x.display ?? {}), ...(x.highlights ?? [])].some(f => printed.has(f)); };
+  for (const r of rows) r.toggleAttribute('data-unpicked', picks && !used(r.dataset.key, r.dataset.id));
 }
-
+// The way is redrawn with the head, on every save: its tabs are patched in place (attributes and words), so a change of place eases (the
+// width, the name) and the open tab's rise plays once, when it opens, never on a save
+function morph(a, b){
+  if (a.nodeName !== b.nodeName || a.childNodes.length !== b.childNodes.length){ a.replaceWith(b); return; }
+  if (a.nodeType === 3){ if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+  if (a.nodeType !== 1) return;
+  for (const { name } of [...a.attributes]) if (!b.hasAttribute(name)) a.removeAttribute(name);
+  for (const { name, value } of [...b.attributes]) if (a.getAttribute(name) !== value) a.setAttribute(name, value);
+  const bs = [...b.childNodes];
+  [...a.childNodes].forEach((c, i) => morph(c, bs[i]));
+}
 // #scr holds the Library and Career: the list runs from the left gutter to the seam, the sidebar's height. Its box is the whole window, so the
 // mat it carries and scrolls (drinks.css) reaches every edge; its padding keeps the list where it was. The rail and the sidebar stand over it.
 function layoutScreen(){
   const L = ui.layout, scr = $('#scr');
   if (L?.phone) scr.style.padding = '';
   if (!L || L.phone || scr.hidden) return;
-  const w = Math.max(0, L.col.left - RAIL_W - 2 * G);
+  const w = Math.max(0, L.col.left - L.railW - 2 * G);
   Object.assign(scr.style, { left: '0px', top: '0px', height: `${innerHeight}px`, width: `${innerWidth}px`, padding: `${G}px ${innerWidth - G - w + 4}px ${2 * G}px ${G + 4}px` });
 }
 
-// Tea: the place tags hang on threads and swing when the pointer brushes past them, as the folded Tea tags did on main (dock.js swingTags):
-// the sideways movement near a tag pushes it, its neighbour gets a share, and a critically damped spring brings each back (no wiggle).
-// Nothing moves under reduced motion or in Coffee; the loop runs only while a tag moves. Decoration: a click never waits for it.
-const SWG = { s: [], raf: 0, last: 0, px: null, A: 0.9, omega: 6.64 / 0.75 };      // about a degree for one 60px brush (a sweep across all three adds up to about 3), settled in 0.75s
-function swingFrame(now){
-  SWG.raf = 0;
-  const tabs = document.querySelectorAll('#ptabs .ptab'), dt = Math.min(.05, (now - SWG.last) / 1000); SWG.last = now;
-  let live = false;
-  SWG.s.forEach((s, i) => {
-    if (!s) return;
-    const n = springStep(s, 0, dt, { omega: SWG.omega * (1 - .12 * i), bounce: 0 });
-    SWG.s[i] = atRest(n, 0, .03) ? { x: 0, v: 0 } : n;
-    if (SWG.s[i].x || SWG.s[i].v) live = true;
-    if (tabs[i]) tabs[i].style.rotate = SWG.s[i].x ? `${SWG.s[i].x.toFixed(3)}deg` : '';
-  });
-  if (live) SWG.raf = requestAnimationFrame(swingFrame);
-}
-function swingPlaces(e){
-  const px = SWG.px; SWG.px = e.clientX;
-  if (px === null || drink() !== 'tea' || reduced() || ui.layout?.phone) return;
-  const dx = Math.max(-45, Math.min(45, e.clientX - px)); if (!dx) return;
-  const tabs = [...document.querySelectorAll('#ptabs:not([hidden]) .ptab')];
-  const at = tabs.findIndex(x => { const r = x.getBoundingClientRect(); return e.clientX > r.left - 10 && e.clientX < r.right + 10 && e.clientY > r.top - 14 && e.clientY < r.bottom + 6; });
-  if (at < 0) return;
-  tabs.forEach((x, i) => {
-    if (Math.abs(i - at) > 1) return;
-    const s = SWG.s[i] ??= { x: 0, v: 0 }, k = -dx / 60 * (i === at ? 1 : .45) * Math.E, cap = 1.4 * SWG.A * SWG.omega * Math.E;
-    s.v = Math.max(-cap, Math.min(cap, s.v + k * SWG.A * SWG.omega));
-  });
-  if (!SWG.raf){ SWG.last = performance.now(); SWG.raf = requestAnimationFrame(swingFrame); }
-}
-document.addEventListener('pointermove', swingPlaces, { passive: true });
 
 // "Saved on this device", and under it where the file stands
 const savedTip = () => {
@@ -880,8 +895,7 @@ async function loadLangCounts(){
   if (sel && document.activeElement !== (sel._dd ?? sel)) sel.outerHTML = langSelect();
 }
 
-// The "?" corner: help and info at the sidebar's foot, out of the Outline's way: the shortcuts, privacy, the source, the version.
-// A desktop draws it in #corner over the panel's bottom right (the panel keeps a row free under its content); a phone in the foot (dock.js).
+// A phone's "?" corner: help and info at the end of its foot (dock.js): the shortcuts, privacy, the source, the version. A desktop has the bar's "?" menu.
 function cornerHtml(){
   const open = !!ui.corner;
   return `<span class="corner">${open ? `<div class="menu card cornermenu" role="menu" aria-label="${esc(t('uxr.help'))}">
@@ -891,7 +905,7 @@ function cornerHtml(){
     <button role="menuitem" data-act="goto" data-v="settings">${h('uxs.about')} <span class="muted">${settings.versionHtml()}</span></button>
   </div>` : ''}${ib('corner', 'help', t('uxr.help'), '', `aria-haspopup="true" aria-expanded="${open}"`, 'l')}</span>`;
 }
-const drawCorner = () => { if (ui.layout?.phone){ $('#corner').innerHTML = ''; renderFoot(); } else $('#corner').innerHTML = cornerHtml(); };
+const drawCorner = () => { cornerEl.innerHTML = ''; if (ui.layout?.phone) renderFoot(); };      // a desktop's "?" is the bar's
 const closeCorner = () => { if (!ui.corner) return false; ui.corner = false; drawCorner(); return true; };
 
 function menuHtml(){
@@ -987,9 +1001,10 @@ function renderBody(animate = false){
     el.dataset.mode = ui.view;
     if (ui.view === 'record') recordTab.afterRender();
     screens.after[ui.view]?.();
+    if (ui.view === 'record') lensMarks();
     finish();
     if (ui.view === 'record') recordTab.refocus();
-    if (ui.view === 'export' && !ui.layout?.phone) el.querySelector('.exstat')?.insertAdjacentHTML('beforeend', `<div class="exfit"><span class="fitslot">${dock.fitHtml()}</span>${dock.barsHtml()}</div>`);      // Fit and the page fill live in Export, once: at the end of the status row
+    if (ui.view === 'export' && !ui.layout?.phone) el.querySelector('.exstat')?.insertAdjacentHTML('beforeend', `<div class="exfit">${dock.barsHtml()}</div>`);      // the page fill lives in Export, once: at the end of the status row (a desktop has no Fit; a phone's foot keeps it)
     return;
   }
   // Edit is whatever is selected: nothing selected is the Outline, a job is its lines, a line its versions (a phone has no Outline: its
@@ -1004,6 +1019,7 @@ function renderBody(animate = false){
   finish();
   edit.afterRender();
   checklist.afterRender();
+  placeCard();
 }
 
 // Under a job or a line of one: its details, and the way to the rest of the record. Under anything else that
@@ -1059,7 +1075,40 @@ function placeOverflow(){
 
 // The layers over the page (the job's frame, the breadcrumb that says which job and how many of its lines are on, the tools) are
 // src/ui/onpage.js's; the shell only says when to draw them again
-function renderChip(){ onpage?.render(); hands?.refresh(); }
+function renderChip(){ onpage?.render(); hands?.refresh(); placeCard(); }
+
+// ---- The editor card follows the selection (a desktop, the editor's Content). It lives in the sidebar column, its x never changes, only as tall as
+// what it holds; it aims at the visible part of what is selected and moves only when that leaves its span, by as little as it must (the glide is CSS).
+// Nothing selected is the map, at home under the name card. The page never moves for it: the camera is the page's own. It stays above the bar. ----
+const CARD_IN = 24;
+function placeCard(){ placeCardNow(); string?.update(); }      // the string follows the card and the selection
+function placeCardNow(){
+  const body = $('#body'), col = $('#col'), head = $('#head');
+  const float = !!body && !ui.layout?.phone && !ui.view && !ui.snap && !side().off && !col.classList.contains('is-name') && !document.body.classList.contains('is-intro') && !document.body.classList.contains('is-quiet') && ['outline', 'edit'].includes(body.dataset.mode);
+  body?.classList.toggle('is-float', float);
+  document.body.classList.toggle('card-float', float);
+  if (!float){ if (cardY){ cardY = 0; body?.style.removeProperty('--card-y'); } return; }
+  const r = ui.sel.kind === 'none' ? null : onpage?.selRect?.();
+  const foot = $('#rail').getBoundingClientRect().top - G, home = head.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(head).marginBottom) || 0);
+  const bank = $('#bankcard'), below = bank && !bank.hidden ? 8 + Math.max(160, .45 * innerHeight) : 0;      // the word bank keeps its room under the card
+  const h = body.scrollHeight, most = Math.max(0, foot - home - h - below);
+  let y = cardY;
+  if (!r) y = 0;
+  else {
+    const vh = innerHeight, at = r.top + r.height < 8 ? 8 : r.top > vh - 8 ? vh - 8 : Math.max(r.top, 8), top = home + y, span = Math.max(CARD_IN, Math.min(h, foot - below - top) - CARD_IN);
+    if (at < top + CARD_IN) y = at - CARD_IN - home; else if (at > top + span) y = at - span - home;
+  }
+  y = Math.round(Math.max(0, Math.min(y, most)));
+  if (y !== cardY){ cardY = y; body.style.setProperty('--card-y', `${y}px`); }
+}
+// the map lists the sections by page: drawn again when the page's split or its fill has changed
+let mapSig = '';
+function mapChanged(){
+  const sig = JSON.stringify([sheet.sectionsByPage(), (ui.fills ?? []).map(f => Math.round(100 * f.used / f.usable))]);
+  if (sig === mapSig) return;
+  mapSig = sig;
+  if ($('#body')?.dataset.mode === 'outline' && !ui.view) renderBody();
+}
 // a meter was clicked: bring that page into view (stacked pages on a phone scroll; on a desktop the camera travels)
 function goToPage(i){
   const L = ui.layout, n = ui.fills.length || 1;
@@ -1071,7 +1120,7 @@ function goToPage(i){
 
 async function onClick(e){
   const tg = e.target.closest('[data-act]');
-  if (ui.menu && !e.target.closest('.menu') && tg?.dataset.act !== 'menu'){ ui.menu = false; renderHead(); }
+  if (ui.menu && (!e.target.closest('.menu') || e.target.closest('.appmenu a')) && tg?.dataset.act !== 'menu') setTimeout(() => { ui.menu = false; renderHead(); });      // a link opens its tab first
   if (ui.corner && tg?.dataset.act !== 'corner' && !(e.target.closest('.cornermenu') && !e.target.closest('a'))) setTimeout(closeCorner);      // a link opens its tab first
   if (ui.langMenu && !e.target.closest('.langpop') && tg?.dataset.act !== 'lang-menu'){ ui.langMenu = null; renderHead(); }
   if (!e.target.closest('.langpop, .rowmenu') && tg?.dataset.act !== 'lang-menu-body') closeBodyMenus();      // a click on a row menu's own item is its act's to handle, which needs the row it came from
@@ -1098,8 +1147,14 @@ async function onClick(e){
   if (await edit.act(act, tg)) return;
   switch (act){
     case 'export-place': openExport(); break;
+    case 'lens': ui.careerWhole = tg.dataset.v === 'whole'; renderHead(); lensMarks(); break;
+    case 'sheet': {      // Content or Look from Career or the Library: the resume the card names, then that sheet
+      if (tg.getAttribute('aria-disabled') === 'true') break;
+      if (id && id !== store.state.openId && !resumes.open(id)) break;
+      await dock.setMode(tg.dataset.m); break;
+    }
     case 'hc-fold': ui.deckFold = !ui.deckFold; renderHead(); break;
-    case 'menu': ui.menu = !ui.menu; if (ui.menu) switcher.close(); renderHead(); if (ui.menu) focusMenu('.menu'); break;
+    case 'menu': ui.menu = !ui.menu; if (ui.menu) switcher.close(); renderHead(); if (ui.menu) focusMenu(ui.layout?.phone ? '.menu' : '.appmenu'); break;
     case 'select-record': {
       const d = tg.dataset;
       select({ kind: 'record', what: d.what, ...(d.group ? { group: d.group } : {}), ...(d.key ? { key: d.key } : {}), id });
@@ -1123,7 +1178,7 @@ async function onClick(e){
       select(job ? { kind: 'bullet', id, job, section: 'experience' } : { kind: 'bullet', id, section: 'summary' });
       break;
     }
-    case 'use-version': useVersion(tg.closest('.vlist, .obvlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
+    case 'use-version': useVersion(tg.closest('.vlist, .obvlist, .cvlist')?.dataset.fact ?? ui.sel.id, tg.dataset.v); break;
     case 'drink-switch': switchDrink(); break;
     case 'drink-set': setDrink(tg.dataset.m); break;          // the start screen's two cups
     case 'theme-toggle': setThemePref(resolveTheme(themePref()) === 'dark' ? 'light' : 'dark'); break;
@@ -1153,21 +1208,26 @@ async function onClick(e){
   }
 }
 
-document.addEventListener('mouseover', e => {
-  const row = e.target.closest?.('.vrow[data-v], .obvopt[data-v]');
+// a version under the pointer, or a version of the card's list with the focus on it, is previewed on the page
+const previewRow = e => {
+  const row = e.target.closest?.('.vrow[data-v], .obvopt[data-v], .cvo[data-v]');
   if (!row || !row.dataset.v || ui.fitting || edit.editing?.panel || (row.classList.contains('cur') && !edit.editing)) return;      // while a line is written its own version is previewed too: the draft is what differs
   if (ui.hoverV === row.dataset.v) return;
-  const fact = row.closest('.vlist, .obvlist')?.dataset.fact;
+  const fact = row.closest('.vlist, .obvlist, .cvlist')?.dataset.fact;
   if (!fact) return;
   ui.hoverV = row.dataset.v;
   previewVersion(fact, row.dataset.v);
-});
-document.addEventListener('mouseout', e => {
-  const list = e.target.closest?.('.vlist, .obvlist');
+};
+document.addEventListener('mouseover', previewRow);
+document.addEventListener('focusin', e => { if (e.target.closest?.('.cvlist')) previewRow(e); });
+const leaveRows = e => {
+  const list = e.target.closest?.('.vlist, .obvlist, .cvlist');
   if (!list || list.contains(e.relatedTarget)) return;
   ui.hoverV = null;
   endPreview();
-});
+};
+document.addEventListener('mouseout', leaveRows);
+document.addEventListener('focusout', e => { if (e.target.closest?.('.cvlist')) leaveRows(e); });
 
 async function previewVersion(factId, vid){
   const r = structuredClone(cur());
@@ -1255,8 +1315,8 @@ function placeChip(el){
   const L = ui.layout;
   for (const k of ['left', 'right', 'top', 'maxWidth']) el.style[k] = '';
   if (!L || L.phone) return;
-  const ft = ($('.fitslot .fit') ?? $('.fitslot') ?? $('#body')).getBoundingClientRect();      // Fit is in Export; the chip waits under it, else at the panel's top
-  Object.assign(el.style, { left: `${Math.round(Math.max(L.col.left + 8, ft.right - el.offsetWidth))}px`, top: `${Math.round(ft.bottom + 6)}px`, maxWidth: `${L.col.width - 16}px` });
+  const btn = $('.fitslot .fit'), ft = (btn ?? $('#body')).getBoundingClientRect();      // under a Fit button (a phone's), else at the panel's top
+  Object.assign(el.style, { left: `${Math.round(Math.max(L.col.left + 8, ft.right - el.offsetWidth - (btn ? 0 : 8)))}px`, top: `${Math.round(btn ? ft.bottom + 6 : ft.top + 8)}px`, maxWidth: `${L.col.width - 16}px` });
 }
 // After Fit: what it did, in a chip that stays until the next change (dropChip runs when the history moves), with Undo. Fit only chose among wordings that were already there.
 let chipEl = null, chipAt = -1;
@@ -1312,7 +1372,7 @@ function key(e){
   if (e.key === 'Escape'){
     if (help.isOpen){ help.close(); return; }
     if (switcher.isOpen){ switcher.close({ focusBack: true }); return; }
-    if (ui.menu){ ui.menu = false; renderHead(); return; }
+    if (ui.menu){ ui.menu = false; renderHead(); $('#rail [data-act=menu]')?.focus(); return; }
     if (closeCorner()){ $('[data-act=corner]')?.focus(); return; }
     if (ui.langMenu){ ui.langMenu = null; renderHead(); $('#langbtn')?.focus(); return; }
     if (closeBodyMenus()) return;
@@ -1588,6 +1648,7 @@ const edit = initEdit({
   endPreview: () => endPreview(),
   previewRecipe,
   detailsHtml: id => career.detailsHtml(id),
+  careerAdd: () => { goPlace('career'); if (!career.popOpen) $('#c-add')?.click(); },
 });
 edit.bind($('#body'));
 window.__wb.edit = edit;
@@ -1650,7 +1711,7 @@ const career = initCareer({ store, ui, toast, work, setView, syncUi: r => syncUi
   renderHead: () => renderHead(), photoUrl: () => store.materialize(store.state.record?.basics?.image) });
 career.bind($('#body'));
 window.__wb.career = career;
-const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, sectionTitle, lineBox: id => { const r = ui.ix && sheet.rectOf(id, ui.ix); return r ? canvas.screenRect(r) : null; }, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
+const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, sectionTitle, sectionsByPage: () => sheet.sectionsByPage(), lineBox: id => { const r = ui.ix && sheet.rectOf(id, ui.ix); return r ? canvas.screenRect(r) : null; }, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
 checklist.bind($('#body'));
 window.__wb.checklist = checklist;
 const recordTab = initRecord({ ui, checklist, career, work, cur, lang, openName: () => resumeName(RS.savedOf(store.state, store.state.openId)), renderBody: () => renderBody(), setMode: m => dock.setMode(m) });

@@ -2,12 +2,12 @@
 // node checks/icon-check.mjs        (ONLY=sizes,concepts,outline runs only those sections; PORT=... picks the port)
 // The icon design language (docs: Icon Design Language), in Chromium through Playwright (CHROME_PATH, or PW_BUNDLED=1); writes nothing.
 //  sizes:    in Tea and Coffee, light and dark, on every screen (Editor with a line, a section and a job open, Design, Export, the Library and its
-//            inspector, Settings, Career and a Career form, the name window, the head menu, the language menu, the help card) and on a phone,
+//            inspector, Settings, Career and a Career form, the name window, the "?" menu, the language menu, the help card) and on a phone,
 //            every rendered icon is one of the four role sizes (12, 16, 24, 44), its tokens are the drink's (Tea 1.75 / 1.75 / 2.25 / 3 px, Coffee
 //            1.5 / 1.5 / 2 / 2.5 px) and the stroke it draws is its role's token, in screen pixels (non-scaling).
 //  concepts: every control of a registered concept (delete, close, edit, revert, lock, add, more, pin, help, zoom) renders the icon the
 //            registry (CONCEPT in src/ui/icons.js) names, on every screen it appears on; delete is the X, never a bin; no registered icon serves
-//            two concepts (delete and close share the X and differ by the control's tier); the places and modes draw the drink's own tab drawing.
+//            two concepts (delete and close share the X and differ by the control's tier); the way's tabs draw their own four drawings, the same in both drinks.
 //  outline:  the Outline's sections each have an icon of their own (Name and contact is not Summary), at most six hues, Skills and Patent not one.
 
 import { chromium } from 'playwright';
@@ -39,7 +39,7 @@ const WEIGHTS = { tea: { inline: 1.75, control: 1.75, header: 2.25, display: 3 }
 const CONTROLS = [
   ['delete', 'button.del, .dp-fix.del'], ['close', '.crumb > .x, [data-act=help-close], [data-act=find-close]'],
   ['edit', '[data-act=edit]'], ['revert', '[data-act=only-remove]'], ['lock', '[data-act=row-lock], [data-act=lock-toggle], .obsoft'],
-  ['add', '.obplus'], ['more', '.smore, [data-act=menu]'], ['pin', '[data-act=keep]'], ['help', '[data-act=corner]'],
+  ['add', '.obplus'], ['more', '.smore, .cmore'], ['pin', '[data-act=keep]'], ['help', '#rail [data-act=menu]'],
   ['zoomIn', '[data-act=zoom-in]'], ['zoomOut', '[data-act=zoom-out]'],
 ];
 const LOCKS = ['lock', 'unlock'];
@@ -56,13 +56,13 @@ async function open({ w = 1280, h = 800, drink = 'tea', theme = 'light' } = {}){
   return { ctx, page, bad };
 }
 const settle = page => page.waitForTimeout(300);
-const rest = async page => { await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await page.evaluate(() => window.__wb.setView(null)); await page.click('#ptabs [data-p=editor]').catch(() => {}); await settle(page); };
+const rest = async page => { await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await page.evaluate(() => window.__wb.setView(null)); await page.click('#tab-edit').catch(() => {}); await settle(page); };
 const click = (page, sel) => page.click(sel, { timeout: 2500 }).catch(() => {});
 const SCREENS = {
   outline: async () => {},
   line: async page => { await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page); },
-  section: async page => { await click(page, '#body [data-act=select-section][data-id=experience]'); },
-  job: async page => { await click(page, '#body [data-act=select-job][data-id=free]'); },
+  section: async page => { await page.evaluate(() => { window.__wb.ui.sel = { kind: 'section', id: 'experience' }; window.__wb.setView(null); }); },
+  job: async page => { await page.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'free' }; window.__wb.setView(null); }); },
   design: async page => { await click(page, '#tab-design'); },
   export: async page => { await page.evaluate(() => window.__wb.export.open()); },
   library: async page => { await page.evaluate(() => window.__wb.setView('resumes')); await settle(page); },
@@ -77,7 +77,7 @@ const SCREENS = {
     await page.keyboard.press('Escape'); await settle(page);
   },
   'name window': async page => { await click(page, '[data-act=switcher]'); },
-  'head menu': async page => { await click(page, '[data-act=menu]'); },
+  'app menu': async page => { await click(page, '#rail [data-act=menu]'); },
   help: async page => { await page.keyboard.press('?'); },
 };
 
@@ -90,7 +90,7 @@ async function inspect(page, controls){
     const cs = getComputedStyle(document.documentElement);
     const tokens = Object.fromEntries(['inline', 'control', 'header', 'display'].map(r => [r, parseFloat(cs.getPropertyValue('--ic-sw-' + r))]));
     const icons = [];
-    for (const s of document.querySelectorAll('svg.ico, svg.ci')){
+    for (const s of document.querySelectorAll('svg.ico:not(.way), svg.ci')){      // (the way's tabs are drawings of their own: the places check)
       const r = s.getBoundingClientRect();
       if (!r.width || s.closest('[hidden]') || getComputedStyle(s).visibility === 'hidden') continue;
       const g = s.querySelector('path, circle, rect'), gs = g && getComputedStyle(g);
@@ -100,7 +100,7 @@ async function inspect(page, controls){
       icons.push({ d: g?.getAttribute('d') ?? '', w: Math.round(r.width), sw: gs ? parseFloat(gs.strokeWidth) : 0, ve: gs?.vectorEffect ?? '', name: by[s.innerHTML] ?? '?', concept, where: `${ctrl?.tagName.toLowerCase()}.${[...(ctrl?.classList ?? [])].slice(0, 2).join('.')}[${ctrl?.dataset?.act ?? ''}]` });
     }
     const reg = mod.CONCEPT ?? null;
-    return { icons, tokens, reg, names: Object.keys(mod.ICONS ?? {}), places: [...document.querySelectorAll('#ptabs .ptab, #rtabs .tab')].map(b => [b.dataset.p ?? b.dataset.m, b.querySelector('svg') && by[b.querySelector('svg').innerHTML]]) };
+    return { icons, tokens, reg, names: Object.keys(mod.ICONS ?? {}), places: [...document.querySelectorAll('#ptabs .wtab')].map(b => { const k = b.dataset.p ?? b.dataset.m, d = document.createElement('div'); d.innerHTML = mod.wayIcon(k); const g = b.querySelector('svg.way'); return [k, !!g && g.innerHTML === d.firstChild.innerHTML && Math.round(g.getBoundingClientRect().width) === 22]; }) };
   }, controls);
 }
 
@@ -128,14 +128,15 @@ for (const [drink, theme] of LOOKS){
   if (want('concepts')){
     ok(`${tag}: icons.js has a concept registry (CONCEPT) and each concept has a drawing`, !!reg && Object.keys(reg).length >= 12 && Object.values(reg).every(n => names.includes(n)), reg ? Object.values(reg).filter(n => !names.includes(n)).join(', ') : 'no CONCEPT export');
     const found = {};
-    for (const c of CONTROLS.map(x => x[0])){
+    for (const c of CONTROLS.map(x => x[0])){      // (Keep, the pin, is a word in the card's ⋯ menu now: it may draw none)
       const mine = all.filter(i => i.concept === c);
       const wantIcon = reg?.[c];
       const wrong = mine.filter(i => (c === 'lock' ? !LOCKS.includes(i.name) : i.name !== wantIcon));
       found[c] = [...new Set(mine.map(i => i.screen))];
-      ok(`${tag}: every ${c} control draws the registered icon (${c === 'lock' ? 'lock or unlock' : wantIcon ?? 'none registered'}) (${mine.length} on ${found[c].length} screens)`, !!reg && (mine.length > 0 || ['edit', 'focus'].includes(c)) && !wrong.length, [...new Set(wrong.map(i => `${i.name} ${i.w}px ${i.where} @${i.screen}`))].slice(0, 4).join(' | ') || (mine.length ? '' : 'none found'));
+      ok(`${tag}: every ${c} control draws the registered icon (${c === 'lock' ? 'lock or unlock' : wantIcon ?? 'none registered'}) (${mine.length} on ${found[c].length} screens)`, !!reg && (mine.length > 0 || ['edit', 'focus', 'pin'].includes(c)) && !wrong.length, [...new Set(wrong.map(i => `${i.name} ${i.w}px ${i.where} @${i.screen}`))].slice(0, 4).join(' | ') || (mine.length ? '' : 'none found'));
     }
-    ok(`${tag}: delete is on at least four screens and it is the X, never a bin`, (found.delete?.length ?? 0) >= 4 && all.filter(i => i.concept === 'delete').every(i => i.d === 'M4 4l8 8M12 4l-8 8'), `${found.delete?.join(', ')}`);
+    // (a line's Delete and Remove are words in the editor card's ⋯ menu: the X stays in the name window and the "?" menu)
+    ok(`${tag}: delete is on at least two screens and it is the X, never a bin`, (found.delete?.length ?? 0) >= 2 && all.filter(i => i.concept === 'delete').every(i => i.d === 'M4 4l8 8M12 4l-8 8'), `${found.delete?.join(', ')}`);
     // no registered icon serves two concepts (delete and close share the X on purpose: they differ by the control's tier)
     const byIcon = {};
     for (const [c, n] of Object.entries(reg ?? {})) (byIcon[n] ??= []).push(c);
@@ -145,9 +146,9 @@ for (const [drink, theme] of LOOKS){
     for (const i of all) if (i.concept && SIZES[i.w]) (used[i.name] ??= new Set()).add(i.concept === 'delete' ? 'close' : i.concept === 'lock' ? 'lock' : i.concept);
     const two = Object.entries(used).filter(([, cs]) => cs.size > 1);
     ok(`${tag}: no icon is on the controls of two concepts on screen`, !two.length && all.some(i => i.concept), two.map(([n, cs]) => `${n}: ${[...cs].join('+')}`).join(' | '));
-    const tea = drink === 'tea', P = Object.fromEntries(places);
-    ok(`${tag}: the places and modes draw this drink's own tabs (Library list; Editor and Edit ${tea ? 'steep' : 'edit'}; Career ${tea ? 'recordbook' : 'timeline'}; Look ${tea ? 'latte' : 'design'}; no Export tab: it is a place)`,
-      P.library === 'list' && P.editor === (tea ? 'steep' : 'edit') && P.career === (tea ? 'recordbook' : 'timeline') && P.edit === (tea ? 'steep' : 'edit') && P.design === (tea ? 'latte' : 'design') && !('export' in P), JSON.stringify(P));
+    const P = Object.fromEntries(places);
+    ok(`${tag}: the way's tabs draw their own drawings at 22 px, the same in both drinks (Your career, Resumes, Content, Look; no Export tab: it is in the card)`,
+      Object.keys(P).join() === 'career,library,edit,design' && Object.values(P).every(Boolean), JSON.stringify(P));
     ok(`${tag}: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
   }
   await ctx.close();

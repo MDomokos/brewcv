@@ -10,13 +10,13 @@ import { key as measureKeyOf } from '../fit.js';
 import { missingList, writeInPlan, matchPlan, isSame, sameKey, setSame, langName, writeIn, DEFAULT_LANG } from '../model/lang.js';
 import { groupOf, inGroup, groupOpts, parentOf, setInStep, matchVersion, keepLabelAs, prints, resumeLabel } from '../model/resumes.js';
 import * as K from '../model/career.js';
-import { recordSelOfFact, factOfRecordSel } from '../model/checklist.js';
+import { recordSelOfFact, factOfRecordSel, groupOf as recordGroupOf } from '../model/checklist.js';
 import { keyOf, isLabelKey } from './select.js';
 import { t, h, errText } from '../i18n/index.js';
 import { askIfLocked } from './ask.js';
-import { play, played } from './motion.js';
+import { play, played, reduced } from './motion.js';
 import { icon } from './icons.js';
-import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, claimHead, delBtn, labelChangedHtml } from './parts.js';
+import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, delBtn, delAskHtml, labelChangedHtml, topHtml, gist } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -25,7 +25,7 @@ const $ = s => document.querySelector(s);
 const LANG_NAME = new Proxy({}, { get: (_, l) => langName(l) });
 
 // the editor and the panel's own view state; none of it is undone
-const E = { writeIn: null, enter: null, edit: null, compare: null, openMinor: new Set(), fold: new Map(), foldAuto: null, softShown: null, softOpen: null, guardOn: true, autoFold: true, timer: null, claimDrafts: new Map(), delAsk: null, useOpen: new Set() };
+const E = { armed: null, justOff: null, writeIn: null, enter: null, edit: null, compare: null, openMinor: new Set(), fold: new Map(), foldAuto: null, softShown: null, softOpen: null, guardOn: true, autoFold: true, timer: null, claimDrafts: new Map(), delAsk: null, useOpen: new Set() };
 
 function commit(fn, label, done, undo = false){
   try {
@@ -304,6 +304,43 @@ function chipOn(kind, id){
   else if (kind === 'job') commit(d => T.setJobOn(d.record, d.cur, id, !on), !on ? t('undo.showJob') : t('undo.hideJob'));
   else if (kind === 'line') setBullet(id, !on);
   else commit(d => T.setItemOn(d.record, d.cur, id, !on), !on ? t('undo.turnOn') : t('undo.turnOff'));
+  if (on) goUp(kind, id);
+}
+// Turning off what is selected goes up a level: the card shows the parent, the old card shrinks into the row of what was turned off, and that row
+// is marked (its own wash, a ring on its tick) for 3 s, held while the pointer is on it (CSS .is-just). Nothing else is said.
+const UP_MS = 350, JUST_MS = 3000;
+function goUp(kind, id){
+  const sel = C.ui.sel;
+  const here = kind === 'line' ? sel.kind === 'bullet' && sel.id === id : kind === 'job' ? sel.kind === 'job' && sel.id === id : kind === 'section' && sel.kind === 'section' && sel.id === id && !sel.heading;
+  const up = !here ? null : kind === 'line' ? (sel.job ? { kind: 'job', id: sel.job } : null) : kind === 'job' ? { kind: 'section', id: T.sectionOfEntry(rec(), id) } : { kind: 'none' };
+  if (!up) return;
+  const body = $('#body'), r = body?.getBoundingClientRect();
+  let pic = null;
+  if (r?.width && !reduced()){      // the old card, as a picture, to shrink into its row
+    pic = body.cloneNode(true); pic.removeAttribute('id'); pic.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    pic.inert = true; pic.setAttribute('aria-hidden', 'true'); pic.classList.add('upshot');
+    Object.assign(pic.style, { position: 'fixed', left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, margin: '0', maxHeight: 'none', overflow: 'hidden', transformOrigin: '0 0', zIndex: '12', pointerEvents: 'none' });
+  }
+  E.justOff = { kind, id, until: performance.now() + JUST_MS, at: keyOf(up), pic };
+  C.select(up);
+}
+function markJust(){
+  const j = E.justOff, body = $('#body');
+  if (!j) return;
+  const left = j.until - performance.now();
+  if (left <= 0 || keyOf(C.ui.sel) !== j.at){ j.pic?.remove(); E.justOff = null; return; }
+  const q = CSS.escape(j.id), row = j.kind === 'section' ? body.querySelector(`.osec:not(.is-cont) > .srow[data-sid="${q}"]`)
+    : j.kind === 'job' ? body.querySelector(`[data-jobon="${q}"]`)?.closest('.item, .clgh') : body.querySelector(`.clrow[data-fact="${q}"]`);
+  if (!row) return;
+  row.classList.add('is-just'); row.style.animationDelay = `${Math.round(left - JUST_MS)}ms`;      // a redraw carries the fade on where it was
+  row.addEventListener('animationend', e => { if (e.animationName === 'just-fade' && E.justOff === j) E.justOff = null; });
+  row.scrollIntoView({ block: 'nearest' });
+  const pic = j.pic; j.pic = null;
+  if (!pic) return;
+  document.body.append(pic);
+  const a = pic.getBoundingClientRect(), b = row.getBoundingClientRect();
+  pic.animate([{ transform: 'none', opacity: 1 }, { opacity: 1, offset: .6 }, { transform: `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width}, ${Math.max(.02, b.height / a.height)})`, opacity: 0 }], { duration: UP_MS, easing: 'cubic-bezier(.2,.8,.2,1)' }).finished.finally(() => pic.remove());
+  body.animate([{ opacity: 0 }, { opacity: 1 }], { duration: UP_MS, easing: 'ease-out' });      // the parent's rows come in as the old card goes into its row
 }
 
 // The skills of this resume: its groups by name, in print order, under Position (src/ui/wordbank.js). The picked one takes the bank's words.
@@ -342,29 +379,130 @@ function moveSkillBy(g, k, to, j){
   return ok;
 }
 
-// The header of the section, job and line views: the real depth chip (its tick and padlock are the block's only ones) is the folder tab of the card under it.
-// `hue` colours the card; a locked block's wash is put on by lockPass; `off`: hidden on this resume.
-const headHtml = (sel, hue, card, { off = false } = {}) => `<div class="hdr${off ? ' hoff' : ''}" style="--hk:${hue}">${depthHtml(sel)}<div class="hcard">${card}</div></div>`;
+// The header of the section, job and line views: the card's top row (its tick and padlock are the block's only ones), then the name alone (a section's
+// and a job's; a line is the page's own) and the few controls that belong to the block. `hue` colours the card; `off`: hidden on this resume.
+const headHtml = (sel, hue, card, { off = false, title = '' } = {}) => `${topOf(sel)}<div class="hdr${off ? ' hoff' : ''}" style="--hk:${hue}">${title ? `<h2 class="title ctitle">${esc(title)}</h2>` : ''}${card ? `<div class="hcard">${card}</div>` : ''}</div>`;
+
+// ---- the card's top row (parts.js topHtml): the tick and the padlock, the versions, ↑ ↓, ⋯ and the add, for what is selected ----
+// the siblings a selection moves among, in print order (null where it moves among none)
+const skillGroupSel = sel => sel.kind === 'bullet' && sel.section === 'skills';
+const sibId = sel => (skillGroupSel(sel) ? sel.id.replace(/^~g:/, '') : sel.id);
+function siblings(sel){
+  const r = rec(), c = cur();
+  if (skillGroupSel(sel)) return T.arrangementOf(r, c).groups.map(g => g.id);
+  if (sel.kind === 'bullet') return sel.job ? T.listedBullets(r, c, sel.job) : null;
+  if (sel.kind === 'job') return T.jobRefs(r, c, T.sectionOfEntry(r, sel.id)).map(x => (typeof x === 'string' ? x : x.id));
+  if (sel.kind === 'section' && !sel.heading) return T.sectionList(r, c).filter(x => !x.fixed && x.on).map(x => x.id);
+  if (sel.kind === 'record' && sel.what === 'item'){ const sid = T.sectionOfItem(r, sel.id); return sid ? (T.itemList(r, c, sid) ?? []).filter(x => x.on).map(x => x.id) : null; }
+  return null;
+}
+function stepSel(d){
+  const sel = C.ui.sel, id = sibId(sel);
+  if (skillGroupSel(sel)) stepGroupBy(id, d); else if (sel.kind === 'bullet') stepBulletBy(id, d); else if (sel.kind === 'job') stepJobBy(id, d);
+  else if (sel.kind === 'section') stepSectionBy(id, d); else if (sel.kind === 'record') stepItemBy(id, d);
+}
+// the line's versions in this language, where each differs from the one in use; an edit on this resume where it would be numbered
+function versOf(sel){
+  const id = sel.id;
+  if (sel.kind !== 'bullet' || skillGroupSel(sel) || id.startsWith('~') || T.isLocal(cur(), id) || !ix().facts.has(id)) return null;
+  const L = lang(), m = work(), over = overrideOf(id), using = usingOf(id), ref = over ?? using?.text ?? '';
+  const miss = grouped() ? missingNow().find(x => x.id === id && isLineMiss(x)) : null;
+  if (miss?.want && over === undefined) return { fact: id, miss: { n: miss.want, from: miss.from } };
+  const items = R.versionsIn(m, id, L).map(v => { const now = over === undefined && v.id === using?.id; return { id: v.id, n: v.n, cur: now, gist: now ? esc(clip(v.text, 90)) : gist(v.text, ref) }; });
+  const mine = over ?? cur().parked?.[id]?.text;
+  if (mine !== undefined && String(mine).trim()){
+    const n = R.suggestNumber(m, id, mine, L).n, at = items.findIndex(o => R.compareN(o.n, n) > 0);
+    items.splice(at < 0 ? items.length : at, 0, { id: null, n, mine: true, cur: over !== undefined, gist: esc(clip(mine, 90)) });
+  }
+  const ed = E.edit?.fact === id && !E.edit.panel ? E.edit : null;      // a line being written says the version it was written from
+  return { fact: id, n: (ed && m.variants.find(v => v.id === ed.vid)?.n) ?? items.find(o => o.cur)?.n ?? using?.n ?? '·', items: items.length > 1 ? items : [], locked: isLockedId(id), mine: over !== undefined };      // mine: the line prints an edit on this resume only
+}
+function moreOf(sel){
+  const out = [];
+  if (sel.kind === 'bullet' && isClaim(sel.id)){
+    const kept = isKept(sel.id);
+    out.push({ act: 'keep', label: t(kept ? 'card.unpin' : 'card.pin'), attrs: `aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}"` });
+    out.push(isArch(sel.id) ? { act: 'unarchive-claim', label: t('arch.unarchive') } : { act: 'archive-claim', label: t('arch.archive'), attrs: `title="${esc(t('arch.archiveTitle'))}"` });
+    out.push({ act: 'delete-claim', label: t('career.deleteClaim'), del: true });
+  }
+  if (sel.kind === 'section' && !sel.heading && T.labelOf(rec(), cur(), sel.id, lang())){
+    const cap = x => x.charAt(0).toLocaleUpperCase(lang()) + x.slice(1);      // (sentence pieces elsewhere; a menu item of their own here)
+    out.push({ act: 'label-reset', label: cap(t('edit.resetTo', { title: T.recordTitle(rec(), sel.id, lang()) })) }, { act: 'label-all', label: cap(t('edit.labelAll')) });
+  }
+  const g = sel.kind === 'job' || sel.kind === 'bullet' ? recordGroupOf(work(), sel) : null;
+  if (g) out.push({ act: 'open-record', label: t('card.openCareer'), attrs: `data-g="${esc(g)}"` });
+  return out;
+}
+// the section's Career kind: what a new entry of it is
+const kindOfSection = sid => [...K.TIMELINE_KINDS, ...K.LIST_GROUPS, ...K.kindsOf(work()).map(k => k.id)].find(k => K.sectionFor(work(), k) === sid) ?? null;
+// what "+ New …" adds here. A new line, version, skill or skill group is added in place; a new job, entry or section goes into the career record
+// (`major`): its first press only says so, the second opens the add.
+function addOf(sel){
+  if (C.ui.snap) return null;
+  if (sel.kind === 'none') return { label: t('card.newSection'), major: 'card.noteSection' };
+  if (sel.kind === 'job') return jobOn(sel.id) ? { label: t('card.newLine') } : null;
+  if (skillGroupSel(sel)) return { label: t('card.newSkill') };
+  if (sel.kind === 'bullet') return ix().facts.has(sel.id) && !T.isLocal(cur(), sel.id) && !sel.id.startsWith('~') ? { label: t('card.newVersion') } : sel.job ? { label: t('card.newLine') } : null;
+  if (sel.kind !== 'section' || sel.heading || ['header', 'summary'].includes(sel.id)) return null;
+  if (sel.id === 'skills') return { label: t('card.newGroup') };
+  const what = kindOfSection(sel.id);
+  return what ? { label: t(what === 'work' ? 'card.newJob' : 'card.newEntry'), major: what === 'work' ? 'card.noteJob' : 'card.noteEntry', what } : null;
+}
+function topOf(sel = C.ui.sel){
+  if (sel.kind === 'section' && sel.heading) sel = { kind: 'section', id: sel.id };      // a heading clicked beside its words: the card is the section's
+  const ct = chipTools(sel), sib = siblings(sel), at = sib ? sib.indexOf(sibId(sel)) : -1, lv = depth(sel).at(-1);
+  const line = sel.kind === 'bullet' && sel.job ? clip(C.textOfFact(sel.id) || lineName(sel.id), 40) : null;      // a job's line is named by its words, not by its job
+  return topHtml({ name: line ?? (lv.name ? `${lv.word} ${lv.name}` : lv.word), lock: ct.lock, show: ct.show, fix: ct.fix, vers: versOf(sel),
+    move: at >= 0 && sib.length > 1 ? { first: at === 0, last: at === sib.length - 1 } : null, more: moreOf(sel), add: addOf(sel) });
+}
+// the menus of the top row: one open at a time; a press elsewhere, Esc or a choice closes it
+function closeTop(){
+  for (const p of document.querySelectorAll('#body .cpop:not([hidden])')){ p.hidden = true; p.previousElementSibling?.setAttribute('aria-expanded', 'false'); C.endHover(); }
+}
+// "+ New …": the first press of a major add arms it (the pill says where it goes, a line under the row says what it does); a second within 5 s
+// opens the add; a press elsewhere, Esc or 5 s puts it back
+const ARM_MS = 5000;
+function disarm(){
+  if (!E.armed) return;
+  clearTimeout(E.armed.t); E.armed = null;
+  for (const b of document.querySelectorAll('#body [data-act=top-add].is-armed')){ b.classList.remove('is-armed'); b.innerHTML = b.dataset.was; }
+  document.querySelectorAll('#body .cnote').forEach(n => n.remove());
+}
+function addNow(tg){
+  const sel = C.ui.sel, a = addOf(sel);
+  if (!a) return;
+  if (a.major && !E.armed){
+    E.armed = { t: setTimeout(disarm, ARM_MS) };
+    tg.dataset.was = tg.innerHTML; tg.classList.add('is-armed'); tg.textContent = t('card.armed');
+    (tg.closest('.ctop, .cnewrow') ?? tg).insertAdjacentHTML('afterend', `<p class="cnote">${esc(t(a.major))}</p>`);
+    return;
+  }
+  disarm();
+  if (sel.kind === 'none') C.careerAdd();      // a new section: Career's + Add, where every kind of section starts
+  else if (a.what) C.select({ kind: 'add', what: a.what });      // the add form, in the editor
+  else if (sel.kind === 'job') addLine(sel.id);
+  else if (skillGroupSel(sel)) C.bank().addWordIn(sibId(sel));
+  else if (sel.kind === 'section') addGroup(T.arrangementOf(rec(), cur()).groups.at(-1)?.id ?? null);
+  else if (versOf(sel)){ clearEdit(); startEdit('new'); }
+  else if (sel.job) addLine(sel.job, sel.id);
+}
 
 function sectionView(s, sel = s){
   const sec = ix().sections.get(s.id);
   if (!sec) return noneView();
   const L = lang();
-  const own = T.labelOf(rec(), cur(), s.id, L);
   const list = T.sectionList(rec(), cur());
   const me = list.find(x => x.id === s.id);
   const movable = list.filter(x => !x.fixed);
-  const at = movable.findIndex(x => x.id === s.id);
   const isHeader = sec.kind === 'header';
   // its own list: the jobs or the items, each with a tick, a grip and ↑ ↓ (the Outline's rows)
   const inner = isHeader ? '' : s.id === 'skills' ? skillsHtml() : C.outlineHtml(null, s.id);
-  const grouped = me && !me.fixed && me.on, info = C.sectionInfo(s.id), c = me?.on && !isHeader ? info.counts : null;
-  // row 1: the heading as the section's heading text on a hue band (written in place: the band is the box), a reset arrow once it is changed, the cue, the language; row 2: Group
-  const head = isHeader ? `<p class="muted small hnote">${h('edit.headerFirst')}</p>` : `<label class="hband hhead"><input id="sec-label" data-sid="${esc(s.id)}" value="${esc(own ?? '')}" placeholder="${esc(T.recordTitle(rec(), s.id, L))}" aria-label="${esc(t('edit.headingHere', { lang: LANG_NAME[L] ?? L }))}" autocomplete="off"><span class="pen" aria-hidden="true">${icon('edit', { role: 'inline' })}</span>${own ? `<button type="button" class="rs" data-act="label-reset" aria-label="${esc(t('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) }))}" title="${esc(t('edit.resetTo', { title: T.recordTitle(rec(), s.id, L) }))}">${icon('replay', { role: 'inline' })}</button>` : ''}<span class="grow"></span>${c ? `<span class="hcue">↓ ${esc(t('ux2.nOfM', { n: c.on, m: c.total }))}</span>` : ''}<span class="hlang" title="${esc(LANG_NAME[L] ?? L)}">${esc(L.toUpperCase())}</span></label>`;
+  const grouped = me && !me.fixed && me.on, info = C.sectionInfo(s.id);
+  // the heading is written on the page; here only the switches that have no place there (the same heading in every language, grouped under the one before)
   const first = grouped && movable.find(x => x.on)?.id === s.id;
-  const rows = `${!isHeader && L !== DEFAULT_LANG ? `<div class="ctlrow">${sw(`data-same="section:${esc(s.id)}"`, isSame(rec(), `section:${s.id}`), h('edit.sameHeading'))}</div>` : ''}${grouped ? `<div class="ctlrow hgrp">${sw(`data-secgroup="${esc(s.id)}"`, T.groupedOf(cur(), s.id), `<span class="gl" aria-hidden="true"><i></i><i></i></span>${h('edit.groupUnder')}`, first)}${own ? `<button type="button" class="ghost sm" data-act="label-all">${h('edit.labelAll')}</button>` : ''}</div>${first ? `<p class="why muted small">${h('edit.groupFirst')}</p>` : ''}` : me && me.fixed && !isHeader ? `<p class="muted small hnote">${h('edit.summaryFollows')}</p>` : ''}`;
-  return `${headHtml(sel, info.hue, head + rows, { off: !!me && !me.fixed && !me.on })}${labelNotes(k => k === `~h:${s.id}`)}
-    ${me && !me.fixed ? (s.id === 'skills' ? `<div class="hposrow"><span class="lbl hpos">${h('edit.position', { at: at + 1, n: movable.length })}</span><span class="grow"></span>${C.bank().delGroupHtml()}</div>` : `<span class="lbl hpos">${h('edit.position', { at: at + 1, n: movable.length })}</span>`) : ''}
+  const rows = `${!isHeader && L !== DEFAULT_LANG ? `<div class="ctlrow">${sw(`data-same="section:${esc(s.id)}"`, isSame(rec(), `section:${s.id}`), h('edit.sameHeading'))}</div>` : ''}${grouped ? `<div class="ctlrow hgrp" ${first ? `title="${esc(t('edit.groupFirst'))}"` : ''}>${sw(`data-secgroup="${esc(s.id)}"`, T.groupedOf(cur(), s.id), `<span class="gl" aria-hidden="true"><i></i><i></i></span>${h('edit.groupUnder')}`, first)}</div>` : ''}`;
+  return `${headHtml(sel, info.hue, sel.kind === 'section' ? rows : '', { off: !!me && !me.fixed && !me.on, title: sel.kind === 'section' ? C.sectionTitle(s.id) : '' })}${labelNotes(k => k === `~h:${s.id}`)}
+    ${me && !me.fixed && s.id === 'skills' ? `<div class="hposrow"><span class="grow"></span>${C.bank().delGroupHtml()}</div>` : ''}
     ${inner}`;
 }
 
@@ -373,19 +511,16 @@ function jobView(s, { details = true } = {}){
   const w = ix().work.get(s.id);
   if (!w) return noneView();
   const on = jobOn(s.id);
-  const sid = T.sectionOfEntry(rec(), s.id);
-  // the title and the date line are plain rows written in place: a click or Enter opens the page's own editor, past the page's guard (a pencil shows on hover, focus or a touch screen)
-  const row = (id, what, text, cls) => id ? `<button type="button" class="hedit" data-act="job-fact" data-id="${esc(id)}" data-job="${esc(s.id)}" aria-label="${esc(`${what}: ${t('edit.editThis')}`)}"><span class="${cls}">${esc(text)}</span><span class="pen" aria-hidden="true">${icon('edit', { role: 'inline' })}</span></button>` : `<span class="${cls}">${esc(text)}</span>`;
-  const pos = w.display?.position, meta = w.display?.meta, link = `<button type="button" class="sm ghost" data-act="job-details" data-job="${esc(s.id)}">${h('ux6c.entryFields')}</button>`;
-  return `${headHtml(s, C.sectionInfo(sid).hue, `<div class="hband hhead jhead"><h2 class="title">${row(pos, t('ux6c.n.title'), C.textOfFact(pos) || w.position, 'hrt')}</h2></div>
-      <div class="jmeta">${row(meta, t('ux6c.f.dates'), C.textOfFact(meta), 'meta')}</div><div class="jlink">${link}</div>`, { off: !on })}${labelNotes(k => k.startsWith(`~f:work/${s.id}/`))}${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
+  const sid = T.sectionOfEntry(rec(), s.id), pos = w.display?.position;
+  // the title and the date line are written on the page; the card is named for the job
+  return `${headHtml(s, C.sectionInfo(sid).hue, '', { off: !on, title: C.textOfFact(pos) || w.position || w.name || s.id })}${labelNotes(k => k.startsWith(`~f:work/${s.id}/`))}${details ? `\n    ${C.detailsHtml(s.id)}` : ''}`;
 }
 
 // A language's name, written on the page: its words here, and the record's to go back to
 function termView(s){
   const L = lang(), fid = s.id.slice(3), own = T.termOf(cur(), fid) ?? '';
-  return `${depthHtml(s)}
-    <h2 class="title">${esc(T.labelNow(rec(), cur(), s.id, L))}</h2>
+  return `${topOf(s)}
+    <h2 class="title ctitle">${esc(T.labelNow(rec(), cur(), s.id, L))}</h2>
     <label class="field"><span class="lbl inline">${h('ux6c.termHere', { lang: LANG_NAME[L] ?? L })}</span>
       <input id="term-in" data-key="${esc(s.id)}" value="${esc(own)}" placeholder="${esc(T.recordTerm(rec(), fid, L))}" autocomplete="off"></label>
     <p class="muted small">${h('ux6c.termNote')}</p>${labelNotes(k => k === s.id)}`;
@@ -404,13 +539,11 @@ function bulletView(s){
   const on = isOn(s.id) && (!w || jobOn(w.id));
   const hue = C.sectionInfo(s.section ?? (s.job ? T.sectionOfEntry(rec(), s.job) : 'summary')).hue, off = !!w && !on;
   // a line that exists only on this resume has no versions: what it is, and the way to remove it (its tick is the chip's)
-  if (T.isLocal(cur(), s.id)) return `${headHtml(s, hue, `<h2 class="title">${esc(clip(lineName(s.id), 80))}</h2>
-    <div class="ctlrow">${delBtn('data-act="local-remove"', t('ux6c.removeLine'))}</div>`, { off })}
-    <p class="note">${h('ux6c.localNote')}</p>
+  if (T.isLocal(cur(), s.id)) return `${headHtml(s, hue, '', { off })}
     ${document.body.dataset.phone === 'true' ? versionsHtml(versionsX(s.id)) : ''}`;
 
-  return headHtml(s, hue, `<h2 class="title" title="${esc(t('edit.claimTitle'))}">${esc(f.summary ?? s.id)}</h2>
-    ${claimHead({ kept: isKept(s.id), deletable: isClaim(s.id), archived: isClaim(s.id) ? isArch(s.id) : null, ask: E.delAsk === s.id ? { name: f.summary ?? s.id, n: versionCount(s.id) } : null })}`, { off })
+  const ask = E.delAsk === s.id ? delAskHtml(t('ux6r.delClaimAsk', { name: clip(f.summary ?? s.id, 60), n: versionCount(s.id) }), 'data-act="delete-claim" data-sure="1"', t('ux1.delete'), 'data-act="delete-claim-no"') : '';
+  return headHtml(s, hue, ask, { off })
     + labelNotes(k => k === `~g:${s.id}`) + versionsHtml(versionsX(s.id)) + entryLink(s.id);
 }
 const isClaim = id => ix().highlight.has(id) && !T.isLocal(cur(), id);
@@ -499,7 +632,7 @@ async function addLine(jobId, afterId = undefined){
 // asks for no migration of the saved resumes and does not hold the line against the Career forms). The first click or Enter selects the line and
 // shows a small lock (it turns in); a second click, Enter, or the lock itself opens it for writing, until the selection moves to another line.
 const guarded = id => E.guardOn && (id === 'name' || id === 'contact' || /-(meta|position)$/.test(id));
-// a job's title and date line are guarded by the JOB: the first click on its heading row selects the job (shell.js pick), the second writes
+// on a phone a job's title and date line are guarded by the JOB: the first tap selects the job (shell.js pick), the second writes
 const headOf = sel => (E.guardOn && sel?.kind === 'bullet' && sel.owner && /-(meta|position)$/.test(sel.id) ? sel.owner : null);
 async function softUnlock(id){
   const b = $('#editlay .obsoft');
@@ -724,7 +857,14 @@ async function act(a, tg){
       if (C.ui.sel.id === id) startEdit();
       return true;
     }
-    case 'new-version': clearEdit(); startEdit('new'); return true;      // the version tag's "+ New version" on a line with one version: written as a new version, from this one
+    case 'new-version': clearEdit(); startEdit('new'); return true;
+    case 'top-menu': {      // a menu of the top row opens with the focus on its chosen item, else its first
+      const pop = tg.nextElementSibling, open = !!pop?.hidden; closeTop();
+      if (open){ pop.hidden = false; tg.setAttribute('aria-expanded', 'true'); (pop.querySelector('[aria-selected=true]') ?? pop.querySelector('[role=option], [role=menuitem]'))?.focus(); }
+      return true;
+    }
+    case 'top-step': closeTop(); if (tg.getAttribute('aria-disabled') !== 'true') stepSel(Number(tg.dataset.d)); return true;
+    case 'top-add': addNow(tg); return true;      // the version tag's "+ New version" on a line with one version: written as a new version, from this one
     case 'ed-cancel': cancelEdit({ discard: true }); return true;
     case 'use-edit': commit(d => T.unparkOverride(d.record, d.cur, s.id), t('edit.thisOnly')); return true;
     case 'ed-save': saveEdit('over'); return true;
@@ -928,8 +1068,26 @@ function bind(body){
     }
   });
   // the chip's tick or padlock under the pointer or the focus: the block it governs, drawn on the page
-  const scope = on => e => { const b = e.target.closest?.('.hdr > .depth .dp-show, .hdr > .depth .dp-lock'); if (b && !(on === false && b.contains(e.relatedTarget))) C.sheet.setScope(on, b.classList.contains('dp-lock') ? (b.classList.contains('is-locked') ? 'unlock' : 'lock') : b.querySelector('.pillsw.on') ? 'hide' : 'show'); };
+  const scope = on => e => { const b = e.target.closest?.('.ctop .dp-show, .ctop .dp-lock'); if (b && !(on === false && b.contains(e.relatedTarget))) C.sheet.setScope(on, b.classList.contains('dp-lock') ? (b.classList.contains('is-locked') ? 'unlock' : 'lock') : b.querySelector('.pillsw.on') ? 'hide' : 'show'); };
   for (const [ev, on] of [['mouseover', true], ['focusin', true], ['mouseout', false], ['focusout', false]]) body.addEventListener(ev, scope(on));
+  document.addEventListener('pointerdown', e => {
+    if (!e.target.closest?.('#body .cwrap')) closeTop();
+    if (E.armed && !e.target.closest?.('[data-act=top-add]')) disarm();
+  }, true);
+  document.addEventListener('keydown', e => {
+    const pop = e.target.closest?.('#body .cpop:not([hidden])');
+    // in an open menu of the top row: ↑ ↓ walk its items, Home and End go to the ends
+    if (pop && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)){
+      const items = [...pop.querySelectorAll('[role=option], [role=menuitem]')].filter(b => !b.disabled), at = items.indexOf(e.target.closest('[role=option], [role=menuitem]'));
+      const to = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : Math.max(0, Math.min(items.length - 1, at + (e.key === 'ArrowDown' ? 1 : -1)));
+      items[to]?.focus(); e.preventDefault(); e.stopPropagation(); return;
+    }
+    if (e.key !== 'Escape') return;
+    const open = document.querySelector('#body .cpop:not([hidden])');
+    if (open){ const btn = open.previousElementSibling; closeTop(); if (pop) btn?.focus(); e.preventDefault(); e.stopPropagation(); }      // Esc from inside it gives the focus back to its button
+    else if (E.armed){ disarm(); e.preventDefault(); e.stopPropagation(); }
+  }, true);
+  body.addEventListener('click', e => { if (e.target.closest?.('.cpop [data-act]')) setTimeout(closeTop); });
   // which saved resumes print a version: folded until asked, and kept open across redraws
   body.addEventListener('toggle', e => { const d = e.target; if (d.classList?.contains('vuse')) E.useOpen[d.open ? 'add' : 'delete'](d.dataset.v); }, true);
   body.addEventListener('focusout', e => {
@@ -1095,7 +1253,7 @@ function key(e){
     && (C.ui.sel.kind === 'section' || document.activeElement?.closest?.('.clrow[data-item], .clrow[data-bullet], .clgh[data-job]') || (C.ui.sel.kind === 'bullet' && C.ui.sel.job) || (C.ui.sel.kind === 'record' && C.ui.sel.what === 'item'))){
     e.preventDefault(); return moveWhatIsHere(e.key === 'ArrowDown' ? 1 : -1);
   }
-  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && keyOf(C.ui.sel) && !E.edit && document.body.dataset.phone !== 'true'){ e.preventDefault(); startEdit(); return true; }
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && keyOf(C.ui.sel) && !E.edit && document.body.dataset.phone !== 'true' && !document.body.classList?.contains('side-off') && !e.target?.closest?.('#body .ctop :is(button, [role=option], [role=menuitem])')){ e.preventDefault(); startEdit(); return true; }      // (on a control of the card's top row Enter presses it)
   return false;
 }
 
@@ -1122,6 +1280,7 @@ const api = {
   claimDraftOf: id => E.claimDrafts.get(id) ?? '',
   afterRender(){
     lockPass();
+    markJust();
     const vl = $('#body .vlist[data-fact], #scr .vlist[data-fact]');
     if (!vl) E.foldAuto = null;
     else if (E.autoFold && E.foldAuto?.fact === vl.dataset.fact && E.foldAuto.folded === undefined && vl.offsetHeight){

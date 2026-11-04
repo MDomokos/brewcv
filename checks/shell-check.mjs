@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
-import { SIDE_MAX, SIDE_ONE_EXTRA, computeLayout, SLIM_MIN, SLIM_MAX, G, sideWidth, RAIL_W, SIDE_EDGE, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
+import { SIDE_MAX, SIDE_ONE_EXTRA, computeLayout, SLIM_MIN, SLIM_MAX, G, sideWidth, FOLD_W, SIDE_EDGE, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
 import { indexModel, targetOf, up, step, versionsOf, factsOf, NONE } from '../src/ui/select.js';
 import { ZOOM_WRITE } from '../src/ui/dock.js';
 import { load, save, serialize, saveResume } from '../src/model/schema.js';
@@ -47,16 +47,18 @@ for (const [vw, vh] of SIZES){
   const tag = `${vw}×${vh}`;
   const SIDE_W = sideWidth(vw, vh);
   ok(`${tag}: the sidebar is one skinny column of ${SIDE_W}px (at least 316, 340 from 1400 wide), ${G + SIDE_EDGE}px from the right (${SIDE_EDGE}px more than the other gutters), ${G}px from the top and the bottom`, SIDE_W >= (vw < 1400 ? 316 : 340) && L.col.width === SIDE_W && L.col.left + L.col.width === vw - G - SIDE_EDGE && L.col.top === G && L.col.height === vh - 2 * G);
-  ok(`${tag}: the page is centred in the room left of the rail and the sidebar (the rail is ${RAIL_W}px more), and is not under them`, L.railW === RAIL_W && Math.abs(L.sheet.left + L.sheet.width / 2 - (L.col.left - RAIL_W - G) / 2) < 1e-6 && L.sheet.left + L.sheet.width <= L.col.left - RAIL_W - G + 1e-6 && L.sheet.left >= G / 2);
-  ok(`${tag}: the page and the view are the same in every state: the layout takes no selection and no sheet`, JSON.stringify(L) === JSON.stringify(lay(vw, vh, { wide: false, slim: false })) && L.view.mid === (L.col.left - RAIL_W - G) / 2);
+  ok(`${tag}: the page is centred in the room left of the sidebar (no rail beside it), and is not under it`, L.railW === 0 && Math.abs(L.sheet.left + L.sheet.width / 2 - (L.col.left - G) / 2) < 1e-6 && L.sheet.left + L.sheet.width <= L.col.left - G + 1e-6 && L.sheet.left >= G / 2);
+  ok(`${tag}: the page and the view are the same in every state: the layout takes no selection and no sheet`, JSON.stringify(L) === JSON.stringify(lay(vw, vh, { wide: false, slim: false })) && L.view.mid === (L.col.left - G) / 2);
   ok(`${tag}: no tabs, no fold, no second sheet`, L.tabs === undefined && L.folded === undefined && L.two === undefined && L.twoSheets === undefined);
-  ok(`${tag}: the sidebar and its rail are under a third of the window (${(100 * (SIDE_W + RAIL_W) / vw).toFixed(0)}%)`, L.col.width + RAIL_W < vw / 3 + 1e-9 || vw < 1200);
+  ok(`${tag}: the sidebar is under a third of the window (${(100 * SIDE_W / vw).toFixed(0)}%)`, L.col.width < vw / 3 + 1e-9 || vw < 1200);
+  const F = lay(vw, vh, { side: { off: true } });
+  ok(`${tag}: folded, the page is centred left of the ${FOLD_W}px strips, and is not under them`, F.railW === FOLD_W && Math.abs(F.view.mid - (F.col.left - FOLD_W - G) / 2) < 1e-6 && F.sheet.left + F.sheet.width <= F.col.left - FOLD_W - G + 1e-6);
 }
 {
   const a = lay(1470, 832);
   ok('1470×832, A4: the page runs the full height, 16px from top and bottom', a.fullHeight && Math.abs(a.sheet.top - G) < 1e-6 && Math.abs(a.sheet.height - (832 - 2 * G)) < 1e-6);
-  const narrow = lay(1100, 1000);
-  ok('under about 1100px the page shrinks so the sidebar keeps its width', narrow.col.width === sideWidth(1100, 1000) && !narrow.fullHeight && narrow.sheet.width < lay(1400, 1000).sheet.width && narrow.col.left + narrow.col.width <= 1100 - G + 1e-6);
+  const narrow = lay(1040, 1000);
+  ok('under about 1070px the page shrinks so the sidebar keeps its width', narrow.col.width === sideWidth(1040, 1000) && !narrow.fullHeight && narrow.sheet.width < lay(1400, 1000).sheet.width && narrow.col.left + narrow.col.width <= 1040 - G + 1e-6);
   // what is left beside two pages of the widest paper, never under 316 or 340, never over 520; a one-page resume up to 100 more
   const TABLE = [[1280, 720, 316, 416], [1470, 832, 340, 440], [1920, 1080, 340, 440], [2560, 1440, 340, 440], [2560, 1080, 520, 520], [3440, 1440, 520, 520], [3840, 2160, 377, 440]];
   for (const [vw, vh, two, one] of TABLE){
@@ -67,14 +69,15 @@ for (const [vw, vh] of SIZES){
 section('layout: pages always side by side');
 {
   const n2 = (vw, vh, o = {}) => lay(vw, vh, { pages: 2, ...o });
-  const wide = n2(3200, 1080), tall = n2(1280, 800), mid = n2(1920, 1080);
+  const wide = n2(3200, 1080), tall = n2(1280, 800), mid = n2(1800, 1080);
   ok('two A4 pages at 3200×1080 sit side by side, the room left of the sidebar wide enough for both at the full height', wide.spread && wide.sheet.width > lay(3200, 1080).sheet.width);
-  ok('…at 1920×1080 they do not fit and are not shrunk to: the view scrolls', !mid.spread && mid.fullHeight);
+  ok('…at 1800×1080 they do not fit and are not shrunk to: the view scrolls', !mid.spread && mid.fullHeight);
+  ok('…at 1920×1080, with no rail beside the sidebar, they fit side by side at the full height', n2(1920, 1080).spread && n2(1920, 1080).fullHeight);
   ok('…at 1280×800 the row is wider than the room: the pages stay at the full height of one page and the view scrolls sideways (no spread, no stack, no shrinking)',
     !tall.spread && !tall.stack && Math.abs(tall.scale - lay(1280, 800).scale) < 1e-9 && tall.fullHeight && tall.pages.contentW <= tall.areaW + 1e-6);
   ok('there is no stack heuristic or mode left', tall.canSpread === undefined && tall.perView === undefined && n2(1280, 800, { mode: 'spread' }).spread === false);
   ok('a spread group is centred like a single page: in the room left of the sidebar', Math.abs(wide.sheet.left + wide.sheet.width / 2 - wide.view.mid) < 1e-6 && wide.col.left + wide.col.width <= 3200 - G + 1e-6);
-  ok('the page area has the width of everything left of the sidebar, so a wider row can float under it', tall.view.width === tall.areaW && tall.areaW === tall.col.left - RAIL_W - G);
+  ok('the page area has the width of everything left of the sidebar, so a wider row can float under it', tall.view.width === tall.areaW && tall.areaW === tall.col.left - G);
   // the sidebar folded: two pages share the room when each keeps 80% of a page's full size, else one at a time as with it open
   const off = { side: { off: true } };
   for (const [vw, vh, format, both] of [[1280, 800, 'us-letter', true], [1440, 900, 'us-letter', true], [1280, 800, 'a4', true], [1024, 768, 'a4', true], [1024, 768, 'us-letter', false]]){

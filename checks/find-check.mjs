@@ -82,7 +82,7 @@ await part('the key: Ctrl+F (Cmd+F on a Mac) opens the search and focuses its fi
   ok('Career: the field in its toolbar has the focus', await focused(page) === 'rec-q' && await view(page) === 'record');
   // back in the Editor: the bar is gone, and "/" opens it
   await page.evaluate(() => document.activeElement.blur());
-  await goPlace(page, 'editor');
+  await page.click('#tab-edit'); await settle(page);      // Content: back in the editor
   ok('leaving for the Editor does not leave a bar open', !(await page.isVisible('#find')));
   await page.keyboard.press('/'); await settle(page, 200);
   ok('"/" is the fallback: it opens the search like Ctrl+F', await focused(page) === 'find-q');
@@ -116,7 +116,7 @@ await part('the keyboard: typing f or F in any writing surface never toggles ful
   await typeIn('a line on the page', () => sheet.locator('.bullets li').first().click());
   await typeIn('the name on the page', () => sheet.locator('.name').first().click());
   await typeIn('a skill group on the page', async () => { const b = await sheet.locator('.skills__group').first().boundingBox(); await page.mouse.click(b.x + 40, b.y + 24); });
-  await typeIn('the sidebar heading field', async () => { await page.evaluate(() => { window.__wb.ui.sel = { kind: 'section', id: 'experience' }; window.__wb.setView(null); }); await settle(page, 300); await page.click('#sec-label'); });
+  await typeIn('a heading on the page', async () => { const h = sheet.locator('.band[data-section="experience"] h2').first(); await h.click({ position: await h.evaluate(e => { const r = e.ownerDocument.createRange(); r.selectNodeContents(e); const w = r.getClientRects()[0], b = e.getBoundingClientRect(); return { x: w.left - b.left + 4, y: w.top - b.top + w.height / 2 }; }) }); });      // on its words: a click beside them selects the block
   await typeIn('a select', async () => { await page.evaluate(() => { window.__wb.setView('new'); }); await page.waitForTimeout(200); await page.focus('.ddbtn[data-ddf=nv-kind]'); });
   await typeIn('the Editor’s search bar', async () => { await page.keyboard.press(`${mod}+f`); });
   await leave();
@@ -298,7 +298,7 @@ await part('the Editor: the search marks the lines on the open resume, counts th
   await page.keyboard.press('Escape'); await settle(page, 300);
   const after = await snap();
   const gone = [await page.evaluate(() => window.__wb.sheet.doc.querySelectorAll('.rb-find').length) === 0, !(await page.isVisible('#find')), await focused(page) !== 'find-q'];
-  const strip = h => h.replace(/ ?rb-(sel|ring|tab-full|tab|hot|cool)\b/g, '').replace(/ class=""/g, '');      // the selected line's plate, and the rings and the grip's tab that go with it
+  const strip = h => h.replace(/ ?rb-(sel|ring|tab-full|tab|hot|cool|nobullet|words)\b/g, '').replace(/ class=""/g, '');      // the selected line's plate, and the rings, the grip's tab and the frame's other marks that go with it
   ok('Esc clears the marks, closes the bar and the focus is not left in it; the page is as it was (but for the selected line)', gone.every(Boolean) && strip(after.doc) === strip(before.doc), JSON.stringify(gone));
   await page.keyboard.press('/'); await settle(page, 200); await page.keyboard.type('zzz-nothing'); await settle(page, 200);
   ok('a word on no line counts 0 and the step buttons are off', await page.textContent('#find-n') === '0 on this resume' && await page.isDisabled('[data-act=find-next]'));

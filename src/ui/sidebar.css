@@ -25,8 +25,6 @@
   .col > #head .docname .dn .swco { flex: 0 0 auto; max-width: 100%; overflow: visible; text-overflow: clip; }
 }
 /* the place tabs are as wide as their words, not three equal thirds */
-.ptabs .ptab { flex: 1 1 auto; }
-.ptabs .ptab > span { overflow: visible; text-overflow: clip; white-space: nowrap; }
 /* the name window's language and paper lists, and the Library inspector's buttons, go under each other when they do not fit */
 .swlang { flex-wrap: wrap; }
 .swlang > .ddbtn { flex: 1 0 auto; width: auto; }
@@ -80,35 +78,6 @@ html[data-drink="coffee"] { --elev-pop: 4px 4px 0 color-mix(in srgb, var(--ink) 
 /* ---- 5. The switchers (): the place tabs are one level over the modes, the modes one over the panel's content. The active item is part of
    the surface it opens and stands up; the others sit lower and quieter, behind it. Tertiary/secondary, never primary; a 1 px travel on press
    (they are buttons); nothing moves at rest, and under reduced motion there is no transition to play. ---- */
-/* Tea: the tags. The one you are on hangs 4 px higher with the raised shadow; the others drop behind the name card, their words softer */
-html[data-drink="tea"] .ptabs .ptab:not([aria-current]) { top: 4px; color: color-mix(in srgb, var(--tab-ink) 78%, transparent); }
-html[data-drink="tea"] .ptabs .ptab[aria-current=page] { filter: drop-shadow(0 0 .6px color-mix(in srgb, var(--tab-ink) 55%, transparent)) drop-shadow(var(--press-s-x) var(--press-s-y) 0 var(--press-sh)); }
-/* Coffee: the track is sunk, the thumb on the place you are on is raised (its hard offset, Coffee's press) */
-html[data-drink="coffee"] .ptabs { box-shadow: var(--elev-inset); }
-html[data-drink="coffee"] .ptabs::before { box-shadow: var(--elev-raised); }
-.ptabs .ptab:active:not([aria-current]) { translate: 0 1px; }
-/* the modes are the panel's folder tabs: the panel's own material. The open one is its surface and covers its edge; the others are
-   that surface a step darker, flush with the panel and 1 px under its edge (the panel's edge, or its surface, runs on over them), a shadow
-   inside where they go under it and a soft one cast outwards. Coffee: the same by edge and tone (sidebar-check, depth). */
-.rtabs { --tab-back: color-mix(in srgb, var(--surface) 80%, var(--shade)); --tab-front: var(--surface); }
-html[data-drink="tea"][data-theme="dark"] .rtabs { --tab-back: color-mix(in srgb, var(--surface) 72%, var(--shade)); }
-html[data-drink="coffee"] .rtabs { --tab-back: color-mix(in srgb, var(--surface) 93%, var(--ink)); --tab-front: var(--line-strong); }
-html[data-drink="coffee"][data-theme="dark"] .rtabs { --tab-back: color-mix(in srgb, var(--surface) 90%, var(--ink)); }
-.col .rtabs .tab:not([aria-selected=true]), .col.is-name .rtabs .tab { width: 55px; background: var(--tab-back); color: var(--ink-soft);
-  box-shadow: inset -1px 0 0 var(--tab-front), inset -8px 0 7px -6px var(--press-sh), inset 1px 0 0 var(--line), inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), -3px 3px 6px -2px color-mix(in srgb, var(--press-sh) 55%, transparent); }
-html[data-drink="coffee"] .col .rtabs .tab:not([aria-selected=true]), html[data-drink="coffee"] .col.is-name .rtabs .tab { box-shadow: inset -1px 0 0 var(--tab-front); }
-.col .rtabs .tab:not([aria-selected=true]) .ti, .col.is-name .rtabs .tab .ti { color: var(--ink-soft); }
-.rtabs .tab:hover:not(:disabled, [aria-selected=true]) { background: color-mix(in srgb, var(--tab-back) 50%, var(--surface)); color: var(--ink); }
-.rtabs .tab:active:not([aria-selected=true]) { translate: 1px 0; }
-/* folded to the rail: no panel is there to hang from, so Export and the modes are one chrome card at the top (Export its head, held in the room
-   left at the card's top); the modes are flat rows in it, the current one has the surface, the accent edge and icon. The open sidebar's tabs are above, unchanged. */
-html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs { top: 0; left: 2px; width: 50px; gap: 4px; padding: 69px 2px 2px; background: linear-gradient(var(--chrome-line), var(--chrome-line)) center 63px / 30px 1px no-repeat, var(--chrome); border: 1px solid var(--chrome-edge); border-radius: var(--r-l); }
-html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x) { width: 44px; margin: 0; border-radius: calc(var(--r-l) - 2px); background: transparent; color: var(--chrome-soft);
-  border: 1px solid transparent; box-shadow: none; translate: none; }
-html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x, [aria-selected=true]) .ti { color: var(--chrome-soft); }
-html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x)::before, html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab:not(.x)::after { display: none; }
-html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-selected=true]:not(.x) { background: var(--surface); color: var(--ink); width: 44px; margin: 0; border-color: var(--accent); box-shadow: none; }
-html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-selected=true]:not(.x) .ti { color: var(--accent); }
 /* the name card's button: the tertiary press; while its window is open it reads as pressed in (sunk), the window over it a popover */
 #head .docname[aria-expanded=true] { background: var(--chrome-hover); box-shadow: var(--elev-inset); transform: none; }      /* over the tertiary press's hover */
 
@@ -128,29 +97,17 @@ html[data-drink] body.side-off:not([data-phone=true]) .col .rtabs .tab[aria-sele
 .outline .clrow.is-off .clt { opacity: .6; color: var(--ink); }
 
 /* ---- 7. The width control (sidewidth.js): a handle on the sidebar's inner edge (tertiary: no lift, its line shows on hover, focus and drag),
-   under the rail's tabs where they touch; folded, the column takes no room and only the rail stays. A short ease when it folds or opens. ---- */
-.rail { pointer-events: none; } .rail > * { pointer-events: auto; }      /* the rail's empty height lets the handle under it take the pointer */
+   folded, the column takes no room and only its two strips stay (flow.css). A short ease when it folds or opens. ---- */
 .sidegrip { position: absolute; left: -6px; top: 0; bottom: 0; width: 8px; z-index: 1; cursor: col-resize; touch-action: none; }
 .sidegrip::after { content: ""; position: absolute; left: 3px; top: 25%; bottom: 25%; width: 2px; border-radius: 1px; background: transparent; transition: background-color var(--dur-1); }
 .sidegrip:is(:hover, .is-drag)::after { background: var(--line-strong); }
 .sidegrip:focus-visible { outline: none; }
 .sidegrip:focus-visible::after { top: 0; bottom: 0; background: var(--focus); }
-body.side-off:not([data-phone=true]):not(.is-intro) .col > :is(#ptabs, #head, #body, #foot, #switcher, #bankcard) { display: none; }
-/* the chevron over the logo: the last row of the history card (undo, redo and Saved), under a hairline, so the foot is one card */
-#rail > [data-act=side-fold] { --ink: var(--chrome-ink); --hover: var(--chrome-hover-strong); --focus: var(--chrome-accent);
-  left: 11px; bottom: 53px; width: 32px; height: 28px; background: transparent; color: var(--chrome-ink); border: 0; border-radius: var(--r-m); }
-#rail > [data-act=side-fold]:hover:not(:disabled) { background: var(--hover); color: var(--ink); border: 0; }
+body.side-off:not([data-phone=true]):not(.is-intro) .col > :is(#head, #body, #foot, #switcher, #bankcard) { display: none; }      /* the way and the bar stay, as strips (flow.css) */
 body.side-moving .col { transition: left var(--dur-2) var(--ease), width var(--dur-2) var(--ease); }
 
-/* ---- 8. The "?" corner (shell.js cornerHtml): help and info at the panel's bottom right, out of the Outline's way: it stands on the
-   panel's foot, a band the rows scroll under, so it never covers a tick or a padlock; its card opens upwards, right-aligned inside the panel.
-   A tertiary icon with an edge, in the open sheet's tea. A phone has it at the end of its foot. ---- */
+/* ---- 8. A phone's "?" corner (shell.js cornerHtml): help and info at the end of its foot; its card opens upwards. A desktop's "?" is the bar's (flow.css). ---- */
 #corner { display: none; }
-body:not([data-phone=true]):not(.is-intro):not(.is-quiet):not(.side-off) .col:not(.is-name) > #corner { display: block; position: absolute; right: 12px; bottom: 8px; z-index: 3; }
-body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #body { padding-bottom: 0; }
-/* the panel's foot: a band of its own surface, sticky at the bottom, that rows scroll under (so the "?" never stands on a row's tick) */
-body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #body::after { content: ""; display: block; position: sticky; bottom: 0; height: 42px; margin: 0 -15px 0 -16px;
-  background: linear-gradient(transparent, var(--surface) 12px); box-shadow: inset 0 -1px 0 var(--line-strong); }      /* the panel's own bottom edge, drawn on over it */
 .corner { position: relative; display: inline-grid; }
 .corner > [data-act=corner], .corner > [data-act=corner]:hover:not(:disabled) { background-color: var(--surface); border: 1px solid var(--line-strong); }
 .corner > [data-act=corner]:hover:not(:disabled), .corner > [data-act=corner][aria-expanded=true] { background-image: linear-gradient(var(--hover-strong), var(--hover-strong)); color: var(--ink); }
@@ -172,6 +129,7 @@ body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #body::after { 
 /* the left: a job's caret where the sections' carets are, its title in the column of the sections' chips; its lines, a section's own items and an
    off job start in that column too */
 .outline .clg > .clbody { padding-left: 20px; }
+.outline.only .clg > .clbody { padding-left: 28px; }      /* a section's card: a line starts under its job's title, as the outline's did */
 .outline .obody > .clrows { padding-left: 20px; }
 .outline .ojob { padding-left: 24px; }
 .outline .osec .item.srow > :is(.osecaret, .si) { flex: none; }
@@ -393,10 +351,11 @@ html:not([data-motion="reduce"]) .pen { transition: opacity 120ms ease-out; }
 @keyframes wbnudge { 0%, 45% { border-color: var(--gh); background: color-mix(in srgb, var(--gh) 30%, transparent); color: var(--ink); } }
 .bankcard[hidden] { display: none; }
 body:not([data-phone=true]):not(.is-intro) .col.has-bank > #body { flex: 0 1 auto; max-height: 55%; }
-body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { padding-bottom: 12px; }      /* only as tall as its content: the rail's tabs fit the card (shell.js placeRail), not the card the tabs */
+body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body { padding-bottom: 12px; }      /* only as tall as its content */
 body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body::after { display: none; }
 .col > .bankcard:not([hidden]) { display: flex; flex-direction: column; }      /* (the empty well fills what is left of it) */
-.col > .bankcard { flex: 1 1 0; min-height: 160px; overflow: auto; margin-top: 8px; padding: 10px 12px 46px; background: var(--surface); border-radius: var(--r-panel);
+.col > .bankcard { flex: 1 1 0; min-height: max(160px, 45vh);      /* always generous: the place to drop skills */
+  overflow: auto; margin-top: 8px; padding: 10px 12px 46px; background: var(--surface); border-radius: var(--r-panel);
   box-shadow: var(--shadow-panel), inset 0 0 0 1px var(--line-strong); scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 30%, transparent) transparent; }
 .bankcard.drop-bank { outline: 2px solid var(--sel-mark); outline-offset: -2px; }
 .wbtop { position: sticky; top: -10px; z-index: 2; margin: -10px 0 4px; padding: 10px 0 6px; background: var(--surface); display: grid; gap: 6px; }
@@ -494,3 +453,88 @@ html.wb-carry #handlay .obplus, html.wb-carry #handlay .obgrip { visibility: hid
 #body .istrip[hidden] { display: none; }
 #body .istrip.is-in { color: var(--ink); }
 #body .istrip button { background: transparent; border-color: transparent; box-shadow: none; text-decoration: underline; text-underline-offset: 3px; color: var(--ink); }
+
+/* ---- 9. The editor card follows the selection (shell.js placeCard): in the sidebar column, only as tall as what it holds, its top gliding to
+   meet what is selected (--card-y); the column behind it bare. The word bank keeps its room under it. ---- */
+body:not([data-phone=true]) .col > #body.is-float { flex: 0 1 auto; margin-top: var(--card-y, 0px); transition: margin-top 220ms var(--m-inout), background-color var(--m-base) var(--m-out); }
+html[data-motion="reduce"] body .col > #body.is-float { transition: none; }
+@media (prefers-reduced-motion: reduce){ body .col > #body.is-float { transition: none; } }
+body.card-float .col > #body.is-float[data-mode] { padding: 10px 12px 12px; }
+body.card-float #col, body.card-float #col:hover { cursor: default; }
+body.card-float .col > #body[data-mode=outline] > .privacy { margin: 10px 2px 0; min-height: 0; padding: 0; }
+
+/* the top row: one chip (the tick, the padlock, the versions, ↑ ↓, ⋯) and the add pill at its right end, the same height and radius, 8 px apart */
+.ctop { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.cchip { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: 1px; height: 30px; box-sizing: border-box; padding: 0 4px; background: var(--raised); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-pill); }
+.cchip .csep { flex: none; width: 1px; height: 14px; margin: 0 3px; background: var(--line); }
+.cchip :is(.dp-t, .ctb) { flex: none; display: inline-grid; place-items: center; width: 28px; height: 24px; padding: 0; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-soft); font: 600 11px/1 var(--font-label); cursor: pointer; }
+.cchip .dp-show { width: 30px; }
+.cchip .ctb.cver { display: inline-flex; gap: 2px; width: auto; padding: 0 6px 0 8px; color: var(--ink); }
+.cchip .ctb.cver.miss { color: var(--ink-soft); font-style: italic; }
+.cchip .ctb.cver.mine > span::after { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 0 1px 3px; border-radius: var(--r-round); background: var(--accent); vertical-align: middle; }      /* an edit on this resume only: a dot, its words in the name and tooltip */
+.cchip :is(.dp-t, .ctb):hover:not(:disabled, [aria-disabled=true]) { background: var(--fill); color: var(--ink); }
+.cchip :is(.dp-t, .ctb):is(:disabled, [aria-disabled=true]) { opacity: .35; cursor: default; }
+.cchip :is(.dp-t, .ctb):focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cchip .dp-lock.is-locked { color: var(--accent); }
+.cwrap { position: relative; display: flex; }
+.cpop { position: absolute; left: 0; top: calc(100% + 6px); z-index: 6; box-sizing: border-box; padding: 4px; background: var(--paper); color: var(--paper-ink); border: 1px solid var(--paper-edge); border-radius: var(--r-m); box-shadow: var(--shadow-chip); font: 500 12px/1.3 var(--font-ui); }
+.cpop[hidden] { display: none; }
+.cvlist { width: min(320px, 80vw); max-height: 280px; overflow: auto; }
+.cmenu { min-width: 200px; }
+:is(.cvo, .cmi) { display: grid; width: 100%; box-sizing: border-box; padding: 6px 8px; border: 0; border-radius: var(--r-s); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cvo { grid-template-columns: 34px minmax(0, 1fr); gap: 6px; white-space: normal; }
+.cvo b { font: 700 11px/1.3 var(--font-label); }
+.cvo.is-cur { background: var(--sel-mark-soft); }
+:is(.cvo, .cmi):is(:hover, :focus-visible) { background: color-mix(in srgb, var(--paper-ink) 8%, transparent); outline: 0; }
+.cmi.del { color: var(--bad); }
+.cmi[aria-pressed=true]::after { content: " ✓"; }
+.cadd { flex: none; height: 30px; box-sizing: border-box; padding: 0 12px; display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: var(--raised); color: var(--ink); font: 600 11.5px/1 var(--font-ui); white-space: nowrap; cursor: pointer; }
+.cadd:hover { background: var(--fill); }
+.cadd:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+:is(.cadd, .cnewrow .srow).is-armed { background: var(--accent); color: var(--on-accent); border-color: transparent; border-style: solid; }
+.cnote { margin: -6px 2px 10px; font: 500 11px/1.25 var(--font-ui); color: var(--ink-soft); }
+/* the name alone: a section's or a job's (a line is the page's own); the controls that have no place on the page under it */
+.col > #body .hdr h2.ctitle { margin: 0 2px 8px; font: 600 11px/1.2 var(--font-label); letter-spacing: .03em; text-transform: uppercase; color: var(--label); }
+.hdr:has(.ctitle) > .hcard { margin-bottom: 8px; }
+.hdr > .hcard:empty { display: none; }
+
+/* the page's padlock: at the right end of the first page's row */
+body.card-float #body[data-mode=outline] { position: relative; }
+body.card-float #body[data-mode=outline] > .pagerow { position: absolute; top: 4px; right: 10px; margin: 0; }
+/* the map: a row per section in page order (the tick, the name and its count, the padlock, a › to go in), under each page with its fill */
+.outline.map .osec .item.srow > :is(.osecaret, .si) { display: none; }
+.outline.map .osec > .obody { display: none; }
+.outline.map .osec .item.srow > .swl { order: -2; }
+.outline.map .osec .item.srow > .rowlock { order: 1; }
+.outline.map .osec .item.srow > .ogo { order: 2; }
+.outline.map .osec.open { border-left: 0; box-shadow: none; }
+.outline.map .osec .item.srow { cursor: pointer; }
+.outline.map .osec.is-cont .item.srow .swl { visibility: hidden; }      /* its tick is the first row's */
+.outline.map .item.srow.fixed > .rowlock { margin-right: 0; }      /* the map's ticks are on the left: a fixed section keeps that slot empty there */
+.outline.map .item.srow.fixed > .stext { margin-left: 30px; }
+.ogo { display: none; }
+.outline.map .ogo { display: grid; place-items: center; flex: none; width: 16px; height: 22px; padding: 0; border: 0; background: transparent; color: var(--label); font: 600 17px/1 var(--font-ui); cursor: pointer; }
+.mpg { display: flex; align-items: center; gap: 8px; margin: 12px 4px 5px; color: var(--label); font: 600 11px/1.2 var(--font-label); letter-spacing: .03em; text-transform: uppercase; }
+#seclist > .mpg:first-child { margin-top: 2px; }
+.mpg em { font-style: normal; letter-spacing: 0; opacity: .85; }
+.mfill { position: relative; flex: 0 0 56px; height: 6px; border-radius: 3px; background: color-mix(in srgb, currentColor 18%, transparent); overflow: hidden; }
+.mfill i { position: absolute; inset: 0 auto 0 0; width: calc(var(--p, 0) * 1%); border-radius: 3px; background: var(--accent); }
+.mfill.is-off i { background: color-mix(in srgb, var(--accent) 60%, var(--label)); }
+.mfill.is-overflow i { background: var(--bad); }
+/* the map's add: the list's last row (the section rows' inset, height and radius), sticky at the foot while the list scrolls */
+.cnewrow { position: sticky; bottom: 4px; z-index: 3; margin: 4px 0 0; }
+.cnewrow .srow { display: flex; align-items: center; gap: 6px; width: 100%; height: 32px; box-sizing: border-box; padding: 3px 3px 3px 1px; border: 1px dashed color-mix(in srgb, var(--label) 55%, transparent); border-radius: var(--r-m); background: var(--surface); color: var(--label); font: 750 14.5px/1.2 var(--font-ui); text-align: left; cursor: pointer; }
+.cnewrow .srow:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface)); color: var(--ink); border-color: currentColor; }
+.cnewrow .cplus { flex: none; width: 24px; text-align: center; font: 500 18px/1 var(--font-ui); }
+.cnewrow .srow.is-armed .cplus { visibility: hidden; }
+.cnewrow + .cnote { margin: 3px 0 0 4px; }
+
+/* turned off, the card went up a level: the row it went into on the selected wash, its tick ringed; both fade over 3 s, held under the pointer */
+.is-just { animation: just-fade 3s linear forwards; border-radius: var(--r-m); }
+.is-just :is(.sw, .pillsw, input[type=checkbox]) { animation: just-ring 3s linear forwards; outline: 2px solid var(--accent); outline-offset: 2px; }
+.is-just:hover, .is-just:hover :is(.sw, .pillsw, input[type=checkbox]) { animation-play-state: paused; }
+@keyframes just-fade { from { background-color: color-mix(in srgb, var(--sel-mark) 24%, transparent); } to { background-color: transparent; } }
+@keyframes just-ring { from { outline-color: var(--accent); } to { outline-color: transparent; } }
+html[data-motion="reduce"] .is-just, html[data-motion="reduce"] .is-just :is(.sw, .pillsw, input[type=checkbox]) { animation-timing-function: steps(1, end); }
+@media (prefers-reduced-motion: reduce){ .is-just, .is-just :is(.sw, .pillsw, input[type=checkbox]) { animation-timing-function: steps(1, end); } }
+.upshot { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel); }

@@ -285,6 +285,8 @@ async function pause(){
 }
 
 // ---- coffee rests it; the setting; the places it does not run ----
+// the drink switch is in the "?" menu at the bar's foot
+const switchDrink = async page => { await page.click('#rail [data-act=menu]'); await page.click('.appmenu [data-act=drink-switch]'); await page.keyboard.press('Escape'); };
 async function drinks(){
   const ok = reporter('coffee'), s = await open(ok), { page } = s;
   await ready(page);
@@ -292,10 +294,10 @@ async function drinks(){
   await hook(page, 'rest'); await hook(page, 'wave', 4); await hook(page, 'bug');
   await sleep(7000);
   const lying = (await page.$$('#garden .g-thing.g-leaf')).length;
-  await page.locator('.logoswitch:visible').first().click(); await sleep(900);
+  await switchDrink(page); await sleep(900);
   ok('switching to coffee rests it: nothing shows', await page.evaluate(() => getComputedStyle(document.getElementById('garden')).display === 'none'));
   ok('…and the creatures have gone', (await page.$$('#garden .g-bug')).length === 0);
-  await page.locator('.logoswitch:visible').first().click(); await sleep(900);
+  await switchDrink(page); await sleep(900);
   ok('back to tea, what lay there is still there', await page.evaluate(() => getComputedStyle(document.getElementById('garden')).display !== 'none') && (await page.$$('#garden .g-thing.g-leaf')).length === lying, String(lying));
   // the setting
   await page.evaluate(() => window.__wb.setView('settings')); await sleep(600);

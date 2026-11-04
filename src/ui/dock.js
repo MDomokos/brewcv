@@ -30,13 +30,13 @@ export const readZoomWriteOn = () => get(ZOOMON_KEY, v => v === '0' || v === '1'
 export const readContrast = () => get(CONTRAST_KEY, v => v === 'sharp' || v === 'soft', 'sharp');
 
 // ---- the sheets ----
-// Edit, Design and Export are the rail's tabs, beside the editor card, in the editor place only; Career is a place of its own (the place
-// tabs, and R). On a phone the head has its own tabs, Career among them. Edit is whatever is selected, so it has no tab of its own for the Outline.
+// Content (Edit) and Look (Design) are the name card's tabs, and Export is inside the card; Career is a place of its own (its button in the way at
+// the top, and R). On a phone the head has its own tabs, Career among them. Edit is whatever is selected, so it has no tab of its own for the Outline.
 const phone = () => innerWidth < PHONE_MAX;
 const tabOf = () => { const v = C.ui.view; return v === 'design' ? 'design' : v === 'export' || v === 'sent' ? 'export' : v === 'record' ? 'record' : v ? null : 'edit'; };
 // the sidebar's tea: the open sheet's (the Outline is Edit with nothing selected)
 const teaOf = () => (phone() ? '' : tabOf() === 'edit' ? (C.ui.sel.kind === 'none' ? 'outline' : 'edit') : tabOf() ?? 'edit');
-const TEA_ON = ['body', 'rtabs', 'corner'];      // the editor card, the tabs that touch it and its "?" corner wear the open sheet's tea
+const TEA_ON = ['body', 'corner'];      // the editor card (and a phone's "?" corner) wear the open sheet's tea
 // a tab: Edit leaves the view that replaces it; the others open one. A line being written is left first (asking, if there is a draft).
 async function setMode(m){
   if (C.ui.writing && !(await C.leaveWriting())) return;
@@ -147,7 +147,7 @@ function meters(){
 const level = pct => Math.max(0, Math.min(100, pct)).toFixed(1);
 
 // the controls keep the focus when they are drawn again
-const keyOf = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}${el.dataset.page ? `[data-page="${el.dataset.page}"]` : ''}` : null);
+const keyOf = el => (el?.id ? `#${el.id}` : el?.dataset?.act ? `[data-act="${el.dataset.act}"]${el.dataset.m ? `[data-m="${el.dataset.m}"]` : ''}${el.dataset.page ? `[data-page="${el.dataset.page}"]` : ''}${el.dataset.v ? `[data-v="${CSS.escape(el.dataset.v)}"]` : ''}` : null);      // (data-v: a version of the card's list)
 function keepFocus(root, draw){
   const ae = document.activeElement, k = ae && ae.closest?.(root) ? keyOf(ae) : null;
   draw();
@@ -348,15 +348,15 @@ function onKey(e){
   if (isKey(e, '0')){ e.preventDefault(); zoomTo(1); flashBar(); return true; }
   return false;
 }
-// The tabs (the rail's, up and down; a phone's, in its head, left and right) are one tab stop: the arrows move between them and open each
+// The tabs (the name card's, a phone's) are one tab stop: the arrows move between them and open each
 function onModesKey(e){
   const tab = e.target.closest?.('[role=tab][data-m]');
   if (!tab) return;
-  const vertical = tab.parentElement.getAttribute('aria-orientation') === 'vertical', [back, fwd] = vertical ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight'];
-  if (![back, fwd, 'Home', 'End'].includes(e.key)) return;
+  const fwd = ['ArrowRight', 'ArrowDown'].includes(e.key);      // both arrow pairs move along the tabs
+  if (!['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
   const tabs = [...tab.parentElement.querySelectorAll('[role=tab]:not(:disabled)')];
   const at = tabs.indexOf(tab);
-  const to = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + (e.key === fwd ? 1 : -1) + tabs.length) % tabs.length;
+  const to = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + (fwd ? 1 : -1) + tabs.length) % tabs.length;
   e.preventDefault(); e.stopPropagation();      // the tab is drawn again below: the page's own arrow keys must not take this key for theirs
   tabs[to].focus();
   setMode(tabs[to].dataset.m);

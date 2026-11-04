@@ -76,15 +76,14 @@ function place(){
   if (R.sel === BANK){ bd.innerHTML = C.career.bankHtml(); return; }
   // the inspector: the selected entry's facts and lines, with the two scopes named
   const sel = groups.find(g => g.dataset.g === R.sel);
-  if (!sel){ bd.innerHTML = `<section class="insp"><span class="lbl">${h('ux6h.career')}</span><p class="small muted">${h('ux6h.recPick', { name: C.openName() })}</p></section>`; return; }
+  if (!sel){ bd.innerHTML = `<section class="insp"><span class="lbl">${h('ux6h.career')}</span><p class="small muted">${h('ux6h.recPick')}</p></section>`; return; }
   const entry = C.ui.ix?.work.get(R.sel), facts = entry ? C.career.detailsHtml(R.sel) : '';
   const opens = sel.querySelector('[data-act=cl-open]')?.dataset.sel;      // the entry's own heading opens it in the editor
   bd.innerHTML = `<section class="insp insp-rec"><span class="lbl">${h('ux6h.entry')}</span>
     <h2 class="oi-name">${esc((sel.querySelector('.clname')?.textContent ?? '').trim().replace(/\s+/g, ' '))} <small class="muted">${esc((sel.querySelector('.clcount [aria-hidden]') ?? sel.querySelector('.clcount'))?.textContent ?? '')}</small></h2>
     ${opens ? `<button class="sm ghost insp-open" data-act="cl-open" data-sel="${esc(opens)}">${h('ux6h.openInEditor')}</button>` : ''}
     ${entry ? printsButton([...(entry.highlights ?? []), ...Object.values(entry.display ?? {})], (sel.querySelector('.clname')?.textContent ?? '').trim().replace(/\s+/g, ' '), { cls: 'insp-prints' }) : ''}
-    ${facts ? `<p class="scope">${h('ux6h.scopeAll')}</p><div class="recfacts">${facts}</div>` : ''}
-    <p class="scope tickscope">${h('ux6h.scopeTick', { name: C.openName() })}</p></section>`;
+    ${facts ? `<p class="scope">${h('ux6h.scopeAll')}</p><div class="recfacts">${facts}</div>` : ''}</section>`;
   sel.classList.add('is-sel');
   const gh = sel.querySelector(':scope > .clgh');      // its heading is the title above: gone, unless it still has an order mark or Unarchive
   if (gh && !gh.querySelector(':scope > :not(.clcaret, .clname, .clcount, .clmid), :scope > .clmid > :not(.clcaret, .clname, .clcount)')) gh.remove();

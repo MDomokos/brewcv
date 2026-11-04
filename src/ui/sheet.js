@@ -49,13 +49,16 @@ html.rb-space, html.rb-space * { cursor: grab !important; }
 /* selected: a deeper wash (x1.5), no edge (shading, not outlines); nothing is drawn round the blocks it is part of, the chip says where it is */
 .rb-plate.is-hot.is-boost { --pt: color-mix(in srgb, var(--plate-tint-boost) calc(var(--pk) * 100%), transparent); }      /* the sidebar's row under the pointer: the same plate, x1.4 */
 .rb-plate.is-sel { --pw: 0px; --pc: transparent; --pt: color-mix(in srgb, var(--plate-tint-sel) calc(var(--pk) * 100%), transparent); }
-/* pressed in, writing: the line recedes to a thin rule (--plate-write) at the written field's own stand-off (--rb-wo), no tint: the field takes the paper */
 html.rb-cam .rb-plate { transition: opacity var(--plate-out) var(--rb-m-out); }
-.rb-plate.is-write { --pw: var(--plate-write); --pc: var(--plate-ink); }
-/* the grip: 2x3 dots in the plate's own left tab (--tw wide, the plate widened into it; inside its edge where words leave no room), in the plate ink; quiet while written */
+/* writing: the line is a paper cutout in its parent's selected wash, with the selected corner and a soft inner shadow; the words stand over it */
+.rb-plate.is-write { --pw: 0px; --pc: transparent; --pt: var(--plate-paper); z-index: 5; mix-blend-mode: normal; box-shadow: inset 0 1px 2px var(--plate-inner); }
+/* the grip: 2x3 dots in the plate's own left tab (--tw wide, the plate widened into it; inside its edge where words leave no room), in the plate ink, the same while
+   written. On a bulleted line the dots stand where the bullet is (--gx) and the bullet fades while they show (.rb-nobullet). */
 .rb-plate.is-grip::before { content: ''; position: absolute; width: 10px; height: 15px; left: calc((max(var(--tw, 0px), var(--plate-tab-w)) - 10px) / 2); top: calc(min(50%, 14px) - 7.5px);
   background: radial-gradient(circle, var(--plate-ink) 1.3px, transparent 1.7px) 0 0 / 5px 5px; }
-.rb-plate.is-write.is-grip:not(.is-grip-hot)::before { opacity: .4; }
+.rb-plate.is-grip[data-bul]::before { left: var(--gx); }
+li[data-variant]::marker { transition: color 120ms var(--rb-m-out); }
+li.rb-nobullet::marker { color: transparent; }
 /* the preview accent: what the app shows (a row of the sidebar, a version being looked at, a search hit) in the plate's shape */
 /* the chip's tick or padlock under the pointer: the block it governs wears a plate (the hover plate's shape, never an edge of its own) and one cue for the action. Tick: the plate
    deepens and the block fades (what hiding does). Padlock: the plate takes the lock wash and a hairline frame closes in on its edge in 160 ms and rests faint (unlock: it opens outward and goes). */
@@ -86,9 +89,11 @@ html.rb-cam .rb-plate { transition: opacity var(--plate-out) var(--rb-m-out); }
 .rb-drop.is-faint { opacity: .35; }      /* the place the pointer is nearing, where nothing drops */
 /* its home keeps a shaded socket of the same shape, the wash where it will land (sheet.socket); no outline */
 .rb-socket { position: fixed; z-index: 1; pointer-events: none; background: var(--plate-tint-hover); box-shadow: 0 0 0 var(--po) var(--plate-tint-hover); }
-/* pressed in, writing: the line recedes to a thin rule, its field takes the paper with a soft inner shadow; nothing is drawn past half the gap to the text around it
-   (--rb-wo, sheet.setWriting: the stand-off that leaves room for the rule), so it never covers a neighbour */
-html.rb-writing [contenteditable] { outline: none; border-radius: var(--plate-r); background-color: var(--plate-paper); box-shadow: inset 0 1px 2px var(--plate-inner), 0 0 0 max(0px, var(--rb-wo, 0px)) var(--plate-paper); }      /* its rule is the plate's (.rb-plate.is-write) */
+/* over a heading's words: a text cursor, and no wash (a click writes them); beside them the block's wash */
+html.rb-words:not(.rb-dragging), html.rb-words:not(.rb-dragging) * { cursor: text; }
+html.rb-words .rb-plate.is-hot { opacity: 0; }
+/* the written field itself is bare: the plate under it is the paper (.rb-plate.is-write) */
+html.rb-writing [contenteditable]:not([contenteditable=false]) { position: relative; z-index: 6; outline: none; border-radius: var(--plate-r); background-color: transparent; box-shadow: none; }
 html.rb-previewing .document > .page { outline: var(--plate-line) solid var(--plate-accent); outline-offset: var(--plate-off-job); }
 html.rb-writing :is([data-variant], [data-label]):not([contenteditable]) { opacity: var(--rb-wdim, .94); }
 html.rb-ui [contenteditable] { cursor: text; }
@@ -135,6 +140,13 @@ const factOfVariant = (ix, a) => ix.factOfVariant.get(a) ?? (a.endsWith('-overri
 // A text that is a label, not a claim, is found by the key the renderer gave it: `~h:<section>` (a heading), `~t:<fact>` (a language's name)
 const labelEl = (doc, key) => [...doc.querySelectorAll('[data-label]')].find(e => `~${e.getAttribute('data-label')}` === key) ?? null;
 
+// The headings: a job's or entry's title and date line, a section's name. `onWords`: the point is inside a glyph box of the element's own text
+const HEADS = '.entry > :is(.role-title, .meta, .item__title, .meta--flat), .band__content > :is(.item__title, .meta--flat), h2.tab[data-label]';
+function onWords(el, e){
+  const h = el.closest?.(HEADS); if (!h) return false;
+  const r = h.ownerDocument.createRange(); r.selectNodeContents(h);
+  return [...r.getClientRects()].some(q => q.width > 1 && e.clientX >= q.left - 1 && e.clientX <= q.right + 1 && e.clientY >= q.top && e.clientY <= q.bottom);
+}
 export function createSheet(host, hooks = {}){
   let fr = null;
   let shown = null, textCache = null;
@@ -195,14 +207,19 @@ export function createSheet(host, hooks = {}){
         doc.documentElement.classList.add('rb-ui');
         paintMarks(doc);
         doc.addEventListener('click', e => {
+          if (e.target.closest?.('a[href]')) e.preventDefault();      // a link on the page is text to select, not a way out of the frame
           if (e.target.closest?.('[contenteditable]:not([contenteditable=false])')) return;      // the line being written takes its own clicks
           const pg = [...doc.querySelectorAll('.document > .page')].indexOf(e.target.closest?.('.document > .page'));
           const hit = e.target.closest?.('[data-variant], [data-label], .band[data-section]'), g = e.target.closest?.('.skills__group');
           const el = g && !g.contains(hit) ? g.querySelector('[data-variant]') ?? hit : hit;      // a skill group's name is its group's (a click on it writes the group)
           if (!el) return hooks.onPick?.({ variant: null, section: null, page: pg });
           const band = el.closest('.band[data-section]');
-          hooks.onPick?.({ variant: el.getAttribute('data-variant'), label: el.getAttribute('data-label'), section: band?.getAttribute('data-section') ?? null, page: pg, at: { x: e.clientX, y: e.clientY } });
+          hooks.onPick?.({ variant: el.getAttribute('data-variant'), label: el.getAttribute('data-label'), section: band?.getAttribute('data-section') ?? null, page: pg, at: { x: e.clientX, y: e.clientY }, words: onWords(el, e) });
         });
+        // a heading under the pointer: over its words a text cursor and no wash (a click writes them), beside them the block's wash (a click selects the block)
+        let wf = 0, we = null;
+        doc.addEventListener('pointermove', e => { we = e; if (!wf) wf = doc.defaultView.requestAnimationFrame(() => { wf = 0; const h = !we.buttons && we.target.closest?.(HEADS); doc.documentElement.classList.toggle('rb-words', !!h && onWords(h, we)); }); }, { passive: true });
+        doc.documentElement.addEventListener('mouseleave', () => doc.documentElement.classList.remove('rb-words'));
         // the hand, the wheel and the pinch work over the page too: the canvas gets them, in the page's own pixels
         const fe = hooks.frameEvents;
         if (fe){
@@ -378,7 +395,7 @@ export function createSheet(host, hooks = {}){
   const standOff = (el, lw) => fitOff(el.getBoundingClientRect(), poOf(el), lw);
   const tabW = () => parseFloat(fr.doc.defaultView.getComputedStyle(fr.doc.documentElement).getPropertyValue('--plate-tab-w')) || 14;
   const lw0 = () => Math.max(1, parseFloat(fr.doc.defaultView.getComputedStyle(fr.doc.documentElement).getPropertyValue('--plate-line')) || 1);
-  const writeRule = () => Math.max(1, parseFloat(fr.doc.defaultView.getComputedStyle(fr.doc.documentElement).getPropertyValue('--plate-write')) || 1);      // the rule as drawn (a browser rounds a thin one up to a whole pixel)
+  //      // the rule as drawn (a browser rounds a thin one up to a whole pixel)
   function paintPlates(){
     if (!fr?.doc) return;
     const win = fr.doc.defaultView, now = performance.now(), want = wantedPlates(), spare = plates.filter(p => p.div.isConnected && p.div.ownerDocument === fr.doc), used = [];
@@ -389,14 +406,18 @@ export function createSheet(host, hooks = {}){
       const glide = !!p && (p.on || now - p.hid < GLIDE_KEEP) && family(p.role) === family(w.role);
       if (!p){ const div = fr.doc.createElement('div'); div.className = 'rb-plate'; div.setAttribute('aria-hidden', 'true'); fr.doc.body.append(div); p = { div, on: false, hid: 0 }; plates.push(p); }
       used.push(p);
-      const cs = win.getComputedStyle(w.el), r = w.el.getBoundingClientRect(), f = standOff(w.el, w.role === 'write' ? writeRule() : w.el.hasAttribute('data-word') ? 0 : undefined), o = w.role === 'write' ? { x: f.u, y: f.u } : f;      // (a skill word: a wash with no rule, flush with the comma beside it)
+      const cs = win.getComputedStyle(w.el), r = w.el.getBoundingClientRect(), f = standOff(w.el, w.el.hasAttribute('data-word') ? 0 : undefined), o = w.role === 'write' ? { x: f.u, y: f.u } : f;      // (a skill word: a wash with no rule, flush with the comma beside it; a written line is opaque paper: one stand-off all round that reaches no neighbour)
       // the grip: its 2x3 dots are this plate's, in a tab it widens into on the left when the gap to the words there leaves room, else inside its own edge
       const tab = tabEls.includes(w.el), tw = tab && o.x + tabW() + lw0() <= f.l - 1 ? tabW() : 0;
+      // on a bulleted line the dots stand on the bullet: its disc's centre is about 1.03em left of the line's box (the 10px dots centred on it)
+      const bul = tab && w.el.matches('li[data-variant]') && cs.listStyleType !== 'none', gx = bul ? o.x + tw - 1.03 * (parseFloat(cs.fontSize) || 12) - 5 : 0;
       const st = { left: `${r.left - o.x - tw}px`, top: `${r.top - o.y}px`, width: `${r.width + 2 * o.x + tw}px`, height: `${r.height + 2 * o.y}px` };
-      p.box = tab ? { left: r.left - o.x - tw, top: r.top - o.y, width: Math.max(tw, tabW()), height: r.height + 2 * o.y } : null;
+      p.box = !tab ? null : bul ? { left: r.left - o.x - tw + gx - 2, top: r.top - o.y, width: 14, height: r.height + 2 * o.y } : { left: r.left - o.x - tw, top: r.top - o.y, width: Math.max(tw, tabW()), height: r.height + 2 * o.y };
+      if (bul) p.div.dataset.bul = ''; else delete p.div.dataset.bul;
+      p.div.style.setProperty('--gx', `${gx}px`);
       if (!glide) p.div.style.transition = 'none';
       Object.assign(p.div.style, st);
-      p.o = o; p.div.style.setProperty('--po', `${Math.max(o.x, o.y)}px`);      // (its corner: the block's turned by the stand-off across, where the grip joins it)
+      p.o = o; p.div.style.setProperty('--po', `${Math.max(f.x, f.y)}px`);      // (its corner: the block's turned by the selected stand-off, the same while it is written)
       p.div.style.setProperty('--pk', cs.getPropertyValue('--pk').trim() || '1');      // its level's tint scale (a job's and a section's fainter)
       for (const k of ['hot', 'sel', 'write', 'scope']) p.div.classList.toggle(`is-${k}`, k === w.role);
       p.div.classList.toggle('is-boost', !!w.boost);
@@ -405,6 +426,10 @@ export function createSheet(host, hooks = {}){
       if (!glide){ void p.div.offsetWidth; p.div.style.transition = ''; }
       p.div.classList.add('is-on'); p.on = true; p.el = w.el; p.role = w.role;
     }
+    // the bullet a grip stands on fades while it shows
+    const bare = used.filter(q => q.div.hasAttribute('data-bul')).map(q => q.el);
+    for (const e of fr.doc.querySelectorAll('.rb-nobullet')) if (!bare.includes(e)) e.classList.remove('rb-nobullet');
+    for (const e of bare) e.classList.add('rb-nobullet');
     for (const p of plates.filter(q => q.role === 'scope' && !used.includes(q))){ p.div.remove(); plates.splice(plates.indexOf(p), 1); }      // (the chip's preview goes at once, and comes the same way again)
     for (const p of plates) if (!used.includes(p) && p.on){ p.on = false; p.hid = now; p.div.classList.remove('is-on'); }
     for (const p of plates.filter(q => !q.on && now - q.hid > 2000)){ p.div.remove(); plates.splice(plates.indexOf(p), 1); }      // (spares long out of use)
@@ -553,6 +578,8 @@ export function createSheet(host, hooks = {}){
         return { left: r.left, top: r.top, width: r.width, height: r.height, limit: r.top + r.height - pb, bg: cs.backgroundColor, padRight: parseFloat(cs.paddingRight) || 0 };
       });
     },
+    // the sections each page prints, in page order (one that runs over two pages is on both)
+    sectionsByPage(){ return fr?.frame.isConnected ? [...fr.root.querySelectorAll(':scope > .page')].map(pg => [...new Set([...pg.querySelectorAll('.band[data-section]')].map(b => b.dataset.section))]) : []; },
     // the element a claim is printed in (the first, when it is printed twice), for the line to be written in place
     elOf(factId, ix){
       if (!fr?.frame.isConnected) return null;
@@ -632,14 +659,10 @@ export function createSheet(host, hooks = {}){
     setWriting(dim){
       const d = fr?.doc?.documentElement; if (!d) return;
       d.classList.toggle('rb-writing', dim != null);
-      if (dim == null){ d.style.removeProperty('--rb-wo'); return paintPlates(); }
+      if (dim == null) return paintPlates();
       d.style.setProperty('--rb-wdim', String(dim / 100));
-      const el = fr.doc.querySelector('[contenteditable]:not([contenteditable=false])');
-      if (el) d.style.setProperty('--rb-wo', `${standOff(el, writeRule()).u}px`);
       paintPlates();
     },
-    // the written field's rule as drawn, in the page's pixels: its stand-off ({ x, y }) and its width (the grip stands flush on it)
-    writeShape(){ const p = plates.find(q => q.on && q.role === 'write'); return p ? { ...p.o, rule: parseFloat(fr.doc.defaultView.getComputedStyle(p.div).outlineWidth) || 1 } : null; },
     // a block's plate's stand-off ({ x, y, u }: fitOff), and the same for any box of the page (`r`, the page's pixels) at the stand-off `po`: the rail of a drag, a frame
     standOff: (el, lw) => standOff(el, lw),
     fitOff: (r, po, lw) => fitOff(r, po, lw),

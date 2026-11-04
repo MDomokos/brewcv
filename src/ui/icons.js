@@ -27,6 +27,8 @@ export const ICONS = {
   pin: '<path d="M9.4 2.6l4 4-1.5.8-2 2 .2 2.1-.9.9-2.5-2.5L3.4 13M6.1 6l.9-.9"/>',
   external: '<path d="M6.6 3.5H3.5v9h9V9.4M9.4 3.5h3.1v3.1M12.5 3.5 7.4 8.6"/>',
   replay: '<path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.6v2.7h-2.7"/>',
+  sun: '<circle cx="8" cy="8" r="2.7"/><path d="M8 1.7v1.4M8 12.9v1.4M1.7 8h1.4M12.9 8h1.4M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1"/>',
+  moon: '<path d="M13.4 9.7A5.6 5.6 0 0 1 6.3 2.6a5.6 5.6 0 1 0 7.1 7.1z"/>',
   more: '<circle cx="3.6" cy="8" r=".9"/><circle cx="8" cy="8" r=".9"/><circle cx="12.4" cy="8" r=".9"/>',
   warn: '<path d="M8 2.8l5.6 9.8H2.4z"/><path d="M8 6.8v2.8M8 11.3v.1"/>',
   lock: '<rect x="3.6" y="7" width="8.8" height="6.4" rx="1.2"/><path d="M5.4 7V5.2a2.6 2.6 0 0 1 5.2 0V7"/>',
@@ -94,3 +96,15 @@ export const icon = (name, { role, size } = {}) => {
 
 // A button's words that begin with ← or end with → (the catalogues keep the glyphs): the glyph is drawn as the `left` / `right` icon instead.
 export const withArrows = html => html.replace(/^← /, `${icon('left', { role: 'inline' })} `).replace(/ →$/, ` ${icon('right', { role: 'inline' })}`);
+
+// The way's four drawings, of what each space holds (24 × 24, a 2px stroke, so they read from a distance), the same in both drinks.
+// Resumes is a stack of pages; Content one of them, with a pencil; Look the same page with a brush. Your career is its screen in small: the timeline's spine and its entry cards.
+// A closed shape is filled with the tab's own ground (--way-ground), so it covers the stroke behind it.
+const PAGE = '<path d="M11 21H4.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4"/>', GROUND = 'fill="var(--way-ground, transparent)"';
+const WAY = {
+  career: `<path d="M5 2.5v19"/><circle cx="5" cy="7.5" r="2.3" fill="currentColor" stroke="none"/><circle cx="5" cy="16.5" r="2.3" fill="currentColor" stroke="none"/><rect x="9.5" y="4" width="11.5" height="7" rx="1.8" ${GROUND}/><rect x="9.5" y="13" width="11.5" height="7" rx="1.8" ${GROUND}/>`,
+  library: `<path d="M10 2.5h7.5a2 2 0 0 1 2 2v11" opacity=".5"/><path d="M7 5.5h7.5a2 2 0 0 1 2 2v11.5" opacity=".75"/><rect x="3.5" y="8.5" width="10" height="13" rx="2" ${GROUND}/><path d="M6.5 13h4M6.5 16.5h3"/>`,
+  edit: `${PAGE}<path d="M5.5 7.5h5M5.5 11h4.5M5.5 14.5h2.5" stroke-width="1.7"/><path d="M19.7 7.9a2.1 2.1 0 0 1 3 3L14.6 19l-4.3 1.2 1.2-4.3z" ${GROUND}/><path d="M17.8 9.8l3 3" stroke-width="1.6"/>`,
+  design: `${PAGE}<path d="M5.5 7.5h5" stroke-width="3.2" opacity=".55"/><path d="M5.5 11.5h3.5" stroke-width="1.7"/><path d="M23 5.6l-6.6 6.6" stroke-width="2.8"/><path d="M16.8 11.6c-3-.8-5.9 1.4-5.9 4.4 0 1.8-1 3-2.5 3.8 4.2 1 9.7-.4 9.7-5.1z" fill="currentColor"/>`,
+};
+export const wayIcon = k => `<svg class="ico way" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${WAY[k]}</svg>`;

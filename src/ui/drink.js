@@ -57,6 +57,14 @@ export function setThemePref(p){
 }
 export const toggleDrink = () => setDrink(state.drink === 'tea' ? 'coffee' : 'tea');
 
+// The bare mark (the logo without its tile), its cream in the ink of where it sits: the brand in the app's bar, which goes home
+const MARK = {
+  tea: '<path d="M302.2 223.3 L333.8 152.7 A37.5 37.5 0 0 1 405.5 168.0 L405.5 236" fill="none" stroke="#D9A65A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><rect x="374.5" y="236" width="62" height="68" rx="12" fill="#D9A65A"/><path d="M398.5 252 C390.5 252 391.5 262 391.5 266 C391.5 269 388.5 270 384.5 270 C388.5 270 391.5 271 391.5 275 C391.5 279 390.5 288 398.5 288 M412.5 252 C420.5 252 419.5 262 419.5 266 C419.5 269 422.5 270 426.5 270 C422.5 270 419.5 271 419.5 275 C419.5 279 420.5 288 412.5 288" fill="none" stroke="#2E4636" stroke-width="6" stroke-linecap="round"/>',
+  coffee: '<path d="M318 148 C304 134 332 124 318 108 C306 94 324 84 318 70 M356 148 C342 134 370 124 356 108 C344 94 362 84 356 70" fill="none" stroke="#BE7F4A" stroke-width="9" stroke-linecap="round"/><ellipse cx="405.5" cy="270" rx="29" ry="38" transform="rotate(-24 405.5 270)" fill="#BE7F4A"/><path d="M395 238 C410 256 399 276 416 302" fill="none" stroke="#3A2618" stroke-width="7" stroke-linecap="round"/>',
+};
+const VEE = '<path d="M168 168 L268 392 L368 168" fill="none" stroke="currentColor" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/><path d="M132.4 215.8 A48 48 0 1 0 162.4 283.0" fill="none" stroke="currentColor" stroke-width="30" stroke-linecap="round"/><path d="M140 446 L396 446" fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round" opacity="0.55"/>';
+export const markHtml = () => `<svg class="mark" viewBox="80 15 380 400" width="24" height="24" aria-hidden="true" focusable="false"><g transform="translate(9.5 -41.0)">${MARK[state.drink] ?? MARK.tea}${VEE}</g></svg>`;
+
 // The logo is the switch: a button that says what it will do (its hint), and src/ui/matroll.js shows the mat starting to go. `base` is
 // the class that sizes it where it sits (the header, the start screen's own).
 export function logoBtn(size = 28, { base = 'logo', pos = 'b' } = {}){
@@ -81,8 +89,8 @@ export function initDrink(){
   // the tea bag dunks when the drink becomes tea (a tea moment: not in coffee)
   onDrinkChange(st => {
     if (st.drink !== 'tea') return;
-    requestAnimationFrame(() => {        // after the logos have been drawn again in the tea tile
-      for (const img of document.querySelectorAll('.logoswitch img')){ img.classList.remove('dunk'); void img.offsetWidth; img.classList.add('dunk'); img.addEventListener('animationend', () => img.classList.remove('dunk'), { once: true }); }
+    requestAnimationFrame(() => {        // after the logos (and the bar's mark) have been drawn again in tea
+      for (const img of document.querySelectorAll('.logoswitch img, #rail .brand .mark')){ img.classList.remove('dunk'); void img.offsetWidth; img.classList.add('dunk'); img.addEventListener('animationend', () => img.classList.remove('dunk'), { once: true }); }
     });
   });
   apply();

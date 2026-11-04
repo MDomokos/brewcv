@@ -4,18 +4,16 @@
 //   - A line is written where it is printed: the element on the page becomes editable, holding the plain text of the version
 //     (src/ui/plain.js reads it back, so the text is exactly what the old text box held). Everything else is the editor's own
 //     (src/ui/edit.js): the draft, the live preview, keeping it on this resume when the line is left.
-//   - A small quiet chip lies on the top-right corner of the plate of the block being edited: where you are in single words (Page › Experience › Hydra), each
-//     level a button. The same component heads the editor card (parts.js depthHtml), at its normal size.
-//   - The tools sit beside a line being written, in the page's right margin: the version number, ↑ and ↓, the counts.
+//   - Nothing else is drawn on the page: the tick, the padlock, the versions and ↑ ↓ are the editor card's top row (edit.js), and the card follows what is
+//     selected (shell.js placeCard: selRect says where it is).
 // All of it is drawn in the app's layer (#editlay), over the page; the page's own markup and its measurements are never touched,
 // and nothing here is in an export. The camera (src/ui/canvas.js) eases to the writing zoom on the first line written, stays there
 // from line to line, and comes back out only at the page level (Esc to the page, a click on the bare canvas). Under reduced motion
 // there is no writing zoom: the camera only scrolls the line into view.
 
 import { plainOf, caretOf, setCaret, rangeOf } from './plain.js';
+import { esc } from './parts.js';
 import { u16Of } from '../model/marks.js';
-import { toolsHtml, esc } from './parts.js';
-import * as R from '../model/record.js';
 import { readZoomWrite, readZoomWriteOn, DIM } from './dock.js';
 import { step, lineSel, keyOf } from './select.js';
 import * as T from '../model/resume.js';
@@ -88,14 +86,13 @@ export function initOnPage(C){
   }
 
   // ---- drawing the layers ----
-  function signature(lvl, chip){
+  function signature(lvl){
     const ed = edit().editing, tg = geom?.tg;
-    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, ed ? lineEnds(ed.fact) : null, ed && !ed.label ? [versionItems(ed.fact), isMine(ed.fact)] : null, selMiss(lvl), ed ? missTag(ed.fact) : null, geom?.boxes.length, ui.lang, C.lang(), chip]);
+    return JSON.stringify([lvl, ui.sel, tg?.fact, tg?.jobId, !!ed, edit().softShown, geom?.boxes.length, ui.lang, C.lang()]);
   }
   function render(force = false){
     lay ??= $('#editlay');
     if (!lay) return;
-    if (!lay.dataset.vers){ lay.dataset.vers = '1'; bindVers(); }
     const lvl = level();
     if (zoomed && !ui.writing && ui.sel.kind === 'none'){ zoomed = false; canvas.reset(); }      // the page level: the view comes back out
     sheet.setWriting(lvl === 'line' ? DIM.line : null);
@@ -103,124 +100,15 @@ export function initOnPage(C){
     read();
     // a job or a line that is not on this resume has nothing on the page to frame
     if (!geom.boxes.length || (!geom.job && !geom.line && !geom.band)){ if (lay.firstChild) lay.replaceChildren(); sig = ''; return; }
-    const chipHtml = edit().depthHtml(ui.sel, { page: true });      // the padlock and the switch change with the lock and the switch
-    const sg = signature(lvl, chipHtml);
+    const sg = signature(lvl);
     if (!force && sg === sig && lay.firstChild){ place(); return; }
     // a preview under the pointer (a version hovered in the sidebar) is a redraw: the layers stay as they are
     if (ui.previewing && lay.firstChild && !force){ place(); return; }
     sig = sg;
-    const keep = document.activeElement?.closest?.('#editlay') ? document.activeElement.dataset?.act : null;
     const html = [];
-    const tools = toolsFor(lvl);
-    if (tools) html.push(`<div class="obtoolswrap" role="region" aria-label="${esc(t('ux3.tools'))}">${tools}</div>`);
     if (edit().softShown && edit().softShown === ui.sel.id && geom.line) html.push(`<button type="button" class="obsoft press" data-tier="tertiary" data-act="soft-unlock" aria-label="${esc(t('ux6f.softUnlock'))}">${icon('lock', { role: 'inline' })}</button>`);      // a guarded line (the name, a date, the contact): the lock that opens it for writing
-    html.push(`<div class="obchip">${chipHtml}</div>`);
-    lay.innerHTML = html.join('');
+    if (lay.innerHTML !== html.join('')) lay.innerHTML = html.join('');
     place();
-    if (keep){ quiet = true; lay.querySelector(`[data-act="${keep}"]`)?.focus({ preventScroll: true }); quiet = false; }      // the focus put back after a redraw does not open the list
-  }
-
-  function lineEnds(fact){
-    const w = T.jobOfFact(C.record(), fact, C.cur()), ids = w ? T.listedBullets(C.record(), C.cur(), w.id) : [];
-    return { first: ids[0] === fact, last: ids.at(-1) === fact };
-  }
-  // the tools are for the line being written; the sidebar shows the versions
-  function toolsFor(lvl){
-    const fact = lvl === 'line' ? S?.fact : null;
-    const sm = !fact && selMiss(lvl);
-    if (sm) return toolsHtml({ vn: sm.n, tag: { fact: ui.sel.id, items: [], miss: sm }, canMove: false });      // a line that prints the other language is not written here: its greyed number is all it has
-    if (!fact) return '';
-    const ed = edit().editing && edit().editing.fact === fact && !edit().editing.panel ? edit().editing : null;
-    if (!ed || ed.label) return '';      // a heading (a skill group's too) and a language's name have no versions
-    const vn = C.work().variants.find(v => v.id === ed.vid)?.n ?? '·';       // the version the line was written from
-    return toolsHtml({ vn, tag: { fact, items: versionItems(fact), mine: isMine(fact), miss: missTag(fact), locked: edit().lockedId(fact) ? t('ux6c.lockedHint') : '' }, canMove: !!T.jobOfFact(C.record(), fact, C.cur()), ends: lineEnds(fact) });
-  }
-
-  // a line of a group of language copies that prints the other language's version (the number is greyed and says whose it is)
-  function missTag(fact){
-    const m = edit().missingOf(fact);
-    return m?.want && !isMine(fact) ? { n: m.want, from: m.from } : null;
-  }
-
-  // the line selected, not written, when it prints the other language's version in a group
-  const selMiss = lvl => (['job', 'lineSel'].includes(lvl) && ui.sel.kind === 'bullet' ? missTag(ui.sel.id) : null);
-
-  // the text of the line is on this resume only: an edit kept, or one being typed
-  const isMine = fact => C.cur().overrides?.[fact] !== undefined || edit().isDirty();
-  // the line's versions as the list beside it shows them: numbers in order, the one in use marked, an edit on this resume (or one set aside)
-  // where it would be numbered
-  function versionItems(fact){
-    const L = C.lang(), m = C.work(), cur = C.cur(), vs = R.versionsIn(m, fact, L);
-    if (!vs.length) return [];
-    const over = cur.overrides?.[fact], mine = over ?? cur.parked?.[fact]?.text, using = C.chooseVariant(m, fact, cur).v?.id;
-    const items = vs.map(v => ({ id: v.id, n: v.n, cur: over === undefined && v.id === using }));
-    if (mine !== undefined && String(mine).trim()){
-      const n = R.suggestNumber(m, fact, mine, L).n, at = items.findIndex(o => R.compareN(o.n, n) > 0);
-      items.splice(at < 0 ? items.length : at, 0, { id: null, n, mine: true, cur: over !== undefined });
-    }
-    return items;
-  }
-
-  // ---- the version tag's list ----
-  // Opens on hover, focus or a click; moving over a number (or the arrows) previews it on the page; a click or Enter chooses it; Esc or
-  // leaving closes it and the page goes back. The list is part of the tools column, over no printed text.
-  let opened = null, quiet = false, touched = false;                                // how the list was opened: 'hover', 'focus', 'click' or 'key'
-  const tag = () => lay?.querySelector('.obv[aria-haspopup]'), list = () => lay?.querySelector('.obvlist');
-  const optAct = () => list()?.querySelector('.obvopt.act');
-  function openVers(how){
-    const l = list(), b = tag();
-    if (!l || !b || b.disabled) return;
-    if (l.hidden){ l.hidden = false; b.setAttribute('aria-expanded', 'true'); capStacks(l, b); }
-    opened = how;
-    if (how === 'key' || how === 'click') l.focus({ preventScroll: true });      // no number is marked: the arrows start from the pill
-  }
-  // a stack that would run out of the visible canvas (the window's top, the zoom bar at the bottom) is capped and scrolls, anchored at the pill: the pill never moves
-  function capStacks(l, b){
-    const v = canvas.view ?? { top: 0, height: innerHeight }, r = b.getBoundingClientRect();
-    const up = l.querySelector('.obvstack.up'), dn = l.querySelector('.obvstack.dn');
-    if (up){ up.style.maxHeight = `${Math.max(Math.min(up.scrollHeight, 96), r.top - (v.top + 6))}px`; up.scrollTop = up.scrollHeight; }      // the nearest lower version stays by the pill
-    if (dn){ dn.style.maxHeight = `${Math.max(Math.min(dn.scrollHeight, 96), v.top + v.height - 56 - r.bottom)}px`; dn.scrollTop = 0; }
-  }
-  // end: the preview goes too (not when a version was just chosen: the choice takes the page over)
-  function closeVers({ end = true, back = false } = {}){
-    const l = list(), b = tag();
-    opened = null;
-    if (!l || l.hidden) return;
-    l.hidden = true; l.removeAttribute('aria-activedescendant');
-    l.querySelectorAll('.act').forEach(o => o.classList.remove('act'));
-    b?.setAttribute('aria-expanded', 'false');
-    if (end) C.endHover();
-    if (back){ quiet = true; b?.focus({ preventScroll: true }); quiet = false; }      // the focus returning to the number does not open the list again
-  }
-  function markOpt(o, preview = true){
-    const l = list();
-    if (!l || !o) return;
-    l.querySelectorAll('.act').forEach(x => x.classList.remove('act'));
-    o.classList.add('act'); l.setAttribute('aria-activedescendant', o.id); o.scrollIntoView({ block: 'nearest' });
-    if (!preview) return;
-    if (o.dataset.v) C.previewVersion(l.dataset.fact, o.dataset.v); else C.endHover();
-  }
-  function versKey(e){
-    const l = list(), b = tag();
-    if (!l || !b) return;
-    if (e.target === b && ['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)){ e.preventDefault(); e.stopPropagation(); openVers('key'); return; }
-    if (e.target !== l) return;
-    // screen order is number order (lower stack, then higher stack); the pill is the gap between them: with none marked the arrows start there, Up to the next lower number, Down to the next higher
-    const os = [...l.querySelectorAll('.obvopt')], gap = l.querySelectorAll('.obvstack.up .obvopt').length - .5, i = os.indexOf(optAct()), at = i < 0 ? gap : i, stop = () => { e.preventDefault(); e.stopPropagation(); };
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){ stop(); markOpt(os[Math.min(os.length - 1, Math.max(0, e.key === 'ArrowDown' ? Math.floor(at + 1) : Math.ceil(at - 1)))]); }
-    else if (e.key === 'Home' || e.key === 'End'){ stop(); markOpt(os[e.key === 'Home' ? 0 : os.length - 1]); }
-    else if (e.key === 'Enter' || e.key === ' '){ stop(); const o = optAct(); closeVers({ end: false }); if (o) o.click(); else C.endHover(); }
-    else if (e.key === 'Escape'){ stop(); closeVers({ back: true }); }
-    else if (e.key === 'Tab') closeVers();
-  }
-  function bindVers(){
-    lay.addEventListener('keydown', versKey);
-    lay.addEventListener('mouseover', e => { if (e.target.closest?.('.obv[aria-haspopup]') && list()?.hidden) openVers('hover'); });
-    lay.addEventListener('pointerdown', e => { touched = e.pointerType === 'touch'; });
-    lay.addEventListener('mouseout', e => { const w = e.target.closest?.('.obvwrap'); if (w && !w.contains(e.relatedTarget) && opened !== 'key' && !touched) closeVers(); });      // a finger leaves nothing to leave: the list stays until a number is chosen, Esc, or a tap elsewhere
-    lay.addEventListener('focusin', e => { if (!quiet && e.target.closest?.('.obv[aria-haspopup]') && list()?.hidden) openVers('focus'); });
-    lay.addEventListener('focusout', e => { const w = e.target.closest?.('.obvwrap'); if (w && !w.contains(e.relatedTarget)) closeVers(); });
-    lay.addEventListener('click', e => { if (e.target.closest?.('.obvopt')) closeVers({ end: false }); });      // the choice (shell.js) takes the page over
   }
 
   const secPad = () => (geom.itemFrame ? off('group') : off('section'));
@@ -230,60 +118,10 @@ export function initOnPage(C){
     const lvl = level();
     const R = r => (r ? canvas.screenRect(r) : null);
     const fit = (r, p) => { const o = r && sheet.fitOff(r, p); return o ? { left: r.left - o.x, top: r.top - o.y, width: r.width + 2 * o.x, height: r.height + 2 * o.y } : null; };      // the selected block's plate, fitted as it is drawn (sheet.fitOff)
-    // the tools sit beside the line, in the page's right margin
-    const tw = lay.querySelector('.obtoolswrap');
-    const fact = lvl === 'line' ? S?.fact : selMiss(lvl) ? ui.sel.id : null;
-    const lr = fact ? (fact === geom.tg?.fact || (S && fact === S.fact) ? geom.line : rectOfFact(fact, C.ix())) : null;
-    if (tw && lr){
-      const pg = geom.boxes.find(b => lr.left >= b.left - 1 && lr.left < b.left + b.width) ?? geom.boxes[0];
-      const edgeR = R({ left: pg.left + pg.width - pg.padRight, top: lr.top, width: 0, height: 0 });
-      const sr = R(lr);
-      const view = canvas.view, room = view ? view.left + view.width : innerWidth, twW = tw.offsetWidth;
-      const ring = geom.sec && !geom.itemFrame ? R(pad(geom.sec, off('section') + 1)) : null;      // outside the section's ring (the tools cross no line of the plate's)
-      // The row stays right of the line. Its ↑ ↓ may run past `room` and slide under the sidebar (the layer is below it); only when the
-      // pill itself would be partly covered does the whole row go left of the line, all together, never split.
-      const pw = tw.querySelector('.obvwrap, .obv')?.offsetWidth ?? twW, x = Math.max(edgeR.left + 8, ring ? ring.left + ring.width + 4 : 0);
-      let left = Math.max(sr.left + sr.width + 6 > x ? sr.left + sr.width + 6 : x, 6);
-      if (left + pw + 3 > room) left = Math.max(6, sr.left - twW - 6);
-      // what runs past the sidebar's rail is hidden (sideways only, so the open list keeps its height): the arrows go behind the editor (the layer is under the sidebar, but the rail's empty height shows through)
-      const rl = document.querySelector('#rail')?.getBoundingClientRect(), cut = rl && rl.width ? Math.max(room, rl.left) : room, over = left + twW - cut;
-      tw.style.clipPath = over > 0 ? `inset(-9999px ${Math.ceil(over)}px -9999px -9999px)` : '';
-      Object.assign(tw.style, { left: `${left}px`, top: `${Math.max(6, sr.top - 4)}px` });
-    } else if (tw) tw.style.display = 'none';
     frameNow = geom.job && (lvl === 'job' || lvl === 'line') ? R(lvl === 'job' ? fit(geom.job, off('job')) : pad(geom.job, off('job'))) : R(fit(geom.sec ?? geom.job ?? geom.line, secPad()));      // a line's frame is its job's ring, at its full stand-off
-    placeChip(lay.querySelector('.obchip'), frameNow);
     const soft = lay.querySelector('.obsoft'), sl = soft && geom.line ? R(pad(geom.line, off('line'))) : null;
     if (sl) Object.assign(soft.style, { left: `${Math.round(sl.left - 14)}px`, top: `${Math.round(sl.top - 14)}px` });      // on the line's top-left corner: its right side has the photo slot, its left the grip
   }
-  // One rule: the chip lies on the plate of the current block (the job's, or the section's), centred on its top edge in its
-  // top-right corner (where the top edge has no clear place, the bottom edge). Kept inside the page, in the pages' room (never under the rail or the sidebar) and above the zoom bar; moved
-  // along the edge until it is clear of printed text, of the tools beside the line and of the photo slot. It follows the frame with the camera.
-  function placeChip(chip, f){
-    if (!chip || !f) return;
-    const v = canvas.view ?? { left: 0, top: 0, width: innerWidth, height: innerHeight };
-    const w = chip.offsetWidth, h = chip.offsetHeight;
-    const pg = geom.boxes.map(b => canvas.screenRect(b)).find(b => f.left >= b.left - 1 && f.left < b.left + b.width);
-    const lo = Math.max(v.left + 6, pg ? pg.left + 2 : -Infinity), hi = v.left + v.width - w - 6;      // the chip may stand past the page's right edge, on the desk, when the page's margin has no clear place for its tools
-    const lowest = v.top + v.height - h - 56;
-    // on the top edge, else just above it (a tight item frame has text under its edge), each also 3px up or down (with denser lines the gap between two lines can be a pixel short of the chip);
-    // else on the bottom edge or just under it (never over text)
-    const clampY = y => Math.max(v.top + 6, Math.min(y, lowest));
-    const top = [0, -3, 3].flatMap(d => [f.top - h / 2, f.top - h].map(y => clampY(y) + d)), ys = [...top, ...[f.top + f.height - h / 2, f.top + f.height].map(clampY)];
-    const texts = sheet.textRects().map(r => canvas.screenRect(r));
-    const tw = lay.querySelector('.obtoolswrap'), tr = tw && tw.style.display !== 'none' ? tw.getBoundingClientRect() : null, sr = document.querySelector('#handlay .obslot:not([hidden])')?.getBoundingClientRect(), pl = document.querySelector('#handlay .obplus:not([hidden])')?.getBoundingClientRect();      // and the photo slot and the "+" (hands.js)
-    const hit = (x, q, y) => x < q.left + q.width && x + w > q.left && y < q.top + q.height && y + h > q.top;
-    const gt = { left: f.left - 14 * canvas.cam.k - 12, top: f.top - 2, width: 28 * canvas.cam.k + 14, height: f.height + 4 };      // the grip's tab at the frame's left side, widened out of it or inside it (sheet.tabBox, with its wider target): the chip keeps clear of it
-    const pz = geom.job ? { left: f.left + f.width / 2 - 44, top: f.top + f.height - 2, width: 88, height: 20 } : null;      // a selected job's "+" hangs at its bottom centre (hands.js), shown on a hover after the chip is placed
-    const x0 = Math.max(lo, Math.min(f.left + f.width - w - 12, hi));
-    // the corner first, then outwards along the edge into the page's margin, then inwards, to the first place clear of text and tools
-    const xs = [x0, ...Array.from({ length: Math.max(0, Math.floor((hi - x0) / 8)) }, (_, i) => x0 + 8 * (i + 1)), ...Array.from({ length: Math.max(0, Math.floor((x0 - lo) / 8)) }, (_, i) => x0 - 8 * (i + 1))];
-    let y = ys[0], x;
-    const right = xs.filter(x => x + w / 2 > f.left + f.width / 2 && x < f.left + f.width - 8);      // on the right half of the top edge first, at either height, then anywhere along an edge
-    for (const [yy, set] of [...top.map(yy => [yy, right]), ...ys.map(yy => [yy, xs])]){ x = set.find(x => !texts.some(q => hit(x, q, yy)) && !(tr && hit(x, tr, yy)) && !(sr && hit(x, sr, yy)) && !(pl && hit(x, pl, yy)) && !(pz && hit(x, pz, yy)) && !hit(x, gt, yy)); if (x !== undefined){ y = yy; break; } }
-    if (x === undefined) for (const yy of [...ys, Math.max(v.top + 6, f.top - h - 3)]){ x = xs.find(q => !hit(q, gt, yy)); if (x !== undefined){ y = yy; break; } }      // no place clear of everything: at least off the grip's tab
-    Object.assign(chip.style, { left: `${x ?? x0}px`, top: `${y}px` });
-  }
-
   // ---- writing a line where it is printed ----
   const supportsPlain = (() => { try { const d = document.createElement('div'); d.contentEditable = 'plaintext-only'; return d.contentEditable === 'plaintext-only'; } catch { return false; } })();
   // An item's title shares its element with the subtitle, a claim of its own: the title's words are wrapped, and only they are written
@@ -322,7 +160,7 @@ export function initOnPage(C){
     on('compositionend', () => { S.composing = false; onInput(); });
     if (!supportsPlain) on('paste', e => { e.preventDefault(); el.ownerDocument.execCommand('insertText', false, e.clipboardData.getData('text/plain')); });
     S.off = () => offs.forEach(f => f());
-    if (!document.activeElement?.closest?.('#editlay')) el.focus({ preventScroll: true });      // a redraw while the version tag has the focus does not take it back
+    if (!document.activeElement?.closest?.('#editlay, #body .ctop')) el.focus({ preventScroll: true });      // a redraw while the card's top row has the focus (its versions list) does not take it back
     const doc = el.ownerDocument, hit = point && caretAt(doc, point);
     if (caret) setCaret(el, caret);
     else if (hit && el.contains(hit.startContainer)){ const sel = doc.defaultView.getSelection(); sel.removeAllRanges(); sel.addRange(hit); }      // one click: the caret where it was clicked
@@ -385,10 +223,11 @@ export function initOnPage(C){
     const mod = e.ctrlKey || e.metaKey;
     const done = () => { e.preventDefault(); e.stopPropagation(); };
     if (mod && e.shiftKey && !e.altKey && isKey(e, 'h')){ done(); markSelection(); return; }      // Ctrl/Cmd+Shift+H: the selection, highlighted or cleared
-    // Alt+↑ ↓ move the line, as the arrows beside it say (and as they do for a selected line); Alt+Shift+↓ is the way from the line to its versions
+    // Alt+↑ ↓ move the line, as the card's arrows do (and as they do for a selected line); Alt+Shift+↓ opens its versions, the card's menu
     if (e.altKey && !mod && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){
-      if (e.shiftKey && e.key === 'ArrowDown' && tag() && !tag().disabled){ done(); openVers('key'); return; }
-      if (!e.shiftKey && lay?.querySelector('[data-act=ob-up]')){ done(); act(e.key === 'ArrowUp' ? 'ob-up' : 'ob-down'); return; }
+      const vers = document.querySelector('#body .ctop .cver[data-act=top-menu]:not(:disabled)');
+      if (e.shiftKey && e.key === 'ArrowDown' && vers){ done(); vers.click(); vers.nextElementSibling?.querySelector('.cvo')?.focus(); return; }
+      if (!e.shiftKey && document.querySelector('#body .ctop [data-act=top-step]')){ done(); edit().stepLine(e.key === 'ArrowUp' ? -1 : 1); return; }
     }
     if (e.key === 'Escape'){ done(); edit().cancelEdit(); return; }
     if (e.key === 'Enter' && !e.shiftKey && !e.altKey){ done(); if (!addAfter() && !next(1)) edit().cancelEdit(); return; }
@@ -401,7 +240,7 @@ export function initOnPage(C){
     const ed = edit().editing;
     if (!ed || !ed.draft.trim()) return false;
     const w = T.jobOfFact(C.record(), ed.fact, C.cur());
-    if (!w || !lineEnds(ed.fact).last) return false;
+    if (!w || T.listedBullets(C.record(), C.cur(), w.id).at(-1) !== ed.fact) return false;      // (the job's last line only)
     keepView(() => edit().addLine(w.id, ed.fact));
     return true;
   }
@@ -477,9 +316,6 @@ export function initOnPage(C){
   function refresh(){
     if (!ui.writing) return;
     read();
-    const ed = edit().editing;
-    const b = tag();
-    if (b && ed){ const m = isMine(ed.fact); b.classList.toggle('mine', m); m ? b.setAttribute('title', t('ux6g.onlyHere')) : b.removeAttribute('title'); b.setAttribute('aria-label', t(m ? 'ux6g.tagNameMine' : 'ux6g.tagName', { v: b.textContent.trim().slice(1) })); }      // typing makes the line this resume's own
     place();
     if (geom?.line) canvas.ensureVisible(geom.line);
   }
@@ -493,21 +329,17 @@ export function initOnPage(C){
     render();
   }
 
-  // ---- the tools ----
-  async function act(a){
-    switch (a){
-      case 'ob-vers': if (list()?.hidden === false && opened !== 'hover' && opened !== 'focus') closeVers({ back: true }); else openVers('click'); return true;
-      case 'ob-up': case 'ob-down': { const e = lineEnds(edit().editing?.fact); if (!(a === 'ob-up' ? e.first : e.last)) edit().stepLine(a === 'ob-up' ? -1 : 1); return true; }
-    }
-    return false;
-  }
+  // ---- the tools: none on the page now (the card's top row has them) ----
+  async function act(){ return false; }
 
   // run something that leaves one line and writes another, with the view staying where it is (no zoom out and in again)
   function keepView(fn){ moving = true; try { return fn(); } finally { moving = false; } }
   return {
     begin, end, text: () => (S?.composing && S.el?.isConnected ? plainOf(S.el) : null), setText, refresh, afterDraw, render, place, act, keepView,
     get writing(){ return !!ui.writing; },
-    frame: () => (lay?.firstChild ? frameNow : null),
+    frame: () => (geom ? frameNow : null),
+    // where what is selected is on the screen (the line, the job, the item or the section): the editor card aims at it
+    selRect: () => { const r = geom && (geom.line ?? geom.job ?? geom.sec ?? geom.band); return r ? canvas.screenRect(r) : null; },
     el: () => S?.el ?? null,
     fact: () => S?.fact ?? null,
     level,

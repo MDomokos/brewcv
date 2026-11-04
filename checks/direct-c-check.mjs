@@ -7,7 +7,7 @@
 //  3. hover zones: a slow pointer path down through the lines and the gaps of two sections (over the text, and in the lines' left margin) draws a job's or a section's
 //     big plate only while the pointer is on its heading row; the job's side strip and the section's tab column still give theirs.
 //  4. the grip is part of the plate: its dots show only as the pointer nears the plate's left side, drawn by the plate in a tab it widens into (where the words leave
-//     room; a skill group's never covers the next column's words), the grip a clear button over it inside the plate's box; on touch the selected job shows its dots.
+//     room; a skill group's never covers the next column's words), the grip a clear button over it in the plate's height (a line's on its bullet); on touch the selected job shows its dots.
 //  5. zoom and write start: across the camera's ease as writing starts, the written line's plate (and the grip's dots in it) keeps one shape on the page at every frame:
 //     it never tweens against the camera.
 //  6. the free drag (behind the review flag ?drag=free), lighter and tighter: a line pulled far sideways moves across only by about 12 px of give, past the first and last place it shows about 12 px of bumper
@@ -91,7 +91,7 @@ await run('ladder', async () => {
     ok(`ladder: ${tag}: hover is the wash at ${WASH[tag]}% of --sel-mark, no edge, its corner plate-r + its stand-off`, !!hot && near(alpha(hot.bg), wash) && hot.ow === 0 && Math.abs(hot.r - (2 + hot.po)) < .1 && hot.r === hot.rr, JSON.stringify({ hot, a: alpha(hot?.bg) }));
     await page.mouse.click(b.x + 60, b.y + 6); await page.waitForTimeout(400);
     const w = await plateOf(page, 'write'), field = await page.evaluate(() => { const e = document.querySelector('#sheet iframe').contentDocument.querySelector('[contenteditable]'); return e && parseFloat(getComputedStyle(e).borderTopLeftRadius); });
-    ok(`ladder: ${tag}: writing has no wash, a thin rule, the plate's corner, the field at plate-r`, !!w && clear(w.bg) && w.ow > 0 && w.ow <= 1 && Math.abs(w.r - (2 + w.po)) < .1 && field === 2, JSON.stringify({ w, field }));
+    ok(`ladder: ${tag}: writing is a cutout of the paper (no rule), the plate's corner, the field at plate-r`, !!w && alpha(w.bg) === 1 && w.ow === 0 && Math.abs(w.r - (2 + w.po)) < .1 && field === 2, JSON.stringify({ w, field }));
     await page.keyboard.press('Escape'); await page.mouse.move(4, 4); await page.waitForTimeout(400);
     const s = await plateOf(page, 'sel');
     ok(`ladder: ${tag}: selected is the wash x1.5, no edge`, !!s && near(alpha(s.bg), wash * 1.5) && s.ow === 0 && Math.abs(s.r - (2 + s.po)) < .1, JSON.stringify({ s, a: alpha(s?.bg) }));
@@ -163,7 +163,7 @@ const gripState = page => page.evaluate(() => {
   // the words of other blocks under the plate's tab (the strip left of its block)
   const el = S(own.getBoundingClientRect()), strip = { left: r.left, right: el.left, top: r.top, bottom: r.top + r.height }, wk = d.createTreeWalker(d.querySelector('.document'), 4), rg = d.createRange(); let under = 0;
   for (let n = wk.nextNode(); n; n = wk.nextNode()){ if (!n.nodeValue.trim() || own.contains(n)) continue; rg.selectNodeContents(n); for (const t of rg.getClientRects()){ const u = S(t); if (u.width > 1 && u.left < strip.right - 1 && u.left + u.width > strip.left + 1 && u.top < strip.bottom - 1 && u.top + u.height > strip.top + 1) under++; } }
-  return { dots: true, role: p.role, tw: parseFloat(p.div.style.getPropertyValue('--tw')) || 0, inside: !!q && q.left >= r.left - 1 && q.right <= r.left + r.width + 1 && q.top >= r.top - 1 && q.bottom <= r.top + r.height + 1, under };
+  return { dots: true, role: p.role, tw: parseFloat(p.div.style.getPropertyValue('--tw')) || 0, inside: !!q && q.left >= r.left - q.width - 1 && q.right <= r.left + r.width + 1 && q.top >= r.top - 1 && q.bottom <= r.top + r.height + 1, under };      // (on a line it stands on the bullet, across the plate's left edge)
 });
 await run('grip', async () => {
   const { ctx, page } = await open(['tea', 'light']);
@@ -174,11 +174,11 @@ await run('grip', async () => {
     const far = await gripState(page);
     await page.mouse.move(b.x + 4, b.y + 6, { steps: 8 }); await page.waitForTimeout(450);
     const nearS = await gripState(page);
-    ok(`grip: ${lv}: no dots while the pointer is over the middle of the text; near the left side the plate draws them, the grip's button inside its box`, !far.dots && nearS.dots && nearS.inside, JSON.stringify({ far, nearS }));
+    ok(`grip: ${lv}: no dots while the pointer is over the middle of the text; near the left side the plate draws them, the grip's button in its height at its left edge`, !far.dots && nearS.dots && nearS.inside, JSON.stringify({ far, nearS }));
     ok(`grip: ${lv}: the tab covers none of the other blocks' words${lv === 'line' ? ', and the plate widens into it' : ''}`, nearS.under === 0 && (lv !== 'line' || nearS.tw > 0), JSON.stringify(nearS));
   }
   await ctx.close();
-  // touch: no hover; a tap on a job's heading selects the job (the header guard) and its plate shows the dots
+  // touch: no hover; a selected job's plate shows the dots (a tap on its title writes it on a desktop, the guard is a phone's: the card's job level selects the job)
   const tctx = await browser.newContext({ viewport: { width: 1470, height: 832 }, hasTouch: true, reducedMotion: 'reduce' });
   await tctx.addInitScript(() => { try { (localStorage.setItem('rb-help-seen', '1'), localStorage.setItem('rb-esc-fold', 'off')); } catch { /* none */ } });
   const tp = await tctx.newPage();
@@ -186,6 +186,7 @@ await run('grip', async () => {
   await tp.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });
   await tp.waitForTimeout(500);
   const h = await box(tp, '.entry .role-title', 0); await tp.touchscreen.tap(h.x + 30, h.y + 6); await tp.waitForTimeout(600);
+  await tp.evaluate(() => { const s = window.__wb.ui.sel, b = document.createElement('button'); b.dataset.act = 'select-job'; b.dataset.id = s.job ?? s.owner; b.hidden = true; document.querySelector('#body').append(b); b.click(); b.remove(); }); await tp.waitForTimeout(600);      // the card's job level
   const ts = await gripState(tp), sel = await tp.evaluate(() => window.__wb.ui.sel.kind);
   ok('grip: on touch the selected job shows its dots in its plate', sel === 'job' && ts.dots && ts.role === 'sel', JSON.stringify({ sel, ts }));
   await tctx.close();

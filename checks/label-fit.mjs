@@ -104,12 +104,13 @@ for (const lang of I.UI_LANGS){
       return bad;
     }, [name, sel, ELLIPSIS]);
     let problems = [];
-    problems.push(...await probe('head', '#head button, #head .hrow, #ptabs .ptab, #ptabs .ptab span'));
+    problems.push(...await probe('head', '#head button, #head .hrow, #ptabs .wtab.is-on, #ptabs .wtab.is-on .ww, #rail button'));
     problems.push(...await probe('foot', '#foot button, #foot .hfill, #foot .meters'));
     problems.push(...await probe('zoom bar', '#zoombar button, #zoombar .vbar, #zoombar .meters'));
     problems.push(...await probe('outline', '#outline .srow *, #outline .clcaret, #outline .clcount, #outline .archmore, #outline .addline'));
     // Record, Export's Mark as sent, and the job level
     await pg.keyboard.press('r'); await pg.waitForTimeout(700);
+    problems.push(...await probe('the way in Career', '#ptabs .wtab.is-on, #ptabs .wtab.is-on .ww, #head .hlens button'));
     problems.push(...await probe('record', '#checklist .clhead *, #checklist .clcount, #checklist .clcaret, #checklist .nlink, #checklist .rectl .kw, #checklist .addline'));
     await pg.keyboard.press('e'); await pg.waitForTimeout(500);      // E: Career is a place of its own, and Esc stays in it: back to the editor
     await pg.evaluate(() => window.__wb.export.open()); await pg.waitForTimeout(400);
@@ -117,14 +118,15 @@ for (const lang of I.UI_LANGS){
     await pg.click('[data-act=mark-sent]'); await pg.waitForTimeout(400);
     problems.push(...await probe('mark as sent', '#body .btns button, #body .field *, #body .note'));
     await pg.evaluate(() => window.__wb.setView('design')); await pg.waitForTimeout(400);      // the Sent form is in the Export place, which has no rail
+    problems.push(...await probe('the way on Look', '#ptabs .wtab.is-on, #ptabs .wtab.is-on .ww'));
     problems.push(...await probe('design', '#body .seg button, #body .tpl, #body .drow .item, #body .drow .btns button, #body .drow .note, #body .photo-ctl .btns button, #body .photo-ctl .note'));
     await pg.click('#tab-edit'); await pg.waitForTimeout(300);
     await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await pg.waitForTimeout(500);
-    problems.push(...await probe('the job level', '#body .allrec button, #body .depth, #body .depth > *, #body .depth .dp-w, #body .ctlrow *'));
-    // the row at the top of the editor card (the chip's component): Page › Job › Line fits its row, the names give way, the level words never do
+    problems.push(...await probe('the job level', '#body .allrec button, #body .ctop button, #body .ctop .cadd, #body .ctitle, #body .ctlrow *'));
+    // the editor card's top row: the toolbar and the add pill fit the card, the pill's words whole
     await pg.evaluate(() => { const w = window.__wb, j = w.store.state.record.work[0]; w.ui.sel = { kind: 'bullet', id: j.highlights[0], job: j.id, section: 'experience' }; w.setView(null); }); await pg.waitForTimeout(500);
-    problems.push(...await probe('the line level', '#body .depth, #body .depth > *, #body .depth .dp-w'));
-    problems.push(...await pg.evaluate(() => { const d = document.querySelector('#body .depth'), c = document.querySelector('#body').getBoundingClientRect(); if (!d) return ['the line level: no depth row']; const r = d.getBoundingClientRect(); return [...d.querySelectorAll('.dp-w')].filter(w => w.scrollWidth > w.clientWidth + 1 || w.getBoundingClientRect().right > r.right + 0.5).map(w => `the line level: the level word “${w.textContent}” is clipped`).concat(r.right > c.right + 0.5 ? ['the line level: the depth row runs out of the card'] : []); }));
+    problems.push(...await probe('the line level', '#body .ctop button, #body .ctop .cadd'));
+    problems.push(...await pg.evaluate(() => { const d = document.querySelector('#body .ctop'), c = document.querySelector('#body').getBoundingClientRect(); if (!d) return ['the line level: no top row']; const r = d.getBoundingClientRect(), add = d.querySelector('.cadd'); return (r.right > c.right + 0.5 ? ['the line level: the top row runs out of the card'] : []).concat(add && add.scrollWidth > add.clientWidth + 1 ? ['the line level: the add pill is cut'] : []); }));
     await pg.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); });
     // the Resumes screen: its heading, the views, the ticks and each card's buttons are whole
     await pg.click('#docname-btn'); await pg.waitForTimeout(250);

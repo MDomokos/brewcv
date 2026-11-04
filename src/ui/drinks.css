@@ -253,7 +253,7 @@ html[data-drink="tea"] .vrow.cur .n { color: var(--ink); }      /* the ring and 
   /* a tick pops once, on the line just ticked */
   html[data-drink="tea"]:not([data-motion="reduce"]) .cb.pop:checked { animation: tsPop 350ms var(--ease-pop); }
   /* the bag dunks */
-  html[data-drink="tea"]:not([data-motion="reduce"]) :is(.logo img, .oblogo img).dunk { animation: tsDunk 900ms var(--ease-swing); }
+  html[data-drink="tea"]:not([data-motion="reduce"]) :is(.logo img, .oblogo img, #rail .brand .mark).dunk { animation: tsDunk 900ms var(--ease-swing); }
   @keyframes tsSteam { 0% { opacity: 0; transform: translateY(4px) scaleY(.8); } 40% { opacity: .85; } 100% { opacity: 0; transform: translateY(-6px) scaleY(1.1); } }
   @keyframes tsSwing { 0% { rotate: 0deg; } 15% { rotate: 5deg; } 35% { rotate: -3.5deg; } 55% { rotate: 2deg; } 75% { rotate: -.8deg; } 100% { rotate: 0deg; } }
   @keyframes tsToast { 0% { rotate: 6deg; } 25% { rotate: -4deg; } 50% { rotate: 2deg; } 75% { rotate: -.7deg; } 100% { rotate: 0deg; } }
@@ -336,12 +336,6 @@ html.is-switching :is(*, *::before, *::after):not(.matroll, .matroll *, .motionl
 html[data-drink="coffee"] .col > #head { background: var(--band-bg); border-radius: var(--r-panel) var(--r-panel) 0 0; }
 html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col > #head { background: var(--band-bg); border-radius: var(--r-l); border-bottom: 2px solid var(--crema); }
 html[data-drink="coffee"] body:not([data-phone=true]):not(.is-intro) .col.is-name > #head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-/* the rail's tabs and screens: cards of the surface, a hairline each; the open tab overlaps the editor card's edge */
-html[data-drink="coffee"] .rtabs .tab { border-radius: var(--r-l) 0 0 var(--r-l); border: 1px solid var(--line-strong); border-right: 0; box-shadow: none; }
-html[data-drink="coffee"] .rtabs .tab .ti { color: var(--tab-ink); }
-html[data-drink="coffee"] .col:not(.is-name) .rtabs .tab[aria-selected=true] { width: 55px; margin-right: -1px; z-index: 1; }
-html[data-drink="coffee"] .col:not(.is-name) .rtabs .tab[aria-selected=true] .ti { color: var(--tab-ink); }
-html[data-drink="coffee"] .rtabs .tab::before, html[data-drink="coffee"] .rtabs .tab::after { display: none; }
 html[data-drink="coffee"] .zoombar { border: 1px solid var(--line-strong); }
 
 /* The page moves flat in every drink: no lift, tilt or will-change on the sheet, which keeps the text sharp at any zoom (canvas.js only sets its translate and scale). */

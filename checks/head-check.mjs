@@ -40,7 +40,7 @@ const NAMES = { long: 'Example Instruments — Mechanical Design Engineer', sixt
 const PROBE = `(() => {
   const vis = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
   const label = el => (el.getAttribute('aria-label') || el.textContent || el.id || el.className || el.tagName).toString().trim().replace(/\\s+/g, ' ').slice(0, 28);
-  const textRects = el => { const out = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());){ if (!n.nodeValue.trim() || n.parentElement.closest('.sr')) continue; const g = document.createRange(); g.selectNodeContents(n); out.push(...g.getClientRects()); } return out; };
+  const textRects = el => { const out = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());){ if (!n.nodeValue.trim() || n.parentElement.closest('.sr, .wtab:not(.is-on) .ww')) continue; const g = document.createRange(); g.selectNodeContents(n); out.push(...g.getClientRects()); } return out; };
   const out = { covered: [], overlap: [], clipped: [], name: {}, items: 0 };
   const scope = ['#rail', '#ptabs', '#head', '#switcher'].map(s => document.querySelector(s)).filter(e => e && vis(e));
   const controls = [...document.querySelectorAll('#rail button, #ptabs button, #head button, #head [tabindex], #switcher button, #switcher input, #switcher select')].filter(vis);
@@ -73,9 +73,9 @@ const PROBE = `(() => {
   out.window = sw && vis(sw) ? { scroll: Math.max(sw.scrollHeight - sw.clientHeight, list ? list.scrollHeight - list.clientHeight : 0), spare: sw.clientHeight - [...sw.children].reduce((n, c) => n + c.getBoundingClientRect().height + 6, 0) } : null;
   // Fit and Saved have left the name card: Saved is the seam's, Fit is Export's
   if (document.querySelector('#head [data-act=fit], #head .savestate, #head .fitslot')) out.clipped.push('Fit or Saved is still in the name card');
-  if (!document.querySelector('#rail .rhist .savestate') || !document.querySelector('#head [data-act=menu]')) out.clipped.push('no Saved in the seam, or no menu in the name card');
-  const pt = [...document.querySelectorAll('#ptabs .ptab')];
-  out.tabs = { names: pt.map(b => b.getAttribute('aria-label')), current: pt.filter(b => b.getAttribute('aria-current') === 'page').length, svg: pt.map(b => !!b.querySelector('svg')), h: pt.map(b => Math.round(b.getBoundingClientRect().height)), cut: pt.some(b => [...b.querySelectorAll('span')].some(x => x.scrollWidth > x.clientWidth + 1)) };
+  if (!document.querySelector('#rail .rhist .savestate') || !document.querySelector('#rail [data-act=menu]') || document.querySelector('#head [data-act=menu]')) out.clipped.push('no Saved or no "?" in the bar, or a menu still in the name card');
+  const pt = [...document.querySelectorAll('#ptabs .wtab')];
+  out.tabs = { names: pt.map(b => b.getAttribute('aria-label')), current: pt.filter(b => b.classList.contains('is-on')).length, svg: pt.map(b => !!b.querySelector('svg')), h: pt.map(b => Math.round(b.getBoundingClientRect().height)), cut: pt.filter(b => b.classList.contains('is-on')).some(b => [...b.querySelectorAll('span')].some(x => x.scrollWidth > x.clientWidth + 1)) };
   const sel = document.querySelectorAll('#switcher select');
   for (const s of sel) if (s.scrollWidth > s.clientWidth + 1 && vis(s)) out.clipped.push('a select is cut');
   return out;
@@ -104,7 +104,7 @@ for (const [drink, theme] of LOOKS){
             const I = await import('/src/i18n/index.js'); await I.loadCatalogue(l);
             window.__wb.ui.pref = { mode: 'fixed', lang: l };
             window.__wb.store.commit(d => { d.cur.name = n; }, 'name');
-            return ['ux6h.placeLibrary', 'ux6h.placeEditor', 'ux6h.placeCareer'].map(k => I.tIn(l, k)).join();      // the place tabs in this language
+            return ['ux6h.placeCareer', 'ux6h.placeLibrary', 'ux2.modeEdit', 'ux2.modeDesign'].map(k => I.tIn(l, k)).join();      // the way's tabs in this language
           }, [lang, name]);
           await settle(page);
           if (await page.evaluate(() => document.querySelector('#switcher') && !document.querySelector('#switcher').hidden)) await page.keyboard.press('Escape');
@@ -129,7 +129,7 @@ for (const [drink, theme] of LOOKS){
         } catch (e){ bad.opened.push(`${key}: ${String(e.message ?? e).split('\n')[0].slice(0, 80)}`); }
       }
       if (lang === LANGS[0]) tabHeights[tag] = Math.max(...tabH);
-      ok(`${tag} ${lang}: the place tabs, the name card (no Fit, no Saved) and the seam: nothing covered, overlapping or cut; the name whole`, bad.closed.length === 0, [...new Set(bad.closed)].slice(0, 3).join(' ; '));
+      ok(`${tag} ${lang}: the way's tabs, the name card (no Fit, no Saved) and the bar: nothing covered, overlapping or cut; the name whole`, bad.closed.length === 0, [...new Set(bad.closed)].slice(0, 3).join(' ; '));
       ok(`${tag} ${lang}: the name window: nothing covered, overlapping or cut${h === 720 ? ', no scrolling' : ''}; the page stays; Esc returns to the name`, bad.opened.length === 0, [...new Set(bad.opened)].slice(0, 3).join(' ; '));
     }
     // ---- the page bars at the top of Export, beside Fit: 1, 2 and 3 pages in the three states, and a fourth ----
@@ -162,7 +162,7 @@ for (const [drink, theme] of LOOKS){
       if (!got.inside || !got.apart) barBad.push(`${n} pages: the bars run out of their card or overlap`);
     }
     await page.evaluate(() => window.__wb.dock.renderFoot());
-    ok(`${tag}: Fit and the page bars are in Export only, once: one thin vertical bar for each page (1, 2, 3 and a +1; under, in the band, over), no text in it, its page, fill and state in its name, inside their row`, barBad.length === 0 && await page.evaluate(() => document.querySelectorAll('[data-act=fit]').length === 1 && !document.querySelector('#rail .meter, #head .fitslot')), [...new Set(barBad)].slice(0, 3).join(' ; '));
+    ok(`${tag}: the page bars are in Export only, once, and there is no Fit: one thin vertical bar for each page (1, 2, 3 and a +1; under, in the band, over), no text in it, its page, fill and state in its name, inside their row`, barBad.length === 0 && await page.evaluate(() => document.querySelectorAll('[data-act=fit]').length === 0 && !document.querySelector('#rail .meter, #head .fitslot')), [...new Set(barBad)].slice(0, 3).join(' ; '));
     await ctx.close();
   }
 }
@@ -195,7 +195,7 @@ for (const [drink, theme] of LOOKS){
   ok('on a phone, Export has one Save to file and one place that says where the file stands', await page.evaluate(() => document.querySelectorAll('#filestate').length === 1 && document.querySelectorAll('[data-act=save-file]').length === 1));
   await ctx.close();
 }
-for (const [drink, theme] of LOOKS){ const T = n => tabHeights[`${drink} ${theme} ${n}`]; ok(`${drink}: on a window 850px high or less the place tabs are shorter than on a tall one`, T('1280×720') < T('1920×1080') && T('1470×832') < T('1920×1080'), JSON.stringify(tabHeights)); }
+for (const [drink, theme] of LOOKS) ok(`${drink}: the way's tabs are one height, 36px, in every window`, SIZES.every(([w, h]) => tabHeights[`${drink} ${theme} ${w}×${h}`] === 36), JSON.stringify(tabHeights));
 await browser.close(); server.close();
 console.log(failed ? `\n${failed} head check(s) FAILED` : '\nall head checks passed');
 process.exit(failed ? 1 : 0);

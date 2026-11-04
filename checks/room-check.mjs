@@ -43,7 +43,7 @@ const hidden = page => page.evaluate(() => {
 // The sidebar is 340px (316px under 1400px windows), with no footer under it: at 1470×832 a line with its five versions, a job, Export, the Outline and a line
 // being written show whole; Design (a form) hides its photo shape row and hint; at 1280×720 and 1200×750 the line, Design and the Outline scroll. LIMITS are the
 // measured shares, in percent, for 1280×720, 1470×832 and 1200×750.  The line at 1470×832 hides 2.2% since the switch reads "Hide this line from this resume", which takes the row of its Keep and Archive buttons. The Outline keeps the sections that are off in their rows, so at rest it hides 22.5%, 5.7% and 18.7% (12.8, 0 and 8.5 before). A job's employer wraps under its title instead of being cut: 6.1% at 1470×832. The panel's foot (a 42 px band the rows scroll under, where the "?" stands) takes 28 px more than the old bottom padding: the Outline 23.5, 9.3, 19.7, Design 9.6 at 1470×832. The Outline's sections are headings (14.5 px, a 16 px chip, a 20 px tick, a 33 px row): 25.4, 11.5, 21.7. The name card is one large button with its own padding (the button system): with that the Outline 26.1, 12.2, 22.4, Design 10.3 at 1470×832.
-const LIMITS = { line: [24.1, 2.2, 20.4], job: [0, 0, 0], design: [26.9, 10.3, 23.3], export: [0, 0, 0], outline: [26.1, 12.2, 22.4], writing: [0, 0, 0] };
+const LIMITS = { line: [24.1, 2.2, 20.4], job: [3.5, 0, 0], design: [26.9, 10.3, 23.3], export: [0, 0, 0], outline: [26.1, 12.2, 22.4], writing: [0, 0, 0] };
 const SIZES = [[1280, 720], [1470, 832], [1200, 750]];
 
 for (const [i, [w, h]] of SIZES.entries()){
@@ -122,39 +122,38 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
     const shape = await page.evaluate(async () => {
       const { sideWidth } = await import('/src/ui/layout.js');
       const r = s => document.querySelector(s)?.getBoundingClientRect();
-      const col = r('#col'), rail = r('#rail'), body = r('#body'), head = r('#head'), tab = r('#tab-edit'), pt = r('#ptabs'), hist = r('#rail .rhist'), logo = r('#rail .logo');
+      const col = r('#col'), rail = r('#rail'), body = r('#body'), head = r('#head'), tab = r('#tab-edit'), pt = r('#ptabs'), hist = r('#rail .rhist'), brand = r('#rail .brand');
       const one = window.__wb.store.state.resumes.find(x => x.id === window.__wb.store.state.openId)?.pageLimit === 1;
       return {
         tabs: !!document.querySelector('#tabs'), folded: !!document.querySelector('.is-folded'),
-        segs: [...document.querySelectorAll('#rail [role=tab]')].map(b => b.dataset.m),
-        segRole: document.querySelector('#rail [role=tablist]')?.getAttribute('aria-label') ?? null,
-        vertical: document.querySelector('#rail [role=tablist]')?.getAttribute('aria-orientation'),
-        headTabs: document.querySelectorAll('#head [role=tab]').length,
+        segs: [...document.querySelectorAll('#ptabs .wsheets [role=tab]')].map(b => b.dataset.m),
+        segRole: document.querySelector('#ptabs .wsheets[role=tablist]')?.getAttribute('aria-label') ?? null,
+        railTabs: document.querySelectorAll('#rail [role=tab]').length,
         head: ['switcher', 'menu', 'fit', 'save-file', 'undo', 'redo', 'drink-switch'].filter(a => document.querySelector(`#head [data-act="${a}"]`)),
         railActs: [...document.querySelectorAll('#rail [data-act]')].map(b => b.dataset.act),
-        places: [...document.querySelectorAll('#ptabs .ptab')].map(b => b.getAttribute('aria-label') + (b.getAttribute('aria-current') ? '*' : '')),
+        places: [...document.querySelectorAll('#ptabs .wtab')].map(b => b.getAttribute('aria-label') + (b.classList.contains('is-on') ? '*' : '')),
         footShown: !!document.querySelector('#foot')?.getClientRects().length,
-        bodyBottom: body.bottom, colBottom: col.bottom,
+        bodyBottom: body.bottom, colBottom: col.bottom, barTop: rail.top, barBottom: rail.bottom, barW: rail.width,
         barsInRail: !!document.querySelector('#rail .meter'), screensInRail: !!document.querySelector('#rail .scr, #rail .rscreens'),
         savedInSeam: !!document.querySelector('#rail .rhist .savestate'),
         zoombar: [...document.querySelectorAll('#zoombar [data-act]')].map(b => b.dataset.act),
-        seam: { histBottom: col.bottom - hist.bottom, logoBottom: col.bottom - logo.bottom, tabsAboveHist: r('#rail .rtabs').bottom <= hist.top },
+        seam: { histIn: hist.top >= rail.top && hist.bottom <= rail.bottom, brandLeft: brand.left - rail.left },
         want: sideWidth(innerWidth, innerHeight, one), one,
-        widths: { col: col.width, rail: rail.width, gap: col.left - rail.right, tabTouches: Math.abs(tab.right - body.left) < 1.5, tabInside: tab.top >= body.top && tab.bottom <= body.bottom, nameAbove: head.bottom <= body.top, placesAbove: pt.bottom <= head.top + 14 },
+        widths: { col: col.width, tabOnHead: Math.abs(tab.bottom - head.top) < 1, nameAbove: head.bottom <= body.top, placesAbove: pt.bottom <= head.top + 1 },
       };
     });
     ok('no old tabs and no fold', !shape.tabs && !shape.folded);
-    ok('the rail has Content and Look as a vertical, labelled tab list (Export is a place of its own); the head has no tabs', shape.segs.join() === 'edit,design' && !!shape.segRole && shape.vertical === 'vertical' && shape.headTabs === 0, shape.segs.join());
-    ok(`the sidebar is what sideWidth says (${shape.want}px, ${shape.one ? 'a one-page resume' : 'two pages'}), with the rail touching it; the first tab touches the editor card, inside its height; the place tabs and the name card are above it`, shape.widths.col === shape.want && Math.abs(shape.widths.gap) < 1 && shape.widths.tabTouches && shape.widths.tabInside && shape.widths.nameAbove && shape.widths.placesAbove, JSON.stringify(shape.widths));
-    ok('the three places are tabs on top of the column, Editor the current one', shape.places.join() === 'Library,Editor*,Career', shape.places.join());
-    ok('the name card has the name and the menu: no Save to file, undo, redo, logo, Fit or Saved', shape.head.join() === 'switcher,menu' && shape.savedInSeam, shape.head.join());
-    ok('the history card: undo, redo, Saved and the fold chevron in one card at the foot of the rail, over the logo, Content and Look above it', ['drink-switch', 'mode', 'undo', 'redo'].every(a => shape.railActs.includes(a)) && shape.seam.histBottom > 40 && shape.seam.histBottom < 130 && shape.seam.logoBottom < 1 && shape.seam.tabsAboveHist, JSON.stringify(shape.seam));
-    ok('no screen buttons and no page bars in the rail (the places are the tabs; the bars are Export\'s)', !shape.barsInRail && !shape.screensInRail);
-    ok('there is no footer: the editor card runs to the column\'s end', !shape.footShown && Math.abs(shape.bodyBottom - shape.colBottom) < 1.5, `${shape.bodyBottom} ${shape.colBottom}`);
+    ok('Content and Look are a labelled tab list, the name card\'s tabs (Export is inside the card); the bar has no tabs', shape.segs.join() === 'edit,design' && !!shape.segRole && shape.railTabs === 0, shape.segs.join());
+    ok(`the sidebar is what sideWidth says (${shape.want}px, ${shape.one ? 'a one-page resume' : 'two pages'}); Content stands on the name card; the way and the name card are above the editor card`, shape.widths.col === shape.want && shape.widths.tabOnHead && shape.widths.nameAbove && shape.widths.placesAbove, JSON.stringify(shape.widths));
+    ok('the way on top of the column: Your career, Resumes, Content (open) and Look', shape.places.join() === 'Your career,Resumes,Content*,Look', shape.places.join());
+    ok('the name card has the name: no menu, Save to file, undo, redo, logo, Fit or Saved', shape.head.join() === 'switcher' && shape.savedInSeam, shape.head.join());
+    ok('the bar at the column\'s foot, its full width: the brand first (home), then Saved, undo and redo, the "?" and the fold', ['place', 'undo', 'redo', 'menu', 'side-fold'].every(a => shape.railActs.includes(a)) && shape.railActs[0] === 'place' && shape.seam.histIn && shape.seam.brandLeft < 12 && Math.abs(shape.barBottom - shape.colBottom) < 1.5 && Math.abs(shape.barW - shape.widths.col) < 1, JSON.stringify({ ...shape.seam, acts: shape.railActs }));
+    ok('no screen buttons and no page bars in the bar (the places are the way\'s; the page bars are Export\'s)', !shape.barsInRail && !shape.screensInRail);
+    ok('there is no footer: the editor card ends above the bar', !shape.footShown && shape.bodyBottom <= shape.barTop - 4, `${shape.bodyBottom} ${shape.barTop}`);
     ok('Actual size is on the zoom bar', shape.zoombar.includes('actual'), shape.zoombar.join());
-    // the tab list: the arrow keys (up and down) move between the tabs and open them
-    await page.focus('#tab-edit'); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(300);
-    ok('the arrow keys move down Content and Look and open each', await page.evaluate(() => document.activeElement.id === 'tab-design' && window.__wb.ui.view === 'design'));
+    // the tab list: the arrow keys move between the tabs and open them
+    await page.focus('#tab-edit'); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(300);
+    ok('the arrow keys move along Content and Look and open each', await page.evaluate(() => document.activeElement.id === 'tab-design' && window.__wb.ui.view === 'design'));
     await page.keyboard.press('End'); await page.waitForTimeout(300);
     await page.keyboard.press('Home'); await page.waitForTimeout(300);
     ok('End goes to Look, the last tab (Export is a place of its own)', await page.evaluate(() => document.activeElement.id === 'tab-edit') && await (async () => { await page.keyboard.press('End'); await page.waitForTimeout(300); return page.evaluate(() => document.activeElement.id === 'tab-design' && window.__wb.ui.view === 'design'); })());
@@ -167,11 +166,11 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
   await ctx.close();
 }
 
-// the panel under the tabs at 1280×720 (compact) measures about 584px since the name card carries its tag line and the Export stub; a place tab or the name card taller than that would show here
+// the editor card's room at 1280×720 (compact): from its top, under the way and the name card, to the bar; a way or a name card taller than that would show here
 {
   const { ctx, page } = await open(1280, 720);
-  const hgt = await page.evaluate(() => Math.round(document.querySelector('#body').getBoundingClientRect().height));
-  ok('1280×720: the panel under the compact tabs and the one-line name card is about 585px high', hgt >= 576 && hgt <= 611, `${hgt}px`);
+  const hgt = await page.evaluate(() => Math.round(document.querySelector('#rail').getBoundingClientRect().top - document.querySelector('#body').getBoundingClientRect().top));
+  ok('1280×720: the editor card has about 524px between the name card and the bar', hgt >= 512 && hgt <= 540, `${hgt}px`);
   await ctx.close();
 }
 await browser.close(); server.close();

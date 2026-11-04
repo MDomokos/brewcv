@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // node checks/places-check.mjs
-// The three places, in Chromium on the fictional example: Library, Editor and Career.
-//   - three place tabs, buttons with a name and their key in the tip, aria-current on the one you are in; the Editor's has the pencil,
+// The three places, in Chromium on the fictional example: Career, the Library and the Editor.
+//   - the way: Your career and Resumes (buttons, aria-current on the one you are in), then the open resume's Content and Look (the name card's
+//     tabs), each with its drawing and its key in the tip; only the open one says its name,
 //   - W, E and R change place, and do nothing while a field has the focus or a modifier is held,
 //   - Esc goes up one level inside a place and never changes place: from Compare, from a selected card, from Career's open Add menu, from a written line,
 //   - the address follows the place (#resumes, #compare, #resume, #record: ids, never a name), pushed when the place changes, so the
@@ -9,10 +10,11 @@
 //   - the landing: nothing saved is the start screen, one resume the editor, two or more the Library with the open resume selected and
 //     the focus on its card (Enter opens it); #resume always lands in the editor,
 //   - every place keeps its state: the editor its selection, the Library its search, ticks and selection, Career its scroll,
-//   - the seam (undo, redo and Saved) is in the same spot on all three places, within 1px,
-//   - Tea's tags swing when the pointer brushes past, in steps, and rest within 0.75 s; nothing moves in Coffee or under reduced motion,
-//   - in Coffee every new part has a square corner and no soft shadow (the place track sunk and its thumb raised by a hard edge),
-//   - Export is a place of its own (the rail keeps Content and Look): the page large on the left, a column half again as wide on the right,
+//   - the bar (the brand, Saved, undo, redo, the "?" and the fold) is in the same spot on all three places, within 1px; the brand goes home to
+//     Resumes; the "?" is the one menu (the drink and the theme, help and settings, the files); Content and Look from the Library open the
+//     resume the card names, and rest while several are ticked; folded, the way and the bar are two strips of one width at the window's edge,
+//   - nothing in the way moves under the pointer; in Coffee every new part has a square corner and no soft shadow,
+//   - Export is a place of its own (the way keeps Content and Look): the page large on the left, a column half again as wide on the right,
 //     ← Back and Esc return to where it was opened from as it was; several resumes show their pages in a row, a ready line each, and their
 //     files come as one ZIP with one file for each, named after its resume; Mark each as sent marks every one in one undo step.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
@@ -53,24 +55,24 @@ async function open(w, h, { look = ['tea', 'light'], url = '?memory#resume', mot
 const settle = page => page.waitForTimeout(350);
 const view = page => page.evaluate(() => window.__wb.ui.view ?? null);
 const hash = page => page.evaluate(() => location.hash);
-const cur = page => page.evaluate(() => [...document.querySelectorAll('#ptabs .ptab[aria-current=page]')].map(b => b.getAttribute('aria-label')).join());
+const cur = page => page.evaluate(() => [...document.querySelectorAll('#ptabs .wtab.is-on')].map(b => b.getAttribute('aria-label')).join());
 const hist = page => page.evaluate(() => { const r = document.querySelector('#rail .rhist').getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round); });
 
 // ---------------------------------------------------------------- the tabs, the keys, Esc, the address, the state
 {
   const { ctx, page, errors } = await open(1470, 832);
-  const tabs = await page.evaluate(() => [...document.querySelectorAll('#ptabs button.ptab')].map(b => ({ name: b.getAttribute('aria-label'), cur: b.getAttribute('aria-current'), tip: b.dataset.tip, svg: !!b.querySelector('svg') })));
-  ok('three place tabs, buttons named Library, Editor and Career with their key in the tip, aria-current on the Editor', tabs.map(t => t.name).join() === 'Library,Editor,Career' && tabs.map(t => t.cur).join() === ',page,' && tabs.every((t, i) => t.svg && t.tip.includes(`Key: ${'WER'[i]}`)), JSON.stringify(tabs));
+  const tabs = await page.evaluate(() => [...document.querySelectorAll('#ptabs button.wtab')].map(b => ({ name: b.getAttribute('aria-label'), on: b.classList.contains('is-on'), cur: b.getAttribute('aria-current') ?? b.getAttribute('aria-selected'), tip: b.dataset.tip, svg: !!b.querySelector('svg'), word: getComputedStyle(b.querySelector('.ww')).opacity })));
+  ok('the way: Your career and Resumes, then Content and Look (tabs of the name card), each with its drawing, the keys R, W and E in the tips, Content open and the only one that says its name', tabs.map(t => t.name).join() === 'Your career,Resumes,Content,Look' && tabs.map(t => t.on).join() === 'false,false,true,false' && tabs.map(t => t.cur).join() === ',,true,false' && tabs.every((t, i) => t.svg && (i > 2 || t.tip.includes(`Key: ${'RWE'[i]}`))) && tabs.map(t => t.word === '1').join() === 'false,false,true,false', JSON.stringify(tabs));
   ok('the address is #resume in the editor', await hash(page) === '#resume');
   ok('the place tabs come first in the focus order: before the seam, the card and the panel', await page.evaluate(() => { const t = document.querySelector('#ptabs'), later = n => !!(t.compareDocumentPosition(document.querySelector(n)) & Node.DOCUMENT_POSITION_FOLLOWING); return later('#rail') && later('#head') && later('#body'); }));
 
   // the keys
   await page.keyboard.press('w'); await settle(page);
-  ok('W opens the Library: its tab is current, the address is #resumes', await view(page) === 'resumes' && await cur(page) === 'Library' && await hash(page) === '#resumes');
+  ok('W opens the Library: its tab is current, the address is #resumes', await view(page) === 'resumes' && await cur(page) === 'Resumes' && await hash(page) === '#resumes');
   await page.keyboard.press('r'); await settle(page);
-  ok('R opens Career: its tab is current, the address is #record', await view(page) === 'record' && await cur(page) === 'Career' && await hash(page) === '#record');
+  ok('R opens Career: its tab is current, the address is #record', await view(page) === 'record' && await cur(page) === 'Your career' && await hash(page) === '#record');
   await page.keyboard.press('e'); await settle(page);
-  ok('E opens the Editor again: #resume', await view(page) === null && await cur(page) === 'Editor' && await hash(page) === '#resume');
+  ok('E opens the Editor again: #resume', await view(page) === null && await cur(page) === 'Content' && await hash(page) === '#resume');
   await page.keyboard.press('w'); await settle(page);
   await page.focus('#scr-q'); await page.keyboard.type('ewr'); await settle(page);
   ok('typing in a field changes no place: W, E and R are letters there', await view(page) === 'resumes' && await page.inputValue('#scr-q') === 'ewr');
@@ -79,14 +81,14 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   ok('a key with a modifier changes no place', await view(page) === 'resumes');
   await page.click('#ptabs [data-p=career]'); await settle(page);
   ok('a click on a tab changes place the same way', await view(page) === 'record' && await hash(page) === '#record');
-  await page.click('#ptabs [data-p=editor]'); await settle(page);
+  await page.click('#tab-edit'); await settle(page);
 
   // Esc never changes place
   await page.click('#ptabs [data-p=library]'); await settle(page);
   const ids = await page.evaluate(() => [...document.querySelectorAll('#scr .rcard[data-rid]')].filter(c => c.checkVisibility()).map(c => c.dataset.rid));      // the cards on the screen: a folded or archived round's are not
   await page.check(`#scr .rcard[data-rid="${ids[1]}"] .rtick`); await page.check(`#scr .rcard[data-rid="${ids[2]}"] .rtick`);
   await page.click('#scr-cmp'); await settle(page);
-  ok('Compare is a mode of the Library: its tab is the Library’s, the address is #compare, "← All resumes" is the way back', await view(page) === 'compare' && await cur(page) === 'Library' && await hash(page) === '#compare' && /All resumes/.test(await page.textContent('#compare [data-act=scr-back]')));
+  ok('Compare is a mode of the Library: its tab is the Library’s, the address is #compare, "← All resumes" is the way back', await view(page) === 'compare' && await cur(page) === 'Resumes' && await hash(page) === '#compare' && /All resumes/.test(await page.textContent('#compare [data-act=scr-back]')));
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc from Compare goes to the grid with the ticks kept', await view(page) === 'resumes' && (await page.$$('#scr .rtick:checked')).length === 2 && await hash(page) === '#resumes');
   await page.click(`#scr .rcard[data-rid="${ids[3]}"] .rsel`); await settle(page);
@@ -102,12 +104,12 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc closes the open form of Career and stays in Career', await view(page) === 'record' && !(await page.$('#scr .addmenu, #scr [role=menu]')));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('…and the next Esc stays in Career too', await view(page) === 'record' && await cur(page) === 'Career');
+  ok('…and the next Esc stays in Career too', await view(page) === 'record' && await cur(page) === 'Your career');
   await page.keyboard.press('e'); await settle(page);
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
   ok('a line of the page is written in place', await page.evaluate(() => !!window.__wb.ui.writing));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc from a written line leaves the line and stays in the Editor', await page.evaluate(() => !window.__wb.ui.writing) && await view(page) === null && await cur(page) === 'Editor');
+  ok('Esc from a written line leaves the line and stays in the Editor', await page.evaluate(() => !window.__wb.ui.writing) && await view(page) === null && await cur(page) === 'Content');
 
   // the address, Back and Forward: ids only
   await page.evaluate(() => { history.pushState(null, '', '#resume'); });
@@ -115,11 +117,11 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   await page.keyboard.press('w'); await settle(page);
   await page.keyboard.press('r'); await settle(page);
   await page.goBack(); await settle(page);
-  ok('Back goes from Career to the Library', await view(page) === 'resumes' && await cur(page) === 'Library' && await hash(page) === '#resumes');
+  ok('Back goes from Career to the Library', await view(page) === 'resumes' && await cur(page) === 'Resumes' && await hash(page) === '#resumes');
   await page.goBack(); await settle(page);
-  ok('Back again goes to the Editor', await view(page) === null && await cur(page) === 'Editor');
+  ok('Back again goes to the Editor', await view(page) === null && await cur(page) === 'Content');
   await page.goForward(); await settle(page);
-  ok('Forward goes to the Library again', await view(page) === 'resumes' && await cur(page) === 'Library');
+  ok('Forward goes to the Library again', await view(page) === 'resumes' && await cur(page) === 'Resumes');
   ok('the address is an id, never a name', await page.evaluate(() => /^#(resume|resumes|compare|record)$/.test(location.hash) && !/Example|Okonkwo|Helix/.test(decodeURIComponent(location.href))));
   ok('no errors', errors.length === 0, errors[0] ?? '');
   await ctx.close();
@@ -166,10 +168,10 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   ok('…and Enter on it opens it in the editor', await view(a.page) === null && await hash(a.page) === '#resume');
   await a.ctx.close();
   const b = await open(1470, 832, { url: '?memory#resume' });
-  ok('#resume in the address always lands in the editor', await view(b.page) === null && await cur(b.page) === 'Editor');
+  ok('#resume in the address always lands in the editor', await view(b.page) === null && await cur(b.page) === 'Content');
   await b.ctx.close();
   const c = await open(1470, 832, { url: '?memory#record' });
-  ok('#record lands in Career', await view(c.page) === 'record' && await cur(c.page) === 'Career');
+  ok('#record lands in Career', await view(c.page) === 'record' && await cur(c.page) === 'Your career');
   await c.ctx.close();
   // nothing saved, one resume, three: a browser that keeps its own storage (no ?memory)
   const w = await open(1470, 832, { url: '' });
@@ -193,56 +195,118 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   const { ctx, page } = await open(1470, 832);
   const spots = [];
   for (const k of ['e', 'w', 'r']){ await page.keyboard.press(k); await settle(page); spots.push(await hist(page)); }
-  ok('undo, redo and Saved are one card in the same spot on all three places (within 1px)', spots.every(s => s.every((v, i) => Math.abs(v - spots[0][i]) <= 1)) && await page.evaluate(() => !!document.querySelector('#rail .rhist .savestate') && !!document.querySelector('#rail [data-act=undo]') && !!document.querySelector('#rail .logo')), JSON.stringify(spots));
-  ok('the logo is at the seam’s foot and Content and Look only in the editor', await page.evaluate(() => { const l = document.querySelector('#rail .logo').getBoundingClientRect(), c = document.querySelector('#col').getBoundingClientRect(); return Math.abs(c.bottom - l.bottom) < 2 && !document.querySelector('#rail .rtabs'); }));
+  ok('undo, redo and Saved are one group in the same spot on all three places (within 1px)', spots.every(s => s.every((v, i) => Math.abs(v - spots[0][i]) <= 1)) && await page.evaluate(() => !!document.querySelector('#rail .rhist .savestate') && !!document.querySelector('#rail [data-act=undo]') && !!document.querySelector('#rail .brand')), JSON.stringify(spots));
+  ok('the bar is the column’s full width at its foot, the brand at its left end, the "?" and the fold at its right; no ⋯ and no Content | Look row in the name card', await page.evaluate(() => {
+    const b = document.querySelector('#rail').getBoundingClientRect(), c = document.querySelector('#col').getBoundingClientRect(), br = document.querySelector('#rail .brand').getBoundingClientRect(), q = document.querySelector('#rail [data-act=menu]').getBoundingClientRect(), f = document.querySelector('#rail [data-act=side-fold]').getBoundingClientRect();
+    return Math.abs(b.width - c.width) < 1 && Math.abs(b.bottom - c.bottom) < 2 && br.left - b.left < 12 && q.left > b.left + b.width / 2 && f.left > q.left && !document.querySelector('#head [data-act=menu], #head .hmodes');
+  }));
+  // the brand is home; the "?" is the one menu
+  await page.keyboard.press('e'); await settle(page);
+  await page.click('#rail .brand'); await settle(page);
+  ok('the brand goes home: Resumes', await view(page) === 'resumes' && await cur(page) === 'Resumes');
+  await page.click('#rail [data-act=menu]'); await settle(page);
+  const menu = await page.evaluate(() => { const m = document.querySelector('#rail .appmenu'); return m && { drinks: [...m.querySelectorAll('.mdrink .seg button')].map(b => b.getAttribute('aria-pressed')).join(), theme: !!m.querySelector('[data-act=theme-toggle]'), acts: [...m.querySelectorAll('[role=menuitem]')].map(b => b.dataset.act === 'goto' ? b.dataset.v : b.dataset.act ?? 'link').join(), up: m.getBoundingClientRect().bottom <= document.querySelector('#rail').getBoundingClientRect().top, focus: document.activeElement?.closest('.appmenu') === m }; });
+  ok('the "?" opens one menu above the bar: Tea or Coffee and light or dark, then help, settings, privacy and the source, then the files, the example and Start over; the focus is in it', !!menu && menu.drinks === 'true,false' && menu.theme && menu.acts === 'help,settings,link,link,import,link,history,example,start-over' && menu.up && menu.focus, JSON.stringify(menu));
+  await page.keyboard.press('Escape'); await settle(page);
+  ok('Esc closes it, the focus back on the "?"', await page.evaluate(() => !document.querySelector('#rail .appmenu') && document.activeElement?.matches('#rail [data-act=menu]')) && await view(page) === 'resumes');
+  // Content and Look from the Library: the resume the card names; with several ticked they rest
+  const other = await page.evaluate(() => [...document.querySelectorAll('#scr .rcard[data-rid]')].map(c => c.dataset.rid).find(id => id !== window.__wb.store.state.openId));
+  await page.click(`#scr .rcard[data-rid="${other}"] .rsel`); await settle(page);
+  await page.click('#tab-design'); await page.waitForTimeout(700);
+  const looked = { view: await view(page), open: await page.evaluate(() => window.__wb.store.state.openId), cur: await page.evaluate(() => document.querySelector('#ptabs .wtab.is-on')?.id) };
+  ok('from the Library, Look opens the resume the card names, on Look', looked.view === 'design' && looked.open === other && looked.cur === 'tab-design', JSON.stringify({ ...looked, other }));
+  await page.keyboard.press('w'); await settle(page);
+  const ids = await page.evaluate(() => [...document.querySelectorAll('#scr .rcard[data-rid]')].filter(c => c.checkVisibility()).map(c => c.dataset.rid));
+  await page.check(`#scr .rcard[data-rid="${ids[0]}"] .rtick`); await page.check(`#scr .rcard[data-rid="${ids[1]}"] .rtick`); await settle(page);
+  ok('with two ticked, Content and Look rest (aria-disabled), and a click on one changes nothing', await page.evaluate(() => ['#tab-edit', '#tab-design'].every(s => document.querySelector(s).getAttribute('aria-disabled') === 'true')) && (await page.click('#tab-edit', { force: true }), await settle(page), await view(page) === 'resumes'));
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await settle(page);
+  // folded: two strips of one width at the window's edge, the page not under them
+  await page.keyboard.press('e'); await settle(page);
+  await page.keyboard.press('Control+Backslash'); await page.waitForTimeout(700);
+  const fold = await page.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(), top = r('#ptabs'), bar = r('#rail'), sh = r('#sheet iframe');
+    return { w: [top.width, bar.width], right: [innerWidth - top.right, innerWidth - bar.right], gap: bar.top - top.bottom, under: sh.right > top.left, top: [...document.querySelectorAll('#ptabs .wtab, #ptabs .wexport')].filter(e => e.checkVisibility()).map(e => e.dataset.p ?? e.dataset.m ?? 'export').join(), bar: [...document.querySelectorAll('#rail .savestate, #rail .ib, #rail .brand')].filter(e => e.checkVisibility()).map(e => (e.dataset.act ?? 'saved').replace('place', 'brand')).join(), card: getComputedStyle(document.querySelector('#head')).display }; });
+  ok('folded: the way and the bar are two strips, 54px wide, at the window’s edge; the top one holds the places, Content, Look and Export, the bottom one Saved, undo, redo, the "?", the fold and the brand; the name card goes and the page is not under them', fold.w.every(x => Math.abs(x - 54) < 1) && Math.abs(fold.right[0] - fold.right[1]) < 1 && fold.gap > 0 && !fold.under && fold.top === 'career,library,edit,design,export' && ['saved', 'undo', 'redo', 'menu', 'side-fold', 'brand'].every(k => fold.bar.split(',').includes(k)) && fold.card === 'none', JSON.stringify(fold));
+  await page.keyboard.press('Control+Backslash'); await settle(page);
   await ctx.close();
 }
 
-// ---------------------------------------------------------------- Tea's tags swing; Coffee and reduced motion do not
+// ---------------------------------------------------------------- nothing in the way moves under the pointer; Coffee square and flat
 {
-  const sweep = async (page) => {
-    const b = await page.evaluate(() => { const r = document.querySelector('#ptabs [data-p=editor]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-    await page.mouse.move(b.x - 40, b.y);
-    const seen = [];
-    for (let i = 0; i < 8; i++){ await page.mouse.move(b.x - 40 + i * 12, b.y); await page.waitForTimeout(40); seen.push(await page.evaluate(() => [...document.querySelectorAll('#ptabs .ptab')].map(t => parseFloat(t.style.rotate) || 0))); }
-    return seen;
+  const still = async (page) => {
+    const at = () => page.evaluate(() => [...document.querySelectorAll('#ptabs .wtab')].map(t => { const r = t.getBoundingClientRect(); return `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.height)}`; }).join(' '));
+    const before = await at(), seen = [];
+    for (const sel of ['#ptabs [data-p=career]', '#ptabs [data-p=library]', '#tab-design']){ await page.hover(sel); await page.waitForTimeout(300); seen.push(await at()); }
+    return seen.every(x => x === before) ? '' : `${before} → ${seen.join(' | ')}`;
   };
-  const rest = page => page.evaluate(() => [...document.querySelectorAll('#ptabs .ptab')].every(t => !t.style.rotate));
   const tea = await open(1470, 832, { motion: true });
-  const s1 = await sweep(tea.page);
-  const flat = s1.flat(), peak = Math.max(...flat.map(Math.abs));
-  ok('Tea: a brush across a tag swings it by about a degree, in steps (no jump), and never more than three', peak > 0.1 && peak <= 3 && s1.every((r, i) => i === 0 || r.every((v, j) => Math.abs(v - s1[i - 1][j]) < 1.5)) && new Set(flat.map(v => v.toFixed(2))).size > 3, `peak ${peak.toFixed(2)}`);
-  await tea.page.waitForTimeout(900);
-  ok('…and it rests within 0.75 s of the last movement', await rest(tea.page));
+  const tm = await still(tea.page);
+  ok('Tea: hovering the places and the card’s tabs moves none of them (a colour only: no lift, no swing)', !tm, tm);
   await tea.ctx.close();
-  const reduced = await open(1470, 832, { motion: false });
-  ok('under reduced motion nothing swings', (await sweep(reduced.page)).flat().every(v => v === 0));
-  await reduced.ctx.close();
   const coffee = await open(1470, 832, { look: ['coffee', 'dark'], motion: true });
-  ok('Coffee: nothing swings either', (await sweep(coffee.page)).flat().every(v => v === 0));
+  const cm = await still(coffee.page);
+  ok('Coffee: nothing moves either', !cm, cm);
   // Coffee: every new part is square and flat
   await coffee.page.keyboard.press('w'); await settle(coffee.page);
   const flatSquare = await coffee.page.evaluate(() => {
     const bad = [];
-    for (const [sel, pseudo] of [['#ptabs'], ['#ptabs', '::before'], ['#ptabs .ptab'], ['#head.is-place'], ['#scr'], ['#rail .rhist']]){
+    for (const [sel, pseudo] of [['#ptabs .wtab'], ['#ptabs .wsheets .wtab'], ['#head.is-place'], ['#head .hstub'], ['#scr'], ['#rail']]){
       const e = document.querySelector(sel); if (!e){ bad.push(`${sel}: missing`); continue; }
       const s = getComputedStyle(e, pseudo), radii = ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].map(c => parseFloat(s[`border${c}Radius`]));
       if (radii.some(r => r > 2.01)) bad.push(`${sel}${pseudo ?? ''} radius ${radii}`);
-      // the track is sunk and the thumb raised (the switchers' depth): Coffee's own hard edge, never a blurred shadow
-      const hard = (sel === '#ptabs') && s.boxShadow !== 'none' && [...s.boxShadow.matchAll(/(-?[\d.]+)px (-?[\d.]+)px ([\d.]+)px/g)].every(m => m[3] === '0');
+      // a hard edge (no blur) is Coffee's own depth; a blurred shadow never is
+      const hard = s.boxShadow !== 'none' && [...s.boxShadow.matchAll(/(-?[\d.]+)px (-?[\d.]+)px ([\d.]+)px/g)].every(m => m[3] === '0');
       if (s.boxShadow !== 'none' && !hard) bad.push(`${sel}${pseudo ?? ''} shadow ${s.boxShadow}`);
     }
     return bad;
   });
-  ok('Coffee: the place tabs (and the pill’s thumb), the place card, #scr and the seam have square corners and no soft shadow (the track is sunk and the thumb raised by a hard edge, nothing else has one)', flatSquare.length === 0, flatSquare.join(' ; '));
+  ok('Coffee: the places, the card’s tabs, the name card, its Export, #scr and the bar have square corners and no soft shadow', flatSquare.length === 0, flatSquare.join(' ; '));
   await coffee.ctx.close();
+}
+
+// ---------------------------------------------------------------- Career's lens: its picks, or the whole career
+{
+  const { ctx, page } = await open(1470, 832);
+  await page.keyboard.press('r'); await settle(page);
+  const st = () => page.evaluate(() => ({ lens: document.body.dataset.lens, frame: document.querySelector('#head').classList.contains('is-lens'), btns: [...document.querySelectorAll('#head .hlens [data-act=lens]')].map(b => b.dataset.v + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(), off: [...document.querySelectorAll('#scr .tl2 [data-unpicked]')].map(r => r.dataset.id) }));
+  const a = await st();
+  ok('Career with a resume open: the name card\'s row is Its picks | Whole career, Its picks on, the card framed in the accent', a.lens === 'picks' && a.frame && a.btns === 'picks*,whole', JSON.stringify(a));
+  const shown = await page.evaluate(() => { const w = window.__wb, d = document.querySelector('#sheet iframe').contentDocument, ix = w.ui.ix, p = new Set([...d.querySelectorAll('[data-variant]')].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)); return [...document.querySelectorAll('#scr .tl2 [data-id]')].map(r => { const x = (w.store.materialize(w.store.state.record)[r.dataset.key] ?? []).find(e => e.id === r.dataset.id); return [r.dataset.id, !!x && [...Object.values(x.display ?? {}), ...(x.highlights ?? [])].some(f => p.has(f))]; }); });
+  ok('…the entries the resume does not print are dimmed in place, and only those (an education printed is not)', shown.length > 3 && shown.every(([id, on]) => a.off.includes(id) === !on) && shown.some(([, on]) => on) && a.off.length > 0, JSON.stringify({ shown, off: a.off }));
+  await page.click('#head .hlens [data-v=whole]'); await settle(page);
+  const b = await st();
+  ok('Whole career: no frame, nothing dimmed', b.lens === 'whole' && !b.frame && b.off.length === 0 && b.btns === 'picks,whole*', JSON.stringify(b));
+  await page.keyboard.press('e'); await settle(page);
+  ok('…and the row is Career\'s only: none in the editor', !(await page.$('#head .hlens')) && (await page.evaluate(() => document.body.dataset.lens)) === '');
+  await ctx.close();
+}
+
+// ---------------------------------------------------------------- the string between the card and the selection
+{
+  const tea = await open(1470, 832, { motion: true });
+  const { page } = tea, fr = page.frameLocator('#sheet iframe');
+  const st = () => page.evaluate(() => { const s = document.querySelector('#string'), b = document.querySelector('#body').getBoundingClientRect(); return { shown: s?.style.display !== 'none', hole: document.querySelector('#body').classList.contains('has-string'), ...window.__wb.string.state, card: [b.left, b.top] }; });
+  ok('none at the map', !(await st()).shown);
+  await fr.locator('.bullets li').nth(1).click({ position: { x: 40, y: 6 } }); await page.waitForTimeout(900); await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
+  const a = await st(), li = await page.evaluate(() => { const w = window.__wb, el = document.querySelector('#sheet iframe').contentDocument.querySelectorAll('.bullets li')[1], r = w.canvas.screenRect(w.sheet.rectOfEl(el)); return r.left + r.width; });
+  ok('Tea: a line selected, the string runs from its right edge to the card’s punched hole (14 px in), and the card shows the hole', a.shown && a.hole && Math.abs(a.p[0] - li) < 2 && Math.abs(a.p[2] - (a.card[0] + 14)) < 1 && Math.abs(a.p[3] - (a.card[1] + 14)) < 1, JSON.stringify({ a, li }));
+  const idle = await page.evaluate(() => new Promise(r => { let n = 0; const o = window.requestAnimationFrame; window.requestAnimationFrame = f => { n++; return o(f); }; setTimeout(() => { window.requestAnimationFrame = o; r(n); }, 1500); }));
+  ok('…at rest it asks for no frames (nothing in the app does)', !a.raf && idle === 0, `${idle} frames`);
+  await page.evaluate(() => window.__wb.canvas.zoomTo(0.55)); await page.waitForTimeout(1200);
+  const z = await st(), op = await page.evaluate(() => [getComputedStyle(document.querySelector('#body')).opacity, getComputedStyle(document.querySelector('#string')).opacity]);
+  ok('zoomed far out (under 0.7) the string is cut and fades, and the card is at half', z.away && z.d === 1 && op[0] === '0.5' && op[1] === '0', JSON.stringify({ z, op }));
+  await page.evaluate(() => window.__wb.canvas.zoomTo(1)); await page.waitForTimeout(1200);
+  ok('…back at the fit it is tied again', !(await st()).away && (await st()).d === 0);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(1200);
+  const d = await page.evaluate(() => document.querySelector('#string path').getAttribute('d'));
+  ok('Coffee: the drink change draws a plain line with two turns (out, a jog, in) and no hole', (d.match(/Q/g) ?? []).length === 2 && /H.*V.*H/.test(d) && await page.evaluate(() => !/radial/.test(getComputedStyle(document.querySelector('#body')).backgroundImage)), d);
+  await tea.ctx.close();
 }
 
 // ---------------------------------------------------------------- the Export place
 {
   const { ctx, page, errors } = await open(1440, 900);
-  const rail = await page.evaluate(() => [...document.querySelectorAll('#rtabs [role=tab]')].map(b => b.dataset.m).join());
-  ok('the editor’s rail has Content and Look only: Export is a place of its own', rail === 'edit,design' && !(await page.$('#tab-export')), rail);
+  const rail = await page.evaluate(() => [...document.querySelectorAll('#ptabs .wsheets [role=tab]')].map(b => b.dataset.m).join());
+  ok('the name card’s tabs are Content and Look only: Export is a place of its own', rail === 'edit,design' && !(await page.$('#tab-export')), rail);
   const before = await page.evaluate(() => ({ colW: document.getElementById('col').getBoundingClientRect().width, sel: (window.__wb.ui.sel = { kind: 'job', id: 'hydra' }, 'hydra') }));
   await page.evaluate(() => window.__wb.setView(null)); await settle(page);
   await page.evaluate(() => window.__wb.export.open()); await page.waitForTimeout(700);
@@ -252,7 +316,7 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
       back: document.querySelector('#body [data-act=xp-back]')?.textContent.trim(), focus: document.activeElement?.dataset?.act, title: document.querySelector('#body .xpwhat .title')?.textContent,
       blocks: [...document.querySelectorAll('#body .xpgrid > .xpb')].map(b => b.dataset.k).join(), cards: [...document.querySelectorAll('#body [data-k=file] .dl button')].map(b => b.dataset.act).join(), sent: !!document.querySelector('#body [data-act=mark-sent]') };
   });
-  ok('Export opens as a place: the view is Export, the place tabs, the name card and the rail step aside', one.view === 'export' && one.place && one.chrome.length === 0, JSON.stringify(one.chrome));
+  ok('Export opens as a place: the view is Export, the way, the name card and the bar step aside', one.view === 'export' && one.place && one.chrome.length === 0, JSON.stringify(one.chrome));
   ok('the column is about half again as wide as the sidebar (never over half the window), and the editor’s page stays uncovered on the left', Math.abs(one.colW - Math.min(Math.round(1.5 * before.colW), 720)) <= 2 && one.pageRight <= one.colLeft && one.pageH > 700, `${before.colW} → ${one.colW}, page right ${one.pageRight} col ${one.colLeft}`);
   ok('the panel: ← Back to Editor (with the focus), Exporting the resume, then Ready, Made for, Download, Sent, Backup; four download cards and Mark as sent', /Back to Editor/.test(one.back) && one.focus === 'xp-back' && /Example Instruments/.test(one.title) && one.blocks === 'ready,medium,file,sent,keep' && one.cards === 'ex-pdf,ex-html,ex-txt,ex-json' && one.sent, JSON.stringify(one));
   await page.click('#body [data-act=ex-medium][data-v=pen]'); await page.waitForTimeout(900);

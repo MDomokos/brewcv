@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Across the top of the sidebar: Your career, Resumes, then the open resume's Content and Look,** the name card's own tabs. Only the open one says its name.
+- **Export sits inside the name card.**
+- **One bar at the sidebar's foot:** BrewCV (home: Resumes), Saved, undo, redo, the ? menu and the fold.
+- **The ? menu holds the rest:** Tea or Coffee, light or dark, shortcuts, settings, privacy, the source, the files, the example and Start over. The ⋯ menu is gone.
+- **The page is centred in all the room left of the sidebar.**
+- **Folded, the sidebar is two strips:** the places, Content, Look and Export at the top; the bar at the foot.
+- **A wording saved from the page says where it went:** "Saved in your career as v2.3 · this resume uses it".
+- **A line's wordings show in Career as a stack of cards** instead of a count.
+- **The word bank always keeps at least about half the window.**
+- **A line being written is a paper cutout in its job's wash,** and its grip looks as it does at rest.
+- **On a bulleted line the grip stands where the bullet is;** the bullet fades while it shows.
+- **A click on a heading's words writes them at once;** a click beside them selects the job or section.
+- **A line dragged while being written is written again where it lands.**
+- **In Career, with a resume open, the name card switches between Its picks and Whole career.** Its picks dims, in place, what the resume does not print.
+- **A string ties the editor card to what is selected on the page;** in Coffee it is a plain line. Zoomed far out it is cut and the card fades to half.
+
+### Fixed
+- **A click on a link printed on the page no longer opens it inside the page,** which left the page blank.
+
+### Removed
+- **The notes that explain ticks and writing.** Tooltips still say it.
+- **Fit in Export.** The page bars still show how full each page is; a phone keeps its Fit.
+
 ## 1.8.3 - 2026-11-03
 
 ### Changed

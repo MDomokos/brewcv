@@ -8,13 +8,14 @@
 //         press (raised), labelled, filled with the drink's --cb-on when ticked with a check of 3:1, its edge visible when not; no role=switch
 //         (an Outline section's tick is 20 px and takes the accent; the ticks inside a section the drink's neutral --cb-on there);
 //         Space ticks, Enter does not; the words are tied to the tick and stay "Show … on this resume"; the Outline's tick column is 24 px.
-//  depth: the --elev tokens are set in the four looks; the active place tab stands up by more than colour (Tea higher with a raised shadow,
-//         Coffee a raised thumb in a sunk track) with its words at 4.5:1; the open mode joins the panel, the others touch it; fields sunk;
+//  depth: the --elev tokens are set in the four looks; in the way the open tab stands out by more than colour (wider, and named) with its
+//         words at 4.5:1 and every drawing 3:1 on its ground; the open sheet joins the name card; fields sunk;
 //         the name card's button filled, with no shadow, while its window (a popover) is open.
 //  finish: the Export view ends the process: a cup, four hue bands with large icons at contrast, PDF first and widest.
-//  frame: the closed modes are folder tabs that touch the panel, fill or edge 1.5:1 on the mat, a step off the panel; the fold chevron 3:1.
-//  corner: one "?" at the panel's bottom right (a phone: the foot) opens a card of help and info, by click and keys; no hint at the Outline's top.
-//  columns: the Outline's hierarchy (sizes, weights, the kind's chip, the indents) and one tick column and one padlock column at every level.
+//  frame: the closed sheets are folder tabs that touch the name card, fill or edge 1.5:1 on the mat, a step off the card; the bar 3:1 on the mat
+//         and the fold's icon 3:1 on the bar.
+//  corner: one "?" in the bar (a phone: the foot) opens the one menu, by click and keys; no hint at the Outline's top.
+//  columns: the map's sections and a section's card (sizes, weights, the kind's band, the indents), one tick column and one padlock column in each.
 //  lock: locked and unlocked padlocks differ by more than the icon, a state word as their title, no lock popup, a "Locked" toast, the motion.
 //  switches: the review flag ?switches draws the old pill on every on/off and changes nothing else.
 //  off:   a job or a line switched off keeps its place among the others, greyed with its tick, and comes back there when switched on;
@@ -71,7 +72,7 @@ const STATES = {
   outline: async () => {},
   line: async page => { await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await page.waitForTimeout(200); await page.keyboard.press('Escape'); },
   group: async page => { await clickIn(page, '#body .clt', 'CAD'); },
-  job: async page => { await page.click('#body [data-act=ol-toggle][data-g="sec:experience"]'); await page.click('#body [data-act=select-job][data-id=free]'); },
+  job: async page => { await olSel(page, 'experience'); await page.click('#body [data-act=select-job][data-id=free]'); },      // the map goes into a section (›), then its job
   section: async page => { await olSel(page, 'experience'); },
   'a job in its own order': async page => { await page.evaluate(() => window.__wb.edit.moveLine('hydra-testing', 'hydra-inhaler')); await page.waitForTimeout(300); await olSel(page, 'experience'); },
   header: async page => { await olSel(page, 'header'); },
@@ -193,8 +194,8 @@ if (want('ticks')){
       ok('the label is tied to its tick: a click on the words ticks it (Settings, Sharper contrast)', (await page.isChecked('#contrast')) === !c0);
       await page.click('label.swl:has(#contrast) > span');
       await rest(page); await page.waitForTimeout(250);
-      const endCol = await page.evaluate(() => [...document.querySelectorAll('#outline .srow > .swl, #outline .clgh > .swl')].map(e => Math.round(e.getBoundingClientRect().width)));
-      ok('the Outline\'s tick column is the 24 px target (the pill took 30)', endCol.length > 3 && endCol.every(w => w === 24), endCol.join());
+      const endCol = await page.evaluate(() => [...document.querySelectorAll('#outline .srow > .swl, #outline .clgh > .swl')].filter(e => e.checkVisibility()).map(e => Math.round(e.getBoundingClientRect().width)));      // (the ticks that show: the map folds a section's jobs away)
+      ok('the map\'s tick column is the 24 px target (the pill took 30)', endCol.length > 3 && endCol.every(w => w === 24), endCol.join());
     }
     ok(`${drink} ${theme}: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
     await ctx.close();
@@ -209,25 +210,18 @@ function depth(){
   const ratio = (bg, fg) => { const [x, y] = [lum(over(bg, fg)), lum(over(bg, bg))].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
   const root = getComputedStyle(document.documentElement), out = { bad: [] };
   for (const k of ['flat', 'low', 'raised', 'inset', 'panel', 'pop']) if (!root.getPropertyValue(`--elev-${k}`).trim()) out.bad.push(`--elev-${k} missing`);
-  const coffee = document.documentElement.dataset.drink === 'coffee';
-  const tabs = [...document.querySelectorAll('#ptabs .ptab')], act = tabs.find(b => b.getAttribute('aria-current') === 'page'), rest = tabs.filter(b => b !== act);
-  const R = e => e.getBoundingClientRect();
-  if (!act || rest.length !== 2) out.bad.push('place tabs: no active one');
-  else if (coffee){
-    const th = getComputedStyle(document.querySelector('#ptabs'), '::before'), tr = getComputedStyle(document.querySelector('#ptabs'));
-    if (th.boxShadow === 'none') out.bad.push('coffee: the thumb is not raised');
-    if (!/inset/.test(tr.boxShadow)) out.bad.push('coffee: the track is not sunk');
-    const tl = R(document.querySelector('#ptabs')).left + parseFloat(th.left);
-    if (Math.abs(tl - R(act).left) > 4) out.bad.push(`coffee: the thumb is not under the active place (${Math.round(tl)} vs ${Math.round(R(act).left)})`);
-    const c = ratio(th.backgroundColor, getComputedStyle(act).color); if (c < 4.5) out.bad.push(`coffee: the active place's words ${c.toFixed(2)}:1`);
-  } else {
-    if (!rest.every(b => R(b).top - R(act).top >= 3)) out.bad.push(`tea: the active tag does not stand higher (${[act, ...rest].map(b => Math.round(R(b).top))})`);
-    if ((getComputedStyle(act).filter.match(/drop-shadow/g) ?? []).length < 2) out.bad.push('tea: the active tag has no raised shadow');
-    for (const b of tabs){ const cs = getComputedStyle(b), c = ratio(cs.getPropertyValue('--tg').trim(), cs.color); if (c < 4.5) out.bad.push(`tea: "${b.textContent.trim()}" ${c.toFixed(2)}:1`); }
+  const R = e => e.getBoundingClientRect(), head = R(document.querySelector('#head'));
+  for (const half of document.querySelectorAll('#ptabs > .wplaces, #ptabs > .wsheets')){
+    const tabs = [...half.querySelectorAll('.wtab')], act = tabs.find(b => b.classList.contains('is-on'));
+    for (const b of tabs){ const cs = getComputedStyle(b), d = ratio(cs.backgroundColor, getComputedStyle(b.querySelector('.way')).color); if (d < 3) out.bad.push(`"${b.getAttribute('aria-label')}": its drawing ${d.toFixed(2)}:1`); }
+    if (!act) continue;
+    if (!tabs.every(b => b === act || R(b).width < R(act).width - 8)) out.bad.push(`"${act.getAttribute('aria-label')}" is not wider than the closed ones`);
+    const w = act.querySelector('.ww'), c = ratio(getComputedStyle(act).backgroundColor, getComputedStyle(w).color);
+    if (getComputedStyle(w).opacity !== '1' || c < 4.5) out.bad.push(`the open "${act.getAttribute('aria-label')}": its name ${getComputedStyle(w).opacity === '1' ? `${c.toFixed(2)}:1` : 'not shown'}`);
   }
-  const panel = R(document.querySelector('#body')), modes = [...document.querySelectorAll('#rail .rtabs .tab')], on = modes.find(b => b.getAttribute('aria-selected') === 'true');
-  if (!on || Math.abs(R(on).right - panel.left) > 1.5) out.bad.push('the open mode does not join the panel');
-  for (const b of modes) if (b !== on && (R(b).right < panel.left - 0.01 || R(b).right > panel.left + 1.01)) out.bad.push(`the mode "${b.textContent.trim()}" does not touch the panel (${(R(b).right - panel.left).toFixed(1)} px under it)`);      // the folder tabs touch the panel
+  const open = document.querySelector('#ptabs .wsheets [role=tab][aria-selected=true]');      // Content and Look are the name card's tabs
+  if (!open) out.bad.push('the name card has no open sheet');
+  else if (Math.abs(R(open).bottom - head.top) > 1) out.bad.push(`the open sheet does not join the name card (${Math.round(R(open).bottom)} vs ${Math.round(head.top)})`);
   const fld = document.querySelector('#body input:not([type]):not(#sec-label), #body input[type=text], #body textarea');      // (J: the section's heading is written in place on its band, no box)
   if (fld && !/inset/.test(getComputedStyle(fld).boxShadow)) out.bad.push('a field is not sunk');
   return out;
@@ -238,7 +232,7 @@ if (want('depth')){
     const { ctx, page, bad } = await open({ drink, theme, two: true });
     await rest(page); await STATES.section(page); await page.waitForTimeout(300);
     const d = await page.evaluate(depth);
-    ok(`${drink} ${theme}: the --elev tokens are set; the active place stands up by more than colour (Tea: 3 px higher and a raised shadow; Coffee: a raised thumb in a sunk track), its words 4.5:1; the open mode joins the panel, the others touch it (at most 1 px under it); a field is sunk`, !d.bad.length, d.bad.join(' | '));
+    ok(`${drink} ${theme}: the --elev tokens are set; in the way the open tab is wider and named, its words 4.5:1, every drawing 3:1 on its ground; the open sheet joins the name card; a field is sunk`, !d.bad.length, d.bad.join(' | '));
     await page.click('#docname-btn'); await page.waitForTimeout(400);
     const nc = await page.evaluate(() => ({ btn: getComputedStyle(document.querySelector('#docname-btn')).boxShadow, fill: getComputedStyle(document.querySelector('#docname-btn')).backgroundColor, win: getComputedStyle(document.querySelector('#switcher')).boxShadow, pop: getComputedStyle(document.documentElement).getPropertyValue('--elev-pop').trim() }));
     // no shadow on the name card's button, not even sunk: it reads open by its fill
@@ -249,9 +243,9 @@ if (want('depth')){
   }
 }
 
-// frame: the modes are the panel's folder tabs: each closed one touches the panel (0 to 1 px under its edge), its fill or its edge
-// stands 1.5:1 off the mat and its fill a visible step (1.1:1) off the panel; the fold chevron is a chrome card, its icon 3:1 on its face and
-// its face or edge 3:1 on the mat. In the four looks, in Edit and Design (each mode is its own tea).
+// frame: Content and Look are the name card's folder tabs: each closed one touches the card (its foot runs behind it, 0 to 1 px from its edge),
+// its fill or its edge stands 1.5:1 off the mat and its fill a visible step (1.1:1) off the card; the bar stands 3:1 off the mat and the fold's
+// icon 3:1 on the bar. In the four looks, in Content and Look.
 function frame(){
   const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
   const over = (...cs) => { cv.fillStyle = '#fff'; cv.fillRect(0, 0, 1, 1); for (const c of cs){ cv.fillStyle = c; cv.fillRect(0, 0, 1, 1); } return [...cv.getImageData(0, 0, 1, 1).data].slice(0, 3); };
@@ -260,26 +254,26 @@ function frame(){
   const root = getComputedStyle(document.documentElement), v = k => root.getPropertyValue(k).trim() || 'transparent';
   const mats = ['--mat-a', '--mat-b', '--mat-c'].map(k => over(v('--canvas'), v(k), v('--mat-wash')));
   const vsMat = c => Math.min(...mats.map(m => ratio(c, m)));
-  const R = e => e.getBoundingClientRect(), bodyEl = document.querySelector('#body'), panel = R(bodyEl), pbg = over(v('--canvas'), getComputedStyle(bodyEl).backgroundColor);
+  const R = e => e.getBoundingClientRect(), headEl = document.querySelector('#head'), panel = R(headEl), pbg = over(v('--canvas'), getComputedStyle(headEl).backgroundColor);
   const bad = [], nums = [];
-  for (const b of document.querySelectorAll('#rail .rtabs .tab:not([aria-selected=true])')){
-    const cs = getComputedStyle(b), name = b.textContent.trim(), fill = over(v('--canvas'), cs.backgroundColor);
+  for (const b of document.querySelectorAll('#ptabs .wsheets .wtab:not([aria-selected=true])')){
+    const cs = getComputedStyle(b), name = b.getAttribute('aria-label'), fill = over(v('--canvas'), cs.backgroundColor);
     const edge = parseFloat(cs.borderLeftWidth) > 0 ? cs.borderLeftColor : cs.getPropertyValue('--line').trim();
-    const under = R(b).right - panel.left, f = vsMat(fill), e = vsMat(over(cs.backgroundColor, edge)), p = ratio(fill, pbg);
+    const under = R(b).bottom - panel.top, f = vsMat(fill), e = vsMat(over(cs.backgroundColor, edge)), p = ratio(fill, pbg);
     nums.push(`${name}: ${under.toFixed(1)} px under, fill ${f.toFixed(2)} edge ${e.toFixed(2)} on the mat, ${p.toFixed(2)} on the panel`);
     if (under < -0.01 || under > 1.01) bad.push(`"${name}" does not touch the panel (${under.toFixed(1)})`);
     if (Math.max(f, e) < 1.5) bad.push(`"${name}" melts into the mat (fill ${f.toFixed(2)}, edge ${e.toFixed(2)})`);
     if (p < 1.1) bad.push(`"${name}" is the panel's own tone (${p.toFixed(2)})`);
   }
-  const fold = document.querySelector('#rail [data-act=side-fold]');
+  const fold = document.querySelector('#rail [data-act=side-fold]'), bar = document.querySelector('#rail');
   if (!fold) bad.push('no fold chevron');
   else {
-    const cs = getComputedStyle(fold), face = over(v('--canvas'), cs.backgroundColor), icon = ratio(over(cs.backgroundColor, cs.color), face);
-    const ground = Math.max(vsMat(face), parseFloat(cs.borderTopWidth) > 0 ? vsMat(over(cs.backgroundColor, cs.borderTopColor)) : 0);
-    nums.push(`fold: icon ${icon.toFixed(2)} on its face, ${ground.toFixed(2)} on the mat`);
-    if (icon < 3) bad.push(`the fold's icon ${icon.toFixed(2)}:1 on its face`);
-    if (ground < 3) bad.push(`the fold ${ground.toFixed(2)}:1 on the mat`);
-    if (R(fold).width !== 28) bad.push(`the fold is ${R(fold).width} px`);
+    const bs = getComputedStyle(bar), face = over(v('--canvas'), bs.backgroundColor), icon = ratio(over(bs.backgroundColor, getComputedStyle(fold).color), face);
+    const ground = Math.max(vsMat(face), parseFloat(bs.borderTopWidth) > 0 ? vsMat(over(bs.backgroundColor, bs.borderTopColor)) : 0);      // its face or its edge
+    nums.push(`fold: icon ${icon.toFixed(2)} on the bar, the bar ${ground.toFixed(2)} on the mat`);
+    if (icon < 3) bad.push(`the fold's icon ${icon.toFixed(2)}:1 on the bar`);
+    if (ground < 3) bad.push(`the bar ${ground.toFixed(2)}:1 on the mat`);
+    if (R(fold).width !== 30) bad.push(`the fold is ${R(fold).width} px`);
   }
   return { bad, nums };
 }
@@ -289,8 +283,9 @@ if (want('frame')){
     const { ctx, page, bad } = await open({ drink, theme });
     for (const mode of ['edit', 'design']){
       await rest(page); if (mode === 'design') await STATES.design(page); await page.waitForTimeout(300);
+      await page.evaluate(() => Promise.all(['#ptabs', '#head'].flatMap(s => document.querySelector(s).getAnimations({ subtree: true })).map(a => a.finished.catch(() => {}))));     // the tabs' and the card's colours ease
       const r = await page.evaluate(frame);
-      ok(`${drink} ${theme} ${mode}: the closed modes are folder tabs touching the panel (fill or edge 1.5:1 on the mat, a step off the panel); the fold chevron 3:1`, !r.bad.length, r.bad.join(' | ') || (process.env.NUMS ? r.nums.join(' | ') : ''));
+      ok(`${drink} ${theme} ${mode}: the closed sheet is a folder tab touching the name card (fill or edge 1.5:1 on the mat, a step off the card); the bar 3:1 on the mat, the fold's icon 3:1 on it`, !r.bad.length, r.bad.join(' | ') || (process.env.NUMS ? r.nums.join(' | ') : ''));
       if (process.env.NUMS) console.log('   ', r.nums.join(' | '));
     }
     ok(`${drink} ${theme}: frame: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
@@ -322,68 +317,53 @@ if (want('finish') || want('hues')){
       const sat = c => { const [r, g, b] = c.map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b); return mx === mn ? 0 : (mx - mn) / (1 - Math.abs(mx + mn - 1)); };
       const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
       return { order: blocks.map(b => b.dataset.k).join(), wide: wOf('file') > 1.9 * wOf('ready'), words, glyph: st ? ratio(rgb(getComputedStyle(st.querySelector('.exst')).color), panel) : 0, glyphSize: glyph?.getBoundingClientRect().width,
-        fitIn: !!st?.querySelector('.exfit [data-act=fit]') && !!st?.querySelector('.exfit #meter'), fits: document.querySelectorAll('[data-act=fit]').length,
-        cards: dl.map(b => b.dataset.act).join(), pdfFilled: dl[0]?.classList.contains('primary') || document.querySelector('#body [data-act=fit]')?.classList.contains('primary'), even: new Set(hs).size === 1, twoByTwo: dl.length === 4 && Math.abs(dl[0].getBoundingClientRect().top - dl[1].getBoundingClientRect().top) < 1 && dl[2].getBoundingClientRect().top > dl[0].getBoundingClientRect().bottom,
+        fitIn: !st?.querySelector('[data-act=fit]') && !!st?.querySelector('.exfit #meter'), fits: document.querySelectorAll('[data-act=fit]').length,
+        cards: dl.map(b => b.dataset.act).join(), pdfFilled: dl[0]?.classList.contains('primary'), even: new Set(hs).size === 1, twoByTwo: dl.length === 4 && Math.abs(dl[0].getBoundingClientRect().top - dl[1].getBoundingClientRect().top) < 1 && dl[2].getBoundingClientRect().top > dl[0].getBoundingClientRect().bottom,
         sentSecondary: !!sent && !sent.classList.contains('primary'), hueSat: Math.max(...hue.map(sat)), apart: Math.min(...hue.flatMap((a, i) => hue.slice(i + 1).map(b => dist(a, b)))) };
     });
     ok(`${drink} ${theme}: the six hues are muted (saturation 0.75 at most) and 30 apart in RGB at least`, r.hueSat <= 0.75 && r.apart >= 30, `sat ${r.hueSat.toFixed(2)}, apart ${r.apart.toFixed(0)}`);
     ok(`${drink} ${theme}: the blocks in order Ready, Made for, Download (the whole width), Sent?, Backup`, r.order === 'ready,medium,file,sent,keep' && r.wide, r.order);
     ok(`${drink} ${theme}: every word of the panel 4.5:1 on what is behind it, the download cards’ faces included`, r.words.length >= 12 && r.words.every(w => w.c >= 4.5), r.words.filter(w => w.c < 4.5).map(w => `${w.t} ${w.c.toFixed(1)}`).join(' | '));
-    ok(`${drink} ${theme}: Ready: one 24 px glyph at 3:1, Fit and the page bars, once`, r.glyphSize === 24 && r.glyph >= 3 && r.fitIn && r.fits === 1, `glyph ${r.glyphSize}px ${r.glyph.toFixed(1)}, fit+meter ${r.fitIn}, fits ${r.fits}`);
+    ok(`${drink} ${theme}: Ready: one 24 px glyph at 3:1 and the page bars, once; no Fit`, r.glyphSize === 24 && r.glyph >= 3 && r.fitIn && r.fits === 0, `glyph ${r.glyphSize}px ${r.glyph.toFixed(1)}, fit+meter ${r.fitIn}, fits ${r.fits}`);
     ok(`${drink} ${theme}: four download cards two by two, one height, PDF first and filled (unless Fit is); Mark as sent… is secondary`, r.cards === 'ex-pdf,ex-html,ex-txt,ex-json' && r.twoByTwo && r.even && r.pdfFilled && r.sentSecondary, JSON.stringify({ cards: r.cards, twoByTwo: r.twoByTwo, even: r.even }));
     ok(`${drink} ${theme}: finish: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
     await ctx.close();
   }
 }
 
-// corner: help and info live in one "?" at the panel's bottom right (a phone: its foot), not in a hint at the Outline's top: a 28 px
-// tertiary icon with a visible edge in the four looks; a click, or Enter on it, opens a card of four rows (the shortcuts, privacy, the source,
-// the version), arrows walk it, Esc closes it and gives the focus back; the shortcuts row opens the sheet, and so does the ? key; the card stays
-// in the window, and at the end of a scroll the "?" covers none of the last row's controls; the ⋯ menu no longer lists those three.
+// corner: help, settings and the files live in one "?" in the bar (a phone: its foot), not in a hint at the Outline's top: a 30 px icon,
+// named, a menu button, in the bar's right half; a click, or Enter on it, opens the one menu (Tea or Coffee and light or dark, then the
+// shortcuts, settings with the version, privacy and the source, then the files), arrows walk it, Esc closes it and gives the focus back; its
+// shortcuts row opens the sheet, and so does the ? key; the menu stays in the window; the name card has no ⋯ menu.
 if (want('corner')){
   console.log('\n— corner');
-  const look = () => { const b = document.querySelector('#corner [data-act=corner]'); if (!b) return null; const cs = getComputedStyle(b), r = b.getBoundingClientRect();
-    const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
-    const over = (...c) => { cv.fillStyle = '#fff'; cv.fillRect(0, 0, 1, 1); for (const x of c){ cv.fillStyle = x; cv.fillRect(0, 0, 1, 1); } return [...cv.getImageData(0, 0, 1, 1).data].slice(0, 3); };
-    const lum = rgb => { const [x, y, z] = rgb.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * x + 0.7152 * y + 0.0722 * z; };
-    const body = document.querySelector('#body'), panel = getComputedStyle(body).backgroundColor, a = lum(over(panel, cs.borderTopColor)), p = lum(over(panel));
-    const B = body.getBoundingClientRect();
-    return { w: r.width, h: r.height, tier: b.dataset.tier, border: parseFloat(cs.borderTopWidth), edge: +((Math.max(a, p) + 0.05) / (Math.min(a, p) + 0.05)).toFixed(2), label: b.getAttribute('aria-label'), popup: b.getAttribute('aria-haspopup'),
-      right: B.right - r.right, bottom: B.bottom - r.bottom }; };
+  const look = () => { const b = document.querySelector('#rail [data-act=menu]'); if (!b) return null; const r = b.getBoundingClientRect(), bar = document.querySelector('#rail').getBoundingClientRect();
+    return { w: r.width, h: r.height, label: b.getAttribute('aria-label'), popup: b.getAttribute('aria-haspopup'), right: r.left > bar.left + bar.width / 2 && r.right <= bar.right, inBar: r.top >= bar.top && r.bottom <= bar.bottom, more: !!document.querySelector('#head [data-act=menu]') }; };
   for (const [drink, theme] of LOOKS){
     const { ctx, page, bad } = await open({ drink, theme, store: { 'rb-help-seen': '' } });
     const tag = `${drink} ${theme}`;
     const top = await page.evaluate(() => ({ hint: !!document.querySelector('#body .kbdhint') || /shows the shortcuts/.test(document.querySelector('#body').textContent), first: document.querySelector('#body > *')?.className }));
     ok(`${tag}: the Outline has no hint at its top (a first visit too)`, !top.hint, JSON.stringify(top));
     const l = await page.evaluate(look);
-    ok(`${tag}: one "?" at the panel's bottom right, 28 px, a tertiary press with an edge 1.5:1 on the panel, named, a menu button`, !!l && l.w === 28 && l.h === 28 && l.tier === 'tertiary' && l.border >= 1 && l.edge >= 1.5 && !!l.label && l.popup === 'true' && l.right >= 0 && l.right <= 16 && l.bottom >= 0 && l.bottom <= 16, JSON.stringify(l));
+    ok(`${tag}: one "?" in the bar's right half, 30 px, named, a menu button; no ⋯ in the name card`, !!l && l.w === 30 && l.h === 30 && !!l.label && l.popup === 'true' && l.right && l.inBar && !l.more, JSON.stringify(l));
     if (!l){ await ctx.close(); continue; }
-    await page.click('#corner [data-act=corner]'); await page.waitForTimeout(250);
-    const card = await page.evaluate(() => { const m = document.querySelector('#corner .cornermenu[role=menu]'); if (!m) return null; const r = m.getBoundingClientRect();
-      return { rows: [...m.querySelectorAll('[role=menuitem]')].map(e => e.dataset.act || (e.getAttribute('href') ?? '').replace(/.*\//, '')), version: !!m.querySelector('[data-appversion]'), inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, focus: document.activeElement?.closest('.cornermenu') === m }; });
-    ok(`${tag}: a click opens the card: the shortcuts, privacy, the source and the version (About this copy), inside the window, the focus on its first row`, !!card && card.rows.join() === 'help,PRIVACY.md,brewcv,goto' && card.version && card.inside && card.focus, JSON.stringify(card));
+    await page.click('#rail [data-act=menu]'); await page.waitForTimeout(250);
+    const card = await page.evaluate(() => { const m = document.querySelector('#rail .appmenu[role=menu]'); if (!m) return null; const r = m.getBoundingClientRect();
+      return { rows: [...m.querySelectorAll('[role=menuitem]')].map(e => (e.dataset.act === 'goto' ? e.dataset.v : e.dataset.act) || (e.getAttribute('href') ?? '').replace(/.*\//, '')), drink: m.querySelectorAll('.mdrink .seg button').length === 2 && !!m.querySelector('.mdrink [data-act=theme-toggle]'), version: !!m.querySelector('[data-appversion]'), inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, focus: document.activeElement?.closest('.appmenu') === m && document.activeElement.dataset.act === 'help' }; });
+    ok(`${tag}: a click opens the one menu: Tea or Coffee and light or dark, the shortcuts, settings (with the version), privacy, the source, the files, the example and Start over, inside the window, the focus on the shortcuts`, !!card && card.rows.join() === 'help,settings,PRIVACY.md,brewcv,import,link,history,example,start-over' && card.drink && card.version && card.inside && card.focus, JSON.stringify(card));
     if (drink === 'tea' && theme === 'light'){
-      await page.keyboard.press('ArrowDown'); const second = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
+      await page.keyboard.press('ArrowDown'); const second = await page.evaluate(() => document.activeElement?.dataset.v ?? '');
       await page.keyboard.press('Escape'); await page.waitForTimeout(200);
-      const shut = await page.evaluate(() => ({ card: !!document.querySelector('.cornermenu'), focus: document.activeElement?.dataset.act }));
-      ok('↓ walks the card; Esc closes it and the focus goes back to the "?"', /PRIVACY/.test(second) && !shut.card && shut.focus === 'corner', JSON.stringify({ second, ...shut }));
+      const shut = await page.evaluate(() => ({ card: !!document.querySelector('#rail .appmenu'), focus: document.activeElement?.dataset.act }));
+      ok('↓ walks the menu; Esc closes it and the focus goes back to the "?"', second === 'settings' && !shut.card && shut.focus === 'menu', JSON.stringify({ second, ...shut }));
       await page.keyboard.press('Enter'); await page.waitForTimeout(250);
-      const kb = await page.evaluate(() => (document.activeElement?.closest('.cornermenu') ? document.activeElement.dataset.act : null));
+      const kb = await page.evaluate(() => (document.activeElement?.closest('.appmenu') ? document.activeElement.dataset.act : null));
       await page.keyboard.press('Enter'); await page.waitForTimeout(250);
-      ok('…Enter on the "?" opens it from the keyboard, and Enter on its first row opens the shortcut sheet and closes the card', kb === 'help' && await page.isVisible('#help') && !(await page.$('.cornermenu')), String(kb));
+      ok('…Enter on the "?" opens it from the keyboard, and Enter on the shortcuts opens the shortcut sheet and closes the menu', kb === 'help' && await page.isVisible('#help') && !(await page.$('#rail .appmenu')), String(kb));
       await page.keyboard.press('Escape'); await page.waitForTimeout(150); await rest(page);
       await page.keyboard.press('?'); await page.waitForTimeout(250);
       ok('the ? key still opens the shortcut sheet', await page.isVisible('#help'));
       await page.keyboard.press('Escape'); await page.waitForTimeout(150);
-      const end = await page.evaluate(() => { const b = document.querySelector('#body'); b.scrollTop = b.scrollHeight; const q = document.querySelector('#corner [data-act=corner]').getBoundingClientRect();
-        const rows = [...b.querySelectorAll('#outline .srow, #outline .clgh, #outline .clrow, #outline .ojob')].filter(e => e.getBoundingClientRect().height);
-        const ctl = [...rows.at(-1).querySelectorAll('button, input, a, .swl')].map(e => e.getBoundingClientRect());
-        return { scrolls: b.scrollHeight > b.clientHeight, hit: ctl.filter(r => r.right > q.left && r.left < q.right && r.bottom > q.top && r.top < q.bottom).length }; });
-      ok('at the end of the Outline\'s scroll, the "?" covers none of the last row\'s controls', end.hit === 0, JSON.stringify(end));
-      await page.click('#head [data-act=menu]'); await page.waitForTimeout(200);
-      const menu = await page.evaluate(() => [...document.querySelectorAll('#head .menu [role=menuitem]')].map(e => e.dataset.act || e.getAttribute('href')));
-      ok('the ⋯ menu no longer lists the shortcuts, privacy or the source', menu.length > 3 && !menu.some(x => x === 'help' || /github|PRIVACY/.test(x ?? '')), menu.join());
-      await page.keyboard.press('Escape');
     }
     ok(`${tag}: corner: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
     await ctx.close();
@@ -406,36 +386,34 @@ if (want('corner')){
 // job's title (not left of it). (The 16 px coloured chip and the open section's band only became this.)
 if (want('columns')){
   console.log('\n— columns');
+  // the map (nothing selected): one row per section; Experience's card: its jobs, its off jobs and, opened, a job's lines
+  const probe = () => {
+    const mid = e => { const b = e.getBoundingClientRect(); return b.width ? b.left + b.width / 2 : null; };
+    const kind = e => e.closest('.clrow') ? 'line' : e.closest('.clgh') ? 'job' : e.closest('.ojob') ? 'off job' : e.closest('.srow') ? 'section' : 'other';
+    const ticks = [...document.querySelectorAll('#body input[type=checkbox]')].filter(e => !e.closest('.ctlrow, .ctop')).map(e => [kind(e), mid(e)]).filter(x => x[1] != null);      // (a control row's switch is not a list's tick)
+    const locks = [...document.querySelectorAll('#body .rowlock')].map(e => [kind(e) + (e.closest('.srow.fixed') ? ' (fixed)' : ''), mid(e)]).filter(x => x[1] != null);
+    const spread = xs => xs.length ? Math.max(...xs.map(x => x[1])) - Math.min(...xs.map(x => x[1])) : 0;
+    const f = s => { const e = document.querySelector(s); if (!e) return null; const c = getComputedStyle(e); return { size: parseFloat(c.fontSize), weight: +c.fontWeight, left: e.getBoundingClientRect().left }; };
+    const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    const rgb = c => { cv.clearRect(0, 0, 1, 1); cv.fillStyle = '#000'; cv.fillStyle = c; cv.fillRect(0, 0, 1, 1); return [...cv.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    const lum = a => { const [r, g, b] = a.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    const heads = [...document.querySelectorAll('#outline.map .osec:not(.is-cont):not(:has(> .srow.is-off)) > .srow')].map(h => { const bg = rgb(getComputedStyle(h).backgroundColor); return { sid: h.dataset.sid, bg: bg.join(), text: ratio(rgb(getComputedStyle(h.querySelector('.t')).color), bg) }; });
+    return { ticks: [...new Set(ticks.map(x => x[0]))], locks: [...new Set(locks.map(x => x[0]))], tickSpread: +spread(ticks).toFixed(2), lockSpread: +spread(locks).toFixed(2),
+      sec: f('#outline .osec[data-sid=experience] > .srow .t'), job: f('#body .clg[data-g=hydra] .jtl'), line: f('#body .clg[data-g=hydra] .clrow .clt'), heads };
+  };
   for (const lang of ['en', 'de']) for (const [drink, theme] of LOOKS){
     const { ctx, page, bad } = await open({ lang, drink, theme });
-    const tag = `${lang} ${drink} ${theme}`;
-    await page.evaluate(() => { document.querySelector('#outline [data-act=ol-toggle][data-g="sec:experience"]')?.click(); }); await page.waitForTimeout(250);
-    await page.evaluate(() => { document.querySelector('#outline .clg[data-g=hydra] .clcaret')?.click(); }); await page.waitForTimeout(250);
-    await page.evaluate(() => { document.querySelector('#outline [data-act=ol-toggle][data-g="sec:skills"]')?.click(); }); await page.waitForTimeout(250);
-    const r = await page.evaluate(() => {
-      const mid = e => { const b = e.getBoundingClientRect(); return b.width ? b.left + b.width / 2 : null; };
-      const kind = e => e.closest('.clrow') ? 'line' : e.closest('.clgh') ? 'job' : e.closest('.ojob') ? 'off job' : e.closest('.srow') ? 'section' : 'other';
-      const ticks = [...document.querySelectorAll('#outline input[type=checkbox]')].map(e => [kind(e), mid(e)]).filter(x => x[1] != null);
-      const locks = [...document.querySelectorAll('#outline .rowlock')].map(e => [kind(e) + (e.closest('.srow.fixed') ? ' (fixed)' : ''), mid(e)]).filter(x => x[1] != null);
-      const spread = xs => Math.max(...xs.map(x => x[1])) - Math.min(...xs.map(x => x[1]));
-      const f = s => { const e = document.querySelector(s); if (!e) return null; const c = getComputedStyle(e); return { size: parseFloat(c.fontSize), weight: +c.fontWeight, left: e.getBoundingClientRect().left }; };
-      const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
-      const rgb = c => { cv.clearRect(0, 0, 1, 1); cv.fillStyle = '#000'; cv.fillStyle = c; cv.fillRect(0, 0, 1, 1); return [...cv.getImageData(0, 0, 1, 1).data].slice(0, 3); };
-      const lum = a => { const [r, g, b] = a.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
-      const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-      const heads = [...document.querySelectorAll('#outline .osec:not(:has(> .srow.is-off)) > .srow')].map(h => { const bg = rgb(getComputedStyle(h).backgroundColor), i = h.querySelector('.si');
-        return { sid: h.dataset.sid, bg: bg.join(), text: ratio(rgb(getComputedStyle(h.querySelector('.t')).color), bg), icon: ratio(rgb(getComputedStyle(i).color), bg), size: Math.round(i.querySelector('svg').getBoundingClientRect().width) }; });
-      const chip = document.querySelector('#outline .osec[data-sid=experience] > .srow .si'), band = getComputedStyle(document.querySelector('#outline .osec.open[data-sid=experience] > .srow')).backgroundColor;
-      return { ticks: [...new Set(ticks.map(x => x[0]))], locks: [...new Set(locks.map(x => x[0]))], tickSpread: +spread(ticks).toFixed(2), lockSpread: +spread(locks).toFixed(2),
-        sec: f('#outline .osec[data-sid=experience] > .srow .t'), job: f('#outline .clg[data-g=hydra] .jtl'), line: f('#outline .clg[data-g=hydra] .clrow .clt'), item: f('#outline .osec[data-sid=skills] .clrow .clt'),
-        chip: chip && Math.round(chip.querySelector('svg').getBoundingClientRect().width), chipBg: chip && getComputedStyle(chip).backgroundColor, band, heads };
-    });
-    ok(`${tag}: one tick column for sections, jobs, off jobs, lines and items, within 0.5 px`, r.tickSpread <= 0.5 && ['section', 'job', 'off job', 'line'].every(k => r.ticks.includes(k)), JSON.stringify({ spread: r.tickSpread, kinds: r.ticks }));
-    ok(`${tag}: one padlock column for sections (a fixed one too), jobs and lines, within 0.5 px`, r.lockSpread <= 0.5 && ['section', 'section (fixed)', 'job', 'line'].every(k => r.locks.includes(k)), JSON.stringify({ spread: r.lockSpread, kinds: r.locks }));
-    ok(`${tag}: a section is a heading (14.5 px / 750; Coffee 15 px / 700, its Fira Code having one real weight; a 24 px icon with no coloured circle), a job 13 px / 650, a line 12.5 px / 450`, r.sec?.size === (/coffee/.test(tag) ? 15 : 14.5) && r.sec.weight >= (/coffee/.test(tag) ? 700 : 750) && r.chip === 24 && r.chipBg === 'rgba(0, 0, 0, 0)' && r.band !== 'rgba(0, 0, 0, 0)' && r.job?.size === 13 && r.job.weight === 650 && r.line?.size === 12.5 && r.line.weight === 450, JSON.stringify({ sec: r.sec, chip: r.chip, band: r.band, job: r.job, line: r.line }));
-    ok(`${tag}: every section heading is a band (at most six hues, a tint off the panel), its icon 24 px at 3:1 and its words 4.5:1`, r.heads.length >= 6 && new Set(r.heads.map(x => x.bg)).size <= 6 && r.heads.every(x => x.size === 24 && x.icon >= 3 && x.text >= 4.5), r.heads.map(x => `${x.sid} ${x.size}px icon ${x.icon.toFixed(1)} text ${x.text.toFixed(1)}`).join(' | '));
-    ok(`${tag}: a line and a section's own item start under the job's title (within 1 px), not left of it`, Math.abs(r.line.left - r.job.left) <= 1 && Math.abs(r.item.left - r.job.left) <= 1, JSON.stringify({ job: r.job?.left, line: r.line?.left, item: r.item?.left }));
-    if (drink === 'tea' && theme === 'light' && lang === 'en') console.log(`    tick x spread ${r.tickSpread}, padlock x spread ${r.lockSpread}`);
+    const tag = `${lang} ${drink} ${theme}`, coffee = /coffee/.test(tag);
+    const m = await page.evaluate(probe);
+    ok(`${tag}: the map: one tick column and one padlock column (a fixed section's too) for its sections, within 0.5 px`, m.tickSpread <= 0.5 && m.lockSpread <= 0.5 && m.ticks.join() === 'section' && m.locks.includes('section') && m.locks.includes('section (fixed)'), JSON.stringify(m));
+    ok(`${tag}: …a section is a heading (14.5 px / 750; Coffee 15 px / 700, its Fira Code having one real weight), each a band of its kind (at most six hues), its words 4.5:1`, m.sec?.size === (coffee ? 15 : 14.5) && m.sec.weight >= (coffee ? 700 : 750) && m.heads.length >= 4 && new Set(m.heads.map(x => x.bg)).size <= 6 && m.heads.every(x => x.text >= 4.5), JSON.stringify({ sec: m.sec, heads: m.heads.map(x => `${x.sid} ${x.text.toFixed(1)}`) }));
+    await olSel(page, 'experience'); await page.waitForTimeout(400);
+    await page.evaluate(() => document.querySelector('#body .clg[data-g=hydra] .clcaret[aria-expanded=false]')?.click()); await page.waitForTimeout(300);
+    const r = await page.evaluate(probe);
+    ok(`${tag}: a section's card: one tick column for jobs, off jobs and lines, and one padlock column for jobs and lines, within 0.5 px`, r.tickSpread <= 0.5 && r.lockSpread <= 0.5 && ['job', 'off job', 'line'].every(k => r.ticks.includes(k)) && ['job', 'line'].every(k => r.locks.includes(k)), JSON.stringify({ t: r.tickSpread, l: r.lockSpread, ticks: r.ticks, locks: r.locks }));
+    ok(`${tag}: …a job 13 px / 650, a line 12.5 px / 450, and a line starts under the job's title (within 1 px)`, r.job?.size === 13 && r.job.weight >= 650 && r.line?.size === 12.5 && r.line.weight <= 500 && Math.abs(r.line.left - r.job.left) <= 1, JSON.stringify({ job: r.job, line: r.line }));
+    if (drink === 'tea' && theme === 'light' && lang === 'en') console.log(`    tick x spread ${m.tickSpread} / ${r.tickSpread}, padlock x spread ${m.lockSpread} / ${r.lockSpread}`);
     ok(`${tag}: columns: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
     await ctx.close();
   }
@@ -905,11 +883,12 @@ if (want('jobheader')){
     const t2 = await p2.evaluate(() => ({ none: matchMedia('(hover: none)').matches, ops: ['.jhead', '.jmeta'].map(q => +getComputedStyle(document.querySelector(`#body .hdr ${q} .pen`)).opacity) }));
     ok('jobheader: where there is no hover (@media (hover: none)) the pencils are shown at rest, faintly', t2.none && t2.ops.every(o => o > 0 && o < 1), JSON.stringify(t2));
     await c2.close(); }
-  // the page's own guard still holds: a first click on a job's title selects the job and does not write
+  // on the page a click beside a job title's words selects the job and does not write
   await rest(page);
-  await frame.locator('.entry .role-title').first().click({ position: { x: 20, y: 6 } }); await page.waitForTimeout(700);
+  const rt = frame.locator('.entry .role-title').first(), rb = await rt.boundingBox();
+  await rt.click({ position: { x: rb.width - 4, y: 6 } }); await page.waitForTimeout(700);
   const f = await st();
-  ok('jobheader: on the page a first click on the title still only selects the job (the guard holds)', f.kind === 'job' && f.editing === null, JSON.stringify(f));
+  ok('jobheader: on the page a click beside the title\'s words only selects the job', f.kind === 'job' && f.editing === null, JSON.stringify(f));
   ok('jobheader: no page errors', !bad.length, bad.slice(0, 2).join(' | '));
   await ctx.close();
 }

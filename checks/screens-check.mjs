@@ -3,7 +3,7 @@
 // What the three places hold (the routing, the tabs and the keys are places-check's). In Chromium on the fictional example:
 //   - the Library: cards with the information beside the picture (company, role, paper, language, pages), Open now, a Sent N times badge, a tick
 //     named for its resume, a second page fanned behind a longer resume, newest first; as many to a row as hold 260 px (three at 1280, five at
-//     1920, seven at 2560); a click selects (a second one too) and Enter, a double click or the inspector's Open opens; the thumbnails are pictures of the real first page and
+//     1920, eight at 2560); a click selects (a second one too) and Enter, a double click or the inspector's Open opens; the thumbnails are pictures of the real first page and
 //     each is drawn once; every page of a resume is kept in the cache,
 //   - the inspector in the sidebar's body, with no scroll of its own: every page across its width, scrolled in place (the wheel and a click there never
 //     open it), Open as the primary and Use for a new job right under them, then the language with a switch, last changed, where it came from, the
@@ -14,7 +14,7 @@
 //   - Compare of three (one a sent copy): back and Esc keep the ticks, N and P step the rows that differ and the inspector shows the row,
 //   - the Library as a list: a row for each resume and file, the sent copies and files of a resume folded under it, selecting, opening, the keys,
 //     ticks, search, rounds and carrying a row onto one, remembered; fewer columns when narrow; a phone keeps the cards,
-//   - Career: profile cards and the timeline (newest first), the entry docked in the inspector with both scopes named, its lines to tick,
+//   - Career: profile cards and the timeline (newest first), the entry docked in the inspector with its scope named, its lines to tick,
 //     search finding a line and marking it; nothing floats over the timeline,
 //   - no bar across the window on any place, and, at three sizes in the ten languages with a long and a 60 character name, nothing clipped or overlapping.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing. ONLY=de,hu limits the languages of the layout part.
@@ -96,8 +96,8 @@ await part('the cards: the information beside the picture, badges, ticks, the fa
   await ctx.close();
 });
 
-await part('cards per row: three at 1280, five at 1920, seven at 2560', async () => {
-  for (const [w, h, want] of [[1280, 720, 3], [1920, 1080, 5], [2560, 1440, 7]]){
+await part('cards per row: three at 1280, five at 1920, eight at 2560 (no rail: the Library has its width back)', async () => {
+  for (const [w, h, want] of [[1280, 720, 3], [1920, 1080, 5], [2560, 1440, 8]]){
     const { ctx, page } = await open(w, h);
     await openResume(page, MEDTECH);      // a resume that may run to two pages: the sidebar is at its narrow width, so the cards have the room they need
     await goLibrary(page);
@@ -416,12 +416,12 @@ await part('the sidebar’s card: what it names and Export takes (ticks win, the
   const s0 = await st(page), ids = s0.ids.filter(id => id !== s0.openId), L = await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); return Object.fromEntries(window.__wb.store.state.resumes.map(r => [r.id, RS.resumeLabel(r)])); }), lbl = id => L[id];
   const card = () => page.evaluate(() => { const h = document.querySelector('#head'), x = h.querySelector('.hstub'), d = h.querySelector('.hdeck'), hr = h.getBoundingClientRect(), xr = x.getBoundingClientRect();
     return { tag: h.querySelector('.htagl')?.textContent, name: h.querySelector('.hmain .docname')?.textContent.replace(/\s+/g, ' ').trim(), note: h.querySelector('.dnote')?.textContent ?? '', deck: [...(d?.querySelectorAll('li:not(.hmore)') ?? [])].map(l => (l.classList.contains('is-insp') ? '>' : '') + l.textContent.replace(/\s+/g, ' ').trim()),
-      more: h.querySelector('.hmorebtn')?.textContent ?? '', layers: h.dataset.layers, stub: x.textContent.replace(/\s+/g, ' ').trim(), foot: Math.abs(xr.width - hr.width) < 3 && (!d || xr.top >= d.getBoundingClientRect().bottom - 1), side: Math.abs(hr.right - xr.right) <= 1 && Math.abs(xr.top - hr.top) <= 1,
+      more: h.querySelector('.hmorebtn')?.textContent ?? '', layers: h.dataset.layers, stub: x.textContent.replace(/\s+/g, ' ').trim(), foot: Math.abs(xr.width - hr.width + 14) < 3 && (!d || xr.top >= d.getBoundingClientRect().bottom - 1), side: Math.abs(hr.right - xr.right - 7) <= 1.5 && Math.abs(xr.top - hr.top - 7) <= 1.5,      // the stub is inset 7 px
       strip: [...(document.querySelector('#istrip:not([hidden])')?.children ?? [])].map(e => e.textContent.trim()).join(' ') }; });
   const xp = () => page.evaluate(() => ({ view: window.__wb.ui.view, ids: window.__wb.ui.xp?.ids, from: window.__wb.ui.xp?.from }));
   const flat = n => String(n).replace(/\s+/g, ' ').trim();
   let c = await card();
-  ok('the editor: "Open resume", its name, Export the stub at the card’s right end', c.tag === 'Open resume' && c.side && /^Export$/.test(c.stub), JSON.stringify(c));
+  ok('the editor: "Open resume", its name, Export a button inset at the card’s right end', c.tag === 'Open resume' && c.side && /^Export$/.test(c.stub), JSON.stringify(c));
   await page.click('#head .hstub'); await settle(page, 500);
   let x = await xp();
   ok('…Export opens the Export place for the open resume, back to the editor', x.view === 'export' && x.ids?.join() === s0.openId && x.from === null, JSON.stringify(x));
@@ -437,7 +437,7 @@ await part('the sidebar’s card: what it names and Export takes (ticks win, the
   ok('a tick wins over the selection: "1 ticked in the Library" names the ticked one; the inspector (still the selected one) says it is not in the export', c.tag === '1 ticked in the Library' && flat(c.name) === flat(lbl(ids[2])) && c.strip === 'Not in the export · Export takes the 1 ticked Add to export', JSON.stringify(c));
   await page.click('#istrip [data-act=scr-tick]'); await settle(page);
   c = await card();
-  ok('"Add to export" ticks the inspector’s resume: two ticked are a deck of two rows over one sheet, the inspector’s marked; Export a bar along the foot, "Export 2"', c.tag === '2 ticked in the Library' && c.deck.join('|') === `${flat(lbl(ids[2]))}|>${flat(lbl(ids[1]))}` && c.layers === '1' && c.foot && c.stub === 'Export 2' && c.strip === '✓ In the export · 2 of 2 Take out', JSON.stringify(c));
+  ok('"Add to export" ticks the inspector’s resume: two ticked are a deck of two rows over one sheet, the inspector’s marked; Export a bar inset along the foot, "Export 2"', c.tag === '2 ticked in the Library' && c.deck.join('|') === `${flat(lbl(ids[2]))}|>${flat(lbl(ids[1]))}` && c.layers === '1' && c.foot && c.stub === 'Export 2' && c.strip === '✓ In the export · 2 of 2 Take out', JSON.stringify(c));
   ok('…its card is ticked too', await page.isChecked(`#scr .rcard[data-rid="${ids[1]}"] .rtick`));
   for (const id of ids.slice(3, 5)) await page.check(`#scr .rcard[data-rid="${id}"] .rtick`);
   await settle(page);
@@ -670,7 +670,7 @@ await part('the example’s own Library: rounds (the current one open, an older 
 });
 
 // ---------------------------------------------------------------- Career
-await part('Career: profile cards and the timeline (newest first); the entry docked in the inspector with both scopes named; search finds a line', async () => {
+await part('Career: profile cards and the timeline (newest first); the entry docked in the inspector with its scope named; search finds a line', async () => {
   const { ctx, page } = await open(1470, 832);
   await page.click('#ptabs [data-p=career]'); await settle(page, 500);
   const c = await page.evaluate(() => {
@@ -682,7 +682,7 @@ await part('Career: profile cards and the timeline (newest first); the entry doc
   ok('nothing floats over the timeline: no pop-over detail card, only the toolbar is above it', c.floating.length === 0 && !c.detail && c.toolbar, c.floating.join());
   const d = await page.evaluate(() => { const b = document.querySelector('#body'); return { name: b.querySelector('.oi-name')?.textContent.trim(), scopes: [...b.querySelectorAll('.scope')].map(x => x.textContent.trim()), det: b.querySelector('details.details')?.open, lines: b.querySelectorAll('.clrow .cb').length, sel: document.querySelectorAll('#scr .rectl .is-sel').length, inChecklist: !!document.querySelector('#scr #checklist .clg:not([style*=none]) .clrow') }; });
   ok('the newest entry is docked in the inspector, selected on the timeline, its lines to tick (Details folded, so they show without scrolling)', /Design Engineer/.test(d.name) && d.det === false && d.lines >= 5 && d.sel === 1, JSON.stringify(d));
-  ok('both scopes are named: a change reaches every resume that prints it; ticks put lines on the open resume', /reaches every resume that prints it/.test(d.scopes[0]) && /Ticks put lines on Example Instruments/.test(d.scopes.at(-1)), d.scopes.join(' | '));
+  ok('the scope is named: a change reaches every resume that prints it (the ticks need no note)', d.scopes.length === 1 && /reaches every resume that prints it/.test(d.scopes[0]), d.scopes.join(' | '));
   await page.click('#scr .rectl .row:has-text("Prototyping Technician")'); await settle(page);
   ok('a click on another entry docks that one', /Prototyping Technician/.test(await page.textContent('#body .oi-name')) && await page.evaluate(() => document.querySelectorAll('#scr .rectl .is-sel').length) === 1);
   await page.click('#scr .recmore .srow:has-text("About you")'); await settle(page);
@@ -713,12 +713,12 @@ const NAMES = { long: 'Example Instruments — Mechanical Design Engineer', sixt
 const PROBE = `(() => {
   const vis = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
   const label = el => (el.getAttribute('aria-label') || el.textContent || el.className || el.tagName).toString().trim().replace(/\\s+/g, ' ').slice(0, 30);
-  const textRects = el => { const out = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());){ if (!n.nodeValue.trim() || n.parentElement.closest('.sr')) continue; const g = document.createRange(); g.selectNodeContents(n); out.push(...g.getClientRects()); } return out; };
+  const textRects = el => { const out = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());){ if (!n.nodeValue.trim() || n.parentElement.closest('.sr') || getComputedStyle(n.parentElement).opacity === '0') continue; const g = document.createRange(); g.selectNodeContents(n); out.push(...g.getClientRects()); } return out; };
   const out = { clipped: [], overlap: [], bars: [], wide: 0, scroll: 0 };
   for (const id of ['#head', '#foot']){ const e = document.querySelector(id); if (e && vis(e) && e.getBoundingClientRect().width > innerWidth / 2) out.bars.push(id + ' ' + Math.round(e.getBoundingClientRect().width)); }
   const body = document.querySelector('#scr'); out.scroll = body.scrollWidth - body.clientWidth;
   const controls = [...document.querySelectorAll('#scr button, #scr input:not([type=checkbox]), #scr select, #scr h2, #ptabs button, #head button, #head .psub')].filter(vis).filter(e => !e.closest('.cmpscroll, .rowmenu, .rectl, .sr, #head .docname'));      // the name card's name is head-check's (a short window keeps it one line)
-  for (const el of controls){
+  for (const el of controls){      // (a closed tab of the way hides its word: only the open one says it)
     const r = el.getBoundingClientRect();
     if (!el.matches('.rtable .cname > .rsel')) for (const t of textRects(el)) if (t.right > r.right + 1 || t.left < r.left - 1){ out.clipped.push(label(el)); break; }      // (a list row's name is cut short before its pills: the narrow list's own check)
     if (el.matches('h2, .rname') && el.scrollWidth > el.clientWidth + 1) out.clipped.push(label(el));

@@ -1,6 +1,6 @@
 // Where the page and the sidebar go. Pure: numbers in, numbers out (checks/shell-check.mjs).
-// The sidebar is one skinny column at the right (316px under 1400px windows, 340px from there, wider on a large screen: sideWidth) with the 54px rail beside it; the page is centred
-// in the room left of both, so no selection and no switch between Edit, Design and Export moves it. A page is always as big as the window's height allows;
+// The sidebar is one skinny column at the right (316px under 1400px windows, 340px from there, wider on a large screen: sideWidth); the page is centred
+// in the room left of it (folded, left of the 54px strips), so no selection and no switch between Edit, Design and Export moves it. A page is always as big as the window's height allows;
 // several pages sit beside each other, all in view when the row fits the room (with the sidebar folded, a little smaller), otherwise the view travels sideways from page to page
 // (the sidebar floats over the rest). Under PHONE_MAX the column is a bottom sheet.
 
@@ -11,7 +11,7 @@ export const G = 16;
 // two, so it may have up to SIDE_ONE_EXTRA more, as long as its one page stays uncovered.
 export const SIDE_MAX = 520, SIDE_ONE_EXTRA = 100;
 export function sideWidth(vw, vh = 900, oneUp = false){
-  const min = vw < 1400 ? 316 : 340, H = vh - 2 * G, free = n => vw - RAIL_W - 4 * G - SIDE_EDGE - Math.max(...Object.values(PAGE_SIZE).map(p => n * H * p.w / p.h + (n - 1) * PAGE_GAP * H / p.h));
+  const min = vw < 1400 ? 316 : 340, H = vh - 2 * G, free = n => vw - FOLD_W - 4 * G - SIDE_EDGE - Math.max(...Object.values(PAGE_SIZE).map(p => n * H * p.w / p.h + (n - 1) * PAGE_GAP * H / p.h));
   const two = Math.max(min, free(2)), w = oneUp ? Math.max(two, Math.min(free(1), min + SIDE_ONE_EXTRA)) : two;
   return Math.round(Math.min(SIDE_MAX, w));
 }
@@ -19,7 +19,7 @@ export function sideWidth(vw, vh = 900, oneUp = false){
 export const SIDE_MIN = 316, SIDE_CAP = 640;
 export const sideMax = vw => Math.max(SIDE_MIN, Math.min(SIDE_CAP, Math.floor(vw / 2)));
 export const clampSide = (w, vw) => Math.max(SIDE_MIN, Math.min(sideMax(vw), Math.round(w)));
-export const RAIL_W = 54;                               // the tabs, the screens and the history, left of the sidebar
+export const FOLD_W = 54;                               // the folded sidebar's two strips; sideWidth keeps this room too, so the open sidebar keeps its width
 export const SIDE_EDGE = 8;                             // the sidebar's extra gutter at the window's right edge: room for the card's stacked sheets
 export const ZOOM_MIN = 0.4, ZOOM_MAX = 4;
 export const PAGE_GAP = 24;           // between pages, in page px
@@ -41,9 +41,9 @@ export const clampZoom = z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Number.isFin
 
 // `wide`: on a phone, the panel is the whole screen.
 // zoom: 1 is the whole page fitted to the window.
-// `slim`: the start screen and the first questions: the column is 27% of the window (340 to 392px) and has no rail.
-// `side`: the person's choice ({ w, off }): a width of their own, or folded to the rail (the column takes no room; the page has it).
-// `final`: the Export place: no rail, and the column FINAL_X as wide as the sidebar would be (never folded, never over half the window).
+// `slim`: the start screen and the first questions: the column is 27% of the window (340 to 392px).
+// `side`: the person's choice ({ w, off }): a width of their own, or folded to its strips (the column takes no room; the page has the rest).
+// `final`: the Export place: the column FINAL_X as wide as the sidebar would be (never folded, never over half the window).
 export const SLIM_MIN = 340, SLIM_MAX = 392, FINAL_X = 1.5;
 export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = false, slim = false, oneUp = false, side = null, final = false }){
   const { w, h } = pageSize(format);
@@ -66,9 +66,9 @@ export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = fals
   const rowW = k => k * w + (k - 1) * PAGE_GAP;
   const own = side?.w ? clampSide(side.w, vw) : sideWidth(vw, vh, oneUp);
   const colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.272))) : final ? Math.min(Math.round(FINAL_X * own), Math.floor(vw / 2)) : side?.off ? 0 : own;
-  const railW = slim || final ? 0 : RAIL_W;
+  const railW = side?.off && !slim && !final ? FOLD_W : 0;
   if (final) side = null;
-  // the room the page may have: left of the rail and the column, a gutter at each side of them
+  // the room the page may have: left of the column (or the folded strips), a gutter at each side
   const edge = slim || final ? 0 : SIDE_EDGE;
   const room = vw - colW - railW - 4 * G - edge;
   const one = Math.max(0.1, Math.min(tall, room / w)), row = Math.max(0.1, Math.min(tall, room / rowW(n)));
@@ -79,12 +79,12 @@ export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = fals
   const sheetW = rowW(spread ? n : 1) * fit, pageH = h * fit;      // laid for the fitted page; a zoom is the camera's
   const sheetH = pageH * z;
   const colLeft = vw - G - edge - colW;
-  const areaW = colLeft - railW - G;                        // the pages' room: everything left of the rail
+  const areaW = colLeft - railW - G;                        // the pages' room: everything left of the column
   const mid = areaW / 2;
   const left = Math.max(G / 2, mid - sheetW / 2);
   const top = sheetH + 2 * G > vh ? G : Math.max(G, (vh - pageH) / 2);
   return {
-    scale, fit, zoom: z, spread, phone: false, wide: false, colW, railW, areaW, mid,
+    scale, fit, zoom: z, spread, phone: false, wide: false, bare: slim || final, colW, railW, areaW, mid,
     sheet: { left, top, width: sheetW * z, height: sheetH },
     col: { left: colLeft, top: G, width: colW, height: vh - 2 * G },
     // the camera's view: the room left of the column, and the width the page is fitted to

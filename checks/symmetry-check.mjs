@@ -65,7 +65,7 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
   });
   await page.waitForTimeout(900);
   await page.evaluate(() => window.__wb.setView('export'));
-  await page.click('#body [data-act=fit]');
+  await page.evaluate(() => window.__wb.fit());      // (no button on a desktop)
   await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 30000 });
   await page.waitForTimeout(7000);
   ok('the Fit chip is still there 7 seconds after Fit (no timer)', !!(await page.$('.fitchip')));
@@ -134,30 +134,42 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
       on0 === true && on1 === false && (box ? SHOW.test(l0) : HIDE.test(l0)) && SHOW.test(l1) && l2 === l0 && c1 !== c0 && c2 === c0, JSON.stringify([on0, on1, l0, l1, c1 === c0, c2 === c0]));
   };
 
-  // a line: the chip on the page, the depth row, its row in the Outline, its own view
+  // a line, a job, a section: the card's toolbar says Hide while it is on; pressing it turns it off and the card goes up a level, where its row
+  // (or the map's) says Show, unticked; its tick there turns it on again, and the recipe is as it was
+  const upTrip = async (name, kind, back, backBox) => {
+    try {
+      const c0 = await cur(), l0 = await label('#body .ctop .dp-show'), on0 = await tickOn('#body .ctop .dp-show'), one = (await page.$$('#body .ctop .dp-show')).length === 1;
+      await page.click('#body .ctop .dp-show'); await wait();
+      const up = await page.evaluate(() => window.__wb.ui.sel.kind), l1 = await label(backBox), on1 = await tickOn(backBox), c1 = await cur();
+      await page.click(back); await wait();
+      const c2 = await cur();
+      ok(`${name}: the card's toolbar says "Hide … from this resume" while it is on (one tick, no aria-pressed); pressed, it is off and the card goes up to the ${kind}, where its tick says "Show … on this resume", unticked; ticked again the recipe is as it was`,
+        one && on0 === true && HIDE.test(l0) && up === kind && on1 === false && SHOW.test(l1) && c1 !== c0 && c2 === c0 && !(await page.$('#body .ctop .dp-show[aria-pressed]')), JSON.stringify([one, on0, l0, up, on1, l1, c1 === c0, c2 === c0]));
+    } catch (e) { ok(name, false, String(e.message).split('\n').slice(0, 3).join(' ')); }
+  };
   await page.click('#outline [data-act=select-section][data-id=experience]'); await wait();
   await page.click('#body [data-act=select-job][data-id=hydra]'); await wait();
   if (await page.$('#body [data-act=ol-more][aria-expanded=false]')) await page.click('#body [data-act=ol-more]');      // (a line switched off stays in place; the fold holds archived lines)
-  await trip('line, on its row in the Outline', '#body .clrow[data-fact=hydra-inhaler] input.sw[data-on]', () => page.click('#body .clrow[data-fact=hydra-inhaler] .swl'));
+  await trip('line, on its row in the job\'s card', '#body .clrow[data-fact=hydra-inhaler] input.sw[data-on]', () => page.click('#body .clrow[data-fact=hydra-inhaler] .swl'));
   await page.click('#body .clrow[data-fact=hydra-inhaler] .clt'); await wait(); await away();
-  ok('the chip and the depth row have the tick (no eye), and no aria-pressed on it', !!(await page.$('#editlay .dp-show .pillsw')) && !!(await page.$('#body .depth .dp-show .pillsw')) && !(await page.$('#editlay .dp-show[aria-pressed], #body .dp-show[aria-pressed]')));
-  await trip('line, on the chip', '#editlay .dp-show', () => page.click('#editlay .dp-show'));
-  await trip('line, on the depth row', '#body .depth .dp-show', () => page.click('#body .depth .dp-show'));
-  ok('line, in its own view (J, rewritten: the view has no tick of its own, the depth row\'s is the one, tripped above)', !(await page.$('#body #b-on')) && (await page.$$('#body .hdr .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')));
+  ok('the card\'s toolbar has the tick (no eye), and no aria-pressed on it; nothing of it is on the page', !!(await page.$('#body .ctop .dp-show .pillsw')) && !(await page.$('#body .dp-show[aria-pressed]')) && !(await page.$('#editlay .dp-show, #body .depth')));
+  await upTrip('line, on the card', 'job', '#body .clrow[data-fact=hydra-inhaler] .swl', '#body .clrow[data-fact=hydra-inhaler] input.sw[data-on]');
+  ok('line, in its own view: no tick of its own, the toolbar\'s is the one', await (async () => { await page.click('#body .clrow[data-fact=hydra-inhaler] .clt'); await wait(); return !(await page.$('#body #b-on')) && (await page.$$('#body .ctop .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')); })());
 
-  // a job: the chip, its own view, its head in the Outline
-  await page.click('#body .depth [data-act=select-job]'); await wait(); await away();
-  await trip('job, on the chip', '#editlay .dp-show', () => page.click('#editlay .dp-show'), '#body .depth .dp-show', () => page.click('#body .depth .dp-show'));
-  ok('job, in its own view (J, rewritten: no tick of its own, the depth row\'s is the one, tripped above)', !(await page.$('#body .ctlrow input[data-jobon=hydra]')) && (await page.$$('#body .hdr .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')));
-  await page.click('#body .depth [data-act=deselect]'); await wait();
-  await page.click('#outline [data-act=ol-toggle][data-g="sec:experience"]'); await wait();      // every section starts folded
-  await trip('job, on its head in the Outline', '#outline .clg[data-g=hydra] > .clgh input[data-jobon=hydra]', () => page.click('#outline .clg[data-g=hydra] > .clgh .swl'), '#outline input[data-jobon=hydra]', () => page.click('#outline input[data-jobon=hydra] >> xpath=..'));
+  // a job: the card, its own view, its head in its section's card
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await wait(); await away();
+  await upTrip('job, on the card', 'section', '#body input[data-jobon=hydra] >> xpath=..', '#body input[data-jobon=hydra]');
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await wait();
+  ok('job, in its own view: no tick of its own, the toolbar\'s is the one', !(await page.$('#body .ctlrow input[data-jobon=hydra]')) && (await page.$$('#body .ctop .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')));
+  await page.click('#outline [data-act=select-section][data-id=experience]').catch(() => page.evaluate(() => { window.__wb.ui.sel = { kind: 'section', id: 'experience' }; window.__wb.setView(null); })); await wait();
+  if (!(await page.$('#body .clg[data-g=hydra] > .clgh input[data-jobon=hydra]'))){ await page.evaluate(() => { window.__wb.ui.sel = { kind: 'section', id: 'experience' }; window.__wb.setView(null); }); await wait(); }
+  await trip('job, on its head in its section\'s card', '#body .clg[data-g=hydra] > .clgh input[data-jobon=hydra]', () => page.click('#body .clg[data-g=hydra] > .clgh .swl'), '#body input[data-jobon=hydra]', () => page.click('#body input[data-jobon=hydra] >> xpath=..'));
 
-  // a section: the chip, its own view, its row in the Outline
+  // a section: the card, its own view, its row in the map
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await wait();
   await page.click('#outline [data-act=select-section][data-id=education]'); await wait(); await away();
-  await trip('section, on the chip', '#editlay .dp-show', () => page.click('#editlay .dp-show'), '#body .depth .dp-show', () => page.click('#body .depth .dp-show'));
-  ok('section, in its own view (J, rewritten: no tick of its own, the depth row\'s is the one, tripped above)', !(await page.$('#body .ctlrow input[data-secon=education]')) && (await page.$$('#body .hdr .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')));
-  await page.click('#body .depth [data-act=deselect]'); await wait();
+  ok('section, in its own view: no tick of its own, the toolbar\'s is the one', !(await page.$('#body .ctlrow input[data-secon=education]')) && (await page.$$('#body .ctop .dp-show')).length === 1 && !(await page.$('#body .hdr input[data-secon], #body .hdr input[data-jobon]')));
+  await upTrip('section, on the card', 'none', '#outline .srow[data-sid=education] .swl', '#outline .srow[data-sid=education] input[data-secon=education]');
   await run('an off section stays in its own row, dimmed, with the same tick; the tick turns it on again in place', async () => {
     const c0 = await cur(), l0 = await label('#outline .srow[data-sid=skills] input[data-secon=skills]');
     const order = () => page.$$eval('#seclist > .osec', es => es.map(e => e.dataset.sid).join());
@@ -165,9 +177,10 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
     await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
     const c1 = await cur(), l1 = await label('#outline .srow[data-sid=skills] input[data-secon=skills]');
     const dim = await page.$eval('#outline .srow[data-sid=skills]', e => ({ off: e.classList.contains('is-off'), name: parseFloat(getComputedStyle(e.querySelector('.stext')).opacity) }));
-    ok('an off section keeps its row in its place, dimmed, with the same tick, unticked, still saying "Show … on this resume", and there is no "Not on this resume" row', (await order()) === o0 && dim.off && dim.name < 1 && SHOW.test(l1) && !(await tickOn('#outline .srow[data-sid=skills] input[data-secon=skills]')) && !(await page.$('#offline, .offchip')), JSON.stringify([dim, l1]));
+    const offPlace = await page.evaluate(() => { const rows = [...document.querySelectorAll('#seclist > *')], head = rows.findIndex(e => e.matches('.mpg') && !e.querySelector('.mfill')), at = rows.findIndex(e => e.matches('.osec[data-sid=skills]')); return head >= 0 && at > head; });
+    ok('an off section goes to the map\'s "Off the page", dimmed, with the same tick, unticked, still saying "Show … on this resume", and there is no other "Not on this resume" row', offPlace && dim.off && dim.name < 1 && SHOW.test(l1) && !(await tickOn('#outline .srow[data-sid=skills] input[data-secon=skills]')) && !(await page.$('#offline, .offchip')), JSON.stringify([dim, l1, offPlace]));
     await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
-    ok('section, on its row in the Outline: the tick says "Show … on this resume", unticking hides it, and ticking it again in place restores the recipe', SHOW.test(l0) && c1 !== c0 && (await cur()) === c0 && (await order()) === o0, l0);
+    ok('section, on its row in the map: the tick says "Show … on this resume", unticking hides it, and ticking it again puts it back in its place and restores the recipe', SHOW.test(l0) && c1 !== c0 && (await cur()) === c0 && (await order()) === o0, l0);
   });
 
   await run('Reset order keeps an off section where it is', async () => {
@@ -185,19 +198,17 @@ const strings = async page => page.evaluate(async () => (await import('/src/i18n
     await page.click('#outline .srow[data-sid=skills] .swl'); await wait();
   });
 
-  // an item of a list section in the Outline
-  if (await page.$('#outline [data-act=ol-toggle][data-g="sec:skills"][aria-expanded=false]')) { await page.click('#outline [data-act=ol-toggle][data-g="sec:skills"]'); await wait(); }
-  const item = '#outline .osec[data-sid=skills] input.sw[data-item]';
-  await trip('item, on its row in the Outline', item, () => page.click(`${item} >> xpath=..`));
-  ok('the Outline has one tick for show/hide: every one in it is the same component (.sw in its label), none a bare .cb', (await page.$$('#outline input.cb')).length === 0 && (await page.$$('#outline input.sw')).length > 5);
+  // the map's ticks, then an item of a list section in its card
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await wait();
+  ok('the map has one tick for show/hide: every one in it is the same component (.sw in its label), none a bare .cb', (await page.$$('#outline input.cb')).length === 0 && (await page.$$('#outline input.sw')).length > 5);
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'section', id: 'certified' }; window.__wb.setView(null); }); await wait();
+  await page.evaluate(() => document.querySelector('#body input.sw[data-item]:not(:checked)')?.click()); await wait();      // (the section prints nothing: its first item is ticked on first)
+  const item = `#body input.sw[data-item="${await page.evaluate(() => document.querySelector('#body input.sw[data-item]:checked')?.dataset.item)}"]`;
+  await trip('item, on its row in its section\'s card', item, () => page.click(`${item} >> xpath=..`));
 
-  // the photo: the Outline's row, Design
-  if (!(await page.isVisible('#outline input.sw[data-photo]'))) { await page.click('#outline [data-act=ol-toggle][data-g="sec:header"]'); await wait(); }
+  // the photo: About you (its switch and its settings are there; Design only points there)
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.photo = { ...(d.cur.photo ?? {}), show: true }; }, 'check: photo on')); await wait();
-  await trip('photo, on its row in the Outline', '#outline input.sw[data-photo]', () => page.click('#outline input.sw[data-photo] >> xpath=..'));
-  // (the switch and the photo's settings are in the sidebar's About you; Design only points there)
-  await page.frameLocator('#sheet iframe').locator('.name').click(); await wait();
-  await page.click('#body .depth [data-act=select-header]'); await wait();
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'header' }; window.__wb.setView(null); }); await wait();
   await trip('photo, in About you', '#d-photo-on', () => page.click('#d-photo-on'));
   await page.mouse.move(4, 4); for (let k = 0; k < 3; k++) await page.keyboard.press('Escape'); await wait();
   // the slot on the page, over the header
@@ -225,16 +236,10 @@ for (const [drink, theme] of [['tea', 'light'], ['coffee', 'dark']]){
   await page.click('#body [data-act=select-job][data-id=hydra]'); await page.waitForTimeout(500);
   await page.click('#body .clrow[data-fact=hydra-inhaler] .clt'); await page.waitForTimeout(700);
   await page.mouse.move(4, 4); await page.waitForTimeout(600);
-  const chipLock = await box('#editlay .dp-lock'), depthLock = await box('#body .depth .dp-lock');
-  const chipShow = await box('#editlay .dp-show'), depthShow = await box('#body .depth .dp-show');
-  const chipTick = await box('#editlay .dp-show .pillsw'), depthTick = await box('#body .depth .dp-show .pillsw');
-  const same = (a, b) => !!a && !!b && Math.abs(a.w - b.w) < 0.6 && Math.abs(a.h - b.h) < 0.6;
-  ok(`${tag}: the padlock is one size (a 24 px target) on the chip, in the depth row and on the Outline's rows`, same(chipLock, depthLock) && same(chipLock, row) && chipLock.w >= 24 && chipLock.h >= 24, JSON.stringify([chipLock, depthLock, row]));
-  ok(`${tag}: a content tick is one size (17 by 17, a square) on the chip and in the depth row; a section's tick in the Outline is 20 by 20`, same(chipTick, depthTick) && chipTick.w === 17 && chipTick.h === 17 && !!rowTick && rowTick.w === 20 && rowTick.h === 20, JSON.stringify([chipTick, depthTick, rowTick]));
-  ok(`${tag}: at rest the padlock and the chip's and depth row's tick draw at the same 55%`, [chipLock, depthLock, row, chipShow, depthShow].every(b => b && Math.abs(b.op - 0.55) < 0.02), JSON.stringify([chipLock, depthLock, row, chipShow, depthShow].map(b => b?.op)));
-  ok(`${tag}: the chip's padlock and tick are visible with no hover, each a target of at least 24 px`, !!chipShow && chipShow.vis && chipShow.w >= 24 && chipShow.h >= 24 && chipLock.vis, JSON.stringify([chipShow, chipLock]));
-  await page.hover('#editlay .dp-show'); await page.waitForTimeout(400);
-  ok(`${tag}: on hover the chip's tools come up to full contrast`, (await box('#editlay .dp-lock')).op === 1 && (await box('#editlay .dp-show')).op === 1);
+  const lock = await box('#body .ctop .dp-lock'), show = await box('#body .ctop .dp-show'), tick = await box('#body .ctop .dp-show .pillsw');
+  ok(`${tag}: the padlock is a target of at least 24 px in the card's toolbar and on the map's rows (24 px there)`, !!lock && lock.w >= 24 && lock.h >= 24 && !!row && row.w === 24 && row.h === 24, JSON.stringify([lock, row]));
+  ok(`${tag}: a content tick is 17 by 17 (a square) in the card's toolbar, a target of at least 24 px; a section's tick in the map is 20 by 20`, !!tick && tick.w === 17 && tick.h === 17 && !!show && show.w >= 24 && show.h >= 24 && !!rowTick && rowTick.w === 20 && rowTick.h === 20, JSON.stringify([tick, show, rowTick]));
+  ok(`${tag}: at rest the map's padlock draws at 55%; the card's toolbar is at full strength with no hover`, Math.abs(row.op - 0.55) < 0.02 && lock.op === 1 && show.op === 1 && lock.vis && show.vis, JSON.stringify([row.op, lock.op, show.op]));
   await ctx.close();
 }
 
@@ -260,9 +265,9 @@ await run('an Undo button on the toast of a delete', async () => {
   // a claim, and an entry of the Record
   const nFacts = () => page.evaluate(() => window.__wb.store.state.record.facts.length);
   const f0 = await nFacts();
-  await page.click(`#body .depth [data-act=select-job]`); await wait();
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'hydra' }; window.__wb.setView(null); }); await wait();
   await page.click(`#body .clrow[data-fact="${fact}"] .clt`); await wait();
-  await page.click('#body [data-act=delete-claim]'); await wait();
+  await page.click('#body .ctop .cmore'); await page.waitForTimeout(200); await page.click('#body .ctop .cmenu [data-act=delete-claim]'); await wait();
   if (await page.$('#body .delask')){ await page.click('#body .delask [data-act=delete-claim]'); await wait(); }      // a claim of several versions asks first
   ok('a deleted claim\u2019s toast (after its question, for a claim of several versions) has an Undo button, and it brings the claim back', (await nFacts()) === f0 - 1 && !!(await page.$('#toast.on [data-act=toast-undo]')) && (await page.click('#toast [data-act=toast-undo]'), await wait(), (await nFacts()) === f0));
   const nEdu = () => page.evaluate(() => window.__wb.store.state.record.projects.length);
@@ -285,22 +290,25 @@ await run('the tool beside the padlock: revert an edit, remove a line only here,
     const ops = { override: (d, id, x) => T.setOverride(d.record, d.cur, id, x), lock: (d, id, on) => L.setLocked(d.cur, id, on), label: (d, id, x) => T.setSectionLabel(d.record, d.cur, id, 'en', x), term: (d, id, x) => T.setTerm(d.record, d.cur, id, 'en', x), unlocal: (d, id) => T.removeLocalLine(d.record, d.cur, id), secon: (d, id) => T.setSectionOn(d.record, d.cur, id, true) };
     window.__wb.store.commit(d => { ops[op](d, ...a); }, 'check');
   }, [op, a]);
-  const tool = async where => { const e = await page.$(`${where} .dp-fix`); return e ? { name: await e.getAttribute('aria-label'), dis: (await e.getAttribute('aria-disabled')) === 'true', box: await e.boundingBox() } : null; };
-  const both = async () => { await page.mouse.move(4, 4); await page.waitForTimeout(500); return [await tool('#editlay'), await tool('#body .depth')]; };
-  const sameTool = (a, b) => !!a && !!b && a.name === b.name && Math.abs(a.box.width - 24) < 0.6 && Math.abs(a.box.height - 24) < 0.6 && Math.abs(b.box.width - 24) < 0.6;
+  // the tool that undoes what was done here is the last item of the card's ⋯ menu, named for what it acts on
+  const FIX = /back to the saved words$|from this resume$/;
+  const tool = () => page.evaluate(src => { const re = new RegExp(src); const it = [...document.querySelectorAll('#body .ctop .cmenu .cmi')].find(b => re.test(b.textContent.trim())); return it ? { name: it.textContent.trim(), dis: it.getAttribute('aria-disabled') === 'true' } : null; }, FIX.source);
+  const both = async () => { await page.mouse.move(4, 4); await page.waitForTimeout(500); return [await tool()]; };
+  const sameTool = a => !!a;
+  const useTool = async (opts = {}) => { await page.click('#body .ctop .cmore'); await page.waitForTimeout(200); await page.locator('#body .ctop .cmenu .cmi', { hasText: FIX }).first().click(opts); };
   const pick = async id => { await page.click('#outline [data-act=select-section][data-id=experience]'); await wait(); await page.click('#body [data-act=select-job][data-id=hydra]'); await wait(); await page.click(`#body .clrow[data-fact="${id}"] .clt`); await wait(); };
 
   // a line with an edit: the tool is on the chip and the depth row (24 px), named for what it acts on; none without an edit
   const c0 = await cur();
   await pick('hydra-inhaler');
   const none = await both();
-  ok('a line without an edit has no revert tool on the chip or the depth row', !none[0] && !none[1]);
+  ok('a line without an edit has no revert tool in the card\'s ⋯ menu', !none[0]);
   await commit('override', 'hydra-inhaler', 'Redesigned the dose counter.');
   await wait();
-  const [chipR, depthR] = await both();
-  ok('a line with an edit has the revert tool on the chip and the depth row, 24 px, "Put the line in … back to the saved words"', sameTool(chipR, depthR) && /^Put the line in .+ back to the saved words$/.test(chipR.name), JSON.stringify([chipR, depthR]));
-  await page.click('#editlay .dp-fix'); await wait();
-  ok('…the chip\u2019s tool puts the line back to the saved version: the recipe is as before the edit', (await cur()) === c0, '');
+  const [chipR] = await both();
+  ok('a line with an edit has the revert tool in the card\'s ⋯ menu, "Put the line in … back to the saved words"', sameTool(chipR) && /^Put the line in .+ back to the saved words$/.test(chipR.name), JSON.stringify(chipR));
+  await useTool(); await wait();
+  ok('…the tool puts the line back to the saved version: the recipe is as before the edit', (await cur()) === c0, '');
   ok('…and the tool is gone', !(await both())[0]);
 
   // locked: the tool is there, held, and does nothing
@@ -308,16 +316,16 @@ await run('the tool beside the padlock: revert an edit, remove a line only here,
   await wait();
   const [lockR] = await both();
   const c1 = await cur();
-  await page.click('#editlay .dp-fix', { force: true }); await wait();
+  await useTool({ force: true }); await wait();
   ok('a locked line\u2019s revert tool is disabled (aria-disabled) and the edit stays', !!lockR && lockR.dis && (await cur()) === c1);
   await commit('lock', 'hydra-inhaler', false); await commit('override', 'hydra-inhaler', null);
 
   // a heading, and a language's name
   await commit('label', 'education', 'Studies');
   await fr.locator('.band[data-section=education] h2.tab').first().click(); await wait();
-  const [chipH] = await both();
-  ok('a heading with its own words has the revert tool', !!chipH && /^Put the heading of .+ back to the saved words$/.test(chipH.name), JSON.stringify(chipH));
-  await page.click('#editlay .dp-fix'); await wait();
+  const chipH = await page.evaluate(() => [...document.querySelectorAll('#body .ctop .cmenu .cmi')].find(b => b.dataset.act === 'label-reset')?.textContent.trim() ?? null);
+  ok('a heading with its own words has "Reset to “…”" in the card\'s ⋯ menu, naming the record\'s words', /^Reset to “Education”$/.test(chipH ?? ''), JSON.stringify(chipH));
+  await page.click('#body .ctop .cmore'); await page.waitForTimeout(200); await page.click('#body .ctop .cmenu .cmi[data-act=label-reset]'); await wait();
   ok('…which resets the heading to the record\u2019s words', (await page.evaluate(() => window.__wb.store.state.cur.sections.find(s => s.id === 'education')?.label ?? null)) === null);
   await commit('secon', 'languages'); await wait();
   await fr.locator('.band[data-section=languages] dt').first().click(); await wait();
@@ -328,7 +336,7 @@ await run('the tool beside the padlock: revert an edit, remove a line only here,
   await fr.locator('.band[data-section=languages] dt').first().click(); await wait();
   const [chipT] = await both();
   ok('a language name with its own words has the revert tool', !!chipT && /^Put .+ back to the saved words$/.test(chipT.name), JSON.stringify(chipT));
-  await page.click('#editlay .dp-fix'); await wait();
+  await useTool(); await wait();
   ok('…which clears the name on this resume (the recipe is as before)', (await cur()) === c2);
 
   // a line only on this resume: the remove tool, with the Undo button on the toast
@@ -337,23 +345,23 @@ await run('the tool beside the padlock: revert an edit, remove a line only here,
   const lid = await page.evaluate(async () => { const T = await import('/src/model/resume.js'); let id; window.__wb.store.commit(d => { id = T.addLocalLine(d.record, d.cur, 'hydra', null); T.setOverride(d.record, d.cur, id, 'A line only here.'); }, 'check: local line'); return id; });
   await wait();
   await pick(lid);
-  const [chipL, depthL] = await both();
-  ok('a line only on this resume has a remove tool on the chip and the depth row, "Remove … from this resume"', sameTool(chipL, depthL) && /^Remove the line in .+ from this resume$/.test(chipL.name), JSON.stringify([chipL, depthL]));
-  await page.click('#editlay .dp-fix'); await wait();
-  ok('…the chip\u2019s tool removes the line (the recipe is as before it was added)', !(await page.evaluate(async id => (await import('/src/model/resume.js')).isLocal(window.__wb.store.state.cur, id), lid)));
+  const [chipL] = await both();
+  ok('a line only on this resume has a remove tool in the card\'s ⋯ menu, "Remove … from this resume"', sameTool(chipL) && /^Remove the line in .+ from this resume$/.test(chipL.name), JSON.stringify(chipL));
+  await useTool(); await wait();
+  ok('…the tool removes the line (the recipe is as before it was added)', !(await page.evaluate(async id => (await import('/src/model/resume.js')).isLocal(window.__wb.store.state.cur, id), lid)));
   await page.click('#toast [data-act=toast-undo]'); await wait();
   ok('…and the toast\u2019s Undo brings the line back, with its words', await page.evaluate(async id => { const T = await import('/src/model/resume.js'); return T.isLocal(window.__wb.store.state.cur, id) && window.__wb.store.state.cur.overrides?.[id] === 'A line only here.'; }, lid));
   await commit('unlocal', lid);
   ok('(back at the start)', (await cur()) === c3 || true);
 
   // a skill group: the remove tool on the chip
-  if (await page.$('#body .depth [data-act=deselect]')) { await page.click('#body .depth [data-act=deselect]'); await wait(); }
+  await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await wait();
   await page.click('#outline [data-act=select-section][data-id=skills]'); await wait();
   const groups0 = await page.evaluate(async () => { const T = await import('/src/model/resume.js'); return T.arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.length; });
   await fr.locator('.band[data-section=skills] .skills__items').first().click(); await wait();
-  const [chipG, depthG] = await both();
-  ok('a skill group has a remove tool on the chip and the depth row, "Remove the skill group … from this resume"', sameTool(chipG, depthG) && /^Remove the skill group .+ from this resume$/.test(chipG.name), JSON.stringify([chipG, depthG]));
-  await page.click('#editlay .dp-fix'); await wait();
+  const [chipG] = await both();
+  ok('a skill group has a remove tool in the card\'s ⋯ menu, "Remove the skill group … from this resume"', sameTool(chipG) && /^Remove the skill group .+ from this resume$/.test(chipG.name), JSON.stringify(chipG));
+  await useTool(); await wait();
   const groups1 = await page.evaluate(async () => { const T = await import('/src/model/resume.js'); return T.arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.length; });
   ok('…which removes the group (as emptying it on the page does), and the toast\u2019s Undo brings it back', groups1 === groups0 - 1 && (await (async () => { await page.click('#toast [data-act=toast-undo]'); await wait(); return page.evaluate(async () => (await import('/src/model/resume.js')).arrangementOf(window.__wb.store.state.record, window.__wb.store.state.cur).groups.length); })()) === groups0);
   await ctx.close();
@@ -375,8 +383,9 @@ await run('skills: + group, and the chip\u2019s tool takes it away again', async
   await page.keyboard.press('Escape'); await wait();
   await page.click('#body .sknames [data-g="~sg-1"]'); await wait();
   await page.mouse.move(4, 4); await page.waitForTimeout(500);
-  ok('…and the chip offers its inverse, "Remove the skill group … from this resume"', /^Remove the skill group .+ from this resume$/.test(await page.$eval('#editlay .dp-fix', b => b.getAttribute('aria-label')).catch(() => '')));
-  await page.click('#editlay .dp-fix'); await wait();
+  const useTool = async () => { await page.click('#body .ctop .cmore'); await page.waitForTimeout(200); await page.locator('#body .ctop .cmenu .cmi', { hasText: /from this resume$/ }).first().click(); };
+  ok('…and the card\'s ⋯ menu offers its inverse, "Remove the skill group … from this resume"', await page.evaluate(() => [...document.querySelectorAll('#body .ctop .cmenu .cmi')].some(b => /^Remove the skill group .+ from this resume$/.test(b.textContent.trim()))));
+  await useTool(); await wait();
   ok('…which takes it away again', (await groups()) === g0);
   await ctx.close();
 });
@@ -518,9 +527,9 @@ await run('Fit is Export\u2019s: not on the Library, there and not held in Expor
   await page.evaluate(() => window.__wb.edit.setAutoFold?.(false));      // a short window would fold the versions this check clicks
   await page.waitForTimeout(600);
   const wait = () => page.waitForTimeout(700);
-  ok('in the editor Fit is not on the page until Export is open', !(await page.$('[data-act=fit]')));
+  ok('in the editor Fit is not on the page', !(await page.$('[data-act=fit]')));
   await page.evaluate(() => window.__wb.export.open()); await wait();
-  ok('in Export Fit is once on the page and not held', (await page.$$('[data-act=fit]')).length === 1 && (await page.$eval('#body [data-act=fit]', b => b.getAttribute('aria-disabled'))) === null);
+  ok('in Export there is no Fit either (a desktop has none)', (await page.$$('[data-act=fit]')).length === 0);
   await page.evaluate(() => window.__wb.export.back()); await wait();
   await page.click('#ptabs [data-p=library]'); await wait();
   ok('with the Library open there is no Fit on the page to press', !(await page.$('[data-act=fit]')));
@@ -569,10 +578,10 @@ await run('on a phone: the depth row carries the tools, the name window and the 
   const fr = page.frameLocator('#sheet iframe');
   await fr.locator('.entry .bullets li').first().tap(); await wait();
   ok('(the first line of the first job is selected)', (await page.evaluate(() => window.__wb.ui.sel.id)) === 'hydra-inhaler');
-  const fix = await page.$('#body .depth .dp-fix');
-  const box = await fix?.boundingBox();
-  ok('on a phone the depth row has the revert tool, a 24 px target', !!box && box.width >= 24 && box.height >= 24 && /back to the saved words/.test(await fix.getAttribute('aria-label')));
-  await fix?.click(); await wait();
+  await page.click('#body .ctop .cmore'); await page.waitForTimeout(300);
+  const fix = page.locator('#body .ctop .cmenu .cmi', { hasText: /back to the saved words/ }).first(), box = await fix.boundingBox().catch(() => null);
+  ok('on a phone the card\'s ⋯ menu has the revert tool, a target of at least 24 px', !!box && box.width >= 24 && box.height >= 24);
+  await fix.click().catch(() => {}); await wait();
   ok('…and it puts the line back', !(await page.evaluate(() => window.__wb.store.state.cur.overrides?.['hydra-inhaler'])));
   // Skills: "+ group" on a phone too (rewritten: a phone writes a new group in the panel's two fields)
   await fr.locator('.band[data-section=skills] .skills__label').first().tap(); await wait();

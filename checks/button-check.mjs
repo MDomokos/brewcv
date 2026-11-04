@@ -39,7 +39,7 @@ const want = t => !process.env.ONLY || process.env.ONLY.split(',').some(o => t.i
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
 const DELETE_X = 'M4 4l8 8M12 4l-8 8';      // the close drawing: delete is an X, not the bin
-const DEL_ACTS = ['rm-delete', 'snap-delete', 'delete-version', 'earlier-remove', 'delete-claim', 'd-photo-rm', 'local-remove', 'sk-delgroup', 'wb-delw', 'wb-delw-yes', 'wb-delshelf', 'c-del-entry', 'c-del-item',
+const DEL_ACTS = ['rm-delete', 'snap-delete', 'delete-version', 'earlier-remove', 'delete-claim', 'd-photo-rm', 'sk-delgroup', 'wb-delw', 'wb-delw-yes', 'wb-delshelf', 'c-del-entry', 'c-del-item',
   'c-kind-del', 'c-kind-del-all', 'c-kw-rm', 'd-drop', 'lang-remove', 'start-over'];
 const LOOKS = [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']];
 
@@ -62,14 +62,14 @@ const VIEWS = {
   outline: async () => {},
   line: async page => { await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await page.waitForTimeout(200); await page.keyboard.press('Escape'); },
   'skill group': async page => { await clickIn(page, '#body .clt', 'CAD'); },
-  job: async page => { if (await page.$('#body [data-act=ol-toggle][data-g="sec:experience"][aria-expanded=false]')) await page.click('#body [data-act=ol-toggle][data-g="sec:experience"]'); await page.click('#body [data-act=select-job][data-id=free]'); },      // (a section is folded until opened)
+  job: async page => { await page.evaluate(() => { window.__wb.ui.sel = { kind: 'job', id: 'free' }; window.__wb.setView(null); }); },      // (the map shows no jobs)
   section: async page => { await page.click('#body [data-act=select-section][data-id=experience]'); },
   header: async page => { await page.click('#body [data-act=select-section][data-id=header]'); },
   design: async page => { await page.click('#tab-design'); },
   export: async page => { await page.evaluate(() => window.__wb.export.open()); },
   settings: async page => { await page.evaluate(() => window.__wb.setView('settings')); },
   'name window': nameWin,
-  menu: async page => { await page.click('#head [data-act=menu]'); },
+  menu: async page => { await page.click('#rail [data-act=menu]'); },
   'row menu': async page => { await nameWin(page); await page.click('#switcher .swrow .smore'); },
   library: async page => { await page.evaluate(() => window.__wb.setView('resumes')); await page.waitForTimeout(400); await page.click('#scr .rcard >> nth=1'); await pickOption(page, '#scr-show', 'sent'); },
   career: async page => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); await page.evaluate(() => document.querySelector('#scr .row, #scr .srow')?.click()); },
@@ -196,16 +196,17 @@ if (want('del')){
       const facts = () => page.evaluate(() => window.__wb.store.state.record.facts.map(f => f.id));
       const claimWith = k => page.evaluate(k => { const s = window.__wb.store.state, w = s.record.work.find(j => j.highlights.some(h => (k > 1) === (s.record.facts.find(f => f.id === h)?.variants?.length > 1))); const id = w?.highlights.find(h => (k > 1) === (s.record.facts.find(f => f.id === h)?.variants?.length > 1)); return id ? { id, job: w.id } : null; }, k);
       const openClaim = async c => { await rest(page); await page.evaluate(c => { window.__wb.ui.sel = { kind: 'bullet', id: c.id, job: c.job }; window.__wb.setView(null); }, c); await page.waitForTimeout(300); };
+      const delClaim = async () => { await page.click('#body .ctop .cmore'); await page.click('#body .ctop .cmenu [data-act=delete-claim]'); };      // Delete is in the card's ⋯ menu
       const many = await claimWith(2);
-      await openClaim(many); await page.click('#body [data-act=delete-claim]'); await page.waitForTimeout(250);
+      await openClaim(many); await delClaim(); await page.waitForTimeout(250);
       const asked = await page.evaluate(() => { const a = document.querySelector('#body .delask'); const b = a ? [...a.querySelectorAll('button')].map(x => x.dataset.act) : []; return { b, focus: document.activeElement?.dataset?.sure === '1' }; });
       ok('a line with more than one version asks first, in place: Cancel, then Delete last, the focus on Delete; nothing deleted yet', asked.b.join() === 'delete-claim-no,delete-claim' && asked.focus && (await facts()).includes(many.id), JSON.stringify(asked));
       await page.click('#body .delask [data-act=delete-claim-no]'); await page.waitForTimeout(250);
       ok('…Cancel takes the question away and keeps the line', !(await page.$('#body .delask')) && (await facts()).includes(many.id));
-      await page.click('#body [data-act=delete-claim]'); await page.waitForTimeout(200); await page.click('#body .delask [data-act=delete-claim]'); await page.waitForTimeout(400);
+      await delClaim(); await page.waitForTimeout(200); await page.click('#body .delask [data-act=delete-claim]'); await page.waitForTimeout(400);
       ok('…Delete deletes it, with Undo on the toast', !(await facts()).includes(many.id) && !!(await page.$('#toast [data-act=toast-undo]')));
       const one = await claimWith(1);
-      if (one){ await openClaim(one); await page.click('#body [data-act=delete-claim]'); await page.waitForTimeout(400); }
+      if (one){ await openClaim(one); await delClaim(); await page.waitForTimeout(400); }
       ok('a line with one version is deleted at once (Undo on the toast), no question', !!one && !(await facts()).includes(one.id) && !(await page.$('#body .delask')), JSON.stringify(one));
       // a resume with a sent copy
       await rest(page);
@@ -232,13 +233,14 @@ if (want('order')){
   const FX = JSON.parse(fs.readFileSync(path.join(ROOT, 'checks/fixtures/button-order.json'), 'utf8'));
   const { ctx, page, bad } = await open({});
   const OV = {
-    line: () => VIEWS.line(page), 'name window': () => nameWin(page), 'row menu': () => VIEWS['row menu'](page),
+    line: async () => { await VIEWS.line(page); await page.click('#body .ctop .cmore'); await page.waitForSelector('#body .ctop .cmenu:not([hidden])'); },      // Archive and Delete are in the card's ⋯ menu
+    'name window': () => nameWin(page), 'row menu': () => VIEWS['row menu'](page),
     'export dialog': () => VIEWS['export dialog'](page), 'review list': () => VIEWS['review list'](page),
     'new resume': () => page.evaluate(() => window.__wb.setView('new')),
     'mark as sent': () => page.evaluate(() => window.__wb.resumes.markSent()),
     'sent copy': async () => { await page.evaluate(async () => { const RS = await import('/src/model/resumes.js'); let sid; window.__wb.store.commit(d => { sid = RS.takeSnapshot(d, { kind: 'company', company: 'Order Co', role: 'Tester', date: '2026-10-22' })?.snap?.id; }, 'check: sent'); const s = window.__wb.store.state, r = s.resumes.find(x => x.id === s.openId); window.__wb.resumes.openSnapshot(r.id, (r.snapshots ?? []).at(-1).id); }); },
-    'a question': async () => { await VIEWS.line(page); await page.click('#body [data-act=delete-claim]'); },
-    merge: async () => { await page.click('#head [data-act=menu]'); await page.click('.menu [data-v=import]'); await page.waitForTimeout(300); await page.setInputFiles('#file', path.join(ROOT, 'checks/fixtures/jsonresume-sample.json')); await page.waitForTimeout(800); await page.click('[data-act=imp-merge]'); },
+    'a question': async () => { await VIEWS.line(page); await page.click('#body .ctop .cmore'); await page.click('#body .ctop .cmenu [data-act=delete-claim]'); },
+    merge: async () => { await page.click('#rail [data-act=menu]'); await page.click('.appmenu [data-v=import]'); await page.waitForTimeout(300); await page.setInputFiles('#file', path.join(ROOT, 'checks/fixtures/jsonresume-sample.json')); await page.waitForTimeout(800); await page.click('[data-act=imp-merge]'); },
     'career add': async () => { await page.evaluate(() => window.__wb.setView('record')); await page.waitForTimeout(400); await page.click('[data-act=c-pop]'); await page.click('[data-act=c-add][data-what=project]'); },
   };
   const found = new Map();
@@ -284,25 +286,25 @@ if (want('name')){
   for (const [drink, theme] of LOOKS){
     const { ctx, page, bad } = await open({ drink, theme });
     const card = async () => page.evaluate(() => {
-      const hd = document.querySelector('#head').getBoundingClientRect(), b = document.querySelector('#docname-btn'), m = document.querySelector('#head [data-act=menu]'), x = document.querySelector('#head .hstub'), tg = document.querySelector('#head .htag');
-      const br = b.getBoundingClientRect(), mr = m.getBoundingClientRect(), xr = x.getBoundingClientRect(), sh = e => getComputedStyle(e).boxShadow;
-      return { left: br.left - hd.left, underTag: br.top >= tg.getBoundingClientRect().bottom - 1, menuOnTag: tg.contains(m) && mr.right <= xr.left, stub: [xr.top - hd.top, hd.bottom - xr.bottom, hd.right - xr.right].map(v => Math.round(v)).join(),
-        fill: getComputedStyle(x).backgroundColor !== 'rgba(0, 0, 0, 0)', sh: [sh(b), sh(m), sh(x)] };
+      const hd = document.querySelector('#head').getBoundingClientRect(), b = document.querySelector('#docname-btn'), x = document.querySelector('#head .hstub'), tg = document.querySelector('#head .htag');
+      const br = b.getBoundingClientRect(), xr = x.getBoundingClientRect(), sh = e => getComputedStyle(e).boxShadow;
+      return { left: br.left - hd.left, underTag: br.top >= tg.getBoundingClientRect().bottom - 1, noMenu: !document.querySelector('#head [data-act=menu]'), stub: [xr.top - hd.top, hd.bottom - xr.bottom, hd.right - xr.right].map(v => Math.round(v)).join(),
+        fill: getComputedStyle(x).backgroundColor !== 'rgba(0, 0, 0, 0)', sh: [sh(b), sh(x)] };
     });
     const tag = `${drink} ${theme}`;
     const c0 = await card();
-    ok(`${tag}: the name is one large button from the card's left edge under the tag line, ⋯ small at the tag line's end, and Export the filled stub at the card's right end, top edge to bottom edge (Coffee's 2px foot rule under it)`, c0.left <= 1.5 && c0.underTag && c0.menuOnTag && c0.stub.split(',').every(v => Math.abs(v) <= 2) && c0.fill, JSON.stringify(c0));
+    ok(`${tag}: the name is one large button from the card's left edge under the tag line, no ⋯ in the card, and Export a filled button inset 7 px at the card's right end`, c0.left <= 1.5 && c0.underTag && c0.noMenu && c0.stub.split(',').every(v => Math.abs(v - 7) <= 2) && c0.fill, JSON.stringify(c0));
     await page.hover('#docname-btn'); await page.waitForTimeout(150); const c1 = await card();
-    await page.hover('#head [data-act=menu]'); await page.waitForTimeout(150); const c2 = await card();
+    await page.hover('#head .hstub'); await page.waitForTimeout(150); const c2 = await card();
     await page.click('#docname-btn'); await page.waitForTimeout(300); await page.mouse.move(4, 4); const c3 = await card();
-    ok(`${tag}: neither the name, ⋯ nor the Export stub has a shadow, at rest, on hover or with the window open`, [c0, c1, c2, c3].every(c => c.sh.every(x => x === 'none')), JSON.stringify([c0.sh, c1.sh, c2.sh, c3.sh]));
+    ok(`${tag}: neither the name nor Export has a shadow, at rest, on hover or with the window open`, [c0, c1, c2, c3].every(c => c.sh.every(x => x === 'none')), JSON.stringify([c0.sh, c1.sh, c2.sh, c3.sh]));
     const w = await win(page);
     ok(`${tag}: the name window: "This resume" holds Duplicate then Delete, no Record, + New resume first in the list, Manage all full width with an arrow`, w.acts === 'rm-dup,rm-delete' && !!w.lbl && !w.record && w.first === 'sw-new' && w.manage, JSON.stringify(w));
     await page.keyboard.press('Escape'); await page.waitForTimeout(200);
-    await page.click('#head [data-act=menu]'); await page.waitForTimeout(200);
-    const mn = await page.evaluate(() => { const m = document.querySelector('#head .menu'), r = m.getBoundingClientRect(), rows = [...m.querySelectorAll(':scope > button, :scope > a')];
+    await page.click('#rail [data-act=menu]'); await page.waitForTimeout(200);
+    const mn = await page.evaluate(() => { const m = document.querySelector('#rail .appmenu'), r = m.getBoundingClientRect(), rows = [...m.querySelectorAll(':scope > button, :scope > a')];
       return { inset: Math.min(...rows.map(x => x.getBoundingClientRect().left - r.left)), shadow: rows.filter(x => getComputedStyle(x).boxShadow !== 'none').length, fill: rows.filter(x => !x.matches(':hover') && !/rgba\(0, 0, 0, 0\)|transparent/.test(getComputedStyle(x).backgroundColor)).length }; });
-    ok(`${tag}: the ⋯ menu's rows are flat (no shadow, no fill at rest), their hover fill 8 px inside the menu`, mn.inset >= 7.5 && mn.inset <= 10.5 && !mn.shadow && !mn.fill, JSON.stringify(mn));
+    ok(`${tag}: the "?" menu's rows are flat (no shadow, no fill at rest), their hover fill 8 px inside the menu`, mn.inset >= 7.5 && mn.inset <= 10.5 && !mn.shadow && !mn.fill, JSON.stringify(mn));
     ok(`${tag}: name: no page errors`, !bad.length, bad.slice(0, 2).join(' | '));
     await ctx.close();
   }

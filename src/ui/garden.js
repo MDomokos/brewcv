@@ -59,7 +59,7 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
   const refreshGeo = () => {
     const g = ui.geo, L = ui.layout;
     const m = T();
-    panel = L && !L.phone ? (L.col.left - L.railW - m.ox) / m.s : innerWidth;       // the garden keeps to the mat left of the rail and the sidebar
+    panel = L && !L.phone ? (L.col.left - L.railW - m.ox) / m.s : innerWidth;       // the garden keeps to the mat left of the sidebar
     pg = !g || !ui.cam ? [] : Array.from({ length: g.n }, (_, i) => canvas.screenRect({ left: pageLeft(g, i), top: 0, width: g.w, height: g.h }))
       .map(r => ({ left: (r.left - m.ox) / m.s, right: (r.left + r.width - m.ox) / m.s, top: (r.top - m.oy) / m.s, bottom: (r.top + r.height - m.oy) / m.s })).filter(r => r.right > 0 && r.left < panel && r.right - r.left > 50);
     // pages side by side clear as one block: a leaf blown off one must not land on the next

@@ -210,7 +210,6 @@ export function versionsHtml(x){
   out += flush(todo);      // a new version after the last one
   if (ed?.mode === 'new') out += E();
   out += '</div>';
-  if (x.writing) out += `<p class="note">${h('ux3.writingNote')}</p>`
   return out;
 }
 
@@ -240,17 +239,6 @@ function vrow(v, using, over, x){
     <span class="rad"></span><span class="n">v${esc(v.n)}</span><span class="tx">${x.full ? marked(v.text, over ?? using?.text ?? '') : gist(v.text, over ?? using?.text ?? '')}</span>
     <span class="acts"><button class="ghost sm" data-act="compare" data-v="${esc(v.id)}" title="${esc(t('edit.compareTitle'))}" aria-label="${esc(t('edit.compareTitle'))}">${icon('compare')}</button>${delBtn(`data-act="delete-version" data-v="${esc(v.id)}"`, t('edit.deleteV', { v: v.n }), { text: false })}</span>
     ${vtags(v, x)}</div>`;
-}
-
-// Under the claim's heading: Keep (its on/off is the chip's tick). 🗑 deletes the claim and every version of it.
-// deletable: the claim is one of an entry's, not a title or a summary.
-// archived: null for a claim that can't be archived, else whether it is.
-// ask ({ name, n }): the claim has more than one version and its 🗑 was pressed once: the question, under the row.
-export function claimHead({ kept = false, deletable = false, archived = null, ask = null }){
-  const del = deletable ? delBtn('data-act="delete-claim"', t('career.deleteClaim'), { text: false }) : '';
-  const arch = archived === null ? '' : `<button class="ghost sm" data-act="${archived ? 'unarchive-claim' : 'archive-claim'}" title="${esc(t(archived ? 'arch.unarchiveTitle' : 'arch.archiveTitle'))}">${h(archived ? 'arch.unarchive' : 'arch.archive')}</button>`;
-  return `<div class="ctlrow"><span class="grow"></span>
-      <button class="keep sm" data-act="keep" aria-pressed="${kept}" title="${esc(t('edit.keepTitle'))}" aria-label="${esc(t('edit.keepTitle'))}">${icon('pin', { role: 'control' })}</button>${arch}${del}</div>${ask ? delAskHtml(t('ux6r.delClaimAsk', { name: clip(ask.name, 60), n: ask.n }), 'data-act="delete-claim" data-sure="1"', t('ux1.delete'), 'data-act="delete-claim-no"') : ''}`;
 }
 
 // One text box that adds on Enter (Shift+Enter is a new line). The button is only a visible way to do the same.
@@ -340,4 +328,28 @@ export function depthHtml(levels, { where = 'card', lock = null, show = null, fi
     fix && `<button type="button" class="dp-t dp-fix${fix.del ? ' del' : ''}" data-act="${fix.act}" aria-label="${esc(fix.name)}" title="${esc(fix.name)}"${fix.disabled ? ' aria-disabled="true"' : ''}>${icon(fix.del ? 'delete' : fix.icon, { role: fix.del ? 'control' : 'inline' })}</button>`,      // last: a remove stands at the end
   ].filter(Boolean);
   return `<nav class="depth sm" aria-label="${esc(t(where === 'page' ? 'ux6f.depthPage' : 'ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '', i)).join('<span class="dp-s" aria-hidden="true">›</span>')}${tools.length ? `<span class="dp-tools">${tools.join('')}</span>` : ''}${back ? `<button type="button" class="dp-t dp-back" data-act="chip-back" aria-label="${esc(t('ux6f.backTo', { name: back.word }))}">${icon('revert', { role: 'inline' })}</button>` : ''}</nav>`;
+}
+
+// The editor card's top row, the same at every depth: the tick and the padlock of what is selected (the chip's own buttons, `show` and `lock` as
+// depthHtml takes them), the version menu (a line: `vers` { fact, n, items: [{ id, n, cur, mine, gist }], miss, locked }), ↑ ↓ only among siblings
+// (`move` { first, last }), ⋯ (`more`: [{ act, label, attrs, del }]), and at its right end the add for this level (`add` { label }). A menu is its
+// button's next sibling, hidden until the button opens it (edit.js).
+export function topHtml({ name = '', lock = null, show = null, fix = null, vers = null, move = null, more = [], add = null } = {}){
+  const tb = (cls, act, name, html, attrs = '', hint = '') => `<button type="button" class="ctb ${cls}" data-act="${act}" ${attrs} aria-label="${esc(name)}" data-tip="${esc(name)}|${esc(hint)}" data-tip-pos="b">${html}</button>`;
+  const showL = show && t(show.on ? 'ux6c.hideX' : 'ux6c.showX', { name: show.name });
+  const lockL = lock && (lock.byName ? t('ux6c.lockedUnder', { name: lock.byName }) : t(lock.on ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lock.name }));
+  const group = [
+    show && `<button type="button" class="dp-t dp-show" data-act="chip-on" data-kind="${esc(show.kind)}" data-id="${esc(show.id)}" aria-label="${esc(showL)}" title="${esc(showL)}"${show.disabled ? ' aria-disabled="true"' : ''}>${pillHtml(show.on)}</button>`,
+    lock && `<button type="button" class="dp-t dp-lock${lock.on ? ' is-locked' : ''}${lock.byName ? ' inherited' : ''}" data-act="lock-toggle" data-id="${esc(lock.id)}" aria-pressed="${lock.on}" aria-label="${esc(lockL)}" title="${esc(t(lock.on ? 'uxr.locked' : 'uxr.unlocked'))}"${lock.byName ? ' aria-disabled="true"' : ''}>${icon(lock.on ? 'lock' : 'unlock', { role: 'inline' })}</button>`,
+  ].filter(Boolean).join('');
+  const verHtml = !vers ? '' : vers.miss
+    ? tb('cver miss', 'ob-miss', t('ml2.tagMiss', { v: vers.miss.n, lang: langName(vers.miss.from) }), `v${esc(vers.miss.n)} · ${esc(vers.miss.from.toUpperCase())}`, `data-fact="${esc(vers.fact)}"`)
+    : `<span class="cwrap">${tb(vers.mine ? 'cver mine' : 'cver', 'top-menu', vers.mine ? t('ux6g.optMine', { v: vers.n }) : t('card.versions', { v: vers.n }), `<span>v${esc(vers.n)}</span>${vers.items.length ? icon('caret', { role: 'inline' }) : ''}`, `data-m="vers" aria-haspopup="listbox" aria-expanded="false"${vers.mine ? ` title="${esc(t('ux6g.onlyHere'))}"` : ''}${vers.locked || !vers.items.length ? ' disabled' : ''}`)}
+      <div class="cpop cvlist" data-fact="${esc(vers.fact)}" role="listbox" aria-label="${esc(t('ux6g.tagList'))}" hidden>${vers.items.map(o => `<button type="button" class="cvo${o.cur ? ' is-cur' : ''}" role="option" aria-selected="${!!o.cur}" data-act="${o.mine ? 'use-edit' : 'use-version'}" data-v="${esc(o.id ?? '')}"><b>v${esc(o.n)}</b><span>${o.gist}</span></button>`).join('')}</div></span>`;
+  const mv = move && `${tb('cmv', 'top-step', t('card.up'), icon('up', { role: 'inline' }), `data-d="-1" aria-disabled="${!!move.first}"`, keyText('Alt', '↑'))}${tb('cmv', 'top-step', t('card.down'), icon('caret', { role: 'inline' }), `data-d="1" aria-disabled="${!!move.last}"`, keyText('Alt', '↓'))}`;      // (their keys in the hint)
+  const items = [...more, fix && { act: fix.act, label: fix.name, del: fix.del, attrs: fix.disabled ? 'aria-disabled="true"' : '' }].filter(Boolean);
+  const moreHtml = items.length ? `<span class="cwrap">${tb('cmore', 'top-menu', t('card.more'), icon('more', { role: 'inline' }), 'data-m="more" aria-haspopup="menu" aria-expanded="false"')}
+      <div class="cpop cmenu" role="menu" hidden>${items.map(i => `<button type="button" role="menuitem" class="cmi${i.del ? ' del' : ''}" data-act="${i.act}" ${i.attrs ?? ''}>${esc(i.label)}</button>`).join('')}</div></span>` : '';
+  const parts = [group, verHtml, mv, moreHtml].filter(Boolean);
+  return `<div class="ctop"><div class="cchip" role="toolbar" aria-label="${esc(t('card.tools', { name }))}">${parts.join('<i class="csep" aria-hidden="true"></i>')}</div>${add ? `<button type="button" class="cadd" data-act="top-add">+ ${esc(add.label)}</button>` : ''}</div>`;
 }

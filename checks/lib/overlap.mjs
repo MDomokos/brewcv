@@ -7,7 +7,8 @@
 // The pairs the design means, each with why. `touch`: they may overlap by at most this many px (a tab's face over its plate's line); `inside`: the first may stand inside the
 // second's box (nesting), crossing nothing.
 export const ALLOWED = [
-  { a: 'grip', b: 'plate', inside: true, why: 'the grip is a clear button over the left tab of its plate, which draws the dots itself: it stands inside the plate\'s box' },
+  { a: 'grip', b: 'plate', inside: true, left: true, why: 'the grip is a clear button on its line\'s bullet, where the plate draws the dots itself: it stands in the plate\'s height and may cross its left edge' },
+  { a: 'plate', b: 'plate', inside: true, why: 'a written line is a cutout in its block\'s wash: the writing plate stands inside the selection\'s' },
   { a: 'plate', b: 'plus', touch: 3, why: 'on the last line the "+" is the plate\'s bottom tab: its face lies over the plate\'s line' },
   { a: 'chip', b: 'plate', touch: 99, why: 'the depth chip stands on the top edge of the plate of the block it names' },
   { a: 'chip', b: 'ring', touch: 99, why: 'the depth chip stands on the top edge of its frame, which may be a ring behind the selection' },
@@ -101,7 +102,7 @@ export function overlaps({ shapes: list, texts }, { slack = .75 } = {}){
     if (px <= slack) continue;
     const ok = allowed(a, b);
     if (ok && px <= ok.touch) continue;
-    if (ok?.inside){ const [f, o] = a.kind === ok.a ? [a, b] : [b, a]; if (o.moving || within(f.rect, o.rect)) continue; }      // nesting: the first stands inside the second's box (where a gliding one is going)
+    if (ok?.inside){ const [f, o] = a.kind === ok.a ? [a, b] : [b, a]; if (o.moving || within(f.rect, o.rect) || (a.kind === b.kind && within(o.rect, f.rect)) || (ok.left && within(f.rect, { ...o.rect, left: o.rect.left - f.rect.width, width: o.rect.width + f.rect.width }))) continue; }      // nesting: the first stands inside the second's box (where a gliding one is going); `left`: it may cross the left edge by its own width
     if ((a.kind === 'ring' || b.kind === 'ring' || a.kind === 'rail' || b.kind === 'rail') && !a.stroke !== !b.stroke){ const [f, r] = a.stroke ? [b, a] : [a, b]; if (within(f.rect, { left: r.rect.left + r.stroke, top: r.rect.top + r.stroke, width: r.rect.width - 2 * r.stroke, height: r.rect.height - 2 * r.stroke })) continue; }      // nested inside a ring
     pairs.push({ a: a.name, b: b.name, px: Math.round(px * 10) / 10 });
   }

@@ -1,5 +1,5 @@
 // The shortcut sheet: every key the editor answers to, in one place instead of a hint under every panel.
-// It opens from the ? key or the first row of the sidebar's "?" corner (src/ui/shell.js, cornerHtml).
+// It opens from the ? key or the first row of the bar's "?" menu (src/ui/shell.js, appMenuHtml; a phone's "?" corner).
 
 import { t, h } from '../i18n/index.js';
 import { icon } from './icons.js';
@@ -56,7 +56,7 @@ function open(from = null){
 function close(){
   if (!el || el.hidden) return false;
   el.hidden = true; el.innerHTML = '';
-  (opener?.isConnected ? opener : document.querySelector('[data-act=corner]'))?.focus?.();
+  (opener?.isConnected ? opener : document.querySelector('#rail [data-act=menu], [data-act=corner]'))?.focus?.();
   return true;
 }
 

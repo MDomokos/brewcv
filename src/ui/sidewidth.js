@@ -33,7 +33,7 @@ export const foldForAll = L => { if (L && !L.phone && !S.off && escFolds()) togg
 export function syncSide(L){
   document.body.classList.toggle('side-off', !!S.off && !L.phone);
   if (!grip) return;
-  grip.hidden = !!L.phone || !L.railW;      // a phone's sheet and the start screen's column keep their own width
+  grip.hidden = !!L.phone || !!L.bare;      // a phone's sheet and the start screen's column keep their own width
   grip.setAttribute('aria-valuemin', SIDE_MIN);
   grip.setAttribute('aria-valuemax', sideMax(innerWidth));
   grip.setAttribute('aria-valuenow', S.off ? 0 : Math.round(L.col.width));
@@ -68,6 +68,4 @@ export function initSide(col, onChange){
     const k = { ArrowLeft: () => to(now() + step), ArrowRight: () => to(now() - step), Home: () => to(SIDE_MIN), End: () => to(sideMax(innerWidth)), Enter: () => setSide({ w: null, off: false }) }[e.key];
     if (k){ e.preventDefault(); e.stopPropagation(); k(); }
   });
-  // a mode tab opens a folded sidebar (the page then moves: by this control, never by a selection)
-  col.addEventListener('click', e => { if (S.off && e.target.closest?.('.rtabs .tab')) openSide(); }, true);
 }

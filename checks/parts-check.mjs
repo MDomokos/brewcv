@@ -205,14 +205,11 @@ section('one depth indicator: the sidebar’s row is parts.js depthHtml, the chi
   const row = String(u.edit.bulletView({ kind: 'bullet', id, job: job.id, section: 'experience' }));
   const sel = { kind: 'bullet', id, job: job.id, section: 'experience' };
   const chip = u.edit.depthHtml(sel, { page: true });
-  const shape = h => (h.slice(0, h.indexOf('</nav>')).match(/class="[^"]*"/g) ?? []).filter(c => c !== 'class="dp-n"').map(c => c.replace(/ sm\b/, '')).join(',');
-  // (rewritten: one component, the same size, the same words; only its name and its lists' ids say where it is)
-  const same = h => h.slice(0, h.indexOf('</nav>')).replace(/ aria-label="[^"]*"/, '').replace(/dp-(page|card)-/g, 'dp-');
-  // (J, rewritten: the same nav is now the folder tab of the header card, so the view opens with .hdr and its nav is the chip's)
-  ok('the editor card opens with a header (.hdr) whose tab is the same <nav class="depth sm"> the chip draws, word for word, and no old crumb', row.startsWith('<div class="hdr"') && row.includes('<div class="hcard">') && same(row.slice(row.indexOf('<nav'))) === same(chip) && chip.startsWith('<nav class="depth sm"') && !row.includes('class="crumb"'));
+  // (the card's top row replaced its breadcrumb: the page says where the selection is, the card what can be done to it)
+  ok('the editor card opens with its top row: one toolbar (the switch, the padlock, the versions, ⋯) and the add pill, and no breadcrumb or old crumb', row.startsWith('<div class="ctop"><div class="cchip" role="toolbar"') && ['dp-show', 'dp-lock', 'ctb cver', 'ctb cmore', 'class="cadd"'].every(c => row.includes(c)) && !row.includes('class="depth') && !row.includes('class="crumb"') && chip.startsWith('<nav class="depth sm"'));
   ok('the chip has no Esc and no level below', !chip.includes('dp-esc') && !chip.includes('dp-l next'));
   ok('Page › Experience › Hydra on the page: single words, the job current, no line level and no names', (chip.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Hydra<\/span><\/button>/.test(chip) && chip.includes('<span class="dp-w">Experience</span>') && !chip.includes('dp-n'));
-  ok('the sidebar’s row: the chip’s Page › Experience › Hydra, and the card’s title under it names the line in full', (row.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Hydra<\/span>/.test(row) && !row.includes('dp-n') && /<h2 class="title"[^>]*>[^<]+<\/h2>/.test(row));
+  ok('a job’s line: its toolbar is named by the line’s own words, not by its job', /aria-label="Tools for [^"]+"/.test(row) && !row.includes('aria-label="Tools for Hydra"'));
   const sk = u.edit.depthHtml({ kind: 'section', id: 'skills' }, { page: true });
   ok('a section on the page: Page › Skills, a custom heading’s first word, long words cut with an ellipsis', /<span class="dp-w">Skills<\/span>/.test(sk) && !/dp-n/.test(sk));
   ok('a section: Page › Experience; the header: Page › Header (the card as the chip)', /<span class="dp-w">Experience<\/span>/.test(u.edit.depthHtml({ kind: 'section', id: 'experience' })) && /<span class="dp-w">Header<\/span>/.test(u.edit.depthHtml({ kind: 'header' })));
@@ -224,7 +221,7 @@ section('the padlock and the switch on the depth row: one component, a name each
   const job = u.work().work[0], id = job.highlights[0], sel = { kind: 'bullet', id, job: job.id, section: 'experience' };
   const chip = u.edit.depthHtml(sel, { page: true }), row = String(u.edit.bulletView(sel));
   const btn = (h, cls) => (h.match(new RegExp(`<button[^>]*class="dp-t ${cls}[^"]*"[^>]*>`)) ?? [])[0] ?? '';
-  ok('the chip and the sidebar’s row both end with a padlock and a switch, in that order, inside the nav', [chip, row].every(h => /<span class="dp-tools"><button[^>]*dp-lock[^>]*>.*<\/button><button[^>]*dp-show[^>]*>.*<\/button><\/span><\/nav>/s.test(h)));
+  ok('the chip ends with a padlock and a switch inside the nav; the card’s toolbar starts with the same switch and padlock', /<span class="dp-tools"><button[^>]*dp-lock[^>]*>.*<\/button><button[^>]*dp-show[^>]*>.*<\/button><\/span><\/nav>/s.test(chip) && /<div class="cchip"[^>]*><button[^>]*dp-show[^>]*>.*?<\/button><button[^>]*dp-lock/s.test(row));
   ok('the padlock is a button named for what the chip names, not pressed, and says Lock; the show/hide button holds the tick (.pillsw, drawn as a tick), says Hide and has no aria-pressed (a button is named for what it will do)', /aria-pressed="false" aria-label="Lock the line in /.test(btn(chip, 'dp-lock')) && /aria-label="Hide the line in [^"]* from this resume"/.test(btn(chip, 'dp-show')) && !/aria-pressed/.test(btn(chip, 'dp-show')) && /class="pillsw on"/.test(chip) && /data-act="lock-toggle" data-id="/.test(btn(chip, 'dp-lock')));
   ok('the header, a heading and the page have a padlock and no switch', [{ kind: 'header', id: 'name' }, { kind: 'section', id: 'experience', heading: true }].every(x => { const h = u.edit.depthHtml(x, { page: true }); return /dp-lock/.test(h) && !/dp-show/.test(h); }));
   u.store.commit(d => { d.cur.locked = [id]; }, 'lock');

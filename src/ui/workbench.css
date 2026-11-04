@@ -46,7 +46,7 @@
   /* the plate: a block's own outline, one shape per level (line, group, job, section) and four heights: hover, selected, writing, lifted. Selection ink is
      what you act on; the preview accent is what the app shows you. The colours follow each drink and theme through --sel-mark and --prev-mark (below); the page's frame
      (src/ui/sheet.js) and the grip, the "+" and the socket over it all read these and nothing else. */
-  --plate-off-line: 4px; --plate-off-group: 2px; --plate-off-job: 6px; --plate-off-section: 12px; --plate-k-job: .8; --plate-k-section: .7; --plate-r: 2px; --plate-hair: 1px; --plate-line: 1px; --plate-write: .5px; --plate-lift: 3px 4px 0;
+  --plate-off-line: 4px; --plate-off-group: 2px; --plate-off-job: 6px; --plate-off-section: 12px; --plate-k-job: .8; --plate-k-section: .7; --plate-r: 2px; --plate-hair: 1px; --plate-line: 1px; --plate-lift: 3px 4px 0;
   --plate-tab-w: 14px; --plate-glide: 180ms;      /* --plate-glide: how long the plate (and the "+" joining it) takes from one shape or block to the next, ease-out */
   --plate-ink: var(--sel-mark); --plate-ink-hover: color-mix(in srgb, var(--sel-mark) 85%, transparent); --plate-ring: color-mix(in srgb, var(--sel-mark) 30%, transparent);
   --plate-tint-hover: color-mix(in srgb, var(--sel-mark) var(--plate-wash), transparent); --plate-tint-sel: color-mix(in srgb, var(--sel-mark) calc(var(--plate-wash) * 1.5), transparent); --plate-tint-boost: color-mix(in srgb, var(--sel-mark) calc(var(--plate-wash) * 1.4), transparent); --plate-lock-wash: color-mix(in srgb, var(--lock-wash) 65%, transparent);      /* the wash: --plate-wash per drink (lab v2) */
@@ -275,8 +275,6 @@ body.is-ready .paper-skel { display: none; }
 #body[data-mode=outline] { display: flex; flex-direction: column; }      /* the privacy line is the panel's foot: it sits at the bottom, after the list when the list is long */
 #body[data-mode=outline] > * { flex: none; }
 #body[data-mode=outline] > .privacy { margin-top: auto; padding-top: 18px; }
-/* beside the "?": the line stands in the panel's foot band (sidebar.css 8), level with the button, clear of it on the right */
-body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #body[data-mode=outline] > .privacy { position: relative; z-index: 4; display: flex; align-items: center; min-height: 42px; margin: auto 44px -42px 0; padding: 0; }
 .crumb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); margin-bottom: 4px; flex-wrap: wrap; position: relative; min-height: 22px; }
 .crumb a { color: var(--ink-soft); cursor: pointer; text-decoration: underline; text-decoration-color: transparent; }
 .crumb a:hover { color: var(--ink); text-decoration-color: currentColor; }
@@ -1144,40 +1142,17 @@ body:not([data-phone=true]) .savestate { width: 28px; height: 28px; justify-cont
 body:not([data-phone=true]) .col > #head .menu { top: 40px; right: 6px; }
 .col > #head .ib { flex: none; }
 
-/* the constant chrome (name card, name window, undo, redo and the page bars) is one paper-or-espresso look, apart from the editor sheet's own surface */
-html body:not([data-phone=true]):not(.is-intro) :is(.col > #head, .col > .switcher, .rhist) {
+/* the constant chrome (name card, name window, the bar's menu) is one paper-or-espresso look, apart from the editor sheet's own surface */
+html body:not([data-phone=true]):not(.is-intro) :is(.col > #head, .col > .switcher, #rail .appmenu) {
   --surface: var(--chrome); --band-bg: var(--chrome); --raised: var(--chrome-raised); --input: var(--chrome-input); --pop: var(--chrome); --ink: var(--chrome-ink); --ink-soft: var(--chrome-soft); --label: var(--chrome-soft); --faint: var(--chrome-soft);
   --line: var(--chrome-line); --line-strong: var(--chrome-edge); --hover: var(--chrome-hover); --hover-strong: var(--chrome-hover-strong); --fill: var(--chrome-hover); --fill-strong: var(--chrome-hover-strong); --wash: var(--chrome-hover); --seg-bg: transparent;
   --accent: var(--chrome-accent); --on-accent: var(--chrome-on-accent); --accent-soft: transparent; --focus: var(--chrome-accent); --ok: var(--chrome-ok); --warn: var(--chrome-warn); --bad: var(--chrome-bad); --cup-empty: var(--chrome-hover-strong); --cup-stroke: var(--chrome-ink); --menu-ink: var(--chrome-ink); --menu-ink-soft: var(--chrome-soft); --menu-line: var(--chrome-line); --menu-line-strong: var(--chrome-edge); --menu-hover: var(--chrome-hover); color: var(--ink);
 }
 
-/* the rail: left of the sidebar, in the room the layout keeps for it. Three containers: the tabs (touching the editor card), the other
-   screens (dashed, icon only) and undo and redo (at the foot). Hung from the column, so it follows it. */
-.rail { position: absolute; right: 100%; top: 0; bottom: 0; width: 54px; z-index: 2; }
-.rail > * { position: absolute; }
-body:is([data-phone=true], .is-intro, .is-quiet) .rail, .col.is-full > .rail { display: none; }
-.rail .logo { left: 7px; bottom: 0; width: 40px; height: 40px; display: grid; place-items: center; padding: 0; }
-.rail .logo img { width: 30px; height: 30px; }
-.rtabs { left: 0; top: max(var(--tt, 90px), 128px); width: 54px; display: flex; flex-direction: column; gap: 8px; }
-.rtabs .tab { position: relative; flex: none; width: 54px; height: var(--tabh, 58px); padding: 0; display: grid; place-items: center; align-content: center; gap: 3px; border: 0; border-radius: 12px 0 0 12px;
-  background: var(--tab-bg); color: var(--tab-ink); font: 650 11px/1.1 var(--font-ui); white-space: nowrap; box-shadow: inset 0 0 0 1px var(--tab-line); }
-.rtabs .tab:hover:not(:disabled, [aria-selected=true]) { background: color-mix(in srgb, var(--tab-bg) 88%, var(--tea)); border: 0; }
-.rtabs .tab:disabled { opacity: .45; }
-.rtabs .tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
-.rtabs .tab .ti { display: grid; place-items: center; color: var(--tea, var(--tab-ink)); }
-#rail.short-tabs .rtabs .tab .ti { display: none; }      /* a short card's tabs (shell.js placeRail): the name says more than the icon */
-/* the open tab is the editor card's own surface and joins its edge through two inside curves; while the name window has the card's place, none is open */
-.col:not(.is-name) .rtabs .tab[aria-selected=true] { background: var(--surface); color: var(--ink); box-shadow: none; }
-.col:not(.is-name) .rtabs .tab[aria-selected=true] .ti { color: var(--accent); }
-.col:not(.is-name) .rtabs .tab[aria-selected=true]::before, .col:not(.is-name) .rtabs .tab[aria-selected=true]::after { content: ""; position: absolute; right: 0; width: 10px; height: 10px; pointer-events: none; }
-.col:not(.is-name) .rtabs .tab[aria-selected=true]::before { top: -10px; background: radial-gradient(circle at 0 0, transparent 9.5px, var(--surface) 10px); }
-.col:not(.is-name) .rtabs .tab[aria-selected=true]::after { bottom: -10px; background: radial-gradient(circle at 0 100%, transparent 9.5px, var(--surface) 10px); }
 .rbars { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2px; }
 .rmore { flex: 0 0 100%; padding: 0 2px; border: 0; background: transparent; color: var(--ink-soft); font: 700 11px/1 var(--font-mono); border-radius: var(--r-xs); min-height: 24px; }
 .rmore:hover { background: var(--hover-strong); border: 0; }
 .rmore.overflow { color: var(--bad); }
-.rhist { left: 2px; bottom: 48px; width: 50px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 38px; background: linear-gradient(var(--line), var(--line)) center bottom 35px / 30px 1px no-repeat, var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-l); }
-.rhist .ib { width: 32px; height: 32px; }
 
 /* the body: one sheet, or two side by side (Outline and Edit, when the room allows) */
 .col > #body { padding: 14px 16px 14px; scroll-padding: 8px; }

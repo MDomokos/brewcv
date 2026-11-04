@@ -5,7 +5,7 @@
 //  - Fit is in Export only, at the top beside the page bars (the name card has neither Fit nor Saved); its chip (after a Fit that changed something) hangs right under it with no error, and Ctrl+Z undoes;
 //  - the page bars at the top of Export: a click on a bar of a two-page resume brings that page forward, the "+n" goes to the first page not drawn;
 //  - the Outline's counts read n/m, with the words in the tip and for a screen reader;
-//  - an open section is a container (a real group, its own surface and border, no accent bar) that a closed one is not, in the four looks;
+//  - the Outline is a map of the page: each section a named row in its kind's band that enters its card (›), never opening in place, in the four looks;
 //  - a job's or section's name in the Outline wraps without an ellipsis, in ten languages.
 // PW_BUNDLED=1, or CHROME_PATH. Writes nothing.
 
@@ -46,10 +46,11 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
   const { ctx, page } = await open(w, h);
   const col = await rect(page, '#col'), body = await rect(page, '#body');
   const foot = await page.evaluate(() => { const f = document.querySelector('#foot'); return !!f && (f.getClientRects().length > 0 || f.children.length > 0); });
-  ok(`${w}×${h}: there is no footer, and the editor card reaches the column's bottom`, !foot && Math.abs(body.bottom - col.bottom) < 1.5, `${body.bottom} ${col.bottom}`);
+  const bar = await rect(page, '#rail');
+  ok(`${w}×${h}: there is no footer; the bar is the column's foot, and the editor card ends above it`, !foot && Math.abs(bar.bottom - col.bottom) < 1.5 && body.bottom <= bar.top - 4, `${body.bottom} ${bar.top} ${bar.bottom} ${col.bottom}`);
   ok(`${w}×${h}: the name card has neither Fit nor Saved: Fit is not on the page until Export is open`, !(await page.$('#head [data-act=fit], #head .savestate, [data-act=fit]')) && !!(await page.$('#rail .rhist .savestate')));
   await page.evaluate(() => window.__wb.setView('export')); await page.waitForTimeout(300);
-  ok(`${w}×${h}: Fit is once, at the top of Export, beside the page bars`, (await page.$$('[data-act=fit]')).length === 1 && !!(await page.$('#body .exfit [data-act=fit]')) && !!(await page.$('#body .exfit .meter')) && !(await page.$('#head [data-act=fit], #rail [data-act=fit]')));
+  ok(`${w}×${h}: Export has the page bars at its top and no Fit (a desktop has none)`, (await page.$$('[data-act=fit]')).length === 0 && !!(await page.$('#body .exfit .meter')) && !(await page.$('#head .meter, #rail .meter')));
   await ctx.close();
 }
 
@@ -64,11 +65,11 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
   });
   await page.waitForTimeout(900);
   const before = await page.evaluate(() => window.__wb.store.history.undo);
-  await page.click('#body [data-act=fit]');
+  await page.evaluate(() => window.__wb.fit());      // (no button on a desktop: Fit run as a phone's would)
   await page.waitForFunction(() => !window.__wb.ui.fitting, null, { timeout: 30000 });
   await page.waitForTimeout(400);
-  const chip = await rect(page, '.fitchip'), fit = await rect(page, '#body [data-act=fit]'), col = await rect(page, '#col');
-  ok('the Fit chip appears right under the Fit button in Export, inside the column, is a status, and shows without an error', !!chip && chip.top >= fit.bottom && chip.top - fit.bottom < 16 && chip.left >= col.left && chip.right <= col.right + 1 && (await page.getAttribute('.fitchip', 'role')) === 'status' && errors.length === 0, JSON.stringify([chip, fit, errors]));
+  const chip = await rect(page, '.fitchip'), fit = await rect(page, '#body'), col = await rect(page, '#col');
+  ok('the Fit chip appears at the top of the Export panel, inside the column, is a status, and shows without an error', !!chip && chip.top >= fit.top && chip.top - fit.top < 60 && chip.left >= col.left && chip.right <= col.right + 1 && (await page.getAttribute('.fitchip', 'role')) === 'status' && errors.length === 0, JSON.stringify([chip, fit, errors]));
   await page.keyboard.press('Control+z'); await page.waitForTimeout(500);
   ok('Ctrl+Z undoes the Fit, and the chip goes', (await page.evaluate(() => window.__wb.store.history.undo)) <= before + 1 && !(await page.$('.fitchip')) && (await page.evaluate(() => window.__wb.store.history.redo)) >= 1);
   await ctx.close();
@@ -95,19 +96,13 @@ for (const [drink, theme] of [['tea', 'light'], ['tea', 'dark'], ['coffee', 'lig
   const tag = `${drink} ${theme}`;
   const counts = await page.evaluate(() => [...document.querySelectorAll('#outline .osec .scount, #outline .clcount')].map(e => ({ vis: e.querySelector('[aria-hidden=true]')?.textContent ?? e.textContent, sr: e.querySelector('.sr')?.textContent ?? '', tip: e.querySelector('[title]')?.title ?? e.title })).filter(c => c.vis));
   ok(`${tag}: the counts read n/m, and say "n of m on" in the tip and to a screen reader`, counts.length >= 4 && counts.filter(c => /^\d+\/\d+$/.test(c.vis)).every(c => /^\d+ of \d+ on$/.test(c.sr) && c.sr === c.tip) && counts.some(c => /^\d+\/\d+$/.test(c.vis)), JSON.stringify(counts.slice(0, 3)));
-  await page.click('[data-act=ol-toggle][data-g="sec:skills"]'); await page.waitForTimeout(400);
+  // the map: every section is one row, in the band of its kind's hue, with its count and a › that enters its card; none opens in place (no caret)
   const look = await page.evaluate(() => {
-    const cs = e => getComputedStyle(e), open = document.querySelector('#outline .osec.open[data-sid=skills]'), shut = document.querySelector('#outline .osec:not(.open)'), head = open?.querySelector(':scope > .srow');
-    if (!open || !shut) return null;
-    return { role: open.getAttribute('role'), name: open.getAttribute('aria-label'), expanded: open.querySelector('[data-act=ol-toggle]')?.getAttribute('aria-expanded'),
-      openBg: cs(open).backgroundColor, openBorder: cs(open).borderLeftWidth, openBorderColor: cs(open).borderLeftColor, headBg: cs(head).backgroundColor, shutBg: cs(shut).backgroundColor, shutBorder: cs(shut).borderLeftColor === 'rgba(0, 0, 0, 0)' ? '0' : cs(shut).borderLeftWidth, shutExpanded: shut.querySelector('[data-act=ol-toggle]')?.getAttribute('aria-expanded'),
-      gap: parseFloat(cs(open).marginTop) };
+    const cs = e => getComputedStyle(e), rows = [...document.querySelectorAll('#outline.map .osec[data-sid]:not(.is-cont)')];
+    return { n: rows.length, groups: rows.every(r => r.getAttribute('role') === 'group' && !!r.getAttribute('aria-label')), caret: rows.some(r => { const c = r.querySelector('.osecaret'); return c && c.checkVisibility(); }),
+      enter: rows.filter(r => !r.querySelector('.srow.is-off')).every(r => r.querySelector('.ogo[data-act=select-section]')?.checkVisibility()), bands: rows.filter(r => !r.querySelector('.srow.is-off')).map(r => cs(r.querySelector(':scope > .srow')).backgroundColor) };
   });
-  // one sign of containment, the flat card: its edge and surface; the accent bar and the tinted header said it twice more.
-  // every section's head is a band of its kind's hue (one of six), opaque, not a quiet band on the open one only; a closed
-  // section's 1 px edge is transparent (it keeps the tick column).
-  const quiet = c => c === 'rgba(0, 0, 0, 0)' || (+(/\/ ([\d.]+)\)$/.exec(c)?.[1] ?? /rgba\([^)]*, ([\d.]+)\)$/.exec(c)?.[1] ?? 1)) <= 0.12;
-  ok(`${tag}: an open section is a container: a group with a name, aria-expanded on its header, an edge and a surface that a closed one does not have, no accent bar, its head a band of its kind's hue (not a quiet 12% band on the open one only)`, !!look && look.role === 'group' && !!look.name && look.expanded === 'true' && look.shutExpanded === 'false' && parseFloat(look.openBorder) === 1 && parseFloat(look.shutBorder) === 0 && look.openBg !== look.shutBg && look.headBg !== 'rgba(0, 0, 0, 0)' && look.gap >= 4, JSON.stringify(look));
+  ok(`${tag}: the map: each section a named group in one row, the band of its kind's hue, a › into its card and no caret (nothing opens in place)`, look.n >= 6 && look.groups && !look.caret && look.enter && look.bands.every(c => c !== 'rgba(0, 0, 0, 0)'), JSON.stringify(look));
   await ctx.close();
 }
 {
