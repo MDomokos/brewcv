@@ -1862,4 +1862,11 @@ export default {
   'xp.pages': 'As páginas a exportar',
   'xp.prev': 'Currículo anterior',
   'xp.next': 'Currículo seguinte',
+  'close.item': 'Fechar o currículo',
+  'close.none': 'Nenhum currículo aberto',
+  'close.hint': 'Abra um ou crie um novo',
+  'close.tip': 'Abra ou crie primeiro um currículo',
+  'close.undo': 'Fechar o currículo',
+  'close.it': 'Fechá-lo',
+  'close.pick': 'Escolha um currículo para o ver aqui',
 };

@@ -198,7 +198,7 @@ async function boot(){
   persist.onStatus(s => { renderHead(); if (s.code === 'storage-full' && !toldFull) toast(s.error, 'bad'); toldFull = s.code === 'storage-full'; });
   store.subscribe(onChange);
   // an older session may hold a resume that was never saved: save it now, as every change from here on does
-  if (cur() && !store.state.openId) store.commit(() => {}, t('ux1.undoSaveDraft'));
+  if (cur() && !store.state.openId && !store.state.closed) store.commit(() => {}, t('ux1.undoSaveDraft'));
   checkFolder();
   addEventListener('focus', resync);
   setInterval(resync, 5 * 60_000);
@@ -218,7 +218,7 @@ async function boot(){
   // the landing (N8, D4): the address names a place; else one resume opens in the editor, and two or more in the Library, the open resume selected
   if (ui.view !== 'welcome'){
     if (['#resumes', '#compare', '#record'].includes(location.hash)) route();
-    else if (location.hash !== '#resume' && (store.state.resumes?.length ?? 0) >= 2) setView('resumes');
+    else if (store.state.closed || (location.hash !== '#resume' && (store.state.resumes?.length ?? 0) >= 2)) setView('resumes');
     history.replaceState(null, '', hashOf());
   }
   editsOff = !!ui.readOnly;
@@ -549,6 +549,7 @@ const VIEWS = {};
 function setView(v){
   if (files.show(v)){ renderHead(); return; }      // a step of opening a file is a window over the place, which stays as it is
   if (v && !VIEWS[v]) return;
+  if (store.state.closed && (!v || ['design', 'export', 'sent'].includes(v))) v = 'resumes';      // nothing is open: no editor, Look or Export
   const was = ui.view;
   if (v === 'export' && !ui.xp) ui.xp = { ids: [store.state.openId], from: was };      // every way into Export is the place, for the open resume
   if (v !== 'export' && v !== 'sent') ui.xp = null;
@@ -643,16 +644,17 @@ function drawHead(){
     ${ui.readOnly ? `<div class="hrow notice" role="status"><span class="small">${h('i8.readOnly')}</span></div>` : ''}
     ${space.last?.inbox.length ? `<div class="hrow notice"><span class="small">${h('i8.inbox', { n: space.last.inbox.length })}</span><button class="sm" data-act="inbox-read">${h('i8.inboxRead')}</button></div>` : ''}`;
   const savedState = `<span class="savestate ${st.status === 'error' ? 'bad' : 'muted'}" id="savestate" tabindex="0" data-tip="${esc(savedTip())}" data-tip-pos="b">${saved}${st.linked ? `<span class="sr"> · ${esc(t('head.linkedFolder'))}: ${esc(st.linked)}</span>` : ''}</span>`;
-  const mode = dock.modeOf();
-  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''}>${h(key)}</button>`;
+  const mode = dock.modeOf(), closed = !!store.state.closed;
+  const tab = (m, key) => `<button role="tab" id="tab-${m}" data-act="mode" data-m="${m}" aria-selected="${mode === m}" aria-controls="body" tabindex="${mode === m || (m === 'edit' && !['edit', 'record', 'design', 'export'].includes(mode)) ? 0 : -1}" ${(m === 'design' || m === 'record') && ui.snap ? 'disabled' : ''} ${closed && m !== 'record' ? `aria-disabled="true" title="${esc(t('close.tip'))}"` : ''}>${h(key)}</button>`;
   if (!ui.layout?.phone){
     // One name card in every place: a tag line saying what it names, the name, and Export inset at its end.
     // In the Library the ticked resumes win, then the selected one, then the open one; everywhere else it is the open resume.
     const place = SCREENS.includes(ui.view), editorHere = !place, tg = placeOf() === 'library' ? screens.target() : { ids: [store.state.openId], kind: 'open' };
-    const rs = tg.ids.map(id => RS.savedOf(store.state, id)).filter(Boolean), many = rs.length > 1, other = tg.kind !== 'open' ? RS.savedOf(store.state, store.state.openId) : null;
+    const rs = tg.ids.map(id => RS.savedOf(store.state, id)).filter(Boolean), many = rs.length > 1, none = !rs.length && closed, other = tg.kind !== 'open' ? RS.savedOf(store.state, store.state.openId) : null;
     if (!many) ui.deckFold = false;
-    const tag = `<div class="htag"><span class="htagl ${tg.kind !== 'open' ? 'is-other' : ''}">${h(tg.kind === 'ticked' ? 'hc.tagTicked' : tg.kind === 'selected' ? 'hc.tagSel' : 'hc.tagOpen', { n: rs.length })}</span></div>`;
-    const name = editorHere
+    const tag = `<div class="htag"><span class="htagl ${tg.kind !== 'open' ? 'is-other' : ''}">${none ? '' : h(tg.kind === 'ticked' ? 'hc.tagTicked' : tg.kind === 'selected' ? 'hc.tagSel' : 'hc.tagOpen', { n: rs.length })}</span></div>`;
+    const name = none ? `<span class="docname is-none"><span class="dn">${h('close.none')}</span></span>`
+      : editorHere
       ? `<button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>`
       : !many ? `<button class="docname" ${rs[0]?.id === store.state.openId ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(rs[0]?.id ?? '')}"`} title="${esc(t('ux6e.open', { name: resumeName(rs[0]) }))}"><span class="dn">${nameHtml(resumeName(rs[0]))}</span></button>`
         : deckHtml(rs, screens.inspected());
@@ -667,6 +669,7 @@ function drawHead(){
     $('#head').dataset.layers = many ? String(Math.min(rs.length, 3) - 1) : '0';
     $('#head').innerHTML = `
     <div class="hrow top"><div class="hmain">${tag}${name}</div></div>
+    ${none ? `<div class="hrow sentrow"><span class="dnote">${h('close.hint')}</span></div>` : ''}
     ${other ? `<div class="hrow sentrow"><span class="dnote">${h('hc.inEditor', { name: resumeName(other) })}</span></div>` : ''}
     ${editorHere && from ? `<div class="hrow sentrow"><span class="dfrom">${esc(from)}</span></div>` : ''}
     ${editorHere && sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
@@ -677,14 +680,14 @@ function drawHead(){
     drawRail(savedState, many, rs.length ? stub.replace('class="hstub"', 'class="wexport"') : '');      // folded, Export is the way's strip's last cell
   } else {
   $('#ptabs').hidden = true;
-  const meta = r ? [r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
+  const meta = r && !store.state.closed ? [r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
     r.pageLimit === 0 ? t('head.anyLength') : r.pageLimit ? t('head.pages', { n: r.pageLimit }) : null].filter(Boolean).join(' · ') : '';
   const savebtn = `<button class="sm filebtn ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }) + ' · ' + file.text)}">${h('ux3b.saveFile')}<span class="sr"> · ${esc(file.text)}</span></button>`;
   $('#head').innerHTML = `
     <div class="hrow top">
       ${logoBtn(28)}
-      <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { role: 'inline' })}</span></span><span class="dt">${esc(meta)}</span>${from ? `<span class="dfrom">${esc(from)}</span>` : ''}${sent ? `<span class="dsent">${esc(sent)}</span>` : ''}</button>
-      ${r ? langButton(r) : ''}
+      <button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${esc(store.state.closed ? t('close.none') : resumeName(cur()))}<span aria-hidden="true"> ${icon('caret', { role: 'inline' })}</span></span><span class="dt">${esc(meta)}</span>${from ? `<span class="dfrom">${esc(from)}</span>` : ''}${sent ? `<span class="dsent">${esc(sent)}</span>` : ''}</button>
+      ${r && !store.state.closed ? langButton(r) : ''}
       ${savedState}
       ${savebtn}
       <button class="tool" data-act="menu" aria-haspopup="true" aria-expanded="${ui.menu}" title="${esc(t('head.menuTitle'))}" aria-label="${esc(t('head.menuTitle'))}">${icon('more')}</button>
@@ -707,7 +710,7 @@ function deckHtml(rs, insp){
   return `<ul class="hdeck" aria-label="${esc(t('hc.tagTicked', { n: rs.length }))}">${shown.map(r => `<li ${r.id === insp ? 'class="is-insp" aria-current="true"' : ''}>${icon('document', { role: 'inline' })}<span class="hln">${nameHtml(resumeName(r))}</span></li>`).join('')}${more}</ul>`;
 }
 // Export opens the Export place for what the card names, with the view to come back to
-const openExport = () => exporter.open(placeOf() === 'library' ? screens.target().ids : [store.state.openId], ui.view ?? null);
+const openExport = () => { const ids = (placeOf() === 'library' ? screens.target().ids : [store.state.openId]).filter(Boolean); if (ids.length) exporter.open(ids, ui.view ?? null); };
 
 // ---- the bar (a desktop): the app's own level at the column's foot, the same in every place: the brand (home: Resumes), Saved, undo and redo,
 // then the "?" (the one menu: the drink, help, settings and files) and the fold. Folded, it is the bottom strip. ----
@@ -748,14 +751,14 @@ function appMenuHtml(){
 // then Content → Look (this resume's sheets, the card's own folder tabs), then Export inside the card. Only the open tab says its name; the others are
 // drawings, with the name and the key in the tip. In Career and the Library, Content and Look open the resume the card names; with several ticked they rest.
 function drawPlaces(many = false, exp = ''){
-  const pt = $('#ptabs'), here = placeOf(), ed = here === 'editor', mode = dock.modeOf();
+  const pt = $('#ptabs'), here = placeOf(), ed = here === 'editor', mode = dock.modeOf(), closed = !!store.state.closed;
   const cur = ed ? (mode === 'design' ? 'design' : 'edit') : here;
   const tip = (name, line, key) => `${esc(name)}|${esc(line)}${key ? ` ${esc(t('ux6h.key', { key: keyText(key) }))}` : ''}`;
   const face = (k, name) => `${wayIcon(k)}<span class="ww">${esc(name)}</span>`;
   const place = (k, name, key) => `<button class="wtab ${cur === k ? 'is-on' : ''}" data-act="place" data-p="${k}" ${cur === k ? 'aria-current="page"' : ''} data-tip="${tip(name, t(`way.${k}Tip`), key)}" data-tip-pos="b" aria-label="${esc(name)}">${face(k, name)}</button>`;
   const id = placeOf() === 'library' ? screens.target().ids[0] : store.state.openId;
   const sheet = (m, name, key) => `<button role="tab" class="wtab ${cur === m ? 'is-on' : ''}" id="tab-${m}" ${ed ? `data-act="mode" data-m="${m}"` : `data-act="sheet" data-m="${m}" data-id="${esc(id ?? '')}"`} aria-selected="${cur === m}" aria-controls="body"
-    tabindex="${cur === m || (m === 'edit' && cur !== 'design') ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''} ${many ? 'aria-disabled="true"' : ''} data-tip="${tip(name, many ? t('way.oneAtATime') : t(`way.${m}Tip`), key)}" data-tip-pos="b" aria-label="${esc(name)}">${face(m, name)}</button>`;
+    tabindex="${cur === m || (m === 'edit' && cur !== 'design') ? 0 : -1}" ${m === 'design' && ui.snap ? 'disabled' : ''} ${many || closed ? 'aria-disabled="true"' : ''} data-tip="${tip(name, closed ? t('close.tip') : many ? t('way.oneAtATime') : t(`way.${m}Tip`), key)}" data-tip-pos="b" aria-label="${esc(name)}">${face(m, name)}</button>`;
   pt.hidden = false;
   pt.setAttribute('aria-label', t('ux6h.places'));
   const next = pt.cloneNode(false);

@@ -11,7 +11,7 @@ import * as S from '../src/model/schema.js';
 import * as RS from '../src/model/resumes.js';
 import * as R from '../src/model/record.js';
 import { resolve, chooseVariant, setOverride, addLocalLine, setGroupHeading, arrangementOf, setPhoto } from '../src/model/resume.js';
-import { filesOf, createPersist, memoryBackend, memoryFolder, readFolder } from '../src/store/persist.js';
+import { filesOf, createPersist, memoryBackend, memoryFolder, readFolder, makeBackup, readBackup } from '../src/store/persist.js';
 import { createStore } from '../src/store/store.js';
 import { missingList } from '../src/model/lang.js';
 import { validate } from './lib/validate.mjs';
@@ -535,6 +535,24 @@ section('RS.prints: which resumes print a claim, and in which version');
   const r = clone(rs.find(x => RS.prints(model, x, ['hydra-dfm'], 'hydra-dfm-v1')));
   r.overrides = { ...(r.overrides ?? {}), 'hydra-dfm': 'Only here' };
   ok('a text edited on this resume only is the claim, not a version of it', RS.prints(model, r, ['hydra-dfm']) && !RS.prints(model, r, ['hydra-dfm'], 'hydra-dfm-v1'));
+}
+
+section('RS.closeSaved: no resume open, through the save file');
+{
+  const st = exampleState(), id = st.openId, n = st.resumes.length;
+  RS.closeSaved(st);
+  ok('closing leaves no open id, keeps every saved resume, and a blank working copy', st.openId === null && st.closed === true && st.resumes.length === n && !!st.cur && st.cur !== st.resumes[0]);
+  const before = JSON.stringify(st.resumes);
+  RS.settle(st);
+  ok('settle saves nothing while closed: no draft resume appears and none changes', st.resumes.length === n && JSON.stringify(st.resumes) === before && st.openId === null);
+  const back = readBackup(JSON.parse(JSON.stringify(makeBackup(st))));
+  ok('the save file keeps nothing open; one that is not closed opens the first resume as before', back.state.openId === null && back.state.closed === true && back.state.resumes.length === n && !('closed' in makeBackup(exampleState())) && readBackup(JSON.parse(JSON.stringify(makeBackup(exampleState())))).state.openId !== null);
+  RS.openSaved(st, id);
+  ok('opening a resume clears it', st.openId === id && !st.closed);
+  RS.closeSaved(st); RS.newFrom(st, { name: 'Made while closed', start: 'all' });
+  ok('making a resume clears it too, and saves that one', !st.closed && st.openId && RS.savedOf(st)?.name === 'Made while closed');
+  const empty = { record: model, resumes: [], frozen: {}, cur: null, openId: null };
+  ok('a file with no resumes ignores closed', readBackup(JSON.parse(JSON.stringify({ ...makeBackup(empty), closed: true }))).state.closed === undefined);
 }
 
 console.log(failed ? `\n${failed} resumes check(s) FAILED` : '\nall resumes checks passed');

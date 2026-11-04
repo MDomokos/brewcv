@@ -1862,4 +1862,11 @@ export default {
   'xp.pages': 'De pagina’s die worden geëxporteerd',
   'xp.prev': 'Vorig cv',
   'xp.next': 'Volgend cv',
+  'close.item': 'Cv sluiten',
+  'close.none': 'Geen cv geopend',
+  'close.hint': 'Open er een of maak een nieuw cv',
+  'close.tip': 'Open of maak eerst een cv',
+  'close.undo': 'Het cv sluiten',
+  'close.it': 'Sluiten',
+  'close.pick': 'Kies een cv om het hier te zien',
 };

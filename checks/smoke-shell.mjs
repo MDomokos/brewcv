@@ -7955,6 +7955,76 @@ if (want('full screen in the desktop app')) {
   await ctx.close();
 }
 
+if (want('close the open resume')) {
+  // Close resume (the name card's window): the Library with no resume open; Content and Look wait; Career has no lens; a reload keeps it; opening one restores all; Ctrl+Z reopens
+  const st = page => page.evaluate(() => ({ id: window.__wb.store.state.openId, closed: !!window.__wb.store.state.closed, view: window.__wb.ui.view,
+    head: document.querySelector('#head')?.textContent ?? '', stub: !!document.querySelector('#head .hstub, #rail .wexport'), lens: !!document.querySelector('#head .hlens'),
+    off: ['edit', 'design'].map(m => document.querySelector(`#tab-${m}`)?.getAttribute('aria-disabled') === 'true'), tip: document.querySelector('#tab-design')?.dataset.tip ?? document.querySelector('#tab-design')?.title ?? '' }));
+  const closeIt = async page => { await page.click('#docname-btn'); await page.waitForSelector('#switcher [data-act=sw-close]'); await page.click('#switcher [data-act=sw-close]'); await settle(page); };
+  const ctx = await newContext({ viewport: { width: 1536, height: 864 } });
+  const page = await ctx.newPage();
+  const bad = [];
+  page.on('console', m => { if (m.type() === 'error') bad.push(m.text()); });
+  page.on('pageerror', e => bad.push(String(e)));
+  await page.addInitScript(() => { try { localStorage.setItem('rb-help-seen', '1'); localStorage.setItem('rb-esc-fold', 'off'); } catch {} });
+  await page.goto(URL_(''), { waitUntil: 'networkidle' });
+  await page.click('[data-act=ob-example]'); await settle(page);
+  await page.evaluate(() => window.__wb.store.commit(d => { d.record.meta.owner = 'Sam Example'; }, 'smoke: make it mine'));
+  await settle(page);
+  const before = await st(page);
+  ok('a resume is open to begin with, and its card offers Close resume', !!before.id && !before.closed && before.view === null && !before.off[0]);
+  const n0 = await page.evaluate(() => window.__wb.store.state.resumes.length), undo0 = await page.evaluate(() => window.__wb.store.history.undo);
+  await closeIt(page);
+  const a = await st(page);
+  ok('Close resume goes to the Resumes place, with no resume open', a.view === 'resumes' && a.id === null && a.closed, JSON.stringify(a));
+  ok('closing is one undo step and deletes nothing', (await page.evaluate(() => window.__wb.store.history.undo)) === undo0 + 1 && (await page.evaluate(() => window.__wb.store.state.resumes.length)) === n0);
+  ok('the name card says no resume is open, with a hint, and has no Export stub', /No resume open/.test(a.head) && /Open one or start a new resume/.test(a.head) && !a.stub, a.head.slice(0, 120));
+  ok('Content and Look are disabled, with a tip that says to open one', a.off[0] && a.off[1] && /Open or start a resume/.test(a.tip), JSON.stringify(a.off) + a.tip);
+  ok('the Library inspector asks to pick a resume (it lists many), not "No resumes yet"', await page.evaluate(() => /Pick a resume/.test(document.body.textContent) && !/No resumes yet/.test(document.body.textContent)));
+  await page.click('#tab-edit', { force: true }); await settle(page);
+  ok('clicking a disabled tab does nothing', (await st(page)).view === 'resumes');
+  await page.keyboard.press('e'); await settle(page);
+  ok('the E key (the editor place) stays in the Resumes place', (await st(page)).view === 'resumes');
+  await page.click('#ptabs [data-p=career]'); await settle(page);
+  const c = await st(page);
+  ok('Career shows the whole career, with no lens row', c.view === 'record' && !c.lens && (await page.evaluate(() => document.body.dataset.lens)) === '' && /No resume open/.test(c.head));
+  await page.waitForFunction(() => /Saved/.test(document.querySelector('#savestate')?.textContent ?? ''), null, { timeout: 5000 });
+  await settle(page);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 20000 });
+  await settle(page);
+  const r = await st(page);
+  ok('a reload keeps nothing open (in Career, where it was), with the same resumes', r.id === null && r.closed && r.view === 'record' && (await page.evaluate(() => window.__wb.store.state.resumes.length)) === n0, JSON.stringify(r));
+  await page.click('#ptabs [data-p=library]'); await settle(page);
+  await page.click('.rsel[data-act=scr-sel]'); await settle(page);
+  await page.click('#head .docname[data-act=sw-open]'); await settle(page);
+  const o = await st(page);
+  ok('opening a resume from the Library restores everything: open, in the editor, tabs enabled, Export stub back', !!o.id && !o.closed && o.view === null && !o.off[0] && !o.off[1] && o.stub, JSON.stringify(o));
+  const was = o.id;
+  await closeIt(page);
+  await page.keyboard.press('Control+z'); await settle(page);
+  const u = await st(page);
+  ok('Ctrl+Z after Close reopens that resume', u.id === was && !u.closed, JSON.stringify(u));
+  await page.evaluate(() => window.__wb.setView(null)); await settle(page);
+  await closeIt(page);
+  await page.evaluate(() => window.__wb.setView('new')); await settle(page);
+  await page.evaluate(() => window.__wb.setView('resumes')); await settle(page);
+  ok('no console errors with nothing open', bad.length === 0, bad[0] ?? '');
+  await ctx.close();
+
+  // the same on a phone, in a throwaway session
+  const pctx = await newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const ph = await pctx.newPage();
+  const pbad = await open(ph);
+  await closeIt(ph);
+  const p = await st(ph);
+  ok('on a phone: Close resume leaves none open, in the Resumes place, with the name saying so and the sheet tabs waiting', p.id === null && p.closed && p.view === 'resumes' && /No resume open/.test(p.head), JSON.stringify(p).slice(0, 300));
+  await ph.evaluate(() => window.__wb.setView(null)); await settle(ph);
+  ok('on a phone: asking for the editor still shows the Resumes place', (await st(ph)).view === 'resumes');
+  ok('on a phone: no console errors', pbad.length === 0, pbad[0] ?? '');
+  await pctx.close();
+}
+
 await browser.close();
 server.close();
 console.log(failed ? `\n${failed} shell check(s) FAILED` : '\nall shell checks passed');

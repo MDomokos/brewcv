@@ -1862,4 +1862,11 @@ export default {
   'xp.pages': 'Eksportowane strony',
   'xp.prev': 'Poprzednie CV',
   'xp.next': 'Następne CV',
+  'close.item': 'Zamknij CV',
+  'close.none': 'Brak otwartego CV',
+  'close.hint': 'Otwórz jedno lub utwórz nowe',
+  'close.tip': 'Najpierw otwórz lub utwórz CV',
+  'close.undo': 'Zamknij CV',
+  'close.it': 'Zamknij',
+  'close.pick': 'Wybierz CV, aby zobaczyć je tutaj',
 };

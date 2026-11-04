@@ -64,7 +64,7 @@ function html(){
     <span class="swrenbox" id="sw-rnbox" data-rid="${esc(st().openId ?? '')}"><input id="sw-rn" class="sw-q" value="${esc(r?.role ?? '')}" placeholder="${esc(t('resumes.role'))}" aria-label="${esc(t('resumes.role'))}" autocomplete="off" ${open ? '' : 'disabled'}><input id="sw-rn-co" class="sw-q" value="${esc(r?.company ?? '')}" placeholder="${esc(r?.company ? t('resumes.company') : RS.resumeLabel(r))}" aria-label="${esc(t('resumes.company'))}" autocomplete="off" ${open ? '' : 'disabled'}><input id="sw-rn-word" class="sw-q" value="${esc(RS.wordOf(r))}" placeholder="${esc(t('resumes.word'))}" aria-label="${esc(t('resumes.word'))}" autocomplete="off" ${open ? '' : 'disabled'}></span>
     ${parent ? `<p class="muted tiny swfrom">${h('ux6b.duplicatedFrom', { name: RS.resumeLabel(parent) })}</p>` : ''}
     <span class="lbl">${h('edit.thisResume')}</span>
-    <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.dup')}</button>${C.resumes.delHtml(st().openId, !open)}</div>${C.resumes.askHtml(st().openId)}
+    <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${open ? '' : 'disabled'}>${h('ux1.dup')}</button><button class="sm" data-act="sw-close" ${open ? '' : 'disabled'}>${h('close.item')}</button>${C.resumes.delHtml(st().openId, !open)}</div>${C.resumes.askHtml(st().openId)}
     <label class="sr" for="sw-lang">${h('head.langGroup')}</label>
     <div class="swlang">${C.langSelect()}<select id="sw-paper" class="sw-q" aria-label="${esc(t('design.paper'))}"><option value="a4" ${r?.format === 'us-letter' ? '' : 'selected'}>${h('paper.a4')}</option><option value="us-letter" ${r?.format === 'us-letter' ? 'selected' : ''}>${h('paper.letter')}</option></select></div>
     ${search}
@@ -79,7 +79,7 @@ function html(){
   const groups = RS.grouped(list);
   const recent = q ? [] : recentIds().map(id => all.find(r => r.id === id)).filter(Boolean).slice(0, RECENT_N);
   return `<span class="lbl">${h('edit.thisResume')}</span>
-  <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.dup')}</button>${C.resumes.delHtml(st().openId, !st().openId)}</div>${C.resumes.askHtml(st().openId)}
+  <div class="swacts"><button class="sm" data-act="rm-dup" data-id="${esc(st().openId ?? '')}" ${st().openId ? '' : 'disabled'}>${h('ux1.dup')}</button><button class="sm" data-act="sw-close" ${st().openId ? '' : 'disabled'}>${h('close.item')}</button>${C.resumes.delHtml(st().openId, !st().openId)}</div>${C.resumes.askHtml(st().openId)}
   ${search}
   <div id="sw-list" class="swlist" role="group" aria-label="${esc(t('ux1.switcherTitle'))}">
     <button class="swnew" data-act="sw-new">${h('ux1.newResume')}</button>
@@ -151,6 +151,7 @@ function navItems(){ return [...el.querySelectorAll('#sw-rn, #sw-rn-co, #sw-rn-w
 async function act(a, tg){
   switch (a){
     case 'switcher': toggle(); return true;
+    case 'sw-close': if (C.resumes.closeResume()) close(); return true;
     case 'sw-open': if (C.resumes.open(tg.dataset.id)) close(); return true;
     case 'sw-snap': C.resumes.openSnapshot(tg.dataset.id, tg.dataset.sid); close(); return true;
     case 'sw-new': close(); C.setView('new'); return true;

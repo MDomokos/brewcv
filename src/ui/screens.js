@@ -292,7 +292,7 @@ function clearSel(){
 
 // ---- the inspector: the selected resume, or the open one, in the editor panel's place ----
 function resumeInspector(){
-  const r = RS.savedOf(st(), selId()); if (!r) return `<p class="muted">${h('ux1.noneYet')}</p>`;
+  const r = RS.savedOf(st(), selId()); if (!r) return `<p class="muted">${h((st().resumes ?? []).length ? 'close.pick' : 'ux1.noneYet')}</p>`;
   const open = r.id === st().openId, p = RS.parentOf(st(), r);
   const guess = !p && RS.closestTo(st(), r, x => RS.printedIds(C.work(), x))?.r;
   const pend = pendingEdits(r).length;

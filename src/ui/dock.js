@@ -335,7 +335,7 @@ async function act(a, tg){
     case 'zoom-in': zoomBy(1); return true;
     case 'zoom-out': zoomBy(-1); return true;
     case 'zoom-fit': zoomTo(1); return true;
-    case 'mode': setMode(tg.dataset.m); return true;
+    case 'mode': if (tg.getAttribute('aria-disabled') !== 'true') setMode(tg.dataset.m); return true;
     case 'goto-page': C.goToPage(Number(tg.dataset.page)); return true;
   }
   return false;

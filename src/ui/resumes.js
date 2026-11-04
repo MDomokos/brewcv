@@ -196,6 +196,15 @@ function openSnapshot(rid, sid){
 }
 
 // from: the view to come back to when the dialog is done (the Library's Mark as sent opens that resume first; Export's goes back to Export)
+// Close the open resume: the Library, with none open. One undo step.
+function closeResume(){
+  if (!st().openId || !C.leaveOk()) return false;
+  C.ui.sel = C.NONE; C.setSnap(null);
+  commit(d => RS.closeSaved(d), t('close.undo'));
+  C.setView('resumes');
+  return true;
+}
+
 function markSent(from = null){
   if (C.ui.snap) return;
   V.send = null; V.sentFrom = from;
@@ -212,7 +221,7 @@ async function sendNow(){
   C.setView(V.sentFrom ?? 'export');
   if (!ok && res?.repeated){ C.toast(t('ux1.alreadySent')); return; }
   const to = RS.sendLabel(send);
-  C.toast(res?.added ? (to ? t('ux1.snapSavedTo', { to }) : t('ux1.snapSaved')) : (to ? t('ux1.sendAddedTo', { to }) : t('ux1.sendAdded')));
+  C.toast(res?.added ? (to ? t('ux1.snapSavedTo', { to }) : t('ux1.snapSaved')) : (to ? t('ux1.sendAddedTo', { to }) : t('ux1.sendAdded')), '', false, false, { label: t('close.it'), run: () => closeResume() });
 }
 
 function rerender(){ C.renderHead(); C.renderBody(); C.renderSwitcher(); }
@@ -429,7 +438,7 @@ export function previewSaved(id){
 }
 
 const api = {
-  views: VIEWS, act, bind, newJob, rebuild, markSent, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone, delHtml, askHtml,
+  views: VIEWS, act, bind, newJob, rebuild, markSent, closeResume, newerBanner, open, openSnapshot, rowMenuHtml, moreButton, renameInput, renamingHere, previewSaved, heldRecipe, renameDone, delHtml, askHtml,
   reset(){ V.hover = null; V.menu = null; V.row = null; V.renaming = null; V.nv = null; V.ask = null; },
   closeMenus(){
     if (V.row){ V.row = null; rerender(); return true; }

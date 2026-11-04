@@ -1586,3 +1586,6 @@ html[data-drink="tea"] #mat { background-color: var(--mat-a); background-image:
 html[data-drink="coffee"] #mat { background-color: var(--canvas); background-image:
     linear-gradient(var(--grid-major) 1px, transparent 1px), linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
     linear-gradient(var(--grid-minor) 1px, transparent 1px), linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px), linear-gradient(var(--canvas), var(--canvas)); } 
+/* nothing open: Content, Look (and a phone's tabs) wait; the name card says so, muted */
+.wsheets .wtab[aria-disabled=true], .modes [role=tab][aria-disabled=true] { opacity: .45; cursor: default; }
+#head .docname.is-none { color: var(--muted); cursor: default; }

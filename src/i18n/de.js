@@ -1862,4 +1862,11 @@ export default {
   'xp.pages': 'Die Seiten, die exportiert werden',
   'xp.prev': 'Vorheriger Lebenslauf',
   'xp.next': 'Nächster Lebenslauf',
+  'close.item': 'Lebenslauf schließen',
+  'close.none': 'Kein Lebenslauf geöffnet',
+  'close.hint': 'Öffne einen oder starte einen neuen',
+  'close.tip': 'Öffne oder starte zuerst einen Lebenslauf',
+  'close.undo': 'Lebenslauf schließen',
+  'close.it': 'Schließen',
+  'close.pick': 'Wähle einen Lebenslauf, um ihn hier zu sehen',
 };

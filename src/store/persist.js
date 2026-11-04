@@ -5,6 +5,7 @@
 import { t, keyed } from '../i18n/index.js';
 import { save, serialize, load, saveResume, loadResume, detect, resumeFileName, nameKey, ensureRecordId, dropProto, BODY_KEYS } from '../model/schema.js';
 import { assetRefs } from './store.js';
+import { newResume } from '../model/resume.js';
 import { seedBank } from '../model/skillbank.js';
 import { tick, baseline, opened, floored, foreign, renameActor, cleanClock, keepOpen } from '../model/merge.js';
 
@@ -295,6 +296,7 @@ export function makeBackup(state, { saved = new Date().toISOString(), checkpoint
     ...(state.record?.recordId ? { recordId: state.record.recordId } : {}),
     record: save(state.record),
     resumes: (state.resumes ?? []).map(r => saveResume(state.record, stripId(r), state.frozen?.[r.id] ?? null).file),
+    ...(state.closed && state.resumes?.length ? { closed: true } : {}),      // no resume open
     resumeIds: (state.resumes ?? []).map(r => r.id ?? resumeFileName(r)),      // the ids the clock is keyed by (a resume renamed after it was made has an id its name no longer says)
     ...listsOf(state),
     ...(clock ? { clock, device } : {}),
@@ -373,7 +375,9 @@ function readBackupOf(obj){
     if (got.frozen) frozen[id] = got.frozen;
   }
   const info = { recordId: obj.recordId ?? model.recordId ?? null, saved: obj.saved ?? null, app: obj.app ?? null, clock: cleanClock(obj.clock), device: obj.device ?? null };
-  return { state: { record: model, resumes, frozen, ...cleanLists(obj), cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null }, warnings, info };
+  const closed = obj.closed === true && resumes.length > 0;
+  const open = closed ? { cur: newResume(model, { format: 'a4' }), openId: null, closed: true } : { cur: workingCopy(resumes[0]), openId: resumes[0]?.id ?? null };
+  return { state: { record: model, resumes, frozen, ...cleanLists(obj), ...open }, warnings, info };
 }
 
 // What to do with a file the person opens, given what this browser last saved to a file.

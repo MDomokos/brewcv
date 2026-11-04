@@ -1862,4 +1862,11 @@ export default {
   'xp.pages': 'Exportované stránky',
   'xp.prev': 'Předchozí životopis',
   'xp.next': 'Další životopis',
+  'close.item': 'Zavřít životopis',
+  'close.none': 'Žádný životopis není otevřený',
+  'close.hint': 'Otevři jeden nebo začni nový',
+  'close.tip': 'Nejdřív otevři nebo vytvoř životopis',
+  'close.undo': 'Zavřít životopis',
+  'close.it': 'Zavřít',
+  'close.pick': 'Vyber životopis a uvidíš ho tady',
 };

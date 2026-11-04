@@ -378,7 +378,7 @@ export function applyPlan(d, p, { at = new Date().toISOString() } = {}){
   if (p.start){
     if (/\(fictional\)/.test(d.record?.meta?.owner ?? '')){ delete d.documents; delete d.rounds; delete d.imports; }      // the example's own Library goes with its career
     d.record = fromJsonResume(p.start.read.jsonResume, p.start.read.lang ?? 'en').model;
-    d.resumes = []; d.frozen = {}; d.cur = newResume(d.record, { format: 'a4' }); d.openId = null;
+    d.resumes = []; d.frozen = {}; d.cur = newResume(d.record, { format: 'a4' }); d.openId = null; delete d.closed;
   }
   const made = [];
   for (const f of p.files){

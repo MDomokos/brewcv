@@ -277,8 +277,9 @@ function markListed(){
   let n = 0;
   C.store.commit(d => {
     RS.settle(d);
+    const closed = d.closed;
     for (const id of x.ids){ RS.openSaved(d, id); if (!RS.takeSnapshot(d, { kind, company: d.cur.company ?? '', role: d.cur.role ?? '', date: x.date }).repeated) n++; }
-    if (open) RS.openSaved(d, open);
+    if (open) RS.openSaved(d, open); else if (closed) RS.closeSaved(d);
   }, t('ux1.undoSnapshot'));
   x.sending = false;
   C.toast(t('xp.sentN', { n }));

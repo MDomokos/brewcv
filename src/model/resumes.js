@@ -102,6 +102,7 @@ export function saveNew(state, { name, company, role, forKind, date = today() } 
   state.resumes = [...(state.resumes ?? []), r];
   state.cur = clone(r);
   state.openId = r.id;
+  delete state.closed;
   state.frozen = { ...(state.frozen ?? {}), [r.id]: bodyOf(state, r) };
   return { id: r.id };
 }
@@ -110,7 +111,7 @@ export function saveNew(state, { name, company, role, forKind, date = today() } 
 // refreshed, so what is on the page is always what is saved. A resume that was never saved is saved now. Its language copies
 // take the same change (mirror), so a change to any of them is still one undo step.
 export function settle(state){
-  if (!state?.record || !state.cur) return;
+  if (!state?.record || !state.cur || state.closed) return;      // closed: nothing is open, and the blank `cur` is never saved
   const i = state.openId ? (state.resumes ?? []).findIndex(r => r.id === state.openId) : -1;
   if (i < 0){ saveNew(state); return; }
   const prev = state.resumes[i];
@@ -202,6 +203,7 @@ export function openSaved(state, id){
   state.resumes[i] = snaps?.length ? { ...clone(r), snapshots: snaps } : clone(r);
   state.cur = r;
   state.openId = id;
+  delete state.closed;
   return { held: newerOf(state.record, r), diffs };
 }
 
@@ -287,6 +289,14 @@ export function renameSaved(state, id, name, fields){
     state.cur = { ...state.cur, id: nid, name: r.name, application: r.name, title: r.name, ...(fields && { company: r.company, role: r.role }) };
   }
   return { id: nid };
+}
+
+// Closing the open resume: none is open (`closed`), and `cur` is a blank nothing saves. Opening or making any resume clears it.
+export function closeSaved(state){
+  const gone = state.cur;
+  state.openId = null;
+  state.closed = true;
+  if (state.record) state.cur = newResume(state.record, { format: gone?.format ?? 'a4', lang: gone?.lang ?? 'en', pageLimit: gone?.pageLimit ?? 1 });
 }
 
 // Deleting the open resume opens the newest one left, or a fresh one.

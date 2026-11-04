@@ -1862,4 +1862,11 @@ export default {
   'xp.pages': 'Az exportált oldalak',
   'xp.prev': 'Előző önéletrajz',
   'xp.next': 'Következő önéletrajz',
+  'close.item': 'Önéletrajz bezárása',
+  'close.none': 'Nincs megnyitott önéletrajz',
+  'close.hint': 'Nyiss meg egyet, vagy kezdj újat',
+  'close.tip': 'Előbb nyiss meg vagy kezdj egy önéletrajzot',
+  'close.undo': 'Önéletrajz bezárása',
+  'close.it': 'Bezárás',
+  'close.pick': 'Válassz egy önéletrajzot, hogy itt lásd',
 };

@@ -1866,4 +1866,11 @@ export default {
   'xp.pages': 'The pages being exported',
   'xp.prev': 'Previous resume',
   'xp.next': 'Next resume',
+  'close.item': 'Close resume',
+  'close.none': 'No resume open',
+  'close.hint': 'Open one or start a new resume',
+  'close.tip': 'Open or start a resume first',
+  'close.undo': 'Close the resume',
+  'close.it': 'Close it',
+  'close.pick': 'Pick a resume to see it here',
 };
