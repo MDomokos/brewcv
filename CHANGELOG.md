@@ -1,16 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Changed
-- **Export's formats and "Made for" choices say on hover what each one is good for.**
-- **With a linked folder, Export's backup box says the folder already has everything,** and in the desktop app a button opens that folder.
-- **Sent it? and the backup each end with a full-width button,** level with each other.
-
-### Fixed
-- **The HTML, plain text and JSON buttons fit their names in a narrow panel;** a long name wraps inside its button.
-- **Untranslated texts' dashed outlines no longer overlap** after switching language: texts one under another share one box, the others keep a gap, and the corners follow the theme.
-
 ## 1.9.3 - 2026-11-04
 
 ### Changed
@@ -22,11 +11,16 @@
 - **Export's panel is the sidebar's width,** using its full height, and widens only when its content would not fit.
 - **Export's Download PDF is one big button,** with HTML, plain text and JSON Resume in a quieter row under it.
 - **A download lifts the finished pages for a moment,** with a sheen across them, instead of carrying the page away. Nothing moves under reduced motion.
+- **Export's formats and "Made for" choices say on hover what each one is good for.**
+- **With a linked folder, Export's backup box says the folder already has everything,** and in the desktop app a button opens that folder.
+- **Sent it? and the backup each end with a full-width button,** level with each other.
 
 ### Fixed
 - **The sidebar has its full width from the start;** it no longer widens after the first edit.
 - **Export always shows the whole pages,** even after you zoomed in on a line.
 - **About you opens with the same top row as every other panel;** the old "Page › Header › Name" chip is gone.
+- **The HTML, plain text and JSON buttons fit their names in a narrow panel;** a long name wraps inside its button.
+- **Untranslated texts' dashed outlines no longer overlap** after switching language: texts one under another share one box, the others keep a gap, and the corners follow the theme.
 
 ## 1.9.2 - 2026-11-04
 
