@@ -9,6 +9,7 @@
 
 ### Fixed
 - **The HTML, plain text and JSON buttons fit their names in a narrow panel;** a long name wraps inside its button.
+- **Untranslated texts' dashed outlines no longer overlap** after switching language: texts one under another share one box, the others keep a gap, and the corners follow the theme.
 
 ## 1.9.3 - 2026-11-04
 

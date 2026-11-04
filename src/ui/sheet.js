@@ -74,7 +74,13 @@ li.rb-nobullet::marker { color: transparent; }
 @keyframes rbUnlatch { from { inset: 0; opacity: .45; } to { inset: -7px; opacity: 0; } }
 .rb-prev { outline: var(--plate-line) solid var(--plate-accent); --tint: color-mix(in srgb, var(--plate-accent-tint) calc(var(--pk) * 100%), transparent); }
 .rb-find { outline: var(--plate-hair) solid var(--plate-accent); --tint: color-mix(in srgb, var(--plate-accent-tint) calc(var(--pk) * 100%), transparent); }      /* the search's lines: a second highlight, not the writing one */
-.rb-miss { outline: var(--plate-hair) dashed var(--plate-miss); }      /* a text this resume's language does not have: dashed, the one other dashed thing */
+.rb-miss { outline: var(--plate-hair) dashed var(--plate-miss); border-radius: var(--plate-miss-r); }      /* a text this resume's language does not have: dashed, the one other dashed thing */
+.rb-miss .rb-miss { outline: 0; }      /* inside an untranslated block: that block's box says it */
+.rb-miss.rb-miss-box { position: relative; outline: 0; }      /* a block: its dashed box is drawn, so it can stop short of a neighbour's */
+.rb-miss.rb-miss-box::after { content: ''; position: absolute; left: calc(-1 * var(--po)); right: calc(-1 * var(--po)); top: calc(-1 * var(--mt, var(--po))); bottom: calc(-1 * var(--mb, var(--po)));
+  border: var(--plate-hair) dashed var(--plate-miss); border-radius: var(--plate-miss-r); pointer-events: none; }
+.rb-miss.rb-miss-on::after { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }      /* joined to the one under it */
+.rb-miss.rb-miss-under::after { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
 /* lifted: no outline (shading, not edges), the hover wash over the paper (in the block and its stand-off) and a small lift shadow */
 ::highlight(rb-mark) { background-color: var(--mark-fill); color: inherit; }      /* the highlights of a line while it is written (onpage.js) */
 .rb-lift { position: relative; }
@@ -119,7 +125,7 @@ html.rb-ui .rb-newword.rb-warned { outline: 2px solid var(--plate-miss); }
 
 // The plate's tokens (workbench.css, per drink and theme) wear the same names in the frame. The frame's document is a separate page, so they are copied across as custom
 // properties: on the frame's root, which the resume's own stylesheets never read, and which is not in an export.
-const PLATE_TOKENS = ['off-line', 'off-group', 'off-job', 'off-section', 'k-job', 'k-section', 'wash', 'r', 'hair', 'line', 'write', 'glide', 'lift', 'ink', 'ink-hover', 'ring', 'tint-hover', 'tint-sel', 'accent', 'accent-tint', 'miss', 'lift-sh', 'inner', 'tint-boost', 'lock-wash'].map(n => `--plate-${n}`);
+const PLATE_TOKENS = ['off-line', 'off-group', 'off-job', 'off-section', 'k-job', 'k-section', 'wash', 'r', 'hair', 'line', 'write', 'glide', 'lift', 'ink', 'ink-hover', 'ring', 'tint-hover', 'tint-sel', 'accent', 'accent-tint', 'miss', 'miss-r', 'lift-sh', 'inner', 'tint-boost', 'lock-wash'].map(n => `--plate-${n}`);
 function paintMarks(doc){
   const cs = getComputedStyle(document.documentElement);
   // the page's edge follows the contrast setting: the sharper look is the default, the softer one is the old look
@@ -465,7 +471,7 @@ export function createSheet(host, hooks = {}){
   function mark(){ markEls(); paintPlates(); }
   function markEls(){
     if (!fr) return;
-    for (const el of fr.doc.querySelectorAll('.rb-sel, .rb-scope, .rb-fade, .rb-prev, .rb-find, .rb-miss, .rb-miss-tab')) el.classList.remove('rb-sel', 'rb-scope', 'rb-fade', 'rb-prev', 'rb-find', 'rb-miss', 'rb-miss-tab');
+    for (const el of fr.doc.querySelectorAll('.rb-sel, .rb-scope, .rb-fade, .rb-prev, .rb-find, .rb-miss, .rb-miss-tab')){ el.classList.remove('rb-sel', 'rb-scope', 'rb-fade', 'rb-prev', 'rb-find', 'rb-miss', 'rb-miss-tab', 'rb-miss-box', 'rb-miss-on', 'rb-miss-under'); el.style.removeProperty('--mt'); el.style.removeProperty('--mb'); }
     paper();
     // texts with no version in the resume's language print in English, outlined
     if (marked.miss && marked.ix){
@@ -475,6 +481,19 @@ export function createSheet(host, hooks = {}){
       }
       for (const el of fr.doc.querySelectorAll('[data-word]')) if (marked.miss.words.has(el.getAttribute('data-word'))) el.classList.add('rb-miss');      // a skill word in its English
       for (const id of marked.miss.headings) for (const t of fr.doc.querySelectorAll(`.band[data-section="${CSS.escape(id)}"] .tab`)) t.classList.add('rb-miss-tab');
+      // untranslated blocks never cross each other's dashed box: one directly under another, the same width, is one box (no line at the join);
+      // any other that would cross stops short, leaving SEP px between the two edges. A skill word (inline) keeps its own outline.
+      const SEP = 4;
+      const boxes = [...fr.doc.querySelectorAll('.rb-miss')].filter(el => !el.parentElement?.closest('.rb-miss') && getComputedStyle(el).display !== 'inline' && getComputedStyle(el, '::after').content === 'none').map(el => ({ el, r: el.getBoundingClientRect(), po: parseFloat(getComputedStyle(el).outlineOffset) || 0 }));
+      for (const x of boxes) x.el.classList.add('rb-miss-box');
+      for (const x of boxes){
+        const below = boxes.filter(y => y !== x && !x.el.contains(y.el) && !y.el.contains(x.el) && y.r.top >= x.r.bottom - 1 && Math.min(x.r.right, y.r.right) - Math.max(x.r.left, y.r.left) > 0).sort((p, q) => p.r.top - q.r.top)[0];
+        if (!below) continue;
+        const gap = Math.max(0, below.r.top - x.r.bottom);
+        if (gap >= x.po + below.po + SEP) continue;
+        if (Math.abs(x.r.left - below.r.left) < 1.5 && Math.abs(x.r.right - below.r.right) < 1.5){ x.el.classList.add('rb-miss-on'); below.el.classList.add('rb-miss-under'); x.el.style.setProperty('--mb', `${gap}px`); below.el.style.setProperty('--mt', '0px'); }
+        else { const m = Math.max(-2, (gap - SEP) / 2); x.el.style.setProperty('--mb', `${m}px`); below.el.style.setProperty('--mt', `${m}px`); }      // a clear gap between the two edges
+      }
     }
     for (const el of findEls()) el.classList.add('rb-find');      // the search's second highlight; the page's own markup is untouched
     pv = marked.hover && marked.ix ? elsOf(marked.hover, marked.ix)[0] ?? null : null;      // a row of the sidebar under the pointer: its block takes the page's one hover plate, a little stronger

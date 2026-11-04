@@ -53,7 +53,7 @@
   --plate-tab-w: 14px; --plate-glide: 180ms;      /* --plate-glide: how long the plate (and the "+" joining it) takes from one shape or block to the next, ease-out */
   --plate-ink: var(--sel-mark); --plate-ink-hover: color-mix(in srgb, var(--sel-mark) 85%, transparent); --plate-ring: color-mix(in srgb, var(--sel-mark) 30%, transparent);
   --plate-tint-hover: color-mix(in srgb, var(--sel-mark) var(--plate-wash), transparent); --plate-tint-sel: color-mix(in srgb, var(--sel-mark) calc(var(--plate-wash) * 1.5), transparent); --plate-tint-boost: color-mix(in srgb, var(--sel-mark) calc(var(--plate-wash) * 1.4), transparent); --plate-lock-wash: color-mix(in srgb, var(--lock-wash) 65%, transparent);      /* the wash: --plate-wash per drink (lab v2) */
-  --plate-accent: var(--prev-mark); --plate-accent-tint: var(--prev-mark-soft); --plate-miss: var(--page-warn);
+  --plate-accent: var(--prev-mark); --plate-accent-tint: var(--prev-mark-soft); --plate-miss: var(--page-warn); --plate-miss-r: var(--r-s);      /* an untranslated text's dashed box: the theme's small radius */
   --plate-lift-sh: var(--press-paper-sh); --plate-inner: color-mix(in srgb, var(--paper-ink) 24%, transparent);
   /* default: tea, light */
   --scheme: dark;

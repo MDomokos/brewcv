@@ -66,7 +66,7 @@ const LEVELS = {
 };
 
 // ---- (a) the frame's stylesheet ----
-const FURNITURE = ['rb-ui', 'rb-single', 'rb-stack', 'rb-shown', 'rb-faded', 'rb-current', 'rb-still', 'rb-cam', 'rb-handing', 'rb-dragging', 'rb-space', 'rb-clip', 'rb-fold', 'rb-writing', 'rb-focus', 'rb-hit', 'rb-previewing', 'rb-sel', 'rb-fade', 'rb-flash', 'rb-miss-tab', 'rb-nobullet', 'rb-words', 'rb-skcarry', 'rb-sknear', 'rb-sknudge', 'rb-wsocket', 'rb-newword', 'rb-warned'];      // (the last six: a skill word carried, written or nudged)
+const FURNITURE = ['rb-miss-box', 'rb-miss-on', 'rb-miss-under', 'rb-ui', 'rb-single', 'rb-stack', 'rb-shown', 'rb-faded', 'rb-current', 'rb-still', 'rb-cam', 'rb-handing', 'rb-dragging', 'rb-space', 'rb-clip', 'rb-fold', 'rb-writing', 'rb-focus', 'rb-hit', 'rb-previewing', 'rb-sel', 'rb-fade', 'rb-flash', 'rb-miss-tab', 'rb-nobullet', 'rb-words', 'rb-skcarry', 'rb-sknear', 'rb-sknudge', 'rb-wsocket', 'rb-newword', 'rb-warned'];      // (the last six: a skill word carried, written or nudged)
 // (hover and selection are drawn by .rb-plate, the shape that moves; rb-hot and rb-sel only mark their blocks, and rb-cool and rb-tab are gone)
 const PLATE_CLASSES = ['rb-plate', 'rb-prev', 'rb-find', 'rb-miss', 'rb-lift', 'rb-card', 'rb-socket', 'rb-drop'];      // (rb-rail, rb-drop: a drag's rail and drop line, in the frame under the lifted block)
 const LOOKS = [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']];
@@ -114,9 +114,9 @@ for (const [drink, theme] of part('a') ? LOOKS : []){
       const out = [];
       for (const [lv, spec] of Object.entries(LV)){
         const el = d.querySelectorAll(spec.sel)[spec.n]; if (!el){ out.push({ lv, missing: true }); continue; }
-        const want = off => read(`outline-offset: var(--plate-off-${off}); border-radius: var(--plate-r)`);
-        const shape = want(spec.token);
+        const want = (off, rr = 'r') => read(`outline-offset: var(--plate-off-${off}); border-radius: var(--plate-${rr})`);
         for (const [cls, c] of Object.entries(CASES)){
+          const shape = want(spec.token, cls === 'rb-miss' ? 'miss-r' : 'r');      // an untranslated text's dashed box: the theme's small radius
           el.classList.add(cls); el.style.setProperty('--plate-paper', '#fff');
           const cs = win.getComputedStyle(el), got = { style: cs.outlineStyle, width: cs.outlineWidth, color: cs.outlineColor, offset: cs.outlineOffset, radius: cs.borderTopLeftRadius, shadow: cs.boxShadow };
           const w = read(`outline-width: var(--plate-${c.w}); outline-color: var(--plate-${c.c})`);
