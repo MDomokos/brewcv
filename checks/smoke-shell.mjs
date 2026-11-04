@@ -1285,9 +1285,10 @@ if (want('scrollbars')) {
   const look = await fits('#body');
   await page.click('#ptabs [data-p=library]'); await settle(page);
   const lib = await fits('#scr #scr-list');
-  ok('a scrollbar never runs past the rounded corners of the shape it is in: the panel (Look) and the Library’s list', look.scrolls && lib.scrolls && !look.off.length && !lib.off.length, JSON.stringify({ look, lib }));
+  const hero = await fits('#body .insp-res .ihero');
+  ok('a scrollbar never runs past the rounded corners of the shape it is in: the panel (Look) and the Library’s list; the preview’s ends 10 px short of the title and buttons', look.scrolls && lib.scrolls && !look.off.length && !lib.off.length && hero.ins >= 10, JSON.stringify({ look, lib, hero }));
   const css = await page.evaluate(() => [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch { return []; } }).map(r => r.cssText).join('\n'));
-  ok('Chromium pulls the track in by the shape’s radius; Firefox (Mullvad) keeps the bar clear with a transparent border on the panel and the list', /::-webkit-scrollbar-track:vertical[^}]*margin-block: var\(--sb-inset/.test(css) && /@supports \(-moz-appearance: none\)[\s\S]*#body[^{]*\{[^}]*border-top: 12px solid transparent/.test(css) && /#scr-list \{[^}]*border-bottom: var\(--r-l\) solid transparent/.test(css));
+  ok('Chromium pulls the track in by the shape’s radius; Firefox (Mullvad) keeps the bar clear with a transparent border on the panel and the list', /(^|\n)::-webkit-scrollbar \{[^}]*width: 10px/.test(css) && /::-webkit-scrollbar-track:vertical[^}]*margin-block: var\(--sb-inset/.test(css) && /@supports \(-moz-appearance: none\)[\s\S]*#body[^{]*\{[^}]*border-top: 12px solid transparent/.test(css) && /#scr-list \{[^}]*border-bottom: var\(--r-l\) solid transparent/.test(css));
   ok('nothing scrollbar-related inside the resume’s iframe', await frameDoc(page, d => [...d.styleSheets].every(s => { try { return [...s.cssRules].every(r => !/scrollbar/.test(r.cssText)); } catch { return true; } })));
   ok('the iframe still hides its own overflow', await frameDoc(page, d => getComputedStyle(d.documentElement).overflow === 'hidden'));
   ok('no console errors', bad.length === 0, bad[0] ?? '');

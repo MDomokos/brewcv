@@ -1431,7 +1431,7 @@ html[data-theme="dark"] { color-scheme: dark; }
     box-shadow: var(--shadow-panel); outline: 1px solid var(--line-strong); outline-offset: -1px; }
   #scr #scr-list { border-bottom: var(--r-l) solid transparent; padding-bottom: calc(32px - var(--r-l)); }
   .col.has-bank > #body { clip-path: inset(0 round var(--r-l)); }      /* the bank's sticky head bleeds into the padding: clipped to the shape instead */
-}
+  .insp-res .ihero { border-block: 10px solid transparent; }      /* the inspector's pages: the bar ends short of the title above and the buttons below (the page's white shows through) */
 }
 ::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -1444,6 +1444,7 @@ html[data-theme="dark"] { color-scheme: dark; }
 /* the resume's own surfaces (the preview, the page, the actual-size view): the paper's ink, as the resume is drawn */
 .ihero, .pages, .actual__scroll, .hoverprev { --sb: color-mix(in srgb, var(--paper-ink) 30%, transparent); --sb-hover: color-mix(in srgb, var(--paper-ink) 55%, transparent); --sb-inset: var(--r-xs); }
 .scr, #scr-list { --sb: color-mix(in srgb, var(--paper-ink) 30%, transparent); --sb-hover: color-mix(in srgb, var(--paper-ink) 55%, transparent); }
+.insp-res .ihero { --sb-inset: 10px; }      /* the inspector's pages: the bar ends short of the title above and the buttons below */
 
 /* the versions list's fold toggle, beside its label */
 .vhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin: 16px 0 6px; }

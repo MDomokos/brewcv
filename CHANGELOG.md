@@ -1,10 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Fixed
-- **Scrollbars stay inside the rounded panels and the Library's pane in Firefox and Mullvad Browser too,** instead of running into the corners.
-
 ## 1.9.3 - 2026-11-04
 
 ### Changed
@@ -32,6 +27,8 @@
 - **Untranslated texts' dashed outlines no longer overlap** after switching language: texts one under another share one box, the others keep a gap, and the corners follow the theme.
 - **Content and Look no longer fade out with several resumes ticked,** and clicking one says why it is off.
 - **The "Made for" tips open above the choices,** so they no longer merge into the PDF button.
+- **Scrollbars stay inside the rounded panels and the Library's pane in Firefox and Mullvad Browser too,** instead of running into the corners.
+- **The resume preview's scrollbar ends short of the title above it and the buttons below.**
 
 ## 1.9.2 - 2026-11-04
 
