@@ -65,9 +65,9 @@ const TARGETS = {
   'first line': { sel: LI, n: 0, dx: 60 },
   'middle line': { sel: LI, n: 2, dx: 60 },
   'last line': { sel: LI, n: -1, dx: 60 },
-  'skill group': { sel: '.skills__items', n: 0, dx: 30 },
-  'job': { sel: '.band[data-section=experience] .role-title', n: 0, dx: 30 },
-  'section': { sel: '.band[data-section=experience] .tab', n: 0, dx: 10 },
+  'skill group': { sel: '.skills__label', n: 0, dx: 10 },
+  'job': { sel: '.band[data-section=experience] .role-title', n: 0, dx: 200 },      // (beside the title's words: over them the pointer is a text cursor and the block has no wash)
+  'section': { sel: '.band[data-section=experience] .tab', n: 0, dx: 10, dy: 40 },      // (below the name, in the tab column)
   'header line': { sel: '.band--header .contact [data-variant], .band--header [data-variant]:not(.name)', n: 0, dx: 10 },
 };
 const WRITES = new Set(['first line', 'middle line', 'last line', 'skill group', 'header line']);
@@ -83,7 +83,7 @@ async function sweep(page, tag, { states = ['rest', 'hover', 'glide', 'selected'
     const w = `${tag} ${Math.round(z * 100)}% ${name}`;
     await rest(page);
     const b = await bring(page, T, z); if (!b){ fails.push(`${w}: not on the page`); continue; }
-    const pt = { x: b.x + Math.min(T.dx, b.width / 2), y: b.y + Math.min(6, b.height / 2) };
+    const pt = { x: b.x + Math.min(T.dx, b.width / 2), y: b.y + (T.dy ?? Math.min(6, b.height / 2)) };
     if (states.includes('rest')) await look(`${w} at rest`);
     if (states.includes('hover')){ await glideTo(page, pt.x, pt.y); await look(`${w} hovered`, ['plate']); }
     if (states.includes('glide')){      // the middle of a glide from the line above (the plate and its grip on their way)

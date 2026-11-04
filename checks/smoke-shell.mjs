@@ -1270,7 +1270,7 @@ if (want('scrollbars')) {
   const bad = await open(page);
   const sb = sel => page.$eval(sel, el => { const c = getComputedStyle(el); return { w: c.scrollbarWidth, c: c.scrollbarColor }; });
   const b = await sb('#body'), p = await sb('#pages');
-  ok('the body card’s scrollbar is thin, in the open tab’s own edge colour (the Outline’s oolong, here)', b.w === 'thin' && /153, 139, 111/.test(b.c), JSON.stringify(b));
+  ok('the body card’s scrollbar is thin, a thumb in the panel’s own ink at 30%', b.w === 'thin' && /\/ 0\.3\)/.test(b.c), JSON.stringify(b));
   ok('the page scroller’s too', p.w === 'thin', JSON.stringify(p));
   ok('nothing scrollbar-related inside the resume’s iframe', await frameDoc(page, d => [...d.styleSheets].every(s => { try { return [...s.cssRules].every(r => !/scrollbar/.test(r.cssText)); } catch { return true; } })));
   ok('the iframe still hides its own overflow', await frameDoc(page, d => getComputedStyle(d.documentElement).overflow === 'hidden'));
@@ -3292,7 +3292,7 @@ if (want('design and theme tokens')) {
   ok('Design opens from the header', (await page.getAttribute('#body', 'data-view')) === 'design');
   await page.click('[data-act=d-set][data-k=preset][data-v=marker]'); await settle(page);
   if (!(await page.$('#d-color'))) await page.click('[data-act=d-custom]');      // (the hex field opens from the last swatch)
-  await page.fill('#d-color', '#9cc3ff'); await settle(page);
+  await page.fill('#d-color', '#9cc3ff'); await page.keyboard.press('Tab'); await settle(page);      // (a code is taken when the field is left)
   ok('any colour recolours the Marker section style', (await tabBg()) === 'rgb(156, 195, 255)' && (await st()).cur.accent === '#9cc3ff' && JSON.stringify((await st()).cur.overlays) === '[]' && (await st()).cur.design.preset === 'marker');
   ok('and says the tab text still reads', /readable/.test(await page.textContent('#body')));
   await page.click('[data-act=d-tpl][data-t=dots]'); await settle(page);
@@ -3390,7 +3390,7 @@ if (want('design and theme settings')) {
   ok('and offered again on A4', !(await page.isDisabled('[data-act=d-set][data-k=size][data-v=small]')));
   await set('colour', 'green');
   if (!(await page.$('#d-color'))) await page.click('[data-act=d-custom]');      // (the hex field opens from the last swatch)
-  await page.fill('#d-color', '#336699'); await settle(page);
+  await page.fill('#d-color', '#336699'); await page.keyboard.press('Tab'); await settle(page);
   ok('any colour sets recipe.accent, and a named colour replaces it', (await st()).cur.accent === '#336699' && (await design()).colour === 'green');
   await set('colour', 'pink');
   ok('…a named colour removes the resume\'s own', !(await st()).cur.accent && (await design()).colour === 'pink');
@@ -3873,13 +3873,13 @@ if (want('drinks: the page marks, exports, no corner at other sizes')) {
   const page = await ctx.newPage();
   const bad = await open(page);
   // the selection's plate (laid over the line) draws a deeper wash and no edge, the wash made from the drink's selection mark (--plate-tint-sel from --sel-mark): read its tint as r,g,b,a
-  const mark = () => frameDoc(page, d => { const p = window.__wb.sheet.plates().find(q => q.role === 'sel'); if (!p) return null; const c = d.defaultView.getComputedStyle(p.div).backgroundColor, n = c.match(/[\d.]+/g).map(Number); return c.startsWith('color(') ? { r: Math.round(n[0] * 255), g: Math.round(n[1] * 255), b: Math.round(n[2] * 255), a: n[3] ?? 1 } : { r: n[0], g: n[1], b: n[2], a: n[3] ?? 1 }; });
+  const mark = () => frameDoc(page, d => { const p = window.__wb.sheet.plates().find(q => q.role === 'sel'); if (!p) return null; const pr = d.createElement('i'); d.body.append(pr); pr.style.backgroundColor = `color-mix(in srgb, ${d.defaultView.getComputedStyle(p.div).backgroundColor} 100%, transparent)`; const c = d.defaultView.getComputedStyle(pr).backgroundColor, n = c.match(/[\d.]+/g).map(Number); pr.remove(); return c.startsWith('color(') ? { r: Math.round(n[0] * 255), g: Math.round(n[1] * 255), b: Math.round(n[2] * 255), a: n[3] ?? 1 } : { r: n[0], g: n[1], b: n[2], a: n[3] ?? 1 }; });
   const near = (t, r, g, b) => !!t && t.a > 0.05 && Math.abs(t.r - r) <= 2 && Math.abs(t.g - g) <= 2 && Math.abs(t.b - b) <= 2;
   await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);      // the line selected, not written (a written line has only its thin outline)
   const amber = await mark();
   ok('tea: the selection mark on the page is amber (the selected plate’s wash, from --sel-mark, inside the frame; no edge)', near(amber, 183, 122, 44), JSON.stringify(amber));
-  await page.keyboard.press('Shift+F'); await page.waitForTimeout(600);
+  await page.keyboard.press('Shift+F'); await page.waitForTimeout(1200);      // (the plate's wash fades from the one drink's colour to the other's)
   const roast = await mark();
   ok('coffee: …and roast ink, changed in place (the same wash, now from the coffee mark)', near(roast, 28, 20, 16), JSON.stringify(roast));
   const clean = await page.evaluate(async () => { const html = await window.__wb.export.buildHtml(); return { html: html.length, leaks: ['--rb-', 'rb-sel', 'data-drink', 'brewmode', 'drinks.css', 'Fira Code'].filter(w => w !== 'Fira Code' && html.includes(w)) }; });
@@ -4846,7 +4846,7 @@ if (want('motion: the thirteen moments play, are off under reduced motion, and l
 
 if (want('nothing over the text')) {
   // After a job, a line and while writing, nothing of the shell's lies over a printed line. Allowed: the page's own frames (the selection
-  // frames, the veil), the writing tools in the right margin, and the layers that hold them. Everything else that is fixed or absolute
+  // frames, the veil), the writing tools in the right margin, the layers that hold them, and the mat behind the page (it takes no pointer and lies under the pages). Everything else that is fixed or absolute
   // (the tip, a pill, a corner, a toast) must stay off every line's box. The tea garden and the motion layer draw no boxes of their own.
   const offenders = page => page.evaluate(() => {
     const wb = window.__wb;

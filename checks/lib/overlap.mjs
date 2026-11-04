@@ -10,6 +10,7 @@ export const ALLOWED = [
   { a: 'grip', b: 'plate', inside: true, left: true, why: 'the grip is a clear button on its line\'s bullet, where the plate draws the dots itself: it stands in the plate\'s height and may cross its left edge' },
   { a: 'plate', b: 'plate', inside: true, why: 'a written line is a cutout in its block\'s wash: the writing plate stands inside the selection\'s' },
   { a: 'plate', b: 'plus', touch: 3, why: 'on the last line the "+" is the plate\'s bottom tab: its face lies over the plate\'s line' },
+  { a: 'plate', b: 'slot', touch: 99, why: 'the photo slot stands on the header, inside the faint plate that a selected header line keeps on its block' },
   { a: 'chip', b: 'plate', touch: 99, why: 'the depth chip stands on the top edge of the plate of the block it names' },
   { a: 'chip', b: 'ring', touch: 99, why: 'the depth chip stands on the top edge of its frame, which may be a ring behind the selection' },
   { a: 'lift', b: 'socket', touch: 1e9, why: 'a lifted block travels over its own socket (where it came from, where it will land)' },

@@ -28,6 +28,8 @@ await new Promise(r => server.listen(PORT, r));
 let failed = 0;
 // a section that cannot find what it needs fails by name and the next one runs
 const run = async (name, fn) => { try { await fn(); } catch (e) { ok(`${name}: the section ran to its end`, false, String(e.message).split('\n').slice(0, 3).join(' ')); } };
+// a sent copy in the Library's side panel: its list is folded under the count until opened
+const sentLine = async page => { if (!(await page.$('#body .idet[data-k=sent][open]'))) await page.click('#body .idet[data-k=sent] > summary'); await page.click('#body .oi-sent .snapline'); };
 const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${!cond && extra ? `  — ${extra}` : ''}`); if (!cond) failed++; };
 const exe = process.env.CHROME_PATH ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(p => fs.existsSync(p));
 const browser = await chromium.launch(exe && !process.env.PW_BUNDLED ? { executablePath: exe } : {});
@@ -381,6 +383,7 @@ await run('skills: + group, and the chip\u2019s tool takes it away again', async
   const g1 = await groups();
   ok('the page\u2019s "+" under the skills adds a group at the end, picked, its heading written at once on the page', g1.split(',').length === g0.split(',').length + 1 && g1.endsWith('~sg-1') && (await page.evaluate(() => window.__wb.ui.sel.id)) === '~g:~sg-1');
   await page.keyboard.press('Escape'); await wait();
+  await page.click('#body .sknames [data-g="~sg-1"]'); await wait();      // (the written group is the picked one: a click on it lets it go, a second picks it)
   await page.click('#body .sknames [data-g="~sg-1"]'); await wait();
   await page.mouse.move(4, 4); await page.waitForTimeout(500);
   const useTool = async () => { await page.click('#body .ctop .cmore'); await page.waitForTimeout(200); await page.locator('#body .ctop .cmenu .cmi', { hasText: /from this resume$/ }).first().click(); };
@@ -421,7 +424,7 @@ await run('delete a sent copy from its own view', async () => {
   ok('(a sent copy exists)', (await state()).snaps === 1);
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
-  await page.click('#body .oi-sent .snapline'); await wait();
+  await sentLine(page); await wait();
   const btns = await page.$$eval('.snapacts button', bs => bs.map(b => b.dataset.act));
   ok('a sent copy\u2019s view has "Delete this sent copy" beside Restore and Duplicate (and still no way to edit it)', btns.join() === 'goto,snap-restore,snap-dup,snap-delete', btns.join());
   await page.click('[data-act=snap-delete]'); await wait();
@@ -432,7 +435,7 @@ await run('delete a sent copy from its own view', async () => {
   await page.evaluate(() => window.__wb.store.commit(d => { d.cur.pageLimit = 3; }, 'check: page limit')); await wait();
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
-  await page.click('#body .oi-sent .snapline'); await wait();
+  await sentLine(page); await wait();
   await page.click('[data-act=snap-restore]'); await wait();
   const lim = () => page.evaluate(() => window.__wb.store.state.cur.pageLimit ?? 1);
   ok('Restore as current prints as the sent copy did, with the Undo button on the toast', (await lim()) !== 3 && !!(await page.$('#toast.on [data-act=toast-undo]')));
@@ -456,7 +459,7 @@ await run('deleting a locked resume or a sent copy asks first', async () => {
   // the sent copy
   await page.click('#docname-btn'); await wait();
   await page.click('#switcher [data-act=sw-manage]'); await wait();
-  await page.click('#body .oi-sent .snapline'); await wait();
+  await sentLine(page); await wait();
   await page.click('[data-act=snap-delete]'); await wait();
   ok('a locked resume’s sent copy asks before it is deleted, naming the locked content', asked.length === 1 && /locked content/.test(asked[0]), asked.join('|'));
   ok('…and No leaves the sent copy', (await state()).snaps === 1);
@@ -487,6 +490,7 @@ await run('deleting a locked resume or a sent copy asks first', async () => {
 await run('remove a language from the record when nothing uses it', async () => {
   const { ctx, page } = await open(1470, 832);
   const wait = () => page.waitForTimeout(700);
+  await page.evaluate(() => { window.__wb.ui.pref = { mode: 'fixed', lang: 'en' }; });      // (the labels this section reads are English: the interface would follow the resume into Czech)
   const langs = () => page.evaluate(async () => { const L = await import('/src/model/lang.js'); return L.langsInUse(window.__wb.store.state.record).join(); });
   // the example has versions and a resume in every language: take Czech's away (and the list to English and German) so that it is a language nothing uses
   await page.evaluate(() => window.__wb.store.commit(d => {

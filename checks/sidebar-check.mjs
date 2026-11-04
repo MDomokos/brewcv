@@ -451,7 +451,7 @@ if (want('lock')){
   // the motion: on with motion, nothing under reduced motion
   for (const motion of [true, false]){
     const ctx = await browser.newContext({ viewport: { width: 1470, height: 832 }, reducedMotion: motion ? 'no-preference' : 'reduce' });
-    await ctx.addInitScript(() => { try { localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: 'en' })); } catch { /* none */ } });
+    await ctx.addInitScript(() => { try { localStorage.setItem('rb-esc-fold', 'off'); localStorage.setItem('rb-ui', JSON.stringify({ mode: 'fixed', lang: 'en' })); } catch { /* none */ } });
     const page = await ctx.newPage();
     await page.goto(`http://localhost:${PORT}/?memory#resume`, { waitUntil: 'networkidle' });
     await page.waitForFunction(() => document.body.classList.contains('is-ready') && (window.__wb?.ui?.fills?.length ?? 0) > 0, null, { timeout: 20000 });

@@ -137,7 +137,8 @@ await run('zones', async () => {
     return { heads: heads.map(h => [h.top, h.top + h.height]), x: li.left + 60, xm: li.left - 6, y0: ex.top - 30, y1: (nx ? R(nx).top : ex.top + ex.height) + 40, k: w.canvas.cam.k, entry: R(d.querySelector('.entry')), tab: R(d.querySelector('.band[data-section=experience] .tab')) };
   });
   const sample = () => page.evaluate(() => { const p = window.__wb.sheet.plates().find(q => q.role === 'hot'); if (!p) return null; const r = p.div.getBoundingClientRect(), k = window.__wb.canvas.cam.k; return { area: Math.round(r.width * r.height * k * k), big: p.el.matches('.entry, .band') }; });
-  const slop = 4 * geo.k + 1, onHead = y => geo.heads.some(([a, b]) => y >= a - slop && y <= b + slop);
+  // (a press within 5 page px of a heading row is the heading's, and the plate trails the pointer by a sample or two)
+  const slop = 5 * geo.k + 4, onHead = y => geo.heads.some(([a, b]) => y >= a - slop && y <= b + slop);
   for (const [name, x] of [['over the text', geo.x], ['in the lines\' margin', geo.xm]]){
     await page.mouse.move(x, geo.y0 - 20); await page.waitForTimeout(200);
     const rec = [];

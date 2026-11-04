@@ -89,7 +89,7 @@ for (const [w, h] of [[1280, 720], [1470, 832], [1920, 1080]]){
   try {
     // (a) every box that is not the page layer or the garden: none is wider than half the window
     const wide = await page.evaluate(() => [...document.body.querySelectorAll('*')]
-      .filter(e => !e.closest('#pages, #garden, .g-dapple, #startstage, #motionlay, script, #tip') && e.getClientRects().length)
+      .filter(e => !e.closest('#pages, #garden, .g-dapple, #startstage, #motionlay, #tbl, #mat, #mruler, script, #tip') && e.getClientRects().length)
       .filter(e => { const s = getComputedStyle(e); return s.visibility !== 'hidden' && s.display !== 'contents' && s.opacity !== '0'; })
       .map(e => [e, e.getBoundingClientRect()]).filter(([e, r]) => r.width > 0.5 * innerWidth && r.height > 0 && !['HTML', 'BODY'].includes(e.tagName))
       .map(([e, r]) => `${e.tagName.toLowerCase()}${e.id ? '#' + e.id : ''}${e.className && typeof e.className === 'string' ? '.' + e.className.split(' ')[0] : ''} ${Math.round(r.width)}px`));

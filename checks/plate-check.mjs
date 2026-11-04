@@ -66,7 +66,7 @@ const LEVELS = {
 };
 
 // ---- (a) the frame's stylesheet ----
-const FURNITURE = ['rb-ui', 'rb-single', 'rb-stack', 'rb-shown', 'rb-faded', 'rb-current', 'rb-still', 'rb-cam', 'rb-handing', 'rb-dragging', 'rb-space', 'rb-clip', 'rb-fold', 'rb-writing', 'rb-focus', 'rb-hit', 'rb-previewing', 'rb-sel', 'rb-fade', 'rb-flash', 'rb-miss-tab', 'rb-nobullet', 'rb-words'];
+const FURNITURE = ['rb-ui', 'rb-single', 'rb-stack', 'rb-shown', 'rb-faded', 'rb-current', 'rb-still', 'rb-cam', 'rb-handing', 'rb-dragging', 'rb-space', 'rb-clip', 'rb-fold', 'rb-writing', 'rb-focus', 'rb-hit', 'rb-previewing', 'rb-sel', 'rb-fade', 'rb-flash', 'rb-miss-tab', 'rb-nobullet', 'rb-words', 'rb-skcarry', 'rb-sknear', 'rb-sknudge', 'rb-wsocket', 'rb-newword', 'rb-warned'];      // (the last six: a skill word carried, written or nudged)
 // (hover and selection are drawn by .rb-plate, the shape that moves; rb-hot and rb-sel only mark their blocks, and rb-cool and rb-tab are gone)
 const PLATE_CLASSES = ['rb-plate', 'rb-prev', 'rb-find', 'rb-miss', 'rb-lift', 'rb-card', 'rb-socket', 'rb-drop'];      // (rb-rail, rb-drop: a drag's rail and drop line, in the frame under the lifted block)
 const LOOKS = [['tea', 'light'], ['tea', 'dark'], ['coffee', 'light'], ['coffee', 'dark']];
@@ -191,7 +191,7 @@ if (part('c')) {
   // selected: the 2px plate, the ring trail behind it
   const select = {
     line: async () => { const b = await box(page, LEVELS.line.sel, 1); await page.mouse.click(b.x + 60, b.y + 6); await page.waitForTimeout(400); await page.keyboard.press('Escape'); await page.mouse.move(4, 4); await page.waitForTimeout(400); },
-    group: async () => { const b = await box(page, '.skills__items', 0); await page.mouse.click(b.x + 20, b.y + 6); await page.waitForTimeout(400); await page.keyboard.press('Escape'); await page.mouse.move(4, 4); await page.waitForTimeout(400); },
+    group: async () => { const b = await box(page, '.skills__label', 0); await page.mouse.click(b.x + 20, b.y + 6); await page.waitForTimeout(400); await page.keyboard.press('Escape'); await page.mouse.move(4, 4); await page.waitForTimeout(400); },
     job: async () => { await page.click('#outline [data-act=select-section][data-id=experience]'); await page.waitForTimeout(300); await page.click('#body [data-act=select-job][data-id=hydra]'); await page.mouse.move(4, 4); await page.waitForTimeout(400); },
     section: async () => { await page.click('#outline [data-act=select-section][data-id=experience]'); await page.mouse.move(4, 4); await page.waitForTimeout(400); },
   };
@@ -206,7 +206,7 @@ if (part('c')) {
   // writing: the line (and a skill group) is a paper cutout in its block's wash, at the selected stand-off
   for (const lv of ['line', 'group']){
     await rest(page); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(300);
-    const b = await box(page, lv === 'group' ? '.skills__items' : LEVELS.line.sel, lv === 'group' ? 0 : 1);
+    const b = await box(page, lv === 'group' ? '.skills__label' : LEVELS.line.sel, lv === 'group' ? 0 : 1);
     await page.mouse.click(b.x + 30, b.y + 6); await page.waitForTimeout(600);
     const w = await frameDoc(page, d => { const e = d.querySelector('[contenteditable]'); if (!e) return null; const pl = window.__wb.sheet.plates().find(p => p.role === 'write'); if (!pl) return { plate: false }; const pc = d.defaultView.getComputedStyle(pl.div), cs = d.defaultView.getComputedStyle(e), r = d.createElement('i'); d.body.append(r); r.style.cssText = 'background-color: var(--plate-paper)'; const want = d.defaultView.getComputedStyle(r); const o = { rule: pc.outlineStyle === 'none' || parseFloat(pc.outlineWidth) === 0, paper: pc.backgroundColor === want.backgroundColor, blend: pc.mixBlendMode, inner: /inset/.test(pc.boxShadow), bare: cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.boxShadow === 'none', over: +cs.zIndex > +pc.zIndex, hot: window.__wb.sheet.plates().filter(p => p.role !== 'write' && !(p.role === 'sel' && p.el.contains(e))).length, up: window.__wb.sheet.plates().filter(p => p.role === 'sel' && p.el.contains(e) && p.el !== e).length, own: cs.outlineStyle }; r.remove(); return o; });
     ok(`plate: ${lv}: the block above the written line (its job, or its section) keeps one faint plate: where the line is`, !!w && w.up === 1, JSON.stringify(w));
@@ -214,7 +214,7 @@ if (part('c')) {
   }
   // lifted: the plate rises with the larger press shadow, and its home keeps a dashed socket of the same shape
   for (const lv of ['line', 'group', 'job', 'section']){
-    await rest(page); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); }); await page.waitForTimeout(300);
+    await rest(page); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); window.__wb.canvas.reset({ page: 0 }); }); await page.waitForTimeout(900);      // (the first page, where the line and the job are: writing a group on the second left the camera there)
     const spec = LEVELS[lv], home = await box(page, spec.sel, spec.n);
     const grab = lv === 'line' || lv === 'group' ? { x: home.x + 40, y: home.y + 6 } : (b => ({ x: b.x + 30, y: b.y + 6 }))(await box(page, spec.head, 0));
     await glide(page, grab.x, grab.y);
@@ -370,7 +370,7 @@ for (const motion of part('e') ? [true, false] : []){
   const { ctx, page, bad } = await open('tea', 'light', motion);
   await openByName(page, 'Medtech');
   const tag = motion ? 'with motion' : 'reduced motion';
-  const WRITE = { 'a middle line': ['.entry:first-child .bullets li', 2, 60], 'the first line of a job': ['.entry:first-child .bullets li', 0, 60], 'a skill group': ['.skills__items', 0, 20], 'the summary': ['.summary', 0, 40], 'a job title': ['.entry:first-child .role-title', 0, 20] };
+  const WRITE = { 'a middle line': ['.entry:first-child .bullets li', 2, 60], 'the first line of a job': ['.entry:first-child .bullets li', 0, 60], 'a skill group': ['.skills__label', 0, 20], 'the summary': ['.summary', 0, 40], 'a job title': ['.entry:first-child .role-title', 0, 20] };
   for (const [name, [sel, n, dx]] of Object.entries(WRITE)){
     await rest(page); await page.evaluate(() => { window.__wb.ui.sel = { kind: 'none' }; window.__wb.setView(null); window.__wb.canvas.reset({ page: 0 }); }); await page.waitForTimeout(900);      // (the camera comes back out from the writing zoom)
     const b = await box(page, sel, n); if (!b){ ok(`${tag}: ${name} is on the page`, false); continue; }
