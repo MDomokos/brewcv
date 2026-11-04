@@ -1268,10 +1268,26 @@ if (want('scrollbars')) {
   const ctx = await newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
   const bad = await open(page);
-  const sb = sel => page.$eval(sel, el => { const c = getComputedStyle(el); return { w: c.scrollbarWidth, c: c.scrollbarColor }; });
-  const b = await sb('#body'), p = await sb('#pages');
-  ok('the body card’s scrollbar is thin, a thumb in the panel’s own ink at 30%', b.w === 'thin' && /\/ 0\.3\)/.test(b.c), JSON.stringify(b));
-  ok('the page scroller’s too', p.w === 'thin', JSON.stringify(p));
+  // a scroller's bar (10 px; headless hides the real one) runs between its track's ends, pulled in by --sb-inset: its four corners must lie inside
+  // every rounded shape around it, the scroller's own and its panel's or pane's
+  const fits = sel => page.evaluate(sel => {
+    const el = document.querySelector(sel); if (!el) return { sel, none: true };
+    const inside = (x, y, r, rad) => { if (x < r.left - .5 || x > r.right + .5 || y < r.top - .5 || y > r.bottom + .5) return false; const cx = Math.min(Math.max(x, r.left + rad), r.right - rad), cy = Math.min(Math.max(y, r.top + rad), r.bottom - rad); return (x - cx) ** 2 + (y - cy) ** 2 <= rad * rad + 1; };
+    const r = el.getBoundingClientRect(), ins = parseFloat(getComputedStyle(el).getPropertyValue('--sb-inset')) || parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--r-m')), W = 10;
+    const pts = [[r.right - W + 2, r.top + ins], [r.right - 2, r.top + ins], [r.right - W + 2, r.bottom - ins], [r.right - 2, r.bottom - ins]];
+    const off = [];
+    for (let a = el; a && a !== document.body; a = a.parentElement){ const rad = parseFloat(getComputedStyle(a).borderTopLeftRadius); if (rad > 0 && rad < 500) for (const [x, y] of pts) if (!inside(x, y, a.getBoundingClientRect(), rad)) off.push(`${a.id || a.className} r${rad}`); }
+    return { sel, ins, scrolls: el.scrollHeight > el.clientHeight + 1, off: [...new Set(off)] };
+  }, sel);
+  const ink = await page.$eval('#body', el => getComputedStyle(el).getPropertyValue('--sb').trim());
+  ok('the panel’s scrollbar is a thumb in the panel’s own ink at 30%', /30%/.test(ink) && /ink-soft|rgb|color/.test(ink), ink);
+  await page.click('#tab-design'); await settle(page);
+  const look = await fits('#body');
+  await page.click('#ptabs [data-p=library]'); await settle(page);
+  const lib = await fits('#scr #scr-list');
+  ok('a scrollbar never runs past the rounded corners of the shape it is in: the panel (Look) and the Library’s list', look.scrolls && lib.scrolls && !look.off.length && !lib.off.length, JSON.stringify({ look, lib }));
+  const css = await page.evaluate(() => [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch { return []; } }).map(r => r.cssText).join('\n'));
+  ok('Chromium pulls the track in by the shape’s radius; Firefox (Mullvad) keeps the bar clear with a transparent border on the panel and the list', /::-webkit-scrollbar-track:vertical[^}]*margin-block: var\(--sb-inset/.test(css) && /@supports \(-moz-appearance: none\)[\s\S]*#body[^{]*\{[^}]*border-top: 12px solid transparent/.test(css) && /#scr-list \{[^}]*border-bottom: var\(--r-l\) solid transparent/.test(css));
   ok('nothing scrollbar-related inside the resume’s iframe', await frameDoc(page, d => [...d.styleSheets].every(s => { try { return [...s.cssRules].every(r => !/scrollbar/.test(r.cssText)); } catch { return true; } })));
   ok('the iframe still hides its own overflow', await frameDoc(page, d => getComputedStyle(d.documentElement).overflow === 'hidden'));
   ok('no console errors', bad.length === 0, bad[0] ?? '');

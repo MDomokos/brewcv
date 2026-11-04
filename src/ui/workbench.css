@@ -1421,12 +1421,17 @@ html[data-theme="dark"] { color-scheme: dark; }
    panels' --r-panel; --r-m elsewhere), so it never runs into a rounded corner. The colour is --sb, set per surface (the paper's ink on a resume, the panel's
    elsewhere). scrollbar-width / scrollbar-color switch ::-webkit-scrollbar off in Chromium, so they are for Firefox alone (Mullvad Browser too), which has no webkit bars and no way to inset the track: there it is a thin bar in the surface's colour. */
 @supports (-moz-appearance: none) { * { scrollbar-width: thin; scrollbar-color: var(--sb, color-mix(in srgb, var(--ink) 38%, transparent)) transparent; } }
-/* Firefox draws its bar square across a rounded panel's corners and cannot inset it: the scroller is clipped to the panel's shape on the corners it shares with it
-   (the bar's own end is cut with it). --r-l is the panels' radius. */
+/* Firefox (Mullvad Browser too) cannot inset its bar's track, and it draws the bar inside the element's border: so a panel's top and bottom padding
+   become a transparent border of the same size (every panel's padding is 12 px), which keeps the bar clear of the rounded corners without moving a
+   thing inside. The panel's edge, drawn by inset shadows (Tea) or a 1 px border (Coffee), would then sit inside that border: it is an outline at the
+   panel's own edge instead. Panels whose content bleeds into the top padding (the inspector's title, a document's picture, the bank's sticky head) do
+   not scroll as a whole, or are clipped to their shape. The Library's list stops its bar the pane's radius above the pane's rounded foot the same way. */
 @supports (-moz-appearance: none) {
-  #body { clip-path: inset(0 round var(--r-l)); }
-  #scr-list { clip-path: inset(0 round 0 0 var(--r-l) var(--r-l)); }
-  .insp-res .ihero { clip-path: inset(0 round var(--r-l) var(--r-l) 0 0); }
+  body:not([data-phone=true]):not(.is-intro) .col:not(.has-bank) > #body:not(:has(> .insp-res, > .insp-doc)) { border-top: 12px solid transparent !important; border-bottom: 12px solid transparent !important; padding-top: 0 !important; padding-bottom: 0 !important;
+    box-shadow: var(--shadow-panel); outline: 1px solid var(--line-strong); outline-offset: -1px; }
+  #scr #scr-list { border-bottom: var(--r-l) solid transparent; padding-bottom: calc(32px - var(--r-l)); }
+  .col.has-bank > #body { clip-path: inset(0 round var(--r-l)); }      /* the bank's sticky head bleeds into the padding: clipped to the shape instead */
+}
 }
 ::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
 ::-webkit-scrollbar-track { background: transparent; }

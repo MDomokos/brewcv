@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Scrollbars stay inside the rounded panels and the Library's pane in Firefox and Mullvad Browser too,** instead of running into the corners.
+
 ## 1.9.3 - 2026-11-04
 
 ### Changed
