@@ -40,13 +40,27 @@
 .outline .clrow > :is(.cb, .cbnone) { margin: 0 3.5px; }
 .depth .dp-t.dp-show, .depth.sm .dp-t.dp-show { width: 24px; }
 
-/* ---- 3. Titled groups (Settings, Design, Export): one step under the panel's title, one over the uppercase labels; space, no rules, between them ---- */
-.sgroup { margin-top: 14px; }
-.title + .sgroup { margin-top: 0; }
-.sgh { margin: 0 0 2px; font: 750 13.5px/1.3 var(--font-ui); color: var(--ink); overflow-wrap: break-word; }
-.sgh .sgs { font-weight: 500; color: var(--ink-soft); }
-.col > #body .sgh + .lbl { margin-top: 6px; }
+/* ---- 3. Titled groups (Settings, Design, Export): a bold title over a hairline, space before it; inside, quiet labels left of their controls ---- */
+.sgroup { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); }
+.title + .sgroup { margin-top: 0; padding-top: 0; border-top: 0; }
+.sgh { margin: 0 0 6px; font: 750 14.5px/1.3 var(--font-ui); color: var(--ink); overflow-wrap: break-word; }
+.sgh .sgs { font-size: 11.5px; font-weight: 400; color: var(--ink-soft); }
+.col > #body .sgroup .kv > .lbl:has(+ .opts) { grid-column: 1 / -1; }
+.col > #body .sgroup .kv > .opts { grid-column: 1 / -1; }
+.col > #body .sgroup .lbl { text-transform: none; font-family: var(--font-ui); letter-spacing: 0; font-size: 12.5px; color: var(--ink-soft); margin: 6px 0 2px; }
+.col > #body .sgroup .kv { grid-template-columns: 30% minmax(0, 1fr); gap: 6px 8px; margin-top: 2px; }
+.col > #body .sgroup .kv > .lbl { margin: 0; }
+.col > #body .sgroup .kv > .lbl:has(+ .opts) { margin: 2px 0 -2px; }
 .sgh + :is(.note, .small, ul) { margin-top: 4px; }
+.note.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+/* radios drawn as the segmented control: the input covers its label */
+.rseg label { position: relative; flex: 1 1 auto; text-align: center; padding: 3px 6px; font-size: 12px; line-height: 1.2; border-radius: var(--r-s); color: var(--ink-soft); cursor: pointer; }
+.rseg input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.rseg label:has(input:checked) { background: var(--raised); color: var(--ink); box-shadow: var(--shadow-lift); }
+.rseg label:has(input:focus-visible) { outline: 2px solid var(--mark); outline-offset: 1px; }
+html[data-drink="coffee"] .rseg label { border-radius: 0; border-bottom: 2px solid transparent; color: var(--faint); }
+html[data-drink="coffee"] .rseg label:has(input:checked) { background: transparent; box-shadow: none; color: var(--ink); border-bottom-color: var(--ink); }
+.langs-pick input { flex: none; }
 .sgroup.sentrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
 .sgroup.sentrow .sgh { margin: 0; }
 

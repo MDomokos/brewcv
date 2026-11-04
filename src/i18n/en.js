@@ -1440,6 +1440,7 @@ export default {
   'uxs.thisBrowser': 'this browser',
   'uxs.everyResume': 'every resume',
   'uxs.about': 'About this copy',
+  'look.textColour': 'Text and colour',
   'uxr.help': 'Help and info',
   'uxr.locked': 'Locked',
   'uxr.unlocked': 'Unlocked',

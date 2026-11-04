@@ -1436,6 +1436,7 @@ export default {
   'uxs.thisBrowser': 'ez a böngésző',
   'uxs.everyResume': 'minden önéletrajz',
   'uxs.about': 'Erről a példányról',
+  'look.textColour': 'Szöveg és szín',
   'uxr.help': 'Súgó és információ',
   'uxr.locked': 'Zárolva',
   'uxr.unlocked': 'Feloldva',

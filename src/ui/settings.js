@@ -65,20 +65,18 @@ function settingsView(){
   const browser = t('uxs.thisBrowser');
   // grouped by what each acts on, this browser first, then the career
   return `<h2 class="title">${h('set.title')}</h2>
-    ${groupHtml(t('uxs.look'), `<span class="lbl">${h('m11.setDrinkHead')}</span>
-    <div class="uichoice" role="radiogroup" aria-label="${esc(t('m11.setDrinkHead'))}">
-      ${DRINKS.map(d => `<label class="opt"><input type="radio" name="drink" data-drink="${d}" ${drink() === d ? 'checked' : ''}><span class="opt-t">${h(`m11.${d}`)} <span class="muted">· ${h(`m11.${d}Hint`)}</span></span></label>`).join('')}
+    ${groupHtml(t('uxs.look'), `<div class="kv">
+    <span class="lbl">${h('m11.setDrinkHead')}</span>
+    <div class="seg fill rseg" role="radiogroup" aria-label="${esc(t('m11.setDrinkHead'))}">
+      ${DRINKS.map(d => `<label title="${esc(t(`m11.${d}Hint`))}"><input type="radio" name="drink" data-drink="${d}" ${drink() === d ? 'checked' : ''}><span>${h(`m11.${d}`)}</span></label>`).join('')}
     </div>
-    <p class="note">${h('m11.setDrinkNote')}</p>
     <span class="lbl">${h('m11.setThemeHead')}</span>
-    <div class="uichoice" role="radiogroup" aria-label="${esc(t('m11.setThemeHead'))}">
-      ${THEMES.map(m => `<label class="opt"><input type="radio" name="theme" data-theme="${m}" ${themePref() === m ? 'checked' : ''}><span class="opt-t">${h(`m11.theme${m[0].toUpperCase()}${m.slice(1)}`)}</span></label>`).join('')}
+    <div class="seg fill rseg" role="radiogroup" aria-label="${esc(t('m11.setThemeHead'))}" title="${esc(t('m11.themeNote'))}">
+      ${THEMES.map(m => `<label><input type="radio" name="theme" data-theme="${m}" ${themePref() === m ? 'checked' : ''}><span>${h(`m11.theme${m[0].toUpperCase()}${m.slice(1)}`)}</span></label>`).join('')}
     </div>
-    <p class="note">${h('m11.themeNote')}</p>
-    ${sw('data-reduce-motion', readReduce(), h('ux4.reduceMotion'))}
-    <p class="note">${h('ux4.reduceMotionNote')}</p>
-    ${sw('data-garden', readGarden(), h('m11b.garden'))}
-    <p class="note">${h('m11b.gardenNote')}</p>`, browser)}
+    <p class="note">${h('m11.setDrinkNote')}</p></div>
+    <div title="${esc(t('ux4.reduceMotionNote'))}">${sw('data-reduce-motion', readReduce(), h('ux4.reduceMotion'))}</div>
+    <div title="${esc(t('m11b.gardenNote'))}">${sw('data-garden', readGarden(), h('m11b.garden'))}</div>`, browser)}
     ${groupHtml(t('set.uiHead'), `${uiChoice(pref, inUse)}
     <p class="note">${h('set.machineNote')}</p>`, browser)}
     ${groupHtml(t('ux5a.viewHead'), viewSettingsHtml(), browser)}

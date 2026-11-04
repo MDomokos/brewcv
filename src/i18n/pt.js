@@ -1436,6 +1436,7 @@ export default {
   'uxs.thisBrowser': 'este navegador',
   'uxs.everyResume': 'todos os CV',
   'uxs.about': 'Sobre esta cópia',
+  'look.textColour': 'Texto e cor',
   'uxr.help': 'Ajuda e informações',
   'uxr.locked': 'Bloqueado',
   'uxr.unlocked': 'Desbloqueado',

@@ -1436,6 +1436,7 @@ export default {
   'uxs.thisBrowser': 'tento prohlížeč',
   'uxs.everyResume': 'všechny životopisy',
   'uxs.about': 'O této kopii',
+  'look.textColour': 'Text a barva',
   'uxr.help': 'Nápověda a informace',
   'uxr.locked': 'Zamčeno',
   'uxr.unlocked': 'Odemčeno',
