@@ -652,10 +652,10 @@ function drawHead(){
     ${other ? `<div class="hrow sentrow"><span class="dnote">${h('hc.inEditor', { name: resumeName(other) })}</span></div>` : ''}
     ${editorHere && from ? `<div class="hrow sentrow"><span class="dfrom">${esc(from)}</span></div>` : ''}
     ${editorHere && sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
-    ${lensRow}
     ${ui.view === 'compare' ? screens.placeCard('compare') : ''}
     ${rs.length ? stub : ''}
-    ${notices}`;
+    ${notices}
+    ${lensRow}`;
     drawRail(savedState, many, rs.length ? stub.replace('class="hstub"', 'class="wexport"') : '');      // folded, Export is the way's strip's last cell
   } else {
   $('#ptabs').hidden = true;
