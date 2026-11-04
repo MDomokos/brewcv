@@ -241,7 +241,7 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
 #resumes .selbar { position: absolute; bottom: 16px; left: 50%; translate: -50% 0; z-index: 3; display: flex; align-items: center; gap: 10px; width: fit-content; margin: 0; padding: 6px 8px 6px 16px;
   border: 1.5px solid var(--paper-ink); border-radius: var(--r-pill); background: var(--paper); color: var(--paper-ink); font: 600 13px var(--font-ui); box-shadow: var(--shadow-panel); }
 #resumes .selbar[hidden] { display: none; }
-#resumes .selbar :is(button, .ddbtn) { height: 30px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); background-color: transparent; color: var(--paper-ink); box-shadow: none; }
+#resumes .selbar :is(button, .ddbtn) { height: var(--h-ctl); border: 1px solid var(--line-strong); border-radius: var(--r-pill); background-color: transparent; color: var(--paper-ink); box-shadow: none; }
 #resumes .selbar [data-act=scr-clear] { border-color: transparent; text-decoration: underline; text-underline-offset: 3px; }
 #resumes .selbar :is(button, .ddbtn):hover { background-color: var(--paper-hover); }
 /* calm: the ticks are ink, the cards flat, the selected one ringed in ink */
@@ -390,7 +390,7 @@ button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-a
 
 /* ---- the inspector: in the editor panel's place, the same card on every place. The Library's is the selected resume: its first page across
    the panel's full width, its name and details on a card of the panel's own surface over the page's foot (no fade) ---- */
-#body[data-view=inspector] { padding: 14px 16px; overflow-x: hidden; }
+#body[data-view=inspector] { padding: 12px 13px; overflow-x: hidden; }
 .insp { display: grid; gap: 8px; align-content: start; }
 .insp .lbl { margin: 6px 0 0; }
 .insp .oi-name { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
@@ -479,7 +479,7 @@ html[data-motion="reduce"] .hoverprev .hpstrip { transition: none; }
 .scr .checklist .rectl :is(.row, .srow) { background: var(--paper); }
 .scr .checklist .rectl .is-sel { box-shadow: 0 0 0 3px var(--accent) !important; border-color: transparent !important; }
 .insp-rec .scope { margin: 0; padding: 6px 8px; border-radius: var(--r-s); font-size: 12px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
-.insp-rec :is(.insp-open, .insp-prints) { justify-self: start; min-height: 24px; }
+.insp-rec :is(.insp-open, .insp-prints) { justify-self: start; height: var(--h-row); min-height: 0; padding-block: 0; }      /* buttons in a card, and targets of at least 24 px */
 /* the entry's own heading is the inspector's title, not drawn twice (its order mark and Unarchive stay) */
 .insp-rec .clg { display: block !important; border: 0; padding: 0; margin: 0; }
 .insp-rec .clg > .clgh :is(.clcaret, .clname, .clcount) { display: none; }
@@ -598,7 +598,7 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .scr .rrname.hedit { display: inline-flex; width: auto; min-height: 0; padding: 1px 4px; margin: 0 -4px; font-weight: inherit; vertical-align: baseline; }
 .scr .rrin { width: 18em; max-width: 60vw; padding: 1px 6px; font: inherit; }
 .insp-doc .dtext { margin: 0; padding: 10px; white-space: pre-wrap; font-size: 11px; max-height: 240px; overflow: hidden; background: var(--sheet); color: var(--paper-ink); }
-.insp-doc .ihero { margin: -14px -16px 0; overflow: hidden; border-radius: inherit; }
+.insp-doc .ihero { margin: -12px -13px 0; overflow: hidden; border-radius: inherit; }
 .insp-doc :is(.dformats, .dtaken, .dmentions) { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 4px; }
 .insp-doc .dformats button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent); }
 .insp-doc .dpanel { margin: 8px 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-m); }

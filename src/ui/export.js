@@ -184,7 +184,7 @@ function exportView(){
     return `<li class="${cs ? (bad.length ? bad.some(c => c.level === 'bad') ? 'bad' : 'warn' : 'ok') : 'wait'}" data-id="${esc(it.id)}"><span class="exst hic" aria-hidden="true">${cs ? drawn_(bad.length ? 'warn' : 'check') : ''}</span><span class="ct"><b>${esc(it.r.company || RS.resumeLabel(it.r))}</b>${it.r.company && it.r.role ? ` — ${esc(it.r.role)}` : ''} · <span class="muted">${esc(cs ? (bad.length ? bad : cs).map(c => c.text).join(' · ') : t('body.loading'))}</span></span></li>`;
   };
   const files = n > 1 ? ` · ${esc(t('xp.files', { n }))}` : '';
-  const card = (act, title, note, primary = false) => `<button class="${primary ? 'primary' : ''}" data-act="${act}"><b>${title}${files}</b><small>${h(note)}</small></button>`;
+  const card = (act, title, note, primary = false) => `<button class="${primary ? 'primary' : ''}" data-act="${act}" title="${esc(t(note))}"><b>${title}${files}</b><small>${h(note)}</small></button>`;
   const x = xp();
   const sent = many
     ? (x?.sending ? `<div class="xpsend" data-form="xp-send"><label class="field"><span class="lbl inline">${h('ux1.kind')}</span><select id="xp-kind"><option value="company">${h('ux1.kindCompany')}</option><option value="outreach">${h('ux1.kindOutreach')}</option></select></label>

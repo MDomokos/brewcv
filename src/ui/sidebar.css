@@ -250,10 +250,10 @@ html[data-drink="coffee"][data-theme="dark"] { --hue-tint: 46%; --hue-deep: 70%;
 body.is-export :is(#ptabs, #rail, #foot, #corner, #bankcard) { display: none !important; }
 /* the name card steps aside too; a notice in it (the save note, a folder changed, read only) and the app menu stay */
 body.is-export #head:not(:has(.notice, .menu)), body.is-export #head > :not(.notice, .menu) { display: none !important; }
-body.is-export #body { flex: 1 1 auto; max-height: none; padding: 18px 22px 22px; }
+body.is-export #body { flex: 1 1 auto; max-height: none; padding: 12px 13px; }
 body.xp-list #pages { visibility: hidden; }
 .xptop { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.xptop .xpback { min-height: 40px; padding: 0 14px; font: 700 15px var(--font-ui); }
+.xptop .xpback { height: var(--h-ctl); min-height: 0; padding: 0 14px; font: 700 14px var(--font-ui); }
 .xpstep, .xptag { font: 700 11px var(--font-label, var(--font-ui)); letter-spacing: .08em; text-transform: uppercase; }
 .xpstep { color: var(--ink-soft); }
 .xptag { color: var(--ink-soft); }
@@ -261,6 +261,23 @@ body.xp-list #pages { visibility: hidden; }
 #body .xpwhat .title { display: flex; flex-direction: column; margin: 2px 0 0; font-size: 26px; line-height: 1.15; overflow-wrap: anywhere; }
 .xpwhat .xprole { font-size: 17px; font-weight: 600; color: var(--ink-soft); }
 .xpgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* the panel narrowed to the sidebar's width (pages side by side beside it): one box a row */
+body.is-export #body { container: xpanel / inline-size; }
+/* the panel narrowed to the sidebar's width (two pages side by side beside it): it still fits without scrolling. The boxes one a row, Sent it?
+   and the backup side by side, the formats' notes left to their tooltips, the notes under the boxes gone, everything a little tighter */
+@container xpanel (max-width: 440px){
+  .xpgrid { gap: 8px; }
+  .xpgrid > * { grid-column: 1 / -1; }
+  .xpgrid > :is([data-k=sent], [data-k=keep]) { grid-column: auto; }
+  .xpwhat { margin: 10px 0 8px; }
+  #body .xpwhat .title { font-size: 21px; }
+  .xpwhat .xprole { font-size: 15px; }
+  .xpb { padding: 10px 12px; }
+  .xph { margin-bottom: 6px; font-size: 14px; }
+  .xpb .note, .xpb .dl button small { display: none; }
+  #body .xpb .dl button { min-height: 0; height: var(--h-ctl); padding: 0 10px; }
+  .xpb.exstat .checks { margin-top: 4px; }
+}
 .xpb { min-width: 0; margin: 0; padding: 14px 16px; border: 1px solid var(--line-strong, var(--line)); border-radius: var(--r-l); }
 .xpwide, .xpgrid.is-many > [data-k=ready] { grid-column: 1 / -1; }
 .xph { margin: 0 0 10px; font: 700 15px/1.25 var(--font-ui); }
@@ -296,14 +313,14 @@ body.xp-list #pages { visibility: hidden; }
 .xpfig { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; scroll-snap-align: start; }
 .xpfig:only-child { margin: 0 auto; }
 .xpstrip { display: flex; gap: 16px; }
-.xpslot { display: block; overflow: hidden; background: #fff; box-shadow: 0 8px 30px -8px rgb(0 0 0 / .45); }
+.xpslot { display: block; overflow: hidden; background: var(--sheet); filter: var(--page-shadow); }      /* the page's own shadow, as under the editor's page */
 .xpslot iframe { display: block; border: 0; transform-origin: 0 0; pointer-events: none; }
 .xpfig figcaption { max-width: 100%; padding: 2px 10px; border-radius: var(--r-pill); background: var(--paper); box-shadow: var(--shadow-chip); font: 600 13px/1.3 var(--font-ui); color: var(--paper-ink); text-align: center; overflow-wrap: anywhere; }
 .xptravel { position: absolute; top: 50%; translate: 0 -50%; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
 .xptravel[data-d="-1"] { left: 8px; } .xptravel[data-d="1"] { right: 8px; } .xptravel[hidden] { display: none; }
 /* a short window: the panel tightens so it fits without scrolling */
 @media (max-height: 820px){
-  body.is-export #body { padding: 12px 18px 14px; }
+  body.is-export #body { padding: 12px 13px; }
   .xpwhat { margin: 8px 0 10px; }
   #body .xpwhat .title { font-size: 21px; }
   .xpwhat .xprole { font-size: 15px; }
@@ -314,7 +331,7 @@ body.xp-list #pages { visibility: hidden; }
   .xpb .note { margin-top: 5px; }
 }
 @media (max-width: 719px){
-  body.is-export #body { padding: 12px 14px 16px; }
+  body.is-export #body { padding: 12px 13px; }
   .xpgrid { grid-template-columns: minmax(0, 1fr); }
   #body .xpwhat .title { font-size: 21px; }
 }
@@ -372,7 +389,7 @@ body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col.has-bank > #body:
   overflow: auto; margin-top: 8px; padding: 10px 12px 46px; background: var(--surface); border-radius: var(--r-panel);
   box-shadow: var(--shadow-panel), inset 0 0 0 1px var(--line-strong); scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-soft) 30%, transparent) transparent; }
 .bankcard.drop-bank { outline: 2px solid var(--sel-mark); outline-offset: -2px; }
-.wbtop { position: sticky; top: -10px; z-index: 2; margin: -10px 0 4px; padding: 10px 0 6px; background: var(--surface); display: grid; gap: 6px; }
+.wbtop { position: sticky; top: -12px; z-index: 2; margin: -12px 0 4px; padding: 12px 0 6px; background: var(--surface); display: grid; gap: 6px; }
 .wbbar { display: flex; align-items: center; gap: 2px; }
 .ib.wbpen.miss { width: auto; min-width: 28px; padding: 0 5px; gap: 3px; grid-auto-flow: column; }      /* Edit with what is missing beside it */
 .ib.wbpen.miss::after { content: attr(data-miss); font: 650 11px/1 var(--font-mono, monospace); color: var(--page-warn); }      /* drawn, not text: it stays an icon tool with its frame (press.js); its label says it */
@@ -474,7 +491,7 @@ html.wb-carry #handlay .obplus, html.wb-carry #handlay .obgrip { visibility: hid
 body:not([data-phone=true]) .col > #body.is-float { flex: 0 1 auto; margin-top: var(--card-y, 0px); transition: margin-top 220ms var(--m-inout), background-color var(--m-base) var(--m-out); }
 html[data-motion="reduce"] body .col > #body.is-float { transition: none; }
 @media (prefers-reduced-motion: reduce){ body .col > #body.is-float { transition: none; } }
-body.card-float .col > #body.is-float[data-mode] { padding: 10px 12px 12px; }
+body.card-float .col > #body.is-float[data-mode] { padding: 12px 13px; }
 body.card-float #col, body.card-float #col:hover { cursor: default; }
 body.card-float .col > #body[data-mode=outline] > .privacy { margin: 10px 2px 0; min-height: 0; padding: 0; }
 
@@ -553,3 +570,11 @@ body.card-float #body[data-mode=outline] > .pagerow { position: absolute; top: 4
 html[data-motion="reduce"] .is-just, html[data-motion="reduce"] .is-just :is(.sw, .pillsw, input[type=checkbox]) { animation-timing-function: steps(1, end); }
 @media (prefers-reduced-motion: reduce){ .is-just, .is-just :is(.sw, .pillsw, input[type=checkbox]) { animation-timing-function: steps(1, end); } }
 .upshot { background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--shadow-panel); }
+
+/* the height scale in the panels (workbench.css): 22 for a small action in a line, 28 for a chip or a button inside a card, 32 for a field or a bar's button */
+body:not([data-phone=true]) #body :is(.pagelock, .addline, [data-act=d-import], [data-act=d-export], .xpb .filebtn.sm, [data-act=scr-differs], [data-act=doc-sel]) { box-sizing: border-box; height: var(--h-sm); min-height: 0; padding-block: 0; }
+body:not([data-phone=true]) #body .pagelock { width: var(--h-sm); }
+body:not([data-phone=true]) #body .opts button { box-sizing: border-box; height: var(--h-row); min-height: 0; padding-block: 0; }
+body:not([data-phone=true]) #body :is(.field input, .mpf .mpbtn, .list .item[data-act=d-look], [data-act=mark-sent]) { box-sizing: border-box; height: var(--h-ctl); min-height: 0; padding-block: 0; }
+.scr .checklist .recmore .srow { box-sizing: border-box; height: calc(var(--h-ctl) * var(--cz, 1)); padding-block: 0; align-items: center; }
+body:not([data-phone=true]) #body .insp-res .ovw .ddbtn { box-sizing: border-box; height: var(--h-row); min-height: 0; padding-block: 0; }

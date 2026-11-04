@@ -335,7 +335,7 @@ body.is-ready .paper-skel { display: none; }
 .dpopt.cur { color: var(--ink); font-weight: 700; }
 .dplist:focus-visible .dpopt.act { outline: 2px solid var(--focus, var(--sel-mark)); outline-offset: -2px; }
 /* the rows of the Outline: a padlock at the end of each; a locked row shows it, a row under a lock shows it inherited and greyed */
-.rowlock { position: relative; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; margin-left: auto; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); opacity: .55; cursor: pointer; }
+.rowlock { position: relative; flex: none; display: inline-grid; place-items: center; width: var(--h-sm); height: var(--h-sm); margin-left: auto; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); opacity: .55; cursor: pointer; }
 .clgh > .rowlock { margin-left: 0; }
 .clrow:hover > .rowlock, .srow:hover > .rowlock, .clgh:hover > .rowlock, .rowlock:focus-visible, .rowlock.is-locked { opacity: 1; }
 .rowlock:hover { background: var(--hover-strong); color: var(--ink); }
@@ -571,7 +571,7 @@ ul.ticks { list-style: none; margin: 4px 0; padding: 0; font-size: 12.5px; } ul.
 .tpl i.tpl-banner::before { inset: 0 0 auto 0; height: 11px; background: var(--sample-1); }
 .tpl i.tpl-banner::after { left: 6px; top: 4px; width: 26px; height: 3px; background: var(--sample-ink); }
 .sws { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.swatch { width: 24px; height: 24px; border-radius: var(--r-round); padding: 0; border: 2px solid var(--raised); box-shadow: 0 0 0 1px var(--line); }
+.swatch { width: var(--h-sm); height: var(--h-sm); border-radius: var(--r-round); padding: 0; border: 2px solid var(--raised); box-shadow: 0 0 0 1px var(--line); }
 .swatch[aria-pressed=true] { box-shadow: 0 0 0 2px var(--mark); }
 .swatch.split { border-color: var(--raised); }      /* the screen shade at the left, the highlighter ink at the right */
 .swatch.custom { display: inline-grid; place-items: center; overflow: hidden; background: conic-gradient(var(--sample-1), var(--sample-2), var(--sample-3), var(--sample-4), var(--sample-5), var(--sample-1)); cursor: pointer; }
@@ -1163,7 +1163,8 @@ html body:not([data-phone=true]):not(.is-intro) :is(.col > #head, .col > .switch
 .rmore.overflow { color: var(--bad); }
 
 /* the body: one sheet, or two side by side (Outline and Edit, when the room allows) */
-.col > #body { padding: 14px 16px 14px; scroll-padding: 8px; }
+.col > #body { padding: 12px 13px; scroll-padding: 8px; }
+body[data-phone=true] .col > #body { padding: 14px 16px; }      /* a phone keeps its own */      /* every panel: 12 px inside its edge, its text on the name card's line */
 .body { scrollbar-color: var(--line-strong) transparent; }
 
 /* the zoom bar: only while the pointer is over the page */

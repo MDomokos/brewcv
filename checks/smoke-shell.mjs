@@ -505,7 +505,7 @@ if (want('pages, Fit, the Hungarian resume')) {
   const pages = await frameDoc(page, d => d.querySelectorAll('.document > .page').length);
   ok('a two-page resume is paginated into two pages', pages === 2, `${pages}`);
   await page.evaluate(() => window.__wb.export.open()); await settle(page);      // Fit and the page bars are Export's
-  ok('at 1280×800: a thin bar for each page at the top of Export beside Fit, named by its page, and one page in view', (await page.$$('#meter .meter')).length === 2 && (await page.evaluate(() => document.body.dataset.pages)) === 'one' && await page.evaluate(() => { const n = [...document.querySelectorAll('#meter .meter')].map(m => m.getAttribute('aria-label')); return /page 1/.test(n[0]) && /page 2/.test(n[1]); }));
+  ok('at 1280×800: a thin bar for each page at the top of Export beside Fit, named by its page, and both pages in view side by side', (await page.$$('#meter .meter')).length === 2 && (await page.evaluate(() => document.body.dataset.pages)) === 'all' && await page.evaluate(() => { const n = [...document.querySelectorAll('#meter .meter')].map(m => m.getAttribute('aria-label')); return /page 1/.test(n[0]) && /page 2/.test(n[1]); }));
   await page.click('[data-act=goto-page][data-page="1"]'); await settle(page);
   ok('the meter of page 2 brings page 2 forward', (await page.evaluate(() => window.__wb.ui.page)) === 1 && (await page.getAttribute('#meter .meter[data-page="1"]', 'aria-current')) === 'true');
   const fills = await page.evaluate(() => window.__wb.ui.fills.map(p => p.overflow));

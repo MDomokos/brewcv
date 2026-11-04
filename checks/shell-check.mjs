@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual as eq } from 'node:util';
-import { SIDE_MAX, SIDE_ONE_EXTRA, computeLayout, SLIM_MIN, SLIM_MAX, G, sideWidth, FOLD_W, SIDE_EDGE, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize } from '../src/ui/layout.js';
+import { SIDE_MAX, SIDE_ONE_EXTRA, computeLayout, SLIM_MIN, SLIM_MAX, G, sideWidth, FOLD_W, SIDE_EDGE, PHONE_MAX, ZOOM_MIN, ZOOM_MAX, clampZoom, actualScale, CARD_MM, NOMINAL_PX_PER_MM, pageInView, pageTop, stackHeight, PAGE_GAP, pageSize, FOLDED_SPREAD } from '../src/ui/layout.js';
 import { indexModel, targetOf, up, step, versionsOf, factsOf, NONE } from '../src/ui/select.js';
 import { ZOOM_WRITE } from '../src/ui/dock.js';
 import { load, save, serialize, saveResume } from '../src/model/schema.js';
@@ -109,6 +109,11 @@ for (const [vw, vh, o] of [[1440, 900, {}], [1100, 760, {}], [2560, 1440, {}], [
   const base = lay(vw, vh, { ...o, side: o.side?.off ? null : o.side }), L = lay(vw, vh, { ...o, final: true });
   ok(`${vw}×${vh}${o.side ? ` (${JSON.stringify(o.side)})` : ''}: Export has no rail and a column half again as wide as the sidebar (${base.col.width} → ${L.col.width}), never over half the window, never folded; the page uncovered left of it`,
     L.railW === 0 && L.col.width === Math.min(Math.round(1.5 * base.col.width), Math.floor(vw / 2)) && L.col.left + L.col.width === vw - G && L.sheet.left + L.sheet.width <= L.col.left - G + 1e-6 && L.sheet.height > 0.5 * vh);
+}
+for (const [vw, vh] of [[1280, 800], [1536, 864], [1920, 1080], [2560, 1440]]){
+  const one = lay(vw, vh, { final: true }), L = lay(vw, vh, { final: true, pages: 2 }), letter = computeLayout({ vw, vh, format: 'us-letter', pages: 2, final: true });
+  ok(`${vw}×${vh}: Export shows two A4 pages${vw > 1280 ? ' (and two Letter pages)' : ''} side by side, whole and uncovered, each at least ${FOLDED_SPREAD} of a page's full size; the column narrows for them, never under the sidebar's width`,
+    (vw > 1280 ? [L, letter] : [L]).every(x => x.spread && x.sheet.top >= G - 1e-6 && x.sheet.top + x.sheet.height <= vh - G + 1e-6 && x.sheet.left + x.sheet.width <= x.col.left - G + 1e-6 && x.col.width >= sideWidth(vw, vh) && x.col.width <= one.col.width && x.fit >= FOLDED_SPREAD * (vh - 2 * G) / pageSize(x === L ? 'a4' : 'us-letter').h - 1e-9), JSON.stringify({ col: L.col.width, one: one.col.width, fit: L.fit }));
 }
 {
   const L = computeLayout({ vw: 390, vh: 844, format: 'a4', final: true });

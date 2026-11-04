@@ -363,8 +363,8 @@ async function drawSheet(){
 // On a phone they are the whole screen, as they were.
 const SCREENS = ['record', 'resumes', 'compare'];
 const fullWindow = () => innerWidth < PHONE_MAX && SCREENS.includes(ui.view);
-// the layout changes only when the sidebar becomes the whole screen or stops being it (a phone)
-const syncFull = () => { if ($('#col').classList.contains('is-full') !== fullWindow() || document.body.classList.contains('is-export') !== inPlace()){ if (cur()?.exportMedium) schedule(); relayout(); } };      // the page is drawn again in its medium, or back on a screen
+// the layout changes only when the sidebar becomes the whole screen or stops being it (a phone), Export opens or closes, or the start screen's slim column ends
+const syncFull = () => { if ($('#col').classList.contains('is-full') !== fullWindow() || document.body.classList.contains('is-export') !== inPlace() || ui.layout?.slim !== (ui.view === 'welcome')){ if (cur()?.exportMedium) schedule(); relayout(); } };      // the page is drawn again in its medium, or back on a screen
 function relayout(){
   const c = shown();
   if (!c) return;
@@ -375,8 +375,8 @@ function relayout(){
   Object.assign(col.style, { left: `${L.col.left}px`, top: `${L.col.top}px`, width: `${L.col.width}px`, height: `${L.col.height}px` });
   col.classList.toggle('is-full', fullWindow());
   document.body.classList.toggle('is-export', inPlace());
-  ui.layout = L;
-  syncSide(L);
+  ui.layout = { ...L, slim: ui.view === 'welcome' };
+  syncSide(ui.layout);
   layoutScreen();
   document.body.dataset.phone = String(!!L.phone);
   syncGarden();

@@ -200,6 +200,7 @@ export function initCanvas(C){
     ui.page = Math.max(0, Math.min(geo.n - 1, ui.page ?? 0));
     fit = fitOf({ scene, page: ui.page });
     ui.geo = geo; ui.pageView = view;
+    if (L.final) free = false;      // Export shows the whole pages, whatever zoom the editor had
     if (!free){ go(fit); return; }
     // the view was put somewhere on purpose: it keeps its zoom and the content in the middle, whatever the window does
     const at = motion ? motion.to : cam;                // a move under way counts as already made

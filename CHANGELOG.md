@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Every panel has the same inner spacing,** with its text on the name card's line, and its buttons follow one height scale.
+- **Export shows two whole pages side by side** whenever the window has room, and its panel fits without scrolling.
+
+### Fixed
+- **The sidebar has its full width from the start;** it no longer widens after the first edit.
+- **Export always shows the whole pages,** even after you zoomed in on a line.
+
 ## 1.9.3 - 2026-11-04
 
 ### Changed

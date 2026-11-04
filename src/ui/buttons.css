@@ -72,7 +72,7 @@ html[data-drink] body:not([data-phone=true]):not(.is-intro) #head .hstub:hover {
 html[data-drink] body:not([data-phone=true]):not(.is-intro) #head .hstub:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
 #head .hstub .hn { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 4px; padding: 0 5px; border-radius: var(--r-pill); background: var(--on-accent); color: var(--accent); font-size: 11px; }
 html[data-drink] body:not([data-phone=true]):not(.is-intro):not(.is-quiet) .col > #head.is-many { grid-template-columns: minmax(0, 1fr); }
-html[data-drink] body:not([data-phone=true]):not(.is-intro) #head.is-many .hstub { order: 1; grid-column: 1; grid-row: auto; flex-direction: row; gap: 8px; min-height: 38px; margin: 0 7px 7px; font-size: 13px; }
+html[data-drink] body:not([data-phone=true]):not(.is-intro) #head.is-many .hstub { order: 1; grid-column: 1; grid-row: auto; flex-direction: row; gap: 8px; min-height: var(--h-ctl); margin: 0 7px 7px; font-size: 13px; }
 #head .hdeck { list-style: none; margin: 2px 0 6px; padding: 0 10px 0 8px; font-size: 13px; line-height: 1.3; }
 #head .hdeck li { display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; border-top: 1px solid var(--line); }
 #head .hdeck li:first-child { border-top: 0; }

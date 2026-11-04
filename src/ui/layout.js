@@ -65,15 +65,18 @@ export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = fals
   const tall = (vh - 2 * G) / h;
   const rowW = k => k * w + (k - 1) * PAGE_GAP;
   const own = side?.w ? clampSide(side.w, vw) : sideWidth(vw, vh, oneUp);
-  const colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.272))) : final ? Math.min(Math.round(FINAL_X * own), Math.floor(vw / 2)) : side?.off ? 0 : own;
+  let colW = slim ? Math.max(SLIM_MIN, Math.min(SLIM_MAX, Math.round(vw * 0.272))) : final ? Math.min(Math.round(FINAL_X * own), Math.floor(vw / 2)) : side?.off ? 0 : own;
+  // Export with more than one page: the column gives up its extra width (down to the sidebar's) so the pages sit whole side by side, each at least
+  // FOLDED_SPREAD of a page's full size; where even that is too little, it keeps its width and the view travels from page to page
+  if (final && n > 1){ const most = Math.floor(vw - 4 * G - FOLDED_SPREAD * tall * rowW(n)); if (most >= own) colW = Math.min(colW, most); }
   const railW = side?.off && !slim && !final ? FOLD_W : 0;
   if (final) side = null;
   // the room the page may have: left of the column (or the folded strips), a gutter at each side
   const edge = slim || final ? 0 : SIDE_EDGE;
   const room = vw - colW - railW - 4 * G - edge;
   const one = Math.max(0.1, Math.min(tall, room / w)), row = Math.max(0.1, Math.min(tall, room / rowW(n)));
-  // side by side when the row fits at a page's full size, or, the sidebar folded, at FOLDED_SPREAD of it; else the view travels from page to page, at the same size
-  const spread = n > 1 && (rowW(n) * one <= room + 1e-6 || (!!side?.off && !slim && row >= FOLDED_SPREAD * one - 1e-9));
+  // side by side when the row fits at a page's full size, or, the sidebar folded or in Export, at FOLDED_SPREAD of it; else the view travels from page to page, at the same size
+  const spread = n > 1 && (rowW(n) * one <= room + 1e-6 || ((!!side?.off || final) && !slim && row >= FOLDED_SPREAD * one - 1e-9));
   const fit = spread ? row : one;
   const scale = fit * z;
   const sheetW = rowW(spread ? n : 1) * fit, pageH = h * fit;      // laid for the fitted page; a zoom is the camera's
@@ -84,7 +87,7 @@ export function computeLayout({ vw, vh, format, pages = 1, zoom = 1, wide = fals
   const left = Math.max(G / 2, mid - sheetW / 2);
   const top = sheetH + 2 * G > vh ? G : Math.max(G, (vh - pageH) / 2);
   return {
-    scale, fit, zoom: z, spread, phone: false, wide: false, bare: slim || final, colW, railW, areaW, mid,
+    scale, fit, zoom: z, spread, phone: false, wide: false, bare: slim || final, final, colW, railW, areaW, mid,
     sheet: { left, top, width: sheetW * z, height: sheetH },
     col: { left: colLeft, top: G, width: colW, height: vh - 2 * G },
     // the camera's view: the room left of the column, and the width the page is fitted to
