@@ -117,7 +117,7 @@ function row(r, fam = [r]){
   const hit = V.hits.get(r.id), sub = `class="rsub" data-parent="${esc(id)}" ${unfold ? '' : 'hidden'}`, sentN = x => (RS.snapshotsOf(x).length ? t('ux6h.sentN', { n: RS.snapshotsOf(x).length }) : '');
   return `<tr class="rline ${open ? 'open' : ''} ${r.id === selId() && !LIB.sel() ? 'sel' : ''} ${V.ticked.has(r.id) ? 'ticked' : ''}" ${hooks(r)}>
     <td class="c-tick">${fold}${tick(r.id, t('ux6e.tick', { name: label(r) }))}</td>
-    ${cells({ name: `<span class="cname"><span class="ficon">${icon('document', { role: 'inline' })}</span>${nameBtn(r, esc(RS.wordOf(r)) || esc(label(r)), label(r))}${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>${hit ? `<span class="rhit">${snippet(hit[0].text, F.q)}</span>` : ''}`, company: r.company, role: r.role, paper, lang: many ? '' : lang, pages, sent: filesChip(fam, r) ? '' : sentN(r), changed: r.savedAt }).replace('<td class="c-lang"></td>', `<td class="c-lang">${langChips(fam, r)}</td>`).replace('<td class="c-sent"></td>', `<td class="c-sent">${filesChip(fam, r)}</td>`)}</tr>`
+    ${cells({ name: `<span class="cname"><span class="ficon">${icon('document', { role: 'inline' })}</span>${nameBtn(r, esc(RS.wordOf(r) || label(r)), label(r))}${open ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>${hit ? `<span class="rhit">${snippet(hit[0].text, F.q)}</span>` : ''}`, company: r.company, role: r.role, paper, lang: many ? '' : lang, pages, sent: filesChip(fam, r) ? '' : sentN(r), changed: r.savedAt }).replace('<td class="c-lang"></td>', `<td class="c-lang">${langChips(fam, r)}</td>`).replace('<td class="c-sent"></td>', `<td class="c-sent">${filesChip(fam, r)}</td>`)}</tr>`
     + (many ? fam.map(x => `<tr ${sub} data-lid="${esc(x.id)}"><td class="c-tick"></td>${cells({ name: `<span class="cname"><button class="rsel" data-act="scr-lang" data-id="${esc(x.id)}" data-item="${esc(id)}" aria-pressed="${x.id === r.id}">${esc(langName(x.lang ?? 'en'))}</button>${x.id === st().openId ? `<span class="pill is-open">${h('ux6h.openNow')}</span>` : ''}</span>`, lang: LC(x), pages: metaParts(x)[3], sent: sentN(x), changed: x.savedAt })}</tr>`).join('') : '')
     + snaps.map(([x, s]) => `<tr ${sub}><td class="c-tick">${sentTick(x, s)}</td>${cells({ name: snapLine(x, s), company: s.sends[0]?.company, role: s.sends[0]?.role, lang: many ? LC(x) : '', changed: sentDate(s) })}</tr>`).join('')
     + docs.map(g => LIB.row(g, F.q, id, !unfold)).join('');
@@ -148,11 +148,12 @@ function listHtml(){
   const rowOf = r => (r.g ? LIB.row(r.g, F.q) : row(shownOf(V.fam.get(r.id), matched), V.fam.get(r.id)));
   // the list is one table: a group is a header row and its rows (a tbody, inside its round's while that round is open)
   let inRound = '';
-  const group = (name, rs) => (listing() ? `<tbody class="rgroup" ${inRound}><tr class="rghead"><th colspan="9" scope="colgroup">${esc(name)} · ${rs.length}</th></tr>${rs.map(rowOf).join('')}</tbody>`
+  const group = (name, rs) => (listing() ? `<tbody class="rgroup" ${inRound}>${name == null ? '' : `<tr class="rghead"><th colspan="7" scope="colgroup">${esc(name)} · ${rs.length}</th></tr>`}${rs.map(rowOf).join('')}</tbody>`
     : `<h3 class="lbl">${esc(name)} · ${rs.length}</h3><div class="rgrid">${rs.map(cardOf).join('')}</div>`);
   const table = body => (listing() ? `<table class="rtable"><caption class="sr">${h('ux6h.allResumes')}</caption><thead><tr>${HEAD()}</tr></thead>${body}</table>` : body);
   const byNewest = gs => gs.map(g => ({ ...g, rs: g.rs.slice().sort(newest) })).sort((a, b) => newest(a.rs[0], b.rs[0]));
   const view = list => {
+    if (V.view === 'date' && listing() && rounds.length) return group(null, list.slice().sort(newest));      // a round's rows by date, no year rows between: the date is a column
     if (V.view === 'date'){
       const years = new Map();
       for (const r of list.slice().sort(newest)){ const y = recency(r) === '9999' ? t('ux6h.now') : recency(r).slice(0, 4) || t('ux2.noDate'); years.set(y, [...(years.get(y) ?? []), r]); }
@@ -174,8 +175,8 @@ function listHtml(){
     const attrs = `data-round="${esc(key)}" data-n="${its.length}" ${round?.archived ? 'data-archived="1"' : ''} ${key === cur ? 'data-current="1"' : ''}`, panel = round && LIB.rm() === key ? LIB.roundPanel(round) : '';
     if (listing()){      // a round is a header row with its fold and its actions; its groups follow, hidden while it is folded
       inRound = `data-in="${esc(key)}" ${open ? '' : 'hidden'}`;
-      return `<tbody class="rrhead" ${attrs}><tr><th colspan="9" scope="colgroup"><button class="rfold" data-act="scr-rfold" data-round="${esc(key)}" aria-expanded="${open}" aria-label="${esc(name)}">${icon('caret', { role: 'inline' })}</button> <span class="ficon">${icon('flag', { role: 'inline' })}</span>${roundName(key, name, round)} · ${its.length}${acts}${panel}</th></tr></tbody>`
-        + (its.length ? view(its) : `<tbody ${inRound}><tr><td colspan="9" class="muted small">${h('i7.roundEmpty')}</td></tr></tbody>`);
+      return `<tbody class="rrhead" ${attrs}><tr><th colspan="7" scope="colgroup"><button class="rfold" data-act="scr-rfold" data-round="${esc(key)}" aria-expanded="${open}" aria-label="${esc(name)}">${icon('caret', { role: 'inline' })}</button> <span class="ficon">${icon('flag', { role: 'inline' })}</span>${roundName(key, name, round)} · ${its.length}${acts}${panel}</th></tr></tbody>`
+        + (its.length ? view(its) : `<tbody ${inRound}><tr><td colspan="7" class="muted small">${h('i7.roundEmpty')}</td></tr></tbody>`);
     }
     return `<details class="rround" ${attrs} ${open ? 'open' : ''}><summary>${roundName(key, name, round)} · ${its.length}</summary>${acts}${panel}${its.length ? view(its) : `<p class="muted small">${h('i7.roundEmpty')}</p>`}</details>`;
   };

@@ -500,15 +500,15 @@ await part('the list view: rows with the columns, files folded under their resum
     return { pressed: document.querySelector('[data-act=scr-list]').getAttribute('aria-pressed'), cards: list.querySelectorAll('.rcard').length, rows: shown.every(id => list.querySelectorAll(`tr.rline[data-rid="${CSS.escape(id)}"], tr[data-lid="${CSS.escape(id)}"]`).length >= 1),
       th: list.querySelector('table.rtable thead tr')?.children.length, tables: list.querySelectorAll('table').length, heads: list.querySelectorAll('thead').length, groups: list.querySelectorAll('tbody.rgroup > tr.rghead:first-child').length, thumbs: list.querySelectorAll('[data-thumb]').length, attHidden: !!att?.hidden, attParent: att?.dataset.parent === rid, free: list.querySelectorAll('tr.rdoc:not(.rsub):not([data-parent])').length };
   }, [s0.ids, s0.ids[1]]);
-  ok('the list switch shows one table: one column header (the tick, role, company, name, paper, language, pages, sent, last changed), each group a header row in it, a row for each resume, no pictures', L.pressed === 'true' && L.cards === 0 && L.rows && L.th === 9 && L.tables === 1 && L.heads === 1 && L.groups >= 2 && L.thumbs === 0, JSON.stringify(L));
+  ok('the list switch shows one table: one column header (the tick, name, paper, language, pages, sent, last changed), each group a header row in it, a row for each resume, no pictures', L.pressed === 'true' && L.cards === 0 && L.rows && L.th === 7 && L.tables === 1 && L.heads === 1 && L.groups >= 2 && L.thumbs === 0, JSON.stringify(L));
   ok('a file exported from a resume is folded under its row; a file of its own has a row of its own', L.attHidden && L.attParent && L.free === 1, JSON.stringify(L));
   const fold = `#scr tr.rline[data-rid="${s0.ids[1]}"] .rfold`;
   await page.click(fold); await settle(page, 100);
   ok('the fold arrow shows it and says so', await page.getAttribute(fold, 'aria-expanded') === 'true' && await page.isVisible('#scr tr.rsub.rdoc[data-did]'));
-  await page.click(`#scr tr.rline[data-rid="${s0.ids[2]}"] td.c-company`); await settle(page);
+  await page.click(`#scr tr.rline[data-rid="${s0.ids[2]}"] td.c-name`); await settle(page);
   const sel = await page.evaluate(id => ({ sel: document.querySelector('#scr tr.rline.sel')?.dataset.rid, insp: document.querySelector('#body .insp-res')?.getAttribute('aria-label'), name: document.querySelector(`#scr tr.rline[data-rid="${CSS.escape(id)}"] .rsel`)?.textContent.trim() }), s0.ids[2]);
   ok('a click on a row selects it and the inspector shows it', sel.sel === s0.ids[2] && /—/.test(sel.insp ?? '') && await view(page) === 'resumes', JSON.stringify(sel));
-  await page.dblclick(`#scr tr.rline[data-rid="${s0.ids[3]}"] td.c-role`); await settle(page, 500);
+  await page.dblclick(`#scr tr.rline[data-rid="${s0.ids[3]}"] td.c-name`); await settle(page, 500);
   ok('a double click on a row opens it', await view(page) === null && (await st(page)).openId === s0.ids[3]);
   await goLibrary(page);
   await page.focus(`#scr tr.rline[data-rid="${s0.ids[2]}"] .rsel`);
@@ -529,7 +529,7 @@ await part('the list view: rows with the columns, files folded under their resum
   await settle(page);
   const round = await page.evaluate(() => window.__wb.store.state.rounds[0].id);
   ok('with a round, the rounds are header rows of the same table, every round open', (await page.$$('#scr table')).length === 1 && (await page.$$('#scr .rtable tbody.rrhead')).length === 2 && await page.getAttribute('#scr tbody.rrhead[data-round=""] .rfold', 'aria-expanded') === 'true' && await page.isVisible(`#scr tr.rline[data-rid="${s0.ids[2]}"]`));
-  const a = await page.locator(`#scr tr.rline[data-rid="${s0.ids[2]}"] td.c-company`).boundingBox(), b = await page.locator('#scr tbody.rrhead[data-current] th').boundingBox();
+  const a = await page.locator(`#scr tr.rline[data-rid="${s0.ids[2]}"] td.c-name`).boundingBox(), b = await page.locator('#scr tbody.rrhead[data-current] th').boundingBox();
   await page.mouse.move(a.x + 10, a.y + a.height / 2); await page.mouse.down(); await page.mouse.move(b.x + 20, b.y + b.height / 2, { steps: 8 }); await page.mouse.up(); await settle(page);
   ok('a row carried onto a round’s name moves there', await page.evaluate(id => window.__wb.store.state.resumes.find(r => r.id === id).round, s0.ids[2]) === round);
   // a round's name is written in place, in the list's header row and in the cards' fold (a click there does not fold it); Earlier has none
@@ -556,8 +556,8 @@ await part('the list view: rows with the columns, files folded under their resum
   const n = await open(1280, 720);
   await goLibrary(n.page); await n.page.click('[data-act=scr-list]'); await settle(n.page);
   const w = await n.page.evaluate(() => { const q = s => document.querySelector(`#scr .rtable ${s}`).getBoundingClientRect(), tb = q('');
-    return { paper: q('th.c-paper').width, name: q('th.c-name').width, cut: [...document.querySelectorAll('#scr .rtable tr.rline td:is(.c-role, .c-company)')].filter(td => td.scrollWidth > td.clientWidth).length, fill: Math.round(tb.right - q('tr.rline td.c-changed').right), scroll: document.querySelector('#scr').scrollWidth - document.querySelector('#scr').clientWidth }; });
-  ok('at 1280 the list drops the paper, language and pages columns, its rows fill the table, no role or company cut (a long one wraps), and nothing scrolls sideways', w.paper === 0 && w.cut === 0 && w.fill <= 2 && w.scroll <= 1, JSON.stringify(w));
+    return { paper: q('th.c-paper').width, name: q('th.c-name').width, cut: [...document.querySelectorAll('#scr .rtable tr.rline td.c-lang')].filter(td => td.scrollWidth > td.clientWidth).length, fill: Math.round(tb.right - q('tr.rline td.c-changed').right), scroll: document.querySelector('#scr').scrollWidth - document.querySelector('#scr').clientWidth }; });
+  ok('at 1280 the list drops the paper and pages columns (keeping language), its rows fill the table, no language cell cut, and nothing scrolls sideways', w.paper === 0 && w.cut === 0 && w.fill <= 2 && w.scroll <= 1, JSON.stringify(w));
   await n.ctx.close();
 });
 
