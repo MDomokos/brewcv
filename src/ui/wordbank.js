@@ -221,6 +221,7 @@ export function initWordbank(C){
     return `${top}${B.view === 'words' ? '' : findHtml()}${delwHtml()}${body}`;
   }
   function render(){
+    if (C.ui.writing) wplus.hidden = splus.hidden = true;      // a line is written: nothing is hovered
     if (!card) return;
     const on = active();
     card.hidden = !on;
@@ -557,7 +558,7 @@ export function initWordbank(C){
   function hoverGroup(gid){
     clearTimeout(plusOff);
     const gel = gid && fdoc()?.querySelector(`.skills__group[data-group="${CSS.escape(gid)}"]`);
-    if (!gel || D || B.wadd || !active() || locked(gid) || !lay){ plusOff = setTimeout(() => { if (!wplus.matches(':hover')) wplus.hidden = true; }, 250); return; }
+    if (!gel || D || B.wadd || !active() || locked(gid) || C.ui.writing || !lay){ plusOff = setTimeout(() => { if (!wplus.matches(':hover')) wplus.hidden = true; }, 250); return; }
     const q = lastRect(gel);
     if (!q) return;
     const a = toScreen({ x: q.right + 5, y: q.top + q.height / 2 }), lr = lay.getBoundingClientRect();
@@ -575,9 +576,9 @@ export function initWordbank(C){
   function hoverSection(on){
     clearTimeout(splusOff);
     const sk = on && fdoc()?.querySelector('.band[data-section="skills"] .skills');
-    if (!sk || D || B.wadd || locked('skills') || !lay){ splusOff = setTimeout(() => { if (!splus.matches(':hover')) splus.hidden = true; }, 250); return; }
+    if (!sk || D || B.wadd || locked('skills') || C.ui.writing || !lay){ splusOff = setTimeout(() => { if (!splus.matches(':hover')) splus.hidden = true; }, 250); return; }
     const r = sk.getBoundingClientRect(), a = toScreen({ x: r.left + r.width / 2, y: r.bottom }), lr = lay.getBoundingClientRect();
-    Object.assign(splus.style, { left: `${a.x - lr.left - 12}px`, top: `${a.y - lr.top + 4}px` });
+    Object.assign(splus.style, { left: `${a.x - lr.left - 12}px`, top: `${a.y - lr.top}px` });
     splus.title = t('ux6c.plusGroup'); splus.setAttribute('aria-label', t('ux6c.plusGroup'));
     splus.hidden = false;
   }

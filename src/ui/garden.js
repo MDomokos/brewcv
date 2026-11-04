@@ -68,8 +68,8 @@ export function initGarden({ ui, canvas, idle = 30, check = false }){
   const onPage = (x, y) => pg.some(r => x > r.left && x < r.right && y > r.top && y < r.bottom);
   const zones = () => {
     if (!pg.length) return [];
-    const pageL = span.left, pageR = span.right, right = panel - 12, z = [];
-    if (pageL > 80) z.push([14, pageL - 34, 'L']);
+    const pageL = span.left, pageR = span.right, right = panel - 12, m = T(), z = [];
+    if (pageL - Math.max(0, -m.ox / m.s) > 80) z.push([14, pageL - 34, 'L']);      // (zoomed in, the mat's left part is off the screen: a margin there is not one)
     if (right - pageR > 80) z.push([pageR + 16, right - 34, 'R']);
     return z;
   };

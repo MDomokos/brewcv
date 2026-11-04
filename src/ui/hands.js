@@ -122,9 +122,9 @@ export function initHands(C){
       // the "+" stands at the bottom and centre of the block (the job, or the skill group), a little under its last row, so it is not taken for a grip; where printed text
       // is in the way it moves along the edge to the nearest clear place, else it stays centred
       // it hangs from where the plate it joins ends: the last line's (or the group's), or the selected job's; under any other line it stands there by itself (.is-free)
-      const alone = h.k === 'line' && !h.selOnly && h.fact !== last.fact, lv = h.selOnly ? 'job' : h.k;
-      const pel = h.selOnly ? sheet.jobEl(h.job, x) : sheet.plateOf({ k: h.k, fact: last.fact }, x), po = pel ? sheet.standOff(pel).y : off(lv);      // the plate it hangs from, as it is drawn
-      const rb = h.selOnly ? R(blockRect('job', h.job) ?? last.rect) : R(last.rect), r = R(last.rect), py = rb.top + rb.height + po * canvas.cam.k, cx = r.left + r.width / 2 - PLUS.w / 2;
+      const alone = h.k === 'line' && !h.selOnly && h.fact !== last.fact, up = h.selOnly || (ui.writing && h.fact === last.fact), lv = up ? 'job' : h.k;      // (up: it hangs from the job's plate, which a written last line stands inside)
+      const pel = up ? sheet.jobEl(h.job, x) : sheet.plateOf({ k: h.k, fact: last.fact }, x), po = pel ? sheet.standOff(pel).y : off(lv);      // the plate it hangs from, as it is drawn
+      const rb = up ? R(blockRect('job', h.job) ?? last.rect) : R(last.rect), r = R(last.rect), py = rb.top + rb.height + po * canvas.cam.k, cx = r.left + r.width / 2 - PLUS.w / 2;
       plus.classList.toggle('is-free', alone); plus.classList.toggle('is-sel', !alone && ui.sel.id === last.fact);      // (the selected wash under a selected line)
       const at = [0, 24, -24, 48, -48, 80, -80].map(dx => cx + dx).find(x => free(x, py, PLUS.w, PLUS.h)) ?? cx, ok = free(at, py, PLUS.w, PLUS.h, false);
       put(plus, at, py, ok);

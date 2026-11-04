@@ -213,7 +213,7 @@ body.has-scr #pages, body.has-scr .zoombar, body.has-scr .fitchip { visibility: 
    buttons keep only their icons, the hint is cut short and then goes, the dropdowns narrow last. */
 #scr #resumes { container: library / inline-size; }
 #scr #resumes .tbar { flex-wrap: wrap; }
-#scr #resumes .tbar .sw-q { flex: 1 1 auto; min-width: 90px; max-width: none; }
+#scr #resumes .tbar .sw-q { flex: 1 1 auto; min-width: 90px; max-width: none; align-self: flex-start; }      /* the field at the top of the bar, where the Editor, Career and Compare have theirs */
 #scr #resumes .tbar > .tgrp { flex: none; position: relative; margin-left: 13px; align-items: center; }
 #scr #resumes .tbar > .tgrp::before { content: ""; position: absolute; left: -13px; top: 4px; bottom: 4px; width: 1px; background: var(--line-strong); }
 #scr #resumes .tbar button.newres { display: inline-flex; align-items: center; gap: 8px; height: var(--h-ctl); padding: 0 18px 0 14px; font-size: 14px; font-weight: 750; }
@@ -388,7 +388,7 @@ button.sm:is([data-act=example-ok], .fold, [data-act=open-record], [data-act=c-a
 .insp-res .idet { border-top: 1px solid var(--line); padding-top: 6px; font-size: 12.5px; }
 .insp-res .idet summary { display: flex; gap: 8px; align-items: center; cursor: pointer; min-height: 24px; }
 .insp-res .idet summary .lbl { margin: 0; }
-.insp-res .idet summary .small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-soft); }
+.insp-res .idet summary .small { min-width: 0; overflow-wrap: anywhere; color: var(--ink-soft); }
 .insp-res .idet ul { margin: 6px 0 2px; }
 .insp-res .idet .pill { flex: none; font-size: 10.5px; padding: 1px 7px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); color: var(--ink-soft); }
 .insp-res .ovw { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 12px; align-items: baseline; margin: 2px 0 4px; font-size: 12.5px; }
