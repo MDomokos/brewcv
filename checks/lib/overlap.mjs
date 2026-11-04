@@ -59,7 +59,6 @@ export function shapes(page){
       const of = kind === 'grip' || kind === 'plus' ? blockOf(el.dataset.k === 'line' && kind === 'plus' ? el.dataset.job : el.dataset.fact, kind === 'plus' && el.dataset.k === 'line' ? 'job' : el.dataset.k) : null;
       out.push({ kind, name: `${kind}${el.dataset.k ? `:${el.dataset.k}` : ''}`, rect: rr, stroke: kind === 'rail' ? parseFloat(c.borderTopWidth) || 1 : 0, about: of && S(box(of.getBoundingClientRect())), own: ownOf(of) });
     }
-    for (const l of document.querySelectorAll('#editlay .dplist:not([hidden])')) out.push({ kind: 'list', name: 'list', rect: box(l.getBoundingClientRect()), stroke: 0, about: null });      // a level's list, open under the chip
     const zb = document.querySelector('#zoombar');
     if (shown(zb)) out.push({ kind: 'zoombar', name: 'zoombar', rect: box(zb.getBoundingClientRect()), stroke: 0, about: null });
     if (!d) return { shapes: out, texts };

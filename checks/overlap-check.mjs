@@ -74,7 +74,7 @@ const WRITES = new Set(['first line', 'middle line', 'last line', 'skill group',
 const LIFTS = new Set(['middle line', 'job', 'section', 'skill group']);
 
 // one look: every target in every state; returns the failures as text
-async function sweep(page, tag, { states = ['rest', 'hover', 'glide', 'selected', 'list', 'writing', 'lifted'], zooms = [1, 1.3], glide = false } = {}){      // glide: with motion, some look must catch a plate on its way
+async function sweep(page, tag, { states = ['rest', 'hover', 'glide', 'selected', 'writing', 'lifted'], zooms = [1, 1.3], glide = false } = {}){      // glide: with motion, some look must catch a plate on its way
   const fails = [];
   let glides = 0;
   // `need`: the shape the state is about must be there (a hover's plate, a lifted block), so a look that missed its state is a failure, not a pass
@@ -95,8 +95,6 @@ async function sweep(page, tag, { states = ['rest', 'hover', 'glide', 'selected'
       await page.waitForTimeout(500);
     }
     if (states.includes('selected')){ await page.mouse.click(pt.x, pt.y); await page.waitForTimeout(500); if (await page.evaluate(() => window.__wb.ui.writing)) await page.keyboard.press('Escape'); await page.mouse.move(4, 4); await page.waitForTimeout(500); await look(`${w} selected`, ['plate']);
-      const lv = page.locator('#editlay .depth .dp-l[aria-haspopup]').last();      // the chip's deepest list open
-      if (states.includes('list') && await lv.isVisible()){ await lv.hover(); await page.waitForTimeout(300); await look(`${w} selected, its chip's list open`, ['list']); await page.mouse.move(4, 4); await page.waitForTimeout(300); }
       // a line under a selected job hovered: its "+" (hands.js) and the job's chip (placed before it, onpage.js placeChip) stand clear of each other; the second job is where they met
       if (name === 'job' && states.includes('hover')) for (const j of [0, 1]){
         const fr = page.frameLocator('#sheet iframe'), tb = await fr.locator('.band[data-section=experience] .role-title').nth(j).boundingBox(), vh = page.viewportSize().height;

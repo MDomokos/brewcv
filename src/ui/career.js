@@ -210,7 +210,7 @@ function aboutView(sel){
   const where = `<div class="where hband" ${kc('about')}><span class="kb">${icon('about')}${h('career.step1')}</span></div>`;
   const photo = photoHtml({ rec: m, r: st().cur, a4: st().cur.format !== 'us-letter', url: b.image ? C.photoUrl() : '' });
   // in the page's order: the photo, the name, the headline, the contact
-  return `${C.edit.depthHtml(sel)}${where}<span class="lbl">${h('career.about.photo')}</span>${photo}
+  return `${C.edit.topOf(sel)}${where}<span class="lbl">${h('career.about.photo')}</span>${photo}
     <h2 class="title">${h('career.about.name')}</h2>
     <div class="detbox" data-form="about" data-part="name">
       ${field('c-name', h('career.f.name'), sameLang() ? b.name : (textIn(d.name) || b.name), { right: tr, ph: sameLang() ? '' : b.name })}

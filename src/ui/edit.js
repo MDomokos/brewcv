@@ -17,7 +17,7 @@ import { askIfLocked } from './ask.js';
 import { play, played, reduced } from './motion.js';
 import { icon } from './icons.js';
 import { pageSize } from './layout.js';
-import { esc, clip, depthHtml as depthMarkup, sw, missBar, versionsHtml, delBtn, delAskHtml, labelChangedHtml, topHtml, gist } from './parts.js';
+import { esc, clip, sw, missBar, versionsHtml, delBtn, delAskHtml, labelChangedHtml, topHtml, gist } from './parts.js';
 
 let C = null;
 export function initEdit(ctx){ C = ctx; return api; }
@@ -158,12 +158,8 @@ function fieldName(ed){
 const lineName = id => (id.startsWith('~g:') ? T.labelNow(rec(), cur(), id, lang()) : id.startsWith('~t:') ? T.labelNow(rec(), cur(), id, lang()) : '') || (ix().skillGroups.has(id) ? T.printedLabel(rec(), cur(), `~g:${id}`) : '')
   || ix().facts.get(id)?.summary || C.textOfFact(id) || (T.isLocal(cur(), id) ? t('ux6c.newLine') : id);
 
-// One depth indicator: the levels of what is selected, from the page down. The chip on the page and the row at the top of
-// the editor card are one component (parts.js depthHtml): general, in single words (Page › Experience › Hydra, Page › Skills › CAD, no
-// line level); the card's title under it names the content in full. A level with deeper ones carries them (`kids`, the Outline's rows) and the one
-// the selection came through (`came`): its list goes deeper or sideways, its word goes up.
+// The levels of what is selected, from the page down, in single words (Page › Experience › Hydra): the card's top row names the last one
 function depth(sel = C.ui.sel){
-  const kids = (kind, id, came) => ({ kids: C.depthKids?.(kind, id) ?? [], came });
   const at = id => `data-id="${esc(id)}"`;
   const jobId = sel.kind === 'job' ? sel.id : sel.kind === 'bullet' ? sel.job ?? sel.owner : null;
   const item = sel.kind === 'record' && sel.what === 'item';       // a skill group, a language: an item of a list section
@@ -175,19 +171,14 @@ function depth(sel = C.ui.sel){
   // the header's field the selection is on: Name, Headline, Contact or Photo
   const field = sel.kind === 'header' ? (sel.id ? t(`ux6c.f.${sel.id}`) : null) : sel.kind === 'bullet' ? Object.entries(rec().basics?.display ?? {}).map(([k, f]) => (f === sel.id ? t(`ux6c.f.${k}`) : null)).find(Boolean) : null;
   const fieldLevel = field && { word: field, ...(sel.kind === 'bullet' ? { act: 'select-fact', attrs: `${at(sel.id)} data-section="header"` } : { act: 'select-header' }) };
-  const L = [{ word: t('ux3.crumbPage'), act: 'deselect', ...kids('page', null, sel.kind === 'header' ? 'header' : sid) }];
-  if (sel.kind === 'header' || sid === 'header'){ L.push({ word: t('ux6c.header'), act: 'select-header', ...kids('section', 'header', sel.kind === 'bullet' ? sel.id : null) }); if (fieldLevel) L.push(fieldLevel); }
-  else if (sid) L.push({ word: word(C.sectionTitle(sid)), act: 'select-section', attrs: at(sid), ...kids('section', sid, jobId ?? (sel.kind === 'section' ? null : sel.id)) });
-  if (jobId) L.push({ word: word(jobName), act: 'select-job', attrs: at(jobId), ...kids('job', jobId, sel.kind === 'bullet' ? sel.id : null) });
+  const L = [{ word: t('ux3.crumbPage'), act: 'deselect' }];
+  if (sel.kind === 'header' || sid === 'header'){ L.push({ word: t('ux6c.header'), act: 'select-header' }); if (fieldLevel) L.push(fieldLevel); }
+  else if (sid) L.push({ word: word(C.sectionTitle(sid)), act: 'select-section', attrs: at(sid) });
+  if (jobId) L.push({ word: word(jobName), act: 'select-job', attrs: at(jobId) });
   else if (item) L.push({ word: itemWord(sel.id), act: 'select-record', attrs: `${at(sel.id)} data-what="item" data-group="${esc(sel.group ?? '')}"` });
   else if (sel.kind === 'bullet' && sid !== 'header' && sid !== 'summary') L.push({ word: itemWord(sel.id), act: 'select-fact', attrs: `${at(sel.id)} data-section="${esc(sid ?? '')}"${sel.owner ? ` data-owner="${esc(sel.owner)}"` : ''}` });
   return L;
 }
-// `page`: the chip on the page (its own ids and name), else the card's
-const depthHtml = (sel = C.ui.sel, { page = false } = {}) => depthMarkup(depth(sel), { where: page ? 'page' : 'card', back: page ? backOf() : null, ...chipTools(sel) });
-// a selection above another on the same branch (Page, the section, the job of a line); the chip's "back" is set only then, never for a move sideways
-const isAbove = (to, from) => { try { const a = depth(to), b = depth(from), k = l => `${l.act}|${l.attrs ?? ''}`; return (a.length < b.length || (to.kind === 'job' && from.kind === 'bullet')) && a.every((l, i) => k(l) === k(b[i])); } catch { return false; } };
-const backOf = () => { const b = C.ui.back; if (!b) return null; try { return { word: depth(b.sel).at(-1).word }; } catch { return null; } };
 
 // ---- the lock ----
 // the id the padlock holds for a selection: the block the chip names (a heading is its own block)
@@ -1296,7 +1287,7 @@ function leaving(next){
 
 const api = {
   leaveLine: () => { if (E.edit) clearEdit(); }, redraft: () => { if (E.edit && !E.edit.panel && isDirty()) livePreview(); }, moveLine: moveLineBy, moveGroup: moveGroupBy, moveSkill: moveSkillBy, stepBullet: stepBulletBy, stepGroup: stepGroupBy, addGroup,
-  fieldName, isAbove, outlineView, noneView, sectionView, jobView, bulletView, factPanel, act, bind, key, toggleMark, unmarkAt, marksNow, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockSaid, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, depthHtml, multiline,
+  fieldName, topOf, outlineView, noneView, sectionView, jobView, bulletView, factPanel, act, bind, key, toggleMark, unmarkAt, marksNow, stepJob: stepJobBy, stepSection: stepSectionBy, stepItem: stepItemBy, moveJob: moveJobBy, moveSectionTo: moveSectionBy, moveItemTo: moveItemBy, lockedId: isLockedId, lockIdOf, lockSaid, lockName, stepLine: d => E.edit && stepBulletBy(E.edit.fact, d), leaving, startEdit, addLine, cancelEdit, isDirty, draftChanged, pickWhileWriting, multiline,
   missingOf: id => (grouped() ? missingNow().find(m => m.id === id && isLineMiss(m)) ?? null : null),      // a group's line that prints the other language's version
   get editing(){ return E.edit; },
   get softShown(){ return E.softShown; },

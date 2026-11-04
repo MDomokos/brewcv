@@ -303,35 +303,7 @@ export function photoHtml({ rec, r, a4 = true, url = '' }){
 export const orderMarkHtml = (custom, kind, id, name) => (custom
   ? `<span class="pill custom">${h('ux5b.custom')}</span><button class="ghost sm" data-act="order-reset" data-kind="${kind}" data-id="${esc(id)}" aria-label="${esc(t('ux5b.resetTitle', { name }))}">${h('ux5b.reset')}</button>` : '');
 
-// One depth indicator, the same markup and styles on the page (the floating chip, `small`) and at the top of the editor card:
-// Page › Section › Job, Page › Section › Item, Page › Header › Field. levels: [{ word, act, attrs?, kids?, came? }] from the page down, the last is where
-// you are.
-// `lock` ({ id, on, by, name }) and `show` ({ kind, id, on, name, disabled }) are the two small buttons at its right end: the
-// padlock of the block the chip names, and its on/off switch. Both are real buttons with a name; the padlock is aria-pressed when locked.
-// One component on the page and in the card: `where` ('page' | 'card') only names it and keeps its ids apart. A level with `kids`
-// ([{ text, sel }], the Outline's rows) has a list of them (src/ui/depthmenu.js opens it), the one it came through (`came`) marked: the word goes up, the list deeper or sideways.
-// On the page (`where` 'page') a word only goes one level up: no lists. `back` ({ word }): for a moment after going up its own branch, a small ↩ after the tools (not a crumb) returns to the depth just left.
-export function depthHtml(levels, { where = 'card', lock = null, show = null, fix = null, back = null } = {}){
-  if (where === 'page') levels = levels.map(({ kids, came, ...l }) => l);
-  const list = (l, k) => `<div class="dplist" id="dp-${where}-${k}" role="listbox" tabindex="-1" aria-label="${esc(l.word)}" hidden>${l.kids.map((o, i) => {
-    const came = o.sel.id === l.came;
-    return `<div class="dpopt${came ? ' cur' : ''}" role="option" id="dp-${where}-${k}-${i}" data-act="dp-open" data-sel="${esc(JSON.stringify(o.sel))}" aria-selected="${came}" title="${esc(o.text)}">${esc(clip(o.text, 30))}</div>`; }).join('')}</div>`;
-  const btn = (l, cls, k) => { const pop = l.kids?.length ? ` aria-haspopup="listbox" aria-expanded="false" aria-controls="dp-${where}-${k}"` : '';
-    const b = `<button type="button" class="dp-l${cls}" data-act="${l.act}" ${l.attrs ?? ''}${cls === ' cur' ? ' aria-current="location"' : ''}${pop}><span class="dp-w">${esc(l.word)}</span></button>`;
-    return pop ? `<span class="dpwrap">${b}${list(l, k)}</span>` : b; };
-  const tool = (cls, ic, act, attrs, name, pressed, disabled = false, tip = name) => `<button type="button" class="dp-t ${cls}" data-act="${act}" ${attrs} aria-pressed="${pressed}" aria-label="${esc(name)}" title="${esc(tip)}"${disabled ? ' aria-disabled="true"' : ''}>${icon(ic, { role: 'inline' })}</button>`;
-  const showL = show && t(show.on ? 'ux6c.hideX' : 'ux6c.showX', { name: show.name });
-  // `fix`: the tool after the switch that undoes what was done here (put an edit back, remove what is only on this resume): { act, icon, name, disabled, del }
-  const tools = [
-    lock && tool(`dp-lock${lock.on ? ' is-locked' : ''}${lock.byName ? ' inherited' : ''}`, lock.on ? 'lock' : 'unlock', 'lock-toggle', `data-id="${esc(lock.id)}"`, lock.byName ? t('ux6c.lockedUnder', { name: lock.byName }) : t(lock.on ? 'ux6c.unlockX' : 'ux6c.lockX', { name: lock.name }), lock.on, !!lock.byName, t(lock.on ? 'uxr.locked' : 'uxr.unlocked')),      // the title a state word (round 2)
-    show && `<button type="button" class="dp-t dp-show" data-act="chip-on" data-kind="${esc(show.kind)}" data-id="${esc(show.id)}" aria-label="${esc(showL)}" title="${esc(showL)}"${show.disabled ? ' aria-disabled="true"' : ''}>${pillHtml(show.on)}</button>`,
-    fix && `<button type="button" class="dp-t dp-fix${fix.del ? ' del' : ''}" data-act="${fix.act}" aria-label="${esc(fix.name)}" title="${esc(fix.name)}"${fix.disabled ? ' aria-disabled="true"' : ''}>${icon(fix.del ? 'delete' : fix.icon, { role: fix.del ? 'control' : 'inline' })}</button>`,      // last: a remove stands at the end
-  ].filter(Boolean);
-  return `<nav class="depth sm" aria-label="${esc(t(where === 'page' ? 'ux6f.depthPage' : 'ux6c.depth'))}">${levels.map((l, i) => btn(l, i === levels.length - 1 ? ' cur' : '', i)).join('<span class="dp-s" aria-hidden="true">›</span>')}${tools.length ? `<span class="dp-tools">${tools.join('')}</span>` : ''}${back ? `<button type="button" class="dp-t dp-back" data-act="chip-back" aria-label="${esc(t('ux6f.backTo', { name: back.word }))}">${icon('revert', { role: 'inline' })}</button>` : ''}</nav>`;
-}
-
-// The editor card's top row, the same at every depth: the tick and the padlock of what is selected (the chip's own buttons, `show` and `lock` as
-// depthHtml takes them), the version menu (a line: `vers` { fact, n, items: [{ id, n, cur, mine, gist }], miss, locked }), ↑ ↓ only among siblings
+// The editor card's top row, the same at every depth: the tick and the padlock of what is selected (`show` and `lock`), the version menu (a line: `vers` { fact, n, items: [{ id, n, cur, mine, gist }], miss, locked }), ↑ ↓ only among siblings
 // (`move` { first, last }), ⋯ (`more`: [{ act, label, attrs, del }]), and at its right end the add for this level (`add` { label }). A menu is its
 // button's next sibling, hidden until the button opens it (edit.js).
 export function topHtml({ name = '', lock = null, show = null, fix = null, vers = null, move = null, more = [], add = null } = {}){

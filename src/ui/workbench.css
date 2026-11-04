@@ -285,55 +285,6 @@ body.is-ready .paper-skel { display: none; }
 .crumb { flex-wrap: nowrap; }
 .crumb > :nth-last-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }      /* the last part (the line's words) is the one that gives way */
 .crumb > :not(:nth-last-child(2)) { flex: none; white-space: nowrap; }
-/* One depth indicator, the same on the page (#editlay .obchip) and at the top of the editor card: Page › Job › Line. A name gives
-   way with an ellipsis inside its level; a level's word never does. */
-.depth { display: flex; align-items: center; gap: 2px; width: max-content; max-width: 100%; box-sizing: border-box; padding: 2px; background: var(--raised); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-pill); box-shadow: var(--shadow-chip); font: 600 11.5px/1.2 var(--font-label); white-space: nowrap; }
-.depth .dp-l { display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 7px; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-soft); font: inherit; cursor: pointer; }
-.depth .dp-l:hover { background: var(--fill); color: var(--ink); }
-.depth .dp-l.cur { background: var(--accent); color: var(--on-accent); }
-.depth .dp-w { flex: none; }
-.depth .dp-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-.depth .dp-l:last-of-type:not(.next) .dp-n, .depth .dp-l.cur .dp-n { flex-shrink: 4; }
-.depth .dp-s { flex: none; color: var(--faint); }
-.col > #body .depth { margin-bottom: 2px; }
-.obchip { pointer-events: auto; max-width: min(440px, 60vw); }
-/* the page's instance: a quiet marker, 26 px tall (24 inside, so the tick's 24 px button sits in it, centred), outline only; the current level a little stronger; full contrast on hover or focus.
-   The buttons draw small but keep a 24 px pointer target (the pseudo-element). */
-.depth.sm { gap: 0; height: 26px; padding: 0 2px; font-size: 11px; font-weight: 500; line-height: 1; background: color-mix(in srgb, var(--raised) 85%, transparent); border-color: var(--line); box-shadow: none; }
-.depth.sm .dp-l { position: relative; align-self: stretch; align-items: center; gap: 0; padding: 0 4px; }
-.depth.sm .dp-l::after { content: ''; position: absolute; inset: -3px -1px; }
-.depth.sm .dp-l.cur { background: transparent; color: var(--ink); font-weight: 700; }
-.depth.sm:hover, .depth.sm:focus-within { background: var(--raised); border-color: var(--line-strong); }
-.depth.sm .dp-s { font-size: 10px; }
-.col > #body .depth.sm { height: auto; min-height: 26px; }      /* the card's chip may wrap */
-/* the page's chip is a piece of paper: the page's paper and ink, a lighter edge in the plate's ink, in all four looks (the card's keeps the sidebar's surface) */
-#editlay .obchip .depth.sm { --raised: var(--paper); --ink: var(--paper-ink); --ink-soft: var(--paper-soft); --faint: var(--paper-soft); --fill: color-mix(in srgb, var(--paper-ink) 10%, transparent);
-  background: var(--paper); color: var(--paper-ink); border-color: color-mix(in srgb, var(--sel-mark) 55%, var(--paper)); }
-#editlay .obchip .depth.sm:hover, #editlay .obchip .depth.sm:focus-within { background: var(--paper); border-color: var(--sel-mark); }
-.depth .dp-t.dp-back { opacity: 1; color: var(--ink); margin-left: 2px; }      /* the transient ↩ after the tools: its own small control, not a crumb */
-/* The padlock and the switch at the right end of the depth row, the same on the page's chip and in the editor: real buttons with a
-   24 px target, always shown. At rest they draw quietly (55%); on hover, focus, locked they come up. The switch is the pill, the one the Outline's rows use. */
-.depth .dp-tools { flex: none; display: inline-flex; align-items: center; margin-left: 2px; padding-left: 2px; border-left: 1px solid var(--line); }
-.depth .dp-t { position: relative; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--r-pill); background: transparent; color: var(--ink-soft); opacity: .55; cursor: pointer; }
-.depth .dp-t.dp-show { width: 32px; }
-.depth.sm .dp-t.dp-show { width: 32px; }
-.depth .dp-t:hover, .depth .dp-t:focus-visible { background: var(--fill); color: var(--ink); }
-.depth:hover .dp-t, .depth:focus-within .dp-t, .depth .dp-lock.is-locked { opacity: 1; }
-.depth .dp-t[aria-pressed=true].dp-lock { color: var(--ink); }
-.depth .dp-t[aria-disabled=true], .depth:hover .dp-t[aria-disabled=true], .depth:focus-within .dp-t[aria-disabled=true] { opacity: .4; cursor: default; }
-.depth.sm .dp-tools { margin-left: 0; padding-left: 0; border-left: 0; }
-/* A level's list (src/ui/depthmenu.js): its children, the version tag's way: a popover under the level, one line each, the one the selection
-   came through marked; scrolls past its height, never wider than the window. The chip stays one line: the list takes no room in it. No caret on the
-   words: the list opens under the pointer, the focus and Alt+↓ (aria-haspopup says so), and a long press by touch. */
-.depth .dpwrap { position: relative; display: inline-flex; align-self: stretch; }
-.dplist { position: absolute; left: 0; top: 100%; z-index: 3; display: flex; flex-direction: column; min-width: 140px; max-width: min(300px, calc(100vw - 16px)); max-height: min(280px, 50vh); overflow: auto; padding: 3px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-m); box-shadow: var(--shadow-chip); outline: 0; font: 500 12px/1.2 var(--font-label); text-align: left; }
-.dplist.up { top: auto; bottom: 100%; }
-.dplist[hidden] { display: none; }
-.dpopt { flex: none; min-height: 24px; display: flex; align-items: center; padding: 0 8px; border-radius: var(--r-s); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.dpopt > * { overflow: hidden; text-overflow: ellipsis; }
-.dpopt:hover, .dpopt.act { background: var(--hover-strong); color: var(--ink); }
-.dpopt.cur { color: var(--ink); font-weight: 700; }
-.dplist:focus-visible .dpopt.act { outline: 2px solid var(--focus, var(--sel-mark)); outline-offset: -2px; }
 /* the rows of the Outline: a padlock at the end of each; a locked row shows it, a row under a lock shows it inherited and greyed */
 .rowlock { position: relative; flex: none; display: inline-grid; place-items: center; width: var(--h-sm); height: var(--h-sm); margin-left: auto; padding: 0; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-soft); opacity: .55; cursor: pointer; }
 .clgh > .rowlock { margin-left: 0; }

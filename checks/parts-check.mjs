@@ -198,35 +198,31 @@ section('leaving a line keeps it on this resume: an edit with its base and highl
   ok('only the panel’s own Cancel button drops what was typed', T.overrideOf(u.cur(), id)?.text === 'Kept, then set aside.');
 }
 
-section('one depth indicator: the sidebar’s row is parts.js depthHtml, the chip’s markup');
+section('the card’s top row is the one place for what is selected: no breadcrumb anywhere, About you included');
 {
   const u = await makeUi({ resume: 0 });
   const job = u.work().work[0], id = job.highlights[0];
   const row = String(u.edit.bulletView({ kind: 'bullet', id, job: job.id, section: 'experience' }));
-  const sel = { kind: 'bullet', id, job: job.id, section: 'experience' };
-  const chip = u.edit.depthHtml(sel, { page: true });
-  // (the card's top row replaced its breadcrumb: the page says where the selection is, the card what can be done to it)
-  ok('the editor card opens with its top row: one toolbar (the switch, the padlock, the versions, ⋯) and the add pill, and no breadcrumb or old crumb', row.startsWith('<div class="ctop"><div class="cchip" role="toolbar"') && ['dp-show', 'dp-lock', 'ctb cver', 'ctb cmore', 'class="cadd"'].every(c => row.includes(c)) && !row.includes('class="depth') && !row.includes('class="crumb"') && chip.startsWith('<nav class="depth sm"'));
-  ok('the chip has no Esc and no level below', !chip.includes('dp-esc') && !chip.includes('dp-l next'));
-  ok('Page › Experience › Hydra on the page: single words, the job current, no line level and no names', (chip.match(/class="dp-l/g) ?? []).length === 3 && /class="dp-l cur"[^>]*aria-current="location"><span class="dp-w">Hydra<\/span><\/button>/.test(chip) && chip.includes('<span class="dp-w">Experience</span>') && !chip.includes('dp-n'));
+  ok('the editor card opens with its top row: one toolbar (the switch, the padlock, the versions, ⋯) and the add pill, and no breadcrumb or old crumb', row.startsWith('<div class="ctop"><div class="cchip" role="toolbar"') && ['dp-show', 'dp-lock', 'ctb cver', 'ctb cmore', 'class="cadd"'].every(c => row.includes(c)) && !row.includes('class="depth') && !row.includes('class="crumb"'));
   ok('a job’s line: its toolbar is named by the line’s own words, not by its job', /aria-label="Tools for [^"]+"/.test(row) && !row.includes('aria-label="Tools for Hydra"'));
-  const sk = u.edit.depthHtml({ kind: 'section', id: 'skills' }, { page: true });
-  ok('a section on the page: Page › Skills, a custom heading’s first word, long words cut with an ellipsis', /<span class="dp-w">Skills<\/span>/.test(sk) && !/dp-n/.test(sk));
-  ok('a section: Page › Experience; the header: Page › Header (the card as the chip)', /<span class="dp-w">Experience<\/span>/.test(u.edit.depthHtml({ kind: 'section', id: 'experience' })) && /<span class="dp-w">Header<\/span>/.test(u.edit.depthHtml({ kind: 'header' })));
+  const tops = [{ kind: 'header', id: 'name' }, { kind: 'section', id: 'skills' }, { kind: 'section', id: 'experience' }, { kind: 'job', id: job.id }].map(x => String(u.edit.topOf(x)));
+  ok('the header, a section and a job open with the same top row, and none has the old location chip', tops.every(h => h.startsWith('<div class="ctop"><div class="cchip" role="toolbar"') && !h.includes('class="depth') && !/class="dp-l[" ]/.test(h)), tops.map(h => h.slice(0, 60)).join(' | '));
+  ok('no "Page › …" chip is left to draw', typeof u.edit.depthHtml === 'undefined');
 }
 
-section('the padlock and the switch on the depth row: one component, a name each, aria-pressed');
+section('the padlock and the switch in the top row: a name each, aria-pressed');
 {
   const u = await makeUi({ resume: 0 });
   const job = u.work().work[0], id = job.highlights[0], sel = { kind: 'bullet', id, job: job.id, section: 'experience' };
-  const chip = u.edit.depthHtml(sel, { page: true }), row = String(u.edit.bulletView(sel));
+  const row = String(u.edit.topOf(sel));
   const btn = (h, cls) => (h.match(new RegExp(`<button[^>]*class="dp-t ${cls}[^"]*"[^>]*>`)) ?? [])[0] ?? '';
-  ok('the chip ends with a padlock and a switch inside the nav; the card’s toolbar starts with the same switch and padlock', /<span class="dp-tools"><button[^>]*dp-lock[^>]*>.*<\/button><button[^>]*dp-show[^>]*>.*<\/button><\/span><\/nav>/s.test(chip) && /<div class="cchip"[^>]*><button[^>]*dp-show[^>]*>.*?<\/button><button[^>]*dp-lock/s.test(row));
-  ok('the padlock is a button named for what the chip names, not pressed, and says Lock; the show/hide button holds the tick (.pillsw, drawn as a tick), says Hide and has no aria-pressed (a button is named for what it will do)', /aria-pressed="false" aria-label="Lock the line in /.test(btn(chip, 'dp-lock')) && /aria-label="Hide the line in [^"]* from this resume"/.test(btn(chip, 'dp-show')) && !/aria-pressed/.test(btn(chip, 'dp-show')) && /class="pillsw on"/.test(chip) && /data-act="lock-toggle" data-id="/.test(btn(chip, 'dp-lock')));
-  ok('the header, a heading and the page have a padlock and no switch', [{ kind: 'header', id: 'name' }, { kind: 'section', id: 'experience', heading: true }].every(x => { const h = u.edit.depthHtml(x, { page: true }); return /dp-lock/.test(h) && !/dp-show/.test(h); }));
+  ok('the toolbar starts with the switch, then the padlock', /<div class="cchip"[^>]*><button[^>]*dp-show[^>]*>.*?<\/button><button[^>]*dp-lock/s.test(row), row.slice(0, 300));
+  ok('the padlock is not pressed and says Lock; the show/hide button says Hide and has no aria-pressed', /aria-pressed="false"/.test(btn(row, 'dp-lock')) && /aria-label="Lock /.test(btn(row, 'dp-lock')) && /aria-label="Hide /.test(btn(row, 'dp-show')) && !/aria-pressed/.test(btn(row, 'dp-show')), btn(row, 'dp-lock') + btn(row, 'dp-show'));
+  { const hs = [{ kind: 'header', id: 'name' }].map(x => String(u.edit.topOf(x)));
+    ok('the header has a padlock and no switch (it always prints)', hs.every(h => /dp-lock/.test(h) && !/dp-show/.test(h)), hs.map(h => h.slice(0, 400)).join(' || ')); }
   u.store.commit(d => { d.cur.locked = [id]; }, 'lock');
-  const locked = u.edit.depthHtml(sel, { page: true });
-  ok('a locked line: the padlock is pressed and says Unlock, and the switch is aria-disabled', /is-locked[^>]*aria-pressed="true" aria-label="Unlock the line in /.test(btn(locked, 'dp-lock')) && /aria-disabled="true"/.test(btn(locked, 'dp-show')));
+  const locked = String(u.edit.topOf(sel));
+  ok('a locked line: the padlock is pressed, and the switch is aria-disabled', /is-locked[^>]*aria-pressed="true"/.test(btn(locked, 'dp-lock')) && /aria-disabled="true"/.test(btn(locked, 'dp-show')), btn(locked, 'dp-lock') + btn(locked, 'dp-show'));
   u.store.commit(d => { delete d.cur.locked; }, 'unlock');
 }
 

@@ -9,6 +9,7 @@
 ### Fixed
 - **The sidebar has its full width from the start;** it no longer widens after the first edit.
 - **Export always shows the whole pages,** even after you zoomed in on a line.
+- **About you opens with the same top row as every other panel;** the old "Page › Header › Name" chip is gone.
 
 ## 1.9.3 - 2026-11-04
 

@@ -16,7 +16,6 @@ import { initCanvas, PAGES_MOVED } from './canvas.js';
 import { initOnPage } from './onpage.js';
 import { initHands } from './hands.js';
 import { initString } from './string.js';
-import { bindDepthMenu } from './depthmenu.js';
 import { pageLeft } from './camera.js';
 import { initDock, storeZoomWrite, ib, barAside } from './dock.js';
 import { initChecklist } from './checklist.js';
@@ -188,7 +187,6 @@ async function boot(){
   mountFullBar();
   addEventListener('resize', () => { relayout(); dock.renderFoot(); syncWinFull(); });
   canvas.bind();
-  bindDepthMenu();
   document.addEventListener(PAGES_MOVED, () => { renderFoot(); renderChip(); });
   $('#pages').addEventListener('scroll', onPagesScroll, { passive: true });
   addEventListener('scroll', onPagesScroll, { passive: true });
@@ -479,14 +477,6 @@ function pageOfSel(sel){
 }
 // a click on the bare canvas (not on a page) puts you at the page level
 function bareClick(){ if (ui.view || ui.snap) return; if (ui.sel.kind !== 'none') select(NONE); }
-// Going up the same branch leaves a "back" on the page chip for a moment, to the depth just left (never a move into another section or job); any other selection write clears it (the chip's redraw shows it).
-const BACK_MS = 2500;
-let backT = 0;
-function setBack(from, to){
-  clearTimeout(backT);
-  ui.back = edit.isAbove(to, from) ? { sel: from, until: performance.now() + BACK_MS } : null;
-  if (ui.back) backT = setTimeout(() => { ui.back = null; renderChip(); }, BACK_MS);
-}
 // `keepScroll`: the click was on a row of the job's own lines, where the person is already looking, so the panel stays where it is.
 // `stay`: a line clicked on the page, about to be written: the camera stays for the writing zoom to move it.
 function select(sel, { keepScroll = false, stay = false } = {}){
@@ -495,7 +485,6 @@ function select(sel, { keepScroll = false, stay = false } = {}){
   // a selection made from Record, Design or Export (a row, a form to add something) is looked at in Edit
   const left = ui.view && ui.view !== 'welcome' && sel.kind !== 'none';
   if (left) ui.view = null;
-  setBack(ui.sel, sel);
   ui.sel = sel;
   if (ui.previewing){ ui.previewing = false; sheet.endPreview(); }
   sheet.select(sel, ui.ix);
@@ -1204,7 +1193,6 @@ async function onClick(e){
     case 'help': if (ui.menu){ ui.menu = false; renderHead(); } closeCorner(); help.toggle(); break;
     case 'corner': ui.corner = !ui.corner; if (ui.corner && ui.menu){ ui.menu = false; renderHead(); } drawCorner(); if (ui.corner) focusMenu('.cornermenu'); break;
     case 'deselect': select(NONE); break;
-    case 'chip-back': if (ui.back) select(ui.back.sel); break;
     case 'select-header': select({ kind: 'header' }); break;
     case 'select-section': select({ kind: 'section', id }); sheet.flash(id); break;
     case 'select-job': select({ kind: 'job', id }); break;
@@ -1681,7 +1669,7 @@ const edit = initEdit({
   redrawNow: () => { clearTimeout(timer); timer = null; return redraw(); }, bank: () => bank,
   onpage: { keepView: fn => onpage.keepView(fn), begin: () => onpage.begin(), end: () => onpage.end(), text: () => onpage.text(), setText: t => onpage.setText(t), refresh: () => onpage.refresh(), render: f => onpage.render(f) },
   newerBanner: () => resumes.newerBanner() + onboarding.tipHtml(),
-  outlineHtml: (...a) => checklist.outlineHtml(...a), depthKids: (...a) => checklist.kidsOf(...a), sectionInfo: (...a) => checklist.sectionInfo(...a),
+  outlineHtml: (...a) => checklist.outlineHtml(...a), sectionInfo: (...a) => checklist.sectionInfo(...a),
   select: (sel, o) => select(sel, o), jumpTo, heldRecipe: id => resumes.heldRecipe(id), thumbEntry: r => thumbs.entry(r),
   renderBody: () => renderBody(),
   flash: id => { ui.flashAfter = id; },

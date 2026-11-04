@@ -211,19 +211,6 @@ function mapHtml(list, secHtml){
   return out + (C.ui.snap ? '' : `<div class="cnewrow"><button type="button" class="item srow" data-act="top-add"><span class="cplus" aria-hidden="true">+</span><span>${h('card.newSection')}</span></button></div>`);
 }
 
-// The children of a level of the depth chip, as the Outline lists them, in print order: the page's sections, a section's jobs
-// or items (the header's fields), a job's lines that print. [{ text, sel }]: `sel` is what the Outline's row selects.
-export function kidsOf(kind, id){
-  const m = C.work(), cur = C.cur();
-  if (kind === 'page') return T.sectionList(m, cur).filter(s => s.on).map(s => ({ text: C.sectionTitle(s.id), sel: { kind: 'section', id: s.id } }));
-  const cl = checklist(m, cur, C.lang()), gs = kind === 'job' ? cl.groups.filter(g => g.id === id && g.kind === 'entry') : groupsOfSection(m, cl, id);
-  const rows = rs => rs.filter(r => r.on || r.fixed).map(r => ({ text: (r.id === 'about:photo' ? t('design.photoWord') : r.text).replace(/\n/g, ' · '), sel: r.sel }));
-  if (kind === 'job'){ const g = gs[0], by = new Map((g?.rows ?? []).map(r => [r.id, r])); return rows((g?.printed ?? []).map(x => by.get(x)).filter(Boolean)); }
-  if (id === 'header' || id === 'summary') return rows((gs[0]?.rows ?? []).filter(r => (r.kind === 'claim') === (id === 'summary')));
-  if (gs[0]?.kind === 'entry') return T.jobRefs(m, cur, id).map(r => gs.find(g => g.id === (typeof r === 'string' ? r : r.id))).filter(Boolean).map(g => ({ text: g.title, sel: { kind: 'job', id: g.id } }));
-  return rows(gs.flatMap(g => (g.kind === 'credentials' ? g.subs.filter(x => x.section === id).flatMap(x => x.rows) : g.rows)));
-}
-
 // a section's Career kind (its chip and colour): the header and the summary are About; the rest is the kind whose section it is
 const sectionKind = (m, sid) => (sid === 'header' ? 'about' : sid === 'summary' ? 'summary' : [...K.TIMELINE_KINDS, ...K.LIST_GROUPS, ...K.kindsOf(m).map(k => k.id)].find(k => K.sectionFor(m, k) === sid) ?? '');
 // what a section's card in the editor needs: its hue (the Outline heading's) and its lines on / in all
@@ -300,7 +287,7 @@ async function act(a, tg){
       return true;
     }
     // a click on a row: in the Outline it selects the line and the Outline stays; in the Record it opens Edit at the line
-    case 'cl-open': case 'dp-open': {      // (dp-open: an option of the depth chip's list, which selects as the row does)
+    case 'cl-open': {
       C.select(JSON.parse(tg.dataset.sel));
       // the panel's heading (a line's card has none: its toolbar) takes the focus, so the keyboard carries on in the inspector (Enter writes the line) and Esc goes back out
       const title = document.querySelector('#body .title') ?? document.querySelector('#body .ctop .cchip');
@@ -353,4 +340,4 @@ function bind(body){
   document.addEventListener('mouseover', e => { if (byMouse && !e.target.closest?.(ROW)){ byMouse = false; hover(null); } });
 }
 
-const api = { html, outlineHtml, kidsOf, sectionInfo, act, bind, afterRender, landed };
+const api = { html, outlineHtml, sectionInfo, act, bind, afterRender, landed };
