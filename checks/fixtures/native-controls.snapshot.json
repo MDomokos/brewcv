@@ -5,6 +5,7 @@
   },
   "select": {
     "src/ui/career.js": 5,
+    "src/ui/careerview.js": 3,
     "src/ui/export.js": 1,
     "src/ui/files.js": 3,
     "src/ui/library.js": 1,

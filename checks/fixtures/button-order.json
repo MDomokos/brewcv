@@ -11,8 +11,8 @@
   { "name": "Save to file, Approve all, Cancel", "order": ["[data-rv=save]", "[data-rv=all]", "[data-rv=cancel]"], "in": ["review list"] },
   { "name": "Create, Cancel", "order": ["[data-act=nv-create]", "[data-act=view-back]"], "in": ["new resume"] },
   { "name": "Mark as sent, Cancel", "order": ["[data-act=sv-do]", "[data-act=sent-back]"], "in": ["mark as sent"] },
-  { "name": "Add, Cancel (Career)", "order": ["[data-act=c-create]", "[data-act=c-add-cancel]"], "in": ["career add"] },
+  { "name": "Add, Cancel (Career)", "order": ["[data-act=cv-addsave]", "[data-act=cv-addcancel]"], "in": ["career add"] },
   { "name": "Cancel, Delete (a question)", "order": [".delask .ghost", ".delask .del"], "in": ["a question"] }
  ],
- "cancel": ["[data-act=ed-cancel]", "[data-act=sk-gcancel]", "[data-act=view-back]", "[data-act=sent-back]", "[data-act=nj-cancel]", "[data-rv=cancel]", "[data-act=c-add-cancel]", "[data-pa=cancel]", "[data-act=delete-claim-no]", "[data-act=rm-ask-no]", "[data-act=c-kind-del-no]"]
+ "cancel": ["[data-act=ed-cancel]", "[data-act=sk-gcancel]", "[data-act=view-back]", "[data-act=sent-back]", "[data-act=nj-cancel]", "[data-rv=cancel]", "[data-act=c-add-cancel]", "[data-pa=cancel]", "[data-act=delete-claim-no]", "[data-act=rm-ask-no]", "[data-act=c-kind-del-no]", "[data-act=cv-cancel]", "[data-act=cv-addcancel]", "[data-act=cv-inlcancel]"]
 }

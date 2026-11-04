@@ -69,7 +69,7 @@ const SCREENS = {
   inspector: async page => { await page.evaluate(() => window.__wb.setView('resumes')); await settle(page); await click(page, '#scr .rcard >> nth=1'); },
   settings: async page => { await page.evaluate(() => window.__wb.setView('settings')); },
   career: async page => { await click(page, '#ptabs [data-p=career]'); },
-  'career form': async page => { await click(page, '#ptabs [data-p=career]'); await settle(page); await click(page, '[data-act=rec-job] >> nth=0'); await settle(page); await click(page, '[data-act=cl-open]'); },
+  'career form': async page => { await click(page, '#ptabs [data-p=career]'); await settle(page); await page.evaluate(() => window.__wb.record.open(['hydra'])); await settle(page); await click(page, '[data-act=cl-open]'); },
   'one-off line': async page => {      // a line written on this resume only: its list row has the revert control
     await page.frameLocator('#sheet iframe').locator('.bullets li').first().click(); await settle(page);
     await page.evaluate(() => window.__wb.edit.startEdit()); await settle(page);

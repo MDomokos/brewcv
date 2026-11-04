@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Career shows your whole career in one scroll:** About you, the timeline and Skills & credentials, each edited right where it is, one editor at a time.
+- **Career reads in a language of its own,** and its sidebar shows what is left to write in each language, or what you have open.
+- **In Career the name card is your career file:** Export downloads career.json or a JSON Resume, or copies it as text for an AI chat.
+- **The mat scrolls with Career** exactly, behind the sidebar too, and the top and foot of the scroll fade.
+- **Esc, Cmd+. and the mouse's back button close Career's menus, then what is open;** only Esc drops an unsaved edit.
+- **Selections are marked with a ring or a tint,** never a coloured bar on a box's left edge.
+
 ## 1.9.3 - 2026-11-04
 
 ### Changed

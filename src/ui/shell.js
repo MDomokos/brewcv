@@ -42,6 +42,7 @@ import { onPaper } from '../model/design.js';
 import { initDesign } from './design.js';
 import { initOnboarding } from './onboarding.js';
 import { initCareer } from './career.js';
+import { initCareerView } from './careerview.js';
 import * as RS from '../model/resumes.js';
 import { switchLang, missingList, langName, langsInUse, addLangInUse, removeLang, removableLangs } from '../model/lang.js';
 import { langMenuHtml, menuKey, focusMenu } from './langmenu.js';
@@ -95,7 +96,7 @@ let bank = null;       // the skill wordbank (src/ui/wordbank.js), made once the
 let garden = null, gardenLoading = false;       // the tea garden (src/ui/garden.js), loaded the first time it can run
 const sheet = createSheet($('#sheet'), { onPick: pick, onKey: key, onDrop: e => dropFile(e), onPage: p => { ui.page = p; renderFoot(); },
   onReveal: reveal, chrome: r => docChrome(r.lang ?? 'en'),
-  onDrawn: () => { onpage?.afterDraw(); hands?.drawn(); find?.refresh(); mapChanged(); if (ui.view === 'record') lensMarks(); }, onPointer: e => { if (!bank?.pointer(e)) hands?.pointer(e); },
+  onDrawn: () => { onpage?.afterDraw(); hands?.drawn(); find?.refresh(); mapChanged(); if (ui.view === 'record') careerView.dim(); }, onPointer: e => { if (!bank?.pointer(e)) hands?.pointer(e); },
   extraCss: r => design.extraCss(store.state.record, r, shownMedium(r)), onPaper: r => onPaper(shownMedium(r)),      // the Export place shows the medium the files are made for
   // the hand, the wheel and the pinch over the page itself go to the canvas
   frameEvents: {
@@ -269,7 +270,8 @@ function setSnap(id){
   shownKey = null;
   if (id || had){ ui.sel = NONE; sheet.select(NONE, ui.ix); if (ui.previewing) endPreview(); schedule(); }
 }
-const lang = () => shown()?.lang ?? 'en';
+// Career reads in a language of its own (its toolbar's switch), one of the languages in use; everywhere else, the shown resume's
+const lang = () => (ui.view === 'record' && langsInUse(record()).includes(ui.careerLang) && ui.careerLang) || (shown()?.lang ?? 'en');
 
 // The renderer's mutable copy of the record, rebuilt when the record changes. The probe
 // caches line counts in it, never in the store.
@@ -503,7 +505,7 @@ function select(sel, { keepScroll = false, stay = false } = {}){
 // a picture dropped on the editor or on the page asks what it is for; any other file goes through the one door
 function dropFile(e){ e.preventDefault(); const list = [...(e.dataTransfer?.files ?? [])], f = list[0]; if (!f) return; if (list.length === 1 && /^image\//.test(f.type) && cur() && !ui.layout?.phone && !['welcome', 'record'].includes(ui.view) && !files.isOpen) design.askPhoto(f); else openFiles(list); }
 
-function closeBodyMenus(){ return [resumes, career].some(m => m.closeMenus?.()); }
+function closeBodyMenus(){ return [resumes, career, careerView].some(m => m.closeMenus?.()); }
 const hoverFact = id => sheet.setHover(id, ui.ix);
 
 function bindChrome(){
@@ -650,17 +652,22 @@ function drawHead(){
     // One name card in every place: the name and Export inset at its end. It names the open resume; in the Library resumes ticked for
     // Compare win, under a tag line saying so. A selected resume is named at the inspector's top, not here.
     const place = SCREENS.includes(ui.view), editorHere = !place, lib = placeOf() === 'library' ? screens.target() : null, tg = lib?.kind === 'ticked' ? lib : { ids: [store.state.openId], kind: 'open' };      // a selected one is named by the inspector
-    const rs = tg.ids.map(id => RS.savedOf(store.state, id)).filter(Boolean), many = rs.length > 1, none = !rs.length && closed;
+    const rs = tg.ids.map(id => RS.savedOf(store.state, id)).filter(Boolean), many = rs.length > 1;
+    // Career with no resume open, or showing the whole career: the card is the career file, and Export is the file's
+    const lens = placeOf() === 'career' && !!RS.savedOf(store.state, store.state.openId), lensV = ui.careerWhole ? 'whole' : 'picks';
+    const file = placeOf() === 'career' && (!lens || lensV === 'whole'), none = !rs.length && closed && !file;
     if (!many) ui.deckFold = false;
-    const tag = tg.kind === 'ticked' ? `<div class="htag"><span class="htagl is-other">${h('hc.tagTicked', { n: rs.length })}</span></div>` : '';      // the open resume needs no tag
-    const name = none ? `<span class="docname is-none"><span class="dn">${h('close.none')}</span></span>`
+    const counts = file ? careerView.fileCounts() : null;
+    const tag = file ? `<div class="htag"><span class="htagl">${h('cv.yourCareer')}</span></div>` : tg.kind === 'ticked' ? `<div class="htag"><span class="htagl is-other">${h('hc.tagTicked', { n: rs.length })}</span></div>` : '';      // the open resume needs no tag
+    const name = file ? `<span class="docname is-file"><span class="dn">${esc(record().basics?.name || t('cv.yourCareer'))}</span><span class="dt">career.json · ${h('cv.nJobs', { n: counts.jobs })} · ${h('cv.nLangs', { n: counts.langs })}</span></span>`
+      : none ? `<span class="docname is-none"><span class="dn">${h('close.none')}</span></span>`
       : editorHere
       ? `<button class="docname" id="docname-btn" data-act="switcher" aria-haspopup="dialog" aria-expanded="${switcher.isOpen}" aria-controls="switcher" title="${esc(t('head.docTitle'))}"><span class="dn" id="docname">${nameHtml(resumeName(cur()))}</span><span class="car" aria-hidden="true">${icon('caret', { role: 'inline' })}</span></button>`
       : !many ? `<button class="docname" ${rs[0]?.id === store.state.openId ? 'data-act="place" data-p="editor"' : `data-act="sw-open" data-id="${esc(rs[0]?.id ?? '')}"`} title="${esc(t('ux6e.open', { name: resumeName(rs[0]) }))}"><span class="dn">${nameHtml(resumeName(rs[0]))}</span></button>`
         : deckHtml(rs, screens.inspected());
-    const stub = `<button class="hstub" data-act="export-place" data-tip="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}|" aria-label="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}">${icon('fileout', { role: many ? 'control' : 'header' })}<span>${h('ux2.modeExport')}${many ? ` <b class="hn">${rs.length}</b>` : ''}</span></button>`;
+    const stub = file ? `<button class="hstub" data-act="cv-filemenu" aria-haspopup="menu" aria-expanded="false" data-tip="${esc(t('cv.exportFile'))}|" aria-label="${esc(t('cv.exportFile'))}">${icon('fileout', { role: 'header' })}<span>${h('ux2.modeExport')}</span></button>`
+      : `<button class="hstub" data-act="export-place" data-tip="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}|" aria-label="${esc(many ? t('hc.exportMany', { n: rs.length }) : t('hc.exportOne', { name: resumeName(rs[0]) }))}">${icon('fileout', { role: many ? 'control' : 'header' })}<span>${h('ux2.modeExport')}${many ? ` <b class="hn">${rs.length}</b>` : ''}</span></button>`;
     // Career with a resume open: the card's bottom row says whether Career shows its picks (the rest dimmed) or the whole career
-    const lens = placeOf() === 'career' && !!RS.savedOf(store.state, store.state.openId), lensV = ui.careerWhole ? 'whole' : 'picks';
     const lensRow = lens ? `<div class="hrow hlens"><div class="seg fill" role="group" aria-label="${esc(t('lens.label'))}">${['whole', 'picks'].map(v => `<button type="button" data-act="lens" data-v="${v}" aria-pressed="${lensV === v}">${h(`lens.${v}`)}</button>`).join('')}</div></div>` : '';
     document.body.dataset.lens = lens ? lensV : '';
     $('#head').classList.toggle('is-lens', lens && lensV === 'picks');
@@ -673,10 +680,11 @@ function drawHead(){
     ${editorHere && from ? `<div class="hrow sentrow"><span class="dfrom">${esc(from)}</span></div>` : ''}
     ${editorHere && sent ? `<div class="hrow sentrow"><span class="dsent">${esc(sent)}</span></div>` : ''}
     ${ui.view === 'compare' ? screens.placeCard('compare') : ''}
-    ${rs.length ? stub : ''}
+    ${rs.length || file ? stub : ''}
     ${notices}
     ${lensRow}`;
-    drawRail(savedState, many, rs.length ? stub.replace('class="hstub"', 'class="wexport"') : '');      // folded, Export is the way's strip's last cell
+    $('#head').classList.toggle('is-file', file);
+    drawRail(savedState, many, rs.length || file ? stub.replace('class="hstub"', 'class="wexport"') : '');      // folded, Export is the way's strip's last cell
   } else {
   $('#ptabs').hidden = true;
   const meta = r && !store.state.closed ? [r.format === 'us-letter' ? t('paper.letter') : t('paper.a4'),
@@ -766,14 +774,6 @@ function drawPlaces(many = false, exp = ''){
   const ns = [...next.childNodes];
   if (pt.childNodes.length === ns.length) [...pt.childNodes].forEach((c, i) => morph(c, ns[i])); else pt.replaceChildren(...ns);
   $('#col').classList.toggle('is-l-open', cur === 'design');      // the card's corner under Look is square while Look is open, where the tab hides it
-}
-// Career's picks: an entry of the timeline the open resume does not print is dimmed in place: none of its facts or lines is on its page
-function lensMarks(){
-  const picks = document.body.dataset.lens === 'picks', rows = document.querySelectorAll('#scr .tl2 :is(.row, .srow)[data-id]');
-  const ix = picks ? ui.ix ?? indexModel(work(), cur()) : null, w = picks ? work() : null;
-  const printed = picks ? new Set([...(sheet.doc?.querySelectorAll('[data-variant]') ?? [])].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)) : null;
-  const used = (key, id) => { const x = (w[key] ?? []).find(e => e.id === id); return !!x && [...Object.values(x.display ?? {}), ...(x.highlights ?? [])].some(f => printed.has(f)); };
-  for (const r of rows) r.toggleAttribute('data-unpicked', picks && !used(r.dataset.key, r.dataset.id));
 }
 // The way is redrawn with the head, on every save: its tabs are patched in place (attributes and words), so a change of place eases (the
 // width, the name) and the open tab's rise plays once, when it opens, never on a save
@@ -985,7 +985,7 @@ function renderBody(animate = false){
   // a record form with something typed in it is not redrawn under the caret; one you have left or not changed is, and the focus stays where it was
   // (a place's inspector is in the sidebar's body: the focus may be there)
   const ae = document.activeElement, fh = there && $('#body').contains(ae) ? $('#body') : el;
-  const typing = !animate && fh.contains(ae) && ae.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea') && !!ae.closest('[data-form]');
+  const typing = !animate && fh.contains(ae) && ae.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea') && !!ae.closest('[data-form], .ce-ed');
   if (typing && ae.value !== ae.defaultValue) return;
   const had = typing && ae.id ? { id: ae.id, start: ae.selectionStart, end: ae.selectionEnd } : null;
   // a tick or a switch redraws the panel; the control that had the focus keeps it: found by what it is, else by its place
@@ -1034,7 +1034,6 @@ function renderBody(animate = false){
     el.dataset.mode = ui.view;
     if (ui.view === 'record') recordTab.afterRender();
     screens.after[ui.view]?.();
-    if (ui.view === 'record') lensMarks();
     finish();
     if (ui.view === 'record') recordTab.refocus();
     if (ui.view === 'export' && !ui.layout?.phone) el.querySelector('.exstat')?.insertAdjacentHTML('beforeend', `<div class="exfit">${dock.barsHtml()}</div>`);      // the page fill lives in Export, once: at the end of the status row (a desktop has no Fit; a phone's foot keeps it)
@@ -1180,7 +1179,7 @@ async function onClick(e){
   if (await edit.act(act, tg)) return;
   switch (act){
     case 'export-place': openExport(); break;
-    case 'lens': ui.careerWhole = tg.dataset.v === 'whole'; renderHead(); lensMarks(); break;
+    case 'lens': ui.careerWhole = tg.dataset.v === 'whole'; renderHead(); if (ui.view === 'record') renderBody(); break;
     case 'sheet': {      // Content or Look from Career or the Library: the resume the card names, then that sheet
       if (tg.getAttribute('aria-disabled') === 'true') { tg.dispatchEvent(new Event('tip-now', { bubbles: true })); break; }      // why it rests: its hint, shown at once
       if (id && id !== store.state.openId && !resumes.open(id)) break;
@@ -1746,7 +1745,11 @@ window.__wb.career = career;
 const checklist = initChecklist({ store, ui, work, cur, lang, edit, career, sectionTitle, sectionsByPage: () => sheet.sectionsByPage(), lineBox: id => { const r = ui.ix && sheet.rectOf(id, ui.ix); return r ? canvas.screenRect(r) : null; }, select: (s, o) => select(s, { keepScroll: true, ...o }), hoverFact, renderBody: () => renderBody(), timelineHtml: () => career.timelineHtml() });
 checklist.bind($('#body'));
 window.__wb.checklist = checklist;
-const recordTab = initRecord({ ui, checklist, career, work, cur, lang, openName: () => resumeName(RS.savedOf(store.state, store.state.openId)), renderBody: () => renderBody(), setMode: m => dock.setMode(m) });
+// the facts the open resume's page prints, as drawn
+const printedNow = () => { const ix = ui.ix ?? indexModel(work(), cur()); return new Set([...(sheet.doc?.querySelectorAll('[data-variant]') ?? [])].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)); };
+const careerView = initCareerView({ store, ui, work, lang, career, toast, download, printed: printedNow, openAt: (rid, sel) => jumpTo(rid, sel), renderBody: () => renderBody(),
+  setLang: l => { ui.careerLang = l; renderBody(); }, record: { release: () => recordTab.release() } });
+const recordTab = initRecord({ ui, checklist, career, view: careerView, work, cur, lang, openName: () => resumeName(RS.savedOf(store.state, store.state.openId)), renderBody: () => renderBody(), setMode: m => dock.setMode(m) });
 window.__wb.record = recordTab;
 const help = initHelp({ ui });
 const find = initFind({ view: () => ui.view, leaveWriting: async () => !ui.writing || edit.cancelEdit(), goLibrary: () => goPlace('library'), renderBody: () => renderBody(), work, cur, lang, openLang: () => shown()?.lang ?? null,

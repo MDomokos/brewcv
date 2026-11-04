@@ -6,7 +6,7 @@
 // A button that already names its tier keeps it. A tertiary with no words is an icon tool (data-icon): a quiet frame, where a tertiary with words is a link.
 // OWN are the controls with a look of their own that says what they are (segments, templates, swatches, the rows and their parts, the tabs, the
 // crumb and its tools, menu and list rows); checks/sidebar-check.mjs (tiers) names every control's tier or look, and its layer.
-export const OWN = '.seg button, .menu button, .ctb, .cadd, .cvo, .cmi, .ogo, .sopt, .tpl, .swatch, .item, .dp-l, .dp-t, .rowlock, .clcaret, .osecaret, .clt, .clname, .ptab, .wtab, .brand, .logo, .meter, .ihpage, .vrow, .ddopt, .hedit, .snapline, .swnew, .row, .srow, .rsel, [role=option], [role=tab], [role^=menuitem]';
+export const OWN = '.seg button, .menu button, .ctb, .cadd, .cvo, .cmi, .ogo, .sopt, .tpl, .swatch, .item, .dp-l, .dp-t, .rowlock, .clcaret, .osecaret, .clt, .clname, .ptab, .wtab, .brand, .logo, .meter, .ihpage, .vrow, .ddopt, .hedit, .snapline, .swnew, .row, .srow, .rsel, [role=option], [role=tab], [role^=menuitem], .ce-doc button:not(.ce-b), .ce-side button:not(.ce-b), .ce-ctxback';
 const TERTIARY = '.ghost, .ib, .clv, .keep, .smore, .docname, .x, .kset, .tool';
 export const tierOf = b => (b.classList.contains('primary') ? 'primary' : b.classList.contains('del') ? 'destructive' : b.matches(TERTIARY) ? 'tertiary' : 'secondary');
 export function tierAll(root){

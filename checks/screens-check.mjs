@@ -126,7 +126,7 @@ await part('zoom: the Library cards and the Career timeline step with - + 0 and 
   ok('typing + - 0 in the search field does not zoom, and the keys are the field’s', await page.evaluate(() => localStorage.getItem('rb-zoom-library')) === '5' && await page.inputValue('#scr-q') === '+-0');
   await page.fill('#scr-q', ''); await page.evaluate(() => document.activeElement.blur());
   await page.click('#ptabs [data-p=career]'); await settle(page, 500);
-  const car = () => page.evaluate(() => { const r = document.querySelector('#scr .rectl'), row = document.querySelector('#scr .rectl .row'); return { w: Math.round(r.getBoundingClientRect().width), h: Math.round(r.getBoundingClientRect().height), fs: getComputedStyle(row.querySelector('.t')).fontSize, store: localStorage.getItem('rb-zoom-career') }; });
+  const car = () => page.evaluate(() => { const r = document.querySelector('#scr .ce-tg'), row = document.querySelector('#scr .ce-card'); return { w: Math.round(r.getBoundingClientRect().width), h: Math.round(r.getBoundingClientRect().height), fs: getComputedStyle(row.querySelector('.t b')).fontSize, store: localStorage.getItem('rb-zoom-career') }; });
   const c0 = await car();
   for (let i = 0; i < 8; i++) await page.keyboard.press('-');
   const c1 = await car();
@@ -134,7 +134,7 @@ await part('zoom: the Library cards and the Career timeline step with - + 0 and 
   await page.keyboard.press('0'); const c2 = await car();
   await page.mouse.move(400, 400); await page.keyboard.down('Control'); await page.mouse.wheel(0, -120); await page.keyboard.up('Control'); await settle(page, 200);
   const c3 = await car();
-  ok('Career: - tightens the timeline (shorter, narrower, to 5 steps), 0 resets, Ctrl+wheel steps it; the text keeps its size; the Library’s zoom is its own', c1.h < c0.h && c1.w < c0.w && c1.store === '-5' && c2.h === c0.h && c2.w === c0.w && c3.store === '1' && c3.h > c0.h && c1.fs === c0.fs && c3.fs === c0.fs, JSON.stringify({ c0, c1, c2, c3 }));
+  ok('Career: - tightens the timeline (shorter, to 5 steps), 0 resets, Ctrl+wheel steps it; the text keeps its size; the Library’s zoom is its own', c1.h < c0.h && c1.store === '-5' && c2.h === c0.h && c2.w === c0.w && c3.store === '1' && c3.h > c0.h && c1.fs === c0.fs && c3.fs === c0.fs, JSON.stringify({ c0, c1, c2, c3 }));
   await ctx.close();
 });
 
@@ -673,36 +673,33 @@ await part('the example’s own Library: rounds (the current one open, an older 
 });
 
 // ---------------------------------------------------------------- Career
-await part('Career: profile cards and the timeline (newest first); the entry docked in the inspector with its scope named; search finds a line', async () => {
+await part('Career: About you, the timeline (newest first) and the cards; an entry opens in place; one asked for docks in the inspector with its scope named; search finds a line', async () => {
   const { ctx, page } = await open(1470, 832);
   await page.click('#ptabs [data-p=career]'); await settle(page, 500);
   const c = await page.evaluate(() => {
-    const R = e => e.getBoundingClientRect(), years = [...document.querySelectorAll('#scr .rectl .yr')].map(y => y.textContent.trim()), cards = [...document.querySelectorAll('#scr .recmore .srow')].map(x => x.textContent.trim()), tl = document.querySelector('#scr .rectl .tl2');
+    const R = e => e.getBoundingClientRect(), years = [...document.querySelectorAll('#scr .ce-yr')].map(y => y.textContent.trim()), tl = document.querySelector('#scr .ce-tg');
     const flo = [...document.querySelectorAll('#scr *')].filter(e => { const s = getComputedStyle(e); return (s.position === 'fixed' || s.position === 'absolute') && R(e).width > 120 && R(e).height > 30 && !e.closest('.tbar') && !e.matches('.sr, .sr *'); }).map(e => e.className);
-    return { years, cards, first: document.querySelector('#scr .rectl .row')?.textContent, view: window.__wb.ui.view, floating: flo, detail: !!document.querySelector('.recdetail'), toolbar: !!document.querySelector('#scr .tbar #rec-q'), cardsAbove: R(document.querySelector('#scr .recmore')).bottom <= R(tl.querySelector('.colhead')).top + 2, strip: getComputedStyle(tl).display };
+    return { years, first: document.querySelector('#scr .ce-card .t b')?.textContent, floating: flo, toolbar: !!document.querySelector('#scr .tbar #rec-q'), aboutAbove: R(document.querySelector('#scr .ce-about')).bottom <= R(tl).top, boxes: document.querySelectorAll('#scr .ce-box').length, side: !!document.querySelector('#body .ce-side .ce-chips') };
   });
-  ok('profile cards on top (About you, Skills and credentials), the timeline under them, newest year first, vertical', c.cards.includes('About you') && c.cards.some(x => /Skills/.test(x)) && c.cardsAbove && c.years[0] === 'Now' && +c.years[1] > +c.years.at(-1) && c.strip === 'block', JSON.stringify(c));
-  ok('nothing floats over the timeline: no pop-over detail card, only the toolbar is above it', c.floating.length === 0 && !c.detail && c.toolbar, c.floating.join());
-  const d = await page.evaluate(() => { const b = document.querySelector('#body'); return { name: b.querySelector('.oi-name')?.textContent.trim(), scopes: [...b.querySelectorAll('.scope')].map(x => x.textContent.trim()), det: b.querySelector('details.details')?.open, lines: b.querySelectorAll('.clrow .cb').length, sel: document.querySelectorAll('#scr .rectl .is-sel').length, inChecklist: !!document.querySelector('#scr #checklist .clg:not([style*=none]) .clrow') }; });
-  ok('the newest entry is docked in the inspector, selected on the timeline, its lines to tick (Details folded, so they show without scrolling)', /Design Engineer/.test(d.name) && d.det === false && d.lines >= 5 && d.sel === 1, JSON.stringify(d));
+  ok('About you on top, the timeline under it, newest year first, then the cards of Skills & credentials; the sidebar lists the languages', c.aboutAbove && c.years[0] === 'Now' && +c.years[1] > +c.years.at(-1) && c.first === 'Design Engineer' && c.boxes >= 4 && c.side, JSON.stringify(c));
+  ok('nothing floats over the timeline: only the toolbar is above it', c.floating.length === 0 && c.toolbar, c.floating.join());
+  await page.click('#scr .ce-card[data-ce-card=poly] .ce-ch'); await settle(page);
+  ok('a click on an entry opens its lines in place, and the sidebar speaks of it', await page.evaluate(() => document.querySelectorAll('#scr .ce-card.is-open').length === 1 && !!document.querySelector('#scr .ce-card[data-ce-card=poly] .ce-lines') && /Prototyping Technician/.test(document.querySelector('#body .ce-side').textContent)));
+  await page.evaluate(() => window.__wb.record.open(['hydra'])); await settle(page);
+  const d = await page.evaluate(() => { const b = document.querySelector('#body'); return { name: b.querySelector('.oi-name')?.textContent.trim(), scopes: [...b.querySelectorAll('.scope')].map(x => x.textContent.trim()), det: b.querySelector('details.details')?.open, lines: b.querySelectorAll('.clrow .cb').length, back: !!b.querySelector('[data-act=rec-back]') }; });
+  ok('an entry asked for (the page\u2019s job chip, Edit\u2019s links) docks in the inspector, its lines to tick, Details folded, with a way back', /Design Engineer/.test(d.name) && d.det === false && d.lines >= 5 && d.back, JSON.stringify(d));
   ok('the scope is named: a change reaches every resume that prints it (the ticks need no note)', d.scopes.length === 1 && /reaches every resume that prints it/.test(d.scopes[0]), d.scopes.join(' | '));
-  await page.click('#scr .rectl .row:has-text("Prototyping Technician")'); await settle(page);
-  ok('a click on another entry docks that one', /Prototyping Technician/.test(await page.textContent('#body .oi-name')) && await page.evaluate(() => document.querySelectorAll('#scr .rectl .is-sel').length) === 1);
-  await page.click('#scr .recmore .srow:has-text("About you")'); await settle(page);
-  ok('a card opens in the inspector too', /About you/.test(await page.textContent('#body .oi-name')));
-  await page.fill('#rec-q', 'caliper'); await settle(page, 500);
-  const q = await page.evaluate(() => ({ name: document.querySelector('#body .oi-name')?.textContent.trim(), hit: [...document.querySelectorAll('#body .clrow.qhit')].map(x => x.textContent.trim().slice(0, 40)), focus: document.activeElement?.id, shown: [...document.querySelectorAll('#scr .rectl [data-grp]')].filter(b => b.style.display !== 'none').length }));
-  ok('search finds a line: its entry is selected and the line is marked (and the caret stays in the search box)', /caliper/i.test(q.name + q.hit.join()) && q.hit.length >= 1 && q.focus === 'rec-q' && q.shown >= 1, JSON.stringify(q));
-  await page.fill('#rec-q', ''); await settle(page);
-  // a tick, with the focus kept
-  await page.click('#scr .rectl .row:has-text("Design Engineer")'); await settle(page);
   const cb = page.locator('#body .clrow .cb').nth(3); await cb.focus(); const was = await cb.isChecked(); await page.keyboard.press('Space'); await settle(page, 500);
   ok('a tick in the inspector changes the open resume and keeps the focus on the tick', await page.evaluate(w => document.activeElement?.classList.contains('cb') && document.activeElement.checked === !w, was));
-  // typing in a Details field is not redrawn away
   await page.click('#body details.details summary'); await settle(page, 200);
   await page.fill('#c-loc', 'Porto, Portugal'); await settle(page, 300);
   ok('what is typed in a field of the entry\u2019s Details stays there', await page.inputValue('#c-loc') === 'Porto, Portugal');
-  await page.fill('#rec-q', 'zzz-nothing'); await settle(page, 300); await page.fill('#rec-q', ''); await settle(page, 300);
+  await page.click('#body [data-act=rec-back]'); await settle(page);
+  ok('Back gives the sidebar back to Career', await page.evaluate(() => !!document.querySelector('#body .ce-side') && !document.querySelector('#body .insp-rec')));
+  await page.fill('#rec-q', 'caliper'); await settle(page, 500);
+  const q = await page.evaluate(() => ({ cards: [...document.querySelectorAll('#scr .ce-card')].map(x => x.querySelector('.t b').textContent), open: document.querySelectorAll('#scr .ce-card.is-open').length, focus: document.activeElement?.id }));
+  ok('search finds a line: only the entries that hold it are left, open, and the caret stays in the search box', q.cards.length >= 1 && q.cards.length < 6 && q.open === q.cards.length && q.focus === 'rec-q', JSON.stringify(q));
+  await page.fill('#rec-q', ''); await settle(page);
   await page.keyboard.press('Escape'); await settle(page);
   ok('Esc stays in Career', await view(page) === 'record');
   await ctx.close();

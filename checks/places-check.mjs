@@ -99,10 +99,10 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
   await page.keyboard.press('Escape'); await settle(page);
   ok('the next Esc clears the ticks, and still stays in the Library', await view(page) === 'resumes' && (await page.$$('#scr .rtick:checked')).length === 0);
   await page.click('#ptabs [data-p=career]'); await settle(page);
-  await page.click('#c-add'); await settle(page);
-  ok('Career has its Add menu open', !!(await page.$('#scr .addmenu, #scr [role=menu]')));
+  await page.click('#ce-add'); await settle(page);
+  ok('Career has its Add menu open', !!(await page.$('#ce-pop [role=menu]')));
   await page.keyboard.press('Escape'); await settle(page);
-  ok('Esc closes the open form of Career and stays in Career', await view(page) === 'record' && !(await page.$('#scr .addmenu, #scr [role=menu]')));
+  ok('Esc closes the open form of Career and stays in Career', await view(page) === 'record' && !(await page.$('#ce-pop')));
   await page.keyboard.press('Escape'); await settle(page);
   ok('…and the next Esc stays in Career too', await view(page) === 'record' && await cur(page) === 'Your career');
   await page.keyboard.press('e'); await settle(page);
@@ -267,10 +267,10 @@ const hist = page => page.evaluate(() => { const r = document.querySelector('#ra
 {
   const { ctx, page } = await open(1470, 832);
   await page.keyboard.press('r'); await settle(page);
-  const st = () => page.evaluate(() => ({ lens: document.body.dataset.lens, frame: document.querySelector('#head').classList.contains('is-lens'), btns: [...document.querySelectorAll('#head .hlens [data-act=lens]')].map(b => b.dataset.v + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(), off: [...document.querySelectorAll('#scr .tl2 [data-unpicked]')].map(r => r.dataset.id) }));
+  const st = () => page.evaluate(() => ({ lens: document.body.dataset.lens, frame: document.querySelector('#head').classList.contains('is-lens'), btns: [...document.querySelectorAll('#head .hlens [data-act=lens]')].map(b => b.dataset.v + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(), off: [...document.querySelectorAll('#scr .ce-card.is-off')].map(r => r.dataset.ceCard) }));
   const a = await st();
   ok('Career with a resume open: the name card\'s row is Whole career | Its picks, Its picks on, the card framed in the accent', a.lens === 'picks' && a.frame && a.btns === 'whole,picks*', JSON.stringify(a));
-  const shown = await page.evaluate(() => { const w = window.__wb, d = document.querySelector('#sheet iframe').contentDocument, ix = w.ui.ix, p = new Set([...d.querySelectorAll('[data-variant]')].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)); return [...document.querySelectorAll('#scr .tl2 [data-id]')].map(r => { const x = (w.store.materialize(w.store.state.record)[r.dataset.key] ?? []).find(e => e.id === r.dataset.id); return [r.dataset.id, !!x && [...Object.values(x.display ?? {}), ...(x.highlights ?? [])].some(f => p.has(f))]; }); });
+  const shown = await page.evaluate(() => { const w = window.__wb, d = document.querySelector('#sheet iframe').contentDocument, ix = w.ui.ix, p = new Set([...d.querySelectorAll('[data-variant]')].map(e => ix.factOfVariant.get(e.dataset.variant)).filter(Boolean)); return [...document.querySelectorAll('#scr .ce-card[data-ce-card]')].map(r => { const x = (w.store.materialize(w.store.state.record)[r.dataset.key] ?? []).find(e => e.id === r.dataset.ceCard); return [r.dataset.ceCard, !!x && [...Object.values(x.display ?? {}), ...(x.highlights ?? [])].some(f => p.has(f))]; }); });
   ok('…the entries the resume does not print are dimmed in place, and only those (an education printed is not)', shown.length > 3 && shown.every(([id, on]) => a.off.includes(id) === !on) && shown.some(([, on]) => on) && a.off.length > 0, JSON.stringify({ shown, off: a.off }));
   await page.click('#head .hlens [data-v=whole]'); await settle(page);
   const b = await st();

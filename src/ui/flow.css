@@ -165,8 +165,6 @@ html[data-motion=reduce] #string, html[data-motion=reduce] #strmark, html[data-m
 .col > #head .hlens .seg > button[aria-pressed=true] { color: var(--ink); font-weight: 700; text-decoration: underline 2px var(--accent); text-underline-offset: 5px; }      /* either side, the same mark */
 .col > #head .hlens .seg > button[data-v=whole] { background: color-mix(in srgb, var(--ink) 9%, var(--surface)); box-shadow: var(--elev-inset); border-radius: 0 var(--r-m) 0 var(--r-l); }      /* "Your career" is cut out of the card's bottom-left corner */
 body:not([data-phone=true]):not(.is-intro) .col > #head.is-lens { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--lv-res-lift); }
-body[data-lens=picks] #scr .tl2 [data-unpicked] { opacity: .42; filter: saturate(.6); transition: opacity var(--m-fast) var(--m-out); }
-body[data-lens=picks] #scr .tl2 [data-unpicked]:is(:hover, :focus-visible) { opacity: .8; }
 body[data-lens=picks] #body .insp-rec .clrow.is-off { opacity: .5; }
 body[data-lens=whole] #body .insp-rec .clrow .cb { visibility: hidden; }      /* hidden, not removed: nothing moves between the two */
 body[data-lens=whole] #body .insp-rec .clrow.is-off .clt { opacity: 1; color: var(--ink); }
@@ -609,3 +607,310 @@ mark.fnd { background: var(--mark-soft); color: inherit; border-radius: 2px; pad
 .insp-doc .ticks { list-style: none; margin: 4px 0; padding: 0; }
 .insp-doc .dpages { display: grid; gap: 6px; }
 .insp-doc .dpage { display: block; width: 100%; max-width: 420px; margin: 0 auto; background: var(--sheet); }
+
+/* ---- Career (careerview.js): the whole career in one column, at most 1080px, centred left of the sidebar, on the mat that #scr carries and
+   scrolls (drinks.css): the toolbar floats at its top, About you is one card, the timeline lies on a spine as main's always did (round markers,
+   small year labels, the right lane behind a dotted rule), Skills & credentials are cards. The kind's hue tints areas (markers, chips, the
+   header bands); every glyph is ink. A selection is a full ring, a tint or weight, never a bar on a box's left edge. Controls: 32px in the
+   toolbar, 28px inside a card, 22px inline. ---- */
+.scr { --ce-w: 1080px; }
+.scr .ce-bar { gap: 8px 12px; margin: 12px 0 20px max(0px, calc((100% - var(--ce-w)) / 2)); padding: 6px 10px; border-color: var(--line); border-radius: var(--r-l); background: var(--surface); box-shadow: var(--elev-low); }
+.scr .ce-bar .sw-q { width: 240px; }
+.scr .ce-bar :is(button.sm, .ce-langbtn) { height: var(--h-ctl); min-height: 0; padding: 0 12px; font-size: 13px; }
+.scr .ce-bar .ce-langbtn { display: inline-flex; align-items: center; gap: 6px; }
+.scr .ce-lang { display: inline-flex; gap: 2px; padding: 2px; }
+.scr .ce-lang button { display: inline-flex; align-items: center; gap: 4px; height: calc(var(--h-ctl) - 4px); padding: 0 8px; font: 600 12px/1 var(--font-ui); }
+.scr .ce-lang small { font-size: 10px; font-weight: 700; opacity: .75; }
+/* the fades: the top one once scrolled, under the toolbar, and the foot's while there is more; a mask, so the toolbar's own box stays whole. What
+   lies under the masked bands is the ground's plain tone, so the mat (always the one that scrolls) softens into it at the window's edges. */
+#scr:is(.ce-top, .ce-more) { --ce-a: 0px; --ce-b: 0px; --ce-z: 0px;
+  -webkit-mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(to bottom, transparent var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
+  mask-image: linear-gradient(var(--ink), var(--ink)), linear-gradient(to bottom, transparent var(--ce-a), var(--ink) var(--ce-b), var(--ink) calc(100% - var(--ce-z)), transparent 100%);
+  -webkit-mask-size: var(--ce-bw, 0px) var(--ce-bh, 0px), 100% 100%; mask-size: var(--ce-bw, 0px) var(--ce-bh, 0px), 100% 100%;
+  -webkit-mask-position: var(--ce-bx, 0px) var(--ce-bt, 0px), 0 0; mask-position: var(--ce-bx, 0px) var(--ce-bt, 0px), 0 0; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+#scr.ce-top { --ce-a: calc(var(--ce-bb, 0px) - 4px); --ce-b: calc(var(--ce-bb, 0px) + 32px); }
+#scr.ce-more { --ce-z: 36px; }
+html[data-drink="tea"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { background: linear-gradient(var(--mat-wash), var(--mat-wash)), var(--mat-b); }
+html[data-drink="coffee"] body.has-scr:has(#scr .ce-doc):not(:has(.matroll)) { background: var(--canvas); }
+
+.scr .ce-doc { container-type: inline-size; max-width: var(--ce-w); margin-inline: auto; padding: 0 0 96px; color: var(--ink); font-family: var(--font-ui); }
+.scr .ce-doc .cb:not(:checked) { background: var(--field); }      /* an empty tick on Career's paper, not the sidebar's ground */
+.scr .ce-doc button { font-family: inherit; color: inherit; text-align: left; cursor: pointer; }
+.scr .ce-doc .is-miss { color: var(--ink-soft); }
+.scr .ce-doc [id] { scroll-margin-top: 84px; }
+.scr .ce-doc .mark { display: inline-block; margin-left: 8px; padding: 1px 7px; border: 1px dashed var(--line-strong); border-radius: var(--r-pill); color: var(--ink-soft); font: 600 10.5px/1.5 var(--font-ui); white-space: nowrap; vertical-align: 1px; cursor: pointer; }      /* dashed: something missing */
+.scr .ce-doc .mark.rev { border-style: solid; cursor: inherit; }
+.scr .ce-doc .mark[data-act]:hover { color: var(--ink); border-color: var(--ink-soft); }
+.scr .ce-doc :is(.nv, .pn) { flex: none; display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 6px; border-radius: var(--r-pill); font: 700 10.5px/17px var(--font-ui); text-align: center; vertical-align: 1px; }
+.scr .ce-doc .nv { background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink-soft); }
+.scr .ce-doc .pn { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); color: var(--ink); }
+.scr .ce-none { margin: 4px 0; color: var(--ink-soft); font-size: 12.5px; }
+.scr .ce-bh { display: flex; align-items: center; gap: 10px; margin: 26px 0 10px; color: var(--ink); font: 700 11px/1 var(--font-label, var(--font-ui)); letter-spacing: .08em; text-transform: uppercase; }
+.scr .ce-bh::after { content: ""; flex: 1; border-top: 1px solid var(--line-strong); }
+/* Career's own icons are larger than the app's lists: the header role (24px) in 32px markers and chips */
+.scr .ce-doc :is(.node, .chip) svg, .ce-pop .ai svg { width: 24px; height: 24px; color: var(--ink); }
+.scr .ce-doc .si { display: grid; place-items: center; background: none; color: var(--ink); }
+
+/* About you: the name, headline and contact | the summary, centred in its column behind a rule */
+.scr .ce-about { position: relative; border: 1px solid var(--line); border-radius: var(--r-l); background: var(--surface); box-shadow: var(--elev-low); }
+.scr .ce-ab { display: grid; gap: 0 32px; padding: 24px 28px; }
+@container (min-width: 760px){ .scr .ce-ab { grid-template-columns: minmax(0, 36fr) minmax(0, 64fr); } }
+.scr .ce-about .nm { display: block; font: 700 24px/1.2 var(--font-ui); }
+.scr .ce-ap { display: block; width: calc(100% + 8px); margin: 0 0 0 -8px; padding: 3px 8px; border: 0; border-radius: var(--r-s); background: transparent; color: inherit; font: inherit; box-shadow: none; }
+.scr .ce-ap:hover { background: var(--hover); }
+.scr .ce-ap.is-open { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.scr .ce-ap.tg { margin-top: 4px; color: var(--accent-ink, var(--ink)); font-size: 13.5px; font-weight: 600; }
+.scr .ce-ap.ct { margin-top: 10px; color: var(--ink-soft); font-size: 12.5px; line-height: 1.55; }
+.scr .ce-ap.sm { font-size: 14px; line-height: 1.6; }
+.scr .ce-smc { display: flex; flex-direction: column; justify-content: center; padding: 0 32px; border-left: 1px solid var(--line); }
+@container (max-width: 759px){ .scr .ce-smc { margin-top: 14px; padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--line); } }
+.scr .ce-ab > :is(.ce-aboutform, .ce-abfan) { grid-column: 1 / -1; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.scr .ce-aboutform { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 24px; align-items: start; }
+.scr .ce-aboutform > .ce-detf { grid-column: 1 / -1; }
+.scr .ce-aboutform .detbox { padding: 0; border: 0; background: transparent; }
+.scr .ce-fl { display: block; margin: 4px 0 2px; color: var(--ink-soft); font: 700 10.5px/1.2 var(--font-label, var(--font-ui)); letter-spacing: .06em; text-transform: uppercase; }
+.scr .ce-about > .ce-inl { margin: 0; padding: 14px 28px 20px; border-top: 1px solid var(--line); }
+
+/* the pencil: an inline tool, shown on hover or focus (always on touch), pressed while its fields are open */
+.scr .ce-dt { flex: none; display: grid; place-items: center; width: var(--h-sm); height: var(--h-sm); padding: 0; border: 1px solid transparent; border-radius: var(--r-s); background: transparent; color: var(--ink); opacity: 0; box-shadow: none; }
+.scr .ce-dt:hover { background: var(--hover); border-color: var(--line-strong); }
+.scr .ce-dt.is-on { opacity: 1; background: var(--hover); border-color: var(--line-strong); box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 25%, transparent); }
+.scr :is(.ce-ab:hover, .ce-ab:focus-within, .ce-ch:hover, .ce-card:focus-within, .ce-box:hover, .ce-box:focus-within) .ce-dt, .scr .ce-dt:focus-visible { opacity: 1; }
+.scr .ce-abp { position: absolute; right: 8px; top: 8px; z-index: 1; }
+/* hover to add: on a card's header, on the timeline's lane heads, on a job or project; solid, never dashed */
+.scr .ce-hadd { flex: none; display: inline-flex; align-items: center; height: var(--h-sm); margin: 0; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: var(--surface); color: var(--ink-soft); font: 600 11.5px/1 var(--font-ui); white-space: nowrap; opacity: 0; box-shadow: none; }
+.scr .ce-hadd:is(:hover, :focus-visible, [aria-expanded=true]) { border-color: var(--ink-soft); color: var(--ink); }
+.scr :is(.ce-box:hover, .ce-box:focus-within, .ce-lh:hover, .ce-lh:focus-within, .ce-card:hover, .ce-card:focus-within) .ce-hadd, .scr .ce-hadd:is(:focus-visible, [aria-expanded=true]),
+.scr .ce-tg:has(.ce-yrow > .ce-lane:first-child:hover) .ce-lh:first-child .ce-hadd, .scr .ce-tg:has(.ce-yrow > .ce-lane:last-child:hover) .ce-lh:last-child .ce-hadd { opacity: 1; }
+@media (hover: none){ .scr :is(.ce-dt, .ce-hadd) { opacity: 1; } }
+
+/* the timeline: a spine, round markers on the kind's tint, small year labels with a tick off the spine, two lanes (1.4 : 1) */
+.scr .ce-tg { position: relative; padding-left: 40px; }
+.scr .ce-tg::before { content: ""; position: absolute; left: 15px; top: 30px; bottom: 8px; width: 2px; background: var(--line-strong); }
+.scr :is(.ce-lhs, .ce-yrow) { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); column-gap: 14px; }
+.scr .ce-lh { position: relative; display: flex; align-items: center; justify-content: space-between; min-height: 26px; padding: 0 6px 4px; color: var(--ink); font: 800 11px/1 var(--font-label, var(--font-ui)); letter-spacing: .08em; text-transform: uppercase; }
+.scr .ce-lh { justify-content: flex-start; gap: 8px; }
+.scr .ce-lh .ce-hadd { width: var(--h-sm); padding: 0; justify-content: center; }      /* a lane's add is its "+" alone, so the heading is never covered */
+
+.scr .ce-yr { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px -40px; color: var(--ink); font: 700 11px/1 var(--font-ui); letter-spacing: .08em; }
+.scr .ce-yr::before { content: ""; width: 30px; height: 2px; background: var(--line-strong); }
+.scr .ce-lane { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.scr .ce-yrow > .ce-lane + .ce-lane { padding-left: 12px; border-left: 2px dotted var(--line-strong); }
+.scr .ce-card { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--surface); box-shadow: var(--elev-low); }
+.scr .ce-card:is(:hover, .is-open) { border-color: var(--line-strong); }
+.scr .ce-card.is-off { opacity: .55; }
+.scr .ce-card.is-off:is(:hover, :focus-within) { opacity: .9; }
+.scr .ce-ch { display: grid; grid-template-columns: minmax(0, 1fr) auto var(--h-sm); column-gap: 10px; align-items: start; padding: 8px 10px 9px 12px; border-radius: var(--r-m); }
+.scr .ce-ch.is-tog { cursor: pointer; }
+.scr .ce-ch.is-tog:hover { background: var(--hover); }
+.scr .ce-ch:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.scr .ce-card.is-open > .ce-ch { border-radius: var(--r-m) var(--r-m) 0 0; }
+.scr .ce-ch .t { display: flex; flex-wrap: wrap; column-gap: 6px; row-gap: 2px; min-width: 0; }
+.scr .ce-ch .t b { flex: 1 0 100%; font-size: 14px; line-height: 1.3; font-weight: 700; }
+.scr .ce-ch .t small { color: var(--ink-soft); font-size: 12.5px; }
+.scr .ce-ch .ce-sum { flex: 1 0 100%; margin-top: 2px; color: var(--ink-soft); font: normal 11.5px/1.3 var(--font-ui); }
+.scr .ce-ch .d { padding-top: 1px; color: var(--ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.scr .ce-ch .ce-dt { grid-column: 3; grid-row: 1; }
+.scr .ce-ch .node { position: absolute; left: -42px; top: 4px; display: grid; place-items: center; width: 32px; height: 32px; box-sizing: border-box; border: 2px solid var(--line-strong); border-radius: var(--r-round); background: color-mix(in srgb, var(--hk, var(--hue-6)) var(--hue-tint), var(--surface)); }
+.scr .ce-cline { position: absolute; right: 8px; bottom: 6px; }
+/* the right lane: its marker sits in the card, the dates under the title */
+@container (min-width: 860px){
+  .scr .ce-card.k2 .ce-ch { grid-template-columns: 32px minmax(0, 1fr) var(--h-sm); }
+  .scr .ce-card.k2 .ce-ch .node { position: static; grid-column: 1; grid-row: 1 / span 3; border-radius: var(--r-s); border: 0; }
+  .scr .ce-card.k2 .ce-ch .t { display: contents; }
+  .scr .ce-card.k2 .ce-ch .t b { grid-column: 2; grid-row: 1; }
+  .scr .ce-card.k2 .ce-ch .d { grid-column: 2; grid-row: 2; padding: 1px 0 0; }
+  .scr .ce-card.k2 .ce-ch .t small { grid-column: 2; grid-row: 3; }
+  .scr .ce-card.k2 .ce-ch .ce-sum { grid-column: 2; grid-row: 4; }
+}
+/* a narrow pane: one column; every entry joins the spine */
+@container (max-width: 859px){
+  .scr :is(.ce-lhs, .ce-yrow) { grid-template-columns: minmax(0, 1fr); row-gap: 6px; }
+  .scr .ce-yrow > .ce-lane + .ce-lane { padding-left: 0; border-left: 0; }
+  .scr .ce-lhs > .ce-lh + .ce-lh { display: none; }
+}
+.scr .ce-card .ce-lines { display: grid; padding: 8px 12px 10px; border-top: 1px solid var(--line); }
+.scr .ce-ln { padding: 8px 0; border-top: 1px solid var(--line); }
+.scr .ce-ln:first-child { padding-top: 0; border-top: 0; }
+.scr .ce-row { display: flex; align-items: flex-start; gap: 8px; }
+.scr .ce-row > .cb { flex: none; margin: 9px 2px 0 0; }
+.scr .ce-sk { flex: 1; min-width: 0; border-radius: var(--r-s); }
+/* a line's wordings as a stack: one thin offset edge behind it for each wording past the first */
+.scr .ce-sk[data-nv="1"] { margin-bottom: 5px; box-shadow: 0 4px 0 -2px var(--surface), 0 5px 0 -2px var(--line-strong); }
+.scr .ce-sk[data-nv="2"] { margin-bottom: 9px; box-shadow: 0 4px 0 -2px var(--surface), 0 5px 0 -2px var(--line-strong), 0 8px 0 -4px var(--surface), 0 9px 0 -4px var(--line-strong); }
+.scr .ce-sk[data-nv="3"], .scr .ce-sk[data-nv="4"] { margin-bottom: 13px; box-shadow: 0 4px 0 -2px var(--surface), 0 5px 0 -2px var(--line-strong), 0 8px 0 -4px var(--surface), 0 9px 0 -4px var(--line-strong), 0 12px 0 -6px var(--surface), 0 13px 0 -6px var(--line-strong); }
+.scr .ce-line { display: flex; align-items: baseline; gap: 6px; width: 100%; min-height: var(--h-row); box-sizing: border-box; padding: 5px 10px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--surface); font-size: 13px; line-height: 1.45; box-shadow: none; }
+.scr .ce-line .tx { flex: 1; min-width: 0; max-width: 75ch; }
+.scr .ce-line:hover { border-color: var(--ink-soft); }
+.scr .ce-ln.is-open > .ce-row .ce-line { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.scr .ce-ln.is-miss .ce-line .tx { color: var(--ink-soft); }
+.scr .ce-ln.is-lit .ce-line { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border-color: var(--line-strong); }
+.scr .ce-ln.is-unlit .ce-line { color: var(--ink-soft); }
+.scr .ce-new { justify-self: start; height: var(--h-sm); margin-top: 6px; padding: 0 4px; border: 0; background: transparent; color: var(--ink); font: 600 12.5px/1 var(--font-ui); text-decoration: underline; text-underline-offset: 3px; box-shadow: none; }
+.scr .ce-new:hover { color: var(--accent-ink, var(--ink)); }
+.scr .ce-nl { margin-top: 8px; }
+/* the wordings, fanned out: one row each, [number and "default"] [text] [Use and Edit]; differing words marked */
+.scr .ce-fan { display: grid; margin: 8px 0 4px 24px; font-size: 12.5px; }
+.scr .ce-abfan .ce-fan { margin-left: 0; }
+.scr .ce-cmp { padding-bottom: 4px; color: var(--ink-soft); font-size: 11.5px; }
+.scr .ce-v { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; padding: 8px 10px; border-top: 1px solid var(--line); }
+.scr .ce-cmp + .ce-v { border-top: 0; }
+.scr .ce-v.is-this { border-radius: var(--r-s); background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
+.scr .ce-v.is-edit { grid-template-columns: 64px minmax(0, 1fr); border: 1px solid var(--accent); border-radius: var(--r-s); }
+.scr .ce-v.ce-en { border-top: 1px dashed var(--line-strong); color: var(--ink-soft); }
+.scr .ce-vnc { display: grid; gap: 2px; align-content: start; }
+.scr .ce-vn { color: var(--ink); font: 600 12.5px/1.4 var(--font-ui); font-variant-numeric: tabular-nums; }
+.scr .ce-vd { color: var(--ink-soft); font: 11px/1.3 var(--font-ui); }
+.scr .cvb { display: grid; gap: 8px; min-width: 0; }
+.scr .cvt { max-width: 75ch; line-height: 1.45; }
+.scr .cva, .scr .ce-detf, .scr .ce-inl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.scr .cvact { display: flex; align-items: center; gap: 12px; align-self: start; }
+.scr .ce-use { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font: 600 12.5px/1 var(--font-ui); cursor: pointer; }
+.scr .ce-tb { height: var(--h-sm); padding: 0 4px; border: 0; background: transparent; color: var(--ink); font: 600 12.5px/1 var(--font-ui); text-decoration: underline; text-underline-offset: 3px; box-shadow: none; }
+.scr mark.ce-d { padding: 0 1px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 30%, transparent); color: inherit; }
+.scr .ce-doc textarea.ce-ed { box-sizing: border-box; width: 100%; min-height: 64px; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--field); color: var(--ink); font: 13px/1.45 var(--font-ui); resize: vertical; }
+.scr .ce-b { height: var(--h-row); min-height: 0; padding: 0 12px; font-size: 12.5px; }
+.scr .ce-det { padding: 10px 12px 12px; border-top: 1px solid var(--line); }
+.scr .ce-det > details > summary { display: none; }
+.scr .ce-detf { margin-top: 8px; }
+
+/* Skills & credentials: Skills the column's width, the rest as cards in up to three columns */
+.scr .ce-boxes { display: grid; gap: 12px; }
+.scr .ce-cols { columns: 3 260px; column-gap: 12px; }
+.scr .ce-cols > .ce-box { break-inside: avoid; margin: 0 0 12px; }
+.scr .ce-box { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-l); background: var(--surface); box-shadow: var(--elev-low); }
+.scr .ce-box.is-editing { column-span: all; border-color: var(--accent); }
+.scr .ce-box.is-off :is(.ce-iw, .ce-sg) { color: var(--ink-soft); }
+.scr .ce-box h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: var(--h-row); margin: 0 0 8px; font: 700 14px/1.2 var(--font-ui); }
+.scr .ce-box h3 .chip { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-s); background: color-mix(in srgb, var(--hk) var(--hue-tint), var(--surface)); }
+.scr .ce-box h3 .n { margin-right: auto; color: var(--ink-soft); font-size: 12px; font-weight: 600; }
+.scr .ce-box h3 .tw { color: var(--ink-soft); font: 600 11px/1 var(--font-ui); white-space: nowrap; }
+/* "On this resume" and "+ Add" share the header's end; in a narrow card the add goes under the title, so both are read */
+.scr .ce-sw { display: inline-flex; align-items: center; gap: 6px; height: var(--h-sm); color: var(--ink); font: 600 12px/1 var(--font-ui); white-space: nowrap; cursor: pointer; }
+/* the add keeps its place while hidden, so showing it moves nothing; in a narrow card it is its "+" alone, beside "On this resume" */
+.scr .ce-box { container-type: inline-size; }
+.scr .ce-box h3 .ce-hadd { gap: 4px; padding: 0 8px; }
+.scr .ce-box h3 .ce-hadd { order: 7; }
+.scr .ce-box h3 .ce-sp { order: 8; }
+@container (max-width: 380px){
+  .scr .ce-box h3:has(.ce-sw) .ce-hadd { width: var(--h-sm); padding: 0; justify-content: center; }
+  .scr .ce-box h3:has(.ce-sw) .ce-hadd .w { display: none; }
+  .scr .ce-box h3 .ce-sw { order: 10; flex-basis: 100%; padding-left: 40px; }      /* its own row under the title */
+}
+.scr .ce-sg { display: flex; align-items: center; gap: 12px; padding: 5px 0; border-top: 1px solid var(--line); }
+.scr .ce-sg:first-of-type { border-top: 0; }
+.scr .ce-sg > .cb { flex: none; margin: 0; }
+.scr .ce-sg .gn { flex: none; width: 120px; padding: 0; border: 0; background: transparent; color: var(--ink-soft); font-size: 12px; font-weight: 600; box-shadow: none; }
+.scr .ce-sg .ws { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.scr .ce-pill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); font-size: 12px; white-space: nowrap; }
+.scr .ce-pill.is-miss { border-style: dashed; }
+.scr .ce-pill > .cb { margin: 0 2px 0 -4px; }
+.scr :is(.ce-iw, .ce-sg, .ce-pill).is-unlit :is(.ti, .sub, .r, .gn) , .scr .ce-pill.is-unlit { color: var(--ink-soft); }
+.scr .ce-iw { padding: 2px 0; }
+.scr .ce-iw + .ce-iw { border-top: 1px solid var(--line); }
+.scr .ce-iw .ce-row { align-items: center; gap: 6px; }
+.scr .ce-iw .ce-row > .cb { margin: 0 2px 0 0; }
+.scr .ce-it { display: flex; flex: 1; align-items: baseline; gap: 10px; min-width: 0; min-height: var(--h-row); box-sizing: border-box; padding: 5px 4px; border: 0; border-radius: var(--r-s); background: transparent; font-size: 13px; box-shadow: none; }
+.scr .ce-it:hover { background: var(--hover); }
+.scr .ce-it .ti { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.scr .ce-it { flex-wrap: wrap; column-gap: 8px; row-gap: 0; }
+.scr .ce-it .sub { flex: 1 1 auto; min-width: 0; color: var(--ink-soft); font-size: 12px; }
+.scr .ce-it .r { flex: none; margin-left: auto; color: var(--ink-soft); font-size: 12px; }
+.scr .ce-lm { flex: none; color: var(--ink-soft); font: 600 11.5px/1 var(--font-ui); text-decoration: underline dotted; }
+/* a section's editor: one row anatomy, the column heads once */
+.scr .ce-se { display: grid; gap: 4px; }
+.scr .ce-se :is(.ce-eh, .ce-er) { display: grid; grid-template-columns: var(--cols); column-gap: 8px; align-items: center; }
+.scr .ce-se .ce-eh { padding-bottom: 2px; border-bottom: 1px solid var(--line); color: var(--ink-soft); font: 700 11px/1.6 var(--font-label, var(--font-ui)); }
+.scr .ce-se .ce-ef { display: contents; }
+.scr .ce-fi, .scr .ce-inl :is(input, select), .scr .ce-f input { box-sizing: border-box; width: 100%; min-width: 0; height: var(--h-row); padding: 0 8px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--field); color: var(--ink); font: 13px var(--font-ui); }
+.scr .ce-ls { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink-soft); font: 600 11.5px/1 var(--font-ui); white-space: nowrap; }
+.scr .ce-ls .todo { color: var(--ink); text-decoration: underline dotted; }
+.scr .ce-same { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font: 12px/1 var(--font-ui); cursor: pointer; }
+.scr .ce-er.is-drag, .scr .ce-pe.is-drag { opacity: .4; }
+.scr :is(.ce-er, .ws).ce-over { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: var(--r-s); }
+.scr .ce-grip { display: grid; place-items: center; width: 18px; height: var(--h-row); border-radius: var(--r-xs); color: var(--ink); cursor: grab; }
+.scr .ce-grip:hover, .scr .ce-x:hover, .scr .ce-px:hover { background: var(--hover); }
+.scr .ce-x { display: grid; place-items: center; width: var(--h-sm); height: var(--h-sm); padding: 0; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink); box-shadow: none; }
+.scr .ce-sfoot { display: flex; gap: 6px; padding-top: 2px; }
+.scr :is(.ce-add, .ce-pp) { height: var(--h-sm); padding: 0 9px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: var(--surface); color: var(--ink); font: 600 11.5px/1 var(--font-ui); box-shadow: none; }
+.scr :is(.ce-add, .ce-pp):hover { border-color: var(--ink-soft); }
+.scr .ce-sge { align-items: flex-start; gap: 8px; padding: 6px 0; }
+.scr .ce-sge .gname { flex: none; width: 120px; font-weight: 600; }
+.scr .ce-sge .ws { flex: 1; min-height: var(--h-row); }
+.scr .ce-pe { gap: 4px; padding: 1px 3px 1px 9px; background: var(--surface); cursor: grab; }
+.scr :is(.ce-px, .ce-pwr, .ce-ptx) { box-shadow: none; }
+.scr .ce-px { display: grid; place-items: center; width: 16px; height: 16px; padding: 0; border: 0; border-radius: var(--r-round); background: transparent; color: var(--ink); }
+.scr .ce-pwr { height: 16px; padding: 0 6px; border: 0; border-radius: var(--r-pill); background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); font: 600 10px/1 var(--font-ui); }
+.scr .ce-ptx { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; }
+.scr .ce-pe.is-write { padding: 0; border: 0; }
+.scr .ce-pe.is-write .ce-fi, .scr .ce-wain { width: 160px; height: var(--h-sm); }
+.scr .ce-ibank .ws { display: flex; flex-wrap: wrap; gap: 6px; }
+/* adding: a card at the top of its place, or a row in its card */
+.scr .ce-addcard { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--accent); border-radius: var(--r-m); background: var(--surface); box-shadow: var(--elev-low); }
+.scr .ce-addh { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 14px; }
+.scr .ce-addh .node { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-round); background: color-mix(in srgb, var(--hk) var(--hue-tint), var(--surface)); }
+.scr .ce-addh small { color: var(--ink-soft); font-size: 12px; }
+.scr .ce-addf { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.scr .ce-f { display: grid; gap: 3px; color: var(--ink-soft); font-size: 11.5px; }
+.scr .ce-f.wide { grid-column: 1 / -1; }
+.scr .ce-addf .mpf { display: grid; gap: 3px; }
+.scr .ce-addf .mpf .mpbtn { width: 100%; height: var(--h-row); justify-content: space-between; }
+.scr .ce-inl { margin-top: 8px; }
+.scr .ce-inl input { flex: 1 1 160px; width: auto; }
+.scr .ce-inl select { flex: 0 0 auto; width: auto; }
+.scr .ce-inl textarea { flex: 1 1 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--field); color: var(--ink); font: 13px/1.45 var(--font-ui); }
+
+/* Career's menus: + Add (grouped), the right lane's head, the languages, the career file */
+.ce-pop { position: fixed; z-index: 60; overflow: auto; border-radius: var(--r-m); box-shadow: var(--shadow-chip); }
+.ce-pop .inline-menu { position: static; min-width: 240px; margin: 0; padding: 6px; }
+.ce-pop .inline-menu > button, .ce-pop .addrowk > button[role=menuitem] { display: flex; align-items: center; gap: 10px; width: 100%; min-height: var(--h-ctl); padding: 4px 8px; }
+.ce-pop .addrowk { display: flex; align-items: center; gap: 4px; }
+.ce-pop .addrowk .kset { flex: none; width: var(--h-row); height: var(--h-row); padding: 0; }
+.ce-pop.is-file .inline-menu > button, .ce-pop.is-lang .inline-menu > button { display: grid; gap: 1px; justify-items: start; }
+.ce-pop.is-lang .inline-menu > button { grid-template-columns: 1fr auto; align-items: center; }
+.ce-pop small { color: var(--ink-soft); font-size: 11.5px; }
+.ce-pop .ce-mg { padding: 8px 8px 3px; color: var(--ink-soft); font: 700 10.5px/1 var(--font-label, var(--font-ui)); letter-spacing: .06em; text-transform: uppercase; }
+.ce-pop .ai { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-s); background: color-mix(in srgb, var(--hk) var(--hue-tint), var(--surface)); }
+.ce-pop .ai .si { display: grid; place-items: center; }
+
+/* the sidebar: the languages and what is left to write, or what is open in Career */
+.ce-side { display: flex; flex-direction: column; gap: 16px; }
+.ce-side > section > h3 { margin: 0 0 8px; color: var(--ink-soft); font: 700 11px/1 var(--font-label, var(--font-ui)); letter-spacing: .06em; text-transform: uppercase; }
+.ce-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.ce-chip { display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: var(--h-ctl); padding: 0 2px; border: 1px solid var(--line); border-radius: var(--r-s); background: var(--surface); color: var(--ink); font: 12px/1 var(--font-ui); box-shadow: none; }
+.ce-chip b { font: 700 13px/1 var(--font-label, var(--font-ui)); }
+.ce-chip span { color: var(--ink-soft); }
+.ce-chip.todo span { color: var(--ink); font-weight: 600; }
+.ce-chip.rev span { text-decoration: underline dotted; }
+button.ce-chip { cursor: pointer; }
+button.ce-chip:hover { background: var(--hover); border-color: var(--line-strong); }
+.ce-chip.is-cur { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, var(--surface)); box-shadow: inset 0 0 0 1px var(--ink); }
+.ce-side .ce-note, .ce-side .ce-help { margin: 6px 0 0; color: var(--ink-soft); font-size: 12.5px; line-height: 1.45; }
+.ce-side .ce-help p { margin: 0 0 6px; color: var(--ink); }
+.ce-todo { display: grid; gap: 1px; margin-top: 8px; padding-left: 8px; border-left: 2px solid var(--line); }
+.ce-todo button { overflow: hidden; height: var(--h-row); padding: 0 6px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink); font-size: 12.5px; text-align: left; text-overflow: ellipsis; white-space: nowrap; box-shadow: none; cursor: pointer; }
+.ce-todo button:hover { background: var(--hover); text-decoration: underline; }
+.ce-todo small, .ce-cx small { padding: 2px 6px; color: var(--ink-soft); font-size: 11.5px; }
+.ce-ctxback { align-self: flex-start; height: var(--h-row); padding: 0 8px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink-soft); font: 600 12.5px/1 var(--font-ui); box-shadow: none; cursor: pointer; }
+.ce-ctxback:hover { background: var(--hover); color: var(--ink); }
+.insp-rec > .ce-ctxback { margin-bottom: 4px; }
+.ce-side .ce-ct { display: grid; gap: 2px; margin: 0; font-size: 13px; }
+.ce-side .ce-ct b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ce-side .ce-ct small { color: var(--ink-soft); font-size: 12px; }
+.ce-cx { display: grid; gap: 1px; }
+.ce-r { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 30px; padding: 0 8px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--ink); font: 13px/1.3 var(--font-ui); text-align: left; box-shadow: none; }
+.ce-r span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ce-r b { flex: none; font-size: 12.5px; font-weight: 600; }
+button.ce-r { cursor: pointer; }
+button.ce-r span { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+button.ce-r:hover { background: var(--hover); }
+.ce-r.is-this { color: var(--ink-soft); }
+.ce-side .ce-b { height: var(--h-row); min-height: 0; padding: 0 12px; font-size: 12.5px; }
+/* the name card as the career file: the person's name, and under it the file and its counts */
+body:not([data-phone=true]) #head .docname.is-file { flex-direction: column; gap: 2px; cursor: default; }
+#head .docname.is-file .dt { font-family: var(--font-mono, ui-monospace, monospace); }
+/* Career's zoom (placezoom.js, --cz) tightens or loosens the timeline's spacing; the text keeps its size */
+.scr .ce-lane { gap: calc(6px * var(--cz, 1)); }
+.scr .ce-yr { margin-top: calc(12px * var(--cz, 1)); margin-bottom: calc(4px * var(--cz, 1)); }
+.scr .ce-ch { padding-block: calc(8px * var(--cz, 1)) calc(9px * var(--cz, 1)); }
+.scr .ce-ch .t { row-gap: calc(2px * var(--cz, 1)); }

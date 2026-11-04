@@ -261,7 +261,7 @@ await part('Resumes that print this: from a claim, a version or an entry to the 
   ok('Esc in the field clears the claim first', !(await chip()) && (await cards()).length === 14 && await view(page) === 'resumes');
   // an entry
   await goPlace(page, 'career'); await page.fill('#rec-q', ''); await settle(page, 300);
-  await page.click('#scr .rectl .row:has-text("Design Engineer")'); await settle(page, 300);
+  await page.evaluate(() => window.__wb.record.open(['hydra'])); await settle(page, 300);      // an entry asked for docks in the inspector
   await page.click('#body .insp-rec [data-act=find-prints]'); await settle(page, 500);
   ok('an entry has the button too: the resumes that print any of its lines', await view(page) === 'resumes' && (await cards()).length === 14 && /Prints: Design Engineer/.test(await chip()), await chip());
   await page.click('[data-act=find-claim-clear]'); await settle(page, 200);
