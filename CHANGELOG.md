@@ -1,8 +1,16 @@
 # Changelog
 
-## Unreleased
+## 1.9.2 - 2026-11-04
 
 ### Changed
+- **Resumes has more room:** more space between rounds and cards, no year labels inside a round, and a round's Archive at its right end.
+- **The Resumes header is one row when there is room:** the search, how the list is shown, then what makes something new, each group set apart. With less room it is two rows again.
+- **The selected resume and its preview read as one:** the selected card wears the accent and points at the preview, which names it at its top.
+- **The name card always names the open resume,** with no tag above it. Resumes ticked for Compare still say so.
+- **The sidebar is quieter:** no caps labels or dividers in the preview, its facts in one block, and Last changed in the list view.
+- **Spacing is even inside every frame:** the Resumes header and list start on one line, the sidebar's text on another, every panel has the same corners, and the preview's buttons are the in-card height.
+- **Content and Look start level with the Resumes header's buttons.**
+- **Career's cards lie on the mat again,** and the whole page scrolls.
 - **The Look sheet is shorter, so less of it hides below the panel:** the templates and the section styles are one row each that scrolls sideways, and the notes under the pickers are tooltips.
 
 ### Fixed
