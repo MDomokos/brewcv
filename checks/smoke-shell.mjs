@@ -104,6 +104,8 @@ const firstBullet = page => frameDoc(page, d => d.querySelector('.bullets li')?.
 const openImport = async page => { if (await page.$('#import[open]')) await page.evaluate(() => window.__wb.setView('import')); else { await page.click('[data-act=menu]'); await page.click('.menu [data-v=import]'); } await settle(page); };
 // the step of the import window while it is open, else the sidebar's view
 const importStep = page => page.evaluate(() => document.querySelector('#import[open]')?.dataset.view ?? document.getElementById('body').dataset.view);
+// the paste box sits in a closed <details> under the drop area
+const fillPaste = async (page, text) => { await page.evaluate(() => { document.querySelector('#import .ipaste').open = true; }); await page.fill('#imp-paste', text); };
 async function settle(page){
   const quiet = () => {       // true when quiet; else false, with the reason in window.__why (the page's CSP forbids evaluating a string)
     const wb = window.__wb, finite = d => d.getAnimations().every(a => a.playState !== 'running' || a.effect.getComputedTiming().iterations === Infinity);
@@ -2269,7 +2271,7 @@ if (want('import, merge, history')) {
   const st = () => page.evaluate(() => window.__wb.store.state);
   const jr = fs.readFileSync(path.join(ROOT, 'checks/fixtures/jsonresume-sample.json'), 'utf8');
   await openImport(page);
-  ok('⋯ › Open or import shows the one door', await page.isVisible('#imp-paste') && await page.isVisible('[data-act=imp-pick]'));
+  ok('⋯ › Open or import shows the one door', await page.isVisible('.ipaste summary') && await page.isVisible('[data-act=imp-pick]'));
   const under = await page.evaluate(() => ({ view: window.__wb.ui.view, body: document.getElementById('body').dataset.view }));
   ok('…in a window over the editor, which stays as it was behind it', await page.evaluate(() => !!document.querySelector('#import[open]')) && !under.view && under.body !== 'import', JSON.stringify(under));
   await page.click('#import [data-act=imp-close]'); await settle(page);
@@ -2277,10 +2279,10 @@ if (want('import, merge, history')) {
   await page.evaluate(text => { const dt = new DataTransfer(); dt.items.add(new File([text], 'dropped.json', { type: 'application/json' })); document.getElementById('col').dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); }, jr); await settle(page);
   ok('a file dropped on the window opens the import window on its review', (await importStep(page)) === 'review' && /A JSON Resume/.test(await page.textContent('#import .title')));
   await page.click('#import [data-act=goto][data-v=import]'); await settle(page);
-  await page.fill('#imp-paste', '{"basics": '); await page.click('[data-act=imp-paste]'); await settle(page);
+  await fillPaste(page, '{"basics": '); await page.click('[data-act=imp-paste]'); await settle(page);
   ok('broken JSON says why', /valid JSON/.test(await page.textContent('#import')));
   await page.click('#import [data-act=goto][data-v=import]'); await settle(page);
-  await page.fill('#imp-paste', jr); await page.click('[data-act=imp-paste]'); await settle(page);
+  await fillPaste(page, jr); await page.click('[data-act=imp-paste]'); await settle(page);
   ok('a pasted JSON Resume is recognised, with a review card', /A JSON Resume/.test(await page.textContent('#import .title')) && /Claims/.test(await page.textContent('table.kv')));
   ok('a linked photo is not fetched', /linked, not embedded/.test(await page.textContent('table.kv')));
   await page.click('[data-act=imp-merge]'); await settle(page);
@@ -2296,7 +2298,7 @@ if (want('import, merge, history')) {
   ok('and Ctrl+Z takes the merge back', !(await st()).record.work.some(w => w.name === 'Fjord Instruments'));
 
   await openImport(page);
-  await page.fill('#imp-paste', jr); await page.click('[data-act=imp-paste]'); await settle(page);
+  await fillPaste(page, jr); await page.click('[data-act=imp-paste]'); await settle(page);
   await page.click('[data-act=imp-replace]'); await settle(page);
   ok('opening it instead makes it the record', (await st()).record.basics.name === 'Robin Vale' && /Robin Vale/.test(await frameDoc(page, d => d.body.textContent)));
   ok('and the page prints its highlights', /IP68 housing/.test(await frameDoc(page, d => d.body.textContent)));
@@ -2305,7 +2307,7 @@ if (want('import, merge, history')) {
   const ex = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/example.json'), 'utf8'));
   ex.work[0].highlights[0] = 'Edited in a text editor, outside the app.';
   await openImport(page);
-  await page.fill('#imp-paste', JSON.stringify(ex)); await page.click('[data-act=imp-paste]'); await settle(page);
+  await fillPaste(page, JSON.stringify(ex)); await page.click('[data-act=imp-paste]'); await settle(page);
   ok('a record edited outside says so', /Edited outside/.test(await page.textContent('table.kv')) && await page.isChecked('#imp-outside'));
   await page.click('[data-act=imp-replace]'); await settle(page);
   ok('opening it turns the edit into a version', (await st()).record.variants.some(v => v.text === 'Edited in a text editor, outside the app.'));
@@ -2483,7 +2485,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
 
   // ---- a text pasted, and files that cannot be read ----
   await door();
-  await page.fill('#imp-paste', 'Hello\nthis is no resume at all');
+  await fillPaste(page, 'Hello\nthis is no resume at all');
   await page.click('[data-act=imp-paste]'); await page.waitForSelector('#import[data-view=reading] [data-file]', { timeout: 30000 }); await settle(page);
   ok('pasted text that is not JSON is read like a text file', (await view()) === 'reading' && (await rows()).length === 1);
   const old = path.join(tmp, 'old.doc'); fs.writeFileSync(old, Buffer.concat([Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), Buffer.from('W\0o\0r\0d\0D\0o\0c\0u\0m\0e\0n\0t', 'latin1')]));
@@ -2509,7 +2511,7 @@ if (want('import: documents on the one door — reading, the layout view, what�
     work: [{ name: `Corp ${X_}`, position: `Pos ${X_}`, location: `Loc ${X_}`, startDate: '2020-01', highlights: [`Line ${X_}`, 'Second <script>window.__xss=1</script> line'] }], education: [{ institution: `Uni ${X_}`, studyType: 'BSc', area: `Area ${X_}` }],
     skills: [{ name: `Skills ${X_}`, keywords: [`K ${X_}`] }], languages: [{ language: `Lang ${X_}`, fluency: `F ${X_}` }], projects: [{ name: `Proj ${X_}`, description: `D ${X_}` }], awards: [{ title: `Award ${X_}` }], certificates: [{ name: `Cert ${X_}` }] };
   await door();
-  await page.fill('#imp-paste', JSON.stringify(hostile)); await page.click('[data-act=imp-paste]'); await settle(page);
+  await fillPaste(page, JSON.stringify(hostile)); await page.click('[data-act=imp-paste]'); await settle(page);
   const probe = () => page.evaluate(() => ({ nodes: document.querySelectorAll('[data-xss]').length + [...document.querySelectorAll('iframe')].reduce((n, f) => { try { return n + f.contentDocument.querySelectorAll('[data-xss]').length; } catch { return n; } }, 0), ran: window.__xss ?? null }));
   let pr = await probe();
   ok('a file’s HTML shows as text on the review screen: no element made, nothing run', /<img src=x/.test(await page.textContent('#import')) && pr.nodes === 0 && pr.ran === null, JSON.stringify(pr));
@@ -2539,7 +2541,7 @@ if (want('import: a JSON Resume from an assistant is checked against its documen
     d.documents = [{ id: 'doc-000000000001', name: 'Old CV 2023.pdf', type: 'application/pdf', size: 10, sha256: '0'.repeat(64), addedAt: '2026-01-01T00:00:00.000Z', meta: { kind: 'resume' }, from: 'imported', taken: { claims: [], versions: [], skipped: [], unplaced: 0 }, text }];
   }, 'smoke: a document'), text);
   const jr = { basics: own.basics, work: [{ ...own.job, highlights: [A, B2] }], meta: { source: 'old cv 2023.PDF' } };
-  const paste = async () => { await openImport(page); await page.fill('#imp-paste', JSON.stringify(jr)); await page.click('[data-act=imp-paste]'); await settle(page); };
+  const paste = async () => { await openImport(page); await fillPaste(page, JSON.stringify(jr)); await page.click('[data-act=imp-paste]'); await settle(page); };
   const rows = () => page.$$eval('#import input[data-mi]', es => es.map(e => [e.checked, e.parentElement.textContent]));
   await paste();
   ok('a JSON Resume whose meta.source names a Library document is checked against it, with the document chosen in the menu, and some texts are not in it',
