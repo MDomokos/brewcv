@@ -1614,7 +1614,7 @@ export default {
   'i6.step3': 'Importuj',
   'i6.dropHere': 'Upuść pliki w dowolnym miejscu strony lub',
   'i6.private': 'Pliki są czytane tutaj, w przeglądarce; nic nie jest wysyłane.',
-  'i6.best': 'Dokument Word (DOCX), ODT lub plik tekstowy czyta się najlepiej: jego tekst i kolejność są dokładne. PDF też się nadaje, ale jego układ może wymagać sprawdzenia ręcznie.',
+  'i6.best': 'DOCX, ODT i tekst czytane są dokładnie. PDF też działa; sprawdź układ.',
   'i6.choose': 'Wybierz pliki…',
   'i6.orPaste': 'Albo wklej JSON lub tekst CV',
   'i6.pastedName': 'Wklejony tekst.txt',

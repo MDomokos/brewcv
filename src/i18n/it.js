@@ -1614,7 +1614,7 @@ export default {
   'i6.step3': 'Importa',
   'i6.dropHere': 'Trascina i file ovunque nella pagina, oppure',
   'i6.private': 'I file vengono letti qui, nel browser; nulla viene caricato.',
-  'i6.best': 'Un documento Word (DOCX), un ODT o un file di testo si legge meglio: il suo testo e il suo ordine sono esatti. Va bene anche un PDF, ma il suo layout potrebbe richiedere un controllo a mano.',
+  'i6.best': 'DOCX, ODT e testo si leggono con esattezza. Anche un PDF; controlla il layout.',
   'i6.choose': 'Scegli i file…',
   'i6.orPaste': 'Oppure incolla JSON, o il testo di un CV',
   'i6.pastedName': 'Testo incollato.txt',

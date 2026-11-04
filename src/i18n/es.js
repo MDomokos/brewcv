@@ -1614,7 +1614,7 @@ export default {
   'i6.step3': 'Importar',
   'i6.dropHere': 'Suelta archivos en cualquier parte de la página, o',
   'i6.private': 'Los archivos se leen aquí, en este navegador; no se sube nada.',
-  'i6.best': 'Un documento de Word (DOCX), un ODT o un archivo de texto se lee mejor: su texto y su orden son exactos. Un PDF también sirve, pero su diseño puede necesitar una revisión a mano.',
+  'i6.best': 'DOCX, ODT y texto se leen con exactitud. Un PDF también; revisa el diseño.',
   'i6.choose': 'Elegir archivos…',
   'i6.orPaste': 'O pega JSON, o el texto de un currículum',
   'i6.pastedName': 'Texto pegado.txt',

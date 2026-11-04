@@ -1618,7 +1618,7 @@ export default {
   'i6.step3': 'Import',
   'i6.dropHere': 'Drop files anywhere on the page, or',
   'i6.private': 'Files are read here, in this browser; nothing is uploaded.',
-  'i6.best': 'A Word document (DOCX), an ODT or a text file reads best: its text and order are exact. A PDF works too, but its layout may need checking by hand.',
+  'i6.best': 'DOCX, ODT and text read exactly. A PDF works too; check its layout.',
   'i6.choose': 'Choose files…',
   'i6.orPaste': 'Or paste JSON, or the text of a resume',
   'i6.pastedName': 'Pasted text.txt',

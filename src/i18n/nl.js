@@ -1614,7 +1614,7 @@ export default {
   'i6.step3': 'Importeren',
   'i6.dropHere': 'Sleep bestanden ergens op de pagina, of',
   'i6.private': 'Bestanden worden hier in de browser gelezen; er wordt niets geüpload.',
-  'i6.best': 'Een Word-document (DOCX), een ODT of een tekstbestand leest het best: de tekst en de volgorde zijn exact. Een pdf kan ook, maar de indeling moet misschien met de hand worden gecontroleerd.',
+  'i6.best': 'DOCX, ODT en tekst worden exact gelezen. Een pdf kan ook; controleer de opmaak.',
   'i6.choose': 'Kies bestanden…',
   'i6.orPaste': 'Of plak JSON, of de tekst van een cv',
   'i6.pastedName': 'Geplakte tekst.txt',

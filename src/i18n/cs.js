@@ -1614,7 +1614,7 @@ export default {
   'i6.step3': 'Importovat',
   'i6.dropHere': 'Přetáhněte soubory kamkoli na stránku, nebo',
   'i6.private': 'Soubory se čtou tady, v prohlížeči; nic se nenahrává.',
-  'i6.best': 'Dokument Wordu (DOCX), ODT nebo textový soubor se čte nejlépe: jeho text i pořadí jsou přesné. PDF také funguje, ale jeho rozvržení může být třeba zkontrolovat ručně.',
+  'i6.best': 'DOCX, ODT a text se čtou přesně. PDF také funguje; zkontrolujte rozvržení.',
   'i6.choose': 'Vybrat soubory…',
   'i6.orPaste': 'Nebo vložte JSON či text životopisu',
   'i6.pastedName': 'Vložený text.txt',

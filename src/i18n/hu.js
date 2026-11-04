@@ -1614,7 +1614,7 @@ export default {
   'i6.step3': 'Importálás',
   'i6.dropHere': 'Húzd a fájlokat az oldal bármelyik részére, vagy',
   'i6.private': 'A fájlokat itt, a böngészőben olvassuk; semmi sem kerül feltöltésre.',
-  'i6.best': 'A Word-dokumentum (DOCX), az ODT és a szövegfájl olvasható be a legjobban: a szövege és a sorrendje pontos. A PDF is jó, de az elrendezését esetleg kézzel kell ellenőrizni.',
+  'i6.best': 'A DOCX, ODT és szöveg pontosan olvasható. A PDF is megy; ellenőrizd az elrendezést.',
   'i6.choose': 'Fájlok kiválasztása…',
   'i6.orPaste': 'Vagy illessz be JSON-t, vagy egy önéletrajz szövegét',
   'i6.pastedName': 'Beillesztett szöveg.txt',

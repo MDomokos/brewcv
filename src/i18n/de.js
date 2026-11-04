@@ -1614,7 +1614,7 @@ export default {
   'i6.step3': 'Importieren',
   'i6.dropHere': 'Dateien irgendwo auf die Seite ziehen, oder',
   'i6.private': 'Dateien werden hier im Browser gelesen; nichts wird hochgeladen.',
-  'i6.best': 'Ein Word-Dokument (DOCX), eine ODT oder eine Textdatei lässt sich am besten lesen: Text und Reihenfolge sind exakt. Ein PDF geht auch, aber sein Layout muss eventuell von Hand geprüft werden.',
+  'i6.best': 'DOCX, ODT und Text werden exakt gelesen. Ein PDF geht auch; prüfe das Layout.',
   'i6.choose': 'Dateien auswählen…',
   'i6.orPaste': 'Oder JSON oder den Text eines Lebenslaufs einfügen',
   'i6.pastedName': 'Eingefügter Text.txt',

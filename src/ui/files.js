@@ -45,13 +45,12 @@ const chip = ([n, best]) => `<li class="ichip"${best ? ' data-best="1"' : ''}>${
 function importView(){
   return `<h2 class="title">${h('files.importTitle')}</h2>
     <ol class="isteps">${['i6.step1', 'i6.step2', 'i6.step3'].map((k, i) => `<li${i ? '' : ' aria-current="step"'}><b>${i + 1}</b> ${h(k)}</li>`).join('')}</ol>
-    <div class="idrop"><p>${h('i6.dropHere')}</p><button class="primary" data-act="imp-pick">${h('i6.choose')}</button></div>
-    ${KINDS.map(([k, cs]) => `<div class="ikind"><span class="lbl">${h(k)}</span><ul>${cs.map(chip).join('')}</ul></div>`).join('')}
-    <p class="small">${h('i6.best')}</p>
-    <p class="ipriv">${icon('lock')}<span>${h('i6.private')}</span></p>
-    <span class="lbl">${h('i6.orPaste')}</span>
-    <textarea id="imp-paste" class="paste" rows="4" placeholder='{ "basics": { "name": … } }' aria-label="${esc(t('i6.orPaste'))}"></textarea>
-    <div class="btns"><button class="sm" data-act="imp-paste">${h('files.readIt')}</button></div>`;
+    <div class="idrop"><p>${h('i6.dropHere')}</p><button class="primary" data-act="imp-pick">${h('i6.choose')}</button>
+      <div class="ikinds">${KINDS.map(([k, cs]) => `<div class="ikind"><span>${h(k)}</span><ul>${cs.map(chip).join('')}</ul></div>`).join('')}</div></div>
+    <p class="ipriv">${icon('lock')}<span>${h('i6.private')} ${h('i6.best')}</span></p>
+    <details class="ipaste"><summary>${h('i6.orPaste')}</summary>
+      <textarea id="imp-paste" class="paste" rows="5" placeholder='{ "basics": { "name": … } }' aria-label="${esc(t('i6.orPaste'))}"></textarea>
+      <div class="btns"><button data-act="imp-paste">${h('files.readIt')}</button></div></details>`;
 }
 
 function reviewView(){
