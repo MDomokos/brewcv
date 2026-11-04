@@ -1728,7 +1728,7 @@ const exporter = initExport({ store, ui, persist, space, toast, work, cur: () =>
     else if (f.fact){ select(lineSel(ui.ix, f.fact)); const v = document.querySelector('#body .vrow.cur'); if (v){ v.tabIndex = -1; v.focus(); } }
     else if (f.page != null){ select(NONE); goToPage(f.page); }      // the page itself: a line or the header picked by an earlier Fix is let go
   },
-  reviewCount: () => review.count(), offerReview: () => review.pending() && toast('', '', false, true), download, fileLine, renderBody: () => renderBody(),
+  reviewCount: () => review.count(), offerReview: () => review.pending() && toast('', '', false, true), download, fileLine, linkedFolder: () => persist.status.linked ? { name: persist.status.linked, path: persist.status.linkedPath } : null, renderBody: () => renderBody(),
   pageBox: () => { const b = ui.layout?.phone ? null : sheet.pageBoxes()[ui.page]; return b ? canvas.screenRect(b) : null; },
   extraCss: (r, medium) => design.extraCss(store.state.record, r, medium) });
 const design = initDesign({ store, ui, toast, cur, setView, renderBody: () => renderBody(), pickFile, download, photoUrl: () => store.materialize(store.state.record?.basics?.image) });

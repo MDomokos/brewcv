@@ -2,6 +2,19 @@ use std::{path::Path, time::Duration};
 
 // Prints the calling window's page to a PDF file, no print panel (macOS). Resolves when the file has stopped growing.
 // Async so it runs off the main thread, which with_webview needs free.
+// The linked folder in the computer's file manager (Export's backup box). Only a folder that exists: nothing is run with the path but the file manager.
+#[tauri::command]
+fn reveal_folder(path: String) -> Result<(), String> {
+    if !std::path::Path::new(&path).is_dir() { return Err("not a folder".into()); }
+    #[cfg(target_os = "macos")]
+    let opener = "open";
+    #[cfg(target_os = "windows")]
+    let opener = "explorer";
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let opener = "xdg-open";
+    std::process::Command::new(opener).arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn print_pdf(window: tauri::WebviewWindow, path: String, width: f64, height: f64) -> Result<(), String> {
     // a file left from before would look like the finished one
@@ -127,7 +140,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())   // after fs: it restores the folders the person picked
-        .invoke_handler(tauri::generate_handler![print_pdf])
+        .invoke_handler(tauri::generate_handler![print_pdf, reveal_folder])
         .run(tauri::generate_context!())
         .expect("error while running BrewCV");
 }

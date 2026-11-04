@@ -578,7 +578,7 @@ export function createPersist({ store, backend = memoryBackend(), folder = null,
   }
 
   return {
-    get status(){ return { status, error: lastError, code: errorCode, linked: linked?.name ?? null }; },
+    get status(){ return { status, error: lastError, code: errorCode, linked: linked?.name ?? null, linkedPath: typeof linked?.handle === 'string' ? linked.handle : null }; },      // linkedPath: only the desktop app's folder is a path
     get fileState(){ return { last: file.last, changes: file.n + pendingCommits, recordId: store.state?.record?.recordId ?? null, hasClock: Object.keys(clock.keys).length > 0 }; },
     // this copy as a merge takes it: the state with its clock stamped now, and the clock it is merged into
     // `theirs`: the other copy's clock; if it holds saves of this device's actor that this copy never made, this copy takes another actor first

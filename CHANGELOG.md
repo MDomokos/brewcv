@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Export's formats and "Made for" choices say on hover what each one is good for.**
+- **With a linked folder, Export's backup box says the folder already has everything,** and in the desktop app a button opens that folder.
+- **Sent it? and the backup each end with a full-width button,** level with each other.
+
+### Fixed
+- **The HTML, plain text and JSON buttons fit their names in a narrow panel;** a long name wraps inside its button.
+
 ## 1.9.3 - 2026-11-04
 
 ### Changed

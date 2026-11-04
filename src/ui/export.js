@@ -184,7 +184,8 @@ function exportView(){
     return `<li class="${cs ? (bad.length ? bad.some(c => c.level === 'bad') ? 'bad' : 'warn' : 'ok') : 'wait'}" data-id="${esc(it.id)}"><span class="exst hic" aria-hidden="true">${cs ? drawn_(bad.length ? 'warn' : 'check') : ''}</span><span class="ct"><b>${esc(it.r.company || RS.resumeLabel(it.r))}</b>${it.r.company && it.r.role ? ` — ${esc(it.r.role)}` : ''} · <span class="muted">${esc(cs ? (bad.length ? bad : cs).map(c => c.text).join(' · ') : t('body.loading'))}</span></span></li>`;
   };
   const files = n > 1 ? ` · ${esc(t('xp.files', { n }))}` : '';
-  const card = (act, title, note, primary = false) => `<button class="${primary ? 'primary' : ''}" data-act="${act}" title="${esc(t(note))}"><b>${title}${files}</b><small>${h(note)}</small></button>`;
+  // each format says on hover (and on focus) what its file is good for
+  const card = (act, title, note, primary = false) => `<button class="${primary ? 'primary' : ''}" data-act="${act}" data-tip="${esc(title.replace(/<[^>]+>/g, ''))}|${esc(t(`export.for.${act.slice(3)}`))}" data-tip-pos="b"><b>${title}${files}</b><small>${h(note)}</small></button>`;
   const x = xp();
   const sent = many
     ? (x?.sending ? `<div class="xpsend" data-form="xp-send"><label class="field"><span class="lbl inline">${h('ux1.kind')}</span><select id="xp-kind"><option value="company">${h('ux1.kindCompany')}</option><option value="outreach">${h('ux1.kindOutreach')}</option></select></label>
@@ -197,17 +198,24 @@ function exportView(){
     <div class="xpgrid${many ? ' is-many' : ''}">
     <section class="xpb${many ? '' : ' exstat'}${look ? ' is-warn' : ''}" data-k="ready" style="--hk:var(--hue-1)"><h3 class="xph">${h('xp.ready')}</h3><ul class="checks">${many ? its.map(line).join('') : list.map(row).filter((_, i) => !i || list[i].level !== 'ok').join('')}</ul></section>
     <section class="xpb" data-k="medium"><h3 class="xph" title="${esc(t('export.mediumTitle'))}">${h('export.medium')}</h3>
-      <div class="seg fill" role="group" aria-label="${esc(t('export.medium'))}">${MEDIA.map(m => `<button data-act="ex-medium" data-v="${m}" aria-pressed="${medium === m}"${C.ui.snap && !many ? ' disabled' : ''}>${h(`export.medium.${m}`)}</button>`).join('')}</div>
+      <div class="seg fill" role="group" aria-label="${esc(t('export.medium'))}">${MEDIA.map(m => `<button data-act="ex-medium" data-v="${m}" aria-pressed="${medium === m}" data-tip="${esc(t(`export.medium.${m}`))}|${esc(t(`export.mediumNote.${m}`))}" data-tip-pos="b"${C.ui.snap && !many ? ' disabled' : ''}>${h(`export.medium.${m}`)}</button>`).join('')}</div>
       ${medium ? `<p class="note">${h(`export.mediumNote.${medium}`)}</p>` : ''}</section>
     <section class="xpb xpwide exg" data-k="file"><h3 class="xph">${h(n > 1 ? 'xp.downloadAll' : 'export.download')}</h3>
       <div class="dl">${card('ex-pdf', 'PDF', 'export.pdfNote', !fitFirst)}${card('ex-html', h('export.html'), 'export.htmlNote')}${card('ex-txt', h('export.txt'), 'export.txtNote')}${card('ex-json', 'JSON Resume', 'export.jsonNote')}</div>
       <p class="note">${h(n > 1 ? 'xp.zipNote' : 'export.note')}</p></section>
     <section class="xpb exg" data-k="sent"><h3 class="xph">${h('ux3b.sentRow')}</h3>${sent}</section>
-    ${C.ui.layout?.phone ? '' : `<section class="xpb exkeep" data-k="keep"><h3 class="xph">${h('ux6b.backup')} · ${esc(t('uxs.everyResume'))}</h3><p class="small muted" id="fileline">${esc(file.text)}</p><button class="filebtn sm ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${h('ux3b.saveFile')}</button></section>`}
+    ${C.ui.layout?.phone ? '' : `<section class="xpb exkeep" data-k="keep"><h3 class="xph">${h('ux6b.backup')} · ${esc(t('uxs.everyResume'))}</h3>${keepHtml(file)}</section>`}
     </div>`;
 }
 const drawn_ = ic => drawn(ic, { role: 'header' });
 
+// the backup's box: Save to file; with a linked folder, a line saying the folder already has everything, and (in the desktop app, which can)
+// a button that opens that folder. A browser cannot open a folder on the computer, so there the line stands alone.
+function keepHtml(file){
+  const lk = C.linkedFolder?.();
+  if (!lk) return `<p class="small muted" id="fileline">${esc(file.text)}</p><button class="filebtn sm ${file.stale ? 'stale' : ''}" data-act="save-file" id="filestate" title="${esc(t('save.title', { name: SAVE_FILE_NAME }))}">${h('ux3b.saveFile')}</button>`;
+  return `<p class="small muted">${h('export.keepLinked', { name: lk.name })}</p>${lk.path && window.__TAURI__?.core ? `<button class="filebtn sm" data-act="xp-open-folder">${h('export.openFolder')}</button>` : ''}`;
+}
 // ---- the pages of a listed set, left of the panel (a phone: above the sheet): every resume's pages in a row at the height of the room,
 // one resume at a time when they do not all fit, with ‹ › (and the arrows, the scroll) to travel between them ----
 let row = null;
@@ -336,6 +344,7 @@ async function act(a, tg, force = false){
       case 'xp-send': xp().sending = true; C.renderBody(); document.getElementById('xp-kind')?.focus(); return true;
       case 'xp-send-cancel': xp().sending = false; C.renderBody(); document.querySelector('#body [data-act=xp-send]')?.focus(); return true;
       case 'xp-send-do': markListed(); return true;
+      case 'xp-open-folder': { const lk = C.linkedFolder?.(); if (lk?.path) await window.__TAURI__.core.invoke('reveal_folder', { path: lk.path }); return true; }
     }
     // a listed set: its medium is this export's (nothing saved), its files are made from each resume as it prints
     if (many && a === 'ex-medium'){ if (MEDIA.includes(tg.dataset.v)){ xp().medium = tg.dataset.v; C.renderBody(); drawPages(); } return true; }
