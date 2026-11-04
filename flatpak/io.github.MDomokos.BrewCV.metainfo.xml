@@ -25,6 +25,7 @@
   <!-- TODO: Flathub requires at least one screenshot. Add a <screenshots> block with <image> URLs once real, hosted
        screenshots exist (for example committed under docs/ and linked by a tagged raw URL). None are invented here. -->
   <releases>
+    <release version="1.9.1" date="2026-11-04"/>
     <release version="1.9.0" date="2026-11-04"/>
     <release version="1.8.3" date="2026-11-03"/>
     <release version="1.8.2" date="2026-11-03"/>

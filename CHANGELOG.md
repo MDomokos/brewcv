@@ -7,6 +7,16 @@
 - **Look and Settings are easier to scan:** one heading style, each setting's label beside its control, tea or coffee and light or dark as switches, and the longer help in tooltips.
 - **Career's Whole career and Its picks are told apart better:** Whole career sits in the name card's corner, Its picks is part of the card, and the chosen one is underlined.
 - **The sidebar panel keeps a gap above the bar at its foot.**
+- **The Library's list reads like a file manager:** one line per resume, its languages in a column, rounds as labelled folders, and attached files marked by type.
+- **Resumes sort by date, and every round starts open** unless you fold it. A round's Archive is a small icon.
+- **A version's list of resumes is one resume a line, role first.** Hover one to see its page; click it to open that resume at the same line, and Back returns you.
+- **When the line you edit leaves the view, the string lets go** and a chip at the edge takes you back to it.
+- **Messages appear above the bar at the sidebar's foot,** in the app's own colours, and never cover the page.
+- **The garden stays behind the cards** on Resumes and Career.
+- **Resumes and Career are each one pane:** the search and tools stay at the top, the list scrolls under them, and the list's column names stay in view.
+- **Buttons in one row are one height,** and the panes line up with the sidebar at the top and at the foot.
+- **You can close a resume** from its name card to have none open. Undo reopens it.
+- **An archived round comes back from the end of the list,** and its own Unarchive button says so.
 
 ### Fixed
 - **Text fields have the theme's rounded corners** everywhere in Tea.
