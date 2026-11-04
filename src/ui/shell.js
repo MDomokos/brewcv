@@ -600,7 +600,8 @@ async function jumpTo(rid, sel){
 function remember(){ if (!routing && ui.ready && ui.view !== 'welcome' && location.hash !== hashOf()) history.pushState(null, '', hashOf()); }
 function route(){
   const s = history.state;
-  if (s?.rid && s.rid !== store.state.openId && ui.view === null && ui.ready){ routing = true; openLine(s.rid, s.sel).finally(() => { routing = false; }); return; }
+  // refused (a line is being written): the address names the open resume again
+  if (s?.rid && s.rid !== store.state.openId && ui.view === null && ui.ready){ routing = true; openLine(s.rid, s.sel).then(ok => { if (!ok) history.pushState({ rid: store.state.openId, sel: lineOf() }, '', hashOf()); }).finally(() => { routing = false; }); return; }
   const v = { '#resumes': 'resumes', '#compare': screens.canCompare() ? 'compare' : 'resumes', '#record': 'record' }[location.hash] ?? null;
   if (ui.view === 'welcome' || (v === null && !SCREENS.includes(ui.view)) || v === ui.view) return;
   routing = true; try { setView(v); } finally { routing = false; }

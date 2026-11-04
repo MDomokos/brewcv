@@ -605,7 +605,7 @@ function versionsX(id){
     pend: pendOf(id, L, ed), earlier: earlierRows(id, L, ed),
     m: work(), fact: id, lang: L, full: document.body.dataset.phone !== 'true',     // every version in full, with what differs marked (the phone's sheet keeps the gist)
     vs, using, folded: folded(id), over: overrideOf(id), parked: cur().parked?.[id]?.text, ed, writing,
-    compare: E.compare, openMinor: E.openMinor, lines: linesOf, uses: usesOf(id), useOpen: E.useOpen,
+    compare: E.compare, openMinor: E.openMinor, lines: linesOf, uses: usesOf(id), openId: C.store.state.openId, useOpen: E.useOpen,
     dirty: isDirty() && !!ed && ed.draft.trim() !== '', canOnly: !!(T.jobOfFact(rec(), id, cur()) || id === cur().summary),
     ref: C.chooseVariant(work(), id, { ...cur(), lang: DEFAULT_LANG }).v ?? en[0],
     wi: writeInX(id),
@@ -842,15 +842,15 @@ function saveEdit(kind){
 }
 
 // Resting on a resume in a version's list shows its page small, the version's words marked (no touch: a tap opens it).
-let usePv = null, useT = 0;
+let usePv = null, useT = 0, useQuiet = 0;      // useQuiet: no peek for a moment after a jump, the pointer rests on the new list
 function hideUsePeek(){ clearTimeout(useT); usePv?.remove(); usePv = null; }
 function showUsePeek(b){
   hideUsePeek();
-  const rid = b.dataset.rid, vid = b.closest('.vuse')?.dataset.v, r = C.store.state.resumes.find(x => x.id === rid), recipe = r && rid !== C.store.state.openId && C.heldRecipe(rid);      // not the open one: it is the page
+  const rid = b.dataset.rid, vid = b.closest('.vuse')?.dataset.v, r = C.store.state.resumes.find(x => x.id === rid), recipe = r && C.heldRecipe(rid);
   if (!recipe) return;
   const { w, h } = pageSize(r.format), W = 230, H = Math.round(W * h / w), c = b.getBoundingClientRect();
   const el = document.createElement('div'); el.className = 'vusepv'; el.setAttribute('aria-hidden', 'true');
-  el.style.cssText = `width:${W}px;height:${H}px;left:${Math.max(8, c.left > innerWidth / 2 ? c.left - 12 - W : c.right + 12)}px;top:${Math.max(8, Math.min(innerHeight - H - 8, c.top - H / 3))}px`;
+  el.style.cssText = `width:${W}px;height:${H}px;left:${Math.max(8, ($('#body')?.getBoundingClientRect().left ?? c.left) - 12 - W)}px;top:${Math.max(8, Math.min(innerHeight - H - 8, c.top - H / 3))}px`;
   document.body.append(el); usePv = el;
   C.thumbEntry(recipe).then(e => {
     if (!e || usePv !== el) return;
@@ -865,7 +865,7 @@ function showUsePeek(b){
 async function act(a, tg){
   const s = { id: fid() }, sel = C.ui.sel;     // s: the claim open; sel: what the Resume has selected (a section, for the cases below)
   switch (a){
-    case 'vuse-open': hideUsePeek(); await C.jumpTo(tg.dataset.rid, C.ui.sel); return true;
+    case 'vuse-open': hideUsePeek(); useQuiet = Date.now() + 1000; await C.jumpTo(tg.dataset.rid, C.ui.sel); return true;
     case 'edit': startEdit(null, tg?.dataset?.v ?? null); return true;
     case 'job-details': {      // the card's link: the job's own fields (dates, links) are in the Details fold below its lines
       const d = $(`#body details[data-det="${CSS.escape(tg.dataset.job)}"]`);
@@ -1112,7 +1112,7 @@ function bind(body){
   }, true);
   body.addEventListener('click', e => { if (e.target.closest?.('.cpop [data-act]')) setTimeout(closeTop); });
   // which saved resumes print a version: folded until asked, and kept open across redraws
-  body.addEventListener('pointerover', e => { const b = e.target.closest?.('.vuseb'); if (b && e.pointerType !== 'touch' && !b.contains(e.relatedTarget)){ clearTimeout(useT); useT = setTimeout(() => showUsePeek(b), 250); } });
+  body.addEventListener('pointerover', e => { const b = e.target.closest?.('.vuseb'); if (b && e.pointerType !== 'touch' && Date.now() > useQuiet && !b.contains(e.relatedTarget)){ clearTimeout(useT); useT = setTimeout(() => showUsePeek(b), 250); } });
   body.addEventListener('pointerout', e => { const b = e.target.closest?.('.vuseb'); if (b && !b.contains(e.relatedTarget)) hideUsePeek(); });
   body.addEventListener('toggle', e => { const d = e.target; if (d.classList?.contains('vuse')) E.useOpen[d.open ? 'add' : 'delete'](d.dataset.v); }, true);
   body.addEventListener('focusout', e => {

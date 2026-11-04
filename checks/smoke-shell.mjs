@@ -2222,6 +2222,7 @@ if (want('a version says which saved resumes print it')) {
   await page.hover(`#body .vrow.cur .vuseb[data-rid="${other?.rid}"]`); await page.waitForSelector('.vusepv iframe', { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(300);
   ok('resting on a row shows that resume\'s page with the line marked', await page.evaluate(() => { const f = document.querySelector('.vusepv iframe'); return !!f && /#ffe27a/.test(f.srcdoc) && f.srcdoc.includes('data-variant="' + document.querySelector('#body .vrow.cur details.vuse').dataset.v + '"'); }));
+  ok('the peek stays left of the card, and the open resume\'s own row is muted text, not a button', await page.evaluate(() => document.querySelector('.vusepv').getBoundingClientRect().right <= document.querySelector('#body').getBoundingClientRect().left && /this resume/.test(document.querySelector('#body .vrow.cur li.this')?.textContent ?? '') && !document.querySelector('#body .vrow.cur li.this button')));
   await page.click(`#body .vrow.cur .vuseb[data-rid="${other?.rid}"]`); await settle(page); await page.waitForTimeout(500);
   const second = await page.evaluate(() => ({ id: window.__wb.store.state.openId, sel: window.__wb.ui.sel.id, hash: location.hash }));
   ok('a click opens that resume with the same line selected', second.id === other?.rid && second.sel === first.sel && !(await page.$('.vusepv')), JSON.stringify([first, second]));

@@ -83,7 +83,7 @@ const FLAG = { 'needs-review': () => [t('wb.review'), t('wb.reviewTip')], import
 function vtags(v, x){
   const flags = R.flagsOf(v).map(f => { const [label, tip] = FLAG[f](v); return `<span class="tag flag" title="${esc(tip)}">${esc(label)}</span>`; }).join('');
   const names = x.uses?.get(v.id) ?? [];
-  const use = names.length ? `<details class="vuse" data-v="${esc(v.id)}"${x.useOpen?.has(v.id) ? ' open' : ''}><summary data-act="vuse">${h('use.count', { n: names.length })}</summary><ul class="vuses">${names.map(n => `<li><button type="button" class="vuseb" data-act="vuse-open" data-rid="${esc(n.id)}" title="${esc(n.name)}">${esc(n.name)}</button></li>`).join('')}</ul></details>` : '';
+  const use = names.length ? `<details class="vuse" data-v="${esc(v.id)}"${x.useOpen?.has(v.id) ? ' open' : ''}><summary data-act="vuse">${h('use.count', { n: names.length })}</summary><ul class="vuses">${names.map(n => n.id === x.openId ? `<li class="this">${esc(n.name)} ${h('use.this')}</li>` : `<li><button type="button" class="vuseb" data-act="vuse-open" data-rid="${esc(n.id)}" title="${esc(n.name)}">${esc(n.name)}</button></li>`).join('')}</ul></details>` : '';
   return flags || use ? `<div class="vtags">${flags}${use}</div>` : '';
 }
 
