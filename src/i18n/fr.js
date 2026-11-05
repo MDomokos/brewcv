@@ -2032,4 +2032,7 @@ export default {
   'cv.addProfile': '+ Profil',
   'cv.undoProfile': 'Modifier un profil',
   'cv.firstEntry': 'Première entrée',
+  'cv.markRead': 'Marquer comme lu',
+  'cv.markReadTip': 'Un locuteur natif a relu cette formulation',
+  'cv.undoMarkRead': 'Marquer une formulation comme lue',
 };

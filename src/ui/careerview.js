@@ -147,7 +147,7 @@ function fanHtml(id, text, lang, mode){
     out += `<div class="ce-cmp">${h('cv.wordingsIn', { n: vs.length, lang: lname(lang) })}</div>`;
     out += vs.map((v, i) => {
       const e = { kind: 'edit', fact: id, vid: v.id }, ed = isEd(e), mine = v.id === thisId;
-      const sub = `${f?.default?.[lang] === v.id ? `<span class="ce-vd">${h('cv.default')}</span>` : ''}${(v.tags ?? []).includes('needs-review') ? `<span class="ce-vd">${h('cv.review')}</span>` : ''}`;
+      const sub = `${f?.default?.[lang] === v.id ? `<span class="ce-vd">${h('cv.default')}</span>` : ''}${(v.tags ?? []).includes('needs-review') ? `<span class="ce-vd">${h('cv.review')}</span><button type="button" class="ce-tb ce-read" data-act="cv-read" data-v="${esc(v.id)}" title="${esc(t('cv.markReadTip'))}">${h('cv.markRead')}</button>` : ''}`;
       const body = ed ? `${ta(e, one(v.text), '')}<div class="cva">${btn('save', h('cv.save'), 'data-m="over"', 'pri')}${btn('save', h('cv.saveAsNew'), 'data-m="as"')}${btn('cancel', h('btn.cancel'), '', 'ghost')}</div>`
         : `<div class="cvt">${i ? diff(v.text, vs[0].text) : esc(one(v.text))}</div>`;
       const act = ed ? '' : `<div class="cvact">${canUse ? `<label class="ce-use" title="${esc(t(mine ? 'cv.usePrinted' : 'cv.useTip'))}"><input type="radio" class="cb press" data-tier="tertiary" name="ce-use-${esc(id)}" data-act="cv-use" data-f="${esc(id)}" data-v="${esc(v.id)}"${mine ? ' checked' : ''}>${h('cv.use')}</label>` : ''}<button type="button" class="ce-tb" data-act="cv-edit" data-f="${esc(id)}" data-v="${esc(v.id)}">${h('cv.edit')}</button></div>`;
@@ -920,6 +920,7 @@ async function act(a, tg){
     case 'cv-newline': solo(d.g); S.editing = { kind: 'line', entry: d.g }; S.focus = '#ce-ta'; draw(); return true;
     case 'cv-save': saveWording(tg); return true;
     case 'cv-cancel': if (S.editing){ S.drafts.delete(ekey(S.editing)); S.editing = null; } else if (d.f){ S.drafts.delete(`write:${d.f}:`); S.fan.delete(d.f); } draw(); return true;
+    case 'cv-read': commit(x => { R.clearFlag(x.record, d.v, 'needs-review'); }, t('cv.undoMarkRead')); draw(); return true;
     case 'cv-use': commit(x => T.pickVersion(x.record, x.cur, d.f, d.v), t('undo.useVersion', { n: rec().variants.find(v => v.id === d.v)?.n ?? '?' }), t('cv.nowPrints')); draw(); return true;
     case 'cv-tick': keepScroll(() => commit(x => T.setBulletOn(x.record, x.cur, d.f, tg.checked), t(tg.checked ? 'cv.undoLineOn' : 'cv.undoLineOff'))); draw(); return true;
     case 'cv-itick': keepScroll(() => commit(x => T.setItemOn(x.record, x.cur, d.id, tg.checked), t(tg.checked ? 'cv.undoItemOn' : 'cv.undoItemOff'))); draw(); return true;

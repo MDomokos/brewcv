@@ -1554,3 +1554,7 @@ html[data-drink="coffee"] #mat { background-color: var(--canvas); background-ima
 /* nothing open: Content, Look (and a phone's tabs) wait; the name card says so, muted */
 .modes [role=tab][aria-disabled=true] { opacity: .45; cursor: default; }
 #head .docname.is-none { color: var(--muted); cursor: default; }
+
+/* Mark as read, beside a version's review tag: a text action */
+.vtags .vread { border: 0; background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; box-shadow: none; }
+.vtags .vread:hover { color: var(--accent-ink, var(--ink)); }

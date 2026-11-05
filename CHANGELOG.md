@@ -16,6 +16,7 @@
 - **The timeline's two lanes keep their own time:** an open card no longer pushes the other lane down.
 - **The pencil sits right after the name it edits,** and a section's heading stays on one line.
 - **Career's top fade grows with the scroll** instead of appearing at once.
+- **Mark as read** clears a machine-made wording's review mark; saving your own edit over it clears it too.
 
 ### Fixed
 - **A place tab's name shows whole or not at all** while the tabs change, never cut short.

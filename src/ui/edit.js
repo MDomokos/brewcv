@@ -857,6 +857,7 @@ function showUsePeek(b){
 async function act(a, tg){
   const s = { id: fid() }, sel = C.ui.sel;     // s: the claim open; sel: what the Resume has selected (a section, for the cases below)
   switch (a){
+    case 'v-read': commit(d => { R.clearFlag(d.record, tg.dataset.v, 'needs-review'); }, tr('cv.undoMarkRead')); return true;      // a native speaker has read the machine-made wording
     case 'vuse-open': hideUsePeek(); useQuiet = Date.now() + 1000; await C.jumpTo(tg.dataset.rid, C.ui.sel); return true;
     case 'edit': startEdit(null, tg?.dataset?.v ?? null); return true;
     case 'job-details': {      // the card's link: the job's own fields (dates, links) are in the Details fold below its lines

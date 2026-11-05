@@ -2032,4 +2032,7 @@ export default {
   'cv.addProfile': '+ Profil',
   'cv.undoProfile': 'Zmiana profilu',
   'cv.firstEntry': 'Pierwszy wpis',
+  'cv.markRead': 'Oznacz jako przeczytane',
+  'cv.markReadTip': 'Rodzimy użytkownik języka przeczytał to sformułowanie',
+  'cv.undoMarkRead': 'Oznaczenie sformułowania jako przeczytanego',
 };

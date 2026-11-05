@@ -2032,4 +2032,7 @@ export default {
   'cv.addProfile': '+ Profil',
   'cv.undoProfile': 'Změna profilu',
   'cv.firstEntry': 'První položka',
+  'cv.markRead': 'Označit jako přečtené',
+  'cv.markReadTip': 'Rodilý mluvčí tuto formulaci přečetl',
+  'cv.undoMarkRead': 'Označení formulace jako přečtené',
 };

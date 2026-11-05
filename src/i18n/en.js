@@ -2037,4 +2037,7 @@ export default {
   'cv.addProfile': '+ Profile',
   'cv.undoProfile': 'Change a profile',
   'cv.firstEntry': 'First entry',
+  'cv.markRead': 'Mark as read',
+  'cv.markReadTip': 'A native speaker has read this wording',
+  'cv.undoMarkRead': 'Mark a wording as read',
 };

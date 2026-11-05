@@ -658,5 +658,19 @@ section('highlights written by hand: whole words, added, joined and cleared');
   ok('browser offsets and code points are told apart (an emoji is two of one and one of the other)', MK.cpOf(em, 4) === 3 && MK.u16Of(em, 3) === 4);
 }
 
+section('a machine-made wording, read by a person');
+{
+  const m = clone(example);
+  const v = m.variants.find(x => (x.tags ?? []).includes('needs-review'));
+  ok('clearFlag takes the flag off, once', R.clearFlag(m, v.id, 'needs-review') === true && !R.flagsOf(m.variants.find(x => x.id === v.id)).includes('needs-review') && R.clearFlag(m, v.id, 'needs-review') === false);
+  ok('…and refuses a version that is not there', throws(() => R.clearFlag(m, 'no-such-version', 'needs-review')));
+  const m2 = clone(example), w = m2.variants.find(x => (x.tags ?? []).includes('needs-review'));
+  R.saveOver(m2, w.id, `${w.text} (read)`);
+  ok('saving over a machine-made wording clears its flag: the person has read and changed it', !m2.variants.find(x => x.id === w.id).tags.includes('needs-review'));
+  const m3 = clone(example), u = m3.variants.find(x => (x.tags ?? []).includes('needs-review')), f = m3.facts.find(x => x.variants.includes(u.id));
+  const nv = R.addVersion(m3, f.id, { text: `${u.text} (mine)`, from: u.id, as: 'minor' });
+  ok('a version saved as new from it carries no flag, and the original keeps its own', !nv.tags.includes('needs-review') && m3.variants.find(x => x.id === u.id).tags.includes('needs-review'));
+}
+
 console.log(failed ? `\n${failed} edit check(s) FAILED` : '\nall edit checks passed');
 process.exit(failed ? 1 : 0);

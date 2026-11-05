@@ -959,3 +959,6 @@ body:not([data-phone=true]) #head .docname.is-file { flex-direction: column; gap
 .scr .ce-bands.ce-flow .ce-lane:first-child > .ce-card { position: absolute; left: var(--ce-l0); margin: 0; box-sizing: border-box; }
 .scr .ce-bands.ce-flow .ce-lane:last-child > .ce-card { position: absolute; left: var(--ce-l1); margin: 0; box-sizing: border-box; }
 .scr .ce-bands.ce-flow::after { content: ""; position: absolute; left: var(--ce-rx, 0px); top: 0; bottom: 0; border-left: 2px dotted var(--line-strong); pointer-events: none; }
+
+/* Mark as read: beside a machine-made wording's review mark; a text action, not a tag */
+.scr .ce-read { height: auto; padding: 0; font-size: 11px; justify-self: start; }

@@ -2032,4 +2032,7 @@ export default {
   'cv.addProfile': '+ Profil',
   'cv.undoProfile': 'Profil módosítása',
   'cv.firstEntry': 'Első bejegyzés',
+  'cv.markRead': 'Elolvasottnak jelölés',
+  'cv.markReadTip': 'Anyanyelvi beszélő elolvasta ezt a megfogalmazást',
+  'cv.undoMarkRead': 'Megfogalmazás elolvasottnak jelölése',
 };

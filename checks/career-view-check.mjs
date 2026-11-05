@@ -16,6 +16,7 @@
 //   - the lanes keep their own time: a tall open card on the left does not move the right lane; with every card open each lane is in order;
 //   - the top fade's strength follows the scroll (none at the top, full past the toolbar's height and 16px), and runs from the toolbar's top edge, through its corners, to just under its foot;
 //   - every kind of field reads at 4.5:1 on its surface in Career and the Editor's About you; the month picker's months and field too, in Career and in Mark as sent, Tea dark and Coffee light;
+//   - Mark as read takes a machine-made wording's review flag off, one undo step, and Ctrl+Z puts it back;
 //   - under 860px the timeline is one column.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
 
@@ -236,6 +237,17 @@ async function pixels(ctx, png){
   const lanesOk = await page.evaluate(() => { const lane = k => [...document.querySelectorAll(`#scr .ce-card.k${k}`)].map(c => c.getBoundingClientRect()); const ok = rs => rs.every((r, i) => !i || r.top >= rs[i - 1].bottom - 1); return ok(lane(1)) && ok(lane(2)); });
   ok('with every card open, each lane keeps its cards in time order, none over another', lanesOk);
   await page.keyboard.press('Escape'); await settle(page);
+
+  // a machine-made wording can be marked as read, in Career, as one undo step
+  await page.evaluate(() => document.getElementById('scr').scrollTo(0, 0)); await page.click('#body .ce-chip[data-l=de]'); await settle(page);
+  await page.click('#scr .ce-about .ce-ap.tg'); await settle(page);
+  const flagged = () => page.evaluate(() => (window.__wb.store.state.record.variants.find(v => v.id === 'tagline-v1-de')?.tags ?? []).includes('needs-review'));
+  const rf0 = await flagged(), u3 = await undo();
+  await page.click('#scr .ce-abfan [data-act=cv-read][data-v=tagline-v1-de]'); await settle(page);
+  ok('Mark as read takes a machine-made wording\u2019s review flag off, one undo step, and the mark goes', rf0 && !(await flagged()) && (await undo()) === u3 + 1 && !(await page.$('#scr .ce-abfan [data-act=cv-read][data-v=tagline-v1-de]')));
+  await page.keyboard.press('Control+z'); await settle(page);
+  ok('…and Ctrl+Z puts it back', await flagged());
+  await page.keyboard.press('Escape'); await page.click('#body .ce-chip[data-l=en]'); await settle(page);
 
   // a narrow card under the open resume's picks: the hover "+ Add" and "On this resume" both show
   await page.evaluate(() => document.querySelector('#scr .ce-box[data-ce-sec=languages]').scrollIntoView({ block: 'center' }));
