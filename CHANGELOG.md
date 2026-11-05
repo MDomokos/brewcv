@@ -1,9 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.10.1 - 2026-11-05
 
-### Changed
-- **The tea garden is livelier and lighter.** Its leaves and creatures keep their size against the page on any screen, come and go wholly off it, and share one light with the page. A snail that comes out after rain, leaves a trail, draws in its eyes as you near and hides in its shell at a touch; a ladybug that flies off; and leaves that flutter when brushed, ride the page as it zooms, and blow off it in a puff from your click or typing.
+### Tea garden
+- **Everything in the garden is drawn to the page's scale,** so leaves and creatures keep their size on any screen.
+- **One light for the whole garden:** every shadow falls the way the page's own does, and a leaf on top of another casts a soft shadow on it.
+- **Leaves rest more naturally:** they overlap a little instead of pushing each other, flutter gently when brushed, and fade into the mat by colour while you work.
+- **A click or a key is a puff of air** that blows the leaves off every page, each by its own side, never across the next page.
+- **Leaves on the page ride along as it zooms,** and nothing vanishes while it is still in view.
+- **A snail comes out after rain:** it meanders and turns in curves, leaves a glistening trail, and never crawls onto the page.
+- **The snail draws in its eyes as you come near and hides in its shell at a touch;** shut, it can be nudged, and it peeks out eyes first.
+- **A startled ladybug flies off,** and the butterfly is smaller, with its antennae under its wings.
+- **Showers are a little heavier,** and the garden spans the whole window, under the sidebar too.
 
 ## 1.10.0 - 2026-11-05
 
