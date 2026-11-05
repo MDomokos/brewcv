@@ -43,7 +43,7 @@ const PROBE = `(() => {
   const textRects = el => { const out = [], w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());){ if (!n.nodeValue.trim() || n.parentElement.closest('.sr, .wtab:not(.is-on) .ww, .nw-flex > i')) continue; const g = document.createRange(); g.selectNodeContents(n); out.push(...g.getClientRects()); } return out; };
   const out = { covered: [], overlap: [], clipped: [], name: {}, items: 0 };
   const scope = ['#rail', '#ptabs', '#head', '#switcher'].map(s => document.querySelector(s)).filter(e => e && vis(e));
-  const low = document.querySelector('#switcher .nw-low')?.getBoundingClientRect();      // the lower layer scrolls by design: what it has scrolled out of sight is not on the screen
+  const low = document.querySelector('#switcher .nw-low')?.getBoundingClientRect();      // the lower layer scrolls by itself: what it has scrolled out of sight is not on the screen
   const clipped = el => { if (!low || !el.closest('.nw-low')) return false; const r = el.getBoundingClientRect(); return r.top < low.top - 0.5 || r.bottom > low.bottom + 0.5; };
   const controls = [...document.querySelectorAll('#rail button, #ptabs button, #head button, #head [tabindex], #switcher button, #switcher input, #switcher select')].filter(vis).filter(e => !clipped(e));
   out.items = controls.length;
