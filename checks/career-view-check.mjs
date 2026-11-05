@@ -18,7 +18,7 @@
 //   - every kind of field reads at 4.5:1 on its surface in Career and the Editor's About you; the month picker's months and field too, in Career and in Mark as sent, Tea dark and Coffee light;
 //   - the sidebar's map: a mark per wording in the language read (German: 17 to write, 13 to review), fitting at 1440x860; a mark opens
 //     that line's editor in that language, a name its card in the selection ring; the switch is segments to four languages, a list from five,
-//     none for one;
+//     none for one; one shape marks the row of the card over a reading line a third down, and a quick scroll back leaves it;
 //   - Mark as read takes a machine-made wording's review flag off, one undo step, and Ctrl+Z puts it back;
 //   - under 860px the timeline is one column.
 // Chromium through Playwright (PW_BUNDLED=1, or CHROME_PATH); writes nothing.
@@ -285,6 +285,16 @@ async function pixels(ctx, png){
   ok('in German the map shows 17 to write and 13 to review, as its status line and the switch say', de.write === 17 && de.review === 13 && de.status === 'Deutsch: 17 to write · 13 to review' && /17/.test(de.opt), JSON.stringify(de));
   ok('the map’s group headings are plain labels', de.heads.length === 4 && de.heads.every(p => p === 'none'));
   ok('the map fits at 1440×860 with the example career: nothing scrolls', de.fits, JSON.stringify(de));
+  // the in-view row: one shape that ends on the row of the card over the reading line (a third down Career), and stays on a quick scroll back
+  const shown = () => page.evaluate(() => { const h = document.querySelector('#body .ce-hl.on'), y = h && new DOMMatrix(getComputedStyle(h).transform).m42; return { n: document.querySelectorAll('#body .ce-hl').length, row: [...document.querySelectorAll('#body .mprow')].find(r => h && Math.abs(r.offsetTop - y) < 1)?.dataset.ol ?? null }; });
+  const card = await page.evaluate(() => { const s = document.getElementById('scr'), c = document.querySelectorAll('#scr .ce-doc [data-ce-card]')[2]; s.scrollTop += c.getBoundingClientRect().top - (s.getBoundingClientRect().top + s.clientHeight / 3) + 12; return c.dataset.ceCard; });
+  await page.waitForTimeout(400);
+  const at = await shown();
+  ok('scrolled to a card, the one highlight ends on its row in the map', at.n === 1 && at.row === card, JSON.stringify({ card, ...at }));
+  const moves = await page.evaluate(() => new Promise(r => { const s = document.getElementById('scr'), seen = []; const mo = new MutationObserver(() => seen.push(document.querySelector('#body .mprow.is-cur')?.dataset.ol)); mo.observe(document.getElementById('body'), { subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+    s.scrollBy(0, 320); setTimeout(() => s.scrollBy(0, -320), 40); setTimeout(() => { mo.disconnect(); r(seen); }, 400); }));
+  ok('a quick scroll down and back within 80ms leaves the highlight where it was, never moving', moves.every(k => k === card) && (await shown()).row === card, JSON.stringify(moves));
+  await page.evaluate(() => document.getElementById('scr').scrollTo(0, 0)); await page.waitForTimeout(300);
   // a mark: that line's editor, in German
   const target = await page.evaluate(() => { const b = document.querySelector('#body .ce-map .mk.write[data-f]:not([data-f=""])'); return { f: b.dataset.f, g: b.dataset.g }; });
   await page.click(`#body .ce-map .mk.write[data-f="${target.f}"]`); await settle(page);

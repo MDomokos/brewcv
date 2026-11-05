@@ -661,7 +661,7 @@ function mapHtml(){
   const parts = [nw && t('cv.nToWrite', { n: nw }), nr && t('cv.nToReview', { n: nr })].filter(Boolean).join(' · ');
   const many = languages().length > 1;
   const status = !parts ? (many ? t('cv.everythingWritten', { lang: lname(lang) }) : '') : many ? `${lname(lang)}: ${parts}` : parts;
-  return `${status ? `<p class="ce-status">${esc(status)}</p>` : ''}<nav class="ce-map" aria-label="${esc(t('cv.mapLabel'))}">${grp(h('cv.aboutYou'), about)}${main.length ? grp(h('career.colMain'), main.join('')) : ''}${side.length ? grp(h('career.colSide'), side.join('')) : ''}${grp(h('cv.skillsCreds'), secs)}</nav>`;
+  return `${status ? `<p class="ce-status">${esc(status)}</p>` : ''}<nav class="ce-map" aria-label="${esc(t('cv.mapLabel'))}"><i class="ce-hl" aria-hidden="true"></i>${grp(h('cv.aboutYou'), about)}${main.length ? grp(h('career.colMain'), main.join('')) : ''}${side.length ? grp(h('career.colSide'), side.join('')) : ''}${grp(h('cv.skillsCreds'), secs)}</nav>`;
 }
 // the career file, at the foot: what it holds, when it was saved, and its two ways out
 function fileStats(){
@@ -672,14 +672,43 @@ function fileStats(){
 const fileCard = () => `<div class="ce-file"><div class="ce-fh"><b>career.json</b><span class="ce-fb"><button type="button" class="sm press" data-tier="secondary" data-act="cv-filemenu" aria-haspopup="menu" aria-expanded="false">${h('ux2.modeExport')}</button><button type="button" class="sm press" data-tier="secondary" data-act="cv-file" data-v="copy">${h('cv.copyAiShort')}</button></span></div><small>${fileStats()}</small></div>`;
 // a save since the last draw: the stats line says when
 function saved(){ const n = document.querySelector('#body .ce-file small'); if (n && C.ui.view === 'record') n.innerHTML = fileStats(); }
-// the in-view entry's row is tinted, so the map says where the scroll is
+// The row of the card in view is tinted by one shape that slides to it: "in view" is the card over a reading line a third down Career, so a
+// tall card holds it while it is read. It moves once the new card has held the line for a moment; a scroll back before then leaves it.
+const HOLD_MS = 120;
+const hl = { key: null, from: null, want: null, timer: 0, until: 0 };
+function inView(sc){
+  const top = sc.getBoundingClientRect().top, y = top + sc.clientHeight / 3, els = [...sc.querySelectorAll('.ce-doc #ce-about, .ce-doc [data-ce-card], .ce-doc .ce-box[id]')];
+  const key = el => el.dataset.ceCard ?? el.id;
+  if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2){ const all = sc.querySelectorAll('.ce-doc .ce-box[id]'); if (all.length) return all[all.length - 1].id; }
+  const over = els.filter(el => { const r = el.getBoundingClientRect(); return r.top <= y && r.bottom > y; });
+  if (over.length) return key(over.find(el => key(el) === hl.key) ?? over[0]);      // two lanes over the line: the one already shown keeps it
+  let best = null, bt = -1e9;
+  for (const el of els){ const t = el.getBoundingClientRect().top; if (t <= y && t > bt){ bt = t; best = key(el); } }
+  return best ?? 'ce-about';
+}
+function hlTo(key, slide){
+  const list = document.querySelector('#body .ce-map'), sh = list?.querySelector('.ce-hl'), row = list && [...list.querySelectorAll('.mprow')].find(r => r.dataset.ol === key);
+  hl.key = key;
+  for (const r of list?.querySelectorAll('.mprow') ?? []) r.classList.toggle('is-cur', r === row);
+  if (!sh || !row) return;
+  sh.classList.toggle('slide', !!slide && sh.classList.contains('on') && !reduced());
+  void sh.offsetWidth;      // the place it slides from is laid out first
+  sh.style.transform = `translateY(${row.offsetTop}px)`; sh.style.height = `${row.offsetHeight}px`;
+  sh.classList.add('on');
+}
 function spy(){
-  const sc = pane(), list = document.querySelector('#body .ce-map'); if (!sc || !list || C.ui.view !== 'record') return;
-  const y = sc.getBoundingClientRect().top + 90; let best = null, bt = -1e9;
-  for (const el of sc.querySelectorAll('.ce-doc #ce-about, .ce-doc [data-ce-card], .ce-doc .ce-box[id]')){ const top = el.getBoundingClientRect().top; if (top <= y && top > bt){ bt = top; best = el.dataset.ceCard ?? el.id; } }
-  if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2){ const all = sc.querySelectorAll('.ce-doc .ce-box[id]'); best = all[all.length - 1]?.id ?? best; }
-  best ??= 'ce-about';
-  for (const r of list.querySelectorAll('.mprow')) r.classList.toggle('is-cur', r.dataset.ol === best);
+  const sc = pane(); if (!sc || !document.querySelector('#body .ce-map') || C.ui.view !== 'record') return;
+  if (!document.querySelector('#body .ce-hl.on') && hl.key){      // the sidebar was drawn again: the shape where it was, sliding on if a row was clicked
+    if (hl.from && hl.from !== hl.key){ const to = hl.key; hlTo(hl.from, false); hlTo(to, true); } else hlTo(hl.key, false);
+  }
+  hl.from = null;
+  if (Date.now() < hl.until) return;      // a row was clicked: it holds while Career glides to its card
+  const want = inView(sc);
+  if (!hl.key){ hlTo(want, false); return; }
+  if (want === hl.key){ clearTimeout(hl.timer); hl.want = null; return; }
+  if (want === hl.want) return;
+  clearTimeout(hl.timer); hl.want = want;
+  hl.timer = setTimeout(() => { hl.want = null; hlTo(want, true); }, HOLD_MS);
 }
 function sideHtml(){
   const k = ctxKind();
@@ -993,7 +1022,8 @@ async function act(a, tg){
     case 'cv-inlcancel': S.inl = null; draw(); return true;
     case 'cv-ctxoff': solo(null); draw(); return true;
     case 'cv-map': {      // the map: a name goes to its card and opens it, a mark to that wording's editor in the language read
-      const f = d.f, g = d.g || null;
+      const f = d.f, g = d.g || null, row = tg.closest('.mprow')?.dataset.ol;
+      if (row){ clearTimeout(hl.timer); hl.want = null; hl.from = hl.key; hl.key = row; hl.until = Date.now() + 1500; whenStill(pane(), () => { hl.until = 0; }); }
       if (f){ solo(g); S.fan.set(f, d.mode); S.ctx = { ...(S.ctx ?? {}), line: f }; S.focus = d.mode === 'write' ? '#ce-ta' : '.ce-doc .ce-fan'; S.reveal = 'here'; }
       else if (d.k){ solo(null); S.secEdit = d.k; S.ctx = { sec: d.k }; S.focus = `.ce-doc [data-ce-sec="${CSS.escape(d.k)}"]`; S.reveal = 'jump'; }
       else if (g){ solo(g); S.focus = `[data-ce-card="${CSS.escape(g)}"]`; S.reveal = 'jump'; }
